@@ -10,13 +10,13 @@ independently in two modules, once unchecked and once checked, with no shared
 helper:
 
 ```ts
-// fjs/text/module.f.mjs:61-62 — unchecked, top module reaching into three modules
+// fjs/text/module.f.mjs, utf8ToString — unchecked, top module reaching into three modules
 export const utf8ToString = msbV =>
     codePointListToString(toCodePointList(u8ListMsb(msbV)))
 
-// fjs/text/utf8/module.f.mjs:299-306 — checked / Nullable, in the utf8 module
+// fjs/text/utf8/module.f.mjs, fromVec — checked / Nullable, in the utf8 module
 export const fromVec = v => {
-    if ((length(v) & 0b111n) !== 0n) { return null }
+    if (!isWholeBytes(v)) { return null }
     const arr = toArray(toCodePointList(u8ListMsb(v)))
     for (const cp of arr) {
         if (!isValidCodePoint(cp)) { return null }
@@ -28,31 +28,43 @@ export const fromVec = v => {
 Both hardcode the same core chain — `u8ListMsb` bit-unpack →
 `toCodePointList` utf8-decode → `codePointListToString` utf16 re-string —
 and `fromVec` merely wraps it with an octet-alignment check and an
-`isValidCodePoint` filter. `fjs/media/module.f.mjs:157-158` even documents that
-its own detector re-proves "the same two conditions `fromVec` checks, via the
-same decoder" — evidence the pipeline is being re-derived in several places.
+`isValidCodePoint` filter. `detect` in `fjs/media/module.f.mjs` even documents
+that its own detector re-proves "the same two conditions `fromVec` checks, via
+the same decoder" — evidence the pipeline is being re-derived in several places.
 
 The byte-list level below the `Vec` has the same fan-out, outside `text/`:
 
 ```ts
 // fjs/text/percent/module.f.mjs, utf8Bytes — tryUtf8's inner pipeline, re-derived
 const utf8Bytes = s => toArray(fromCodePointList(stringToCodePointList(s)))
+// fjs/git/refstore/module.f.mjs, nameBytes — the same line again
+const nameBytes = s => toArray(fromCodePointList(stringToCodePointList(s)))
 // fjs/text/percent/module.f.mjs, utf8String — fromVec minus the alignment check, over bytes
 const utf8String = bytes => { /* toCodePointList + isValidCodePoint loop + codePointListToString */ }
-// fjs/effects/common/module.f.mjs:174-175 — utf8ToString's inner pipeline
+// fjs/media/datajs/parser/module.f.mjs, tryParseBytes — the same checked decode, inline
+const codePoints = toArray(toCodePointList(bytes))
+if (!codePoints.every(isValidCodePoint)) { return error(utf8Rule) }
+// fjs/effects/common/module.f.mjs, utf8ListToString — utf8ToString's inner pipeline
 const utf8ListToString = bytes => codePointListToString(toCodePointList(bytes))
 ```
 
-Both modules import the low-level `utf8`/`utf16` primitives directly while
-*also* importing `fjs/text`'s wrapper — reaching past the module whose
-stated job this is. `fjs/effects/node/module.f.mjs:27-29` still imports
-`toCodePointList`, `codePointListToString` and `reverse` and uses none of
-them: the residue of this block having been copied out of `effects/node`
-into `effects/common`.
+These modules import the low-level `utf8`/`utf16` primitives directly, some
+while *also* importing `fjs/text`'s wrapper — reaching past the module whose
+stated job this is. `fjs/effects/node/module.f.mjs` still imports
+`toCodePointList` and `codePointListToString` and uses neither: the residue
+of this block having been copied out of `effects/node` into `effects/common`.
 The unchecked and checked forms also live in *different* modules (top `text`
 vs `text/utf8`), so the `Vec` → string UTF-8 boundary has no single owner.
-Both are real consumers: `utf8ToString` is used by `effects/node`, `djs`,
-`ci`; `fromVec` by `cas/mcp`, `media`.
+Both are real consumers: `utf8ToString` is used by `effects/node`,
+`effects/node/virtual` and `types/uint8array`; `fromVec` by `media`,
+`media/datajs/vectors/matrix`, `cas/evo`, `git/repo` and `git/refstore`.
+
+**The names do not say the direction either.** `text/utf8`'s `fromVec`
+*decodes* — `Vec` to string — while its `fromCodePointList` *encodes*, code
+points to bytes, so `from…` names the input in one and the output's source in
+the other; `git/refstore` imports the two side by side. And
+`types/uint8array`'s `fromVec` means `Vec` to `Uint8Array`, a third reading
+of the same name.
 
 ### Proposal
 
@@ -83,11 +95,17 @@ with every importer updated in the same PR; a re-export left in
 - [ ] Export the byte-list helpers in both directions, beside `fromVec`:
       the decoder pair (unchecked and code-point-validated
       `bytes → string`) replaces `fjs/text/percent`'s `utf8String` and
-      `fjs/effects/common`'s `utf8ListToString`; a byte-list encoder
+      `fjs/effects/common`'s `utf8ListToString` and the inline decode in
+      `fjs/media/datajs/parser`'s `tryParseBytes`; a byte-list encoder
       (`string → bytes`, the inner pipeline of `tryUtf8`) replaces
-      `fjs/text/percent`'s `utf8Bytes`. Then those modules stop importing the
-      utf8/utf16 primitives directly.
-- [ ] Drop the three unused imports at `fjs/effects/node/module.f.mjs:27-29`.
+      `fjs/text/percent`'s `utf8Bytes` and `fjs/git/refstore`'s `nameBytes`.
+      Then those modules stop importing the utf8/utf16 primitives directly.
+- [ ] Name the UTF-8 boundary in one direction: the decoder and encoder in
+      `text/utf8` say which way they go, and `types/uint8array`'s `fromVec`
+      stops sharing a name with a decoder. A renamed export is a declared
+      breaking change (`**BREAKING CHANGES:**`), with every importer updated in
+      the same PR.
+- [ ] Drop the two unused imports in `fjs/effects/node/module.f.mjs`.
 - [ ] `tsc`, `fjs t`.
 
 ### Related
@@ -95,5 +113,5 @@ with every importer updated in the same PR; a re-export left in
 - [../../todo/190-text-code-unit-string-boundary.md](../../todo/190-text-code-unit-string-boundary.md) — single-character
   `String.fromCharCode`/`codePointAt` boundary; this is the whole-`Vec`
   pipeline, a different layer.
-- `fjs/media/module.f.mjs:155-159` — the detector's documented re-proof of
+- `fjs/media/module.f.mjs`, `detect` — the detector's documented re-proof of
   `fromVec`'s checks; a cleaner shared decode API may simplify it.

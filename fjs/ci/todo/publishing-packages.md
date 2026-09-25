@@ -17,11 +17,13 @@ FunctionalScript can't currently be installed from Git using NPM.
 
 ### Updating packages
 
-`npm run lock-update` reinstalls, syncs `deno.lock`/`bun.lock`/`Cargo.lock`, refreshes every `flake.lock`, and regenerates the CI workflow; dependency version bumps in `package.json` are manual until [replace-npm-check-updates-with-an-internal-script.md](./replace-npm-check-updates-with-an-internal-script.md) lands. The version is the single source of truth in `package.json`. We publish only when a new version appears on `main`. This strategy can also work for Rust packages.
+`npm run lock-update` reinstalls, syncs `deno.lock`/`bun.lock`/`Cargo.lock`, refreshes every `flake.lock`, and regenerates the CI workflow; dependency version bumps in `package.json` are manual until [replace-npm-check-updates-with-an-internal-script.md](./replace-npm-check-updates-with-an-internal-script.md) lands. The version is the single source of truth in `package.json`. We intend to publish only when a new version appears on `main`. This strategy can also work for Rust packages.
 
 ### CI publishing (merge to `main`)
 
-- [x] Check if the version is new, then publish.
+- [ ] Publish only a new version — [publish-only-a-new-version](./publish-only-a-new-version.md).
+      Today the publish step runs on every push and absorbs npm's republish 403
+      with `continue-on-error`.
 
 Package and publish jobs run in CI from a clean checkout. We do not rely on
 packing from a developer working tree, and ignored generated outputs from an

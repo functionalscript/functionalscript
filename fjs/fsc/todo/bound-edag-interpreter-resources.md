@@ -2,12 +2,11 @@
 
 **Priority:** P4
 **Status:** open
-**Blocked by:** [`interpret-edag.md`](./interpret-edag.md)
 
 ### Problem
 
-The baseline direct EDAG interpreter is intentionally separate from module compilation.
-Once that interpreter exists, hostile or simply very large inputs can still consume
+The baseline direct EDAG interpreter, [`fjs/edag/memo`](../../edag/memo/module.f.mjs),
+is intentionally separate from module compilation. Hostile or simply very large inputs can consume
 excessive work or memory, and recursive traversal can overflow the host language call
 stack.
 
@@ -56,7 +55,10 @@ exact allocator byte counts.
 #### Traversal without native-stack dependence
 
 Validation and interpretation must not rely on recursive host calls for EDAG depth.
-Use explicit work stacks/continuations and iterative traversal.
+That rewrite is [stack-safety](../../edag/todo/stack-safety.md)'s, for the
+shared analysis walk every executor reads, and
+[deep-nesting-recursion](./deep-nesting-recursion.md)'s, for the compiler's
+own walks.
 
 Work-stack growth itself must be bounded. Charge/schedule work before bulk-pushing
 arbitrarily many children so a wide or deeply nested EDAG cannot exhaust host memory
@@ -87,8 +89,6 @@ from source/load errors such as `ParseError`.
       compilation/execution operation; do not reset it per imported module.
 - [ ] Define the deterministic instruction/work-step accounting model for module
       processing, validation, and interpretation.
-- [ ] Make validation iterative and independent of the host call stack.
-- [ ] Make interpreter traversal iterative and independent of the host call stack.
 - [ ] Bound explicit validator/interpreter work-stack growth; do not bulk-push
       unbounded child lists before checking the budget.
 - [ ] Define deterministic structure-growth accounting for retained compiler work and
@@ -101,9 +101,9 @@ from source/load errors such as `ParseError`.
 - [ ] Add proofs showing a very large module graph cannot evade the aggregate limit by
       keeping every individual module below a per-module threshold.
 - [ ] Add proofs for instruction-limit and structure-growth-limit exhaustion.
-- [ ] Add deeply nested and very wide EDAG proofs showing validation/interpretation do
-      not throw `RangeError` or exhaust the native stack; they complete or stop
-      through a deterministic limit.
+- [ ] Add very wide EDAG proofs showing validation/interpretation complete or stop
+      through a deterministic limit; the deeply nested proofs are
+      [stack-safety](../../edag/todo/stack-safety.md)'s.
 - [ ] Verify resource limits do not participate in EDAG serialization or hashing.
 - [ ] `tsc`, `fjs test`.
 
@@ -111,6 +111,9 @@ from source/load errors such as `ParseError`.
 
 - [`interpret-edag.md`](./interpret-edag.md) — provides the baseline direct EDAG
   interpreter this TODO hardens.
+- [stack-safety](../../edag/todo/stack-safety.md) and
+  [deep-nesting-recursion](./deep-nesting-recursion.md) — host-stack
+  independence of the analysis walk and of the compiler's own walks.
 - [`compile-modules-to-edag.md`](./compile-modules-to-edag.md) — resolves the source
   module graph to the final EDAG before execution.
 - [`../../../todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md)

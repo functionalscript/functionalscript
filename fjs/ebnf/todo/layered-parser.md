@@ -23,7 +23,7 @@ number, `i` for identifier. All other information (actual value, position, etc.)
 is carried as meta information.
 
 Every layer reuses the same engine, [`../ll1`](../ll1/README.md). The two
-djs layers are the shipped instance: `fjs/fsc/tokenizer` reads code points
+djs layers are the shipped instance: `fjs/js/tokenizer` reads code points
 as tokens through the one-token grammar `fjs/ebnf/lib/js`, the parser
 resumed where the last token ended ([`../ll1`](../ll1/README.md), "A token
 layer resumes the parser"), and `fjs/fsc/parser` reads those tokens as a

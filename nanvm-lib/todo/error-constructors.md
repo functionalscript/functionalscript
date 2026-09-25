@@ -8,23 +8,22 @@
 Every error the VM can throw is built by `"literal".into()` at the throw
 site, with three naming conventions and no shared constructor:
 
-- `src/vm/impls/try_from.rs:3-5` — a file-local
+- `src/vm/impls/try_from.rs` — a file-local
   `fn error<A: IVm, T>() -> Result<T, Any<A>>` returning `"Type Error"`;
-- `src/vm/number_coercion.rs:67` —
+- `src/vm/number_coercion.rs`, `NumberCoercion`'s `bigint` arm —
   `"TypeError: Cannot convert a BigInt value to a number"`;
-- `src/vm/primitive_coercion.rs:8` — a file-local
+- `src/vm/primitive_coercion.rs` — a file-local
   `const CANNOT_CONVERT_TO_PRIMITIVE_VALUE`;
-- `src/vm/numeric.rs:5-6` — a file-local
-  `CANNOT_MIX_NUMBER_AND_BIGINT` constant shared by multiplication and
-  subtraction;
-- `src/vm/bigint/shl.rs:8-12` — a file-local `TOO_LARGE` const plus a
+- `src/vm/numeric.rs` — a file-local
+  `CANNOT_MIX_NUMBER_AND_BIGINT` constant shared by several operators;
+- `src/vm/bigint/shl.rs` — a file-local `TOO_LARGE` const plus a
   `too_large()` wrapper, i.e. one file already invented the missing
   abstraction privately.
 
 Nothing enforces that a thrown value is even TypeError-shaped, and when real
 `Error` objects land (per the ECMAScript references in these files) every
 site must be edited in lockstep. The `shl` message additionally leaks into
-test assertions (`shl.rs:329, 337`), so it is load-bearing with no single
+test assertions (`shl.rs`'s `tests` module), so it is load-bearing with no single
 definition.
 
 ### Proposal

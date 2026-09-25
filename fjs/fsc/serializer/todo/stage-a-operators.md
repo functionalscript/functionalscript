@@ -1,4 +1,4 @@
-## Stage A binary operators, and `~`, have no FunctionalScript spelling yet
+## Stage A and Stage B operators have no FunctionalScript spelling yet
 
 **Priority:** P2
 **Status:** open
@@ -6,7 +6,8 @@
 ### Problem
 
 Stage A of [operators](../../../../spec/todo/2340-operators.md) made the
-eighteen binary operators and `~` reachable from source — the parser, AST
+eighteen binary operators and `~` reachable from source, and Stage B the
+short-circuit `&&`, `||`, `??` and the conditional `?:` — the parser, AST
 and EDAG lowering all accept them — but this writer still only spells
 unary `-`. Every other operator node falls to the `default` case and is
 refused, each by name, with nothing written:
@@ -14,6 +15,10 @@ refused, each by name, with nothing written:
 ```sh
 $ fjs compile in.f.js out.js   # in.f.js: export default 1 + 2;
 out.js - error: a + node
+$ fjs compile in.f.js out.js   # in.f.js: export default 1 && 2;
+out.js - error: a && node
+$ fjs compile in.f.js out.js   # in.f.js: export default 1 ? 2 : 3;
+out.js - error: a ?: node
 ```
 
 That refusal is this module's own documented behavior for a node kind it
@@ -51,6 +56,8 @@ other side does not), the same shape unary `-`'s own spacing rule
       and associativity-correct, in `fjs/fsc/serializer/module.f.mjs`'s
       `entry`.
 - [ ] Add spelling for `~`.
+- [ ] `&& || ??` and `?:`: `??` parenthesized against `&&`/`||`, the
+      conditional right-nested.
 - [ ] New proof coverage: every operator round-trips (`fjs t`'s
       `fjsRoundTrip`-style check, `../../proof.f.mjs`), every precedence
       case that needs parens gets them, and the `-`/`~`-before-`**`
@@ -66,7 +73,11 @@ other side does not), the same shape unary `-`'s own spacing rule
   the precedence ladder (`multiplicativeTail` through `bitwiseOrTail`,
   `powTail`, `unaryOperand`) this writer's parenthesization has to invert.
 - [`spec/todo/2340-operators.md`](../../../../spec/todo/2340-operators.md) —
-  Stage A itself.
+  Stages A and B themselves.
+- [`spec/README.md`](../../../../spec/README.md#operators) — the operators the
+  language accepts, which this writer has to spell back.
+- [call-spelling](./call-spelling.md) — the same gap for calls and method-call
+  chains.
 - [`../../rust/module.f.mjs`](../../rust/module.f.mjs) — the `.rs` output,
   which prints every eager operator already, as `(…)?`; the same gap was
   filed alongside this one and is closed.

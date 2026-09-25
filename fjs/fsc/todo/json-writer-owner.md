@@ -35,7 +35,7 @@ type's `metadata`, `end` and `path` fields together. The type lives in
 command.
 
 **The proofs' dump.** `_stringifyTree`, which
-[157](./157-json-djs-shared-value-machine.md) already routes to
+[157](../../media/json/todo/157-json-djs-shared-value-machine.md) already routes to
 `treeSerialize`.
 
 ### Proposal
@@ -45,10 +45,10 @@ command.
   wording; `jsonText` in the command becomes
   `shared ? noJson('a shared node') : tryStringify(value)`, keeping the one
   refusal that is the compiler's. The walk itself is one instance of the
-  `treeSerialize` shape 157 §2 already wants to unify, so land it as that
+  `treeSerialize` shape 157 already wants to unify, so land it as that
   factory's fallible form rather than a fourth walker.
 - `_errorLocation` moves beside `ParseError`, in `fjs/fsc/parser`, as the
-  type's renderer; [parse-error-location-format](./parse-error-location-format.md)
+  type's renderer; [parse-error-location-format](../../media/json/todo/parse-error-location-format.md)
   then changes the type and its renderer in one module.
 
 The command module is left with routing and the effect chain, which is
@@ -64,10 +64,10 @@ what its doc claims.
 
 ### Related
 
-- [157-json-djs-shared-value-machine.md](./157-json-djs-shared-value-machine.md) —
+- [157-json-djs-shared-value-machine.md](../../media/json/todo/157-json-djs-shared-value-machine.md) —
   counts three walkers; `jsonValue` is a fourth in the same file as the
   third.
-- [parse-error-location-format.md](./parse-error-location-format.md) —
+- [parse-error-location-format.md](../../media/json/todo/parse-error-location-format.md) —
   changes what `ParseError` carries; easier with its renderer beside it.
 - [070-fsc-flags.md](./070-fsc-flags.md) — adds routes to `outputText`,
   which is the job this module should be left with.

@@ -8,7 +8,7 @@
 Three of the four ECMAScript coercion abstract operations each own a module —
 `number_coercion.rs` (ToNumber), `string_coercion.rs` (ToString),
 `primitive_coercion.rs` (ToPrimitive). The fourth, ToNumeric, is an inline
-method body on `Any` (`src/vm/any/mod.rs:162-173`), sitting right after
+method body on `Any` (`Any::to_numeric` in `src/vm/any/mod.rs`), sitting right after
 `to_string`/`to_number`/`to_boolean`, which are one-line `dispatch`
 delegations:
 
@@ -33,7 +33,7 @@ Besides the placement, the `_` arm packs a value it has fully in hand —
 a value already known to be primitive.
 
 The operation already has a second, hand-inlined copy:
-`primitive_to_numeric` in `src/vm/any/relational.rs:66-74` is exactly this
+`primitive_to_numeric` in `src/vm/any/relational.rs` is exactly this
 body minus the leading `to_primitive` call — its own doc comment says it is
 "the non-`BigInt` half of `Any::to_numeric`". The proposed
 `to_numeric(p: Primitive<A>)` is precisely that function; the relational

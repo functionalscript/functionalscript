@@ -15,13 +15,13 @@
 the same skeleton, differing only in the preferred-type constant, the target
 type, and the five primitive-method bodies:
 
-1. **The `any_to_T` wrapper** (`number_coercion.rs:17-32`,
-   `string_coercion.rs:16-31`): `a.to_primitive(Some(PREFERRED))?` followed by
+1. **The `any_to_T` wrapper** (`any_to_number` in `number_coercion.rs`,
+   `any_to_string` in `string_coercion.rs`): `a.to_primitive(Some(PREFERRED))?` followed by
    a hand-written 5-arm `Primitive` match fanning onto the visitor's five
    primitive methods — byte-identical modulo `Number`/`String` and the
    dispatcher struct.
-2. **The reference-type arms** (`number_coercion.rs:70-80`,
-   `string_coercion.rs:68-78`): three byte-identical arms per file —
+2. **The reference-type arms** (`object`, `array` and `function` of
+   `NumberCoercion` and `StringCoercion`): three byte-identical arms per file —
 
    ```rust
    fn object(self, v: Object<A>) -> Self::Result { any_to_number(v.to_any()) }

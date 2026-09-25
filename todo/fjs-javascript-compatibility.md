@@ -85,28 +85,20 @@ work. Source specifiers, resolved module identities and filesystem locations
 must not be conflated. The concrete compiler task is co-located with `fjs/fsc`,
 not duplicated here.
 
-#### Expression grammar — proposed implementation, rule 1
+#### Expression grammar — corrected, rule 1
 
-[PR #2089](https://github.com/functionalscript/functionalscript/pull/2089),
-inspected at head `853faaf88a7adad39460926da58369d87b18691e`, deliberately
-admits a unary expression to the left of exponentiation:
-
-```js
-export default - 2 ** 2; // JavaScript rejects this
-```
-
-**Root-cause correction:** encode ECMAScript's expression categories,
-precedence and early restrictions in the grammar and semantic validation.
-Do not change JavaScript to make an LL(1) production convenient. Test unary
-operators as a class, trivia variants, nesting and the valid alternatives
-`(-2) ** 2` and `-(2 ** 2)`. Extend the gate with logical/nullish operators
-and parameter syntax.
-
-The branch's original lack-of-parentheses rationale no longer applies:
-grouping landed in `f005d51`. The deviation violated source inclusion even
-before grouping existed. The [operator plan](../spec/todo/2340-operators.md)
-owns the work; [ECMAScript exponentiation](https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#sec-exp-operator)
-is the reference.
+[PR #2089](https://github.com/functionalscript/functionalscript/pull/2089)
+admitted a unary expression to the left of exponentiation,
+`export default - 2 ** 2;`, which JavaScript rejects. Stage A landed in
+[#2106](https://github.com/functionalscript/functionalscript/pull/2106)
+instead, and its `c1d7166` refuses `**` immediately after a `-`/`~` operand
+at any nesting through the grammar's `unaryOperand`, as ECMAScript's
+[exponentiation](https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#sec-exp-operator)
+does; `fjs/fsc/parser/proof.f.mjs` holds the refusals and the valid
+`(-2) ** 2` and `-(2 ** 2)`. What is left is the comparison against a native
+JavaScript engine's early errors, and extending that gate to the
+logical/nullish operators and parameter syntax, which have since landed. The
+[operator plan](../spec/todo/2340-operators.md) owns the operators.
 
 #### Pattern instructions — proposed bypass, rules 1 and 2
 
@@ -268,13 +260,15 @@ not a claim that the current evaluator strips entries or supports spread.
 
 [Undefined-as-absence research](./blocked/undefined-removes-property.md) is
 blocked research, not an active implementation direction or dependency. While
-it remains in `todo/blocked/`, it neither directs nor blocks current development;
-its clarification is separate work in #2104.
+it remains in `todo/blocked/`, it neither directs nor blocks current development.
 
 ### Preventive gates, not established defects
 
-**P2:** extend the [parameter plan](../spec/todo/3120-parameters.md) with
-observable arity before choosing its lowering:
+Observable arity shipped with the
+[parameter plan](../spec/todo/3120-parameters.md) in
+[#2237](https://github.com/functionalscript/functionalscript/pull/2237):
+a function's EDAG carries its fixed-parameter count, so this module lowers
+`f` and `g` to lengths one and two:
 
 ```js
 const f = a => 0;
@@ -283,10 +277,11 @@ export default [f.length, g.length]; // [1, 2]
 ```
 
 Rest-only and empty lists both have arity zero; general lists do not. Erasing
-this distinction while admitting `.length` would be P1. A thin TODO is not
-evidence that such an implementation exists. Keep purity, explicit inputs,
-deterministic successful computation and checked host boundaries as independent
-requirements; compatibility alone would allow randomness and external mutation.
+this distinction while admitting `.length` would be P1, so every later
+feature that changes how a function is built repeats this check. Keep purity,
+explicit inputs, deterministic successful computation and checked host
+boundaries as independent requirements; compatibility alone would allow
+randomness and external mutation.
 
 ### Tasks
 
@@ -299,10 +294,11 @@ requirements; compatibility alone would allow randomness and external mutation.
       [representation examples](../spec/todo/1015-undefined-property-vm-layer.md)
       with complete proposed patterns or explicitly labeled JavaScript-only
       oracles. Execution/optimization and regression work remains below.
-- [ ] **P1:** implement the linked module-resolution correction and its real
+- [x] **P1:** implement the linked module-resolution correction and its real
       FJS/native-ESM escaped-filename regression.
-- [ ] **P1:** correct the operator grammar and run native-JS syntax/early-error
-      comparisons before admitting the proposed expressions.
+- [ ] **P1:** compare the operator grammar's refusals with a native
+      JavaScript engine's syntax and early errors, and extend that gate to
+      the logical/nullish operators and parameter syntax.
 - [ ] **P1:** implement statement-aware pattern recognition before shipping
       intrinsics; its linked TODO separates the mandatory boundary from ASI
       syntax expansion and preserves refusal until syntax is understood.

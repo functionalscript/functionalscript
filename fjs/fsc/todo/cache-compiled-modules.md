@@ -3,8 +3,6 @@
 **Priority:** P3
 **Status:** open
 
-**Blocked by:** [`compile-modules-to-edag.md`](./compile-modules-to-edag.md)
-
 ### Goal
 
 Persist the temporary `Unresolved` representation so incremental compilation can

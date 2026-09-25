@@ -129,22 +129,25 @@ refuses, and no compiler produces them (decided by the language designer).
         round-trips through source and EDAG. Under the limit no valid arity
         is uncovered; that task becomes the proof that 17 is refused at
         every entry point, which the tasks above already list.
-- [ ] [3130 — function length pattern](./3130-function-length-pattern.md) is
+- [ ] The [`withLength` pattern](./arity-complete-arguments.md#candidate-mechanism-the-withlength-pattern), formerly 3130, is
       reconciled. It is still an open alternative, and its proposal says the
       opposite: "no restrictions on `length`", a count "whatever JavaScript
       accepts", refused only as an executor's own limit. Its count is an
       expression evaluated when the function is built, so the limit cannot
       be checked at compile time there. Decided by the language designer:
-      3130 is retired. The fixed/rest plan is what shipped, and 3130 is an
-      unimplemented alternative that contradicts the language; its file is
-      deleted, and git history keeps it.
+      the pattern is retired. The fixed/rest plan is what shipped, and the
+      pattern is an unimplemented alternative that contradicts the language;
+      its section in
+      [arity-complete-arguments](./arity-complete-arguments.md) is removed,
+      and git history keeps it.
 
 ### Related
 
 - [3120 — named and rest parameters](./3120-parameters.md) — the plan that
   left the length unbounded, and the factory table this shrinks.
-- [3130 — function length pattern](./3130-function-length-pattern.md) — the
-  alternative that leaves `length` unrestricted, retired by this change.
+- [`withLength` pattern](./arity-complete-arguments.md#candidate-mechanism-the-withlength-pattern)
+  — the alternative that leaves `length` unrestricted (formerly 3130),
+  retired by this change.
 - [PR #2237 review](https://github.com/functionalscript/functionalscript/pull/2237#discussion_r4097887854)
   — the source writer's crash, first tracked as a writer-only issue and
   folded in here.

@@ -1,7 +1,8 @@
 ## byte-paths. A path this layer cannot spell is a path it cannot read
 
 **Priority:** P4
-**Status:** open
+**Status:** blocked
+**Blocked by:** [Paths as bytes](../../effects/node/todo/byte-paths.md)
 
 ### Problem
 
@@ -27,7 +28,7 @@ refusing took a repository Git reads and made *all* of it unreadable, the
 objects the store holds itself included, to avoid a miss on one borrowing. The
 line is an ordinary path now that simply is not found, which is a miss and never
 a wrong object, since the id is checked against whatever answers.
-[alternates-line-quirks.md](./alternates-line-quirks.md) records it as one of
+[alternates-line-quirks.md](../store/todo/alternates-line-quirks.md) records it as one of
 the two places this reader and Git look in different directories. This issue is
 what makes them look in the same one.
 
@@ -69,30 +70,17 @@ read as text today.
 ### Shape
 
 A path becomes a byte list at the effects boundary, as a file's contents already
-are:
-
-```ts
-type Path = List<number>
-```
-
-with the string form kept as the *spelling* a caller writes, converted once.
-That is a change to `fjs/effects/node`'s whole surface and to `fjs/path`, so it
-is not `fjs/git`'s to make — this issue records why `fjs/git` wants it and what
-it refuses until then.
-
-Two smaller shapes are worth measuring first:
-
-- **Only the operations that take a path from a file** take bytes, leaving the
-  rest as strings. Smaller, but it splits the vocabulary in two.
-- **The string stays and carries the bytes unchanged**, as a WTF-8-style
-  round-trippable encoding. No API change; a subtle invariant everywhere.
+are. That is a change to `fjs/effects/node`'s whole surface and to `fjs/path`,
+so it is not `fjs/git`'s to make: the shape and its alternatives are
+[Paths as bytes](../../effects/node/todo/byte-paths.md)'s. This issue records
+why `fjs/git` wants it and what it does until then.
 
 ### Tasks
 
 - [ ] Measure what a non-UTF-8 path costs today: an alternates file naming one,
-      a gitfile naming one, against Git on the same repository.
-- [ ] Choose among the three shapes above, with the measurement behind it.
-- [ ] Carry it through `fjs/effects/node` and `fjs/path`.
+      a gitfile naming one, against Git on the same repository — the input
+      [Paths as bytes](../../effects/node/todo/byte-paths.md) chooses its shape
+      with.
 - [ ] Make `fjs/git/store` open the directory such a line names, rather than a
       string approximation of it. There is no refusal to remove — the line is
       read as an ordinary path today and simply finds nothing.
@@ -128,8 +116,12 @@ Two smaller shapes are worth measuring first:
 
 - [`fjs/git/store`](../store/module.f.mjs) — owns where a store looks; this
   issue owns what it can spell.
-- [alternates-line-quirks.md](./alternates-line-quirks.md) — carries this as one
+- [alternates-line-quirks.md](../store/todo/alternates-line-quirks.md) — carries this as one
   of the two lines where that reader and Git look in different directories, and
   the `NUL` as the shape that was a third until it was cut.
 - [`fjs/git/store`](../store/module.f.mjs) — `alternatesIn`, which reads such a
   line as an ordinary path.
+- [Paths as bytes](../../effects/node/todo/byte-paths.md) — the effects change
+  this waits on.
+- [byte-ref-names](../refstore/todo/byte-ref-names.md) — the same gap for a ref
+  name read from a directory listing, waiting on the same change.

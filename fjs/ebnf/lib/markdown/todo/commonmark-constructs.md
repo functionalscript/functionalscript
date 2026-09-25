@@ -62,7 +62,7 @@ the flanking and label rules above, the last because no rule admits it.
 CommonMark defines far more than this subset reads, and each round of review
 finds more of it. The refusals are cheap and correct one at a time; what they
 do not do is bound the set, and the table above is the evidence — it grew
-from nothing to nine rows without a line of the grammar changing.
+from nothing to twelve rows without a line of the grammar changing.
 
 **The alternative this file does not take** is deciding that a released file
 is read by a conformant reader rather than by a grammar for the subset its
@@ -74,7 +74,7 @@ different rendering: a destination stopped at the first `)`, one that
 swallowed a title, and one that kept its angle brackets. Those are the reason the refusals are worth their cost.
 
 None of the refusals appears in the tree. Measured by parsing rather than by
-pattern: of its 346 emphasised spans, none is padded and none holds a
+pattern: of its several hundred emphasised spans, none is padded and none holds a
 backtick or bracket; no code span is padded; no entry holds two adjacent
 backticks, a label with a span opener, a target with a parenthesis or a
 space or opening with `<`, an image, a nested marker, a code block opening

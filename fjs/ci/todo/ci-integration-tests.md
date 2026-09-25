@@ -14,18 +14,20 @@ The key insight: it matters far more that the *published package* works on every
 
 Scenarios are expressed as FunctionalScript modules. A scenario module exports a `main` (a `NodeProgram`) that receives the environment and args and returns an effect. The CI generator reads a scenario list and emits one job per scenario.
 
-Each scenario is a declarative description of initial state, an effect, and an expected result that can be run as either a unit test (mock interpreter) or a real CI job. (The `669-scenario-testing.md` design doc this used to reference no longer exists; issue number 669 has since been reused for unrelated files, e.g. [669-ci-ubuntu-job-factory.md](669-ci-ubuntu-job-factory.md).)
+Each scenario is a declarative description of initial state, an effect, and an expected result that can be run as either a unit test (mock interpreter) or a real CI job. That design lives on as [scenario-testing](../../emergent_testing/todo/scenario-testing.md), formerly `669-scenario-testing.md`.
 
 Open questions:
 - Where do scenario modules live? (`todo/demo/` style, or a dedicated `fjs/ci/scenarios/` directory?)
 - How does a scenario declare which runtime(s) it targets (Node, Deno, Bun)?
 - Should the artifact be a `.tgz` from `npm pack`, or a published pre-release to a local registry?
 
-### Plan
+### Tasks
 
 - [ ] Define the scenario interface (`export const main: NodeProgram` or similar).
-- [ ] Implement the artifact publish step in the CI generator (run `npm pack`, upload as a GitHub Actions artifact).
-- [ ] Teach the CI generator to express job ordering, so a consuming job cannot
+- [x] Implement the artifact publish step in the CI generator (run `npm pack`, upload as a GitHub Actions artifact).
+      Done: `node26` packs and uploads the `package-tarball` artifact
+      (`packageArtifact` in `fjs/ci/node/module.f.mjs`).
+- [x] Teach the CI generator to express job ordering, so a consuming job cannot
       start before the artifact is uploaded. `jobSchema` in
       `fjs/ci/common/module.f.mjs` is deliberately **closed** and names only
       `runs-on` and `steps`, and it is the same schema `parseGitHubAction`
@@ -43,5 +45,15 @@ Open questions:
       and its first consumer in
       [#1767](https://github.com/functionalscript/functionalscript/pull/1767).
 - [ ] Implement scenario job generation: download artifact, install, run `main`.
-- [ ] Port existing demo/smoke-test steps (`fjs t`, `deno run … t`, `bunx … t`) to the scenario model.
+- [ ] Port the remaining published-CLI smoke step (`fjs test` on the two Windows
+      jobs) to the scenario model. The `deno run … t` and `bunx … t` steps are
+      already gone.
 - [ ] Document the scenario authoring convention.
+
+### Related
+
+- [scenario-testing](../../emergent_testing/todo/scenario-testing.md) — the
+  scenario type this issue's integration stage runs.
+- [built-package-checks](./built-package-checks.md) — also proposes installing
+  the `package-tarball` artifact per platform. Open question: which of the two
+  owns the per-platform install of the tarball.

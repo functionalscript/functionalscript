@@ -14,10 +14,17 @@ m(0) // TypeError or wrong result
 
 ### Trigger
 
-Most likely, ECMAScript would never address this issue for a compatibility reason. A [pipeline operator](./pipeline-operator.md) can provide a good alternative for chaining methods.
+TypeScript ships the check proposed in
+[144](../144-ts-prototype-functions.md): it tracks whether a function needs
+`this` and rejects a detached call such as `m(0)` above, so the extraction
+becomes a compilation error rather than a runtime one.
 
-When TypeScript provides a type-definition for prototype methods which will trigger a compilation error on previous code. `at` should be defined not as a method of `Array` but as a method of `Array.prototype`, or something like that.
+ECMAScript itself is unlikely ever to bind methods automatically, for
+compatibility reasons. A [pipeline operator](./pipeline-operator.md) can
+provide a good alternative for chaining methods.
 
 ### Related
 
+- [144-ts-prototype-functions](../144-ts-prototype-functions.md) — the
+  TypeScript proposal this waits on.
 - [new-pl.md § Automatic Binding](../new-pl.md#automatic-binding) — a from-scratch PL isn't bound by ECMAScript's compatibility constraint and can adopt this behavior directly.
