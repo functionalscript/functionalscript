@@ -246,7 +246,8 @@ export const utf8StateToError = state => {
             break
         }
         case 2: {
-            x = state[0] < lead4Tag
+            const [s0] = state
+            x = s0 < lead4Tag
                 ? lead3Payload(state) + errorLead3ContFlag
                 : lead4Payload(state) + errorLead4ContFlag
             break
