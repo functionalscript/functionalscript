@@ -25,9 +25,15 @@
  * layout's usual answer, the placeholder nodes Graphviz's `dot` inserts,
  * and why an edge here is a run of straight segments rather than a curve.
  *
+ * **A primitive draws inside the node that holds it.** An edge whose `to`
+ * is an {@link Inline} value leaves no line: its port grows a second cell,
+ * under the edge's label, holding the value. A number or a `null` has no
+ * identity to share, so a box of its own, a line and an arrow would only
+ * spend a rank and a lane saying what one cell says.
+ *
  * @module
  *
- * @import { Edge, Graph, Node, Ranked } from './types.ts'
+ * @import { Edge, Graph, Inline, Node, Ranked } from './types.ts'
  * @import { Element } from '../../../media/html/types.ts'
  * @import { _Lane, _Out, _Point, _Port, _Positioned, _Route, _Slot } from './private.ts'
  */
@@ -66,6 +72,7 @@ export const ranked = (nodes, edges) => {
 
 const headerHeight = 26
 const portHeight = 20
+const valueHeight = 20
 const rowGap = 40
 const colGap = 14
 const laneWidth = 10
@@ -77,6 +84,9 @@ const widthOf = label => Math.max(50, label.length * charWidth + 16)
 
 /** @type {(label: string) => number} */
 const portWidthOf = label => Math.max(24, label.length * charWidth + 12)
+
+/** @type {(edge: Edge) => string | null} */
+const inlineOf = ({ to }) => typeof to === 'number' ? null : to.inline
 
 /**
  * A node's ports: one cell per outgoing edge, in the order the demo gave
@@ -90,7 +100,10 @@ const portWidthOf = label => Math.max(24, label.length * charWidth + 12)
  * @type {(label: string) => (out: readonly _Out[]) => { readonly width: number, readonly ports: readonly _Port[] }}
  */
 const portsOf = label => out => {
-    const natural = out.map(({ edge }) => portWidthOf(edge.label))
+    const natural = out.map(({ edge }) => {
+        const inline = inlineOf(edge)
+        return Math.max(portWidthOf(edge.label), inline === null ? 0 : portWidthOf(inline))
+    })
     const total = natural.reduce((a, b) => a + b, 0)
     const width = Math.max(widthOf(label), total)
     const extra = out.length === 0 ? 0 : (width - total) / out.length
@@ -109,7 +122,7 @@ const portsOf = label => out => {
  */
 const missingEnds = ids => (edge, index) => [
     ...(ids.has(edge.from) ? [] : [`edge ${index} ("${edge.label}") starts at node ${edge.from}, which is not in the graph`]),
-    ...(ids.has(edge.to) ? [] : [`edge ${index} ("${edge.label}") ends at node ${edge.to}, which is not in the graph`]),
+    ...(typeof edge.to !== 'number' || ids.has(edge.to) ? [] : [`edge ${index} ("${edge.label}") ends at node ${edge.to}, which is not in the graph`]),
 ]
 
 /**
@@ -120,9 +133,16 @@ const missingEnds = ids => (edge, index) => [
  *
  * A node with outgoing edges is a header and a row of ports beneath it; a
  * node without is the header alone, so a leaf keeps the size it always had.
+ * A node with an inline value adds a row for the values under the ports,
+ * and every port spans it, so an edge still leaves from the node's bottom.
+ *
+ * **A node with ports is as tall as its row**, as a lane is. Its edges
+ * leave from the row's bottom then, not from partway down it, so none
+ * starts beside a taller neighbour and cuts across its lower part on the
+ * way to the next row.
  *
  * **An edge has a lane in every rank strictly between its ends**, and none
- * when it goes to the next rank. A lane's `key` places it just after its
+ * when it goes to the next rank, or to an inline value, which has no rank. A lane's `key` places it just after its
  * source's id, among the nodes ordered by id, so it sits near where its
  * edge starts rather than at the far end of a row. It carries its edge's
  * `index`, its position in the graph's list, because that is what tells
@@ -158,15 +178,20 @@ const layout = nodes => edges => {
     const outgoingOf = /** @type {(id: number) => readonly _Out[]} */ (id => /** @type {readonly _Out[]} */ (outgoing.get(id)))
     const ranks = new Map(nodes.map(n => [n.id, n.rank]))
     const rankOf = /** @type {(id: number) => number} */ (id => /** @type {number} */ (ranks.get(id)))
-    const spans = edges.map(edge => ({ from: rankOf(edge.from), to: rankOf(edge.to), key: edge.from + 0.5 }))
+    const spans = edges.map(({ from, to }) =>
+        ({ from: rankOf(from), to: typeof to === 'number' ? rankOf(to) : rankOf(from), key: from + 0.5 }))
     const maxRank = nodes.reduce((m, n) => Math.max(m, n.rank), 0)
     /** @type {readonly (readonly _Slot[])[]} */
     const rows = Array.from({ length: maxRank + 1 }, (_, rank) => [
         ...nodes.filter(node => node.rank === rank).map(node => ({ node, rank, key: node.id })),
         ...spans.flatMap((span, lane) => span.from < rank && rank < span.to ? [{ lane, rank, key: span.key }] : []),
     ].toSorted((a, b) => a.key - b.key))
-    const heightOf = /** @type {(slot: _Slot) => number} */ (slot =>
-        slot.node === undefined || outgoingOf(slot.node.id).length === 0 ? headerHeight : headerHeight + portHeight)
+    const heightOf = /** @type {(slot: _Slot) => number} */ (slot => {
+        const out = slot.node === undefined ? [] : outgoingOf(slot.node.id)
+        return out.length === 0 ? headerHeight
+            : out.some(({ edge }) => inlineOf(edge) !== null) ? headerHeight + portHeight + valueHeight
+                : headerHeight + portHeight
+    })
     let y = margin
     const placed = rows.map(row => {
         const top = y
@@ -184,7 +209,7 @@ const layout = nodes => edges => {
             const { width, ports } = portsOf(slot.node.label)(outgoingOf(slot.node.id))
             x += width + colGap
             /** @type {_Positioned} */
-            const node = { ...slot.node, x: left, y: top, width, height: heightOf(slot), ports }
+            const node = { ...slot.node, x: left, y: top, width, height: ports.length === 0 ? headerHeight : tallest, ports }
             return { node }
         })
     }).flat()
@@ -195,7 +220,7 @@ const layout = nodes => edges => {
 }
 
 /**
- * Every edge's route: from the bottom of its port, straight down through
+ * Every edge's route but an inline one's: from the bottom of its port, straight down through
  * its lane in each rank it skips, to the top of its target. Nodes and
  * lanes are looked up, not searched for, for the reason {@link layout}
  * gives.
@@ -206,8 +231,10 @@ const routesOf = placed => {
     const byId = new Map(placed.nodes.map(p => [p.id, p]))
     const at = /** @type {(id: number) => _Positioned} */ (id => /** @type {_Positioned} */ (byId.get(id)))
     const lanes = new Map(placed.lanes.map(lane => [`${lane.index} ${lane.rank}`, lane]))
-    return placed.nodes.flatMap(from => from.ports.map(port => {
-        const to = at(port.edge.to)
+    return placed.nodes.flatMap(from => from.ports.flatMap(port => {
+        const target = port.edge.to
+        if (typeof target !== 'number') { return [] }
+        const to = at(target)
         /** @type {readonly _Point[]} */
         const points = [
             [from.x + port.x + port.width / 2, from.y + from.height],
@@ -217,7 +244,7 @@ const routesOf = placed => {
             }).flat(),
             [to.x + to.width / 2, to.y],
         ]
-        return { edge: port.edge, points }
+        return [{ edge: port.edge, points }]
     }))
 }
 
@@ -279,6 +306,9 @@ export const _crossings = g => {
  * apart. From a cell each, no two edges share a start, a label always sits
  * in the box it names, and nothing has to be merged.
  *
+ * **A primitive is a cell, not a box.** An inline value draws in its port,
+ * under the label, and no line leaves for it: see the module's own doc.
+ *
  * **Boxes, then edges, then the labels.** Since no edge crosses a box the
  * order decides only where an edge meets its own ends, and there the line
  * draws over the border it starts or stops on. Edges carry no casing: a
@@ -310,9 +340,15 @@ export const graphSvg = g => {
         }]),
         ...p.ports.map(port => /** @type {Element} */ (['rect', {
             x: String(p.x + port.x), y: String(p.y + headerHeight),
-            width: String(port.width), height: String(portHeight),
+            width: String(port.width), height: String(p.height - headerHeight),
             'data-graph-port': '',
         }])),
+        ...p.ports.flatMap(port => inlineOf(port.edge) === null ? [] : [/** @type {Element} */ (['rect', {
+            x: String(p.x + port.x), y: String(p.y + headerHeight + portHeight),
+            width: String(port.width), height: String(valueHeight),
+            'data-graph-value': '',
+            ...(port.edge.kind === undefined ? {} : { 'data-graph-edge-kind': port.edge.kind }),
+        }])]),
     ])
     /** @type {readonly Element[]} */
     const labelEls = positioned.flatMap(p => [
@@ -324,6 +360,13 @@ export const graphSvg = g => {
             x: String(p.x + port.x + port.width / 2), y: String(p.y + headerHeight + portHeight / 2),
             'text-anchor': 'middle', 'data-graph-edge-label': '',
         }, port.edge.label])),
+        ...p.ports.flatMap(port => {
+            const inline = inlineOf(port.edge)
+            return inline === null ? [] : [/** @type {Element} */ (['text', {
+                x: String(p.x + port.x + port.width / 2), y: String(p.y + headerHeight + portHeight + valueHeight / 2),
+                'text-anchor': 'middle', 'data-graph-label': '',
+            }, inline])]
+        }),
     ])
     return ['svg', { viewBox: `0 0 ${width} ${height}`, width: String(width), height: String(height) },
         ['defs',
