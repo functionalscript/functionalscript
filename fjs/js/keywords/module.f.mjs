@@ -63,23 +63,17 @@ export const literalWords = /** @type {const} */ ([
     'Infinity', 'NaN', 'false', 'null', 'true', 'undefined',
 ])
 
+/** The four groups in declaration order, each name once. */
+const groups = [...reservedWords, ...strictModeReservedWords, ...restrictedNames, ...literalGlobals]
+
 /**
  * Every name FunctionalScript treats as a keyword, sorted by code unit —
  * the capitalized globals first: the {@link reservedWords}, the
  * {@link strictModeReservedWords}, the {@link restrictedNames}, and the
  * {@link literalGlobals}.
  *
- * The proof verifies this list is exactly the sorted union of the groups,
- * at runtime and at the type level.
+ * Derived from the groups, so a new keyword is added to its group alone.
+ *
+ * @type {readonly (typeof groups)[number][]}
  */
-export const keywords = /** @type {const} */ ([
-    'Infinity', 'NaN',
-    'arguments', 'await', 'break', 'case', 'catch', 'class', 'const',
-    'continue', 'debugger', 'default', 'delete', 'do', 'else', 'enum',
-    'eval', 'export', 'extends', 'false', 'finally', 'for', 'function',
-    'if', 'implements', 'import', 'in', 'instanceof', 'interface', 'let',
-    'new', 'null', 'package', 'private', 'protected', 'public', 'return',
-    'static', 'super', 'switch', 'this', 'throw', 'true', 'try', 'typeof',
-    'undefined', 'var', 'void', 'while', 'with', 'yield',
-])
-
+export const keywords = groups.toSorted()
