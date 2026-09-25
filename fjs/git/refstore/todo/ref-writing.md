@@ -10,9 +10,10 @@ files as the grammars they are, and
 [`fjs/git/refstore`](../module.f.mjs) finds and opens them, answering
 every ref a repository holds and the id one name resolves to.
 
-Writing one has started. `tryWrite` writes the loose file under Git's own
-`.lock`, which is the piece below that is checked; what is left is deleting a
-ref, the reflog, and every way the writer is narrower than `git update-ref`.
+Writing and deleting one are done. `tryWrite` writes the loose file under Git's
+own `.lock`, and `tryDelete` takes a name out of both files it can be in, under
+Git's two locks — the pieces below that are checked. What is left is appending to
+the reflog, and every way the two are narrower than `git update-ref`.
 
 ### Proposal
 
@@ -172,14 +173,15 @@ Refusing is safe rather than wrong — the `rename` would answer `EISDIR` anyway
 measured, so nothing is written either way and nothing is left behind; the
 difference is a refusal where Git succeeds. **What removing it needs is a new
 operation.** The emptiness test is a `readdir`, which the walk already has, but
-the removal is not expressible: `Rm` is `(path: string) => IoResult<void>` with no
-options, node's `rm` without `recursive` answers `ERR_FS_EISDIR` for a directory,
-and the virtual runner's `rmOp` never sees one because `operation` descends into
-it first. `rmdir` is the primitive that fits, since it refuses a non-empty
-directory itself (`ENOTEMPTY`, measured) and so cannot lose a ref to a race the
-way a recursive `rm` behind a separate check could. Adding it widens `NodeOp`
-again, which is a second breaking change and its own proofs, so it is a task
-rather than a tail-end addition here.
+the removal was not expressible: `Rm` is `(path: string) => IoResult<void>` with
+no options, node's `rm` without `recursive` answers `ERR_FS_EISDIR` for a
+directory, and the virtual runner's `rmOp` never sees one because `operation`
+descends into it first. `rmdir` is the primitive that fits, since it refuses a
+non-empty directory itself (`ENOTEMPTY`, measured) and so cannot lose a ref to a
+race the way a recursive `rm` behind a separate check could. It exists now —
+`fjs/effects/node` gained it for the delete below, which prunes the directories
+it empties — so what is left for the write is the walk that establishes a
+directory is *recursively* empty, and the decision to remove one it did not make.
 
 **The `.lock` costs five bytes of the name's length budget, and Git pays the same
 one.** A ref name has no length limit in Git's grammar — measured,
@@ -275,9 +277,70 @@ A writer that took it would be stricter than Git by a protocol Git does not have
 and would fail or block whenever `pack-refs` runs. Found by review of this PR;
 recorded as a decision below rather than built.
 
-Deleting a ref is the harder half, because a name can be in two files: the
-loose file must go *and* the `packed-refs` line with it, or the packed line
-reappears as the ref. Git rewrites `packed-refs` under its own lock for that.
+**Deleting a ref — done.** A name can be in two files, and the loose file must go
+*and* the `packed-refs` line with it, or the packed line reappears as the ref.
+`tryDelete` does both, and the reflog, by Git's protocol — measured with `strace`
+on 2.43.0: `<name>.lock` and then `packed-refs.lock`, each opened
+`O_CREAT|O_EXCL` and closed empty, so they are mutexes and never written, and both
+taken for every delete, an absent name included; `packed-refs` read under them;
+the file without the name written to `packed-refs.new`, itself `O_EXCL`, and
+renamed over `packed-refs`; the loose file unlinked; both locks unlinked; the
+directories left empty removed. It answers whether there was a ref, and `false`
+is not a refusal: Git exits 0 and says nothing for either.
+
+The order is the design:
+
+- **The packed line before the loose file**, because a loose file shadows a
+  packed line by existing: the other order leaves a window in which the stale
+  packed id is the ref, and a failure in it leaves that id the ref for good.
+- **The reflog last**, where Git unlinks it before renaming `packed-refs`. A
+  delete that fails after that rename still has the loose file, which decides the
+  name, so the ref is what it was — and in Git's order its history is gone. Git
+  reaches that state without any failure, measured: on a `packed-refs` whose
+  `sorted` claim its bisection trips over — a comment line between two refs is
+  enough — `git update-ref -d` exits 0 with the file byte-identical, the ref still
+  in it, and its reflog removed.
+- **Once the ref is gone, what the cleanup answers is dropped**: a reflog left
+  behind can only retain more, a lock left behind is the next writer's `EEXIST` as
+  Git's would be, and a directory left behind holds no ref.
+
+**The pruning is Git's.** Measured: to lock a *packed-only*
+`refs/heads/feat/deep/x`, Git creates `refs/heads/feat/deep`, and removes it and
+`logs/refs/heads/feat` once the delete is done; deleting `refs/heads/a/b/c`
+removes `refs/heads/a/b` and `refs/heads/a`; the last ref of `refs/remotes/origin`
+takes that directory with it and leaves `refs/remotes`; `refs/heads` and
+`refs/tags` stay, empty. So the rule is every directory below `refs/<top>/`, and
+the same below `logs/`. This is what `rmdir` was added to `fjs/effects/node` for.
+
+**It deletes the name, never its target**, which is `--no-deref`. Without it
+`git update-ref -d` on a symbolic ref deletes the ref it points to and leaves the
+symbolic one dangling — `git fsck` exits 2 with `invalid sha1 pointer 0000…`.
+
+**Every refusal leaves the repository as it was**, which each fixture checks over
+the whole tree: the three name refusals `tryWrite` has, `HEAD` foremost —
+measured, `git update-ref --no-deref -d HEAD` exits 0 having removed `.git/HEAD`,
+after which every command answers `not a git repository`; a directory at the
+name's path, or a symlink to one, which Git refuses too (exit 1, `'refs/heads/a/b'
+exists; cannot create 'refs/heads/a'`); a file in the path (`ENOTDIR`); either lock
+held, or a `packed-refs.new` already there (`EEXIST`, and left); a `packed-refs`
+that will not parse; and one that claims `sorted` and is not. That last is
+refused because Git bisects it: measured, with `ccc`, `aaa`, `bbb` in that order
+`refs/heads/ccc` does not resolve, and deleting `aa` from `aa`, `zz`, `master`
+made `zz` stop resolving — so a rewrite that keeps such a file's order can lose
+Git a ref the delete was not asked about.
+
+**Where it differs from `git update-ref -d`**, each measured:
+
+| state | Git | `tryDelete` |
+| --- | --- | --- |
+| an empty directory at the name's path | removes it, exit 0 | `refPrefixCode` |
+| an absent name with a packed ref under it | exit 1, `cannot lock ref` | `false` |
+| the name packed twice | removes one line, exit 0, the ref still resolves | removes both |
+| a `packed-refs` Git did not write | its own header, re-sorted, missing `^` lines read from the object store | the file's own header and order |
+| a `packed-refs` out of order under `sorted` | may exit 0 having removed nothing | `unsortedPackedCode` |
+
+For a file Git wrote, the rewrite is byte-identical to Git's — measured for seven
+targets, and the 46-byte header alone once the last ref goes.
 
 **The reflog is retention with a clock on it** — the measurement is in
 [reflog-roots.md](./reflog-roots.md), which also owns reading the reflog for the
@@ -363,8 +426,8 @@ loses is the extra retention a reflog entry gives.
 **It does not rewrite `packed-refs`.** A packed line of the same name is
 shadowed by the new loose file, which is what Git leaves too — measured, an
 `update-ref` of a packed-only ref writes the loose file and leaves the packed
-line stale. So this one is not a divergence at all for a *write*; it is a
-divergence for a delete, which is the half above.
+line stale. So this one is not a divergence at all for a *write*; the rewrite
+belongs to a delete, which is the half above.
 
 **It does not dereference a symbolic ref already at the name.** Measured, with
 `refs/heads/sym` holding `ref: refs/heads/master`, `git update-ref
@@ -412,16 +475,17 @@ else in the name has moved DISOT semantics into Git's namespace.
       `linkat(AT_EMPTY_PATH)` rather than a check here — and whether it is worth
       it, given that the window needs a process which can write the ref directly.
 - [ ] Publish over a **recursively empty** directory at the ref's path, as Git
-      does, rather than refusing it — which needs an `Rmdir` operation in
-      `fjs/effects/node` (a second `NodeOp` widening, so a breaking change), a
-      `readdir` walk to establish emptiness, and fixtures for all four rows of
+      does, rather than refusing it — `rmdir` exists now, so what is left is a
+      `readdir` walk to establish emptiness and fixtures for all four rows of
       the table above. Worth doing because this writer's own `mkdir` leaves such
-      a directory behind whenever a write of a name under it fails.
+      a directory behind whenever a write of a name under it fails. A delete
+      refuses an empty directory at the name's path the same way, where Git
+      removes it, and the same walk would close both.
 - [ ] Hold the `writeExclusive` rollback with a proof, if a way to fail a write
       after the `O_EXCL` open ever exists here — a fault-injecting host runner,
       or an `Fs` seam a proof can answer for. Deleting the `rm` is green today.
-- [ ] Delete a ref: the loose file *and* the `packed-refs` line, under
-      `packed-refs`'s own lock, or the packed line comes back as the ref.
+- [x] Delete a ref: the `packed-refs` line, then the loose file, then the
+      reflog, under both of Git's locks, and the directories it empties.
 - [ ] Decide whether a write checks that the object is there **and, under
       `refs/heads/`, that it is a commit**, and what that costs — `refstore`
       would have to read objects, and the type check needs the header rather
