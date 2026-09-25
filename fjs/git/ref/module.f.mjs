@@ -44,13 +44,14 @@
  * @import { Byte } from '../../ebnf/byte/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Bytes, Oid, OidBytes } from '../types.ts'
- * @import { PackedRef, Ref } from './types.ts'
+ * @import { PackedRef, PackedWithout, Ref } from './types.ts'
+ * @import { Meta } from '../../ebnf/ast/types.ts'
  */
 
-import { byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
+import { ascii, byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, option, repeatFrom0, repeatFrom1, set } from '../../ebnf/module.f.mjs'
 import { tryFromHexOf } from '../oid/module.f.mjs'
-import { isWholeName } from '../refname/module.f.mjs'
+import { isWholeName, sameBytes } from '../refname/module.f.mjs'
 
 /**
  * The bytes Git counts as whitespace in these files: SP, TAB, CR and LF.
@@ -316,10 +317,14 @@ export const tryRef = oidBytes => {
  * second space joins the name, and Git then refuses the name rather than
  * the line.
  *
- * Sorting is not required to read one. Git writes
- * `# pack-refs with: peeled fully-peeled sorted` and reads an unsorted file
- * without complaint, so the header is a note about what the writer did and
- * not a promise this reader may lean on.
+ * Sorting is not required to read one, and this reader scans rather than
+ * bisects, so it finds every record whatever the order. **Git's reader does
+ * lean on the header, though**: where it claims `sorted`, Git bisects, and a
+ * file that claims it and is not sorted has refs Git cannot find — measured on
+ * Git 2.43.0, `ccc`, `aaa`, `bbb` under a `sorted` header leave `ccc`
+ * unresolvable, and the same three lines resolve once `sorted` is dropped or
+ * the order is fixed. So the trait is a promise to Git's reader, and
+ * {@link tryPackedWithout}, which writes the file, has to keep it true.
  */
 /**
  * The only comment `packed-refs` has: the header Git writes, matched on this
@@ -425,5 +430,96 @@ export const tryPacked = oidBytes => {
         const [[, entries]] = r[1]
         const read = entries.map(entry)
         return read.every(e => e !== null) ? /** @type {readonly PackedRef[]} */ (read) : null
+    }
+}
+
+/**
+ * The bytes under a node of the packed grammar's tree, every one, in order: each
+ * byte is a leaf, so a record's leaves are exactly the record.
+ *
+ * @type {(node: unknown) => readonly number[]}
+ */
+const bytesOf = node => symbolsOf(/** @type {readonly Meta<Byte>[]} */ ([node].flat(Infinity)))
+
+/** The byte that separates the header's traits. */
+const traitSeparator = 0x20
+
+/** The trait that makes Git bisect the file. */
+const sortedTrait = ascii('sorted')
+
+/**
+ * The header's traits: the text after `# pack-refs with:`, split on spaces.
+ *
+ * A whole word and nothing looser, measured on Git 2.43.0 against a file whose
+ * lines are out of order: Git bisects under `sorted`, `with:sorted` and a header
+ * with no trailing space alike, and scans under `unsorted`, `sortedx`, `xsorted`,
+ * `SORTED` and `peeled,sorted` — so the colon and the line's end bound a word as
+ * a space does, and a comma does not.
+ *
+ * @type {(rest: readonly number[]) => readonly (readonly number[])[]}
+ */
+const traitsOf = rest => rest.reduce(
+    (words, b) => b === traitSeparator
+        ? [...words, []]
+        : [...words.slice(0, -1), [...words[words.length - 1], b]],
+    /** @type {readonly (readonly number[])[]} */ ([[]]))
+
+/**
+ * Whether `a` sorts no later than `b`, byte by byte and unsigned — the order Git
+ * writes refnames in, and the one its bisection assumes.
+ *
+ * @type {(a: readonly number[]) => (b: readonly number[]) => boolean}
+ */
+const notAfter = a => b => {
+    const i = a.findIndex((x, k) => k >= b.length || x !== b[k])
+    return i === -1 || (i < b.length && a[i] < b[i])
+}
+
+/**
+ * `packed-refs` without the entries named `name` — each one's line and the `^`
+ * line under it — and every other byte exactly as it was, the header's
+ * included. This is how Git rewrites the file for a delete: measured on 2.43.0,
+ * the surviving lines keep their bytes, stale values and all, and the file keeps
+ * its header when the last ref goes rather than being removed.
+ *
+ * **Every entry naming it goes**, where Git's own delete removes one: a file that
+ * names a ref twice keeps it resolvable after `git update-ref -d`, which exits 0
+ * — the answer [DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
+ * forbids, and the reason this is not a copy of it.
+ *
+ * The four answers:
+ *
+ * - `malformed` — a file {@link tryPacked} refuses. Nothing is written from one.
+ * - `unsorted` — the header claims `sorted` and the lines are not in order.
+ *   Taking a line out would change which refs Git's bisection reaches, not only
+ *   the one named: measured, deleting `aa` from `aa`, `zz`, `master` under that
+ *   header left `zz` unresolvable and `master` resolvable, with `fsck` silent.
+ *   So the file is refused rather than rewritten into a different lie. `git
+ *   pack-refs --all` rewrites it in order, which is the repair.
+ * - `absent` — no entry names it, and there is nothing to write.
+ * - `removed` — the file without it.
+ *
+ * Sorted is non-decreasing rather than strictly increasing: adjacent duplicates
+ * do not stop a bisection finding the name.
+ *
+ * @type {(oidBytes: OidBytes) => (name: Bytes) => (input: Bytes) => PackedWithout}
+ */
+export const tryPackedWithout = oidBytes => {
+    const entry = entryOf(tryFromHexOf(oidBytes))
+    return name => input => {
+        const r = parsePacked(symbols(input))
+        if (r[0] === 'error') { return ['malformed'] }
+        const [[head, entries]] = r[1]
+        const read = entries.map(entry)
+        if (!read.every(e => e !== null)) { return ['malformed'] }
+        const names = read.map(e => byteArray(/** @type {PackedRef} */ (e).name))
+        const claimsSorted = head.some(([, rest]) => traitsOf(symbolsOf(rest)).some(sameBytes(sortedTrait)))
+        if (claimsSorted && !names.every((n, i) => i === 0 || notAfter(names[i - 1])(n))) {
+            return ['unsorted']
+        }
+        const kept = entries.filter((_, i) => !sameBytes(names[i])(name))
+        return kept.length === entries.length
+            ? ['absent']
+            : ['removed', [...bytesOf(head), ...kept.flatMap(bytesOf)]]
     }
 }

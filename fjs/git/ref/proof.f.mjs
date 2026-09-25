@@ -1,12 +1,12 @@
 /**
- * @import { PackedRef } from './types.ts'
+ * @import { PackedRef, PackedWithout } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { toHex } from '../oid/module.f.mjs'
 import { latin1 } from '../testlib.f.mjs'
-import { tryLoose, tryPacked, tryRef } from './module.f.mjs'
+import { tryLoose, tryPacked, tryPackedWithout, tryRef } from './module.f.mjs'
 
 const loose = tryLoose(20)
 
@@ -318,6 +318,88 @@ export const proof = {
         // NUL, so it already carries that whitespace and is already refused.
         // Measured: `show-ref` answers `bad ref refs/heads/p ` for this file.
         assertEq(packed(latin1(`${a} refs/heads/p \0junk\n`)), null)
+    },
+    // `tryPackedWithout` against the file Git writes. Each expectation below was
+    // checked against Git 2.43.0 itself: on a repository of six branches, a
+    // lightweight tag and two annotated ones, packed by `git pack-refs --all`,
+    // what this answers for each of seven targets is byte-identical to the file
+    // `git update-ref -d` leaves — first, middle and last entries, a nested
+    // name, and both annotated tags, whose `^` lines go with them.
+    packedWithout: () => {
+        const without = tryPackedWithout(20)
+        const header = '# pack-refs with: peeled fully-peeled sorted \n'
+        const file = `${header}${a} refs/heads/alpha\n${a} refs/heads/beta\n${t} refs/tags/v1\n^${a}\n${a} refs/tags/v2\n`
+        /** @type {(name: string) => PackedWithout} */
+        const drop = name => without(latin1(name))(latin1(file))
+        /** @type {(name: string, expected: string) => void} */
+        const leaves = (name, expected) => {
+            const r = drop(name)
+            assert(r[0] === 'removed', name)
+            assertEq(codePointListToString(r[1]), expected)
+        }
+        // a line from the middle, every other byte kept
+        leaves('refs/heads/beta', `${header}${a} refs/heads/alpha\n${t} refs/tags/v1\n^${a}\n${a} refs/tags/v2\n`)
+        // an annotated tag takes its `^` line with it, and only its own
+        leaves('refs/tags/v1', `${header}${a} refs/heads/alpha\n${a} refs/heads/beta\n${a} refs/tags/v2\n`)
+        // a name is matched whole: `refs/heads/alph` is no entry, `alpha` stays
+        assertEq(drop('refs/heads/alph')[0], 'absent')
+        // the last ref leaves the header and nothing else — measured, 46 bytes,
+        // the file kept rather than removed
+        const last = without(latin1('refs/heads/m'))(latin1(`${header}${a} refs/heads/m\n`))
+        assert(last[0] === 'removed')
+        assertEq(codePointListToString(last[1]), header)
+        // no header is added where there was none
+        const bare = without(latin1('refs/heads/x'))(latin1(`${a} refs/heads/w\n${a} refs/heads/x\n`))
+        assert(bare[0] === 'removed')
+        assertEq(codePointListToString(bare[1]), `${a} refs/heads/w\n`)
+    },
+    // A name the file holds twice loses both. Git's delete takes one — measured,
+    // the ref stays resolvable after an exit 0 — which is the answer this does
+    // not copy.
+    packedWithoutTwice: () => {
+        const r = tryPackedWithout(20)(latin1('refs/heads/d'))(latin1(`${a} refs/heads/c\n${a} refs/heads/d\n${t} refs/heads/d\n`))
+        assert(r[0] === 'removed')
+        assertEq(codePointListToString(r[1]), `${a} refs/heads/c\n`)
+    },
+    // A file Git refuses is refused, and nothing is computed from it.
+    packedWithoutMalformed: () => {
+        const without = tryPackedWithout(20)(latin1('refs/heads/x'))
+        // no LF on the last line
+        assertEq(without(latin1(`${a} refs/heads/x`))[0], 'malformed')
+        // an id of the other width
+        assertEq(without(latin1(`${wide} refs/heads/x\n`))[0], 'malformed')
+        // a comment is no line of this file
+        assertEq(without(latin1(`${a} refs/heads/x\n# note\n`))[0], 'malformed')
+    },
+    // The header's `sorted` is a promise to Git's reader, which bisects under it:
+    // a file claiming it with its lines out of order is refused, since taking a
+    // line out would change which *other* refs Git's bisection reaches. The rows
+    // are the ones a guess gets wrong, each measured against Git 2.43.0 on a
+    // file whose lines were out of order.
+    packedWithoutSorted: () => {
+        /** @type {(traits: string, lines: string) => string} */
+        const answer = (traits, lines) =>
+            tryPackedWithout(20)(latin1('refs/heads/aaa'))(latin1(`# pack-refs with:${traits}\n${lines}`))[0]
+        const disorder = `${a} refs/heads/ccc\n${a} refs/heads/aaa\n${a} refs/heads/bbb\n`
+        const order = `${a} refs/heads/aaa\n${a} refs/heads/bbb\n${a} refs/heads/ccc\n`
+        // Git bisects under each of these, so each is refused out of order…
+        assertEq(answer(' peeled fully-peeled sorted ', disorder), 'unsorted')
+        assertEq(answer(' peeled fully-peeled sorted', disorder), 'unsorted')
+        assertEq(answer('sorted ', disorder), 'unsorted')
+        // …and written in order
+        assertEq(answer(' peeled fully-peeled sorted ', order), 'removed')
+        // Git scans under each of these, so the order does not matter
+        assertEq(answer(' peeled fully-peeled ', disorder), 'removed')
+        assertEq(answer(' unsorted ', disorder), 'removed')
+        assertEq(answer(' sortedx ', disorder), 'removed')
+        assertEq(answer(' SORTED ', disorder), 'removed')
+        assertEq(answer(' peeled,sorted ', disorder), 'removed')
+        // Sorted is non-decreasing: adjacent duplicates do not stop a bisection
+        // finding the name, so they are no disorder.
+        assertEq(answer(' sorted ', `${a} refs/heads/aaa\n${a} refs/heads/bbb\n${a} refs/heads/bbb\n`), 'removed')
+        // A name that is a prefix of the next sorts first, byte by byte.
+        assertEq(answer(' sorted ', `${a} refs/heads/aaa\n${a} refs/heads/aaab\n`), 'removed')
+        assertEq(answer(' sorted ', `${a} refs/heads/aaab\n${a} refs/heads/aaa\n`), 'unsorted')
     },
     throw: {
         // A value that is no byte is a caller's bug, as it is for a ref
