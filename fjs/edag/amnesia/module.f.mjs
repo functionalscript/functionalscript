@@ -21,11 +21,11 @@ import { operation } from '../operations/module.f.mjs'
 
 /** @type {(context: Context) => (e: Exp) => unknown} */
 export const vm = context => {
-    const { frame, args, memo } = context
+    const { frame, args, fixed, rest, memo } = context
     // The body is a new invocation, so it starts with nothing established:
     // the enclosing `memo` does not cross the boundary, the same way the
     // model's per-invocation memo does not.
-    const run = operation({ frame, args, operand: e => f(e), invoke: (frame, args, body) => vm({ frame, args })(body) })
+    const run = operation({ frame, args, fixed, rest, operand: e => f(e), invoke: (frame, fixed, rest, body) => vm({ frame, args: [], fixed, rest })(body) })
     /** @type {(e: Exp) => unknown} */
     const f = e => {
         if (!(e instanceof Array)) { return e }

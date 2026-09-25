@@ -60,10 +60,10 @@ const { is } = Object
 // reconstructed from the compiler's own runtime schemas: a demo is allowed
 // the loss of automatic drift-detection a schema import would buy, for a
 // flat list of strings simple enough to check against the type file by eye.
-const op0 = new Set(['undefined', 'args', 'frame'])
+const op0 = new Set(['undefined', 'args', 'frame', 'rest'])
 const op1 = new Set(['String', 'Number', '!', '~', 'typeof'])
 const op2 = new Set([
-    '=>', 'own', 'is',
+    'own', 'is',
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>',
@@ -170,23 +170,14 @@ export const _shapeOf = exp => {
             ],
         }
     }
-    // `=>` is an `Op2` by operand count and stays in that set above, which
-    // mirrors the type file for the eye-check the comment there describes; it
-    // is drawn here instead because `left`/`right` name nothing a reader of a
-    // function wants, and `frame`/`body` name exactly it. The frame is `null`
-    // in every function that captures nothing but primitives —
-    // `./module.f.mjs` lowers each to `['=>', null, body]` — and the edge
-    // label is what makes that null read as the absent frame it is rather
-    // than as a constant somebody passed.
-    //
-    // The body is lazy: building the closure establishes the frame and
-    // never the body, which runs only on a call and may never run at all.
+    // Length is metadata, while frame and lazy body are expression edges.
+    if (tag === 'arg') { return { kind: 'terminal', label: `arg ${exp[1]}`, children: [] } }
     if (tag === '=>') {
         return {
-            kind: 'op', label: '=>',
+            kind: 'op', label: `=> (${exp[1]})`,
             children: [
-                ['frame', /** @type {Exp} */ (exp[1])],
-                ['body', /** @type {Exp} */ (exp[2]), 'lazy'],
+                ['frame', /** @type {Exp} */ (exp[2])],
+                ['body', /** @type {Exp} */ (exp[3]), 'lazy'],
             ],
         }
     }

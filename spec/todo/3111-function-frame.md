@@ -10,7 +10,7 @@ metadata that it needs to generate correct call site bytecode.
 
 **Argument-model boundary:** slots and argument arrays in the sketches below
 are VM-internal storage, not a requirement to expose a complete-arguments EDAG
-node. The current zero-arity format uses `['args']`; the pending
+node. The former zero-arity format used `['args']`; the implemented
 [named-and-rest plan](./3120-parameters.md) replaces it with
 `['=>', length, frame, body]`, constant `['arg', N]` and one per-invocation
 `['rest']` array. Validate canonical integer metadata (positive zero, never
@@ -18,8 +18,8 @@ node. The current zero-arity format uses `['args']`; the pending
 is the actual tail beginning at `length`. Preserve rest identity within a
 call and through captures, with fresh rest bindings across JS-compatible
 calls. Slot lowering must implement those observations, not restore the
-retired positive-arity/full-`args` proposal. Current behavior changes only
-with the approved coordinated migration.
+retired positive-arity/full-`args` proposal. Bytecode implementation remains
+separate from the compiler, JavaScript executor and Rust source migration.
 
 That metadata specifies the size of function's frame - a span of NaNVM's 64-bit values that keeps:
 
@@ -129,8 +129,8 @@ current Rust shape is recorded in
 
 This document's frame is the bytecode-interpreter design. The parallel AOT
 plan reuses the captured-value copy scheme and the applicable EDAG contract,
-not a permanent `['args']` model: current zero-arity behavior is distinguished
-from the pending `length` / `arg` / `rest` migration. Rust's own call frame
+not a permanent `['args']` model: historical zero-arity behavior is distinguished
+from the implemented `length` / `arg` / `rest` format. Rust's own call frame
 supplies local storage, so AOT does not need this explicit slot layout.
 A private Rust argument array may remain transport but must not expose the
 original fixed-prefix count to the new EDAG body. Neither slot layouts nor

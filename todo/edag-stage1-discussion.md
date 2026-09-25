@@ -27,14 +27,14 @@ alternate source spelling. The affected sections below follow that decision;
 the remaining subjects retain their individual discussion status. Parsing
 JavaScript syntax does not itself admit it into FunctionalScript.
 
-**Pending argument-model migration:** the
+**Implemented argument-model migration:** the
 [named-and-rest parameter plan](../spec/todo/3120-parameters.md) owns the
-proposed `['=>', length, frame, body]`, `['arg', N]` and `['rest']` contract.
-Subjects 2 and 7 below follow that plan now, before implementation. The
+implemented `['=>', length, frame, body]`, `['arg', N]` and `['rest']` contract.
+Subjects 2 and 7 below follow that contract. The
 remaining baseline examples and operation table using `['args']` describe
-the current zero-arity format or its history, not a positive-arity target.
-Current schema and executor behavior stay unchanged until an approved,
-coordinated migration; do not mix the two vocabularies.
+the historical zero-arity format, not the current fixed/rest target.
+Current schema, compiler and executors now use fixed/rest. Do not mix the
+historical invocation vocabulary with retained module-import `args`.
 
 ### Baseline: an expression DAG with anchored evaluation
 
@@ -757,16 +757,18 @@ authored and never part of the EDAG.
 
 #### 2. Arguments reference
 
-**Status:** current `['args']` behavior unchanged; the replacement below is
-proposed in [named and rest parameters](../spec/todo/3120-parameters.md),
-pending language-designer approval.
+**Status:** fixed/rest bindings implemented in #2237, following
+[named and rest parameters](../spec/todo/3120-parameters.md). The remaining
+migration and default-text work is tracked there.
 
-**Current format:** `['=>', frame, body]` has length zero, and `['args']`
-yields its complete supplied argument array. This remains the implemented
-contract until migration; it is not the design for future named parameters.
+**Historical format:** `['=>', frame, body]` had length zero, and its
+function-owned `['args']` yielded the complete supplied argument array.
+That invocation contract is superseded; the examples elsewhere in this
+document using it remain historical.
 
-**Proposed replacement:** `['=>', length, frame, body]` records nonnegative
-integer `length` metadata and exposes two invocation bindings:
+**Current format:** `['=>', length, frame, body]` records canonical nonnegative
+integer `length` metadata and exposes two invocation bindings. Length and
+index zero must be positive zero; `-0` metadata is refused.
 
 - `['arg', N]` reads fixed position `N`, where `N` is a constant integer
   and `0 <= N < length`. A missing fixed argument reads as `undefined`.
@@ -777,7 +779,9 @@ integer `length` metadata and exposes two invocation bindings:
   invocation, not a new slice on each read. Repeated reads share it; distinct
   invocations have distinct rest arrays in the JS-compatible profile.
 
-The new format has no complete-list `['args']`. Omission versus explicit
+Function invocation scopes have no complete-list `['args']`. Unresolved
+modules retain their separate ordered import binding under that tag.
+Omission versus explicit
 `undefined` within the fixed prefix is intentionally unobservable; at length
 zero, rest is the complete supplied list. Fixed values and rest captured by
 another function use the existing frame mechanism.
@@ -788,7 +792,7 @@ be forwarded through the ordinary array-valued call operand. Rebuilding the
 fixed prefix plus rest yields normalized arguments, not a promise to recover
 the original number of supplied fixed arguments.
 
-Proposed lowering examples (names erased):
+Implemented lowering examples (names erased):
 
 ```js
 const f = (...a) => a[5];          // length 0; body ['.', ['rest'], 5]
@@ -796,11 +800,13 @@ const g = a => a[5];               // length 1; body ['.', ['arg', 0], 5]
 const h = (a, b, ...tail) => tail; // length 2; body ['rest']
 ```
 
-For existing zero-arity nodes, migrate `['args']` to `['rest']` in its owning
-scope. Positive-arity/full-arguments sketches are a different, stronger
+For old zero-arity nodes, migrate function-owned `['args']` to `['rest']`
+in its owning scope while preserving module-import `['args']`. A function's
+frame belongs to the enclosing scope; only its body opens a new invocation.
+Positive-arity/full-arguments sketches are a different, stronger
 contract and have no general lossless conversion. They remain only in the
 [complete-arguments alternative](../spec/todo/arity-complete-arguments.md),
-not as an implementation prerequisite for this proposal.
+not as an implementation prerequisite for the fixed/rest contract.
 
 #### 3. Lazy operators and the branch extension path
 
@@ -1092,23 +1098,23 @@ Word tags now survive only where JS genuinely has no expression spelling:
 
 #### 7. Top-level shape of a function
 
-**Status:** open
+**Status:** function-node shape and fixed/rest bindings implemented in #2237;
+the constructor's input API remains open.
 
-With the body a single operation node, no special top-level shape
-remains — every position, the body included, is a node, and the body
-composes directly into `["=>", frame, body]`
-([Operations](#operations)).
+The body is an expression graph in `['=>', length, frame, body]`, following
+the [named-and-rest parameter plan](../spec/todo/3120-parameters.md).
+The three-element `["=>", frame, body]` in the historical
+[Operations](#operations) examples is superseded.
 
-The [named-and-rest parameter proposal](../spec/todo/3120-parameters.md)
-would replace that current shape with `['=>', length, frame, body]` and the
-fixed/rest bindings in subject 2. `length` is integer metadata, not an
-expression operand; the change is not merely a count added to the old
-complete-arguments model. It selects the function node as the owner of
-arity, rather than a separate constructor wrapper. The proposal remains
-pending language-designer approval; do not implement both argument models
-as parallel contracts. The constructor's input API otherwise remains open.
+`length` is canonical nonnegative integer metadata, not an expression
+operand; the invocation bindings are the fixed/rest pair in subject 2,
+not a count added to the old complete-arguments model. The function node
+owns its arity. The implementation request recorded in the parameter plan
+selected this replacement; the old invocation model is not a parallel
+contract. This does not settle the constructor's input API or default-text
+choices.
 
-The function-text exception does not permit changing arity. The proposed
+The function-text exception does not permit changing arity. The current
 writer emits fixed parameters plus rest, retaining unused fixed positions;
 `['arg', N]` and `['rest']` render as those bindings. The earlier writer
 obstruction for positive arity plus complete `['args']` does not apply to

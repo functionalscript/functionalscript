@@ -1,11 +1,13 @@
 ## Callable function objects (Rust-generated bodies)
 
 **Priority:** P2
-**Status:** open
+**Status:** open — fixed/rest lowering is implemented in #2237; the remaining
+stages and default-text integration are unfinished.
 
 ### Problem
 
-`Function<A>` is callable — `call`, `length`, identity
+**Historical baseline, before the landed stages below:** `Function<A>` was
+already callable — `call`, `length`, identity
 ([`function/mod.rs`](../src/vm/function/mod.rs)), over a VM's own value
 bound by `IFunction` ([`internal/ifunction.rs`](../src/vm/internal/ifunction.rs)),
 and a VM that binds Rust static functions constructs one through
@@ -13,12 +15,12 @@ and a VM that binds Rust static functions constructs one through
 ([`internal/istatic_function.rs`](../src/vm/internal/istatic_function.rs)),
 which `naive` implements over an `Rc` holding the `fn` pointer, the
 `length` and the captured frame ([`naive/function.rs`](../src/naive/function.rs)).
-But nothing generates a body for it: the constructions of a `Function`
-value today are the corpus harness's `function_any`, the tests in
+But nothing generated a body for it: the constructions of a `Function`
+value were the corpus harness's `function_any`, the tests in
 `tests/test/main.rs`, and one in [`any/to_json.rs`](../src/vm/any/to_json.rs).
 The Rust code generator that `fjs compile <module> <output>.rs` drives
-([mvp-roadmap](./mvp-roadmap.md)) accepts exactly one hard-coded closure
-placeholder (`() => undefined`) and refuses every real one, "since
+([mvp-roadmap](./mvp-roadmap.md)) accepted exactly one hard-coded closure
+placeholder (`() => undefined`) and refused every real one, "since
 `nanvm-lib` has no closures yet."
 
 This document is the staged plan for closing that gap: making `Function<A>`
@@ -50,44 +52,41 @@ variables that the generated code and `nanvm-lib` agree on.
   staged-out by mvp-roadmap until the edag-spec lands. The plan below only
   notes where this work must plug back in once they do.
 - **Out of scope**: parsing fixed and mixed-rest parameter lists, owned by
-  [named and rest parameters](../../spec/todo/3120-parameters.md). Current
-  source support remains empty and rest-only. The pending AOT migration is
-  nevertheless in scope: preserve integer `length` metadata and lower
-  `['arg', N]` / `['rest']`, replacing the old EDAG `['args']` binding.
-  Named parameters do not merely become indexed reads of an unchanged
-  complete-list node. These are proposed obligations, not implemented
-  support; record language-design approval before the coordinated change.
+  [named and rest parameters](../../spec/todo/3120-parameters.md). That
+  compiler work is implemented in #2237: source accepts empty, rest-only,
+  fixed-only and mixed fixed/rest lists. The corresponding AOT lowering is
+  also implemented: preserve integer `length` metadata and lower
+  `['arg', N]` / `['rest']`, replacing function-owned EDAG `['args']` while
+  retaining module-import bindings. This is not a count-only extension of
+  the old complete-list node. Stage 6 records the implementation and its
+  remaining migration/coverage work; default-text rendering remains open.
 
 #### Grounding: what is already decided
 
-The [current EDAG](../../fjs/edag/README.md) and the pending
-[named-and-rest parameter plan](../../spec/todo/3120-parameters.md) are
- different versions of the contract. The bullets below distinguish them;
-this AOT plan does not define an alternative argument model. Historical
-and landed-stage descriptions remain records of the current zero-arity
-implementation, not instructions for future named-parameter lowering.
+The [current EDAG](../../fjs/edag/README.md) follows the
+[named-and-rest parameter plan](../../spec/todo/3120-parameters.md).
+Historical and landed-stage descriptions below retain the original zero-arity
+examples. The compiler and Rust printer now implement the new bindings; the
+remaining native callable work must use the same contract.
 
-- The current function node is `['=>', frame, body]`, with length zero.
-  If approved, migrate it to `['=>', length, frame, body]`, with nonnegative
-  integer `length` metadata and new invocation bindings. `frame` remains
-  an expression evaluated in the enclosing scope; `body` remains closed.
-- Current `['args']` reads the complete supplied list. In the new format it
-  is replaced by constant `['arg', N]`, with `0 <= N < length`, and one
-  per-invocation `['rest']` array containing the supplied tail starting at
-  `length`. Missing fixed arguments read as `undefined`. At length zero,
-  rest is the complete list; at positive length, the original supplied
-  count within the fixed prefix is not observable. This changes binding
-  semantics as well as preserving the function's declared arity.
+- The function node is `['=>', length, frame, body]`, with nonnegative
+  integer length metadata. `frame` belongs to the enclosing scope and
+  `body` opens its own invocation scope.
+- `['arg', N]` reads fixed position `N < length`; missing values are
+  `undefined`. `['rest']` reads the supplied tail starting at `length`,
+  materialized once per call. The old function-owned `['args']` is gone;
+  module-owned imports retain it. The original supplied count within the
+  fixed prefix is intentionally unobservable.
 - `['frame']` remains the captured-values array, read as
   `['.', ['frame'], i]`; it also carries captured outer fixed/rest bindings.
-- `["self"]` is direct self-reference, primitive because a top-level
-  recursive function has no enclosing scope to seed a frame slot with itself
+- `["self"]` is the planned direct self-reference (Stage 5), primitive because
+  a top-level recursive function has no enclosing scope to seed a frame slot with itself
   (subject 10); it reaches only the innermost enclosing function (mutual
   recursion is explicitly not covered yet — subjects 9 and 10).
-- A function body is a **closed graph**. The current invocation binding is
-  `['args']`; the proposed one consists of `['arg', N]` and `['rest']`,
-  alongside constants and the existing frame/self capabilities. Nothing
-  reaches outward across a `=>` boundary. Argument indices are validated
+- A function body is a **closed graph**. Its invocation bindings are
+  `['arg', N]` and `['rest']`, alongside constants and frame access; `self`
+  remains Stage 5 work. Nothing reaches outward across a `=>` boundary.
+  Argument indices are validated
   in their owning function; captures go through its frame.
 - [function-frame](../../spec/todo/3111-function-frame.md) already decided,
   for the *bytecode* backend, to start with the simple scheme: captured
@@ -144,7 +143,7 @@ these same operators already would.
 The current `StaticCode<A>` interface transports supplied arguments as an
 `Array<A>` ([`vm/array/mod.rs`](../src/vm/array/mod.rs)). Keeping that Rust
 parameter does not retain an EDAG-visible `['args']` operation in the new
-format. The generated body must establish the proposed invocation bindings:
+format. The generated body establishes the invocation bindings:
 fixed values with missing positions normalized to `undefined`, and one rest
 array containing the tail beginning at the function's recorded `length`.
 
@@ -171,7 +170,7 @@ fn f<A: IStaticFunction>(self_: &A::InternalFunction, args: Array<A>) -> Result<
 }
 ```
 
-The sketch only demonstrates guarded fixed-position reads. For the proposed
+The sketch only demonstrates guarded fixed-position reads. In the current
 format, initialize rest once per invocation and reuse that binding for every
 `['rest']` read. Extra supplied values, including explicit `undefined`, must
 remain in that tail; they are ignored only when the body never observes it.
@@ -237,14 +236,11 @@ the `fn` pointer, the `length` and the frame
 written against that shape.
 
 The declared arity is the `length` `static_function` is given, and a
-program reads it as `f.length` once callable support lands — Stage 2's,
-and how it reaches the program (a `member_access` arm, a property table,
-something else) is decided there, against the code as it is then. Empty
-and rest-only parameter lists have length
-`0`. If the named-parameter proposal is approved, each generated callable
-carries the function node's `length`, including unused fixed parameters,
-capturing or not; it is never inferred from argument reads or the caller's
-array length. A complete supplied array may still cross the internal Rust
+program reads it as `f.length`. Empty and rest-only parameter lists have
+length `0`. Each generated callable now carries the function node's `length`,
+including unused fixed parameters, capturing or not; it is never inferred
+from argument reads or the caller's array length. A complete supplied array
+may still cross the internal Rust
 call boundary, but the new EDAG body observes only the fixed/rest bindings
 specified above. A Rust parameter named `args` is not the retired EDAG tag.
 
@@ -380,6 +376,8 @@ flag as open.
 
 Each stage should land independently testable and useful; later stages
 depend on earlier ones but do not require redesigning them.
+Stages 1–4 record their original zero-arity implementation. Their old tuple
+and argument examples are historical; Stage 6 describes the current bindings.
 
 **Stage 1 — non-capturing functions and their calls. Landed.** The Rust
 code generator prints a function, `['=>', null, body]`, as a closure bound
@@ -399,12 +397,10 @@ Landed with Stage 1**, there being no other shape: every function the
 generator prints is a `Function<A>` value already, whether it is called at
 once, stored,returned or exported, so the harness evaluates `export
 default` uniformly and a function value standing as the export is the one
-thing `to_json` refuses. The declared length is `0`, the only arity the
-language has, read as `f.length` through the `.` read — a
-function's one property; when named parameters are admitted, the generator prints the
-function node's count, and exported and returned functions' `length` is
-compared with native JavaScript, unused parameters included. The pending
-binding migration is part of Stage 6, not just this count field.
+thing `to_json` refuses. At that stage, the declared length was `0`, the only
+supported arity, read as `f.length` through the `.` read. Stage 6 now passes
+the function node's fixed count and implements the fixed/rest bindings;
+returned and exported functions preserve that declared length too.
 
 **Stage 3 — capturing closures. Landed.**
 Extend the generator to lower the approved function-node shape for a body
@@ -424,7 +420,7 @@ enclosing scope's own nodes, printed as `[…].to_array()` in the third
 argument of `A::static_function`, and `['frame']` as
 `A::frame(self_).clone().to_any()`. The fixture is
 `nanvm-harness/fixtures/closure.mjs`: `(...a) => (...b) => a[0] + b[0]`,
-the language's one parameter being a rest parameter, beside a capture of a
+the language's only admitted parameter then being rest, beside a capture of a
 module `const` and one through a parent's frame.
 
 **Stage 4 — dynamic calls and higher-order functions. Landed.** The
@@ -456,13 +452,18 @@ captured into a nested closure's frame and called back out through it —
 plus a fixture asserting `self === self` across two separate reads.
 
 **Stage 6 — arity and variadic edge cases.**
-Migrate the generator and invocation bindings with the approved
+The generator and invocation bindings now implement the
 [named/rest EDAG format](../../spec/todo/3120-parameters.md): constant
 `['arg', N]`, one per-invocation `['rest']`, and recorded `length`. The
 private Rust argument array is transport, not a source-visible complete-list
-operation. Confirm fixed/rest values and identity against native JavaScript
-for omitted, explicit `undefined` and extra arguments, including captured
-and forwarded rest. Keep native capacity independent of the JS factory table.
+operation. The [`parameters` harness fixture](../../nanvm-harness/fixtures/parameters.mjs)
+and its [generated Rust](../../nanvm-harness/fixtures/parameters.rs) cover
+omitted, explicit `undefined` and extra arguments, captured fixed/rest values,
+and repeated versus distinct-call rest identity. The
+[Rust module proofs](../../fjs/fsc/rust/proof.f.mjs) cover binding refusals and
+valid length 33, independently of the JavaScript factory table's capacity.
+The remaining migration and regression work stays open in the checklist;
+this implementation does not complete the default-text renderer.
 The older [call-like-instructions §6](../../spec/todo/9100-call-like-instructions.md#6-behind-the-scenes-of-user-defined-function-calls)
 notes describe call transport, not permission to restore the retired EDAG
 binding. Dynamic calls remain arbitrary-arity; no matching-arity assumption
@@ -527,8 +528,8 @@ generated-Rust test from one source of cases.
 - [x] Stage 1: a function is a closure bound through `A::static_function`,
       its body a scope of its own; a call is `Any::call`; harness fixtures.
 - [x] Stage 2: landed with Stage 1 — every function is a `Function<A>`
-      value, the module bounding on `IStaticFunction`; `length` `0` until
-      named parameters exist.
+      value, the module bounding on `IStaticFunction`; the original length
+      was `0`, and Stage 6 now preserves the declared fixed count.
 - [x] Stage 3: capturing closures — a capture is a slot of the function's
       frame, built as an `Array<A>` in the enclosing scope and handed to
       `A::static_function`, the body reading it through `A::frame(self_)`;
@@ -542,9 +543,12 @@ generated-Rust test from one source of cases.
 - [ ] Stage 5: self-reference — the generator reads `["self"]` as the
       `self_` every static function receives, a call to it being a call
       like any other; plus a `self === self` fixture.
-- [ ] Stage 6: migrate AOT lowering with the approved named/rest EDAG format,
-      not just the count field. Validate constant `arg` indices; establish
-      fixed values and one rest binding per invocation. Compare with native
+- [x] Stage 6 lowering: implement the fixed/rest EDAG format, validate
+      constant `arg` indices, preserve the declared length, supply missing
+      fixed values as `undefined` and bind rest once per invocation. The
+      `parameters` harness fixture and Rust module proofs cover this path.
+- [ ] Stage 6 follow-through: complete migration and regression coverage
+      beyond the implemented cases above. Compare with native
       JavaScript and the evaluator for omitted, explicit `undefined` and
       extra arguments, unused fixed parameters, returning/forwarding rest,
       repeated rest reads, distinct calls, spread-array identity and captures.
@@ -572,10 +576,11 @@ generated-Rust test from one source of cases.
   — static/dynamic call-site semantics and the arity rules Stage 6 checks
   against.
 - [Named and rest parameters](../../spec/todo/3120-parameters.md) — owns the
-  pending `length` / `arg` / `rest` contract, approval and migration.
+  implemented `length` / `arg` / `rest` contract and the remaining migration
+  and default-text work.
 - [`todo/edag-stage1-discussion.md`](../../todo/edag-stage1-discussion.md) —
-  current baseline and proposed argument-model migration, reconciled in
-  subjects 2 and 7 rather than deferred until implementation.
+  historical baseline and fixed/rest argument model, distinguished in
+  subjects 2 and 7.
 - [`fjs/edag/README.md`](../../fjs/edag/README.md) — the current EDAG schema
   and chain semantics a real call site must also account for (method-call
   receivers, optional chains) once calls stop being data-only.

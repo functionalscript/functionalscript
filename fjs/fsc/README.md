@@ -41,14 +41,12 @@ module's `prohibitedCalls` names, `a.push(1)` or `a.valueOf()`, are refused
 there is no such property; and a `null` or `undefined` base is the one
 failure a data module can make, reported as JavaScript's throw is. The sharing sweep reads an access by the keys it applies, so
 `{ x: cfg.a, y: cfg.b }` is the tree it is and `[cfg.a, cfg.a]` the shared
-node it is. A function, `(...a) => body` or `() => body`, is written by the
-EDAG and FunctionalScript outputs — see below — and refused by the value
-outputs, since a value has no function in it. The AST carries no parameter,
-so the two spellings reach the outputs as the one node and the writer gives
-both the rest parameter. Nothing observes the difference: `f.name` is
-refused at the key, and `f.length` is `0` for a rest parameter as it is for
-none, a rest parameter not counting towards a function's arity in
-JavaScript. Across modules the sweep is coarser: a module whose own value
+node it is. A function with fixed names and optional final rest, such as
+`(a, b, c, ...x) => [a, b, c, x]`, is written by the EDAG and FunctionalScript
+outputs and refused by value outputs, since a value has no function in it.
+The AST erases names after binding but retains the fixed parameter count.
+The writer preserves that count, even for unused parameters, and appends a
+fresh rest binding. Empty and rest-only functions both have length zero. Across modules the sweep is coarser: a module whose own value
 holds a shared node is shared under any route an importer takes into it,
 `m.selected` included, and the modules it reaches count under any route
 too, since where in the module's value a node sits is not carried, and
@@ -151,10 +149,12 @@ roots of the unreached part in source order, an entry another unreached entry
 reaches being anchored through it, an alias being the node it names, and two
 imports of one module being one node. A module the export reaches entirely
 has no comma.
-A function is `['=>', frame, body]`, the body a scope of its own, in which
-the rest parameter is `['args']` — one node however many references reach
-it, so `(...a) => [a, a]` shares as JavaScript does — and nothing outside
-stands. A reference to a `const`, an import, an enclosing function's
+A function is `['=>', length, frame, body]`, where `length` is nonnegative
+integer metadata (negative zero is invalid), not an operand. The body opens
+its own scope: `['arg', N]` reads fixed position `N < length`, and `['rest']`
+reads the invocation's rest array. Repeated rest reads share that array.
+`['args']` remains the module import binding and is invalid in a function
+body. A function's frame is evaluated in the enclosing scope. A reference to a `const`, an import, an enclosing function's
 parameter or an enclosing body's `const` is a capture: the frame is
 `['[]', slots]`, each slot the enclosing scope's own node for a captured
 value, one per value — nodes the EDAG analysis merges, `o[0]` read by two
