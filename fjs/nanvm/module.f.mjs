@@ -39,7 +39,7 @@
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 67
+ * data.groups.length // 70
  * ```
  */
 
@@ -2241,6 +2241,75 @@ const trimCases = (start, end) => {
 }
 
 /**
+ * `String.prototype.replace`: the first occurrence of the pattern as a
+ * string. A template substitutes `$$`, `$&`, `` $` `` and `$'`, and leaves
+ * `$1` and `$<name>` as written, since a string pattern has no captures. A
+ * function is called with the match, its position and the string.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const replaceCases = [
+    { name: 'first', args: ['aXbX', 'X', '-'], expected: 'a-bX' },
+    { name: 'none', args: ['ab', 'z', '-'], expected: 'ab' },
+    { name: 'emptyPattern', args: ['ab', '', '-'], expected: '-ab' },
+    { name: 'match', args: ['aXb', 'X', '[$&]'], expected: 'a[X]b' },
+    { name: 'dollar', args: ['aXb', 'X', '$$'], expected: 'a$b' },
+    { name: 'before', args: ['aXb', 'X', '$`'], expected: 'aab' },
+    { name: 'after', args: ['aXb', 'X', "$'"], expected: 'abb' },
+    { name: 'noCaptures', args: ['aXb', 'X', '$1$<n>$'], expected: 'a$1$<n>$b' },
+    { name: 'function', args: ['aXbX', 'X', callback('args')], expected: 'aX,1,aXbXbX' },
+    { name: 'functionMatch', args: ['aXb', 'X', callback('first')], expected: 'aXb' },
+    { name: 'undefinedPattern', args: ['aundefinedb', undefined, '-'], expected: 'a-b' },
+    { name: 'numberPattern', args: ['a1b', 1, 2], expected: 'a2b' },
+    { name: 'noReplacement', args: ['aXb', 'X'], expected: 'aundefinedb' },
+    { name: 'undefinedAnswer', args: ['aXb', 'X', callback('prop')], expected: 'aundefinedb' },
+]
+
+/**
+ * `String.prototype.replaceAll`: every non-overlapping occurrence, left to
+ * right; an empty pattern matches at every position, both ends included.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const replaceAllCases = [
+    { name: 'all', args: ['aXbX', 'X', '-'], expected: 'a-b-' },
+    { name: 'template', args: ['aXbX', 'X', '$&$&'], expected: 'aXXbXX' },
+    { name: 'emptyPattern', args: ['ab', '', '-'], expected: '-a-b-' },
+    { name: 'nonOverlapping', args: ['aaa', 'aa', 'b'], expected: 'ba' },
+    { name: 'none', args: ['ab', 'z', '-'], expected: 'ab' },
+    { name: 'positions', args: ['aXbX', 'X', callback('args')], expected: 'aX,1,aXbXbX,3,aXbX' },
+    { name: 'before', args: ['aXbX', 'X', '$`'], expected: 'aabaXb' },
+    { name: 'empty', args: ['', '', '-'], expected: '-' },
+]
+
+/**
+ * `String.prototype.split`: the pieces between occurrences of the
+ * separator as a string. The limit is `ToUint32`, and `0` answers `[]`; an
+ * `undefined` separator answers the whole string; an empty one splits into
+ * code units, a surrogate pair into two.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const splitCases = [
+    { name: 'separator', args: ['a,b,,c', ','], expected: ['a', 'b', '', 'c'] },
+    { name: 'noArgument', args: ['a,b'], expected: ['a,b'] },
+    { name: 'undefinedSeparator', args: ['a,b', undefined], expected: ['a,b'] },
+    { name: 'emptySeparator', args: ['abc', ''], expected: ['a', 'b', 'c'] },
+    { name: 'limit', args: ['a,b,c', ',', 2], expected: ['a', 'b'] },
+    { name: 'limitZero', args: ['a,b', ',', 0], expected: [] },
+    { name: 'limitNegativeIsHuge', args: ['a,b', ',', -1], expected: ['a', 'b'] },
+    { name: 'emptyLimit', args: ['abc', '', 2], expected: ['a', 'b'] },
+    { name: 'undefinedLimitZero', args: ['a', undefined, 0], expected: [] },
+    { name: 'emptyString', args: ['', ','], expected: [''] },
+    { name: 'emptyStringEmptySeparator', args: ['', ''], expected: [] },
+    { name: 'trailing', args: ['a,', ','], expected: ['a', ''] },
+    { name: 'longSeparator', args: ['a::b::', '::'], expected: ['a', 'b', ''] },
+    { name: 'nullSeparator', args: ['anullb', null], expected: ['a', 'b'] },
+    { name: 'pair', args: ['\u{1F600}', ''], expected: ['\uD83D', '\uDE00'] },
+    { name: 'bigintLimit', args: ['a', ',', 1n], expected: throws },
+]
+
+/**
  * `toString()` on every type but a function, whose text is the
  * rendering `nanvm-lib/todo/member-functions.md` tracks (see
  * {@link FunctionValue}). A radix on a number or a bigint is refused by
@@ -2364,6 +2433,9 @@ export const data = {
         { method: 'trim', cases: trimCases(true, true) },
         { method: 'trimStart', cases: trimCases(true, false) },
         { method: 'trimEnd', cases: trimCases(false, true) },
+        { method: 'replace', cases: replaceCases },
+        { method: 'replaceAll', cases: replaceAllCases },
+        { method: 'split', cases: splitCases },
         { method: 'toString', cases: toStringCases },
     ],
 }

@@ -158,7 +158,7 @@ the `10²¹` boundary, both ends of every range, and a bigint argument.
       `endsWith`.
 - [x] **Building.** `slice`, `substring`, `concat`, `repeat`, `padStart`,
       `padEnd`, `trim`, `trimStart`, `trimEnd`, with the length limit.
-- [ ] **Patterns.** `replace`, `replaceAll`, `split`, with `GetSubstitution`.
+- [x] **Patterns.** `replace`, `replaceAll`, `split`, with `GetSubstitution`.
 - [ ] **`Number`.** `toString` with a radix on a number and a bigint,
       `toFixed`, `toExponential`, `toPrecision`.
 - [ ] Move what outlives this file into `vm/string/README.md` and delete it

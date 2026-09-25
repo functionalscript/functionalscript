@@ -36,8 +36,9 @@ export const proof = {
             ],
             string: [
                 'at', 'charAt', 'charCodeAt', 'codePointAt', 'concat', 'endsWith', 'includes',
-                'indexOf', 'isWellFormed', 'lastIndexOf', 'padEnd', 'padStart', 'repeat', 'slice',
-                'startsWith', 'substring', 'toWellFormed', 'trim', 'trimEnd', 'trimStart',
+                'indexOf', 'isWellFormed', 'lastIndexOf', 'padEnd', 'padStart', 'repeat', 'replace',
+                'replaceAll', 'slice', 'split', 'startsWith', 'substring', 'toWellFormed', 'trim',
+                'trimEnd', 'trimStart',
             ],
         }
         const expected = types.flatMap(([t, names]) => names

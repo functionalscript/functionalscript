@@ -205,10 +205,10 @@ presence decides an answer, are
 - [x] `padEnd` — `vm/string/building.rs`
 - [x] `padStart` — `vm/string/building.rs`
 - [x] `repeat` — `vm/string/building.rs`
-- [ ] `replace`
-- [ ] `replaceAll`
+- [x] `replace` — `vm/string/patterns.rs`
+- [x] `replaceAll` — `vm/string/patterns.rs`
 - [x] `slice` — `vm/string/building.rs`
-- [ ] `split`
+- [x] `split` — `vm/string/patterns.rs`
 - [x] `startsWith` — `vm/string/search.rs`
 - [x] `substring` — `vm/string/building.rs`
 - [x] `toString`

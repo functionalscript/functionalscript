@@ -62,9 +62,6 @@ export const types = [
  * @type {{ readonly [type in string]: readonly AllowedCall[] }}
  */
 export const pending = {
-    string: [
-        'replace', 'replaceAll', 'split',
-    ],
     number: ['toExponential', 'toFixed', 'toPrecision'],
 }
 
