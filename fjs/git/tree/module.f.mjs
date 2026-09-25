@@ -27,9 +27,10 @@ import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
 import { ascii, byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, range, repeatFrom0, repeatFrom1, set, times } from '../../ebnf/module.f.mjs'
 import { digit0, digitsValue } from '../../text/ascii/module.f.mjs'
-import { length as bitLength, u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
+import { u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
 import { flat } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
+import { isOidOf } from '../oid/module.f.mjs'
 
 const sp = /** @type {const} */ (0x20)
 
@@ -253,13 +254,16 @@ export const validate = entries => {
  *
  * @type {(oidBytes: OidBytes) => (e: TreeEntry) => Bytes}
  */
-const entryBytes = oidBytes => e => {
-    const digits = byteArray(e.mode)
-    const name = byteArray(e.name)
-    assert(octal(digits) !== null, ['not a mode', digits])
-    assert(name.length !== 0 && !name.includes(nul), ['not a name', name])
-    assert(bitLength(e.oid) === BigInt(oidBytes) * 8n, ['not an id', e.oid])
-    return flat([digits, [sp], name, [nul], u8ListMsb(e.oid)])
+const entryBytes = oidBytes => {
+    const isOid = isOidOf(oidBytes)
+    return e => {
+        const digits = byteArray(e.mode)
+        const name = byteArray(e.name)
+        assert(octal(digits) !== null, ['not a mode', digits])
+        assert(name.length !== 0 && !name.includes(nul), ['not a name', name])
+        assert(isOid(e.oid), ['not an id', e.oid])
+        return flat([digits, [sp], name, [nul], u8ListMsb(e.oid)])
+    }
 }
 
 /**
