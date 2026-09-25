@@ -1393,8 +1393,8 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assertEq(state.stderr.trim(), 'proto.json - error: unexpected symbol at 1')
             assertEq(state.root['a.data.js'], undefined)
         },
-        // The `.json` reader is JSON, not DJS with a JSON flag: a bigint is
-        // not JSON, whatever DJS makes of it.
+        // The `.json` reader is JSON, not the module reader with a JSON flag:
+        // a bigint is not JSON, whatever a module makes of it.
         jsonInputRejectsDjsExtensions: () => {
             const root = { 'a.json': [utf8('{"a":1n}')] }
             const [state, code] = virtual({ ...emptyState, root })(compile(['a.json', 'a.data.js']))

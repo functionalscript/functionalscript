@@ -35,8 +35,8 @@ may enable a stripping/transpilation path around the original-source rule.
 Accepting such syntax remains a **P1 compatibility violation**.
 
 TypeScript remains an external checker for JavaScript with JSDoc and separate
-`types.ts`/`.d.ts` companions; these are tooling, not an additional FJS source
-language. Existing type-check commands, declarations and implementation type
+`types.ts`/`.d.ts` companions; these are tooling, not an additional FunctionalScript
+source language. Existing type-check commands, declarations and implementation type
 files remain in place. [RTTI comment annotations](./3360-type-annotations.md)
 are a separate design written inside JavaScript comments, not TypeScript syntax;
 this decision neither implements nor retires that design.
@@ -55,7 +55,7 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
 2. [ ] [undefined-property-vm-layer](./1015-undefined-property-vm-layer.md)
    — representation choices must preserve those observations.
 
-## 2. DJS
+## 2. Modules without functions
 
 ### 2.1. Priority 1
 
@@ -98,15 +98,11 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
    a trailing comma and an empty `with {}`
    ([importing](../README.md#importing-other-modules)).
 
-## 3. FJS
+## 3. Functions
 
-The FJS can have functions. The format requires additional run-time
-information for serialization: an FJS value can't be serialized without it —
-see [serialization](./serialization.md).
-
-|format|any     |    |Notes                          |
-|------|--------|----|-------------------------------|
-|FJS   |function|Func|[functions](../README.md#functions)|
+A function cannot be serialized as data without additional run-time
+information — see [serialization](./serialization.md) and
+[functions](../README.md#functions).
 
 ### 3.1. Required
 

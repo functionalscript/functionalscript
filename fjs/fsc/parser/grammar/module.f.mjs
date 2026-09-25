@@ -1,5 +1,5 @@
 /**
- * The djs module grammar over token symbols, spelled LL(1) for
+ * The module grammar over token symbols, spelled LL(1) for
  * `fjs/ebnf/ll1`, which `../module.f.mjs` reads a module with:
  *
  * ```text

@@ -23,11 +23,12 @@ diagnostics must accept absolute paths and symlink targets instead of expecting
 the original input spelling. If the entry cannot resolve, its diagnostic keeps
 that spelling; failure to resolve an import names the canonical importer.
 
-What the compiler accepts today is the data language the sections below call
-DJS, and the roadmap is theirs too — plus property access, `a.b`, `a[0]`
+What the compiler accepts is [the specification](../../spec/README.md)'s to
+say, and the roadmap is [`spec/todo/`](../../spec/todo/README.md)'s. What
+follows is how the compiler holds it. Property access, `a.b`, `a[0]`
 and `[1].length`, on any value, a numeric literal included, since `-` is an
 operator the grammar reads and `-1 .x` is the negation of the access as
-JavaScript has it: an own property of the
+JavaScript has it, reads an own property of the
 base, never the prototype chain, as
 [spec: property accessor](../../spec/todo/2330-property-accessor.md) has
 it — a name a built-in prototype gives a value, `a.toString` or `a.push`,
@@ -37,13 +38,13 @@ finds a function, `length` excepted, since a value owns it
 the exception the other way, `a.at(0)` and `a.toString()` being calls the
 VM answers by the receiver's type, and only the member functions the same
 module's `prohibitedCalls` names, `a.push(1)` or `a.valueOf()`, are refused
-([its README](../js/prototype/README.md) has the table); `undefined` where
-there is no such property; and a `null` or `undefined` base is the one
-failure a data module can make, reported as JavaScript's throw is. The sharing sweep reads an access by the keys it applies, so
+([its README](../js/prototype/README.md) has the table). It answers
+`undefined` where there is no such property, and a `null` or `undefined`
+base fails, reported as JavaScript's throw is. The sharing sweep reads an access by the keys it applies, so
 `{ x: cfg.a, y: cfg.b }` is the tree it is and `[cfg.a, cfg.a]` the shared
 node it is. A function with fixed names and optional final rest, such as
-`(a, b, c, ...x) => [a, b, c, x]`, is written by the EDAG and FunctionalScript
-outputs and refused by value outputs, since a value has no function in it.
+`(a, b, c, ...x) => [a, b, c, x]`, is written by the EDAG, FunctionalScript
+and Rust outputs and refused by value outputs, since a value has no function in it.
 The AST erases names after binding but retains the fixed parameter count.
 The writer preserves that count, even for unused parameters, and appends a
 fresh rest binding. Empty and rest-only functions both have length zero. Across modules the sweep is coarser: a module whose own value
@@ -63,22 +64,13 @@ held were deleted rather than kept: nothing imported them, no proof covered
 them, and their FunctionalScript half separated statements by newline where
 the language requires `;`. Do not restore them; git history has them.
 
-## DJS, the accepted subset
-
-- additional types: bigint
-
-## Rules
-
-- can serialize/deserialize without reading source code
-  - no function serialization/deserialization
-
 ## AST
 
-A DJS module parses into [ast/module.f.mjs](./ast/module.f.mjs); the types
+A module parses into [ast/module.f.mjs](./ast/module.f.mjs); the types
 in [ast/types.ts](./ast/types.ts) carry the shape and its invariants.
 
 Why a flat list of constants with index references, rather than a value tree:
-a DJS module denotes a **graph**, and `import` and `const` are how it names
+a module denotes a **graph**, and `import` and `const` are how it names
 the shared parts. Deserializing has to preserve that sharing — two properties
 holding the same reference must yield the same object, not two equal copies —
 so the AST keeps the constants addressable and refers to them by index
