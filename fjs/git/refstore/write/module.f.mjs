@@ -692,32 +692,55 @@ const packedRewritten = dirs => without => {
 }
 
 /**
- * Whether there was a loose file to remove: `false` where there was none.
+ * The loose file removed, where there is one: nothing where the name is absent.
+ *
+ * What it answers is not whether a ref was there, because removing a name does
+ * not show one was. A symbolic link that leads nowhere is removed here as Git
+ * removes it — measured on 2.43.0, `git update-ref -d` exits 0 and unlinks it,
+ * with `--no-deref` or without — and it held no ref: `show-ref` does not list
+ * it and `rev-parse --verify` refuses the name. Whether a ref was there is
+ * {@link looseRef}'s answer, from the bytes read.
  *
  * A directory at the path never reaches this — {@link tryDelete} refuses it
- * before it takes a lock — so the file removed is the ref's.
+ * before it takes a lock — so the entry removed is the ref's.
  *
- * @type {(path: string) => Effect<Rm, boolean, IoChannel>}
+ * @type {(path: string) => Effect<Rm, void, IoChannel>}
  */
 const looseRemoved = path => catchStep(
-    mapStep(rm(path), () => true),
-    e => isNotFound(e) ? pureOk(false) : pureError(e))
+    rm(path),
+    e => isNotFound(e) ? pureOk(undefined) : pureError(e))
 
 /**
- * Nothing, or the refusal a loose file holding no ref is: see
- * {@link brokenRefCode}. Absent is fine, and so is a directory, which
- * {@link tryDelete} has refused already.
+ * Whether the name's loose file holds a ref: `true` for an id or a `ref:` line,
+ * `false` where there is no file to read — absent, or a link that leads nowhere,
+ * which reads as absent — and the refusal {@link brokenRefCode} for bytes that
+ * are neither. A directory never reaches this; {@link tryDelete} has refused it.
  *
- * @type {(readRef: (bytes: Bytes) => Nullable<Ref>, name: Bytes, path: string) => Effect<ReadFile, void, IoChannel>}
+ * @type {(readRef: (bytes: Bytes) => Nullable<Ref>, name: Bytes, path: string) => Effect<ReadFile, boolean, IoChannel>}
  */
-const intact = (readRef, name, path) => step(
+const looseRef = (readRef, name, path) => step(
     tryBytes(path),
-    bytes => bytes !== null && readRef(bytes) === null
-        ? pureError(ioError({ code: brokenRefCode, message: brokenRefMessage(name) }))
-        : pureOk(undefined))
+    bytes => {
+        if (bytes === null) { return pureOk(false) }
+        return readRef(bytes) === null
+            ? pureError(ioError({ code: brokenRefCode, message: brokenRefMessage(name) }))
+            : pureOk(true)
+    })
 
 /**
- * The name taken out, under both locks: its loose file checked, then its
+ * `packed-refs` read and, where it names the ref, rewritten without it — and
+ * whether it named it.
+ *
+ * @type {(dirs: Dirs, without: (input: Bytes) => PackedWithout) => Effect<ReadWhole | WriteExclusive | Rename | Rm, boolean, IoChannel>}
+ */
+const packedTaken = (dirs, without) => step(
+    mapStep(
+        tryWholeBytes(under(dirs.common, packedRefs)),
+        b => b === null ? /** @type {PackedWithout} */ (['absent']) : without(b)),
+    packedRewritten(dirs))
+
+/**
+ * The name taken out, under both locks: its loose file read, then its
  * `packed-refs` line, its loose file and its reflog removed — and whether either
  * file held it.
  *
@@ -727,13 +750,11 @@ const intact = (readRef, name, path) => step(
  * @type {(dirs: Dirs, name: Bytes, path: string, log: string, readRef: (bytes: Bytes) => Nullable<Ref>, without: (input: Bytes) => PackedWithout) => Effect<ReadFile | ReadWhole | WriteExclusive | Rename | Rm, boolean, IoChannel>}
  */
 const removed = (dirs, name, path, log, readRef, without) => {
-    const checked = intact(readRef, name, path)
-    const read = step(checked, () => tryWholeBytes(under(dirs.common, packedRefs)))
-    const edited = mapStep(read, b => b === null ? /** @type {PackedWithout} */ (['absent']) : without(b))
-    const packed = history(step(edited, packedRewritten(dirs)))
+    const found = history(looseRef(readRef, name, path))
+    const packed = historyStep(found, () => packedTaken(dirs, without))
     const loose = historyStep(packed, () => looseRemoved(path))
     const logged = historyStep(loose, () => dropped(rm(log)))
-    return mapStep(logged, ([, wasLoose, wasPacked]) => wasPacked || wasLoose)
+    return mapStep(logged, ([, , wasPacked, wasLoose]) => wasPacked || wasLoose)
 }
 
 /**

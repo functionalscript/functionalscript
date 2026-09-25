@@ -851,6 +851,44 @@ export const proof = {
             assertStructurallySame(fs, { refs: { heads: {} } })
         }
     },
+    // A symbolic link at the name that leads nowhere reads as absent — node's
+    // `readFile` answers `ENOENT` through it — and is still removed, as Git
+    // removes it: measured on 2.43.0, `git update-ref -d refs/heads/x` exits 0
+    // and unlinks it, with `--no-deref` or without, and takes a `packed-refs`
+    // line of the same name and the reflog with it. Found by review.
+    //
+    // What that is *not* is a ref: `show-ref` does not list the link and
+    // `rev-parse --verify` refuses the name. So the delete answers `false` where
+    // nothing else named it, and `true` where the packed line did — the `rm`
+    // succeeding is not the evidence. The virtual filesystem has no links, so
+    // the host answers what a real one does for this one.
+    deleteDanglingLink: () => {
+        /** @type {(packed: Result<readonly Vec[], IoChannel>) => MemOperationMap<Stat | Mkdir | CreateExclusive | ReadFile | ReadWhole | WriteExclusive | Rename | Rm | Rmdir, readonly string[]>} */
+        const host = packed => ({
+            stat: missing,
+            mkdir: (path, _) => log => [[...log, `mkdir ${path}`], error(ioError({ code: 'EEXIST', message: path }))],
+            createExclusive: path => log => [[...log, `createExclusive ${path}`], ok(undefined)],
+            readFile: path => log => [[...log, `readFile ${path}`], error(ioError({ code: 'ENOENT', message: path }))],
+            readWhole: path => log => [[...log, `readWhole ${path}`], packed],
+            writeExclusive: path => log => [[...log, `writeExclusive ${path}`], ok(undefined)],
+            rename: (src, dst) => log => [[...log, `rename ${src} ${dst}`], ok(undefined)],
+            rm: path => log => [[...log, `rm ${path}`], ok(undefined)],
+            rmdir: path => log => [[...log, `rmdir ${path}`], ok(undefined)],
+        })
+        /** @type {(packed: Result<readonly Vec[], IoChannel>) => readonly [readonly string[], Result<boolean, IoChannel>]} */
+        const deleting = packed => mockRun(host(packed))(/** @type {readonly string[]} */ ([]))(
+            tryDelete(one(''), 20)(latin1('refs/heads/x')))
+        // No `packed-refs`: the link is removed, and there was no ref.
+        const [log, r] = deleting(error(ioError({ code: 'ENOENT', message: 'packed-refs' })))
+        assertStructurallySame(r, ok(false))
+        assert(log.includes('rm refs/heads/x'), log)
+        assert(log.includes('rm logs/refs/heads/x'), log)
+        // A packed line of the name: the packed line was the ref, so `true`.
+        const [log2, r2] = deleting(ok(file(`${a} refs/heads/x\n`)))
+        assertStructurallySame(r2, ok(true))
+        assert(log2.includes('rename packed-refs.new packed-refs'), log2)
+        assert(log2.includes('rm refs/heads/x'), log2)
+    },
     // A refused delete leaves the directories as they were: one it made is
     // removed again, and one that was already there, empty, is kept — both with a
     // `packed-refs` that will not parse, which is refused under the locks, after
