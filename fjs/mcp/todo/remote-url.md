@@ -5,10 +5,11 @@
 
 ### Problem
 
-The CAS MCP server serves only over stdio, and `cas_get`'s `uri` is what
-`FileCas.url` returns: a path on the server's own filesystem. A remote client
-cannot open that, and a server reachable over HTTP must not hand it out
-([cas-get-uri-discloses-host-path](./cas-get-uri-discloses-host-path.md)).
+The CAS MCP server serves only over stdio, and `cas_get`'s `uri` is the
+opaque `cas:<hash>`: it discloses nothing about the server, which never emits
+a path of its own ([the emit-side invariant](../README.md#design-invariant-the-server-never-emits-a-server-path)),
+but no client can fetch a blob by it either, and a blob too large for inline
+content is reachable only through the `cas get` CLI.
 
 A remote URL server should be provided with a URL translation function instead
 of returning a URL from `FileCas`. It also means that an MCP HTTP server should
@@ -37,16 +38,16 @@ same value as a `Dialect` header; the naming rule is in
 
 ### Tasks
 
-- [ ] A URL translation function supplied to the server, in place of
-      `FileCas.url`.
+- [ ] A URL translation function supplied to the server, serving a
+      `cas:<hash>` under the server's own domain — never a store path.
 - [ ] When resources land: serve blobs via `resources/read` with the identical
       `{ uri, mimeType, text | blob }` derivation, sharing the detector path
       with `cas_get`.
 
 ### Related
 
-- [cas-get-uri-discloses-host-path](./cas-get-uri-discloses-host-path.md) —
-  what `uri` is for, and why it should be settled before a remote transport.
+- [`../README.md`](../README.md#design-invariant-the-server-never-emits-a-server-path)
+  — the emit-side invariant a URL translation must keep.
 - [MCP roadmap](../../protocol/mcp/todo/roadmap.md) — the resource schemas
   `fjs/protocol/mcp` does not serve yet.
 - [fjs/media/revision/README.md](../../media/revision/README.md) — the
