@@ -298,12 +298,18 @@ const symbolTerminal = n => {
 }
 
 /**
- * The code points of a string rule, one symbol each; malformed UTF-16 is
- * refused rather than encoded as a symbol outside the domain.
+ * The code points of a string, one symbol each: a string rule, and the text
+ * the front end's `set`, `range` and `literals` and the byte alphabet's
+ * `ascii` read. Malformed UTF-16 is refused rather than encoded as a symbol
+ * outside the domain — the decoder tags a lone surrogate with `errorMask`,
+ * which makes it negative, so nothing downstream would tell it from a
+ * mistake of its own.
+ *
+ * @throws If `s` holds a lone surrogate.
  *
  * @type {(s: string) => readonly number[]}
  */
-const codePoints = s => {
+export const codePoints = s => {
     const list = toArray(stringToCodePointList(s))
     assert(list.every(c => (c & errorMask) === 0), ['malformed UTF-16', s])
     return list

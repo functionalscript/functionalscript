@@ -19,6 +19,8 @@
  * @import { Evaluator, Operations } from './types.ts'
  */
 
+import { callable, isIndex } from '../callable/module.f.mjs'
+
 import { assert } from '../../asserts/module.f.mjs'
 
 /**
@@ -56,8 +58,8 @@ const nullish = v => v === undefined || v === null
 /**
  * The argument array of a call: one operand evaluating to the *complete*
  * array, spread at the call site — `f(a, b)` is `['()', f, ['[]', [a, b]]]`,
- * and `=>` collects with `(...args)`. Passed as a single argument instead,
- * the callee's `['args']` would be `[[a, b]]`.
+ * and the selected factory splits it into fixed values and rest. Passing
+ * this array as a single argument would instead bind the array to position 0.
  *
  * @type {<E>(f: (e: E) => unknown, e: E) => readonly any[]}
  */
@@ -214,10 +216,9 @@ export const operations = {
     // body graph, and each call of it is a new invocation, which is the
     // executor's to start — the enclosing invocation's values do not cross,
     // the captured frame is a value and crosses as one.
-    '=>': ({ operand, invoke }) => ([, frameExp, body]) => {
+    '=>': ({ operand, invoke }) => ([, length, frameExp, body]) => {
         const frame = operand(frameExp)
-        /**@type {(...arg: readonly unknown[]) => unknown}*/
-        return (...args) => invoke(frame, args, body)
+        return callable(length, (fixed, rest) => invoke(frame, fixed, rest, body))
     },
     '>': o2((a, b) => a > b),
     '>=': o2((a, b) => a >= b),
@@ -261,7 +262,18 @@ export const operations = {
             (e instanceof Array) && e[0] === '...' ? [.../**@type {any}*/(operand(e[1]))] : [operand(/**@type {any}*/(e))])
     },
     '^': o2((a, b) => a ^ b),
-    args: ({ args }) => () => args,
+    args: ({ args, fixed }) => () => {
+        assert(fixed === undefined, 'module args in a function')
+        return args
+    },
+    arg: ({ fixed }) => ([, n]) => {
+        assert(fixed !== undefined && isIndex(n) && n < fixed.length, ['invalid fixed parameter', n])
+        return fixed[n]
+    },
+    rest: ({ rest }) => () => {
+        assert(rest !== undefined, 'rest outside a function')
+        return rest
+    },
     frame: ({ frame }) => () => frame,
     // The key must *evaluate* to a string — a runtime constraint the
     // shape-only schema cannot express, so the executor upholds it. Without

@@ -199,7 +199,7 @@ export const arityOf = g => {
  *
  * @type {() => Exp}
  */
-export const lambdaExp = () => ['=>', ['[]', []], ['undefined']]
+export const lambdaExp = () => ['=>', 0, ['[]', []], ['undefined']]
 
 /**
  * The expression an `unreached` denotes: `1n / 0n`, which throws when

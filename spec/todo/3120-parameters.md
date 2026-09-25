@@ -1,16 +1,112 @@
 ## Named and rest parameters
 
 **Priority:** P2
-**Status:** open
+**Status:** implementation in progress, stacked on #2220
+
+### Implementation status (September 24, 2026)
+
+The user requested: “Implement named/required parameters as we described on
+top of PR 2220. `fjs compile` should support the syntax `(a, b, c, ...x) => ...`”.
+They also explicitly directed runtime construction through the pre-generated
+`g => (a0, ...rest) => g([a0], rest)` factory table. This authorizes the
+fixed/rest implementation; it does not resolve the default-text choices below.
+
+Parsing, binding, fixed/rest EDAG, the shared factory table, both JavaScript
+executors, source output and Rust output are implemented. The JavaScript table
+covers lengths 0–32; valid source and EDAG remain independent of that capacity.
+The old three-element function tuple is a breaking format change: recompile
+source, or migrate zero-arity function-owned `args` to `rest`, retaining module
+import bindings.
+
+**Remaining integration gate:** the required shared default renderer and
+callable/graph association are not implemented. Native conversion of a returned
+factory arrow still reveals wrapper source. Keep this implementation in draft
+until the rendering contract and mechanism are resolved; the tasks below remain
+open for that work. No claim is made that factory construction alone satisfies
+this requirement or that all of this TODO is complete.
+
+The unchanged `fjs/types/range/module.f.mjs` compilation candidate still fails
+at EOF because it omits statement semicolons. Named-parameter examples with the
+compiler's current statement termination syntax compile successfully.
+
+The remaining sections retain the design and its unfinished obligations.
+
+### Blocking review: factory text escapes through exports
+
+[PR #2237's review](https://github.com/functionalscript/functionalscript/pull/2237#discussion_r4097743166)
+reports a P1 violation of the default-text contract. Reproduced at `32d18d87`
+under both Amnesia and memo:
+
+```js
+const f = (a) => a;
+export default f.toString();
+// Actual: '(a0, ...rest) => g([a0], rest)'
+```
+
+Exporting `f` itself retains `f.length === 1` and `f(42) === 42`, but
+`String(f)`, `String([f])`, a computed property key and `''.concat(f)` all
+expose the same wrapper. This is an unresolved defect, not an accepted
+limitation. The review stays open until the conversion paths are fixed.
+
+An operations-table guard cannot cover conversions performed by a consumer
+of an exported arrow. A side table associating functions with EDAGs cannot
+by itself change those host conversions either. The current generated arrows
+inherit native function conversion and have no renderer hook. This is also
+why rejecting callable exports or replacing only the `String` operation is
+not a fix.
+
+**Proposal requiring approval:** extend each generated factory with a renderer
+callback and admit only the complete fresh-arrow construction pattern:
+
+```js
+(g, render) => Object.defineProperty(
+    (a0, ...rest) => g([a0], rest),
+    'toString',
+    { value: render },
+)
+```
+
+The descriptor makes the property non-enumerable, non-writable and
+non-configurable. The target must be the arrow created in that expression,
+never an existing shared callable. This retains the requested fixed/rest
+arrow and its native arity, but adds a second factory input and a construction
+pattern that the original request did not authorize. It does not modify
+`length`, generate code at run time or patch prototypes.
+The renderer closes over the semantic function EDAG and invocation's captured
+frame, and is invoked only for conversion. Calls, allocation identity, nested
+returns and exports retain their existing behavior.
+
+The exact source pattern and freshness guarantee must be specified and
+approved under [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
+before implementation. Calling `Object.defineProperty` from `.f.mjs`, hiding
+it in an unapproved host helper, or treating the arity factory approval as
+approval of this additional operation does not satisfy that requirement.
+
+For the first rendering increment, propose using the existing source writer
+for capture-free function graphs, retaining EDAG sharing and generated
+parameter names. Rendering a captured callable still needs the explicit
+[serialization decisions](./serialization.md#open-questions): code text versus
+a self-contained callable, whether to include captured values, and the finite
+representation of `self`. If captured values are selected, the lazy-string
+requirement applies; an eager `String` built from the entire capture graph is
+not that implementation. Refusal is at a genuinely unsupported conversion,
+never at creation, call, return or export. This paragraph is a proposal, not
+an answer to those open questions or authorization to regress supported text
+conversion.
+
+Three standalone JavaScript prototype tests passed for the proposed hook:
+arity/fixed/rest/identity, direct and indirect host conversions, and creation
+and calls that never demand text. They use supplied renderer callbacks; they
+do not implement EDAG rendering, compiler recognition or deferred strings.
 
 ### Problem
 
-`fjs compile` currently accepts empty and rest-only arrow parameter lists,
-not named parameters or a named prefix followed by rest. Extend that syntax
+Before this implementation, `fjs compile` accepted only empty and rest-only
+arrow parameter lists. The task extends that syntax
 without losing the function's observable `length` when compiling, executing
 or writing its EDAG.
 
-The current [`=>` operation](../../fjs/edag/operations/module.f.mjs) constructs
+The previous [`=>` operation](../../fjs/edag/operations/module.f.mjs) constructs
 `(...args) => ...`, whose `length` is zero. Merely lowering named parameters
 to indexed reads of the existing `['args']` would therefore change results.
 
@@ -26,11 +122,8 @@ mechanism must preserve supported callable behavior before these factories
 replace an existing materialization path.
 
 This replaces this TODO's earlier positive-arity/full-`['args']` design and
-its restricted writer boundary. It is a proposal, not current compiler or
-EDAG support. Before implementation, record explicit approval by
-`sergey-shandar` with a public approval link, as required by
-[DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo).
-The request to document the design does not select an evaluator table size.
+its restricted writer boundary. The implementation request and its scope are recorded above. The initial
+executor capacity is 32, without imposing a language-level arity limit.
 
 **Benefits:** familiar JavaScript syntax, ordinary callable results, and a
 shared argument representation that the compiler, writer and FJS-written
@@ -209,8 +302,8 @@ Each factory has a statically spelled parameter list, but table selection can
 use the length read dynamically from an EDAG. This does not require making
 `length` an expression operand of `=>`. Generate source at build time, never
 through runtime `eval`, `Function`, dynamic import or property mutation.
-These examples use the proposed syntax; they are not claims that today's
-`fjs compile` already compiles the table.
+The pipeline proof compiles this generated table through `fjs compile`'s
+parser and lowering, and executes it under both JavaScript evaluators.
 
 Share the table through the EDAG operations used by Amnesia and the memo
 executor, rather than duplicating it per VM. Native backends may initialize
@@ -333,9 +426,8 @@ and the [function-frame plan](./3111-function-frame.md) follow this
 and the [remaining-plan review](https://github.com/functionalscript/functionalscript/pull/2220#discussion_r4095100756).
 Their current-format and historical descriptions remain explicitly labeled.
 
-Update the current EDAG/schema documentation and executable consumers when
-the approved format lands. Until then, current `['args']` semantics remain
-unchanged. The
+Current EDAG/schema documentation and executable consumers now use the
+fixed/rest format. Module-import `args` semantics remain unchanged. The
 [complete-arguments alternative](./arity-complete-arguments.md) and
 [length-pattern alternative](./3130-function-length-pattern.md) are not
 prerequisites for this proposal's arity construction. The default-text
@@ -352,15 +444,15 @@ source rest binding in that future case or silently admit initializers now.
 - [ ] Record language-design approval, including the EDAG/writer change and
       separation of language validity from executor capacity. Document the
       table-backed evaluators' initial capacity without imposing a language cap.
-- [ ] Extend source parameter AST, shared grammar and binding. Cover empty,
+- [x] Extend source parameter AST, shared grammar and binding. Cover empty,
       rest-only, bare single, parenthesized fixed and fixed-plus-rest forms;
       retain correct grouping, commas, trivia, scopes and early errors.
-- [ ] Implement the coordinated EDAG change: canonical length metadata,
+- [x] Implement the coordinated EDAG change: canonical length metadata,
       constant `['arg', N]` validation and per-invocation `['rest']`. Reject
       negative zero for both metadata fields without normalizing ordinary
       `-0` argument values. Update schema, lowering, analysis, operations,
       executor contexts and native consumers.
-- [ ] Generate and share the factory table; check its capacity at EDAG
+- [x] Generate and share the factory table; check its capacity at EDAG
       materialization, separately from syntax and EDAG validation. Keep
       unsupported new execution paths refused until they preserve length and
       bindings, without regressing existing calls/returns/exports or blocking
@@ -371,7 +463,7 @@ source rest binding in that future case or silently admit initializers now.
       materialization/export paths to these factories. Preserve existing
       callable behavior; permit explicit refusal only for genuinely unsupported
       conversion cases, not as a substitute for working function exports.
-- [ ] Update source writers and migrations; remove the old complete-argument
+- [x] Update source writers and migrations; remove the old complete-argument
       writer boundary for the new format and document the breaking change.
 - [ ] Preserve unresolved-module imports through schema validation, migration
       and linking. Test ordered imports alongside fixed/rest functions, an
@@ -380,7 +472,7 @@ source rest binding in that future case or silently admit initializers now.
       bodies. Reject function-local `args` in the new format and module-local
       `arg`/`rest`; prove linking removes only module import bindings and keeps
       function bindings, import failures and sharing intact.
-- [ ] Add source -> tokens -> AST -> EDAG -> executor/source round-trip
+- [x] Add source -> tokens -> AST -> EDAG -> executor/source round-trip
       proofs against native JavaScript. Cover all supported arities, unused
       parameters, omitted/explicit `undefined`/extra arguments, returning and
       forwarding rest, captured parameters, repeated rest identity and
@@ -392,7 +484,7 @@ source rest binding in that future case or silently admit initializers now.
       text. Include `((a) => a).toString()` and distinguish it from factory text.
       Preserve call-only consumers of exported/returned functions and every
       previously supported conversion; no export-level rendering refusal.
-- [ ] Add validation refusals for invalid length metadata (negative,
+- [x] Add validation refusals for invalid length metadata (negative,
       fractional, non-finite or negative zero), negative-zero/nonconstant/
       out-of-range `arg` indices, `arg` at length zero, duplicate names,
       invalid bindings, misplaced/rest trailing commas, newlines before `=>`,

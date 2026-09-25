@@ -340,7 +340,7 @@ const referenceCoverage = () => {
  * operand without either consumer needing a second walk.
  */
 const lambda = () => {
-    assertStructurallySame(valueExp(functionValue), ['=>', ['[]', []], ['undefined']])
+    assertStructurallySame(valueExp(functionValue), ['=>', 0, ['[]', []], ['undefined']])
     assertStructurallySame(valueExp(functionValue), lambdaExp())
     assertStructurallySame(valueExp([functionValue]), ['[]', [lambdaExp()]])
     assertStructurallySame(valueExp({ f: functionValue }), ['{}', [[':', 'f', lambdaExp()]]])

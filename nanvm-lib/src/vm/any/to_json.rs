@@ -12,7 +12,7 @@ use crate::{
 ///
 /// Scoped deliberately: arrays and objects recurse (see [`Any::to_json`]),
 /// so every remaining gap here bottoms out at a scalar with no direct JSON
-/// counterpart — `mvp-roadmap.md`'s open question 3 ("does the MVP print DJS
+/// counterpart — `mvp-roadmap.md`'s open question 2 ("does the MVP print DJS
 /// for those, or report an error?") is left for later, so this reports an
 /// error rather than guessing at a representation.
 ///
