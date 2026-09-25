@@ -104,9 +104,12 @@ see [serialization](./serialization.md).
 2. [ ] [named and rest parameters](./3120-parameters.md) — `a => …` and
    `(a, b, c, ...args) => …`; fixed `arg`/`rest` EDAG bindings and
    pre-generated callable factories preserving declared arity
+   ([function-length-limit](./function-length-limit.md) proposes at most 16
+   fixed parameters)
 3. [ ] [function length pattern](./3130-function-length-pattern.md) — an
    alternative for arbitrary length/full-argument construction, not a
-   prerequisite for the named-and-rest parameter plan
+   prerequisite for the named-and-rest parameter plan; its unrestricted
+   length conflicts with [function-length-limit](./function-length-limit.md)
 4. [x] body-const — a function body takes `const` statements before its
    `return`, and the writer spells them
    ([functions](../README.md#functions))
