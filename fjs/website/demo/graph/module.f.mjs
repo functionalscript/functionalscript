@@ -133,8 +133,11 @@ const missingEnds = ids => (edge, index) => [
  *
  * A node with outgoing edges is a header and a row of ports beneath it; a
  * node without is the header alone, so a leaf keeps the size it always had.
- * A node with an inline value adds a row for the values under the ports,
- * and every port spans it, so an edge still leaves from the node's bottom.
+ * A node with an inline value adds a row for the values under the ports.
+ * Every port in that row is split in two, its label over a lower cell
+ * that holds the value or, for an edge, is the socket the edge leaves
+ * from, so the node reads as a grid rather than as tall cells beside
+ * short ones.
  *
  * **A node with ports is as tall as its row**, as a lane is. Its edges
  * leave from the row's bottom then, not from partway down it, so none
@@ -142,8 +145,8 @@ const missingEnds = ids => (edge, index) => [
  * way to the next row.
  *
  * **An edge has a lane in every rank strictly between its ends**, and none
- * when it goes to the next rank, or to an inline value, which has no rank. A lane's `key` places it just after its
- * source's id, among the nodes ordered by id, so it sits near where its
+ * when it goes to the next rank, or to an inline value, which has no
+ * rank. A lane's `key` places it just after its source's id, among the nodes ordered by id, so it sits near where its
  * edge starts rather than at the far end of a row. It carries its edge's
  * `index`, its position in the graph's list, because that is what tells
  * two edges apart: the same `Edge` object may be listed twice, and a lane
@@ -308,6 +311,11 @@ export const _crossings = g => {
  *
  * **A primitive is a cell, not a box.** An inline value draws in its port,
  * under the label, and no line leaves for it: see the module's own doc.
+ * A node taller than its header and one row of labels splits every port:
+ * the label's cell, and under it a value cell or an empty socket the
+ * edge leaves from. Values carry an attribute of their own, apart from
+ * the node labels and the port labels, so the stylesheet can colour a
+ * value unlike a key.
  *
  * **Boxes, then edges, then the labels.** Since no edge crosses a box the
  * order decides only where an edge meets its own ends, and there the line
@@ -340,15 +348,18 @@ export const graphSvg = g => {
         }]),
         ...p.ports.map(port => /** @type {Element} */ (['rect', {
             x: String(p.x + port.x), y: String(p.y + headerHeight),
-            width: String(port.width), height: String(p.height - headerHeight),
+            width: String(port.width), height: String(portHeight),
             'data-graph-port': '',
         }])),
-        ...p.ports.flatMap(port => inlineOf(port.edge) === null ? [] : [/** @type {Element} */ (['rect', {
+        ...(p.height === headerHeight + portHeight ? [] : p.ports.map(port => /** @type {Element} */ (['rect', {
             x: String(p.x + port.x), y: String(p.y + headerHeight + portHeight),
-            width: String(port.width), height: String(valueHeight),
-            'data-graph-value': '',
-            ...(port.edge.kind === undefined ? {} : { 'data-graph-edge-kind': port.edge.kind }),
-        }])]),
+            width: String(port.width), height: String(p.height - headerHeight - portHeight),
+            // A socket's edge carries its own kind on the line; a value
+            // has no line, so its cell carries the kind instead.
+            ...(inlineOf(port.edge) === null ? { 'data-graph-socket': '' }
+                : port.edge.kind === undefined ? { 'data-graph-value': '' }
+                    : { 'data-graph-value': '', 'data-graph-edge-kind': port.edge.kind }),
+        }]))),
     ])
     /** @type {readonly Element[]} */
     const labelEls = positioned.flatMap(p => [
@@ -364,7 +375,7 @@ export const graphSvg = g => {
             const inline = inlineOf(port.edge)
             return inline === null ? [] : [/** @type {Element} */ (['text', {
                 x: String(p.x + port.x + port.width / 2), y: String(p.y + headerHeight + portHeight + valueHeight / 2),
-                'text-anchor': 'middle', 'data-graph-label': '',
+                'text-anchor': 'middle', 'data-graph-value-label': '',
             }, inline])]
         }),
     ])

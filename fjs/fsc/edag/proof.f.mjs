@@ -1087,7 +1087,7 @@ export const proof = {
             assertEq(html.split('data-graph-kind="terminal"').length - 1, 2)
             assertEq(html.split('>args<').length - 1, 1)
             assertEq(html.split('>rest<').length - 1, 1)
-            assert(html.includes('data-graph-label="">undefined<'), html)
+            assert(html.includes('data-graph-value-label="">undefined<'), html)
             assertEq(html.split('data-graph-kind="leaf"').length - 1, 0)
             // `1`, `2`, `3`, `4`, `null` and `undefined`, each in a cell.
             assertEq(html.split('data-graph-value=""').length - 1, 6)

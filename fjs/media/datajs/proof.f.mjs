@@ -112,7 +112,7 @@ export const proof = {
                 const html = htmlToString(demo.view('export default [1];'))
                 assert(html.includes('<rect x="10" y="10" width="50" height="66" rx="4" data-graph-node=""'), html)
                 assert(html.includes('<rect x="10" y="56" width="50" height="20" data-graph-value="">'), html)
-                assert(html.includes('<text x="35" y="66" text-anchor="middle" data-graph-label="">1<'), html)
+                assert(html.includes('<text x="35" y="66" text-anchor="middle" data-graph-value-label="">1<'), html)
                 assert(!html.includes('data-graph-edge=""'), html)
             },
             // Two equal numbers are two values, not one shared like a
@@ -120,7 +120,7 @@ export const proof = {
             equalLeavesDoNotShare: () => {
                 const html = htmlToString(demo.view('export default [1,1];'))
                 assertEq(occurrences(html, 'data-graph-value=""'), 2)
-                assertEq(occurrences(html, 'data-graph-label="">1<'), 2)
+                assertEq(occurrences(html, 'data-graph-value-label="">1<'), 2)
             },
             // Three array elements sharing one value are three ports and
             // three lines into one node — each index in its own cell, so
