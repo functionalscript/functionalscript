@@ -198,7 +198,7 @@ const failSafe = res => {
     respondWith(res)(500)('internal server error')
 }
 
-const { mkdir, open, readFile, readdir, rename, writeFile, rm, access, stat } = fs.promises
+const { mkdir, open, readFile, readdir, rename, writeFile, rm, rmdir, access, stat } = fs.promises
 
 const { exec } = childProcess
 
@@ -392,6 +392,7 @@ const runNodeEffect = asyncRun({
     // pad the last byte.
     writeFile: (path, data) => io(() => writeFile(path, fromVec(data))),
     rm: path => io(() => rm(path)),
+    rmdir: path => io(() => rmdir(path)),
     rename: (src, dst) => io(() => rename(src, dst)),
     readBytes: (path, offset, size) => io(async () => {
         if (offset < 0) {
@@ -486,7 +487,7 @@ const runNodeEffect = asyncRun({
         const fh = await open(path, 'wx')
         let failure = null
         try {
-            await fh.writeFile(fromVec(data))
+            await fh.writeFile(Buffer.concat(data.map(fromVec)))
         } catch (e) {
             failure = e
         }
