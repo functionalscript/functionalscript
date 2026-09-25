@@ -89,8 +89,10 @@ Inline content (`text`/`base64`) resolves into a single `Vec`, which caps at
 returns `isError` with a descriptive message pointing at the CLI. There is no
 MCP route to store a larger blob — run `npx functionalscript cas add <path>`
 instead, either yourself (if you're an agent with shell access) or by giving
-the user that exact command to run; it stores the file directly from the
-caller's own filesystem and prints the resulting hash. A future `type` may add
+the user that exact command to run; it stores the file directly and prints the
+resulting hash. Like `cas get`, it must run where the server runs — the same
+host, container and account, over the same `ssh host` if the server was
+launched that way — since the CLI writes the store of the account it runs as. A future `type` may add
 a *remote* `http(s)://` URL fetch, downloaded server-side into the store with
 no local-path involved; see the design invariant below.
 
@@ -127,7 +129,11 @@ themselves. The typical decision protocol:
 2. If `type: 'text'` and `length` is small → call again with `content: true`.
 3. If `length` is past the inline limit, or the bytes are wanted in a file →
    run `npx functionalscript cas get <hash> <path>`, or give the user that
-   exact command: it writes the blob of any size to `<path>`.
+   exact command: it writes the blob of any size to `<path>`. It must run
+   where the server runs — the same host, container and account, so over the
+   same `ssh host` if the server was launched that way. The CLI reads the store
+   of the account it runs as, so run anywhere else it reports the hash
+   missing.
 
 `uri` is always present and is the blob's opaque identifier, `cas:<hash>`,
 with the hash in canonical cBase32 — the name the future `resources/read`
@@ -182,7 +188,7 @@ Because the size and type are derived first with the size-independent
 the byte size and pointing at the alternatives, e.g.
 
 ```
-blob too large to fetch inline (262144 bytes, limit 131072 bytes); run `npx functionalscript cas get <hash> <path>` (or have the user run it), or omit content for metadata
+blob too large to fetch inline (262144 bytes, limit 131072 bytes); run `npx functionalscript cas get <hash> <path>` where this server runs (same host, container and account; over the same ssh if it was launched that way), or have the user run it there, or omit content for metadata
 ```
 
 So `no such hash` means the hash genuinely is not in the store, while the message
@@ -232,7 +238,8 @@ npx functionalscript mcp`, a container, or a wrapper running the server under
 another user are all ordinary stdio launches. So what a client learns about a
 blob is what it already knows, its hash: `cas_get`'s `uri` is `cas:<hash>`,
 and a blob too large for inline content is pointed at the `cas get` CLI
-command, which the user runs with their own access.
+command, which the user runs with their own access, in the server's
+environment.
 
 This is the emit side of the invariant below: a new field or message that
 would carry a server path is a decision to make here first, not a detail of

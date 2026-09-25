@@ -344,6 +344,9 @@ export const proof = {
         // The way out is the CLI, named with this hash, and never the
         // server's store path.
         assert(text.includes(`npx functionalscript cas get ${hash} <path>`), text)
+        // …and says where to run it: the CLI reads its own account's store,
+        // so the same command in a client shell over `ssh` reads another one.
+        assert(text.includes('where this server runs'), text)
         assert(!text.includes('/home/user'), text)
     },
 

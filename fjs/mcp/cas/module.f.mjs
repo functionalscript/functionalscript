@@ -77,7 +77,10 @@
  * base64 on `blob` (for `type: 'base64'`). A blob larger than `maxLength` (128
  * KiB) cannot be buffered into one `Vec`, so it is rejected here with a
  * descriptive *"too large"* error (carrying the byte size and the `cas get`
- * command that writes it to a file) rather than being misreported as absent;
+ * command that writes it to a file, to be run where the server runs: the CLI
+ * reads the store of the account it runs as, so the same command run over
+ * another `ssh` hop, container or account reads a different store) rather
+ * than being misreported as absent;
  * it should be fetched with that command or inspected with metadata-only
  * `cas_get`.
  *
@@ -204,7 +207,7 @@ export const casToolRegistry = home => cacheKey => {
     return [
         toolEntry(
             'cas_add',
-            'Store content and return its hash (cBase32). Pass type:"base64" for binary; omit or pass type:"text" for UTF-8 text (default). Inline content is capped at 128 KiB (131072 bytes) — larger content is rejected. For larger content, store the file with the `cas` CLI instead: run `npx functionalscript cas add <path>` yourself if you have shell access, or give the user that exact command to run — it prints the resulting hash on stdout.',
+            'Store content and return its hash (cBase32). Pass type:"base64" for binary; omit or pass type:"text" for UTF-8 text (default). Inline content is capped at 128 KiB (131072 bytes) — larger content is rejected. For larger content, store the file with the `cas` CLI instead: run `npx functionalscript cas add <path>` where this server runs — the same host, container and account, so over the same `ssh host` if it was launched that way — yourself if you have shell access, or give the user that exact command to run; it prints the resulting hash on stdout. Run anywhere else, it stores into a different store.',
             casAddArgs,
             ({ type, content }) => {
                 // type:'text' or 'base64' — resolve content to Vec, store via c.write()
@@ -213,7 +216,7 @@ export const casToolRegistry = home => cacheKey => {
                     ? base64Decode(content)
                     : tryUtf8(content)
                 return x === null
-                    ? pureOk(errorResult('too large or malformed — for large content, run `npx functionalscript cas add <path>` (or have the user run it) instead'))
+                    ? pureOk(errorResult('too large or malformed — for large content, run `npx functionalscript cas add <path>` where this server runs (same host, container and account; over the same ssh if it was launched that way), or have the user run it there, instead'))
                     // The resolved content fits in one chunk; feed it as a single-item stream.
                     : resultStep(
                         c.write(nonEmpty(x, elEmpty())),
@@ -230,7 +233,7 @@ export const casToolRegistry = home => cacheKey => {
         ),
         toolEntry(
             'cas_get',
-            'Inspect a blob by hash. Always returns JSON {length,mimeType,type,uri} where type is "text" or "base64" and uri is the blob\'s opaque identifier, cas:<hash>. Pass content:true to also include the inline payload as text (type:"text") or blob (type:"base64"), but content is capped at 128 KiB (131072 bytes) — a larger blob is rejected with an error. To write a blob of any size to a file, run `npx functionalscript cas get <hash> <path>` yourself if you have shell access, or give the user that exact command to run.',
+            'Inspect a blob by hash. Always returns JSON {length,mimeType,type,uri} where type is "text" or "base64" and uri is the blob\'s opaque identifier, cas:<hash>. Pass content:true to also include the inline payload as text (type:"text") or blob (type:"base64"), but content is capped at 128 KiB (131072 bytes) — a larger blob is rejected with an error. To write a blob of any size to a file, run `npx functionalscript cas get <hash> <path>` where this server runs — the same host, container and account, so over the same `ssh host` if it was launched that way — yourself if you have shell access, or give the user that exact command to run. Run anywhere else, it reads a different store and reports the hash missing.',
             casGetArgs,
             r => {
                 const key = cBase32ToVec(r.hash)
@@ -272,7 +275,7 @@ export const casToolRegistry = home => cacheKey => {
                         // misreporting an existing blob as `no such hash`.
                         if (length > maxLengthBytes) {
                             return pureOk(errorResult(
-                                `blob too large to fetch inline (${length} bytes, limit ${maxLengthBytes} bytes); run \`npx functionalscript cas get ${hash} <path>\` (or have the user run it), or omit content for metadata`))
+                                `blob too large to fetch inline (${length} bytes, limit ${maxLengthBytes} bytes); run \`npx functionalscript cas get ${hash} <path>\` where this server runs (same host, container and account; over the same ssh if it was launched that way), or have the user run it there, or omit content for metadata`))
                         }
                         return resultStep(
                             collectRead(c.read(key)),
