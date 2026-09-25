@@ -144,12 +144,13 @@ consumers — for example after changing `prepack`, `files`, or anything that
 affects emitted declarations — follow
 [`fjs/ci/packed-consumer-validation.md`](./fjs/ci/packed-consumer-validation.md).
 
-New `.f.mjs` modules need a co-located proof with 100% proof coverage — see
-[fjs/AGENTS.md §1](./fjs/AGENTS.md#1-testing-and-proof-coverage). Authored
-FunctionalScript is JavaScript with JSDoc: a `module.f.mjs` is accompanied by a
-`proof.f.mjs`, and a separately useful type-level API may live in a sibling
-`types.ts`. Current FunctionalScript compiler support is not required for either
-file.
+New `.f.mjs` and `.f.js` modules need a co-located proof with 100% proof
+coverage — see [fjs/AGENTS.md §1](./fjs/AGENTS.md#1-testing-and-proof-coverage).
+Authored FunctionalScript is JavaScript with JSDoc: a `module.f.mjs` is
+accompanied by a `proof.f.mjs`, and a separately useful type-level API may live
+in a sibling `types.ts`. Current FunctionalScript compiler support is not
+required for either file; a `module.f.js` is the one that promises it, and keeps
+a `proof.f.mjs` too.
 
 `types.ts` and an optional sibling `private.ts` are the only authored
 TypeScript in the repository, and both are permanent rather than migration debt
@@ -157,9 +158,11 @@ TypeScript in the repository, and both are permanent rather than migration debt
 type lives in `types.ts` when it belongs to the module's public declaration
 closure, in an optional sibling `private.ts` when it does not, inline in the
 annotation that uses it, or function-local in a proof. Only `types.d.ts` ships:
-`package.json`'s `files` negates `**/private.d.ts`. `.f.js` is not authored
-today; it is reserved for the stage-2 compiler-compatibility marker described in
-[`fjs/fsc/README.md`](./fjs/fsc/README.md).
+`package.json`'s `files` negates `**/private.d.ts`. `.f.js` is the stage-2
+compiler-compatibility marker described in
+[`fjs/fsc/README.md`](./fjs/fsc/README.md): authored FunctionalScript the current
+compiler accepts, so far only the package fixture
+[`fjs/ci/package/fixture/module.f.js`](./fjs/ci/package/fixture/module.f.js).
 
 ### Regenerating after a source change
 

@@ -190,9 +190,10 @@ operation. Captured rest retains the same binding through the existing frame.
 
 Migrate existing zero-arity `['args']` reads to `['rest']` in their owning
 scope. Do not accept old positive-arity/full-arguments sketches as equivalent
-to the new format. The AOT backend initializes its native function metadata;
-it does not inherit a JavaScript evaluator's finite factory-table capacity
-or require the proposed `withLength` pattern for arity.
+to the new format. The AOT backend initializes its native function metadata
+for every length the language admits, 0–16 — the JavaScript factory table's
+range too, since both follow the language's limit — and does not need the
+retired [`withLength` pattern](https://github.com/functionalscript/functionalscript/blob/245649cdeeb0fb6318004ee273121143273262db/spec/todo/arity-complete-arguments.md#candidate-mechanism-the-withlength-pattern) for arity.
 
 #### Local variables and temporaries
 
@@ -463,8 +464,8 @@ operation. The [`parameters` harness fixture](../../nanvm-harness/fixtures/param
 and its [generated Rust](../../nanvm-harness/gen.fixtures/parameters.rs) cover
 omitted, explicit `undefined` and extra arguments, captured fixed/rest values,
 and repeated versus distinct-call rest identity. The
-[Rust module proofs](../../fjs/fsc/rust/proof.f.mjs) cover binding refusals and
-valid length 33, independently of the JavaScript factory table's capacity.
+[Rust module proofs](../../fjs/fsc/rust/proof.f.mjs) cover binding refusals,
+the largest valid length, 16, and the refusal of 17.
 The remaining migration and regression work stays open in the checklist;
 this implementation does not complete the default-text renderer.
 The older [call-like-instructions §6](../../spec/todo/9100-call-like-instructions.md#6-behind-the-scenes-of-user-defined-function-calls)
@@ -560,7 +561,7 @@ generated-Rust test from one source of cases.
       extra arguments, unused fixed parameters, returning/forwarding rest,
       repeated rest reads, distinct calls, spread-array identity and captures.
       Cover zero-arity migration and refusal of legacy positive-arity/full-list
-      sketches. Keep native capacity separate from the JS factory table.
+      sketches. Native capacity is the language's limit on `length`, 16.
       Pin the closure behaviors that compile today but no generated fixture
       pins yet: two closures made by one function are distinct while one
       binding read twice is the same
