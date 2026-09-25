@@ -3,16 +3,20 @@
 **Priority:** P3
 **Status:** open
 
-**It blocks
-[streaming-http-bodies](../../effects/node/todo/streaming-http-bodies.md)** —
-the direction the status line has no value for, `blocked` being the one for an
+**It is what makes
+[streaming-http-bodies](../../effects/node/todo/streaming-http-bodies.md) cheap,
+and it used to be what made it possible** — the direction the status line has no
+value for, `blocked` being the one for an
 issue *waiting on* another and nothing holding this one up
 ([todo/README.md](../../../todo/README.md)). That issue serves a file in chunks,
 and a chunk loop over a *name* resolves it once per chunk rather than once per
 body: a replaced entry can be spliced into a response that is clean, correctly
 sized, and made of two files. The handle effect below is what binds every chunk
-of one response to one inode, so it stops being a slower-guard fix and becomes a
-prerequisite of that feature.
+of one response to one inode while the body stays lazy, so it stops being a
+slower-guard fix. It was a prerequisite of that feature until `readWhole` landed
+on 2026-09-14 (`11e3533f`), which binds the chunks too by materializing the whole
+file; that issue's 2026-09-22 note records the trade, and its `fjs/web` task now
+names either route.
 
 ### Problem
 
