@@ -186,7 +186,7 @@ module they live in.
   there. The corpus that argument was about is
   [`spec/datajs/vectors`](../spec/datajs/vectors/README.md), whose README
   records the gap from its own side.
-- [`spec/todo/3130-function-length-pattern.md`](../spec/todo/3130-function-length-pattern.md)
-  — admits one construction-time `defineProperty`, on a fresh function's
-  `length`, as a complete matched pattern; it cites `tupleRebuild` as the
-  existing ungranted instance and does not legalize it.
+- [`spec/todo/3130-function-length-pattern.md`](https://github.com/functionalscript/functionalscript/blob/b676ed68885930e507f7c57ecd89ccc4446fa581/spec/todo/3130-function-length-pattern.md)
+  — retired: it would have admitted one construction-time `defineProperty`,
+  on a fresh function's `length`; it cited `tupleRebuild` as the existing
+  ungranted instance and did not legalize it.

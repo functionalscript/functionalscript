@@ -30,8 +30,9 @@ four elements do not make the complete-arguments interpretation valid.
 A named-plus-rest arrow cannot recover that complete list: rebuilding
 `[a, b, ...rest]` pads omitted fixed positions with `undefined`. That is a
 problem for this stronger contract, not for the implemented parameter-binding contract.
-The [length-pattern proposal](./3130-function-length-pattern.md) is one
-possible mechanism for the stronger contract.
+The [length-pattern proposal](https://github.com/functionalscript/functionalscript/blob/b676ed68885930e507f7c57ecd89ccc4446fa581/spec/todo/3130-function-length-pattern.md) was one
+possible mechanism for the stronger contract; it is retired, and the language
+limits `length` to 16.
 
 ### Tasks
 

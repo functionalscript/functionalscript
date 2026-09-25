@@ -1,7 +1,7 @@
 /** @import { Body } from './types.ts' */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { callable, isIndex } from './module.f.mjs'
+import { callable, isIndex, maxLength } from './module.f.mjs'
 import { factories } from './table.f.mjs'
 
 /** @type {Body} */
@@ -13,6 +13,7 @@ export const proof = {
         for (const n of [-0, -1, 0.5, NaN, Infinity, -Infinity]) { assert(!isIndex(n)) }
     },
     factories: () => {
+        assertEq(factories.length, maxLength + 1)
         for (const [length, factory] of factories.entries()) {
             const f = factory(pair)
             assertEq(f.length, length)
@@ -31,6 +32,6 @@ export const proof = {
         fractional: () => callable(1.5, pair),
         infinite: () => callable(Infinity, pair),
         nan: () => callable(NaN, pair),
-        uncovered: () => callable(factories.length, pair),
+        overLimit: () => callable(maxLength + 1, pair),
     },
 }

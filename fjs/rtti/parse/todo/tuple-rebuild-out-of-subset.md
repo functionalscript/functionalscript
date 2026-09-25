@@ -144,9 +144,9 @@ alone does not stand in for that approval.
 - [new-array-out-of-subset](../../../../todo/new-array-out-of-subset.md) —
   the sweep this is one step of, and the survey that found the site.
 - [Function length pattern](https://github.com/functionalscript/functionalscript/pull/2213)
-  — `spec/todo/3130-function-length-pattern.md` once it lands: the one
-  construction-time `defineProperty` the language may admit; this function
-  is not it.
+  — retired without landing, when the language limited `length` to 16: it
+  was the one construction-time `defineProperty` the language might have
+  admitted; this function was never it.
 - [Built-in](../../../../spec/todo/2360-built-in.md) — `Array` as a namespace
   and `defineProperty` as `mutate`.
 - [rtti README](../../README.md#what-the-readers-assume-of-a-value) — the

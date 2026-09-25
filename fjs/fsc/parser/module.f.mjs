@@ -61,6 +61,7 @@ import { concat, toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
+import { maxLength } from '../../types/function/length/module.f.mjs'
 import { keywords, literalWords } from '../../js/keywords/module.f.mjs'
 import { prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.mjs'
 import { symbolAt, unmapped } from '../../ebnf/ast/module.f.mjs'
@@ -930,6 +931,9 @@ const captureShadowed = foldError('capture shadowed')
 /** A keyword where JavaScript wants an identifier, at the word. */
 const reservedWord = foldError('reserved word')
 
+/** A fixed parameter past the language's limit on a function's `length`, at the first one past it. */
+const tooManyParameters = foldError(`more than ${maxLength} fixed parameters`)
+
 /** The rest array after the fixed parameters of the function whose body is being resolved. @type {AstRest} */
 const restBinding = ['rest']
 
@@ -1276,7 +1280,8 @@ const captured = (body, word, [outer, ref]) => {
  * A named parameter is refused as a `const` is: a reserved word, or a
  * name the list already binds, `(a, a) => 1` being a syntax error in
  * JavaScript for an arrow function. A list whose head is no name was
- * refused before any word of it, {@link malformedParameters}.
+ * refused before any word of it, {@link malformedParameters}. A fixed
+ * parameter past the language's limit is refused, {@link tooManyParameters}.
  *
  * @type {(list: ParameterList) => Result<readonly [_Env, number], ParseError>}
  */
@@ -1285,6 +1290,7 @@ const functionScope = list => {
     /** @type {(acc: Result<_Env, ParseError>, binding: ParameterBinding, i: number) => Result<_Env, ParseError>} */
     const bind = (acc, { name, rest }, i) => {
         if (acc[0] === 'error') { return acc }
+        if (!rest && i === maxLength) { return error(tooManyParameters(name)) }
         const [tag, word] = bindable(acc[1])(name)
         return tag === 'error' ? error(word) : ok(extended(acc[1])(word, rest ? restBinding : ['arg', i]))
     }

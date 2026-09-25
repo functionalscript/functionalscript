@@ -76,8 +76,7 @@ and rest arrays captured by nested functions use the same frame mechanism.
 Hand-written arrow factories ([`fjs/types/function/length`](../../types/function/length/README.md))
 adapt host calls to the evaluator's `(fixed, rest)` bindings, preserving declared
 JavaScript `length` without runtime code generation.
-The current table covers lengths 0–32 and refuses larger arities at materialization;
-that executor capacity does not limit valid EDAG metadata or source compilation.
+The table covers every length the language admits, 0–16.
 The parameter plan's default-function-text gate remains open: these callables still
 expose wrapper source on native conversion. Interpreter integration must not claim
 that rendering or callable/EDAG association is complete.

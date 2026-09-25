@@ -4,7 +4,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { analysis, bindingError } from '../../edag/analysis/module.f.mjs'
 import { vm } from '../../edag/amnesia/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
-import { factories } from '../../types/function/length/table.f.mjs'
+import { maxLength } from '../../types/function/length/module.f.mjs'
 import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
@@ -82,7 +82,7 @@ export const proof = {
         }
     },
     factoryTable: () => {
-        // The table's first entries, spelled as `table.f.mjs` spells them; `capacity` covers its width.
+        // The table's first entries, spelled as `table.f.mjs` spells them; `lengthLimit` covers its width.
         const table = unresolved(unwrap(parse('table.f.mjs')([
             'export const factories = [',
             '    g => (...rest) => g([], rest),',
@@ -100,12 +100,14 @@ export const proof = {
             }
         }
     },
-    capacity: () => {
-        const length = factories.length
-        const parameters = Array.from({ length }, (_, i) => `a${i}`).join(',')
-        const e = roundTrip(`export default (${parameters},...x)=>x;`)
+    lengthLimit: () => {
+        /** @type {(length: number) => string} */
+        const source = length => `export default (${Array.from({ length }, (_, i) => `a${i},`).join('')}...x)=>x;`
+        const e = roundTrip(source(maxLength))
         assert(e instanceof Array && e[0] === '=>')
-        assertEq(e[1], length)
+        assertEq(e[1], maxLength)
+        for (const run of evaluators) { assertEq(run(e).length, maxLength) }
+        assertEq(parse('bad.f.mjs')(source(maxLength + 1))[0], 'error')
     },
     refusals: () => {
         for (const params of [
@@ -121,7 +123,7 @@ export const proof = {
     },
     throw: {
         metadata: [-0,-1,0.5,Infinity,NaN].map(length => () => analysis(['=>',length,null,1])),
-        capacity: evaluators.map(run => () => run(['=>',factories.length,null,1])),
+        overLimit: evaluators.map(run => () => run(['=>',maxLength + 1,null,1])),
         arg: evaluators.map(run => () => run(['=>',1,null,['arg',1]])()),
         moduleRest: evaluators.map(run => () => run(['rest'])),
         functionArgs: evaluators.map(run => () => run(['=>',1,null,['args']])()),

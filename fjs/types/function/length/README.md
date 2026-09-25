@@ -6,13 +6,11 @@ the tail begins at `length`. Each returned arrow has that native `.length`
 without mutation, `eval`, `Function`, dynamic imports or host helpers: a
 function's `length` comes only from a written parameter list.
 
-`table.f.mjs` covers lengths **0 through 32**, inclusive. This is the current
-JavaScript executor capacity, not a language or EDAG limit.
-[function-length-limit](../../../../spec/todo/function-length-limit.md)
-proposes fixing it in the language. An uncovered length fails through the
-executor's assertion contract when it materializes the function. Compilation
-and source writing do not consult the table. Supplied argument count and
-rest-array length are not limited by it.
+`table.f.mjs` covers lengths **0 through 16**, inclusive: `maxLength`, the
+language's limit on a function's `length`, so every valid function has a
+factory. [`fjs/edag/analysis`](../../../edag/analysis/module.f.mjs) refuses a
+longer one as a binding error, and `callable` asserts it. Supplied argument
+count and rest-array length are not limited by it.
 
 `isIndex` is the canonical-length predicate `callable` asserts: a nonnegative
 integer, positive zero only. [`fjs/edag/analysis`](../../../edag/analysis/module.f.mjs)
