@@ -496,8 +496,9 @@ module boundary, from which a default import selects the document.
   where it may refuse a tree it cannot prove is one, never the reverse. A
   module whose own value holds a shared node counts as shared under any
   route an importer takes into it, and so does every module it reaches:
-  `p.selected` is refused when another member of `p` holds a shared node or
-  a module the importer also selects. Two exports of one module that hold
+  a selected container, `p.selected`, is refused when another member of `p`
+  holds a shared node or a module the importer also selects, while a
+  selected primitive is written, having no identity to lose. Two exports of one module that hold
   containers — `import { a, b }` returned as `[a, b]` — are refused even when
   disjoint, where `m.a` and `m.b` of one default import are not. The other
   four outputs accept these, and
@@ -528,8 +529,11 @@ module boundary, from which a default import selects the document.
   one loading such a module — gives every array, object, function, access
   and operation outside a function body a `const` of its own, however many
   references reach it, in graph order with dependencies first, while a body
-  keeps what it holds in place; only a leaf stays inline, and
-  each export names its value's `const` or holds its leaf:
+  keeps what it holds in place. Only a leaf stays inline, and `undefined` is
+  not one there: it lowers to the node `["undefined"]`, so it gets a `const`
+  as a node does — `export const a = 1; export default undefined;` is
+  `const $0=undefined;export const a=1;export default $0;`. Each export names
+  its value's `const` or holds its leaf:
   `const once = [1]; export const b = [once]; export default 3;` is
   `const $0=[1];const $1=[$0];export const b=$1;export default 3;`. The
   names gain a `$`, `$$0`, when an export's name begins with `$`.
@@ -793,8 +797,9 @@ included — and another folded negation all fold, so
 output is `export default 1;`. An import of a number or a `bigint` folds too
 where it lowers to that value, which it does from a module that computes
 nothing but its default export, as a JSON document does; from any other
-module it lowers to a read of that module's computation, and stays an
-operation. A negation of anything else stays one too: of a string, a
+module it lowers to that module's computation — its statement sequence, or
+a read of its export object when the module exports more than `default` —
+and stays an operation. A negation of anything else stays one too: of a string, a
 boolean, `null`, `undefined` or a container, since folding it would mean
 saying what that value converts to, and of an access, a parameter or a call,
 whose value lowering does not compute. No other operator folds, even over

@@ -17,11 +17,10 @@ Two things remain.
 Other documents still lean on the DJS name:
 [`fjs/fsc/README.md`](../fjs/fsc/README.md), the parser's README and module
 docs, [`spec/todo/README.md`](../spec/todo/README.md), which sorts its
-roadmap into a DJS section and an FJS one, and the paragraph of
-[`spec/datajs/README.md`](../spec/datajs/README.md) (Status) that explains
-the two uses of "DJS", which has nothing left to explain once the wider use
-is gone. The same Status section opens by saying the document "specifies a
-target, not the current implementation", while every sentence after it — and
+roadmap into a DJS section and an FJS one. The Status section of
+[`spec/datajs/README.md`](../spec/datajs/README.md) opens by saying the
+document "specifies a target, not the current implementation", while every
+sentence after it — and
 the conformance matrix, which awaits nothing for the reader, the serializer or
 normalization — says the codec implements it.
 
@@ -46,8 +45,7 @@ module, and linking is application.
 ### Tasks
 
 - [ ] Rename the DJS and FJS sections of `spec/todo/README.md` and the DJS
-      names in `fjs/fsc` docs where they are only names; remove the two-uses
-      paragraph from `spec/datajs/README.md`.
+      names in `fjs/fsc` docs where they are only names.
 - [ ] `spec/datajs/README.md` Status: drop the "target, not the current
       implementation" opening, or name what is actually still missing.
 - [ ] Module Structure states that a module is a function, and the scope
