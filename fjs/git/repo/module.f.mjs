@@ -45,7 +45,7 @@ import { catchStep, history, historyStep, mapStep, pureError, pureOk, step } fro
 import { isNotFound, readFile, stat } from '../../effects/node/module.f.mjs'
 import { isBareDrive, isDriveRoot, under } from '../../path/module.f.mjs'
 import { fromVec } from '../../text/utf8/module.f.mjs'
-import { msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
+import { u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 
 /** What a `.git` file says before the directory it names. */
@@ -53,12 +53,6 @@ const gitdir = /** @type {const} */ ('gitdir: ')
 
 /** The current directory, spelled so that a caller can join below it. */
 const here = /** @type {const} */ ('.')
-
-/** The byte list of a vector, most significant bit first, as Git's files are. */
-const u8ListMsb = u8List(msb)
-
-/** Its inverse, at the same byte order. */
-const u8ListToVecMsb = u8ListToVec(msb)
 
 /**
  * A file of Git's read as Git reads one: `size` the bytes it holds after

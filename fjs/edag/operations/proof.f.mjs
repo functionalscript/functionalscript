@@ -21,7 +21,7 @@ const values = {
     frame: 'F',
     args: [10, 20],
     operand: v => v,
-    invoke: (frame, args, body) => operation({ ...values, frame, args })(/**@type {any}*/(body)),
+    invoke: (frame, fixed, rest, body) => operation({ ...values, frame, fixed, rest })(/**@type {any}*/(body)),
 }
 
 /** @type {(e: any) => unknown} */
@@ -97,9 +97,9 @@ export const proof = {
     // `=>` closes over the frame operand's value and starts a new
     // invocation per call, whose body reads its own `args` and `frame`.
     lambda: () => {
-        const f = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', 'captured', ['frame']]))
+        const f = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', 0, 'captured', ['frame']]))
         assertEq(f(), 'captured')
-        const g = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', null, ['args']]))
+        const g = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', 0, null, ['rest']]))
         assertStructurallySame(g(1, 2), [1, 2])
     },
     throw: {

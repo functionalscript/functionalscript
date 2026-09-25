@@ -220,15 +220,11 @@ import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
 import { fromCodePointList, fromVec } from '../../text/utf8/module.f.mjs'
 import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
-import { length, maxLengthBytes, msb, u8List, u8ListToVec, uint } from '../../types/bit_vec/module.f.mjs'
+import { length, maxLengthBytes, u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { hexText } from '../oid/module.f.mjs'
 import { tryPacked, tryRef } from '../ref/module.f.mjs'
 import { hasRefComponents, isWholeName, lockSuffix, sameBytes } from '../refname/module.f.mjs'
-
-const toBytes = u8List(msb)
-
-const toVec = u8ListToVec(msb)
 
 /**
  * A ref name as the bytes Git stores it as, from the text a path is.
@@ -298,7 +294,7 @@ const nameKey = name => codePointListToString(toArray(name))
  */
 const tryBytes = path =>
     catchStep(
-        mapStep(readFile(path), toBytes),
+        mapStep(readFile(path), u8ListMsb),
         e => isNotFound(e) || isDirectory(e) ? pureOk(null) : pureError(e))
 
 /**
@@ -572,7 +568,7 @@ const targetAllowed = (text, r) =>
  * [`todo/byte-ref-names.md`](./todo/byte-ref-names.md) has the rest.
  *
  * **A name past `maxLengthBytes` is `null` too**, and the check has to come
- * before the conversion: `Bytes` is unbounded and `u8ListToVec` asserts, so one
+ * before the conversion: `Bytes` is unbounded and `u8ListToVecMsb` asserts, so one
  * byte over escaped both {@link tryWrite} and {@link tryResolve} as a bare
  * `'assertion failed'` rather than as an answer — measured, at 131,073 bytes.
  * Found by review of
@@ -592,7 +588,7 @@ const targetAllowed = (text, r) =>
  * @type {(name: readonly number[]) => Nullable<string>}
  */
 const nameText = name =>
-    name.length > Number(maxLengthBytes) ? null : fromVec(toVec(name))
+    name.length > Number(maxLengthBytes) ? null : fromVec(u8ListToVecMsb(name))
 
 /**
  * A chain that has its answer: the id, and no lookups left to spend and no name
@@ -1043,7 +1039,7 @@ const readAsRef = (readRef, name, item, found) => {
     // that is what shadows the packed line
     const names = concat(found.names)([name])
     const add = refOf(found, name, names)
-    return mapStep(mapStep(readFile(item.path), toBytes), bytes => {
+    return mapStep(mapStep(readFile(item.path), u8ListMsb), bytes => {
         const r = readRef(bytes)
         return walked(r === null ? null : add(r), null)
     })

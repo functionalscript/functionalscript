@@ -5,7 +5,7 @@
  */
 
 import { utf8 } from '../../text/module.f.mjs'
-import { bytesIn, maxLengthBytes, msb, repeat, u8ListToVec, uint, vec } from '../../types/bit_vec/module.f.mjs'
+import { bytesIn, maxLengthBytes, repeat, u8ListToVecMsb, uint, vec } from '../../types/bit_vec/module.f.mjs'
 import { flip } from '../../types/function/module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { map } from '../../types/list/module.f.mjs'
@@ -27,8 +27,6 @@ const checkBytes = ({ hashLength, blockLength, hashBytes, blockBytes }) => (h, b
     assertEq(hashBytes, bytesIn(hashLength))
     assertEq(blockBytes, bytesIn(blockLength))
 }
-
-const toVec = u8ListToVec(msb)
 
 /**
  * A message whose every byte differs from its neighbours, long enough to
@@ -55,9 +53,9 @@ const varied = bytes => Array.from({ length: bytes * 3 }, (_, i) => (i * 37 + 11
 const seam = h => {
     const bytes = Number(h.blockBytes)
     const msg = varied(bytes)
-    const whole = uint(computeSync(h)([toVec(msg)]))
+    const whole = uint(computeSync(h)([u8ListToVecMsb(msg)]))
     for (const at of [1, bytes >> 1, bytes - 1, bytes, bytes + 1, bytes * 2 - 1]) {
-        assertEq(uint(computeSync(h)([toVec(msg.slice(0, at)), toVec(msg.slice(at))])), whole, at)
+        assertEq(uint(computeSync(h)([u8ListToVecMsb(msg.slice(0, at)), u8ListToVecMsb(msg.slice(at))])), whole, at)
     }
 }
 

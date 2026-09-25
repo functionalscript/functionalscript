@@ -5,7 +5,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { msb, u8List } from '../../types/bit_vec/module.f.mjs'
+import { u8ListMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { digestOf, toHex, tryFromHex } from '../oid/module.f.mjs'
 import { latin1, packIdx1, packIdx2 } from '../testlib.f.mjs'
@@ -21,7 +21,7 @@ const id = hex => {
 }
 
 /** @type {(oid: Oid) => readonly number[]} */
-const idBytes = oid => toArray(u8List(msb)(oid))
+const idBytes = oid => toArray(u8ListMsb(oid))
 
 /**
  * What `git verify-pack -v` reports for the pack both fixtures index: each

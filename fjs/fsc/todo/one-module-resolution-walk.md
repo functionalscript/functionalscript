@@ -6,32 +6,17 @@
 ### Problem
 
 `foldNextModuleOp` in [`transpiler`](../transpiler/module.f.mjs) and `link`
-in [`edag`](../edag/module.f.mjs) are the same five steps in the same order,
-down to the shared comment:
+in [`edag`](../edag/module.f.mjs) both check attributes, reject cycles, reuse
+completed module identities, then read JSON or parse and follow source imports.
 
-```js
-// transpiler, foldNextModuleOp                       // edag, link
-const mismatch = _attributeError(source)              const mismatch = _attributeError(source)
-if (mismatch !== null) { return pureError(mismatch) } if (mismatch !== null) { return pureError(mismatch) }
-if (includes(id)(context.stack)) {                    if (includes(id)(context.stack)) { return pureError({ message: 'circular dependency', metadata: null, path }) }
-    return pureError({ message: 'circular dependency', metadata: null, path })
-}                                                     const done = at(id)(context.complete)
-if (at(id)(context.complete) !== null) {              if (done !== null) { return pureOk([context, done[0]]) }
-    return pureOk(context)                            const entered = { ...context, stack: { first: id, tail: context.stack } }
-}
-if (json) { return mapStep(_parseJson(path), jsonDone(id, context)) }
-                                                      return json
-return step(_parseModule(path),                           ? mapStep(_parseJson(path), completedJson(id)(entered))
-    module => transpileWithImports(source)(module)(context))  : step(_parseModule(path), linkModule(source)(entered))
-```
-
-and their contexts are one type written twice, `ParseContext` in the
+Their contexts are one type written twice, `ParseContext` in the
 transpiler's public `types.ts` and `_Link` in the linker's `private.ts`,
 differing only in what `complete` memoises: the transpiler's
 `ModuleDenotation` against the linker's `_Resolved`, each a module's
-`exports` beside its `default`. The readers below the walk are already shared — the
+`exports` beside its `bindings` table of exported names and selected results.
+The readers below the walk are already shared — the
 transpiler exports `_rootSource`, `_importSources`, `_parseModule`,
-`_parseJson` and `_attributeError` for the linker to use — which is the
+`_parseJson`, `_attributeError` and `_missingExport` for the linker to use — which is the
 half-finished state: every rule about *reading* a module has one owner, and
 every rule about *walking* the graph has two. [module-resolution-compatibility](./module-resolution-compatibility.md)
 is what that costs: each semantics fix — percent decoding, host identity,
@@ -47,33 +32,48 @@ over the two things that differ — what a JSON document becomes, and what a
 parsed module becomes once its imports are bound:
 
 ```ts
-/** A resolved module, whatever the arm makes of one: its exports beside its default. */
-type _Context<T> = { readonly complete: OrderedMap<T>, readonly stack: List<string> }
+/** A complete module and its cached export selections. */
+type _Module<T> = {
+    readonly exports: T
+    readonly bindings: readonly (readonly [string, T])[]
+}
+type _Context<T> = { readonly complete: OrderedMap<_Module<T>>, readonly stack: List<string> }
 const _walk: <T>(
-    onJson: (value: JsonUnknown) => T,
-    onModule: (source: _Source, bound: readonly (readonly [_Source, T])[], module: AstModule) => Effect<ReadFile | ResolveFileModule, T, ParseError>,
-) => (source: _Source) => (context: _Context<T>) => Effect<ReadFile | ResolveFileModule, readonly [_Context<T>, T], ParseError>
+    onJson: (value: JsonUnknown) => _Module<T>,
+    onModule: (source: _Source, bound: readonly (readonly [_ImportSource, _Module<T>])[], module: AstModule) => Effect<ReadFile | ResolveFileModule, _Module<T>, ParseError>,
+) => (source: _Source) => (context: _Context<T>) => Effect<ReadFile | ResolveFileModule, readonly [_Context<T>, _Module<T>], ParseError>
 ```
 
-`T` is the **complete module** in both arms, not a bare value: the walk
-memoises what a later import reads `.default` from and what a root may ask
-either half of, so `onJson` returns the same shape `onModule` does. The
-transpiler's `T` is `ModuleDenotation`; its `onJson` is today's `jsonDone`
-body, `{ exports: jsonDenotation({ default: value }), default: jsonDenotation(value) }`,
-and its `onModule` the body that evaluates `values` and ends in `done`.
-The linker's `T` is `_Resolved`; its `onJson` is `completed` over
-`jsonEdag`, and its `onModule` is `lowered`.
+The walk memoises the **complete module**, never a bare selected value.
+`T` is `Denotation` for the transpiler and `Exp` for the linker;
+`_Module<Denotation>` and `_Module<Exp>` have the current `ModuleDenotation`
+and `_Resolved` shapes. A root returns `exports`; an import selects a cached
+entry from `bindings`. `default` is an ordinary exported name, not a separate
+cache field. `onJson` returns the same shape as `onModule`: the transpiler uses
+`{ exports: jsonDenotation({ default: value }), bindings: [['default', jsonDenotation(value)]] }`.
+The linker builds the full JSON export object and caches its `default`
+selection as `completedJson` does today. JSON object keys are not exports.
+The source arms reuse `values`/`done` and `lowered`/`completed`, respectively.
 
-`bound` pairs each resolved import with the `_Source` it came from, in
-import order, rather than handing over the `T`s alone: both paths today
-report an import with no default export against the **child's** resolved
-path — the transpiler's `missing.path`, the linker's `_Source.path` — and
-`fjs/fsc/proof.f.mjs` pins that diagnostic. Neither `ModuleDenotation` nor
-`_Resolved` carries a path, and the AST's specifier is not the
-host-resolved identity, so the arm needs the source beside the result to
-say which module was missing it. One `_Context<T>` replaces
-both context types, which already agree on the shape. `ParseContext`
-leaves `types.ts` in the same change.
+`bound` pairs each complete result with its `_ImportSource`, in import order.
+This retains the host identity, child diagnostic path, JSON attribute and
+selected exported `name`; a local alias has already become an AST binding.
+`name === null` denotes an empty import list: retain the full module's
+evaluation anchor without requiring any export. Otherwise, require a matching
+binding entry even when the local is unused, and report `_missingExport(source)`
+against the **child's** path. Presence means an entry exists, not that its
+selected value differs from `undefined`.
+
+Check each selection during dependency folding, before processing the next
+import, including cache hits. Repeated and diamond imports must reuse the
+same module and cached selections, preserving per-selection sharing facts and
+EDAG evaluation anchors. One `_Context<T>` replaces both context types;
+`ParseContext` leaves `types.ts` in the same change.
+
+This consolidation does not by itself separate linking from value evaluation.
+The case where a missing export and a failing initializer belong to the same
+dependency remains tracked in
+[import-error-before-evaluation](./import-error-before-evaluation.md).
 
 [interpret-edag](./interpret-edag.md) would retire the transpiler's
 evaluator eventually; it is blocked, and it says nothing about the walk. A
@@ -81,11 +81,13 @@ shared walk is the cheaper step and makes that retirement smaller.
 
 ### Tasks
 
-- [ ] `_walk` and `_Context<T>` in the transpiler; `transpile` and
+- [ ] `_walk`, `_Module<T>` and `_Context<T>` in the transpiler; `transpile` and
       `resolve` become the two instantiations; `_Link` and `ParseContext`
       go.
 - [ ] `tsc`, `fjs test`; both modules' proofs pass unchanged, including
-      the circular-dependency and attribute-mismatch cases on both paths.
+      cycles, attributes, missing versus `undefined` exports, empty lists,
+      per-selection sharing, repeated/diamond imports and the earlier-import
+      diagnostic-ordering cases on both paths.
 
 ### Related
 

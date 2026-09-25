@@ -60,6 +60,7 @@
  */
 
 import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
+import { isIndex } from '../callable/module.f.mjs'
 import { mapSet } from '../../types/map/module.f.mjs'
 
 /** @type {_State} */
@@ -247,6 +248,8 @@ const o3 = scope => (state, [tag, a, b, c]) => {
 const handlers = {
     undefined: o0,
     args: o0,
+    rest: o0,
+    arg: () => (state, e) => [state, e],
     frame: o0,
     '!': o1,
     '~': o1,
@@ -281,10 +284,11 @@ const handlers = {
     // this node opens, so its entries name this node as their scope and
     // come before it, as operands come before the node that holds them.
     '=>': scope => (state, e) => {
-        const [, frame, body] = e
+        const [, length, frame, body] = e
+        assert(isIndex(length), ['invalid function length', length])
         const [t, f] = walk(scope)(state, frame)
         const [u, b] = walk(e)(t, body)
-        return [u, ['=>', f, b]]
+        return [u, ['=>', length, f, b]]
     },
     ',': scope => (state, [, xs]) => {
         const [t, ops] = each(walk(scope))(state, xs)
@@ -352,7 +356,7 @@ const propertyRefs = p => p[0] === ':' ? [...named(p[1]), ...named(p[2])] : name
  */
 const refs = node => {
     switch (node[0]) {
-        case 'undefined': case 'args': case 'frame': { return [] }
+        case 'undefined': case 'args': case 'frame': case 'rest': case 'arg': { return [] }
         case '[]': { return node[1].flatMap(itemRefs) }
         case '{}': { return node[1].flatMap(propertyRefs) }
         case ',': { return node[1].flatMap(named) }
@@ -401,4 +405,24 @@ export const analysis = e => {
         scope: entries.map(x => x.scope === null ? -1 : assertNotNullish(visited.get(x.scope))),
         shared: places(root, nodes).flatMap((n, i) => n > 1 ? [i] : []),
     }
+}
+
+/**
+ * Validate invocation bindings after scopes have been assigned. Analysis also
+ * serves isolated compiler fragments, so executable consumers call this once
+ * on the complete graph. Frames keep their enclosing scope.
+ * @type {(a: Analysis) => string | null}
+ */
+export const bindingError = ({ nodes, scope }) => {
+    for (const [i, node] of nodes.entries()) {
+        const owner = scope[i] === -1 ? null : nodes[scope[i]]
+        if (node[0] === 'args' && owner !== null) { return 'module args in a function' }
+        if (node[0] === 'rest' && owner === null) { return 'the arguments outside a function' }
+        if (node[0] === 'arg') {
+            if (owner === null || owner[0] !== '=>' || !isIndex(node[1]) || node[1] >= owner[1]) {
+                return 'invalid fixed parameter index or scope'
+            }
+        }
+    }
+    return null
 }

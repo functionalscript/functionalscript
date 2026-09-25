@@ -5,7 +5,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { msb, u8List } from '../../types/bit_vec/module.f.mjs'
+import { u8ListMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { hexText, of, tryFromHex } from '../oid/module.f.mjs'
 import {
@@ -25,7 +25,7 @@ const id = hex => {
 }
 
 /** @type {(oid: Oid) => readonly number[]} */
-const idBytes = oid => toArray(u8List(msb)(oid))
+const idBytes = oid => toArray(u8ListMsb(oid))
 
 /** The commit the delta's base is, as `git verify-pack -v` names it. */
 const baseId = /** @type {const} */ ('bba8d20c99a645a8a98620700c15ff9262574c94')

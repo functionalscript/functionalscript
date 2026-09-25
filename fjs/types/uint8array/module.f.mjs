@@ -15,13 +15,11 @@
 
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
-import { msb, tryU8ListToVec, u8List } from '../bit_vec/module.f.mjs'
+import { msb, tryU8ListToVec, u8ListMsb } from '../bit_vec/module.f.mjs'
 import { compose } from '../function/module.f.mjs'
 import { flat, fromArrayLike, iterable, map } from '../list/module.f.mjs'
 
 const tryU8ListToVecMsb = tryU8ListToVec(msb)
-const u8ListMsb = u8List(msb)
-
 const m = map(fromArrayLike)
 
 /**

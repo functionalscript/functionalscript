@@ -381,6 +381,50 @@ export const proof = {
             assertEq(result, 'error')
         },
     ],
+    // A string between single quotes is JSON's with the delimiters swapped
+    // (`spec/todo/2460-js-string-literals.md`): the same value as its
+    // double-quoted spelling, a `"` standing for itself, `\'` the one escape
+    // it adds, and everything else JSON refuses still refused.
+    singleQuoted: {
+        sameValue: () => {
+            assertEq(tokenizeString("'value'"), tokenizeString('"value"'))
+            assertEq(tokenizeString("''"), tokenizeString('""'))
+            assertEq(tokenizeString("'\\u0041\\n\\t\\/\\\\'"), tokenizeString('"\\u0041\\n\\t\\/\\\\"'))
+            assertEq(tokenizeString("'é😀'"), tokenizeString('"é😀"'))
+        },
+        // U+2028 and U+2029 are line terminators to JavaScript but not
+        // control characters, so JSON admits them raw in a string, and so
+        // does either quote here; a line feed or carriage return does not
+        separators: () => {
+            assertEq(tokenizeString("'\u2028\u2029'"), '[{"kind":"string","value":"\u2028\u2029"},{"kind":"eof"}]')
+            assertEq(tokenizeString("'\u2028\u2029'"), tokenizeString('"\u2028\u2029"'))
+            assertEq(tokenizeString("'a\rb'"), 'error')
+        },
+        otherQuote: () => {
+            assertEq(tokenizeString("'a\"b'"), '[{"kind":"string","value":"a\\"b"},{"kind":"eof"}]')
+            assertEq(tokenizeString("'a\\\"b'"), '[{"kind":"string","value":"a\\"b"},{"kind":"eof"}]')
+            assertEq(tokenizeString('"it\'s"'), '[{"kind":"string","value":"it\'s"},{"kind":"eof"}]')
+        },
+        escapedQuote: () => {
+            assertEq(tokenizeString("'can\\'t'"), '[{"kind":"string","value":"can\'t"},{"kind":"eof"}]')
+        },
+        refused: () => {
+            // `\'` is not JSON's, so a double-quoted string keeps refusing it
+            assertEq(tokenizeString('"\\\'"'), 'error')
+            // JavaScript's other escapes are not FunctionalScript's
+            assertEq(tokenizeString("'\\x41'"), 'error')
+            assertEq(tokenizeString("'\\v'"), 'error')
+            assertEq(tokenizeString("'\\0'"), 'error')
+            // no raw control character, no line terminator, no end
+            assertEq(tokenizeString("'\t'"), 'error')
+            assertEq(tokenizeString("'a\nb'"), 'error')
+            assertEq(tokenizeString("'a"), 'error')
+            assertEq(tokenizeString("'"), 'error')
+        },
+        twoStrings: () => {
+            assertEq(tokenizeString("'a' \"b\""), '[{"kind":"string","value":"a"},{"kind":"ws"},{"kind":"string","value":"b"},{"kind":"eof"}]')
+        },
+    },
     operators:
     [
         () => {

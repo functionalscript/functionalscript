@@ -16,10 +16,9 @@
 
 import { assert } from "../asserts/module.f.mjs"
 import { unmapped } from "./ast/module.f.mjs"
-import { isRepeatBounds } from "./data/module.f.mjs"
-import { codePointListToString, stringToCodePointList } from "../text/utf16/module.f.mjs"
+import { codePoints, isRepeatBounds } from "./data/module.f.mjs"
+import { codePointListToString } from "../text/utf16/module.f.mjs"
 import { isFixedArray } from "../types/array/module.f.mjs"
-import { toArray } from "../types/list/module.f.mjs"
 import { definedEntries } from "../types/object/module.f.mjs"
 import { complement, empty, fromRange, intersection, union as setUnion } from "../types/range_set/module.f.mjs"
 
@@ -55,12 +54,13 @@ const rangeInfo = (a, b) => {
 /**
  * Encodes a two-symbol string into a terminal range.
  *
- * @throws If `ab` does not contain exactly two unicode code points.
+ * @throws If `ab` does not contain exactly two unicode code points, or holds
+ * a lone surrogate.
  *
  * @type {<const S extends string>(ab: S) => Set<readonly ['range', S]>}
  */
 export const range = ab => {
-    const a = toArray(stringToCodePointList(ab))
+    const a = codePoints(ab)
     assert(isFixedArray2(a))
     return rangeInfo(...a)
 }
@@ -99,8 +99,15 @@ const unionX = f => v => {
 
 const setUnionX = unionX(b => fromRange([b, b + 1]))
 
-/** @type {<const S extends string>(a: S) => Set<readonly ['set', S]>} */
-export const set = a => setUnionX(toArray(stringToCodePointList(a)))
+/**
+ * The set of the code points of `a`.
+ *
+ * @throws If `a` holds a lone surrogate: it is no code point, and encoded
+ * as one it would be a symbol outside the domain.
+ *
+ * @type {<const S extends string>(a: S) => Set<readonly ['set', S]>}
+ */
+export const set = a => setUnionX(codePoints(a))
 
 const infoUnionX = unionX(rangeSet)
 
@@ -252,8 +259,8 @@ const node = words => {
  * `fjs/media/json/parser` does.
  *
  * @throws On no words, on an empty word — a rule that may match nothing
- * decides nothing, and a token is never empty — and on a word spelled
- * twice.
+ * decides nothing, and a token is never empty — on a word spelled twice,
+ * and on a word holding a lone surrogate.
  *
  * @type {(words: readonly string[]) => Rule}
  */
@@ -261,7 +268,7 @@ export const literals = words => {
     assert(words.length !== 0)
     assert(words.every(w => w !== ''))
     assert(new Set(words).size === words.length)
-    return node(words.map(w => toArray(stringToCodePointList(w))))
+    return node(words.map(codePoints))
 }
 
 /**

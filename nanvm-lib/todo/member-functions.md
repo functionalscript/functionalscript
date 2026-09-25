@@ -1,8 +1,8 @@
 ## Member functions of the built-in types
 
 **Priority:** P2
-**Status:** open — `toString` is answered on every type, as a dispatch to
-`Any::to_string`, and `Array`'s `at`; the rest is unchecked
+**Status:** open — `toString` dispatch and `Array`'s `at` are wired; default
+function-text semantics remain incomplete, as tracked in the checklist below
 
 ### Problem
 
@@ -73,19 +73,38 @@ that test passes, this file is the checklist, and a pair is checked here
 in the pull request that lands it. Each entry's behavior is pinned against
 the JavaScript oracle as the operators are: the shared corpus drives both
 the amnesia evaluator on the host engine and the generated Rust tests.
+Default function text is the explicit exception: its oracle is the adopted
+EDAG-rendering contract, not authored JavaScript or factory-wrapper source.
 
-**Function `toString`** is on the list and is a stub until a function
-carries its EDAG (`callable-function-objects.md`, Stage 7): it answers the
-placeholder `fn_to_string` in `vm/primitive_coercion.rs` already answers,
-since the compiler has transformed the source text the real one would
-answer. The same stub reaches every method that converts a function to a
-string on the way — an array's `join` or `toString` over an element that
-is a function, a string method whose argument is one — and the host
-evaluator in `fjs/edag/operations` has the same gap with a different
-placeholder, the text of the closure it wraps a function in. One task,
-Stage 7, closes all of it. A stub with its TODO is the accepted shape here;
-the design principle against a plausible wrong value binds the MVP
-surface. `Number`'s `toString` with a radix is the other stub, and today
+**Function `toString`: required semantic rendering.** The placeholder in
+`fn_to_string` (`vm/primitive_coercion.rs`) and the host evaluator's wrapper
+text are existing implementation gaps, not accepted successful output.
+The former direction to accept that stub until Stage 7 is superseded by the
+[default function-text contract](../../spec/todo/serialization.md#function-text-and-serialization)
+and the [named/rest rendering requirements](../../spec/todo/3120-parameters.md#default-function-text-render-or-refuse).
+
+Keep enough association with the function's semantic EDAG, and captured
+frame where the selected contract needs it, to use the shared default
+renderer. Direct `f.toString()`, `Any::to_string` / `String(f)`, array
+`join` / `toString` over functions, property-key conversion and admitted
+string-method coercions must reach the same operation. Fixing only the
+member-dispatch entry leaves the indirect paths wrong. Full EDAG embedding
+and hashing may remain Stage 7 work; the association needed for supported
+default conversions may not wait for it. Resolve only the rendering choices
+needed by each supported case in the serialization TODO; user-defined
+overrides are separate from this required default behavior.
+
+Preserve supported function creation, calls, returns, exports and host calls,
+including call-only consumers and nested returned functions. Supply and prove
+the association/rendering mechanism before replacing a supported callable
+path. Do not reject exports to avoid later conversion. Explicit refusal is
+only for genuinely unsupported conversion cases at their established boundary,
+not a replacement for supported behavior. Neither placeholders nor host
+wrapper text satisfy the contract. This documentation correction changes no
+runtime behavior; the `Function` checklist remains open until semantic
+rendering and its conversion paths are proved, not merely dispatched.
+
+`Number`'s `toString` with a radix is a separate stub, and today
 it is a stub in full: the entry reads no arguments, so `(255).toString(16)`
 answers `"255"` and `(1.5).toString(2)` answers `"1.5"`. The plan, the
 radix task below, is a radix for integers and for bigints, and a throw for
@@ -120,7 +139,8 @@ Infrastructure:
       Today the arguments are not read, so `(255).toString(16)` answers
       `"255"` — a stub with this as its TODO.
 - [ ] Corpus cases for every entry, run on the host engine and as
-      generated Rust.
+      generated Rust. Use the adopted EDAG-rendering contract as the oracle
+      for default function text; native wrapper text is not that oracle.
 - [ ] `ToPrimitive` calls an object's own `toString` and `valueOf`, the
       lookup the call step uses, so `String(o)` and `o.toString()` agree.
 
@@ -203,11 +223,26 @@ Infrastructure:
 
 `Function`:
 
-- [x] `toString` — a stub answering `fn_to_string`'s placeholder until a
-      function carries its EDAG.
+- [ ] `toString` — dispatch exists, but `fn_to_string` still returns a
+      placeholder. Provide semantic EDAG association and the shared default
+      renderer; full Stage 7 embedding is not a prerequisite or a waiver.
+- [ ] Prove direct and indirect default conversions: `f.toString()`,
+      `String(f)`, function elements in arrays (`join` / `toString`), property
+      keys and admitted string-method coercions. Include returned/exported
+      and nested callables, call-only export consumers, and identity checks.
+      A registered method is not enough: test each conversion path against
+      the selected EDAG renderer, with no placeholder or wrapper fallback.
+      Preserve supported calls/returns/exports; refuse only genuinely
+      unsupported conversion cases at their established boundary.
 
 ### Related
 
+- [Default function text](../../spec/todo/serialization.md#function-text-and-serialization)
+  — adopted rendering contract and the remaining rendering choices.
+- [Named/rest rendering requirements](../../spec/todo/3120-parameters.md#default-function-text-render-or-refuse)
+  — shared rendering without regressing supported calls, returns or exports.
+- [Native function-text review](https://github.com/functionalscript/functionalscript/pull/2220#discussion_r4096310135)
+  — remove the obsolete Stage 7 placeholder exception and completion claim.
 - [`fjs/js/prototype/README.md`](../../fjs/js/prototype/README.md) — the
   table: both lists, one row per name with its reason.
 - [`fjs/edag/README.md`](../../fjs/edag/README.md), Chains — the two bits
