@@ -1,5 +1,5 @@
 /**
- * @import { Effect, IoChannel, IoErrorInfo } from '../../../effects/types.ts'
+ * @import { IoChannel, IoErrorInfo } from '../../../effects/types.ts'
  * @import { Dir } from '../../../effects/node/virtual/types.ts'
  * @import { MemOperationMap } from '../../../effects/mock/types.ts'
  * @import { CreateExclusive, Mkdir, ReadFile, ReadWhole, Rename, Rm, Rmdir, Stat, WriteExclusive } from '../../../effects/node/types.ts'
@@ -12,7 +12,6 @@
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { ioError } from '../../../effects/module.f.mjs'
 import { run as mockRun } from '../../../effects/mock/module.f.mjs'
-import { virtual } from '../../../effects/node/virtual/module.f.mjs'
 import { codePointListToString } from '../../../text/utf16/module.f.mjs'
 import { maxLengthBytes, u8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.mjs'
