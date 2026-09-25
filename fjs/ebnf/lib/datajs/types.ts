@@ -8,6 +8,8 @@
  * @module
  */
 
+import type { Assert } from '../../../asserts/types.ts'
+import type { Equal } from '../../../types/ts/types.ts'
 import type { Rule } from '../../types.ts'
 import type { Value as JsonValue } from '../json/types.ts'
 import type { id, number, property } from './module.f.mjs'
@@ -39,6 +41,10 @@ type Members<V extends Rule> =
 export type Value<V extends Rule> = {
     readonly [K in keyof Members<V>]: Members<V>[K]
 }
+
+// `Value` is one object type, not an intersection: it equals its own
+// flattening, which an `Omit<…> & {…}` spelling does not.
+type _Flat = Assert<Equal<Value<DataJsValue>, { readonly [K in keyof Value<DataJsValue>]: Value<DataJsValue>[K] }>>
 
 /**
  * The DataJS grammar's value: a `const` thunk whose payload is {@link Value}
