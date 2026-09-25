@@ -98,10 +98,10 @@ names is its own outcome:
 `NoExport` is decided by own-property presence, not by value: an export
 holding `undefined` is found, and reading it then fails as `Json`, since
 `undefined` has no JSON, exactly as it does today. That needs an absent-aware
-lookup: `nanvm-lib`'s `Object::own_property` already answers
-`Option<Any<A>>`, `None` for an absent key, but it is `pub(crate)`, and the
-public `Any::own_property` collapses `None` into `undefined`. This task makes
-the `Object` one public; it adds no new lookup.
+lookup: `nanvm-lib`'s public `Object::own_property` answers
+`Option<Any<A>>`, `None` for an absent key, where `Any::own_property`
+collapses `None` into `undefined`. The harness uses the `Object` one; this
+task adds no new lookup.
 
 The call is two steps, both existing API: `Function::try_from` on the
 selected value, whose failure is `NotCallable`, then `Function::call` with the
@@ -166,7 +166,7 @@ Default-only modules are the existing fixtures. The mixed case is
 
 - [x] Propose explicit export selection and read/call modes, including how
       the harness receives the invocation's argument list: [API](#api).
-- [ ] Make `Object::own_property` public in `nanvm-lib`, with its tests.
+- [x] Make `Object::own_property` public in `nanvm-lib`, with its tests.
 - [ ] Implement `Action`, the new `run` and the two `RunError` variants; move
       the existing tests and `src/main.rs` to `run(…, "default", Action::Read)`.
 - [ ] Add `fixtures/exports.mjs` to `npm run gen`, and cover
