@@ -236,6 +236,8 @@ const restAt = i => ['.', ['rest'], i]
  * - `pair`, `(...a) => [a[0], [a[0]]]`: one level of an array, and one below.
  * - `ascending`, `(...a) => a[0] - a[1]`, and `descending`,
  *   `(...a) => a[1] - a[0]`: comparators.
+ * - `zero`, `() => 0`: a comparator calling every pair equal, which only a
+ *   stable sort answers with the elements in their order.
  *
  * @type {{ readonly [k in CallbackName]: () => Exp }}
  */
@@ -248,6 +250,7 @@ export const callbacks = {
     pair: () => ['[]', [restAt(0), ['[]', [restAt(0)]]]],
     ascending: () => ['-', restAt(0), restAt(1)],
     descending: () => ['-', restAt(1), restAt(0)],
+    zero: () => 0,
 }
 
 /**
@@ -1978,6 +1981,10 @@ const toSortedCases = [
     { name: 'descending', args: [[1, 10, 9], callback('descending')], expected: [10, 9, 1] },
     { name: 'undefinedNeverCompared', args: [[2, undefined, 1], callback('ascending')], expected: [1, 2, undefined] },
     { name: 'nanAnswerIsEqual', args: [[3, 1, 2], callback('prop')], expected: [3, 1, 2] },
+    // Every pair equal: a stable sort keeps the order, so this is what
+    // tells `> 0` from `>= 0` in the comparator's reading.
+    { name: 'stable', args: [[3, 1, 2], callback('zero')], expected: [3, 1, 2] },
+    { name: 'stableUndefinedLast', args: [[3, undefined, 1, 2], callback('zero')], expected: [3, 1, 2, undefined] },
     { name: 'empty', args: [[]], expected: [] },
     { name: 'one', args: [[1], callback('ascending')], expected: [1] },
     { name: 'nullComparator', args: [[2, 1], null], expected: throws },

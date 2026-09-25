@@ -45,6 +45,14 @@ pub fn run<A: IStaticFunction>() {
         }, 0, Array::default()).to_any();
         Ok([c0].to_array().to_any())
     }), [f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any());
+    check::<A>("stable", Any::dot([f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("toSorted")).end_call(|| {
+        let c0: Any<A> = A::static_function(|_self, _args| { Ok(f64_any(0x0000000000000000)) }, 0, Array::default()).to_any();
+        Ok([c0].to_array().to_any())
+    }), [f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any());
+    check::<A>("stableUndefinedLast", Any::dot([f64_any(0x4008000000000000), Nullish::Undefined.to_any(), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("toSorted")).end_call(|| {
+        let c0: Any<A> = A::static_function(|_self, _args| { Ok(f64_any(0x0000000000000000)) }, 0, Array::default()).to_any();
+        Ok([c0].to_array().to_any())
+    }), [f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), Nullish::Undefined.to_any()].to_array().to_any());
     check::<A>("empty", Any::dot(Array::default().to_any(), string_any("toSorted")).end_call(|| Ok(Array::default().to_any())), Array::default().to_any());
     check::<A>("one", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("toSorted")).end_call(|| {
         let c0: Any<A> = A::static_function(|_self, args| {
