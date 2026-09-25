@@ -5,7 +5,7 @@
 
 ### Problem
 
-`nanvm-lib/src/vm/bigint/shl.rs:56-59` hand-writes a
+`Shl for BigInt` in `nanvm-lib/src/vm/bigint/shl.rs` hand-writes a
 normalized-and-nonempty postcondition:
 
 ```rust
@@ -16,7 +16,7 @@ assert!(
 ```
 
 restating the invariant already centralized in `assert_slice_normalized`
-(`nanvm-lib/src/vm/bigint/mod.rs:212-219`, panics on a leading zero word).
+(`nanvm-lib/src/vm/bigint/mod.rs`, panics on a leading zero word).
 The "is this normalized" predicate is thus expressed in two places that can
 drift; `shl` additionally checks non-emptiness, which the shared helper does
 not cover.
@@ -29,8 +29,8 @@ rhs.assert_normalized();
 ```
 
 is repeated verbatim at the top of all three magnitude helpers in
-`nanvm-lib/src/vm/bigint/mod.rs`: `abs_cmp_vec` (117-118), `abs_add_vec`
-(147-148), and `abs_sub_vec` (182-183).
+`nanvm-lib/src/vm/bigint/mod.rs`: `abs_cmp_vec`, `abs_add_vec`, and
+`abs_sub_vec`.
 
 ### Proposal
 

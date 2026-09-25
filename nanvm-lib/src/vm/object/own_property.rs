@@ -10,14 +10,27 @@ impl<A: IVm> Object<A> {
     /// `nanvm-lib` objects have no `__proto__`/prototype chain at all, so
     /// this is simply what property lookup already is here — there is no
     /// second, chain-walking accessor for this to differ from. `None` is
-    /// "no such own property", for the caller to turn into `undefined`.
+    /// "no such own property", distinct from `Some` of a present
+    /// `undefined`: `Any::own_property` collapses the two into `undefined`,
+    /// so a caller that must tell them apart uses this instead.
     ///
     /// Searches from the *last* entry backward: an object's property list
     /// is never deduplicated on construction (`fjs/edag/module.f.mjs`'s own
     /// comment on `'{}'`: "duplicate keys are allowed with the later entry
     /// winning"), so the last-written entry for a repeated key is the one
     /// a lookup must answer with, not the first.
-    pub(crate) fn own_property(&self, key: &String<A>) -> Option<Any<A>> {
+    ///
+    /// ```
+    /// use nanvm_lib::{naive::Naive, vm::{IVm, Nullish, Object, ToAny, ToObject}};
+    /// fn own_property_test<A: IVm>() {
+    ///     let o: Object<A> = [("a".into(), Nullish::Undefined.to_any())].to_object();
+    ///     assert_eq!(o.own_property(&"a".into()), Some(Nullish::Undefined.to_any()));
+    ///     assert_eq!(o.own_property(&"b".into()), None);
+    /// }
+    ///
+    /// own_property_test::<Naive>();
+    /// ```
+    pub fn own_property(&self, key: &String<A>) -> Option<Any<A>> {
         (0..self.length())
             .rev()
             .map(|i| &self[i])

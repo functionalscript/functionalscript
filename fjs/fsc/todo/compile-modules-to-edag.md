@@ -441,7 +441,7 @@ The current DJS serializer reuses JSON serialization primitives, so ordinary
 `JSON.stringify(number)` cannot be the DJS fallback for these values: it serializes
 non-finite values as `null` and loses the sign of `-0`. Add DJS-specific handling so
 the chosen `.f.js` spellings parse back to the exact values. If common parser/serializer
-machinery is extracted, coordinate with [`157-json-djs-shared-value-machine.md`](./157-json-djs-shared-value-machine.md), which already owns the
+machinery is extracted, coordinate with [`157-json-djs-shared-value-machine.md`](../../media/json/todo/157-json-djs-shared-value-machine.md), which already owns the
 JSON/DJS structural deduplication; codec policy remains separate.
 
 The exact tests must distinguish the edge cases semantically:
@@ -519,22 +519,13 @@ public result and output contract, including the direct JSON document path.
 
 ### Final EDAG serialization
 
-The final EDAG can be serialized as a FunctionalScript JavaScript artifact:
-
-```text
-<name>.f.js
-```
-
-or as JSON when the particular EDAG is representable without losing information.
-The DJS parser/serializer round-trip above is the general path. JSON output is allowed
-only when the chosen JSON representation preserves every value and all EDAG information;
-otherwise JSON output must be rejected for that EDAG. The standard JSON codec's own
-number policy remains defined by
+The final EDAG is serialized as a DataJS document, `<name>.edag.data.js` (or
+`.edag.data.mjs`), through `fjs/media/datajs/serializer`, which hoists a shared
+node as a `const`. No JSON form of the EDAG is offered: JSON cannot hold a
+shared node, and an EDAG's sharing is its meaning. The `.js`/`.mjs` outputs are
+the FunctionalScript writer's, not an EDAG serialization. The standard JSON
+codec's own number policy remains defined by
 [`number-edge-cases.md`](../../media/json/todo/number-edge-cases.md).
-
-JSON must not be used when it would lose semantic graph sharing or values that the
-chosen JSON representation cannot preserve. DJS/`.f.js` remains the general
-representation.
 
 Executing the final EDAG is a separate concern. Direct EDAG interpretation,
 compilation of EDAG to executable functions, and execution policy can be layered on
@@ -618,9 +609,6 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       `resolve.diamond` in [`fjs/fsc/edag/proof.f.mjs`](../edag/proof.f.mjs).
       Memo keys and cycle tracking now use host-resolved identities; the Node
       file profile supplies canonical file URLs for roots and dependencies.
-- [ ] Check same-identity sharing and distinct-identity separation on value
-      and EDAG paths across warm/cold builds under the shared
-      [module-identity contract](./module-resolution-compatibility.md).
 - [x] Remove the temporary `Unresolved` layer after resolution so the root compilation
       result is a plain EDAG with no unresolved module paths or temporary metadata.
       Done: `resolve` returns an `Exp`.
@@ -689,8 +677,10 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       [`fjs/fsc/edag/proof.f.mjs`](../edag/proof.f.mjs); `importsAndCaptures` in
       [`../parameters/proof.f.mjs`](../parameters/proof.f.mjs) also executes linked
       fixed/rest closures under Amnesia and memo.
-- [ ] Add a validation proof that reusing one operation node both outside and inside a
-      nested function body is rejected.
+- [x] Add a validation proof that reusing one operation node both outside and inside a
+      nested function body is rejected. Done: `throw` in
+      [`fjs/edag/analysis/proof.f.mjs`](../../edag/analysis/proof.f.mjs)
+      (`outsideThenInside`, `insideThenOutside`, `siblingBodies`).
 
 #### Shared/final
 
@@ -699,8 +689,6 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [x] Add DJS-specific number serialization that the DJS parser round-trips to exactly
       `Infinity`, `-Infinity`, `NaN`, and `-0`; do not change the standard JSON codec's
       policy as a side effect of this task.
-- [ ] Coordinate any shared parser/serializer extraction with [`157-json-djs-shared-value-machine.md`](./157-json-djs-shared-value-machine.md)
-      instead of adding another duplicate JSON/DJS walker or numeric-policy layer.
 - [x] Serialize the final EDAG to a JavaScript module through the EDAG-producing
       artifact path; allow JSON output only when it preserves the EDAG completely.
       Done for the DataJS form, through `fjs/media/datajs/serializer`, which hoists a
@@ -750,6 +738,9 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 
 ### Related
 
+- [GitHub issue #407](https://github.com/functionalscript/functionalscript/issues/407)
+  — the original "Parser Structure" report: source to an AST, the AST to code
+  and to values. Its API sketches are superseded by the pipeline above.
 - [Module-resolution compatibility](./module-resolution-compatibility.md) —
   P1 owner of shared host resolution, module identity, loading and regressions.
 - [`fjs/fsc/transpiler/module.f.mjs`](../../fsc/transpiler/module.f.mjs) — currently loads imports
@@ -765,7 +756,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [`../../media/json/todo/number-edge-cases.md`](../../media/json/todo/number-edge-cases.md)
   — existing owner of the standard FunctionalScript JSON policy for `-0`, `NaN`, and
   infinities.
-- [`157-json-djs-shared-value-machine.md`](./157-json-djs-shared-value-machine.md) — existing JSON/DJS parser/serializer deduplication task.
+- [`157-json-djs-shared-value-machine.md`](../../media/json/todo/157-json-djs-shared-value-machine.md) — existing JSON/DJS serializer deduplication task.
 - [`fjs/fsc/ast/types.ts`](../../fsc/ast/types.ts) — current `AstModule`/`AstBody`, `aref`, `cref`,
   and plain-object representation to replace.
 - [`fjs/fsc/ast/module.f.mjs`](../../fsc/ast/module.f.mjs) — current sequential AST evaluator.
@@ -784,8 +775,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
   the EDAG through `edagAdd` / `edagGet` Effects.
 - [`todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md) — EDAG
   semantics and structural operations.
-- [`todo/edag-spec.md`](../../../todo/edag-spec.md) — future complete canonical EDAG
-  schema.
+- [`fjs/edag/README.md`](../../edag/README.md) — the canonical EDAG schema.
 - [`spec/todo/2330-property-accessor.md`](../../../spec/todo/2330-property-accessor.md)
   — property/method-access safety rules reused by `.` and the property chain steps.
 - [`spec/README.md`](../../../spec/README.md#functions) — source-level

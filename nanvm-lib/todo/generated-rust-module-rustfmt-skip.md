@@ -21,6 +21,12 @@ one-statement-per-case layout.
 This follows the post-merge review comment on #1489 to make the formatting skip
 global for the generated module.
 
+**Open question:**
+[let-bindings-owner](../../fjs/edag/rust/todo/let-bindings-owner.md) proposes
+the opposite: a shared `skipFn` in `fjs/edag/rust` through which both Rust
+printers, this corpus printer included, keep emitting `#[rustfmt::skip]` per
+function. Which of the two the corpus follows is undecided.
+
 ### Proposal
 
 Do not use an inner `#![rustfmt::skip]` attribute inside `generated.rs`.
@@ -69,3 +75,5 @@ the layout chosen by the generator.
 
 - #1489 — introduced the generated shared operator tests.
 - #1489 review: https://github.com/functionalscript/functionalscript/pull/1489#discussion_r3770843238
+- [let-bindings-owner](../../fjs/edag/rust/todo/let-bindings-owner.md) — the
+  conflicting `skipFn` proposal; see the open question above.

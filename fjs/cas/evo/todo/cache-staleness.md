@@ -97,8 +97,8 @@ store.
 
 - [fjs/cas/evo/README.md](../README.md) — "In-memory cache is per process":
   the adjacent (but distinct) multi-process cache-sharing problem.
-- `fjs/cas/todo/66j-cas-periodic-stage-recovery.md` — an existing precedent
-  for periodic/best-effort background maintenance in this same store.
+- `gcStage` in `fjs/cas/module.f.mjs` — an existing precedent for lazy,
+  best-effort background maintenance in this same store.
 - `fjs/cas/todo/web-api-server.md` — a shared HTTP(S) server would have one
   cache read by many clients, raising the same staleness question from the
   other direction (many readers, is the one cache ever stale relative to

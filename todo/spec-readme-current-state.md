@@ -17,21 +17,30 @@ language is FunctionalScript, and the data subset it contains is DataJS, which
 has its own specification. A paragraph exists only to say that DJS is not
 DataJS. Nothing in the rest of the document depends on the layer.
 
-Several statements were stale against the parser as it stands after the
-property-access, function, prototype-name and literal-access work. The two
-lists of what it "does not recognize yet" are current — functions and property
-access are gone from them — and so is what the outputs do with a function.
+Functions and property access are gone from the lists of what the parser
+"does not recognize yet", and File Types and Output name the language's three
+outputs and the graph the FunctionalScript writer
+([`fjs/fsc/serializer`](../fjs/fsc/serializer/module.f.mjs)) writes. But the
+sentences corrected so far were corrected because something else brought them
+up, not because anyone read the document against the compiler section by
+section, and the operator work has already made others stale:
 
-File Types and Output are current too: they name the language's three outputs
-and the graph the FunctionalScript writer
-([`fjs/fsc/serializer`](../fjs/fsc/serializer/module.f.mjs)) writes, and point
-at the two artifacts that are no document of the language — the EDAG and the
-generated Rust module — where they used to say the compiler writes a module
-with no function in it.
+- The introduction lists the lazy operators (`&& || ??`) and the conditional
+  (`?:`) as not recognized, while its own Operators section places them in the
+  language as Stage B, and `fjs compile` turns
+  `export default a && 2 ? 3 : 4;` into the EDAG `["?:",["&&",1,2],3,4]`.
+- Supported Value Types says an expression is "a negation, a binary
+  operator …", leaving out `~`, the lazy operators and the conditional.
+- Functions says "only the EDAG output holds a call today" and that a function
+  is written by "the FunctionalScript and EDAG outputs". The generated Rust
+  module holds both: a call compiles to `Any::call`, a function to
+  `A::static_function`. Only `.data.js`, `.json` and `.js` refuse a call.
 
-What remains is the walk: the sentences corrected so far were corrected
-because something else brought them up, not because anyone read the document
-against the compiler section by section.
+[`spec/datajs/README.md`](../spec/datajs/README.md) has the same problem in
+its Status section, which opens by saying the document "specifies a target,
+not the current implementation" while every sentence after it — and the
+conformance matrix, which awaits nothing for the reader, the serializer or
+normalization — says the codec implements it.
 
 ### Proposal
 
@@ -67,12 +76,14 @@ against the compiler section by section.
 
 - [ ] Rewrite the introduction; remove every `DJS` from `spec/README.md`.
 - [ ] Walk every remaining sentence against the compiler's behavior, not from
-      memory; the two "not recognized yet" lists are done.
+      memory, starting with the three stale statements above.
 - [ ] Module Structure states that a module is a function, and the scope
       sentences elsewhere point at it.
 - [ ] Rename the DJS sections of `spec/todo/README.md` and the DJS names in
       `fjs/fsc` docs where they are only names; remove the two-uses paragraph
       from `spec/datajs/README.md`.
+- [ ] `spec/datajs/README.md` Status: drop the "target, not the current
+      implementation" opening, or name what is actually still missing.
 - [ ] Broken-link sweep unchanged; `npm run gen` unchanged.
 
 ### Related

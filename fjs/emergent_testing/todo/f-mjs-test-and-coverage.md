@@ -149,7 +149,7 @@ enter the published runtime graph remains unblocked by this issue.
   **blocked by** this fixture task; that gate was de-scoped rather than met, since every conversion happened
   first and the repository itself became the evidence the fixture was to supply
   in advance. This task is independent regression work now and blocks nothing.
-- [`664-emergent-testing-module-files.md`](./664-emergent-testing-module-files.md)
-  — separate proposal to bulk-load ordinary `module.*` files for white-box
-  testing. Ordinary `.mjs` files stay opt-in through the `proof.mjs` convention
-  until then; this issue does not expand that rule.
+- `shouldLoad` in [`../../dev/module.f.mjs`](../../dev/module.f.mjs) — ordinary
+  `.mjs` files stay opt-in through the `proof.mjs` convention, because a
+  non-FunctionalScript module may have import side effects; this issue does not
+  expand that rule.

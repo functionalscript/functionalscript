@@ -84,7 +84,7 @@ receives a real `Meta<I>` from the caller, so nothing has to invent one.
 - [ ] Update the callers to supply EOF. Under no-leaf every AST is unchanged,
       so no mapping moves — but every reader of a whole input does:
       `fjs/ebnf`'s own proofs; `fjs/media/json` and `fjs/media/datajs`; the
-      `fjs/git` readers; `fjs/fsc/tokenizer`, whose one-token grammar never
+      `fjs/git` readers; `fjs/js/tokenizer`, whose one-token grammar never
       names `eof` and whose loop ends at the length, so it supplies nothing
       and stops before the symbol; and `fjs/fsc/parser`, which is the
       opposite problem and is described below.
@@ -154,9 +154,10 @@ not involve `eof` kept passing untouched.
 
 **The cost is not there. It is the AST leaf**, which turns out to decide the
 whole size of the change. Taking "a parser does not treat it specially" to mean
-EOF contributes a leaf like any other symbol left 118 failures across the
-djs modules and the backend proofs, and supplying EOF at `fjs/djs`'s entry
-points made it worse, 118 → 227. That is the finding worth keeping: a
+EOF contributes a leaf like any other symbol left over a hundred failures
+across the djs modules and the backend proofs, and supplying EOF at
+`fjs/djs`'s entry points roughly doubled them. That is the finding worth
+keeping: a
 consumer that walks the AST meets an extra leaf as a node it has no case
 for. Every AST consumer pays, and a mapped grammar pays at every mapping
 whose rule ends in `eof`.

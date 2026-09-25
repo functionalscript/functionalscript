@@ -8,7 +8,7 @@
 `fjs/text/sgr/module.f.mjs` bundles two unrelated concerns. Alongside the ANSI
 CSI/SGR machinery (`csi`, `sgr`, `reset`/`bold`/`fgRed`/`fgGreen`,
 `csiWrite`) it carries a backspace-based *in-place text rewriter*
-(`:52-78`):
+(`replace` and `createConsoleText`):
 
 ```ts
 const replace = (old: string) => (text: string) => {
@@ -24,9 +24,10 @@ export const createConsoleText = (stdout: Stdout): WriteText => { … }
 `replace`/`createConsoleText`/`WriteText`/`Stdout` use only `backspace` (a C0
 control), never an SGR/CSI escape — it is a generic "overwrite the previously
 printed text" progress writer. It is also `export`ed with no non-proof
-consumer (only `fjs/text/sgr/proof.f.mjs:17` calls `createConsoleText`), which
-the AGENTS.md export rule ("only `export` when at least one external consumer
-exists") discourages.
+consumer (only `fjs/text/sgr/proof.f.mjs` calls `createConsoleText`), a public
+surface nothing uses. And `createConsoleText` calls `stdout.write` itself — an
+effect performed inside a `.f.mjs` module, where effects belong to a thin
+`.mjs` or to the effect system.
 
 ### Proposal
 
@@ -34,7 +35,7 @@ When a real consumer appears, move the in-place rewriter to its own module
 (e.g. `fjs/text/console/module.f.mjs`), leaving `sgr` focused on
 escape-sequence construction. Until then, at minimum stop exporting
 `createConsoleText`/`WriteText`/`Stdout` — or, if the writer has no planned
-consumer at all, delete it with its proof (speculative code per AGENTS.md).
+consumer at all, delete it with its proof (speculative code).
 
 ### Tasks
 

@@ -76,7 +76,7 @@ dependency remains tracked in
 [import-error-before-evaluation](./import-error-before-evaluation.md).
 
 [interpret-edag](./interpret-edag.md) would retire the transpiler's
-evaluator eventually; it is blocked, and it says nothing about the walk. A
+evaluator eventually; it is open, and it says nothing about the walk. A
 shared walk is the cheaper step and makes that retirement smaller.
 
 ### Tasks

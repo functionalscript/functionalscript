@@ -10,7 +10,7 @@ the mirrored `Add`/`Sub` dispatch was unified into `BigInt::add_signed`),
 so the remaining bigint operators still open-code their own sign logic.
 Two inlined sign computations are not covered by `flip`:
 
-The sign **product** in `src/vm/bigint/mul.rs:37-41`:
+The sign **product** at the end of `Mul for BigInt` in `src/vm/bigint/mul.rs`:
 
 ```rust
 let sign = if self.sign() == rhs.sign() {
@@ -24,7 +24,7 @@ let sign = if self.sign() == rhs.sign() {
 the quotient's sign is the same product, so `impl Mul for Sign` has a second
 consumer already.
 
-and the sign **dispatch** for ordering in `src/vm/bigint/cmp.rs:17-22`:
+and the sign **dispatch** for ordering in `Ord for BigInt` in `src/vm/bigint/cmp.rs`:
 
 ```rust
 match (lhs_sign, rhs_sign) {
@@ -51,11 +51,11 @@ Add the full small algebra next to the enum rather than just `flip`:
   only the equal-sign arms and delegates the mixed-sign case to
   `lhs_sign.cmp(&rhs_sign)`. Deriving is the cleanest and is **correct as
   declared**: derived `Ord` on a fieldless enum follows the discriminant
-  *values*, and `src/sign.rs:4-5` sets them explicitly (`Positive = 1`,
+  *values*, and `Sign` in `src/sign.rs` sets them explicitly (`Positive = 1`,
   `Negative = -1`), so a bare derive yields `Negative < Positive` —
   declaration order would matter only if the discriminants were implicit.
   What the derive list actually needs is `Eq, PartialOrd, Ord` added to
-  the current `PartialEq, Debug, Clone, Copy` (`:2`), and a test pinning
+  the current `PartialEq, Debug, Clone, Copy`, and a test pinning
   `Sign::Negative < Sign::Positive` so the ordering the operators rely on
   is stated somewhere the discriminants cannot silently drift from.
 
