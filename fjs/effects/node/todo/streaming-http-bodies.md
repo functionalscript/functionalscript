@@ -765,8 +765,10 @@ export type Underrun = readonly['underrun', number]
 
 `readonly Vec[]` is the shape a `Dir` already stores a file in
 ([`../virtual/types.ts`](../virtual/types.ts), `_Entity`), so a fixture and a
-recorded response read alike — the oversized fixture `fjs/web`'s proof already
-builds for its `413` case becomes the one a streamed-body proof asserts against.
+recorded response read alike — `largeChunks`, the over-one-`Vec` fixture
+`fjs/web`'s proof now serves through `readWhole`, is the one a lazy-body proof
+would assert against too. It replaced the oversized fixture that proof built for
+its `413` case, which went with the refusal.
 `failure` is the socket case's counterpart: a proof asserting a whole body has to
 be able to tell it from one that stopped, and a bare chunk array cannot.
 

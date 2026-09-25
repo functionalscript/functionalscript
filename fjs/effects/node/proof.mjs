@@ -11,7 +11,6 @@
  *
  * @import { NodeProgram, NodeOp } from './types.ts'
  * @import { Effect, IoChannel } from '../types.ts'
- * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  */
@@ -23,7 +22,7 @@ import { tmpdir } from 'node:os'
 import { join, relative, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { pureOk, resultMapStep, step } from '../module.f.mjs'
 import { byteLength, maxLengthBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
