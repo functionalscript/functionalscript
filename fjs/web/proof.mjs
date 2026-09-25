@@ -42,8 +42,16 @@ const loopback = '127.0.0.1'
  * megabytes would spend a minute of the suite's time on the representation rather
  * than on the pump. The **bound** is the claim that wants a vast file, and
  * {@link vast} below is vast precisely because nothing ever reads it.
+ *
+ * **The odd thousand bytes are load-bearing.** A size that is a whole number of
+ * 131,072-byte chunks is a size the reads reach *exactly*, so a fold that ignored
+ * the bound and read to the end of the file would still hand the client every byte
+ * the header promised before the runner's count noticed — and
+ * {@link boundedByTheFstat} would pass with the bound removed. It did, the first
+ * time it was written. With the bound falling inside a chunk, ignoring it reads
+ * 131,072 bytes where 1,000 were owed, and the count refuses that chunk whole.
  */
-const served = 8 * 1024 * 1024
+const served = 8 * 1024 * 1024 + 1000
 
 /**
  * The file the footprint is measured against: a hundred and twenty-eight
@@ -93,12 +101,17 @@ const writeFixture = async path => {
     try {
         const bytes = Uint8Array.from({ length: slice }, (_, i) => i % 251)
         let h = 0
-        for (let written = 0; written < served; written += slice) {
+        let written = 0
+        while (written < served) {
             // Every slice is the same pattern, and its *offset* is what the digest
             // distinguishes: a window read twice lands the same bytes at the wrong
-            // place in the polynomial.
-            await fh.write(bytes)
-            h = digest(h, bytes)
+            // place in the polynomial. The last one is short, because
+            // {@link served} is deliberately not a whole number of chunks.
+            const take = Math.min(slice, served - written)
+            const part = take === slice ? bytes : bytes.subarray(0, take)
+            await fh.write(part)
+            h = digest(h, part)
+            written += take
         }
         return h
     } finally {
@@ -244,6 +257,68 @@ export const proof = {
         // It arrived as a stream and not as one write, which is what a body pulled
         // at the socket's pace looks like from the other end.
         assert(answer.parts > 50, answer.parts)
+    }),
+    // **The declared length is the bound the reads stop at.** The file **grows
+    // through the inode the handle holds** while the pump is parked, which is the
+    // guess the design measured going wrong: a length declared ahead of an
+    // unbounded read, 131,072 bytes promised from a `stat` and 132,072 sent, under
+    // a header nothing can check. The reads stop at the number in the header, so
+    // the client gets the body it was promised and the connection ends cleanly.
+    //
+    // A fixture cannot state this case — the virtual file system replaces a `Dir`
+    // entry, and a handle holds what it opened, so a replacement is invisible
+    // rather than longer. Appending to an open file is a thing only a disk does.
+    //
+    // Removing the bound is caught here twice over: the reads run past the declared
+    // length, and the runner's own count then refuses the overrunning chunk and
+    // destroys the socket, so the clean end below becomes an `ECONNRESET`.
+    boundedByTheFstat: () => withLargeFile(async (root, name, expected) => {
+        const answer = await withServer(root, port => within(
+            'a body bounded by the fstat',
+            60000,
+            /** @type {Promise<{ readonly count: number, readonly digest: number, readonly ending: string }>} */
+            (new Promise(resolve => {
+                let count = 0
+                let h = 0
+                const socket = net.connect(port, loopback, () => {
+                    socket.write(`GET /${name} HTTP/1.1\r\nHost: ${loopback}\r\n\r\n`)
+                })
+                socket.pause()
+                socket.on('error', () => { })
+                // The pump parks on the socket's buffers well inside 400 ms; the
+                // append then lands on the file the handle is open on.
+                setTimeout(async () => {
+                    const fh = await open(join(root, name), 'a')
+                    try { await fh.write(Uint8Array.from({ length: slice }, () => 0xFF)) }
+                    finally { await fh.close() }
+                    // Skip the status line and headers: the body starts after the
+                    // blank line, and the digest is taken over the body alone.
+                    let head = true
+                    /** @type {Uint8Array[]} */
+                    const pending = []
+                    socket.on('data', part => {
+                        const bytes = Buffer.from(part)
+                        if (head) {
+                            pending.push(bytes)
+                            const all = Buffer.concat(pending)
+                            const at = all.indexOf('\r\n\r\n')
+                            if (at < 0) { return }
+                            head = false
+                            const body = all.subarray(at + 4)
+                            count += body.length
+                            h = digest(h, body)
+                            return
+                        }
+                        count += bytes.length
+                        h = digest(h, bytes)
+                    })
+                    socket.on('close', () => resolve({ count, digest: h, ending: 'close' }))
+                    socket.resume()
+                }, 400)
+            }))))
+        // Exactly what the header promised, and nothing of the appended slice.
+        assertEq(answer.count, served)
+        assertEq(answer.digest, expected)
     }),
     // **And it is served without being held.** A hundred and twenty-eight
     // mebibytes — a thousand times the ceiling this server used to refuse at — and

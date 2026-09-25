@@ -252,10 +252,11 @@ const withServer = async (listener, client) => {
 
 /**
  * What one ordinary request came back with: the status, the declared length, and
- * the bytes that reached the socket — plus how it ended, since half of these
- * proofs are about a response that ends badly.
+ * the bytes that reached the socket — plus how it ended and **how long it waited**,
+ * since half of these proofs are about a response that ends badly and one of them
+ * is about a client being told at once rather than at an idle timeout.
  *
- * @type {(port: number, method: string) => Promise<{ readonly status: number, readonly length: string, readonly body: Uint8Array, readonly ending: string }>}
+ * @type {(port: number, method: string) => Promise<{ readonly status: number, readonly length: string, readonly body: Uint8Array, readonly ending: string, readonly ms: number }>}
  */
 const answered = (port, method) => new Promise((resolve, reject) => {
     /** @type {Uint8Array[]} */
@@ -264,8 +265,9 @@ const answered = (port, method) => new Promise((resolve, reject) => {
     let status = 0
     /** @type {string} */
     let length = 'undefined'
+    const start = now()
     /** @type {(ending: string) => void} */
-    const done = ending => resolve({ status, length, body: Buffer.concat(parts), ending })
+    const done = ending => resolve({ status, length, body: Buffer.concat(parts), ending, ms: now() - start })
     const request = http.request({ host: loopback, port, method, path: '/' }, response => {
         status = response.statusCode ?? 0
         length = `${response.headers['content-length']}`
@@ -297,6 +299,29 @@ const errorCode = e => {
 
 /** @type {() => _Counter} */
 const counter = () => ({ n: 0 })
+
+const { now } = Date
+
+/**
+ * Waits for `count` to reach `n`, and **gives up** — because a proof that spins
+ * until a counter moves is a proof that wedges the whole suite when it never
+ * does. Giving up leaves the assertion to report the number, which is a verdict;
+ * spinning leaves no verdict at all, and the timer chain keeps the process alive
+ * past the failure it was supposed to report.
+ *
+ * @type {(count: _Counter, n: number) => Promise<void>}
+ */
+const reaches = (count, n) => new Promise(resolve => {
+    /** @type {(left: number) => void} */
+    const poll = left => {
+        if (count.n >= n || left === 0) {
+            resolve(undefined)
+            return
+        }
+        setTimeout(() => poll(left - 1), 20)
+    }
+    poll(100)
+})
 
 /**
  * An effect that counts, and answers the pure end: `release` as a listener would
@@ -724,15 +749,13 @@ export const proof = {
                         // Long enough for a pump that ignored `false` to have read
                         // every cell: the same body written without pacing took
                         // milliseconds.
-                        setTimeout(() => {
+                        setTimeout(async () => {
                             const taken = pulls.n
                             socket.destroy()
                             // Give the recorded `close` its chance to end the
                             // parked pull, which is the other half of this proof.
-                            const wait = () => releases.n === 1
-                                ? resolve([taken, releases.n])
-                                : setTimeout(wait, 20)
-                            setTimeout(wait, 50)
+                            await reaches(releases, 1)
+                            resolve([taken, releases.n])
                         }, 900)
                     })))
                 return held
@@ -785,8 +808,7 @@ export const proof = {
                     socket.on('error', () => { })
                     // Well before the listener returns.
                     setTimeout(() => { socket.destroy() }, 60)
-                    const wait = () => releases.n === 1 ? resolve(undefined) : setTimeout(wait, 20)
-                    setTimeout(wait, 100)
+                    reaches(releases, 1).then(() => resolve(undefined))
                 })))
             // Nothing was written and nothing was read: a status written to a
             // client that has gone silently sets `headersSent`, which is the flag
@@ -846,10 +868,17 @@ export const proof = {
             assertEq(inside.releases, 1)
         },
         // **And in the direction it does not.** A body that simply stops leaves
-        // nothing for the server side to notice: `res.end()` raises nothing, the
-        // socket goes back into the keep-alive pool, and what tells the client is
-        // the idle timeout — measured at four seconds with no answer at all on
-        // every one of the three runtimes. Destroying tells it at once.
+        // nothing for the server side to notice: measured on Darwin against Node
+        // 26.8.1, Bun 1.4.2 and Deno 2.8.3 alike, `res.end()` short of a declared
+        // length raises nothing, `writableFinished` never becomes `true`, and the
+        // client is told nothing for as long as it waits.
+        //
+        // **The timing is the assertion, not the code.** A client eventually gets
+        // an `ECONNRESET` either way — the server's idle timeout delivers one about
+        // six seconds in, measured here by removing the check — so a proof that
+        // only watched *what* the client saw would pass on a runner that did
+        // nothing at all. What destroying buys is that the client is told **at
+        // once**, while it can still act on it, so that is what is measured.
         underrunDestroys: async () => {
             const releases = counter()
             const pulls = counter()
@@ -863,6 +892,10 @@ export const proof = {
                 port => within('a body that ended early', 10000, answered(port, 'GET')))
             assertEq(answer.ending, 'ECONNRESET')
             assertEq(answer.body.length, oneVec)
+            // Immediately, not at the idle timeout. Two seconds is a third of the
+            // measured timeout and many times the millisecond a destroy takes, so
+            // the margin is the machine's rather than the claim's.
+            assert(answer.ms < 2000, answer.ms)
             assertEq(releases.n, 1)
         },
         // A cell that **fails** after the headers are written destroys too, for

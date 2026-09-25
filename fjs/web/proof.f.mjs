@@ -474,15 +474,20 @@ export const proof = {
             // And the handle is given back by the `release` the response carries.
             assertEq(virtual(afterBody)(r.release)[0].handles.length, 0)
         },
-        // **The declared length is the bound the reads stop at.** An entry that
-        // *grows* between the `fstat` and the reads is the guess the document
-        // measured going wrong: 131,072 declared and 132,072 sent, `res.write`
-        // answering `false` for the surplus exactly as it had for the chunk
-        // before it, and the keep-alive client losing the response it was reading
-        // along with the one behind it. A fold that ended at the empty read would
-        // stream the new bytes past the count already promised; this one stops at
-        // the number in the header.
-        boundedByTheFstat: () => {
+        // **What a *replacement* cannot do is lengthen the response.** The entry
+        // is swapped for a longer one between every two pulls, and the answer is
+        // still the opened file's — same bytes, same count. That is the snapshot
+        // again rather than the bound: a handle cannot see a new entry at all, so
+        // there is nothing here for a bound to stop.
+        //
+        // The bound is what stops reads on a file that grew **through the inode the
+        // handle holds**, which no fixture can express — a `Dir` entry is replaced,
+        // never appended to under an open handle. So that one is a host proof:
+        // `boundedByTheFstat` in [`./proof.mjs`](./proof.mjs) appends to the file
+        // while the pump is parked. Written this way round because the first
+        // version of this case claimed the bound and proved the snapshot: it passed
+        // with the bound removed.
+        replacementCannotLengthenIt: () => {
             /** @type {Dir} */
             const grown = { 'large.bin': [...largeChunks, countingKib(500)] }
             const [afterListener, answered] = virtual({ ...emptyState, root: largeRoot })(
@@ -490,6 +495,7 @@ export const proof = {
             const r = unwrap(answered)
             const [, chunks] = drain(afterListener, r.body, s => ({ ...s, root: grown }))
             assertEq(chunks.reduce((n, v) => n + Number(length(v)) / 8, 0), largeBytes.length)
+            assertEq(`${r.headers['content-length']}`, `${largeBytes.length}`)
         },
         // **The body arrives in pieces bounded by one `Vec`**, which is the whole
         // of what the handle route buys: the frame is complete before any of it is
