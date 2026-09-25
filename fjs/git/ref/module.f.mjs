@@ -478,9 +478,20 @@ const notAfter = a => b => {
 /**
  * `packed-refs` without the entries named `name` — each one's line and the `^`
  * line under it — and every other byte exactly as it was, the header's
- * included. This is how Git rewrites the file for a delete: measured on 2.43.0,
- * the surviving lines keep their bytes, stale values and all, and the file keeps
- * its header when the last ref goes rather than being removed.
+ * included.
+ *
+ * **For a file Git wrote, that is exactly Git's rewrite**: measured on 2.43.0,
+ * byte-identical to what `git update-ref -d` leaves for each of seven targets,
+ * and the header alone, 46 bytes, when the last ref goes. **For any other file
+ * Git does more**, measured: it writes its own header over whatever was there,
+ * adding one where there was none, re-sorts the lines, and adds the `^` line a
+ * tag was missing — which means reading the tag from the object store. This
+ * keeps the file's own header and order instead, because the header Git writes
+ * claims `fully-peeled`, and making that true takes the object reads a writer
+ * of refs does not do. What it writes is still read correctly by Git, since
+ * every trait it keeps was the input's and removing a line falsifies none of
+ * them — so long as the input's were true, and `sorted` is the one whose being
+ * false a removal makes worse, which is why it is checked below.
  *
  * **Every entry naming it goes**, where Git's own delete removes one: a file that
  * names a ref twice keeps it resolvable after `git update-ref -d`, which exits 0
