@@ -864,6 +864,24 @@ export const proof = {
         assertEq(run(file, 'x/a', false)[1], 'EEXIST')
         assertEq(run(() => ({}), 'x/a', true)[1], 'EEXIST')
     },
+    // An empty path is not the root, though `parse` collapses both to no
+    // segments. Measured on node 22.22.2: `''` is `ENOENT` either way, where
+    // `.` is `ok` when recursive and `EEXIST` when not.
+    mkdirOnEmptyPath: () => {
+        /** @type {(path: string, recursive: boolean) => string | undefined} */
+        const code = (path, recursive) => {
+            const [state, result] = virtual(emptyState)(
+                mkdir(path, recursive ? { recursive: true } : undefined))
+            assertStructurallySame(state.root, emptyState.root)
+            if (result[0] === 'ok') { return 'ok' }
+            assert(result[1][0] === 'ioError', result[1])
+            return result[1][1].code
+        }
+        assertEq(code('', true), 'ENOENT')
+        assertEq(code('', false), 'ENOENT')
+        assertEq(code('.', true), 'ok')
+        assertEq(code('.', false), 'EEXIST')
+    },
     largeFileReadBytes: () => {
         // A file stored as two 128 KiB chunks is larger than maxLengthBytes.
         // readBytes within the second chunk (offset = 128 KiB, size = 1) should succeed.

@@ -168,8 +168,16 @@ const sameTags = names => (a, b) => names.every(name => at(name)(a) === at(name)
  */
 export const emptyTagMap = ruleSet => _fixpoint(emptyTagStep(ruleSet), sameTags(keys(ruleSet)))({})
 
+/**
+ * EOF's number: the one symbol below the domain, so it can be told from
+ * every ordinary symbol however wide the alphabet is. The front end spells
+ * EOF `null`, since a `DataRule` reserves every number for an ordinary
+ * symbol; below the front end it is this.
+ */
+export const eofSymbol = /** @type {const} */ (-1)
+
 /** EOF, the one set with a negative boundary. */
-const eofSet = /** @type {const} */ ([-1, 0])
+const eofSet = /** @type {const} */ ([eofSymbol, eofSymbol + 1])
 
 /** @type {Terminal} */
 const eof = ['set', ...eofSet]
@@ -178,13 +186,16 @@ const eof = ['set', ...eofSet]
 const domain = rangeSet([0])
 
 /**
- * A non-negative safe integer, spelled the one way: `-0` is refused, since a
- * boundary or a bound written as `-0` is not canonical, and `range_set`
- * refuses the boundary for the same reason.
+ * An ordinary symbol: a non-negative safe integer, spelled the one way. `-0`
+ * is refused, since a boundary or a bound written as `-0` is not canonical,
+ * and `range_set` refuses the boundary for the same reason. The ceiling is
+ * arithmetic rather than alphabetic: `n + 1` is exact only for safe
+ * integers — `2 ** 53 + 1` is `2 ** 53` — so a boundary outside that range
+ * would name a different range than the one asked for.
  *
  * @type {(n: number) => boolean}
  */
-const isSymbol = n => isSafeInteger(n) && n >= 0 && !sameValue(n, -0)
+export const isSymbol = n => isSafeInteger(n) && n >= 0 && !sameValue(n, -0)
 
 /**
  * A repetition's bounds: `min` a non-negative integer, `max` one too or
