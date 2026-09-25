@@ -158,7 +158,7 @@ that keep those true, plus five gaps the list below did not name:
       module and type-check a use of its declaration, with a negative control
       that must fail — one command per step
       ([AGENTS.md §7](../../../AGENTS.md#7-continuous-integration)).
-- [ ] Update package/contributor documentation for the stage-2 authored
+- [x] Update package/contributor documentation for the stage-2 authored
       `.f.js` meaning: the `.f.js` row of [`fjs/fsc/README.md`](../../fsc/README.md)'s
       extension table, including why a proof stays `.f.mjs` until `throw`
       compiles.

@@ -158,9 +158,11 @@ TypeScript in the repository, and both are permanent rather than migration debt
 type lives in `types.ts` when it belongs to the module's public declaration
 closure, in an optional sibling `private.ts` when it does not, inline in the
 annotation that uses it, or function-local in a proof. Only `types.d.ts` ships:
-`package.json`'s `files` negates `**/private.d.ts`. `.f.js` is not authored
-today; it is reserved for the stage-2 compiler-compatibility marker described in
-[`fjs/fsc/README.md`](./fjs/fsc/README.md).
+`package.json`'s `files` negates `**/private.d.ts`. `.f.js` is the stage-2
+compiler-compatibility marker described in
+[`fjs/fsc/README.md`](./fjs/fsc/README.md): authored FunctionalScript the current
+compiler accepts, so far only the package fixture
+[`fjs/ci/package/fixture/module.f.js`](./fjs/ci/package/fixture/module.f.js).
 
 ### Regenerating after a source change
 
