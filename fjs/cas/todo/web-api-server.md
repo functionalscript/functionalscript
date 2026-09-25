@@ -42,12 +42,11 @@ set over HTTP(S):
   content. The HTTP effects meet it half way. `ServerResponse.body`
   (`fjs/effects/node/types.ts`) is a chunk list, so a `get` of any size can be
   *answered* — at the cost of holding the whole blob in memory, since the body is
-  whole rather than pulled. `IncomingMessage.body` is still a single `Vec` and the
-  Node runner still buffers the whole request, refusing one past the cap with
-  `413`, so an `add` past 128 KiB has nothing to arrive through. The CAS store
-  side already streams (`Cas.read`/`Cas.write` deal in chunk lists), so what this
-  transport still waits on is the **request** body — and, for a blob it can serve
-  without materializing, the lazy response body beside it.
+  whole rather than pulled. `IncomingMessage.body` is a `List` the listener pulls
+  from, with no cap and no `413`, so an `add` of any size has a way in. The CAS
+  store side already streams (`Cas.read`/`Cas.write` deal in chunk lists), so what
+  this transport still waits on is not the bodies at all: it is the server itself,
+  and, for a blob it can serve without materializing, the lazy response body.
 
 **Human-readable HTML pages.** The same server should also serve HTML, so a
 human can browse a CAS in an ordinary browser — one server, two

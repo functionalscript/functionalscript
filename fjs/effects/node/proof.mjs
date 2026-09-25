@@ -9,10 +9,12 @@
  * runner; compiler traversal and diagnostics are proved synchronously in
  * `fsc/transpiler/proof.f.mjs`.
  *
- * @import { NodeProgram, NodeOp } from './types.ts'
+ * @import { NodeProgram, NodeOp, ReadRequestBytes, RequestListener } from './types.ts'
+ * @import { List } from '../list/types.ts'
  * @import { Effect, IoChannel } from '../types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
 import http from 'node:http'
@@ -31,7 +33,7 @@ import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 import { toVec } from '../../types/uint8array/module.f.mjs'
 import { write as writeEnvelope } from '../../git/object/module.f.mjs'
 import { tagLoose, tagPayload } from '../../git/testlib.f.mjs'
-import { createServer, inflate, inflateTrailingCode, listen, readWhole, resolveFileModule, writeExclusive } from './module.f.mjs'
+import { createServer, errorMessage, inflate, inflateTrailingCode, listen, readWhole, requestBodyOffsetMessage, resolveFileModule, writeExclusive } from './module.f.mjs'
 import { runEffect } from './module.mjs'
 
 /** @type {(program: NodeProgram) => Promise<number>} */
@@ -221,6 +223,118 @@ const answeredOverASocket = async (chunks, method) => {
         await new Promise(resolve => { server.close(() => resolve(undefined)) })
     }
 }
+
+/**
+ * Runs `listener` on a real socket and hands `check` the port it took, closing
+ * the server afterwards however `check` ends.
+ *
+ * The same reach-through {@link answeredOverASocket} explains and for the same
+ * reason: no operation closes a server, so the handle is unwrapped to the
+ * `http.Server` underneath. This one takes the listener as a parameter, because
+ * the proofs below are about what a *listener* does with its request body rather
+ * than about one fixed answer.
+ *
+ * @type {(listener: RequestListener<ReadRequestBytes>, check: (port: number) => Promise<void>) => Promise<void>}
+ */
+const withHostServer = async (listener, check) => {
+    /** @type {(server: import('node:http').Server) => void} */
+    let created = () => { }
+    /** @type {Promise<import('node:http').Server>} */
+    const held = new Promise(resolve => { created = resolve })
+    /** @type {NodeProgram} */
+    const program = () => resultMapStep(
+        step(
+            createServer(listener),
+            server => {
+                created(/** @type {import('node:http').Server} */ (asBase(server)))
+                return listen(server, 0, loopback)
+            }),
+        r => r[0] === 'ok' ? ok(0) : error(1))
+    assertEq(await runEffect(program), 0)
+    const server = await held
+    try {
+        const address = server.address()
+        assert(address !== null && typeof address !== 'string', address)
+        await check(address.port)
+    } finally {
+        await new Promise(resolve => { server.close(() => resolve(undefined)) })
+    }
+}
+
+/**
+ * A listener that reads its whole request body and answers with it, counting the
+ * cells it took in a header.
+ *
+ * The count is there because a body echoed from one chunk and a body echoed from
+ * many are different claims, and the bytes alone do not tell them apart.
+ *
+ * @type {RequestListener<ReadRequestBytes>}
+ */
+const echoBody = ({ body }) => {
+    /** @type {(taken: readonly Vec[], rest: List<ReadRequestBytes, Vec, IoChannel>) => Effect<ReadRequestBytes, readonly Vec[], IoChannel>} */
+    const loop = (taken, rest) => step(rest, node =>
+        node === undefined ? pureOk(taken) : loop([...taken, node.first], node.tail))
+    return resultMapStep(loop([], body), r => ok(r[0] === 'ok'
+        ? {
+            status: 200,
+            headers: { 'content-length': `${chunkLength(r[1])}`, 'x-chunks': `${r[1].length}` },
+            body: r[1],
+        }
+        : { status: 500, headers: {}, body: [toVec(new TextEncoder().encode(errorMessage(r[1])))] }))
+}
+
+/** A listener that answers at once, reading no part of the request body.
+ *
+ * @type {RequestListener<never>}
+ */
+const ignoresBody = () => pureOk({
+    status: 200,
+    headers: { 'content-length': '2' },
+    body: [toVec(new TextEncoder().encode('ok'))],
+})
+
+/**
+ * What one request over `agent` came back with, and whether it went out over a
+ * socket an earlier request had used.
+ *
+ * **A later `error` does not undo a response that arrived.** The server may
+ * close the connection while the client is still writing an unread body, so
+ * `http.request` can emit `EPIPE` or `ECONNRESET` *after* the whole answer has
+ * been read. The response wins where there is one, and the error is only an
+ * answer where there is not.
+ *
+ * @type {(port: number, method: string, body: Nullable<Uint8Array>, agent: import('node:http').Agent) => Promise<{ readonly status: number, readonly connection: string, readonly chunks: string, readonly body: Uint8Array, readonly reused: boolean }>}
+ */
+const overAnAgent = (port, method, body, agent) => new Promise((resolve, reject) => {
+    /** @type {boolean} */
+    let answered = false
+    const request = http.request(
+        {
+            host: loopback,
+            port,
+            method,
+            path: '/',
+            agent,
+            headers: body === null ? {} : { 'content-length': `${body.length}` },
+        },
+        response => {
+            /** @type {Uint8Array[]} */
+            const parts = []
+            response.on('data', part => { parts.push(part) })
+            response.on('end', () => {
+                answered = true
+                resolve({
+                    status: response.statusCode ?? 0,
+                    connection: `${response.headers['connection']}`,
+                    chunks: `${response.headers['x-chunks']}`,
+                    body: Buffer.concat(parts),
+                    reused: request.reusedSocket === true,
+                })
+            })
+        })
+    request.on('error', e => { if (!answered) { reject(e) } })
+    request.end(body ?? undefined)
+})
 
 /**
  * Whether this run is the one whose host behaviour the HTTP proofs below are
@@ -452,6 +566,112 @@ export const proof = {
             assertEq(answer.status, 200)
             assertEq(answer.length, `${chunkLength(chunks)}`)
             assertSameBytes([...answer.body], chunkBytes(chunks))
+        },
+        // **A request body larger than one `Vec` arrives whole and in order**,
+        // which is the half of
+        // [#1819](https://github.com/functionalscript/functionalscript/issues/1819)
+        // the *request* direction owns. The same request used to be answered
+        // `413` without the listener seeing it, because `IncomingMessage.body`
+        // was one `Vec` and 132,096 bytes could not be one; `200` here is that
+        // refusal gone.
+        //
+        // More than two chunks, checked, because a proof that never crosses a
+        // chunk boundary proves nothing about the cap it claims to lift. The
+        // fixture steps modulo a prime for the reason `unalignedBytes` gives:
+        // a pattern repeating every 256 bytes survives a reordered chunk list.
+        readsARequestBodyPastOneVec: async () => {
+            if (!isNode()) { return }
+            const sent = unalignedBytes(Number(maxLengthBytes) * 2 + 1024)
+            await withHostServer(echoBody, async port => {
+                const agent = new http.Agent({ keepAlive: false })
+                const answer = await overAnAgent(port, 'POST', sent, agent)
+                assertEq(answer.status, 200)
+                assert(Number(answer.chunks) > 2, answer.chunks)
+                assertSameBytes([...answer.body], [...sent])
+                agent.destroy()
+            })
+        },
+        // **A body the listener did not read closes the connection**, and the
+        // client is told rather than cut off: the whole answer arrives, carrying
+        // `connection: close`, and the next request over the same keep-alive
+        // agent takes a fresh socket. Draining the remainder is the alternative
+        // Node itself takes — its `resOnFinish` dumps an unconsumed body — and
+        // it reads bytes this server has already decided not to use, which is
+        // the argument `respondWith` makes for the runner's own refusals.
+        //
+        // The body is past the socket's high-water mark on purpose: that is what
+        // leaves Node's parser paused with bytes still to come, so `req.complete`
+        // is `false` for a reason the timing cannot take away.
+        anUnreadBodyClosesTheConnection: async () => {
+            if (!isNode()) { return }
+            await withHostServer(ignoresBody, async port => {
+                const agent = new http.Agent({ keepAlive: true, maxSockets: 1 })
+                const first = await overAnAgent(port, 'POST', unalignedBytes(300000), agent)
+                assertEq(first.status, 200)
+                assertEq(first.connection, 'close')
+                const second = await overAnAgent(port, 'GET', null, agent)
+                assertEq(second.status, 200)
+                assertEq(second.reused, false)
+                agent.destroy()
+            })
+        },
+        // **And a request with nothing left to read keeps its connection**,
+        // which is the half that makes the close above a policy rather than a
+        // regression. `fjs/web` answers `GET`s that carry no body at all, and a
+        // server that closed after every one of them would cost a page one
+        // connection per module it imports — the very case
+        // [#1819](https://github.com/functionalscript/functionalscript/issues/1819)
+        // was reported from.
+        //
+        // `req.complete` is `false` at the listener's first statement even for a
+        // bodiless `GET` — message-complete has not been reached yet — so this is
+        // also the proof that the runner reads that flag late enough. A body the
+        // listener drains keeps the connection for the same reason: there is
+        // nothing left on the wire.
+        aReadBodyKeepsTheConnection: async () => {
+            if (!isNode()) { return }
+            await withHostServer(echoBody, async port => {
+                const agent = new http.Agent({ keepAlive: true, maxSockets: 1 })
+                const first = await overAnAgent(port, 'GET', null, agent)
+                assertEq(first.status, 200)
+                assertEq(first.connection, 'keep-alive')
+                const second = await overAnAgent(port, 'GET', null, agent)
+                assertEq(second.reused, true)
+                const drained = await overAnAgent(port, 'POST', unalignedBytes(300000), agent)
+                assertEq(drained.status, 200)
+                assertEq(drained.connection, 'keep-alive')
+                assertEq(drained.reused, true)
+                agent.destroy()
+            })
+        },
+        // **A cell pulled twice is refused over a real socket too**, with the
+        // message the virtual runner refuses it with. The bytes behind a
+        // socket's position are gone, so the only thing a second pull of the same
+        // cell could be answered with is whatever comes next — a body no client
+        // sent, arriving in order and under a correct length. The two runners
+        // share the message so a program that meets this refusal in a proof
+        // meets the same words here.
+        refusesARePull: async () => {
+            if (!isNode()) { return }
+            /** @type {RequestListener<ReadRequestBytes>} */
+            const rePull = ({ body }) => resultMapStep(
+                step(body, () => step(body, () => pureOk(undefined))),
+                r => {
+                    const message = r[0] === 'ok' ? 'no refusal' : errorMessage(r[1])
+                    const bytes = new TextEncoder().encode(message)
+                    return ok({
+                        status: 500,
+                        headers: { 'content-length': `${bytes.length}` },
+                        body: [toVec(bytes)],
+                    })
+                })
+            await withHostServer(rePull, async port => {
+                const agent = new http.Agent({ keepAlive: false })
+                const answer = await overAnAgent(port, 'POST', unalignedBytes(64), agent)
+                assertEq(answer.status, 500)
+                assertEq(new TextDecoder().decode(answer.body), requestBodyOffsetMessage(0, 64))
+                agent.destroy()
+            })
         },
         // **Node is the party that drops a `HEAD` body**, and it goes on being
         // that party across as many writes as the body has: the runner offers

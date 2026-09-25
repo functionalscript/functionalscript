@@ -15,11 +15,13 @@ res.writeHead(status, { 'content-type': 'text/plain; charset=utf-8', 'content-le
 // connectRefusal — a raw string with a hand-counted length
 'HTTP/1.1 501 Not Implemented\r\n' + 'content-type: text/plain; charset=utf-8\r\n' + 'content-length: 26\r\n' + …
 // answerRequest — the one honest serializer of a ServerResponse
-res.writeHead(status, outHeaders).end(fromVec(outBody))
+res.writeHead(status, outHeaders)
+for (const chunk of outBody) { res.write(fromVec(chunk)) }
+res.end(emptyBody)
 ```
 
 while `fjs/web`'s `plainText` builds the same frame as a value, one layer
-too high for the runner to reach. What a `413`, `500` or `501` looks like
+too high for the runner to reach. What a `500` or a `501` looks like
 is not impure, and today no proof reaches `respondWith`, `failSafe`'s
 pre-headers branch, or the `26`, which is right and unchecked.
 
@@ -31,11 +33,15 @@ exported from `fjs/effects/node/module.f.mjs` beside the type: the status,
 `plainText` becomes it plus its own extra header.
 
 **`connection: close` is not part of the value.** It is the runner's socket
-policy, and `respondWith`'s doc says why it must be there — both refusals
-answer without reading the body to its end, and without it a keep-alive
-socket waits forever for the rest. It must equally *not* be on an ordinary
-`fjs/web` response, which keeps its connection. So the runner keeps one
-private step that adds it:
+policy, and `respondWith`'s doc says why it must be there — a refusal answers
+without reading the body to its end, and without it a keep-alive socket waits
+forever for the rest. It must equally *not* be on an ordinary response whose
+request has all arrived, which keeps its connection. Nor is a refusal the only
+place the policy applies: `answerRequest` adds the same header to a *listener's*
+response when `req.complete` says the body has not all arrived, which is the same
+decision about the same socket, reached from the other side
+([streaming-http-bodies.md](./streaming-http-bodies.md), stage 2). So the runner
+keeps one private step that adds it:
 
 ```js
 // fjs/effects/node/module.mjs
@@ -44,8 +50,10 @@ const respondWith = res => status => message =>
     writeResponse(res)(closing(plainTextResponse(status)(message)))
 ```
 
-where `writeResponse` is the `writeHead(…).end(…)` line `answerRequest`
-already has, now the runner's one way to put a frame on a socket.
+where `writeResponse` is the write-every-chunk-then-end sequence
+`answerRequest` already has, now the runner's one way to put a frame on a socket
+— and where `answerRequest`'s own `connection: close` should reach for `closing`
+rather than a `setHeader` of its own, so one function owns the header.
 `failSafe`'s pre-headers branch goes through `respondWith` as today, and
 `connectRefusal` renders its status line and headers from
 `closing(plainTextResponse(501)(…))`, so the `26` is computed and the
@@ -56,8 +64,10 @@ why the connection closes moves to `closing`.
 
 - [ ] `plainTextResponse` with a proof; `fjs/web` over it.
 - [ ] `writeResponse` and `closing` in the runner; `respondWith`,
-      `failSafe` and `connectRefusal` over them; the three refusals still
-      carry `connection: close` and ordinary responses still do not.
+      `failSafe`, `connectRefusal` and `answerRequest`'s undrained-body case
+      over them; the refusals still carry `connection: close`, an undrained
+      body still earns it, and an ordinary response that has all arrived
+      still does not.
 - [ ] `tsc`, `fjs test`.
 
 ### Related

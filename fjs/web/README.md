@@ -250,49 +250,38 @@ all, and reading "whatever precedes `://`" as one served them.
 
 ### Request bodies
 
-`GET` and `HEAD` carry none worth reading, and this server ignores what a client
-sends anyway — but ignoring it is not the same as surviving it. A body larger
-than one `Vec` used to kill the process: the runner buffered it, `listToVec`
-threw at the cap, and the throw landed in an `async` handler whose promise
-nobody awaited. Any client could end the server with one request.
+**There is no size limit on what a client sends either, and this server reads
+none of it.** `GET` and `HEAD` carry no body worth reading, and every other
+method is `405`, so the request body never has a reader here. That used to cost
+something anyway: the runner read the whole body before calling the listener, gave
+up at 131,072 bytes, and answered `413` — a refusal for a request this server was
+not going to read a byte of.
 
-The runner counts as it reads — into an array it mutates, for a reason that is
-about counts rather than bytes: rebuilding the array per chunk copies everything
-received so far on every chunk, and 20,000 one-byte chunks is 20 KB of payload and
-200 million copies. A cap on payload size is not a cap on chunk count, and a
-request that will be refused must not cost more than one that is served. Measured
-here: 2,794 ms to refuse that request before, 167 ms after, and doubling the chunk
-count now doubles the time instead of quadrupling it — again one machine's
-numbers, with the change in shape rather than the milliseconds being what is
-claimed.
+`IncomingMessage.body` is a stream the listener pulls from now
+([streaming-http-bodies](../effects/node/todo/streaming-http-bodies.md), stage
+2), so there is nothing to give up at and no `413` anywhere in this server. What a
+client sends is bounded by nothing, and what it costs this server is nothing
+either, because the answer goes out before the bytes arrive.
 
-`readWhole` collects its chunks the same way and for the same reason, which is
-what makes this a rule about who owns the count rather than a single exception:
-once a served file can be any size, the number of chunks is whatever a request
-asked for.
+**Not reading a body has a consequence, and the runner is who answers for it.**
+A response that goes out while the client is still sending leaves bytes on the
+socket. The runner adds `connection: close` to such a response — measured, the
+whole answer arrives and then the connection ends, and a request with nothing
+left to send keeps its connection as before. Draining the remainder is the polite
+alternative and the wrong one: it waits at whatever pace the client chooses for
+bytes the server has already decided not to use. So a `POST` to this server is
+refused, answered and closed, in that order. Whatever had already arrived when
+the answer went out, Node discards; what had not is what the close declines to
+wait for.
 
-Past the cap it answers `413` itself, without calling the listener — there is no
-`IncomingMessage` to build up there, since its `body` is a single `Vec`. It also
-answers `500` rather than dying if a listener throws: a panic must not outlive
-the request that caused it.
+It also answers `500` rather than dying if a listener throws: a panic must not
+outlive the request that caused it. That answer closes the connection too, and
+for the same reason.
 
-Both answers close the connection, which is the difference between refusing a
-request and surviving the refusal. Neither has read the request to its end, so
-on a keep-alive connection Node would sit waiting for a body that never arrives
-— one client declaring ten megabytes and sending a hundred kilobytes could hold
-sockets open indefinitely. Draining the rest would be the polite alternative and
-the wrong one: it reads bytes the server has already refused.
-
-All of it goes away with a streamed *request* body, which is stage 2 of
-[streaming-http-bodies](../effects/node/todo/streaming-http-bodies.md) — the
-response half above has landed and this half has not, so the cap a client runs
-into is the one on what it *sends*.
-
-What is *not* covered: a body that stalls under the cap. The runner reads a body
-to its end before the listener sees it, so a client declaring twenty megabytes
-and sending one hundred kilobytes holds a connection until Node's five-minute
-`requestTimeout` — even for a `POST`, which this server was never going to serve.
-Loopback bounds it; the fix is
+What is *not* covered: a listener that *does* want a body, on a client that stops
+sending. This server has no such listener — it reads nothing — but the five-minute
+`requestTimeout` every deployment inherits is still the only thing that ends such
+a request, and that is
 [request-body-timeouts](../effects/node/todo/request-body-timeouts.md).
 
 ## Proving it without a socket
@@ -301,9 +290,13 @@ Loopback bounds it; the fix is
 out. The runner grew two operations for it: `createServer` hands back a handle
 carrying the listener, and `listen` gives that listener every request the fixture
 queued, recording what came back. No socket is involved, and it is the same
-listener the Node runner would drive. The listener rides in the handle rather
-than in the state so that two servers in one program are two servers there too,
-as they are on a host.
+listener the Node runner would drive. A fixture states its request body as the
+chunks that arrive rather than as the stream a listener pulls, because that is
+what a client sends; `listen` turns one into the other, and how far the listener
+then read it is in the state for a proof to assert — which is how "this server
+answers without reading the body" is checked here, there being no connection to
+watch close. The listener rides in the handle rather than in the state so that
+two servers in one program are two servers there too, as they are on a host.
 
 The run ends where a real one would not: `forever`'s result type is
 `Result<never, NotImplemented>`, so `error(notImplemented)` is the *only* value

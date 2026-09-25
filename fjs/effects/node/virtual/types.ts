@@ -7,7 +7,7 @@
 
 import type { Vec } from '../../../types/bit_vec/types.ts'
 import type { Effect } from '../../types.ts'
-import type { IncomingMessage, Module, NodeOp, ServerResponse } from '../types.ts'
+import type { Headers, IncomingMessage, Module, NodeOp, ServerResponse } from '../types.ts'
 import type { MemoryState } from '../../memory/types.ts'
 
 /**
@@ -54,6 +54,56 @@ export type _VirtualServer = {
 }
 
 /**
+ * A request as a fixture queues it: the head, and the body as the chunks a
+ * client sends.
+ *
+ * **This is not an {@link IncomingMessage}, and the difference is the body.** A
+ * listener receives its body as a `List` it pulls from — a stream over a socket
+ * the runner holds — and a fixture has no socket and nothing to pull from. What
+ * a fixture states is what *arrives*: `readonly Vec[]`, which is also the shape
+ * a {@link Dir} stores a file in ({@link _Entity}), so a file fixture can be
+ * posted as a body without being reshaped. `listen` is what turns one of these
+ * into the request the listener sees.
+ *
+ * Chunks rather than one `Vec` because the chunk boundaries are part of what a
+ * fixture is describing: a body arriving in many small pieces and a body
+ * arriving in one are different inputs to a listener's fold, and only the first
+ * of them catches a fold that drops all but its last chunk.
+ *
+ * @internal
+ */
+export type _QueuedRequest = {
+    readonly method: string
+    readonly url: string
+    readonly headers: Headers
+    readonly body: readonly Vec[]
+}
+
+/**
+ * How far one delivered request's body has been read.
+ *
+ * `rest` shrinks by a chunk per pull and `offset` grows by that chunk's bytes,
+ * so between them they say both what is left to hand out and where the next pull
+ * must claim to be. The position is in the state rather than behind the handle
+ * because this runner is pure: a `RequestBody` handle carries nothing but which
+ * of these it is, and the reading is a state transition like every other.
+ *
+ * **A proof reads it to ask what the listener did.** A body the listener never
+ * touched is a `rest` as long as the fixture's and an `offset` of nought; one it
+ * read to the end is an empty `rest`. That is how a listener answering without
+ * reading its body is observable here, where on a host it is observable as the
+ * connection the runner closes — there being no socket to close.
+ *
+ * @internal
+ */
+export type _RequestBodyCursor = {
+    /** The chunks not yet handed out, oldest first. */
+    readonly rest: readonly Vec[]
+    /** The byte offset the next pull must name. */
+    readonly offset: number
+}
+
+/**
  * A server that is listening, and the address it took.
  *
  * The *server* is what is recorded, not its listener: two servers built from one
@@ -96,7 +146,17 @@ export type State = {
      * every one of them to the {@link _VirtualListener} its handle carries, and
      * empties the queue — the virtual counterpart of accepting connections.
      */
-    readonly requests: readonly IncomingMessage[]
+    readonly requests: readonly _QueuedRequest[]
     /** What the listener answered, oldest first. */
     readonly responses: readonly ServerResponse[]
+    /**
+     * One cursor per request `listen` has delivered, in delivery order — the
+     * bodies, as far as the listeners read them.
+     *
+     * It is not emptied with {@link requests}: what a listener did with the body
+     * it was handed is the record a proof reads afterwards, and a `listen` that
+     * cleared it would take that away. A `RequestBody` handle is an index into
+     * it.
+     */
+    readonly bodies: readonly _RequestBodyCursor[]
 }

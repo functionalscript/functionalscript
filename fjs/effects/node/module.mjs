@@ -14,9 +14,8 @@
  *
  * @import { Effect } from '../types.ts'
  * @import { IoResult, Server as EffectServer, Module, NodeOp, RequestListener as Erl, NodeProgram, NodeProgramOptions, WriteConsoles, TestContext, TestFn, } from './types.ts'
- * @import { _Readable, _RequestListener, _Server, _ServerResponse } from './private.ts'
+ * @import { _Readable, _RequestBodyReader, _RequestListener, _Server, _ServerResponse } from './private.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { FileHandle } from 'node:fs/promises'
  */
@@ -39,12 +38,13 @@ import { memoryOperationMap } from './memory/module.mjs'
 import { commonOperationMap } from '../common/module.mjs'
 import {
     emptyHost, emptyHostCode, emptyHostMessage, exitCode, inflateTrailingCode, inflateTrailingMessage,
-    notAFileCode, notAFileMessage, toIoError, usesInlineTestContext,
+    notAFileCode, notAFileMessage, requestBody, requestBodyOffsetMessage, toIoError,
+    usesInlineTestContext,
 } from './module.f.mjs'
 import { asBase, asNominal } from '../../types/nominal/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 import { asyncTryCatch, tryCatch } from '../../types/result/module.mjs'
-import { fromVec, listToVec, toVec } from '../../types/uint8array/module.f.mjs'
+import { fromVec, toVec } from '../../types/uint8array/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 
 /**
@@ -73,53 +73,72 @@ const io = async f => {
 }
 
 /**
- * Reads a request body, giving up at the `Vec` cap rather than at the point
- * where converting it would throw.
+ * One request body's cursor: the chunks the client sent, handed out one pull at
+ * a time and never held.
  *
- * `listToVec` on an oversized body throws *after* the whole thing has been
- * buffered, which is the wrong end of the problem twice over: the memory is
- * already spent, and the throw lands inside an `async` request handler whose
- * promise nobody awaits. Counting as the chunks arrive stops both.
+ * **Nothing accumulates here, and that is the change.** This used to be
+ * `collectBounded`, which read the whole body into an array before the listener
+ * was called and gave up at the `Vec` cap, because `IncomingMessage.body` was
+ * one `Vec` and there was no larger request value to build. A `List` body means
+ * the listener pulls, so the runner's own cost per request is one chunk rather
+ * than the body — and there is no cap left to refuse at.
  *
- * **The accumulator is mutated, deliberately.** Rebuilding the array per chunk
- * — `result = [...result, a]`, the shape the rest of this repository is written
- * in — copies every chunk received so far on every chunk received, which is
- * quadratic in the *number* of chunks. The byte cap does not bound that: 20,000
- * one-byte chunks are 20 KB and 200 million copies, and took 2,794 ms of event
- * loop to reach an answer the server had already decided on — 167 ms now, and
- * the growth went from ×4 per doubling to ×2. A cap on payload size is not a cap
- * on chunk count, and a request that will be refused must not cost more than one
- * that is served. The array never leaves this function before it
- * is finished, so nothing observes the mutation — which is the condition under
- * which the impure shell is allowed to be impure.
+ * What was true of that accumulator stays true where the repository still keeps
+ * one: **a cap on a chunk's size is not a cap on their number.** 20,000
+ * one-byte chunks are 20 KB of payload, and rebuilding an array per chunk is
+ * 200 million copies — 2,794 ms of event loop against 167 ms, measured on the
+ * collector this replaces. That argument now belongs to `readWhole` below,
+ * which is the one operation still collecting, and its comment carries it.
+ *
+ * **The position is `let`, and a closure is where it can be.** The offset a
+ * pull names is checked against it rather than sought to, because a socket has
+ * one position and cannot go back — see `ReadRequestBytes` in `./types.ts` for
+ * why that check is the answer to a second pull and not a convenience. The
+ * variable never leaves this function, so nothing observes the mutation, which
+ * is the condition under which the impure shell is allowed to be impure.
+ *
+ * An empty chunk is skipped rather than reported, because no bytes is how this
+ * operation says *end* and Node's parser has no obligation to keep the two
+ * apart. A chunk larger than a `Vec` is refused by `toVec` at the call site,
+ * loudly, rather than truncated — Node hands at most the socket's own
+ * high-water mark, 65,536 bytes on Darwin with Node 23.11.0, which is half the
+ * cap, so `size` is a bound the return type already keeps.
  *
  * @param {_Readable} v
- * @returns {Promise<Nullable<readonly Uint8Array[]>>} `null` past the cap.
+ * @returns {_RequestBodyReader}
  */
-const collectBounded = async v => {
-    /** @type {Uint8Array[]} */
-    const result = []
-    let size = 0
-    for await (const a of v) {
-        size += a.length
-        if (size > maxFileSizeBytes) { return null }
-        result.push(a)
+const requestBodyReader = v => {
+    const i = v[Symbol.asyncIterator]()
+    let position = 0
+    return async (offset, _size) => {
+        if (offset !== position) {
+            throw new Error(requestBodyOffsetMessage(offset, position))
+        }
+        for (;;) {
+            const next = await i.next()
+            if (next.done === true) { return emptyBody }
+            if (next.value.length !== 0) {
+                position += next.value.length
+                return next.value
+            }
+        }
     }
-    return result
 }
 
 /**
- * The runner's own answer, for the cases a listener never gets to give one: a
- * request body too large to hand it, and a listener that threw.
+ * The runner's own answer, for the one case a listener never gets to give one:
+ * a listener that threw.
  *
  * **It closes the connection**, which is the whole difference between refusing
- * a request and surviving the refusal. Both cases answer without having read
- * the request to its end, and on a keep-alive connection Node then waits for
- * the rest of a body that is never coming — the socket is stuck, and the next
- * request on it is never answered. A client that declares ten megabytes and
- * sends a hundred kilobytes could hold connections open that way for as long as
- * it liked. Draining the remainder would be the polite alternative and the
- * wrong one: it reads bytes this server has already decided it will not use.
+ * a request and surviving the refusal. A throw can land before the listener has
+ * read the request to its end, and on a keep-alive connection Node then waits
+ * for the rest of a body that is never coming — the socket is stuck, and the
+ * next request on it is never answered. A client that declares ten megabytes
+ * and sends a hundred kilobytes could hold connections open that way for as
+ * long as it liked. Draining the remainder would be the polite alternative and
+ * the wrong one: it reads bytes this server has already decided it will not
+ * use. {@link answerRequest} applies that same argument to a listener that
+ * answers without reading its body.
  *
  * @type {(res: _ServerResponse) => (status: number) => (message: string) => void}
  */
@@ -154,11 +173,47 @@ const connectRefusal =
 /**
  * Answers one request through `listener`, or explains that it could not.
  *
- * A **request** body past the cap never reaches the listener:
- * `IncomingMessage.body` is a single `Vec`, so there is no request value to
- * build, and `413` is the accurate answer rather than a truncated one. Streaming
- * request bodies lift that limit too — see `./todo/streaming-http-bodies.md`,
- * stage 2.
+ * **The request body is a stream the listener pulls**, so nothing about its size
+ * is this function's business any more. It used to buffer the body first and
+ * answer `413` past the `Vec` cap, because `IncomingMessage.body` was one `Vec`
+ * and a larger request had no value to arrive as. What is left of `413` in this
+ * server is nothing: a listener with a size policy of its own is the party that
+ * should answer it, and it can, because it sees the request before the bytes.
+ *
+ * **A body the listener did not finish reading closes the connection.** The
+ * question is what to do with bytes a client is still sending for a request that
+ * has already been answered, and there are two answers: read them and throw them
+ * away, or stop. {@link respondWith} argues it for the runner's own refusals —
+ * draining reads bytes the server has already decided not to use, and a client
+ * declaring ten megabytes and sending a hundred kilobytes would hold a
+ * connection for as long as it liked — and a listener answering early is the
+ * same shape, so it gets the same answer. Node's own choice is the other one:
+ * its `resOnFinish` calls `req._dump()` for a body nobody consumed, which waits
+ * at the client's pace for the rest and discards it. So the runner has to say
+ * something, and what it says is `connection: close`. What that changes is the
+ * waiting, not the discarding: Node still throws away whatever had already
+ * arrived, and the socket stops being held for whatever had not.
+ *
+ * `connection: close` rather than destroying the socket, because the client is
+ * then *told* rather than cut off: Node flushes the whole answer and closes
+ * after it, where a `res.destroy()` races the flush and turns a complete
+ * response into an `ECONNRESET` (`./todo/streaming-http-bodies.md` measures that
+ * table). Measured on Darwin with Node 23.11.0: a 200,000-byte answer to an
+ * unread 300,000-byte `POST` arrived whole, carried `connection: close`, and the
+ * next request on the same keep-alive agent took a fresh socket.
+ *
+ * **The predicate is `req.complete`, and reading it after the listener has
+ * answered is what makes it right.** It is Node's own record of whether the
+ * whole request has arrived and been parsed, so nothing here restates a framing
+ * rule. Measured the same way, it is `false` *synchronously* at the listener's
+ * first statement even for a bodiless `GET` — message-complete has not been
+ * reached yet — and `true` one microtask later; running the listener's effect is
+ * an `await`, so by the time there is a response to write, a request with no
+ * body reads `true` and keeps its connection. A body still arriving reads
+ * `false` however long it is waited on, which is the case this closes for. A
+ * body that is short enough to have arrived already may read either, and both
+ * readings are right: the flag is a statement about what has been received, not
+ * a guess about what will be.
  *
  * **The response body goes out a chunk at a time**, because it is however many
  * `Vec`s the answer takes and one `res.end` carries one. The writes are offered
@@ -175,18 +230,14 @@ const connectRefusal =
  * @type {(listener: Erl<NodeOp>) => _RequestListener}
  */
 const answerRequest = listener => async (req, res) => {
-    const body = await collectBounded(req)
-    if (body === null) {
-        respondWith(res)(413)('request body too large')
-        return
-    }
     const { method, url, headers } = req
     const { status, headers: outHeaders, body: outBody } = unwrap(await runNodeEffect(listener({
         method,
         url,
         headers,
-        body: listToVec(body),
+        body: requestBody(asNominal(requestBodyReader(req))),
     })))
+    if (!req.complete) { res.setHeader('connection', 'close') }
     res.writeHead(status, outHeaders)
     for (const chunk of outBody) {
         res.write(fromVec(chunk))
@@ -406,6 +457,16 @@ const runNodeEffect = asyncRun({
     writeFile: (path, data) => io(() => writeFile(path, fromVec(data))),
     rm: path => io(() => rm(path)),
     rename: (src, dst) => io(() => rename(src, dst)),
+    // The handle carries the reader itself, which is the whole of what a
+    // `Nominal` over `unknown` is for: the position a request body is at is one
+    // request's, and a closure is the only place it belongs. `asBase` reads it
+    // back, exactly as `listen` reads a `Server` back below.
+    //
+    // `toVec` here rather than in the reader, so a chunk past the `Vec` cap is
+    // refused through `io` like any other host failure rather than as a throw
+    // nobody catches.
+    readRequestBytes: (body, offset, size) => io(async () =>
+        toVec(await (/** @type {_RequestBodyReader} */ (asBase(body)))(offset, size))),
     readBytes: (path, offset, size) => io(async () => {
         if (offset < 0) {
             throw new Error(`Offset ${offset} is negative`)
@@ -437,21 +498,28 @@ const runNodeEffect = asyncRun({
             throw Object.assign(new Error(notAFileMessage(path)), { code: notAFileCode })
         }
         return withOpen(path, 'r')(async fh => {
-            // **The accumulator is mutated**, for the reason
-            // {@link collectBounded} gives above and on the condition it names:
-            // rebuilding the array per window copies every chunk taken so far on
-            // every chunk taken, which is quadratic in the *count*, and the array
-            // never leaves this function before it is finished, so nothing
-            // observes the mutation.
+            // **The accumulator is mutated, deliberately**, and this is the one
+            // place in the runner that still collects — the request body stopped
+            // when it became a stream the listener pulls. Rebuilding the array
+            // per window — `chunks = [...chunks, v]`, the shape the rest of this
+            // repository is written in — copies every chunk taken so far on every
+            // chunk taken, which is quadratic in the *count*. The array never
+            // leaves this function before it is finished, so nothing observes the
+            // mutation, which is the condition under which the impure shell is
+            // allowed to be impure.
             //
-            // What changed is whose count it is. This used to say the count was
-            // small — a file is however many `Vec`s it takes, and `fjs/git`'s
-            // packfiles and ref files are a handful of them — so §3.1 had no
-            // exception to spend here. `fjs/web` serving an arbitrary file makes
-            // the count the *caller's*, exactly as a request body's chunk count
-            // is: a gigabyte is over eight thousand windows, and the rebuild
-            // copies tens of millions of chunk references before the first byte
-            // reaches a socket. A cap on one chunk is not a cap on their number.
+            // **A cap on one chunk is not a cap on their number**, which is the
+            // whole of why the exception is spent here. This used to say the
+            // count was small — a file is however many `Vec`s it takes, and
+            // `fjs/git`'s packfiles and ref files are a handful of them — so
+            // §3.1 had nothing to answer. `fjs/web` serving an arbitrary file
+            // makes the count the *caller's*: a gigabyte is over eight thousand
+            // windows, and the rebuild copies tens of millions of chunk
+            // references before the first byte reaches a socket. Measured on the
+            // request-body collector this argument came from, 20,000 one-byte
+            // chunks were 20 KB of payload and 200 million copies — 2,794 ms of
+            // event loop against 167 ms, with the growth going from ×4 per
+            // doubling to ×2.
             /** @type {Vec[]} */
             const chunks = []
             for (;;) {
@@ -576,9 +644,11 @@ const runNodeEffect = asyncRun({
         // has no vocabulary for a tunnel, so no listener could answer a
         // `CONNECT` even if it were handed one.
         //
-        // Answering here rather than passing it on follows the `413` and `500`
-        // above: the runner answers on the listener's behalf exactly when the
-        // listener structurally cannot.
+        // Answering here rather than passing it on follows the `500` above: the
+        // runner answers on the listener's behalf exactly when the listener
+        // structurally cannot. The `413` that used to stand beside it is gone —
+        // a request body is a stream now, so there is no size a listener cannot
+        // be handed.
         server.on('connect', (_, socket) => { tryCatch(() => socket.end(connectRefusal)) })
         return ok(/** @satisfies {EffectServer} */ (asNominal(server)))
     },
