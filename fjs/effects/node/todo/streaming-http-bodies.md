@@ -51,11 +51,12 @@ does not already answer.
 response side is buildable from what is in the tree today, except for the one
 part of it that serves a *named* file: reading a body in chunks resolves that
 name once per chunk, which is a race the current whole-file read does not have,
-so `fjs/web` waits on the handle effect
+so `fjs/web` reads its body through the handle effect
 [stat-then-read](../../../web/todo/stat-then-read.md) designs — see "What the
 bound holds" below, and the note that follows this paragraph, which is where that
-wait was given up. The request side needs an operation that does not exist yet
-either, so it is staged second and the runner keeps its `413` until it lands.
+wait is narrowed: the handle effect makes a large body lazy rather than possible.
+The request side needs an operation that does not exist yet either, so it is
+staged second and the runner keeps its `413` until it lands.
 
 **2026-09-22 — that blocker has an answer the paragraph above predates, and it
 is a trade rather than a removal.** [`ReadWhole`](../types.ts) was added on
@@ -82,16 +83,27 @@ dominates:
 | [`readWhole`](../module.mjs) | yes — one `open`, chunked to EOF | no, the whole file is materialized |
 | the handle effect [stat-then-read](../../../web/todo/stat-then-read.md) designs | yes | yes |
 
-So **Stage 1's `fjs/web` half no longer waits on another issue; it waits on this
-one.** `ReadWhole` needs nothing from stat-then-read — what it still needs is the
-`List` body of the first task below, because `ServerResponse.body`
+So **the wait was stated too strongly: serving a large file does not depend on
+another issue.** `ReadWhole` needs nothing from stat-then-read — what it still
+needs is the `List` body of the first task below, because `ServerResponse.body`
 ([`../types.ts`](../types.ts)) is one `Vec` and that is the cap itself. With the
 body type changed, serving past the cap through `ReadWhole` costs peak memory
 equal to the file, which for the case that prompted this — a static server for a
 development demo — is what `readFile` already costs, and the cap is what
-`readFile` cannot do. The handle effect remains the only route that is both, so
-it stays worth building; it stops being a prerequisite and becomes the
-optimization that makes a large body cheap rather than merely possible.
+`readFile` cannot do. The handle effect is still the only route that is both one
+inode and lazy, so it stays worth building.
+
+**Stage 1 below stays written for the handle effect, and the eager route is
+recorded here rather than carried into it.** Every section after this one speaks
+for that one route: the `Content-Length` read from the `fstat`, the no-body gate
+whose point is the read it saves, the handle `release` gives back, and the
+[`fjs/web`](../../../web/README.md) corrections that follow from those. The eager
+route answers each of them differently — the header is the summed length of
+chunks already in hand, a `HEAD` has materialized the file before the gate is
+reached, and there is no handle to return — so choosing it means a pass through
+all of those sections, which is its own change rather than a note above them.
+What this note changes is what the handle effect is owed for: not whether a large
+body is possible, only what it costs.
 
 **The eager route costs more than the memory, and the operation says why.**
 [`readWhole`](../module.mjs) rebuilds its chunk list on every window rather than
@@ -118,8 +130,7 @@ reads."* That race is narrower than the one this section cited — a wrong guard
 outcome in a vanishing window, not two files spliced into one correctly-sized
 body — but it is the same shape, and it is that issue's to close.
 
-Which of the two to build first is the maintainer's call and is deliberately
-not decided here. This section is corrected rather than worked around, per
+This section is corrected rather than worked around, per
 [DESIGN.md](../../../../doc/DESIGN.md) §3 ("Design before implementation"), and separately from any implementation
 for the same reason.
 
@@ -141,10 +152,10 @@ export type RequestListener<O extends Operation> =
 ```
 
 `ServerResponse` gains `O` because a lazy body *is* an effect, and the
-operations it performs are the listener's own — `fjs/web`'s would be a read from
-one `open`, either `ReadWhole` or the handle effect's bounded read, and not
-`ReadBytes`, which takes a path and so resolves the name again on every chunk,
-for the reason "What the bound holds" below gives. It gains `release` because a lazy body may also *hold* something,
+operations it performs are the listener's own — `fjs/web`'s would be a bounded
+read from one `open`, and not `ReadBytes`, which takes a path and so resolves the
+name again on every chunk, for the reason "What the bound holds" below gives. It
+gains `release` because a lazy body may also *hold* something,
 and the runner is the only party present at every way one ends.
 `CreateServer`'s `RequestListener<Operation>` spelling does not change, and it
 is not erasure that keeps it there: the declaration pins
@@ -179,20 +190,14 @@ that issue is retired with this task. The question it held open — whether
 take a loop written elsewhere without a cast — is answered: it can. Ordinary
 `Effect` widening carries `List<ReadBytes, …>` into it, no cast needed.
 
-**`Content-Length` stays derivable, and on the lazy route stops being derived
-from the body.**
+**`Content-Length` stays derivable, and stops being derived from the body.**
 `fjs/web` writes it as `length(body) >> 3n` today, which a lazy list cannot
 answer without draining. It does not have to: the size is already in hand where
 it is needed, since `readBounded` is handed a `FileStat` and the `stat` that
 produced it is the one the FIFO guard is there for anyway — an `fstat` on the
-held handle, once the reads go through one. The eager route keeps the shape
-`fjs/web` has today, for the opposite reason: `ReadWhole` has already drained the
-file by the time there is a body at all, so `length(body) >> 3n` costs nothing
-and is the one figure that cannot disagree with what will be written. So the
-header comes from the `fstat` on the handle route and from the body on the eager
-one, and the 2026-09-22 note above records which is which. A
-producer that does not know its size omits the header, and what Node then frames
-the response with depends on the request: `Transfer-Encoding: chunked` for one
+held handle, once the reads go through one. A producer that does not know its
+size omits the header, and what Node then frames the response with depends on
+the request: `Transfer-Encoding: chunked` for one
 that will understand it, and the closing connection itself for one that will
 not.
 
@@ -373,12 +378,9 @@ multiple of `chunkBytes`. The bound is a parameter of the moved loop, not a
 second loop: `fjs/cas` does not know a blob's size, keeps reading to the empty
 read, and keeps the chunked framing that goes with it.
 
-**The other route reaches the same guarantee from the other end.** `ReadWhole`
-has no bound to stop at — it reads to EOF by design — so there is no declared
-length for a read to run past: the header is summed from the chunks it already
-answered, and the runner's count below is what checks the pump against it. Both
-routes therefore forbid the overrun measured above; only the held handle does it
-by refusing to read that far, and the 2026-09-22 note records which is which.
+The eager alternative has no bound to stop at, so it forbids the overrun by
+having nothing declared ahead of the read to run past; that is the note above's,
+not this section's.
 
 **And the runner counts, because that bound is one producer's discipline and
 `ServerResponse<O>` is everyone's.** `fjs/web` can be trusted to stop at
@@ -482,8 +484,8 @@ let a design defer one behind a `todo/`.
 again per chunk.** The effect stat-then-read designs — `open`, `fstat`, a bounded
 read, `close` — binds every chunk of one response to one inode and keeps the body
 lazy; `readWhole` binds them as well and spends the laziness to do it, which is
-the choice the 2026-09-22 note above records. What cannot bind them is a length
-declared from a name, and neither can re-`stat`ing afterwards, since a
+the alternative the 2026-09-22 note above records. What cannot bind them is a
+length declared from a name, and neither can re-`stat`ing afterwards, since a
 `FileStat` carries `size`, `isFile` and `isDirectory` and no identity to
 compare. The shared loop therefore takes its chunk source as a parameter rather
 than a path, which lets the two callers differ rather than forcing one to wait
@@ -804,22 +806,19 @@ answering `413` is a listener with a size policy of its own — correctly.
       `RecordedResponse` with its `Overrun` and its `Underrun`, mirroring the
       gates, their order, the count, and the release.
 - [ ] Stage 1, owed to
-      [stat-then-read](../../../web/todo/stat-then-read.md) and **no longer a
-      prerequisite of the task below — see the 2026-09-22 note above:** the
+      [stat-then-read](../../../web/todo/stat-then-read.md) and **the route the
+      task below is written for, though no longer what makes serving a large file
+      possible at all — see the 2026-09-22 note above:** the
       handle effect — `open`, `fstat`, bounded read, `close` — modelled in
       the virtual file system, as the chunk source `fjs/web` reads through, with
       its open handles visible to a proof so an unreleased one fails a test.
       This is the route that makes a large body lazy as well as safe.
 - [ ] Stage 1: serve files past the cap in `fjs/web` — the body read from one
-      `open`, and a `Content-Length` the reads cannot overrun. The two routes
-      reach that differently, and only one of them has a bound to be given.
-      `ReadWhole` takes none and reads to the end rather than to the `stat` size
-      ([`../types.ts`](../types.ts)), so it materializes the chunks first and the
-      header is their summed length; a size declared ahead of it would be the
-      guess "What the bound holds" measured going wrong on a file that grew. The
-      held handle, once the task above lands, declares the `fstat` size and
-      bounds the reads by it. Then whatever is held given back through
-      `release`, `tooLarge` and its `413` row deleted,
+      `open` through the handle effect above, and a `Content-Length` the reads
+      cannot overrun: the `fstat` size declared, and the reads bounded by it. A
+      size declared ahead of an unbounded read would be the guess "What the
+      bound holds" measured going wrong on a file that grew. Then whatever is
+      held given back through `release`, `tooLarge` and its `413` row deleted,
       the `isFile` guard kept, and
       [`../../../web/README.md`](../../../web/README.md) corrected with them:
       its `413` row, its "size limit" section, and its `Content-Length`
@@ -844,8 +843,8 @@ until a body it may not even want has finished arriving.
 - [stat-then-read](../../../web/todo/stat-then-read.md) — the handle effect, which
   makes `fjs/web`'s half of stage 1 lazy rather than possible: a chunk loop over a
   *name* resolves it once per chunk and can splice two files into one clean
-  response, and `ReadWhole` is the eager way out of that (see the 2026-09-22
-  note above).
+  response, and `ReadWhole` is the eager alternative to it that the 2026-09-22
+  note above records.
 - `fjs/effects/node/module.f.mjs` — `writeFromStream`, the chunk-list shape a
   streamed body should follow.
 - [`fjs/effects/list`](../../list/types.ts) — `List`, why a failure belongs to

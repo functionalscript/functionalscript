@@ -15,8 +15,8 @@ sized, and made of two files. The handle effect below is what binds every chunk
 of one response to one inode while the body stays lazy, so it stops being a
 slower-guard fix. It was a prerequisite of that feature until `readWhole` landed
 on 2026-09-14 (`11e3533f`), which binds the chunks too by materializing the whole
-file; that issue's 2026-09-22 note records the trade, and its `fjs/web` task now
-names either route.
+file. That issue's 2026-09-22 note records the trade and keeps the eager route as
+an alternative. Its `fjs/web` task is still written for the handle effect.
 
 ### Problem
 
