@@ -392,7 +392,7 @@ default behavior.
 
 A function has at most 16 fixed parameters
 ([functions](../README.md#functions)), approved as a language limit
-([#2295](https://github.com/functionalscript/functionalscript/pull/2295)) so
+([approval](https://github.com/functionalscript/functionalscript/pull/2295#issuecomment-5831266299)) so
 that every valid function is materializable, with the right `length`, by every
 backend. A 17th fixed name is a compile error, and `bindingError` refuses an
 EDAG function whose `length` is above 16, so every writer returns an error
@@ -436,8 +436,8 @@ source rest binding in that future case or silently admit initializers now.
 ### Tasks
 
 - [ ] Record language-design approval, including the EDAG/writer change.
-      The limit on `length` is approved in
-      [#2295](https://github.com/functionalscript/functionalscript/pull/2295).
+      The limit on `length` is approved by `sergey-shandar`
+      ([approval](https://github.com/functionalscript/functionalscript/pull/2295#issuecomment-5831266299)).
 - [x] Extend source parameter AST, shared grammar and binding. Cover empty,
       rest-only, bare single, parenthesized fixed and fixed-plus-rest forms;
       retain correct grouping, commas, trivia, scopes and early errors.
