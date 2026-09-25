@@ -341,6 +341,32 @@ export const proof = {
         const text = textOf(getResp)
         assert(text.includes('too large'))
         assert(!text.includes('no such hash'))
+        // The way out is the CLI, named with this hash, and never the
+        // server's store path.
+        assert(text.includes(`npx functionalscript cas get ${hash} <path>`), text)
+        assert(!text.includes('/home/user'), text)
+    },
+
+    // `uri` is the opaque `cas:<hash>`, never the blob's host path: the store
+    // lives under the account's home directory, which a client of a server
+    // run over `ssh` or in a container must not learn from a hash it named.
+    // Checked on both content shapes and on an oversized blob's metadata.
+    getUriIsOpaqueHash: () => {
+        const [root, hash] = seedBlob({})([vec8(0x41n)])
+        const [meta, inline] = runSessionVirtual(root)([
+            init, initialized,
+            call(2, 'cas_get', { hash }),
+            call(3, 'cas_get', { hash, content: true }),
+        ]).slice(2)
+        const [bigRoot, bigHash] = seedBlob({})([asciiChunk, asciiChunk])
+        const [big] = runSessionVirtual(bigRoot)([
+            init, initialized,
+            call(4, 'cas_get', { hash: bigHash }),
+        ]).slice(2)
+        for (const [resp, h] of /** @type {const} */ ([[meta, hash], [inline, hash], [big, bigHash]])) {
+            assertEq(casGetResultOf(resp).uri, `cas:${h}`)
+            assert(!textOf(resp).includes('/home/user'), textOf(resp))
+        }
     },
 
     // content:true on a genuinely absent hash still reports "no such hash" — the

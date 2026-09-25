@@ -14,7 +14,7 @@
  * | Tool           | args                          | action           | result                              |
  * |----------------|--------------------------------|------------------|--------------------------------------|
  * | `cas_add`      | `{ content, type? }`          | `c.write(...)`   | hash (cBase32)                      |
- * | `cas_get`      | `{ hash, content?: boolean }` | `c.read(key)`    | JSON `{length,mimeType,type[,uri][,text\|blob]}` |
+ * | `cas_get`      | `{ hash, content?: boolean }` | `c.read(key)`    | JSON `{length,mimeType,type,uri[,text\|blob]}` |
  * | `cas_list`     | `{}`                          | `c.list()`       | hashes, one per line                |
  *
  * ## `cas_add` input encoding
@@ -33,11 +33,12 @@
  *
  * ## `cas_get` output
  *
- * Always returns a JSON object `{ length, mimeType, type[, uri][, text | blob] }`.
+ * Always returns a JSON object `{ length, mimeType, type, uri[, text | blob] }`.
  * These field names mirror the MCP resource-contents shape (`resources/read`
  * results), so the tool view and the future resource view of a blob use the same
  * vocabulary: `mimeType` (not `mime_type`), `uri` (not `url`) — the resource URI
- * under which the same blob will be readable via `resources/read` — and `text` /
+ * under which the same blob will be readable via `resources/read`, the opaque
+ * `cas:<hash>` with the hash in canonical cBase32 — and `text` /
  * `blob` (not a `type`-tagged `content`) for inline payloads. `type` is always
  * present (`'text'` or `'base64'`) as the discriminator for which of `text` /
  * `blob` a later `content: true` fetch would populate — MCP allows extra fields,
@@ -57,7 +58,7 @@
  * `Vec` caps at `maxLength` bits (128 KiB), the old drain-into-one-`Vec`
  * approach failed on any blob larger than one chunk even when only metadata
  * was asked for; streaming detection returns correct
- * `{ length, mimeType, type[, uri] }` regardless of size. A dialect (e.g.
+ * `{ length, mimeType, type, uri }` regardless of size. A dialect (e.g.
  * `vnd.fjs.revision`, see `fjs/media/module.f.mjs`) can only be recognized by
  * parsing the whole blob as JSON, so when the streaming verdict is
  * whole-blob-valid text within the same bounded inline cap as `content: true`
@@ -75,9 +76,16 @@
  * by `type` — a `fjs/text/utf8` `fromVec` string on `text` (for `type: 'text'`),
  * base64 on `blob` (for `type: 'base64'`). A blob larger than `maxLength` (128
  * KiB) cannot be buffered into one `Vec`, so it is rejected here with a
- * descriptive *"too large"* error (carrying the byte size and `uri`) rather than
- * being misreported as absent; it should be fetched via `uri` or inspected with
- * metadata-only `cas_get`.
+ * descriptive *"too large"* error (carrying the byte size and the `cas get`
+ * command that writes it to a file) rather than being misreported as absent;
+ * it should be fetched with that command or inspected with metadata-only
+ * `cas_get`.
+ *
+ * `uri` is never a host path. It is built from the hash the client already
+ * named, so it discloses nothing about the server: the store's location names
+ * the account the server runs under, which a client over `ssh` or in a
+ * container has no business learning (see the emit-side invariant in
+ * `fjs/mcp/README.md`).
  *
  * ## Encoding split: hashes vs. content
  *
@@ -222,15 +230,15 @@ export const casToolRegistry = home => cacheKey => {
         ),
         toolEntry(
             'cas_get',
-            'Inspect a blob by hash. Always returns JSON {length,mimeType,type[,uri]} where type is "text" or "base64". Pass content:true to also include the inline payload as text (type:"text") or blob (type:"base64"), but content is capped at 128 KiB (131072 bytes) — a larger blob is rejected with an error. To download a blob, prefer the uri field returned in the result instead of requesting inline content.',
+            'Inspect a blob by hash. Always returns JSON {length,mimeType,type,uri} where type is "text" or "base64" and uri is the blob\'s opaque identifier, cas:<hash>. Pass content:true to also include the inline payload as text (type:"text") or blob (type:"base64"), but content is capped at 128 KiB (131072 bytes) — a larger blob is rejected with an error. To write a blob of any size to a file, run `npx functionalscript cas get <hash> <path>` yourself if you have shell access, or give the user that exact command to run.',
             casGetArgs,
             r => {
                 const key = cBase32ToVec(r.hash)
                 if (key === null) {
                     return pureOk(errorResult(`invalid cBase32 hash: ${r.hash}`))
                 }
-                const uri = c.url(key)
-                const meta = toMeta(uri)
+                const hash = vecToCBase32(key)
+                const meta = toMeta(`cas:${hash}`)
                 return resultStep(
                     detectStream(c.read(key)),
                     ([tag, detected]) => {
@@ -264,7 +272,7 @@ export const casToolRegistry = home => cacheKey => {
                         // misreporting an existing blob as `no such hash`.
                         if (length > maxLengthBytes) {
                             return pureOk(errorResult(
-                                `blob too large to fetch inline (${length} bytes, limit ${maxLengthBytes} bytes); use the uri field (${uri}) or omit content for metadata`))
+                                `blob too large to fetch inline (${length} bytes, limit ${maxLengthBytes} bytes); run \`npx functionalscript cas get ${hash} <path>\` (or have the user run it), or omit content for metadata`))
                         }
                         return resultStep(
                             collectRead(c.read(key)),
