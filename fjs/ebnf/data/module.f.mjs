@@ -46,15 +46,19 @@ const isRecord = v => isObject(v) && getPrototypeOf(v) === objectPrototype
  * rule's payload without its tag.
  *
  * A hand-written or deserialized set is data, so the carrier is checked
- * here, where the tag is read: a tag nothing spells, a fixed-arity tuple
- * with a field past its arity, or a variant whose branches are no object,
- * is refused rather than dispatched with part of it dropped. What the
- * payload holds — boundaries, bounds, names — is `validate`'s.
+ * here, where the tag is read: no tuple, a tag nothing spells, a
+ * fixed-arity tuple with a field past its arity, or a variant whose branches
+ * are no object, is refused rather than dispatched with part of it dropped.
+ * What the payload holds — boundaries, bounds, names — is `validate`'s.
  *
  * @type {<R>(v: RuleVisitor<R>) => (rule: Rule) => R}
  */
 export const matchRule = v => rule => {
-    switch (rule[0]) {
+    // The tag is bound by destructuring, which needs an array; anything else
+    // is refused here rather than failing as not iterable.
+    assert(rule instanceof Array, ['not a rule', rule])
+    const [tag] = rule
+    switch (tag) {
         case 'set': {
             const [, ...s] = rule
             return v.set(s)
@@ -81,9 +85,11 @@ export const matchRule = v => rule => {
  * Whether the rule named `item` is nullable in `map` — an own entry only: a
  * rule may be named `constructor`, and `{}` inherits one.
  *
+ * Exported for `../ll1`, which reads the same map.
+ *
  * @type {(map: EmptyTagMap) => (item: string) => boolean}
  */
-const nullable = map => item => at(item)(map) !== null
+export const _nullable = map => item => at(item)(map) !== null
 
 /**
  * The nullability of one rule, given that of the rules it names.
@@ -105,7 +111,7 @@ const emptyTagVisitor = nullable => ({
 })
 
 /** @type {(map: EmptyTagMap) => (rule: Rule) => EmptyTag} */
-const emptyTagOf = map => matchRule(emptyTagVisitor(nullable(map)))
+const emptyTagOf = map => matchRule(emptyTagVisitor(_nullable(map)))
 
 /** @type {(ruleSet: RuleSet) => (map: EmptyTagMap) => EmptyTagMap} */
 const emptyTagStep = ruleSet => map => {
@@ -114,22 +120,38 @@ const emptyTagStep = ruleSet => map => {
 }
 
 /**
- * Relaxes `map` one round at a time until a round changes no rule.
+ * Relaxes `start` one round at a time until a round's result is `same` as
+ * what it was given.
  *
  * A loop rather than a recursion: a chain of rules each naming the next
- * advances one nullable fact per round, so the rounds are as many as the
- * rules, and a recursion that deep is a stack overflow on a few thousand.
+ * advances one fact per round, so the rounds are as many as the rules, and a
+ * recursion that deep is a stack overflow on a few thousand.
  *
- * @type {(step: (map: EmptyTagMap) => EmptyTagMap, names: readonly string[]) => (map: EmptyTagMap) => EmptyTagMap}
+ * `same` is the caller's, because only the caller knows its values: an
+ * `EmptyTag` is a primitive and `===` decides it, but a round that rebuilds
+ * an array rebuilds it even when its contents stop changing, and `===` would
+ * never see that round as the last.
+ *
+ * Exported for `../ll1`, whose follow sets are such arrays.
+ *
+ * @type {<T>(step: (value: T) => T, same: (a: T, b: T) => boolean) => (start: T) => T}
  */
-const fixpoint = (step, names) => map => {
-    let current = map
+export const _fixpoint = (step, same) => start => {
+    let current = start
     while (true) {
         const next = step(current)
-        if (names.every(name => at(name)(next) === at(name)(current))) { return next }
+        if (same(next, current)) { return next }
         current = next
     }
 }
+
+/**
+ * Whether two maps agree on every rule named — each read as an own entry,
+ * and compared by `===`, which an `EmptyTag` is decided by.
+ *
+ * @type {(names: readonly string[]) => (a: EmptyTagMap, b: EmptyTagMap) => boolean}
+ */
+const sameTags = names => (a, b) => names.every(name => at(name)(a) === at(name)(b))
 
 /**
  * Computes, for every rule in the set, whether it can match empty input, by
@@ -144,10 +166,18 @@ const fixpoint = (step, names) => map => {
  *
  * @type {(ruleSet: RuleSet) => EmptyTagMap}
  */
-export const emptyTagMap = ruleSet => fixpoint(emptyTagStep(ruleSet), keys(ruleSet))({})
+export const emptyTagMap = ruleSet => _fixpoint(emptyTagStep(ruleSet), sameTags(keys(ruleSet)))({})
+
+/**
+ * EOF's number: the one symbol below the domain, so it can be told from
+ * every ordinary symbol however wide the alphabet is. The front end spells
+ * EOF `null`, since a `DataRule` reserves every number for an ordinary
+ * symbol; below the front end it is this.
+ */
+export const eofSymbol = /** @type {const} */ (-1)
 
 /** EOF, the one set with a negative boundary. */
-const eofSet = /** @type {const} */ ([-1, 0])
+const eofSet = /** @type {const} */ ([eofSymbol, eofSymbol + 1])
 
 /** @type {Terminal} */
 const eof = ['set', ...eofSet]
@@ -156,13 +186,27 @@ const eof = ['set', ...eofSet]
 const domain = rangeSet([0])
 
 /**
- * A non-negative safe integer, spelled the one way: `-0` is refused, since a
- * boundary or a bound written as `-0` is not canonical, and `range_set`
- * refuses the boundary for the same reason.
+ * An ordinary symbol: a non-negative safe integer, spelled the one way. `-0`
+ * is refused, since a boundary or a bound written as `-0` is not canonical,
+ * and `range_set` refuses the boundary for the same reason. The ceiling is
+ * arithmetic rather than alphabetic: `n + 1` is exact only for safe
+ * integers — `2 ** 53 + 1` is `2 ** 53` — so a boundary outside that range
+ * would name a different range than the one asked for.
  *
  * @type {(n: number) => boolean}
  */
-const isSymbol = n => isSafeInteger(n) && n >= 0 && !sameValue(n, -0)
+export const isSymbol = n => isSafeInteger(n) && n >= 0 && !sameValue(n, -0)
+
+/**
+ * A repetition's bounds: `min` a non-negative integer, `max` one too or
+ * `Infinity`, and `min <= max`. An unbounded `min` is refused — it matches
+ * nothing. The front end's `repeat` refuses the same bounds at the call that
+ * wrote them; this checks the hand-written tuple.
+ *
+ * @type {(min: number, max: number) => boolean}
+ */
+export const isRepeatBounds = (min, max) =>
+    isSymbol(min) && (isSymbol(max) || max === Infinity) && min <= max
 
 /**
  * A reference is a string naming a rule of the set. The type is checked
@@ -193,8 +237,7 @@ const validateVisitor = (name, ref, nullable) => ({
     // rather than read as absent.
     variant: branches => entries(branches).forEach(([, item]) => ref(item)),
     repeat: (min, max, item) => {
-        assert(isSymbol(min), ['min is not a non-negative integer', name, min])
-        assert((isSymbol(max) || max === Infinity) && min <= max, ['max is not an integer at or above min, or Infinity', name, max])
+        assert(isRepeatBounds(min, max), ['repeat bounds outside their domain', name, min, max])
         ref(item)
         assert(max !== Infinity || !nullable(item), ['a nullable item under an unbounded repeat', name, item])
     },
@@ -202,7 +245,7 @@ const validateVisitor = (name, ref, nullable) => ({
 
 /** @type {(ruleSet: RuleSet, empty: EmptyTagMap) => (name: string) => (rule: Rule) => void} */
 const validateRule = (ruleSet, empty) => name =>
-    matchRule(validateVisitor(name, defined(ruleSet)(name), nullable(empty)))
+    matchRule(validateVisitor(name, defined(ruleSet)(name), _nullable(empty)))
 
 /**
  * Refuses a rule set that is not a grammar, naming the rule: a reference to a
@@ -270,12 +313,18 @@ const symbolTerminal = n => {
 }
 
 /**
- * The code points of a string rule, one symbol each; malformed UTF-16 is
- * refused rather than encoded as a symbol outside the domain.
+ * The code points of a string, one symbol each: a string rule, and the text
+ * the front end's `set`, `range` and `literals` and the byte alphabet's
+ * `ascii` read. Malformed UTF-16 is refused rather than encoded as a symbol
+ * outside the domain — the decoder tags a lone surrogate with `errorMask`,
+ * which makes it negative, so nothing downstream would tell it from a
+ * mistake of its own.
+ *
+ * @throws If `s` holds a lone surrogate.
  *
  * @type {(s: string) => readonly number[]}
  */
-const codePoints = s => {
+export const codePoints = s => {
     const list = toArray(stringToCodePointList(s))
     assert(list.every(c => (c & errorMask) === 0), ['malformed UTF-16', s])
     return list
@@ -367,10 +416,11 @@ const lowerThunk = (state, hint, fr) => {
     // An info is a tuple; an object spelling one — `{ 0: 'const', 1: c,
     // length: 2 }` — would pass every field read below and is refused first.
     assert(info instanceof Array, ['not a rule', name, info])
-    switch (info[0]) {
+    const [tag, payload] = info
+    switch (tag) {
         case 'const': {
             assert(info.length === 2, ['not a const', name, info])
-            const [next, rule] = lowerBody(registered, name, info[1])
+            const [next, rule] = lowerBody(registered, name, payload)
             return [emit(next, name, rule), name]
         }
         case 'set': {

@@ -74,13 +74,13 @@ Two distinct duplications here:
    can be split out if it churns proofjs/imports.)
 
    Then `sign` reads from `fromCurve(c)` and passes the embedded record straight to
-   `computeK`:
+   `computeKFromDigest`, the private step behind `computeK`:
 
    ```ts
    const { rfc6979, nf: { div }, mul, g } = fromCurve(c)
    const { q, bits2int } = rfc6979
    ...
-   const k = computeK(rfc6979)(hf)(x)(m)   // computeK keeps taking the RFC6979 record unchanged
+   const k = computeKFromDigest(rfc6979)(hf)(x)(hm)  // the RFC6979 record unchanged, and the digest `hm = H(m)` sign already has
    const rxy = mul(k)(g)
    ```
 

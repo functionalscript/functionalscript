@@ -43,9 +43,9 @@
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { catchStep, history, historyStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { isNotFound, readFile, stat } from '../../effects/node/module.f.mjs'
-import { under } from '../../path/module.f.mjs'
+import { isBareDrive, isDriveRoot, under } from '../../path/module.f.mjs'
 import { fromVec } from '../../text/utf8/module.f.mjs'
-import { msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
+import { u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 
 /** What a `.git` file says before the directory it names. */
@@ -53,12 +53,6 @@ const gitdir = /** @type {const} */ ('gitdir: ')
 
 /** The current directory, spelled so that a caller can join below it. */
 const here = /** @type {const} */ ('.')
-
-/** The byte list of a vector, most significant bit first, as Git's files are. */
-const u8ListMsb = u8List(msb)
-
-/** Its inverse, at the same byte order. */
-const u8ListToVecMsb = u8ListToVec(msb)
 
 /**
  * A file of Git's read as Git reads one: `size` the bytes it holds after
@@ -113,10 +107,6 @@ const read = v => {
  */
 const readAt = path => mapStep(readFile(path), read)
 
-/** A letter, which is what a Windows drive is named by. */
-const isDriveLetter = /** @type {(c: string) => boolean} */ (
-    c => (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))
-
 /**
  * Whether a path stands on its own, which is what Git's `is_absolute_path`
  * asks and what decides whether the directory the file sits in is read
@@ -127,8 +117,8 @@ const isDriveLetter = /** @type {(c: string) => boolean} */ (
  * POSIX directory really named `C:` is relative there — and it is read as a
  * root here because `C:/…` is what Windows Git writes into a gitfile and a
  * POSIX directory named after a drive is not a thing that happens. This is
- * the same reading [`fjs/path`](../../path/module.f.mjs) takes of a drive,
- * and the same limitation it records.
+ * [`fjs/path`](../../path/module.f.mjs)'s own reading of a drive, through its
+ * `isDriveRoot`, and the same limitation it records.
  *
  * The `/` is required. `C:r` names a directory under drive C's *current*
  * directory rather than a directory of its own, so Windows Git writes no
@@ -142,12 +132,7 @@ const isDriveLetter = /** @type {(c: string) => boolean} */ (
  *
  * @type {(path: string) => boolean}
  */
-const isAbsolute = path =>
-    path.startsWith('/') || (isDriveLetter(path[0]) && path[1] === ':' && path[2] === '/')
-
-/** A path that is a drive and nothing after it. */
-const isBareDrive = /** @type {(path: string) => boolean} */ (
-    path => path.length === 2 && isDriveLetter(path[0]) && path[1] === ':')
+const isAbsolute = path => path.startsWith('/') || isDriveRoot(path)
 
 /**
  * Whether a path reaches the host as it is written, which is what a string

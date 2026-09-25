@@ -12,12 +12,12 @@ helper:
 ```ts
 // fjs/text/module.f.mjs:61-62 — unchecked, top module reaching into three modules
 export const utf8ToString = msbV =>
-    codePointListToString(toCodePointList(u8List(msb)(msbV)))
+    codePointListToString(toCodePointList(u8ListMsb(msbV)))
 
 // fjs/text/utf8/module.f.mjs:299-306 — checked / Nullable, in the utf8 module
 export const fromVec = v => {
     if ((length(v) & 0b111n) !== 0n) { return null }
-    const arr = toArray(toCodePointList(u8List(msb)(v)))
+    const arr = toArray(toCodePointList(u8ListMsb(v)))
     for (const cp of arr) {
         if (!isValidCodePoint(cp)) { return null }
     }
@@ -25,7 +25,7 @@ export const fromVec = v => {
 }
 ```
 
-Both hardcode the same core chain — `u8List(msb)` bit-unpack →
+Both hardcode the same core chain — `u8ListMsb` bit-unpack →
 `toCodePointList` utf8-decode → `codePointListToString` utf16 re-string —
 and `fromVec` merely wraps it with an octet-alignment check and an
 `isValidCodePoint` filter. `fjs/media/module.f.mjs:157-158` even documents that
@@ -61,7 +61,7 @@ express both string forms through it:
 
 ```ts
 // fjs/text/utf8/module.f.mjs
-export const vecToCodePointList = (v: Vec): List<I32> => toCodePointList(u8List(msb)(v))
+export const vecToCodePointList = (v: Vec): List<CodePoint> => toCodePointList(u8ListMsb(v))
 ```
 
 `fromVec` builds on it (adding its alignment/validity checks), and

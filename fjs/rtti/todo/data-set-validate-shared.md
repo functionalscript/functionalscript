@@ -38,7 +38,7 @@ arm goes through the shared rule:
 
 ```js
 // :1232
-const extra = undeclaredMembers(p.prefix.map((_, i) => String(i)), value)
+const extra = undeclaredMembers(declaredTest(p.prefix.map((_, i) => String(i))), value)
 ```
 
 while the object arm reaches around it:

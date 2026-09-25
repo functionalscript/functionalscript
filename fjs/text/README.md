@@ -2,7 +2,12 @@
 
 The shared code-point classification predicates (`isBmpCodePoint`,
 `isValidCodePoint`, `isTextCodePoint`, …) live in `code_point` — see
-[`code_point/README.md`](./code_point/README.md).
+[`code_point/README.md`](./code_point/README.md). So does the `CodePoint` type
+both codecs decode to and encode from,
+[`code_point/types.ts`](./code_point/types.ts): a scalar value, an untagged
+surrogate or above-`0x10FFFF` value the UTF-8 decoder passes through unchecked
+(gate on `isValidCodePoint` for a scalar), or an `errorMask`-tagged error value
+laid out by the error tables below.
 
 ## UTF-8
 
@@ -15,16 +20,20 @@ Requirement: no loss for UTF8 => codepoint => UTF8
 |[c,b,a]  |1110_xxxx 10xx_xxxx 10xx_xxxx          |16 bit   |0_0000_xxxx_xxxx_xxxx_xxxx + 0_0000_1000_0000_0000|
 |[d,c,b,a]|1111_0xxx 10xx_xxxx 10xx_xxxx 10xx_xxxx|21 bit   |x_xxxx_xxxx_xxxx_xxxx_xxxx + 1_0000_0000_0000_0000|
 
-|utf8 error|utf8 code                    |size  |codepoint          |
-|----------|-----------------------------|------|-------------------|
-|[e]       |1111_1xxx                    | 3 bit|                   |
-|[d,]      |1111_0xxx                    | 3 bit|                   |
-|[c,]      |1110_xxxx                    | 4 bit|                   |
-|[b,]      |110x_xxxx                    | 5 bit|                   |
-|[e]       |10xx_xxxx                    | 6 bit|0000_0000 1xxx_xxxx|
-|[d,c,]    |1111_0xxx 10xx_xxxx          | 9 bit|0000_001x xxxx_xxxx|
-|[c,b,]    |1110_xxxx 10xx_xxxx          |10 bit|0000_01xx xxxx_xxxx|
-|[d,c,b,]  |1111_0xxx 10xx_xxxx 10xx_xxxx|15 bit|1xxx_xxxx xxxx_xxxx|
+|utf8 error|utf8 code                    |size  |codepoint          |flag                 |
+|----------|-----------------------------|------|-------------------|---------------------|
+|[e]       |1111_1xxx                    | 3 bit|                   |`errorByteFlag`      |
+|[d,]      |1111_0xxx                    | 3 bit|                   |`errorByteFlag`      |
+|[c,]      |1110_xxxx                    | 4 bit|                   |`errorByteFlag`      |
+|[b,]      |110x_xxxx                    | 5 bit|                   |`errorByteFlag`      |
+|[e]       |10xx_xxxx                    | 6 bit|0000_0000 1xxx_xxxx|`errorByteFlag`      |
+|[d,c,]    |1111_0xxx 10xx_xxxx          | 9 bit|0000_001x xxxx_xxxx|`errorLead4ContFlag` |
+|[c,b,]    |1110_xxxx 10xx_xxxx          |10 bit|0000_01xx xxxx_xxxx|`errorLead3ContFlag` |
+|[d,c,b,]  |1111_0xxx 10xx_xxxx 10xx_xxxx|15 bit|1xxx_xxxx xxxx_xxxx|`errorLead4Cont2Flag`|
+
+Each code point is also tagged with `errorMask`. The flags are named once, in
+[`utf8/module.f.mjs`](./utf8/module.f.mjs), and both the encoder and the
+decoder read them from there.
 
 Total error states:
 
@@ -41,8 +50,8 @@ Total error states:
 ### utf8/module.f.mjs
 
 ```ts
-const toCodePointList: (input: List<u8|null>) => List<i32>
-const fromCodePointList: (input: List<i32>) => List<u8>
+const toCodePointList: (input: List<u8|null>) => List<CodePoint>
+const fromCodePointList: (input: List<CodePoint>) => List<u8>
 ```
 
 ## UTF-16
@@ -73,8 +82,8 @@ Total error states: 11 bit
 ### utf16/module.f.mjs
 
 ```ts
-const toCodePointList : List<u16|null>) => List<i32>
-const fromCodePointList: (input: List<i32>) => List<u16>
+const toCodePointList : List<u16|null>) => List<CodePoint>
+const fromCodePointList: (input: List<CodePoint>) => List<u16>
 const stringToList: (input: string) => List<u16>
 const listToString: (input: List<u16>) => string
 ```

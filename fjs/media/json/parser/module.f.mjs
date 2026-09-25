@@ -51,6 +51,7 @@
  */
 
 import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
+import { hexDigitValue } from '../../../text/ascii/module.f.mjs'
 import { listToString } from '../../../text/utf16/module.f.mjs'
 import { at } from '../../../types/object/module.f.mjs'
 import { error, mapOk, ok, okList } from '../../../types/result/module.f.mjs'
@@ -99,15 +100,14 @@ const jsonAt = node => {
 const simpleEscape = { '"': '"', '\\': '\\', '/': '/', b: '\b', f: '\f', n: '\n', r: '\r', t: '\t' }
 
 /**
- * What a hex digit's range starts from, by the range's tag in the grammar,
- * so that the digit's value is its symbol less that: `A` is `10`.
+ * The value of a hex digit node. The grammar admits only a hex digit here,
+ * so `hexDigitValue` never answers `null`.
+ *
+ * @type {(node: Ast<typeof hex, Utf16, Text>) => number}
  */
-const hexBase = /**@type {const}*/({ digit: 0x30, AF: 0x41 - 10, af: 0x61 - 10 })
-
-/** @type {(node: Ast<typeof hex, Utf16, Text>) => number} */
 const hexDigit = node => {
-    const [tag, digit] = unmapped(node)
-    return unitAt(digit) - hexBase[tag]
+    const [, digit] = unmapped(node)
+    return assertNotNullish(hexDigitValue(unitAt(digit)))
 }
 
 /** @type {Mappings<Utf16, Text>} */

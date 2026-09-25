@@ -54,10 +54,10 @@ export type _LowerWork =
 export type _LowerResults = { readonly top: Exp, readonly rest: _LowerResults } | null
 
 /**
- * A module's full result and its default binding. Select once so repeated
+ * A module's full result and its export bindings. Select once so repeated
  * imports share the same computation, including its evaluation anchors.
  */
 export type _Resolved = {
     readonly exports: Exp
-    readonly default: Exp | undefined
+    readonly bindings: readonly (readonly [string, Exp])[]
 }

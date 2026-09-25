@@ -21,10 +21,13 @@
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { ascii, byteLength, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { range, repeatFrom1, set } from '../../ebnf/module.f.mjs'
+import { digitsValue, isCanonicalDigits } from '../../text/ascii/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { concat, drop, take } from '../../types/list/module.f.mjs'
 
-const { isSafeInteger } = Number
+const maxSize = BigInt(Number.MAX_SAFE_INTEGER)
+
+const decimalValue = digitsValue(10n)
 
 /** The four types, as the envelope spells them. */
 export const objectTypes = /** @type {const} */ (['blob', 'tree', 'commit', 'tag'])
@@ -90,8 +93,8 @@ const typeOf = w => {
  * @type {(digits: readonly number[]) => Nullable<number>}
  */
 const decimal = digits => {
-    const n = digits.reduce((n, d) => n * 10 + d - 0x30, 0)
-    return (digits.length === 1 || digits[0] !== 0x30) && isSafeInteger(n) ? n : null
+    const n = isCanonicalDigits(digits) ? decimalValue(digits) : null
+    return n !== null && n <= maxSize ? Number(n) : null
 }
 
 /**

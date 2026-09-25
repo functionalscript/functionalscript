@@ -1,6 +1,6 @@
 import { assertEq } from '../../asserts/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { maxLength, repeat, uint, vec } from '../../types/bit_vec/module.f.mjs'
+import { maxLengthBytes, repeat, uint, vec } from '../../types/bit_vec/module.f.mjs'
 import { flip } from '../../types/function/module.f.mjs'
 import { map } from '../../types/list/module.f.mjs'
 import { computeSync } from '../sha2/module.f.mjs'
@@ -64,7 +64,7 @@ export const proof = {
     // A remainder held, then a `Vec` as long as a `Vec` may be: the two are
     // never joined into one, which would be over the ceiling.
     remainderThenFull: () => {
-        const full = repeat(maxLength >> 3n)(a)
+        const full = repeat(maxLengthBytes)(a)
         const state = sha1.append(a)(sha1.init)
         assertEq(uint(sha1.end(sha1.append(full)(state))), uint(compute([a, full])))
         assertEq(uint(compute([a, full])), uint(compute([full, a])))

@@ -14,15 +14,20 @@ blocked the old issue is gone with the module it was about.
 ### Problem
 
 The JS token grammar in [`module.f.mjs`](../module.f.mjs) takes its `string`
-rule from JSON: the double quote opens a string and nothing else does, and
-there is no template literal. So the two spellings this repository is
-actually written in stop the grammar, and with it every reader of it:
+rule from JSON: JSON's string between double quotes, or the same between
+single quotes with `\'` added
+([2460](../../../../../spec/todo/2460-js-string-literals.md)), and no other
+escape; and there is no template literal. So the spellings this repository
+is also written in stop the grammar, and with it every reader of it:
 
 ```
-"const a = 'x'"        => invalid token
 "const a = `a${b}c`"   => invalid token
 "const a = \"\\x41\""  => invalid token
+"const a = '\\x41'"    => invalid token
 ```
+
+Single quotes with JSON's escapes read since 2460 landed; the measurement
+below predates that, when `'x'` was an `invalid token` too.
 
 Measured over every `.mjs` under `fjs/` and `spec/` (350 files) through
 [`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.mjs)'s `tokenize`, the
@@ -35,18 +40,19 @@ sets. The scanner this issue was first measured on had the same 14 clean out
 of 351. The grammar does not accept its own source.
 
 Because the grammar stops at the first refused token, a source view built on
-it today would show nothing past the first single quote, and a doc extractor
+it today would show nothing past the first template literal or non-JSON
+escape, and a doc extractor
 reading `export const` out of the stream would see a fraction of a module.
 
 ### This is a lexing change, not a language change
 
-The two spec issues that cover these spellings are deferred on purpose, and
-each has open design questions:
-[2460-js-string-literals](../../../../../spec/todo/2460-js-string-literals.md)
-(single quotes and the extra escapes) and
+Two spec issues cover these spellings:
+[2460-js-string-literals](../../../../../spec/todo/2460-js-string-literals.md),
+which has accepted single quotes with JSON's escapes and defers the extra
+escapes, and
 [3440-template-literals](../../../../../spec/todo/3440-template-literals.md)
-(substitution typing, tagged templates, canonical form). Nothing here asks for
-any of those to be settled.
+(substitution typing, tagged templates, canonical form), deferred. Nothing
+here asks for either deferral to be settled.
 
 The difference is between *recognising* a spelling and *accepting* it.
 Displaying a module needs the tokenizer to find where a string starts and ends
@@ -60,9 +66,11 @@ the token — the way the compiler's fold already refuses `--` and the JS
 tokenizer's refuses a number followed by a word, both of which a grammar
 reads without complaint.
 
-The scope that follows from that is **the whole of 2460's lexical surface, plus
-templates**: single quotes, `\v`, `\0`, `\xHH`, `\u{...}`, literal control
-characters, and line continuations, recognised but not accepted. Anything less
+The scope that follows from that is **the rest of 2460's lexical surface, plus
+templates**: `\v`, `\0`, `\xHH`, `\u{...}`, literal control characters, and
+line continuations, in either quote, recognised but not accepted. Single
+quotes themselves are already recognised and accepted, since 2460; this issue
+widens what may stand inside them, as inside double quotes. Anything less
 cannot satisfy this issue's own success check — see below.
 
 ### What the widening reaches, and what it does not
@@ -70,25 +78,33 @@ cannot satisfy this issue's own success check — see below.
 The grammar has three readers, and the widening reaches each differently.
 
 - [`fsc/tokenizer`](../../../../fsc/tokenizer/module.f.mjs), the compiler's.
-  A `'x'` it reads as a string is a string the compiler must still refuse, so
-  the fold that classifies tokens gains the refusals the grammar loses: a
-  string opened by a single quote, a template of any kind, and an escape
-  outside JSON's table plus `\u` are errors *there*, at the token, until
-  2460 and 3440 accept them. That keeps the accepted language exactly where
-  it is, and it is the same place the fold already refuses `--`. The
+  A spelling it reads that the language does not accept is one the compiler
+  must still refuse, so the fold that classifies tokens gains the refusals
+  the grammar loses: a string with an escape outside JSON's table, `\u` and
+  its own quote escaped, in either quote — `'x'` itself is accepted since
+  2460 — and a template of any kind are errors *there*, at the token, until
+  2460 and 3440 accept them. That keeps the accepted language exactly
+  where it is, and it is the same place the fold already refuses `--`. The
   compiler's proofs pin it. **It can refuse only if the spelling survives
   the layer below it**, and today it does not: the fold there cooks a
   string, so `"A"`, `'A'` and `"\x41"` would all arrive as one
-  `{ kind: 'string', value: 'A' }`. So `StringToken` gains a `json`
-  boolean, true exactly when the literal is one JSON's string grammar
-  accepts — opened by `"`, every escape from JSON's table — decided by the
-  decoder that already reads each escape as it cooks the value. A template
-  is a kind of its own and needs no flag. That is the second of the two
-  mechanisms 2460 offered, "recording which sub-language each matched token
-  stayed within", used on the *token* rather than on the grammar, where the
-  first mechanism already holds: the JS string rule cannot be two LL(1)
-  branches by dialect, since both begin with `"`, and one bit on the token
-  is what the compiler's fold reads.
+  `{ kind: 'string', value: 'A' }`. So `StringToken` gains two fields,
+  decided by the decoder that already reads each escape as it cooks the
+  value: `quote`, `"` or `'`, and `jsonEscapes`, true when every escape is
+  one of JSON's or the literal's own quote escaped and no raw control
+  character or line continuation occurs. A literal JSON's string grammar
+  accepts is `quote === '"' && jsonEscapes`, derived rather than stored. One
+  "is JSON" bit would not do: 2460 accepts `'A'` and refuses `"\x41"`, and
+  both are not JSON. A template is a kind of its own and needs no flag. That
+  is the second of the two mechanisms 2460 offered, "recording which
+  sub-language each matched token stayed within", used on the *token* rather
+  than on the grammar, where the first mechanism already holds: the JS string
+  rule cannot be two LL(1) branches by dialect, since both begin with `"`,
+  and the two fields on the token are what the compiler's fold reads. The
+  fold accepts a string when `jsonEscapes` holds, of either quote. 2460's
+  single quotes landed before this widening, with a grammar that recognises
+  only what the language accepts, so the fields and the fold's check are this
+  widening's to add, as 2460 records.
 - [`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.mjs), the general
   JS stream over this grammar since the scanner went. It is the consumer this issue
   exists for: the website's
@@ -180,8 +196,8 @@ compiler stays free to refuse the whole form, and does, at its fold.
 
 ### Quotes and templates alone do not reach zero
 
-Adding the quote and the template still leaves real modules failing, because
-the repository uses the rest of the JS escape surface too. The `escape` rule
+Single quotes, landed with 2460, and templates still leave real modules
+failing, because the repository uses the rest of the JS escape surface too. The `escape` rule
 is JSON's table plus `\u`, and nothing else. The clearest case is
 [`git/testlib.f.mjs:121-128`](../../../../git/testlib.f.mjs#L121-L128), which
 is ordinary data, not a test of escapes:
@@ -235,10 +251,11 @@ The repository has two, one per module, and **they are not the same case**:
 The second is what the earlier draft of this section missed by measuring `/x/`
 alone. A regex body is not JavaScript, so a backslash in it begins no token,
 and the grammar stops — where an escape *inside a string* is the string rule's
-business and lexes fine. Today both modules stop earlier anyway, at their
-first single-quoted string (`text/sgr` at 16:23, `effects/node` at 26:36), so
-the regex is invisible; **once the quotes and templates above land it becomes
-the first stop in `text/sgr`**, and the last task's tree scan cannot reach
+business and lexes fine. Today both modules stop earlier anyway — `text/sgr`
+at a `'\x08'` escape and `effects/node` at a template literal; when this
+section was written, at their first single-quoted string — so the regex is
+invisible; **once the escapes and templates above land it becomes the first
+stop in `text/sgr`**, and the last task's tree scan cannot reach
 zero while it does.
 
 So this issue owes a decision rather than an exclusion, and the cheap one is
@@ -289,16 +306,19 @@ the source view rests on.
 
 ### Tasks
 
-- [ ] A JS `string` rule in this grammar beside the JSON one it shares escape
+- [x] A JS `string` rule in this grammar beside the JSON one it shares escape
       sub-rules with: opened and closed by the same one of `"` and `'`, the
-      other quote content inside it.
+      other quote content inside it. Landed with
+      [2460](../../../../../spec/todo/2460-js-string-literals.md), JSON's
+      escapes plus `\'`; the escape rule below widens it.
 - [ ] One escape rule for that string, **the listed escapes, otherwise the
       character itself**, plus line continuation — ECMAScript's rule, which
       covers `\'`, `` \` ``, `\$` and every case nobody has thought of, where a
       list would keep acquiring rows. The listed escapes grow by `\v`, `\0`,
       `\xHH` and `\u{...}`. JSON's `escape` rule in `ebnf/lib/json` does not
       change.
-- [ ] Fixtures for that rule, all currently failing:
+- [ ] Fixtures for that rule, all failing when this was written; the first
+      reads since 2460, whose `\'` it needs and nothing more:
       [`git/testlib.f.mjs:232`](../../../../git/testlib.f.mjs#L232)
       (`'Merge tag \'vt\''`),
       [`git/testlib.f.mjs:121-128`](../../../../git/testlib.f.mjs#L121-L128)
@@ -318,10 +338,11 @@ the source view rests on.
 - [ ] **Do not add rows to `simpleEscapes`** for any of it; the JS decoder is
       a layer above the shared table.
 - [ ] The compiler keeps refusing what it refused: `fsc/tokenizer`'s fold
-      turns a single-quoted string, any template kind and a non-JSON escape
-      into the error token the grammar used to produce, with proofs, until
-      2460 and 3440 accept them. The accepted language does not move in this
-      PR.
+      turns a string whose `jsonEscapes` is false, of either quote, and any
+      template kind into the error token the grammar used to produce, with
+      proofs, until 2460 and 3440 accept them. A single-quoted string with
+      JSON's escapes and `\'` stays accepted, as it is since 2460. The
+      accepted language does not move in this PR.
 - [ ] Anchor a trivia run at its first symbol and drop the synthetic `nl`
       after a block comment, so that consecutive starts delimit tokens; the
       compiler's position proofs follow.
@@ -331,7 +352,7 @@ the source view rests on.
 - [ ] A regex-literal token, with the preceding token deciding whether `/`
       opens one, and the compiler's fold refusing it as it refuses a
       template. Without it `text/sgr` stops at its regex's backslash once
-      the quotes land, so the scan below cannot reach zero.
+      the escapes and templates land, so the scan below cannot reach zero.
 - [ ] Re-run the tree scan; the 336 failing modules should reach zero, or the
       remainder should be named and explained.
 
@@ -345,8 +366,9 @@ the source view rests on.
   gone.
 - [2460-js-string-literals](../../../../../spec/todo/2460-js-string-literals.md) —
   the same spellings, as a language feature. Its lexical surface is what this
-  issue recognises; its question, whether FunctionalScript *accepts* those
-  spellings, stays deferred and untouched.
+  issue recognises; whether FunctionalScript *accepts* those spellings is its
+  question, answered for single quotes (approved, with JSON's escapes plus the
+  literal's own quote) and deferred for the rest.
 - [3440-template-literals](../../../../../spec/todo/3440-template-literals.md) —
   substitution typing, tagged templates and canonical form, none of which this
   issue settles.

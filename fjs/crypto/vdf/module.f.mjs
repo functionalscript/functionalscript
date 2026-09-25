@@ -18,6 +18,7 @@
  *
  * @import { PrimeField } from '../../types/prime_field/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
+ * @import { Unary } from '../../types/bigint/types.ts'
  * @import { Sloth } from './types.ts'
  */
 
@@ -39,13 +40,20 @@ export const sloth_vdf = modulus => {
     const { neg, pow2, reduce, quadRes } = field
     const root = modSqrt(field)
 
-    /** @type {(steps: bigint) => (value: bigint) => bigint} */
-    const squareLoop = steps => value =>
-        iterate(steps)(reduce(value))(pow2)
+    /**
+     * Iterates `op` `steps` times from `value` reduced into the field. `eval`
+     * iterates the square root and `verify` the square over one field
+     * reduction; only the operator differs. The two are inverse only up to
+     * sign: a non-residue's root squares to its negation, which `verify`
+     * accounts for.
+     *
+     * @type {(op: Unary) => (steps: bigint) => (value: bigint) => bigint}
+     */
+    const loop = op => steps => value =>
+        iterate(steps)(reduce(value))(op)
 
-    /** @type {(steps: bigint) => (value: bigint) => bigint} */
-    const modSqrtLoop = steps => value =>
-        iterate(steps)(reduce(value))(root)
+    const squareLoop = loop(pow2)
+    const modSqrtLoop = loop(root)
 
     /** @type {(steps: bigint) => (x: bigint) => Nullable<bigint>} */
     const evalSteps = steps => x =>

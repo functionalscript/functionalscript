@@ -73,10 +73,10 @@ export type _Routes = {
 
 /**
  * A container node a reference reaches: its group — a `const`'s index, or a
- * module's id — the keys from there, and whether the group is a module.
+ * module's id — the keys from there, and the import index (null for a const).
  */
 export type _Node = {
     readonly group: string
     readonly keys: readonly string[]
-    readonly aref: boolean
+    readonly aref: number | null
 }

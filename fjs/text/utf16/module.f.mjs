@@ -7,19 +7,19 @@
  *
  * @import { List, Result, Thunk } from '../../types/list/types.ts'
  * @import { StateScan } from '../../types/function/operator/types.ts'
- * @import { CodePoint, U16 } from './types.ts'
+ * @import { U16 } from './types.ts'
+ * @import { CodePoint } from '../code_point/types.ts'
  */
 
 import {
     map,
-    reduce,
     flatMap,
     empty,
 } from '../../types/list/module.f.mjs'
 
-import { concat } from '../../types/function/operator/module.f.mjs'
 import { contains } from '../../types/range/module.f.mjs'
-import { fn } from '../../types/function/module.f.mjs'
+import { compose } from '../../types/function/module.f.mjs'
+import { concat } from '../../types/string/module.f.mjs'
 
 import {
     decoder,
@@ -27,8 +27,8 @@ import {
     errorMask,
     isBmpCodePoint,
     isHighSurrogate,
-    isLowSurrogate,
-    isSupplementaryPlane,
+    tryFromSurrogatePair,
+    tryToSurrogatePair,
 } from '../code_point/module.f.mjs'
 
 // The `number | null` state threaded through the decoder below is the UTF-16
@@ -36,8 +36,9 @@ import {
 // when no code unit is pending.
 
 /**
- * The BMP / surrogate / supplementary-plane predicates used below live in
- * `code_point`, the shared Unicode contract; see that module for their ranges.
+ * The BMP / surrogate / supplementary-plane predicates and the surrogate-pair
+ * arithmetic used below live in `code_point`, the shared Unicode contract; see
+ * that module for their ranges.
  *
  * Converts a Unicode code point to its corresponding UTF-16 representation.
  *
@@ -72,13 +73,8 @@ import {
  */
 const codePointToUtf16 = codePoint => {
     if (isBmpCodePoint(codePoint)) { return [codePoint] }
-    if (isSupplementaryPlane(codePoint)) {
-        const n = codePoint - 0x1_0000
-        const high = (n >> 10) + 0xd800
-        const low = (n & 0b0011_1111_1111) + 0xdc00
-        return [high, low]
-    }
-    return [codePoint & 0xffff]
+    const pair = tryToSurrogatePair(codePoint)
+    return pair === null ? [codePoint & 0xffff] : pair
 }
 
 /**
@@ -191,14 +187,12 @@ const utf16ByteToCodePointOp = (word, state) => {
         if (isHighSurrogate(word)) { return [[], word] }
         return [[word | errorMask], null]
     }
-    if (isLowSurrogate(word)) {
-        const high = state - 0xd800
-        const low = word - 0xdc00
-        return [[(high << 10) + low + 0x10000], null]
-    }
-    // `isLowSurrogate`, `isBmpCodePoint`, and `isHighSurrogate` partition the
-    // full `u16` range with no gap, and `isLowSurrogate` was already ruled out
-    // above, so a non-BMP `word` here is always a high surrogate.
+    const codePoint = tryFromSurrogatePair(state, word)
+    if (codePoint !== null) { return [[codePoint], null] }
+    // `state` is always a high surrogate, so the pair is refused exactly when
+    // `word` is not a low surrogate. `isLowSurrogate`, `isBmpCodePoint`, and
+    // `isHighSurrogate` partition the full `u16` range with no gap, so a
+    // non-BMP `word` here is always a high surrogate.
     if (isBmpCodePoint(word)) { return [[state | errorMask, word], null] }
     return [[state | errorMask], word]
 }
@@ -301,9 +295,7 @@ export const stringToCodePointList = input =>
  *
  * @type {(input: List<U16>) => string}
  */
-export const listToString = fn(map(String.fromCharCode))
-    .map(reduce(concat)(''))
-    .result
+export const listToString = compose(map(String.fromCharCode))(concat)
 
 /**
  * Converts a list of Unicode code points (CodePoint) to a string.

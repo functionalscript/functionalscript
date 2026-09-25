@@ -64,6 +64,7 @@ import {
     hasUndeclaredMember,
     isArray,
     isObject,
+    noDeclared,
     orVisit,
     primitive0Validate,
     structSchemaEntries,
@@ -142,10 +143,6 @@ const consEntry = (acc, k, v) =>
 /** @type {(acc: _Entries, k: string, vs: ReadonlyArray<Unknown>) => _Entries} */
 const consDeclared = (acc, k, vs) =>
     vs.length === 0 ? acc : { first: [k, vs[0]], tail: acc }
-
-/** A uniform container declares no member by name, so every one is undeclared. */
-/** @type {readonly string[]} */
-const noDeclared = []
 
 /**
  * Builds a parser for `array` or `record` schemas: rebuilds a fresh container
@@ -326,6 +323,7 @@ const restContainerParse =
         // Depend on the schema alone, so they are computed once per schema.
         const rttiEntries = schemaEntries(rtti)
         const declared = rttiEntries.map(([k]) => k)
+        const isDeclared = declaredTest(declared)
         const fits = restFits(rtti, r)
         return value => {
             if (!isContainer(value)) {
@@ -345,7 +343,7 @@ const restContainerParse =
                 consDeclared,
             )
             if (d[0] === 'error') { return d }
-            const extra = undeclaredMembers(declared, value)
+            const extra = undeclaredMembers(isDeclared, value)
             if (extra.length === 0) {
                 if (!fits(value, declared.length)) {
                     return verror('unexpected value')
