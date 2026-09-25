@@ -177,8 +177,9 @@ Default-only modules are the existing fixtures. The mixed case is
       or value selection and that selecting one retains other exports.
 - [ ] Run the implemented [MVP example](../../todo/fjs-nanvm-integration.md#named-module-acceptance)
       through the new harness API, selecting and calling `main` to obtain `42`.
-      The compiler fixture already checks this through the VM API, native
-      JavaScript and both JavaScript EDAG evaluators.
+      Today the fixture's cargo test checks `42` through the VM API, and
+      `namedImports.acceptance` in `fjs/fsc/edag/proof.f.mjs` checks it
+      with both JavaScript EDAG evaluators on its own copy of the sources.
 - [ ] Update the harness documentation and integration checklist when the
       behavior is implemented.
 
