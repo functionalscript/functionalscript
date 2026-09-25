@@ -7,11 +7,11 @@
 //! (`fjs compile <module> <output>.rs` + `cargo run`) ends in a runnable
 //! executable, not just a test suite.
 
-use nanvm_harness::{number, run};
+use nanvm_harness::{Action, number, run};
 use nanvm_lib::naive::Naive;
 
 fn main() {
-    match run::<Naive>(number::module) {
+    match run::<Naive>(number::module, "default", Action::Read) {
         Ok(json) => println!("{json}"),
         Err(e) => {
             eprintln!("error: {e}");
