@@ -114,9 +114,16 @@ emitted declarations, the website's `_*` and `index.html`).
 
 #### CI: delete, regenerate, compare
 
-At the end of the existing generation-check job:
+The generation-check job keeps its steps: `npm run gen`, then
+`git add -A && git diff --cached --exit-code`. What changes is this
+repository's own `gen` script, which deletes before it regenerates. The
+workflow `fjs ci` generates is shared with downstream projects, whose contract
+is only `cov` and `gen` ([`fjs/ci/README.md`](../fjs/ci/README.md)); a separate
+cleanup step would fail there with a missing script, so the cleanup lives in
+the script each project owns.
 
-1. Establish the pinned runtime before anything is deleted.
+1. Establish the pinned runtime before anything is deleted — `./nix/run`,
+   which the cleanup does not touch.
 2. Delete every `gen.*` file and directory in the project, tracked, untracked
    and ignored, leaving the directories empty (`rm` removes files only, and
    git sees no empty directory). Skip dot-names such as `.git`, `node_modules` and `target`, which can contain
@@ -126,17 +133,23 @@ At the end of the existing generation-check job:
    run with `fjs r` like the generators, and using the same
    `startsWith('gen.')` test — not `find`/`rm`
    ([AGENTS.md §6](../AGENTS.md#6-external-tools)) and not a new CLI
-   command.
+   command. `gen` runs it first.
 3. Regenerate. Fail immediately if any generator fails; restore file modes as
    well as contents.
 4. Run the existing `git add -A && git diff --cached --exit-code`. It catches
    additions, modifications, deletions (a stale output that nothing
    regenerates), and executable-bit changes.
 
-Keep the three steps separately reportable, per
-[AGENTS.md §7](../AGENTS.md#7-continuous-integration). Fixed-path exceptions
-are not deleted; the comparison still catches their modifications, but not an
-obsolete one.
+Deletion and regeneration report as one CI step, `npm run gen`; its log names
+the command that failed.
+
+**Known gap: fixed-path exceptions are not deleted.** The comparison still
+catches their modifications, but an obsolete one — a Nix job directory the CI
+generator stopped writing — survives. Deleting them needs the generator to
+restore executable bits first (`nix/*/run` and `nix/lock-update.sh` are
+`100755`, and a recreated file would lose it), and the cleanup must still keep
+the root `nix/run` and `nix/flake.nix` the step runs through. Tracked in
+[generated-run-script-mode](../fjs/ci/todo/generated-run-script-mode.md).
 
 #### Blockers found
 
@@ -178,7 +191,7 @@ Deleting all `gen.*` paths and regenerating fails today, for these reasons:
 | --- | --- | --- |
 | ~~`spec/datajs/vectors/matrix.md`~~ | `spec/datajs/vectors/gen.matrix.md` | Done |
 | ~~`nanvm-lib/tests/test/generated.rs`~~ | `nanvm-lib/tests/test/gen.operators.rs` | Done: `#[path]` on `mod generated;` |
-| ~~`nanvm-harness/fixtures/*.rs`~~ | `nanvm-harness/gen.fixtures/*.rs` | Done: one `#[path]` inline module `fixtures` replaces 32 `#[path]` lines; each output is named after its Rust module (`function_scope.rs`) |
+| ~~`nanvm-harness/fixtures/*.rs`~~ | `nanvm-harness/gen.fixtures/*.rs` | Done: one `#[path]` inline module `fixtures` replaces the per-file `#[path]` lines; each output is named after its Rust module (`function_scope.rs`) |
 
 A scratch rename of the Rust outputs passed `cargo test`, `cargo fmt -- --check`
 and `cargo clippy --all-targets -- -D warnings`. The `.gitattributes` lines
@@ -201,8 +214,8 @@ One pull request each, stacked in this order:
 - [x] Move the fixtures to `nanvm-harness/gen.fixtures/` behind one `#[path]`;
       `fjs compile` creates its output directory (blocker 2).
 - [x] Add `npm run gen:clean`, skipping `.git`, `node_modules` and `target`.
-- [ ] Update the CI generator under `fjs/ci/` to delete, regenerate and
-      compare as separate steps; regenerate the workflow. Verify: a clean
+- [ ] Make `gen` run the cleanup first; the generated workflow is unchanged.
+      Verify: a clean
       regeneration passes; a stale `gen.*` output fails drift; a new or
       changed output fails drift; generation failures fail CI; handwritten
       files survive cleanup. Delete this issue.
