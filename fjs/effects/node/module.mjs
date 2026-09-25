@@ -387,6 +387,9 @@ const runNodeEffect = asyncRun({
             isDirectory: v.isDirectory()
         }))
     ),
+    // A `Vec` that is not whole bytes never reaches here: the effect in
+    // `module.f.mjs` refuses it before the host is asked, since `fromVec` would
+    // pad the last byte.
     writeFile: (path, data) => io(() => writeFile(path, fromVec(data))),
     rm: path => io(() => rm(path)),
     rename: (src, dst) => io(() => rename(src, dst)),
@@ -497,6 +500,7 @@ const runNodeEffect = asyncRun({
             throw failure
         }
     }),
+    // As for `writeFile`: a `Vec` that is not whole bytes is refused before here.
     writeBytes: (path, offset, data) => io(() => withOpen(path, 'r+')(async fh => {
         const buffer = fromVec(data)
         // Loop over short writes so the whole Vec lands — a partial pwrite would
