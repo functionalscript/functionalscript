@@ -75,9 +75,11 @@ a VM. `NotCallable` holds the VM value itself. `Display`, `Debug` and
 `run` evaluates the module once, looks `export` up among the export object's
 own properties, reads it or calls it, and renders that one value as JSON.
 Nothing else in the object is called or serialized. `run(m, "default",
-Action::Read)` is the earlier behaviour, and the earlier tests use that
-spelling. There is no default action and no default export name: a caller
-that wants `default` says so.
+Action::Read)` is the earlier behaviour for a module that has a `default`,
+and the earlier tests use that spelling. A module without one answered
+`Json(Undefined)`, the `undefined` its absent `default` read as, and now
+answers `NoExport("default")`. There is no default action and no default
+export name: a caller that wants `default` says so.
 
 **Arguments are `nanvm-lib` values.** `Action::Call` takes the `Array<A>`
 that `Function::call` already takes, built by the caller with the constructors

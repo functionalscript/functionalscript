@@ -147,7 +147,8 @@ impl<A: IVm> PartialEq for RunError<A> {
 /// section says generated modules expose: `pub fn module<A: IVm>() ->
 /// Result<Any<A>, Any<A>>`, returning the object of all exports, or the
 /// value the module threw. Any other result is a generator bug, not an
-/// input, and panics.
+/// input, and panics. A module holding a function bounds `A` on
+/// `IStaticFunction`, which `naive` implements.
 ///
 /// `export` is looked up among the object's own properties by presence,
 /// not by value: an export holding `undefined` is found, and reading it
@@ -422,8 +423,8 @@ mod tests {
     }
 
     /// Selection from a default-only and from a mixed module: `default` is
-    /// one name among the exports, and selecting it leaves the others to
-    /// select.
+    /// one name among the exports, found only where the module has it, and
+    /// beside it a mixed module's other exports are found too.
     #[test]
     fn default_is_one_export() {
         assert_eq!(
