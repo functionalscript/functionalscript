@@ -57,9 +57,9 @@
 
 import { assert } from '../../asserts/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
-import { length, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
+import { u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
 import { take } from '../../types/list/module.f.mjs'
-import { digestOf } from '../oid/module.f.mjs'
+import { digestOf, isOidOf } from '../oid/module.f.mjs'
 
 /** The four bytes a version 2 index begins with: `\377tOc`. */
 const magic = /** @type {const} */ ([0xFF, 0x74, 0x4F, 0x63])
@@ -396,9 +396,12 @@ const offsetIn = (ids, offsets, target, lo, hi) => {
  *
  * @type {(idx: Idx) => (id: Oid) => Nullable<number>}
  */
-export const offsetOf = ({ oidBytes, ids, offsets }) => id => {
-    assert(length(id) === BigInt(oidBytes) * 8n, ['not an id of the index width', id])
-    return offsetIn(ids, offsets, uint(id), 0, ids.length)
+export const offsetOf = ({ oidBytes, ids, offsets }) => {
+    const isOid = isOidOf(oidBytes)
+    return id => {
+        assert(isOid(id), ['not an id of the index width', id])
+        return offsetIn(ids, offsets, uint(id), 0, ids.length)
+    }
 }
 
 /**

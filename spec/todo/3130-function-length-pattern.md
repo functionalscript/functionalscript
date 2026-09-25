@@ -1,8 +1,77 @@
 # Function length pattern
 
 **Priority:** P2
-**Status:** open — a language feature, waiting on the designer's approval
-([DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo)).
+**Status:** open — implementation pending.
+
+**Approval source:** [PR #2213's current GitHub description](https://github.com/functionalscript/functionalscript/pull/2213)
+reports approval of the earlier pattern by the language designer. In contrast,
+[the file committed by #2213](https://github.com/functionalscript/functionalscript/blob/161e003ffea2d05c8d3b0d3b71939371764853d6/spec/todo/3130-function-length-pattern.md)
+still says approval is pending. The approval attribution here is specifically
+to the PR description, not the merged document or merge commit.
+[PR #2220](https://github.com/functionalscript/functionalscript/pull/2220) proposes
+a fixed/rest replacement for named-parameter arity. Approval of that replacement
+is separate ([DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo)).
+
+## Implementation follow-up
+
+The September 24 implementation request explicitly selects #2220's fixed/rest
+model and pre-generated arrow factories. The implementation is stacked on
+#2220; it reuses the LL(1) parser factoring from #2217 and replaces its earlier
+argument lowering. The shared default-text renderer remains an integration
+gate, tracked in [3120](./3120-parameters.md). This does not authorize merging
+or closing #2216 or #2217, whose full-argument contracts differ.
+
+## Alternative scope
+
+The [named-and-rest parameter plan](./3120-parameters.md) now proposes
+`['arg', N]`, `['rest']` and pre-generated arrow factories. For that contract,
+padding missing fixed arguments is unobservable, so the pattern below is
+**not a prerequisite for named parameters or their arity**. This document
+remains an alternative for construction with arbitrary `length` values and
+the complete original argument list. Its expression-valued count and
+full-`['args']` model must not be mixed silently with the parameter plan's
+integer metadata and fixed/rest bindings. The current implementation follows the fixed/rest plan; this pattern remains
+an alternative, not an additional runtime mechanism.
+
+## Parallel implementations and rollout
+
+**The target proposed by #2220 is fixed/rest, not complete invocation arguments.**
+It proposes replacing the earlier pattern-based route for named-parameter arity,
+not adding a second meaning to the same function-node shape. PR #2213 merged
+the proposal without a surviving implementation. Its GitHub description reports
+the earlier approval, as cited above; this does not assert that its merged file
+or merge commit records approval, nor approve the different fixed/rest contract.
+
+The parallel implementation heads reviewed on September 24, 2026 are not
+implementations of this replacement:
+
+- [#2216](https://github.com/functionalscript/functionalscript/pull/2216) at
+  `e153afe4` evaluates `count` as an expression, constructs through `withLength`,
+  and retains the complete invocation `['args']`.
+- [#2217](https://github.com/functionalscript/functionalscript/pull/2217) at
+  `aaf716b5` builds on #2216, binds names through indexed `['args']`, refuses
+  mixed named/rest syntax, and deletes `3120-parameters.md`.
+
+**Proposed merge sequence:** record the designer's explicit replacement and
+rollout decision, land #2220's design, then rework #2216's representation and
+executors and #2217's parser/writer against that design. Reusable parser work
+need not be discarded. Keep `3120-parameters.md`, or explicitly move its remaining
+requirements to another TODO, until the fixed/rest, mixed-parameter and migration
+work it tracks is complete. Do not accept its deletion merely because fixed-only
+parsing landed under the earlier contract.
+
+Until that decision is recorded, the three PRs must not be merged as if their
+contracts agree. Resolving textual merge conflicts is insufficient. If an earlier
+implementation lands first, rebase this proposal on the landed behavior and
+specify the subsequent breaking migration; do not silently reinterpret its
+expression-valued count or promise a lossless conversion of arbitrary
+positive-arity/full-argument graphs. The retained module-import `['args']` binding
+is separate from invocation arguments, as the parameter plan specifies.
+
+This is a proposed integration order, not a new designer approval, an
+implementation commit, or authorization to merge or close the other PRs. The
+remaining sections describe the earlier pattern alternative only; their task
+list does not override the fixed/rest plan or its default-rendering obligations.
 
 ## Problem
 
@@ -71,7 +140,11 @@ the function-text decisions.
 
 ## Tasks
 
-- [ ] Record the designer's approval.
+- [x] Attribute the earlier approval report to
+  [PR #2213's GitHub description](https://github.com/functionalscript/functionalscript/pull/2213),
+  distinguishing it from the pending status in the committed file.
+- [ ] Record the designer's replacement/rollout decision and reconcile #2216
+  and #2217 as described above before merging conflicting contracts.
 - [ ] Compiler: recognize the complete pattern; refuse every variation.
 - [ ] Function text rendered from the graph, then `operations`' `=>` built
   through the pattern.
@@ -87,7 +160,7 @@ the function-text decisions.
 
 - [Parameters](./3120-parameters.md),
   [arity and complete arguments](./arity-complete-arguments.md) — the
-  syntax and the writer boundary.
+  fixed/rest plan and the stronger alternative complete-list requirement.
 - [Statement-aware intrinsics](../../fjs/fsc/parser/todo/statement-aware-intrinsics.md),
   [built-in](./2360-built-in.md) — how a pattern is recognized; `defineProperty`
   stays prohibited outside it.

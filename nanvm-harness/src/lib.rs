@@ -39,6 +39,10 @@ pub mod method;
 pub mod missing;
 #[path = "../fixtures/named.rs"]
 pub mod named;
+#[path = "../fixtures/named-imports.rs"]
+pub mod named_imports;
+#[path = "../fixtures/named-imports-throws.rs"]
+pub mod named_imports_throws;
 #[path = "../fixtures/nested.rs"]
 pub mod nested;
 #[path = "../fixtures/not-a-function.rs"]
@@ -51,6 +55,8 @@ pub mod number;
 pub mod object;
 #[path = "../fixtures/operators.rs"]
 pub mod operators;
+#[path = "../fixtures/parameters.rs"]
+pub mod parameters;
 #[path = "../fixtures/property.rs"]
 pub mod property;
 #[path = "../fixtures/rest.rs"]
@@ -187,8 +193,9 @@ mod tests {
 
     use crate::{
         Action, RunError, arity, array, at, boolean, call, calls, closure, escapes, exports,
-        function_scope, lazy, length, method, missing, named, nested, not_a_function, nullish,
-        number, object, operators, property, rest, run, sharing, string, throws, to_string,
+        function_scope, lazy, length, method, missing, named, named_imports, named_imports_throws,
+        nested, not_a_function, nullish, number, object, operators, parameters, property, rest,
+        run, sharing, string, throws, to_string,
     };
 
     /// Today's walking-skeleton run: the module's `default` export, read.
@@ -300,6 +307,14 @@ mod tests {
         );
     }
 
+    #[test]
+    fn named_and_rest_parameters() {
+        assert_eq!(
+            read_default(parameters::module),
+            Ok("[3,[1,2,3,[4,5]],true,true,true,1,1,[1,[2,3],4,[5],[2,3],[5]],true,true,true,true]".into())
+        );
+    }
+
     /// Closures, end to end: a function's frame is the values its body
     /// names from outside, built where the function is made and read
     /// through `A::frame` — an enclosing function's arguments, a module
@@ -405,6 +420,29 @@ mod tests {
         assert!(matches!(
             run::<Naive>(exports::module, "fails", Action::Read),
             Err(RunError::Json(_))
+        ));
+    }
+
+    /// The MVP acceptance example: `main`, selected and called with no
+    /// arguments, answers `42` through an imported function.
+    #[test]
+    fn named_imports_and_captures() {
+        assert_eq!(
+            run::<Naive>(
+                named_imports::module,
+                "main",
+                Action::Call(Array::default())
+            ),
+            Ok("42".into())
+        );
+        assert_eq!(
+            run::<Naive>(named_imports::module, "checks", Action::Read),
+            Ok("[true,true,true,true,true,true]".into())
+        );
+        // An imported module that throws fails the importer's evaluation.
+        assert!(matches!(
+            run::<Naive>(named_imports_throws::module, "value", Action::Read),
+            Err(RunError::Thrown(_))
         ));
     }
 

@@ -19,8 +19,10 @@ import type { ExpOp, Over, TagMap } from '../types.ts'
 export type Evaluator<E> = {
     readonly frame: unknown
     readonly args: readonly unknown[]
+    readonly fixed?: readonly unknown[] | undefined
+    readonly rest?: readonly unknown[] | undefined
     readonly operand: (e: E) => unknown
-    readonly invoke: (frame: unknown, args: readonly unknown[], body: E) => unknown
+    readonly invoke: (frame: unknown, fixed: readonly unknown[], rest: readonly unknown[], body: E) => unknown
 }
 
 /** One operation per tag, each over the node kind of that tag with `E` as its operands. */

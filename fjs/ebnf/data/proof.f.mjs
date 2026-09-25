@@ -7,7 +7,7 @@ import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../.
 import { eof, option, range, remove, repeat, repeatFrom0, set, times, unicodeMax } from '../module.f.mjs'
 import { dataJs } from '../lib/datajs/module.f.mjs'
 import { digit, json, string, uint, ws, wsSymbol } from '../lib/json/module.f.mjs'
-import { _fixpoint, emptyTagMap, matchRule, toData, validate } from './module.f.mjs'
+import { _fixpoint, codePoints, emptyTagMap, eofSymbol, isSymbol, matchRule, toData, validate } from './module.f.mjs'
 
 const { keys } = Object
 const { MAX_SAFE_INTEGER } = Number
@@ -126,6 +126,31 @@ const stringBranch = {
 const refuse = ruleSet => validate({ ...int, ...ruleSet }, 'int')
 
 export const proof = {
+    // An ordinary symbol is a non-negative safe integer spelled the one way;
+    // EOF's number is below them all, so it is none of them.
+    isSymbol: () => {
+        assert(isSymbol(0))
+        assert(isSymbol(MAX_SAFE_INTEGER))
+        assert(!isSymbol(-0))
+        assert(!isSymbol(eofSymbol))
+        assert(!isSymbol(0.5))
+        assert(!isSymbol(MAX_SAFE_INTEGER + 1))
+        assert(!isSymbol(Infinity))
+        assert(!isSymbol(NaN))
+    },
+    // One symbol per code point: an astral character is one, not the two
+    // UTF-16 units it occupies. A lone surrogate, high or low, is no code
+    // point and is refused rather than tagged into a negative symbol.
+    codePoints: {
+        text: () => {
+            assertStructurallySame(codePoints(''), [])
+            assertStructurallySame(codePoints('a😀'), [c('a'), 0x1F600])
+        },
+        throw: {
+            loneHigh: () => codePoints('\uD800'),
+            loneLow: () => codePoints('a\uDC00'),
+        },
+    },
     // Each handler receives the payload without its tag.
     matchRule: {
         kinds: () => {
@@ -135,10 +160,11 @@ export const proof = {
             assertEq(showRule(int.uint), 'variant zero digits')
             assertEq(showRule(int.digits0), 'repeat 0 Infinity digit')
         },
-        // The carrier is checked where the tag is read: a tag nothing
-        // spells, a field past a fixed arity, or branches that are no
+        // The carrier is checked where the tag is read: no tuple, a tag
+        // nothing spells, a field past a fixed arity, or branches that are no
         // object, are refused rather than dispatched with a part dropped.
         throw: {
+            notATuple: () => showRule(/** @type {DataRule} */ (notARule)),
             unknownTag: () => showRule(/** @type {DataRule} */ (typo)),
             repeatTrailing: () => showRule(/** @type {DataRule} */ (repeatTrailing)),
             variantTrailing: () => showRule(/** @type {DataRule} */ (variantTrailing)),
@@ -295,7 +321,7 @@ export const proof = {
         // EOF is the `null` rule, the one set with a negative boundary.
         eof: () => {
             const [ruleSet] = toData(eof)
-            assertStructurallySame(ruleSet, { '': ['set', -1, 0] })
+            assertStructurallySame(ruleSet, { '': ['set', eofSymbol, 0] })
         },
         // The top ordinary symbol is the open tail: the boundary above it is
         // not a safe integer, so this is its only spelling.

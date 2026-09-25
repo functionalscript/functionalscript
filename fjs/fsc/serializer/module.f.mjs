@@ -89,7 +89,7 @@
 
 import { _defaultExport, _moduleExports } from '../edag/module.f.mjs'
 import { keywords, literalWords } from '../../js/keywords/module.f.mjs'
-import { analysis } from '../../edag/analysis/module.f.mjs'
+import { analysis, bindingError } from '../../edag/analysis/module.f.mjs'
 import { keySerialize, leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { arrayWrap, colon, objectWrap } from '../../media/json/serializer/module.f.mjs'
 import { first, flat, toArray } from '../../types/list/module.f.mjs'
@@ -500,9 +500,8 @@ const entry = (s, depth) => i => {
     const node = s.a.nodes[i]
     switch (node[0]) {
         case 'undefined': { return ok(['undefined']) }
-        case 'args': {
-            return depth === 0 ? error('the arguments outside a function') : ok([parameter(depth)])
-        }
+        case 'arg': { return ok([`${parameter(depth)}_${node[1]}`]) }
+        case 'rest': { return ok([parameter(depth)]) }
         case '[]': { return mapOk(arrayWrap)(okList(node[1].map(item(s, depth)))) }
         case '{}': { return mapOk(objectWrap)(okList(node[1].map(property(s, depth)))) }
         case 'frame': { return error('the frame outside a slot read') }
@@ -516,12 +515,12 @@ const entry = (s, depth) => i => {
             )(okList([base(s, depth)(b), key(k)]))
         }
         case '=>': {
-            const [, frame, body] = node
+            const [, length, frame, body] = node
             return okThen(
                 /** @type {(names: readonly string[]) => Document} */
                 (names => mapOk(
                     /** @type {(text: List<string>) => List<string>} */
-                    (text => flat([[`(...${parameter(depth + 1)})=>`], text])),
+                    (text => flat([[`(${Array.from({ length }, (_, i) => `${parameter(depth + 1)}_${i},`).join('')}...${parameter(depth + 1)})=>`], text])),
                 )(closureBody(s.a, depth + 1, names)(body))),
             )(frameNames(s)(frame))
         }
@@ -573,7 +572,7 @@ const hoists = s => {
         // every frame element but a spread and a slot of this scope's own
         // frame takes a `const`, after what it reaches and before the
         // function: a capture is a name
-        const inner = frameItems(s.a, node[0] === '=>' ? node[1] : null)
+        const inner = frameItems(s.a, node[0] === '=>' ? node[2] : null)
             .filter(x => x instanceof Array && x[0] === '#' && !isSlotRead(s.a, /** @type {Ref} */(x)))
             .reduce((ns, x) => add(found(ns, /** @type {Ref} */(x)), ['entry', /** @type {Ref} */(x)[1]]), operands(node).reduce(found, names))
         const self = minting(node) && s.a.shared.includes(i) ? add(inner, ['entry', i]) : inner
@@ -715,6 +714,8 @@ const scopeOperands = (a, v) => {
  */
 export const trySerialize = e => {
     const a = analysis(e)
+    const problem = bindingError(a)
+    if (problem !== null) { return error(problem) }
     return okThen(
         /** @type {(all: _Root) => Document} */
         (all => mapOk(
@@ -821,6 +822,8 @@ export const tryModuleSerialize = e => {
         if (compact[0] === 'ok') { return compact }
     }
     const a = analysis(e)
+    const problem = bindingError(a)
+    if (problem !== null) { return error(problem) }
     const exports = exportOperands(a, a.root)
     const prefix = modulePrefix(keys, '$')
     return okThen(state => mapOk(

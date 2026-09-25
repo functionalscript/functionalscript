@@ -18,25 +18,48 @@ import { fold, last, take, length, concat as listConcat, toArray } from '../type
 import { join as listJoin, concat as stringConcat } from '../types/string/module.f.mjs'
 
 /**
- * `rooted` is the only thing the fold needs to know about the root: whether a
- * leading `..` has anywhere to go. `/a/../..` is `/`, because there is no
- * parent of the root to name, while `a/../..` stays `..`.
+ * The dot-segment rule, once, for every spelling of a path that has one.
+ * `classify` says what a segment is — `'skip'` for a current directory,
+ * `'up'` for a parent, `'keep'` for a name — and the fold does the rest.
  *
- * @type {(rooted: boolean) => Fold<string, List<string>>}
+ * An `'up'` cancels the segment before it, unless there is none or that one
+ * is itself a surviving `..`: then it has nothing to cancel, and `rooted` is
+ * the only thing the fold needs to know about the root — whether such a `..`
+ * has anywhere to go. `/a/../..` is `/`, because there is no parent of the
+ * root to name, while `a/../..` stays `..`. That clamp is what decides whether
+ * a traversal escapes, which is why it has one definition.
+ *
+ * A surviving `'up'` is written as `..` whatever its spelling, and a later
+ * `'up'` recognises it by that spelling — so `classify` must answer `'up'`
+ * for `..`, or a name spelled `..` would read as one that survived.
+ *
+ * @type {(classify: (segment: string) => 'skip' | 'up' | 'keep') => (rooted: boolean) => Fold<string, List<string>>}
  */
-const foldNormalizeOp = rooted => input => state => {
-    switch(input) {
-        case '': case '.': { return state }
-        case '..': {
+export const _dotSegmentFold = classify => rooted => input => state => {
+    switch(classify(input)) {
+        case 'skip': { return state }
+        case 'up': {
             switch(last(undefined)(state)) {
-                case undefined: { return rooted ? state : listConcat(state)([input]) }
-                case '..': { return listConcat(state)([input]) }
+                case undefined: { return rooted ? state : listConcat(state)(['..']) }
+                case '..': { return listConcat(state)(['..']) }
             }
             return take(length(state) - 1)(state)
         }
         default: { return listConcat(state)([input]) }
     }
 }
+
+/**
+ * A filesystem segment: an empty one is noise, so `a//b` is `a/b`.
+ *
+ * @type {(segment: string) => 'skip' | 'up' | 'keep'}
+ */
+const pathSegment = segment =>
+    segment === '' || segment === '.' ? 'skip'
+    : segment === '..' ? 'up'
+    : 'keep'
+
+const pathDotSegments = _dotSegmentFold(pathSegment)
 
 /**
  * Converts Windows separators (`\`) to POSIX separators (`/`).
@@ -101,7 +124,7 @@ const split = p =>
     : ['', p]
 
 /** @type {(rooted: boolean) => (rest: string) => readonly string[]} */
-const posixSegments = rooted => rest => toArray(fold(foldNormalizeOp(rooted))([])(rest.split('/')))
+const posixSegments = rooted => rest => toArray(fold(pathDotSegments(rooted))([])(rest.split('/')))
 
 /** @type {(s: readonly [string, string]) => string} */
 const rejoin = ([r, rest]) => stringConcat([r, listJoin('/')(posixSegments(r !== '')(rest))])

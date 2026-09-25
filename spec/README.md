@@ -653,10 +653,9 @@ each. A group is an operand of `-` as well, and the one way a function
 reaches the prefix at all: `-((...a) => 1)` is a value where `-(...a) => 1`
 is a syntax error, there and here.
 
-A parenthesized parameter list, `(a, b) => …`, is not a group and is not
-recognized yet ([parameters](./todo/3120-parameters.md)): JavaScript itself
-tells one from the other only past the `)`, so `(a) => 1` is read as a group
-and refused at the `=>`.
+A parenthesized parameter list, `(a, b) => …`, is distinguished from a group
+by the arrow following `)`. Each parameter must be a binding name; `(a + b)`
+is a group, while `(a + b) => 1` is refused.
 
 ## Operators
 
@@ -753,16 +752,28 @@ fails. A key computed at run time is not recognized yet.
 
 ```js
 import a from "./a.f.js";
+import { add, subtract as sub, } from "./math.f.js";
+import { default as config } from "./config.f.js";
+import d, { value as v } from "./mixed.f.js";
+import {} from "./checked.f.js";
 ```
 
-An `import` statement binds another module's `default` export to a name, so
-modules can be shared and reused — a common configuration, a shared table of
-constants, a fragment that several outputs include.
+An `import` statement selects exports from another module's complete export
+object. The exported name selects the property; an alias changes only its local
+binding. Named-only modules need no default export.
 
-- A default import requires an actual default export; a missing default is
-  an error, while `export default undefined;` is valid.
-- Only the **default import** form is recognized. Named imports and namespace
-  imports ([namespace-import](./todo/2220-namespace-import.md)) are not.
+The completed [named-import proposal](./named-imports.md) records the design
+scope and language-designer authorization.
+
+- The selected export must exist, even when its binding is unused. A present
+  export whose value is `undefined` is valid; an absent export is an error.
+- Named lists admit aliases, trailing commas, `default as name`, and an empty
+  list. A default binding may precede a named list.
+- An empty list still loads and evaluates the dependency. Unused imports and
+  unselected export initializers retain their required evaluation and failures.
+- Namespace imports ([namespace-import](./todo/2220-namespace-import.md)),
+  string-literal export names, bare side-effect imports, and re-exports remain
+  unsupported.
 - The module specifier is a [string literal](#strings), resolved using the
   declared host environment's module-resolution rules. Relative specifiers
   resolve against the importing module's identity; bare specifiers follow the
@@ -772,8 +783,9 @@ constants, a fragment that several outputs include.
   share its evaluation and exported value. Distinct module identities remain
   distinct even when they load the same file; loading paths are not cache
   keys. A circular dependency is an error.
-- The name is a JavaScript identifier that JavaScript does not reserve:
-  `import class from "./a.f.js";` is an error here as there.
+- Local bindings must be valid, unreserved identifiers and cannot duplicate
+  another import or module constant. Exported names are identifier names;
+  reserved words such as `default` require a valid local alias.
 - Every `import` comes before every `const`
   ([module structure](#module-structure)).
 
@@ -787,8 +799,10 @@ file-module profile; preserve-symlinks modes are not supported profiles. The exi
 [module-resolution TODO](../fjs/fsc/todo/module-resolution-compatibility.md)
 records the host boundary, tests, and remaining support work.
 
-A JSON document is imported with the attribute JavaScript requires of it, and
-denotes the value `JSON.parse` gives it:
+A JSON document has only a `default` export. Both a default binding and
+`{ default as name }` may select it; its object keys are not named exports.
+The import requires the attribute JavaScript specifies and denotes the value
+`JSON.parse` gives it:
 
 ```js
 import a from "./a.json" with { type: "json" };
@@ -892,12 +906,26 @@ A function that takes no arguments, its parameter list empty:
 export default () => 6;
 ```
 
-A function is written as an arrow function of one rest parameter or of none,
-and its body is an expression or a block. It denotes a function of its
-arguments and of what it captures:
+A function is an arrow with zero or more fixed named parameters and an
+optional final rest parameter. Its body is an expression or a block:
 
-- The parameter is the arguments array, `args[0]` the first argument. The
-  parameter may shadow a module name, as in JavaScript.
+```js
+export default (a, b, c, ...x) => [a, b, c, x];
+```
+
+Bare `a => a`, `(a) => a`, and a fixed list with a trailing comma are also
+accepted. No parameter or comma may follow rest. Defaults and destructuring
+are not supported yet. A newline before `=>` is refused.
+
+- Fixed names bind positional arguments; missing arguments are `undefined`.
+  Extra arguments are permitted. The rest parameter is the array of arguments
+  after the fixed prefix. Each invocation has its own rest array, and repeated
+  reads within it return the same array. Parameters may shadow outer names,
+  but must be distinct and cannot collide with body declarations.
+- `f.length` is the number of fixed parameters, including unused ones. Rest
+  adds zero. The JavaScript evaluators materialize lengths 0 through 32 via
+  generated arrow factories; larger lengths remain valid for compilation and
+  source output, but those evaluators refuse to materialize them.
 - A name the body reads from a scope around it — a `const`, an import, an
   enclosing function's parameter or an enclosing body's `const` — is a
   **capture**, as a JavaScript closure's is. The function's frame is the
@@ -933,9 +961,7 @@ arguments and of what it captures:
   unbound here exactly as any other unbound word is. Nothing else
   distinguishes the two lists. `() => 1` and `(...args) => 1` denote the one
   function, and a body `const` may take the name a parameter would have
-  taken, there being no parameter to collide with. A list of **named**
-  parameters, `(a, b) => body`
-  ([parameters](./todo/3120-parameters.md)), is not recognized yet.
+  taken, there being no parameter to collide with.
 - The body is an expression or a block, and `value` and `{ return value; }`
   denote the same function. As an expression the body is any value except a
   bare object literal: after `=>` JavaScript reads `{` as a block, never as
@@ -948,7 +974,7 @@ arguments and of what it captures:
   the value share a line: a newline between them ends the statement in
   JavaScript, which would return `undefined`, so it is refused here rather
   than read another way, exactly as a newline before `=>` is.
-- A function **carries no name**. Its EDAG is `['=>', frame, body]`,
+- A function **carries no name**. Its EDAG is `['=>', length, frame, body]`,
   name-erased, so `{ some: () => 0 }.some`, `const hello = () => 0` and
   `export default () => 0` compile to the same node whatever JavaScript
   would name them, and no program observes the difference: `f.name` is
@@ -959,9 +985,7 @@ arguments and of what it captures:
   name a JavaScript engine gives a function it loads from the written
   output is the writer's spelling, not a result of the program
   ([principles](#principles)).
-  Nor is the arity observable, which is what leaves the two parameter lists nothing to be
-  told apart by: `f.length` is `0` for a rest parameter as it is for none,
-  a rest parameter not counting towards it in JavaScript.
+  Empty and rest-only parameter lists both have `length === 0`.
 - A body `const` is the body's, and binds as a module's does: it names a
   value the `return` and the statements after it may use, it may not be
   written twice, and it is not in its own initializer's scope. The parameter
@@ -1061,6 +1085,8 @@ so every DataJS document parses here.
 |Statement|Form|
 |---------|----|
 |default import|`import name from "./path";`|
+|named imports|`import { name, other as local, } from "./path";`|
+|combined imports|`import value, { name } from "./path";`|
 |JSON import|`import name from "./path.json" with { type: "json" };`|
 |constant|`const name = expression;`|
 |named export|`export const name = expression;`|

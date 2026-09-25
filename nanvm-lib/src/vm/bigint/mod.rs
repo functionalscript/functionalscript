@@ -24,12 +24,12 @@ use core::{cmp::Ordering, iter::once};
 use crate::{
     common::{sized_index::SizedIndex, uint::Uint},
     sign::Sign,
-    vm::{IContainer, IVm},
+    vm::{Any, IContainer, IVm},
 };
 
 /// The exact V8 message for dividing (`/`) or taking the remainder (`%`) of
 /// a `BigInt` by zero.
-pub(super) const DIVISION_BY_ZERO: &str = "RangeError: Division by zero";
+const DIVISION_BY_ZERO: &str = "RangeError: Division by zero";
 
 // TODO: change it to Iterator/SizedIndex-based implementation.
 fn normalize(vec: &[u64]) -> &[u64] {
@@ -173,6 +173,31 @@ impl<A: IVm> BigInt<A> {
             }
         };
         Self::unchecked_new(sign, vec)
+    }
+
+    /// Truncating division: `(self / rhs, self % rhs)`.
+    ///
+    /// The single owner of the protocol `Div` and `Rem` project from: the
+    /// zero-divisor guard, the magnitude division, and both sign rules. The
+    /// quotient truncates toward zero, so it is negative iff exactly one
+    /// operand is; the remainder's sign follows the dividend. Both match
+    /// Rust's own integer `/` and `%`. Only the zero divisor is special: JS
+    /// throws instead of the `NaN` a `Number` operation would give.
+    pub fn div_mod(self, rhs: Self) -> Result<(Self, Self), Any<A>> {
+        if rhs.is_zero() {
+            return Err(DIVISION_BY_ZERO.into());
+        }
+        let lhs_sign = self.sign();
+        let quotient_sign = if lhs_sign == rhs.sign() {
+            Sign::Positive
+        } else {
+            Sign::Negative
+        };
+        let (quotient, remainder) = self.abs_divmod_vec(rhs);
+        Ok((
+            Self::normalize_new(quotient_sign, quotient),
+            Self::normalize_new(lhs_sign, remainder),
+        ))
     }
 
     fn add_to_vec(mut vec: Vec<u64>, index: u32, add: u128) -> Vec<u64> {
@@ -514,6 +539,36 @@ mod tests {
         let rhs_val = TestBigInt::unchecked_new(Sign::Positive, [20u64, 9u64]);
 
         assert_eq!(self_val.abs_cmp_vec(rhs_val), Ordering::Greater);
+    }
+
+    #[test]
+    fn test_div_mod_pairs_quotient_and_remainder() {
+        let int = |value: i64| -> TestBigInt { value.into() };
+        for (a, b, q, r) in [
+            (10, 3, 3, 1),
+            (-10, 3, -3, -1),
+            (10, -3, -3, 1),
+            (-10, -3, 3, -1),
+            // `div_mod` picks each result's sign before it knows the
+            // magnitude; a zero result must still come out positive.
+            (-1, 2, 0, -1),
+            (1, -2, 0, 1),
+            (-4, 2, -2, 0),
+            (4, -2, -2, 0),
+        ] {
+            let (quotient, remainder) = int(a).div_mod(int(b)).unwrap();
+            // `==` ignores the sign of a zero, so the sign is pinned apart.
+            assert_eq!(quotient.sign(), int(q).sign());
+            assert_eq!(remainder.sign(), int(r).sign());
+            assert_eq!(quotient, int(q));
+            assert_eq!(remainder, int(r));
+        }
+    }
+
+    #[test]
+    fn test_div_mod_zero_divisor_throws() {
+        let a: TestBigInt = 5u64.into();
+        assert!(a.div_mod(TestBigInt::default()).is_err());
     }
 
     // Tests for abs_add_vec

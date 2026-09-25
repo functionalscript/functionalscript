@@ -101,11 +101,15 @@ see [serialization](./serialization.md).
    `(...a) => { return expression; }` and `() => expression`, capturing
    what its body names from the scopes around it
    ([functions](../README.md#functions))
-2. [ ] [parameters](./3120-parameters.md) — bare `a => …` and parenthesized
-   named lists, with declared arity preserved
-3. [ ] [function length pattern](./3130-function-length-pattern.md) — a
-   proposed, unapproved spelling that would build a function of a given
-   `length` in FunctionalScript
+2. [ ] [named and rest parameters](./3120-parameters.md) — `a => …` and
+   `(a, b, c, ...args) => …`; fixed `arg`/`rest` EDAG bindings and
+   pre-generated callable factories preserving declared arity
+   ([function-length-limit](./function-length-limit.md) proposes at most 16
+   fixed parameters)
+3. [ ] [function length pattern](./3130-function-length-pattern.md) — an
+   alternative for arbitrary length/full-argument construction, not a
+   prerequisite for the named-and-rest parameter plan; its unrestricted
+   length conflicts with [function-length-limit](./function-length-limit.md)
 4. [x] body-const — a function body takes `const` statements before its
    `return`, and the writer spells them
    ([functions](../README.md#functions))
@@ -137,10 +141,9 @@ see [serialization](./serialization.md).
 
 ### 3.4. Syntactic Sugar
 
-1. [ ] [expression](./3410-expression.md)
-2. [ ] [assignments](./3430-assignments.md)
-3. [ ] [template-literals](./3440-template-literals.md)
-4. [ ] `async`/`await`. Depends on the implementation of promises.
+1. [ ] [assignments](./3430-assignments.md)
+2. [ ] [template-literals](./3440-template-literals.md)
+3. [ ] `async`/`await`. Depends on the implementation of promises.
 
 ### 3.5. Priority 4
 

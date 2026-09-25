@@ -7,7 +7,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { resolveFileModule, access, awaitIfPromise, exec, fetch, log, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, forever, listen, readWhole, notAFileCode, notAFileMessage } from '../module.f.mjs'
+import { resolveFileModule, access, awaitIfPromise, exec, fetch, log, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, forever, listen, readWhole, notAFileCode, notAFileMessage, mkdir } from '../module.f.mjs'
 import { empty, length, maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
 import { history, historyStep, pureOk, step } from '../../module.f.mjs'
 import { utf8, utf8ToString } from '../../../text/module.f.mjs'
@@ -476,6 +476,20 @@ export const proof = {
         assert(result[0] === 'error')
         assertEq(Object.keys(state.root).length, 1)
     },
+    writeBytesNotWholeBytes: () => {
+        // A `Vec` that is not whole bytes never reaches this runner: `writeBytes`
+        // refuses it in `../module.f.mjs`, as `writeExclusive` does, because the
+        // node runner's `fromVec` would pad the last byte and write a byte the
+        // caller never gave while this one appended the vector as it was. The
+        // offset is the file's size, which the append-only check accepts, so
+        // without the guard this write would succeed.
+        /** @type {Dir} */
+        const root = { 'file': [vec8(0x1n)] }
+        const [state, result] = virtual({ ...emptyState, root })(writeBytes('file', 1, vec(4n)(0b1010n)))
+        assert(result[0] === 'error')
+        assertIoMessage(result[1], 'invalid buffer size')
+        assertStructurallySame(state.root, root)
+    },
     writeBytesNegativeOffset: () => {
         /** @type {Dir} */
         const root = { 'file': [vec8(0x1n)] }
@@ -815,6 +829,73 @@ export const proof = {
         assertEq(code('nope.txt/index.html'), 'ENOENT')
         assertEq(code('docs/nope.html'), 'ENOENT')
     },
+    // `mkdir` under a directory `x`, for every kind of entry `x/a` can be and
+    // both values of `recursive` — the tables in `mkdirOp`'s JSDoc, row for row,
+    // each measured on node 22.22.2. The **absent** rows are the ones that pin
+    // the guard order: asked by length alone, `x/a/b` would answer `ENOTDIR`
+    // there. Every refusal also asserts the tree is untouched, since the defect
+    // this replaces was a success that turned the file `x/a` into an empty
+    // directory.
+    mkdirOverEachEntry: () => {
+        const file = [vec8(0x41n)]
+        /** @type {(a: Dir[string]) => Dir} */
+        const rootWith = a => ({ x: a === undefined ? {} : { a } })
+        /** @type {(a: Dir[string], path: string, recursive: boolean) => readonly [Dir, string | undefined]} */
+        const run = (a, path, recursive) => {
+            const [state, result] = virtual({ ...emptyState, root: rootWith(a) })(
+                mkdir(path, recursive ? { recursive: true } : undefined))
+            if (result[0] === 'ok') { return [state.root, 'ok'] }
+            assert(result[1][0] === 'ioError', result[1])
+            // a refusal creates nothing
+            assertStructurallySame(state.root, rootWith(a))
+            return [state.root, result[1][1].code]
+        }
+        // `x/a/b`
+        const [absentRec, absentRecCode] = run(undefined, 'x/a/b', true)
+        assertEq(absentRecCode, 'ok')
+        assertStructurallySame(absentRec, { x: { a: { b: {} } } })
+        assertEq(run(undefined, 'x/a/b', false)[1], 'ENOENT')
+        const [dirRec, dirRecCode] = run({}, 'x/a/b', true)
+        assertEq(dirRecCode, 'ok')
+        assertStructurallySame(dirRec, { x: { a: { b: {} } } })
+        const [dirNonRec, dirNonRecCode] = run({}, 'x/a/b', false)
+        assertEq(dirNonRecCode, 'ok')
+        assertStructurallySame(dirNonRec, { x: { a: { b: {} } } })
+        assertEq(run(file, 'x/a/b', true)[1], 'ENOTDIR')
+        assertEq(run(file, 'x/a/b', false)[1], 'ENOTDIR')
+        // any depth below the file, and a `JsModule` is no more a directory
+        assertEq(run(file, 'x/a/b/c', true)[1], 'ENOTDIR')
+        assertEq(run(() => ({}), 'x/a/b', true)[1], 'ENOTDIR')
+        // `x/a`
+        const [absent, absentCode] = run(undefined, 'x/a', false)
+        assertEq(absentCode, 'ok')
+        assertStructurallySame(absent, { x: { a: {} } })
+        const [kept, keptCode] = run({ b: file }, 'x/a', true)
+        assertEq(keptCode, 'ok')
+        assertStructurallySame(kept, { x: { a: { b: file } } })
+        assertEq(run({ b: file }, 'x/a', false)[1], 'EEXIST')
+        assertEq(run(file, 'x/a', true)[1], 'EEXIST')
+        assertEq(run(file, 'x/a', false)[1], 'EEXIST')
+        assertEq(run(() => ({}), 'x/a', true)[1], 'EEXIST')
+    },
+    // An empty path is not the root, though `parse` collapses both to no
+    // segments. Measured on node 22.22.2: `''` is `ENOENT` either way, where
+    // `.` is `ok` when recursive and `EEXIST` when not.
+    mkdirOnEmptyPath: () => {
+        /** @type {(path: string, recursive: boolean) => string | undefined} */
+        const code = (path, recursive) => {
+            const [state, result] = virtual(emptyState)(
+                mkdir(path, recursive ? { recursive: true } : undefined))
+            assertStructurallySame(state.root, emptyState.root)
+            if (result[0] === 'ok') { return 'ok' }
+            assert(result[1][0] === 'ioError', result[1])
+            return result[1][1].code
+        }
+        assertEq(code('', true), 'ENOENT')
+        assertEq(code('', false), 'ENOENT')
+        assertEq(code('.', true), 'ok')
+        assertEq(code('.', false), 'EEXIST')
+    },
     largeFileReadBytes: () => {
         // A file stored as two 128 KiB chunks is larger than maxLengthBytes.
         // readBytes within the second chunk (offset = 128 KiB, size = 1) should succeed.
@@ -837,7 +918,7 @@ export const proof = {
             const [state, result] = virtual(emptyState)(e)
             assert(result[0] === 'ok', result)
             assertEq(result[1], 42)
-            assertEq(state.memoryValues.mem0, 42, state)
+            assertEq(state.memory.values.mem0, 42, state)
         },
         // What makes presence the test rather than the value: a slot holding
         // `undefined` was allocated, and reading one is not the failure below.

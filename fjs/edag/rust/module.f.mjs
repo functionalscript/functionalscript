@@ -301,10 +301,10 @@ const lines = statements => statements.flatMap(s => s.split('\n'))
  * @type {(e: Exp) => boolean}
  */
 const atomic = e => {
-    const [id, a, b] = /** @type {readonly any[]} */ (e)
-    return ['undefined', 'args', 'frame'].includes(id)
+    const [id, a, b, c] = /** @type {readonly any[]} */ (e)
+    return ['undefined', 'args', 'frame', 'arg', 'rest'].includes(id)
         || (['[]', '{}'].includes(id) && a.length === 0)
-        || (id === '=>' && isSmallestLambda(a, b))
+        || (id === '=>' && a === 0 && isSmallestLambda(b, c))
 }
 
 /**
@@ -327,7 +327,7 @@ const isComma = e => e instanceof Array && e[0] === ','
  *
  * @type {(e: Exp) => boolean}
  */
-const isOperation = e => e instanceof Array && !['undefined', 'args', 'frame', '[]', '{}', '=>', ',', ':', '...'].includes(e[0])
+const isOperation = e => e instanceof Array && !['undefined', 'args', 'frame', 'arg', 'rest', '[]', '{}', '=>', ',', ':', '...'].includes(e[0])
 
 /**
  * A comma's last operand, its value.
@@ -561,7 +561,7 @@ const printer = nested => shared => root => {
      * @type {(e: Exp) => Result<string, readonly unknown[]>}
      */
     const node = e => {
-        const [id, a, b] = /** @type {readonly any[]} */ (e)
+        const [id, a, b, c] = /** @type {readonly any[]} */ (e)
         if (id === 'undefined') { return ok('Nullish::Undefined.to_any()') }
         // The arguments a function was called with: the `args` parameter of
         // the closure {@link closure} prints, an `Array<A>` — as a value, an
@@ -569,6 +569,8 @@ const printer = nested => shared => root => {
         // an ordinary `.` node over this, `Any::dot(…).end()` answering
         // `undefined` past the end as JavaScript does.
         if (id === 'args') { return ok('args.clone().to_any()') }
+        if (id === 'rest') { return ok('rest.clone().to_any()') }
+        if (id === 'arg') { return ok(`args.clone().into_iter().${a === 0 ? 'next()' : `nth(${a})`}.unwrap_or_else(|| Nullish::Undefined.to_any())`) }
         // The frame the function was built with, read through the closure's
         // `self_` parameter, {@link closure}: an `Array<A>` as `args` is,
         // and so the same value — its slot `i`, `['.', ['frame'], i]`, an
@@ -604,19 +606,22 @@ const printer = nested => shared => root => {
                 : f(last(e))
         }
         if (id === '=>') {
+            // IStaticFunction::static_function stores length as u32. Larger
+            // EDAG arities are valid, but this target cannot represent them.
+            if (a > 0xffff_ffff) { return error(['function length exceeds Rust u32 capacity', a]) }
             // The corpus's `() => undefined`, which no operator inspects,
             // is the one the harness binds as `function_any`; every other
             // function is a closure, over its frame.
-            return isSmallestLambda(a, b) ? ok('function_any()') : closure(b)(frameExpr(a))
+            return a === 0 && isSmallestLambda(b, c) ? ok('function_any()') : closure(a, c)(frameExpr(b))
         }
         return bare(/** @type {readonly any[]} */ (e))
     }
     /**
-     * A function, `['=>', frame, body]`, as a function value: a closure
+     * A function, `['=>', length, frame, body]`, as a function value: a closure
      * bound through `IStaticFunction`, the `StaticCode<A>` signature's two
-     * parameters, a `length` of `0` — a rest parameter or none counts
-     * nothing (`spec/README.md`, Functions) — and its frame, the
-     * `Array<A>` {@link frameExpr} prints in the scope around it. A
+     * parameters, the EDAG's fixed parameter count, and its frame, the
+     * `Array<A>` {@link frameExpr} prints in the scope around it. Rest is
+     * materialized once per invocation, after that fixed prefix. A
      * closure that captures nothing of Rust's coerces to the `fn` pointer
      * `StaticCode<A>` is, and rustc infers its parameters from it, so the
      * text declares no types.
@@ -637,10 +642,10 @@ const printer = nested => shared => root => {
      * under `-D warnings` is otherwise an error in the crate the module
      * lands in.
      *
-     * @type {(body: Exp) => (frame: Result<string, readonly unknown[]>) => Result<string, readonly unknown[]>}
+     * @type {(length: number, body: Exp) => (frame: Result<string, readonly unknown[]>) => Result<string, readonly unknown[]>}
      */
-    const closure = body => frame => map2((/** @type {readonly string[]} */ statements, /** @type {string} */ fr) =>
-        `A::static_function(|${readsFrame(body) ? 'self_' : '_self'}, ${readsArgs(body) ? 'args' : '_args'}| ${braced(statements)}, 0, ${fr}).to_any()`
+    const closure = (length, body) => frame => map2((/** @type {readonly string[]} */ statements, /** @type {string} */ fr) =>
+        `A::static_function(|${readsFrame(body) ? 'self_' : '_self'}, ${readsArgs(body) ? 'args' : '_args'}| ${braced(reads('rest')(body) ? [`let rest = args.clone().into_iter()${length === 0 ? '' : `.skip(${length})`}.to_array();`, ...statements] : statements)}, ${length}, ${fr}).to_any()`
     )(statements(body), frame)
     /**
      * A function's frame as the `Array<A>` its construction takes: none,
@@ -897,7 +902,7 @@ const visit = operands => visited => root => {
  *
  * @type {(root: Exp) => boolean}
  */
-export const readsArgs = root => reads('args')(root)
+export const readsArgs = root => reads('args')(root) || reads('arg')(root) || reads('rest')(root)
 
 /**
  * The same, for `['frame']`: whether a scope reads the frame it was built
@@ -925,8 +930,8 @@ const reads = tag => root => visit(operandsOf)([])(root).some(([node]) => tagOf(
  * @type {(node: Exp) => readonly Exp[]}
  */
 const frameOf = node => {
-    const [id, a, b] = /** @type {readonly any[]} */ (node)
-    return id === '=>' && a !== null && !isSmallestLambda(a, b) ? [a] : []
+    const [id, a, b, c] = /** @type {readonly any[]} */ (node)
+    return id === '=>' && b !== null && !(a === 0 && isSmallestLambda(b, c)) ? [b] : []
 }
 
 /**
@@ -943,7 +948,7 @@ const tagOf = node => /** @type {readonly unknown[]} */ (/** @type {unknown} */ 
  *
  * @type {(node: readonly unknown[]) => readonly unknown[]}
  */
-const withBodies = node => node[0] === '=>' ? node.slice(1) : operandsOf(node)
+const withBodies = node => node[0] === '=>' ? node.slice(2) : operandsOf(node)
 
 /**
  * Whether an EDAG holds a function the printer binds — any `=>` node but
@@ -955,8 +960,8 @@ const withBodies = node => node[0] === '=>' ? node.slice(1) : operandsOf(node)
  */
 export const holdsFunction = root => visit(withBodies)([])(root)
     .some(([node]) => {
-        const [id, a, b] = /** @type {readonly any[]} */ (node)
-        return id === '=>' && !isSmallestLambda(a, b)
+        const [id, a, b, c] = /** @type {readonly any[]} */ (node)
+        return id === '=>' && !(a === 0 && isSmallestLambda(b, c))
     })
 
 /**
@@ -978,7 +983,8 @@ export const holdsFunction = root => visit(withBodies)([])(root)
  */
 const operandsOf = node => {
     const [id] = node
-    return id === '=>' ? [node[1]]
+    return id === '=>' ? [node[2]]
+        : id === 'arg' ? []
         : ['[]', '{}', ','].includes(/** @type {string} */ (id)) ? /** @type {readonly unknown[]} */ (node[1])
         : isChain(id) ? [...eagerOperandsOf(node), ...lazyOperandsOf(/** @type {Exp} */ (/** @type {unknown} */ (node)))]
         : node.slice(1)

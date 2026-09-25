@@ -20,9 +20,9 @@ let sign = if self.sign() == rhs.sign() {
 };
 ```
 
-— which `src/vm/bigint/div.rs:18-22` repeats byte-for-byte: the quotient's
-sign is the same product, so `impl Mul for Sign` has a second consumer
-already.
+— which `BigInt::div_mod` in `src/vm/bigint/mod.rs` repeats byte-for-byte:
+the quotient's sign is the same product, so `impl Mul for Sign` has a second
+consumer already.
 
 and the sign **dispatch** for ordering in `src/vm/bigint/cmp.rs:17-22`:
 
@@ -65,7 +65,7 @@ scoped to magnitude work.
 ### Tasks
 
 - [ ] Add `impl Mul for Sign` (or an equivalent method) in `src/sign.rs`;
-      use it in `mul.rs` and `div.rs`.
+      use it in `mul.rs` and `div_mod`.
 - [ ] Add ordering support on `Sign` (`derive`d or explicit `Ord`); rewrite
       `cmp.rs`'s four-arm match to equal-sign arms + delegation.
 - [ ] `cargo test`, `cargo clippy`, `cargo fmt -- --check`.

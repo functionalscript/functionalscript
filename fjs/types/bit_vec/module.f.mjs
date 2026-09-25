@@ -209,17 +209,24 @@ export const pack = ({ length, uint }) => vec(length)(uint)
 export const unpackedUint = ({ uint }) => uint
 
 /**
+ * Lifts a binary operation over `Unpacked` to one over `Vec`: the one binary
+ * crossing of the representation, shared by every operation that combines two
+ * vectors.
+ *
+ * @type {<T>(f: (a: Unpacked) => (b: Unpacked) => T) => (a: Vec) => (b: Vec) => T}
+ */
+const lift2 = f => a => b => f(unpack(a))(unpack(b))
+
+/**
  * Normalizes two vectors to the same length before applying a bigint reducer.
  *
  * @type {(norm: _NormOp) => (op: BigintReduce) => Reduce}
  */
-const op = norm => op => ap => bp => {
-    const au = unpack(ap)
-    const bu = unpack(bp)
+const op = norm => op => lift2(au => bu => {
     const len = max(au.length)(bu.length)
     const { a, b } = norm(au)(bu)(len)
     return vec(len)(op(a)(b))
-}
+})
 
 const unpackEmpty = /** @type {const} */{ length: 0n, uint: 0n }
 
@@ -320,18 +327,29 @@ const bo = ({ norm, uintCmp, unpackSplit, unpackConcatUint }) => {
             return /** @type {const} */([uint & m, { length: v.length - len, uint: rest }])
         }
     }
-    // `front` and `removeFront` are the two projections of `unpackPopFront`,
-    // so each bit order supplies only `unpackSplit` and both fall out of it.
-    // `pack` re-masks, so `removeFront` can hand on the unmasked rest.
+    /**
+     * `unpackPopFront` over `Vec` input: the one unary crossing of the
+     * representation, shared by `front`, `removeFront` and `popFront`.
+     *
+     * @type {(len: bigint) => (v: Vec) => readonly [bigint, Unpacked]}
+     */
+    const onUnpacked = len => {
+        const f = unpackPopFront(len)
+        return v => f(unpack(v))
+    }
+    // `front`, `removeFront` and `popFront` are the three projections of
+    // `onUnpacked`, so each bit order supplies only `unpackSplit` and all
+    // three fall out of it. `front` never packs the rest it does not return,
+    // and `pack` re-masks, so `removeFront` can hand on the unmasked rest.
     /** @type {(len: bigint) => (v: Vec) => bigint} */
     const front = len => {
-        const f = unpackPopFront(len)
-        return v => f(unpack(v))[0]
+        const f = onUnpacked(len)
+        return v => f(v)[0]
     }
     /** @type {(len: bigint) => (v: Vec) => Vec} */
     const removeFront = len => {
-        const f = unpackPopFront(len)
-        return v => pack(f(unpack(v))[1])
+        const f = onUnpacked(len)
+        return v => pack(f(v)[1])
     }
     /** @type {_UnpackConcat} */
     const unpackConcat = a => b => ({
@@ -340,21 +358,17 @@ const bo = ({ norm, uintCmp, unpackSplit, unpackConcatUint }) => {
     })
     /** @type {PopFront<Vec>} */
     const popFront = len => {
-        const f = unpackPopFront(len)
+        const f = onUnpacked(len)
         return v => {
-            const [uint, u] = f(unpack(v))
+            const [uint, u] = f(v)
             return [uint, pack(u)]
         }
     }
     /** @type {Reduce} */
-    const concat = a => b => {
-        const au = unpack(a)
-        const bu = unpack(b)
-        return pack(unpackConcat(au)(bu))
-    }
+    const concat = lift2(a => b => pack(unpackConcat(a)(b)))
     const { operation } = tryUnpackConcat(unpackConcat).monoid
     /** @type {(a: Vec) => (b: Vec) => Nullable<Vec>} */
-    const tryConcat = a => b => nullableMap(pack)(operation(unpack(a))(unpack(b)))
+    const tryConcat = lift2(a => b => nullableMap(pack)(operation(a)(b)))
     const tryListToVec = mappedListToVec(unpack)({ unpackConcat })
     return {
         front,
@@ -367,15 +381,13 @@ const bo = ({ norm, uintCmp, unpackSplit, unpackConcatUint }) => {
         unpackPopFront,
         popFront,
         norm,
-        cmp: a => b => {
-            const au = unpack(a)
-            const bu = unpack(b)
+        cmp: lift2(au => bu => {
             const al = au.length
             const bl = bu.length
             const { a: aui, b: bui } = norm(au)(bu)(min(al)(bl))
             const c = uintCmp(aui)(bui)
             return c === 0 ? cmp(al)(bl) : c
-        },
+        }),
         unpackSplit,
         unpackConcat,
         startsWith: prefix => {

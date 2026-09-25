@@ -3,14 +3,17 @@
  * error-tag mask used to flag invalid sequences, the streaming `decoder`
  * factory that wraps a per-unit step and an end-of-input step into a single
  * `List`-to-`List` conversion, the `eofFlush` factory that builds that
- * end-of-input step, and the code-point classification predicates (BMP /
- * surrogate / supplementary-plane / overall validity) that both codecs share.
+ * end-of-input step, the `restart` factory that shares a per-unit step's
+ * fresh-state dispatch with its error recovery, the code-point classification predicates (BMP /
+ * surrogate / supplementary-plane / overall validity) that both codecs share,
+ * and the surrogate-pair arithmetic that inverts them.
  *
  * @module
  *
  * @import { List } from '../../types/list/types.ts'
  * @import { StateScan } from '../../types/function/operator/types.ts'
  * @import { CodePoint } from './types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
 import { empty, flat, stateScan } from '../../types/list/module.f.mjs'
@@ -68,6 +71,27 @@ export const eofFlush = toError => state =>
     [state === null ? empty : [toError(state)], null]
 
 /**
+ * Builds a decoder's fresh-state dispatch with an emitted prefix, from the one
+ * function that differs between codecs.
+ *
+ * Every decoder dispatches a unit the same way twice: from the empty state,
+ * and in error recovery, where a refused pending state is flushed as an error
+ * unit and the unit that refused it is dispatched afresh. The two differ only
+ * in what is emitted ahead of the unit's own output — nothing, or the flushed
+ * error — so the codec writes its classifier once and both arms call it
+ * through here.
+ *
+ * @template Cp
+ * @template S
+ * @param {(unit: number) => readonly [readonly Cp[], S]} fresh - Dispatches a unit from the empty state.
+ * @returns {(prefix: readonly Cp[]) => (unit: number) => readonly [readonly Cp[], S]} The dispatch that emits `prefix` first.
+ */
+export const restart = fresh => prefix => unit => {
+    const [emit, state] = fresh(unit)
+    return [[...prefix, ...emit], state]
+}
+
+/**
  * Unicode code-point classification boundaries. The surrogate block
  * (`0xD800`–`0xDFFF`) splits into a high half (`0xD800`–`0xDBFF`) and a low half
  * (`0xDC00`–`0xDFFF`); the BMP ends at `0xFFFF` and `maxCodePoint` (`0x10FFFF`)
@@ -117,10 +141,59 @@ export const isBmpCodePoint = codePoint =>
     lowBmp(codePoint) || highBmp(codePoint)
 
 /**
+ * The first code point of the supplementary planes, right after the BMP.
+ */
+const supplementaryMin = bmpMax + 1
+
+/**
  * Checks whether the code point belongs to a supplementary (additional) Unicode
  * plane. Supplementary planes cover code points from 0x010000 to 0x10FFFF.
  */
-export const isSupplementaryPlane = contains(bmpMax + 1, maxCodePoint)
+export const isSupplementaryPlane = contains(supplementaryMin, maxCodePoint)
+
+/**
+ * A surrogate pair carries a supplementary-plane code point, less
+ * `supplementaryMin`, as 20 bits: the high surrogate holds the upper ten bits
+ * above `surrogateMin`, the low surrogate the lower ten above `lowSurrogateMin`.
+ */
+const surrogatePayloadBits = /** @type {const} */ 10
+const surrogatePayloadMask = (1 << surrogatePayloadBits) - 1
+
+/**
+ * Splits a supplementary-plane code point into its `[high, low]` surrogate
+ * pair — the inverse of {@link tryFromSurrogatePair}. Any other value — a code
+ * point outside the supplementary planes, or a non-integer, which the range
+ * check alone would let through — has no surrogate pair and is refused with
+ * `null`.
+ *
+ * @type {(codePoint: CodePoint) => Nullable<readonly [number, number]>}
+ */
+export const tryToSurrogatePair = codePoint => {
+    if (!Number.isInteger(codePoint) || !isSupplementaryPlane(codePoint)) {
+        return null
+    }
+    const n = codePoint - supplementaryMin
+    return [
+        (n >> surrogatePayloadBits) + surrogateMin,
+        (n & surrogatePayloadMask) + lowSurrogateMin,
+    ]
+}
+
+/**
+ * Combines a high and a low surrogate into the supplementary-plane code point
+ * they encode — the inverse of {@link tryToSurrogatePair}. Any other pair —
+ * including a non-integer, which the range checks alone would let through —
+ * encodes nothing and is refused with `null`.
+ *
+ * @type {(high: number, low: number) => Nullable<CodePoint>}
+ */
+export const tryFromSurrogatePair = (high, low) =>
+    Number.isInteger(high) && isHighSurrogate(high)
+        && Number.isInteger(low) && isLowSurrogate(low)
+        ? ((high - surrogateMin) << surrogatePayloadBits)
+            + (low - lowSurrogateMin)
+            + supplementaryMin
+        : null
 
 /**
  * The full assignable code-point range and the surrogate block, used to gate

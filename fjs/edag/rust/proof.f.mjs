@@ -40,6 +40,14 @@ const refusalReason = e => {
 }
 
 export const proof = {
+    fixedAndRest: () => {
+        const result = scope(['=>', 3, null, ['[]', [['arg', 0], ['arg', 2], ['rest']]]])
+        assert(result[0] === 'ok')
+        assert(result[1].join('\n').includes('next().unwrap_or_else(|| Nullish::Undefined.to_any())'))
+        assert(result[1].join('\n').includes('nth(2).unwrap_or_else(|| Nullish::Undefined.to_any())'))
+        assert(result[1].join('\n').includes('let rest = args.clone().into_iter().skip(3).to_array();'))
+        assert(result[1].join('\n').includes('}, 3, Array::default()).to_any()'))
+    },
     /**
      * A case that nests an operation in an eager position is a scope: the
      * statements over the caller's bindings, braced as a thunk's body is.
@@ -89,7 +97,7 @@ export const proof = {
         assertEq(
             printed(['?:', true, 1, 2]),
             'Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000)))')
-        assertEq(printed(['=>', ['[]', []], ['undefined']]), 'function_any()')
+        assertEq(printed(['=>', 0, ['[]', []], ['undefined']]), 'function_any()')
         assertEq(printed(['*', 1, 2]), 'f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000)')
     },
     /**
@@ -282,7 +290,7 @@ export const proof = {
         // A function's `length` is a number, and a read on a number is
         // `undefined`: `f.length.x` prints, as the VM answers it.
         assertEq(
-            printed(['.', ['.', ['=>', null, 1], 'length'], 'x']),
+            printed(['.', ['.', ['=>', 0, null, 1], 'length'], 'x']),
             'Any::dot(Any::dot(A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default()).to_any(), string_any("length")).end(), string_any("x")).end()')
     },
     /**
@@ -389,8 +397,8 @@ export const proof = {
         stopsAtAFunctionBody: () => {
             /** @type {Exp} */
             const x = ['[]', []]
-            assertEq(sharedNodesOf(['=>', null, ['[]', [x, x]]]).length, 0)
-            const found = sharedNodesOf(['[]', [['=>', x, 1], x]])
+            assertEq(sharedNodesOf(['=>', 0, null, ['[]', [x, x]]]).length, 0)
+            const found = sharedNodesOf(['[]', [['=>', 0, x, 1], x]])
             assertEq(found.length, 1)
             assert(found[0] === x, found)
         },
@@ -572,6 +580,14 @@ export const proof = {
      * `Any::call` over two values, an operation in either mode.
      */
     functions: {
+        lengthLimit: () => {
+            assertEq(printed(['=>', 0xffff_ffff, null, 1]),
+                'A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 4294967295, Array::default()).to_any()')
+            for (const length of [2 ** 32, Number.MAX_SAFE_INTEGER, 1e30]) {
+                assertStructurallySame(nodeExpr(['=>', length, null, 1]),
+                    ['error', ['function length exceeds Rust u32 capacity', length]])
+            }
+        },
         args: () => {
             assertEq(printed(['args']), 'args.clone().to_any()')
         },
@@ -590,23 +606,23 @@ export const proof = {
          */
         closure: () => {
             assertEq(
-                printed(['=>', null, ['args']]),
-                'A::static_function(|_self, args| { Ok(args.clone().to_any()) }, 0, Array::default()).to_any()')
+                printed(['=>', 0, null, ['rest']]),
+                'A::static_function(|_self, args| {\n    let rest = args.clone().into_iter().to_array();\n    Ok(rest.clone().to_any())\n}, 0, Array::default()).to_any()')
             assertEq(
-                printed(['=>', null, 1]),
+                printed(['=>', 0, null, 1]),
                 'A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default()).to_any()')
         },
         /** A nested function's `args` are its own: the outer body reads none. */
         nested: () => {
             assertEq(
-                printed(['=>', null, ['=>', null, ['args']]]),
-                'A::static_function(|_self, _args| { Ok(A::static_function(|_self, args| { Ok(args.clone().to_any()) }, 0, Array::default()).to_any()) }, 0, Array::default()).to_any()')
+                printed(['=>', 0, null, ['=>', 0, null, ['rest']]]),
+                'A::static_function(|_self, _args| { Ok(A::static_function(|_self, args| {\n    let rest = args.clone().into_iter().to_array();\n    Ok(rest.clone().to_any())\n}, 0, Array::default()).to_any()) }, 0, Array::default()).to_any()')
         },
         /** A body whose root is an operation answers that operation's own `Result`, as a thunk does. */
         operationBody: () => {
             assertEq(
-                printed(['=>', null, ['.', ['args'], 0]]),
-                'A::static_function(|_self, args| { Any::dot(args.clone().to_any(), f64_any(0x0000000000000000)).end() }, 0, Array::default()).to_any()')
+                printed(['=>', 0, null, ['.', ['rest'], 0]]),
+                'A::static_function(|_self, args| {\n    let rest = args.clone().into_iter().to_array();\n    Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()\n}, 0, Array::default()).to_any()')
         },
         /**
          * A body's temporaries are the body's own: bound in the closure,
@@ -615,16 +631,17 @@ export const proof = {
          */
         sharingInside: () => {
             /** @type {Exp} */
-            const first = ['.', ['args'], 0]
+            const first = ['.', ['rest'], 0]
             assertEq(
-                printed(['=>', null, ['[]', [first, first]]]),
-                'A::static_function(|_self, args| {\n    let c0: Any<A> = Any::dot(args.clone().to_any(), f64_any(0x0000000000000000)).end()?;\n    Ok([c0.clone(), c0.clone()].to_array().to_any())\n}, 0, Array::default()).to_any()')
+                printed(['=>', 0, null, ['[]', [first, first]]]),
+                'A::static_function(|_self, args| {\n    let rest = args.clone().into_iter().to_array();\n    let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;\n    Ok([c0.clone(), c0.clone()].to_array().to_any())\n}, 0, Array::default()).to_any()')
             assertStructurallySame(
-                scoped(['=>', null, ['[]', [['.', ['args'], 0], ['.', ['args'], 1]]]]),
+                scoped(['=>', 0, null, ['[]', [['.', ['rest'], 0], ['.', ['rest'], 1]]]]),
                 [
                     'Ok(A::static_function(|_self, args| {',
-                    '    let c0: Any<A> = Any::dot(args.clone().to_any(), f64_any(0x0000000000000000)).end()?;',
-                    '    let c1: Any<A> = Any::dot(args.clone().to_any(), f64_any(0x3ff0000000000000)).end()?;',
+                    '    let rest = args.clone().into_iter().to_array();',
+                    '    let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;',
+                    '    let c1: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x3ff0000000000000)).end()?;',
                     '    Ok([c0, c1].to_array().to_any())',
                     '}, 0, Array::default()).to_any())',
                 ])
@@ -638,17 +655,17 @@ export const proof = {
          */
         frame: () => {
             assertEq(
-                printed(['=>', ['[]', [1]], ['.', ['frame'], 0]]),
+                printed(['=>', 0, ['[]', [1]], ['.', ['frame'], 0]]),
                 'A::static_function(|self_, _args| { Any::dot(A::frame(self_).clone().to_any(), f64_any(0x0000000000000000)).end() }, 0, [f64_any(0x3ff0000000000000)].to_array()).to_any()')
             assertEq(
-                printed(['=>', ['[]', []], 1]),
+                printed(['=>', 0, ['[]', []], 1]),
                 'A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default()).to_any()')
             // A frame's items are the scope's temporaries, moved where the
             // frame is their only reference and cloned where it is not.
             /** @type {Exp} */
             const read = ['.', ['{}', []], 'a']
             assertStructurallySame(
-                scoped(['[]', [['=>', ['[]', [read]], ['frame']], read]]),
+                scoped(['[]', [['=>', 0, ['[]', [read]], ['frame']], read]]),
                 [
                     'let c0: Any<A> = Any::dot(Object::default().to_any(), string_any("a")).end()?;',
                     'let c1: Any<A> = A::static_function(|self_, _args| { Ok(A::frame(self_).clone().to_any()) }, 0, [c0.clone()].to_array()).to_any();',
@@ -662,7 +679,7 @@ export const proof = {
          */
         nestedFrame: () => {
             assertEq(
-                printed(['=>', ['[]', [['[]', []]]], ['=>', ['[]', [['.', ['frame'], 0]]], ['.', ['frame'], 0]]]),
+                printed(['=>', 0, ['[]', [['[]', []]]], ['=>', 0, ['[]', [['.', ['frame'], 0]]], ['.', ['frame'], 0]]]),
                 'A::static_function(|self_, _args| {\n'
                 + '    let c0: Any<A> = Any::dot(A::frame(self_).clone().to_any(), f64_any(0x0000000000000000)).end()?;\n'
                 + '    Ok(A::static_function(|self_, _args| { Any::dot(A::frame(self_).clone().to_any(), f64_any(0x0000000000000000)).end() }, 0, [c0].to_array()).to_any())\n'
@@ -674,11 +691,11 @@ export const proof = {
          * but its function would be built twice: both refused.
          */
         otherFrame: () => {
-            assertEq(refusalReason(['=>', ['undefined'], 1])[0], 'no Rust for a frame that is not an array literal')
-            assertEq(refusalReason(['=>', 1, 1])[0], 'no Rust for a frame that is not an array literal')
+            assertEq(refusalReason(['=>', 0, ['undefined'], 1])[0], 'no Rust for a frame that is not an array literal')
+            assertEq(refusalReason(['=>', 0, 1, 1])[0], 'no Rust for a frame that is not an array literal')
             /** @type {Exp} */
             const frame = ['[]', [1]]
-            assertEq(refusalReason(['[]', [['=>', frame, 1], frame]])[0], 'no Rust for a frame reached from anywhere but its function')
+            assertEq(refusalReason(['[]', [['=>', 0, frame, 1], frame]])[0], 'no Rust for a frame reached from anywhere but its function')
         },
         /**
          * A function anywhere — an item, a call's callee, a body inside
@@ -686,13 +703,13 @@ export const proof = {
          * lambda binds nothing, and a primitive holds nothing.
          */
         holdsFunction: () => {
-            assertEq(holdsFunction(['=>', null, 1]), true)
-            assertEq(holdsFunction(['=>', ['[]', [1]], 1]), true)
-            assertEq(holdsFunction(['=>', ['[]', []], ['args']]), true)
-            assertEq(holdsFunction(['[]', [1, ['=>', null, 1]]]), true)
-            assertEq(holdsFunction(['()', ['=>', null, ['args']], ['[]', []]]), true)
-            assertEq(holdsFunction(['=>', ['[]', []], ['=>', null, 1]]), true)
-            assertEq(holdsFunction(['=>', ['[]', []], ['undefined']]), false)
+            assertEq(holdsFunction(['=>', 0, null, 1]), true)
+            assertEq(holdsFunction(['=>', 0, ['[]', [1]], 1]), true)
+            assertEq(holdsFunction(['=>', 0, ['[]', []], ['rest']]), true)
+            assertEq(holdsFunction(['[]', [1, ['=>', 0, null, 1]]]), true)
+            assertEq(holdsFunction(['()', ['=>', 0, null, ['rest']], ['[]', []]]), true)
+            assertEq(holdsFunction(['=>', 0, ['[]', []], ['=>', 0, null, 1]]), true)
+            assertEq(holdsFunction(['=>', 0, ['[]', []], ['undefined']]), false)
             assertEq(holdsFunction(['[]', [1, 'static_function(']]), false)
             assertEq(holdsFunction(1), false)
         },
@@ -711,7 +728,7 @@ export const proof = {
             assertEq(readsFrame(deep), false)
             assertEq(readsFrame(chain(40, ['frame'])), true)
             assertEq(holdsFunction(deep), false)
-            assertEq(holdsFunction(chain(40, ['=>', null, 1])), true)
+            assertEq(holdsFunction(chain(40, ['=>', 0, null, 1])), true)
             assertEq(sharedNodesOf(deep).length, 40)
         },
     },
@@ -740,7 +757,7 @@ export const proof = {
         assertEq(eagerNodesOf(['&&', c, 1]).includes(c), true)
         assertEq(eagerNodesOf(['?:', c, 1, 2]).includes(c), true)
         // Not through a function's body, established only when it is called.
-        assertEq(eagerNodesOf(['=>', null, ['[]', [c]]]).includes(c), false)
+        assertEq(eagerNodesOf(['=>', 0, null, ['[]', [c]]]).includes(c), false)
         // Not through a lazy operand, at any depth below it.
         assertEq(eagerNodesOf(['&&', true, c]).includes(c), false)
         assertEq(eagerNodesOf(['||', true, c]).includes(c), false)
@@ -775,7 +792,7 @@ export const proof = {
         loneSurrogate: () => printed('\ud800'),
         bigintOutOfRange: () => printed(-(2n ** 63n) - 1n),
         /** A frame that is no array literal. */
-        lambdaFrameNotArray: () => printed(['=>', ['undefined'], ['undefined']]),
+        lambdaFrameNotArray: () => printed(['=>', 0, ['undefined'], ['undefined']]),
         /** An object key the printer cannot spell. */
         computedKey: () => printed(['{}', [[':', ['undefined'], 1]]]),
         /**

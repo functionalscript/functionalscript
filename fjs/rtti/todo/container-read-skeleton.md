@@ -25,8 +25,6 @@ copy-pasted outright:
 - `noAccumulate` — `../validate/module.f.mjs:108`,
   `../parse/module.f.mjs:302`, and a third copy in
   `../data/module.f.mjs:1172` whose comment still says `` `validate` ``.
-- `noDeclared` — `../validate/module.f.mjs:112`, `../parse/module.f.mjs:220`,
-  identical doc comment included.
 - The array kind's empty-rest length bound, twice each:
   `../validate/module.f.mjs:167-168` ≡ `../parse/module.f.mjs:295-296`
   (identical cast-justification comment included) and
@@ -83,8 +81,9 @@ things that actually differ:
 `IsContainer`, `SchemaEntries`, `Presence`). Each reader module keeps its
 visitor, its JSDoc contract, and its `finish`; each shape's protocol — its own
 order included — is then stated once instead of twice. Move `noAccumulate`
-and `noDeclared` into `common` as part of the same change, and put each
-shape's read-order rationale on its skeleton, where both readers inherit it.
+into `common` as part of the same change (`noDeclared` already lives there),
+and put each shape's read-order rationale on its skeleton, where both readers
+inherit it.
 
 The array length-bound builders **stay out of `common`**. They are written in
 terms of `emptyRest`, which lives in `../data/module.f.mjs`, and
@@ -117,16 +116,16 @@ of this issue.
       export it covers (`eachEntry`, `structSchemaEntries`,
       `tupleSchemaEntries`, `undeclaredMembers` at `:6`), and
       `fjs/AGENTS.md:25-34` asks the same of a new one: the three skeletons
-      and the hoisted `noAccumulate`/`noDeclared` are newly published
-      callables, so being exercised only through `validate` and `parse`
-      would leave the exported names themselves uncalled.
+      and the hoisted `noAccumulate` are newly published callables, so being
+      exercised only through `validate` and `parse` would leave the exported
+      names themselves uncalled.
 - [ ] Add a proof row pinning the rest readers' order: a declared member
       whose getter installs a leftover the `rest` rejects must still be
       rejected. It passes today and would fail under a leftovers-first
       skeleton, so it is the regression test for this refactor.
-- [ ] Move `noAccumulate` and `noDeclared` into `common`; delete their five
-      copies. Leave the `emptyRest`-based length bounds in the readers,
-      passed in as `fits`/`restFits` — `common` must not import `data`.
+- [ ] Move `noAccumulate` into `common`; delete its three copies. Leave the
+      `emptyRest`-based length bounds in the readers, passed in as
+      `fits`/`restFits` — `common` must not import `data`.
 - [ ] Consolidate the read-order commentary on the shared skeleton; fix
       `../common/types.ts:2` vs `../common/module.f.mjs:5-8` to name the same
       consumer set.

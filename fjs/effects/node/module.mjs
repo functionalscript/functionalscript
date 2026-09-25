@@ -18,6 +18,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { FileHandle } from 'node:fs/promises'
  */
 
 import http from 'node:http'
@@ -297,6 +298,50 @@ const readStdinByte = async () => {
     }
 }
 
+/**
+ * Runs `f` over a descriptor opened on `path` with `flags`, and closes the
+ * descriptor on every exit — the bracket the descriptor handlers below share.
+ *
+ * @type {(path: string, flags: string) => <T>(f: (fh: FileHandle) => Promise<T>) => Promise<T>}
+ */
+const withOpen = (path, flags) => async f => {
+    const fh = await open(path, flags)
+    try {
+        return await f(fh)
+    } finally {
+        await fh.close()
+    }
+}
+
+/**
+ * Fills `buffer` from `fh`, starting at `position`, and answers the filled
+ * prefix: all of `buffer`, or less only at the end of the file. `position`
+ * `null` reads at the descriptor's own cursor and advances it.
+ *
+ * One `read` may answer less than it was asked for without the file being at
+ * its end: a positional read of `/proc/self/maps` answers 4,007 bytes for a
+ * 1 MiB request and 4,034 more at the next offset, measured on node 22, and a
+ * network or virtual filesystem may do the same for a file a caller believes
+ * is ordinary. So the buffer is filled rather than read once, and a short
+ * answer then means the end of the file — which is what every caller of
+ * `readBytes` and `readWhole` already assumes. `fjs/cas`'s streams advance by a
+ * whole chunk and stop only on an empty read, so without the loop a short read
+ * there would drop bytes out of the middle of a content-addressed file.
+ *
+ * @type {(fh: FileHandle, buffer: Buffer, position: number | null) => Promise<Buffer>}
+ */
+const fill = async (fh, buffer, position) => {
+    let taken = 0
+    while (taken < buffer.length) {
+        const { bytesRead } = await fh.read(buffer, taken, buffer.length - taken, position === null ? null : position + taken)
+        if (bytesRead === 0) {
+            break
+        }
+        taken += bytesRead
+    }
+    return buffer.subarray(0, taken)
+}
+
 const randomMax = Number(1n << 32n)
 
 const { randomInt } = crypto
@@ -342,6 +387,9 @@ const runNodeEffect = asyncRun({
             isDirectory: v.isDirectory()
         }))
     ),
+    // A `Vec` that is not whole bytes never reaches here: the effect in
+    // `module.f.mjs` refuses it before the host is asked, since `fromVec` would
+    // pad the last byte.
     writeFile: (path, data) => io(() => writeFile(path, fromVec(data))),
     rm: path => io(() => rm(path)),
     rename: (src, dst) => io(() => rename(src, dst)),
@@ -352,31 +400,7 @@ const runNodeEffect = asyncRun({
         if (size > maxFileSizeBytes) {
             throw new Error(`Chunk size ${size} exceeds maximum allowed size of ${maxFileSizeBytes} bytes`)
         }
-        const fh = await open(path, 'r')
-        try {
-            const buffer = Buffer.alloc(size)
-            // One `read` may answer less than it was asked for without the file
-            // being at its end: a positional read of `/proc/self/maps` answers
-            // 4,007 bytes for a 1 MiB request and 4,034 more at the next offset,
-            // measured on node 22, and a network or virtual filesystem may do the
-            // same for a file a caller believes is ordinary. So the window is
-            // filled rather than read once, and a short answer then means the end
-            // of the file — which is what every caller of this operation already
-            // assumes. `fjs/cas`'s streams advance by a whole chunk and stop only
-            // on an empty read, so without the loop a short read there would drop
-            // bytes out of the middle of a content-addressed file.
-            let taken = 0
-            while (taken < size) {
-                const { bytesRead } = await fh.read(buffer, taken, size - taken, offset + taken)
-                if (bytesRead === 0) {
-                    break
-                }
-                taken += bytesRead
-            }
-            return toVec(buffer.subarray(0, taken))
-        } finally {
-            await fh.close()
-        }
+        return withOpen(path, 'r')(async fh => toVec(await fill(fh, Buffer.alloc(size), offset)))
     }),
     // One open for the whole file, which is the point of the operation: a caller
     // reading in windows through `readBytes` opens the path per window and can
@@ -392,43 +416,29 @@ const runNodeEffect = asyncRun({
     // the path could become one, which is the host's own race and not one this
     // operation creates; what it removes is the race *between* reads.
     //
-    // Each chunk is filled rather than read once, for the reason the note on
-    // `readBytes` gives: one `read` may answer short of the end of the file. The
-    // reads take no position, so they walk the descriptor's own cursor, and a
-    // chunk that comes back short of its buffer is the end.
+    // Each chunk is filled at the descriptor's own cursor, so a chunk that comes
+    // back short of its buffer is the end.
     readWhole: path => io(async () => {
         const s = await stat(path)
         if (!s.isFile()) {
             throw Object.assign(new Error(notAFileMessage(path)), { code: notAFileCode })
         }
-        const fh = await open(path, 'r')
-        try {
+        return withOpen(path, 'r')(async fh => {
             // Rebuilt rather than appended to: a file is however many `Vec`s it
             // takes and the count is small — 128 KiB a chunk, so eighty of them
             // for ten megabytes — where {@link collectBounded} mutates because
             // *its* count is the caller's. §3.1 has no exception to spend here.
             let chunks = /** @type {readonly Vec[]} */ ([])
             for (;;) {
-                const buffer = Buffer.alloc(maxFileSizeBytes)
-                let taken = 0
-                while (taken < buffer.length) {
-                    const { bytesRead } = await fh.read(buffer, taken, buffer.length - taken)
-                    if (bytesRead === 0) {
-                        break
-                    }
-                    taken += bytesRead
+                const chunk = await fill(fh, Buffer.alloc(maxFileSizeBytes), null)
+                if (chunk.length !== 0) {
+                    chunks = [...chunks, toVec(chunk)]
                 }
-                if (taken !== 0) {
-                    chunks = [...chunks, toVec(buffer.subarray(0, taken))]
-                }
-                if (taken < buffer.length) {
-                    break
+                if (chunk.length < maxFileSizeBytes) {
+                    return chunks
                 }
             }
-            return chunks
-        } finally {
-            await fh.close()
-        }
+        })
     }),
     // `maxOutputLength` is what makes the bound a refusal rather than a
     // truncation: Node stops inflating and throws `ERR_BUFFER_TOO_LARGE`, so
@@ -490,21 +500,17 @@ const runNodeEffect = asyncRun({
             throw failure
         }
     }),
-    writeBytes: (path, offset, data) => io(async () => {
-        const fh = await open(path, 'r+')
-        try {
-            const buffer = fromVec(data)
-            // Loop over short writes so the whole Vec lands — a partial pwrite would
-            // leave a hole the publish-time size check could pass over.
-            let written = 0
-            while (written < buffer.length) {
-                const { bytesWritten } = await fh.write(buffer, written, buffer.length - written, offset + written)
-                written += bytesWritten
-            }
-        } finally {
-            await fh.close()
+    // As for `writeFile`: a `Vec` that is not whole bytes is refused before here.
+    writeBytes: (path, offset, data) => io(() => withOpen(path, 'r+')(async fh => {
+        const buffer = fromVec(data)
+        // Loop over short writes so the whole Vec lands — a partial pwrite would
+        // leave a hole the publish-time size check could pass over.
+        let written = 0
+        while (written < buffer.length) {
+            const { bytesWritten } = await fh.write(buffer, written, buffer.length - written, offset + written)
+            written += bytesWritten
         }
-    }),
+    })),
     stat: path => io(async () => {
         const s = await stat(path)
         return { size: s.size, isFile: s.isFile(), isDirectory: s.isDirectory() }

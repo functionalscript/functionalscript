@@ -6,14 +6,16 @@ use nanvm_lib::vm::{Any, Array, IStaticFunction, Nullish, ToAny, ToArray, ToObje
 #[rustfmt::skip]
 pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = A::static_function(|_self, args| {
-        let c0: Any<A> = args.clone().to_any();
+        let rest = args.clone().into_iter().to_array();
+        let c0: Any<A> = rest.clone().to_any();
         let c1: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
         let c2: Any<A> = Any::dot(c0.clone(), f64_any(0x3ff0000000000000)).end()?;
         c1 + c2
     }, 0, Array::default()).to_any();
     let c1: Any<A> = [f64_any(0x4045000000000000)].to_array().to_any();
     let c2: Any<A> = A::static_function(|_self, args| {
-        let c0: Any<A> = Any::dot(args.clone().to_any(), f64_any(0x0000000000000000)).end()?;
+        let rest = args.clone().into_iter().to_array();
+        let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
         Any::dot(c0, string_any("x")).end()
     }, 0, Array::default()).to_any();
     Ok([(string_key("add"), c0), (string_key("answer"), c1), (string_key("fails"), c2), (string_key("nothing"), Nullish::Undefined.to_any())].to_object().to_any())
