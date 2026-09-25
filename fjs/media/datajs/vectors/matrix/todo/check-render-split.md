@@ -32,7 +32,7 @@ const refuses = (c, ...expected) => {
 
 so every validation assertion in the proof is a search over prose, and a
 future consumer that wants corpus linting without regenerating
-`matrix.md` has nothing to call.
+`gen.matrix.md` has nothing to call.
 
 ### Proposal
 
@@ -79,4 +79,4 @@ part of this split.
       `classify`; change `matrix`'s error to `readonly string[]` and
       declare the break in `Changelog:`; move `refused` to `program`.
 - [ ] Re-point the proof's `refuses` at the list.
-- [ ] `tsc`, `fjs test`; `npm run gen` output (`matrix.md`) unchanged.
+- [ ] `tsc`, `fjs test`; `npm run gen` output (`gen.matrix.md`) unchanged.

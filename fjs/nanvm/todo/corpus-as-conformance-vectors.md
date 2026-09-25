@@ -46,7 +46,7 @@ own `Result` is the closure's answer, and `check` receives it whole;
 which clippy calls redundant. `caseText` in
 [`../rust/module.f.mjs`](../rust/module.f.mjs) decides, by
 `fjs/edag/rust`'s `nestsOperation`, and a flat case keeps its shape, so
-`generated.rs` changed only where a case nests. `unreachedPlusOne` and
+`gen.operators.rs` changed only where a case nests. `unreachedPlusOne` and
 `unreachedCondition` are the corpus's own instances: an eager position
 establishes its operand, and the throw is the case's.
 

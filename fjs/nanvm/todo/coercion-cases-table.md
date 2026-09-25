@@ -31,7 +31,7 @@ truncation, `NaN`, the infinities, the 32-bit wrap — and every arithmetic
 group ends with the same `number`/`bigint` mixed pair that throws. An
 operand added to the coercion space today lands in whichever lists someone
 remembers, in the JavaScript proof and in the generated
-`nanvm-lib/tests/test/generated.rs` alike; the `comparisonCases` comment
+`nanvm-lib/tests/test/gen.operators.rs` alike; the `comparisonCases` comment
 records that this drift has already narrowed the Rust suite once.
 
 ### Proposal

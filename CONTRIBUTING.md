@@ -175,6 +175,14 @@ Nix flakes, `fjs/nanvm`'s Rust test data. It needs nothing beyond Node, runs on
 Windows, and never touches a lockfile of any kind — CI's drift check runs the
 same command and fails if the committed tree no longer matches its output.
 
+A file or directory whose name starts with `gen.` is generated — everything
+inside a `gen.*` directory too — so never edit one by hand, and never name a
+handwritten file that way. `.gitattributes` marks them, plus the few outputs at
+a path another tool fixes (the two workflows and the Nix files) and one pending
+exception: `nanvm-harness/fixtures/*.rs`, generated beside their `.mjs` sources
+until they move to `nanvm-harness/gen.fixtures/`. The rule and
+its reasons: [todo/generated-file-conventions.md](./todo/generated-file-conventions.md).
+
 ### Updating dependencies
 
 To bump an npm devDependency version, edit `package.json` by hand first (there

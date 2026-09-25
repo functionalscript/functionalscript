@@ -1,7 +1,7 @@
 /**
  * Prints the shared operator test data as Rust.
  *
- * The output is `nanvm-lib/tests/test/generated.rs`: one statement per case,
+ * The output is `nanvm-lib/tests/test/gen.operators.rs`: one statement per case,
  * calling the hand-written helpers in `nanvm-lib/tests/test/harness.rs`. Only
  * the helpers are written by hand — a new operator case is added to
  * [`../module.f.mjs`](../module.f.mjs) and appears on both the JavaScript and
@@ -39,7 +39,7 @@
  * import { generate } from './module.f.mjs'
  * import { data } from '../module.f.mjs'
  *
- * generate(data) // the contents of `nanvm-lib/tests/test/generated.rs`
+ * generate(data) // the contents of `nanvm-lib/tests/test/gen.operators.rs`
  * ```
  */
 
@@ -98,7 +98,7 @@ const caseText = shared => e => nestsOperation(shared)(e)
 export const directory = 'nanvm-lib/tests/test'
 
 /** @type {string} */
-export const path = `${directory}/generated.rs`
+export const path = `${directory}/gen.operators.rs`
 
 /**
  * The Rust function name for each group the corpus covers, keyed by

@@ -6,7 +6,7 @@ any release.
 
 `fjs compile <input> <output>.rs` prints a FunctionalScript module as Rust
 that depends on this crate and nothing else, and the operator corpus in
-`tests/test/generated.rs` is printed by the same printer, so what both would
+`tests/test/gen.operators.rs` is printed by the same printer, so what both would
 otherwise repeat is defined here, once, rather than copied into every
 generated file. The module is also how the crate learns what writing code
 against the VM API actually needs: a helper that keeps earning its calls is

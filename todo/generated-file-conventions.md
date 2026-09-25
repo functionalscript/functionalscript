@@ -5,11 +5,12 @@
 
 ### Problem
 
-Generated files are mixed with handwritten sources, and their names do not
-distinguish them. Most are not marked anywhere: `git check-attr` reports
-`linguist-generated` unspecified for `spec/datajs/vectors/matrix.md`, `nix/flake.nix`, `nix/run`, and both workflow
-files. Only `nanvm-lib/tests/test/generated.rs` and
-`nanvm-harness/fixtures/*.rs` are marked in `.gitattributes`.
+Generated files were mixed with handwritten sources, and their names did not
+distinguish them. The `gen.` rule and its `.gitattributes` markings have
+landed: `git check-attr linguist-generated` reports `true` for every `gen.*`
+output, for the fixed-path workflows and Nix files, and for
+`nanvm-harness/fixtures/*.rs`. Those fixtures are the one output still beside
+its sources without the prefix, until they move to `gen.fixtures/`.
 
 CI runs `npm run gen` over the checkout and then compares. An output its
 generator stopped writing survives, and a generator can silently depend on a
@@ -167,9 +168,12 @@ Deleting all `gen.*` paths and regenerating fails today, for these reasons:
    path. **Done** by #2294: the table is handwritten in
    [`fjs/types/function/length`](../fjs/types/function/length/module.f.mjs)
    and its generator is gone.
-2. **`fjs compile` does not create its output directory.** Writing into a
-   deleted `gen.fixtures/` fails with `ENOENT`. **Decided:** it creates the
-   directory, as the other generators already do.
+2. **`fjs compile` does not create its output directory.** Compiling into a
+   directory that does not exist fails with `ENOENT`. The cleanup leaves
+   `gen.fixtures/` in place, emptied, so the drift check itself never meets
+   this; a new `gen.*` output directory, or one removed by hand, does.
+   **Decided:** it creates the directory, as the other generators already do,
+   so every generated directory is reproducible from nothing.
 3. **Two tracked fixtures have no generator.**
    `nanvm-harness/fixtures/function.rs` and `rest-function.rs` are not written
    by `npm run gen` and are not built. **Decided:** wire them into `gen` and
@@ -190,8 +194,8 @@ Deleting all `gen.*` paths and regenerating fails today, for these reasons:
 
 | Output | New path | Notes |
 | --- | --- | --- |
-| `spec/datajs/vectors/matrix.md` | `spec/datajs/vectors/gen.matrix.md` | |
-| `nanvm-lib/tests/test/generated.rs` | `nanvm-lib/tests/test/gen.operators.rs` | `#[path]` on `mod generated;` |
+| ~~`spec/datajs/vectors/matrix.md`~~ | `spec/datajs/vectors/gen.matrix.md` | Done |
+| ~~`nanvm-lib/tests/test/generated.rs`~~ | `nanvm-lib/tests/test/gen.operators.rs` | Done: `#[path]` on `mod generated;` |
 | `nanvm-harness/fixtures/*.rs` | `nanvm-harness/gen.fixtures/*.rs` | One `#[path]` inline module `fixtures` replaces the per-file `#[path]` lines; each `compile` output in `package.json` `gen` moves |
 
 A scratch rename of the Rust outputs passed `cargo test`, `cargo fmt -- --check`
@@ -208,7 +212,7 @@ One pull request each, stacked in this order:
 
 - [x] Hand-write the callable table and delete its generator (blocker 1) —
       #2294.
-- [ ] Add the two `.gitattributes` lines and the fixed-path exceptions,
+- [x] Add the two `.gitattributes` lines and the fixed-path exceptions,
       document the rule in AGENTS.md and CONTRIBUTING.md, and rename
       `matrix.md` and `generated.rs`. The rule names
       `nanvm-harness/fixtures/*.rs` as its one pending exception, which the

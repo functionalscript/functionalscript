@@ -4,7 +4,7 @@
  * than written.
  *
  * ```text
- * the sets -> matrix -> spec/datajs/vectors/matrix.md
+ * the sets -> matrix -> spec/datajs/vectors/gen.matrix.md
  * ```
  *
  * Prose could not do this job. A paragraph that mentions a class in two
@@ -69,7 +69,7 @@ import notApplicableData from '../../../../../spec/datajs/vectors/not-applicable
 export const directory = 'spec/datajs/vectors'
 
 /** @type {string} */
-export const path = `${directory}/matrix.md`
+export const path = `${directory}/gen.matrix.md`
 
 /**
  * The corpus as the matrix reads it: the three roles a conforming

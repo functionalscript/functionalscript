@@ -38,7 +38,7 @@ Nothing yet beyond the shape above. It waits on there being a second VM
 to generate for, which is what would make the per-VM shape earn its
 cost; until then the value proof stands alone, and a redesign of the
 generated file's shape for one VM is not worth the diff to
-`generated.rs`.
+`gen.operators.rs`.
 
 ### Tasks
 
