@@ -95,7 +95,7 @@ The first three tasks below already hold, with no configuration change:
   not an `any` fallback.
 
 So what this task still owes is a **committed** fixture and **CI** proof
-that keep those true, plus four gaps the list below did not name:
+that keep those true, plus five gaps the list below did not name:
 
 - **Coverage.** `npm run cov`, which CI runs with 100% thresholds, includes
   only `**/module.f.mjs`. A `module.f.js` would escape the proof-coverage
@@ -107,7 +107,11 @@ that keep those true, plus four gaps the list below did not name:
   stay green. The measured module compiles to `.rs`; its JSON target refuses
   it only because a function has no JSON. The compiler requires the
   terminating `;` (without it, `unexpected end`), which `tsc` does not, so
-  the gate below is what catches a module written only for `tsc`.
+  only such a check catches a module written for `tsc` alone. The check is
+  owned by [lint-compiler-compatible-files](../../fsc/todo/lint-compiler-compatible-files.md),
+  which waits for the first authored `.f.js` to exist; this task's fixture
+  is that file, so the lint is unblocked by it, and neither task waits on
+  the other.
 - **Proofs stay `.f.mjs` for now.** Block bodies compile (`const` and
   `return`), but the `if` and `throw` statements do not: each is refused at
   its first token. A proof fails by throwing, directly or through
@@ -116,6 +120,12 @@ that keep those true, plus four gaps the list below did not name:
   dependency-closed rule above. Until `throw` compiles, a `module.f.js`
   pairs with a `proof.f.mjs`. `fjs test` already discovers `proof.f.js`, so
   nothing else blocks renaming a proof later.
+- **The proof import rule names `.f.mjs` only.** [`fjs/AGENTS.md`](../../AGENTS.md)
+  requires a `proof.f.mjs`'s relative runtime imports to target `.f.mjs`,
+  and says `npm run cov` and `deno task cov` include `module.f.mjs`. A proof
+  of a `module.f.js` breaks the first sentence as written, so the rule has
+  to admit `.f.js`, the other FunctionalScript extension, in the same pull
+  request as the fixture.
 - **`package-check` never imports anything.** The job type-checks every
   declaration the tarball ships, so a packed `.f.d.ts` is checked, but no
   consumer module imports a runtime module or uses a declared type. The
@@ -131,16 +141,15 @@ that keep those true, plus four gaps the list below did not name:
       `.f.js` modules — `prepack` already does.
 - [x] Verify NPM package rules include authored `.f.js` and its `.d.ts` —
       `files` already does.
-- [ ] Add an authored `module.f.js` package fixture, with a `proof.f.mjs`,
-      that no `.mjs` imports, and prove it is type-checked in the repository
-      (a deliberate `TS2352`, reverted). Which module it is, and where it
-      lives, is the open question below.
+- [ ] Add an authored `module.f.js` package fixture that nothing but its
+      own `proof.f.mjs` imports, and prove it is type-checked in the
+      repository (a deliberate `TS2352`, reverted). In the same pull
+      request, extend `fjs/AGENTS.md`'s proof import rule and its coverage
+      sentence to `.f.js`. Which module it is, and where it lives, is the
+      open question below.
 - [ ] Include `module.f.js` in `npm run cov`'s coverage set (and the Deno
       and Bun equivalents that share its filter), so the fixture is held to
       100% like every `module.f.mjs`.
-- [ ] Enforce compiler acceptance: every authored `.f.js` compiles with
-      `fjs compile`, checked on every PR, so a `.f.js` the compiler refuses
-      is red.
 - [ ] In `package-check`, import the fixture's runtime from a consumer
       module and type-check a use of its declaration, with a negative control
       that must fail — one command per step
@@ -149,6 +158,10 @@ that keep those true, plus four gaps the list below did not name:
       `.f.js` meaning: the `.f.js` row of [`fjs/fsc/README.md`](../../fsc/README.md)'s
       extension table, including why a proof stays `.f.mjs` until `throw`
       compiles.
+
+Compiler acceptance of every authored `.f.js` is not a task here: it is
+[lint-compiler-compatible-files](../../fsc/todo/lint-compiler-compatible-files.md),
+unblocked by the fixture above and landing on its own schedule.
 
 **Open question: a synthetic fixture, or the first real rename?** As
 written, the fixture is synthetic: the acceptance criteria below and
@@ -164,7 +177,7 @@ path for npm consumers, which a `**BREAKING CHANGES:**` declaration would
 have to say. Choosing it changes the gate, not just the fixture, so it is
 the task owner's decision and lands as a change to this file first: the
 acceptance criterion becomes "the first rename is this task's last step,
-after the coverage, compiler-acceptance and `package-check` steps", and the
+after the coverage and `package-check` steps", and the
 rename task in `fjs-nanvm-integration` moves here. Until that decision is
 recorded, implement the synthetic fixture.
 
