@@ -53,6 +53,8 @@ pub mod number;
 pub mod object;
 #[path = "../fixtures/operators.rs"]
 pub mod operators;
+#[path = "../fixtures/parameters.rs"]
+pub mod parameters;
 #[path = "../fixtures/property.rs"]
 pub mod property;
 #[path = "../fixtures/rest.rs"]
@@ -238,6 +240,14 @@ mod tests {
         assert_eq!(
             run::<Naive>(function_scope::module),
             Ok("[[1,1],[1,1]]".into())
+        );
+    }
+
+    #[test]
+    fn named_and_rest_parameters() {
+        assert_eq!(
+            run::<Naive>(super::parameters::module),
+            Ok("[3,[1,2,3,[4,5]],true,true,true,1,1,[1,[2,3],4,[5],[2,3],[5]],true,true,true,true]".into())
         );
     }
 

@@ -152,7 +152,8 @@ const toDjs = state => ast => {
         case 'array': { return mapOk(arrayOf)(okList(ast[1].map(toDjs(state)))) }
         case 'object': { return mapOk(objectOf)(okList(ast[1].map(memberValue(toDjs(state))))) }
         case '=>':
-        case 'args':
+        case 'arg':
+        case 'rest':
         case 'fref': { return error(noFunctionValue) }
         case '()': { return error(noCallValue) }
         case '-': { return ast.length === 2 ? okThen(negated)(toDjs(state)(ast[1])) : error(noOperatorValue) }
@@ -339,9 +340,10 @@ const refsOfOperand = view => ast => {
         }
         // a function names what it captures, the enclosing scope's own
         // references, which it establishes when it is made
-        case '=>': { return flat((ast[2] ?? []).map(refsOf(view))) }
+        case '=>': { return flat((ast[3] ?? []).map(refsOf(view))) }
         // its arguments and its frame are its own
-        case 'args':
+        case 'arg':
+        case 'rest':
         case 'fref': { return empty }
         default: { return [{ ref: ast, keys: [] }] }
     }

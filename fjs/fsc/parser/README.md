@@ -23,11 +23,13 @@ binding ::= id t [ 'as' t id t ]
 const  ::= 'const' t id t '=' t value ';' t
 export ::= 'export' t ( 'default' t value ';' t | const const* [ export ] )
 value  ::= '-' t unaryOperand tail | '~' t unaryOperand tail
-         | (primitive t | id t | array | object) access* powTail tail
-         | '(' t (func | group tail)
+         | (primitive t | array | object) access* powTail tail
+         | id s arrowOrRest
+         | '(' t (func | value afterValue)
 body   ::= '-' t unaryOperand tail | '~' t unaryOperand tail
-         | (primitive t | id t | array) access* powTail tail
-         | '(' t (func | group tail) | block
+         | (primitive t | array) access* powTail tail
+         | id s arrowOrRest
+         | '(' t (func | value afterValue) | block
 unary  ::= '-' t unaryOperand | '~' t unaryOperand
          | (primitive t | id t | array | object) access* powTail
          | '(' t group
@@ -36,6 +38,9 @@ unaryOperand ::= '-' t unaryOperand | '~' t unaryOperand
          | '(' t groupOperand
 block  ::= '{' t const* 'return' s value ';' t '}' t
 func   ::= [ '...' t id t ] ')' s '=>' t body
+afterValue ::= ',' t [ names ] ')' s '=>' t body | ')' s arrowOrRest
+arrowOrRest ::= '=>' t body | [ nl t ] access* powTail tail
+names  ::= '...' t id t | id t [ ',' t [ names ] ]
 group  ::= value ')' t access* powTail
 groupOperand ::= value ')' t access*
 powTail ::= [ '**' t unary ]
@@ -65,14 +70,14 @@ s      ::= (ws | comment)*
 It is LL(1): one symbol of lookahead decides every choice, and the backend
 refuses a grammar where it would not, before any input.
 
-A `(` opens two things, so `paren` takes the `(` and `func` and `group` part
-at the symbol after it: `...` against a value's first set, which no `...`
-is in. That is how a function and a group live in one grammar without
-looking past the `)` — where JavaScript itself has to look, and where
-parenthesized parameters will
-([`spec/todo/3120-parameters.md`](../../../spec/todo/3120-parameters.md)).
-It is also why `(a) => 1` fails at the `=>` rather than at the name: `(a)`
-is a group, and nothing may follow a value there.
+A `(` opens an empty/rest-only function or a shared expression/parameter
+prefix. `afterValue` factors the comma and closing parenthesis; `arrowOrRest`
+then selects the arrow or the ordinary expression continuation. The binding
+pass requires a name where that prefix becomes a parameter, rejecting
+`(a + b) => 1` while preserving `(a + b)`. Bare `a => a` uses the same arrow
+continuation. A final rest name is allowed after fixed names; it cannot be
+followed by another parameter or a comma. The grammar preserves the no-newline
+rule before `=>`, including comment trivia.
 
 A `-` or a `~` takes the group under its `(` and not `paren`, the two
 differing by the function: `-(...a) => 1` is a syntax error in JavaScript

@@ -263,13 +263,13 @@ export const proof = {
         },
         functionReturn: () => {
             expectEdag(unresolved(unwrap(parse('')('export default () => { return 7; };'))).edag,
-                ['{}', [[':', 'default', ['=>', null, 7]]]])
+                ['{}', [[':', 'default', ['=>', 0, null, 7]]]])
             const root = {
                 'main.f.js': file('import f from "./dep.f.js"; export default f();'),
                 'dep.f.js': file('export default () => 7;'),
             }
             expectEdag(unwrap(linked(root)('main.f.js')),
-                ['{}', [[':', 'default', ['()', ['=>', null, 7], ['[]', []]]]]])
+                ['{}', [[':', 'default', ['()', ['=>', 0, null, 7], ['[]', []]]]]])
         },
         repeatedAnchoredImport: () => {
             const root = {
@@ -327,10 +327,10 @@ export const proof = {
         // `fjs/edag/todo/scope-and-identity-free-nodes.md`.
         undefinedPerOccurrence: () => {
             const edag = compile('export default [undefined, (...a) => undefined];').edag
-            expectEdag(edag, ['[]', [['undefined'], ['=>', null, ['undefined']]]])
+            expectEdag(edag, ['[]', [['undefined'], ['=>', 0, null, ['undefined']]]])
             const [, items] = /** @type {readonly ['[]', readonly Exp[]]} */ (edag)
             const [outside, lambda] = items
-            assert(outside !== /** @type {readonly ['=>', null, Exp]} */(lambda)[2], 'one node in two scopes')
+            assert(outside !== /** @type {readonly ['=>', number, null, Exp]} */(lambda)[3], 'one node in two scopes')
             // and two in one scope are two nodes as well, which the analysis
             // merges rather than the linker
             const flat = compile('export default [undefined, undefined];').edag
@@ -446,32 +446,32 @@ export const proof = {
     // functions share nothing, and a function `const` is one node like any
     // other.
     func: () => {
-        expectEdag(compile('export default (...a) => a;').edag, ['=>', null, ['args']])
+        expectEdag(compile('export default (...a) => a;').edag, ['=>', 0, null, ['rest']])
         const shared = compile('export default (...a) => [a, a[0]];').edag
-        expectEdag(shared, ['=>', null, ['[]', [['args'], ['.', ['args'], 0]]]])
+        expectEdag(shared, ['=>', 0, null, ['[]', [['rest'], ['.', ['rest'], 0]]]])
         assert(shared instanceof Array && shared[0] === '=>', shared)
-        const body = shared[2]
+        const body = shared[3]
         assert(body instanceof Array && body[0] === '[]', shared)
         const [first, second] = body[1]
         assert(second instanceof Array && second[0] === '.' && second[1] === first, shared)
         const both = compile('const f = (...a) => 1; export default [f, f];').edag
-        expectEdag(both, ['[]', [['=>', null, 1], ['=>', null, 1]]])
+        expectEdag(both, ['[]', [['=>', 0, null, 1], ['=>', 0, null, 1]]])
         assert(both instanceof Array && both[0] === '[]' && both[1][0] === both[1][1], both)
-        expectEdag(compile('export default [(...a) => a, (...a) => a];').edag, ['[]', [['=>', null, ['args']], ['=>', null, ['args']]]])
+        expectEdag(compile('export default [(...a) => a, (...a) => a];').edag, ['[]', [['=>', 0, null, ['rest']], ['=>', 0, null, ['rest']]]])
         // an unreached function is anchored as any entry is, and takes no
         // anchor from an import beside it: the sweep reads it as a leaf
-        expectEdag(compile('const f = (...a) => 1; export default 2;').edag, [',', [['=>', null, 1], 2]])
-        expectEdag(compile('import y from "./y.f.js"; const f = (...a) => 0; export default 1;').edag, [',', [['.', ['.', ['args'], 0], 'default'], ['=>', null, 0], 1]])
+        expectEdag(compile('const f = (...a) => 1; export default 2;').edag, [',', [['=>', 0, null, 1], 2]])
+        expectEdag(compile('import y from "./y.f.js"; const f = (...a) => 0; export default 1;').edag, [',', [['.', ['.', ['args'], 0], 'default'], ['=>', 0, null, 0], 1]])
         // linked beside an import: the body's arguments are not rewritten
-        expectEdag(program({ 'a.f.js': file('import y from "./y.f.js"; export default [y, (...x) => x];'), 'y.f.js': file('export default 1;') })('a.f.js'), ['[]', [1, ['=>', null, ['args']]]])
+        expectEdag(program({ 'a.f.js': file('import y from "./y.f.js"; export default [y, (...x) => x];'), 'y.f.js': file('export default 1;') })('a.f.js'), ['[]', [1, ['=>', 0, null, ['rest']]]])
         // a block body is the same function as the expression body it
         // returns, so the two spell one graph — and an object literal, which
         // the expression body cannot spell bare, reaches the lowering
         // through either it or a group
-        expectEdag(compile('export default (...a) => { return a; };').edag, ['=>', null, ['args']])
-        expectEdag(compile('export default (...a) => { return [a, a[0]]; };').edag, ['=>', null, ['[]', [['args'], ['.', ['args'], 0]]]])
-        expectEdag(compile('export default (...a) => { return { x: a }; };').edag, ['=>', null, ['{}', [[':', 'x', ['args']]]]])
-        expectEdag(compile('export default (...a) => { return (...b) => { return b; }; };').edag, ['=>', null, ['=>', null, ['args']]])
+        expectEdag(compile('export default (...a) => { return a; };').edag, ['=>', 0, null, ['rest']])
+        expectEdag(compile('export default (...a) => { return [a, a[0]]; };').edag, ['=>', 0, null, ['[]', [['rest'], ['.', ['rest'], 0]]]])
+        expectEdag(compile('export default (...a) => { return { x: a }; };').edag, ['=>', 0, null, ['{}', [[':', 'x', ['rest']]]]])
+        expectEdag(compile('export default (...a) => { return (...b) => { return b; }; };').edag, ['=>', 0, null, ['=>', 0, null, ['rest']]])
     },
     // A function that captures is `['=>', ['[]', slots], body]`: each slot
     // the enclosing scope's own node for a captured value — one per node,
@@ -480,47 +480,47 @@ export const proof = {
     // it is written into the body, as any read of a `const` holding one is.
     captures: () => {
         const own = compile('const c = [1]; export default [c, (...a) => c];').edag
-        expectEdag(own, ['[]', [['[]', [1]], ['=>', ['[]', [['[]', [1]]]], ['.', ['frame'], 0]]]])
+        expectEdag(own, ['[]', [['[]', [1]], ['=>', 0, ['[]', [['[]', [1]]]], ['.', ['frame'], 0]]]])
         // the frame's element is the module's node, not a copy of it
         assert(own instanceof Array && own[0] === '[]', own)
         const [c, f] = own[1]
-        assert(f instanceof Array && f[0] === '=>' && f[1] instanceof Array && f[1][0] === '[]' && f[1][1][0] === c, own)
+        assert(f instanceof Array && f[0] === '=>' && f[2] instanceof Array && f[2][0] === '[]' && f[2][1][0] === c, own)
         // a captured `const` is reached through the function, not anchored
-        expectEdag(compile('const c = [1]; export default (...a) => c;').edag, ['=>', ['[]', [['[]', [1]]]], ['.', ['frame'], 0]])
+        expectEdag(compile('const c = [1]; export default (...a) => c;').edag, ['=>', 0, ['[]', [['[]', [1]]]], ['.', ['frame'], 0]])
         // a primitive is written in, and a function left with no slot has
         // no frame
-        expectEdag(compile('const c = 1; export default (...a) => [c, a];').edag, ['=>', null, ['[]', [1, ['args']]]])
-        expectEdag(compile('const n = 1; const c = [1]; export default (...a) => [n, c];').edag, ['=>', ['[]', [['[]', [1]]]], ['[]', [1, ['.', ['frame'], 0]]]])
+        expectEdag(compile('const c = 1; export default (...a) => [c, a];').edag, ['=>', 0, null, ['[]', [1, ['rest']]]])
+        expectEdag(compile('const n = 1; const c = [1]; export default (...a) => [n, c];').edag, ['=>', 0, ['[]', [['[]', [1]]]], ['[]', [1, ['.', ['frame'], 0]]]])
         // an import is its parameter before linking, and its node after —
         // a primitive one written in
-        expectEdag(compile('import y from "./y.f.js"; export default (...a) => y;').edag, ['=>', ['[]', [['.', ['.', ['args'], 0], 'default']]], ['.', ['frame'], 0]])
-        expectEdag(program({ 'a.f.js': file('import y from "./y.f.js"; export default (...a) => y;'), 'y.f.js': file('export default 1;') })('a.f.js'), ['=>', null, 1])
-        expectEdag(program({ 'a.f.js': file('import y from "./y.f.js"; export default (...a) => y;'), 'y.f.js': file('export default [1];') })('a.f.js'), ['=>', ['[]', [['[]', [1]]]], ['.', ['frame'], 0]])
+        expectEdag(compile('import y from "./y.f.js"; export default (...a) => y;').edag, ['=>', 0, ['[]', [['.', ['.', ['args'], 0], 'default']]], ['.', ['frame'], 0]])
+        expectEdag(program({ 'a.f.js': file('import y from "./y.f.js"; export default (...a) => y;'), 'y.f.js': file('export default 1;') })('a.f.js'), ['=>', 0, null, 1])
+        expectEdag(program({ 'a.f.js': file('import y from "./y.f.js"; export default (...a) => y;'), 'y.f.js': file('export default [1];') })('a.f.js'), ['=>', 0, ['[]', [['[]', [1]]]], ['.', ['frame'], 0]])
         // an alias and its target are one node, so one slot, read by one node
         const alias = compile('const c = [1]; const d = c; export default (...a) => [d, c];').edag
-        expectEdag(alias, ['=>', ['[]', [['[]', [1]]]], ['[]', [['.', ['frame'], 0], ['.', ['frame'], 0]]]])
-        assert(alias instanceof Array && alias[0] === '=>' && alias[2] instanceof Array && alias[2][0] === '[]' && alias[2][1][0] === alias[2][1][1], alias)
+        expectEdag(alias, ['=>', 0, ['[]', [['[]', [1]]]], ['[]', [['.', ['frame'], 0], ['.', ['frame'], 0]]]])
+        assert(alias instanceof Array && alias[0] === '=>' && alias[3] instanceof Array && alias[3][0] === '[]' && alias[3][1][0] === alias[3][1][1], alias)
         // and so are two nodes the analysis merges: one read spelled twice
         const merged = compile('const o = [1]; const x = o[0]; const y = o[0]; export default (...a) => [x, y];').edag
-        expectEdag(merged, ['=>', ['[]', [['.', ['[]', [1]], 0]]], ['[]', [['.', ['frame'], 0], ['.', ['frame'], 0]]]])
-        assert(merged instanceof Array && merged[0] === '=>' && merged[2] instanceof Array && merged[2][0] === '[]' && merged[2][1][0] === merged[2][1][1], merged)
+        expectEdag(merged, ['=>', 0, ['[]', [['.', ['[]', [1]], 0]]], ['[]', [['.', ['frame'], 0], ['.', ['frame'], 0]]]])
+        assert(merged instanceof Array && merged[0] === '=>' && merged[3] instanceof Array && merged[3][0] === '[]' && merged[3][1][0] === merged[3][1][1], merged)
         // a nested function captures through its parent: the middle
         // function's frame holds the outer arguments, the innermost's a
         // read of the middle frame and the middle arguments
         expectEdag(
             compile('export default (...a) => (...b) => (...c) => [a, b, a];').edag,
-            ['=>', null, ['=>', ['[]', [['args']]], ['=>', ['[]', [['.', ['frame'], 0], ['args']]], ['[]', [['.', ['frame'], 0], ['.', ['frame'], 1], ['.', ['frame'], 0]]]]]])
+            ['=>', 0, null, ['=>', 0, ['[]', [['rest']]], ['=>', 0, ['[]', [['.', ['frame'], 0], ['rest']]], ['[]', [['.', ['frame'], 0], ['.', ['frame'], 1], ['.', ['frame'], 0]]]]]])
         expectEdag(
             compile('export default (...a) => (...b) => a[0] + b[0];').edag,
-            ['=>', null, ['=>', ['[]', [['args']]], ['+', ['.', ['.', ['frame'], 0], 0], ['.', ['args'], 0]]]])
+            ['=>', 0, null, ['=>', 0, ['[]', [['rest']]], ['+', ['.', ['.', ['frame'], 0], 0], ['.', ['rest'], 0]]]])
         // a body `const` captured by a function in the body
         expectEdag(
             compile('export default (...a) => { const x = [a]; return (...b) => x; };').edag,
-            ['=>', null, ['=>', ['[]', [['[]', [['args']]]]], ['.', ['frame'], 0]]])
+            ['=>', 0, null, ['=>', 0, ['[]', [['[]', [['rest']]]]], ['.', ['frame'], 0]]])
         // a function `const` called from another function
         expectEdag(
             compile('const f = (...a) => a; export default (...b) => f(b);').edag,
-            ['=>', ['[]', [['=>', null, ['args']]]], ['()', ['.', ['frame'], 0], ['[]', [['args']]]]])
+            ['=>', 0, ['[]', [['=>', 0, null, ['rest']]]], ['()', ['.', ['frame'], 0], ['[]', [['rest']]]]])
     },
     // Source blocks and returns survive parsing, but lowering still gives
     // equivalent bodies the same EDAG, including nested block functions.
@@ -545,14 +545,14 @@ export const proof = {
     // `chainsJs.receiver` in `fjs/edag/proof.f.mjs` pins against JavaScript
     // — so it needs the comma operator and no source writes one.
     call: () => {
-        expectEdag(compile('const f = (...a) => 1; export default f();').edag, ['()', ['=>', null, 1], ['[]', []]])
-        expectEdag(compile('const f = (...a) => 1; export default f(1, 2);').edag, ['()', ['=>', null, 1], ['[]', [1, 2]]])
+        expectEdag(compile('const f = (...a) => 1; export default f();').edag, ['()', ['=>', 0, null, 1], ['[]', []]])
+        expectEdag(compile('const f = (...a) => 1; export default f(1, 2);').edag, ['()', ['=>', 0, null, 1], ['[]', [1, 2]]])
         expectEdag(compile('const o = { b: 1 }; export default o.b(3);').edag, ['.', ['{}', [[':', 'b', 1]]], 'b', ['|()', ['[]', [3]]]])
         expectEdag(compile('const a = [1]; export default a[0](2);').edag, ['.', ['[]', [1]], 0, ['|()', ['[]', [2]]]])
         // a call upon a call: what a step applies to is everything before it
-        expectEdag(compile('const f = (...a) => 1; export default f(1)(2);').edag, ['()', ['()', ['=>', null, 1], ['[]', [1]]], ['[]', [2]]])
+        expectEdag(compile('const f = (...a) => 1; export default f(1)(2);').edag, ['()', ['()', ['=>', 0, null, 1], ['[]', [1]]], ['[]', [2]]])
         // the arguments of a body's call name that body's arguments
-        expectEdag(compile('export default (...a) => a[0](a);').edag, ['=>', null, ['.', ['args'], 0, ['|()', ['[]', [['args']]]]]])
+        expectEdag(compile('export default (...a) => a[0](a);').edag, ['=>', 0, null, ['.', ['rest'], 0, ['|()', ['[]', [['rest']]]]]])
         // A call mints identity, so two calls are two nodes and a `const`
         // is one — which is the whole reason a body may name one.
         const twice = compile('const f = (...a) => 1; export default [f(1), f(1)];').edag
@@ -577,7 +577,7 @@ export const proof = {
         expectEdag(compile('export default (1);').edag, 1)
         expectEdag(compile('export default (([1]));').edag, ['[]', [1]])
         expectEdag(compile('export default ([1, 2]).length;').edag, ['.', ['[]', [1, 2]], 'length'])
-        expectEdag(compile('export default (...a) => ({ x: a });').edag, ['=>', null, ['{}', [[':', 'x', ['args']]]]])
+        expectEdag(compile('export default (...a) => ({ x: a });').edag, ['=>', 0, null, ['{}', [[':', 'x', ['rest']]]]])
         // a `const` reached through a group is the node it is reached
         // without one: one node, two references
         const shared = compile('const a = [1]; export default [(a), a];').edag
@@ -588,7 +588,7 @@ export const proof = {
         // access on one, which nothing else spells: `-((...a) => 1)` is
         // JavaScript's `NaN` and `-(...a) => 1` its syntax error
         expectEdag(compile('export default -(1);').edag, -1)
-        expectEdag(compile('export default -((...a) => 1);').edag, ['-', ['=>', null, 1]])
+        expectEdag(compile('export default -((...a) => 1);').edag, ['-', ['=>', 0, null, 1]])
         expectEdag(compile('export default -([1, 2]).length;').edag, ['-', ['.', ['[]', [1, 2]], 'length']])
         // and how far the prefix reaches is the one thing the parentheses
         // change: the access on the negation, against the negation of the
@@ -636,7 +636,7 @@ export const proof = {
         expectEdag(compile('export default 1 || 2 && 3 ? 4 | 5 : 6 ?? 7;').edag, ['?:', ['||', 1, ['&&', 2, 3]], ['|', 4, 5], ['??', 6, 7]])
         expectEdag(compile('export default 1 ? 2 : 3 ? 4 : 5;').edag, ['?:', 1, 2, ['?:', 3, 4, 5]])
         expectEdag(compile('export default -1 ?? ~2;').edag, ['??', -1, ['~', 2]])
-        expectEdag(compile('export default (...a) => a && a[0];').edag, ['=>', null, ['&&', ['args'], ['.', ['args'], 0]]])
+        expectEdag(compile('export default (...a) => a && a[0];').edag, ['=>', 0, null, ['&&', ['rest'], ['.', ['rest'], 0]]])
         // a `const` reached through a lazy position is the one node it is
         // anywhere: sharing survives the position, as `op2Id` states it
         const shared = compile('const a = [1]; export default a && a;').edag
@@ -696,7 +696,7 @@ export const proof = {
         // an import likewise, evaluated at load whatever reaches it
         expectEdag(compile('import m from "./m.f.js"; export default 1 && m;').edag, [',', [['.', ['.', ['args'], 0], 'default'], ['&&', 1, ['.', ['.', ['args'], 0], 'default']]]])
         // a function body is a scope of its own with the same rule
-        expectEdag(compile('export default (...a) => { const c = null.x; return a && c; };').edag, ['=>', null, [',', [c, ['&&', ['args'], c]]]])
+        expectEdag(compile('export default (...a) => { const c = null.x; return a && c; };').edag, ['=>', 0, null, [',', [c, ['&&', ['rest'], c]]]])
         // and the anchored `const` is the one node the lazy positions
         // share: the interpreter answers the value with `c` established
         // once, at the comma, and taken by the position that selects it
@@ -710,31 +710,31 @@ export const proof = {
     // module's root.
     bodyConst: () => {
         const shared = compile('export default (...a) => { const x = [1]; return [x, x]; };').edag
-        expectEdag(shared, ['=>', null, ['[]', [['[]', [1]], ['[]', [1]]]]])
+        expectEdag(shared, ['=>', 0, null, ['[]', [['[]', [1]], ['[]', [1]]]]])
         assert(shared instanceof Array && shared[0] === '=>', shared)
-        const body = shared[2]
+        const body = shared[3]
         assert(body instanceof Array && body[0] === '[]', shared)
         // one node, not two equal ones: that is what the `const` is for
         assert(body[1][0] === body[1][1], shared)
-        expectEdag(compile('export default (...a) => { const x = 1; return x; };').edag, ['=>', null, 1])
-        expectEdag(compile('export default (...a) => { const x = a; return x; };').edag, ['=>', null, ['args']])
-        expectEdag(compile('export default (...a) => { const x = a[0]; const y = [x]; return [y, x]; };').edag, ['=>', null, ['[]', [['[]', [['.', ['args'], 0]]], ['.', ['args'], 0]]]])
+        expectEdag(compile('export default (...a) => { const x = 1; return x; };').edag, ['=>', 0, null, 1])
+        expectEdag(compile('export default (...a) => { const x = a; return x; };').edag, ['=>', 0, null, ['rest']])
+        expectEdag(compile('export default (...a) => { const x = a[0]; const y = [x]; return [y, x]; };').edag, ['=>', 0, null, ['[]', [['[]', [['.', ['rest'], 0]]], ['.', ['rest'], 0]]]])
         // the anchor, inside a body
-        expectEdag(compile('export default (...a) => { const x = []; return 1; };').edag, ['=>', null, [',', [['[]', []], 1]]])
-        expectEdag(compile('export default (...a) => { const x = null.y; return 1; };').edag, ['=>', null, [',', [['.', null, 'y'], 1]]])
+        expectEdag(compile('export default (...a) => { const x = []; return 1; };').edag, ['=>', 0, null, [',', [['[]', []], 1]]])
+        expectEdag(compile('export default (...a) => { const x = null.y; return 1; };').edag, ['=>', 0, null, [',', [['.', null, 'y'], 1]]])
         // an alias is no node of its own, so it anchors nothing
-        expectEdag(compile('export default (...a) => { const x = []; const y = x; return y; };').edag, ['=>', null, ['[]', []]])
+        expectEdag(compile('export default (...a) => { const x = []; const y = x; return y; };').edag, ['=>', 0, null, ['[]', []]])
         // a nested body has its own entries and its own anchor
-        expectEdag(compile('export default (...a) => { const x = (...b) => { const y = []; return 1; }; return x; };').edag, ['=>', null, ['=>', null, [',', [['[]', []], 1]]]])
+        expectEdag(compile('export default (...a) => { const x = (...b) => { const y = []; return 1; }; return x; };').edag, ['=>', 0, null, ['=>', 0, null, [',', [['[]', []], 1]]]])
         // each body names its own arguments: two `['args']` nodes, not one,
         // since a node belongs to one scope
         const nested = compile('export default (...a) => { const x = (...b) => b; return [x, a]; };').edag
         assert(nested instanceof Array && nested[0] === '=>', nested)
-        const outer = nested[2]
+        const outer = nested[3]
         assert(outer instanceof Array && outer[0] === '[]', nested)
         const inner = outer[1][0]
         assert(inner instanceof Array && inner[0] === '=>', nested)
-        assert(inner[2] !== outer[1][1], nested)
+        assert(inner[3] !== outer[1][1], nested)
     },
     // The imports bound: the linked program is one EDAG, the imported
     // module's node where the importer's parameter was, and no path in it.
@@ -979,16 +979,16 @@ export const proof = {
                 assertStructurallySame(shape.children, [
                     ['cond', ['a']], ['then', ['b'], 'lazy'], ['else', ['c'], 'lazy']])
             },
-            // `=>` is an Op2 by operand count, so it would draw `left` and
-            // `right` like every other tag in that set; it is its own case
-            // for the two names that say what a function's operands are. The
-            // frame is `null` in everything the compiler emits today.
+            // Function length is metadata, not a third expression edge.
             // Building a closure establishes its frame and never its body,
             // which runs only on a call — so the body is marked.
+            fixed: () => {
+                assertStructurallySame(_shapeOf(['arg', 2]), { kind: 'terminal', label: 'arg 2', children: [] })
+            },
             lambda: () => {
-                const shape = assertNotNullish(_shapeOf(['=>', null, ['args']]), 'expected a shape')
-                assertEq(shape.label, '=>')
-                assertStructurallySame(shape.children, [['frame', null], ['body', ['args'], 'lazy']])
+                const shape = assertNotNullish(_shapeOf(['=>', 0, null, ['rest']]), 'expected a shape')
+                assertEq(shape.label, '=> (0)')
+                assertStructurallySame(shape.children, [['frame', null], ['body', ['rest'], 'lazy']])
             },
             // Every Op0 name renders with no children, and the three part
             // by meaning where `Op0Id` groups them by operand count:
@@ -999,7 +999,7 @@ export const proof = {
             // own field — its one function captures nothing — which is why
             // the tags are built here by hand.
             op0: () => {
-                for (const [tag, kind] of [['undefined', 'leaf'], ['args', 'terminal'], ['frame', 'terminal']]) {
+                for (const [tag, kind] of [['undefined', 'leaf'], ['args', 'terminal'], ['frame', 'terminal'], ['rest', 'terminal']]) {
                     const shape = assertNotNullish(_shapeOf([tag]), tag)
                     assertEq(shape.label, tag)
                     assertEq(shape.kind, kind)
@@ -1084,7 +1084,8 @@ export const proof = {
         kinds: () => {
             const html = htmlToString(demo.view(demo.init))
             assertEq(html.split('data-graph-kind="terminal"').length - 1, 2)
-            assertEq(html.split('>args<').length - 1, 2)
+            assertEq(html.split('>args<').length - 1, 1)
+            assertEq(html.split('>rest<').length - 1, 1)
             assert(html.includes('>undefined<'), html)
             assert(html.includes('>frame<'), html)
             assert(html.includes('>body<'), html)

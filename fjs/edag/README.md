@@ -76,7 +76,10 @@ vocabularies.
 | `['[]', items[]]`, each an `exp` or a `spread` | array literal; `[a, ...b]` splices `b`'s elements in at that position |
 | `['{}', properties[]]`, each `[':', key, value]` or a `spread` | object literal; ordered entries applied in written order, duplicates allowed with the later winning; the key is an `exp`, one form for `a:`, `"a":`, and computed `[exp]:` keys; the `:` descriptor is a structural operand, not a node — only its key and value are; `{...a}` splices `a`'s own properties in at that position |
 | `['...', exp]` | spread — only valid as an `items`/`properties` entry above, never a top-level `Exp` |
-| `['args']` | the function's arguments |
+| `['args']` | unresolved module imports, in import order |
+| `['arg', N]` | fixed parameter `N` of the owning function |
+| `['rest']` | the invocation's rest array, after the fixed prefix |
+| `['=>', length, frame, body]` | function; integer length metadata, enclosing-scope frame, invocation-scope body |
 | `['frame']` | the captured frame |
 | `['()', exp, exp]` | call with no receiver: `exp0(...exp1)` — see [Chains](#chains) |
 | `['.', exp, index]`, `['.', exp, index, propertyLambda]` | property access `exp0[exp1]`, owning whatever its receiver is used for |
@@ -85,7 +88,7 @@ vocabularies.
 | `['\|()', exp, k?]`, `['\|.', index, k?]`, `['\|?.()', exp, k?]`, `['\|!()', exp]` | a chain step and, where the chain continues, its continuation — only valid in the continuation operand of a node above, or of another step |
 | `[',', exps]` | comma: establish all operands, take the value of the last |
 | `[id, exp]` | unary operation, `id` one of `String` `Number` `!` `~` `typeof` |
-| `[id, exp, exp]` | binary operation, `id` one of `=>` `own` `is` `===` `!==` `>` `>=` `<` `<=` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` `&&` `\|\|` `??` |
+| `[id, exp, exp]` | binary operation, `id` one of `own` `is` `===` `!==` `>` `>=` `<` `<=` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` `&&` `\|\|` `??` |
 | `[id, exp]`, `[id, exp, exp]` | `id` one of `+` `-`: unary plus or negation, addition or subtraction — one tag at two arities, the node's length deciding, as a chain step's does; unary `+` is JS's and throws on a bigint where `Number` converts |
 | `['?:', exp, exp, exp]` | conditional: the condition, then exactly one arm — the one `ToBoolean` selects; the other is never established |
 
@@ -119,12 +122,30 @@ list ends by **arity**: the step or node that ends it is simply the shorter
 tuple, with no continuation operand at all, which is why every kind that can
 end is a union of its two closed lengths.
 
+Function `length` and `arg` indices satisfy `Number.isInteger(n) && n >= 0
+&& !Object.is(n, -0)`. An index also requires `N < length`. They are metadata,
+not operand nodes. Missing fixed arguments bind to `undefined`; rest begins
+at `length`, has stable identity within a call, and is fresh between calls.
+`arg` and `rest` require a function scope; `args` is only a module binding.
+Frames retain their enclosing scope, including for nested captures.
+
+This format replaces `['=>', frame, body]`. Recompile source or migrate
+function-owned `args` to `rest` and insert length `0`; retain module import
+`args`, including in module-level frames. Old tuples are rejected rather
+than reinterpreted. Earlier positive-arity/full-argument experiments have
+no general lossless migration to this format.
+
+Amnesia and memo share [generated arrow factories](./callable/README.md)
+for lengths 0–32. The limit applies when materializing a JavaScript callable;
+it does not bound valid EDAG or source output. The default-text renderer
+remains tracked in [the parameter plan](../../spec/todo/3120-parameters.md).
+
 An `index` — the property operand of `.`, `?.`, and the `|.` step — is a
 `string`, a `number`, or `['Number', exp]`, a computed index cast to a
 number. Widening those positions to a bare `exp` was weighed and rejected:
 `exp` and `index` overlap, since `['Number', e]` is both a `numberCast` and
 an `op1`, so it would buy a second spelling of every computed key and no new
-expressive power. Among the binary ids, `=>` builds a function and `own` reads
+expressive power. Among the binary ids, `own` reads
 an own property, bypassing the prototype chain (including `__proto__` — see
 the `ownJs` proof); calling a function is not among them — `()` takes two
 `exp` operands and so *is* binary in count, but a call's receiver comes from

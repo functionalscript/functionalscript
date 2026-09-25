@@ -32,7 +32,7 @@ const args = /** @type {const} */ (['args'])
  * `undefined` is tagged in an EDAG, because a bare one is a missing tuple
  * position.
  *
- * A node per occurrence, as a body's `args` is, and for the same reason: a
+ * A node per occurrence, as a body's `rest` is, and for the same reason: a
  * node belongs to one scope. As a module-level constant this was one node
  * for every `undefined` in a module, so
  * `export default [undefined, (...a) => undefined];` — ordinary source the
@@ -88,7 +88,7 @@ const call = nodes => (callee, args) => {
 }
 
 /**
- * A function's EDAG, `['=>', frame, body]`, in the scope `nodes` names: its
+ * A function's EDAG, `['=>', length, frame, body]`, in the scope `nodes` names: its
  * captures lowered here, each to the node the enclosing scope has for it,
  * and its body a scope of its own over them.
  *
@@ -104,11 +104,11 @@ const call = nodes => (callee, args) => {
  *
  * Inside the body a slot is one node, `['.', ['frame'], i]`, however many
  * references reach it, over one `['frame']` for the body — the node
- * `args` is, for the arguments.
+ * `rest` is, for the rest arguments.
  *
- * @type {(nodes: _Nodes) => (body: AstBody, captures: readonly AstConst[]) => Exp}
+ * @type {(nodes: _Nodes) => (length: number, body: AstBody, captures: readonly AstConst[]) => Exp}
  */
-const fn = nodes => (body, captures) => {
+const fn = nodes => (length, body, captures) => {
     const outer = captures.map(lower(nodes))
     const candidates = outer.filter(n => n instanceof Array)
     const keys = slotKeys(candidates)
@@ -122,7 +122,7 @@ const fn = nodes => (body, captures) => {
     /** @type {(n: typeof candidates[number]) => Exp} */
     const read = n => reads[slots.indexOf(candidates[firsts[candidates.indexOf(n)]])]
     const inner = outer.map(n => n instanceof Array ? read(n) : n)
-    return ['=>', slots.length === 0 ? null : ['[]', slots], scope(body, inner)]
+    return ['=>', length, slots.length === 0 ? null : ['[]', slots], scope(body, inner)]
 }
 
 /**
@@ -162,8 +162,9 @@ const lowerLeaf = nodes => ast => {
         case 'object': { return ['{}', ast[1].map(property(lower(nodes)))] }
         // a function's body is a scope of its own: it names its arguments,
         // one node however many references reach them, and nothing outside
-        case '=>': { return fn(nodes)(ast[1], ast[2] ?? []) }
-        case 'args': { return nodes.args }
+        case '=>': { return fn(nodes)(ast[1], ast[2], ast[3] ?? []) }
+        case 'arg': { return ['arg', ast[1]] }
+        case 'rest': { return nodes.args }
         case 'fref': { return nodes.frame[ast[1]] }
         case '()': { return call(nodes)(ast[1], ast[2]) }
         // the EDAG's own form already, its key a constant the parser admitted
@@ -308,7 +309,7 @@ const entry = (parameters, args, frame) => (consts, ast) => [...consts, lower({ 
  * @type {(body: AstBody, frame: readonly Exp[]) => Exp}
  */
 const scope = (body, frame) => {
-    const nodes = body.reduce(entry([], ['args'], frame), [])
+    const nodes = body.reduce(entry([], ['rest'], frame), [])
     const value = nodes[nodes.length - 1]
     const { consts } = anchors([[], body])([])
     return consts.length === 0 ? value : [',', [...consts.map(i => nodes[i]), value]]
