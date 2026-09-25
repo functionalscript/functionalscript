@@ -85,18 +85,6 @@ work. Source specifiers, resolved module identities and filesystem locations
 must not be conflated. The concrete compiler task is co-located with `fjs/fsc`,
 not duplicated here.
 
-#### Source decoding and the `toString` radix — current implementation, rule 2
-
-At `36c8d4a`, two defects outside the corpus above give an accepted program
-a value JavaScript does not. A source that is not correct UTF-8 is decoded
-rather than refused, so a raw `FF` in a string literal is U+00FF where Node
-reads U+FFFD
-([malformed UTF-8 source](../fjs/fsc/todo/malformed-utf8-source.md)). And
-the `.rs` output, run by `nanvm-lib`, answers `"255"` for
-`(255).toString(16)`, which JavaScript answers `"ff"`
-([member functions](../nanvm-lib/todo/member-functions.md)). Each is refused
-first, in the issue that owns it; the radix is implemented after.
-
 #### Expression grammar — corrected, rule 1
 
 [PR #2089](https://github.com/functionalscript/functionalscript/pull/2089)
@@ -308,11 +296,12 @@ randomness and external mutation.
       oracles. Execution/optimization and regression work remains below.
 - [x] **P1:** implement the linked module-resolution correction and its real
       FJS/native-ESM escaped-filename regression.
-- [ ] **P1:** refuse a source that is not correct UTF-8, as
-      [malformed UTF-8 source](../fjs/fsc/todo/malformed-utf8-source.md)
-      plans.
-- [ ] **P1:** refuse a `toString` radix in `nanvm-lib` until the radix is
-      implemented ([member functions](../nanvm-lib/todo/member-functions.md)).
+- [x] **P1:** refuse a source that is not correct UTF-8 rather than decode
+      it to a value Node does not give (`readSource` in
+      [`fjs/fsc/transpiler`](../fjs/fsc/transpiler/module.f.mjs)).
+- [x] **P1:** refuse a `toString` radix in `nanvm-lib` rather than answer in
+      radix ten, until the radix is implemented
+      ([member functions](../nanvm-lib/todo/member-functions.md)).
 - [ ] **P1:** compare the operator grammar's refusals with a native
       JavaScript engine's syntax and early errors, and extend that gate to
       the logical/nullish operators and parameter syntax.

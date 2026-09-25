@@ -239,10 +239,9 @@ import specifiers, so `%41`, `?` and `#` are ordinary characters in them. An
 extension is matched exactly, case included: `out.JSON` names no output format
 and is refused, `out.Data.js` is a FunctionalScript name rather than a DataJS
 one, and an `in.JSON` input is read by the module parser. The command takes
-exactly these two names: with fewer it fails with
-`Error: Requires 2 or more arguments`, naming no file, and a third is not
-refused yet
-([compile-extra-arguments](../fjs/fsc/todo/compile-extra-arguments.md)).
+exactly these two names, and any other count fails, naming no file: fewer
+with `Error: Requires 2 arguments`, and more with the first one it does not
+read, `Error: unexpected argument --tree`, rather than succeed without it.
 
 On success the command writes the output and exits `0`. On failure it writes
 nothing, reports the error on `stderr`, and exits `1`:
@@ -311,9 +310,10 @@ A byte order mark is refused, although a JavaScript host strips it:
 `.json` document beginning with one is an error, as a
 [DataJS](./datajs/README.md#encoding) document with one is.
 
-Bytes that are not correct UTF-8 are not text, and an input holding them is an
-error, though inside a string or a comment the compiler does not refuse them
-yet ([malformed-utf8-source](../fjs/fsc/todo/malformed-utf8-source.md)).
+Bytes that are not correct UTF-8 are not text, and a file holding them —
+anywhere, a string or a comment included — is refused, naming the file:
+`a.f.js - error: not UTF-8 text`. Decoding them anyway would give a raw `FF`
+in a string U+00FF where a JavaScript host reads U+FFFD, a different value.
 
 ### File Types
 
@@ -1230,12 +1230,14 @@ reaches any other, a string's `at` included, throws there as a call of
 `undefined` does, where JavaScript answers — a failure, which is
 [one outcome](#failure-is-one-outcome), not a different value — until its
 entry in [member-functions](../nanvm-lib/todo/member-functions.md) lands.
-Nor does its `toString` apply a radix yet, as `(255).toString(16)` asks, or
-give a function the text the
+Its `toString` applies no radix yet, so on a number or a `bigint` any radix
+but `10` throws — `(255).toString(16)` fails there rather than answer `"255"`
+([member-functions](../nanvm-lib/todo/member-functions.md)). Nor does it give
+a function the text the
 [function-source exception](#function-source-representation-exception)
-adopts; both are defects, tracked by
-[member-functions](../nanvm-lib/todo/member-functions.md) and
-[default function text](./todo/3120-parameters.md#default-function-text-render-or-refuse).
+adopts, a defect
+[default function text](./todo/3120-parameters.md#default-function-text-render-or-refuse)
+tracks.
 
 ## Importing Other Modules
 
