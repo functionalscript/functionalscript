@@ -549,8 +549,17 @@ mod tests {
             (-10, 3, -3, -1),
             (10, -3, -3, 1),
             (-10, -3, 3, -1),
+            // `div_mod` picks each result's sign before it knows the
+            // magnitude; a zero result must still come out positive.
+            (-1, 2, 0, -1),
+            (1, -2, 0, 1),
+            (-4, 2, -2, 0),
+            (4, -2, -2, 0),
         ] {
             let (quotient, remainder) = int(a).div_mod(int(b)).unwrap();
+            // `==` ignores the sign of a zero, so the sign is pinned apart.
+            assert_eq!(quotient.sign(), int(q).sign());
+            assert_eq!(remainder.sign(), int(r).sign());
             assert_eq!(quotient, int(q));
             assert_eq!(remainder, int(r));
         }
