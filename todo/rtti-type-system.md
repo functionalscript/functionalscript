@@ -1843,6 +1843,6 @@ splits around inference, so the runnable order is 668's representation half
 - [error-message-specificity](../fjs/fsc/tokenizer/todo/error-message-specificity.md) —
   its parked "continue after an error" is unparked by stage 10; an editor needs
   more than one diagnostic per file.
-- [expression](../spec/todo/3410-expression.md) — **not** a dependency, which is
-  the point of the name-only rule: an annotation body needs no expression
-  parser. It stays a dependency of the *language*, not of this epic.
+- [functions](../spec/README.md#functions) — an expression body is in the
+  language, but it is **not** a dependency, which is the point of the
+  name-only rule: an annotation body needs no expression parser.
