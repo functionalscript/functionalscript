@@ -6,7 +6,7 @@
 ### Scope: an alternative, not a parameter blocker
 
 The [named-and-rest parameter plan](./3120-parameters.md), implemented in #2237, separates
-`['arg', N]` from `['rest']` and uses pre-generated arrow factories. It does
+`['arg', N]` from `['rest']` and uses hand-written arrow factories. It does
 not expose the original supplied argument count inside a positive-length
 fixed prefix. This file tracks the stronger, alternative requirement below;
 it is not a prerequisite for the fixed/rest implementation.
