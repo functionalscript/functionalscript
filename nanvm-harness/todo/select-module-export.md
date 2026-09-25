@@ -6,10 +6,12 @@
 ### Problem
 
 Generated modules already return the complete export object.
-[`run`](../src/lib.rs) selects its `default` property and passes it directly
-to JSON conversion. A named-only module cannot select an entry this way,
-and a function-valued export is refused by JSON conversion without being called.
-The MVP plans previously described that invocation as if it existed.
+[`run`](../src/lib.rs) selected only its `default` property and passed it
+directly to JSON conversion. A named-only module could not select an entry
+this way, and a function-valued export was refused by JSON conversion without
+being called. The MVP plans previously described that invocation as if it
+existed. The [API](#api) below is now implemented; the acceptance example
+does not use it yet ([tasks](#tasks)).
 
 ### Proposal
 
@@ -32,7 +34,7 @@ the fixture currently selects and calls its export directly through the VM API.
 
 ### API
 
-One entry point replaces today's `run(module)`, whose only choice is
+One entry point replaces the earlier `run(module)`, whose only choice was
 `default`:
 
 ```rust
@@ -64,16 +66,16 @@ pub fn run<A: IVm>(
 ) -> Result<std::string::String, RunError<A>>
 ```
 
-`Thrown` and `Json` are today's variants, unchanged. `NoExport` holds the
+`Thrown` and `Json` are the earlier variants, unchanged. `NoExport` holds the
 name as a Rust `String`, the `&str` the caller gave, copied: it is the
 caller's text, never a VM value, and a Rust string compares and prints without
 a VM. `NotCallable` holds the VM value itself. `Display`, `Debug` and
-`PartialEq` stay hand-written, as today, and cover the two new variants.
+`PartialEq` stay hand-written, as before, and cover the two new variants.
 
 `run` evaluates the module once, looks `export` up among the export object's
 own properties, reads it or calls it, and renders that one value as JSON.
 Nothing else in the object is called or serialized. `run(m, "default",
-Action::Read)` is today's behaviour, and the existing tests move to that
+Action::Read)` is the earlier behaviour, and the earlier tests use that
 spelling. There is no default action and no default export name: a caller
 that wants `default` says so.
 
@@ -89,15 +91,15 @@ names is its own outcome:
 
 | outcome | variant |
 |---|---|
-| the module threw while evaluating | `Thrown(value)`, as today |
+| the module threw while evaluating | `Thrown(value)`, as before |
 | the called export threw | `Thrown(value)` |
 | `export` is not an own property of the export object | `NoExport(name)` |
 | `Action::Call` on a value that is not a function | `NotCallable(value)` |
-| the selected value or call result has no JSON | `Json(error)`, as today |
+| the selected value or call result has no JSON | `Json(error)`, as before |
 
 `NoExport` is decided by own-property presence, not by value: an export
 holding `undefined` is found, and reading it then fails as `Json`, since
-`undefined` has no JSON, exactly as it does today. That needs an absent-aware
+`undefined` has no JSON, exactly as before. That needs an absent-aware
 lookup: `nanvm-lib`'s public `Object::own_property` answers
 `Option<Any<A>>`, `None` for an absent key, where `Any::own_property`
 collapses `None` into `undefined`. The harness uses the `Object` one; this
@@ -117,14 +119,15 @@ program's failure, so the harness does not use `Any::call`.
 A module whose result is not an object is not a `RunError`: it panics, by
 `expect`, when `run` converts the result to an `Object`. The code generator's
 contract is that `module()` answers the export object, so any other result is
-a generator bug, not an input. **This changes behaviour, on purpose.** Today a
-nullish result already panics at the same `expect`, but any other non-object
-does not: `Ok(42)` reaches `dot("default")`, which answers `undefined`, and
-comes out as `Json(Undefined)`. That reports a broken module as a value with no
+a generator bug, not an input. **This changes behaviour, on purpose.** Before, a
+nullish result already panicked at the same `expect`, but any other non-object
+did not: `Ok(42)` reached `dot("default")`, which answered `undefined`, and
+came out as `Json(Undefined)`. That reported a broken module as a value with no
 JSON, a plausible wrong answer where a refusal is owed
 ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
-Nothing depends on it: the one hand-written module in the harness's tests,
-`throwing`, answers `Err`, and every generated one answers an object.
+Nothing depended on it: the one hand-written module in the harness's tests,
+`throwing`, answered `Err`, and every generated one answers an object. A second
+hand-written module, `not_an_object`, now pins the refusal.
 
 **No CLI yet.** The binary in `src/main.rs` runs one compiled-in fixture and
 keeps doing so, as `run(number::module, "default", Action::Read)`. Choosing a
@@ -173,10 +176,10 @@ Default-only modules are the existing fixtures. The mixed case is
       non-callable invocation; module/call failures; and non-JSON results.
       Prove that exported functions are not called during module evaluation
       or value selection and that selecting one retains other exports.
-      Taken before `run` exists, so the cases go through the operations it
-      is made of: `Object::own_property`, `Function::try_from`,
-      `Function::call` and `to_json`.
-- [ ] Implement `Action`, the new `run` and the two `RunError` variants; move
+      Taken before `run` existed, through the operations it is made of
+      (`Object::own_property`, `Function::try_from`, `Function::call` and
+      `to_json`); the next step moved the cases to `run`.
+- [x] Implement `Action`, the new `run` and the two `RunError` variants; move
       the existing tests and `src/main.rs` to `run(…, "default", Action::Read)`,
       and the export-selection cases above to `run` with the export and
       action each names.
