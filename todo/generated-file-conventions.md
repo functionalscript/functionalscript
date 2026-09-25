@@ -5,12 +5,11 @@
 
 ### Problem
 
-Generated files are mixed with handwritten sources, and their names do not
-distinguish them. Most are not marked anywhere: `git check-attr` reports
-`linguist-generated` unspecified for `spec/datajs/vectors/matrix.md`, `nix/flake.nix`, `nix/run`, and both workflow
-files. Only `nanvm-lib/tests/test/generated.rs` and
-`nanvm-harness/fixtures/*.rs` are marked in `.gitattributes`. (The rule and
-these markings have since landed; the tasks below track the rest.)
+Generated files were mixed with handwritten sources, and their names did not
+distinguish them. The `gen.` rule and its `.gitattributes` markings have
+landed: `git check-attr linguist-generated` reports `true` for every `gen.*`
+output — the harness fixtures now in `nanvm-harness/gen.fixtures/` included —
+and for the fixed-path workflows and Nix files.
 
 CI runs `npm run gen` over the checkout and then compares. An output its
 generator stopped writing survives, and a generator can silently depend on a

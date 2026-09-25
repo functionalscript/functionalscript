@@ -196,7 +196,7 @@ module they live in.
   there. The corpus that argument was about is
   [`spec/datajs/vectors`](../spec/datajs/vectors/README.md), whose README
   records the gap from its own side.
-- [`spec/todo/arity-complete-arguments.md`](../spec/todo/arity-complete-arguments.md)
-  — its `withLength` pattern is a candidate that would admit one
-  construction-time `defineProperty`, on a fresh function's `length`, as a
-  complete matched pattern; nothing in it legalizes `tupleRebuild`.
+- [`withLength` pattern](https://github.com/functionalscript/functionalscript/blob/245649cdeeb0fb6318004ee273121143273262db/spec/todo/arity-complete-arguments.md#candidate-mechanism-the-withlength-pattern)
+  — retired: it would have admitted one construction-time `defineProperty`,
+  on a fresh function's `length`, as a complete matched pattern; nothing in
+  it legalized `tupleRebuild`.

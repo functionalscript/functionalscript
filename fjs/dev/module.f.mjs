@@ -26,11 +26,10 @@ import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
  * - **FunctionalScript modules** — anything ending in `.f.ts`, `.f.mts`,
  *   `.f.js`, or `.f.mjs`. They are safe to bulk-load by construction, since
  *   they have no import side effects, so the whole module is loaded and its
- *   internal `proof` export (if any) is discovered. `.f.mjs` is the authored
- *   extension: stage 1 removed the last `.f.ts`, and `.f.js` is reserved for
- *   the stage-2 compiler-compatibility marker rather than generated from
- *   anything. The matcher still accepts all four so that a tree carrying either
- *   of the retired or future spellings still loads.
+ *   internal `proof` export (if any) is discovered. The authored extensions
+ *   are `.f.mjs` and, for source the current compiler accepts, the stage-2
+ *   `.f.js`; stage 1 removed the last `.f.ts`. The matcher still accepts all
+ *   four so that a tree carrying a retired spelling still loads.
  * - **Impure JavaScript/TypeScript proofs** — anything ending in `proof.ts`,
  *   `proof.mts`, `proof.js`, or `proof.mjs`. Outside FunctionalScript a module
  *   may have import side effects, so the load gate stays opt-in by filename.
