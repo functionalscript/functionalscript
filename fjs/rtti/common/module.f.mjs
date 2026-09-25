@@ -256,9 +256,8 @@ const readIndices = value => {
  * `declared` is a **membership test**, built once per schema by
  * {@link declaredTest}, for the reason {@link hasUndeclaredMember} gives: asked
  * per member, a scan of the declared names made the walk quadratic in a dense
- * tuple, whose own index `i` sits at position `i` of that list — 0.7s at
- * 25 000 positions and 3.3s at 50 000. With the test, the walk is linear:
- * 40ms and 80ms on the same values.
+ * tuple, whose own index `i` sits at position `i` of that list. With the test,
+ * the walk is linear in the members of `value`.
  *
  * @type {(declared: (k: string) => boolean, value: ReadonlyArray<Unknown> | StringMap<Unknown>) => ReadonlyArray<readonly [string, Unknown]>}
  */
