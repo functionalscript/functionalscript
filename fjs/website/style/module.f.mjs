@@ -216,8 +216,8 @@ svg text { font: inherit }
    own: its value draws in a cell of the port that holds it, under the
    port's label, and no line leaves for it. A value is tinted and a key is
    grey, so the two differ by more than their order in the cell; in a node
-   with a value row every port is split the same way, and an edge's lower
-   cell is the empty socket it leaves from. No edge crosses a box — the layout routes one that skips a
+   with a value row an edge's port fills both rows, its key centred, so no
+   cell is left empty. No edge crosses a box — the layout routes one that skips a
    rank down a lane of its own — so a line needs no casing to stand out
    from a border it passes. */
 [data-graph-node] { fill: var(--bg); stroke: var(--text); stroke-width: 1.5 }
@@ -227,7 +227,6 @@ svg text { font: inherit }
 [data-graph-edge] { fill: none; stroke: var(--muted); stroke-width: 1.5 }
 [data-graph-edge-kind="lazy"] { stroke-dasharray: 5 3 }
 [data-graph-port] { fill: none; stroke: var(--muted); stroke-width: 1 }
-[data-graph-socket] { fill: none; stroke: var(--muted); stroke-width: 1 }
 [data-graph-value] { fill: var(--value-bg); stroke: var(--muted); stroke-width: 1 }
 [data-graph-value-label] { dominant-baseline: middle; fill: var(--value); font-size: .75rem }
 [data-graph-edge-label] { dominant-baseline: middle; fill: var(--muted); font-size: .7rem }
