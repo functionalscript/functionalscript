@@ -1,7 +1,8 @@
 ## Evaluate a module given as text
 
 **Priority:** P3
-**Status:** open
+**Status:** blocked
+**Blocked by:** [Default function text: render or refuse](../../../spec/todo/3120-parameters.md#default-function-text-render-or-refuse)
 
 ### Problem
 
@@ -115,9 +116,41 @@ function. So `jsonLeaf` gets a `'function'` case that refuses it
 (`no JSON spelling for a function`), and the default branch is left with `null`
 alone. This is one fix that serves both, not a separate check in the tool.
 
+**Function text is not ready, and the tool waits for it.** At `4b63ec0`,
+`export default (x => x).toString();` evaluates to
+`(a0, ...rest) => g([a0], rest)`, the source of the host factory that `memo`
+materializes, not of the module's function. `'' + (x => x)` and
+`[x => x].join()` give the same text. `_tryJson` writes it as a valid string,
+so the tool would return a wrong answer that looks right. The specification
+has already decided this case
+([3120-parameters](../../../spec/todo/3120-parameters.md#default-function-text-render-or-refuse)):
+every conversion path that reaches function text must render the EDAG function
+or refuse, and intercepting the explicit `toString` call alone is not enough.
+The tool cannot close that gap from its own side. A check over the source or
+the result cannot see which values were produced by converting a function, and
+listing conversion paths is exactly the partial fix the specification rules
+out. So the tool is blocked by that mechanism. The three inputs above go into
+the proofs, and each must return the rendered function text or an error
+result.
+
+**Sharing is detected on the evaluated value, not in the syntax.**
+`fjs compile`'s `.json` output refuses a node two references reach
+(`no JSON spelling for a shared node`), and the tool follows it. The compiler
+decides that from the module's syntax, which works because its value route
+runs no calls. The tool runs calls, and a call can create sharing that no
+syntax shows. At `4b63ec0`, `const a = [1]; export default [1, 2].map(x => a);`
+evaluates to an array whose two elements are the same array, while
+`analysis(...).shared` is empty, and `_tryJson` writes `[[1],[1]]`. So the
+tool's JSON step walks the value by identity: it keeps the set of arrays and
+objects it has entered and refuses one entered a second time. That is exact
+here, because `memo` builds a fresh container for every constructor it
+evaluates, so two positions hold the same container only when the program
+shared it. The walk shares `jsonLeaf` with `_tryJson`. `fjs compile` keeps its
+stateless walk, since its values are trees by the front end's word.
+
 Every failure the tool can see is an `errorResult`, a result the client reads,
 not a transport error. Those failures are: a parse error, an import, a throw
-during evaluation, and a value JSON cannot spell. A parse error needs a name
+during evaluation, a value JSON cannot spell, and a shared node. A parse error needs a name
 for its location because there is no file. Use a fixed pseudo-path such as
 `<eval>`, so the message reads `<eval>:line:column - error: …`, formatted by
 `_errorLocation` in [`fjs/fsc`](../../fsc/module.f.mjs).
@@ -140,13 +173,14 @@ which fixes it in the transport for every tool at once.
 
 ### Open questions
 
-- **Sharing.** The memo executor keeps node identity, so
-  `const a = [1]; export default [a, a];` evaluates to an array whose two
-  elements are the same array. `fjs compile`'s `.json` output refuses such a
-  value (`no JSON spelling for a shared node`). To stay consistent, the tool
-  should refuse it too. Decide where that fact comes from on the EDAG route.
-  One option is analysis's `shared` indices restricted to the constructors the
-  root scope reaches.
+- **An interim version without functions.** A module with no `=>` cannot
+  create a function, so it cannot reach function text. A first version that
+  refuses every `=>` could ship before the rendering mechanism and still
+  answer `export default 2 + 2;`. The cost is callbacks such as
+  `[1, 2].map(x => x * 2)`. The specification warns against using missing
+  rendering as a reason for blanket source restrictions in the VM. Whether
+  such a restriction is acceptable for this tool, as a temporary refusal, is a
+  decision for the language designers, not for this TODO.
 - **Name.** The name `fjs_eval` follows the `cas_*` and `evo_*` families. The
   server's `serverInfo.name`, `functionalscript-cas`, and its README title,
   "CAS MCP server", describe a server that is no longer CAS-only once this
@@ -161,6 +195,8 @@ which fixes it in the transport for every tool at once.
       coverage. The tool runs it, JSON step included, under one `catch_`.
 - [ ] Add a `'function'` case to `jsonLeaf` that refuses a function, and prove
       it through `_tryJson`.
+- [ ] Add the identity-tracking JSON walk that refuses a container entered
+      twice, sharing `jsonLeaf` with `_tryJson`.
 - [ ] Add the `fjs/mcp/eval` registry with the `fjs_eval` `toolEntry`, and
       compose it in `casMcpHandlers`. Add `Catch` to the server's operations.
 - [ ] Prove the cases: `export default 2 + 2;` returns `4`; an object and an
@@ -168,7 +204,12 @@ which fixes it in the transport for every tool at once.
       is reported at `<eval>:line:column`; `export default null.x;` and an
       array nested a few thousand levels deep each return an error result and
       the server keeps serving; `undefined`, a bigint and
-      `export default x => x;` are refused; a result whose response overflows
+      `export default x => x;` are refused;
+      `const a = [1]; export default [a, a];` and
+      `const a = [1]; export default [1, 2].map(x => a);` are refused as
+      shared; `(x => x).toString()`, `'' + (x => x)` and `[x => x].join()`
+      return the rendered function text or an error result, never the
+      factory's source; a result whose response overflows
       `maxLength` gets the transport's `-32603` with the request's `id`, as
       `cas_get`'s overflow proofs pin.
 - [ ] Add the tool to the tool tables in [`../README.md`](../README.md) and in
@@ -177,6 +218,8 @@ which fixes it in the transport for every tool at once.
 
 ### Related
 
+- [`spec/todo/3120-parameters.md`](../../../spec/todo/3120-parameters.md#default-function-text-render-or-refuse):
+  the render-or-refuse mechanism this tool is blocked by.
 - [`fjs/fsc/todo/interpret-edag.md`](../../fsc/todo/interpret-edag.md): the
   memo executor this tool runs. Its open validation tasks apply to this entry
   too.
