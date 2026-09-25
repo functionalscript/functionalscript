@@ -1,7 +1,7 @@
 ## Package support for authored `.f.js`
 
 **Priority:** P1
-**Status:** open — the stage-1 precondition below is met; this work can start now.
+**Status:** wip — the stage-1 precondition below is met, and three tasks already hold ([measured](#measured-on-main)).
 
 ### Problem
 
@@ -69,22 +69,89 @@ Do not add package-time import or declaration-specifier rewriting. A migrated
 `.f.js` group must remain dependency-closed according to the compiler migration
 rules in [`todo/fjs-nanvm-integration.md`](../../../todo/fjs-nanvm-integration.md).
 
+### Measured on `main`
+
+Measured at `9169616` with the pinned `tsc` 7.0.2, by adding a throwaway
+`fjs/ci/fixture-exp/module.f.js` that no `.mjs` imports:
+
+```js
+/** @type {(a: number) => (b: number) => number} */
+export const add = a => b => a + b
+```
+
+The first three tasks below already hold, with no configuration change:
+
+- **Checked directly.** `tsconfig.json` has no `include`, so its default set
+  takes every file, and `allowJs` / `checkJs` check it: `tsc --listFilesOnly`
+  lists the module, and a bad cast added to it is `TS2352`.
+- **Declaration emitted.** `prepack`'s declaration pass writes
+  `module.f.d.ts` beside it.
+- **Packed.** From a clean checkout, `npm pack` ships `module.f.js` and
+  `module.f.d.ts`; `files`' `**/*.js` and `**/*.d.ts` cover them.
+- **Clean consumer.** Installed from the tarball into an empty directory
+  (`module` / `moduleResolution` `nodenext`, `strict`), a `test.ts` that
+  imports `add` runs and prints `42`, and type-checks; a `bad.ts` assigning
+  its result to a `string` fails with `TS2322`, so the declaration is read,
+  not an `any` fallback.
+
+So what this task still owes is a **committed** fixture and **CI** proof
+that keep those true, plus four gaps the list below did not name:
+
+- **Coverage.** `npm run cov`, which CI runs with 100% thresholds, includes
+  only `**/module.f.mjs`. A `module.f.js` would escape the proof-coverage
+  rule `fjs/AGENTS.md` sets for every FunctionalScript module.
+- **Compiler acceptance is not enforced.** The `.f.js` contract is that the
+  current compiler accepts the module ([`fjs/fsc/README.md`](../../fsc/README.md)),
+  but nothing compiles authored `.f.js`: a module could be renamed, or
+  edited later, into something the compiler refuses, and every check would
+  stay green. The measured module compiles to `.rs`; its JSON target refuses
+  it only because a function has no JSON.
+- **Proofs stay `.f.mjs` for now.** A proof needs `throw` or a block body,
+  which the compiler does not accept yet, so a `module.f.js` pairs with a
+  `proof.f.mjs` until it does. `fjs test` already discovers `proof.f.js`,
+  so nothing blocks renaming a proof later.
+- **`package-check` never imports anything.** The job type-checks every
+  declaration the tarball ships, so a packed `.f.d.ts` is checked, but no
+  consumer module imports a runtime module or uses a declared type. The
+  runtime and type-resolution half of the clean-consumer task needs steps
+  of its own there, with a negative control.
+
 ### Tasks
 
-- [ ] After stage 1, include authored `.f.js` directly in the root TypeScript
-      checked source set with `allowJs` / `checkJs`.
-- [ ] Ensure declaration emission produces `.d.ts` for standalone authored
-      `.f.js` modules.
-- [ ] Verify NPM package rules include authored `.f.js` and its `.d.ts`.
-- [ ] Add an authored `.f.js` package fixture that is not reachable only through
-      an `.mjs` root, proving direct source discovery.
-- [ ] Verify the fixture is type-checked in the repository.
-- [ ] Verify the clean CI package build contains the authored `.f.js` and its
-      generated declaration.
-- [ ] Verify a clean consumer can import the `.f.js` runtime and type-check
-      against its generated `.d.ts` without repository source files.
-- [ ] Update package/contributor documentation for the stage-2 authored `.f.js`
-      meaning.
+- [x] Include authored `.f.js` directly in the root TypeScript checked source
+      set with `allowJs` / `checkJs` — the default `include` already does
+      ([measured](#measured-on-main)).
+- [x] Ensure declaration emission produces `.d.ts` for standalone authored
+      `.f.js` modules — `prepack` already does.
+- [x] Verify NPM package rules include authored `.f.js` and its `.d.ts` —
+      `files` already does.
+- [ ] Add an authored `module.f.js` package fixture, with a `proof.f.mjs`,
+      that no `.mjs` imports, and prove it is type-checked in the repository
+      (a deliberate `TS2352`, reverted). Which module it is, and where it
+      lives, is the open question below.
+- [ ] Include `module.f.js` in `npm run cov`'s coverage set (and the Deno
+      and Bun equivalents that share its filter), so the fixture is held to
+      100% like every `module.f.mjs`.
+- [ ] Enforce compiler acceptance: every authored `.f.js` compiles with
+      `fjs compile`, checked on every PR, so a `.f.js` the compiler refuses
+      is red.
+- [ ] In `package-check`, import the fixture's runtime from a consumer
+      module and type-check a use of its declaration, with a negative control
+      that must fail — one command per step
+      ([AGENTS.md §7](../../../AGENTS.md#7-continuous-integration)).
+- [ ] Update package/contributor documentation for the stage-2 authored
+      `.f.js` meaning: the `.f.js` row of [`fjs/fsc/README.md`](../../fsc/README.md)'s
+      extension table, including that proofs stay `.f.mjs` for now.
+
+**Open question: a synthetic fixture, or the first real rename?** A
+synthetic `module.f.js` ships in the npm package as a module nobody uses,
+and exists only to be checked. The alternative is to make the fixture the
+first real stage-2 rename: a small, dependency-closed repository module the
+compiler already accepts, renamed from `.f.mjs` to `.f.js`. That proves the
+same things on real code and removes the "first rename" step from
+[`fjs-nanvm-integration`](../../../todo/fjs-nanvm-integration.md#tasks), at
+the cost of breaking that module's import path for npm consumers, which a
+`**BREAKING CHANGES:**` declaration would have to say.
 
 ### Acceptance criteria
 
