@@ -1,5 +1,5 @@
 /**
- * DJS transpiler for transforming parsed trees into JavaScript output.
+ * Module transpiler for transforming parsed trees into JavaScript output.
  *
  * @module
  *
