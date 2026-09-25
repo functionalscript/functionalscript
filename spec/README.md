@@ -1724,9 +1724,12 @@ object's `default` member. So a module's imports and constants are one scope,
 as a function's parameters and body constants are: one namespace, each name
 bound once, and a name used only after it is declared.
 
-The EDAG says so directly. Before linking, import `i` of a module is the
-parameter `['.', ['args'], i]` of its graph, and linking binds each parameter
-to the graph of the module that import resolves to — applying the module to
+The EDAG says so directly. Before linking, a module's graph reads import `i`
+from its arguments: the module slot is `['.', ['args'], i]`, and a binding
+selects its export from that slot, `['.', ['.', ['args'], i], name]`, where
+`name` is `default` for a default import. Only an empty import list, which
+binds no name, is the bare slot. Linking replaces each import with the export
+it selects from the module that import resolves to — applying the module to
 its imports — so the linked program has no parameter left
 ([`fjs/fsc/edag`](../fjs/fsc/edag/module.f.mjs)). Two imports of one module
 identity are one application, shared, as
