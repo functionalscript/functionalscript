@@ -189,7 +189,8 @@ presence decides an answer, are
 - [x] `toString`
 - [x] `with` — `vm/array/with.rs`
 
-`String`:
+`String` — the contracts, what is out by design, and the landing order are
+[string-member-functions](./string-member-functions.md):
 
 - [ ] `at`
 - [ ] `charAt`
@@ -216,7 +217,7 @@ presence decides an answer, are
 - [ ] `trimEnd`
 - [ ] `trimStart`
 
-`Number`:
+`Number` — [string-member-functions](./string-member-functions.md) too:
 
 - [ ] `toExponential`
 - [ ] `toFixed`
