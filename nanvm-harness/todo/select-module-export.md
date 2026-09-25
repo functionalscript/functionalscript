@@ -166,7 +166,7 @@ Default-only modules are the existing fixtures. The mixed case is
 
 - [x] Propose explicit export selection and read/call modes, including how
       the harness receives the invocation's argument list: [API](#api).
-- [ ] Make `Object::own_property` public in `nanvm-lib`, with its tests.
+- [x] Make `Object::own_property` public in `nanvm-lib`, with its tests.
 - [ ] Implement `Action`, the new `run` and the two `RunError` variants; move
       the existing tests and `src/main.rs` to `run(…, "default", Action::Read)`.
 - [ ] Add `fixtures/exports.mjs` to `npm run gen`, and cover
