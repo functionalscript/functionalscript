@@ -59,9 +59,9 @@ export const faviconLinks = [
  *
  * @type {string}
  */
-export const stylesheet = `:root { color-scheme: light dark; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6 }
+export const stylesheet = `:root { color-scheme: light dark; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6; --value: #174ea6; --value-bg: #e8f0fe }
 @media (prefers-color-scheme: dark) {
-    :root { --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414 }
+    :root { --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414; --value: #8ab4f8; --value-bg: #172033 }
 }
 /* Every link on the site is coloured the same whether or not it has been
    opened: nearly every word here is a link into the tree, and the visited
@@ -214,7 +214,10 @@ svg text { font: inherit }
    than over a line. A port is a thinner, unfilled cell inside the node's
    own border. A primitive — a number, null, undefined — is no node of its
    own: its value draws in a cell of the port that holds it, under the
-   port's label, and no line leaves for it. No edge crosses a box — the layout routes one that skips a
+   port's label, and no line leaves for it. A value is tinted and a key is
+   grey, so the two differ by more than their order in the cell; in a node
+   with a value row every port is split the same way, and an edge's lower
+   cell is the empty socket it leaves from. No edge crosses a box — the layout routes one that skips a
    rank down a lane of its own — so a line needs no casing to stand out
    from a border it passes. */
 [data-graph-node] { fill: var(--bg); stroke: var(--text); stroke-width: 1.5 }
@@ -224,7 +227,9 @@ svg text { font: inherit }
 [data-graph-edge] { fill: none; stroke: var(--muted); stroke-width: 1.5 }
 [data-graph-edge-kind="lazy"] { stroke-dasharray: 5 3 }
 [data-graph-port] { fill: none; stroke: var(--muted); stroke-width: 1 }
-[data-graph-value] { fill: none; stroke: var(--muted); stroke-width: 1 }
+[data-graph-socket] { fill: none; stroke: var(--muted); stroke-width: 1 }
+[data-graph-value] { fill: var(--value-bg); stroke: var(--muted); stroke-width: 1 }
+[data-graph-value-label] { dominant-baseline: middle; fill: var(--value); font-size: .75rem }
 [data-graph-edge-label] { dominant-baseline: middle; fill: var(--muted); font-size: .7rem }
 [data-graph-arrow] { fill: var(--muted) }
 `
