@@ -138,8 +138,9 @@ no general lossless migration to this format.
 A function's `length` is at most 16, the language's limit: `bindingError`
 refuses a larger one. Amnesia and memo share the
 [arrow factories](../types/function/length/README.md) of
-`fjs/types/function/length`, which cover every valid length. The default-text renderer
-remains tracked in [the parameter plan](../../spec/todo/3120-parameters.md).
+`fjs/types/function/length`, which cover every valid length. The default-text
+renderer remains tracked in
+[the parameter plan](../../spec/todo/3120-parameters.md).
 
 An `index` — the property operand of `.`, `?.`, and the `|.` step — is a
 `string`, a `number`, or `['Number', exp]`, a computed index cast to a

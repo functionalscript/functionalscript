@@ -59,12 +59,12 @@ limitation. The review stays open until the conversion paths are fixed.
 
 An operations-table guard cannot cover conversions performed by a consumer
 of an exported arrow. A side table associating functions with EDAGs cannot
-by itself change those host conversions either. The current generated arrows
+by itself change those host conversions either. The current factory arrows
 inherit native function conversion and have no renderer hook. This is also
 why rejecting callable exports or replacing only the `String` operation is
 not a fix.
 
-**Proposal requiring approval:** extend each generated factory with a renderer
+**Proposal requiring approval:** extend each factory with a renderer
 callback and admit only the complete fresh-arrow construction pattern:
 
 ```js
@@ -123,7 +123,7 @@ to indexed reads of the existing `['args']` would therefore change results.
 
 Parse fixed named parameters and an optional final rest parameter. Represent
 fixed values and the rest array separately in EDAG, and instantiate real
-callables through pre-generated arrow factories. No mutation, prototype
+callables through hand-written arrow factories. No mutation, prototype
 change, host helper, effect or recognized `defineProperty` pattern is needed
 for arity within the table-backed evaluator's documented range. The factories
 do not by themselves satisfy the default function-text contract; the rendering
@@ -391,11 +391,12 @@ default behavior.
 
 A function has at most 16 fixed parameters
 ([functions](../README.md#functions)), approved as a language limit
-([#2295](https://github.com/functionalscript/functionalscript/pull/2295)) so that every valid function is materializable, with the right `length`,
-by every backend. A 17th fixed name is a compile error, and `bindingError`
-refuses an EDAG function whose `length` is above 16, so every writer returns an
-error Result for it. The table covers exactly the valid lengths; it does not
-limit supplied argument count or rest-array length.
+([#2295](https://github.com/functionalscript/functionalscript/pull/2295)) so
+that every valid function is materializable, with the right `length`, by every
+backend. A 17th fixed name is a compile error, and `bindingError` refuses an
+EDAG function whose `length` is above 16, so every writer returns an error
+Result for it. The table covers exactly the valid lengths; it does not limit
+supplied argument count or rest-array length.
 
 Coordinate the format/API break across schema, compiler, analysis, operations,
 executors and writers. Existing three-element function nodes have arity zero;
@@ -444,12 +445,13 @@ source rest binding in that future case or silently admit initializers now.
       negative zero for both metadata fields without normalizing ordinary
       `-0` argument values. Update schema, lowering, analysis, operations,
       executor contexts and native consumers.
-- [x] Write and share the factory table, covering every length the
-      language admits: EDAG validation refuses a longer one, so
-      materialization has no separate capacity check. Keep unsupported new
-      execution paths refused until they preserve length and bindings,
-      without regressing existing calls/returns/exports. Add co-located
-      proofs for the table.
+- [x] Write and share the factory table, by hand in
+      [`fjs/types/function/length`](../../fjs/types/function/length/README.md)
+      (generated at first), covering every length the language admits: EDAG
+      validation refuses a longer one, so materialization has no separate
+      capacity check. Keep unsupported new execution paths refused until they
+      preserve length and bindings, without regressing existing
+      calls/returns/exports. Add co-located proofs for the table.
 - [ ] Specify callable-to-EDAG association and host-conversion coverage, and
       implement the shared default renderer before switching supported
       materialization/export paths to these factories. Preserve existing
