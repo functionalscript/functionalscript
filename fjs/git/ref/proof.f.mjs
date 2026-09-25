@@ -394,6 +394,12 @@ export const proof = {
         assertEq(answer(' sortedx ', disorder), 'removed')
         assertEq(answer(' SORTED ', disorder), 'removed')
         assertEq(answer(' peeled,sorted ', disorder), 'removed')
+        // A NUL ends the header, as the C string Git reads it as: the word
+        // before it counts and nothing after it does. Measured, Git bisects
+        // under the first two and scans under the third.
+        assertEq(answer(' sorted\0x ', disorder), 'unsorted')
+        assertEq(answer(' peeled sorted\0x ', disorder), 'unsorted')
+        assertEq(answer(' x\0 sorted ', disorder), 'removed')
         // Sorted is non-decreasing: adjacent duplicates do not stop a bisection
         // finding the name, so they are no disorder.
         assertEq(answer(' sorted ', `${a} refs/heads/aaa\n${a} refs/heads/bbb\n${a} refs/heads/bbb\n`), 'removed')

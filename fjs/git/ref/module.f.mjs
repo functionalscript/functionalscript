@@ -444,6 +444,9 @@ const bytesOf = node => symbolsOf(/** @type {readonly Meta<Byte>[]} */ ([node].f
 /** The byte that separates the header's traits. */
 const traitSeparator = 0x20
 
+/** {@link nul}'s byte, which ends the header as it ends a name. */
+const nulByte = 0x00
+
 /** The trait that makes Git bisect the file. */
 const sortedTrait = ascii('sorted')
 
@@ -456,13 +459,23 @@ const sortedTrait = ascii('sorted')
  * `SORTED` and `peeled,sorted` — so the colon and the line's end bound a word as
  * a space does, and a comma does not.
  *
+ * **A NUL ends the header**, as it ends a name ({@link nul}): Git reads both as
+ * C strings. Measured the same way: Git bisects under `sorted\0x` and
+ * `peeled sorted\0x`, and scans under `x\0 sorted`, so the word before a NUL
+ * counts and nothing after it does. Reading past it answered `sorted\0x` as no trait, and a file Git
+ * bisects was rewritten as though Git scanned it. Found by review of
+ * [#2315](https://github.com/functionalscript/functionalscript/pull/2315).
+ *
  * @type {(rest: readonly number[]) => readonly (readonly number[])[]}
  */
-const traitsOf = rest => rest.reduce(
-    (words, b) => b === traitSeparator
-        ? [...words, []]
-        : [...words.slice(0, -1), [...words[words.length - 1], b]],
-    /** @type {readonly (readonly number[])[]} */ ([[]]))
+const traitsOf = rest => {
+    const end = rest.indexOf(nulByte)
+    return (end === -1 ? rest : rest.slice(0, end)).reduce(
+        (words, b) => b === traitSeparator
+            ? [...words, []]
+            : [...words.slice(0, -1), [...words[words.length - 1], b]],
+        /** @type {readonly (readonly number[])[]} */ ([[]]))
+}
 
 /**
  * Whether `a` sorts no later than `b`, byte by byte and unsigned — the order Git
