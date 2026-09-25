@@ -16,27 +16,16 @@
 
 import { assert } from "../asserts/module.f.mjs"
 import { unmapped } from "./ast/module.f.mjs"
-import { codePoints, isRepeatBounds } from "./data/module.f.mjs"
+import { codePoints, isRepeatBounds, isSymbol } from "./data/module.f.mjs"
 import { codePointListToString } from "../text/utf16/module.f.mjs"
 import { isFixedArray } from "../types/array/module.f.mjs"
 import { definedEntries } from "../types/object/module.f.mjs"
 import { complement, empty, fromRange, intersection, union as setUnion } from "../types/range_set/module.f.mjs"
 
-const { isSafeInteger } = Number
 const { fromEntries } = Object
 
 const isFixedArray2 =
     isFixedArray(2)
-
-/**
- * An ordinary symbol is a non-negative safe integer. The ceiling is
- * arithmetic rather than alphabetic: `b + 1` below is exact only for safe
- * integers — `2 ** 53 + 1` is `2 ** 53` — so a boundary outside that range
- * would name a different range than the one asked for.
- *
- * @type {(a: number) => boolean}
- */
-const isSymbol = a => isSafeInteger(a) && a >= 0
 
 /**
  * The range `rangeEncode` and `range` both return: one function, so the
