@@ -11,7 +11,9 @@
 
 pub use nanvm_lib::vm::{
     Any, Array, IStaticFunction, IVm, Nullish, Object, ToAny, ToArray, ToObject,
-    unstable::{bigint_any, f64_any, strict_eq, strict_ne, string_any, string_key},
+    unstable::{
+        bigint_any, f64_any, strict_eq, strict_ne, string_any, string_any_utf16, string_key,
+    },
 };
 
 use nanvm_lib::{

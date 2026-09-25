@@ -39,7 +39,7 @@
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 53
+ * data.groups.length // 58
  * ```
  */
 
@@ -1589,6 +1589,14 @@ const atCases = [
     { name: 'object', args: [{}, 0], expected: throws },
     { name: 'number', args: [1, 0], expected: throws },
     { name: 'ownProperty', args: [{ at: functionValue }, 0], expected: undefined },
+    { name: 'stringFirst', args: ['abc', 0], expected: 'a' },
+    { name: 'stringFromTheEnd', args: ['abc', -1], expected: 'c' },
+    { name: 'stringPastTheEnd', args: ['abc', 3], expected: undefined },
+    { name: 'stringBeforeTheStart', args: ['abc', -4], expected: undefined },
+    { name: 'stringNoArgument', args: ['abc'], expected: 'a' },
+    { name: 'stringEmpty', args: ['', 0], expected: undefined },
+    { name: 'stringCodeUnit', args: ['\u{1F600}', 0], expected: '\uD83D' },
+    { name: 'stringBigint', args: ['abc', 0n], expected: throws },
 ]
 
 /**
@@ -1998,6 +2006,74 @@ const toSortedCases = [
 ]
 
 /**
+ * `String.prototype.charAt`: the code unit at a position never counted from
+ * the end, as a string, or `""`.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const charAtCases = [
+    { name: 'first', args: ['abc', 0], expected: 'a' },
+    { name: 'last', args: ['abc', 2], expected: 'c' },
+    { name: 'negative', args: ['abc', -1], expected: '' },
+    { name: 'pastTheEnd', args: ['abc', 3], expected: '' },
+    { name: 'noArgument', args: ['abc'], expected: 'a' },
+    { name: 'truncated', args: ['abc', 1.9], expected: 'b' },
+    { name: 'string', args: ['abc', '2'], expected: 'c' },
+    { name: 'nan', args: ['abc', NaN], expected: 'a' },
+    { name: 'infinity', args: ['abc', Infinity], expected: '' },
+    { name: 'codeUnit', args: ['\u{1F600}', 1], expected: '\uDE00' },
+    { name: 'empty', args: ['', 0], expected: '' },
+    { name: 'bigint', args: ['abc', 0n], expected: throws },
+]
+
+/** `String.prototype.charCodeAt`: the code unit as a number, or `NaN`. @type {readonly MethodCase[]} */
+const charCodeAtCases = [
+    { name: 'first', args: ['abc', 0], expected: 97 },
+    { name: 'noArgument', args: ['abc'], expected: 97 },
+    { name: 'negative', args: ['abc', -1], expected: NaN },
+    { name: 'pastTheEnd', args: ['abc', 3], expected: NaN },
+    { name: 'highSurrogate', args: ['\u{1F600}', 0], expected: 0xD83D },
+    { name: 'lowSurrogate', args: ['\u{1F600}', 1], expected: 0xDE00 },
+    { name: 'bigint', args: ['abc', 0n], expected: throws },
+]
+
+/**
+ * `String.prototype.codePointAt`: the code point of a surrogate pair
+ * starting at the position, else the code unit, or `undefined`.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const codePointAtCases = [
+    { name: 'ascii', args: ['abc', 1], expected: 98 },
+    { name: 'pair', args: ['\u{1F600}', 0], expected: 0x1F600 },
+    { name: 'lowHalf', args: ['\u{1F600}', 1], expected: 0xDE00 },
+    { name: 'loneHigh', args: ['\uD83Da', 0], expected: 0xD83D },
+    { name: 'pastTheEnd', args: ['abc', 3], expected: undefined },
+    { name: 'negative', args: ['abc', -1], expected: undefined },
+    { name: 'noArgument', args: ['\u{1F600}'], expected: 0x1F600 },
+    { name: 'bigint', args: ['abc', 0n], expected: throws },
+]
+
+/** `String.prototype.isWellFormed`: no surrogate is unpaired. @type {readonly MethodCase[]} */
+const isWellFormedCases = [
+    { name: 'ascii', args: ['abc'], expected: true },
+    { name: 'pair', args: ['a\u{1F600}b'], expected: true },
+    { name: 'loneHigh', args: ['a\uD83D'], expected: false },
+    { name: 'loneLow', args: ['\uDE00a'], expected: false },
+    { name: 'reversedPair', args: ['\uDE00\uD83D'], expected: false },
+    { name: 'empty', args: [''], expected: true },
+]
+
+/** `String.prototype.toWellFormed`: each unpaired surrogate replaced by U+FFFD. @type {readonly MethodCase[]} */
+const toWellFormedCases = [
+    { name: 'ascii', args: ['abc'], expected: 'abc' },
+    { name: 'pair', args: ['a\u{1F600}b'], expected: 'a\u{1F600}b' },
+    { name: 'lone', args: ['a\uD800b\uDC00'], expected: 'a\uFFFDb\uFFFD' },
+    { name: 'reversedPair', args: ['\uDE00\uD83D'], expected: '\uFFFD\uFFFD' },
+    { name: 'empty', args: [''], expected: '' },
+]
+
+/**
  * `toString()` on every type but a function, whose text is the
  * rendering `nanvm-lib/todo/member-functions.md` tracks (see
  * {@link FunctionValue}). A radix on a number or a bigint is refused by
@@ -2107,6 +2183,11 @@ export const data = {
         { method: 'flat', cases: flatCases },
         { method: 'flatMap', cases: flatMapCases },
         { method: 'toSorted', cases: toSortedCases },
+        { method: 'charAt', cases: charAtCases },
+        { method: 'charCodeAt', cases: charCodeAtCases },
+        { method: 'codePointAt', cases: codePointAtCases },
+        { method: 'isWellFormed', cases: isWellFormedCases },
+        { method: 'toWellFormed', cases: toWellFormedCases },
         { method: 'toString', cases: toStringCases },
     ],
 }

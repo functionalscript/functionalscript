@@ -192,15 +192,15 @@ presence decides an answer, are
 `String` — the contracts, what is out by design, and the landing order are
 [string-member-functions](./string-member-functions.md):
 
-- [ ] `at`
-- [ ] `charAt`
-- [ ] `charCodeAt`
-- [ ] `codePointAt`
+- [x] `at` — `vm/string/reads.rs`
+- [x] `charAt` — `vm/string/reads.rs`
+- [x] `charCodeAt` — `vm/string/reads.rs`
+- [x] `codePointAt` — `vm/string/reads.rs`
 - [ ] `concat`
 - [ ] `endsWith`
 - [ ] `includes`
 - [ ] `indexOf`
-- [ ] `isWellFormed`
+- [x] `isWellFormed` — `vm/string/reads.rs`
 - [ ] `lastIndexOf`
 - [ ] `padEnd`
 - [ ] `padStart`
@@ -212,7 +212,7 @@ presence decides an answer, are
 - [ ] `startsWith`
 - [ ] `substring`
 - [x] `toString`
-- [ ] `toWellFormed`
+- [x] `toWellFormed` — `vm/string/reads.rs`
 - [ ] `trim`
 - [ ] `trimEnd`
 - [ ] `trimStart`
