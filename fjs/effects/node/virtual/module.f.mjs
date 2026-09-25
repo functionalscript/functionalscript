@@ -5,6 +5,7 @@
  *
  * @import { Vec } from '../../../types/bit_vec/types.ts'
  * @import { PartialMemOperationMap, RunInstance } from '../../mock/types.ts'
+ * @import { MemoryState } from '../../memory/types.ts'
  * @import { Dirent, FileStat, IoError, IoResult, Module, NodeOp, NodeProgramOptions, OpResult, RequestListener, SandboxResult, Server } from '../types.ts'
  * @import { Operation } from '../../types.ts'
  * @import { Result } from '../../../types/result/types.ts'
@@ -23,7 +24,7 @@ import {
     notAFileMessage,
 } from '../module.f.mjs'
 import { partialRun } from '../../mock/module.f.mjs'
-import { asBase, asNominal } from '../../memory/module.f.mjs'
+import { memoryInitial, memoryOperationMap } from '../../memory/module.f.mjs'
 import { asBase as asBaseServer, asNominal as asNominalServer } from '../../../types/nominal/module.f.mjs'
 
 /** @type {State} */
@@ -34,8 +35,7 @@ export const emptyState = {
     root: {},
     internet: {},
     epochNs: 0,
-    memoryNext: 0,
-    memoryValues: {},
+    memory: memoryInitial,
     randomNext: 0,
     listening: [],
     requests: [],
@@ -825,6 +825,18 @@ const listen = (server, port, host) => state => {
     return [s, okVoid]
 }
 
+/**
+ * Runs a handler of `../../memory`'s interpreter on the memory field of the
+ * state, so this runner answers the memory operations exactly as that one
+ * does — the same keys, and the same panic on a key it never handed out.
+ *
+ * @type {<R>(f: (memory: MemoryState) => readonly[MemoryState, R]) => (state: State) => readonly[State, R]}
+ */
+const onMemory = f => state => {
+    const [memory, result] = f(state.memory)
+    return [{ ...state, memory }, result]
+}
+
 /** @type {PartialMemOperationMap<NodeOp, State>} */
 const map = {
     all: (...a) => state => {
@@ -840,35 +852,9 @@ const map = {
         }
         return [state, ok(e)]
     },
-    memCreate: value => state => {
-        const id = `mem${state.memoryNext}`
-        const key = asNominal(id)
-        return [{
-            ...state,
-            memoryNext: state.memoryNext + 1,
-            memoryValues: { ...state.memoryValues, [id]: value },
-        }, ok(key)]
-    },
-    // A key `memCreate` never handed out is a caller bug, so both operations
-    // panic on one with the sentence the real interpreter already uses
-    // (`../memory/module.mjs`). Answering a read `ok(undefined)` instead made
-    // this runner disagree with the one it stands in for, and turned the bug
-    // into whatever the value's first reader did with `undefined` — a
-    // `TypeError` naming that reader's field, not the key or the missing slot.
-    // Presence is the test, not the value: `memCreate(undefined)` is legal.
-    memRead: key => state => {
-        const id = asBase(key)
-        assert(hasOwn(state.memoryValues, id), `memory key not found: ${id}`)
-        return [state, ok(state.memoryValues[id])]
-    },
-    memWrite: (key, value) => state => {
-        const id = asBase(key)
-        assert(hasOwn(state.memoryValues, id), `memory key not found: ${id}`)
-        return [{
-            ...state,
-            memoryValues: { ...state.memoryValues, [id]: value },
-        }, okVoid]
-    },
+    memCreate: value => onMemory(memoryOperationMap.memCreate(value)),
+    memRead: key => onMemory(memoryOperationMap.memRead(key)),
+    memWrite: (key, value) => onMemory(memoryOperationMap.memWrite(key, value)),
     fetch: url => state => {
         const result = state.internet[url]
         return result === undefined ? [state, fail('not found')] : [state, ok(result)]

@@ -904,7 +904,7 @@ export const proof = {
             const [state, result] = virtual(emptyState)(e)
             assert(result[0] === 'ok', result)
             assertEq(result[1], 42)
-            assertEq(state.memoryValues.mem0, 42, state)
+            assertEq(state.memory.values.mem0, 42, state)
         },
         // What makes presence the test rather than the value: a slot holding
         // `undefined` was allocated, and reading one is not the failure below.
