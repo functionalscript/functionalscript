@@ -46,4 +46,3 @@ drift-checked nor built.
 
 - [mvp-roadmap](../../nanvm-lib/todo/mvp-roadmap.md) — the plan the harness
   is the walking skeleton of
-- [select-module-export](./select-module-export.md) — this crate's open work
