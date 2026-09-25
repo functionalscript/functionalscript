@@ -394,6 +394,12 @@ export type Open = readonly['open', (path: string) => IoResult<Handle>]
  * promise about a file a later read has not reached yet; this one is the size of
  * the file the reads will come from, because they come from this handle.
  *
+ * It is still only what the host says. A procfs file is a regular file of nought
+ * bytes that yields thousands when read, so a reader that bounds itself by this
+ * size reads nothing of one — which {@link ReadWhole} avoids by reading to the end
+ * instead, and pays for with the whole file in memory. Neither answer is wrong;
+ * they are the two ends of the same trade.
+ *
  * A handle that has been closed is `EBADF`, measured on Darwin with Node 26.8.1.
  */
 export type Fstat = readonly['fstat', (handle: Handle) => IoResult<FileStat>]

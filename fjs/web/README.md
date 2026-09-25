@@ -279,6 +279,14 @@ list read through `readWhole`, which lifted the cap and left the whole file in
 memory. It remains what a caller who wants a file's bytes in hand should use, and
 `fjs/git` does.
 
+**A file whose size is a lie is served as its size**, which is the one thing the
+two routes answer differently. A procfs file is a regular file of nought bytes that
+yields thousands when read; `readWhole` read it to the end, and this reads it to the
+declared length, so such a file is served as `200` with no body. The answer stays
+self-consistent — the header and the bytes agree — and a served tree of ordinary
+files never meets the case, but pointing this server at `/proc` no longer shows
+their contents.
+
 The **request** side still has the cap — see "Request bodies" below — which is
 stage 2 of
 [streaming-http-bodies](../effects/node/todo/streaming-http-bodies.md).
