@@ -156,7 +156,7 @@ the `10²¹` boundary, both ends of every range, and a bigint argument.
       `toWellFormed`.
 - [x] **Search.** `includes`, `indexOf`, `lastIndexOf`, `startsWith`,
       `endsWith`.
-- [ ] **Building.** `slice`, `substring`, `concat`, `repeat`, `padStart`,
+- [x] **Building.** `slice`, `substring`, `concat`, `repeat`, `padStart`,
       `padEnd`, `trim`, `trimStart`, `trimEnd`, with the length limit.
 - [ ] **Patterns.** `replace`, `replaceAll`, `split`, with `GetSubstitution`.
 - [ ] **`Number`.** `toString` with a radix on a number and a bigint,

@@ -27,4 +27,11 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("nullish", Any::dot(Array::default().to_any(), string_any("concat")).end_call(|| Ok([Nullish::Null.to_any(), Nullish::Undefined.to_any()].to_array().to_any())), [Nullish::Null.to_any(), Nullish::Undefined.to_any()].to_array().to_any());
     check::<A>("string", Any::dot(Array::default().to_any(), string_any("concat")).end_call(|| Ok([string_any("ab")].to_array().to_any())), [string_any("ab")].to_array().to_any());
     check::<A>("empty", Any::dot(Array::default().to_any(), string_any("concat")).end_call(|| Ok(Array::default().to_any())), Array::default().to_any());
+    check::<A>("stringValues", Any::dot(string_any("a"), string_any("concat")).end_call(|| {
+        let c0: Any<A> = [f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any();
+        Ok([f64_any(0x3ff0000000000000), Nullish::Null.to_any(), c0, Nullish::Undefined.to_any()].to_array().to_any())
+    }), string_any("a1null2,3undefined"));
+    check::<A>("stringNoArgument", Any::dot(string_any("a"), string_any("concat")).end_call(|| Ok(Array::default().to_any())), string_any("a"));
+    check::<A>("stringObject", Any::dot(string_any(""), string_any("concat")).end_call(|| Ok([Object::default().to_any()].to_array().to_any())), string_any("[object Object]"));
+    check::<A>("stringBigint", Any::dot(string_any("a"), string_any("concat")).end_call(|| Ok([bigint_any(1)].to_array().to_any())), string_any("a1"));
 }
