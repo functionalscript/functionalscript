@@ -192,8 +192,8 @@ Migrate existing zero-arity `['args']` reads to `['rest']` in their owning
 scope. Do not accept old positive-arity/full-arguments sketches as equivalent
 to the new format. The AOT backend initializes its native function metadata
 for every length the language admits, 0–16 — the JavaScript factory table's
-range too, since both follow the language's limit — and does not need a
-`withLength` pattern for arity.
+range too, since both follow the language's limit — and does not need the
+retired [`withLength` pattern](https://github.com/functionalscript/functionalscript/blob/245649cdeeb0fb6318004ee273121143273262db/spec/todo/arity-complete-arguments.md#candidate-mechanism-the-withlength-pattern) for arity.
 
 #### Local variables and temporaries
 

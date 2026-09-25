@@ -375,8 +375,9 @@ the FJS VM still uses its native representation under the existing exception.
 
 Specify and prove that mechanism before exposing the new materialization path.
 This TODO neither supplies that mechanism nor grants property mutation or a
-new pattern instruction. The `withLength` pattern may still be unnecessary
-for arity, but that conclusion alone does not discharge default rendering.
+new pattern instruction. The [`withLength` pattern](https://github.com/functionalscript/functionalscript/blob/245649cdeeb0fb6318004ee273121143273262db/spec/todo/arity-complete-arguments.md#candidate-mechanism-the-withlength-pattern) is retired and
+was never needed for arity, but that alone does not discharge default
+rendering.
 
 Only genuinely open choices remain with the serialization TODO: whether
 `String(f)` shares the callable serializer's contract, whether it includes
