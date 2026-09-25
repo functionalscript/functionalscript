@@ -23,8 +23,8 @@ it.
 > has no scoping, evaluation order, or error messages of its own, and it makes
 > recognition one token rather than a parse. Reconciling the text below with
 > that rule is stage 2 of the epic — including the two consequences it has:
-> [expression](./3410-expression.md) is no longer a dependency of the
-> annotation body, and whether a dotted `ns.myType`
+> an expression parser is no longer a dependency of the annotation body, and
+> whether a dotted `ns.myType`
 > ([namespace-import](./2220-namespace-import.md)) counts as a name is open.
 
 **Evaluating and checking an annotation** depends on the compiler being able to
