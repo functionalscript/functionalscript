@@ -353,6 +353,17 @@ export const proof = {
             // a single-`Vec` body says nothing about the cap this lifts.
             assert(r.body.length > 1, r.body.length)
         },
+        // A file with no bytes is a file, and a chunk list with no chunks is
+        // what one open answers for it: `200` with a length of nought, not the
+        // `404` an absent name gets. Reachable now that the body is a list —
+        // one `Vec` was always at least the empty one.
+        empty: () => {
+            const r = answer({ 'blank.css': [] })('GET', '/blank.css')
+            assertEq(r.status, 200)
+            assertEq(contentLength(r), '0')
+            assertEq(r.body.length, 0)
+            assertEq(contentType(r), 'text/css; charset=utf-8')
+        },
         // A `HEAD` is answered exactly like a `GET` here too, chunks included —
         // the client learns the size it asked for, and dropping the bytes is
         // the host's job (`../effects/node/proof.mjs`).
