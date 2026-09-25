@@ -42,7 +42,7 @@ text
   -> unresolved(module).edag  (../edag)
   -> _defaultExport           (../edag)
   -> analysis                 (../../edag/analysis)
-  -> memo                     (../../edag/memo)
+  -> memo under catch_        (../../edag/memo, ../../effects/common)
   -> JSON                     (_tryJson in ../module.f.mjs)
   -> log                      (../../effects/common)
 ```
@@ -53,7 +53,18 @@ lowered with its parameter nodes left unbound, and it is not treated as if
 the import were missing
 ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
 Because nothing is read from disk, the command needs no `ReadFile` or
-`ResolveFileModule`. Its only effects are writing to `stdout` and `stderr`.
+`ResolveFileModule`. Its effects are `catch` (below) and writing to `stdout`
+and `stderr`.
+
+**A module that parses can still fail when it runs.** `export default null.x;`
+parses and lowers, and then `memo` throws the host's `TypeError`. A call that
+recurses without end overflows the stack the same way. A plain `.f.mjs`
+function cannot turn that throw into a result, so `memo` runs as a thunk under
+`catch_` from [`fjs/effects/common`](../../effects/common/module.f.mjs). That
+is the host boundary `fjs/emergent_testing` already uses for user code. It
+returns `ok(value)` or `error(thrown)`, and the error becomes the command's
+diagnostic. Bounding time and memory is not this command's job. That work is
+[`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resources.md).
 
 A value JSON cannot spell is refused rather than approximated. This covers
 `undefined`, a bigint, `NaN`, the two infinities and a function. The command
@@ -62,9 +73,19 @@ agree on what JSON means. Reuse `_tryJson` for this, exporting it properly if
 needed, instead of copying it. A module with no `default` export evaluates to
 `undefined` and is refused for the same reason.
 
+**`_tryJson` does not refuse a function today.** A function falls through to
+`jsonLeaf`'s default branch and is written as `null`, so
+`export default x => x;` would print `null`. `fjs compile` never reaches that
+branch, because its value route refuses a function before any JSON is written
+(`a function has no value`). `eval` does reach it, because `memo` returns the
+function. So `jsonLeaf` gets a `'function'` case that refuses it
+(`no JSON spelling for a function`), and the default branch is left with `null`
+alone. This is one fix shared by both commands, not a separate check in
+`eval`.
+
 Errors exit `1` with the message on `stderr`, like every other command. That
-covers a missing argument, a parse error, an import, and a value JSON cannot
-spell. A parse error needs a name for its location because there is no file.
+covers a missing argument, a parse error, an import, a throw during
+evaluation, and a value JSON cannot spell. A parse error needs a name for its location because there is no file.
 Use a fixed pseudo-path such as `<eval>`, so the message reads
 `<eval>:line:column - error: …`.
 
@@ -85,14 +106,17 @@ Use a fixed pseudo-path such as `<eval>`, so the message reads
 ### Tasks
 
 - [ ] Add the text-to-value function to `fsc`: parse, refuse imports, lower,
-      select the default, analyse, and run `memo`. Prove it in `fsc`'s
-      `proof.f.mjs` with 100% coverage.
+      select the default, analyse, and run `memo` under `catch_`. Prove it in
+      `fsc`'s `proof.f.mjs` with 100% coverage.
+- [ ] Add a `'function'` case to `jsonLeaf` that refuses a function, and prove
+      it through `_tryJson`.
 - [ ] Add the JSON step and its refusals, reusing `_tryJson`.
 - [ ] Register `eval` / `e` in [`fjs/module.f.mjs`](../../module.f.mjs).
 - [ ] Prove the cases: `export default 2 + 2;` prints `4`; an object and an
       array print as JSON; a module with an import is refused; a parse error is
-      reported at `<eval>:line:column`; `undefined`, a bigint and a function
-      are refused; a missing argument exits `1`.
+      reported at `<eval>:line:column`; `export default null.x;` exits `1`
+      with a diagnostic rather than a stack trace; `undefined`, a bigint and
+      `export default x => x;` are refused; a missing argument exits `1`.
 - [ ] Document the command in the CLI help text and in [`../README.md`](../README.md).
 
 ### Related
