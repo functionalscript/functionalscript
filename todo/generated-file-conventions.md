@@ -168,9 +168,12 @@ Deleting all `gen.*` paths and regenerating fails today, for these reasons:
    path. **Done** by #2294: the table is handwritten in
    [`fjs/types/function/length`](../fjs/types/function/length/module.f.mjs)
    and its generator is gone.
-2. **`fjs compile` does not create its output directory.** Writing into a
-   deleted `gen.fixtures/` fails with `ENOENT`. **Decided:** it creates the
-   directory, as the other generators already do.
+2. **`fjs compile` does not create its output directory.** Compiling into a
+   directory that does not exist fails with `ENOENT`. The cleanup leaves
+   `gen.fixtures/` in place, emptied, so the drift check itself never meets
+   this; a new `gen.*` output directory, or one removed by hand, does.
+   **Decided:** it creates the directory, as the other generators already do,
+   so every generated directory is reproducible from nothing.
 3. **Two tracked fixtures have no generator.**
    `nanvm-harness/fixtures/function.rs` and `rest-function.rs` are not written
    by `npm run gen` and are not built. **Decided:** wire them into `gen` and
