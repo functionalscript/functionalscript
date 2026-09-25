@@ -7,8 +7,7 @@
 
 Generated files are mixed with handwritten sources, and their names do not
 distinguish them. Most are not marked anywhere: `git check-attr` reports
-`linguist-generated` unspecified for `fjs/edag/callable/table.f.mjs`,
-`spec/datajs/vectors/matrix.md`, `nix/flake.nix`, `nix/run`, and both workflow
+`linguist-generated` unspecified for `spec/datajs/vectors/matrix.md`, `nix/flake.nix`, `nix/run`, and both workflow
 files. Only `nanvm-lib/tests/test/generated.rs` and
 `nanvm-harness/fixtures/*.rs` are marked in `.gitattributes`.
 
@@ -190,7 +189,7 @@ removes the old path's `.gitattributes` line.
 
 One pull request each, stacked in this order:
 
-- [ ] Hand-write the callable table and delete its generator (blocker 1).
+- [x] Hand-write the callable table and delete its generator (blocker 1).
 - [ ] Add the two `.gitattributes` lines and the fixed-path exceptions,
       document the rule in AGENTS.md and CONTRIBUTING.md, and rename
       `matrix.md` and `generated.rs`.

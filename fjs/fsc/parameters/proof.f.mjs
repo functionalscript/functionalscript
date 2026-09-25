@@ -5,7 +5,6 @@ import { analysis, bindingError } from '../../edag/analysis/module.f.mjs'
 import { vm } from '../../edag/amnesia/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { factories } from '../../edag/callable/table.f.mjs'
-import { generate } from '../../edag/callable/generate/module.f.mjs'
 import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
@@ -82,8 +81,13 @@ export const proof = {
             assert(a[1] === b[1] && a[3] !== b[3] && a[1] !== c[1])
         }
     },
-    generatedTable: () => {
-        const table = unresolved(unwrap(parse('table.f.mjs')(generate(32)))).edag
+    factoryTable: () => {
+        // The shape of `edag/callable/table.f.mjs`, one factory per length.
+        const source = `export const factories = [${factories.map((_, length) => {
+            const fixed = Array.from({ length }, (_, i) => `a${i}`)
+            return `g => (${[...fixed, '...rest'].join(', ')}) => g([${fixed.join(', ')}], rest),`
+        }).join('')}];`
+        const table = unresolved(unwrap(parse('table.f.mjs')(source))).edag
         for (const run of evaluators) {
             const { factories: compiled } = run(table)
             for (const [length, factory] of compiled.entries()) {

@@ -1,11 +1,11 @@
 # EDAG callables
 
-`callable(length, body)` selects a pre-generated arrow factory. The callback
+`callable(length, body)` selects a prewritten arrow factory. The callback
 receives `(fixed, rest)`. Missing fixed values are `undefined`; the tail begins
 at `length`. Each returned arrow has that native `.length` without mutation,
 `eval`, `Function`, dynamic imports or host helpers.
 
-`npm run gen` regenerates `table.f.mjs` with lengths **0 through 32**, inclusive.
+`table.f.mjs` is written by hand, with lengths **0 through 32**, inclusive.
 This is the current JavaScript executor capacity, not a language or EDAG limit.
 An uncovered length fails through the executor's assertion contract when it
 materializes the function. Compilation and source writing do not consult the

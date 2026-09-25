@@ -310,9 +310,9 @@ passing `(fixed, rest)` avoids reconstructing that intermediate list.
 
 Each factory has a statically spelled parameter list, but table selection can
 use the length read dynamically from an EDAG. This does not require making
-`length` an expression operand of `=>`. Generate source at build time, never
-through runtime `eval`, `Function`, dynamic import or property mutation.
-The pipeline proof compiles this generated table through `fjs compile`'s
+`length` an expression operand of `=>`. The table is written as source, never
+built through runtime `eval`, `Function`, dynamic import or property mutation.
+The pipeline proof compiles the table's shape through `fjs compile`'s
 parser and lowering, and executes it under both JavaScript evaluators.
 
 Share the table through the EDAG operations used by Amnesia and the memo
@@ -405,7 +405,7 @@ a source/EDAG output path must not invoke that evaluator merely to reject a
 larger arity. Report resource refusal through the existing failure contract,
 without adding a source-visible exception type or changing argument values.
 The table does not limit supplied argument count or rest-array length. Native
-backends may have different capacities; enlarging the generated table does
+backends may have different capacities; enlarging the table does
 not change the language or the meaning or encoding of an existing EDAG.
 
 For example, with a test table ending at length `2`,

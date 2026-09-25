@@ -11,13 +11,13 @@ function's `length` comes only from a written parameter list:
 FunctionalScript has no `defineProperty`, `eval` or `Function` to set it
 otherwise. Two things about where it lives are wrong.
 
-**It is generated, and nothing needs it to be.** `generate` in
-[`./generate`](../generate/module.f.mjs) writes the table, `npm run gen`
-runs it first, and its proof checks the file matches. That is a module, a
-proof and a build step for a table of short lines that never changes on its
-own: its capacity is a constant, and
+**It used to be generated, and nothing needed it to be.** A generator
+module, its proof and an `npm run gen` step existed for a table of short lines
+that never changes on its own: its capacity is a constant, and
 [function-length-limit](../../../../spec/todo/function-length-limit.md) proposes
-fixing that constant in the language.
+fixing that constant in the language. The table is now written by hand —
+[generated-file-conventions](../../../../todo/generated-file-conventions.md)
+needs the CLI, which imports it, to run with every generated file deleted.
 
 **It is not about the EDAG.** A factory takes a `(fixed, rest) => …` body
 and answers an arrow with the given `length`. Nothing in it reads a node,
@@ -51,10 +51,10 @@ public API and the owner's call.
 - [ ] Move the table, `callable`, `isIndex` and the types, with the table
       written by hand and the proofs moved alongside; `fjs/edag/operations`
       and `fjs/edag/analysis` import them from there.
-- [ ] Delete `fjs/edag/callable/generate` and its step in `npm run gen`.
-- [ ] `fjs/fsc/parameters`' `generatedTable` proof compiles the generator's
-      text today; it compiles the hand-written table's text instead, or is
-      replaced by a proof that needs no text.
+- [x] Delete `fjs/edag/callable/generate` and its step in `npm run gen`.
+- [x] `fjs/fsc/parameters`' `generatedTable` proof compiled the generator's
+      text; its `factoryTable` proof now compiles the same shape, built from
+      the table's length.
 - [ ] Update the prose that points here: [`fjs/edag/README.md`](../../README.md),
       [`../README.md`](../README.md) (moved with the code),
       [3120](../../../../spec/todo/3120-parameters.md) and

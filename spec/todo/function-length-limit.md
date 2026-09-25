@@ -63,7 +63,7 @@ valid JavaScript and not FunctionalScript. The subset still holds — every
 FunctionalScript program stays a JavaScript program — but a port of such code
 has to regroup its parameters. It is a breaking change for any EDAG or source
 that uses more than 16. In this repository the one such source is the factory
-table itself, which `fjs/fsc/parameters`' `generatedTable` proof compiles, and
+table itself, which `fjs/fsc/parameters`' `factoryTable` proof compiles, and
 it shrinks to the limit with the rest of this change.
 
 **Where it is refused.** Over-limit length is a binding error: analysis's

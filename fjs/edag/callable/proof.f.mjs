@@ -9,6 +9,7 @@ const pair = (fixed, rest) => [fixed, rest]
 
 export const proof = {
     metadata: () => {
+        assertEq(factories.length, 33)
         for (const n of [0, 1, 32, 1000]) { assert(isIndex(n)) }
         for (const n of [-0, -1, 0.5, NaN, Infinity, -Infinity]) { assert(!isIndex(n)) }
     },
