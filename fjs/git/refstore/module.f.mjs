@@ -222,7 +222,7 @@ import { fromCodePointList, fromVec } from '../../text/utf8/module.f.mjs'
 import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { length, maxLengthBytes, u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
-import { hexText } from '../oid/module.f.mjs'
+import { hexText, isOidOf } from '../oid/module.f.mjs'
 import { tryPacked, tryRef } from '../ref/module.f.mjs'
 import { hasRefComponents, isWholeName, lockSuffix, sameBytes } from '../refname/module.f.mjs'
 
@@ -2070,57 +2070,60 @@ const collided = (packed, name, dense) => {
  *
  * @type {(dirs: Dirs, oidBytes: OidBytes) => (name: Bytes) => (id: Oid) => Effect<ReadWhole | Stat | Mkdir | WriteExclusive | Rename | Rm, void, IoChannel>}
  */
-export const tryWrite = (dirs, oidBytes) => name => id => {
-    const dense = byteArray(name)
-    if (!isWholeName(dense)) {
-        return pureError(ioError({ code: badNameCode, message: badNameMessage(nameForMessage(name)) }))
+export const tryWrite = (dirs, oidBytes) => {
+    const isOid = isOidOf(oidBytes)
+    return name => id => {
+        const dense = byteArray(name)
+        if (!isWholeName(dense)) {
+            return pureError(ioError({ code: badNameCode, message: badNameMessage(nameForMessage(name)) }))
+        }
+        const text = nameText(dense)
+        if (text === null) {
+            return pureError(ioError({ code: unspellableNameCode, message: unspellableNameMessage(name) }))
+        }
+        if (!text.startsWith(refsPrefix)) {
+            return pureError(ioError({ code: outsideRefsCode, message: outsideRefsMessage(text) }))
+        }
+        // Before `hexText`, which asserts on a `Vec` that is not whole bytes: an id
+        // of the wrong width is a caller's error to be told about, not a panic.
+        if (!isOid(id)) {
+            return pureError(ioError({ code: idWidthCode, message: idWidthMessage(oidBytes, id) }))
+        }
+        if (zeroId(id)) {
+            return pureError(ioError({ code: zeroIdCode, message: zeroIdWriteMessage(name) }))
+        }
+        // The directory the name's file belongs in, which is one of the two and not
+        // both: a per-worktree name is the worktree's own, the same rule the two
+        // readers follow. See {@link dirOf}.
+        const dir = dirOf(dirs, text)
+        const path = under(dir, text)
+        const lock = `${path}${lockSuffix}`
+        // Five effects, one link each and all at one level, so the order they run
+        // in is the order they are written. The cleanup is not a sixth link but a
+        // wrapper around the last one, for the reason {@link unlocked} gives.
+        //
+        // The read comes first and is the only one that reads: a name barred by a
+        // packed line must not reach the `mkdir`, because the directory the `mkdir`
+        // makes *is* one half of the collision — there is no loose file for the
+        // filesystem to refuse. See {@link refPrefixCode}.
+        const read = tryPackedRefs(dirs, oidBytes)
+        const checked = step(read, packed => packed === null
+            ? pureError(ioError({ code: badPackedCode, message: badPackedMessage(dirs) }))
+            : collided(packed, name, dense))
+        // A directory at the ref's own path, which the `rename` would refuse — unless
+        // it is a *symlink* to one, which the `rename` silently replaces. One `stat`
+        // covers both, and it is before the lock so a refusal leaves nothing behind.
+        // See {@link refPrefixCode}.
+        const kind = step(checked, () => isDirectoryAt(path))
+        const clear = step(kind, there => there
+            ? pureError(ioError({ code: refPrefixCode, message: refIsDirectoryMessage(name) }))
+            : pureOk(/** @type {void} */ (undefined)))
+        const made = step(clear, () => mkdir(parentOf(dir, text), { recursive: true }))
+        // The cleanup starts *after* the exclusive write and covers the rename alone:
+        // that write succeeding is the only evidence the lock is this writer's, and
+        // no failure — of it or of anything above it — is evidence of the same. See
+        // {@link unlocked}.
+        const filled = step(made, () => writeExclusiveUtf8File(lock, `${hexText(id)}\n`))
+        return step(filled, () => unlocked(lock, rename(lock, path)))
     }
-    const text = nameText(dense)
-    if (text === null) {
-        return pureError(ioError({ code: unspellableNameCode, message: unspellableNameMessage(name) }))
-    }
-    if (!text.startsWith(refsPrefix)) {
-        return pureError(ioError({ code: outsideRefsCode, message: outsideRefsMessage(text) }))
-    }
-    // Before `hexText`, which asserts on a `Vec` that is not whole bytes: an id
-    // of the wrong width is a caller's error to be told about, not a panic.
-    if (length(id) !== BigInt(oidBytes) * 8n) {
-        return pureError(ioError({ code: idWidthCode, message: idWidthMessage(oidBytes, id) }))
-    }
-    if (zeroId(id)) {
-        return pureError(ioError({ code: zeroIdCode, message: zeroIdWriteMessage(name) }))
-    }
-    // The directory the name's file belongs in, which is one of the two and not
-    // both: a per-worktree name is the worktree's own, the same rule the two
-    // readers follow. See {@link dirOf}.
-    const dir = dirOf(dirs, text)
-    const path = under(dir, text)
-    const lock = `${path}${lockSuffix}`
-    // Five effects, one link each and all at one level, so the order they run
-    // in is the order they are written. The cleanup is not a sixth link but a
-    // wrapper around the last one, for the reason {@link unlocked} gives.
-    //
-    // The read comes first and is the only one that reads: a name barred by a
-    // packed line must not reach the `mkdir`, because the directory the `mkdir`
-    // makes *is* one half of the collision — there is no loose file for the
-    // filesystem to refuse. See {@link refPrefixCode}.
-    const read = tryPackedRefs(dirs, oidBytes)
-    const checked = step(read, packed => packed === null
-        ? pureError(ioError({ code: badPackedCode, message: badPackedMessage(dirs) }))
-        : collided(packed, name, dense))
-    // A directory at the ref's own path, which the `rename` would refuse — unless
-    // it is a *symlink* to one, which the `rename` silently replaces. One `stat`
-    // covers both, and it is before the lock so a refusal leaves nothing behind.
-    // See {@link refPrefixCode}.
-    const kind = step(checked, () => isDirectoryAt(path))
-    const clear = step(kind, there => there
-        ? pureError(ioError({ code: refPrefixCode, message: refIsDirectoryMessage(name) }))
-        : pureOk(/** @type {void} */ (undefined)))
-    const made = step(clear, () => mkdir(parentOf(dir, text), { recursive: true }))
-    // The cleanup starts *after* the exclusive write and covers the rename alone:
-    // that write succeeding is the only evidence the lock is this writer's, and
-    // no failure — of it or of anything above it — is evidence of the same. See
-    // {@link unlocked}.
-    const filled = step(made, () => writeExclusiveUtf8File(lock, `${hexText(id)}\n`))
-    return step(filled, () => unlocked(lock, rename(lock, path)))
 }

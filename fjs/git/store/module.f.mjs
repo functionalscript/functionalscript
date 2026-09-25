@@ -67,11 +67,10 @@ import { assert } from '../../asserts/module.f.mjs'
 import { catchStep, ioError, mapStep, pureError, pureOk, resultStep, step, walkStep } from '../../effects/module.f.mjs'
 import { namesNothing, readUtf8File } from '../../effects/node/module.f.mjs'
 import { isDriveLetter, isDriveRoot, join, root, under } from '../../path/module.f.mjs'
-import { length } from '../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { tryOidBytes } from '../config/module.f.mjs'
 import { tryRead as readLoose } from '../loose/module.f.mjs'
-import { hexText, of } from '../oid/module.f.mjs'
+import { hexText, isOidOf, of } from '../oid/module.f.mjs'
 import { tryRead as readPacked } from '../packstore/module.f.mjs'
 
 /**
@@ -695,9 +694,9 @@ const kept = (found, o) => {
  */
 export const readIn = (ods, oidBytes) => {
     const idOf = of(oidBytes)
-    const bits = BigInt(oidBytes) * 8n
+    const isOid = isOidOf(oidBytes)
     return id => {
-        assert(length(id) === bits, ['not an id of the width', id])
+        assert(isOid(id), ['not an id of the width', id])
         const walked = walkStep(
             pureOk(ods),
             /** @type {Nullable<_Outcome>} */ (null),
@@ -731,12 +730,12 @@ export const readIn = (ods, oidBytes) => {
  */
 export const tryRead = (dir, oidBytes) => {
     const dirs = objectsDirs(dir)
-    const bits = BigInt(oidBytes) * 8n
+    const isOid = isOidOf(oidBytes)
     return id => {
         // Asked here as well as in `readIn`, because the effect below is not run
         // until it is stepped: a caller that hands over an id of the wrong width
         // has a bug now, not one command later.
-        assert(length(id) === bits, ['not an id of the width', id])
+        assert(isOid(id), ['not an id of the width', id])
         return step(dirs, ods => readIn(ods, oidBytes)(id))
     }
 }

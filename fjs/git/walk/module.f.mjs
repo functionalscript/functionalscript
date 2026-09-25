@@ -36,11 +36,11 @@
  */
 
 import { assert } from '../../asserts/module.f.mjs'
-import { length } from '../../types/bit_vec/module.f.mjs'
 import { foldStep, mapStep, pureOk, step, walkStep } from '../../effects/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { tryTreeAt } from '../commit/module.f.mjs'
+import { isOidOf } from '../oid/module.f.mjs'
 import { sameBytes } from '../refname/module.f.mjs'
 import { tryTargetAt } from '../tag/module.f.mjs'
 import { isSubtree, tryRead as readTree } from '../tree/module.f.mjs'
@@ -156,9 +156,9 @@ const peelStep = (read, targetAt, treeAt) => ({ id, want }) => state => {
  */
 export const peel = (read, oidBytes) => {
     const f = peelStep(read, tryTargetAt(oidBytes), tryTreeAt(oidBytes))
-    const bits = BigInt(oidBytes) * 8n
+    const isOid = isOidOf(oidBytes)
     return id => {
-        assert(length(id) === bits, ['not an id of the width', id])
+        assert(isOid(id), ['not an id of the width', id])
         return mapStep(walkStep(pureOk([{ id, want: null }]), noTarget, f), s => s.target)
     }
 }
