@@ -7,7 +7,12 @@
 
 The MVP ([mvp-roadmap](../nanvm-lib/todo/mvp-roadmap.md)) is reached when
 `fjs compile` can emit Rust code that calls the `nanvm-lib` API, and a
-harness crate builds and runs the generated code with cargo. This
+harness crate builds and runs the generated code with cargo. It is reached:
+the [named-module acceptance](#named-module-acceptance) example runs through
+the harness's `run`, in a `cargo test` that builds and runs the generated code
+with cargo. The open tasks below, `.f.js` package support and the repository
+migration, do not gate it: the walking skeleton needs no repository source
+migration ([below](#repository-compiler-compatibility-migration)). This
 integration does **not** need to wait for everything else: it can start as
 soon as a minimal subset works end-to-end (e.g. a module whose default
 export is a constant), before the operators, the full parser, and the rest
@@ -32,10 +37,11 @@ There is no pending convention for Rust imports between source dependencies.
 The embedding crate chooses where to include the generated file.
 
 [Named imports](../spec/README.md#importing-other-modules) now select named
-exports and aliases from dependency export objects. The remaining consumer gap
-is [harness export selection](../nanvm-harness/todo/select-module-export.md):
-`nanvm-harness::run` still selects `default` and serializes it without invoking
-a function. Neither feature requires named function parameters.
+exports and aliases from dependency export objects, and the consumer does the
+same: `nanvm-harness::run(module, export, action)` reads or calls one named
+export and renders that one result as JSON
+([`nanvm-harness/src/lib.rs`](../nanvm-harness/src/lib.rs)). Neither feature
+requires named function parameters.
 
 ### Named-module acceptance
 
@@ -53,10 +59,12 @@ export const main = () => sum(20, 22);
 ```
 
 The [named-imports fixture](../nanvm-harness/fixtures/named-imports.mjs)
-compiles this pattern to Rust. Its cargo test selects `main` through the VM API,
-invokes it with no arguments, and checks `42`, matching native JavaScript and
-both JavaScript EDAG evaluators. A general harness selection/call API and CLI
-remain the separate export-selection task. Source round trips cover the
+compiles this pattern to Rust. Its cargo test has the harness's `run` select
+`main` and call it with no arguments, and checks `42`, matching native
+JavaScript and both JavaScript EDAG evaluators (`namedImports.acceptance` in
+[`fjs/fsc/edag/proof.f.mjs`](../fjs/fsc/edag/proof.f.mjs), on its own copy of
+the sources). The harness has no CLI; its
+[`main`](../nanvm-harness/src/main.rs) says why. Source round trips cover the
 serializer's admitted expressions; calls and arithmetic are still refused by
 that serializer. `main` is the fixture's selected
 export, not a required language-level name. The rest-only helper keeps this
@@ -145,9 +153,12 @@ via the `Function` constructor — no rustc at the user's run time.
       properties from dependency export objects without discarding the object
       or requiring a default export.
 - [x] Prove the named-module compiler example in JavaScript, both EDAG
-      evaluators, and generated Rust using explicit VM selection/call operations.
-- [ ] Implement [harness export selection](../nanvm-harness/todo/select-module-export.md)
-      and expose the same selection/call behavior through the harness API/CLI.
+      evaluators, and generated Rust, the Rust first through explicit VM
+      selection/call operations and now through the harness's `run`.
+- [x] Implement harness export selection: `run(module, export, action)`
+      reads or calls one named export, and the named-module example runs
+      through it. The selection is exposed as the harness API only; a CLI
+      waits for a use ([`main.rs`](../nanvm-harness/src/main.rs)).
 - [x] Inline source dependencies into one generated Rust output.
       `rustText` in the [compiler](../fjs/fsc/module.f.mjs) resolves the complete
       graph before calling `toRust`; source imports do not become separate
