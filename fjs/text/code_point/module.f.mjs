@@ -3,7 +3,8 @@
  * error-tag mask used to flag invalid sequences, the streaming `decoder`
  * factory that wraps a per-unit step and an end-of-input step into a single
  * `List`-to-`List` conversion, the `eofFlush` factory that builds that
- * end-of-input step, the code-point classification predicates (BMP /
+ * end-of-input step, the `restart` factory that shares a per-unit step's
+ * fresh-state dispatch with its error recovery, the code-point classification predicates (BMP /
  * surrogate / supplementary-plane / overall validity) that both codecs share,
  * and the surrogate-pair arithmetic that inverts them.
  *
@@ -68,6 +69,27 @@ export const decoder = (
  */
 export const eofFlush = toError => state =>
     [state === null ? empty : [toError(state)], null]
+
+/**
+ * Builds a decoder's fresh-state dispatch with an emitted prefix, from the one
+ * function that differs between codecs.
+ *
+ * Every decoder dispatches a unit the same way twice: from the empty state,
+ * and in error recovery, where a refused pending state is flushed as an error
+ * unit and the unit that refused it is dispatched afresh. The two differ only
+ * in what is emitted ahead of the unit's own output — nothing, or the flushed
+ * error — so the codec writes its classifier once and both arms call it
+ * through here.
+ *
+ * @template Cp
+ * @template S
+ * @param {(unit: number) => readonly [readonly Cp[], S]} fresh - Dispatches a unit from the empty state.
+ * @returns {(prefix: readonly Cp[]) => (unit: number) => readonly [readonly Cp[], S]} The dispatch that emits `prefix` first.
+ */
+export const restart = fresh => prefix => unit => {
+    const [emit, state] = fresh(unit)
+    return [[...prefix, ...emit], state]
+}
 
 /**
  * Unicode code-point classification boundaries. The surrogate block
