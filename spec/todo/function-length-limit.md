@@ -1,7 +1,8 @@
 ## Limit a function's `length` to 16
 
 **Priority:** P2
-**Status:** open — proposal, awaiting the language designer's recorded approval
+**Status:** open — approved by the language designer, `sergey-shandar`
+(approval link pending; recorded on the pull request that adds this line)
 
 ### Problem
 
@@ -67,10 +68,10 @@ table itself, and it shrinks to the limit with the rest of this change.
 
 **Where it is refused.** Over-limit length is a binding error: analysis's
 `bindingError` names it, so every writer returns it as an error Result, as
-the Rust writer already does for its own bound. Open question: whether the
-malformed-metadata cases `isIndex` asserts today — negative, fractional,
-`-0` — move with it from a throw to the same error, or stay asserted as "no
-EDAG".
+the Rust writer already does for its own bound. The malformed-metadata cases
+`isIndex` asserts today — negative, fractional, `-0` — stay asserted: they are
+not EDAG at all, a different fault from a well-formed length the language
+refuses, and no compiler produces them (decided by the language designer).
 
 ### Tasks
 
@@ -133,17 +134,17 @@ EDAG".
       opposite: "no restrictions on `length`", a count "whatever JavaScript
       accepts", refused only as an executor's own limit. Its count is an
       expression evaluated when the function is built, so the limit cannot
-      be checked at compile time there. Open question, for the language
-      designer: retire 3130, or keep it with `withLength` refusing a count
-      above 16 at run time as the language's refusal rather than an
-      executor's.
+      be checked at compile time there. Decided by the language designer:
+      3130 is retired. The fixed/rest plan is what shipped, and 3130 is an
+      unimplemented alternative that contradicts the language; its file is
+      deleted, and git history keeps it.
 
 ### Related
 
 - [3120 — named and rest parameters](./3120-parameters.md) — the plan that
   left the length unbounded, and the factory table this shrinks.
 - [3130 — function length pattern](./3130-function-length-pattern.md) — the
-  alternative that leaves `length` unrestricted.
+  alternative that leaves `length` unrestricted, retired by this change.
 - [PR #2237 review](https://github.com/functionalscript/functionalscript/pull/2237#discussion_r4097887854)
   — the source writer's crash, first tracked as a writer-only issue and
   folded in here.
