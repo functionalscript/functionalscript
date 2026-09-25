@@ -167,14 +167,19 @@ Default-only modules are the existing fixtures. The mixed case is
 - [x] Propose explicit export selection and read/call modes, including how
       the harness receives the invocation's argument list: [API](#api).
 - [x] Make `Object::own_property` public in `nanvm-lib`, with its tests.
-- [ ] Implement `Action`, the new `run` and the two `RunError` variants; move
-      the existing tests and `src/main.rs` to `run(…, "default", Action::Read)`.
-- [ ] Add `fixtures/exports.mjs` to `npm run gen`, and cover
+- [x] Add `fixtures/exports.mjs` to `npm run gen`, and cover
       named-only, default-only and mixed modules ([proof](#proof)); absent versus
       `undefined` exports; callable exports with supplied arguments;
       non-callable invocation; module/call failures; and non-JSON results.
       Prove that exported functions are not called during module evaluation
       or value selection and that selecting one retains other exports.
+      Taken before `run` exists, so the cases go through the operations it
+      is made of: `Object::own_property`, `Function::try_from`,
+      `Function::call` and `to_json`.
+- [ ] Implement `Action`, the new `run` and the two `RunError` variants; move
+      the existing tests and `src/main.rs` to `run(…, "default", Action::Read)`,
+      and the export-selection cases above to `run` with the export and
+      action each names.
 - [ ] Run the implemented [MVP example](../../todo/fjs-nanvm-integration.md#named-module-acceptance)
       through the new harness API, selecting and calling `main` to obtain `42`.
       Today the fixture's cargo test checks `42` through the VM API, and
