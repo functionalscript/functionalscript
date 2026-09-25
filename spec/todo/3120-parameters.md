@@ -259,7 +259,8 @@ binding. No module-loading protocol or replacement import opcode is proposed.
 
 ### Instantiating functions from EDAG
 
-Generate factories for lengths `0` through an executor-specific limit `T`.
+Write factories by hand for lengths `0` through an executor-specific limit `T`
+([`fjs/types/function/length`](../../fjs/types/function/length/README.md)).
 This is a materialization resource limit, not a language or EDAG arity cap.
 The beginning of the table is:
 
@@ -302,10 +303,10 @@ passing `(fixed, rest)` avoids reconstructing that intermediate list.
 
 Each factory has a statically spelled parameter list, but table selection can
 use the length read dynamically from an EDAG. This does not require making
-`length` an expression operand of `=>`. Generate source at build time, never
-through runtime `eval`, `Function`, dynamic import or property mutation.
-The pipeline proof compiles this generated table through `fjs compile`'s
-parser and lowering, and executes it under both JavaScript evaluators.
+`length` an expression operand of `=>`. The table is checked-in source, never
+built through runtime `eval`, `Function`, dynamic import or property mutation.
+The pipeline proof compiles the table's first entries through `fjs compile`'s
+parser and lowering, and executes them under both JavaScript evaluators.
 
 Share the table through the EDAG operations used by Amnesia and the memo
 executor, rather than duplicating it per VM. Native backends may initialize

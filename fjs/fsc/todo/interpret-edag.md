@@ -73,8 +73,9 @@ captured value through `['frame']` in its own invocation. The schema permits a g
 frame expression, and the compiler uses `null` when no frame is needed. Fixed values
 and rest arrays captured by nested functions use the same frame mechanism.
 
-Pre-generated arrow factories adapt host calls to the evaluator's `(fixed, rest)`
-bindings, preserving declared JavaScript `length` without runtime code generation.
+Hand-written arrow factories ([`fjs/types/function/length`](../../types/function/length/README.md))
+adapt host calls to the evaluator's `(fixed, rest)` bindings, preserving declared
+JavaScript `length` without runtime code generation.
 The current table covers lengths 0–32 and refuses larger arities at materialization;
 that executor capacity does not limit valid EDAG metadata or source compilation.
 The parameter plan's default-function-text gate remains open: these callables still

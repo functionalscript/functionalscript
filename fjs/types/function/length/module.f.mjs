@@ -1,12 +1,13 @@
 /**
- * Materialize a fixed/rest callable with a statically declared parameter list.
- * The table supports lengths 0 through 32; this is an executor resource limit.
+ * Build a fixed/rest callable with a given `length` from a statically declared
+ * parameter list. The table supports lengths 0 through 32; this is an executor
+ * resource limit.
  *
  * @module
  * @import { Body, Callable } from './types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert } from '../../../asserts/module.f.mjs'
 import { factories } from './table.f.mjs'
 
 /** A canonical nonnegative integer, including positive zero only. @type {(n: number) => boolean} */
