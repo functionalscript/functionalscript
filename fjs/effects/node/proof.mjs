@@ -357,20 +357,24 @@ const counting = count => resultMapStep(catch_(() => { count.n += 1 }), () => ok
  * and a pump that read `res.write`'s answer and pulled anyway would have pulled
  * all of them.
  *
- * @type {(chunk: Uint8Array, count: number, pulls: _Counter) => List<NodeOp, Vec, IoChannel>}
+ * `chunk` is converted once, before the body exists: `toVec` of 128 KiB costs tens
+ * of milliseconds, and paying it per cell would make the pull count a measure of
+ * this machine rather than of the socket.
+ *
+ * @type {(chunk: Vec, count: number, pulls: _Counter) => List<NodeOp, Vec, IoChannel>}
  */
 const lazyBody = (chunk, count, pulls) => {
     /** @type {(i: number) => List<NodeOp, Vec, IoChannel>} */
     const cell = i => step(catch_(() => { pulls.n += 1 }), () =>
-        i === count ? listEnd() : nonEmpty(toVec(chunk), cell(i + 1)))
+        i === count ? listEnd() : nonEmpty(chunk, cell(i + 1)))
     return cell(0)
 }
 
 /** One `Vec`'s worth of bytes, the chunk every pump proof below writes. */
 const oneVec = Number(maxLengthBytes)
 
-/** @type {Uint8Array} */
-const vecChunk = new Uint8Array(oneVec).fill(7)
+/** @type {Vec} */
+const vecChunk = toVec(new Uint8Array(oneVec).fill(7))
 
 const expectedValue = [[42], [42], [42], [42]]
 const expectedSharing = [true, true, true]
@@ -797,9 +801,10 @@ export const proof = {
                         })
                         socket.pause()
                         socket.on('error', () => { })
-                        // Long enough for a pump that ignored `false` to have read
-                        // every cell: the same body written without pacing took
-                        // milliseconds.
+                        // Long enough for a pump that ignored `false` to be well
+                        // into a body it should not have touched, and short enough
+                        // that two runs of this fit inside the five seconds Bun's
+                        // test runner gives one proof.
                         setTimeout(async () => {
                             const taken = pulls.n
                             socket.destroy()
@@ -807,7 +812,7 @@ export const proof = {
                             // parked pull, which is the other half of this proof.
                             await reaches(releases, 1)
                             resolve([taken, releases.n])
-                        }, 900)
+                        }, 500)
                     })))
                 return held
             }
@@ -959,7 +964,7 @@ export const proof = {
                 () => pureOk({
                     status: 200,
                     headers: {},
-                    body: nonEmpty(toVec(vecChunk), pureError(ioError({ code: 'EIO', message: 'disk' }))),
+                    body: nonEmpty(vecChunk, pureError(ioError({ code: 'EIO', message: 'disk' }))),
                     release: counting(releases),
                 }),
                 port => within('a failing body', 10000, answered(port, 'GET')))
@@ -978,7 +983,7 @@ export const proof = {
                 () => pureOk({
                     status: 200,
                     headers: {},
-                    body: nonEmpty(toVec(vecChunk), () => { throw new Error('thrown from a cell') }),
+                    body: nonEmpty(vecChunk, () => { throw new Error('thrown from a cell') }),
                     release: counting(releases),
                 }),
                 port => within('a throwing body', 10000, answered(port, 'GET')))

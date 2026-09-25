@@ -892,6 +892,33 @@ differed would have become a per-runtime assertion rather than a skip: a proof t
 runs nowhere says nothing about the runtime it was skipped on, which is how those
 two proofs came to cover one host out of three.
 
+**What did differ was the two runtimes' own test runners, which is a separate
+thing from what they do.** Both were found by CI rather than by the table, and both
+are recorded here because the next proof that binds a socket or reads a large file
+meets them again.
+
+`deno test` ran with no network permission. The `test` and `cov` tasks in
+`deno.json` listed `--allow-read`, `--allow-write`, `--allow-env` and
+`--allow-sys`, and the `fjs` task beside them already listed `--allow-net` — the
+suite had never needed it, because the only proofs that bound a socket were the two
+that skipped. Every socket proof failed there in under a millisecond. The tasks now
+list it; binding is loopback, and the port is whichever the host offers.
+
+`bun test` gives one proof **five seconds**, and `bunfig.toml`'s `[test] timeout`
+does not change that on Bun 1.4.2 — measured, the proofs were still cut off at
+5,003 ms. Two of `fjs/web`'s host proofs need longer, and the reason is the `Vec`:
+it is a `bigint`, so every chunk is converted going in and coming out, and Bun pays
+about 600 ms for a 131,072-byte chunk where Node 26.8.1 pays about 40. Neither
+proof can be made smaller, because both need a body larger than the loopback
+socket's accept window — about a megabyte — or the pump finishes before the client
+can act. So those two are skipped on Bun with the figures beside them
+([`../../../web/proof.mjs`](../../../web/proof.mjs)), and every proof about the
+*runner* still runs on all three.
+
+That per-chunk figure is worth keeping for its own sake: it says serving a large
+file under Bun costs fifteen times what it costs under Node, and the cost is the
+representation rather than the pump.
+
 **One decision here has no proof of its behaviour, and it is worth naming.** The
 non-blocking open is measured — by hand, in the row above and in `Open`
 ([`../types.ts`](../types.ts)) — and not proven, because what it does needs a
