@@ -33,6 +33,11 @@ export const proof = {
     // Inline outputs are raw-encoded (bit 254 set, bit 255 not set)
     inline_is_raw: () => assert(isRaw(compress(level3Id(0x00n), level3Id(0x00n)))),
 
+    // The tag is the *topmost* set bit: a hash id with bit 254 set is not raw,
+    // and a raw id is not a hash
+    hash_is_not_raw: () => assert(!isRaw(hFF)),
+    raw_is_not_hash: () => assert(!isHash(rawX7F)),
+
     // Non-commutativity: argument order is preserved in concatenation
     non_commutative: () => {
         assert(compress(level3Id(0n), level3Id(1n)) !== compress(level3Id(1n), level3Id(0n)), compress(level3Id(0n), level3Id(1n)))
