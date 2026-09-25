@@ -222,7 +222,7 @@ import { fromCodePointList, fromVec } from '../../text/utf8/module.f.mjs'
 import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { length, maxLengthBytes, u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
-import { hexText } from '../oid/module.f.mjs'
+import { hexText, isOidOf } from '../oid/module.f.mjs'
 import { tryPacked, tryRef } from '../ref/module.f.mjs'
 import { hasRefComponents, isWholeName, lockSuffix, sameBytes } from '../refname/module.f.mjs'
 
@@ -2084,7 +2084,7 @@ export const tryWrite = (dirs, oidBytes) => name => id => {
     }
     // Before `hexText`, which asserts on a `Vec` that is not whole bytes: an id
     // of the wrong width is a caller's error to be told about, not a panic.
-    if (length(id) !== BigInt(oidBytes) * 8n) {
+    if (!isOidOf(oidBytes)(id)) {
         return pureError(ioError({ code: idWidthCode, message: idWidthMessage(oidBytes, id) }))
     }
     if (zeroId(id)) {

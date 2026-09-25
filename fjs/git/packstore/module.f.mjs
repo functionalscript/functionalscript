@@ -110,11 +110,11 @@ import { catchStep, foldStep, history, historyStep, ioError, mapStep, pureError,
 import { inflate, leadsNowhere, namesNothing, notAFileCode, notAFileMessage, readBytes, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
-import { length, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
+import { u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { headerBytes, tryApplyDelta, tryEntry, tryHeader } from '../pack/module.f.mjs'
 import { after, holdsEntryAt, offsetOf, tryIdx } from '../packidx/module.f.mjs'
-import { hexText } from '../oid/module.f.mjs'
+import { hexText, isOidOf } from '../oid/module.f.mjs'
 
 /**
  * The bytes a read hands back, as a dense array to index into.
@@ -611,9 +611,9 @@ const packOf = (pd, oidBytes, id) => name => {
  */
 export const tryRead = (od, oidBytes) => {
     const pd = packsIn(od)
-    const bits = BigInt(oidBytes) * 8n
+    const isOid = isOidOf(oidBytes)
     return id => {
-        assert(length(id) === bits, ['not an id of the width', id])
+        assert(isOid(id), ['not an id of the width', id])
         return walkStep(idxNames(pd), /** @type {Nullable<Held>} */ (null), packOf(pd, oidBytes, id))
     }
 }
