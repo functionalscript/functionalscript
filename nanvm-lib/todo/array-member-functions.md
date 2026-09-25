@@ -380,7 +380,7 @@ and runs the full check set.
       PR, rather than unused.
 - [x] **Search.** `includes`, `indexOf`, `lastIndexOf`, with `present`,
       the relative-index helper (`at` refactored onto it) and `SameValueZero`.
-- [ ] **Copies.** `slice`, `concat`, `toReversed`, `with`, `toSpliced`, with
+- [x] **Copies.** `slice`, `concat`, `toReversed`, `with`, `toSpliced`, with
       the result-length `RangeError`.
 - [ ] **`join`.** `arr_to_string` becomes `Array::join` with `","`.
 - [ ] **Iteration.** `every`, `some`, `find`, `findIndex`, `findLast`,

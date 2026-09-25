@@ -39,7 +39,7 @@
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 34
+ * data.groups.length // 39
  * ```
  */
 
@@ -1616,6 +1616,103 @@ const lastIndexOfCases = [
 ]
 
 /**
+ * `Array.prototype.slice`: the elements from a start up to an end, both
+ * relative positions clamped into the array, the end the length when
+ * `undefined`.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const sliceCases = [
+    { name: 'noArgument', args: [[1, 2, 3]], expected: [1, 2, 3] },
+    { name: 'start', args: [[1, 2, 3], 1], expected: [2, 3] },
+    { name: 'startAndEnd', args: [[1, 2, 3], 0, 2], expected: [1, 2] },
+    { name: 'fromTheEnd', args: [[1, 2, 3], -2, -1], expected: [2] },
+    { name: 'undefinedEnd', args: [[1, 2, 3], 1, undefined], expected: [2, 3] },
+    { name: 'nullEnd', args: [[1, 2, 3], 0, null], expected: [] },
+    { name: 'emptyRange', args: [[1, 2, 3], 2, 1], expected: [] },
+    { name: 'clamped', args: [[1, 2, 3], -9, 9], expected: [1, 2, 3] },
+    { name: 'truncated', args: [[1, 2, 3], 0.9, 2.9], expected: [1, 2] },
+    { name: 'string', args: [[1, 2, 3], '1', '2'], expected: [2] },
+    { name: 'empty', args: [[], 0, 1], expected: [] },
+    { name: 'nested', args: [[[1], [2]], 1], expected: [[2]] },
+    { name: 'bigintStart', args: [[1], 0n], expected: throws },
+    { name: 'bigintEnd', args: [[1], 0, 1n], expected: throws },
+]
+
+/**
+ * `Array.prototype.concat`: the receiver's elements, then each argument's —
+ * an array spliced in one level, anything else, an object included, whole.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const concatCases = [
+    { name: 'noArgument', args: [[1, 2]], expected: [1, 2] },
+    { name: 'array', args: [[1], [2, 3]], expected: [1, 2, 3] },
+    { name: 'value', args: [[1], 2], expected: [1, 2] },
+    { name: 'several', args: [[1], 2, [3], [], 4], expected: [1, 2, 3, 4] },
+    { name: 'oneLevel', args: [[1], [[2]]], expected: [1, [2]] },
+    { name: 'object', args: [[], { a: 1 }], expected: [{ a: 1 }] },
+    { name: 'nullish', args: [[], null, undefined], expected: [null, undefined] },
+    { name: 'string', args: [[], 'ab'], expected: ['ab'] },
+    { name: 'empty', args: [[]], expected: [] },
+]
+
+/** `Array.prototype.toReversed`: the elements in reverse order. @type {readonly MethodCase[]} */
+const toReversedCases = [
+    { name: 'reversed', args: [[1, 2, 3]], expected: [3, 2, 1] },
+    { name: 'empty', args: [[]], expected: [] },
+    { name: 'argumentIgnored', args: [[1, 2], 0], expected: [2, 1] },
+    { name: 'nested', args: [[[1], 2]], expected: [2, [1]] },
+]
+
+/**
+ * `Array.prototype.with`: a copy with one element replaced, the index a
+ * relative position that must land inside the array.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const withCases = [
+    { name: 'first', args: [[1, 2, 3], 0, 9], expected: [9, 2, 3] },
+    { name: 'fromTheEnd', args: [[1, 2, 3], -1, 9], expected: [1, 2, 9] },
+    { name: 'truncated', args: [[1, 2, 3], 1.5, 9], expected: [1, 9, 3] },
+    { name: 'string', args: [[1, 2, 3], '2', 9], expected: [1, 2, 9] },
+    { name: 'noValue', args: [[1, 2], 0], expected: [undefined, 2] },
+    { name: 'noArgument', args: [[1, 2]], expected: [undefined, 2] },
+    { name: 'pastTheEnd', args: [[1, 2, 3], 3, 9], expected: throws },
+    { name: 'beforeTheStart', args: [[1, 2, 3], -4, 9], expected: throws },
+    { name: 'empty', args: [[], 0, 9], expected: throws },
+    { name: 'infinity', args: [[1], Infinity, 9], expected: throws },
+    { name: 'bigint', args: [[1], 0n, 9], expected: throws },
+]
+
+/**
+ * `Array.prototype.toSpliced`: a copy with elements removed from a start
+ * and items put in their place. How many go depends on what the call
+ * passed: none without a start, the rest without a count, and a passed
+ * `undefined` count is zero.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const toSplicedCases = [
+    { name: 'noArgument', args: [[1, 2, 3]], expected: [1, 2, 3] },
+    { name: 'start', args: [[1, 2, 3], 1], expected: [1] },
+    { name: 'startUndefinedCount', args: [[1, 2, 3], 1, undefined], expected: [1, 2, 3] },
+    { name: 'undefinedStart', args: [[1, 2, 3], undefined], expected: [] },
+    { name: 'count', args: [[1, 2, 3], 1, 1], expected: [1, 3] },
+    { name: 'insert', args: [[1, 2, 3], 1, 1, 8, 9], expected: [1, 8, 9, 3] },
+    { name: 'insertOnly', args: [[1, 3], 1, 0, 2], expected: [1, 2, 3] },
+    { name: 'fromTheEnd', args: [[1, 2, 3], -1, 1], expected: [1, 2] },
+    { name: 'countPastTheEnd', args: [[1, 2, 3], 1, 9], expected: [1] },
+    { name: 'negativeCount', args: [[1, 2], 0, -1, 0], expected: [0, 1, 2] },
+    { name: 'startPastTheEnd', args: [[1], 9, 0, 2], expected: [1, 2] },
+    { name: 'stringCount', args: [[1, 2, 3], 0, '2'], expected: [3] },
+    { name: 'arrayItem', args: [[1], 1, 0, [2]], expected: [1, [2]] },
+    { name: 'empty', args: [[], 0, 0, 1], expected: [1] },
+    { name: 'bigintStart', args: [[1], 0n], expected: throws },
+    { name: 'bigintCount', args: [[1], 0, 1n], expected: throws },
+]
+
+/**
  * `toString()` on every type but a function, whose text is the
  * rendering `nanvm-lib/todo/member-functions.md` tracks (see
  * {@link FunctionValue}). A radix on a number or a bigint is refused by
@@ -1706,6 +1803,11 @@ export const data = {
         { method: 'includes', cases: includesCases },
         { method: 'indexOf', cases: indexOfCases },
         { method: 'lastIndexOf', cases: lastIndexOfCases },
+        { method: 'slice', cases: sliceCases },
+        { method: 'concat', cases: concatCases },
+        { method: 'toReversed', cases: toReversedCases },
+        { method: 'with', cases: withCases },
+        { method: 'toSpliced', cases: toSplicedCases },
         { method: 'toString', cases: toStringCases },
     ],
 }
