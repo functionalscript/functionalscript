@@ -9,7 +9,7 @@
 both open with "a monorepo with two code bases", `fjs/` and `nanvm-lib/`, and
 neither mentions this crate. Yet `nanvm-harness` is the second member of the
 root [`Cargo.toml`](../../Cargo.toml) workspace, has its own `todo/`, and holds
-`fixtures/*.mjs` modules whose `fixtures/*.rs` twins `npm run gen` writes with
+`fixtures/*.mjs` modules whose `gen.fixtures/*.rs` twins `npm run gen` writes with
 `fjs compile`. [`src/lib.rs`](../src/lib.rs)'s module comment is the only
 description of what it is: the MVP walking skeleton that evaluates a compiled
 module and prints it as JSON.
@@ -35,7 +35,7 @@ by `src/lib.rs`, so they were neither drift-checked nor built.
       CONTRIBUTING.md
 - [ ] Say which Rust rules cover it: make nanvm-lib/AGENTS.md
       workspace-wide, or point to it from here
-- [ ] Add a short `README.md`: what the harness proves, that `fixtures/*.rs`
+- [ ] Add a short `README.md`: what the harness proves, that `gen.fixtures/*.rs`
       are generated from `fixtures/*.mjs` by `npm run gen`, and how a fixture
       is added
 - [x] Wire `fixtures/function.mjs` into `gen` and `src/lib.rs`, or delete it

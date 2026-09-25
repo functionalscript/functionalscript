@@ -7,7 +7,7 @@
 //! (`fjs compile <module> <output>.rs` + `cargo run`) ends in a runnable
 //! executable, not just a test suite.
 
-use nanvm_harness::{Action, number, run};
+use nanvm_harness::{Action, fixtures::number, run};
 use nanvm_lib::naive::Naive;
 
 fn main() {
