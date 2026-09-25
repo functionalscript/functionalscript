@@ -78,7 +78,9 @@ use nanvm_lib::vm::{Any, Array, Function, IVm, JsonError, Object};
 pub enum Action<A: IVm> {
     /// Its value, as it stands.
     Read,
-    /// Its result, called with these arguments.
+    /// Its result, called with these arguments: `nanvm-lib` values, built
+    /// with the constructors the generated code uses. A JSON or text form
+    /// would need a JSON reader, which `nanvm-lib` does not have.
     Call(Array<A>),
 }
 
@@ -97,7 +99,8 @@ pub enum RunError<A: IVm> {
     /// The module threw while evaluating, or the called export threw.
     Thrown(Any<A>),
     /// `export` is not an own property of the export object: the name as
-    /// the caller passed it.
+    /// the caller passed it. It is the caller's text, never a VM value, so
+    /// it compares and prints without a VM.
     NoExport(std::string::String),
     /// `Action::Call` on a value that is not a function: that value.
     NotCallable(Any<A>),
@@ -152,10 +155,14 @@ impl<A: IVm> PartialEq for RunError<A> {
 /// `export` is looked up among the object's own properties by presence,
 /// not by value: an export holding `undefined` is found, and reading it
 /// then fails as [`JsonError::Undefined`]. `default` is one name among
-/// them, with no fallback to it. A call converts the selected value with
-/// [`Function::try_from`] rather than going through `Any::call`, so that a
-/// value that is not a function is [`RunError::NotCallable`], not a
-/// `TypeError` indistinguishable from the program throwing.
+/// them, with no fallback to it.
+///
+/// A call converts a clone of the selected value with
+/// [`Function::try_from`], whose own error is a fresh `TypeError`, so that
+/// [`RunError::NotCallable`] holds the value the caller tried to call. It
+/// does not go through `Any::call`, where a value that is not a function
+/// would be a thrown `TypeError`, indistinguishable from the program
+/// throwing.
 pub fn run<A: IVm>(
     module: fn() -> Result<Any<A>, Any<A>>,
     export: &str,
@@ -361,18 +368,25 @@ mod tests {
         );
     }
 
+    /// The MVP acceptance example (`todo/fjs-nanvm-integration.md`): a
+    /// named-only module calls a function it imports by name, and the
+    /// harness selects its `main` and calls it with no arguments.
     #[test]
     fn named_imports_and_captures() {
-        let exports = named_imports::module::<Naive>().unwrap();
-        let main = exports.clone().dot("main".into()).end().unwrap();
-        let result = main.call(Array::default().to_any()).unwrap();
-        assert_eq!(result.to_json(), Ok("42".into()));
-        let checks = exports.dot("checks".into()).end().unwrap();
+        let select = |name, action| run::<Naive>(named_imports::module, name, action);
         assert_eq!(
-            checks.to_json(),
+            select("main", Action::Call(Array::default())),
+            Ok("42".into())
+        );
+        assert_eq!(
+            select("checks", Action::Read),
             Ok("[true,true,true,true,true,true]".into())
         );
-        assert!(named_imports_throws::module::<Naive>().is_err());
+        // A dependency that throws while evaluating is the importer's throw.
+        assert!(matches!(
+            run::<Naive>(named_imports_throws::module, "value", Action::Read),
+            Err(RunError::Thrown(_))
+        ));
     }
 
     /// `exports.mjs` against each outcome `run` tells apart. Evaluating the
