@@ -156,7 +156,8 @@ Infrastructure:
 
 - [x] `toString`
 
-`Array`:
+`Array` — each built-in's contract, what is out by design, the corpus and
+the landing order are [array-member-functions](./array-member-functions.md):
 
 - [x] `at` — `vm/array/at.rs`; the index is `Number::to_integer_or_infinity`,
       `ToIntegerOrInfinity` of the argument converted by `ToNumber`.
@@ -251,6 +252,8 @@ Infrastructure:
   — shared rendering without regressing supported calls, returns or exports.
 - [Native function-text review](https://github.com/functionalscript/functionalscript/pull/2220#discussion_r4096310135)
   — remove the obsolete Stage 7 placeholder exception and completion claim.
+- [array-member-functions](./array-member-functions.md) — the `Array`
+  built-ins' specification and landing order.
 - [`fjs/js/prototype/README.md`](../../fjs/js/prototype/README.md) — the
   table: both lists, one row per name with its reason.
 - [`fjs/edag/README.md`](../../fjs/edag/README.md), Chains — the two bits
