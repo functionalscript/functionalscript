@@ -374,6 +374,11 @@ const labelHeightOf = p => port => inlineOf(port.edge) === null ? p.height - hea
  * crossed, and with nothing crossed it would only notch the borders the
  * edges meet and cut gaps into every line another one crosses.
  *
+ * **The drawing comes in a container of its own**, a `div` marked
+ * `data-graph`, which the site's stylesheet scrolls sideways. A graph is
+ * as wide as its ranks or its ports make it, often wider than the page,
+ * and without the container the whole page would scroll with it.
+ *
  * @type {(g: Graph) => Element}
  */
 export const graphSvg = g => {
@@ -441,7 +446,7 @@ export const graphSvg = g => {
             }, inline])]
         }),
     ])
-    return ['svg', { viewBox: `0 0 ${width} ${height}`, width: String(width), height: String(height) },
+    return ['div', { 'data-graph': '' }, ['svg', { viewBox: `0 0 ${width} ${height}`, width: String(width), height: String(height) },
         ['defs',
             ['marker', {
                 id: 'graph-arrow', viewBox: '0 0 10 10', refX: '9', refY: '5',
@@ -452,5 +457,5 @@ export const graphSvg = g => {
         ...boxEls,
         ...edgeEls,
         ...labelEls,
-    ]
+    ]]
 }
