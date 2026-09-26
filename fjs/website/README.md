@@ -243,6 +243,37 @@ carry the `prefers-color-scheme` query itself, so it is fixed to the light
 value — the fallback for a browser that reads neither the SVG nor the
 scheme it would have picked.
 
+## Every page opens with the same header
+
+The logo and the site's name, linking home; then **Releases** and **GitHub**.
+It is one element, `header` in [`page/module.f.mjs`](./page/module.f.mjs), and
+every page carries it — the root, a directory's page, and the changelog's.
+Before it, the root page had its own "GitHub Repository" and "Releases" links
+and no other page had either.
+
+- **The header says where a reader can go; the breadcrumb says where they
+  are.** Both stay: the header is the same on every page, and the breadcrumb is
+  this page's path.
+- **The logo is the favicon's file**, `logoPath` in
+  [`style/module.f.mjs`](./style/module.f.mjs), so the tab and the page cannot
+  show two marks. Its `alt` is empty because the name beside it is the link's
+  text.
+- **It wraps rather than hiding behind a menu button.** In a monospace face a
+  phone has no room for the name and both links on one line; a line break
+  costs no script, on a site that is otherwise static files. The two links are
+  one group, so they wrap together under the name rather than one beside it
+  and one below.
+- **A header link is not underlined.** Its place in the header is what says it
+  is a link, as a site's own navigation does everywhere; the underline comes
+  back on hover. Every link *in the page* keeps its underline
+  ([A link keeps its colour](#a-link-keeps-its-colour-whether-or-not-it-has-been-followed)).
+- **A preview says which build it is.** A build from any branch but `main`
+  adds a line under the links — `Preview: <branch> @ <commit>`, each linked
+  on GitHub, the commit shortened to seven characters. The branch is
+  `WORKERS_CI_BRANCH`, which Cloudflare's Workers Builds sets beside
+  `WORKERS_CI_COMMIT_SHA`. The published site is built from `main` and a local
+  build names no branch, so neither shows the line.
+
 ## A list of links pads its links for a finger, not a mouse
 
 ```css

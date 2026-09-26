@@ -47,7 +47,7 @@
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { _Demos, _Graph, _Imports, _Tree, _Walked } from './private.ts'
  * @import { OrderedMap } from '../types/ordered_map/types.ts'
- * @import { Dir, Proof } from './page/types.ts'
+ * @import { Build, Dir, Proof } from './page/types.ts'
  * @import { Node } from '../media/html/types.ts'
  */
 
@@ -64,7 +64,7 @@ import { log } from '../effects/common/module.f.mjs'
 import { indexPage, isVersion, releasePage, releasePath, releases } from './changelog/module.f.mjs'
 import { tryParse } from '../media/markdown/module.f.mjs'
 import { faviconLinks, stylesheet, stylesheetLink } from './style/module.f.mjs'
-import { demoSection, lang, page, repository, sections, siteName, subtree, testSection } from './page/module.f.mjs'
+import { demoSection, header, lang, page, sections, siteName, subtree, testSection } from './page/module.f.mjs'
 import { toHex, tryFromHexOf } from '../git/oid/module.f.mjs'
 
 /**
@@ -85,22 +85,20 @@ import { toHex, tryFromHexOf } from '../git/oid/module.f.mjs'
  * page — named for what it is, with the prose that introduces it inside —
  * and the page is the repository's root.
  *
- * @type {(commit: string | null) => (dir: Dir) => Vec}
+ * The repository and the releases are linked from the {@link header} every
+ * page carries, not from this page's own frame.
+ *
+ * @type {(build: Build) => (dir: Dir) => Vec}
  */
-const rootPage = commit => dir => htmlUtf8(lang)(
+const rootPage = build => dir => htmlUtf8(lang)(
     ['title', siteName],
     stylesheetLink,
     ...faviconLinks,
 )(
+    header(build),
     ['main', { 'data-browser-tests': '', 'data-state': 'idle' },
-        ['p', ['a', { href: repository }, 'GitHub Repository']],
         ['h1', 'FunctionalScript'],
-        // The releases are linked here as well as in the catalogue below,
-        // where 'changelog/' is one directory among the repository's. A reader looking
-        // for what changed in the version they have is looking for a
-        // release note, not for the folder it is filed in.
-        ['p', ['a', { href: '/changelog/index.html' }, 'Releases']],
-        .../** @type {readonly Node[]} */ (sections(commit)(dir)),
+        .../** @type {readonly Node[]} */ (sections(build.commit)(dir)),
         .../** @type {readonly Node[]} */ (dir.demo === null ? [] : demoSection(dir.demo)),
         .../** @type {readonly Node[]} */ (testSection(dir)([
             ['p',
@@ -598,9 +596,9 @@ const versionOf = name => {
  * it, which is how a build over one gets no release pages rather than no
  * build. The generator's own proofs run it over exactly such a tree.
  *
- * @type {(tree: readonly _Walked[]) => Effect<ReadFile | WriteFile | Write, void, IoChannel>}
+ * @type {(build: Build) => (tree: readonly _Walked[]) => Effect<ReadFile | WriteFile | Write, void, IoChannel>}
  */
-const writeChangelog = tree => {
+const writeChangelog = build => tree => {
     const dir = tree.find(walked => walked.path === changelogDir)
     if (dir === undefined) { return pureOk(undefined) }
     const versions = dir.files.map(versionOf).filter(v => v !== null)
@@ -615,10 +613,10 @@ const writeChangelog = tree => {
                     // prints the message and exits 1, as it does for a file
                     // that could not be read.
                     ? pureError(ioError({ message: `changelog/${release.version}.md: ${document[1]}` }))
-                    : writeFile(releasePath(release.version), releasePage(release)(document[1]))
+                    : writeFile(releasePath(release.version), releasePage(build)(release)(document[1]))
             })),
         () => step(
-            writeFile(`${changelogDir}/index.html`, indexPage(versions)),
+            writeFile(`${changelogDir}/index.html`, indexPage(build)(versions)),
             () => log(`releases: ${versions.length}`)))
 }
 
@@ -629,9 +627,9 @@ const writeChangelog = tree => {
  * runner — and every other directory's is {@link page}'s. Both write the same
  * catalogue.
  *
- * @type {(commit: string | null) => (tree: readonly _Walked[]) => (proofs: readonly Proof[]) => (demos: _Demos) => Effect<WriteFile | Write, void, IoChannel>}
+ * @type {(build: Build) => (tree: readonly _Walked[]) => (proofs: readonly Proof[]) => (demos: _Demos) => Effect<WriteFile | Write, void, IoChannel>}
  */
-const writePages = commit => tree => proofs => demos => {
+const writePages = build => tree => proofs => demos => {
     const byPath = tree.reduce(
         (map, walked) => setReplace(walked.path)(walked)(map),
         /** @type {_Tree} */ (emptyMap))
@@ -641,7 +639,7 @@ const writePages = commit => tree => proofs => demos => {
     return step(
         forEachStep(pureOk(dirs), dir => writeFile(
             pathConcat(dir.path)('index.html'),
-            dir.path === '.' ? rootPage(commit)(dir) : page(commit)(dir))),
+            dir.path === '.' ? rootPage(build)(dir) : page(build)(dir))),
         () => log(`directory pages: ${dirs.length}`))
 }
 
@@ -674,6 +672,20 @@ const commitOf = env => {
 }
 
 /**
+ * The branch this build is of, or `null` when the build does not say.
+ *
+ * **`WORKERS_CI_BRANCH` is Cloudflare's**, set by Workers Builds beside the
+ * commit. It is shown as text and linked segment by segment, so any value is
+ * safe to take as it is; an empty one names no branch.
+ *
+ * @type {(env: Env) => string | null}
+ */
+const branchOf = env => {
+    const value = env.WORKERS_CI_BRANCH
+    return value === undefined || value === '' ? null : value
+}
+
+/**
  * What the build says about where files link, so a deploy log answers it.
  *
  * @type {(env: Env) => (commit: string | null) => string}
@@ -683,8 +695,8 @@ const linksNote = env => commit =>
         : env.WORKERS_CI_COMMIT_SHA === undefined ? 'file links: this site'
             : 'file links: this site, because WORKERS_CI_COMMIT_SHA is not a commit id'
 
-/** @type {(commit: string | null) => (note: string) => Effect<Readdir | ReadFile | WriteFile | Write | All, 0, number>} */
-const program = commit => note => exitStep(mapStep(
+/** @type {(build: Build) => (note: string) => Effect<Readdir | ReadFile | WriteFile | Write | All, 0, number>} */
+const program = build => note => exitStep(mapStep(
     step(log(note), () => step(walk('.'), tree => {
         const authored = authoredModules(tree)
         // One graph over both: a page loads a demo the way it loads a proof,
@@ -695,8 +707,8 @@ const program = commit => note => exitStep(mapStep(
                     const [demos, refused] = resolveDemos(demoProofs)
                     return step(reportClassification(proofs), () =>
                         step(forEachStep(pureOk(refused), log), () =>
-                            step(writePages(commit)(tree)(proofs)(demos), () =>
-                                step(writeChangelog(tree), () =>
+                            step(writePages(build)(tree)(proofs)(demos), () =>
+                                step(writeChangelog(build)(tree), () =>
                                     writeUtf8File('_main.css', stylesheet)))))
                 }))
     })),
@@ -705,5 +717,5 @@ const program = commit => note => exitStep(mapStep(
 /** @type {(options: NodeProgramOptions) => Effect<Readdir | ReadFile | WriteFile | Write | All, 0, number>} */
 export const main = ({ env }) => {
     const commit = commitOf(env)
-    return program(commit)(linksNote(env)(commit))
+    return program({ commit, branch: branchOf(env) })(linksNote(env)(commit))
 }

@@ -37,6 +37,14 @@ export const stylesheetPath = '/_main.css'
 export const stylesheetLink = ['link', { rel: 'stylesheet', href: stylesheetPath }]
 
 /**
+ * The site's mark, as the root-relative URL both the favicon and the header
+ * load it by — one file, so the tab and the page cannot show two logos.
+ *
+ * @type {string}
+ */
+export const logoPath = '/fjs/website/favicon.svg'
+
+/**
  * The two `<link rel="icon">` elements every page carries, so that no page
  * spells the paths itself.
  *
@@ -51,7 +59,7 @@ export const stylesheetLink = ['link', { rel: 'stylesheet', href: stylesheetPath
  */
 export const faviconLinks = [
     ['link', { rel: 'icon', href: '/favicon.ico', sizes: '32x32' }],
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/fjs/website/favicon.svg' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: logoPath }],
 ]
 
 /**
@@ -156,6 +164,26 @@ textarea { vertical-align: top }
    redraws focus and the caret), and a field a reader just widened would
    silently narrow back on the next keystroke. */
 textarea { box-sizing: border-box; resize: vertical; width: 100% }
+/* The header every page opens with: the logo and the site's name on the left,
+   the site-wide links on the right, one rule under it. It wraps rather than
+   hiding behind a menu button: in a monospace face a phone has no room for
+   the name and the links on one line, and a line break costs no script.
+   A header link is not underlined: its place in the header is what says it is
+   a link, as a site's own navigation does everywhere, and the underline comes
+   back on hover. Every link in the header is padded to a finger's target,
+   whatever the pointer: it is one row, not a dense list, so the padding
+   costs nothing a mouse would miss. */
+header { border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; padding-bottom: .5rem }
+header nav, [data-site-links] { align-items: center; display: flex; flex-wrap: wrap; gap: .25rem 1.5rem }
+header nav a { padding-block: .25rem; text-decoration: none }
+header nav a:hover { text-decoration: underline }
+[data-home] { align-items: center; display: inline-flex; font-weight: 600; gap: .5rem; margin-right: auto }
+[data-home] img { height: 1.5rem; width: 1.5rem }
+/* A preview says which build it is — the branch and the commit — so a
+   reader comparing two previews, or a preview with production, knows which
+   one they are looking at. Muted and small: it is about the build, not the
+   page. */
+[data-build] { color: var(--muted); font-size: .8rem; margin: .25rem 0 0 }
 /* Every section of a page is a disclosure, so a reader can fold away what
    they are not reading — the platform's own collapsible, and no script on a
    site that is static files. Its summary is the section's heading, and is

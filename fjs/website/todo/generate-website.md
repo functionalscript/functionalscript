@@ -20,6 +20,10 @@
       green (`--link` in `fjs/website/style/module.f.mjs`)
 - [x] A favicon, two committed files linked from every head ("fjs", the
       reasoning is [`../README.md`](../README.md))
+- [x] One header on every page: the logo and the name, Releases, GitHub, and
+      on a preview its branch and commit (`header` in
+      `fjs/website/page/module.f.mjs`; the reasoning is
+      [`../README.md`](../README.md))
 - [x] Decide what the build owes its own leftovers: nothing — `git clean -Xd`
       already removes a stale generated page, so the fix is a note where the
       symptom is debugged (`fjs/website/module.f.mjs`'s `@module` block)
