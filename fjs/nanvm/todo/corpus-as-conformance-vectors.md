@@ -41,8 +41,8 @@ own `Result` is the closure's answer, and `check` receives it whole;
 `scope` is the harness's, a name for the call rather than `(|| …)()`,
 which clippy calls redundant. `caseText` in
 [`../rust/module.f.mjs`](../rust/module.f.mjs) decides, by
-`fjs/edag/rust`'s `nestsOperation`, and a flat case keeps its shape, so
-`gen.operators.rs` changed only where a case nests. `unreachedPlusOne` and
+`fjs/edag/rust`'s `nestsOperation`, and a flat case keeps its shape in the
+generated `gen.corpus/` files. `unreachedPlusOne` and
 `unreachedCondition` are the corpus's own instances: an eager position
 establishes its operand, and the throw is the case's.
 

@@ -38,10 +38,28 @@ coverage. It and the remaining compiler coverage belong to self-hosting; neither
 reopens the completed MVP. Node loading can use the existing host executor while
 that rewrite proceeds.
 
-Execution uses the existing `sandbox` effect to capture successful values and
-language throws. File, resolution and parse failures keep their existing error
-channels. Resource limits belong to
+### Execution boundary
+
+Evaluation uses a host implementation of the existing `sandbox` effect to
+capture the module's export object or a language throw in `SandboxResult`,
+including duration. On Node, reuse the
+[common host handler](../../effects/common/module.mjs); Rust supplies the
+[native handler](../../../todo/nanvm-effects-node.md). File, resolution and
+parse failures keep their existing error channels. Resource limits belong to
 [interpreter hardening](./bound-edag-interpreter-resources.md).
+
+In-memory files do not make execution pure. The existing
+[virtual runner](../../effects/node/virtual/module.f.mjs) implements `sandbox`
+as a fixture pass-through: its thunk must return a prebuilt `SandboxResult`,
+and an actual throw escapes. It cannot sandbox interpreter evaluation.
+
+For Node integration tests with in-memory modules, add a thin host `.mjs`
+adapter that combines virtual file/resolution handlers with the common host
+`sandbox` handler. Run the actual evaluator through that handler, so both file
+and in-memory fixtures exercise real value/throw capture. Keep the pure virtual
+runner's precomputed results for fixture-based unit tests; they do not establish
+loader execution parity. Handler composition belongs to the test adapter, with
+parsing, linking and evaluation still owned by the shared FJS pipeline.
 
 ### Tasks
 
@@ -52,10 +70,16 @@ channels. Resource limits belong to
 - [ ] Prove repeated and diamond imports preserve module/value identity, and
       malformed or unavailable modules, missing exports and cycles follow the
       existing compiler refusals.
-- [ ] Run the loader on Node with file effects and with in-memory effects. After
-      the immutable-cache prerequisite and compiler coverage are complete, run
-      the same fixtures through its AOT-compiled dependency closure and compare
-      native results, failures and sharing with Node.
+- [ ] Add the host test adapter for virtual file/resolution effects and real
+      `sandbox` execution. Prove that module evaluation returns the complete
+      export object inside a successful `SandboxResult`, and that a module
+      throwing during evaluation produces its error result rather than escaping.
+- [ ] Run the loader on Node with file effects and with the in-memory adapter,
+      using actual successful and throwing modules in both. Check the shared
+      result/duration contract without requiring identical measured durations.
+      After the immutable-cache prerequisite and compiler coverage are complete,
+      run the same fixtures through its AOT-compiled dependency closure and
+      compare native results, failures and sharing with Node.
 - [ ] Migrate FJS consumers of the host `import` effect, beginning with the
       [proof loader](../../emergent_testing/todo/load-proofs-through-fjs.md).
       Account for host-only consumers before proposing removal of the existing
