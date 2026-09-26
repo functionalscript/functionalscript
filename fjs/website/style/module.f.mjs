@@ -222,9 +222,15 @@ svg text { font: inherit }
    edge's key fills its whole row, so no cell is left empty. No edge
    crosses a box — the layout routes one that skips a rank across a lane
    of its own — so a line needs no casing to stand out from a border it
-   passes. A graph wider than the page scrolls sideways in its own
-   container, so the page around it stays still. */
-[data-graph] { overflow-x: auto }
+   passes.
+   A graph is not text, so the page's reading width does not bind it: its
+   container is as wide as the drawing, never narrower than the text column
+   and never wider than the window, and centred on the page. Only a graph
+   wider than the window scrolls, sideways in its own container, so the page
+   around it stays still. The 3rem kept from the window's width leaves a
+   margin either side, and room for a vertical scroll bar, which 100vw
+   counts. */
+[data-graph] { overflow-x: auto; width: max-content; min-width: 100%; max-width: calc(100vw - 3rem); position: relative; left: 50%; transform: translateX(-50%) }
 [data-graph] > svg { display: block }
 [data-graph-node] { fill: var(--bg); stroke: var(--text); stroke-width: 1.5 }
 [data-graph-outline] { fill: none; stroke: var(--text); stroke-width: 1.5 }
