@@ -231,12 +231,18 @@ startDemo(document.querySelector('[data-demo]'))
  * `reportOf`, which decides `fjs t`'s verdict too, for a case the command line
  * does not have.
  *
+ * **Folded until a reader opens it.** The suite is something a reader asks
+ * for, not what they came for, and its list of proofs is as long as the
+ * subtree — the root's is nearly two hundred lines. Folded, it is one line: the
+ * heading and, once a run has them, its counts, which are in the title so a
+ * run is still read at a glance.
+ *
  * @type {(dir: Dir) => (intro: readonly Node[]) => readonly Node[]}
  */
 export const testSection = dir => intro => {
     if (dir.proofs.length === 0) { return [] }
     /** @type {(title: Element) => (rest: readonly Node[]) => readonly Node[]} */
-    const section = title => rest => [['details', { 'data-section': '', open: '' },
+    const section = title => rest => [['details', { 'data-section': '' },
         title,
         ...intro,
         ...rest,

@@ -168,6 +168,8 @@ export const proof = {
         namesItsProofsAndBindsRun: () => {
             const html = concat(element(['body', ...testSection(
                 { ...empty, proofs: [{ name: './proof.f.mjs', blockers: [] }] })([])]))
+            // Folded: the suite is asked for, not what a reader came for.
+            assert(html.startsWith('<body><details data-section=""><summary>'), html)
             // The title carries a slot the runner fills with the run's counts.
             assert(html.includes('<summary><h2>Emergent Testing</h2><span data-test-counts=""></span></summary>'), html)
             // A runnable entry names its source, so a run can mark it if it
