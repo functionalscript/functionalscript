@@ -346,9 +346,10 @@ are only a filter of it. `npm run gen` writes a generated Rust table of every
   until its pair leaves `pending`, and the list can only shrink toward empty;
 - every pair in `prohibitedCalls` × prototype list **has no** entry. This is
   the design half: a refused name stays unanswerable;
-- every name in `allowedCalls` that a type's prototype list lacks **has no**
-  entry on that type, so an `Array` entry for `charAt` fails the test, and
-  `[1].charAt(0)` throws as it does in JavaScript.
+- every name in `allowedCalls` or `prohibitedCalls` that a type's prototype
+  list lacks **has no** entry on that type, so an `Array` entry for `charAt`
+  or `bind` fails the test, and `[1].charAt(0)` throws as it does in
+  JavaScript.
 
 The pending list is `pending` in
 [`fjs/nanvm/methods`](../../fjs/nanvm/methods/module.f.mjs), and the table it
