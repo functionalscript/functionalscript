@@ -20,6 +20,7 @@ pub mod method_char_at;
 pub mod method_char_code_at;
 pub mod method_code_point_at;
 pub mod method_concat;
+pub mod method_ends_with;
 pub mod method_every;
 pub mod method_filter;
 pub mod method_find;
@@ -38,6 +39,7 @@ pub mod method_reduce;
 pub mod method_reduce_right;
 pub mod method_slice;
 pub mod method_some;
+pub mod method_starts_with;
 pub mod method_to_reversed;
 pub mod method_to_sorted;
 pub mod method_to_spliced;
@@ -120,5 +122,7 @@ pub fn all<A: IStaticFunction>() {
     method_code_point_at::run::<A>();
     method_is_well_formed::run::<A>();
     method_to_well_formed::run::<A>();
+    method_starts_with::run::<A>();
+    method_ends_with::run::<A>();
     method_to_string::run::<A>();
 }

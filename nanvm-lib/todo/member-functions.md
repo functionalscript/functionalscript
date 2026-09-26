@@ -198,11 +198,11 @@ presence decides an answer, are
 - [x] `charCodeAt` — `vm/string/reads.rs`
 - [x] `codePointAt` — `vm/string/reads.rs`
 - [ ] `concat`
-- [ ] `endsWith`
-- [ ] `includes`
-- [ ] `indexOf`
+- [x] `endsWith` — `vm/string/search.rs`
+- [x] `includes` — `vm/string/search.rs`
+- [x] `indexOf` — `vm/string/search.rs`
 - [x] `isWellFormed` — `vm/string/reads.rs`
-- [ ] `lastIndexOf`
+- [x] `lastIndexOf` — `vm/string/search.rs`
 - [ ] `padEnd`
 - [ ] `padStart`
 - [ ] `repeat`
@@ -210,7 +210,7 @@ presence decides an answer, are
 - [ ] `replaceAll`
 - [ ] `slice`
 - [ ] `split`
-- [ ] `startsWith`
+- [x] `startsWith` — `vm/string/search.rs`
 - [ ] `substring`
 - [x] `toString`
 - [x] `toWellFormed` — `vm/string/reads.rs`

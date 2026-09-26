@@ -34,7 +34,10 @@ export const proof = {
                 'flat', 'flatMap', 'includes', 'indexOf', 'join', 'lastIndexOf', 'map', 'reduce',
                 'reduceRight', 'slice', 'some', 'toReversed', 'toSorted', 'toSpliced', 'with',
             ],
-            string: ['at', 'charAt', 'charCodeAt', 'codePointAt', 'isWellFormed', 'toWellFormed'],
+            string: [
+                'at', 'charAt', 'charCodeAt', 'codePointAt', 'endsWith', 'includes', 'indexOf',
+                'isWellFormed', 'lastIndexOf', 'startsWith', 'toWellFormed',
+            ],
         }
         const expected = types.flatMap(([t, names]) => names
             .filter(n => n === 'toString' || (own[t] ?? []).includes(n))
