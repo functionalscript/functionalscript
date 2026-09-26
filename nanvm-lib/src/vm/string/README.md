@@ -73,6 +73,9 @@ as its code units, `string_any_utf16(&[…])`.
 `toFixed`, `toExponential` and `toPrecision` round the double's exact binary
 value, the larger digit string on a tie: `(2.5).toFixed(0)` is `"3"`, and
 `(1.005).toFixed(2)` is `"1.00"` because the double nearest `1.005` is below it.
+All three round the magnitude and put the sign back, so `(-2.5).toFixed(0)` is
+`"-3"`, `(-2.5).toExponential(0)` is `"-3e+0"` and `(-2.5).toPrecision(1)` is
+`"-3"`.
 Rust's `format!("{:.0}", 2.5)` rounds half to even and answers `"2"`, so the
 arithmetic is `BigInt<A>`'s.
 
