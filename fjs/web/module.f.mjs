@@ -410,13 +410,17 @@ const methodNotAllowed = () => {
  *
  * **The kind is asked of the descriptor, not of the name.** That is the whole of
  * what the handle buys, and the `isFile` guard is unchanged in what it decides: a
- * FIFO, a device or a socket is answered as absent and never read. What changed is
- * that the entry it answers about is the entry the reads come from. `stat` then
+ * FIFO, a device or a directory is answered as absent and never read. What changed
+ * is that the entry it answers about is the entry the reads come from. `stat` then
  * `readWhole` were two operations on a name, so a regular file replaced by a FIFO
  * in between was answered for something that was gone; `open` then `fstat` is one
  * name resolution and then a question about what it resolved to. The open does not
  * wait for a writer, which is what makes that order possible at all — see
  * `Open` in [`../effects/node/types.ts`](../effects/node/types.ts).
+ *
+ * **A socket does not reach here**, because its open is what fails. That kind is
+ * refused by {@link answer}, which asks the *name* what it holds — the one entry
+ * there is no descriptor to ask.
  *
  * A name that is not a regular file is answered as absent, for the reason a
  * dot-prefixed one is: what it *is* would be a disclosure of its own.
@@ -434,20 +438,31 @@ const openResponse = path => handle => ({ isFile, size }) =>
         : holding(handle)(plainText(404)('not found'))
 
 /**
- * The response frame for a path that could not be opened. This is where the error
- * channel ends: every failure becomes a status code, which is what lets a
- * `RequestListener` declare `never`.
+ * Whether the open error **on its own** says the path names nothing this server
+ * serves, with no second question to ask.
  *
- * **A directory is `404` here and not a host failure.** POSIX opens one
+ * **A directory is one of them and not a host failure.** POSIX opens one
  * successfully, so on those hosts the `fstat` answers it and this is never reached;
  * Windows refuses the open with `EISDIR`. Mapping it keeps one request from having
  * two statuses depending on the host it ran on, which is the defect the `ENOTDIR`
  * mapping below already exists to prevent.
  *
+ * @type {(e: IoChannel) => boolean}
+ */
+const absentByCode = e => isNotFound(e) || isDirectory(e)
+
+/**
+ * The response frame the open error alone earns. This is where the error channel
+ * ends: every failure becomes a status code, which is what lets a
+ * `RequestListener` declare `never`.
+ *
+ * The `500` is not the last word on a path — see {@link answer}, which asks one
+ * more question before it goes out.
+ *
  * @type {(e: IoChannel) => ServerResponse<Fs>}
  */
 const openFailure = e =>
-    isNotFound(e) || isDirectory(e)
+    absentByCode(e)
         ? plainText(404)('not found')
         // `errorSummary`, not `errorMessage`: the host puts the absolute path it
         // could not read into the message, and a client is not entitled to the
@@ -474,9 +489,21 @@ const notDirectory = 'ENOTDIR'
 const isServableRoot = s => s[0] === 'ok' && s[1].isDirectory
 
 /**
- * The response frame for whatever opening `path` produced — {@link openFailure} or
- * {@link openResponse} for every case but one, and that one is why this is an
- * effect rather than a function.
+ * Whether `s` describes an entry that **is there and is no regular file** — the
+ * one fact that turns an open this server could not perform into the `404` a
+ * non-regular entry is owed.
+ *
+ * A `stat` that failed describes nothing, so it is not this: a host that will not
+ * say what a name holds has not said the name is unservable, and the `500` stands.
+ *
+ * @type {(s: Result<FileStat, IoChannel>) => boolean}
+ */
+const isNonRegular = s => s[0] === 'ok' && !s[1].isFile
+
+/**
+ * The response frame for an `open` that **failed** — {@link openFailure} where the
+ * code is the whole answer, and one more question to the file system where it is
+ * not. Those two cases are why this is an effect rather than a function.
  *
  * **`ENOTDIR` is `404`.** A path that descends through a regular file names
  * nothing, which is client-caused in exactly the way a missing name is, so it
@@ -501,15 +528,48 @@ const isServableRoot = s => s[0] === 'ok' && s[1].isDirectory
  * configuration, not the entry being served, and it can only turn one `404` into
  * the `500` an operator needs to see.
  *
- * @type {(root: string) => (e: IoChannel) => Effect<Stat, ServerResponse<Fs>, never>}
+ * **And an entry that exists but cannot be opened at all is `404` if it is no
+ * regular file.** A Unix-domain socket is the case: `open` refuses it outright, so
+ * the `fstat` guard above is never reached and the refusal has to be decided from
+ * the failure. It cannot be decided from the *code*, which is why this asks the
+ * file system instead. One errno wears four names — Linux answers `ENXIO`, while
+ * Darwin's errno −102 (`EOPNOTSUPP`) is reported as `Unknown system error -102` by
+ * Node 26.8.1, as `EOPNOTSUPP` by Bun 1.4.2 and as `UNKNOWN` by Deno 2.8.3, all
+ * measured against the same socket — so a list of codes would answer `404` on some
+ * hosts and `500` on others for one request, which is the very defect the two
+ * mappings above exist to prevent. What the name holds is a question every host
+ * answers the same way.
+ *
+ * While it was a `500` it was also a disclosure: `/sock` and `/nope` answered
+ * differently, so the status told a client which names the served tree has — the
+ * enumeration every identical `404` here is written to deny.
+ *
+ * **This one is a `stat` of the requested path, and it is still not the race the
+ * handle closed.** That race was `stat`-then-*read*: describing one entry and
+ * reading another, which put bytes on the wire the guard had never seen. Nothing is
+ * read here. The open produced no handle, so there is no body and no byte to frame,
+ * and the only thing the answer decides is which of two refusals goes out. An
+ * entry replaced between the failed open and this `stat` can therefore turn a
+ * `404` into a `500` or the other way about, and can do nothing else.
+ *
+ * It costs a `stat` on a failed open and nothing on a successful one — and nothing
+ * on the ordinary `404`, since `ENOENT` is answered by {@link absentByCode} before
+ * this is reached.
+ *
+ * @type {(root: string) => (path: string) => (e: IoChannel) => Effect<Stat, ServerResponse<Fs>, never>}
  */
-const answer = root => e => {
+const answer = root => path => e => {
     const hostAnswer = openFailure(e)
     /** @type {Effect<Stat, ServerResponse<Fs>, never>} */
-    const framed = e[0] === 'ioError' && e[1].code === notDirectory
-        ? resultMapStep(stat(served(root)), s =>
-            ok(isServableRoot(s) ? plainText(404)('not found') : hostAnswer))
-        : pureOk(hostAnswer)
+    // A refusal the code already decided, and a runner that cannot open at all —
+    // which has not looked at the path, so the file system has nothing to add.
+    const framed = absentByCode(e) || e[0] !== 'ioError'
+        ? pureOk(hostAnswer)
+        : e[1].code === notDirectory
+            ? resultMapStep(stat(served(root)), s =>
+                ok(isServableRoot(s) ? plainText(404)('not found') : hostAnswer))
+            : resultMapStep(stat(path), s =>
+                ok(isNonRegular(s) ? plainText(404)('not found') : hostAnswer))
     return framed
 }
 
@@ -551,15 +611,15 @@ export const respond = root => ({ method, url, headers }) => {
     // One `open`, and every question after it is asked of what that open
     // resolved: the kind, the size the header declares, and the bytes the body
     // reads. `resultStep`, not `resultMapStep`, because framing an open that
-    // *failed* is pure for every case but `ENOTDIR`, which asks the file system
-    // one more question — see {@link answer}.
+    // *failed* asks the file system one more question wherever the code is not
+    // the whole answer — see {@link answer}.
     return resultStep(open(path), r => {
         // Bound rather than returned inline, for the reason `main` binds its own:
         // the branches are two different `Effect`s and `step` would infer neither
         // from the union.
         /** @type {Effect<Fs, ServerResponse<Fs>, never>} */
         const framed = r[0] === 'error'
-            ? answer(root)(r[1])
+            ? answer(root)(path)(r[1])
             : resultMapStep(fstat(r[1]), s => ok(s[0] === 'ok'
                 ? openResponse(path)(r[1])(s[1])
                 // The handle is open and the `fstat` is what failed, so this

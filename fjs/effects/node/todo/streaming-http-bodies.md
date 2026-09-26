@@ -822,6 +822,17 @@ the guard answers about: it is the `fstat` of the descriptor the reads come from
 rather than a `stat` of a name the read then re-resolves, and the open does not
 wait for a writer, which is what makes that order possible.
 
+**One kind has no descriptor to ask, and the guard needed a second half for it.** A
+Unix-domain socket is refused by the `open` itself, so moving the question onto the
+descriptor moved that kind out of its reach — and while `fjs/web` mapped only
+`ENOENT` and `EISDIR`, a socket in the served tree answered `500` where the
+`stat`/`isFile` route had answered `404`. It is answered from the failed open now,
+by a `stat` of the name rather than by its code: one errno wears four names, `ENXIO`
+on Linux and three different renderings of Darwin's −102 across the three runtimes.
+See `answer` in [`../../../web/module.f.mjs`](../../../web/module.f.mjs) and the
+table in [`../../../web/README.md`](../../../web/README.md) for which guard each
+kind meets.
+
 **And the module's table is not the only copy of that promise.**
 [`../../../web/README.md`](../../../web/README.md) is the guide a consumer
 reads instead of the source, and three of its passages describe the version

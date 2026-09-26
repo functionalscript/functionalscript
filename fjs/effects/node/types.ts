@@ -403,6 +403,16 @@ export type Handle =
  * reports it; {@link Pread} on it fails `EISDIR`. A name that is absent is
  * `ENOENT` and a path descending through a file is `ENOTDIR`, both measured the
  * same way — the codes a caller already maps for `stat`.
+ *
+ * **A Unix-domain socket is the kind this cannot deliver at all**, so a caller
+ * that refuses non-regular entries cannot refuse them all from {@link Fstat}: it
+ * has to answer for a failed open too. And not by its code, which is one errno
+ * under four names — Linux answers `ENXIO`, while Darwin's errno −102
+ * (`EOPNOTSUPP`) reaches a program as `Unknown system error -102` on Node 26.8.1,
+ * as `EOPNOTSUPP` on Bun 1.4.2 and as `UNKNOWN` on Deno 2.8.3, all measured on
+ * Darwin arm64 against one socket made by listening on a path. What every host
+ * does answer alike is a `stat` of the name, which `fjs/web` asks — see `answer`
+ * in [`../../web/module.f.mjs`](../../web/module.f.mjs).
  */
 export type Open = readonly['open', (path: string) => IoResult<Handle>]
 

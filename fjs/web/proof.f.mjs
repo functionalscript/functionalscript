@@ -1,13 +1,13 @@
 /**
  * @import { Effect } from '../effects/types.ts'
- * @import { Handle, IncomingMessage, IoChannel, NodeOp } from '../effects/node/types.ts'
+ * @import { FileStat, Handle, IncomingMessage, IoChannel, IoResult, NodeOp, ServerResponse } from '../effects/node/types.ts'
  * @import { List } from '../effects/list/types.ts'
  * @import { Dir, RecordedResponse, State } from '../effects/node/virtual/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  */
 
 import { assert, assertEq } from '../asserts/module.f.mjs'
-import { createServer, exitCode, listen, readBytes } from '../effects/node/module.f.mjs'
+import { createServer, exitCode, ioError, listen, readBytes } from '../effects/node/module.f.mjs'
 import { emptyState, nodeProgramOptions, virtual } from '../effects/node/virtual/module.f.mjs'
 import { nodeCommands } from '../effects/node/module.f.mjs'
 import { partialRun } from '../effects/mock/module.f.mjs'
@@ -15,7 +15,7 @@ import { step } from '../effects/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { empty, length, u8ListMsb, u8ListToVecMsb } from '../types/bit_vec/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
-import { ok, unwrap } from '../types/result/module.f.mjs'
+import { error, ok, unwrap } from '../types/result/module.f.mjs'
 import { asNominal } from '../types/nominal/module.f.mjs'
 import { main, resolve, respond } from './module.f.mjs'
 
@@ -522,6 +522,65 @@ export const proof = {
             const r = answer(root)('GET', '/pipe.txt')
             assertEq(r.status, 404)
             assertEq(body(r), 'not found\n')
+        },
+        // **And so is one the open cannot deliver at all.** A Unix-domain socket
+        // is refused by `open` itself, so the case above — the kind asked of the
+        // descriptor — is never reached, and the refusal has to be decided from the
+        // failure. It is not decided from the *code*: one errno wears four names
+        // across the hosts and runtimes this suite runs on, so a list of them would
+        // answer `404` on some and `500` on others for one request. See `answer` in
+        // [`./module.f.mjs`](./module.f.mjs) for the four, and
+        // `socketIsAnsweredAsAbsent` in [`./proof.mjs`](./proof.mjs) for a real
+        // socket measured on all three runtimes.
+        //
+        // Driven through a runner built from the two operations that branch uses,
+        // because the virtual file system's own `open` cannot fail this way: its
+        // non-regular entry *opens*, which is what a host does with a FIFO and a
+        // device rather than what it does with a socket. So the fixture states the
+        // open failure, as `hostFailure` and `fstatFailure` below state theirs.
+        //
+        // Three answers, and the discriminating one is the middle: a `404` for
+        // anything the host declined to open would claim a file that is right there
+        // is missing.
+        unopenable: () => {
+            /** The frame for an `open` that failed `ENXIO` — Linux's answer for a
+             * socket — over a file system that answers `s` for the requested name
+             * and a directory for everything else, the served root included.
+             *
+             * **It answers by name on purpose.** The question is what the
+             * *requested* entry is, and a `stat` of the root would answer
+             * "directory" — no regular file — for every path under it, which is a
+             * `404` for the whole tree. Stating both names is what makes the two
+             * readings tell apart.
+             *
+             * @type {(s: IoResult<FileStat>) => ServerResponse<NodeOp>}
+             */
+            const framed = s => {
+                const run = partialRun(nodeCommands)({
+                    open: () => state =>
+                        [state, error(ioError({ code: 'ENXIO', message: 'device not configured' }))],
+                    stat: path => state => [
+                        state,
+                        path === './sock' ? s : ok({ size: 0, isFile: false, isDirectory: true }),
+                    ],
+                })
+                return unwrap(run(emptyState)(respond('.')(request('GET', '/sock')))[1])
+            }
+            // There, and no regular file: the `404` a non-regular entry is owed,
+            // byte for byte what an absent name gets.
+            const socket = framed(ok({ size: 0, isFile: false, isDirectory: false }))
+            assertEq(socket.status, 404)
+            assertEq(textOf(socket.body), 'not found\n')
+            // A regular file the host would not open is a host failure and stays
+            // one.
+            assertEq(framed(ok({ size: 8, isFile: true, isDirectory: false })).status, 500)
+            // And a host that will not say what the name holds has not said the
+            // name is unservable.
+            assertEq(framed(error(ioError({ code: 'EIO', message: 'io error' }))).status, 500)
+            // The `500`s report the *open* failure rather than the `stat`'s, which
+            // is the answer the client was always owed: what went wrong is that the
+            // file could not be opened.
+            assertEq(textOf(framed(error(ioError({ code: 'EIO', message: 'io error' }))).body), 'io error: ENXIO\n')
         },
         // A path that descends through a regular file names nothing, so it is
         // answered exactly like a path that descends through nothing. While it

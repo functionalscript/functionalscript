@@ -182,6 +182,34 @@ whatever the name held at that moment, and the two need not be the same entry. T
 same `fstat` gives the size the `Content-Length` declares, so the guard and the
 header are answers about one file.
 
+**Except for the kind there is no descriptor for.** A Unix-domain socket cannot be
+opened at all — `open` refuses it — so the guard above is never reached, and the
+`404` is decided from the failure instead. Not from the failure's *code*: one errno
+wears four names across the hosts and runtimes this suite runs on. Linux answers
+`ENXIO`; Darwin's errno −102 (`EOPNOTSUPP`) is reported as
+`Unknown system error -102` by Node 26.8.1, as `EOPNOTSUPP` by Bun 1.4.2 and as
+`UNKNOWN` by Deno 2.8.3, all measured against the same socket. So a failed open
+asks the file system what the name holds, and an entry that is there and is no
+regular file is the `404` it was always owed. A `stat` that fails, or one that
+reports a regular file the host would not open, leaves the `500` standing: a host
+that will not say what a name holds has not said the name is unservable.
+
+That second `stat` is **not** the race reading through a handle closed. That race
+was `stat`-then-*read* — describing one entry and reading another, which puts bytes
+on the wire no guard has seen. Nothing is read here: the open produced no
+descriptor, so there is no body, and all the answer decides is which of two
+refusals goes out. An entry replaced between the failed open and the `stat` can
+turn a `404` into a `500` or the other way about, and can do nothing else. It costs
+one `stat` on a failed open and nothing on a successful one — and nothing on the
+ordinary `404` either, since `ENOENT` is answered before the question is asked.
+
+**It is the kind that decides, not the code, so one other answer moved with it.**
+An `EACCES` on a **non-regular** entry is now a `404`: a directory with mode `000`
+cannot be opened, and the `stat` says it is no regular file, which is the row the
+table below has always promised. An `EACCES` on a **regular** file stays a `500` —
+measured on Darwin arm64 with Node 26.8.1 against a mode-`000` file and a mode-`000`
+directory in one served root, `500 io error: EACCES` and `404 not found`.
+
 That order is only possible because **the open does not wait for a writer.** A
 plain read-only open of a writerless FIFO never returns — measured on Darwin with
 Node 26.8.1, it left the process unable to exit at all, holding a thread-pool slot
@@ -195,9 +223,29 @@ ceiling: nothing here bounds a file any more. The kind is not the same question
 wearing a different name — a FIFO stats as zero bytes and would have passed every
 bound there ever was.
 
-A **directory** opens successfully on POSIX and is answered `404` from its `fstat`;
-Windows refuses the open with `EISDIR` and that is mapped to `404` too, so one
-request does not have two statuses depending on the host it ran on.
+**Which guard each kind meets.** Every row is `404`, and the column that differs is
+where the refusal is decided.
+
+| entry | its `open` | what refuses it |
+|---|---|---|
+| FIFO | opens at once, which is what `O_NONBLOCK` buys | the `fstat` |
+| character device | opens | the `fstat` |
+| block device | opens where the process may read it | the `fstat`, or the failed open's `stat` where it may not |
+| Unix-domain socket | refused, under four code names | the failed open's `stat` |
+| directory | opens on POSIX; `EISDIR` on Windows | the `fstat`; the code on Windows |
+
+The directory row is why `EISDIR` is mapped rather than left to the `stat` beneath
+it: one request does not have two statuses depending on the host it ran on.
+
+The socket, the character device and the directory were measured on Darwin arm64
+against Node 26.8.1, Bun 1.4.2 and Deno 2.8.3. The FIFO row is the measurement
+recorded on `Open` in
+[`../effects/node/types.ts`](../effects/node/types.ts) — nothing in `Fs` or in
+`node:fs` makes a FIFO, and `mkfifo` is an external tool
+([AGENTS.md §6](../../AGENTS.md#6-external-tools)), so it is measured and not
+proven. The block device's second column is reasoned rather than measured: this
+host refused a read of its own disk with `EACCES`, and that is the failure the
+`stat` then answers about.
 
 ### A path that descends through a file
 
@@ -216,7 +264,12 @@ request had two statuses depending on the host it ran on.
 **Only `ENOTDIR`.** A directory whose mode denies traversal (`EACCES`) and a
 symlink cycle (`ELOOP`) reach the same directory-form shape on POSIX and stay at
 `500`: both are entries an operator placed, and a `500` saying the host could not
-read what it was pointed at is not obviously the wrong answer for them.
+read what it was pointed at is not obviously the wrong answer for them. The `stat`
+above does not reach them either, and for the same reason it does not reach a
+`500` anywhere else: it fails too. `GET /lockeddir/` asks for
+`lockeddir/index.html`, which nothing can `stat` through a directory nothing can
+traverse — measured, `500 io error: EACCES`, where `GET /lockeddir` is the `404` a
+non-regular entry is owed.
 
 **And only while the root is a directory.** `fjs web README.md` would make every
 request stat a path descending through a file, and mapping that to `404` would
@@ -226,9 +279,12 @@ it binds anything — reported on `stderr` with exit code `1`, like a bad port �
 and the `ENOTDIR` mapping re-stats the root before answering, so a root
 *replaced* while the server runs goes back to `500`. The re-check costs a `stat`
 on the `ENOTDIR` path and nothing on any other. It is a `stat` of the **root** and
-not of the requested entry, so it is not the race reading through a handle closed:
-what it re-reads is the operator's configuration, and the worst a stale answer can
-do is turn one `404` into the `500` an operator needs to see.
+not of the requested entry, because what it re-reads is the operator's
+configuration; the worst a stale answer can do is turn one `404` into the `500` an
+operator needs to see. Neither it nor the `stat` under "What is not read at all" is
+the race reading through a handle closed, and for the same reason: both run after an
+open that gave back no descriptor, so neither decides anything but which refusal
+goes out.
 
 A root that is *deleted* rather than replaced is not covered: every later `stat`
 fails `ENOENT`, which is the ordinary `404` path, and validating the root before

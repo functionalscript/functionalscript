@@ -3,10 +3,15 @@
  *
  * The response frame is proven against the virtual runner in
  * [`./proof.f.mjs`](./proof.f.mjs) — request in, response out, every status the
- * table promises. What is left here is the one claim a fixture cannot make: that a
- * file far larger than the process should hold is served **correctly** and
- * **without being held**, which needs a file on a disk and a client at the other
- * end of a socket.
+ * table promises. What is left here is what a fixture cannot make:
+ *
+ * - a file far larger than the process should hold, served **correctly** and
+ *   **without being held**, which needs a file on a disk and a client at the other
+ *   end of a socket;
+ * - an entry that is **not a regular file and cannot be opened at all**. The
+ *   virtual file system's non-regular entry opens and is refused from its `fstat`,
+ *   as a FIFO and a device are on a host. A Unix-domain socket is the kind whose
+ *   `open` is what fails, and only a real one is.
  *
  * @import { NodeProgram, NodeOp } from '../effects/node/types.ts'
  */
@@ -14,7 +19,7 @@
 import http from 'node:http'
 import net from 'node:net'
 import process from 'node:process'
-import { mkdtemp, open, rm } from 'node:fs/promises'
+import { lstat, mkdtemp, open, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -210,6 +215,66 @@ const read = (port, name, stopAtTheHeaders) => new Promise(resolve => {
 })
 
 /**
+ * The status and the text of a refusal, which is all a refusal is made of.
+ *
+ * Both are read, and the point is that two requests produce the **same** pair: a
+ * status a client can tell apart is a status that answers a question about the
+ * served tree.
+ *
+ * @type {(port: number, name: string) => Promise<{ readonly status: number, readonly text: string }>}
+ */
+const refusal = (port, name) => new Promise((resolve, reject) => {
+    const request = http.request({ host: loopback, port, path: `/${name}` }, response => {
+        let text = ''
+        response.setEncoding('utf8')
+        response.on('data', part => { text += part })
+        response.on('end', () => resolve({ status: response.statusCode ?? 0, text }))
+        response.on('error', reject)
+    })
+    request.on('error', reject)
+    request.end()
+})
+
+/**
+ * A temporary directory holding a real **Unix-domain socket**, removed even when
+ * an assertion fails.
+ *
+ * **Made by listening on a path**, which is `node:net` and not an external tool —
+ * `mkfifo` would be one, and
+ * [AGENTS.md §6](../../AGENTS.md#6-external-tools) does not allow calling one
+ * without approval. A socket is the non-regular entry this repository's own code
+ * can create, which is why it and not a FIFO is what the open-failure path is
+ * proven against.
+ *
+ * The name is two directories deep in the system temporary directory, which
+ * leaves it far inside the ~104-byte cap a `sockaddr_un` path has on Darwin —
+ * measured at 70 bytes.
+ *
+ * @type {(check: (root: string, name: string) => Promise<void>) => Promise<void>}
+ */
+const withSocket = async check => {
+    const root = await mkdtemp(join(tmpdir(), 'fjs-web-socket-'))
+    const server = net.createServer()
+    try {
+        const name = 'sock'
+        const path = join(root, name)
+        await new Promise((resolve, reject) => {
+            server.once('error', reject)
+            server.listen(path, () => resolve(undefined))
+        })
+        // The fixture is the claim's premise, so it is asserted rather than
+        // assumed: a runtime that made something else — a named pipe outside the
+        // file system, as `listen` on a path does on Windows — would otherwise
+        // leave this proof asserting about an absent name and passing.
+        assert((await lstat(path)).isSocket(), path)
+        await check(root, name)
+    } finally {
+        await new Promise(resolve => { server.close(() => resolve(undefined)) })
+        await rm(root, { recursive: true, force: true })
+    }
+}
+
+/**
  * A temporary directory holding one file of {@link served} bytes, removed even
  * when an assertion fails.
  *
@@ -296,6 +361,43 @@ const within = async (label, ms, p) => {
 }
 
 export const proof = {
+    // **A socket is answered exactly as an absent name is**, which is the whole
+    // claim: the status and the sentence are the same pair, so the difference
+    // between a name that is there and a name that is not cannot be read off the
+    // answer. While the socket was a `500` it could — `GET /sock` and `GET /nope`
+    // said different things — and that is the enumeration every identical `404`
+    // in this module exists to deny.
+    //
+    // **It is a host proof because the open is what fails.** Every other
+    // non-regular entry opens: `O_NONBLOCK` opens a FIFO at once, a character
+    // device opens, and POSIX opens a directory, so all three are refused from the
+    // `fstat` — the branch the virtual file system's non-regular entry covers in
+    // [`./proof.f.mjs`](./proof.f.mjs) (`respond.notRegular`). A socket cannot be
+    // opened at all, and what it answers is not one code but one *errno* wearing
+    // three names: measured on Darwin arm64 against the same socket, `open` failed
+    // with errno −102 (`EOPNOTSUPP`) reported as `Unknown system error -102` on
+    // Node 26.8.1, as `EOPNOTSUPP` on Bun 1.4.2 and as `UNKNOWN` on Deno 2.8.3,
+    // while Linux answers `ENXIO`. So the module asks the file system what the
+    // name holds rather than reading the code, and this is where that is measured.
+    //
+    // Windows is skipped: `listen` on a path there makes a named pipe rather than
+    // a directory entry, so there is nothing under the root to request — the same
+    // guard, and the same reason, as `writeExclusive.symlink` in
+    // [`../effects/node/proof.mjs`](../effects/node/proof.mjs).
+    socketIsAnsweredAsAbsent: async () => {
+        if (process.platform === 'win32') { return }
+        await withSocket(async (root, name) => {
+            const [sock, absent] = await withServer(root, async port => [
+                await within('a socket', 30000, refusal(port, name)),
+                await within('an absent name', 30000, refusal(port, 'nope')),
+            ])
+            assertEq(sock.status, 404)
+            assertEq(sock.text, 'not found\n')
+            // The pair, which is the part a `500` breaks.
+            assertEq(sock.status, absent.status)
+            assertEq(sock.text, absent.text)
+        })
+    },
     // A file of seventeen reads, served whole — byte for byte and in order, which
     // the digest is what checks. The client holds one slice at a time, as the
     // server does.
