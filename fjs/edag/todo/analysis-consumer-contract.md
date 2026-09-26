@@ -30,30 +30,29 @@ silently not hoisted.
 
 ### Proposal
 
-The analysis exports its contract as a type, and its facts:
+The analysis exports its contract and its facts:
 
 ```ts
-/** An `Analysis` that `bindingError` has passed; only `checked` makes one. */
-export type Checked = Phantom<Analysis, 'checked'>
-export const checked: (e: Exp) => Result<Checked, string>
+/** `a` where `bindingError` finds nothing; its message where it does. */
+export const checked: (a: Analysis) => Result<Analysis, string>
 export const refs: (node: Node) => readonly number[]
 export const mintsIdentity: (node: Node) => boolean
 ```
 
-`Checked` is nominal — `fjs/types/phantom` is how this repository brands
-a type — so an unchecked `Analysis` does not pass where a `Checked` is
-asked for. The three `fsc` sites call `checked` on their `Exp`. `memo`,
-which takes an analysis rather than an expression, takes a `Checked`
-and drops its assertion: the type says what the assertion said, and the
-executor's contract is stronger, not weaker, since a caller can no
-longer hand it an analysis nothing has checked. The serializer's
-`hoists` walks `refs` and filters with `mintsIdentity`; `operands` and
-`minting` go.
+`checked` takes an analysis, not an expression, so every consumer can
+call it: the three `fsc` sites write `checked(analysis(e))` and branch
+on the result, and `memo` asserts on it. `memo`'s runtime check stays
+— an executor refusing a graph nothing has checked is a contract worth
+keeping, and a type cannot carry it: `Phantom` is structural, its marker
+optional, so a plain `Analysis` would pass as a `Checked` — but the
+check is now spelled once, in `checked`, and `memo`'s line is a call to
+it rather than a copy of it. The serializer's `hoists` walks `refs` and
+filters with `mintsIdentity`; `operands` and `minting` go.
 
 ### Tasks
 
-- [ ] `Checked`, `checked`, `refs` and `mintsIdentity` with proofs; the
-      four consumers through them, `memo`'s signature on `Checked`.
+- [ ] `checked`, `refs` and `mintsIdentity` with proofs; the four
+      consumers through them, `memo` asserting on `checked`'s result.
 - [ ] `tsc`, `fjs test`.
 
 ### Related
