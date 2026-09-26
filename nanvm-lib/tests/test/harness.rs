@@ -1,6 +1,6 @@
 //! Hand-written support for the generated operator tests.
 //!
-//! `generated.rs` contains one statement per case and nothing else. The
+//! `gen.operators.rs` contains one statement per case and nothing else. The
 //! functions a literal becomes, and `===`/`!==` as operator results, are
 //! `nanvm_lib::vm::unstable`'s, the same ones a compiled module calls; every
 //! assertion, and the one value constructor no literal spells, lives here, so

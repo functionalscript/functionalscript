@@ -11,7 +11,7 @@ classical `fjs/bnf` backends lived, the spelling was copied seven times in
 their proofs, in two backend-specific shapes; those went with the backends.
 What remains is over the one backend, and is still spelled per proof:
 
-- `fjs/fsc/tokenizer/proof.f.mjs`'s `covers` resumes
+- `fjs/js/tokenizer/proof.f.mjs`'s `covers` resumes
   [`../ll1`](../ll1/README.md)'s `parser` of the one-token grammar
   `fjs/ebnf/lib/js` from where the last token ended, and answers `false` at
   the first token the grammar refuses and `true` once the loop reaches the
@@ -20,9 +20,9 @@ What remains is over the one backend, and is still spelled per proof:
   read a `MatchResult` in their own words to say "accepted, and the end is
   the length".
 
-The JSON acceptance corpus — twenty inputs with JSON verdicts — is listed in
-the tokenizer's proof beside its DJS-token cases, where six JSON-rejecting
-rows are intentionally accepted by the token stream because tokenization
+The JSON-shaped acceptance corpus is listed in that proof's `isValid` beside
+its JavaScript-token cases, where several JSON-rejecting rows are
+intentionally accepted by the token stream because tokenization
 leaves document structure to the parser; that divergence should be an
 explicit override table rather than a copied corpus, once a second consumer
 of the corpus exists.
@@ -67,13 +67,13 @@ takes them from `fjs/text/utf16` — input decoding, not what
 
 ### Tasks
 
-- [ ] Measure: which proofs under `fjs/ebnf`, `fjs/media` and `fjs/fsc` spell
-      the whole-input question, and whether the JSON corpus has a second
-      consumer. If the answer is one and none, close this.
+- [ ] Measure: which proofs under `fjs/ebnf`, `fjs/js`, `fjs/media` and
+      `fjs/fsc` spell the whole-input question, and whether the JSON corpus
+      has a second consumer. If the answer is one and none, close this.
 - [ ] Add `Case`, `Recognition`, `assertRecognizes` and `ll1Recognizer` to
       [`../testlib.f.mjs`](../testlib.f.mjs), with the proof coverage a
       `testlib` owes; carry the `MatchResult` through as `diagnostic`.
-- [ ] Convert the sites found, the tokenizer's `isValid` among them; add
+- [ ] Convert the sites found, `fjs/js/tokenizer`'s `isValid` among them; add
       `jsonCases` with a named override list only where a second consumer
       appears.
 - [ ] Confirm coverage is unchanged — this must move test text, not test cases.

@@ -112,26 +112,26 @@ the gate is reached, and there is no handle to return — so it is recorded as t
 alternative it is. What that note changed was what the handle effect was owed for:
 not whether a large body is possible, only what it costs.
 
-**The eager route costs more than the memory, and the operation says why.**
-[`readWhole`](../module.mjs) rebuilds its chunk list on every window rather than
-appending, and its own comment gives the assumption that makes that free: *"a
-file is however many `Vec`s it takes and the count is small — 128 KiB a chunk, so
-eighty of them for ten megabytes."* Lifting a *web* cap is what breaks that
-assumption, because it is what makes an arbitrary size reachable from a request:
-a body of gigabytes is tens of thousands of windows, the rebuild is quadratic in
-that count, and all of it is spent before the first byte reaches the socket. So
-the eager route needed a linear collection in the operation before it was enough
-for an arbitrary size.
+**The eager route costs the memory, and only the memory.** This used to say it
+cost more: that [`readWhole`](../module.mjs) rebuilding its chunk list on every
+window is quadratic in the window count, and that a served file of arbitrary
+size makes that count the caller's, so the operation owed a mutating
+accumulator the way `collectBounded` beside it does.
 
-**That was recorded here as its own change, and it turned out to belong to the
-same one.** The premise it rested on — that the chunk count is the operation's,
-small, and `fjs/git`'s to keep small — expires the moment `fjs/web` reads a
-requested file through it: the count becomes the caller's, exactly as a request
-body's chunk count already is for `collectBounded` beside it. So the eager route
-landed with the accumulator mutated and `collectBounded`'s own comment cited as
-the precedent it follows, rather than leaving a quadratic collection behind a cap
-it had just removed. What was left to the handle effect was the memory, not the
-copying, and that is what it took.
+**That argument does not survive being written down next to the numbers.** A
+window is a fixed 128 KiB, so `readWhole`'s chunk count is the file's size
+divided by a constant — a gigabyte is some eight thousand windows and tens of
+millions of *reference* copies, which is noise beside reading the gigabyte. What
+makes `collectBounded`'s count the caller's is that a client picks it
+independently of the byte count: 20,000 one-byte chunks are 20 KB of payload and
+200 million copies, on a request about to be refused. A fixed window has no such
+gap between size and count, so there is nothing for §3.1 to make an exception
+for, and the accumulator stays rebuilt.
+
+So the eager route landed with the collection unchanged, and what the handle
+effect was owed for was the memory — holding a whole file to answer one request.
+That is the cost the window count was never a proxy for, and the memory is what
+the handle effect took.
 
 **One thing `ReadWhole` does not fix, stated so this is not read as more than
 it is.** [`readWhole`](../module.mjs) `stat`s the path and then opens it, two
@@ -245,8 +245,8 @@ handed the widest listener the type says it may be handed and narrows it back
 to its own op-set by a cast it already writes — the virtual one to
 `_VirtualListener`, the Node one to `Erl<NodeOp>` in `answerRequest`. That
 widening is the separate cause
-[generic-operation-payload-erasure](./generic-operation-payload-erasure.md)
-files beside the `Pr` erasure it is named for, asking whether `CreateServer`
+[generic-operation-signatures](../../todo/generic-operation-signatures.md)
+files beside the `Pr` erasure, asking whether `CreateServer`
 can carry the listener's op-set instead. A `List` body neither raises that
 question nor answers it.
 
@@ -730,10 +730,10 @@ it always had.
 asks.** A cell is a `first` and a `tail` behind an `Effect`
 ([`../../list/types.ts`](../../list/types.ts)): a consumer that stops pulling
 tells the producer nothing, because there is no cell left in which to tell it.
-Nor is the effect layer's `finally` the missing piece — `finallyStep` is
-declined in [`../../module.f.mjs`](../../module.f.mjs) as `resultStep` plus a
-policy, which is exactly what it is *for a composer that is still on the stack
-for both halves*. A pumped body is the other shape. When the pump gives up,
+Nor is the effect layer's `finally` the missing piece — `finallyStep` in
+[`../../module.f.mjs`](../../module.f.mjs) is `resultStep` plus a policy, which
+is exactly what it is *for a composer that is still on the stack for both
+halves*. A pumped body is the other shape. When the pump gives up,
 nothing that knows a handle exists is on the stack to be given a chance.
 
 **So the response states what to release, and the runner releases it however
@@ -1026,10 +1026,10 @@ answering `413` is a listener with a size policy of its own — correctly.
       its `413` row, its size-limit section, and its `Content-Length`
       paragraph's two claims — the derivation replaced, and Node the party that
       drops a `HEAD` body kept and pinned against the host across many writes.
-      `readWhole`'s chunk accumulator became linear in the same change, since a
-      served file is what makes the chunk count the caller's. See "The eager
-      route, as landed". No `release`: nothing this route holds outlives a
-      response.
+      `readWhole`'s chunk accumulator is unchanged: a fixed 128 KiB window ties
+      the chunk count to the byte count, so §3.1 has nothing to except. See the
+      note above "The eager route, as landed". No `release`: nothing this route
+      holds outlives a response.
 - [x] Stage 1: make `fjs/web`'s body lazy as well as bound to one inode — the
       body read from one `open` through the handle effect above, and a
       `Content-Length` the reads cannot overrun: the `fstat` size declared, and

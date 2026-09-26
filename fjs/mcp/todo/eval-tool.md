@@ -90,9 +90,12 @@ Node runner already implements `Catch`.
 
 Catching the overflow refuses deep input. It does not remove the depth limit.
 [`bound-edag-interpreter-resources.md`](../../fsc/todo/bound-edag-interpreter-resources.md)
-makes validation and interpretation iterative. It does not name the lowering in
-`fjs/fsc/edag` or `analysis`, and both recurse on nesting depth too. Until they
-are iterative, `catch_` is the tool's whole answer to depth.
+gives that rewrite to two issues:
+[`stack-safety.md`](../../edag/todo/stack-safety.md) for the analysis walk in
+`fjs/edag/analysis`, which every executor reads, and
+[`deep-nesting-recursion.md`](../../fsc/todo/deep-nesting-recursion.md) for the
+compiler's own walks, the lowering in `fjs/fsc/edag` and `toDjs` in
+`fjs/fsc/ast`. Until both land, `catch_` is the tool's whole answer to depth.
 
 Bounding time and memory is a separate task,
 [`bound-edag-interpreter-resources.md`](../../fsc/todo/bound-edag-interpreter-resources.md).

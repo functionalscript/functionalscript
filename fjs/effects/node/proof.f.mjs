@@ -438,10 +438,13 @@ export const proof = {
             assert(!(typeof tmp !== 'object' || tmp instanceof Array), state.root)
             assertEq(tmp.cache, undefined, tmp)
         },
+        // `ENOENT`, as node answers and as `stat`, `readFile` and `access` here
+        // already did — it used to be a message of its own with no code, so
+        // `isNotFound` could not recognise it.
         noSuchFile: () => {
             const [_, [t, result]] = virtual(emptyState)(rm('hello'))
             assert(t === 'error', result)
-            assertIoMessage(result, 'no such file')
+            assert(isNotFound(result), result)
         },
         isDirectory: () => {
             const [state, [t, result]] = virtual({

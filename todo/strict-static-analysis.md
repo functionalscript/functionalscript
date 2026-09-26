@@ -46,12 +46,17 @@ others do not.
 | `publint`, `@arethetypeswrong/cli` | broken `exports`/`types` resolution in the published package — the repo publishes `.d.mts` from `prepack`, which is exactly where these break | two devDependencies, run at pack time | this issue |
 | `madge` / `dpdm` | import cycles | one devDependency | this issue |
 
-One repo-specific check is worth listing beside them: **grep the emitted
-`.d.mts` for `any` and `/*elided*/`**. `fjs/AGENTS.md` records a real case where
-a `@type {const}` cast made declaration emit give up and write `/*elided*/ any`
-— 4 `any` and 2 `/*elided*/` in one module — visible only to a consumer type-checking
-against the published declarations. `npm run prepack` already emits them; nothing
-inspects the output.
+One repo-specific check is worth listing beside them: **the emitted `.d.mts`
+must not degrade to `any` or `/*elided*/`**. `fjs/AGENTS.md` records a real case
+where a `@type {const}` cast made declaration emit give up and write
+`/*elided*/ any` in one module, visible only to a consumer type-checking against
+the published declarations. `npm run prepack` already emits them; nothing
+inspects the output for this. A check has to parse the declarations — the
+TypeScript compiler API, or `typescript-eslint` — rather than match text in
+them, and needs approval like any other tool
+([AGENTS.md §6](../AGENTS.md#6-external-tools)). The same inspection could
+report an exported type that references an unexported one
+([detect-unexported-types-referenced-by-exported-types](./detect-unexported-types-referenced-by-exported-types.md)).
 
 ### Proposal
 
@@ -59,12 +64,16 @@ inspects the output.
    tracked in [tsconfig-strict-flags.md](./tsconfig-strict-flags.md).
 2. Add `deno fmt --check` and `deno lint` to the generated workflow. Both are
    free in setup terms; expect one cleanup commit each.
-3. Add the declaration-emit check for `any` / `/*elided*/`.
+3. Add the declaration-emit check for `any` / `/*elided*/`, with a tool that
+   parses the declarations — and, from the same inspection,
+   [unexported types referenced by exported ones](./detect-unexported-types-referenced-by-exported-types.md).
+   If no such tool is approved, the rule stays written down and unenforced.
 4. Add `knip`, then `publint` + `attw`.
 5. Decide ESLint ([eslint.md](./eslint.md)) — the only entry that costs a real
    dependency tree, and the only one that reaches type-aware rules.
-6. Work through the remaining `tsc` flags, `noUncheckedIndexedAccess` last since
-   [inline-type-casts.md](./inline-type-casts.md) shrinks it first.
+6. Work through the remaining `tsc` flags, `noUncheckedIndexedAccess` last,
+   re-measured now that the `assert` conversions of
+   [inline-type-casts.md](./inline-type-casts.md) have landed.
 
 Each step lands as its own commit, verifiable with `tsc` and `fjs t`.
 
@@ -75,11 +84,21 @@ the whole tree to its own idea of the configured style, and the repository has a
 deliberate hand-maintained layout. It may be worth running it once to see the
 size of the diff before committing to it — or scoping it to new files only.
 
+If `deno fmt` is not the answer, the need stays: a third-party formatter — or,
+failing that, one built here — that handles `.f.mjs` (and, after stage 2,
+`.f.js`) correctly for everyday coding: indentation, line width, spacing.
+Language-level normalization, such as rewriting JavaScript string spellings
+into JSON ones, is out of scope for any formatter; it belongs to
+FunctionalScript tooling itself.
+
 ### Related
 
 - [tsconfig-strict-flags.md](./tsconfig-strict-flags.md) — the `tsc` half, measured.
 - [eslint.md](./eslint.md) — the linter decision.
-- [inline-type-casts.md](./inline-type-casts.md) — 357 sites no current check sees.
+- [inline-type-casts.md](./inline-type-casts.md) — the audited casts no current
+  check sees.
+- [detect-unexported-types-referenced-by-exported-types](./detect-unexported-types-referenced-by-exported-types.md)
+  — a declaration check that needs the same parsing tool.
 - [`spec/todo/3360-type-annotations.md`](../spec/todo/3360-type-annotations.md) —
   where the type layer is eventually going, and why it does not change what to
   do now.

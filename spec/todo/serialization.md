@@ -5,7 +5,7 @@ Formerly §9 of the main [spec README](../README.md).
 **Decision:** the stable, canonical representation of functions is the **EDAG**, expressed as an
 FJS value (`Any`). Code is data: the `Function` constructor accepts an `Any` that describes the
 code, and the VM knows how to execute it (see [functions](../README.md#functions); the exact shape
-is specified by the [edag-spec](../../todo/edag-spec.md)). The reasons:
+is the RTTI schema in [`fjs/edag`](../../fjs/edag/README.md)). The reasons:
 
 1. We need a canonical data representation of functions in FunctionalScript — and in the future
    content-addressable VM ([CAVM](./content-addressable-vm.md)) — to compute a hash.
@@ -72,8 +72,9 @@ outside the FJS VM; this decision does not patch its built-ins.
 ### Open questions
 
 These questions are deliberately open, not implementation instructions with
-an implicit answer. The examples illustrate future capabilities; they do not
-claim current compiler support for captures or `self`.
+an implicit answer. Captures are in the language
+([functions](../README.md#functions)); the examples do not claim current
+compiler support for `self` or for rendering either as text.
 
 1. **Should the FSC function serializer and `String(f)` be the same function?**
    Should they have one output contract and implementation, or distinct

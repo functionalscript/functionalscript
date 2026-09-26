@@ -324,12 +324,14 @@ count now doubles the time instead of quadrupling it — again one machine's
 numbers, with the change in shape rather than the milliseconds being what is
 claimed.
 
-`readWhole` collects its chunks the same way and for the same reason, which is
-what makes this a rule about who owns the count rather than a single exception:
-once a served file can be any size, the number of chunks is whatever a request
-asked for. Served files no longer go through it — the response body is pulled a
-chunk at a time and never collected at all — but `fjs/git` reads whole files
-through it, and the rule stands where the count is a caller's.
+`readWhole` does **not** collect its chunks that way, and the difference is who
+picks the count. Its window is a fixed 128 KiB, so the number of chunks is the
+file's size divided by it, and the rebuild's reference copies are noise beside
+reading the file. A request body has no such floor: the client picks both the
+size and the count, and can make the second large while the first stays tiny.
+So this stays one exception, not a rule. A served file does not reach `readWhole`
+at all any more — the response body is pulled a chunk at a time and never
+collected — and `fjs/git` is its caller now.
 
 Past the cap it answers `413` itself, without calling the listener — there is no
 `IncomingMessage` to build up there, since its `body` is a single `Vec`. It also

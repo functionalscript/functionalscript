@@ -35,8 +35,8 @@ may enable a stripping/transpilation path around the original-source rule.
 Accepting such syntax remains a **P1 compatibility violation**.
 
 TypeScript remains an external checker for JavaScript with JSDoc and separate
-`types.ts`/`.d.ts` companions; these are tooling, not an additional FJS source
-language. Existing type-check commands, declarations and implementation type
+`types.ts`/`.d.ts` companions; these are tooling, not an additional FunctionalScript
+source language. Existing type-check commands, declarations and implementation type
 files remain in place. [RTTI comment annotations](./3360-type-annotations.md)
 are a separate design written inside JavaScript comments, not TypeScript syntax;
 this decision neither implements nor retires that design.
@@ -55,7 +55,7 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
 2. [ ] [undefined-property-vm-layer](./1015-undefined-property-vm-layer.md)
    — representation choices must preserve those observations.
 
-## 2. DJS
+## 2. Modules without functions
 
 ### 2.1. Priority 1
 
@@ -71,7 +71,8 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
 4. [ ] [built-in](./2360-built-in.md),
 5. [ ] [global-names](./2365-global-names.md) — a name ECMAScript defines
    globally is never a module's to bind; lands before `built-in`, since
-   admitting a name a module may already have bound is a breaking change,
+   admitting a name a module may already have bound is a breaking change
+   (its file says P3, not this list's P2),
 6. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed),
 7. [ ] computed property key from an expression — `{ [name]: 0 }`. The
    constant-string form is implemented
@@ -82,41 +83,47 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
 
 1. [ ] [shorthand](./2440-shorthand.md),
 2. [ ] [destructuring](./2450-destructuring.md),
-3. [ ] [js-string-literals](./2460-js-string-literals.md).
+3. [ ] [js-string-literals](./2460-js-string-literals.md),
+4. [ ] number spellings beyond JSON's — `0x10`, `0o7`, `0b1`, `.5`, `1.`,
+   `1_000` ([numbers](../README.md#numbers)); `.5` lands with
+   [`?.` before a digit](../../fjs/js/tokenizer/todo/optional-chain-before-digit.md),
+5. [ ] names beyond ASCII — Unicode identifier characters and `\u` escapes
+   in a name, `const é = 1` ([identifiers](../README.md#identifiers)),
+6. [ ] the rest of JavaScript's trivia — VT, FF, NBSP and the other `Zs`,
+   U+FEFF (a leading BOM too), U+2028/U+2029 outside a string, a leading
+   hashbang line — each recognized, or its refusal justified as
+   [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
+   asks ([whitespace](../README.md#whitespace-and-line-terminators)),
+7. [ ] import attribute spellings — a string key, `with { "type": "json" }`,
+   a trailing comma and an empty `with {}`
+   ([importing](../README.md#importing-other-modules)).
 
-## 3. FJS
+## 3. Functions
 
-The FJS can have functions. The format requires additional run-time
-information for serialization: an FJS value can't be serialized without it —
-see [serialization](./serialization.md).
-
-|format|any     |    |Notes                          |
-|------|--------|----|-------------------------------|
-|FJS   |function|Func|[functions](../README.md#functions)|
+A function cannot be serialized as data without additional run-time
+information — see [serialization](./serialization.md) and
+[functions](../README.md#functions).
 
 ### 3.1. Required
 
-1. [x] function — in the language with either body and with either
-   parameter list, `(...a) => expression`,
-   `(...a) => { return expression; }` and `() => expression`, capturing
-   what its body names from the scopes around it
+1. [x] function — in the language with either body and a parameter list
+   that is empty, rest-only, fixed named (`a => …`, `(a, b) => …`) or fixed
+   plus rest (`(a, b, ...x) => …`), capturing what its body names from the
+   scopes around it
    ([functions](../README.md#functions))
-2. [ ] [named and rest parameters](./3120-parameters.md) — `a => …` and
-   `(a, b, c, ...args) => …`; fixed `arg`/`rest` EDAG bindings and
-   pre-generated callable factories preserving declared arity
-   ([function-length-limit](./function-length-limit.md) proposes at most 16
-   fixed parameters)
-3. [ ] [function length pattern](./3130-function-length-pattern.md) — an
-   alternative for arbitrary length/full-argument construction, not a
-   prerequisite for the named-and-rest parameter plan; its unrestricted
-   length conflicts with [function-length-limit](./function-length-limit.md)
-4. [x] body-const — a function body takes `const` statements before its
+2. [ ] [named and rest parameters](./3120-parameters.md) — the syntax, the
+   fixed `arg`/`rest` EDAG bindings and the callable factories have landed;
+   what remains is the P1 default-text renderer, since a factory callable's
+   `String` still shows its wrapper, and the plan's unticked proofs
+   (at most 16 fixed parameters: [functions](../README.md#functions))
+3. [x] body-const — a function body takes `const` statements before its
    `return`, and the writer spells them
    ([functions](../README.md#functions))
-5. [ ] [forward-references](./3140-forward-references.md)
-6. [x] `export const`, named-only and mixed modules
+4. [ ] [forward-references](./3140-forward-references.md)
+5. [x] `export const`, named-only and mixed modules
    ([exports](../README.md#exporting-a-value)). The selected `types/range`
-   candidate now reaches the named-parameter blocker above.
+   candidate now parses its parameters and stops at its missing statement
+   semicolons.
 
 ### 3.2. Priority 2
 
@@ -137,7 +144,9 @@ see [serialization](./serialization.md).
    I/O is done with effects and requires no promises
    ([io-effects](./io-effects.md)).
 5. [ ] [class](./3390-class.md)
-6. [ ] Temporal classes. See https://github.com/functionalscript/functionalscript/pull/801
+6. [ ] [arity and complete arguments](./arity-complete-arguments.md) — an
+   alternative for arbitrary length/full-argument construction; not a
+   prerequisite for named and rest parameters.
 
 ### 3.4. Syntactic Sugar
 
@@ -156,14 +165,16 @@ see [serialization](./serialization.md).
 1. [ ] [Type Annotations](https://github.com/tc39/proposal-type-annotations)
    — [blocked on ECMAScript standardization and runtime support](../../todo/blocked/js-extension-type-annotations.md).
    A host's TypeScript loader or stripping option is not ECMAScript support.
-2. [ ] [Pipe Operator `|>`](https://github.com/tc39/proposal-pipeline-operator), Stage 2.
+2. [ ] [Pipe Operator `|>`](https://github.com/tc39/proposal-pipeline-operator), Stage 2
+   — [blocked on Stage 4 and runtime support](../../todo/blocked/pipeline-operator.md).
 3. [ ] [Records and Tuples](https://github.com/tc39/proposal-record-tuple), **withdrawn**
    (the repository was archived in April 2025):
    One problem with such records and tuples is that they can't hold safe, immutable functions. Maybe we need something like `#(a) => a * 2`.
 4. [ ] [Pattern Matching](https://github.com/tc39/proposal-pattern-matching)
    — [blocked on Stage 4 and native runtime support](../../todo/blocked/pattern-matching.md).
 5. [ ] [Safe Assignment Operator](https://github.com/arthurfiorette/proposal-safe-assignment-operator).
-6. [ ] [Temporal](https://github.com/tc39/proposal-temporal).
+6. [ ] [Temporal](https://github.com/tc39/proposal-temporal); for its classes,
+   see [#801](https://github.com/functionalscript/functionalscript/pull/801).
 7. [ ] [Import Text](https://github.com/tc39/proposal-import-text), Stage 3, and
    [Import Bytes](https://github.com/tc39/proposal-import-bytes), Stage 2.7:
    `with { type: "text" }` and `with { type: "bytes" }`, blocked on Stage 4
@@ -171,12 +182,14 @@ see [serialization](./serialization.md).
 
 Wish list:
 
-1. [ ] Utf8 String. Something like `u8"Hello, world"`.
+1. [ ] Utf8 String. Something like `u8"Hello, world"`
+   ([blocked](../../todo/blocked/utf8-strings.md)).
 
 ## Design documents
 
-Design decisions and sketches for the unimplemented parts of the system,
-moved here from the main spec README and keeping their old section numbers:
+Design decisions and sketches for the unimplemented parts of the system. The
+numbered ones moved here from the main spec README and keep their old section
+numbers:
 
 |Document|Topic|
 |--------|-----|
@@ -187,3 +200,5 @@ moved here from the main spec README and keeping their old section numbers:
 |[serialization](./serialization.md)|§9 — EDAG as data, CBOR, bytecode as VM-internal|
 |[vm-command-format](./vm-command-format.md)|NPN command format of the VM|
 |[design-principles](./design-principles.md)|design principles of the "ideal" FS 0.*|
+|[function-frame](./3111-function-frame.md)|NaNVM function objects: frames and captured values, VM-internal|
+|[call-like-instructions](./9100-call-like-instructions.md)|VM-internal bytecode for calls|

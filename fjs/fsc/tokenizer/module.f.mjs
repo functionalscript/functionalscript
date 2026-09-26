@@ -1,5 +1,5 @@
 /**
- * The DJS tokenizer: the JavaScript token stream of
+ * The module tokenizer: the JavaScript token stream of
  * [`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs), folded once more.
  *
  * ```text
@@ -48,7 +48,7 @@ const keywordSet = new Set(keywords)
 
 /**
  * Every `DjsToken` kind, `eof` included: the kinds a `JsToken` keeps
- * unchanged on its way to the DJS stream. Pinned to `DjsToken['kind']` in
+ * unchanged on its way to the module's stream. Pinned to `DjsToken['kind']` in
  * `./types.ts`, so a kind added there and forgotten here breaks the build
  * rather than becoming an invalid-token error at run time. The parser's
  * alphabet is this list less `eof`.
@@ -71,7 +71,7 @@ export const _djsTokenKinds = /** @type {const} */ ([
 const djsTokenKindSet = new Set(_djsTokenKinds)
 
 /**
- * A JavaScript token as a DJS one: kept when its kind is one of
+ * A JavaScript token as a module token: kept when its kind is one of
  * {@link _djsTokenKinds} — the cast is that membership, which `Set#has`
  * cannot state as a narrowing — an `id` when it is any other keyword, and
  * an error otherwise: an operator the language does not admit.

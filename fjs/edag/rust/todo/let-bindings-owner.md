@@ -42,6 +42,14 @@ with `i => \`c${i}\``. A two-line `skipFn(signature, lines)` — the
 `#[rustfmt::skip]` item wrapper — moves beside it, so the invariant both
 files document is stated once.
 
+**Open question:**
+[generated-rust-module-rustfmt-skip](../../../../nanvm-lib/todo/generated-rust-module-rustfmt-skip.md)
+proposes the opposite for the corpus printer: `fjs/nanvm/rust` stops emitting
+`#[rustfmt::skip]` per function, and one `#[rustfmt::skip] mod generated;`
+in `nanvm-lib/tests/test/main.rs` covers the generated file. If that lands,
+`skipFn` has one caller, `fjs/fsc/rust`'s module, and may not earn its place.
+Which of the two the corpus follows is undecided.
+
 ### Tasks
 
 - [ ] `letBindings`, `indent`, `skipFn` in `fjs/edag/rust` with proofs;
@@ -50,7 +58,10 @@ files document is stated once.
 
 ### Related
 
-- [`../../../fsc/todo/66c-emit-literals-via-owner-modules.md`](../../../fsc/todo/66c-emit-literals-via-owner-modules.md) —
+- [`../../../types/ts/todo/66c-emit-literals-via-owner-modules.md`](../../../types/ts/todo/66c-emit-literals-via-owner-modules.md) —
   the same principle for literals; this is the item layer.
+- [generated-rust-module-rustfmt-skip](../../../../nanvm-lib/todo/generated-rust-module-rustfmt-skip.md)
+  — proposes the corpus stop emitting `#[rustfmt::skip]` per function, which
+  `skipFn` would keep; see the open question above.
 - [`../../todo/identity-shared-walks.md`](../../todo/identity-shared-walks.md) —
   the walk that decides *which* nodes get a `let`.

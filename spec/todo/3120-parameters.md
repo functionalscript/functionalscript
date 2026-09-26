@@ -1,33 +1,42 @@
 ## Named and rest parameters
 
-**Priority:** P2
-**Status:** implementation in progress, stacked on #2220
+**Priority:** P1
+**Status:** open
 
-### Implementation status (September 24, 2026)
+### Implementation status
 
+Fixed and rest parameters shipped: the plan in
+[#2220](https://github.com/functionalscript/functionalscript/pull/2220) and
+the implementation in
+[#2237](https://github.com/functionalscript/functionalscript/pull/2237).
 The user requested: “Implement named/required parameters as we described on
 top of PR 2220. `fjs compile` should support the syntax `(a, b, c, ...x) => ...`”.
 They also explicitly directed runtime construction through the pre-generated
-`g => (a0, ...rest) => g([a0], rest)` factory table. This authorizes the
+`g => (a0, ...rest) => g([a0], rest)` factory table. This authorized the
 fixed/rest implementation; it does not resolve the default-text choices below.
 
 Parsing, binding, fixed/rest EDAG, the shared factory table, both JavaScript
-executors, source output and Rust output are implemented. The JavaScript table
-covers lengths 0–32; valid source and EDAG remain independent of that capacity.
+executors, source output and Rust output are implemented, and the accepted
+syntax is in the [specification](../README.md#functions). A function's `length`
+is at most 16, the language's limit, and the JavaScript table covers every
+valid length.
 The old three-element function tuple is a breaking format change: recompile
 source, or migrate zero-arity function-owned `args` to `rest`, retaining module
 import bindings.
 
-**Remaining integration gate:** the required shared default renderer and
-callable/graph association are not implemented. Native conversion of a returned
-factory arrow still reveals wrapper source. Keep this implementation in draft
-until the rendering contract and mechanism are resolved; the tasks below remain
-open for that work. No claim is made that factory construction alone satisfies
-this requirement or that all of this TODO is complete.
+**What remains:** the required shared default renderer and the callable/graph
+association are not implemented. Native conversion of a factory arrow still
+reveals wrapper source — at `36c8d4a`, amnesia's `vm` evaluating
+`['=>', 1, null, ['arg', 0]]` gives a callable whose `String` is
+`(a0, ...rest) => g([a0], rest)`. That is the P1 violation below. The
+unticked tasks track it, together with the language-design approval record,
+the module-import preservation proofs and the executor-capacity proofs.
+No claim is made that factory construction alone satisfies this requirement.
 
-The unchanged `fjs/types/range/module.f.mjs` compilation candidate still fails
-at EOF because it omits statement semicolons. Named-parameter examples with the
-compiler's current statement termination syntax compile successfully.
+The unchanged `fjs/types/range/module.f.mjs` compilation candidate now parses
+its parameters and stops at the first statement that omits its `;`: the
+`export` after `contains`. Named-parameter examples with the compiler's
+current statement termination syntax compile successfully.
 
 The remaining sections retain the design and its unfinished obligations.
 
@@ -50,12 +59,12 @@ limitation. The review stays open until the conversion paths are fixed.
 
 An operations-table guard cannot cover conversions performed by a consumer
 of an exported arrow. A side table associating functions with EDAGs cannot
-by itself change those host conversions either. The current generated arrows
+by itself change those host conversions either. The current factory arrows
 inherit native function conversion and have no renderer hook. This is also
 why rejecting callable exports or replacing only the `String` operation is
 not a fix.
 
-**Proposal requiring approval:** extend each generated factory with a renderer
+**Proposal requiring approval:** extend each factory with a renderer
 callback and admit only the complete fresh-arrow construction pattern:
 
 ```js
@@ -114,7 +123,7 @@ to indexed reads of the existing `['args']` would therefore change results.
 
 Parse fixed named parameters and an optional final rest parameter. Represent
 fixed values and the rest array separately in EDAG, and instantiate real
-callables through pre-generated arrow factories. No mutation, prototype
+callables through hand-written arrow factories. No mutation, prototype
 change, host helper, effect or recognized `defineProperty` pattern is needed
 for arity within the table-backed evaluator's documented range. The factories
 do not by themselves satisfy the default function-text contract; the rendering
@@ -122,20 +131,17 @@ mechanism must preserve supported callable behavior before these factories
 replace an existing materialization path.
 
 This replaces this TODO's earlier positive-arity/full-`['args']` design and
-its restricted writer boundary. The implementation request and its scope are recorded above. The initial
-executor capacity is 32, without imposing a language-level arity limit.
-[function-length-limit](./function-length-limit.md) proposes replacing that
-with a language limit of 16.
+its restricted writer boundary. The implementation request and its scope are recorded above. The language
+limits a function's `length` to 16
+([functions](../README.md#functions)), and the table covers
+every valid length.
 
 **Benefits:** familiar JavaScript syntax, ordinary callable results, and a
 shared argument representation that the compiler, writer and FJS-written
 evaluators can implement without privileged arity construction.
 
 **Costs:** parameter/group disambiguation, an EDAG/API migration, and a finite
-factory table. The table-backed evaluator cannot materialize otherwise-valid
-functions beyond its table: this reduces its JavaScript execution coverage,
-not the syntax the language admits. Such functions remain compilable to EDAG
-and source; other backends may support them. Positive-arity EDAG functions no
+factory table, sized to the language's limit on `length`. Positive-arity EDAG functions no
 longer expose the original argument count within the fixed prefix. This
 preserves the proposed source forms, but deliberately does not preserve the
 earlier hypothetical EDAG contract that combined positive arity with the
@@ -259,8 +265,8 @@ binding. No module-loading protocol or replacement import opcode is proposed.
 
 ### Instantiating functions from EDAG
 
-Generate factories for lengths `0` through an executor-specific limit `T`.
-This is a materialization resource limit, not a language or EDAG arity cap.
+Write factories by hand for lengths `0` through the language's limit, 16
+([`fjs/types/function/length`](../../fjs/types/function/length/README.md)).
 The beginning of the table is:
 
 ```js
@@ -272,10 +278,9 @@ const factories = [
 ];
 ```
 
-After validating the EDAG's `length`, check the executor's table coverage
-before selecting `factories[length]` at run time. An uncovered length is a
-valid-but-unsupported materialization, not malformed EDAG; refuse it through
-the executor's existing failure contract, never clamp or substitute a callable.
+Validation refuses a `length` above the limit, so every valid length selects
+a factory, `factories[length]`, at run time; the executor asserts it rather than
+clamp or substitute a callable.
 The selected factory's callback receives `(fixed, rest)` and evaluates the
 body with the captured frame and these invocation bindings. `['arg', N]`
 reads `fixed[N]`; `['rest']` reads
@@ -302,10 +307,10 @@ passing `(fixed, rest)` avoids reconstructing that intermediate list.
 
 Each factory has a statically spelled parameter list, but table selection can
 use the length read dynamically from an EDAG. This does not require making
-`length` an expression operand of `=>`. Generate source at build time, never
-through runtime `eval`, `Function`, dynamic import or property mutation.
-The pipeline proof compiles this generated table through `fjs compile`'s
-parser and lowering, and executes it under both JavaScript evaluators.
+`length` an expression operand of `=>`. The table is checked-in source, never
+built through runtime `eval`, `Function`, dynamic import or property mutation.
+The pipeline proof compiles the table's first entries through `fjs compile`'s
+parser and lowering, and executes them under both JavaScript evaluators.
 
 Share the table through the EDAG operations used by Amnesia and the memo
 executor, rather than duplicating it per VM. Native backends may initialize
@@ -321,8 +326,9 @@ fresh names. Render `['arg', N]` as its fixed binding and `['rest']` as its
 rest binding. For zero arity, use `(...rest) => body`. Keep unused fixed
 parameters: dropping one changes both `length` and the start of the tail.
 Generate the parameter list directly from `L`, without consulting the executor's
-factory table. Source-to-EDAG compilation and EDAG-to-source writing must not
-inherit that table's limit; their own resource limits remain separate.
+factory table. Source-to-EDAG compilation and EDAG-to-source writing inherit the
+language's limit on `L`, which the table equals, and refuse a larger one as an
+error Result.
 
 This removes the earlier arity/complete-argument writer obstruction for the
 new nodes. It does not promise that unrelated unsupported EDAG capabilities
@@ -369,8 +375,9 @@ the FJS VM still uses its native representation under the existing exception.
 
 Specify and prove that mechanism before exposing the new materialization path.
 This TODO neither supplies that mechanism nor grants property mutation or a
-new pattern instruction. The `withLength` pattern may still be unnecessary
-for arity, but that conclusion alone does not discharge default rendering.
+new pattern instruction. The [`withLength` pattern](https://github.com/functionalscript/functionalscript/blob/245649cdeeb0fb6318004ee273121143273262db/spec/todo/arity-complete-arguments.md#candidate-mechanism-the-withlength-pattern) is retired and
+was never needed for arity, but that alone does not discharge default
+rendering.
 
 Only genuinely open choices remain with the serialization TODO: whether
 `String(f)` shares the callable serializer's contract, whether it includes
@@ -381,31 +388,16 @@ lazy frame-rendering requirement if frame inclusion is selected. User-defined
 `toString` overrides remain separate work, not a reason to defer the required
 default behavior.
 
-### Executor capacity and migration
+### Length limit and migration
 
-This proposal introduces **no shared language-level maximum arity**. A finite
-factory table does not protect a language guarantee or prevent a source-level
-mistake, so its size does not justify rejecting otherwise-valid parameter
-lists ([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
-Document an initial table size for the table-backed evaluators; `16` is only a
-candidate for that implementation capacity, not an approved language limit.
-
-Keep integer metadata and `arg` validation independent of table coverage.
-An evaluator checks coverage only on a path that needs to materialize a host
-callable. A CLI output mode that evaluates EDAG inherits this executor limit;
-a source/EDAG output path must not invoke that evaluator merely to reject a
-larger arity. Report resource refusal through the existing failure contract,
-without adding a source-visible exception type or changing argument values.
-The table does not limit supplied argument count or rest-array length. Native
-backends may have different capacities; enlarging the generated table does
-not change the language or the meaning or encoding of an existing EDAG.
-
-For example, with a test table ending at length `2`,
-`(a, b, c, ...rest) => [a, b, c, rest]` still parses, lowers to a length-`3`
-EDAG and writes back to source with that arity. The table-backed evaluator
-refuses materialization; one with a larger table executes the same graph.
-This is an explicit coverage limitation, not an unbounded construction
-strategy or a claim that all backends can execute every valid function.
+A function has at most 16 fixed parameters
+([functions](../README.md#functions)), approved as a language limit
+([approval](https://github.com/functionalscript/functionalscript/pull/2295#issuecomment-5831266299)) so
+that every valid function is materializable, with the right `length`, by every
+backend. A 17th fixed name is a compile error, and `bindingError` refuses an
+EDAG function whose `length` is above 16, so every writer returns an error
+Result for it. The table covers exactly the valid lengths; it does not limit
+supplied argument count or rest-array length.
 
 Coordinate the format/API break across schema, compiler, analysis, operations,
 executors and writers. Existing three-element function nodes have arity zero;
@@ -420,7 +412,7 @@ this contract; refuse such input rather than claim a lossless migration.
 Reconcile pending design documents in this proposal, before implementation:
 [stage-1 subjects 2 and 7](../../todo/edag-stage1-discussion.md#2-arguments-reference),
 the [native callable plan](../../nanvm-lib/todo/callable-function-objects.md),
-the [capturing-function compiler plan](../../fjs/fsc/todo/compile-capturing-functions-to-rust.md#remaining-gaps)
+which also covers captured frames in Rust,
 and the [function-frame plan](./3111-function-frame.md) follow this
 `length` / `arg` / `rest` contract, not a count-only extension of complete
 `['args']`. This addresses the
@@ -430,9 +422,9 @@ Their current-format and historical descriptions remain explicitly labeled.
 
 Current EDAG/schema documentation and executable consumers now use the
 fixed/rest format. Module-import `args` semantics remain unchanged. The
-[complete-arguments alternative](./arity-complete-arguments.md) and
-[length-pattern alternative](./3130-function-length-pattern.md) are not
-prerequisites for this proposal's arity construction. The default-text
+[complete-arguments alternative](./arity-complete-arguments.md) is not a
+prerequisite for this proposal's arity construction, and its `withLength`
+length pattern is retired. The default-text
 obligation above remains regardless of which construction technique is used.
 
 If default parameters are added later, JavaScript's `length` stops before the
@@ -443,9 +435,9 @@ source rest binding in that future case or silently admit initializers now.
 
 ### Tasks
 
-- [ ] Record language-design approval, including the EDAG/writer change and
-      separation of language validity from executor capacity. Document the
-      table-backed evaluators' initial capacity without imposing a language cap.
+- [ ] Record language-design approval, including the EDAG/writer change.
+      The limit on `length` is approved by `sergey-shandar`
+      ([approval](https://github.com/functionalscript/functionalscript/pull/2295#issuecomment-5831266299)).
 - [x] Extend source parameter AST, shared grammar and binding. Cover empty,
       rest-only, bare single, parenthesized fixed and fixed-plus-rest forms;
       retain correct grouping, commas, trivia, scopes and early errors.
@@ -454,12 +446,13 @@ source rest binding in that future case or silently admit initializers now.
       negative zero for both metadata fields without normalizing ordinary
       `-0` argument values. Update schema, lowering, analysis, operations,
       executor contexts and native consumers.
-- [x] Generate and share the factory table; check its capacity at EDAG
-      materialization, separately from syntax and EDAG validation. Keep
-      unsupported new execution paths refused until they preserve length and
-      bindings, without regressing existing calls/returns/exports or blocking
-      source/EDAG outputs that do not use them. Add co-located proofs for the
-      generator and the generated table.
+- [x] Write and share the factory table, by hand in
+      [`fjs/types/function/length`](../../fjs/types/function/length/README.md)
+      (generated at first), covering every length the language admits: EDAG
+      validation refuses a longer one, so materialization has no separate
+      capacity check. Keep unsupported new execution paths refused until they
+      preserve length and bindings, without regressing existing
+      calls/returns/exports. Add co-located proofs for the table.
 - [ ] Specify callable-to-EDAG association and host-conversion coverage, and
       implement the shared default renderer before switching supported
       materialization/export paths to these factories. Preserve existing
@@ -491,13 +484,7 @@ source rest binding in that future case or silently admit initializers now.
       out-of-range `arg` indices, `arg` at length zero, duplicate names,
       invalid bindings, misplaced/rest trailing commas, newlines before `=>`,
       and deferred default/destructuring syntax. Test positive-zero metadata
-      round trips and preservation of ordinary `-0` arguments. A count beyond
-      a factory table is not a validation error.
-- [ ] Prove the executor capacity boundary and the first uncovered arity:
-      source -> EDAG -> source preserves that larger arity, the limited
-      evaluator refuses materialization, and a larger table executes the same
-      graph correctly. Cover CLI output paths so a source/EDAG-only output
-      does not inherit an evaluator limit.
+      round trips and preservation of ordinary `-0` arguments.
 - [ ] Run generation and repository-required checks; retry the unchanged
       [`types/range`](../../fjs/types/range/module.f.mjs) compilation candidate.
       Move implemented decisions into the current specification/EDAG docs and
@@ -507,7 +494,8 @@ source rest binding in that future case or silently admit initializers now.
 
 - [Current functions](../README.md#functions) — accepted syntax today.
 - [Arity-cap review](https://github.com/functionalscript/functionalscript/pull/2220#discussion_r4094327220)
-  — distinguish executor capacity from language validity.
+  — distinguish executor capacity from language validity; superseded by the
+  language's limit on `length`.
 - [Default-text review](https://github.com/functionalscript/functionalscript/pull/2220#discussion_r4094801475)
   — EDAG-derived default rendering is required, not optional customization.
 - [Export-preservation review](https://github.com/functionalscript/functionalscript/pull/2220#discussion_r4095048191)

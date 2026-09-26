@@ -31,8 +31,9 @@ import { error, mapOk, ok, okList } from '../types/result/module.f.mjs'
 import { concat } from '../types/string/module.f.mjs'
 import { serialize as bigintSerialize } from '../types/bigint/module.f.mjs'
 import { sort } from '../types/object/module.f.mjs'
-import { mapStep, resultStep } from '../effects/module.f.mjs'
-import { errorExit, exitStep, writeUtf8File } from '../effects/node/module.f.mjs'
+import { mapStep, resultStep, step } from '../effects/module.f.mjs'
+import { errorExit, exitStep, mkdir, writeUtf8File } from '../effects/node/module.f.mjs'
+import { concat as pathConcat } from '../path/module.f.mjs'
 
 const { entries } = Object
 
@@ -314,6 +315,17 @@ export const _stringifyTree = value => concat(treeValue(value))
 // ── the command ───────────────────────────────────────────────────────────────
 
 /**
+ * The directory an output file goes in: `a/b` for `a/b/x.rs`, and `.` for a
+ * bare file name, whose parent folds to the empty path `mkdir` refuses.
+ *
+ * @type {(outputFileName: string) => string}
+ */
+const outputDirectory = outputFileName => {
+    const directory = pathConcat(outputFileName)('..')
+    return directory === '' ? '.' : directory
+}
+
+/**
  * Compiles the FunctionalScript module `args[0]` into `args[1]`, in the
  * language `args[1]`'s extension declares: JSON for `.json`, a generated
  * Rust module calling the `nanvm-lib` API for `.rs`, the program's EDAG for
@@ -329,8 +341,12 @@ export const _stringifyTree = value => concat(treeValue(value))
  * document; and the `.rs` output prints it as `let`
  * bindings and a `pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>`.
  *
+ * The output's directory is created first, so a compile can write into a
+ * directory that does not exist yet — a deleted `gen.*` directory, say.
+ *
  * Returns the process exit code: `0` once the output file is written, `1` on
- * every failure — too few arguments, an output extension naming no language,
+ * every failure — any argument count but two, an output extension naming no
+ * language,
  * a missing input file, a parse error, a `.json` output asked of a value
  * JSON cannot spell, a `.js` output asked of a graph the writer has no
  * spelling for, an EDAG asked of a program whose export does not reach every
@@ -344,7 +360,10 @@ export const _stringifyTree = value => concat(treeValue(value))
  */
 export const compile = args => {
     if (args.length < 2) {
-        return errorExit('Error: Requires 2 or more arguments')
+        return errorExit('Error: Requires 2 arguments: fjs compile <input> <output>')
+    }
+    if (args.length > 2) {
+        return errorExit(`Error: unexpected argument ${args[2]}: fjs compile <input> <output>`)
     }
     const inputFileName = args[0]
     const outputFileName = args[1]
@@ -362,6 +381,6 @@ export const compile = args => {
             const [tag, content] = result[1]
             return tag === 'error'
                 ? errorExit(`${outputFileName} - error: ${content}`)
-                : exitStep(writeUtf8File(outputFileName, content))
+                : exitStep(step(mkdir(outputDirectory(outputFileName), { recursive: true }), () => writeUtf8File(outputFileName, content)))
         })
 }

@@ -136,6 +136,25 @@ export type WriteFile = readonly['writeFile', (path: string, data: Vec) => IoRes
 
 export type Rm = readonly['rm', (path: string) => IoResult<void>]
 
+// rmdir
+
+/**
+ * Removes the directory at `path`, which must be empty — `ENOTEMPTY` otherwise,
+ * so it cannot take anything with it. Nothing is followed: a symbolic link, to a
+ * directory or not, is `ENOTDIR`, as is a file. An absent name is `ENOENT`.
+ *
+ * `ENOTDIR` for a link holds on every host, and on Windows the runner has to make
+ * it hold: there a junction or a directory symlink is removed by the host's own
+ * `rmdir` whatever its target holds, so the node runner refuses a link before it
+ * asks.
+ *
+ * **A custom runner must implement it**: `NodeOperationMap` and
+ * `CommandSet<NodeOp>` are both checked for *completeness*, so annotating
+ * either without a handler does not compile, and an exhaustive `switch` over
+ * `NodeOp` needs an arm.
+ */
+export type Rmdir = readonly['rmdir', (path: string) => IoResult<void>]
+
 // rename
 
 export type Rename = readonly['rename', (src: string, dst: string) => IoResult<void>]
@@ -191,7 +210,8 @@ export type CreateExclusive = readonly['createExclusive', (path: string) => IoRe
 
 /**
  * Creates `path` with `O_CREAT|O_EXCL` **and writes `data` through that same
- * open**.
+ * open** — the chunks in order, since a `Vec` holds at most `maxLengthBytes` and
+ * a file has no such bound.
  *
  * Three things hold, and a caller may rely on each:
  *
@@ -213,16 +233,17 @@ export type CreateExclusive = readonly['createExclusive', (path: string) => IoRe
  *   followed — so a symlink planted in the window is written *through*.
  *
  * `createExclusive` remains for a name claimed now and written later, which is
- * the lock-free upload's staging file. This one is what a **lock file** wants,
- * and [`fjs/git/refstore`](../../git/refstore/module.f.mjs)'s `tryWrite` is that
- * caller.
+ * the lock-free upload's staging file. This one is what a file must be when its
+ * contents are published by renaming it: [`fjs/git/refstore/write`](../../git/refstore/write/module.f.mjs)'s
+ * `tryWrite` fills a ref's lock with it, and `tryDelete` the rewritten
+ * `packed-refs`, which is what needs more than one chunk.
  *
  * **A custom runner must implement it**: `NodeOperationMap` and
  * `CommandSet<NodeOp>` are both checked for *completeness*, so annotating
  * either without a handler does not compile, and an exhaustive `switch` over
  * `NodeOp` needs an arm.
  */
-export type WriteExclusive = readonly['writeExclusive', (path: string, data: Vec) => IoResult<void>]
+export type WriteExclusive = readonly['writeExclusive', (path: string, data: readonly Vec[]) => IoResult<void>]
 
 // writeBytes
 
@@ -428,7 +449,7 @@ export type Close = readonly['close', (handle: Handle) => IoResult<void>]
 
 // Fs
 
-export type Fs = Mkdir | ResolveFileModule | ReadFile | ReadBytes | ReadWhole | Readdir | WriteFile | Rm | Rename | Exec | Access | CreateExclusive | WriteExclusive | WriteBytes | Stat | Open | Fstat | Pread | Close
+export type Fs = Mkdir | ResolveFileModule | ReadFile | ReadBytes | ReadWhole | Readdir | WriteFile | Rm | Rmdir | Rename | Exec | Access | CreateExclusive | WriteExclusive | WriteBytes | Stat | Open | Fstat | Pread | Close
 
 // Server
 
