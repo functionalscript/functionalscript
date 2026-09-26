@@ -5,8 +5,15 @@
 
 ### Problem
 
-[`module.f.mjs`](../module.f.mjs) is the largest module under `fjs/` and
-holds three jobs that never touch each other's state:
+[`module.f.mjs`](../module.f.mjs) holds three jobs that never touch each
+other's state. The writers were a fourth, and moved to
+[`../write/`](../write/module.f.mjs) in
+[#2315](https://github.com/functionalscript/functionalscript/pull/2315) when
+the file passed 128 KiB; they import `nameText`, `nameForMessage`,
+`badNameMessage`, `refsPrefix`, `dirOf`, `zeroId`, `isDirectoryAt`,
+`packedRefs`, `tryBytes` and `tryWholeBytes`, which the store exports for
+them — and which `name/` and `scope/` below would own instead, so that
+the store stops exporting its internals. The three left:
 
 - **The byte-name ↔ host-path codec**: `nameBytes`, `nameText`, `nameKey`,
   `nameForMessage`, `askable`, `isUnderRefs`, `headName` and
