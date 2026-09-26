@@ -364,10 +364,12 @@ EDAG as data, with I/O and `sandbox` handled by `nanvm-effects-node`. Arbitrary
 JavaScript and host modules are not part of the Rust source-loading contract.
 
 Reached incrementally: Stage 1 removed authored TypeScript from the compiler
-source into `.f.mjs` independently of parser coverage. As the code
-generator's language coverage grows, compiler-supported modules move from
-`.f.mjs` to `.f.js`; self-hosting is the completion of that same Stage-2
-compiler-compatibility migration rather than a separate rewrite.
+source into `.f.mjs` independently of parser coverage. Stage 2 also requires
+removing host behavior outside FJS: the memo executor's captured mutable cache
+needs an [immutable rewrite](../../fjs/edag/memo/todo/immutable-cache.md) preserving
+sharing and lazy evaluation before native self-hosting. That is a semantic
+prerequisite, not ordinary compiler coverage. As these migrations and language
+coverage permit, compiler-supported modules move from `.f.mjs` to `.f.js`.
 
 ### Open questions
 

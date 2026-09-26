@@ -188,9 +188,12 @@ The function representation is the EDAG, not that source tree.
 Two consequences worth stating plainly:
 
 - **Validation is a total gate.** The invariant binds *every* validated
-  graph, not just compiler output — the `Function` constructor accepts
-  an `Any` from anywhere, so "the FJS compiler would never emit that" is
-  never an admissible argument. This is why the property-key rule is
+  graph, not just compiler output. The
+  [public FJS final-EDAG entry](../fjs/fsc/todo/interpret-edag.md) validates code
+  supplied as `Any`, independently of its producer, before interpretation on
+  either Node or Rust. A native `Function` constructor is not required for
+  this boundary. "The FJS compiler would never emit that" is never an
+  admissible argument. This is why the property-key rule is
   syntactic ([Operations](#operations)) rather than a convention:
   anything a hostile graph could express, validation must have already
   ruled out.
@@ -239,7 +242,7 @@ below, `"=>"` was marked a not-yet-implemented Stage 2, and `["frame"]` was mark
 `later` too (further down, under [Operations](#operations)) — yet all were already
 validated by `exp`, before any compiler emitted them. The optional nodes are the sharpest case: `"?."` and `"?.()"` are in the
 schema even though `?.` is not an FS source operator in its own right (see below), because
-the `Function` constructor takes EDAG from anywhere and a chain's hidden control flow has
+the public FJS final-EDAG entry takes EDAG from any producer and a chain's hidden control flow has
 to be representable and validatable when it does. A node being schema-valid says nothing about whether any parser emits it or
 any interpreter executes it — that's what the `Stage`/`later` marker tracks, and the
 schema is free to change independently of both.
@@ -303,8 +306,8 @@ must be one of:
 - a `"Number"` node — guaranteed to yield a number, or throw.
 
 So a run-time-computed **string** can never reach `"."`. This is a
-*syntactic* rule, checkable when the `Function` constructor validates
-its input (subject 5), which is what 2330 already asks of the byte code:
+*syntactic* rule, checkable at the public FJS final-EDAG validation entry
+(subject 5), which is what 2330 already asks of the byte code:
 the expression inside `[]` must be `Number(...)`, a number literal, or a
 permitted string literal.
 
@@ -849,7 +852,7 @@ entry sequence is semantic.** Stage 1 uses one entry form,
 `[":", key, value]`. Both the key and value positions are ordinary EDAG
 nodes — `{ ["sss" + 3]: x }` is valid JS, the key is a computed expression
 coerced via `ToPropertyKey` at runtime, and validation admits it: an `Any`
-handed to the `Function` constructor can contain any key node, and "the FJS
+supplied to the public FJS final-EDAG entry can contain any key node, and "the FJS
 compiler would never emit that" is not an admissible reason to narrow what
 validation accepts (subject 1). Entry forms belong to the object constructor
 rather than to the general expression vocabulary.
@@ -956,15 +959,22 @@ already follow —
 **Status:** open (list agreed in direction). The RTTI schema is written —
 [`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs) — and checks shape only:
 constants, the single-node body, unknown tags, entry forms and the form of a
-property operand. The rest of the list is not checked today
-([Caveats](../fjs/edag/README.md#caveats)): the property operand does not yet
-exclude the prohibited names, acyclicity and the `"=>"` scope rule go
-unchecked, and the `","` well-formedness rule is left to the emitter.
+property operand. Complete public validation remains open
+([interpret-edag](../fjs/fsc/todo/interpret-edag.md)): analysis rejects
+operation nodes shared across function scopes, and `bindingError` checks
+invocation bindings, but these internal checks do not close the public gate.
+Prohibited property names and acyclicity still need entry checks, and the
+`","` well-formedness rule is left to the emitter.
 Whether that `","` rule belongs to validation, as this list says, or stays
 the emitter's, as the README says, is open.
 
-The EDAG is the `Function` constructor's public input and will see shapes
-the FJS compiler would never emit. To validate:
+The public FJS final-EDAG entry must handle code supplied as data, including
+shapes the compiler would never emit. It validates before interpretation;
+schema shape checks or the low-level `memo` executor's assertions alone are
+insufficient. The same boundary applies when the FJS entry is AOT-compiled
+to Rust. A future native Rust EDAG adapter must meet the same contract, but
+neither that adapter nor a native `Function` constructor is a prerequisite.
+To validate:
 
 - constants: function values in constant position are a validation error —
   a function is a `"=>"` node, never a constant
@@ -1002,7 +1012,7 @@ the FJS compiler would never emit. To validate:
   ([spec: the `__proto__` key](../spec/README.md#the-__proto__-key),
   subject 12);
 - **acyclicity**: DJS cannot express cycles (const-before-use), but an
-  `Any` handed to the `Function` constructor can be built by other means —
+  `Any` supplied at a host boundary can be built by other means —
   cyclic node graphs must be rejected;
 - aliasing of **operation nodes is valid only within one function EDAG scope**:
   referencing the same node from many operand positions in that scope is the sharing

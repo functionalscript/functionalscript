@@ -28,8 +28,15 @@ Do not introduce a third resolution walk.
 For the native executable, compile this FJS pipeline, including its interpreter,
 to direct Rust ahead of time. At runtime the compiled interpreter evaluates
 newly loaded EDAG as data. It needs no runtime Rust generation, Cargo invocation
-or handwritten Rust EDAG executor. Compiler coverage needed to compile these
-modules is part of the existing self-hosting work, not a new MVP acceptance gate.
+or handwritten Rust EDAG executor.
+
+**Native prerequisite:** the current memo executor's `slot` mutates a captured
+`let filled`. The [immutable-cache rewrite](../../edag/memo/todo/immutable-cache.md)
+must preserve sharing, laziness and per-invocation identity before this executor
+can be compiled as FJS. This is a semantic migration, not merely missing parser
+coverage. It and the remaining compiler coverage belong to self-hosting; neither
+reopens the completed MVP. Node loading can use the existing host executor while
+that rewrite proceeds.
 
 Execution uses the existing `sandbox` effect to capture successful values and
 language throws. File, resolution and parse failures keep their existing error
@@ -45,9 +52,10 @@ channels. Resource limits belong to
 - [ ] Prove repeated and diamond imports preserve module/value identity, and
       malformed or unavailable modules, missing exports and cycles follow the
       existing compiler refusals.
-- [ ] Run the loader on Node with file effects and with in-memory effects. Once
-      its dependency closure compiles to Rust, run the same fixtures natively
-      and compare results and failures.
+- [ ] Run the loader on Node with file effects and with in-memory effects. After
+      the immutable-cache prerequisite and compiler coverage are complete, run
+      the same fixtures through its AOT-compiled dependency closure and compare
+      native results, failures and sharing with Node.
 - [ ] Migrate FJS consumers of the host `import` effect, beginning with the
       [proof loader](../../emergent_testing/todo/load-proofs-through-fjs.md).
       Account for host-only consumers before proposing removal of the existing

@@ -1,8 +1,9 @@
 ## Interpret a compiled EDAG directly
 
 **Priority:** P3
-**Status:** open — baseline memo executor implemented; public entry validation
-and value-producing API integration remain tasks below.
+**Status:** open — host baseline memo executor implemented; public entry
+validation, value-producing API integration and the immutable-cache prerequisite
+for native self-hosting remain open.
 
 **Compiler dependency:** [`compile-modules-to-edag.md`](./compile-modules-to-edag.md)
 provides the linked graphs. Its initial rest-only, non-capturing Stage 2 is
@@ -28,6 +29,11 @@ data; no handwritten Rust EDAG executor or native `import` effect is required.
 The optional [Rust EDAG library](../../../todo/rust-edag.md) is separate,
 deferred work and does not block these consumers.
 
+The existing executor is a host baseline: `slot` captures and mutates `let filled`.
+Its [immutable-cache rewrite](../../edag/memo/todo/immutable-cache.md) is required
+before AOT-compiling it under the existing FJS capture semantics. Broader compiler
+coverage alone does not make that captured mutation valid FJS.
+
 ### Proposal
 
 The baseline interpreter is [`fjs/edag/memo`](../../edag/memo/module.f.mjs), using
@@ -35,6 +41,14 @@ the shared [`operations`](../../edag/operations/module.f.mjs) and
 [`analysis`](../../edag/analysis/module.f.mjs) table. The requirements below govern
 its remaining entry-point and integration work, not a second interpreter for an
 older function representation.
+
+The public final-EDAG entry owns validation of code supplied as data, including
+graphs not emitted by the compiler. The
+[total-validation invariant](../../../todo/edag-stage1-discussion.md#5-validation)
+applies before interpretation on both Node and Rust. `memo` consumes analyzed
+input; its internal assertions are not that public validation boundary. Complete
+the entry checks below and refuse unsupported input explicitly; a native
+`Function` constructor is not needed to provide this boundary.
 
 Conceptually:
 
@@ -153,6 +167,9 @@ hardening TODO after the baseline interpreter exists.
 ### Tasks
 
 - [x] Provide the baseline memo executor in [`../../edag/memo`](../../edag/memo/module.f.mjs).
+- [ ] Before native self-hosting, complete the
+      [immutable-cache rewrite](../../edag/memo/todo/immutable-cache.md) and its
+      sharing/laziness parity checks; this does not block host-only integration.
 - [ ] Complete public final-EDAG entry validation before interpretation. Existing
       analysis and `bindingError` checks do not close every validation task below.
 - [x] Interpret EDAG operations directly; do not generate JavaScript from EDAG and run
@@ -234,6 +251,8 @@ hardening TODO after the baseline interpreter exists.
 
 ### Related
 
+- [immutable-cache](../../edag/memo/todo/immutable-cache.md) — semantic prerequisite
+  for compiling the memo executor to Rust, independent of syntax coverage.
 - [load-modules-without-import-effect](./load-modules-without-import-effect.md) —
   composes loading around this interpreter; does not implement a second executor.
 - [`compile-modules-to-edag.md`](./compile-modules-to-edag.md) — produces the final

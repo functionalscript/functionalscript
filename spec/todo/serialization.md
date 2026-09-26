@@ -31,6 +31,11 @@ There are two execution paths, observably identical except in performance:
   toolchain into `nanvm`. Ordinary AOT programs need no runtime EDAG executor
   or runtime code generation.
 
+The [public FJS final-EDAG entry](../../fjs/fsc/todo/interpret-edag.md) owns the
+[total-validation contract](../../todo/edag-stage1-discussion.md#5-validation)
+for code supplied as data, including graphs the compiler would never emit.
+Deferring the native `Function` constructor does not narrow that contract.
+
 On Rust both paths use `nanvm-lib` operators, with shared operator tests covering
 that layer and end-to-end tests covering the execution paths. The optional
 [Rust EDAG library](../../todo/rust-edag.md) is deferred beyond MVP and is not
