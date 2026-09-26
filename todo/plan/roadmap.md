@@ -107,7 +107,9 @@ See [architecture.md §Human-readable paths](./architecture.md).
 - Rust code generator ✓ — `fjs compile <module> <output>.rs` emits a Rust module
   calling the `nanvm-lib` API (`fjs/fsc/rust`, `fjs/edag/rust`), built and run
   by the `nanvm-harness` fixtures
-- `nanvm-lib` (Rust) — type system and operators implemented; **no interpreter**
+- `nanvm-lib` (Rust) — type system and operators implemented; kept low-level
+- FJS EDAG interpreter — baseline memo executor implemented; remaining validation
+  and integration tracked in [interpret-edag](../../fjs/fsc/todo/interpret-edag.md)
 
 **Remaining work:**
 1. ~~Function support in `fjs/fsc/`~~ — done.
@@ -116,9 +118,13 @@ See [architecture.md §Human-readable paths](./architecture.md).
 3. ~~Rust code generator (FJS)~~ — done: the MVP pipeline, the
    compiler-bootstrap vehicle, and the AOT backend
    (see [`nanvm-lib/todo/mvp-roadmap.md`](../../nanvm-lib/todo/mvp-roadmap.md))
-4. `Function` constructor + interpreter in `nanvm-lib` — executes the EDAG as data
-   (see [`spec/todo/serialization.md`](../../spec/todo/serialization.md));
-   bytecode is an optional, VM-internal, performance-oriented representation
+4. [FJS module loading](../../fjs/fsc/todo/load-modules-without-import-effect.md)
+   and [proof loading](../../fjs/emergent_testing/todo/load-proofs-through-fjs.md)
+   through the parser/linker and FJS interpreter. For native self-hosting,
+   compile that FJS pipeline to direct Rust, with low-level effects supplied by
+   [nanvm-effects-node](../nanvm-effects-node.md). The optional
+   [Rust EDAG library](../rust-edag.md) is on hold, outside MVP and self-hosting
+   prerequisites.
 5. Generic `Any` serialization (CBOR) in `nanvm-lib` — covers code as data; needed for CAS/CAVM
 
 **Repository source migration and compiler coverage:**
@@ -192,7 +198,7 @@ Prerequisite: compiler + CA FunctionalScript complete.
 | Signed directories | — | Directory block type + path resolver |
 | SUL deduplication | `fjs/sul/` L1–L4 ✓ | CAS integration layer |
 | Compiler (parsing) | `fjs/fsc/` pipeline with functions ✓, FS grammar on `fjs/ebnf/` ✓ | Language spec generated from the grammar |
-| Compiler (codegen) | Rust code generator (`fjs compile … .rs`) ✓ | `Function` constructor + interpreter in `nanvm-lib` |
+| Compiler (codegen) | Rust code generator (`fjs compile … .rs`) ✓ | AOT-compile the FJS loader/interpreter for native self-hosting; Rust EDAG deferred |
 | Compiler (repository coverage) | Stage-1 `.f.mjs` source migration complete and compiler-independent ✓ | Validate supported `.f.mjs` as coverage grows; then authored-`.f.js` package support, then rename supported groups `.f.mjs` → `.f.js` |
 | CA FunctionalScript | — | Depends on VM + EDAG canonicalization |
 | Sandboxed execution | — | Depends on CA FS |
