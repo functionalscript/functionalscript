@@ -365,9 +365,9 @@ stack, and that is a crash, not a throw. It is the same shape as
 [`fjs/edag/todo/stack-safety.md`](../../fjs/edag/todo/stack-safety.md) one layer
 down. Per [AGENTS.md §5](../../AGENTS.md#5-pull-requests-and-releases) a crash
 may be deferred behind a `todo/` that names the input, so the `flat` PR files
-one, naming both `flat(Infinity)` and `join` — and through `join`, `String(a)`
-— over a deep enough `[[[…]]]`, rather than making the first implementation
-iterative.
+one, naming `flat(Infinity)` and `join` — and through `join`, `String(a)` and
+the default `toSorted`, which converts each element — over a deep enough
+`[[[…]]]`, rather than making the first implementation iterative.
 
 ### Open questions
 
