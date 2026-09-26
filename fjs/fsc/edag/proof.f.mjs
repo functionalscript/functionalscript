@@ -14,7 +14,7 @@ import { vm } from '../../edag/amnesia/module.f.mjs'
 import { tryModuleStringify } from '../serializer/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { _defaultExport, resolve, unresolved } from './module.f.mjs'
-import { _graphOf, _shapeOf, _walk, demo } from './demo.f.mjs'
+import { _graphOf, _shapeOf, _walk, demo, examples } from './demo.f.mjs'
 import { _crossings, ranked } from '../../website/demo/graph/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { exp } from '../../edag/module.f.mjs'
@@ -1217,10 +1217,49 @@ export const proof = {
                 'expected the demo to reach a value without asking for an operation'))
             assertEq(step({ kind: 'input', name: 'edag', value: '1' })(''), '1')
             assertEq(step({ kind: 'start' })('kept'), 'kept')
+            // Picking an example replaces the text with its source, and
+            // `Custom`, whose name no example has, keeps the text.
+            const [name, source] = examples[1]
+            assertEq(step({ kind: 'input', name: 'example', value: name })('kept'), source)
+            assertEq(step({ kind: 'input', name: 'example', value: '' })('kept'), 'kept')
         },
         view: () => {
             const html = htmlToString(demo.view(demo.init))
             assert(html.includes('name="edag"'), html)
+            assert(html.includes('name="example"'), html)
+        },
+        examples: {
+            // The demo opens on the first, which is its overview.
+            init: () => assertEq(demo.init, examples[0][1]),
+            // Every example draws, except the one that is there to show an
+            // error — and none of them draws a node the demo cannot
+            // describe, since an example exists to show what it can.
+            draw: () => {
+                for (const [name, source] of examples) {
+                    const g = _graphOf(source)
+                    assertEq(g.ok, name !== 'Parse error')
+                    assert(!htmlToString(demo.view(source)).includes('not yet drawn'), name)
+                }
+            },
+            // Names are what a pick is matched by, so two alike would make
+            // the second unreachable.
+            distinctNames: () =>
+                assertEq(new Set(examples.map(([name]) => name)).size, examples.length),
+            // The picker selects the example the text is, and no other.
+            selected: () => {
+                const [name, source] = examples[2]
+                const html = htmlToString(demo.view(source))
+                assertEq(html.split(' selected=""').length - 1, 1)
+                assert(html.includes(`<option value="${name}" selected="">`), html)
+                assert(!html.includes('>Custom<'), html)
+            },
+            // Text that is no example selects `Custom`, which is there only
+            // while it is needed.
+            custom: () => {
+                const html = htmlToString(demo.view('export default 1;'))
+                assertEq(html.split(' selected=""').length - 1, 1)
+                assert(html.includes('<option value="" selected="">Custom</option>'), html)
+            },
         },
     },
 }

@@ -311,17 +311,17 @@ export const _graphOf = text => {
 }
 
 /**
- * The state is the text itself, not the graph: the graph is a function of
- * it, and storing a value the state can already compute is how the two
- * drift apart.
+ * The sources the examples drop-down offers, each under the name it is
+ * picked by: one per thing the drawing has to say, so a reader can see
+ * each without first working out how to write it.
  *
- * The initial source carries this demo's whole reason for existing. `a` is
+ * **The first is the overview**, and the demo opens on it. `a` is
  * referenced four times — twice in the array, once inside `a * 3`, once as
  * `m && a`'s right operand — and every reference is the same `Exp` object,
  * so the `+` node draws once with four incoming edges.
  *
  * It carries one of every look the drawing has, too, so that what the
- * three mean is on screen before a reader has typed anything. The numbers
+ * three mean is on screen before a reader has picked anything. The numbers
  * and `undefined` are constants, tinted cells inside the ports that use
  * them. `args` and `rest` are inputs, filled grey cells: a value arriving
  * from outside a scope rather than computed from operands. `args` is the
@@ -347,14 +347,70 @@ export const _graphOf = text => {
  * is. It reads `m` rather than `a`, so `a` keeps the four references the
  * paragraph above counts.
  *
+ * The rest take one of those points each, on its own. **Sharing** sets a
+ * `const` used twice beside the same expression written out again: only
+ * `const` makes sharing, so that is one `+` node with two edges and a
+ * second `+` of its own. **Laziness** draws every lazy position the
+ * compiler has — `&&`, `||` and `??` on their right, `?:` on both arms, a
+ * function's body — and **Closures** a function that captures its
+ * enclosing parameter, read inside the body through `frame`. The last is a
+ * source that does not parse, because an error is something this demo
+ * shows too.
+ *
+ * @type {readonly (readonly [name: string, source: string])[]}
+ */
+export const examples = [
+    ['Overview', 'import m from "./m.f.js";\nconst a = 1 + 2;\nconst checked = m.x < 4;\nexport default [a, a, a * 3, m && a, (...x) => x, undefined];'],
+    ['Sharing: a const, not a repeated expression', 'const a = 1 + 2;\nconst b = 1 + 2;\nexport default [a, a, b];'],
+    ['Constants', 'export default [null, undefined, true, 1, 2n, "s"];'],
+    ['Operators', 'export default (a, b) => [a + b, a * b, a ** b, -a, ~a, a === b, a < b, a & b, a << b];'],
+    ['Laziness: && || ??', 'export default (...a) => [a[0] && a[1], a[0] || a[1], a[0] ?? a[1]];'],
+    ['Laziness: ?:', 'export default (...a) => a[0] ? a[1] : a[2];'],
+    ['Closures: parameters and frame', 'export default x => y => x * 2 + y;'],
+    ['Objects and properties', 'const o = { a: 1, "b c": [2, 3] };\nexport default [o.a, o["b c"][1]];'],
+    ['Imports and calls', 'import m from "./m.f.js";\nimport { x } from "./n.f.js";\nexport default m(x);'],
+    ['Comma: an anchored const', 'import m from "./m.f.js";\nconst checked = m.x;\nexport default 42;'],
+    ['Parse error', 'export default {bad'],
+]
+
+/**
+ * The examples drop-down, with the example `text` is selected — or, once a
+ * reader has edited it into something that is none of them, a `Custom`
+ * entry that is. Which one is selected is read off the text rather than
+ * stored beside it, for the same reason the graph is.
+ *
+ * @type {(text: string) => Element}
+ */
+const examplePicker = text => {
+    /** @type {readonly Element[]} */
+    const options = examples.map(([name, source]) =>
+        ['option', source === text ? { value: name, selected: '' } : { value: name }, name])
+    const custom = examples.some(([, source]) => source === text)
+        ? []
+        : [/** @type {Element} */ (['option', { value: '', selected: '' }, 'Custom'])]
+    return ['p',
+        ['label', { for: 'example' }, 'Example '],
+        ['select', { id: 'example', name: 'example' }, ...custom, ...options],
+    ]
+}
+
+/**
+ * The state is the text itself, not the graph: the graph is a function of
+ * it, and storing a value the state can already compute is how the two
+ * drift apart. Picking an example replaces the text with its source, and a
+ * name no example has — `Custom`'s empty one — leaves it as it is.
+ *
  * @type {Demo<string, DemoEvent>}
  */
 export const demo = {
-    init: 'import m from "./m.f.js";\nconst a = 1 + 2;\nconst checked = m.x < 4;\nexport default [a, a, a * 3, m && a, (...x) => x, undefined];',
-    update: state => event => pureOk(event.kind === 'input' ? event.value : state),
+    init: examples[0][1],
+    update: state => event => pureOk(event.kind !== 'input' ? state
+        : event.name === 'example' ? examples.find(([name]) => name === event.value)?.[1] ?? state
+            : event.value),
     view: text => {
         const g = _graphOf(text)
         return ['div',
+            examplePicker(text),
             ['p',
                 ['label', { for: 'edag' }, 'Source '],
                 ['textarea', { id: 'edag', name: 'edag', rows: '8' }, text],
