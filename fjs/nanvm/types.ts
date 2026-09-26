@@ -69,35 +69,39 @@ export type Struct = { readonly [k in string]?: Value }
 export type Special<I extends Info> = () => I
 
 /**
- * What a {@link Special} describes. Each of the four is its own type below,
+ * What a {@link Special} describes. Each kind is its own type below,
  * so where it may appear is a type and not a comment.
  */
 export type Info =
     | readonly ['function']
+    | readonly ['function', Value]
     | readonly ['ref', string]
     | readonly ['throw']
     | readonly ['unreached']
 
 /**
- * A function value. Every operator here coerces one through `ToPrimitive`,
- * which never inspects it, so there is nothing to carry: it lowers to
+ * A function value. `functionValue` carries nothing: an operator coerces a
+ * function through `ToPrimitive`, which never calls it, so it lowers to
  * `() => undefined`, the smallest closure, which `amnesia` establishes and
- * the Rust printer renders as the harness's one function value. Legal
- * anywhere a {@link Value} is.
+ * the Rust printer renders as the harness's one function value.
+ * `returns(v)` carries what the function answers, `() => v`, for the cases
+ * where a conversion calls one: an object's own `toString` or `valueOf`.
+ * The Rust printer renders it as a closure. Legal anywhere a {@link Value}
+ * is.
  *
  * One thing about a function is *not* shared data: its string form. JS
- * gives a closure's source text, engine-specific, and `nanvm-lib`'s
- * `fn_to_string` gives the placeholder `"function"`, so a case whose result
- * depends on it — `String` of a function, `+` with one, or either applied to
- * an array or object holding one, since their `ToPrimitive` stringifies the
- * elements — would test two different values. Such a case is not written
- * here: the `String` and binary `+` groups have no function case, and the
- * JS-only half lives in `proof.f.mjs`'s `jsOnly.functionToString`. Every
- * other coercion of a function, nested or not, agrees on both sides
- * (`NaN`, `false`, `'function'`, the function itself), which is what the
- * function cases in the other groups exercise.
+ * gives a closure's source text, engine-specific, and `nanvm-lib` refuses
+ * it until it renders one (Stage 3 of `nanvm-lib/todo/to-primitive.md`), so
+ * a case whose result depends on it — `String` of a function, `+` with one,
+ * or either applied to an array or object holding one, since their
+ * `ToPrimitive` stringifies the elements — would test two different values.
+ * Such a case is not written here: the `String` and binary `+` groups have
+ * no function case, and the JS-only half lives in `proof.f.mjs`'s
+ * `jsOnly.functionToString`. Every other coercion of a function, nested or
+ * not, agrees on both sides (`NaN`, `false`, `'function'`, the function
+ * itself), which is what the function cases in the other groups exercise.
  */
-export type FunctionValue = Special<readonly ['function']>
+export type FunctionValue = Special<readonly ['function'] | readonly ['function', Value]>
 
 /**
  * One of {@link Data}'s `shared` values, so the *same* node — and hence the

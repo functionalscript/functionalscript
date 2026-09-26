@@ -121,11 +121,10 @@ integers and radix ten alone.
 conversion in `vm/string_coercion.rs`, answers what `x.toString()` answers
 for a number, a boolean, a bigint and a string, `[object Object]` for an
 object and the comma-joined elements for an array, so the first entries
-are a dispatch over bodies that exist. Two gaps it shares with the
-conversion path: an own `toString` or `valueOf` on an object is not
-called by `ToPrimitive` yet, where JavaScript's `String({ toString: f })`
-calls `f` — the same own-property-first lookup as the call step, to wire
-once for both, staged in [`to-primitive.md`](./to-primitive.md) — and
+are a dispatch over bodies that exist. `ToPrimitive` calls an object's
+own `toString` or `valueOf`, the same own-property-first lookup as the call
+step, so `String(o)` and `o.toString()` agree
+([`to-primitive.md`](./to-primitive.md)). The gap left is that
 `Number`'s `toString` takes no radix.
 
 ### Tasks
@@ -153,9 +152,9 @@ Infrastructure:
 - [ ] Corpus cases for every entry, run on the host engine and as
       generated Rust. Use the adopted EDAG-rendering contract as the oracle
       for default function text; native wrapper text is not that oracle.
-- [ ] `ToPrimitive` calls an object's own `toString` and `valueOf`, the
+- [x] `ToPrimitive` calls an object's own `toString` and `valueOf`, the
       lookup the call step uses, so `String(o)` and `o.toString()` agree:
-      [`to-primitive.md`](./to-primitive.md), refusal first.
+      [`to-primitive.md`](./to-primitive.md).
 
 `Object`:
 

@@ -29,8 +29,14 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("arrayNull", -([Nullish::Null.to_any()].to_array().to_any()), f64_any(0x8000000000000000));
     check::<A>("arrayPair", -([Nullish::Null.to_any(), Nullish::Null.to_any()].to_array().to_any()), f64_any(0x7ff8000000000000));
     check::<A>("objectEmpty", -(Object::default().to_any()), f64_any(0x7ff8000000000000));
-    // TODO: an own toString or valueOf is refused until Stage 2 of to-primitive.md: check::<A>("objectOwnValueOf", -([(string_key("valueOf"), function_any())].to_object().to_any()), f64_any(0x7ff8000000000000));
-    // TODO: an own toString or valueOf is refused until Stage 2 of to-primitive.md: check::<A>("objectOwnValueOfNotAFunction", -([(string_key("valueOf"), string_any("x"))].to_object().to_any()), f64_any(0x7ff8000000000000));
+    check::<A>("objectOwnValueOf", -([(string_key("valueOf"), function_any())].to_object().to_any()), f64_any(0x7ff8000000000000));
+    check::<A>("objectOwnValueOfNumber", -([(string_key("valueOf"), A::static_function(|_self, _args| { Ok(f64_any(0x4002666666666666)) }, 0, Array::default()).to_any())].to_object().to_any()), f64_any(0xc002666666666666));
+    check::<A>("objectOwnToString", -([(string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("2.3")) }, 0, Array::default()).to_any())].to_object().to_any()), f64_any(0xc002666666666666));
+    check::<A>("objectOwnBoth", -([(string_key("valueOf"), A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default()).to_any()), (string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("2")) }, 0, Array::default()).to_any())].to_object().to_any()), f64_any(0xbff0000000000000));
+    check::<A>("objectOwnValueOfNotAFunction", -([(string_key("valueOf"), string_any("x"))].to_object().to_any()), f64_any(0x7ff8000000000000));
+    check::<A>("objectOwnValueOfNotPrimitive", -([(string_key("valueOf"), A::static_function(|_self, _args| { Ok(Object::default().to_any()) }, 0, Array::default()).to_any()), (string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("2")) }, 0, Array::default()).to_any())].to_object().to_any()), f64_any(0xc000000000000000));
+    check_throws::<A>("objectOwnNoPrimitive", -([(string_key("toString"), A::static_function(|_self, _args| { Ok(Array::default().to_any()) }, 0, Array::default()).to_any())].to_object().to_any()));
+    check_throws::<A>("objectOwnValueOfThrows", -([(string_key("valueOf"), A::static_function(|_self, _args| { bigint_any(1) / bigint_any(0) }, 0, Array::default()).to_any()), (string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("2")) }, 0, Array::default()).to_any())].to_object().to_any()));
     check::<A>("function", -(function_any()), f64_any(0x7ff8000000000000));
     check::<A>("bigintPositive", -(bigint_any(1)), bigint_any(-1));
     check::<A>("bigintNegative", -(bigint_any(-1)), bigint_any(1));

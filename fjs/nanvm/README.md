@@ -89,13 +89,15 @@ name is a type error; which of them `nanvm-lib` answers is pinned separately,
 by the completeness table [`methods/`](methods/module.f.mjs) generates.
 
 A `functionValue` operand is not an exception. It lowers to `() => undefined`,
-the smallest closure — `['=>', ['[]', []], ['undefined']]` — which `amnesia`
-establishes like any `=>` and the Rust printer renders as the harness's one
-function value, `function_any()`; honest because no operator here inspects
-the function, and refused for any other lambda, since `nanvm-lib` has no
-closures to print. The one thing the two sides do not share is a function's
-string form (engine-specific in JS, a placeholder in `nanvm-lib`), so no case
-stringifies one, nested or not — see `FunctionValue` in [`types.ts`](types.ts).
+the smallest closure — `['=>', 0, ['[]', []], ['undefined']]` — which
+`amnesia` establishes like any `=>` and the Rust printer renders as the
+harness's one function value, `function_any()`. `returns(v)` is a function
+that answers `v`, for a conversion that calls an object's own `toString` or
+`valueOf`; it lowers to `['=>', 0, ['[]', []], v]`, which the Rust printer
+renders as a closure. The one thing the two sides do not share is a
+function's string form (engine-specific in JS, refused in `nanvm-lib`), so no
+case stringifies one, nested or not — see `FunctionValue` in
+[`types.ts`](types.ts).
 
 ## Writing a case
 
@@ -119,12 +121,13 @@ there are:
 { method: 'at', cases: [...] },                    // the receiver, then the arguments
 ```
 
-Four things a literal cannot express are written as thunks — a function in the
+Five things a literal cannot express are written as thunks — a function in the
 data is always a *description*, never a value that happens to be a function:
 
 | Thunk | Means |
 |---|---|
 | `functionValue` | a function value, lowered to `() => undefined` (no operator here inspects which one) |
+| `returns(v)` | a function value that answers `v`, lowered to `() => v`; `returns(unreached)` throws when called |
 | `ref(name)` | one of `data.shared`'s values, so the *same* object reaches every `ref` to that name |
 | `throws` | the case must throw; valid only as `expected` |
 | `unreached` | an operand the operation must not establish, lowered to `1n / 0n`, which throws if it is; for the lazy positions of `&&`/`||`/`??`/`?:` |

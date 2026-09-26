@@ -1,7 +1,7 @@
 ## to-primitive. Converting an object or a function: stock behavior, refusal, then own methods
 
 **Priority:** P1
-**Status:** open
+**Status:** open — Stages 1 and 2 are done; Stage 3, a function's text, remains
 
 ### Problem
 
@@ -9,9 +9,9 @@ Every conversion the VM makes, `ToString`, `ToNumber`, `ToNumeric` and the
 `+` and relational operators, goes through one function,
 `PrimitiveCoercionOp` in `vm/primitive_coercion.rs`
 (`Any::to_primitive`). For an object or a function it answers without
-looking at what JavaScript looks at:
+looking at what JavaScript looks at. Before Stage 1 it answered:
 
-| input | JavaScript | NaNVM today |
+| input | JavaScript | NaNVM before Stage 1 |
 |---|---|---|
 | `String({ toString: () => "b" })` | `"b"` | `"[object Object]"` |
 | `+{ valueOf: () => 1 }` | `1` | `NaN` |
@@ -68,7 +68,8 @@ contract. It only decides what a conversion does until that text exists.
 
 Stage 1 is one change in `primitive_coercion.rs`, so every caller inherits it.
 
-**An object with an own `toString` or `valueOf` is refused.** The refusal is
+**An object with an own `toString` or `valueOf` is refused.** Stage 2
+replaced this refusal by the call. The refusal was
 a `TypeError` that names the cause. It applies whatever the property holds,
 whatever the hint, and whichever caller asked. A plain object is unchanged.
 
@@ -127,12 +128,13 @@ Stage 1 also makes a check possible that no test can make today: conversion
 can now throw, so `toSorted`'s guard (`vm/array/to_sorted.rs`, which leaves
 fewer than two defined elements unconverted) becomes observable.
 `[x, undefined].toSorted()` answers, and `[x, x].toSorted()` throws, where
-`x` owns a `toString`. The guard's test lands with Stage 1.
+`x` owns a `toString` that throws. The guard's test lands with
+`toSorted`.
 
 **Changelog.** A behavior change of `nanvm-lib`: conversions that answered a
 wrong value now throw a `TypeError`. It is not a break of `fjs`'s API.
 
-### Stage 2: an object's own methods
+### Stage 2: an object's own methods (done)
 
 `obj_to_primitive` follows
 [`OrdinaryToPrimitive`](https://tc39.es/ecma262/#sec-ordinarytoprimitive)
@@ -155,7 +157,11 @@ Stage 2 removes Stage 1's refusal for objects, and deletes the `rust`
 reasons of those cases. The host-only cases in `fjs/nanvm/proof.f.mjs`
 (`toStringMethod`, `toStringThrows`, `toStringNotAFunction`,
 `toStringNotPrimitive`) move into the shared corpus, since both sides then
-agree.
+agree. To write them there, the corpus gains `returns(v)`, a function value
+that answers `v`, beside `functionValue`; `returns(unreached)` throws when
+called. The unit tests are in `vm/primitive_coercion.rs`, one per step
+above, and the corpus covers each step for `String`, unary `+` and `-`,
+binary `+` and `slice`'s position.
 
 A method's result can itself be an object with its own methods. Step 6 does
 not convert it; it moves on. So the conversion cannot recurse through its
@@ -183,8 +189,8 @@ needs its own issue, and it lands with or after Stage 1.
       `rust` reason.
 - [ ] With the member functions still in review, once each merges this:
       the `toSorted` guard's test, and the `// TODO:` in `array_join` and
-      `vm/string/search.rs` replaced with a pointer to Stage 2.
-- [ ] Stage 2: call an object's own `toString` and `valueOf` per
+      `vm/string/search.rs` deleted, since Stage 2 answers it.
+- [x] Stage 2: call an object's own `toString` and `valueOf` per
       `OrdinaryToPrimitive`. Move the host-only cases into the corpus.
 - [ ] Stage 3: a function's text, through the EDAG renderer (tracked with the
       `Function` checklist in `member-functions.md`).

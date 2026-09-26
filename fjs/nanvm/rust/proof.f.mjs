@@ -9,7 +9,7 @@
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { casesOf, data, functionValue, lambdaExp, ref, throws, unreached, valueExp } from '../module.f.mjs'
+import { casesOf, data, functionValue, lambdaExp, ref, returns, throws, unreached, valueExp } from '../module.f.mjs'
 import { directory, fnName, generate, nodeExpr, rustName } from './module.f.mjs'
 
 /** A value as the printer meets it: its lowering, printed. @type {(v: Value) => string} */
@@ -167,6 +167,10 @@ export const proof = {
         assertEq(valueExpr(functionValue), 'function_any()')
         // Nested, a function is the same node inside its container's.
         assertEq(valueExpr([functionValue]), '[function_any()].to_array().to_any()')
+        // A function answering a value is a closure; answering `undefined`,
+        // it is the smallest one.
+        assertEq(valueExpr(returns('a')), 'A::static_function(|_self, _args| { Ok(string_any("a")) }, 0, Array::default()).to_any()')
+        assertEq(valueExpr(returns(undefined)), 'function_any()')
         // An `unreached` is the throwing operation it lowers to: where it
         // belongs, a lazy position, this is the thunk's own answer — see
         // `generate`'s `skip` case.

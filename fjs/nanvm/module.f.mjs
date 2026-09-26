@@ -11,8 +11,8 @@
  *   producing `nanvm-lib/tests/test/gen.corpus/`, which runs the same case
  *   against `nanvm-lib`.
  *
- * Beside the data are the format's **constructors** (`functionValue`, `ref`,
- * `throws`, `unreached`), its **eliminators** (`isThrows`, `hasUnreached`,
+ * Beside the data are the format's **constructors** (`functionValue`,
+ * `returns`, `ref`, `throws`, `unreached`), its **eliminators** (`isThrows`, `hasUnreached`,
  * `orders`, `groupKey`, `casesOf`, `arityOf`), and the **lowering** that
  * turns a case into the EDAG expression it denotes (`lambdaExp`,
  * `unreachedExp`, `sharedExp`, `valuesExp`, `valueExp`, `caseExp`). All
@@ -66,6 +66,18 @@ const isOp3Id = validate(op3Id)
  * @type {FunctionValue}
  */
 export const functionValue = () => ['function']
+
+/**
+ * A function value that answers `v`: `() => v`. For the cases that call a
+ * function, as a conversion calls an object's own `toString` or `valueOf`.
+ * `returns(unreached)` is a function that throws when called.
+ *
+ * Its body is lowered where nothing is shared, so a `ref` in `v` is refused:
+ * the lowering shares no node across a function boundary.
+ *
+ * @type {(v: Value) => FunctionValue}
+ */
+export const returns = v => () => ['function', v]
 
 /**
  * The case must throw. Valid only as a case's `expected`.
@@ -237,8 +249,9 @@ export const unreachedExp = () => ['/', 1n, 0n]
  * a `ref` and never an accident of the walk.
  *
  * A {@link Value} admits three thunks, and this walk has a case for each: a
- * `ref` resolves, a `functionValue` is {@link lambdaExp}, and an `unreached`
- * is {@link unreachedExp}. `throws` is an {@link Expectation}, not spellable
+ * `ref` resolves, a `functionValue` is {@link lambdaExp} — or, from
+ * {@link returns}, the closure answering its value — and an `unreached` is
+ * {@link unreachedExp}. `throws` is an {@link Expectation}, not spellable
  * here, so it is not rejected here either.
  *
  * @type {(resolve: (name: string) => Exp) => (v: Value) => Exp}
@@ -249,7 +262,7 @@ const constExp = resolve => {
         if (typeof v === 'function') {
             const info = v()
             return info[0] === 'ref' ? resolve(info[1])
-                : info[0] === 'function' ? lambdaExp()
+                : info[0] === 'function' ? (info.length === 1 ? lambdaExp() : ['=>', 0, ['[]', []], valueExp(info[1])])
                 : unreachedExp()
         }
         if (v === undefined) { return ['undefined'] }
@@ -371,13 +384,6 @@ export const sharedExp = shared => entries(shared).reduce(
 export const valuesExp = shared => constExp(resolve(shared))
 
 /**
- * The `rust` reason of a case whose object owns a `toString` or a `valueOf`:
- * `nanvm-lib` refuses it until it calls the method, Stage 2 of
- * `nanvm-lib/todo/to-primitive.md`.
- */
-const ownMethodRefused = 'an own toString or valueOf is refused until Stage 2 of to-primitive.md'
-
-/**
  * `+n` and `-n` share their whole argument space: both coerce with `ToNumber`
  * and differ only in the sign of the result. Listing the arguments once keeps
  * the two groups from drifting apart.
@@ -412,9 +418,18 @@ const numberCoercionCases = negate => {
         { name: 'arrayNull', args: [[null]], expected: result(0) },
         { name: 'arrayPair', args: [[null, null]], expected: NaN },
         { name: 'objectEmpty', args: [{}], expected: NaN },
-        { name: 'objectOwnValueOf', args: [{ valueOf: functionValue }], expected: NaN, rust: ownMethodRefused },
-        // JavaScript skips a `valueOf` that is no function; NaNVM refuses it.
-        { name: 'objectOwnValueOfNotAFunction', args: [{ valueOf: 'x' }], expected: NaN, rust: ownMethodRefused },
+        // `OrdinaryToPrimitive` with the `number` hint: `valueOf` first,
+        // then `toString`, each an own method if the object has one.
+        { name: 'objectOwnValueOf', args: [{ valueOf: functionValue }], expected: NaN },
+        { name: 'objectOwnValueOfNumber', args: [{ valueOf: returns(2.3) }], expected: result(2.3) },
+        { name: 'objectOwnToString', args: [{ toString: returns('2.3') }], expected: result(2.3) },
+        { name: 'objectOwnBoth', args: [{ valueOf: returns(1), toString: returns('2') }], expected: result(1) },
+        // A method that is no function is skipped.
+        { name: 'objectOwnValueOfNotAFunction', args: [{ valueOf: 'x' }], expected: NaN },
+        // A result that is no primitive moves on to the next method.
+        { name: 'objectOwnValueOfNotPrimitive', args: [{ valueOf: returns({}), toString: returns('2') }], expected: result(2) },
+        { name: 'objectOwnNoPrimitive', args: [{ toString: returns([]) }], expected: throws },
+        { name: 'objectOwnValueOfThrows', args: [{ valueOf: returns(unreached), toString: returns('2') }], expected: throws },
         { name: 'function', args: [functionValue], expected: NaN },
     ]
 }
@@ -705,6 +720,10 @@ const addCases = [
     { name: 'onePlusStringTwo', args: [1, '2'], expected: '12' },
     { name: 'bigOnePlusBigOne', args: [1n, 1n], expected: 2n },
     { name: 'bigOnePlusStringTwo', args: [1n, '2'], expected: '12' },
+    // No hint: an object's own `valueOf` first, as for `number`.
+    { name: 'ownValueOfPlusOne', args: [{ valueOf: returns(1) }, 1], expected: 2 },
+    { name: 'ownBothPlusString', args: [{ valueOf: returns(1), toString: returns('t') }, '!'], expected: '1!' },
+    { name: 'stringPlusOwnToString', args: ['a', { toString: returns('b') }], expected: 'ab' },
     { name: 'stringOnePlusBigTwo', args: ['1', 2n], expected: '12' },
     { name: 'emptyArrayPlusOne', args: [[], 1], expected: '1' },
     { name: 'arrayOnePlusTwo', args: [[1], 2], expected: '12' },
@@ -1109,10 +1128,20 @@ const stringCoercionCases = [
     { name: 'arrayWithNullish', args: [[null, undefined, 1]], expected: ',,1' },
     { name: 'emptyObject', args: [{}], expected: '[object Object]' },
     { name: 'object', args: [{ a: 1 }], expected: '[object Object]' },
-    { name: 'objectOwnToString', args: [{ toString: functionValue }], expected: 'undefined', rust: ownMethodRefused },
-    // A `toString` that is no function is skipped, and the stock `valueOf`
-    // answers the object, so JavaScript throws too.
+    // `OrdinaryToPrimitive` with the `string` hint: `toString` first, then
+    // `valueOf`, each an own method if the object has one.
+    { name: 'objectOwnToString', args: [{ toString: functionValue }], expected: 'undefined' },
+    { name: 'objectOwnToStringMethod', args: [{ toString: returns('custom string') }], expected: 'custom string' },
+    { name: 'objectOwnValueOf', args: [{ valueOf: returns(1) }], expected: '[object Object]' },
+    { name: 'objectOwnBoth', args: [{ valueOf: returns(1), toString: returns('t') }], expected: 't' },
+    // A method that is no function is skipped: after `toString`, the stock
+    // `valueOf` answers the object, so the conversion throws.
     { name: 'objectOwnToStringNotAFunction', args: [{ toString: 'h' }], expected: throws },
+    { name: 'objectOwnValueOfNotAFunction', args: [{ valueOf: 'x' }], expected: '[object Object]' },
+    // A result that is no primitive moves on to the next method.
+    { name: 'objectOwnToStringNotPrimitive', args: [{ toString: returns({}), valueOf: returns(1) }], expected: '1' },
+    { name: 'objectOwnNoPrimitive', args: [{ toString: returns([]) }], expected: throws },
+    { name: 'objectOwnToStringThrows', args: [{ toString: returns(unreached) }], expected: throws },
 ]
 
 /**
@@ -1651,6 +1680,7 @@ const sliceCases = [
     { name: 'nested', args: [[[1], [2]], 1], expected: [[2]] },
     { name: 'bigintStart', args: [[1], 0n], expected: throws },
     { name: 'bigintEnd', args: [[1], 0, 1n], expected: throws },
+    { name: 'ownValueOfStart', args: [[1, 2, 3], { valueOf: returns(1) }], expected: [2, 3] },
 ]
 
 /**

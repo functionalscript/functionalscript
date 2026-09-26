@@ -169,7 +169,7 @@ mod tests {
         naive::Naive,
         vm::{
             Any, BigInt, IStaticFunction, Nullish, ToAny, ToArray, ToObject,
-            primitive_coercion::{FUNCTION_TEXT, OWN_CONVERSION_METHOD},
+            primitive_coercion::FUNCTION_TEXT,
         },
     };
 
@@ -235,18 +235,17 @@ mod tests {
         assert_eq!(to_string(f), Err(FUNCTION_TEXT.into()));
     }
 
-    /// A position that is an object with its own `valueOf` is refused, not
-    /// read as `NaN`: `[0, 1].slice({ valueOf: () => 1 })` is `[1]`.
+    /// A position that is an object with its own `valueOf` calls it:
+    /// `[0, 1].slice({ valueOf: () => 1 })` is `[1]`.
     #[test]
-    fn slice_refuses_an_own_value_of() {
+    fn slice_calls_an_own_value_of() {
         let f: Any<A> = A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array()).to_any();
         let start: Any<A> = [("valueOf".into(), f)].to_object().to_any();
         let a: Any<A> = [0.0.to_any(), 1.0.to_any()].to_array().to_any();
-        assert_eq!(
-            a.dot("slice".into())
-                .end_call(|| Ok([start].to_array().to_any())),
-            Err(OWN_CONVERSION_METHOD.into())
-        );
+        let sliced = a
+            .dot("slice".into())
+            .end_call(|| Ok([start].to_array().to_any()));
+        assert_eq!(sliced.and_then(to_string), Ok("1".into()));
     }
 
     /// Through a region as well: `a?.toString()`, `(a?.toString)()`, and

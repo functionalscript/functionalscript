@@ -22,6 +22,9 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("onePlusStringTwo", f64_any(0x3ff0000000000000) + string_any("2"), string_any("12"));
     check::<A>("bigOnePlusBigOne", bigint_any(1) + bigint_any(1), bigint_any(2));
     check::<A>("bigOnePlusStringTwo", bigint_any(1) + string_any("2"), string_any("12"));
+    check::<A>("ownValueOfPlusOne", [(string_key("valueOf"), A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default()).to_any())].to_object().to_any() + f64_any(0x3ff0000000000000), f64_any(0x4000000000000000));
+    check::<A>("ownBothPlusString", [(string_key("valueOf"), A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default()).to_any()), (string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("t")) }, 0, Array::default()).to_any())].to_object().to_any() + string_any("!"), string_any("1!"));
+    check::<A>("stringPlusOwnToString", string_any("a") + [(string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("b")) }, 0, Array::default()).to_any())].to_object().to_any(), string_any("ab"));
     check::<A>("stringOnePlusBigTwo", string_any("1") + bigint_any(2), string_any("12"));
     check::<A>("emptyArrayPlusOne", Array::default().to_any() + f64_any(0x3ff0000000000000), string_any("1"));
     check::<A>("arrayOnePlusTwo", [f64_any(0x3ff0000000000000)].to_array().to_any() + f64_any(0x4000000000000000), string_any("12"));
