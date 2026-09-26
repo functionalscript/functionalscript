@@ -298,6 +298,12 @@ fn array_join<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>
     let separator = argument(&args, 0);
     let separator = match Unpacked::from(separator.clone()) {
         Unpacked::Nullish(Nullish::Undefined) => ",".into(),
+        // TODO: `ToString` of an object ignores its own `toString`/`valueOf`,
+        // and of a function answers a placeholder, so the separator
+        // `{ toString: () => '-' }` joins with `"[object Object]"`, and the
+        // elements convert the same way. The fix is in the shared
+        // conversion, not here: the `ToPrimitive` task in
+        // `nanvm-lib/todo/member-functions.md`.
         _ => separator.to_string()?,
     };
     Ok(a.join(separator)?.to_any())
