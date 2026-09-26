@@ -46,6 +46,11 @@ export const proof = {
         assert(r.pending.every(([, n]) => allowed.includes(n)))
         assert(r.prohibited.every(([, n]) => prohibited.includes(n)))
         assert(keys(r.prohibited).includes('array.push'))
+        // Allowed, but on another type's prototype only.
+        assert(keys(r.absent).includes('array.charAt'))
+        assert(keys(r.absent).includes('number.map'))
+        assert(r.absent.every(([t, n]) =>
+            allowed.includes(n) && !keys(r.answered).includes(`${t}.${n}`) && !keys(r.pending).includes(`${t}.${n}`)))
         // Every name any prototype has is some type's.
         /** @type {readonly string[]} */
         const names = types.flatMap(([, n]) => n)
@@ -62,6 +67,8 @@ export const proof = {
         const [type, name] = rows(pending).pending[0]
         assert(rust.includes(`pub const PENDING: &[(&str, &str)] = &[\n    ("${type}", "${name}"),\n`), rust)
         assert(rust.includes('pub const PROHIBITED: &[(&str, &str)] = &[\n    ("object", "__defineGetter__"),\n'), rust)
+        assert(rust.includes('pub const ABSENT: &[(&str, &str)] = &[\n'), rust)
+        assert(rust.includes('    ("array", "charAt"),\n'), rust)
         assert(rust.endsWith('];\n'), rust)
         assertEq(path, `${directory}/gen.methods.rs`)
         assertEq(directory, 'nanvm-lib/src/vm/lambda')
