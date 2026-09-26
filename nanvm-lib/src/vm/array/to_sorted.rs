@@ -14,7 +14,9 @@ impl<A: IVm> Array<A> {
     /// With no comparator, elements compare by their `ToString` as UTF-16
     /// code units, so `[10, 9, 1]` sorts `[1, 10, 9]`; each element is
     /// converted once rather than once per comparison, which nothing pure
-    /// can tell apart but for which of several throws surfaces. With one, `a`
+    /// can tell apart but for which of several throws surfaces. Fewer than
+    /// two elements to sort are never compared, so they are not converted
+    /// either: a lone element whose conversion throws is copied. With one, `a`
     /// goes after `b` when `ToNumber(compare(a, b))` is above zero, `NaN`
     /// counting as zero and a bigint answer throwing as `ToNumber` does.
     ///
@@ -30,6 +32,7 @@ impl<A: IVm> Array<A> {
                 )
             });
         let sorted = match compare {
+            None if defined.len() < 2 => defined,
             None => {
                 let keyed: Result<Vec<Keyed<A>>, Any<A>> = defined
                     .into_iter()
