@@ -102,7 +102,7 @@ A file or directory whose name starts with `gen.` is generated, and so is
 everything inside a `gen.*` directory: change its generator, never the output,
 and never give a handwritten file that name. The few outputs whose path another
 tool fixes are listed in `.gitattributes`
-([CONTRIBUTING.md](./CONTRIBUTING.md#regenerating-after-a-source-change)).
+([CONTRIBUTING.md](./CONTRIBUTING.md#naming-generated-files)).
 
 Format, priorities, where each issue file belongs, and how GitHub-reported bugs
 become `todo/` files: [todo/README.md](./todo/README.md). How one session takes

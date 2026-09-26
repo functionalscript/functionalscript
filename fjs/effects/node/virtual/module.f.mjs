@@ -215,6 +215,12 @@ const emptyPathIsAbsent = op => path => path === '' ? state => [state, enoent] :
  * not a directory — see {@link statPath} and {@link mkdirOp}, its sources here. */
 const enotdir = error(ioError({ code: 'ENOTDIR', message: 'not a directory' }))
 
+/** What a host answers for `rmdir` of a directory that holds anything. */
+const enotempty = error(ioError({ code: 'ENOTEMPTY', message: 'directory not empty' }))
+
+/** What a host answers for `rmdir('.')`: the directory the path is relative to. */
+const einval = error(ioError({ code: 'EINVAL', message: 'invalid argument' }))
+
 /**
  * What a file operation answers for a name holding a `JsModule` — the one
  * question {@link resolveFile}'s three callers do *not* answer alike, so it is
@@ -430,10 +436,16 @@ const access = readOperation((dir, path) => {
 
 /** @type {(dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<void>]} */
 const rmOp = (dir, path) => {
-    if (path.length !== 1) { return [dir, fail('invalid path')] }
+    // Presence before length, as `statPath` does: `operation` hands over the
+    // whole remaining path both when its first name is absent and when that
+    // name is a file, and a host answers `ENOENT` for the one and `ENOTDIR`
+    // for the other — measured on node 22.22.2, `rm('absent/deeper')` and
+    // `rm('file/x')`. A directory reaches here with nothing left of the path.
+    if (path.length === 0) { return [dir, fail('invalid path')] }
     const [name] = path
     const entry = entryOf(dir, name)
-    if (entry === undefined) { return [dir, fail('no such file')] }
+    if (entry === undefined) { return [dir, enoent] }
+    if (path.length !== 1) { return [dir, enotdir] }
     // No "is a directory" guard here: `operation`'s wrapper descends into
     // every plain-object (`Dir`) entry before this op ever runs, so `entry`
     // is always a `Vec[]` or a `JsModule` — never a bare `Dir` — and rm can
@@ -445,6 +457,50 @@ const rmOp = (dir, path) => {
 
 /** @type {(path: string) => (state: State) => readonly [State, IoResult<void>]} */
 const rm = operation(rmOp)
+
+/** Whether a directory holds nothing, which is when a host will remove it. */
+const isEmptyDir = /** @type {(d: Dir) => boolean} */ (d => !Object.values(d).some(v => v !== undefined))
+
+/**
+ * Removes an empty directory from its parent, with the codes a host answers —
+ * measured on node 22.22.2:
+ *
+ * | the name is… | answer |
+ * | --- | --- |
+ * | an empty directory | `ok`, and it is gone |
+ * | a directory holding anything | `ENOTEMPTY`, untouched |
+ * | a file, or reached through one | `ENOTDIR` |
+ * | absent, at any depth | `ENOENT` |
+ * | `.`, the root | `EINVAL` |
+ *
+ * The walk is to the *parent*, as {@link extractEntity}'s is, because
+ * `operation` would descend into the directory and hand over its contents with
+ * nothing left of the path, from which it cannot remove itself. A host's `rmdir`
+ * does not follow a symbolic link either — it is `ENOTDIR` — and this runner
+ * has none. `''` is `ENOENT` through {@link emptyPathIsAbsent}.
+ *
+ * @type {(dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<void>]}
+ */
+const rmdirAt = (dir, path) => {
+    if (path.length === 0) { return [dir, einval] }
+    const [first, ...rest] = path
+    const entry = entryOf(dir, first)
+    if (entry === undefined) { return [dir, enoent] }
+    if (!isDir(entry)) { return [dir, enotdir] }
+    if (rest.length === 0) {
+        if (!isEmptyDir(entry)) { return [dir, enotempty] }
+        const { [first]: _, ...kept } = dir
+        return [kept, okVoid]
+    }
+    const [inner, r] = rmdirAt(entry, rest)
+    return r[0] === 'error' ? [dir, r] : [{ ...dir, [first]: inner }, r]
+}
+
+/** @type {(path: string) => (state: State) => readonly [State, IoResult<void>]} */
+const rmdir = emptyPathIsAbsent(path => state => {
+    const [root, r] = rmdirAt(state.root, parse(path))
+    return [{ ...state, root }, r]
+})
 
 /** @type {(dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<_Entity>]} */
 const extractEntity = (dir, path) => {
@@ -485,12 +541,8 @@ const insertEntityAt = (dir, path, entity) => {
             if (!entityIsDir && existingIsDir) {
                 return [dir, fail(`'${name}' is a directory`)]
             }
-            if (entityIsDir && existingIsDir) {
-                const existingDir = existing
-                const hasContent = Object.values(existingDir).some(v => v !== undefined)
-                if (hasContent) {
-                    return [dir, fail(`cannot overwrite non-empty directory '${name}'`)]
-                }
+            if (entityIsDir && existingIsDir && !isEmptyDir(existing)) {
+                return [dir, fail(`cannot overwrite non-empty directory '${name}'`)]
             }
         }
         return [{ ...dir, [name]: entity }, okVoid]
@@ -617,9 +669,9 @@ const createExclusive = exclusive([])
  * reach the pathname in between. See `WriteExclusive` in `../types.ts` for what
  * the two separate calls let through on a real host.
  *
- * @type {(payload: Vec) => (path: string) => (state: State) => readonly [State, IoResult<void>]}
+ * @type {(payload: readonly Vec[]) => (path: string) => (state: State) => readonly [State, IoResult<void>]}
  */
-const writeExclusive = payload => exclusive([payload])
+const writeExclusive = payload => exclusive(payload)
 
 // The lock-free upload only ever writes sequentially at the current end of the
 // staging file (`offset === size`), so the virtual model implements that append
@@ -870,6 +922,7 @@ const map = {
     access,
     import: import_,
     rm,
+    rmdir,
     rename,
     readBytes: readBytesOp,
     createExclusive,
