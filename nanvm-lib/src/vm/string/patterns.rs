@@ -29,6 +29,31 @@ pub(crate) enum Part {
     Answer,
 }
 
+/// A run of a replacement's result: code units already held, or a
+/// replacement function's answer, read only once the result's length is
+/// known to fit, so answers sharing one string are never copied to count
+/// them.
+enum Piece<'a, A: IVm> {
+    Units(&'a [u16]),
+    Answer(&'a String<A>),
+}
+
+impl<'a, A: IVm> Piece<'a, A> {
+    fn length(&self) -> u64 {
+        match self {
+            Piece::Units(units) => units.len() as u64,
+            Piece::Answer(answer) => u64::from(answer.length()),
+        }
+    }
+
+    fn units(self) -> Box<dyn Iterator<Item = u16> + 'a> {
+        match self {
+            Piece::Units(units) => Box::new(units.iter().copied()),
+            Piece::Answer(answer) => Box::new(answer.clone().into_iter()),
+        }
+    }
+}
+
 impl<A: IVm> Replacement<A> {
     /// A function is called; anything else is `ToString`ed to a template.
     pub(crate) fn new(v: Any<A>) -> Result<Replacement<A>, Any<A>> {
@@ -95,24 +120,24 @@ impl<A: IVm> String<A> {
         replacement: &Replacement<A>,
     ) -> Result<String<A>, Any<A>> {
         let units: Vec<u16> = self.clone().into_iter().collect();
-        let (template, answers): (&[Part], Vec<Vec<u16>>) = match replacement {
+        let (template, answers): (&[Part], Vec<String<A>>) = match replacement {
             Replacement::Template(parts) => (parts, Vec::new()),
             Replacement::Function(f) => {
-                let answer = |p: u32| -> Result<Vec<u16>, Any<A>> {
+                let answer = |p: u32| -> Result<String<A>, Any<A>> {
                     let args = [
                         pattern.clone().to_any(),
                         Number::from(f64::from(p)).to_any(),
                         self.clone().to_any(),
                     ];
-                    Ok(f.call(args.to_array())?.to_string()?.into_iter().collect())
+                    f.call(args.to_array())?.to_string()
                 };
-                let answers: Result<Vec<Vec<u16>>, Any<A>> =
+                let answers: Result<Vec<String<A>>, Any<A>> =
                     positions.iter().map(|&p| answer(p)).collect();
                 (&[Part::Answer], answers?)
             }
         };
         let (units, answers, m) = (&units, &answers, pattern.length() as usize);
-        let slices = || {
+        let pieces = || {
             let ends = std::iter::once(0).chain(positions.iter().map(|&p| p as usize + m));
             positions
                 .iter()
@@ -120,20 +145,22 @@ impl<A: IVm> String<A> {
                 .enumerate()
                 .flat_map(move |(i, (&p, start))| {
                     let p = p as usize;
-                    std::iter::once(&units[start..p]).chain(template.iter().map(move |part| {
-                        match part {
-                            Part::Literal(v) => &v[..],
-                            Part::Matched => &units[p..p + m],
-                            Part::Before => &units[..p],
-                            Part::After => &units[p + m..],
-                            Part::Answer => &answers[i][..],
-                        }
-                    }))
+                    std::iter::once(Piece::Units(&units[start..p])).chain(template.iter().map(
+                        move |part| match part {
+                            Part::Literal(v) => Piece::Units(&v[..]),
+                            Part::Matched => Piece::Units(&units[p..p + m]),
+                            Part::Before => Piece::Units(&units[..p]),
+                            Part::After => Piece::Units(&units[p + m..]),
+                            Part::Answer => Piece::Answer(&answers[i]),
+                        },
+                    ))
                 })
-                .chain(std::iter::once(&units[ends.last().unwrap_or(0)..]))
+                .chain(std::iter::once(Piece::Units(
+                    &units[ends.last().unwrap_or(0)..],
+                )))
         };
-        let len = slices().fold(0u64, |n, s| n.saturating_add(s.len() as u64));
-        create(len, slices().flat_map(|s| s.iter().copied()))
+        let len = pieces().fold(0u64, |n, piece| n.saturating_add(piece.length()));
+        create(len, pieces().flat_map(Piece::units))
     }
 
     /// `String.prototype.replace(pattern, replacement)`
@@ -257,6 +284,16 @@ mod tests {
     fn too_long_is_refused_before_it_is_built() {
         let wide: String<A> = s("a").repeat(92681.0.to_any()).unwrap();
         assert!(wide.replace_all(a(""), a("$`")).is_err());
+    }
+
+    /// A function answering the receiver itself for each of 2¹⁶ + 1 matches
+    /// is past the limit too: the answers are one shared string, counted by
+    /// length, not copied.
+    #[test]
+    fn too_long_answers_are_refused_before_they_are_copied() {
+        let wide: String<A> = s("a").repeat(65536.0.to_any()).unwrap();
+        let itself = A::static_function(|_, args| Ok(args[2].clone()), 0, [].to_array()).to_any();
+        assert!(wide.replace_all(a(""), itself).is_err());
     }
 
     #[test]
