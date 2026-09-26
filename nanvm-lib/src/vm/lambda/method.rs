@@ -1,7 +1,7 @@
 use crate::{
     common::sized_index::SizedIndex,
     vm::{
-        Any, Array, Function, IVm, Nullish, Number, ToAny, ToArray, Unpacked,
+        Any, Array, Function, IVm, Nullish, Number, String, ToAny, ToArray, Unpacked,
         array::callback::callback,
     },
 };
@@ -28,6 +28,7 @@ pub(crate) fn method<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Option<Method<A
     match Unpacked::from(receiver.clone()) {
         Unpacked::Array(_) => array(key),
         Unpacked::String(_) => super::string::string(key),
+        Unpacked::Number(_) => super::number::number(key),
         _ => None,
     }
 }
@@ -105,30 +106,42 @@ pub(super) fn position<A: IVm>(found: Option<u32>) -> Any<A> {
 
 /// `toString()`: a dispatch to `Any::to_string`, the `String(x)` conversion,
 /// which answers what the method answers for a number, a boolean, a
-/// bigint, a string, an object and an array. Two things it does not do yet,
-/// both tracked in `member-functions.md`: a function answers the placeholder
-/// the conversion answers, not its source, and a radix is not applied.
-///
-/// So a number or a bigint given a radix other than the default — absent,
-/// `undefined` or `10` — throws rather than answers in radix ten:
-/// `(255).toString(16)` is `"ff"` in JavaScript, and `"255"` would be a
-/// different successful value (DESIGN.md §10). Every other type's
-/// `toString` ignores its arguments, as JavaScript's does.
+/// bigint, a string, an object and an array — except that a number and a
+/// bigint read a radix (`vm/number/format.rs`, `vm/bigint/radix.rs`). A
+/// function answers the placeholder the conversion answers, not its
+/// source (`member-functions.md`). Every other type's `toString` ignores
+/// its arguments, as JavaScript's does.
 fn to_string<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    if matches!(
-        Unpacked::from(receiver.clone()),
-        Unpacked::Number(_) | Unpacked::BigInt(_)
-    ) {
-        let default_radix = match Unpacked::from(argument(&args, 0)) {
-            Unpacked::Nullish(Nullish::Undefined) => true,
-            Unpacked::Number(radix) => f64::from(radix) == 10.0,
-            _ => false,
-        };
-        if !default_radix {
-            return Err("RangeError: a toString radix other than 10 is not supported yet".into());
-        }
+    let radix = match Unpacked::from(receiver.clone()) {
+        Unpacked::Number(_) | Unpacked::BigInt(_) => radix(argument(&args, 0))?,
+        _ => 10,
+    };
+    if radix == 10 {
+        return receiver.to_string().map(|s| s.to_any());
     }
-    receiver.to_string().map(|s| s.to_any())
+    match Unpacked::from(receiver) {
+        Unpacked::Number(n) => Ok(n.to_radix_string(radix)?.to_any()),
+        Unpacked::BigInt(b) => Ok(String::<A>::from(b.to_radix_string(radix).as_str()).to_any()),
+        _ => unreachable!("only a number or a bigint reads a radix"),
+    }
+}
+
+/// A `toString` radix: `10` when `undefined`, else `ToIntegerOrInfinity`
+/// of it, which must be `2` to `36` or is the `RangeError` JavaScript
+/// throws — checked before the number is looked at, so `NaN.toString(1)`
+/// throws too.
+fn radix<A: IVm>(radix: Any<A>) -> Result<u32, Any<A>> {
+    if matches!(
+        Unpacked::from(radix.clone()),
+        Unpacked::Nullish(Nullish::Undefined)
+    ) {
+        return Ok(10);
+    }
+    let r = f64::from(radix.to_number()?.to_integer_or_infinity());
+    if !(2.0..=36.0).contains(&r) {
+        return Err("RangeError: toString() radix argument must be between 2 and 36".into());
+    }
+    Ok(r as u32)
 }
 
 /// `Array.prototype.at`, `vm/array/at.rs`. The receiver is the array
@@ -336,21 +349,26 @@ mod tests {
     /// (`member-functions.md`). Other types ignore the argument.
     #[test]
     fn to_string_radix() {
-        let refused = Err("RangeError: a toString radix other than 10 is not supported yet".into());
-        let n = || 255.0.to_any();
-        let b = || BigInt::<A>::from(255i64).to_any();
-        assert_eq!(to_string_with(n(), 10.0.to_any()), Ok("255".into()));
+        let n = |v: f64| v.to_any();
+        let b = || BigInt::<A>::from(-255i64).to_any();
+        let out_of_range =
+            Err("RangeError: toString() radix argument must be between 2 and 36".into());
+        assert_eq!(to_string_with(n(255.0), 10.0.to_any()), Ok("255".into()));
         assert_eq!(
-            to_string_with(n(), Nullish::Undefined.to_any()),
+            to_string_with(n(255.0), Nullish::Undefined.to_any()),
             Ok("255".into())
         );
-        assert_eq!(to_string_with(n(), 16.0.to_any()), refused);
-        assert_eq!(to_string_with(n(), 2.0.to_any()), refused);
-        assert_eq!(to_string_with(b(), 10.0.to_any()), Ok("255".into()));
-        assert_eq!(to_string_with(b(), 16.0.to_any()), refused);
-        assert_eq!(to_string(b()), Ok("255".into()));
+        assert_eq!(to_string_with(n(255.0), 16.0.to_any()), Ok("ff".into()));
+        assert_eq!(to_string_with(n(255.0), 16.9.to_any()), Ok("ff".into()));
+        assert_eq!(to_string_with(n(255.0), "2".into()), Ok("11111111".into()));
+        assert_eq!(to_string_with(n(255.0), 1.0.to_any()), out_of_range);
+        assert_eq!(to_string_with(n(f64::NAN), 37.0.to_any()), out_of_range);
+        assert!(to_string_with(n(0.5), 2.0.to_any()).is_err());
+        assert_eq!(to_string_with(b(), 36.0.to_any()), Ok("-73".into()));
+        assert_eq!(to_string_with(b(), 10.0.to_any()), Ok("-255".into()));
+        assert_eq!(to_string(b()), Ok("-255".into()));
         assert_eq!(
-            to_string_with([1.0.to_any()].to_array().to_any(), 16.0.to_any()),
+            to_string_with([1.0.to_any()].to_array().to_any(), 1.0.to_any()),
             Ok("1".into())
         );
         assert_eq!(

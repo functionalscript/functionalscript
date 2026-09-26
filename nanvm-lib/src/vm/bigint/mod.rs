@@ -13,6 +13,7 @@ mod mul;
 mod neg;
 mod partial_eq;
 mod pow;
+mod radix;
 mod rem;
 mod shl;
 mod shr;

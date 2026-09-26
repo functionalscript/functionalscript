@@ -1,7 +1,7 @@
 //! `String.prototype`'s member functions: the table `method` consults for a
 //! string receiver, and one adapter per built-in reading the call's
 //! arguments into the typed method it calls, under `vm/string/`. The
-//! contracts are `nanvm-lib/todo/string-member-functions.md`'s.
+//! contracts are `vm/string/README.md`'s.
 
 use super::method::{Method, argument, lookup, position, rest};
 use crate::vm::{Any, Array, IVm, Number, String, ToAny};

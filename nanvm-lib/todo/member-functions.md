@@ -105,18 +105,10 @@ wrapper text satisfy the contract. This documentation correction changes no
 runtime behavior; the `Function` checklist remains open until semantic
 rendering and its conversion paths are proved, not merely dispatched.
 
-`Number`'s and `BigInt`'s `toString` with a radix is not written yet, and
-the entry, `to_string` in `vm/lambda/method.rs`, refuses one: on a number or
-a bigint it throws for any radix but an absent one, `undefined` and `10`, so
-`(255).toString(16)` fails where JavaScript answers `"ff"`. Reading the radix
-as ten, as the entry did before, answered `"255"` — a different successful
-value, which the [principles](../../spec/README.md#principles) forbid;
-refusing is missing support, which they allow
-([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
-The plan for the radix itself, the radix task below, is a radix for integers and for bigints,
-and a throw for a non-integer with a radix other than ten, which the
-specification leaves implementation-approximated, with the corpus pinning
-integers and radix ten alone.
+`Number`'s and `BigInt`'s `toString` take a radix, `2` to `36`: an integer
+and every bigint convert exactly, and a fraction with a radix other than ten
+is refused, since ECMAScript leaves its digits to the engine
+([`vm/string/README.md`](../src/vm/string/README.md)).
 
 **`toString` is mostly written.** `Any::to_string`, the `String(x)`
 conversion in `vm/string_coercion.rs`, answers what `x.toString()` answers
@@ -126,7 +118,7 @@ are a dispatch over bodies that exist. Two gaps it shares with the
 conversion path: an own `toString` or `valueOf` on an object is not
 called by `ToPrimitive` yet, where JavaScript's `String({ toString: f })`
 calls `f` — the same own-property-first lookup as the call step, to wire
-once for both — and `Number`'s `toString` takes no radix.
+once for both.
 
 ### Tasks
 
@@ -148,7 +140,7 @@ Infrastructure:
       but `undefined` and `10`, pinned by `to_string_radix` in
       `vm/lambda/method.rs`, so no module gets `"255"` for
       `(255).toString(16)` while the radix is written.
-- [ ] `toString` applies a radix for `Number` and `BigInt`, with corpus
+- [x] `toString` applies a radix for `Number` and `BigInt`, with corpus
       cases, lifting the refusal above.
 - [ ] Corpus cases for every entry, run on the host engine and as
       generated Rust. Use the adopted EDAG-rendering contract as the oracle
@@ -190,8 +182,8 @@ presence decides an answer, are
 - [x] `toString`
 - [x] `with` — `vm/array/with.rs`
 
-`String` — the contracts, what is out by design, and the landing order are
-[string-member-functions](./string-member-functions.md):
+`String` — complete; what is out by design, and when an argument is read,
+are [`vm/string/README.md`](../src/vm/string/README.md):
 
 - [x] `at` — `vm/string/reads.rs`
 - [x] `charAt` — `vm/string/reads.rs`
@@ -218,14 +210,13 @@ presence decides an answer, are
 - [x] `trimEnd` — `vm/string/building.rs`
 - [x] `trimStart` — `vm/string/building.rs`
 
-`Number` — [string-member-functions](./string-member-functions.md) too:
+`Number` — complete, [`vm/string/README.md`](../src/vm/string/README.md) too:
 
-- [ ] `toExponential`
-- [ ] `toFixed`
-- [ ] `toPrecision`
-- [x] `toString` — radix ten; the radix argument is the infrastructure
-      task above, since the specification leaves other radices
-      implementation-approximated for non-integers.
+- [x] `toExponential` — `vm/number/format.rs`
+- [x] `toFixed` — `vm/number/format.rs`
+- [x] `toPrecision` — `vm/number/format.rs`
+- [x] `toString` — every radix for an integer; a fraction only in radix
+      ten, since ECMAScript leaves its other radices to the engine.
 
 `Boolean`:
 
@@ -233,8 +224,7 @@ presence decides an answer, are
 
 `BigInt`:
 
-- [x] `toString` — radix ten; every radix is fully specified and is the
-      infrastructure task above.
+- [x] `toString` — every radix, `vm/bigint/radix.rs`.
 
 `Function`:
 

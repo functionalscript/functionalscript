@@ -47,6 +47,9 @@ pub mod method_some;
 pub mod method_split;
 pub mod method_starts_with;
 pub mod method_substring;
+pub mod method_to_exponential;
+pub mod method_to_fixed;
+pub mod method_to_precision;
 pub mod method_to_reversed;
 pub mod method_to_sorted;
 pub mod method_to_spliced;
@@ -144,5 +147,8 @@ pub fn all<A: IStaticFunction>() {
     method_replace::run::<A>();
     method_replace_all::run::<A>();
     method_split::run::<A>();
+    method_to_fixed::run::<A>();
+    method_to_exponential::run::<A>();
+    method_to_precision::run::<A>();
     method_to_string::run::<A>();
 }

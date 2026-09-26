@@ -65,14 +65,13 @@ export const types = [
 
 /**
  * The allowed pairs the VM does not answer yet, by type. A pair leaves this
- * list in the pull request that lands its entry; the list is complete when
- * it is empty.
+ * list in the pull request that lands its entry. It is empty: every call
+ * `allowedCalls` admits on the seven types is answered. A type the language
+ * gains — `Map`, `Set` — would start with its names here.
  *
  * @type {{ readonly [type in string]: readonly AllowedCall[] }}
  */
-export const pending = {
-    number: ['toExponential', 'toFixed', 'toPrecision'],
-}
+export const pending = {}
 
 /**
  * The four rows for a pending list, each a list of `[type, name]` pairs in
