@@ -63,7 +63,8 @@ as its code units, `string_any_utf16(&[…])`.
 - `replace` and `replaceAll` decide whether the replacement is a function, and
   convert a template, before any match is looked for.
 - `toFixed` checks its digit range before the number, so `Infinity.toFixed(101)`
-  throws. `toExponential` and `toPrecision` convert their argument first, so
+  throws. `toExponential` and `toPrecision` keep an `undefined` argument apart,
+  absent or passed, for its own meaning; any other they convert first, so
   `NaN` is `0`, `"2.9"` is `2`, and a bigint throws even on `Infinity`; then
   they look at the number before the range, so `Infinity.toExponential(101)`
   is `"Infinity"`.

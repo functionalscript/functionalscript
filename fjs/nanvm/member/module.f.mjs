@@ -814,6 +814,7 @@ const toFixedCases = [
 const toExponentialCases = [
     { name: 'digits', args: [123456, 2], expected: '1.23e+5' },
     { name: 'noArgument', args: [123456], expected: '1.23456e+5' },
+    { name: 'passedUndefined', args: [1.5, undefined], expected: '1.5e+0' },
     { name: 'zero', args: [0, 2], expected: '0.00e+0' },
     { name: 'zeroNoArgument', args: [0], expected: '0e+0' },
     { name: 'tie', args: [1.25, 1], expected: '1.3e+0' },
