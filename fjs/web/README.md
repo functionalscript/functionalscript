@@ -266,10 +266,12 @@ count now doubles the time instead of quadrupling it — again one machine's
 numbers, with the change in shape rather than the milliseconds being what is
 claimed.
 
-`readWhole` collects its chunks the same way and for the same reason, which is
-what makes this a rule about who owns the count rather than a single exception:
-once a served file can be any size, the number of chunks is whatever a request
-asked for.
+`readWhole` does **not** collect its chunks that way, and the difference is who
+picks the count. Its window is a fixed 128 KiB, so the number of chunks is the
+file's size divided by it, and the rebuild's reference copies are noise beside
+reading the file. A request body has no such floor: the client picks both the
+size and the count, and can make the second large while the first stays tiny.
+So this stays one exception, not a rule.
 
 Past the cap it answers `413` itself, without calling the listener — there is no
 `IncomingMessage` to build up there, since its `body` is a single `Vec`. It also

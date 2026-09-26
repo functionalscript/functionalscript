@@ -213,9 +213,8 @@ const answeredOverASocket = async (chunks, method) => {
             const request = http.request(
                 { host: loopback, port: address.port, method, path: '/' },
                 response => {
-                    /** @type {Uint8Array[]} */
-                    const parts = []
-                    response.on('data', part => { parts.push(part) })
+                    let parts = /** @type {readonly Uint8Array[]} */ ([])
+                    response.on('data', part => { parts = [...parts, part] })
                     response.on('end', () => resolve({
                         status: response.statusCode ?? 0,
                         length: `${response.headers['content-length']}`,

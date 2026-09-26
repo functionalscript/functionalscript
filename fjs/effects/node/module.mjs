@@ -451,27 +451,24 @@ const runNodeEffect = asyncRun({
             throw Object.assign(new Error(notAFileMessage(path)), { code: notAFileCode })
         }
         return withOpen(path, 'r')(async fh => {
-            // **The accumulator is mutated**, for the reason
-            // {@link collectBounded} gives above and on the condition it names:
-            // rebuilding the array per window copies every chunk taken so far on
-            // every chunk taken, which is quadratic in the *count*, and the array
-            // never leaves this function before it is finished, so nothing
-            // observes the mutation.
+            // Rebuilt rather than appended to, and serving an arbitrary file
+            // does not change that. A window is a fixed 128 KiB, so the count
+            // is the file's size divided by it — a gigabyte is some eight
+            // thousand windows, and the tens of millions of *reference* copies
+            // that rebuild costs are noise beside reading the gigabyte itself.
+            // {@link collectBounded} mutates because its count is not the byte
+            // count at all: a client picks it, and 20,000 one-byte chunks are
+            // 20 KB. §3.1 has no exception to spend here.
             //
-            // What changed is whose count it is. This used to say the count was
-            // small — a file is however many `Vec`s it takes, and `fjs/git`'s
-            // packfiles and ref files are a handful of them — so §3.1 had no
-            // exception to spend here. `fjs/web` serving an arbitrary file makes
-            // the count the *caller's*, exactly as a request body's chunk count
-            // is: a gigabyte is over eight thousand windows, and the rebuild
-            // copies tens of millions of chunk references before the first byte
-            // reaches a socket. A cap on one chunk is not a cap on their number.
-            /** @type {Vec[]} */
-            const chunks = []
+            // Holding a whole file to answer one request is the real cost, and
+            // `./todo/streaming-http-bodies.md` stage 1 is where it goes away —
+            // `fjs/web` stops asking for the file at all and reads chunks
+            // through a handle instead.
+            let chunks = /** @type {readonly Vec[]} */ ([])
             for (;;) {
                 const chunk = await fill(fh, Buffer.alloc(maxFileSizeBytes), null)
                 if (chunk.length !== 0) {
-                    chunks.push(toVec(chunk))
+                    chunks = [...chunks, toVec(chunk)]
                 }
                 if (chunk.length < maxFileSizeBytes) {
                     return chunks

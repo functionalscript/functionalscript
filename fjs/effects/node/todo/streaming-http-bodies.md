@@ -113,26 +113,25 @@ all of those sections, which is its own change rather than a note above them.
 What this note changes is what the handle effect is owed for: not whether a large
 body is possible, only what it costs.
 
-**The eager route costs more than the memory, and the operation says why.**
-[`readWhole`](../module.mjs) rebuilds its chunk list on every window rather than
-appending, and its own comment gives the assumption that makes that free: *"a
-file is however many `Vec`s it takes and the count is small — 128 KiB a chunk, so
-eighty of them for ten megabytes."* Lifting a *web* cap is what breaks that
-assumption, because it is what makes an arbitrary size reachable from a request:
-a body of gigabytes is tens of thousands of windows, the rebuild is quadratic in
-that count, and all of it is spent before the first byte reaches the socket. So
-the eager route needed a linear collection in the operation before it was enough
-for an arbitrary size.
+**The eager route costs the memory, and only the memory.** This used to say it
+cost more: that [`readWhole`](../module.mjs) rebuilding its chunk list on every
+window is quadratic in the window count, and that a served file of arbitrary
+size makes that count the caller's, so the operation owed a mutating
+accumulator the way `collectBounded` beside it does.
 
-**That was recorded here as its own change, and it turned out to belong to the
-same one.** The premise it rested on — that the chunk count is the operation's,
-small, and `fjs/git`'s to keep small — expires the moment `fjs/web` reads a
-requested file through it: the count becomes the caller's, exactly as a request
-body's chunk count already is for `collectBounded` beside it. So the eager route
-landed with the accumulator mutated and `collectBounded`'s own comment cited as
-the precedent it follows, rather than leaving a quadratic collection behind a cap
-it had just removed. What is left to the handle effect is the memory, not the
-copying.
+**That argument does not survive being written down next to the numbers.** A
+window is a fixed 128 KiB, so `readWhole`'s chunk count is the file's size
+divided by a constant — a gigabyte is some eight thousand windows and tens of
+millions of *reference* copies, which is noise beside reading the gigabyte. What
+makes `collectBounded`'s count the caller's is that a client picks it
+independently of the byte count: 20,000 one-byte chunks are 20 KB of payload and
+200 million copies, on a request about to be refused. A fixed window has no such
+gap between size and count, so there is nothing for §3.1 to make an exception
+for, and the accumulator stays rebuilt.
+
+So the eager route landed with the collection unchanged, and what the handle
+effect is owed for is the memory — holding a whole file to answer one request.
+That is the cost the window count was never a proxy for.
 
 **One thing `ReadWhole` does not fix, stated so this is not read as more than
 it is.** [`readWhole`](../module.mjs) `stat`s the path and then opens it, two
@@ -910,10 +909,10 @@ answering `413` is a listener with a size policy of its own — correctly.
       its `413` row, its size-limit section, and its `Content-Length`
       paragraph's two claims — the derivation replaced, and Node the party that
       drops a `HEAD` body kept and pinned against the host across many writes.
-      `readWhole`'s chunk accumulator became linear in the same change, since a
-      served file is what makes the chunk count the caller's. See "The eager
-      route, as landed". No `release`: nothing this route holds outlives a
-      response.
+      `readWhole`'s chunk accumulator is unchanged: a fixed 128 KiB window ties
+      the chunk count to the byte count, so §3.1 has nothing to except. See the
+      note above "The eager route, as landed". No `release`: nothing this route
+      holds outlives a response.
 - [ ] Stage 1: make `fjs/web`'s body lazy as well as bound to one inode — the
       body read from one `open` through the handle effect above, and a
       `Content-Length` the reads cannot overrun: the `fstat` size declared, and
