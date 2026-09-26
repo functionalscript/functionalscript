@@ -136,7 +136,7 @@ const portsOf = label => out => {
     return {
         width,
         height: headerHeight + out.length * portHeight,
-        keyWidth: inlines.length === 0 ? width : keyColumn,
+        keyWidth: keyColumn,
         ports: out.map(({ edge, index }, i) => ({ edge, index, y: headerHeight + i * portHeight })),
     }
 }

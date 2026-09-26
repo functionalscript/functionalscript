@@ -26,8 +26,8 @@ export type _Port = _Out & {
 /**
  * A {@link Ranked} node, placed — its own box, and a port per outgoing
  * edge. `keyWidth` is the width of the key column its inline ports share,
- * the rest of the node being their values'; with no inline port, it is
- * the node's whole width.
+ * the rest of the node being their values'. It is read for inline ports
+ * alone — an edge's key fills its row — so a node without one has `0`.
  */
 export type _Positioned = Ranked & {
     readonly x: number
