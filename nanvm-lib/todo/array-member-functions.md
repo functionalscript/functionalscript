@@ -236,7 +236,10 @@ Two implementation notes on `toSorted`, both chosen for simplicity:
   (key, element) pairs by key. Conversion is pure, so converting once per
   element is indistinguishable from converting per comparison. The one
   exception is *which* throw a throwing conversion surfaces, and that falls
-  under the next section.
+  under the next section. With fewer than two elements to sort, nothing is
+  compared, so nothing is converted: a lone element whose conversion throws
+  is copied, as in JavaScript. With two or more, every element is compared,
+  and so converted, in JavaScript too.
 - **The algorithm is a plain stable merge sort** over a `Vec`, whose
   comparator is fallible, and whose first `Err` aborts the sort and is the
   result. Rust's `slice::sort_by` cannot propagate an `Err` out of a
@@ -291,8 +294,11 @@ which needs three additions to it:
    [`fjs/edag/rust`](../../fjs/edag/rust/module.f.mjs) (which prints any
    `=>` already, exported for reuse if it is not). A proposed starting set:
    - `args`, `(...a) => a`: answers exactly what the callback was given, so a
-     `map(args)` case pins the element, the index, the array's identity (with
-     `ref`), and the argument count, `reduce`'s four included.
+     `map(args)` case pins the element, the index, the array's contents, and
+     the argument count, `reduce`'s four included. Not the array's identity:
+     the corpus compares results structurally, so a fresh copy would pass,
+     and `ref` is gone once lowered. Identity is pinned where it is visible,
+     in the Rust unit test of the visit, since `==` on an array is `===`.
    - `prop`, `(...a) => a[0].x`: truthy on `{ x: 1 }`, falsy on `{}` or `0`,
      and throws on `null`. That is the short-circuit probe:
      `[{ x: 1 }, null].some(prop)` answers `true` only if `null` was never
