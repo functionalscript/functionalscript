@@ -4,6 +4,7 @@ pub(crate) mod create;
 mod includes;
 mod index;
 mod index_of;
+mod join;
 mod last_index_of;
 mod member_access;
 mod partial_eq;
