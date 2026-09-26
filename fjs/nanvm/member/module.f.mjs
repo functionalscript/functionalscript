@@ -817,6 +817,7 @@ const toExponentialCases = [
     { name: 'passedUndefined', args: [1.5, undefined], expected: '1.5e+0' },
     { name: 'zero', args: [0, 2], expected: '0.00e+0' },
     { name: 'zeroNoArgument', args: [0], expected: '0e+0' },
+    { name: 'negativeZero', args: [-0, 2], expected: '0.00e+0' },
     { name: 'tie', args: [1.25, 1], expected: '1.3e+0' },
     { name: 'negativeTie', args: [-2.5, 0], expected: '-3e+0' },
     { name: 'negativeSmall', args: [-0.00015, 1], expected: '-1.5e-4' },

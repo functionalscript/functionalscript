@@ -10,6 +10,7 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("passedUndefined", Any::dot(f64_any(0x3ff8000000000000), string_any("toExponential")).end_call(|| Ok([Nullish::Undefined.to_any()].to_array().to_any())), string_any("1.5e+0"));
     check::<A>("zero", Any::dot(f64_any(0x0000000000000000), string_any("toExponential")).end_call(|| Ok([f64_any(0x4000000000000000)].to_array().to_any())), string_any("0.00e+0"));
     check::<A>("zeroNoArgument", Any::dot(f64_any(0x0000000000000000), string_any("toExponential")).end_call(|| Ok(Array::default().to_any())), string_any("0e+0"));
+    check::<A>("negativeZero", Any::dot(f64_any(0x8000000000000000), string_any("toExponential")).end_call(|| Ok([f64_any(0x4000000000000000)].to_array().to_any())), string_any("0.00e+0"));
     check::<A>("tie", Any::dot(f64_any(0x3ff4000000000000), string_any("toExponential")).end_call(|| Ok([f64_any(0x3ff0000000000000)].to_array().to_any())), string_any("1.3e+0"));
     check::<A>("negativeTie", Any::dot(f64_any(0xc004000000000000), string_any("toExponential")).end_call(|| Ok([f64_any(0x0000000000000000)].to_array().to_any())), string_any("-3e+0"));
     check::<A>("negativeSmall", Any::dot(f64_any(0xbf23a92a30553261), string_any("toExponential")).end_call(|| Ok([f64_any(0x3ff0000000000000)].to_array().to_any())), string_any("-1.5e-4"));
