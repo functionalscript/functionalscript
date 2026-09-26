@@ -120,7 +120,8 @@ Required tool versions, every equivalent way to run the suite, and the
 dependency-update procedure: [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 Keep any website demos affected by the change working. Contributors may add or
-update demos; check them in the browser as described in
+update demos; check them in the browser and include their preview links in the
+PR description as described in
 [CONTRIBUTING.md](./CONTRIBUTING.md#website-demos).
 
 ## 3. FunctionalScript and TypeScript (`fjs/`)

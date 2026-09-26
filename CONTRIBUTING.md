@@ -175,6 +175,24 @@ not verify the browser interaction. Fix demo regressions in the same PR, and
 record which demos you checked and the results in its description. If you
 cannot run a browser check, say so explicitly.
 
+**Include a direct link to each affected, new, or updated demo in the PR
+description**, using the PR branch's preview. The URL format is:
+
+```text
+https://${normalize(branchName)}-functionalscript.functionalscript.workers.dev/${path}
+```
+
+Here `normalize(branchName)` is Cloudflare's generated branch alias, and `path`
+is the module directory relative to the repository root, with a trailing `/`.
+Copy the **Branch Preview URL** from Cloudflare's deployment comment on the PR
+and append the path; Cloudflare can
+[shorten long branch aliases](https://developers.cloudflare.com/changelog/post/2025-08-08-support-long-branch-names-preview-aliases/).
+Verify that the link opens the intended demo.
+
+For example, [PR #2339](https://github.com/functionalscript/functionalscript/pull/2339)
+uses branch `claude/blissful-newton-hpbsnx` and path `fjs/types/bigint/`:
+[bigint demo](https://claude-blissful-newton-hpbsnx-functionalscript.functionalscript.workers.dev/fjs/types/bigint/).
+
 Contributors may add demos or update existing ones to illustrate a module's
 behavior. Follow the [demo contract](./fjs/website/README.md#a-demo-shows-what-a-module-does)
 and the usual proof requirements, then check the new or updated demo in the

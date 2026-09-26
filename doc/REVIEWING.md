@@ -48,10 +48,11 @@ answer, and never a reason to hold the pull request.
 
 For changes that affect website demos, verify that the affected demos still
 work using the [demo checks](../CONTRIBUTING.md#website-demos), including any
-new or updated demos. Check the PR's reported browser results; if you cannot
-run the checks yourself, state that limitation. A demo broken by the change is
-a regression and must be fixed before approval. Contributors may add or improve
-demos; do not require a new demo for every module change.
+new or updated demos. Check that the PR description links directly to those
+demos on the PR branch's preview, and check the reported browser results. If
+you cannot run the checks yourself, state that limitation. A demo broken by the
+change is a regression and must be fixed before approval. Contributors may add
+or improve demos; do not require a new demo for every module change.
 
 ## What to ask for
 
