@@ -60,6 +60,17 @@ export type _Lane = {
     readonly bottom: number
 }
 
+/**
+ * The whole layout: every node and lane placed, and each rank's far edge
+ * along the flow — `ends[rank]` is the bottom of that rank's row, where an
+ * edge from a shorter node drops to before it turns.
+ */
+export type _Placed = {
+    readonly nodes: readonly _Positioned[]
+    readonly lanes: readonly _Lane[]
+    readonly ends: readonly number[]
+}
+
 /** A point of an edge's route. */
 export type _Point = readonly [number, number]
 
