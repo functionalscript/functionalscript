@@ -24,12 +24,18 @@ for individual items below are added only after discussion.
 
 ### Proposal
 
+Keep handwritten Rust low-level: VM values/operators and host effect handlers.
+The parser, compiler, loader, interpreter and test logic belong in FJS and are
+compiled to direct Rust ahead of time as their dependency closures become
+compiler-supported. The optional [Rust EDAG library](../../todo/rust-edag.md)
+is on hold, outside MVP and the self-hosting prerequisites.
+
 #### Canonical representation: the EDAG as data (decided)
 
 The stable, canonical representation of functions is the **EDAG**, expressed
-as an FJS value (`Any`). Code is data: the `Function` constructor accepts an
-`Any` that describes the code, and the VM knows how to execute it. The
-reasons:
+as an FJS value (`Any`). Code as data does not require a handwritten Rust
+EDAG representation or executor in the VM foundation. The reasons for the
+canonical representation:
 
 1. We need a canonical data representation of functions in FunctionalScript —
    and in the future content-addressable VM (CAVM) — to compute a hash.
@@ -44,46 +50,47 @@ stable representation. See
 [`spec/todo/serialization.md`](../../spec/todo/serialization.md).
 
 The exact shape of the code-describing `Any` is specified by the RTTI schema
-in [`fjs/edag`](../../fjs/edag/README.md) — the contract of the `Function`
-constructor.
+in [`fjs/edag`](../../fjs/edag/README.md), shared by producers and executors.
 
 #### Execution: two paths (decided)
 
-1. **Interpretation** — the `Function` constructor executes the `Any` code
-   description directly. This is the baseline path, required for the
-   self-hosted `nanvm` crate and for code constructed at run time.
+1. **FJS interpretation** — the existing
+   [FJS interpreter](../../fjs/fsc/todo/interpret-edag.md) executes the linked
+   EDAG as data. For the native executable, this interpreter and the FJS
+   loading pipeline are themselves compiled to Rust ahead of time. Runtime
+   module loading needs no native `Function`-constructor interpreter.
 2. **AOT compilation** — the FJS compiler generates Rust code that calls the
    `nanvm-lib` API, and rustc compiles it to native code. This path is the
-   MVP pipeline, the bootstrap vehicle for compiling the compiler itself into
-   the `nanvm` crate, and the future AOT backend for platforms where
-   interpretation is undesirable or JIT is forbidden (e.g. iOS, embedded).
+   MVP pipeline and the bootstrap vehicle for compiling the FJS toolchain into
+   the `nanvm` crate. It remains direct code generation: `Result` propagation
+   and lazy-operand closures are acceptable; a Rust EDAG is not a required
+   intermediate runtime representation. Future native targets are separate work.
 
 Invariants:
 
-- The two paths are **observably identical** except in performance. Both
-  bottom out in the same `nanvm-lib` operators, so the shared operator tests
-  (see below) cover their common layer; divergence risk is confined to
-  control flow and dispatch.
-- A natively compiled function still **carries its `Any` code description**
-  (as static data), so content hashing and `toString(f)` apply uniformly to
-  all functions. The EDAG is the stable **code/content identity** of a
+- The two paths must agree on the specified observable results for their
+  supported subset. On Rust both use `nanvm-lib` operators; shared operator
+  tests cover that layer, while end-to-end fixtures cover linking, control
+  flow, calls and errors. Native JS remains an independent reference, with
+  the specified FJS function-text exception accounted for.
+- A natively compiled function needs an **association with its semantic EDAG**
+  when hashing or function-text operations require it. The EDAG is the stable
+  **code/content identity** of a
   function; native code is a cached acceleration of it. It is not the
   allocation identity of a callable value. In a JS-compatible execution
   profile, two separately created function objects remain distinct under
   `===` even when their EDAGs and captured values are equal. A profile such
   as CAVM may deliberately use content identity only when that profile
   explicitly specifies the different identity semantics. This invariant is
-  **staged**: the MVP code
-  generator omits the embedded description while the EDAG specification (P2
-  below: the [`fjs/edag`](../../fjs/edag/README.md) schema and its Rust side,
-  [rust-schema-codegen](../../fjs/edag/todo/rust-schema-codegen.md)) is not
-  complete — it must not
-  invent its own shapes ahead of the spec. Embedding becomes mandatory once
-  the spec lands, and before the `Function` constructor, hashing, or
-  `toString(f)` ship.
-- The interpreter sits behind a cargo **feature flag**, so AOT builds for
-  embedded targets that never construct functions from data at run time can
-  compile without it.
+  **staged**: the MVP generator omits the association. Embedded data versus
+  out-of-band lookup remains open below. Until association and rendering are
+  available, unsupported observations must be refused rather than produce
+  placeholder function text. Metadata does not require a Rust EDAG executor.
+- Direct AOT programs depend on VM objects and the effects they use. The
+  optional Rust EDAG library depends on the VM, never the reverse; VM
+  implementations need not supply their own EDAG. The self-hosted CLI embeds
+  the AOT-compiled FJS interpreter because it loads source at runtime, while
+  ordinary AOT programs need not include that interpreter.
 
 #### Rust code generation: an output target of `fjs compile` (decided)
 
@@ -145,11 +152,17 @@ Scoping notes:
   `Fetch`, and parallel effects are where an async-runtime decision
   (tokio?) lurks; implement operations incrementally, driven by what the
   CLI actually exercises, and defer that decision entirely.
-- **`import` is the special operation.** On Node it delegates to the module
-  loader; natively, importing an FJS module means invoking the embedded
-  compiler and the `Function`-constructor interpreter — its implementation
-  is the VM itself, not an OS call. It is part of the self-hosting loop,
-  not a syscall port.
+- **Module loading stays in FJS.** The
+  [loader](../../fjs/fsc/todo/load-modules-without-import-effect.md) composes
+  `ReadFile` / `ResolveFileModule`, parsing, linking and FJS interpretation.
+  This workflow requires no `import` or native-function-construction effect;
+  source `import` syntax remains supported. Existing host `import` consumers
+  must be accounted for before removing that effect from the vocabulary.
+- **`sandbox` is a low-level boundary.** Invoke a VM computation and capture
+  its result or language throw, preserving the shared result/duration contract.
+  This does not require replacing `Result` with panics, and error capture is
+  separate from time/memory budgets or process isolation. Implementation tasks
+  are in [nanvm-effects-node](../../todo/nanvm-effects-node.md).
 - **Testing comes cheap.** The pure in-memory interpreters
   ([`fjs/effects/mock`](../../fjs/effects/mock),
   [`fjs/effects/node/virtual`](../../fjs/effects/node/virtual)) are `.f.mjs`
@@ -294,17 +307,13 @@ tracked in [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md#tasks).
 
 #### P2
 
-- [ ] **EDAG spec** — the RTTI schema of the code-describing `Any`; the
-      contract of the `Function` constructor, shared by the compiler, the
-      interpreter, and the code generator (which embeds it as static data).
-      Blocks the staged embedding invariant above and the `Function`
-      constructor below — the MVP code generator does not embed code
-      descriptions until this spec exists. The schema is
-      [`fjs/edag`](../../fjs/edag/README.md); its Rust side is
-      [rust-schema-codegen](../../fjs/edag/todo/rust-schema-codegen.md).
-- [ ] **`Function` constructor + interpreter** (Rust) — accepts an `Any`
-      described by the EDAG spec and executes it; behind a cargo feature
-      flag. Related: [fs-vm-load-save](./fs-vm-load-save.md).
+- [ ] **EDAG metadata integration** — use the canonical
+      [`fjs/edag`](../../fjs/edag/README.md) schema for the staged association
+      invariant above, resolving embedded data versus lookup before implementing
+      that choice. Track native callable integration in
+      [callable-function-objects](./callable-function-objects.md) Stage 7.
+      This work does not require a Rust EDAG executor or generated Rust EDAG
+      types; those belong to the deferred library below.
 - [x] **Basic control operator `?:`** (Rust) — `Any::conditional`, its arms
       thunks so a compiled module establishes only the selected one, covered
       by the corpus as a `Group3`; the operator table in
@@ -318,13 +327,16 @@ tracked in [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md#tasks).
       capturing closure is its Stage 3, landed; self-reference is Stage 5.
 - [ ] **`nanvm-effects-node` crate** (Rust) — the effect runner: implements
       the generated stub trait against the OS; sync subset (fs, console)
-      first. Preceded by defining the effect vocabulary as an RTTI schema
-      and generating the Rust stub from it, so rustc enforces that the
-      runner implements the same effects (see the effects section above).
-      Required for the self-hosted CLI.
+      and `sandbox` first. Its schema, generated stub and conformance tasks
+      are tracked in [nanvm-effects-node](../../todo/nanvm-effects-node.md).
+      Required for the self-hosted CLI; no native module parser or import handler.
 
 #### P3
 
+- [ ] **FJS module loading and testing** — compose the parser/linker and existing
+      interpreter in the [loader](../../fjs/fsc/todo/load-modules-without-import-effect.md),
+      then use it for [proof loading](../../fjs/emergent_testing/todo/load-proofs-through-fjs.md)
+      on Node and, as compiler coverage permits, AOT-compiled Rust.
 - [ ] **Control statements**: `if`, `while`, etc. (Rust).
       See [`spec/todo/README.md` §3.2](../../spec/todo/README.md).
 - [ ] **`Any` serialization (CBOR)** — generic serialization of `Any`
@@ -334,16 +346,22 @@ tracked in [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md#tasks).
 #### P4
 
 - [ ] **Generators**, etc. (Rust).
+- [ ] **Optional Rust EDAG library/EDSL** —
+      [rust-edag](../../todo/rust-edag.md), **on hold, not planned for MVP**.
+      A shared native executor and its
+      [schema-generated types](../../fjs/edag/todo/rust-schema-codegen.md)
+      may be explored later; neither blocks self-hosting.
 
 ### Post-MVP milestone: self-hosting
 
-Compile the compiler itself (written in FJS) to Rust with the code generator
+Compile the compiler, loader, interpreter and required testing logic (written
+in FJS) to direct Rust with the code generator
 and ship it as the `nanvm` crate
 ([console-program](./console-program.md)): a single native executable that
-parses and runs FunctionalScript JavaScript directly — no Node/Deno, no rustc at
-the user's run time — executing code via the interpreter behind the `Function`
-constructor, with its I/O interpreted by the `nanvm-effects-node` runner (see the
-effects section above).
+parses and runs supported FunctionalScript source — no Node/Deno, no rustc at
+the user's run time. Its AOT-compiled FJS interpreter evaluates newly loaded
+EDAG as data, with I/O and `sandbox` handled by `nanvm-effects-node`. Arbitrary
+JavaScript and host modules are not part of the Rust source-loading contract.
 
 Reached incrementally: Stage 1 removed authored TypeScript from the compiler
 source into `.f.mjs` independently of parser coverage. As the code
@@ -366,14 +384,11 @@ compiler-compatibility migration rather than a separate rewrite.
    not a prerequisite for invoking one of its functions.
 3. **Binary name.** The npm tool is `fjs`; the crate is `nanvm`. Should the
    crate's binary also be named `fjs` (same CLI surface, native), or `nanvm`?
-4. **Embedded EDAG or a lookup effect.** The invariant above makes a natively
-   compiled function carry its `Any` code description, and
-   [callable-function-objects](./callable-function-objects.md) Stage 7 embeds
-   it. [associate-edag-with-functions](../../fjs/fsc/todo/associate-edag-with-functions.md)
-   says the opposite: do not embed the EDAG into the function merely to
-   support lookup, and let `edagAdd` / `edagGet` effects keep the
-   association outside the function value. Which one the runtime follows —
-   or whether both hold, for different kinds of function — is undecided.
+4. **Embedded EDAG or a lookup effect.** The semantic association required
+   above can be represented as embedded data or outside the function value,
+   as [associate-edag-with-functions](../../fjs/fsc/todo/associate-edag-with-functions.md)
+   proposes with `edagAdd` / `edagGet`. Which representation the runtime
+   follows remains undecided; neither requires a dynamic Rust EDAG executor.
 
 ### Related
 
@@ -383,8 +398,8 @@ compiler-compatibility migration rather than a separate rewrite.
 - [`fjs/fsc/README.md`](../../fjs/fsc/README.md) — source extension contract
   and incremental repository migration.
 - [`fjs/edag`](../../fjs/edag/README.md) — the schema (RTTI) of the
-  code-describing `Any`; the `Function` constructor contract. Its Rust side is
-  [rust-schema-codegen](../../fjs/edag/todo/rust-schema-codegen.md).
+  code-describing `Any`; optional Rust schema generation is tracked separately
+  in [rust-schema-codegen](../../fjs/edag/todo/rust-schema-codegen.md).
 - [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md) — the MVP
   definition and its tasks: the `.rs` output target and the harness.
 - [console-program](./console-program.md) — the self-hosted `nanvm` crate

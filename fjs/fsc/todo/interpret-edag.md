@@ -20,6 +20,14 @@ This TODO establishes only the basic direct-interpreter path. Deterministic time
 memory, and hostile-depth hardening are separate work in
 [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resources.md).
 
+This is also the executor to reuse for the
+[FJS module loader](./load-modules-without-import-effect.md) and parser-based
+testing. For native self-hosting, compile this FJS interpreter to direct Rust
+ahead of time along with its dependency closure. Loaded EDAG remains runtime
+data; no handwritten Rust EDAG executor or native `import` effect is required.
+The optional [Rust EDAG library](../../../todo/rust-edag.md) is separate,
+deferred work and does not block these consumers.
+
 ### Proposal
 
 The baseline interpreter is [`fjs/edag/memo`](../../edag/memo/module.f.mjs), using
@@ -226,6 +234,8 @@ hardening TODO after the baseline interpreter exists.
 
 ### Related
 
+- [load-modules-without-import-effect](./load-modules-without-import-effect.md) —
+  composes loading around this interpreter; does not implement a second executor.
 - [`compile-modules-to-edag.md`](./compile-modules-to-edag.md) — produces the final
   EDAG this interpreter executes while keeping the old value-producing callers in
   place until this integration lands.

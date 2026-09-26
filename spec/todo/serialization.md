@@ -3,9 +3,10 @@
 Formerly §9 of the main [spec README](../README.md).
 
 **Decision:** the stable, canonical representation of functions is the **EDAG**, expressed as an
-FJS value (`Any`). Code is data: the `Function` constructor accepts an `Any` that describes the
-code, and the VM knows how to execute it (see [functions](../README.md#functions); the exact shape
-is the RTTI schema in [`fjs/edag`](../../fjs/edag/README.md)). The reasons:
+FJS value (`Any`). The code description is independent of its execution strategy
+(see [functions](../README.md#functions); the exact shape is the RTTI schema in
+[`fjs/edag`](../../fjs/edag/README.md)). It does not require every VM to implement
+a native EDAG representation or interpreter. The reasons:
 
 1. We need a canonical data representation of functions in FunctionalScript — and in the future
    content-addressable VM ([CAVM](./content-addressable-vm.md)) — to compute a hash.
@@ -21,17 +22,26 @@ is the RTTI schema in [`fjs/edag`](../../fjs/edag/README.md)). The reasons:
 
 There are two execution paths, observably identical except in performance:
 
-- **Interpretation** — the `Function` constructor executes the `Any` code description directly:
-  the baseline path, required for the self-hosted `nanvm` and for code constructed at run time.
+- **FJS interpretation** — the FJS interpreter executes the EDAG as data.
+  Native self-hosting compiles this interpreter and the FJS loading pipeline to
+  Rust ahead of time; loading a new module requires no native `import` or
+  function-construction effect.
 - **AOT compilation** — the FJS compiler generates Rust code that calls the `nanvm-lib` API, and
-  rustc compiles it to native code: the bootstrap vehicle for compiling the compiler itself into
-  `nanvm`, and the backend for platforms where interpretation is undesirable or JIT is forbidden
-  (e.g. iOS, embedded).
+  rustc compiles it to native code: the bootstrap vehicle for compiling the FJS
+  toolchain into `nanvm`. Ordinary AOT programs need no runtime EDAG executor
+  or runtime code generation.
 
-Both paths bottom out in the same `nanvm-lib` operators, so shared operator tests cover their
-common layer. A natively compiled function still carries its `Any` code description (as static
-data), so hashing and `toString(f)` apply uniformly to all functions: the EDAG is the stable
-**code/content identity**, while native code is a cached acceleration of it.
+On Rust both paths use `nanvm-lib` operators, with shared operator tests covering
+that layer and end-to-end tests covering the execution paths. The optional
+[Rust EDAG library](../../todo/rust-edag.md) is deferred beyond MVP and is not
+required for self-hosting. It would depend on the VM, never the reverse.
+
+Hashing and function text require an association with semantic EDAG, independently
+of the executor used: the EDAG is the stable **code/content identity**, while
+native code is a cached acceleration of it. Embedded `Any` data versus out-of-band
+lookup remains open in the
+[roadmap](../../nanvm-lib/todo/mvp-roadmap.md#open-questions). This metadata
+requirement does not imply a dependency on the dynamic Rust EDAG library.
 
 Code/content identity is not callable allocation identity. Under a JS-compatible execution
 profile, separately created function objects remain separately allocated even when their EDAGs
