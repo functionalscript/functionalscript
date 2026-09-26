@@ -57,5 +57,6 @@ one, and with the harness's [`run`](../../nanvm-harness/src/lib.rs), under
 which no export name is mandatory and exported functions are never invoked
 just because the module was loaded. Whether the native CLI mirrors
 `fjs run`, explicitly selects and calls a default export, or offers both is
-undecided; [fs-vm-load-save](./fs-vm-load-save.md)'s Execute step depends on the
-answer.
+undecided. This is the CLI's entry-selection policy: it supplies the chosen
+export to [fs-vm-load-save](./fs-vm-load-save.md)'s generic Execute step, whose
+selection comes from its caller.
