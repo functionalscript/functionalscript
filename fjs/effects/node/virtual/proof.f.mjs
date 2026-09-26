@@ -1,20 +1,70 @@
 /**
- * @import { Dir, State } from './types.ts'
- * @import { IncomingMessage, NodeOp, RequestListener, ServerResponse } from '../types.ts'
+ * @import { Dir, State, _QueuedRequest } from './types.ts'
+ * @import { All, NodeOp, ReadRequestBytes, RequestListener, ServerResponse } from '../types.ts'
+ * @import { List, Next } from '../../list/types.ts'
+ * @import { Result } from '../../../types/result/types.ts'
+ * @import { Vec } from '../../../types/bit_vec/types.ts'
  * @import { Effect, IoResult } from '../../types.ts'
  * @import { IoChannel } from '../types.ts'
  * @import { Key } from '../../memory/types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { resolveFileModule, access, awaitIfPromise, exec, fetch, log, rm, rmdir, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, forever, listen, readWhole, notAFileCode, notAFileMessage, mkdir } from '../module.f.mjs'
+import { both, resolveFileModule, access, awaitIfPromise, exec, fetch, log, rm, rmdir, writeFile, readFile, readdir, import_, rename, readBytes, readRequestBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, errorMessage, forever, listen, readWhole, notAFileCode, notAFileMessage, requestBodyOffsetMessage, mkdir } from '../module.f.mjs'
 import { empty, length, maxLengthBytes, msb, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
-import { history, historyStep, pureOk, step } from '../../module.f.mjs'
+import { history, historyStep, pureOk, resultMapStep, step } from '../../module.f.mjs'
+import { ok } from '../../../types/result/module.f.mjs'
+import { asNominal as asNominalHandle } from '../../../types/nominal/module.f.mjs'
+import { byteLength, repeat, u8ListMsb } from '../../../types/bit_vec/module.f.mjs'
+import { toArray } from '../../../types/list/module.f.mjs'
 import { utf8, utf8ToString } from '../../../text/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, nodeProgramOptions, virtual } from './module.f.mjs'
 import { do_ } from '../../module.f.mjs'
 import { catchStep } from '../../module.f.mjs'
 import { asNominal, create as memCreate, read as memRead, write as memWrite } from '../../memory/module.f.mjs'
+
+/**
+ * A listener that reads its whole request body and answers with it.
+ *
+ * **Its channel is `never` and the fold's is not**, which is the whole shape of
+ * a listener that reads a body: a pull can fail — the offset refusal below is
+ * how — and `RequestListener` has nowhere to propagate that to, so the failure
+ * becomes a `500` carrying its message. That is the contract the type states,
+ * and it is also what lets a proof read a refusal out of a response.
+ *
+ * The header counts the cells, because a body reassembled from one chunk and a
+ * body reassembled from many are different claims and only the number tells them
+ * apart.
+ *
+ * @type {RequestListener<ReadRequestBytes>}
+ */
+const echoBody = ({ body }) => {
+    /** @type {(taken: readonly Vec[], rest: List<ReadRequestBytes, Vec, IoChannel>) => Effect<ReadRequestBytes, readonly Vec[], IoChannel>} */
+    const loop = (taken, rest) => step(rest, node =>
+        node === undefined ? pureOk(taken) : loop([...taken, node.first], node.tail))
+    return resultMapStep(loop([], body), r => ok(r[0] === 'ok'
+        ? { status: 200, headers: { 'x-chunks': `${r[1].length}` }, body: r[1] }
+        : { status: 500, headers: {}, body: [utf8(errorMessage(r[1]))] }))
+}
+
+/** A request a fixture queues, carrying `body`.
+ *
+ * @type {(body: readonly Vec[]) => _QueuedRequest}
+ */
+const posted = body => ({ method: 'POST', url: '/', headers: {}, body })
+
+/**
+ * What `listener` answered the one queued request carrying `body`, and the state
+ * it left behind.
+ *
+ * @type {(listener: RequestListener<ReadRequestBytes | All>, body: readonly Vec[]) => readonly[State, ServerResponse]}
+ */
+const answered = (listener, body) => {
+    const e = step(createServer(listener), server => listen(server, 8080, '127.0.0.1'))
+    const [s, result] = virtual({ ...emptyState, requests: [posted(body)] })(e)
+    assert(result[0] === 'ok', result)
+    return [s, s.responses[0]]
+}
 
 /**
  * A recorded response body as text, its chunks joined: a body is however many
@@ -1022,8 +1072,8 @@ export const proof = {
     // request-in / response-out proof possible here at all.
     http: {
         answersQueuedRequests: () => {
-            /** @type {(url: string) => IncomingMessage} */
-            const get = url => ({ method: 'GET', url, headers: {}, body: empty })
+            /** @type {(url: string) => _QueuedRequest} */
+            const get = url => ({ method: 'GET', url, headers: {}, body: [] })
             /** @type {RequestListener<never>} */
             const listener = ({ url }) =>
                 pureOk({ status: 200, headers: {}, body: [utf8(`echo ${url}`)] })
@@ -1053,7 +1103,7 @@ export const proof = {
             /** @type {State} */
             const state = {
                 ...emptyState,
-                requests: [{ method: 'GET', url: '/', headers: {}, body: empty }],
+                requests: [{ method: 'GET', url: '/', headers: {}, body: [] }],
             }
             const [s, result] = virtual(state)(first)
             assert(result[0] === 'ok', result)
@@ -1184,6 +1234,180 @@ export const proof = {
             assertIoCode(again(-1), 'ERR_SERVER_ALREADY_LISTEN')
             assertIoCode(again(65536), 'ERR_SERVER_ALREADY_LISTEN')
             assertIoCode(again(NaN), 'ERR_SERVER_ALREADY_LISTEN')
+        },
+        // **A body arriving in many small chunks is reassembled in order.** The
+        // chunk boundaries are the point: a fold that kept only its last cell,
+        // or joined the cells the other way round, answers the same *length* as
+        // one that works, so the bytes are checked and so is the count.
+        readsEveryChunkInOrder: () => {
+            const chunks = Array.from({ length: 300 }, (_, i) => vec8(BigInt(i % 251)))
+            const [s, r] = answered(echoBody, chunks)
+            assertEq(r.status, 200)
+            assertEq(`${r.headers['x-chunks']}`, '300')
+            // By length and then by the first byte that differs: a body of
+            // three hundred chunks printed whole names nothing a reader can act
+            // on, where an index names where the order went wrong.
+            const got = r.body.flatMap(v => toArray(u8ListMsb(v)))
+            const sent = chunks.flatMap(v => toArray(u8ListMsb(v)))
+            assertEq(got.length, sent.length)
+            assertEq(got.findIndex((b, i) => b !== sent[i]), -1)
+            // Drained: nothing left to hand out, and the cursor is at the end.
+            const [cursor] = s.bodies
+            assertEq(cursor.rest.length, 0)
+            assertEq(cursor.offset, 300)
+        },
+        // **Two requests are two bodies, and reading one does not move the
+        // other.** Each delivered request gets its own cursor, so the second
+        // listener's pulls have to leave the first one's alone — which is what a
+        // shared cursor, or an update that wrote over the wrong slot, would get
+        // wrong while still answering the right bytes to whichever request ran
+        // last.
+        eachRequestHasItsOwnBody: () => {
+            const e = step(createServer(echoBody), server => listen(server, 8080, '127.0.0.1'))
+            const [s, result] = virtual({
+                ...emptyState,
+                requests: [posted([utf8('first'), utf8('!')]), posted([utf8('second')])],
+            })(e)
+            assert(result[0] === 'ok', result)
+            assertEq(s.responses.map(responseText).join(', '), 'first!, second')
+            // Two cursors, each drained to its own length.
+            assertEq(s.bodies.length, 2)
+            assertEq(s.bodies.map(c => `${c.rest.length}:${c.offset}`).join(), '0:6,0:6')
+        },
+        // **A body past the `Vec` cap is a body this runner delivers**, where
+        // the Node runner used to answer `413` because there was no request
+        // value to build. Each cell is a `Vec` and nothing bounds their number,
+        // so the whole body is twice the cap and every byte of it arrives.
+        readsPastTheVecCap: () => {
+            const big = repeat(maxLengthBytes)(vec8(0x5an))
+            const [, r] = answered(echoBody, [big, big])
+            assertEq(r.status, 200)
+            assertEq(r.body.reduce((n, v) => n + byteLength(v), 0n), maxLengthBytes * 2n)
+        },
+        // **A listener that answers without reading leaves the body where it
+        // was**, which is what the Node runner then closes the connection over.
+        // Here there is no socket, so what a proof asserts is the cursor: a
+        // `rest` as long as the fixture's, and an offset of nought.
+        answersWithoutReadingTheBody: () => {
+            /** @type {RequestListener<never>} */
+            const listener = () => pureOk({ status: 204, headers: {}, body: [] })
+            const [s, r] = answered(listener, [utf8('ignored'), utf8('entirely')])
+            assertEq(r.status, 204)
+            const [cursor] = s.bodies
+            assertEq(cursor.offset, 0)
+            assertEq(cursor.rest.length, 2)
+        },
+        // **A second pull on a cell already read is refused, not answered with
+        // the next chunk.** A `List`'s tail is a value, so pulling one twice is
+        // ordinary code; over a socket the bytes behind the cursor are gone, so
+        // the second pull could only be answered with whatever comes next — a
+        // body no client sent, arriving in order and whole. That is refused here
+        // for the same reason it is refused there, with the shared message, so
+        // the two runners cannot drift.
+        refusesARePull: () => {
+            /** @type {RequestListener<ReadRequestBytes>} */
+            const rePull = ({ body }) => resultMapStep(
+                // The same `body` twice: the first pull moves the cursor, and
+                // the second names an offset the body is already past.
+                step(body, () => step(body, () => pureOk(undefined))),
+                r => ok(r[0] === 'ok'
+                    ? { status: 200, headers: {}, body: [] }
+                    : { status: 500, headers: {}, body: [utf8(errorMessage(r[1]))] }))
+            const [, r] = answered(rePull, [utf8('ab'), utf8('cd')])
+            assertEq(r.status, 500)
+            assertEq(responseText(r), requestBodyOffsetMessage(0, 2))
+        },
+        // **And refused when the two pulls are at the same time**, which is the
+        // same claim in the shape the Node runner nearly got wrong. This runner
+        // folds `all` over its state, so a pull always reads what the pull before
+        // it left, and the refusal here needs nothing added. The Node runner's
+        // `all` is `Promise.all`, so it had to be made to queue its pulls to
+        // answer this the same way — and the pair is here so that neither runner
+        // can drift from the other on it.
+        refusesAConcurrentPull: () => {
+            /** @type {(one: Result<Next<ReadRequestBytes, Vec, IoChannel>, IoChannel>) => string} */
+            const pulled = one => one[0] === 'error'
+                ? errorMessage(one[1])
+                : one[1] === undefined ? 'end' : `ok ${byteLength(one[1].first)}`
+            /** @type {RequestListener<ReadRequestBytes | All>} */
+            const together = ({ body }) => resultMapStep(
+                both(body)(body),
+                r => ok(r[0] === 'error'
+                    ? { status: 503, headers: {}, body: [] }
+                    : { status: 500, headers: {}, body: [utf8(r[1].map(pulled).join(' | '))] }))
+            const [, r] = answered(together, [utf8('ab'), utf8('cd')])
+            assertEq(r.status, 500)
+            assertEq(responseText(r), `ok 2 | ${requestBodyOffsetMessage(0, 2)}`)
+        },
+        // **The end of a body is worth the same however often it is asked
+        // for.** A pull at the offset the body ended at is not a re-pull of an
+        // earlier cell — there is nothing behind the cursor to confuse it with —
+        // so no bytes is the answer again rather than a refusal.
+        endOfBodyRepeats: () => {
+            /** @type {RequestListener<ReadRequestBytes>} */
+            const twice = ({ body }) => resultMapStep(
+                step(body, node => {
+                    assertEq(node, undefined)
+                    return step(body, again => pureOk(again))
+                }),
+                r => ok(r[0] === 'ok'
+                    ? { status: r[1] === undefined ? 200 : 418, headers: {}, body: [] }
+                    : { status: 500, headers: {}, body: [utf8(errorMessage(r[1]))] }))
+            const [, r] = answered(twice, [])
+            assertEq(r.status, 200)
+        },
+        // **A chunk of no bytes is stepped over, not answered as the end of the
+        // body.** No bytes is how a pull says *end* — `readChunks` in
+        // `../module.f.mjs` ends an unbounded stream there — and Node's parser
+        // owes nobody a promise to keep an empty chunk out of a body, so the
+        // Node runner's reader steps over one and answers the next chunk that
+        // has bytes. A fixture chunk with no bits is that chunk. Answered as
+        // the end, it would hand the listener a body shorter than the client
+        // sent, whole and in order and with nothing to tell it apart from the
+        // real one — DESIGN §10's plausible wrong value.
+        skipsAnEmptyChunk: () => {
+            const [s, r] = answered(echoBody, [empty, utf8('x')])
+            assertEq(r.status, 200)
+            assertEq(responseText(r), 'x')
+            assertEq(r.headers['x-chunks'], '1')
+            // Drained: the empty chunk is consumed with the pull that stepped
+            // over it, and it moved the offset by nothing.
+            const [cursor] = s.bodies
+            assertEq(cursor.rest.length, 0)
+            assertEq(cursor.offset, 1)
+        },
+        // The same claim with the empty chunks inside the body and at its end:
+        // the middle one joins the bytes either side of it instead of cutting
+        // the body in two, and the last one is stepped over on the way to the
+        // end, leaving nothing the cursor still counts as unread.
+        skipsEmptyChunksWithinAndAtTheEnd: () => {
+            const [s, r] = answered(echoBody, [utf8('a'), empty, utf8('b'), empty])
+            assertEq(r.status, 200)
+            assertEq(responseText(r), 'ab')
+            assertEq(r.headers['x-chunks'], '2')
+            const [cursor] = s.bodies
+            assertEq(cursor.rest.length, 0)
+            assertEq(cursor.offset, 2)
+        },
+        // **A chunk that is not whole bytes is still refused**, which is what
+        // keeps the step-over above about no *bits* rather than no bytes:
+        // `bytesIn` rounds down, so one bit is nought bytes, and a step-over
+        // measured in bytes would pass over that chunk and drop the bit with
+        // it — where `readChunks` refuses it and says how many bits it had.
+        refusesAChunkThatIsNotWholeBytes: () => {
+            const [, r] = answered(echoBody, [vec(1n)(1n)])
+            assertEq(r.status, 500)
+            assertEq(responseText(r), 'chunk at 0 is 1 bits, not whole bytes')
+        },
+        // A handle for a body no `listen` handed out is not a value pure code
+        // can build — `RequestBody` is a `Nominal` — so the only way to ask is
+        // the way this proof asks, and what comes back is the offset refusal
+        // rather than bytes from a cursor that was never this request's.
+        refusesAMisplacedOffset: () => {
+            const [, result] = virtual({ ...emptyState, bodies: [{ rest: [], offset: 7 }] })(
+                readRequestBytes(asNominalHandle(0), 0, 128))
+            assert(result[0] === 'error', result)
+            assertEq(errorMessage(result[1]), requestBodyOffsetMessage(0, 7))
         },
         // `forever` is the operation this runner cannot answer — its result
         // type leaves it nothing but `notImplemented` to return — so a server

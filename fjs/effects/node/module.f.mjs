@@ -21,7 +21,7 @@
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
  * @import { List as List_ } from '../../types/list/types.ts'
- * @import { Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Rmdir, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _ReadChunks, _UtfList, _WriteLoop } from './types.ts'
+ * @import { Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadRequestBytes, RequestBody, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Rmdir, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _ReadChunks, _UtfList, _WriteLoop } from './types.ts'
  */
 
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
@@ -252,9 +252,9 @@ const nodeCommandSet = {
     createServer: null, exec: null, fetch: null, forever: null,
     import: null, inflate: null, listen: null, memCreate: null, memRead: null,
     memWrite: null, mkdir: null, now: null, randomInt: null,
-    read: null, readBytes: null, readFile: null, readWhole: null, readdir: null,
-    rename: null, resolveFileModule: null, rm: null, rmdir: null, sandbox: null,
-    stat: null,
+    read: null, readBytes: null, readFile: null, readRequestBytes: null,
+    readWhole: null, readdir: null, rename: null, resolveFileModule: null,
+    rm: null, rmdir: null, sandbox: null, stat: null,
     test: null, write: null, writeBytes: null, writeExclusive: null,
     writeFile: null,
 }
@@ -626,6 +626,50 @@ export const readWholeBytes = path => ioMapStep(
     chunks => chunks.reduce(
         (bytes, v) => concat(bytes)(u8ListMsb(v)),
         /** @type {List_<number>} */ (null)))
+
+// readRequestBytes
+
+/** @type {Func<ReadRequestBytes>} */
+export const readRequestBytes = do_('readRequestBytes')
+
+/**
+ * What {@link readRequestBytes} refuses a misplaced offset with: the one asked
+ * for and the one the body is at.
+ *
+ * Declared here rather than in a runner, so that the two that raise it say the
+ * same thing and a program that meets the refusal in the virtual runner meets
+ * the same words on a host. This is the pair {@link notAFileCode} and
+ * {@link notAFileMessage} already are.
+ *
+ * @type {(offset: number, position: number) => string}
+ */
+export const requestBodyOffsetMessage = (offset, position) =>
+    `request body is at ${position}, not ${offset}`
+
+/**
+ * A request body as a byte stream: the chunks the client sent, in order.
+ *
+ * **A runner calls this, not a listener.** It is how each runner turns the
+ * handle it holds into the `body` of the {@link IncomingMessage} it hands over,
+ * so the stream's shape is written once and the two runners cannot disagree
+ * about it. A listener receives the list and never sees the handle.
+ *
+ * It is {@link readChunks} unbounded, which is what a request body is: nobody
+ * declared how long it would be, so it ends where the client stopped sending
+ * and an empty read is that end. The bound the other caller passes belongs to a
+ * body whose length was declared ahead of it, and a request has no such
+ * promise to keep — a `Content-Length` a client sent is the client's claim, and
+ * a server that trusted it in place of reading would frame its own reads from
+ * something it has no reason to believe.
+ *
+ * What {@link readChunks} contributes beyond the loop is the offset, and the
+ * offset is what makes a re-pull of an already-read cell a refusal rather than
+ * a spliced body — see {@link ReadRequestBytes}.
+ *
+ * @type {(body: RequestBody) => List<ReadRequestBytes, Vec, IoChannel>}
+ */
+export const requestBody = body =>
+    readChunks((offset, size) => readRequestBytes(body, offset, size), null)
 
 // createServer
 

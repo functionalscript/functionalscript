@@ -270,6 +270,13 @@ export type _WriteLoop = <O extends Operation>(offset: number, e: List<O, Vec, I
  * no such guarantee, so `fjs/web` must read through something bound to one
  * inode. Parameterizing the source lets the two differ instead of forcing one
  * to wait for the other.
+ *
+ * **For a source that cannot seek, `offset` is a claim rather than a
+ * destination.** {@link ReadRequestBytes} reads a socket, which has one
+ * position and no way back to an earlier one, so it compares the `offset` it is
+ * handed against the position it is at and refuses a mismatch. That is what
+ * makes a re-pull of an already-read cell a refusal instead of the next chunk
+ * served as though it were the earlier one.
  */
 export type _ChunkSource<O extends Operation> = (offset: number, size: number) => Effect<O, Vec, IoChannel>
 
@@ -367,11 +374,88 @@ export type Server =
 
 export type Headers = StringMap<string>
 
+// readRequestBytes
+
+/**
+ * One request's body, while that request is being answered.
+ *
+ * A {@link Nominal} for the reason {@link Server} is one: what it stands for is
+ * a live thing the interpreter holds — a socket half-read — and nothing about it
+ * is a value pure code could construct, compare or keep. A listener never sees
+ * one: the runner wraps it in the `body` list of the {@link IncomingMessage} it
+ * hands over, so what reaches pure code is a stream of `Vec`s.
+ */
+export type RequestBody =
+    Nominal<'requestBody', `ab4778a2fc5e344692231e8b030866172d6136f7ba96eb74f662edc7dc787c4e`, unknown>
+
+/**
+ * The next bytes of a request body: at most `size` of them, none at its end.
+ *
+ * **`offset` says where the reader believes it is, and the runner checks it.**
+ * This is the shape {@link _ChunkSource} asks for, and on a file the offset is a
+ * destination — {@link ReadBytes} seeks to it. A socket has no such thing: it
+ * has one position, it only moves forward, and the bytes behind it are gone. So
+ * a runner compares the offset it is handed against the position it is at and
+ * refuses anything else.
+ *
+ * That refusal is the answer to the one question a `List` body raises that a
+ * `Vec` body could not. A `List`'s tail is a value
+ * ([`../list/types.ts`](../list/types.ts)), so pulling the same tail twice is
+ * ordinary code — and over a socket the second pull would hand back the *next*
+ * chunk as though it were the one already read, which is a body no client ever
+ * sent, arriving in order and whole. That is the plausible wrong value
+ * [DESIGN §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle) exists
+ * to refuse, so it is refused, and the two runners refuse it the same way.
+ *
+ * **Two pulls at the same time are the same second pull**, and they get the same
+ * answer. `all` starts its effects before it awaits them, so a listener that
+ * pulls one cell twice through `all` or `both` is the case where a check made
+ * per pull would let both through: both would read, both would answer `ok`, and
+ * the body would be spliced with no offset ever named wrongly. So a runner
+ * answers one pull of a body at a time — a cell has one consumer, and a `List`
+ * gives a consumer no way to tell a producer it has stopped
+ * ([`../list/types.ts`](../list/types.ts)) — and the pull that arrives second
+ * meets the position the first left. The refusal is then this same one, in the
+ * same words, whichever runner it came from.
+ *
+ * A pull at the position where the body *ended* is not that case and is not
+ * refused: the answer is no bytes, again, which is what the end of a stream is
+ * worth however many times it is asked for.
+ *
+ * No bytes means the end, as it does for {@link ReadBytes} read unbounded —
+ * `readChunks` in [`./module.f.mjs`](./module.f.mjs) reads both the same way.
+ *
+ * **So a runner never answers no bytes while the body still has some.** A chunk
+ * of no bytes is something a source can produce with the stream still running:
+ * Node's parser may hand one on, and a virtual fixture may carry one. Passed
+ * through as it came, it would end the body early — the listener would read a
+ * short body as a whole one, DESIGN §10's plausible wrong value again — so both
+ * runners step over it and answer the next chunk that has bytes.
+ */
+export type ReadRequestBytes =
+    readonly['readRequestBytes', (body: RequestBody, offset: number, size: number) => IoResult<Vec>]
+
+/**
+ * A request as a listener receives it: the head, and the body as a stream.
+ *
+ * **The body is a `List`, so the runner holds none of it.** It used to be one
+ * `Vec` — the whole body buffered before the listener was called, and a request
+ * past 131,072 bytes refused `413` because there was no request value to build
+ * ([#1819](https://github.com/functionalscript/functionalscript/issues/1819)).
+ * A listener now pulls the chunks it wants, one at a time, so a body of any size
+ * arrives and the `413` is gone with the cap that produced it.
+ *
+ * Its operation is pinned rather than a parameter, as `fjs/cas`'s `read` pins
+ * `List<FileCasOperation, …>`: a listener that reads the body performs
+ * {@link ReadRequestBytes} and says so in its own op-set, and one that does not
+ * read it — `fjs/web` answers `405` to every method that could carry a body —
+ * never names the operation at all.
+ */
 export type IncomingMessage = {
     readonly method: string
     readonly url: string
     readonly headers: Headers
-    readonly body: Vec
+    readonly body: List<ReadRequestBytes, Vec, IoChannel>
 }
 
 /**
@@ -391,8 +475,9 @@ export type IncomingMessage = {
  * out, so peak memory is the whole file rather than one chunk of it. A body the
  * runner pulls at the socket's pace is
  * [streaming-http-bodies](./todo/streaming-http-bodies.md)'s handle-effect
- * route, and `IncomingMessage.body` above is still one `Vec` for the same
- * reason — that is its stage 2.
+ * route. `IncomingMessage.body` above is already pulled that way — it is a
+ * `List` over {@link ReadRequestBytes} — so the two directions differ, and the
+ * response one is what that issue has left.
  */
 export type ServerResponse = {
     readonly status: number
@@ -437,7 +522,7 @@ export type Listen = ['listen', (server: Server, port: number, host: string) => 
 
 // HTTP
 
-export type Http = CreateServer | Listen
+export type Http = CreateServer | Listen | ReadRequestBytes
 
 // Wait forever
 
