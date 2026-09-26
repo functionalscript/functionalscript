@@ -44,6 +44,15 @@ more precise" is not.
 rule — the ones held by review, above — are fixed before approval. Everything else in this document is a `todo/` or an
 answer, and never a reason to hold the pull request.
 
+## Website demos
+
+For changes that affect website demos, verify that the affected demos still
+work using the [demo checks](../CONTRIBUTING.md#website-demos), including any
+new or updated demos. Check the PR's reported browser results; if you cannot
+run the checks yourself, state that limitation. A demo broken by the change is
+a regression and must be fixed before approval. Contributors may add or improve
+demos; do not require a new demo for every module change.
+
 ## What to ask for
 
 | You found | Ask for |

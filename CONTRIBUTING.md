@@ -164,6 +164,22 @@ compiler-compatibility marker described in
 compiler accepts, so far only the package fixture
 [`fjs/ci/package/fixture/module.f.js`](./fjs/ci/package/fixture/module.f.js).
 
+### Website demos
+
+When a change affects a module with a website demo, or a demo's dependencies
+or shared website code, make sure the affected demos still work. Run
+`npm run website`, serve the repository root over HTTP, and open the affected
+module pages in a browser. Check that each demo appears, its controls work,
+and its output is correct for representative inputs. Passing proofs alone does
+not verify the browser interaction. Fix demo regressions in the same PR, and
+record which demos you checked and the results in its description. If you
+cannot run a browser check, say so explicitly.
+
+Contributors may add demos or update existing ones to illustrate a module's
+behavior. Follow the [demo contract](./fjs/website/README.md#a-demo-shows-what-a-module-does)
+and the usual proof requirements, then check the new or updated demo in the
+browser. A module without a demo does not need one merely because it changes.
+
 ### Regenerating after a source change
 
 ```bash
