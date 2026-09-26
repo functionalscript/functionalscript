@@ -33,7 +33,7 @@ pub(crate) fn method<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Option<Method<A
 
 /// `Array.prototype`'s.
 fn array<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
-    let table: [(&str, Method<A>); 20] = [
+    let table: [(&str, Method<A>); 23] = [
         ("at", array_at),
         ("concat", array_concat),
         ("every", array_every),
@@ -42,6 +42,8 @@ fn array<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
         ("findIndex", array_find_index),
         ("findLast", array_find_last),
         ("findLastIndex", array_find_last_index),
+        ("flat", array_flat),
+        ("flatMap", array_flat_map),
         ("includes", array_includes),
         ("indexOf", array_index_of),
         ("join", array_join),
@@ -52,6 +54,7 @@ fn array<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
         ("slice", array_slice),
         ("some", array_some),
         ("toReversed", array_to_reversed),
+        ("toSorted", array_to_sorted),
         ("toSpliced", array_to_spliced),
         ("with", array_with),
     ];
@@ -240,6 +243,42 @@ fn array_reduce<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<
 fn array_reduce_right<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let (a, f) = with_callback(receiver, &args)?;
     a.reduce_right(&f, present(&args, 1))
+}
+
+/// `Array.prototype.flat`, `vm/array/flat.rs`: the depth `1` when absent or
+/// `undefined`, and otherwise `ToIntegerOrInfinity` of it, a bigint's throw
+/// included.
+fn array_flat<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let a = Array::try_from(receiver)?;
+    let depth = argument(&args, 0);
+    let depth = match Unpacked::from(depth.clone()) {
+        Unpacked::Nullish(Nullish::Undefined) => 1.0,
+        _ => f64::from(depth.to_number()?.to_integer_or_infinity()),
+    };
+    Ok(a.flat(depth)?.to_any())
+}
+
+/// `Array.prototype.flatMap`, `vm/array/flat.rs`.
+fn array_flat_map<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let (a, f) = with_callback(receiver, &args)?;
+    Ok(a.flat_map(&f)?.to_any())
+}
+
+/// `Array.prototype.toSorted`, `vm/array/to_sorted.rs`: the comparator
+/// `undefined`, passed or not, or a function, and anything else — `null`
+/// included — the `TypeError` JavaScript throws before any element is read.
+fn array_to_sorted<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let compare = argument(&args, 0);
+    let compare = match Unpacked::from(compare.clone()) {
+        Unpacked::Nullish(Nullish::Undefined) => None,
+        Unpacked::Function(f) => Some(f),
+        _ => {
+            return Err(
+                "TypeError: The comparison function must be either a function or undefined".into(),
+            );
+        }
+    };
+    Ok(Array::try_from(receiver)?.to_sorted(compare)?.to_any())
 }
 
 /// `Array.prototype.join`, `vm/array/join.rs`: the separator `","` when
