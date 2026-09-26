@@ -17,7 +17,7 @@ consumers read the expression rather than each reading the case its own way.
 ```text
                               ┌─> proof.f.mjs ──────────────────────────> a JS engine
 module.f.mjs ──> an EDAG exp ─┤     (amnesia)
- (data + the     per case     └─> rust/module.f.mjs ──> gen.operators.rs ──> nanvm-lib
+ (data + the     per case     └─> rust/module.f.mjs ──> gen.corpus/ ──────> nanvm-lib
   lowering)                          (print)             (generated)
 ```
 
@@ -29,12 +29,15 @@ module.f.mjs ──> an EDAG exp ─┤     (amnesia)
 | [`module.f.mjs`](module.f.mjs) | **The single source of truth** — every operator case as data, plus the format's constructors, eliminators, and lowering. |
 | [`proof.f.mjs`](proof.f.mjs) | Evaluates each case's expression on a JavaScript engine. |
 | [`rust/module.f.mjs`](rust/module.f.mjs) | Prints each case's expression as Rust, against the `nanvm-lib` API. |
-| [`update/module.f.mjs`](update/module.f.mjs) | Writes the printer's output. Run by `npm run gen`. |
+| [`methods/module.f.mjs`](methods/module.f.mjs) | The member functions `nanvm-lib` does not answer yet, and the completeness table printed from them and [`fjs/js/prototype`](../js/prototype/module.f.mjs). |
+| [`update/module.f.mjs`](update/module.f.mjs) | Writes both printers' output. Run by `npm run gen`. |
 
 Rust *literal* syntax — string escaping, `f64`/`i64` spelling, `snake_case`
 identifiers — is not specific to this generator and lives in
 [`fjs/media/rust`](../media/rust/module.f.mjs). Rust *names* for the operations
-are the printer's own explicit map, never `snakeCase` over a canonical id.
+are the printer's own explicit map, never `snakeCase` over a canonical id. A
+method group's name is the exception that proves it: a method name is already
+an identifier, so its function is `method_` and the name in snake case.
 
 ## The operations come from EDAG
 
@@ -74,6 +77,17 @@ FnOnce() -> Result<Any<A>, Any<A>>` they call at most once, here `||
 bigint_any(1) / bigint_any(0)`, the operation's own `Result`
 ([`fjs/edag/rust`](../edag/rust/module.f.mjs), `lazy`).
 
+A **method group** is the one kind that is not an operator: `{ method: 'at',
+cases }` holds the cases of a built-in member function, and each case's `args`
+are the receiver and then the call's arguments. It lowers to the chain node a
+compiled `receiver.at(...args)` is, `['.', receiver, 'at', ['|()', ['[]',
+args]]]` ([Chains](../edag/README.md#chains)), which `amnesia` calls on the
+host's own built-in and the Rust printer prints as `Any::dot(…).end_call(…)`,
+the call a compiled module makes. The method name is typed as
+[`fjs/js/prototype`](../js/prototype/README.md)'s `allowedCalls`, so a refused
+name is a type error; which of them `nanvm-lib` answers is pinned separately,
+by the completeness table [`methods/`](methods/module.f.mjs) generates.
+
 A `functionValue` operand is not an exception. It lowers to `() => undefined`,
 the smallest closure — `['=>', ['[]', []], ['undefined']]` — which `amnesia`
 establishes like any `=>` and the Rust printer renders as the harness's one
@@ -102,6 +116,7 @@ there are:
 { op: '~', cases: [...] },                         // one operand each
 { op: '*', commutative: true, cases: [...] },      // two
 { op: '-', arity: 1, cases: [...] },               // `-` is also binary, so the group says
+{ method: 'at', cases: [...] },                    // the receiver, then the arguments
 ```
 
 Four things a literal cannot express are written as thunks — a function in the
@@ -114,8 +129,10 @@ data is always a *description*, never a value that happens to be a function:
 | `throws` | the case must throw; valid only as `expected` |
 | `unreached` | an operand the operation must not establish, lowered to `1n / 0n`, which throws if it is; for the lazy positions of `&&`/`||`/`??`/`?:` |
 
-`expected` is compared with `Object.is`, so `NaN` matches `NaN` and `0` does not
-match `-0`. The Rust side compares the same way. It describes the test's
+`expected` is compared structurally: `Object.is` at every leaf, so `NaN`
+matches `NaN` and `0` does not match `-0`, and arrays and objects by their
+elements and properties, since a method such as `map` answers a fresh array.
+The Rust side compares the same way. It describes the test's
 outcome and not the program, so it is never part of the case's expression.
 
 ## The loop
@@ -128,7 +145,7 @@ outcome and not the program, so it is never part of the case's expression.
    generated file keeps it as a commented-out `TODO`, and the JavaScript proof
    keeps running it.
 
-Never edit `nanvm-lib/tests/test/gen.operators.rs`: CI regenerates it on every pull
+Never edit `nanvm-lib/tests/test/gen.corpus/`: CI regenerates it on every pull
 request and fails if the committed copy differs (see
 [`fjs/ci/README.md`](../ci/README.md)).
 
