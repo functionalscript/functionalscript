@@ -343,7 +343,7 @@ are only a filter of it. `npm run gen` writes a generated Rust table of every
 
 The test is unit-level because `method` is `pub(crate)`. The generated file is
 included by `#[path]`, since a `gen.` name is not a Rust identifier, following
-[`generated-file-conventions`](../../todo/generated-file-conventions.md).
+[naming generated files](../../CONTRIBUTING.md#naming-generated-files).
 
 #### Known limitation, deferred by name
 
