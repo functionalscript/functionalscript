@@ -9,9 +9,8 @@
  * runner; compiler traversal and diagnostics are proved synchronously in
  * `fsc/transpiler/proof.f.mjs`.
  *
- * @import { NodeProgram, NodeOp, ReadRequestBytes, RequestListener, ServerResponse } from './types.ts'
+ * @import { All, NodeProgram, NodeOp, ReadRequestBytes, RequestListener, ServerResponse } from './types.ts'
  * @import { List, Next } from '../list/types.ts'
- * @import { All } from '../common/types.ts'
  * @import { Effect, IoChannel } from '../types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
@@ -27,7 +26,6 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { pureOk, resultMapStep, step } from '../module.f.mjs'
-import { both } from '../common/module.f.mjs'
 import { byteLength, maxLengthBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { asBase } from '../../types/nominal/module.f.mjs'
@@ -35,7 +33,7 @@ import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 import { toVec } from '../../types/uint8array/module.f.mjs'
 import { write as writeEnvelope } from '../../git/object/module.f.mjs'
 import { tagLoose, tagPayload } from '../../git/testlib.f.mjs'
-import { createServer, errorMessage, inflate, inflateTrailingCode, listen, readWhole, requestBodyOffsetMessage, resolveFileModule, rmdir, writeExclusive } from './module.f.mjs'
+import { both, createServer, errorMessage, inflate, inflateTrailingCode, listen, readWhole, requestBodyOffsetMessage, resolveFileModule, rmdir, writeExclusive } from './module.f.mjs'
 import { runEffect } from './module.mjs'
 
 /** @type {(program: NodeProgram) => Promise<number>} */

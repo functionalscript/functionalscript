@@ -1,8 +1,7 @@
 /**
  * @import { Dir, State, _QueuedRequest } from './types.ts'
- * @import { NodeOp, ReadRequestBytes, RequestListener, ServerResponse } from '../types.ts'
+ * @import { All, NodeOp, ReadRequestBytes, RequestListener, ServerResponse } from '../types.ts'
  * @import { List, Next } from '../../list/types.ts'
- * @import { All } from '../../common/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Vec } from '../../../types/bit_vec/types.ts'
  * @import { Effect, IoResult } from '../../types.ts'
@@ -11,11 +10,10 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { resolveFileModule, access, awaitIfPromise, exec, fetch, log, rm, rmdir, writeFile, readFile, readdir, import_, rename, readBytes, readRequestBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, errorMessage, forever, listen, readWhole, notAFileCode, notAFileMessage, requestBodyOffsetMessage, mkdir } from '../module.f.mjs'
+import { both, resolveFileModule, access, awaitIfPromise, exec, fetch, log, rm, rmdir, writeFile, readFile, readdir, import_, rename, readBytes, readRequestBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, errorMessage, forever, listen, readWhole, notAFileCode, notAFileMessage, requestBodyOffsetMessage, mkdir } from '../module.f.mjs'
 import { empty, length, maxLengthBytes, msb, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
 import { history, historyStep, pureOk, resultMapStep, step } from '../../module.f.mjs'
 import { ok } from '../../../types/result/module.f.mjs'
-import { both } from '../../common/module.f.mjs'
 import { asNominal as asNominalHandle } from '../../../types/nominal/module.f.mjs'
 import { byteLength, repeat, u8ListMsb } from '../../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
