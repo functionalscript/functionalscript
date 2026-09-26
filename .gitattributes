@@ -6,7 +6,7 @@
 
 # Generated: every file or directory whose name starts with `gen.`. Two
 # lines, because an attribute on a directory does not reach the files inside
-# it. See todo/generated-file-conventions.md.
+# it. See CONTRIBUTING.md, "Naming generated files".
 gen.* linguist-generated=true
 **/gen.*/** linguist-generated=true
 
