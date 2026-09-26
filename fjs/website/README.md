@@ -208,7 +208,7 @@ link in that same green would make one colour mean both "this went well" and
 values is coincidence, not aliasing: moving one later must not drag the other
 with it.
 
-## The favicon is "fs", committed rather than generated
+## The favicon is "fjs", committed rather than generated
 
 `favicon.ico` at the repository root, `favicon.svg` in
 [`fjs/website/`](./favicon.svg), next to the generator that links it. The site
@@ -216,15 +216,22 @@ serves the repository directory itself, so a file is served from where it
 sits — there is nothing to generate, and the mark will not change often
 enough for a build step to buy anything.
 
-**The mark is "fs", drawn as strokes rather than characters.** The site had
-no logo to inherit, and text set in a font renders as whatever the browser
-resolves that font to — a different shape depending on what is installed,
-unlike every other mark on this site drawn as geometry. A handful of
-round-capped path strokes trace a script "fs" ligature — the project's own
-initials, in the flowing hand a font can't be relied on to reproduce — and
-read clearly down to 16px. It takes `--link`'s two colours, `#137333` light
-and `#81c995` dark, via the SVG's own `prefers-color-scheme` query: the one
-mark on the page that is this site's own colour and nothing else's.
+**The mark is the project's old "fs" logo, traced, with a "j" added.** It
+spells the name the CLI and the directory already carry. The "f" and the "s"
+are traced from that logo's PNG — no font it could be set in has since been
+identified, and a traced path keeps its exact shape rather than
+approximating it. The "j" is the traced "f" below the x-height: the same stem
+and the same tail, the crossbar cut back to the stem, a round dot on the
+stem's axis — so the three letters share one hand without a font to share it.
+The letters sit 24 units apart at their nearest points, in a 555-unit square.
+
+**Paths, not text.** Text set in a font renders as whatever the browser
+resolves that font to, a different shape depending on what is installed;
+filled paths render the same everywhere, like every other mark on this site
+drawn as geometry. The file takes `--link`'s two colours, `#137333` light and
+`#81c995` dark, via the SVG's own `prefers-color-scheme` query: the one mark on
+the page that is this site's own colour and nothing else's. The `.ico` holds
+the SVG rendered at 16 and 32 pixels in the light colour.
 
 **Both files, because declaring one ends the implicit lookup.** `/favicon.ico`
 is what a browser asks for when a document declares no icon at all; once a
