@@ -1056,6 +1056,19 @@ export const proof = {
                 assertStructurallySame(state.nodes, [{ id: 0, kind: 'unsupported', label: '?. (not yet drawn)' }])
                 assertStructurallySame(state.edges, [])
             },
+            // An input with no user to sit in — the whole walk — is still
+            // drawn, as the terminal node it is. No source the parser
+            // accepts exports a bare input, so the `Exp` is built by hand.
+            terminalRoot: () => {
+                const { state } = _walk({ refs: [], nodes: [], edges: [], next: 0 })(['args'])
+                assertStructurallySame(state.nodes, [{ id: 0, kind: 'terminal', label: 'args' }])
+            },
+            // A childless operator — an empty array literal — is a value
+            // of its own, not an input, and stays a node.
+            emptyArrayIsANode: () => {
+                const { state } = _walk({ refs: [], nodes: [], edges: [], next: 0 })(['[]', [['[]', []]]])
+                assertStructurallySame(state.nodes, [{ id: 0, kind: 'op', label: '[]' }, { id: 1, kind: 'op', label: '[]' }])
+            },
         },
         // The initial source is the demo's whole reason for being: `a` is
         // one `+` node reached by four edges, not four nodes that happen
@@ -1074,23 +1087,28 @@ export const proof = {
         },
         // The same source carries one of every look the drawing has, so a
         // reader meets all three before typing anything: an operator
-        // hollow, a constant inline in its user's port, a terminal filled.
-        // `undefined` is among the constants rather than drawn as the
-        // zero-operand operator its `Op0Id` grouping would otherwise make
-        // it, and the terminals are
-        // two rather than one shared because a node belongs to one scope —
-        // the module's `args`, which its import reaches, and the function's
-        // own. The `=>` names its operands `frame` and `body`, which is what
-        // makes its `null` frame read as the absent one it is.
+        // hollow, a constant tinted in its user's port, an input filled in
+        // its user's port. `undefined` is among the constants rather than
+        // drawn as the zero-operand operator its `Op0Id` grouping would
+        // otherwise make it. The inputs are the module's `args`, which its
+        // import reaches, and the function's own `rest`: no box of their
+        // own, since a reference's scope already says which input it is.
+        // The `=>` names its operands `frame` and `body`, which is what
+        // makes its `null` frame read as the absent one it is, and its
+        // `rest` body cell is marked lazy, as the line to it was.
         kinds: () => {
             const html = htmlToString(demo.view(demo.init))
-            assertEq(html.split('data-graph-kind="terminal"').length - 1, 2)
-            assertEq(html.split('>args<').length - 1, 1)
-            assertEq(html.split('>rest<').length - 1, 1)
-            assert(html.includes('data-graph-value-label="">undefined<'), html)
+            assertEq(html.split('data-graph-kind="terminal"').length - 1, 0)
             assertEq(html.split('data-graph-kind="leaf"').length - 1, 0)
-            // `1`, `2`, `3`, `4`, `null` and `undefined`, each in a cell.
-            assertEq(html.split('data-graph-value=""').length - 1, 6)
+            assert(html.includes('data-graph-value="" data-graph-value-kind="terminal">'), html)
+            assert(html.includes('data-graph-value-label="" data-graph-value-kind="terminal">args<'), html)
+            assert(html.includes('data-graph-value="" data-graph-value-kind="terminal" data-graph-edge-kind="lazy">'), html)
+            assert(html.includes('data-graph-value-label="" data-graph-value-kind="terminal">rest<'), html)
+            assert(html.includes('data-graph-value-label="">undefined<'), html)
+            // `1`, `2`, `3`, `4`, `null` and `undefined`, and `args` and
+            // `rest`, each in a cell; only the two inputs are terminals.
+            assertEq(html.split('data-graph-value=""').length - 1, 8)
+            assertEq(html.split('data-graph-value="" data-graph-value-kind="terminal"').length - 1, 2)
             assert(html.includes('>frame<'), html)
             assert(html.includes('>body<'), html)
         },

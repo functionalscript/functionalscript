@@ -89,6 +89,18 @@ const portWidthOf = label => Math.max(24, label.length * charWidth + 12)
 const inlineOf = ({ to }) => typeof to === 'number' ? null : to.inline
 
 /**
+ * The attribute an inline value's kind draws with, on its cell and its
+ * text alike, or none for a value with no kind. It is an attribute of its
+ * own rather than `data-graph-kind`, which the stylesheet reads for a
+ * node's box: a value's text is not a box, and a rule that fills a
+ * terminal box would fill its text too.
+ *
+ * @type {(edge: Edge) => { readonly 'data-graph-value-kind'?: string }}
+ */
+const valueKindOf = ({ to }) =>
+    typeof to === 'number' || to.kind === undefined ? {} : { 'data-graph-value-kind': to.kind }
+
+/**
  * A node's ports: one cell per outgoing edge, in the order the demo gave
  * the edges, laid side by side across the node's bottom row.
  *
@@ -393,6 +405,7 @@ export const graphSvg = g => {
             x: String(p.x + port.x), y: String(p.y + headerHeight + portHeight),
             width: String(port.width), height: String(valueHeight),
             'data-graph-value': '',
+            ...valueKindOf(port.edge),
             // An edge carries its kind on its line; a value has no line,
             // so its cell carries the kind instead.
             ...(port.edge.kind === undefined ? {} : { 'data-graph-edge-kind': port.edge.kind }),
@@ -423,6 +436,7 @@ export const graphSvg = g => {
             return inline === null ? [] : [/** @type {Element} */ (['text', {
                 x: String(p.x + port.x + port.width / 2), y: String(p.y + headerHeight + portHeight + valueHeight / 2),
                 'text-anchor': 'middle', 'data-graph-value-label': '',
+                ...valueKindOf(port.edge),
             }, inline])]
         }),
     ])

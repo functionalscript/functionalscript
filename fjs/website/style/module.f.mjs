@@ -213,14 +213,17 @@ svg text { font: inherit }
    bottom of its cell — so a label always sits in the box it names rather
    than over a line. A port is a thinner, unfilled cell inside the node's
    own border, clipped to its rounded corners, with the border drawn once
-   more over the cells so it stays one weight all round. A primitive — a number, null, undefined — is no node of its
-   own: its value draws in a cell of the port that holds it, under the
-   port's label, and no line leaves for it. A value is tinted and a key is
-   grey, so the two differ by more than their order in the cell; in a node
-   with a value row an edge's port fills both rows, its key centred, so no
-   cell is left empty. No edge crosses a box — the layout routes one that skips a
-   rank down a lane of its own — so a line needs no casing to stand out
-   from a border it passes. */
+   more over the cells so it stays one weight all round. A primitive — a
+   number, null, undefined — is no node of its own: its value draws in a
+   cell of the port that holds it, under the port's label, and no line
+   leaves for it. A value is tinted and a key is grey, so the two differ by
+   more than their order in the cell. An inline input — the EDAG demo's
+   args and rest — is filled like the terminal node it would otherwise be,
+   not tinted like a constant. In a node with a value row an edge's port
+   fills both rows, its key centred, so no cell is left empty. No edge
+   crosses a box — the layout routes one that skips a rank down a lane of
+   its own — so a line needs no casing to stand out from a border it
+   passes. */
 [data-graph-node] { fill: var(--bg); stroke: var(--text); stroke-width: 1.5 }
 [data-graph-outline] { fill: none; stroke: var(--text); stroke-width: 1.5 }
 [data-graph-kind="leaf"] { stroke: var(--muted); stroke-dasharray: 3 2 }
@@ -231,6 +234,8 @@ svg text { font: inherit }
 [data-graph-port] { fill: none; stroke: var(--muted); stroke-width: 1 }
 [data-graph-value] { fill: var(--value-bg); stroke: var(--muted); stroke-width: 1 }
 [data-graph-value-label] { dominant-baseline: middle; fill: var(--value); font-size: .75rem }
+[data-graph-value][data-graph-value-kind="terminal"] { fill: var(--border) }
+[data-graph-value-label][data-graph-value-kind="terminal"] { fill: var(--text) }
 [data-graph-edge-label] { dominant-baseline: middle; fill: var(--muted); font-size: .7rem }
 [data-graph-arrow] { fill: var(--muted) }
 `
