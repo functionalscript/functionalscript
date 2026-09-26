@@ -97,7 +97,11 @@ export type _QueuedRequest = {
  * @internal
  */
 export type _RequestBodyCursor = {
-    /** The chunks not yet handed out, oldest first. */
+    /**
+     * The chunks not yet handed out, oldest first. A fixture chunk of no bytes
+     * is never handed out — a pull steps over it, and drops it from here with
+     * the pull that did, so nothing left here is waiting to be read.
+     */
     readonly rest: readonly Vec[]
     /** The byte offset the next pull must name. */
     readonly offset: number

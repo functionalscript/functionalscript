@@ -1356,6 +1356,49 @@ export const proof = {
             const [, r] = answered(twice, [])
             assertEq(r.status, 200)
         },
+        // **A chunk of no bytes is stepped over, not answered as the end of the
+        // body.** No bytes is how a pull says *end* — `readChunks` in
+        // `../module.f.mjs` ends an unbounded stream there — and Node's parser
+        // owes nobody a promise to keep an empty chunk out of a body, so the
+        // Node runner's reader steps over one and answers the next chunk that
+        // has bytes. A fixture chunk with no bits is that chunk. Answered as
+        // the end, it would hand the listener a body shorter than the client
+        // sent, whole and in order and with nothing to tell it apart from the
+        // real one — DESIGN §10's plausible wrong value.
+        skipsAnEmptyChunk: () => {
+            const [s, r] = answered(echoBody, [empty, utf8('x')])
+            assertEq(r.status, 200)
+            assertEq(responseText(r), 'x')
+            assertEq(r.headers['x-chunks'], '1')
+            // Drained: the empty chunk is consumed with the pull that stepped
+            // over it, and it moved the offset by nothing.
+            const [cursor] = s.bodies
+            assertEq(cursor.rest.length, 0)
+            assertEq(cursor.offset, 1)
+        },
+        // The same claim with the empty chunks inside the body and at its end:
+        // the middle one joins the bytes either side of it instead of cutting
+        // the body in two, and the last one is stepped over on the way to the
+        // end, leaving nothing the cursor still counts as unread.
+        skipsEmptyChunksWithinAndAtTheEnd: () => {
+            const [s, r] = answered(echoBody, [utf8('a'), empty, utf8('b'), empty])
+            assertEq(r.status, 200)
+            assertEq(responseText(r), 'ab')
+            assertEq(r.headers['x-chunks'], '2')
+            const [cursor] = s.bodies
+            assertEq(cursor.rest.length, 0)
+            assertEq(cursor.offset, 2)
+        },
+        // **A chunk that is not whole bytes is still refused**, which is what
+        // keeps the step-over above about no *bits* rather than no bytes:
+        // `bytesIn` rounds down, so one bit is nought bytes, and a step-over
+        // measured in bytes would pass over that chunk and drop the bit with
+        // it — where `readChunks` refuses it and says how many bits it had.
+        refusesAChunkThatIsNotWholeBytes: () => {
+            const [, r] = answered(echoBody, [vec(1n)(1n)])
+            assertEq(r.status, 500)
+            assertEq(responseText(r), 'chunk at 0 is 1 bits, not whole bytes')
+        },
         // A handle for a body no `listen` handed out is not a value pure code
         // can build — `RequestBody` is a `Nominal` — so the only way to ask is
         // the way this proof asks, and what comes back is the offset refusal

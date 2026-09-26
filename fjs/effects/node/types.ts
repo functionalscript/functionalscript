@@ -424,6 +424,13 @@ export type RequestBody =
  *
  * No bytes means the end, as it does for {@link ReadBytes} read unbounded —
  * `readChunks` in [`./module.f.mjs`](./module.f.mjs) reads both the same way.
+ *
+ * **So a runner never answers no bytes while the body still has some.** A chunk
+ * of no bytes is something a source can produce with the stream still running:
+ * Node's parser may hand one on, and a virtual fixture may carry one. Passed
+ * through as it came, it would end the body early — the listener would read a
+ * short body as a whole one, DESIGN §10's plausible wrong value again — so both
+ * runners step over it and answer the next chunk that has bytes.
  */
 export type ReadRequestBytes =
     readonly['readRequestBytes', (body: RequestBody, offset: number, size: number) => IoResult<Vec>]

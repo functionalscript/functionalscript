@@ -762,6 +762,28 @@ const statOp = emptyPathIsAbsent(statPath)
 const ephemeral = 0
 
 /**
+ * The chunks from the first one that has bits, the ones before it dropped.
+ *
+ * **No bytes is how a pull says *end***: `readChunks` ends an unbounded stream
+ * at an empty answer ([`../module.f.mjs`](../module.f.mjs)), so a chunk of no
+ * bytes cannot be handed to a listener as a chunk. The Node runner's reader
+ * steps over one for that reason — Node's parser owes nobody a promise to keep
+ * an empty chunk out of a body — and a fixture chunk with no bits is that
+ * chunk, so it is stepped over here too.
+ *
+ * **Bits, not bytes.** `bytesIn` rounds down, so a chunk of one bit is nought
+ * bytes; dropping by byte length would drop it and throw the bit away, where
+ * `readChunks` refuses a chunk that is not whole bytes and says how many bits it
+ * had.
+ *
+ * @type {(rest: readonly Vec[]) => readonly Vec[]}
+ */
+const fromFirstWithBits = rest => {
+    const i = rest.findIndex(v => length(v) !== 0n)
+    return i === -1 ? [] : rest.slice(i)
+}
+
+/**
  * Hands out the next chunk of one delivered request's body, or no bytes at its
  * end.
  *
@@ -773,10 +795,14 @@ const ephemeral = 0
  * which is exactly why they are not — a proof that re-pulled a cell would pass
  * against this runner and fail against a socket.
  *
- * A pull at the offset the body **ended** at is not that case: `rest` is empty,
- * no bytes is the answer, and the offset does not move, so asking again answers
- * the same. The end of a stream is worth the same however many times it is
- * asked for.
+ * A pull at the offset the body **ended** at is not that case: nothing with
+ * bits is left, no bytes is the answer, and the offset does not move, so asking
+ * again answers the same. The end of a stream is worth the same however many
+ * times it is asked for.
+ *
+ * A chunk of no bytes is not that end either — see {@link fromFirstWithBits},
+ * which is why a pull answers from the first chunk that has bits rather than
+ * from the next one in the fixture.
  *
  * The handle is the cursor's place in {@link State.bodies} — see
  * {@link _RequestBodyCursor} for why the position is in the state and not
@@ -790,11 +816,14 @@ const readRequestBytes = (body, offset, _size) => state => {
     if (offset !== cursor.offset) {
         return [state, error(ioError({ message: requestBodyOffsetMessage(offset, cursor.offset) }))]
     }
-    const [first, ...rest] = cursor.rest
-    if (first === undefined) { return [state, ok(empty)] }
+    const [first, ...rest] = fromFirstWithBits(cursor.rest)
     /** @type {_RequestBodyCursor} */
-    const next = { rest, offset: offset + Number(byteLength(first)) }
-    return [{ ...state, bodies: state.bodies.map((c, i) => i === index ? next : c) }, ok(first)]
+    const next = first === undefined
+        ? { rest: [], offset }
+        : { rest, offset: offset + Number(byteLength(first)) }
+    /** @type {State} */
+    const moved = { ...state, bodies: state.bodies.map((c, i) => i === index ? next : c) }
+    return [moved, first === undefined ? ok(empty) : ok(first)]
 }
 
 /**
