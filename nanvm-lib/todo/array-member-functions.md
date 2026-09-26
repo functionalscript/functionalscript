@@ -156,8 +156,9 @@ Shared pieces, written once and reused, never restated per built-in:
   [member-functions](./member-functions.md)' `Function` `toString` item.
   `join` and `toSorted` go through the one conversion that item fixes, and
   neither adds a local rule.
-- **Result length.** `concat`, `flat` and `flatMap` build an array whose
-  length is not bounded by the receiver's. `Array<A>` is indexed by `u32`,
+- **Result length.** `concat`, `toSpliced`, `flat` and `flatMap` build an
+  array whose length is not bounded by the receiver's — `toSpliced`'s is
+  `len − deleteCount + items.length`. `Array<A>` is indexed by `u32`,
   and JavaScript's own limit is the same `2³² − 1`. A result past it
   **throws a `RangeError`**. It never wraps and never truncates
   ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
@@ -343,7 +344,10 @@ are only a filter of it. `npm run gen` writes a generated Rust table of every
 - every `pending` pair **has no** entry, so landing a built-in fails the test
   until its pair leaves `pending`, and the list can only shrink toward empty;
 - every pair in `prohibitedCalls` × prototype list **has no** entry. This is
-  the design half: a refused name stays unanswerable.
+  the design half: a refused name stays unanswerable;
+- every name in `allowedCalls` that a type's prototype list lacks **has no**
+  entry on that type, so an `Array` entry for `charAt` fails the test, and
+  `[1].charAt(0)` throws as it does in JavaScript.
 
 The pending list is `pending` in
 [`fjs/nanvm/methods`](../../fjs/nanvm/methods/module.f.mjs), and the table it
@@ -360,8 +364,9 @@ stack, and that is a crash, not a throw. It is the same shape as
 [`fjs/edag/todo/stack-safety.md`](../../fjs/edag/todo/stack-safety.md) one layer
 down. Per [AGENTS.md §5](../../AGENTS.md#5-pull-requests-and-releases) a crash
 may be deferred behind a `todo/` that names the input, so the `flat` PR files
-one, naming `flat(Infinity)` over a deep enough `[[[…]]]`, rather than making
-the first implementation iterative.
+one, naming both `flat(Infinity)` and `join` — and through `join`, `String(a)`
+— over a deep enough `[[[…]]]`, rather than making the first implementation
+iterative.
 
 ### Open questions
 
