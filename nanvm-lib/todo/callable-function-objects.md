@@ -38,8 +38,10 @@ variables that the generated code and `nanvm-lib` agree on.
   support (`Function<A>`, `IVm`) needed to construct and call the resulting
   values, including closures with captured state and self-recursion.
 - **Out of scope**: the EDAG-interpreting `Function` constructor
-  (mvp-roadmap's separate P2 task, itself blocked on the
-  [edag-spec](../../todo/edag-spec.md)) and its internal bytecode
+  (mvp-roadmap's separate P2 task, itself blocked on the EDAG specification —
+  the [`fjs/edag`](../../fjs/edag/README.md) schema and its Rust side,
+  [rust-schema-codegen](../../fjs/edag/todo/rust-schema-codegen.md)) and its
+  internal bytecode
   ([function-frame](../../spec/todo/3111-function-frame.md),
   [call-like-instructions](../../spec/todo/9100-call-like-instructions.md)).
   That backend gets its own frame/slot design because it has no host compiler
@@ -49,7 +51,8 @@ variables that the generated code and `nanvm-lib` agree on.
 - **Out of scope**: mutual recursion as a hashed group, canonical CBOR
   serialization, and embedding the EDAG into a natively compiled function —
   all already tracked as open elsewhere (see Related) and explicitly
-  staged-out by mvp-roadmap until the edag-spec lands. The plan below only
+  staged-out by mvp-roadmap until the EDAG specification is complete. The
+  plan below only
   notes where this work must plug back in once they do.
 - **Out of scope**: parsing fixed and mixed-rest parameter lists, owned by
   [named and rest parameters](../../spec/todo/3120-parameters.md). That
@@ -187,9 +190,10 @@ operation. Captured rest retains the same binding through the existing frame.
 
 Migrate existing zero-arity `['args']` reads to `['rest']` in their owning
 scope. Do not accept old positive-arity/full-arguments sketches as equivalent
-to the new format. The AOT backend initializes its native function metadata;
-it does not inherit a JavaScript evaluator's finite factory-table capacity
-or require the proposed `withLength` pattern for arity.
+to the new format. The AOT backend initializes its native function metadata
+for every length the language admits, 0–16 — the JavaScript factory table's
+range too, since both follow the language's limit — and does not need the
+retired [`withLength` pattern](https://github.com/functionalscript/functionalscript/blob/245649cdeeb0fb6318004ee273121143273262db/spec/todo/arity-complete-arguments.md#candidate-mechanism-the-withlength-pattern) for arity.
 
 #### Local variables and temporaries
 
@@ -457,11 +461,11 @@ The generator and invocation bindings now implement the
 `['arg', N]`, one per-invocation `['rest']`, and recorded `length`. The
 private Rust argument array is transport, not a source-visible complete-list
 operation. The [`parameters` harness fixture](../../nanvm-harness/fixtures/parameters.mjs)
-and its [generated Rust](../../nanvm-harness/fixtures/parameters.rs) cover
+and its [generated Rust](../../nanvm-harness/gen.fixtures/parameters.rs) cover
 omitted, explicit `undefined` and extra arguments, captured fixed/rest values,
 and repeated versus distinct-call rest identity. The
-[Rust module proofs](../../fjs/fsc/rust/proof.f.mjs) cover binding refusals and
-valid length 33, independently of the JavaScript factory table's capacity.
+[Rust module proofs](../../fjs/fsc/rust/proof.f.mjs) cover binding refusals,
+the largest valid length, 16, and the refusal of 17.
 The remaining migration and regression work stays open in the checklist;
 this implementation does not complete the default-text renderer.
 The older [call-like-instructions §6](../../spec/todo/9100-call-like-instructions.md#6-behind-the-scenes-of-user-defined-function-calls)
@@ -470,12 +474,16 @@ binding. Dynamic calls remain arbitrary-arity; no matching-arity assumption
 is permitted. Migrate zero-arity graphs by scope and refuse incompatible
 positive-arity/full-arguments sketches rather than silently normalize them.
 
-**Stage 7 — EDAG-embedding parity (deferred until edag-spec lands).**
+**Stage 7 — EDAG-embedding parity (deferred until the EDAG specification is
+complete).**
 mvp-roadmap already stages this: a natively compiled function must
 eventually still carry its `Any<A>` EDAG description, so hashing and
 `toString(f)` apply uniformly to interpreted and AOT-compiled functions
 alike, but the MVP code generator is explicitly allowed to omit it until the
-[edag-spec](../../todo/edag-spec.md) exists. Once it does, the VM's own
+EDAG specification is complete — the [`fjs/edag`](../../fjs/edag/README.md)
+schema and its Rust side,
+[rust-schema-codegen](../../fjs/edag/todo/rust-schema-codegen.md). Once it
+is, the VM's own
 function object carries it (or an out-of-band association, per
 [associate-edag-with-functions](../../fjs/fsc/todo/associate-edag-with-functions.md)'s
 Effect-based alternative if that is the direction chosen) to carry it, for
@@ -553,12 +561,21 @@ generated-Rust test from one source of cases.
       extra arguments, unused fixed parameters, returning/forwarding rest,
       repeated rest reads, distinct calls, spread-array identity and captures.
       Cover zero-arity migration and refusal of legacy positive-arity/full-list
-      sketches. Keep native capacity separate from the JS factory table.
+      sketches. Native capacity is the language's limit on `length`, 16.
+      Pin the closure behaviors that compile today but no generated fixture
+      pins yet: two closures made by one function are distinct while one
+      binding read twice is the same
+      (`const make = (...a) => () => a[0]; … [f(), g(), f === g, f === f]`
+      gives `[1, 1, false, true]`); a captured object or array keeps its
+      identity (`get() === o.x`); and a failure computing a frame element
+      fails at creation, not at the call
+      (`const make = (...a) => { const v = a[0].x; return () => v; };
+      export default make(undefined);`).
 - [ ] Before enabling default-text observations, integrate the shared EDAG
       renderer or explicit refusal, covering direct/indirect conversions and
       exported callables. Do not wait for Stage 7 to prevent wrong output.
-- [ ] Stage 7: EDAG embedding on natively compiled functions, once
-      edag-spec lands.
+- [ ] Stage 7: EDAG embedding on natively compiled functions, once the EDAG
+      specification is complete.
 - [ ] Stage 8: shared call-contract test corpus once the EDAG interpreter
       exists.
 
@@ -584,7 +601,9 @@ generated-Rust test from one source of cases.
 - [`fjs/edag/README.md`](../../fjs/edag/README.md) — the current EDAG schema
   and chain semantics a real call site must also account for (method-call
   receivers, optional chains) once calls stop being data-only.
-- [`todo/edag-spec.md`](../../todo/edag-spec.md) — blocks Stage 7.
+- [`fjs/edag/todo/rust-schema-codegen.md`](../../fjs/edag/todo/rust-schema-codegen.md)
+  — the open Rust side of the EDAG specification; Stage 7 waits on the
+  specification.
 - [`fjs/fsc/todo/associate-edag-with-functions.md`](../../fjs/fsc/todo/associate-edag-with-functions.md)
   — flags nested-closure EDAG association as unsolved; Stage 7 is where this
   plan closes that for the AOT backend specifically.

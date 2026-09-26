@@ -1,12 +1,14 @@
 ## Investigate imports, promises and realms
 
-**Priority:** P5
+**Priority:** P2
 **Status:** on-hold — the cross-realm promise is a non-goal (see below). What
-keeps this file open is one concrete defect plus the rest of its study: under
-`fjs t`, an impure `.mjs` proof returning a same-realm `Promise` subclass that
-overrides `then` **hangs**, where the browser settles it. The fix is one line
-in `effects/node/module.mjs`'s `sandbox`, described below. It is P5 because no
-authored proof does this — the hang predates this work and nothing has hit it.
+keeps this file open is one concrete defect plus the rest of its study: a proof
+returning a same-realm `Promise` subclass that overrides `then` **hangs** the
+shared `sandbox` in `fjs/effects/common/module.mjs`, which both `fjs t` and the
+browser page dispatch. The browser used to settle it, so the browser runner has
+lost behaviour it had: that is a regression, and a regression may not be
+deferred (root [AGENTS.md](../../../AGENTS.md) §5), which is why this is P2
+although no authored proof does this.
 
 > **Scope.** In a browser this framework runs `.f.mjs` and nothing else; under
 > `fjs t` it also runs a few impure `.mjs` proofs; and covering every edge case
@@ -67,7 +69,7 @@ now a non-goal, so what the study is worth is the measurements: what each
 detector actually answers, and what a runner does with a value it cannot
 subscribe to.
 
-- **State the layering.** One document saying which layer adopts a `then` and
+- [ ] **State the layering.** One document saying which layer adopts a `then` and
   which layer refuses to, and why both are right. Until that exists, every fix
   to one looks like a bug in the other.
 - [x] **Find a brand check that survives a realm and cannot be forged.**
@@ -78,7 +80,7 @@ subscribe to.
   and the subscription is the defect. See Findings. The question stopped
   mattering once the scope was written down: the browser runs `.f.mjs` only, so
   it never meets a promise it did not create.
-- **Decide whether the runner should see namespace objects at all.** If
+- [ ] **Decide whether the runner should see namespace objects at all.** If
   discovery handed the runner a plain record of proofs rather than the module
   namespace, the `then` export hazard would not reach it — and the `then`-export
   ban could become a check rather than a convention.
@@ -351,7 +353,7 @@ Whichever is chosen, it is a change to the rule both runners share, so it lands
 in the shared `sandbox`, which both hosts already dispatch, and never in one
 host alone.
 
-### `fjs t` still hangs on a promise whose `constructor` was replaced
+### Both runners hang on a promise whose `constructor` was replaced
 
 `await` adopts a promise's internal state only when its `constructor` is the
 intrinsic `Promise`. Otherwise resolution assimilates the value by calling its
@@ -360,20 +362,21 @@ replaced — that also overrides `then` never settles:
 
 | value | `fjs t` | browser |
 | --- | --- | --- |
-| `class Sub extends Promise { then() {} }`, resolved | **HUNG** | settles |
+| `class Sub extends Promise { then() {} }`, resolved | **HUNG** | **HUNG** |
 
-The browser subscribes with the intrinsic `Promise.prototype.then` rather than
-`await`, which ignores the override — about fifteen lines, and not the machinery
-this issue deleted: `speciesFails`, the `constructor` shadow and its retry are
-still gone, because those *recover* a hostile species rather than subscribe.
-`promiseWithReplacedConstructorStillSettles` pins it.
+The browser used to subscribe with the intrinsic `Promise.prototype.then`
+rather than `await`, which ignores the override — about fifteen lines, and not
+the machinery this issue deleted: `speciesFails`, the `constructor` shadow and
+its retry recover a hostile species rather than subscribe. That subscription is
+gone too. Both hosts now spread `commonOperationMap` from
+`fjs/effects/common/module.mjs`, whose `sandbox` asks `instanceof Promise` and
+then `await`s, and no proof pins the settling case any more. At `36c8d4a`,
+calling that `sandbox` with `() => Sub.resolve(1)` never settles.
 
-**`fjs t` owes the same fix**, and it is one line in `effects/node/module.mjs`'s
-`sandbox` once the settlement path is shared.
-Until then the two differ, which is a difference with a written reason: the
-browser had this behaviour before the deletion, losing it was a regression, and
-a regression is not deferrable. `fjs t`'s hang is older than this work and is
-deferred behind this note.
+**The fix is in the shared `sandbox`**, in `fjs/effects/common/module.mjs`,
+and it reaches both hosts at once. The browser had this behaviour and lost it,
+which makes it a regression, and a regression is not deferrable. `fjs t`'s hang
+is older than this work.
 
 It is also worth knowing what neither runner can fix here: **any** proof
 returning a promise that never settles hangs any runner —
@@ -442,6 +445,12 @@ Three things to consider first, if the day comes:
 - An object carrying a `then` proof property must stay an ordinary proof tree.
 - Whatever is added must apply to every runner. A defence in one host only is
   the state this is trying to leave.
+
+### Tasks
+
+- [ ] Settle a same-realm promise whose `then` is overridden in the shared
+      `sandbox` (`fjs/effects/common/module.mjs`), and pin it in both hosts.
+- [ ] The two open items under "What was investigated" above.
 
 ### Related
 

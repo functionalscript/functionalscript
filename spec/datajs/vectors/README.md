@@ -138,8 +138,8 @@ it: `[$a, $a]` with one `const` is one node reached twice, and `[[], []]`
 is two nodes. **One shared node has no vector in any role**: an empty array,
 which no set can bind — `const $e = [];` is an evolving `any[]` `tsc` refuses
 every read of — so a writer that expands one shared empty array into two passes
-the corpus. The limitation is
-[an issue of its own](./todo/shared-empty-array.md); the empty object shares
+the corpus. The limitation
+[is stated below](#what-this-corpus-cannot-establish); the empty object shares
 normally. A proof compares the graph an implementation produced with
 `difference` in
 [`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs):
@@ -184,7 +184,7 @@ serializer emits is a valid document, so the accept grammar binds it.
 
 ## The class-by-role matrix
 
-[`matrix.md`](./matrix.md) is generated from the sets by `npm run gen`, so
+[`gen.matrix.md`](./gen.matrix.md) is generated from the sets by `npm run gen`, so
 it is current or the build is red. Rows are the classes, columns the three
 roles a conforming implementation may have — reader, serializer,
 normalize, since conformance is per role and a serializer-only
@@ -371,8 +371,19 @@ or read a passing corpus as more than it is.
 
 - **A shared empty array**, as the sharing rule above says: no set can bind one,
   so a writer that expands one shared empty array into two passes every role.
-  [Its own issue](./todo/shared-empty-array.md) holds the search for a spelling
-  and the schema change that was refused.
+  The subset has no other spelling: an array literal is the only way to build
+  an array, and the subset has no calls, annotations or comments. The
+  opposite direction is covered — `graph-unshared-array-empty` rules out
+  merging two distinct empties into one node. Carrying sharing in the schema
+  instead, as a path pair saying two positions are one node, was weighed and
+  refused: it changes every record type and every proof that reads one, and a
+  set would stop being an ordinary graph `tsc` checks. So this repository
+  covers itself where the corpus cannot: `sharedEmptyArray` in
+  [`graph-equivalence/proof.f.mjs`](./graph-equivalence/proof.f.mjs) checks
+  the graph against the reader and the writer, and `sharedEmptyArray` in
+  [`normalize/proof.f.mjs`](./normalize/proof.f.mjs) pins the writer's bytes.
+  An implementation that wants the coverage writes the case in its own
+  language.
 - **Arbitrary precision.** No finite set of vectors establishes it, because
   every value fits some wider fixed-width type. A vector past width *w* rules
   out a backend of width *w* and nothing more, so the bigint ceilings are chosen

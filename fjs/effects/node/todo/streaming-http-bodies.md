@@ -236,8 +236,8 @@ handed the widest listener the type says it may be handed and narrows it back
 to its own op-set by a cast it already writes — the virtual one to
 `_VirtualListener`, the Node one to `Erl<NodeOp>` in `answerRequest`. That
 widening is the separate cause
-[generic-operation-payload-erasure](./generic-operation-payload-erasure.md)
-files beside the `Pr` erasure it is named for, asking whether `CreateServer`
+[generic-operation-signatures](../../todo/generic-operation-signatures.md)
+files beside the `Pr` erasure, asking whether `CreateServer`
 can carry the listener's op-set instead. A `List` body neither raises that
 question nor answers it.
 
@@ -716,10 +716,10 @@ one's.
 asks.** A cell is a `first` and a `tail` behind an `Effect`
 ([`../../list/types.ts`](../../list/types.ts)): a consumer that stops pulling
 tells the producer nothing, because there is no cell left in which to tell it.
-Nor is the effect layer's `finally` the missing piece — `finallyStep` is
-declined in [`../../module.f.mjs`](../../module.f.mjs) as `resultStep` plus a
-policy, which is exactly what it is *for a composer that is still on the stack
-for both halves*. A pumped body is the other shape. When the pump gives up,
+Nor is the effect layer's `finally` the missing piece — `finallyStep` in
+[`../../module.f.mjs`](../../module.f.mjs) is `resultStep` plus a policy, which
+is exactly what it is *for a composer that is still on the stack for both
+halves*. A pumped body is the other shape. When the pump gives up,
 nothing that knows a handle exists is on the stack to be given a chance.
 
 **So the response states what to release, and the runner releases it however

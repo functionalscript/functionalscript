@@ -1,4 +1,4 @@
-## map-step-combinator. Convert the remaining `step(e, x => pure(f(x)))` sites to `mapStep`
+## map-step-combinator. Convert the remaining `step(e, x => pureOk(f(x)))` sites to `mapStep`
 
 **Priority:** P3
 **Status:** open
@@ -8,53 +8,38 @@
 > `readUtf8File`, `awaitIfPromise` and `errorExit`
 > (`fjs/effects/node/module.f.mjs`) and `decodeRevisionBlob`
 > (`fjs/cas/evo/module.f.mjs`). What remains is the mechanical part: the other
-> call sites, module by module.
+> call sites.
 
 ### Problem
 
 `fjs/effects/module.f.mjs` ships `pure` (return) and `step` (bind), plus the
 derived combinators `historyStep`, `foldStep`, `forEachStep` — and now
 `mapStep`, the functor `map`: "run the effect, then apply a
-pure function to its result". Before it existed, every call site re-derived it
-as `step(e, x => pure(f(x)))`, and **about 41 of them still do**, in 14 modules.
+pure function to its result". Before it existed, every call site re-derived it.
+This issue was filed against `step(e, x => pure(f(x)))`; since every effect
+carries a `Result`, that spelling no longer compiles, and the projection is now
+written `step(e, x => pureOk(f(x)))`. The constant projection it also listed —
+`() => pure(0)` ending a `NodeProgram` — became `exitStep` instead, and no site
+of that shape is left.
 
-Two shapes, both the same thing:
+At `36c8d4a` a few projection sites remain:
 
-*Projection* (`x => pure(f(x))`):
-
-```ts
-// fjs/protocol/mcp/module.f.mjs:411-414
-: step(
+```js
+// fjs/protocol/mcp/module.f.mjs — the `tools/list` and `tools/call` responses
+: ioStep(
     handlers.toolsList(pr),
-    r => pure(successResponseOf(id)(r)),
+    r => pureOk(successResponseOf(id)(r)),
 )
 ```
 
-Also `fjs/dev/module.f.mjs`, `fjs/cas/evo/module.f.mjs`,
-`fjs/mcp/evo/module.f.mjs`, `fjs/cas/module.f.mjs`, `fjs/mcp/cas/module.f.mjs`,
-`fjs/protocol/mcp/module.f.mjs`, `fjs/emergent_testing/module.f.mjs`. The plain
-context projection in `fjs/fsc/transpiler/module.f.mjs` has also been converted;
-its two `pure(Result)` sites are channel constructors, not `mapStep` candidates.
+- the `tools/list` and `tools/call` responses in `fjs/protocol/mcp/module.f.mjs`;
+- the per-file step of `scan` in `fjs/website/module.f.mjs`;
+- `linkModule` in `fjs/fsc/edag/module.f.mjs`.
 
-*Constant projection* (`() => pure(v)`), overwhelmingly the "do the work, then
-yield an exit code" shape of a `NodeProgram`:
-
-```ts
-// fjs/cli/module.f.mjs:39-41
-return step(
-    log(helpText),
-    () => pure(0))
-
-// fjs/website/module.f.mjs:19-21
-const program = step(
-    writeFile('index.html', html),
-    () => pure(0))
-```
-
-Also `fjs/fsc/module.f.mjs`, `fjs/module.f.mjs`, `fjs/ci/module.f.mjs`,
-`fjs/cas/evo/module.f.mjs`, `fjs/cas/module.f.mjs`, `fjs/cas/cli/module.f.mjs`,
-`fjs/mcp/cas/module.f.mjs`, `fjs/protocol/mcp/module.f.mjs`, `fjs/protocol/mcp/stdio/module.f.mjs`,
-`fjs/emergent_testing/module.f.mjs`.
+`step(all(…), rs => pure(okList(rs)))` in `allOk`
+(`fjs/effects/common/module.f.mjs`) and `_parseModule` in
+`fjs/fsc/transpiler/module.f.mjs` are channel constructors, not `mapStep`
+candidates: their continuations build the `Result` itself.
 
 Beyond the repetition, the old spelling **misreports the shape of the chain**.
 A `step` whose continuation returns `pure` is not a link in a sequence of
@@ -90,16 +75,13 @@ argument, so passing a callee point-free cannot expose it to extra arguments the
 way `["1","2","3"].map(parseInt)` does.
 
 **Scope.** `AGENTS.md` asks one improvement per PR. Take one module or one
-closely related group per PR; what must **not** happen is landing the whole
-conversion as one 14-module diff.
+closely related group per PR.
 
 ### Tasks
 
-- [ ] The `NodeProgram` exit-code sites (`fjs/module.f.mjs`, `fjs/cli`, `fjs/ci`,
-      `fjs/fsc`, `fjs/website`, `fjs/cas/cli`).
-- [ ] `fjs/protocol/mcp` + `fjs/protocol/mcp/stdio`.
-- [ ] `fjs/cas` + `fjs/cas/evo` + `fjs/mcp/evo` + `fjs/mcp`.
-- [ ] `fjs/emergent_testing`, `fjs/dev`.
+- [ ] `fjs/protocol/mcp`: the `tools/list` and `tools/call` responses.
+- [ ] `fjs/website`: `scan`'s per-file step.
+- [ ] `fjs/fsc/edag`: `linkModule`.
 - [ ] `tsc` clean; `fjs t` passes after each PR.
 
 ### Related
@@ -109,8 +91,5 @@ conversion as one 14-module diff.
   can now be written that way directly.
 - [allvoid-combinator](./allvoid-combinator.md) — same, with a constant
   projection (`() => undefined`).
-- [fold-stream-combinator](./fold-stream-combinator.md) — its pure consumers
-  (`detectStream`, `collectRead`) end in `pure(ok(...))` projections.
 - `fjs/effects/module.f.mjs` — `mapStep`, `step`, `historyStep`, `foldStep`,
   `forEachStep`; the "do not nest steps" rule in the module header.
-</content>

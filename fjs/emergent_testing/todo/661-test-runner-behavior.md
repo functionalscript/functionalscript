@@ -24,7 +24,10 @@ Document the following differences in the relevant README or doc page.
 **Sub-test handling**
 
 - **`fjs t`**: recursively runs generated proof sub-trees through the FunctionalScript
-  runner and reporter.
+  runner and reporter. A sub-tree is read only after its parent leaf passes, and
+  each of its leaves is then run as a leaf of its own, in sequence — not inside
+  the parent's call (`runEntries` in `../module.f.mjs`). Most other runners
+  execute a sub-test inside its parent, which drives it.
 - **Node** and **Deno**: run generated tests as native sub-tests.
 - **Deno** caveat: sub-tests are not counted toward the total test count.
 - **Bun**: does not support the same native sub-test model; generated tests are run inside
@@ -46,6 +49,13 @@ Document the following differences in the relevant README or doc page.
 The optional Playwright Test adapter may provide browser lifecycle and Playwright
 reporting, but it must not recreate the removed per-proof Node registration path.
 
+**What `sandbox` does, and what it does not.** Each leaf runs through the
+`sandbox` operation (`fjs/effects/common/module.mjs`), which traps what the leaf
+throws and measures how long it took — in the same realm and the same process as
+every other leaf. It gives no state isolation: leaves cannot share mutable state
+because FunctionalScript has none, not because the runner separates them. Port
+notes for users should say so, rather than describe a per-test sandbox.
+
 ### Tasks
 
 - [ ] Identify the right location for this documentation.
@@ -55,6 +65,11 @@ reporting, but it must not recreate the removed per-proof Node registration path
       and reporting model.
 - [ ] Ensure future Playwright documentation describes the shared browser application,
       not Node-side execution of proof callbacks.
+- [ ] Explain the sub-tree scheduling above and what `sandbox` does, so users
+      porting tests know that state shared through a closure in other runners
+      has to become pure.
+- [ ] `Sandbox`'s JSDoc in `fjs/effects/common/types.ts` says "isolated"; the
+      sandbox traps and measures in the same realm.
 
 ### Related
 

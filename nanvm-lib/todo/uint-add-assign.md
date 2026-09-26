@@ -5,18 +5,18 @@
 
 ### Problem
 
-`src/common/uint.rs:3` owns the index-type bound:
+`Uint` in `src/common/uint.rs` owns the index-type bound:
 
 ```rust
 pub trait Uint: Sized + Copy + Default + PartialEq + Sub<Output = Self> + From<u8> {}
 ```
 
-`src/common/index_iter.rs` uses it at `:10`
-(`impl<I: Uint, T: SizedIndex<I>> IndexIter<I, T>`) — and then, nine lines
+`src/common/index_iter.rs` uses it on the inherent impl
+(`impl<I: Uint, T: SizedIndex<I>> IndexIter<I, T>`) — and then, a few lines
 later on the same struct, re-lists all the bounds by hand plus one more:
 
 ```rust
-// index_iter.rs:19-22
+// Iterator for IndexIter, index_iter.rs
 impl<
     I: Copy + Default + PartialEq + AddAssign + From<u8> + Sub<Output = I>,
     T: SizedIndex<I, Output: Clone>,
@@ -25,7 +25,7 @@ impl<
 
 Two spellings of one bound in one file, guaranteed to drift. The extra
 `AddAssign` is the load-bearing part: because `Uint` does not carry it,
-`SizedIndex::index_iter` (`src/common/sized_index.rs:17-22`) is constrained
+`SizedIndex::index_iter` (`src/common/sized_index.rs`) is constrained
 only by `I: Uint` and can hand back an `IndexIter` that is not an `Iterator` —
 the crate's iteration entry point does not guarantee the thing it returns
 iterates.

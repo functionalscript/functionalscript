@@ -10,16 +10,16 @@
 consumer re-spells the trichotomy inline. Unary eliminations alone:
 
 ```js
-// fjs/rtti/data/module.f.mjs:852
+// fjs/rtti/data/module.f.mjs — kindRefs
 const kindRefs = f => k => k === undefined || k === true ? [] : k.flatMap(f)
 
-// fjs/rtti/data/module.f.mjs:956-965
+// fjs/rtti/data/module.f.mjs — patternsValidate
 const patternsValidate = (k, item, value) => {
     if (k === undefined) { return verror('unexpected value') }
     if (k === true) { return ok(value) }
     ...
 
-// fjs/rtti/ts/module.f.mjs:130-133
+// fjs/rtti/ts/module.f.mjs — kindToTs
 const kindToTs = (k, whole, item) =>
     k === undefined ? [] :
     k === true ? [whole] :
@@ -30,7 +30,7 @@ and the same `undefined || true` guard is duplicated twice within each of two
 structurally identical union rewriters:
 
 ```js
-// fjs/rtti/data/module.f.mjs:493-501
+// fjs/rtti/data/module.f.mjs — mapChildren
 const mapChildren = f => u => ({
     ...u,
     ...(u.array === undefined || u.array === true ? {} : {
@@ -41,7 +41,7 @@ const mapChildren = f => u => ({
     }),
 })
 
-// fjs/rtti/data/module.f.mjs:519-527 — same skeleton, different transform
+// fjs/rtti/data/module.f.mjs — dropSubsumedUnion: same skeleton, different transform
 const dropSubsumedUnion = ctx => u => ({
     ...u,
     ...(u.array === undefined || u.array === true ? {} : {
@@ -53,8 +53,8 @@ const dropSubsumedUnion = ctx => u => ({
 })
 ```
 
-The binary combinators `cmpKind` (`data:119`), `mergeKind` (`data:233`),
-`kindSubset` (`data:344`) and the membership test `kindHas` (`data:940`) spell
+The binary combinators `cmpKind`, `mergeKind` and `kindSubset` in `data`, and
+the membership test `kindHas`, spell
 the same case analysis pairwise. Nine sites total state the "absent / whole /
 members" contract; none of them names it.
 
@@ -64,7 +64,7 @@ Two extractions in `rtti/data`. Only the first is exported, and the
 difference matters for what each one owes in proofs:
 
 1. A unary eliminator stating the trichotomy once. It is **exported** —
-   `ts`'s `kindToTs` (`../ts/module.f.mjs:123`) is one of the sites being
+   `ts`'s `kindToTs` (`../ts/module.f.mjs`) is one of the sites being
    rewritten through it, so it has to cross the module boundary:
 
    ```js
@@ -84,8 +84,8 @@ difference matters for what each one owes in proofs:
 
 2. A shared skeleton for the two union rewriters, holding the spread and both
    guards once. This one stays **private**: both instantiations live in
-   `data` (`mapChildren`, `../data/module.f.mjs:703`; `dropSubsumedUnion`,
-   `:729`), so nothing outside the module needs the name.
+   `data` (`mapChildren` and `dropSubsumedUnion` in `../data/module.f.mjs`),
+   so nothing outside the module needs the name.
 
    ```js
    /** @type {(onArray: (l: readonly ArraySet[]) => readonly ArraySet[],
@@ -107,7 +107,7 @@ at `kindFold` as the statement of the contract.
 - [ ] **Add a co-located proof entry for `kindFold`** in
       `fjs/rtti/data/proof.f.mjs` — all three cases (`absent`, `whole`,
       `members`), each observing that the matching branch ran. `kindFold` is
-      a newly published callable, and `fjs/AGENTS.md:25-34` requires an
+      a newly published callable, and `fjs/AGENTS.md` §1.2 requires an
       export to be exercised by its own proof; the rewritten private
       consumers may cover its lines incidentally, but nothing would then be
       calling the exported name, and the case a consumer happens not to hit

@@ -1,5 +1,5 @@
 /**
- * Type-level API of the djs module grammar: the alphabet it is written
+ * Type-level API of the module grammar: the alphabet it is written
  * over, the shapes its helpers build, and the value, which names itself
  * and so is spelled here, as `JsonValue` is in
  * `fjs/ebnf/lib/json/types.ts` — a named type a `const` binding may be

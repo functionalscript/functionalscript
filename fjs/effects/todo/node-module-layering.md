@@ -168,7 +168,7 @@ Judgement calls worth deciding explicitly rather than by accident:
   now the task below: `fjs/media/type/module.f.mjs` imports `IoResult` only to
   spell two signatures, and `Result<Vec, unknown>` from `fjs/types/result` says
   the same thing without reaching into the effects package at all.
-  [fold-stream-combinator](./fold-stream-combinator.md) reached that conclusion
+  The since-merged `fold-stream-combinator` issue reached that conclusion
   independently for `fjs/effects/list`. That a pure consumer should not name an
   IO alias and that a *second host* needs one to exist somewhere shared are
   both true; the old bullet collapsed them into one answer.
@@ -399,9 +399,8 @@ been exactly the kind of smuggled break this section exists to avoid.
 
 - [allvoid-combinator](./allvoid-combinator.md) — names the `All` lowering as a
   separate design question; this is it.
-- [fold-stream-combinator](./fold-stream-combinator.md) — its `Result`-spelled
-  signature is the right design for a generic combinator, not the workaround it
-  calls itself; that issue needs no change from this one.
+- [effect-list-fold](./effect-list-fold.md) — the stream fold, which absorbed
+  the `fold-stream-combinator` issue; it needs no change from this one.
 - [browser-testing](../../emergent_testing/todo/browser-testing.md) — owns the
   future Playwright adapter and browser-side test report.
 - `fjs/media/type/module.f.mjs:45`, `fjs/text/sgr/module.f.mjs:13`,

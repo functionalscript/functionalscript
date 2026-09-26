@@ -278,7 +278,7 @@ and `gen`. A typical FunctionalScript project can define them like this:
 {
   "scripts": {
     "test": "tsc && fjs test",
-    "cov": "node --test --experimental-test-coverage --test-coverage-include=**/module.f.mjs",
+    "cov": "node --test --experimental-test-coverage --test-coverage-include=**/module.f.mjs --test-coverage-include=**/module.f.js",
     "gen": "fjs ci"
   }
 }
@@ -289,7 +289,7 @@ Git, not only the workflows. `fjs ci` covers `.github/workflows/ci.yml`,
 `.github/workflows/npm-publish.yml` and the generated Nix flakes (`flake.nix`
 and `run`, deliberately not `flake.lock` — see "Generated flake locks" below);
 a project with other generators chains them into the same script, as this
-repository does for `nanvm-lib/tests/test/generated.rs` (see
+repository does for `nanvm-lib/tests/test/gen.operators.rs` (see
 [`fjs/nanvm/README.md`](../nanvm/README.md)). Everything chained there is
 covered by the drift check below for free.
 

@@ -112,7 +112,8 @@ if (p.length !== 1) { return enotdir }      // it exists and is not a directory
   So the single length guard is not accidentally right — it is right for the
   two inputs that name nothing and wrong for every input that reaches a real
   directory, which is the whole point of the option. What it cannot do is
-  separate the rows: `statOp`'s `path === ''` guard rescues one of them, and
+  separate the rows: `emptyPathIsAbsent`, the `''` guard `statOp`,
+  `exclusive` and `mkdir` share, rescues one of them, and
   the rest need the walk to be physical, because `realdir/..` and `missing/..`
   are the same string shape and the same `parse` output with different host
   answers. That is
@@ -192,8 +193,8 @@ Whichever option is chosen, then:
 - [ ] If `EISDIR` is chosen: settle
       [lexical-path-resolution](./lexical-path-resolution.md) first, since
       `readFile('missing/..')` is indistinguishable from `readFile('.')` until
-      the walk is physical; give the reads and `writeBytes` `statOp`'s
-      `path === ''` carve-out in the same change; and pin all four of
+      the walk is physical; wrap the reads and `writeBytes` in
+      `emptyPathIsAbsent` in the same change; and pin all four of
       `readFile('realdir')` and `readFile('.')` as `EISDIR`, `readFile('')` and
       `readFile('missing/..')` as `ENOENT`. `realdir` is the one that arrives
       by descent rather than through `parse`, so it is the row a fixture built

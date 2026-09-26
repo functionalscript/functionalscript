@@ -25,9 +25,10 @@ No document grants that exception.
 it as the one shipped `new Array` in the tree. The function length pattern
 proposed in
 [#2213](https://github.com/functionalscript/functionalscript/pull/2213),
-which would admit one construction-time `defineProperty` as a complete
-matched pattern, says in as many words that it does not cover this one;
-nothing here depends on that proposal's fate.
+which would have admitted one construction-time `defineProperty` as a
+complete matched pattern, said in as many words that it did not cover this
+one; it is [retired](https://github.com/functionalscript/functionalscript/blob/245649cdeeb0fb6318004ee273121143273262db/spec/todo/arity-complete-arguments.md#candidate-mechanism-the-withlength-pattern) since the language limited `length` to 16, and
+nothing here depended on its fate.
 
 Two texts are already out of step with the code and go with whatever fix is
 chosen:
@@ -117,9 +118,9 @@ alone does not stand in for that approval.
   hole is undefined behaviour, not a wrong answer. Choosing it means
   saying so where the readers' contract is written.
 - **Keep hole preservation through an admitted pattern**, if the language
-  ever admits a construction-time idiom for arrays the way #2213 proposes
-  one for a function's `length`. Nothing proposes that today, and it would
-  reopen the question the first idea answers.
+  ever admits a construction-time idiom for arrays the way the retired
+  #2213 pattern proposed one for a function's `length`. Nothing proposes
+  that today, and it would reopen the question the first idea answers.
 
 ### Tasks
 
@@ -144,9 +145,10 @@ alone does not stand in for that approval.
 - [new-array-out-of-subset](../../../../todo/new-array-out-of-subset.md) —
   the sweep this is one step of, and the survey that found the site.
 - [Function length pattern](https://github.com/functionalscript/functionalscript/pull/2213)
-  — `spec/todo/3130-function-length-pattern.md` once it lands: the one
-  construction-time `defineProperty` the language may admit; this function
-  is not it.
+  — later the [`withLength` pattern](https://github.com/functionalscript/functionalscript/blob/245649cdeeb0fb6318004ee273121143273262db/spec/todo/arity-complete-arguments.md#candidate-mechanism-the-withlength-pattern), retired without landing when the
+  language limited `length` to 16: it was the one construction-time
+  `defineProperty` the language might have admitted; this function was never
+  it.
 - [Built-in](../../../../spec/todo/2360-built-in.md) — `Array` as a namespace
   and `defineProperty` as `mutate`.
 - [rtti README](../../README.md#what-the-readers-assume-of-a-value) — the

@@ -31,7 +31,7 @@ import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 import { toVec } from '../../types/uint8array/module.f.mjs'
 import { write as writeEnvelope } from '../../git/object/module.f.mjs'
 import { tagLoose, tagPayload } from '../../git/testlib.f.mjs'
-import { createServer, inflate, inflateTrailingCode, listen, readWhole, resolveFileModule, writeExclusive } from './module.f.mjs'
+import { createServer, inflate, inflateTrailingCode, listen, readWhole, resolveFileModule, rmdir, writeExclusive } from './module.f.mjs'
 import { runEffect } from './module.mjs'
 
 /** @type {(program: NodeProgram) => Promise<number>} */
@@ -66,10 +66,18 @@ const hostCheck = async (effect, check) => {
  *
  * @type {(result: Result<void, IoChannel>) => void}
  */
-const refusedTaken = result => {
+const refusedTaken = result => refusedWith('EEXIST')(result)
+
+/**
+ * A failure carrying the host's own code, unwrapped so that a change of
+ * operation shows up as a different code rather than as a different message.
+ *
+ * @type {(code: string) => (result: Result<void, IoChannel>) => void}
+ */
+const refusedWith = code => result => {
     assert(result[0] === 'error')
     assert(result[1][0] === 'ioError')
-    assertEq(result[1][1].code, 'EEXIST')
+    assertEq(result[1][1].code, code)
 }
 
 /** @type {(n: number) => Uint8Array} */
@@ -388,10 +396,20 @@ export const proof = {
         exclusive: () => withTemporary('fjs-write-exclusive-', async root => {
             const path = join(root, 'ref')
             const first = payload(1)
-            await hostCheck(writeExclusive(path, toVec(first)), result => assertEq(result[0], 'ok'))
+            await hostCheck(writeExclusive(path, [toVec(first)]), result => assertEq(result[0], 'ok'))
             assertStructurallySame([...await readFile(path)], [...first])
-            await hostCheck(writeExclusive(path, toVec(payload(100))), refusedTaken)
+            await hostCheck(writeExclusive(path, [toVec(payload(100))]), refusedTaken)
             assertStructurallySame([...await readFile(path)], [...first])
+        }),
+        // Several chunks land in order through the one open: a file has no
+        // `Vec`'s bound, and a caller whose contents outgrow one — a rewritten
+        // `packed-refs` does at about 1,870 refs — must not have to fall back to
+        // a create followed by a reopen by name.
+        chunks: () => withTemporary('fjs-write-exclusive-chunks-', async root => {
+            const path = join(root, 'packed-refs.new')
+            const [a, b, c] = [payload(1), payload(50), payload(99)]
+            await hostCheck(writeExclusive(path, [toVec(a), toVec(b), toVec(c)]), result => assertEq(result[0], 'ok'))
+            assertStructurallySame([...await readFile(path)], [...a, ...b, ...c])
         }),
         // A symlink planted at the name is refused without being followed: the
         // link is still a link and its target still holds what it held. This is
@@ -409,7 +427,7 @@ export const proof = {
             await writeFile(target, held)
             const link = join(root, 'link')
             await symlink(target, link)
-            await hostCheck(writeExclusive(link, toVec(payload(200))), refusedTaken)
+            await hostCheck(writeExclusive(link, [toVec(payload(200))]), refusedTaken)
             assertStructurallySame([...await readFile(target)], [...held])
             assert((await lstat(link)).isSymbolicLink())
             // A dangling link is refused the same way, rather than creating the
@@ -417,8 +435,43 @@ export const proof = {
             // writes a file anywhere the process can reach.
             const dangling = join(root, 'dangling')
             await symlink(join(root, 'absent'), dangling)
-            await hostCheck(writeExclusive(dangling, toVec(payload(300))), refusedTaken)
+            await hostCheck(writeExclusive(dangling, [toVec(payload(300))]), refusedTaken)
             assert(!(await readdir(root)).includes('absent'))
+        }),
+    },
+    // What a ref delete prunes with. The two refusals are the whole reason to use
+    // `rmdir` rather than a recursive `rm` behind an emptiness check: a directory
+    // holding anything is `ENOTEMPTY` by the host's own decision, so a ref landing
+    // in it between the check and the removal cannot be lost; and a symbolic link
+    // is `ENOTDIR` rather than followed, so a planted link cannot turn the prune
+    // into a removal somewhere else.
+    rmdir: {
+        emptyOnly: () => withTemporary('fjs-rmdir-', async root => {
+            const empty = join(root, 'empty')
+            await mkdir(empty)
+            await hostCheck(rmdir(empty), result => assertEq(result[0], 'ok'))
+            assert(!(await readdir(root)).includes('empty'))
+            const full = join(root, 'full')
+            await mkdir(join(full, 'ref'), { recursive: true })
+            await hostCheck(rmdir(full), refusedWith('ENOTEMPTY'))
+            assert((await readdir(full)).includes('ref'))
+            await hostCheck(rmdir(join(root, 'absent')), refusedWith('ENOENT'))
+        }),
+        // A link to a directory is refused and not followed: the link and the
+        // directory it names both survive, and so does what is in it. On Windows
+        // the link is a junction, which needs no privilege to create and which
+        // `RemoveDirectoryW` would remove outright — so this is the case that
+        // holds the runner's `lstat` there, and POSIX's own `ENOTDIR` elsewhere.
+        // The target holds a file so that removing the link, not the target, is
+        // the only way the host could answer `ok`.
+        symlink: () => withTemporary('fjs-rmdir-link-', async root => {
+            const target = join(root, 'target')
+            await mkdir(join(target, 'ref'), { recursive: true })
+            const link = join(root, 'link')
+            await symlink(target, link, process.platform === 'win32' ? 'junction' : 'dir')
+            await hostCheck(rmdir(link), refusedWith('ENOTDIR'))
+            assert((await lstat(link)).isSymbolicLink())
+            assert((await readdir(target)).includes('ref'))
         }),
     },
     readWhole: {

@@ -1,5 +1,5 @@
 /**
- * The JavaScript token grammar: one token, as the djs tokenizer reads them,
+ * The JavaScript token grammar: one token, as the module tokenizer reads them,
  * spelled LL(1) for `../../ll1`. A file is not `repeatFrom0(token)` — in a
  * whole-file grammar a token's follow set is the next token's first set, so
  * every greedy token is a first/follow conflict — but one token at a time,

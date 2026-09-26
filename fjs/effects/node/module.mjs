@@ -211,7 +211,7 @@ const failSafe = res => {
     respondWith(res)(500)('internal server error')
 }
 
-const { mkdir, open, readFile, readdir, rename, writeFile, rm, access, stat } = fs.promises
+const { mkdir, open, readFile, readdir, rename, writeFile, rm, rmdir, access, stat, lstat } = fs.promises
 
 const { exec } = childProcess
 
@@ -405,6 +405,20 @@ const runNodeEffect = asyncRun({
     // pad the last byte.
     writeFile: (path, data) => io(() => writeFile(path, fromVec(data))),
     rm: path => io(() => rm(path)),
+    // A link is refused before `rmdir` is asked, because Windows would remove it:
+    // a directory link there is a junction or a directory symlink, and
+    // `RemoveDirectoryW` removes the reparse point whatever the target holds,
+    // where POSIX `rmdir` answers `ENOTDIR` for a link. The contract is `ENOTDIR`
+    // on every host (`Rmdir` in `./types.ts`), so a prune never removes a link
+    // to a directory of refs. The `lstat` does not follow the link; a link that
+    // appears between it and the `rmdir` is not caught, the same window every
+    // check-then-act by name has here.
+    rmdir: path => io(async () => {
+        if ((await lstat(path)).isSymbolicLink()) {
+            throw Object.assign(new Error(`ENOTDIR: not a directory, rmdir '${path}'`), { code: 'ENOTDIR' })
+        }
+        return rmdir(path)
+    }),
     rename: (src, dst) => io(() => rename(src, dst)),
     readBytes: (path, offset, size) => io(async () => {
         if (offset < 0) {
@@ -511,14 +525,14 @@ const runNodeEffect = asyncRun({
         const fh = await open(path, 'wx')
         let failure = null
         try {
-            await fh.writeFile(fromVec(data))
+            await fh.writeFile(Buffer.concat(data.map(fromVec)))
         } catch (e) {
             failure = e
         }
         // Not in a `finally`: a failure to close must not replace the write's,
         // which is the one a caller can act on. If the close itself fails the
         // file is left behind, which is a stale lock on a filesystem already
-        // failing — recorded in `fjs/git/todo/ref-writing.md`.
+        // failing — recorded in `fjs/git/refstore/todo/ref-writing.md`.
         await fh.close()
         if (failure !== null) {
             await rm(path, { force: true })

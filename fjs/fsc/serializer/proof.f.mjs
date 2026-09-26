@@ -339,6 +339,22 @@ export const proof = {
         // `$z` then `$aa`: the letters carry past the twenty-sixth body.
         assert(reads(nested(27)).endsWith('(...$y)=>(...$z)=>(...$aa)=>$aa;'))
     },
+    // A function's `length` is at most 16: 16 reads back, and a larger one,
+    // top-level or nested, is an error from every entry point, not a throw
+    // out of allocating its parameter names.
+    lengthLimit: () => {
+        assert(reads(['=>', 16, null, ['arg', 15]]).includes('_15,...$'))
+        for (const e of /** @type {readonly Exp[]} */ ([
+            ['=>', 2 ** 32, null, 1],
+            ['=>', 0, null, ['=>', 2 ** 32, null, 1]],
+        ])) {
+            /** @type {Exp} */
+            const module = ['{}', [[':', 'f', e], [':', 'default', 1]]]
+            for (const result of [trySerialize(e), tryStringify(e), tryModuleSerialize(module), tryModuleStringify(module)]) {
+                assertStructurallySame(result, ['error', 'a function length above 16'])
+            }
+        }
+    },
     // A body whose text opens with `{` is written as a block: `=> {` opens a
     // block and not an object, so the value has to be returned from it. The
     // question is the text's and not the node's — an access on an object

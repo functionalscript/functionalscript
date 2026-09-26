@@ -135,10 +135,12 @@ function-owned `args` to `rest` and insert length `0`; retain module import
 than reinterpreted. Earlier positive-arity/full-argument experiments have
 no general lossless migration to this format.
 
-Amnesia and memo share [generated arrow factories](./callable/README.md)
-for lengths 0–32. The limit applies when materializing a JavaScript callable;
-it does not bound valid EDAG or source output. The default-text renderer
-remains tracked in [the parameter plan](../../spec/todo/3120-parameters.md).
+A function's `length` is at most 16, the language's limit: `bindingError`
+refuses a larger one. Amnesia and memo share the
+[arrow factories](../types/function/length/README.md) of
+`fjs/types/function/length`, which cover every valid length. The default-text
+renderer remains tracked in
+[the parameter plan](../../spec/todo/3120-parameters.md).
 
 An `index` — the property operand of `.`, `?.`, and the `|.` step — is a
 `string`, a `number`, or `['Number', exp]`, a computed index cast to a
@@ -413,9 +415,12 @@ need it.
 ## Design
 
 The semantics and operation vocabulary are decided subject by subject in
-[edag-stage1-discussion.md](../../todo/edag-stage1-discussion.md); the module
-boundary and the plan for generating the Rust types from this schema live in
-[edag-spec.md](../../todo/edag-spec.md). Both predate [Chains](#chains) above
-and describe the chain nodes as one call tag carrying a flat `lambdas` array
-of steps; that array is gone, and this file is the record for what replaced
-it and why.
+[edag-stage1-discussion.md](../../todo/edag-stage1-discussion.md). The module
+boundary is the one stated at the top of this file: the compiler's temporary
+`Unresolved { imports, edag }` wrapper, module resolution and serialization
+stay in `fjs/fsc`, since import paths are not part of an EDAG. Generating the
+Rust types and validation from this schema is
+[rust-schema-codegen.md](./todo/rust-schema-codegen.md). The discussion
+predates [Chains](#chains) above and describes the chain nodes as one call tag
+carrying a flat `lambdas` array of steps; that array is gone, and this file is
+the record for what replaced it and why.

@@ -1,17 +1,18 @@
 ## single-quote-and-template-lexing. The token grammar cannot read the repository's own sources
 
 **Priority:** P3
-**Status:** open — **blocked by nothing.** This issue used to live beside the
-hand-written scanner in `fjs/js/tokenizer` and waited on the JSON reader's
-rewrite, because widening that scanner regressed the public JSON tokenizer
-built over it. It moved here when
-[the token layer became JavaScript's](../../../../fsc/README.md#the-token-layer-is-javascripts-the-parser-is-the-subset)
-and the scanner went:
-JSON reads [`ebnf/lib/json`](../../json/module.f.mjs), not this grammar, so
-widening this grammar regresses nothing, and the ordering problem that
-blocked the old issue is gone with the module it was about.
+**Status:** open
 
 ### Problem
+
+Nothing blocks this. It used to live beside the hand-written scanner in
+`fjs/js/tokenizer` and waited on the JSON reader's rewrite, because widening
+that scanner regressed the public JSON tokenizer built over it. It moved here
+when
+[the token layer became JavaScript's](../../../../fsc/README.md#the-token-layer-is-javascripts-the-parser-is-the-subset)
+and the scanner went: JSON reads [`ebnf/lib/json`](../../json/module.f.mjs),
+not this grammar, so widening this grammar regresses nothing, and the ordering
+problem that blocked the old issue is gone with the module it was about.
 
 The JS token grammar in [`module.f.mjs`](../module.f.mjs) takes its `string`
 rule from JSON: JSON's string between double quotes, or the same between
@@ -29,15 +30,15 @@ is also written in stop the grammar, and with it every reader of it:
 Single quotes with JSON's escapes read since 2460 landed; the measurement
 below predates that, when `'x'` was an `invalid token` too.
 
-Measured over every `.mjs` under `fjs/` and `spec/` (350 files) through
+Measured over every `.mjs` under `fjs/` and `spec/` through
 [`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.mjs)'s `tokenize`, the
 grammar's reader (it was `fsc/tokenizer`'s `tokenizeJs` when measured; the
-same code, moved): **336 stop at an error token; 14 tokenize cleanly**, and
-they are the small ones and the data modules — `effects/list`,
-`types/function`, `types/map`, `types/nominal`, `types/range`,
-`types/btree/types`, the two `fsc/examples` fixtures and the six DataJS vector
-sets. The scanner this issue was first measured on had the same 14 clean out
-of 351. The grammar does not accept its own source.
+same code, moved): **nearly every module stops at an error token; a handful
+tokenize cleanly**, and they are the small ones and the data modules —
+`effects/list`, `types/function`, `types/map`, `types/nominal`, `types/range`,
+`types/btree/types`, the two `fsc/examples` fixtures and the DataJS vector
+sets. The scanner this issue was first measured on had the same handful clean.
+The grammar does not accept its own source.
 
 Because the grammar stops at the first refused token, a source view built on
 it today would show nothing past the first template literal or non-JSON
@@ -132,16 +133,16 @@ originally scoped the prerequisite as "template literals preserved as one token
 without parsing `${}` substitutions, which is all a source view needs". That
 understates it. A scan that closes the template at the next backtick closes it
 in the wrong place, because substitutions in this repository contain templates
-of their own — six of them:
+of their own — among them:
 
 | file | shape |
 | --- | --- |
-| [`fsc/parser/proof.f.mjs:30`](../../../../fsc/parser/proof.f.mjs#L30) | `` `${`${e},`.repeat(n)}${e}` `` |
-| [`fsc/tokenizer/proof.f.mjs:948`](../../../../fsc/tokenizer/proof.f.mjs#L948) | nested in a `map` |
-| [`website/page/module.f.mjs:83`](../../../../website/page/module.f.mjs#L83) | nested in a `map` |
-| [`media/datajs/parser/proof.f.mjs:302`](../../../../media/datajs/parser/proof.f.mjs#L302) | nested in a conditional |
-| [`ci/deno/proof.f.mjs:16`](../../../../ci/deno/proof.f.mjs#L16) | nested two deep |
-| [`ci/rust/proof.f.mjs:64`](../../../../ci/rust/proof.f.mjs#L64) | nested in a `map` |
+| [`fsc/parser/proof.f.mjs`](../../../../fsc/parser/proof.f.mjs), `repeated` | `` `${`${element},`.repeat(count - 1)}${element}` `` |
+| [`js/tokenizer/proof.f.mjs`](../../../../js/tokenizer/proof.f.mjs) | nested in a `map` |
+| [`website/page/module.f.mjs`](../../../../website/page/module.f.mjs) | nested in a `map` |
+| [`media/datajs/parser/proof.f.mjs`](../../../../media/datajs/parser/proof.f.mjs) | nested in a conditional |
+| [`ci/deno/proof.f.mjs`](../../../../ci/deno/proof.f.mjs) | nested two deep |
+| [`ci/rust/proof.f.mjs`](../../../../ci/rust/proof.f.mjs) | nested in a `map` |
 
 An LL(1) token grammar cannot hold that nesting, and it should not try: this
 is the rule the grammar already follows — what one LL(1) layer cannot decide
@@ -161,11 +162,11 @@ substitution's. The stack lives in the reader's scan state beside the
 position, not in the grammar.
 
 Two fixtures the tree scan cannot see, because a wrong split there is not an
-error but a template that swallows the rest of the file as text:
-[`media/rust/module.f.mjs:34-48`](../../../../media/rust/module.f.mjs#L34-L48),
-whose substitution holds `map(c => { switch (c) { … } })`, so its first `}`
-must stay an operator, and `` `${{ x: 1 }.x}` ``, an object literal as the
-whole substitution.
+error but a template that swallows the rest of the file as text: a
+substitution holding a block body — `map(c => { switch (c) { … } })`, as
+[`media/rust/module.f.mjs`](../../../../media/rust/module.f.mjs) once had —
+so its first `}` must stay an operator, and `` `${{ x: 1 }.x}` ``, an object
+literal as the whole substitution.
 
 #### The token stream, decided here rather than at implementation time
 
@@ -199,7 +200,7 @@ compiler stays free to refuse the whole form, and does, at its fold.
 Single quotes, landed with 2460, and templates still leave real modules
 failing, because the repository uses the rest of the JS escape surface too. The `escape` rule
 is JSON's table plus `\u`, and nothing else. The clearest case is
-[`git/testlib.f.mjs:121-128`](../../../../git/testlib.f.mjs#L121-L128), which
+[`git/testlib.f.mjs`](../../../../git/testlib.f.mjs)'s `rootTree`, which
 is ordinary data, not a test of escapes:
 
 ```js
@@ -207,8 +208,8 @@ is ordinary data, not a test of escapes:
 ```
 
 Every `\0` and every `\xNN` there stops the grammar today. By literal search
-across `.mjs` sources, `\x` appears in 17 files, `\0` in 19, `\v` in 8, and
-`\u{` in 5.
+across `.mjs` sources, `\x`, `\0`, `\v` and `\u{` each appear in a number of
+files, the first two in more than a dozen.
 
 These are the same spellings
 [2460](../../../../../spec/todo/2460-js-string-literals.md) enumerates, and
@@ -220,7 +221,7 @@ that.
 
 Do not answer this with a longer list, though. The list keeps acquiring rows —
 first `\'`, then the backtick, then `\$` for the escaped substitution opener
-in [`media/nix/module.f.mjs:224`](../../../../media/nix/module.f.mjs#L224) —
+in [`media/nix/module.f.mjs`](../../../../media/nix/module.f.mjs)'s `indentedPart` —
 because JavaScript does not have a list. Its rule is **the listed escapes,
 otherwise the character itself**: `\q` is `q`, `\$` is `$`. JSON's `escape`
 rule does the opposite and refuses, which is right for JSON and is why the JS
@@ -245,8 +246,12 @@ The repository has two, one per module, and **they are not the same case**:
 
 | regex | tokenizes as | cost |
 | --- | --- | --- |
-| [`effects/node:431`](../../../../effects/node/module.f.mjs#L431) `` /^v/ `` | `/`, `^`, `id v`, `/` | one line coloured as divisions |
-| [`text/sgr:83`](../../../../text/sgr/module.f.mjs#L83) `` /\x1b\[[0-9;]*m/g `` | `invalid token` at the `\` | the module is lost from there on |
+| [`effects/node`](../../../../effects/node/module.f.mjs)'s `versionParts` `` /^v/ `` | `/`, `^`, `id v`, `/` | one line coloured as divisions |
+| [`text/sgr`](../../../../text/sgr/module.f.mjs)'s `str` `` /\x1b\[[0-9;]*m/g `` | `invalid token` at the `\` | the module is lost from there on |
+
+Both are `.f.mjs` modules, where regular expressions are ruled out;
+[strip-sgr-without-regex](../../../../text/sgr/todo/strip-sgr-without-regex.md)
+removes the second. The token is still owed to every other JavaScript reader.
 
 The second is what the earlier draft of this section missed by measuring `/x/`
 alone. A regex body is not JavaScript, so a backslash in it begins no token,
@@ -319,14 +324,13 @@ the source view rests on.
       change.
 - [ ] Fixtures for that rule, all failing when this was written; the first
       reads since 2460, whose `\'` it needs and nothing more:
-      [`git/testlib.f.mjs:232`](../../../../git/testlib.f.mjs#L232)
-      (`'Merge tag \'vt\''`),
-      [`git/testlib.f.mjs:121-128`](../../../../git/testlib.f.mjs#L121-L128)
-      (`\0` and `\xNN` in ordinary data),
-      [`media/datajs/vectors/matrix/proof.f.mjs:350-351`](../../../../media/datajs/vectors/matrix/proof.f.mjs#L350-L351)
-      (escaped backticks in a template), and
-      [`media/nix/module.f.mjs:224`](../../../../media/nix/module.f.mjs#L224),
-      which is `` `\${${reference}}` `` — an escaped substitution opener and a
+      [`git/testlib.f.mjs`](../../../../git/testlib.f.mjs)'s `mergePayload`
+      (`'Merge tag \'vt\''`), its `rootTree` (`\0` and `\xNN` in ordinary
+      data),
+      [`media/datajs/vectors/matrix/proof.f.mjs`](../../../../media/datajs/vectors/matrix/proof.f.mjs)'s
+      `unrenderable` (escaped backticks in a template), and
+      [`media/nix/module.f.mjs`](../../../../media/nix/module.f.mjs)'s
+      `indentedPart`, which is `` `\${${reference}}` `` — an escaped substitution opener and a
       real substitution on one line, so it pins the two against each other.
 - [ ] A template chunk rule, and the nesting depth in the reader's scan
       state above the grammar: an *unescaped* `${` returns to ordinary
@@ -353,7 +357,7 @@ the source view rests on.
       opens one, and the compiler's fold refusing it as it refuses a
       template. Without it `text/sgr` stops at its regex's backslash once
       the escapes and templates land, so the scan below cannot reach zero.
-- [ ] Re-run the tree scan; the 336 failing modules should reach zero, or the
+- [ ] Re-run the tree scan; the failing modules should reach zero, or the
       remainder should be named and explained.
 
 ### Related

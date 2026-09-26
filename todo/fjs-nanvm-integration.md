@@ -7,7 +7,12 @@
 
 The MVP ([mvp-roadmap](../nanvm-lib/todo/mvp-roadmap.md)) is reached when
 `fjs compile` can emit Rust code that calls the `nanvm-lib` API, and a
-harness crate builds and runs the generated code with cargo. This
+harness crate builds and runs the generated code with cargo. It is reached:
+the [named-module acceptance](#named-module-acceptance) example runs through
+the harness's `run`, in a `cargo test` that builds and runs the generated code
+with cargo. The open tasks below, `.f.js` package support and the repository
+migration, do not gate it: the walking skeleton needs no repository source
+migration ([below](#repository-compiler-compatibility-migration)). This
 integration does **not** need to wait for everything else: it can start as
 soon as a minimal subset works end-to-end (e.g. a module whose default
 export is a constant), before the operators, the full parser, and the rest
@@ -32,10 +37,11 @@ There is no pending convention for Rust imports between source dependencies.
 The embedding crate chooses where to include the generated file.
 
 [Named imports](../spec/README.md#importing-other-modules) now select named
-exports and aliases from dependency export objects. The remaining consumer gap
-is [harness export selection](../nanvm-harness/todo/select-module-export.md):
-`nanvm-harness::run` still selects `default` and serializes it without invoking
-a function. Neither feature requires named function parameters.
+exports and aliases from dependency export objects, and the consumer does the
+same: `nanvm-harness::run(module, export, action)` reads or calls one named
+export and renders that one result as JSON
+([`nanvm-harness/src/lib.rs`](../nanvm-harness/src/lib.rs)). Neither feature
+requires named function parameters.
 
 ### Named-module acceptance
 
@@ -53,10 +59,12 @@ export const main = () => sum(20, 22);
 ```
 
 The [named-imports fixture](../nanvm-harness/fixtures/named-imports.mjs)
-compiles this pattern to Rust. Its cargo test selects `main` through the VM API,
-invokes it with no arguments, and checks `42`, matching native JavaScript and
-both JavaScript EDAG evaluators. A general harness selection/call API and CLI
-remain the separate export-selection task. Source round trips cover the
+compiles this pattern to Rust. Its cargo test has the harness's `run` select
+`main` and call it with no arguments, and checks `42`, matching native
+JavaScript and both JavaScript EDAG evaluators (`namedImports.acceptance` in
+[`fjs/fsc/edag/proof.f.mjs`](../fjs/fsc/edag/proof.f.mjs), on its own copy of
+the sources). The harness has no CLI; its
+[`main`](../nanvm-harness/src/main.rs) says why. Source round trips cover the
 serializer's admitted expressions; calls and arithmetic are still refused by
 that serializer. `main` is the fixture's selected
 export, not a required language-level name. The rest-only helper keeps this
@@ -73,30 +81,13 @@ prerequisite below.
 Stage 1 — removing authored TypeScript — is complete and is no longer a
 blocker. It was tracked in `todo/migrate-typescript-to-mjs.md`, deleted once
 finished; the extension contract it established lives in
-[`fjs/fsc/README.md`](../fjs/fsc/README.md).
-
-The initial compiler walking skeleton does not require repository source
-migration and may use a small synthetic JavaScript fixture. The extension-based
-compiler-compatibility migration of existing repository modules is separate and
-cannot begin while authored TypeScript remains.
-
-Stage 1 first converts the repository gradually and dependency-first:
-
-```text
-module.ts   -> module.mjs
-module.f.ts -> module.f.mjs
-```
-
-During stage 1, `.f.mjs` means authored FunctionalScript-intent JavaScript; it
-does not promise current compiler support. The stage also removes the
-TypeScript-to-JavaScript emit path after the last TypeScript source is gone
-(done in [#1520](https://github.com/functionalscript/functionalscript/pull/1520):
-`prepack` emits declarations only, then re-checks against them without
-emitting), cleans obsolete generated `.js`, and removes the
-blanket `**/*.js` ignore so `.js` becomes authorable and trackable again (done
-in [#1545](https://github.com/functionalscript/functionalscript/pull/1545); the
-rule guarded only stale artifacts once nothing generated `.js`, and `**/*.js`
-deliberately stays in `package.json`'s `files`).
+[`fjs/fsc/README.md`](../fjs/fsc/README.md), which also records what stage 1
+removed along the way — the TypeScript-to-JavaScript emit path
+([#1520](https://github.com/functionalscript/functionalscript/pull/1520)) and
+the blanket `**/*.js` ignore
+([#1545](https://github.com/functionalscript/functionalscript/pull/1545)).
+`.f.mjs` means authored FunctionalScript-intent JavaScript; it does not
+promise current compiler support.
 
 Before stage 2 renames any repository source, complete the focused
 [`f-js-package-support.md`](../fjs/ci/todo/f-js-package-support.md) prerequisite.
@@ -162,9 +153,12 @@ via the `Function` constructor — no rustc at the user's run time.
       properties from dependency export objects without discarding the object
       or requiring a default export.
 - [x] Prove the named-module compiler example in JavaScript, both EDAG
-      evaluators, and generated Rust using explicit VM selection/call operations.
-- [ ] Implement [harness export selection](../nanvm-harness/todo/select-module-export.md)
-      and expose the same selection/call behavior through the harness API/CLI.
+      evaluators, and generated Rust, the Rust first through explicit VM
+      selection/call operations and now through the harness's `run`.
+- [x] Implement harness export selection: `run(module, export, action)`
+      reads or calls one named export, and the named-module example runs
+      through it. The selection is exposed as the harness API only; a CLI
+      waits for a use ([`main.rs`](../nanvm-harness/src/main.rs)).
 - [x] Inline source dependencies into one generated Rust output.
       `rustText` in the [compiler](../fjs/fsc/module.f.mjs) resolves the complete
       graph before calling `toRust`; source imports do not become separate
@@ -196,13 +190,14 @@ via the `Function` constructor — no rustc at the user's run time.
   — **blocked-by prerequisite** before the first stage-2 rename.
 - [`fjs/fsc/README.md`](../fjs/fsc/README.md) — the extension contract, and the
   stage-1/stage-2 boundary this migration starts from.
-- [nanvm-lib/todo/mvp-roadmap.md](../nanvm-lib/todo/mvp-roadmap.md) — MVP
-  definition and task list.
+- [nanvm-lib/todo/mvp-roadmap.md](../nanvm-lib/todo/mvp-roadmap.md) — the
+  design decided around the MVP pipeline and the post-MVP tasks; this file
+  holds the MVP definition and its tasks.
 - [nanvm-lib/todo/console-program.md](../nanvm-lib/todo/console-program.md) —
   the self-hosted `nanvm` crate (post-MVP).
 - [authored `.mjs` package support](../fjs/ci/todo/f-mjs-package-support.md) —
   stage-1 validation, declaration, and package prerequisite.
 - [`publishing-packages.md`](../fjs/ci/todo/publishing-packages.md) — broader
   package-publishing roadmap.
-- [edag-spec](./edag-spec.md) — the schema of the code-describing `Any`; the
-  `Function` constructor contract.
+- [`fjs/edag`](../fjs/edag/README.md) — the schema of the code-describing
+  `Any`; the `Function` constructor contract.

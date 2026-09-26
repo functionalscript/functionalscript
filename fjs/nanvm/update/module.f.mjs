@@ -19,7 +19,7 @@ import { data } from '../module.f.mjs'
 import { directory, generate, path } from '../rust/module.f.mjs'
 
 /**
- * Regenerates `nanvm-lib/tests/test/generated.rs` from the shared test data.
+ * Regenerates `nanvm-lib/tests/test/gen.operators.rs` from the shared test data.
  *
  * @type {() => Effect<Mkdir | WriteFile, void, IoChannel>}
  */

@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/fsc/tokenizer/module.f.mjs`: the DJS token shapes
+ * Type-level API for `fjs/fsc/tokenizer/module.f.mjs`: the module token shapes
  * `tokenize` produces.
  *
  * @module
@@ -22,7 +22,7 @@ import type {
 } from '../../ebnf/lib/js/types.ts'
 
 /**
- * DJS-level token set: a narrower view of JsToken (only the literal keywords
+ * The module's token set: a narrower view of JsToken (only the literal keywords
  * survive as bare keywords — `true`, `false`, `null` and the three
  * `literalGlobals` of `fjs/js/keywords`; every other keyword becomes an id)
  * plus its own punctuator kinds. `;` is a member because a statement may
@@ -33,7 +33,7 @@ import type {
  * `+ * / % **`, `=== !== > >= < <=`, `& | ^ ~ << >> >>>` — Stage A of
  * [`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md):
  * every one of them arithmetic, strict comparison, or bitwise, each already
- * a kind of its own on `JsToken`, so the DJS layer only has to admit it —
+ * a kind of its own on `JsToken`, so this layer only has to admit it —
  * and `&& || ??` with `?`, the lazy operators and the conditional's own
  * token, Stage B of the same; `:` the conditional shares with a member.
  * `?.` stays refused: optional chaining is not this language's yet.

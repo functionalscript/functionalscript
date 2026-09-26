@@ -2,9 +2,10 @@
  * @import { Unknown } from '../media/datajs/types.ts'
  * @import { Accept, Document, Normalize } from '../media/datajs/vectors/types.ts'
  * @import { Analysis } from '../edag/analysis/types.ts'
+ * @import { Vec } from '../types/bit_vec/types.ts'
  */
 
-import { exitCode } from '../effects/node/module.f.mjs'
+import { exitCode, readUtf8File } from '../effects/node/module.f.mjs'
 import { _errorLocation, _tryJson, compile } from './module.f.mjs'
 import { parse, transpile } from './transpiler/module.f.mjs'
 import { resolve } from './edag/module.f.mjs'
@@ -258,10 +259,11 @@ export const proof = {
         assert(compileSource(source)('parameters.edag.data.mjs').includes('["=>",3,null,'))
         const written = compileSource(source)('parameters.f.mjs')
         assertEq(parse('parameters.f.mjs')(written)[0], 'ok')
-        const parameters = Array.from({ length: 33 }, (_, i) => `a${i}`).join(',')
-        const large = `export default (${parameters},...x)=>x;`
-        assert(compileSource(large)('large.edag.data.mjs').includes('["=>",33,null,'))
-        assertEq(parse('large.f.mjs')(compileSource(large)('large.f.mjs'))[0], 'ok')
+        /** @type {(length: number) => string} */
+        const large = length => `export default (${Array.from({ length }, (_, i) => `a${i},`).join('')}...x)=>x;`
+        assert(compileSource(large(16))('large.edag.data.mjs').includes('["=>",16,null,'))
+        assertEq(parse('large.f.mjs')(compileSource(large(16))('large.f.mjs'))[0], 'ok')
+        assert(moduleRefused(large(17)).includes('more than 16 fixed parameters'))
     },
     namedExports: {
         values: () => {
@@ -324,13 +326,62 @@ export const proof = {
         noArgs: () => {
             const [state, code] = virtual(emptyState)(compile([]))
             assertEq(exitCode(code), 1)
-            assert(state.stderr.includes('Requires 2 or more arguments'), state.stderr)
+            assert(state.stderr.includes('Requires 2 arguments'), state.stderr)
         },
         oneArg: () => {
             const [state, code] = virtual(emptyState)(compile(['input.f.js']))
             assertEq(exitCode(code), 1)
-            assert(state.stderr.includes('Requires 2 or more arguments'), state.stderr)
+            assert(state.stderr.includes('Requires 2 arguments'), state.stderr)
         },
+    },
+    malformedUtf8: () => {
+        // A source that is not correct UTF-8 is refused, naming the file,
+        // rather than decoded: a lenient decoder gives a raw `FF` in a
+        // string U+00FF where a JavaScript host reads U+FFFD — a different
+        // successful value (DESIGN.md §10).
+        /** @type {(text: string) => readonly number[]} */
+        const ascii = text => Array.from(text, c => c.charCodeAt(0))
+        /** @type {(before: string, bad: readonly number[], after: string) => Vec} */
+        const source = (before, bad, after) => toVec(new Uint8Array([...ascii(before), ...bad, ...ascii(after)]))
+        const sequences = [[0xff], [0xc2], [0xc0, 0xaf], [0xed, 0xa0, 0x80]]
+        for (const bad of sequences) {
+            /** @type {readonly (readonly [string, Vec, string])[]} */
+            const cases = [
+                ['input.f.js', source('export default "a', bad, 'b";'), 'input.f.js'],
+                ['input.f.js', source('export default { "a', bad, '": 1 };'), 'input.f.js'],
+                ['input.f.js', source('// a', bad, '\nexport default 1;'), 'input.f.js'],
+                ['input.json', source('"a', bad, '"'), 'input.json'],
+            ]
+            for (const [input, bytes, named] of cases) {
+                const root = { [input]: [bytes] }
+                const [state, code] = virtual({ ...emptyState, root })(compile([input, 'output.json']))
+                assertEq(exitCode(code), 1, state.stderr)
+                assert(state.stderr.includes(`${named} - error: not UTF-8 text`), state.stderr)
+                assertEq(state.root['output.json'], undefined)
+            }
+            const root = {
+                'input.f.js': [utf8('import a from "./a.json" with { type: "json" };\nexport default a;')],
+                'a.json': [source('"a', bad, '"')],
+            }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.json']))
+            assertEq(exitCode(code), 1, state.stderr)
+            assert(state.stderr.includes('a.json - error: not UTF-8 text'), state.stderr)
+        }
+        // Correct UTF-8 beyond ASCII still reads, a four-byte sequence included.
+        const root = { 'input.f.js': [utf8('export default "é中😀";')] }
+        const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.json']))
+        assertEq(exitCode(code), 0, state.stderr)
+        assertEq(readOutput(state.root, 'output.json'), '"é中😀"')
+    },
+    tooManyArgs: () => {
+        // A third argument is refused and named, not dropped: nothing reads
+        // it, so a success would claim work the command line asked for and
+        // never did (DESIGN.md §10). No output is written.
+        const root = { 'input.f.js': [utf8('export default 42;')] }
+        const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.json', '--tree']))
+        assertEq(exitCode(code), 1)
+        assert(state.stderr.includes('unexpected argument --tree'), state.stderr)
+        assertEq(state.root['output.json'], undefined)
     },
     success: () => {
         const root = { 'input.f.js': [utf8('export default 42;')] }
@@ -338,6 +389,14 @@ export const proof = {
         assertEq(exitCode(code), 0)
         const content = readOutput(state.root, 'output.data.js')
         assertEq(content, 'export default 42;')
+    },
+    // The output's directory is created when it does not exist, however deep.
+    missingDirectory: () => {
+        const root = { 'input.f.js': [utf8('export default 42;')] }
+        const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'gen.out/sub/output.data.js']))
+        assertEq(exitCode(code), 0, state.stderr)
+        const [, read] = virtual(state)(readUtf8File('gen.out/sub/output.data.js'))
+        assertStructurallySame(read, ['ok', 'export default 42;'])
     },
     jsonOutput: () => {
         const root = { 'input.f.js': [utf8('export default 42;')] }
@@ -1342,8 +1401,8 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assertEq(state.stderr.trim(), 'proto.json - error: unexpected symbol at 1')
             assertEq(state.root['a.data.js'], undefined)
         },
-        // The `.json` reader is JSON, not DJS with a JSON flag: a bigint is
-        // not JSON, whatever DJS makes of it.
+        // The `.json` reader is JSON, not the module reader with a JSON flag:
+        // a bigint is not JSON, whatever a module makes of it.
         jsonInputRejectsDjsExtensions: () => {
             const root = { 'a.json': [utf8('{"a":1n}')] }
             const [state, code] = virtual({ ...emptyState, root })(compile(['a.json', 'a.data.js']))

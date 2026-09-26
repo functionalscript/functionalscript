@@ -1,9 +1,9 @@
-# Accept disjoint named exports in JSON output
+## Accept disjoint named exports in JSON output
 
 **Priority:** P2
 **Status:** open
 
-## Problem
+### Problem
 
 The sharing sweep in [`ast`](../ast/module.f.mjs) conservatively groups
 container imports by module identity. It cannot prove that two selected export
@@ -34,7 +34,7 @@ linking succeed. It is deferred under the
 [review policy](../../../doc/REVIEW.md#deferring-a-defect); accepting this input
 must not weaken the rejection of actual sharing.
 
-## Design constraint
+### Proposal
 
 `containerNode` groups imported containers by module ID and records paths
 relative to each selected value. `withinPrevious` therefore conflates equal
@@ -48,7 +48,7 @@ an importer returning `[a.x,b.y]` reaches the same array twice. Its JSON
 output must remain refused. Aliases can select the same root, and distinct
 roots can share descendants through local constants or imported modules.
 
-## Tasks
+### Tasks
 
 - [ ] Carry enough selected-root and descendant provenance to distinguish
       disjoint roots without losing module identity, cached selections or
@@ -59,7 +59,7 @@ roots can share descendants through local constants or imported modules.
       descendant selections; retain DataJS graph sharing and the existing
       EDAG/Rust behavior.
 
-## Related
+### Related
 
 - [one-module-resolution-walk](./one-module-resolution-walk.md) — retains the
   complete module and its per-export binding table during resolution.

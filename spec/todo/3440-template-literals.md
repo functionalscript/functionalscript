@@ -1,8 +1,8 @@
 # Template Literals
 
 ```js
-const name = "world"
-export default `Hello, ${name}!`
+const name = "world";
+export default `Hello, ${name}!`;
 ```
 
 Untagged template literals: backtick-delimited strings with `${expression}`
@@ -54,10 +54,11 @@ Until implemented, a template literal is mechanically rewritable as
 concatenation: `` `a${x}b` `` → `"a" + x + "b"`, and a substitution-free
 `` `abc` `` → `"abc"`.
 
-That rewrite is not free in this repository: 202 of the 260 `.mjs` files use
-template literals, with 494 substitutions between them. Like single-quoted
-strings, they have to be normalized before the parser accepts the repository's
-own sources — a precondition of the
+That rewrite is not free in this repository: most of its `.mjs` files use
+template literals, with hundreds of substitutions between them. Unlike
+single-quoted strings, which the tokenizer accepts since
+[#2251](https://github.com/functionalscript/functionalscript/pull/2251), they
+have to be normalized before the parser accepts the repository's own sources — a precondition of the
 [stage-2](../../fjs/fsc/README.md#stage-2-mark-compiler-compatible-functionalscript)
 `.f.mjs` -> `.f.js` rename, which commits that the compiler in the same revision
 accepts the complete module.

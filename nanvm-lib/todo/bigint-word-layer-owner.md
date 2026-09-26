@@ -9,20 +9,20 @@
 `BigInt<A>`, one over `Vec<u64>`/`&[u64]` — because `abs_divmod_vec` needed
 word-level versions and got new ones instead of a shared layer:
 
-- **Compare**: `cmp_words` (`mod.rs:49-61`) vs `abs_cmp_vec` — the doc
+- **Compare**: `cmp_words` vs `abs_cmp_vec`, both in `mod.rs` — the doc
   comment on `cmp_words` says outright it is "the same rule
   `BigInt::abs_cmp_vec` uses, but over plain words".
-- **Subtract with borrow**: `sub_words_assign` (`mod.rs:93-109`) vs
-  `abs_sub_vec` (`mod.rs:265-293`) — two independent borrow loops for one
+- **Subtract with borrow**: `sub_words_assign` vs `abs_sub_vec`, both in
+  `mod.rs` — two independent borrow loops for one
   algorithm, one in-place and one allocating, each with its own
   precondition wording.
-- **Trim leading zero words**, three spellings: `normalize`
-  (`mod.rs:35-41`), the inline `while a.last() == Some(&0) { a.pop() }` at
-  the end of `sub_words_assign` (`mod.rs:106-108`), and the same `while`
+- **Trim leading zero words**, three spellings: `normalize` in `mod.rs`, the
+  inline `while a.last() == Some(&0) { a.pop() }` at the end of
+  `sub_words_assign`, and the same `while`
   again in `display.rs`'s division loop.
 - **±1 ripple**, three loops: the `+ 1` carry inside
-  `magnitude_from_twos_complement` (`mod.rs:74-85`), the `- 1` borrow
-  inside `twos_complement_words` (`mod.rs:345-353`), and `shr.rs`'s
+  `magnitude_from_twos_complement`, the `- 1` borrow inside
+  `twos_complement_words` (both in `mod.rs`), and `shr.rs`'s
   standalone `fn increment`.
 
 Each pair is the same arithmetic with two owners: a bug found in one loop

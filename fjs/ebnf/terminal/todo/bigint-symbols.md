@@ -20,10 +20,11 @@ It also is not free. The uint256 domain has `2^256 + 1` terminals, so the
 range-set terminal over `number` boundaries cannot be reused; the migration
 touches `fjs/types/range_set`, the terminal's lowering, the backend's first
 sets, and every serialized grammar.
-[terminal-range-representation](./terminal-range-representation.md) worked out
-what the replacement should be and measured it: a packed bigint with fixed
-257-bit halves, ~33% slower to decode and 8.5x larger serialized than today's
-representation. That investigation stands and is where to resume from.
+[terminal-range-representation](./terminal-range-representation.md) records
+the investigation that recommended a packed bigint with fixed 257-bit halves,
+and why its deciding argument — the classical IR's discrimination by
+JavaScript type — no longer holds; the representation is to be chosen again
+when this revives.
 
 Revive when the trigger [`../../token_symbol/README.md`](../../token_symbol/README.md)
 names actually arrives — a token symbol that has to be written to a file, where
@@ -60,17 +61,20 @@ No uint256 value is reserved for EOF. Physical parser input contains ordinary
 symbols only; parser backends preserve the logical one-time EOF behavior defined
 by the EOF task.
 
-`fullRange` covers `0n .. 2^256 - 1n`; `eof` is the singleton `-1n` range.
+The ordinary-symbol domain — today the open-above range set `[0]` in
+[`../../data`](../../data/module.f.mjs) — covers `0n .. 2^256 - 1n`; `eof` is
+the singleton `-1n` set.
 
 This change expands the semantic terminal domain from `2^53` values to
 `2^256 + 1` values, so the `number`-boundary range set cannot be reused. Use
-the representation selected by the TerminalRange investigation.
+the representation chosen in
+[terminal-range-representation](./terminal-range-representation.md).
 
 BNF data also needs bigint-precise JSON serialization. Keep that concern in the
 existing bigint JSON work rather than inventing a BNF-specific encoding.
 
 The implementation order, if this revives, is explicit: the `EOF = -1` semantics
-are already shipped, so choose the bigint `TerminalRange` representation next, and
+are already shipped, so choose the bigint terminal representation next, and
 use the bigint-aware JSON representation when serialized BNF data is updated.
 
 #### Bigint range infrastructure
@@ -88,7 +92,7 @@ type BoundaryOps<B> = {
 }
 ```
 
-Preserve the existing number-oriented `rangeMap(...)` API as a thin wrapper.
+Preserve the existing number-oriented `range_set` API as a thin wrapper.
 For BNF, use raw bigint boundaries. `-1n` may be both semantic EOF and the cut
 point immediately below ordinary `0n`; use `-2n` when a cut point below EOF is
 needed.
@@ -98,23 +102,24 @@ needed.
 - [ ] Change BNF ordinary `Symbol` values to bigint with invariant
       `0n <= symbol <= 2^256 - 1n`.
 - [ ] Keep logical EOF at `-1n`; do not reserve any uint256 ordinary value.
-- [ ] Define `fullRange` over the complete uint256 ordinary domain and keep `eof`
+- [ ] Define the ordinary domain over the complete uint256 range and keep `eof`
       as the `-1n` singleton.
-- [ ] Adopt the bigint `TerminalRange` representation selected by
-      [Investigate TerminalRange representation](./terminal-range-representation.md).
+- [ ] Choose and adopt the bigint terminal representation
+      ([terminal-range-representation](./terminal-range-representation.md)).
 - [ ] Update range encode/decode, containment, complement helpers, BNF data,
       parsers, recognizers, AST/meta inputs, and proofs for bigint terminals.
-- [ ] Parameterize `fjs/types/range_map` by boundary type and comparison /
+- [ ] Parameterize `fjs/types/range_set` by boundary type and comparison /
       predecessor operations.
-- [ ] Preserve the existing number `rangeMap(...)` API as a wrapper over the
+- [ ] Preserve the existing number `range_set` API as a wrapper over the
       generic implementation.
-- [ ] Instantiate the shared range-map implementation for bigint boundaries,
+- [ ] Instantiate the shared range-set implementation for bigint boundaries,
       including `-2n`, `-1n`, `0n`, and values above `Number.MAX_SAFE_INTEGER`.
 - [ ] Keep Unicode/byte/token adapters responsible for mapping their source values
       into the ordinary uint256 symbol domain.
 - [ ] Use bigint-aware JSON parse/serialize for serialized BNF data.
 - [ ] Add proofs for EOF, ordinary minimum/maximum values, ranges, complements,
-      range-map lookup/merge, and one-time logical EOF behavior.
+      range-set membership and set operations, and one-time logical EOF
+      behavior.
 - [ ] `tsc`, `fjs test`.
 
 ### Related

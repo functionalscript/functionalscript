@@ -1,5 +1,5 @@
 /**
- * AST types and helpers for the DJS representation.
+ * AST types and helpers for a parsed module.
  *
  * @module
  *
@@ -176,7 +176,7 @@ const toDjs = state => ast => {
  * Entries are evaluated left to right, so a `cref` resolves to an already
  * evaluated entry. A reference is shared, not copied: two properties holding
  * the same `['cref', i]` deserialize to the same object, which is what lets a
- * DJS module denote a graph rather than a tree.
+ * module denote a graph rather than a tree.
  *
  * @type {(body: AstBody) => (args: Array) => Result<readonly Unknown[], string>}
  */
