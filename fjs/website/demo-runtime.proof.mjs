@@ -161,13 +161,13 @@ const dom = path => {
             for (const f of listeners) { f({ target: { name, value } }) }
         },
         /**
-         * A click on the element named `name`, which is a button unless the
-         * proof says otherwise.
+         * A click on the element named `name`, which is a
+         * `<button type="button">` unless the proof says otherwise.
          *
-         * @type {(name: string, tagName?: string) => void}
+         * @type {(name: string, tagName?: string, type?: string) => void}
          */
-        click: (name, tagName = 'BUTTON') => {
-            for (const f of clicks) { f({ target: { name, tagName } }) }
+        click: (name, tagName = 'BUTTON', type = 'button') => {
+            for (const f of clicks) { f({ target: { name, tagName, type } }) }
         },
     }
 }
@@ -312,10 +312,21 @@ export const proof = {
         await startDemo(d.root)
         await settle()
         const renders = d.rendered.length
-        d.click('text', 'INPUT')
-        d.click('text', 'TEXTAREA')
+        d.click('text', 'INPUT', 'text')
+        d.click('text', 'TEXTAREA', 'textarea')
+        d.click('text', 'INPUT', 'checkbox')
         await settle()
         assertEq(d.rendered.length, renders)
+    },
+    // An `<input type="button">` is a button too, and asks like one.
+    acceptsAnInputButton: async () => {
+        const d = dom(echo)
+        await startDemo(d.root)
+        await settle()
+        const renders = d.rendered.length
+        d.click('go', 'INPUT', 'button')
+        await settle()
+        assertEq(d.rendered.length, renders + 1)
     },
     // A resized or scrolled field that a later state simply stops rendering
     // has nowhere to put its size or offset back — skipped rather than thrown,

@@ -29,9 +29,9 @@ import type { Element } from '../../media/html/types.ts'
  *
  * `click` is what a demo uses to ask for work rather than to react to typing:
  * a benchmark should start when a reader says so, not when a page loads. Only
- * a named `<button>` sends it — a click in a field places a caret or ends a
- * selection, which is not a request — and it carries only the name, because a
- * button has no value to report.
+ * a named `<button>` or `<input type="button">` sends it — a click in a field
+ * places a caret or ends a selection, which is not a request — and it carries
+ * only the name, because a button has no value to report.
  *
  * The union is extended when a demo needs more, and not before.
  */
