@@ -114,7 +114,7 @@ included, string keys only; they grow with the language's types — `Map` and
 | `toLowerCase` | ❌ | ❌ | String. Depends on the engine's Unicode version. |
 | `toPrecision` | ❌ | ✅ | Number. Specified exactly. |
 | `toReversed` | ❌ | ✅ | Array. Pure, answers a new array. |
-| `toSorted` | ❌ | ✅ | Array. Pure, default order by string conversion. |
+| `toSorted` | ❌ | ✅ | Array. Pure, default order by string conversion. The order an inconsistent comparator gives is the engine's (`todo/to-sorted-inconsistent-comparator.md`). |
 | `toSpliced` | ❌ | ✅ | Array. Pure, answers a new array. |
 | `toString` | ❌ | ✅ | Object, Array, String, Number, Boolean, BigInt, Function. Pure on each type; on a function it answers the conversion's placeholder rather than its source, a stub until a function carries its EDAG (`nanvm-lib/todo/member-functions.md`). |
 | `toUpperCase` | ❌ | ❌ | String. Depends on the engine's Unicode version. |
