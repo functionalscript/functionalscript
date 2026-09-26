@@ -128,7 +128,7 @@ limit is refused (see the next section).
 |---|---|
 | `replace(p, r)` | The first occurrence of `ToString(p)` replaced; an empty `p` matches at `0`. `r` a function is called with `(matched, position, string)` and its `ToString` inserted; otherwise `ToString(r)` with `$$`, `$&`, `` $` ``, `$'` substituted. |
 | `replaceAll(p, r)` | Every non-overlapping occurrence, left to right; an empty `p` matches between every two code units and at both ends. `r` as for `replace`, called once per occurrence in order. |
-| `split(sep, limit)` | `limit` is `ToUint32`, `2³² − 1` when `undefined`; then `ToString(sep)`, as ECMAScript orders it, so a separator whose conversion throws throws even with a limit of `0`. Then `0` answers `[]`, `sep` `undefined` answers `[s]`, and an empty separator splits into code units. |
+| `split(sep, limit)` | `limit` is `ToUint32`, `2³² − 1` when `undefined`; then `ToString(sep)`, as ECMAScript orders it, so a separator whose conversion throws throws even with a limit of `0`. Then `0` answers `[]`, `sep` `undefined` answers `[s]`, and an empty separator splits into code units. Splitting stops once there are `limit` pieces, so `"a,b,c".split(",", 2)` is `["a", "b"]` and `"abc".split("", 2)` is `["a", "b"]`. |
 
 **`Number`.**
 
