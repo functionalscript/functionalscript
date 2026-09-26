@@ -39,7 +39,7 @@
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 60
+ * data.groups.length // 67
  * ```
  */
 
@@ -1728,6 +1728,13 @@ const sliceCases = [
     { name: 'nested', args: [[[1], [2]], 1], expected: [[2]] },
     { name: 'bigintStart', args: [[1], 0n], expected: throws },
     { name: 'bigintEnd', args: [[1], 0, 1n], expected: throws },
+    { name: 'stringStart', args: ['abcdef', 2], expected: 'cdef' },
+    { name: 'stringFromTheEnd', args: ['abcdef', -3, -1], expected: 'de' },
+    { name: 'stringEmptyRange', args: ['abc', 2, 1], expected: '' },
+    { name: 'stringUndefinedEnd', args: ['abc', 1, undefined], expected: 'bc' },
+    { name: 'stringNoArgument', args: ['abc'], expected: 'abc' },
+    { name: 'stringHalfAPair', args: ['\u{1F600}', 1], expected: '\uDE00' },
+    { name: 'stringBigint', args: ['abc', 0n], expected: throws },
 ]
 
 /**
@@ -1746,6 +1753,10 @@ const concatCases = [
     { name: 'nullish', args: [[], null, undefined], expected: [null, undefined] },
     { name: 'string', args: [[], 'ab'], expected: ['ab'] },
     { name: 'empty', args: [[]], expected: [] },
+    { name: 'stringValues', args: ['a', 1, null, [2, 3], undefined], expected: 'a1null2,3undefined' },
+    { name: 'stringNoArgument', args: ['a'], expected: 'a' },
+    { name: 'stringObject', args: ['', {}], expected: '[object Object]' },
+    { name: 'stringBigint', args: ['a', 1n], expected: 'a1' },
 ]
 
 /** `Array.prototype.toReversed`: the elements in reverse order. @type {readonly MethodCase[]} */
@@ -2142,6 +2153,97 @@ const endsWithCases = [
 ]
 
 /**
+ * `String.prototype.substring`: two positions never counted from the end,
+ * clamped, and swapped if the start is past the end.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const substringCases = [
+    { name: 'range', args: ['abcdef', 1, 4], expected: 'bcd' },
+    { name: 'swapped', args: ['abcdef', 4, 1], expected: 'bcd' },
+    { name: 'negativeIsZero', args: ['abc', -1, 2], expected: 'ab' },
+    { name: 'nanIsZero', args: ['abc', NaN, 2], expected: 'ab' },
+    { name: 'undefinedEnd', args: ['abc', 1, undefined], expected: 'bc' },
+    { name: 'nullEnd', args: ['abc', 2, null], expected: 'ab' },
+    { name: 'pastTheEnd', args: ['abc', 1, 9], expected: 'bc' },
+    { name: 'noArgument', args: ['abc'], expected: 'abc' },
+    { name: 'bigint', args: ['abc', 0n], expected: throws },
+]
+
+/**
+ * `String.prototype.repeat`: the receiver a count of times; a negative or
+ * infinite count is a `RangeError`, even on `""`.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const repeatCases = [
+    { name: 'twice', args: ['ab', 2], expected: 'abab' },
+    { name: 'truncated', args: ['ab', 2.9], expected: 'abab' },
+    { name: 'zero', args: ['ab', 0], expected: '' },
+    { name: 'noArgument', args: ['ab'], expected: '' },
+    { name: 'string', args: ['a', '3'], expected: 'aaa' },
+    { name: 'emptyMany', args: ['', 1000], expected: '' },
+    { name: 'negative', args: ['a', -1], expected: throws },
+    { name: 'infinity', args: ['a', Infinity], expected: throws },
+    { name: 'emptyInfinity', args: ['', Infinity], expected: throws },
+    { name: 'bigint', args: ['a', 1n], expected: throws },
+]
+
+/**
+ * `String.prototype.padStart`: the fill repeated and cut to reach a
+ * length, before the receiver. `undefined` fills with spaces, `null` with
+ * `"null"`, an empty fill with nothing.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const padStartCases = [
+    { name: 'zeros', args: ['5', 3, '0'], expected: '005' },
+    { name: 'cut', args: ['abc', 8, 'xy'], expected: 'xyxyxabc' },
+    { name: 'spaces', args: ['a', 3], expected: '  a' },
+    { name: 'undefinedFill', args: ['a', 3, undefined], expected: '  a' },
+    { name: 'nullFill', args: ['a', 3, null], expected: 'nua' },
+    { name: 'emptyFill', args: ['a', 5, ''], expected: 'a' },
+    { name: 'shorter', args: ['abc', 2, 'x'], expected: 'abc' },
+    { name: 'negative', args: ['abc', -1, 'x'], expected: 'abc' },
+    { name: 'noArgument', args: ['abc'], expected: 'abc' },
+    { name: 'numberFill', args: ['7', 3, 0], expected: '007' },
+    { name: 'bigintLength', args: ['a', 3n], expected: throws },
+]
+
+/** `String.prototype.padEnd`: the same, after the receiver. @type {readonly MethodCase[]} */
+const padEndCases = [
+    { name: 'dots', args: ['a', 4, '.'], expected: 'a...' },
+    { name: 'cut', args: ['abc', 8, 'xy'], expected: 'abcxyxyx' },
+    { name: 'spaces', args: ['a', 3], expected: 'a  ' },
+    { name: 'emptyFill', args: ['a', 5, ''], expected: 'a' },
+    { name: 'shorter', args: ['abc', 2, 'x'], expected: 'abc' },
+    { name: 'bigintLength', args: ['a', 3n], expected: throws },
+]
+
+/**
+ * `String.prototype.trim`, `trimStart`, `trimEnd`: ECMAScript `WhiteSpace`
+ * and `LineTerminator` off the ends — the byte-order mark and U+3000
+ * included.
+ *
+ * @type {(start: boolean, end: boolean) => readonly MethodCase[]}
+ */
+const trimCases = (start, end) => {
+    const padded = ' \t\n\uFEFFa b\u3000\r\n'
+    return [
+        {
+            name: 'padded',
+            args: [padded],
+            expected: `${start ? '' : ' \t\n\uFEFF'}a b${end ? '' : '\u3000\r\n'}`,
+        },
+        { name: 'inner', args: ['a  b'], expected: 'a  b' },
+        { name: 'blank', args: [' \t '], expected: '' },
+        { name: 'empty', args: [''], expected: '' },
+        { name: 'nextLineIsNotSpace', args: ['\u0085a\u0085'], expected: '\u0085a\u0085' },
+        { name: 'argumentIgnored', args: [' a ', 1], expected: start && end ? 'a' : start ? 'a ' : ' a' },
+    ]
+}
+
+/**
  * `toString()` on every type but a function, whose text is the
  * rendering `nanvm-lib/todo/member-functions.md` tracks (see
  * {@link FunctionValue}). A radix on a number or a bigint is refused by
@@ -2258,6 +2360,13 @@ export const data = {
         { method: 'toWellFormed', cases: toWellFormedCases },
         { method: 'startsWith', cases: startsWithCases },
         { method: 'endsWith', cases: endsWithCases },
+        { method: 'substring', cases: substringCases },
+        { method: 'repeat', cases: repeatCases },
+        { method: 'padStart', cases: padStartCases },
+        { method: 'padEnd', cases: padEndCases },
+        { method: 'trim', cases: trimCases(true, true) },
+        { method: 'trimStart', cases: trimCases(true, false) },
+        { method: 'trimEnd', cases: trimCases(false, true) },
         { method: 'toString', cases: toStringCases },
     ],
 }
