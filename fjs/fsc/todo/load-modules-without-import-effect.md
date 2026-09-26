@@ -47,6 +47,14 @@ it self-hosting:
   and the [container design](../../../todo/037-language-design-map.md) remain
   open. Replace these uses with immutable containers expressed in admitted FJS,
   or obtain an approved `Map` design before implementing language support.
+- Tag dispatch also uses host-only property access:
+  [operations](../../edag/operations/module.f.mjs)'s `operations[e[0]]` and
+  [analysis](../../edag/analysis/module.f.mjs)'s `handlers[e[0]]` select functions
+  by runtime string keys. The [property-access contract](./compile-modules-to-edag.md)
+  refuses that source form. Rewrite dispatch with explicit tag comparisons and
+  statically named calls using admitted FJS, such as conditional expressions.
+  Keep the existing handler semantics and validation/refusal behavior; broader
+  compiler coverage must not silently admit dynamic string property access.
 
 The container representation remains implementation work. Indexed arrays are a
 candidate for already numbered cache slots; identity-keyed analysis needs its
@@ -96,6 +104,9 @@ parsing, linking and evaluation still owned by the shared FJS pipeline.
       separately from the captured-cache rewrite. Prove equivalent lookup,
       deduplication, graph-sharing and scope-validation behavior before claiming
       native readiness; language extensions require separate design approval.
+- [ ] Rewrite runtime string-key dispatch in the operations and analysis modules
+      to admitted tag branching. Cover every supported tag and preserve lazy
+      operand demand and scope validation in host and eventual native proofs.
 - [ ] Add the host test adapter for virtual file/resolution effects and real
       `sandbox` execution. Prove that module evaluation returns the complete
       export object inside a successful `SandboxResult`, and that a module

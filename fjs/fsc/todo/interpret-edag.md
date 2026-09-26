@@ -33,9 +33,11 @@ The existing executor is a host baseline: `slot` captures and mutates `let fille
 Its [immutable-cache rewrite](../../edag/memo/todo/immutable-cache.md) is required
 before AOT-compiling it under the existing FJS capture semantics. Broader compiler
 coverage alone does not make that captured mutation valid FJS.
-Host `Map` dependencies in the executor and analysis also need the
-[container migration](./load-modules-without-import-effect.md#native-prerequisites);
-`Map` admission remains an open language decision.
+Host `Map` dependencies and runtime string-key dispatch in the executor's
+dependency closure also need the
+[native migrations](./load-modules-without-import-effect.md#native-prerequisites).
+Container representation remains open; tag dispatch must use admitted branching
+and static calls. Neither migration approves new language semantics.
 
 ### Proposal
 
