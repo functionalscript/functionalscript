@@ -68,16 +68,26 @@ export type _RequestBodyReader = (offset: number, size: number) => Promise<Uint8
  * `false` that the pump exists to wait on.
  */
 export type _ServerResponse = {
-    readonly writeHead: (status: number, headers: StringMap<string>) => _ServerResponse
+    /**
+     * The map is **optional**, and only the runner's own answers pass one: they
+     * are the whole of their response's headers, so there is nothing for an
+     * order to decide. A listener's headers go through {@link setHeader}
+     * instead — see below.
+     */
+    readonly writeHead: (status: number, headers?: StringMap<string>) => _ServerResponse
     readonly write: (chunk: Uint8Array) => boolean
     readonly end: (body: Uint8Array) => void
     readonly headersSent: boolean
     /**
-     * `setHeader` rather than a fourth entry in the `writeHead` map, because the
-     * runner adds one header of its own — `connection: close`, for a request
-     * whose body has not all arrived — and a header passed to `writeHead` wins
-     * over one set here. So the listener's own `connection`, if it writes one,
-     * stays the answer.
+     * **Every header of a listener's response is set through here**, because the
+     * runner adds one of its own — `connection: close`, for a request whose body
+     * has not all arrived — and a header passed to `writeHead` wins over one set
+     * here. Passing the listener's map there put it last, so a listener
+     * answering `connection: keep-alive` cancelled the close and kept the socket
+     * held for a body nobody would read. Set one at a time, the runner's close
+     * goes last and wins; Node keys pending headers by the lower-cased name, so
+     * it replaces whichever spelling the listener used, and nothing else the
+     * listener asked for is touched.
      */
     readonly setHeader: (name: string, value: string) => void
 }

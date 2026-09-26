@@ -15,7 +15,9 @@ res.writeHead(status, { 'content-type': 'text/plain; charset=utf-8', 'content-le
 // connectRefusal — a raw string with a hand-counted length
 'HTTP/1.1 501 Not Implemented\r\n' + 'content-type: text/plain; charset=utf-8\r\n' + 'content-length: 26\r\n' + …
 // answerRequest — the one honest serializer of a ServerResponse
-res.writeHead(status, outHeaders)
+for (const [name, value] of definedEntries(outHeaders)) { res.setHeader(name, value) }
+if (!req.complete) { res.setHeader('connection', 'close') }
+res.writeHead(status)
 for (const chunk of outBody) { res.write(fromVec(chunk)) }
 res.end(emptyBody)
 ```
@@ -53,7 +55,13 @@ const respondWith = res => status => message =>
 where `writeResponse` is the write-every-chunk-then-end sequence
 `answerRequest` already has, now the runner's one way to put a frame on a socket
 — and where `answerRequest`'s own `connection: close` should reach for `closing`
-rather than a `setHeader` of its own, so one function owns the header.
+rather than a `setHeader` of its own, so one function owns the header. Whatever
+does own it has to **outrank the listener's own `connection`**, which is what the
+`setHeader` route buys today: Node keys pending headers by the lower-cased name,
+so the runner's `close` replaces `Connection: keep-alive` as well as
+`connection: keep-alive`. The spread above replaces only the exact spelling
+`connection`, and a second key differing in case would put two `connection`
+headers on the wire.
 `failSafe`'s pre-headers branch goes through `respondWith` as today, and
 `connectRefusal` renders its status line and headers from
 `closing(plainTextResponse(501)(…))`, so the `26` is computed and the

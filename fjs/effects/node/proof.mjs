@@ -356,6 +356,24 @@ const ignoresBody = () => pureOk({
 })
 
 /**
+ * The same listener, contradicting the runner: it reads no part of the body and
+ * asks for the connection to be **kept**.
+ *
+ * A listener has every reason to write that header — it is what Node's default
+ * already implies — so this is the ordinary case and not a hostile one. The
+ * sentinel rides in `x-chunks` because {@link overAnAgent} already reports that
+ * header, so the claim *the rest of the listener's headers still go out* needs
+ * no new plumbing to assert.
+ *
+ * @type {RequestListener<never>}
+ */
+const keepsAliveIgnoringBody = () => pureOk({
+    status: 200,
+    headers: { 'content-length': '2', connection: 'keep-alive', 'x-chunks': 'kept' },
+    body: [toVec(new TextEncoder().encode('ok'))],
+})
+
+/**
  * What one request over `agent` came back with, and whether it went out over a
  * socket an earlier request had used.
  *
@@ -747,6 +765,40 @@ export const proof = {
                 assertEq(drained.status, 200)
                 assertEq(drained.connection, 'keep-alive')
                 assertEq(drained.reused, true)
+                agent.destroy()
+            })
+        },
+        // **A listener asking to keep the connection does not get to keep it
+        // over an unread body.** This is neither of the two above: the request
+        // arrives with bytes still to come, as in the close, and the answer
+        // names `connection: keep-alive`, as in the keep — the listener
+        // contradicting the runner's own policy about a body only the runner can
+        // see. The runner's close wins, and the client is told `close` on a
+        // response the listener labelled `keep-alive`.
+        //
+        // It used to lose. The listener's headers were handed to
+        // `writeHead(status, outHeaders)`, which applies them one `setHeader` at
+        // a time over whatever is pending, so the listener's `keep-alive`
+        // arrived last and replaced the close — a `200` carrying `keep-alive` on
+        // a socket the server then held for the rest of a body it would never
+        // read. A client declaring 300,000 bytes and sending 1,000 kept one that
+        // way until the request timeout.
+        //
+        // **`x-chunks` is here to pin what the override does *not* touch.** Only
+        // `connection` is replaced; every other header the listener asked for
+        // goes out as it asked for it, and a runner that dropped them to win the
+        // argument would be worse than the defect.
+        aKeepAliveListenerStillCloses: async () => {
+            if (!isNode()) { return }
+            await withHostServer(keepsAliveIgnoringBody, async port => {
+                const agent = new http.Agent({ keepAlive: true, maxSockets: 1 })
+                const first = await overAnAgent(port, 'POST', unalignedBytes(300000), agent)
+                assertEq(first.status, 200)
+                assertEq(first.connection, 'close')
+                assertEq(first.chunks, 'kept')
+                const second = await overAnAgent(port, 'GET', null, agent)
+                assertEq(second.status, 200)
+                assertEq(second.reused, false)
                 agent.destroy()
             })
         },

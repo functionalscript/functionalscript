@@ -42,6 +42,7 @@ import {
     usesInlineTestContext,
 } from './module.f.mjs'
 import { asBase, asNominal } from '../../types/nominal/module.f.mjs'
+import { definedEntries } from '../../types/object/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 import { asyncTryCatch, tryCatch } from '../../types/result/module.mjs'
 import { fromVec, toVec } from '../../types/uint8array/module.f.mjs'
@@ -238,6 +239,25 @@ const connectRefusal =
  * readings are right: the flag is a statement about what has been received, not
  * a guess about what will be.
  *
+ * **The close is set after the listener's headers, so the listener cannot
+ * cancel it.** Every header the listener asked for goes out through
+ * `setHeader`, and the close is the last one set. It used to be the first:
+ * `writeHead(status, outHeaders)` applies the object it is handed one
+ * `setHeader` at a time over whatever is already pending, so a listener
+ * answering `connection: keep-alive` — the header Node's own default already
+ * implies, so an ordinary listener writes it — replaced the close and undid the
+ * policy above. A client declaring 300,000 bytes and sending 1,000 then held
+ * the socket until the request timeout, with a complete `200` in hand. Node
+ * keeps its pending headers under lower-cased names, so `Connection`,
+ * `CONNECTION` and `connection` are one entry here and `close` replaces
+ * whichever spelling the listener used.
+ *
+ * **Only `connection` is overridden, and only while `req.complete` is `false`.**
+ * Every other header the listener asked for goes out as it asked for it, and a
+ * request with nothing left to read keeps the listener's `connection` too.
+ * Dropping headers a listener chose, to be sure of winning an argument about
+ * one of them, would be a worse failure than the one this prevents.
+ *
  * **The response body goes out a chunk at a time**, because it is however many
  * `Vec`s the answer takes and one `res.end` carries one. The writes are offered
  * and not paced: every chunk is already in memory when the status goes out, so
@@ -260,8 +280,11 @@ const answerRequest = listener => async (req, res) => {
         headers,
         body: requestBody(asNominal(requestBodyReader(req))),
     })))
+    for (const [name, value] of definedEntries(outHeaders)) {
+        res.setHeader(name, value)
+    }
     if (!req.complete) { res.setHeader('connection', 'close') }
-    res.writeHead(status, outHeaders)
+    res.writeHead(status)
     for (const chunk of outBody) {
         res.write(fromVec(chunk))
     }
