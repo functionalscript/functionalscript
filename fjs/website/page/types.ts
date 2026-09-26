@@ -60,3 +60,22 @@ export type Proof = {
     /** Specifiers a browser cannot resolve, empty where it can link the module. */
     readonly blockers: readonly string[]
 }
+
+/**
+ * What the build knows about itself, from the environment it ran in.
+ *
+ * Both are `null` for a local build: nothing sets them there, and a link to a
+ * commit or a branch nobody pushed opens nothing on GitHub.
+ */
+export type Build = {
+    /**
+     * The commit the site was built from, as the lowercase hex GitHub links
+     * it by. A listed file opens on GitHub at this commit.
+     */
+    readonly commit: string | null
+    /**
+     * The branch the site was built from. Any branch but `main` is a preview,
+     * and its pages say which branch and commit they show.
+     */
+    readonly branch: string | null
+}
