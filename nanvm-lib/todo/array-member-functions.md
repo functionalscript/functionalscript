@@ -237,10 +237,12 @@ Two implementation notes on `toSorted`, both chosen for simplicity:
   (key, element) pairs by key. Conversion is pure, so converting once per
   element is indistinguishable from converting per comparison. The one
   exception is *which* throw a throwing conversion surfaces, and that falls
-  under the next section. With fewer than two elements to sort, nothing is
-  compared, so nothing is converted: a lone element whose conversion throws
-  is copied, as in JavaScript. With two or more, every element is compared,
-  and so converted, in JavaScript too.
+  under the next section. Only elements that are not `undefined` are
+  sorted, so the count that matters is theirs: with fewer than two, nothing
+  is compared, so nothing is converted, and a lone such element whose
+  conversion throws is copied, as in JavaScript, `[x, undefined]` included.
+  With two or more, every one of them is compared, and so converted, in
+  JavaScript too.
 - **The algorithm is a plain stable merge sort** over a `Vec`, whose
   comparator is fallible, and whose first `Err` aborts the sort and is the
   result. Rust's `slice::sort_by` cannot propagate an `Err` out of a
@@ -345,10 +347,11 @@ are only a filter of it. `npm run gen` writes a generated Rust table of every
   until its pair leaves `pending`, and the list can only shrink toward empty;
 - every pair in `prohibitedCalls` × prototype list **has no** entry. This is
   the design half: a refused name stays unanswerable;
-- every name in `allowedCalls` or `prohibitedCalls` that a type's prototype
-  list lacks **has no** entry on that type, so an `Array` entry for `charAt`
-  or `bind` fails the test, and `[1].charAt(0)` throws as it does in
-  JavaScript.
+- every known name that is no member function of a type **has no** entry on
+  that type: a name of `prototypeNames` that the type's prototype list lacks,
+  so an `Array` entry for `charAt` or `bind` fails the test and `[1].charAt(0)`
+  throws as it does in JavaScript, and `length`, a property on neither call
+  list, so `(1).length()` and `[].length()` throw too.
 
 The pending list is `pending` in
 [`fjs/nanvm/methods`](../../fjs/nanvm/methods/module.f.mjs), and the table it
