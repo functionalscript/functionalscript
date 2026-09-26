@@ -26,4 +26,12 @@ pub fn run<A: IStaticFunction>() {
     check_throws::<A>("object", Any::dot(Object::default().to_any(), string_any("at")).end_call(|| Ok([f64_any(0x0000000000000000)].to_array().to_any())));
     check_throws::<A>("number", Any::dot(f64_any(0x3ff0000000000000), string_any("at")).end_call(|| Ok([f64_any(0x0000000000000000)].to_array().to_any())));
     check::<A>("ownProperty", Any::dot([(string_key("at"), function_any())].to_object().to_any(), string_any("at")).end_call(|| Ok([f64_any(0x0000000000000000)].to_array().to_any())), Nullish::Undefined.to_any());
+    check::<A>("stringFirst", Any::dot(string_any("abc"), string_any("at")).end_call(|| Ok([f64_any(0x0000000000000000)].to_array().to_any())), string_any("a"));
+    check::<A>("stringFromTheEnd", Any::dot(string_any("abc"), string_any("at")).end_call(|| Ok([f64_any(0xbff0000000000000)].to_array().to_any())), string_any("c"));
+    check::<A>("stringPastTheEnd", Any::dot(string_any("abc"), string_any("at")).end_call(|| Ok([f64_any(0x4008000000000000)].to_array().to_any())), Nullish::Undefined.to_any());
+    check::<A>("stringBeforeTheStart", Any::dot(string_any("abc"), string_any("at")).end_call(|| Ok([f64_any(0xc010000000000000)].to_array().to_any())), Nullish::Undefined.to_any());
+    check::<A>("stringNoArgument", Any::dot(string_any("abc"), string_any("at")).end_call(|| Ok(Array::default().to_any())), string_any("a"));
+    check::<A>("stringEmpty", Any::dot(string_any(""), string_any("at")).end_call(|| Ok([f64_any(0x0000000000000000)].to_array().to_any())), Nullish::Undefined.to_any());
+    check::<A>("stringCodeUnit", Any::dot(string_any("😀"), string_any("at")).end_call(|| Ok([f64_any(0x0000000000000000)].to_array().to_any())), string_any_utf16(&[0xd83d]));
+    check_throws::<A>("stringBigint", Any::dot(string_any("abc"), string_any("at")).end_call(|| Ok([bigint_any(0)].to_array().to_any())));
 }

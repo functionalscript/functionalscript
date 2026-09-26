@@ -22,19 +22,24 @@ export const proof = {
             names.filter(n => n !== 'length').map(n => `${t}.${n}`))
         assertEq(all.toSorted().join(), expected.toSorted().join())
     },
-    /** What the VM answers today: `toString` on all seven types, and `Array`'s own. */
+    /**
+     * What the VM answers today, type by type: `toString` on all seven,
+     * and each type's own built-ins that have landed.
+     */
     answered: () => {
-        const array = [
-            'at', 'concat', 'every', 'filter', 'find', 'findIndex', 'findLast', 'findLastIndex',
-            'flat', 'flatMap', 'includes', 'indexOf', 'join', 'lastIndexOf', 'map', 'reduce',
-            'reduceRight', 'slice', 'some', 'toReversed', 'toSorted', 'toSpliced', 'toString',
-            'with',
-        ]
-        assertEq(
-            keys(rows(pending).answered).join(),
-            ['object', 'array', 'string', 'number', 'boolean', 'bigint', 'function']
-                .flatMap(t => t === 'array' ? array.map(n => `${t}.${n}`) : [`${t}.toString`])
-                .join())
+        /** @type {{ readonly [type in string]?: readonly string[] }} */
+        const own = {
+            array: [
+                'at', 'concat', 'every', 'filter', 'find', 'findIndex', 'findLast', 'findLastIndex',
+                'flat', 'flatMap', 'includes', 'indexOf', 'join', 'lastIndexOf', 'map', 'reduce',
+                'reduceRight', 'slice', 'some', 'toReversed', 'toSorted', 'toSpliced', 'with',
+            ],
+            string: ['at', 'charAt', 'charCodeAt', 'codePointAt', 'isWellFormed', 'toWellFormed'],
+        }
+        const expected = types.flatMap(([t, names]) => names
+            .filter(n => n === 'toString' || (own[t] ?? []).includes(n))
+            .map(n => `${t}.${n}`))
+        assertEq(keys(rows(pending).answered).join(), expected.join())
     },
     /** A row holds names of its list only. */
     rows: () => {

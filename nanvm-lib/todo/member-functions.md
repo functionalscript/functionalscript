@@ -54,14 +54,15 @@ unchanged: no user function reads `this`, and the receiver is consumed by
 the built-in and never handed on. The printer and the generated code are
 unchanged — `Any::dot(a, key).end_call(args)` is already the spelling.
 
-**One file per built-in**, under the receiver's type — `vm/array/at.rs`,
-`vm/string/at.rs`, `vm/number/to_fixed.rs` — each with its tests, the same
-layout the per-type `member_access.rs` files have. A name shared by types,
-`at`, `concat`, `includes`, `indexOf`, `lastIndexOf`, `slice`, `toString`,
-is one entry per type, since the algorithms differ. Callbacks — `map`,
-`filter`, `reduce` and the rest — reach the user's function through
-`Function::call` with an arguments array of the element, its index and the
-array itself.
+**One file per built-in, or per family sharing one algorithm**, under the
+receiver's type — `vm/array/at.rs`, `vm/array/reduce.rs` for `reduce` and
+`reduceRight`, `vm/string/reads.rs` for the six code-unit reads — each with
+its tests, the same layout the per-type `member_access.rs` files have. A
+name shared by types, `at`, `concat`, `includes`, `indexOf`, `lastIndexOf`,
+`slice`, `toString`, is one entry per type, since the algorithms differ.
+Callbacks — `map`, `filter`, `reduce` and the rest — reach the user's
+function through `Function::call` with an arguments array of the element,
+its index and the array itself.
 
 **Completeness is tested, not promised.** The compiler's list and the VM's
 tables must agree, or a name compiles and throws. One test walks
@@ -192,15 +193,15 @@ presence decides an answer, are
 `String` — the contracts, what is out by design, and the landing order are
 [string-member-functions](./string-member-functions.md):
 
-- [ ] `at`
-- [ ] `charAt`
-- [ ] `charCodeAt`
-- [ ] `codePointAt`
+- [x] `at` — `vm/string/reads.rs`
+- [x] `charAt` — `vm/string/reads.rs`
+- [x] `charCodeAt` — `vm/string/reads.rs`
+- [x] `codePointAt` — `vm/string/reads.rs`
 - [ ] `concat`
 - [ ] `endsWith`
 - [ ] `includes`
 - [ ] `indexOf`
-- [ ] `isWellFormed`
+- [x] `isWellFormed` — `vm/string/reads.rs`
 - [ ] `lastIndexOf`
 - [ ] `padEnd`
 - [ ] `padStart`
@@ -212,7 +213,7 @@ presence decides an answer, are
 - [ ] `startsWith`
 - [ ] `substring`
 - [x] `toString`
-- [ ] `toWellFormed`
+- [x] `toWellFormed` — `vm/string/reads.rs`
 - [ ] `trim`
 - [ ] `trimEnd`
 - [ ] `trimStart`

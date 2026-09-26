@@ -170,7 +170,7 @@ the `10²¹` boundary, both ends of every range, and a bigint argument.
 
 ### Tasks
 
-- [ ] **Reads.** `at`, `charAt`, `charCodeAt`, `codePointAt`, `isWellFormed`,
+- [x] **Reads.** `at`, `charAt`, `charCodeAt`, `codePointAt`, `isWellFormed`,
       `toWellFormed`.
 - [ ] **Search.** `includes`, `indexOf`, `lastIndexOf`, `startsWith`,
       `endsWith`.
