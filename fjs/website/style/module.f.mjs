@@ -170,10 +170,9 @@ textarea { vertical-align: top }
 textarea { box-sizing: border-box; resize: vertical; width: 100% }
 /* The header every page opens with: the logo and the site's name on the left,
    the site-wide links on the right, across the full width of the window with
-   one rule under it, as a site's own bar. Its contents keep to the page's
-   column: the padding is whatever is left either side of 48rem, and never
-   less than the column's own 1rem, so the logo starts where the text under it
-   does at any width. The menu is bold and a step larger than the text, as a
+   one rule under it, as a site's own bar. Its contents go to the window's
+   edges, not the page's column: the bar belongs to the site, and the column
+   to the page under it. The menu is bold and a step larger than the text, as a
    site's own navigation is set apart from what it navigates.
    It wraps rather than hiding behind a menu button: in a monospace face a
    phone has no room for the name and the links on one line, and a line break
@@ -184,7 +183,7 @@ textarea { box-sizing: border-box; resize: vertical; width: 100% }
    whatever the pointer: it is one row, not a dense list, so the padding
    costs nothing a mouse would miss. */
 header { border-bottom: 1px solid var(--border) }
-header nav, [data-build] { padding-inline: max(1rem, calc((100% - 48rem) / 2)) }
+header nav, [data-build] { padding-inline: 1rem }
 header nav, [data-site-links] { align-items: center; display: flex; flex-wrap: wrap; gap: .25rem 1.5rem }
 header nav { font-size: 1.125rem; font-weight: 700; padding-block: .5rem }
 header nav a { padding-block: .25rem; text-decoration: none }
@@ -196,8 +195,8 @@ header nav a:hover { text-decoration: underline }
    one they are looking at. Muted and small: it is about the build, not the
    page. It is a full-width strip under the menu, tinted from the border and
    the background rather than a colour of its own, so it follows both
-   schemes. */
-[data-build] { background: color-mix(in srgb, var(--border) 30%, var(--bg)); border-top: 1px solid var(--border); color: var(--muted); font-size: .8rem; margin: 0; padding-block: .35rem }
+   schemes, and set to the right, under the links, as a status bar is. */
+[data-build] { background: color-mix(in srgb, var(--border) 30%, var(--bg)); border-top: 1px solid var(--border); color: var(--muted); font-size: .8rem; margin: 0; padding-block: .35rem; text-align: right }
 /* Every section of a page is a disclosure, so a reader can fold away what
    they are not reading — the platform's own collapsible, and no script on a
    site that is static files. Its summary is the section's heading, and is

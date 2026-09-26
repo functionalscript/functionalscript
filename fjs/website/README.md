@@ -260,10 +260,11 @@ and no other page had either.
   text.
 - **It spans the window, with one rule under it**, and the menu is bold and a
   step larger than the text, so the header reads as the site's own bar rather
-  than as the first line of the page. Its contents keep to the page's column,
-  so the logo starts where the text under it does. That is why the column is
-  set on `main` and not on `body`: a header inside a 48rem body could not be
-  wider than 48rem. Four looks were rendered side by side — a rule under the
+  than as the first line of the page. Its contents go to the window's edges —
+  the logo at the left, the links at the right — because the bar belongs to
+  the site and the column to the page under it. That is why the column is set
+  on `main` and not on `body`: a header inside a 48rem body could not be wider
+  than 48rem. Four looks were rendered side by side — a rule under the
   header only, a framed box, GitHub-style tabs with icons, and bordered
   buttons — and the box won, then went full width.
 - **It wraps rather than hiding behind a menu button.** In a monospace face a
@@ -276,11 +277,12 @@ and no other page had either.
   back on hover. Every link *in the page* keeps its underline
   ([A link keeps its colour](#a-link-keeps-its-colour-whether-or-not-it-has-been-followed)).
 - **A preview says which build it is.** A build from any branch but `main`
-  adds a full-width strip under the menu —
-  `Preview: <branch> @ <commit>`, each linked on GitHub, the commit shortened to seven characters. The branch is
+  adds a full-width strip under the menu, its text at the right under the
+  links, as a status bar's is: `Preview: <branch> @ <commit>`, each linked on
+  GitHub, the commit shortened to seven characters. The branch is
   `WORKERS_CI_BRANCH`, which Cloudflare's Workers Builds sets beside
   `WORKERS_CI_COMMIT_SHA`. The published site is built from `main` and a local
-  build names no branch, so neither shows the line.
+  build names no branch, so neither shows the strip.
 
 ## A list of links pads its links for a finger, not a mouse
 
