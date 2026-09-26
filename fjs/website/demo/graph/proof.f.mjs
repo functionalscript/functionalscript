@@ -91,11 +91,12 @@ export const proof = {
         },
         /**
          * **An edge's label sits in a port of its own node**, not on the
-         * line: the node is a header over a row of cells, one per outgoing
-         * edge, and the edge leaves from the bottom of its cell. Pinned by
-         * the exact geometry — a 50px node at (10,10), a 26px header over a
-         * 20px port, so the port's label is centred at y=46 and the line
-         * starts at the node's bottom, y=56.
+         * line: the node is a header over a row per outgoing edge, and the
+         * edge leaves from the right end of its row. Pinned by the exact
+         * geometry — a 50px node at (10,10), a 26px header over a 20px
+         * row, so the row's label is centred at y=46 and the line starts
+         * at the node's right side, x=60, and ends at the left of the
+         * next column's node, level with its label: (100,23).
          */
         labelInAPort: () => {
             const html = htmlToString(graphSvg({
@@ -108,12 +109,12 @@ export const proof = {
             assert(html.includes('<rect x="10" y="10" width="50" height="46" rx="4" data-graph-node=""'), html)
             assert(html.includes('<rect x="10" y="36" width="50" height="20" data-graph-port="">'), html)
             assert(html.includes('<text x="35" y="46" text-anchor="middle" data-graph-edge-label="">x<'), html)
-            assert(html.includes('d="M35,56 L35,96"'), html)
+            assert(html.includes('d="M60,46 L100,23"'), html)
         },
         /**
          * **Nodes are found by id, not by position.** A `Graph` does not
          * promise its nodes in id order. Given the child first, the port
-         * still hangs on the root and the edge still points down from it;
+         * still hangs on the root and the edge still points right from it;
          * given the skip-level graph backwards, `r` still gets its lane.
          * Either way the drawing is the one the id-ordered graph draws.
          */
@@ -123,7 +124,7 @@ export const proof = {
             const child = { id: 1, kind: 'leaf', label: '42', rank: 1 }
             const html = htmlToString(graphSvg({ nodes: [child, root], edges }))
             assert(html.includes('<rect x="10" y="36" width="50" height="20" data-graph-port="">'), html)
-            assert(html.includes('d="M35,56 L35,96"'), html)
+            assert(html.includes('d="M60,46 L100,23"'), html)
             assertEq(html, htmlToString(graphSvg({ nodes: [root, child], edges })))
             assertEq(
                 htmlToString(graphSvg({ ...skipLevel, nodes: skipLevel.nodes.toReversed() })),
@@ -143,7 +144,7 @@ export const proof = {
          * **Two edges to one node are two ports and two lines**, each its
          * own label. From one shared point they would land on one curve,
          * which an earlier version merged into a single line labelled
-         * `a, b`; from a cell each, they start apart and need nothing.
+         * `a, b`; from a row each, they start apart and need nothing.
          */
         parallelEdgesAreTwoPorts: () => {
             const html = htmlToString(graphSvg({
@@ -161,14 +162,15 @@ export const proof = {
             assert(html.includes('data-graph-edge-label="">a<'), html)
             assert(html.includes('data-graph-edge-label="">b<'), html)
             assert(!html.includes('>a, b<'), html)
-            // Each from the middle of its own 25px cell.
-            assert(html.includes('d="M22.5,56 '), html)
-            assert(html.includes('d="M47.5,56 '), html)
+            // Each from the middle of its own 20px row.
+            assert(html.includes('d="M60,46 '), html)
+            assert(html.includes('d="M60,66 '), html)
         },
         /**
-         * **A node is as wide as its label or its ports, whichever is
-         * wider.** Six one-digit ports at their 24px minimum outgrow a
-         * 50px label; the cells lie end to end from the node's left edge.
+         * **A node is as wide as its label or its widest key, whichever
+         * is wider**, and as tall as its rows. Six nine-letter keys at
+         * 7px a letter outgrow a 50px label: 82px wide, six 20px rows
+         * under the 26px header, each key filling its row.
          */
         portsWidenTheNode: () => {
             const html = htmlToString(graphSvg({
@@ -176,28 +178,29 @@ export const proof = {
                     { id: 0, kind: 'a', label: '[]', rank: 0 },
                     { id: 1, kind: 'leaf', label: '1', rank: 1 },
                 ],
-                edges: [0, 1, 2, 3, 4, 5].map(i => ({ from: 0, to: 1, label: `${i}` })),
+                edges: [0, 1, 2, 3, 4, 5].map(i => ({ from: 0, to: 1, label: `longlabel${i}` })),
             }))
-            assert(html.includes('<rect x="10" y="10" width="144" height="46"'), html)
-            assert(html.includes('<rect x="130" y="36" width="24" height="20" data-graph-port="">'), html)
+            assert(html.includes('<rect x="10" y="10" width="82" height="146"'), html)
+            assert(html.includes('<rect x="10" y="136" width="82" height="20" data-graph-port="">'), html)
         },
         /**
-         * **An edge that skips a rank runs down a lane of its own** —
+         * **An edge that skips a rank runs across a lane of its own** —
          * asserted by the exact route, since the layout is pure arithmetic
-         * over the input. `r` skips rank 1, so that row gets a 10px lane
-         * placed just after `r`'s source, centred at x=15, and the node
-         * there moves right to x=34. The row is 46px tall, so the lane
-         * spans y=96 to 142 and `r` runs straight down it; `p` and `y`,
-         * one rank each, are single segments across a gap.
+         * over the input. `r` skips rank 1, so that column gets a 10px
+         * lane placed just after `r`'s source, ahead of the node there:
+         * centred at y=15, and the node moves down to y=34. The column is
+         * 50px wide, so the lane spans x=100 to 150 and `r` runs straight
+         * across it; `p` and `y`, one rank each, are single segments
+         * across a gap.
          */
         laneForASkipLevelEdge: () => {
             const html = htmlToString(graphSvg(skipLevel))
-            assert(html.includes('d="M47.5,56 L15,96 L15,142 L35,182"'), html) // r: through its lane
-            assert(html.includes('d="M22.5,56 L59,96"'), html) // p: one rank, one segment
-            assert(html.includes('d="M59,142 L35,182"'), html) // y: one rank, one segment
-            assert(html.includes('<rect x="34" y="96" width="50" height="46"'), html)
-            // The lane is part of the drawing's width, not just the nodes.
-            assert(html.includes('viewBox="0 0 94 218"'), html)
+            assert(html.includes('d="M60,66 L100,15 L150,15 L190,23"'), html) // r: through its lane
+            assert(html.includes('d="M60,46 L100,47"'), html) // p: one rank, one segment
+            assert(html.includes('d="M150,70 L190,23"'), html) // y: one rank, one segment
+            assert(html.includes('<rect x="100" y="34" width="50" height="46"'), html)
+            // The lane is part of the drawing's height, not just the nodes.
+            assert(html.includes('viewBox="0 0 250 90"'), html)
         },
         /**
          * **No edge crosses a box** — the claim the lanes exist for,
@@ -292,9 +295,9 @@ export const proof = {
          * **An edge is its place in the list, not its object.** The same
          * `Edge` object listed twice is two edges, two ports and two
          * lanes. A lane found by object would belong to both, and each
-         * route would run down one lane, back up and down the other; found
-         * by position, each runs down its own — the drawing two separate
-         * but equal objects give.
+         * route would run across one lane, back and across the other;
+         * found by position, each runs across its own — the drawing two
+         * separate but equal objects give.
          */
         sharedEdgeObject: () => {
             const nodes = [
@@ -305,9 +308,19 @@ export const proof = {
             const e = { from: 0, to: 2, label: 'e' }
             const middle = [{ from: 0, to: 1, label: 'm' }, { from: 1, to: 2, label: 'x' }]
             const html = htmlToString(graphSvg({ nodes, edges: [e, ...middle, e] }))
-            assert(html.includes('d="M22,56 L15,96 L15,142 L35,182"'), html)
-            assert(html.includes('d="M70,56 L39,96 L39,142 L35,182"'), html)
+            assert(html.includes('d="M60,46 L100,15 L150,15 L190,23"'), html)
+            assert(html.includes('d="M60,86 L100,39 L150,39 L190,23"'), html)
             assertEq(html, htmlToString(graphSvg({ nodes, edges: [{ ...e }, ...middle, { ...e }] })))
+        },
+        /**
+         * **The drawing comes in a container of its own**, which the
+         * stylesheet scrolls sideways, so a graph wider than the page does
+         * not make the whole page scroll.
+         */
+        inAContainer: () => {
+            const html = htmlToString(graphSvg(skipLevel))
+            assert(html.includes('<div data-graph=""><svg '), html)
+            assert(html.endsWith('</svg></div>'), html)
         },
         /**
          * **Boxes, then edges, then the labels** — the document order
@@ -325,30 +338,31 @@ export const proof = {
             assert(!html.includes('casing'), html)
         },
         /**
-         * **An inline value is a cell, not a box.** Its port grows a 20px
-         * cell under the label, holding the value, and the node a row to
-         * match; no line is drawn and no rank is spent. A value wider
-         * than its label widens its port.
+         * **An inline value is a cell, not a box.** Its row is the key's
+         * cell and, right of it, the value's; no line is drawn and no rank
+         * is spent. A value wider than the node's label widens the node:
+         * a 24px key beside a 61px value is 85px.
          */
         inlineValue: () => {
             const html = htmlToString(graphSvg({
                 nodes: [{ id: 0, kind: 'a', label: '[ ]', rank: 0 }],
                 edges: [{ from: 0, to: { inline: '"hello"' }, label: '0' }],
             }))
-            assert(html.includes('<rect x="10" y="10" width="61" height="66" rx="4" data-graph-node=""'), html)
-            assert(html.includes('<rect x="10" y="36" width="61" height="20" data-graph-port="">'), html)
-            assert(html.includes('<rect x="10" y="56" width="61" height="20" data-graph-value="">'), html)
-            assert(html.includes('<text x="40.5" y="66" text-anchor="middle" data-graph-value-label="">&quot;hello&quot;<'), html)
+            assert(html.includes('<rect x="10" y="10" width="85" height="46" rx="4" data-graph-node=""'), html)
+            assert(html.includes('<rect x="10" y="36" width="24" height="20" data-graph-port="">'), html)
+            assert(html.includes('<rect x="34" y="36" width="61" height="20" data-graph-value="">'), html)
+            assert(html.includes('<text x="64.5" y="46" text-anchor="middle" data-graph-value-label="">&quot;hello&quot;<'), html)
             assert(!html.includes('data-graph-edge=""'), html)
-            assert(html.includes('viewBox="0 0 81 86"'), html)
+            assert(html.includes('viewBox="0 0 105 66"'), html)
         },
         /**
-         * **Beside an inline value, an edge's port fills both rows**, its
-         * key centred in it, and the edge leaves from the node's bottom:
-         * no cell of the node is empty. **A node keeps its own height**,
-         * so `narrow`, with no value, is 46px in a row whose `wide` is
-         * 66px, and its edge drops straight to the row's bottom before it
-         * turns rather than cutting across `wide`'s lower part.
+         * **Beside an inline value, an edge's key fills its row**, as wide
+         * as the node, and the edge leaves from the node's right side: no
+         * cell of the node is empty. `wide`'s keys share one column, 24px,
+         * and its value takes the rest. **A node keeps its own width**, so
+         * `wide` is 50px in a column whose `narrow` is 58px, and its edge
+         * runs straight right to the column's edge before it turns rather
+         * than cutting across `narrow`.
          */
         inlineBesideAnEdge: () => {
             /** @type {Graph} */
@@ -368,13 +382,13 @@ export const proof = {
                 ],
             }
             const html = htmlToString(graphSvg(g))
-            assert(html.includes('<rect x="10" y="96" width="50" height="66" rx="4" data-graph-node=""'), html)
-            assert(html.includes('<rect x="10" y="122" width="25" height="20" data-graph-port="">'), html)
-            assert(html.includes('<rect x="35" y="122" width="25" height="40" data-graph-port="">'), html)
-            assert(html.includes('<text x="47.5" y="142" text-anchor="middle" data-graph-edge-label="">e<'), html)
-            assert(html.includes('d="M47.5,162 L35,202"'), html)
-            assert(html.includes('<rect x="74" y="96" width="58" height="46" rx="4" data-graph-node=""'), html)
-            assert(html.includes('d="M103,142 L103,162 L35,202"'), html)
+            assert(html.includes('<rect x="100" y="10" width="50" height="66" rx="4" data-graph-node=""'), html)
+            assert(html.includes('<rect x="100" y="36" width="24" height="20" data-graph-port="">'), html)
+            assert(html.includes('<rect x="124" y="36" width="26" height="20" data-graph-value="">'), html)
+            assert(html.includes('<rect x="100" y="56" width="50" height="20" data-graph-port="">'), html)
+            assert(html.includes('<rect x="100" y="90" width="58" height="46" rx="4" data-graph-node=""'), html)
+            assert(html.includes('d="M150,66 L158,66 L198,23"'), html)
+            assert(html.includes('d="M158,126 L198,23"'), html)
             assertEq(_crossings(g), 0)
         },
         /**

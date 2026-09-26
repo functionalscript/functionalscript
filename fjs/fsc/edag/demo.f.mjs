@@ -26,7 +26,7 @@
  *
  * **A constant or an input draws inside the node that uses it.** A number,
  * a string, `null` or `undefined` is not a node of its own but a value in
- * its user's port, under the operand's role; so is a scope's input —
+ * its user's port, beside the operand's role; so is a scope's input —
  * `args`, `rest`, `frame`, `arg n` — marked as the terminal it is. Only an
  * expression that is one of these and nothing else draws one as a node,
  * having no user to sit in.
