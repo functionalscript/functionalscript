@@ -78,13 +78,13 @@ export const ranked = (nodes, edges) => {
     return current
 }
 
-const headerHeight = 26
-const portHeight = 20
-const rankGap = 40
-const nodeGap = 14
-const laneSize = 10
-const margin = 10
-const charWidth = 7
+const headerHeight = /** @type {const} */ (26)
+const portHeight = /** @type {const} */ (20)
+const rankGap = /** @type {const} */ (40)
+const nodeGap = /** @type {const} */ (14)
+const laneSize = /** @type {const} */ (10)
+const margin = /** @type {const} */ (10)
+const charWidth = /** @type {const} */ (7)
 
 /** @type {(label: string) => number} */
 const widthOf = label => Math.max(50, label.length * charWidth + 16)
@@ -326,7 +326,7 @@ export const _crossings = g => {
 }
 
 /** The corner radius of a node's box. */
-const radius = 4
+const radius = /** @type {const} */ (4)
 
 /**
  * The id of the clip that keeps a node's cells inside its rounded box.
