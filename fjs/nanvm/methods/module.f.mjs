@@ -7,14 +7,18 @@
  * ([`fjs/js/prototype`](../../js/prototype/module.f.mjs)), and the VM must
  * answer each on every type whose prototype has it, or a module compiles and
  * then throws. It must equally answer none of `prohibitedCalls`, so that a
- * name the compiler refuses cannot be reached another way. This module
- * crosses the two lists with each type's prototype and sorts every pair
- * into one of three rows, which [`generate`](#generate) prints as Rust:
+ * name the compiler refuses cannot be reached another way, and no allowed
+ * name on a type whose prototype lacks it, so that `[1].charAt(0)` throws as
+ * it does in JavaScript. This module crosses the two lists with each type's
+ * prototype and sorts every pair into one of four rows, which
+ * [`generate`](#generate) prints as Rust:
  *
  * - **answered** — allowed, and the VM has an entry;
  * - **pending** — allowed, and the VM has no entry yet: {@link pending},
  *   the one list here written by hand;
- * - **prohibited** — refused, and the VM must never have an entry.
+ * - **prohibited** — refused, and the VM must never have an entry;
+ * - **absent** — allowed, but not on this type's prototype, and the VM must
+ *   never have an entry either.
  *
  * The test beside `method` in `nanvm-lib/src/vm/lambda/method.rs` asserts
  * each row, so landing a built-in fails it until its pair leaves
@@ -71,8 +75,9 @@ export const pending = {
 }
 
 /**
- * The three rows for a pending list, each a list of `[type, name]` pairs in
- * {@link types}' order and then its prototype's.
+ * The four rows for a pending list, each a list of `[type, name]` pairs in
+ * {@link types}' order and then its prototype's, or, for `absent`,
+ * `allowedCalls`' order.
  *
  * A pending pair that is not an allowed call on a type is refused: no row
  * could hold it, so a typo would otherwise vanish rather than be reported.
@@ -81,6 +86,7 @@ export const pending = {
  *     readonly answered: readonly (readonly[string, string])[],
  *     readonly pending: readonly (readonly[string, string])[],
  *     readonly prohibited: readonly (readonly[string, string])[],
+ *     readonly absent: readonly (readonly[string, string])[],
  * }}
  */
 export const rows = p => {
@@ -98,6 +104,9 @@ export const rows = p => {
         answered: pairs((type, name) => allowed.includes(name) && !isPending(type, name)),
         pending: pairs((type, name) => allowed.includes(name) && isPending(type, name)),
         prohibited: pairs((_, name) => prohibited.includes(name)),
+        absent: types.flatMap(([type, names]) => allowed
+            .filter(name => !(/** @type {readonly string[]} */ (names)).includes(name))
+            .map(name => /** @type {const} */ ([type, name]))),
     }
     const listed = Object.values(p).reduce((n, names) => n + names.length, 0)
     if (r.pending.length !== listed) { throw ['a pending name is no allowed call on its type', p] }
@@ -125,7 +134,7 @@ const table = (name, doc, pairs) => [
 ]
 
 /**
- * The table as Rust: three constants of `(type, name)` pairs.
+ * The table as Rust: four constants of `(type, name)` pairs.
  *
  * @type {() => string}
  */
@@ -138,5 +147,6 @@ export const generate = () => {
         ...table('ANSWERED', 'Allowed, and answered: `method` has an entry.', r.answered),
         ...table('PENDING', 'Allowed, and not answered yet: `method` has no entry.', r.pending),
         ...table('PROHIBITED', 'Refused by the compiler: `method` never has an entry.', r.prohibited),
+        ...table('ABSENT', 'Allowed, but not on the type\'s prototype: `method` never has an entry.', r.absent),
     ].join('\n')
 }
