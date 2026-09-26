@@ -29,12 +29,15 @@ respells part of the JSON parser's `syntaxError`.
 `lexeme` and `unitAt` move here, beside `units`:
 
 ```ts
-/** The source text under a node of the `utf16` alphabet. */
-export const lexeme: (node: AstNode<Utf16>) => string
+/** The source text under a node parsed over the `utf16` alphabet. */
+export const lexeme: <R extends Rule>(node: Ast<R, Utf16, { readonly id: string }>) => string
 ```
 
-The JSON, DataJS and markdown parsers import it; `syntaxError` may
-follow if it proves alphabet-level too.
+with `Ast` from `fjs/ebnf/ast/types.ts` and `Rule` from
+`fjs/ebnf/types.ts` — the type the JSON parser's `lexeme` already
+takes, generalised over the rule so a markdown node fits as a JSON node
+does. The JSON, DataJS and markdown parsers import it; `syntaxError`
+may follow if it proves alphabet-level too.
 
 ### Tasks
 

@@ -15,8 +15,8 @@ const u32 = (b, at) => b[at] * 16777216 + b[at + 1] * 65536 + b[at + 2] * 256 + 
 
 Only the `packidx` copy explains why it multiplies rather than shifts —
 `<<` would sign the top bit — and only it builds `u64` on top. Both
-readers also test their magic bytes the same way, and `refstore/write`
-a third time for a name prefix:
+readers also test their magic bytes the same way, and `refstore/write`'s
+`isNamePrefix` opens with the same test before its own two checks:
 
 ```js
 // pack, tryHeader
@@ -45,8 +45,12 @@ export const u64be: (b: Bytes, at: number) => Nullable<number>
 export const startsWith: (prefix: Bytes) => (b: Bytes) => boolean
 ```
 
-`u64be` moves from `packidx`; `pack`, `packidx` and `refstore/write`
-import the three.
+`u64be` moves from `packidx`; `pack` and `packidx` import the three.
+`isNamePrefix` is not a plain prefix test and stays what it is: a name
+prefix requires the other name to be longer and its next byte to be the
+separator, or `refs/heads/foo` would collide with itself and with
+`refs/heads/foobar`. Only its `every` becomes `startsWith(a)(b)`; the
+two boundary checks stay in front of it.
 
 ### Tasks
 
