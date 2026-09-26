@@ -25,10 +25,11 @@
  * @import { Element, Node } from '../../media/html/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Release } from './types.ts'
+ * @import { Build } from '../page/types.ts'
  */
 
 import { htmlUtf8 } from '../../media/html/module.f.mjs'
-import { lang, pageTitle, repository } from '../page/module.f.mjs'
+import { header, lang, pageTitle, repository } from '../page/module.f.mjs'
 import { faviconLinks, stylesheetLink } from '../style/module.f.mjs'
 
 const zero = 0x30
@@ -309,13 +310,14 @@ const neighbours = ({ previous, next }) => {
  * says so — and says that rather than showing an empty list, which would
  * read as a page that failed to load.
  *
- * @type {(release: Release) => (document: Document) => Vec}
+ * @type {(build: Build) => (release: Release) => (document: Document) => Vec}
  */
-export const releasePage = release => document => htmlUtf8(lang)(
+export const releasePage = build => release => document => htmlUtf8(lang)(
     pageTitle(release.version),
     stylesheetLink,
     ...faviconLinks,
 )(
+    header(build),
     ['main',
         nav([' / ', release.version]),
         ['h1', release.version],
@@ -334,13 +336,14 @@ export const releasePage = release => document => htmlUtf8(lang)(
  * releases, not the file names they are stored under, and the files are one
  * click away on GitHub where every other file of the repository is.
  *
- * @type {(versions: readonly string[]) => Vec}
+ * @type {(build: Build) => (versions: readonly string[]) => Vec}
  */
-export const indexPage = versions => htmlUtf8(lang)(
+export const indexPage = build => versions => htmlUtf8(lang)(
     pageTitle('Releases'),
     stylesheetLink,
     ...faviconLinks,
 )(
+    header(build),
     ['main',
         nav([]),
         ['h1', 'Releases'],
