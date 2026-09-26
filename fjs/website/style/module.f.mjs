@@ -165,25 +165,32 @@ textarea { vertical-align: top }
    silently narrow back on the next keystroke. */
 textarea { box-sizing: border-box; resize: vertical; width: 100% }
 /* The header every page opens with: the logo and the site's name on the left,
-   the site-wide links on the right, one rule under it. It wraps rather than
-   hiding behind a menu button: in a monospace face a phone has no room for
-   the name and the links on one line, and a line break costs no script.
+   the site-wide links on the right, framed on all four sides in the same
+   rounded border as the test report's panel, so it reads as one block and
+   not as the first line of the page. The menu is bold and a step larger than
+   the text, as a site's own navigation is set apart from what it navigates.
+   It wraps rather than hiding behind a menu button: in a monospace face a
+   phone has no room for the name and the links on one line, and a line break
+   costs no script.
    A header link is not underlined: its place in the header is what says it is
    a link, as a site's own navigation does everywhere, and the underline comes
    back on hover. Every link in the header is padded to a finger's target,
    whatever the pointer: it is one row, not a dense list, so the padding
    costs nothing a mouse would miss. */
-header { border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; padding-bottom: .5rem }
+header { border: 1px solid var(--border); border-radius: 10px; margin-bottom: 1.5rem; overflow: hidden }
 header nav, [data-site-links] { align-items: center; display: flex; flex-wrap: wrap; gap: .25rem 1.5rem }
+header nav { font-size: 1.125rem; font-weight: 700; padding: .35rem 1rem }
 header nav a { padding-block: .25rem; text-decoration: none }
 header nav a:hover { text-decoration: underline }
-[data-home] { align-items: center; display: inline-flex; font-weight: 600; gap: .5rem; margin-right: auto }
+[data-home] { align-items: center; display: inline-flex; gap: .5rem; margin-right: auto }
 [data-home] img { height: 1.5rem; width: 1.5rem }
 /* A preview says which build it is — the branch and the commit — so a
    reader comparing two previews, or a preview with production, knows which
    one they are looking at. Muted and small: it is about the build, not the
-   page. */
-[data-build] { color: var(--muted); font-size: .8rem; margin: .25rem 0 0 }
+   page. It is a strip across the foot of the header's frame, tinted from
+   the border and the background rather than a colour of its own, so it
+   follows both schemes. */
+[data-build] { background: color-mix(in srgb, var(--border) 30%, var(--bg)); border-top: 1px solid var(--border); color: var(--muted); font-size: .8rem; margin: 0; padding: .35rem 1rem }
 /* Every section of a page is a disclosure, so a reader can fold away what
    they are not reading — the platform's own collapsible, and no script on a
    site that is static files. Its summary is the section's heading, and is

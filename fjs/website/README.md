@@ -258,6 +258,12 @@ and no other page had either.
   [`style/module.f.mjs`](./style/module.f.mjs), so the tab and the page cannot
   show two marks. Its `alt` is empty because the name beside it is the link's
   text.
+- **It is framed on all four sides**, in the rounded border the test report's
+  panel already has, and the menu is bold and a step larger than the text, so
+  the header reads as one block rather than as the first line of the page.
+  Four looks were rendered side by side — this, a rule under the header only,
+  GitHub-style tabs with icons, and bordered buttons — and this one was
+  chosen.
 - **It wraps rather than hiding behind a menu button.** In a monospace face a
   phone has no room for the name and both links on one line; a line break
   costs no script, on a site that is otherwise static files. The two links are
@@ -268,8 +274,8 @@ and no other page had either.
   back on hover. Every link *in the page* keeps its underline
   ([A link keeps its colour](#a-link-keeps-its-colour-whether-or-not-it-has-been-followed)).
 - **A preview says which build it is.** A build from any branch but `main`
-  adds a line under the links — `Preview: <branch> @ <commit>`, each linked
-  on GitHub, the commit shortened to seven characters. The branch is
+  adds a strip across the foot of the header's frame —
+  `Preview: <branch> @ <commit>`, each linked on GitHub, the commit shortened to seven characters. The branch is
   `WORKERS_CI_BRANCH`, which Cloudflare's Workers Builds sets beside
   `WORKERS_CI_COMMIT_SHA`. The published site is built from `main` and a local
   build names no branch, so neither shows the line.
