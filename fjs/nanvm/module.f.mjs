@@ -1486,6 +1486,9 @@ const ownCases = [
     { name: 'valuePreservesNullType', args: [{ a: null }, 'a'], expected: null },
     { name: 'multiplePropertiesDistinguished', args: [{ a: 1, b: 2 }, 'b'], expected: 2 },
     { name: 'numericStringKey', args: [{ 1: 42 }, '1'], expected: 42 },
+    // A key no UTF-8 literal can spell: it reaches Rust as code units, both
+    // in the object literal and as the operand.
+    { name: 'loneSurrogateKey', args: [{ '\uD800': 42 }, '\uD800'], expected: 42 },
     { name: 'nonObjectNumberReceiver', args: [5, 'a'], expected: undefined },
     // `'length'` would be the wrong probe here: real JS strings and arrays
     // carry real own properties for `.length` (and, for arrays, numeric
