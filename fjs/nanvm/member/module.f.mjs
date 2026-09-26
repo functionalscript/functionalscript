@@ -822,6 +822,9 @@ const toExponentialCases = [
     { name: 'subnormalNoArgument', args: [5e-324], expected: '5e-324' },
     { name: 'largest', args: [1.7976931348623157e308, 3], expected: '1.798e+308' },
     { name: 'infinityTooManyDigits', args: [Infinity, 101], expected: 'Infinity' },
+    // The argument is converted before the number is looked at.
+    { name: 'nanDigits', args: [1, NaN], expected: '1e+0' },
+    { name: 'bigintOnInfinity', args: [Infinity, 1n], expected: throws },
     { name: 'tooManyDigits', args: [1, 101], expected: throws },
     { name: 'bigint', args: [1, 1n], expected: throws },
 ]
@@ -848,6 +851,9 @@ const toPrecisionCases = [
     { name: 'largest', args: [1.7976931348623157e308, 2], expected: '1.8e+308' },
     { name: 'exact', args: [123, 3], expected: '123' },
     { name: 'nanZero', args: [NaN, 0], expected: 'NaN' },
+    // The argument is converted before the number is looked at.
+    { name: 'stringPrecision', args: [1, '2.9'], expected: '1.0' },
+    { name: 'bigintOnInfinity', args: [Infinity, 1n], expected: throws },
     { name: 'zeroPrecision', args: [1, 0], expected: throws },
     { name: 'tooMany', args: [1, 101], expected: throws },
     { name: 'bigint', args: [1, 1n], expected: throws },
@@ -856,8 +862,9 @@ const toPrecisionCases = [
 /**
  * `toString()` on every type but a function, whose text is the
  * rendering `nanvm-lib/todo/member-functions.md` tracks (see
- * {@link FunctionValue}). A radix on a number or a bigint is refused by
- * `nanvm-lib` until it is written, rather than answered in radix ten.
+ * `FunctionValue`). A radix on a number or a bigint is read from `2` to
+ * `36`; the digits of a fraction in another radix stay a `rust` gap, since
+ * ECMAScript leaves them to the engine.
  *
  * @type {readonly MethodCase[]}
  */

@@ -18,6 +18,8 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("subnormalNoArgument", Any::dot(f64_any(0x0000000000000001), string_any("toExponential")).end_call(|| Ok(Array::default().to_any())), string_any("5e-324"));
     check::<A>("largest", Any::dot(f64_any(0x7fefffffffffffff), string_any("toExponential")).end_call(|| Ok([f64_any(0x4008000000000000)].to_array().to_any())), string_any("1.798e+308"));
     check::<A>("infinityTooManyDigits", Any::dot(f64_any(0x7ff0000000000000), string_any("toExponential")).end_call(|| Ok([f64_any(0x4059400000000000)].to_array().to_any())), string_any("Infinity"));
+    check::<A>("nanDigits", Any::dot(f64_any(0x3ff0000000000000), string_any("toExponential")).end_call(|| Ok([f64_any(0x7ff8000000000000)].to_array().to_any())), string_any("1e+0"));
+    check_throws::<A>("bigintOnInfinity", Any::dot(f64_any(0x7ff0000000000000), string_any("toExponential")).end_call(|| Ok([bigint_any(1)].to_array().to_any())));
     check_throws::<A>("tooManyDigits", Any::dot(f64_any(0x3ff0000000000000), string_any("toExponential")).end_call(|| Ok([f64_any(0x4059400000000000)].to_array().to_any())));
     check_throws::<A>("bigint", Any::dot(f64_any(0x3ff0000000000000), string_any("toExponential")).end_call(|| Ok([bigint_any(1)].to_array().to_any())));
 }

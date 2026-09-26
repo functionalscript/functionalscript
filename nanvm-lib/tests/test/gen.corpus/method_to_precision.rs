@@ -20,6 +20,8 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("largest", Any::dot(f64_any(0x7fefffffffffffff), string_any("toPrecision")).end_call(|| Ok([f64_any(0x4000000000000000)].to_array().to_any())), string_any("1.8e+308"));
     check::<A>("exact", Any::dot(f64_any(0x405ec00000000000), string_any("toPrecision")).end_call(|| Ok([f64_any(0x4008000000000000)].to_array().to_any())), string_any("123"));
     check::<A>("nanZero", Any::dot(f64_any(0x7ff8000000000000), string_any("toPrecision")).end_call(|| Ok([f64_any(0x0000000000000000)].to_array().to_any())), string_any("NaN"));
+    check::<A>("stringPrecision", Any::dot(f64_any(0x3ff0000000000000), string_any("toPrecision")).end_call(|| Ok([string_any("2.9")].to_array().to_any())), string_any("1.0"));
+    check_throws::<A>("bigintOnInfinity", Any::dot(f64_any(0x7ff0000000000000), string_any("toPrecision")).end_call(|| Ok([bigint_any(1)].to_array().to_any())));
     check_throws::<A>("zeroPrecision", Any::dot(f64_any(0x3ff0000000000000), string_any("toPrecision")).end_call(|| Ok([f64_any(0x0000000000000000)].to_array().to_any())));
     check_throws::<A>("tooMany", Any::dot(f64_any(0x3ff0000000000000), string_any("toPrecision")).end_call(|| Ok([f64_any(0x4059400000000000)].to_array().to_any())));
     check_throws::<A>("bigint", Any::dot(f64_any(0x3ff0000000000000), string_any("toPrecision")).end_call(|| Ok([bigint_any(1)].to_array().to_any())));
