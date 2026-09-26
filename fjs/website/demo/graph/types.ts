@@ -55,8 +55,16 @@ export type Edge = {
  * An inline value has no identity, so it is never shared, never ranked and
  * no line is drawn to it: a demo that wants a value shared, or reached by
  * more than one edge, gives it a node instead.
+ *
+ * `kind` is the demo's own vocabulary, as a {@link Node}'s is, and is
+ * absent for an ordinary value. The site's stylesheet draws a
+ * `"terminal"` value — an input a scope receives, rather than a constant —
+ * filled like a terminal node, where any other value, and none, is tinted.
  */
-export type Inline = { readonly inline: string }
+export type Inline = {
+    readonly inline: string
+    readonly kind?: string | undefined
+}
 
 /** A graph `graphSvg` (`./module.f.mjs`) can draw: every node ranked, every edge named. */
 export type Graph = {

@@ -216,8 +216,10 @@ svg text { font: inherit }
    over the cells so it stays one weight all round. A primitive — a
    number, null, undefined — is no node of its own: its value draws in a
    cell right of its key, and no line leaves for it. A value is tinted and
-   a key is grey, so the two differ by more than their order in the row;
-   an edge's key fills its whole row, so no cell is left empty. No edge
+   a key is grey, so the two differ by more than their order in the row.
+   An inline input — the EDAG demo's args and rest — is filled like the
+   terminal node it would otherwise be, not tinted like a constant. An
+   edge's key fills its whole row, so no cell is left empty. No edge
    crosses a box — the layout routes one that skips a rank across a lane
    of its own — so a line needs no casing to stand out from a border it
    passes. */
@@ -231,6 +233,8 @@ svg text { font: inherit }
 [data-graph-port] { fill: none; stroke: var(--muted); stroke-width: 1 }
 [data-graph-value] { fill: var(--value-bg); stroke: var(--muted); stroke-width: 1 }
 [data-graph-value-label] { dominant-baseline: middle; fill: var(--value); font-size: .75rem }
+[data-graph-value][data-graph-value-kind="terminal"] { fill: var(--border) }
+[data-graph-value-label][data-graph-value-kind="terminal"] { fill: var(--text) }
 [data-graph-edge-label] { dominant-baseline: middle; fill: var(--muted); font-size: .7rem }
 [data-graph-arrow] { fill: var(--muted) }
 `

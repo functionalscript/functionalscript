@@ -402,6 +402,25 @@ export const proof = {
             assertEq(html.split('<clipPath').length - 1, 1)
             assertEq(html.split('data-graph-outline').length - 1, 1)
         },
+        /**
+         * **An inline value's kind reaches its cell and its text**, as an
+         * attribute of its own; a value with no kind says nothing. The
+         * kind is the demo's word, as a node's is — the EDAG demo marks an
+         * input `"terminal"` — and the stylesheet decides the look.
+         */
+        inlineValueKind: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [{ id: 0, kind: 'a', label: '.', rank: 0 }],
+                edges: [
+                    { from: 0, to: { inline: 'args', kind: 'terminal' }, label: 'obj' },
+                    { from: 0, to: { inline: '1' }, label: 'idx' },
+                ],
+            }))
+            assert(html.includes('data-graph-value="" data-graph-value-kind="terminal">'), html)
+            assert(html.includes('data-graph-value-label="" data-graph-value-kind="terminal">args<'), html)
+            assert(html.includes('data-graph-value-label="">1<'), html)
+            assertEq(html.split('data-graph-value-kind').length - 1, 2)
+        },
         // A marked edge to an inline value marks its value cell.
         marksAnInlineValue: () => {
             const html = htmlToString(graphSvg({
