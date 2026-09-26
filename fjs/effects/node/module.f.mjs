@@ -21,7 +21,7 @@
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
  * @import { List as List_ } from '../../types/list/types.ts'
- * @import { Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _ReadChunks, _UtfList, _WriteLoop } from './types.ts'
+ * @import { Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Rmdir, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _ReadChunks, _UtfList, _WriteLoop } from './types.ts'
  */
 
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
@@ -253,7 +253,8 @@ const nodeCommandSet = {
     import: null, inflate: null, listen: null, memCreate: null, memRead: null,
     memWrite: null, mkdir: null, now: null, randomInt: null,
     read: null, readBytes: null, readFile: null, readWhole: null, readdir: null,
-    rename: null, resolveFileModule: null, rm: null, sandbox: null, stat: null,
+    rename: null, resolveFileModule: null, rm: null, rmdir: null, sandbox: null,
+    stat: null,
     test: null, write: null, writeBytes: null, writeExclusive: null,
     writeFile: null,
 }
@@ -341,6 +342,11 @@ export const writeUtf8File = (path, content) =>
 /** @type {Func<Rm>} */
 export const rm = do_('rm')
 
+// rmdir
+
+/** @type {Func<Rmdir>} */
+export const rmdir = do_('rmdir')
+
 // rename
 
 /** @type {Func<Rename>} */
@@ -409,15 +415,16 @@ export const createExclusive = do_('createExclusive')
 const writeExclusiveOp = /** @type {Func<WriteExclusive>} */ (do_('writeExclusive'))
 
 /**
- * Creates `path` and writes `data` through that one open. A file holds bytes, so
- * a `Vec` that is not whole bytes is refused here as `invalid buffer size`,
- * before any host sees it, as {@link inflate} refuses one: a host's conversion
- * would pad the last byte, and the file would not hold `data`.
+ * Creates `path` and writes the chunks of `data` through that one open. A file
+ * holds bytes, so a chunk that is not whole bytes is refused here as
+ * `invalid buffer size`, before any host sees it, as {@link inflate} refuses
+ * one: a host's conversion would pad its last byte, and the file would not hold
+ * `data`.
  *
  * @type {Func<WriteExclusive>}
  */
 export const writeExclusive = (path, data) =>
-    isWholeBytes(data) ? writeExclusiveOp(path, data) : invalidBufferSize
+    data.every(isWholeBytes) ? writeExclusiveOp(path, data) : invalidBufferSize
 
 /**
  * Creates `path` and writes `content` to it as UTF-8 bytes, through one open,
@@ -427,7 +434,7 @@ export const writeExclusive = (path, data) =>
  * @type {(path: string, content: string) => Effect<WriteExclusive, void, IoChannel>}
  */
 export const writeExclusiveUtf8File = (path, content) =>
-    writeExclusive(path, utf8(content))
+    writeExclusive(path, [utf8(content)])
 
 // writeBytes
 
