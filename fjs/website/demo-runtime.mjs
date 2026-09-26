@@ -324,12 +324,14 @@ export const startDemo = async root => {
         // button asks — a `<button>` or an `<input type="button">`. A click in
         // a field is the reader placing a caret or ending a selection, already
         // the field's own business, and an element with no name is not one the
-        // demo asked to hear about.
+        // demo asked to hear about. The button is the nearest one around the
+        // target, because a button's label may be markup of its own and the
+        // reader clicks whichever part of it is under the pointer.
         root.addEventListener('click', e => {
-            const target = /** @type {HTMLElement & { name?: string, type?: string }} */ (e.target)
-            const button = target.tagName === 'BUTTON' || (target.tagName === 'INPUT' && target.type === 'button')
-            if (!button || target.name === undefined || target.name === '') { return }
-            step({ kind: 'click', name: target.name })
+            const button = /** @type {HTMLButtonElement | HTMLInputElement | null} */ (
+                /** @type {Element} */ (e.target).closest('button, input[type="button"]'))
+            if (button === null || button.name === '') { return }
+            step({ kind: 'click', name: button.name })
         })
         // After the first render, so a demo that needs an operation before it
         // can show anything has somewhere to ask without `init` becoming an

@@ -162,12 +162,23 @@ const dom = path => {
         },
         /**
          * A click on the element named `name`, which is a
-         * `<button type="button">` unless the proof says otherwise.
+         * `<button type="button">` unless the proof says otherwise, or on
+         * unnamed markup `nested` inside it.
          *
-         * @type {(name: string, tagName?: string, type?: string) => void}
+         * `closest` answers the one selector the runtime asks, a list of a
+         * tag and a tag with a `type`, from what the element is — so a
+         * runtime that asked for something else finds no button at all.
+         *
+         * @type {(name: string, options?: { readonly tagName?: string, readonly type?: string, readonly nested?: boolean }) => void}
          */
-        click: (name, tagName = 'BUTTON', type = 'button') => {
-            for (const f of clicks) { f({ target: { name, tagName, type } }) }
+        click: (name, { tagName = 'BUTTON', type = 'button', nested = false } = {}) => {
+            /** @type {(selector: string) => boolean} */
+            const matches = selector => selector.split(', ').some(one =>
+                one === tagName.toLowerCase() || one === `${tagName.toLowerCase()}[type="${type}"]`)
+            /** @type {any} */
+            const self = { name, closest: (/** @type {string} */ s) => matches(s) ? self : null }
+            const target = nested ? { closest: self.closest } : self
+            for (const f of clicks) { f({ target }) }
         },
     }
 }
@@ -312,9 +323,9 @@ export const proof = {
         await startDemo(d.root)
         await settle()
         const renders = d.rendered.length
-        d.click('text', 'INPUT', 'text')
-        d.click('text', 'TEXTAREA', 'textarea')
-        d.click('text', 'INPUT', 'checkbox')
+        d.click('text', { tagName: 'INPUT', type: 'text' })
+        d.click('text', { tagName: 'TEXTAREA', type: 'textarea' })
+        d.click('text', { tagName: 'INPUT', type: 'checkbox' })
         await settle()
         assertEq(d.rendered.length, renders)
     },
@@ -324,9 +335,28 @@ export const proof = {
         await startDemo(d.root)
         await settle()
         const renders = d.rendered.length
-        d.click('go', 'INPUT', 'button')
+        d.click('go', { tagName: 'INPUT', type: 'button' })
         await settle()
         assertEq(d.rendered.length, renders + 1)
+    },
+    /**
+     * **A click on a button's label is a click on the button.** A label may
+     * be markup of its own — `['button', { name: 'go' }, ['strong', 'Go']]` —
+     * and then the target is the `<strong>`, whichever part the reader hit.
+     */
+    acceptsAClickInsideAButton: async () => {
+        const d = dom(moduleUrl(`
+export const demo = {
+    init: 'idle',
+    update: state => event => () => ['ok', event.kind === 'click' ? event.name : state],
+    view: text => ['div', ['button', { type: 'button', name: 'go' }, ['strong', 'Go']], ['pre', text]],
+}
+`))
+        await startDemo(d.root)
+        await settle()
+        d.click('go', { nested: true })
+        await settle()
+        assert(d.root.innerHTML.includes('<pre>go</pre>'), d.root.innerHTML)
     },
     // A resized or scrolled field that a later state simply stops rendering
     // has nowhere to put its size or offset back — skipped rather than thrown,
