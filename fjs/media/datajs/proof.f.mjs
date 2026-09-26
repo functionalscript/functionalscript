@@ -73,7 +73,9 @@ export const proof = {
                 assertEq(occurrences(html, 'data-graph-kind="array"'), 1)
                 assert(html.includes('>&quot;a&quot;<'), html)
                 assert(html.includes('>&quot;c&quot;<'), html)
-                assertEq(occurrences(html, 'data-graph-kind="leaf"'), 2)
+                // `1` and `2` sit in the array's own ports, not in boxes.
+                assertEq(occurrences(html, 'data-graph-kind="leaf"'), 0)
+                assertEq(occurrences(html, 'data-graph-value=""'), 2)
             },
             // `typeof null === 'object'` is why `walk` checks `=== null`
             // first — without it, `null` would reach `instanceof Array` and
@@ -99,31 +101,43 @@ export const proof = {
             // label is centred at y=46 and the edge leaves the port's
             // bottom at y=56.
             edgeLabelPosition: () => {
-                const html = htmlToString(demo.view('export default [1];'))
+                const html = htmlToString(demo.view('export default [[]];'))
                 assert(html.includes('<text x="35" y="46" text-anchor="middle" data-graph-edge-label="">0<'), html)
                 assert(html.includes('d="M35,56 L35,96"'), html)
             },
-            // Two equal numbers are two leaf nodes, not one shared like a
+            // A leaf inside a container is no node of its own: its value
+            // sits in the port, in a 20px cell under the index, and no
+            // line leaves for it.
+            inlineLeaf: () => {
+                const html = htmlToString(demo.view('export default [1];'))
+                assert(html.includes('<rect x="10" y="10" width="50" height="66" rx="4" data-graph-node=""'), html)
+                assert(html.includes('<rect x="10" y="56" width="50" height="20" data-graph-value="">'), html)
+                assert(html.includes('<text x="35" y="66" text-anchor="middle" data-graph-value-label="">1<'), html)
+                assert(!html.includes('data-graph-edge=""'), html)
+            },
+            // Two equal numbers are two values, not one shared like a
             // container would be — "primitive sharing is not [written]".
             equalLeavesDoNotShare: () => {
                 const html = htmlToString(demo.view('export default [1,1];'))
-                assertEq(occurrences(html, 'data-graph-kind="leaf"'), 2)
+                assertEq(occurrences(html, 'data-graph-value=""'), 2)
+                assertEq(occurrences(html, 'data-graph-value-label="">1<'), 2)
             },
             // Three array elements sharing one value are three ports and
             // three lines into one node — each index in its own cell, so
             // none is hidden under another and nothing has to be merged.
+            // The object's `"n"` is a fourth port, holding its `1`.
             parallelEdgesArePorts: () => {
                 const html = htmlToString(demo.view('const $0={"n":1};\nexport default [$0,$0,$0];'))
                 assertEq(occurrences(html, 'data-graph-kind="object"'), 1)
                 assertEq(occurrences(html, 'data-graph-port=""'), 4)
-                assertEq(occurrences(html, 'data-graph-edge=""'), 4)
+                assertEq(occurrences(html, 'data-graph-edge=""'), 3)
                 assert(!html.includes('>0, 1, 2<'), html)
-                // Four different lines, not three drawn on top of each
+                // Three different lines, not three drawn on top of each
                 // other: each piece before an edge's marker ends with its
                 // path data.
                 const routes = html.split('" data-graph-edge=""').slice(0, -1)
                     .map(before => before.slice(before.lastIndexOf('d="') + 'd="'.length))
-                assertEq(new Set(routes).size, 4)
+                assertEq(new Set(routes).size, 3)
             },
             // A shared node reached again from above an intervening rank
             // runs down a lane of its own through that rank; the edges
@@ -150,7 +164,6 @@ export const proof = {
                 assert(html.includes('d="M59.5,56 L59,96"'), html)
                 assert(html.includes('d="M59,142 L59,182"'), html)
                 assert(html.includes('d="M59,228 L35,268"'), html)
-                assert(html.includes('d="M35,314 L35,354"'), html)
             },
             // No edge of the initial document, or of the two skip-level
             // documents above, passes through a node's box.
