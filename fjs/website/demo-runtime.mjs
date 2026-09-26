@@ -174,16 +174,52 @@ const resize = (root, was) => {
 }
 
 /**
+ * Every field's scroll offset, by name.
+ *
+ * **A fresh element starts scrolled to the top**, so without this a long
+ * field jumps back to its first line on every render — and a render follows
+ * every click, including the one that ends a mouse selection. Offsets are the
+ * reader's as surely as the caret and the size are, and they come back by the
+ * same identity.
+ *
+ * @type {(root: Element) => readonly { readonly name: string, readonly top: number, readonly left: number }[]}
+ */
+const scrolled = root => (
+    /** @type {HTMLInputElement[]} */ (Array.from(root.querySelectorAll('[name]')))
+).filter(el => el.scrollTop !== 0 || el.scrollLeft !== 0)
+    .map(el => ({ name: el.name, top: el.scrollTop, left: el.scrollLeft }))
+
+/**
+ * Scrolls every field back to where the reader left it.
+ *
+ * @type {(root: Element, was: ReturnType<typeof scrolled>) => void}
+ */
+const rescroll = (root, was) => {
+    for (const { name, top, left } of was) {
+        const next = /** @type {HTMLInputElement | null} */ (root.querySelector(`[name="${name}"]`))
+        if (next === null) { continue }
+        next.scrollTop = top
+        next.scrollLeft = left
+    }
+}
+
+/**
  * Renders a state, and leaves the reader where they were.
+ *
+ * The size comes back before the scroll offset, because the size bounds how
+ * far a field can scroll; and the offset comes back last, because focusing a
+ * field and setting its selection may scroll it on its own.
  *
  * @type {(root: Element, view: string) => void}
  */
 const render = (root, view) => {
     const was = focused(root)
     const sizes = resized(root)
+    const offsets = scrolled(root)
     root.innerHTML = view
-    refocus(root, was)
     resize(root, sizes)
+    refocus(root, was)
+    rescroll(root, offsets)
 }
 
 /**

@@ -65,6 +65,8 @@ const dom = path => {
             selectionStart: 0,
             selectionEnd: 0,
             style: { width: '', height: '' },
+            scrollTop: 0,
+            scrollLeft: 0,
             focus: () => { active = self },
             setSelectionRange: (/** @type {number} */ start, /** @type {number} */ end) => {
                 self.selectionStart = start
@@ -276,9 +278,29 @@ export const proof = {
         assertEq(after.style.width, '600px')
         assertEq(after.style.height, '300px')
     },
-    // A resized field that a later state simply stops rendering has nowhere
-    // to put its size back — skipped rather than thrown, the same as a
-    // restored caret finding no field to focus.
+    /**
+     * **A scrolled field stays scrolled across a re-render.** A fresh element
+     * starts at the top, and a render follows every click — including the one
+     * that ends a mouse selection — so without a restore, selecting text in a
+     * long field jumps it back to its first line.
+     */
+    keepsScrollOffset: async () => {
+        const d = dom(echo)
+        await startDemo(d.root)
+        await settle()
+        const before = d.root.querySelector('[name="text"]')
+        before.scrollTop = 120
+        before.scrollLeft = 30
+        d.click('text')
+        await settle()
+        const after = d.root.querySelector('[name="text"]')
+        assert(after !== before, 'expected the click to re-render the field')
+        assertEq(after.scrollTop, 120)
+        assertEq(after.scrollLeft, 30)
+    },
+    // A resized or scrolled field that a later state simply stops rendering
+    // has nowhere to put its size or offset back — skipped rather than thrown,
+    // the same as a restored caret finding no field to focus.
     dropsAManualResizeForAFieldThatIsGone: async () => {
         const d = dom(moduleUrl(`
 export const demo = {
@@ -293,6 +315,7 @@ export const demo = {
         await settle()
         const before = d.root.querySelector('[name="text"]')
         before.style.width = '600px'
+        before.scrollTop = 120
         d.input('text', 'hide')
         await settle()
         assert(!d.root.textContent.startsWith('demo failed'), d.root.textContent)
