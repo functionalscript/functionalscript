@@ -179,6 +179,23 @@ textarea { box-sizing: border-box; resize: vertical; width: 100% }
    bigger than it has always been. */
 [data-section] > summary > h2 { display: inline; font: inherit; margin: 0 }
 [data-section] > ul { margin-top: .5rem }
+/* A directory's catalogue is one list of three kinds of entry — directory,
+   file, issue — and each entry's kind is the icon in front of it, where a
+   list's bullet would be. The icon is a mask over the muted colour, so it
+   follows the colour scheme like the text does. It is not decoration: an
+   issue and a file can have the same name, so the icon carries a text
+   alternative after the slash, and a screen reader says the kind too. The
+   plain content before it is for a browser without that syntax, which drops
+   the whole declaration and would otherwise draw no icon at all. */
+ul:has(> [data-kind]) { padding-left: 0 }
+[data-kind] { list-style: none }
+[data-kind]::before { background-color: var(--muted); content: ""; display: inline-block; height: 1em; margin-right: .5em; mask: var(--icon) center / contain no-repeat; vertical-align: -.125em; width: 1em }
+[data-kind="dir"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1 3.5A1.5 1.5 0 0 1 2.5 2h3.6l1.5 1.5h5.9A1.5 1.5 0 0 1 15 5v7.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 12.5z'/%3E%3C/svg%3E") }
+[data-kind="dir"]::before { content: "" / "directory" }
+[data-kind="file"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M3 1h6.5L13 4.5V15H3zM4.5 2.5v11h7v-8h-3v-3z'/%3E%3C/svg%3E") }
+[data-kind="file"]::before { content: "" / "file" }
+[data-kind="issue"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1.5a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11zM8 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z'/%3E%3C/svg%3E") }
+[data-kind="issue"]::before { content: "" / "issue" }
 /* A list of links, one per line — a section's catalogue, the release index —
    is marked data-links, and has nothing under WCAG 2.2's 24px minimum to tap:
    at d05b70ce, rendered at 390px, a listed link was 19px tall. The marker is

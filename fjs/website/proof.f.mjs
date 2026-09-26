@@ -340,7 +340,7 @@ export const proof = {
             })
             const page = textOf(/** @type {Dir} */ (generated.root['a'])['index.html'], 'the page')
             assert(page.includes('>notes.md</a>'), page)
-            assert(page.includes('<summary><h2>Directories</h2></summary>'), page)
+            assert(page.includes('<summary><h2>Contents</h2></summary>'), page)
         },
         /**
          * **`todo/` is a section of its parent, not a page.** Its issues are
@@ -676,11 +676,11 @@ export const proof = {
         assert(source.includes('data-state="idle"'), source)
         assert(source.includes('>Run</button>'), source)
         assert(!source.includes('Run again'), source)
-        assert(source.includes('<summary><h2>Directories</h2></summary>'), source)
+        assert(source.includes('<summary><h2>Contents</h2></summary>'), source)
         // The catalogue is above the suite: what the directory holds is what
         // the reader came for, and a run cannot move what is above it.
         assert(
-            source.indexOf('<summary><h2>Directories</h2></summary>')
+            source.indexOf('<summary><h2>Contents</h2></summary>')
                 < source.indexOf('<summary><h2>Emergent Testing</h2><span data-test-counts=""></span></summary>'),
             source)
         // The heading is the project; the suite is one section of its page.

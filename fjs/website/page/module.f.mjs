@@ -21,15 +21,15 @@
  * The builder is split in two because the root page is not built here. It
  * carries the site's own heading and the browser test runner, so it takes
  * {@link sections} and keeps its own frame, while every other directory gets
- * the whole page from {@link page}. Both write the same three sections, which
- * is the property that matters — a reader moving between them sees one
+ * the whole page from {@link page}. Both write the same catalogue, which is
+ * the property that matters — a reader moving between them sees one
  * catalogue, not two.
  *
  * @module
  *
  * @import { Element, Node } from '../../media/html/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
- * @import { Dir, Proof } from './types.ts'
+ * @import { Dir, Kind, Proof } from './types.ts'
  */
 
 import { htmlUtf8 } from '../../media/html/module.f.mjs'
@@ -302,60 +302,53 @@ const fileHref = commit => path => name => {
 }
 
 /**
- * One section of a page: a heading a reader can fold the section away under,
- * or nothing at all when the list is empty.
+ * One entry of a directory's list: a link, marked with its kind.
  *
- * **A disclosure rather than a heading and a list.** `details` and `summary`
- * are the collapsible the platform already has, so folding a long list away
- * costs the page no script — which matters here, where the whole site is
- * static files served from the repository folder.
+ * **The kind is an attribute, not markup.** The stylesheet draws the icon from
+ * `data-kind` and gives it a text alternative, so the page carries one word
+ * per entry instead of an SVG, and the three pictures live in one place.
  *
- * An empty section is omitted rather than rendered collapsed, so a page says
- * only what is true of its directory: no "Files" to open on a directory that
- * groups others, and no "Issues" where none are filed.
- *
- * @type {(heading: string) => (open: boolean) => (items: readonly Element[]) => readonly Node[]}
+ * @type {(kind: Kind) => (href: string) => (text: string) => Element}
  */
-const section = heading => open => items =>
-    items.length === 0
-        ? []
-        : [['details', { 'data-section': '', open: open ? '' : undefined },
-            summary(heading)(),
-            ['ul', { 'data-links': '' }, ...items]]]
-
-/** @type {(href: string) => (text: string) => Element} */
-const item = href => text => ['li', ['a', { href }, text]]
+const item = kind => href => text => ['li', { 'data-kind': kind }, ['a', { href }, text]]
 
 /**
  * The catalogue of one directory: its subdirectories, its files, and the
- * issues filed against it.
+ * issues filed against it, as one list under one heading.
  *
- * **Directories come before files**, as GitHub and a file manager list
- * them: a directory is where a reader goes next, and a file is where the
- * reading stops, so the way deeper is what the page leads with.
+ * **One list, with an icon per entry.** Three sections made a reader decide
+ * which to open before seeing what the directory holds, and repeated a
+ * heading over lists that are often one line long. The kind is still there to
+ * see — it is the icon — so nothing the sections said is lost.
  *
- * **Directories and files are open, issues are closed.** The first two are
- * what the directory *is* and are bounded by it; the issue list is not — the
- * repository root has fifty — and a page that opened it would push whatever
- * follows off the screen. That is a judgement per section and not a length
- * threshold, so it holds for every directory rather than switching at some
- * size.
+ * **Directories, then files, then issues.** A directory is where a reader
+ * goes next, a file is where the reading stops, as GitHub and a file manager
+ * list them; an issue is about the directory rather than in it, and the
+ * root has forty, so they come last where they push nothing else down.
  *
- * The root page inserts these into its own frame; {@link page} wraps them in
+ * Omitted where the directory has nothing to list, so a page says only what
+ * is true of its directory.
+ *
+ * The root page inserts this into its own frame; {@link page} wraps it in
  * one. Nothing here depends on which of the two is calling.
  *
  * `commit` is where files are read — see {@link fileHref}.
  *
  * @type {(commit: string | null) => (dir: Dir) => readonly Node[]}
  */
-export const sections = commit => dir => [
-    ...section('Directories')(true)(dir.dirs.map(name =>
-        item(pageHref(dir.path === '.' ? name : `${dir.path}/${name}`))(`${name}/`))),
-    ...section('Files')(true)(dir.files.map(name =>
-        item(fileHref(commit)(dir.path)(name))(name))),
-    ...section('Issues')(false)(dir.todo.map(name =>
-        item(fileHref(commit)(dir.path)(`todo/${name}`))(name))),
-]
+export const sections = commit => dir => {
+    const items = [
+        ...dir.dirs.map(name =>
+            item('dir')(pageHref(dir.path === '.' ? name : `${dir.path}/${name}`))(name)),
+        ...dir.files.map(name => item('file')(fileHref(commit)(dir.path)(name))(name)),
+        ...dir.todo.map(name => item('issue')(fileHref(commit)(dir.path)(`todo/${name}`))(name)),
+    ]
+    return items.length === 0
+        ? []
+        : [['details', { 'data-section': '', open: '' },
+            summary('Contents')(),
+            ['ul', { 'data-links': '' }, ...items]]]
+}
 
 /**
  * The path to each ancestor of `path`, root first, paired with the name to
@@ -391,8 +384,8 @@ export const page = commit => dir => htmlUtf8(lang)(
             return at === 0 ? [link] : [' / ', link]
         })],
         ['h1', dir.path],
-        ...sections(commit)(dir),
         ...(dir.demo === null ? [] : demoSection(dir.demo)),
+        ...sections(commit)(dir),
         ...testSection(dir)([]),
     ],
 )

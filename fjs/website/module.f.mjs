@@ -76,7 +76,8 @@ import { toHex, tryFromHexOf } from '../git/oid/module.f.mjs'
  * keeps its own frame, because the heading and the runner are the site's and
  * not the root directory's.
  *
- * **The catalogue comes first and the test suite last.** What a directory
+ * **The demo first, the catalogue next, and the test suite last.** What a
+ * module does is the quickest answer to what it is, and what a directory
  * holds is what a reader came for; a run is something they then ask for. It
  * is also the only order in which a run cannot move the catalogue, whatever
  * the report does.
@@ -100,8 +101,8 @@ const rootPage = commit => dir => htmlUtf8(lang)(
         // for what changed in the version they have is looking for a
         // release note, not for the folder it is filed in.
         ['p', ['a', { href: '/changelog/index.html' }, 'Releases']],
-        .../** @type {readonly Node[]} */ (sections(commit)(dir)),
         .../** @type {readonly Node[]} */ (dir.demo === null ? [] : demoSection(dir.demo)),
+        .../** @type {readonly Node[]} */ (sections(commit)(dir)),
         .../** @type {readonly Node[]} */ (testSection(dir)([
             ['p',
                 'FunctionalScript derives this browser-native unit-test suite from exported proofs. ',

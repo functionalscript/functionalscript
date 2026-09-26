@@ -60,3 +60,9 @@ export type Proof = {
     /** Specifiers a browser cannot resolve, empty where it can link the module. */
     readonly blockers: readonly string[]
 }
+
+/**
+ * What one entry of a directory's list is, which is the icon a reader tells
+ * it by: a subdirectory, a file, or an issue in the directory's `todo/`.
+ */
+export type Kind = 'dir' | 'file' | 'issue'
