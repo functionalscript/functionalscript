@@ -59,10 +59,10 @@ receiver's type — `vm/array/at.rs`, `vm/array/reduce.rs` for `reduce` and
 `reduceRight`, `vm/string/reads.rs` for the six code-unit reads — each with
 its tests, the same layout the per-type `member_access.rs` files have. A
 name shared by types, `at`, `concat`, `includes`, `indexOf`, `lastIndexOf`,
-`slice`, `toString`, is one entry per type, since the algorithms differ. Callbacks — `map`,
-`filter`, `reduce` and the rest — reach the user's function through
-`Function::call` with an arguments array of the element, its index and the
-array itself.
+`slice`, `toString`, is one entry per type, since the algorithms differ.
+Callbacks — `map`, `filter`, `reduce` and the rest — reach the user's
+function through `Function::call` with an arguments array of the element,
+its index and the array itself.
 
 **Completeness is tested, not promised.** The compiler's list and the VM's
 tables must agree, or a name compiles and throws. One test walks
