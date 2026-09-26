@@ -1,6 +1,6 @@
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{Any, Array, IVm, Nullish, Number, ToAny, Unpacked},
+    vm::{Any, Array, IVm, Nullish, Number, ToAny, ToArray, Unpacked},
 };
 
 /// A built-in member function: the receiver and the arguments, already the
@@ -30,11 +30,16 @@ pub(crate) fn method<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Option<Method<A
 
 /// `Array.prototype`'s.
 fn array<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
-    let table: [(&str, Method<A>); 4] = [
+    let table: [(&str, Method<A>); 9] = [
         ("at", array_at),
+        ("concat", array_concat),
         ("includes", array_includes),
         ("indexOf", array_index_of),
         ("lastIndexOf", array_last_index_of),
+        ("slice", array_slice),
+        ("toReversed", array_to_reversed),
+        ("toSpliced", array_to_spliced),
+        ("with", array_with),
     ];
     table
         .into_iter()
@@ -58,6 +63,13 @@ fn argument<A: IVm>(args: &Array<A>, i: u32) -> Any<A> {
 /// searches from the end, `lastIndexOf(x, undefined)` from `0`.
 fn present<A: IVm>(args: &Array<A>, i: u32) -> Option<Any<A>> {
     (i < args.length()).then(|| args[i].clone())
+}
+
+/// The arguments from the `i`-th on, as a rest parameter reads them.
+fn rest<A: IVm>(args: &Array<A>, i: u32) -> Array<A> {
+    (i..args.length().max(i))
+        .map(|k| args[k].clone())
+        .to_array()
 }
 
 /// A search's position as JavaScript answers it: the index, or `-1`.
@@ -109,6 +121,39 @@ fn array_includes<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, An
 fn array_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let found = Array::try_from(receiver)?.index_of(&argument(&args, 0), argument(&args, 1))?;
     Ok(position(found))
+}
+
+/// `Array.prototype.concat`, `vm/array/concat.rs`: every argument an item.
+fn array_concat<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    Ok(Array::try_from(receiver)?.concat(args)?.to_any())
+}
+
+/// `Array.prototype.slice`, `vm/array/slice.rs`.
+fn array_slice<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let a = Array::try_from(receiver)?;
+    Ok(a.slice(argument(&args, 0), argument(&args, 1))?.to_any())
+}
+
+/// `Array.prototype.toReversed`, `vm/array/to_reversed.rs`.
+fn array_to_reversed<A: IVm>(receiver: Any<A>, _: Array<A>) -> Result<Any<A>, Any<A>> {
+    Ok(Array::try_from(receiver)?.to_reversed().to_any())
+}
+
+/// `Array.prototype.toSpliced`, `vm/array/to_spliced.rs`: whether `start`
+/// and `skip` were passed decides how many elements go, so both are read
+/// as present or not.
+fn array_to_spliced<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let a = Array::try_from(receiver)?;
+    Ok(
+        a.to_spliced(present(&args, 0), present(&args, 1), rest(&args, 2))?
+            .to_any(),
+    )
+}
+
+/// `Array.prototype.with`, `vm/array/with.rs`.
+fn array_with<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let a = Array::try_from(receiver)?;
+    Ok(a.with(argument(&args, 0), argument(&args, 1))?.to_any())
 }
 
 /// `Array.prototype.lastIndexOf`, `vm/array/last_index_of.rs`: the one of

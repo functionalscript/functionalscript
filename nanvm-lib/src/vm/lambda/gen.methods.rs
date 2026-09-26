@@ -6,10 +6,15 @@
 pub const ANSWERED: &[(&str, &str)] = &[
     ("object", "toString"),
     ("array", "at"),
+    ("array", "concat"),
     ("array", "includes"),
     ("array", "indexOf"),
     ("array", "lastIndexOf"),
+    ("array", "slice"),
+    ("array", "toReversed"),
+    ("array", "toSpliced"),
     ("array", "toString"),
+    ("array", "with"),
     ("string", "toString"),
     ("number", "toString"),
     ("boolean", "toString"),
@@ -20,7 +25,6 @@ pub const ANSWERED: &[(&str, &str)] = &[
 /// Allowed, and not answered yet: `method` has no entry.
 #[rustfmt::skip]
 pub const PENDING: &[(&str, &str)] = &[
-    ("array", "concat"),
     ("array", "every"),
     ("array", "filter"),
     ("array", "find"),
@@ -33,12 +37,8 @@ pub const PENDING: &[(&str, &str)] = &[
     ("array", "map"),
     ("array", "reduce"),
     ("array", "reduceRight"),
-    ("array", "slice"),
     ("array", "some"),
-    ("array", "toReversed"),
     ("array", "toSorted"),
-    ("array", "toSpliced"),
-    ("array", "with"),
     ("string", "at"),
     ("string", "charAt"),
     ("string", "charCodeAt"),

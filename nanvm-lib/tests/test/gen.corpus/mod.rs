@@ -16,10 +16,15 @@ pub mod logical_and;
 pub mod logical_or;
 pub mod lt;
 pub mod method_at;
+pub mod method_concat;
 pub mod method_includes;
 pub mod method_index_of;
 pub mod method_last_index_of;
+pub mod method_slice;
+pub mod method_to_reversed;
+pub mod method_to_spliced;
 pub mod method_to_string;
+pub mod method_with;
 pub mod mul;
 pub mod ne;
 pub mod neg;
@@ -72,5 +77,10 @@ pub fn all<A: IStaticFunction>() {
     method_includes::run::<A>();
     method_index_of::run::<A>();
     method_last_index_of::run::<A>();
+    method_slice::run::<A>();
+    method_concat::run::<A>();
+    method_to_reversed::run::<A>();
+    method_with::run::<A>();
+    method_to_spliced::run::<A>();
     method_to_string::run::<A>();
 }

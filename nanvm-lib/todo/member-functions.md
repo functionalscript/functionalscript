@@ -164,7 +164,7 @@ the landing order are [array-member-functions](./array-member-functions.md):
 
 - [x] `at` — `vm/array/at.rs`; the index is `Number::to_integer_or_infinity`,
       `ToIntegerOrInfinity` of the argument converted by `ToNumber`.
-- [ ] `concat`
+- [x] `concat` — `vm/array/concat.rs`
 - [ ] `every`
 - [ ] `filter`
 - [ ] `find`
@@ -180,13 +180,13 @@ the landing order are [array-member-functions](./array-member-functions.md):
 - [ ] `map`
 - [ ] `reduce`
 - [ ] `reduceRight`
-- [ ] `slice`
+- [x] `slice` — `vm/array/slice.rs`
 - [ ] `some`
-- [ ] `toReversed`
+- [x] `toReversed` — `vm/array/to_reversed.rs`
 - [ ] `toSorted`
-- [ ] `toSpliced`
+- [x] `toSpliced` — `vm/array/to_spliced.rs`
 - [x] `toString`
-- [ ] `with`
+- [x] `with` — `vm/array/with.rs`
 
 `String`:
 
