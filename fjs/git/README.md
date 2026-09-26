@@ -55,13 +55,17 @@ what a grammar can and cannot do for the formats.
   ascend answers wrongly instead of failing.
 - [`refstore/`](refstore/module.f.mjs) — the refs a repository holds, over
   the effects: `tryRoots` for every one of them, `tryResolve` for a name
-  in hand, and `tryWrite` to put one at an id — the loose file, through the
+  in hand; and [`refstore/write/`](refstore/write/module.f.mjs), the writers
+  over the same name rules: `tryWrite` to put one at an id — the loose file, through the
   `.lock` name Git takes, created and filled in **one** exclusive open so no
   second writer and no symlink can reach the pathname in between, and reading
   `packed-refs` and `stat`ting the ref's own path first for the collision no
   other answer catches: Git lets no ref name be a directory prefix of another,
   and neither a packed name nor a symlink to a directory gives a `mkdir` or a
-  `rename` anything to trip over. Two rules live here because no reader of one file can decide
+  `rename` anything to trip over. `tryDelete` takes a name out: its
+  `packed-refs` line, then its loose file, then its reflog, under Git's own two
+  locks, in the order that never lets a stale packed id become the ref again,
+  and the name itself rather than what a symbolic ref there points to. Two rules live here because no reader of one file can decide
   them: a loose ref shadows the packed line of the same name by existing
   rather than by being good, so a loose file that is no ref leaves the name
   with no value instead of the packed one; and a symbolic ref is followed
@@ -437,17 +441,17 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   work: [`packstore/todo/thin-pack-base.md`](packstore/todo/thin-pack-base.md). Multi-pack indexes, bitmaps
   and the reverse index are not needed to read an object and are not here
   either.
-- **Deleting a ref**, and the reflog:
+- **Appending to the reflog**:
   [`refstore/todo/ref-writing.md`](refstore/todo/ref-writing.md). Reading the refs is done, and
-  so is writing one — [`ref/`](ref/module.f.mjs) for the file grammars and
-  [`refstore/`](refstore/module.f.mjs)'s `tryRoots`, `tryResolve` and
-  `tryWrite` over the effects. A delete is the harder half of a write, because
-  a name can be in a loose file *and* a `packed-refs` line, so the line has to
-  go with the file or it comes back as the ref; and every way `tryWrite` is
+  so are writing and deleting one — [`ref/`](ref/module.f.mjs) for the file
+  grammars, [`refstore/`](refstore/module.f.mjs)'s `tryRoots` and `tryResolve`,
+  and [`refstore/write/`](refstore/write/module.f.mjs)'s `tryWrite` and
+  `tryDelete` over the effects. Every way the two writers are
   narrower than `git update-ref` — no check that the object is there or, under
   `refs/heads/`, that it is a commit, no `core.sharedRepository` mode, no reflog
-  line, no `packed-refs` rewrite, no dereference of a symbolic ref at the name,
-  and a name outside `refs/` refused — is measured and listed in that issue.
+  line, no dereference of a symbolic ref at the name, a name outside `refs/`
+  refused, and an empty directory at the name's path refused where Git removes
+  it — is measured and listed in that issue.
   Reading the
   *reflog* is not done either, which is why `tryRoots` answers the refs and not
   everything the repository is keeping: a reflog entry keeps an object alive until it

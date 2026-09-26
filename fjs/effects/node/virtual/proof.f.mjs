@@ -1,13 +1,13 @@
 /**
  * @import { Dir, State } from './types.ts'
  * @import { IncomingMessage, NodeOp, RequestListener } from '../types.ts'
- * @import { Effect } from '../../types.ts'
+ * @import { Effect, IoResult } from '../../types.ts'
  * @import { IoChannel } from '../types.ts'
  * @import { Key } from '../../memory/types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { resolveFileModule, access, awaitIfPromise, exec, fetch, log, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, forever, listen, readWhole, notAFileCode, notAFileMessage, mkdir } from '../module.f.mjs'
+import { resolveFileModule, access, awaitIfPromise, exec, fetch, log, rm, rmdir, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, forever, listen, readWhole, notAFileCode, notAFileMessage, mkdir } from '../module.f.mjs'
 import { empty, length, maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
 import { history, historyStep, pureOk, step } from '../../module.f.mjs'
 import { utf8, utf8ToString } from '../../../text/module.f.mjs'
@@ -363,6 +363,60 @@ export const proof = {
         assert(result[0] === 'error')
         assertIoMessage(result[1], 'not a directory')
     },
+    // `rmdir` removes an empty directory and nothing else, with the codes a host
+    // answers — measured on node 22.22.2. Each refusal leaves the tree exactly as
+    // it was, which is the property a caller pruning after a delete relies on: a
+    // directory holding anything, a sibling ref included, is never taken.
+    rmdirStates: () => {
+        /** @type {Dir} */
+        const root = {
+            empty: {},
+            full: { inner: {} },
+            nested: { deep: {} },
+            file: [vec8(0x1n)],
+        }
+        /** @type {(path: string) => readonly [Dir, IoResult<void>]} */
+        const removed = path => {
+            const [state, r] = virtual({ ...emptyState, root })(rmdir(path))
+            return [state.root, r]
+        }
+        /** @type {(path: string, code: string) => void} */
+        const refused = (path, code) => {
+            const [after, r] = removed(path)
+            assert(r[0] === 'error', path)
+            assertIoCode(r[1], code)
+            assertStructurallySame(after, root)
+        }
+        // an empty directory goes, and only it
+        const [gone, ok1] = removed('empty')
+        assert(ok1[0] === 'ok')
+        assertStructurallySame(gone, { full: { inner: {} }, nested: { deep: {} }, file: [vec8(0x1n)] })
+        // nested: only the leaf, so the parent it empties stays — `rmdir` is
+        // never recursive, which is what makes pruning a walk the caller owns
+        const [leaf, ok2] = removed('nested/deep')
+        assert(ok2[0] === 'ok')
+        assertStructurallySame(leaf, { empty: {}, full: { inner: {} }, nested: {}, file: [vec8(0x1n)] })
+        refused('full', 'ENOTEMPTY')
+        refused('file', 'ENOTDIR')
+        refused('file/x', 'ENOTDIR')
+        refused('absent', 'ENOENT')
+        refused('absent/deeper', 'ENOENT')
+        refused('', 'ENOENT')
+        refused('.', 'EINVAL')
+    },
+    // `rm` answers the host's codes for a path it cannot serve, presence checked
+    // before length: `ENOENT` for a name absent at any depth, `ENOTDIR` for one
+    // reached through a file. Both used to be messages without a code.
+    rmUnservable: () => {
+        /** @type {Dir} */
+        const root = { file: [vec8(0x1n)] }
+        for (const [path, code] of [['absent', 'ENOENT'], ['absent/deeper', 'ENOENT'], ['file/x', 'ENOTDIR']]) {
+            const [state, r] = virtual({ ...emptyState, root })(rm(path))
+            assert(r[0] === 'error', path)
+            assertIoCode(r[1], code)
+            assertStructurallySame(state.root, root)
+        }
+    },
     createExclusiveNestedMissing: () => {
         // createExclusive('a/b') where 'a' doesn't exist: the operation
         // wrapper falls through with the full remaining path. Start from a
@@ -383,12 +437,12 @@ export const proof = {
     writeExclusiveStates: () => {
         const payload = vec8(0x2An)
         // a free name: created, holding the payload and nothing else
-        const [made, ok1] = virtual(emptyState)(writeExclusive('x.lock', payload))
+        const [made, ok1] = virtual(emptyState)(writeExclusive('x.lock', [payload]))
         assert(ok1[0] === 'ok')
         assertStructurallySame(made.root, { 'x.lock': [payload] })
         // the same name again: `EEXIST`, and the bytes already there are kept,
         // which is the half a plain `writeFile` would get wrong
-        const [again, taken] = virtual(made)(writeExclusive('x.lock', vec8(0x7Fn)))
+        const [again, taken] = virtual(made)(writeExclusive('x.lock', [vec8(0x7Fn)]))
         assert(taken[0] === 'error')
         assertIoCode(taken[1], 'EEXIST')
         assertStructurallySame(again.root, { 'x.lock': [payload] })
@@ -400,7 +454,7 @@ export const proof = {
         // could otherwise do.
         /** @type {Dir} */
         const held = { 'x.lock': { inside: [payload] } }
-        const [intact, isDir] = virtual({ ...emptyState, root: held })(writeExclusive('x.lock', vec8(0x7Fn)))
+        const [intact, isDir] = virtual({ ...emptyState, root: held })(writeExclusive('x.lock', [vec8(0x7Fn)]))
         assert(isDir[0] === 'error')
         assertIoCode(isDir[1], 'EEXIST')
         assertStructurallySame(intact.root, held)
@@ -414,7 +468,7 @@ export const proof = {
         // segments — so the `EEXIST` above must not reach it. Measured, node
         // 22.22.2 answers `ENOENT` for a `wx` open of `''` and `EEXIST` for one
         // of `.`; `statOnEmptyPath` pins the same pair for `stat`.
-        const [, noName] = virtual({ ...emptyState, root: held })(writeExclusive('', payload))
+        const [, noName] = virtual({ ...emptyState, root: held })(writeExclusive('', [payload]))
         assert(noName[0] === 'error')
         assertIoCode(noName[1], 'ENOENT')
         const [, noName2] = virtual({ ...emptyState, root: held })(createExclusive(''))
@@ -422,7 +476,7 @@ export const proof = {
         assertIoCode(noName2[1], 'ENOENT')
         // `.` *is* the root, and the root is a directory a name cannot be created
         // over — the control that keeps the carve-out from swallowing it.
-        const [, dot] = virtual({ ...emptyState, root: held })(writeExclusive('.', payload))
+        const [, dot] = virtual({ ...emptyState, root: held })(writeExclusive('.', [payload]))
         assert(dot[0] === 'error')
         assertIoCode(dot[1], 'EEXIST')
         // a name whose directory is not there: the operation wrapper falls
@@ -431,7 +485,7 @@ export const proof = {
         // wiped directory would be caught.
         /** @type {Dir} */
         const root = { keep: [vec8(0x1n)] }
-        const [state, nested] = virtual({ ...emptyState, root })(writeExclusive('a/b', payload))
+        const [state, nested] = virtual({ ...emptyState, root })(writeExclusive('a/b', [payload]))
         assert(nested[0] === 'error')
         assertStructurallySame(state.root, root)
         // And a `Vec` that is not whole bytes never reaches this runner at all:
@@ -439,10 +493,20 @@ export const proof = {
         // runner's `fromVec` would pad the last byte and create a file holding
         // a byte the caller never gave while this one stored the vector as it
         // was. The refusal is the same one `inflate` makes.
-        const [kept, unaligned] = virtual({ ...emptyState, root })(writeExclusive('x.lock', vec(4n)(0b1010n)))
+        const [kept, unaligned] = virtual({ ...emptyState, root })(writeExclusive('x.lock', [vec(4n)(0b1010n)]))
         assert(unaligned[0] === 'error')
         assertIoMessage(unaligned[1], 'invalid buffer size')
         assertStructurallySame(kept.root, root)
+        // Every chunk is checked, not the first: a whole first chunk ahead of a
+        // partial one is refused the same way, before anything is created.
+        const [keptLate, late] = virtual({ ...emptyState, root })(writeExclusive('x.lock', [payload, vec(4n)(0b1010n)]))
+        assert(late[0] === 'error')
+        assertIoMessage(late[1], 'invalid buffer size')
+        assertStructurallySame(keptLate.root, root)
+        // and several whole chunks are the file's contents, in order
+        const [many, ok2] = virtual(emptyState)(writeExclusive('x', [payload, vec8(0x7Fn)]))
+        assert(ok2[0] === 'ok')
+        assertStructurallySame(many.root, { x: [payload, vec8(0x7Fn)] })
     },
     writeBytesNestedMissing: () => {
         // writeBytes('a/b', ...) where 'a' doesn't exist. Non-empty root, as above.
@@ -725,8 +789,7 @@ export const proof = {
             assertIoCode(failure(stat(name)), 'ENOENT')
             assertIoCode(failure(readFile(name)), 'ENOENT')
             assertIoCode(failure(access(name)), 'ENOENT')
-            // `rm` words a missing entry its own way, and says it here too.
-            assertIoMessage(failure(rm(name)), 'no such file')
+            assertIoCode(failure(rm(name)), 'ENOENT')
             // A name that is not a `JsModule`, because it is not an entry.
             assertIoMessage(failure(import_(name)), `'${name}' is not a JsModule`)
         }
