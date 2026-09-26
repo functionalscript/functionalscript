@@ -9,11 +9,12 @@ FunctionalScript is abbreviated **FJS**, no longer FS
 ([fjs-abbreviation](../../todo/fjs-abbreviation.md)). `fjs/fsc` — "FS
 compiler" — is named after the old abbreviation.
 
-Renaming it to `fjs/fjsc` would fix the abbreviation but keep the other
-problem: it is the one abbreviation among its siblings. Every other directory
-under `fjs/` is a plain word (`cli`, `effects`, `media`), and so are its own
-children (`parser`, `serializer`, `transpiler`). The package path already
-starts with `fjs/`, so `fjs/fjsc/parser` says it twice.
+Renaming it to `fjs/fjsc` would fix the abbreviation but repeat the prefix:
+the package path already starts with `fjs/`, so `fjs/fjsc/parser` says it
+twice. And an abbreviation of the brand ties the directory to the brand, which
+is how this one came to need renaming at all. Its siblings abbreviate too
+(`cli`, `ebnf`, `js`, `mcp`, `rtti`), but what they abbreviate is the
+subject, a term a reader already knows, not the project's name.
 
 ### Proposal
 
@@ -41,8 +42,11 @@ section with a `**BREAKING CHANGES:**` item and updates every importer.
 - [ ] Rename the issue files named after it —
       `fjs/fsc/todo/047-fsc-meta-programming.md`, `070-fsc-flags.md`,
       `083-fsc-hash-comments.md` — to `…-compiler-…`, and fix their links.
-- [ ] Replace "FSC" in prose with "the compiler", in the moved issue files and
-      in `fjs/edag/todo/entry.md`,
+- [ ] Replace every whole-word "FSC" in the tree with "the compiler", found by
+      searching rather than from this list, which is only where it was when
+      this issue was filed: the moved issue files, including
+      `lint-compiler-compatible-files.md`, whose heading and body name FSC,
+      and `fjs/edag/todo/entry.md`,
       `fjs/emergent_testing/todo/imports-promises-realms.md`,
       `spec/README.md`, `spec/todo/serialization.md` and
       `todo/fjs-javascript-compatibility.md`.
