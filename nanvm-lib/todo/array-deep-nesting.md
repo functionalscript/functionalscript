@@ -6,10 +6,11 @@
 ### Problem
 
 `Array::flat` (`vm/array/flat.rs`) and `Array::join` (`vm/array/join.rs`), and
-through `join` the `String(a)` conversion of an array, recurse once per level
-of nesting. An array nested deeply enough — `[[[…]]]` built at run time with
-`reduce`, say — then overflows the Rust stack in `a.flat(Infinity)` or
-`String(a)`, and that is an abort, not a throw.
+through `join` the `String(a)` conversion of an array and the default
+`toSorted`, which converts each element to a string, recurse once per level of
+nesting. An array nested deeply enough — `[[[…]]]` built at run time with
+`reduce`, say — then overflows the Rust stack in `a.flat(Infinity)`,
+`String(a)` or `[a, 0].toSorted()`, and that is an abort, not a throw.
 
 This is the same shape as
 [`fjs/edag/todo/stack-safety.md`](../../fjs/edag/todo/stack-safety.md), one
@@ -35,6 +36,7 @@ recursion, as `fjs/fsc/edag`'s `lower` does for operator chains.
 
 - [ ] `flat` over an explicit stack, with a test nesting deeper than the
       default thread stack allows.
-- [ ] `join` the same.
+- [ ] `join` the same, with tests for `String(a)` and `[a, 0].toSorted()`
+      over the same nesting.
 - [ ] `flat`'s length count remembers each shared array's count, so a
       deeply shared result is refused in time linear in the distinct arrays.
