@@ -320,9 +320,17 @@ which needs three additions to it:
    is about identity, it says so with `ref` and `===` as the operator cases
    already do.
 
-The harness keeps one end-to-end fixture per landing PR, as `at.mjs` does.
-It is proof that the compiled chain reaches the entry, not the place edge
-cases live.
+A method case prints as the chain a compiled call is,
+`Any::dot(receiver, key).end_call(args)`, the same printer `fjs compile` uses,
+so it already goes through the path a compiled module takes. The harness's
+`at.mjs` fixture stays as the one end-to-end proof; the built-ins below add
+none, which also keeps this stack clear of the fixture moves in flight.
+
+The corpus's Rust is one file per group, in `nanvm-lib/tests/test/gen.corpus/`,
+with a `mod.rs` that runs them all. A file is written as a UTF-8 bit vector,
+which `fjs/types/bit_vec` caps at `maxLength`, and the corpus as one file,
+`gen.operators.rs`, had grown to within a few kilobytes of that cap before any
+method case joined it.
 
 #### Completeness, both directions
 
@@ -345,8 +353,11 @@ are only a filter of it. `npm run gen` writes a generated Rust table of every
   throws as it does in JavaScript, and `length`, a property on neither call
   list, so `(1).length()` and `[].length()` throw too.
 
-The test is unit-level because `method` is `pub(crate)`. The generated file is
-included by `#[path]`, since a `gen.` name is not a Rust identifier, following
+The pending list is `pending` in
+[`fjs/nanvm/methods`](../../fjs/nanvm/methods/module.f.mjs), and the table it
+prints is `nanvm-lib/src/vm/lambda/gen.methods.rs`. The test is unit-level
+because `method` is `pub(crate)`. The generated file is included by `#[path]`,
+since a `gen.` name is not a Rust identifier, following
 [naming generated files](../../CONTRIBUTING.md#naming-generated-files).
 
 #### Known limitation, deferred by name
@@ -363,11 +374,7 @@ the default `toSorted`, which converts each element — over a deep enough
 
 ### Open questions
 
-1. **Printed corpus file name.** Method cases would land in
-   `gen.operators.rs` beside the operators. Is that name acceptable for them,
-   or does the corpus's Rust output get a name that covers both? A rename
-   would be its own PR, not part of this stack.
-2. **`toSorted` and implementation-defined order.** Is documenting it enough,
+1. **`toSorted` and implementation-defined order.** Is documenting it enough,
    as proposed, or should the language restrict or specify the comparator? The
    question belongs to a language designer and does not block anything here:
    the consistent-comparator behaviour is the same under every answer.
@@ -375,15 +382,17 @@ the default `toSorted`, which converts each element — over a deep enough
 ### Tasks
 
 Each PR adds its built-ins under `vm/array/`, their `method.rs` entries, their
-corpus cases, one harness fixture, and removes their pairs from `pending`. It
+corpus cases, and removes their pairs from `pending`. It
 ticks their rows in [member-functions](./member-functions.md)' `Array`
 checklist, names them in [`nanvm-lib/README.md`](../README.md)'s chains row,
 and runs the full check set.
 
-- [ ] **Infrastructure.** The method-call group, the callback vocabulary,
-      structural expectations on both sides, and the generated completeness
-      test with `pending` holding every pair not yet answered. No built-in
-      lands here, and the test passes with the current table.
+- [x] **Infrastructure.** The method-call group, with `at` and `toString`
+      as its first cases, structural expectations on both sides, the corpus
+      as one file per group, and the generated completeness test with
+      `pending` holding every pair not yet answered. No built-in lands here.
+      The callback vocabulary lands with its first consumer, the iteration
+      PR, rather than unused.
 - [ ] **Search.** `includes`, `indexOf`, `lastIndexOf`, with `present`,
       the relative-index helper (`at` refactored onto it) and `SameValueZero`.
 - [ ] **Copies.** `slice`, `concat`, `toReversed`, `with`, `toSpliced`, with
@@ -391,7 +400,8 @@ and runs the full check set.
 - [ ] **`join`.** `arr_to_string` becomes `Array::join` with `","`.
 - [ ] **Iteration.** `every`, `some`, `find`, `findIndex`, `findLast`,
       `findLastIndex`, `map`, `filter`, with the callback check ahead of the
-      visit and `thisArg` accepted with no effect.
+      visit and `thisArg` accepted with no effect, and the corpus's callback
+      vocabulary.
 - [ ] **Folds.** `reduce`, `reduceRight`.
 - [ ] **Flattening.** `flat`, `flatMap`, and the deferred-recursion `todo/`
       above.

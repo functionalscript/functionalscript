@@ -191,7 +191,7 @@ generator — and never give a handwritten file that name: `gen:clean` deletes
 it. The dot matters: `generated-*.md` and `generic-operation-signatures.md`
 are handwritten.
 
-- The prefix leaves the suffix alone (`gen.matrix.md`, `gen.operators.rs`), so
+- The prefix leaves the suffix alone (`gen.matrix.md`, `gen.methods.rs`), so
   every tool that picks files by suffix works unchanged. A generated
   FunctionalScript module is `gen.{name}/module.f.mjs`, held to the same proof
   coverage as any other.

@@ -8,7 +8,7 @@
  * - [`proof.f.mjs`](./proof.f.mjs) evaluates each case against a standard
  *   JavaScript engine, proving that the expectations describe JavaScript.
  * - [`rust/module.f.mjs`](./rust/module.f.mjs) prints each case as Rust,
- *   producing `nanvm-lib/tests/test/gen.operators.rs`, which runs the same case
+ *   producing `nanvm-lib/tests/test/gen.corpus/`, which runs the same case
  *   against `nanvm-lib`.
  *
  * Beside the data are the format's **constructors** (`functionValue`, `ref`,
@@ -32,14 +32,14 @@
  * @module
  *
  * @import { Exp, Op1, Op1Id, Op12, Op12Id, Op2, Op2Id, Op3, Op3Id, Property } from '../edag/types.ts'
- * @import { Case, Data, Expectation, FunctionValue, Group, Ref, SharedNode, Struct, Throws, Unreached, Value } from './types.ts'
+ * @import { AnyCase, Case, Data, Expectation, FunctionValue, Group, MethodCase, OperatorGroup, Ref, SharedNode, Struct, Throws, Unreached, Value } from './types.ts'
  *
  * @example
  *
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 28
+ * data.groups.length // 31
  * ```
  */
 
@@ -135,7 +135,7 @@ const isCommutative = g => g.commutative === true
  * owner — spelled differently in the two consumers, the JavaScript and Rust
  * names for one case would silently diverge.
  *
- * @type {(g: Group) => (c: Case<1> | Case<2> | Case<3>) => readonly (readonly[string, readonly Value[]])[]}
+ * @type {(g: Group) => (c: AnyCase) => readonly (readonly[string, readonly Value[]])[]}
  */
 export const orders = g => c => isCommutative(g)
     ? [[c.name, c.args], [`${c.name}Swapped`, c.args.toReversed()]]
@@ -145,7 +145,9 @@ export const orders = g => c => isCommutative(g)
  * The name both consumers file a group under: the proof's test key, and the
  * key of the printer's Rust-name table.
  *
- * For every group but an `Op12` one it is the operation tag. Two `Op12`
+ * For a method group it is the method name after a `.`, `'.at'`, which no
+ * operation tag is, so a method never files under an operator's key. For
+ * every operator group but an `Op12` one it is the operation tag. Two `Op12`
  * groups share a tag and differ in arity — `-` at one operand is negation, at
  * two subtraction — so theirs carries the arity too: `'-/1'`, `'-/2'`. One
  * owner for the spelling, as `orders` is for the `Swapped` suffix: spelled
@@ -154,7 +156,10 @@ export const orders = g => c => isCommutative(g)
  *
  * @type {(g: Group) => string}
  */
-export const groupKey = g => 'arity' in g ? `${g.op}/${g.arity}` : g.op
+export const groupKey = g =>
+    'method' in g ? `.${g.method}`
+    : 'arity' in g ? `${g.op}/${g.arity}`
+    : g.op
 
 /**
  * A group's cases, read without first deciding which kind of group it is.
@@ -162,7 +167,7 @@ export const groupKey = g => 'arity' in g ? `${g.op}/${g.arity}` : g.op
  * The operand count is the point of the three group types, and it is fixed
  * before a consumer gets here; walking the cases does not need it back.
  *
- * @type {(g: Group) => readonly (Case<1> | Case<2> | Case<3>)[]}
+ * @type {(g: Group) => readonly AnyCase[]}
  */
 export const casesOf = g => g.cases
 
@@ -177,7 +182,10 @@ export const casesOf = g => g.cases
  * statically, for the consumers that walk `data.groups` and so hold a
  * `Group` whose arm is no longer known.
  *
- * @type {(g: Group) => 1 | 2 | 3}
+ * A method group has no such count — a call takes any number of arguments
+ * — so it is not asked.
+ *
+ * @type {(g: OperatorGroup) => 1 | 2 | 3}
  */
 export const arityOf = g => {
     if ('arity' in g) { return g.arity }
@@ -278,6 +286,7 @@ export const valueExp = constExp(name => { throw ['no shared value here', name] 
  * @type {(shared: readonly SharedNode[]) => (g: Group) => (args: readonly Value[]) => Exp}
  */
 export const caseExp = shared => g => args => {
+    if ('method' in g) { return methodExp(valuesExp(shared))(g.method)(args) }
     // The operand count comes from the group, not from the operands. A
     // `Case<N>` cannot carry the wrong number, but this function is exported
     // and its `args` are a plain array, so a caller can hand over a count the
@@ -297,6 +306,24 @@ export const caseExp = shared => g => args => {
             ? [/** @type {Op2Id | Op12Id} */ (g.op), a, b]
             : [/** @type {Op3Id} */ (g.op), a, b, c]
     return e
+}
+
+/**
+ * The expression a method case denotes: the call `receiver.method(...rest)`
+ * as the chain node a compiled one is — the `.` read owning its `|()` call
+ * step, the arguments one array operand spread at the call
+ * ([Chains](../edag/README.md#chains)). So `[1, 2].at(0)` is
+ * `['.', ['[]', [1, 2]], 'at', ['|()', ['[]', [0]]]]`.
+ *
+ * A case holds its receiver, so `args` is never empty; the refusal is for a
+ * caller of the exported `caseExp`, whose `args` are a plain array.
+ *
+ * @type {(f: (v: Value) => Exp) => (method: string) => (args: readonly Value[]) => Exp}
+ */
+const methodExp = f => method => args => {
+    if (args.length === 0) { throw ['a method case has no receiver', method] }
+    const [receiver, ...rest] = args.map(f)
+    return ['.', receiver, method, ['|()', ['[]', rest]]]
 }
 
 /**
@@ -1479,6 +1506,63 @@ const strictEqualityCases = [
     { name: 'objectByEqualObject', args: [ref('object'), { '0': '0' }], expected: false },
 ]
 
+/**
+ * `Array.prototype.at`: the element from the start or, for a negative index,
+ * from the end, `undefined` out of range, and the index `ToIntegerOrInfinity`
+ * of the argument — truncated, a string converted, `undefined` and `NaN`
+ * zero, and a bigint the `TypeError` `ToNumber` throws.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const atCases = [
+    { name: 'first', args: [[10, 20, 30], 0], expected: 10 },
+    { name: 'last', args: [[10, 20, 30], 2], expected: 30 },
+    { name: 'fromTheEnd', args: [[10, 20, 30], -1], expected: 30 },
+    { name: 'firstFromTheEnd', args: [[10, 20, 30], -3], expected: 10 },
+    { name: 'pastTheEnd', args: [[10, 20, 30], 3], expected: undefined },
+    { name: 'beforeTheStart', args: [[10, 20, 30], -4], expected: undefined },
+    { name: 'infinity', args: [[10, 20, 30], Infinity], expected: undefined },
+    { name: 'negativeInfinity', args: [[10, 20, 30], -Infinity], expected: undefined },
+    { name: 'empty', args: [[], 0], expected: undefined },
+    { name: 'truncated', args: [[10, 20, 30], 1.7], expected: 20 },
+    { name: 'negativeFraction', args: [[10, 20, 30], -0.5], expected: 10 },
+    { name: 'string', args: [[10, 20, 30], '1'], expected: 20 },
+    { name: 'undefinedIndex', args: [[10, 20, 30], undefined], expected: 10 },
+    { name: 'nanIndex', args: [[10, 20, 30], NaN], expected: 10 },
+    { name: 'noArgument', args: [[10, 20, 30]], expected: 10 },
+    { name: 'extraArgument', args: [[10, 20, 30], 1, 2], expected: 20 },
+    { name: 'nested', args: [[[1], [2]], 1], expected: [2] },
+    { name: 'bigint', args: [[10, 20, 30], 1n], expected: throws },
+    { name: 'object', args: [{}, 0], expected: throws },
+    { name: 'number', args: [1, 0], expected: throws },
+    { name: 'ownProperty', args: [{ at: functionValue }, 0], expected: undefined },
+]
+
+/**
+ * `toString()` on every type but a function, whose text is the
+ * rendering `nanvm-lib/todo/member-functions.md` tracks (see
+ * {@link FunctionValue}). A radix on a number or a bigint is refused by
+ * `nanvm-lib` until it is written, rather than answered in radix ten.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const toStringCases = [
+    { name: 'number', args: [1.5], expected: '1.5' },
+    { name: 'negativeZero', args: [-0], expected: '0' },
+    { name: 'boolean', args: [true], expected: 'true' },
+    { name: 'string', args: ['ab'], expected: 'ab' },
+    { name: 'bigint', args: [5n], expected: '5' },
+    { name: 'array', args: [[1, 'b', null, undefined, [2, 3]]], expected: '1,b,,,2,3' },
+    { name: 'object', args: [{}], expected: '[object Object]' },
+    { name: 'radixTen', args: [255, 10], expected: '255' },
+    { name: 'radixUndefined', args: [255, undefined], expected: '255' },
+    { name: 'radix', args: [255, 16], expected: 'ff', rust: 'a radix other than ten is refused' },
+    { name: 'bigintRadix', args: [255n, 16], expected: 'ff', rust: 'a radix other than ten is refused' },
+    { name: 'argumentIgnored', args: [[1], 16], expected: '1' },
+    { name: 'null', args: [null], expected: throws },
+    { name: 'undefined', args: [undefined], expected: throws },
+]
+
 /** @type {Data} */
 export const data = {
     shared: sharedValues,
@@ -1541,5 +1625,7 @@ export const data = {
         { op: 'typeof', cases: typeofCases },
         { op: 'String', cases: stringCoercionCases },
         { op: 'own', cases: ownCases },
+        { method: 'at', cases: atCases },
+        { method: 'toString', cases: toStringCases },
     ],
 }
