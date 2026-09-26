@@ -56,9 +56,12 @@ export const proof = {
         assert(keys(r.absent).includes('array.charAt'))
         assert(keys(r.absent).includes('number.map'))
         assert(keys(r.absent).includes('array.bind'))
+        // `length`, a property, on every type, whether its prototype has it or not.
+        assert(types.every(([t]) => keys(r.absent).includes(`${t}.length`)))
+        // Every known pair is in exactly one row.
         const onPrototype = [...keys(r.answered), ...keys(r.pending), ...keys(r.prohibited)]
-        assert(r.absent.every(([t, n]) =>
-            (allowed.includes(n) || prohibited.includes(n)) && !onPrototype.includes(`${t}.${n}`)))
+        assert(r.absent.every(([t, n]) => !onPrototype.includes(`${t}.${n}`)))
+        assertEq(onPrototype.length + r.absent.length, types.length * prototypeNames.length)
         // Every name any prototype has is some type's.
         /** @type {readonly string[]} */
         const names = types.flatMap(([, n]) => n)
