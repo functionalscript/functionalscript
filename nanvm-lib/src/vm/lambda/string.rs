@@ -8,7 +8,7 @@ use crate::vm::{Any, Array, IVm, Number, String, ToAny};
 
 /// `String.prototype`'s.
 pub(super) fn string<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
-    let table: [(&str, Method<A>); 20] = [
+    let table: [(&str, Method<A>); 23] = [
         ("at", at),
         ("charAt", char_at),
         ("charCodeAt", char_code_at),
@@ -22,7 +22,10 @@ pub(super) fn string<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
         ("padEnd", pad_end),
         ("padStart", pad_start),
         ("repeat", repeat),
+        ("replace", replace),
+        ("replaceAll", replace_all),
         ("slice", slice),
+        ("split", split),
         ("startsWith", starts_with),
         ("substring", substring),
         ("toWellFormed", to_well_formed),
@@ -134,4 +137,22 @@ fn trim_start<A: IVm>(s: Any<A>, _: Array<A>) -> Result<Any<A>, Any<A>> {
 
 fn trim_end<A: IVm>(s: Any<A>, _: Array<A>) -> Result<Any<A>, Any<A>> {
     Ok(receiver(s)?.trim(false, true).to_any())
+}
+
+fn replace<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    Ok(receiver(s)?
+        .replace(argument(&args, 0), argument(&args, 1))?
+        .to_any())
+}
+
+fn replace_all<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    Ok(receiver(s)?
+        .replace_all(argument(&args, 0), argument(&args, 1))?
+        .to_any())
+}
+
+fn split<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    Ok(receiver(s)?
+        .split(argument(&args, 0), argument(&args, 1))?
+        .to_any())
 }
