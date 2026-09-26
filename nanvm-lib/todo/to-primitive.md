@@ -161,6 +161,15 @@ reasons of those cases. The host-only cases in `fjs/nanvm/proof.f.mjs`
 `toStringNotPrimitive`) move into the shared corpus, since both sides then
 agree.
 
+The order of the two conversions becomes observable here, since a method
+can throw. `>` and `<=` pass their operands to `is_less_than` swapped, and it
+converts its first argument first, so today `a > b` converts `b` first.
+ECMAScript's `LeftFirst` flag keeps the left operand first for all four
+operators: with `a` and `b` whose `toString`s throw `"a"` and `"b"`, each of
+`a < b`, `a > b`, `a <= b` and `a >= b` throws `"a"`. Stage 2 gives
+`is_less_than` that flag, with a test per operator. Until then no test can
+tell the orders apart, because every refusal is the same from either side.
+
 A method's result can itself be an object with its own methods. Step 6 does
 not convert it; it moves on. So the conversion cannot recurse through its
 results, and the only recursion is the user's own call.
