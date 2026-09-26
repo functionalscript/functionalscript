@@ -68,8 +68,11 @@ its position, `isWellFormed` says whether any surrogate is unpaired, and
 
 ### The contracts
 
-Positions reuse `relative` and `clamped` from `vm/array/relative.rs`; a result
-past the length limit is refused (see the next section).
+Positions reuse `relative` and `clamped` from `vm/array/relative.rs`: `at`
+and `slice` count a negative position from the end with `relative`, while the
+searches and `substring` clamp `ToIntegerOrInfinity` straight into range with
+`clamped`, so `"abc".includes("a", -1)` is `true`. A result past the length
+limit is refused (see the next section).
 
 **Reads.**
 
@@ -110,7 +113,7 @@ past the length limit is refused (see the next section).
 |---|---|
 | `replace(p, r)` | The first occurrence of `ToString(p)` replaced; an empty `p` matches at `0`. `r` a function is called with `(matched, position, string)` and its `ToString` inserted; otherwise `ToString(r)` with `$$`, `$&`, `` $` ``, `$'` substituted. |
 | `replaceAll(p, r)` | Every non-overlapping occurrence, left to right; an empty `p` matches between every two code units and at both ends. `r` as for `replace`, called once per occurrence in order. |
-| `split(sep, limit)` | `limit` is `ToUint32`, `2³² − 1` when `undefined`, and `0` answers `[]` before anything else. `sep` `undefined` answers `[s]`; otherwise `ToString(sep)`, and an empty separator splits into code units. |
+| `split(sep, limit)` | `limit` is `ToUint32`, `2³² − 1` when `undefined`; then `ToString(sep)`, as ECMAScript orders it, so a separator whose conversion throws throws even with a limit of `0`. Then `0` answers `[]`, `sep` `undefined` answers `[s]`, and an empty separator splits into code units. |
 
 **`Number`.**
 
@@ -118,7 +121,7 @@ past the length limit is refused (see the next section).
 |---|---|
 | `toString(radix)` | `radix` `undefined` or `10`: as today. Otherwise `ToIntegerOrInfinity(radix)` in `[2, 36]`, else a `RangeError`. A finite integer-valued number converts exactly in that radix, digits `0-9a-z`, sign first; `NaN` and the infinities as with radix ten. A number with a fraction and a radix other than ten keeps throwing: ECMAScript leaves those digits to the engine. |
 | `BigInt` `toString(radix)` | The same radix check; every bigint converts exactly. |
-| `toFixed(f)` | `ToIntegerOrInfinity(f)` in `[0, 100]`, else a `RangeError`, checked **before** looking at the number, so `Infinity.toFixed(101)` throws. Then a non-finite number is its `ToString`; `|x| ≥ 10²¹` is its `ToString`; otherwise `n` is the integer closest to `x × 10^f`, **the larger on a tie**, so `(2.5).toFixed(0)` is `"3"` and `(1.005).toFixed(2)` is `"1.00"`, since the double nearest `1.005` is below it. `-0` is `"0.00"`. |
+| `toFixed(f)` | `ToIntegerOrInfinity(f)` in `[0, 100]`, else a `RangeError`, checked **before** looking at the number, so `Infinity.toFixed(101)` throws. Then a non-finite number is its `ToString`; `|x| ≥ 10²¹` is its `ToString`; otherwise `n` is the integer closest to `x × 10^f`, **the larger on a tie**, so `(2.5).toFixed(0)` is `"3"` and `(1.005).toFixed(2)` is `"1.00"`, since the double nearest `1.005` is below it. A negative number is rounded by its magnitude and keeps its sign, so `(-2.5).toFixed(0)` is `"-3"` and `(-0.1).toFixed(0)` is `"-0"`; only `-0` itself is unsigned, `"0.00"`. |
 | `toExponential(f)` | `ToIntegerOrInfinity(f)` first, so `NaN` is `0` and a bigint is a `TypeError` even on `Infinity`. Then a non-finite number is its `ToString`, checked **before** the range, so `Infinity.toExponential(101)` is `"Infinity"`. Then `[0, 100]`, else a `RangeError`. `f` `undefined` means as many digits as the shortest round-tripping representation, the digits `ToString` uses. Otherwise `f + 1` significant digits, the larger on a tie. Exponent written `e+N` / `e-N`. |
 | `toPrecision(p)` | `p` `undefined` is `ToString`. Otherwise `ToIntegerOrInfinity(p)` first, so `"2.9"` is `2`; then a non-finite number is its `ToString`; then `[1, 100]`, else a `RangeError`. `p` significant digits, the larger on a tie; exponential notation when the exponent is below `-6` or at least `p`. |
 
@@ -133,7 +136,7 @@ for `Number::toString`.
 - **The longest string.** ECMAScript allows strings up to `2⁵³ − 1` code units,
   and every engine refuses much shorter ones: V8 throws a `RangeError` for
   `"a".repeat(2 ** 30)`. NaNVM's `String<A>` is indexed by `u32`, so `repeat`,
-  `padStart`, `padEnd`, `concat`, `replaceAll` and `toWellFormed` refuse a
+  `padStart`, `padEnd`, `concat`, `replace`, `replaceAll` and `toWellFormed` refuse a
   result past `2³² − 1` units with the same `RangeError`, never wrapping it. A
   length between the two limits answers here and throws on V8; the corpus pins
   neither.
