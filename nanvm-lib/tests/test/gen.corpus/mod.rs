@@ -19,6 +19,7 @@ pub mod method_at;
 pub mod method_concat;
 pub mod method_includes;
 pub mod method_index_of;
+pub mod method_join;
 pub mod method_last_index_of;
 pub mod method_slice;
 pub mod method_to_reversed;
@@ -82,5 +83,6 @@ pub fn all<A: IStaticFunction>() {
     method_to_reversed::run::<A>();
     method_with::run::<A>();
     method_to_spliced::run::<A>();
+    method_join::run::<A>();
     method_to_string::run::<A>();
 }

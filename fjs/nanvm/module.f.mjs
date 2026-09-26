@@ -39,7 +39,7 @@
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 39
+ * data.groups.length // 40
  * ```
  */
 
@@ -1713,6 +1713,31 @@ const toSplicedCases = [
 ]
 
 /**
+ * `Array.prototype.join`: the elements as strings, `undefined` and `null`
+ * as the empty string and a nested array by its own `toString`, joined by
+ * `","` when the separator is absent or `undefined`, and otherwise by the
+ * separator as a string, so `null` joins with `"null"`. A function element
+ * is not written here, for the reason at {@link FunctionValue}.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const joinCases = [
+    { name: 'noArgument', args: [[1, 2, 3]], expected: '1,2,3' },
+    { name: 'undefinedSeparator', args: [[1, 2], undefined], expected: '1,2' },
+    { name: 'separator', args: [[1, 2], '-'], expected: '1-2' },
+    { name: 'emptySeparator', args: [[1, 2], ''], expected: '12' },
+    { name: 'nullSeparator', args: [[1, 2], null], expected: '1null2' },
+    { name: 'numberSeparator', args: [[1, 2], 0], expected: '102' },
+    { name: 'arraySeparator', args: [[1, 2], [3, 4]], expected: '13,42' },
+    { name: 'nullish', args: [[null, undefined, 1], ';'], expected: ';;1' },
+    { name: 'nested', args: [[1, [2, [3, null]]], ';'], expected: '1;2,3,' },
+    { name: 'values', args: [[true, 5n, 'a', {}, -0]], expected: 'true,5,a,[object Object],0' },
+    { name: 'empty', args: [[], '-'], expected: '' },
+    { name: 'one', args: [[1], '-'], expected: '1' },
+    { name: 'bigintSeparator', args: [[1, 2], 0n], expected: '102' },
+]
+
+/**
  * `toString()` on every type but a function, whose text is the
  * rendering `nanvm-lib/todo/member-functions.md` tracks (see
  * {@link FunctionValue}). A radix on a number or a bigint is refused by
@@ -1808,6 +1833,7 @@ export const data = {
         { method: 'toReversed', cases: toReversedCases },
         { method: 'with', cases: withCases },
         { method: 'toSpliced', cases: toSplicedCases },
+        { method: 'join', cases: joinCases },
         { method: 'toString', cases: toStringCases },
     ],
 }
