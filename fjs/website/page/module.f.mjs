@@ -314,9 +314,15 @@ const fileHref = commit => path => name => {
  * `data-kind` and gives it a text alternative, so the page carries one word
  * per entry instead of an SVG, and the three pictures live in one place.
  *
+ * **On the link, not the list item.** The icon's text alternative is part of
+ * whatever element draws it, and only a link's own content is its accessible
+ * name. On the `li`, a file and an issue with the same name were two links a
+ * screen reader's list of links announced identically; on the `a`, one is
+ * "file a.md" and the other "issue a.md". The icon is clickable too.
+ *
  * @type {(kind: Kind) => (href: string) => (text: string) => Element}
  */
-const item = kind => href => text => ['li', { 'data-kind': kind }, ['a', { href }, text]]
+const item = kind => href => text => ['li', ['a', { href, 'data-kind': kind }, text]]
 
 /**
  * The catalogue of one directory: its subdirectories, its files, and the

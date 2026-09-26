@@ -184,11 +184,14 @@ textarea { box-sizing: border-box; resize: vertical; width: 100% }
    list's bullet would be. The icon is a mask over the muted colour, so it
    follows the colour scheme like the text does. It is not decoration: an
    issue and a file can have the same name, so the icon carries a text
-   alternative after the slash, and a screen reader says the kind too. The
-   plain content before it is for a browser without that syntax, which drops
-   the whole declaration and would otherwise draw no icon at all. */
-ul:has(> [data-kind]) { padding-left: 0 }
-[data-kind] { list-style: none }
+   alternative after the slash. The kind is on the link rather than its list
+   item, so the alternative is part of the link's accessible name: a reader
+   going through the page's links hears "file a.md" and "issue a.md", not the
+   same name twice. The plain content before it is for a browser without that
+   syntax, which drops the whole declaration and would otherwise draw no icon
+   at all. */
+ul:has(> li > [data-kind]) { padding-left: 0 }
+li:has(> [data-kind]) { list-style: none }
 [data-kind]::before { background-color: var(--muted); content: ""; display: inline-block; height: 1em; margin-right: .5em; mask: var(--icon) center / contain no-repeat; vertical-align: -.125em; width: 1em }
 [data-kind="dir"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1 3.5A1.5 1.5 0 0 1 2.5 2h3.6l1.5 1.5h5.9A1.5 1.5 0 0 1 15 5v7.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 12.5z'/%3E%3C/svg%3E") }
 [data-kind="dir"]::before { content: "" / "directory" }

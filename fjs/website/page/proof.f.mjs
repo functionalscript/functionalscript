@@ -52,11 +52,11 @@ export const proof = {
         // same href is written wherever the page sits.
         files: () => assertEq(
             sectionsHtml({ ...empty, path: 'fjs/types/list', files: ['module.f.mjs'] }),
-            contents('<li data-kind="file"><a href="/fjs/types/list/module.f.mjs">module.f.mjs</a></li>')),
+            contents('<li><a href="/fjs/types/list/module.f.mjs" data-kind="file">module.f.mjs</a></li>')),
         // A file of the root directory has no directory in its path.
         filesAtRoot: () => assertEq(
             sectionsHtml({ ...empty, files: ['module.f.mjs'] }),
-            contents('<li data-kind="file"><a href="/module.f.mjs">module.f.mjs</a></li>')),
+            contents('<li><a href="/module.f.mjs" data-kind="file">module.f.mjs</a></li>')),
         /**
          * **One list: directories, then files, then issues**, each marked
          * with its kind. The way deeper leads, and the issues — forty at the
@@ -64,25 +64,25 @@ export const proof = {
          */
         oneListInOrder: () => assertEq(
             sectionsHtml({ ...empty, path: 'fjs', todo: ['a.md'], files: ['module.f.mjs'], dirs: ['types'] }),
-            contents('<li data-kind="dir"><a href="/fjs/types/index.html">types</a></li>'
-                + '<li data-kind="file"><a href="/fjs/module.f.mjs">module.f.mjs</a></li>'
-                + '<li data-kind="issue"><a href="/fjs/todo/a.md">a.md</a></li>')),
+            contents('<li><a href="/fjs/types/index.html" data-kind="dir">types</a></li>'
+                + '<li><a href="/fjs/module.f.mjs" data-kind="file">module.f.mjs</a></li>'
+                + '<li><a href="/fjs/todo/a.md" data-kind="issue">a.md</a></li>')),
         // A subdirectory link points at a page, and every such page exists —
         // which is what the "every directory gets one" rule buys.
         dirs: () => assertEq(
             sectionsHtml({ ...empty, path: 'fjs', dirs: ['types'] }),
-            contents('<li data-kind="dir"><a href="/fjs/types/index.html">types</a></li>')),
+            contents('<li><a href="/fjs/types/index.html" data-kind="dir">types</a></li>')),
         dirsAtRoot: () => assertEq(
             sectionsHtml({ ...empty, dirs: ['fjs'] }),
-            contents('<li data-kind="dir"><a href="/fjs/index.html">fjs</a></li>')),
+            contents('<li><a href="/fjs/index.html" data-kind="dir">fjs</a></li>')),
         // An issue is linked inside the `todo/` it was filed in, which has no
         // page of its own.
         todo: () => assertEq(
             sectionsHtml({ ...empty, path: 'fjs', todo: ['a.md'] }),
-            contents('<li data-kind="issue"><a href="/fjs/todo/a.md">a.md</a></li>')),
+            contents('<li><a href="/fjs/todo/a.md" data-kind="issue">a.md</a></li>')),
         todoAtRoot: () => assertEq(
             sectionsHtml({ ...empty, todo: ['a.md'] }),
-            contents('<li data-kind="issue"><a href="/todo/a.md">a.md</a></li>')),
+            contents('<li><a href="/todo/a.md" data-kind="issue">a.md</a></li>')),
         /**
          * **A file name that is not already a URL is encoded**, on this site
          * and on GitHub alike. `%` is in it on purpose: an encoder that
@@ -91,16 +91,16 @@ export const proof = {
         encoded: {
             files: () => assertEq(
                 sectionsHtml({ ...empty, path: 'fjs/x y', files: ['a b#c?100%.md'] }),
-                contents('<li data-kind="file"><a href="/fjs/x%20y/a%20b%23c%3F100%25.md">a b#c?100%.md</a></li>')),
+                contents('<li><a href="/fjs/x%20y/a%20b%23c%3F100%25.md" data-kind="file">a b#c?100%.md</a></li>')),
             todo: () => assertEq(
                 sectionsHtml({ ...empty, path: 'fjs', todo: ['open issue.md'] }),
-                contents('<li data-kind="issue"><a href="/fjs/todo/open%20issue.md">open issue.md</a></li>')),
+                contents('<li><a href="/fjs/todo/open%20issue.md" data-kind="issue">open issue.md</a></li>')),
             dirs: () => assertEq(
                 sectionsHtml({ ...empty, path: 'fjs', dirs: ['x y'] }),
-                contents('<li data-kind="dir"><a href="/fjs/x%20y/index.html">x y</a></li>')),
+                contents('<li><a href="/fjs/x%20y/index.html" data-kind="dir">x y</a></li>')),
             atCommit: () => assertEq(
                 sectionsAtCommit({ ...empty, path: 'fjs/x y', files: ['中.md'] }),
-                contents(`<li data-kind="file"><a href="${repository}/blob/${commit}/fjs/x%20y/%E4%B8%AD.md">中.md</a></li>`)),
+                contents(`<li><a href="${repository}/blob/${commit}/fjs/x%20y/%E4%B8%AD.md" data-kind="file">中.md</a></li>`)),
         },
         /**
          * **With a commit, a file a reader opens is read on GitHub**, at that
@@ -110,18 +110,18 @@ export const proof = {
         atCommit: {
             files: () => assertEq(
                 sectionsAtCommit({ ...empty, path: 'fjs/types/list', files: ['module.f.mjs'] }),
-                contents(`<li data-kind="file"><a href="${repository}/blob/${commit}/fjs/types/list/module.f.mjs">module.f.mjs</a></li>`)),
+                contents(`<li><a href="${repository}/blob/${commit}/fjs/types/list/module.f.mjs" data-kind="file">module.f.mjs</a></li>`)),
             filesAtRoot: () => assertEq(
                 sectionsAtCommit({ ...empty, files: ['README.md'] }),
-                contents(`<li data-kind="file"><a href="${repository}/blob/${commit}/README.md">README.md</a></li>`)),
+                contents(`<li><a href="${repository}/blob/${commit}/README.md" data-kind="file">README.md</a></li>`)),
             todo: () => assertEq(
                 sectionsAtCommit({ ...empty, path: 'fjs', todo: ['a.md'] }),
-                contents(`<li data-kind="issue"><a href="${repository}/blob/${commit}/fjs/todo/a.md">a.md</a></li>`)),
+                contents(`<li><a href="${repository}/blob/${commit}/fjs/todo/a.md" data-kind="issue">a.md</a></li>`)),
             // A directory is one of this site's pages, which GitHub does not
             // have, so its link does not move.
             dirsStayHere: () => assertEq(
                 sectionsAtCommit({ ...empty, path: 'fjs', dirs: ['types'] }),
-                contents('<li data-kind="dir"><a href="/fjs/types/index.html">types</a></li>')),
+                contents('<li><a href="/fjs/types/index.html" data-kind="dir">types</a></li>')),
         },
     },
     subtree: {
@@ -289,7 +289,7 @@ export const proof = {
             const dir = { ...empty, path: 'fjs', dirs: ['types'] }
             assert(pageHtml(dir).includes(
                 '<details data-section="" open=""><summary><h2>Contents</h2></summary>'
-                + '<ul data-links=""><li data-kind="dir"><a href="/fjs/types/index.html">types</a></li></ul></details>'),
+                + '<ul data-links=""><li><a href="/fjs/types/index.html" data-kind="dir">types</a></li></ul></details>'),
                 pageHtml(dir))
         },
     },

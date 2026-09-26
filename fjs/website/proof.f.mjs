@@ -80,7 +80,7 @@ export const proof = {
     fileLinks: {
         withoutACommit: () => {
             const { root, output } = generate({ a: { 'x.md': file('# x') } })
-            assert(pageAt(root, ['a']).includes('<a href="/a/x.md">x.md</a>'), pageAt(root, ['a']))
+            assert(pageAt(root, ['a']).includes('<a href="/a/x.md" data-kind="file">x.md</a>'), pageAt(root, ['a']))
             assert(output.includes('file links: this site'), output)
         },
         /**
@@ -95,8 +95,8 @@ export const proof = {
                 { a: { 'x.md': file('# x'), todo: { 'open.md': file('# open') } } },
                 { WORKERS_CI_COMMIT_SHA: sha })
             const page = pageAt(root, ['a'])
-            assert(page.includes(`<a href="${repository}/blob/${lower}/a/x.md">x.md</a>`), page)
-            assert(page.includes(`<a href="${repository}/blob/${lower}/a/todo/open.md">open.md</a>`), page)
+            assert(page.includes(`<a href="${repository}/blob/${lower}/a/x.md" data-kind="file">x.md</a>`), page)
+            assert(page.includes(`<a href="${repository}/blob/${lower}/a/todo/open.md" data-kind="issue">open.md</a>`), page)
             assert(output.includes(`file links: GitHub at ${lower}`), output)
         },
         /**
@@ -121,7 +121,7 @@ export const proof = {
             // front of it is there. `é` fits a byte and is refused either way.
             for (const value of ['main', '0123456789abcdef', '', '0123456789abcdef0123456789abcdef0123456g', 'é'.repeat(40), '中'.repeat(40)]) {
                 const { root, output } = generate({ a: { 'x.md': file('# x') } }, { WORKERS_CI_COMMIT_SHA: value })
-                assert(pageAt(root, ['a']).includes('<a href="/a/x.md">x.md</a>'), value)
+                assert(pageAt(root, ['a']).includes('<a href="/a/x.md" data-kind="file">x.md</a>'), value)
                 assert(output.includes('file links: this site, because WORKERS_CI_COMMIT_SHA is not a commit id'), output)
             }
         },
@@ -357,7 +357,7 @@ export const proof = {
             })
             const dir = /** @type {Dir} */ (generated.root['a'])
             const page = textOf(dir['index.html'], 'the page')
-            assert(page.includes('<a href="/a/todo/open.md">open.md</a>'), page)
+            assert(page.includes('<a href="/a/todo/open.md" data-kind="issue">open.md</a>'), page)
             assert(!page.includes('>todo/</a>'), page)
             assert(!('index.html' in /** @type {Dir} */ (dir['todo'])), 'expected no page for todo/')
         },
