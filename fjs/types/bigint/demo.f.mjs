@@ -459,9 +459,9 @@ export const demo = {
         // button and a number with nothing to say what either is for.
         ['p',
             'Seven ways to find the highest set bit of a bigint (its base-2 ',
-            'logarithm), timed in the browser you are reading this in. The ',
-            'first is this module\'s log2; the other six are the older and ',
-            'alternative versions it was chosen over.',
+            'logarithm, rounded down), timed in the browser you are reading ',
+            'this in. The first is this module\'s log2; the other six are the ',
+            'older and alternative versions it was chosen over.',
         ],
         ['p',
             'Each one runs on every power of two up to the exponent below, and ',
