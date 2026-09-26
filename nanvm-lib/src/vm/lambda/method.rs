@@ -320,7 +320,7 @@ mod tests {
         for pair in ABSENT {
             assert!(
                 !has(pair),
-                "{pair:?} is not on the type's prototype but has an entry"
+                "{pair:?} is no member function of the type but has an entry"
             );
         }
     }
