@@ -1,5 +1,4 @@
-
-# NaNVM function objects
+# Function frames: NaNVM function objects
 
 A user function object is serialized as an EDAG — the stable, canonical representation of functions
 (see [serialization](./serialization.md)). On loading, a VM
@@ -119,13 +118,14 @@ fn b(frame: Array<Any>, param: Array<Any>) {
 }
 ```
 
-Neither spelling is in the language yet — a named parameter is
-[parameters](./3120-parameters.md), and reaching a name declared later is
-[forward-references](./3140-forward-references.md). These are illustrative
+The named parameter and the conditional are in the language; `a` reaching
+`b`, declared after it, is not yet
+([forward-references](./3140-forward-references.md)). These are illustrative
 mutual-recursion/slot sketches, not implemented source or permission to
-expose a complete `args` binding. Ordinary captures are implemented; their
-current Rust shape is recorded in
-[compile-capturing-functions-to-rust](../../fjs/fsc/todo/compile-capturing-functions-to-rust.md).
+expose a complete `args` binding. Ordinary captures are implemented: the
+compiler's frame is described under [EDAG](../../fjs/fsc/README.md#edag), and
+[`fjs/edag/rust`](../../fjs/edag/rust/module.f.mjs) prints it as the frame
+array a Rust closure is built with.
 
 This document's frame is the bytecode-interpreter design. The parallel AOT
 plan reuses the captured-value copy scheme and the applicable EDAG contract,

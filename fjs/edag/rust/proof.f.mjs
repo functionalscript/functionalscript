@@ -251,7 +251,7 @@ export const proof = {
      * inspects a plain object — so a base this printer can prove is one of
      * these prints the call rather than refusing it: `[1].length`, `"ab"[0]`,
      * `true.x` (`undefined`, since a boolean has no own properties at all)
-     * are accepted DJS, per `fjs/fsc/README.md`.
+     * are accepted, per `spec/README.md`'s Property Access.
      */
     dotOnNonObjectLiteral: () => {
         assertEq(
@@ -581,11 +581,11 @@ export const proof = {
      */
     functions: {
         lengthLimit: () => {
-            assertEq(printed(['=>', 0xffff_ffff, null, 1]),
-                'A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 4294967295, Array::default()).to_any()')
-            for (const length of [2 ** 32, Number.MAX_SAFE_INTEGER, 1e30]) {
+            assertEq(printed(['=>', 16, null, 1]),
+                'A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 16, Array::default()).to_any()')
+            for (const length of [17, 2 ** 32, Number.MAX_SAFE_INTEGER, 1e30]) {
                 assertStructurallySame(nodeExpr(['=>', length, null, 1]),
-                    ['error', ['function length exceeds Rust u32 capacity', length]])
+                    ['error', ['a function length above 16', length]])
             }
         },
         args: () => {

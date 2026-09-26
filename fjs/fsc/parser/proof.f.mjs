@@ -311,6 +311,8 @@ export const proof = {
                 ["const a = 1;\nconst a = 2;\nexport default a;", "duplicate id", [2, 7]],
                 ["import x from \"m\";\nimport x from \"n\";\nexport default x;", "duplicate id", [2, 8]],
                 ["import x from \"m\";\nconst x = 1;\nexport default x;", "duplicate id", [2, 7]],
+                // a function's `length` is at most 16: the 17th fixed name is refused
+                ["export default (a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,a16)=>1;", "more than 16 fixed parameters", [1, 71]],
                 ["export default zzz;", "const not found", [1, 16]],
                 // `NaN` and `Infinity` are reserved, as `undefined` is, and
                 // reserved is about *binding*: each may name a property,
@@ -1602,7 +1604,7 @@ export const proof = {
             assertEq(obj[1].message, 'unexpected token')
         },
         // A literal control character inside a string is not valid JSON
-        // syntax (RFC 8259 §7), and DJS string literals are JSON strings.
+        // syntax (RFC 8259 §7), and double-quoted string literals are JSON strings.
         () => {
             const tokenList = tokenizeString('export default "\t"')
             const obj = parseFromTokens(tokenList)

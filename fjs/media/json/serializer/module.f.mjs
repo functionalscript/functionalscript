@@ -128,7 +128,7 @@ export const arrayWrap
 
 /**
  * The separator between a serialized property key and its value. Shared with
- * the DJS serializer, which builds the same `key : value` fragment.
+ * `fjs/media/datajs/serializer`, which builds the same `key : value` fragment.
  *
  * @type {List<string>}
  */

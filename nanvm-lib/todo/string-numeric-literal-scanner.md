@@ -7,17 +7,16 @@
 
 The ECMAScript numeric-literal scan is implemented twice:
 
-- `string_to_number` (`src/vm/number_coercion.rs:87-122`), backing
+- `string_to_number` (`src/vm/number_coercion.rs`), backing
   `StringToNumber`;
-- `string_to_bigint` (`src/vm/any/relational.rs:97-126`), backing
+- `string_to_bigint` (`src/vm/any/relational.rs`), backing
   `StringToBigInt` for the relational operators.
 
 Both spell the identical prefix machinery — empty-input-is-zero, the three
 `strip_prefix("0x").or_else(|| strip_prefix("0X"))` pairs for hex/octal/
 binary, and the `-`/`+` sign-stripping for the decimal alternative — and
 both carry the same grammar note ("`NonDecimalIntegerLiteral` has no `Sign`
-production") in their doc comments (`number_coercion.rs:79-86`,
-`relational.rs:91-96`). Their test suites duplicate the rule case-for-case
+production") in their doc comments. Their test suites duplicate the rule case-for-case
 too. Only the payloads differ: `f64` accumulation, `Infinity` and the
 `StrDecimalLiteral` shape on the number side; `BigInt` digit accumulation on
 the bigint side.
@@ -25,10 +24,9 @@ the bigint side.
 Two lesser symptoms of the split ownership:
 
 - The whitespace trim sits on opposite sides of the boundary —
-  `NumberCoercion::string` trims at the call site
-  (`number_coercion.rs:55`) while `string_to_bigint` trims inside
-  (`relational.rs:98`).
-- 45 lines of literal lexing live in `any/relational.rs`, the `<` operator's
+  `NumberCoercion::string` trims at the call site while `string_to_bigint`
+  trims inside.
+- A few dozen lines of literal lexing live in `any/relational.rs`, the `<` operator's
   file, which is not where anyone would look for `StringToBigInt`.
 
 A grammar change (say, numeric-separator `_` support, or a bug in the

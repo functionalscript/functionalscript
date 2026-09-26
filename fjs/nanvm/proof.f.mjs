@@ -3,7 +3,7 @@
  *
  * Every case in [`module.f.mjs`](./module.f.mjs) is lowered to the EDAG
  * expression it denotes and evaluated here, so the shared data is proven to
- * describe JavaScript before `nanvm-lib/tests/test/generated.rs` holds
+ * describe JavaScript before `nanvm-lib/tests/test/gen.operators.rs` holds
  * `nanvm-lib` to it. This module contains no test cases of its own beyond
  * `jsOnly` (below `edagShape`) and `crossCheck` (below `group`) — adding a
  * case means editing the data.

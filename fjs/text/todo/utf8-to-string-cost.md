@@ -7,7 +7,9 @@
 
 [`../module.f.mjs`](../module.f.mjs)'s `utf8ToString` is the slow half of
 reading text through the effect system, by more than an order of magnitude over
-the read itself. Measured on this repository's own `.f.mjs` files, node 22:
+the read itself. Measured in
+[#1827](https://github.com/functionalscript/functionalscript/pull/1827), at its
+head `5ff95f85`, on this repository's own `.f.mjs` files, node 22:
 
 | | 100 files | per file |
 | --- | --- | --- |
@@ -17,8 +19,8 @@ the read itself. Measured on this repository's own `.f.mjs` files, node 22:
 
 The consequence is visible in a command: `npm run website` walks the tree and
 reads every authored module, and it takes **42 s** where the plain-JavaScript
-script it replaced took **1.65 s** (functionalscript#1827). Reading is 0.1 s of
-that. Nothing else in the program is close.
+script it replaced took **1.65 s**, measured in the same pull request. Reading
+is 0.1 s of that. Nothing else in the program is close.
 
 **Concurrency is not the answer, and that is worth stating because it is the
 first thing suggested.** The cost is CPU inside one decoder, not waiting on a
@@ -77,6 +79,6 @@ own measurement, not something to fold into a caller.
 
 ### Related
 
-- functionalscript#1827 — where the cost surfaced: the website generator moved
+- [#1827](https://github.com/functionalscript/functionalscript/pull/1827) — where the cost surfaced: the website generator moved
   from `fs.readFile` to the `readFile` operation and the build went 1.65 s to
   42 s.

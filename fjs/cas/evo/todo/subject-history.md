@@ -31,7 +31,7 @@ The history operation walks exactly that link:
 
 ```ts
 /** First-parent chain starting at (and including) `start`. */
-readonly history: (start: Hash) => Effect<O | MemOp, Result<readonly Hash[], string>>
+readonly history: (start: Hash) => Effect<O | MemOp, readonly Hash[], EvoChannel>
 ```
 
 - **Return shape is just `readonly Hash[]`** — the same primitive
@@ -92,8 +92,9 @@ readonly history: (start: Hash) => Effect<O | MemOp, Result<readonly Hash[], str
   works but costs O(chain) I/O per call.)
 - **Errors.** `start` must resolve and decode as a revision
   (`resolveParent` already implements exactly this check for `add`);
-  otherwise `history` returns the error. A decode failure *mid-walk*
-  (corrupt or missing parent blob) is also an error, not a silent
+  otherwise `history` fails on its `EvoChannel` error channel, as `add` and
+  `revision` do — not a `Result` nested inside a success. A decode failure
+  *mid-walk* (corrupt or missing parent blob) is also an error, not a silent
   truncation.
 - **Staleness.** Same cache-staleness concern as
   [todo/cache-staleness.md](cache-staleness.md) — history is served from

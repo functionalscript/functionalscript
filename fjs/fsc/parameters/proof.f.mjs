@@ -4,8 +4,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { analysis, bindingError } from '../../edag/analysis/module.f.mjs'
 import { vm } from '../../edag/amnesia/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
-import { factories } from '../../edag/callable/table.f.mjs'
-import { generate } from '../../edag/callable/generate/module.f.mjs'
+import { maxLength } from '../../types/function/length/module.f.mjs'
 import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
@@ -82,10 +81,18 @@ export const proof = {
             assert(a[1] === b[1] && a[3] !== b[3] && a[1] !== c[1])
         }
     },
-    generatedTable: () => {
-        const table = unresolved(unwrap(parse('table.f.mjs')(generate(32)))).edag
+    factoryTable: () => {
+        // The table's first entries, spelled as `fjs/types/function/length` spells them; `lengthLimit` covers its width.
+        const table = unresolved(unwrap(parse('factories.f.mjs')([
+            'export const factories = [',
+            '    g => (...rest) => g([], rest),',
+            '    g => (a0, ...rest) => g([a0], rest),',
+            '    g => (a0, a1, ...rest) => g([a0, a1], rest),',
+            '];',
+        ].join('\n')))).edag
         for (const run of evaluators) {
             const { factories: compiled } = run(table)
+            assertEq(compiled.length, 3)
             for (const [length, factory] of compiled.entries()) {
                 const f = factory((/** @type {unknown} */ fixed, /** @type {unknown} */ rest) => [fixed, rest])
                 assertEq(f.length, length)
@@ -93,12 +100,14 @@ export const proof = {
             }
         }
     },
-    capacity: () => {
-        const length = factories.length
-        const parameters = Array.from({ length }, (_, i) => `a${i}`).join(',')
-        const e = roundTrip(`export default (${parameters},...x)=>x;`)
+    lengthLimit: () => {
+        /** @type {(length: number) => string} */
+        const source = length => `export default (${Array.from({ length }, (_, i) => `a${i},`).join('')}...x)=>x;`
+        const e = roundTrip(source(maxLength))
         assert(e instanceof Array && e[0] === '=>')
-        assertEq(e[1], length)
+        assertEq(e[1], maxLength)
+        for (const run of evaluators) { assertEq(run(e).length, maxLength) }
+        assertEq(parse('bad.f.mjs')(source(maxLength + 1))[0], 'error')
     },
     refusals: () => {
         for (const params of [
@@ -114,7 +123,7 @@ export const proof = {
     },
     throw: {
         metadata: [-0,-1,0.5,Infinity,NaN].map(length => () => analysis(['=>',length,null,1])),
-        capacity: evaluators.map(run => () => run(['=>',factories.length,null,1])),
+        overLimit: evaluators.map(run => () => run(['=>',maxLength + 1,null,1])),
         arg: evaluators.map(run => () => run(['=>',1,null,['arg',1]])()),
         moduleRest: evaluators.map(run => () => run(['rest'])),
         functionArgs: evaluators.map(run => () => run(['=>',1,null,['args']])()),

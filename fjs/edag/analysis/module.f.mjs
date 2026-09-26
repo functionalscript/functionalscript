@@ -60,7 +60,7 @@
  */
 
 import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
-import { isIndex } from '../callable/module.f.mjs'
+import { isIndex, maxLength } from '../../types/function/length/module.f.mjs'
 import { mapSet } from '../../types/map/module.f.mjs'
 
 /** @type {_State} */
@@ -408,9 +408,10 @@ export const analysis = e => {
 }
 
 /**
- * Validate invocation bindings after scopes have been assigned. Analysis also
- * serves isolated compiler fragments, so executable consumers call this once
- * on the complete graph. Frames keep their enclosing scope.
+ * Validate invocation bindings after scopes have been assigned, and each
+ * function's length against the language's limit. Analysis also serves
+ * isolated compiler fragments, so executable consumers call this once on the
+ * complete graph. Frames keep their enclosing scope.
  * @type {(a: Analysis) => string | null}
  */
 export const bindingError = ({ nodes, scope }) => {
@@ -418,6 +419,7 @@ export const bindingError = ({ nodes, scope }) => {
         const owner = scope[i] === -1 ? null : nodes[scope[i]]
         if (node[0] === 'args' && owner !== null) { return 'module args in a function' }
         if (node[0] === 'rest' && owner === null) { return 'the arguments outside a function' }
+        if (node[0] === '=>' && node[1] > maxLength) { return `a function length above ${maxLength}` }
         if (node[0] === 'arg') {
             if (owner === null || owner[0] !== '=>' || !isIndex(node[1]) || node[1] >= owner[1]) {
                 return 'invalid fixed parameter index or scope'

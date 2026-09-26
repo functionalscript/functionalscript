@@ -9,7 +9,7 @@ import { _stringifyTree } from '../module.f.mjs'
 const stringify = _stringifyTree
 
 export const proof = {
-    // DJS-level: keyword remapping on top of the JS tokenizer, and nothing
+    // Module-level: keyword remapping on top of the JS tokenizer, and nothing
     // else — the layer holds no state, `-` being a token the grammar reads
     // rather than a sign folded into the literal after it. Doesn't re-test
     // JS-level token shapes already covered above/elsewhere in this file.
@@ -112,7 +112,7 @@ export const proof = {
             assertEq(kinds.join(' '), 'id error id eof')
         },
         () => {
-            // grammar-level tokenizer error position flows through the DJS wrapper unchanged
+            // grammar-level tokenizer error position flows through the module wrapper unchanged
             const result = toArray(tokenize(stringToList('00'))(''))
             assertEq(stringify(result), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"error","message":"invalid number"}}]')
         },

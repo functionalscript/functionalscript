@@ -5,7 +5,8 @@
 
 ### Problem
 
-`vm/bigint/shl.rs:18-30` and `vm/bigint/shr.rs:13-25` open with the same
+`Shl for BigInt` in `vm/bigint/shl.rs` and `Shr for BigInt` in
+`vm/bigint/shr.rs` open with the same
 prelude — decode the shift amount from a `BigInt` right-hand side —
 differing only in the degenerate-case results:
 

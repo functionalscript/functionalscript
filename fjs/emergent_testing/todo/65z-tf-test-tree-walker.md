@@ -1,4 +1,4 @@
-## 65Z-tf-test-tree-walker. `fjs/emergent_testing`: share the test-tree walker between `runModule` and `registerModule`
+## 65Z-tf-test-tree-walker. `fjs/emergent_testing`: share the test-tree walk between `runEntries` and `registerModule`
 
 **Priority:** P4
 **Status:** open
@@ -6,58 +6,37 @@
 ### Problem
 
 `fjs/emergent_testing/module.f.mjs` already factors out the static collection step into
-`collectTests` (lines 116-128), which walks the export tree and returns a flat
-list of `[path, TestEntry]` pairs. Both downstream consumers — `runModule` and
-`registerModule` — then independently re-implement the *dynamic* walk of each
-test's return value:
+`collectTests`, which walks the export tree and returns a flat list of
+`[path, TestEntry]` pairs. Both downstream consumers then walk each leaf's
+*return value* by their own means, and at `36c8d4a` the two means have diverged:
 
-```ts
-// registerModule (./fjs/emergent_testing/module.f.mjs:122)
-const registerOne = (ctx: TestContext, [path, { fn, throws }]: TestAndPath) =>
-    test(ctx, fmtImport(k, path), throws, (t): Effect<Test | All | Await, void> =>
-        awaitIfPromise(fn())
-        .step(resolved => {
-            if (throws) { return pure(undefined) }
-            const sub = collectTests([...path, null], false, resolved)
-            if (sub.length === 0) { return pure(undefined) }
-            return all(...sub.map(e => registerOne(t, e))).step(() => pure(undefined))
-        }))
+- **The run path.** `runModule` is a one-line wrapper over `runEntries`. Its
+  per-leaf `one` announces the leaf, runs it through `test` (the sandbox),
+  and — on success without `throws` — reads the returned value with
+  `collectTests([...testPath, null], false, …)`, guarded by `catch_` because the
+  read runs user code. It then reports the leaf and *answers* the children:
+  `walkEntries` is `walkStep(pureOk(entries), state, one)`, which puts them in
+  front of the siblings that remain. There is no recursion — one flat loop,
+  sequential, threading `RunState`.
+- **The registration path.** `registerModule`'s `registerOne` hands each leaf to
+  the external framework through `test(ctx, name, throws, body)`. Inside the
+  body it awaits `fn()`, reads the returned value with the same
+  `collectTests([...path, null], false, …)` (unguarded), and *recurses* into
+  `registerOne(t, e)` for each child under the child context `t`, fanned out
+  with `allOk(...)`.
 
-// runModule (./fjs/emergent_testing/module.f.mjs)
-const one = ([testPath, set]: TestAndPath): Effect<O | All, RunTotals> =>
-    test(k, testPath, set)
-    .step(sr => {
-        const t = testResult(k, testPath, sr)
-        return result(t, sr, set.throws)
-        .step((): Effect<O | All, RunTotals> => {
-            const total = addResult(zeroTotals, t)
-            if (t.status !== 'passed' || set.throws) { return pure(total) }
-            return walk([...testPath, null], false, sr.result[1])
-            .step(sub => pure(mergeTotals(total, sub)))
-        })
-    })
-const walk = (path: Path, throws: boolean, v: unknown): Effect<O | All, RunTotals> => {
-    const effects = collectTests(path, throws, v).map(one)
-    return all(...effects)
-    .step(states => pure(states.reduce(mergeTotals, zeroTotals)))
-}
-```
-
-Both implementations:
-
-1. Take a `TestAndPath` for the current leaf.
-2. Execute the leaf (`fn()` directly or via `sandbox` inside `test`).
-3. On success-without-`throws`, take the resolved return value, hand it back
-   through `collectTests([...path, null], false, resolved)`, recurse into each
-   sub-leaf, then `all(...)` the results.
-4. Have a "neutral" continuation when the sub-list is empty.
+What the two still share is the rule for a returned value: it is read only after
+a leaf succeeds without `throws`, walked the same way as the static export tree,
+with `throws` reset to `false` and a `null` marker appended to the path. Each
+path spells that rule itself. What they no longer share is the shape around it:
+a flat `walkStep` loop that answers children as items, against a recursion
+nested inside the framework's callback.
 
 `registerModule` is a process-adapter path for the surviving external frameworks. It
 cannot always reuse `runModule`'s `Reporter<O>` because of the external-framework
-constraint discussed in the module doc (lines 144-153). But the *traversal* (collect
-leaves, recurse into function-return sub-trees, combine the siblings — today both do that
-with `all`, though the sequential plan changes `runModule`'s side; see the note under the
-sketch) is shared and decouples cleanly from the per-leaf action.
+constraint discussed in the module doc. Whether a shared walk still decouples
+cleanly from the per-leaf action, now that one side is a loop and the other a
+recursion under a framework's context, is the open question this issue asks.
 
 The removed Node-side Playwright integration is not a consumer of this design. A future
 Playwright Test adapter opens the shared browser application and consumes its report; it
@@ -93,7 +72,9 @@ export const walkTests = <O extends Operation, S>(w: Walker<O | All, S>) => {
 ```
 
 **The sketch above predates the sequential run and hard-codes the one thing
-the two consumers no longer agree on.** The
+the two consumers no longer agree on.** It also predates `walkStep`: the run
+path no longer recurses at all, so a walker that recurses cannot be what
+`runEntries` instantiates without undoing that. The
 [sequential run](../README.md#the-two-runners-and-what-sharing-them-cost) makes
 `runModule`'s traversal sequential — one leaf's whole chain finishes before
 the next starts — while `registerModule` keeps its `all` fan-out (its
@@ -103,13 +84,13 @@ So `all(...collectTests(...).map(...))` cannot live inside a shared walker:
 scheduling is the *instantiation's* contract, not the walker's. A `walkTests`
 that survives this takes the sibling combination as a parameter alongside
 `merge` — a sequential fold for the run path, a fan-out for the registration
-path — or it does not qualify. Any spike happens after the sequential
-traversal lands, against the code as it then is; a walker that quietly
-restores concurrency to `runModule`, or quietly serializes `registerModule`,
-has broken a scheduling contract this repository has already paid to settle.
+path — or it does not qualify. The sequential traversal has landed, so a spike
+works against the code as it is; a walker that quietly restores concurrency to
+`runEntries`, or quietly serializes `registerModule`, has broken a scheduling
+contract this repository has already paid to settle.
 
-`runModule` instantiates `S = RunTotals`, threads `Sandbox`/`Reporter` effects
-in `onLeaf`, and returns the sub-tree value on success-without-`throws`.
+`runEntries` would instantiate `S = RunState`, thread `Sandbox`/`Reporter`
+effects in `onLeaf`, and return the sub-tree value on success-without-`throws`.
 
 `registerModule` instantiates `S = void` for surviving process adapters, registers through
 `TestContext` in `onLeaf`, and returns the sub-tree value the same way (the registered
@@ -140,7 +121,7 @@ shares the semantics rather than the obsolete Playwright registration path.
 - **Documents the contract.** The "function-return sub-tree is walked the
   same way as the static export tree, with `throws` reset to `false` and a
   `null` marker appended to the path" rule is currently a comment in
-  `runModule` (lines 187-188). Lifting it into a shared `walkTests` makes
+  `runEntries`'s `one`. Lifting it into a shared `walkTests` makes
   the rule the API, not a convention to be reproduced.
 - **Keeps browser semantics aligned.** The browser application can validate itself against
   the same tree-walking contract without making Playwright a proof-registration framework.
@@ -153,13 +134,13 @@ shares the semantics rather than the obsolete Playwright registration path.
   `onLeaf` may need to return a "child context" alongside the accumulator. This may
   complicate the signature enough that the abstraction stops feeling like a win; a small
   spike will tell.
-- `runModule` builds each leaf's `TestResult` and folds it into `RunTotals`
-  with `addResult`; `registerModule` doesn't care. The walker must not
+- `runEntries` builds each leaf's `TestResult` and folds it into `RunState`
+  with `addLeaf`; `registerModule` doesn't care. The walker must not
   pretend to own this — it stays inside `onLeaf`.
 - Browser execution has no `TestContext` and must not import the Node effect runner. Share
   browser-compatible code only when it keeps the page independent from Node and
   Playwright; otherwise share the explicit semantic contract and cross-runner fixtures.
-- This is a single-consumer module today (`registerModule` and `runModule`
+- This is a single-consumer module today (`registerModule` and `runEntries`
   are the only two in-repo callers of the pattern). Per `AGENTS.md`'s
   speculative-code rule, ship this only when the abstraction makes the
   *existing* two implementations shorter and clearer, not on the promise of
@@ -167,7 +148,7 @@ shares the semantics rather than the obsolete Playwright registration path.
 
 ### Tasks
 
-- [ ] Spike a `walkTests` shape against `runModule` and the surviving
+- [ ] Spike a `walkTests` shape against `runEntries` and the surviving
       process-adapter `registerModule`, with the sibling combination as a
       parameter, per the note under the sketch. The
       [sequential traversal](../README.md#the-two-runners-and-what-sharing-them-cost)
@@ -189,7 +170,7 @@ shares the semantics rather than the obsolete Playwright registration path.
   as a parameter rather than decide.
 - i183 — broader work on the `tf`
   framework; this is a structural cleanup that lands cleanly alongside it.
-- [i157](../../fsc/todo/157-json-djs-shared-value-machine.md) — same flavour: two parallel
+- [i157](../../media/json/todo/157-json-djs-shared-value-machine.md) — same flavour: two parallel
   walkers over the same static shape, differing in the per-node action.
 - [browser-testing](./browser-testing.md) — browser-side execution shared by the HTML,
   `fjs browser-test`, and Playwright outer runners.

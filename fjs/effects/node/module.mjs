@@ -83,13 +83,6 @@ const io = async f => {
  * the listener pulls, so the runner's own cost per request is one chunk rather
  * than the body — and there is no cap left to refuse at.
  *
- * What was true of that accumulator stays true where the repository still keeps
- * one: **a cap on a chunk's size is not a cap on their number.** 20,000
- * one-byte chunks are 20 KB of payload, and rebuilding an array per chunk is
- * 200 million copies — 2,794 ms of event loop against 167 ms, measured on the
- * collector this replaces. That argument now belongs to `readWhole` below,
- * which is the one operation still collecting, and its comment carries it.
- *
  * **The position is `let`, and a closure is where it can be.** The offset a
  * pull names is checked against it rather than sought to, because a socket has
  * one position and cannot go back — see `ReadRequestBytes` in `./types.ts` for
@@ -262,7 +255,7 @@ const failSafe = res => {
     respondWith(res)(500)('internal server error')
 }
 
-const { mkdir, open, readFile, readdir, rename, writeFile, rm, access, stat } = fs.promises
+const { mkdir, open, readFile, readdir, rename, writeFile, rm, rmdir, access, stat, lstat } = fs.promises
 
 const { exec } = childProcess
 
@@ -456,6 +449,20 @@ const runNodeEffect = asyncRun({
     // pad the last byte.
     writeFile: (path, data) => io(() => writeFile(path, fromVec(data))),
     rm: path => io(() => rm(path)),
+    // A link is refused before `rmdir` is asked, because Windows would remove it:
+    // a directory link there is a junction or a directory symlink, and
+    // `RemoveDirectoryW` removes the reparse point whatever the target holds,
+    // where POSIX `rmdir` answers `ENOTDIR` for a link. The contract is `ENOTDIR`
+    // on every host (`Rmdir` in `./types.ts`), so a prune never removes a link
+    // to a directory of refs. The `lstat` does not follow the link; a link that
+    // appears between it and the `rmdir` is not caught, the same window every
+    // check-then-act by name has here.
+    rmdir: path => io(async () => {
+        if ((await lstat(path)).isSymbolicLink()) {
+            throw Object.assign(new Error(`ENOTDIR: not a directory, rmdir '${path}'`), { code: 'ENOTDIR' })
+        }
+        return rmdir(path)
+    }),
     rename: (src, dst) => io(() => rename(src, dst)),
     // The handle carries the reader itself, which is the whole of what a
     // `Nominal` over `unknown` is for: the position a request body is at is one
@@ -498,34 +505,26 @@ const runNodeEffect = asyncRun({
             throw Object.assign(new Error(notAFileMessage(path)), { code: notAFileCode })
         }
         return withOpen(path, 'r')(async fh => {
-            // **The accumulator is mutated, deliberately**, and this is the one
-            // place in the runner that still collects — the request body stopped
-            // when it became a stream the listener pulls. Rebuilding the array
-            // per window — `chunks = [...chunks, v]`, the shape the rest of this
-            // repository is written in — copies every chunk taken so far on every
-            // chunk taken, which is quadratic in the *count*. The array never
-            // leaves this function before it is finished, so nothing observes the
-            // mutation, which is the condition under which the impure shell is
-            // allowed to be impure.
+            // Rebuilt rather than appended to, and serving an arbitrary file
+            // does not change that. A window is a fixed 128 KiB, so the count
+            // is the file's size divided by it — a gigabyte is some eight
+            // thousand windows, and the tens of millions of *reference* copies
+            // that rebuild costs are noise beside reading the gigabyte itself.
+            // The collector that did mutate was the request body's, and its
+            // count was not the byte count at all: a client picked it, and
+            // 20,000 one-byte chunks are 20 KB. It is gone with the cap, in
+            // this same change. A fixed window leaves no such gap between size
+            // and count, so §3.1 has no exception to spend here.
             //
-            // **A cap on one chunk is not a cap on their number**, which is the
-            // whole of why the exception is spent here. This used to say the
-            // count was small — a file is however many `Vec`s it takes, and
-            // `fjs/git`'s packfiles and ref files are a handful of them — so
-            // §3.1 had nothing to answer. `fjs/web` serving an arbitrary file
-            // makes the count the *caller's*: a gigabyte is over eight thousand
-            // windows, and the rebuild copies tens of millions of chunk
-            // references before the first byte reaches a socket. Measured on the
-            // request-body collector this argument came from, 20,000 one-byte
-            // chunks were 20 KB of payload and 200 million copies — 2,794 ms of
-            // event loop against 167 ms, with the growth going from ×4 per
-            // doubling to ×2.
-            /** @type {Vec[]} */
-            const chunks = []
+            // Holding a whole file to answer one request is the real cost, and
+            // `./todo/streaming-http-bodies.md` stage 1 is where it goes away —
+            // `fjs/web` stops asking for the file at all and reads chunks
+            // through a handle instead.
+            let chunks = /** @type {readonly Vec[]} */ ([])
             for (;;) {
                 const chunk = await fill(fh, Buffer.alloc(maxFileSizeBytes), null)
                 if (chunk.length !== 0) {
-                    chunks.push(toVec(chunk))
+                    chunks = [...chunks, toVec(chunk)]
                 }
                 if (chunk.length < maxFileSizeBytes) {
                     return chunks
@@ -579,14 +578,14 @@ const runNodeEffect = asyncRun({
         const fh = await open(path, 'wx')
         let failure = null
         try {
-            await fh.writeFile(fromVec(data))
+            await fh.writeFile(Buffer.concat(data.map(fromVec)))
         } catch (e) {
             failure = e
         }
         // Not in a `finally`: a failure to close must not replace the write's,
         // which is the one a caller can act on. If the close itself fails the
         // file is left behind, which is a stale lock on a filesystem already
-        // failing — recorded in `fjs/git/todo/ref-writing.md`.
+        // failing — recorded in `fjs/git/refstore/todo/ref-writing.md`.
         await fh.close()
         if (failure !== null) {
             await rm(path, { force: true })

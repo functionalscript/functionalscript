@@ -3,7 +3,7 @@
  *
  * @module
  *
- * @import { Access, All, Env, Import, IoChannel, Readdir } from '../effects/node/types.ts'
+ * @import { Access, All, Dirent, Env, Import, IoChannel, Readdir } from '../effects/node/types.ts'
  * @import { Effect } from '../effects/types.ts'
  * @import { Dir } from '../effects/node/virtual/types.ts'
  * @import { Module, ModuleMap, LoadModuleOperations } from './types.ts'
@@ -26,11 +26,10 @@ import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
  * - **FunctionalScript modules** — anything ending in `.f.ts`, `.f.mts`,
  *   `.f.js`, or `.f.mjs`. They are safe to bulk-load by construction, since
  *   they have no import side effects, so the whole module is loaded and its
- *   internal `proof` export (if any) is discovered. `.f.mjs` is the authored
- *   extension: stage 1 removed the last `.f.ts`, and `.f.js` is reserved for
- *   the stage-2 compiler-compatibility marker rather than generated from
- *   anything. The matcher still accepts all four so that a tree carrying either
- *   of the retired or future spellings still loads.
+ *   internal `proof` export (if any) is discovered. The authored extensions
+ *   are `.f.mjs` and, for source the current compiler accepts, the stage-2
+ *   `.f.js`; stage 1 removed the last `.f.ts`. The matcher still accepts all
+ *   four so that a tree carrying a retired spelling still loads.
  * - **Impure JavaScript/TypeScript proofs** — anything ending in `proof.ts`,
  *   `proof.mts`, `proof.js`, or `proof.mjs`. Outside FunctionalScript a module
  *   may have import side effects, so the load gate stays opt-in by filename.
@@ -53,26 +52,40 @@ export const shouldLoad = s =>
 const isSourceFile = path =>
     path.endsWith('.js') || path.endsWith('.ts') || path.endsWith('.mts') || path.endsWith('.mjs')
 
-/** @type {(s: string, predicate: (path: string) => boolean) => Effect<Readdir | All, readonly string[], IoChannel>} */
-const allFiles = (s, predicate) => {
+/**
+ * Walks the tree under `s` and returns the paths `classify` takes. Each entry
+ * is classified by its path (joined onto `s`) and its `Dirent`: `'take'`
+ * returns the path, `'descend'` lists a directory, `'skip'` ignores it.
+ *
+ * `classify` descends only a directory, and tells one by `isDirectory`, not
+ * `!isFile`: a symbolic link is neither, and `readdir` on one fails with
+ * `ENOTDIR`.
+ *
+ * @type {(s: string, classify: (path: string, entry: Dirent) => 'take' | 'descend' | 'skip') => Effect<Readdir | All, readonly string[], IoChannel>}
+ */
+export const walk = (s, classify) => {
     /** @type {(p: string) => Effect<Readdir | All, readonly string[], IoChannel>} */
     const load = p => {
         const listed = step(
             readdir(p, {}),
             d => allOk(...d.flatMap(i => {
-                const { name } = i
-                if (name.startsWith('.')) { return [] }
-                const file = join(p, name)
-                // `isDirectory` and not `!isFile`: a symbolic link is neither,
-                // and `readdir` on one fails with `ENOTDIR`.
-                return i.isDirectory
-                    ? (name === 'node_modules' ? [] : [load(file)])
-                    : (predicate(file) ? [pureOk([file])] : [])
+                const path = join(p, i.name)
+                const action = classify(path, i)
+                return action === 'take' ? [pureOk([path])]
+                    : action === 'descend' ? [load(path)]
+                    : []
             })))
         return mapStep(listed, v => v.flat())
     }
     return load(s)
 }
+
+/** @type {(s: string, predicate: (path: string) => boolean) => Effect<Readdir | All, readonly string[], IoChannel>} */
+const allFiles = (s, predicate) => walk(s, (path, { name, isDirectory }) =>
+    name.startsWith('.') ? 'skip'
+    : isDirectory ? (name === 'node_modules' ? 'skip' : 'descend')
+    : predicate(path) ? 'take'
+    : 'skip')
 
 /** @type {(f: string) => Effect<Access | Import, readonly (readonly [string, Module])[], IoChannel>} */
 const loadFile = f =>

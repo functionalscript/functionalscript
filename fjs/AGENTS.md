@@ -5,6 +5,12 @@ type-only TypeScript (`types.ts`) beside it. Repository-wide rules live in the
 root [AGENTS.md](../AGENTS.md), and the design principles both code bases follow
 live in [DESIGN.md](../doc/DESIGN.md).
 
+Authored FunctionalScript has two extensions: `.f.mjs`, and `.f.js` for source
+the current compiler accepts ([`fsc/README.md`](./fsc/README.md) defines
+both). Every rule below stated for `.f.mjs` applies to `.f.js` alike; the one
+difference, that a proof stays `proof.f.mjs`, is in
+[§1.2](#12-proof-coverage-is-mandatory).
+
 ## Contents
 
 1. [Testing and proof coverage](#1-testing-and-proof-coverage)
@@ -30,26 +36,31 @@ live in [DESIGN.md](../doc/DESIGN.md).
 New FunctionalScript modules and functions must have **100% proof coverage**
 across every dimension: every exported function called, every line executed, and
 every branch (both sides of each conditional) taken. This applies to authored
-FunctionalScript source, `.f.mjs`
+FunctionalScript source, `.f.mjs` and `.f.js`
 ([`fjs/fsc/README.md`](./fsc/README.md) defines the extensions). A new
 implementation module ships with a co-located proof (its `proof` export) that
 exercises all of its exports along all code paths — partial coverage of new code
 is not acceptable. If a line or branch genuinely cannot be reached, restructure
 the code so it isn't there rather than leaving it uncovered.
 
-An implementation is `module.f.mjs` and its proof is `proof.f.mjs`. Stage 1 of
-the TypeScript-to-JavaScript migration is complete: no authored implementation or
-proof `.f.ts` remains, so write both files as JavaScript with JSDoc. Authored
-`types.ts` companions may remain permanently and hold the type-level API.
+An implementation is `module.f.mjs`, or `module.f.js` once the compiler
+accepts it (stage 2, [`fjs/fsc/README.md`](./fsc/README.md)), and its proof is
+`proof.f.mjs` either way. Stage 1 of the TypeScript-to-JavaScript migration is
+complete: no authored implementation or proof `.f.ts` remains, so write both
+files as JavaScript with JSDoc. Authored `types.ts` companions may remain
+permanently and hold the type-level API.
 
 Proof discovery and coverage follow the same extension: `shouldLoad` in
 [`fjs/dev/module.f.mjs`](./dev/module.f.mjs) matches authored
 FunctionalScript source, and both `npm run cov` and `deno task cov` include
-`module.f.mjs`. Ordinary (non-FunctionalScript) `.mjs` files stay opt-in through
-the `proof.mjs` filename convention.
+`module.f.mjs` and `module.f.js`. Ordinary (non-FunctionalScript) `.mjs` files
+stay opt-in through the `proof.mjs` filename convention.
 
 A `proof.f.mjs` is authored `.f.mjs` like any other. Its relative **runtime**
-imports must target `.f.mjs` modules. Type-only APIs may live in an authored
+imports must target FunctionalScript modules, `.f.mjs` or `.f.js`. A
+`module.f.js` keeps a `proof.f.mjs` for now: a proof fails by throwing, and
+the compiler does not accept `throw` yet
+([`ci/todo/f-js-package-support.md`](./ci/todo/f-js-package-support.md)). Type-only APIs may live in an authored
 `types.ts` companion and are referenced directly through that real source path.
 Its leading JSDoc block may include, for example:
 

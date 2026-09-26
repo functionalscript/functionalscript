@@ -73,10 +73,10 @@ captured value through `['frame']` in its own invocation. The schema permits a g
 frame expression, and the compiler uses `null` when no frame is needed. Fixed values
 and rest arrays captured by nested functions use the same frame mechanism.
 
-Pre-generated arrow factories adapt host calls to the evaluator's `(fixed, rest)`
-bindings, preserving declared JavaScript `length` without runtime code generation.
-The current table covers lengths 0–32 and refuses larger arities at materialization;
-that executor capacity does not limit valid EDAG metadata or source compilation.
+Hand-written arrow factories ([`fjs/types/function/length`](../../types/function/length/README.md))
+adapt host calls to the evaluator's `(fixed, rest)` bindings, preserving declared
+JavaScript `length` without runtime code generation.
+The table covers every length the language admits, 0–16.
 The parameter plan's default-function-text gate remains open: these callables still
 expose wrapper source on native conversion. Interpreter integration must not claim
 that rendering or callable/EDAG association is complete.
@@ -187,9 +187,16 @@ hardening TODO after the baseline interpreter exists.
       `transpile` / `fjs compile` path without changing its success result/output
       for the value outputs, `.data.js` and `.json`; the FunctionalScript
       output is the writer's, per [`../serializer`](../serializer/module.f.mjs).
+      The DataJS serializer then decides sharing on the executed value: pin its
+      JSON refusal on `[cfg.x, cfg.x]`, with `x: []` refused and `x: 1` written,
+      as the AST proof pins it today
+      ([`../../edag/todo/analysis.md`](../../edag/todo/analysis.md)).
 - [ ] Add proofs that primitive, array, object, property-access, import-resolved, and
       shared-node EDAGs evaluate to the expected values.
-- [ ] Add Stage 2 proofs for non-capturing functions, ordinary calls, and method calls.
+- [x] Add Stage 2 proofs for non-capturing functions, ordinary calls, and method calls.
+      Done: `agrees` in [`../../edag/memo/proof.f.mjs`](../../edag/memo/proof.f.mjs)
+      runs `=>`, an ordinary `()` call and method calls through `|()` and `|?.()`
+      beside amnesia.
 - [ ] Whenever the optional nodes enter the interpreted subset, execute them per
       "Chains" in [`../../edag/README.md`](../../edag/README.md) — receiver state
       created by `.`/`?.` and the `|.` step, consumed by the three call steps; an
@@ -198,11 +205,14 @@ hardening TODO after the baseline interpreter exists.
       short-circuit of the rest of the continuation — and its one exception, `|!()`,
       which the parentheses put outside the region and which therefore runs on the
       `undefined` a short-circuit produced.
-- [ ] Add an invocation-scope proof such as calling `x => [x]` with `1` and `2`:
+- [x] Add an invocation-scope proof such as calling `x => [x]` with `1` and `2`:
       results contain the corresponding argument and do not reuse the constructed
       array across calls, while repeated references inside one call still share.
-- [ ] Add a validation proof that an operation node reused both outside and inside a
-      function body is rejected.
+      Done: `body` in [`../../edag/memo/proof.f.mjs`](../../edag/memo/proof.f.mjs).
+- [x] Add a validation proof that an operation node reused both outside and inside a
+      function body is rejected. Done: `throw` in
+      [`../../edag/analysis/proof.f.mjs`](../../edag/analysis/proof.f.mjs)
+      (`outsideThenInside`, `insideThenOutside`, `siblingBodies`).
 - [ ] Add a diamond/shared-node proof showing one shared EDAG node produces one shared
       runtime value within the relevant evaluation context.
 - [ ] Add an integration proof that a multi-module program compiled/resolved to one

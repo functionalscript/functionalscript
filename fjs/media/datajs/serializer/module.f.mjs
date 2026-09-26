@@ -127,7 +127,7 @@ const protoKey = '__proto__'
  * to replace the object's prototype, so a document spelling a member that
  * way would not read back the member it was given, and the reader refuses
  * it outright. This is the key seam
- * [157](../../../fsc/todo/157-json-djs-shared-value-machine.md) §2 counts,
+ * [157](../../json/todo/157-json-djs-shared-value-machine.md) counts,
  * and since the old `fjs/djs/serializer` was retired its only implementation.
  *
  * Public beside {@link leafSerialize}, and for the same reason: the

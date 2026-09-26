@@ -9,7 +9,7 @@ Twenty-two assertions across the two tokenizer proofs compare a
 serialization against a **string literal** instead of stating the expected
 value directly — eight in `fjs/js/tokenizer/proof.f.mjs` through
 `JSON.stringify(value)`, and fourteen in `fjs/fsc/tokenizer/proof.f.mjs`
-through the proof's own `stringify`, the djs serializer's `stringifyAsTree`
+through `fjs/fsc`'s `_stringifyTree`
 (the JS-layer proofs moved to the former when the scanner behind it was
 replaced by the grammar; the counts follow them):
 
