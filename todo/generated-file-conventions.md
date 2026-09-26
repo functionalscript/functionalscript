@@ -131,9 +131,11 @@ the script each project owns.
    `gen.fixtures/` is invisible to the comparison and `fjs compile` writes
    into it again (blocker 2). A recursive `rm` effect — which
    [65z-ci-nix](../fjs/ci/todo/65z-ci-nix.md) also waits on — would let the
-   directories go too, but nothing here needs it. Skip `.git`, `node_modules` and `target`, which can contain
-   third-party `gen.*` names. The deletion is `npm run gen:clean`: a module in
-   [`fjs/dev`](../fjs/dev/module.f.mjs), next to the tree walker it reuses,
+   directories go too, but nothing here needs it. Skip dot-names such as
+   `.git`, `node_modules` and `target`, which can contain third-party `gen.*`
+   names. The deletion is `npm run gen:clean`:
+   [`fjs/dev/clean`](../fjs/dev/clean/module.f.mjs), on the tree walker it
+   shares with proof discovery,
    run with `fjs r` like the generators, and using the same
    `startsWith('gen.')` test — not `find`/`rm`
    ([AGENTS.md §6](../AGENTS.md#6-external-tools)) and not a new CLI
@@ -220,7 +222,7 @@ One pull request each, stacked in this order:
       (blocker 3).
 - [x] Move the fixtures to `nanvm-harness/gen.fixtures/` behind one `#[path]`;
       `fjs compile` creates its output directory (blocker 2).
-- [ ] Add `npm run gen:clean`, skipping `.git`, `node_modules` and `target`.
+- [x] Add `npm run gen:clean`, skipping `.git`, `node_modules` and `target`.
 - [ ] Make `gen` run the cleanup first; the generated workflow is unchanged.
       Verify: a clean
       regeneration passes; a stale `gen.*` output fails drift; a new or

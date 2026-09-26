@@ -181,6 +181,9 @@ handwritten file that way. `.gitattributes` marks them, plus the few outputs at
 a path another tool fixes (the two workflows and the Nix files). The rule and
 its reasons: [todo/generated-file-conventions.md](./todo/generated-file-conventions.md).
 
+`npm run gen:clean` deletes every `gen.*` output, so `npm run gen:clean && npm
+run gen` regenerates from nothing: a stale output then shows up as a deletion.
+
 ### Updating dependencies
 
 To bump an npm devDependency version, edit `package.json` by hand first (there
