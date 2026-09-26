@@ -47,14 +47,29 @@ code does not model:
   their pattern has a `Symbol.replace` / `Symbol.split` method, and
   `includes`, `startsWith` and `endsWith` ask `IsRegExp` of their argument.
   A module cannot spell a symbol or a `RegExp`, so every pattern is a value
-  converted by `ToString` — an object pattern is `"[object Object]"`, as
-  JavaScript converts it — and the `IsRegExp` throw cannot happen.
+  converted by `ToString` — a plain object pattern is `"[object Object]"`, as
+  JavaScript converts it, and an object or a function is converted as the
+  next paragraph says — and the `IsRegExp` throw cannot happen.
 - **Capture groups.** With a string pattern, `GetSubstitution` has no captures
   and no named groups, so `$1` and `$<name>` in a replacement stay literal, as
   JavaScript leaves them. `$$`, `$&`, `` $` `` and `$'` are substituted.
 - **`this` coercion.** Each built-in is reached only on a string (or number)
   receiver, so `RequireObjectCoercible(this)` and `ToString(this)` are the
   receiver itself.
+
+**Converting an object or a function argument.** Every `ToString`,
+`ToNumber` and `ToIntegerOrInfinity` above goes through the shared
+conversion, `PrimitiveCoercionOp` in `vm/primitive_coercion.rs`. That
+conversion ignores an object's own `toString` and `valueOf`, and it converts
+a function to the placeholder `"function"`. So with `f = () => 0`,
+`"function".includes(f)` would answer `true`, where JavaScript answers
+`false`. These methods must not answer that. The fix belongs in the shared
+conversion, not at each method: it refuses both inputs, and then answers
+them, following the `ToPrimitive` task of
+[member-functions](./member-functions.md). A method that converts an
+argument lands only after that refusal, or refuses such an argument itself
+until then. Both kinds of argument get corpus cases: an object with an own
+`toString`, and a function.
 
 ### Positions are UTF-16 code units
 
