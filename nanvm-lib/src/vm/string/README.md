@@ -62,15 +62,18 @@ as its code units, `string_any_utf16(&[…])`.
 - `replace` and `replaceAll` decide whether the replacement is a function, and
   convert a template, before any match is looked for.
 - `toFixed` checks its digit range before the number, so `Infinity.toFixed(101)`
-  throws; `toExponential` and `toPrecision` look at the number first, so
-  `Infinity.toExponential(101)` is `"Infinity"`.
+  throws. `toExponential` and `toPrecision` convert their argument first, so
+  `NaN` is `0`, `"2.9"` is `2`, and a bigint throws even on `Infinity`; then
+  they look at the number before the range, so `Infinity.toExponential(101)`
+  is `"Infinity"`.
 
 ## Exact rounding
 
 `toFixed`, `toExponential` and `toPrecision` round the double's exact binary
 value, the larger digit string on a tie: `(2.5).toFixed(0)` is `"3"`, and
 `(1.005).toFixed(2)` is `"1.00"` because the double nearest `1.005` is below it.
-Rust's `format!` rounds half to even, so the arithmetic is `BigInt<A>`'s.
+Rust's `format!("{:.0}", 2.5)` rounds half to even and answers `"2"`, so the
+arithmetic is `BigInt<A>`'s.
 
 ## Implementation-defined results
 
