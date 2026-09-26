@@ -85,9 +85,11 @@ a, a:visited { color: var(--link) }
    is not. */
 body { background-color: var(--bg); color: var(--text); font: 16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; margin: 0; overflow-wrap: anywhere }
 /* The column is the page's, not the body's, so the header above it can span
-   the whole window. 48rem holds about eighty characters of this face, the
-   width the repository's source is written to. */
-main { margin: 1.5rem auto 3rem; max-width: 48rem; padding: 0 1rem }
+   the whole window. 63.25rem is GitHub's container-lg, 1012px at 16px — the
+   column GitHub reads a rendered Markdown file in — so a page here is as wide
+   as the same directory's view on GitHub. It is in rem, like every other
+   length here, so it grows with a reader's own font size. */
+main { margin: 1.5rem auto 3rem; max-width: 63.25rem; padding: 0 1rem }
 [data-state="passed"] [data-test-summary] { color: var(--pass) }
 [data-state="failed"] [data-test-summary], [data-state="infrastructure-error"] [data-test-summary] { color: var(--fail) }
 [data-test-results] { color: var(--text) }

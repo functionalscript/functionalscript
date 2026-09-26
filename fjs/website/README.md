@@ -263,8 +263,8 @@ and no other page had either.
   than as the first line of the page. Its contents go to the window's edges —
   the logo at the left, the links at the right — because the bar belongs to
   the site and the column to the page under it. That is why the column is set
-  on `main` and not on `body`: a header inside a 48rem body could not be wider
-  than 48rem. Four looks were rendered side by side — a rule under the
+  on `main` and not on `body`: a header inside the column's body could not be
+  wider than the column. Four looks were rendered side by side — a rule under the
   header only, a framed box, GitHub-style tabs with icons, and bordered
   buttons — and the box won, then went full width.
 - **It wraps rather than hiding behind a menu button.** In a monospace face a
@@ -362,9 +362,16 @@ control is given the platform's UI face outright, so `Run` was Arial at
 the same the moment the first demo landed. Inheriting is what makes "one face"
 true of the whole page rather than only of its text.
 
-The `48rem` measure is kept, on `main` rather than `body` so the header can
-span the window. In a monospace face at 16px it holds about eighty
-characters, which is the width this repository's source is written to.
+The measure is `63.25rem` — GitHub's `container-lg`, 1012px at 16px, the
+column GitHub reads a rendered Markdown file in — on `main` rather than `body`
+so the header can span the window. A page here is as wide as the same
+directory's view on GitHub, which is where every file link on it opens. In
+this face at 16px it holds about 105 characters.
+
+It was `48rem`, GitHub's `container-md`: about eighty characters, the width
+this repository's source is written to. That suited a line of source and left
+most of a desktop screen empty beside a release's notes or a test report,
+which are prose and results, not source.
 
 **A line may break inside a word.** A path has no space to break at, so on a
 phone a page's title, a proof's name or a digest was wider than the screen: the
