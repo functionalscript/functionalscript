@@ -37,6 +37,14 @@ export const stylesheetPath = '/_main.css'
 export const stylesheetLink = ['link', { rel: 'stylesheet', href: stylesheetPath }]
 
 /**
+ * The site's mark, as the root-relative URL both the favicon and the header
+ * load it by — one file, so the tab and the page cannot show two logos.
+ *
+ * @type {string}
+ */
+export const logoPath = '/fjs/website/favicon.svg'
+
+/**
  * The two `<link rel="icon">` elements every page carries, so that no page
  * spells the paths itself.
  *
@@ -51,7 +59,7 @@ export const stylesheetLink = ['link', { rel: 'stylesheet', href: stylesheetPath
  */
 export const faviconLinks = [
     ['link', { rel: 'icon', href: '/favicon.ico', sizes: '32x32' }],
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/fjs/website/favicon.svg' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: logoPath }],
 ]
 
 /**
@@ -75,7 +83,13 @@ a, a:visited { color: var(--link) }
    sideways, or the report's panel clips the line. So any line may break inside
    a word: an identifier split across two lines is still read, and one cut off
    is not. */
-body { background-color: var(--bg); color: var(--text); font: 16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; margin: 3rem auto; max-width: 48rem; overflow-wrap: anywhere; padding: 0 1rem }
+body { background-color: var(--bg); color: var(--text); font: 16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; margin: 0; overflow-wrap: anywhere }
+/* The column is the page's, not the body's, so the header above it can span
+   the whole window. 63.25rem is GitHub's container-lg, 1012px at 16px — the
+   column GitHub reads a rendered Markdown file in — so a page here is as wide
+   as the same directory's view on GitHub. It is in rem, like every other
+   length here, so it grows with a reader's own font size. */
+main { margin: 1.5rem auto 3rem; max-width: 63.25rem; padding: 0 1rem }
 [data-state="passed"] [data-test-summary] { color: var(--pass) }
 [data-state="failed"] [data-test-summary], [data-state="infrastructure-error"] [data-test-summary] { color: var(--fail) }
 [data-test-results] { color: var(--text) }
@@ -156,6 +170,35 @@ textarea { vertical-align: top }
    redraws focus and the caret), and a field a reader just widened would
    silently narrow back on the next keystroke. */
 textarea { box-sizing: border-box; resize: vertical; width: 100% }
+/* The header every page opens with: the logo and the site's name on the left,
+   the site-wide links on the right, across the full width of the window with
+   one rule under it, as a site's own bar. Its contents go to the window's
+   edges, not the page's column: the bar belongs to the site, and the column
+   to the page under it. The menu is bold and a step larger than the text, as a
+   site's own navigation is set apart from what it navigates.
+   It wraps rather than hiding behind a menu button: in a monospace face a
+   phone has no room for the name and the links on one line, and a line break
+   costs no script.
+   A header link is not underlined: its place in the header is what says it is
+   a link, as a site's own navigation does everywhere, and the underline comes
+   back on hover. Every link in the header is padded to a finger's target,
+   whatever the pointer: it is one row, not a dense list, so the padding
+   costs nothing a mouse would miss. */
+header { border-bottom: 1px solid var(--border) }
+header nav, [data-build] { padding-inline: 1rem }
+header nav, [data-site-links] { align-items: center; display: flex; flex-wrap: wrap; gap: .25rem 1.5rem }
+header nav { font-size: 1.125rem; font-weight: 700; padding-block: .5rem }
+header nav a { padding-block: .25rem; text-decoration: none }
+header nav a:hover { text-decoration: underline }
+[data-home] { align-items: center; display: inline-flex; gap: .5rem; margin-right: auto }
+[data-home] img { height: 1.5rem; width: 1.5rem }
+/* A preview says which build it is — the branch and the commit — so a
+   reader comparing two previews, or a preview with production, knows which
+   one they are looking at. Muted and small: it is about the build, not the
+   page. It is a full-width strip under the menu, tinted from the border and
+   the background rather than a colour of its own, so it follows both
+   schemes, and set to the right, under the links, as a status bar is. */
+[data-build] { background: color-mix(in srgb, var(--border) 30%, var(--bg)); border-top: 1px solid var(--border); color: var(--muted); font-size: .8rem; margin: 0; padding-block: .35rem; text-align: right }
 /* Every section of a page is a disclosure, so a reader can fold away what
    they are not reading — the platform's own collapsible, and no script on a
    site that is static files. Its summary is the section's heading, and is
@@ -228,22 +271,30 @@ svg text { font: inherit }
    its node may never evaluate, and a solid line there would say the value
    is always wanted. A node is drawn once however many edges reach it, so
    the marking has to be on the line rather than on the box.
-   A node with outgoing edges carries a row of ports under its label, one
-   cell per edge holding that edge's label, and the edge leaves from the
-   bottom of its cell — so a label always sits in the box it names rather
-   than over a line. A port is a thinner, unfilled cell inside the node's
-   own border, clipped to its rounded corners, with the border drawn once
-   more over the cells so it stays one weight all round. A primitive — a
+   A node with outgoing edges carries a row per port under its label, one
+   per edge holding that edge's label, and the edge leaves from the right
+   end of its row — so a label always sits in the box it names rather than
+   over a line. A port is a thinner, unfilled cell inside the node's own
+   border, clipped to its rounded corners, with the border drawn once more
+   over the cells so it stays one weight all round. A primitive — a
    number, null, undefined — is no node of its own: its value draws in a
-   cell of the port that holds it, under the port's label, and no line
-   leaves for it. A value is tinted and a key is grey, so the two differ by
-   more than their order in the cell. An inline input — the EDAG demo's
-   args and rest — is filled like the terminal node it would otherwise be,
-   not tinted like a constant. In a node with a value row an edge's port
-   fills both rows, its key centred, so no cell is left empty. No edge
-   crosses a box — the layout routes one that skips a rank down a lane of
-   its own — so a line needs no casing to stand out from a border it
-   passes. */
+   cell right of its key, and no line leaves for it. A value is tinted and
+   a key is grey, so the two differ by more than their order in the row.
+   An inline input — the EDAG demo's args and rest — is filled like the
+   terminal node it would otherwise be, not tinted like a constant. An
+   edge's key fills its whole row, so no cell is left empty. No edge
+   crosses a box — the layout routes one that skips a rank across a lane
+   of its own — so a line needs no casing to stand out from a border it
+   passes.
+   A graph is not text, so the page's reading width does not bind it: its
+   container is as wide as the drawing, never narrower than the text column
+   and never wider than the window, and centred on the page. Only a graph
+   wider than the window scrolls, sideways in its own container, so the page
+   around it stays still. The 3rem kept from the window's width leaves a
+   margin either side, and room for a vertical scroll bar, which 100vw
+   counts. */
+[data-graph] { overflow-x: auto; width: max-content; min-width: 100%; max-width: calc(100vw - 3rem); position: relative; left: 50%; transform: translateX(-50%) }
+[data-graph] > svg { display: block }
 [data-graph-node] { fill: var(--bg); stroke: var(--text); stroke-width: 1.5 }
 [data-graph-outline] { fill: none; stroke: var(--text); stroke-width: 1.5 }
 [data-graph-kind="leaf"] { stroke: var(--muted); stroke-dasharray: 3 2 }

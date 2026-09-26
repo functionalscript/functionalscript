@@ -4,7 +4,7 @@
  * The data described here is the single source of truth for operator
  * behaviour: [`proof.f.mjs`](./proof.f.mjs) runs it against a standard
  * JavaScript engine, and [`rust/module.f.mjs`](./rust/module.f.mjs) prints it
- * as the Rust tests in [`test/gen.operators.rs`](./test/gen.operators.rs).
+ * as the Rust tests in `nanvm-lib/tests/test/gen.corpus/`.
  *
  * Operation identity and operand contract are **not** defined here: they come
  * from [`fjs/edag`](../edag/README.md), the data model of record, through
@@ -18,6 +18,7 @@
 
 import type { Assert } from '../asserts/types.ts'
 import type { Exp, Op12Id, Op1Id, Op2, Op2Id, Op3Id } from '../edag/types.ts'
+import type { AllowedCall } from '../js/prototype/types.ts'
 import type { FixedArray } from '../types/array/types.ts'
 import type { Equal } from '../types/ts/types.ts'
 
@@ -133,11 +134,16 @@ export type Unreached = Special<readonly ['unreached']>
 /**
  * What a case expects: a value, or `throws`.
  *
- * Not a function: `expected` is compared with `Object.is`, and a closure
- * built by the lowering is never the same object as one built by the case,
- * so such an expectation could not be met. Nesting is not policed the same
- * way — an array expectation already never matches, for the same identity
- * reason — so only the whole-value position is excluded.
+ * Compared structurally (`fjs/types/object/structurally_same`): `Object.is`
+ * at every leaf, so `NaN` matches `NaN` and `0` does not match `-0`, and
+ * arrays and objects by their elements and properties, since a result such
+ * as `map`'s is a fresh array no expectation can be the same object as.
+ * Identity is a case's own claim, made with `ref` and `===`.
+ *
+ * Not a function: a function is compared by identity, and a closure built
+ * by the lowering is never the same object as one built by the case, so
+ * such an expectation could not be met. Nesting is not policed the same
+ * way, so only the whole-value position is excluded.
  */
 export type Expectation = Const | Ref | Throws
 
@@ -153,8 +159,9 @@ export type OpId = Op1Id | Op2Id | Op12Id | Op3Id
  * {@link Group12}). So a unary operation given two arguments is a type error
  * rather than a case that runs.
  *
- * `expected` is compared with `Object.is`, so `NaN` matches `NaN` and `0` does
- * not match `-0`; `throws` there means the operation must throw, and the
+ * `expected` is compared structurally, `Object.is` at the leaves, so `NaN`
+ * matches `NaN` and `0` does not match `-0` (see {@link Expectation});
+ * `throws` there means the operation must throw, and the
  * exception value — being engine-specific — is not part of the data. It
  * describes the test's outcome, not the program under test, so it is never
  * part of the case's derived expression.
@@ -211,7 +218,40 @@ export type Group3 = {
     readonly cases: readonly Case<3>[]
 }
 
-export type Group = Group1 | Group2 | Group12 | Group3
+/**
+ * One method-call test case: `args[0]` is the receiver and the rest are the
+ * call's arguments, so `{ args: [[1, 2], 0] }` in the `at` group is
+ * `[1, 2].at(0)`. The argument count is the case's own, as a call's is, and
+ * is observable — `lastIndexOf(x)` and `lastIndexOf(x, undefined)` differ —
+ * so nothing pads or trims it.
+ */
+export type MethodCase = {
+    readonly name: string
+    readonly args: readonly [Value, ...(readonly Value[])]
+    readonly expected: Expectation
+    readonly rust?: string
+}
+
+/**
+ * The cases of one built-in member function, `receiver.method(...args)`,
+ * lowered to the chain node a compiled call is:
+ * `['.', receiver, method, ['|()', ['[]', args]]]` (`fjs/edag/README.md`,
+ * Chains). `method` is a name a module may call
+ * (`fjs/js/prototype`'s `allowedCalls`), so a misspelt or refused name is a
+ * type error rather than a case that tests a `TypeError`.
+ */
+export type MethodGroup = {
+    readonly method: AllowedCall
+    readonly cases: readonly MethodCase[]
+}
+
+/** A group whose `op` is an EDAG operation, as against a {@link MethodGroup}. */
+export type OperatorGroup = Group1 | Group2 | Group12 | Group3
+
+export type Group = OperatorGroup | MethodGroup
+
+/** A case of any group, as a consumer walking `data.groups` holds one. */
+export type AnyCase = Case<1> | Case<2> | Case<3> | MethodCase
 
 // An operand count is a type error rather than a case that runs: a group's
 // count is which EDAG vocabulary its id is in, and `Case<N>` carries it.

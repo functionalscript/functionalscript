@@ -718,6 +718,7 @@ export const proof = {
             assert(idle.includes('name="size"'), idle)
             assert(idle.includes('value="20000"'), idle)
             assert(!idle.includes('<pre>'), idle)
+            assert(idle.includes('highest set bit of a bigint'), idle)
             const done = htmlToString(demo.view({
                 kind: 'done',
                 size: '20000',

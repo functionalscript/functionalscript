@@ -35,6 +35,13 @@ use crate::vm::{Any, IVm, Nullish, ToAny, Unpacked};
 pub(crate) mod member;
 mod method;
 
+/// The completeness table `method`'s test checks it against, generated from
+/// `fjs/js/prototype`'s call lists by `fjs/nanvm/methods` — a `#[path]`,
+/// since a `gen.` name is not a Rust identifier.
+#[cfg(test)]
+#[path = "gen.methods.rs"]
+mod methods_table;
+
 pub(crate) use member::Member;
 
 /// What a chain's live state can do, whatever it holds: a bare value, the

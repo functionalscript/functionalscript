@@ -1,21 +1,27 @@
 /**
- * @import { Dir } from './types.ts'
+ * @import { Build, Dir } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { element } from '../../media/html/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { utf8ToString } from '../../text/module.f.mjs'
-import { demoSection, page, pageHref, repository, sections, subtree, testSection } from './module.f.mjs'
+import { demoSection, header, page, pageHref, repository, sections, subtree, testSection } from './module.f.mjs'
 
 /** @type {(dir: Dir) => string} */
 const sectionsHtml = dir => concat(element(['body', ...sections(null)(dir)]))
 
+/** A build that names neither its commit nor its branch: a local one. @type {Build} */
+const local = { commit: null, branch: null }
+
 /** @type {(dir: Dir) => string} */
-const pageHtml = dir => utf8ToString(page(null)(dir))
+const pageHtml = dir => utf8ToString(page(local)(dir))
 
 /** A commit id in the shape the generator hands the builder: 40 lowercase hex. */
 const commit = '0123456789abcdef0123456789abcdef01234567'
+
+/** @type {(build: Build) => string} */
+const headerHtml = build => concat(element(header(build)))
 
 /** @type {(dir: Dir) => string} */
 const sectionsAtCommit = dir => concat(element(['body', ...sections(commit)(dir)]))
@@ -40,6 +46,46 @@ const issues = items => '<body><details data-section=""><summary><h2>Issues</h2>
 const empty = { path: '.', files: [], dirs: [], todo: [], proofs: [], demo: null }
 
 export const proof = {
+    /**
+     * **Every page opens with the same header:** the logo and the name
+     * linking home, the releases, and the repository.
+     */
+    header: {
+        links: () => assertEq(headerHtml(local),
+            '<header><nav aria-label="Site">'
+            + '<a href="/index.html" data-home=""><img src="/fjs/website/favicon.svg" alt="" width="24" height="24">FunctionalScript</a>'
+            + '<span data-site-links=""><a href="/changelog/index.html">Releases</a>'
+            + `<a href="${repository}">GitHub<span aria-hidden="true"> ↗</span></a></span>`
+            + '</nav></header>'),
+        /**
+         * **A preview names its branch and its commit**, each linked on
+         * GitHub, the commit shortened to what `git log --oneline` shows.
+         */
+        preview: () => {
+            const html = headerHtml({ commit, branch: 'claude/x' })
+            assert(html.includes(
+                '<p data-build="">Preview: '
+                + `<a href="${repository}/tree/claude/x">claude/x</a>`
+                + ` @ <a href="${repository}/commit/${commit}">0123456</a></p>`), html)
+        },
+        // A branch name is linked segment by segment, like a file: `/` is
+        // kept, and a `#` does not start a fragment.
+        branchIsEncoded: () => {
+            const html = headerHtml({ commit: null, branch: 'a/b#c' })
+            assert(html.includes(`<a href="${repository}/tree/a/b%23c">a/b#c</a>`), html)
+        },
+        // A branch without a valid commit is still named; there is just no
+        // commit to link.
+        previewWithoutACommit: () => {
+            const html = headerHtml({ commit: null, branch: 'x' })
+            assert(html.includes(`<a href="${repository}/tree/x">x</a></p>`), html)
+            assert(!html.includes('/commit/'), html)
+        },
+        // The published site is `main`, and says nothing about its build.
+        production: () => assert(!headerHtml({ commit, branch: 'main' }).includes('data-build'), 'main'),
+        // Nor does a local build, which names no branch.
+        local: () => assert(!headerHtml({ commit, branch: null }).includes('data-build'), 'local'),
+    },
     pageHref: {
         // The root has no segments, so its page is `/index.html` and not
         // `/./index.html`.
@@ -284,6 +330,12 @@ export const proof = {
         breadcrumbOneDeep: () => {
             const html = pageHtml({ ...empty, path: 'fjs' })
             assert(html.includes('<nav><a href="/index.html">root</a></nav>'), html)
+        },
+        // The header comes first, outside the page's own `main`.
+        header: () => {
+            const html = pageHtml({ ...empty, path: 'fjs' })
+            assert(html.includes('<body><header><nav aria-label="Site">'), html)
+            assert(html.includes('</header><main'), html)
         },
         // The page names its language, names itself in the tab, and links the
         // stylesheet and the favicon.
