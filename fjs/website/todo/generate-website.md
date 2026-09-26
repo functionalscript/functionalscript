@@ -18,7 +18,7 @@
       (the reasoning is [`../README.md`](../README.md))
 - [x] A link looks the same once it has been followed, in the site's own
       green (`--link` in `fjs/website/style/module.f.mjs`)
-- [x] A favicon, two committed files linked from every head ("fs", the
+- [x] A favicon, two committed files linked from every head ("fjs", the
       reasoning is [`../README.md`](../README.md))
 - [x] Decide what the build owes its own leftovers: nothing — `git clean -Xd`
       already removes a stale generated page, so the fix is a note where the
