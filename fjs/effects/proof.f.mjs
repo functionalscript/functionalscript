@@ -1,13 +1,15 @@
 /**
  * @import { Effect, Func, IoChannel, Operation } from './types.ts'
  * @import { Result } from '../types/result/types.ts'
+ * @import { MemOperationMap } from './mock/types.ts'
  */
 
 import {
-    catchStep, do_, foldStep, forEachStep, history, historyStep, mapStep, walkStep,
+    catchStep, do_, finallyStep, foldStep, forEachStep, history, historyStep, mapStep, walkStep,
     match, partialMatch, pure, pureError, pureOk, resultMapStep, resultStep,
     runPure, step, toIoError, unwrapStep,
 } from './module.f.mjs'
+import { run as mockRun } from './mock/module.f.mjs'
 import { error, ok } from '../types/result/module.f.mjs'
 import { assert, assertEq, todo } from '../asserts/module.f.mjs'
 
@@ -86,6 +88,22 @@ const div = do_('div')
  * @type {Func<readonly['neg', (a: number) => Result<number, string>]>}
  */
 const neg = do_('neg')
+
+/**
+ * An operation that is only its log line, and fails where the line is `fail`:
+ * what a cleanup is asked to be observed by, since {@link finallyStep} drops
+ * whatever a cleanup answers.
+ * @type {Func<readonly['note', (line: string) => Result<void, string>]>}
+ */
+const note = do_('note')
+
+/** @type {MemOperationMap<readonly['note', (line: string) => Result<void, string>], readonly string[]>} */
+const noted = {
+    note: line => log => [[...log, line], line === 'fail' ? error('cleanup failed') : ok(undefined)],
+}
+
+/** @type {<T, E>(e: Effect<readonly['note', (line: string) => Result<void, string>], T, E>) => readonly [readonly string[], Result<T, E>]} */
+const runNoted = e => mockRun(noted)(/** @type {readonly string[]} */ ([]))(e)
 
 const nextArith = match({
     div: (/** @type {number} */ a, /** @type {number} */ b) =>
@@ -630,6 +648,27 @@ export const proof = {
         },
         overFailedDo: () => {
             assertOk(run(resultMapStep(div(1, 0), r => ok(r[0]))), 'error')
+        },
+    },    finallyStep: {
+        // The cleanup runs after `e`, is handed what `e` answered, and `e`'s
+        // answer is what comes out — on both branches.
+        ok: () => {
+            const e = step(note('e'), () => pureOk(5))
+            const [log, r] = runNoted(finallyStep(e, r => note(`cleanup ${r[0]}`)))
+            assertEq(log.join(','), 'e,cleanup ok')
+            assertOk(r, 5)
+        },
+        error: () => {
+            const e = step(note('e'), () => pureError('boom'))
+            const [log, r] = runNoted(finallyStep(e, r => note(`cleanup ${r[0]}`)))
+            assertEq(log.join(','), 'e,cleanup error')
+            assertError(r, 'boom')
+        },
+        // The cleanup's own failure is dropped: the answer is still `e`'s.
+        dropsCleanupFailure: () => {
+            const [log, r] = runNoted(finallyStep(pureOk(5), () => note('fail')))
+            assertEq(log.join(','), 'fail')
+            assertOk(r, 5)
         },
     },
 }

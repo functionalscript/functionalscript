@@ -355,7 +355,7 @@ The pending list is `pending` in
 prints is `nanvm-lib/src/vm/lambda/gen.methods.rs`. The test is unit-level
 because `method` is `pub(crate)`. The generated file is included by `#[path]`,
 since a `gen.` name is not a Rust identifier, following
-[`generated-file-conventions`](../../todo/generated-file-conventions.md).
+[naming generated files](../../CONTRIBUTING.md#naming-generated-files).
 
 #### Known limitation, deferred by name
 

@@ -325,6 +325,107 @@ export const proof = {
             assert(!html.includes('casing'), html)
         },
         /**
+         * **An inline value is a cell, not a box.** Its port grows a 20px
+         * cell under the label, holding the value, and the node a row to
+         * match; no line is drawn and no rank is spent. A value wider
+         * than its label widens its port.
+         */
+        inlineValue: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [{ id: 0, kind: 'a', label: '[ ]', rank: 0 }],
+                edges: [{ from: 0, to: { inline: '"hello"' }, label: '0' }],
+            }))
+            assert(html.includes('<rect x="10" y="10" width="61" height="66" rx="4" data-graph-node=""'), html)
+            assert(html.includes('<rect x="10" y="36" width="61" height="20" data-graph-port="">'), html)
+            assert(html.includes('<rect x="10" y="56" width="61" height="20" data-graph-value="">'), html)
+            assert(html.includes('<text x="40.5" y="66" text-anchor="middle" data-graph-value-label="">&quot;hello&quot;<'), html)
+            assert(!html.includes('data-graph-edge=""'), html)
+            assert(html.includes('viewBox="0 0 81 86"'), html)
+        },
+        /**
+         * **Beside an inline value, an edge's port fills both rows**, its
+         * key centred in it, and the edge leaves from the node's bottom:
+         * no cell of the node is empty. **A node keeps its own height**,
+         * so `narrow`, with no value, is 46px in a row whose `wide` is
+         * 66px, and its edge drops straight to the row's bottom before it
+         * turns rather than cutting across `wide`'s lower part.
+         */
+        inlineBesideAnEdge: () => {
+            /** @type {Graph} */
+            const g = {
+                nodes: [
+                    { id: 0, kind: 'a', label: 'root', rank: 0 },
+                    { id: 1, kind: 'a', label: 'wide', rank: 1 },
+                    { id: 2, kind: 'a', label: 'narrow', rank: 1 },
+                    { id: 3, kind: 'leaf', label: 'x', rank: 2 },
+                ],
+                edges: [
+                    { from: 0, to: 1, label: 'a' },
+                    { from: 0, to: 2, label: 'b' },
+                    { from: 1, to: { inline: '1' }, label: 'v' },
+                    { from: 1, to: 3, label: 'e' },
+                    { from: 2, to: 3, label: 'f' },
+                ],
+            }
+            const html = htmlToString(graphSvg(g))
+            assert(html.includes('<rect x="10" y="96" width="50" height="66" rx="4" data-graph-node=""'), html)
+            assert(html.includes('<rect x="10" y="122" width="25" height="20" data-graph-port="">'), html)
+            assert(html.includes('<rect x="35" y="122" width="25" height="40" data-graph-port="">'), html)
+            assert(html.includes('<text x="47.5" y="142" text-anchor="middle" data-graph-edge-label="">e<'), html)
+            assert(html.includes('d="M47.5,162 L35,202"'), html)
+            assert(html.includes('<rect x="74" y="96" width="58" height="46" rx="4" data-graph-node=""'), html)
+            assert(html.includes('d="M103,142 L103,162 L35,202"'), html)
+            assertEq(_crossings(g), 0)
+        },
+        /**
+         * **A node's cells round with its corners.** Square cells over a
+         * rounded box poked out past its bottom corners; they are clipped
+         * to the box's own shape, and its border is drawn again over them
+         * so their thinner lines do not show along it. A node with no
+         * ports has no cells, and needs neither.
+         */
+        cellsRoundWithTheNode: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [
+                    { id: 0, kind: 'a', label: 'root', rank: 0 },
+                    { id: 1, kind: 'leaf', label: '42', rank: 1 },
+                ],
+                edges: [{ from: 0, to: 1, label: 'x' }],
+            }))
+            assert(html.includes('<clipPath id="graph-clip-10-10-50-46"><rect x="10" y="10" width="50" height="46" rx="4">'), html)
+            assert(html.includes('<g clip-path="url(#graph-clip-10-10-50-46)"><rect x="10" y="36" width="50" height="20" data-graph-port="">'), html)
+            assert(html.includes('</g><rect x="10" y="10" width="50" height="46" rx="4" data-graph-outline="">'), html)
+            assertEq(html.split('<clipPath').length - 1, 1)
+            assertEq(html.split('data-graph-outline').length - 1, 1)
+        },
+        /**
+         * **An inline value's kind reaches its cell and its text**, as an
+         * attribute of its own; a value with no kind says nothing. The
+         * kind is the demo's word, as a node's is — the EDAG demo marks an
+         * input `"terminal"` — and the stylesheet decides the look.
+         */
+        inlineValueKind: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [{ id: 0, kind: 'a', label: '.', rank: 0 }],
+                edges: [
+                    { from: 0, to: { inline: 'args', kind: 'terminal' }, label: 'obj' },
+                    { from: 0, to: { inline: '1' }, label: 'idx' },
+                ],
+            }))
+            assert(html.includes('data-graph-value="" data-graph-value-kind="terminal">'), html)
+            assert(html.includes('data-graph-value-label="" data-graph-value-kind="terminal">args<'), html)
+            assert(html.includes('data-graph-value-label="">1<'), html)
+            assertEq(html.split('data-graph-value-kind').length - 1, 2)
+        },
+        // A marked edge to an inline value marks its value cell.
+        marksAnInlineValue: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [{ id: 0, kind: 'a', label: '&&', rank: 0 }],
+                edges: [{ from: 0, to: { inline: '1' }, label: 'right', kind: 'lazy' }],
+            }))
+            assert(html.includes('data-graph-value="" data-graph-edge-kind="lazy"'), html)
+        },
+        /**
          * **An edge that names a node the graph does not have is refused**,
          * at either end. Drawn anyway, one from a missing node had no port
          * to leave from and vanished from a picture that looked complete —
