@@ -26,7 +26,8 @@ export type Refusal = {
  * path does. Pure — the whole routing decision, with nothing to run.
  *
  * Everything it can fail on is a property of the URL. What is discovered by
- * *reading* — a missing file, one too large to send — is not its business.
+ * *reading* — a missing file, an entry that is no regular file — is not its
+ * business.
  */
 export type Resolve = (root: string) => (url: string) => Result<string, Refusal>
 
