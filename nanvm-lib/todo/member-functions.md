@@ -125,7 +125,8 @@ are a dispatch over bodies that exist. Two gaps it shares with the
 conversion path: an own `toString` or `valueOf` on an object is not
 called by `ToPrimitive` yet, where JavaScript's `String({ toString: f })`
 calls `f` — the same own-property-first lookup as the call step, to wire
-once for both — and `Number`'s `toString` takes no radix.
+once for both, staged in [`to-primitive.md`](./to-primitive.md) — and
+`Number`'s `toString` takes no radix.
 
 ### Tasks
 
@@ -153,7 +154,8 @@ Infrastructure:
       generated Rust. Use the adopted EDAG-rendering contract as the oracle
       for default function text; native wrapper text is not that oracle.
 - [ ] `ToPrimitive` calls an object's own `toString` and `valueOf`, the
-      lookup the call step uses, so `String(o)` and `o.toString()` agree.
+      lookup the call step uses, so `String(o)` and `o.toString()` agree:
+      [`to-primitive.md`](./to-primitive.md), refusal first.
 
 `Object`:
 
