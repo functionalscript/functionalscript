@@ -30,20 +30,30 @@ silently not hoisted.
 
 ### Proposal
 
-The analysis exports its contract and its facts:
+The analysis exports its contract as a type, and its facts:
 
 ```ts
-export const checked: (e: Exp) => Result<Analysis, string>   // analysis plus bindingError
+/** An `Analysis` that `bindingError` has passed; only `checked` makes one. */
+export type Checked = Phantom<Analysis, 'checked'>
+export const checked: (e: Exp) => Result<Checked, string>
 export const refs: (node: Node) => readonly number[]
 export const mintsIdentity: (node: Node) => boolean
 ```
 
-The four sites call `checked`; the serializer's `hoists` walks `refs`
-and filters with `mintsIdentity`; `operands` and `minting` go.
+`Checked` is nominal — `fjs/types/phantom` is how this repository brands
+a type — so an unchecked `Analysis` does not pass where a `Checked` is
+asked for. The three `fsc` sites call `checked` on their `Exp`. `memo`,
+which takes an analysis rather than an expression, takes a `Checked`
+and drops its assertion: the type says what the assertion said, and the
+executor's contract is stronger, not weaker, since a caller can no
+longer hand it an analysis nothing has checked. The serializer's
+`hoists` walks `refs` and filters with `mintsIdentity`; `operands` and
+`minting` go.
 
 ### Tasks
 
-- [ ] The three exports with proofs; the consumers through them.
+- [ ] `Checked`, `checked`, `refs` and `mintsIdentity` with proofs; the
+      four consumers through them, `memo`'s signature on `Checked`.
 - [ ] `tsc`, `fjs test`.
 
 ### Related

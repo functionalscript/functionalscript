@@ -41,23 +41,32 @@ performs the same round trip by hand.
 ### Proposal
 
 This module owns the traversal, and the validator and the
-canonicaliser are two uses of it:
+canonicaliser are two uses of it. The validator needs to *find* — the
+first field that is not a hash, with the path its message names — and
+the canonicaliser needs to *rebuild*, so the export is the enumeration
+plus the map, both over one private walk:
 
 ```ts
+/** Every hash-bearing field of a revision, with its path: `['parents', '0']`, `['snapshot']`, `['lock', 'a', 'b']`. */
+export const hashEntries: (r: Revision) => readonly (readonly [readonly string[], string])[]
 /** Every hash-bearing field of a revision under `f`; the lock map to its leaves. */
 export const mapHashes: (f: (h: Hash) => Hash) => (r: Revision) => Revision
 ```
 
-`checkReferences` folds the same enumeration, and `fjs/basen/cbase32`
-exports the canonical spelling, `canonicalCBase32: (s: string) =>
-Nullable<string>`. Evo's `buildRevision` and `toRevisionData` become
+`checkReferences` is `hashEntries(r).find(([, h]) => !isHash(h))`
+turned into today's messages, with no captured state and no second
+walk; `lockError` goes with it. `fjs/basen/cbase32` exports the
+canonical spelling, `canonicalCBase32: (s: string) => Nullable<string>`.
+Evo's `buildRevision` and `toRevisionData` become
 `mapHashes(canonical)`, and `cas_get` uses the same export.
 
 ### Tasks
 
-- [ ] `mapHashes` here, `canonicalCBase32` in `cbase32`, with proofs.
-- [ ] `checkReferences` and evo's two builders through them;
-      `canonicalLock`/`canonicalLockField` go.
+- [ ] `hashEntries` and `mapHashes` here, `canonicalCBase32` in
+      `cbase32`, with proofs.
+- [ ] `checkReferences` over `hashEntries`, its messages unchanged;
+      evo's two builders over `mapHashes`; `canonicalLock`,
+      `canonicalLockField` and `lockError` go.
 - [ ] `tsc`, `fjs test`; the evo head proofs pass unchanged.
 
 ### Related

@@ -26,10 +26,15 @@ can hold more files than the repository has". A rule about what the
 repository is made of has one right answer, and three sites is how it
 came to have two.
 
-The website also carries its own recursive `readdir` walk, `walk`, folded
-with `foldStep`, beside the `walk(root, classify)` that `fjs/dev` exports
-and `clean` already uses. The one difference is that the website sorts
-its entries.
+The website also carries its own recursive `readdir` walk, `walk`,
+folded with `foldStep`, beside the `walk(root, classify)` that `fjs/dev`
+exports and `clean` already uses. The two answer different questions:
+`fjs/dev`'s returns the flat list of paths classified `take`, and a
+directory it descends is not itself in the answer; the website's
+returns one `_Walked` record per directory — its path, its files and its
+subdirectories, sorted, an empty directory included — because
+`writePages` writes a page for every directory. The recursion over
+`readdir` is the same in both; the shape of the answer is not.
 
 Two smaller things in `fjs/dev/module.f.mjs` sit on the same seam:
 `isSourceFile` is called by nothing but its own proof, and
@@ -46,15 +51,27 @@ export const isThirdParty: (name: string) => boolean
 ```
 
 `allFiles`, `clean`'s `classify` and the website's `ignored` call it, and
-`fjs test` stops walking `target`. The website walks with `fjs/dev`'s
-`walk` and sorts the result, so there is one recursion over `readdir`.
+`fjs test` stops walking `target`. That is the whole of the policy fix
+and stands on its own.
+
+For the two recursions, one walk under both: a per-directory
+`walkDirs(root, descend)` in `fjs/dev`, answering the website's record
+per directory it enters — path, files, subdirectories, sorted — with
+today's `walk(root, classify)` derived from it by flattening the files
+that `classify` takes. The website's `walk` is then `walkDirs(dir,
+name => !isThirdParty(name))`, and its `_Walked` type moves beside the
+export. If the derivation turns out to cost more than the copy, the
+website keeps its walk and shares only the predicate; the policy fix
+does not wait on the walk.
+
 `isSourceFile` goes, and `loadModuleMap`'s doc says what it takes.
 
 ### Tasks
 
 - [ ] `isThirdParty` in `fjs/dev/module.f.mjs`, with a proof; the three
       sites import it.
-- [ ] `fjs/website` walks through `fjs/dev`'s `walk`.
+- [ ] `walkDirs` with `walk` derived from it, and the website through
+      `walkDirs`; `npm run website` writes the same tree.
 - [ ] Delete `isSourceFile`; correct `loadModuleMap`'s doc.
 - [ ] `tsc`, `fjs test`.
 

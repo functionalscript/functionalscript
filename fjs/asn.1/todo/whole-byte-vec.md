@@ -21,25 +21,29 @@ pop((first & 0x7Fn) << 3n)(rest1) … return [byteLen << 3n, rest2]
 
 and `fjs/crypto/sign` spells it a third way, `vec(roundUp8(qlen))`.
 `divUp8(x) << 3n` is `roundUp8(x)`; the `<< 3n` conversions are the
-arithmetic the owners exist to name.
+arithmetic the owners exist to name. `bit_vec` names one direction of
+that conversion, `bytesIn`, bits to whole bytes, and not the other.
 
 ### Proposal
 
-One constructor in `fjs/types/bit_vec`:
+One constructor and the missing direction in `fjs/types/bit_vec`:
 
 ```ts
 /** `uint` padded to whole bytes, at least `minBytes` of them. */
 export const wholeBytes: (minBytes: bigint) => (uint: Unpacked) => Vec
+/** The bits in `bytes` whole bytes; the inverse of `bytesIn` on a whole-byte count. */
+export const bitsIn: (bytes: bigint) => bigint
 ```
 
-`round8`'s `v` and `tagEncode` call it, `byteLen` becomes
-`byteLength(v)`, `lenDecode` converts through `bytesIn`, and `sign`'s
-`int2octets` shares it.
+`round8`'s `v` and `tagEncode` call `wholeBytes`, `byteLen` becomes
+`byteLength(v)`, `lenDecode` converts its byte count through `bitsIn`
+— not `bytesIn`, which divides where `lenDecode` must multiply — and
+`sign`'s `int2octets` shares `wholeBytes`.
 
 ### Tasks
 
-- [ ] `wholeBytes` with a proof; the four sites through it.
-- [ ] `tsc`, `fjs test`.
+- [ ] `wholeBytes` and `bitsIn` with proofs; the four sites through them.
+- [ ] `tsc`, `fjs test`; the ASN.1 proofs pass unchanged.
 
 ### Related
 
