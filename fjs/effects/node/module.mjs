@@ -90,6 +90,30 @@ const io = async f => {
  * variable never leaves this function, so nothing observes the mutation, which
  * is the condition under which the impure shell is allowed to be impure.
  *
+ * **The check, the read and the update are one step, and the queue is what
+ * makes them one.** {@link runNodeEffect} answers `all` with `Promise.all`, so
+ * a listener that pulls one cell twice through `all` or `both` has both pulls
+ * started before either awaits. Checked per pull, both passed, both read, and
+ * both answered `ok` — one immutable cell handing out two different chunks,
+ * each a piece of the body, in order and under a correct length, with
+ * nothing downstream able to tell which piece it had. So a pull runs behind the
+ * pull before it, and the second then meets the position the first left.
+ *
+ * **What the loser gets is the offset refusal, not a refusal of its own.** A
+ * cell has one consumer — a `List` gives a consumer no way to tell a producer
+ * it has stopped ([`../list/types.ts`](../list/types.ts)) — so the second pull
+ * is refused either way, and the only question is in whose words. The virtual
+ * runner folds `all` over its state, so it already answers a concurrent re-pull
+ * with `requestBodyOffsetMessage`. A busy flag — "a read is in flight",
+ * answered at once — would need a second message that only this runner could
+ * ever produce, and no proof against the virtual runner could meet it. Queueing
+ * costs nothing to wait for, either: the listener is awaiting both pulls, so
+ * the refusal arrives with the chunk that caused it.
+ *
+ * The queue links on *settlement*, not on success, so a refused pull refuses
+ * nothing after it — the refusal belongs to the pull that lost, and the winner's
+ * tail is still there to be read.
+ *
  * An empty chunk is skipped rather than reported, because no bytes is how this
  * operation says *end* and Node's parser has no obligation to keep the two
  * apart. A chunk larger than a `Vec` is refused by `toVec` at the call site,
@@ -103,18 +127,24 @@ const io = async f => {
 const requestBodyReader = v => {
     const i = v[Symbol.asyncIterator]()
     let position = 0
-    return async (offset, _size) => {
-        if (offset !== position) {
-            throw new Error(requestBodyOffsetMessage(offset, position))
-        }
-        for (;;) {
-            const next = await i.next()
-            if (next.done === true) { return emptyBody }
-            if (next.value.length !== 0) {
-                position += next.value.length
-                return next.value
+    /** @type {Promise<unknown>} */
+    let queue = Promise.resolve()
+    return (offset, _size) => {
+        const pull = queue.then(async () => {
+            if (offset !== position) {
+                throw new Error(requestBodyOffsetMessage(offset, position))
             }
-        }
+            for (;;) {
+                const next = await i.next()
+                if (next.done === true) { return emptyBody }
+                if (next.value.length !== 0) {
+                    position += next.value.length
+                    return next.value
+                }
+            }
+        })
+        queue = pull.catch(() => undefined)
+        return pull
     }
 }
 

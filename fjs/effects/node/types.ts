@@ -407,6 +407,17 @@ export type RequestBody =
  * [DESIGN §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle) exists
  * to refuse, so it is refused, and the two runners refuse it the same way.
  *
+ * **Two pulls at the same time are the same second pull**, and they get the same
+ * answer. `all` starts its effects before it awaits them, so a listener that
+ * pulls one cell twice through `all` or `both` is the case where a check made
+ * per pull would let both through: both would read, both would answer `ok`, and
+ * the body would be spliced with no offset ever named wrongly. So a runner
+ * answers one pull of a body at a time — a cell has one consumer, and a `List`
+ * gives a consumer no way to tell a producer it has stopped
+ * ([`../list/types.ts`](../list/types.ts)) — and the pull that arrives second
+ * meets the position the first left. The refusal is then this same one, in the
+ * same words, whichever runner it came from.
+ *
  * A pull at the position where the body *ended* is not that case and is not
  * refused: the answer is no bytes, again, which is what the end of a stream is
  * worth however many times it is asked for.

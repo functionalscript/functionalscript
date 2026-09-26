@@ -1,7 +1,9 @@
 /**
  * @import { Dir, State, _QueuedRequest } from './types.ts'
  * @import { NodeOp, ReadRequestBytes, RequestListener, ServerResponse } from '../types.ts'
- * @import { List } from '../../list/types.ts'
+ * @import { List, Next } from '../../list/types.ts'
+ * @import { All } from '../../common/types.ts'
+ * @import { Result } from '../../../types/result/types.ts'
  * @import { Vec } from '../../../types/bit_vec/types.ts'
  * @import { Effect, IoResult } from '../../types.ts'
  * @import { IoChannel } from '../types.ts'
@@ -13,6 +15,7 @@ import { resolveFileModule, access, awaitIfPromise, exec, fetch, log, rm, rmdir,
 import { empty, length, maxLengthBytes, msb, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
 import { history, historyStep, pureOk, resultMapStep, step } from '../../module.f.mjs'
 import { ok } from '../../../types/result/module.f.mjs'
+import { both } from '../../common/module.f.mjs'
 import { asNominal as asNominalHandle } from '../../../types/nominal/module.f.mjs'
 import { byteLength, repeat, u8ListMsb } from '../../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
@@ -56,7 +59,7 @@ const posted = body => ({ method: 'POST', url: '/', headers: {}, body })
  * What `listener` answered the one queued request carrying `body`, and the state
  * it left behind.
  *
- * @type {(listener: RequestListener<ReadRequestBytes>, body: readonly Vec[]) => readonly[State, ServerResponse]}
+ * @type {(listener: RequestListener<ReadRequestBytes | All>, body: readonly Vec[]) => readonly[State, ServerResponse]}
  */
 const answered = (listener, body) => {
     const e = step(createServer(listener), server => listen(server, 8080, '127.0.0.1'))
@@ -1315,6 +1318,28 @@ export const proof = {
             const [, r] = answered(rePull, [utf8('ab'), utf8('cd')])
             assertEq(r.status, 500)
             assertEq(responseText(r), requestBodyOffsetMessage(0, 2))
+        },
+        // **And refused when the two pulls are at the same time**, which is the
+        // same claim in the shape the Node runner nearly got wrong. This runner
+        // folds `all` over its state, so a pull always reads what the pull before
+        // it left, and the refusal here needs nothing added. The Node runner's
+        // `all` is `Promise.all`, so it had to be made to queue its pulls to
+        // answer this the same way — and the pair is here so that neither runner
+        // can drift from the other on it.
+        refusesAConcurrentPull: () => {
+            /** @type {(one: Result<Next<ReadRequestBytes, Vec, IoChannel>, IoChannel>) => string} */
+            const pulled = one => one[0] === 'error'
+                ? errorMessage(one[1])
+                : one[1] === undefined ? 'end' : `ok ${byteLength(one[1].first)}`
+            /** @type {RequestListener<ReadRequestBytes | All>} */
+            const together = ({ body }) => resultMapStep(
+                both(body)(body),
+                r => ok(r[0] === 'error'
+                    ? { status: 503, headers: {}, body: [] }
+                    : { status: 500, headers: {}, body: [utf8(r[1].map(pulled).join(' | '))] }))
+            const [, r] = answered(together, [utf8('ab'), utf8('cd')])
+            assertEq(r.status, 500)
+            assertEq(responseText(r), `ok 2 | ${requestBodyOffsetMessage(0, 2)}`)
         },
         // **The end of a body is worth the same however often it is asked
         // for.** A pull at the offset the body ended at is not a re-pull of an

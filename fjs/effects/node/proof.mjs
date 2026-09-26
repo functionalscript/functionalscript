@@ -9,8 +9,9 @@
  * runner; compiler traversal and diagnostics are proved synchronously in
  * `fsc/transpiler/proof.f.mjs`.
  *
- * @import { NodeProgram, NodeOp, ReadRequestBytes, RequestListener } from './types.ts'
- * @import { List } from '../list/types.ts'
+ * @import { NodeProgram, NodeOp, ReadRequestBytes, RequestListener, ServerResponse } from './types.ts'
+ * @import { List, Next } from '../list/types.ts'
+ * @import { All } from '../common/types.ts'
  * @import { Effect, IoChannel } from '../types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
@@ -26,6 +27,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { pureOk, resultMapStep, step } from '../module.f.mjs'
+import { both } from '../common/module.f.mjs'
 import { byteLength, maxLengthBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { asBase } from '../../types/nominal/module.f.mjs'
@@ -241,7 +243,10 @@ const answeredOverASocket = async (chunks, method) => {
  * the proofs below are about what a *listener* does with its request body rather
  * than about one fixed answer.
  *
- * @type {(listener: RequestListener<ReadRequestBytes>, check: (port: number) => Promise<void>) => Promise<void>}
+ * `All` is in the op set because one of the listeners below fans two pulls of
+ * one body cell out with `both`, and the concurrency is that proof's subject.
+ *
+ * @type {(listener: RequestListener<ReadRequestBytes | All>, check: (port: number) => Promise<void>) => Promise<void>}
  */
 const withHostServer = async (listener, check) => {
     /** @type {(server: import('node:http').Server) => void} */
@@ -289,6 +294,58 @@ const echoBody = ({ body }) => {
         }
         : { status: 500, headers: {}, body: [toVec(new TextEncoder().encode(errorMessage(r[1])))] }))
 }
+
+/**
+ * A `500` carrying `text`, which is how a listener reports what it saw of its
+ * own request body. The refusal is observable nowhere else: the runner hands the
+ * body to the listener and the listener's only way out is a response.
+ *
+ * @type {(text: string) => ServerResponse}
+ */
+const reported = text => {
+    const bytes = new TextEncoder().encode(text)
+    return {
+        status: 500,
+        headers: { 'content-length': `${bytes.length}` },
+        body: [toVec(bytes)],
+    }
+}
+
+/**
+ * What one pull of a body cell answered: the number of bytes it took, the end of
+ * the stream, or the refusal it met.
+ *
+ * @type {(r: Result<Next<ReadRequestBytes, Vec, IoChannel>, IoChannel>) => string}
+ */
+const pulled = r => r[0] === 'error'
+    ? `error ${errorMessage(r[1])}`
+    : r[1] === undefined ? 'end' : `ok ${byteLength(r[1].first)}`
+
+/**
+ * Pulls one body cell twice **at the same time**, then pulls the winner's tail,
+ * and answers with what each of the three pulls saw.
+ *
+ * `both` rather than a second `step` is the whole subject: the Node runner's
+ * `all` is `Promise.all`, so it starts both effects before it awaits either, and
+ * a sequential re-pull cannot reach that interleaving. The tail pull is here
+ * because a refused pull must not refuse the pulls after it — the refusal
+ * belongs to the pull that lost, not to the body.
+ *
+ * @type {RequestListener<ReadRequestBytes | All>}
+ */
+const concurrentPulls = ({ body }) => resultMapStep(
+    step(both(body)(body), ([a, b]) => {
+        const seen = `${pulled(a)} | ${pulled(b)}`
+        const won = a[0] === 'ok' && a[1] !== undefined
+            ? a[1]
+            : b[0] === 'ok' && b[1] !== undefined ? b[1] : null
+        /** @type {Effect<ReadRequestBytes, string, never>} */
+        const then = won === null
+            ? pureOk(seen)
+            : resultMapStep(won.tail, t => ok(`${seen} | ${pulled(t)}`))
+        return then
+    }),
+    r => ok(reported(r[0] === 'ok' ? r[1] : 'all was not dispatched')))
 
 /** A listener that answers at once, reading no part of the request body.
  *
@@ -721,6 +778,42 @@ export const proof = {
                 const answer = await overAnAgent(port, 'POST', unalignedBytes(64), agent)
                 assertEq(answer.status, 500)
                 assertEq(new TextDecoder().decode(answer.body), requestBodyOffsetMessage(0, 64))
+                agent.destroy()
+            })
+        },
+        // **Two pulls of one cell *at the same time* are refused too**, and this
+        // is the case `all` reaches that a sequential re-pull does not. The Node
+        // runner's `all` is `Promise.all`: it starts every effect before it
+        // awaits any, so both pulls used to read the cursor before either
+        // advanced it, pass, and come back with successive chunks — two `ok`s
+        // from one immutable cell, carrying different bytes, and nothing
+        // downstream able to tell which half of the body it had. The virtual
+        // runner threads its state through `all` and always refused this, so the
+        // host was the odd one out.
+        //
+        // The body is past the socket's high-water mark so that the loser is
+        // refused *bytes* rather than an end-of-stream: a body small enough to
+        // arrive in one chunk would let a second pull answer `end` and prove
+        // nothing about the splice.
+        //
+        // The refusal is read off the winner's own length rather than written
+        // down here, because Node's first chunk carries the headers with it and
+        // its size is not a constant. The third pull is the winner's tail, and it
+        // has to succeed: what the loser met is its own refusal, not the body's.
+        refusesAConcurrentPull: async () => {
+            if (!isNode()) { return }
+            await withHostServer(concurrentPulls, async port => {
+                const agent = new http.Agent({ keepAlive: false })
+                const answer = await overAnAgent(port, 'POST', unalignedBytes(300000), agent)
+                assertEq(answer.status, 500)
+                const [one = '', two = '', tail = ''] = new TextDecoder().decode(answer.body).split(' | ')
+                const won = one.startsWith('ok ') ? one : two
+                const lost = one.startsWith('ok ') ? two : one
+                assert(won.startsWith('ok '), won)
+                const taken = Number(won.slice(3))
+                assert(taken > 0, taken)
+                assertEq(lost, `error ${requestBodyOffsetMessage(0, taken)}`)
+                assert(tail.startsWith('ok '), tail)
                 agent.destroy()
             })
         },
