@@ -35,7 +35,7 @@
  *
  * @import { Edge, Graph, Inline, Node, Ranked } from './types.ts'
  * @import { Element } from '../../../media/html/types.ts'
- * @import { _Lane, _Out, _Point, _Port, _Positioned, _Route, _Slot } from './private.ts'
+ * @import { _Lane, _Out, _Placed, _Point, _Port, _Positioned, _Route, _Slot } from './private.ts'
  */
 
 /**
@@ -157,7 +157,8 @@ const missingEnds = ids => (edge, index) => [
  * **An edge has a lane in every rank strictly between its ends**, and none
  * when it goes to the next rank, or to an inline value, which has no
  * rank. A lane's `key` places it just after its source's id, among the
- * nodes ordered by id, so it sits near where its edge starts rather than at the far end of a row. It carries its edge's
+ * nodes ordered by id, so it sits near where its edge starts rather than
+ * at the far end of a row. It carries its edge's
  * `index`, its position in the graph's list, because that is what tells
  * two edges apart: the same `Edge` object may be listed twice, and a lane
  * found by object would belong to both.
@@ -171,7 +172,7 @@ const missingEnds = ids => (edge, index) => [
  * both were quadratic in the lanes; a 300-node chain of that shape took
  * five times as long as the drawing had before lanes existed.
  *
- * @type {(nodes: readonly Ranked[]) => (edges: readonly Edge[]) => { readonly nodes: readonly _Positioned[], readonly lanes: readonly _Lane[] }}
+ * @type {(nodes: readonly Ranked[]) => (edges: readonly Edge[]) => _Placed}
  */
 const layout = nodes => edges => {
     // **An edge must name nodes the graph has, or the graph is refused.**
@@ -206,12 +207,12 @@ const layout = nodes => edges => {
                 : headerHeight + portHeight
     })
     let y = margin
-    const placed = rows.map(row => {
+    const placedRows = rows.map(row => {
         const top = y
         const tallest = row.reduce((m, slot) => Math.max(m, heightOf(slot)), 0)
         y += tallest + rowGap
         let x = margin
-        return row.map(slot => {
+        const slots = row.map(slot => {
             const left = x
             if (slot.node === undefined) {
                 x += laneWidth + colGap
@@ -225,10 +226,13 @@ const layout = nodes => edges => {
             const node = { ...slot.node, x: left, y: top, width, height: heightOf(slot), ports }
             return { node }
         })
-    }).flat()
+        return { end: top + tallest, slots }
+    })
+    const placed = placedRows.flatMap(row => row.slots)
     return {
         nodes: placed.flatMap(p => p.node === undefined ? [] : [p.node]),
         lanes: placed.flatMap(p => p.lane === undefined ? [] : [p.lane]),
+        ends: placedRows.map(row => row.end),
     }
 }
 
@@ -244,15 +248,12 @@ const layout = nodes => edges => {
  * neighbour on its way to the next row; dropping first, it turns only in
  * the gap between rows, where there are no boxes.
  *
- * @type {(placed: { readonly nodes: readonly _Positioned[], readonly lanes: readonly _Lane[] }) => readonly _Route[]}
+ * @type {(placed: _Placed) => readonly _Route[]}
  */
 const routesOf = placed => {
     const byId = new Map(placed.nodes.map(p => [p.id, p]))
     const at = /** @type {(id: number) => _Positioned} */ (id => /** @type {_Positioned} */ (byId.get(id)))
     const lanes = new Map(placed.lanes.map(lane => [`${lane.index} ${lane.rank}`, lane]))
-    const rowBottoms = placed.nodes.reduce(
-        (m, p) => m.set(p.rank, Math.max(m.get(p.rank) ?? 0, p.y + p.height)), new Map())
-    const rowBottom = /** @type {(rank: number) => number} */ (rank => /** @type {number} */ (rowBottoms.get(rank)))
     return placed.nodes.flatMap(from => from.ports.flatMap(port => {
         const target = port.edge.to
         if (typeof target !== 'number') { return [] }
@@ -262,7 +263,7 @@ const routesOf = placed => {
         /** @type {readonly _Point[]} */
         const points = [
             [x, bottom],
-            ...(bottom < rowBottom(from.rank) ? [/** @type {_Point} */ ([x, rowBottom(from.rank)])] : []),
+            ...(bottom < placed.ends[from.rank] ? [/** @type {_Point} */ ([x, placed.ends[from.rank]])] : []),
             ...Array.from({ length: to.rank - from.rank - 1 }, (_, i) => {
                 const lane = /** @type {_Lane} */ (lanes.get(`${port.index} ${from.rank + 1 + i}`))
                 return /** @type {readonly _Point[]} */ ([[lane.x, lane.top], [lane.x, lane.bottom]])
