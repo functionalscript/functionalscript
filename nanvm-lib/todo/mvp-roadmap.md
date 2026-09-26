@@ -128,22 +128,22 @@ embedded profile open), and the `nanvm` binary depends on both. It serves
 any AOT-compiled effectful FJS program, not just the embedded compiler —
 it is to native FJS what `fjs/effects/node/module.mjs` is to Node FJS.
 
-**Generated stub — the vocabulary is machine-checked.** The Rust side of
-the effect vocabulary is not written by hand: a **generated stub** (op,
-parameter, and result types, plus a trait with one method per operation)
-is produced from the effects description, and the hand-written
-`nanvm-effects-node` runner implements the generated trait — so rustc
-enforces that the runner covers exactly the same effects, and any
-vocabulary drift (a new operation, a changed signature) breaks the Rust
-build until the twin catches up. Since `NodeOp` today is TypeScript types
-only and the code generator compiles FJS values, the vocabulary becomes an
-**RTTI schema** (the specification of record) from which both the TS types
-(`Ts<T>`) and the Rust stub are derived — the third instance of the
-single-source pattern, after the [EDAG schema](../../fjs/edag/README.md) and
-the operator tests. The stub is generated code: it is committed to the
-repository and regenerated through the same single-script / drift-check
-rules as the generated compiler source (see the distribution section
-below).
+**Generated stub for the RTTI-representable subset.** For operations whose
+request and result types fit the existing RTTI vocabulary, an **RTTI schema**
+is the specification of record. Derive both the TS declarations and a Rust
+stub (op, parameter and result types, plus a trait with one method per
+operation). The handwritten `nanvm-effects-node` runner implements that trait,
+so rustc checks coverage and signature drift for this subset. The stub is
+committed and regenerated through the same single-script / drift-check rules
+as the generated compiler source (see the distribution section below).
+
+`sandbox` has a handwritten declaration on each side: current RTTI cannot
+describe its generic callback or arbitrary returned/thrown VM values, including
+functions. Compose it with the generated subset and test its dispatch and
+result/duration contract separately. Do not encode the callback as RTTI
+`unknown` or claim the generated trait checks the whole vocabulary. The
+[schema boundary](../../todo/nanvm-effects-node.md#schema-boundary) records this
+exception and requires an audit before generating additional operations.
 
 Scoping notes:
 
