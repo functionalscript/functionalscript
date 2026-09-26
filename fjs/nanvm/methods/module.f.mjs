@@ -7,18 +7,22 @@
  * ([`fjs/js/prototype`](../../js/prototype/module.f.mjs)), and the VM must
  * answer each on every type whose prototype has it, or a module compiles and
  * then throws. It must equally answer none of `prohibitedCalls`, so that a
- * name the compiler refuses cannot be reached another way, and no name of
- * either list on a type whose prototype lacks it, so that `[1].charAt(0)`
- * throws as it does in JavaScript and `[].bind` has no entry to reach. This module crosses the two lists with each type's
- * prototype and sorts every pair into one of four rows, which
+ * name the compiler refuses cannot be reached another way, and no known name
+ * that is not a member function of the type: one its prototype lacks, so
+ * that `[1].charAt(0)` throws as it does in JavaScript and `[].bind` has no
+ * entry to reach, or `length`, a property on neither list, so that
+ * `(1).length()` and `[].length()` throw. This module crosses every known
+ * name with each type's prototype and sorts every pair into one of four
+ * rows, which
  * [`generate`](#generate) prints as Rust:
  *
  * - **answered** — allowed, and the VM has an entry;
  * - **pending** — allowed, and the VM has no entry yet: {@link pending},
  *   the one list here written by hand;
  * - **prohibited** — refused, and the VM must never have an entry;
- * - **absent** — on either list, but not on this type's prototype, and the
- *   VM must never have an entry either.
+ * - **absent** — a known name that is no member function of this type, being
+ *   off its prototype or `length`, and the VM must never have an entry
+ *   either.
  *
  * The test beside `method` in `nanvm-lib/src/vm/lambda/method.rs` asserts
  * each row, so landing a built-in fails it until its pair leaves
@@ -38,6 +42,7 @@ import {
     numberPrototype,
     objectPrototype,
     prohibitedCalls,
+    prototypeNames,
     stringPrototype,
 } from '../../js/prototype/module.f.mjs'
 
@@ -76,7 +81,7 @@ export const pending = {
 /**
  * The four rows for a pending list, each a list of `[type, name]` pairs in
  * {@link types}' order and then its prototype's, or, for `absent`,
- * `allowedCalls`' and then `prohibitedCalls`' order.
+ * `prototypeNames`' order.
  *
  * A pending pair that is not an allowed call on a type is refused: no row
  * could hold it, so a typo would otherwise vanish rather than be reported.
@@ -95,6 +100,8 @@ export const rows = p => {
     const prohibited = prohibitedCalls
     /** @type {(type: string, name: string) => boolean} */
     const isPending = (type, name) => (p[type] ?? []).includes(name)
+    /** @type {(name: string) => boolean} */
+    const isCall = name => allowed.includes(name) || prohibited.includes(name)
     /** @type {(keep: (type: string, name: string) => boolean) => readonly (readonly[string, string])[]} */
     const pairs = keep => types.flatMap(([type, names]) => names
         .filter(name => keep(type, name))
@@ -103,8 +110,8 @@ export const rows = p => {
         answered: pairs((type, name) => allowed.includes(name) && !isPending(type, name)),
         pending: pairs((type, name) => allowed.includes(name) && isPending(type, name)),
         prohibited: pairs((_, name) => prohibited.includes(name)),
-        absent: types.flatMap(([type, names]) => [...allowed, ...prohibited]
-            .filter(name => !(/** @type {readonly string[]} */ (names)).includes(name))
+        absent: types.flatMap(([type, names]) => prototypeNames
+            .filter(name => !(isCall(name) && (/** @type {readonly string[]} */ (names)).includes(name)))
             .map(name => /** @type {const} */ ([type, name]))),
     }
     const listed = Object.values(p).reduce((n, names) => n + names.length, 0)
@@ -146,6 +153,6 @@ export const generate = () => {
         ...table('ANSWERED', 'Allowed, and answered: `method` has an entry.', r.answered),
         ...table('PENDING', 'Allowed, and not answered yet: `method` has no entry.', r.pending),
         ...table('PROHIBITED', 'Refused by the compiler: `method` never has an entry.', r.prohibited),
-        ...table('ABSENT', 'A known name not on the type\'s prototype: `method` never has an entry.', r.absent),
+        ...table('ABSENT', 'A known name that is no member function of the type: `method` never has an entry.', r.absent),
     ].join('\n')
 }
