@@ -25,8 +25,10 @@ forbids. The gap predates the `Array` and `String` member functions. Those
 functions made it reachable from many more calls: `join`'s separator and
 elements, every string-method argument, and every numeric position or count
 (the `String` ones are still in review).
-Review of that stack keeps finding it. `join` and the string searches carry a
-`// TODO:` that points here.
+Review of that stack keeps finding it. Two of its pull requests carry a
+`// TODO:` for it, which reaches here through the `ToPrimitive` task of
+`member-functions.md`: `array_join` in `vm/lambda/method.rs` (#2321) and the
+searches in `vm/string/search.rs` (#2328). Neither is on `main` yet.
 
 ### What already works: the stock methods
 
@@ -124,10 +126,12 @@ answers and the VM refuses, the case also joins the shared corpus with a
 Stage 2 turns the case on by deleting the reason.
 
 Stage 1 also makes a check possible that no test can make today: conversion
-can now throw, so `toSorted`'s guard (`vm/array/to_sorted.rs`, which leaves
-fewer than two defined elements unconverted) becomes observable.
-`[x, undefined].toSorted()` answers, and `[x, x].toSorted()` throws, where
-`x` owns a `toString`. The guard's test lands with Stage 1.
+can now throw, so `toSorted`'s guard (`vm/array/to_sorted.rs`, arriving with
+#2323, which leaves fewer than two defined elements unconverted) becomes
+observable. `[x, undefined].toSorted()` answers, and `[x, x].toSorted()`
+throws, where `x` owns a `toString`. Stage 1 does not wait for that stack:
+the guard's test, and the two `// TODO:`s above, land with whichever of
+Stage 1 and their pull request reaches `main` second.
 
 **Changelog.** A behavior change of `nanvm-lib`: conversions that answered a
 wrong value now throw a `TypeError`. It is not a break of `fjs`'s API.
@@ -181,9 +185,9 @@ needs its own issue, and it lands with or after Stage 1.
       function wherever its text is observable, keeping every
       text-independent result. Unit tests per row, and corpus cases with a
       `rust` reason.
-- [ ] With the member functions still in review, once each merges this:
-      the `toSorted` guard's test, and the `// TODO:` in `array_join` and
-      `vm/string/search.rs` replaced with a pointer to Stage 2.
+- [ ] Once #2321, #2323 and #2328 are on `main` with this: the `toSorted`
+      guard's test, and the `// TODO:` in `array_join` (#2321) and
+      `vm/string/search.rs` (#2328) replaced with a pointer to Stage 2.
 - [ ] Stage 2: call an object's own `toString` and `valueOf` per
       `OrdinaryToPrimitive`. Move the host-only cases into the corpus.
 - [ ] Stage 3: a function's text, through the EDAG renderer (tracked with the
