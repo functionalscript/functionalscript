@@ -37,22 +37,17 @@ variables that the generated code and `nanvm-lib` agree on.
   real Rust function body per FS function, plus the `nanvm-lib` runtime
   support (`Function<A>`, `IVm`) needed to construct and call the resulting
   values, including closures with captured state and self-recursion.
-- **Out of scope**: the EDAG-interpreting `Function` constructor
-  (mvp-roadmap's separate P2 task, itself blocked on the EDAG specification —
-  the [`fjs/edag`](../../fjs/edag/README.md) schema and its Rust side,
-  [rust-schema-codegen](../../fjs/edag/todo/rust-schema-codegen.md)) and its
-  internal bytecode
-  ([function-frame](../../spec/todo/3111-function-frame.md),
-  [call-like-instructions](../../spec/todo/9100-call-like-instructions.md)).
-  That backend gets its own frame/slot design because it has no host compiler
-  to lean on. This document's staged plan ends where the two are required to
-  converge on one observable calling contract, but designing the interpreter
-  itself is not this document's job.
+- **Out of scope**: the optional [Rust EDAG library](../../todo/rust-edag.md)
+  and its native executor, on hold and not planned for MVP. Self-hosting uses
+  the existing [FJS interpreter](../../fjs/fsc/todo/interpret-edag.md) compiled
+  to direct Rust; it does not wait for a native `Function` constructor. The
+  executors must agree on the observable calling contract, but designing a
+  second executor or its frame/slot representation is not this document's job.
 - **Out of scope**: mutual recursion as a hashed group, canonical CBOR
   serialization, and embedding the EDAG into a natively compiled function —
-  all already tracked as open elsewhere (see Related) and explicitly
-  staged-out by mvp-roadmap until the EDAG specification is complete. The
-  plan below only
+  all already tracked as open elsewhere (see Related). Semantic EDAG
+  association is staged separately from execution, with embedded data versus
+  lookup still open. The plan below only
   notes where this work must plug back in once they do.
 - **Out of scope**: parsing fixed and mixed-rest parameter lists, owned by
   [named and rest parameters](../../spec/todo/3120-parameters.md). That
@@ -474,37 +469,27 @@ binding. Dynamic calls remain arbitrary-arity; no matching-arity assumption
 is permitted. Migrate zero-arity graphs by scope and refuse incompatible
 positive-arity/full-arguments sketches rather than silently normalize them.
 
-**Stage 7 — EDAG-embedding parity (deferred until the EDAG specification is
-complete).**
-mvp-roadmap already stages this: a natively compiled function must
-eventually still carry its `Any<A>` EDAG description, so hashing and
-`toString(f)` apply uniformly to interpreted and AOT-compiled functions
-alike, but the MVP code generator is explicitly allowed to omit it until the
-EDAG specification is complete — the [`fjs/edag`](../../fjs/edag/README.md)
-schema and its Rust side,
-[rust-schema-codegen](../../fjs/edag/todo/rust-schema-codegen.md). Once it
-is, the VM's own
-function object carries it (or an out-of-band association, per
-[associate-edag-with-functions](../../fjs/fsc/todo/associate-edag-with-functions.md)'s
-Effect-based alternative if that is the direction chosen) to carry it, for
-every `Function<A>` this plan's stages produce — including capturing
-closures, which is exactly the "open problem" that document flags as
-unsolved for nested functions today. This stage is what closes that gap.
+**Stage 7 — semantic EDAG association (staged separately from execution).**
+Hashing and function-text operations need the semantic code description from
+the [`fjs/edag`](../../fjs/edag/README.md) schema, including the association
+for capturing closures. Embedded `Any<A>` data versus out-of-band lookup is
+still open in the roadmap and
+[associate-edag-with-functions](../../fjs/fsc/todo/associate-edag-with-functions.md).
+Resolve that representation before implementing this stage. It does not
+require the optional Rust EDAG types or executor, and direct AOT output must
+remain usable without a dynamic EDAG library.
 Until the required semantic association and renderer are available, explicitly
 refuse unsupported default-text observations; deferring full embedding never
 licenses a placeholder or host-implementation string as a successful result.
 
-**Stage 8 — convergence with the EDAG interpreter.**
-Once the separate `Function` constructor + interpreter task
-(mvp-roadmap P2) exists, both backends must be observably identical for the
-same source (mvp-roadmap's core invariant, restated for functions
-specifically: interpretation and AOT compilation differ only in
-performance). `Function::call` from Stage 2 is the natural seam: define it
-as the one contract both backends satisfy, and share a test corpus against
-it the way [operator tests](../tests/README.md) are already shared between
-the FJS proof and generated Rust — a function-call analogue of
-`fjs/nanvm/module.f.mjs` driving both an interpreter test and a
-generated-Rust test from one source of cases.
+**Stage 8 — convergence with the FJS EDAG interpreter.**
+Compare direct AOT calls with the existing FJS interpreter for the same supported
+source, including the interpreter itself compiled to Rust as coverage permits.
+Share a call-contract corpus as [operator tests](../tests/README.md) already
+share cases between FJS and generated Rust. Test arguments, captures, identity,
+lazy branches and throws; account for the specified function-text exception
+when native JavaScript is the reference. A future Rust EDAG executor must
+satisfy the same contract, but this parity work does not wait for it.
 
 ### Open questions
 
@@ -574,10 +559,9 @@ generated-Rust test from one source of cases.
 - [ ] Before enabling default-text observations, integrate the shared EDAG
       renderer or explicit refusal, covering direct/indirect conversions and
       exported callables. Do not wait for Stage 7 to prevent wrong output.
-- [ ] Stage 7: EDAG embedding on natively compiled functions, once the EDAG
-      specification is complete.
-- [ ] Stage 8: shared call-contract test corpus once the EDAG interpreter
-      exists.
+- [ ] Stage 7: semantic EDAG association for natively compiled functions,
+      after resolving embedded data versus lookup; no Rust executor dependency.
+- [ ] Stage 8: shared call-contract corpus for direct AOT and FJS interpretation.
 
 ### Related
 
@@ -602,8 +586,7 @@ generated-Rust test from one source of cases.
   and chain semantics a real call site must also account for (method-call
   receivers, optional chains) once calls stop being data-only.
 - [`fjs/edag/todo/rust-schema-codegen.md`](../../fjs/edag/todo/rust-schema-codegen.md)
-  — the open Rust side of the EDAG specification; Stage 7 waits on the
-  specification.
+  — types for the deferred optional Rust EDAG library; not a Stage 7 prerequisite.
 - [`fjs/fsc/todo/associate-edag-with-functions.md`](../../fjs/fsc/todo/associate-edag-with-functions.md)
   — flags nested-closure EDAG association as unsolved; Stage 7 is where this
   plan closes that for the AOT backend specifically.

@@ -772,7 +772,8 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
   lower-priority resource/time/memory hardening for EDAG processing.
 - [`associate-edag-with-functions.md`](./associate-edag-with-functions.md) —
   low-priority note on compiling an EDAG to an executable function while retaining
-  the EDAG through `edagAdd` / `edagGet` Effects.
+  its semantic EDAG. Embedded metadata versus lookup remains open;
+  `edagAdd` / `edagGet` Effects are a candidate only if lookup is selected.
 - [`todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md) — EDAG
   semantics and structural operations.
 - [`fjs/edag/README.md`](../../edag/README.md) — the canonical EDAG schema.
