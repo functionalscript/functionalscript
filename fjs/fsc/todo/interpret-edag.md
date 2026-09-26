@@ -2,7 +2,7 @@
 
 **Priority:** P3
 **Status:** open — host baseline memo executor implemented; public entry
-validation, value-producing API integration and the immutable-cache prerequisite
+validation, value-producing API integration and the native semantic prerequisites
 for native self-hosting remain open.
 
 **Compiler dependency:** [`compile-modules-to-edag.md`](./compile-modules-to-edag.md)
@@ -33,6 +33,9 @@ The existing executor is a host baseline: `slot` captures and mutates `let fille
 Its [immutable-cache rewrite](../../edag/memo/todo/immutable-cache.md) is required
 before AOT-compiling it under the existing FJS capture semantics. Broader compiler
 coverage alone does not make that captured mutation valid FJS.
+Host `Map` dependencies in the executor and analysis also need the
+[container migration](./load-modules-without-import-effect.md#native-prerequisites);
+`Map` admission remains an open language decision.
 
 ### Proposal
 

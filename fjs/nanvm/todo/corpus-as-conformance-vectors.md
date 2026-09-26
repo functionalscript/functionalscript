@@ -16,8 +16,9 @@ and compare direct Rust execution with interpretation of the same EDAG as data.
 The [roadmap](../../../nanvm-lib/todo/mvp-roadmap.md) supplies that native path
 by AOT-compiling the FJS interpreter and its runner to Rust. It does not add
 an interpreter to `nanvm-lib`. The native conformance run depends on the
-[immutable-cache rewrite](../../edag/memo/todo/immutable-cache.md), public
-interpreter integration and compiler coverage of the required FJS dependency
+[immutable-cache rewrite](../../edag/memo/todo/immutable-cache.md),
+[host-container migration](../../fsc/todo/load-modules-without-import-effect.md#native-prerequisites),
+public interpreter integration and compiler coverage of the required FJS dependency
 closure. Host-side corpus integration can proceed independently.
 
 ### A nested operation prints as a scope
@@ -93,7 +94,7 @@ plan or native self-hosting.
       answers where sharing decides them, and register the corpus as its test
       suite.
 - [ ] Extend the printer to construct each case's expression as an `Any` and
-      hand it to the AOT-compiled FJS conformance runner after the immutable-cache,
+      hand it to the AOT-compiled FJS conformance runner after the native semantic,
       public-entry and compiler-coverage prerequisites are complete; compare
       the interpreted results with the existing direct Rust cases.
 - [ ] Register the corpus as the shared conformance vectors of the

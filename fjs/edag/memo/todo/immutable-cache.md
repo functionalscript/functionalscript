@@ -17,6 +17,12 @@ identity: repeated references to one array constructor must return the same
 array within an invocation. This is a semantic prerequisite for native
 self-hosting, separate from ordinary compiler coverage and resource hardening.
 
+This rewrite alone does not make the executor's dependency closure admitted
+FJS. `invocation` and its analysis dependency also construct host `Map` values.
+Their [container migration](../../../fsc/todo/load-modules-without-import-effect.md#native-prerequisites)
+is a separate native prerequisite; immutable use of `Map` is not language
+admission.
+
 ### Proposal
 
 Replace the captured mutable cache with immutable evaluation state expressed

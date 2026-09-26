@@ -367,8 +367,11 @@ Reached incrementally: Stage 1 removed authored TypeScript from the compiler
 source into `.f.mjs` independently of parser coverage. Stage 2 also requires
 removing host behavior outside FJS: the memo executor's captured mutable cache
 needs an [immutable rewrite](../../fjs/edag/memo/todo/immutable-cache.md) preserving
-sharing and lazy evaluation before native self-hosting. That is a semantic
-prerequisite, not ordinary compiler coverage. As these migrations and language
+sharing and lazy evaluation before native self-hosting. Host `Map` dependencies
+in the compiler, analysis and executor also need
+[container migration](../../fjs/fsc/todo/load-modules-without-import-effect.md#native-prerequisites)
+or a separately approved language design. Both are semantic prerequisites, not
+ordinary compiler coverage. As these migrations and language
 coverage permit, compiler-supported modules move from `.f.mjs` to `.f.js`.
 
 ### Open questions

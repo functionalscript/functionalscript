@@ -30,13 +30,35 @@ to direct Rust ahead of time. At runtime the compiled interpreter evaluates
 newly loaded EDAG as data. It needs no runtime Rust generation, Cargo invocation
 or handwritten Rust EDAG executor.
 
-**Native prerequisite:** the current memo executor's `slot` mutates a captured
-`let filled`. The [immutable-cache rewrite](../../edag/memo/todo/immutable-cache.md)
-must preserve sharing, laziness and per-invocation identity before this executor
-can be compiled as FJS. This is a semantic migration, not merely missing parser
-coverage. It and the remaining compiler coverage belong to self-hosting; neither
-reopens the completed MVP. Node loading can use the existing host executor while
-that rewrite proceeds.
+### Native prerequisites
+
+The host pipeline needs semantic migrations before compiler coverage can make
+it self-hosting:
+
+- The memo executor's `slot` mutates a captured `let filled`. The
+  [immutable-cache rewrite](../../edag/memo/todo/immutable-cache.md) must preserve
+  sharing, laziness and per-invocation identity.
+- Host `Map` dependencies also need migration: `invocation` in
+  [memo](../../edag/memo/module.f.mjs) indexes cache slots, `start` and `fresh` in
+  [analysis](../../edag/analysis/module.f.mjs) track visited node identities,
+  and the [compiler AST helpers](../ast/module.f.mjs) construct maps for
+  deduplication. Immutable use of a host `Map` does not make it admitted FJS;
+  [built-in admission](../../../spec/todo/2360-built-in.md#keyed-collections)
+  and the [container design](../../../todo/037-language-design-map.md) remain
+  open. Replace these uses with immutable containers expressed in admitted FJS,
+  or obtain an approved `Map` design before implementing language support.
+
+The container representation remains implementation work. Indexed arrays are a
+candidate for already numbered cache slots; identity-keyed analysis needs its
+own design preserving graph sharing and cross-scope rejection. Preserve the
+key comparison, replacement and iteration behavior each compiler consumer
+relies on; do not substitute serialized node contents for node identity.
+Audit the required dependency closure for further host-only behavior rather
+than treating these known cases as an exhaustive list.
+
+These migrations and the remaining compiler coverage belong to self-hosting;
+they do not reopen the completed MVP. Node loading can use the host baseline
+while they proceed. This plan does not approve new language semantics.
 
 ### Execution boundary
 
@@ -70,6 +92,10 @@ parsing, linking and evaluation still owned by the shared FJS pipeline.
 - [ ] Prove repeated and diamond imports preserve module/value identity, and
       malformed or unavailable modules, missing exports and cycles follow the
       existing compiler refusals.
+- [ ] Audit and migrate host containers in the native dependency closure,
+      separately from the captured-cache rewrite. Prove equivalent lookup,
+      deduplication, graph-sharing and scope-validation behavior before claiming
+      native readiness; language extensions require separate design approval.
 - [ ] Add the host test adapter for virtual file/resolution effects and real
       `sandbox` execution. Prove that module evaluation returns the complete
       export object inside a successful `SandboxResult`, and that a module
@@ -77,7 +103,7 @@ parsing, linking and evaluation still owned by the shared FJS pipeline.
 - [ ] Run the loader on Node with file effects and with the in-memory adapter,
       using actual successful and throwing modules in both. Check the shared
       result/duration contract without requiring identical measured durations.
-      After the immutable-cache prerequisite and compiler coverage are complete,
+      After the native semantic prerequisites and compiler coverage are complete,
       run the same fixtures through its AOT-compiled dependency closure and
       compare native results, failures and sharing with Node.
 - [ ] Migrate FJS consumers of the host `import` effect, beginning with the
