@@ -16,6 +16,16 @@ This is the same shape as
 layer down, and was deferred by name when the built-ins landed rather than
 making their first implementation iterative.
 
+A second cost of the same walk is time over **shared** arrays. `flat` counts
+its result before building it, so a result past the length limit is refused
+without allocating it, and an array whose elements are not flattened further
+counts as its length in one step. Deeper than that, the count walks every
+reference, so an array that shares one wide array at many depths — `2¹⁶`
+references to `2¹⁶` elements, flattened with `Infinity` — takes `2³²` steps
+before it is refused. That is slow, not wrong; a walk that remembers the
+count of an array it has already seen would make it linear in the distinct
+arrays.
+
 ### Proposal
 
 Walk with an explicit stack of the arrays being flattened or joined, in place of
@@ -26,3 +36,5 @@ recursion, as `fjs/fsc/edag`'s `lower` does for operator chains.
 - [ ] `flat` over an explicit stack, with a test nesting deeper than the
       default thread stack allows.
 - [ ] `join` the same.
+- [ ] `flat`'s length count remembers each shared array's count, so a
+      deeply shared result is refused in time linear in the distinct arrays.
