@@ -7,6 +7,16 @@ use std::result::Result;
 
 const CANNOT_CONVERT_TO_PRIMITIVE_VALUE: &str = "TypeError: Cannot convert to primitive value";
 
+/// JavaScript calls an object's own `toString` or `valueOf`, which is not
+/// implemented yet (Stage 2 of `nanvm-lib/todo/to-primitive.md`).
+pub const OWN_CONVERSION_METHOD: &str =
+    "TypeError: Cannot convert an object with its own toString or valueOf";
+
+/// A function converts to its text, which is not implemented yet (Stage 3
+/// of `nanvm-lib/todo/to-primitive.md`). Only a result that does not depend
+/// on the text is answered: see `NumberCoercion` and `is_less_than`.
+pub const FUNCTION_TEXT: &str = "TypeError: Cannot convert a function to its text";
+
 fn arr_element_to_string<A: IVm>(v: Any<A>) -> Result<String<A>, Any<A>> {
     // https://tc39.es/ecma262/#sec-array.prototype.join: in case the element is nullish, on
     // joining it is represented as an empty string (see point 7.c: If element is neither undefined
@@ -27,21 +37,16 @@ pub enum ToPrimitivePreferredType {
     String,
 }
 
-fn value_of<A: IVm, T>(
-    _: T, /* Object<A> | Array<A> | Function<A> */
-) -> Option<Result<Primitive<A>, Any<A>>> {
+fn value_of<A: IVm, T>(_: T, /* Object<A> | Array<A> */) -> Option<Result<Primitive<A>, Any<A>>> {
     // https://tc39.es/ecma262/#sec-object.prototype.valueof
-    // TODO: implement a call to user-defined "valueOf" method.
-    // For now, we return None since in ECMAScript the default Object.prototype.valueOf value is the
-    // object itself, which is not a primitive.
+    // The stock method answers the object itself, which is not a primitive. An own "valueOf" is
+    // refused before this (`OWN_CONVERSION_METHOD`).
     None
 }
 
 fn obj_to_string<A: IVm>(_o: Object<A>) -> Option<Result<Primitive<A>, Any<A>>> {
     // https://tc39.es/ecma262/#sec-object.prototype.tostring
-    // TODO: implement a call to user-defined "toString" method, also, pay attention to built-in
-    // values of %Symbol.toStringTag% property (which are different for different built-in types
-    // more specific than Object: "Date", "RegExp", "Map" and so on).
+    // The stock method. An own "toString" is refused before this (`OWN_CONVERSION_METHOD`).
     Some(Ok(Primitive::String("[object Object]".into())))
 }
 
@@ -59,18 +64,18 @@ fn arr_to_string<A: IVm>(a: Array<A>) -> Option<Result<Primitive<A>, Any<A>>> {
     Some(s.map(Primitive::String))
 }
 
-fn fn_to_string<A: IVm>(_f: Function<A>) -> Option<Result<Primitive<A>, Any<A>>> {
-    // https://tc39.es/ecma262/#sec-function.prototype.tostring
-    // TODO: implement a call to user-defined "toString" method, and then the real implementation of
-    // Function.prototype.toString (which returns the source code of the function as a string). For
-    // now, we return "function" as a placeholder.
-    Some(Ok(Primitive::String("function".into())))
-}
-
 fn obj_to_primitive<A: IVm>(
     o: Object<A>,
     preferred_type: ToPrimitivePreferredType,
 ) -> Result<Primitive<A>, Any<A>> {
+    // Refused, not answered with the stock methods' result: an own method
+    // shadows the stock one.
+    if ["toString", "valueOf"]
+        .into_iter()
+        .any(|k| o.own_property(&k.into()).is_some())
+    {
+        return Err(OWN_CONVERSION_METHOD.into());
+    }
     match preferred_type {
         ToPrimitivePreferredType::Number => match value_of(o.clone()) {
             Some(res) => res,
@@ -104,28 +109,6 @@ fn arr_to_primitive<A: IVm>(
         ToPrimitivePreferredType::String => match arr_to_string(a.clone()) {
             Some(res) => res,
             None => match value_of(a) {
-                Some(res) => res,
-                None => Err(CANNOT_CONVERT_TO_PRIMITIVE_VALUE.into()),
-            },
-        },
-    }
-}
-
-fn fn_to_primitive<A: IVm>(
-    f: Function<A>,
-    preferred_type: ToPrimitivePreferredType,
-) -> Result<Primitive<A>, Any<A>> {
-    match preferred_type {
-        ToPrimitivePreferredType::Number => match value_of(f.clone()) {
-            Some(res) => res,
-            None => match fn_to_string(f) {
-                Some(res) => res,
-                None => Err(CANNOT_CONVERT_TO_PRIMITIVE_VALUE.into()),
-            },
-        },
-        ToPrimitivePreferredType::String => match fn_to_string(f.clone()) {
-            Some(res) => res,
-            None => match value_of(f) {
                 Some(res) => res,
                 None => Err(CANNOT_CONVERT_TO_PRIMITIVE_VALUE.into()),
             },
@@ -171,8 +154,111 @@ impl<A: IVm> Dispatch<A> for PrimitiveCoercionOp {
         arr_to_primitive(a, self.0.unwrap_or(ToPrimitivePreferredType::Number))
     }
 
-    fn function(self, f: Function<A>) -> Self::Result {
-        // https://tc39.es/ecma262/#sec-ordinarytoprimitive - point 2 defaults to number preference
-        fn_to_primitive(f, self.0.unwrap_or(ToPrimitivePreferredType::Number))
+    fn function(self, _: Function<A>) -> Self::Result {
+        // https://tc39.es/ecma262/#sec-function.prototype.tostring: the
+        // stock `valueOf` answers the function itself, so every hint ends at
+        // the function's text.
+        Err(FUNCTION_TEXT.into())
+    }
+}
+
+/// One test per row of Stage 1 in `nanvm-lib/todo/to-primitive.md`: what is
+/// refused throws, and what does not depend on a function's text keeps its
+/// value.
+#[cfg(test)]
+mod tests {
+    use super::{FUNCTION_TEXT, OWN_CONVERSION_METHOD};
+    use crate::{
+        naive::Naive,
+        vm::{Any, BigInt, IStaticFunction, Number, ToAny, ToArray, ToObject},
+    };
+
+    type A = Naive;
+
+    fn s(v: &str) -> Any<A> {
+        v.into()
+    }
+
+    fn function() -> Any<A> {
+        A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array()).to_any()
+    }
+
+    fn with_own(key: &str, value: Any<A>) -> Any<A> {
+        [(key.into(), value)].to_object().to_any()
+    }
+
+    fn refused<T: core::fmt::Debug + PartialEq>(r: Result<T, Any<A>>, message: &str) {
+        assert_eq!(r, Err(message.into()));
+    }
+
+    fn is_nan(r: Result<Number, Any<A>>) -> bool {
+        r.unwrap().is_nan()
+    }
+
+    /// An own `toString` or `valueOf`, whatever it holds, for every hint and
+    /// every caller.
+    #[test]
+    fn object_with_an_own_method_is_refused() {
+        for key in ["toString", "valueOf"] {
+            for value in [function(), "h".into(), 1.0.to_any()] {
+                let o = || with_own(key, value.clone());
+                refused(o().to_string(), OWN_CONVERSION_METHOD);
+                refused(o().to_number(), OWN_CONVERSION_METHOD);
+                refused(o().to_numeric().map(|_| ()), OWN_CONVERSION_METHOD);
+                refused(o() + 1.0.to_any(), OWN_CONVERSION_METHOD);
+                refused(s("a") + o(), OWN_CONVERSION_METHOD);
+                refused(o().lt(1.0.to_any()), OWN_CONVERSION_METHOD);
+                refused(1.0.to_any().lt(o()), OWN_CONVERSION_METHOD);
+            }
+        }
+    }
+
+    /// Any other own property keeps the stock conversion.
+    #[test]
+    fn plain_object_is_unchanged() {
+        let o = || with_own("a", function());
+        assert_eq!(o().to_string(), Ok("[object Object]".into()));
+        assert!(is_nan(o().to_number()));
+        assert_eq!((o() + s("!")), Ok(s("[object Object]!")));
+    }
+
+    /// `String(f)` and `f + x` observe the text.
+    #[test]
+    fn function_text_is_refused() {
+        refused(function().to_string(), FUNCTION_TEXT);
+        refused(function() + s("!"), FUNCTION_TEXT);
+        refused(function() + 1.0.to_any(), FUNCTION_TEXT);
+        refused(1.0.to_any() + function(), FUNCTION_TEXT);
+        refused(function() + function(), FUNCTION_TEXT);
+    }
+
+    /// `+f`, `-f`, `f - 1` and `f ^ 6`: `NaN` for every text, so
+    /// unchanged.
+    #[test]
+    fn function_number_is_nan() {
+        assert!(is_nan(function().to_number()));
+        assert_eq!((-function()).map(Any::is_nan), Ok(true));
+        assert_eq!((function() - 1.0.to_any()).map(Any::is_nan), Ok(true));
+        assert_eq!(function() ^ 6.0.to_any(), Ok(6.0.to_any()));
+    }
+
+    /// `f < "z"` compares the text; `f < 5` and `f < 5n` are `false` for
+    /// every text.
+    #[test]
+    fn function_comparison() {
+        refused(function().lt(s("z")), FUNCTION_TEXT);
+        refused(s("z").lt(function()), FUNCTION_TEXT);
+        refused(function().lt(function()), FUNCTION_TEXT);
+        refused(function().ge(s("z")), FUNCTION_TEXT);
+        let five = || 5.0.to_any();
+        let big = || BigInt::<A>::from(5i64).to_any();
+        // An array's primitive is a string too.
+        refused(function().lt([].to_array().to_any()), FUNCTION_TEXT);
+        for other in [five(), big(), true.to_any()] {
+            assert_eq!(function().lt(other.clone()), Ok(false.to_any()));
+            assert_eq!(other.clone().lt(function()), Ok(false.to_any()));
+            assert_eq!(function().le(other.clone()), Ok(false.to_any()));
+            assert_eq!(function().ge(other), Ok(false.to_any()));
+        }
     }
 }

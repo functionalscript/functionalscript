@@ -102,6 +102,10 @@ would be a regression:
 | `f + x`, which uses the default hint | the text, concatenated | **refused** |
 | `typeof f`, `!f`, `f ?? x`, `f \|\| x` | no conversion | unchanged |
 
+A function inside an array is converted through the array's text, a
+string, so `+[f]` is refused too, although `NaN` would be exact. That is the
+second over-refusal, and Stage 3 answers it.
+
 No function's text converts to a number: it starts with `(`, `function`,
 `async` or a name. So `NaN` is exact for every text, and the numeric path can
 answer it without the text. The cleanest split is probably a `ToNumber` of a
@@ -173,11 +177,13 @@ needs its own issue, and it lands with or after Stage 1.
 
 ### Tasks
 
-- [ ] Stage 1: refuse an object with an own `toString` or `valueOf`, and a
+- [x] Stage 1: refuse an object with an own `toString` or `valueOf`, and a
       function wherever its text is observable, keeping every
-      text-independent result. Unit tests per row, corpus cases with a `rust`
-      reason, and the `toSorted` guard's test. Replace the `// TODO:` in
-      `array_join` and `vm/string/search.rs` with a pointer to Stage 2.
+      text-independent result. Unit tests per row, and corpus cases with a
+      `rust` reason.
+- [ ] With the member functions still in review, once each merges this:
+      the `toSorted` guard's test, and the `// TODO:` in `array_join` and
+      `vm/string/search.rs` replaced with a pointer to Stage 2.
 - [ ] Stage 2: call an object's own `toString` and `valueOf` per
       `OrdinaryToPrimitive`. Move the host-only cases into the corpus.
 - [ ] Stage 3: a function's text, through the EDAG renderer (tracked with the

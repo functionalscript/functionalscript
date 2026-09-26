@@ -1,14 +1,16 @@
 use core::cmp::Ordering;
 
 use crate::vm::{
-    Any, BigInt, IVm, Number, ToAny, Unpacked, ecma_whitespace::is_ecma_whitespace,
-    numeric::Numeric, primitive::Primitive, primitive_coercion::ToPrimitivePreferredType,
+    Any, BigInt, IVm, Number, ToAny, Unpacked,
+    ecma_whitespace::is_ecma_whitespace,
+    numeric::Numeric,
+    primitive::Primitive,
+    primitive_coercion::{FUNCTION_TEXT, ToPrimitivePreferredType},
 };
 
 impl<A: IVm> Any<A> {
-    /// `<`. Never throws in practice — the only fallible step is
-    /// `ToPrimitive`, which this VM's primitive-shaped values never fail —
-    /// but stays a `Result` to match every other binary operator's shape.
+    /// `<`. Throws where `ToPrimitive` does, and where a function's text
+    /// would be compared (`FUNCTION_TEXT`).
     pub fn lt(self, rhs: Self) -> Result<Self, Self> {
         Ok(is_less_than(self, rhs)?.unwrap_or(false).to_any())
     }
@@ -39,9 +41,35 @@ impl<A: IVm> Any<A> {
 /// `<=`/`>=` build from it, so it's kept distinct from a "real" `false` up to
 /// that point.
 fn is_less_than<A: IVm>(x: Any<A>, y: Any<A>) -> Result<Option<bool>, Any<A>> {
-    let px = x.to_primitive(Some(ToPrimitivePreferredType::Number))?;
-    let py = y.to_primitive(Some(ToPrimitivePreferredType::Number))?;
+    let px = to_primitive_or_text(x)?;
+    let py = to_primitive_or_text(y)?;
 
+    match (px, py) {
+        // A function's text against a string compares the texts.
+        (None, None) | (None, Some(Primitive::String(_))) | (Some(Primitive::String(_)), None) => {
+            Err(FUNCTION_TEXT.into())
+        }
+        // Against anything else, the text is numeric: `NaN` for a number
+        // and no `StringToBigInt` for a bigint, so `undefined` either way.
+        (None, Some(_)) | (Some(_), None) => Ok(None),
+        (Some(px), Some(py)) => primitive_less_than(px, py),
+    }
+}
+
+/// `ToPrimitive(v, number)`, where `None` is a function's text, the one
+/// primitive not implemented (`FUNCTION_TEXT`). It is a string that neither
+/// `StringToNumber` nor `StringToBigInt` accepts, which `is_less_than` needs
+/// and nothing else.
+fn to_primitive_or_text<A: IVm>(v: Any<A>) -> Result<Option<Primitive<A>>, Any<A>> {
+    match v.clone().into() {
+        Unpacked::Function(_) => Ok(None),
+        _ => v
+            .to_primitive(Some(ToPrimitivePreferredType::Number))
+            .map(Some),
+    }
+}
+
+fn primitive_less_than<A: IVm>(px: Primitive<A>, py: Primitive<A>) -> Result<Option<bool>, Any<A>> {
     match (px, py) {
         (Primitive::String(sx), Primitive::String(sy)) => Ok(Some(sx < sy)),
         (Primitive::BigInt(bx), Primitive::String(sy)) => {

@@ -29,6 +29,8 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("arrayNull", -([Nullish::Null.to_any()].to_array().to_any()), f64_any(0x8000000000000000));
     check::<A>("arrayPair", -([Nullish::Null.to_any(), Nullish::Null.to_any()].to_array().to_any()), f64_any(0x7ff8000000000000));
     check::<A>("objectEmpty", -(Object::default().to_any()), f64_any(0x7ff8000000000000));
+    // TODO: an own toString or valueOf is refused until Stage 2 of to-primitive.md: check::<A>("objectOwnValueOf", -([(string_key("valueOf"), function_any())].to_object().to_any()), f64_any(0x7ff8000000000000));
+    // TODO: an own toString or valueOf is refused until Stage 2 of to-primitive.md: check::<A>("objectOwnValueOfNotAFunction", -([(string_key("valueOf"), string_any("x"))].to_object().to_any()), f64_any(0x7ff8000000000000));
     check::<A>("function", -(function_any()), f64_any(0x7ff8000000000000));
     check::<A>("bigintPositive", -(bigint_any(1)), bigint_any(-1));
     check::<A>("bigintNegative", -(bigint_any(-1)), bigint_any(1));

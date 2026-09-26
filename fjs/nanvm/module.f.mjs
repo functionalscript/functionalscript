@@ -371,6 +371,13 @@ export const sharedExp = shared => entries(shared).reduce(
 export const valuesExp = shared => constExp(resolve(shared))
 
 /**
+ * The `rust` reason of a case whose object owns a `toString` or a `valueOf`:
+ * `nanvm-lib` refuses it until it calls the method, Stage 2 of
+ * `nanvm-lib/todo/to-primitive.md`.
+ */
+const ownMethodRefused = 'an own toString or valueOf is refused until Stage 2 of to-primitive.md'
+
+/**
  * `+n` and `-n` share their whole argument space: both coerce with `ToNumber`
  * and differ only in the sign of the result. Listing the arguments once keeps
  * the two groups from drifting apart.
@@ -405,6 +412,9 @@ const numberCoercionCases = negate => {
         { name: 'arrayNull', args: [[null]], expected: result(0) },
         { name: 'arrayPair', args: [[null, null]], expected: NaN },
         { name: 'objectEmpty', args: [{}], expected: NaN },
+        { name: 'objectOwnValueOf', args: [{ valueOf: functionValue }], expected: NaN, rust: ownMethodRefused },
+        // JavaScript skips a `valueOf` that is no function; NaNVM refuses it.
+        { name: 'objectOwnValueOfNotAFunction', args: [{ valueOf: 'x' }], expected: NaN, rust: ownMethodRefused },
         { name: 'function', args: [functionValue], expected: NaN },
     ]
 }
@@ -1099,6 +1109,10 @@ const stringCoercionCases = [
     { name: 'arrayWithNullish', args: [[null, undefined, 1]], expected: ',,1' },
     { name: 'emptyObject', args: [{}], expected: '[object Object]' },
     { name: 'object', args: [{ a: 1 }], expected: '[object Object]' },
+    { name: 'objectOwnToString', args: [{ toString: functionValue }], expected: 'undefined', rust: ownMethodRefused },
+    // A `toString` that is no function is skipped, and the stock `valueOf`
+    // answers the object, so JavaScript throws too.
+    { name: 'objectOwnToStringNotAFunction', args: [{ toString: 'h' }], expected: throws },
 ]
 
 /**

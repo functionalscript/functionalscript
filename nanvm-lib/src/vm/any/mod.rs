@@ -167,6 +167,11 @@ impl<A: IVm> Any<A> {
 
     pub fn to_numeric(self) -> Result<Numeric<A>, Any<A>> {
         // https://tc39.es/ecma262/#sec-tonumeric
+        // A function's primitive, its text, is a string and not a bigint, so
+        // its `ToNumber` answers without converting it.
+        if let Unpacked::Function(_) = self.clone().into() {
+            return Ok(Numeric::Number(self.to_number()?));
+        }
         let prim_value = self.to_primitive(Some(ToPrimitivePreferredType::Number))?;
         match prim_value {
             Primitive::BigInt(bi) => Ok(Numeric::BigInt(bi)),

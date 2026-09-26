@@ -167,7 +167,10 @@ fn array_last_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, BigInt, IStaticFunction, Nullish, ToAny, ToArray, ToObject},
+        vm::{
+            Any, BigInt, IStaticFunction, Nullish, ToAny, ToArray, ToObject,
+            primitive_coercion::{FUNCTION_TEXT, OWN_CONVERSION_METHOD},
+        },
     };
 
     type A = Naive;
@@ -228,9 +231,22 @@ mod tests {
             Ok("1,b".into())
         );
         let f: Any<A> = A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array()).to_any();
-        // the conversion's placeholder, not the source text —
-        // `member-functions.md`
-        assert_eq!(to_string(f), Ok("function".into()));
+        // refused: its text is Stage 3 of `nanvm-lib/todo/to-primitive.md`
+        assert_eq!(to_string(f), Err(FUNCTION_TEXT.into()));
+    }
+
+    /// A position that is an object with its own `valueOf` is refused, not
+    /// read as `NaN`: `[0, 1].slice({ valueOf: () => 1 })` is `[1]`.
+    #[test]
+    fn slice_refuses_an_own_value_of() {
+        let f: Any<A> = A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array()).to_any();
+        let start: Any<A> = [("valueOf".into(), f)].to_object().to_any();
+        let a: Any<A> = [0.0.to_any(), 1.0.to_any()].to_array().to_any();
+        assert_eq!(
+            a.dot("slice".into())
+                .end_call(|| Ok([start].to_array().to_any())),
+            Err(OWN_CONVERSION_METHOD.into())
+        );
     }
 
     /// Through a region as well: `a?.toString()`, `(a?.toString)()`, and
