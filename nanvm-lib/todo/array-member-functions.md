@@ -398,7 +398,7 @@ and runs the full check set.
       the relative-index helper (`at` refactored onto it) and `SameValueZero`.
 - [x] **Copies.** `slice`, `concat`, `toReversed`, `with`, `toSpliced`, with
       the result-length `RangeError`.
-- [ ] **`join`.** `arr_to_string` becomes `Array::join` with `","`.
+- [x] **`join`.** `arr_to_string` becomes `Array::join` with `","`.
 - [ ] **Iteration.** `every`, `some`, `find`, `findIndex`, `findLast`,
       `findLastIndex`, `map`, `filter`, with the callback check ahead of the
       visit and `thisArg` accepted with no effect, and the corpus's callback

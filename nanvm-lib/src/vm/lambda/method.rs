@@ -30,11 +30,12 @@ pub(crate) fn method<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Option<Method<A
 
 /// `Array.prototype`'s.
 fn array<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
-    let table: [(&str, Method<A>); 9] = [
+    let table: [(&str, Method<A>); 10] = [
         ("at", array_at),
         ("concat", array_concat),
         ("includes", array_includes),
         ("indexOf", array_index_of),
+        ("join", array_join),
         ("lastIndexOf", array_last_index_of),
         ("slice", array_slice),
         ("toReversed", array_to_reversed),
@@ -154,6 +155,25 @@ fn array_to_spliced<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, 
 fn array_with<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let a = Array::try_from(receiver)?;
     Ok(a.with(argument(&args, 0), argument(&args, 1))?.to_any())
+}
+
+/// `Array.prototype.join`, `vm/array/join.rs`: the separator `","` when
+/// absent or `undefined`, and otherwise `ToString` of it, so `null` joins
+/// with `"null"`.
+fn array_join<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let a = Array::try_from(receiver)?;
+    let separator = argument(&args, 0);
+    let separator = match Unpacked::from(separator.clone()) {
+        Unpacked::Nullish(Nullish::Undefined) => ",".into(),
+        // TODO: `ToString` of an object ignores its own `toString`/`valueOf`,
+        // and of a function answers a placeholder, so the separator
+        // `{ toString: () => '-' }` joins with `"[object Object]"`, and the
+        // elements convert the same way. The fix is in the shared
+        // conversion, not here: the `ToPrimitive` task in
+        // `nanvm-lib/todo/member-functions.md`.
+        _ => separator.to_string()?,
+    };
+    Ok(a.join(separator)?.to_any())
 }
 
 /// `Array.prototype.lastIndexOf`, `vm/array/last_index_of.rs`: the one of

@@ -25,7 +25,7 @@ export const proof = {
     /** What the VM answers today: `toString` on all seven types, and `Array`'s own. */
     answered: () => {
         const array = [
-            'at', 'concat', 'includes', 'indexOf', 'lastIndexOf', 'slice', 'toReversed',
+            'at', 'concat', 'includes', 'indexOf', 'join', 'lastIndexOf', 'slice', 'toReversed',
             'toSpliced', 'toString', 'with',
         ]
         assertEq(
