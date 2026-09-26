@@ -1,5 +1,5 @@
 /**
- * Compiled by `fjs compile` into the sibling `at.rs`, committed and
+ * Compiled by `fjs compile` into `../gen.fixtures/at.rs`, committed and
  * drift-checked by `npm run gen` (see `../../fjs/ci/README.md`). Consumed by
  * `../src/lib.rs`. Pins `at`, the first built-in member function of one
  * type (`nanvm-lib/todo/member-functions.md`): an array's element from the
