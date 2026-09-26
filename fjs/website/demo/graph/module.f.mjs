@@ -43,7 +43,7 @@
  *
  * @import { Edge, Graph, Inline, Node, Ranked } from './types.ts'
  * @import { Element } from '../../../media/html/types.ts'
- * @import { _Lane, _Out, _Point, _Port, _Positioned, _Route, _Slot } from './private.ts'
+ * @import { _Lane, _Out, _Placed, _Point, _Port, _Positioned, _Route, _Slot } from './private.ts'
  */
 
 /**
@@ -183,7 +183,7 @@ const missingEnds = ids => (edge, index) => [
  * that shape took five times as long as the drawing had before lanes
  * existed.
  *
- * @type {(nodes: readonly Ranked[]) => (edges: readonly Edge[]) => { readonly nodes: readonly _Positioned[], readonly lanes: readonly _Lane[] }}
+ * @type {(nodes: readonly Ranked[]) => (edges: readonly Edge[]) => _Placed}
  */
 const layout = nodes => edges => {
     // **An edge must name nodes the graph has, or the graph is refused.**
@@ -212,13 +212,13 @@ const layout = nodes => edges => {
         ...spans.flatMap((span, lane) => span.from < rank && rank < span.to ? [{ lane, rank, key: span.key }] : []),
     ].toSorted((a, b) => a.key - b.key))
     let x = margin
-    const placed = columns.map(column => {
+    const placedColumns = columns.map(column => {
         const left = x
         const sized = column.map(slot => ({ slot, size: slot.node === undefined ? null : portsOf(slot.node.label)(outgoingOf(slot.node.id)) }))
         const widest = sized.reduce((m, { size }) => Math.max(m, size === null ? laneSize : size.width), 0)
         x += widest + rankGap
         let y = margin
-        return sized.map(({ slot, size }) => {
+        const slots = sized.map(({ slot, size }) => {
             const top = y
             if (size === null) {
                 y += laneSize + nodeGap
@@ -231,10 +231,13 @@ const layout = nodes => edges => {
             const node = { .../** @type {Ranked} */ (slot.node), x: left, y: top, ...size }
             return { node }
         })
-    }).flat()
+        return { end: left + widest, slots }
+    })
+    const placed = placedColumns.flatMap(column => column.slots)
     return {
         nodes: placed.flatMap(p => p.node === undefined ? [] : [p.node]),
         lanes: placed.flatMap(p => p.lane === undefined ? [] : [p.lane]),
+        ends: placedColumns.map(column => column.end),
     }
 }
 
@@ -251,15 +254,12 @@ const layout = nodes => edges => {
  * running right first, it turns only in the gap between columns, where
  * there are no boxes.
  *
- * @type {(placed: { readonly nodes: readonly _Positioned[], readonly lanes: readonly _Lane[] }) => readonly _Route[]}
+ * @type {(placed: _Placed) => readonly _Route[]}
  */
 const routesOf = placed => {
     const byId = new Map(placed.nodes.map(p => [p.id, p]))
     const at = /** @type {(id: number) => _Positioned} */ (id => /** @type {_Positioned} */ (byId.get(id)))
     const lanes = new Map(placed.lanes.map(lane => [`${lane.index} ${lane.rank}`, lane]))
-    const columnRights = placed.nodes.reduce(
-        (m, p) => m.set(p.rank, Math.max(m.get(p.rank) ?? 0, p.x + p.width)), new Map())
-    const columnRight = /** @type {(rank: number) => number} */ (rank => /** @type {number} */ (columnRights.get(rank)))
     return placed.nodes.flatMap(from => from.ports.flatMap(port => {
         const target = port.edge.to
         if (typeof target !== 'number') { return [] }
@@ -269,7 +269,7 @@ const routesOf = placed => {
         /** @type {readonly _Point[]} */
         const points = [
             [right, y],
-            ...(right < columnRight(from.rank) ? [/** @type {_Point} */ ([columnRight(from.rank), y])] : []),
+            ...(right < placed.ends[from.rank] ? [/** @type {_Point} */ ([placed.ends[from.rank], y])] : []),
             ...Array.from({ length: to.rank - from.rank - 1 }, (_, i) => {
                 const lane = /** @type {_Lane} */ (lanes.get(`${port.index} ${from.rank + 1 + i}`))
                 return /** @type {readonly _Point[]} */ ([[lane.left, lane.y], [lane.right, lane.y]])
