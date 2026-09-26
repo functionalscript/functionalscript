@@ -573,14 +573,19 @@ export const proof = {
             assertEq(textOf(socket.body), 'not found\n')
             // A regular file the host would not open is a host failure and stays
             // one.
-            assertEq(framed(ok({ size: 8, isFile: true, isDirectory: false })).status, 500)
+            const regular = framed(ok({ size: 8, isFile: true, isDirectory: false }))
+            assertEq(regular.status, 500)
             // And a host that will not say what the name holds has not said the
             // name is unservable.
-            assertEq(framed(error(ioError({ code: 'EIO', message: 'io error' }))).status, 500)
-            // The `500`s report the *open* failure rather than the `stat`'s, which
-            // is the answer the client was always owed: what went wrong is that the
-            // file could not be opened.
-            assertEq(textOf(framed(error(ioError({ code: 'EIO', message: 'io error' }))).body), 'io error: ENXIO\n')
+            const unknown = framed(error(ioError({ code: 'EIO', message: 'io error' })))
+            assertEq(unknown.status, 500)
+            // Both `500`s report the *open* failure and not the `stat`'s, which is
+            // the answer the client was always owed: what went wrong is that the
+            // file could not be opened. The second one is the sharper case, because
+            // its `stat` failed with a code of its own and `EIO` is nowhere in the
+            // body.
+            assertEq(textOf(regular.body), 'io error: ENXIO\n')
+            assertEq(textOf(unknown.body), 'io error: ENXIO\n')
         },
         // A path that descends through a regular file names nothing, so it is
         // answered exactly like a path that descends through nothing. While it
