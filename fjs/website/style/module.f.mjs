@@ -83,7 +83,11 @@ a, a:visited { color: var(--link) }
    sideways, or the report's panel clips the line. So any line may break inside
    a word: an identifier split across two lines is still read, and one cut off
    is not. */
-body { background-color: var(--bg); color: var(--text); font: 16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; margin: 3rem auto; max-width: 48rem; overflow-wrap: anywhere; padding: 0 1rem }
+body { background-color: var(--bg); color: var(--text); font: 16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; margin: 0; overflow-wrap: anywhere }
+/* The column is the page's, not the body's, so the header above it can span
+   the whole window. 48rem holds about eighty characters of this face, the
+   width the repository's source is written to. */
+main { margin: 1.5rem auto 3rem; max-width: 48rem; padding: 0 1rem }
 [data-state="passed"] [data-test-summary] { color: var(--pass) }
 [data-state="failed"] [data-test-summary], [data-state="infrastructure-error"] [data-test-summary] { color: var(--fail) }
 [data-test-results] { color: var(--text) }
@@ -165,10 +169,12 @@ textarea { vertical-align: top }
    silently narrow back on the next keystroke. */
 textarea { box-sizing: border-box; resize: vertical; width: 100% }
 /* The header every page opens with: the logo and the site's name on the left,
-   the site-wide links on the right, framed on all four sides in the same
-   rounded border as the test report's panel, so it reads as one block and
-   not as the first line of the page. The menu is bold and a step larger than
-   the text, as a site's own navigation is set apart from what it navigates.
+   the site-wide links on the right, across the full width of the window with
+   one rule under it, as a site's own bar. Its contents keep to the page's
+   column: the padding is whatever is left either side of 48rem, and never
+   less than the column's own 1rem, so the logo starts where the text under it
+   does at any width. The menu is bold and a step larger than the text, as a
+   site's own navigation is set apart from what it navigates.
    It wraps rather than hiding behind a menu button: in a monospace face a
    phone has no room for the name and the links on one line, and a line break
    costs no script.
@@ -177,9 +183,10 @@ textarea { box-sizing: border-box; resize: vertical; width: 100% }
    back on hover. Every link in the header is padded to a finger's target,
    whatever the pointer: it is one row, not a dense list, so the padding
    costs nothing a mouse would miss. */
-header { border: 1px solid var(--border); border-radius: 10px; margin-bottom: 1.5rem; overflow: hidden }
+header { border-bottom: 1px solid var(--border) }
+header nav, [data-build] { padding-inline: max(1rem, calc((100% - 48rem) / 2)) }
 header nav, [data-site-links] { align-items: center; display: flex; flex-wrap: wrap; gap: .25rem 1.5rem }
-header nav { font-size: 1.125rem; font-weight: 700; padding: .35rem 1rem }
+header nav { font-size: 1.125rem; font-weight: 700; padding-block: .5rem }
 header nav a { padding-block: .25rem; text-decoration: none }
 header nav a:hover { text-decoration: underline }
 [data-home] { align-items: center; display: inline-flex; gap: .5rem; margin-right: auto }
@@ -187,10 +194,10 @@ header nav a:hover { text-decoration: underline }
 /* A preview says which build it is — the branch and the commit — so a
    reader comparing two previews, or a preview with production, knows which
    one they are looking at. Muted and small: it is about the build, not the
-   page. It is a strip across the foot of the header's frame, tinted from
-   the border and the background rather than a colour of its own, so it
-   follows both schemes. */
-[data-build] { background: color-mix(in srgb, var(--border) 30%, var(--bg)); border-top: 1px solid var(--border); color: var(--muted); font-size: .8rem; margin: 0; padding: .35rem 1rem }
+   page. It is a full-width strip under the menu, tinted from the border and
+   the background rather than a colour of its own, so it follows both
+   schemes. */
+[data-build] { background: color-mix(in srgb, var(--border) 30%, var(--bg)); border-top: 1px solid var(--border); color: var(--muted); font-size: .8rem; margin: 0; padding-block: .35rem }
 /* Every section of a page is a disclosure, so a reader can fold away what
    they are not reading — the platform's own collapsible, and no script on a
    site that is static files. Its summary is the section's heading, and is
