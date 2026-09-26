@@ -160,9 +160,14 @@ const dom = path => {
         input: (name, value) => {
             for (const f of listeners) { f({ target: { name, value } }) }
         },
-        /** @type {(name: string) => void} */
-        click: name => {
-            for (const f of clicks) { f({ target: { name } }) }
+        /**
+         * A click on the element named `name`, which is a button unless the
+         * proof says otherwise.
+         *
+         * @type {(name: string, tagName?: string) => void}
+         */
+        click: (name, tagName = 'BUTTON') => {
+            for (const f of clicks) { f({ target: { name, tagName } }) }
         },
     }
 }
@@ -280,9 +285,8 @@ export const proof = {
     },
     /**
      * **A scrolled field stays scrolled across a re-render.** A fresh element
-     * starts at the top, and a render follows every click — including the one
-     * that ends a mouse selection — so without a restore, selecting text in a
-     * long field jumps it back to its first line.
+     * starts at the top, and a render follows every keystroke, so without a
+     * restore typing in a long field jumps it back to its first line.
      */
     keepsScrollOffset: async () => {
         const d = dom(echo)
@@ -291,12 +295,27 @@ export const proof = {
         const before = d.root.querySelector('[name="text"]')
         before.scrollTop = 120
         before.scrollLeft = 30
-        d.click('text')
+        d.input('text', 'ab')
         await settle()
         const after = d.root.querySelector('[name="text"]')
-        assert(after !== before, 'expected the click to re-render the field')
+        assert(after !== before, 'expected the input to re-render the field')
         assertEq(after.scrollTop, 120)
         assertEq(after.scrollLeft, 30)
+    },
+    /**
+     * **Only a button asks.** A click in a field places a caret or ends a
+     * mouse selection; sending it to the demo re-rendered the field under the
+     * reader's hands for an event no demo acts on.
+     */
+    ignoresAClickOutsideAButton: async () => {
+        const d = dom(echo)
+        await startDemo(d.root)
+        await settle()
+        const renders = d.rendered.length
+        d.click('text', 'INPUT')
+        d.click('text', 'TEXTAREA')
+        await settle()
+        assertEq(d.rendered.length, renders)
     },
     // A resized or scrolled field that a later state simply stops rendering
     // has nowhere to put its size or offset back — skipped rather than thrown,

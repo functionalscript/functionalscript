@@ -320,11 +320,13 @@ export const startDemo = async root => {
             step({ kind: 'input', name: target.name, value: target.value })
         })
         // A click is how a demo is *asked* for work rather than told about
-        // typing: a benchmark starts when a reader says so. An element with no
-        // name is not one the demo asked to hear about.
+        // typing: a benchmark starts when a reader says so. So only a named
+        // button asks. A click in a field is the reader placing a caret or
+        // ending a selection — already the field's own business — and an
+        // element with no name is not one the demo asked to hear about.
         root.addEventListener('click', e => {
             const target = /** @type {HTMLElement & { name?: string }} */ (e.target)
-            if (target.name === undefined || target.name === '') { return }
+            if (target.tagName !== 'BUTTON' || target.name === undefined || target.name === '') { return }
             step({ kind: 'click', name: target.name })
         })
         // After the first render, so a demo that needs an operation before it
