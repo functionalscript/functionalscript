@@ -5,12 +5,28 @@ use crate::{
 };
 
 /// What a match is replaced with: a function called for each match, or the
-/// template `GetSubstitution` reads. Which of the two is decided, and a
-/// template converted by `ToString`, before any match is looked for, as
-/// the algorithms order it.
+/// template `GetSubstitution` reads, parsed once into its [`Part`]s. Which of
+/// the two is decided, and a template converted by `ToString`, before any
+/// match is looked for, as the algorithms order it.
 pub(crate) enum Replacement<A: IVm> {
     Function(Function<A>),
-    Template(String<A>),
+    Template(Vec<Part>),
+}
+
+/// A piece of the text that replaces one match, which is always a run of
+/// code units already held: a template's literal text, or a slice of the
+/// receiver, or a function's answer.
+#[derive(Debug, PartialEq)]
+pub(crate) enum Part {
+    Literal(Vec<u16>),
+    /// `$&`, the match.
+    Matched,
+    /// `` $` ``, what precedes the match.
+    Before,
+    /// `$'`, what follows the match.
+    After,
+    /// The replacement function's answer for this match.
+    Answer,
 }
 
 impl<A: IVm> Replacement<A> {
@@ -18,73 +34,60 @@ impl<A: IVm> Replacement<A> {
     pub(crate) fn new(v: Any<A>) -> Result<Replacement<A>, Any<A>> {
         Ok(match Unpacked::from(v.clone()) {
             Unpacked::Function(f) => Replacement::Function(f),
-            _ => Replacement::Template(v.to_string()?),
+            _ => Replacement::Template(parts(&v.to_string()?)),
         })
-    }
-
-    /// The text for the match of `matched` at `position` in `string`: the
-    /// function's answer to `(matched, position, string)` converted by
-    /// `ToString`, or the template with its references substituted.
-    fn text(
-        &self,
-        matched: &String<A>,
-        position: u32,
-        string: &String<A>,
-    ) -> Result<Vec<u16>, Any<A>> {
-        match self {
-            Replacement::Function(f) => {
-                let args = [
-                    matched.clone().to_any(),
-                    Number::from(f64::from(position)).to_any(),
-                    string.clone().to_any(),
-                ];
-                Ok(f.call(args.to_array())?.to_string()?.into_iter().collect())
-            }
-            Replacement::Template(t) => Ok(substitution(t, matched, position, string)),
-        }
     }
 }
 
 /// `GetSubstitution` (<https://tc39.es/ecma262/#sec-getsubstitution>) for a
-/// string pattern, which has no captures and no named groups: `$$` is `$`,
-/// `$&` the match, `` $` `` what precedes it and `$'` what follows it. Every
-/// other `$` — `$1`, `$<name>` among them — stays as written, which is what
-/// JavaScript answers when there is no capture to refer to.
-fn substitution<A: IVm>(
-    template: &String<A>,
-    matched: &String<A>,
-    position: u32,
-    string: &String<A>,
-) -> Vec<u16> {
+/// string pattern, which has no captures and no named groups, as parts: `$$`
+/// is `$`, `$&` the match, `` $` `` what precedes it and `$'` what follows
+/// it. Every other `$` — `$1`, `$<name>` among them — stays as written, which
+/// is what JavaScript answers when there is no capture to refer to.
+fn parts<A: IVm>(template: &String<A>) -> Vec<Part> {
     let t: Vec<u16> = template.clone().into_iter().collect();
-    let s: Vec<u16> = string.clone().into_iter().collect();
-    let tail = (position + matched.length()) as usize;
-    let mut out = Vec::with_capacity(t.len());
+    let mut parts = Vec::new();
+    let mut literal = Vec::new();
     let mut i = 0;
     while i < t.len() {
-        let special = t[i] == u16::from(b'$')
-            && t.get(i + 1)
-                .is_some_and(|&c| (*b"$&`'").map(u16::from).contains(&c));
-        if !special {
-            out.push(t[i]);
-            i += 1;
-            continue;
-        }
-        match t[i + 1] {
-            c if c == u16::from(b'$') => out.push(c),
-            c if c == u16::from(b'&') => out.extend(matched.clone()),
-            c if c == u16::from(b'`') => out.extend_from_slice(&s[..position as usize]),
-            _ => out.extend_from_slice(&s[tail..]),
+        let reference = (t[i] == u16::from(b'$'))
+            .then(|| t.get(i + 1).copied())
+            .flatten()
+            .and_then(|c| match u8::try_from(c) {
+                Ok(b'$') => Some(None),
+                Ok(b'&') => Some(Some(Part::Matched)),
+                Ok(b'`') => Some(Some(Part::Before)),
+                Ok(b'\'') => Some(Some(Part::After)),
+                _ => None,
+            });
+        match reference {
+            None => {
+                literal.push(t[i]);
+                i += 1;
+                continue;
+            }
+            Some(None) => literal.push(u16::from(b'$')),
+            Some(Some(part)) => {
+                if !literal.is_empty() {
+                    parts.push(Part::Literal(std::mem::take(&mut literal)));
+                }
+                parts.push(part);
+            }
         }
         i += 2;
     }
-    out
+    if !literal.is_empty() {
+        parts.push(Part::Literal(literal));
+    }
+    parts
 }
 
 impl<A: IVm> String<A> {
     /// The receiver with the matches of `pattern` at `positions` replaced, in
     /// order, the rest kept. A replacement function is called once per match,
-    /// in order, and its first throw is the result.
+    /// in order, and its first throw is the result. The receiver is read
+    /// once, and the result is counted before it is built, so a result past
+    /// the length limit is refused without building it.
     fn replace_at(
         &self,
         pattern: &String<A>,
@@ -92,15 +95,45 @@ impl<A: IVm> String<A> {
         replacement: &Replacement<A>,
     ) -> Result<String<A>, Any<A>> {
         let units: Vec<u16> = self.clone().into_iter().collect();
-        let mut out: Vec<u16> = Vec::new();
-        let mut end = 0usize;
-        for &p in positions {
-            out.extend_from_slice(&units[end..p as usize]);
-            out.extend(replacement.text(pattern, p, self)?);
-            end = p as usize + pattern.length() as usize;
-        }
-        out.extend_from_slice(&units[end..]);
-        create(out.len() as u64, out)
+        let (template, answers): (&[Part], Vec<Vec<u16>>) = match replacement {
+            Replacement::Template(parts) => (parts, Vec::new()),
+            Replacement::Function(f) => {
+                let answer = |p: u32| -> Result<Vec<u16>, Any<A>> {
+                    let args = [
+                        pattern.clone().to_any(),
+                        Number::from(f64::from(p)).to_any(),
+                        self.clone().to_any(),
+                    ];
+                    Ok(f.call(args.to_array())?.to_string()?.into_iter().collect())
+                };
+                let answers: Result<Vec<Vec<u16>>, Any<A>> =
+                    positions.iter().map(|&p| answer(p)).collect();
+                (&[Part::Answer], answers?)
+            }
+        };
+        let (units, answers, m) = (&units, &answers, pattern.length() as usize);
+        let slices = || {
+            let ends = std::iter::once(0).chain(positions.iter().map(|&p| p as usize + m));
+            positions
+                .iter()
+                .zip(ends.clone())
+                .enumerate()
+                .flat_map(move |(i, (&p, start))| {
+                    let p = p as usize;
+                    std::iter::once(&units[start..p]).chain(template.iter().map(move |part| {
+                        match part {
+                            Part::Literal(v) => &v[..],
+                            Part::Matched => &units[p..p + m],
+                            Part::Before => &units[..p],
+                            Part::After => &units[p + m..],
+                            Part::Answer => &answers[i][..],
+                        }
+                    }))
+                })
+                .chain(std::iter::once(&units[ends.last().unwrap_or(0)..]))
+        };
+        let len = slices().fold(0u64, |n, s| n.saturating_add(s.len() as u64));
+        create(len, slices().flat_map(|s| s.iter().copied()))
     }
 
     /// `String.prototype.replace(pattern, replacement)`
@@ -190,7 +223,6 @@ impl<A: IVm> String<A> {
 
 #[cfg(test)]
 mod tests {
-    use super::substitution;
     use crate::{
         naive::Naive,
         vm::{Any, Array, IStaticFunction, Nullish, String, ToAny, ToArray},
@@ -210,13 +242,21 @@ mod tests {
 
     #[test]
     fn substitutions() {
-        let sub = |t: &str| substitution(&s(t), &s("X"), 1, &s("aXb"));
-        let units = |v: &str| v.encode_utf16().collect::<Vec<u16>>();
-        assert_eq!(sub("[$&]"), units("[X]"));
-        assert_eq!(sub("$$"), units("$"));
-        assert_eq!(sub("$`"), units("a"));
-        assert_eq!(sub("$'"), units("b"));
-        assert_eq!(sub("$1$<n>$"), units("$1$<n>$"));
+        let sub = |t: &str| s("aXb").replace(a("X"), a(t));
+        assert_eq!(sub("[$&]"), Ok(s("a[X]b")));
+        assert_eq!(sub("$$"), Ok(s("a$b")));
+        assert_eq!(sub("$`"), Ok(s("aab")));
+        assert_eq!(sub("$'"), Ok(s("abb")));
+        assert_eq!(sub("$1$<n>$"), Ok(s("a$1$<n>$b")));
+        assert_eq!(sub("$$&"), Ok(s("a$&b")));
+    }
+
+    /// `"a".repeat(92681).replaceAll("", "$`")` inserts every prefix, just
+    /// past `2³² − 1` code units: refused, counted without building it.
+    #[test]
+    fn too_long_is_refused_before_it_is_built() {
+        let wide: String<A> = s("a").repeat(92681.0.to_any()).unwrap();
+        assert!(wide.replace_all(a(""), a("$`")).is_err());
     }
 
     #[test]
