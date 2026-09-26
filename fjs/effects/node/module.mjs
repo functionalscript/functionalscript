@@ -12,9 +12,10 @@
  *
  * @module
  *
- * @import { Effect } from '../types.ts'
- * @import { IoResult, Server as EffectServer, Module, NodeOp, RequestListener as Erl, NodeProgram, NodeProgramOptions, WriteConsoles, TestContext, TestFn, } from './types.ts'
- * @import { _Readable, _RequestListener, _Server, _ServerResponse } from './private.ts'
+ * @import { Effect, IoChannel } from '../types.ts'
+ * @import { Handle, IoResult, Server as EffectServer, Module, NodeOp, RequestListener as Erl, NodeProgram, NodeProgramOptions, ServerResponse, WriteConsoles, TestContext, TestFn, } from './types.ts'
+ * @import { _CloseRecord, _Readable, _RequestListener, _Server, _ServerResponse } from './private.ts'
+ * @import { Next } from '../list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
@@ -39,7 +40,8 @@ import { memoryOperationMap } from './memory/module.mjs'
 import { commonOperationMap } from '../common/module.mjs'
 import {
     emptyHost, emptyHostCode, emptyHostMessage, exitCode, inflateTrailingCode, inflateTrailingMessage,
-    notAFileCode, notAFileMessage, toIoError, usesInlineTestContext,
+    notAFileCode, notAFileMessage, refusalMessage, refusedStatus, responseGate, runnerResponse, toIoError,
+    usesInlineTestContext,
 } from './module.f.mjs'
 import { asBase, asNominal } from '../../types/nominal/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.mjs'
@@ -109,29 +111,181 @@ const collectBounded = async v => {
 }
 
 /**
- * The runner's own answer, for the cases a listener never gets to give one: a
- * request body too large to hand it, and a listener that threw.
+ * The runner's own answer, for the cases a listener never gets to give one — a
+ * request body too large to hand it, a listener that threw — and for the two the
+ * gates refuse.
  *
- * **It closes the connection**, which is the whole difference between refusing
- * a request and surviving the refusal. Both cases answer without having read
- * the request to its end, and on a keep-alive connection Node then waits for
- * the rest of a body that is never coming — the socket is stuck, and the next
- * request on it is never answered. A client that declares ten megabytes and
- * sends a hundred kilobytes could hold connections open that way for as long as
- * it liked. Draining the remainder would be the polite alternative and the
- * wrong one: it reads bytes this server has already decided it will not use.
+ * The frame is {@link runnerResponse}'s, shared with the virtual runner so that a
+ * refusal a program is proven against is the refusal it meets. **It closes the
+ * connection**, which is the whole difference between refusing a request and
+ * surviving the refusal; that argument lives with the frame.
  *
  * @type {(res: _ServerResponse) => (status: number) => (message: string) => void}
  */
 const respondWith = res => status => message => {
-    const body = textEncoder.encode(`${message}\n`)
-    res
-        .writeHead(status, {
-            'content-type': 'text/plain; charset=utf-8',
-            'content-length': `${body.length}`,
-            connection: 'close',
-        })
-        .end(body)
+    const { headers, body } = runnerResponse(status, message)
+    res.writeHead(status, headers).end(fromVec(body[0]))
+}
+
+/**
+ * Whether the client has gone, as a value the runner **records** rather than an
+ * edge the pump listens for.
+ *
+ * `answerRequest` is handed `res` before it calls the listener, which is early
+ * enough. A pump is the last thing a request does, and `fjs/web`'s listener opens
+ * a handle and `fstat`s it before it has a status to return — so a cancelled
+ * download arriving a few milliseconds earlier closes the response while nothing
+ * is watching. Measured on Darwin with Node 26.8.1 and reproduced on 22.23.2, the
+ * client destroyed 111 ms in and the listener returning at 300: `close` fired at
+ * 112 ms, `writeHead` then raised nothing and set `headersSent`, the first
+ * `res.write` answered `false` like any full buffer, and the wait on `drain` never
+ * ended — because `drain` does not come for a socket that has gone and `close`
+ * does not come twice. Nothing ended that pump, so nothing ran `release`, and the
+ * handle it held was held for the life of the process.
+ *
+ * Two things follow from recording it. A response already closed when the listener
+ * returns is not answered at all, and the park is a race between `drain` and the
+ * record rather than between `drain` and a second `close` — so a closure that
+ * already happened wins it at once instead of never arriving.
+ *
+ * @type {(res: _ServerResponse) => _CloseRecord}
+ */
+const recordClose = res => {
+    /** @type {_CloseRecord} */
+    const record = { closed: false, waiting: new Set() }
+    res.on('close', () => {
+        record.closed = true
+        // Copied before waking: each waiter removes itself from the set.
+        for (const wake of [...record.waiting]) { wake() }
+    })
+    return record
+}
+
+/**
+ * Waits for the response's buffer to drain, **or** for the client to have gone.
+ *
+ * `res.write` answering `false` is the only memory bound a lazy body has: measured
+ * on Darwin with Node 23.11.0 against a client that asked and then read nothing,
+ * the first 131,072-byte write already answered `false` — the default high-water
+ * mark being 16 KiB — and a pump that wrote on regardless left all 26,216,371
+ * bytes of a 25 MiB body resident for one request.
+ *
+ * And `drain` is not the only way out of that wait. Measured the same way with the
+ * pump parked: ten chunks written, the client destroyed at 1,023 ms, `close` on
+ * the response at 1,026 ms — and the pump still parked three seconds later,
+ * because `drain` never comes for a socket that has gone. Waiting on `drain` alone
+ * does not throttle a body so much as strand one, holding its reads open for as
+ * long as the process lives. So a recorded `close` releases the park as surely as
+ * `drain` does, and the one resolver serves both triggers: whichever fires removes
+ * the `drain` listener and forgets the waiter, so neither leaks.
+ *
+ * @type {(res: _ServerResponse, record: _CloseRecord) => Promise<void>}
+ */
+const park = (res, record) => new Promise(resolve => {
+    if (record.closed) {
+        resolve(undefined)
+        return
+    }
+    /** @type {() => void} */
+    const wake = () => {
+        res.removeListener('drain', wake)
+        record.waiting.delete(wake)
+        resolve(undefined)
+    }
+    record.waiting.add(wake)
+    res.on('drain', wake)
+})
+
+/**
+ * Pulls the body one cell at a time and writes it at the socket's pace, counting
+ * the bytes against the length the listener declared.
+ *
+ * **The runner counts, because that bound is one producer's discipline and
+ * `ServerResponse<O>` is everyone's.** `fjs/web` can be trusted to stop at the
+ * `fstat` size because it writes both the header and the fold; nothing in the type
+ * ties them together, and a `Content-Length` that disagrees with the body is
+ * ordinary code rather than an abuse. Measured on Darwin with Node 26.8.1 and
+ * reproduced on 22.23.2, a response declaring 131,072 bytes and writing 1,000 more
+ * put all 132,072 on the wire and `res.end()` raised nothing: the keep-alive client
+ * failed `HPE_INVALID_CONSTANT` on the **in-flight** response, the surplus parsed
+ * as the following status line, so the request being answered was lost along with
+ * the one after it. The other direction is as quiet: 65,536 bytes written of a
+ * declared 131,072, and nothing on the server side notices — `writableFinished` is
+ * `true` and the socket goes back into the keep-alive pool, while two pipelined
+ * requests came back as one 131,342-byte stream whose second status line sat well
+ * inside body 1's declared window.
+ *
+ * So a chunk that would carry the count past the declared length is a failed cell:
+ * **none of it is written**, and the socket is destroyed. Writing its first
+ * `bound − written` bytes and ending cleanly is the other choice and the wrong one,
+ * because a body exactly as long as it promised is a body every client reads as
+ * whole. A body that ends short of the length destroys for the same reason, and at
+ * once rather than at the idle timeout.
+ *
+ * @type {(res: _ServerResponse, record: _CloseRecord, bound: Nullable<number>, body: Effect<NodeOp, Next<NodeOp, Vec, IoChannel>, IoChannel>) => Promise<void>}
+ */
+const pumpBody = async (res, record, bound, body) => {
+    let e = body
+    let written = 0
+    for (;;) {
+        // A recorded `close` ends the pump as surely as `drain` releases it: it
+        // stops pulling, and the producer's reads stop with it. A client that
+        // hangs up is the ordinary case — a cancelled download, a closed tab.
+        if (record.closed) { return }
+        const cell = await runNodeEffect(e)
+        // A cell that fails after the headers are written must destroy the socket
+        // rather than end the response: measured, one 131,072-byte chunk written
+        // under chunked framing and then a failure, `res.end()` left the client a
+        // clean, complete 131,072-byte response with `res.complete` true and no
+        // error raised.
+        if (cell[0] === 'error') {
+            res.destroy()
+            return
+        }
+        const node = cell[1]
+        if (node === undefined) {
+            if (bound !== null && written !== bound) {
+                res.destroy()
+                return
+            }
+            res.end(emptyBody)
+            return
+        }
+        const chunk = fromVec(node.first)
+        if (bound !== null && written + chunk.length > bound) {
+            res.destroy()
+            return
+        }
+        written += chunk.length
+        e = node.tail
+        if (!res.write(chunk)) { await park(res, record) }
+    }
+}
+
+/**
+ * Writes one response: the gates in their stated order, then the body.
+ *
+ * A response **already closed** when the listener returned is not answered at all
+ * — no `writeHead`, no gates, no pull. A status written to a client that has gone
+ * is a `writeHead` that silently sets `headersSent` on a destroyed socket, and
+ * `headersSent` is the flag {@link failSafe} reads to decide that a status is no
+ * longer available.
+ *
+ * @type {(res: _ServerResponse, record: _CloseRecord, method: string, answer: ServerResponse<NodeOp>) => Promise<void>}
+ */
+const deliver = async (res, record, method, { status, headers, body }) => {
+    if (record.closed) { return }
+    const gate = responseGate(method, res.useChunkedEncodingByDefault, status, headers)
+    if (gate[0] === 'framingHeader' || gate[0] === 'unframed') {
+        respondWith(res)(refusedStatus)(refusalMessage(gate))
+        return
+    }
+    if (gate[0] === 'noBody') {
+        res.writeHead(status, headers).end(emptyBody)
+        return
+    }
+    res.writeHead(status, headers)
+    await pumpBody(res, record, gate[1], body)
 }
 
 /**
@@ -160,52 +314,70 @@ const connectRefusal =
  * request bodies lift that limit too — see `./todo/streaming-http-bodies.md`,
  * stage 2.
  *
- * **The response body goes out a chunk at a time**, because it is however many
- * `Vec`s the answer takes and one `res.end` carries one. The writes are offered
- * and not paced: every chunk is already in memory when the status goes out, so
- * `res.write`'s `false` names a buffer nothing is still filling. It also says
- * nothing for a `HEAD`, a `204` or a `304`, where Node answers `true` to a write
- * it discards — so Node is the party that drops such a body here, across as many
- * writes as the body has, and `./proof.mjs` pins that.
+ * **The response body is pulled, one cell at a time, at the socket's pace** —
+ * {@link pumpBody}. Closure is recorded before the listener runs
+ * ({@link recordClose}), because the listener may hold something before it has a
+ * status to return.
+ *
+ * **`release` runs exactly once, on every exit.** Every one of them stops short of
+ * the far end of the body, which is the only place a `close` cell could sit: a
+ * response closed before the pump starts is never answered, the gates refuse or
+ * suppress before the first pull, a recorded `close` ends the pump wherever the
+ * client hung up, a count that disagrees destroys, a failed cell destroys, and a
+ * continuation that *throws* leaves through {@link failSafe}. Only a response that
+ * runs to its end reaches the far end, which is the one case nobody was worried
+ * about. So the `finally` is what makes it once and always — the throw included,
+ * since `createServer`'s wrapper catches that one after this has released.
  *
  * `unwrap` is total here: a `RequestListener` answers
- * `Effect<…, ServerResponse, never>`, because the response frame *is* where a
+ * `Effect<…, ServerResponse<O>, never>`, because the response frame *is* where a
  * listener puts its failures.
  *
  * @type {(listener: Erl<NodeOp>) => _RequestListener}
  */
 const answerRequest = listener => async (req, res) => {
+    const record = recordClose(res)
     const body = await collectBounded(req)
     if (body === null) {
         respondWith(res)(413)('request body too large')
         return
     }
     const { method, url, headers } = req
-    const { status, headers: outHeaders, body: outBody } = unwrap(await runNodeEffect(listener({
+    const answer = unwrap(await runNodeEffect(listener({
         method,
         url,
         headers,
         body: listToVec(body),
+        // Node's own answer, which the runner has in hand and no `.f.mjs` could
+        // compute — see `IncomingMessage.chunkedResponse` in `./types.ts`.
+        chunkedResponse: res.useChunkedEncodingByDefault,
     })))
-    res.writeHead(status, outHeaders)
-    for (const chunk of outBody) {
-        res.write(fromVec(chunk))
+    try {
+        await deliver(res, record, method, answer)
+    } finally {
+        await runNodeEffect(answer.release)
     }
-    res.end(emptyBody)
 }
 
 /**
  * What a request gets when answering it threw.
  *
- * Once the listener has started writing there is no status left to change, so
- * the only thing owed is an end to the response — leaving it open would hang
- * the connection until it times out.
+ * Once the headers have gone out there is no status left to change, and there is
+ * now a body to truncate: a `res.end()` here writes the terminating chunk of a
+ * chunked response, so a body cut short by a throw arrives as a **clean, complete**
+ * one — measured, `res.complete` `true` and no error raised. That is the same lie
+ * {@link pumpBody} destroys for when a cell *fails*, reached by the other door, so
+ * it destroys here too.
+ *
+ * What this keeps is the pre-headers case, where a status is still available and
+ * `500` is the answer. `release` has already run by the time this is reached:
+ * {@link answerRequest}'s `finally` is inside the `catch` that leads here.
  *
  * @type {(res: _ServerResponse) => void}
  */
 const failSafe = res => {
     if (res.headersSent) {
-        res.end(emptyBody)
+        res.destroy()
         return
     }
     respondWith(res)(500)('internal server error')
@@ -355,6 +527,32 @@ const fill = async (fh, buffer, position) => {
     return buffer.subarray(0, taken)
 }
 
+const { O_RDONLY, O_NONBLOCK = 0 } = fs.constants
+
+/**
+ * The flags a {@link Handle} is opened with — see the `open` handler for why the
+ * second one is the operation rather than a detail of it. Windows has no
+ * `O_NONBLOCK`, so the default leaves the open exactly as it was there.
+ *
+ * **Exported for one proof, which says why it has to be.** What the flag does
+ * needs a FIFO, and nothing in `fs` makes one; `./proof.mjs`
+ * (`open.asksForANonBlockingOpen`) therefore checks that the open asks for it,
+ * which is enough to turn dropping it into a red test rather than a silent
+ * change. Nothing else reads this.
+ *
+ * @type {number}
+ */
+export const readFlags = O_RDONLY | O_NONBLOCK
+
+/**
+ * What a `Handle` holds here: the host's own open file. The same reach-through the
+ * runner performs for a `Server` — a `Nominal` over `unknown` leaves what is inside
+ * to whoever created it.
+ *
+ * @type {(handle: Handle) => FileHandle}
+ */
+const asFileHandle = handle => /** @type {FileHandle} */ (asBase(handle))
+
 const randomMax = Number(1n << 32n)
 
 const { randomInt } = crypto
@@ -460,9 +658,9 @@ const runNodeEffect = asyncRun({
             // count at all: a client picks it, and 20,000 one-byte chunks are
             // 20 KB. §3.1 has no exception to spend here.
             //
-            // Holding a whole file to answer one request is the real cost, and
-            // `./todo/streaming-http-bodies.md` stage 1 is where it goes away —
-            // `fjs/web` stops asking for the file at all and reads chunks
+            // Holding a whole file to answer one request was the real cost, and
+            // `./todo/streaming-http-bodies.md` stage 1 is where it went away:
+            // `fjs/web` no longer asks for the file at all, and reads chunks
             // through a handle instead.
             let chunks = /** @type {readonly Vec[]} */ ([])
             for (;;) {
@@ -551,6 +749,37 @@ const runNodeEffect = asyncRun({
         const s = await stat(path)
         return { size: s.size, isFile: s.isFile(), isDirectory: s.isDirectory() }
     }),
+    // **The flag is the operation**, and without it the three that follow could
+    // not be reached for the one entry they exist to refuse. A plain read-only
+    // open of a FIFO with no writer never returns: measured on Darwin with Node
+    // 26.8.1, it left the process unable to exit at all, holding its thread-pool
+    // slot for as long as it lived — which is why every other read in `Fs` asks a
+    // *name* whether it is a regular file and then opens whatever that name has
+    // become. `O_NONBLOCK` answered at once for the same FIFO, and the `fstat`
+    // below then said `isFile: false`, so the guard moves onto the descriptor and
+    // the window between the two closes.
+    //
+    // A regular file is unaffected by the flag — measured, the same open read its
+    // bytes — and Windows, which has no `O_NONBLOCK` and no FIFO an `open` reaches,
+    // gets `0` and the open it always had.
+    open: path => io(async () => /** @type {Handle} */ (asNominal(await open(path, readFlags)))),
+    fstat: handle => io(async () => {
+        const s = await asFileHandle(handle).stat()
+        return { size: s.size, isFile: s.isFile(), isDirectory: s.isDirectory() }
+    }),
+    // `fill` rather than one `read`, for the reason it gives: one positional read
+    // may answer less than it was asked for without the file being at its end, and
+    // a caller counting bytes against a declared length would read that as a hole.
+    pread: (handle, offset, size) => io(async () => {
+        if (offset < 0) {
+            throw new Error(`Offset ${offset} is negative`)
+        }
+        if (size > maxFileSizeBytes) {
+            throw new Error(`Chunk size ${size} exceeds maximum allowed size of ${maxFileSizeBytes} bytes`)
+        }
+        return toVec(await fill(asFileHandle(handle), Buffer.alloc(size), offset))
+    }),
+    close: handle => io(() => asFileHandle(handle).close()),
     import: path => io(() => asyncImport(path)),
     exec: (command, stdin) => new Promise(resolve => {
         const child = exec(command, (e, stdout, stderr) =>

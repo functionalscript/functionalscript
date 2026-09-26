@@ -1,18 +1,22 @@
 /**
- * @import { IncomingMessage, ServerResponse } from '../effects/node/types.ts'
- * @import { Dir, State } from '../effects/node/virtual/types.ts'
+ * @import { Effect } from '../effects/types.ts'
+ * @import { Handle, IncomingMessage, IoChannel, NodeOp } from '../effects/node/types.ts'
+ * @import { List } from '../effects/list/types.ts'
+ * @import { Dir, RecordedResponse, State } from '../effects/node/virtual/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  */
 
 import { assert, assertEq } from '../asserts/module.f.mjs'
-import { exitCode } from '../effects/node/module.f.mjs'
+import { createServer, exitCode, listen, readBytes } from '../effects/node/module.f.mjs'
 import { emptyState, nodeProgramOptions, virtual } from '../effects/node/virtual/module.f.mjs'
 import { nodeCommands } from '../effects/node/module.f.mjs'
 import { partialRun } from '../effects/mock/module.f.mjs'
+import { step } from '../effects/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { empty, length, u8ListMsb, u8ListToVecMsb } from '../types/bit_vec/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
-import { unwrap } from '../types/result/module.f.mjs'
+import { ok, unwrap } from '../types/result/module.f.mjs'
+import { asNominal } from '../types/nominal/module.f.mjs'
 import { main, resolve, respond } from './module.f.mjs'
 
 /** @type {string} */
@@ -34,22 +38,77 @@ const site = {
  */
 const request = (method, url) => hosted('127.0.0.1:8080')(method, url)
 
-/** @type {(host: string) => (method: string, url: string) => IncomingMessage} */
-const hosted = host => (method, url) => ({ method, url, headers: { host }, body: empty })
+/**
+ * `chunkedResponse` is what an HTTP/1.1 request gets, which is what a browser
+ * sends; it is the runner's answer and a listener only ever reads it.
+ *
+ * @type {(host: string) => (method: string, url: string) => IncomingMessage}
+ */
+const hosted = host => (method, url) =>
+    ({ method, url, headers: { host }, body: empty, chunkedResponse: true })
 
 /**
- * Answers one request against `root`, which every case below is a variation of.
+ * Answers one request against `root` **through the virtual server**, which every
+ * case below is a variation of.
  *
- * @type {(root: Dir) => (method: string, url: string) => ServerResponse}
+ * Through `listen` rather than by calling `respond` directly, and that is the
+ * point: the body is a lazy list now, so a proof that read the frame and stopped
+ * would assert about a response no byte of which had been produced. `listen` runs
+ * the same gates and the same pump the Node runner does, and then runs `release`
+ * — so **every case here also checks that nothing was left open**, which is the
+ * one failure `fjs/web` could not report for itself.
+ *
+ * @type {(root: Dir, rootArgument?: string) => (req: IncomingMessage) => RecordedResponse}
  */
-const answer = root => (method, url) =>
-    unwrap(virtual({ ...emptyState, root })(respond('.')(request(method, url)))[1])
+const answerRequest = (root, rootArgument = '.') => req => {
+    const e = step(createServer(respond(rootArgument)), server => listen(server, 8080, '127.0.0.1'))
+    const [s, result] = virtual({ ...emptyState, root, requests: [req] })(e)
+    assert(result[0] === 'ok', result)
+    assertEq(s.responses.length, 1)
+    // `release` gave every handle back — see `handles` in
+    // `../effects/node/virtual/proof.f.mjs` for this assertion failing on a
+    // listener that does not.
+    assertEq(s.handles.length, 0, s.handles)
+    return s.responses[0]
+}
+
+/** @type {(root: Dir, rootArgument?: string) => (method: string, url: string) => RecordedResponse} */
+const answer = (root, rootArgument) => (method, url) =>
+    answerRequest(root, rootArgument)(request(method, url))
 
 const answerSite = answer(site)
 
+/**
+ * Pulls a body to its end, threading `state` through every cell, and answers the
+ * chunks with the state the reads left.
+ *
+ * This is what a runner's pump does, written out so that a proof can do something
+ * *between* two pulls — which is how the one-inode claim is checked.
+ *
+ * @type {(state: State, e: List<NodeOp, Vec, IoChannel>, between?: (s: State) => State) => readonly[State, readonly Vec[]]}
+ */
+const drain = (state, e, between = s => s) => {
+    /** @type {(s: State, rest: List<NodeOp, Vec, IoChannel>, out: readonly Vec[]) => readonly[State, readonly Vec[]]} */
+    const loop = (s, rest, out) => {
+        const [next, cell] = virtual(s)(rest)
+        const node = unwrap(cell)
+        return node === undefined
+            ? [next, out]
+            : loop(between(next), node.tail, [...out, node.first])
+    }
+    return loop(state, e, [])
+}
+
+/** The text a body carries, pulled cell by cell.
+ *
+ * @type {(e: List<NodeOp, Vec, IoChannel>) => string}
+ */
+const textOf = e =>
+    utf8ToString(u8ListToVecMsb(drain(emptyState, e)[1].flatMap(v => toArray(u8ListMsb(v)))))
+
 /** Every byte a response body carries, its chunks joined.
  *
- * @type {(r: ServerResponse) => readonly number[]}
+ * @type {(r: RecordedResponse) => readonly number[]}
  */
 const bodyBytes = r => r.body.flatMap(v => toArray(u8ListMsb(v)))
 
@@ -61,25 +120,29 @@ const bodyBytes = r => r.body.flatMap(v => toArray(u8ListMsb(v)))
  * hundred thousand bytes, and a failure that prints both of them names nothing a
  * reader can act on, where an index names where the body went wrong.
  *
- * @type {(r: ServerResponse, expected: readonly number[]) => void}
+ * @type {(r: RecordedResponse, expected: readonly number[]) => void}
  */
 const assertBody = (r, expected) => {
     const actual = bodyBytes(r)
     assertEq(actual.length, expected.length)
     assertEq(actual.findIndex((b, i) => b !== expected[i]), -1)
+    // A body a client reads as whole, which a bare chunk array cannot say: an
+    // overrun, an underrun and a failed cell all leave the chunks up to the point
+    // they stopped.
+    assertEq(r.failure, null, r.failure)
 }
 
 /** A response body as text. Not for a body past the `Vec` cap — that is what
  * {@link bodyBytes} is for, since no single `Vec` can hold one.
  *
- * @type {(r: ServerResponse) => string}
+ * @type {(r: RecordedResponse) => string}
  */
 const body = r => utf8ToString(u8ListToVecMsb(bodyBytes(r)))
 
-/** @type {(r: ServerResponse) => string} */
+/** @type {(r: RecordedResponse) => string} */
 const contentType = ({ headers }) => `${headers['content-type']}`
 
-/** @type {(r: ServerResponse) => string} */
+/** @type {(r: RecordedResponse) => string} */
 const contentLength = ({ headers }) => `${headers['content-length']}`
 
 /** A kibibyte of bytes counting up from `n`, so no two chunks hold the same
@@ -234,9 +297,7 @@ export const proof = {
         // which name the request was really for.
         rebinding: () => {
             /** @type {(host: string) => number} */
-            const status = host =>
-                unwrap(virtual({ ...emptyState, root: site })(
-                    respond('.')(hosted(host)('GET', '/')))[1]).status
+            const status = host => answerRequest(site)(hosted(host)('GET', '/')).status
             assertEq(status('attacker.example'), 403)
             assertEq(status('attacker.example:8080'), 403)
             // The names it does answer for, with and without a port, and as an
@@ -280,34 +341,35 @@ export const proof = {
             // The same trick through the target rather than the header: the
             // authority names the attacker, and the reassuring `Host` does not
             // rescue it.
-            const credentialed = unwrap(virtual({ ...emptyState, root: site })(
-                respond('.')({
-                    method: 'GET',
-                    url: 'http://127.0.0.1:8080@attacker.example/index.html',
-                    headers: { host: 'localhost:8080' },
-                    body: empty,
-                }))[1])
+            const credentialed = answerRequest(site)({
+                method: 'GET',
+                url: 'http://127.0.0.1:8080@attacker.example/index.html',
+                headers: { host: 'localhost:8080' },
+                body: empty,
+                chunkedResponse: true,
+            })
             assertEq(credentialed.status, 400)
-            const spoofed = unwrap(virtual({ ...emptyState, root: site })(
-                respond('.')({
-                    method: 'GET',
-                    url: 'http://attacker.example/index.html',
-                    headers: { host: 'localhost:8080' },
-                    body: empty,
-                }))[1])
+            const spoofed = answerRequest(site)({
+                method: 'GET',
+                url: 'http://attacker.example/index.html',
+                headers: { host: 'localhost:8080' },
+                body: empty,
+                chunkedResponse: true,
+            })
             assertEq(spoofed.status, 403)
             // And the same target for a name it does answer for is served.
-            const proxied = unwrap(virtual({ ...emptyState, root: site })(
-                respond('.')({
-                    method: 'GET',
-                    url: 'http://localhost:8080/index.html',
-                    headers: {},
-                    body: empty,
-                }))[1])
+            const proxied = answerRequest(site)({
+                method: 'GET',
+                url: 'http://localhost:8080/index.html',
+                headers: {},
+                body: empty,
+                chunkedResponse: true,
+            })
             assertEq(proxied.status, 200)
             // HTTP/1.1 requires a `Host`; its absence is not a way around this.
-            const noHost = unwrap(virtual({ ...emptyState, root: site })(
-                respond('.')({ method: 'GET', url: '/', headers: {}, body: empty }))[1])
+            const noHost = answerRequest(site)({
+                method: 'GET', url: '/', headers: {}, body: empty, chunkedResponse: true,
+            })
             assertEq(noHost.status, 403)
             assertEq(body(noHost), 'host not served\n')
         },
@@ -365,14 +427,91 @@ export const proof = {
             assertEq(r.body.length, 0)
             assertEq(contentType(r), 'text/css; charset=utf-8')
         },
-        // A `HEAD` is answered exactly like a `GET` here too, chunks included —
-        // the client learns the size it asked for, and dropping the bytes is
-        // the host's job (`../effects/node/proof.mjs`).
+        // A `HEAD` is answered exactly like a `GET` here — the same frame, with
+        // the size the client asked for — and the **runner** is what declines to
+        // pull the body. So the recorded body is empty where a `GET`'s is the
+        // file, and the handle the listener opened for a body nobody pulled comes
+        // back all the same, which `answerRequest` checks for every case here.
         headLarge: () => {
             const r = answer(largeRoot)('HEAD', '/large.bin')
             assertEq(r.status, 200)
             assertEq(contentLength(r), `${largeBytes.length}`)
-            assertBody(r, largeBytes)
+            assertEq(r.body.length, 0)
+            assertEq(r.failure, null)
+        },
+        // **The splice this route exists to prevent.** The served entry is
+        // replaced between every two pulls, by an entry of exactly the same
+        // length — which is what makes the defect invisible: a reader that went
+        // back to the *name* per chunk would answer a prefix of one file joined to
+        // a suffix of another, under a `Content-Length` that is correct and an end
+        // that is clean, and nothing downstream could tell. Measured that way on a
+        // host with Node 26.8.1, a 524,288-byte file replaced after the first pull
+        // came back as 131,072 bytes of the first file followed by 393,216 of the
+        // second.
+        //
+        // Driven cell by cell rather than through `listen`, because the point is
+        // what happens *between* two pulls.
+        oneInode: () => {
+            /** The same size and different bytes: its first is 200 where the
+             * fixture's is 0.
+             *
+             * @type {Dir}
+             */
+            const other = { 'large.bin': Array.from({ length: 129 }, (_, n) => countingKib(n + 200)) }
+            const [afterListener, answered] = virtual({ ...emptyState, root: largeRoot })(
+                respond('.')(request('GET', '/large.bin')))
+            const r = unwrap(answered)
+            assertEq(r.status, 200)
+            assertEq(`${r.headers['content-length']}`, `${largeBytes.length}`)
+            const [afterBody, chunks] = drain(afterListener, r.body, s => ({ ...s, root: other }))
+            const bytes = chunks.flatMap(v => toArray(u8ListMsb(v)))
+            assertEq(bytes.length, largeBytes.length)
+            assertEq(bytes.findIndex((b, i) => b !== largeBytes[i]), -1)
+            // The replacement really did land: the *name* now holds the other
+            // file, so the reads above answered the opened entry and not the
+            // current one.
+            assertEq(toArray(u8ListMsb(unwrap(virtual(afterBody)(readBytes('large.bin', 0, 1))[1])))[0], 200)
+            // And the handle is given back by the `release` the response carries.
+            assertEq(virtual(afterBody)(r.release)[0].handles.length, 0)
+        },
+        // **What a *replacement* cannot do is lengthen the response.** The entry
+        // is swapped for a longer one between every two pulls, and the answer is
+        // still the opened file's — same bytes, same count. That is the snapshot
+        // again rather than the bound: a handle cannot see a new entry at all, so
+        // there is nothing here for a bound to stop.
+        //
+        // The bound is what stops reads on a file that grew **through the inode the
+        // handle holds**, which no fixture can express — a `Dir` entry is replaced,
+        // never appended to under an open handle. So that one is a host proof:
+        // `boundedByTheFstat` in [`./proof.mjs`](./proof.mjs) appends to the file
+        // while the pump is parked. Written this way round because the first
+        // version of this case claimed the bound and proved the snapshot: it passed
+        // with the bound removed.
+        replacementCannotLengthenIt: () => {
+            /** @type {Dir} */
+            const grown = { 'large.bin': [...largeChunks, countingKib(500)] }
+            const [afterListener, answered] = virtual({ ...emptyState, root: largeRoot })(
+                respond('.')(request('GET', '/large.bin')))
+            const r = unwrap(answered)
+            const [, chunks] = drain(afterListener, r.body, s => ({ ...s, root: grown }))
+            assertEq(chunks.reduce((n, v) => n + Number(length(v)) / 8, 0), largeBytes.length)
+            assertEq(`${r.headers['content-length']}`, `${largeBytes.length}`)
+        },
+        // **The body arrives in pieces bounded by one `Vec`**, which is the whole
+        // of what the handle route buys: the frame is complete before any of it is
+        // read, and no cell is larger than a chunk however large the file is. What
+        // that costs in memory is a host measurement — see `createServer` in
+        // `../effects/node/proof.mjs`, where the pump is parked and the reads stop
+        // with it.
+        chunkedBody: () => {
+            const r = answer(largeRoot)('GET', '/large.bin')
+            // 129 KiB, so two reads: one full `Vec` and the remainder.
+            assertEq(r.body.length, 2)
+            assertEq(Number(length(r.body[0])) / 8, 131072)
+            assertEq(Number(length(r.body[1])) / 8, largeBytes.length - 131072)
+            // The boundaries are the reader's, not the fixture's: the file is 129
+            // chunks as a `Dir` holds it.
+            assertEq(largeChunks.length, 129)
         },
         // An entry that exists and is not a regular file is answered as absent
         // — and, crucially, is never read: a FIFO would block the read forever.
@@ -414,19 +553,39 @@ export const proof = {
         // everyone. `main` refuses such a root at startup; this is what keeps
         // the answer true if it is replaced afterwards.
         rootNotDirectory: () => {
-            const r = unwrap(virtual({ ...emptyState, root: site })(
-                respond('main.css')(request('GET', '/')))[1])
+            const r = answer(site, 'main.css')('GET', '/')
             assertEq(r.status, 500)
             assertEq(body(r), 'io error: ENOTDIR\n')
         },
         // A host failure that is not a missing path is not a 404. A runner that
         // cannot `stat` at all is the sharpest case: nothing looked for the
         // file, so answering "not found" would be a claim nobody checked.
+        // A host failure that is not a missing path is not a 404. A runner that
+        // cannot `open` at all is the sharpest case: nothing looked for the file,
+        // so answering "not found" would be a claim nobody checked.
+        //
+        // Answered by calling `respond` rather than through `listen`, because the
+        // runner under test here has no `createServer` either; the refusal frame's
+        // body is a pure cell, so {@link textOf} can pull it with any runner.
         hostFailure: () => {
             const noFs = partialRun(nodeCommands)({})
             const r = unwrap(noFs(emptyState)(respond('.')(request('GET', '/index.html')))[1])
             assertEq(r.status, 500)
-            assertEq(body(r), 'operation not implemented: stat\n')
+            assertEq(textOf(r.body), 'operation not implemented: open\n')
+        },
+        // And a runner that can **open** but not describe what it opened is the
+        // same answer with the handle already in hand — so this is the one refusal
+        // that is decided after the `open` and still owes it back. `release` is the
+        // handle's `close`, which this runner cannot perform either; that failure
+        // is absorbed, which is what `release`'s `never` channel says about a
+        // response that is already finished.
+        fstatFailure: () => {
+            /** @type {Handle} */
+            const handle = asNominal({ id: 0 })
+            const noFstat = partialRun(nodeCommands)({ open: () => state => [state, ok(handle)] })
+            const r = unwrap(noFstat(emptyState)(respond('.')(request('GET', '/index.html')))[1])
+            assertEq(r.status, 500)
+            assertEq(textOf(r.body), 'operation not implemented: fstat\n')
         },
     },
     main: {

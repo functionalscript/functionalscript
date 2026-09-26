@@ -1,9 +1,9 @@
 {
   "tasks": {
     "fjs": "deno run --allow-read --allow-write --allow-env --allow-net --allow-sys ./fjs/module.mjs",
-    "test": "deno test --allow-read --allow-write --allow-env --allow-sys",
-    "cov": "deno test --allow-read --allow-write --allow-env --allow-sys --coverage && deno coverage --include='.*module\\.f\\.m?js'",
-    "cov-html": "deno test --allow-read --allow-write --allow-env --allow-sys --coverage && deno coverage --html --include='.*module\\.f\\.m?js$'"
+    "test": "deno test --allow-read --allow-write --allow-env --allow-net --allow-sys",
+    "cov": "deno test --allow-read --allow-write --allow-env --allow-net --allow-sys --coverage && deno coverage --include='.*module\\.f\\.m?js'",
+    "cov-html": "deno test --allow-read --allow-write --allow-env --allow-net --allow-sys --coverage && deno coverage --html --include='.*module\\.f\\.m?js$'"
   },
   "fmt": {
     "indentWidth": 4,
