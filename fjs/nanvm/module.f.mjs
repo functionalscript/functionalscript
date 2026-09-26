@@ -39,7 +39,7 @@
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 31
+ * data.groups.length // 34
  * ```
  */
 
@@ -1539,6 +1539,83 @@ const atCases = [
 ]
 
 /**
+ * `Array.prototype.includes`: `SameValueZero`, so `NaN` is found and `0`
+ * finds `-0`, from a relative position clamped into the array. An empty
+ * array answers before the position is converted, so a bigint position
+ * throws only on a non-empty one.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const includesCases = [
+    { name: 'found', args: [[1, 2, 3], 2], expected: true },
+    { name: 'notFound', args: [[1, 2, 3], 4], expected: false },
+    { name: 'nan', args: [[1, NaN], NaN], expected: true },
+    { name: 'negativeZero', args: [[0], -0], expected: true },
+    { name: 'noCoercion', args: [[1], '1'], expected: false },
+    { name: 'nullIsNotUndefined', args: [[null], undefined], expected: false },
+    { name: 'noArgument', args: [[undefined]], expected: true },
+    { name: 'empty', args: [[], undefined], expected: false },
+    { name: 'from', args: [[1, 2, 3], 1, 1], expected: false },
+    { name: 'fromTheEnd', args: [[1, 2, 3], 3, -1], expected: true },
+    { name: 'fromBeforeTheStart', args: [[1, 2, 3], 1, -9], expected: true },
+    { name: 'fromPastTheEnd', args: [[1, 2, 3], 3, 3], expected: false },
+    { name: 'fromInfinity', args: [[1], 1, Infinity], expected: false },
+    { name: 'fromString', args: [[1, 2], 1, '1'], expected: false },
+    { name: 'emptyBigintFrom', args: [[], 1, 1n], expected: false },
+    { name: 'bigintFrom', args: [[1], 1, 1n], expected: throws },
+    { name: 'object', args: [{}, 1], expected: throws },
+]
+
+/**
+ * `Array.prototype.indexOf`: strict equality, so `NaN` is never found, from
+ * the same clamped position as `includes`.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const indexOfCases = [
+    { name: 'first', args: [[1, 2, 1], 1], expected: 0 },
+    { name: 'notFound', args: [[1, 2, 3], 4], expected: -1 },
+    { name: 'nan', args: [[NaN], NaN], expected: -1 },
+    { name: 'negativeZero', args: [[1, 0], -0], expected: 1 },
+    { name: 'noCoercion', args: [[1], '1'], expected: -1 },
+    { name: 'noArgument', args: [[1, undefined]], expected: 1 },
+    { name: 'empty', args: [[], undefined], expected: -1 },
+    { name: 'from', args: [[1, 2, 1], 1, 1], expected: 2 },
+    { name: 'fromTheEnd', args: [[1, 2, 1], 1, -1], expected: 2 },
+    { name: 'fromBeforeTheStart', args: [[1, 2, 1], 1, -9], expected: 0 },
+    { name: 'fromPastTheEnd', args: [[1, 2, 1], 1, 3], expected: -1 },
+    { name: 'fromNegativeInfinity', args: [[1], 1, -Infinity], expected: 0 },
+    { name: 'emptyBigintFrom', args: [[], 1, 1n], expected: -1 },
+    { name: 'bigintFrom', args: [[1], 1, 1n], expected: throws },
+    { name: 'object', args: [{}, 1], expected: throws },
+]
+
+/**
+ * `Array.prototype.lastIndexOf`: strict equality, searching back from the
+ * end — unless a position is passed, `undefined` included, which converts
+ * to `0`.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const lastIndexOfCases = [
+    { name: 'last', args: [[1, 2, 1], 1], expected: 2 },
+    { name: 'notFound', args: [[1, 2, 3], 4], expected: -1 },
+    { name: 'nan', args: [[NaN], NaN], expected: -1 },
+    { name: 'negativeZero', args: [[0, 1], -0], expected: 0 },
+    { name: 'noArgument', args: [[undefined, 1]], expected: 0 },
+    { name: 'empty', args: [[], undefined], expected: -1 },
+    { name: 'passedUndefined', args: [[1, 1], 1, undefined], expected: 0 },
+    { name: 'from', args: [[1, 2, 1], 1, 1], expected: 0 },
+    { name: 'fromTheEnd', args: [[1, 2, 1], 1, -2], expected: 0 },
+    { name: 'fromBeforeTheStart', args: [[1, 2, 1], 1, -4], expected: -1 },
+    { name: 'fromPastTheEnd', args: [[1, 2, 1], 1, 9], expected: 2 },
+    { name: 'fromNegativeInfinity', args: [[1], 1, -Infinity], expected: -1 },
+    { name: 'fromInfinity', args: [[1], 1, Infinity], expected: 0 },
+    { name: 'emptyBigintFrom', args: [[], 1, 1n], expected: -1 },
+    { name: 'bigintFrom', args: [[1], 1, 1n], expected: throws },
+]
+
+/**
  * `toString()` on every type but a function, whose text is the
  * rendering `nanvm-lib/todo/member-functions.md` tracks (see
  * {@link FunctionValue}). A radix on a number or a bigint is refused by
@@ -1626,6 +1703,9 @@ export const data = {
         { op: 'String', cases: stringCoercionCases },
         { op: 'own', cases: ownCases },
         { method: 'at', cases: atCases },
+        { method: 'includes', cases: includesCases },
+        { method: 'indexOf', cases: indexOfCases },
+        { method: 'lastIndexOf', cases: lastIndexOfCases },
         { method: 'toString', cases: toStringCases },
     ],
 }

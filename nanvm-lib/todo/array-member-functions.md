@@ -6,13 +6,14 @@
 ### Problem
 
 The compiler admits a call of every name in `allowedCalls`
-([`fjs/js/prototype`](../../fjs/js/prototype/module.f.mjs)), and on an array
-the VM answers two of them, `at` and `toString`
+([`fjs/js/prototype`](../../fjs/js/prototype/module.f.mjs)), but when this
+issue was opened the VM answered two of them on an array, `at` and `toString`
 ([`vm/lambda/method.rs`](../src/vm/lambda/method.rs)). Every other `Array`
-name compiles and then throws the `TypeError` for calling `undefined`, so
-`[1, 2].map(f)` is a module that means one thing on a JavaScript engine and
+name compiled and then threw the `TypeError` for calling `undefined`, so
+`[1, 2].map(f)` was a module that meant one thing on a JavaScript engine and
 another on NaNVM — the divergence the two lists in `fjs/js/prototype` exist to
-prevent ([member-functions](./member-functions.md), Problem).
+prevent ([member-functions](./member-functions.md), Problem). The
+[Tasks](#tasks) below record which names have landed since.
 
 These are the names the compiler's own source uses most — `map`, `filter`,
 `flatMap`, `reduce`, `join`, `includes`, `slice`, `concat` — so they stand
@@ -393,7 +394,7 @@ and runs the full check set.
       `pending` holding every pair not yet answered. No built-in lands here.
       The callback vocabulary lands with its first consumer, the iteration
       PR, rather than unused.
-- [ ] **Search.** `includes`, `indexOf`, `lastIndexOf`, with `present`,
+- [x] **Search.** `includes`, `indexOf`, `lastIndexOf`, with `present`,
       the relative-index helper (`at` refactored onto it) and `SameValueZero`.
 - [ ] **Copies.** `slice`, `concat`, `toReversed`, `with`, `toSpliced`, with
       the result-length `RangeError`.

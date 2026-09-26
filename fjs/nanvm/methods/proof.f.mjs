@@ -22,12 +22,13 @@ export const proof = {
             names.filter(n => n !== 'length').map(n => `${t}.${n}`))
         assertEq(all.toSorted().join(), expected.toSorted().join())
     },
-    /** What the VM answers today: `at` on an array, and `toString` on all seven types. */
+    /** What the VM answers today: `toString` on all seven types, and `Array`'s own. */
     answered: () => {
+        const array = ['at', 'includes', 'indexOf', 'lastIndexOf', 'toString']
         assertEq(
             keys(rows(pending).answered).join(),
             ['object', 'array', 'string', 'number', 'boolean', 'bigint', 'function']
-                .flatMap(t => t === 'array' ? [`${t}.at`, `${t}.toString`] : [`${t}.toString`])
+                .flatMap(t => t === 'array' ? array.map(n => `${t}.${n}`) : [`${t}.toString`])
                 .join())
     },
     /** A row holds names of its list only. */

@@ -173,10 +173,10 @@ the landing order are [array-member-functions](./array-member-functions.md):
 - [ ] `findLastIndex`
 - [ ] `flat`
 - [ ] `flatMap`
-- [ ] `includes`
-- [ ] `indexOf`
+- [x] `includes` — `vm/array/includes.rs`
+- [x] `indexOf` — `vm/array/index_of.rs`
 - [ ] `join`
-- [ ] `lastIndexOf`
+- [x] `lastIndexOf` — `vm/array/last_index_of.rs`
 - [ ] `map`
 - [ ] `reduce`
 - [ ] `reduceRight`

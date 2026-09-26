@@ -16,6 +16,9 @@ pub mod logical_and;
 pub mod logical_or;
 pub mod lt;
 pub mod method_at;
+pub mod method_includes;
+pub mod method_index_of;
+pub mod method_last_index_of;
 pub mod method_to_string;
 pub mod mul;
 pub mod ne;
@@ -66,5 +69,8 @@ pub fn all<A: IStaticFunction>() {
     string_coercion::run::<A>();
     own_property::run::<A>();
     method_at::run::<A>();
+    method_includes::run::<A>();
+    method_index_of::run::<A>();
+    method_last_index_of::run::<A>();
     method_to_string::run::<A>();
 }

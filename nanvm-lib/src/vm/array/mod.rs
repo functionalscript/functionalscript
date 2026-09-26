@@ -1,7 +1,11 @@
 mod at;
+mod includes;
 mod index;
+mod index_of;
+mod last_index_of;
 mod member_access;
 mod partial_eq;
+pub(crate) mod relative;
 mod sized_index;
 
 pub mod to_array;
