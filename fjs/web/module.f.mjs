@@ -18,7 +18,6 @@
  * | any other method                               | `405` with `Allow` |
  * | a `Host` this server does not answer for       | `403`  |
  * | a path that escapes `root`, or an undecodable URL | `400`  |
- * | a file larger than one `Vec`                   | `413`  |
  * | any other host failure                         | `500`  |
  *
  * Failures carry a `text/plain` body. Nothing else is configurable in this
@@ -31,7 +30,7 @@
  * @module
  *
  * @import { Effect } from '../effects/types.ts'
- * @import { FileStat, IoChannel, Program, ReadFile, ServerResponse, Stat } from '../effects/node/types.ts'
+ * @import { FileStat, IoChannel, Program, ReadWhole, ServerResponse, Stat } from '../effects/node/types.ts'
  * @import { Nullable } from '../types/nullable/types.ts'
  * @import { Result } from '../types/result/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
@@ -41,12 +40,12 @@
 import { pureError, pureOk, resultMapStep, resultStep, step } from '../effects/module.f.mjs'
 import {
     createServer, errorExit, errorMessage, errorSummary, exitStep, forever, isNotFound, listen, log,
-    maxPort, readFile, stat,
+    maxPort, readWhole, stat,
 } from '../effects/node/module.f.mjs'
 import { detectPath } from '../media/type/module.f.mjs'
 import { escapes, join, parse } from '../path/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
-import { byteLength, maxLengthBytes } from '../types/bit_vec/module.f.mjs'
+import { byteLength } from '../types/bit_vec/module.f.mjs'
 import { percentDecode } from '../text/percent/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
 import { error, ok } from '../types/result/module.f.mjs'
@@ -206,14 +205,6 @@ export const resolve = root => url => {
 // ── Answering ─────────────────────────────────────────────────────────────────
 
 /**
- * A file too large to answer with. `readFile` yields a single `Vec`, so this is
- * a limit of the effect rather than a policy: see the README.
- *
- * @type {(size: number) => readonly['tooLarge', number]}
- */
-const tooLarge = size => ['tooLarge', size]
-
-/**
  * An entry that is not a regular file — a FIFO, a device, a socket. It exists,
  * so this is not a missing path, and it is not something this server will read.
  *
@@ -230,13 +221,21 @@ const notRegular = ['notRegular']
  * body but keeps these headers — that leaves the client with neither the bytes
  * nor their count, which is the one thing a `HEAD` is asked for.
  *
- * @type {(status: number) => (contentType: string) => (body: Vec) => ServerResponse}
+ * **The number is summed over the chunks that were read, and that is what keeps
+ * it honest.** A length taken from an earlier `stat` is a promise about a file
+ * the read has not reached yet: the file may have grown, and the client is then
+ * handed the count the header named with the rest of the bytes left over, or it
+ * may have shrunk, and the count is short of what arrives. Summing what is
+ * already in hand cannot be wrong in either direction — there is nothing left to
+ * read that could disagree with it.
+ *
+ * @type {(status: number) => (contentType: string) => (body: readonly Vec[]) => ServerResponse}
  */
 const response = status => contentType => body => ({
     status,
     headers: {
         'content-type': contentType,
-        'content-length': `${byteLength(body)}`,
+        'content-length': `${body.reduce((n, v) => n + byteLength(v), 0n)}`,
         // The `Content-Type` above is derived from a file name, and a browser
         // that sniffs past it decides for itself what a served file is — which
         // is the one thing this server has already answered.
@@ -247,7 +246,7 @@ const response = status => contentType => body => ({
 
 /** @type {(status: number) => (message: string) => ServerResponse} */
 const plainText = status => message =>
-    response(status)('text/plain; charset=utf-8')(utf8(`${message}\n`))
+    response(status)('text/plain; charset=utf-8')([utf8(`${message}\n`)])
 
 /** The methods this server answers.
  *
@@ -368,30 +367,32 @@ const methodNotAllowed = () => {
 }
 
 /**
- * Reads `path`, but only once `stat` has said it is a regular file that fits in
- * one `Vec`.
+ * Reads `path` whole, but only once `stat` has said it is a regular file.
  *
- * Both questions are asked before the read, and neither is optional. An
- * oversized file must fail loudly rather than be truncated. A **non-regular**
- * entry must not be read at all: `open` on a FIFO with no writer blocks until
- * one appears, so the read would never return and would hold a thread-pool slot
- * while it waited — a served tree with one FIFO in it, and a handful of requests
- * stall every other response. Size cannot stand in for that check, because a
- * FIFO stats as zero bytes and passes every bound.
+ * **Size is no longer one of the questions.** `readWhole` answers the chunks one
+ * open took, each a `Vec` and the file however many of them it takes, so there is
+ * no ceiling left for a `stat` to check a file against
+ * ([#1819](https://github.com/functionalscript/functionalscript/issues/1819)).
  *
- * @type {(path: string) => (s: FileStat) => Effect<ReadFile, Vec, IoChannel | readonly['tooLarge', number] | readonly['notRegular']>}
+ * **The kind still is, and it is this layer's own answer.** `open` on a FIFO with
+ * no writer blocks until one appears, so the read would never return and would
+ * hold a thread-pool slot while it waited — a served tree with one FIFO in it,
+ * and a handful of requests stall every other response. `readWhole` refuses a
+ * non-regular path itself, for that same reason; asking here as well is what
+ * gives a client the `404` the response table promises rather than the host's
+ * refusal reported as a `500`.
+ *
+ * @type {(path: string) => (s: FileStat) => Effect<ReadWhole, readonly Vec[], IoChannel | readonly['notRegular']>}
  */
-const readBounded = path => ({ size, isFile }) => {
-    if (!isFile) { return pureError(notRegular) }
-    return BigInt(size) > maxLengthBytes ? pureError(tooLarge(size)) : readFile(path)
-}
+const readRegular = path => ({ isFile }) =>
+    isFile ? readWhole(path) : pureError(notRegular)
 
 /**
  * The response frame for whatever reading `path` produced. This is where the
  * error channel ends: every failure becomes a status code, which is what lets
  * a `RequestListener` declare `never`.
  *
- * @type {(path: string) => (r: Result<Vec, IoChannel | readonly['tooLarge', number] | readonly['notRegular']>) => ServerResponse}
+ * @type {(path: string) => (r: Result<readonly Vec[], IoChannel | readonly['notRegular']>) => ServerResponse}
  */
 const fileResponse = path => r => {
     if (r[0] === 'ok') { return response(200)(detectPath(path))(r[1]) }
@@ -399,9 +400,6 @@ const fileResponse = path => r => {
     // A name that is not a regular file is answered as absent, for the reason a
     // dot-prefixed one is: what it *is* would be a disclosure of its own.
     if (e[0] === 'notRegular') { return plainText(404)('not found') }
-    if (e[0] === 'tooLarge') {
-        return plainText(413)(`file is ${e[1]} bytes; this server cannot answer with more than ${maxLengthBytes}`)
-    }
     if (isNotFound(e)) { return plainText(404)('not found') }
     // `errorSummary`, not `errorMessage`: the host puts the absolute path it
     // could not read into the message, and a client is not entitled to the
@@ -455,7 +453,7 @@ const isServableRoot = s => s[0] === 'ok' && s[1].isDirectory
  * [stat-then-read](./todo/stat-then-read.md) already describes: a wrong status
  * in a vanishing window rather than a wrong status forever.
  *
- * @type {(root: string) => (path: string) => (r: Result<Vec, IoChannel | readonly['tooLarge', number] | readonly['notRegular']>) => Effect<Stat, ServerResponse, never>}
+ * @type {(root: string) => (path: string) => (r: Result<readonly Vec[], IoChannel | readonly['notRegular']>) => Effect<Stat, ServerResponse, never>}
  */
 const answer = root => path => r => {
     const hostAnswer = fileResponse(path)(r)
@@ -499,7 +497,7 @@ export const respond = root => ({ method, url, headers }) => {
         return pureOk(plainText(status)(message))
     }
     const path = resolved[1]
-    const bytes = step(stat(path), readBounded(path))
+    const bytes = step(stat(path), readRegular(path))
     // `resultStep`, not `resultMapStep`: framing the result is pure for every
     // case but `ENOTDIR`, which asks the file system one more question — see
     // {@link answer}.

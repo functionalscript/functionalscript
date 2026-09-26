@@ -39,14 +39,15 @@ set over HTTP(S):
 - large blobs favour HTTP *in principle*: the protocol streams
   request/response bodies, so `add`/`get` of arbitrary-size content is a
   natural fit for this transport where MCP is capped at 128 KiB of inline
-  content. But the current HTTP effects do not stream:
-  `IncomingMessage.body` / `ServerResponse.body`
-  (`fjs/effects/node/module.f.mjs`) are single `Vec`s, and the Node runner
-  buffers the whole request (`collect(req)` → `listToVec`) — past the
-  128 KiB `Vec` limit it throws. The CAS store side already streams
-  (`Cas.read`/`Cas.write` deal in chunk lists), so lifting the cap needs
-  **streaming request/response body effects** as a prerequisite; until that
-  design exists, an HTTP adapter inherits the same inline cap as MCP.
+  content. The HTTP effects meet it half way. `ServerResponse.body`
+  (`fjs/effects/node/types.ts`) is a chunk list, so a `get` of any size can be
+  *answered* — at the cost of holding the whole blob in memory, since the body is
+  whole rather than pulled. `IncomingMessage.body` is still a single `Vec` and the
+  Node runner still buffers the whole request, refusing one past the cap with
+  `413`, so an `add` past 128 KiB has nothing to arrive through. The CAS store
+  side already streams (`Cas.read`/`Cas.write` deal in chunk lists), so what this
+  transport still waits on is the **request** body — and, for a blob it can serve
+  without materializing, the lazy response body beside it.
 
 **Human-readable HTML pages.** The same server should also serve HTML, so a
 human can browse a CAS in an ordinary browser — one server, two
@@ -72,10 +73,12 @@ HTML form is an exposure-matrix decision for
 
 - [ ] Wait for the CAS command architecture design
       ([command-architecture](./command-architecture.md)).
-- [ ] Streaming HTTP request/response body effects in `fjs/effects/node`
-      ([streaming-http-bodies](../../effects/node/todo/streaming-http-bodies.md))
-      — prerequisite for arbitrary-size `add`/`get`; without it the adapter
-      keeps the 128 KiB inline cap.
+- [ ] Streaming HTTP **request** body effects in `fjs/effects/node`
+      ([streaming-http-bodies](../../effects/node/todo/streaming-http-bodies.md),
+      stage 2) — prerequisite for arbitrary-size `add`; without it the adapter
+      keeps the 128 KiB inline cap on what a client sends. A `get` of any size
+      can already be answered, holding the blob in memory to do it; the lazy
+      response body is that issue's remaining half of stage 1.
 - [ ] Design authentication and the exposed command subset.
 - [ ] Design the HTML browsing surface: routes / content negotiation, the
       list and blob pages, dialect-aware rendering (revision DAG links).
@@ -98,6 +101,7 @@ HTML form is an exposure-matrix decision for
 - [`fjs/web`](../../web/README.md) — the static file server, already built on
   these effects; a CAS HTTP front end is the same layer with a command set
   behind it instead of a file system.
-- `fjs/effects/node/module.f.mjs` (`IncomingMessage`/`ServerResponse`) — the
-  whole-body `Vec` HTTP effects that need a streaming redesign before this
-  transport can carry blobs past 128 KiB.
+- `fjs/effects/node/types.ts` (`IncomingMessage`/`ServerResponse`) — the request
+  body is still one `Vec`, which is what stops this transport carrying a blob past
+  128 KiB *inward*; the response body is a chunk list, whole in memory rather than
+  streamed.
