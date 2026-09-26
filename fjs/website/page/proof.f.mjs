@@ -21,11 +21,19 @@ const commit = '0123456789abcdef0123456789abcdef01234567'
 const sectionsAtCommit = dir => concat(element(['body', ...sections(commit)(dir)]))
 
 /**
- * The catalogue's one section around `items`, as the body it is the whole of.
+ * The Contents section around `items`, open, as the body it is the whole of.
  *
  * @type {(items: string) => string}
  */
 const contents = items => '<body><details data-section="" open=""><summary><h2>Contents</h2></summary>'
+    + `<ul data-links="">${items}</ul></details></body>`
+
+/**
+ * The Issues section around `items`, folded, as the body it is the whole of.
+ *
+ * @type {(items: string) => string}
+ */
+const issues = items => '<body><details data-section=""><summary><h2>Issues</h2></summary>'
     + `<ul data-links="">${items}</ul></details></body>`
 
 /** @type {Dir} */
@@ -58,15 +66,26 @@ export const proof = {
             sectionsHtml({ ...empty, files: ['module.f.mjs'] }),
             contents('<li><a href="/module.f.mjs" data-kind="file">module.f.mjs</a></li>')),
         /**
-         * **One list: directories, then files, then issues**, each marked
-         * with its kind. The way deeper leads, and the issues — forty at the
-         * root — come last, where they push nothing else down.
+         * **Contents is one list: directories, then files**, each marked with
+         * its kind. The way deeper leads.
          */
-        oneListInOrder: () => assertEq(
-            sectionsHtml({ ...empty, path: 'fjs', todo: ['a.md'], files: ['module.f.mjs'], dirs: ['types'] }),
+        contentsInOrder: () => assertEq(
+            sectionsHtml({ ...empty, path: 'fjs', files: ['module.f.mjs'], dirs: ['types'] }),
             contents('<li><a href="/fjs/types/index.html" data-kind="dir">types</a></li>'
-                + '<li><a href="/fjs/module.f.mjs" data-kind="file">module.f.mjs</a></li>'
-                + '<li><a href="/fjs/todo/a.md" data-kind="issue">a.md</a></li>')),
+                + '<li><a href="/fjs/module.f.mjs" data-kind="file">module.f.mjs</a></li>')),
+        /**
+         * **Issues are a list of their own, after Contents and folded.** The
+         * root has dozens, and an open list would push the suite below it
+         * off the screen.
+         */
+        issuesSeparateAndFolded: () => {
+            const html = sectionsHtml({ ...empty, path: 'fjs', todo: ['a.md'], files: ['module.f.mjs'] })
+            assertEq(html,
+                '<body><details data-section="" open=""><summary><h2>Contents</h2></summary>'
+                + '<ul data-links=""><li><a href="/fjs/module.f.mjs" data-kind="file">module.f.mjs</a></li></ul></details>'
+                + '<details data-section=""><summary><h2>Issues</h2></summary>'
+                + '<ul data-links=""><li><a href="/fjs/todo/a.md" data-kind="issue">a.md</a></li></ul></details></body>')
+        },
         // A subdirectory link points at a page, and every such page exists —
         // which is what the "every directory gets one" rule buys.
         dirs: () => assertEq(
@@ -79,10 +98,10 @@ export const proof = {
         // page of its own.
         todo: () => assertEq(
             sectionsHtml({ ...empty, path: 'fjs', todo: ['a.md'] }),
-            contents('<li><a href="/fjs/todo/a.md" data-kind="issue">a.md</a></li>')),
+            issues('<li><a href="/fjs/todo/a.md" data-kind="issue">a.md</a></li>')),
         todoAtRoot: () => assertEq(
             sectionsHtml({ ...empty, todo: ['a.md'] }),
-            contents('<li><a href="/todo/a.md" data-kind="issue">a.md</a></li>')),
+            issues('<li><a href="/todo/a.md" data-kind="issue">a.md</a></li>')),
         /**
          * **A file name that is not already a URL is encoded**, on this site
          * and on GitHub alike. `%` is in it on purpose: an encoder that
@@ -94,7 +113,7 @@ export const proof = {
                 contents('<li><a href="/fjs/x%20y/a%20b%23c%3F100%25.md" data-kind="file">a b#c?100%.md</a></li>')),
             todo: () => assertEq(
                 sectionsHtml({ ...empty, path: 'fjs', todo: ['open issue.md'] }),
-                contents('<li><a href="/fjs/todo/open%20issue.md" data-kind="issue">open issue.md</a></li>')),
+                issues('<li><a href="/fjs/todo/open%20issue.md" data-kind="issue">open issue.md</a></li>')),
             dirs: () => assertEq(
                 sectionsHtml({ ...empty, path: 'fjs', dirs: ['x y'] }),
                 contents('<li><a href="/fjs/x%20y/index.html" data-kind="dir">x y</a></li>')),
@@ -116,7 +135,7 @@ export const proof = {
                 contents(`<li><a href="${repository}/blob/${commit}/README.md" data-kind="file">README.md</a></li>`)),
             todo: () => assertEq(
                 sectionsAtCommit({ ...empty, path: 'fjs', todo: ['a.md'] }),
-                contents(`<li><a href="${repository}/blob/${commit}/fjs/todo/a.md" data-kind="issue">a.md</a></li>`)),
+                issues(`<li><a href="${repository}/blob/${commit}/fjs/todo/a.md" data-kind="issue">a.md</a></li>`)),
             // A directory is one of this site's pages, which GitHub does not
             // have, so its link does not move.
             dirsStayHere: () => assertEq(

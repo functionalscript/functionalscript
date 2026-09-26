@@ -325,42 +325,52 @@ const fileHref = commit => path => name => {
 const item = kind => href => text => ['li', ['a', { href, 'data-kind': kind }, text]]
 
 /**
- * The catalogue of one directory: its subdirectories, its files, and the
- * issues filed against it, as one list under one heading.
+ * One section of a directory's catalogue: a heading a reader can fold the
+ * section away under, over a list of entries — or nothing at all when there
+ * are none, so a page says only what is true of its directory.
  *
- * **One list, with an icon per entry.** Three sections made a reader decide
- * which to open before seeing what the directory holds, and repeated a
- * heading over lists that are often one line long. The kind is still there to
- * see — it is the icon — so nothing the sections said is lost.
+ * @type {(heading: string) => (open: boolean) => (items: readonly Element[]) => readonly Node[]}
+ */
+const section = heading => open => items =>
+    items.length === 0
+        ? []
+        : [['details', { 'data-section': '', open: open ? '' : undefined },
+            summary(heading)(),
+            ['ul', { 'data-links': '' }, ...items]]]
+
+/**
+ * The catalogue of one directory: what it holds, under Contents, and the
+ * issues filed against it, under Issues.
  *
- * **Directories, then files, then issues.** A directory is where a reader
- * goes next, a file is where the reading stops, as GitHub and a file manager
- * list them; an issue is about the directory rather than in it, and the
- * root has forty, so they come last where they push nothing else down.
+ * **Contents is one list, with an icon per entry.** Directories and files in
+ * two sections made a reader decide which to open before seeing what the
+ * directory holds, and repeated a heading over lists often one line long.
+ * The kind is still there to see — it is the icon. Directories come first,
+ * then files, as GitHub and a file manager list them: a directory is where a
+ * reader goes next, and a file is where the reading stops.
  *
- * Omitted where the directory has nothing to list, so a page says only what
- * is true of its directory.
+ * **Issues are a list of their own, folded.** An issue is about the
+ * directory rather than in it, and the list is not bounded by the directory
+ * — the root has dozens — so it opens only when a reader asks, and pushes
+ * nothing below it down until then. Its entries keep the issue icon, so an
+ * entry looks the same wherever it is listed.
  *
- * The root page inserts this into its own frame; {@link page} wraps it in
+ * The root page inserts these into its own frame; {@link page} wraps them in
  * one. Nothing here depends on which of the two is calling.
  *
  * `commit` is where files are read — see {@link fileHref}.
  *
  * @type {(commit: string | null) => (dir: Dir) => readonly Node[]}
  */
-export const sections = commit => dir => {
-    const items = [
+export const sections = commit => dir => [
+    ...section('Contents')(true)([
         ...dir.dirs.map(name =>
             item('dir')(pageHref(dir.path === '.' ? name : `${dir.path}/${name}`))(name)),
         ...dir.files.map(name => item('file')(fileHref(commit)(dir.path)(name))(name)),
-        ...dir.todo.map(name => item('issue')(fileHref(commit)(dir.path)(`todo/${name}`))(name)),
-    ]
-    return items.length === 0
-        ? []
-        : [['details', { 'data-section': '', open: '' },
-            summary('Contents')(),
-            ['ul', { 'data-links': '' }, ...items]]]
-}
+    ]),
+    ...section('Issues')(false)(dir.todo.map(name =>
+        item('issue')(fileHref(commit)(dir.path)(`todo/${name}`))(name))),
+]
 
 /**
  * The path to each ancestor of `path`, root first, paired with the name to

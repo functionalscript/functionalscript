@@ -179,9 +179,9 @@ textarea { box-sizing: border-box; resize: vertical; width: 100% }
    bigger than it has always been. */
 [data-section] > summary > h2 { display: inline; font: inherit; margin: 0 }
 [data-section] > ul { margin-top: .5rem }
-/* A directory's catalogue is one list of three kinds of entry — directory,
-   file, issue — and each entry's kind is the icon in front of it, where a
-   list's bullet would be. The icon is a mask over the muted colour, so it
+/* A directory's catalogue lists three kinds of entry — directory and file
+   under Contents, issue under Issues — and each entry's kind is the icon in
+   front of it, where a list's bullet would be. The icon is a mask over the muted colour, so it
    follows the colour scheme like the text does. It is not decoration: an
    issue and a file can have the same name, so the icon carries a text
    alternative after the slash. The kind is on the link rather than its list
