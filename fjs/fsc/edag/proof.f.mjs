@@ -1245,6 +1245,10 @@ export const proof = {
             // the second unreachable.
             distinctNames: () =>
                 assertEq(new Set(examples.map(([name]) => name)).size, examples.length),
+            // Sources are what the picker selects by, so two alike would
+            // both be selected — invalid in a single-select.
+            distinctSources: () =>
+                assertEq(new Set(examples.map(([, source]) => source)).size, examples.length),
             // The picker selects the example the text is, and no other.
             selected: () => {
                 const [name, source] = examples[2]

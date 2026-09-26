@@ -347,15 +347,28 @@ export const _graphOf = text => {
  * is. It reads `m` rather than `a`, so `a` keeps the four references the
  * paragraph above counts.
  *
- * The rest take one of those points each, on its own. **Sharing** sets a
- * `const` used twice beside the same expression written out again: only
- * `const` makes sharing, so that is one `+` node with two edges and a
- * second `+` of its own. **Laziness** draws every lazy position the
- * compiler has — `&&`, `||` and `??` on their right, `?:` on both arms, a
- * function's body — and **Closures** a function that captures its
- * enclosing parameter, read inside the body through `frame`. The last is a
- * source that does not parse, because an error is something this demo
- * shows too.
+ * The other ten take one point each, on its own:
+ *
+ * - **Sharing** sets a `const` used twice beside the same expression
+ *   written out again: only `const` makes sharing, so that is one `+` node
+ *   with two edges and a second `+` of its own.
+ * - **Constants** puts every kind of constant — `null`, `undefined`, a
+ *   boolean, a number, a bigint, a string — inline in the port that uses it.
+ * - **Operators** draws arithmetic, unary, comparison and bitwise operators
+ *   over a function's two parameters.
+ * - **Laziness: `&&` `||` `??`** breaks each one's right edge, and
+ *   **Laziness: `?:`** both arms and not the condition — with a function's
+ *   body in each, every lazy position the compiler has.
+ * - **Closures** is a function that captures its enclosing parameter, read
+ *   inside the body through `frame`.
+ * - **Objects and properties** draws an object's keys as its ports and a
+ *   property read, by name or by a string index, as a `.` node.
+ * - **Imports and calls** reaches a default and a named import through the
+ *   module's `args`, and calls one with the other.
+ * - **Comma** is an unused `const` the compiler keeps as an `anchor`,
+ *   beside the `result` the module is.
+ * - **Parse error** does not parse, because an error is something this
+ *   demo shows too.
  *
  * @type {readonly (readonly [name: string, source: string])[]}
  */
