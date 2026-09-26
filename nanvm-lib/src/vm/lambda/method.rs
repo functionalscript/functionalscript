@@ -448,7 +448,7 @@ mod tests {
     /// in `fjs/nanvm/methods`, and no prohibited pair has one ever.
     #[test]
     fn completeness() {
-        use super::super::methods_table::{ANSWERED, PENDING, PROHIBITED};
+        use super::super::methods_table::{ABSENT, ANSWERED, PENDING, PROHIBITED};
         let has = |(type_, name): &(&str, &str)| {
             super::method::<A>(&receiver(type_), &(*name).into()).is_some()
         };
@@ -463,6 +463,12 @@ mod tests {
         }
         for pair in PROHIBITED {
             assert!(!has(pair), "{pair:?} is prohibited but has an entry");
+        }
+        for pair in ABSENT {
+            assert!(
+                !has(pair),
+                "{pair:?} is not on the type's prototype but has an entry"
+            );
         }
     }
 
