@@ -7,9 +7,9 @@
  * ([`fjs/js/prototype`](../../js/prototype/module.f.mjs)), and the VM must
  * answer each on every type whose prototype has it, or a module compiles and
  * then throws. It must equally answer none of `prohibitedCalls`, so that a
- * name the compiler refuses cannot be reached another way, and no allowed
- * name on a type whose prototype lacks it, so that `[1].charAt(0)` throws as
- * it does in JavaScript. This module crosses the two lists with each type's
+ * name the compiler refuses cannot be reached another way, and no name of
+ * either list on a type whose prototype lacks it, so that `[1].charAt(0)`
+ * throws as it does in JavaScript and `[].bind` has no entry to reach. This module crosses the two lists with each type's
  * prototype and sorts every pair into one of four rows, which
  * [`generate`](#generate) prints as Rust:
  *
@@ -17,8 +17,8 @@
  * - **pending** — allowed, and the VM has no entry yet: {@link pending},
  *   the one list here written by hand;
  * - **prohibited** — refused, and the VM must never have an entry;
- * - **absent** — allowed, but not on this type's prototype, and the VM must
- *   never have an entry either.
+ * - **absent** — on either list, but not on this type's prototype, and the
+ *   VM must never have an entry either.
  *
  * The test beside `method` in `nanvm-lib/src/vm/lambda/method.rs` asserts
  * each row, so landing a built-in fails it until its pair leaves
@@ -71,7 +71,7 @@ export const pending = {}
 /**
  * The four rows for a pending list, each a list of `[type, name]` pairs in
  * {@link types}' order and then its prototype's, or, for `absent`,
- * `allowedCalls`' order.
+ * `allowedCalls`' and then `prohibitedCalls`' order.
  *
  * A pending pair that is not an allowed call on a type is refused: no row
  * could hold it, so a typo would otherwise vanish rather than be reported.
@@ -98,7 +98,7 @@ export const rows = p => {
         answered: pairs((type, name) => allowed.includes(name) && !isPending(type, name)),
         pending: pairs((type, name) => allowed.includes(name) && isPending(type, name)),
         prohibited: pairs((_, name) => prohibited.includes(name)),
-        absent: types.flatMap(([type, names]) => allowed
+        absent: types.flatMap(([type, names]) => [...allowed, ...prohibited]
             .filter(name => !(/** @type {readonly string[]} */ (names)).includes(name))
             .map(name => /** @type {const} */ ([type, name]))),
     }
@@ -141,6 +141,6 @@ export const generate = () => {
         ...table('ANSWERED', 'Allowed, and answered: `method` has an entry.', r.answered),
         ...table('PENDING', 'Allowed, and not answered yet: `method` has no entry.', r.pending),
         ...table('PROHIBITED', 'Refused by the compiler: `method` never has an entry.', r.prohibited),
-        ...table('ABSENT', 'Allowed, but not on the type\'s prototype: `method` never has an entry.', r.absent),
+        ...table('ABSENT', 'A known name not on the type\'s prototype: `method` never has an entry.', r.absent),
     ].join('\n')
 }
