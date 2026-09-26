@@ -313,6 +313,16 @@ export const proof = {
             assertEq(html, htmlToString(graphSvg({ nodes, edges: [{ ...e }, ...middle, { ...e }] })))
         },
         /**
+         * **The drawing comes in a container of its own**, which the
+         * stylesheet scrolls sideways, so a graph wider than the page does
+         * not make the whole page scroll.
+         */
+        inAContainer: () => {
+            const html = htmlToString(graphSvg(skipLevel))
+            assert(html.includes('<div data-graph=""><svg '), html)
+            assert(html.endsWith('</svg></div>'), html)
+        },
+        /**
          * **Boxes, then edges, then the labels** — the document order
          * an SVG paints in, so a line draws over the border it meets and
          * every label draws over any line. No edge carries a casing: with

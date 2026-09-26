@@ -222,7 +222,10 @@ svg text { font: inherit }
    edge's key fills its whole row, so no cell is left empty. No edge
    crosses a box — the layout routes one that skips a rank across a lane
    of its own — so a line needs no casing to stand out from a border it
-   passes. */
+   passes. A graph wider than the page scrolls sideways in its own
+   container, so the page around it stays still. */
+[data-graph] { overflow-x: auto }
+[data-graph] > svg { display: block }
 [data-graph-node] { fill: var(--bg); stroke: var(--text); stroke-width: 1.5 }
 [data-graph-outline] { fill: none; stroke: var(--text); stroke-width: 1.5 }
 [data-graph-kind="leaf"] { stroke: var(--muted); stroke-dasharray: 3 2 }
