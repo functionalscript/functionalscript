@@ -29,11 +29,11 @@
  *
  * @import { Element, Node } from '../../media/html/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
- * @import { Dir, Proof } from './types.ts'
+ * @import { Build, Dir, Proof } from './types.ts'
  */
 
 import { htmlUtf8 } from '../../media/html/module.f.mjs'
-import { faviconLinks, stylesheetLink } from '../style/module.f.mjs'
+import { faviconLinks, logoPath, stylesheetLink } from '../style/module.f.mjs'
 
 /**
  * The repository the site is built from, which is where a file is read when
@@ -374,16 +374,75 @@ const ancestors = path => {
 }
 
 /**
+ * The branch the published site is built from. Every other branch's build is
+ * a preview.
+ *
+ * @type {string}
+ */
+const productionBranch = 'main'
+
+/**
+ * The line that says which build a preview is: its branch, and the commit it
+ * was built from, each linked on GitHub. Nothing on the published site or a
+ * local build — the first is always `main` at its latest, and the second has
+ * nothing on GitHub to link.
+ *
+ * **Short commit, full link.** Seven characters is what GitHub and `git log
+ * --oneline` show, and what a reader matches against a pull request; the link
+ * carries the whole id.
+ *
+ * @type {(build: Build) => readonly Element[]}
+ */
+const buildLine = ({ branch, commit }) => branch === null || branch === productionBranch
+    ? []
+    : [['p', { 'data-build': '' },
+        'Preview: ',
+        ['a', { href: `${repository}/tree/${urlPath(branch)}` }, branch],
+        .../** @type {readonly Node[]} */ (commit === null ? [] : [
+            ' @ ',
+            ['a', { href: `${repository}/commit/${commit}` }, commit.slice(0, 7)],
+        ])]]
+
+/**
+ * The header every page opens with: the logo and the site's name, linking
+ * home, then the releases and the repository.
+ *
+ * **One element for every page**, as {@link stylesheetLink} is one link: the
+ * root page, a directory's page and a release's page each used to carry their
+ * own few links, and each carried different ones.
+ *
+ * **The logo's `alt` is empty**, because the name beside it is the link's
+ * text: a screen reader would otherwise read "FunctionalScript
+ * FunctionalScript". The arrow after GitHub, which says the link leaves the
+ * site, is hidden from one for the same reason the changelog hides its
+ * arrows.
+ *
+ * @type {(build: Build) => Element}
+ */
+export const header = build => ['header',
+    ['nav', { 'aria-label': 'Site' },
+        ['a', { href: '/index.html', 'data-home': '' },
+            ['img', { src: logoPath, alt: '', width: '24', height: '24' }],
+            siteName],
+        // The site's links are one group, so a narrow screen wraps them
+        // together under the name rather than one beside it and one below.
+        ['span', { 'data-site-links': '' },
+            ['a', { href: '/changelog/index.html' }, 'Releases'],
+            ['a', { href: repository }, 'GitHub', ['span', { 'aria-hidden': 'true' }, ' ↗']]]],
+    ...buildLine(build)]
+
+/**
  * The whole page for a directory below the root: where it sits, what it
  * holds, and what is open against it.
  *
- * @type {(commit: string | null) => (dir: Dir) => Vec}
+ * @type {(build: Build) => (dir: Dir) => Vec}
  */
-export const page = commit => dir => htmlUtf8(lang)(
+export const page = build => dir => htmlUtf8(lang)(
     pageTitle(dir.path),
     stylesheetLink,
     ...faviconLinks,
 )(
+    header(build),
     ['main', { 'data-browser-tests': '', 'data-state': 'idle' },
         ['nav', ...ancestors(dir.path).flatMap(([path, name], at) => {
             /** @type {Element} */
@@ -391,7 +450,7 @@ export const page = commit => dir => htmlUtf8(lang)(
             return at === 0 ? [link] : [' / ', link]
         })],
         ['h1', dir.path],
-        ...sections(commit)(dir),
+        ...sections(build.commit)(dir),
         ...(dir.demo === null ? [] : demoSection(dir.demo)),
         ...testSection(dir)([]),
     ],
