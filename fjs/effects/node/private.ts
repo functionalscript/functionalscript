@@ -41,8 +41,18 @@ export type _IncomingMessage = _Readable & {
     readonly headers: Headers
 }
 
+/**
+ * `write` is here because a response body is a chunk list, so the runner offers
+ * Node one chunk at a time and then ends. Its `boolean` is Node's own answer —
+ * `false` once the response's buffer is full — and the runner does not read it:
+ * every chunk is already in memory by then, so there is nothing left for the
+ * socket to throttle. A body pulled at the socket's pace is
+ * [streaming-http-bodies](./todo/streaming-http-bodies.md)'s pump, and it is the
+ * `false` that the pump exists to wait on.
+ */
 export type _ServerResponse = {
     readonly writeHead: (status: number, headers: StringMap<string>) => _ServerResponse
+    readonly write: (chunk: Uint8Array) => boolean
     readonly end: (body: Uint8Array) => void
     readonly headersSent: boolean
 }

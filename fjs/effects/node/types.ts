@@ -374,10 +374,30 @@ export type IncomingMessage = {
     readonly body: Vec
 }
 
+/**
+ * What a listener answers with: a status, headers, and however many `Vec`s the
+ * body takes.
+ *
+ * **The chunk list is why a response is not capped at 131,072 bytes.** One `Vec`
+ * was the whole of that cap — `fjs/web` could not answer with a file larger than
+ * one and refused it rather than truncating it
+ * ([#1819](https://github.com/functionalscript/functionalscript/issues/1819)).
+ * This is the shape {@link ReadWhole} answers and the shape the virtual runner's
+ * `Dir` already stores a file in ([`./virtual/types.ts`](./virtual/types.ts),
+ * `_Entity`), so a served file passes through unjoined and a fixture and a
+ * response read alike.
+ *
+ * What it is not is a *lazy* body: every chunk is in hand before the status goes
+ * out, so peak memory is the whole file rather than one chunk of it. A body the
+ * runner pulls at the socket's pace is
+ * [streaming-http-bodies](./todo/streaming-http-bodies.md)'s handle-effect
+ * route, and `IncomingMessage.body` above is still one `Vec` for the same
+ * reason — that is its stage 2.
+ */
 export type ServerResponse = {
     readonly status: number
     readonly headers: Headers
-    readonly body: Vec
+    readonly body: readonly Vec[]
 }
 
 /**
