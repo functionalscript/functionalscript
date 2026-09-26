@@ -79,3 +79,9 @@ export type Build = {
      */
     readonly branch: string | null
 }
+
+/**
+ * What one entry of a directory's list is, which is the icon a reader tells
+ * it by: a subdirectory, a file, or an issue in the directory's `todo/`.
+ */
+export type Kind = 'dir' | 'file' | 'issue'

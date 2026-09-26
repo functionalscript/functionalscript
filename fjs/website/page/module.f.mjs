@@ -21,15 +21,15 @@
  * The builder is split in two because the root page is not built here. It
  * carries the site's own heading and the browser test runner, so it takes
  * {@link sections} and keeps its own frame, while every other directory gets
- * the whole page from {@link page}. Both write the same three sections, which
- * is the property that matters — a reader moving between them sees one
+ * the whole page from {@link page}. Both write the same catalogue, which is
+ * the property that matters — a reader moving between them sees one
  * catalogue, not two.
  *
  * @module
  *
  * @import { Element, Node } from '../../media/html/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
- * @import { Build, Dir, Proof } from './types.ts'
+ * @import { Build, Dir, Kind, Proof } from './types.ts'
  */
 
 import { htmlUtf8 } from '../../media/html/module.f.mjs'
@@ -231,12 +231,18 @@ startDemo(document.querySelector('[data-demo]'))
  * `reportOf`, which decides `fjs t`'s verdict too, for a case the command line
  * does not have.
  *
+ * **Folded until a reader opens it.** The suite is something a reader asks
+ * for, not what they came for, and its list of proofs is as long as the
+ * subtree — the root's is nearly two hundred lines. Folded, it is one line: the
+ * heading and, once a run has them, its counts, which are in the title so a
+ * run is still read at a glance.
+ *
  * @type {(dir: Dir) => (intro: readonly Node[]) => readonly Node[]}
  */
 export const testSection = dir => intro => {
     if (dir.proofs.length === 0) { return [] }
     /** @type {(title: Element) => (rest: readonly Node[]) => readonly Node[]} */
-    const section = title => rest => [['details', { 'data-section': '', open: '' },
+    const section = title => rest => [['details', { 'data-section': '' },
         title,
         ...intro,
         ...rest,
@@ -302,17 +308,26 @@ const fileHref = commit => path => name => {
 }
 
 /**
- * One section of a page: a heading a reader can fold the section away under,
- * or nothing at all when the list is empty.
+ * One entry of a directory's list: a link, marked with its kind.
  *
- * **A disclosure rather than a heading and a list.** `details` and `summary`
- * are the collapsible the platform already has, so folding a long list away
- * costs the page no script — which matters here, where the whole site is
- * static files served from the repository folder.
+ * **The kind is an attribute, not markup.** The stylesheet draws the icon from
+ * `data-kind` and gives it a text alternative, so the page carries one word
+ * per entry instead of an SVG, and the three pictures live in one place.
  *
- * An empty section is omitted rather than rendered collapsed, so a page says
- * only what is true of its directory: no "Files" to open on a directory that
- * groups others, and no "Issues" where none are filed.
+ * **On the link, not the list item.** The icon's text alternative is part of
+ * whatever element draws it, and only a link's own content is its accessible
+ * name. On the `li`, a file and an issue with the same name were two links a
+ * screen reader's list of links announced identically; on the `a`, one is
+ * "file a.md" and the other "issue a.md". The icon is clickable too.
+ *
+ * @type {(kind: Kind) => (href: string) => (text: string) => Element}
+ */
+const item = kind => href => text => ['li', ['a', { href, 'data-kind': kind }, text]]
+
+/**
+ * One section of a directory's catalogue: a heading a reader can fold the
+ * section away under, over a list of entries — or nothing at all when there
+ * are none, so a page says only what is true of its directory.
  *
  * @type {(heading: string) => (open: boolean) => (items: readonly Element[]) => readonly Node[]}
  */
@@ -323,23 +338,22 @@ const section = heading => open => items =>
             summary(heading)(),
             ['ul', { 'data-links': '' }, ...items]]]
 
-/** @type {(href: string) => (text: string) => Element} */
-const item = href => text => ['li', ['a', { href }, text]]
-
 /**
- * The catalogue of one directory: its subdirectories, its files, and the
- * issues filed against it.
+ * The catalogue of one directory: what it holds, under Contents, and the
+ * issues filed against it, under Issues.
  *
- * **Directories come before files**, as GitHub and a file manager list
- * them: a directory is where a reader goes next, and a file is where the
- * reading stops, so the way deeper is what the page leads with.
+ * **Contents is one list, with an icon per entry.** Directories and files in
+ * two sections made a reader decide which to open before seeing what the
+ * directory holds, and repeated a heading over lists often one line long.
+ * The kind is still there to see — it is the icon. Directories come first,
+ * then files, as GitHub and a file manager list them: a directory is where a
+ * reader goes next, and a file is where the reading stops.
  *
- * **Directories and files are open, issues are closed.** The first two are
- * what the directory *is* and are bounded by it; the issue list is not — the
- * repository root has fifty — and a page that opened it would push whatever
- * follows off the screen. That is a judgement per section and not a length
- * threshold, so it holds for every directory rather than switching at some
- * size.
+ * **Issues are a list of their own, folded.** An issue is about the
+ * directory rather than in it, and the list is not bounded by the directory
+ * — the root has dozens — so it opens only when a reader asks, and pushes
+ * nothing below it down until then. Its entries keep the issue icon, so an
+ * entry looks the same wherever it is listed.
  *
  * The root page inserts these into its own frame; {@link page} wraps them in
  * one. Nothing here depends on which of the two is calling.
@@ -349,12 +363,13 @@ const item = href => text => ['li', ['a', { href }, text]]
  * @type {(commit: string | null) => (dir: Dir) => readonly Node[]}
  */
 export const sections = commit => dir => [
-    ...section('Directories')(true)(dir.dirs.map(name =>
-        item(pageHref(dir.path === '.' ? name : `${dir.path}/${name}`))(`${name}/`))),
-    ...section('Files')(true)(dir.files.map(name =>
-        item(fileHref(commit)(dir.path)(name))(name))),
+    ...section('Contents')(true)([
+        ...dir.dirs.map(name =>
+            item('dir')(pageHref(dir.path === '.' ? name : `${dir.path}/${name}`))(name)),
+        ...dir.files.map(name => item('file')(fileHref(commit)(dir.path)(name))(name)),
+    ]),
     ...section('Issues')(false)(dir.todo.map(name =>
-        item(fileHref(commit)(dir.path)(`todo/${name}`))(name))),
+        item('issue')(fileHref(commit)(dir.path)(`todo/${name}`))(name))),
 ]
 
 /**
@@ -450,8 +465,8 @@ export const page = build => dir => htmlUtf8(lang)(
             return at === 0 ? [link] : [' / ', link]
         })],
         ['h1', dir.path],
-        ...sections(build.commit)(dir),
         ...(dir.demo === null ? [] : demoSection(dir.demo)),
+        ...sections(build.commit)(dir),
         ...testSection(dir)([]),
     ],
 )
