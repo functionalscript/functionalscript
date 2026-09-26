@@ -1,8 +1,18 @@
 mod at;
+mod concat;
+pub(crate) mod create;
+mod includes;
 mod index;
+mod index_of;
+mod last_index_of;
 mod member_access;
 mod partial_eq;
+pub(crate) mod relative;
 mod sized_index;
+mod slice;
+mod to_reversed;
+mod to_spliced;
+mod with;
 
 pub mod to_array;
 

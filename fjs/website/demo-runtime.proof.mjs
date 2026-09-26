@@ -65,6 +65,8 @@ const dom = path => {
             selectionStart: 0,
             selectionEnd: 0,
             style: { width: '', height: '' },
+            scrollTop: 0,
+            scrollLeft: 0,
             focus: () => { active = self },
             setSelectionRange: (/** @type {number} */ start, /** @type {number} */ end) => {
                 self.selectionStart = start
@@ -158,9 +160,25 @@ const dom = path => {
         input: (name, value) => {
             for (const f of listeners) { f({ target: { name, value } }) }
         },
-        /** @type {(name: string) => void} */
-        click: name => {
-            for (const f of clicks) { f({ target: { name } }) }
+        /**
+         * A click on the element named `name`, which is a
+         * `<button type="button">` unless the proof says otherwise, or on
+         * unnamed markup `nested` inside it.
+         *
+         * `closest` answers the one selector the runtime asks, a list of a
+         * tag and a tag with a `type`, from what the element is — so a
+         * runtime that asked for something else finds no button at all.
+         *
+         * @type {(name: string, options?: { readonly tagName?: string, readonly type?: string, readonly nested?: boolean }) => void}
+         */
+        click: (name, { tagName = 'BUTTON', type = 'button', nested = false } = {}) => {
+            /** @type {(selector: string) => boolean} */
+            const matches = selector => selector.split(', ').some(one =>
+                one === tagName.toLowerCase() || one === `${tagName.toLowerCase()}[type="${type}"]`)
+            /** @type {any} */
+            const self = { name, closest: (/** @type {string} */ s) => matches(s) ? self : null }
+            const target = nested ? { closest: self.closest } : self
+            for (const f of clicks) { f({ target }) }
         },
     }
 }
@@ -276,9 +294,73 @@ export const proof = {
         assertEq(after.style.width, '600px')
         assertEq(after.style.height, '300px')
     },
-    // A resized field that a later state simply stops rendering has nowhere
-    // to put its size back — skipped rather than thrown, the same as a
-    // restored caret finding no field to focus.
+    /**
+     * **A scrolled field stays scrolled across a re-render.** A fresh element
+     * starts at the top, and a render follows every keystroke, so without a
+     * restore typing in a long field jumps it back to its first line.
+     */
+    keepsScrollOffset: async () => {
+        const d = dom(echo)
+        await startDemo(d.root)
+        await settle()
+        const before = d.root.querySelector('[name="text"]')
+        before.scrollTop = 120
+        before.scrollLeft = 30
+        d.input('text', 'ab')
+        await settle()
+        const after = d.root.querySelector('[name="text"]')
+        assert(after !== before, 'expected the input to re-render the field')
+        assertEq(after.scrollTop, 120)
+        assertEq(after.scrollLeft, 30)
+    },
+    /**
+     * **Only a button asks.** A click in a field places a caret or ends a
+     * mouse selection; sending it to the demo re-rendered the field under the
+     * reader's hands for an event no demo acts on.
+     */
+    ignoresAClickOutsideAButton: async () => {
+        const d = dom(echo)
+        await startDemo(d.root)
+        await settle()
+        const renders = d.rendered.length
+        d.click('text', { tagName: 'INPUT', type: 'text' })
+        d.click('text', { tagName: 'TEXTAREA', type: 'textarea' })
+        d.click('text', { tagName: 'INPUT', type: 'checkbox' })
+        await settle()
+        assertEq(d.rendered.length, renders)
+    },
+    // An `<input type="button">` is a button too, and asks like one.
+    acceptsAnInputButton: async () => {
+        const d = dom(echo)
+        await startDemo(d.root)
+        await settle()
+        const renders = d.rendered.length
+        d.click('go', { tagName: 'INPUT', type: 'button' })
+        await settle()
+        assertEq(d.rendered.length, renders + 1)
+    },
+    /**
+     * **A click on a button's label is a click on the button.** A label may
+     * be markup of its own — `['button', { name: 'go' }, ['strong', 'Go']]` —
+     * and then the target is the `<strong>`, whichever part the reader hit.
+     */
+    acceptsAClickInsideAButton: async () => {
+        const d = dom(moduleUrl(`
+export const demo = {
+    init: 'idle',
+    update: state => event => () => ['ok', event.kind === 'click' ? event.name : state],
+    view: text => ['div', ['button', { type: 'button', name: 'go' }, ['strong', 'Go']], ['pre', text]],
+}
+`))
+        await startDemo(d.root)
+        await settle()
+        d.click('go', { nested: true })
+        await settle()
+        assert(d.root.innerHTML.includes('<pre>go</pre>'), d.root.innerHTML)
+    },
+    // A resized or scrolled field that a later state simply stops rendering
+    // has nowhere to put its size or offset back — skipped rather than thrown,
+    // the same as a restored caret finding no field to focus.
     dropsAManualResizeForAFieldThatIsGone: async () => {
         const d = dom(moduleUrl(`
 export const demo = {
@@ -293,6 +375,7 @@ export const demo = {
         await settle()
         const before = d.root.querySelector('[name="text"]')
         before.style.width = '600px'
+        before.scrollTop = 120
         d.input('text', 'hide')
         await settle()
         assert(!d.root.textContent.startsWith('demo failed'), d.root.textContent)

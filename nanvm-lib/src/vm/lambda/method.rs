@@ -1,6 +1,6 @@
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{Any, Array, IVm, Nullish, ToAny, Unpacked},
+    vm::{Any, Array, IVm, Nullish, Number, ToAny, ToArray, Unpacked},
 };
 
 /// A built-in member function: the receiver and the arguments, already the
@@ -30,10 +30,21 @@ pub(crate) fn method<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Option<Method<A
 
 /// `Array.prototype`'s.
 fn array<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
-    if *key == "at".into() {
-        return Some(array_at);
-    }
-    None
+    let table: [(&str, Method<A>); 9] = [
+        ("at", array_at),
+        ("concat", array_concat),
+        ("includes", array_includes),
+        ("indexOf", array_index_of),
+        ("lastIndexOf", array_last_index_of),
+        ("slice", array_slice),
+        ("toReversed", array_to_reversed),
+        ("toSpliced", array_to_spliced),
+        ("with", array_with),
+    ];
+    table
+        .into_iter()
+        .find(|(name, _)| *key == (*name).into())
+        .map(|(_, m)| m)
 }
 
 /// The `i`-th argument, or `undefined` past the end, as a built-in reads
@@ -44,6 +55,26 @@ fn argument<A: IVm>(args: &Array<A>, i: u32) -> Any<A> {
     } else {
         Nullish::Undefined.to_any()
     }
+}
+
+/// The `i`-th argument if the call passed one, `undefined` included, and
+/// `None` if it did not: for the few built-ins whose answer depends on
+/// whether an argument is there, not only on its value — `lastIndexOf(x)`
+/// searches from the end, `lastIndexOf(x, undefined)` from `0`.
+fn present<A: IVm>(args: &Array<A>, i: u32) -> Option<Any<A>> {
+    (i < args.length()).then(|| args[i].clone())
+}
+
+/// The arguments from the `i`-th on, as a rest parameter reads them.
+fn rest<A: IVm>(args: &Array<A>, i: u32) -> Array<A> {
+    (i..args.length().max(i))
+        .map(|k| args[k].clone())
+        .to_array()
+}
+
+/// A search's position as JavaScript answers it: the index, or `-1`.
+fn position<A: IVm>(found: Option<u32>) -> Any<A> {
+    Number::from(found.map_or(-1.0, f64::from)).to_any()
 }
 
 /// `toString()`: a dispatch to `Any::to_string`, the `String(x)` conversion,
@@ -78,6 +109,58 @@ fn to_string<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>>
 /// [`method`] matched, so the conversion cannot throw.
 fn array_at<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     Array::try_from(receiver)?.at(argument(&args, 0))
+}
+
+/// `Array.prototype.includes`, `vm/array/includes.rs`.
+fn array_includes<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let found = Array::try_from(receiver)?.includes(&argument(&args, 0), argument(&args, 1))?;
+    Ok(found.to_any())
+}
+
+/// `Array.prototype.indexOf`, `vm/array/index_of.rs`.
+fn array_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let found = Array::try_from(receiver)?.index_of(&argument(&args, 0), argument(&args, 1))?;
+    Ok(position(found))
+}
+
+/// `Array.prototype.concat`, `vm/array/concat.rs`: every argument an item.
+fn array_concat<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    Ok(Array::try_from(receiver)?.concat(args)?.to_any())
+}
+
+/// `Array.prototype.slice`, `vm/array/slice.rs`.
+fn array_slice<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let a = Array::try_from(receiver)?;
+    Ok(a.slice(argument(&args, 0), argument(&args, 1))?.to_any())
+}
+
+/// `Array.prototype.toReversed`, `vm/array/to_reversed.rs`.
+fn array_to_reversed<A: IVm>(receiver: Any<A>, _: Array<A>) -> Result<Any<A>, Any<A>> {
+    Ok(Array::try_from(receiver)?.to_reversed().to_any())
+}
+
+/// `Array.prototype.toSpliced`, `vm/array/to_spliced.rs`: whether `start`
+/// and `skip` were passed decides how many elements go, so both are read
+/// as present or not.
+fn array_to_spliced<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let a = Array::try_from(receiver)?;
+    Ok(
+        a.to_spliced(present(&args, 0), present(&args, 1), rest(&args, 2))?
+            .to_any(),
+    )
+}
+
+/// `Array.prototype.with`, `vm/array/with.rs`.
+fn array_with<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let a = Array::try_from(receiver)?;
+    Ok(a.with(argument(&args, 0), argument(&args, 1))?.to_any())
+}
+
+/// `Array.prototype.lastIndexOf`, `vm/array/last_index_of.rs`: the one of
+/// the three whose position is read only when passed.
+fn array_last_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let found = Array::try_from(receiver)?.last_index_of(&argument(&args, 0), present(&args, 1))?;
+    Ok(position(found))
 }
 
 #[cfg(test)]
@@ -196,6 +279,50 @@ mod tests {
         assert_eq!(at("1".into()), Ok(2.0.to_any()));
         assert_eq!(at(3.0.to_any()), Ok(Nullish::Undefined.to_any()));
         assert_eq!(arr.dot("at".into()).end_call(no_args), Ok(1.0.to_any()));
+    }
+
+    /// A receiver of each type the completeness table names.
+    fn receiver(type_: &str) -> Any<A> {
+        match type_ {
+            "object" => [].to_object().to_any(),
+            "array" => [].to_array().to_any(),
+            "string" => "".into(),
+            "number" => 0.0.to_any(),
+            "boolean" => true.to_any(),
+            "bigint" => BigInt::<A>::from(0i64).to_any(),
+            "function" => A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array()).to_any(),
+            _ => panic!("no receiver of type {type_}"),
+        }
+    }
+
+    /// The table matches `allowedCalls` and `prohibitedCalls`, both ways:
+    /// every answered pair has an entry, no pending pair has one yet, so
+    /// landing a built-in fails here until its pair leaves the pending list
+    /// in `fjs/nanvm/methods`, and no prohibited pair has one ever.
+    #[test]
+    fn completeness() {
+        use super::super::methods_table::{ABSENT, ANSWERED, PENDING, PROHIBITED};
+        let has = |(type_, name): &(&str, &str)| {
+            super::method::<A>(&receiver(type_), &(*name).into()).is_some()
+        };
+        for pair in ANSWERED {
+            assert!(has(pair), "{pair:?} is answered but has no entry");
+        }
+        for pair in PENDING {
+            assert!(
+                !has(pair),
+                "{pair:?} has an entry: remove it from the pending list"
+            );
+        }
+        for pair in PROHIBITED {
+            assert!(!has(pair), "{pair:?} is prohibited but has an entry");
+        }
+        for pair in ABSENT {
+            assert!(
+                !has(pair),
+                "{pair:?} is no member function of the type but has an entry"
+            );
+        }
     }
 
     /// A name is a method of its receiver's type alone: `at` is an
