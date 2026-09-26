@@ -31,6 +31,12 @@ impl<A: IVm> String<A> {
     /// position at or after `pos`, clamped, where `ToString(search)` occurs.
     /// An empty search string is found at the clamped `pos` itself.
     pub(crate) fn index_of(&self, search: Any<A>, pos: Any<A>) -> Result<Option<u32>, Any<A>> {
+        // TODO: `ToString` of a function answers a placeholder, and of an
+        // object ignores its own `toString`/`valueOf`, so
+        // `"function".includes(() => undefined)` is `true` here; every
+        // search in this file converts its needle the same way. The fix is
+        // in the shared conversion, not here: the `ToPrimitive` task in
+        // `nanvm-lib/todo/member-functions.md`.
         let needle = search.to_string()?;
         let from = clamped(position(pos)?, self.length());
         Ok(self.find_from(&needle, from))
