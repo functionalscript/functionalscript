@@ -381,17 +381,21 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assertEq(toRust(['.', null, 'a'])[0], 'ok')
         },
         /**
-         * A string no Rust literal can hold and a bigint no `i64` can are
-         * refused against the output, naming what could not be spelled,
-         * where they once threw past the compiler uncaught or wrote a file
-         * `rustc` could not read.
+         * A string no Rust `&str` can hold, one with a lone surrogate, is
+         * spelled by its code units and imports the helper that builds it.
          */
-        refusedLoneSurrogate: () => {
+        loneSurrogate: () => {
             const result = toRust('\ud800')
-            assertStructurallySame(
-                result,
-                ['error', 'no Rust spelling for this module: no Rust string literal for a lone surrogate in: "\\ud800"'])
+            assertEq(result[0], 'ok')
+            const text = /** @type {string} */ (result[1])
+            assert(text.includes('string_any_utf16(&[0xd800])'), text)
+            assert(text.includes('use nanvm_lib::vm::unstable::string_any_utf16;'), text)
         },
+        /**
+         * A bigint no `i64` can hold is refused against the output, naming
+         * what could not be spelled, where it once threw past the compiler
+         * uncaught.
+         */
         refusedBigintOutOfRange: () => {
             const result = toRust(2n ** 63n)
             assertStructurallySame(

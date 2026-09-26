@@ -24,7 +24,7 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { f64Bits, i64Literal, stringLiteral } from '../../media/rust/module.f.mjs'
+import { f64Bits, i64Literal, stringLiteral, utf16Literal } from '../../media/rust/module.f.mjs'
 import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
 import { lazyOp2Id } from '../module.f.mjs'
 import { maxLength } from '../../types/function/length/module.f.mjs'
@@ -193,18 +193,16 @@ const op2 = lookup(op2Rust)
 const op3 = lookup(op3Rust)
 
 /**
- * A Rust string literal for `v`, or the refusal: `stringLiteral` answers a
- * string it cannot spell — one holding a lone surrogate, which no `&str`
- * can hold — with the string itself under `unknown`, and this printer
- * names the reason in the `[reason, detail]` shape every refusal here has.
- * The detail is written by `JSON.stringify`, which spells the surrogate as
- * its escape rather than the unpaired code unit a diagnostic cannot show.
+ * A call of the `vm::unstable` helper `name` building the string `v`:
+ * `name("…")` over a Rust string literal, or, for a string no `&str` can
+ * hold — one with a lone surrogate — `name_utf16(&[…])` over its UTF-16 code
+ * units. Every string has a spelling, so none is refused.
  *
- * @type {(v: string) => Result<string, readonly unknown[]>}
+ * @type {(name: string) => (v: string) => string}
  */
-const stringExpr = v => {
+const stringCall = name => v => {
     const r = stringLiteral(v)
-    return r[0] === 'ok' ? r : error(['no Rust string literal for a lone surrogate in', JSON.stringify(v)])
+    return r[0] === 'ok' ? `${name}(${r[1]})` : `${name}_utf16(${utf16Literal(v)})`
 }
 
 /**
@@ -224,7 +222,7 @@ const primitiveExpr = v => {
     switch (typeof v) {
         case 'boolean': { return ok(`${v}.to_any()`) }
         case 'number': { return ok(`f64_any(${f64Bits(v)})`) }
-        case 'string': { return mapOk(s => `string_any(${s})`)(stringExpr(v)) }
+        case 'string': { return ok(stringCall('string_any')(v)) }
         case 'bigint': { return mapOk(s => `bigint_any(${s})`)(bigintExpr(v)) }
     }
 }
@@ -240,7 +238,7 @@ const primitiveExpr = v => {
  *
  * @type {(k: Exp) => Result<string, readonly unknown[]>}
  */
-const keyExpr = k => typeof k === 'string' ? mapOk(s => `string_key(${s})`)(stringExpr(k)) : error(['not a literal key', k])
+const keyExpr = k => typeof k === 'string' ? ok(stringCall('string_key')(k)) : error(['not a literal key', k])
 
 /**
  * A `.` node's index, as the `Any<A>` key `Any::dot` takes: a literal
@@ -257,7 +255,7 @@ const keyExpr = k => typeof k === 'string' ? mapOk(s => `string_key(${s})`)(stri
  * @type {(index: Index) => Result<string, readonly unknown[]>}
  */
 const indexExpr = index => {
-    if (typeof index === 'string') { return mapOk(s => `string_any(${s})`)(stringExpr(index)) }
+    if (typeof index === 'string') { return ok(stringCall('string_any')(index)) }
     if (typeof index === 'number') { return ok(`f64_any(${f64Bits(index)})`) }
     return error(['no Rust for a Number(...) cast index', index])
 }

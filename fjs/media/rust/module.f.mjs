@@ -11,7 +11,8 @@
  * The sibling of `fjs/media/nix`, which does the same for Nix expressions.
  *
  * A literal the target type cannot hold — a string with a lone surrogate,
- * which no Rust `&str` can hold, or a bigint outside `i64` — is refused as
+ * which no Rust `&str` can hold (`utf16Literal` spells it as code units
+ * instead), or a bigint outside `i64` — is refused as
  * a `Result` rather than thrown or truncated, and the refusal carries the
  * value itself under `unknown`: this layer commits to nothing about the
  * shape of a reason, and the printer above it names one.
@@ -87,6 +88,17 @@ export const stringLiteral = v => {
     const chars = [...v]
     return chars.some(loneSurrogate) ? error(v) : ok(`"${chars.map(character).join('')}"`)
 }
+
+/**
+ * A string's UTF-16 code units as a Rust `&[u16]` slice literal,
+ * `&[0xd800, 0x61]`: the spelling for a string {@link stringLiteral}
+ * refuses, since a code unit array holds a lone surrogate where a `&str`
+ * cannot. Every string has one.
+ *
+ * @type {(v: string) => string}
+ */
+export const utf16Literal = v =>
+    `&[${[...Array(v.length).keys()].map(i => `0x${v.charCodeAt(i).toString(16).padStart(4, '0')}`).join(', ')}]`
 
 /**
  * Rust text with the contents of every string literal removed, the quotes
