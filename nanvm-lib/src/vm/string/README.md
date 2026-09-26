@@ -83,6 +83,12 @@ arithmetic is `BigInt<A>`'s.
 - **Radix digits of a fraction.** ECMAScript leaves `(0.5).toString(2)` to the
   engine, so NaNVM refuses a fraction with a radix other than ten. An integer,
   and every bigint, converts exactly.
+- **Radix digits of a large integer.** Exact is not what V8 answers: above
+  `2⁵³`, in a radix that is not a power of two, its `Number.prototype.toString`
+  can lose digits — `(1e21).toString(36)` is `"5v1j4f4ds7c000"` there, and
+  `"5v1j4f4ds79m9s"` here and in `BigInt(1e21).toString(36)`. The shared
+  corpus is checked against Node, so such a case belongs in the corpus only
+  with a `rust` note, or as a bigint.
 
 `vm/number/format.rs` holds the formatters' arithmetic, and
 [`../bigint/radix.rs`](../bigint/radix.rs) the radix digits.
