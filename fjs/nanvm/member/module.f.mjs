@@ -785,6 +785,9 @@ const toFixedCases = [
     { name: 'belowTheDecimal', args: [1.005, 2], expected: '1.00' },
     { name: 'belowTheTie', args: [1.45, 1], expected: '1.4' },
     { name: 'negative', args: [-1.5, 0], expected: '-2' },
+    // A negative number rounds by its magnitude and keeps its sign.
+    { name: 'negativeTie', args: [-2.5, 0], expected: '-3' },
+    { name: 'negativeToZero', args: [-0.1, 0], expected: '-0' },
     { name: 'negativeZero', args: [-0, 2], expected: '0.00' },
     { name: 'smallNegative', args: [-1e-7, 2], expected: '-0.00' },
     { name: 'noArgument', args: [1.5], expected: '2' },

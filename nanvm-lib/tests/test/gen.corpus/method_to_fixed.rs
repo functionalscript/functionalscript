@@ -11,6 +11,8 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("belowTheDecimal", Any::dot(f64_any(0x3ff0147ae147ae14), string_any("toFixed")).end_call(|| Ok([f64_any(0x4000000000000000)].to_array().to_any())), string_any("1.00"));
     check::<A>("belowTheTie", Any::dot(f64_any(0x3ff7333333333333), string_any("toFixed")).end_call(|| Ok([f64_any(0x3ff0000000000000)].to_array().to_any())), string_any("1.4"));
     check::<A>("negative", Any::dot(f64_any(0xbff8000000000000), string_any("toFixed")).end_call(|| Ok([f64_any(0x0000000000000000)].to_array().to_any())), string_any("-2"));
+    check::<A>("negativeTie", Any::dot(f64_any(0xc004000000000000), string_any("toFixed")).end_call(|| Ok([f64_any(0x0000000000000000)].to_array().to_any())), string_any("-3"));
+    check::<A>("negativeToZero", Any::dot(f64_any(0xbfb999999999999a), string_any("toFixed")).end_call(|| Ok([f64_any(0x0000000000000000)].to_array().to_any())), string_any("-0"));
     check::<A>("negativeZero", Any::dot(f64_any(0x8000000000000000), string_any("toFixed")).end_call(|| Ok([f64_any(0x4000000000000000)].to_array().to_any())), string_any("0.00"));
     check::<A>("smallNegative", Any::dot(f64_any(0xbe7ad7f29abcaf48), string_any("toFixed")).end_call(|| Ok([f64_any(0x4000000000000000)].to_array().to_any())), string_any("-0.00"));
     check::<A>("noArgument", Any::dot(f64_any(0x3ff8000000000000), string_any("toFixed")).end_call(|| Ok(Array::default().to_any())), string_any("2"));

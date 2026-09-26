@@ -57,8 +57,9 @@ as its code units, `string_any_utf16(&[…])`.
   included — as the end, unlike `Array`'s, which reads a passed `undefined` as
   `0`.
 - `padStart` and `padEnd` convert the fill only when padding is needed.
-- `split` reads its limit before its separator, and a limit of `0` answers `[]`
-  before anything else.
+- `split` reads its limit, then converts its separator, and only then does a
+  limit of `0` answer `[]`, as ECMAScript orders it: a separator whose
+  conversion throws throws even with a limit of `0`.
 - `replace` and `replaceAll` decide whether the replacement is a function, and
   convert a template, before any match is looked for.
 - `toFixed` checks its digit range before the number, so `Infinity.toFixed(101)`
