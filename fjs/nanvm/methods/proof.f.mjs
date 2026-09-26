@@ -42,11 +42,13 @@ export const proof = {
         assert(r.pending.every(([, n]) => allowed.includes(n)))
         assert(r.prohibited.every(([, n]) => prohibited.includes(n)))
         assert(keys(r.prohibited).includes('array.push'))
-        // Allowed, but on another type's prototype only.
+        // A known name on another type's prototype only, allowed or not.
         assert(keys(r.absent).includes('array.charAt'))
         assert(keys(r.absent).includes('number.map'))
+        assert(keys(r.absent).includes('array.bind'))
+        const onPrototype = [...keys(r.answered), ...keys(r.pending), ...keys(r.prohibited)]
         assert(r.absent.every(([t, n]) =>
-            allowed.includes(n) && !keys(r.answered).includes(`${t}.${n}`) && !keys(r.pending).includes(`${t}.${n}`)))
+            (allowed.includes(n) || prohibited.includes(n)) && !onPrototype.includes(`${t}.${n}`)))
         // Every name any prototype has is some type's.
         /** @type {readonly string[]} */
         const names = types.flatMap(([, n]) => n)
