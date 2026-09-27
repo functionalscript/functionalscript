@@ -25,13 +25,23 @@ reads it from another module.
 ### Proposal
 
 ```ts
-/** A loose ref's bytes; `tryLoose(oidBytes)(writeLoose(id))` is `id`. */
-export const writeLoose: (id: Oid) => Bytes
+/**
+ * A loose ref's bytes; `tryLoose(oidBytes)(writeLoose(oidBytes)(id))` is `id`.
+ * @throws On an id that is not `oidBytes` wide: a caller that mixes the widths has a bug.
+ */
+export const writeLoose: (oidBytes: OidBytes) => (id: Oid) => Bytes
 export const writeSymbolic: (name: Bytes) => Bytes
 ```
 
 in this module, with the round trip as the proof, and `refstore/write`
-writing those bytes through `writeExclusive`.
+writing those bytes through `writeExclusive`. The writer is bound to
+the width the way every reader in this module is, because an `Oid` is
+a `Vec` that carries no width of its own: `tryLoose(oidBytes)` answers
+`null` for hex of any other length, so the round trip is a law only
+for an id of that width, and the writer refuses any other — the same
+precondition the readers assert, and the one
+[width-precondition](../../oid/todo/width-precondition.md) would spell
+once.
 
 ### Tasks
 
@@ -44,3 +54,5 @@ writing those bytes through `writeExclusive`.
 
 - [../../refstore/todo/ref-writing.md](../../refstore/todo/ref-writing.md)
   — the symbolic write this gives a home to.
+- [../../oid/todo/width-precondition.md](../../oid/todo/width-precondition.md)
+  — the width assertion the writer shares with the readers.

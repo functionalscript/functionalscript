@@ -69,8 +69,11 @@ export const walkDirs: (root: string, classify: Classify)
     => Effect<Readdir | All, readonly { path: string, taken: readonly string[], descended: readonly string[] }[], IoChannel>
 ```
 
-`taken` and `descended` hold names, not paths, because that is what
-the website joins onto the record's `path` itself. Today's
+`Classify` is the callback `walk` spells inline today, `(path: string,
+entry: Dirent) => 'take' | 'descend' | 'skip'`, named once in
+`fjs/dev/types.ts` so both walks declare it the same way. `taken` and
+`descended` hold names, not paths, because that is what the website
+joins onto the record's `path` itself. Today's
 `walk(root, classify)` is then every record's `taken` joined onto its
 `path`, concatenated — a subdirectory classified `take` included, in
 the answer without being entered, as today. The website applies the

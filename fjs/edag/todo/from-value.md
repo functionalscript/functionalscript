@@ -26,12 +26,23 @@ with the schema, beside `array`, `object` and `property` here.
 ### Proposal
 
 ```ts
-/** `v` as fresh literal nodes: a primitive as itself, `undefined`, an array, an object; `other` answers a function. */
-export const fromValue: (other: (f: Function) => Exp) => (v: unknown) => Exp
+/** A value the EDAG spells as literal nodes: a primitive leaf, `undefined`, an array or an object of them, or an `F` the caller answers. */
+export type Plain<F> =
+    | Primitive | undefined | F
+    | readonly Plain<F>[]
+    | { readonly [k in string]?: Plain<F> }
+/** `v` as fresh literal nodes: a primitive as itself, `undefined`, an array, an object; `other` answers an `F`. */
+export const fromValue: <F>(other: (f: F) => Exp) => (v: Plain<F>) => Exp
 ```
 
-in `fjs/edag/module.f.mjs`. `constExp(resolve)` is `fromValue` with its
-thunk hook as `other`. `jsonEdag` today has no function arm at all,
+in `fjs/edag/module.f.mjs`, with `Plain` in `fjs/edag/types.ts` beside
+`Primitive`. The input is not `unknown`: a symbol, or anything else the
+EDAG has no leaf for, is a type error rather than a value returned
+under a cast or refused by a throw the signature does not mention.
+`fjs/nanvm/types.ts`'s `Const` is this shape with its thunk union as
+`F`, so `constExp(resolve)` is `fromValue` with its thunk hook as
+`other` and `Value` becomes `Plain<Ref | FunctionValue | Callback |
+Unreached>`. `jsonEdag` today has no function arm at all,
 since a JSON document holds none, so its `other` refuses one: a
 callback that throws, the way `valueExp`'s resolver throws on a name it
 has no value for, with the linker's proof pinning the throw so the

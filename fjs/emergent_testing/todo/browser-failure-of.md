@@ -25,9 +25,8 @@ const failureOf = async (source, duration, cause) => {
 They differ only in `duration`, which the pure one fixes at zero. The
 host copy also guards a case its types rule out: `errorDetails` is an
 effect over `catch` alone, with no error channel, and
-`commonOperationMap` serves `catch`, so `described` is always `ok`. The
-`unknownValue` arm, and the import that exists for it, are dead code
-inside the file where nothing measures coverage.
+`commonOperationMap` serves `catch`, so `described` is always `ok`. The `unknownValue` arm is dead code inside the file where nothing
+measures coverage.
 
 ### Proposal
 
@@ -40,7 +39,9 @@ export const failureOf: (module: string, duration: number, cause: unknown)
 ```
 
 The host's `failureOf` becomes the `asyncRun` of that effect and an
-unwrap; the dead arm and the `unknownValue` import go with it.
+unwrap, and the dead arm goes with it. The `unknownValue` import stays:
+`toIoError`'s fallback still reports a cause that resists description
+as an unknown value, and that use is live.
 
 ### Tasks
 
