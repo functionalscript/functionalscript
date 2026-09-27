@@ -7,7 +7,8 @@
 //! module (`function-scope.mjs` becomes `function_scope.rs`), committed and
 //! drift-checked by `npm run gen` (see `../../fjs/ci/README.md`) the same way
 //! `nanvm-lib/tests/test/gen.corpus/` is. [`fixtures`] pulls them in
-//! with one `#[path]`: a `gen.` name is never a Rust identifier.
+//! with one `#[path]`: a `gen.` name is never a Rust identifier. How to add a
+//! fixture is in `../README.md`.
 
 /// The compiled fixtures, `gen.fixtures/*.rs`. One `#[path]` names the
 /// directory; each module inside it resolves by its own name.

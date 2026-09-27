@@ -1,11 +1,13 @@
 # Agent Instructions
 
-This repository is a monorepo with two code bases:
+This repository is a monorepo with two code bases: FunctionalScript, and a
+Rust workspace of two crates (the root `Cargo.toml`).
 
-| Directory    | Language                                | Notes                                       |
-| ------------ | --------------------------------------- | ------------------------------------------- |
-| `fjs/`       | FunctionalScript (`.f.mjs`, `.f.js`) / TypeScript (`types.ts`) | The language, its standard modules, and the `fjs` CLI |
-| `nanvm-lib/` | Rust                                    | NaNVM, the native FunctionalScript VM       |
+| Directory        | Language                                | Notes                                       |
+| ---------------- | --------------------------------------- | ------------------------------------------- |
+| `fjs/`           | FunctionalScript (`.f.mjs`, `.f.js`) / TypeScript (`types.ts`) | The language, its standard modules, and the `fjs` CLI |
+| `nanvm-lib/`     | Rust                                    | NaNVM, the native FunctionalScript VM       |
+| `nanvm-harness/` | Rust                                    | Builds and runs `fjs compile`'s Rust output on NaNVM ([README](./nanvm-harness/README.md)) |
 
 Issues live in `todo/` directories, **not** on GitHub. Check them for existing
 work before starting.
@@ -63,7 +65,7 @@ actually touches its subject.
 1. [Workflow](#1-workflow)
 2. [Environment and running tests](#2-environment-and-running-tests)
 3. [FunctionalScript and TypeScript (`fjs/`)](#3-functionalscript-and-typescript-fjs)
-4. [Rust (`nanvm-lib/`)](#4-rust-nanvm-lib)
+4. [Rust (`nanvm-lib/`, `nanvm-harness/`)](#4-rust-nanvm-lib-nanvm-harness)
 5. [Pull requests and releases](#5-pull-requests-and-releases)
 6. [External tools](#6-external-tools)
 7. [Continuous integration](#7-continuous-integration)
@@ -148,9 +150,11 @@ JSDoc `@typedef`; function-local typedefs are allowed. Named types live in
 
 Testing, documentation, and the full coding style: [fjs/AGENTS.md](./fjs/AGENTS.md).
 
-## 4. Rust (`nanvm-lib/`)
+## 4. Rust (`nanvm-lib/`, `nanvm-harness/`)
 
-`cargo test`, `cargo clippy`, and `cargo fmt -- --check` all have to pass. Avoid
+Both crates are members of the root `Cargo.toml` workspace, and one set of
+rules covers them. `cargo test`, `cargo clippy`, and `cargo fmt -- --check`,
+run from the repository root, check both, and all have to pass. Avoid
 `macro_rules!` — declarative macros hide types from tooling and contradict this
 repository's preference for explicit, locally-readable code.
 

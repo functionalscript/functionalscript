@@ -1,8 +1,10 @@
 # Contributing to FunctionalScript
 
 This repository is a monorepo with two code bases: `fjs/` (the FunctionalScript
-language, its standard modules, and the `fjs` CLI) and `nanvm-lib/` (NaNVM, the
-native FunctionalScript VM, in Rust).
+language, its standard modules, and the `fjs` CLI) and a Rust workspace of two
+crates — `nanvm-lib/` (NaNVM, the native FunctionalScript VM) and
+`nanvm-harness/` (which builds and runs `fjs compile`'s Rust output on NaNVM;
+see its [README](./nanvm-harness/README.md)).
 
 **Coding style, testing rules, design principles, and pull request requirements
 start in [AGENTS.md](./AGENTS.md).** Read it before opening a pull request — it

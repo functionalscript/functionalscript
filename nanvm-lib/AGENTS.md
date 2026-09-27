@@ -1,6 +1,10 @@
-# Rust (`nanvm-lib/`)
+# Rust (`nanvm-lib/`, `nanvm-harness/`)
 
-Rules for the Rust crate — NaNVM, the native FunctionalScript VM.
+Rules for the Rust workspace in the root `Cargo.toml`: this crate — NaNVM, the
+native FunctionalScript VM — and [`nanvm-harness`](../nanvm-harness/README.md),
+which builds and runs `fjs compile`'s Rust output on it. Both follow every rule
+here; the file lives beside `nanvm-lib` because that is where most of the Rust
+is.
 Repository-wide rules live in the root [AGENTS.md](../AGENTS.md), and the design
 principles both code bases follow live in [DESIGN.md](../doc/DESIGN.md).
 
@@ -13,9 +17,12 @@ principles both code bases follow live in [DESIGN.md](../doc/DESIGN.md).
 
 ## 1. Commands
 
+Run them from the repository root: in a crate's own directory, `cargo test`
+and `cargo clippy` check that crate alone.
+
 ```bash
 cargo fetch              # install dependencies
-cargo test               # test the nanvm-lib crate
+cargo test               # test every crate in the workspace
 cargo clippy             # lint
 cargo fmt -- --check     # verify formatting
 ```
