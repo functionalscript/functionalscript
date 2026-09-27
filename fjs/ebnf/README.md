@@ -19,7 +19,8 @@ grammars built on them:
 - [`railroad/`](./railroad/module.f.mjs) — a rule set read back as syntax
   diagrams, one per rule a caller titles, drawn by
   [`website/demo/railroad`](../website/demo/railroad/module.f.mjs);
-- [`lib/`](./lib/) — grammars: JSON, DataJS, the JavaScript tokens.
+- [`lib/`](./lib/) — grammars: JSON, DataJS, the JavaScript tokens, Markdown
+  inlines.
 
 A module belongs here iff it defines, transforms or executes grammars over a
 symbol alphabet. `fsc` is a compiler and `js/tokenizer` the JavaScript token
