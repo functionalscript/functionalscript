@@ -50,9 +50,13 @@ leaf is, and it moves here with the function, so a mapped leaf, or anything that
 and variant tags, is refused rather than answered with text it does
 not have. A string is a variant tag only in a variant's position — the
 first element of a tuple, as `Ast` shapes a variant — and the walk
-admits it there alone; a bare string at the root, or one anywhere else
-in a tuple, is refused, where the JSON parser's `unitsUnder` today
-answers no units for any string it meets. Typing the
+admits it there alone; a bare string at the root, or one anywhere else in a tuple, is
+refused, where the JSON parser's `unitsUnder` today answers no units
+for any string it meets. A leaf is checked whole, not by its meta
+alone: its `symbol` must be an integer from `0` to `65535`, a UTF-16
+code unit, or the leaf is refused — `unitAt` today hands whatever it
+finds to `String.fromCharCode`, which would spell `undefined` as
+`"\0"`, a plausible text the boundary must not answer. Typing the
 markdown tree is a separate improvement and not this issue's.
 
 The assertion tells a leaf by its `meta.id`, so it holds only where no
