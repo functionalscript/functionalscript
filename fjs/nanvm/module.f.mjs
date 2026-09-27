@@ -12,7 +12,7 @@
  *   against `nanvm-lib`.
  *
  * Beside the data are the format's **constructors** (`functionValue`,
- * `returns`, `ref`, `throws`, `unreached`), its **eliminators** (`isThrows`, `hasUnreached`,
+ * `callback`, `returns`, `ref`, `throws`, `unreached`), its **eliminators** (`isThrows`, `hasUnreached`,
  * `orders`, `groupKey`, `casesOf`, `arityOf`), and the **lowering** that
  * turns a case into the EDAG expression it denotes (`lambdaExp`,
  * `unreachedExp`, `sharedExp`, `valuesExp`, `valueExp`, `caseExp`). All
@@ -32,14 +32,14 @@
  * @module
  *
  * @import { Exp, Op1, Op1Id, Op12, Op12Id, Op2, Op2Id, Op3, Op3Id, Property } from '../edag/types.ts'
- * @import { AnyCase, Case, Data, Expectation, FunctionValue, Group, MethodCase, OperatorGroup, Ref, SharedNode, Struct, Throws, Unreached, Value } from './types.ts'
+ * @import { AnyCase, Callback, CallbackName, Case, Data, Expectation, FunctionValue, Group, MethodCase, OperatorGroup, Ref, Returns, SharedNode, Struct, Throws, Unreached, Value } from './types.ts'
  *
  * @example
  *
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 39
+ * data.groups.length // 50
  * ```
  */
 
@@ -68,16 +68,26 @@ const isOp3Id = validate(op3Id)
 export const functionValue = () => ['function']
 
 /**
- * A function value that answers `v`: `() => v`. For the cases that call a
- * function, as a conversion calls an object's own `toString` or `valueOf`.
- * `returns(unreached)` is a function that throws when called.
+ * A callback by name, one of {@link callbacks}: a function with a body, for
+ * the member functions that call one.
+ *
+ * @type {(name: CallbackName) => Callback}
+ */
+export const callback = name => () => ['callback', name]
+
+/**
+ * A function that answers `v` whatever it is given: `(...a) => v`. Where a
+ * {@link callback} reads its arguments, this one ignores them, for the
+ * cases whose function is called with none — a conversion calling an
+ * object's own `toString` or `valueOf`. `returns(unreached)` throws when
+ * called.
  *
  * Its body is lowered where nothing is shared, so a `ref` in `v` is refused:
  * the lowering shares no node across a function boundary.
  *
- * @type {(v: Value) => FunctionValue}
+ * @type {(v: Value) => Returns}
  */
-export const returns = v => () => ['function', v]
+export const returns = v => () => ['returns', v]
 
 /**
  * The case must throw. Valid only as a case's `expected`.
@@ -221,6 +231,55 @@ export const arityOf = g => {
  */
 export const lambdaExp = () => ['=>', 0, ['[]', []], ['undefined']]
 
+/** `a[i]`, over the invocation's rest array: how a callback reads its arguments. @type {(i: number) => Exp} */
+const restAt = i => ['.', ['rest'], i]
+
+/**
+ * The corpus's callbacks by name, each the body of a function of one rest
+ * parameter, `(...a) => body`, with its JavaScript spelling:
+ *
+ * - `args`, `(...a) => a`: what the callback was given, so a `map(args)`
+ *   case pins the element, the index, the array and how many there are —
+ *   `reduce`'s four included.
+ * - `first`, `(...a) => a[0]`: the element itself, a predicate by its
+ *   truthiness.
+ * - `prop`, `(...a) => a[0].x`: truthy on `{ x: 1 }`, falsy on `{}`, and a
+ *   throw on `null`, so a case can prove an element was never visited.
+ * - `double`, `(...a) => a[0] * 2`.
+ * - `add`, `(...a) => a[0] + a[1]`: a fold whose order shows with strings.
+ * - `pair`, `(...a) => [a[0], [a[0]]]`: one level of an array, and one below.
+ * - `ascending`, `(...a) => a[0] - a[1]`, and `descending`,
+ *   `(...a) => a[1] - a[0]`: comparators.
+ *
+ * @type {{ readonly [k in CallbackName]: () => Exp }}
+ */
+export const callbacks = {
+    args: () => ['rest'],
+    first: () => restAt(0),
+    prop: () => ['.', restAt(0), 'x'],
+    double: () => ['*', restAt(0), 2],
+    add: () => ['+', restAt(0), restAt(1)],
+    pair: () => ['[]', [restAt(0), ['[]', [restAt(0)]]]],
+    ascending: () => ['-', restAt(0), restAt(1)],
+    descending: () => ['-', restAt(1), restAt(0)],
+}
+
+/**
+ * A function with a body: `(...a) => body`, no captures, a fresh node on
+ * every call like {@link lambdaExp}. What a `callback` and a `returns`
+ * both lower to; they differ only in the body.
+ *
+ * @type {(body: Exp) => Exp}
+ */
+export const functionExp = body => ['=>', 0, null, body]
+
+/**
+ * The expression a callback denotes: the {@link functionExp} of its body.
+ *
+ * @type {(name: CallbackName) => Exp}
+ */
+export const callbackExp = name => functionExp(callbacks[name]())
+
 /**
  * The expression an `unreached` denotes: `1n / 0n`, which throws when
  * established — a `RangeError` in JavaScript, an `Err` in `nanvm-lib`, the
@@ -248,10 +307,10 @@ export const unreachedExp = () => ['/', 1n, 0n]
  * fresh node, so a multiply-referenced node in a derived expression is always
  * a `ref` and never an accident of the walk.
  *
- * A {@link Value} admits three thunks, and this walk has a case for each: a
- * `ref` resolves, a `functionValue` is {@link lambdaExp} — or, from
- * {@link returns}, the closure answering its value — and an `unreached` is
- * {@link unreachedExp}. `throws` is an {@link Expectation}, not spellable
+ * A {@link Value} admits five thunks, and this walk has a case for each: a
+ * `ref` resolves, a `functionValue` is {@link lambdaExp}, a `callback` is
+ * {@link callbackExp}, a `returns` is the {@link functionExp} of its value,
+ * and an `unreached` is {@link unreachedExp}. `throws` is an {@link Expectation}, not spellable
  * here, so it is not rejected here either.
  *
  * @type {(resolve: (name: string) => Exp) => (v: Value) => Exp}
@@ -262,7 +321,9 @@ const constExp = resolve => {
         if (typeof v === 'function') {
             const info = v()
             return info[0] === 'ref' ? resolve(info[1])
-                : info[0] === 'function' ? (info.length === 1 ? lambdaExp() : ['=>', 0, ['[]', []], valueExp(info[1])])
+                : info[0] === 'function' ? lambdaExp()
+                : info[0] === 'callback' ? callbackExp(info[1])
+                : info[0] === 'returns' ? functionExp(valueExp(info[1]))
                 : unreachedExp()
         }
         if (v === undefined) { return ['undefined'] }
@@ -1764,6 +1825,166 @@ const toSplicedCases = [
 ]
 
 /**
+ * `Array.prototype.join`: the elements as strings, `undefined` and `null`
+ * as the empty string and a nested array by its own `toString`, joined by
+ * `","` when the separator is absent or `undefined`, and otherwise by the
+ * separator as a string, so `null` joins with `"null"`. A function element
+ * is not written here, for the reason at {@link FunctionValue}.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const joinCases = [
+    { name: 'noArgument', args: [[1, 2, 3]], expected: '1,2,3' },
+    { name: 'undefinedSeparator', args: [[1, 2], undefined], expected: '1,2' },
+    { name: 'separator', args: [[1, 2], '-'], expected: '1-2' },
+    { name: 'emptySeparator', args: [[1, 2], ''], expected: '12' },
+    { name: 'nullSeparator', args: [[1, 2], null], expected: '1null2' },
+    { name: 'numberSeparator', args: [[1, 2], 0], expected: '102' },
+    { name: 'arraySeparator', args: [[1, 2], [3, 4]], expected: '13,42' },
+    { name: 'nullish', args: [[null, undefined, 1], ';'], expected: ';;1' },
+    { name: 'nested', args: [[1, [2, [3, null]]], ';'], expected: '1;2,3,' },
+    { name: 'values', args: [[true, 5n, 'a', {}, -0]], expected: 'true,5,a,[object Object],0' },
+    { name: 'empty', args: [[], '-'], expected: '' },
+    { name: 'one', args: [[1], '-'], expected: '1' },
+    { name: 'bigintSeparator', args: [[1, 2], 0n], expected: '102' },
+    // A separator or an element converts through its own `toString`.
+    { name: 'ownToStringSeparator', args: [[0, 2], { toString: returns('-') }], expected: '0-2' },
+    { name: 'ownToStringElement', args: [[{ toString: returns('x') }, 1], ';'], expected: 'x;1' },
+    // The separator converts before any element, even with none to join.
+    { name: 'emptyThrowingSeparator', args: [[], { toString: returns(unreached) }], expected: throws },
+]
+
+/**
+ * The callback checks every iteration shares: a callback that is not a
+ * function throws before any element is visited, an empty array included,
+ * and a second argument, the `thisArg` JavaScript binds as `this`, has no
+ * effect, since no function here reads `this`.
+ *
+ * @type {(name: string, ok: Expectation) => readonly MethodCase[]}
+ */
+const callbackChecks = (name, ok) => [
+    { name: `${name}NotAFunction`, args: [[1], 1], expected: throws },
+    { name: `${name}EmptyNotAFunction`, args: [[], null], expected: throws },
+    { name: `${name}NoCallback`, args: [[]], expected: throws },
+    { name: `${name}ThisArg`, args: [[{ x: 1 }], callback('prop'), { x: 0 }], expected: ok },
+    { name: `${name}Object`, args: [{}, callback('prop')], expected: throws },
+]
+
+/** `Array.prototype.every`: `false` at the first falsy answer. @type {readonly MethodCase[]} */
+const everyCases = [
+    { name: 'all', args: [[1, 2], callback('first')], expected: true },
+    { name: 'one', args: [[1, 0, 2], callback('first')], expected: false },
+    { name: 'empty', args: [[], callback('first')], expected: true },
+    { name: 'stops', args: [[{}, null], callback('prop')], expected: false },
+    { name: 'reachesThrow', args: [[{ x: 1 }, null], callback('prop')], expected: throws },
+    ...callbackChecks('every', true),
+]
+
+/** `Array.prototype.some`: `true` at the first truthy answer. @type {readonly MethodCase[]} */
+const someCases = [
+    { name: 'one', args: [[0, 1], callback('first')], expected: true },
+    { name: 'none', args: [[0, '', null], callback('first')], expected: false },
+    { name: 'empty', args: [[], callback('first')], expected: false },
+    { name: 'stops', args: [[{ x: 1 }, null], callback('prop')], expected: true },
+    { name: 'reachesThrow', args: [[{}, null], callback('prop')], expected: throws },
+    ...callbackChecks('some', true),
+]
+
+/** `Array.prototype.find`: the first element answering truthy, or `undefined`. @type {readonly MethodCase[]} */
+const findCases = [
+    { name: 'first', args: [[{ x: 0 }, { x: 1, n: 1 }, { x: 1, n: 2 }], callback('prop')], expected: { x: 1, n: 1 } },
+    { name: 'none', args: [[0, ''], callback('first')], expected: undefined },
+    { name: 'empty', args: [[], callback('first')], expected: undefined },
+    { name: 'stops', args: [[{ x: 1 }, null], callback('prop')], expected: { x: 1 } },
+    ...callbackChecks('find', { x: 1 }),
+]
+
+/** `Array.prototype.findIndex`: the first index answering truthy, or `-1`. @type {readonly MethodCase[]} */
+const findIndexCases = [
+    { name: 'first', args: [[0, 1, 2], callback('first')], expected: 1 },
+    { name: 'none', args: [[0, ''], callback('first')], expected: -1 },
+    { name: 'empty', args: [[], callback('first')], expected: -1 },
+    { name: 'stops', args: [[{ x: 1 }, null], callback('prop')], expected: 0 },
+    ...callbackChecks('findIndex', 0),
+]
+
+/** `Array.prototype.findLast`: the last element answering truthy, visiting from the end. @type {readonly MethodCase[]} */
+const findLastCases = [
+    { name: 'last', args: [[{ x: 1, n: 1 }, { x: 1, n: 2 }, { x: 0 }], callback('prop')], expected: { x: 1, n: 2 } },
+    { name: 'none', args: [[0, ''], callback('first')], expected: undefined },
+    { name: 'empty', args: [[], callback('first')], expected: undefined },
+    { name: 'stops', args: [[null, { x: 1 }], callback('prop')], expected: { x: 1 } },
+    ...callbackChecks('findLast', { x: 1 }),
+]
+
+/** `Array.prototype.findLastIndex`: the last index answering truthy, or `-1`. @type {readonly MethodCase[]} */
+const findLastIndexCases = [
+    { name: 'last', args: [[1, 2, 0], callback('first')], expected: 1 },
+    { name: 'none', args: [[0, ''], callback('first')], expected: -1 },
+    { name: 'empty', args: [[], callback('first')], expected: -1 },
+    { name: 'stops', args: [[null, { x: 1 }], callback('prop')], expected: 1 },
+    ...callbackChecks('findLastIndex', 0),
+]
+
+/**
+ * `Array.prototype.map`: every answer, in order. The `args` callback pins
+ * what each call is handed: the element, its index and the array.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const mapCases = [
+    { name: 'double', args: [[1, 2], callback('double')], expected: [2, 4] },
+    { name: 'arguments', args: [[10, 20], callback('args')], expected: [[10, 0, [10, 20]], [20, 1, [10, 20]]] },
+    { name: 'empty', args: [[], callback('double')], expected: [] },
+    { name: 'undefinedAnswers', args: [[{}, {}], callback('prop')], expected: [undefined, undefined] },
+    { name: 'throw', args: [[{}, null], callback('prop')], expected: throws },
+    ...callbackChecks('map', [1]),
+]
+
+/** `Array.prototype.filter`: the elements answering truthy, in order. @type {readonly MethodCase[]} */
+const filterCases = [
+    { name: 'truthy', args: [[0, 1, '', 'a', null, 2], callback('first')], expected: [1, 'a', 2] },
+    { name: 'none', args: [[0, ''], callback('first')], expected: [] },
+    { name: 'empty', args: [[], callback('first')], expected: [] },
+    { name: 'elementsNotAnswers', args: [[{ x: 1 }, { x: 0 }], callback('prop')], expected: [{ x: 1 }] },
+    { name: 'throw', args: [[{}, null], callback('prop')], expected: throws },
+    ...callbackChecks('filter', [{ x: 1 }]),
+]
+
+/**
+ * `Array.prototype.reduce`: folded from the start, the accumulator the
+ * initial value when the call passed one, `undefined` included, and
+ * otherwise the first element — so an empty array with none throws, and
+ * one with a passed `undefined` answers it.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const reduceCases = [
+    { name: 'sum', args: [[1, 2, 3], callback('add')], expected: 6 },
+    { name: 'order', args: [['a', 'b', 'c'], callback('add')], expected: 'abc' },
+    { name: 'initial', args: [['a', 'b'], callback('add'), '>'], expected: '>ab' },
+    { name: 'one', args: [[1], callback('add')], expected: 1 },
+    { name: 'emptyInitial', args: [[], callback('add'), 0], expected: 0 },
+    { name: 'emptyUndefinedInitial', args: [[], callback('add'), undefined], expected: undefined },
+    { name: 'arguments', args: [[10, 20], callback('args')], expected: [10, 20, 1, [10, 20]] },
+    { name: 'empty', args: [[], callback('add')], expected: throws },
+    { name: 'notAFunction', args: [[1], 1], expected: throws },
+    { name: 'emptyNotAFunction', args: [[], 1, 0], expected: throws },
+    { name: 'object', args: [{}, callback('add')], expected: throws },
+]
+
+/** `Array.prototype.reduceRight`: the same, from the end. @type {readonly MethodCase[]} */
+const reduceRightCases = [
+    { name: 'sum', args: [[1, 2, 3], callback('add')], expected: 6 },
+    { name: 'order', args: [['a', 'b', 'c'], callback('add')], expected: 'cba' },
+    { name: 'initial', args: [['a', 'b'], callback('add'), '>'], expected: '>ba' },
+    { name: 'emptyUndefinedInitial', args: [[], callback('add'), undefined], expected: undefined },
+    { name: 'arguments', args: [[10, 20], callback('args')], expected: [20, 10, 0, [10, 20]] },
+    { name: 'empty', args: [[], callback('add')], expected: throws },
+    { name: 'notAFunction', args: [[1], 1], expected: throws },
+]
+
+/**
  * `toString()` on every type but a function, whose text is the
  * rendering `nanvm-lib/todo/member-functions.md` tracks (see
  * {@link FunctionValue}). A radix on a number or a bigint is refused by
@@ -1859,6 +2080,17 @@ export const data = {
         { method: 'toReversed', cases: toReversedCases },
         { method: 'with', cases: withCases },
         { method: 'toSpliced', cases: toSplicedCases },
+        { method: 'join', cases: joinCases },
+        { method: 'every', cases: everyCases },
+        { method: 'some', cases: someCases },
+        { method: 'find', cases: findCases },
+        { method: 'findIndex', cases: findIndexCases },
+        { method: 'findLast', cases: findLastCases },
+        { method: 'findLastIndex', cases: findLastIndexCases },
+        { method: 'map', cases: mapCases },
+        { method: 'filter', cases: filterCases },
+        { method: 'reduce', cases: reduceCases },
+        { method: 'reduceRight', cases: reduceRightCases },
         { method: 'toString', cases: toStringCases },
     ],
 }

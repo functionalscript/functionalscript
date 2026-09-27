@@ -91,10 +91,9 @@ by the completeness table [`methods/`](methods/module.f.mjs) generates.
 A `functionValue` operand is not an exception. It lowers to `() => undefined`,
 the smallest closure — `['=>', 0, ['[]', []], ['undefined']]` — which
 `amnesia` establishes like any `=>` and the Rust printer renders as the
-harness's one function value, `function_any()`. `returns(v)` is a function
-that answers `v`, for a conversion that calls an object's own `toString` or
-`valueOf`; it lowers to `['=>', 0, ['[]', []], v]`, which the Rust printer
-renders as a closure. The one thing the two sides do not share is a
+harness's one function value, `function_any()`. A `callback(name)` and a
+`returns(v)` are functions with a body, `(...a) => body`, which the Rust
+printer renders as a closure. The one thing the two sides do not share is a
 function's string form (engine-specific in JS, refused in `nanvm-lib`), so no
 case stringifies one, nested or not — see `FunctionValue` in
 [`types.ts`](types.ts).
@@ -121,13 +120,14 @@ there are:
 { method: 'at', cases: [...] },                    // the receiver, then the arguments
 ```
 
-Five things a literal cannot express are written as thunks — a function in the
+Six things a literal cannot express are written as thunks — a function in the
 data is always a *description*, never a value that happens to be a function:
 
 | Thunk | Means |
 |---|---|
 | `functionValue` | a function value, lowered to `() => undefined` (no operator here inspects which one) |
-| `returns(v)` | a function value that answers `v`, lowered to `() => v`; `returns(unreached)` throws when called |
+| `callback(name)` | a function with a body, one of `callbacks` — `args`, `(...a) => a`, answers what it was given — for the member functions that call one, such as `map` |
+| `returns(v)` | a function that answers `v` whatever it is given, `(...a) => v`, for a conversion that calls an object's own `toString` or `valueOf`; `returns(unreached)` throws when called |
 | `ref(name)` | one of `data.shared`'s values, so the *same* object reaches every `ref` to that name |
 | `throws` | the case must throw; valid only as `expected` |
 | `unreached` | an operand the operation must not establish, lowered to `1n / 0n`, which throws if it is; for the lazy positions of `&&`/`||`/`??`/`?:` |

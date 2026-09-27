@@ -27,8 +27,8 @@ elements, every string-method argument, and every numeric position or count
 (the `String` ones are still in review).
 Review of that stack keeps finding it. Two of its pull requests carry a
 `// TODO:` for it, which reaches here through the `ToPrimitive` task of
-`member-functions.md`: `array_join` in `vm/lambda/method.rs` (#2321) and the
-searches in `vm/string/search.rs` (#2328). Neither is on `main` yet.
+`member-functions.md`: `array_join` in `vm/lambda/method.rs` (#2321, now on
+`main`) and the searches in `vm/string/search.rs` (#2328, still in review).
 
 ### What already works: the stock methods
 
@@ -202,9 +202,11 @@ needs its own issue, and it lands with or after Stage 1.
       function wherever its text is observable, keeping every
       text-independent result. Unit tests per row, and corpus cases with a
       `rust` reason.
-- [ ] Once #2321, #2323 and #2328 are on `main` with this: the `toSorted`
-      guard's test, and the `// TODO:` in `array_join` (#2321) and
-      `vm/string/search.rs` (#2328) deleted, since Stage 2 answers it.
+- [x] `array_join` (#2321): its pointer names Stage 3 alone, since Stage 2
+      calls a separator's own `toString`, and its test pins both.
+- [ ] Once #2323 and #2328 are on `main` with this: the `toSorted` guard's
+      test, and the `// TODO:` in `vm/string/search.rs` deleted, since
+      Stage 2 answers it.
 - [x] Stage 2: call an object's own `toString` and `valueOf` per
       `OrdinaryToPrimitive`. Move the host-only cases into the corpus.
 - [ ] Stage 3: a function's text, through the EDAG renderer (tracked with the

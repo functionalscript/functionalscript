@@ -28,7 +28,7 @@
  *
  * @import { Exp } from '../edag/types.ts'
  * @import { Context } from '../edag/amnesia/types.ts'
- * @import { AnyCase, Expectation, Group, SharedNode, Value } from './types.ts'
+ * @import { AnyCase, CallbackName, Expectation, Group, SharedNode, Value } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
@@ -37,9 +37,12 @@ import { exp } from '../edag/module.f.mjs'
 import { vm } from '../edag/amnesia/module.f.mjs'
 import { validate } from '../rtti/validate/module.f.mjs'
 import {
+    callback,
+    callbackExp,
     caseExp,
     casesOf,
     data,
+    functionExp,
     functionValue,
     groupKey,
     hasUnreached,
@@ -369,9 +372,9 @@ const lambda = () => {
     assertStructurallySame(valueExp([functionValue]), ['[]', [lambdaExp()]])
     assertStructurallySame(valueExp({ f: functionValue }), ['{}', [[':', 'f', lambdaExp()]]])
     assertEq(typeof value(corpus())(functionValue), 'function')
-    assertStructurallySame(valueExp(returns(undefined)), lambdaExp())
-    assertStructurallySame(valueExp(returns([1])), ['=>', 0, ['[]', []], ['[]', [1]]])
-    assertStructurallySame(valueExp(returns(unreached)), ['=>', 0, ['[]', []], unreachedExp()])
+    // A `returns` is the function a callback is, its value the body.
+    assertStructurallySame(valueExp(returns([1])), ['=>', 0, null, ['[]', [1]]])
+    assertStructurallySame(valueExp(returns(unreached)), functionExp(unreachedExp()))
     // Two function operands are two closures, not one node reached twice.
     const [f, g] = /** @type {readonly unknown[]} */ (
         value(corpus())([functionValue, functionValue]))
@@ -389,6 +392,27 @@ const lambda = () => {
     assertEq(same(ref('holder'), [ref('fn')]), false)
     const [[, fn], [, holder]] = sharedMemo(own)
     assert(/** @type {readonly unknown[]} */ (holder)[0] === fn, ['nested function is a copy'])
+}
+
+/**
+ * Each callback does what its JavaScript spelling says, called through
+ * `amnesia` as a member function calls it, and lowers to a function with a
+ * body wherever it appears.
+ */
+const callbacksProof = () => {
+    /** @type {(name: CallbackName, args: readonly Value[]) => unknown} */
+    const call = (name, args) => corpus()(['()', callbackExp(name), valueExp(args)])
+    assertStructurallySame(call('args', [1, 'a']), [1, 'a'])
+    assertEq(call('first', [3, 4]), 3)
+    assertEq(call('prop', [{ x: 5 }]), 5)
+    assertEq(call('double', [3]), 6)
+    assertEq(call('add', ['a', 'b']), 'ab')
+    assertStructurallySame(call('pair', [1]), [1, [1]])
+    assertEq(call('ascending', [1, 3]), -2)
+    assertEq(call('descending', [1, 3]), 2)
+    assertStructurallySame(valueExp(callback('double')), callbackExp('double'))
+    assertStructurallySame(valueExp([callback('args')]), ['[]', [['=>', 0, null, ['rest']]]])
+    assertEq(typeof value(corpus())(callback('args')), 'function')
 }
 
 /**
@@ -553,6 +577,7 @@ const jsOnly = {
 
 export const proof = {
     lambda,
+    callbacks: callbacksProof,
     method,
     referenceCoverage,
     ...fromEntries(data.groups.map(g => [groupKey(g), group(g)])),

@@ -1,6 +1,6 @@
 use crate::vm::{
     Any, Array, BigInt, Function, IVm, Number, Object, String, Unpacked, dispatch::Dispatch,
-    join::Join, nullish::Nullish, primitive::Primitive,
+    nullish::Nullish, primitive::Primitive,
 };
 
 use std::result::Result;
@@ -11,15 +11,6 @@ const CANNOT_CONVERT_TO_PRIMITIVE_VALUE: &str = "TypeError: Cannot convert to pr
 /// of `nanvm-lib/todo/to-primitive.md`). Only a result that does not depend
 /// on the text is answered: see `NumberCoercion` and `is_less_than`.
 pub const FUNCTION_TEXT: &str = "TypeError: Cannot convert a function to its text";
-
-fn arr_element_to_string<A: IVm>(v: Any<A>) -> Result<String<A>, Any<A>> {
-    // https://tc39.es/ecma262/#sec-array.prototype.join: in case the element is nullish, on
-    // joining it is represented as an empty string (see point 7.c: If element is neither undefined
-    // nor null, then...)
-    Nullish::try_from(v.clone())
-        .map(|_| Ok("".into()))
-        .unwrap_or_else(|_| v.to_string())
-}
 
 /// Preferred type for coercion to primitive, as per ECMAScript specification.
 /// <https://tc39.es/ecma262/#sec-toprimitive>
@@ -42,12 +33,8 @@ fn arr_to_string<A: IVm>(a: Array<A>) -> Option<Result<Primitive<A>, Any<A>>> {
     // https://tc39.es/ecma262/#sec-array.prototype.tostring
     // https://tc39.es/ecma262/#sec-array.prototype.join
     // The stock method: an array owns only its elements and `length`, never a "toString" or a
-    // "join", so it joins the elements, coerced to strings, with the default "," separator.
-    let s = a
-        .into_iter()
-        .map(|v| arr_element_to_string(v))
-        .join(",".into());
-    Some(s.map(Primitive::String))
+    // "join", so this is the built-in `join` with its default separator.
+    Some(a.join(",".into()).map(Primitive::String))
 }
 
 /// A method `OrdinaryToPrimitive` tries: its name, and what the stock
