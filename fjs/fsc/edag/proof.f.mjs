@@ -1217,11 +1217,9 @@ export const proof = {
                 'expected the demo to reach a value without asking for an operation'))
             assertEq(step({ kind: 'input', name: 'edag', value: '1' })(''), '1')
             assertEq(step({ kind: 'start' })('kept'), 'kept')
-            // Picking an example replaces the text with its source, and a
-            // name no example has keeps the text.
+            // Picking an example replaces the text with its source.
             const [name, source] = examples[1]
             assertEq(step({ kind: 'input', name: 'example', value: name })('kept'), source)
-            assertEq(step({ kind: 'input', name: 'example', value: 'none' })('kept'), 'kept')
         },
         view: () => {
             const html = htmlToString(demo.view(demo.init))

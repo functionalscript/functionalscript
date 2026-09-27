@@ -408,7 +408,7 @@ const picker = examplePicker(examples)
 export const demo = {
     init: examples[0][1],
     update: state => event => pureOk(event.kind !== 'input' ? state
-        : event.name === exampleName ? picker.pick(state)(event.value)
+        : event.name === exampleName ? picker.pick(event.value)
             : event.value),
     view: text => {
         const g = _graphOf(text)
