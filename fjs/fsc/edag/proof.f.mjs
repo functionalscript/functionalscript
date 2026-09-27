@@ -992,7 +992,7 @@ export const proof = {
             },
             // Every Op0 name renders with no children, and the three part
             // by meaning where `Op0Id` groups them by operand count:
-            // `undefined` is a constant and draws as the leaf it is, beside
+            // `undefined` is a primitive and draws as the leaf it is, beside
             // `null` and the numbers, where `args` and `frame` are the two
             // places a value enters a scope from outside it and draw as
             // terminals of their own. `frame` is not reached from the demo's
@@ -1093,8 +1093,8 @@ export const proof = {
         },
         // The same source carries one of every look the drawing has, so a
         // reader meets all three before typing anything: an operator
-        // hollow, a constant tinted in its user's port, an input filled in
-        // its user's port. `undefined` is among the constants rather than
+        // hollow, a primitive tinted in its user's port, an input filled in
+        // its user's port. `undefined` is among the primitives rather than
         // drawn as the zero-operand operator its `Op0Id` grouping would
         // otherwise make it. The inputs are the module's `args`, which its
         // import reaches, and the function's own `rest`: no box of their
@@ -1167,9 +1167,9 @@ export const proof = {
             assert(html.includes('>.x<'), html)
             assert(html.includes('>===<'), html)
         },
-        // A constant with no user to sit in — the whole export — is still
-        // drawn, as a leaf node of its own; `undefined` too, though it is
-        // an operator rather than a primitive.
+        // A primitive with no user to sit in — the whole export — is still
+        // drawn, as a leaf node of its own; `undefined` too, though the
+        // EDAG holds it as an operator rather than a `Primitive`.
         leafRoot: () => {
             for (const [src, label] of [['export default 1;', '1'], ['export default undefined;', 'undefined']]) {
                 const html = htmlToString(demo.view(src))

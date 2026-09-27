@@ -24,12 +24,17 @@
  * shapes, and this demo does not walk it: a node it cannot describe is shown
  * as itself, not silently dropped or wrongly drawn.
  *
- * **A constant or an input draws inside the node that uses it.** A number,
- * a string, `null` or `undefined` is not a node of its own but a value in
- * its user's port, beside the operand's role; so is a scope's input —
+ * **A primitive or an input draws inside the node that uses it.** A
+ * number, a string, a boolean, a bigint, `null` or `undefined` is not a
+ * node of its own but a value in its user's port, beside the operand's role; so is a scope's input —
  * `args`, `rest`, `frame`, `arg n` — marked as the terminal it is. Only an
  * expression that is one of these and nothing else draws one as a node,
  * having no user to sit in.
+ *
+ * "Primitive" is JavaScript's word here, which counts `undefined` among
+ * them. The EDAG's own `Primitive` type does not: it holds `undefined` as
+ * the zero-operand operator `['undefined']`. This demo draws the two alike,
+ * because a reader sees the same value either way.
  *
  * **An operand a node may never evaluate draws dashed.** `&&`, `||` and `??`
  * establish their right operand only where the left has not already
@@ -190,11 +195,11 @@ export const _shapeOf = exp => {
     }
     if (typeof tag === 'string' && op0.has(tag)) {
         // `Op0Id` groups by operand count, not by meaning — its own doc in
-        // `fjs/edag` says so: `undefined` is a constant, where `args` and
-        // `frame` are the two places a value enters a scope from outside it.
-        // A drawing wants the meaning, so the constant draws as the leaf it
-        // is, beside `null` and every other one, and the two inputs draw as
-        // terminals of their own.
+        // `fjs/edag` says so. `undefined` is a primitive, where `args`,
+        // `frame` and `rest` are the places a value enters a scope from
+        // outside it. A drawing wants the meaning, so `undefined` draws as
+        // the leaf every other primitive is, beside `null`, and the inputs
+        // draw as terminals of their own.
         return { kind: tag === 'undefined' ? 'leaf' : 'terminal', label: tag, children: [] }
     }
     if (typeof tag === 'string' && op1.has(tag)) {
@@ -224,8 +229,8 @@ export const _shapeOf = exp => {
 
 /**
  * `exp` as a value the drawing puts inline in its user's port, or `null`
- * for one that is a node of its own. A constant — a primitive, or the
- * `undefined` operator — is inline, and so is a terminal, marked as one.
+ * for one that is a node of its own. A primitive — an EDAG `Primitive`,
+ * or the `undefined` operator — is inline, and so is a terminal, marked as one.
  *
  * **A terminal's identity is its scope's**, so drawing it inline loses
  * nothing. `args`, `rest`, `frame` and `arg n` are the values a scope
@@ -322,7 +327,7 @@ export const _graphOf = text => {
  *
  * It carries one of every look the drawing has, too, so that what the
  * three mean is on screen before a reader has picked anything. The numbers
- * and `undefined` are constants, tinted cells inside the ports that use
+ * and `undefined` are primitives, tinted cells inside the ports that use
  * them. `args` and `rest` are inputs, filled grey cells: a value arriving
  * from outside a scope rather than computed from operands. `args` is the
  * module's, which its import reaches through `.default` on argument 0,
@@ -352,7 +357,7 @@ export const _graphOf = text => {
  * - **Sharing** sets a `const` used twice beside the same expression
  *   written out again: only `const` makes sharing, so that is one `+` node
  *   with two edges and a second `+` of its own.
- * - **Constants** puts every kind of constant — `null`, `undefined`, a
+ * - **Primitives** puts every kind of primitive — `null`, `undefined`, a
  *   boolean, a number, a bigint, a string — inline in the port that uses it.
  * - **Operators** draws arithmetic, unary, comparison and bitwise operators
  *   over a function's two parameters.
@@ -375,7 +380,7 @@ export const _graphOf = text => {
 export const examples = [
     ['Overview', 'import m from "./m.f.js";\nconst a = 1 + 2;\nconst checked = m.x < 4;\nexport default [a, a, a * 3, m && a, (...x) => x, undefined];'],
     ['Sharing: a const, not a repeated expression', 'const a = 1 + 2;\nconst b = 1 + 2;\nexport default [a, a, b];'],
-    ['Constants', 'export default [null, undefined, true, 1, 2n, "s"];'],
+    ['Primitives', 'export default [null, undefined, true, 1, 2n, "s"];'],
     ['Operators', 'export default (a, b) => [a + b, a * b, a ** b, -a, ~a, a === b, a < b, a & b, a << b];'],
     ['Laziness: && || ??', 'export default (...a) => [a[0] && a[1], a[0] || a[1], a[0] ?? a[1]];'],
     ['Laziness: ?:', 'export default (...a) => a[0] ? a[1] : a[2];'],
