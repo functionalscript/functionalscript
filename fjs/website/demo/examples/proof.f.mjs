@@ -35,13 +35,11 @@ export const proof = {
         },
     },
     pick: {
-        // A name replaces the text with its source.
-        known: () => assertEq(pick('kept')('Two'), 'export default 2;'),
-        // A name no example has keeps the text.
-        unknown: () => assertEq(pick('kept')('Three'), 'kept'),
+        // A name gives its example's source.
+        known: () => assertEq(pick('Two'), 'export default 2;'),
         // An empty name is an example's like any other: `Custom` sends no
         // value, so there is nothing for it to be confused with.
-        emptyName: () => assertEq(examplePicker([['', 'export default 0;']]).pick('kept')(''), 'export default 0;'),
+        emptyName: () => assertEq(examplePicker([['', 'export default 0;']]).pick(''), 'export default 0;'),
     },
     // A list whose names or sources repeat is refused where the picker is
     // built: a repeated name would be unreachable, a repeated source would
@@ -49,5 +47,8 @@ export const proof = {
     throw: {
         repeatedName: () => examplePicker([['A', 'one'], ['A', 'two']]),
         repeatedSource: () => examplePicker([['A', 'one'], ['B', 'one']]),
+        // A name no example has is refused rather than answered with the
+        // text unchanged: nothing the drop-down sends can be one.
+        unknownName: () => pick('Three'),
     },
 }

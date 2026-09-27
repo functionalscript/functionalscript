@@ -40,9 +40,13 @@ export const name = 'example'
  * panics here, once, when the demo builds its picker — not on every render.
  *
  * `view(text)` selects the example `text` is, or, when `text` is none of
- * them, a `Custom` entry. `pick(text)(value)` is the source of the example
- * `value` names, or `text` unchanged for a name no example has. `Custom`
- * sends none, being disabled, so every name a pick sends is an example's.
+ * them, a `Custom` entry. `pick(value)` is the source of the example
+ * `value` names.
+ *
+ * **A name no example has is refused too.** `Custom` sends none, being
+ * disabled, so every name the drop-down can send is an example's: another
+ * one reaching `pick` is a bug in whatever sent it, and keeping the text
+ * would answer it with a plausible no-op.
  *
  * @type {(list: Examples) => Picker}
  */
@@ -62,6 +66,10 @@ export const examplePicker = list => {
                 ['select', { id: name, name }, ...custom, ...options],
             ]
         },
-        pick: text => value => list.find(([n]) => n === value)?.[1] ?? text,
+        pick: value => {
+            const found = list.find(([n]) => n === value)
+            if (found === undefined) { throw 'examples: no example has this name' }
+            return found[1]
+        },
     }
 }

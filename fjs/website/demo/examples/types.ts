@@ -21,9 +21,10 @@ export type Examples = readonly Example[]
 
 /**
  * A checked list of examples, as a demo uses it: `view` draws the drop-down
- * for the current text, and `pick` gives the text after a pick.
+ * for the current text, and `pick` gives the source of the example a name
+ * picks — the demo's new text.
  */
 export type Picker = {
     readonly view: (text: string) => Element
-    readonly pick: (text: string) => (value: string) => string
+    readonly pick: (value: string) => string
 }
