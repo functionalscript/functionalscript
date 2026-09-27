@@ -14,7 +14,6 @@
  * grammar writes inline as branches of `value` — the only two found by their
  * branch rather than by their export.
  *
- *
  * @module
  *
  * @import { Rule } from '../../types.ts'

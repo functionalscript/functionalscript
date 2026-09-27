@@ -76,9 +76,19 @@ const copies = (n, d) => Array.from({ length: n }, () => d)
  */
 const named = { 9: '\\t', 10: '\\n', 13: '\\r', 32: 'space' }
 
-/** @type {(c: number) => string} */
-const symbolText = c => at(String(c))(named)
-    ?? (c < 0x20 || c > 0x7e ? `U+${c.toString(16).toUpperCase().padStart(4, '0')}` : String.fromCodePoint(c))
+/**
+ * A code point as a label. A symbol above the last code point belongs to
+ * another alphabet — a token symbol starts at `0x110000` — and is refused
+ * rather than labelled `U+110005`, a code point it is not; see
+ * `./todo/symbol-labels.md`.
+ *
+ * @type {(c: number) => string}
+ */
+const symbolText = c => {
+    assert(c <= 0x10FFFF, ['not a code point', c])
+    return at(String(c))(named)
+        ?? (c < 0x20 || c > 0x7e ? `U+${c.toString(16).toUpperCase().padStart(4, '0')}` : String.fromCodePoint(c))
+}
 
 /**
  * A set's runs, `[first, last]` each, both inclusive. A set whose last
@@ -119,22 +129,29 @@ const setDiagram = s => {
  * every other rule is drawn in place, inside the diagram that reaches it.
  *
  * @throws If a rule is titled twice, which would leave its boxes a choice
- * of two diagrams to link to, or if a rule reaches itself through untitled
- * rules only.
+ * of two diagrams to link to; if two rules share a title, which would give
+ * two diagrams one link; or if a rule reaches itself through untitled rules
+ * only.
  *
  * @type {(ruleSet: RuleSet) => (titled: readonly (readonly [string, string])[]) => readonly (readonly [string, Diagram])[]}
  */
 export const toDiagrams = ruleSet => titled => {
     const titles = new Map(titled.map(([title, name]) => [name, title]))
     assert(titles.size === titled.length, ['a rule is titled twice', titled])
+    assert(new Set(titles.values()).size === titled.length, ['a title names two rules', titled])
     /**
-     * The printable symbol a rule is, if it is a set of exactly one.
+     * The printable symbol a rule is, if it is a set of exactly one: one
+     * run, so two boundaries, one symbol apart. A set of more runs is not
+     * its first run, and is drawn as the choice it is.
      *
      * @type {(name: string) => string | null}
      */
     const printable = name => {
-        const [tag, first, end] = ruleSet[name]
-        return tag === 'set' && end === first + 1 && first > 0x20 && first < 0x7f ? String.fromCodePoint(first) : null
+        const rule = ruleSet[name]
+        const [tag, first, end] = rule
+        return tag === 'set' && rule.length === 3 && end === first + 1 && first > 0x20 && first < 0x7f
+            ? String.fromCodePoint(first)
+            : null
     }
     /**
      * What `b` separates copies of `a` with, if `b` is a repeat of `a`, or

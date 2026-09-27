@@ -86,6 +86,9 @@ export const proof = {
             ['sequence', [t('0 … 9'), ['choice', [skip, loop(t('a … z'))]]]]),
         otherSeparator: draws([range('09'), repeatFrom0([',', range('az')])],
             ['sequence', [t('0 … 9'), ['choice', [skip, loop(['sequence', [t(','), t('a … z')]])]]]]),
+        // A set of more than one run is not the literal of its first run:
+        // `Ee` then `x` is either `Ex` or `ex`.
+        multiRun: draws([set('Ee'), set('x')], ['sequence', [['choice', [t('E'), t('e')]], t('x')]]),
         bounded: draws([range('09'), option(range('09'))],
             ['sequence', [t('0 … 9'), ['choice', [skip, t('0 … 9')]]]]),
     },
@@ -124,6 +127,17 @@ export const proof = {
         titledTwice: () => {
             const [ruleSet, entry] = toData('a')
             toDiagrams(ruleSet)([['a', entry], ['b', entry]])
+        },
+        // A token symbol is no code point, and has no label here yet.
+        tokenSymbol: () => {
+            /** @type {RuleSet} */
+            const ruleSet = { a: ['set', 0x110000, 0x110001] }
+            toDiagrams(ruleSet)([['a', 'a']])
+        },
+        // Two rules under one title would be two diagrams behind one link.
+        titleTwice: () => {
+            const [ruleSet, , names] = toData(['a', 'b'])
+            toDiagrams(ruleSet)([['same', assertNotNullish(names.get('a'))], ['same', assertNotNullish(names.get('b'))]])
         },
         notAVariant: () => {
             const [ruleSet, entry] = toData('a')
