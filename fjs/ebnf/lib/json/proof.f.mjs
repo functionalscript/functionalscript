@@ -268,8 +268,6 @@ export const proof = {
             // in its diagram and diagrams of their own.
             assert(html.includes('<a href="#railroad-array">'), html)
         },
-        // Every title names a distinct rule.
-        diagrams: () => assertEq(new Set(diagrams.map(([, name]) => name)).size, diagrams.length),
         // Nothing an event says changes the diagrams.
         update: () => assertEq(
             unwrap(assertNotNullish(runPure(demo.update(demo.init)({ kind: 'start' }))[0])),

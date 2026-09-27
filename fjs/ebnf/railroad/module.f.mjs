@@ -7,10 +7,10 @@
  *
  * **A caller names the rules that get diagrams.** Lowering names every rule,
  * but the names it makes up — `value.array.2.item` — are positions, not
- * words a reader would look for. So `titles` maps the rules worth a diagram
- * to the words for them, and every reference to one of those is a box that
- * links to its diagram. Every other rule is drawn in place, inside the
- * diagram that reaches it.
+ * words a reader would look for. So a caller pairs the rules worth a
+ * diagram with the words for them, and every reference to one of those is
+ * a box that links to its diagram. Every other rule is drawn in place,
+ * inside the diagram that reaches it.
  *
  * **Recursion is a box like any other reference.** A rule that reaches
  * itself does so through a titled rule, drawn as a box, so no diagram is
@@ -112,17 +112,21 @@ const setDiagram = s => {
 }
 
 /**
- * Diagrams for the rules of `ruleSet`.
+ * The diagram of each rule in `titled`, under its title, in the order given.
  *
- * `titles` maps a rule's name to the word its diagram is known by; a
- * reference to a titled rule is a `nonTerminal` box with that word. The
- * result draws the rule named `name` itself, in full, titled or not.
+ * `titled` pairs the word a diagram is known by with the name of the rule it
+ * draws. A reference to a titled rule is a `nonTerminal` box with that word;
+ * every other rule is drawn in place, inside the diagram that reaches it.
  *
- * @throws If a rule reaches itself through untitled rules only.
+ * @throws If a rule is titled twice, which would leave its boxes a choice
+ * of two diagrams to link to, or if a rule reaches itself through untitled
+ * rules only.
  *
- * @type {(ruleSet: RuleSet) => (titles: ReadonlyMap<string, string>) => (name: string) => Diagram}
+ * @type {(ruleSet: RuleSet) => (titled: readonly (readonly [string, string])[]) => readonly (readonly [string, Diagram])[]}
  */
-export const toDiagram = ruleSet => titles => {
+export const toDiagrams = ruleSet => titled => {
+    const titles = new Map(titled.map(([title, name]) => [name, title]))
+    assert(titles.size === titled.length, ['a rule is titled twice', titled])
     /**
      * The printable symbol a rule is, if it is a set of exactly one.
      *
@@ -197,7 +201,7 @@ export const toDiagram = ruleSet => titles => {
         const title = titles.get(name)
         return title === undefined ? expand(path)(name) : ['nonTerminal', title]
     }
-    return expand(new Set())
+    return titled.map(([title, name]) => [title, expand(new Set())(name)])
 }
 
 /**

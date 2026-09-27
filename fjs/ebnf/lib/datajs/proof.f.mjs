@@ -5,10 +5,15 @@
  * @import { Rule, Thunk, Variant } from '../../types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { force } from '../../testlib.f.mjs'
 import { string, ws, wsSymbol } from '../json/module.f.mjs'
 import { constStatement, dataJs, exportStatement, id, number, property, value as exportedValue } from './module.f.mjs'
+import { demo, diagrams } from './demo.f.mjs'
+import { anchor } from '../../../website/demo/railroad/module.f.mjs'
+import { htmlToString } from '../../../media/html/module.f.mjs'
+import { runPure } from '../../../effects/module.f.mjs'
+import { unwrap } from '../../../types/result/module.f.mjs'
 
 const { keys } = Object
 
@@ -182,5 +187,20 @@ export const proof = {
             /** @typedef {Assert<Equal<readonly [readonly [], readonly [], readonly []] extends Ast<typeof dataJs, 'i'> ? true : false, false>>} _Rejects0 */
             assertEq(value()[1].array[2]()[3][0][0], value)
         },
+    },
+    demo: {
+        // One diagram per title, each in the section its boxes link to —
+        // JSON's rules included, so no box on the page leads nowhere.
+        view: () => {
+            const html = htmlToString(demo.view(demo.init))
+            diagrams.forEach(([title]) => assert(html.includes(`<section id="${anchor(title)}"><h3>${title}</h3>`), title))
+            const links = html.split('<a href="#').slice(1).map(after => after.slice(0, after.indexOf('"')))
+            assert(links.length !== 0, html)
+            links.forEach(link => assert(html.includes(`<section id="${link}">`), link))
+        },
+        // Nothing an event says changes the diagrams.
+        update: () => assertEq(
+            unwrap(assertNotNullish(runPure(demo.update(demo.init)({ kind: 'start' }))[0])),
+            demo.init),
     },
 }

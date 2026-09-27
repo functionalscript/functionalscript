@@ -2,7 +2,7 @@
  * @import { Diagram } from './types.ts'
  */
 
-import { anchor, railroadSvg } from './module.f.mjs'
+import { anchor, railroadSection, railroadSvg } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
 
@@ -25,6 +25,9 @@ const size = (d, width, height) => () => assert(svg(d).includes(`viewBox="0 0 ${
 
 export const proof = {
     anchor: () => assertEq(anchor('value'), 'railroad-value'),
+    // A section is the element a box links to: its id is the title's anchor.
+    section: () => assertStructurallySame(railroadSection(['value', skip]),
+        ['section', { id: 'railroad-value' }, ['h3', 'value'], railroadSvg(skip)]),
     // A terminal in full: the start bar, its pill and label, the end bar.
     // A pill is at least 28 wide; its track runs 11 below its top.
     terminal: () => assertStructurallySame(railroadSvg(t('a')),

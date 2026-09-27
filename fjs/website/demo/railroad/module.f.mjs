@@ -19,9 +19,9 @@
  * against the diagram's direction, so the only one that says which way it
  * runs.
  *
- * **A box for another diagram is a link to it.** `anchor` is the id a page
- * gives the element holding that diagram, so the page and this module spell
- * it once.
+ * **A box for another diagram is a link to it.** `anchor` is the id of the
+ * element holding that diagram, and `railroadSection` is that element, so a
+ * page and this module spell the id once.
  *
  * The geometry is the layout of json.org's diagrams, and of the railroad
  * diagrams a reader has met in any language specification.
@@ -239,3 +239,11 @@ export const railroadSvg = d => {
         path(`M${end} ${y}L${end + stub} ${y}M${end + stub} ${y - stub}L${end + stub} ${y + stub}`),
     ]]
 }
+
+/**
+ * A titled diagram as a section of a page: its title, and the diagram, in
+ * the element whose id is the one every box for it links to.
+ *
+ * @type {(titled: readonly [string, Diagram]) => Element}
+ */
+export const railroadSection = ([title, d]) => ['section', { id: anchor(title) }, ['h3', title], railroadSvg(d)]

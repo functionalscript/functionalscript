@@ -4,10 +4,10 @@
  * @import { Diagram } from '../../website/demo/railroad/types.ts'
  */
 
-import { branch, toDiagram } from './module.f.mjs'
+import { branch, toDiagrams } from './module.f.mjs'
 import { toData } from '../data/module.f.mjs'
 import { eof, join, option, range, rangeEncode, repeat, repeatFrom, repeatFrom0, repeatFrom1, set, times } from '../module.f.mjs'
-import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 /** @type {(text: string) => Diagram} */
 const t = text => ['terminal', text]
@@ -19,26 +19,34 @@ const skip = ['skip']
 const loop = (d, separator = skip) => ['loop', d, separator]
 
 /**
- * `fr`'s diagram, with no rule titled: everything it reaches is drawn in
- * place.
+ * `fr`'s diagram, with its entry the one rule titled: everything else it
+ * reaches is drawn in place.
  *
  * @type {(fr: Rule) => Diagram}
  */
-const untitled = fr => {
+const diagram = fr => {
     const [ruleSet, entry] = toData(fr)
-    return toDiagram(ruleSet)(new Map())(entry)
+    const [[, d]] = toDiagrams(ruleSet)([['root', entry]])
+    return d
 }
 
 /** @type {(fr: Rule, expected: Diagram) => () => void} */
-const draws = (fr, expected) => () => assertStructurallySame(untitled(fr), expected)
+const draws = (fr, expected) => () => assertStructurallySame(diagram(fr), expected)
 
 /**
- * `e = '(' e? ')'`: a rule that reaches itself, so drawing it in full needs
- * a title for the box it reaches itself through.
+ * `e = '(' e? ')'`: a rule that reaches itself.
  *
  * @type {Const<DataRule>}
  */
 const nested = () => ['const', ['(', option(nested), ')']]
+
+/**
+ * `l = 'a' l?`: a rule that reaches itself, reached from an entry that
+ * does not.
+ *
+ * @type {Const<DataRule>}
+ */
+const tail = () => ['const', ['a', option(tail)]]
 
 const digit = range('09')
 
@@ -59,7 +67,7 @@ export const proof = {
         openTail: () => {
             /** @type {RuleSet} */
             const ruleSet = { a: ['set', 0x41] }
-            assertStructurallySame(toDiagram(ruleSet)(new Map())('a'), t('A …'))
+            assertStructurallySame(toDiagrams(ruleSet)([['a', 'a']]), [['a', t('A …')]])
         },
     },
     sequence: {
@@ -95,20 +103,28 @@ export const proof = {
     titles: {
         // A titled rule is a box wherever it is reached — the rule being
         // drawn included, so reaching itself is a box, not a loop forever.
-        recursive: () => {
-            const [ruleSet, entry] = toData(nested)
+        recursive: draws(nested, ['sequence', [t('('), ['choice', [skip, ['nonTerminal', 'root']]], t(')')]]),
+        // Each titled rule gets its diagram, in the order given, and every
+        // other diagram reaches it as a box.
+        several: () => {
+            const [ruleSet, entry, names] = toData([digit, digit])
             assertStructurallySame(
-                toDiagram(ruleSet)(new Map([[entry, 'e']]))(entry),
-                ['sequence', [t('('), ['choice', [skip, ['nonTerminal', 'e']]], t(')')]])
+                toDiagrams(ruleSet)([['pair', entry], ['digit', assertNotNullish(names.get(digit))]]),
+                [
+                    ['pair', ['sequence', [['nonTerminal', 'digit'], ['nonTerminal', 'digit']]]],
+                    ['digit', t('0 … 9')],
+                ])
         },
     },
-    branch: () => {
-        const [ruleSet, entry] = toData({ a: 'a', b: range('09') })
-        assertStructurallySame(untitled(range('09')), toDiagram(ruleSet)(new Map())(branch(ruleSet)(entry, 'b')))
-    },
     throw: {
-        // With no title, a rule that reaches itself has no box to stop at.
-        untitledRecursion: () => untitled(nested),
+        // A rule that reaches itself through untitled rules only has no box
+        // to stop at.
+        untitledRecursion: () => diagram(['b', tail]),
+        // A box for a rule titled twice would have two diagrams to link to.
+        titledTwice: () => {
+            const [ruleSet, entry] = toData('a')
+            toDiagrams(ruleSet)([['a', entry], ['b', entry]])
+        },
         notAVariant: () => {
             const [ruleSet, entry] = toData('a')
             branch(ruleSet)(entry, 'a')
@@ -119,8 +135,9 @@ export const proof = {
         },
     },
     // The rule a branch names is the rule a variant reaches.
-    branchName: () => {
-        const [ruleSet, entry] = toData({ a: 'a' })
-        assertEq(ruleSet[branch(ruleSet)(entry, 'a')][0], 'sequence')
+    branch: () => {
+        const [ruleSet, entry] = toData({ a: 'a', b: digit })
+        const [digitSet, digitEntry] = toData(digit)
+        assertStructurallySame(ruleSet[branch(ruleSet)(entry, 'b')], digitSet[digitEntry])
     },
 }
