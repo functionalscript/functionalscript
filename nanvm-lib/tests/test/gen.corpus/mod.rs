@@ -23,6 +23,8 @@ pub mod method_find;
 pub mod method_find_index;
 pub mod method_find_last;
 pub mod method_find_last_index;
+pub mod method_flat;
+pub mod method_flat_map;
 pub mod method_includes;
 pub mod method_index_of;
 pub mod method_join;
@@ -33,6 +35,7 @@ pub mod method_reduce_right;
 pub mod method_slice;
 pub mod method_some;
 pub mod method_to_reversed;
+pub mod method_to_sorted;
 pub mod method_to_spliced;
 pub mod method_to_string;
 pub mod method_with;
@@ -104,5 +107,8 @@ pub fn all<A: IStaticFunction>() {
     method_filter::run::<A>();
     method_reduce::run::<A>();
     method_reduce_right::run::<A>();
+    method_flat::run::<A>();
+    method_flat_map::run::<A>();
+    method_to_sorted::run::<A>();
     method_to_string::run::<A>();
 }

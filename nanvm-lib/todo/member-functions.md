@@ -159,8 +159,9 @@ Infrastructure:
 
 - [x] `toString`
 
-`Array` — each built-in's contract, what is out by design, the corpus and
-the landing order are [array-member-functions](./array-member-functions.md):
+`Array` — complete; what is out by design, and the arguments whose
+presence decides an answer, are
+[`vm/array/README.md`](../src/vm/array/README.md):
 
 - [x] `at` — `vm/array/at.rs`; the index is `Number::to_integer_or_infinity`,
       `ToIntegerOrInfinity` of the argument converted by `ToNumber`.
@@ -171,8 +172,8 @@ the landing order are [array-member-functions](./array-member-functions.md):
 - [x] `findIndex` — `vm/array/find_index.rs`
 - [x] `findLast` — `vm/array/find.rs`
 - [x] `findLastIndex` — `vm/array/find_last_index.rs`
-- [ ] `flat`
-- [ ] `flatMap`
+- [x] `flat` — `vm/array/flat.rs`
+- [x] `flatMap` — `vm/array/flat.rs`
 - [x] `includes` — `vm/array/includes.rs`
 - [x] `indexOf` — `vm/array/index_of.rs`
 - [x] `join` — `vm/array/join.rs`
@@ -183,7 +184,7 @@ the landing order are [array-member-functions](./array-member-functions.md):
 - [x] `slice` — `vm/array/slice.rs`
 - [x] `some` — `vm/array/some.rs`
 - [x] `toReversed` — `vm/array/to_reversed.rs`
-- [ ] `toSorted`
+- [x] `toSorted` — `vm/array/to_sorted.rs`
 - [x] `toSpliced` — `vm/array/to_spliced.rs`
 - [x] `toString`
 - [x] `with` — `vm/array/with.rs`
@@ -255,8 +256,8 @@ the landing order are [array-member-functions](./array-member-functions.md):
   — shared rendering without regressing supported calls, returns or exports.
 - [Native function-text review](https://github.com/functionalscript/functionalscript/pull/2220#discussion_r4096310135)
   — remove the obsolete Stage 7 placeholder exception and completion claim.
-- [array-member-functions](./array-member-functions.md) — the `Array`
-  built-ins' specification and landing order.
+- [`vm/array/README.md`](../src/vm/array/README.md) — the `Array`
+  built-ins: what is out by design, and why.
 - [`fjs/js/prototype/README.md`](../../fjs/js/prototype/README.md) — the
   table: both lists, one row per name with its reason.
 - [`fjs/edag/README.md`](../../fjs/edag/README.md), Chains — the two bits

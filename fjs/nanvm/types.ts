@@ -105,7 +105,7 @@ export type FunctionValue = Special<readonly ['function']>
  * function such as `map` is handed — its body in `fjs/nanvm/module.f.mjs`'s
  * `callbacks`, with its JavaScript spelling.
  */
-export type CallbackName = 'args' | 'first' | 'prop' | 'double' | 'add' | 'pair' | 'ascending' | 'descending'
+export type CallbackName = 'args' | 'first' | 'prop' | 'double' | 'add' | 'pair' | 'ascending' | 'descending' | 'zero'
 
 /**
  * A callback by name: a real function with a body, where a

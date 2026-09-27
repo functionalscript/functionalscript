@@ -26,8 +26,9 @@ export const proof = {
     answered: () => {
         const array = [
             'at', 'concat', 'every', 'filter', 'find', 'findIndex', 'findLast', 'findLastIndex',
-            'includes', 'indexOf', 'join', 'lastIndexOf', 'map', 'reduce', 'reduceRight', 'slice',
-            'some', 'toReversed', 'toSpliced', 'toString', 'with',
+            'flat', 'flatMap', 'includes', 'indexOf', 'join', 'lastIndexOf', 'map', 'reduce',
+            'reduceRight', 'slice', 'some', 'toReversed', 'toSorted', 'toSpliced', 'toString',
+            'with',
         ]
         assertEq(
             keys(rows(pending).answered).join(),
