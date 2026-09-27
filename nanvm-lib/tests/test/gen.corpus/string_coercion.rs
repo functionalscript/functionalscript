@@ -29,4 +29,5 @@ pub fn run<A: IStaticFunction>() {
     // TODO: an own toString or valueOf is refused until Stage 2 of to-primitive.md: check::<A>("objectOwnToString", [(string_key("toString"), function_any())].to_object().to_any().to_string().map(|v| v.to_any()), string_any("undefined"));
     check_throws::<A>("objectOwnToStringNotAFunction", [(string_key("toString"), string_any("h"))].to_object().to_any().to_string().map(|v| v.to_any()));
     check::<A>("objectOwnValueOfNotAFunction", [(string_key("valueOf"), string_any("x"))].to_object().to_any().to_string().map(|v| v.to_any()), string_any("[object Object]"));
+    check::<A>("objectOwnValueOf", [(string_key("valueOf"), function_any())].to_object().to_any().to_string().map(|v| v.to_any()), string_any("[object Object]"));
 }

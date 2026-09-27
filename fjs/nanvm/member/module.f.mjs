@@ -106,6 +106,9 @@ const includesCases = [
     // A `toString` that is no function is skipped, and the stock `valueOf`
     // answers the object, so JavaScript throws too.
     { name: 'stringToStringNotAFunction', args: ['a', { toString: 'h' }], expected: throws },
+    // A needle is converted with the `string` hint, which never reaches a
+    // function `valueOf`.
+    { name: 'stringOwnValueOf', args: ['x[object Object]', { valueOf: functionValue }], expected: true },
     { name: 'stringBigintFrom', args: ['abc', 'a', 0n], expected: throws },
 ]
 

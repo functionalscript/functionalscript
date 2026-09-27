@@ -38,5 +38,9 @@ pub fn run<A: IStaticFunction>() {
         let c0: Any<A> = [(string_key("toString"), string_any("h"))].to_object().to_any();
         Ok([c0].to_array().to_any())
     }));
+    check::<A>("stringOwnValueOf", Any::dot(string_any("x[object Object]"), string_any("includes")).end_call(|| {
+        let c0: Any<A> = [(string_key("valueOf"), function_any())].to_object().to_any();
+        Ok([c0].to_array().to_any())
+    }), true.to_any());
     check_throws::<A>("stringBigintFrom", Any::dot(string_any("abc"), string_any("includes")).end_call(|| Ok([string_any("a"), bigint_any(0)].to_array().to_any())));
 }

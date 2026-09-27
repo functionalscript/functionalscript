@@ -1126,6 +1126,9 @@ const stringCoercionCases = [
     // A `valueOf` that is no function is skipped, and the stock `toString`
     // answers.
     { name: 'objectOwnValueOfNotAFunction', args: [{ valueOf: 'x' }], expected: '[object Object]' },
+    // The `string` hint tries `toString` first, and the stock one answers
+    // before a function `valueOf` is reached.
+    { name: 'objectOwnValueOf', args: [{ valueOf: functionValue }], expected: '[object Object]' },
 ]
 
 /**

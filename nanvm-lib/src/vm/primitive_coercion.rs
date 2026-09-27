@@ -9,7 +9,8 @@ const CANNOT_CONVERT_TO_PRIMITIVE_VALUE: &str = "TypeError: Cannot convert to pr
 
 /// JavaScript calls an object's own `toString` or `valueOf`, which is not
 /// implemented yet (Stage 2 of `nanvm-lib/todo/to-primitive.md`): an own
-/// `toString`, or an own `valueOf` that is a function, is refused.
+/// `toString` is refused, and so is an own `valueOf` that is a function,
+/// wherever the hint reaches it.
 pub const OWN_CONVERSION_METHOD: &str =
     "TypeError: Cannot convert an object with its own toString or valueOf";
 
@@ -56,12 +57,19 @@ fn obj_to_primitive<A: IVm>(
 ) -> Result<Primitive<A>, Any<A>> {
     // Refused, not answered with the stock methods' result: an own
     // `toString` shadows the stock one, and one that is no function makes
-    // JavaScript throw. An own `valueOf` shadows only when it is a function:
-    // otherwise JavaScript skips it, as the stock order below already does.
-    let own_value_of = o.own_property(&"valueOf".into());
-    if o.own_property(&"toString".into()).is_some()
-        || own_value_of.is_some_and(|v| matches!(Unpacked::from(v), Unpacked::Function(_)))
-    {
+    // JavaScript throw. An own `valueOf` shadows only when it is a function,
+    // and only for the `number` hint: the `string` hint tries `toString`
+    // first, and the stock one answers before `valueOf` is reached.
+    let own_to_string = o.own_property(&"toString".into()).is_some();
+    let own_value_of = || {
+        o.own_property(&"valueOf".into())
+            .is_some_and(|v| matches!(Unpacked::from(v), Unpacked::Function(_)))
+    };
+    let refused = match preferred_type {
+        ToPrimitivePreferredType::Number => own_to_string || own_value_of(),
+        ToPrimitivePreferredType::String => own_to_string,
+    };
+    if refused {
         return Err(OWN_CONVERSION_METHOD.into());
     }
     match preferred_type {
@@ -195,7 +203,9 @@ mod tests {
         ];
         for (key, value) in owns {
             let o = || with_own(key, value.clone());
-            refused(o().to_string(), OWN_CONVERSION_METHOD);
+            if key == "toString" {
+                refused(o().to_string(), OWN_CONVERSION_METHOD);
+            }
             refused(o().to_number(), OWN_CONVERSION_METHOD);
             refused(o().to_numeric().map(|_| ()), OWN_CONVERSION_METHOD);
             refused(o() + 1.0.to_any(), OWN_CONVERSION_METHOD);
@@ -217,6 +227,16 @@ mod tests {
             assert!(is_nan(o().to_number()));
             assert_eq!(o() + s("!"), Ok(s("[object Object]!")));
         }
+    }
+
+    /// The `string` hint tries `toString` first, and the stock one answers
+    /// before a function `valueOf` is reached: `String({ valueOf: f })` is
+    /// `"[object Object]"`, while `+{ valueOf: f }` is refused.
+    #[test]
+    fn string_hint_never_reaches_value_of() {
+        let o = || with_own("valueOf", function());
+        assert_eq!(o().to_string(), Ok("[object Object]".into()));
+        refused(o().to_number(), OWN_CONVERSION_METHOD);
     }
 
     /// Any other own property keeps the stock conversion.
