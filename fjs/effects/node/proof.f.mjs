@@ -833,6 +833,24 @@ export const proof = {
             assertEq(named(responseGate('GET', false, 200, { 'content-length': 'seven' })), 'unframed')
             // And the same request with a length it can read is served.
             assertEq(named(responseGate('GET', false, 200, { 'content-length': '7' })), 'pump 7')
+            // **Gate 3 on a chunked-capable request too, where the length is
+            // present and unreadable.** `chunkedResponse` is an escape only for a
+            // response that declares no length at all: the header's presence is
+            // what takes Node's chunked framing away, whatever it says. Measured
+            // on Node 23.11.0, a listener answering `content-length: '1 '` with a
+            // two-byte body put the padded value on the wire verbatim, sent no
+            // `Transfer-Encoding`, and left the socket in the keep-alive pool — so
+            // the pump would have run unbounded against a frame the host had
+            // already given up, and the surplus byte is the next response's status
+            // line.
+            assertEq(named(responseGate('GET', true, 200, { 'content-length': '1 ' })), 'unframed')
+            assertEq(named(responseGate('GET', true, 200, { 'content-length': 'seven' })), 'unframed')
+            // A header present with no value is a header that names nothing, and
+            // it reaches the wire the same way.
+            assertEq(named(responseGate('GET', true, 200, { 'content-length': '' })), 'unframed')
+            // Gate 2 still comes first, so a `HEAD` is answered rather than
+            // refused however unreadable the length it does not carry is.
+            assertEq(named(responseGate('HEAD', true, 200, { 'content-length': '1 ' })), 'noBody')
         },
         // The frame a refusal goes out as, shared so that the two runners spell it
         // alike: a refusal a program is proven against is the refusal it meets.

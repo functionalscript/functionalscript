@@ -9,7 +9,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { resolveFileModule, access, awaitIfPromise, close, exec, fetch, framingHeaderMessage, fstat, handleSource, log, open, pread, readChunks, releaseHandle, rm, rmdir, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, forever, listen, readWhole, notAFileCode, notAFileMessage, mkdir, unframedBodyMessage } from '../module.f.mjs'
+import { resolveFileModule, access, awaitIfPromise, close, exec, fetch, framingHeaderMessage, fstat, handleSource, log, open, pread, readChunks, rm, rmdir, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, forever, listen, readWhole, notAFileCode, notAFileMessage, mkdir, unframedBodyMessage } from '../module.f.mjs'
 import { empty, length, maxLengthBytes, msb, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
 import { history, historyStep, pureError, pureOk, resultMapStep, step } from '../../module.f.mjs'
 import { empty as endOfBody, nonEmpty } from '../../list/module.f.mjs'
@@ -1549,6 +1549,19 @@ export const proof = {
             // A `Content-Length` this runner cannot read is no declaration, so it
             // is refused exactly where an absent one is.
             assertEq(answered({ 'content-length': 'seven' }, false).status, 500)
+            // **And on a request the host *would* frame chunked it is refused
+            // too**, which an absent length is not. The difference is the header's
+            // presence: measured on Node 23.11.0, a listener answering
+            // `content-length: '1 '` with a two-byte body put the padded value on
+            // the wire verbatim, sent no `Transfer-Encoding`, and left the socket
+            // in the keep-alive pool — so `chunkedResponse` promised a framing the
+            // host had already given up, and the surplus byte was the next
+            // response's status line. A whitespace-padded value is the sharp case
+            // because it is one a listener reaches by accident.
+            assertEq(answered({ 'content-length': '1 ' }, true).status, 500)
+            assertEq(answered({ 'content-length': 'seven' }, true).status, 500)
+            // A length this runner *can* read is untouched on either request.
+            assertEq(answered({ 'content-length': '7' }, true).status, 200)
         },
         // **The order the gates are asked in.** They overlap, so each of these
         // is a request two of them fire on, and the answer says which was asked
@@ -1666,6 +1679,67 @@ export const proof = {
             assert(r.failure !== null, r)
             assertIoCode(/** @type {IoChannel} */(r.failure), 'EIO')
             assertEq(responseText(r), 'abc')
+            assertEq(s.stdout, `${released}\n`)
+        },
+        // **A chunk that is not a whole number of bytes is counted as the host
+        // sends it, not as it is stored.** `ServerResponse` admits any `Vec`, the
+        // node runner writes `fromVec(chunk)`, and that pads a partial byte out to
+        // a whole one: a one-bit chunk reaches the client as one byte. Counting
+        // the bits rounded *down* made this runner answer the opposite of the
+        // host twice over, and both are asserted here because each is a frame a
+        // proof could otherwise have passed on:
+        //
+        // - against `content-length: 1` the host completes and the old count
+        //   recorded `['underrun', 1]`;
+        // - against `content-length: 0` the host destroys the response and the old
+        //   count recorded the body as carried, with no failure at all.
+        //
+        // Both went the wrong way when the rounded-down count was put back, and
+        // neither moved any other proof in this group.
+        countsAChunkAsTheHostPadsIt: () => {
+            /** @type {(declared: string) => RecordedResponse} */
+            const answered = declared => answerOne(
+                () => pureOk({
+                    status: 200,
+                    headers: { 'content-length': declared },
+                    body: ofChunks([vec(1n)(1n)]),
+                    release: recordRelease,
+                }),
+                requested('GET'))[1]
+            // One bit is one byte on the wire, so a declared 1 is exact.
+            const exact = answered('1')
+            assertEq(exact.failure, null)
+            assertEq(exact.body.length, 1)
+            // And a declared nought is one byte too many.
+            const over = answered('0')
+            assertStructurallySame(over.failure, ['overrun', 0])
+            assertEq(over.body.length, 0)
+        },
+        // **A body is however many cells a listener wrote, and the count of them
+        // is not this runner's business.** The pump used to spend a stack frame a
+        // cell: 5,000 already-built pure cells threw `RangeError: Maximum call
+        // stack size exceeded` on Node 23.11.0 — before the response was recorded
+        // and before `release` ran — while the node runner, whose pump is a
+        // `while`, carried the same body and answered it.
+        //
+        // **40,000 rather than 5,000**, so the proof keeps its meaning as engines
+        // change their stack budget: the old pump died eight times below this.
+        // Each cell is one byte, so the declared length is the cell count and an
+        // off-by-one in the step would show as an overrun or an underrun rather
+        // than as a pass.
+        pullsADeepBodyWithoutRecursing: () => {
+            const cells = 40000
+            const [s, r] = answerOne(
+                () => pureOk({
+                    status: 200,
+                    headers: { 'content-length': `${cells}` },
+                    body: ofChunks(Array.from({ length: cells }, () => vec8(0x41n))),
+                    release: recordRelease,
+                }),
+                requested('GET'))
+            assertEq(r.failure, null)
+            assertEq(r.body.length, cells)
+            assertEq(bodyBytes(r), cells)
             assertEq(s.stdout, `${released}\n`)
         },
     },

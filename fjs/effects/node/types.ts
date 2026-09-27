@@ -584,10 +584,17 @@ export type _NoBody = readonly['noBody']
 
 /**
  * Gate 3 — the body that would go out cannot be framed: no `Content-Length` this
- * runner can read, on a request whose `chunkedResponse` is `false`. `500`, before
- * the headers. Such a response is delimited by the connection closing, so a
- * producer that fails mid-body hands the client a truncated body it reads as
- * whole — there is no terminator to withhold.
+ * runner can read, and no chunked framing to fall back on. `500`, before the
+ * headers. Such a response is delimited by the connection closing, so a producer
+ * that fails mid-body hands the client a truncated body it reads as whole — there
+ * is no terminator to withhold.
+ *
+ * **Two responses reach it, and the second is why the header is read twice.** One
+ * declares no length on a request whose `chunkedResponse` is `false`. The other
+ * declares a length that is *present and unreadable* — `content-length: '1 '` —
+ * on any request at all, because Node sends such a header as written and stops
+ * chunking once it is there. The fallback the first case lacks is the fallback the
+ * second case removes.
  *
  * @internal
  */

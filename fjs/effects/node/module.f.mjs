@@ -630,11 +630,25 @@ export const headerValue = (headers, name) => {
  * **A header it cannot read is no declaration**, for either the gate or the
  * count. A `Content-Length` that is not a non-negative decimal integer describes
  * nothing a client can check a body against, so treating it as a number would put
- * the runner's count against a value it invented. Gate 3 then refuses such a
- * response exactly where it refuses one that declares nothing — and on a request
- * Node *will* frame chunked, what Node does with the header is Node's, which is
- * the part this does not decide. Nothing in the tree produces one: `fjs/web`
- * writes the `fstat` size.
+ * the runner's count against a value it invented. Nothing in the tree produces
+ * one: `fjs/web` writes the `fstat` size.
+ *
+ * **Absent and unreadable are the same answer here and different ones at the
+ * gate**, which is why {@link responseGate} asks {@link headerValue} as well as
+ * this. What Node does with such a header is not "whatever it likes": the header
+ * goes out as written and its mere presence turns Node's own chunked framing off.
+ * Measured on Node 23.11.0, a listener answering `content-length: '1 '` and a
+ * two-byte body put
+ *
+ * ```
+ * HTTP/1.1 200 OK
+ * content-length: 1
+ * Connection: keep-alive
+ * ```
+ *
+ * on the wire — the padded value verbatim, no `Transfer-Encoding`, and the socket
+ * back in the pool. So the surplus byte is the next response's status line, which
+ * is the one outcome gate 3 exists to prevent.
  *
  * @type {(headers: Headers) => Nullable<number>}
  */
@@ -693,7 +707,14 @@ export const responseGate = (method, chunkedResponse, status, headers) => {
     // order answers `500` to a request this server can satisfy exactly.
     if (carriesNoBody(method, status)) { return noBody }
     const declared = declaredLength(headers)
-    if (declared === null && !chunkedResponse) { return unframed }
+    // `chunkedResponse` is an escape only where the response declares no length at
+    // all. A `Content-Length` that is *present* and unreadable takes Node's
+    // chunked framing away — see {@link declaredLength} for what the host put on
+    // the wire — so there is nothing left to frame the body by and gate 3 refuses
+    // it, on an HTTP/1.1 request exactly as on a 1.0 one.
+    if (declared === null && (headerValue(headers, 'content-length') !== null || !chunkedResponse)) {
+        return unframed
+    }
     return ['pump', declared]
 }
 

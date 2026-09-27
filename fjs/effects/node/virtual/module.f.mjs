@@ -19,7 +19,7 @@ import { assert, todo } from '../../../asserts/module.f.mjs'
 import { isProperPrefix, join, normalize, parse } from '../../../path/module.f.mjs'
 import { resolve as resolveImportPath } from '../../../path/import/module.f.mjs'
 import { utf8ToString } from '../../../text/module.f.mjs'
-import { byteLength, empty, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
+import { byteLength, bytesIn, empty, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok, unwrap } from '../../../types/result/module.f.mjs'
 import {
     badPortCode, badPortMessage, emptyHost, emptyHostError, ioError, isPort, nodeCommands, notAFileCode,
@@ -942,6 +942,36 @@ const createServer = listener => state => {
 }
 
 /**
+ * The bytes one response chunk puts on the wire, which is **not** its
+ * {@link byteLength}.
+ *
+ * `ServerResponse` admits any `Vec`, and a `Vec` is a count of *bits*. The node
+ * runner writes `fromVec(chunk)`, which pads a partial byte out to a whole one, so
+ * a one-bit chunk reaches the client as one byte. `byteLength` rounds the other way
+ * and calls it nought. Measured: a 1-bit `Vec` has `byteLength` `0n` and
+ * `fromVec(...).length` `1`; a 9-bit `Vec`, `1n` and `2`.
+ *
+ * Counting the rounded-down figure gave two contradictory answers for one response.
+ * Against `Content-Length: 1` and a one-bit body the host completed and this runner
+ * recorded an underrun; against `Content-Length: 0` this runner accepted a body the
+ * host destroys as an overrun. Either way a proof could pass on a frame the host
+ * does not produce.
+ *
+ * It is not `fromVec(chunk).length` because that would build the array to measure
+ * it. This is the same arithmetic — the whole bytes in the bits, rounded up.
+ *
+ * **The response side pads where the request side refuses**, and that asymmetry is
+ * the host's rather than this runner's. `readChunks` refuses a request chunk that
+ * is not whole bytes — `chunk at N is B bits, not whole bytes` — because it is
+ * `fjs`'s own reader and can. A response chunk goes through `fromVec` into
+ * `res.write`, which pads and says nothing, so there is no refusal to mirror and
+ * counting what the padding sends is the only answer that matches the host.
+ *
+ * @type {(v: Vec) => bigint}
+ */
+const sentBytes = v => bytesIn(length(v) + 7n)
+
+/**
  * Pulls a response body cell by cell, counting the bytes against `bound`, and
  * answers what went out together with what stopped it.
  *
@@ -957,27 +987,40 @@ const createServer = listener => state => {
  * from — so every cell is pulled at once here, and a proof about backpressure is a
  * host proof ([`../proof.mjs`](../proof.mjs)).
  *
+ * **It steps rather than recurses, because the node runner does.** A body is
+ * however many cells a listener writes, and each one cost this a stack frame while
+ * the node runner spent none: a valid body of 5,000 already-built pure cells threw
+ * `RangeError: Maximum call stack size exceeded` on Node 23.11.0, before the
+ * response was recorded and before `release` ran, where the host carried the same
+ * body and answered it. A runner that cannot model a body the host delivers cannot
+ * be proven against for it.
+ *
  * @type {(bound: Nullable<number>) => (state: State, e: List<NodeOp, Vec, IoChannel>, written: number, body: readonly Vec[]) => readonly [State, readonly Vec[], Nullable<IoChannel | Overrun | Underrun>]}
  */
-const pump = bound => {
-    /** @type {(state: State, e: List<NodeOp, Vec, IoChannel>, written: number, body: readonly Vec[]) => readonly [State, readonly Vec[], Nullable<IoChannel | Overrun | Underrun>]} */
-    const loop = (state, e, written, body) => {
-        const [next, cell] = virtual(state)(e)
+const pump = bound => (state, e, written, body) => {
+    let s = state
+    let cursor = e
+    let count = written
+    let chunks = body
+    while (true) {
+        const [next, cell] = virtual(s)(cursor)
+        s = next
         // The cell's own failure, which is the producer's and not the runner's.
-        if (cell[0] === 'error') { return [next, body, cell[1]] }
+        if (cell[0] === 'error') { return [s, chunks, cell[1]] }
         const node = cell[1]
         if (node === undefined) {
             // A body that ended before the length it declared is destroyed on a
             // host exactly as one that would run past it is — see `Underrun`.
-            return [next, body, bound !== null && written !== bound ? /** @type {Underrun} */ (['underrun', bound]) : null]
+            return [s, chunks, bound !== null && count !== bound ? /** @type {Underrun} */ (['underrun', bound]) : null]
         }
-        const got = Number(byteLength(node.first))
+        const got = Number(sentBytes(node.first))
         // None of the chunk is recorded: cutting it to fit would answer a body
         // exactly as long as it promised, which every client reads as whole.
-        if (bound !== null && written + got > bound) { return [next, body, /** @type {Overrun} */ (['overrun', bound])] }
-        return loop(next, node.tail, written + got, [...body, node.first])
+        if (bound !== null && count + got > bound) { return [s, chunks, /** @type {Overrun} */ (['overrun', bound])] }
+        count += got
+        chunks = [...chunks, node.first]
+        cursor = node.tail
     }
-    return loop
 }
 
 /**
