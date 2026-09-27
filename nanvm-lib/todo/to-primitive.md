@@ -184,7 +184,11 @@ ECMAScript's `LeftFirst` flag keeps the left operand first for all four
 operators: with `a` and `b` whose `toString`s throw `"a"` and `"b"`, each of
 `a < b`, `a > b`, `a <= b` and `a >= b` throws `"a"`. Stage 2 gives
 `is_less_than` that flag, with a test per operator. Until then no test can
-tell the orders apart, because every refusal is the same from either side.
+tell the orders apart: the only throw a conversion makes is
+`OWN_CONVERSION_METHOD`, one value whichever side makes it, and a function
+side does not throw while it converts. Its `FUNCTION_TEXT` refusal is decided
+after both sides are converted, so an object's refusal wins from either
+side.
 
 A method's result can itself be an object with its own methods. Step 6 does
 not convert it; it moves on. So the conversion cannot recurse through its
