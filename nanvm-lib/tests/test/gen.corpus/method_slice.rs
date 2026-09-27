@@ -19,6 +19,11 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("nested", Any::dot([[f64_any(0x3ff0000000000000)].to_array().to_any(), [f64_any(0x4000000000000000)].to_array().to_any()].to_array().to_any(), string_any("slice")).end_call(|| Ok([f64_any(0x3ff0000000000000)].to_array().to_any())), [[f64_any(0x4000000000000000)].to_array().to_any()].to_array().to_any());
     check_throws::<A>("bigintStart", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("slice")).end_call(|| Ok([bigint_any(0)].to_array().to_any())));
     check_throws::<A>("bigintEnd", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("slice")).end_call(|| Ok([f64_any(0x0000000000000000), bigint_any(1)].to_array().to_any())));
+    check::<A>("ownValueOfStart", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any(), string_any("slice")).end_call(|| {
+        let c0: Any<A> = A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default()).to_any();
+        let c1: Any<A> = [(string_key("valueOf"), c0)].to_object().to_any();
+        Ok([c1].to_array().to_any())
+    }), [f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any());
     check::<A>("stringStart", Any::dot(string_any("abcdef"), string_any("slice")).end_call(|| Ok([f64_any(0x4000000000000000)].to_array().to_any())), string_any("cdef"));
     check::<A>("stringFromTheEnd", Any::dot(string_any("abcdef"), string_any("slice")).end_call(|| Ok([f64_any(0xc008000000000000), f64_any(0xbff0000000000000)].to_array().to_any())), string_any("de"));
     check::<A>("stringEmptyRange", Any::dot(string_any("abc"), string_any("slice")).end_call(|| Ok([f64_any(0x4000000000000000), f64_any(0x3ff0000000000000)].to_array().to_any())), string_any(""));

@@ -12,7 +12,7 @@
  *   against `nanvm-lib`.
  *
  * Beside the data are the format's **constructors** (`functionValue`,
- * `callback`, `ref`, `throws`, `unreached`, written in
+ * `callback`, `returns`, `ref`, `throws`, `unreached`, written in
  * [`constructors/module.f.mjs`](./constructors/module.f.mjs) and re-exported
  * here), its **eliminators** (`isThrows`, `hasUnreached`,
  * `orders`, `groupKey`, `casesOf`, `arityOf`), and the **lowering** that
@@ -51,10 +51,10 @@
 
 import { op1Id, op3Id } from '../edag/module.f.mjs'
 import { validate } from '../rtti/validate/module.f.mjs'
-import { functionValue, ref, throws, unreached } from './constructors/module.f.mjs'
-import { groups as memberGroups, ownMethodRefused } from './member/module.f.mjs'
+import { functionValue, ref, returns, throws, unreached } from './constructors/module.f.mjs'
+import { groups as memberGroups } from './member/module.f.mjs'
 
-export { callback, functionValue, ref, throws, unreached } from './constructors/module.f.mjs'
+export { callback, functionValue, ref, returns, throws, unreached } from './constructors/module.f.mjs'
 
 const { entries } = Object
 
@@ -218,12 +218,20 @@ export const callbacks = {
 }
 
 /**
- * The expression a callback denotes: the function `(...a) => body`, no
- * captures, a fresh node on every call like {@link lambdaExp}.
+ * A function with a body: `(...a) => body`, no captures, a fresh node on
+ * every call like {@link lambdaExp}. What a `callback` and a `returns`
+ * both lower to; they differ only in the body.
+ *
+ * @type {(body: Exp) => Exp}
+ */
+export const functionExp = body => ['=>', 0, null, body]
+
+/**
+ * The expression a callback denotes: the {@link functionExp} of its body.
  *
  * @type {(name: CallbackName) => Exp}
  */
-export const callbackExp = name => ['=>', 0, null, callbacks[name]()]
+export const callbackExp = name => functionExp(callbacks[name]())
 
 /**
  * The expression an `unreached` denotes: `1n / 0n`, which throws when
@@ -252,9 +260,10 @@ export const unreachedExp = () => ['/', 1n, 0n]
  * fresh node, so a multiply-referenced node in a derived expression is always
  * a `ref` and never an accident of the walk.
  *
- * A {@link Value} admits four thunks, and this walk has a case for each: a
+ * A {@link Value} admits five thunks, and this walk has a case for each: a
  * `ref` resolves, a `functionValue` is {@link lambdaExp}, a `callback` is
- * {@link callbackExp}, and an `unreached` is {@link unreachedExp}. `throws` is an {@link Expectation}, not spellable
+ * {@link callbackExp}, a `returns` is the {@link functionExp} of its value,
+ * and an `unreached` is {@link unreachedExp}. `throws` is an {@link Expectation}, not spellable
  * here, so it is not rejected here either.
  *
  * @type {(resolve: (name: string) => Exp) => (v: Value) => Exp}
@@ -267,6 +276,7 @@ const constExp = resolve => {
             return info[0] === 'ref' ? resolve(info[1])
                 : info[0] === 'function' ? lambdaExp()
                 : info[0] === 'callback' ? callbackExp(info[1])
+                : info[0] === 'returns' ? functionExp(valueExp(info[1]))
                 : unreachedExp()
         }
         if (v === undefined) { return ['undefined'] }
@@ -422,9 +432,18 @@ const numberCoercionCases = negate => {
         { name: 'arrayNull', args: [[null]], expected: result(0) },
         { name: 'arrayPair', args: [[null, null]], expected: NaN },
         { name: 'objectEmpty', args: [{}], expected: NaN },
-        { name: 'objectOwnValueOf', args: [{ valueOf: functionValue }], expected: NaN, rust: ownMethodRefused },
-        // JavaScript skips a `valueOf` that is no function, and so does NaNVM.
+        // `OrdinaryToPrimitive` with the `number` hint: `valueOf` first,
+        // then `toString`, each an own method if the object has one.
+        { name: 'objectOwnValueOf', args: [{ valueOf: functionValue }], expected: NaN },
+        { name: 'objectOwnValueOfNumber', args: [{ valueOf: returns(2.3) }], expected: result(2.3) },
+        { name: 'objectOwnToString', args: [{ toString: returns('2.3') }], expected: result(2.3) },
+        { name: 'objectOwnBoth', args: [{ valueOf: returns(1), toString: returns('2') }], expected: result(1) },
+        // A method that is no function is skipped.
         { name: 'objectOwnValueOfNotAFunction', args: [{ valueOf: 'x' }], expected: NaN },
+        // A result that is no primitive moves on to the next method.
+        { name: 'objectOwnValueOfNotPrimitive', args: [{ valueOf: returns({}), toString: returns('2') }], expected: result(2) },
+        { name: 'objectOwnNoPrimitive', args: [{ toString: returns([]) }], expected: throws },
+        { name: 'objectOwnValueOfThrows', args: [{ valueOf: returns(unreached), toString: returns('2') }], expected: throws },
         { name: 'function', args: [functionValue], expected: NaN },
     ]
 }
@@ -715,6 +734,10 @@ const addCases = [
     { name: 'onePlusStringTwo', args: [1, '2'], expected: '12' },
     { name: 'bigOnePlusBigOne', args: [1n, 1n], expected: 2n },
     { name: 'bigOnePlusStringTwo', args: [1n, '2'], expected: '12' },
+    // No hint: an object's own `valueOf` first, as for `number`.
+    { name: 'ownValueOfPlusOne', args: [{ valueOf: returns(1) }, 1], expected: 2 },
+    { name: 'ownBothPlusString', args: [{ valueOf: returns(1), toString: returns('t') }, '!'], expected: '1!' },
+    { name: 'stringPlusOwnToString', args: ['a', { toString: returns('b') }], expected: 'ab' },
     { name: 'stringOnePlusBigTwo', args: ['1', 2n], expected: '12' },
     { name: 'emptyArrayPlusOne', args: [[], 1], expected: '1' },
     { name: 'arrayOnePlusTwo', args: [[1], 2], expected: '12' },
@@ -1117,18 +1140,23 @@ const stringCoercionCases = [
     { name: 'array', args: [[1, 2, 3]], expected: '1,2,3' },
     { name: 'nestedArray', args: [[1, [2, 3], 4]], expected: '1,2,3,4' },
     { name: 'arrayWithNullish', args: [[null, undefined, 1]], expected: ',,1' },
+    { name: 'arrayWithOwnToString', args: [[{ toString: returns('x') }, 1]], expected: 'x,1' },
     { name: 'emptyObject', args: [{}], expected: '[object Object]' },
     { name: 'object', args: [{ a: 1 }], expected: '[object Object]' },
-    { name: 'objectOwnToString', args: [{ toString: functionValue }], expected: 'undefined', rust: ownMethodRefused },
-    // A `toString` that is no function is skipped, and the stock `valueOf`
-    // answers the object, so JavaScript throws too.
+    // `OrdinaryToPrimitive` with the `string` hint: `toString` first, then
+    // `valueOf`, each an own method if the object has one.
+    { name: 'objectOwnToString', args: [{ toString: functionValue }], expected: 'undefined' },
+    { name: 'objectOwnToStringMethod', args: [{ toString: returns('custom string') }], expected: 'custom string' },
+    { name: 'objectOwnValueOf', args: [{ valueOf: returns(1) }], expected: '[object Object]' },
+    { name: 'objectOwnBoth', args: [{ valueOf: returns(1), toString: returns('t') }], expected: 't' },
+    // A method that is no function is skipped: after `toString`, the stock
+    // `valueOf` answers the object, so the conversion throws.
     { name: 'objectOwnToStringNotAFunction', args: [{ toString: 'h' }], expected: throws },
-    // A `valueOf` that is no function is skipped, and the stock `toString`
-    // answers.
     { name: 'objectOwnValueOfNotAFunction', args: [{ valueOf: 'x' }], expected: '[object Object]' },
-    // The `string` hint tries `toString` first, and the stock one answers
-    // before a function `valueOf` is reached.
-    { name: 'objectOwnValueOf', args: [{ valueOf: functionValue }], expected: '[object Object]' },
+    // A result that is no primitive moves on to the next method.
+    { name: 'objectOwnToStringNotPrimitive', args: [{ toString: returns({}), valueOf: returns(1) }], expected: '1' },
+    { name: 'objectOwnNoPrimitive', args: [{ toString: returns([]) }], expected: throws },
+    { name: 'objectOwnToStringThrows', args: [{ toString: returns(unreached) }], expected: throws },
 ]
 
 /**

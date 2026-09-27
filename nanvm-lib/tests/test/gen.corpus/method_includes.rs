@@ -20,6 +20,16 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("fromInfinity", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("includes")).end_call(|| Ok([f64_any(0x3ff0000000000000), f64_any(0x7ff0000000000000)].to_array().to_any())), false.to_any());
     check::<A>("fromString", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("includes")).end_call(|| Ok([f64_any(0x3ff0000000000000), string_any("1")].to_array().to_any())), false.to_any());
     check::<A>("emptyBigintFrom", Any::dot(Array::default().to_any(), string_any("includes")).end_call(|| Ok([f64_any(0x3ff0000000000000), bigint_any(1)].to_array().to_any())), false.to_any());
+    check::<A>("emptyOwnValueOfFrom", Any::dot(Array::default().to_any(), string_any("includes")).end_call(|| {
+        let c0: Any<A> = A::static_function(|_self, _args| { bigint_any(1) / bigint_any(0) }, 0, Array::default()).to_any();
+        let c1: Any<A> = [(string_key("valueOf"), c0)].to_object().to_any();
+        Ok([f64_any(0x3ff0000000000000), c1].to_array().to_any())
+    }), false.to_any());
+    check::<A>("ownValueOfFrom", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("includes")).end_call(|| {
+        let c0: Any<A> = A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default()).to_any();
+        let c1: Any<A> = [(string_key("valueOf"), c0)].to_object().to_any();
+        Ok([f64_any(0x3ff0000000000000), c1].to_array().to_any())
+    }), false.to_any());
     check_throws::<A>("bigintFrom", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("includes")).end_call(|| Ok([f64_any(0x3ff0000000000000), bigint_any(1)].to_array().to_any())));
     check_throws::<A>("object", Any::dot(Object::default().to_any(), string_any("includes")).end_call(|| Ok([f64_any(0x3ff0000000000000)].to_array().to_any())));
     check::<A>("stringFound", Any::dot(string_any("abc"), string_any("includes")).end_call(|| Ok([string_any("bc")].to_array().to_any())), true.to_any());
@@ -30,10 +40,15 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("stringNoArgument", Any::dot(string_any("undefined"), string_any("includes")).end_call(|| Ok(Array::default().to_any())), true.to_any());
     check::<A>("stringNumber", Any::dot(string_any("a1b"), string_any("includes")).end_call(|| Ok([f64_any(0x3ff0000000000000)].to_array().to_any())), true.to_any());
     check::<A>("stringObject", Any::dot(string_any("[object Object]"), string_any("includes")).end_call(|| Ok([Object::default().to_any()].to_array().to_any())), true.to_any());
-    // TODO: an own toString or valueOf is refused until Stage 2 of to-primitive.md: check::<A>("stringOwnToString", Any::dot(string_any("xundefinedx"), string_any("includes")).end_call(|| {
-    //     let c0: Any<A> = [(string_key("toString"), function_any())].to_object().to_any();
-    //     Ok([c0].to_array().to_any())
-    // }), true.to_any());
+    check::<A>("stringOwnToString", Any::dot(string_any("xundefinedx"), string_any("includes")).end_call(|| {
+        let c0: Any<A> = [(string_key("toString"), function_any())].to_object().to_any();
+        Ok([c0].to_array().to_any())
+    }), true.to_any());
+    check::<A>("stringOwnToStringNeedle", Any::dot(string_any("xbx"), string_any("includes")).end_call(|| {
+        let c0: Any<A> = A::static_function(|_self, _args| { Ok(string_any("b")) }, 0, Array::default()).to_any();
+        let c1: Any<A> = [(string_key("toString"), c0)].to_object().to_any();
+        Ok([c1].to_array().to_any())
+    }), true.to_any());
     check_throws::<A>("stringToStringNotAFunction", Any::dot(string_any("a"), string_any("includes")).end_call(|| {
         let c0: Any<A> = [(string_key("toString"), string_any("h"))].to_object().to_any();
         Ok([c0].to_array().to_any())
