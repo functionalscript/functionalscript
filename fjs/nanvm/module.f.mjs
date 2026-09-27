@@ -423,8 +423,8 @@ const numberCoercionCases = negate => {
         { name: 'arrayPair', args: [[null, null]], expected: NaN },
         { name: 'objectEmpty', args: [{}], expected: NaN },
         { name: 'objectOwnValueOf', args: [{ valueOf: functionValue }], expected: NaN, rust: ownMethodRefused },
-        // JavaScript skips a `valueOf` that is no function; NaNVM refuses it.
-        { name: 'objectOwnValueOfNotAFunction', args: [{ valueOf: 'x' }], expected: NaN, rust: ownMethodRefused },
+        // JavaScript skips a `valueOf` that is no function, and so does NaNVM.
+        { name: 'objectOwnValueOfNotAFunction', args: [{ valueOf: 'x' }], expected: NaN },
         { name: 'function', args: [functionValue], expected: NaN },
     ]
 }
@@ -1123,6 +1123,9 @@ const stringCoercionCases = [
     // A `toString` that is no function is skipped, and the stock `valueOf`
     // answers the object, so JavaScript throws too.
     { name: 'objectOwnToStringNotAFunction', args: [{ toString: 'h' }], expected: throws },
+    // A `valueOf` that is no function is skipped, and the stock `toString`
+    // answers.
+    { name: 'objectOwnValueOfNotAFunction', args: [{ valueOf: 'x' }], expected: '[object Object]' },
 ]
 
 /**

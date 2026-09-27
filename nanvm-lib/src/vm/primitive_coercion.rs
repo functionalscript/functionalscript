@@ -1,5 +1,5 @@
 use crate::vm::{
-    Any, Array, BigInt, Function, IVm, Number, Object, String, dispatch::Dispatch,
+    Any, Array, BigInt, Function, IVm, Number, Object, String, Unpacked, dispatch::Dispatch,
     nullish::Nullish, primitive::Primitive,
 };
 
@@ -8,7 +8,8 @@ use std::result::Result;
 const CANNOT_CONVERT_TO_PRIMITIVE_VALUE: &str = "TypeError: Cannot convert to primitive value";
 
 /// JavaScript calls an object's own `toString` or `valueOf`, which is not
-/// implemented yet (Stage 2 of `nanvm-lib/todo/to-primitive.md`).
+/// implemented yet (Stage 2 of `nanvm-lib/todo/to-primitive.md`): an own
+/// `toString`, or an own `valueOf` that is a function, is refused.
 pub const OWN_CONVERSION_METHOD: &str =
     "TypeError: Cannot convert an object with its own toString or valueOf";
 
@@ -53,11 +54,13 @@ fn obj_to_primitive<A: IVm>(
     o: Object<A>,
     preferred_type: ToPrimitivePreferredType,
 ) -> Result<Primitive<A>, Any<A>> {
-    // Refused, not answered with the stock methods' result: an own method
-    // shadows the stock one.
-    if ["toString", "valueOf"]
-        .into_iter()
-        .any(|k| o.own_property(&k.into()).is_some())
+    // Refused, not answered with the stock methods' result: an own
+    // `toString` shadows the stock one, and one that is no function makes
+    // JavaScript throw. An own `valueOf` shadows only when it is a function:
+    // otherwise JavaScript skips it, as the stock order below already does.
+    let own_value_of = o.own_property(&"valueOf".into());
+    if o.own_property(&"toString".into()).is_some()
+        || own_value_of.is_some_and(|v| matches!(Unpacked::from(v), Unpacked::Function(_)))
     {
         return Err(OWN_CONVERSION_METHOD.into());
     }
@@ -180,21 +183,39 @@ mod tests {
         r.unwrap().is_nan()
     }
 
-    /// An own `toString` or `valueOf`, whatever it holds, for every hint and
-    /// every caller.
+    /// An own `toString`, whatever it holds, and an own `valueOf` that is a
+    /// function, for every hint and every caller.
     #[test]
     fn object_with_an_own_method_is_refused() {
-        for key in ["toString", "valueOf"] {
-            for value in [function(), "h".into(), 1.0.to_any()] {
-                let o = || with_own(key, value.clone());
-                refused(o().to_string(), OWN_CONVERSION_METHOD);
-                refused(o().to_number(), OWN_CONVERSION_METHOD);
-                refused(o().to_numeric().map(|_| ()), OWN_CONVERSION_METHOD);
-                refused(o() + 1.0.to_any(), OWN_CONVERSION_METHOD);
-                refused(s("a") + o(), OWN_CONVERSION_METHOD);
-                refused(o().lt(1.0.to_any()), OWN_CONVERSION_METHOD);
-                refused(1.0.to_any().lt(o()), OWN_CONVERSION_METHOD);
-            }
+        let owns = [
+            ("toString", function()),
+            ("toString", s("h")),
+            ("toString", 1.0.to_any()),
+            ("valueOf", function()),
+        ];
+        for (key, value) in owns {
+            let o = || with_own(key, value.clone());
+            refused(o().to_string(), OWN_CONVERSION_METHOD);
+            refused(o().to_number(), OWN_CONVERSION_METHOD);
+            refused(o().to_numeric().map(|_| ()), OWN_CONVERSION_METHOD);
+            refused(o() + 1.0.to_any(), OWN_CONVERSION_METHOD);
+            refused(s("a") + o(), OWN_CONVERSION_METHOD);
+            refused(o().lt(1.0.to_any()), OWN_CONVERSION_METHOD);
+            refused(1.0.to_any().lt(o()), OWN_CONVERSION_METHOD);
+        }
+    }
+
+    /// An own `valueOf` that is no function is skipped, by JavaScript and by
+    /// the stock order alike, so it converts as a plain object does:
+    /// `String({ valueOf: "x" })` is `"[object Object]"` and
+    /// `+{ valueOf: "x" }` is `NaN`.
+    #[test]
+    fn own_value_of_that_is_no_function_is_skipped() {
+        for value in [s("x"), 1.0.to_any()] {
+            let o = || with_own("valueOf", value.clone());
+            assert_eq!(o().to_string(), Ok("[object Object]".into()));
+            assert!(is_nan(o().to_number()));
+            assert_eq!(o() + s("!"), Ok(s("[object Object]!")));
         }
     }
 
