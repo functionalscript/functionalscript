@@ -8,18 +8,24 @@
 Every conversion the VM makes, `ToString`, `ToNumber`, `ToNumeric` and the
 `+` and relational operators, goes through one function,
 `PrimitiveCoercionOp` in `vm/primitive_coercion.rs`
-(`Any::to_primitive`). For an object or a function it answers without
-looking at what JavaScript looks at:
+(`Any::to_primitive`). Before Stage 1 it answered an object or a function
+without looking at what JavaScript looks at. Stage 1 made each of these a
+`TypeError`, and Stages 2 and 3 answer them:
 
-| input | JavaScript | NaNVM today |
-|---|---|---|
-| `String({ toString: () => "b" })` | `"b"` | `"[object Object]"` |
-| `+{ valueOf: () => 1 }` | `1` | `NaN` |
-| `[0, 1].slice({ valueOf: () => 1 })` | `[1]` | `[0, 1]` |
-| `String(() => 1)` | `"() => 1"` | `"function"` |
-| `(() => 1) + "!"` | `"() => 1!"` | `"function!"` |
+| input | JavaScript | NaNVM before Stage 1 | since Stage 1 |
+|---|---|---|---|
+| `String({ toString: () => "b" })` | `"b"` | `"[object Object]"` | `TypeError` |
+| `+{ valueOf: () => 1 }` | `1` | `NaN` | `TypeError` |
+| `[0, 1].slice({ valueOf: () => 1 })` | `[1]` | `[0, 1]` | `TypeError` |
+| `String(() => 1)` | `"() => 1"` | `"function"` | `TypeError` |
+| `(() => 1) + "!"` | `"() => 1!"` | `"function!"` | `TypeError` |
 
-These are plausible wrong values, which
+Stage 1 also made one exception to the single entry: a function's
+`ToNumber` is `NaN` for any text, so `NumberCoercion`, `Any::to_numeric` and
+the relational operators answer it without asking `PrimitiveCoercionOp` for
+a text it cannot give.
+
+Those were plausible wrong values, which
 [DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
 forbids. The gap predates the `Array` and `String` member functions. Those
 functions made it reachable from many more calls: `join`'s separator and
@@ -41,7 +47,7 @@ order the hint sets. That part is already right:
 | `Object.prototype.toString` answers `"[object Object]"` | ✔ | ✔ `obj_to_string` |
 | `Array.prototype.toString` is `join(",")` | ✔ | ✔ `arr_to_string`, through `Array::join` |
 | the `number` hint tries `valueOf` first, `string` tries `toString` first, no hint means `number` | ✔ | ✔ `obj_to_primitive` |
-| `Function.prototype.toString` answers the function's text | ✔ | ❌ the placeholder `"function"` |
+| `Function.prototype.toString` answers the function's text | ✔ | ❌ refused since Stage 1 (it was the placeholder `"function"`); the text is Stage 3 |
 
 A plain object, `{ a: 1 }`, converts exactly as in JavaScript, and so does
 an array whose elements do: an array converts through `join`, so an element
@@ -57,7 +63,7 @@ An array owns only its elements and `length`, and a function owns only its
 `length` (`vm/lambda/member.rs`). A value is never mutated, so neither can
 gain one later. An own property shadows the built-in, as it already does for
 an explicit call: `{ toString: f }.toString()` calls `f` today (`Member`).
-Only the implicit conversion is wrong.
+Only the implicit conversion is missing, and Stage 1 refuses it.
 
 A function's text is a different problem: it is the stock method itself that
 is missing. Its contract is already decided, the EDAG default rendering in
@@ -76,7 +82,7 @@ the text: `ToNumber`, `ToNumeric` and the relational operators, below.
 **An object with an own `toString`, or an own `valueOf` that is a function,
 is refused.** The refusal is a `TypeError` that names the cause, whatever the
 hint and whichever caller asked. A plain object is unchanged. The rule is
-exactly the inputs the VM answers wrongly today, and no others:
+exactly the inputs the VM answered wrongly before it, and no others:
 
 - An own `toString` or `valueOf` that is a function is called by JavaScript.
   Stage 1 cannot call it yet, so it refuses rather than answer
@@ -126,8 +132,8 @@ answers and the VM refuses, the case also joins the shared corpus with a
 `rust` reason naming this stage. The host still pins JavaScript's value, and
 Stage 2 turns the case on by deleting the reason.
 
-Stage 1 also makes a check possible that no test can make today: conversion
-can now throw, so `toSorted`'s guard (`vm/array/to_sorted.rs`, which leaves
+Stage 1 also made a check possible that no test could make before: conversion
+can throw, so `toSorted`'s guard (`vm/array/to_sorted.rs`, which leaves
 fewer than two defined elements unconverted) becomes observable.
 `[x, undefined].toSorted()` answers, and `[x, x].toSorted()` throws, where
 `x` owns a `toString`. The guard's test lands with Stage 1, and so do the
