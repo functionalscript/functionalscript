@@ -57,8 +57,10 @@ EDAG has no leaf for, is a type error rather than a value returned
 under a cast or refused by a throw the signature does not mention.
 `fjs/nanvm/types.ts`'s `Const` is this shape with its thunk union as
 `F`, so `constExp(resolve)` is `fromValue` with its thunk hook as
-`other` and `Value` becomes `Plain<Ref | FunctionValue | Callback |
-Unreached>`. `jsonEdag` today has no function arm at all,
+`other` and `Value` becomes `Plain<F>` over every thunk arm `Value`
+lists today — `Ref`, `FunctionValue`, `Callback`, `Returns` and
+`Unreached` — so that a corpus value built with `returns(…)` stays
+assignable, as its proofs require. `jsonEdag` today has no function arm at all,
 since a JSON document holds none, so its `other` refuses one: a
 callback that throws, the way `valueExp`'s resolver throws on a name it
 has no value for, with the linker's proof pinning the throw so the

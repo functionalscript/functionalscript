@@ -46,9 +46,13 @@ answers `readonly unknown[]` and `spanOf` and `entryOf` take `unknown`
 — so an `Ast<…>` parameter of any width would need a cast at every one
 of its call sites, which is what the move is meant to remove. A type
 that no caller can satisfy is not a contract; the assertion at every
-leaf is, and it moves here with the function, so a mapped leaf, or
-anything that is not a tuple of `utf16` leaves and variant tags, is
-refused rather than answered with text it does not have. Typing the
+leaf is, and it moves here with the function, so a mapped leaf, or anything that is not a tuple of `utf16` leaves
+and variant tags, is refused rather than answered with text it does
+not have. A string is a variant tag only in a variant's position — the
+first element of a tuple, as `Ast` shapes a variant — and the walk
+admits it there alone; a bare string at the root, or one anywhere else
+in a tuple, is refused, where the JSON parser's `unitsUnder` today
+answers no units for any string it meets. Typing the
 markdown tree is a separate improvement and not this issue's.
 
 The assertion tells a leaf by its `meta.id`, so it holds only where no
