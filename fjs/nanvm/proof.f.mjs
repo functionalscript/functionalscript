@@ -405,6 +405,7 @@ const callbacksProof = () => {
     assertStructurallySame(call('pair', [1]), [1, [1]])
     assertEq(call('ascending', [1, 3]), -2)
     assertEq(call('descending', [1, 3]), 2)
+    assertEq(call('zero', [1, 3]), 0)
     assertStructurallySame(valueExp(callback('double')), callbackExp('double'))
     assertStructurallySame(valueExp([callback('args')]), ['[]', [['=>', 0, null, ['rest']]]])
     assertEq(typeof value(corpus())(callback('args')), 'function')

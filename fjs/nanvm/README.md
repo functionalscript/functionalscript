@@ -27,6 +27,8 @@ module.f.mjs ──> an EDAG exp ─┤     (amnesia)
 |---|---|
 | [`types.ts`](types.ts) | The shape of the data: `Value`, `Case<N>`, `Group`, `Data`. |
 | [`module.f.mjs`](module.f.mjs) | **The single source of truth** — every operator case as data, plus the format's constructors, eliminators, and lowering. |
+| [`member/module.f.mjs`](member/module.f.mjs) | The member-function cases, one group per method, which `data` appends to the operator groups. A module of its own so that no one file outgrows the repository's 128 KiB file reader. |
+| [`constructors/module.f.mjs`](constructors/module.f.mjs) | The format's constructors, re-exported by `module.f.mjs`; apart so that `member/` can use them without an import cycle. |
 | [`proof.f.mjs`](proof.f.mjs) | Evaluates each case's expression on a JavaScript engine. |
 | [`rust/module.f.mjs`](rust/module.f.mjs) | Prints each case's expression as Rust, against the `nanvm-lib` API. |
 | [`methods/module.f.mjs`](methods/module.f.mjs) | The member functions `nanvm-lib` does not answer yet, and the completeness table printed from them and [`fjs/js/prototype`](../js/prototype/module.f.mjs). |
@@ -138,7 +140,8 @@ outcome and not the program, so it is never part of the case's expression.
 
 ## The loop
 
-1. Add the case to `data` in [`module.f.mjs`](module.f.mjs).
+1. Add the case to `data` in [`module.f.mjs`](module.f.mjs), or, for a
+   member function, to its group in [`member/module.f.mjs`](member/module.f.mjs).
 2. `npm test` — the JavaScript proof now covers it, which is what makes the
    expectation authoritative: it is JavaScript's answer, not a guess.
 3. `npm run gen` to regenerate, then `cargo test`.
