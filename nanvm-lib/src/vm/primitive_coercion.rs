@@ -7,13 +7,6 @@ use std::result::Result;
 
 const CANNOT_CONVERT_TO_PRIMITIVE_VALUE: &str = "TypeError: Cannot convert to primitive value";
 
-/// JavaScript calls an object's own `toString` or `valueOf`, which is not
-/// implemented yet (Stage 2 of `nanvm-lib/todo/to-primitive.md`): an own
-/// `toString` is refused, and so is an own `valueOf` that is a function,
-/// wherever the hint reaches it.
-pub const OWN_CONVERSION_METHOD: &str =
-    "TypeError: Cannot convert an object with its own toString or valueOf";
-
 /// A function converts to its text, which is not implemented yet (Stage 3
 /// of `nanvm-lib/todo/to-primitive.md`). Only a result that does not depend
 /// on the text is answered: see `NumberCoercion` and `is_less_than`.
@@ -30,63 +23,81 @@ pub enum ToPrimitivePreferredType {
     String,
 }
 
-fn value_of<A: IVm, T>(_: T, /* Object<A> | Array<A> */) -> Option<Result<Primitive<A>, Any<A>>> {
+fn value_of<A: IVm>(_: Array<A>) -> Option<Result<Primitive<A>, Any<A>>> {
     // https://tc39.es/ecma262/#sec-object.prototype.valueof
-    // The stock method answers the object itself, which is not a primitive. An own "valueOf" is
-    // refused before this (`OWN_CONVERSION_METHOD`).
+    // The stock method answers the array itself, which is not a primitive.
     None
-}
-
-fn obj_to_string<A: IVm>(_o: Object<A>) -> Option<Result<Primitive<A>, Any<A>>> {
-    // https://tc39.es/ecma262/#sec-object.prototype.tostring
-    // The stock method. An own "toString" is refused before this (`OWN_CONVERSION_METHOD`).
-    Some(Ok(Primitive::String("[object Object]".into())))
 }
 
 fn arr_to_string<A: IVm>(a: Array<A>) -> Option<Result<Primitive<A>, Any<A>>> {
     // https://tc39.es/ecma262/#sec-array.prototype.tostring
-    // TODO: implement a call to user-defined "toString" method, and, while implementing the default
-    // behavior, implement a call to user-defined "join" methods. Until then this is the built-in
-    // `join` with its default separator, which is what `Array.prototype.toString` calls.
+    // https://tc39.es/ecma262/#sec-array.prototype.join
+    // The stock method: an array owns only its elements and `length`, never a "toString" or a
+    // "join", so this is the built-in `join` with its default separator.
     Some(a.join(",".into()).map(Primitive::String))
 }
 
+/// A method `OrdinaryToPrimitive` tries: its name, and what the stock
+/// method answers when the object does not own one — `None` for
+/// <https://tc39.es/ecma262/#sec-object.prototype.valueof>, which answers
+/// the object itself, not a primitive, and `"[object Object]"` for
+/// <https://tc39.es/ecma262/#sec-object.prototype.tostring>.
+type ConversionMethod = (&'static str, Option<&'static str>);
+
+const VALUE_OF: ConversionMethod = ("valueOf", None);
+
+const TO_STRING: ConversionMethod = ("toString", Some("[object Object]"));
+
+/// <https://tc39.es/ecma262/#sec-ordinarytoprimitive>: the hint picks the
+/// order of the two methods, and the first to answer a primitive is the
+/// result.
 fn obj_to_primitive<A: IVm>(
     o: Object<A>,
     preferred_type: ToPrimitivePreferredType,
 ) -> Result<Primitive<A>, Any<A>> {
-    // Refused, not answered with the stock methods' result: an own
-    // `toString` shadows the stock one, and one that is no function makes
-    // JavaScript throw. An own `valueOf` shadows only when it is a function,
-    // and only for the `number` hint: the `string` hint tries `toString`
-    // first, and the stock one answers before `valueOf` is reached.
-    let own_to_string = o.own_property(&"toString".into()).is_some();
-    let own_value_of = || {
-        o.own_property(&"valueOf".into())
-            .is_some_and(|v| matches!(Unpacked::from(v), Unpacked::Function(_)))
+    let order = match preferred_type {
+        ToPrimitivePreferredType::Number => [VALUE_OF, TO_STRING],
+        ToPrimitivePreferredType::String => [TO_STRING, VALUE_OF],
     };
-    let refused = match preferred_type {
-        ToPrimitivePreferredType::Number => own_to_string || own_value_of(),
-        ToPrimitivePreferredType::String => own_to_string,
-    };
-    if refused {
-        return Err(OWN_CONVERSION_METHOD.into());
+    for method in order {
+        if let Some(p) = obj_method(&o, method)? {
+            return Ok(p);
+        }
     }
-    match preferred_type {
-        ToPrimitivePreferredType::Number => match value_of(o.clone()) {
-            Some(res) => res,
-            None => match obj_to_string(o) {
-                Some(res) => res,
-                None => Err(CANNOT_CONVERT_TO_PRIMITIVE_VALUE.into()),
-            },
+    Err(CANNOT_CONVERT_TO_PRIMITIVE_VALUE.into())
+}
+
+/// One method of `OrdinaryToPrimitive`: its primitive result, or `None` to
+/// move on to the next method.
+///
+/// An own property shadows the stock method, as it does for an explicit
+/// call (`Member`). One that is no function is skipped. A function is
+/// called with no arguments and without a receiver, as `Member`'s call is:
+/// no FunctionalScript function reads `this`. Its throw propagates, and a
+/// result that is not a primitive moves on, unconverted, so the conversion
+/// never recurses through a result.
+fn obj_method<A: IVm>(
+    o: &Object<A>,
+    (name, stock): ConversionMethod,
+) -> Result<Option<Primitive<A>>, Any<A>> {
+    match o.own_property(&name.into()) {
+        Some(m) => match Function::try_from(m) {
+            Ok(f) => f.call(Array::default()).map(to_primitive_value),
+            Err(_) => Ok(None),
         },
-        ToPrimitivePreferredType::String => match obj_to_string(o.clone()) {
-            Some(res) => res,
-            None => match value_of(o) {
-                Some(res) => res,
-                None => Err(CANNOT_CONVERT_TO_PRIMITIVE_VALUE.into()),
-            },
-        },
+        None => Ok(stock.map(|s| Primitive::String(s.into()))),
+    }
+}
+
+/// The value as a primitive, or `None` for an object, an array or a function.
+fn to_primitive_value<A: IVm>(v: Any<A>) -> Option<Primitive<A>> {
+    match v.into() {
+        Unpacked::Nullish(n) => Some(Primitive::Nullish(n)),
+        Unpacked::Boolean(b) => Some(Primitive::Boolean(b)),
+        Unpacked::Number(n) => Some(Primitive::Number(n)),
+        Unpacked::String(s) => Some(Primitive::String(s)),
+        Unpacked::BigInt(i) => Some(Primitive::BigInt(i)),
+        Unpacked::Object(_) | Unpacked::Array(_) | Unpacked::Function(_) => None,
     }
 }
 
@@ -158,12 +169,13 @@ impl<A: IVm> Dispatch<A> for PrimitiveCoercionOp {
     }
 }
 
-/// One test per row of Stage 1 in `nanvm-lib/todo/to-primitive.md`: what is
-/// refused throws, and what does not depend on a function's text keeps its
-/// value.
+/// Stage 1 of `nanvm-lib/todo/to-primitive.md`, one test per row: a
+/// function's text is refused, and what does not depend on it keeps its
+/// value. Stage 2, `OrdinaryToPrimitive` calling an object's own methods,
+/// step by step.
 #[cfg(test)]
 mod tests {
-    use super::{FUNCTION_TEXT, OWN_CONVERSION_METHOD};
+    use super::{CANNOT_CONVERT_TO_PRIMITIVE_VALUE, FUNCTION_TEXT};
     use crate::{
         naive::Naive,
         vm::{Any, BigInt, IStaticFunction, Number, ToAny, ToArray, ToObject},
@@ -179,8 +191,28 @@ mod tests {
         A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array()).to_any()
     }
 
-    fn with_own(key: &str, value: Any<A>) -> Any<A> {
-        [(key.into(), value)].to_object().to_any()
+    /// `() => v`, answering its frame's one item.
+    fn returns(v: Any<A>) -> Any<A> {
+        A::static_function(|self_, _| Ok(A::frame(self_)[0].clone()), 0, [v].to_array()).to_any()
+    }
+
+    /// `() => { throw v }`, throwing its frame's one item.
+    fn throws(v: &str) -> Any<A> {
+        A::static_function(
+            |self_, _| Err(A::frame(self_)[0].clone()),
+            0,
+            [s(v)].to_array(),
+        )
+        .to_any()
+    }
+
+    fn with(props: &[(&str, Any<A>)]) -> Any<A> {
+        props
+            .iter()
+            .map(|(k, v)| ((*k).into(), v.clone()))
+            .collect::<Vec<_>>()
+            .to_object()
+            .to_any()
     }
 
     fn refused<T: core::fmt::Debug + PartialEq>(r: Result<T, Any<A>>, message: &str) {
@@ -191,58 +223,123 @@ mod tests {
         r.unwrap().is_nan()
     }
 
-    /// An own `toString`, whatever it holds, and an own `valueOf` that is a
-    /// function, for every hint and every caller.
+    /// An own method shadows the stock one, for every caller.
     #[test]
-    fn object_with_an_own_method_is_refused() {
-        let owns = [
-            ("toString", function()),
-            ("toString", s("h")),
-            ("toString", 1.0.to_any()),
-            ("valueOf", function()),
-        ];
-        for (key, value) in owns {
-            let o = || with_own(key, value.clone());
-            if key == "toString" {
-                refused(o().to_string(), OWN_CONVERSION_METHOD);
-            }
-            refused(o().to_number(), OWN_CONVERSION_METHOD);
-            refused(o().to_numeric().map(|_| ()), OWN_CONVERSION_METHOD);
-            refused(o() + 1.0.to_any(), OWN_CONVERSION_METHOD);
-            refused(s("a") + o(), OWN_CONVERSION_METHOD);
-            refused(o().lt(1.0.to_any()), OWN_CONVERSION_METHOD);
-            refused(1.0.to_any().lt(o()), OWN_CONVERSION_METHOD);
-        }
+    fn own_method_is_called() {
+        let o = || with(&[("toString", returns(s("b")))]);
+        assert_eq!(o().to_string(), Ok("b".into()));
+        assert_eq!(s("a") + o(), Ok(s("ab")));
+        let o = || with(&[("valueOf", returns(1.0.to_any()))]);
+        assert_eq!(o().to_number(), Ok(Number::from(1.0)));
+        assert_eq!(o() + 1.0.to_any(), Ok(2.0.to_any()));
+        assert_eq!(o().lt(2.0.to_any()), Ok(true.to_any()));
+        let big = with(&[("valueOf", returns(BigInt::<A>::from(5i64).to_any()))]);
+        assert_eq!(-big, Ok(BigInt::<A>::from(-5i64).to_any()));
     }
 
-    /// An own `valueOf` that is no function is skipped, by JavaScript and by
-    /// the stock order alike, so it converts as a plain object does:
-    /// `String({ valueOf: "x" })` is `"[object Object]"` and
-    /// `+{ valueOf: "x" }` is `NaN`.
+    /// `valueOf` first for the `number` hint and for none, `toString` first
+    /// for `string`.
     #[test]
-    fn own_value_of_that_is_no_function_is_skipped() {
+    fn hint_picks_the_order() {
+        let o = || {
+            with(&[
+                ("valueOf", returns(1.0.to_any())),
+                ("toString", returns(s("t"))),
+            ])
+        };
+        assert_eq!(o().to_string(), Ok("t".into()));
+        assert_eq!(o().to_number(), Ok(Number::from(1.0)));
+        assert_eq!(o() + s("!"), Ok(s("1!")));
+    }
+
+    /// A method that is no function is skipped: the stock `toString`
+    /// answers after a skipped `valueOf`, and the stock `valueOf` answers
+    /// no primitive after a skipped `toString`.
+    #[test]
+    fn non_function_is_skipped() {
         for value in [s("x"), 1.0.to_any()] {
-            let o = || with_own("valueOf", value.clone());
+            let o = || with(&[("valueOf", value.clone())]);
             assert_eq!(o().to_string(), Ok("[object Object]".into()));
             assert!(is_nan(o().to_number()));
             assert_eq!(o() + s("!"), Ok(s("[object Object]!")));
+            let o = || with(&[("toString", value.clone())]);
+            refused(o().to_string(), CANNOT_CONVERT_TO_PRIMITIVE_VALUE);
+            refused(o().to_number(), CANNOT_CONVERT_TO_PRIMITIVE_VALUE);
+        }
+    }
+
+    /// A method's throw is the conversion's, unchanged, and ends it.
+    #[test]
+    fn throw_propagates() {
+        let o = || with(&[("valueOf", throws("boom")), ("toString", returns(s("t")))]);
+        refused(o().to_number(), "boom");
+        assert_eq!(o().to_string(), Ok("t".into()));
+    }
+
+    /// A binary operator converts its left operand first, so with both
+    /// throwing, the left one's throw is the result. `>` and `<=` ask `<`
+    /// of the swapped operands and still convert the left one first.
+    #[test]
+    fn left_operand_first() {
+        type Op = fn(Any<A>, Any<A>) -> Result<Any<A>, Any<A>>;
+        let ops: [Op; 16] = [
+            |x, y| x + y,
+            |x, y| x - y,
+            |x, y| x * y,
+            |x, y| x / y,
+            |x, y| x % y,
+            |x, y| x.pow(y),
+            |x, y| x & y,
+            |x, y| x | y,
+            |x, y| x ^ y,
+            |x, y| x << y,
+            |x, y| x >> y,
+            |x, y| x.unsigned_right_shift(y),
+            Any::lt,
+            Any::gt,
+            Any::le,
+            Any::ge,
+        ];
+        let o = |v| with(&[("valueOf", throws(v))]);
+        for op in ops {
+            refused(op(o("left"), o("right")), "left");
+        }
+    }
+
+    /// A result that is not a primitive moves on, unconverted, and if
+    /// neither method answers one the conversion throws.
+    #[test]
+    fn non_primitive_result_moves_on() {
+        let inner = || with(&[("toString", returns(s("inner")))]);
+        let o = || with(&[("valueOf", returns(inner()))]);
+        assert!(is_nan(o().to_number()));
+        for result in [inner(), [].to_array().to_any(), function()] {
+            let o = || {
+                with(&[
+                    ("valueOf", returns(result.clone())),
+                    ("toString", returns(s("2"))),
+                ])
+            };
+            assert_eq!(o().to_number(), Ok(Number::from(2.0)));
+            let o = || with(&[("toString", returns(result.clone()))]);
+            refused(o().to_string(), CANNOT_CONVERT_TO_PRIMITIVE_VALUE);
         }
     }
 
     /// The `string` hint tries `toString` first, and the stock one answers
     /// before a function `valueOf` is reached: `String({ valueOf: f })` is
-    /// `"[object Object]"`, while `+{ valueOf: f }` is refused.
+    /// `"[object Object]"`, while `+{ valueOf: f }` calls `f`.
     #[test]
     fn string_hint_never_reaches_value_of() {
-        let o = || with_own("valueOf", function());
+        let o = || with(&[("valueOf", function())]);
         assert_eq!(o().to_string(), Ok("[object Object]".into()));
-        refused(o().to_number(), OWN_CONVERSION_METHOD);
+        assert_eq!(o().to_number(), Ok(Number::from(1.0)));
     }
 
     /// Any other own property keeps the stock conversion.
     #[test]
     fn plain_object_is_unchanged() {
-        let o = || with_own("a", function());
+        let o = || with(&[("a", function())]);
         assert_eq!(o().to_string(), Ok("[object Object]".into()));
         assert!(is_nan(o().to_number()));
         assert_eq!((o() + s("!")), Ok(s("[object Object]!")));

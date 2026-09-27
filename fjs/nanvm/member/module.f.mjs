@@ -18,15 +18,7 @@
  * ```
  */
 
-import { callback, functionValue, throws } from '../constructors/module.f.mjs'
-
-/**
- * The `rust` reason of a case whose object owns a `toString` or a `valueOf`:
- * `nanvm-lib` refuses it until it calls the method, Stage 2 of
- * `nanvm-lib/todo/to-primitive.md`. The operator cases in
- * [`../module.f.mjs`](../module.f.mjs) use it too.
- */
-export const ownMethodRefused = 'an own toString or valueOf is refused until Stage 2 of to-primitive.md'
+import { callback, functionValue, returns, throws, unreached } from '../constructors/module.f.mjs'
 
 /**
  * `Array.prototype.at`: the element from the start or, for a negative index,
@@ -92,6 +84,10 @@ const includesCases = [
     { name: 'fromInfinity', args: [[1], 1, Infinity], expected: false },
     { name: 'fromString', args: [[1, 2], 1, '1'], expected: false },
     { name: 'emptyBigintFrom', args: [[], 1, 1n], expected: false },
+    // An empty array answers before converting the position, so its own
+    // `valueOf` is never called.
+    { name: 'emptyOwnValueOfFrom', args: [[], 1, { valueOf: returns(unreached) }], expected: false },
+    { name: 'ownValueOfFrom', args: [[1, 2], 1, { valueOf: returns(1) }], expected: false },
     { name: 'bigintFrom', args: [[1], 1, 1n], expected: throws },
     { name: 'object', args: [{}, 1], expected: throws },
     { name: 'stringFound', args: ['abc', 'bc'], expected: true },
@@ -102,7 +98,8 @@ const includesCases = [
     { name: 'stringNoArgument', args: ['undefined'], expected: true },
     { name: 'stringNumber', args: ['a1b', 1], expected: true },
     { name: 'stringObject', args: ['[object Object]', {}], expected: true },
-    { name: 'stringOwnToString', args: ['xundefinedx', { toString: functionValue }], expected: true, rust: ownMethodRefused },
+    { name: 'stringOwnToString', args: ['xundefinedx', { toString: functionValue }], expected: true },
+    { name: 'stringOwnToStringNeedle', args: ['xbx', { toString: returns('b') }], expected: true },
     // A `toString` that is no function is skipped, and the stock `valueOf`
     // answers the object, so JavaScript throws too.
     { name: 'stringToStringNotAFunction', args: ['a', { toString: 'h' }], expected: throws },
@@ -132,6 +129,7 @@ const indexOfCases = [
     { name: 'fromPastTheEnd', args: [[1, 2, 1], 1, 3], expected: -1 },
     { name: 'fromNegativeInfinity', args: [[1], 1, -Infinity], expected: 0 },
     { name: 'emptyBigintFrom', args: [[], 1, 1n], expected: -1 },
+    { name: 'emptyOwnValueOfFrom', args: [[], 1, { valueOf: returns(unreached) }], expected: -1 },
     { name: 'bigintFrom', args: [[1], 1, 1n], expected: throws },
     { name: 'object', args: [{}, 1], expected: throws },
     { name: 'stringFirst', args: ['abcabc', 'bc'], expected: 1 },
@@ -166,6 +164,7 @@ const lastIndexOfCases = [
     { name: 'fromNegativeInfinity', args: [[1], 1, -Infinity], expected: -1 },
     { name: 'fromInfinity', args: [[1], 1, Infinity], expected: 0 },
     { name: 'emptyBigintFrom', args: [[], 1, 1n], expected: -1 },
+    { name: 'emptyOwnValueOfFrom', args: [[], 1, { valueOf: returns(unreached) }], expected: -1 },
     { name: 'bigintFrom', args: [[1], 1, 1n], expected: throws },
     { name: 'stringLast', args: ['abcabc', 'bc'], expected: 4 },
     { name: 'stringFrom', args: ['abcabc', 'bc', 3], expected: 1 },
@@ -201,6 +200,7 @@ const sliceCases = [
     { name: 'nested', args: [[[1], [2]], 1], expected: [[2]] },
     { name: 'bigintStart', args: [[1], 0n], expected: throws },
     { name: 'bigintEnd', args: [[1], 0, 1n], expected: throws },
+    { name: 'ownValueOfStart', args: [[1, 2, 3], { valueOf: returns(1) }], expected: [2, 3] },
     { name: 'stringStart', args: ['abcdef', 2], expected: 'cdef' },
     { name: 'stringFromTheEnd', args: ['abcdef', -3, -1], expected: 'de' },
     { name: 'stringEmptyRange', args: ['abc', 2, 1], expected: '' },
@@ -315,6 +315,11 @@ const joinCases = [
     { name: 'empty', args: [[], '-'], expected: '' },
     { name: 'one', args: [[1], '-'], expected: '1' },
     { name: 'bigintSeparator', args: [[1, 2], 0n], expected: '102' },
+    // A separator or an element converts through its own `toString`.
+    { name: 'ownToStringSeparator', args: [[0, 2], { toString: returns('-') }], expected: '0-2' },
+    { name: 'ownToStringElement', args: [[{ toString: returns('x') }, 1], ';'], expected: 'x;1' },
+    // The separator converts before any element, even with none to join.
+    { name: 'emptyThrowingSeparator', args: [[], { toString: returns(unreached) }], expected: throws },
 ]
 
 /**
