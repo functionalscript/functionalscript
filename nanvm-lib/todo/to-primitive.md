@@ -102,8 +102,16 @@ would be a regression:
 | `f < 5`, where the other side is not a string after `ToPrimitive` | `false`, from `NaN` | unchanged (the `<`, `<=`, `>`, `>=` cases) |
 | `f < "z"`, where the other side is a string | compares the text | **refused** |
 | `ToString`: `String(f)`, `join`, string-method arguments | the text | **refused** |
+| `ToString` whose result the algorithm discards: `[].join(f)`, `[1].join(f)`, `"a".split(f, 0)` | the text is computed, never read | answered, unchanged: `""`, `"1"`, `[]` |
 | `f + x`, which uses the default hint | the text, concatenated | **refused** |
 | `typeof f`, `!f`, `f ?? x`, `f \|\| x` | no conversion | unchanged |
+
+The line between the last two `ToString` rows is whether the algorithm reads
+the text. Where it reads it, Stage 1 refuses, even when every text would give
+the same answer: `"".includes(f)` is `false` and `"".split(f)` is `[""]` for
+any non-empty text, and `+[f]` is `NaN` (below). Telling those apart needs
+reasoning about every possible text, so they stay refused until Stage 3
+gives the text itself.
 
 No function's text converts to a number: it starts with `(`, `function`,
 `async` or a name. So `NaN` is exact for every text, and the numeric path can
