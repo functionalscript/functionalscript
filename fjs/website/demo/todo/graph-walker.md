@@ -31,11 +31,26 @@ The graph module exports the walk, parameterised by the one thing that
 varies:
 
 ```ts
+/** How the walk reads one value: a node, with the values its edges lead to, or a spelling drawn inline in its parent's port. */
+export type Shape<V> =
+    | {
+        readonly kind: string
+        readonly label: string
+        readonly children: readonly (readonly [label: string, value: V, kind?: string])[]
+    }
+    | { readonly inline: string, readonly kind?: string | undefined }
 export const graphOf: <V>(shape: (v: V) => Shape<V>) => (root: V) => Graph
 ```
 
-where a `Shape` is a labelled node with its children, or an inline
-spelling. Each demo keeps its `shape` and drops its walk.
+in the graph module's `types.ts`, beside `Node`, `Edge` and `Inline`,
+whose fields it is built from: a node shape's `kind` and `label` become
+the `Node`'s, each child's label and optional kind become an `Edge`'s,
+and the inline shape is an `Inline` as it stands. The walk owns what
+does not vary: a value whose shape is a node is drawn once, found again
+by identity (`is`) on any later edge to it; one whose shape is inline
+is drawn in its parent's port; and a root whose shape is inline is one
+`leaf` node, as the DataJS demo draws a bare primitive today. Each demo
+keeps its `shape` and drops its walk.
 
 ### Tasks
 

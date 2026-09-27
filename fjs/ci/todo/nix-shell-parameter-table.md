@@ -28,10 +28,14 @@ A private table in the module, one row per parameter:
 ```ts
 const shellParams: readonly {
     names: readonly string[]
-    present: (job: Job) => boolean
-    values: (job: Job, system: string) => readonly Expression[]
+    present: (job: NixJob) => boolean
+    values: (job: NixJob, system: string) => readonly Expression[]
 }[]
 ```
+
+over `NixJob` from `fjs/ci/nix/types.ts`, the type the four functions
+being folded already take — not `fjs/ci/common`'s `Job`, the GitHub
+Actions job, which has no `rust`, `pin` or per-system field to read.
 
 The pattern, `sharedValues` and `systemArguments` are folds over the
 present rows, and `systemArguments` takes its values from
