@@ -45,7 +45,9 @@ const helperCatalog = [
     ['strict_eq(', 'strict_eq'],
     ['strict_ne(', 'strict_ne'],
     ['string_any(', 'string_any'],
+    ['string_any_utf16(', 'string_any_utf16'],
     ['string_key(', 'string_key'],
+    ['string_key_utf16(', 'string_key_utf16'],
 ]
 
 /**

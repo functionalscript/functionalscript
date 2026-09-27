@@ -453,7 +453,8 @@ compiler admits yet
 ([member-functions](../nanvm-lib/todo/member-functions.md)). The Rust writer
 refuses a literal Rust has no spelling for, naming the output and writing
 nothing: a `bigint` outside `i64` — `-9223372036854775808n` is written and
-`9223372036854775808n` refused — and a string holding a lone surrogate.
+`9223372036854775808n` refused. A string holding a lone surrogate, which no
+Rust `&str` can hold, is written as its UTF-16 code units.
 
 For a FunctionalScript input, JSON and DataJS output serialize the module
 result's `default` property, with sharing checked for that selected value.
