@@ -9,7 +9,7 @@
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { casesOf, data, functionValue, lambdaExp, ref, throws, unreached, valueExp } from '../module.f.mjs'
+import { callback, casesOf, data, functionValue, lambdaExp, ref, throws, unreached, valueExp } from '../module.f.mjs'
 import { directory, fnName, generate, nodeExpr, rustName } from './module.f.mjs'
 
 /** A value as the printer meets it: its lowering, printed. @type {(v: Value) => string} */
@@ -171,6 +171,11 @@ export const proof = {
         // belongs, a lazy position, this is the thunk's own answer — see
         // `generate`'s `skip` case.
         assertEq(valueExpr(unreached), 'bigint_any(1) / bigint_any(0)')
+        // A callback is a closure with its body, one `static_function`.
+        assertEq(valueExpr(callback('args')), `A::static_function(|_self, args| {
+    let rest = args.clone().into_iter().to_array();
+    Ok(rest.clone().to_any())
+}, 0, Array::default()).to_any()`)
     },
     /**
      * The operation nodes, printed straight from the EDAG rather than through

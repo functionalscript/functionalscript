@@ -194,9 +194,11 @@ needs its own issue, and it lands with or after Stage 1.
       function wherever its text is observable, keeping every
       text-independent result. Unit tests per row, and corpus cases with a
       `rust` reason.
-- [ ] Once #2321, #2323 and #2328 are on `main` with this: the `toSorted`
-      guard's test, and the `// TODO:` in `array_join` (#2321) and
-      `vm/string/search.rs` (#2328) replaced with a pointer to Stage 2.
+- [x] `array_join` (#2321): its `// TODO:` replaced with a pointer to
+      Stage 2, and a test that `join` refuses.
+- [ ] Once #2323 and #2328 are on `main` with this: the `toSorted` guard's
+      test, and the `// TODO:` in `vm/string/search.rs` replaced with a
+      pointer to Stage 2.
 - [ ] Stage 2: call an object's own `toString` and `valueOf` per
       `OrdinaryToPrimitive`. Move the host-only cases into the corpus.
 - [ ] Stage 3: a function's text, through the EDAG renderer (tracked with the

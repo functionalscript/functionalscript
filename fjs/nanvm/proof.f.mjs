@@ -28,7 +28,7 @@
  *
  * @import { Exp } from '../edag/types.ts'
  * @import { Context } from '../edag/amnesia/types.ts'
- * @import { AnyCase, Expectation, Group, SharedNode, Value } from './types.ts'
+ * @import { AnyCase, CallbackName, Expectation, Group, SharedNode, Value } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
@@ -37,6 +37,8 @@ import { exp } from '../edag/module.f.mjs'
 import { vm } from '../edag/amnesia/module.f.mjs'
 import { validate } from '../rtti/validate/module.f.mjs'
 import {
+    callback,
+    callbackExp,
     caseExp,
     casesOf,
     data,
@@ -388,6 +390,27 @@ const lambda = () => {
 }
 
 /**
+ * Each callback does what its JavaScript spelling says, called through
+ * `amnesia` as a member function calls it, and lowers to a function with a
+ * body wherever it appears.
+ */
+const callbacksProof = () => {
+    /** @type {(name: CallbackName, args: readonly Value[]) => unknown} */
+    const call = (name, args) => corpus()(['()', callbackExp(name), valueExp(args)])
+    assertStructurallySame(call('args', [1, 'a']), [1, 'a'])
+    assertEq(call('first', [3, 4]), 3)
+    assertEq(call('prop', [{ x: 5 }]), 5)
+    assertEq(call('double', [3]), 6)
+    assertEq(call('add', ['a', 'b']), 'ab')
+    assertStructurallySame(call('pair', [1]), [1, [1]])
+    assertEq(call('ascending', [1, 3]), -2)
+    assertEq(call('descending', [1, 3]), 2)
+    assertStructurallySame(valueExp(callback('double')), callbackExp('double'))
+    assertStructurallySame(valueExp([callback('args')]), ['[]', [['=>', 0, null, ['rest']]]])
+    assertEq(typeof value(corpus())(callback('args')), 'function')
+}
+
+/**
  * A method case lowers to the chain node a compiled call is, the receiver
  * first and the arguments one array operand, and files under a key no
  * operator's can be.
@@ -555,6 +578,7 @@ const jsOnly = {
 
 export const proof = {
     lambda,
+    callbacks: callbacksProof,
     method,
     referenceCoverage,
     ...fromEntries(data.groups.map(g => [groupKey(g), group(g)])),
