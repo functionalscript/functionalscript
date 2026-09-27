@@ -8,7 +8,7 @@
  * @import { Container, ContainerNode } from './types.ts'
  */
 
-import { assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.mjs'
 import { parser } from '../../ll1/module.f.mjs'
 import { units, utf16 } from '../../utf16/module.f.mjs'
@@ -31,6 +31,10 @@ import {
     wsSymbol,
 } from './module.f.mjs'
 import { force } from '../../testlib.f.mjs'
+import { demo, diagrams } from './demo.f.mjs'
+import { anchor } from '../../../website/demo/railroad/module.f.mjs'
+import { htmlToString } from '../../../media/html/module.f.mjs'
+import { runPure } from '../../../effects/module.f.mjs'
 
 const { keys } = Object
 
@@ -254,5 +258,21 @@ export const proof = {
         /** @type {Variant} */
         const variant = createValue('p', 'v')
         assertEq(variant.missing, undefined)
+    },
+    demo: {
+        // One diagram per title, each in the section its boxes link to.
+        view: () => {
+            const html = htmlToString(demo.view(demo.init))
+            diagrams.forEach(([title]) => assert(html.includes(`<section id="${anchor(title)}"><h3>${title}</h3>`), title))
+            // `value` recurs through `array` and `object`, which are boxes
+            // in its diagram and diagrams of their own.
+            assert(html.includes('<a href="#railroad-array">'), html)
+        },
+        // Every title names a distinct rule.
+        diagrams: () => assertEq(new Set(diagrams.map(([, name]) => name)).size, diagrams.length),
+        // Nothing an event says changes the diagrams.
+        update: () => assertEq(
+            unwrap(assertNotNullish(runPure(demo.update(demo.init)({ kind: 'start' }))[0])),
+            demo.init),
     },
 }

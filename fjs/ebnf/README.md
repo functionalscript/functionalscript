@@ -16,6 +16,9 @@ grammars built on them:
 - [`token_symbol/`](./token_symbol/README.md), [`byte/`](./byte/README.md),
   [`utf16/`](./utf16/) — the alphabets: token names as symbols above Unicode,
   bytes, UTF-16 code units;
+- [`railroad/`](./railroad/module.f.mjs) — a rule set read back as syntax
+  diagrams, one per rule a caller titles, drawn by
+  [`website/demo/railroad`](../website/demo/railroad/module.f.mjs);
 - [`lib/`](./lib/) — grammars: JSON, DataJS, the JavaScript tokens.
 
 A module belongs here iff it defines, transforms or executes grammars over a
