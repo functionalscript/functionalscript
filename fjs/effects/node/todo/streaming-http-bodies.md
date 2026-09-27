@@ -5,29 +5,37 @@
 
 ### Problem
 
-`IncomingMessage.body` and `ServerResponse.body` (`fjs/effects/node/types.ts`)
-are each a single `Vec`, and a `Vec` caps at 131,072 bytes (128 KiB). The whole
-body is therefore materialized before a listener sees it and after it answers:
-the Node runner buffers the request (bounded, at the cap) and writes
-the response with one `res.end(fromVec(body))`.
+`IncomingMessage.body` (`fjs/effects/node/types.ts`) is a single `Vec`, and a
+`Vec` caps at 131,072 bytes (128 KiB). The whole body is therefore materialized
+before a listener sees it: the Node runner buffers the request, bounded at the
+cap.
 
 The runner refuses what it cannot represent — a request body past the cap is
 answered `413` without the listener seeing it — so the limit is at least honest,
 but it is still a limit no HTTP client expects.
 
-Two consumers are already bounded by this:
+**`ServerResponse.body` was one `Vec` too, and is now a chunk list.** The
+response half of stage 1 landed by the eager route, so a body is however many
+`Vec`s the answer takes and the runner writes them one at a time. What that
+route does not give is laziness: every chunk is in hand before the status goes
+out, so the whole body is still materialized *after* the listener answers. The
+sections below are written for the handle effect, which removes that too, and
+"The eager route, as landed" records what the route that shipped does with each
+of them.
 
-- [`fjs/web`](../../../web/) cannot serve a file larger than the cap. It `stat`s
-  first and answers `413` so a large file fails loudly instead of being
-  truncated, but the file is perfectly readable — only the response frame cannot
-  carry it.
+Two consumers are bounded by this, one of them now only partly:
+
+- [`fjs/web`](../../../web/) can serve a file of any size, since the eager route
+  landed, and pays the file's own size in memory to do it. What it cannot do is
+  serve one without holding it.
 - [`fjs/cas` web-api-server](../../../cas/todo/web-api-server.md) wants HTTP
   precisely because the protocol streams bodies, which would let `add`/`get`
   carry blobs of any size where MCP is capped at 128 KiB of inline content. The
   CAS store already streams (`Cas.read`/`Cas.write` deal in chunk lists), so
   this effect is the only thing in the way.
 
-**The cap is low enough to have cost an adoption.** A demo replacing
+**The cap was low enough to have cost an adoption**, which is the report this
+issue opened with. A demo replacing
 `python3 -m http.server` with `fjs web` found eleven of the modules its page
 imports over the ceiling — the largest 995,159 bytes, 7.6× the cap, and three
 others over 340 KB — and reverted the swap. They are the engine the page
@@ -84,13 +92,13 @@ dominates:
 | the handle effect [stat-then-read](../../../web/todo/stat-then-read.md) designs | yes | yes |
 
 So **the wait was stated too strongly: serving a large file does not depend on
-another issue.** `ReadWhole` needs nothing from stat-then-read — what it still
-needs is the `List` body of the first task below, because `ServerResponse.body`
-([`../types.ts`](../types.ts)) is one `Vec` and that is the cap itself. With the
-body type changed, serving past the cap through `ReadWhole` costs peak memory
-equal to the file, which for the case that prompted this — a static server for a
-development demo — is what `readFile` already costs, and the cap is what
-`readFile` cannot do. The handle effect is still the only route that is both one
+another issue.** `ReadWhole` needed nothing from stat-then-read — what it still
+needed was a chunk-list body, because `ServerResponse.body`
+([`../types.ts`](../types.ts)) was one `Vec` and that was the cap itself. It has
+one now, and serving past the cap through `ReadWhole` costs peak memory equal to
+the file, which for the case that prompted this — a static server for a
+development demo — is what `readFile` already cost, and the cap is what
+`readFile` could not do. The handle effect is still the only route that is both one
 inode and lazy, so it stays worth building.
 
 **Stage 1 below stays written for the handle effect, and the eager route is
@@ -105,19 +113,25 @@ all of those sections, which is its own change rather than a note above them.
 What this note changes is what the handle effect is owed for: not whether a large
 body is possible, only what it costs.
 
-**The eager route costs more than the memory, and the operation says why.**
-[`readWhole`](../module.mjs) rebuilds its chunk list on every window rather than
-appending, and its own comment gives the assumption that makes that free: *"a
-file is however many `Vec`s it takes and the count is small — 128 KiB a chunk, so
-eighty of them for ten megabytes."* Lifting a *web* cap is what breaks that
-assumption, because it is what makes an arbitrary size reachable from a request:
-a body of gigabytes is tens of thousands of windows, the rebuild is quadratic in
-that count, and all of it is spent before the first byte reaches the socket. So
-the eager route lifts the cap for the demo that prompted this issue and is not
-by itself enough for an arbitrary size; a linear collection in the operation, or
-the handle effect's retained bound, is what that needs. Recorded rather than
-fixed here: the rebuild is that operation's property and its `fjs/git` consumers
-are the small-count case its comment assumes, so changing it is its own change.
+**The eager route costs the memory, and only the memory.** This used to say it
+cost more: that [`readWhole`](../module.mjs) rebuilding its chunk list on every
+window is quadratic in the window count, and that a served file of arbitrary
+size makes that count the caller's, so the operation owed a mutating
+accumulator the way `collectBounded` beside it does.
+
+**That argument does not survive being written down next to the numbers.** A
+window is a fixed 128 KiB, so `readWhole`'s chunk count is the file's size
+divided by a constant — a gigabyte is some eight thousand windows and tens of
+millions of *reference* copies, which is noise beside reading the gigabyte. What
+makes `collectBounded`'s count the caller's is that a client picks it
+independently of the byte count: 20,000 one-byte chunks are 20 KB of payload and
+200 million copies, on a request about to be refused. A fixed window has no such
+gap between size and count, so there is nothing for §3.1 to make an exception
+for, and the accumulator stays rebuilt.
+
+So the eager route landed with the collection unchanged, and what the handle
+effect is owed for is the memory — holding a whole file to answer one request.
+That is the cost the window count was never a proxy for.
 
 **One thing `ReadWhole` does not fix, stated so this is not read as more than
 it is.** [`readWhole`](../module.mjs) `stat`s the path and then opens it, two
@@ -133,6 +147,63 @@ body — but it is the same shape, and it is that issue's to close.
 This section is corrected rather than worked around, per
 [DESIGN.md](../../../../doc/DESIGN.md) §3 ("Design before implementation"), and separately from any implementation
 for the same reason.
+
+#### The eager route, as landed
+
+The note above names four sections the eager route has to be taken through
+rather than around — framing, the no-body gate, `release`, and the
+[`fjs/web`](../../../web/README.md) corrections. This is that pass, kept here so
+that the handle-effect sections below go on speaking for the route they were
+written for. `ServerResponse.body` is `readonly Vec[]`, the shape
+[`ReadWhole`](../types.ts) answers and the shape a `Dir` already stores a file in
+([`../virtual/types.ts`](../virtual/types.ts), `_Entity`), and
+[`fjs/web`](../../../web/module.f.mjs) reads its body through `readWhole`.
+
+**Framing is the sum of the chunks, and the problem "What the bound holds"
+measures does not arise on this route.** That section's case is a length declared
+ahead of an unbounded read: 131,072 bytes promised from a `stat` and 132,072 sent
+by a file that grew, under a header nothing can check. A sum over chunks already
+in hand cannot overrun, because there is nothing left to read that could disagree
+with it — the count and the bytes are the same measurement taken once.
+`respond` in [`../../../web/module.f.mjs`](../../../web/module.f.mjs) says so where
+the header is built. The `fstat`-declared, read-bounded framing the sections below
+design is what a *lazy* body needs, and it needs it for the reason those sections
+give: a lazy body has no length to sum.
+
+**The no-body gate has nothing to hold.** Its whole point is the read it saves —
+a `HEAD` or a `304` whose producer is never pulled, so a multi-gigabyte file is
+not read at the speed of the disk to send nothing. On this route the file is read
+before the listener has a status to return, so there is no pull left to suppress
+and a gate would save nothing. So the runner writes every chunk whatever the
+method is, and Node drops the body of a `HEAD`, a `204`, a `304` or a `1xx`
+itself, as it always did — now across as many writes as the body has, which
+[`../proof.mjs`](../proof.mjs) pins against the host (`createServer`). That is
+also why [`fjs/web`](../../../web/module.f.mjs) can go on answering a `HEAD`
+exactly like a `GET` without the gate the sections below add.
+
+**`release` has nothing to hold either, and so is not a field.** `readWhole`
+opens and closes inside the one operation, exactly as `readFile` and `readBytes`
+do, so no response carries a descriptor that outlives it and there is nothing for
+a runner to give back on any of the exits the sections below enumerate. A
+required field that every listener writes as the pure end would be a field that
+records no obligation. It arrives with the handle effect, which is what creates
+the obligation.
+
+**And the README is corrected with the code**, which is the one task of the four
+that is the same task on either route: its `413` row, its size-limit section, and
+its `Content-Length` paragraph. Of that paragraph's two claims, the first is
+replaced — the length is summed over the chunks that were read rather than
+"computed from the body it carries" — and the second is *kept and measured*: Node
+is still the party that drops a `HEAD` body, because this route adds no gate in
+front of it.
+
+**What this route does not give is a bounded memory footprint**, and that is the
+whole of what the handle effect is still owed for. Peak memory is the file, per
+request in flight, so a server pointed at large files trades a cap it could
+report for an appetite it cannot. Nor does the runner read `res.write`'s answer:
+`false` names a full buffer, and pausing on it would throttle nothing, since the
+bytes it would wait to send are already spent. A pump that pulls at the socket's
+pace is the sections below, and it is the answer to both.
 
 #### Stage 1 — the response body
 
@@ -693,8 +764,10 @@ export type Underrun = readonly['underrun', number]
 
 `readonly Vec[]` is the shape a `Dir` already stores a file in
 ([`../virtual/types.ts`](../virtual/types.ts), `_Entity`), so a fixture and a
-recorded response read alike — the oversized fixture `fjs/web`'s proof already
-builds for its `413` case becomes the one a streamed-body proof asserts against.
+recorded response read alike — `largeChunks`, the over-one-`Vec` fixture
+`fjs/web`'s proof now serves through `readWhole`, is the one a lazy-body proof
+would assert against too. It replaced the oversized fixture that proof built for
+its `413` case, which went with the refusal.
 `failure` is the socket case's counterpart: a proof asserting a whole body has to
 be able to tell it from one that stopped, and a bare chunk array cannot.
 
@@ -724,7 +797,9 @@ are all closed once the request is over, which is the leak itself rather than a
 report of it. A virtual runner that pumped where the Node one does not
 would let a listener with a nonterminating body pass here and hang there.
 
-**`fjs/web` then loses its `413` rather than raising it.** `tooLarge` goes, with
+**`fjs/web` then loses its `413` rather than raising it.** This paragraph and the
+next are the two the eager route already carried out — they are kept as written,
+because what they ask for is the same on either route. `tooLarge` goes, with
 the row documenting it in the module's response table — that table is what a
 consumer reads before adopting the server. The `isFile` guard stays: it was
 never about size. `open` on a FIFO with no writer blocks forever and holds a
@@ -744,11 +819,21 @@ it. Deleting the `tooLarge` row and leaving those is a behavior guide that
 promises a refusal the server no longer makes; a false document is the same
 wrong answer as false code, given to whoever checks before requesting. The
 runner's `413` for an oversized *request* is not in this set — that one is
-stage 2's, and the README already names the issue that retires it. Neither is
-that file's own stat-then-read caveat, whose "oversized file becomes `500`
-instead of `413`" goes when
-[stat-then-read](../../../web/todo/stat-then-read.md) itself does — that issue's
-passage to delete, not this one's, and not something stage 1 waits on any more.
+stage 2's, and the README already names the issue that retires it.
+
+**That set was one passage short, and the missing one was deferred on a reading
+that does not survive.** This section put that file's own stat-then-read caveat
+outside the set, on the grounds that it goes when
+[stat-then-read](../../../web/todo/stat-then-read.md) itself does. Its *deletion*
+does. What it says does not wait for that: the caveat's example is "an oversized
+file becomes `500` instead of `413`", and once `tooLarge` is gone there is no
+`413` for anything to arrive in place of — the sentence describes a promise the
+server no longer makes, which is the same defect the rest of this paragraph is
+about. A passage whose deletion belongs to another issue still has to be true
+until that issue deletes it. So the caveat is corrected here and deleted there,
+and the matching bullet in
+[stat-then-read](../../../web/todo/stat-then-read.md)'s own Problem — the size
+swap it was filed for — is retired with the guard it raced.
 
 #### Stage 2 — the request body
 
@@ -795,7 +880,8 @@ answering `413` is a listener with a size policy of its own — correctly.
       `List<FileCasOperation, …>` by ordinary `Effect` widening, which settles
       the inference question
       `66o-read-streamfile-dedup` left for `tsc`, and retires that issue.
-- [ ] Stage 1: `ServerResponse<O>` with a `List` body and a `release`, and
+- [ ] Stage 1: `ServerResponse<O>` with a **lazy** `List` body and a `release` —
+      the chunk list it carries today is neither — and
       `IncomingMessage.chunkedResponse` for gate 3 to read; the Node runner's
       pump — its `drain` park released by a recorded `close`, including one
       that fired before the pump existed, the three gates that keep it from
@@ -807,23 +893,34 @@ answering `413` is a listener with a size policy of its own — correctly.
       gates, their order, the count, and the release.
 - [ ] Stage 1, owed to
       [stat-then-read](../../../web/todo/stat-then-read.md) and **the route the
-      task below is written for, though no longer what makes serving a large file
-      possible at all — see the 2026-09-22 note above:** the
+      lazy `fjs/web` task below is written for, though no longer what makes
+      serving a large file possible at all — see the 2026-09-22 note above:** the
       handle effect — `open`, `fstat`, bounded read, `close` — modelled in
       the virtual file system, as the chunk source `fjs/web` reads through, with
       its open handles visible to a proof so an unreleased one fails a test.
       This is the route that makes a large body lazy as well as safe.
-- [ ] Stage 1: serve files past the cap in `fjs/web` — the body read from one
-      `open` through the handle effect above, and a `Content-Length` the reads
-      cannot overrun: the `fstat` size declared, and the reads bounded by it. A
-      size declared ahead of an unbounded read would be the guess "What the
-      bound holds" measured going wrong on a file that grew. Then whatever is
-      held given back through `release`, `tooLarge` and its `413` row deleted,
-      the `isFile` guard kept, and
+- [x] Stage 1, by the eager route: serve files past the cap in `fjs/web`, with
+      `ServerResponse.body` a chunk list, the body read through `readWhole` — one
+      `open`, so the bytes are one file's — a `Content-Length` summed over the
+      chunks that were read, which cannot overrun because nothing is left to
+      read, the Node runner writing each chunk and then ending, `tooLarge` and
+      its `413` row deleted, the `isFile` guard kept, and
       [`../../../web/README.md`](../../../web/README.md) corrected with them:
-      its `413` row, its "size limit" section, and its `Content-Length`
-      paragraph's two claims — derived from the body, and Node the party that
-      drops a `HEAD` body.
+      its `413` row, its size-limit section, and its `Content-Length`
+      paragraph's two claims — the derivation replaced, and Node the party that
+      drops a `HEAD` body kept and pinned against the host across many writes.
+      `readWhole`'s chunk accumulator is unchanged: a fixed 128 KiB window ties
+      the chunk count to the byte count, so §3.1 has nothing to except. See the
+      note above "The eager route, as landed". No `release`: nothing this route
+      holds outlives a response.
+- [ ] Stage 1: make `fjs/web`'s body lazy as well as bound to one inode — the
+      body read from one `open` through the handle effect above, and a
+      `Content-Length` the reads cannot overrun: the `fstat` size declared, and
+      the reads bounded by it. A size declared ahead of an unbounded read would
+      be the guess "What the bound holds" measured going wrong on a file that
+      grew. Then whatever is held given back through `release`. This is what
+      takes the memory footprint from the whole file down to one chunk; the cap
+      itself is already gone.
 - [ ] Stage 2: name the operation that pulls one request-body chunk, and answer
       what an undrained body does.
 - [ ] Stage 2: `IncomingMessage.body` as a `List`, retiring the runner's `413`.
@@ -835,9 +932,10 @@ until a body it may not even want has finished arriving.
 ### Related
 
 - [`fjs/web`](../../../web/README.md) — the behavior guide a consumer reads
-  before adopting the server. Its size-limit section states the cap this issue
-  lifts; its response table and its `Content-Length` paragraph state the rest of
-  what stage 1 replaces, and go stale with it.
+  before adopting the server. Its size-limit section, its response table and its
+  `Content-Length` paragraph were corrected when the eager route landed; what
+  they now describe is a body that is whole in memory, so the lazy half of stage
+  1 goes through them again.
 - [`fjs/cas` web-api-server](../../../cas/todo/web-api-server.md) — blocked on
   this for arbitrary-size `add`/`get`.
 - [stat-then-read](../../../web/todo/stat-then-read.md) — the handle effect, which
