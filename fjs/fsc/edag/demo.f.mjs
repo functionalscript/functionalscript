@@ -55,6 +55,7 @@
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Edge, Inline, Node } from '../../website/demo/graph/types.ts'
  * @import { Element } from '../../media/html/types.ts'
+ * @import { Examples } from '../../website/demo/examples/types.ts'
  * @import { _Shape, _State } from './types.ts'
  */
 
@@ -65,6 +66,7 @@ import { ranked, graphSvg } from '../../website/demo/graph/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
+import { examplePicker, name as exampleName } from '../../website/demo/examples/module.f.mjs'
 
 const { is } = Object
 
@@ -375,7 +377,7 @@ export const _graphOf = text => {
  * - **Parse error** does not parse, because an error is something this
  *   demo shows too.
  *
- * @type {readonly (readonly [name: string, source: string])[]}
+ * @type {Examples}
  */
 export const examples = [
     ['Overview', 'import m from "./m.f.js";\nconst a = 1 + 2;\nconst checked = m.x < 4;\nexport default [a, a, a * 3, m && a, (...x) => x, undefined];'],
@@ -391,51 +393,27 @@ export const examples = [
     ['Parse error', 'export default {bad'],
 ]
 
-/**
- * The examples drop-down, with the example `text` is selected — or, once a
- * reader has edited it into something that is none of them, a `Custom`
- * entry that is. Which one is selected is read off the text rather than
- * stored beside it, for the same reason the graph is.
- *
- * **`Custom` is disabled, so it never sends a pick.** It names no source —
- * it only says the text is none of the examples — and a value of its own
- * would be one some example could also have: an example named `''` would
- * then be indistinguishable from it. Disabled, it cannot be chosen, so every
- * pick names a real example and no name has to be reserved.
- *
- * @type {(text: string) => Element}
- */
-const examplePicker = text => {
-    /** @type {readonly Element[]} */
-    const options = examples.map(([name, source]) =>
-        ['option', source === text ? { value: name, selected: '' } : { value: name }, name])
-    const custom = examples.some(([, source]) => source === text)
-        ? []
-        : [/** @type {Element} */ (['option', { selected: '', disabled: '' }, 'Custom'])]
-    return ['p',
-        ['label', { for: 'example' }, 'Example '],
-        ['select', { id: 'example', name: 'example' }, ...custom, ...options],
-    ]
-}
+const picker = examplePicker(examples)
 
 /**
  * The state is the text itself, not the graph: the graph is a function of
  * it, and storing a value the state can already compute is how the two
- * drift apart. Picking an example replaces the text with its source, and a
- * name no example has leaves it as it is. `Custom` sends none, being
- * disabled, so every name a pick sends is an example's.
+ * drift apart. Picking an example replaces the text with its source.
+ *
+ * `picker`, above, is built once, as the module loads, which is where a
+ * list with a repeated name or source is refused.
  *
  * @type {Demo<string, DemoEvent>}
  */
 export const demo = {
     init: examples[0][1],
     update: state => event => pureOk(event.kind !== 'input' ? state
-        : event.name === 'example' ? examples.find(([name]) => name === event.value)?.[1] ?? state
+        : event.name === exampleName ? picker.pick(state)(event.value)
             : event.value),
     view: text => {
         const g = _graphOf(text)
         return ['div',
-            examplePicker(text),
+            picker.view(text),
             ['p',
                 ['label', { for: 'edag' }, 'Source '],
                 ['textarea', { id: 'edag', name: 'edag', rows: '8' }, text],

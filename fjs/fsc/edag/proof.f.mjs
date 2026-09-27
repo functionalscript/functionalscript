@@ -1241,30 +1241,6 @@ export const proof = {
                     assert(!htmlToString(demo.view(source)).includes('not yet drawn'), name)
                 }
             },
-            // Names are what a pick is matched by, so two alike would make
-            // the second unreachable.
-            distinctNames: () =>
-                assertEq(new Set(examples.map(([name]) => name)).size, examples.length),
-            // Sources are what the picker selects by, so two alike would
-            // both be selected — invalid in a single-select.
-            distinctSources: () =>
-                assertEq(new Set(examples.map(([, source]) => source)).size, examples.length),
-            // The picker selects the example the text is, and no other.
-            selected: () => {
-                const [name, source] = examples[2]
-                const html = htmlToString(demo.view(source))
-                assertEq(html.split(' selected=""').length - 1, 1)
-                assert(html.includes(`<option value="${name}" selected="">`), html)
-                assert(!html.includes('>Custom<'), html)
-            },
-            // Text that is no example selects `Custom`, which is there only
-            // while it is needed, and disabled, so it can be shown but never
-            // picked.
-            custom: () => {
-                const html = htmlToString(demo.view('export default 1;'))
-                assertEq(html.split(' selected=""').length - 1, 1)
-                assert(html.includes('<option selected="" disabled="">Custom</option>'), html)
-            },
         },
     },
 }
