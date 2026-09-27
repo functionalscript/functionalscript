@@ -1,25 +1,31 @@
 ## to-primitive. Converting an object or a function: stock behavior, refusal, then own methods
 
 **Priority:** P1
-**Status:** open
+**Status:** open — Stages 1 and 2 are done; Stage 3, a function's text, remains
 
 ### Problem
 
 Every conversion the VM makes, `ToString`, `ToNumber`, `ToNumeric` and the
 `+` and relational operators, goes through one function,
 `PrimitiveCoercionOp` in `vm/primitive_coercion.rs`
-(`Any::to_primitive`). For an object or a function it answers without
-looking at what JavaScript looks at:
+(`Any::to_primitive`). Before Stage 1 it answered an object or a function
+without looking at what JavaScript looks at. Stage 1 made each of these a
+`TypeError`, and Stages 2 and 3 answer them:
 
-| input | JavaScript | NaNVM today |
-|---|---|---|
-| `String({ toString: () => "b" })` | `"b"` | `"[object Object]"` |
-| `+{ valueOf: () => 1 }` | `1` | `NaN` |
-| `[0, 1].slice({ valueOf: () => 1 })` | `[1]` | `[0, 1]` |
-| `String(() => 1)` | `"() => 1"` | `"function"` |
-| `(() => 1) + "!"` | `"() => 1!"` | `"function!"` |
+| input | JavaScript | NaNVM before Stage 1 | since Stage 1 | since Stage 2 |
+|---|---|---|---|---|
+| `String({ toString: () => "b" })` | `"b"` | `"[object Object]"` | `TypeError` | `"b"` |
+| `+{ valueOf: () => 1 }` | `1` | `NaN` | `TypeError` | `1` |
+| `[0, 1].slice({ valueOf: () => 1 })` | `[1]` | `[0, 1]` | `TypeError` | `[1]` |
+| `String(() => 1)` | `"() => 1"` | `"function"` | `TypeError` | `TypeError` |
+| `(() => 1) + "!"` | `"() => 1!"` | `"function!"` | `TypeError` | `TypeError` |
 
-These are plausible wrong values, which
+Stage 1 also made one exception to the single entry: a function's
+`ToNumber` is `NaN` for any text, so `NumberCoercion`, `Any::to_numeric` and
+the relational operators answer it without asking `PrimitiveCoercionOp` for
+a text it cannot give.
+
+Those were plausible wrong values, which
 [DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
 forbids. The gap predates the `Array` and `String` member functions. Those
 functions made it reachable from many more calls: `join`'s separator and
@@ -37,11 +43,11 @@ order the hint sets. That part is already right:
 
 | stock behavior | JavaScript | NaNVM |
 |---|---|---|
-| `Object.prototype.valueOf` answers the object, not a primitive, so the next method runs | ✔ | ✔ `value_of` answers `None` |
-| `Object.prototype.toString` answers `"[object Object]"` | ✔ | ✔ `obj_to_string` |
+| `Object.prototype.valueOf` answers the object, not a primitive, so the next method runs | ✔ | ✔ `VALUE_OF`'s stock answer is `None` |
+| `Object.prototype.toString` answers `"[object Object]"` | ✔ | ✔ `TO_STRING`'s stock answer |
 | `Array.prototype.toString` is `join(",")` | ✔ | ✔ `arr_to_string`, through `Array::join` |
 | the `number` hint tries `valueOf` first, `string` tries `toString` first, no hint means `number` | ✔ | ✔ `obj_to_primitive` |
-| `Function.prototype.toString` answers the function's text | ✔ | ❌ the placeholder `"function"` |
+| `Function.prototype.toString` answers the function's text | ✔ | ❌ refused since Stage 1 (it was the placeholder `"function"`); the text is Stage 3 |
 
 A plain object, `{ a: 1 }`, converts exactly as in JavaScript, and so does
 an array whose elements do: an array converts through `join`, so an element
@@ -57,7 +63,7 @@ An array owns only its elements and `length`, and a function owns only its
 `length` (`vm/lambda/member.rs`). A value is never mutated, so neither can
 gain one later. An own property shadows the built-in, as it already does for
 an explicit call: `{ toString: f }.toString()` calls `f` today (`Member`).
-Only the implicit conversion is wrong.
+Only the implicit conversion is missing, and Stage 1 refuses it.
 
 A function's text is a different problem: it is the stock method itself that
 is missing. Its contract is already decided, the EDAG default rendering in
@@ -74,10 +80,10 @@ inherits. The function rule also needs the callers that can answer without
 the text: `ToNumber`, `ToNumeric` and the relational operators, below.
 
 **An object with an own `toString` is refused, and so is one with an own
-`valueOf` that is a function, wherever the hint reaches it.** The refusal is
-a `TypeError` that names the cause, whichever caller asked. A plain object is
-unchanged. The rule is exactly the inputs the VM answers wrongly today, and
-no others:
+`valueOf` that is a function, wherever the hint reaches it.** Stage 2
+replaced this refusal by the call. The refusal was a `TypeError` that names
+the cause, whichever caller asked. A plain object is unchanged. The rule is
+exactly the inputs the VM answered wrongly before it, and no others:
 
 - An own `toString` or `valueOf` that is a function is called by JavaScript,
   when the hint reaches it. Stage 1 cannot call it yet, so it refuses rather
@@ -115,9 +121,10 @@ would be a regression:
 The line between the last two `ToString` rows is whether the algorithm reads
 the text. Where it reads it, Stage 1 refuses, even when every text would give
 the same answer: `"".includes(f)` is `false` and `"".split(f)` is `[""]` for
-any non-empty text, and `+[f]` is `NaN` (below). Telling those apart needs
-reasoning about every possible text, so they stay refused until Stage 3
-gives the text itself.
+any non-empty text. So is a function inside an array: it is converted through
+the array's text, a string, so `+[f]` is refused, although `NaN` would be
+exact. Telling those apart needs reasoning about every possible text, so they
+stay refused until Stage 3 gives the text itself.
 
 No function's text converts to a number: it starts with `(`, `function`,
 `async` or a name. So `NaN` is exact for every text, and the numeric path can
@@ -142,17 +149,18 @@ function is not the oracle, the EDAG-rendering contract is
 Its refusals are pinned by the Rust unit tests alone, and Stage 3 adds its
 cases against the renderer.
 
-Stage 1 also makes a check possible that no test can make today: conversion
-can now throw, so `toSorted`'s guard (`vm/array/to_sorted.rs`, which leaves
+Stage 1 also made a check possible that no test could make before: conversion
+can throw, so `toSorted`'s guard (`vm/array/to_sorted.rs`, which leaves
 fewer than two defined elements unconverted) becomes observable.
 `[x, undefined].toSorted()` answers, and `[x, x].toSorted()` throws, where
 `x` owns a `toString`. The guard's test lands with Stage 1, and so do the
-two `// TODO:`s above, replaced with a pointer to Stage 2.
+two `// TODO:`s above, replaced with a pointer to Stage 2. Stage 2 keeps the
+test, with a `toString` that throws, and points both at Stage 3 alone.
 
 **Changelog.** A behavior change of `nanvm-lib`: conversions that answered a
 wrong value now throw a `TypeError`. It is not a break of `fjs`'s API.
 
-### Stage 2: an object's own methods
+### Stage 2: an object's own methods (done)
 
 `obj_to_primitive` follows
 [`OrdinaryToPrimitive`](https://tc39.es/ecma262/#sec-ordinarytoprimitive)
@@ -175,20 +183,26 @@ Stage 2 removes Stage 1's refusal for objects, and deletes the `rust`
 reasons of those cases. The host-only cases in `fjs/nanvm/proof.f.mjs`
 (`toStringMethod`, `toStringThrows`, `toStringNotAFunction`,
 `toStringNotPrimitive`) move into the shared corpus, since both sides then
-agree.
+agree. To write them there, the corpus gains `returns(v)`, a function value
+that answers `v`, beside `functionValue`; `returns(unreached)` throws when
+called. The unit tests are in `vm/primitive_coercion.rs`, one per step
+above, and the corpus covers each step for `String`, unary `+` and `-`,
+binary `+` and `slice`'s position.
 
 The order of the two conversions becomes observable here, since a method
-can throw. `>` and `<=` pass their operands to `is_less_than` swapped, and it
-converts its first argument first, so today `a > b` converts `b` first.
-ECMAScript's `LeftFirst` flag keeps the left operand first for all four
-operators: with `a` and `b` whose `toString`s throw `"a"` and `"b"`, each of
-`a < b`, `a > b`, `a <= b` and `a >= b` throws `"a"`. Stage 2 gives
-`is_less_than` that flag, with a test per operator. Until then no test can
-tell the orders apart: the only throw a conversion makes is
-`OWN_CONVERSION_METHOD`, one value whichever side makes it, and a function
-side does not throw while it converts. Its `FUNCTION_TEXT` refusal is decided
-after both sides are converted, so an object's refusal wins from either
-side.
+can throw. `>` and `<=` pass their operands to `is_less_than` swapped, and
+before Stage 2 it converted its first argument first, so `a > b` converted
+`b` first. ECMAScript's `LeftFirst` flag keeps the left operand first for
+all four operators: with `a` and `b` whose `valueOf`s throw `"a"` and `"b"`,
+each of `a < b`, `a > b`, `a <= b` and `a >= b` throws `"a"`. Stage 1 could
+not show the order: the only throw a conversion made was
+`OWN_CONVERSION_METHOD`, one value whichever side made it, and a function
+side did not throw while it converted. Stage 2 converts both operands in
+source order before `is_less_than` compares them. The unit test
+`left_operand_first` pins that for every binary operator, the other twelve
+having converted left first already. The array searches answer an empty
+array before converting their position, which the corpus pins with a
+`valueOf` that throws.
 
 A method's result can itself be an object with its own methods. Step 6 does
 not convert it; it moves on. So the conversion cannot recurse through its
@@ -211,13 +225,15 @@ needs its own issue, and it lands with or after Stage 1.
 
 ### Tasks
 
-- [ ] Stage 1: refuse an object with an own `toString`, or a function
+- [x] Stage 1: refuse an object with an own `toString`, or a function
       `valueOf` the hint reaches, and a function wherever its text is
       observable, keeping every text-independent result. Unit tests per row,
-      corpus cases with a `rust` reason, and the `toSorted` guard's test. Replace the `// TODO:` in
-      `array_join` (#2321) and `vm/string/search.rs` (#2328) with a pointer
-      to Stage 2.
-- [ ] Stage 2: call an object's own `toString` and `valueOf` per
+      and corpus cases with a `rust` reason.
+- [x] The member functions that convert: the `// TODO:`s in `array_join`
+      and `vm/string/search.rs` replaced with a pointer to Stage 2, tests
+      that `join` and the searches refuse, a corpus case for a needle with
+      its own `toString`, and the `toSorted` guard's test.
+- [x] Stage 2: call an object's own `toString` and `valueOf` per
       `OrdinaryToPrimitive`. Move the host-only cases into the corpus.
 - [ ] Stage 3: a function's text, through the EDAG renderer (tracked with the
       `Function` checklist in `member-functions.md`).
