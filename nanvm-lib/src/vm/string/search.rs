@@ -31,12 +31,10 @@ impl<A: IVm> String<A> {
     /// position at or after `pos`, clamped, where `ToString(search)` occurs.
     /// An empty search string is found at the clamped `pos` itself.
     pub(crate) fn index_of(&self, search: Any<A>, pos: Any<A>) -> Result<Option<u32>, Any<A>> {
-        // TODO: `ToString` of a function answers a placeholder, and of an
-        // object ignores its own `toString`/`valueOf`, so
-        // `"function".includes(() => undefined)` is `true` here; every
-        // search in this file converts its needle the same way. The fix is
-        // in the shared conversion, not here: the `ToPrimitive` task in
-        // `nanvm-lib/todo/member-functions.md`.
+        // The shared conversion calls a needle's own `toString`/`valueOf`,
+        // and refuses a function until its text exists: Stage 3 of
+        // `nanvm-lib/todo/to-primitive.md`. Every search in this file
+        // converts its needle here.
         let needle = search.to_string()?;
         let from = clamped(position(pos)?, self.length());
         Ok(self.find_from(&needle, from))
@@ -93,7 +91,10 @@ impl<A: IVm> String<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, Nullish, String, ToAny, unstable::bigint_any},
+        vm::{
+            Any, IStaticFunction, Nullish, String, ToAny, ToArray, ToObject,
+            primitive_coercion::FUNCTION_TEXT, unstable::bigint_any,
+        },
     };
 
     type A = Naive;
@@ -106,6 +107,20 @@ mod tests {
     }
     fn undefined() -> Any<A> {
         Nullish::Undefined.to_any()
+    }
+
+    /// `"function".indexOf(f)` would be `0` with the conversion's old
+    /// placeholder text; JavaScript answers `-1`. A needle whose text is not
+    /// known is refused instead. A needle with its own `toString` is
+    /// searched for as what that method answers.
+    #[test]
+    fn converts_a_needle_through_the_shared_conversion() {
+        let f = || A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array()).to_any();
+        let hay: String<A> = "function".into();
+        assert_eq!(hay.index_of(f(), undefined()), Err(FUNCTION_TEXT.into()));
+        let c = A::static_function(|_, _| Ok("c".into()), 0, [].to_array()).to_any();
+        let own: Any<A> = [("toString".into(), c)].to_object().to_any();
+        assert_eq!(hay.index_of(own, undefined()), Ok(Some(3)));
     }
 
     #[test]
