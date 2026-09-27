@@ -29,22 +29,26 @@ respells part of the JSON parser's `syntaxError`.
 `lexeme` and `unitAt` move here, beside `units`:
 
 ```ts
-/** The source text under a subtree that holds no mapped leaf. */
-export const lexeme: <R extends Rule>(node: Ast<R, Utf16, never>) => string
+/**
+ * The source text under a subtree that holds no mapped leaf.
+ * @throws On a mapped leaf: its mapping replaced the source it consumed, so there is none to give back.
+ */
+export const lexeme: <R extends Rule>(node: Ast<R, Utf16, { readonly id: string }>) => string
 ```
 
 with `Ast` from `fjs/ebnf/ast/types.ts` and `Rule` from
 `fjs/ebnf/types.ts`, generalised over the rule so a markdown node fits
-as a JSON node does. `never` for the output alphabet is the contract:
-a mapped leaf has no source to give back, since its mapping replaced
-what it consumed, so a subtree that may hold one is not this
-function's input. The JSON parser types its node with the wider
-`{ readonly id: string }` today and relies on `unitAt`'s assertion to
-enforce this at run time; that assertion stays, at the caller, as the
-one place a loosely typed subtree is narrowed to the unmapped one its
-grammar guarantees. A caller with no such guarantee would want
-`tryLexeme`, answering `null` on a mapped leaf; none exists today, so
-it is not proposed. The JSON, DataJS and markdown parsers import it; `syntaxError`
+as a JSON node does. The parameter type is the wide one the JSON
+parser's `lexeme` takes today, and the contract is the run-time
+assertion `unitAt` makes at every leaf, because the types cannot
+carry it: a caller such as `numberOf` holds a `Children<typeof number,
+Utf16, Out<P>>`, whose output alphabet is the parser's whole `Out<P>`,
+so no call site can produce an `Ast<R, Utf16, never>` without a cast,
+and a type that no caller can satisfy is not a contract. The
+assertion is one, and it moves here with the function: a mapped leaf
+is refused, never answered with text it does not have. `tryLexeme`,
+answering `null` instead, is the form for a caller that cannot
+guarantee its subtree; none exists today, so it is not proposed. The JSON, DataJS and markdown parsers import it; `syntaxError`
 may follow if it proves alphabet-level too.
 
 ### Tasks

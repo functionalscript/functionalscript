@@ -23,8 +23,13 @@ Two facts the analysis already holds are then re-derived by the
 serializer: which operands a node has — its `operands` lists `'[]'`,
 `'{}'`, `'.'`, `'-'`, `','` per tag with `default: []`, while the
 analysis's private `refs` is the complete kind-driven answer — and
-whether a node mints an identity, the serializer's `minting` against
-the analysis's private `mergeable`. The serializer's `default: []` means
+which nodes mint an identity, the serializer's `minting` beside the
+analysis's private `mergeable`. Those two are not one predicate:
+`minting` answers `[]`, `{}` and `=>`, the nodes a hoisted `const` may
+name; `mergeable` also refuses to merge `()`, `?.()` and a calling
+chain, because two calls written separately must run separately. A
+call is therefore not mergeable and not minting, and `!mergeable` is
+not `minting`. The serializer's `default: []` means
 that once operators get a spelling, a shared container under `+` is
 silently not hoisted.
 
@@ -36,8 +41,16 @@ The analysis exports its contract and its facts:
 /** `a` where `bindingError` finds nothing; its message where it does. */
 export const checked: (a: Analysis) => Result<Analysis, string>
 export const refs: (node: Node) => readonly number[]
+/** Whether a node's result is a fresh identity a `const` may name: `[]`, `{}`, `=>`. */
 export const mintsIdentity: (node: Node) => boolean
 ```
+
+`mintsIdentity` is the serializer's `minting` moved to the owner of
+the node kinds, not `mergeable` renamed: it answers the three minting
+kinds and nothing else, so a shared call is not hoisted and runs where
+it is written, as today. `mergeable` stays private to the analysis, as
+the merging rule it is, and the two are documented as the two
+different facts they are.
 
 `checked` takes an analysis, not an expression, so every consumer can
 call it: the three `fsc` sites write `checked(analysis(e))` and branch

@@ -18,10 +18,19 @@ if (Array.isArray(v)) { return ['[]', v.map(f)] }
 ```
 
 The corpus copy adds a hook for thunks; the linker copy has its own
-`undefinedNode`. Each made its own choices — `definedEntries` against
-`entries`, `undefined` handled in one and not the other — so they can
-drift, and neither is specific to its module: the conversion belongs
-with the schema, beside `array`, `object` and `property` here.
+`undefinedNode`. Each made its own choices — `definedEntries` against `entries`,
+`undefined` handled in one and not the other — so they can drift, and
+neither is specific to its module: the conversion belongs with the
+schema, beside `array`, `object` and `property` here.
+
+One of those choices is observable and has to be settled: for
+`{ a: undefined }`, `constExp` emits the property with an
+`['undefined']` node and `jsonEdag` omits it. `fromValue` keeps it. A
+member that is present with the value `undefined` is a member, and the
+EDAG has a node for the value, so the corpus's behaviour is the
+contract; `jsonEdag` loses nothing by it, since a parsed JSON document
+holds no `undefined`, and its `definedEntries` was never reached by
+one.
 
 ### Proposal
 
