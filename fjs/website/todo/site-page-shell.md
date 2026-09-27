@@ -33,24 +33,26 @@ is four edits with nothing to catch a missed one.
 `fjs/website/page` owns the shell and the layout:
 
 ```ts
-export const sitePage: (build: Build) => (title: Nullable<string>) => (...main: readonly Node[]) => Vec
-/** Where a directory's page is written, relative to the site root: `changelog/index.html`. */
+/** Where a directory's page is written: `changelog/index.html`. */
 export const pagePath: (path: string) => string
-/** How a directory's page is linked, root-relative and URL-encoded: `/changelog/index.html`. */
+/** How it is linked, root-relative and URL-encoded: `/changelog/index.html`. */
 export const pageHref: (path: string) => string
 ```
 
-`pageHref` is already here; `pagePath` is its file-system twin, and the
-two are kept distinct on purpose. An href is root-relative and
-URL-encoded and a path to write is neither: `writeFile` of an href
-would write at the file system's root and keep the percent escapes, so
-`writeChangelog` writes `pagePath(changelogDir)` while the `nav` and
-`rootPage` link `pageHref(changelogDir)`. The testable pages pass their
-`main` attributes through one `testable` variant of `sitePage`.
+`pageHref` is already here; `pagePath` is its file-system twin, kept
+distinct because an href is root-relative and URL-encoded and a path to
+write is neither. `writeChangelog` writes through `pagePath`; the links
+go through `pageHref`.
+
+One shell builder for the four pages, with the head and the header
+written once. Its exact shape is the implementer's call, with one
+requirement: the root page and the module page keep the `main`
+attributes the browser-test runtime looks for, and the changelog pages
+keep a plain `main`.
 
 ### Tasks
 
-- [ ] `sitePage` and `pagePath`; the four builders through `sitePage`.
+- [ ] The shell builder and `pagePath`; the four builders through them.
 - [ ] Every `index.html` literal through `pagePath` or `pageHref` as its
       use is a write or a link.
 - [ ] `tsc`, `fjs test`; `npm run website` writes the same tree.

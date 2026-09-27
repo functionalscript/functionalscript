@@ -43,58 +43,34 @@ longer takes.
 
 ### Proposal
 
-`fjs/dev` owns the policy beside the walk it applies to:
+`fjs/dev` owns the policy, beside its `walk`:
 
 ```ts
-/** A name that holds no file of this repository: a dot-name, `node_modules`, `target`. */
+/** A directory this repository does not enter: a dot-name, `node_modules`, `target`. */
 export const isThirdParty: (name: string) => boolean
 ```
 
-It is a rule about directories — which trees are not entered. Whether
-a dot-*file* is taken stays with each caller, since that is not a
-question about other people's files: test discovery skips one as it
-does today, and the website lists one, `.gitignore` among the root's
-files. `allFiles`, `clean`'s `classify` and the website's `ignored`
-call it for a directory, and `fjs test` stops walking `target`. That is
-the whole of the policy fix and stands on its own.
+It is a rule about directories. Each caller still decides its own
+files: test discovery skips a dot-file, the website lists one. The
+three sites call it for a directory, and `fjs test` stops walking
+`target`. That is the fix, and it stands on its own.
 
-For the two recursions, one walk under both, taking the same three-way
-`classify` today's `walk` takes — a boolean would not do, since a
-directory classified `take` must appear without being entered and one
-classified `skip` must not appear at all:
-
-```ts
-/** One record per directory entered: its path, and the names `classify` took and descended in it. */
-export const walkDirs: (root: string, classify: Classify)
-    => Effect<Readdir | All, readonly { path: string, taken: readonly string[], descended: readonly string[] }[], IoChannel>
-```
-
-`Classify` is the callback `walk` spells inline today, `(path: string,
-entry: Dirent) => 'take' | 'descend' | 'skip'`, named once in
-`fjs/dev/types.ts` so both walks declare it the same way. `taken` and
-`descended` hold names, not paths, because that is what the website
-joins onto the record's `path` itself. Today's
-`walk(root, classify)` is then every record's `taken` joined onto its
-`path`, concatenated — a subdirectory classified `take` included, in
-the answer without being entered, as today. The website applies the
-policy where it applies it today, to directories only: a directory
-whose name `isThirdParty` is `skip`, any other directory `descend`, and
-every file `take`, a dot-file included, since the root page lists them
-now and the tree written must not change. Its record is then `taken`
-as `files` and `descended` as `dirs` with no projection at all, sorted
-as it sorts them now, and its `_Walked` type moves beside the export. If the derivation turns out to cost more than the copy, the
-website keeps its walk and shares only the predicate; the policy fix
-does not wait on the walk.
+The two recursions over `readdir` are a second, smaller matter. They
+answer different shapes — `walk` a flat list in `readdir` order, the
+website a record per directory — so folding one into the other is not
+free, and the order `walk` answers in is what any shared walk has to
+keep. Whether to share the recursion, and how, is the implementer's
+call; the policy does not wait on it.
 
 `isSourceFile` goes, and `loadModuleMap`'s doc says what it takes.
 
 ### Tasks
 
 - [ ] `isThirdParty` in `fjs/dev/module.f.mjs`, with a proof; the three
-      sites import it.
-- [ ] `walkDirs` with `walk` derived from it, and the website through
-      `walkDirs`; `npm run website` writes the same tree.
+      sites call it.
 - [ ] Delete `isSourceFile`; correct `loadModuleMap`'s doc.
+- [ ] Decide whether the two recursions share a walk; if they do,
+      `walk`'s order and the website's tree are unchanged.
 - [ ] `tsc`, `fjs test`.
 
 ### Related
