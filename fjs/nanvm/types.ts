@@ -43,7 +43,7 @@ import type { Equal } from '../types/ts/types.ts'
  * expression that denotes it, so `typeof` plus `Array.isArray` recovers
  * everything a tag would have carried.
  */
-export type Value = Const | Ref | FunctionValue | Callback | Unreached
+export type Value = Const | Ref | FunctionValue | Callback | Returns | Unreached
 
 /** A value that is its own description. */
 export type Const =
@@ -69,34 +69,36 @@ export type Struct = { readonly [k in string]?: Value }
 export type Special<I extends Info> = () => I
 
 /**
- * What a {@link Special} describes. Each of the five is its own type below,
+ * What a {@link Special} describes. Each of the six is its own type below,
  * so where it may appear is a type and not a comment.
  */
 export type Info =
     | readonly ['function']
     | readonly ['callback', CallbackName]
+    | readonly ['returns', Value]
     | readonly ['ref', string]
     | readonly ['throw']
     | readonly ['unreached']
 
 /**
  * A function value. Every operator here coerces one through `ToPrimitive`,
- * which never inspects it, so there is nothing to carry: it lowers to
+ * which never calls it, so there is nothing to carry: it lowers to
  * `() => undefined`, the smallest closure, which `amnesia` establishes and
  * the Rust printer renders as the harness's one function value. Legal
- * anywhere a {@link Value} is.
+ * anywhere a {@link Value} is. A function that is called is a
+ * {@link Callback} or a {@link Returns}.
  *
  * One thing about a function is *not* shared data: its string form. JS
- * gives a closure's source text, engine-specific, and `nanvm-lib`'s
- * `fn_to_string` gives the placeholder `"function"`, so a case whose result
- * depends on it — `String` of a function, `+` with one, or either applied to
- * an array or object holding one, since their `ToPrimitive` stringifies the
- * elements — would test two different values. Such a case is not written
- * here: the `String` and binary `+` groups have no function case, and the
- * JS-only half lives in `proof.f.mjs`'s `jsOnly.functionToString`. Every
- * other coercion of a function, nested or not, agrees on both sides
- * (`NaN`, `false`, `'function'`, the function itself), which is what the
- * function cases in the other groups exercise.
+ * gives a closure's source text, engine-specific, and `nanvm-lib` refuses
+ * it until it renders one (Stage 3 of `nanvm-lib/todo/to-primitive.md`), so
+ * a case whose result depends on it — `String` of a function, `+` with one,
+ * or either applied to an array or object holding one, since their
+ * `ToPrimitive` stringifies the elements — would test two different values.
+ * Such a case is not written here: the `String` and binary `+` groups have
+ * no function case, and the JS-only half lives in `proof.f.mjs`'s
+ * `jsOnly.functionToString`. Every other coercion of a function, nested or
+ * not, agrees on both sides (`NaN`, `false`, `'function'`, the function
+ * itself), which is what the function cases in the other groups exercise.
  */
 export type FunctionValue = Special<readonly ['function']>
 
@@ -115,6 +117,16 @@ export type CallbackName = 'args' | 'first' | 'prop' | 'double' | 'add' | 'pair'
  * one to `map` and see what it answers. Legal anywhere a {@link Value} is.
  */
 export type Callback = Special<readonly ['callback', CallbackName]>
+
+/**
+ * A function that answers a value whatever it is given, `(...a) => v`: a
+ * body chosen by the case, where a {@link Callback}'s reads its arguments
+ * and is one of a fixed few. For the cases whose function is called with
+ * none — a conversion calling an object's own `toString` or `valueOf`. It
+ * lowers to the same `=>` node as a callback, so both consumers establish
+ * it the same way. Legal anywhere a {@link Value} is.
+ */
+export type Returns = Special<readonly ['returns', Value]>
 
 /**
  * One of {@link Data}'s `shared` values, so the *same* node — and hence the
@@ -300,6 +312,8 @@ type _Op12Binary = Assert<Equal<Extract<Group12, { arity: 2 }>['cases'], readonl
 type _FunctionIsValue = Assert<Equal<FunctionValue extends Value ? true : false, true>>
 type _CallbackIsValue = Assert<Equal<Callback extends Value ? true : false, true>>
 type _NoCallbackExpected = Assert<Equal<Callback extends Expectation ? true : false, false>>
+type _ReturnsIsValue = Assert<Equal<Returns extends Value ? true : false, true>>
+type _NoReturnsExpected = Assert<Equal<Returns extends Expectation ? true : false, false>>
 type _UnreachedIsValue = Assert<Equal<Unreached extends Value ? true : false, true>>
 type _NoThrowsValue = Assert<Equal<Throws extends Value ? true : false, false>>
 type _NoFunctionExpected = Assert<Equal<FunctionValue extends Expectation ? true : false, false>>
