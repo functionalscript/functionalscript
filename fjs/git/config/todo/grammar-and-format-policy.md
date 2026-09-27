@@ -25,19 +25,34 @@ different structure.
 ### Proposal
 
 Two modules, one concern each. `fjs/git/config` keeps the grammar and
-exports a typed surface:
+exports a typed surface that keeps Git's reading rule: every assignment
+of a key is parsed as the reader reaches it and the last one wins, so a
+malformed assignment refuses the file whatever stands after it — the
+fold `versionStep` writes today for `repositoryformatversion`:
 
 ```ts
 export const tryEntries: (raw: string) => Nullable<readonly Entry[]>
+/** Every assignment of `section.key`, in file order. */
+export const values: (entries: readonly Entry[], section: string, key: string) => readonly string[]
+/** The last assignment, `null` for none. */
 export const lastValue: (entries: readonly Entry[], section: string, key: string) => Nullable<string>
-export const tryInt: (value: string) => Nullable<bigint>
-export const tryBool: (value: string) => Nullable<boolean>
+/** The last assignment as Git's int, `ok(null)` for none; `error` where any assignment is no int. */
+export const lastInt: (entries: readonly Entry[], section: string, key: string) => Result<Nullable<bigint>, string>
+/** The same for Git's bool. */
+export const lastBool: (entries: readonly Entry[], section: string, key: string) => Result<Nullable<boolean>, string>
 ```
+
+`lastInt` and `lastBool` are the typed readers a consumer wants —
+`core.sharedRepository` included — and neither can be written from
+`lastValue` alone, which is why `lastValue` is not the whole surface:
+a reader that parsed only the winning value would accept a file Git
+refuses.
 
 The extensions and version gate move next to what they decide,
 `fjs/git/store`'s `oidBytes`, as `tryOidBytes(entries)` over the
-exported readers — or into `fjs/git/config/format` if a second
-format-policy reader appears.
+exported readers — `lastInt` for the version, `values` for the
+extension assignments it checks one by one — or into
+`fjs/git/config/format` if a second format-policy reader appears.
 
 ### Tasks
 
