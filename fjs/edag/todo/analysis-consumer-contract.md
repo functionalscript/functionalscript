@@ -46,8 +46,17 @@ on the result, and `memo` asserts on it. `memo`'s runtime check stays
 keeping, and a type cannot carry it: `Phantom` is structural, its marker
 optional, so a plain `Analysis` would pass as a `Checked` — but the
 check is now spelled once, in `checked`, and `memo`'s line is a call to
-it rather than a copy of it. The serializer's `hoists` walks `refs` and
-filters with `mintsIdentity`; `operands` and `minting` go.
+it rather than a copy of it.
+
+The serializer's `hoists` walks `refs` filtered by scope: the analysis
+records the scope of every node, and a reference is followed only where
+its node's scope is the one being written. That is the function-body
+boundary `operands` keeps by answering nothing for `=>` — a shared
+container inside a body belongs to the body's scope and is hoisted
+there, never into the enclosing module — and the analysis states it as
+data rather than as an omitted `case`. Frame captures keep their
+separate handling in `frameItems`. Then `mintsIdentity` filters, and
+`operands` and `minting` go.
 
 ### Tasks
 

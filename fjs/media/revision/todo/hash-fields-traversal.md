@@ -61,15 +61,18 @@ does not depend on. If the format wants the name, it declares its own.
 turned into today's messages, with no captured state and no second
 walk; `lockError` goes with it. `fjs/basen/cbase32` exports the
 canonical spelling, `canonicalCBase32: (s: string) => Nullable<string>`.
-Evo's `buildRevision` and `toRevisionData` become
-`mapHashes(canonical)`, and `cas_get` uses the same export.
+Evo's `buildRevision` becomes `mapHashes(canonical)`, and
+`toRevisionData` canonicalises the same way and then projects, dropping
+`dialect` as it does today, since its answer is the `RevisionData` wire
+shape and not a `Revision`; `cas_get` uses the same export.
 
 ### Tasks
 
 - [ ] `hashEntries` and `mapHashes` here, `canonicalCBase32` in
       `cbase32`, with proofs.
 - [ ] `checkReferences` over `hashEntries`, its messages unchanged;
-      evo's two builders over `mapHashes`; `canonicalLock`,
+      evo's two builders over `mapHashes`, `toRevisionData` still
+      projecting to `RevisionData` afterwards; `canonicalLock`,
       `canonicalLockField` and `lockError` go.
 - [ ] `tsc`, `fjs test`; the evo head proofs pass unchanged.
 

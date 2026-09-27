@@ -60,17 +60,20 @@ directory classified `take` must appear without being entered and one
 classified `skip` must not appear at all:
 
 ```ts
-/** One record per directory entered: the entries `classify` took, and the ones it descended. */
+/** One record per directory entered: its path, and the names `classify` took and descended in it. */
 export const walkDirs: (root: string, classify: Classify)
     => Effect<Readdir | All, readonly { path: string, taken: readonly string[], descended: readonly string[] }[], IoChannel>
 ```
 
-Today's `walk(root, classify)` is the concatenation of every record's
-`taken` — a subdirectory classified `take` included, in the answer
-without being entered, as today. The website classifies a third-party
-name `skip`, any other directory `descend` and a file `take`, so its
-record is `taken` as `files` and `descended` as `dirs`, sorted as it
-sorts them now, and its `_Walked` type moves beside the export. If the derivation turns out to cost more than the copy, the
+`taken` and `descended` hold names, not paths, because that is what
+the website joins onto the record's `path` itself. Today's
+`walk(root, classify)` is then every record's `taken` joined onto its
+`path`, concatenated — a subdirectory classified `take` included, in
+the answer without being entered, as today. The website classifies a
+third-party name `skip`, any other directory `descend` and a file
+`take`, so its record is `taken` as `files` and `descended` as `dirs`
+with no projection at all, sorted as it sorts them now, and its
+`_Walked` type moves beside the export. If the derivation turns out to cost more than the copy, the
 website keeps its walk and shares only the predicate; the policy fix
 does not wait on the walk.
 
