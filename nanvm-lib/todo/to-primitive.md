@@ -25,8 +25,10 @@ forbids. The gap predates the `Array` and `String` member functions. Those
 functions made it reachable from many more calls: `join`'s separator and
 elements, every string-method argument, and every numeric position or count
 (the `String` ones are still in review).
-Review of that stack keeps finding it. `join` and the string searches carry a
-`// TODO:` that points here.
+Review of that stack keeps finding it. Two of its pull requests carry a
+`// TODO:` for it, which reaches here through the `ToPrimitive` task of
+`member-functions.md`: `array_join` in `vm/lambda/method.rs` (#2321) and the
+searches in `vm/string/search.rs` (#2328). Neither is on `main` yet.
 
 ### What already works: the stock methods
 
@@ -125,11 +127,12 @@ answers and the VM refuses, the case also joins the shared corpus with a
 Stage 2 turns the case on by deleting the reason.
 
 Stage 1 also makes a check possible that no test can make today: conversion
-can now throw, so `toSorted`'s guard (`vm/array/to_sorted.rs`, which leaves
-fewer than two defined elements unconverted) becomes observable.
-`[x, undefined].toSorted()` answers, and `[x, x].toSorted()` throws, where
-`x` owns a `toString` that throws. The guard's test lands with
-`toSorted`.
+can now throw, so `toSorted`'s guard (`vm/array/to_sorted.rs`, arriving with
+#2323, which leaves fewer than two defined elements unconverted) becomes
+observable. `[x, undefined].toSorted()` answers, and `[x, x].toSorted()`
+throws, where `x` owns a `toString` that throws. Stage 1 does not wait for
+that stack: the guard's test, and the two `// TODO:`s above, land with
+whichever of this stack and their pull request reaches `main` second.
 
 **Changelog.** A behavior change of `nanvm-lib`: conversions that answered a
 wrong value now throw a `TypeError`. It is not a break of `fjs`'s API.
@@ -163,15 +166,17 @@ called. The unit tests are in `vm/primitive_coercion.rs`, one per step
 above, and the corpus covers each step for `String`, unary `+` and `-`,
 binary `+` and `slice`'s position.
 
-A conversion can now run user code, which can throw, so the order of
-conversions becomes observable. Every binary operator converts its left
-operand first. `>` and `<=` ask `<` of the swapped operands, and before
-Stage 2 they also converted the right operand first; they now convert both
-in source order first, as the spec's `LeftFirst` flag of
-[`IsLessThan`](https://tc39.es/ecma262/#sec-islessthan) requires. The
-unit test `left_operand_first` pins every operator. The array searches
-answer an empty array before converting their position, which the corpus
-pins with a `valueOf` that throws.
+The order of the two conversions becomes observable here, since a method
+can throw. `>` and `<=` pass their operands to `is_less_than` swapped, and
+before Stage 2 it converted its first argument first, so `a > b` converted
+`b` first. ECMAScript's `LeftFirst` flag keeps the left operand first for
+all four operators: with `a` and `b` whose `valueOf`s throw `"a"` and `"b"`,
+each of `a < b`, `a > b`, `a <= b` and `a >= b` throws `"a"`. Stage 2
+converts both operands in source order before `is_less_than` compares
+them. The unit test `left_operand_first` pins that for every binary
+operator, the other twelve having converted left first already. The array
+searches answer an empty array before converting their position, which the
+corpus pins with a `valueOf` that throws.
 
 A method's result can itself be an object with its own methods. Step 6 does
 not convert it; it moves on. So the conversion cannot recurse through its
@@ -197,9 +202,9 @@ needs its own issue, and it lands with or after Stage 1.
       function wherever its text is observable, keeping every
       text-independent result. Unit tests per row, and corpus cases with a
       `rust` reason.
-- [ ] With the member functions still in review, once each merges this:
-      the `toSorted` guard's test, and the `// TODO:` in `array_join` and
-      `vm/string/search.rs` deleted, since Stage 2 answers it.
+- [ ] Once #2321, #2323 and #2328 are on `main` with this: the `toSorted`
+      guard's test, and the `// TODO:` in `array_join` (#2321) and
+      `vm/string/search.rs` (#2328) deleted, since Stage 2 answers it.
 - [x] Stage 2: call an object's own `toString` and `valueOf` per
       `OrdinaryToPrimitive`. Move the host-only cases into the corpus.
 - [ ] Stage 3: a function's text, through the EDAG renderer (tracked with the
