@@ -57,19 +57,6 @@ throw node in the schema. The second proof, a thunk that panics as a set of
 tests that must fail, is
 [should-panic-per-vm](./should-panic-per-vm.md)'s.
 
-<<<<<<< HEAD
-**The transport.** When the interpreter lands, the printer grows a second
-output beside the direct-operator statements it prints today: one that
-*constructs* each derivable case's expression as an `Any` and hands it to the
-interpreter. Authoring stays single-source; only the transport is generated.
-Once the deferred `Any`/CBOR serialization exists, the same expressions can
-ship as serialized data instead. Either way this is what keeps the interpreter
-and the generated code in agreement — the point the roadmap's test-generation
-item makes — and the JavaScript side's counterpart is running the corpus
-through the EDAG interpreter as well, [`fjs/edag/memo`](../../edag/memo/module.f.mjs)
-([interpret-edag](../../compiler/todo/interpret-edag.md)), which owes the same
-identity-memoization contract the corpus already relies on. `amnesia` stays
-=======
 **The transport.** Keep the direct-operator output. Add generated Rust that
 *constructs* each derivable case's EDAG as `Any` data and passes it to the
 AOT-compiled FJS conformance runner, using the FJS interpreter's
@@ -83,7 +70,6 @@ On JavaScript hosts, run the corpus through
 [`fjs/edag/memo`](../../edag/memo/module.f.mjs) as well. Its observable results,
 including sharing and throws, must agree with direct Rust and with the same
 FJS interpreter compiled to Rust. `amnesia` stays
->>>>>>> origin/main
 the oracle ([`../../edag/amnesia/README.md`](../../edag/amnesia/README.md)),
 so memo runs beside it rather than replacing it, the two answers pinned where
 sharing decides them. The proof's own inline evaluator is already gone:
@@ -125,15 +111,9 @@ plan or native self-hosting.
 - [`../../edag/todo/rust-schema-codegen.md`](../../edag/todo/rust-schema-codegen.md)
   — deferred optional Rust validation that may reuse these vectors.
 - [`../../../nanvm-lib/todo/mvp-roadmap.md`](../../../nanvm-lib/todo/mvp-roadmap.md)
-<<<<<<< HEAD
-  — the interpreter and remaining-operators items this feeds.
-- [`../../compiler/todo/interpret-edag.md`](../../compiler/todo/interpret-edag.md) — the
-  FunctionalScript executor that replaces `amnesia` here.
-=======
   — direct Rust AOT and native execution through the compiled FJS interpreter.
 - [`../../compiler/todo/interpret-edag.md`](../../compiler/todo/interpret-edag.md) — the
   FunctionalScript executor run beside the `amnesia` oracle here.
->>>>>>> origin/main
 - [`../../../todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md)
   — positional laziness.
 - `comparisonCases` in [`../module.f.mjs`](../module.f.mjs) (shipped) — the
