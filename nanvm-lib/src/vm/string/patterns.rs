@@ -280,6 +280,10 @@ mod tests {
         let f = || A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array()).to_any();
         assert_eq!(pieces(s("a").split(f(), 0.0.to_any())), vec![]);
         assert_eq!(
+            pieces(s("a").split([f()].to_array().to_any(), 0.0.to_any())),
+            vec![]
+        );
+        assert_eq!(
             s("a").split(f(), Nullish::Undefined.to_any()).map(|_| ()),
             Err(FUNCTION_TEXT.into())
         );

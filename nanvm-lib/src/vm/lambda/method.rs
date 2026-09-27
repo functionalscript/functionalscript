@@ -424,6 +424,23 @@ mod tests {
         };
         assert_eq!(joined([].to_array().to_any()), Ok("".into()));
         assert_eq!(joined([1.0.to_any()].to_array().to_any()), Ok("1".into()));
+        // An array separator converts through its elements, so a function
+        // inside it, however deep, is skipped too.
+        let join_with = |separator: Any<A>| {
+            let empty: Any<A> = [].to_array().to_any();
+            empty
+                .dot("join".into())
+                .end_call(move || Ok([separator.clone()].to_array().to_any()))
+        };
+        assert_eq!(join_with([g()].to_array().to_any()), Ok("".into()));
+        assert_eq!(
+            join_with([[g()].to_array().to_any()].to_array().to_any()),
+            Ok("".into())
+        );
+        let own_inside: Any<A> = [[("toString".into(), g())].to_object().to_any()]
+            .to_array()
+            .to_any();
+        assert_eq!(join_with(own_inside), Err(OWN_CONVERSION_METHOD.into()));
         let own: Any<A> = [("toString".into(), g())].to_object().to_any();
         let empty: Any<A> = [].to_array().to_any();
         assert_eq!(

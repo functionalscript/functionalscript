@@ -159,10 +159,13 @@ impl<A: IVm> Any<A> {
     /// happen, and an object with its own `toString` is still refused, but a
     /// function's text, which cannot throw and is never read here, is not
     /// needed — so `[].join(f)` answers `""`, as it does in JavaScript
-    /// (`nanvm-lib/todo/to-primitive.md`, Stage 1).
+    /// (`nanvm-lib/todo/to-primitive.md`, Stage 1). An array converts
+    /// through its elements alone, since it owns no `toString`, so a
+    /// function inside one is skipped too: `[].join([f])` is `""`.
     pub fn to_string_unused(self) -> Result<(), Any<A>> {
         match self.clone().into() {
             Unpacked::Function(_) => Ok(()),
+            Unpacked::Array(a) => a.into_iter().try_for_each(Self::to_string_unused),
             _ => self.to_string().map(|_| ()),
         }
     }
