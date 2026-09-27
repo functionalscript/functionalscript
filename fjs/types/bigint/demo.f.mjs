@@ -454,6 +454,22 @@ export const demo = {
             : pureOk(state)
     },
     view: state => ['div',
+        // **What is being measured, said before the control that measures
+        // it.** The page shows only this view, so without it a reader meets a
+        // button and a number with nothing to say what either is for.
+        ['p',
+            'Seven ways to find the highest set bit of a bigint (its base-2 ',
+            'logarithm, rounded down), timed in the browser you are reading ',
+            'this in. The first is this module\'s log2; the other six are the ',
+            'older and alternative versions it was chosen over.',
+        ],
+        ['p',
+            'Each one runs on every power of two up to the exponent below, and ',
+            'on the number just below each, and every result is checked: a ',
+            'candidate that is fast but gives a wrong result says so instead ',
+            'of showing a time. The work grows with the square of the ',
+            'exponent, so doubling it takes about four times as long.',
+        ],
         ['p',
             ['button', { type: 'button', name: 'run' }, 'Measure'],
             ' log2 of every power of two below 2^',

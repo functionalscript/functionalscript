@@ -289,7 +289,7 @@ Git, not only the workflows. `fjs ci` covers `.github/workflows/ci.yml`,
 `.github/workflows/npm-publish.yml` and the generated Nix flakes (`flake.nix`
 and `run`, deliberately not `flake.lock` — see "Generated flake locks" below);
 a project with other generators chains them into the same script, as this
-repository does for `nanvm-lib/tests/test/gen.operators.rs` (see
+repository does for `nanvm-lib/tests/test/gen.corpus/` (see
 [`fjs/nanvm/README.md`](../nanvm/README.md)). Everything chained there is
 covered by the drift check below for free.
 

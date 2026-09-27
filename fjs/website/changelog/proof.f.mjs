@@ -2,6 +2,7 @@
  * @import { DemoEvent } from '../demo/types.ts'
  * @import { Inline } from '../../media/markdown/types.ts'
  * @import { Release } from './types.ts'
+ * @import { Build } from '../page/types.ts'
  */
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -19,6 +20,10 @@ const pull = /** @type {(n: string) => string} */(n => `${repository}/pull/${n}`
 // A release with no neighbours, for a page whose links are not the point.
 /** @type {(version: string) => Release} */
 const alone = version => ({ version, previous: null, next: null })
+
+// A local build: the pages here are about releases, not about the build.
+/** @type {Build} */
+const local = { commit: null, branch: null }
 
 // The pure reading half: a reference, a group, a scan, and the order.
 const core = {
@@ -151,7 +156,7 @@ const render = {
         `<li>x (<a href="${pull('1421')}">#1421</a>)</li>`)),
     release: {
         page: () => {
-            const html = utf8ToString(releasePage(alone('0.41.0'))([[['code', 'a']]]))
+            const html = utf8ToString(releasePage(local)(alone('0.41.0'))([[['code', 'a']]]))
             assert(html.includes('<title>0.41.0 · FunctionalScript</title>'), html)
             assert(html.includes('<h1>0.41.0</h1>'), html)
             assert(html.includes('<li><code>a</code></li>'), html)
@@ -159,11 +164,13 @@ const render = {
             // and icons.
             assert(html.includes('<html lang="en">'), html)
             assert(html.includes('/_main.css'), html)
+            // And the same header.
+            assert(html.includes('<body><header><nav aria-label="Site">'), html)
         },
         // `changelog/README.md`: "A `<version>.md` file that is empty records
         // a release that shipped no notable change." `0.1.608` is one.
         empty: () => {
-            const html = utf8ToString(releasePage(alone('0.1.608'))([]))
+            const html = utf8ToString(releasePage(local)(alone('0.1.608'))([]))
             assert(html.includes('shipped no notable change'), html)
             assert(!html.includes('<ul>'), html)
         },
@@ -190,7 +197,7 @@ const render = {
     /** The links sit under the heading, above the entries. */
     navigation: {
         both: () => {
-            const html = utf8ToString(releasePage(
+            const html = utf8ToString(releasePage(local)(
                 { version: '0.47.0', previous: '0.46.0', next: '0.48.0' })([[['text', 'x']]]))
             assert(html.includes(
                 '<h1>0.47.0</h1><nav aria-label="Releases">'
@@ -201,7 +208,7 @@ const render = {
         },
         // The oldest release has nothing before it, and says only what is.
         oldest: () => {
-            const html = utf8ToString(releasePage({ version: '0.1.0', previous: null, next: '0.1.1' })([]))
+            const html = utf8ToString(releasePage(local)({ version: '0.1.0', previous: null, next: '0.1.1' })([]))
             // The whole nav, so a missing separator is checked in the nav
             // alone: the title carries a ` · ` of its own.
             assert(html.includes(
@@ -211,31 +218,37 @@ const render = {
             assert(!html.includes('Previous:'), html)
         },
         newest: () => {
-            const html = utf8ToString(releasePage({ version: '0.48.0', previous: '0.47.0', next: null })([]))
+            const html = utf8ToString(releasePage(local)({ version: '0.48.0', previous: '0.47.0', next: null })([]))
             assert(html.includes('Previous: 0.47.0'), html)
             assert(!html.includes('Next:'), html)
         },
         // A lone release has no neighbours, and an empty landmark would be
         // one a screen reader announces with nothing in it.
         alone: () => {
-            const html = utf8ToString(releasePage(alone('0.1.0'))([]))
+            const html = utf8ToString(releasePage(local)(alone('0.1.0'))([]))
             assert(!html.includes('aria-label="Releases"'), html)
         },
     },
     index: {
         newestFirst: () => {
-            const html = utf8ToString(indexPage(['0.11.2', '0.11.10']))
+            const html = utf8ToString(indexPage(local)(['0.11.2', '0.11.10']))
             assert(html.indexOf('_0.11.10.html') < html.indexOf('_0.11.2.html'), html)
         },
         title: () => {
-            const html = utf8ToString(indexPage([]))
+            const html = utf8ToString(indexPage(local)([]))
             assert(html.includes('<title>Releases · FunctionalScript</title>'), html)
         },
+        // The header says which build a preview is on every page, the
+        // release index included.
+        preview: () => {
+            const html = utf8ToString(indexPage({ commit: null, branch: 'x' })([]))
+            assert(html.includes(`Preview: <a href="${repository}/tree/x">x</a>`), html)
+        },
         linksEvery: () => assertEq(
-            utf8ToString(indexPage(['0.1.0', '0.2.0', '0.3.0'])).split('changelog/_').length - 1, 3),
+            utf8ToString(indexPage(local)(['0.1.0', '0.2.0', '0.3.0'])).split('changelog/_').length - 1, 3),
         // One link per line, so the stylesheet's tap-target rule reaches it.
         linkList: () => {
-            const html = utf8ToString(indexPage(['0.1.0']))
+            const html = utf8ToString(indexPage(local)(['0.1.0']))
             assert(html.includes('<ul data-links=""><li><a href="/changelog/_0.1.0.html">'), html)
         },
     },

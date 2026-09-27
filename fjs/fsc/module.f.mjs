@@ -379,8 +379,11 @@ export const compile = args => {
                 return errorExit(`${_errorLocation(inputFileName)(result[1])} - error: ${result[1].message}`)
             }
             const [tag, content] = result[1]
-            return tag === 'error'
-                ? errorExit(`${outputFileName} - error: ${content}`)
-                : exitStep(step(mkdir(outputDirectory(outputFileName), { recursive: true }), () => writeUtf8File(outputFileName, content)))
+            if (tag === 'error') {
+                return errorExit(`${outputFileName} - error: ${content}`)
+            }
+            const directoryReady = mkdir(outputDirectory(outputFileName), { recursive: true })
+            const written = step(directoryReady, () => writeUtf8File(outputFileName, content))
+            return exitStep(written)
         })
 }

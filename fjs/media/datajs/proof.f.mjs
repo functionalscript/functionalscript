@@ -73,7 +73,9 @@ export const proof = {
                 assertEq(occurrences(html, 'data-graph-kind="array"'), 1)
                 assert(html.includes('>&quot;a&quot;<'), html)
                 assert(html.includes('>&quot;c&quot;<'), html)
-                assertEq(occurrences(html, 'data-graph-kind="leaf"'), 2)
+                // `1` and `2` sit in the array's own ports, not in boxes.
+                assertEq(occurrences(html, 'data-graph-kind="leaf"'), 0)
+                assertEq(occurrences(html, 'data-graph-value=""'), 2)
             },
             // `typeof null === 'object'` is why `walk` checks `=== null`
             // first — without it, `null` would reach `instanceof Array` and
@@ -95,62 +97,74 @@ export const proof = {
                 assert(html.includes('>-0<'), html)
             },
             // An index sits in a port of the array's own box, not on the
-            // line: the header is 26px and the port under it 20px, so the
-            // label is centred at y=46 and the edge leaves the port's
-            // bottom at y=56.
+            // line: the header is 26px and the row under it 20px, so the
+            // label is centred at y=46 and the edge leaves the row's right
+            // end at (60,46).
             edgeLabelPosition: () => {
-                const html = htmlToString(demo.view('export default [1];'))
+                const html = htmlToString(demo.view('export default [[]];'))
                 assert(html.includes('<text x="35" y="46" text-anchor="middle" data-graph-edge-label="">0<'), html)
-                assert(html.includes('d="M35,56 L35,96"'), html)
+                assert(html.includes('d="M60,46 L100,23"'), html)
             },
-            // Two equal numbers are two leaf nodes, not one shared like a
+            // A leaf inside a container is no node of its own: its value
+            // sits in the port's row, in a cell right of the index, and no
+            // line leaves for it.
+            inlineLeaf: () => {
+                const html = htmlToString(demo.view('export default [1];'))
+                assert(html.includes('<rect x="10" y="10" width="50" height="46" rx="4" data-graph-node=""'), html)
+                assert(html.includes('<rect x="10" y="36" width="24" height="20" data-graph-port="">'), html)
+                assert(html.includes('<rect x="34" y="36" width="26" height="20" data-graph-value="">'), html)
+                assert(html.includes('<text x="47" y="46" text-anchor="middle" data-graph-value-label="">1<'), html)
+                assert(!html.includes('data-graph-edge=""'), html)
+            },
+            // Two equal numbers are two values, not one shared like a
             // container would be — "primitive sharing is not [written]".
             equalLeavesDoNotShare: () => {
                 const html = htmlToString(demo.view('export default [1,1];'))
-                assertEq(occurrences(html, 'data-graph-kind="leaf"'), 2)
+                assertEq(occurrences(html, 'data-graph-value=""'), 2)
+                assertEq(occurrences(html, 'data-graph-value-label="">1<'), 2)
             },
             // Three array elements sharing one value are three ports and
             // three lines into one node — each index in its own cell, so
             // none is hidden under another and nothing has to be merged.
+            // The object's `"n"` is a fourth port, holding its `1`.
             parallelEdgesArePorts: () => {
                 const html = htmlToString(demo.view('const $0={"n":1};\nexport default [$0,$0,$0];'))
                 assertEq(occurrences(html, 'data-graph-kind="object"'), 1)
                 assertEq(occurrences(html, 'data-graph-port=""'), 4)
-                assertEq(occurrences(html, 'data-graph-edge=""'), 4)
+                assertEq(occurrences(html, 'data-graph-edge=""'), 3)
                 assert(!html.includes('>0, 1, 2<'), html)
-                // Four different lines, not three drawn on top of each
+                // Three different lines, not three drawn on top of each
                 // other: each piece before an edge's marker ends with its
                 // path data.
                 const routes = html.split('" data-graph-edge=""').slice(0, -1)
                     .map(before => before.slice(before.lastIndexOf('d="') + 'd="'.length))
-                assertEq(new Set(routes).size, 4)
+                assertEq(new Set(routes).size, 3)
             },
-            // A shared node reached again from above an intervening rank
-            // runs down a lane of its own through that rank; the edges
+            // A shared node reached again from left of an intervening rank
+            // runs across a lane of its own through that rank; the edges
             // either side of it, one rank apart, are single segments — the
             // exact routes, since the layout is pure arithmetic over
             // document order and this document's order is fixed.
             skipLevelLane: () => {
                 const html = htmlToString(
                     demo.view('const $0=[9];\nconst $1={"y":$0};\nexport default {"p":$1,"r":$0};'))
-                assert(html.includes('d="M59.5,56 L15,96 L15,142 L35,182"'), html)
-                assert(html.includes('d="M26.5,56 L59,96"'), html)
+                assert(html.includes('d="M60,66 L100,15 L150,15 L190,23"'), html)
+                assert(html.includes('d="M60,46 L100,47"'), html)
             },
             // The one case the first version of this demo got wrong: `$0` is
             // reached at rank 1 via `"a"`, then again at rank 3 via
             // `"b"."c"."d"` — the longer route. Rank by longest path moves
             // it to rank 3, so `"a"` becomes the one that skips ranks and
-            // runs down a lane through every rank it skips, and no edge is
-            // left pointing back up the page the way `"a"` would if `$0`
-            // had kept its first-seen rank of 1.
+            // runs across a lane through every rank it skips, and no edge
+            // is left pointing back to the left the way `"a"` would if
+            // `$0` had kept its first-seen rank of 1.
             longestPathWins: () => {
                 const html = htmlToString(demo.view(
                     'const $0=[1];\nexport default {"a":$0,"b":{"c":{"d":$0}}};'))
-                assert(html.includes('d="M26.5,56 L15,96 L15,142 L15,182 L15,228 L35,268"'), html)
-                assert(html.includes('d="M59.5,56 L59,96"'), html)
-                assert(html.includes('d="M59,142 L59,182"'), html)
-                assert(html.includes('d="M59,228 L35,268"'), html)
-                assert(html.includes('d="M35,314 L35,354"'), html)
+                assert(html.includes('d="M60,46 L100,15 L150,15 L190,15 L240,15 L280,23"'), html)
+                assert(html.includes('d="M60,66 L100,47"'), html)
+                assert(html.includes('d="M150,70 L190,47"'), html)
+                assert(html.includes('d="M240,70 L280,23"'), html)
             },
             // No edge of the initial document, or of the two skip-level
             // documents above, passes through a node's box.

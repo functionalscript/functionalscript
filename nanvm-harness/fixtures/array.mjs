@@ -1,5 +1,5 @@
 /**
- * Compiled by `fjs compile` into the sibling `array.rs`, committed and
+ * Compiled by `fjs compile` into `../gen.fixtures/array.rs`, committed and
  * drift-checked by `npm run gen` (see `../../fjs/ci/README.md`). Consumed by
  * `../src/lib.rs`.
  */
