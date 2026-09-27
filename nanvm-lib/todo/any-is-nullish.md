@@ -43,19 +43,29 @@ at some forty sites, and several test modules — `array/at`,
 `Any` owns both:
 
 ```rust
+impl<A: IVm> Unpacked<A> {
+    /// The one place the match is written.
+    pub fn is_nullish(&self) -> bool
+}
 impl<A: IVm> Any<A> {
-    /// Without building an error value: the common answer is `false`.
+    /// Unpacks a clone and asks it; without building an error value, since the common answer is `false`.
     pub fn is_nullish(&self) -> bool
     pub fn undefined() -> Self
 }
 ```
 
-The six sites call `is_nullish`, the rationale moves to its doc, and the
-test-local `undefined()` helpers are deleted.
+Two forms, because two of the sites already hold an `Unpacked`:
+`own_property` converts `self` once and dispatches on the result, and
+`Member::is_nullish` consumes what `own()` returned. Those ask the
+`Unpacked` form and keep their single conversion; the others, which
+hold an `Any` and nothing else, ask the `Any` form, which is the
+`Unpacked` form over one unpack. The rationale moves to the docs, and
+the test-local `undefined()` helpers are deleted.
 
 ### Tasks
 
-- [ ] `Any::is_nullish` and `Any::undefined`, with tests.
+- [ ] `Unpacked::is_nullish`, `Any::is_nullish` and `Any::undefined`,
+      with tests.
 - [ ] The six sites, `Array::join`'s among them, and the test helpers
       through them.
 - [ ] `cargo test`, `cargo clippy`, `cargo fmt -- --check`.

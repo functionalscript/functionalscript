@@ -47,9 +47,12 @@ whose fields it is built from: a node shape's `kind` and `label` become
 the `Node`'s, each child's label and optional kind become an `Edge`'s,
 and the inline shape is an `Inline` as it stands. The walk owns what
 does not vary: a value whose shape is a node is drawn once, found again
-by identity (`is`) on any later edge to it; one whose shape is inline
-is drawn in its parent's port; and a root whose shape is inline is one
-`leaf` node, as the DataJS demo draws a bare primitive today. Each demo
+by identity (`is`) on any later edge to it; one whose shape is inline is drawn in its parent's port; and a root
+whose shape is inline, having no port to sit in, is one node whose
+`kind` is the inline's own where it has one — the EDAG demo's scope
+inputs are `terminal`, and its `terminalRoot` proof expects them drawn
+so — and `leaf` where it has none, as the DataJS demo draws a bare
+primitive today. Each demo
 keeps its `shape` and drops its walk.
 
 ### Tasks

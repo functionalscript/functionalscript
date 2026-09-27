@@ -36,11 +36,14 @@ A named layer beside the protocol, in `fjs/website/demo/module.f.mjs`:
 
 ```ts
 export const textDemo: (o: { name: string, label: string, rows?: number, init: string })
-    => (render: (text: string) => Element) => Demo<string, DemoEvent>
+    => (render: (text: string) => readonly Node[]) => Demo<string, DemoEvent>
 ```
 
-It owns `update` and the textarea; each demo keeps its initial text and
-its `render`. The SHA-2 demo stays as it is. If a second single-line
+It owns `update` and the textarea, and spreads what `render` answers
+after it; each demo keeps its initial text and its `render`. The answer
+is a list of nodes, not one element, because the JSON demo's view puts
+two siblings after its textarea, a `p` and a `pre`, and a single
+`Element` would force a wrapper the page does not have today. The SHA-2 demo stays as it is. If a second single-line
 demo appears, the control kind becomes a parameter and both take it;
 one is not a reason to widen the helper.
 
