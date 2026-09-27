@@ -469,24 +469,6 @@ binding. Dynamic calls remain arbitrary-arity; no matching-arity assumption
 is permitted. Migrate zero-arity graphs by scope and refuse incompatible
 positive-arity/full-arguments sketches rather than silently normalize them.
 
-<<<<<<< HEAD
-**Stage 7 — EDAG-embedding parity (deferred until the EDAG specification is
-complete).**
-mvp-roadmap already stages this: a natively compiled function must
-eventually still carry its `Any<A>` EDAG description, so hashing and
-`toString(f)` apply uniformly to interpreted and AOT-compiled functions
-alike, but the MVP code generator is explicitly allowed to omit it until the
-EDAG specification is complete — the [`fjs/edag`](../../fjs/edag/README.md)
-schema and its Rust side,
-[rust-schema-codegen](../../fjs/edag/todo/rust-schema-codegen.md). Once it
-is, the VM's own
-function object carries it (or an out-of-band association, per
-[associate-edag-with-functions](../../fjs/compiler/todo/associate-edag-with-functions.md)'s
-Effect-based alternative if that is the direction chosen) to carry it, for
-every `Function<A>` this plan's stages produce — including capturing
-closures, which is exactly the "open problem" that document flags as
-unsolved for nested functions today. This stage is what closes that gap.
-=======
 **Stage 7 — semantic EDAG association (staged separately from execution).**
 Hashing and function-text operations need the semantic code description from
 the [`fjs/edag`](../../fjs/edag/README.md) schema, including the association
@@ -496,7 +478,6 @@ still open in the roadmap and
 Resolve that representation before implementing this stage. It does not
 require the optional Rust EDAG types or executor, and direct AOT output must
 remain usable without a dynamic EDAG library.
->>>>>>> origin/main
 Until the required semantic association and renderer are available, explicitly
 refuse unsupported default-text observations; deferring full embedding never
 licenses a placeholder or host-implementation string as a successful result.
@@ -605,14 +586,8 @@ satisfy the same contract, but this parity work does not wait for it.
   and chain semantics a real call site must also account for (method-call
   receivers, optional chains) once calls stop being data-only.
 - [`fjs/edag/todo/rust-schema-codegen.md`](../../fjs/edag/todo/rust-schema-codegen.md)
-<<<<<<< HEAD
-  — the open Rust side of the EDAG specification; Stage 7 waits on the
-  specification.
-- [`fjs/compiler/todo/associate-edag-with-functions.md`](../../fjs/compiler/todo/associate-edag-with-functions.md)
-=======
   — types for the deferred optional Rust EDAG library; not a Stage 7 prerequisite.
 - [`fjs/compiler/todo/associate-edag-with-functions.md`](../../fjs/compiler/todo/associate-edag-with-functions.md)
->>>>>>> origin/main
   — flags nested-closure EDAG association as unsolved; Stage 7 is where this
   plan closes that for the AOT backend specifically.
 - [`spec/todo/object-identity.md`](../../spec/todo/object-identity.md) —

@@ -389,22 +389,11 @@ coverage permit, compiler-supported modules move from `.f.mjs` to `.f.js`.
    not a prerequisite for invoking one of its functions.
 3. **Binary name.** The npm tool is `fjs`; the crate is `nanvm`. Should the
    crate's binary also be named `fjs` (same CLI surface, native), or `nanvm`?
-<<<<<<< HEAD
-4. **Embedded EDAG or a lookup effect.** The invariant above makes a natively
-   compiled function carry its `Any` code description, and
-   [callable-function-objects](./callable-function-objects.md) Stage 7 embeds
-   it. [associate-edag-with-functions](../../fjs/compiler/todo/associate-edag-with-functions.md)
-   says the opposite: do not embed the EDAG into the function merely to
-   support lookup, and let `edagAdd` / `edagGet` effects keep the
-   association outside the function value. Which one the runtime follows —
-   or whether both hold, for different kinds of function — is undecided.
-=======
 4. **Embedded EDAG or a lookup effect.** The semantic association required
    above can be represented as embedded data or outside the function value,
    as [associate-edag-with-functions](../../fjs/compiler/todo/associate-edag-with-functions.md)
    proposes with `edagAdd` / `edagGet`. Which representation the runtime
    follows remains undecided; neither requires a dynamic Rust EDAG executor.
->>>>>>> origin/main
 
 ### Related
 
