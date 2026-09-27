@@ -209,8 +209,8 @@ needs its own issue, and it lands with or after Stage 1.
 
 - [ ] Stage 1: refuse an object with an own `toString`, or a function
       `valueOf` the hint reaches, and a function wherever its text is
-      observable, keeping every text-independent result. Unit tests per row, corpus cases with a `rust`
-      reason, and the `toSorted` guard's test. Replace the `// TODO:` in
+      observable, keeping every text-independent result. Unit tests per row,
+      corpus cases with a `rust` reason, and the `toSorted` guard's test. Replace the `// TODO:` in
       `array_join` (#2321) and `vm/string/search.rs` (#2328) with a pointer
       to Stage 2.
 - [ ] Stage 2: call an object's own `toString` and `valueOf` per
