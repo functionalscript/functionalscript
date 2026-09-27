@@ -42,6 +42,7 @@ import {
     caseExp,
     casesOf,
     data,
+    functionExp,
     functionValue,
     groupKey,
     hasUnreached,
@@ -49,6 +50,7 @@ import {
     lambdaExp,
     orders,
     ref,
+    returns,
     sharedExp,
     unreached,
     unreachedExp,
@@ -370,6 +372,9 @@ const lambda = () => {
     assertStructurallySame(valueExp([functionValue]), ['[]', [lambdaExp()]])
     assertStructurallySame(valueExp({ f: functionValue }), ['{}', [[':', 'f', lambdaExp()]]])
     assertEq(typeof value(corpus())(functionValue), 'function')
+    // A `returns` is the function a callback is, its value the body.
+    assertStructurallySame(valueExp(returns([1])), ['=>', 0, null, ['[]', [1]]])
+    assertStructurallySame(valueExp(returns(unreached)), functionExp(unreachedExp()))
     // Two function operands are two closures, not one node reached twice.
     const [f, g] = /** @type {readonly unknown[]} */ (
         value(corpus())([functionValue, functionValue]))
@@ -527,18 +532,12 @@ const jsOnly = {
     functionToString: () => {
         assertEq(typeof String(() => 5), 'string')
     },
-    /**
-     * `ToPrimitive` consults a `toString` method. `nanvm-lib` has no object
-     * methods yet, so these cases cannot be shared; see
-     * `nanvm-lib/todo/mvp-roadmap.md`.
-     */
-    toStringMethod: () => {
-        assertEq(String({ toString: () => 'custom string' }), 'custom string')
-    },
     throw: {
-        toStringThrows: () => String({ toString: () => { throw 'Custom error' } }),
-        toStringNotAFunction: () => String({ toString: 'hello' }),
-        toStringNotPrimitive: () => String({ toString: () => [] }),
+        /**
+         * A function's body is lowered where nothing is shared: the
+         * lowering shares no node across a function boundary.
+         */
+        refInReturns: () => valuesExp(sharedExp({ a: [] }))(returns(ref('a'))),
         /**
          * `valueExp` resolves no names, so a `ref` in an `expected` — the one
          * position built with it — is a mistake.

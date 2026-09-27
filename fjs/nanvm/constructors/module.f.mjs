@@ -9,7 +9,7 @@
  *
  * @module
  *
- * @import { Callback, CallbackName, FunctionValue, Ref, Throws, Unreached } from '../types.ts'
+ * @import { Callback, CallbackName, FunctionValue, Ref, Returns, Throws, Unreached, Value } from '../types.ts'
  *
  * @example
  *
@@ -39,6 +39,19 @@ export const functionValue = () => ['function']
  * @type {(name: CallbackName) => Callback}
  */
 export const callback = name => () => ['callback', name]
+
+/**
+ * A function that answers `v` whatever it is given: `(...a) => v`. Where a
+ * `callback` reads its arguments, this one ignores them, for the cases
+ * whose function is called with none — a conversion calling an object's
+ * own `toString` or `valueOf`. `returns(unreached)` throws when called.
+ *
+ * Its body is lowered where nothing is shared, so a `ref` in `v` is refused:
+ * the lowering shares no node across a function boundary.
+ *
+ * @type {(v: Value) => Returns}
+ */
+export const returns = v => () => ['returns', v]
 
 /**
  * The case must throw. Valid only as a case's `expected`.

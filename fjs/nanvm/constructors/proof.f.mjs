@@ -3,7 +3,7 @@
  */
 
 import { assertEq } from '../../asserts/module.f.mjs'
-import { callback, functionValue, ref, throws, unreached } from './module.f.mjs'
+import { callback, functionValue, ref, returns, throws, unreached } from './module.f.mjs'
 
 export const proof = {
     tags: () => {
@@ -14,5 +14,6 @@ export const proof = {
     named: () => {
         assertEq(callback('first')().join(), 'callback,first')
         assertEq(ref('object')().join(), 'ref,object')
+        assertEq(returns(1)().join(), 'returns,1')
     },
 }
