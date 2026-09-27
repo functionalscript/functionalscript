@@ -261,6 +261,7 @@ mod tests {
             let o = || with(&[("valueOf", value.clone())]);
             assert_eq!(o().to_string(), Ok("[object Object]".into()));
             assert!(is_nan(o().to_number()));
+            assert_eq!(o() + s("!"), Ok(s("[object Object]!")));
             let o = || with(&[("toString", value.clone())]);
             refused(o().to_string(), CANNOT_CONVERT_TO_PRIMITIVE_VALUE);
             refused(o().to_number(), CANNOT_CONVERT_TO_PRIMITIVE_VALUE);

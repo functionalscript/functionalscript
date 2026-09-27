@@ -8,18 +8,24 @@
 Every conversion the VM makes, `ToString`, `ToNumber`, `ToNumeric` and the
 `+` and relational operators, goes through one function,
 `PrimitiveCoercionOp` in `vm/primitive_coercion.rs`
-(`Any::to_primitive`). For an object or a function it answers without
-looking at what JavaScript looks at. Before Stage 1 it answered:
+(`Any::to_primitive`). Before Stage 1 it answered an object or a function
+without looking at what JavaScript looks at. Stage 1 made each of these a
+`TypeError`, and Stages 2 and 3 answer them:
 
-| input | JavaScript | NaNVM before Stage 1 |
-|---|---|---|
-| `String({ toString: () => "b" })` | `"b"` | `"[object Object]"` |
-| `+{ valueOf: () => 1 }` | `1` | `NaN` |
-| `[0, 1].slice({ valueOf: () => 1 })` | `[1]` | `[0, 1]` |
-| `String(() => 1)` | `"() => 1"` | `"function"` |
-| `(() => 1) + "!"` | `"() => 1!"` | `"function!"` |
+| input | JavaScript | NaNVM before Stage 1 | since Stage 1 | since Stage 2 |
+|---|---|---|---|---|
+| `String({ toString: () => "b" })` | `"b"` | `"[object Object]"` | `TypeError` | `"b"` |
+| `+{ valueOf: () => 1 }` | `1` | `NaN` | `TypeError` | `1` |
+| `[0, 1].slice({ valueOf: () => 1 })` | `[1]` | `[0, 1]` | `TypeError` | `[1]` |
+| `String(() => 1)` | `"() => 1"` | `"function"` | `TypeError` | `TypeError` |
+| `(() => 1) + "!"` | `"() => 1!"` | `"function!"` | `TypeError` | `TypeError` |
 
-These are plausible wrong values, which
+Stage 1 also made one exception to the single entry: a function's
+`ToNumber` is `NaN` for any text, so `NumberCoercion`, `Any::to_numeric` and
+the relational operators answer it without asking `PrimitiveCoercionOp` for
+a text it cannot give.
+
+Those were plausible wrong values, which
 [DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
 forbids. The gap predates the `Array` and `String` member functions. Those
 functions made it reachable from many more calls: `join`'s separator and
@@ -37,14 +43,16 @@ order the hint sets. That part is already right:
 
 | stock behavior | JavaScript | NaNVM |
 |---|---|---|
-| `Object.prototype.valueOf` answers the object, not a primitive, so the next method runs | ✔ | ✔ `value_of` answers `None` |
-| `Object.prototype.toString` answers `"[object Object]"` | ✔ | ✔ `obj_to_string` |
+| `Object.prototype.valueOf` answers the object, not a primitive, so the next method runs | ✔ | ✔ `VALUE_OF`'s stock answer is `None` |
+| `Object.prototype.toString` answers `"[object Object]"` | ✔ | ✔ `TO_STRING`'s stock answer |
 | `Array.prototype.toString` is `join(",")` | ✔ | ✔ `arr_to_string`, through `Array::join` |
 | the `number` hint tries `valueOf` first, `string` tries `toString` first, no hint means `number` | ✔ | ✔ `obj_to_primitive` |
-| `Function.prototype.toString` answers the function's text | ✔ | ❌ the placeholder `"function"` |
+| `Function.prototype.toString` answers the function's text | ✔ | ❌ refused since Stage 1 (it was the placeholder `"function"`); the text is Stage 3 |
 
-A plain object, `{ a: 1 }`, and every array convert exactly as in
-JavaScript. FunctionalScript has no symbols, so `Symbol.toPrimitive` and
+A plain object, `{ a: 1 }`, converts exactly as in JavaScript, and so does
+an array whose elements do: an array converts through `join`, so an element
+with its own `toString`, or a function element, carries its gap into the
+array's text. FunctionalScript has no symbols, so `Symbol.toPrimitive` and
 `Symbol.toStringTag` cannot be reached and are out of scope.
 
 ### Where an override can come from
@@ -55,7 +63,7 @@ An array owns only its elements and `length`, and a function owns only its
 `length` (`vm/lambda/member.rs`). A value is never mutated, so neither can
 gain one later. An own property shadows the built-in, as it already does for
 an explicit call: `{ toString: f }.toString()` calls `f` today (`Member`).
-Only the implicit conversion is wrong.
+Only the implicit conversion is missing, and Stage 1 refuses it.
 
 A function's text is a different problem: it is the stock method itself that
 is missing. Its contract is already decided, the EDAG default rendering in
@@ -67,15 +75,15 @@ contract. It only decides what a conversion does until that text exists.
 
 ### Stage 1: refuse what cannot be answered
 
-Stage 1 is one change in `primitive_coercion.rs`, so every caller inherits it.
+The object rule is one change in `primitive_coercion.rs`, which every caller
+inherits. The function rule also needs the callers that can answer without
+the text: `ToNumber`, `ToNumeric` and the relational operators, below.
 
-**An object with an own `toString` or `valueOf` is refused.** Stage 2
-replaced this refusal by the call. The refusal was
-a `TypeError` that names the cause. It applies whatever the property holds,
-whatever the hint, and whichever caller asked. A plain object is unchanged.
-
-Refusing on the property's mere presence is almost always what JavaScript
-does or better:
+**An object with an own `toString`, or an own `valueOf` that is a function,
+is refused.** Stage 2 replaced this refusal by the call. The refusal was a
+`TypeError` that names the cause, whatever the hint and whichever caller
+asked. A plain object is unchanged. The rule is exactly the inputs the VM
+answered wrongly before it, and no others:
 
 - An own `toString` or `valueOf` that is a function is called by JavaScript.
   Stage 1 cannot call it yet, so it refuses rather than answer
@@ -83,11 +91,11 @@ does or better:
 - An own `toString` that is not a function is skipped. The stock `valueOf`
   then answers the object, and JavaScript throws a `TypeError` for both hints:
   `String({ toString: "h" })`. The refusal matches this exactly.
-- The one over-refusal is an own `valueOf` that is not a function. JavaScript
-  skips it and the stock `toString` answers: `String({ valueOf: "x" })` is
-  `"[object Object]"` and `+{ valueOf: "x" }` is `NaN`. Stage 1 refuses this
-  input and Stage 2 answers it. Refusing more than necessary is allowed;
-  answering wrongly is not.
+- An own `valueOf` that is not a function is skipped too, and then the stock
+  `toString` answers: `String({ valueOf: "x" })` is `"[object Object]"` and
+  `+{ valueOf: "x" }` is `NaN`. The VM already answers that, because it never
+  looks at `valueOf`, so it is not refused: refusing it would be a
+  regression.
 
 **A function is refused wherever its text would be observable, and nowhere
 else.** Some results do not depend on the text at all, and the corpus
@@ -106,7 +114,7 @@ would be a regression:
 
 A function inside an array is converted through the array's text, a
 string, so `+[f]` is refused too, although `NaN` would be exact. That is the
-second over-refusal, and Stage 3 answers it.
+only over-refusal of Stage 1, and Stage 3 answers it.
 
 No function's text converts to a number: it starts with `(`, `function`,
 `async` or a name. So `NaN` is exact for every text, and the numeric path can
@@ -125,8 +133,8 @@ answers and the VM refuses, the case also joins the shared corpus with a
 `rust` reason naming this stage. The host still pins JavaScript's value, and
 Stage 2 turns the case on by deleting the reason.
 
-Stage 1 also makes a check possible that no test can make today: conversion
-can now throw, so `toSorted`'s guard (`vm/array/to_sorted.rs`, which leaves
+Stage 1 also made a check possible that no test could make before: conversion
+can throw, so `toSorted`'s guard (`vm/array/to_sorted.rs`, which leaves
 fewer than two defined elements unconverted) becomes observable.
 `[x, undefined].toSorted()` answers, and `[x, x].toSorted()` throws, where
 `x` owns a `toString`. The guard's test lands with Stage 1, and so do the
@@ -197,8 +205,8 @@ needs its own issue, and it lands with or after Stage 1.
 
 ### Tasks
 
-- [x] Stage 1: refuse an object with an own `toString` or `valueOf`, and a
-      function wherever its text is observable, keeping every
+- [x] Stage 1: refuse an object with an own `toString` or a function
+      `valueOf`, and a function wherever its text is observable, keeping every
       text-independent result. Unit tests per row, and corpus cases with a
       `rust` reason.
 - [x] The member functions that convert: the `// TODO:`s in `array_join`
