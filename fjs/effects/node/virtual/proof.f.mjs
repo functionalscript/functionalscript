@@ -1722,13 +1722,31 @@ export const proof = {
         // and before `release` ran — while the node runner, whose pump is a
         // `while`, carried the same body and answered it.
         //
-        // **40,000 rather than 5,000**, so the proof keeps its meaning as engines
-        // change their stack budget: the old pump died eight times below this.
+        // **15,000 rather than 5,000**, so the proof keeps its meaning as engines
+        // change their stack budget: the old pump died three times below this.
         // Each cell is one byte, so the declared length is the cell count and an
         // off-by-one in the step would show as an overrun or an underrun rather
         // than as a pass.
+        //
+        // **The depth is what a chunk list costs, and that is what caps it.** The
+        // pump rebuilds the recorded list per cell — `push` is a mutator
+        // FunctionalScript refuses — so the work is quadratic in the cell count,
+        // and Bun's test runner gives one proof five seconds it cannot be talked
+        // out of (see `bunGivesFiveSeconds` in `../../../web/proof.mjs`). Measured
+        // standalone on Darwin arm64:
+        //
+        // | | 15,000 cells | 40,000 cells |
+        // |---|---|---|
+        // | Bun 1.4.2 | 569 ms | 1,663 ms |
+        // | Node 23.11.0 | 192 ms | 2,045 ms |
+        // | Deno 2.8.3 | 144 ms | 1,376 ms |
+        //
+        // Bun is the budget that binds and the slowest at this size. 40,000 fits on
+        // a laptop and leaves a third of the budget; 15,000 leaves nine tenths of
+        // it, which is the margin a slower CI runner needs. That is the whole
+        // reason the depth is not larger.
         pullsADeepBodyWithoutRecursing: () => {
-            const cells = 40000
+            const cells = 15000
             const [s, r] = answerOne(
                 () => pureOk({
                     status: 200,
