@@ -52,8 +52,17 @@ whose shape is inline, having no port to sit in, is one node whose
 `kind` is the inline's own where it has one — the EDAG demo's scope
 inputs are `terminal`, and its `terminalRoot` proof expects them drawn
 so — and `leaf` where it has none, as the DataJS demo draws a bare
-primitive today. Each demo
-keeps its `shape` and drops its walk.
+primitive today.
+
+`shape` is total: it answers a `Shape` for every value, not `null`.
+The EDAG demo's `_shapeOf` answers `null` today for a node it cannot
+draw, an optional chain say, and `_walk` turns that into a node of
+kind `unsupported` labelled `<tag> (not yet drawn)`, which the demo's
+proof pins. That spelling is the demo's, not the walk's, so it moves
+into the demo's `shape`: for such a node it answers
+`{ kind: 'unsupported', label, children: [] }` itself, and `graphOf`
+draws it as it draws any childless node. The proof keeps pinning the
+kind and the label. Each demo keeps its `shape` and drops its walk.
 
 ### Tasks
 
