@@ -164,6 +164,40 @@ compiler-compatibility marker described in
 compiler accepts, so far only the package fixture
 [`fjs/ci/package/fixture/module.f.js`](./fjs/ci/package/fixture/module.f.js).
 
+### Website demos
+
+When a change affects a module with a website demo, or a demo's dependencies
+or shared website code, make sure the affected demos still work. Run
+`npm run website`, serve the repository root over HTTP, and open the affected
+module pages in a browser. Check that each demo appears, its controls work,
+and its output is correct for representative inputs. Passing proofs alone does
+not verify the browser interaction. Fix demo regressions in the same PR, and
+record which demos you checked and the results in its description. If you
+cannot run a browser check, say so explicitly.
+
+**Include a direct link to each affected, new, or updated demo in the PR
+description**, using the PR branch's preview. The URL format is:
+
+```text
+https://${normalize(branchName)}-functionalscript.functionalscript.workers.dev/${path}
+```
+
+Here `normalize(branchName)` is Cloudflare's generated branch alias, and `path`
+is the module directory relative to the repository root, with a trailing `/`.
+Copy the **Branch Preview URL** from Cloudflare's deployment comment on the PR
+and append the path; Cloudflare can
+[shorten long branch aliases](https://developers.cloudflare.com/changelog/post/2025-08-08-support-long-branch-names-preview-aliases/).
+Verify that the link opens the intended demo.
+
+For example, [PR #2339](https://github.com/functionalscript/functionalscript/pull/2339)
+uses branch `claude/blissful-newton-hpbsnx` and path `fjs/types/bigint/`:
+[bigint demo](https://claude-blissful-newton-hpbsnx-functionalscript.functionalscript.workers.dev/fjs/types/bigint/).
+
+Contributors may add demos or update existing ones to illustrate a module's
+behavior. Follow the [demo contract](./fjs/website/README.md#a-demo-shows-what-a-module-does)
+and the usual proof requirements, then check the new or updated demo in the
+browser. A module without a demo does not need one merely because it changes.
+
 ### Regenerating after a source change
 
 ```bash
@@ -172,17 +206,52 @@ npm run gen
 
 Run this after changing anything a generator reads — `fjs/ci`'s workflows and
 Nix flakes, `fjs/nanvm`'s Rust test data. It needs nothing beyond Node, runs on
-Windows, and never touches a lockfile of any kind — CI's drift check runs the
-same command and fails if the committed tree no longer matches its output.
+Windows, and never touches a lockfile of any kind.
 
-A file or directory whose name starts with `gen.` is generated — everything
-inside a `gen.*` directory too — so never edit one by hand, and never name a
-handwritten file that way. `.gitattributes` marks them, plus the few outputs at
-a path another tool fixes (the two workflows and the Nix files). The rule and
-its reasons: [todo/generated-file-conventions.md](./todo/generated-file-conventions.md).
+`gen` starts by deleting every generated output — the same module as
+`npm run gen:clean` — so regeneration starts from nothing: an output no
+generator writes any more shows up as a deletion, and a generator that needs
+a previous output — its own or another's — fails. CI's drift check runs `gen`
+and then `git add -A && git diff --cached --exit-code`; run the same two
+commands to see what CI will. The cleanup lives in `gen` rather than in its
+own CI step because the workflow `fjs ci` generates is shared with downstream
+projects, whose contract is only `cov` and `gen`.
 
-`npm run gen:clean` deletes every `gen.*` output, so `npm run gen:clean && npm
-run gen` regenerates from nothing: a stale output then shows up as a deletion.
+#### Naming generated files
+
+**A file or directory whose name starts with `gen.` is generated**, and so is
+everything inside a `gen.*` directory. Never edit one by hand — change its
+generator — and never give a handwritten file that name: `gen:clean` deletes
+it. The dot matters: `generated-*.md` and `generic-operation-signatures.md`
+are handwritten.
+
+- The prefix leaves the suffix alone (`gen.matrix.md`, `gen.methods.rs`), so
+  every tool that picks files by suffix works unchanged. A generated
+  FunctionalScript module is `gen.{name}/module.f.mjs`, held to the same proof
+  coverage as any other.
+- A `gen.` name is never a Rust identifier: load a generated file or directory
+  with one `#[path]`, as `nanvm-harness/src/lib.rs` does for
+  `gen.fixtures/`. A dotted name cannot be a Cargo target root.
+- A committed output must not use a name `.gitignore` hides (`*.d.ts`,
+  `*.d.mts`, `index.html`, `_*`), or the drift check cannot see it.
+- A generator creates its output directory, and imports nothing generated —
+  the `fjs` CLI that runs it included.
+- `gen:clean` walks the tree with the same test, skipping dot-names,
+  `node_modules` and `target`. It removes files only; the emptied directories
+  are invisible to git.
+
+`.gitattributes` marks the `gen.*` names with two lines — an attribute on a
+directory does not reach the files inside it — and lists the outputs whose path
+another tool fixes, which keep their names and are not deleted by `gen:clean`:
+the two workflows (npm trusted publishing is bound to `npm-publish.yml`'s exact
+name) and the generated files in `nix/` (Nix needs `flake.nix`, and every CI
+step enters the shell through `./nix/run`). Lockfiles are not generated
+outputs: `npm run lock-update` refreshes them, not `gen`.
+
+A known gap: because fixed-path outputs are not deleted, an obsolete one — a
+Nix job directory the CI generator stopped writing — survives the drift check.
+Deleting them waits on the generator restoring executable bits
+([generated-run-script-mode](./fjs/ci/todo/generated-run-script-mode.md)).
 
 ### Updating dependencies
 

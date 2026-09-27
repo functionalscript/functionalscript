@@ -102,7 +102,7 @@ A file or directory whose name starts with `gen.` is generated, and so is
 everything inside a `gen.*` directory: change its generator, never the output,
 and never give a handwritten file that name. The few outputs whose path another
 tool fixes are listed in `.gitattributes`
-([CONTRIBUTING.md](./CONTRIBUTING.md#regenerating-after-a-source-change)).
+([CONTRIBUTING.md](./CONTRIBUTING.md#naming-generated-files)).
 
 Format, priorities, where each issue file belongs, and how GitHub-reported bugs
 become `todo/` files: [todo/README.md](./todo/README.md). How one session takes
@@ -118,6 +118,11 @@ subtree, `cd` into it and run the runner from there.
 
 Required tool versions, every equivalent way to run the suite, and the
 dependency-update procedure: [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+Keep any website demos affected by the change working. Contributors may add or
+update demos; check them in the browser and include their preview links in the
+PR description as described in
+[CONTRIBUTING.md](./CONTRIBUTING.md#website-demos).
 
 ## 3. FunctionalScript and TypeScript (`fjs/`)
 

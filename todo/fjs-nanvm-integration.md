@@ -130,7 +130,10 @@ CLI surface, and no Rust toolchain orchestration in the npm-shipped tool.
 The ergonomic single command ("run my FJS on the VM") arrives as the
 self-hosted `nanvm` crate
 ([console-program](../nanvm-lib/todo/console-program.md)), which interprets
-via the `Function` constructor — no rustc at the user's run time.
+via the FJS interpreter compiled to Rust ahead of time — no rustc at the user's
+run time. Its [module loader](../fjs/fsc/todo/load-modules-without-import-effect.md)
+needs no native `import` effect. The optional [Rust EDAG library](./rust-edag.md)
+is on hold and is not part of this completed MVP or a self-hosting prerequisite.
 
 ### Tasks
 
@@ -200,4 +203,4 @@ via the `Function` constructor — no rustc at the user's run time.
 - [`publishing-packages.md`](../fjs/ci/todo/publishing-packages.md) — broader
   package-publishing roadmap.
 - [`fjs/edag`](../fjs/edag/README.md) — the schema of the code-describing
-  `Any`; the `Function` constructor contract.
+  `Any`, shared by the compiler and FJS interpreter.

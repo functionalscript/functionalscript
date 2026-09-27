@@ -1,5 +1,5 @@
 /**
- * Compiled by `fjs compile` into the sibling `lazy.rs`, committed and
+ * Compiled by `fjs compile` into `../gen.fixtures/lazy.rs`, committed and
  * drift-checked by `npm run gen` (see `../../fjs/ci/README.md`). Consumed by
  * `../src/lib.rs`. Pins the four lazy operators end to end, each in a
  * module the grammar produces: a conditionally established operand is the

@@ -1,29 +1,91 @@
 /**
- * @import { Dir } from './types.ts'
+ * @import { Build, Dir } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { element } from '../../media/html/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { utf8ToString } from '../../text/module.f.mjs'
-import { demoSection, page, pageHref, repository, sections, subtree, testSection } from './module.f.mjs'
+import { demoSection, header, page, pageHref, repository, sections, subtree, testSection } from './module.f.mjs'
 
 /** @type {(dir: Dir) => string} */
 const sectionsHtml = dir => concat(element(['body', ...sections(null)(dir)]))
 
+/** A build that names neither its commit nor its branch: a local one. @type {Build} */
+const local = { commit: null, branch: null }
+
 /** @type {(dir: Dir) => string} */
-const pageHtml = dir => utf8ToString(page(null)(dir))
+const pageHtml = dir => utf8ToString(page(local)(dir))
 
 /** A commit id in the shape the generator hands the builder: 40 lowercase hex. */
 const commit = '0123456789abcdef0123456789abcdef01234567'
 
+/** @type {(build: Build) => string} */
+const headerHtml = build => concat(element(header(build)))
+
 /** @type {(dir: Dir) => string} */
 const sectionsAtCommit = dir => concat(element(['body', ...sections(commit)(dir)]))
+
+/**
+ * The Contents section around `items`, open, as the body it is the whole of.
+ *
+ * @type {(items: string) => string}
+ */
+const contents = items => '<body><details data-section="" open=""><summary><h2>Contents</h2></summary>'
+    + `<ul data-links="">${items}</ul></details></body>`
+
+/**
+ * The Issues section around `items`, folded, as the body it is the whole of.
+ *
+ * @type {(items: string) => string}
+ */
+const issues = items => '<body><details data-section=""><summary><h2>Issues</h2></summary>'
+    + `<ul data-links="">${items}</ul></details></body>`
 
 /** @type {Dir} */
 const empty = { path: '.', files: [], dirs: [], todo: [], proofs: [], demo: null }
 
 export const proof = {
+    /**
+     * **Every page opens with the same header:** the logo and the name
+     * linking home, the releases, and the repository.
+     */
+    header: {
+        links: () => assertEq(headerHtml(local),
+            '<header><nav aria-label="Site">'
+            + '<a href="/index.html" data-home=""><img src="/fjs/website/favicon.svg" alt="" width="24" height="24">FunctionalScript</a>'
+            + '<span data-site-links=""><a href="/changelog/index.html">Releases</a>'
+            + `<a href="${repository}">GitHub<span aria-hidden="true"> ↗</span></a></span>`
+            + '</nav></header>'),
+        /**
+         * **A preview names its branch and its commit**, each linked on
+         * GitHub, the commit shortened to what `git log --oneline` shows.
+         */
+        preview: () => {
+            const html = headerHtml({ commit, branch: 'claude/x' })
+            assert(html.includes(
+                '<p data-build="">Preview: '
+                + `<a href="${repository}/tree/claude/x">claude/x</a>`
+                + ` @ <a href="${repository}/commit/${commit}">0123456</a></p>`), html)
+        },
+        // A branch name is linked segment by segment, like a file: `/` is
+        // kept, and a `#` does not start a fragment.
+        branchIsEncoded: () => {
+            const html = headerHtml({ commit: null, branch: 'a/b#c' })
+            assert(html.includes(`<a href="${repository}/tree/a/b%23c">a/b#c</a>`), html)
+        },
+        // A branch without a valid commit is still named; there is just no
+        // commit to link.
+        previewWithoutACommit: () => {
+            const html = headerHtml({ commit: null, branch: 'x' })
+            assert(html.includes(`<a href="${repository}/tree/x">x</a></p>`), html)
+            assert(!html.includes('/commit/'), html)
+        },
+        // The published site is `main`, and says nothing about its build.
+        production: () => assert(!headerHtml({ commit, branch: 'main' }).includes('data-build'), 'main'),
+        // Nor does a local build, which names no branch.
+        local: () => assert(!headerHtml({ commit, branch: null }).includes('data-build'), 'local'),
+    },
     pageHref: {
         // The root has no segments, so its page is `/index.html` and not
         // `/./index.html`.
@@ -44,53 +106,48 @@ export const proof = {
         // same href is written wherever the page sits.
         files: () => assertEq(
             sectionsHtml({ ...empty, path: 'fjs/types/list', files: ['module.f.mjs'] }),
-            '<body><details data-section="" open=""><summary><h2>Files</h2></summary>'
-            + '<ul data-links=""><li><a href="/fjs/types/list/module.f.mjs">module.f.mjs</a></li></ul></details></body>'),
+            contents('<li><a href="/fjs/types/list/module.f.mjs" data-kind="file">module.f.mjs</a></li>')),
         // A file of the root directory has no directory in its path.
         filesAtRoot: () => assertEq(
             sectionsHtml({ ...empty, files: ['module.f.mjs'] }),
-            '<body><details data-section="" open=""><summary><h2>Files</h2></summary>'
-            + '<ul data-links=""><li><a href="/module.f.mjs">module.f.mjs</a></li></ul></details></body>'),
+            contents('<li><a href="/module.f.mjs" data-kind="file">module.f.mjs</a></li>')),
         /**
-         * **Directories and files open, issues closed.** The first two are
-         * bounded by the directory; the issue list is not, and an open one
-         * would push the proofs below it off the screen.
+         * **Contents is one list: directories, then files**, each marked with
+         * its kind. The way deeper leads.
          */
-        issuesStartClosed: () => {
-            const html = sectionsHtml({ ...empty, path: 'fjs', todo: ['a.md'], dirs: ['types'] })
-            assert(html.includes('<details data-section=""><summary><h2>Issues</h2></summary>'), html)
-            assert(html.includes('<details data-section="" open=""><summary><h2>Directories</h2></summary>'), html)
+        contentsInOrder: () => assertEq(
+            sectionsHtml({ ...empty, path: 'fjs', files: ['module.f.mjs'], dirs: ['types'] }),
+            contents('<li><a href="/fjs/types/index.html" data-kind="dir">types</a></li>'
+                + '<li><a href="/fjs/module.f.mjs" data-kind="file">module.f.mjs</a></li>')),
+        /**
+         * **Issues are a list of their own, after Contents and folded.** The
+         * root has dozens, and an open list would push the suite below it
+         * off the screen.
+         */
+        issuesSeparateAndFolded: () => {
+            const html = sectionsHtml({ ...empty, path: 'fjs', todo: ['a.md'], files: ['module.f.mjs'] })
+            assertEq(html,
+                '<body><details data-section="" open=""><summary><h2>Contents</h2></summary>'
+                + '<ul data-links=""><li><a href="/fjs/module.f.mjs" data-kind="file">module.f.mjs</a></li></ul></details>'
+                + '<details data-section=""><summary><h2>Issues</h2></summary>'
+                + '<ul data-links=""><li><a href="/fjs/todo/a.md" data-kind="issue">a.md</a></li></ul></details></body>')
         },
-        /**
-         * **Directories come before files**, as GitHub and a file manager
-         * list them: the way deeper is what the page leads with.
-         */
-        dirsBeforeFiles: () => assertEq(
-            sectionsHtml({ ...empty, path: 'fjs', dirs: ['types'], files: ['module.f.mjs'] }),
-            '<body><details data-section="" open=""><summary><h2>Directories</h2></summary>'
-            + '<ul data-links=""><li><a href="/fjs/types/index.html">types/</a></li></ul></details>'
-            + '<details data-section="" open=""><summary><h2>Files</h2></summary>'
-            + '<ul data-links=""><li><a href="/fjs/module.f.mjs">module.f.mjs</a></li></ul></details></body>'),
         // A subdirectory link points at a page, and every such page exists —
         // which is what the "every directory gets one" rule buys.
         dirs: () => assertEq(
             sectionsHtml({ ...empty, path: 'fjs', dirs: ['types'] }),
-            '<body><details data-section="" open=""><summary><h2>Directories</h2></summary>'
-            + '<ul data-links=""><li><a href="/fjs/types/index.html">types/</a></li></ul></details></body>'),
+            contents('<li><a href="/fjs/types/index.html" data-kind="dir">types</a></li>')),
         dirsAtRoot: () => assertEq(
             sectionsHtml({ ...empty, dirs: ['fjs'] }),
-            '<body><details data-section="" open=""><summary><h2>Directories</h2></summary>'
-            + '<ul data-links=""><li><a href="/fjs/index.html">fjs/</a></li></ul></details></body>'),
+            contents('<li><a href="/fjs/index.html" data-kind="dir">fjs</a></li>')),
         // An issue is linked inside the `todo/` it was filed in, which has no
         // page of its own.
         todo: () => assertEq(
             sectionsHtml({ ...empty, path: 'fjs', todo: ['a.md'] }),
-            '<body><details data-section=""><summary><h2>Issues</h2></summary>'
-            + '<ul data-links=""><li><a href="/fjs/todo/a.md">a.md</a></li></ul></details></body>'),
+            issues('<li><a href="/fjs/todo/a.md" data-kind="issue">a.md</a></li>')),
         todoAtRoot: () => assertEq(
             sectionsHtml({ ...empty, todo: ['a.md'] }),
-            '<body><details data-section=""><summary><h2>Issues</h2></summary>'
-            + '<ul data-links=""><li><a href="/todo/a.md">a.md</a></li></ul></details></body>'),
+            issues('<li><a href="/todo/a.md" data-kind="issue">a.md</a></li>')),
         /**
          * **A file name that is not already a URL is encoded**, on this site
          * and on GitHub alike. `%` is in it on purpose: an encoder that
@@ -99,20 +156,16 @@ export const proof = {
         encoded: {
             files: () => assertEq(
                 sectionsHtml({ ...empty, path: 'fjs/x y', files: ['a b#c?100%.md'] }),
-                '<body><details data-section="" open=""><summary><h2>Files</h2></summary>'
-                + '<ul data-links=""><li><a href="/fjs/x%20y/a%20b%23c%3F100%25.md">a b#c?100%.md</a></li></ul></details></body>'),
+                contents('<li><a href="/fjs/x%20y/a%20b%23c%3F100%25.md" data-kind="file">a b#c?100%.md</a></li>')),
             todo: () => assertEq(
                 sectionsHtml({ ...empty, path: 'fjs', todo: ['open issue.md'] }),
-                '<body><details data-section=""><summary><h2>Issues</h2></summary>'
-                + '<ul data-links=""><li><a href="/fjs/todo/open%20issue.md">open issue.md</a></li></ul></details></body>'),
+                issues('<li><a href="/fjs/todo/open%20issue.md" data-kind="issue">open issue.md</a></li>')),
             dirs: () => assertEq(
                 sectionsHtml({ ...empty, path: 'fjs', dirs: ['x y'] }),
-                '<body><details data-section="" open=""><summary><h2>Directories</h2></summary>'
-                + '<ul data-links=""><li><a href="/fjs/x%20y/index.html">x y/</a></li></ul></details></body>'),
+                contents('<li><a href="/fjs/x%20y/index.html" data-kind="dir">x y</a></li>')),
             atCommit: () => assertEq(
                 sectionsAtCommit({ ...empty, path: 'fjs/x y', files: ['中.md'] }),
-                '<body><details data-section="" open=""><summary><h2>Files</h2></summary>'
-                + `<ul data-links=""><li><a href="${repository}/blob/${commit}/fjs/x%20y/%E4%B8%AD.md">中.md</a></li></ul></details></body>`),
+                contents(`<li><a href="${repository}/blob/${commit}/fjs/x%20y/%E4%B8%AD.md" data-kind="file">中.md</a></li>`)),
         },
         /**
          * **With a commit, a file a reader opens is read on GitHub**, at that
@@ -122,22 +175,18 @@ export const proof = {
         atCommit: {
             files: () => assertEq(
                 sectionsAtCommit({ ...empty, path: 'fjs/types/list', files: ['module.f.mjs'] }),
-                '<body><details data-section="" open=""><summary><h2>Files</h2></summary>'
-                + `<ul data-links=""><li><a href="${repository}/blob/${commit}/fjs/types/list/module.f.mjs">module.f.mjs</a></li></ul></details></body>`),
+                contents(`<li><a href="${repository}/blob/${commit}/fjs/types/list/module.f.mjs" data-kind="file">module.f.mjs</a></li>`)),
             filesAtRoot: () => assertEq(
                 sectionsAtCommit({ ...empty, files: ['README.md'] }),
-                '<body><details data-section="" open=""><summary><h2>Files</h2></summary>'
-                + `<ul data-links=""><li><a href="${repository}/blob/${commit}/README.md">README.md</a></li></ul></details></body>`),
+                contents(`<li><a href="${repository}/blob/${commit}/README.md" data-kind="file">README.md</a></li>`)),
             todo: () => assertEq(
                 sectionsAtCommit({ ...empty, path: 'fjs', todo: ['a.md'] }),
-                '<body><details data-section=""><summary><h2>Issues</h2></summary>'
-                + `<ul data-links=""><li><a href="${repository}/blob/${commit}/fjs/todo/a.md">a.md</a></li></ul></details></body>`),
+                issues(`<li><a href="${repository}/blob/${commit}/fjs/todo/a.md" data-kind="issue">a.md</a></li>`)),
             // A directory is one of this site's pages, which GitHub does not
             // have, so its link does not move.
             dirsStayHere: () => assertEq(
                 sectionsAtCommit({ ...empty, path: 'fjs', dirs: ['types'] }),
-                '<body><details data-section="" open=""><summary><h2>Directories</h2></summary>'
-                + '<ul data-links=""><li><a href="/fjs/types/index.html">types/</a></li></ul></details></body>'),
+                contents('<li><a href="/fjs/types/index.html" data-kind="dir">types</a></li>')),
         },
     },
     subtree: {
@@ -184,6 +233,8 @@ export const proof = {
         namesItsProofsAndBindsRun: () => {
             const html = concat(element(['body', ...testSection(
                 { ...empty, proofs: [{ name: './proof.f.mjs', blockers: [] }] })([])]))
+            // Folded: the suite is asked for, not what a reader came for.
+            assert(html.startsWith('<body><details data-section=""><summary>'), html)
             // The title carries a slot the runner fills with the run's counts.
             assert(html.includes('<summary><h2>Emergent Testing</h2><span data-test-counts=""></span></summary>'), html)
             // A runnable entry names its source, so a run can mark it if it
@@ -280,6 +331,12 @@ export const proof = {
             const html = pageHtml({ ...empty, path: 'fjs' })
             assert(html.includes('<nav><a href="/index.html">root</a></nav>'), html)
         },
+        // The header comes first, outside the page's own `main`.
+        header: () => {
+            const html = pageHtml({ ...empty, path: 'fjs' })
+            assert(html.includes('<body><header><nav aria-label="Site">'), html)
+            assert(html.includes('</header><main'), html)
+        },
         // The page names its language, names itself in the tab, and links the
         // stylesheet and the favicon.
         head: () => {
@@ -291,17 +348,19 @@ export const proof = {
             assert(html.includes('<link rel="icon" href="/favicon.ico" sizes="32x32">'), html)
             assert(html.includes('<link rel="icon" type="image/svg+xml" href="/fjs/website/favicon.svg">'), html)
         },
-        // A page with a demo carries it between the catalogue and the suite.
+        // A page with a demo leads with it, above the catalogue: what a
+        // module does is the quickest answer to what it is.
         carriesADemo: () => {
-            const html = pageHtml({ ...empty, path: 'a', demo: '/a/demo.f.mjs' })
+            const html = pageHtml({ ...empty, path: 'a', files: ['demo.f.mjs'], demo: '/a/demo.f.mjs' })
             assert(html.includes('data-demo="/a/demo.f.mjs"'), html)
+            assert(html.indexOf('<h2>Demo</h2>') < html.indexOf('<h2>Contents</h2>'), html)
         },
         // The catalogue is the same one the root page carries.
         carriesSections: () => {
             const dir = { ...empty, path: 'fjs', dirs: ['types'] }
             assert(pageHtml(dir).includes(
-                '<details data-section="" open=""><summary><h2>Directories</h2></summary>'
-                + '<ul data-links=""><li><a href="/fjs/types/index.html">types/</a></li></ul></details>'),
+                '<details data-section="" open=""><summary><h2>Contents</h2></summary>'
+                + '<ul data-links=""><li><a href="/fjs/types/index.html" data-kind="dir">types</a></li></ul></details>'),
                 pageHtml(dir))
         },
     },

@@ -80,7 +80,7 @@ export const proof = {
     fileLinks: {
         withoutACommit: () => {
             const { root, output } = generate({ a: { 'x.md': file('# x') } })
-            assert(pageAt(root, ['a']).includes('<a href="/a/x.md">x.md</a>'), pageAt(root, ['a']))
+            assert(pageAt(root, ['a']).includes('<a href="/a/x.md" data-kind="file">x.md</a>'), pageAt(root, ['a']))
             assert(output.includes('file links: this site'), output)
         },
         /**
@@ -95,8 +95,8 @@ export const proof = {
                 { a: { 'x.md': file('# x'), todo: { 'open.md': file('# open') } } },
                 { WORKERS_CI_COMMIT_SHA: sha })
             const page = pageAt(root, ['a'])
-            assert(page.includes(`<a href="${repository}/blob/${lower}/a/x.md">x.md</a>`), page)
-            assert(page.includes(`<a href="${repository}/blob/${lower}/a/todo/open.md">open.md</a>`), page)
+            assert(page.includes(`<a href="${repository}/blob/${lower}/a/x.md" data-kind="file">x.md</a>`), page)
+            assert(page.includes(`<a href="${repository}/blob/${lower}/a/todo/open.md" data-kind="issue">open.md</a>`), page)
             assert(output.includes(`file links: GitHub at ${lower}`), output)
         },
         /**
@@ -121,8 +121,39 @@ export const proof = {
             // front of it is there. `é` fits a byte and is refused either way.
             for (const value of ['main', '0123456789abcdef', '', '0123456789abcdef0123456789abcdef0123456g', 'é'.repeat(40), '中'.repeat(40)]) {
                 const { root, output } = generate({ a: { 'x.md': file('# x') } }, { WORKERS_CI_COMMIT_SHA: value })
-                assert(pageAt(root, ['a']).includes('<a href="/a/x.md">x.md</a>'), value)
+                assert(pageAt(root, ['a']).includes('<a href="/a/x.md" data-kind="file">x.md</a>'), value)
                 assert(output.includes('file links: this site, because WORKERS_CI_COMMIT_SHA is not a commit id'), output)
+            }
+        },
+    },
+    /**
+     * **A preview says which branch and commit it is, on every page.** The
+     * branch comes from `WORKERS_CI_BRANCH`, set by Cloudflare's builds
+     * beside the commit; `main` is the published site, and says nothing.
+     */
+    preview: {
+        everyPage: () => {
+            const sha = '0123456789abcdef0123456789abcdef01234567'
+            const { root } = generate(
+                { a: { 'x.md': file('# x') }, changelog: { '0.1.0.md': file('') } },
+                { WORKERS_CI_COMMIT_SHA: sha, WORKERS_CI_BRANCH: 'claude/x' })
+            const line = `Preview: <a href="${repository}/tree/claude/x">claude/x</a>`
+                + ` @ <a href="${repository}/commit/${sha}">0123456</a>`
+            const changelog = /** @type {Dir} */ (root['changelog'])
+            for (const [name, html] of [
+                ['root', textOf(root['index.html'], 'the root page')],
+                ['a', pageAt(root, ['a'])],
+                ['releases', textOf(changelog['index.html'], 'the release index')],
+                ['0.1.0', textOf(changelog['_0.1.0.html'], 'the release page')],
+            ]) {
+                assert(html.includes(line), name)
+            }
+        },
+        // An empty branch names none, and the published site is `main`.
+        notAPreview: () => {
+            for (const branch of ['', 'main']) {
+                const { root } = generate({ a: {} }, { WORKERS_CI_BRANCH: branch })
+                assert(!pageAt(root, ['a']).includes('data-build'), branch)
             }
         },
     },
@@ -340,7 +371,7 @@ export const proof = {
             })
             const page = textOf(/** @type {Dir} */ (generated.root['a'])['index.html'], 'the page')
             assert(page.includes('>notes.md</a>'), page)
-            assert(page.includes('<summary><h2>Directories</h2></summary>'), page)
+            assert(page.includes('<summary><h2>Contents</h2></summary>'), page)
         },
         /**
          * **`todo/` is a section of its parent, not a page.** Its issues are
@@ -357,7 +388,7 @@ export const proof = {
             })
             const dir = /** @type {Dir} */ (generated.root['a'])
             const page = textOf(dir['index.html'], 'the page')
-            assert(page.includes('<a href="/a/todo/open.md">open.md</a>'), page)
+            assert(page.includes('<a href="/a/todo/open.md" data-kind="issue">open.md</a>'), page)
             assert(!page.includes('>todo/</a>'), page)
             assert(!('index.html' in /** @type {Dir} */ (dir['todo'])), 'expected no page for todo/')
         },
@@ -676,17 +707,22 @@ export const proof = {
         assert(source.includes('data-state="idle"'), source)
         assert(source.includes('>Run</button>'), source)
         assert(!source.includes('Run again'), source)
-        assert(source.includes('<summary><h2>Directories</h2></summary>'), source)
+        assert(source.includes('<summary><h2>Contents</h2></summary>'), source)
         // The catalogue is above the suite: what the directory holds is what
         // the reader came for, and a run cannot move what is above it.
         assert(
-            source.indexOf('<summary><h2>Directories</h2></summary>')
+            source.indexOf('<summary><h2>Contents</h2></summary>')
                 < source.indexOf('<summary><h2>Emergent Testing</h2><span data-test-counts=""></span></summary>'),
             source)
         // The heading is the project; the suite is one section of its page.
         assert(source.includes('<h1>FunctionalScript</h1>'), source)
         // The root is the site itself, so its title is the name alone.
         assert(source.includes('<title>FunctionalScript</title>'), source)
+        // The repository and the releases are the header's, as on every
+        // other page, and not linked again in the root page's own frame.
+        assert(source.includes('<body><header><nav aria-label="Site">'), source)
+        assert(source.split(`href="${repository}"`).length === 2, source)
+        assert(source.split('href="/changelog/index.html"').length === 2, source)
         // The root page carries the same favicon links every other page does.
         assert(source.includes('<link rel="icon" href="/favicon.ico" sizes="32x32">'), source)
         assert(source.includes('<link rel="icon" type="image/svg+xml" href="/fjs/website/favicon.svg">'), source)

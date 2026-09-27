@@ -174,16 +174,52 @@ const resize = (root, was) => {
 }
 
 /**
+ * Every field's scroll offset, by name.
+ *
+ * **A fresh element starts scrolled to the top**, so without this a long
+ * field jumps back to its first line on every render — and a render follows
+ * every click, including the one that ends a mouse selection. Offsets are the
+ * reader's as surely as the caret and the size are, and they come back by the
+ * same identity.
+ *
+ * @type {(root: Element) => readonly { readonly name: string, readonly top: number, readonly left: number }[]}
+ */
+const scrolled = root => (
+    /** @type {HTMLInputElement[]} */ (Array.from(root.querySelectorAll('[name]')))
+).filter(el => el.scrollTop !== 0 || el.scrollLeft !== 0)
+    .map(el => ({ name: el.name, top: el.scrollTop, left: el.scrollLeft }))
+
+/**
+ * Scrolls every field back to where the reader left it.
+ *
+ * @type {(root: Element, was: ReturnType<typeof scrolled>) => void}
+ */
+const rescroll = (root, was) => {
+    for (const { name, top, left } of was) {
+        const next = /** @type {HTMLInputElement | null} */ (root.querySelector(`[name="${name}"]`))
+        if (next === null) { continue }
+        next.scrollTop = top
+        next.scrollLeft = left
+    }
+}
+
+/**
  * Renders a state, and leaves the reader where they were.
+ *
+ * The size comes back before the scroll offset, because the size bounds how
+ * far a field can scroll; and the offset comes back last, because focusing a
+ * field and setting its selection may scroll it on its own.
  *
  * @type {(root: Element, view: string) => void}
  */
 const render = (root, view) => {
     const was = focused(root)
     const sizes = resized(root)
+    const offsets = scrolled(root)
     root.innerHTML = view
-    refocus(root, was)
     resize(root, sizes)
+    refocus(root, was)
+    rescroll(root, offsets)
 }
 
 /**
@@ -284,12 +320,18 @@ export const startDemo = async root => {
             step({ kind: 'input', name: target.name, value: target.value })
         })
         // A click is how a demo is *asked* for work rather than told about
-        // typing: a benchmark starts when a reader says so. An element with no
-        // name is not one the demo asked to hear about.
+        // typing: a benchmark starts when a reader says so. So only a named
+        // button asks — a `<button>` or an `<input type="button">`. A click in
+        // a field is the reader placing a caret or ending a selection, already
+        // the field's own business, and an element with no name is not one the
+        // demo asked to hear about. The button is the nearest one around the
+        // target, because a button's label may be markup of its own and the
+        // reader clicks whichever part of it is under the pointer.
         root.addEventListener('click', e => {
-            const target = /** @type {HTMLElement & { name?: string }} */ (e.target)
-            if (target.name === undefined || target.name === '') { return }
-            step({ kind: 'click', name: target.name })
+            const button = /** @type {HTMLButtonElement | HTMLInputElement | null} */ (
+                /** @type {Element} */ (e.target).closest('button, input[type="button"]'))
+            if (button === null || button.name === '') { return }
+            step({ kind: 'click', name: button.name })
         })
         // After the first render, so a demo that needs an operation before it
         // can show anything has somewhere to ask without `init` becoming an

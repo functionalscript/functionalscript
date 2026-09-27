@@ -208,7 +208,7 @@ link in that same green would make one colour mean both "this went well" and
 values is coincidence, not aliasing: moving one later must not drag the other
 with it.
 
-## The favicon is "fs", committed rather than generated
+## The favicon is "fjs", committed rather than generated
 
 `favicon.ico` at the repository root, `favicon.svg` in
 [`fjs/website/`](./favicon.svg), next to the generator that links it. The site
@@ -216,15 +216,22 @@ serves the repository directory itself, so a file is served from where it
 sits — there is nothing to generate, and the mark will not change often
 enough for a build step to buy anything.
 
-**The mark is "fs", drawn as strokes rather than characters.** The site had
-no logo to inherit, and text set in a font renders as whatever the browser
-resolves that font to — a different shape depending on what is installed,
-unlike every other mark on this site drawn as geometry. A handful of
-round-capped path strokes trace a script "fs" ligature — the project's own
-initials, in the flowing hand a font can't be relied on to reproduce — and
-read clearly down to 16px. It takes `--link`'s two colours, `#137333` light
-and `#81c995` dark, via the SVG's own `prefers-color-scheme` query: the one
-mark on the page that is this site's own colour and nothing else's.
+**The mark is the project's old "fs" logo, traced, with a "j" added.** It
+spells the name the CLI and the directory already carry. The "f" and the "s"
+are traced from that logo's PNG — no font it could be set in has since been
+identified, and a traced path keeps its exact shape rather than
+approximating it. The "j" is the traced "f" below the x-height: the same stem
+and the same tail, the crossbar cut back to the stem, a round dot on the
+stem's axis — so the three letters share one hand without a font to share it.
+The letters sit 24 units apart at their nearest points, in a 555-unit square.
+
+**Paths, not text.** Text set in a font renders as whatever the browser
+resolves that font to, a different shape depending on what is installed;
+filled paths render the same everywhere, like every other mark on this site
+drawn as geometry. The file takes `--link`'s two colours, `#137333` light and
+`#81c995` dark, via the SVG's own `prefers-color-scheme` query: the one mark on
+the page that is this site's own colour and nothing else's. The `.ico` holds
+the SVG rendered at 16 and 32 pixels in the light colour.
 
 **Both files, because declaring one ends the implicit lookup.** `/favicon.ico`
 is what a browser asks for when a document declares no icon at all; once a
@@ -235,6 +242,47 @@ the SVG's `type` tells a browser which one it can skip. The `.ico` cannot
 carry the `prefers-color-scheme` query itself, so it is fixed to the light
 value — the fallback for a browser that reads neither the SVG nor the
 scheme it would have picked.
+
+## Every page opens with the same header
+
+The logo and the site's name, linking home; then **Releases** and **GitHub**.
+It is one element, `header` in [`page/module.f.mjs`](./page/module.f.mjs), and
+every page carries it — the root, a directory's page, and the changelog's.
+Before it, the root page had its own "GitHub Repository" and "Releases" links
+and no other page had either.
+
+- **The header says where a reader can go; the breadcrumb says where they
+  are.** Both stay: the header is the same on every page, and the breadcrumb is
+  this page's path.
+- **The logo is the favicon's file**, `logoPath` in
+  [`style/module.f.mjs`](./style/module.f.mjs), so the tab and the page cannot
+  show two marks. Its `alt` is empty because the name beside it is the link's
+  text.
+- **It spans the window, with one rule under it**, and the menu is bold and a
+  step larger than the text, so the header reads as the site's own bar rather
+  than as the first line of the page. Its contents go to the window's edges —
+  the logo at the left, the links at the right — because the bar belongs to
+  the site and the column to the page under it. That is why the column is set
+  on `main` and not on `body`: a header inside the column's body could not be
+  wider than the column. Four looks were rendered side by side — a rule under the
+  header only, a framed box, GitHub-style tabs with icons, and bordered
+  buttons — and the box won, then went full width.
+- **It wraps rather than hiding behind a menu button.** In a monospace face a
+  phone has no room for the name and both links on one line; a line break
+  costs no script, on a site that is otherwise static files. The two links are
+  one group, so they wrap together under the name rather than one beside it
+  and one below.
+- **A header link is not underlined.** Its place in the header is what says it
+  is a link, as a site's own navigation does everywhere; the underline comes
+  back on hover. Every link *in the page* keeps its underline
+  ([A link keeps its colour](#a-link-keeps-its-colour-whether-or-not-it-has-been-followed)).
+- **A preview says which build it is.** A build from any branch but `main`
+  adds a full-width strip under the menu, its text at the right under the
+  links, as a status bar's is: `Preview: <branch> @ <commit>`, each linked on
+  GitHub, the commit shortened to seven characters. The branch is
+  `WORKERS_CI_BRANCH`, which Cloudflare's Workers Builds sets beside
+  `WORKERS_CI_COMMIT_SHA`. The published site is built from `main` and a local
+  build names no branch, so neither shows the strip.
 
 ## A list of links pads its links for a finger, not a mouse
 
@@ -314,8 +362,16 @@ control is given the platform's UI face outright, so `Run` was Arial at
 the same the moment the first demo landed. Inheriting is what makes "one face"
 true of the whole page rather than only of its text.
 
-The `48rem` measure is kept. In a monospace face at 16px it holds about eighty
-characters, which is the width this repository's source is written to.
+The measure is `63.25rem` — GitHub's `container-lg`, 1012px at 16px, the
+column GitHub reads a rendered Markdown file in — on `main` rather than `body`
+so the header can span the window. A page here is as wide as the same
+directory's view on GitHub, which is where every file link on it opens. In
+this face at 16px it holds about 105 characters.
+
+It was `48rem`, GitHub's `container-md`: about eighty characters, the width
+this repository's source is written to. That suited a line of source and left
+most of a desktop screen empty beside a release's notes or a test report,
+which are prose and results, not source.
 
 **A line may break inside a word.** A path has no space to break at, so on a
 phone a page's title, a proof's name or a digest was wider than the screen: the

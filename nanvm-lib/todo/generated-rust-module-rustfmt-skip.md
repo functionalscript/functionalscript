@@ -5,10 +5,10 @@
 
 ### Problem
 
-`fjs/nanvm/rust/module.f.mjs` currently emits `#[rustfmt::skip]` before `eq`
-and each generated per-operation function in
-`nanvm-lib/tests/test/gen.operators.rs`. The final `all` function is not currently
-annotated.
+`fjs/nanvm/rust/module.f.mjs` currently emits `#[rustfmt::skip]` before the
+`run` function of each generated per-group file in
+`nanvm-lib/tests/test/gen.corpus/`. The `all` function in its `mod.rs` is not
+currently annotated.
 
 The whole module is generated and intentionally uses one statement per test
 case. Formatting those generated functions is therefore not useful, and
@@ -29,7 +29,7 @@ function. Which of the two the corpus follows is undecided.
 
 ### Proposal
 
-Do not use an inner `#![rustfmt::skip]` attribute inside `gen.operators.rs`.
+Do not use an inner `#![rustfmt::skip]` attribute inside `gen.corpus/`.
 Custom tool attributes in inner position are unstable on stable Rust and make
 `cargo check --tests` fail.
 
@@ -59,14 +59,13 @@ the layout chosen by the generator.
 
 - [ ] Add `#[rustfmt::skip]` to the `mod generated;` declaration in
       `nanvm-lib/tests/test/main.rs`.
-- [ ] Stop emitting `#[rustfmt::skip]` before `eq` and individual generated
-      operation functions.
-- [ ] Do not emit `#![rustfmt::skip]` inside `gen.operators.rs`.
+- [ ] Stop emitting `#[rustfmt::skip]` before each generated `run` function.
+- [ ] Do not emit `#![rustfmt::skip]` inside `gen.corpus/`.
 - [ ] Update comments/documentation in `fjs/nanvm/rust/module.f.mjs` to describe
       the module-level formatting policy owned by `main.rs`.
 - [ ] Update the Rust generator proof if its expected output covers these
       attributes.
-- [ ] Regenerate `nanvm-lib/tests/test/gen.operators.rs` with `npm run gen`.
+- [ ] Regenerate `nanvm-lib/tests/test/gen.corpus/` with `npm run gen`.
 - [ ] Verify a second `npm run gen` leaves the tree unchanged.
 - [ ] Run `fjs test`, `cargo check --tests`, `cargo test`, and
       `cargo fmt -- --check`.

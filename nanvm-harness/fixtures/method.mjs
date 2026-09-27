@@ -1,5 +1,5 @@
 /**
- * Compiled by `fjs compile` into the sibling `method.rs`, committed and
+ * Compiled by `fjs compile` into `../gen.fixtures/method.rs`, committed and
  * drift-checked by `npm run gen` (see `../../fjs/ci/README.md`). Consumed by
  * `../src/lib.rs`. Pins the method call, `['.', o, 'f', ['|()', args]]`
  * (`fjs/edag/README.md`, Chains), as a chain: the read and the call are one
