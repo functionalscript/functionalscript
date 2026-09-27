@@ -6,9 +6,10 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { force } from '../../testlib.f.mjs'
+import { diagramPage, force } from '../../testlib.f.mjs'
 import { string, ws, wsSymbol } from '../json/module.f.mjs'
 import { constStatement, dataJs, exportStatement, id, number, property, value as exportedValue } from './module.f.mjs'
+import { demo, diagrams } from './demo.f.mjs'
 
 const { keys } = Object
 
@@ -183,4 +184,6 @@ export const proof = {
             assertEq(value()[1].array[2]()[3][0][0], value)
         },
     },
+    // A diagram per title, and a diagram for every box.
+    demo: diagramPage(demo, diagrams),
 }

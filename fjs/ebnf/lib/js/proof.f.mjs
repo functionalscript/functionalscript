@@ -10,6 +10,8 @@ import { unwrap } from '../../../types/result/module.f.mjs'
 import { repeatFrom0 } from '../../module.f.mjs'
 import { parser } from '../../ll1/module.f.mjs'
 import { content, id, mergeTrivia, newLine, number, operator, operators, slash, token, ws } from './module.f.mjs'
+import { demo, diagrams } from './demo.f.mjs'
+import { diagramPage } from '../../testlib.f.mjs'
 
 const cp = /**@type {const}*/({ id: 'cp' })
 
@@ -190,4 +192,6 @@ export const proof = {
     throw: {
         wholeFile: () => parser(repeatFrom0(token)),
     },
+    // A diagram per title, and a diagram for every box.
+    demo: diagramPage(demo, diagrams),
 }
