@@ -52,7 +52,7 @@
 import { op1Id, op3Id } from '../edag/module.f.mjs'
 import { validate } from '../rtti/validate/module.f.mjs'
 import { functionValue, ref, throws, unreached } from './constructors/module.f.mjs'
-import { groups as memberGroups } from './member/module.f.mjs'
+import { groups as memberGroups, ownMethodRefused } from './member/module.f.mjs'
 
 export { callback, functionValue, ref, throws, unreached } from './constructors/module.f.mjs'
 
@@ -422,6 +422,9 @@ const numberCoercionCases = negate => {
         { name: 'arrayNull', args: [[null]], expected: result(0) },
         { name: 'arrayPair', args: [[null, null]], expected: NaN },
         { name: 'objectEmpty', args: [{}], expected: NaN },
+        { name: 'objectOwnValueOf', args: [{ valueOf: functionValue }], expected: NaN, rust: ownMethodRefused },
+        // JavaScript skips a `valueOf` that is no function, and so does NaNVM.
+        { name: 'objectOwnValueOfNotAFunction', args: [{ valueOf: 'x' }], expected: NaN },
         { name: 'function', args: [functionValue], expected: NaN },
     ]
 }
@@ -1116,6 +1119,16 @@ const stringCoercionCases = [
     { name: 'arrayWithNullish', args: [[null, undefined, 1]], expected: ',,1' },
     { name: 'emptyObject', args: [{}], expected: '[object Object]' },
     { name: 'object', args: [{ a: 1 }], expected: '[object Object]' },
+    { name: 'objectOwnToString', args: [{ toString: functionValue }], expected: 'undefined', rust: ownMethodRefused },
+    // A `toString` that is no function is skipped, and the stock `valueOf`
+    // answers the object, so JavaScript throws too.
+    { name: 'objectOwnToStringNotAFunction', args: [{ toString: 'h' }], expected: throws },
+    // A `valueOf` that is no function is skipped, and the stock `toString`
+    // answers.
+    { name: 'objectOwnValueOfNotAFunction', args: [{ valueOf: 'x' }], expected: '[object Object]' },
+    // The `string` hint tries `toString` first, and the stock one answers
+    // before a function `valueOf` is reached.
+    { name: 'objectOwnValueOf', args: [{ valueOf: functionValue }], expected: '[object Object]' },
 ]
 
 /**

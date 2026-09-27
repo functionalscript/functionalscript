@@ -21,6 +21,14 @@
 import { callback, functionValue, throws } from '../constructors/module.f.mjs'
 
 /**
+ * The `rust` reason of a case whose object owns a `toString` or a `valueOf`:
+ * `nanvm-lib` refuses it until it calls the method, Stage 2 of
+ * `nanvm-lib/todo/to-primitive.md`. The operator cases in
+ * [`../module.f.mjs`](../module.f.mjs) use it too.
+ */
+export const ownMethodRefused = 'an own toString or valueOf is refused until Stage 2 of to-primitive.md'
+
+/**
  * `Array.prototype.at`: the element from the start or, for a negative index,
  * from the end, `undefined` out of range, and the index `ToIntegerOrInfinity`
  * of the argument — truncated, a string converted, `undefined` and `NaN`
@@ -94,6 +102,13 @@ const includesCases = [
     { name: 'stringNoArgument', args: ['undefined'], expected: true },
     { name: 'stringNumber', args: ['a1b', 1], expected: true },
     { name: 'stringObject', args: ['[object Object]', {}], expected: true },
+    { name: 'stringOwnToString', args: ['xundefinedx', { toString: functionValue }], expected: true, rust: ownMethodRefused },
+    // A `toString` that is no function is skipped, and the stock `valueOf`
+    // answers the object, so JavaScript throws too.
+    { name: 'stringToStringNotAFunction', args: ['a', { toString: 'h' }], expected: throws },
+    // A needle is converted with the `string` hint, which never reaches a
+    // function `valueOf`.
+    { name: 'stringOwnValueOf', args: ['x[object Object]', { valueOf: functionValue }], expected: true },
     { name: 'stringBigintFrom', args: ['abc', 'a', 0n], expected: throws },
 ]
 
@@ -286,6 +301,11 @@ const joinCases = [
     { name: 'undefinedSeparator', args: [[1, 2], undefined], expected: '1,2' },
     { name: 'separator', args: [[1, 2], '-'], expected: '1-2' },
     { name: 'emptySeparator', args: [[1, 2], ''], expected: '12' },
+    // Fewer than two elements never place the separator, so a function's
+    // text is never read.
+    { name: 'functionSeparatorEmpty', args: [[], functionValue], expected: '' },
+    { name: 'functionSeparatorSingle', args: [[1], functionValue], expected: '1' },
+    { name: 'functionInSeparatorEmpty', args: [[], [functionValue]], expected: '' },
     { name: 'nullSeparator', args: [[1, 2], null], expected: '1null2' },
     { name: 'numberSeparator', args: [[1, 2], 0], expected: '102' },
     { name: 'arraySeparator', args: [[1, 2], [3, 4]], expected: '13,42' },
@@ -758,6 +778,9 @@ const splitCases = [
     { name: 'emptySeparator', args: ['abc', ''], expected: ['a', 'b', 'c'] },
     { name: 'limit', args: ['a,b,c', ',', 2], expected: ['a', 'b'] },
     { name: 'limitZero', args: ['a,b', ',', 0], expected: [] },
+    // No piece is cut, so a function separator's text is never read.
+    { name: 'limitZeroFunctionSeparator', args: ['a', functionValue, 0], expected: [] },
+    { name: 'limitZeroFunctionInSeparator', args: ['a', [functionValue], 0], expected: [] },
     { name: 'limitNegativeIsHuge', args: ['a,b', ',', -1], expected: ['a', 'b'] },
     { name: 'emptyLimit', args: ['abc', '', 2], expected: ['a', 'b'] },
     { name: 'undefinedLimitZero', args: ['a', undefined, 0], expected: [] },

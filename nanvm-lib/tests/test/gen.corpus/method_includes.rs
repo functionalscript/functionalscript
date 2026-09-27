@@ -30,5 +30,17 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("stringNoArgument", Any::dot(string_any("undefined"), string_any("includes")).end_call(|| Ok(Array::default().to_any())), true.to_any());
     check::<A>("stringNumber", Any::dot(string_any("a1b"), string_any("includes")).end_call(|| Ok([f64_any(0x3ff0000000000000)].to_array().to_any())), true.to_any());
     check::<A>("stringObject", Any::dot(string_any("[object Object]"), string_any("includes")).end_call(|| Ok([Object::default().to_any()].to_array().to_any())), true.to_any());
+    // TODO: an own toString or valueOf is refused until Stage 2 of to-primitive.md: check::<A>("stringOwnToString", Any::dot(string_any("xundefinedx"), string_any("includes")).end_call(|| {
+    //     let c0: Any<A> = [(string_key("toString"), function_any())].to_object().to_any();
+    //     Ok([c0].to_array().to_any())
+    // }), true.to_any());
+    check_throws::<A>("stringToStringNotAFunction", Any::dot(string_any("a"), string_any("includes")).end_call(|| {
+        let c0: Any<A> = [(string_key("toString"), string_any("h"))].to_object().to_any();
+        Ok([c0].to_array().to_any())
+    }));
+    check::<A>("stringOwnValueOf", Any::dot(string_any("x[object Object]"), string_any("includes")).end_call(|| {
+        let c0: Any<A> = [(string_key("valueOf"), function_any())].to_object().to_any();
+        Ok([c0].to_array().to_any())
+    }), true.to_any());
     check_throws::<A>("stringBigintFrom", Any::dot(string_any("abc"), string_any("includes")).end_call(|| Ok([string_any("a"), bigint_any(0)].to_array().to_any())));
 }

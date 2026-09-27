@@ -31,12 +31,10 @@ impl<A: IVm> String<A> {
     /// position at or after `pos`, clamped, where `ToString(search)` occurs.
     /// An empty search string is found at the clamped `pos` itself.
     pub(crate) fn index_of(&self, search: Any<A>, pos: Any<A>) -> Result<Option<u32>, Any<A>> {
-        // TODO: `ToString` of a function answers a placeholder, and of an
-        // object ignores its own `toString`/`valueOf`, so
-        // `"function".includes(() => undefined)` is `true` here; every
-        // search in this file converts its needle the same way. The fix is
-        // in the shared conversion, not here: the `ToPrimitive` task in
-        // `nanvm-lib/todo/member-functions.md`.
+        // A needle with its own `toString`/`valueOf`, or a function, is
+        // refused by the shared conversion until it can call the method or
+        // render the text: Stages 2 and 3 of `nanvm-lib/todo/to-primitive.md`.
+        // Every search in this file converts its needle here.
         let needle = search.to_string()?;
         let from = clamped(position(pos)?, self.length());
         Ok(self.find_from(&needle, from))
@@ -93,7 +91,11 @@ impl<A: IVm> String<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, Nullish, String, ToAny, unstable::bigint_any},
+        vm::{
+            Any, IStaticFunction, Nullish, String, ToAny, ToArray, ToObject,
+            primitive_coercion::{FUNCTION_TEXT, OWN_CONVERSION_METHOD},
+            unstable::bigint_any,
+        },
     };
 
     type A = Naive;
@@ -106,6 +108,21 @@ mod tests {
     }
     fn undefined() -> Any<A> {
         Nullish::Undefined.to_any()
+    }
+
+    /// `"function".indexOf(f)` would be `0` with the conversion's old
+    /// placeholder text; JavaScript answers `-1`. A needle whose text is not
+    /// known is refused instead, and so is one with its own `toString`.
+    #[test]
+    fn refuses_a_needle_it_cannot_convert() {
+        let f = || A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array()).to_any();
+        let hay: String<A> = "function".into();
+        assert_eq!(hay.index_of(f(), undefined()), Err(FUNCTION_TEXT.into()));
+        let own: Any<A> = [("toString".into(), f())].to_object().to_any();
+        assert_eq!(
+            hay.index_of(own, undefined()),
+            Err(OWN_CONVERSION_METHOD.into())
+        );
     }
 
     #[test]
