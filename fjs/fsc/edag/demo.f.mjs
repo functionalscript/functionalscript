@@ -397,6 +397,12 @@ export const examples = [
  * entry that is. Which one is selected is read off the text rather than
  * stored beside it, for the same reason the graph is.
  *
+ * **`Custom` is disabled, so it never sends a pick.** It names no source —
+ * it only says the text is none of the examples — and a value of its own
+ * would be one some example could also have: an example named `''` would
+ * then be indistinguishable from it. Disabled, it cannot be chosen, so every
+ * pick names a real example and no name has to be reserved.
+ *
  * @type {(text: string) => Element}
  */
 const examplePicker = text => {
@@ -405,7 +411,7 @@ const examplePicker = text => {
         ['option', source === text ? { value: name, selected: '' } : { value: name }, name])
     const custom = examples.some(([, source]) => source === text)
         ? []
-        : [/** @type {Element} */ (['option', { value: '', selected: '' }, 'Custom'])]
+        : [/** @type {Element} */ (['option', { selected: '', disabled: '' }, 'Custom'])]
     return ['p',
         ['label', { for: 'example' }, 'Example '],
         ['select', { id: 'example', name: 'example' }, ...custom, ...options],
@@ -416,7 +422,8 @@ const examplePicker = text => {
  * The state is the text itself, not the graph: the graph is a function of
  * it, and storing a value the state can already compute is how the two
  * drift apart. Picking an example replaces the text with its source, and a
- * name no example has — `Custom`'s empty one — leaves it as it is.
+ * name no example has leaves it as it is. `Custom` sends none, being
+ * disabled, so every name a pick sends is an example's.
  *
  * @type {Demo<string, DemoEvent>}
  */

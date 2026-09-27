@@ -1217,11 +1217,11 @@ export const proof = {
                 'expected the demo to reach a value without asking for an operation'))
             assertEq(step({ kind: 'input', name: 'edag', value: '1' })(''), '1')
             assertEq(step({ kind: 'start' })('kept'), 'kept')
-            // Picking an example replaces the text with its source, and
-            // `Custom`, whose name no example has, keeps the text.
+            // Picking an example replaces the text with its source, and a
+            // name no example has keeps the text.
             const [name, source] = examples[1]
             assertEq(step({ kind: 'input', name: 'example', value: name })('kept'), source)
-            assertEq(step({ kind: 'input', name: 'example', value: '' })('kept'), 'kept')
+            assertEq(step({ kind: 'input', name: 'example', value: 'none' })('kept'), 'kept')
         },
         view: () => {
             const html = htmlToString(demo.view(demo.init))
@@ -1258,11 +1258,12 @@ export const proof = {
                 assert(!html.includes('>Custom<'), html)
             },
             // Text that is no example selects `Custom`, which is there only
-            // while it is needed.
+            // while it is needed, and disabled, so it can be shown but never
+            // picked.
             custom: () => {
                 const html = htmlToString(demo.view('export default 1;'))
                 assertEq(html.split(' selected=""').length - 1, 1)
-                assert(html.includes('<option value="" selected="">Custom</option>'), html)
+                assert(html.includes('<option selected="" disabled="">Custom</option>'), html)
             },
         },
     },
