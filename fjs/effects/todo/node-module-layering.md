@@ -391,7 +391,7 @@ been exactly the kind of smuggled break this section exists to avoid.
       entry to add, and a map listing only the new effects modules would
       restrict a currently unrestricted package. Whichever change introduces the
       complete map
-      ([group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md))
+      ([group-fjs-subdirectories-by-concern](../../todo/group-fjs-subdirectories-by-concern.md))
       must enumerate these modules along with every other `module.f.mjs`.
 - [ ] `tsc` and `fjs t` after each move; one PR per concern.
 
@@ -406,5 +406,5 @@ been exactly the kind of smuggled break this section exists to avoid.
 - `fjs/media/type/module.f.mjs:45`, `fjs/text/sgr/module.f.mjs:13`,
   `fjs/emergent_testing/module.f.mjs:16-29` — importers that reach into the Node
   module for non-Node things.
-- [group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md)
+- [group-fjs-subdirectories-by-concern](../../todo/group-fjs-subdirectories-by-concern.md)
   — the same regroup-by-concern exercise one level up, at `fjs/`.

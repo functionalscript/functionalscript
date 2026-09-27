@@ -82,7 +82,7 @@ any result value, a simple scheme places "undefined" value in that slot to compl
 
 ## Optimizations to consider
 
-1) Let's assume that the FS compiler does a good job on tail recursion optimization so "truly
+1) Let's assume that the FJS compiler does a good job on tail recursion optimization so "truly
 recursive" functions are rare in compiled bytecode. In that case the compiler marks a compiled
 function as not "truly recursive" and calculates an expanded frame size of it - allowing for
 expanded frame sizes of all functions called from the given one. Such a not "truly recursive"

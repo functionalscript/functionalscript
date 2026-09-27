@@ -25,7 +25,7 @@ document.
 
 ## 1. Calls into host functions
 
-Each host function has a stable identification (e.g. a numeric id predefined within a given FS
+Each host function has a stable identification (e.g. a numeric id predefined within a given FJS
 release) and runtime metadata specifying among other things its number of parameters and whether or
 not it returns a result.
 
@@ -81,7 +81,7 @@ for example, we can have 4 separate instructions for 1) zero argument calls, 2) 
 3) two argument calls and 4) three argument calls. Calls with larger number of arguments are backed
 by the generic static call instruction.
 
-TODO: provide FS code snippet here.
+TODO: provide FJS code snippet here.
 
 ## 3. Dynamic calls into user-defined functions
 
@@ -103,7 +103,7 @@ As with static call instructions described in the previous section, we can add s
 call instructions for cases with small number of arguments, using the generic instruction for calls
 with larger number of arguments.
 
-TODO: provide FS code snippet here.
+TODO: provide FJS code snippet here.
 
 ## 4. Other call-like instructions
 

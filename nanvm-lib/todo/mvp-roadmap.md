@@ -422,4 +422,4 @@ coverage permit, compiler-supported modules move from `.f.mjs` to `.f.js`.
   (post-MVP).
 - [`nanvm-lib/tests/README.md`](../tests/README.md) — the shared operator test
   data driving both the FJS proof and the generated Rust tests.
-- [fs-vm-load-save](./fs-vm-load-save.md) — load/execute/save semantics.
+- [fjs-vm-load-save](./fjs-vm-load-save.md) — load/execute/save semantics.

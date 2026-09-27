@@ -75,7 +75,7 @@ boundary cases by name — `'4294967294'` in, `'4294967295'` out, `'-0'` out.
 - [ ] `fjs/js/array_index/module.f.mjs` with `arrayIndex`, `types.ts`, and a
       `proof.f.mjs` at 100% with the boundary cases above. No `deno.json`
       `exports` entry: the file has
-      no map today, and [group-fs-subdirectories-by-concern](../../../todo/group-fs-subdirectories-by-concern.md)
+      no map today, and [group-fjs-subdirectories-by-concern](../../../todo/group-fjs-subdirectories-by-concern.md)
       reserves introducing one for the change that enumerates every
       module, since a partial map restricts what is unrestricted now.
 - [ ] `fjs/rtti/common`: import `arrayIndex`; `readIndices` and the

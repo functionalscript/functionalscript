@@ -15,7 +15,7 @@ findable:
 |--------|----------------------------|
 | `json` | named after a registered type; `application/json` needs no restating |
 | `html` | named after a registered type; `text/html` needs no restating |
-| `revision` | exports `mediaType` (`fjs/media/revision/module.f.mjs`), because its dialect is FS-specific |
+| `revision` | exports `mediaType` (`fjs/media/revision/module.f.mjs`), because its dialect is FJS-specific |
 | `type` | is the detector itself |
 | `nix` | **nothing** |
 | `rust` | **nothing** — its header calls it "the sibling of `fjs/media/nix`" |

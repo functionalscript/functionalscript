@@ -10,12 +10,12 @@ pure `fjs/media/cbor` module; detection consumes it (tiers 2–3) from the
 
 ### Problem
 
-CBOR (RFC 8949) is the designated binary counterpart of the FS dialect scheme
+CBOR (RFC 8949) is the designated binary counterpart of the FJS dialect scheme
 (registered `application/cbor` media type, registered `+cbor` suffix — see
 [fjs/media/README.md](../README.md#dialects)):
 a dialect-tagged blob is served as `application/{dialect}+cbor` exactly as its
 JSON twin is served as `application/{dialect}+json`. Nothing in the repo can
-read or write CBOR, so binary-encoded FS formats cannot exist: no encoder to
+read or write CBOR, so binary-encoded FJS formats cannot exist: no encoder to
 produce them, no decoder for schema validation, nothing for
 [detect-cbor](../type/todo/detect-cbor.md) tier 2 to decode tagged blobs with, and no
 grammar for a future tier-3 recognizer to share.
@@ -36,19 +36,19 @@ byte-level item reader plays the tokenizer's role inside `parser/`.)
 
 #### Data model
 
-Start with the JSON-compatible subset plus what FS already needs beyond it:
+Start with the JSON-compatible subset plus what FJS already needs beyond it:
 
-| CBOR (RFC 8949)                     | FS value                          |
-| ----------------------------------- | --------------------------------- |
-| major 0/1 (int) within safe range   | `number`                          |
-| major 0/1 outside safe range        | `bigint`                          |
-| tags 2/3 (bignum)                   | `bigint`                          |
-| major 7 float                       | `number`                          |
-| `false`/`true`/`null`               | same                              |
-| major 3 (text string, valid UTF-8)  | `string`                          |
-| major 4 (array)                     | array                             |
-| major 5 (map, text keys only)       | object                            |
-| major 2 (byte string)               | later — needs an FS `Vec` mapping |
+| CBOR (RFC 8949)                     | FJS value                          |
+| ----------------------------------- | ---------------------------------- |
+| major 0/1 (int) within safe range   | `number`                           |
+| major 0/1 outside safe range        | `bigint`                           |
+| tags 2/3 (bignum)                   | `bigint`                           |
+| major 7 float                       | `number`                           |
+| `false`/`true`/`null`               | same                               |
+| major 3 (text string, valid UTF-8)  | `string`                           |
+| major 4 (array)                     | array                              |
+| major 5 (map, text keys only)       | object                             |
+| major 2 (byte string)               | later — needs an FJS `Vec` mapping |
 
 `bigint` is required from the start: DJS adds `bigint` to JSON, and CBOR
 represents it natively — the pairing is the point of having a binary encoding.
@@ -71,7 +71,7 @@ One encoding, not options:
   (detection is semantic — [detect-cbor.md](../type/todo/detect-cbor.md) §2 — so no
   entry-order deviation is needed);
 - no tag-55799 wrapper: the canonical form is the bare item (the dialect
-  entry already identifies FS blobs, and canonical bytes must not fork on
+  entry already identifies FJS blobs, and canonical bytes must not fork on
   an optional wrapper — the parser accepts the tag on input, but a wrapped blob
   is non-canonical).
 
@@ -88,7 +88,7 @@ identity function, so encoding options would silently fork identities.
 - a max-depth cap as a DoS guard, like the JSON recognizer's
   ([fjs/media/json streaming-recognizer](../json/todo/streaming-recognizer.md));
 - decoding does **not** require canonical input (a synced blob from elsewhere
-  may be valid CBOR without being FS-canonical); an `isCanonical` check is a
+  may be valid CBOR without being FJS-canonical); an `isCanonical` check is a
   separate predicate so consumers that need identity guarantees (CAS dedup)
   can enforce it explicitly.
 
@@ -112,7 +112,7 @@ identity function, so encoding options would silently fork identities.
       decode of a size-bounded (128 KiB) blob is the detection primitive — tier 2
       decodes the whole blob and looks up the `dialect` key in the resulting map;
       no leading-entry or partial-decode helper is needed
-- [ ] Later: byte strings (major 2) once an FS `Vec` mapping is decided; a
+- [ ] Later: byte strings (major 2) once an FJS `Vec` mapping is decided; a
       payload-free O(depth) recognizer sharing this grammar (detect-cbor tier 3)
 
 ### Related
