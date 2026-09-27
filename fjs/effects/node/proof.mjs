@@ -25,7 +25,7 @@ import { join, relative, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { pureOk, resultMapStep, step } from '../module.f.mjs'
+import { pureOk, resultMapStep, resultStep, step } from '../module.f.mjs'
 import { byteLength, maxLengthBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { asBase } from '../../types/nominal/module.f.mjs'
@@ -344,6 +344,37 @@ const concurrentPulls = ({ body }) => resultMapStep(
         return then
     }),
     r => ok(reported(r[0] === 'ok' ? r[1] : 'all was not dispatched')))
+
+/**
+ * Reads the body until a pull fails, then pulls the *same* cell again and
+ * answers with what the failed pull and its retry each saw.
+ *
+ * `started` is called after every pull that answered bytes, so the client can
+ * cut the connection knowing the listener is already reading. Nothing else
+ * orders the two, and a timer would make the proof a race.
+ *
+ * The retry is the subject: a `List`'s tail is a value, and a listener that
+ * caught a failure has the cell it failed on still in hand. What it must not get
+ * is the end of the body.
+ *
+ * @type {(started: () => void, report: (text: string) => void) => RequestListener<ReadRequestBytes>}
+ */
+const retriesAFailedPull = (started, report) => ({ body }) => {
+    /** @type {(cell: List<ReadRequestBytes, Vec, IoChannel>) => Effect<ReadRequestBytes, string, never>} */
+    const loop = cell => resultStep(cell, r => {
+        if (r[0] === 'error') {
+            return resultMapStep(cell, again => ok(`${pulled(r)} | ${pulled(again)}`))
+        }
+        if (r[1] === undefined) { return pureOk('the body ended with nothing refused') }
+        started()
+        return loop(r[1].tail)
+    })
+    return resultMapStep(loop(body), r => {
+        const seen = r[0] === 'ok' ? r[1] : 'the fold failed'
+        report(seen)
+        return ok(reported(seen))
+    })
+}
 
 /** A listener that answers at once, reading no part of the request body.
  *
@@ -865,6 +896,65 @@ export const proof = {
                 assertEq(lost, `error ${requestBodyOffsetMessage(0, taken)}`)
                 assert(tail.startsWith('ok '), tail)
                 agent.destroy()
+            })
+        },
+        // **A client that vanished mid-body goes on being a failure**, rather
+        // than becoming the end of the body on the next pull.
+        //
+        // A client that declares 300,000 bytes, sends 1,000 and cuts the
+        // connection rejects the pull that was waiting for the rest — that much
+        // was already right. What was wrong is the pull *after* it. A listener
+        // may catch an `IoChannel` failure and pull the same cell again, because
+        // a `List`'s tail is a value and nothing makes a consumer stop; Node's
+        // iterator answers `done` to every call after the one that threw, and
+        // `done` is how this stream says *end*. So the retry read the body as
+        // complete at 1,000 bytes: a truncated prefix, in order, under a
+        // `Content-Length` a thousandth of what arrived, with nothing left
+        // anywhere to say the client never finished sending. That is DESIGN
+        // §10's plausible wrong value, and the fix is that a failure of the
+        // stream belongs to the body rather than to the pull, so the retry meets
+        // it again, word for word.
+        //
+        // **The words are the host's own and are not written down here.** What
+        // the retry gets is the very failure the first pull got, so the proof
+        // compares the two rather than naming either — an abort reads
+        // `ECONNRESET`/`aborted` on Darwin with Node 23.11.0, and a proof that
+        // spelled that out would be about the version and not about the rule.
+        //
+        // The offset refusal is deliberately *not* sticky like this; it belongs
+        // to the pull that named the wrong offset, and
+        // {@link proof.createServer.refusesAConcurrentPull}'s third pull is what
+        // holds that apart.
+        refusesARetryAfterAnAbort: async () => {
+            if (!isNode()) { return }
+            /** @type {() => void} */
+            let reading = () => { }
+            /** @type {Promise<void>} */
+            const started = new Promise(resolve => { reading = () => resolve(undefined) })
+            /** @type {(text: string) => void} */
+            let saw = () => { }
+            /** @type {Promise<string>} */
+            const seen = new Promise(resolve => { saw = resolve })
+            const listener = retriesAFailedPull(reading, saw)
+            await withHostServer(listener, async port => {
+                const request = http.request({
+                    host: loopback,
+                    port,
+                    method: 'POST',
+                    path: '/',
+                    headers: { 'content-length': '300000' },
+                })
+                // The socket dies under the listener, so the answer never
+                // reaches the client and the client's own write fails. Both are
+                // the point rather than a problem: what the listener saw comes
+                // back through `seen`.
+                request.on('error', () => undefined)
+                request.write(bytes(1000))
+                await started
+                request.destroy()
+                const [failed = '', retry = ''] = (await seen).split(' | ')
+                assert(failed.startsWith('error '), failed)
+                assertEq(retry, failed)
             })
         },
         // **Node is the party that drops a `HEAD` body**, and it goes on being

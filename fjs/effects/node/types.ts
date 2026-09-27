@@ -431,6 +431,25 @@ export type RequestBody =
  * through as it came, it would end the body early — the listener would read a
  * short body as a whole one, DESIGN §10's plausible wrong value again — so both
  * runners step over it and answer the next chunk that has bytes.
+ *
+ * **And a body that has failed goes on failing.** A failure is not the end of a
+ * body, and a listener may pull the cell it failed on again: `RequestListener`
+ * absorbs its failures into a response, so catching one and reading on is
+ * ordinary code rather than a mistake. What the retry must not receive is bytes
+ * or an end. Both runners reached that answer by a different road and both were
+ * a truncated body accepted as a whole one:
+ *
+ * - a client that cut the connection made Node's iterator answer `done` to every
+ *   call after the one that threw, and `done` is *end* here, so the retry read a
+ *   prefix of the body as all of it;
+ * - a chunk of a virtual fixture that is not whole bytes is refused by
+ *   `readChunks`, and dropping it while its nought bytes left the offset alone
+ *   let the retry read the bytes behind it, one bit short.
+ *
+ * So a failure of the *body* is answered again, in the same words, however often
+ * it is asked for. A failure of the *pull* — the offset refusal above — is not:
+ * it names a position, leaves the body untouched, and the pulls after it read
+ * on.
  */
 export type ReadRequestBytes =
     readonly['readRequestBytes', (body: RequestBody, offset: number, size: number) => IoResult<Vec>]

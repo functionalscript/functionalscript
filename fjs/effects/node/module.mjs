@@ -16,6 +16,7 @@
  * @import { IoResult, Server as EffectServer, Module, NodeOp, RequestListener as Erl, NodeProgram, NodeProgramOptions, WriteConsoles, TestContext, TestFn, } from './types.ts'
  * @import { _Readable, _RequestBodyReader, _RequestListener, _Server, _ServerResponse } from './private.ts'
  * @import { Result } from '../../types/result/types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { FileHandle } from 'node:fs/promises'
  */
@@ -115,6 +116,21 @@ const io = async f => {
  * nothing after it — the refusal belongs to the pull that lost, and the winner's
  * tail is still there to be read.
  *
+ * **A failure of the stream itself belongs to the body, so it is kept and
+ * answered again.** The two kinds of failure here are not alike. An offset
+ * refusal is the pull's: it names a position, the body is untouched, and the
+ * pulls after it read on. A client that cut the connection is the body's: the
+ * bytes it promised are never coming, and Node's iterator answers `done` to
+ * every call after the one that threw. Handed on as it came, that `done` is how
+ * this stream says *end* — so a listener that caught the failure and pulled the
+ * same cell again was told the body was complete, holding a prefix of it, in
+ * order and under a `Content-Length` many times its size, with nothing anywhere
+ * left to say the client never finished. That is DESIGN §10's plausible wrong
+ * value, so the failure is recorded and every later pull meets it again, in the
+ * host's own words rather than in any this runner invents. The record covers the
+ * read alone: put it around the offset check as well and a concurrent re-pull's
+ * loser would poison the winner's tail.
+ *
  * An empty chunk is skipped rather than reported, because no bytes is how this
  * operation says *end* and Node's parser has no obligation to keep the two
  * apart. A chunk larger than a `Vec` is refused by `toVec` at the call site,
@@ -130,18 +146,31 @@ const requestBodyReader = v => {
     let position = 0
     /** @type {Promise<unknown>} */
     let queue = Promise.resolve()
+    /** @type {Nullable<unknown>} */
+    let failed = null
     return (offset, _size) => {
         const pull = queue.then(async () => {
+            // Asked before the offset, because a stream that has failed has
+            // nothing left to say about positions.
+            if (failed !== null) { throw failed }
             if (offset !== position) {
                 throw new Error(requestBodyOffsetMessage(offset, position))
             }
-            for (;;) {
-                const next = await i.next()
-                if (next.done === true) { return emptyBody }
-                if (next.value.length !== 0) {
-                    position += next.value.length
-                    return next.value
+            try {
+                for (;;) {
+                    const next = await i.next()
+                    if (next.done === true) { return emptyBody }
+                    if (next.value.length !== 0) {
+                        position += next.value.length
+                        return next.value
+                    }
                 }
+            } catch (e) {
+                // Only the stream's own failure is recorded, and the `try`
+                // covers only the loop for that reason: the offset refusal
+                // above belongs to the pull that named the wrong offset.
+                failed = e
+                throw e
             }
         })
         queue = pull.catch(() => undefined)
