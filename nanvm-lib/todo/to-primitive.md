@@ -117,10 +117,16 @@ above is the contract.
 above: the refused inputs throw a `TypeError`, and the unchanged ones keep
 their value. They also check that a refusal is a throw, not a wrong answer,
 through the built-ins that reach it: `join` (separator and element), a string
-search, `slice`'s position, and the `+` and `<` operators. Where the host
-answers and the VM refuses, the case also joins the shared corpus with a
-`rust` reason naming this stage. The host still pins JavaScript's value, and
-Stage 2 turns the case on by deleting the reason.
+search, `slice`'s position, and the `+` and `<` operators.
+
+Where the host answers an **object** case and the VM refuses it, the case
+also joins the shared corpus with a `rust` reason naming Stage 2. The host
+still pins JavaScript's value, and Stage 2 turns the case on by deleting the
+reason. A **function** case does not join the corpus: the host's text of a
+function is not the oracle, the EDAG-rendering contract is
+(`member-functions.md`), and Stage 2 does not give a function a text anyway.
+Its refusals are pinned by the Rust unit tests alone, and Stage 3 adds its
+cases against the renderer.
 
 Stage 1 also makes a check possible that no test can make today: conversion
 can now throw, so `toSorted`'s guard (`vm/array/to_sorted.rs`, which leaves
@@ -174,7 +180,8 @@ results, and the only recursion is the user's own call.
 
 This stage is the EDAG default rendering, as specified in the documents
 linked above. When it lands, the function rows of Stage 1 answer the text.
-The refusals are deleted, and so are their `rust` reasons.
+The refusals are deleted, with the unit tests that pin them, and the function
+cases join the corpus with the renderer's text as their expected value.
 
 ### Related, not covered here
 
