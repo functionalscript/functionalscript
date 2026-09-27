@@ -154,10 +154,19 @@ const connectRefusal =
 /**
  * Answers one request through `listener`, or explains that it could not.
  *
- * A body past the cap never reaches the listener: `IncomingMessage.body` is a
- * single `Vec`, so there is no request value to build, and `413` is the accurate
- * answer rather than a truncated one. Streaming bodies lift the whole limit —
- * see `./todo/streaming-http-bodies.md`.
+ * A **request** body past the cap never reaches the listener:
+ * `IncomingMessage.body` is a single `Vec`, so there is no request value to
+ * build, and `413` is the accurate answer rather than a truncated one. Streaming
+ * request bodies lift that limit too — see `./todo/streaming-http-bodies.md`,
+ * stage 2.
+ *
+ * **The response body goes out a chunk at a time**, because it is however many
+ * `Vec`s the answer takes and one `res.end` carries one. The writes are offered
+ * and not paced: every chunk is already in memory when the status goes out, so
+ * `res.write`'s `false` names a buffer nothing is still filling. It also says
+ * nothing for a `HEAD`, a `204` or a `304`, where Node answers `true` to a write
+ * it discards — so Node is the party that drops such a body here, across as many
+ * writes as the body has, and `./proof.mjs` pins that.
  *
  * `unwrap` is total here: a `RequestListener` answers
  * `Effect<…, ServerResponse, never>`, because the response frame *is* where a
@@ -178,7 +187,11 @@ const answerRequest = listener => async (req, res) => {
         headers,
         body: listToVec(body),
     })))
-    res.writeHead(status, outHeaders).end(fromVec(outBody))
+    res.writeHead(status, outHeaders)
+    for (const chunk of outBody) {
+        res.write(fromVec(chunk))
+    }
+    res.end(emptyBody)
 }
 
 /**
@@ -438,10 +451,19 @@ const runNodeEffect = asyncRun({
             throw Object.assign(new Error(notAFileMessage(path)), { code: notAFileCode })
         }
         return withOpen(path, 'r')(async fh => {
-            // Rebuilt rather than appended to: a file is however many `Vec`s it
-            // takes and the count is small — 128 KiB a chunk, so eighty of them
-            // for ten megabytes — where {@link collectBounded} mutates because
-            // *its* count is the caller's. §3.1 has no exception to spend here.
+            // Rebuilt rather than appended to, and serving an arbitrary file
+            // does not change that. A window is a fixed 128 KiB, so the count
+            // is the file's size divided by it — a gigabyte is some eight
+            // thousand windows, and the tens of millions of *reference* copies
+            // that rebuild costs are noise beside reading the gigabyte itself.
+            // {@link collectBounded} mutates because its count is not the byte
+            // count at all: a client picks it, and 20,000 one-byte chunks are
+            // 20 KB. §3.1 has no exception to spend here.
+            //
+            // Holding a whole file to answer one request is the real cost, and
+            // `./todo/streaming-http-bodies.md` stage 1 is where it goes away —
+            // `fjs/web` stops asking for the file at all and reads chunks
+            // through a handle instead.
             let chunks = /** @type {readonly Vec[]} */ ([])
             for (;;) {
                 const chunk = await fill(fh, Buffer.alloc(maxFileSizeBytes), null)

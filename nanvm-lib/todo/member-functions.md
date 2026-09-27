@@ -54,14 +54,15 @@ unchanged: no user function reads `this`, and the receiver is consumed by
 the built-in and never handed on. The printer and the generated code are
 unchanged — `Any::dot(a, key).end_call(args)` is already the spelling.
 
-**One file per built-in**, under the receiver's type — `vm/array/at.rs`,
-`vm/string/at.rs`, `vm/number/to_fixed.rs` — each with its tests, the same
-layout the per-type `member_access.rs` files have. A name shared by types,
-`at`, `concat`, `includes`, `indexOf`, `lastIndexOf`, `slice`, `toString`,
-is one entry per type, since the algorithms differ. Callbacks — `map`,
-`filter`, `reduce` and the rest — reach the user's function through
-`Function::call` with an arguments array of the element, its index and the
-array itself.
+**One file per built-in, or per family sharing one algorithm**, under the
+receiver's type — `vm/array/at.rs`, `vm/array/reduce.rs` for `reduce` and
+`reduceRight`, `vm/string/reads.rs` for the six code-unit reads — each with
+its tests, the same layout the per-type `member_access.rs` files have. A
+name shared by types, `at`, `concat`, `includes`, `indexOf`, `lastIndexOf`,
+`slice`, `toString`, is one entry per type, since the algorithms differ.
+Callbacks — `map`, `filter`, `reduce` and the rest — reach the user's
+function through `Function::call` with an arguments array of the element,
+its index and the array itself.
 
 **Completeness is tested, not promised.** The compiler's list and the VM's
 tables must agree, or a name compiles and throws. One test walks
@@ -104,18 +105,10 @@ wrapper text satisfy the contract. This documentation correction changes no
 runtime behavior; the `Function` checklist remains open until semantic
 rendering and its conversion paths are proved, not merely dispatched.
 
-`Number`'s and `BigInt`'s `toString` with a radix is not written yet, and
-the entry, `to_string` in `vm/lambda/method.rs`, refuses one: on a number or
-a bigint it throws for any radix but an absent one, `undefined` and `10`, so
-`(255).toString(16)` fails where JavaScript answers `"ff"`. Reading the radix
-as ten, as the entry did before, answered `"255"` — a different successful
-value, which the [principles](../../spec/README.md#principles) forbid;
-refusing is missing support, which they allow
-([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
-The plan for the radix itself, the radix task below, is a radix for integers and for bigints,
-and a throw for a non-integer with a radix other than ten, which the
-specification leaves implementation-approximated, with the corpus pinning
-integers and radix ten alone.
+`Number`'s and `BigInt`'s `toString` take a radix, `2` to `36`: an integer
+and every bigint convert exactly, and a fraction with a radix other than ten
+is refused, since ECMAScript leaves its digits to the engine
+([`vm/string/README.md`](../src/vm/string/README.md)).
 
 **`toString` is mostly written.** `Any::to_string`, the `String(x)`
 conversion in `vm/string_coercion.rs`, answers what `x.toString()` answers
@@ -125,7 +118,7 @@ are a dispatch over bodies that exist. Two gaps it shares with the
 conversion path: an own `toString` or `valueOf` on an object is not
 called by `ToPrimitive` yet, where JavaScript's `String({ toString: f })`
 calls `f` — the same own-property-first lookup as the call step, to wire
-once for both — and `Number`'s `toString` takes no radix.
+once for both.
 
 ### Tasks
 
@@ -147,7 +140,7 @@ Infrastructure:
       but `undefined` and `10`, pinned by `to_string_radix` in
       `vm/lambda/method.rs`, so no module gets `"255"` for
       `(255).toString(16)` while the radix is written.
-- [ ] `toString` applies a radix for `Number` and `BigInt`, with corpus
+- [x] `toString` applies a radix for `Number` and `BigInt`, with corpus
       cases, lifting the refusal above.
 - [ ] Corpus cases for every entry, run on the host engine and as
       generated Rust. Use the adopted EDAG-rendering contract as the oracle
@@ -159,70 +152,71 @@ Infrastructure:
 
 - [x] `toString`
 
-`Array` — each built-in's contract, what is out by design, the corpus and
-the landing order are [array-member-functions](./array-member-functions.md):
+`Array` — complete; what is out by design, and the arguments whose
+presence decides an answer, are
+[`vm/array/README.md`](../src/vm/array/README.md):
 
 - [x] `at` — `vm/array/at.rs`; the index is `Number::to_integer_or_infinity`,
       `ToIntegerOrInfinity` of the argument converted by `ToNumber`.
 - [x] `concat` — `vm/array/concat.rs`
-- [ ] `every`
-- [ ] `filter`
-- [ ] `find`
-- [ ] `findIndex`
-- [ ] `findLast`
-- [ ] `findLastIndex`
-- [ ] `flat`
-- [ ] `flatMap`
+- [x] `every` — `vm/array/every.rs`
+- [x] `filter` — `vm/array/filter.rs`
+- [x] `find` — `vm/array/find.rs`
+- [x] `findIndex` — `vm/array/find_index.rs`
+- [x] `findLast` — `vm/array/find.rs`
+- [x] `findLastIndex` — `vm/array/find_last_index.rs`
+- [x] `flat` — `vm/array/flat.rs`
+- [x] `flatMap` — `vm/array/flat.rs`
 - [x] `includes` — `vm/array/includes.rs`
 - [x] `indexOf` — `vm/array/index_of.rs`
-- [ ] `join`
+- [x] `join` — `vm/array/join.rs`
 - [x] `lastIndexOf` — `vm/array/last_index_of.rs`
-- [ ] `map`
-- [ ] `reduce`
-- [ ] `reduceRight`
+- [x] `map` — `vm/array/map.rs`
+- [x] `reduce` — `vm/array/reduce.rs`
+- [x] `reduceRight` — `vm/array/reduce.rs`
 - [x] `slice` — `vm/array/slice.rs`
-- [ ] `some`
+- [x] `some` — `vm/array/some.rs`
 - [x] `toReversed` — `vm/array/to_reversed.rs`
-- [ ] `toSorted`
+- [x] `toSorted` — `vm/array/to_sorted.rs`
 - [x] `toSpliced` — `vm/array/to_spliced.rs`
 - [x] `toString`
 - [x] `with` — `vm/array/with.rs`
 
-`String`:
+`String` — complete; what is out by design, and when an argument is read,
+are [`vm/string/README.md`](../src/vm/string/README.md):
 
-- [ ] `at`
-- [ ] `charAt`
-- [ ] `charCodeAt`
-- [ ] `codePointAt`
-- [ ] `concat`
-- [ ] `endsWith`
-- [ ] `includes`
-- [ ] `indexOf`
-- [ ] `isWellFormed`
-- [ ] `lastIndexOf`
-- [ ] `padEnd`
-- [ ] `padStart`
-- [ ] `repeat`
-- [ ] `replace`
-- [ ] `replaceAll`
-- [ ] `slice`
-- [ ] `split`
-- [ ] `startsWith`
-- [ ] `substring`
+- [x] `at` — `vm/string/reads.rs`
+- [x] `charAt` — `vm/string/reads.rs`
+- [x] `charCodeAt` — `vm/string/reads.rs`
+- [x] `codePointAt` — `vm/string/reads.rs`
+- [x] `concat` — `vm/string/building.rs`
+- [x] `endsWith` — `vm/string/search.rs`
+- [x] `includes` — `vm/string/search.rs`
+- [x] `indexOf` — `vm/string/search.rs`
+- [x] `isWellFormed` — `vm/string/reads.rs`
+- [x] `lastIndexOf` — `vm/string/search.rs`
+- [x] `padEnd` — `vm/string/building.rs`
+- [x] `padStart` — `vm/string/building.rs`
+- [x] `repeat` — `vm/string/building.rs`
+- [x] `replace` — `vm/string/patterns.rs`
+- [x] `replaceAll` — `vm/string/patterns.rs`
+- [x] `slice` — `vm/string/building.rs`
+- [x] `split` — `vm/string/patterns.rs`
+- [x] `startsWith` — `vm/string/search.rs`
+- [x] `substring` — `vm/string/building.rs`
 - [x] `toString`
-- [ ] `toWellFormed`
-- [ ] `trim`
-- [ ] `trimEnd`
-- [ ] `trimStart`
+- [x] `toWellFormed` — `vm/string/reads.rs`
+- [x] `trim` — `vm/string/building.rs`
+- [x] `trimEnd` — `vm/string/building.rs`
+- [x] `trimStart` — `vm/string/building.rs`
 
-`Number`:
+`Number` — complete, [`vm/string/README.md`](../src/vm/string/README.md) too:
 
-- [ ] `toExponential`
-- [ ] `toFixed`
-- [ ] `toPrecision`
-- [x] `toString` — radix ten; the radix argument is the infrastructure
-      task above, since the specification leaves other radices
-      implementation-approximated for non-integers.
+- [x] `toExponential` — `vm/number/format.rs`
+- [x] `toFixed` — `vm/number/format.rs`
+- [x] `toPrecision` — `vm/number/format.rs`
+- [x] `toString` — every radix for an integer; a fraction only in radix
+      ten, since ECMAScript leaves its other radices to the engine.
 
 `Boolean`:
 
@@ -230,8 +224,7 @@ the landing order are [array-member-functions](./array-member-functions.md):
 
 `BigInt`:
 
-- [x] `toString` — radix ten; every radix is fully specified and is the
-      infrastructure task above.
+- [x] `toString` — every radix, `vm/bigint/radix.rs`.
 
 `Function`:
 
@@ -255,8 +248,8 @@ the landing order are [array-member-functions](./array-member-functions.md):
   — shared rendering without regressing supported calls, returns or exports.
 - [Native function-text review](https://github.com/functionalscript/functionalscript/pull/2220#discussion_r4096310135)
   — remove the obsolete Stage 7 placeholder exception and completion claim.
-- [array-member-functions](./array-member-functions.md) — the `Array`
-  built-ins' specification and landing order.
+- [`vm/array/README.md`](../src/vm/array/README.md) — the `Array`
+  built-ins: what is out by design, and why.
 - [`fjs/js/prototype/README.md`](../../fjs/js/prototype/README.md) — the
   table: both lists, one row per name with its reason.
 - [`fjs/edag/README.md`](../../fjs/edag/README.md), Chains — the two bits

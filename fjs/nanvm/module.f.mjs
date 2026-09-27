@@ -11,8 +11,10 @@
  *   producing `nanvm-lib/tests/test/gen.corpus/`, which runs the same case
  *   against `nanvm-lib`.
  *
- * Beside the data are the format's **constructors** (`functionValue`, `ref`,
- * `throws`, `unreached`), its **eliminators** (`isThrows`, `hasUnreached`,
+ * Beside the data are the format's **constructors** (`functionValue`,
+ * `callback`, `ref`, `throws`, `unreached`, written in
+ * [`constructors/module.f.mjs`](./constructors/module.f.mjs) and re-exported
+ * here), its **eliminators** (`isThrows`, `hasUnreached`,
  * `orders`, `groupKey`, `casesOf`, `arityOf`), and the **lowering** that
  * turns a case into the EDAG expression it denotes (`lambdaExp`,
  * `unreachedExp`, `sharedExp`, `valuesExp`, `valueExp`, `caseExp`). All
@@ -25,6 +27,10 @@
  * count — except for an `Op12Id`, legal at both of the first two counts,
  * where the group's own `arity` does.
  *
+ * The operator groups are written here; the member-function groups are in
+ * [`member/module.f.mjs`](./member/module.f.mjs), so that no one file
+ * outgrows the repository's file reader.
+ *
  * Cases `nanvm-lib` does not implement yet carry a `rust` reason and are
  * emitted as commented-out `TODO`s instead of being silently dropped — the
  * gaps between the two implementations are part of the data.
@@ -32,19 +38,23 @@
  * @module
  *
  * @import { Exp, Op1, Op1Id, Op12, Op12Id, Op2, Op2Id, Op3, Op3Id, Property } from '../edag/types.ts'
- * @import { AnyCase, Case, Data, Expectation, FunctionValue, Group, MethodCase, OperatorGroup, Ref, SharedNode, Struct, Throws, Unreached, Value } from './types.ts'
+ * @import { AnyCase, CallbackName, Case, Data, Expectation, Group, OperatorGroup, SharedNode, Struct, Throws, Value } from './types.ts'
  *
  * @example
  *
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 39
+ * data.groups.length // 73
  * ```
  */
 
 import { op1Id, op3Id } from '../edag/module.f.mjs'
 import { validate } from '../rtti/validate/module.f.mjs'
+import { functionValue, ref, throws, unreached } from './constructors/module.f.mjs'
+import { groups as memberGroups } from './member/module.f.mjs'
+
+export { callback, functionValue, ref, throws, unreached } from './constructors/module.f.mjs'
 
 const { entries } = Object
 
@@ -53,44 +63,6 @@ const isOp1Id = validate(op1Id)
 
 /** The same, for the ternary vocabulary. */
 const isOp3Id = validate(op3Id)
-
-// Constructors — the four things a literal cannot express.
-
-/**
- * A function value.
- *
- * Every operator here coerces a function through `ToPrimitive`, which never
- * inspects it, so which function it is does not matter — and so it lowers to
- * the smallest one, {@link lambdaExp}.
- *
- * @type {FunctionValue}
- */
-export const functionValue = () => ['function']
-
-/**
- * The case must throw. Valid only as a case's `expected`.
- *
- * @type {Throws}
- */
-export const throws = () => ['throw']
-
-/**
- * One of `data.shared`'s values, so the same node — and hence the same
- * object — reaches every `ref` to that name.
- *
- * @type {(name: string) => Ref}
- */
-export const ref = name => () => ['ref', name]
-
-/**
- * An operand the operation must not establish. Lowers to
- * {@link unreachedExp}, an operation that throws when established, so a
- * case's value proves the operand was left alone — `false && unreached` is
- * `false` on both sides only because neither establishes the right operand.
- *
- * @type {Unreached}
- */
-export const unreached = () => ['unreached']
 
 // Eliminators — the constructors read back, so each rule has one owner.
 
@@ -209,6 +181,50 @@ export const arityOf = g => {
  */
 export const lambdaExp = () => ['=>', 0, ['[]', []], ['undefined']]
 
+/** `a[i]`, over the invocation's rest array: how a callback reads its arguments. @type {(i: number) => Exp} */
+const restAt = i => ['.', ['rest'], i]
+
+/**
+ * The corpus's callbacks by name, each the body of a function of one rest
+ * parameter, `(...a) => body`, with its JavaScript spelling:
+ *
+ * - `args`, `(...a) => a`: what the callback was given, so a `map(args)`
+ *   case pins the element, the index, the array and how many there are —
+ *   `reduce`'s four included.
+ * - `first`, `(...a) => a[0]`: the element itself, a predicate by its
+ *   truthiness.
+ * - `prop`, `(...a) => a[0].x`: truthy on `{ x: 1 }`, falsy on `{}`, and a
+ *   throw on `null`, so a case can prove an element was never visited.
+ * - `double`, `(...a) => a[0] * 2`.
+ * - `add`, `(...a) => a[0] + a[1]`: a fold whose order shows with strings.
+ * - `pair`, `(...a) => [a[0], [a[0]]]`: one level of an array, and one below.
+ * - `ascending`, `(...a) => a[0] - a[1]`, and `descending`,
+ *   `(...a) => a[1] - a[0]`: comparators.
+ * - `zero`, `() => 0`: a comparator calling every pair equal, which only a
+ *   stable sort answers with the elements in their order.
+ *
+ * @type {{ readonly [k in CallbackName]: () => Exp }}
+ */
+export const callbacks = {
+    args: () => ['rest'],
+    first: () => restAt(0),
+    prop: () => ['.', restAt(0), 'x'],
+    double: () => ['*', restAt(0), 2],
+    add: () => ['+', restAt(0), restAt(1)],
+    pair: () => ['[]', [restAt(0), ['[]', [restAt(0)]]]],
+    ascending: () => ['-', restAt(0), restAt(1)],
+    descending: () => ['-', restAt(1), restAt(0)],
+    zero: () => 0,
+}
+
+/**
+ * The expression a callback denotes: the function `(...a) => body`, no
+ * captures, a fresh node on every call like {@link lambdaExp}.
+ *
+ * @type {(name: CallbackName) => Exp}
+ */
+export const callbackExp = name => ['=>', 0, null, callbacks[name]()]
+
 /**
  * The expression an `unreached` denotes: `1n / 0n`, which throws when
  * established — a `RangeError` in JavaScript, an `Err` in `nanvm-lib`, the
@@ -236,9 +252,9 @@ export const unreachedExp = () => ['/', 1n, 0n]
  * fresh node, so a multiply-referenced node in a derived expression is always
  * a `ref` and never an accident of the walk.
  *
- * A {@link Value} admits three thunks, and this walk has a case for each: a
- * `ref` resolves, a `functionValue` is {@link lambdaExp}, and an `unreached`
- * is {@link unreachedExp}. `throws` is an {@link Expectation}, not spellable
+ * A {@link Value} admits four thunks, and this walk has a case for each: a
+ * `ref` resolves, a `functionValue` is {@link lambdaExp}, a `callback` is
+ * {@link callbackExp}, and an `unreached` is {@link unreachedExp}. `throws` is an {@link Expectation}, not spellable
  * here, so it is not rejected here either.
  *
  * @type {(resolve: (name: string) => Exp) => (v: Value) => Exp}
@@ -250,6 +266,7 @@ const constExp = resolve => {
             const info = v()
             return info[0] === 'ref' ? resolve(info[1])
                 : info[0] === 'function' ? lambdaExp()
+                : info[0] === 'callback' ? callbackExp(info[1])
                 : unreachedExp()
         }
         if (v === undefined) { return ['undefined'] }
@@ -1433,6 +1450,9 @@ const ownCases = [
     { name: 'valuePreservesNullType', args: [{ a: null }, 'a'], expected: null },
     { name: 'multiplePropertiesDistinguished', args: [{ a: 1, b: 2 }, 'b'], expected: 2 },
     { name: 'numericStringKey', args: [{ 1: 42 }, '1'], expected: 42 },
+    // A key no UTF-8 literal can spell: it reaches Rust as code units, both
+    // in the object literal and as the operand.
+    { name: 'loneSurrogateKey', args: [{ '\uD800': 42 }, '\uD800'], expected: 42 },
     { name: 'nonObjectNumberReceiver', args: [5, 'a'], expected: undefined },
     // `'length'` would be the wrong probe here: real JS strings and arrays
     // carry real own properties for `.length` (and, for arrays, numeric
@@ -1506,237 +1526,6 @@ const strictEqualityCases = [
     { name: 'objectByEqualObject', args: [ref('object'), { '0': '0' }], expected: false },
 ]
 
-/**
- * `Array.prototype.at`: the element from the start or, for a negative index,
- * from the end, `undefined` out of range, and the index `ToIntegerOrInfinity`
- * of the argument — truncated, a string converted, `undefined` and `NaN`
- * zero, and a bigint the `TypeError` `ToNumber` throws.
- *
- * @type {readonly MethodCase[]}
- */
-const atCases = [
-    { name: 'first', args: [[10, 20, 30], 0], expected: 10 },
-    { name: 'last', args: [[10, 20, 30], 2], expected: 30 },
-    { name: 'fromTheEnd', args: [[10, 20, 30], -1], expected: 30 },
-    { name: 'firstFromTheEnd', args: [[10, 20, 30], -3], expected: 10 },
-    { name: 'pastTheEnd', args: [[10, 20, 30], 3], expected: undefined },
-    { name: 'beforeTheStart', args: [[10, 20, 30], -4], expected: undefined },
-    { name: 'infinity', args: [[10, 20, 30], Infinity], expected: undefined },
-    { name: 'negativeInfinity', args: [[10, 20, 30], -Infinity], expected: undefined },
-    { name: 'empty', args: [[], 0], expected: undefined },
-    { name: 'truncated', args: [[10, 20, 30], 1.7], expected: 20 },
-    { name: 'negativeFraction', args: [[10, 20, 30], -0.5], expected: 10 },
-    { name: 'string', args: [[10, 20, 30], '1'], expected: 20 },
-    { name: 'undefinedIndex', args: [[10, 20, 30], undefined], expected: 10 },
-    { name: 'nanIndex', args: [[10, 20, 30], NaN], expected: 10 },
-    { name: 'noArgument', args: [[10, 20, 30]], expected: 10 },
-    { name: 'extraArgument', args: [[10, 20, 30], 1, 2], expected: 20 },
-    { name: 'nested', args: [[[1], [2]], 1], expected: [2] },
-    { name: 'bigint', args: [[10, 20, 30], 1n], expected: throws },
-    { name: 'object', args: [{}, 0], expected: throws },
-    { name: 'number', args: [1, 0], expected: throws },
-    { name: 'ownProperty', args: [{ at: functionValue }, 0], expected: undefined },
-]
-
-/**
- * `Array.prototype.includes`: `SameValueZero`, so `NaN` is found and `0`
- * finds `-0`, from a relative position clamped into the array. An empty
- * array answers before the position is converted, so a bigint position
- * throws only on a non-empty one.
- *
- * @type {readonly MethodCase[]}
- */
-const includesCases = [
-    { name: 'found', args: [[1, 2, 3], 2], expected: true },
-    { name: 'notFound', args: [[1, 2, 3], 4], expected: false },
-    { name: 'nan', args: [[1, NaN], NaN], expected: true },
-    { name: 'negativeZero', args: [[0], -0], expected: true },
-    { name: 'noCoercion', args: [[1], '1'], expected: false },
-    { name: 'nullIsNotUndefined', args: [[null], undefined], expected: false },
-    { name: 'noArgument', args: [[undefined]], expected: true },
-    { name: 'empty', args: [[], undefined], expected: false },
-    { name: 'from', args: [[1, 2, 3], 1, 1], expected: false },
-    { name: 'fromTheEnd', args: [[1, 2, 3], 3, -1], expected: true },
-    { name: 'fromBeforeTheStart', args: [[1, 2, 3], 1, -9], expected: true },
-    { name: 'fromPastTheEnd', args: [[1, 2, 3], 3, 3], expected: false },
-    { name: 'fromInfinity', args: [[1], 1, Infinity], expected: false },
-    { name: 'fromString', args: [[1, 2], 1, '1'], expected: false },
-    { name: 'emptyBigintFrom', args: [[], 1, 1n], expected: false },
-    { name: 'bigintFrom', args: [[1], 1, 1n], expected: throws },
-    { name: 'object', args: [{}, 1], expected: throws },
-]
-
-/**
- * `Array.prototype.indexOf`: strict equality, so `NaN` is never found, from
- * the same clamped position as `includes`.
- *
- * @type {readonly MethodCase[]}
- */
-const indexOfCases = [
-    { name: 'first', args: [[1, 2, 1], 1], expected: 0 },
-    { name: 'notFound', args: [[1, 2, 3], 4], expected: -1 },
-    { name: 'nan', args: [[NaN], NaN], expected: -1 },
-    { name: 'negativeZero', args: [[1, 0], -0], expected: 1 },
-    { name: 'noCoercion', args: [[1], '1'], expected: -1 },
-    { name: 'noArgument', args: [[1, undefined]], expected: 1 },
-    { name: 'empty', args: [[], undefined], expected: -1 },
-    { name: 'from', args: [[1, 2, 1], 1, 1], expected: 2 },
-    { name: 'fromTheEnd', args: [[1, 2, 1], 1, -1], expected: 2 },
-    { name: 'fromBeforeTheStart', args: [[1, 2, 1], 1, -9], expected: 0 },
-    { name: 'fromPastTheEnd', args: [[1, 2, 1], 1, 3], expected: -1 },
-    { name: 'fromNegativeInfinity', args: [[1], 1, -Infinity], expected: 0 },
-    { name: 'emptyBigintFrom', args: [[], 1, 1n], expected: -1 },
-    { name: 'bigintFrom', args: [[1], 1, 1n], expected: throws },
-    { name: 'object', args: [{}, 1], expected: throws },
-]
-
-/**
- * `Array.prototype.lastIndexOf`: strict equality, searching back from the
- * end — unless a position is passed, `undefined` included, which converts
- * to `0`.
- *
- * @type {readonly MethodCase[]}
- */
-const lastIndexOfCases = [
-    { name: 'last', args: [[1, 2, 1], 1], expected: 2 },
-    { name: 'notFound', args: [[1, 2, 3], 4], expected: -1 },
-    { name: 'nan', args: [[NaN], NaN], expected: -1 },
-    { name: 'negativeZero', args: [[0, 1], -0], expected: 0 },
-    { name: 'noArgument', args: [[undefined, 1]], expected: 0 },
-    { name: 'empty', args: [[], undefined], expected: -1 },
-    { name: 'passedUndefined', args: [[1, 1], 1, undefined], expected: 0 },
-    { name: 'from', args: [[1, 2, 1], 1, 1], expected: 0 },
-    { name: 'fromTheEnd', args: [[1, 2, 1], 1, -2], expected: 0 },
-    { name: 'fromBeforeTheStart', args: [[1, 2, 1], 1, -4], expected: -1 },
-    { name: 'fromPastTheEnd', args: [[1, 2, 1], 1, 9], expected: 2 },
-    { name: 'fromNegativeInfinity', args: [[1], 1, -Infinity], expected: -1 },
-    { name: 'fromInfinity', args: [[1], 1, Infinity], expected: 0 },
-    { name: 'emptyBigintFrom', args: [[], 1, 1n], expected: -1 },
-    { name: 'bigintFrom', args: [[1], 1, 1n], expected: throws },
-]
-
-/**
- * `Array.prototype.slice`: the elements from a start up to an end, both
- * relative positions clamped into the array, the end the length when
- * `undefined`.
- *
- * @type {readonly MethodCase[]}
- */
-const sliceCases = [
-    { name: 'noArgument', args: [[1, 2, 3]], expected: [1, 2, 3] },
-    { name: 'start', args: [[1, 2, 3], 1], expected: [2, 3] },
-    { name: 'startAndEnd', args: [[1, 2, 3], 0, 2], expected: [1, 2] },
-    { name: 'fromTheEnd', args: [[1, 2, 3], -2, -1], expected: [2] },
-    { name: 'undefinedEnd', args: [[1, 2, 3], 1, undefined], expected: [2, 3] },
-    { name: 'nullEnd', args: [[1, 2, 3], 0, null], expected: [] },
-    { name: 'emptyRange', args: [[1, 2, 3], 2, 1], expected: [] },
-    { name: 'clamped', args: [[1, 2, 3], -9, 9], expected: [1, 2, 3] },
-    { name: 'truncated', args: [[1, 2, 3], 0.9, 2.9], expected: [1, 2] },
-    { name: 'string', args: [[1, 2, 3], '1', '2'], expected: [2] },
-    { name: 'empty', args: [[], 0, 1], expected: [] },
-    { name: 'nested', args: [[[1], [2]], 1], expected: [[2]] },
-    { name: 'bigintStart', args: [[1], 0n], expected: throws },
-    { name: 'bigintEnd', args: [[1], 0, 1n], expected: throws },
-]
-
-/**
- * `Array.prototype.concat`: the receiver's elements, then each argument's —
- * an array spliced in one level, anything else, an object included, whole.
- *
- * @type {readonly MethodCase[]}
- */
-const concatCases = [
-    { name: 'noArgument', args: [[1, 2]], expected: [1, 2] },
-    { name: 'array', args: [[1], [2, 3]], expected: [1, 2, 3] },
-    { name: 'value', args: [[1], 2], expected: [1, 2] },
-    { name: 'several', args: [[1], 2, [3], [], 4], expected: [1, 2, 3, 4] },
-    { name: 'oneLevel', args: [[1], [[2]]], expected: [1, [2]] },
-    { name: 'object', args: [[], { a: 1 }], expected: [{ a: 1 }] },
-    { name: 'nullish', args: [[], null, undefined], expected: [null, undefined] },
-    { name: 'string', args: [[], 'ab'], expected: ['ab'] },
-    { name: 'empty', args: [[]], expected: [] },
-]
-
-/** `Array.prototype.toReversed`: the elements in reverse order. @type {readonly MethodCase[]} */
-const toReversedCases = [
-    { name: 'reversed', args: [[1, 2, 3]], expected: [3, 2, 1] },
-    { name: 'empty', args: [[]], expected: [] },
-    { name: 'argumentIgnored', args: [[1, 2], 0], expected: [2, 1] },
-    { name: 'nested', args: [[[1], 2]], expected: [2, [1]] },
-]
-
-/**
- * `Array.prototype.with`: a copy with one element replaced, the index a
- * relative position that must land inside the array.
- *
- * @type {readonly MethodCase[]}
- */
-const withCases = [
-    { name: 'first', args: [[1, 2, 3], 0, 9], expected: [9, 2, 3] },
-    { name: 'fromTheEnd', args: [[1, 2, 3], -1, 9], expected: [1, 2, 9] },
-    { name: 'truncated', args: [[1, 2, 3], 1.5, 9], expected: [1, 9, 3] },
-    { name: 'string', args: [[1, 2, 3], '2', 9], expected: [1, 2, 9] },
-    { name: 'noValue', args: [[1, 2], 0], expected: [undefined, 2] },
-    { name: 'noArgument', args: [[1, 2]], expected: [undefined, 2] },
-    { name: 'pastTheEnd', args: [[1, 2, 3], 3, 9], expected: throws },
-    { name: 'beforeTheStart', args: [[1, 2, 3], -4, 9], expected: throws },
-    { name: 'empty', args: [[], 0, 9], expected: throws },
-    { name: 'infinity', args: [[1], Infinity, 9], expected: throws },
-    { name: 'bigint', args: [[1], 0n, 9], expected: throws },
-]
-
-/**
- * `Array.prototype.toSpliced`: a copy with elements removed from a start
- * and items put in their place. How many go depends on what the call
- * passed: none without a start, the rest without a count, and a passed
- * `undefined` count is zero.
- *
- * @type {readonly MethodCase[]}
- */
-const toSplicedCases = [
-    { name: 'noArgument', args: [[1, 2, 3]], expected: [1, 2, 3] },
-    { name: 'start', args: [[1, 2, 3], 1], expected: [1] },
-    { name: 'startUndefinedCount', args: [[1, 2, 3], 1, undefined], expected: [1, 2, 3] },
-    { name: 'undefinedStart', args: [[1, 2, 3], undefined], expected: [] },
-    { name: 'count', args: [[1, 2, 3], 1, 1], expected: [1, 3] },
-    { name: 'insert', args: [[1, 2, 3], 1, 1, 8, 9], expected: [1, 8, 9, 3] },
-    { name: 'insertOnly', args: [[1, 3], 1, 0, 2], expected: [1, 2, 3] },
-    { name: 'fromTheEnd', args: [[1, 2, 3], -1, 1], expected: [1, 2] },
-    { name: 'countPastTheEnd', args: [[1, 2, 3], 1, 9], expected: [1] },
-    { name: 'negativeCount', args: [[1, 2], 0, -1, 0], expected: [0, 1, 2] },
-    { name: 'startPastTheEnd', args: [[1], 9, 0, 2], expected: [1, 2] },
-    { name: 'stringCount', args: [[1, 2, 3], 0, '2'], expected: [3] },
-    { name: 'arrayItem', args: [[1], 1, 0, [2]], expected: [1, [2]] },
-    { name: 'empty', args: [[], 0, 0, 1], expected: [1] },
-    { name: 'bigintStart', args: [[1], 0n], expected: throws },
-    { name: 'bigintCount', args: [[1], 0, 1n], expected: throws },
-]
-
-/**
- * `toString()` on every type but a function, whose text is the
- * rendering `nanvm-lib/todo/member-functions.md` tracks (see
- * {@link FunctionValue}). A radix on a number or a bigint is refused by
- * `nanvm-lib` until it is written, rather than answered in radix ten.
- *
- * @type {readonly MethodCase[]}
- */
-const toStringCases = [
-    { name: 'number', args: [1.5], expected: '1.5' },
-    { name: 'negativeZero', args: [-0], expected: '0' },
-    { name: 'boolean', args: [true], expected: 'true' },
-    { name: 'string', args: ['ab'], expected: 'ab' },
-    { name: 'bigint', args: [5n], expected: '5' },
-    { name: 'array', args: [[1, 'b', null, undefined, [2, 3]]], expected: '1,b,,,2,3' },
-    { name: 'object', args: [{}], expected: '[object Object]' },
-    { name: 'radixTen', args: [255, 10], expected: '255' },
-    { name: 'radixUndefined', args: [255, undefined], expected: '255' },
-    { name: 'radix', args: [255, 16], expected: 'ff', rust: 'a radix other than ten is refused' },
-    { name: 'bigintRadix', args: [255n, 16], expected: 'ff', rust: 'a radix other than ten is refused' },
-    { name: 'argumentIgnored', args: [[1], 16], expected: '1' },
-    { name: 'null', args: [null], expected: throws },
-    { name: 'undefined', args: [undefined], expected: throws },
-]
-
 /** @type {Data} */
 export const data = {
     shared: sharedValues,
@@ -1799,15 +1588,6 @@ export const data = {
         { op: 'typeof', cases: typeofCases },
         { op: 'String', cases: stringCoercionCases },
         { op: 'own', cases: ownCases },
-        { method: 'at', cases: atCases },
-        { method: 'includes', cases: includesCases },
-        { method: 'indexOf', cases: indexOfCases },
-        { method: 'lastIndexOf', cases: lastIndexOfCases },
-        { method: 'slice', cases: sliceCases },
-        { method: 'concat', cases: concatCases },
-        { method: 'toReversed', cases: toReversedCases },
-        { method: 'with', cases: withCases },
-        { method: 'toSpliced', cases: toSplicedCases },
-        { method: 'toString', cases: toStringCases },
+        ...memberGroups,
     ],
 }
