@@ -19,8 +19,11 @@ if let Unpacked::Nullish(_) = Unpacked::from(receiver.clone()) {
 if let Unpacked::Nullish(_) = &unpacked {
 // vm/any/nullish_coalescing.rs
 Unpacked::Nullish(_) => rhs(),
-// vm/primitive_coercion.rs, arr_element_to_string
-Nullish::try_from(v.clone()).map(|_| Ok("".into())).unwrap_or_else(|_| v.to_string())
+// vm/array/join.rs, Array::join
+.map(|v| match Nullish::try_from(v.clone()) {
+    Ok(_) => Ok("".into()),
+    Err(_) => v.to_string(),
+})
 ```
 
 The rule that matters — match on `Unpacked` rather than
@@ -31,8 +34,9 @@ allocating form the docs warn against. A rule that lives in a comment on
 a private impl is one the next site does not see.
 
 The value `undefined` is likewise spelled `Nullish::Undefined.to_any()`
-at about two dozen sites, and three test modules each define a private
-`fn undefined()` for it.
+at some forty sites, and several test modules — `array/at`,
+`array/includes`, `array/index_of`, `string/building`, `string/search`,
+`lambda`, `any/dot` — each define a private `fn undefined()` for it.
 
 ### Proposal
 
@@ -52,7 +56,8 @@ test-local `undefined()` helpers are deleted.
 ### Tasks
 
 - [ ] `Any::is_nullish` and `Any::undefined`, with tests.
-- [ ] The six sites and the test helpers through them.
+- [ ] The six sites, `Array::join`'s among them, and the test helpers
+      through them.
 - [ ] `cargo test`, `cargo clippy`, `cargo fmt -- --check`.
 
 ### Related

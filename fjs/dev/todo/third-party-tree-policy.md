@@ -54,15 +54,23 @@ export const isThirdParty: (name: string) => boolean
 `fjs test` stops walking `target`. That is the whole of the policy fix
 and stands on its own.
 
-For the two recursions, one walk under both: a per-directory
-`walkDirs(root, descend)` in `fjs/dev`, answering the website's record
-per directory it enters — path, files, subdirectories, sorted. Today's
-`walk(root, classify)` is derived from it: it descends where `classify`
-answers `descend`, and from each record it keeps every entry `classify`
-answers `take`, a subdirectory as much as a file, since a directory
-classified `take` is in today's answer without being entered. The
-website's `walk` is then `walkDirs(dir, name => !isThirdParty(name))`,
-and its `_Walked` type moves beside the export. If the derivation turns out to cost more than the copy, the
+For the two recursions, one walk under both, taking the same three-way
+`classify` today's `walk` takes — a boolean would not do, since a
+directory classified `take` must appear without being entered and one
+classified `skip` must not appear at all:
+
+```ts
+/** One record per directory entered: the entries `classify` took, and the ones it descended. */
+export const walkDirs: (root: string, classify: Classify)
+    => Effect<Readdir | All, readonly { path: string, taken: readonly string[], descended: readonly string[] }[], IoChannel>
+```
+
+Today's `walk(root, classify)` is the concatenation of every record's
+`taken` — a subdirectory classified `take` included, in the answer
+without being entered, as today. The website classifies a third-party
+name `skip`, any other directory `descend` and a file `take`, so its
+record is `taken` as `files` and `descended` as `dirs`, sorted as it
+sorts them now, and its `_Walked` type moves beside the export. If the derivation turns out to cost more than the copy, the
 website keeps its walk and shares only the predicate; the policy fix
 does not wait on the walk.
 
