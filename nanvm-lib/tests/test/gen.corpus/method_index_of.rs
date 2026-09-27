@@ -18,6 +18,11 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("fromPastTheEnd", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("indexOf")).end_call(|| Ok([f64_any(0x3ff0000000000000), f64_any(0x4008000000000000)].to_array().to_any())), f64_any(0xbff0000000000000));
     check::<A>("fromNegativeInfinity", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("indexOf")).end_call(|| Ok([f64_any(0x3ff0000000000000), f64_any(0xfff0000000000000)].to_array().to_any())), f64_any(0x0000000000000000));
     check::<A>("emptyBigintFrom", Any::dot(Array::default().to_any(), string_any("indexOf")).end_call(|| Ok([f64_any(0x3ff0000000000000), bigint_any(1)].to_array().to_any())), f64_any(0xbff0000000000000));
+    check::<A>("emptyOwnValueOfFrom", Any::dot(Array::default().to_any(), string_any("indexOf")).end_call(|| {
+        let c0: Any<A> = A::static_function(|_self, _args| { bigint_any(1) / bigint_any(0) }, 0, Array::default()).to_any();
+        let c1: Any<A> = [(string_key("valueOf"), c0)].to_object().to_any();
+        Ok([f64_any(0x3ff0000000000000), c1].to_array().to_any())
+    }), f64_any(0xbff0000000000000));
     check_throws::<A>("bigintFrom", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("indexOf")).end_call(|| Ok([f64_any(0x3ff0000000000000), bigint_any(1)].to_array().to_any())));
     check_throws::<A>("object", Any::dot(Object::default().to_any(), string_any("indexOf")).end_call(|| Ok([f64_any(0x3ff0000000000000)].to_array().to_any())));
 }

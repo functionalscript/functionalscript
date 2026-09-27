@@ -24,6 +24,7 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("array", [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any().to_string().map(|v| v.to_any()), string_any("1,2,3"));
     check::<A>("nestedArray", [f64_any(0x3ff0000000000000), [f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any(), f64_any(0x4010000000000000)].to_array().to_any().to_string().map(|v| v.to_any()), string_any("1,2,3,4"));
     check::<A>("arrayWithNullish", [Nullish::Null.to_any(), Nullish::Undefined.to_any(), f64_any(0x3ff0000000000000)].to_array().to_any().to_string().map(|v| v.to_any()), string_any(",,1"));
+    check::<A>("arrayWithOwnToString", [[(string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("x")) }, 0, Array::default()).to_any())].to_object().to_any(), f64_any(0x3ff0000000000000)].to_array().to_any().to_string().map(|v| v.to_any()), string_any("x,1"));
     check::<A>("emptyObject", Object::default().to_any().to_string().map(|v| v.to_any()), string_any("[object Object]"));
     check::<A>("object", [(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any().to_string().map(|v| v.to_any()), string_any("[object Object]"));
     check::<A>("objectOwnToString", [(string_key("toString"), function_any())].to_object().to_any().to_string().map(|v| v.to_any()), string_any("undefined"));

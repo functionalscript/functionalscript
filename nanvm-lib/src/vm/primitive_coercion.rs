@@ -50,6 +50,17 @@ fn arr_to_string<A: IVm>(a: Array<A>) -> Option<Result<Primitive<A>, Any<A>>> {
     Some(s.map(Primitive::String))
 }
 
+/// A method `OrdinaryToPrimitive` tries: its name, and what the stock
+/// method answers when the object does not own one — `None` for
+/// <https://tc39.es/ecma262/#sec-object.prototype.valueof>, which answers
+/// the object itself, not a primitive, and `"[object Object]"` for
+/// <https://tc39.es/ecma262/#sec-object.prototype.tostring>.
+type ConversionMethod = (&'static str, Option<&'static str>);
+
+const VALUE_OF: ConversionMethod = ("valueOf", None);
+
+const TO_STRING: ConversionMethod = ("toString", Some("[object Object]"));
+
 /// <https://tc39.es/ecma262/#sec-ordinarytoprimitive>: the hint picks the
 /// order of the two methods, and the first to answer a primitive is the
 /// result.
@@ -58,11 +69,11 @@ fn obj_to_primitive<A: IVm>(
     preferred_type: ToPrimitivePreferredType,
 ) -> Result<Primitive<A>, Any<A>> {
     let order = match preferred_type {
-        ToPrimitivePreferredType::Number => ["valueOf", "toString"],
-        ToPrimitivePreferredType::String => ["toString", "valueOf"],
+        ToPrimitivePreferredType::Number => [VALUE_OF, TO_STRING],
+        ToPrimitivePreferredType::String => [TO_STRING, VALUE_OF],
     };
-    for name in order {
-        if let Some(p) = obj_method(&o, name)? {
+    for method in order {
+        if let Some(p) = obj_method(&o, method)? {
             return Ok(p);
         }
     }
@@ -78,18 +89,16 @@ fn obj_to_primitive<A: IVm>(
 /// no FunctionalScript function reads `this`. Its throw propagates, and a
 /// result that is not a primitive moves on, unconverted, so the conversion
 /// never recurses through a result.
-fn obj_method<A: IVm>(o: &Object<A>, name: &str) -> Result<Option<Primitive<A>>, Any<A>> {
+fn obj_method<A: IVm>(
+    o: &Object<A>,
+    (name, stock): ConversionMethod,
+) -> Result<Option<Primitive<A>>, Any<A>> {
     match o.own_property(&name.into()) {
         Some(m) => match Function::try_from(m) {
             Ok(f) => f.call(Array::default()).map(to_primitive_value),
             Err(_) => Ok(None),
         },
-        // https://tc39.es/ecma262/#sec-object.prototype.valueof answers the
-        // object itself, not a primitive, and
-        // https://tc39.es/ecma262/#sec-object.prototype.tostring answers
-        // "[object Object]".
-        None if name == "valueOf" => Ok(None),
-        None => Ok(Some(Primitive::String("[object Object]".into()))),
+        None => Ok(stock.map(|s| Primitive::String(s.into()))),
     }
 }
 
@@ -200,9 +209,14 @@ mod tests {
         A::static_function(|self_, _| Ok(A::frame(self_)[0].clone()), 0, [v].to_array()).to_any()
     }
 
-    /// `() => { throw "boom" }`.
-    fn throws() -> Any<A> {
-        A::static_function(|_, _| Err("boom".into()), 0, [].to_array()).to_any()
+    /// `() => { throw v }`, throwing its frame's one item.
+    fn throws(v: &str) -> Any<A> {
+        A::static_function(
+            |self_, _| Err(A::frame(self_)[0].clone()),
+            0,
+            [s(v)].to_array(),
+        )
+        .to_any()
     }
 
     fn with(props: &[(&str, Any<A>)]) -> Any<A> {
@@ -269,9 +283,39 @@ mod tests {
     /// A method's throw is the conversion's, unchanged, and ends it.
     #[test]
     fn throw_propagates() {
-        let o = || with(&[("valueOf", throws()), ("toString", returns(s("t")))]);
+        let o = || with(&[("valueOf", throws("boom")), ("toString", returns(s("t")))]);
         refused(o().to_number(), "boom");
         assert_eq!(o().to_string(), Ok("t".into()));
+    }
+
+    /// A binary operator converts its left operand first, so with both
+    /// throwing, the left one's throw is the result. `>` and `<=` ask `<`
+    /// of the swapped operands and still convert the left one first.
+    #[test]
+    fn left_operand_first() {
+        type Op = fn(Any<A>, Any<A>) -> Result<Any<A>, Any<A>>;
+        let ops: [Op; 16] = [
+            |x, y| x + y,
+            |x, y| x - y,
+            |x, y| x * y,
+            |x, y| x / y,
+            |x, y| x % y,
+            |x, y| x.pow(y),
+            |x, y| x & y,
+            |x, y| x | y,
+            |x, y| x ^ y,
+            |x, y| x << y,
+            |x, y| x >> y,
+            |x, y| x.unsigned_right_shift(y),
+            Any::lt,
+            Any::gt,
+            Any::le,
+            Any::ge,
+        ];
+        let o = |v| with(&[("valueOf", throws(v))]);
+        for op in ops {
+            refused(op(o("left"), o("right")), "left");
+        }
     }
 
     /// A result that is not a primitive moves on, unconverted, and if

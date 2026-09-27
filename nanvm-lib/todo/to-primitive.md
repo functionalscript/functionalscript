@@ -163,6 +163,16 @@ called. The unit tests are in `vm/primitive_coercion.rs`, one per step
 above, and the corpus covers each step for `String`, unary `+` and `-`,
 binary `+` and `slice`'s position.
 
+A conversion can now run user code, which can throw, so the order of
+conversions becomes observable. Every binary operator converts its left
+operand first. `>` and `<=` ask `<` of the swapped operands, and before
+Stage 2 they also converted the right operand first; they now convert both
+in source order first, as the spec's `LeftFirst` flag of
+[`IsLessThan`](https://tc39.es/ecma262/#sec-islessthan) requires. The
+unit test `left_operand_first` pins every operator. The array searches
+answer an empty array before converting their position, which the corpus
+pins with a `valueOf` that throws.
+
 A method's result can itself be an object with its own methods. Step 6 does
 not convert it; it moves on. So the conversion cannot recurse through its
 results, and the only recursion is the user's own call.

@@ -1126,6 +1126,7 @@ const stringCoercionCases = [
     { name: 'array', args: [[1, 2, 3]], expected: '1,2,3' },
     { name: 'nestedArray', args: [[1, [2, 3], 4]], expected: '1,2,3,4' },
     { name: 'arrayWithNullish', args: [[null, undefined, 1]], expected: ',,1' },
+    { name: 'arrayWithOwnToString', args: [[{ toString: returns('x') }, 1]], expected: 'x,1' },
     { name: 'emptyObject', args: [{}], expected: '[object Object]' },
     { name: 'object', args: [{ a: 1 }], expected: '[object Object]' },
     // `OrdinaryToPrimitive` with the `string` hint: `toString` first, then
@@ -1605,6 +1606,10 @@ const includesCases = [
     { name: 'fromInfinity', args: [[1], 1, Infinity], expected: false },
     { name: 'fromString', args: [[1, 2], 1, '1'], expected: false },
     { name: 'emptyBigintFrom', args: [[], 1, 1n], expected: false },
+    // An empty array answers before converting the position, so its own
+    // `valueOf` is never called.
+    { name: 'emptyOwnValueOfFrom', args: [[], 1, { valueOf: returns(unreached) }], expected: false },
+    { name: 'ownValueOfFrom', args: [[1, 2], 1, { valueOf: returns(1) }], expected: false },
     { name: 'bigintFrom', args: [[1], 1, 1n], expected: throws },
     { name: 'object', args: [{}, 1], expected: throws },
 ]
@@ -1629,6 +1634,7 @@ const indexOfCases = [
     { name: 'fromPastTheEnd', args: [[1, 2, 1], 1, 3], expected: -1 },
     { name: 'fromNegativeInfinity', args: [[1], 1, -Infinity], expected: 0 },
     { name: 'emptyBigintFrom', args: [[], 1, 1n], expected: -1 },
+    { name: 'emptyOwnValueOfFrom', args: [[], 1, { valueOf: returns(unreached) }], expected: -1 },
     { name: 'bigintFrom', args: [[1], 1, 1n], expected: throws },
     { name: 'object', args: [{}, 1], expected: throws },
 ]
@@ -1655,6 +1661,7 @@ const lastIndexOfCases = [
     { name: 'fromNegativeInfinity', args: [[1], 1, -Infinity], expected: -1 },
     { name: 'fromInfinity', args: [[1], 1, Infinity], expected: 0 },
     { name: 'emptyBigintFrom', args: [[], 1, 1n], expected: -1 },
+    { name: 'emptyOwnValueOfFrom', args: [[], 1, { valueOf: returns(unreached) }], expected: -1 },
     { name: 'bigintFrom', args: [[1], 1, 1n], expected: throws },
 ]
 

@@ -12,27 +12,46 @@ impl<A: IVm> Any<A> {
     /// `<`. Throws where `ToPrimitive` does, and where a function's text
     /// would be compared (`FUNCTION_TEXT`).
     pub fn lt(self, rhs: Self) -> Result<Self, Self> {
-        Ok(is_less_than(self, rhs)?.unwrap_or(false).to_any())
+        let (x, y) = operands(self, rhs)?;
+        Ok(is_less_than(x, y)?.unwrap_or(false).to_any())
     }
 
     /// `>`. `x > y` is the reversed `<`: `y < x`.
     pub fn gt(self, rhs: Self) -> Result<Self, Self> {
-        Ok(is_less_than(rhs, self)?.unwrap_or(false).to_any())
+        let (x, y) = operands(self, rhs)?;
+        Ok(is_less_than(y, x)?.unwrap_or(false).to_any())
     }
 
     /// `<=`. `x <= y` is `!(y < x)`, except a `NaN` anywhere still gives
     /// `false`, not the `true` a plain negation of an undefined `<` would.
     pub fn le(self, rhs: Self) -> Result<Self, Self> {
-        Ok((!is_less_than(rhs, self)?.unwrap_or(true)).to_any())
+        let (x, y) = operands(self, rhs)?;
+        Ok((!is_less_than(y, x)?.unwrap_or(true)).to_any())
     }
 
     /// `>=`. `x >= y` is `!(x < y)`, with the same `NaN` care as `<=`.
     pub fn ge(self, rhs: Self) -> Result<Self, Self> {
-        Ok((!is_less_than(self, rhs)?.unwrap_or(true)).to_any())
+        let (x, y) = operands(self, rhs)?;
+        Ok((!is_less_than(x, y)?.unwrap_or(true)).to_any())
     }
 }
 
-/// <https://tc39.es/ecma262/#sec-islessthan>
+/// An operand's `ToPrimitive(v, number)`, `None` for a function's text
+/// (see [`to_primitive_or_text`]).
+type Operand<A> = Option<Primitive<A>>;
+
+/// Both operands' `ToPrimitive`, the left one first, whichever side the
+/// comparison then asks `<` of: the spec's `LeftFirst` flag of
+/// [`IsLessThan`](https://tc39.es/ecma262/#sec-islessthan). The order is
+/// observable, since an object's own `valueOf` or `toString` may throw:
+/// `a > b` with both throwing throws `a`'s.
+fn operands<A: IVm>(x: Any<A>, y: Any<A>) -> Result<(Operand<A>, Operand<A>), Any<A>> {
+    let px = to_primitive_or_text(x)?;
+    Ok((px, to_primitive_or_text(y)?))
+}
+
+/// <https://tc39.es/ecma262/#sec-islessthan>, after both `ToPrimitive`s
+/// (see [`operands`]).
 ///
 /// `None` is the spec's `undefined` result — comparisons that involve `NaN`,
 /// directly or via a string that fails `StringToBigInt` against a `BigInt`.
@@ -40,10 +59,7 @@ impl<A: IVm> Any<A> {
 /// determines whether that `false` becomes `<`'s own result or the negation
 /// `<=`/`>=` build from it, so it's kept distinct from a "real" `false` up to
 /// that point.
-fn is_less_than<A: IVm>(x: Any<A>, y: Any<A>) -> Result<Option<bool>, Any<A>> {
-    let px = to_primitive_or_text(x)?;
-    let py = to_primitive_or_text(y)?;
-
+fn is_less_than<A: IVm>(px: Operand<A>, py: Operand<A>) -> Result<Option<bool>, Any<A>> {
     match (px, py) {
         // A function's text against a string compares the texts.
         (None, None) | (None, Some(Primitive::String(_))) | (Some(Primitive::String(_)), None) => {

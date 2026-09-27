@@ -79,9 +79,9 @@ fn position<A: IVm>(found: Option<u32>) -> Any<A> {
 
 /// `toString()`: a dispatch to `Any::to_string`, the `String(x)` conversion,
 /// which answers what the method answers for a number, a boolean, a
-/// bigint, a string, an object and an array. Two things it does not do yet,
-/// both tracked in `member-functions.md`: a function answers the placeholder
-/// the conversion answers, not its source, and a radix is not applied.
+/// bigint, a string, an object and an array. Two things it does not do yet:
+/// a function's text is refused, as the conversion refuses it (Stage 3 of
+/// `to-primitive.md`), and a radix is not applied (`member-functions.md`).
 ///
 /// So a number or a bigint given a radix other than the default — absent,
 /// `undefined` or `10` — throws rather than answers in radix ten:
