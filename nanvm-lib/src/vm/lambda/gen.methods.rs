@@ -13,6 +13,8 @@ pub const ANSWERED: &[(&str, &str)] = &[
     ("array", "findIndex"),
     ("array", "findLast"),
     ("array", "findLastIndex"),
+    ("array", "flat"),
+    ("array", "flatMap"),
     ("array", "includes"),
     ("array", "indexOf"),
     ("array", "join"),
@@ -23,22 +25,10 @@ pub const ANSWERED: &[(&str, &str)] = &[
     ("array", "slice"),
     ("array", "some"),
     ("array", "toReversed"),
+    ("array", "toSorted"),
     ("array", "toSpliced"),
     ("array", "toString"),
     ("array", "with"),
-    ("string", "toString"),
-    ("number", "toString"),
-    ("boolean", "toString"),
-    ("bigint", "toString"),
-    ("function", "toString"),
-];
-
-/// Allowed, and not answered yet: `method` has no entry.
-#[rustfmt::skip]
-pub const PENDING: &[(&str, &str)] = &[
-    ("array", "flat"),
-    ("array", "flatMap"),
-    ("array", "toSorted"),
     ("string", "at"),
     ("string", "charAt"),
     ("string", "charCodeAt"),
@@ -58,6 +48,7 @@ pub const PENDING: &[(&str, &str)] = &[
     ("string", "split"),
     ("string", "startsWith"),
     ("string", "substring"),
+    ("string", "toString"),
     ("string", "toWellFormed"),
     ("string", "trim"),
     ("string", "trimEnd"),
@@ -65,6 +56,15 @@ pub const PENDING: &[(&str, &str)] = &[
     ("number", "toExponential"),
     ("number", "toFixed"),
     ("number", "toPrecision"),
+    ("number", "toString"),
+    ("boolean", "toString"),
+    ("bigint", "toString"),
+    ("function", "toString"),
+];
+
+/// Allowed, and not answered yet: `method` has no entry.
+#[rustfmt::skip]
+pub const PENDING: &[(&str, &str)] = &[
 ];
 
 /// Refused by the compiler: `method` never has an entry.

@@ -1,7 +1,7 @@
 use crate::{
     common::sized_index::SizedIndex,
     vm::{
-        Any, Array, Function, IVm, Nullish, Number, ToAny, ToArray, Unpacked,
+        Any, Array, Function, IVm, Nullish, Number, String, ToAny, ToArray, Unpacked,
         array::callback::callback,
     },
 };
@@ -27,13 +27,26 @@ pub(crate) fn method<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Option<Method<A
     }
     match Unpacked::from(receiver.clone()) {
         Unpacked::Array(_) => array(key),
+        Unpacked::String(_) => super::string::string(key),
+        Unpacked::Number(_) => super::number::number(key),
         _ => None,
     }
 }
 
+/// The entry of `table` whose name is `key`.
+pub(super) fn lookup<A: IVm, const N: usize>(
+    table: [(&str, Method<A>); N],
+    key: &Any<A>,
+) -> Option<Method<A>> {
+    table
+        .into_iter()
+        .find(|(name, _)| *key == (*name).into())
+        .map(|(_, m)| m)
+}
+
 /// `Array.prototype`'s.
 fn array<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
-    let table: [(&str, Method<A>); 20] = [
+    let table: [(&str, Method<A>); 23] = [
         ("at", array_at),
         ("concat", array_concat),
         ("every", array_every),
@@ -42,6 +55,8 @@ fn array<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
         ("findIndex", array_find_index),
         ("findLast", array_find_last),
         ("findLastIndex", array_find_last_index),
+        ("flat", array_flat),
+        ("flatMap", array_flat_map),
         ("includes", array_includes),
         ("indexOf", array_index_of),
         ("join", array_join),
@@ -52,18 +67,16 @@ fn array<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
         ("slice", array_slice),
         ("some", array_some),
         ("toReversed", array_to_reversed),
+        ("toSorted", array_to_sorted),
         ("toSpliced", array_to_spliced),
         ("with", array_with),
     ];
-    table
-        .into_iter()
-        .find(|(name, _)| *key == (*name).into())
-        .map(|(_, m)| m)
+    lookup(table, key)
 }
 
 /// The `i`-th argument, or `undefined` past the end, as a built-in reads
 /// a parameter the call left out.
-fn argument<A: IVm>(args: &Array<A>, i: u32) -> Any<A> {
+pub(super) fn argument<A: IVm>(args: &Array<A>, i: u32) -> Any<A> {
     if i < args.length() {
         args[i].clone()
     } else {
@@ -75,48 +88,60 @@ fn argument<A: IVm>(args: &Array<A>, i: u32) -> Any<A> {
 /// `None` if it did not: for the few built-ins whose answer depends on
 /// whether an argument is there, not only on its value — `lastIndexOf(x)`
 /// searches from the end, `lastIndexOf(x, undefined)` from `0`.
-fn present<A: IVm>(args: &Array<A>, i: u32) -> Option<Any<A>> {
+pub(super) fn present<A: IVm>(args: &Array<A>, i: u32) -> Option<Any<A>> {
     (i < args.length()).then(|| args[i].clone())
 }
 
 /// The arguments from the `i`-th on, as a rest parameter reads them.
-fn rest<A: IVm>(args: &Array<A>, i: u32) -> Array<A> {
+pub(super) fn rest<A: IVm>(args: &Array<A>, i: u32) -> Array<A> {
     (i..args.length().max(i))
         .map(|k| args[k].clone())
         .to_array()
 }
 
 /// A search's position as JavaScript answers it: the index, or `-1`.
-fn position<A: IVm>(found: Option<u32>) -> Any<A> {
+pub(super) fn position<A: IVm>(found: Option<u32>) -> Any<A> {
     Number::from(found.map_or(-1.0, f64::from)).to_any()
 }
 
 /// `toString()`: a dispatch to `Any::to_string`, the `String(x)` conversion,
 /// which answers what the method answers for a number, a boolean, a
-/// bigint, a string, an object and an array. Two things it does not do yet:
-/// a function's text is refused, as the conversion refuses it (Stage 3 of
-/// `to-primitive.md`), and a radix is not applied (`member-functions.md`).
-///
-/// So a number or a bigint given a radix other than the default — absent,
-/// `undefined` or `10` — throws rather than answers in radix ten:
-/// `(255).toString(16)` is `"ff"` in JavaScript, and `"255"` would be a
-/// different successful value (DESIGN.md §10). Every other type's
-/// `toString` ignores its arguments, as JavaScript's does.
+/// bigint, a string, an object and an array — except that a number and a
+/// bigint read a radix (`vm/number/format.rs`, `vm/bigint/radix.rs`). A
+/// function's text is refused, as the conversion refuses it (Stage 3 of
+/// `to-primitive.md`). Every other type's `toString` ignores its
+/// arguments, as JavaScript's does.
 fn to_string<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    if matches!(
-        Unpacked::from(receiver.clone()),
-        Unpacked::Number(_) | Unpacked::BigInt(_)
-    ) {
-        let default_radix = match Unpacked::from(argument(&args, 0)) {
-            Unpacked::Nullish(Nullish::Undefined) => true,
-            Unpacked::Number(radix) => f64::from(radix) == 10.0,
-            _ => false,
-        };
-        if !default_radix {
-            return Err("RangeError: a toString radix other than 10 is not supported yet".into());
-        }
+    let radix = match Unpacked::from(receiver.clone()) {
+        Unpacked::Number(_) | Unpacked::BigInt(_) => radix(argument(&args, 0))?,
+        _ => 10,
+    };
+    if radix == 10 {
+        return receiver.to_string().map(|s| s.to_any());
     }
-    receiver.to_string().map(|s| s.to_any())
+    match Unpacked::from(receiver) {
+        Unpacked::Number(n) => Ok(n.to_radix_string(radix)?.to_any()),
+        Unpacked::BigInt(b) => Ok(String::<A>::from(b.to_radix_string(radix).as_str()).to_any()),
+        _ => unreachable!("only a number or a bigint reads a radix"),
+    }
+}
+
+/// A `toString` radix: `10` when `undefined`, else `ToIntegerOrInfinity`
+/// of it, which must be `2` to `36` or is the `RangeError` JavaScript
+/// throws — checked before the number is looked at, so `NaN.toString(1)`
+/// throws too.
+fn radix<A: IVm>(radix: Any<A>) -> Result<u32, Any<A>> {
+    if matches!(
+        Unpacked::from(radix.clone()),
+        Unpacked::Nullish(Nullish::Undefined)
+    ) {
+        return Ok(10);
+    }
+    let r = f64::from(radix.to_number()?.to_integer_or_infinity());
+    if !(2.0..=36.0).contains(&r) {
+        return Err("RangeError: toString() radix argument must be between 2 and 36".into());
+    }
+    Ok(r as u32)
 }
 
 /// `Array.prototype.at`, `vm/array/at.rs`. The receiver is the array
@@ -242,6 +267,42 @@ fn array_reduce_right<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>
     a.reduce_right(&f, present(&args, 1))
 }
 
+/// `Array.prototype.flat`, `vm/array/flat.rs`: the depth `1` when absent or
+/// `undefined`, and otherwise `ToIntegerOrInfinity` of it, a bigint's throw
+/// included.
+fn array_flat<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let a = Array::try_from(receiver)?;
+    let depth = argument(&args, 0);
+    let depth = match Unpacked::from(depth.clone()) {
+        Unpacked::Nullish(Nullish::Undefined) => 1.0,
+        _ => f64::from(depth.to_number()?.to_integer_or_infinity()),
+    };
+    Ok(a.flat(depth)?.to_any())
+}
+
+/// `Array.prototype.flatMap`, `vm/array/flat.rs`.
+fn array_flat_map<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let (a, f) = with_callback(receiver, &args)?;
+    Ok(a.flat_map(&f)?.to_any())
+}
+
+/// `Array.prototype.toSorted`, `vm/array/to_sorted.rs`: the comparator
+/// `undefined`, passed or not, or a function, and anything else — `null`
+/// included — the `TypeError` JavaScript throws before any element is read.
+fn array_to_sorted<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let compare = argument(&args, 0);
+    let compare = match Unpacked::from(compare.clone()) {
+        Unpacked::Nullish(Nullish::Undefined) => None,
+        Unpacked::Function(f) => Some(f),
+        _ => {
+            return Err(
+                "TypeError: The comparison function must be either a function or undefined".into(),
+            );
+        }
+    };
+    Ok(Array::try_from(receiver)?.to_sorted(compare)?.to_any())
+}
+
 /// `Array.prototype.join`, `vm/array/join.rs`: the separator `","` when
 /// absent or `undefined`, and otherwise `ToString` of it, so `null` joins
 /// with `"null"`.
@@ -288,21 +349,26 @@ mod tests {
     /// (`member-functions.md`). Other types ignore the argument.
     #[test]
     fn to_string_radix() {
-        let refused = Err("RangeError: a toString radix other than 10 is not supported yet".into());
-        let n = || 255.0.to_any();
-        let b = || BigInt::<A>::from(255i64).to_any();
-        assert_eq!(to_string_with(n(), 10.0.to_any()), Ok("255".into()));
+        let n = |v: f64| v.to_any();
+        let b = || BigInt::<A>::from(-255i64).to_any();
+        let out_of_range =
+            Err("RangeError: toString() radix argument must be between 2 and 36".into());
+        assert_eq!(to_string_with(n(255.0), 10.0.to_any()), Ok("255".into()));
         assert_eq!(
-            to_string_with(n(), Nullish::Undefined.to_any()),
+            to_string_with(n(255.0), Nullish::Undefined.to_any()),
             Ok("255".into())
         );
-        assert_eq!(to_string_with(n(), 16.0.to_any()), refused);
-        assert_eq!(to_string_with(n(), 2.0.to_any()), refused);
-        assert_eq!(to_string_with(b(), 10.0.to_any()), Ok("255".into()));
-        assert_eq!(to_string_with(b(), 16.0.to_any()), refused);
-        assert_eq!(to_string(b()), Ok("255".into()));
+        assert_eq!(to_string_with(n(255.0), 16.0.to_any()), Ok("ff".into()));
+        assert_eq!(to_string_with(n(255.0), 16.9.to_any()), Ok("ff".into()));
+        assert_eq!(to_string_with(n(255.0), "2".into()), Ok("11111111".into()));
+        assert_eq!(to_string_with(n(255.0), 1.0.to_any()), out_of_range);
+        assert_eq!(to_string_with(n(f64::NAN), 37.0.to_any()), out_of_range);
+        assert!(to_string_with(n(0.5), 2.0.to_any()).is_err());
+        assert_eq!(to_string_with(b(), 36.0.to_any()), Ok("-73".into()));
+        assert_eq!(to_string_with(b(), 10.0.to_any()), Ok("-255".into()));
+        assert_eq!(to_string(b()), Ok("-255".into()));
         assert_eq!(
-            to_string_with([1.0.to_any()].to_array().to_any(), 16.0.to_any()),
+            to_string_with([1.0.to_any()].to_array().to_any(), 1.0.to_any()),
             Ok("1".into())
         );
         assert_eq!(

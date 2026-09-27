@@ -24,4 +24,11 @@ pub fn run<A: IStaticFunction>() {
         let c1: Any<A> = [(string_key("valueOf"), c0)].to_object().to_any();
         Ok([c1].to_array().to_any())
     }), [f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any());
+    check::<A>("stringStart", Any::dot(string_any("abcdef"), string_any("slice")).end_call(|| Ok([f64_any(0x4000000000000000)].to_array().to_any())), string_any("cdef"));
+    check::<A>("stringFromTheEnd", Any::dot(string_any("abcdef"), string_any("slice")).end_call(|| Ok([f64_any(0xc008000000000000), f64_any(0xbff0000000000000)].to_array().to_any())), string_any("de"));
+    check::<A>("stringEmptyRange", Any::dot(string_any("abc"), string_any("slice")).end_call(|| Ok([f64_any(0x4000000000000000), f64_any(0x3ff0000000000000)].to_array().to_any())), string_any(""));
+    check::<A>("stringUndefinedEnd", Any::dot(string_any("abc"), string_any("slice")).end_call(|| Ok([f64_any(0x3ff0000000000000), Nullish::Undefined.to_any()].to_array().to_any())), string_any("bc"));
+    check::<A>("stringNoArgument", Any::dot(string_any("abc"), string_any("slice")).end_call(|| Ok(Array::default().to_any())), string_any("abc"));
+    check::<A>("stringHalfAPair", Any::dot(string_any("😀"), string_any("slice")).end_call(|| Ok([f64_any(0x3ff0000000000000)].to_array().to_any())), string_any_utf16(&[0xde00]));
+    check_throws::<A>("stringBigint", Any::dot(string_any("abc"), string_any("slice")).end_call(|| Ok([bigint_any(0)].to_array().to_any())));
 }

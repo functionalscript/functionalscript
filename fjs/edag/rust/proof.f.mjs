@@ -773,23 +773,28 @@ export const proof = {
         assertStructurallySame(eagerNodesOf(c), [c])
         assertStructurallySame(eagerNodesOf(1), [])
     },
+    /**
+     * A string with a lone surrogate, which no `&str` can hold, is spelled by
+     * its code units, as a value, a key and an index alike; a paired one
+     * stays a literal.
+     */
+    loneSurrogates: () => {
+        assertEq(printed('a\ud800b'), 'string_any_utf16(&[0x0061, 0xd800, 0x0062])')
+        assertEq(
+            printed(['{}', [[':', '\udc00', 1]]]),
+            '[(string_key_utf16(&[0xdc00]), f64_any(0x3ff0000000000000))].to_object().to_any()')
+        assertEq(
+            printed(['.', ['{}', []], '\ud800']),
+            'Any::dot(Object::default().to_any(), string_any_utf16(&[0xd800])).end()')
+        assertEq(printed('\u{1F600}'), 'string_any("\u{1F600}")')
+    },
     literalRefusals: () => {
-        assertStructurallySame(
-            refusalReason('a\ud800b'),
-            ['no Rust string literal for a lone surrogate in', '"a\\ud800b"'])
-        assertStructurallySame(
-            refusalReason(['{}', [[':', '\udc00', 1]]]),
-            ['no Rust string literal for a lone surrogate in', '"\\udc00"'])
-        assertStructurallySame(
-            refusalReason(['.', ['{}', []], '\ud800']),
-            ['no Rust string literal for a lone surrogate in', '"\\ud800"'])
         assertStructurallySame(refusalReason(2n ** 63n), ['no Rust i64 for', 2n ** 63n])
     },
     throw: {
         /** An operation the printer has no `nanvm-lib` spelling for. */
         unknownOperation: () => printed(['is', 1, 2]),
-        /** A string no Rust literal can hold, and a bigint no `i64` can. */
-        loneSurrogate: () => printed('\ud800'),
+        /** A bigint no `i64` can hold. */
         bigintOutOfRange: () => printed(-(2n ** 63n) - 1n),
         /** A frame that is no array literal. */
         lambdaFrameNotArray: () => printed(['=>', 0, ['undefined'], ['undefined']]),

@@ -23,12 +23,11 @@ These are plausible wrong values, which
 [DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
 forbids. The gap predates the `Array` and `String` member functions. Those
 functions made it reachable from many more calls: `join`'s separator and
-elements, every string-method argument, and every numeric position or count
-(the `String` ones are still in review).
-Review of that stack keeps finding it. Two of its pull requests carry a
+elements, every string-method argument, and every numeric position or count.
+Review of that stack kept finding it. Two of its pull requests left a
 `// TODO:` for it, which reaches here through the `ToPrimitive` task of
-`member-functions.md`: `array_join` in `vm/lambda/method.rs` (#2321, now on
-`main`) and the searches in `vm/string/search.rs` (#2328, still in review).
+`member-functions.md`: `array_join` in `vm/lambda/method.rs` (#2321) and the
+searches in `vm/string/search.rs` (#2328).
 
 ### What already works: the stock methods
 
@@ -127,12 +126,12 @@ answers and the VM refuses, the case also joins the shared corpus with a
 Stage 2 turns the case on by deleting the reason.
 
 Stage 1 also makes a check possible that no test can make today: conversion
-can now throw, so `toSorted`'s guard (`vm/array/to_sorted.rs`, arriving with
-#2323, which leaves fewer than two defined elements unconverted) becomes
-observable. `[x, undefined].toSorted()` answers, and `[x, x].toSorted()`
-throws, where `x` owns a `toString` that throws. Stage 1 does not wait for
-that stack: the guard's test, and the two `// TODO:`s above, land with
-whichever of this stack and their pull request reaches `main` second.
+can now throw, so `toSorted`'s guard (`vm/array/to_sorted.rs`, which leaves
+fewer than two defined elements unconverted) becomes observable.
+`[x, undefined].toSorted()` answers, and `[x, x].toSorted()` throws, where
+`x` owns a `toString`. The guard's test lands with Stage 1, and so do the
+two `// TODO:`s above, replaced with a pointer to Stage 2. Stage 2 keeps the
+test, with a `toString` that throws, and points both at Stage 3 alone.
 
 **Changelog.** A behavior change of `nanvm-lib`: conversions that answered a
 wrong value now throw a `TypeError`. It is not a break of `fjs`'s API.
@@ -202,11 +201,10 @@ needs its own issue, and it lands with or after Stage 1.
       function wherever its text is observable, keeping every
       text-independent result. Unit tests per row, and corpus cases with a
       `rust` reason.
-- [x] `array_join` (#2321): its pointer names Stage 3 alone, since Stage 2
-      calls a separator's own `toString`, and its test pins both.
-- [ ] Once #2323 and #2328 are on `main` with this: the `toSorted` guard's
-      test, and the `// TODO:` in `vm/string/search.rs` deleted, since
-      Stage 2 answers it.
+- [x] The member functions that convert: the `// TODO:`s in `array_join`
+      and `vm/string/search.rs` replaced with a pointer to Stage 2, tests
+      that `join` and the searches refuse, a corpus case for a needle with
+      its own `toString`, and the `toSorted` guard's test.
 - [x] Stage 2: call an object's own `toString` and `valueOf` per
       `OrdinaryToPrimitive`. Move the host-only cases into the corpus.
 - [ ] Stage 3: a function's text, through the EDAG renderer (tracked with the

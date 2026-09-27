@@ -13,7 +13,7 @@ impl<A: IVm> Array<A> {
     /// two cannot disagree.
     ///
     /// Recursion follows nesting, so an array nested deeply enough overflows
-    /// the stack; see `nanvm-lib/todo/array-member-functions.md`.
+    /// the stack; see `nanvm-lib/todo/array-deep-nesting.md`.
     pub(crate) fn join(&self, separator: String<A>) -> Result<String<A>, Any<A>> {
         self.clone()
             .into_iter()

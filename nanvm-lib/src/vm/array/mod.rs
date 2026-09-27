@@ -7,6 +7,7 @@ mod filter;
 mod find;
 mod find_index;
 mod find_last_index;
+mod flat;
 mod includes;
 mod index;
 mod index_of;
@@ -21,6 +22,7 @@ mod sized_index;
 mod slice;
 mod some;
 mod to_reversed;
+mod to_sorted;
 mod to_spliced;
 mod with;
 

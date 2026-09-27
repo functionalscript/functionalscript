@@ -15,6 +15,7 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("valuePreservesNullType", Any::own_property([(string_key("a"), Nullish::Null.to_any())].to_object().to_any(), string_any("a")), Nullish::Null.to_any());
     check::<A>("multiplePropertiesDistinguished", Any::own_property([(string_key("a"), f64_any(0x3ff0000000000000)), (string_key("b"), f64_any(0x4000000000000000))].to_object().to_any(), string_any("b")), f64_any(0x4000000000000000));
     check::<A>("numericStringKey", Any::own_property([(string_key("1"), f64_any(0x4045000000000000))].to_object().to_any(), string_any("1")), f64_any(0x4045000000000000));
+    check::<A>("loneSurrogateKey", Any::own_property([(string_key_utf16(&[0xd800]), f64_any(0x4045000000000000))].to_object().to_any(), string_any_utf16(&[0xd800])), f64_any(0x4045000000000000));
     check::<A>("nonObjectNumberReceiver", Any::own_property(f64_any(0x4014000000000000), string_any("a")), Nullish::Undefined.to_any());
     check::<A>("nonObjectStringReceiver", Any::own_property(string_any("hi"), string_any("a")), Nullish::Undefined.to_any());
     check::<A>("nonObjectBooleanReceiver", Any::own_property(true.to_any(), string_any("a")), Nullish::Undefined.to_any());

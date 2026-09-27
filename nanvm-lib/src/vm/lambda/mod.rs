@@ -34,6 +34,8 @@ use crate::vm::{Any, IVm, Nullish, ToAny, Unpacked};
 
 pub(crate) mod member;
 mod method;
+mod number;
+mod string;
 
 /// The completeness table `method`'s test checks it against, generated from
 /// `fjs/js/prototype`'s call lists by `fjs/nanvm/methods` — a `#[path]`,
