@@ -35,8 +35,9 @@ export const proof = {
                 'reduceRight', 'slice', 'some', 'toReversed', 'toSorted', 'toSpliced', 'with',
             ],
             string: [
-                'at', 'charAt', 'charCodeAt', 'codePointAt', 'endsWith', 'includes', 'indexOf',
-                'isWellFormed', 'lastIndexOf', 'startsWith', 'toWellFormed',
+                'at', 'charAt', 'charCodeAt', 'codePointAt', 'concat', 'endsWith', 'includes',
+                'indexOf', 'isWellFormed', 'lastIndexOf', 'padEnd', 'padStart', 'repeat', 'slice',
+                'startsWith', 'substring', 'toWellFormed', 'trim', 'trimEnd', 'trimStart',
             ],
         }
         const expected = types.flatMap(([t, names]) => names

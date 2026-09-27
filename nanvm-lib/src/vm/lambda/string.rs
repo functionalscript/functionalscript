@@ -3,23 +3,32 @@
 //! arguments into the typed method it calls, under `vm/string/`. The
 //! contracts are `nanvm-lib/todo/string-member-functions.md`'s.
 
-use super::method::{Method, argument, lookup, position};
+use super::method::{Method, argument, lookup, position, rest};
 use crate::vm::{Any, Array, IVm, Number, String, ToAny};
 
 /// `String.prototype`'s.
 pub(super) fn string<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
-    let table: [(&str, Method<A>); 11] = [
+    let table: [(&str, Method<A>); 20] = [
         ("at", at),
         ("charAt", char_at),
         ("charCodeAt", char_code_at),
         ("codePointAt", code_point_at),
+        ("concat", concat),
         ("endsWith", ends_with),
         ("includes", includes),
         ("indexOf", index_of),
         ("isWellFormed", is_well_formed),
         ("lastIndexOf", last_index_of),
+        ("padEnd", pad_end),
+        ("padStart", pad_start),
+        ("repeat", repeat),
+        ("slice", slice),
         ("startsWith", starts_with),
+        ("substring", substring),
         ("toWellFormed", to_well_formed),
+        ("trim", trim),
+        ("trimEnd", trim_end),
+        ("trimStart", trim_start),
     ];
     lookup(table, key)
 }
@@ -80,4 +89,49 @@ fn starts_with<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
 fn ends_with<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let found = receiver(s)?.ends_with(argument(&args, 0), argument(&args, 1))?;
     Ok(found.to_any())
+}
+
+fn slice<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    Ok(receiver(s)?
+        .slice(argument(&args, 0), argument(&args, 1))?
+        .to_any())
+}
+
+fn substring<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    Ok(receiver(s)?
+        .substring(argument(&args, 0), argument(&args, 1))?
+        .to_any())
+}
+
+/// Every argument a part.
+fn concat<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    Ok(receiver(s)?.concat(rest(&args, 0))?.to_any())
+}
+
+fn repeat<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    Ok(receiver(s)?.repeat(argument(&args, 0))?.to_any())
+}
+
+fn pad_start<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    Ok(receiver(s)?
+        .pad(argument(&args, 0), argument(&args, 1), true)?
+        .to_any())
+}
+
+fn pad_end<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    Ok(receiver(s)?
+        .pad(argument(&args, 0), argument(&args, 1), false)?
+        .to_any())
+}
+
+fn trim<A: IVm>(s: Any<A>, _: Array<A>) -> Result<Any<A>, Any<A>> {
+    Ok(receiver(s)?.trim(true, true).to_any())
+}
+
+fn trim_start<A: IVm>(s: Any<A>, _: Array<A>) -> Result<Any<A>, Any<A>> {
+    Ok(receiver(s)?.trim(true, false).to_any())
+}
+
+fn trim_end<A: IVm>(s: Any<A>, _: Array<A>) -> Result<Any<A>, Any<A>> {
+    Ok(receiver(s)?.trim(false, true).to_any())
 }

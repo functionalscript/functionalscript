@@ -197,26 +197,26 @@ presence decides an answer, are
 - [x] `charAt` — `vm/string/reads.rs`
 - [x] `charCodeAt` — `vm/string/reads.rs`
 - [x] `codePointAt` — `vm/string/reads.rs`
-- [ ] `concat`
+- [x] `concat` — `vm/string/building.rs`
 - [x] `endsWith` — `vm/string/search.rs`
 - [x] `includes` — `vm/string/search.rs`
 - [x] `indexOf` — `vm/string/search.rs`
 - [x] `isWellFormed` — `vm/string/reads.rs`
 - [x] `lastIndexOf` — `vm/string/search.rs`
-- [ ] `padEnd`
-- [ ] `padStart`
-- [ ] `repeat`
+- [x] `padEnd` — `vm/string/building.rs`
+- [x] `padStart` — `vm/string/building.rs`
+- [x] `repeat` — `vm/string/building.rs`
 - [ ] `replace`
 - [ ] `replaceAll`
-- [ ] `slice`
+- [x] `slice` — `vm/string/building.rs`
 - [ ] `split`
 - [x] `startsWith` — `vm/string/search.rs`
-- [ ] `substring`
+- [x] `substring` — `vm/string/building.rs`
 - [x] `toString`
 - [x] `toWellFormed` — `vm/string/reads.rs`
-- [ ] `trim`
-- [ ] `trimEnd`
-- [ ] `trimStart`
+- [x] `trim` — `vm/string/building.rs`
+- [x] `trimEnd` — `vm/string/building.rs`
+- [x] `trimStart` — `vm/string/building.rs`
 
 `Number` — [string-member-functions](./string-member-functions.md) too:
 
