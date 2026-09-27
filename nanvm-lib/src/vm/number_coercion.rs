@@ -67,8 +67,12 @@ impl<A: IVm> Dispatch<A> for NumberCoercion {
         any_to_number(v.to_any())
     }
 
-    fn function(self, v: Function<A>) -> Self::Result {
-        any_to_number(v.to_any())
+    fn function(self, _: Function<A>) -> Self::Result {
+        // `ToPrimitive` of a function is its text, which is not implemented
+        // (`FUNCTION_TEXT`). No text converts to a number — it starts with
+        // `(`, `function`, `async` or a name — so the answer is `NaN`
+        // without it.
+        Ok(Number::NAN)
     }
 }
 
