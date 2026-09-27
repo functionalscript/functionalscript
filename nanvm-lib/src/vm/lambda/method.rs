@@ -424,6 +424,29 @@ mod tests {
         };
         assert_eq!(joined([].to_array().to_any()), Ok("".into()));
         assert_eq!(joined([1.0.to_any()].to_array().to_any()), Ok("1".into()));
+        // An array separator converts through its elements, so a function
+        // inside it, however deep, is skipped too.
+        let join_with = |separator: Any<A>| {
+            let empty: Any<A> = [].to_array().to_any();
+            empty
+                .dot("join".into())
+                .end_call(move || Ok([separator.clone()].to_array().to_any()))
+        };
+        assert_eq!(join_with([g()].to_array().to_any()), Ok("".into()));
+        assert_eq!(
+            join_with([[g()].to_array().to_any()].to_array().to_any()),
+            Ok("".into())
+        );
+        let own_inside: Any<A> = [[("toString".into(), g())].to_object().to_any()]
+            .to_array()
+            .to_any();
+        // An element's own `toString` is still called, for its throws.
+        assert_eq!(join_with(own_inside), Ok("".into()));
+        let boom = A::static_function(|_, _| Err("boom".into()), 0, [].to_array()).to_any();
+        let throwing_inside: Any<A> = [[("toString".into(), boom)].to_object().to_any()]
+            .to_array()
+            .to_any();
+        assert_eq!(join_with(throwing_inside), Err("boom".into()));
         let own: Any<A> = [("toString".into(), g())].to_object().to_any();
         let empty: Any<A> = [].to_array().to_any();
         assert_eq!(
