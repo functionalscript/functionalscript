@@ -155,6 +155,18 @@ impl<A: IVm> Any<A> {
         self.dispatch(StringCoercion)
     }
 
+    /// `ToString` where the algorithm discards the result: its throws still
+    /// happen, and an object with its own `toString` is still refused, but a
+    /// function's text, which cannot throw and is never read here, is not
+    /// needed — so `[].join(f)` answers `""`, as it does in JavaScript
+    /// (`nanvm-lib/todo/to-primitive.md`, Stage 1).
+    pub fn to_string_unused(self) -> Result<(), Any<A>> {
+        match self.clone().into() {
+            Unpacked::Function(_) => Ok(()),
+            _ => self.to_string().map(|_| ()),
+        }
+    }
+
     pub fn to_number(self) -> Result<Number, Any<A>> {
         self.dispatch(NumberCoercion)
     }

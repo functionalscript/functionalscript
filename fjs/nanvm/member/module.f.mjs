@@ -298,6 +298,10 @@ const joinCases = [
     { name: 'undefinedSeparator', args: [[1, 2], undefined], expected: '1,2' },
     { name: 'separator', args: [[1, 2], '-'], expected: '1-2' },
     { name: 'emptySeparator', args: [[1, 2], ''], expected: '12' },
+    // Fewer than two elements never place the separator, so a function's
+    // text is never read.
+    { name: 'functionSeparatorEmpty', args: [[], functionValue], expected: '' },
+    { name: 'functionSeparatorSingle', args: [[1], functionValue], expected: '1' },
     { name: 'nullSeparator', args: [[1, 2], null], expected: '1null2' },
     { name: 'numberSeparator', args: [[1, 2], 0], expected: '102' },
     { name: 'arraySeparator', args: [[1, 2], [3, 4]], expected: '13,42' },
@@ -770,6 +774,8 @@ const splitCases = [
     { name: 'emptySeparator', args: ['abc', ''], expected: ['a', 'b', 'c'] },
     { name: 'limit', args: ['a,b,c', ',', 2], expected: ['a', 'b'] },
     { name: 'limitZero', args: ['a,b', ',', 0], expected: [] },
+    // No piece is cut, so a function separator's text is never read.
+    { name: 'limitZeroFunctionSeparator', args: ['a', functionValue, 0], expected: [] },
     { name: 'limitNegativeIsHuge', args: ['a,b', ',', -1], expected: ['a', 'b'] },
     { name: 'emptyLimit', args: ['abc', '', 2], expected: ['a', 'b'] },
     { name: 'undefinedLimitZero', args: ['a', undefined, 0], expected: [] },

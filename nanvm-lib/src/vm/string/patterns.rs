@@ -218,10 +218,12 @@ impl<A: IVm> String<A> {
             limit.to_number()?.to_uint32()
         };
         let separator_is_undefined = is_undefined(&separator);
-        let separator = separator.to_string()?;
         if limit == 0 {
+            // Converted for its throws alone: no piece is ever cut.
+            separator.to_string_unused()?;
             return Ok([].to_array());
         }
+        let separator = separator.to_string()?;
         if separator_is_undefined {
             return Ok([self.clone().to_any()].to_array());
         }
@@ -252,7 +254,10 @@ impl<A: IVm> String<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, Array, IStaticFunction, Nullish, String, ToAny, ToArray},
+        vm::{
+            Any, Array, IStaticFunction, Nullish, String, ToAny, ToArray,
+            primitive_coercion::FUNCTION_TEXT,
+        },
     };
 
     type A = Naive;
@@ -265,6 +270,19 @@ mod tests {
     }
     fn pieces(r: Result<Array<A>, Any<A>>) -> Vec<Any<A>> {
         r.unwrap().into_iter().collect()
+    }
+
+    /// A limit of `0` never cuts a piece, so a function separator's text is
+    /// never read: `"a".split(f, 0)` is `[]`, as in JavaScript. Any other
+    /// limit reads it, and it is refused.
+    #[test]
+    fn split_reads_a_function_separator_only_to_cut() {
+        let f = || A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array()).to_any();
+        assert_eq!(pieces(s("a").split(f(), 0.0.to_any())), vec![]);
+        assert_eq!(
+            s("a").split(f(), Nullish::Undefined.to_any()).map(|_| ()),
+            Err(FUNCTION_TEXT.into())
+        );
     }
 
     #[test]
