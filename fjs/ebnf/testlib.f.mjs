@@ -2,7 +2,13 @@
  * Helpers shared by the proofs of the EBNF front end and its grammars.
  *
  * @module
+ *
+ * @import { Demo, DemoEvent } from '../website/demo/types.ts'
  */
+
+import { assert } from '../asserts/module.f.mjs'
+import { htmlToString } from '../media/html/module.f.mjs'
+import { anchor } from '../website/demo/railroad/module.f.mjs'
 
 const { entries, fromEntries } = Object
 
@@ -24,4 +30,19 @@ export const force = r => {
         return fromEntries(entries(r).map(([k, v]) => [k, force(v)]))
     }
     return r
+}
+
+/**
+ * A proof that a grammar's diagram page is whole: a section for every title,
+ * in the element its boxes link to, and a section for every box — a box
+ * whose rule has no diagram on the page would be a link to nothing.
+ *
+ * @type {(demo: Demo<null, DemoEvent>, titles: readonly (readonly [string, unknown])[]) => () => void}
+ */
+export const diagramPage = ({ init, view }, titles) => () => {
+    const html = htmlToString(view(init))
+    titles.forEach(([title]) => assert(html.includes(`<section id="${anchor(title)}"><h3>${title}</h3>`), title))
+    const links = html.split('<a href="#').slice(1).map(after => after.slice(0, after.indexOf('"')))
+    assert(links.length !== 0, html)
+    links.forEach(link => assert(html.includes(`<section id="${link}">`), link))
 }

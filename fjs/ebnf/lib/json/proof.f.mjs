@@ -30,7 +30,8 @@ import {
     ws,
     wsSymbol,
 } from './module.f.mjs'
-import { force } from '../../testlib.f.mjs'
+import { diagramPage, force } from '../../testlib.f.mjs'
+import { demo, diagrams } from './demo.f.mjs'
 
 const { keys } = Object
 
@@ -255,4 +256,6 @@ export const proof = {
         const variant = createValue('p', 'v')
         assertEq(variant.missing, undefined)
     },
+    // A diagram per title, and a diagram for every box.
+    demo: diagramPage(demo, diagrams),
 }

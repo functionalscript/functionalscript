@@ -8,6 +8,8 @@ import { eof } from '../../module.f.mjs'
 import { parser } from '../../ll1/module.f.mjs'
 import { units } from '../../utf16/module.f.mjs'
 import { entry } from './module.f.mjs'
+import { demo, diagrams } from './demo.f.mjs'
+import { diagramPage } from '../../testlib.f.mjs'
 
 /** @type {RewriteSet<Utf16, never>} */
 const nothing = []
@@ -145,4 +147,6 @@ export const proof = {
         interiorSpaceInEmphasis: () => assert(accepts(`*type parameter*`)),
         interiorSpaceInCode: () => assert(accepts(`${tick}nix develop ./nix${tick}`)),
     },
+    // A diagram per title, and a diagram for every box.
+    demo: diagramPage(demo, diagrams),
 }
