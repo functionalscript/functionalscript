@@ -32,8 +32,15 @@ export type Plain<F> =
     | readonly Plain<F>[]
     | { readonly [k in string]?: Plain<F> }
 /** `v` as fresh literal nodes: a primitive as itself, `undefined`, an array, an object; `other` answers an `F`. */
-export const fromValue: <F>(other: (f: F) => Exp) => (v: Plain<F>) => Exp
+export const fromValue: <F extends Function>(other: (f: F) => Exp) => (v: Plain<F>) => Exp
 ```
+
+`F` is bounded by `Function` because `typeof v === 'function'` is the
+one test the walk has for it: an `F` a `typeof` cannot tell from a
+plain object — a `Date`, say — would be walked as an object and never
+reach `other`, so the bound refuses such an instantiation at the type.
+Both callers' `F`s are functions today: the corpus's thunk arms, and
+the function `jsonEdag` refuses.
 
 in `fjs/edag/module.f.mjs`, with `Plain` in `fjs/edag/types.ts` beside
 `Primitive`. The input is not `unknown`: a symbol, or anything else the

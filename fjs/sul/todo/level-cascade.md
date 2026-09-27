@@ -42,8 +42,18 @@ The state is a tuple whose arity the step tuple fixes: three steps take
 a three-tuple, which is `PipelineState` as it is declared today, so a
 state of the wrong length is a type error rather than a step handed
 `undefined`, and each step's own state type is kept rather than
-unified. `pipelineStep` is `cascade([l1.encode, l2.encode, l3.encode])`
-over `PipelineState`, and the early exits are the combinator's.
+unified.
+
+The call site has to give the compiler its tuple. `pipelineStep` keeps
+its annotation, `StateScan<bigint, PipelineState, bigint | undefined>`,
+which fixes `I` and the readonly state tuple from the outside, and the
+steps are passed as a `const` tuple —
+`cascade(/** @type {const} */ ([l1.encode, l2.encode, l3.encode]))` —
+so `S` is inferred readonly rather than as a mutable array that
+`PipelineState` would reject. Whether inference then closes on its own
+is what the proof's type-level assert checks first; if it does not,
+the two parameters are named at that one call, and the combinator is
+no less useful for it. The early exits are the combinator's.
 
 ### Tasks
 

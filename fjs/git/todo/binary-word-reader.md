@@ -39,11 +39,18 @@ general home under `fjs/types`:
 
 ```ts
 /** The unsigned big-endian word at `at`; multiplies, since `<<` would sign the top bit. */
-export const u32be: (b: Bytes, at: number) => number
+export const u32be: (b: readonly number[], at: number) => number
 /** The big-endian double word, or `null` above the safe integer range. */
-export const u64be: (b: Bytes, at: number) => Nullable<number>
-export const startsWith: (prefix: Bytes) => (b: Bytes) => boolean
+export const u64be: (b: readonly number[], at: number) => Nullable<number>
+export const startsWith: (prefix: readonly number[]) => (b: readonly number[]) => boolean
 ```
+
+over the indexed array, not over `Bytes`: a `Bytes` is a lazy
+`List<number>` — a cons, a concat, a thunk — and both readers already
+call `byteArray` once on their input and index the array from then on.
+The shared readers take that array, so a caller normalises once as
+today and a word read inside the pack-index loops costs an index, not
+a second materialisation of the whole input.
 
 `u64be` moves from `packidx`; `pack` and `packidx` import the three.
 `isNamePrefix` is not a plain prefix test and stays what it is: a name
