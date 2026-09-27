@@ -152,7 +152,7 @@ li[data-status="passed"] { color: var(--muted) }
    input, and it was Arial the moment the first demo landed. A list that has to
    be extended for each new control is a rule that is wrong between the element
    arriving and somebody noticing. */
-button, input, textarea, pre { font: inherit }
+button, input, select, textarea, pre { font: inherit }
 pre { white-space: pre-wrap }
 /* A textarea's own baseline sits at its bottom edge, so a label before a
    multi-line field — the JSON demo's, the first of its kind — floated to the
