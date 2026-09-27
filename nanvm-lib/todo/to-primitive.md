@@ -43,8 +43,10 @@ order the hint sets. That part is already right:
 | the `number` hint tries `valueOf` first, `string` tries `toString` first, no hint means `number` | ✔ | ✔ `obj_to_primitive` |
 | `Function.prototype.toString` answers the function's text | ✔ | ❌ the placeholder `"function"` |
 
-A plain object, `{ a: 1 }`, and every array convert exactly as in
-JavaScript. FunctionalScript has no symbols, so `Symbol.toPrimitive` and
+A plain object, `{ a: 1 }`, converts exactly as in JavaScript, and so does
+an array whose elements do: an array converts through `join`, so an element
+with its own `toString`, or a function element, carries its gap into the
+array's text. FunctionalScript has no symbols, so `Symbol.toPrimitive` and
 `Symbol.toStringTag` cannot be reached and are out of scope.
 
 ### Where an override can come from
@@ -67,14 +69,14 @@ contract. It only decides what a conversion does until that text exists.
 
 ### Stage 1: refuse what cannot be answered
 
-Stage 1 is one change in `primitive_coercion.rs`, so every caller inherits it.
+The object rule is one change in `primitive_coercion.rs`, which every caller
+inherits. The function rule also needs the callers that can answer without
+the text: `ToNumber`, `ToNumeric` and the relational operators, below.
 
-**An object with an own `toString` or `valueOf` is refused.** The refusal is
-a `TypeError` that names the cause. It applies whatever the property holds,
-whatever the hint, and whichever caller asked. A plain object is unchanged.
-
-Refusing on the property's mere presence is almost always what JavaScript
-does or better:
+**An object with an own `toString`, or an own `valueOf` that is a function,
+is refused.** The refusal is a `TypeError` that names the cause, whatever the
+hint and whichever caller asked. A plain object is unchanged. The rule is
+exactly the inputs the VM answers wrongly today, and no others:
 
 - An own `toString` or `valueOf` that is a function is called by JavaScript.
   Stage 1 cannot call it yet, so it refuses rather than answer
@@ -82,11 +84,11 @@ does or better:
 - An own `toString` that is not a function is skipped. The stock `valueOf`
   then answers the object, and JavaScript throws a `TypeError` for both hints:
   `String({ toString: "h" })`. The refusal matches this exactly.
-- The one over-refusal is an own `valueOf` that is not a function. JavaScript
-  skips it and the stock `toString` answers: `String({ valueOf: "x" })` is
-  `"[object Object]"` and `+{ valueOf: "x" }` is `NaN`. Stage 1 refuses this
-  input and Stage 2 answers it. Refusing more than necessary is allowed;
-  answering wrongly is not.
+- An own `valueOf` that is not a function is skipped too, and then the stock
+  `toString` answers: `String({ valueOf: "x" })` is `"[object Object]"` and
+  `+{ valueOf: "x" }` is `NaN`. The VM already answers that, because it never
+  looks at `valueOf`, so it is not refused: refusing it would be a
+  regression.
 
 **A function is refused wherever its text would be observable, and nowhere
 else.** Some results do not depend on the text at all, and the corpus
@@ -105,7 +107,7 @@ would be a regression:
 
 A function inside an array is converted through the array's text, a
 string, so `+[f]` is refused too, although `NaN` would be exact. That is the
-second over-refusal, and Stage 3 answers it.
+only over-refusal of Stage 1, and Stage 3 answers it.
 
 No function's text converts to a number: it starts with `(`, `function`,
 `async` or a name. So `NaN` is exact for every text, and the numeric path can
@@ -188,8 +190,8 @@ needs its own issue, and it lands with or after Stage 1.
 
 ### Tasks
 
-- [x] Stage 1: refuse an object with an own `toString` or `valueOf`, and a
-      function wherever its text is observable, keeping every
+- [x] Stage 1: refuse an object with an own `toString` or a function
+      `valueOf`, and a function wherever its text is observable, keeping every
       text-independent result. Unit tests per row, and corpus cases with a
       `rust` reason.
 - [x] The member functions that convert: the `// TODO:`s in `array_join`
