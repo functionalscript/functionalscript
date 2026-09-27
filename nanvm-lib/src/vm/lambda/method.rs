@@ -27,8 +27,20 @@ pub(crate) fn method<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Option<Method<A
     }
     match Unpacked::from(receiver.clone()) {
         Unpacked::Array(_) => array(key),
+        Unpacked::String(_) => super::string::string(key),
         _ => None,
     }
+}
+
+/// The entry of `table` whose name is `key`.
+pub(super) fn lookup<A: IVm, const N: usize>(
+    table: [(&str, Method<A>); N],
+    key: &Any<A>,
+) -> Option<Method<A>> {
+    table
+        .into_iter()
+        .find(|(name, _)| *key == (*name).into())
+        .map(|(_, m)| m)
 }
 
 /// `Array.prototype`'s.
@@ -58,15 +70,12 @@ fn array<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
         ("toSpliced", array_to_spliced),
         ("with", array_with),
     ];
-    table
-        .into_iter()
-        .find(|(name, _)| *key == (*name).into())
-        .map(|(_, m)| m)
+    lookup(table, key)
 }
 
 /// The `i`-th argument, or `undefined` past the end, as a built-in reads
 /// a parameter the call left out.
-fn argument<A: IVm>(args: &Array<A>, i: u32) -> Any<A> {
+pub(super) fn argument<A: IVm>(args: &Array<A>, i: u32) -> Any<A> {
     if i < args.length() {
         args[i].clone()
     } else {
@@ -78,19 +87,19 @@ fn argument<A: IVm>(args: &Array<A>, i: u32) -> Any<A> {
 /// `None` if it did not: for the few built-ins whose answer depends on
 /// whether an argument is there, not only on its value — `lastIndexOf(x)`
 /// searches from the end, `lastIndexOf(x, undefined)` from `0`.
-fn present<A: IVm>(args: &Array<A>, i: u32) -> Option<Any<A>> {
+pub(super) fn present<A: IVm>(args: &Array<A>, i: u32) -> Option<Any<A>> {
     (i < args.length()).then(|| args[i].clone())
 }
 
 /// The arguments from the `i`-th on, as a rest parameter reads them.
-fn rest<A: IVm>(args: &Array<A>, i: u32) -> Array<A> {
+pub(super) fn rest<A: IVm>(args: &Array<A>, i: u32) -> Array<A> {
     (i..args.length().max(i))
         .map(|k| args[k].clone())
         .to_array()
 }
 
 /// A search's position as JavaScript answers it: the index, or `-1`.
-fn position<A: IVm>(found: Option<u32>) -> Any<A> {
+pub(super) fn position<A: IVm>(found: Option<u32>) -> Any<A> {
     Number::from(found.map_or(-1.0, f64::from)).to_any()
 }
 
