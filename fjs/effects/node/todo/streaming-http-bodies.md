@@ -5,36 +5,42 @@
 
 ### Problem
 
-`IncomingMessage.body` (`fjs/effects/node/types.ts`) is a single `Vec`, and a
-`Vec` caps at 131,072 bytes (128 KiB). The whole body is therefore materialized
-before a listener sees it: the Node runner buffers the request, bounded at the
-cap.
+A `Vec` caps at 131,072 bytes (128 KiB), and both of an HTTP request's bodies
+used to be one. So both were capped, and the Node runner refused what it could
+not represent: a request body past the cap was answered `413` without the
+listener seeing it, and a file past it was answered `413` too. The limit was at
+least honest, and it was still a limit no HTTP client expects.
 
-The runner refuses what it cannot represent — a request body past the cap is
-answered `413` without the listener seeing it — so the limit is at least honest,
-but it is still a limit no HTTP client expects.
+**Neither body is one `Vec` any more, and they are not the same shape.**
 
-**`ServerResponse.body` was one `Vec` too, and is now a lazy `List` the runner
-pulls at the socket's pace.** The response half of stage 1 landed in two steps:
-the eager route made the body a chunk list, which lifted the cap and left the
-whole file in memory, and the handle-effect route made it lazy, which is what
-took the footprint down to one chunk. The sections below are written for that
-second route and describe what shipped; "The eager route, as landed" records what
-the first one did with each of them, and is kept because it remains an
-alternative — one open and no laziness — rather than a step that was undone.
+- `IncomingMessage.body` is a **`List` the listener pulls from**, over the
+  [`ReadRequestBytes`](../types.ts) operation stage 2 added. The runner holds one
+  chunk at a time, there is no cap, and the `413` is gone with it. "Stage 2, as
+  landed" below records what that cost and what it decided.
+- `ServerResponse.body` is a **lazy `List` the runner pulls at the socket's
+  pace**. The response half of stage 1 landed in two steps: the eager route made
+  the body a chunk list, which lifted the cap and left the whole file in memory,
+  and the handle-effect route made it lazy, which is what took the footprint down
+  to one chunk. The stage 1 sections below are written for that second route and
+  describe what shipped; "The eager route, as landed" records what the first one
+  did with each of them, and is kept because it remains an alternative — one open
+  and no laziness — rather than a step that was undone.
 
-One consumer is still bounded by this:
+So both directions are streamed, and the work left is a consumer's rather than a
+runner's.
+
+One consumer was bounded by this and is no longer:
 
 - [`fjs/cas` web-api-server](../../../cas/todo/web-api-server.md) wants HTTP
   precisely because the protocol streams bodies, which would let `add`/`get`
   carry blobs of any size where MCP is capped at 128 KiB of inline content. The
   CAS store already streams (`Cas.read`/`Cas.write` deal in chunk lists), so
-  this effect is the only thing in the way. Its `add` needs the **request** half,
-  which is stage 2; its `get` has what it needs.
+  nothing in this effect is in its way any more: an `add` reads the request body as
+  a stream, and a `get` writes the response body as one.
 
-[`fjs/web`](../../../web/) is no longer one of them. It serves a file of any size
-with the bytes held bounded by one chunk of it, reading through an open file it
-gives back when the response ends however it ends.
+[`fjs/web`](../../../web/) was the other one. It serves a file of any size with
+the bytes held bounded by one chunk of it, reading through an open file it gives
+back when the response ends however it ends.
 
 **The cap was low enough to have cost an adoption**, which is the report this
 issue opened with. A demo replacing
@@ -57,15 +63,15 @@ already produces. Reusing it is most of the design; what is left is one type
 change, a pump in each runner, and one question per side that the existing code
 does not already answer.
 
-**The two sides are not equally ready, and did not land together.** The
+**The two sides were not equally ready, and did not land together.** The
 response side was buildable from what was in the tree, except for the one part of
 it that serves a *named* file: reading a body in chunks resolves that name once
 per chunk, which is a race the whole-file read does not have. So `fjs/web` reads
 its body through the handle effect — `open`, `fstat`, a bounded read, `close`,
 which stage 1 added to `Fs` and the virtual file system models with its open
 handles in `State` — and the reason is "What the bound holds" below. The request
-side needs an operation that does not exist yet, so it is staged second and the
-runner keeps its `413` until it lands.
+side needed an operation that did not exist at all, so it was staged second; it
+has one now, and "Stage 2, as landed" below is that stage.
 
 **2026-09-22 — that blocker has an answer the paragraph above predates, and it
 is a trade rather than a removal.** [`ReadWhole`](../types.ts) was added on
@@ -116,13 +122,13 @@ not whether a large body is possible, only what it costs.
 cost more: that [`readWhole`](../module.mjs) rebuilding its chunk list on every
 window is quadratic in the window count, and that a served file of arbitrary
 size makes that count the caller's, so the operation owed a mutating
-accumulator the way `collectBounded` beside it does.
+accumulator the way `collectBounded` beside it did.
 
 **That argument does not survive being written down next to the numbers.** A
 window is a fixed 128 KiB, so `readWhole`'s chunk count is the file's size
 divided by a constant — a gigabyte is some eight thousand windows and tens of
 millions of *reference* copies, which is noise beside reading the gigabyte. What
-makes `collectBounded`'s count the caller's is that a client picks it
+made `collectBounded`'s count the caller's is that a client picked it
 independently of the byte count: 20,000 one-byte chunks are 20 KB of payload and
 200 million copies, on a request about to be refused. A fixed window has no such
 gap between size and count, so there is nothing for §3.1 to make an exception
@@ -132,6 +138,11 @@ So the eager route landed with the collection unchanged, and what the handle
 effect was owed for was the memory — holding a whole file to answer one request.
 That is the cost the window count was never a proxy for, and the memory is what
 the handle effect took.
+
+`collectBounded` itself went with stage 2 — a streamed request body accumulates
+nothing — so [`readWhole`](../module.mjs) is now the one operation in the runner
+that collects anything, and there is no longer a mutating accumulator anywhere
+here for it to be compared against.
 
 **One thing `ReadWhole` does not fix, stated so this is not read as more than
 it is.** [`readWhole`](../module.mjs) `stat`s the path and then opens it, two
@@ -382,7 +393,7 @@ export type IncomingMessage = {
     readonly method: string
     readonly url: string
     readonly headers: Headers
-    readonly body: Vec
+    readonly body: List<ReadRequestBytes, Vec, IoChannel>
     /**
      * Whether a body with no `Content-Length` is framed
      * `Transfer-Encoding: chunked` for this request — the host's own answer,
@@ -845,8 +856,8 @@ also stopped holding: it credited Node with dropping a `HEAD` body, and after ga
 `tooLarge` row and leaving those would be a behavior guide that promises a refusal
 the server no longer makes; a false document is the same wrong answer as false
 code, given to whoever checks before requesting. The runner's `413` for an
-oversized *request* is not in this set — that one is stage 2's, and the README
-already names the issue that retires it.
+oversized *request* was not in this set — that one was stage 2's, and stage 2 has
+retired it.
 
 **That set was one passage short, and the missing one was deferred on a reading
 that did not survive.** This section put that file's own `stat`-then-read caveat
@@ -948,37 +959,104 @@ on them across runtimes: that Node sends the body of a `205` — which is why
 `transfer-encoding: identity` row. Both were measured on Node alone, and both
 describe a response this server does not produce.
 
-#### Stage 2 — the request body
+#### Stage 2 — the request body, as landed
 
-Nothing in the tree pulls one chunk of a request. `readBytes` is
+Nothing in the tree pulled one chunk of a request. `readBytes` is
 `(path, offset, size)` and a socket has no path;
 `Read` ([`../../common/types.ts`](../../common/types.ts)) names a console
-stream. So this side needs a new operation over a request-scoped handle — a
-`Nominal`, as `Server` is — and that is why it is staged rather than settled
-here.
+stream. So this side needed a new operation over a request-scoped handle — a
+`Nominal`, as `Server` is — which is why it was staged rather than settled here.
 
-It carries the two questions this issue opened with:
+**The operation is [`ReadRequestBytes`](../types.ts)**, `(body, offset, size)`
+over a `RequestBody` handle, answering the next bytes of the body and no bytes at
+its end. `readBytes`'s shape on purpose: it is what
+[`_ChunkSource`](../types.ts) asks for, so the body list is
+[`readChunks`](../module.f.mjs) unbounded rather than a second fold —
+`requestBody` in [`../module.f.mjs`](../module.f.mjs) is one line, both runners
+build the listener's body with it, and the empty-read-is-the-end convention is
+the one `fjs/cas` already reads by.
 
-- **A listener that never reads its body.** The runner must drain the rest or
-  destroy the connection, and [`answerRequest`](../module.mjs) already argues
-  the choice for its own `413`: draining reads bytes the server has already
-  decided not to use, so it destroys. A listener that answers early is the same
-  shape, and should get the same answer.
-- **A second pull on an exhausted body**, which a `List` makes expressible and a
-  socket cannot serve twice.
+**What differs from `readBytes` is what `offset` means, and that difference
+answers the second question.** On a file the offset is a destination and the
+operation seeks to it. A socket has one position, only moves forward, and the
+bytes behind it are gone, so the offset is a *claim* — the reader saying where it
+believes it is — and each runner compares it against the position it is at.
 
-Until this lands `IncomingMessage.body` stays one `Vec` and the runner keeps
-refusing a larger request with `413` — a limit enforced where it is crossed,
-which is what [DESIGN §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
-asks of one.
+That comparison is what makes a second pull on a cell already read a refusal.
+`List`'s tail is a value ([`../../list/types.ts`](../../list/types.ts)), so
+pulling the same tail twice is ordinary code rather than abuse; over a socket the
+only thing the second pull could be answered with is the chunk that comes *next*,
+handed over as though it were the one already read. That is a body no client ever
+sent, arriving in order, complete, and under a correct length — the plausible
+wrong value [DESIGN §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
+refuses. A pull at the offset the body *ended* at is not that case and is not
+refused: no bytes is the answer again, because the end of a stream is worth the
+same however often it is asked for. Both runners refuse with the one message
+`requestBodyOffsetMessage` declares, so a program that meets the refusal in a
+proof meets the same words on a host.
 
-**It also settles which status an oversized body earns**, a question
+**A listener that answers without reading its body gets `connection: close`.**
+That is the first question, and the choice is between reading bytes the server has
+already decided not to use and stopping. [`answerRequest`](../module.mjs) argued
+it for the runner's own refusals — a client declaring ten megabytes and sending a
+hundred kilobytes would otherwise hold a connection for as long as it liked — and
+a listener answering early is the same shape, so it gets the same answer.
+
+Node's own answer is the other one, which is why the runner has to say something:
+its `resOnFinish` calls `req._dump()` for a body nobody consumed, reading the rest
+at the client's pace and discarding it.
+
+`connection: close` rather than destroying the socket, because the client is then
+*told* rather than cut off. Measured on Darwin with Node 23.11.0 — not a version
+this repository pins, and the pinned set is
+[`../../../ci/config/module.f.mjs`](../../../ci/config/module.f.mjs)'s — a
+200,000-byte answer to an unread 300,000-byte `POST` arrived whole, carried
+`connection: close`, and the next request over the same keep-alive agent took a
+fresh socket. A `res.destroy()` instead races the flush, and the destroy table
+above is what that costs: `ECONNRESET` in place of a complete response.
+
+**The predicate is `req.complete`, and *when* it is read is the whole of getting
+it right.** It is Node's own record of whether the request has arrived and been
+parsed, so nothing here restates a framing rule — the same reason gate 3 above
+reads a field rather than a version. Measured the same way, it is `false`
+*synchronously* at the listener's first statement even for a bodiless `GET`,
+message-complete not having been reached yet, and `true` one microtask later.
+Running the listener's effect is an `await`, so by the time there is a response to
+write, a request with no body reads `true` and keeps its connection, while a body
+still arriving reads `false` however long it is waited on. **Read it before the
+listener answers and every `GET` loses its connection** — a page importing a dozen
+modules paying a connection each, which is the case
+[#1819](https://github.com/functionalscript/functionalscript/issues/1819) was
+reported from. A body short enough to have arrived already may read either, and
+both readings are right: the flag states what has been received, not what will be.
+
+**The virtual runner mirrors the cursor, not the close.** A listener cannot
+observe the close — it happens after the response — so there is nothing there for
+the two runners to disagree about. What a listener *can* do is pull a cell twice,
+and a virtual runner replaying a fixture's chunks would let that pass here and
+fail on a socket. So `State.requests`
+([`../virtual/types.ts`](../virtual/types.ts)) holds a `_QueuedRequest` whose body
+is the chunks that arrive — the shape a `Dir` already stores a file in — `listen`
+registers a cursor per delivered request, and `State.bodies` records how far each
+listener read. That record is also how "answered without reading the body" is
+asserted where there is no connection to watch close, which is the same move the
+`release` section makes for a leaked handle: the state is the observation.
+
+**And it settles which status an oversized body earns**, a question
 [#1819](https://github.com/functionalscript/functionalscript/issues/1819) raises
 and this design does not have to answer twice. `413` says the *request* was too
 large: wrong for a file the server cannot frame, right for a request the server
-will not read. After stage 1 the only `413` left is the runner's, where the
-subject really is the request; stage 2 retires that one too, and what is left
-answering `413` is a listener with a size policy of its own — correctly.
+will not read. After stage 1 the only `413` left was the runner's, where the
+subject really was the request; stage 2 retired that one too, and what is left
+answering `413` is a listener with a size policy of its own — correctly, and now
+possibly, because a listener sees the request before the bytes.
+
+**What stage 2 does not do is bound what a body costs.** A listener that reads a
+whole body into memory pays for it, exactly as one that does not read it pays
+nothing; the runner's own cost is one chunk. And a body that stalls under way is
+still bounded only by Node's five-minute default, which is
+[request-body-timeouts](./request-body-timeouts.md) and stays open — that issue's
+buffering half is what this stage answered.
 
 ### Tasks
 
@@ -1060,13 +1138,35 @@ answering `413` is a listener with a size policy of its own — correctly.
       hundred and twenty-eight mebibytes to a client that reads nothing, and
       `createServer.pullsAtTheSocketsPace` in [`../proof.mjs`](../proof.mjs) is the
       exact bound — ten times the body is not ten times the memory.
-- [ ] Stage 2: name the operation that pulls one request-body chunk, and answer
-      what an undrained body does.
-- [ ] Stage 2: `IncomingMessage.body` as a `List`, retiring the runner's `413`.
+- [x] Stage 2: name the operation that pulls one request-body chunk, and answer
+      what an undrained body does. — [`ReadRequestBytes`](../types.ts),
+      `(body, offset, size)` over a `RequestBody` handle, which is
+      [`_ChunkSource`](../types.ts)'s shape, so the body list is
+      [`readChunks`](../module.f.mjs) unbounded rather than a second fold. Its
+      `offset` is a claim about where the reader is rather than a place to seek
+      to, and a mismatch is refused — which is also the answer to a second pull
+      on a cell already read, where the next chunk handed over as the one already
+      read would be a body no client sent. An undrained body gets
+      `connection: close`: draining reads bytes the server has decided not to
+      use, which is `answerRequest`'s own argument for its refusals, and Node's
+      `req._dump()` is the alternative it is being chosen over. See "Stage 2 —
+      the request body, as landed".
+- [x] Stage 2: `IncomingMessage.body` as a `List`, retiring the runner's `413`.
+      — a `List<ReadRequestBytes, Vec, IoChannel>`, so a listener pulls the
+      chunks it wants and the runner holds one at a time. `collectBounded` and
+      the `413` are gone with the cap that produced them; `readWhole` is the one
+      operation in the runner still collecting, and the part of that comment
+      which outlived the cap — a bound on one chunk is not a bound on their
+      number — is now stated there rather than cited from here. The virtual
+      runner queues a `_QueuedRequest` whose body is the chunks that arrive and
+      records a cursor per delivered request, so a re-pull is refused there as
+      it is on a socket and how far a listener read is what a proof asserts.
 
-A body that stalls under the cap is a third consequence, filed separately as
-[request-body-timeouts](./request-body-timeouts.md): the listener cannot answer
-until a body it may not even want has finished arriving.
+A body that stalls is the third consequence, filed separately as
+[request-body-timeouts](./request-body-timeouts.md). Stage 2 answered the half of
+it that was about buffering — the listener answers before the body arrives, so one
+for a method nobody serves costs nothing — and left the five-minute
+`requestTimeout` a listener that *wants* a stalled body still waits on.
 
 ### Related
 
@@ -1075,12 +1175,15 @@ until a body it may not even want has finished arriving.
   `Content-Length` paragraph and its "entry checked is not the entry read" caveat
   were all corrected as stage 1 landed; what they describe now is a body read
   through one open file and held one chunk at a time.
-- [`fjs/cas` web-api-server](../../../cas/todo/web-api-server.md) — blocked on
-  stage 2 for arbitrary-size `add`; its `get` has the response half it needs.
+- [`fjs/cas` web-api-server](../../../cas/todo/web-api-server.md) — waiting on
+  nothing here since stage 2: an arbitrary-size `add` reads the request body as a
+  stream, and a `get` writes the response body as one without holding the blob.
 - `fjs/effects/node/module.f.mjs` — `writeFromStream`, the chunk-list shape a
   streamed body should follow.
 - [`fjs/effects/list`](../../list/types.ts) — `List`, why a failure belongs to
-  the cell rather than to the item it would otherwise be carried beside, and the
-  cell shape that leaves a consumer no way to tell a producer it has stopped.
+  the cell rather than to the item it would otherwise be carried beside, the cell
+  shape that leaves a consumer no way to tell a producer it has stopped, and the
+  tail-is-a-value property that makes a second pull expressible — which is what
+  stage 2's offset check answers.
 - [GitHub issue #1819](https://github.com/functionalscript/functionalscript/issues/1819)
   — the report the Problem section's numbers come from.

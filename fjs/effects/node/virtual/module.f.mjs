@@ -6,24 +6,25 @@
  * @import { Vec } from '../../../types/bit_vec/types.ts'
  * @import { PartialMemOperationMap, RunInstance } from '../../mock/types.ts'
  * @import { MemoryState } from '../../memory/types.ts'
- * @import { Dirent, FileStat, Handle, Headers, IncomingMessage, IoError, IoResult, Module, NodeOp, NodeProgramOptions, OpResult, RequestListener, SandboxResult, Server, _Gate } from '../types.ts'
+ * @import { Dirent, FileStat, Handle, Headers, IncomingMessage, IoError, IoResult, Module, NodeOp, NodeProgramOptions, OpResult, RequestBody, RequestListener, SandboxResult, Server, _Gate } from '../types.ts'
  * @import { Effect, IoChannel, Operation } from '../../types.ts'
  * @import { List } from '../../list/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Error } from '../../../types/result/types.ts'
  * @import { Nullable } from '../../../types/nullable/types.ts'
- * @import { Dir, JsModule, Overrun, RecordedResponse, State, Underrun, _Entity, _OpenFile, _VirtualListener, _VirtualServer } from './types.ts'
+ * @import { Dir, JsModule, Overrun, RecordedResponse, State, Underrun, _Entity, _OpenFile, _QueuedRequest, _RequestBodyCursor, _VirtualListener, _VirtualServer } from './types.ts'
  */
 
 import { assert, todo } from '../../../asserts/module.f.mjs'
 import { isProperPrefix, join, normalize, parse } from '../../../path/module.f.mjs'
 import { resolve as resolveImportPath } from '../../../path/import/module.f.mjs'
 import { utf8ToString } from '../../../text/module.f.mjs'
-import { byteLength, bytesIn, empty, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
+import { byteLength, bytesIn, empty, isWholeBytes, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok, unwrap } from '../../../types/result/module.f.mjs'
 import {
     badPortCode, badPortMessage, carriesNoBody, emptyHost, emptyHostError, ioError, isPort, nodeCommands,
-    notAFileCode, notAFileMessage, refusalMessage, refusedStatus, responseGate, runnerResponse, windowRefusal,
+    notAFileCode, notAFileMessage, refusalMessage, refusedStatus, requestBody, requestBodyOffsetMessage,
+    responseGate, runnerResponse, windowRefusal,
 } from '../module.f.mjs'
 import { partialRun } from '../../mock/module.f.mjs'
 import { memoryInitial, memoryOperationMap } from '../../memory/module.f.mjs'
@@ -42,6 +43,7 @@ export const emptyState = {
     listening: [],
     requests: [],
     responses: [],
+    bodies: [],
     handles: [],
     handleNext: 0,
 }
@@ -916,6 +918,108 @@ const closeOp = handle => state => {
 const ephemeral = 0
 
 /**
+ * The chunks from the first one that has bits, the ones before it dropped.
+ *
+ * **No bytes is how a pull says *end***: `readChunks` ends an unbounded stream
+ * at an empty answer ([`../module.f.mjs`](../module.f.mjs)), so a chunk of no
+ * bytes cannot be handed to a listener as a chunk. The Node runner's reader
+ * steps over one for that reason — Node's parser owes nobody a promise to keep
+ * an empty chunk out of a body — and a fixture chunk with no bits is that
+ * chunk, so it is stepped over here too.
+ *
+ * **Bits, not bytes.** `bytesIn` rounds down, so a chunk of one bit is nought
+ * bytes; dropping by byte length would drop it and throw the bit away, where
+ * `readChunks` refuses a chunk that is not whole bytes and says how many bits it
+ * had.
+ *
+ * @type {(rest: readonly Vec[]) => readonly Vec[]}
+ */
+const fromFirstWithBits = rest => {
+    const i = rest.findIndex(v => length(v) !== 0n)
+    return i === -1 ? [] : rest.slice(i)
+}
+
+/**
+ * Hands out the next chunk of one delivered request's body, or no bytes at its
+ * end.
+ *
+ * **The offset is checked, not sought to**, which is the one thing this
+ * operation has to get the same as the Node runner: there, the position belongs
+ * to a socket that only moves forward, so a pull naming an offset the body is
+ * past cannot be answered with the bytes it asks for and must not be answered
+ * with the bytes that come next. A fixture's chunks *could* be replayed here,
+ * which is exactly why they are not — a proof that re-pulled a cell would pass
+ * against this runner and fail against a socket.
+ *
+ * A pull at the offset the body **ended** at is not that case: nothing with
+ * bits is left, no bytes is the answer, and the offset does not move, so asking
+ * again answers the same. The end of a stream is worth the same however many
+ * times it is asked for.
+ *
+ * A chunk of no bytes is not that end either — see {@link fromFirstWithBits},
+ * which is why a pull answers from the first chunk that has bits rather than
+ * from the next one in the fixture.
+ *
+ * **A chunk the stream will not take stays where it is.** `readChunks` refuses
+ * one that is not whole bytes ([`../module.f.mjs`](../module.f.mjs)) and says
+ * how many bits it had, and a listener may catch that refusal and pull the same
+ * cell again. Handed out and dropped, such a chunk left the cursor moved while
+ * its nought bytes left the offset alone, so the retry named an offset that
+ * still matched and was answered with the bytes *after* it — the body the
+ * listener asked for, in order, one bit short, and nothing to say so. So the
+ * chunk is handed out without being consumed: nothing advances, and the retry
+ * meets the same refusal in the same words. The offset refusal above is not
+ * sticky in that way and must not be — it belongs to the pull that named the
+ * wrong offset, not to the body.
+ *
+ * The handle is the cursor's place in {@link State.bodies} — see
+ * {@link _RequestBodyCursor} for why the position is in the state and not
+ * behind the handle.
+ *
+ * @type {(body: RequestBody, offset: number, size: number) => (state: State) => readonly[State, IoResult<Vec>]}
+ */
+const readRequestBytes = (body, offset, _size) => state => {
+    const index = /** @type {number} */ (asBase(body))
+    const cursor = state.bodies[index]
+    if (offset !== cursor.offset) {
+        return [state, error(ioError({ message: requestBodyOffsetMessage(offset, cursor.offset) }))]
+    }
+    const kept = fromFirstWithBits(cursor.rest)
+    const [first, ...rest] = kept
+    /** @type {_RequestBodyCursor} */
+    const next = first === undefined
+        ? { rest: [], offset }
+        : isWholeBytes(first)
+            ? { rest, offset: offset + Number(byteLength(first)) }
+            : { rest: kept, offset }
+    /** @type {State} */
+    const moved = { ...state, bodies: state.bodies.map((c, i) => i === index ? next : c) }
+    return [moved, first === undefined ? ok(empty) : ok(first)]
+}
+
+/**
+ * The request a listener is handed, and the cursor its body will be read
+ * through.
+ *
+ * The cursor goes on the end of {@link State.bodies} and the handle is where it
+ * landed, so the body list the listener receives is built by the same
+ * {@link requestBody} the Node runner builds its own with — the shape of the
+ * stream is stated once and neither runner can drift from it.
+ *
+ * @type {(request: _QueuedRequest) => (state: State) => readonly[State, IncomingMessage]}
+ */
+const deliver = ({ method, url, headers, body, chunkedResponse }) => state => [
+    { ...state, bodies: [...state.bodies, { rest: body, offset: 0 }] },
+    {
+        method,
+        url,
+        headers,
+        body: requestBody(/** @type {RequestBody} */ (asNominal(state.bodies.length))),
+        chunkedResponse,
+    },
+]
+
+/**
  * The handle **is** the listener.
  *
  * `Server` is a nominal over `unknown`, so what a runner keeps inside one is its
@@ -1170,8 +1274,12 @@ const listen = (server, port, host) => state => {
     /** @type {State} */
     let s = { ...state, listening: [...state.listening, { address, server: bound }], requests: [] }
     const answer = answerRequest(listener)
-    for (const request of state.requests) {
-        s = answer(s, request)
+    for (const queued of state.requests) {
+        // The body's cursor is registered before the listener runs, because the
+        // listener is what reads it — the same order the Node runner puts the
+        // socket in the handle before it calls one.
+        const [withBody, request] = deliver(queued)(s)
+        s = answer(withBody, request)
     }
     return [s, okVoid]
 }
@@ -1235,6 +1343,7 @@ const map = {
     close: closeOp,
     createServer,
     listen,
+    readRequestBytes,
     randomInt: () => state => [{ ...state, randomNext: state.randomNext + 1 }, ok(state.randomNext)],
     now: () => state => [state, ok(state.epochNs)],
     // Virtual sandbox is a pass-through: the fixture's test function is
