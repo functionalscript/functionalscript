@@ -43,7 +43,7 @@ import type { Equal } from '../types/ts/types.ts'
  * expression that denotes it, so `typeof` plus `Array.isArray` recovers
  * everything a tag would have carried.
  */
-export type Value = Const | Ref | FunctionValue | Unreached
+export type Value = Const | Ref | FunctionValue | Callback | Unreached
 
 /** A value that is its own description. */
 export type Const =
@@ -69,11 +69,12 @@ export type Struct = { readonly [k in string]?: Value }
 export type Special<I extends Info> = () => I
 
 /**
- * What a {@link Special} describes. Each of the four is its own type below,
+ * What a {@link Special} describes. Each of the five is its own type below,
  * so where it may appear is a type and not a comment.
  */
 export type Info =
     | readonly ['function']
+    | readonly ['callback', CallbackName]
     | readonly ['ref', string]
     | readonly ['throw']
     | readonly ['unreached']
@@ -98,6 +99,22 @@ export type Info =
  * function cases in the other groups exercise.
  */
 export type FunctionValue = Special<readonly ['function']>
+
+/**
+ * The names of the corpus's callbacks, each a small function a member
+ * function such as `map` is handed — its body in `fjs/nanvm/module.f.mjs`'s
+ * `callbacks`, with its JavaScript spelling.
+ */
+export type CallbackName = 'args' | 'first' | 'prop' | 'double' | 'add' | 'pair' | 'ascending' | 'descending'
+
+/**
+ * A callback by name: a real function with a body, where a
+ * {@link FunctionValue} is only ever the smallest one. Both consumers
+ * establish it as the `=>` node it lowers to — `amnesia` as a host
+ * function, the Rust printer as a `static_function` — so a case can hand
+ * one to `map` and see what it answers. Legal anywhere a {@link Value} is.
+ */
+export type Callback = Special<readonly ['callback', CallbackName]>
 
 /**
  * One of {@link Data}'s `shared` values, so the *same* node — and hence the
@@ -281,6 +298,8 @@ type _Op12Binary = Assert<Equal<Extract<Group12, { arity: 2 }>['cases'], readonl
 // an expectation or nothing, and neither a function nor an `unreached` is an
 // expectation.
 type _FunctionIsValue = Assert<Equal<FunctionValue extends Value ? true : false, true>>
+type _CallbackIsValue = Assert<Equal<Callback extends Value ? true : false, true>>
+type _NoCallbackExpected = Assert<Equal<Callback extends Expectation ? true : false, false>>
 type _UnreachedIsValue = Assert<Equal<Unreached extends Value ? true : false, true>>
 type _NoThrowsValue = Assert<Equal<Throws extends Value ? true : false, false>>
 type _NoFunctionExpected = Assert<Equal<FunctionValue extends Expectation ? true : false, false>>

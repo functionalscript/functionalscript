@@ -1,20 +1,11 @@
 use crate::vm::{
-    Any, Array, BigInt, Function, IVm, Number, Object, String, dispatch::Dispatch, join::Join,
+    Any, Array, BigInt, Function, IVm, Number, Object, String, dispatch::Dispatch,
     nullish::Nullish, primitive::Primitive,
 };
 
 use std::result::Result;
 
 const CANNOT_CONVERT_TO_PRIMITIVE_VALUE: &str = "TypeError: Cannot convert to primitive value";
-
-fn arr_element_to_string<A: IVm>(v: Any<A>) -> Result<String<A>, Any<A>> {
-    // https://tc39.es/ecma262/#sec-array.prototype.join: in case the element is nullish, on
-    // joining it is represented as an empty string (see point 7.c: If element is neither undefined
-    // nor null, then...)
-    Nullish::try_from(v.clone())
-        .map(|_| Ok("".into()))
-        .unwrap_or_else(|_| v.to_string())
-}
 
 /// Preferred type for coercion to primitive, as per ECMAScript specification.
 /// <https://tc39.es/ecma262/#sec-toprimitive>
@@ -47,16 +38,10 @@ fn obj_to_string<A: IVm>(_o: Object<A>) -> Option<Result<Primitive<A>, Any<A>>> 
 
 fn arr_to_string<A: IVm>(a: Array<A>) -> Option<Result<Primitive<A>, Any<A>>> {
     // https://tc39.es/ecma262/#sec-array.prototype.tostring
-    // https://tc39.es/ecma262/#sec-array.prototype.join
     // TODO: implement a call to user-defined "toString" method, and, while implementing the default
-    // behavior, implement a call to user-defined "join" methods. For now we shortcut to joining
-    // the array elements - coerced to strings - with "," separator (that is the default separator:
-    // per standard, Array.prototype.toString calls "join" with undefined separator).
-    let s = a
-        .into_iter()
-        .map(|v| arr_element_to_string(v))
-        .join(",".into());
-    Some(s.map(Primitive::String))
+    // behavior, implement a call to user-defined "join" methods. Until then this is the built-in
+    // `join` with its default separator, which is what `Array.prototype.toString` calls.
+    Some(a.join(",".into()).map(Primitive::String))
 }
 
 fn fn_to_string<A: IVm>(_f: Function<A>) -> Option<Result<Primitive<A>, Any<A>>> {
