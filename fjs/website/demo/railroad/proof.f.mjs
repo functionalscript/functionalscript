@@ -23,6 +23,28 @@ const svg = d => htmlToString(railroadSvg(d))
  */
 const size = (d, width, height) => () => assert(svg(d).includes(`viewBox="0 0 ${width} ${height}"`), [svg(d), width, height])
 
+/**
+ * Where the terminal labelled `label` is drawn: the `x` of its label's
+ * centre.
+ *
+ * @type {(html: string, label: string) => number}
+ */
+const labelX = (html, label) => {
+    const before = html.slice(0, html.indexOf(`data-railroad-label="terminal">${label}</text>`))
+    const x = before.slice(before.lastIndexOf('<text x="') + '<text x="'.length)
+    return Number(x.slice(0, x.indexOf('"')))
+}
+
+/**
+ * Whether `first` is met before `second` along a track read left to right.
+ *
+ * @type {(d: Diagram, first: string, second: string) => boolean}
+ */
+const leftOf = (d, first, second) => {
+    const html = svg(d)
+    return labelX(html, first) < labelX(html, second)
+}
+
 export const proof = {
     anchor: () => assertEq(anchor('value'), 'railroad-value'),
     // A section is the element a box links to: its id is the title's anchor.
@@ -59,5 +81,24 @@ export const proof = {
         plain: size(['loop', t('a'), skip], 18 + 28 + 40 + 18, 10 + 11 + 21 + 10),
         // A separator on the way back: it drops 32, to clear both pills.
         separator: size(['loop', t('a'), t(',')], 18 + 28 + 40 + 18, 10 + 11 + 32 + 11 + 10),
+        // The return runs right to left, so a separator's pieces are laid
+        // out mirrored: following the track back, `,` is met before `ws`,
+        // as the grammar spells `, ws`. On the forward track they are not.
+        order: () => {
+            const comma = /** @type {const} */ (['sequence', [t(','), t('ws')]])
+            assert(leftOf(comma, ',', 'ws'))
+            assert(leftOf(['loop', t('a'), comma], 'ws', ','))
+        },
+        // A loop on a return track turns back again: its own item runs
+        // right to left and its return left to right, and its arrow points
+        // down the left side, the way the return runs there. The outer
+        // loop's arrow points up.
+        nested: () => {
+            const html = svg(['loop', t('a'), ['loop', ['sequence', [t('b'), t('c')]], ['sequence', [t('d'), t('e')]]]])
+            assert(labelX(html, 'c') < labelX(html, 'b'), html)
+            assert(labelX(html, 'd') < labelX(html, 'e'), html)
+            assert(html.includes('M24 41L28 34L32 41'), html)
+            assert(html.includes('M44 65L48 72L52 65'), html)
+        },
     },
 }

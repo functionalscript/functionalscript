@@ -17,7 +17,9 @@
  * **A loop returns underneath**, right to left, through its separator, with
  * an arrow on the way back up: the only piece of track a reader follows
  * against the diagram's direction, so the only one that says which way it
- * runs.
+ * runs. What the return passes through is laid out mirrored, so a reader
+ * following it meets a separator's pieces in their order — `,` before
+ * `ws` in `, ws` — and a loop inside it turns back the other way again.
  *
  * **A box for another diagram is a link to it.** `anchor` is the id of the
  * element holding that diagram, and `railroadSection` is that element, so a
@@ -142,20 +144,25 @@ const nonTerminalBox = box('nonTerminal', 3)
  * `d` centred in a row `inner` wide, with track either side of it out to the
  * row's ends.
  *
- * @type {(inner: number) => (d: Diagram) => (x: number, y: number) => readonly Element[]}
+ * @type {(inner: number, backward: boolean) => (d: Diagram) => (x: number, y: number) => readonly Element[]}
  */
-const padded = inner => d => (x, y) => {
+const padded = (inner, backward) => d => (x, y) => {
     const { width } = measure(d)
     const left = x + (inner - width) / 2
-    return [line(x, left, y), ...draw(d)(left, y), line(left + width, x + inner, y)]
+    return [line(x, left, y), ...draw(backward)(d)(left, y), line(left + width, x + inner, y)]
 }
 
 /**
- * `d` with its track entering at `(x, y)`.
+ * `d` with its track's left end at `(x, y)`, read left to right, or right
+ * to left when `backward`: a loop's return track runs back under it, so
+ * what that track passes through is laid out mirrored — a sequence's first
+ * piece at its right end, where a reader following the track meets it
+ * first. The pieces themselves are not mirrored: a label reads left to
+ * right whichever way its track runs.
  *
- * @type {(d: Diagram) => (x: number, y: number) => readonly Element[]}
+ * @type {(backward: boolean) => (d: Diagram) => (x: number, y: number) => readonly Element[]}
  */
-const draw = d => (x, y) => {
+const draw = backward => d => (x, y) => {
     switch (d[0]) {
         case 'terminal':
             return terminalBox(d[1])(x, y)
@@ -164,13 +171,13 @@ const draw = d => (x, y) => {
         case 'skip':
             return []
         case 'sequence': {
-            const items = d[1]
+            const items = backward ? d[1].toReversed() : d[1]
             /** @type {readonly number[]} */
             const first = [x]
             const xs = items.slice(0, -1).reduce((acc, item, k) => [...acc, acc[k] + measure(item).width + itemGap], first)
             return [
                 ...xs.slice(1).map(right => line(right - itemGap, right, y)),
-                ...items.flatMap((item, k) => draw(item)(xs[k], y)),
+                ...items.flatMap((item, k) => draw(backward)(item)(xs[k], y)),
             ]
         }
         case 'choice': {
@@ -178,7 +185,7 @@ const draw = d => (x, y) => {
             const sizes = d[1].map(measure)
             const offsets = rowOffsets(sizes)
             const inner = max(sizes.map(s => s.width))
-            const row = padded(inner)
+            const row = padded(inner, backward)
             const left = x + 2 * arc
             const right = left + inner
             const end = right + 2 * arc
@@ -199,18 +206,21 @@ const draw = d => (x, y) => {
             const i = measure(item)
             const s = measure(separator)
             const inner = Math.max(i.width, s.width)
-            const row = padded(inner)
             const left = x + 2 * arc
             const right = left + inner
             const end = right + 2 * arc
             const back = y + drop(i, s)
             const middle = (y + back) / 2
+            // The arrow on the left side points the way the return runs
+            // there: up to the start of the item, or, on a backward
+            // track, down from its end.
+            const up = backward ? -1 : 1
             return [
-                line(x, left, y), ...row(item)(left, y), line(right, end, y),
+                line(x, left, y), ...padded(inner, backward)(item)(left, y), line(right, end, y),
                 path(`M${right} ${y}Q${end - arc} ${y} ${end - arc} ${y + arc}L${end - arc} ${back - arc}Q${end - arc} ${back} ${right} ${back}`),
-                ...row(separator)(left, back),
+                ...padded(inner, !backward)(separator)(left, back),
                 path(`M${left} ${back}Q${x + arc} ${back} ${x + arc} ${back - arc}L${x + arc} ${y + arc}Q${x + arc} ${y} ${left} ${y}`),
-                path(`M${x + arc - 4} ${middle + 4}L${x + arc} ${middle - 3}L${x + arc + 4} ${middle + 4}`),
+                path(`M${x + arc - 4} ${middle + 4 * up}L${x + arc} ${middle - 3 * up}L${x + arc + 4} ${middle + 4 * up}`),
             ]
         }
     }
@@ -235,7 +245,7 @@ export const railroadSvg = d => {
         viewBox: `0 0 ${svgWidth} ${svgHeight}`, width: String(svgWidth), height: String(svgHeight),
     },
         path(`M${margin} ${y - stub}L${margin} ${y + stub}M${margin} ${y}L${x} ${y}`),
-        ...draw(d)(x, y),
+        ...draw(false)(d)(x, y),
         path(`M${end} ${y}L${end + stub} ${y}M${end + stub} ${y - stub}L${end + stub} ${y + stub}`),
     ]]
 }
