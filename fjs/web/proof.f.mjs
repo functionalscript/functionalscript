@@ -1,6 +1,6 @@
 /**
  * @import { IncomingMessage, ServerResponse } from '../effects/node/types.ts'
- * @import { Dir, State } from '../effects/node/virtual/types.ts'
+ * @import { Dir, State, _QueuedRequest } from '../effects/node/virtual/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  */
 
@@ -10,7 +10,8 @@ import { emptyState, nodeProgramOptions, virtual } from '../effects/node/virtual
 import { nodeCommands } from '../effects/node/module.f.mjs'
 import { partialRun } from '../effects/mock/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
-import { empty, length, u8ListMsb, u8ListToVecMsb } from '../types/bit_vec/module.f.mjs'
+import { empty as elEmpty } from '../effects/list/module.f.mjs'
+import { u8ListMsb, u8ListToVecMsb } from '../types/bit_vec/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
 import { unwrap } from '../types/result/module.f.mjs'
 import { main, resolve, respond } from './module.f.mjs'
@@ -35,7 +36,17 @@ const site = {
 const request = (method, url) => hosted('127.0.0.1:8080')(method, url)
 
 /** @type {(host: string) => (method: string, url: string) => IncomingMessage} */
-const hosted = host => (method, url) => ({ method, url, headers: { host }, body: empty })
+const hosted = host => (method, url) => ({ method, url, headers: { host }, body: elEmpty() })
+
+/**
+ * The same request as a fixture queues it, whose body is the chunks that arrive
+ * rather than the stream a listener pulls — see `_QueuedRequest` in
+ * `../effects/node/virtual/types.ts`. No chunks: `fjs/web` answers `405` to
+ * every method that could carry a body.
+ *
+ * @type {(method: string, url: string) => _QueuedRequest}
+ */
+const queued = (method, url) => ({ method, url, headers: { host: '127.0.0.1:8080' }, body: [] })
 
 /**
  * Answers one request against `root`, which every case below is a variation of.
@@ -285,7 +296,7 @@ export const proof = {
                     method: 'GET',
                     url: 'http://127.0.0.1:8080@attacker.example/index.html',
                     headers: { host: 'localhost:8080' },
-                    body: empty,
+                    body: elEmpty(),
                 }))[1])
             assertEq(credentialed.status, 400)
             const spoofed = unwrap(virtual({ ...emptyState, root: site })(
@@ -293,7 +304,7 @@ export const proof = {
                     method: 'GET',
                     url: 'http://attacker.example/index.html',
                     headers: { host: 'localhost:8080' },
-                    body: empty,
+                    body: elEmpty(),
                 }))[1])
             assertEq(spoofed.status, 403)
             // And the same target for a name it does answer for is served.
@@ -302,12 +313,12 @@ export const proof = {
                     method: 'GET',
                     url: 'http://localhost:8080/index.html',
                     headers: {},
-                    body: empty,
+                    body: elEmpty(),
                 }))[1])
             assertEq(proxied.status, 200)
             // HTTP/1.1 requires a `Host`; its absence is not a way around this.
             const noHost = unwrap(virtual({ ...emptyState, root: site })(
-                respond('.')({ method: 'GET', url: '/', headers: {}, body: empty }))[1])
+                respond('.')({ method: 'GET', url: '/', headers: {}, body: elEmpty() }))[1])
             assertEq(noHost.status, 403)
             assertEq(body(noHost), 'host not served\n')
         },
@@ -439,7 +450,7 @@ export const proof = {
             const state = {
                 ...emptyState,
                 root: site,
-                requests: [request('GET', '/'), request('GET', '/docs/'), request('DELETE', '/')],
+                requests: [queued('GET', '/'), queued('GET', '/docs/'), queued('DELETE', '/')],
             }
             const [s, result] = virtual(state)(main(nodeProgramOptions([])))
             // Loopback, and the URL says so: a server that binds every
@@ -471,7 +482,7 @@ export const proof = {
             const state = {
                 ...emptyState,
                 root: { site },
-                requests: [request('GET', '/index.html')],
+                requests: [queued('GET', '/index.html')],
             }
             const options = nodeProgramOptions(['site', '9090'])
             const [s] = virtual(state)(main(options))
@@ -546,8 +557,32 @@ export const proof = {
             assertEq(s.responses.length, 0)
             assertEq(s.requests.length, 0)
         },
-        emptyBody: () => {
-            assertEq(length(request('GET', '/').body), 0n)
+        // **This server answers without reading a byte of the request body**,
+        // which is what a streamed body makes possible and what the runner then
+        // has to decide about. A `POST` carrying chunks is refused `405` on its
+        // method alone, and the cursor the runner registered for its body has
+        // not moved: nothing was pulled, so nothing was read.
+        //
+        // On a host that unread remainder is what makes the runner close the
+        // connection (`answerRequest` in `../effects/node/module.mjs`). Here
+        // there is no socket to close, so the cursor is the observation.
+        answersWithoutReadingTheBody: () => {
+            /** @type {State} */
+            const state = {
+                ...emptyState,
+                root: site,
+                requests: [{
+                    method: 'POST',
+                    url: '/',
+                    headers: { host: '127.0.0.1:8080' },
+                    body: [utf8('name=value'), utf8('&more=1')],
+                }],
+            }
+            const [s] = virtual(state)(main(nodeProgramOptions([])))
+            assertEq(s.responses[0].status, 405)
+            const [cursor] = s.bodies
+            assertEq(cursor.offset, 0)
+            assertEq(cursor.rest.length, 2)
         },
     },
 }

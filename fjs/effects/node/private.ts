@@ -39,7 +39,24 @@ export type _IncomingMessage = _Readable & {
     readonly method: string
     readonly url: string
     readonly headers: Headers
+    /**
+     * Whether the whole request has arrived and been parsed. The runner reads it
+     * once the listener has answered, to decide whether any of the body is still
+     * to come — see `answerRequest` in [`./module.mjs`](./module.mjs).
+     */
+    readonly complete: boolean
 }
+
+/**
+ * One request body's cursor, as the Node runner holds it: the bytes at `offset`,
+ * at most `size` of them, and none once the client has stopped sending.
+ *
+ * This is what a `RequestBody` handle carries on this runner. A function rather
+ * than a record because the position it keeps is the only mutable thing in the
+ * whole operation, and a closure is where it can be kept without anything else
+ * being able to see it.
+ */
+export type _RequestBodyReader = (offset: number, size: number) => Promise<Uint8Array>
 
 /**
  * `write` is here because a response body is a chunk list, so the runner offers
@@ -51,10 +68,28 @@ export type _IncomingMessage = _Readable & {
  * `false` that the pump exists to wait on.
  */
 export type _ServerResponse = {
-    readonly writeHead: (status: number, headers: StringMap<string>) => _ServerResponse
+    /**
+     * The map is **optional**, and only the runner's own answers pass one: they
+     * are the whole of their response's headers, so there is nothing for an
+     * order to decide. A listener's headers go through {@link setHeader}
+     * instead — see below.
+     */
+    readonly writeHead: (status: number, headers?: StringMap<string>) => _ServerResponse
     readonly write: (chunk: Uint8Array) => boolean
     readonly end: (body: Uint8Array) => void
     readonly headersSent: boolean
+    /**
+     * **Every header of a listener's response is set through here**, because the
+     * runner adds one of its own — `connection: close`, for a request whose body
+     * has not all arrived — and a header passed to `writeHead` wins over one set
+     * here. Passing the listener's map there put it last, so a listener
+     * answering `connection: keep-alive` cancelled the close and kept the socket
+     * held for a body nobody would read. Set one at a time, the runner's close
+     * goes last and wins; Node keys pending headers by the lower-cased name, so
+     * it replaces whichever spelling the listener used, and nothing else the
+     * listener asked for is touched.
+     */
+    readonly setHeader: (name: string, value: string) => void
 }
 
 export type _RequestListener = (req: _IncomingMessage, res: _ServerResponse) => Promise<void>
