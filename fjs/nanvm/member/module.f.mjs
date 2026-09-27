@@ -18,7 +18,7 @@
  * ```
  */
 
-import { callback, functionValue, throws } from '../constructors/module.f.mjs'
+import { callback, functionValue, returns, throws, unreached } from '../constructors/module.f.mjs'
 
 /**
  * `Array.prototype.at`: the element from the start or, for a negative index,
@@ -84,6 +84,10 @@ const includesCases = [
     { name: 'fromInfinity', args: [[1], 1, Infinity], expected: false },
     { name: 'fromString', args: [[1, 2], 1, '1'], expected: false },
     { name: 'emptyBigintFrom', args: [[], 1, 1n], expected: false },
+    // An empty array answers before converting the position, so its own
+    // `valueOf` is never called.
+    { name: 'emptyOwnValueOfFrom', args: [[], 1, { valueOf: returns(unreached) }], expected: false },
+    { name: 'ownValueOfFrom', args: [[1, 2], 1, { valueOf: returns(1) }], expected: false },
     { name: 'bigintFrom', args: [[1], 1, 1n], expected: throws },
     { name: 'object', args: [{}, 1], expected: throws },
     { name: 'stringFound', args: ['abc', 'bc'], expected: true },
@@ -94,6 +98,14 @@ const includesCases = [
     { name: 'stringNoArgument', args: ['undefined'], expected: true },
     { name: 'stringNumber', args: ['a1b', 1], expected: true },
     { name: 'stringObject', args: ['[object Object]', {}], expected: true },
+    { name: 'stringOwnToString', args: ['xundefinedx', { toString: functionValue }], expected: true },
+    { name: 'stringOwnToStringNeedle', args: ['xbx', { toString: returns('b') }], expected: true },
+    // A `toString` that is no function is skipped, and the stock `valueOf`
+    // answers the object, so JavaScript throws too.
+    { name: 'stringToStringNotAFunction', args: ['a', { toString: 'h' }], expected: throws },
+    // A needle is converted with the `string` hint, which never reaches a
+    // function `valueOf`.
+    { name: 'stringOwnValueOf', args: ['x[object Object]', { valueOf: functionValue }], expected: true },
     { name: 'stringBigintFrom', args: ['abc', 'a', 0n], expected: throws },
 ]
 
@@ -117,6 +129,7 @@ const indexOfCases = [
     { name: 'fromPastTheEnd', args: [[1, 2, 1], 1, 3], expected: -1 },
     { name: 'fromNegativeInfinity', args: [[1], 1, -Infinity], expected: 0 },
     { name: 'emptyBigintFrom', args: [[], 1, 1n], expected: -1 },
+    { name: 'emptyOwnValueOfFrom', args: [[], 1, { valueOf: returns(unreached) }], expected: -1 },
     { name: 'bigintFrom', args: [[1], 1, 1n], expected: throws },
     { name: 'object', args: [{}, 1], expected: throws },
     { name: 'stringFirst', args: ['abcabc', 'bc'], expected: 1 },
@@ -151,6 +164,7 @@ const lastIndexOfCases = [
     { name: 'fromNegativeInfinity', args: [[1], 1, -Infinity], expected: -1 },
     { name: 'fromInfinity', args: [[1], 1, Infinity], expected: 0 },
     { name: 'emptyBigintFrom', args: [[], 1, 1n], expected: -1 },
+    { name: 'emptyOwnValueOfFrom', args: [[], 1, { valueOf: returns(unreached) }], expected: -1 },
     { name: 'bigintFrom', args: [[1], 1, 1n], expected: throws },
     { name: 'stringLast', args: ['abcabc', 'bc'], expected: 4 },
     { name: 'stringFrom', args: ['abcabc', 'bc', 3], expected: 1 },
@@ -186,6 +200,7 @@ const sliceCases = [
     { name: 'nested', args: [[[1], [2]], 1], expected: [[2]] },
     { name: 'bigintStart', args: [[1], 0n], expected: throws },
     { name: 'bigintEnd', args: [[1], 0, 1n], expected: throws },
+    { name: 'ownValueOfStart', args: [[1, 2, 3], { valueOf: returns(1) }], expected: [2, 3] },
     { name: 'stringStart', args: ['abcdef', 2], expected: 'cdef' },
     { name: 'stringFromTheEnd', args: ['abcdef', -3, -1], expected: 'de' },
     { name: 'stringEmptyRange', args: ['abc', 2, 1], expected: '' },
@@ -286,6 +301,11 @@ const joinCases = [
     { name: 'undefinedSeparator', args: [[1, 2], undefined], expected: '1,2' },
     { name: 'separator', args: [[1, 2], '-'], expected: '1-2' },
     { name: 'emptySeparator', args: [[1, 2], ''], expected: '12' },
+    // Fewer than two elements never place the separator, so a function's
+    // text is never read.
+    { name: 'functionSeparatorEmpty', args: [[], functionValue], expected: '' },
+    { name: 'functionSeparatorSingle', args: [[1], functionValue], expected: '1' },
+    { name: 'functionInSeparatorEmpty', args: [[], [functionValue]], expected: '' },
     { name: 'nullSeparator', args: [[1, 2], null], expected: '1null2' },
     { name: 'numberSeparator', args: [[1, 2], 0], expected: '102' },
     { name: 'arraySeparator', args: [[1, 2], [3, 4]], expected: '13,42' },
@@ -295,6 +315,11 @@ const joinCases = [
     { name: 'empty', args: [[], '-'], expected: '' },
     { name: 'one', args: [[1], '-'], expected: '1' },
     { name: 'bigintSeparator', args: [[1, 2], 0n], expected: '102' },
+    // A separator or an element converts through its own `toString`.
+    { name: 'ownToStringSeparator', args: [[0, 2], { toString: returns('-') }], expected: '0-2' },
+    { name: 'ownToStringElement', args: [[{ toString: returns('x') }, 1], ';'], expected: 'x;1' },
+    // The separator converts before any element, even with none to join.
+    { name: 'emptyThrowingSeparator', args: [[], { toString: returns(unreached) }], expected: throws },
 ]
 
 /**
@@ -758,6 +783,9 @@ const splitCases = [
     { name: 'emptySeparator', args: ['abc', ''], expected: ['a', 'b', 'c'] },
     { name: 'limit', args: ['a,b,c', ',', 2], expected: ['a', 'b'] },
     { name: 'limitZero', args: ['a,b', ',', 0], expected: [] },
+    // No piece is cut, so a function separator's text is never read.
+    { name: 'limitZeroFunctionSeparator', args: ['a', functionValue, 0], expected: [] },
+    { name: 'limitZeroFunctionInSeparator', args: ['a', [functionValue], 0], expected: [] },
     { name: 'limitNegativeIsHuge', args: ['a,b', ',', -1], expected: ['a', 'b'] },
     { name: 'emptyLimit', args: ['abc', '', 2], expected: ['a', 'b'] },
     { name: 'undefinedLimitZero', args: ['a', undefined, 0], expected: [] },

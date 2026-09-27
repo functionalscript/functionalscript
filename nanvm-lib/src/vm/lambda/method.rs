@@ -108,9 +108,9 @@ pub(super) fn position<A: IVm>(found: Option<u32>) -> Any<A> {
 /// which answers what the method answers for a number, a boolean, a
 /// bigint, a string, an object and an array — except that a number and a
 /// bigint read a radix (`vm/number/format.rs`, `vm/bigint/radix.rs`). A
-/// function answers the placeholder the conversion answers, not its
-/// source (`member-functions.md`). Every other type's `toString` ignores
-/// its arguments, as JavaScript's does.
+/// function's text is refused, as the conversion refuses it (Stage 3 of
+/// `to-primitive.md`). Every other type's `toString` ignores its
+/// arguments, as JavaScript's does.
 fn to_string<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let radix = match Unpacked::from(receiver.clone()) {
         Unpacked::Number(_) | Unpacked::BigInt(_) => radix(argument(&args, 0))?,
@@ -311,12 +311,15 @@ fn array_join<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>
     let separator = argument(&args, 0);
     let separator = match Unpacked::from(separator.clone()) {
         Unpacked::Nullish(Nullish::Undefined) => ",".into(),
-        // TODO: `ToString` of an object ignores its own `toString`/`valueOf`,
-        // and of a function answers a placeholder, so the separator
-        // `{ toString: () => '-' }` joins with `"[object Object]"`, and the
-        // elements convert the same way. The fix is in the shared
-        // conversion, not here: the `ToPrimitive` task in
-        // `nanvm-lib/todo/member-functions.md`.
+        // Fewer than two elements never place the separator, so it is
+        // converted for its throws alone.
+        _ if a.length() < 2 => {
+            separator.to_string_unused()?;
+            "".into()
+        }
+        // The shared conversion calls an object's own `toString`, and
+        // refuses a function until its text exists: Stage 3 of
+        // `nanvm-lib/todo/to-primitive.md`.
         _ => separator.to_string()?,
     };
     Ok(a.join(separator)?.to_any())
@@ -333,7 +336,10 @@ fn array_last_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, BigInt, IStaticFunction, Nullish, ToAny, ToArray, ToObject},
+        vm::{
+            Any, BigInt, IStaticFunction, Nullish, ToAny, ToArray, ToObject,
+            primitive_coercion::FUNCTION_TEXT,
+        },
     };
 
     type A = Naive;
@@ -399,9 +405,81 @@ mod tests {
             Ok("1,b".into())
         );
         let f: Any<A> = A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array()).to_any();
-        // the conversion's placeholder, not the source text —
-        // `member-functions.md`
-        assert_eq!(to_string(f), Ok("function".into()));
+        // refused: its text is Stage 3 of `nanvm-lib/todo/to-primitive.md`
+        assert_eq!(to_string(f), Err(FUNCTION_TEXT.into()));
+    }
+
+    /// `join` converts its separator and its elements through the shared
+    /// conversion: a separator's own `toString` is called, and a function
+    /// element is refused, not joined as `"function"`.
+    #[test]
+    fn join_converts_through_the_shared_conversion() {
+        // With fewer than two elements a function separator is never read:
+        // `[].join(f)` is `""` and `[1].join(f)` is `"1"`, as in JavaScript.
+        // A separator's own `toString` is still called, for its throws.
+        let g = || A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array()).to_any();
+        let joined = |a: Any<A>| {
+            a.dot("join".into())
+                .end_call(|| Ok([g()].to_array().to_any()))
+        };
+        assert_eq!(joined([].to_array().to_any()), Ok("".into()));
+        assert_eq!(joined([1.0.to_any()].to_array().to_any()), Ok("1".into()));
+        // An array separator converts through its elements, so a function
+        // inside it, however deep, is skipped too.
+        let join_with = |separator: Any<A>| {
+            let empty: Any<A> = [].to_array().to_any();
+            empty
+                .dot("join".into())
+                .end_call(move || Ok([separator.clone()].to_array().to_any()))
+        };
+        assert_eq!(join_with([g()].to_array().to_any()), Ok("".into()));
+        assert_eq!(
+            join_with([[g()].to_array().to_any()].to_array().to_any()),
+            Ok("".into())
+        );
+        let own_inside: Any<A> = [[("toString".into(), g())].to_object().to_any()]
+            .to_array()
+            .to_any();
+        // An element's own `toString` is still called, for its throws.
+        assert_eq!(join_with(own_inside), Ok("".into()));
+        let boom = A::static_function(|_, _| Err("boom".into()), 0, [].to_array()).to_any();
+        let throwing_inside: Any<A> = [[("toString".into(), boom)].to_object().to_any()]
+            .to_array()
+            .to_any();
+        assert_eq!(join_with(throwing_inside), Err("boom".into()));
+        let own: Any<A> = [("toString".into(), g())].to_object().to_any();
+        let empty: Any<A> = [].to_array().to_any();
+        assert_eq!(
+            empty
+                .dot("join".into())
+                .end_call(|| Ok([own].to_array().to_any())),
+            Ok("".into())
+        );
+        let f = || A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array()).to_any();
+        let join = |a: Any<A>, separator: Any<A>| {
+            a.dot("join".into())
+                .end_call(|| Ok([separator].to_array().to_any()))
+        };
+        let separator: Any<A> = [("toString".into(), f())].to_object().to_any();
+        let pair = || [0.0.to_any(), 2.0.to_any()].to_array().to_any();
+        assert_eq!(join(pair(), separator), Ok("012".into()));
+        assert_eq!(
+            join([f()].to_array().to_any(), ",".into()),
+            Err(FUNCTION_TEXT.into())
+        );
+    }
+
+    /// A position that is an object with its own `valueOf` calls it:
+    /// `[0, 1].slice({ valueOf: () => 1 })` is `[1]`.
+    #[test]
+    fn slice_calls_an_own_value_of() {
+        let f: Any<A> = A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array()).to_any();
+        let start: Any<A> = [("valueOf".into(), f)].to_object().to_any();
+        let a: Any<A> = [0.0.to_any(), 1.0.to_any()].to_array().to_any();
+        let sliced = a
+            .dot("slice".into())
+            .end_call(|| Ok([start].to_array().to_any()));
+        assert_eq!(sliced.and_then(to_string), Ok("1".into()));
     }
 
     /// Through a region as well: `a?.toString()`, `(a?.toString)()`, and
