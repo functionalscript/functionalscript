@@ -50,9 +50,13 @@ longer takes.
 export const isThirdParty: (name: string) => boolean
 ```
 
-`allFiles`, `clean`'s `classify` and the website's `ignored` call it, and
-`fjs test` stops walking `target`. That is the whole of the policy fix
-and stands on its own.
+It is a rule about directories — which trees are not entered. Whether
+a dot-*file* is taken stays with each caller, since that is not a
+question about other people's files: test discovery skips one as it
+does today, and the website lists one, `.gitignore` among the root's
+files. `allFiles`, `clean`'s `classify` and the website's `ignored`
+call it for a directory, and `fjs test` stops walking `target`. That is
+the whole of the policy fix and stands on its own.
 
 For the two recursions, one walk under both, taking the same three-way
 `classify` today's `walk` takes — a boolean would not do, since a
@@ -69,11 +73,13 @@ export const walkDirs: (root: string, classify: Classify)
 the website joins onto the record's `path` itself. Today's
 `walk(root, classify)` is then every record's `taken` joined onto its
 `path`, concatenated — a subdirectory classified `take` included, in
-the answer without being entered, as today. The website classifies a
-third-party name `skip`, any other directory `descend` and a file
-`take`, so its record is `taken` as `files` and `descended` as `dirs`
-with no projection at all, sorted as it sorts them now, and its
-`_Walked` type moves beside the export. If the derivation turns out to cost more than the copy, the
+the answer without being entered, as today. The website applies the
+policy where it applies it today, to directories only: a directory
+whose name `isThirdParty` is `skip`, any other directory `descend`, and
+every file `take`, a dot-file included, since the root page lists them
+now and the tree written must not change. Its record is then `taken`
+as `files` and `descended` as `dirs` with no projection at all, sorted
+as it sorts them now, and its `_Walked` type moves beside the export. If the derivation turns out to cost more than the copy, the
 website keeps its walk and shares only the predicate; the policy fix
 does not wait on the walk.
 

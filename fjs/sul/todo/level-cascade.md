@@ -33,13 +33,17 @@ One `cascade` over a fixed list of `StateScan` steps, here or in
 `fjs/types/function/operator` beside `StateScan`:
 
 ```ts
-export const cascade: <I, S>(steps: readonly StateScan<I, S, I | undefined>[])
-    => StateScan<I, readonly S[], I | undefined>
+export const cascade: <I, S extends readonly unknown[]>(
+    steps: { readonly [K in keyof S]: StateScan<I, S[K], I | undefined> })
+    => StateScan<I, S, I | undefined>
 ```
 
-`pipelineStep` is `cascade([l1.encode, l2.encode, l3.encode])`, its
-state the list of the three level states, and the early exits are the
-combinator's.
+The state is a tuple whose arity the step tuple fixes: three steps take
+a three-tuple, which is `PipelineState` as it is declared today, so a
+state of the wrong length is a type error rather than a step handed
+`undefined`, and each step's own state type is kept rather than
+unified. `pipelineStep` is `cascade([l1.encode, l2.encode, l3.encode])`
+over `PipelineState`, and the early exits are the combinator's.
 
 ### Tasks
 

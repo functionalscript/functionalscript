@@ -42,16 +42,20 @@ One function owns the guards:
 fn partial_cmp_bigint_number<A: IVm>(a: &BigInt<A>, b: Number) -> Option<Ordering>
 ```
 
-`Numeric<A>` gets a `partial_cmp` (or `impl PartialOrd`) whose mixed arm
-is that function, reversed for the other operand order, and the four
-operators become `matches!` on `Some(Less)`, `Some(Less | Equal)` and
-their mirrors. `number_lt_bigint` and `bigint_lt_number` go.
+`Numeric<A>` gets an inherent `compare(&self, other: &Self) ->
+Option<Ordering>` whose mixed arm is that function, reversed for the
+other operand order, and the four operators become `matches!` on
+`Some(Less)`, `Some(Less | Equal)` and their mirrors.
+`number_lt_bigint` and `bigint_lt_number` go. It is an inherent method
+and not `impl PartialOrd`: `PartialOrd` must agree with `PartialEq`,
+and `Numeric`'s equality tells `Number(1.0)` from `BigInt(1)` by
+variant where this ordering answers `Equal`, as JavaScript's `<` does.
 
 ### Tasks
 
 - [ ] `partial_cmp_bigint_number` with the NaN and infinity cases tested
       once, both operand orders.
-- [ ] `Numeric` partial ordering; the four operators on it.
+- [ ] `Numeric::compare`; the four operators on it.
 - [ ] `cargo test`, `cargo clippy`, `cargo fmt -- --check`.
 
 ### Related

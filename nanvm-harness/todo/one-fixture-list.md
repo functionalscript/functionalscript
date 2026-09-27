@@ -36,10 +36,15 @@ and the fixture chain is longer than all of them together.
 
 One generator owns the fixtures: an effectful program in
 `fjs/nanvm/harness/module.f.mjs`, beside `fjs/nanvm/update`, in the same
-thin shape. It walks `nanvm-harness/fixtures/` with `fjs/dev`'s `walk`,
-compiles every `.mjs` there to `gen.fixtures/<snake>.rs` through the
-compiler the `compile` command already calls, and writes a fourth output,
-`gen.fixtures/mod.rs`, holding the `pub mod` line for each. `src/lib.rs`
+thin shape. It walks `nanvm-harness/fixtures/` with `fjs/dev`'s
+`walk`, sorts the names it finds with `string.cmp` — `walk` answers in
+`readdir`'s order, which differs between file systems, and a `mod.rs`
+written in that order would fail the drift check with no source
+change; `loadModuleMap` sorts for the same reason — compiles every
+`.mjs` there to `gen.fixtures/<snake>.rs` through the compiler the
+`compile` command already calls, and writes a fourth output,
+`gen.fixtures/mod.rs`, holding the `pub mod` line for each in that
+order. `src/lib.rs`
 keeps a single line:
 
 ```rust
@@ -70,8 +75,8 @@ alternative if the extra output is unwanted.
 ### Tasks
 
 - [ ] `fjs/nanvm/harness/module.f.mjs`: the name rule as a pure export with
-      a proof; a `main` that walks the fixtures, compiles each, and writes
-      `gen.fixtures/mod.rs`.
+      a proof; a `main` that walks the fixtures, sorts them, compiles
+      each, and writes `gen.fixtures/mod.rs`.
 - [ ] `src/lib.rs`: replace the `pub mod` list with the one `#[path]` line.
 - [ ] `package.json`: replace the compile chain with the one `fjs run`.
 - [ ] `npm run gen`, `node --test`, `cargo test`: the committed

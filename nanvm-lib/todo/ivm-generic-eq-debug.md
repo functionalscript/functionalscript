@@ -30,15 +30,18 @@ One owner: `Primitive` and `Numeric` already convert into `Unpacked`, so
 their `PartialEq` and `Debug` are that conversion followed by
 `Unpacked`'s — one small generic helper over `T: Clone + Into<Unpacked<A>>`
 serves both, and the derives that do not work go. The rule — derive
-nothing over `A`; bound `Any<A>` and its wrappers — is written once in
-`nanvm-lib/AGENTS.md`, where `RunError` and the next generic type find
-it.
+nothing over `A`; bound `Any<A>` and its wrappers — is written once
+where both crates read it. `RunError` is `nanvm-harness`'s, and
+`nanvm-lib/AGENTS.md` is scoped to `nanvm-lib/` today, so the rule goes
+into the root `AGENTS.md`'s Rust section, or into `nanvm-lib/AGENTS.md`
+once [document-nanvm-harness](../../nanvm-harness/todo/document-nanvm-harness.md)
+makes that guide workspace-wide.
 
 ### Tasks
 
 - [ ] Replace the two derives with impls through `Unpacked`; a test that
       `Primitive<Naive>` compares and prints.
-- [ ] The rule in `nanvm-lib/AGENTS.md`.
+- [ ] The rule where both crates read it.
 - [ ] `cargo test`, `cargo clippy`, `cargo fmt -- --check`.
 
 ### Related
@@ -47,3 +50,6 @@ it.
   — `PartialEq` on the wrapper newtypes; this is the sum types.
 - [debug-delimited-fmt-helper](./debug-delimited-fmt-helper.md) — the
   container `Debug` loop; independent.
+- [document-nanvm-harness](../../nanvm-harness/todo/document-nanvm-harness.md)
+  — decides which Rust guide covers the harness, and so where this
+  rule lives.
