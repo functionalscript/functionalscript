@@ -4,6 +4,7 @@ mod index;
 mod member_access;
 mod partial_eq;
 mod reads;
+mod search;
 mod sized_index;
 
 pub mod to_string;

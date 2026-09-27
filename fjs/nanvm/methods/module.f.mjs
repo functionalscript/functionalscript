@@ -72,9 +72,8 @@ export const types = [
  */
 export const pending = {
     string: [
-        'concat', 'endsWith', 'includes', 'indexOf', 'lastIndexOf', 'padEnd', 'padStart',
-        'repeat', 'replace', 'replaceAll', 'slice', 'split', 'startsWith', 'substring', 'trim',
-        'trimEnd', 'trimStart',
+        'concat', 'padEnd', 'padStart', 'repeat', 'replace', 'replaceAll', 'slice', 'split',
+        'substring', 'trim', 'trimEnd', 'trimStart',
     ],
     number: ['toExponential', 'toFixed', 'toPrecision'],
 }

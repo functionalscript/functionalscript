@@ -3,17 +3,22 @@
 //! arguments into the typed method it calls, under `vm/string/`. The
 //! contracts are `nanvm-lib/todo/string-member-functions.md`'s.
 
-use super::method::{Method, argument, lookup};
+use super::method::{Method, argument, lookup, position};
 use crate::vm::{Any, Array, IVm, Number, String, ToAny};
 
 /// `String.prototype`'s.
 pub(super) fn string<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
-    let table: [(&str, Method<A>); 6] = [
+    let table: [(&str, Method<A>); 11] = [
         ("at", at),
         ("charAt", char_at),
         ("charCodeAt", char_code_at),
         ("codePointAt", code_point_at),
+        ("endsWith", ends_with),
+        ("includes", includes),
+        ("indexOf", index_of),
         ("isWellFormed", is_well_formed),
+        ("lastIndexOf", last_index_of),
+        ("startsWith", starts_with),
         ("toWellFormed", to_well_formed),
     ];
     lookup(table, key)
@@ -50,4 +55,29 @@ fn is_well_formed<A: IVm>(s: Any<A>, _: Array<A>) -> Result<Any<A>, Any<A>> {
 
 fn to_well_formed<A: IVm>(s: Any<A>, _: Array<A>) -> Result<Any<A>, Any<A>> {
     Ok(receiver(s)?.to_well_formed().to_any())
+}
+
+fn includes<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let found = receiver(s)?.includes(argument(&args, 0), argument(&args, 1))?;
+    Ok(found.to_any())
+}
+
+fn index_of<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let found = receiver(s)?.index_of(argument(&args, 0), argument(&args, 1))?;
+    Ok(position(found))
+}
+
+fn last_index_of<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let found = receiver(s)?.last_index_of(argument(&args, 0), argument(&args, 1))?;
+    Ok(position(found))
+}
+
+fn starts_with<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let found = receiver(s)?.starts_with(argument(&args, 0), argument(&args, 1))?;
+    Ok(found.to_any())
+}
+
+fn ends_with<A: IVm>(s: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let found = receiver(s)?.ends_with(argument(&args, 0), argument(&args, 1))?;
+    Ok(found.to_any())
 }
