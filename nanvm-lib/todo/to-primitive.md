@@ -73,14 +73,20 @@ The object rule is one change in `primitive_coercion.rs`, which every caller
 inherits. The function rule also needs the callers that can answer without
 the text: `ToNumber`, `ToNumeric` and the relational operators, below.
 
-**An object with an own `toString`, or an own `valueOf` that is a function,
-is refused.** The refusal is a `TypeError` that names the cause, whatever the
-hint and whichever caller asked. A plain object is unchanged. The rule is
-exactly the inputs the VM answers wrongly today, and no others:
+**An object with an own `toString` is refused, and so is one with an own
+`valueOf` that is a function, wherever the hint reaches it.** The refusal is
+a `TypeError` that names the cause, whichever caller asked. A plain object is
+unchanged. The rule is exactly the inputs the VM answers wrongly today, and
+no others:
 
-- An own `toString` or `valueOf` that is a function is called by JavaScript.
-  Stage 1 cannot call it yet, so it refuses rather than answer
-  `"[object Object]"`.
+- An own `toString` or `valueOf` that is a function is called by JavaScript,
+  when the hint reaches it. Stage 1 cannot call it yet, so it refuses rather
+  than answer `"[object Object]"`.
+- The `string` hint tries `toString` first, and the stock one answers
+  `"[object Object]"`, so it never reaches `valueOf`: `String({ valueOf: f })`
+  is `"[object Object]"` in JavaScript and in the VM, and is not refused. The
+  `number` hint, and no hint, try `valueOf` first: `+{ valueOf: f }` is
+  refused.
 - An own `toString` that is not a function is skipped. The stock `valueOf`
   then answers the object, and JavaScript throws a `TypeError` for both hints:
   `String({ toString: "h" })`. The refusal matches this exactly.
@@ -201,9 +207,9 @@ needs its own issue, and it lands with or after Stage 1.
 
 ### Tasks
 
-- [ ] Stage 1: refuse an object with an own `toString` or a function
-      `valueOf`, and a function wherever its text is observable, keeping every
-      text-independent result. Unit tests per row, corpus cases with a `rust`
+- [ ] Stage 1: refuse an object with an own `toString`, or a function
+      `valueOf` the hint reaches, and a function wherever its text is
+      observable, keeping every text-independent result. Unit tests per row, corpus cases with a `rust`
       reason, and the `toSorted` guard's test. Replace the `// TODO:` in
       `array_join` (#2321) and `vm/string/search.rs` (#2328) with a pointer
       to Stage 2.
