@@ -101,6 +101,11 @@ export type _RequestBodyCursor = {
      * The chunks not yet handed out, oldest first. A fixture chunk of no bytes
      * is never handed out — a pull steps over it, and drops it from here with
      * the pull that did, so nothing left here is waiting to be read.
+     *
+     * **A chunk the stream refuses is not dropped**, so the head of this stays
+     * the chunk a listener's retry meets again. `readChunks` refuses one that is
+     * not whole bytes, and dropping it let the retry read the bytes behind it
+     * instead ([`./module.f.mjs`](./module.f.mjs), `readRequestBytes`).
      */
     readonly rest: readonly Vec[]
     /** The byte offset the next pull must name. */

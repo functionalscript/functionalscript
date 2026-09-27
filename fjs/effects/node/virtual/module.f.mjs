@@ -17,7 +17,7 @@ import { assert, todo } from '../../../asserts/module.f.mjs'
 import { isProperPrefix, join, normalize, parse } from '../../../path/module.f.mjs'
 import { resolve as resolveImportPath } from '../../../path/import/module.f.mjs'
 import { utf8ToString } from '../../../text/module.f.mjs'
-import { byteLength, empty, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
+import { byteLength, empty, isWholeBytes, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok, unwrap } from '../../../types/result/module.f.mjs'
 import {
     badPortCode, badPortMessage, emptyHost, emptyHostError, ioError, isPort, nodeCommands, notAFileCode,
@@ -804,6 +804,18 @@ const fromFirstWithBits = rest => {
  * which is why a pull answers from the first chunk that has bits rather than
  * from the next one in the fixture.
  *
+ * **A chunk the stream will not take stays where it is.** `readChunks` refuses
+ * one that is not whole bytes ([`../module.f.mjs`](../module.f.mjs)) and says
+ * how many bits it had, and a listener may catch that refusal and pull the same
+ * cell again. Handed out and dropped, such a chunk left the cursor moved while
+ * its nought bytes left the offset alone, so the retry named an offset that
+ * still matched and was answered with the bytes *after* it — the body the
+ * listener asked for, in order, one bit short, and nothing to say so. So the
+ * chunk is handed out without being consumed: nothing advances, and the retry
+ * meets the same refusal in the same words. The offset refusal above is not
+ * sticky in that way and must not be — it belongs to the pull that named the
+ * wrong offset, not to the body.
+ *
  * The handle is the cursor's place in {@link State.bodies} — see
  * {@link _RequestBodyCursor} for why the position is in the state and not
  * behind the handle.
@@ -816,11 +828,14 @@ const readRequestBytes = (body, offset, _size) => state => {
     if (offset !== cursor.offset) {
         return [state, error(ioError({ message: requestBodyOffsetMessage(offset, cursor.offset) }))]
     }
-    const [first, ...rest] = fromFirstWithBits(cursor.rest)
+    const kept = fromFirstWithBits(cursor.rest)
+    const [first, ...rest] = kept
     /** @type {_RequestBodyCursor} */
     const next = first === undefined
         ? { rest: [], offset }
-        : { rest, offset: offset + Number(byteLength(first)) }
+        : isWholeBytes(first)
+            ? { rest, offset: offset + Number(byteLength(first)) }
+            : { rest: kept, offset }
     /** @type {State} */
     const moved = { ...state, bodies: state.bodies.map((c, i) => i === index ? next : c) }
     return [moved, first === undefined ? ok(empty) : ok(first)]

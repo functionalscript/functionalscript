@@ -12,7 +12,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { both, resolveFileModule, access, awaitIfPromise, exec, fetch, log, rm, rmdir, writeFile, readFile, readdir, import_, rename, readBytes, readRequestBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, errorMessage, forever, listen, readWhole, notAFileCode, notAFileMessage, requestBodyOffsetMessage, mkdir } from '../module.f.mjs'
 import { empty, length, maxLengthBytes, msb, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
-import { history, historyStep, pureOk, resultMapStep, step } from '../../module.f.mjs'
+import { history, historyStep, pureOk, resultMapStep, resultStep, step } from '../../module.f.mjs'
 import { ok } from '../../../types/result/module.f.mjs'
 import { asNominal as asNominalHandle } from '../../../types/nominal/module.f.mjs'
 import { byteLength, repeat, u8ListMsb } from '../../../types/bit_vec/module.f.mjs'
@@ -74,6 +74,16 @@ const answered = (listener, body) => {
  * @type {(r: ServerResponse) => string}
  */
 const responseText = r => utf8ToString(r.body.reduce((v, chunk) => msb.concat(v)(chunk), empty))
+
+/**
+ * What one pull of a body cell answered: the bytes it took, the end of the
+ * stream, or the refusal it met.
+ *
+ * @type {(one: Result<Next<ReadRequestBytes, Vec, IoChannel>, IoChannel>) => string}
+ */
+const pulled = one => one[0] === 'error'
+    ? errorMessage(one[1])
+    : one[1] === undefined ? 'end' : `ok ${byteLength(one[1].first)}`
 
 /**
  * Asserts that a channel error is a host failure carrying `code` — the
@@ -1325,10 +1335,6 @@ export const proof = {
         // answer this the same way — and the pair is here so that neither runner
         // can drift from the other on it.
         refusesAConcurrentPull: () => {
-            /** @type {(one: Result<Next<ReadRequestBytes, Vec, IoChannel>, IoChannel>) => string} */
-            const pulled = one => one[0] === 'error'
-                ? errorMessage(one[1])
-                : one[1] === undefined ? 'end' : `ok ${byteLength(one[1].first)}`
             /** @type {RequestListener<ReadRequestBytes | All>} */
             const together = ({ body }) => resultMapStep(
                 both(body)(body),
@@ -1398,6 +1404,44 @@ export const proof = {
             const [, r] = answered(echoBody, [vec(1n)(1n)])
             assertEq(r.status, 500)
             assertEq(responseText(r), 'chunk at 0 is 1 bits, not whole bytes')
+        },
+        // **And it goes on refusing it.** A refusal a listener catches is a
+        // refusal it may pull again — a `List`'s tail is a value, and nothing
+        // says a consumer that met an error stops. The chunk the stream would
+        // not take has to still be there when it does: handed out and dropped,
+        // the cursor moved while the offset did not, so the retry named an
+        // offset that still matched and was answered with the bytes *after* the
+        // refused chunk. The listener then had the body it asked for, in order
+        // and under a correct length, with one bit of it missing and nothing to
+        // say so — DESIGN §10's plausible wrong value, reached through the door
+        // the refusal opened.
+        //
+        // **Whatever the refused chunk's byte count is.** One bit is the silent
+        // case, because `bytesIn` rounds it to nought and the offset the retry
+        // named still matched. Nine bits is one byte and a bit, so dropping it
+        // *did* move the offset and the retry met the offset refusal instead —
+        // the right answer for the wrong reason, and a cursor that advances on
+        // any chunk the stream rejects is what both cases are about.
+        refusesARetryAfterARefusedChunk: () => {
+            /** @type {RequestListener<ReadRequestBytes>} */
+            const retry = ({ body }) => resultStep(body, one => resultMapStep(
+                // The same `body` twice: the first pull is refused, and the
+                // second is the listener trying it again.
+                body,
+                two => ok({ status: 500, headers: {}, body: [utf8(`${pulled(one)} | ${pulled(two)}`)] })))
+            /** @type {(bits: bigint) => void} */
+            const refusedTwice = bits => {
+                const refusal = `chunk at 0 is ${bits} bits, not whole bytes`
+                const [s, r] = answered(retry, [vec(bits)(1n), utf8('b')])
+                assertEq(responseText(r), `${refusal} | ${refusal}`)
+                // And the body is where it was: the refused chunk is still the
+                // next one to hand out, so no pull gets past it.
+                const [cursor] = s.bodies
+                assertEq(cursor.rest.length, 2)
+                assertEq(cursor.offset, 0)
+            }
+            refusedTwice(1n)
+            refusedTwice(9n)
         },
         // A handle for a body no `listen` handed out is not a value pure code
         // can build — `RequestBody` is a `Nominal` — so the only way to ask is
