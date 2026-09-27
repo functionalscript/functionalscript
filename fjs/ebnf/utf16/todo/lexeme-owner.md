@@ -44,9 +44,21 @@ assertion `unitAt` makes at every leaf, because the types cannot
 carry it: a caller such as `numberOf` holds a `Children<typeof number,
 Utf16, Out<P>>`, whose output alphabet is the parser's whole `Out<P>`,
 so no call site can produce an `Ast<R, Utf16, never>` without a cast,
-and a type that no caller can satisfy is not a contract. The
-assertion is one, and it moves here with the function: a mapped leaf
-is refused, never answered with text it does not have. `tryLexeme`,
+and a type that no caller can satisfy is not a contract. The assertion is one, and it moves here with the function: a mapped
+leaf is refused, never answered with text it does not have.
+
+The assertion tells a leaf by its `meta.id`, so it holds only where no
+output alphabet reuses the id `utf16`. That is not a new requirement
+of this function but the convention every mapping already depends on:
+`Meta`'s doc in `fjs/ebnf/ast/types.ts` says an alphabet's meta
+carries an `id` naming that alphabet so a position typed
+`Meta<I> | Meta<O>` can be told apart, and an output alphabet whose id
+were `utf16` would break that for its own mapping before it ever
+reached `lexeme`. The parsers' output alphabets carry their own ids —
+`text`, `json` — and this module's doc states the reservation: `utf16`
+names input symbols and nothing else. A leaf with that id is therefore
+an input symbol by convention, and the assertion is a check of the
+convention, not a substitute for it. `tryLexeme`,
 answering `null` instead, is the form for a caller that cannot
 guarantee its subtree; none exists today, so it is not proposed. The JSON, DataJS and markdown parsers import it; `syntaxError`
 may follow if it proves alphabet-level too.
