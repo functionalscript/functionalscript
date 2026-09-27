@@ -109,6 +109,29 @@ export const proof = {
         recursive: draws(nested, ['sequence', [t('('), ['choice', [skip, ['nonTerminal', 'root']]], t(')')]]),
         // Each titled rule gets its diagram, in the order given, and every
         // other diagram reaches it as a box.
+        // Every reference to a titled rule is its box, so neither literal
+        // compaction nor loop folding reaches past a title: a titled
+        // letter twice is two boxes, not `aa`; a titled repeat after its
+        // item is its box, not a loop; and a titled `, item` pair stays
+        // the box the loop repeats.
+        literal: () => {
+            const letter = set('a')
+            const [ruleSet, entry, names] = toData([letter, letter])
+            const [[, root]] = toDiagrams(ruleSet)([['root', entry], ['letter', assertNotNullish(names.get(letter))]])
+            assertStructurallySame(root, ['sequence', [['nonTerminal', 'letter'], ['nonTerminal', 'letter']]])
+        },
+        repeat: () => {
+            const many = repeatFrom0(digit)
+            const [ruleSet, entry, names] = toData([digit, many])
+            const [[, root]] = toDiagrams(ruleSet)([['root', entry], ['many', assertNotNullish(names.get(many))]])
+            assertStructurallySame(root, ['sequence', [t('0 … 9'), ['nonTerminal', 'many']]])
+        },
+        separator: () => {
+            const pair = [',', digit]
+            const [ruleSet, entry, names] = toData([digit, repeatFrom0(pair)])
+            const [[, root]] = toDiagrams(ruleSet)([['root', entry], ['pair', assertNotNullish(names.get(pair))]])
+            assertStructurallySame(root, ['sequence', [t('0 … 9'), ['choice', [skip, loop(['nonTerminal', 'pair'])]]]])
+        },
         several: () => {
             const [ruleSet, entry, names] = toData([digit, digit])
             assertStructurallySame(

@@ -142,28 +142,32 @@ export const toDiagrams = ruleSet => titled => {
     /**
      * The printable symbol a rule is, if it is a set of exactly one: one
      * run, so two boundaries, one symbol apart. A set of more runs is not
-     * its first run, and is drawn as the choice it is.
+     * its first run, and is drawn as the choice it is. A titled set is a
+     * reference, drawn as its box, never folded into a literal.
      *
      * @type {(name: string) => string | null}
      */
     const printable = name => {
         const rule = ruleSet[name]
         const [tag, first, end] = rule
-        return tag === 'set' && rule.length === 3 && end === first + 1 && first > 0x20 && first < 0x7f
+        return !titles.has(name) && tag === 'set' && rule.length === 3 && end === first + 1 && first > 0x20 && first < 0x7f
             ? String.fromCodePoint(first)
             : null
     }
     /**
      * What `b` separates copies of `a` with, if `b` is a repeat of `a`, or
-     * of `separator, a`, that may run any number of times.
+     * of `separator, a`, that may run any number of times. A titled repeat,
+     * or a titled `separator, a`, is a reference to its own diagram, so it
+     * is drawn as its box rather than folded into a loop.
      *
      * @type {(path: ReadonlySet<string>) => (a: string, b: string) => Diagram | null}
      */
     const separatorOf = path => (a, b) => {
         const r = ruleSet[b]
-        if (r[0] !== 'repeat' || r[1] !== 0 || r[2] !== Infinity) { return null }
+        if (titles.has(b) || r[0] !== 'repeat' || r[1] !== 0 || r[2] !== Infinity) { return null }
         const item = r[3]
         if (item === a) { return skip }
+        if (titles.has(item)) { return null }
         const [tag, separator, again] = ruleSet[item]
         return tag === 'sequence' && again === a && ruleSet[item].length === 3 ? ref(path)(separator) : null
     }
