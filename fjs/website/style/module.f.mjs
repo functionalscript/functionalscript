@@ -148,10 +148,15 @@ li[data-status="passed"] { color: var(--muted) }
    so Run was Arial at 13.33px on a page set in monospace at 16px. Inheriting
    is what makes "one face" true of the whole page rather than of its text.
 
-   Every control, not only the ones the site has today: a demo's field is an
-   input, and it was Arial the moment the first demo landed. A list that has to
-   be extended for each new control is a rule that is wrong between the element
-   arriving and somebody noticing. */
+   The selector names elements one by one, so it covers only what it names.
+   It names every element a browser gives a face of its own, not only the ones
+   the site uses: a demo's field is an input, and it was Arial the moment the
+   first demo landed; a select, missing here, was Arial when the first examples
+   drop-down landed. Those are the four form controls — button, input, select,
+   textarea, with an option or optgroup taking its select's font — plus pre.
+   Every other form element — output, fieldset, legend, meter, progress —
+   already inherits the page's font, as a label does. An element a browser
+   starts giving its own face has to be added here. */
 button, input, select, textarea, pre { font: inherit }
 pre { white-space: pre-wrap }
 /* A textarea's own baseline sits at its bottom edge, so a label before a
