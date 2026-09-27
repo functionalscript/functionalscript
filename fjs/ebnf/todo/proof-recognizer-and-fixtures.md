@@ -68,7 +68,7 @@ takes them from `fjs/text/utf16` — input decoding, not what
 ### Tasks
 
 - [ ] Measure: which proofs under `fjs/ebnf`, `fjs/js`, `fjs/media` and
-      `fjs/fsc` spell the whole-input question, and whether the JSON corpus
+      `fjs/compiler` spell the whole-input question, and whether the JSON corpus
       has a second consumer. If the answer is one and none, close this.
 - [ ] Add `Case`, `Recognition`, `assertRecognizes` and `ll1Recognizer` to
       [`../testlib.f.mjs`](../testlib.f.mjs), with the proof coverage a
@@ -86,5 +86,5 @@ takes them from `fjs/text/utf16` — input decoding, not what
   for another module's proofs.
 - [65Y-proof-assertEq-adoption](../../emergent_testing/todo/65y-proof-asserteq-adoption.md)
   — orthogonal assertion cleanup.
-- [the DJS parser](../../fsc/parser/README.md) — its token-symbol alphabet
+- [the DJS parser](../../compiler/parser/README.md) — its token-symbol alphabet
   needs its own recognizer adapter, but can share `Case` / `assertRecognizes`.

@@ -206,7 +206,7 @@ separate language; its function-introspection and identity sketches do not
 approve FJS APIs. This correction selects no `String(f)`, frame or `self` strategy.
 
 An AST-less recognizer remains valid. The
-[statement-aware instruction requirement](../../fsc/parser/todo/statement-aware-intrinsics.md)
+[statement-aware instruction requirement](../../compiler/parser/todo/statement-aware-intrinsics.md)
 governs admitting FJS instructions during source-to-EDAG compilation; an
 accept/reject grammar recognizer neither performs nor replaces that admission.
 

@@ -79,10 +79,10 @@ each such literal.
 
 #### Module resolution — current implementation, rule 2
 
-[Module-resolution compatibility](../fjs/fsc/todo/module-resolution-compatibility.md)
+[Module-resolution compatibility](../fjs/compiler/todo/module-resolution-compatibility.md)
 owns the escaped-filename reproducer, shared resolution contract and regression
 work. Source specifiers, resolved module identities and filesystem locations
-must not be conflated. The concrete compiler task is co-located with `fjs/fsc`,
+must not be conflated. The concrete compiler task is co-located with `fjs/compiler`,
 not duplicated here.
 
 #### Expression grammar — corrected, rule 1
@@ -94,7 +94,7 @@ admitted a unary expression to the left of exponentiation,
 instead, and its `c1d7166` refuses `**` immediately after a `-`/`~` operand
 at any nesting through the grammar's `unaryOperand`, as ECMAScript's
 [exponentiation](https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#sec-exp-operator)
-does; `fjs/fsc/parser/proof.f.mjs` holds the refusals and the valid
+does; `fjs/compiler/parser/proof.f.mjs` holds the refusals and the valid
 `(-2) ** 2` and `-(2 ** 2)`. What is left is the comparison against a native
 JavaScript engine's early errors, and extending that gate to the
 logical/nullish operators and parameter syntax, which have since landed. The
@@ -140,7 +140,7 @@ admit otherwise-prohibited operations only inside its complete matched subtree;
 parsing that syntax does not expose the descriptor or the global namespace as
 an ordinary FJS value.
 
-[Statement-aware intrinsics](../fjs/fsc/parser/todo/statement-aware-intrinsics.md)
+[Statement-aware intrinsics](../fjs/compiler/parser/todo/statement-aware-intrinsics.md)
 owns this boundary and the planned JavaScript statement/ASI work. Optional
 semicolons are a syntax expansion, not a substitute for AST matching. Requiring
 semicolons today is not itself a compatibility defect.
@@ -168,7 +168,7 @@ consumer of that output sees different text, as adopted. The function's
 correction below.
 
 [Function text and serialization](../spec/todo/serialization.md#function-text-and-serialization)
-owns the three open questions: whether the FSC function serializer and `String`
+owns the three open questions: whether the compiler's function serializer and `String`
 are the same function, whether `String` instantiates a frame (the owner's
 preference is substituting captured values), and how each handles `self`.
 No exact spelling or closure/self strategy is selected by this exception.
@@ -180,7 +180,7 @@ superseded; implementing the chosen rendering contract remains work.
 A compatibility issue exists only where the same program returns different
 serializable data on an FJS VM and a JavaScript engine
 ([principles](../spec/README.md#principles)). What a JavaScript engine
-reports about `fsc`'s *written* output is the writer's spelling, not a
+reports about the compiler's *written* output is the writer's spelling, not a
 result of the program, so the `.js` writer's names — a hoisted function
 bound as `$0`, an inlined one taking the name of the position it is written
 in — are no compatibility question, and neither is the function text the
@@ -298,7 +298,7 @@ randomness and external mutation.
       FJS/native-ESM escaped-filename regression.
 - [x] **P1:** refuse a source that is not correct UTF-8 rather than decode
       it to a value Node does not give (`readSource` in
-      [`fjs/fsc/transpiler`](../fjs/fsc/transpiler/module.f.mjs)).
+      [`fjs/compiler/transpiler`](../fjs/compiler/transpiler/module.f.mjs)).
 - [x] **P1:** refuse a `toString` radix in `nanvm-lib` rather than answer in
       radix ten, until the radix is implemented
       ([member functions](../nanvm-lib/todo/member-functions.md)).
@@ -345,7 +345,7 @@ hardening every resource limit before making progress.
 
 - [Language principles](../spec/README.md#principles) — authoritative contract.
 - [Execution models](../fjs/edag/execution-models.md) — explicit profiles.
-- [Compile modules to EDAG](../fjs/fsc/todo/compile-modules-to-edag.md) —
+- [Compile modules to EDAG](../fjs/compiler/todo/compile-modules-to-edag.md) —
   lowering and linking, subject to the gates at every stage.
-- [Interpreter resources](../fjs/fsc/todo/bound-edag-interpreter-resources.md)
+- [Interpreter resources](../fjs/compiler/todo/bound-edag-interpreter-resources.md)
   — operational budgets, not distinguishable language-level failures.

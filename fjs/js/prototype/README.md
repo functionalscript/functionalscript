@@ -4,7 +4,7 @@ The names JavaScript finds on a built-in prototype, and what a
 FunctionalScript module may do with each. [`module.f.mjs`](./module.f.mjs)
 holds the lists — `prototypeNames`, the union of the seven prototypes, and
 its partition into `prohibitedCalls` and `allowedCalls` — and the compiler
-([`fjs/fsc/parser`](../../fsc/parser/module.f.mjs)) applies them; this table
+([`fjs/compiler/parser`](../../compiler/parser/module.f.mjs)) applies them; this table
 is the same data with the reason for each row.
 
 Two rules, both by name alone, since the receiver's type is unknown at

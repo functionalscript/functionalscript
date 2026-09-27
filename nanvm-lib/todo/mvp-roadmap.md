@@ -104,7 +104,7 @@ repository migration, complete, moved authored `.ts` / `.f.ts` to `.mjs` /
 the compiled source marker. Once authored `.f.js` package support is complete,
 compiler-supported `.f.mjs` modules may move to authored `.f.js`; `.f.js` is the
 repository compiler-compatibility marker. The extension contract and migration
-strategy are documented in [`fjs/fsc/README.md`](../../fjs/fsc/README.md).
+strategy are documented in [`fjs/compiler/README.md`](../../fjs/compiler/README.md).
 
 Impure runner modules, authored as `.mjs`, remain outside the FJS compiler. A
 native build therefore still needs a hand-written Rust twin interpreting the
@@ -285,7 +285,7 @@ tracked in [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md#tasks).
       Current status: [operator tables in `nanvm-lib/README.md`](../README.md).
       Spec: [operators](../../spec/todo/2340-operators.md).
 - [x] **LL(1) parser foundation** —
-      [`fjs/fsc/parser`](../../fjs/fsc/parser/README.md) uses
+      [`fjs/compiler/parser`](../../fjs/compiler/parser/README.md) uses
       [`fjs/ebnf/ll1`](../../fjs/ebnf/ll1/README.md) and implements the
       source subset used by the walking skeleton. This does not mark the
       full language grammar complete. Named-import parsing is also
@@ -369,7 +369,7 @@ compiler-compatibility migration rather than a separate rewrite.
 4. **Embedded EDAG or a lookup effect.** The invariant above makes a natively
    compiled function carry its `Any` code description, and
    [callable-function-objects](./callable-function-objects.md) Stage 7 embeds
-   it. [associate-edag-with-functions](../../fjs/fsc/todo/associate-edag-with-functions.md)
+   it. [associate-edag-with-functions](../../fjs/compiler/todo/associate-edag-with-functions.md)
    says the opposite: do not embed the EDAG into the function merely to
    support lookup, and let `edagAdd` / `edagGet` effects keep the
    association outside the function value. Which one the runtime follows —
@@ -380,7 +380,7 @@ compiler-compatibility migration rather than a separate rewrite.
 - [`spec/README.md`](../../spec/README.md) — the language spec;
   [`spec/todo/serialization.md`](../../spec/todo/serialization.md) records the
   EDAG-as-data decision and the two execution paths.
-- [`fjs/fsc/README.md`](../../fjs/fsc/README.md) — source extension contract
+- [`fjs/compiler/README.md`](../../fjs/compiler/README.md) — source extension contract
   and incremental repository migration.
 - [`fjs/edag`](../../fjs/edag/README.md) — the schema (RTTI) of the
   code-describing `Any`; the `Function` constructor contract. Its Rust side is

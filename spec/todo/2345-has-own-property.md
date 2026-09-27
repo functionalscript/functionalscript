@@ -63,7 +63,7 @@ The prohibition of `Object.hasOwn` does not depend on this remaining API choice.
 
 ## Recognition and execution
 
-Follow [statement-aware AST recognition](../../fjs/fsc/parser/todo/statement-aware-intrinsics.md).
+Follow [statement-aware AST recognition](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md).
 The parser produces a JavaScript-subset AST, not an already-valid FJS program.
 AST-to-EDAG compilation resolves bindings, checks visibility and early errors,
 then admits only complete approved patterns and supported computations. The

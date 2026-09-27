@@ -16,7 +16,7 @@ source pattern and the `Object.hasOwn`-based alternative. `Object.hasOwn`
 and `obj.hasOwnProperty(...)` are prohibited source operations, not operations
 to reinterpret. [Enumerable presence](./2345-has-own-property.md) proposes a
 separate `hasEntity` pattern. All such instructions follow
-[statement-aware AST recognition](../../fjs/fsc/parser/todo/statement-aware-intrinsics.md).
+[statement-aware AST recognition](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md).
 
 Syntax examples (planned computed/runtime-key forms included):
 

@@ -62,7 +62,7 @@ The [named-imports fixture](../nanvm-harness/fixtures/named-imports.mjs)
 compiles this pattern to Rust. Its cargo test has the harness's `run` select
 `main` and call it with no arguments, and checks `42`, matching native
 JavaScript and both JavaScript EDAG evaluators (`namedImports.acceptance` in
-[`fjs/fsc/edag/proof.f.mjs`](../fjs/fsc/edag/proof.f.mjs), on its own copy of
+[`fjs/compiler/edag/proof.f.mjs`](../fjs/compiler/edag/proof.f.mjs), on its own copy of
 the sources). The harness has no CLI; its
 [`main`](../nanvm-harness/src/main.rs) says why. Source round trips cover the
 serializer's admitted expressions; calls and arithmetic are still refused by
@@ -81,7 +81,7 @@ prerequisite below.
 Stage 1 — removing authored TypeScript — is complete and is no longer a
 blocker. It was tracked in `todo/migrate-typescript-to-mjs.md`, deleted once
 finished; the extension contract it established lives in
-[`fjs/fsc/README.md`](../fjs/fsc/README.md), which also records what stage 1
+[`fjs/compiler/README.md`](../fjs/compiler/README.md), which also records what stage 1
 removed along the way — the TypeScript-to-JavaScript emit path
 ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)) and
 the blanket `**/*.js` ignore
@@ -110,13 +110,13 @@ it to `.f.js`, update runtime and type references plus callers, and keep it as a
 permanent end-to-end compiler regression input. Unsupported FunctionalScript
 modules remain `.f.mjs` until the required compiler features land.
 
-See [`fjs/fsc/README.md`](../fjs/fsc/README.md) for the authoritative extension
+See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
 ### CLI: an output target, not a command group (decided)
 
 `fjs compile <input> <output>` already dispatches on the output extension
-(`.json` vs. DJS — see [`fjs/fsc/module.f.mjs`](../fjs/fsc/module.f.mjs)). Rust
+(`.json` vs. DJS — see [`fjs/compiler/module.f.mjs`](../fjs/compiler/module.f.mjs)). Rust
 code generation is a third branch, selected by the `.rs` extension:
 
 - `fjs compile <module> <output>.rs` — parse + compile into a generated Rust
@@ -139,7 +139,7 @@ via the `Function` constructor — no rustc at the user's run time.
       `pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>`), not a `main`.
       The original literal/container walking skeleton has grown to include
       operators, calls and capturing functions; current coverage lives in
-      the [parser](../fjs/fsc/parser/README.md),
+      the [parser](../fjs/compiler/parser/README.md),
       [shared Rust printer](../fjs/edag/rust/module.f.mjs) and
       [harness fixtures](../nanvm-harness/fixtures).
 - [x] Create the harness: a crate (`nanvm-harness`) with a thin `main` that
@@ -160,7 +160,7 @@ via the `Function` constructor — no rustc at the user's run time.
       through it. The selection is exposed as the harness API only; a CLI
       waits for a use ([`main.rs`](../nanvm-harness/src/main.rs)).
 - [x] Inline source dependencies into one generated Rust output.
-      `rustText` in the [compiler](../fjs/fsc/module.f.mjs) resolves the complete
+      `rustText` in the [compiler](../fjs/compiler/module.f.mjs) resolves the complete
       graph before calling `toRust`; source imports do not become separate
       Rust modules. The harness includes each generated fixture via `#[path]`
       as its own embedding choice.
@@ -188,7 +188,7 @@ via the `Function` constructor — no rustc at the user's run time.
 
 - [package support for authored `.f.js`](../fjs/ci/todo/f-js-package-support.md)
   — **blocked-by prerequisite** before the first stage-2 rename.
-- [`fjs/fsc/README.md`](../fjs/fsc/README.md) — the extension contract, and the
+- [`fjs/compiler/README.md`](../fjs/compiler/README.md) — the extension contract, and the
   stage-1/stage-2 boundary this migration starts from.
 - [nanvm-lib/todo/mvp-roadmap.md](../nanvm-lib/todo/mvp-roadmap.md) — the
   design decided around the MVP pipeline and the post-MVP tasks; this file

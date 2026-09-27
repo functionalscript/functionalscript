@@ -18,7 +18,7 @@ two of them export it:
 - [`fjs/fsm`](../../../fsm/module.f.mjs) binds it inside `mergeOp`.
 
 Two more places spell it out by hand over arrays instead:
-[`fjs/fsc/parser`](../../../fsc/parser/module.f.mjs)'s `sameRef`, and the
+[`fjs/compiler/parser`](../../../compiler/parser/module.f.mjs)'s `sameRef`, and the
 `same` helper in `fjs/git/packstore/proof.f.mjs`, both
 `a.length === b.length && a.every(…)`.
 
@@ -40,7 +40,7 @@ is a breaking change to declare.
 
 - [ ] Export the strict element-wise equality from `fjs/types/list`, with a
       proof.
-- [ ] `fjs/fsc/parser`'s `sameRef` and `fjs/git/packstore`'s proof `same`
+- [ ] `fjs/compiler/parser`'s `sameRef` and `fjs/git/packstore`'s proof `same`
       through it; `fjs/fsm` and the two exports in terms of it.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 

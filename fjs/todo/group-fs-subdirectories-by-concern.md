@@ -23,7 +23,7 @@ Two things remain.
 **Later candidates.** A storage bucket for `cas` + `sul`, and a testing bucket
 for `asserts` + `emergent_testing`. There is no `fjs/grammar/` bucket: the
 migration that built [`fjs/ebnf/`](../ebnf/README.md) put the grammar machinery
-inside it, and its README settles that `fsc` and `js` stay out as consumers.
+inside it, and its README settles that `compiler` and `js` stay out as consumers.
 
 **The first `exports` map.** `deno.json` has no `exports` map today, so
 nothing restricts which modules a consumer can reach. When a map is first

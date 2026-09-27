@@ -464,7 +464,7 @@ operation. The [`parameters` harness fixture](../../nanvm-harness/fixtures/param
 and its [generated Rust](../../nanvm-harness/gen.fixtures/parameters.rs) cover
 omitted, explicit `undefined` and extra arguments, captured fixed/rest values,
 and repeated versus distinct-call rest identity. The
-[Rust module proofs](../../fjs/fsc/rust/proof.f.mjs) cover binding refusals,
+[Rust module proofs](../../fjs/compiler/rust/proof.f.mjs) cover binding refusals,
 the largest valid length, 16, and the refusal of 17.
 The remaining migration and regression work stays open in the checklist;
 this implementation does not complete the default-text renderer.
@@ -485,7 +485,7 @@ schema and its Rust side,
 [rust-schema-codegen](../../fjs/edag/todo/rust-schema-codegen.md). Once it
 is, the VM's own
 function object carries it (or an out-of-band association, per
-[associate-edag-with-functions](../../fjs/fsc/todo/associate-edag-with-functions.md)'s
+[associate-edag-with-functions](../../fjs/compiler/todo/associate-edag-with-functions.md)'s
 Effect-based alternative if that is the direction chosen) to carry it, for
 every `Function<A>` this plan's stages produce — including capturing
 closures, which is exactly the "open problem" that document flags as
@@ -519,7 +519,7 @@ generated-Rust test from one source of cases.
    can be deferred — [optimal-nanvm](./optimal-nanvm.md)'s NaN-boxing layer
    is where a genuinely allocation-free static function eventually belongs.
 3. **Generated-module linking (resolved).** The
-   [compiler](../../fjs/fsc/module.f.mjs) resolves the complete source graph
+   [compiler](../../fjs/compiler/module.f.mjs) resolves the complete source graph
    before `toRust` emits one Rust file. Stage 1 therefore needs no per-dependency
    Rust `use` paths or file layout; source imports are already linked within
    that output. The embedding crate chooses where to include the generated
@@ -604,7 +604,7 @@ generated-Rust test from one source of cases.
 - [`fjs/edag/todo/rust-schema-codegen.md`](../../fjs/edag/todo/rust-schema-codegen.md)
   — the open Rust side of the EDAG specification; Stage 7 waits on the
   specification.
-- [`fjs/fsc/todo/associate-edag-with-functions.md`](../../fjs/fsc/todo/associate-edag-with-functions.md)
+- [`fjs/compiler/todo/associate-edag-with-functions.md`](../../fjs/compiler/todo/associate-edag-with-functions.md)
   — flags nested-closure EDAG association as unsolved; Stage 7 is where this
   plan closes that for the AOT backend specifically.
 - [`spec/todo/object-identity.md`](../../spec/todo/object-identity.md) —

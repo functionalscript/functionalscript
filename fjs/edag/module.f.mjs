@@ -464,7 +464,7 @@ export const optionCall = or(
  * result, each earlier operand a true root, not reachable from another
  * operand of the same `,`. A single-operand `,` is the identity and a
  * reachable operand a redundant anchor — both non-canonical, each splitting
- * one function into two hashes. `fjs/fsc/edag` emits it for what a module's
+ * one function into two hashes. `fjs/compiler/edag` emits it for what a module's
  * export does not reach; see the Caveats of `./README.md`.
  */
 export const comma = /** @type {const} */ ([',', exps])

@@ -64,7 +64,7 @@ For `import {missing} from "./dep"; export default 1;` with
 rule to default imports; valid unused bindings and empty lists still require
 dependency evaluation. The current value and EDAG paths disagree on this
 case. Its reproduction, required proofs and deferred implementation live in
-[import-error-before-evaluation](../fjs/fsc/todo/import-error-before-evaluation.md);
+[import-error-before-evaluation](../fjs/compiler/todo/import-error-before-evaluation.md);
 this proposal states the intended order, not a claim that it already works.
 
 Benefit: existing named-export modules compose using familiar JavaScript
@@ -91,9 +91,9 @@ linking. No new EDAG operation or function-parameter representation is needed.
 ## Related
 
 - [Exports](./README.md#exporting-a-value) — existing export-object contract.
-- [Module compilation](../fjs/fsc/todo/compile-modules-to-edag.md) — module
+- [Module compilation](../fjs/compiler/todo/compile-modules-to-edag.md) — module
   parameters are dependency export objects.
-- [Module resolution](../fjs/fsc/todo/module-resolution-compatibility.md)
+- [Module resolution](../fjs/compiler/todo/module-resolution-compatibility.md)
   — reuse the declared host identity and loading contract.
 - [Namespace imports](./todo/2220-namespace-import.md) and
   [export lists](./todo/export-lists.md) — separate syntax work.

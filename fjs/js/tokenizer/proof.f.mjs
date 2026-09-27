@@ -8,7 +8,7 @@ import { parser } from '../../ebnf/ll1/module.f.mjs'
 import { token as ebnfToken } from '../../ebnf/lib/js/module.f.mjs'
 import { tokenize } from './module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { _stringifyTree } from '../../fsc/module.f.mjs'
+import { _stringifyTree } from '../../compiler/module.f.mjs'
 
 // JsTokenWithMetadata carries bigint fields that JSON.stringify cannot
 // serialize — the compiler's proof dump can.

@@ -296,7 +296,7 @@ export const proof = {
     /**
      * `,` — new relative to the operator-test printer, whose corpus has no
      * anchored, unreached roots. Every operand is established, in the order
-     * `fjs/fsc/edag/module.f.mjs`'s `resolve` puts them in (imports, then
+     * `fjs/compiler/edag/module.f.mjs`'s `resolve` puts them in (imports, then
      * unreached `const`s, then the export), and the last one's value is the
      * whole node's.
      */
@@ -355,7 +355,7 @@ export const proof = {
         /**
          * Two references to the same node, by identity, is exactly what a
          * `const` referenced twice looks like once lowered to an EDAG — see
-         * `fjs/fsc/edag/module.f.mjs`'s `lower`.
+         * `fjs/compiler/edag/module.f.mjs`'s `lower`.
          */
         shared: () => {
             /** @type {Exp} */

@@ -9,7 +9,7 @@ Nothing blocks this. It used to live beside the hand-written scanner in
 `fjs/js/tokenizer` and waited on the JSON reader's rewrite, because widening
 that scanner regressed the public JSON tokenizer built over it. It moved here
 when
-[the token layer became JavaScript's](../../../../fsc/README.md#the-token-layer-is-javascripts-the-parser-is-the-subset)
+[the token layer became JavaScript's](../../../../compiler/README.md#the-token-layer-is-javascripts-the-parser-is-the-subset)
 and the scanner went: JSON reads [`ebnf/lib/json`](../../json/module.f.mjs),
 not this grammar, so widening this grammar regresses nothing, and the ordering
 problem that blocked the old issue is gone with the module it was about.
@@ -32,11 +32,11 @@ below predates that, when `'x'` was an `invalid token` too.
 
 Measured over every `.mjs` under `fjs/` and `spec/` through
 [`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.mjs)'s `tokenize`, the
-grammar's reader (it was `fsc/tokenizer`'s `tokenizeJs` when measured; the
+grammar's reader (it was `compiler/tokenizer`'s `tokenizeJs` when measured; the
 same code, moved): **nearly every module stops at an error token; a handful
 tokenize cleanly**, and they are the small ones and the data modules —
 `effects/list`, `types/function`, `types/map`, `types/nominal`, `types/range`,
-`types/btree/types`, the two `fsc/examples` fixtures and the DataJS vector
+`types/btree/types`, the two `compiler/examples` fixtures and the DataJS vector
 sets. The scanner this issue was first measured on had the same handful clean.
 The grammar does not accept its own source.
 
@@ -60,7 +60,7 @@ Displaying a module needs the tokenizer to find where a string starts and ends
 so the text can be coloured. It does not need FunctionalScript to admit the
 string as valid, and it does not need a substitution's type decided — a source
 view never evaluates anything. That is the division
-[`fjs/fsc/README.md`](../../../../fsc/README.md#the-token-layer-is-javascripts-the-parser-is-the-subset)
+[`fjs/compiler/README.md`](../../../../compiler/README.md#the-token-layer-is-javascripts-the-parser-is-the-subset)
 states: the token layer is JavaScript's, and what the language accepts is
 decided above it, at
 the token — the way the compiler's fold already refuses `--` and the JS
@@ -78,7 +78,7 @@ cannot satisfy this issue's own success check — see below.
 
 The grammar has three readers, and the widening reaches each differently.
 
-- [`fsc/tokenizer`](../../../../fsc/tokenizer/module.f.mjs), the compiler's.
+- [`compiler/tokenizer`](../../../../compiler/tokenizer/module.f.mjs), the compiler's.
   A spelling it reads that the language does not accept is one the compiler
   must still refuse, so the fold that classifies tokens gains the refusals
   the grammar loses: a string with an escape outside JSON's table, `\u` and
@@ -137,7 +137,7 @@ of their own — among them:
 
 | file | shape |
 | --- | --- |
-| [`fsc/parser/proof.f.mjs`](../../../../fsc/parser/proof.f.mjs), `repeated` | `` `${`${element},`.repeat(count - 1)}${element}` `` |
+| [`compiler/parser/proof.f.mjs`](../../../../compiler/parser/proof.f.mjs), `repeated` | `` `${`${element},`.repeat(count - 1)}${element}` `` |
 | [`js/tokenizer/proof.f.mjs`](../../../../js/tokenizer/proof.f.mjs) | nested in a `map` |
 | [`website/page/module.f.mjs`](../../../../website/page/module.f.mjs) | nested in a `map` |
 | [`media/datajs/parser/proof.f.mjs`](../../../../media/datajs/parser/proof.f.mjs) | nested in a conditional |
@@ -341,7 +341,7 @@ the source view rests on.
       time. Proofs for the six shapes above and the two brace shapes.
 - [ ] **Do not add rows to `simpleEscapes`** for any of it; the JS decoder is
       a layer above the shared table.
-- [ ] The compiler keeps refusing what it refused: `fsc/tokenizer`'s fold
+- [ ] The compiler keeps refusing what it refused: `compiler/tokenizer`'s fold
       turns a string whose `jsonEscapes` is false, of either quote, and any
       template kind into the error token the grammar used to produce, with
       proofs, until 2460 and 3440 accept them. A single-quoted string with
@@ -364,7 +364,7 @@ the source view rests on.
 
 - [source-and-doc-view](../../../../website/todo/source-and-doc-view.md) — the
   consumer this unblocks; its first task is this issue.
-- [The token layer is JavaScript's, the parser is the subset](../../../../fsc/README.md#the-token-layer-is-javascripts-the-parser-is-the-subset)
+- [The token layer is JavaScript's, the parser is the subset](../../../../compiler/README.md#the-token-layer-is-javascripts-the-parser-is-the-subset)
   — the decision this issue rests on: the token layer is shared with
   JavaScript and grows here, the parser stays the subset, and the scanner is
   gone.

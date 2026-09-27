@@ -119,7 +119,7 @@ narrow the hole, and neither closes it:
    verdicts is the other direction: a behavior break shows up in no declaration
    at all, and a changed `_` alias may leave the expanded public contract
    unchanged (the `_` contract in
-   [`fjs/fsc/README.md`](../fjs/fsc/README.md#private-types)). It is a much
+   [`fjs/compiler/README.md`](../fjs/compiler/README.md#private-types)). It is a much
    larger tool than a PR linter and should be its own issue before anyone
    starts it.
 

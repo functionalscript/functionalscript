@@ -37,7 +37,7 @@ Kelvin sign, was a letter — it lowercases to `k` — and the writer emitted
 such answer to give.
 
 The classes now live in `fjs/text/ascii`, exported, and the writer in
-[`fjs/fsc/serializer`](../../../fsc/serializer/module.f.mjs) asks them.
+[`fjs/compiler/serializer`](../../../compiler/serializer/module.f.mjs) asks them.
 Every row below it still carries its own.
 
 ### Proposal
@@ -101,7 +101,7 @@ written out again.
       Nix's own identifier rule.
 - [ ] `fjs/media/datajs/vectors/matrix`: `lower`, `upper` and `digits` over
       the classes, keeping the punctuation each allowed set adds.
-- [ ] `fjs/fsc/serializer`: `identifierKey` becomes `isIdentifier`, with
+- [ ] `fjs/compiler/serializer`: `identifierKey` becomes `isIdentifier`, with
       nothing added. Its proof walks every keyword and expects `.k` for each,
       so a rule creeping back in fails there.
 - [ ] Answer the `fjs/ebnf/lib/js` question above, here or in a todo of its own.
@@ -111,5 +111,5 @@ written out again.
 
 - [`fjs/text/ascii/module.f.mjs`](../../../text/ascii/module.f.mjs) — the
   owner of the classes, and of the hexadecimal codec that states the reason.
-- [`fjs/fsc/serializer`](../../../fsc/serializer/module.f.mjs) — the writer
+- [`fjs/compiler/serializer`](../../../compiler/serializer/module.f.mjs) — the writer
   whose Kelvin-sign hole raised this.

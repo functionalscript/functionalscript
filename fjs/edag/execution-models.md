@@ -180,7 +180,7 @@ The key architectural boundary is between **implementation strategies** and
 
 An EDAG is transformed on its way through the toolchain: written to `.f.js`
 and compiled back
-([`fjs/fsc/serializer`](../fsc/serializer/module.f.mjs)),
+([`fjs/compiler/serializer`](../compiler/serializer/module.f.mjs)),
 loaded into a CAVM and serialized back, reduced by a global memoizer. Three
 requirements say what a transformation may change.
 

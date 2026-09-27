@@ -34,11 +34,11 @@ At `36c8d4a` a few projection sites remain:
 
 - the `tools/list` and `tools/call` responses in `fjs/protocol/mcp/module.f.mjs`;
 - the per-file step of `scan` in `fjs/website/module.f.mjs`;
-- `linkModule` in `fjs/fsc/edag/module.f.mjs`.
+- `linkModule` in `fjs/compiler/edag/module.f.mjs`.
 
 `step(all(…), rs => pure(okList(rs)))` in `allOk`
 (`fjs/effects/common/module.f.mjs`) and `_parseModule` in
-`fjs/fsc/transpiler/module.f.mjs` are channel constructors, not `mapStep`
+`fjs/compiler/transpiler/module.f.mjs` are channel constructors, not `mapStep`
 candidates: their continuations build the `Result` itself.
 
 Beyond the repetition, the old spelling **misreports the shape of the chain**.
@@ -81,7 +81,7 @@ closely related group per PR.
 
 - [ ] `fjs/protocol/mcp`: the `tools/list` and `tools/call` responses.
 - [ ] `fjs/website`: `scan`'s per-file step.
-- [ ] `fjs/fsc/edag`: `linkModule`.
+- [ ] `fjs/compiler/edag`: `linkModule`.
 - [ ] `tsc` clean; `fjs t` passes after each PR.
 
 ### Related

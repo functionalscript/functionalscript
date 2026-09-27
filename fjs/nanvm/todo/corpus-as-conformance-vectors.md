@@ -69,7 +69,7 @@ ship as serialized data instead. Either way this is what keeps the interpreter
 and the generated code in agreement — the point the roadmap's test-generation
 item makes — and the JavaScript side's counterpart is running the corpus
 through the EDAG interpreter as well, [`fjs/edag/memo`](../../edag/memo/module.f.mjs)
-([interpret-edag](../../fsc/todo/interpret-edag.md)), which owes the same
+([interpret-edag](../../compiler/todo/interpret-edag.md)), which owes the same
 identity-memoization contract the corpus already relies on. `amnesia` stays
 the oracle ([`../../edag/amnesia/README.md`](../../edag/amnesia/README.md)),
 so memo runs beside it rather than replacing it, the two answers pinned where
@@ -107,7 +107,7 @@ sharing decides them. The proof's own inline evaluator is already gone:
   — the generated Rust side of the schema these vectors check.
 - [`../../../nanvm-lib/todo/mvp-roadmap.md`](../../../nanvm-lib/todo/mvp-roadmap.md)
   — the interpreter and remaining-operators items this feeds.
-- [`../../fsc/todo/interpret-edag.md`](../../fsc/todo/interpret-edag.md) — the
+- [`../../compiler/todo/interpret-edag.md`](../../compiler/todo/interpret-edag.md) — the
   FunctionalScript executor that replaces `amnesia` here.
 - [`../../../todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md)
   — positional laziness.

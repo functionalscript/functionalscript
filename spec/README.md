@@ -56,7 +56,7 @@ stage and outrank everything else:
 
 The observable result is the serializable data the program returns. What a
 JavaScript engine reports about the *written* output of a compiler — a
-function's `name` or its text after `fsc` has serialized a module — is the
+function's `name` or its text after the compiler has serialized a module — is the
 writer's spelling, not a result of the program, and no compatibility
 question: a compatibility issue exists only where the same program returns
 different serializable data on a FunctionalScript VM and a JavaScript engine.
@@ -107,7 +107,7 @@ syntax retain their existing contracts. The exception alone admits no new
 syntax or API.
 
 [Function text and serialization](./todo/serialization.md#function-text-and-serialization)
-owns the remaining questions: whether the FSC function serializer and
+owns the remaining questions: whether the compiler's function serializer and
 `String(f)` are the same operation, whether `String(f)` instantiates captured
 frames, and how each handles `self`. Adopting EDAG-derived text does not settle
 those questions or claim that the conversion is implemented today, and it is
@@ -339,7 +339,7 @@ type-level APIs live in authored `types.ts`; `.f.js` there is the stage-2
 marker, meaning a module the parser/compiler in the same revision
 accepts. Neither spelling changes what the language is: a `.f.mjs` is the same
 graph of values a `.f.js` is. The repository extension contract is
-[`fjs/fsc/README.md`](../fjs/fsc/README.md).
+[`fjs/compiler/README.md`](../fjs/compiler/README.md).
 
 ### JSON Input
 
@@ -411,7 +411,7 @@ writer — the one that refuses a function.
 `fjs compile` writes two more things, neither of them a document of this
 language: the program's EDAG under `.edag.data.js` or `.edag.data.mjs`, and a
 generated Rust module under `.rs`, which [nanvm-lib](../nanvm-lib/README.md)
-runs. They are compiler artifacts, and [`fjs/fsc`](../fjs/fsc/README.md)'s to
+runs. They are compiler artifacts, and [`fjs/compiler`](../fjs/compiler/README.md)'s to
 describe. A name ending in none of the eight suffixes — `.json`, `.data.js`,
 `.data.mjs`, `.js`, `.mjs`, `.edag.data.js`, `.edag.data.mjs` and `.rs` —
 declares none of the five, and is refused before the input is read, rather
@@ -438,7 +438,7 @@ the selected value (below):
 A value output refuses a function, which neither DataJS nor JSON can spell
 (`a function has no value`), and a call or an operator other than unary `-`,
 whose result is the interpreter's to compute
-([`interpret-edag.md`](../fjs/fsc/todo/interpret-edag.md)): `a call has no
+([`interpret-edag.md`](../fjs/compiler/todo/interpret-edag.md)): `a call has no
 value`, `an operator has no value`. It computes unary `-` over a primitive, as
 JavaScript does — `-"2"` is `-2` — and refuses it over an object or an array
 (`no number for this value`). Of the graph outputs, the `.js` writer has no
@@ -502,7 +502,7 @@ module boundary, from which a default import selects the document.
   containers — `import { a, b }` returned as `[a, b]` — are refused even when
   disjoint, where `m.a` and `m.b` of one default import are not. The other
   four outputs accept these, and
-  [`named-export-sharing-precision.md`](../fjs/fsc/todo/named-export-sharing-precision.md)
+  [`named-export-sharing-precision.md`](../fjs/compiler/todo/named-export-sharing-precision.md)
   is the task that lifts the refusal.
 
   A JSON document is written as `JSON.stringify` writes the value: one line,
@@ -544,7 +544,7 @@ module boundary, from which a default import selects the document.
   `a binary - node`, `a ~ node`, `a && node`, `a ?: node` and the like —
   wherever the node stands, a function body or a `const` nothing reads
   included. The binary operators and `~` are
-  [`stage-a-operators.md`](../fjs/fsc/serializer/todo/stage-a-operators.md)'s
+  [`stage-a-operators.md`](../fjs/compiler/serializer/todo/stage-a-operators.md)'s
   to add. A module holding a call or such an operator compiles to
   `.edag.data.js` and `.rs` alone.
 - Object properties are emitted in the order the value carries them for the
@@ -656,7 +656,7 @@ two line terminators, U+2028 and U+2029, may stand raw only inside a
 [string](#strings), as in JSON; anywhere else, a comment included, they are
 refused, since an invisible line break is no line break here. A hashbang
 comment, `#!` at the start of the file, is refused too, although JavaScript
-admits one ([hash comments](../fjs/fsc/todo/083-fsc-hash-comments.md)). Any
+admits one ([hash comments](../fjs/compiler/todo/083-compiler-hash-comments.md)). Any
 other character outside a string or a comment is part of a token or an
 error, as it is in JavaScript.
 
@@ -1152,11 +1152,11 @@ or DataJS output — the readers that compute a value — computes a negation of
 a primitive and refuses one of an array or an object ([numbers](#numbers)),
 and refuses every other operator the same way it refuses a function or a
 call (`an operator has no value`), until the EDAG interpreter answers for
-them there ([`interpret-edag.md`](../fjs/fsc/todo/interpret-edag.md)). The
+them there ([`interpret-edag.md`](../fjs/compiler/todo/interpret-edag.md)). The
 FunctionalScript writer, the `.js` output, spells unary `-` alone so far and
 refuses the rest by the name of the node it meets — `a + node`,
 `a binary - node`, `a ?: node` — until it can spell their precedence
-([`stage-a-operators.md`](../fjs/fsc/serializer/todo/stage-a-operators.md)
+([`stage-a-operators.md`](../fjs/compiler/serializer/todo/stage-a-operators.md)
 tracks Stage A's). `.json`, `.data.js` and `.js` refuse such an operator
 wherever it stands, an unused `const` included, so a module holding any
 operator but unary `-` compiles to `.edag.data.js` and `.rs` alone.
@@ -1313,7 +1313,7 @@ whatever the file it resolves to is called — `.f.js`, `.js`, `.mjs`,
 (below). Node takes the format from the extension instead: it refuses `.txt`
 and loads `.cjs` as CommonJS, where `export` is a syntax error, so a module
 importing either compiles although Node would not load it. The existing
-[module-resolution TODO](../fjs/fsc/todo/module-resolution-compatibility.md)
+[module-resolution TODO](../fjs/compiler/todo/module-resolution-compatibility.md)
 records the host boundary, tests, and remaining support work.
 
 A JSON document has only a `default` export. Both a default binding and
@@ -1592,7 +1592,7 @@ are not supported yet. A newline before `=>` is refused.
   called, where this compiler would read the capture. It is no restriction
   of the language — nothing leaks through it — but a forward reference
   inside a body, which
-  [`body-const-forward-reference.md`](../fjs/fsc/parser/todo/body-const-forward-reference.md)
+  [`body-const-forward-reference.md`](../fjs/compiler/parser/todo/body-const-forward-reference.md)
   tracks.
 
   ```js
@@ -1636,7 +1636,7 @@ are not supported yet. A newline before `=>` is refused.
   reasons. `.data.js` and `.json` are values, and what a call
   *returns* is not a value the compiler computes — applying a function is the
   interpreter's work
-  ([`fjs/fsc/todo/interpret-edag.md`](../fjs/fsc/todo/interpret-edag.md)) — so
+  ([`fjs/compiler/todo/interpret-edag.md`](../fjs/compiler/todo/interpret-edag.md)) — so
   a module reaching a call has no value output (`a call has no value`), as
   one holding a function has none. The `.js` output is not a value and has
   no such excuse: the writer simply has no spelling for either call form yet,
@@ -1651,7 +1651,7 @@ are not supported yet. A newline before `=>` is refused.
   to write a module holding one as DataJS or as JSON
   (`a function has no value`), since a value has no function in it and the
   evaluator computing one has no function value to compute with
-  ([`interpret-edag.md`](../fjs/fsc/todo/interpret-edag.md)). That evaluator
+  ([`interpret-edag.md`](../fjs/compiler/todo/interpret-edag.md)). That evaluator
   runs the whole program, so a function anywhere in it keeps a module out of
   both value outputs, even one the `default` export never reaches:
   `const f = (a, b) => 1;` followed by `export default [f.length];` is
@@ -1733,7 +1733,7 @@ selects its export from that slot, `['.', ['.', ['args'], i], name]`, where
 binds no name, is the bare slot. Linking replaces each import with the export
 it selects from the module that import resolves to — applying the module to
 its imports — so the linked program has no parameter left
-([`fjs/fsc/edag`](../fjs/fsc/edag/module.f.mjs)). Two imports of one module
+([`fjs/compiler/edag`](../fjs/compiler/edag/module.f.mjs)). Two imports of one module
 identity are one application, shared, as
 [importing](#importing-other-modules) requires.
 
@@ -1744,5 +1744,5 @@ effects, the content-addressable VM, object identity, mutability, and
 serialization — is in [`spec/todo/`](./todo/README.md). A feature's document
 moves into this one when the parser recognizes it.
 
-For the implementation, see [`fjs/fsc/README.md`](../fjs/fsc/README.md), the
+For the implementation, see [`fjs/compiler/README.md`](../fjs/compiler/README.md), the
 compiler.

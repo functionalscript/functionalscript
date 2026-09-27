@@ -16,9 +16,9 @@ two places that no longer agree.
   `vnd.fjs.djs`, "which is the one detail still to reconcile".
 
 `fjs/djs` is gone: its format became [`fjs/media/datajs`](../datajs/README.md)
-and its front end [`fjs/fsc`](../../fsc/README.md). No code emits either name
+and its front end [`fjs/compiler`](../../compiler/README.md). No code emits either name
 yet. What is not decided is whether `vnd.fjs.djs` still names anything — the
-subset `fsc` accepts, say — and, if it does, whether DataJS's chain should
+subset the compiler accepts, say — and, if it does, whether DataJS's chain should
 carry it as the segment between `vnd.fjs.datajs` and `vnd.fjs.fjs`, since every
 segment must be valid as everything to its right.
 

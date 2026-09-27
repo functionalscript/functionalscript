@@ -8,7 +8,7 @@
 This task was written as the gate on the repository-wide TypeScript-to-`.mjs`
 migration — stage 1, tracked in `todo/migrate-typescript-to-mjs.md` and deleted
 when it finished, its contract now in
-[`fjs/fsc/README.md`](../../fsc/README.md). That migration could not convert its first package-owned `.ts` / `.f.ts`
+[`fjs/compiler/README.md`](../../compiler/README.md). That migration could not convert its first package-owned `.ts` / `.f.ts`
 implementation source until the TypeScript and NPM pipeline treated authored
 `.mjs` as first-class source. It no longer gates that migration. Stage 1's
 source conversion is complete — every conversion happened, and what the
@@ -191,7 +191,7 @@ artifacts above — what remains is the `_`-prefixed names that still ship by
 design: `_` types emitted into `types.d.ts` and exported `_` constants emitted
 into `module.d.mts`. The leak-tolerance contract narrows to those, and stays
 permanent for them; see
-[`../../fsc/README.md`](../../fsc/README.md) for the contract itself.
+[`../../compiler/README.md`](../../compiler/README.md) for the contract itself.
 
 Package selection does not need to distinguish every authored `.mjs` by public
 API status during this transition. Incidental authored files such as a host
@@ -422,10 +422,10 @@ not, and the pipeline is simplified accordingly.
 - [PR #1451](https://github.com/functionalscript/functionalscript/pull/1451) —
   initial implementation and CI validation of `allowJs` / `checkJs` plus the
   two-pass `prepack`.
-- [`fjs/fsc/README.md`](../../fsc/README.md) — the extension contract left by
+- [`fjs/compiler/README.md`](../../compiler/README.md) — the extension contract left by
   the repository-wide stage-1 implementation source migration.
 - [`fjs/AGENTS.md`](../../AGENTS.md) §3.2 — private-type placement rules;
-  [`fjs/fsc/README.md`](../../fsc/README.md) — the `_` contract and why
+  [`fjs/compiler/README.md`](../../compiler/README.md) — the `_` contract and why
   generated private declarations are not packaged.
 - [microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407)
   — upstream JSDoc typedef stripping limitation; no longer a blocker here, since
@@ -433,6 +433,6 @@ not, and the pipeline is simplified accordingly.
 - [`publishing-packages.md`](./publishing-packages.md) — broader package roadmap.
 - [`f-js-package-support.md`](./f-js-package-support.md) — stage-2 authored
   `.f.js` package prerequisite.
-- [`fjs/fsc/README.md`](../../fsc/README.md) — authoritative extension contract.
+- [`fjs/compiler/README.md`](../../compiler/README.md) — authoritative extension contract.
 - [`.f.mjs` test and coverage support](../../emergent_testing/todo/f-mjs-test-and-coverage.md)
   — runtime proof/coverage fixtures for authored `.f.mjs`.

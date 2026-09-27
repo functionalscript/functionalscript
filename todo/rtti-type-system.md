@@ -385,12 +385,12 @@ Tracking ownership is the compiler's job; RTTI never sees a mutable value.
 | `.d.ts` | TypeScript | generated, not authored | as long as TypeScript consumers exist |
 
 Two rows are FunctionalScript, and the split between them matters. The
-[extension contract](../fjs/fsc/README.md) says `.f.mjs` "may use
+[extension contract](../fjs/compiler/README.md) says `.f.mjs` "may use
 FunctionalScript features the current parser/compiler does not support yet",
 while `.f.js` is "authored FunctionalScript that the current parser/compiler
 **must** accept". So `.f.js` is where this regime is finally at home, and
 `.f.mjs` is where it arrives file by file as the compiler catches up
-([stage 2](../fjs/fsc/README.md#stage-2-mark-compiler-compatible-functionalscript)
+([stage 2](../fjs/compiler/README.md#stage-2-mark-compiler-compatible-functionalscript)
 is the rename).
 
 Naming only `.f.mjs` — as an earlier draft did — got this backwards twice: it
@@ -430,7 +430,7 @@ rule and the known exceptions.
 
 That is not a contradiction of the stage-1 migration, which said four times
 that authored `types.ts` "may remain permanently" (the surviving statement is in
-[`fjs/fsc/README.md`](../fjs/fsc/README.md)) — but it is a narrower
+[`fjs/compiler/README.md`](../fjs/compiler/README.md)) — but it is a narrower
 reading of that word, and worth stating plainly. There, permanence is with
 respect to *that* migration: a `types.ts` is not an implementation-migration
 target and must not be forced through JSDoc translation. It says nothing about
@@ -638,7 +638,7 @@ it as scoped to the object shapes TypeScript can name.
 | TypeScript emission | [`ts/module.f.mjs`](../fjs/rtti/ts/module.f.mjs) | done as a printer — but it and `Ts<>` disagree on `unknown` and on tuple openness, by its own doc comment, so it is not yet a faithful `.d.ts` generator |
 | Compile-time bridge | `Ts<T>` in [`ts/types.ts`](../fjs/rtti/ts/types.ts) | done, and transitional — see Problem |
 | Annotation convention | — | not started |
-| Compile-time evaluation | [`fjs/fsc/todo/047-fsc-meta-programming.md`](../fjs/fsc/todo/047-fsc-meta-programming.md) | not started |
+| Compile-time evaluation | [`fjs/compiler/todo/047-compiler-meta-programming.md`](../fjs/compiler/todo/047-compiler-meta-programming.md) | not started |
 | Inference | [type inference](../spec/todo/3370-type-inference.md) | not started — most of the work |
 | Function schemas | [668-rtti-function-types](../fjs/rtti/todo/668-rtti-function-types.md) | not started — and **nearly half** the tree's JSDoc type bodies are function types (~46% when measured in review of #1719; counts drift, so re-measure rather than cite this), so it gates a large share of stage 11 |
 | Generic schemas | the eDSL itself | **value layer done** — a schema-to-schema function needs no feature; only `.d.ts` / `Ts<>` rendering is missing |
@@ -697,7 +697,7 @@ the module the schema was imported from: the transpiler evaluates every imported
 module before the importing body, even when the binding is never referenced, so
 an import whose module has a throwing top-level computation is observable
 precisely by throwing. Dropping such an import would delete a failure from the
-program. [compile-modules-to-edag](../fjs/fsc/todo/compile-modules-to-edag.md)
+program. [compile-modules-to-edag](../fjs/compiler/todo/compile-modules-to-edag.md)
 is explicit about it: an import parameter the export does not reach is
 **anchored** by the `,` operation — "deliberately a reachability rule, not an
 effect analysis" — so the imported module's root stays in the graph and is
@@ -716,7 +716,7 @@ An annotation-only import is exactly that shape. So, stated honestly:
   where the immutability of the result proves nothing about the call. The same rule
   that anchors unreachable imports applies inside the body — a potentially
   throwing entry is anchored rather than discarded
-  ([compile-modules-to-edag](../fjs/fsc/todo/compile-modules-to-edag.md)) — so
+  ([compile-modules-to-edag](../fjs/compiler/todo/compile-modules-to-edag.md)) — so
   an annotation-only local schema from such a call is in exactly the position
   stage 12 addresses. **Stage 12 covers both** — imported roots and local
   initializers — so the work is owned; what stays open is whether the local
@@ -813,7 +813,7 @@ way, so the server that reports type errors is itself described by the type
 system it reports for.
 
 One known consequence elsewhere:
-[error-message-specificity](../fjs/fsc/tokenizer/todo/error-message-specificity.md)
+[error-message-specificity](../fjs/compiler/tokenizer/todo/error-message-specificity.md)
 parks "continue tokenizing after an error" as not worth doing "unless a real use
 case (e.g. an editor/LSP wanting multiple diagnostics per file) shows up". This
 is that use case — an editor that stops at the first token error is not usable —
@@ -858,14 +858,14 @@ are stated instead:
   When stage 4 erases that reference while lowering to EDAG, the binding is
   left unreachable from the root — and the compiler already anchors such a
   binding with `','` rather than rejecting it (`anchors` in
-  [`fjs/fsc/ast`](../fjs/fsc/ast/module.f.mjs)), so 12's legality half has
+  [`fjs/compiler/ast`](../fjs/compiler/ast/module.f.mjs)), so 12's legality half has
   landed and does not block stage 4. What 12 still owns is the totality
   exemption, which decides whether such a binding is evaluated or dropped;
   whether stage 4 waits on it for cost is open.
 - **1's renderer half** can start today; its declaration-emission half needs a
   schema for every export, so it waits for stage 6 or an explicit manifest.
 - **3 onward** are gated on the compiler; **4 onward** additionally on
-  compile-time evaluation ([`fjs/fsc/todo/047-fsc-meta-programming.md`](../fjs/fsc/todo/047-fsc-meta-programming.md)).
+  compile-time evaluation ([`fjs/compiler/todo/047-compiler-meta-programming.md`](../fjs/compiler/todo/047-compiler-meta-programming.md)).
 - **7 splits, and the halves sit on either side of 6.** 7 as one unit is a
   cycle: 6's general form needs a function case in RTTI, while 7's
   definition-checking needs the body's *inferred* result, which is 6. The seam
@@ -1024,7 +1024,7 @@ are stated instead:
       cleaner than inspecting the body's first character; neither adds a
       grammar, and neither needs the expression parser.
 - [ ] **4. Evaluate an annotation at compile time**
-      ([`fjs/fsc/todo/047-fsc-meta-programming.md`](../fjs/fsc/todo/047-fsc-meta-programming.md)) — the binding the name
+      ([`fjs/compiler/todo/047-compiler-meta-programming.md`](../fjs/compiler/todo/047-compiler-meta-programming.md)) — the binding the name
       resolves to must be reducible to a schema value, and the error when it is
       not is a compile error.
 
@@ -1037,7 +1037,7 @@ are stated instead:
       anything; may throw, which must become a diagnostic rather than a
       compiler crash; and may be effectful, in which case it runs with whatever
       privileges the compiler has.
-      [`fjs/fsc/todo/047-fsc-meta-programming.md`](../fjs/fsc/todo/047-fsc-meta-programming.md) does not state a policy
+      [`fjs/compiler/todo/047-compiler-meta-programming.md`](../fjs/compiler/todo/047-compiler-meta-programming.md) does not state a policy
       today. So this stage needs the same answer stage 10 does — static schema
       metadata consultable without evaluating, or an explicit
       sandboxed-and-bounded evaluation policy — and it is the same question a
@@ -1411,7 +1411,7 @@ are stated instead:
       a prerequisite rather than a parallel track. The
       difference is not pedantic: an authored `.f.js` is a **compatibility
       commitment** the parser must keep
-      ([`fjs/fsc/README.md`](../fjs/fsc/README.md)), while a `.f.mjs` that the
+      ([`fjs/compiler/README.md`](../fjs/compiler/README.md)), while a `.f.mjs` that the
       parser happens to accept today carries no such promise. Retiring JSDoc on
       the strength of "it parses right now" leaves the module checked by
       nothing the first time that stops being true — and nothing would flag it,
@@ -1506,7 +1506,7 @@ are stated instead:
       leaves behind** — both **imported module roots** and **local
       initializers** — so that an annotation-only schema neither is rejected
       nor silently deletes a failure. This is the `','` anchoring operation
-      [compile-modules-to-edag](../fjs/fsc/todo/compile-modules-to-edag.md)
+      [compile-modules-to-edag](../fjs/compiler/todo/compile-modules-to-edag.md)
       emits for whatever a module's export does not reach — imported roots
       and local entries alike, by reachability — read from this epic's side:
       the legality half is done by the compiler, and what this stage owns is
@@ -1516,7 +1516,7 @@ are stated instead:
 
       **This is a prerequisite, not a side quest, and an earlier draft of this
       file said otherwise.** The rule in
-      [compile-modules-to-edag](../fjs/fsc/todo/compile-modules-to-edag.md)
+      [compile-modules-to-edag](../fjs/compiler/todo/compile-modules-to-edag.md)
       *anchors* an import parameter unreachable from the EDAG root, and
       equally a potentially throwing body entry, rather than discarding
       either. Once the compiler consumes an annotation, a binding used only to
@@ -1785,19 +1785,19 @@ splits around inference, so the runnable order is 668's representation half
   its whole initializer is total**, which the RTTI constructors are and an
   arbitrary call is not.
 - [serialization](../spec/todo/serialization.md) and
-  [compile-modules-to-edag](../fjs/fsc/todo/compile-modules-to-edag.md) — code
+  [compile-modules-to-edag](../fjs/compiler/todo/compile-modules-to-edag.md) — code
   as an FJS value, and the rollout that brings the above from DataJS values to
   modules.
 - [134-nominal-types-proposal](./134-nominal-types-proposal.md) — stage 9.
 
 **Depends on:**
 
-- [`fjs/fsc/todo/047-fsc-meta-programming.md`](../fjs/fsc/todo/047-fsc-meta-programming.md) — the compiler loading and
+- [`fjs/compiler/todo/047-compiler-meta-programming.md`](../fjs/compiler/todo/047-compiler-meta-programming.md) — the compiler loading and
   running modules as meta-programming, which is what compile-time evaluation of
   an annotation *is*. **Stage 4 onward** needs it — stage 3 is comment
   recognition plus resolving one identifier against the module's bindings, which
   needs neither the expression parser nor compile-time evaluation.
-- [`fjs/fsc/README.md`](../fjs/fsc/README.md) — establishes the `.f.mjs` /
+- [`fjs/compiler/README.md`](../fjs/compiler/README.md) — establishes the `.f.mjs` /
   `.mjs` / `types.ts` / `.d.ts` split that commitment 4 assigns type systems to.
   Its "`types.ts` may remain permanently" is permanence with respect to *that*
   migration; stage 11 here is what eventually retires them.
@@ -1857,7 +1857,7 @@ splits around inference, so the runnable order is 668's representation half
 - [`fjs/protocol/json_rpc`](../fjs/protocol/json_rpc/module.f.mjs) and
   [`fjs/protocol/mcp`](../fjs/protocol/mcp/README.md) — the transport stage 10
   builds on, and the precedent for describing a protocol's messages in RTTI.
-- [error-message-specificity](../fjs/fsc/tokenizer/todo/error-message-specificity.md) —
+- [error-message-specificity](../fjs/compiler/tokenizer/todo/error-message-specificity.md) —
   its parked "continue after an error" is unparked by stage 10; an editor needs
   more than one diagnostic per file.
 - [Operators](../spec/README.md#operators) — expressions are **not** a

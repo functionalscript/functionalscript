@@ -17,7 +17,7 @@ Source modules:
   [json-dialect-factory](../../todo/json-dialect-factory.md) would collapse
   into one factory
 
-(`fjs/fsc/module.f.mjs` was another site; the compiler's `.json` output no
+(`fjs/compiler/module.f.mjs` was another site; the compiler's `.json` output no
 longer sorts, since key order is part of the value it writes, so it is gone.)
 
 Proof files (each binds its own alias: `jsonStr`, `str`, `stringify`,
@@ -29,7 +29,7 @@ Proof files (each binds its own alias: `jsonStr`, `str`, `stringify`,
 - the proofs of `fjs/text/ascii`, `fjs/text/utf8` and `fjs/text/utf16`
 - the proofs of `fjs/media/json/extended`, `fjs/media/revision`,
   `fjs/media/lock` and `fjs/protocol/mcp/stdio`, and `fjs/media/json/demo.f.mjs`
-- `fjs/fsc/parser/proof.f.mjs`
+- `fjs/compiler/parser/proof.f.mjs`
 
 Each site is one line, so no single site is a problem — the issue is that
 the canonical-serialization idiom has a crowd of different local names and no

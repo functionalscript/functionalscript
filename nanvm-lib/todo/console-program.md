@@ -15,7 +15,7 @@ interpreter behind the `Function` constructor.
 
 The native CLI's source contract is authored FunctionalScript, which is `.f.mjs`
 today. Note what `.f.mjs` does and does not mean, per
-[`fjs/fsc/README.md`](../../fjs/fsc/README.md): it marks FunctionalScript-intent
+[`fjs/compiler/README.md`](../../fjs/compiler/README.md): it marks FunctionalScript-intent
 JavaScript and does **not** promise that the compiler in the same repository
 revision accepts the module. That promise is what the stage-2 `.f.js` marker
 will carry, so the extension this command accepts becomes `.f.js` for renamed

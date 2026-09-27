@@ -40,7 +40,7 @@ take a module's name today — one of the spellings this issue would
 refuse. A body that reads the name from outside before its `const` binds it
 is refused for now (`capture shadowed`), since JavaScript would read the
 `const` there — a forward reference not yet supported
-([`body-const-forward-reference.md`](../../fjs/fsc/parser/todo/body-const-forward-reference.md)),
+([`body-const-forward-reference.md`](../../fjs/compiler/parser/todo/body-const-forward-reference.md)),
 not a rule of this proposal's.
 Two modules are two functions with nothing enclosing them both, so they may
 bind the same names.

@@ -9,7 +9,7 @@ schema of record is [`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs) — and
 this document is deleted.
 
 The concrete DJS rollout is tracked in
-[`compile-modules-to-edag.md`](../fjs/fsc/todo/compile-modules-to-edag.md):
+[`compile-modules-to-edag.md`](../fjs/compiler/todo/compile-modules-to-edag.md):
 Stage 1 introduces `.` and unresolved modules; Stage 2 introduces
 non-capturing `=>` and `()`, in its ordinary and method-call forms. This document owns the EDAG semantics,
 not parser scheduling. Property/method-access safety is shared with
@@ -166,9 +166,9 @@ family but carries control edges and a scheduling phase this design
 does not have.
 
 *AST* is reserved for **grammar parser output** ([fjs/ebnf](../fjs/ebnf/README.md),
-[fjs/fsc](../fjs/fsc/README.md)). The source AST represents a subset of
+[fjs/compiler](../fjs/compiler/README.md)). The source AST represents a subset of
 JavaScript syntax, including statements, not an already-valid FJS program.
-[AST-to-EDAG compilation](../fjs/fsc/parser/todo/statement-aware-intrinsics.md)
+[AST-to-EDAG compilation](../fjs/compiler/parser/todo/statement-aware-intrinsics.md)
 resolves bindings and const visibility, checks early errors, matches complete
 instruction patterns and enforces FJS restrictions before producing EDAG.
 The function representation is the EDAG, not that source tree.
@@ -227,7 +227,7 @@ Agreed points (not under discussion):
 The operations we want, with their stage. Every operand is an operation
 node; `node` below means any of them. The stage numbers match the concrete
 DJS rollout in
-[`compile-modules-to-edag.md`](../fjs/fsc/todo/compile-modules-to-edag.md).
+[`compile-modules-to-edag.md`](../fjs/compiler/todo/compile-modules-to-edag.md).
 
 #### Structural operations
 
@@ -337,7 +337,7 @@ descriptor-value expression. The entry proposal owns receiver/key conversion,
 function observations and the coordinated migration of internal semantics.
 This discussion does not silently change the existing opcode implementation.
 All instruction patterns follow the
-[JavaScript AST → checked EDAG compilation boundary](../fjs/fsc/parser/todo/statement-aware-intrinsics.md).
+[JavaScript AST → checked EDAG compilation boundary](../fjs/compiler/parser/todo/statement-aware-intrinsics.md).
 
 `"=>"` is the function constructor because FS has only **arrow
 functions** — there is exactly one spelling to reuse, so the tag is
@@ -1010,7 +1010,7 @@ the FJS compiler would never emit. To validate:
   function boundary (the closed-scope model above). Structural containers that are not
   nodes, such as object-entry descriptors, follow their operation-specific canonicality
   rules above instead. The initial Stage 2 validator/proofs for this boundary are tracked
-  by [`compile-modules-to-edag.md`](../fjs/fsc/todo/compile-modules-to-edag.md).
+  by [`compile-modules-to-edag.md`](../fjs/compiler/todo/compile-modules-to-edag.md).
 
 #### 6. Command vocabulary vs. the existing spec names
 
@@ -1143,7 +1143,7 @@ valid arity: the language limits `length` to 16, and the table covers 0–16.
 **Resolution: non-resulting computations are merged into the graph by
 the `","` operation — `[",", [...asserts, result]]`, the JS comma
 operator — which guarantees *membership*, not order.** Introduced in
-`fjs/fsc/edag` after Stage 1, for what a module's export does not reach;
+`fjs/compiler/edag` after Stage 1, for what a module's export does not reach;
 these rules bind it.
 
 - A throw is an effect. A reference edge can only express "the result is

@@ -91,7 +91,7 @@ const undefinedSerialize = ['undefined']
  * specification restates, with the one departure it names: `-0` is written
  * `-0` where `ToString` writes `0`. `NaN` and the infinities are words,
  * where JSON's `numberSerialize` writes `null` for them. Exported because
- * the compiler's JSON output and its proofs' dump, in `fjs/fsc`, write
+ * the compiler's JSON output and its proofs' dump, in `fjs/compiler`, write
  * numbers the same way, and the rule has one owner; the `_` prefix says that
  * export is linkage rather than API, as it does for `_memberValue` below.
  *
@@ -102,7 +102,7 @@ export const _numberSerialize = value => [is(value, -0) ? '-0' : `${value}`]
 /**
  * A leaf as a document spells it — this format's counterpart to JSON's
  * `stringSerialize` and `numberSerialize`, and public as those are: the
- * FunctionalScript writer in `fjs/fsc` spells the leaves of its own
+ * FunctionalScript writer in `fjs/compiler` spells the leaves of its own
  * documents this way, DataJS's leaves being FunctionalScript's, and the
  * rule has one owner.
  *
