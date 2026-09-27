@@ -42,7 +42,10 @@ pub const ANSWERED: &[(&str, &str)] = &[
     ("string", "padEnd"),
     ("string", "padStart"),
     ("string", "repeat"),
+    ("string", "replace"),
+    ("string", "replaceAll"),
     ("string", "slice"),
+    ("string", "split"),
     ("string", "startsWith"),
     ("string", "substring"),
     ("string", "toString"),
@@ -59,9 +62,6 @@ pub const ANSWERED: &[(&str, &str)] = &[
 /// Allowed, and not answered yet: `method` has no entry.
 #[rustfmt::skip]
 pub const PENDING: &[(&str, &str)] = &[
-    ("string", "replace"),
-    ("string", "replaceAll"),
-    ("string", "split"),
     ("number", "toExponential"),
     ("number", "toFixed"),
     ("number", "toPrecision"),

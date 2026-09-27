@@ -13,7 +13,7 @@ impl<A: IVm> String<A> {
     }
 
     /// The first position at or after `from` where `needle` occurs.
-    fn find_from(&self, needle: &String<A>, from: u32) -> Option<u32> {
+    pub(crate) fn find_from(&self, needle: &String<A>, from: u32) -> Option<u32> {
         (from..=self.length()).find(|&k| self.occurs_at(needle, k))
     }
 

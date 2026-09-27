@@ -5,6 +5,7 @@ pub(crate) mod create;
 mod index;
 mod member_access;
 mod partial_eq;
+mod patterns;
 mod reads;
 mod search;
 mod sized_index;

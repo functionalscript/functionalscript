@@ -40,8 +40,11 @@ pub mod method_pad_start;
 pub mod method_reduce;
 pub mod method_reduce_right;
 pub mod method_repeat;
+pub mod method_replace;
+pub mod method_replace_all;
 pub mod method_slice;
 pub mod method_some;
+pub mod method_split;
 pub mod method_starts_with;
 pub mod method_substring;
 pub mod method_to_reversed;
@@ -138,5 +141,8 @@ pub fn all<A: IStaticFunction>() {
     method_trim::run::<A>();
     method_trim_start::run::<A>();
     method_trim_end::run::<A>();
+    method_replace::run::<A>();
+    method_replace_all::run::<A>();
+    method_split::run::<A>();
     method_to_string::run::<A>();
 }
