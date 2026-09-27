@@ -48,11 +48,13 @@ of its call sites, which is what the move is meant to remove. A type
 that no caller can satisfy is not a contract; the assertion at every
 leaf is, and it moves here with the function, so a mapped leaf, or anything that is not a tuple of `utf16` leaves
 and variant tags, is refused rather than answered with text it does
-not have. A string is a variant tag only in a variant's position — the
-first element of a tuple, as `Ast` shapes a variant — and the walk
-admits it there alone; a bare string at the root, or one anywhere else in a tuple, is
-refused, where the JSON parser's `unitsUnder` today answers no units
-for any string it meets. A leaf is checked whole, not by its meta
+not have. A string is a variant tag only in a variant's position — the first
+element of a tuple of exactly two, the tag and its one child, as `Ast`
+shapes a variant — and the walk admits it there alone: a bare string
+at the root, a string anywhere else in a tuple, or a tagged tuple of
+any other length, `['tag']` or `['tag', leaf, leaf]`, is refused, where
+the JSON parser's `unitsUnder` today answers no units for any string
+it meets and concatenates whatever follows. A leaf is checked whole, not by its meta
 alone: its `symbol` must be an integer from `0` to `65535`, a UTF-16
 code unit, or the leaf is refused — `unitAt` today hands whatever it
 finds to `String.fromCharCode`, which would spell `undefined` as
