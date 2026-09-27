@@ -58,8 +58,8 @@ const loopback = '127.0.0.1'
 const served = 2 * 1024 * 1024 + 1000
 
 /**
- * The file the footprint is measured against: half a gibibyte, four thousand times
- * the ceiling this server used to refuse at.
+ * The file the footprint is measured against: two gibibytes, sixteen thousand
+ * times the ceiling this server used to refuse at.
  *
  * It costs nothing to make — `truncate` leaves a hole rather than writing zeroes —
  * and nothing to serve, because the client stops at the headers and the pump never
@@ -68,11 +68,41 @@ const served = 2 * 1024 * 1024 + 1000
  *
  * **It is this large so that the instrument can be crude.** `rss` is the only
  * footprint figure every runtime reports, and it moves for reasons that have
- * nothing to do with the body: measured on Darwin with Node 26.8.1, a warmed-up
- * process still drifted about 23 MB across one request. A file eight times the
- * threshold leaves that drift no way to look like a held body.
+ * nothing to do with the body. **The drift is a runtime's, not a body's**, and the
+ * spread between runtimes is what sets this size. Measured on Darwin arm64 against
+ * this proof run on its own:
+ *
+ * | runtime | drift across one request |
+ * |---|---|
+ * | Node 23.11.0 | 21.8 MiB |
+ * | Deno 2.8.3 | 65.1 MiB |
+ *
+ * Deno's is three times Node's, and under `deno task cov` — the only job that runs
+ * the suite instrumented — it reached **76.6 MiB** and **95.7 MiB** on two CI runs
+ * of this branch whose `fjs/web` and `fjs/effects` trees were byte-identical to a
+ * green one. So a threshold of an eighth of half a gibibyte, chosen against Node's
+ * 23 MB, had no margin on Deno at all: it was one roll away from red from the day
+ * it was written, and a merge of `main` is what rolled it.
+ *
+ * **Eight times the drift is bought by the size, not by the fraction**, and that
+ * is why this number moved rather than the eighth below. The drift is the pump's
+ * own churn on what the socket took, so it is fixed while the file is not —
+ * measured, same host, same runtime, bound lifted so each run reported rather
+ * than refused:
+ *
+ * | file | footprint |
+ * |---|---|
+ * | 512 MiB | 65.1 MiB |
+ * | 1 GiB | 69.8 MiB |
+ * | 2 GiB | 70.0 MiB |
+ * | 4 GiB | 65.0 MiB |
+ *
+ * **Flat across an eight-fold file**, which is the whole claim stated as a
+ * measurement: a held body would have grown with it. Two gibibytes puts the
+ * threshold at 256 MiB, which is 2.7 times the worst drift yet seen — the same
+ * margin the original 64 MiB had over Node's 23 MB.
  */
-const vast = 512 * 1024 * 1024
+const vast = 2 * 1024 * 1024 * 1024
 
 /** The header the bound proof reads the declared length out of. */
 const lengthHeader = 'content-length:'
@@ -292,7 +322,7 @@ const withLargeFile = async check => {
 
 /**
  * The same, for a file of {@link vast} bytes that nothing reads: a hole rather
- * than a hundred and twenty-eight mebibytes of zeroes.
+ * than two gibibytes of zeroes.
  *
  * @type {(check: (root: string, vastName: string, smallName: string) => Promise<void>) => Promise<void>}
  */
@@ -518,11 +548,11 @@ export const proof = {
                 assertEq(answer.digest, expected)
             })
     },
-    // **And it is served without being held.** A hundred and twenty-eight
-    // mebibytes — a thousand times the ceiling this server used to refuse at — and
-    // the figure is read the moment the **response headers** reach the client. By
-    // then a route that had every chunk in hand before the status went out would
-    // have read the whole file; this one has read what the socket's buffers took.
+    // **And it is served without being held.** Two gibibytes — sixteen thousand
+    // times the ceiling this server used to refuse at — and the figure is read the
+    // moment the **response headers** reach the client. By then a route that had
+    // every chunk in hand before the status went out would have read the whole
+    // file; this one has read what the socket's buffers took.
     //
     // **A small file is served first, and the reading starts after it.** The first
     // request through this path compiles most of `respond` and allocates the effect
@@ -540,8 +570,10 @@ export const proof = {
     //
     // It stays a **coarse** measurement — `rss` counts the socket's own queue and
     // whatever the collector has not yet taken — so the threshold is an eighth of
-    // the file and the claim is only that the footprint is nothing like it. The
-    // exact bound is the pull count in
+    // the file and the claim is only that the footprint is nothing like it. How
+    // much drift that eighth has to clear, and why it is the *file* that was
+    // enlarged to clear it rather than the fraction, is measured on {@link vast}.
+    // The exact bound is the pull count in
     // [`../effects/node/proof.mjs`](../effects/node/proof.mjs)
     // (`createServer.pullsAtTheSocketsPace`), where ten times the body is not ten
     // times the memory.
