@@ -23,12 +23,11 @@ These are plausible wrong values, which
 [DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
 forbids. The gap predates the `Array` and `String` member functions. Those
 functions made it reachable from many more calls: `join`'s separator and
-elements, every string-method argument, and every numeric position or count
-(the `String` ones are still in review).
-Review of that stack keeps finding it. Two of its pull requests carry a
+elements, every string-method argument, and every numeric position or count.
+Review of that stack kept finding it. Two of its pull requests left a
 `// TODO:` for it, which reaches here through the `ToPrimitive` task of
 `member-functions.md`: `array_join` in `vm/lambda/method.rs` (#2321) and the
-searches in `vm/string/search.rs` (#2328). Neither is on `main` yet.
+searches in `vm/string/search.rs` (#2328).
 
 ### What already works: the stock methods
 
@@ -126,12 +125,11 @@ answers and the VM refuses, the case also joins the shared corpus with a
 Stage 2 turns the case on by deleting the reason.
 
 Stage 1 also makes a check possible that no test can make today: conversion
-can now throw, so `toSorted`'s guard (`vm/array/to_sorted.rs`, arriving with
-#2323, which leaves fewer than two defined elements unconverted) becomes
-observable. `[x, undefined].toSorted()` answers, and `[x, x].toSorted()`
-throws, where `x` owns a `toString`. Stage 1 does not wait for that stack:
-the guard's test, and the two `// TODO:`s above, land with whichever of
-Stage 1 and their pull request reaches `main` second.
+can now throw, so `toSorted`'s guard (`vm/array/to_sorted.rs`, which leaves
+fewer than two defined elements unconverted) becomes observable.
+`[x, undefined].toSorted()` answers, and `[x, x].toSorted()` throws, where
+`x` owns a `toString`. The guard's test lands with Stage 1, and so do the
+two `// TODO:`s above, replaced with a pointer to Stage 2.
 
 **Changelog.** A behavior change of `nanvm-lib`: conversions that answered a
 wrong value now throw a `TypeError`. It is not a break of `fjs`'s API.

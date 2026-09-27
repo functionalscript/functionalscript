@@ -1,6 +1,7 @@
 mod add;
 mod debug;
 mod div;
+mod format;
 mod from;
 mod int32_coercion;
 mod mul;

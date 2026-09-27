@@ -20,4 +20,12 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("emptyBigintFrom", Any::dot(Array::default().to_any(), string_any("indexOf")).end_call(|| Ok([f64_any(0x3ff0000000000000), bigint_any(1)].to_array().to_any())), f64_any(0xbff0000000000000));
     check_throws::<A>("bigintFrom", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("indexOf")).end_call(|| Ok([f64_any(0x3ff0000000000000), bigint_any(1)].to_array().to_any())));
     check_throws::<A>("object", Any::dot(Object::default().to_any(), string_any("indexOf")).end_call(|| Ok([f64_any(0x3ff0000000000000)].to_array().to_any())));
+    check::<A>("stringFirst", Any::dot(string_any("abcabc"), string_any("indexOf")).end_call(|| Ok([string_any("bc")].to_array().to_any())), f64_any(0x3ff0000000000000));
+    check::<A>("stringFrom", Any::dot(string_any("abcabc"), string_any("indexOf")).end_call(|| Ok([string_any("bc"), f64_any(0x4000000000000000)].to_array().to_any())), f64_any(0x4010000000000000));
+    check::<A>("stringNotFound", Any::dot(string_any("abc"), string_any("indexOf")).end_call(|| Ok([string_any("z")].to_array().to_any())), f64_any(0xbff0000000000000));
+    check::<A>("stringEmpty", Any::dot(string_any("abc"), string_any("indexOf")).end_call(|| Ok([string_any("")].to_array().to_any())), f64_any(0x0000000000000000));
+    check::<A>("stringEmptyPastTheEnd", Any::dot(string_any("abc"), string_any("indexOf")).end_call(|| Ok([string_any(""), f64_any(0x4024000000000000)].to_array().to_any())), f64_any(0x4008000000000000));
+    check::<A>("stringLonger", Any::dot(string_any("ab"), string_any("indexOf")).end_call(|| Ok([string_any("abc")].to_array().to_any())), f64_any(0xbff0000000000000));
+    check::<A>("stringLowSurrogate", Any::dot(string_any("😀"), string_any("indexOf")).end_call(|| Ok([string_any_utf16(&[0xde00])].to_array().to_any())), f64_any(0x3ff0000000000000));
+    check_throws::<A>("stringBigintFrom", Any::dot(string_any("abc"), string_any("indexOf")).end_call(|| Ok([string_any("a"), bigint_any(0)].to_array().to_any())));
 }
