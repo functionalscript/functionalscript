@@ -52,7 +52,7 @@
 import { op1Id, op3Id } from '../edag/module.f.mjs'
 import { validate } from '../rtti/validate/module.f.mjs'
 import { functionValue, ref, throws, unreached } from './constructors/module.f.mjs'
-import { groups as memberGroups } from './member/module.f.mjs'
+import { groups as memberGroups, ownMethodRefused } from './member/module.f.mjs'
 
 export { callback, functionValue, ref, throws, unreached } from './constructors/module.f.mjs'
 
@@ -386,13 +386,6 @@ export const sharedExp = shared => entries(shared).reduce(
  * @type {(shared: readonly SharedNode[]) => (v: Value) => Exp}
  */
 export const valuesExp = shared => constExp(resolve(shared))
-
-/**
- * The `rust` reason of a case whose object owns a `toString` or a `valueOf`:
- * `nanvm-lib` refuses it until it calls the method, Stage 2 of
- * `nanvm-lib/todo/to-primitive.md`.
- */
-const ownMethodRefused = 'an own toString or valueOf is refused until Stage 2 of to-primitive.md'
 
 /**
  * `+n` and `-n` share their whole argument space: both coerce with `ToNumber`
