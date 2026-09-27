@@ -26,12 +26,16 @@ with the schema, beside `array`, `object` and `property` here.
 ### Proposal
 
 ```ts
-/** `v` as fresh literal nodes; `other` answers what is not a plain value. */
-export const fromValue: (other: (v: unknown) => Exp) => (v: unknown) => Exp
+/** `v` as fresh literal nodes: a primitive as itself, `undefined`, an array, an object; `other` answers a function. */
+export const fromValue: (other: (f: Function) => Exp) => (v: unknown) => Exp
 ```
 
-in `fjs/edag/module.f.mjs`. `jsonEdag` is `fromValue(unreachable)` and
-`constExp(resolve)` is `fromValue` with its thunk hook.
+in `fjs/edag/module.f.mjs`. `constExp(resolve)` is `fromValue` with its
+thunk hook as `other`. `jsonEdag` today has no function arm at all,
+since a JSON document holds none, so its `other` refuses one: a
+callback that throws, the way `valueExp`'s resolver throws on a name it
+has no value for, with the linker's proof pinning the throw so the
+callback is covered.
 
 ### Tasks
 

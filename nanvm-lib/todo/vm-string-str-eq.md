@@ -9,20 +9,22 @@ Every place the VM asks whether a key is a particular built-in name
 converts the literal into a VM value to ask it:
 
 ```rust
-// vm/lambda/method.rs
+// vm/lambda/method.rs, method
 if *key == "toString".into() {
-if *key == "at".into() {
+// vm/lambda/method.rs, lookup — one row per built-in of Array, String and Number
+.find(|(name, _)| *key == (*name).into())
 // vm/array/member_access.rs, and the same line in vm/string/member_access.rs
 if s == "length".into() {
 // vm/function/member_access.rs
 Unpacked::String(s) if s == "length".into() => …
 ```
 
-`"x".into()` allocates a UTF-16 container and wraps it in an `Any`, and
+`"x".into()` allocates a UTF-16 container and wraps it in an `Any`.
 `method` runs on every call whose receiver has no own property of that
-name, and again in the optional-call guard. As
-[member-functions](./member-functions.md) fills in the built-in table,
-each new name is one more allocate-and-compare on every lookup. The name
+name, and again in the optional-call guard; `lookup` then walks a
+`(&str, Method)` table — about two dozen rows for `Array` alone — and
+builds a VM string for every row it passes before the match, so a
+lookup of the last name allocates once per built-in. The name
 `"length"` is also spelled three times with the same answer,
 `Number::from(len).to_any()`.
 
@@ -36,14 +38,16 @@ impl<A: IVm> PartialEq<str> for String<A>   // iterates self against other.encod
 ```
 
 in `vm/string/partial_eq.rs`, and a `Any::is_str(&self, &str) -> bool`
-for `method`, which needs the unpack first. The built-in method table
-then becomes a `(&'static str, Method<A>)` slice, and `"length"` one
-constant shared by the three `member_access` files.
+for `method` and `lookup`, which need the unpack first. `lookup`'s
+table keeps its shape and its `find` becomes `key.is_str(name)`, with
+no allocation per row, and `"length"` becomes one constant shared by
+the three `member_access` files.
 
 ### Tasks
 
 - [ ] `PartialEq<str> for String<A>` and `Any::is_str`, with tests.
-- [ ] The five sites through them; one `LENGTH` name.
+- [ ] `method`, `lookup` and the three `member_access` sites through
+      them; one `LENGTH` name.
 - [ ] `cargo test`, `cargo clippy`, `cargo fmt -- --check`.
 
 ### Related

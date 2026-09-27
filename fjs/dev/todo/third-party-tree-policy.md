@@ -56,11 +56,13 @@ and stands on its own.
 
 For the two recursions, one walk under both: a per-directory
 `walkDirs(root, descend)` in `fjs/dev`, answering the website's record
-per directory it enters — path, files, subdirectories, sorted — with
-today's `walk(root, classify)` derived from it by flattening the files
-that `classify` takes. The website's `walk` is then `walkDirs(dir,
-name => !isThirdParty(name))`, and its `_Walked` type moves beside the
-export. If the derivation turns out to cost more than the copy, the
+per directory it enters — path, files, subdirectories, sorted. Today's
+`walk(root, classify)` is derived from it: it descends where `classify`
+answers `descend`, and from each record it keeps every entry `classify`
+answers `take`, a subdirectory as much as a file, since a directory
+classified `take` is in today's answer without being entered. The
+website's `walk` is then `walkDirs(dir, name => !isThirdParty(name))`,
+and its `_Walked` type moves beside the export. If the derivation turns out to cost more than the copy, the
 website keeps its walk and shares only the predicate; the policy fix
 does not wait on the walk.
 

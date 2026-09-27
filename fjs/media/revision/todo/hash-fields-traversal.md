@@ -50,8 +50,12 @@ plus the map, both over one private walk:
 /** Every hash-bearing field of a revision, with its path: `['parents', '0']`, `['snapshot']`, `['lock', 'a', 'b']`. */
 export const hashEntries: (r: Revision) => readonly (readonly [readonly string[], string])[]
 /** Every hash-bearing field of a revision under `f`; the lock map to its leaves. */
-export const mapHashes: (f: (h: Hash) => Hash) => (r: Revision) => Revision
+export const mapHashes: (f: (h: string) => string) => (r: Revision) => Revision
 ```
+
+A hash is a `string` here, as it is in this module's `types.ts` today;
+the `Hash` alias is `fjs/cas/evo`'s, a consumer's name this format
+does not depend on. If the format wants the name, it declares its own.
 
 `checkReferences` is `hashEntries(r).find(([, h]) => !isHash(h))`
 turned into today's messages, with no captured state and no second
