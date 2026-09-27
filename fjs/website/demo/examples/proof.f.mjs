@@ -2,43 +2,52 @@
  * @import { Examples } from './types.ts'
  */
 
-import { name, pick, picker } from './module.f.mjs'
+import { examplePicker, name } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 
 /** @type {Examples} */
 const examples = [['One', 'export default 1;'], ['Two', 'export default 2;']]
 
+const { view, pick } = examplePicker(examples)
+
 /** @type {(text: string) => string} */
-const view = text => htmlToString(picker(examples)(text))
+const html = text => htmlToString(view(text))
 
 export const proof = {
-    picker: {
+    view: {
         // The drop-down carries the name its events arrive under.
-        name: () => assert(view('export default 1;').includes(`<select id="${name}" name="${name}">`)),
+        name: () => assert(html('export default 1;').includes(`<select id="${name}" name="${name}">`)),
         // The example the text is, and no other, is selected; with one
         // selected there is no `Custom` entry.
         selected: () => {
-            const html = view('export default 2;')
-            assertEq(html.split(' selected=""').length - 1, 1)
-            assert(html.includes('<option value="Two" selected="">Two</option>'), html)
-            assert(!html.includes('>Custom<'), html)
+            const h = html('export default 2;')
+            assertEq(h.split(' selected=""').length - 1, 1)
+            assert(h.includes('<option value="Two" selected="">Two</option>'), h)
+            assert(!h.includes('>Custom<'), h)
         },
         // Text that is no example selects `Custom`, listed first and
         // disabled, so it can be shown but never picked.
         custom: () => {
-            const html = view('export default 3;')
-            assertEq(html.split(' selected=""').length - 1, 1)
-            assert(html.includes(`name="${name}"><option selected="" disabled="">Custom</option>`), html)
+            const h = html('export default 3;')
+            assertEq(h.split(' selected=""').length - 1, 1)
+            assert(h.includes(`name="${name}"><option selected="" disabled="">Custom</option>`), h)
         },
     },
     pick: {
         // A name replaces the text with its source.
-        known: () => assertEq(pick(examples)('kept')('Two'), 'export default 2;'),
+        known: () => assertEq(pick('kept')('Two'), 'export default 2;'),
         // A name no example has keeps the text.
-        unknown: () => assertEq(pick(examples)('kept')('Three'), 'kept'),
+        unknown: () => assertEq(pick('kept')('Three'), 'kept'),
         // An empty name is an example's like any other: `Custom` sends no
         // value, so there is nothing for it to be confused with.
-        emptyName: () => assertEq(pick([['', 'export default 0;']])('kept')(''), 'export default 0;'),
+        emptyName: () => assertEq(examplePicker([['', 'export default 0;']]).pick('kept')(''), 'export default 0;'),
+    },
+    // A list whose names or sources repeat is refused where the picker is
+    // built: a repeated name would be unreachable, a repeated source would
+    // select two options at once.
+    throw: {
+        repeatedName: () => examplePicker([['A', 'one'], ['A', 'two']]),
+        repeatedSource: () => examplePicker([['A', 'one'], ['B', 'one']]),
     },
 }

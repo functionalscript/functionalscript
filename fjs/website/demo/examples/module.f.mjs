@@ -21,7 +21,7 @@
  *
  * @module
  *
- * @import { Examples } from './types.ts'
+ * @import { Examples, Picker } from './types.ts'
  * @import { Element } from '../../../media/html/types.ts'
  */
 
@@ -29,30 +29,39 @@
 export const name = 'example'
 
 /**
- * The drop-down for `examples`, with the example `text` is selected — or,
- * when `text` is none of them, a `Custom` entry that is.
+ * `list` as the drop-down a demo draws and the pick it makes — after
+ * checking that its names and its sources are each distinct.
  *
- * @type {(examples: Examples) => (text: string) => Element}
+ * **A repeat is refused, not resolved.** A pick is matched by name, so a
+ * second example under a name already used could never be reached; the
+ * selection is matched by source, so two examples with one source would
+ * both be selected, which a single-select cannot be. Either way the list is
+ * the demo author's to get right, so a repeat is a bug in the demo and
+ * panics here, once, when the demo builds its picker — not on every render.
+ *
+ * `view(text)` selects the example `text` is, or, when `text` is none of
+ * them, a `Custom` entry. `pick(text)(value)` is the source of the example
+ * `value` names, or `text` unchanged for a name no example has. `Custom`
+ * sends none, being disabled, so every name a pick sends is an example's.
+ *
+ * @type {(list: Examples) => Picker}
  */
-export const picker = examples => text => {
-    /** @type {readonly Element[]} */
-    const options = examples.map(([n, source]) =>
-        ['option', source === text ? { value: n, selected: '' } : { value: n }, n])
-    const custom = examples.some(([, source]) => source === text)
-        ? []
-        : [/** @type {Element} */ (['option', { selected: '', disabled: '' }, 'Custom'])]
-    return ['p',
-        ['label', { for: name }, 'Example '],
-        ['select', { id: name, name }, ...custom, ...options],
-    ]
+export const examplePicker = list => {
+    if (new Set(list.map(([n]) => n)).size !== list.length) { throw 'examples: a name is repeated' }
+    if (new Set(list.map(([, source]) => source)).size !== list.length) { throw 'examples: a source is repeated' }
+    return {
+        view: text => {
+            /** @type {readonly Element[]} */
+            const options = list.map(([n, source]) =>
+                ['option', source === text ? { value: n, selected: '' } : { value: n }, n])
+            const custom = list.some(([, source]) => source === text)
+                ? []
+                : [/** @type {Element} */ (['option', { selected: '', disabled: '' }, 'Custom'])]
+            return ['p',
+                ['label', { for: name }, 'Example '],
+                ['select', { id: name, name }, ...custom, ...options],
+            ]
+        },
+        pick: text => value => list.find(([n]) => n === value)?.[1] ?? text,
+    }
 }
-
-/**
- * The text after picking `value`: the source of the example it names, or
- * `text` unchanged for a name no example has. `Custom` sends none, being
- * disabled, so every name a pick sends is an example's.
- *
- * @type {(examples: Examples) => (text: string) => (value: string) => string}
- */
-export const pick = examples => text => value =>
-    examples.find(([n]) => n === value)?.[1] ?? text

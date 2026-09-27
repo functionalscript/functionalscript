@@ -216,13 +216,6 @@ export const proof = {
                     assertEq(_graphOf(source).ok, !name.startsWith('Error:'))
                 }
             },
-            // A pick is matched by name and the selection by source, so a
-            // repeat of either would be an entry no reader could reach or
-            // two options selected at once.
-            distinctNames: () =>
-                assertEq(new Set(examples.map(([name]) => name)).size, examples.length),
-            distinctSources: () =>
-                assertEq(new Set(examples.map(([, source]) => source)).size, examples.length),
         },
     },
 }

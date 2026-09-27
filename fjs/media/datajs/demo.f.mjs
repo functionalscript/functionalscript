@@ -42,7 +42,7 @@ import { keySerialize, leafSerialize } from './serializer/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { ranked, graphSvg } from '../../website/demo/graph/module.f.mjs'
-import { name as exampleName, pick, picker } from '../../website/demo/examples/module.f.mjs'
+import { examplePicker, name as exampleName } from '../../website/demo/examples/module.f.mjs'
 
 const { is } = Object
 
@@ -179,22 +179,27 @@ export const examples = [
     ['Error: JSON is not a document', '{"a":1}'],
 ]
 
+const picker = examplePicker(examples)
+
 /**
  * The state is the text itself, not the graph: the graph is a function of
  * it, and storing a value the state can already compute is how the two
  * drift apart. Picking an example replaces the text with its source.
+ *
+ * `picker`, above, is built once, as the module loads, which is where a
+ * list with a repeated name or source is refused.
  *
  * @type {Demo<string, DemoEvent>}
  */
 export const demo = {
     init: examples[0][1],
     update: state => event => pureOk(event.kind !== 'input' ? state
-        : event.name === exampleName ? pick(examples)(state)(event.value)
+        : event.name === exampleName ? picker.pick(state)(event.value)
             : event.value),
     view: text => {
         const g = _graphOf(text)
         return ['div',
-            picker(examples)(text),
+            picker.view(text),
             ['p',
                 ['label', { for: 'datajs' }, 'DataJS '],
                 ['textarea', { id: 'datajs', name: 'datajs', rows: '8' }, text],
