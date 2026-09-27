@@ -613,6 +613,19 @@ export const respond = root => ({ method, url, headers }) => {
     // reads. `resultStep`, not `resultMapStep`, because framing an open that
     // *failed* asks the file system one more question wherever the code is not
     // the whole answer — see {@link answer}.
+    //
+    // **The second effect is inside the continuation because it is a branch and
+    // not a link**, which is the one shape [§3.4](../AGENTS.md#34-effects-fjseffects)'s
+    // flat chain cannot take. The two outcomes of the `open` need two *different*
+    // absorptions: a failure becomes a response through {@link answer}, and a
+    // success asks one more effect through the handle. `historyStep`, which the
+    // rule offers wherever a later link needs an earlier value, carries `ok`
+    // values and propagates the channel, so a chain of `open` then `fstat` would
+    // hand both failures to one continuation as one `IoChannel` — and the two are
+    // not interchangeable there either, because the `fstat` failure is the one
+    // that owes a handle back and the channel does not carry it. Nothing in
+    // `fjs/effects` binds a branch flat today; a combinator that did would be the
+    // place to fix this, not a rewrite here.
     return resultStep(open(path), r => {
         // Bound rather than returned inline, for the reason `main` binds its own:
         // the branches are two different `Effect`s and `step` would infer neither

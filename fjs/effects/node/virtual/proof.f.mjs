@@ -9,7 +9,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { resolveFileModule, access, awaitIfPromise, close, exec, fetch, framingHeaderMessage, fstat, handleSource, log, open, pread, readChunks, rm, rmdir, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, forever, listen, readWhole, notAFileCode, notAFileMessage, mkdir, unframedBodyMessage } from '../module.f.mjs'
+import { resolveFileModule, access, awaitIfPromise, close, exec, fetch, framingHeaderMessage, fstat, handleSource, log, open, pread, readChunks, rm, rmdir, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, forever, listen, readWhole, notAFileCode, notAFileMessage, mkdir, unframedBodyMessage, maxOffset } from '../module.f.mjs'
 import { empty, length, maxLengthBytes, msb, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
 import { history, historyStep, pureError, pureOk, resultMapStep, step } from '../../module.f.mjs'
 import { empty as endOfBody, nonEmpty } from '../../list/module.f.mjs'
@@ -1182,6 +1182,36 @@ export const proof = {
             assertIoCode(afterClose(handle => pread(handle, 0, 1)), 'EBADF')
             assertIoCode(afterClose(handle => fstat(handle)), 'EBADF')
         },
+        // **A window past the end of the file and a window past the end of the
+        // number line are two different answers**, and only the first is an
+        // end-of-file read. `9007199254740991` is the largest byte a `read` may
+        // name — measured on Darwin with Node 23.11.0, a position there answers
+        // nought bytes for a short file and one further fails `ERR_OUT_OF_RANGE`,
+        // `must be >= -1 && <= 9007199254740991` — so a runner answering the
+        // plausible empty read for the second hands a caller an end-of-file branch
+        // production never reaches. `windowRefusal` draws that line for both
+        // runners; this is it seen through a handle.
+        readsPastTheLastAddressableByte: () => {
+            /** @type {Dir} */
+            const root = { 'a.bin': [utf8('abc')] }
+            /** @type {(offset: number, size: number) => IoResult<Vec>} */
+            const readOf = (offset, size) =>
+                virtual({ ...emptyState, root })(step(open('a.bin'), handle => pread(handle, offset, size)))[1]
+            // Past the file: nought bytes, which is what the host answers.
+            assertEq(length(unwrap(readOf(maxOffset, 1))), 0n)
+            assertEq(length(unwrap(readOf(3, 1))), 0n)
+            // Past the last address: refused, in the words the node runner now
+            // refuses it in too.
+            const unsafe = readOf(maxOffset + 1, 1)
+            assert(unsafe[0] === 'error', unsafe)
+            assertIoMessage(unsafe[1], `Offset ${maxOffset + 1} exceeds maximum allowed offset of ${maxOffset}`)
+            // And a fractional size, which is the bound the node runner used to
+            // read *through*: `Buffer.alloc(1.5)` is one byte long and says
+            // nothing, so the host returned a byte where this refused.
+            const fractional = readOf(0, 1.5)
+            assert(fractional[0] === 'error', fractional)
+            assertIoMessage(fractional[1], 'Chunk size 1.5 is not an integer')
+        },
         // A second close is `ok`, which is the host's answer and not a
         // convenience: a caller that cannot tell whether it has already released
         // a handle may release it again.
@@ -1579,7 +1609,28 @@ export const proof = {
                 }),
                 requested('HEAD'))[1]
             assertEq(framing.status, 500)
-            assertEq(responseText(framing), `${framingHeaderMessage}\n`)
+            // **The refusal's frame goes out and its bytes do not**, because a
+            // `HEAD` drops a body whoever wrote it. Measured on Darwin with Node
+            // 23.11.0: the `writeHead(500, …).end(body)` the node runner performs
+            // for this refusal put the status line, the three headers and
+            // `content-length: 53` on the wire and nought bytes after them for a
+            // `HEAD`, where a `GET` carried all 53 — so the header still declares
+            // the length of a body a client is told not to expect, exactly as
+            // gate 2 leaves a suppressed `Content-Length` standing.
+            assertEq(framing.body.length, 0)
+            assertEq(`${framing.headers['content-length']}`, `${framingHeaderMessage.length + 1}`)
+            assertEq(`${framing.headers['content-type']}`, 'text/plain; charset=utf-8')
+            // And the same refusal on a `GET` carries its text, which is the half
+            // of this that `refusesAListenersFraming` asserts in full.
+            const carried = answerOne(
+                () => pureOk({
+                    status: 200,
+                    headers: { 'transfer-encoding': 'chunked', 'content-length': '7' },
+                    body: neverPulled,
+                    release: holdsNothing,
+                }),
+                requested('GET'))[1]
+            assertEq(responseText(carried), `${framingHeaderMessage}\n`)
             // Gate 2 before gate 3: a `HEAD` is a complete answer whatever
             // framing the body it does not carry would have had, so the other
             // order answers `500` to a request this server can satisfy exactly.

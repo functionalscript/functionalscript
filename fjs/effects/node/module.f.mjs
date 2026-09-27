@@ -575,6 +575,51 @@ export const pread = do_('pread')
 /** @type {Func<Close>} */
 export const close = do_('close')
 
+// The window a positional read names, read by both runners
+
+/**
+ * The largest byte a positional read may name. **Node's own limit, not a
+ * choice**: measured on Darwin with Node 23.11.0, `FileHandle.read` at this
+ * position answers nought bytes for a short file, and at one more it fails
+ * `ERR_OUT_OF_RANGE` — `must be >= -1 && <= 9007199254740991`. A runner that
+ * answered the plausible empty read for the second would hand a caller an
+ * end-of-file branch the host never takes.
+ *
+ * @type {number}
+ */
+export const maxOffset = Number.MAX_SAFE_INTEGER
+
+/**
+ * The refusal a positional read's `offset` and `size` deserve, or `null` for a
+ * window a host will read.
+ *
+ * **It is here so that the two runners refuse the same numbers in the same
+ * words**, as {@link refusalMessage} is for the gates: `readBytes` and `pread`
+ * each have two implementations, the node runner's and the virtual one's, and a
+ * bound checked in one of the four is a window a proof passes and production
+ * refuses — or the reverse. Every caller asks this before it touches a byte.
+ *
+ * **Each bound is one the host draws, and two of them the host draws silently.**
+ * Node's `Buffer.alloc` takes a fractional size and *truncates* it: measured on
+ * Node 23.11.0, `Buffer.alloc(1.5)` is one byte long and `Buffer.alloc(0.5)` is
+ * none, so a size of `1.5` read one byte and said nothing about the half it
+ * dropped. A fractional *position* it does refuse, `ERR_OUT_OF_RANGE`, and an
+ * `offset` past {@link maxOffset} likewise. Refusing all of them here, before the
+ * allocation and before the read, is what makes the refusal a program meets its
+ * own rather than whichever of the two runners it happened to run under.
+ *
+ * @type {(offset: number, size: number) => Nullable<string>}
+ */
+export const windowRefusal = (offset, size) => {
+    if (!Number.isInteger(offset)) { return `Offset ${offset} is not an integer` }
+    if (!Number.isInteger(size)) { return `Chunk size ${size} is not an integer` }
+    if (offset < 0) { return `Offset ${offset} is negative` }
+    if (size < 0) { return `Chunk size ${size} is negative` }
+    if (!Number.isSafeInteger(offset)) { return `Offset ${offset} exceeds maximum allowed offset of ${maxOffset}` }
+    if (BigInt(size) > maxLengthBytes) { return `Chunk size ${size} exceeds maximum allowed size of ${maxLengthBytes} bytes` }
+    return null
+}
+
 /**
  * A {@link _ChunkSource} that reads through one open file, which is what makes a
  * body both lazy and one inode's.

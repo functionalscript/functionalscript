@@ -22,8 +22,8 @@ import { utf8ToString } from '../../../text/module.f.mjs'
 import { byteLength, bytesIn, empty, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok, unwrap } from '../../../types/result/module.f.mjs'
 import {
-    badPortCode, badPortMessage, emptyHost, emptyHostError, ioError, isPort, nodeCommands, notAFileCode,
-    notAFileMessage, refusalMessage, refusedStatus, responseGate, runnerResponse,
+    badPortCode, badPortMessage, carriesNoBody, emptyHost, emptyHostError, ioError, isPort, nodeCommands,
+    notAFileCode, notAFileMessage, refusalMessage, refusedStatus, responseGate, runnerResponse, windowRefusal,
 } from '../module.f.mjs'
 import { partialRun } from '../../mock/module.f.mjs'
 import { memoryInitial, memoryOperationMap } from '../../memory/module.f.mjs'
@@ -584,14 +584,16 @@ const rename = (src, dst) => state => {
  * the window arithmetic is the same question and the difference between the two
  * operations is entirely which bytes it is asked of.
  *
+ * **Which numbers are a window at all is {@link windowRefusal}'s to say**, not
+ * this function's: the node runner asks the same question of the same two numbers
+ * before it allocates a buffer, and a bound spelled out twice is a bound the two
+ * runners can come to disagree about.
+ *
  * @type {(chunks: readonly Vec[], offset: number, size: number) => IoResult<Vec>}
  */
 const window_ = (chunks, offset, size) => {
-    if (!Number.isInteger(offset)) { return fail(`Offset ${offset} is not an integer`) }
-    if (!Number.isInteger(size)) { return fail(`Chunk size ${size} is not an integer`) }
-    if (offset < 0) { return fail(`Offset ${offset} is negative`) }
-    if (size < 0) { return fail(`Chunk size ${size} is negative`) }
-    if (BigInt(size) > maxLengthBytes) { return fail(`Chunk size ${size} exceeds maximum allowed size of ${maxLengthBytes} bytes`) }
+    const refusal = windowRefusal(offset, size)
+    if (refusal !== null) { return fail(refusal) }
     let toSkip = BigInt(offset) * 8n
     let toRead = BigInt(size) * 8n
     let result = empty
@@ -1032,12 +1034,32 @@ const pump = bound => (state, e, written, body) => {
  * response is the runner's own frame rather than the listener's, as it is on a
  * socket, since the listener's is the one that may not be sent.
  *
- * @type {(gate: _Gate) => (state: State, status: number, headers: Headers, body: List<NodeOp, Vec, IoChannel>) => readonly [State, RecordedResponse]}
+ * **A refusal to a `HEAD` is that frame with the bytes taken off it**, because
+ * that is what the socket gets. Node drops a `HEAD` body whoever wrote it, the
+ * runner's own refusal included: measured on Darwin with Node 23.11.0, the same
+ * `writeHead(500, …).end(body)` `respondWith` performs put the status line, the
+ * three headers and `content-length: 53` on the wire and **nought** bytes after
+ * them for a `HEAD`, where a `GET` carried all 53. The frame is what a client
+ * reads, so the frame is kept; recording the chunk as well would have this runner
+ * report a body no host emits, which is a response a proof can pass against and
+ * production never sends.
+ *
+ * The method decides it and not the gate, through the same {@link carriesNoBody}
+ * the gate asks — at the **refusal's** status, `500`, since that is the status
+ * line that goes out. A listener's own `204` rewritten to `500` carries its
+ * refusal on a `GET`, which is the host's answer too.
+ *
+ * @type {(gate: _Gate, method: string) => (state: State, status: number, headers: Headers, body: List<NodeOp, Vec, IoChannel>) => readonly [State, RecordedResponse]}
  */
-const recordResponse = gate => (state, status, headers, body) => {
+const recordResponse = (gate, method) => (state, status, headers, body) => {
     if (gate[0] === 'noBody') { return [state, { status, headers, body: [], failure: null }] }
     if (gate[0] !== 'pump') {
-        return [state, { ...runnerResponse(refusedStatus, refusalMessage(gate)), failure: null }]
+        const refused = runnerResponse(refusedStatus, refusalMessage(gate))
+        return [state, {
+            ...refused,
+            body: carriesNoBody(method, refusedStatus) ? [] : refused.body,
+            failure: null,
+        }]
     }
     const [next, chunks, failure] = pump(gate[1])(state, body, 0, [])
     return [next, { status, headers, body: chunks, failure }]
@@ -1059,6 +1081,7 @@ const answerRequest = listener => (state, request) => {
     const { status, headers, body, release } = unwrap(answered)
     const [afterBody, recorded] = recordResponse(
         responseGate(request.method, request.chunkedResponse, status, headers),
+        request.method,
     )(afterListener, status, headers, body)
     const [afterRelease] = virtual(afterBody)(release)
     return { ...afterRelease, responses: [...afterRelease.responses, recorded] }

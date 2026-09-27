@@ -41,7 +41,7 @@ import { commonOperationMap } from '../common/module.mjs'
 import {
     emptyHost, emptyHostCode, emptyHostMessage, exitCode, inflateTrailingCode, inflateTrailingMessage,
     notAFileCode, notAFileMessage, refusalMessage, refusedStatus, responseGate, runnerResponse, toIoError,
-    usesInlineTestContext,
+    usesInlineTestContext, windowRefusal,
 } from './module.f.mjs'
 import { asBase, asNominal } from '../../types/nominal/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.mjs'
@@ -499,6 +499,24 @@ const withOpen = (path, flags) => async f => {
 }
 
 /**
+ * Refuses a window {@link windowRefusal} names, **before a buffer is allocated
+ * and before a byte is read**.
+ *
+ * The order matters as much as the check: `Buffer.alloc` silently truncates a
+ * fractional size, so a size of `1.5` allocated first reads one byte and reports
+ * nothing, and `FileHandle.read` raises its own `ERR_OUT_OF_RANGE` for an offset
+ * past `maxOffset`, so a read reached first answers in Node's words where the
+ * virtual runner answers in the repository's. Asking here makes the two runners
+ * refuse the same numbers and say the same sentence about them.
+ *
+ * @type {(offset: number, size: number) => void}
+ */
+const refuseWindow = (offset, size) => {
+    const refusal = windowRefusal(offset, size)
+    if (refusal !== null) { throw new Error(refusal) }
+}
+
+/**
  * Fills `buffer` from `fh`, starting at `position`, and answers the filled
  * prefix: all of `buffer`, or less only at the end of the file. `position`
  * `null` reads at the descriptor's own cursor and advances it.
@@ -619,12 +637,7 @@ const runNodeEffect = asyncRun({
     }),
     rename: (src, dst) => io(() => rename(src, dst)),
     readBytes: (path, offset, size) => io(async () => {
-        if (offset < 0) {
-            throw new Error(`Offset ${offset} is negative`)
-        }
-        if (size > maxFileSizeBytes) {
-            throw new Error(`Chunk size ${size} exceeds maximum allowed size of ${maxFileSizeBytes} bytes`)
-        }
+        refuseWindow(offset, size)
         return withOpen(path, 'r')(async fh => toVec(await fill(fh, Buffer.alloc(size), offset)))
     }),
     // One open for the whole file, which is the point of the operation: a caller
@@ -771,12 +784,7 @@ const runNodeEffect = asyncRun({
     // may answer less than it was asked for without the file being at its end, and
     // a caller counting bytes against a declared length would read that as a hole.
     pread: (handle, offset, size) => io(async () => {
-        if (offset < 0) {
-            throw new Error(`Offset ${offset} is negative`)
-        }
-        if (size > maxFileSizeBytes) {
-            throw new Error(`Chunk size ${size} exceeds maximum allowed size of ${maxFileSizeBytes} bytes`)
-        }
+        refuseWindow(offset, size)
         return toVec(await fill(asFileHandle(handle), Buffer.alloc(size), offset))
     }),
     close: handle => io(() => asFileHandle(handle).close()),

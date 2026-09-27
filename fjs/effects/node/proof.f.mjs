@@ -12,7 +12,7 @@ import { byteLength, empty, isVec, maxLengthBytes, u8ListMsb, u8ListToVecMsb, ui
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
 import { mapStep, pureError, pureOk, step as ioStep } from "../module.f.mjs"
-import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, errorMessage, errorSummary, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan, readWholeBytes, readChunks } from "./module.f.mjs"
+import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, errorMessage, errorSummary, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan, readWholeBytes, readChunks, windowRefusal, maxOffset } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
@@ -578,6 +578,74 @@ export const proof = {
         missingFile: () => {
             const [_, [t, result]] = virtual(emptyState)(readBytes('missing', 0, 4))
             assert(t === 'error', result)
+        },
+    },
+    // **Which pair of numbers is a window at all**, asked here because both
+    // runners ask it: the node one before it allocates a buffer, the virtual one
+    // before it walks the chunks. Four bounds and two runners is eight places a
+    // bound could have been spelled differently, so the words are asserted and not
+    // only the refusal.
+    windowRefusal: {
+        // A window a host will read.
+        accepted: () => {
+            assertEq(windowRefusal(0, 0), null)
+            assertEq(windowRefusal(0, 1), null)
+            assertEq(windowRefusal(7, Number(maxLengthBytes)), null)
+            // The largest offset Node takes, inclusive: measured on Darwin with
+            // Node 23.11.0, a `read` at this position answers nought bytes for a
+            // short file and one byte further fails `ERR_OUT_OF_RANGE`.
+            assertEq(windowRefusal(maxOffset, 1), null)
+        },
+        // **The two Node answers silently.** `Buffer.alloc` truncates a fractional
+        // size rather than refusing it — measured on Node 23.11.0,
+        // `Buffer.alloc(1.5)` is one byte long and `Buffer.alloc(0.5)` is none — so
+        // a runner that allocated first would read one byte for a size of `1.5`
+        // and say nothing about the half it dropped, while the other refused.
+        fractional: () => {
+            assertEq(windowRefusal(1.5, 1), 'Offset 1.5 is not an integer')
+            assertEq(windowRefusal(0, 1.5), 'Chunk size 1.5 is not an integer')
+            assertEq(windowRefusal(0, 0.5), 'Chunk size 0.5 is not an integer')
+            // Neither is a number at all, and `Number.isInteger` is what says so.
+            assertEq(windowRefusal(NaN, 1), 'Offset NaN is not an integer')
+            assertEq(windowRefusal(Infinity, 1), 'Offset Infinity is not an integer')
+            assertEq(windowRefusal(0, NaN), 'Chunk size NaN is not an integer')
+        },
+        negative: () => {
+            assertEq(windowRefusal(-1, 1), 'Offset -1 is negative')
+            assertEq(windowRefusal(0, -1), 'Chunk size -1 is negative')
+        },
+        // **Past the largest byte a position may name**, which is Node's limit and
+        // not a choice: `read` at `maxOffset + 1` fails `ERR_OUT_OF_RANGE` —
+        // `must be >= -1 && <= 9007199254740991` — where an integer that large is
+        // otherwise an ordinary end-of-file read. A runner answering the plausible
+        // empty read for it hands a caller a branch the host never takes.
+        unsafeOffset: () => {
+            assertEq(
+                windowRefusal(maxOffset + 1, 1),
+                `Offset ${maxOffset + 1} exceeds maximum allowed offset of ${maxOffset}`)
+            assertEq(
+                windowRefusal(2 ** 60, 1),
+                `Offset ${2 ** 60} exceeds maximum allowed offset of ${maxOffset}`)
+        },
+        oversizeChunk: () => {
+            const over = Number(maxLengthBytes) + 1
+            assertEq(
+                windowRefusal(0, over),
+                `Chunk size ${over} exceeds maximum allowed size of ${maxLengthBytes} bytes`)
+        },
+        // The order the bounds are asked in, because a value breaks two of them at
+        // once and the answer says which was asked first.
+        order: () => {
+            // Not an integer before negative: `-1.5` is both.
+            assertEq(windowRefusal(-1.5, 1), 'Offset -1.5 is not an integer')
+            assertEq(windowRefusal(0, -1.5), 'Chunk size -1.5 is not an integer')
+            // The offset before the size, so one call reports one thing.
+            assertEq(windowRefusal(-1, -1), 'Offset -1 is negative')
+            assertEq(windowRefusal(1.5, 1.5), 'Offset 1.5 is not an integer')
+            // Negative before too-large, and the offset's bound before the size's.
+            assertEq(
+                windowRefusal(maxOffset + 1, Number(maxLengthBytes) + 1),
+                `Offset ${maxOffset + 1} exceeds maximum allowed offset of ${maxOffset}`)
         },
     },
     readWholeBytes: {

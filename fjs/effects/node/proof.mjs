@@ -30,7 +30,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { ioError, pureError, pureOk, resultMapStep, resultStep, step } from '../module.f.mjs'
 import { empty as listEnd, nonEmpty } from '../list/module.f.mjs'
-import { byteLength, maxLengthBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
+import { byteLength, length, maxLengthBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { asBase } from '../../types/nominal/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.mjs'
@@ -41,7 +41,7 @@ import { tagLoose, tagPayload } from '../../git/testlib.f.mjs'
 import {
     awaitIfPromise, catch_, close, createServer, framingHeaderMessage, fstat, inflate,
     inflateTrailingCode, listen, open, pread, readWhole, rename, resolveFileModule,
-    rmdir, unframedBodyMessage, writeExclusive,
+    maxOffset, readBytes, rmdir, unframedBodyMessage, writeExclusive,
 } from './module.f.mjs'
 import { readFlags, runEffect } from './module.mjs'
 
@@ -755,6 +755,62 @@ export const proof = {
                     assertEq(first[1][1].code, 'EBADF')
                     assertEq(again[0], 'ok', again)
                 })
+        }),
+        // **The numbers a read refuses, asked of the host because the host is the
+        // side that used to answer them.** `Buffer.alloc` truncates a fractional
+        // size instead of refusing it — measured on Node 23.11.0,
+        // `Buffer.alloc(1.5)` is one byte long — so a size of `1.5` read one byte
+        // here and said nothing, where the virtual runner refused the same call.
+        // An offset past the last addressable byte is the mirror of it: Node's own
+        // `read` refuses that one, `ERR_OUT_OF_RANGE`, where the virtual runner
+        // answered a plausible empty read.
+        //
+        // Both now go through `windowRefusal`, before the allocation and before
+        // the read, so the two runners refuse the same numbers **in the same
+        // words** — which is what a proof written against either can rely on.
+        // `./proof.f.mjs` (`windowRefusal`) holds the words; this is the host
+        // producing them.
+        refusesAWindowNoHostCanRead: () => withTemporary('fjs-handle-window-', async root => {
+            const path = join(root, 'a.bin')
+            await writeFile(path, 'abc')
+            // Both positional reads, because both allocate the buffer the same way
+            // and a bound asked in one of them is a bound the other reads through.
+            /** @type {(offset: number, size: number) => Effect<NodeOp, Result<Vec, IoChannel>, IoChannel>} */
+            const throughHandle = (offset, size) => step(open(path), handle =>
+                resultStep(pread(handle, offset, size), taken =>
+                    step(close(handle), () => pureOk(taken))))
+            /** @type {(offset: number, size: number) => Effect<NodeOp, Result<Vec, IoChannel>, IoChannel>} */
+            const throughName = (offset, size) => resultStep(readBytes(path, offset, size), pureOk)
+            /** @type {(offset: number, size: number, message: string) => Promise<void>} */
+            const refuses = async (offset, size, message) => {
+                for (const read of [throughHandle, throughName]) {
+                    await hostCheck(read(offset, size), result => {
+                        const taken = unwrap(result)
+                        assert(taken[0] === 'error', taken)
+                        assert(taken[1][0] === 'ioError', taken[1])
+                        assertEq(taken[1][1].message, message)
+                    })
+                }
+            }
+            await refuses(0, 1.5, 'Chunk size 1.5 is not an integer')
+            await refuses(1.5, 1, 'Offset 1.5 is not an integer')
+            await refuses(-1, 1, 'Offset -1 is negative')
+            await refuses(0, -1, 'Chunk size -1 is negative')
+            await refuses(
+                maxOffset + 1, 1,
+                `Offset ${maxOffset + 1} exceeds maximum allowed offset of ${maxOffset}`)
+            await refuses(
+                0, Number(maxLengthBytes) + 1,
+                `Chunk size ${Number(maxLengthBytes) + 1} exceeds maximum allowed size of ${maxLengthBytes} bytes`)
+            // And the largest offset a read may name is not refused: it is an
+            // ordinary read past the end of a short file, which answers nothing.
+            for (const read of [throughHandle, throughName]) {
+                await hostCheck(read(maxOffset, 1), result => {
+                    const taken = unwrap(result)
+                    assertEq(taken[0], 'ok', taken)
+                    assertEq(length(unwrap(taken)), 0n)
+                })
+            }
         }),
     },
     createServer: {
