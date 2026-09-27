@@ -450,6 +450,11 @@ export type RequestBody =
  * it is asked for. A failure of the *pull* — the offset refusal above — is not:
  * it names a position, leaves the body untouched, and the pulls after it read
  * on.
+ *
+ * **A pull after the request has been answered is not refused yet**, and the two
+ * runners do not agree about it: a body a listener kept and pulled under a later
+ * request reads as empty on a host and as the original bytes here. That is
+ * [request-body-lifetime](./todo/request-body-lifetime.md).
  */
 export type ReadRequestBytes =
     readonly['readRequestBytes', (body: RequestBody, offset: number, size: number) => IoResult<Vec>]

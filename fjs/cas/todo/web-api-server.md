@@ -72,12 +72,16 @@ HTML form is an exposure-matrix decision for
 
 - [ ] Wait for the CAS command architecture design
       ([command-architecture](./command-architecture.md)).
-- [ ] Streaming HTTP **request** body effects in `fjs/effects/node`
+- [x] Streaming HTTP **request** body effects in `fjs/effects/node`
       ([streaming-http-bodies](../../effects/node/todo/streaming-http-bodies.md),
-      stage 2) — prerequisite for arbitrary-size `add`; without it the adapter
-      keeps the 128 KiB inline cap on what a client sends. A `get` of any size
-      can already be answered, holding the blob in memory to do it; the lazy
-      response body is that issue's remaining half of stage 1.
+      stage 2). — `IncomingMessage.body` is a `List` the listener pulls from,
+      uncapped, so an `add` of any size has a way in and the adapter needs no
+      128 KiB inline cap on what a client sends.
+- [ ] Serve a blob without materializing it: the lazy **response** body, which is
+      [streaming-http-bodies](../../effects/node/todo/streaming-http-bodies.md)'s
+      remaining half of stage 1. A `get` of any size can already be answered,
+      holding the whole blob in memory to do it, so this bounds how large a blob
+      the transport can serve rather than whether it can.
 - [ ] Design authentication and the exposed command subset.
 - [ ] Design the HTML browsing surface: routes / content negotiation, the
       list and blob pages, dialect-aware rendering (revision DAG links).
@@ -101,6 +105,6 @@ HTML form is an exposure-matrix decision for
   these effects; a CAS HTTP front end is the same layer with a command set
   behind it instead of a file system.
 - `fjs/effects/node/types.ts` (`IncomingMessage`/`ServerResponse`) — the request
-  body is still one `Vec`, which is what stops this transport carrying a blob past
-  128 KiB *inward*; the response body is a chunk list, whole in memory rather than
-  streamed.
+  body is a `List` the listener pulls from, so nothing caps what this transport can
+  carry *inward*; the response body is a chunk list, whole in memory rather than
+  streamed, which is what still bounds a blob it serves.

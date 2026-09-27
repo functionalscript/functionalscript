@@ -11,6 +11,9 @@
 
 ### Related
 
+- [request-body-lifetime](./request-body-lifetime.md) — the first concrete thing a
+  listener can already carry between requests, and the runners disagree about what
+  it holds when it does.
 - [`fjs/web`](../../../web/README.md) — the first real consumer. It is stateless
   by design, so it is not blocked by this question, but what it needed (and did
   not) is evidence for whichever option is chosen.
