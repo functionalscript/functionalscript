@@ -10,6 +10,12 @@
  * and text a reader has edited into none of them selects a `Custom` entry
  * that exists only while it is needed.
  *
+ * **`Custom` is disabled, so it never sends a pick.** It names no source —
+ * it only says the text is none of the examples — and a value of its own
+ * would be one some example could also have: an example named `''` would
+ * then be indistinguishable from it. Disabled, it cannot be chosen, so every
+ * pick names a real example and no name has to be reserved.
+ *
  * **The drop-down's `name` is `example`**, the name its `input` events arrive
  * under, so a demo tells a pick from typing without holding a DOM node.
  *
@@ -34,7 +40,7 @@ export const picker = examples => text => {
         ['option', source === text ? { value: n, selected: '' } : { value: n }, n])
     const custom = examples.some(([, source]) => source === text)
         ? []
-        : [/** @type {Element} */ (['option', { value: '', selected: '' }, 'Custom'])]
+        : [/** @type {Element} */ (['option', { selected: '', disabled: '' }, 'Custom'])]
     return ['p',
         ['label', { for: name }, 'Example '],
         ['select', { id: name, name }, ...custom, ...options],
@@ -43,7 +49,8 @@ export const picker = examples => text => {
 
 /**
  * The text after picking `value`: the source of the example it names, or
- * `text` unchanged for a name no example has — `Custom`'s empty one.
+ * `text` unchanged for a name no example has. `Custom` sends none, being
+ * disabled, so every name a pick sends is an example's.
  *
  * @type {(examples: Examples) => (text: string) => (value: string) => string}
  */

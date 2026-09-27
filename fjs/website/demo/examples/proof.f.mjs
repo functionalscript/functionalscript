@@ -24,17 +24,21 @@ export const proof = {
             assert(html.includes('<option value="Two" selected="">Two</option>'), html)
             assert(!html.includes('>Custom<'), html)
         },
-        // Text that is no example selects `Custom`, listed first.
+        // Text that is no example selects `Custom`, listed first and
+        // disabled, so it can be shown but never picked.
         custom: () => {
             const html = view('export default 3;')
             assertEq(html.split(' selected=""').length - 1, 1)
-            assert(html.includes(`name="${name}"><option value="" selected="">Custom</option>`), html)
+            assert(html.includes(`name="${name}"><option selected="" disabled="">Custom</option>`), html)
         },
     },
     pick: {
         // A name replaces the text with its source.
         known: () => assertEq(pick(examples)('kept')('Two'), 'export default 2;'),
-        // `Custom`'s empty name, or any other, keeps the text.
-        unknown: () => assertEq(pick(examples)('kept')(''), 'kept'),
+        // A name no example has keeps the text.
+        unknown: () => assertEq(pick(examples)('kept')('Three'), 'kept'),
+        // An empty name is an example's like any other: `Custom` sends no
+        // value, so there is nothing for it to be confused with.
+        emptyName: () => assertEq(pick([['', 'export default 0;']])('kept')(''), 'export default 0;'),
     },
 }
