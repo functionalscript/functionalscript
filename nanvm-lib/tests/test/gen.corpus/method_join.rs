@@ -9,6 +9,8 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("undefinedSeparator", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("join")).end_call(|| Ok([Nullish::Undefined.to_any()].to_array().to_any())), string_any("1,2"));
     check::<A>("separator", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("join")).end_call(|| Ok([string_any("-")].to_array().to_any())), string_any("1-2"));
     check::<A>("emptySeparator", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("join")).end_call(|| Ok([string_any("")].to_array().to_any())), string_any("12"));
+    check::<A>("functionSeparatorEmpty", Any::dot(Array::default().to_any(), string_any("join")).end_call(|| Ok([function_any()].to_array().to_any())), string_any(""));
+    check::<A>("functionSeparatorSingle", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("join")).end_call(|| Ok([function_any()].to_array().to_any())), string_any("1"));
     check::<A>("nullSeparator", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("join")).end_call(|| Ok([Nullish::Null.to_any()].to_array().to_any())), string_any("1null2"));
     check::<A>("numberSeparator", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("join")).end_call(|| Ok([f64_any(0x0000000000000000)].to_array().to_any())), string_any("102"));
     check::<A>("arraySeparator", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("join")).end_call(|| {

@@ -11,6 +11,7 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("emptySeparator", Any::dot(string_any("abc"), string_any("split")).end_call(|| Ok([string_any("")].to_array().to_any())), [string_any("a"), string_any("b"), string_any("c")].to_array().to_any());
     check::<A>("limit", Any::dot(string_any("a,b,c"), string_any("split")).end_call(|| Ok([string_any(","), f64_any(0x4000000000000000)].to_array().to_any())), [string_any("a"), string_any("b")].to_array().to_any());
     check::<A>("limitZero", Any::dot(string_any("a,b"), string_any("split")).end_call(|| Ok([string_any(","), f64_any(0x0000000000000000)].to_array().to_any())), Array::default().to_any());
+    check::<A>("limitZeroFunctionSeparator", Any::dot(string_any("a"), string_any("split")).end_call(|| Ok([function_any(), f64_any(0x0000000000000000)].to_array().to_any())), Array::default().to_any());
     check::<A>("limitNegativeIsHuge", Any::dot(string_any("a,b"), string_any("split")).end_call(|| Ok([string_any(","), f64_any(0xbff0000000000000)].to_array().to_any())), [string_any("a"), string_any("b")].to_array().to_any());
     check::<A>("emptyLimit", Any::dot(string_any("abc"), string_any("split")).end_call(|| Ok([string_any(""), f64_any(0x4000000000000000)].to_array().to_any())), [string_any("a"), string_any("b")].to_array().to_any());
     check::<A>("undefinedLimitZero", Any::dot(string_any("a"), string_any("split")).end_call(|| Ok([Nullish::Undefined.to_any(), f64_any(0x0000000000000000)].to_array().to_any())), Array::default().to_any());

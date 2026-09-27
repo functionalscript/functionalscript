@@ -311,6 +311,12 @@ fn array_join<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>
     let separator = argument(&args, 0);
     let separator = match Unpacked::from(separator.clone()) {
         Unpacked::Nullish(Nullish::Undefined) => ",".into(),
+        // Fewer than two elements never place the separator, so it is
+        // converted for its throws alone.
+        _ if a.length() < 2 => {
+            separator.to_string_unused()?;
+            "".into()
+        }
         // The shared conversion calls an object's own `toString`, and
         // refuses a function until its text exists: Stage 3 of
         // `nanvm-lib/todo/to-primitive.md`.
@@ -408,6 +414,24 @@ mod tests {
     /// element is refused, not joined as `"function"`.
     #[test]
     fn join_converts_through_the_shared_conversion() {
+        // With fewer than two elements a function separator is never read:
+        // `[].join(f)` is `""` and `[1].join(f)` is `"1"`, as in JavaScript.
+        // A separator's own `toString` is still called, for its throws.
+        let g = || A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array()).to_any();
+        let joined = |a: Any<A>| {
+            a.dot("join".into())
+                .end_call(|| Ok([g()].to_array().to_any()))
+        };
+        assert_eq!(joined([].to_array().to_any()), Ok("".into()));
+        assert_eq!(joined([1.0.to_any()].to_array().to_any()), Ok("1".into()));
+        let own: Any<A> = [("toString".into(), g())].to_object().to_any();
+        let empty: Any<A> = [].to_array().to_any();
+        assert_eq!(
+            empty
+                .dot("join".into())
+                .end_call(|| Ok([own].to_array().to_any())),
+            Ok("".into())
+        );
         let f = || A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array()).to_any();
         let join = |a: Any<A>, separator: Any<A>| {
             a.dot("join".into())

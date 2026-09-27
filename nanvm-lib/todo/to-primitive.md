@@ -79,15 +79,20 @@ The object rule is one change in `primitive_coercion.rs`, which every caller
 inherits. The function rule also needs the callers that can answer without
 the text: `ToNumber`, `ToNumeric` and the relational operators, below.
 
-**An object with an own `toString`, or an own `valueOf` that is a function,
-is refused.** Stage 2 replaced this refusal by the call. The refusal was a
-`TypeError` that names the cause, whatever the hint and whichever caller
-asked. A plain object is unchanged. The rule is exactly the inputs the VM
-answered wrongly before it, and no others:
+**An object with an own `toString` is refused, and so is one with an own
+`valueOf` that is a function, wherever the hint reaches it.** Stage 2
+replaced this refusal by the call. The refusal was a `TypeError` that names
+the cause, whichever caller asked. A plain object is unchanged. The rule is
+exactly the inputs the VM answered wrongly before it, and no others:
 
-- An own `toString` or `valueOf` that is a function is called by JavaScript.
-  Stage 1 cannot call it yet, so it refuses rather than answer
-  `"[object Object]"`.
+- An own `toString` or `valueOf` that is a function is called by JavaScript,
+  when the hint reaches it. Stage 1 cannot call it yet, so it refuses rather
+  than answer `"[object Object]"`.
+- The `string` hint tries `toString` first, and the stock one answers
+  `"[object Object]"`, so it never reaches `valueOf`: `String({ valueOf: f })`
+  is `"[object Object]"` in JavaScript and in the VM, and is not refused. The
+  `number` hint, and no hint, try `valueOf` first: `+{ valueOf: f }` is
+  refused.
 - An own `toString` that is not a function is skipped. The stock `valueOf`
   then answers the object, and JavaScript throws a `TypeError` for both hints:
   `String({ toString: "h" })`. The refusal matches this exactly.
@@ -109,12 +114,17 @@ would be a regression:
 | `f < 5`, where the other side is not a string after `ToPrimitive` | `false`, from `NaN` | unchanged (the `<`, `<=`, `>`, `>=` cases) |
 | `f < "z"`, where the other side is a string | compares the text | **refused** |
 | `ToString`: `String(f)`, `join`, string-method arguments | the text | **refused** |
+| `ToString` whose result the algorithm discards: `[].join(f)`, `[1].join(f)`, `"a".split(f, 0)` | the text is computed, never read | answered, unchanged: `""`, `"1"`, `[]` |
 | `f + x`, which uses the default hint | the text, concatenated | **refused** |
 | `typeof f`, `!f`, `f ?? x`, `f \|\| x` | no conversion | unchanged |
 
-A function inside an array is converted through the array's text, a
-string, so `+[f]` is refused too, although `NaN` would be exact. That is the
-only over-refusal of Stage 1, and Stage 3 answers it.
+The line between the last two `ToString` rows is whether the algorithm reads
+the text. Where it reads it, Stage 1 refuses, even when every text would give
+the same answer: `"".includes(f)` is `false` and `"".split(f)` is `[""]` for
+any non-empty text. So is a function inside an array: it is converted through
+the array's text, a string, so `+[f]` is refused, although `NaN` would be
+exact. Telling those apart needs reasoning about every possible text, so they
+stay refused until Stage 3 gives the text itself.
 
 No function's text converts to a number: it starts with `(`, `function`,
 `async` or a name. So `NaN` is exact for every text, and the numeric path can
@@ -128,10 +138,16 @@ above is the contract.
 above: the refused inputs throw a `TypeError`, and the unchanged ones keep
 their value. They also check that a refusal is a throw, not a wrong answer,
 through the built-ins that reach it: `join` (separator and element), a string
-search, `slice`'s position, and the `+` and `<` operators. Where the host
-answers and the VM refuses, the case also joins the shared corpus with a
-`rust` reason naming this stage. The host still pins JavaScript's value, and
-Stage 2 turns the case on by deleting the reason.
+search, `slice`'s position, and the `+` and `<` operators.
+
+Where the host answers an **object** case and the VM refuses it, the case
+also joins the shared corpus with a `rust` reason naming Stage 2. The host
+still pins JavaScript's value, and Stage 2 turns the case on by deleting the
+reason. A **function** case does not join the corpus: the host's text of a
+function is not the oracle, the EDAG-rendering contract is
+(`member-functions.md`), and Stage 2 does not give a function a text anyway.
+Its refusals are pinned by the Rust unit tests alone, and Stage 3 adds its
+cases against the renderer.
 
 Stage 1 also made a check possible that no test could make before: conversion
 can throw, so `toSorted`'s guard (`vm/array/to_sorted.rs`, which leaves
@@ -193,7 +209,8 @@ results, and the only recursion is the user's own call.
 
 This stage is the EDAG default rendering, as specified in the documents
 linked above. When it lands, the function rows of Stage 1 answer the text.
-The refusals are deleted, and so are their `rust` reasons.
+The refusals are deleted, with the unit tests that pin them, and the function
+cases join the corpus with the renderer's text as their expected value.
 
 ### Related, not covered here
 
@@ -205,10 +222,10 @@ needs its own issue, and it lands with or after Stage 1.
 
 ### Tasks
 
-- [x] Stage 1: refuse an object with an own `toString` or a function
-      `valueOf`, and a function wherever its text is observable, keeping every
-      text-independent result. Unit tests per row, and corpus cases with a
-      `rust` reason.
+- [x] Stage 1: refuse an object with an own `toString`, or a function
+      `valueOf` the hint reaches, and a function wherever its text is
+      observable, keeping every text-independent result. Unit tests per row,
+      and corpus cases with a `rust` reason.
 - [x] The member functions that convert: the `// TODO:`s in `array_join`
       and `vm/string/search.rs` replaced with a pointer to Stage 2, tests
       that `join` and the searches refuse, a corpus case for a needle with

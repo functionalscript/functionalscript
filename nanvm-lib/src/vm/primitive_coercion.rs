@@ -326,6 +326,16 @@ mod tests {
         }
     }
 
+    /// The `string` hint tries `toString` first, and the stock one answers
+    /// before a function `valueOf` is reached: `String({ valueOf: f })` is
+    /// `"[object Object]"`, while `+{ valueOf: f }` calls `f`.
+    #[test]
+    fn string_hint_never_reaches_value_of() {
+        let o = || with(&[("valueOf", function())]);
+        assert_eq!(o().to_string(), Ok("[object Object]".into()));
+        assert_eq!(o().to_number(), Ok(Number::from(1.0)));
+    }
+
     /// Any other own property keeps the stock conversion.
     #[test]
     fn plain_object_is_unchanged() {
