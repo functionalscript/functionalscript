@@ -29,6 +29,14 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("arrayNull", Any::unary_plus([Nullish::Null.to_any()].to_array().to_any()), f64_any(0x0000000000000000));
     check::<A>("arrayPair", Any::unary_plus([Nullish::Null.to_any(), Nullish::Null.to_any()].to_array().to_any()), f64_any(0x7ff8000000000000));
     check::<A>("objectEmpty", Any::unary_plus(Object::default().to_any()), f64_any(0x7ff8000000000000));
+    check::<A>("objectOwnValueOf", Any::unary_plus([(string_key("valueOf"), function_any())].to_object().to_any()), f64_any(0x7ff8000000000000));
+    check::<A>("objectOwnValueOfNumber", Any::unary_plus([(string_key("valueOf"), A::static_function(|_self, _args| { Ok(f64_any(0x4002666666666666)) }, 0, Array::default()).to_any())].to_object().to_any()), f64_any(0x4002666666666666));
+    check::<A>("objectOwnToString", Any::unary_plus([(string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("2.3")) }, 0, Array::default()).to_any())].to_object().to_any()), f64_any(0x4002666666666666));
+    check::<A>("objectOwnBoth", Any::unary_plus([(string_key("valueOf"), A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default()).to_any()), (string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("2")) }, 0, Array::default()).to_any())].to_object().to_any()), f64_any(0x3ff0000000000000));
+    check::<A>("objectOwnValueOfNotAFunction", Any::unary_plus([(string_key("valueOf"), string_any("x"))].to_object().to_any()), f64_any(0x7ff8000000000000));
+    check::<A>("objectOwnValueOfNotPrimitive", Any::unary_plus([(string_key("valueOf"), A::static_function(|_self, _args| { Ok(Object::default().to_any()) }, 0, Array::default()).to_any()), (string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("2")) }, 0, Array::default()).to_any())].to_object().to_any()), f64_any(0x4000000000000000));
+    check_throws::<A>("objectOwnNoPrimitive", Any::unary_plus([(string_key("toString"), A::static_function(|_self, _args| { Ok(Array::default().to_any()) }, 0, Array::default()).to_any())].to_object().to_any()));
+    check_throws::<A>("objectOwnValueOfThrows", Any::unary_plus([(string_key("valueOf"), A::static_function(|_self, _args| { bigint_any(1) / bigint_any(0) }, 0, Array::default()).to_any()), (string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("2")) }, 0, Array::default()).to_any())].to_object().to_any()));
     check::<A>("function", Any::unary_plus(function_any()), f64_any(0x7ff8000000000000));
     check_throws::<A>("bigint", Any::unary_plus(bigint_any(0)));
 }
