@@ -31,9 +31,12 @@
  * @module
  *
  * @import { Diagram } from './types.ts'
+ * @import { Demo, DemoEvent } from '../types.ts'
  * @import { Element } from '../../../media/html/types.ts'
  * @import { _Size } from './private.ts'
  */
+
+import { pureOk } from '../../../effects/module.f.mjs'
 
 const boxHalf = 11
 const arc = 10
@@ -257,3 +260,17 @@ export const railroadSvg = d => {
  * @type {(titled: readonly [string, Diagram]) => Element}
  */
 export const railroadSection = ([title, d]) => ['section', { id: anchor(title) }, ['h3', title], railroadSvg(d)]
+
+/**
+ * A demo that is its diagrams: `intro`, then a section per titled diagram.
+ * A grammar's page shows what the grammar is, and nothing a reader does
+ * changes that, so the demo has no state and needs no operations: `update`
+ * returns the state it was given through `pureOk`.
+ *
+ * @type {(intro: string) => (diagrams: readonly (readonly [string, Diagram])[]) => Demo<null, DemoEvent>}
+ */
+export const railroadDemo = intro => diagrams => {
+    /** @type {Element} */
+    const view = ['div', ['p', intro], ...diagrams.map(railroadSection)]
+    return { init: null, update: state => () => pureOk(state), view: () => view }
+}

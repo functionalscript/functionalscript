@@ -14,23 +14,17 @@
  * grammar writes inline as branches of `value` — the only two found by their
  * branch rather than by their export.
  *
- * **It needs no operations**, and no state: the diagrams are a function of
- * the grammar alone, so `update` returns the state it was given through
- * `pureOk`.
  *
  * @module
  *
- * @import { Demo, DemoEvent } from '../../../website/demo/types.ts'
- * @import { Element } from '../../../media/html/types.ts'
  * @import { Rule } from '../../types.ts'
  */
 
 import { character, escape, hex, json, number, string, uint, value, ws } from './module.f.mjs'
 import { toData } from '../../data/module.f.mjs'
 import { branch, toDiagrams } from '../../railroad/module.f.mjs'
-import { railroadSection } from '../../../website/demo/railroad/module.f.mjs'
+import { railroadDemo } from '../../../website/demo/railroad/module.f.mjs'
 import { assertNotNullish } from '../../../asserts/module.f.mjs'
-import { pureOk } from '../../../effects/module.f.mjs'
 
 const [ruleSet, entry, names] = toData(json)
 
@@ -61,15 +55,4 @@ export const diagrams = [
     ['ws', nameOf(ws)],
 ]
 
-/** @type {Element} */
-const view = ['div',
-    ['p', 'The JSON grammar of this module, drawn from its rules. Follow a track from left to right; a pill is text the input holds, and a box is another diagram — select it to go there.'],
-    ...toDiagrams(ruleSet)(diagrams).map(railroadSection),
-]
-
-/** @type {Demo<null, DemoEvent>} */
-export const demo = {
-    init: null,
-    update: state => () => pureOk(state),
-    view: () => view,
-}
+export const demo = railroadDemo('The JSON grammar of this module, drawn from its rules. Follow a track from left to right; a pill is text the input holds, and a box is another diagram — select it to go there.')(toDiagrams(ruleSet)(diagrams))

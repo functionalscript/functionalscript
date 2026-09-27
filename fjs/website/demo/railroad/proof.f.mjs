@@ -2,9 +2,11 @@
  * @import { Diagram } from './types.ts'
  */
 
-import { anchor, railroadSection, railroadSvg } from './module.f.mjs'
+import { anchor, railroadDemo, railroadSection, railroadSvg } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { runPure } from '../../../effects/module.f.mjs'
+import { unwrap } from '../../../types/result/module.f.mjs'
 
 /** @type {(text: string) => Diagram} */
 const t = text => ['terminal', text]
@@ -50,6 +52,19 @@ export const proof = {
     // A section is the element a box links to: its id is the title's anchor.
     section: () => assertStructurallySame(railroadSection(['value', skip]),
         ['section', { id: 'railroad-value' }, ['h3', 'value'], railroadSvg(skip)]),
+    demo: {
+        // Its intro, then a section per diagram, in order.
+        view: () => {
+            const { init, view } = railroadDemo('intro')([['a', skip], ['b', t('b')]])
+            assertStructurallySame(view(init),
+                ['div', ['p', 'intro'], railroadSection(['a', skip]), railroadSection(['b', t('b')])])
+        },
+        // Nothing an event says changes the diagrams.
+        update: () => {
+            const { init, update } = railroadDemo('intro')([])
+            assertEq(unwrap(assertNotNullish(runPure(update(init)({ kind: 'start' }))[0])), init)
+        },
+    },
     // A terminal in full: the start bar, its pill and label, the end bar.
     // A pill is at least 28 wide; its track runs 11 below its top.
     terminal: () => assertStructurallySame(railroadSvg(t('a')),
