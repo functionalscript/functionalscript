@@ -45,11 +45,14 @@ fixed by making a handle re-read its name.
 | `rename` puts another file at the name | keeps its own bytes | keeps its own bytes |
 | `writeFile` writes the name | sees the new bytes | keeps the old bytes |
 
-The first row is already proven — `createServer`'s neighbour proof "the one-inode
-claim" asserts it, and `../../../web/todo/stat-then-read.md` is the incident that
-made it a requirement: a name resolved once per read can be replaced between
-reads, so a response framed by one entry's size can carry another entry's bytes. A
-handle must **not** follow the name.
+The first row is already proven, twice and on purpose: `open.namesAnInode` in
+[`../../proof.mjs`](../../proof.mjs) settles it through a real descriptor, and
+`handles.namesAnInode` in [`../proof.f.mjs`](../proof.f.mjs) models it here on every
+platform, Windows included. `Open` in [`../../types.ts`](../../types.ts) says why it
+is a requirement rather than a nicety: a path is resolved once per call, so a caller
+reading a file in windows can straddle two of them, and a response framed by one
+entry's size can then carry another entry's bytes. A handle must **not** follow the
+name.
 
 What a host handle follows is the *inode*: the same object the name pointed at when
 it was opened, whatever the name points at now. A rename changes which inode the
@@ -70,7 +73,7 @@ to break the other.
 
 2. **Refuse the sequence.** A write to a path with an open handle on it answers a
    refusal rather than a plausible snapshot, which is what
-   [DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle) asks
+   [DESIGN.md §10](../../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle) asks
    of an input a runner cannot handle. Cheap, and it stops a proof passing on a
    wrong answer. What it costs is that the refusal is words no host produces, and
    a refusal a program is proven against is meant to be the refusal it meets —
