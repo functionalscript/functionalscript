@@ -14,7 +14,7 @@ import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { tryParse, tryParseBytes, trySerialize, tryStringify } from './module.f.mjs'
-import { _graphOf, demo } from './demo.f.mjs'
+import { _graphOf, demo, examples } from './demo.f.mjs'
 import { _crossings } from '../../website/demo/graph/module.f.mjs'
 import { difference } from './vectors/module.f.mjs'
 import { htmlToString } from '../html/module.f.mjs'
@@ -195,12 +195,34 @@ export const proof = {
                 'expected the demo to reach a value without asking for an operation'))
             assertEq(step({ kind: 'input', name: 'datajs', value: '[1]' })(''), '[1]')
             assertEq(step({ kind: 'start' })('kept'), 'kept')
+            // Picking an example replaces the text with its source.
+            const [name, source] = examples[1]
+            assertEq(step({ kind: 'input', name: 'example', value: name })('kept'), source)
         },
-        // The field carries a `name`, so a demo tells its fields apart
-        // without ever holding a DOM node.
+        // The fields carry a `name`, so a demo tells them apart without ever
+        // holding a DOM node.
         view: () => {
             const html = htmlToString(demo.view(demo.init))
             assert(html.includes('name="datajs"'), html)
+            assert(html.includes('name="example"'), html)
+        },
+        examples: {
+            // The demo opens on the first, which is its overview.
+            init: () => assertEq(demo.init, examples[0][1]),
+            // Every example draws, except the one that is there to show an
+            // error.
+            draw: () => {
+                for (const [name, source] of examples) {
+                    assertEq(_graphOf(source).ok, !name.startsWith('Error:'))
+                }
+            },
+            // A pick is matched by name and the selection by source, so a
+            // repeat of either would be an entry no reader could reach or
+            // two options selected at once.
+            distinctNames: () =>
+                assertEq(new Set(examples.map(([name]) => name)).size, examples.length),
+            distinctSources: () =>
+                assertEq(new Set(examples.map(([, source]) => source)).size, examples.length),
         },
     },
 }
