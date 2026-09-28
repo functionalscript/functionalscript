@@ -187,7 +187,9 @@ digest the parent's token carries.
 - **Existence, of named content, by a time.** A pair's timestamp is the
   TTS of the commit that first introduced it. It proves that content with
   that SHA-256 name existed by the token's time plus its declared accuracy,
-  the conservative bound the companion design uses, and the proof is the timestamp
+  the conservative bound the companion design uses; a token that declares
+  no accuracy gives its time with no precise bound claimed, never a bound
+  taken as zero. The proof is the timestamp
   plus the objects: whoever checks it recomputes the name from the bytes
   and compares. The **oldest** timestamp naming the content is the whole
   proof of when it existed; later ones add nothing to that bound. The
