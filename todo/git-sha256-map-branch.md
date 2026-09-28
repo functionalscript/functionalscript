@@ -6,7 +6,9 @@
 ### Problem
 
 A trusted timestamp (TTS, RFC 3161) proves that a digest existed at a time
-`T`. DISOT wants that proof to be about Git content — commits, trees, blobs,
+`T`. DISOT (Decentralized Immutable Source of Truth,
+[architecture](./plan/architecture.md)) wants that proof to be about Git
+content — commits, trees, blobs,
 and the signatures inside them — so that anyone can show a history existed
 by `T`, and show *which* history, not one of a pair. A SHA-1 name cannot
 carry that proof: a collision gives two contents one name, so a timestamp
@@ -22,6 +24,16 @@ name, carried in the repository on a `disot` branch, in commits that are
 signed and timestamped. Each such commit descends from the previous one, so
 every new timestamp also covers the earlier commits and their timestamps —
 a chain that keeps adding timestamps for as long as the repository lives.
+
+The branch is a source of truth in DISOT's sense, and that fixes what it
+may hold: **only what was observed, and the original content it was
+observed of**. A pair is an observation — these bytes, at hand, hashed to
+this name, at this time — and a commit is a set of observations under one
+signature and one timestamp. The branch records no decisions: two
+observations that disagree both stay, and what a verifier makes of them is
+the verifier's policy, not the branch's content. Resolving a real collision
+properly may need consensus and signatures from many parties, and that is a
+later layer with its own records, not part of this design.
 
 That is the per-repository answer to the collisions issue's second
 candidate, and it is a process before it is a format: how the table is
@@ -101,7 +113,12 @@ first commit has no parent, and its trees hold table files and nothing else.
 
 Each commit on the branch carries **only the pairs new since its parents**,
 and its parents are the earlier table commits it was built on: the branch is
-a Merkle DAG of deltas, and the whole table is never written to Git. A
+a Merkle DAG of deltas, and the whole table is never written to Git. The
+table of a long-lived repository is huge, and a commit that re-listed it
+would make the branch grow with every timestamp; a commit that adds only the
+missing commits' objects grows with the content instead, and a commit made
+only to renew the timestamps carries one pair, the one for the commit it
+descends from. A
 reader builds it by scanning every `disot` commit and taking the union of
 their deltas in memory; that union is a cache, rebuilt from the branch, and
 a local on-disk form of it is tooling for later, not part of the format.
