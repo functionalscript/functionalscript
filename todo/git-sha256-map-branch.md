@@ -48,8 +48,12 @@ published. Nothing in Git ever merges tables.
 
 Which SHA-256 a pair names is decided in
 [git-sha1-collisions](./git-sha1-collisions.md); this process assumes and
-recommends **Git's compat name**, the hash of the object with every embedded
-SHA-1 id rewritten to its SHA-256 twin, because under it the pair for a
+recommends **Git's compat name**, the hash of the object converted exactly
+as the
+[transition document](https://git-scm.com/docs/hash-function-transition.html)
+converts it — every embedded SHA-1 id rewritten to its SHA-256 twin, and
+whatever it does with a signed commit's signature headers — because under
+it the pair for a
 commit is a Merkle root over everything the commit reaches, and one
 timestamped line proves a whole history. Under the SHA-256 of the stored
 bytes, each line proves only its own object, and a history is proved only by
@@ -71,8 +75,9 @@ and follows them with [`fjs/git/walk`](../fjs/git/walk/module.f.mjs); the
 hash is `sha256` from [`fjs/crypto/sha2`](../fjs/crypto/sha2/module.f.mjs),
 applied as [`fjs/git/oid`](../fjs/git/oid/module.f.mjs)'s `of` applies a hash
 to an object at a width. A tree entry of gitlink mode names a commit of
-another repository and is not followed; where its pair belongs is open
-below.
+another repository, whose pair this walk cannot obtain, so a tree holding
+one is refused rather than named with a guess; where its pair belongs is
+open below.
 
 **2. Add only what the table does not hold.** The table in hand is the
 walk's stopping condition: an object whose SHA-1 is already paired is not
@@ -163,8 +168,12 @@ commit whose parents are the heads it fetched — one parent in the usual
 case, several when two publishers raced — and pushes. Two writers who each
 fetched the same head and each pushed produce two heads, and the next commit
 simply names both as parents: nothing is merged, since the next delta only
-adds and a reader's union sees both. So the branch never carries a pair
-twice, and a commit carries only what its author computed.
+adds and a reader's union sees both. Two such writers may each have
+recorded the same pair, since neither saw the other's commit; that is
+normal, and a pair's timestamp is then the oldest of the deltas holding it.
+If the union holds two different SHA-256 names for one SHA-1, the run has
+no name to build on and refuses to publish; what to do then is out of
+scope below.
 
 Each new table also holds the pairs for the table commit it descends from
 and for the tree, the delta and the timestamp file that commit introduced —
@@ -177,7 +186,8 @@ digest the parent's token carries.
 
 - **Existence, of named content, by a time.** A pair's timestamp is the
   TTS of the commit that first introduced it. It proves that content with
-  that SHA-256 name existed by that time, and the proof is the timestamp
+  that SHA-256 name existed by the token's time plus its declared accuracy,
+  the conservative bound the companion design uses, and the proof is the timestamp
   plus the objects: whoever checks it recomputes the name from the bytes
   and compares. The **oldest** timestamp naming the content is the whole
   proof of when it existed; later ones add nothing to that bound. The
@@ -202,8 +212,8 @@ list is so that none is decided by accident.
 - **Which SHA-256.** [git-sha1-collisions](./git-sha1-collisions.md)'s
   question; this process assumes the compat name and says why above.
 - **The delta's file layout.** A delta per commit is decided: a pair lives
-  in exactly one delta, so its time is that commit's timestamp with nothing
-  to look up. What is open is how a delta is laid out in its tree — one
+  in the deltas that introduced it, usually one, so its time is the oldest
+  of their timestamps with nothing to look up. What is open is how a delta is laid out in its tree — one
   file, or files fanned out by the SHA-1's leading byte so that a large
   first delta splits — and whether a reader that answers one SHA-1 without
   scanning the whole branch is worth a local index, which is tooling and
@@ -247,7 +257,9 @@ accident:
 - **Trust between parties.** Which publishers' tables a reader accepts, and
   whether a run may prune at pairs another party published. A timestamp
   orders claims and a signature attributes them, so a reader ranks records
-  by signer before it ranks them by time.
+  by signer before it ranks them by time. This record authenticates only
+  the timestamp authority: the commit is unsigned and its author line is
+  a claim, so attribution needs a record of its own.
 - **Two records for one SHA-1.** Among trusted records, the earliest first;
   two different SHA-256 names for one SHA-1 is a collision, always reported,
   with the oldest pair as the working default on the assumption that a later
