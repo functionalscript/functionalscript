@@ -9,11 +9,11 @@ A trusted timestamp (TTS, RFC 3161) proves that a digest existed at a time
 `T`. DISOT (Decentralized Immutable Source of Truth:
 [what it is](https://medium.com/@sergeyshandar/digital-space-how-it-should-be-done-4c2f3bd3cf9e),
 [architecture](./plan/architecture.md)) wants that proof to be about Git
-content — commits, trees, blobs,
-and the signatures inside them — so that anyone can show a history existed
-by `T`, and show *which* history, not one of a pair. A SHA-1 name cannot
-carry that proof: a collision gives two contents one name, so a timestamp
-over a SHA-1 id proves that one of the pair existed, and not which
+content — commits, trees, blobs, and the signatures inside them — so that
+anyone can show a history existed by `T`, and show *which* history, not one
+of a pair. A SHA-1 name cannot carry that proof: a collision gives two
+contents one name, so a timestamp over a SHA-1 id proves that one of the
+pair existed, and not which
 ([git-sha1-collisions](./git-sha1-collisions.md)). The digest the timestamp
 covers has to be SHA-256 over the content.
 
@@ -30,17 +30,13 @@ The branch is a source of truth in DISOT's sense, and that fixes what it
 may hold: **only what was observed, and the original content it was
 observed of**. A pair is an observation — these bytes, at hand, hashed to
 this name, at this time — and a commit is a set of observations under one
-signature and one timestamp. The branch records no decisions: two
-observations that disagree both stay, and what a verifier makes of them is
-the verifier's policy, not the branch's content. Resolving a real collision
-properly may need consensus and signatures from many parties, and that is a
-later layer with its own records, not part of this design.
+signature and one timestamp. The branch records no decisions.
 
-That is the per-repository answer to the collisions issue's second
-candidate, and it is a process before it is a format: how the table is
-built, how it grows, how tables from several parties are read together, and what a
-verifier trusts. This issue is the process. The formats and the tooling
-come after it, one pull request at a time.
+**Scope.** This issue covers one thing: **recording** a timestamp over
+hardened hashes — how the pairs are computed, how a commit carries them,
+and how the chain grows. What a reader makes of the record — which parties
+it trusts, how it ranks two records, what it does with a collision — is
+out of scope and listed at the end so that it is not decided by accident.
 
 ### Proposal
 
@@ -48,6 +44,7 @@ The table is a **set of pairs** `(sha1, sha256)`, one per Git object, and
 every step treats it as a set: nothing is changed or removed, a commit only
 adds, and the table in hand is the union, in memory, of every table already
 published. Nothing in Git ever merges tables.
+
 Which SHA-256 a pair names is decided in
 [git-sha1-collisions](./git-sha1-collisions.md); this process assumes and
 recommends **Git's compat name**, the hash of the object with every embedded
@@ -76,34 +73,28 @@ to an object at a width. A tree entry of gitlink mode names a commit of
 another repository and is not followed; where its pair belongs is open
 below.
 
-**2. Add only what the table does not hold, and only trust what is
-trusted.** The table in hand is the walk's stopping condition: an object
-whose SHA-1 is already paired is not hashed again, and nothing it references
-is visited, as `git fetch` does not descend below a commit it already has.
-That pruning is safe only under an invariant the process guarantees: **the
-table is closed under reachability** — if an object is in it, everything
-the object references is too. Recording in post-order gives the invariant
-for free; a table that violates it is corrupt, refused rather than extended
+**2. Add only what the table does not hold.** The table in hand is the
+walk's stopping condition: an object whose SHA-1 is already paired is not
+hashed again, and nothing it references is visited, as `git fetch` does not
+descend below a commit it already has. That pruning is safe only under an
+invariant the process guarantees: **the table is closed under
+reachability** — if an object is in it, everything the object references
+is too. Recording in post-order gives the invariant for free; a table that
+violates it is corrupt, refused rather than extended
 ([DESIGN.md §10](../doc/DESIGN.md#10-refuse-what-you-cannot-handle)). Under
 compat naming the invariant is also what makes a pair meaningful, since the
 name is defined only where the subgraph below it is named.
 
-Pruning is a builder's shortcut and never a verifier's. A verifier reads the
-object and recomputes, every time, since a swapped twin has the SHA-1 the
-table holds and is exactly what a prune walks past. And a run prunes only at
-a pair it trusts — from its own earlier runs, or from a table commit whose
-signer it trusts — because a pair from anyone else may be an attacker's,
-published early so that the honest run skips the object (see **Trust**). A
-pair for an object entering the repository is therefore computed by whoever
-accepts it, at acceptance, from the bytes as accepted, never taken from a
-table.
+A pair is an observation of bytes at hand, so a run computes the pairs for
+the objects it records from the bytes it holds, and prunes only at pairs
+already on the chain it extends. Whether a run may also prune at pairs
+another party published is the trust question below, out of scope here.
 
 So the second run over a repository costs the new commits and the trees and
 blobs they introduced, and nothing more; the first run over a large
-repository costs every object it holds, once. The per-object pairs are what
-keep runs incremental. Trust flows from the commit roots; the object pairs
-are the cache that lets the next run prune at every subtree already named,
-and each is checkable against a root.
+repository costs every object it holds, once. Under compat naming the
+commit roots are what a timestamp proves, and the per-object pairs are the
+cache that lets the next run prune at every subtree already named.
 
 **3. Keep the table in Git, on its own branch, in signed and timestamped
 commits.** The table lives in the repository it describes, on a branch named
@@ -119,15 +110,15 @@ table of a long-lived repository is huge, and a commit that re-listed it
 would make the branch grow with every timestamp; a commit that adds only the
 missing commits' objects grows with the content instead, and a commit made
 only to renew the timestamps carries one pair, the one for the commit it
-descends from. A
-reader builds it by scanning every `disot` commit and taking the union of
-their deltas in memory; that union is a cache, rebuilt from the branch, and
-a local on-disk form of it is tooling for later, not part of the format.
+descends from. A reader builds the whole table by scanning every `disot`
+commit and taking the union of their deltas in memory; that union is a
+cache, rebuilt from the branch, and a local on-disk form of it is tooling
+for later, not part of the format.
 
 A commit on `disot` is an ordinary commit, signed and timestamped the way
 [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md)
 signs one. The table files carry no signature of their own; they are data,
-and everything a verifier trusts about them it gets from the commit. In a
+and everything a reader trusts about them it gets from the commit. In a
 SHA-1 repository the commit's `tree` header reaches those files only by
 SHA-1, and two things bind them by SHA-256 instead. The next commit's table
 holds the pair for this commit, which under compat naming is a root over
@@ -139,9 +130,9 @@ next one's; the collisions issue's third candidate, defined once for this
 branch and for any signed commit later. The header is the tight bound; the
 chain is the bound without it. With a strict table format neither is needed
 against the attacks known today — an attacker who authors none of the table's
-bytes cannot collide it — and both are kept so that the verifier's chain from
-the timestamp to every pair is SHA-256 end to end, with no per-format
-argument to maintain.
+bytes cannot collide it — and both are kept so that the chain from the
+timestamp to every pair is SHA-256 end to end, with no per-format argument
+to maintain.
 
 **4. Take every published table before publishing one.** Before a run
 records anything, it fetches `disot` from every remote it publishes to,
@@ -156,61 +147,28 @@ adds and a reader's union sees both. So the branch never carries a pair
 twice, and a commit carries only what its author computed.
 
 Each new table also holds the pair for the table commit it descends from,
-since that commit is an existing object. A reader who holds an older table
-then checks that the head it fetched descends from it by SHA-256 name, not
-by the SHA-1 in `parent`, and refuses a head that does not (see **Trust**).
+since that commit is an existing object; under compat naming that one line
+binds the whole earlier chain by SHA-256.
 
-### Trust
+### What a timestamp proves
 
-What a verifier trusts, and what it does not, once every table commit is
-signed and timestamped:
-
-- **What one timestamp proves.** A pair's timestamp is the TTS of the commit
-  that first introduced it. It proves that content with that SHA-256 name
-  existed by that time, and the proof is the timestamp plus the objects: a
-  verifier recomputes the name from the bytes it holds and checks it against
-  the line. The **oldest** trusted timestamp naming the content is the whole
-  proof of when it existed; later ones add nothing to that bound. They are
-  kept for a different reason: a timestamp verifies only while its
-  authority's certificate chain does, and a newer timestamp over the chain
-  proves the older token existed before that chain expired or its key was
-  compromised, which is the renewal RFC 3161 and long-term validation
-  describe.
-- **A timestamp orders claims; a signature attributes them.** The known
-  attacks need the attacker to author both twins before contributing one, so
-  a pair computed and timestamped at acceptance pins which twin the
-  repository held, and a table the attacker publishes afterwards carries a
-  later time. But an attacker who can publish tables can also be first:
-  contribute object X, timestamp a pair naming twin B while the repository
-  holds twin A, and swap later. So a verifier ranks pairs for one SHA-1 by
-  whether it trusts their signer before it ranks them by time, and a run
-  prunes only at pairs it trusts, as step 2 says.
-- **Tables from trusted parties are read earliest first.** Where two
-  trusted tables pair one SHA-1 with the same SHA-256, the older record
-  stands and the newer adds nothing. Where they pair it with **two different
-  SHA-256 names, that is a collision**, and the verifier **reports it**,
-  always. By default it then answers with the **oldest** pair, on the
-  assumption that the later one is an attempt to pass a twin off under a
-  name already known; a strict verifier may refuse the object instead, since
-  among honest parties two names for one SHA-1 can only mean a real
-  collision, and a compromised trusted party who published first would win
-  the default. The in-memory union of step 4 holds both lines, so the report
-  has its evidence, and the branch itself records no decision. A
-  conflict-resolving record — a later commit saying which pair stands — is
-  not part of the initial design and may come later.
-- **The timestamp's imprint is SHA-256 over the commit's bytes.** A request
-  that hashes the commit's SHA-1 id, or the payload with SHA-1, binds a name
-  the attacker can collide. The digest the timestamp contract names is an
-  open item of [git-sha1-collisions](./git-sha1-collisions.md); this process
-  requires it to be SHA-256.
-- **A timestamp proves existence, not priority.** It says the older table
-  existed by its time; it cannot say that no other table existed before the
-  attacker's. So "earliest first" holds only for a verifier that can see the
-  earlier table, and an attacker who controls the only copy of the branch
-  force-pushes it without the honest commit. The chain in step 4 lets anyone
-  holding an older table refuse a head that does not descend from it; wide
-  publication, to more than one host, is the defense for everyone else, as
-  it is for any Git history.
+- **Existence, of named content, by a time.** A pair's timestamp is the
+  TTS of the commit that first introduced it. It proves that content with
+  that SHA-256 name existed by that time, and the proof is the timestamp
+  plus the objects: whoever checks it recomputes the name from the bytes
+  and compares. The **oldest** timestamp naming the content is the whole
+  proof of when it existed; later ones add nothing to that bound.
+- **Why the chain keeps adding timestamps anyway.** A timestamp verifies
+  only while its authority's certificate chain does, and a newer timestamp
+  over the chain proves the older token existed before that chain expired
+  or its key was compromised — the renewal RFC 3161 and long-term
+  validation describe. So a renewal-only commit is a normal commit.
+- **The imprint is SHA-256 over the commit's bytes.** A request that hashes
+  the commit's SHA-1 id, or the payload with SHA-1, binds a name the
+  attacker can collide, and the whole record proves nothing more than the
+  SHA-1 did. The digest the timestamp contract names is an open item of
+  [git-sha1-collisions](./git-sha1-collisions.md); this process requires it
+  to be SHA-256.
 
 ### Open questions
 
@@ -219,13 +177,13 @@ list is so that none is decided by accident.
 
 - **Which SHA-256.** [git-sha1-collisions](./git-sha1-collisions.md)'s
   question; this process assumes the compat name and says why above.
-- **The delta's file layout.** A delta per commit is decided, and it is
-  what **Trust** needs: a pair lives in exactly one delta, so its time is
-  that commit's timestamp with nothing to look up. What is open is how a
-  delta is laid out in its tree — one file, or files fanned out by the
-  SHA-1's leading byte so that a large first delta splits — and whether a
-  reader that answers one SHA-1 without scanning the whole branch is worth
-  a local index, which is tooling and not format.
+- **The delta's file layout.** A delta per commit is decided: a pair lives
+  in exactly one delta, so its time is that commit's timestamp with nothing
+  to look up. What is open is how a delta is laid out in its tree — one
+  file, or files fanned out by the SHA-1's leading byte so that a large
+  first delta splits — and whether a reader that answers one SHA-1 without
+  scanning the whole branch is worth a local index, which is tooling and
+  not format.
 - **The line format of a pair.** `<sha1> SP <sha256> LF`, sorted by SHA-1
   as `packed-refs` is sorted, is the least a reader needs and the format Git
   already parses in its compat index; or a `.disot.*` DataJS document beside
@@ -238,7 +196,7 @@ list is so that none is decided by accident.
   argument says they lack.
 - **Gitlinks.** A submodule's commit is an object of another repository. Its
   pair belongs to that repository's own `disot` branch, so the natural rule
-  is: not followed, not recorded, and a verifier that needs it asks the
+  is: not followed, not recorded, and a reader that needs it asks the
   submodule. Open whether the table should at least name the boundary.
 - **Shallow and partial clones.** A walk that cannot reach the bottom cannot
   establish the closure invariant, so a run over such a clone refuses to
@@ -247,34 +205,51 @@ list is so that none is decided by accident.
 - **Tags.** An annotated tag reached only through a ref is outside a
   commit's reachability. Whether the walk starts from refs or from commits
   decides whether tags are inputs.
-- **What a verifier does with a miss.** An object the table does not hold is
-  either newer than the last run or was never published; the process makes
-  the two indistinguishable, and the verifier's answer — compute and
-  compare, refuse, or report unverified — is the policy issue's.
 - **The branch name.** `disot` is a name people will type and hosts will
   show; a ref outside `refs/heads/` would hide it from branch listings and
   from `git clone`'s default fetch. The visible branch is proposed because it
   needs no configuration on any side; open whether a refspec is worth the
   hiding.
 
+### Out of scope
+
+Reading the record is a separate design. These were discussed while this
+one was written and are kept here only so they are not lost or decided by
+accident:
+
+- **Trust between parties.** Which publishers' tables a reader accepts, and
+  whether a run may prune at pairs another party published. A timestamp
+  orders claims and a signature attributes them, so a reader ranks records
+  by signer before it ranks them by time.
+- **Two records for one SHA-1.** Among trusted records, the earliest first;
+  two different SHA-256 names for one SHA-1 is a collision, always reported,
+  with the oldest pair as the working default on the assumption that a later
+  one passes a twin off under a known name. The branch records both
+  observations and no decision. A proper resolution may need consensus and
+  signatures from many parties, and its records are a later layer.
+- **Suppression.** A timestamp proves existence, not priority; an attacker
+  who controls the only copy of the branch can drop the honest commit, and
+  the defenses — a reader refusing a head that does not descend by SHA-256
+  from a table it holds, and publication to more than one host — are the
+  reader's and the publisher's, not the record's.
+- **A miss.** What a reader does with an object no table holds.
+
 ### Tasks
 
-- [ ] Define the table file format and its tree layout, delta or snapshot,
-      as a `todo/` beside the module that will read it, with the open
-      questions above answered.
+- [ ] Define the table file format and its tree layout, as a `todo/` beside
+      the module that will read it, with the open questions above answered.
 - [ ] Define the SHA-256 tree header in the signed payload, in
       [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md),
       and require SHA-256 as the timestamp's imprint digest there.
 - [ ] The walk: from the missing commits and a table in hand to the pairs it
-      lacks, pruning at trusted pairs and recording in post-order, over
+      lacks, pruning at what is held and recording in post-order, over
       [`fjs/git/store`](../fjs/git/store/module.f.mjs) and
       [`fjs/git/walk`](../fjs/git/walk/module.f.mjs); a proof against a
       fixture repository that the second run over an unchanged repository
       records nothing.
 - [ ] Reading the table: the in-memory union from a scan of every `disot`
-      commit, the closure check that refuses a table an object of which
-      references an unmapped one, the descent check against a table already
-      held, and the earliest-first rule with its collision report.
+      commit, and the closure check that refuses a table an object of which
+      references an unmapped one.
 - [ ] Writing the table: the pairs as a blob, its tree, and the commit with
       the fetched heads as parents. Nothing in [`fjs/git`](../fjs/git/README.md)
       writes an object to a store yet — the effects have `inflate` and no
