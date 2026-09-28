@@ -187,16 +187,16 @@ digest the parent's token carries.
 
 - **Existence, of named content, by a time.** A pair's timestamp is the
   TTS of the commit that first introduced it. It proves that content with
-  that SHA-256 name existed by the token's time plus its declared accuracy,
-  the conservative bound the companion design uses; a token that declares
-  no accuracy gives its time with no precise bound claimed, never a bound
-  taken as zero. The proof is the timestamp
+  that SHA-256 name existed by the token's time plus its accuracy, from
+  the token or, where the token omits it, from its TSA policy — the
+  conservative bound the companion design uses; a token with neither gives
+  its time with no precise bound claimed, never a bound taken as zero. The proof is the timestamp
   plus the objects: whoever checks it recomputes the name from the bytes
   and compares. The timestamp with the **earliest conservative bound**
   naming the content is the whole proof of when it existed; later ones add
-  nothing to that bound. Where no token naming the content declares an
-  accuracy, a reader shows the earliest `genTime` and claims no finer
-  ordering, as the companion design does. The
+  nothing to that bound. Where no token naming the content has a bound, a
+  reader shows the earliest `genTime` and claims no finer ordering, as the
+  companion design does. The
   token reaches the pair directly, through the delta's SHA-256 name, so the
   bound is the introducing commit's own time.
 - **Why the chain keeps adding timestamps anyway.** A timestamp verifies
