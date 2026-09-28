@@ -9,7 +9,7 @@ Turning a value into fresh `'[]'`, `'{}'`, `':'` and leaf nodes is
 written in the JSON-import linker and again in the test corpus:
 
 ```js
-// fjs/fsc/edag, jsonEdag and jsonMember
+// fjs/compiler/edag, jsonEdag and jsonMember
 value instanceof Array ? ['[]', value.map(jsonEdag)] : ['{}', definedEntries(value).map(jsonMember)]
 // fjs/nanvm, constExp
 if (v === undefined) { return ['undefined'] }
