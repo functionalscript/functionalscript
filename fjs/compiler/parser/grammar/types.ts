@@ -353,15 +353,18 @@ export type GroupOperand = readonly [Value, number, typeof trivia, RepeatFrom<0,
  */
 export type ParenGroupOperand = readonly [number, typeof trivia, GroupOperand]
 
+/** A statement's terminator: `;` and its trivia, or nothing. */
+export type End = Option<readonly [number, typeof trivia]>
+
 /**
  * `{`, trivia, the body's `const` statements, `return`, same-line trivia,
- * the value, `;`, trivia, `}`, and the trivia after it.
+ * the value, its {@link End}, `}`, and the trivia after it.
  *
  * The statements are {@link constStatement}, the module's own rule: a body
  * binds names the way a module does, and which scope a name lands in is the
  * fold's answer, not the grammar's.
  */
-export type Block = readonly [number, typeof trivia, RepeatFrom<0, typeof constStatement>, number, typeof sameLine, Value, number, typeof trivia, number, typeof trivia]
+export type Block = readonly [number, typeof trivia, RepeatFrom<0, typeof constStatement>, number, typeof sameLine, Value, End, number, typeof trivia]
 
 /**
  * The one rest parameter, when a function has one: `...`, trivia, the
@@ -402,6 +405,6 @@ type _FuncParameterIsAName = Assert<Equal<Parameter[2], typeof identifierName>>
 
 /** An export and the declarations after a named export; default ends the module. */
 export type ExportStatement = () => readonly ['const', readonly [number, typeof trivia, {
-    readonly default: readonly [number, typeof trivia, Value, number, typeof trivia]
+    readonly default: readonly [number, typeof trivia, Value, End]
     readonly named: readonly [typeof constStatement, RepeatFrom<0, typeof constStatement>, Option<Rule>]
 }]]

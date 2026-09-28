@@ -27,9 +27,9 @@ one output and be refused by another ([output](#output)).
 interchange format this language contains: JSON with two extensions —
 values may be shared, so a document denotes a DAG rather than a tree, and the
 leaf set gains `undefined`, `bigint`, `NaN` and the infinities — and with a
-`;` **required** after every statement, `export default` included (as a
-module here requires it too), no `import`, no comments, no identifier keys and
-no trailing commas. The language this document describes is wider, and holds
+`;` **required** after every statement, `export default` included (where a
+module here may omit one JavaScript inserts), no `import`, no comments, no
+identifier keys and no trailing commas. The language this document describes is wider, and holds
 functions besides. The compiler bridges the two: to a `.data.js` output,
 `fjs compile` writes a module's default export as a DataJS document, through
 DataJS's own writer, and refuses a module whose program — its imports
@@ -609,7 +609,10 @@ A comment can separate tokens where whitespace can, which is between any two
 ([trivia](#whitespace-and-line-terminators)). At unrestricted boundaries, the
 `;` that ends a statement may follow a comment on the same line or a later
 one ([module structure](#module-structure)), as any other token may. This
-does not make newlines interchangeable with spaces at restricted boundaries.
+does not make newlines interchangeable with spaces at restricted boundaries,
+nor a comment with a newline: where a statement omits its `;`, the next one
+begins a new line only if a newline stands between them — inside a block
+comment, or ending a line comment — as JavaScript counts it.
 
 Comments belong to the module language. A `.json` input containing one is an
 error, because JSON has no comments.
@@ -1546,12 +1549,15 @@ are not supported yet. A newline before `=>` is refused.
   an object, so the spelling is refused rather than read another way, and the
   object is written in parentheses instead ([grouping](#grouping)) —
   `(...args) => ({ a: 1 })`, as in JavaScript. The block
-  is any number of `const` statements and then one `return`, each with its
-  `;` as after every statement, and an object literal is an ordinary value
-  again, since after `return` JavaScript expects an expression. `return` and
-  the value share a line: a newline between them ends the statement in
-  JavaScript, which would return `undefined`, so it is refused here rather
-  than read another way, exactly as a newline before `=>` is.
+  is any number of `const` statements and then one `return`, each ended as
+  every statement is — by its `;`, or by the newline before the next
+  statement, and the `return`'s by the `}`
+  ([module structure](#module-structure)) — and an object literal is an
+  ordinary value again, since after `return` JavaScript expects an
+  expression. `return` and the value share a line: a newline between them
+  ends the statement in JavaScript, which would return `undefined`, so it is
+  refused here rather than read another way, exactly as a newline before
+  `=>` is.
 - A function **carries no name**. Its EDAG is `['=>', length, frame, body]`,
   name-erased, so the function in `{ make: () => 0 }.make`, in
   `const hello = () => 0` and in `export default () => 0` is the same node,
@@ -1660,30 +1666,41 @@ are not supported yet. A newline before `=>` is refused.
 
 ## Module Structure
 
-A module is a sequence of statements, each terminated by a semicolon — the
-last one included: `export default 5;`. The `;` lets several statements share
-a line, and whitespace may precede it, newlines included: a line break before
-the `;` is insignificant, exactly as it is in DataJS and JavaScript. A
-newline does not terminate a statement — `export default 5` at the end of a
-file is an error at the end of the file, and `const a = 1` followed by
-`export default a;` on the next line is an error at `export`. One terminator
-per statement: `;;` is an error, not an empty statement. Nor does a newline
-end an expression: a line break between two tokens reads as a space does, as
-in JavaScript, except at the two boundaries of this language where
-JavaScript forbids one, before `=>` and after `return`
+A module is a sequence of statements, each terminated by a semicolon —
+`export default 5;` — or by nothing, where JavaScript's automatic semicolon
+insertion supplies one: at the end of the input, before a `}`, and before a
+statement that begins on a new line. `export default 5` at the end of a file
+is that module, and so is `const a = 1` followed by `export default a` on the
+next line. A newline is what ends such a statement, so two statements on one
+line need the `;` between them: `const a = 1 export default a;` is a syntax
+error in JavaScript and an error here, at `export`, exactly as it was when
+the `;` was required. A comment counts by the line it ends on: a line comment
+ends at a newline, and a block comment that holds one breaks the line as
+JavaScript's `LineTerminator` rule has it, while one that holds none does
+not. The `;` lets several statements share a line, and whitespace may precede
+it, newlines included: a line break before the `;` is insignificant, exactly
+as it is in DataJS and JavaScript. One terminator per statement: `;;` is an
+error, not an empty statement. Nor does a newline end an expression: a line
+break between two tokens reads as a space does, as in JavaScript, so `f`
+followed by `(7)` on the next line is the call `f(7)`, and `[1]` followed by
+`[0]` is an index — a `;` is inserted only where the parser cannot continue
+the statement, never at a newline as such — except at the two boundaries of
+this language where JavaScript forbids one, before `=>` and after `return`
 ([line terminators](#whitespace-and-line-terminators)).
 
-The `;` is not a stylistic allowance. [DataJS](./datajs/README.md) *requires*
-one after every statement, and every DataJS document must be a valid
-FunctionalScript module — `const $0=[1];export default [$0,$0];` is normalized
-DataJS, one line, and it parses here. JavaScript accepts the same module with
-the same meaning, so the subset law holds; what FunctionalScript refuses from
-JavaScript is the empty statement and automatic semicolon insertion — a
-statement here ends at a `;`, never at a spot an engine infers. The rule
-landed with the parser's move to the LL(1) backend, where telling a newline
-from a `;` reached through newlines took unbounded lookahead, and it is the
-rule of the compiler-formatted `.f.js` output language: the compiler writes
-the `;` after every statement it emits. Trivia between tokens — whitespace
+[DataJS](./datajs/README.md) *requires* the `;` after every statement, and
+every DataJS document must be a valid FunctionalScript module —
+`const $0=[1];export default [$0,$0];` is normalized DataJS, one line, and it
+parses here. JavaScript accepts the same module with the same meaning, so the
+subset law holds; what FunctionalScript refuses from JavaScript is the empty
+statement. The `;` is the rule of the compiler-formatted `.f.js` output
+language: the compiler writes the `;` after every statement it emits. The
+grammar admits the omission by making the `;` optional and looking no
+further, which one symbol of lookahead still decides, since `;` begins no
+statement and no statement's continuation; whether the token after an
+omitted `;` begins a line is a fact the token carries, and the reader checks
+it there ([`fjs/compiler/parser`](../fjs/compiler/parser/README.md)). Trivia
+between tokens — whitespace
 or a comment — is optional here, `export default[1];`, `export default{};`
 and `import a from"./a.f.js";` included. Where two words would otherwise
 lex as one identifier some trivia is needed — after `const`, `export` and

@@ -4,12 +4,13 @@
  *
  * ```text
  * module ::= t import* const* export eof
- * import ::= 'import' t clause 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
+ * import ::= 'import' t clause 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] end
  * clause ::= named | id t [ ',' t named ]
  * named  ::= '{' t [ items(binding) ] '}' t
  * binding ::= id t [ 'as' t id t ]
- * const  ::= 'const' t id t '=' t value ';' t
- * export ::= 'export' t ( 'default' t value ';' t | const const* [ export ] )
+ * const  ::= 'const' t id t '=' t value end
+ * export ::= 'export' t ( 'default' t value end | const const* [ export ] )
+ * end    ::= [ ';' t ]
  * value  ::= '-' t unaryOperand tail | '~' t unaryOperand tail
  *          | (primitive t | array | object) access* powTail tail
  *          | id s arrowOrRest
@@ -24,7 +25,7 @@
  * unaryOperand ::= '-' t unaryOperand | '~' t unaryOperand
  *          | (primitive t | id t | array | object) access*
  *          | '(' t groupOperand
- * block  ::= '{' t const* 'return' s value ';' t '}' t
+ * block  ::= '{' t const* 'return' s value end '}' t
  * func   ::= [ '...' t id t ] ')' s '=>' t body
  * afterValue ::= ',' t [ names ] ')' s '=>' t body | ')' s arrowOrRest
  * arrowOrRest ::= '=>' t body | [ nl t ] access* powTail tail
@@ -84,10 +85,13 @@
  *   followed by `t`, so no rule begins with trivia and no two branches
  *   begin with it; the classical grammar's statement terminator and the
  *   module's final optional `;` both did.
- * - **`;` ends every statement, the export included.** A newline does
- *   not: it is the rule `spec/README.md` states for FunctionalScript, it
- *   is what DataJS requires, and deciding between a newline and a `;`
- *   reached through newlines took unbounded lookahead.
+ * - **A statement ends at `;`, or at nothing.** A newline is never a
+ *   symbol a statement ends at: it is trivia, read past by the value
+ *   before it, and deciding between a newline and a `;` reached through
+ *   newlines took unbounded lookahead. So {@link end} is optional and
+ *   the grammar looks no further; whether the token that follows an
+ *   omitted `;` began a line — JavaScript's own rule for inserting one —
+ *   is a fact the token carries, and the reader's to check.
  * - **A list is right-recursive.** After an item and its comma, one
  *   symbol of lookahead says whether an item or the closing bracket
  *   follows, so a trailing comma is a comma nothing follows; the classical
@@ -105,7 +109,7 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { Access, AfterValue, ArrowOrRest, Block, Body, CircuitTail, ConditionalTail, EagerTail, ExportStatement, Func, Group, GroupOperand, Items, Member, ParameterNames, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Tail, Unary, UnaryOperand, Value } from './types.ts'
+ * @import { Access, AfterValue, ArrowOrRest, Block, Body, CircuitTail, ConditionalTail, EagerTail, End, ExportStatement, Func, Group, GroupOperand, Items, Member, ParameterNames, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Tail, Unary, UnaryOperand, Value } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -861,20 +865,33 @@ export const array = /** @type {const} */ ([sym('['), trivia, option(values), sy
 
 export const object = /** @type {const} */ ([sym('{'), trivia, option(members), sym('}'), trivia])
 
-/** A statement's terminator: `;`, then the trivia after it. */
-const end = /** @type {const} */ ([sym(';'), trivia])
+/**
+ * A statement's terminator: `;` and the trivia after it, or nothing, where
+ * JavaScript inserts the `;` itself — before a token on a new line, before
+ * `}`, and at the end of input. The grammar admits the omission everywhere
+ * and asks nothing of what follows: `;` begins no statement and no
+ * statement's continuation, so one symbol of lookahead still decides, and
+ * a statement's own trailing trivia has already read the newline. Whether
+ * the token after an omitted `;` begins a line is the token's to say,
+ * `newline` in `DjsTokenWithMetadata`, and the reader in `../module.f.mjs`
+ * refuses the same-line case JavaScript refuses.
+ *
+ * @type {End}
+ */
+export const end = option([sym(';'), trivia])
 
 /**
- * A `const` statement: the name, `=`, the value, `;`. A module's statement
- * and a function body's alike — {@link djsModule} takes a run of them after
- * the imports, and {@link block} a run of them before the `return`.
+ * A `const` statement: the name, `=`, the value, and its {@link end}. A
+ * module's statement and a function body's alike — {@link djsModule} takes
+ * a run of them after the imports, and {@link block} a run of them before
+ * the `return`.
  *
  * Declared here, above {@link block}, rather than with the other module
  * statements below: `block` holds it directly, where the recursion back
  * into `value` goes through a thunk.
  */
 export const constStatement = /** @type {const} */ ([
-    sym('const'), trivia, identifierName, trivia, sym('='), trivia, value, ...end,
+    sym('const'), trivia, identifierName, trivia, sym('='), trivia, value, end,
 ])
 
 /**
@@ -900,13 +917,13 @@ export const constStatement = /** @type {const} */ ([
  * two lines would return `undefined` in JavaScript and this value here.
  * The same reason {@link func} has `s` before `=>`.
  *
- * The `;` is required, as it is after every statement: this language ends a
- * statement at a `;` and never where an engine infers one.
+ * The `return`'s {@link end} may be omitted before the `}`, as it may in
+ * JavaScript, and a `const`'s where the statement after it begins a line.
  *
  * @type {Block}
  */
 export const block = /** @type {const} */ ([
-    sym('{'), trivia, repeatFrom0(constStatement), sym('return'), sameLine, value, ...end, sym('}'), trivia,
+    sym('{'), trivia, repeatFrom0(constStatement), sym('return'), sameLine, value, end, sym('}'), trivia,
 ])
 
 /**
@@ -946,12 +963,12 @@ export const importClause = /** @type {const} */ ({
 })
 
 export const importStatement = /** @type {const} */ ([
-    sym('import'), trivia, importClause, sym('from'), trivia, sym('string'), trivia, option(attribute), ...end,
+    sym('import'), trivia, importClause, sym('from'), trivia, sym('string'), trivia, option(attribute), end,
 ])
 
 /** @type {ExportStatement} */
 export const exportStatement = () => ['const', [sym('export'), trivia, {
-    default: [sym('default'), trivia, value, ...end],
+    default: [sym('default'), trivia, value, end],
     named: [constStatement, repeatFrom0(constStatement), option(exportStatement)],
 }]]
 

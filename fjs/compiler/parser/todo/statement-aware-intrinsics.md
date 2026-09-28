@@ -92,13 +92,13 @@ such as a newline before `=>` cannot reach matching at all.
 
 #### JavaScript statement boundaries, not newline splitting
 
-Accepting an omitted `;` is a syntax expansion of its own, [asi](./asi.md):
-the shared front end grows to insert a terminator where ECMAScript's rules
-permit one, never at every newline, and canonical output and DataJS keep
-their `;`. What this issue requires of it is the boundary above. The current
-mandatory-semicolon subset is compatible, so that expansion is **P2**, not a
-current P1 defect. The **P1 requirement** is that no pattern bypass correct
-statement/expression recognition, before or after that expansion.
+An omitted `;` is read where ECMAScript's rules insert one, never at every
+newline ([spec: module structure](../../../../spec/README.md#module-structure)):
+the grammar makes the `;` optional, and the reader refuses a next statement
+on the same line by the newline its first token carries. Canonical output and
+DataJS keep their `;`. The **P1 requirement** is that no pattern bypass
+correct statement/expression recognition, which that rule already meets: the
+grammar owns the boundary, and nothing reads tokens past it.
 
 ### Tasks
 
@@ -129,4 +129,4 @@ statement/expression recognition, before or after that expansion.
 - [Entry function](../../../edag/todo/entry.md).
 - [Enumerable presence](../../../../spec/todo/2345-has-own-property.md).
 - [Named parameters](../../../../spec/todo/3120-parameters.md).
-- [asi](./asi.md) — the P2 syntax expansion this issue once held.
+- [ECMAScript ASI](https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#sec-automatic-semicolon-insertion).

@@ -91,8 +91,8 @@ export const proof = {
         const all = names.map(sym)
         assertEq(new Set(all).size, names.length)
         assertEq(all.every(s => s > 0x10FFFF), true)
-        const word = symbolOf({ token: { kind: 'id', value: 'export' }, metadata: { path: 'a.js', line: 1, column: 1 } })
-        const id = symbolOf({ token: { kind: 'id', value: 'exports' }, metadata: { path: 'a.js', line: 1, column: 1 } })
+        const word = symbolOf({ token: { kind: 'id', value: 'export' }, metadata: { path: 'a.js', line: 1, column: 1 }, newline: false })
+        const id = symbolOf({ token: { kind: 'id', value: 'exports' }, metadata: { path: 'a.js', line: 1, column: 1 }, newline: false })
         assertEq(word.symbol, sym('export'))
         assertEq(id.symbol, sym('id'))
         assertEq(id.meta.token.kind, 'id')
@@ -253,10 +253,15 @@ export const proof = {
         // body: the statements come first and the `return` is the last
         assertStructurallySame(read('export default (...a) => { return 1; const x = 1; };'), ['error', 'const'])
         assertStructurallySame(read('export default (...a) => { const x = 1; };'), ['error', '}'])
-        assertStructurallySame(read('export default (...a) => { const x = 1 return x; };'), ['error', 'return'])
-        // `;` is required, as after every statement, and `return` is the
-        // only other statement a body holds
-        assertStructurallySame(read('export default (...a) => { return a };'), ['error', '}'])
+        // a statement's `;` may be omitted, before the `}` and before the
+        // next statement alike: the grammar reads both, and whether the
+        // next statement began a line — which is what JavaScript asks of
+        // it — the reader in `../module.f.mjs` checks, so `const x = 1
+        // return x` is refused there and not here
+        assertStructurallySame(read('export default (...a) => { const x = 1 return x; };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { const x = 1\nreturn x };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { return a };'), ['ok'])
+        // `return` is the only other statement a body holds
         assertStructurallySame(read('export default (...a) => {};'), ['error', '}'])
         assertStructurallySame(read('export default (...a) => { a; };'), ['error', 'a'])
         assertStructurallySame(read('export default (...a) => { return a; return a; };'), ['error', 'return'])
@@ -442,15 +447,21 @@ export const proof = {
         assertStructurallySame(read('const a = 1; export default -(a ? 1 : 2);'), ['ok'])
         assertStructurallySame(read('const a = 1; export default a ?. 1 : 2;'), ['error', 'error'])
     },
-    // `;` ends every statement: a newline does not, and neither does the
-    // end of input. A newline is trivia, read past, so the failure is at
-    // what came instead of the `;` — the next statement, or the end.
+    // A statement ends at `;`, or at nothing: the grammar reads a module
+    // whose statements omit it, however they stand, since `;` begins no
+    // statement and one symbol of lookahead still decides. Whether a
+    // statement after an omitted `;` began a line — JavaScript's own rule —
+    // is a fact of the token, which the reader in `../module.f.mjs` checks:
+    // `const a = 1 export default a;` is that reader's to refuse. Two `;`
+    // are still one too many: there is no empty statement.
     terminator: () => {
-        assertStructurallySame(read('export default 1'), ['error', 'end'])
-        assertStructurallySame(read('export default 1\n'), ['error', 'end'])
-        assertStructurallySame(read('const a = 1\nexport default a;'), ['error', 'export'])
-        assertStructurallySame(read('import x from "m"\nconst a = x;\nexport default a;'), ['error', 'const'])
+        assertStructurallySame(read('export default 1'), ['ok'])
+        assertStructurallySame(read('export default 1\n'), ['ok'])
+        assertStructurallySame(read('const a = 1\nexport default a;'), ['ok'])
+        assertStructurallySame(read('const a = 1 export default a;'), ['ok'])
+        assertStructurallySame(read('import x from "m"\nconst a = x\nexport default a'), ['ok'])
         assertStructurallySame(read('export default 1;;'), ['error', ';'])
+        assertStructurallySame(read('export default 1\n;;'), ['error', ';'])
     },
     refused: () => {
         assertStructurallySame(read(''), ['error', 'end'])
@@ -478,6 +489,6 @@ export const proof = {
         parser(/** @type {Rule} */ (exportStatement))
     },
     throw: {
-        eofRejected: () => symbolOf({ token: { kind: 'eof' }, metadata: { path: 'a.js', line: 1, column: 1 } }),
+        eofRejected: () => symbolOf({ token: { kind: 'eof' }, metadata: { path: 'a.js', line: 1, column: 1 }, newline: false }),
     },
 }

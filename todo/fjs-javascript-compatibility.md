@@ -141,10 +141,11 @@ parsing that syntax does not expose the descriptor or the global namespace as
 an ordinary FJS value.
 
 [Statement-aware intrinsics](../fjs/compiler/parser/todo/statement-aware-intrinsics.md)
-owns this boundary, and [asi](../fjs/compiler/parser/todo/asi.md) the planned
-JavaScript statement termination. Optional semicolons are a syntax expansion,
-not a substitute for AST matching. Requiring semicolons today is not itself a
-compatibility defect.
+owns this boundary. JavaScript statement termination is in the language
+([module structure](../spec/README.md#module-structure)): the grammar makes
+the `;` optional, and the fold refuses a next statement on the same line by
+the newline its first token carries. Optional semicolons are a syntax
+expansion, not a substitute for AST matching.
 
 #### Function text — adopted exception, rendering questions open
 

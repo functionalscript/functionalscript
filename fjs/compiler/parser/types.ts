@@ -91,9 +91,9 @@ export type Node =
 /**
  * The block syntax currently understood: zero or more `const` declarations
  * followed by one explicit value-returning statement. The grammar enforces
- * this order; bare returns, extra statements and ASI remain unsupported.
+ * this order; bare returns and extra statements remain unsupported.
  */
-export type Block = readonly ['block', readonly [...(readonly ['const', Const])[], readonly ['return', Node]]]
+export type Block = readonly ['block', readonly [...(readonly ['const', Const])[], readonly ['return', ValueStatement]]]
 
 /** An array of its items, or an object of its members, each in the order written. */
 export type Container =
@@ -113,12 +113,26 @@ export type Entry = {
 }
 
 /**
+ * What every statement records of its ends: the token it begins with, and
+ * whether a `;` ended it. A statement written without its `;` ends where
+ * JavaScript inserts one — at the newline before the next statement, at
+ * `}`, or at the end of input — and where the next statement shares its
+ * line instead, its first token is the one JavaScript refuses; the fold
+ * refuses it there, by that token's `newline`
+ * ([spec: module structure](../../../spec/README.md#module-structure)).
+ */
+export type Statement = {
+    readonly start: DjsTokenWithMetadata
+    readonly semicolon: boolean
+}
+
+/**
  * An `import`: the exported/local binding pairs, the module specifier, and
  * its attribute when it has one — the tokens its key and value are read
  * from, which anchor the error a key or value the language does not know
  * earns.
  */
-export type Import = {
+export type Import = Statement & {
     readonly bindings: readonly ImportBinding[]
     readonly module: string
     readonly attribute: readonly [DjsTokenWithMetadata, DjsTokenWithMetadata] | null
@@ -130,9 +144,17 @@ export type ImportBinding = {
     readonly local: DjsTokenWithMetadata
 }
 
-/** A `const`: the token naming what it binds, and its value. */
-export type Const = {
+/**
+ * A `const`: the token naming what it binds, and its value. It begins at
+ * its `const`, or at the `export` before one a module exports.
+ */
+export type Const = Statement & {
     readonly name: DjsTokenWithMetadata
+    readonly value: Node
+}
+
+/** A statement that is a value: a block's `return`, and a module's `export default`. */
+export type ValueStatement = Statement & {
     readonly value: Node
 }
 
@@ -146,7 +168,7 @@ export type ModuleConst = {
 export type Module = {
     readonly imports: readonly Import[]
     readonly consts: readonly ModuleConst[]
-    readonly exported: Node | null
+    readonly exported: ValueStatement | null
 }
 
 /**
@@ -183,5 +205,5 @@ export type Out =
     | { readonly id: 'importBindings', readonly items: List<ImportBinding> }
     | { readonly id: 'import', readonly statement: Import }
     | { readonly id: 'const', readonly statement: Const }
-    | { readonly id: 'export', readonly consts: List<ModuleConst>, readonly default: Node | null }
+    | { readonly id: 'export', readonly consts: List<ModuleConst>, readonly default: ValueStatement | null }
     | { readonly id: 'module', readonly module: Module }

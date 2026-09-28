@@ -68,6 +68,9 @@ export type _CircuitNode = Unmapped<readonly [] | readonly [Unmapped<readonly [s
  */
 export type _ConditionalNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, _Leaf, unknown, unknown, _Leaf]>]>
 
+/** The node of a statement's end, `[ ';' t ]`: no round, or the one holding the `;`. */
+export type _EndNode = Unmapped<readonly [] | readonly [unknown]>
+
 /**
  * A position holding an optional list, `[ items ]`: no round, or one
  * holding the list's node — which its mapping replaced by a symbol.

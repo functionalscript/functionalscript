@@ -27,10 +27,14 @@
  * identifier and a key or the name after `.` may be one, and a bare or
  * string `__proto__` key, which JavaScript reads as an instruction to replace the
  * prototype; the computed spelling `{ ["__proto__"]: v }` denotes an
- * ordinary property and is accepted. The error reported is the first met
- * in document order, and a match that fails builds no module: a malformed
- * suffix is found before any name is resolved. `./README.md` holds the
- * argument.
+ * ordinary property and is accepted. So is every check that has to read
+ * a token's *position*: a statement written without its `;` ends where
+ * JavaScript inserts one, and whether the next statement began a line is
+ * the fold's to ask of its first token, {@link unterminated}, the grammar
+ * having read the `;` as optional and looked no further. The error
+ * reported is the first met in document order, and a match that fails
+ * builds no module: a malformed suffix is found before any name is
+ * resolved. `./README.md` holds the argument.
  *
  * Every walk is a mapping of one node or a loop over an explicit stack:
  * the machine's own stack is on the heap, a list's mapping puts one item
@@ -50,10 +54,10 @@
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstFrameRef, AstFunction, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest } from '../ast/types.ts'
  * @import { BinaryTag } from '../ast/types.ts'
- * @import { Const, Container, Entry, Import, ImportBinding, Module, ModuleConst, Node, Out, ParameterBinding, ParameterList, ParseError } from './types.ts'
+ * @import { Const, Container, Entry, Import, ImportBinding, Module, ModuleConst, Node, Out, ParameterBinding, ParameterList, ParseError, Statement, ValueStatement } from './types.ts'
  * @import { ArrowOrRest, Body, Group, Items, Member, ParameterNames, Parenthesized, Unary, UnaryOperand, Value } from './grammar/types.ts'
  * @import { key, primitive } from './grammar/module.f.mjs'
- * @import { _AccessFrame, _AccessNode, _AttributeNode, _BaseNode, _BodyFrame, _CallBranch, _CallFrame, _CircuitNode, _ConditionalFrame, _ConditionalNode, _ContainerFrame, _Env, _Frame, _NameNode, _Parameter, _Ref, _Scope, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _PowTailNode, _Stack, _State, _TailRound, _TokenStream } from './private.ts'
+ * @import { _AccessFrame, _AccessNode, _AttributeNode, _BaseNode, _BodyFrame, _CallBranch, _CallFrame, _CircuitNode, _ConditionalFrame, _ConditionalNode, _ContainerFrame, _EndNode, _Env, _Frame, _NameNode, _Parameter, _Ref, _Scope, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _PowTailNode, _Stack, _State, _TailRound, _TokenStream } from './private.ts'
  */
 
 import { error, mapOk, ok } from '../../types/result/module.f.mjs'
@@ -662,9 +666,11 @@ const toNode = node => {
         return symbol({ id: 'value', node: applyTail([node[0] === 'neg' ? '-' : '~', nodeAt(v)], tailLists) })
     }
     if (node[0] === 'block') {
-        const [, , consts, , , v] = unmapped(node[1])
+        const [, , consts, ret, , v, end] = unmapped(node[1])
         const statements = unmapped(consts).map(constAt).map(constNode)
-        return symbol({ id: 'value', node: ['block', [...statements, ['return', nodeAt(v)]]] })
+        /** @type {ValueStatement} */
+        const returned = { start: tokenAt(ret), semicolon: ended(end), value: nodeAt(v) }
+        return symbol({ id: 'value', node: ['block', [...statements, ['return', returned]]] })
     }
     const x = unmapped(node[1])[0]
     const [, accesses] = unmapped(x)
@@ -778,8 +784,18 @@ const toImportBindings = node => symbol({ id: 'importBindings', items: importBin
 /** @type {(node: Children<typeof namedImports, DjsTokenWithMetadata, Out>) => readonly ImportBinding[]} */
 const namedBindings = ([, , bindings]) => toArray(importItems(bindings))
 
+/**
+ * Whether a statement's end, `[ ';' t ]`, holds its `;`. Where it does
+ * not, JavaScript inserts one at the newline before the next token, at `}`
+ * or at the end of input, and refuses a next token on the same line; the
+ * fold asks that of the next statement's first token, {@link unterminated}.
+ *
+ * @type {(node: _EndNode) => boolean}
+ */
+const ended = node => unmapped(node).length !== 0
+
 /** @type {(node: Children<typeof importStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toImport = ([, , clause, , , module, , attribute]) => {
+const toImport = ([first, , clause, , , module, , attribute, end]) => {
     const [kind, branch] = unmapped(clause)
     /** @type {readonly ImportBinding[]} */
     let bindings
@@ -792,21 +808,40 @@ const toImport = ([, , clause, , , module, , attribute]) => {
             ...(rounds.length === 0 ? [] : namedBindings(unmapped(unmapped(rounds[0])[2]))),
         ]
     }
-    return symbol({ id: 'import', statement: { bindings, module: textOf(tokenAt(module)), attribute: attributeOf(attribute) } })
+    return symbol({
+        id: 'import',
+        statement: {
+            start: tokenAt(first),
+            semicolon: ended(end),
+            bindings,
+            module: textOf(tokenAt(module)),
+            attribute: attributeOf(attribute),
+        },
+    })
 }
 
 /** @type {(node: Children<typeof constStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toConst = ([, , name, , , , v]) =>
-    symbol({ id: 'const', statement: { name: tokenAt(unmapped(name)[1]), value: nodeAt(v) } })
+const toConst = ([first, , name, , , , v, end]) =>
+    symbol({ id: 'const', statement: { start: tokenAt(first), semicolon: ended(end), name: tokenAt(unmapped(name)[1]), value: nodeAt(v) } })
 
 /** @type {(node: _Leaf) => ModuleConst} */
 const ordinaryConst = node => ({ declaration: constAt(node), exported: false })
 
-/** @type {(node: Children<typeof exportStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toExport = ([, , choice]) => {
+/**
+ * An export statement: the default, or the exported `const` and the
+ * statements after it. Either begins at the `export`, which is where the
+ * exported `const` begins too — its own record's `const` is the token
+ * after — since the `export` is the token a same-line statement before it
+ * is refused at.
+ *
+ * @type {(node: Children<typeof exportStatement, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ */
+const toExport = ([first, , choice]) => {
+    const start = tokenAt(first)
     const [kind, branch] = unmapped(choice)
     if (kind === 'default') {
-        return symbol({ id: 'export', consts: null, default: nodeAt(unmapped(branch)[2]) })
+        const [, , v, end] = unmapped(branch)
+        return symbol({ id: 'export', consts: null, default: { start, semicolon: ended(end), value: nodeAt(v) } })
     }
     const [declaration, consts, tail] = unmapped(branch)
     const next = unmapped(tail)
@@ -814,7 +849,7 @@ const toExport = ([, , choice]) => {
     return symbol({
         id: 'export',
         consts: concat([
-            { declaration: constAt(declaration), exported: true },
+            { declaration: { ...constAt(declaration), start }, exported: true },
             ...unmapped(consts).map(ordinaryConst),
         ])(rest === null ? null : rest.consts),
         default: rest === null ? null : rest.default,
@@ -930,6 +965,25 @@ const captureShadowed = foldError('capture shadowed')
 
 /** A keyword where JavaScript wants an identifier, at the word. */
 const reservedWord = foldError('reserved word')
+
+/**
+ * The first token of a statement on the line of the statement before it,
+ * written without its `;`, at that token: the error the grammar would
+ * have reported there when the `;` was required, and the one JavaScript
+ * reports, which inserts a `;` before a token only where a newline does
+ * ([spec: module structure](../../../spec/README.md#module-structure)).
+ */
+const unexpectedToken = foldError('unexpected token')
+
+/**
+ * Whether `next` is refused at its first token: `previous` ended without
+ * its `;`, and `next` begins on the same line. Nothing before the first
+ * statement, and a `}` or the end of input after the last, so neither is
+ * asked.
+ *
+ * @type {(previous: Statement | null, next: Statement) => boolean}
+ */
+const unterminated = (previous, next) => previous !== null && !previous.semicolon && !next.start.newline
 
 /** A fixed parameter past the language's limit on a function's `length`, at the first one past it. */
 const tooManyParameters = foldError(`more than ${maxLength} fixed parameters`)
@@ -1311,7 +1365,12 @@ const functionScope = list => {
 const bodyRound = (stack, scope, frame) => {
     const { statements, index } = frame
     const [kind, statement] = statements[index]
-    if (kind === 'return') { return [{ top: frame, rest: stack }, scope, ['enter', statement]] }
+    // the statement's own beginning before either half of it: the one
+    // before it, written without its `;`, ends at a newline or not at all
+    if (unterminated(index === 0 ? null : statements[index - 1][1], statement)) {
+        return [stack, scope, error(unexpectedToken(statement.start))]
+    }
+    if (kind === 'return') { return [{ top: frame, rest: stack }, scope, ['enter', statement.value]] }
     const [tag, word] = bindable(scope.names)(statement.name)
     if (tag === 'error') { return [stack, scope, error(word)] }
     // a name the body already read from outside is refused before the
@@ -1510,7 +1569,13 @@ const foldModule = ({ imports, consts, exported }) => {
     let body = []
     /** @type {readonly AstMember[]} */
     let exports = []
+    // the statement before the one being read, whose omitted `;` the one
+    // being read has to begin a line for
+    /** @type {Statement | null} */
+    let previous = null
     for (const statement of imports) {
+        if (unterminated(previous, statement)) { return error(unexpectedToken(statement.start)) }
+        previous = statement
         let index = modules.length
         for (const { local } of statement.bindings) {
             const [tag, word] = bindable(env)(local)
@@ -1527,9 +1592,13 @@ const foldModule = ({ imports, consts, exported }) => {
                 : statement.bindings.map(({ name }) => ({ ...record, name }))),
         ]
     }
-    for (const { declaration: { name, value: node }, exported: named } of consts) {
-        // the name first: a statement wrong in both halves answers for the
-        // half a reader meets first
+    for (const { declaration, exported: named } of consts) {
+        const { name, value: node } = declaration
+        // the statement's beginning first, then the name, then the value: a
+        // statement wrong in more than one answers for what a reader meets
+        // first
+        if (unterminated(previous, declaration)) { return error(unexpectedToken(declaration.start)) }
+        previous = declaration
         const [tag, word] = bindable(env)(name)
         if (tag === 'error') { return error(word) }
         if (named && word === 'then') { return error({ message: 'reserved export name then', metadata: name.metadata }) }
@@ -1540,7 +1609,8 @@ const foldModule = ({ imports, consts, exported }) => {
         body = [...body, value]
     }
     if (exported !== null) {
-        const [resolved, last] = evaluate(env)(exported)
+        if (unterminated(previous, exported)) { return error(unexpectedToken(exported.start)) }
+        const [resolved, last] = evaluate(env)(exported.value)
         if (resolved === 'error') { return error(last) }
         exports = [...exports, ['default', last]]
     }

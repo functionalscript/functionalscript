@@ -2,7 +2,8 @@
 
 Reads the compiler's token stream as a FunctionalScript module: `import` statements, then
 ordinary and exported `const` statements, with an optional final `export default`.
-Every statement ends with `;`, and at least one export is required.
+Every statement ends with `;`, or where JavaScript inserts one, and at least
+one export is required.
 
 It is the upper layer of a layered parser: the tokenizer turns code points into
 tokens, and this turns tokens into an `AstModule`. Both layers are an LL(1)
@@ -136,12 +137,21 @@ the backtracking grammar this replaced had
   value ends with its own `t`, and what follows a value adds none: any
   value may be followed by an access, `a . b` and `[1] [0]` included, and
   the trivia between them would otherwise have to lead the access rule.
-- **`;` ends every statement, the export included.** A newline does not: it is
-  trivia, read past, so a missing `;` is found at what came instead — the next
-  statement's keyword, or the end of input. This is the rule
-  [`spec/README.md`](../../../spec/README.md) states for FunctionalScript and
-  what DataJS requires; telling a newline from a `;` reached through newlines
-  took unbounded lookahead.
+- **A statement ends at `;`, or at nothing.** A newline is never the symbol
+  it ends at: it is trivia, read past by the value before it, and telling a
+  newline from a `;` reached through newlines took unbounded lookahead. So
+  the `;` is optional and the grammar looks no further — one symbol still
+  decides, since `;` begins no statement and no statement's continuation.
+  JavaScript's rule, that a `;` is inserted before a token on a new line and
+  not before one on the same line, is then a fact of the token: the
+  tokenizer marks each token with whether a newline precedes it, and the
+  fold refuses a statement whose predecessor omitted its `;` at its first
+  token unless that token began a line. Which is why the refusal is the
+  fold's and not the grammar's: the grammar reads `const a = 1 export default
+  a;`, and `foldModule` answers `unexpected token` at the `export`, as the
+  grammar did when the `;` was required
+  ([`spec/README.md`](../../../spec/README.md#module-structure)). DataJS
+  still requires the `;`, in its own reader.
 - **A list is right-recursive.** After an item and its comma, the lookahead says
   whether an item or the closing bracket follows, so a trailing comma is a comma
   nothing follows.

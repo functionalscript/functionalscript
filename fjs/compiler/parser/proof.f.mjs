@@ -1,5 +1,6 @@
 /**
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
+ * @import { Node } from './types.ts'
  */
 
 import { _parseSyntaxFromTokens, parseFromTokens } from './module.f.mjs'
@@ -40,10 +41,26 @@ const numberedMembers = count =>
     Array.from({ length: count }, (_, i) => `k${i}:${i}`).join(',')
 
 /** @type {(kind: 'ws' | 'nl' | 'null' | 'true' | 'false' | 'undefined' | 'eof' | ';', line: number) => DjsTokenWithMetadata} */
-const proofKind = (kind, line) => ({ token: { kind }, metadata: { path: 'a.js', line, column: 1 } })
+const proofKind = (kind, line) => ({ token: { kind }, metadata: { path: 'a.js', line, column: 1 }, newline: false })
 
 /** @type {(value: string, line: number) => DjsTokenWithMetadata} */
-const proofId = (value, line) => ({ token: { kind: 'id', value }, metadata: { path: 'a.js', line, column: 1 } })
+const proofId = (value, line) => ({ token: { kind: 'id', value }, metadata: { path: 'a.js', line, column: 1 }, newline: false })
+
+/**
+ * The value a block's final `return` holds, the block being a function's
+ * body: what a proof of the syntax tree pins, the statement's own token
+ * being a position and not a shape.
+ *
+ * @type {(node: Node) => Node}
+ */
+const returned = node => {
+    assert(node[0] === '=>')
+    const body = node[2]
+    assert(body[0] === 'block')
+    const last = body[1][body[1].length - 1]
+    assert(last[0] === 'return')
+    return last[1].value
+}
 
 export const proof = {
     namedImports: {
@@ -119,7 +136,7 @@ export const proof = {
                 'export const a=a;', 'export const a=b; export const b=1;',
                 'export const then=1;', 'export const then=()=>1;',
                 'export const default=1;', 'export const await=1;', 'export const undefined=1;',
-                'export const a=1', 'export const a=1; import b from "./x";',
+                'export const a=1 export const b=2;', 'export const a=1; import b from "./x";',
                 'export default 1; export const a=2;', 'export default 1; export default 2;',
                 'export { a };', 'export let a=1;', 'const a=1;', '',
                 'export const f=()=>{return;};', 'export const f=()=>{};',
@@ -139,14 +156,15 @@ export const proof = {
         explicitReturn: () => {
             const expression = unwrap(_parseSyntaxFromTokens(tokenizeString('export default () => 7;')))
             const block = unwrap(_parseSyntaxFromTokens(tokenizeString('export default () => { return 7; };')))
-            assertStructurallySame(expression.exported, ['=>', [], ['primitive', 7]])
-            assertStructurallySame(block.exported, ['=>', [], ['block', [['return', ['primitive', 7]]]]])
+            assert(expression.exported !== null && block.exported !== null)
+            assertStructurallySame(expression.exported.value, ['=>', [], ['primitive', 7]])
+            assertStructurallySame(returned(block.exported.value), ['primitive', 7])
         },
         orderedDeclarations: () => {
             const { exported } = unwrap(_parseSyntaxFromTokens(tokenizeString(
                 'export default () => { const x = 1; const y = 2; return [x, y]; };')))
-            assert(exported !== null && exported[0] === '=>')
-            const body = exported[2]
+            assert(exported !== null && exported.value[0] === '=>')
+            const body = exported.value[2]
             assert(body[0] === 'block')
             const [first, second, last] = body[1]
             assert(first[0] === 'const' && second[0] === 'const' && last[0] === 'return')
@@ -156,9 +174,13 @@ export const proof = {
             assertStructurallySame(second[1].value, ['primitive', 2])
             assertEq(first[1].name.metadata.column, 30)
             assertEq(second[1].name.metadata.column, 43)
-            const returned = last[1]
-            assert(returned[0] === 'array')
-            const [x, y] = returned[1]
+            // each statement begins at its keyword and ended with its `;`
+            assertEq(first[1].start.metadata.column, 24)
+            assertEq(last[1].start.metadata.column, 50)
+            assertStructurallySame([first[1].semicolon, second[1].semicolon, last[1].semicolon], [true, true, true])
+            const array = last[1].value
+            assert(array[0] === 'array')
+            const [x, y] = array[1]
             assert(x[0] === 'ref' && y[0] === 'ref')
             assertStructurallySame(x[1].token, first[1].name.token)
             assertStructurallySame(y[1].token, second[1].name.token)
@@ -166,15 +188,35 @@ export const proof = {
         nestedBlocks: () => {
             const { exported } = unwrap(_parseSyntaxFromTokens(tokenizeString(
                 'export default () => { return () => { return 7; }; };')))
-            assertStructurallySame(exported, ['=>', [], ['block', [
-                ['return', ['=>', [], ['block', [['return', ['primitive', 7]]]]]],
-            ]]])
+            assert(exported !== null)
+            assertStructurallySame(returned(returned(exported.value)), ['primitive', 7])
+        },
+        // A statement's `;` may be omitted where JavaScript inserts one —
+        // before `}`, and before a statement on a new line — and the
+        // syntax tree records the omission; where the next statement
+        // shares the line, the grammar still reads the module and the fold
+        // refuses it at that statement's first token, as JavaScript does.
+        omittedSemicolons: () => {
+            const { exported } = unwrap(_parseSyntaxFromTokens(tokenizeString(
+                'export default () => {\n    const x = 1\n    return x\n}')))
+            assert(exported !== null && exported.value[0] === '=>')
+            assertEq(exported.semicolon, false)
+            const body = exported.value[2]
+            assert(body[0] === 'block')
+            assertStructurallySame(body[1].map(([, statement]) => statement.semicolon), [false, false])
+            assertEq(parseFromTokens(tokenizeString('export default () => {\n    const x = 1\n    return x\n}'))[0], 'ok')
+            assertEq(parseFromTokens(tokenizeString('export default () => { return 7 };'))[0], 'ok')
+            const sameLine = 'export default () => { const x = 1 return x; };'
+            assertEq(_parseSyntaxFromTokens(tokenizeString(sameLine))[0], 'ok')
+            const refused = parseFromTokens(tokenizeString(sameLine))
+            assert(refused[0] === 'error')
+            assertEq(refused[1].message, 'unexpected token')
+            assertEq(refused[1].metadata?.column, 36)
         },
         syntaxRefusals: () => {
             for (const source of [
                 'export default () => {};',
                 'export default () => { return; };',
-                'export default () => { return 7 };',
                 'export default () => { return 7; const x = 1; };',
                 'export default () => { return 7; return 8; };',
                 'export default ()\n=> 7;',
@@ -240,11 +282,11 @@ export const proof = {
                 ["\n\n export default 1; \n\n", "[[],[[\"object\",[[\"default\",1]]]]]"],
                 ["const from = 1;\nexport default from;", "[[],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
                 ["export default { from: 2, default: 3, with: 4 };", "[[],[[\"object\",[[\"default\",[\"object\",[[\"from\",2],[\"default\",3],[\"with\",4]]]]]]]]"],
-                // `;` ends every statement and a newline does not, as DataJS
-                // has it (spec/README.md, module structure); a `;` on its own
-                // line, or several statements on one, are the same module.
-                // The last case is a normalized DataJS document verbatim:
-                // one line, `$`-names, every statement `;`-terminated.
+                // a `;` ends a statement wherever it stands, and a `;` on
+                // its own line, or several statements on one, are the same
+                // module. The last case is a normalized DataJS document
+                // verbatim: one line, `$`-names, every statement
+                // `;`-terminated, as DataJS requires (spec/datajs).
                 ["const a = 1;\nexport default a;", "[[],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
                 ["export default 1;", "[[],[[\"object\",[[\"default\",1]]]]]"],
                 ["const a = 1;export default a;", "[[],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
@@ -255,6 +297,21 @@ export const proof = {
                 // on different lines
                 ["export default 1\n;", "[[],[[\"object\",[[\"default\",1]]]]]"],
                 ["const a = 1\n;\nexport default a;", "[[],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
+                // and a `;` may be omitted where JavaScript inserts one:
+                // at the end of input, whatever trivia stands there, and
+                // before a statement on a new line — a line comment ends
+                // the line, and a block comment holding a newline breaks
+                // it (spec/README.md, module structure)
+                ["export default 1", "[[],[[\"object\",[[\"default\",1]]]]]"],
+                ["export default 1\n", "[[],[[\"object\",[[\"default\",1]]]]]"],
+                ["export default 1 // c", "[[],[[\"object\",[[\"default\",1]]]]]"],
+                ["const a = 1\nexport default a", "[[],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
+                ["import x from \"m\"\nexport default x", "[[{\"json\":false,\"name\":\"default\",\"specifier\":\"m\"}],[[\"object\",[[\"default\",[\"aref\",0]]]]]]"],
+                ["import x from \"m\"\nconst a = x\nexport default a", "[[{\"json\":false,\"name\":\"default\",\"specifier\":\"m\"}],[[\"aref\",0],[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
+                ["const a = 1 // c\nexport default a", "[[],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
+                ["const a = 1 /* c\n */ export default a", "[[],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
+                ["export const a = 1\nexport const b = 2", "[[],[1,2,[\"object\",[[\"a\",[\"cref\",0]],[\"b\",[\"cref\",1]]]]]]"],
+                ["const f = () => 1\nexport default f", "[[],[[\"=>\",0,[1]],[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
                 ["const $0=[1];export default [$0,$0];", "[[],[[\"array\",[1]],[\"object\",[[\"default\",[\"array\",[[\"cref\",0],[\"cref\",0]]]]]]]]"],
                 // a word that denotes a value still names a property: it is
                 // an `IdentifierName` in JavaScript, which reads it as the
@@ -295,19 +352,23 @@ export const proof = {
                 [";export default 1", "unexpected token", [1, 1]],
                 ["export default ;", "unexpected token", [1, 16]],
                 ["export default 1\nconst b = 2", "unexpected token", [2, 1]],
-                // `;` ends every statement, and neither a newline nor the end
-                // of input does: a newline is trivia, read past, so a missing
-                // `;` is found at what came instead — the next statement's
-                // keyword, or the end of input, where the `eof` token is
+                // a statement written without its `;` ends at the newline
+                // before the next statement, as JavaScript's automatic
+                // semicolon insertion has it — and where the next statement
+                // shares its line, JavaScript inserts nothing, so its first
+                // token is unexpected, as it was when the `;` was required;
+                // a comment on the line is on the line, a comment holding a
+                // newline breaks it (spec/README.md, module structure)
+                ["const a = 1 export default a;", "unexpected token", [1, 13]],
+                ["import x from \"m\" export default x;", "unexpected token", [1, 19]],
+                ["import x from \"m\" import y from \"n\";\nexport default x;", "unexpected token", [1, 19]],
+                ["const a = 1 /* c */ const b = 2;\nexport default b;", "unexpected token", [1, 21]],
+                ["const a = 1; const b = 2 export const c = 3;", "unexpected token", [1, 26]],
+                ["export const a = 1 export default a;", "unexpected token", [1, 20]],
+                ["export default () => { const x = 1 return x; };", "unexpected token", [1, 36]],
+                // a module with no export is one still, however it ends
                 ["import x from \"m\"", "unexpected end", [1, 18]],
                 ["const a = 1", "unexpected end", [1, 12]],
-                ["export default 1", "unexpected end", [1, 17]],
-                ["export default 1\n", "unexpected end", [2, 1]],
-                ["export default 1 // c", "unexpected end", [1, 22]],
-                ["const a = 1\nexport default a;", "unexpected token", [2, 1]],
-                ["import x from \"m\"\nexport default x;", "unexpected token", [2, 1]],
-                ["import x from \"m\"\nconst a = x;\nexport default a;", "unexpected token", [2, 1]],
-                ["const a = 1;\nconst b = 2\nexport default b;", "unexpected token", [3, 1]],
                 ["const a = 1;\nconst a = 2;\nexport default a;", "duplicate id", [2, 7]],
                 ["import x from \"m\";\nimport x from \"n\";\nexport default x;", "duplicate id", [2, 8]],
                 ["import x from \"m\";\nconst x = 1;\nexport default x;", "duplicate id", [2, 7]],
