@@ -21,8 +21,9 @@ Git can name objects by SHA-256, and in practice nothing does: every host,
 every clone and every historical repository is SHA-1, and will be for years.
 So the content stays SHA-1-named where it lives, and DISOT adds the second
 name beside it: a **mapping table** from each SHA-1 object id to a SHA-256
-name, carried in the repository on a `disot` branch, in commits that are
-signed and timestamped. Each such commit descends from the previous one, so
+name, carried in the repository on a `disot` branch, each table in a commit
+beside a trusted timestamp over the table's own SHA-256. Each such commit
+descends from the previous one and its table names the previous one, so
 every new timestamp also covers the earlier commits and their timestamps —
 a chain that keeps adding timestamps for as long as the repository lives.
 
@@ -30,7 +31,7 @@ The branch is a source of truth in DISOT's sense, and that fixes what it
 may hold: **only what was observed, and the original content it was
 observed of**. A pair is an observation — these bytes, at hand, hashed to
 this name, at this time — and a commit is a set of observations under one
-signature and one timestamp. The branch records no decisions.
+timestamp. The branch records no decisions.
 
 **Scope.** This issue covers one thing: **recording** a timestamp over
 hardened hashes — how the pairs are computed, how a commit carries them,
@@ -108,12 +109,13 @@ repository costs every object it holds, once. Under compat naming the
 commit roots are what a timestamp proves, and the per-object pairs are the
 cache that lets the next run prune at every subtree already named.
 
-**3. Keep the table in Git, on its own branch, in signed and timestamped
-commits.** The table lives in the repository it describes, on a branch named
+**3. Keep the table in Git, on its own branch, with a timestamp over each
+delta.** The table lives in the repository it describes, on a branch named
 `disot` — `refs/heads/disot`, so that every host and every clone carries it
 the way it carries any branch, with no server support and no separate
 transport. The branch's history is unrelated to the history it maps: its
-first commit has no parent, and its trees hold table files and nothing else.
+first commit has no parent, and its trees hold two files and nothing else:
+the delta, and the trusted timestamp over it.
 
 Each commit on the branch carries **only the pairs new since its parents**,
 and its parents are the earlier table commits it was built on: the branch is
@@ -122,29 +124,35 @@ table of a long-lived repository is huge, and a commit that re-listed it
 would make the branch grow with every timestamp; a commit that adds only the
 missing commits' objects grows with the content instead, and a commit made
 only to renew the timestamps carries only the pairs for what its parent
-alone introduced — the parent commit, its tree, and its table files, which
-could not be in the parent's own delta. A reader builds the whole table by
+alone introduced — the parent commit, its tree, its delta and its timestamp
+file, which could not be in the parent's own delta. A reader builds the
+whole table by
 scanning every `disot`
 commit and taking the union of their deltas in memory; that union is a
 cache, rebuilt from the branch, and a local on-disk form of it is tooling
 for later, not part of the format.
 
-A commit on `disot` is an ordinary commit, signed and timestamped the way
+The timestamp is a **file beside the delta, not a commit header**. A run
+writes the delta, hashes it with SHA-256, requests an RFC 3161 timestamp
+with that digest as the imprint, and stores the token it gets back as the
+second file; then it commits the two. The digest is the delta's SHA-256
+name as a Git blob — the envelope and the bytes, as
+[`fjs/git/oid`](../fjs/git/oid/module.f.mjs)'s `of` hashes any object at
+the SHA-256 width — so the imprint the token carries is the very name the
+next commit's table records for this delta, and a reader compares the two
+without a second hash. The stored file is the token
+(`TimeStampToken`), not the response that wrapped it, as
+[disot-cli-epic](../fjs/todo/disot-cli-epic.md) already asks.
+
+So the proof never touches SHA-1: token, imprint, delta, pairs, names, all
+SHA-256, and a reader that has the delta and the token verifies without
+the commit. The commit is ordinary and plain — no signature, no extra
+header, nothing in it a reader relies on — and is only Git's way of
+carrying two files and naming the tables they were built on. The commit
+headers that
 [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md)
-signs one. The table files carry no signature of their own; they are data,
-and everything a reader trusts about them it gets from the commit, and the
-commit adds nothing for them either: no extra header, no second name for its
-tree. In a SHA-1 repository the commit's `tree` header reaches the files by
-SHA-1, so a commit's own timestamp binds the pairs it introduces through
-that one link, and the SHA-256 binding comes from the chain: the next
-commit's table holds the pairs for this commit, its tree and its files, so
-every table but the newest is bound by SHA-256 through its successor's
-timestamp, one commit late. The lag is accepted. With a strict table format
-the SHA-1 link is not the weakness it looks like against the attacks known
-today — every one needs the attacker to author both colliding inputs, and
-an attacker who authors none of the table's bytes cannot collide it — and
-the successor closes it in any case. What the argument depends on is the
-format staying strict, which the open question on the line format records.
+puts a timestamp in are for the commits of the mapped history; this branch
+does not use them, and shares only the RFC 3161 request and token handling.
 
 **4. Take every published table before publishing one.** Before a run
 records anything, it fetches `disot` from every remote it publishes to,
@@ -159,9 +167,11 @@ adds and a reader's union sees both. So the branch never carries a pair
 twice, and a commit carries only what its author computed.
 
 Each new table also holds the pairs for the table commit it descends from
-and for the tree and table files that commit introduced — existing objects
-like any other, and the closure invariant demands them; under compat naming
-the parent commit's line then binds the whole earlier chain by SHA-256.
+and for the tree, the delta and the timestamp file that commit introduced —
+existing objects like any other, and the closure invariant demands them;
+under compat naming the parent commit's line then binds the whole earlier
+chain by SHA-256, and the line for the parent's delta repeats the very
+digest the parent's token carries.
 
 ### What a timestamp proves
 
@@ -170,22 +180,19 @@ the parent commit's line then binds the whole earlier chain by SHA-256.
   that SHA-256 name existed by that time, and the proof is the timestamp
   plus the objects: whoever checks it recomputes the name from the bytes
   and compares. The **oldest** timestamp naming the content is the whole
-  proof of when it existed; later ones add nothing to that bound. That
-  timestamp reaches the pair through the commit's SHA-1 `tree` link, as
-  step 3 says; the first timestamp that reaches it through SHA-256 alone
-  is the successor's, one commit later, and a reader that will not lean on
-  the SHA-1 link takes that one as the bound.
+  proof of when it existed; later ones add nothing to that bound. The
+  token reaches the pair directly, through the delta's SHA-256 name, so the
+  bound is the introducing commit's own time.
 - **Why the chain keeps adding timestamps anyway.** A timestamp verifies
   only while its authority's certificate chain does, and a newer timestamp
   over the chain proves the older token existed before that chain expired
   or its key was compromised — the renewal RFC 3161 and long-term
   validation describe. So a renewal-only commit is a normal commit.
-- **The imprint is SHA-256 over the commit's bytes.** A request that hashes
-  the commit's SHA-1 id, or the payload with SHA-1, binds a name the
-  attacker can collide, and the whole record proves nothing more than the
-  SHA-1 did. The digest the timestamp contract names is an open item of
-  [git-sha1-collisions](./git-sha1-collisions.md); this process requires it
-  to be SHA-256.
+- **The imprint is the delta's SHA-256 name.** A request that hashed the
+  commit's SHA-1 id, or the delta with SHA-1, would bind a name the
+  attacker can collide, and the record would prove nothing more than the
+  SHA-1 did. The digest is fixed here, by this process; what digest the
+  companion design's commit headers use is that design's open item.
 
 ### Open questions
 
@@ -208,9 +215,12 @@ list is so that none is decided by accident.
   work already needs. Whichever, sorted and refused when unsorted, so lookup
   is a search that fails rather than answers wrongly, as
   [`fjs/git/packidx`](../fjs/git/packidx/module.f.mjs) does for its ids.
-  And whichever, strict: a format that admits bytes the tool did not write
-  hands an attacker the control over the table's bytes that step 3's
-  argument says they lack.
+  And whichever, strict: a reader refuses a delta the tool would not have
+  written, rather than reading past what it does not understand.
+- **The two file names, and the token's encoding.** The delta and the
+  token need names in the tree, and the token is DER; whether it is stored
+  as the raw `TimeStampToken` bytes or wrapped so that the file says what
+  it is. Both are the format's to decide.
 - **Gitlinks.** A submodule's commit is an object of another repository. Its
   pair belongs to that repository's own `disot` branch, so the natural rule
   is: not followed, not recorded, and a reader that needs it asks the
@@ -255,8 +265,11 @@ accident:
 
 - [ ] Define the table file format and its tree layout, as a `todo/` beside
       the module that will read it, with the open questions above answered.
-- [ ] Require SHA-256 as the timestamp's imprint digest, in
-      [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md).
+- [ ] The timestamp: the request with the delta's SHA-256 name as the
+      imprint, the token checked against it and stored, reusing the
+      RFC 3161 handling
+      [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md)
+      defines.
 - [ ] The walk: from the missing commits and a table in hand to the pairs it
       lacks, pruning at what is held and recording in post-order, over
       [`fjs/git/store`](../fjs/git/store/module.f.mjs) and
@@ -266,8 +279,8 @@ accident:
 - [ ] Reading the table: the in-memory union from a scan of every `disot`
       commit, and the closure check that refuses a table an object of which
       references an unmapped one.
-- [ ] Writing the table: the pairs as a blob, its tree, and the commit with
-      the fetched heads as parents. Nothing in [`fjs/git`](../fjs/git/README.md)
+- [ ] Writing the table: the delta and the token as blobs, their tree, and
+      the commit with the fetched heads as parents. Nothing in [`fjs/git`](../fjs/git/README.md)
       writes an object to a store yet — the effects have `inflate` and no
       `deflate`, and [`fjs/git/loose`](../fjs/git/loose/module.f.mjs) only
       reads — so a loose-object writer comes first, then the branch tip
@@ -282,8 +295,8 @@ accident:
 - [git-sha1-collisions](./git-sha1-collisions.md) — the policy this is one
   answer to, and the choice of which SHA-256 it records.
 - [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md)
-  — what signs and timestamps a commit on the `disot` branch, and where the
-  imprint digest is defined.
+  — the RFC 3161 request and token handling this reuses; its commit headers
+  are for the mapped history's commits, not this branch's.
 - [git-name-resolution](./git-name-resolution.md) — the other DISOT
   metadata, and the `.disot.*` files a table format might join.
 - [disot-cli-epic](../fjs/todo/disot-cli-epic.md) — where the command
