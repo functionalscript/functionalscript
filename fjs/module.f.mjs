@@ -7,7 +7,7 @@
  * @import { Commands } from './cli/types.ts'
  */
 
-import { compile } from './fsc/module.f.mjs'
+import { compile } from './compiler/module.f.mjs'
 import { main as testMain } from './emergent_testing/module.f.mjs'
 import { commands as casCommands } from './cas/cli/module.f.mjs'
 import { main as ciMain } from './ci/module.f.mjs'

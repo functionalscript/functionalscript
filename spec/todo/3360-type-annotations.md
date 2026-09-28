@@ -29,7 +29,7 @@ it.
 
 **Evaluating and checking an annotation** depends on the compiler being able to
 load and run a module as meta-programming
-([`fjs/fsc/todo/047-fsc-meta-programming.md`](../../fjs/fsc/todo/047-fsc-meta-programming.md)). Recognizing one does not:
+([`fjs/compiler/todo/047-compiler-meta-programming.md`](../../fjs/compiler/todo/047-compiler-meta-programming.md)). Recognizing one does not:
 settling the annotation's form, matching the comment, and resolving its single
 identifier against the module's bindings need neither meta-programming nor the
 expression parser, and are stages 2–3 of
@@ -165,7 +165,7 @@ TypeScript aliases out.
    grammar is one name, so recognizing it needs no expression grammar inside a
    comment, and the parser gains no new syntax surface.
 2. Resolve that name to a binding in scope and evaluate **the binding** at
-   compile time ([`fjs/fsc/todo/047-fsc-meta-programming.md`](../../fjs/fsc/todo/047-fsc-meta-programming.md)) — ordinary
+   compile time ([`fjs/compiler/todo/047-compiler-meta-programming.md`](../../fjs/compiler/todo/047-compiler-meta-programming.md)) — ordinary
    identifier resolution, the same lookup any other reference gets. There is no
    "annotation expression" to evaluate.
 
@@ -202,22 +202,22 @@ annotation form and how a name resolves — rather than a paraphrase of a stage.
 
 ## Depends on
 
-- [compile-modules-to-edag](../../fjs/fsc/todo/compile-modules-to-edag.md) —
+- [compile-modules-to-edag](../../fjs/compiler/todo/compile-modules-to-edag.md) —
   the `,` anchoring operation for a non-resulting computation, which the
   compiler emits for whatever a module's export does not reach: a module whose
   only use of an import is in an annotation compiles, its import anchored and
   evaluated.
-- [`fjs/fsc/todo/047-fsc-meta-programming.md`](../../fjs/fsc/todo/047-fsc-meta-programming.md) — the compiler loading and
+- [`fjs/compiler/todo/047-compiler-meta-programming.md`](../../fjs/compiler/todo/047-compiler-meta-programming.md) — the compiler loading and
   running modules as meta-programming, which is what compile-time evaluation of
   an annotation's named binding requires.
 - [fjs-nanvm-integration.md](../../todo/fjs-nanvm-integration.md) and
-  [`fjs/fsc/README.md`](../../fjs/fsc/README.md) — the path to a compiler that
+  [`fjs/compiler/README.md`](../../fjs/compiler/README.md) — the path to a compiler that
   parses authored FunctionalScript.
 - [js-string-literals](./2460-js-string-literals.md) — FunctionalScript's string
   is JSON's between either quote, so the repository's own single-quoted `.mjs`
   sources tokenize; the rest of JavaScript's string spellings do not yet, and
   normalizing those is a precondition of the
-  [stage-2](../../fjs/fsc/README.md#stage-2-mark-compiler-compatible-functionalscript)
+  [stage-2](../../fjs/compiler/README.md#stage-2-mark-compiler-compatible-functionalscript)
   rename, not a tokenizer defect.
 
 ## Consequences for the TypeScript-era work

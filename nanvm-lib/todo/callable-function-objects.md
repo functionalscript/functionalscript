@@ -39,7 +39,7 @@ variables that the generated code and `nanvm-lib` agree on.
   values, including closures with captured state and self-recursion.
 - **Out of scope**: the optional [Rust EDAG library](../../todo/rust-edag.md)
   and its native executor, on hold and not planned for MVP. Self-hosting uses
-  the existing [FJS interpreter](../../fjs/fsc/todo/interpret-edag.md) compiled
+  the existing [FJS interpreter](../../fjs/compiler/todo/interpret-edag.md) compiled
   to direct Rust; it does not wait for a native `Function` constructor. The
   executors must agree on the observable calling contract, but designing a
   second executor or its frame/slot representation is not this document's job.
@@ -459,7 +459,7 @@ operation. The [`parameters` harness fixture](../../nanvm-harness/fixtures/param
 and its [generated Rust](../../nanvm-harness/gen.fixtures/parameters.rs) cover
 omitted, explicit `undefined` and extra arguments, captured fixed/rest values,
 and repeated versus distinct-call rest identity. The
-[Rust module proofs](../../fjs/fsc/rust/proof.f.mjs) cover binding refusals,
+[Rust module proofs](../../fjs/compiler/rust/proof.f.mjs) cover binding refusals,
 the largest valid length, 16, and the refusal of 17.
 The remaining migration and regression work stays open in the checklist;
 this implementation does not complete the default-text renderer.
@@ -474,7 +474,7 @@ Hashing and function-text operations need the semantic code description from
 the [`fjs/edag`](../../fjs/edag/README.md) schema, including the association
 for capturing closures. Embedded `Any<A>` data versus out-of-band lookup is
 still open in the roadmap and
-[associate-edag-with-functions](../../fjs/fsc/todo/associate-edag-with-functions.md).
+[associate-edag-with-functions](../../fjs/compiler/todo/associate-edag-with-functions.md).
 Resolve that representation before implementing this stage. It does not
 require the optional Rust EDAG types or executor, and direct AOT output must
 remain usable without a dynamic EDAG library.
@@ -504,7 +504,7 @@ satisfy the same contract, but this parity work does not wait for it.
    can be deferred — [optimal-nanvm](./optimal-nanvm.md)'s NaN-boxing layer
    is where a genuinely allocation-free static function eventually belongs.
 3. **Generated-module linking (resolved).** The
-   [compiler](../../fjs/fsc/module.f.mjs) resolves the complete source graph
+   [compiler](../../fjs/compiler/module.f.mjs) resolves the complete source graph
    before `toRust` emits one Rust file. Stage 1 therefore needs no per-dependency
    Rust `use` paths or file layout; source imports are already linked within
    that output. The embedding crate chooses where to include the generated
@@ -587,7 +587,7 @@ satisfy the same contract, but this parity work does not wait for it.
   receivers, optional chains) once calls stop being data-only.
 - [`fjs/edag/todo/rust-schema-codegen.md`](../../fjs/edag/todo/rust-schema-codegen.md)
   — types for the deferred optional Rust EDAG library; not a Stage 7 prerequisite.
-- [`fjs/fsc/todo/associate-edag-with-functions.md`](../../fjs/fsc/todo/associate-edag-with-functions.md)
+- [`fjs/compiler/todo/associate-edag-with-functions.md`](../../fjs/compiler/todo/associate-edag-with-functions.md)
   — flags nested-closure EDAG association as unsolved; Stage 7 is where this
   plan closes that for the AOT backend specifically.
 - [`spec/todo/object-identity.md`](../../spec/todo/object-identity.md) —

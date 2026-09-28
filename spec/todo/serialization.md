@@ -13,7 +13,7 @@ a native EDAG representation or interpreter. The reasons:
 2. The EDAG can be transformed back to source code. The adopted
    [function-source exception](../README.md#function-source-representation-exception)
    uses EDAG-derived text for default function string conversion; whether
-   that operation is also the FSC function serializer is open below.
+   that operation is also the compiler's function serializer is open below.
 3. Because code is an FJS value, serializing functions requires no separate format: once the VM
    serializes `Any` values, it serializes code too. The binary encoding of `Any` values is
    **CBOR** ([RFC 8949](https://www.rfc-editor.org/rfc/rfc8949)), chosen because it represents
@@ -31,7 +31,7 @@ There are two execution paths, observably identical except in performance:
   toolchain into `nanvm`. Ordinary AOT programs need no runtime EDAG executor
   or runtime code generation.
 
-The [public FJS final-EDAG entry](../../fjs/fsc/todo/interpret-edag.md) owns the
+The [public FJS final-EDAG entry](../../fjs/compiler/todo/interpret-edag.md) owns the
 [total-validation contract](../../todo/edag-stage1-discussion.md#5-validation)
 for code supplied as data, including graphs the compiler would never emit.
 Deferring the native `Function` constructor does not narrow that contract.
@@ -91,7 +91,7 @@ an implicit answer. Captures are in the language
 ([functions](../README.md#functions)); the examples do not claim current
 compiler support for `self` or for rendering either as text.
 
-1. **Should the FSC function serializer and `String(f)` be the same function?**
+1. **Should the compiler's function serializer and `String(f)` be the same function?**
    Should they have one output contract and implementation, or distinct
    contracts that may share rendering machinery? In particular, does `String(f)`
    promise self-contained source that reconstructs the callable value,

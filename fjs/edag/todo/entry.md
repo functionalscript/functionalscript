@@ -67,7 +67,7 @@ and expressions have already been recognized correctly.** This replaces the
 former proposal to recognize `entry` as a fixed token shape before its body
 syntax was supported.
 
-Follow [statement-aware AST recognition](../../fsc/parser/todo/statement-aware-intrinsics.md).
+Follow [statement-aware AST recognition](../../compiler/parser/todo/statement-aware-intrinsics.md).
 The parser constructs a JavaScript-subset AST with statement and expression
 structure intact, not an already-admitted FJS AST. AST-to-EDAG compilation
 resolves bindings and const visibility, checks early errors, recognizes this
@@ -105,7 +105,7 @@ retains its host representation; source-text reflection through exports is
 covered by the same exception. Do not ban exporting `entry` merely to hide it.
 
 [Function text and serialization](../../../spec/todo/serialization.md#function-text-and-serialization)
-owns the remaining open questions: whether `String(f)` and the FSC function
+owns the remaining open questions: whether `String(f)` and the compiler's function
 serializer are the same function, frame instantiation, and `self`. The displayed
 helper defines the computation, not its exact serialized spelling. Earlier
 requirements to refuse every authored-text difference are superseded; the
@@ -197,7 +197,7 @@ need tests in addition to direct internal-operation tests.
 
 ### Related
 
-- [Statement-aware intrinsics](../../fsc/parser/todo/statement-aware-intrinsics.md).
+- [Statement-aware intrinsics](../../compiler/parser/todo/statement-aware-intrinsics.md).
 - [Enumerable presence](../../../spec/todo/2345-has-own-property.md).
 - [Property access](../../../spec/todo/2330-property-accessor.md).
 - [Built-ins](../../../spec/todo/2360-built-in.md).

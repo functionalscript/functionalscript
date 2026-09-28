@@ -55,7 +55,7 @@ export const literalGlobals = /** @type {const} */ (['Infinity', 'NaN', 'undefin
  * A tokenizer gives each of these a token kind of its own rather than `id`,
  * and every other keyword an `id` carrying the word, which is why a grammar
  * over that alphabet owes them a rule wherever a *name* may stand — a
- * property's or a binding's — as `identifierName` in `fjs/fsc/parser/grammar`
+ * property's or a binding's — as `identifierName` in `fjs/compiler/parser/grammar`
  * does. Where a **value** may stand they are the value, which is the line
  * this list draws and the reason it exists.
  */

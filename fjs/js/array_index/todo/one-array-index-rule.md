@@ -15,19 +15,19 @@ const arrayIndex = k => {
     const i = Number(k)
     return Number.isInteger(i) && i >= 0 && i < 2 ** 32 - 1 && String(i) === k ? i : undefined
 }
-// fjs/fsc/ast/module.f.mjs, arrayIndex
+// fjs/compiler/ast/module.f.mjs, arrayIndex
 const arrayIndex = key => {
     const n = Number(key)
     return isInteger(n) && n >= 0 && `${n}` === key ? n : undefined
 }
 ```
 
-The round-trip idea is the same in both, and `fsc/ast`'s doc says so in
+The round-trip idea is the same in both, and `compiler/ast`'s doc says so in
 prose — it ends "as `fjs/rtti/common` reads an index too" — but nothing links
 the code. Only `rtti/common` carries the upper bound, because only it has been
 bitten: the changelog for `0.47.0` records that a canonical key at or above
 `2 ** 32 - 1` rode through a closed container as neither an index nor a
-property. `fsc/ast` argues the bound away in a comment instead of having
+property. `compiler/ast` argues the bound away in a comment instead of having
 it — a later `< length` test makes the omission harmless, which is true today
 and is exactly the kind of invariant a copy loses when its caller changes. A
 third copy, `isCanonicalIndex` and `arrayIndexOf` in `fjs/edag/rust`, has
@@ -59,7 +59,7 @@ A numeric-key twin, `numberArrayIndex`, was proposed for `edag/rust`'s copy;
 that copy is gone, so it waits for a consumer.
 
 The bound lives in one place and every consumer inherits it: `rtti/common`
-loses nothing, `fsc/ast` gains the bound it argued away and can drop the
+loses nothing, `compiler/ast` gains the bound it argued away and can drop the
 paragraph that argued it. `Nullable` is the repository's absence type
 (`fjs/types/nullable`), so the two `undefined`-returning copies switch to
 `null`; their callers already spell absence as `?? length` and `!== undefined`,
@@ -80,7 +80,7 @@ boundary cases by name — `'4294967294'` in, `'4294967295'` out, `'-0'` out.
       module, since a partial map restricts what is unrestricted now.
 - [ ] `fjs/rtti/common`: import `arrayIndex`; `readIndices` and the
       undeclared scans read `null` for absence.
-- [ ] `fjs/fsc/ast`: import `arrayIndex`; `literalAt` unchanged but for the
+- [ ] `fjs/compiler/ast`: import `arrayIndex`; `literalAt` unchanged but for the
       import; its `isInteger` binding goes if nothing else uses it.
 - [ ] `tsc`, `fjs test`; both modules' proofs pass unchanged.
 

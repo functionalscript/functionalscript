@@ -19,7 +19,7 @@ self-hosting, separate from ordinary compiler coverage and resource hardening.
 
 This rewrite alone does not make the executor's dependency closure admitted
 FJS. `invocation` and its analysis dependency also construct host `Map` values.
-Their [container migration](../../../fsc/todo/load-modules-without-import-effect.md#native-prerequisites)
+Their [container migration](../../../compiler/todo/load-modules-without-import-effect.md#native-prerequisites)
 is a separate native prerequisite; immutable use of `Map` is not language
 admission.
 
@@ -51,9 +51,9 @@ invocation owns its cache; captured values keep their existing identities.
 
 ### Related
 
-- [interpret-edag](../../../fsc/todo/interpret-edag.md) — owns public validation
+- [interpret-edag](../../../compiler/todo/interpret-edag.md) — owns public validation
   and interpreter integration; the host baseline already exists.
-- [FJS module loading](../../../fsc/todo/load-modules-without-import-effect.md) —
+- [FJS module loading](../../../compiler/todo/load-modules-without-import-effect.md) —
   its native path depends on this rewrite; Node loading can proceed separately.
 - [callable-function-objects](../../../../nanvm-lib/todo/callable-function-objects.md)
   — the direct AOT captured-frame contract.

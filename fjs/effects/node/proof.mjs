@@ -7,7 +7,7 @@
  * Proofs that need a filesystem own a temporary tree and remove it in
  * `finally`, through {@link withTemporary}. They exercise the sibling host
  * runner; compiler traversal and diagnostics are proved synchronously in
- * `fsc/transpiler/proof.f.mjs`.
+ * `compiler/transpiler/proof.f.mjs`.
  *
  * @import { All, NodeProgram, NodeOp, ReadRequestBytes, RequestListener, ServerResponse } from './types.ts'
  * @import { List, Next } from '../list/types.ts'

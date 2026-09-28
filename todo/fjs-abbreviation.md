@@ -58,8 +58,8 @@ Out of scope — FS or `fs` that means something else:
 - `fjs/website/README.md`'s note that the mark is "the old 'fs' logo … with a
   'j' added", which is history told correctly.
 
-The compiler directory, `fjs/fsc`, and the "FSC" it is called by are
-[rename-fsc-to-compiler](../fjs/todo/rename-fsc-to-compiler.md)'s.
+The compiler is already done: the directory once named `fjs/fsc` is
+[`fjs/compiler`](../fjs/compiler/README.md), and prose calls it "the compiler".
 
 ### Tasks
 
@@ -71,8 +71,3 @@ The compiler directory, `fjs/fsc`, and the "FSC" it is called by are
       and fix every link to them.
 - [ ] Decide whether `fjs/todo/group-fs-subdirectories-by-concern.md`, whose
       title already says `fjs/`, is renamed too.
-
-### Related
-
-- [rename-fsc-to-compiler](../fjs/todo/rename-fsc-to-compiler.md) — the
-  compiler directory's part of the same rebrand.

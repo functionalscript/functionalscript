@@ -11,7 +11,7 @@ nodes. Because of that relationship the serializers should share their
 value-level walk. Today they don't.
 
 The parser half of this issue is closed: the old `fjs/djs` value-state machine
-it proposed to share was deleted when `fjs/fsc/parser` became a grammar, and
+it proposed to share was deleted when `fjs/compiler/parser` became a grammar, and
 JSON has one parser left. So is the tokenizer half: neither tokenizer folds a
 `-` into a number any longer. What survived of the parser half was JSON-only —
 keep each number exact until a policy reads it — and has shipped: the reader
@@ -29,7 +29,7 @@ was retired:
 - [`fjs/media/datajs/serializer`](../../datajs/serializer/module.f.mjs)
   — the format's own walk, over own property descriptors, with the ref seam
   and the `__proto__` key seam that walk alone needs now.
-- [`fjs/fsc/module.f.mjs`](../../../fsc/module.f.mjs) — `_stringifyTree`, the
+- [`fjs/compiler/module.f.mjs`](../../../compiler/module.f.mjs) — `_stringifyTree`, the
   dump the compiler's proofs pin token streams and syntax trees with: JSON's
   shape, keys sorted, over the compiler's leaves, a member holding `undefined`
   kept. It is what the old serializer's `serializeWithoutConst` was, without
@@ -111,14 +111,14 @@ the shape `treeSerialize` walks.
 - [JSON numeric edge cases](./number-edge-cases.md) — decides
   materialization for exponent overflow, oversized bare integers, and standard
   compatibility.
-- [json-writer-owner](../../../fsc/todo/json-writer-owner.md) — a fourth,
-  fallible JSON walker in `fjs/fsc/module.f.mjs`.
-- `i003` (retired; shipped as `fjs/fsc/ast`) — the original DJS design: parse a
+- [json-writer-owner](../../../compiler/todo/json-writer-owner.md) — a fourth,
+  fallible JSON walker in `fjs/compiler/module.f.mjs`.
+- `i003` (retired; shipped as `fjs/compiler/ast`) — the original DJS design: parse a
   module into a flat list of constants addressed by index. It landed verbatim —
-  [`ast/types.ts`](../../../fsc/ast/types.ts) carries the shape and
-  [`fjs/fsc/README.md`](../../../fsc/README.md) records why the list is flat, with the
+  [`ast/types.ts`](../../../compiler/ast/types.ts) carries the shape and
+  [`fjs/compiler/README.md`](../../../compiler/README.md) records why the list is flat, with the
   design's own `['cref', n]` / `['aref', n]` / `['array', …]` spellings visible
-  in [`parser/proof.f.mjs`](../../../fsc/parser/proof.f.mjs).
+  in [`parser/proof.f.mjs`](../../../compiler/parser/proof.f.mjs).
 - `i77` (retired) — identifier property names, the DJS object-key delta. It was
   `Support for property accessor`, and its whole body was a pointer to the spec
   section plus a sketch of the operators (`instant_property`, `at`,

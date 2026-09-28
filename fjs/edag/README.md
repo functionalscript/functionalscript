@@ -8,13 +8,13 @@ serialization trick. Evaluation memoizes every node by identity within one
 invocation — shared nodes evaluate once, per the baseline in
 [edag-stage1-discussion.md](../../todo/edag-stage1-discussion.md), and each
 call starts fresh, per the per-invocation memo scope in
-[interpret-edag.md](../fsc/todo/interpret-edag.md). There is no normal form: a function's hash is the
+[interpret-edag.md](../compiler/todo/interpret-edag.md). There is no normal form: a function's hash is the
 structural identity of its graph as written, the name-erased source.
 Lowering rules make agreed-on spellings coincide; hash equality does not
 decide semantic equivalence. This module owns the data model only: node kinds, operand
 shapes, and their schema. Producers and executors are staged work that will
-consume it — the [FunctionalScript](../fsc/) compiler lowering parsed modules to EDAG
-([compile-modules-to-edag.md](../fsc/todo/compile-modules-to-edag.md)), the
+consume it — the [FunctionalScript](../compiler/) compiler lowering parsed modules to EDAG
+([compile-modules-to-edag.md](../compiler/todo/compile-modules-to-edag.md)), the
 interpreter and Rust code generation executing it — and the dependency is
 one-way by design: `fjs/edag` imports nothing from them.
 
@@ -36,7 +36,7 @@ the static tuples and the runtime ones agree exactly, an exact-length
 [TupleTs](../rtti/ts/types.ts) rendering over an exact-length set.
 [proof.f.mjs](proof.f.mjs) pins what the schema accepts and rejects, node
 kind by node kind — validation behavior, not execution semantics — with
-`comma` pinned by the compiler that emits it, `fjs/fsc/edag`. Its `ownJs` and
+`comma` pinned by the compiler that emits it, `fjs/compiler/edag`. Its `ownJs` and
 `chainsJs` sections are the exception that proves the rule: they run the JS
 whose behavior the nodes are built around, which is how those semantics were
 pinned before anything executed an EDAG. [amnesia](amnesia/README.md) now
@@ -387,7 +387,7 @@ need it.
   operation-node identity may be shared only within one function's scope,
   never across a `=>` boundary — goes unchecked. The Stage 2 validator for
   that boundary is tracked in
-  [compile-modules-to-edag.md](../fsc/todo/compile-modules-to-edag.md).
+  [compile-modules-to-edag.md](../compiler/todo/compile-modules-to-edag.md).
   In particular `parse` is not a way to canonicalize a graph: it constructs a
   fresh container at every position it visits, so two edges reaching the same
   input reference come back as two distinct outputs, flattening the one
@@ -396,7 +396,7 @@ need it.
   the last the result, each earlier operand a true root: not reachable from
   another operand of the same `,` — is the emitter's to keep, as the `=>`
   scope rule is; a single-operand `,` is the identity, an operand a sibling
-  reaches a redundant anchor, both non-canonical. `fjs/fsc/edag` keeps it:
+  reaches a redundant anchor, both non-canonical. `fjs/compiler/edag` keeps it:
   the operands before the result are the roots of what a module's export
   does not reach, in source order (the order among them is not yet
   canonical — the discussion's candidate is content-hash order).
@@ -418,7 +418,7 @@ The semantics and operation vocabulary are decided subject by subject in
 [edag-stage1-discussion.md](../../todo/edag-stage1-discussion.md). The module
 boundary is the one stated at the top of this file: the compiler's temporary
 `Unresolved { imports, edag }` wrapper, module resolution and serialization
-stay in `fjs/fsc`, since import paths are not part of an EDAG. Generating the
+stay in `fjs/compiler`, since import paths are not part of an EDAG. Generating the
 Rust types and validation from this schema is
 [rust-schema-codegen.md](./todo/rust-schema-codegen.md). The discussion
 predates [Chains](#chains) above and describes the chain nodes as one call tag

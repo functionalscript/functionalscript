@@ -6,7 +6,7 @@ root [AGENTS.md](../AGENTS.md), and the design principles both code bases follow
 live in [DESIGN.md](../doc/DESIGN.md).
 
 Authored FunctionalScript has two extensions: `.f.mjs`, and `.f.js` for source
-the current compiler accepts ([`fsc/README.md`](./fsc/README.md) defines
+the current compiler accepts ([`compiler/README.md`](./compiler/README.md) defines
 both). Every rule below stated for `.f.mjs` applies to `.f.js` alike; the one
 difference, that a proof stays `proof.f.mjs`, is in
 [§1.2](#12-proof-coverage-is-mandatory).
@@ -37,14 +37,14 @@ New FunctionalScript modules and functions must have **100% proof coverage**
 across every dimension: every exported function called, every line executed, and
 every branch (both sides of each conditional) taken. This applies to authored
 FunctionalScript source, `.f.mjs` and `.f.js`
-([`fjs/fsc/README.md`](./fsc/README.md) defines the extensions). A new
+([`fjs/compiler/README.md`](./compiler/README.md) defines the extensions). A new
 implementation module ships with a co-located proof (its `proof` export) that
 exercises all of its exports along all code paths — partial coverage of new code
 is not acceptable. If a line or branch genuinely cannot be reached, restructure
 the code so it isn't there rather than leaving it uncovered.
 
 An implementation is `module.f.mjs`, or `module.f.js` once the compiler
-accepts it (stage 2, [`fjs/fsc/README.md`](./fsc/README.md)), and its proof is
+accepts it (stage 2, [`fjs/compiler/README.md`](./compiler/README.md)), and its proof is
 `proof.f.mjs` either way. Stage 1 of the TypeScript-to-JavaScript migration is
 complete: no authored implementation or proof `.f.ts` remains, so write both
 files as JavaScript with JSDoc. Authored `types.ts` companions may remain
@@ -81,7 +81,7 @@ need independently of one implementation belongs in `types.ts`, not in a JSDoc
 typedef that consumers would have to reach into the implementation for. Never add
 a runtime value for a TypeScript-only declaration such as `declare const`.
 Compiler support remains independent of this JavaScript/JSDoc rule. See
-[`fjs/fsc/README.md`](./fsc/README.md) for the extension contract and module
+[`fjs/compiler/README.md`](./compiler/README.md) for the extension contract and module
 policy.
 
 ### 1.3 Use `assert` / `assertEq`, never a hand-written `if`/`throw`
@@ -263,7 +263,7 @@ Which reader differs by file kind, and the tag does not decide it.
 `module.f.mjs` and `types.ts` are public API surface. `private.ts` is not: it
 holds implementation-private types outside the public declaration closure, and
 its generated declarations are excluded from the package entirely
-([`fsc/README.md`](./fsc/README.md)). Its prose is for contributors reading the
+([`compiler/README.md`](./compiler/README.md)). Its prose is for contributors reading the
 sources, so the tag belongs there — but a public documentation build must not be
 pointed at it.
 
@@ -441,16 +441,16 @@ Name private types and private runtime constants with a leading `_`, even when
 module linkage requires an export: exportability is linkage, not API status, so
 renaming or removing a `_`-prefixed name is not by itself a breaking change.
 The public contract still governs transitive effects. See
-[Private types](./fsc/README.md#private-types) for the full rule.
+[Private types](./compiler/README.md#private-types) for the full rule.
 
 The prefix marks a name that **is** exported as no part of the API — "even when
 module linkage requires an export" is the reach of the rule, not an example of
 it. A `const` that is never exported reaches no emitted declaration and no
 consumer, so it has nothing to disclaim and takes no prefix: `toNode` and
 `accessed` in
-[`fjs/fsc/parser`](./fsc/parser/module.f.mjs) are the
+[`fjs/compiler/parser`](./compiler/parser/module.f.mjs) are the
 ordinary shape, beside the exported `_Frame` and `_NegFrame` in its
-[`private.ts`](./fsc/parser/private.ts), which are the rule's. Measured across `fjs/`, module-private constants run about 1,900
+[`private.ts`](./compiler/parser/private.ts), which are the rule's. Measured across `fjs/`, module-private constants run about 1,900
 unprefixed to eight prefixed — so reading the rule as reaching them would put
 nearly every `.f.mjs` in the tree in violation, which is the check that the
 reading is wrong.

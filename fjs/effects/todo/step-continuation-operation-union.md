@@ -18,7 +18,7 @@ or differently shaped `Q`.
 
 **Re-measured at `36c8d4a`, the continuation casts are gone.** None of the
 listed sites — `Evo.add` in `fjs/cas/evo`, the `Rm` continuation in `fjs/cas`,
-`_CompileOp` in `fjs/fsc`, `ParseContext` in `fjs/fsc/transpiler`, and the
+`_CompileOp` in `fjs/compiler`, `ParseContext` in `fjs/compiler/transpiler`, and the
 `Result<number, string>` continuation in `fjs/effects/proof.f.mjs` — carries a
 cast any more. One cast of the listed shape survives, and it is not a
 continuation:

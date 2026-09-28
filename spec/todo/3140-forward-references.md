@@ -34,7 +34,7 @@ const x = {
 
 ### Related
 
-- [`body-const-forward-reference.md`](../../fjs/fsc/parser/todo/body-const-forward-reference.md)
+- [`body-const-forward-reference.md`](../../fjs/compiler/parser/todo/body-const-forward-reference.md)
   — the same gap inside a function body.
 - [function-frame](./3111-function-frame.md) — mutually recursive functions
   and their frames.

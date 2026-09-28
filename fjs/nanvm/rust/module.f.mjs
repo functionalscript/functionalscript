@@ -14,7 +14,7 @@
  * The node printer and its binding mechanism are not this module's own:
  * they live in [`fjs/edag/rust`](../../edag/rust/module.f.mjs), shared
  * with the `.rs` output branch of `fjs compile`
- * (`fjs/fsc/rust/module.f.mjs`), so the operator tables and the mechanism
+ * (`fjs/compiler/rust/module.f.mjs`), so the operator tables and the mechanism
  * have one copy between the two generators. What stays here is everything
  * test-corpus-specific: naming a group's Rust function, the per-group `let`
  * bindings a case's shared operands need, and the assertion statements

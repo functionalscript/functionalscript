@@ -169,7 +169,7 @@ impl<A: IVm> Dispatch<A> for ToJson {
         // which `JSON.stringify` inherits) is not plain insertion order: an
         // array-index-like key (`array_index_value`) is listed first,
         // ascending by its numeric value, ahead of every other key, which
-        // keeps its insertion order (`fjs/fsc/README.md`'s object-literal
+        // keeps its insertion order (`fjs/compiler/README.md`'s object-literal
         // section calls this out at the AST level). So the deduped keys are
         // partitioned into the two groups, the array-index group sorted, and
         // printed index keys first.

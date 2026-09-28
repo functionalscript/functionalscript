@@ -76,8 +76,8 @@ details remain implementation work under this contract.
 
 ### Related
 
-- [FJS module loader](../fjs/fsc/todo/load-modules-without-import-effect.md).
+- [FJS module loader](../fjs/compiler/todo/load-modules-without-import-effect.md).
 - [FJS proof loading](../fjs/emergent_testing/todo/load-proofs-through-fjs.md).
 - [console-program](../nanvm-lib/todo/console-program.md) — native packaging.
-- [interpreter resource limits](../fjs/fsc/todo/bound-edag-interpreter-resources.md)
+- [interpreter resource limits](../fjs/compiler/todo/bound-edag-interpreter-resources.md)
   and [worker isolation](../fjs/emergent_testing/todo/206-workers-as-a-sandbox.md).

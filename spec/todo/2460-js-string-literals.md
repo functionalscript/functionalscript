@@ -81,4 +81,4 @@ See
 
 - [ ] Admit the other escapes, raw control characters or line continuations
       only when a measured need appears, through the lexing issue's
-      `jsonEscapes` check in `fjs/fsc/tokenizer`'s fold.
+      `jsonEscapes` check in `fjs/compiler/tokenizer`'s fold.

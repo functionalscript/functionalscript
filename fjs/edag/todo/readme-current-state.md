@@ -10,7 +10,7 @@ that "Producers and executors are staged work that will consume it — the
 FunctionalScript compiler lowering parsed modules to EDAG …, the interpreter
 and Rust code generation executing it". All three have landed:
 
-- [`fjs/fsc/edag`](../../fsc/edag/module.f.mjs) lowers parsed modules to the
+- [`fjs/compiler/edag`](../../compiler/edag/module.f.mjs) lowers parsed modules to the
   EDAG and links them (`unresolved`, `resolve`);
 - [`../amnesia`](../amnesia/module.f.mjs) and [`../memo`](../memo/module.f.mjs)
   execute it, over the shared [`../operations`](../operations/module.f.mjs)

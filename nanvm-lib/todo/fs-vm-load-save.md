@@ -11,7 +11,7 @@ Sketch / document errors, exceptions, and execution scheme. The host environment
 
 Use `sandbox` to capture a computation's value or language throw through the
 existing result/duration contract. This does not add FJS `try`/`catch` or promise
-resource isolation. The [FJS loader](../../fjs/fsc/todo/load-modules-without-import-effect.md)
+resource isolation. The [FJS loader](../../fjs/compiler/todo/load-modules-without-import-effect.md)
 and [native effect runner](../../todo/nanvm-effects-node.md) own the concrete
 loading and error-capture work.
 

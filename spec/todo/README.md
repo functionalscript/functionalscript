@@ -18,7 +18,7 @@ successful-result agreement, purity and indistinguishable execution failures.
 tracks the current and proposed P1 violations and their root-cause corrections.
 These rules apply at every stage, regardless of a feature's priority below.
 
-[Statement-aware intrinsics](../../fjs/fsc/parser/todo/statement-aware-intrinsics.md)
+[Statement-aware intrinsics](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md)
 requires every instruction pattern to match already-recognized statements and
 expressions, never raw token sequences. It also plans JavaScript-compatible
 statement termination and optional semicolons as a separate syntax expansion;

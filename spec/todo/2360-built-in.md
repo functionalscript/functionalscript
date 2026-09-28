@@ -139,7 +139,7 @@ Use explicit enumerable-entry patterns instead:
 `hasEntity` pattern. `Object.getOwnPropertyDescriptor` is permitted only as
 part of a complete approved AST pattern, never as an exposed descriptor API.
 
-[Statement-aware recognition](../../fjs/fsc/parser/todo/statement-aware-intrinsics.md)
+[Statement-aware recognition](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md)
 resolves statements, expressions and bindings before matching. No built-in
 receives a whitespace-insensitive token-parser shortcut. A standard operation
 must either retain its successful JavaScript behavior or remain prohibited.
