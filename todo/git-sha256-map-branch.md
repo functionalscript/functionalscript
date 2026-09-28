@@ -58,6 +58,16 @@ corrupt table, refused rather than extended
 invariant is also what makes a pair meaningful under the compat choice, since
 that name is defined only where the subgraph below it is named.
 
+Pruning is a builder's shortcut and never a verifier's: a verifier reads the
+object and recomputes, every time, since a swapped twin has the SHA-1 the
+table holds and is exactly what a prune walks past. And a run prunes only at
+a pair it has reason to trust — one from its own earlier runs, or from a
+table commit whose signer it trusts — because a pair from anyone else may be
+the attacker's, published early so that the honest run skips the object
+(see **Trust** below). A pair for an object entering the repository is
+therefore computed by whoever accepts it, at acceptance, from the bytes as
+accepted, never taken from a table.
+
 So the second run over a repository costs the new commits and the trees and
 blobs they introduced, and nothing more; the first run over a large repository
 costs every object it holds, once.
@@ -68,10 +78,20 @@ name chosen so that every host and every clone carries it the way it carries
 any branch, with no server support and no separate transport. The branch's
 history is unrelated to the history it maps: its first commit has no parent,
 and its trees hold table files and nothing else. A commit on `disot` is an
-ordinary commit — signed and timestamped the way
+ordinary commit, signed and timestamped the way
 [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md)
-signs one, when that lands — so the per-repository answer to "who vouches"
-is: whoever signed the table commit, at the time the timestamp proves.
+signs one, so the per-repository answer to "who vouches" is: whoever signed
+the table commit, at the time the timestamp proves. The table files carry no
+signature of their own; they are data, and everything a verifier trusts about
+them it gets from the commit. That puts one requirement on the commit: in a
+SHA-1 repository its `tree` header names the table's tree by SHA-1, so a
+signature and a timestamp over the commit reach the files only through the
+link this design exists not to rely on. The signed payload therefore carries
+a header naming the tree by SHA-256 as well — its compat name under Git's
+naming — so the signature covers the table through a hash that holds. That
+header is the collisions issue's third candidate, a commit naming the SHA-256
+of what it points to, defined once for this branch and for any signed commit
+later.
 
 Each commit on the branch carries **only the pairs new since its parents**: a
 delta, not a snapshot. The whole table is the union of the deltas over the
@@ -95,6 +115,41 @@ no conflict to resolve, because the table is a set. So the branch never
 carries a pair twice, and the pull request that publishes it carries only
 what its author computed.
 
+Each new table also holds the pair for the table commit it descends from,
+since that commit is an existing object. A reader who holds an older table
+then checks that the head it fetched descends from it by SHA-256 name, not
+by the SHA-1 in `parent`, and refuses a head that does not (see **Trust**).
+
+### Trust
+
+What a verifier trusts, and what it does not, once every table commit is
+signed and timestamped:
+
+- **A timestamp orders claims; a signature attributes them.** The known
+  attacks need the attacker to author both twins before contributing one, so
+  a pair computed and timestamped at acceptance pins which twin the
+  repository held. A table the attacker publishes afterwards carries a later
+  time. But an attacker who can publish tables can also be first: contribute
+  object X, timestamp a pair naming twin B while the repository holds twin A,
+  and swap later. So a verifier ranks two pairs for one SHA-1 by whether it
+  trusts their signer before it ranks them by time, and a run prunes only at
+  pairs it trusts, as step 2 says.
+- **The timestamp's imprint is SHA-256 over the commit's bytes.** A request
+  that hashes the commit's SHA-1 id, or the payload with SHA-1, binds a name
+  the attacker can collide. The digest the timestamp contract names is an
+  open item of [git-sha1-collisions](./git-sha1-collisions.md); this process
+  requires it to be SHA-256.
+- **A timestamp proves existence, not priority.** It says the older table
+  existed by its time; it cannot say that no other table existed before the
+  attacker's. So "earlier wins" holds only for a verifier that can see the
+  earlier table, and an attacker who controls the only copy of the branch
+  force-pushes it without the honest commit. The chain in step 4 lets anyone
+  holding an older table refuse a head that does not descend from it; wide
+  publication, to more than one host, is the defense for everyone else, as
+  it is for any Git history.
+- **Two SHA-256 names for one SHA-1, both from trusted signers, is evidence
+  of a collision**, and the object is refused rather than resolved by time.
+
 ### Open questions
 
 Each is decided in the format or the tool that needs it, not here; this
@@ -105,11 +160,17 @@ list is so that none is decided by accident.
   there. The compat name is what Git's own transition will publish and
   closes the hole the plain hash leaves in a tree naming a colliding blob;
   it costs the post-order the process already has.
-- **The file layout of a delta.** One file per commit, named for nothing in
-  particular since the commit is the key; or files sharded by the SHA-1's
-  leading byte, as `objects/` is, so that a large delta splits and Git's tree
-  sharing does the rest. The choice decides whether a reader needs the whole
-  history to answer one id, or only the shards that could hold it.
+- **Delta per commit, or sharded snapshot.** A delta per commit, as step 3
+  proposes, makes answering one SHA-1 a walk over the branch's whole history
+  unless a reader builds a local index first. A snapshot fanned out by the
+  SHA-1's leading byte, one file per shard, answers one id by a tree walk to
+  one file, and costs each commit only the shards it changed, since Git's
+  tree sharing stores an untouched shard once; step 4's "read every delta"
+  then collapses to "read the head's tree". That layout is a Git notes tree,
+  and `refs/notes/` would give the fan-out, the lookup and a union merge for
+  free, at the cost of a ref hosts do not show and clones do not fetch by
+  default. Either way the union merge of a shard is the tool's, not Git's
+  text merge. Open, with the snapshot the stronger candidate.
 - **The line format of a pair.** `<sha1> SP <sha256> LF`, sorted by SHA-1
   as `packed-refs` is sorted, is the least a reader needs and the format Git
   already parses in its compat index; or a `.disot.*` DataJS document beside
@@ -121,6 +182,13 @@ list is so that none is decided by accident.
   pair belongs to that repository's own `disot` branch, so the natural rule
   is: not followed, not recorded, and a verifier that needs it asks the
   submodule. Open whether the table should at least name the boundary.
+- **Shallow and partial clones.** A walk that cannot reach the bottom cannot
+  establish the closure invariant, so a run over such a clone refuses to
+  publish rather than publishing a partial table. Whether it may publish
+  pairs for the objects it does hold, marked as unclosed, is open.
+- **Tags.** An annotated tag reached only through a ref is outside a
+  commit's reachability. Whether the walk starts from refs or from commits
+  decides whether tags are inputs.
 - **What a verifier does with a miss.** An object the table does not hold is
   either newer than the last run or was never published; the process makes
   the two indistinguishable, and the verifier's answer — compute and
@@ -133,18 +201,22 @@ list is so that none is decided by accident.
 
 ### Tasks
 
-- [ ] Define the delta file format and its tree layout, as a `todo/` beside
-      the module that will read it, with the two open questions above
-      answered.
+- [ ] Define the table file format and its tree layout, delta or snapshot,
+      as a `todo/` beside the module that will read it, with the open
+      questions above answered.
+- [ ] Define the SHA-256 tree header in the signed payload, in
+      [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md),
+      and require SHA-256 as the timestamp's imprint digest there.
 - [ ] The walk: from a commit and a table in hand to the pairs it lacks,
       pruning at what is held and recording in post-order, over
       [`fjs/git/store`](../fjs/git/store/module.f.mjs) and
       [`fjs/git/walk`](../fjs/git/walk/module.f.mjs); a proof against a
       fixture repository that the second run over an unchanged repository
       records nothing.
-- [ ] Reading the table: the union of the deltas over the `disot` branch's
-      history, and the closure check that refuses a table an object of which
-      references an unmapped one.
+- [ ] Reading the table: the union over the `disot` branch, the closure
+      check that refuses a table an object of which references an unmapped
+      one, the descent check against a table already held, and the signer
+      ranking for two pairs on one SHA-1.
 - [ ] Writing the table: the delta as a blob, its tree, and the commit with
       the fetched heads as parents. Nothing in [`fjs/git`](../fjs/git/README.md)
       writes an object to a store yet — the effects have `inflate` and no
