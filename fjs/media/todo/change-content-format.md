@@ -58,7 +58,7 @@ Nothing beyond that is decided. Open design points:
 - [fjs/media/revision/README.md](../revision/README.md) — the snapshot half
   of the dichotomy, its versioning rule, and the "out of scope" entry this
   issue tracks
-- [fjs/todo group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md)
+- [fjs/media/README.md](../README.md)
   — the `fjs/media/` membership and cycle rules placing this module, and the
   dialect naming convention
 - `todo/plan/vision.md` — the multi-device / multi-user merge model a CRDT

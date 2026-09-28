@@ -6,8 +6,8 @@
 ### Problem
 
 The eight-variant table is restated in two places that are both derivable from
-the `From<X> for Unpacked` impl set. `src/vm/internal/mod.rs:13-24` spells it
-as supertrait bounds:
+the `From<X> for Unpacked` impl set. `IVm` in `src/vm/internal/mod.rs` spells
+it as supertrait bounds:
 
 ```rust
 pub trait IVm:
@@ -23,7 +23,7 @@ pub trait IVm:
     + From<Function<Self>>
 ```
 
-and `src/vm/impls/from.rs:5-18` as an eight-arm match:
+and `src/vm/impls/from.rs` as an eight-arm match:
 
 ```rust
 impl<A: IVm> From<Unpacked<A>> for Any<A> {
@@ -40,7 +40,7 @@ impl<A: IVm> From<Unpacked<A>> for Any<A> {
 
 Adding a variant currently means touching both, plus the `From<X> for
 Unpacked` impls. The proof that this collapses is already in the crate:
-`src/naive/mod.rs:14-18` writes
+`src/naive/mod.rs` writes
 `impl<T: Into<Unpacked<Naive>>> From<T> for Naive`, i.e. `Naive` already
 satisfies `From<Unpacked<Naive>>` and derives all eight variant conversions
 from it.

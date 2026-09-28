@@ -17,11 +17,13 @@ FunctionalScript can't currently be installed from Git using NPM.
 
 ### Updating packages
 
-`npm run lock-update` reinstalls, syncs `deno.lock`/`bun.lock`/`Cargo.lock`, refreshes every `flake.lock`, and regenerates the CI workflow; dependency version bumps in `package.json` are manual until [replace-npm-check-updates-with-an-internal-script.md](./replace-npm-check-updates-with-an-internal-script.md) lands. The version is the single source of truth in `package.json`. We publish only when a new version appears on `main`. This strategy can also work for Rust packages.
+`npm run lock-update` reinstalls, syncs `deno.lock`/`bun.lock`/`Cargo.lock`, refreshes every `flake.lock`, and regenerates the CI workflow; dependency version bumps in `package.json` are manual until [replace-npm-check-updates-with-an-internal-script.md](./replace-npm-check-updates-with-an-internal-script.md) lands. The version is the single source of truth in `package.json`. We intend to publish only when a new version appears on `main`. This strategy can also work for Rust packages.
 
 ### CI publishing (merge to `main`)
 
-- [x] Check if the version is new, then publish.
+- [ ] Publish only a new version — [publish-only-a-new-version](./publish-only-a-new-version.md).
+      Today the publish step runs on every push and absorbs npm's republish 403
+      with `continue-on-error`.
 
 Package and publish jobs run in CI from a clean checkout. We do not rely on
 packing from a developer working tree, and ignored generated outputs from an
@@ -33,7 +35,7 @@ producing package artifacts.
 
 The repository source migration is split into two stages; both, and the
 authoritative FunctionalScript extension contract, are in
-[`fjs/fsc/README.md`](../../fsc/README.md).
+[`fjs/compiler/README.md`](../../compiler/README.md).
 
 Stage 1 used different extensions for authored JavaScript and generated
 TypeScript output. Only the `.mjs` line survives it — no TypeScript pass emits
@@ -216,13 +218,13 @@ must cover both runtime and declarations. These requirements are owned by
 
 - [PR #1451](https://github.com/functionalscript/functionalscript/pull/1451) —
   initial implementation and CI validation of authored `.mjs` package support.
-- [`fjs/fsc/README.md`](../../fsc/README.md) — repository-wide two-stage
+- [`fjs/compiler/README.md`](../../compiler/README.md) — repository-wide two-stage
   ordering and the extension contract.
 - [`f-mjs-package-support.md`](./f-mjs-package-support.md) — focused stage-1
   authored `.mjs` prerequisite.
 - [`f-js-package-support.md`](./f-js-package-support.md) — focused stage-2
   authored `.f.js` prerequisite.
-- [`fjs/fsc/README.md`](../../fsc/README.md) — authoritative FunctionalScript
+- [`fjs/compiler/README.md`](../../compiler/README.md) — authoritative FunctionalScript
   extension and migration contract.
 - [GitHub issue #398](https://github.com/functionalscript/functionalscript/issues/398)
   — the original package report.

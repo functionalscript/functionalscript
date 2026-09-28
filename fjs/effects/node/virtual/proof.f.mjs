@@ -1,20 +1,183 @@
 /**
- * @import { Dir, State } from './types.ts'
- * @import { IncomingMessage, NodeOp, RequestListener } from '../types.ts'
+ * @import { Dir, RecordedResponse, State, _QueuedRequest } from './types.ts'
+ * @import { All, Handle, IncomingMessage, IoResult, NodeOp, ReadRequestBytes, RequestListener, ServerResponse } from '../types.ts'
  * @import { Effect } from '../../types.ts'
+ * @import { List, Next } from '../../list/types.ts'
+ * @import { Result } from '../../../types/result/types.ts'
  * @import { IoChannel } from '../types.ts'
  * @import { Key } from '../../memory/types.ts'
+ * @import { Vec } from '../../../types/bit_vec/types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { resolveFileModule, access, awaitIfPromise, exec, fetch, log, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, forever, listen, readWhole, notAFileCode, notAFileMessage } from '../module.f.mjs'
-import { empty, length, maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
-import { history, historyStep, pureOk, step } from '../../module.f.mjs'
+import { both, resolveFileModule, access, awaitIfPromise, close, doubledLengthMessage, exec, fetch, framingHeaderMessage, fstat, handleSource, log, open, pread, readChunks, rm, rmdir, writeFile, readFile, readdir, import_, rename, readBytes, readRequestBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, errorMessage, forever, listen, readWhole, notAFileCode, notAFileMessage, requestBodyOffsetMessage, mkdir, unframedBodyMessage, maxOffset } from '../module.f.mjs'
+import { empty, length, maxLengthBytes, msb, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
+import { history, historyStep, pureError, pureOk, resultMapStep, resultStep, step } from '../../module.f.mjs'
+import { empty as endOfBody, nonEmpty } from '../../list/module.f.mjs'
+import { asNominal as asNominalHandle } from '../../../types/nominal/module.f.mjs'
+import { byteLength, repeat, u8ListMsb } from '../../../types/bit_vec/module.f.mjs'
+import { toArray } from '../../../types/list/module.f.mjs'
 import { utf8, utf8ToString } from '../../../text/module.f.mjs'
-import { emptyState, virtual } from './module.f.mjs'
+import { defaultNodeProgramOptions, emptyState, nodeProgramOptions, virtual } from './module.f.mjs'
 import { do_ } from '../../module.f.mjs'
 import { catchStep } from '../../module.f.mjs'
+import { ioError } from '../../module.f.mjs'
+import { ok, unwrap } from '../../../types/result/module.f.mjs'
 import { asNominal, create as memCreate, read as memRead, write as memWrite } from '../../memory/module.f.mjs'
+
+/**
+ * A listener that reads its whole request body and answers with it.
+ *
+ * **Its channel is `never` and the fold's is not**, which is the whole shape of
+ * a listener that reads a body: a pull can fail — the offset refusal below is
+ * how — and `RequestListener` has nowhere to propagate that to, so the failure
+ * becomes a `500` carrying its message. That is the contract the type states,
+ * and it is also what lets a proof read a refusal out of a response.
+ *
+ * The header counts the cells, because a body reassembled from one chunk and a
+ * body reassembled from many are different claims and only the number tells them
+ * apart.
+ *
+ * @type {RequestListener<ReadRequestBytes>}
+ */
+const echoBody = ({ body }) => {
+    /** @type {(taken: readonly Vec[], rest: List<ReadRequestBytes, Vec, IoChannel>) => Effect<ReadRequestBytes, readonly Vec[], IoChannel>} */
+    const loop = (taken, rest) => step(rest, node =>
+        node === undefined ? pureOk(taken) : loop([...taken, node.first], node.tail))
+    return resultMapStep(loop([], body), r => ok(r[0] === 'ok'
+        ? {
+            status: 200,
+            headers: { 'x-chunks': `${r[1].length}` },
+            body: ofChunks(r[1]),
+            release: holdsNothing,
+        }
+        : {
+            status: 500,
+            headers: {},
+            body: ofChunks([utf8(errorMessage(r[1]))]),
+            release: holdsNothing,
+        }))
+}
+
+/** A request a fixture queues, carrying `body`.
+ *
+ * @type {(body: readonly Vec[]) => _QueuedRequest}
+ */
+const posted = body => ({ method: 'POST', url: '/', headers: {}, body, chunkedResponse: true })
+
+/**
+ * What `listener` answered the one queued request carrying `body`, and the state
+ * it left behind.
+ *
+ * @type {(listener: RequestListener<ReadRequestBytes | All>, body: readonly Vec[]) => readonly[State, RecordedResponse]}
+ */
+const answered = (listener, body) => {
+    const e = step(createServer(listener), server => listen(server, 8080, '127.0.0.1'))
+    const [s, result] = virtual({ ...emptyState, requests: [posted(body)] })(e)
+    assert(result[0] === 'ok', result)
+    return [s, s.responses[0]]
+}
+
+/**
+ * A recorded response body as text, its chunks joined: a body is however many
+ * `Vec`s the answer takes, and a listener that writes one is the ordinary case
+ * rather than the shape of the type.
+ *
+ * @type {(r: RecordedResponse) => string}
+ */
+const responseText = r => utf8ToString(r.body.reduce((v, chunk) => msb.concat(v)(chunk), empty))
+
+/**
+ * The chunks given, as a body already in hand: every cell is pure, so the whole
+ * chain is built before the runner pulls any of it.
+ *
+ * That is the ordinary listener and not the shape of the type — a *lazy* body
+ * produces its cells inside a command's continuation, which is what `readChunks`
+ * over a {@link handleSource} does and what the `fjs/web` proofs drive.
+ *
+ * @type {(chunks: readonly Vec[]) => List<never, Vec, IoChannel>}
+ */
+const ofChunks = chunks => chunks.reduceRight(
+    (tail, chunk) => nonEmpty(chunk, tail),
+    /** @type {List<never, Vec, IoChannel>} */(endOfBody()))
+
+/** A listener holding nothing writes the pure end.
+ *
+ * Its op set is `never`, so it fits a listener of any: the end is pure, and
+ * nothing in it is a command a runner has to dispatch.
+ *
+ * @type {Effect<never, null, never>}
+ */
+const holdsNothing = pureOk(null)
+
+/**
+ * A `500` carrying `text`, which is how a listener reports what it saw of its own
+ * request body: the refusal is observable nowhere else, since the runner hands the
+ * body to the listener and the listener's only way out is a response.
+ *
+ * @type {(text: string) => ServerResponse<never>}
+ */
+const reportedText = text =>
+    ({ status: 500, headers: {}, body: ofChunks([utf8(text)]), release: holdsNothing })
+
+/**
+ * What `release` writes when it runs, so that a proof can say **once** rather than
+ * "at least once": `stdout` records every write in order, so two would show.
+ *
+ * @type {string}
+ */
+const released = 'released'
+
+/** @type {Effect<NodeOp, null, never>} */
+const recordRelease = resultMapStep(log(released), () => ok(null))
+
+/**
+ * A body no cell of which may be pulled: pulling it fails the response, so a
+ * recorded `failure` of `null` is evidence the pump never asked.
+ *
+ * It needs no instrument, which is why it is written this way rather than with a
+ * counter — the gates' whole point is the read they save.
+ *
+ * @type {List<NodeOp, Vec, IoChannel>}
+ */
+const neverPulled = pureError(ioError({ message: 'pulled' }))
+
+/** A request as a fixture states one, framed the way an HTTP/1.1 request is.
+ *
+ * @type {(method: string, headers?: Record<string, string>, chunkedResponse?: boolean) => _QueuedRequest}
+ */
+const requested = (method, headers = {}, chunkedResponse = true) =>
+    ({ method, url: '/', headers, body: [], chunkedResponse })
+
+/**
+ * Hands `listener` one request and answers what went out, together with the state
+ * it left.
+ *
+ * @type {(listener: RequestListener<NodeOp>, request: _QueuedRequest, state?: State) => readonly[State, RecordedResponse]}
+ */
+const answerOne = (listener, request, state = emptyState) => {
+    const e = step(createServer(listener), server => listen(server, 8080, '127.0.0.1'))
+    const [s, result] = virtual({ ...state, requests: [request] })(e)
+    assert(result[0] === 'ok', result)
+    assertEq(s.responses.length, 1)
+    return [s, s.responses[0]]
+}
+
+/** How many bytes a recorded body carries.
+ *
+ * @type {(r: RecordedResponse) => number}
+ */
+const bodyBytes = r => r.body.reduce((n, v) => n + Number(length(v)) / 8, 0)
+
+/**
+ * What one pull of a body cell answered: the bytes it took, the end of the
+ * stream, or the refusal it met.
+ *
+ * @type {(one: Result<Next<ReadRequestBytes, Vec, IoChannel>, IoChannel>) => string}
+ */
+const pulled = one => one[0] === 'error'
+    ? errorMessage(one[1])
+    : one[1] === undefined ? 'end' : `ok ${byteLength(one[1].first)}`
 
 /**
  * Asserts that a channel error is a host failure carrying `code` — the
@@ -39,6 +202,11 @@ const assertIoMessage = (e, message) => {
 const resolvedModule = name => parent => virtual(emptyState)(resolveFileModule(name, parent))[1]
 
 export const proof = {
+    nodeProgramOptions: () => {
+        const options = nodeProgramOptions(['a', 'b'])
+        assertStructurallySame(options.args, ['a', 'b'])
+        assertStructurallySame({ ...options, args: [] }, defaultNodeProgramOptions)
+    },
     resolveFileModule: () => {
         assertStructurallySame(resolvedModule('./dir/../main.mjs')(null), ['ok', { id: 'main.mjs', path: './dir/../main.mjs' }])
         assertStructurallySame(resolvedModule('./%64ep.mjs')('main.mjs'), ['ok', { id: 'dep.mjs', path: 'dep.mjs' }])
@@ -358,6 +526,60 @@ export const proof = {
         assert(result[0] === 'error')
         assertIoMessage(result[1], 'not a directory')
     },
+    // `rmdir` removes an empty directory and nothing else, with the codes a host
+    // answers — measured on node 22.22.2. Each refusal leaves the tree exactly as
+    // it was, which is the property a caller pruning after a delete relies on: a
+    // directory holding anything, a sibling ref included, is never taken.
+    rmdirStates: () => {
+        /** @type {Dir} */
+        const root = {
+            empty: {},
+            full: { inner: {} },
+            nested: { deep: {} },
+            file: [vec8(0x1n)],
+        }
+        /** @type {(path: string) => readonly [Dir, IoResult<void>]} */
+        const removed = path => {
+            const [state, r] = virtual({ ...emptyState, root })(rmdir(path))
+            return [state.root, r]
+        }
+        /** @type {(path: string, code: string) => void} */
+        const refused = (path, code) => {
+            const [after, r] = removed(path)
+            assert(r[0] === 'error', path)
+            assertIoCode(r[1], code)
+            assertStructurallySame(after, root)
+        }
+        // an empty directory goes, and only it
+        const [gone, ok1] = removed('empty')
+        assert(ok1[0] === 'ok')
+        assertStructurallySame(gone, { full: { inner: {} }, nested: { deep: {} }, file: [vec8(0x1n)] })
+        // nested: only the leaf, so the parent it empties stays — `rmdir` is
+        // never recursive, which is what makes pruning a walk the caller owns
+        const [leaf, ok2] = removed('nested/deep')
+        assert(ok2[0] === 'ok')
+        assertStructurallySame(leaf, { empty: {}, full: { inner: {} }, nested: {}, file: [vec8(0x1n)] })
+        refused('full', 'ENOTEMPTY')
+        refused('file', 'ENOTDIR')
+        refused('file/x', 'ENOTDIR')
+        refused('absent', 'ENOENT')
+        refused('absent/deeper', 'ENOENT')
+        refused('', 'ENOENT')
+        refused('.', 'EINVAL')
+    },
+    // `rm` answers the host's codes for a path it cannot serve, presence checked
+    // before length: `ENOENT` for a name absent at any depth, `ENOTDIR` for one
+    // reached through a file. Both used to be messages without a code.
+    rmUnservable: () => {
+        /** @type {Dir} */
+        const root = { file: [vec8(0x1n)] }
+        for (const [path, code] of [['absent', 'ENOENT'], ['absent/deeper', 'ENOENT'], ['file/x', 'ENOTDIR']]) {
+            const [state, r] = virtual({ ...emptyState, root })(rm(path))
+            assert(r[0] === 'error', path)
+            assertIoCode(r[1], code)
+            assertStructurallySame(state.root, root)
+        }
+    },
     createExclusiveNestedMissing: () => {
         // createExclusive('a/b') where 'a' doesn't exist: the operation
         // wrapper falls through with the full remaining path. Start from a
@@ -378,12 +600,12 @@ export const proof = {
     writeExclusiveStates: () => {
         const payload = vec8(0x2An)
         // a free name: created, holding the payload and nothing else
-        const [made, ok1] = virtual(emptyState)(writeExclusive('x.lock', payload))
+        const [made, ok1] = virtual(emptyState)(writeExclusive('x.lock', [payload]))
         assert(ok1[0] === 'ok')
         assertStructurallySame(made.root, { 'x.lock': [payload] })
         // the same name again: `EEXIST`, and the bytes already there are kept,
         // which is the half a plain `writeFile` would get wrong
-        const [again, taken] = virtual(made)(writeExclusive('x.lock', vec8(0x7Fn)))
+        const [again, taken] = virtual(made)(writeExclusive('x.lock', [vec8(0x7Fn)]))
         assert(taken[0] === 'error')
         assertIoCode(taken[1], 'EEXIST')
         assertStructurallySame(again.root, { 'x.lock': [payload] })
@@ -395,7 +617,7 @@ export const proof = {
         // could otherwise do.
         /** @type {Dir} */
         const held = { 'x.lock': { inside: [payload] } }
-        const [intact, isDir] = virtual({ ...emptyState, root: held })(writeExclusive('x.lock', vec8(0x7Fn)))
+        const [intact, isDir] = virtual({ ...emptyState, root: held })(writeExclusive('x.lock', [vec8(0x7Fn)]))
         assert(isDir[0] === 'error')
         assertIoCode(isDir[1], 'EEXIST')
         assertStructurallySame(intact.root, held)
@@ -409,7 +631,7 @@ export const proof = {
         // segments — so the `EEXIST` above must not reach it. Measured, node
         // 22.22.2 answers `ENOENT` for a `wx` open of `''` and `EEXIST` for one
         // of `.`; `statOnEmptyPath` pins the same pair for `stat`.
-        const [, noName] = virtual({ ...emptyState, root: held })(writeExclusive('', payload))
+        const [, noName] = virtual({ ...emptyState, root: held })(writeExclusive('', [payload]))
         assert(noName[0] === 'error')
         assertIoCode(noName[1], 'ENOENT')
         const [, noName2] = virtual({ ...emptyState, root: held })(createExclusive(''))
@@ -417,7 +639,7 @@ export const proof = {
         assertIoCode(noName2[1], 'ENOENT')
         // `.` *is* the root, and the root is a directory a name cannot be created
         // over — the control that keeps the carve-out from swallowing it.
-        const [, dot] = virtual({ ...emptyState, root: held })(writeExclusive('.', payload))
+        const [, dot] = virtual({ ...emptyState, root: held })(writeExclusive('.', [payload]))
         assert(dot[0] === 'error')
         assertIoCode(dot[1], 'EEXIST')
         // a name whose directory is not there: the operation wrapper falls
@@ -426,7 +648,7 @@ export const proof = {
         // wiped directory would be caught.
         /** @type {Dir} */
         const root = { keep: [vec8(0x1n)] }
-        const [state, nested] = virtual({ ...emptyState, root })(writeExclusive('a/b', payload))
+        const [state, nested] = virtual({ ...emptyState, root })(writeExclusive('a/b', [payload]))
         assert(nested[0] === 'error')
         assertStructurallySame(state.root, root)
         // And a `Vec` that is not whole bytes never reaches this runner at all:
@@ -434,10 +656,20 @@ export const proof = {
         // runner's `fromVec` would pad the last byte and create a file holding
         // a byte the caller never gave while this one stored the vector as it
         // was. The refusal is the same one `inflate` makes.
-        const [kept, unaligned] = virtual({ ...emptyState, root })(writeExclusive('x.lock', vec(4n)(0b1010n)))
+        const [kept, unaligned] = virtual({ ...emptyState, root })(writeExclusive('x.lock', [vec(4n)(0b1010n)]))
         assert(unaligned[0] === 'error')
         assertIoMessage(unaligned[1], 'invalid buffer size')
         assertStructurallySame(kept.root, root)
+        // Every chunk is checked, not the first: a whole first chunk ahead of a
+        // partial one is refused the same way, before anything is created.
+        const [keptLate, late] = virtual({ ...emptyState, root })(writeExclusive('x.lock', [payload, vec(4n)(0b1010n)]))
+        assert(late[0] === 'error')
+        assertIoMessage(late[1], 'invalid buffer size')
+        assertStructurallySame(keptLate.root, root)
+        // and several whole chunks are the file's contents, in order
+        const [many, ok2] = virtual(emptyState)(writeExclusive('x', [payload, vec8(0x7Fn)]))
+        assert(ok2[0] === 'ok')
+        assertStructurallySame(many.root, { x: [payload, vec8(0x7Fn)] })
     },
     writeBytesNestedMissing: () => {
         // writeBytes('a/b', ...) where 'a' doesn't exist. Non-empty root, as above.
@@ -470,6 +702,20 @@ export const proof = {
         const [state, result] = virtual({ ...emptyState, root })(writeBytes('missing', 0, vec8(0x1n)))
         assert(result[0] === 'error')
         assertEq(Object.keys(state.root).length, 1)
+    },
+    writeBytesNotWholeBytes: () => {
+        // A `Vec` that is not whole bytes never reaches this runner: `writeBytes`
+        // refuses it in `../module.f.mjs`, as `writeExclusive` does, because the
+        // node runner's `fromVec` would pad the last byte and write a byte the
+        // caller never gave while this one appended the vector as it was. The
+        // offset is the file's size, which the append-only check accepts, so
+        // without the guard this write would succeed.
+        /** @type {Dir} */
+        const root = { 'file': [vec8(0x1n)] }
+        const [state, result] = virtual({ ...emptyState, root })(writeBytes('file', 1, vec(4n)(0b1010n)))
+        assert(result[0] === 'error')
+        assertIoMessage(result[1], 'invalid buffer size')
+        assertStructurallySame(state.root, root)
     },
     writeBytesNegativeOffset: () => {
         /** @type {Dir} */
@@ -706,8 +952,7 @@ export const proof = {
             assertIoCode(failure(stat(name)), 'ENOENT')
             assertIoCode(failure(readFile(name)), 'ENOENT')
             assertIoCode(failure(access(name)), 'ENOENT')
-            // `rm` words a missing entry its own way, and says it here too.
-            assertIoMessage(failure(rm(name)), 'no such file')
+            assertIoCode(failure(rm(name)), 'ENOENT')
             // A name that is not a `JsModule`, because it is not an entry.
             assertIoMessage(failure(import_(name)), `'${name}' is not a JsModule`)
         }
@@ -723,7 +968,7 @@ export const proof = {
     // a fixture writes one with a **computed key** — the spelling that makes an
     // own property. `{ '__proto__': e }` sets the prototype instead, which is
     // why FunctionalScript's own parser refuses that form (`protoKey` in
-    // `../../../fsc/parser/proof.f.mjs`); it was never a working fixture here
+    // `../../../compiler/parser/proof.f.mjs`); it was never a working fixture here
     // either, since `readdir` walks own entries and would have listed the
     // directory as empty.
     protoKeyFixture: () => {
@@ -810,6 +1055,73 @@ export const proof = {
         assertEq(code('nope.txt/index.html'), 'ENOENT')
         assertEq(code('docs/nope.html'), 'ENOENT')
     },
+    // `mkdir` under a directory `x`, for every kind of entry `x/a` can be and
+    // both values of `recursive` — the tables in `mkdirOp`'s JSDoc, row for row,
+    // each measured on node 22.22.2. The **absent** rows are the ones that pin
+    // the guard order: asked by length alone, `x/a/b` would answer `ENOTDIR`
+    // there. Every refusal also asserts the tree is untouched, since the defect
+    // this replaces was a success that turned the file `x/a` into an empty
+    // directory.
+    mkdirOverEachEntry: () => {
+        const file = [vec8(0x41n)]
+        /** @type {(a: Dir[string]) => Dir} */
+        const rootWith = a => ({ x: a === undefined ? {} : { a } })
+        /** @type {(a: Dir[string], path: string, recursive: boolean) => readonly [Dir, string | undefined]} */
+        const run = (a, path, recursive) => {
+            const [state, result] = virtual({ ...emptyState, root: rootWith(a) })(
+                mkdir(path, recursive ? { recursive: true } : undefined))
+            if (result[0] === 'ok') { return [state.root, 'ok'] }
+            assert(result[1][0] === 'ioError', result[1])
+            // a refusal creates nothing
+            assertStructurallySame(state.root, rootWith(a))
+            return [state.root, result[1][1].code]
+        }
+        // `x/a/b`
+        const [absentRec, absentRecCode] = run(undefined, 'x/a/b', true)
+        assertEq(absentRecCode, 'ok')
+        assertStructurallySame(absentRec, { x: { a: { b: {} } } })
+        assertEq(run(undefined, 'x/a/b', false)[1], 'ENOENT')
+        const [dirRec, dirRecCode] = run({}, 'x/a/b', true)
+        assertEq(dirRecCode, 'ok')
+        assertStructurallySame(dirRec, { x: { a: { b: {} } } })
+        const [dirNonRec, dirNonRecCode] = run({}, 'x/a/b', false)
+        assertEq(dirNonRecCode, 'ok')
+        assertStructurallySame(dirNonRec, { x: { a: { b: {} } } })
+        assertEq(run(file, 'x/a/b', true)[1], 'ENOTDIR')
+        assertEq(run(file, 'x/a/b', false)[1], 'ENOTDIR')
+        // any depth below the file, and a `JsModule` is no more a directory
+        assertEq(run(file, 'x/a/b/c', true)[1], 'ENOTDIR')
+        assertEq(run(() => ({}), 'x/a/b', true)[1], 'ENOTDIR')
+        // `x/a`
+        const [absent, absentCode] = run(undefined, 'x/a', false)
+        assertEq(absentCode, 'ok')
+        assertStructurallySame(absent, { x: { a: {} } })
+        const [kept, keptCode] = run({ b: file }, 'x/a', true)
+        assertEq(keptCode, 'ok')
+        assertStructurallySame(kept, { x: { a: { b: file } } })
+        assertEq(run({ b: file }, 'x/a', false)[1], 'EEXIST')
+        assertEq(run(file, 'x/a', true)[1], 'EEXIST')
+        assertEq(run(file, 'x/a', false)[1], 'EEXIST')
+        assertEq(run(() => ({}), 'x/a', true)[1], 'EEXIST')
+    },
+    // An empty path is not the root, though `parse` collapses both to no
+    // segments. Measured on node 22.22.2: `''` is `ENOENT` either way, where
+    // `.` is `ok` when recursive and `EEXIST` when not.
+    mkdirOnEmptyPath: () => {
+        /** @type {(path: string, recursive: boolean) => string | undefined} */
+        const code = (path, recursive) => {
+            const [state, result] = virtual(emptyState)(
+                mkdir(path, recursive ? { recursive: true } : undefined))
+            assertStructurallySame(state.root, emptyState.root)
+            if (result[0] === 'ok') { return 'ok' }
+            assert(result[1][0] === 'ioError', result[1])
+            return result[1][1].code
+        }
+        assertEq(code('', true), 'ENOENT')
+        assertEq(code('', false), 'ENOENT')
+        assertEq(code('.', true), 'ok')
+        assertEq(code('.', false), 'EEXIST')
+    },
     largeFileReadBytes: () => {
         // A file stored as two 128 KiB chunks is larger than maxLengthBytes.
         // readBytes within the second chunk (offset = 128 KiB, size = 1) should succeed.
@@ -832,7 +1144,7 @@ export const proof = {
             const [state, result] = virtual(emptyState)(e)
             assert(result[0] === 'ok', result)
             assertEq(result[1], 42)
-            assertEq(state.memoryValues.mem0, 42, state)
+            assertEq(state.memory.values.mem0, 42, state)
         },
         // What makes presence the test rather than the value: a slot holding
         // `undefined` was allocated, and reading one is not the failure below.
@@ -859,16 +1171,209 @@ export const proof = {
             },
         },
     },
+    // An open file as a value. What these are for is the one property no
+    // path-taking operation has: what the reads come from cannot be replaced
+    // underneath them.
+    handles: {
+        // The round trip, and the state afterwards: opening adds an entry,
+        // closing takes it away, so a proof can see a handle that was not given
+        // back.
+        openReadClose: () => {
+            /** @type {Dir} */
+            const root = { 'a.bin': [vec8(0x41n), vec8(0x42n), vec8(0x43n)] }
+            const e = step(open('a.bin'), handle => step(pread(handle, 1, 2), taken =>
+                step(close(handle), () => pureOk(taken))))
+            const [s, result] = virtual({ ...emptyState, root })(e)
+            assertEq(utf8ToString(unwrap(result)), 'BC')
+            assertEq(s.handles.length, 0)
+        },
+        // **The one-inode claim.** The entry is replaced while the handle is
+        // open — by `rename`, which is how an atomic replacement lands — and the
+        // read still answers the bytes the open resolved to. A reader that went
+        // back to the *name* would answer the new file's, and where the two are
+        // the same length nothing downstream could tell.
+        //
+        // Measured the same way through a real descriptor on Darwin with Node
+        // 26.8.1: a file renamed over the name a handle was opened on is still
+        // read as the bytes the handle opened.
+        namesAnInode: () => {
+            /** @type {Dir} */
+            const root = { 'a.bin': [utf8('old')], 'b.bin': [utf8('new')] }
+            const e = step(open('a.bin'), handle =>
+                step(rename('b.bin', 'a.bin'), () =>
+                    step(fstat(handle), s =>
+                        step(pread(handle, 0, 8), taken => pureOk([s.size, utf8ToString(taken)])))))
+            const [, result] = virtual({ ...emptyState, root })(e)
+            assertStructurallySame(unwrap(result), [3, 'old'])
+            // And the name now holds the other file, so the fixture really did
+            // replace it.
+            const [, after] = virtual({ ...emptyState, root })(step(rename('b.bin', 'a.bin'), () => readFile('a.bin')))
+            assertEq(utf8ToString(unwrap(after)), 'new')
+        },
+        // `fstat` answers about the entity the handle holds, and the three kinds
+        // it can be are the three `stat` reports for a name.
+        kinds: () => {
+            /** @type {Dir} */
+            const root = { 'a.bin': [utf8('12345')], dir: {}, 'pipe.txt': () => ({}) }
+            /** @type {(path: string) => readonly[number, boolean, boolean]} */
+            const kindOf = path => {
+                const [, r] = virtual({ ...emptyState, root })(step(open(path), handle => fstat(handle)))
+                const { size, isFile, isDirectory } = unwrap(r)
+                return [size, isFile, isDirectory]
+            }
+            assertStructurallySame(kindOf('a.bin'), [5, true, false])
+            assertStructurallySame(kindOf('dir'), [0, false, true])
+            // The entry standing in for a FIFO, a device or a socket: it exists
+            // and is neither, which is what `isDirectory` is a second flag for.
+            assertStructurallySame(kindOf('pipe.txt'), [0, false, false])
+            // The root itself opens, as a directory does on POSIX.
+            assertStructurallySame(kindOf('.'), [0, false, true])
+        },
+        // Reading what is not a regular file. A directory is `EISDIR`, measured
+        // through a descriptor opened on one; the FIFO stand-in answers nought
+        // bytes, which is what a non-blocking read of a writerless FIFO answered
+        // on the same host. Both are values rather than panics, because a
+        // caller's branch for them is only reachable if the runner returns one.
+        readsThatAreNotFiles: () => {
+            /** @type {Dir} */
+            const root = { dir: {}, 'pipe.txt': () => ({}) }
+            /** @type {(path: string) => IoResult<Vec>} */
+            const readOf = path =>
+                virtual({ ...emptyState, root })(step(open(path), handle => pread(handle, 0, 8)))[1]
+            const directory = readOf('dir')
+            assert(directory[0] === 'error', directory)
+            assertIoCode(directory[1], 'EISDIR')
+            assertEq(length(unwrap(readOf('pipe.txt'))), 0n)
+        },
+        // Reading through a handle that was given back is the host's own
+        // `EBADF`, measured on Darwin with Node 26.8.1 for both operations. A
+        // runner answering anything else would hand a caller a branch it cannot
+        // reach on the host it ships against.
+        closedIsBadDescriptor: () => {
+            /** @type {Dir} */
+            const root = { 'a.bin': [utf8('12345')] }
+            /** @type {<T>(f: (handle: Handle) => Effect<NodeOp, T, IoChannel>) => IoChannel} */
+            const afterClose = f => {
+                const e = step(open('a.bin'), handle => step(close(handle), () => f(handle)))
+                const [, r] = virtual({ ...emptyState, root })(e)
+                assert(r[0] === 'error', r)
+                return r[1]
+            }
+            assertIoCode(afterClose(handle => pread(handle, 0, 1)), 'EBADF')
+            assertIoCode(afterClose(handle => fstat(handle)), 'EBADF')
+        },
+        // **A window past the end of the file and a window past the end of the
+        // number line are two different answers**, and only the first is an
+        // end-of-file read. `9007199254740991` is the largest byte a `read` may
+        // name — measured on Darwin with Node 23.11.0, a position there answers
+        // nought bytes for a short file and one further fails `ERR_OUT_OF_RANGE`,
+        // `must be >= -1 && <= 9007199254740991` — so a runner answering the
+        // plausible empty read for the second hands a caller an end-of-file branch
+        // production never reaches. `windowRefusal` draws that line for both
+        // runners; this is it seen through a handle.
+        readsPastTheLastAddressableByte: () => {
+            /** @type {Dir} */
+            const root = { 'a.bin': [utf8('abc')] }
+            /** @type {(offset: number, size: number) => IoResult<Vec>} */
+            const readOf = (offset, size) =>
+                virtual({ ...emptyState, root })(step(open('a.bin'), handle => pread(handle, offset, size)))[1]
+            // Past the file: nought bytes, which is what the host answers.
+            assertEq(length(unwrap(readOf(maxOffset, 1))), 0n)
+            assertEq(length(unwrap(readOf(3, 1))), 0n)
+            // Past the last address: refused, in the words the node runner now
+            // refuses it in too.
+            const unsafe = readOf(maxOffset + 1, 1)
+            assert(unsafe[0] === 'error', unsafe)
+            assertIoMessage(unsafe[1], `Offset ${maxOffset + 1} exceeds maximum allowed offset of ${maxOffset}`)
+            // And a fractional size, which is the bound the node runner used to
+            // read *through*: `Buffer.alloc(1.5)` is one byte long and says
+            // nothing, so the host returned a byte where this refused.
+            const fractional = readOf(0, 1.5)
+            assert(fractional[0] === 'error', fractional)
+            assertIoMessage(fractional[1], 'Chunk size 1.5 is not an integer')
+        },
+        // A second close is `ok`, which is the host's answer and not a
+        // convenience: a caller that cannot tell whether it has already released
+        // a handle may release it again.
+        closingTwice: () => {
+            /** @type {Dir} */
+            const root = { 'a.bin': [utf8('1')] }
+            const e = step(open('a.bin'), handle => step(close(handle), () => close(handle)))
+            const [s, result] = virtual({ ...emptyState, root })(e)
+            assertEq(result[0], 'ok', result)
+            assertEq(s.handles.length, 0)
+        },
+        // The codes an open fails with are the ones `stat` fails with, and all
+        // three were measured through `open` itself on Darwin with Node 26.8.1.
+        openFailures: () => {
+            /** @type {Dir} */
+            const root = { 'a.bin': [utf8('1')] }
+            /** @type {(path: string) => IoChannel} */
+            const refusal = path => {
+                const [s, r] = virtual({ ...emptyState, root })(open(path))
+                assert(r[0] === 'error', r)
+                // Nothing was opened, so nothing is owed back.
+                assertEq(s.handles.length, 0)
+                return r[1]
+            }
+            assertIoCode(refusal(''), 'ENOENT')
+            assertIoCode(refusal('nope'), 'ENOENT')
+            assertIoCode(refusal('a.bin/under'), 'ENOTDIR')
+        },
+        // `readChunks` over a handle source is the body `fjs/web` answers with:
+        // one open, chunks bounded by the size the `fstat` gave.
+        chunkedThroughOneOpen: () => {
+            /** @type {Dir} */
+            const root = { 'a.bin': [utf8('abcdefghij')] }
+            /** @type {(bound: number) => readonly string[]} */
+            const chunksOf = bound => {
+                /** @type {(s: State, e: List<NodeOp, Vec, IoChannel>, out: readonly string[]) => readonly string[]} */
+                const drain = (s, e, out) => {
+                    const [next, cell] = virtual(s)(e)
+                    const node = unwrap(cell)
+                    return node === undefined
+                        ? out
+                        : drain(next, node.tail, [...out, utf8ToString(node.first)])
+                }
+                const [s, r] = virtual({ ...emptyState, root })(open('a.bin'))
+                return drain(s, readChunks(handleSource(unwrap(r)), bound), [])
+            }
+            assertStructurallySame(chunksOf(10), ['abcdefghij'])
+            // The bound is what the reads stop at, not the end of the file.
+            assertStructurallySame(chunksOf(4), ['abcd'])
+        },
+        throw: {
+            // **An unreleased handle fails a test.** This is the instrument the
+            // `fjs/web` proofs read, shown failing on a listener that opens a
+            // file and writes the pure end as its `release` — the mistake the
+            // required field exists to make impossible to write by accident.
+            // Without the assertion below, such a listener leaks one descriptor
+            // per request and nothing anywhere reports it.
+            unreleasedHandle: () => {
+                /** @type {Dir} */
+                const root = { 'a.bin': [utf8('leaked')] }
+                /** @type {RequestListener<NodeOp>} */
+                const leaks = () => resultMapStep(open('a.bin'), r => ok({
+                    status: 200,
+                    headers: { 'content-length': '6' },
+                    body: readChunks(handleSource(unwrap(r)), 6),
+                    release: holdsNothing,
+                }))
+                const [s] = answerOne(leaks, requested('GET'), { ...emptyState, root })
+                assertEq(s.handles.length, 0, s.handles)
+            },
+        },
+    },
     // A server without a socket: `createServer` stores the listener and
     // `listen` hands it the requests the fixture queued, which is what makes a
     // request-in / response-out proof possible here at all.
     http: {
         answersQueuedRequests: () => {
-            /** @type {(url: string) => IncomingMessage} */
-            const get = url => ({ method: 'GET', url, headers: {}, body: empty })
-            /** @type {RequestListener<never>} */
+            /** @type {(url: string) => _QueuedRequest} */
+            const get = url => ({ method: 'GET', url, headers: {}, body: [], chunkedResponse: true })
+            /** @type {RequestListener<NodeOp>} */
             const listener = ({ url }) =>
-                pureOk({ status: 200, headers: {}, body: utf8(`echo ${url}`) })
+                pureOk({ status: 200, headers: {}, body: ofChunks([utf8(`echo ${url}`)]), release: holdsNothing })
             const e = step(createServer(listener), server => listen(server, 8080, '127.0.0.1'))
             /** @type {State} */
             const state = { ...emptyState, requests: [get('/a'), get('/b')] }
@@ -878,14 +1383,15 @@ export const proof = {
             // The queue is emptied, so a second `listen` cannot answer the same
             // request twice.
             assertEq(s.requests.length, 0)
-            assertEq(s.responses.map(r => utf8ToString(r.body)).join(', '), 'echo /a, echo /b')
+            assertEq(s.responses.map(responseText).join(', '), 'echo /a, echo /b')
         },
         // Two servers in one program are two servers here, as they are on a
         // host: `listen` answers with the listener its *handle* carries, not
         // with whichever was created last.
         dispatchesThroughTheHandle: () => {
-            /** @type {(name: string) => RequestListener<never>} */
-            const named = name => () => pureOk({ status: 200, headers: {}, body: utf8(name) })
+            /** @type {(name: string) => RequestListener<NodeOp>} */
+            const named = name => () =>
+                pureOk({ status: 200, headers: {}, body: ofChunks([utf8(name)]), release: holdsNothing })
             // Flat, because the third link needs the *first* one's value: a
             // history carries `a` forward instead of a nested continuation
             // closing over it.
@@ -895,17 +1401,18 @@ export const proof = {
             /** @type {State} */
             const state = {
                 ...emptyState,
-                requests: [{ method: 'GET', url: '/', headers: {}, body: empty }],
+                requests: [requested('GET')],
             }
             const [s, result] = virtual(state)(first)
             assert(result[0] === 'ok', result)
-            assertEq(utf8ToString(s.responses[0].body), 'a')
+            assertEq(responseText(s.responses[0]), 'a')
         },
         // A port a host would refuse is refused here, or a program that cannot
         // run anywhere could still be proven.
         badPort: () => {
-            /** @type {RequestListener<never>} */
-            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            /** @type {RequestListener<NodeOp>} */
+            const listener = () =>
+                pureOk({ status: 200, headers: {}, body: endOfBody(), release: holdsNothing })
             /** @type {(port: number) => void} */
             const rejects = port => {
                 const e = step(createServer(listener), server => listen(server, port, '127.0.0.1'))
@@ -927,8 +1434,9 @@ export const proof = {
         // Port `0` names no port: two servers asking the host for a free one
         // both get one, so refusing the second would reject a program that runs.
         ephemeralPorts: () => {
-            /** @type {RequestListener<never>} */
-            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            /** @type {RequestListener<NodeOp>} */
+            const listener = () =>
+                pureOk({ status: 200, headers: {}, body: endOfBody(), release: holdsNothing })
             const first = history(createServer(listener))
             const second = historyStep(first, () => createServer(listener))
             const bound = historyStep(second, b => listen(b, 0, '127.0.0.1'))
@@ -941,8 +1449,9 @@ export const proof = {
         // point of `Listen` being fallible: a program that mishandles either
         // failure must not look correct against this runner.
         addressInUse: () => {
-            /** @type {RequestListener<never>} */
-            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            /** @type {RequestListener<NodeOp>} */
+            const listener = () =>
+                pureOk({ status: 200, headers: {}, body: endOfBody(), release: holdsNothing })
             const first = history(createServer(listener))
             const second = historyStep(first, () => createServer(listener))
             // `historyStep` spreads the history over its continuation, newest
@@ -959,8 +1468,9 @@ export const proof = {
         // `localhost` then asks for — checked on Linux with Node 22.22.2 and on
         // Darwin with Node 23.11.0, where the second bind is `EADDRINUSE`.
         addressInUseIgnoresCase: () => {
-            /** @type {RequestListener<never>} */
-            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            /** @type {RequestListener<NodeOp>} */
+            const listener = () =>
+                pureOk({ status: 200, headers: {}, body: endOfBody(), release: holdsNothing })
             const first = history(createServer(listener))
             const second = historyStep(first, () => createServer(listener))
             const bound = historyStep(second, b => listen(b, 8080, 'LOCALHOST'))
@@ -978,8 +1488,9 @@ export const proof = {
         // `''` is the host a program did not state, and Node binds every
         // interface for it — so both runners refuse it rather than forward it.
         emptyHostRefused: () => {
-            /** @type {RequestListener<never>} */
-            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            /** @type {RequestListener<NodeOp>} */
+            const listener = () =>
+                pureOk({ status: 200, headers: {}, body: endOfBody(), release: holdsNothing })
             const created = history(createServer(listener))
             const e = step(created, ([server]) => listen(server, 8080, ''))
             const [s, result] = virtual(emptyState)(e)
@@ -996,8 +1507,9 @@ export const proof = {
         // its own to copy here — it binds `''` — so the two runners have only
         // to agree, and the Node runner asks this before it touches the socket.
         emptyHostBeatsAlreadyListening: () => {
-            /** @type {RequestListener<never>} */
-            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            /** @type {RequestListener<NodeOp>} */
+            const listener = () =>
+                pureOk({ status: 200, headers: {}, body: endOfBody(), release: holdsNothing })
             const created = history(createServer(listener))
             const bound = historyStep(created, server => listen(server, 8080, '127.0.0.1'))
             const e = step(bound, ([, server]) => listen(server, 9090, ''))
@@ -1006,8 +1518,9 @@ export const proof = {
             assertIoCode(result[1], 'ERR_INVALID_ARG_VALUE')
         },
         alreadyListening: () => {
-            /** @type {RequestListener<never>} */
-            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            /** @type {RequestListener<NodeOp>} */
+            const listener = () =>
+                pureOk({ status: 200, headers: {}, body: endOfBody(), release: holdsNothing })
             /** @type {(second: number) => IoChannel} */
             const again = second => {
                 const created = history(createServer(listener))
@@ -1027,6 +1540,220 @@ export const proof = {
             assertIoCode(again(65536), 'ERR_SERVER_ALREADY_LISTEN')
             assertIoCode(again(NaN), 'ERR_SERVER_ALREADY_LISTEN')
         },
+        // **A body arriving in many small chunks is reassembled in order.** The
+        // chunk boundaries are the point: a fold that kept only its last cell,
+        // or joined the cells the other way round, answers the same *length* as
+        // one that works, so the bytes are checked and so is the count.
+        readsEveryChunkInOrder: () => {
+            const chunks = Array.from({ length: 300 }, (_, i) => vec8(BigInt(i % 251)))
+            const [s, r] = answered(echoBody, chunks)
+            assertEq(r.status, 200)
+            assertEq(`${r.headers['x-chunks']}`, '300')
+            // By length and then by the first byte that differs: a body of
+            // three hundred chunks printed whole names nothing a reader can act
+            // on, where an index names where the order went wrong.
+            const got = r.body.flatMap(v => toArray(u8ListMsb(v)))
+            const sent = chunks.flatMap(v => toArray(u8ListMsb(v)))
+            assertEq(got.length, sent.length)
+            assertEq(got.findIndex((b, i) => b !== sent[i]), -1)
+            // Drained: nothing left to hand out, and the cursor is at the end.
+            const [cursor] = s.bodies
+            assertEq(cursor.rest.length, 0)
+            assertEq(cursor.offset, 300)
+        },
+        // **Two requests are two bodies, and reading one does not move the
+        // other.** Each delivered request gets its own cursor, so the second
+        // listener's pulls have to leave the first one's alone — which is what a
+        // shared cursor, or an update that wrote over the wrong slot, would get
+        // wrong while still answering the right bytes to whichever request ran
+        // last.
+        eachRequestHasItsOwnBody: () => {
+            const e = step(createServer(echoBody), server => listen(server, 8080, '127.0.0.1'))
+            const [s, result] = virtual({
+                ...emptyState,
+                requests: [posted([utf8('first'), utf8('!')]), posted([utf8('second')])],
+            })(e)
+            assert(result[0] === 'ok', result)
+            assertEq(s.responses.map(responseText).join(', '), 'first!, second')
+            // Two cursors, each drained to its own length.
+            assertEq(s.bodies.length, 2)
+            assertEq(s.bodies.map(c => `${c.rest.length}:${c.offset}`).join(), '0:6,0:6')
+        },
+        // **A body past the `Vec` cap is a body this runner delivers**, where
+        // the Node runner used to answer `413` because there was no request
+        // value to build. Each cell is a `Vec` and nothing bounds their number,
+        // so the whole body is twice the cap and every byte of it arrives.
+        readsPastTheVecCap: () => {
+            const big = repeat(maxLengthBytes)(vec8(0x5an))
+            const [, r] = answered(echoBody, [big, big])
+            assertEq(r.status, 200)
+            assertEq(r.body.reduce((n, v) => n + byteLength(v), 0n), maxLengthBytes * 2n)
+        },
+        // **A listener that answers without reading leaves the body where it
+        // was**, which is what the Node runner then closes the connection over.
+        // Here there is no socket, so what a proof asserts is the cursor: a
+        // `rest` as long as the fixture's, and an offset of nought.
+        answersWithoutReadingTheBody: () => {
+            /** @type {RequestListener<never>} */
+            const listener = () =>
+                pureOk({ status: 204, headers: {}, body: ofChunks([]), release: holdsNothing })
+            const [s, r] = answered(listener, [utf8('ignored'), utf8('entirely')])
+            assertEq(r.status, 204)
+            const [cursor] = s.bodies
+            assertEq(cursor.offset, 0)
+            assertEq(cursor.rest.length, 2)
+        },
+        // **A second pull on a cell already read is refused, not answered with
+        // the next chunk.** A `List`'s tail is a value, so pulling one twice is
+        // ordinary code; over a socket the bytes behind the cursor are gone, so
+        // the second pull could only be answered with whatever comes next — a
+        // body no client sent, arriving in order and whole. That is refused here
+        // for the same reason it is refused there, with the shared message, so
+        // the two runners cannot drift.
+        refusesARePull: () => {
+            /** @type {RequestListener<ReadRequestBytes>} */
+            const rePull = ({ body }) => resultMapStep(
+                // The same `body` twice: the first pull moves the cursor, and
+                // the second names an offset the body is already past.
+                step(body, () => step(body, () => pureOk(undefined))),
+                r => ok(r[0] === 'ok'
+                    ? { status: 200, headers: {}, body: ofChunks([]), release: holdsNothing }
+                    : reportedText(errorMessage(r[1]))))
+            const [, r] = answered(rePull, [utf8('ab'), utf8('cd')])
+            assertEq(r.status, 500)
+            assertEq(responseText(r), requestBodyOffsetMessage(0, 2))
+        },
+        // **And refused when the two pulls are at the same time**, which is the
+        // same claim in the shape the Node runner nearly got wrong. This runner
+        // folds `all` over its state, so a pull always reads what the pull before
+        // it left, and the refusal here needs nothing added. The Node runner's
+        // `all` is `Promise.all`, so it had to be made to queue its pulls to
+        // answer this the same way — and the pair is here so that neither runner
+        // can drift from the other on it.
+        refusesAConcurrentPull: () => {
+            /** @type {RequestListener<ReadRequestBytes | All>} */
+            const together = ({ body }) => resultMapStep(
+                both(body)(body),
+                r => ok(r[0] === 'error'
+                    ? { status: 503, headers: {}, body: ofChunks([]), release: holdsNothing }
+                    : reportedText(r[1].map(pulled).join(' | '))))
+            const [, r] = answered(together, [utf8('ab'), utf8('cd')])
+            assertEq(r.status, 500)
+            assertEq(responseText(r), `ok 2 | ${requestBodyOffsetMessage(0, 2)}`)
+        },
+        // **The end of a body is worth the same however often it is asked
+        // for.** A pull at the offset the body ended at is not a re-pull of an
+        // earlier cell — there is nothing behind the cursor to confuse it with —
+        // so no bytes is the answer again rather than a refusal.
+        endOfBodyRepeats: () => {
+            /** @type {RequestListener<ReadRequestBytes>} */
+            const twice = ({ body }) => resultMapStep(
+                step(body, node => {
+                    assertEq(node, undefined)
+                    return step(body, again => pureOk(again))
+                }),
+                r => ok(r[0] === 'ok'
+                    ? {
+                        status: r[1] === undefined ? 200 : 418,
+                        headers: {},
+                        body: ofChunks([]),
+                        release: holdsNothing,
+                    }
+                    : reportedText(errorMessage(r[1]))))
+            const [, r] = answered(twice, [])
+            assertEq(r.status, 200)
+        },
+        // **A chunk of no bytes is stepped over, not answered as the end of the
+        // body.** No bytes is how a pull says *end* — `readChunks` in
+        // `../module.f.mjs` ends an unbounded stream there — and Node's parser
+        // owes nobody a promise to keep an empty chunk out of a body, so the
+        // Node runner's reader steps over one and answers the next chunk that
+        // has bytes. A fixture chunk with no bits is that chunk. Answered as
+        // the end, it would hand the listener a body shorter than the client
+        // sent, whole and in order and with nothing to tell it apart from the
+        // real one — DESIGN §10's plausible wrong value.
+        skipsAnEmptyChunk: () => {
+            const [s, r] = answered(echoBody, [empty, utf8('x')])
+            assertEq(r.status, 200)
+            assertEq(responseText(r), 'x')
+            assertEq(r.headers['x-chunks'], '1')
+            // Drained: the empty chunk is consumed with the pull that stepped
+            // over it, and it moved the offset by nothing.
+            const [cursor] = s.bodies
+            assertEq(cursor.rest.length, 0)
+            assertEq(cursor.offset, 1)
+        },
+        // The same claim with the empty chunks inside the body and at its end:
+        // the middle one joins the bytes either side of it instead of cutting
+        // the body in two, and the last one is stepped over on the way to the
+        // end, leaving nothing the cursor still counts as unread.
+        skipsEmptyChunksWithinAndAtTheEnd: () => {
+            const [s, r] = answered(echoBody, [utf8('a'), empty, utf8('b'), empty])
+            assertEq(r.status, 200)
+            assertEq(responseText(r), 'ab')
+            assertEq(r.headers['x-chunks'], '2')
+            const [cursor] = s.bodies
+            assertEq(cursor.rest.length, 0)
+            assertEq(cursor.offset, 2)
+        },
+        // **A chunk that is not whole bytes is still refused**, which is what
+        // keeps the step-over above about no *bits* rather than no bytes:
+        // `bytesIn` rounds down, so one bit is nought bytes, and a step-over
+        // measured in bytes would pass over that chunk and drop the bit with
+        // it — where `readChunks` refuses it and says how many bits it had.
+        refusesAChunkThatIsNotWholeBytes: () => {
+            const [, r] = answered(echoBody, [vec(1n)(1n)])
+            assertEq(r.status, 500)
+            assertEq(responseText(r), 'chunk at 0 is 1 bits, not whole bytes')
+        },
+        // **And it goes on refusing it.** A refusal a listener catches is a
+        // refusal it may pull again — a `List`'s tail is a value, and nothing
+        // says a consumer that met an error stops. The chunk the stream would
+        // not take has to still be there when it does: handed out and dropped,
+        // the cursor moved while the offset did not, so the retry named an
+        // offset that still matched and was answered with the bytes *after* the
+        // refused chunk. The listener then had the body it asked for, in order
+        // and under a correct length, with one bit of it missing and nothing to
+        // say so — DESIGN §10's plausible wrong value, reached through the door
+        // the refusal opened.
+        //
+        // **Whatever the refused chunk's byte count is.** One bit is the silent
+        // case, because `bytesIn` rounds it to nought and the offset the retry
+        // named still matched. Nine bits is one byte and a bit, so dropping it
+        // *did* move the offset and the retry met the offset refusal instead —
+        // the right answer for the wrong reason, and a cursor that advances on
+        // any chunk the stream rejects is what both cases are about.
+        refusesARetryAfterARefusedChunk: () => {
+            /** @type {RequestListener<ReadRequestBytes>} */
+            const retry = ({ body }) => resultStep(body, one => resultMapStep(
+                // The same `body` twice: the first pull is refused, and the
+                // second is the listener trying it again.
+                body,
+                two => ok(reportedText(`${pulled(one)} | ${pulled(two)}`))))
+            /** @type {(bits: bigint) => void} */
+            const refusedTwice = bits => {
+                const refusal = `chunk at 0 is ${bits} bits, not whole bytes`
+                const [s, r] = answered(retry, [vec(bits)(1n), utf8('b')])
+                assertEq(responseText(r), `${refusal} | ${refusal}`)
+                // And the body is where it was: the refused chunk is still the
+                // next one to hand out, so no pull gets past it.
+                const [cursor] = s.bodies
+                assertEq(cursor.rest.length, 2)
+                assertEq(cursor.offset, 0)
+            }
+            refusedTwice(1n)
+            refusedTwice(9n)
+        },
+        // A handle for a body no `listen` handed out is not a value pure code
+        // can build — `RequestBody` is a `Nominal` — so the only way to ask is
+        // the way this proof asks, and what comes back is the offset refusal
+        // rather than bytes from a cursor that was never this request's.
+        refusesAMisplacedOffset: () => {
+            const [, result] = virtual({ ...emptyState, bodies: [{ rest: [], offset: 7 }] })(
+                readRequestBytes(asNominalHandle(0), 0, 128))
+            assert(result[0] === 'error', result)
+            assertEq(errorMessage(result[1]), requestBodyOffsetMessage(0, 7))
+        },
         // `forever` is the operation this runner cannot answer — its result
         // type leaves it nothing but `notImplemented` to return — so a server
         // program run here ends where it would otherwise have blocked.
@@ -1034,6 +1761,405 @@ export const proof = {
             const [, result] = virtual(emptyState)(forever())
             assert(result[0] === 'error', result)
             assertEq(result[1][1], 'forever')
+        },
+        // **Gate 2: the producer is never pulled.** Node drops the body of a
+        // `HEAD`, a `204`, a `304` or a `1xx` and answers `true` to every write
+        // it discards, so a pump that ran would read a whole file at the speed of
+        // the disk to send nothing — and would never finish at all for a producer
+        // that does not end. The body here fails on its first cell, so a recorded
+        // `failure` of `null` says the pump did not ask.
+        //
+        // The declared length still goes out: a `HEAD` client learns the size it
+        // asked for, which is the one thing a `HEAD` is for, and a length with no
+        // body behind it is a complete answer rather than an underrun.
+        suppressesABodyNodeWillNotCarry: () => {
+            /** @type {RequestListener<NodeOp>} */
+            const listener = () => pureOk({
+                status: 200,
+                headers: { 'content-length': '7' },
+                body: neverPulled,
+                release: recordRelease,
+            })
+            /** @type {(method: string, status: number) => void} */
+            const suppressed = (method, status) => {
+                /** @type {RequestListener<NodeOp>} */
+                // Called directly rather than through `listen`, so the request is the
+                // one a listener receives: the queued shape's body is the chunks
+                // that arrive, and this listener reads none of them.
+                const answering = () => resultMapStep(
+                    listener({ ...requested(method), body: endOfBody() }),
+                    r => ok({ ...unwrap(r), status }))
+                const [s, r] = answerOne(answering, requested(method))
+                assertEq(r.status, status)
+                assertEq(r.body.length, 0)
+                assertEq(r.failure, null)
+                assertEq(`${r.headers['content-length']}`, '7')
+                // And `release` ran, once, though nothing was pulled: the handle
+                // a listener opened for a body the runner then drops is the leak
+                // the field exists to prevent.
+                assertEq(s.stdout, `${released}\n`)
+            }
+            suppressed('HEAD', 200)
+            suppressed('GET', 204)
+            suppressed('GET', 304)
+            suppressed('GET', 199)
+            // `205` forbids a body too and Node sends one anyway, so the set is
+            // the host's rather than the RFC's: a guard written from the
+            // specification would suppress a body the host was about to send.
+            const [, sent] = answerOne(
+                () => pureOk({
+                    status: 205,
+                    headers: { 'content-length': '7' },
+                    body: ofChunks([utf8('carried')]),
+                    release: recordRelease,
+                }),
+                requested('GET'))
+            assertEq(responseText(sent), 'carried')
+            assertEq(sent.failure, null)
+        },
+        // **Gate 1: framing is between the runner and the socket.** A listener
+        // that writes a `Transfer-Encoding` is refused before the headers, and
+        // the refusal is the runner's own frame rather than the listener's — as
+        // it is on a socket. Node takes such a header over its own default and
+        // reads it with a regular expression, so restating that rule here would
+        // be wrong in the cases it was written for: `x-chunked` and
+        // `chunked, gzip` both make Node chunk a body that no client de-chunks.
+        refusesAListenersFraming: () => {
+            /** @type {(spelling: string) => void} */
+            const refused = spelling => {
+                const [s, r] = answerOne(
+                    () => pureOk({
+                        status: 200,
+                        headers: { [spelling]: 'chunked', 'content-length': '7' },
+                        body: neverPulled,
+                        release: recordRelease,
+                    }),
+                    requested('GET'))
+                assertEq(r.status, 500)
+                assertEq(responseText(r), `${framingHeaderMessage}\n`)
+                // Nothing of the listener's body was pulled, and the handle came
+                // back all the same.
+                assertEq(r.failure, null)
+                assertEq(s.stdout, `${released}\n`)
+            }
+            refused('transfer-encoding')
+            // Matched the way Node matches a header name, case-insensitively: a
+            // runner comparing the key exactly would forward the header it is
+            // written to refuse.
+            refused('Transfer-Encoding')
+        },
+        // **Gate 3: a body that cannot be framed is refused rather than sent.**
+        // A response with no `Content-Length`, on a request the host will not
+        // frame chunked, is delimited by the connection closing — so a producer
+        // that fails mid-body hands the client a truncated body it reads as
+        // whole, byte for byte the same response a complete one would have been.
+        // There is no terminator to withhold, so the refusal comes first.
+        refusesAnUnframedBody: () => {
+            /** @type {(headers: Record<string, string>, chunkedResponse: boolean) => RecordedResponse} */
+            const answered = (headers, chunkedResponse) => answerOne(
+                () => pureOk({
+                    status: 200,
+                    headers,
+                    body: ofChunks([utf8('carried')]),
+                    release: recordRelease,
+                }),
+                requested('GET', {}, chunkedResponse))[1]
+            const refused = answered({}, false)
+            assertEq(refused.status, 500)
+            assertEq(responseText(refused), `${unframedBodyMessage}\n`)
+            // A request the host *will* frame chunked needs no length at all.
+            assertEq(answered({}, true).status, 200)
+            // And a length restores the answer on the request that has no
+            // chunking: this server answers HTTP/1.0 perfectly well for a body
+            // whose size it knows, which is why the refusal is `500` and not
+            // `505`.
+            assertEq(answered({ 'content-length': '7' }, false).status, 200)
+            // A `Content-Length` this runner cannot read is no declaration, so it
+            // is refused exactly where an absent one is.
+            assertEq(answered({ 'content-length': 'seven' }, false).status, 500)
+            // **And on a request the host *would* frame chunked it is refused
+            // too**, which an absent length is not. The difference is the header's
+            // presence: measured on Node 23.11.0, a listener answering
+            // `content-length: '1 '` with a two-byte body put the padded value on
+            // the wire verbatim, sent no `Transfer-Encoding`, and left the socket
+            // in the keep-alive pool — so `chunkedResponse` promised a framing the
+            // host had already given up, and the surplus byte was the next
+            // response's status line. A whitespace-padded value is the sharp case
+            // because it is one a listener reaches by accident.
+            assertEq(answered({ 'content-length': '1 ' }, true).status, 500)
+            assertEq(answered({ 'content-length': 'seven' }, true).status, 500)
+            // A length this runner *can* read is untouched on either request.
+            assertEq(answered({ 'content-length': '7' }, true).status, 200)
+        },
+        // **Gate 4: a length declared twice is refused rather than counted.** Node
+        // keeps its pending headers under lower-cased names, so a listener that
+        // spells the name two ways has the later value go out and the earlier one
+        // vanish — and a runner reading the earlier one counts a body against a
+        // number no client ever sees. Measured on Darwin with Node 23.11.0,
+        // `{ 'Content-Length': '1', 'content-length': '2' }` with a one-byte body
+        // put `content-length: 2` and one byte on the wire and left the socket in
+        // the keep-alive pool, so the client waits for a byte that never comes or
+        // reads the next response's status line as the end of this body. Which of
+        // the two the listener meant is not a question a runner may answer.
+        refusesADoubledLength: () => {
+            const [s, r] = answerOne(
+                () => pureOk({
+                    status: 200,
+                    headers: { 'Content-Length': '1', 'content-length': '2' },
+                    body: neverPulled,
+                    release: recordRelease,
+                }),
+                requested('GET'))
+            assertEq(r.status, 500)
+            assertEq(responseText(r), `${doubledLengthMessage}\n`)
+            // Nothing of the listener's body was pulled, and the handle came back
+            // all the same. `failure` is the field that used to read `null` on a
+            // response this runner recorded as successful while the host emitted a
+            // length it did not match.
+            assertEq(r.failure, null)
+            assertEq(s.stdout, `${released}\n`)
+            // The listener's own headers are gone with it: a response the gates
+            // turn down goes out as the runner's frame, as it does on a socket.
+            assertEq(`${r.headers['content-length']}`, `${doubledLengthMessage.length + 1}`)
+        },
+        // **And a name present with no value is not a second declaration**, which
+        // is the other half of reading a header the way the host reads it. Only
+        // defined entries reach `setHeader`, so this response declares its length
+        // once — the value Node emits — and the body is counted against it. Reading
+        // the first *spelling* instead answered no length at all: the pump ran
+        // unbounded and eight bytes went out under `content-length: 2`.
+        countsPastAnUndefinedSpelling: () => {
+            const [s, r] = answerOne(
+                () => pureOk({
+                    status: 200,
+                    headers: { 'Content-Length': undefined, 'content-length': '2' },
+                    body: ofChunks([utf8('abcdefgh')]),
+                    release: recordRelease,
+                }),
+                requested('GET'))
+            assertEq(r.status, 200)
+            assertStructurallySame(r.failure, ['overrun', 2])
+            // None of the chunk was recorded, because none of it may go out.
+            assertEq(bodyBytes(r), 0)
+            assertEq(s.stdout, `${released}\n`)
+        },
+        // **The order the gates are asked in.** They overlap, so each of these
+        // is a request two of them fire on, and the answer says which was asked
+        // first. Both runners take them in this order or they disagree about a
+        // request neither has any trouble with.
+        gateOrder: () => {
+            // Gate 1 before gate 2: the response is malformed whatever body this
+            // particular request would have carried.
+            const framing = answerOne(
+                () => pureOk({
+                    status: 200,
+                    headers: { 'transfer-encoding': 'chunked', 'content-length': '7' },
+                    body: neverPulled,
+                    release: holdsNothing,
+                }),
+                requested('HEAD'))[1]
+            assertEq(framing.status, 500)
+            // **The refusal's frame goes out and its bytes do not**, because a
+            // `HEAD` drops a body whoever wrote it. Measured on Darwin with Node
+            // 23.11.0: the `writeHead(500, …).end(body)` the node runner performs
+            // for this refusal put the status line, the three headers and
+            // `content-length: 53` on the wire and nought bytes after them for a
+            // `HEAD`, where a `GET` carried all 53 — so the header still declares
+            // the length of a body a client is told not to expect, exactly as
+            // gate 2 leaves a suppressed `Content-Length` standing.
+            assertEq(framing.body.length, 0)
+            assertEq(`${framing.headers['content-length']}`, `${framingHeaderMessage.length + 1}`)
+            assertEq(`${framing.headers['content-type']}`, 'text/plain; charset=utf-8')
+            // And the same refusal on a `GET` carries its text, which is the half
+            // of this that `refusesAListenersFraming` asserts in full.
+            const carried = answerOne(
+                () => pureOk({
+                    status: 200,
+                    headers: { 'transfer-encoding': 'chunked', 'content-length': '7' },
+                    body: neverPulled,
+                    release: holdsNothing,
+                }),
+                requested('GET'))[1]
+            assertEq(responseText(carried), `${framingHeaderMessage}\n`)
+            // Gate 2 before gate 3: a `HEAD` is a complete answer whatever
+            // framing the body it does not carry would have had, so the other
+            // order answers `500` to a request this server can satisfy exactly.
+            const suppressed = answerOne(
+                () => pureOk({
+                    status: 200,
+                    headers: {},
+                    body: neverPulled,
+                    release: holdsNothing,
+                }),
+                requested('HEAD', {}, false))[1]
+            assertEq(suppressed.status, 200)
+            assertEq(suppressed.body.length, 0)
+            assertEq(suppressed.failure, null)
+        },
+        // **The count, at the end it is usually wrong at.** A chunk that would
+        // carry the body past the length already declared is a failed cell:
+        // *none* of it is recorded, because a body exactly as long as it promised
+        // is a body every client reads as whole. On a host the surplus is parsed
+        // as the next response's status line, so the request being answered is
+        // lost along with the one behind it.
+        overrun: () => {
+            const [s, r] = answerOne(
+                () => pureOk({
+                    status: 200,
+                    headers: { 'content-length': '6' },
+                    body: ofChunks([utf8('abc'), utf8('defgh')]),
+                    release: recordRelease,
+                }),
+                requested('GET'))
+            assertStructurallySame(r.failure, ['overrun', 6])
+            // The chunk before it went out; the one that would have overrun did
+            // not, whole or in part.
+            assertEq(responseText(r), 'abc')
+            assertEq(s.stdout, `${released}\n`)
+        },
+        // **And at the other end, which the host does not answer at all.** A body
+        // that simply stops is as ordinary as one that overshoots, and on a host
+        // nothing on the server side notices: the socket goes back into the
+        // keep-alive pool and what tells the client is the idle timeout, or the
+        // next response's status line read as the tail of this body.
+        underrun: () => {
+            const [s, r] = answerOne(
+                () => pureOk({
+                    status: 200,
+                    headers: { 'content-length': '10' },
+                    body: ofChunks([utf8('abc')]),
+                    release: recordRelease,
+                }),
+                requested('GET'))
+            assertStructurallySame(r.failure, ['underrun', 10])
+            assertEq(responseText(r), 'abc')
+            assertEq(s.stdout, `${released}\n`)
+        },
+        // A body exactly as long as it said is the whole answer, and the one a
+        // proof has to be able to tell from both of the above.
+        exactLength: () => {
+            const [s, r] = answerOne(
+                () => pureOk({
+                    status: 200,
+                    headers: { 'content-length': '6' },
+                    body: ofChunks([utf8('abc'), utf8('def')]),
+                    release: recordRelease,
+                }),
+                requested('GET'))
+            assertEq(r.failure, null)
+            assertEq(responseText(r), 'abcdef')
+            assertEq(bodyBytes(r), 6)
+            assertEq(s.stdout, `${released}\n`)
+        },
+        // A body with no declared length has nothing to fall short of, so it ends
+        // where the producer ends it.
+        unmeasuredBody: () => {
+            const [, r] = answerOne(
+                () => pureOk({
+                    status: 200,
+                    headers: {},
+                    body: ofChunks([utf8('abc')]),
+                    release: holdsNothing,
+                }),
+                requested('GET'))
+            assertEq(r.failure, null)
+            assertEq(responseText(r), 'abc')
+        },
+        // The cell's own failure is the producer's rather than the runner's, and
+        // the record keeps them apart: a proof that could not tell this from the
+        // count's destroy could not assert the count at all.
+        cellFailure: () => {
+            const [s, r] = answerOne(
+                () => pureOk({
+                    status: 200,
+                    headers: { 'content-length': '6' },
+                    body: nonEmpty(utf8('abc'), pureError(ioError({ code: 'EIO', message: 'disk' }))),
+                    release: recordRelease,
+                }),
+                requested('GET'))
+            assert(r.failure !== null, r)
+            assertIoCode(/** @type {IoChannel} */(r.failure), 'EIO')
+            assertEq(responseText(r), 'abc')
+            assertEq(s.stdout, `${released}\n`)
+        },
+        // **A chunk that is not a whole number of bytes is counted as the host
+        // sends it, not as it is stored.** `ServerResponse` admits any `Vec`, the
+        // node runner writes `fromVec(chunk)`, and that pads a partial byte out to
+        // a whole one: a one-bit chunk reaches the client as one byte. Counting
+        // the bits rounded *down* made this runner answer the opposite of the
+        // host twice over, and both are asserted here because each is a frame a
+        // proof could otherwise have passed on:
+        //
+        // - against `content-length: 1` the host completes and the old count
+        //   recorded `['underrun', 1]`;
+        // - against `content-length: 0` the host destroys the response and the old
+        //   count recorded the body as carried, with no failure at all.
+        //
+        // Both went the wrong way when the rounded-down count was put back, and
+        // neither moved any other proof in this group.
+        countsAChunkAsTheHostPadsIt: () => {
+            /** @type {(declared: string) => RecordedResponse} */
+            const answered = declared => answerOne(
+                () => pureOk({
+                    status: 200,
+                    headers: { 'content-length': declared },
+                    body: ofChunks([vec(1n)(1n)]),
+                    release: recordRelease,
+                }),
+                requested('GET'))[1]
+            // One bit is one byte on the wire, so a declared 1 is exact.
+            const exact = answered('1')
+            assertEq(exact.failure, null)
+            assertEq(exact.body.length, 1)
+            // And a declared nought is one byte too many.
+            const over = answered('0')
+            assertStructurallySame(over.failure, ['overrun', 0])
+            assertEq(over.body.length, 0)
+        },
+        // **A body is however many cells a listener wrote, and the count of them
+        // is not this runner's business.** The pump used to spend a stack frame a
+        // cell: 5,000 already-built pure cells threw `RangeError: Maximum call
+        // stack size exceeded` on Node 23.11.0 — before the response was recorded
+        // and before `release` ran — while the node runner, whose pump is a
+        // `while`, carried the same body and answered it.
+        //
+        // **15,000 rather than 5,000**, so the proof keeps its meaning as engines
+        // change their stack budget: the old pump died three times below this.
+        // Each cell is one byte, so the declared length is the cell count and an
+        // off-by-one in the step would show as an overrun or an underrun rather
+        // than as a pass.
+        //
+        // **The depth is what a chunk list costs, and that is what caps it.** The
+        // pump rebuilds the recorded list per cell — `push` is a mutator
+        // FunctionalScript refuses — so the work is quadratic in the cell count,
+        // and Bun's test runner gives one proof five seconds it cannot be talked
+        // out of (see `bunGivesFiveSeconds` in `../../../web/proof.mjs`). Measured
+        // standalone on Darwin arm64:
+        //
+        // | | 15,000 cells | 40,000 cells |
+        // |---|---|---|
+        // | Bun 1.4.2 | 569 ms | 1,663 ms |
+        // | Node 23.11.0 | 192 ms | 2,045 ms |
+        // | Deno 2.8.3 | 144 ms | 1,376 ms |
+        //
+        // Bun is the budget that binds and the slowest at this size. 40,000 fits on
+        // a laptop and leaves a third of the budget; 15,000 leaves nine tenths of
+        // it, which is the margin a slower CI runner needs. That is the whole
+        // reason the depth is not larger.
+        pullsADeepBodyWithoutRecursing: () => {
+            const cells = 15000
+            const [s, r] = answerOne(
+                () => pureOk({
+                    status: 200,
+                    headers: { 'content-length': `${cells}` },
+                    body: ofChunks(Array.from({ length: cells }, () => vec8(0x41n))),
+                    release: recordRelease,
+                }),
+                requested('GET'))
+            assertEq(r.failure, null)
+            assertEq(r.body.length, cells)
+            assertEq(bodyBytes(r), cells)
+            assertEq(s.stdout, `${released}\n`)
         },
     },
 }

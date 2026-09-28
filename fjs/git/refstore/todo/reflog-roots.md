@@ -66,7 +66,7 @@ of work and wants its own issue once someone needs a prune list; this one names
 it so that the count is right and the doc does not say "the other half" of a
 thing with three halves.
 
-An earlier revision of [ref-writing.md](../../todo/ref-writing.md) had it
+An earlier revision of [ref-writing.md](./ref-writing.md) had it
 backwards — "the reflog is not retention", reasoning from expiry to irrelevance.
 Expiry is why a reflog root is *temporary*, not why it is absent, and the
 measurement above is the case that breaks that reasoning.
@@ -108,7 +108,7 @@ name for it.
 
 - [`fjs/git/refstore`](../module.f.mjs) — `tryRoots`, and the claim this
   narrows.
-- [`fjs/git/todo/ref-writing.md`](../../todo/ref-writing.md) — the writing half,
+- [ref-writing.md](./ref-writing.md) — the writing half,
   which appends to a reflog, and where the wrong reading of expiry came from.
 - [`fjs/git/ident`](../../ident/module.f.mjs) — the `who` and `when` of an
   entry, already read for a commit and a tag.

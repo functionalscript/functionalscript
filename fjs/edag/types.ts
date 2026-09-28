@@ -16,6 +16,8 @@ import type {
     _optionLambda,
     _optionPropertyLambda,
     array,
+    arg,
+    func,
     call,
     comma,
     dot,
@@ -61,6 +63,8 @@ export type Exp =
     | Op2
     | Op1
     | Op0
+    | Function
+    | Arg
 
 // primitive
 
@@ -210,9 +214,15 @@ export type Comma = readonly[',', Exps]
 // Op0Ids
 
 export type Op0Id =
-    | 'undefined' | 'args' | 'frame'
+    | 'undefined' | 'args' | 'frame' | 'rest'
 
 export type Op0 = readonly[Op0Id]
+
+/** Function arity is canonical nonnegative integer metadata. */
+export type Function = readonly ['=>', number, Exp, Exp]
+
+/** Constant index, strictly smaller than the owning function's length. */
+export type Arg = readonly ['arg', number]
 
 // Op1Ids
 
@@ -224,7 +234,7 @@ export type Op1 = readonly[Op1Id, Exp]
 // Op2Ids
 
 export type Op2Id =
-    | '=>' | 'own' | 'is'
+    | 'own' | 'is'
     | '===' | '!==' | '>' | '>=' | '<' | '<='
     | '*' | '/' | '%' | '**'
     | '&' | '|' | '^' | '<<' | '>>' | '>>>'
@@ -354,6 +364,10 @@ type _OverIsClosed = Assert<And<
 // wrapped one is a tautology — `Ts<>` short-circuits to the annotation.
 
 type _ExpAssert = Assert<Check3<Exp, typeof _exp, typeof exp>>
+type _Function = Assert<Check<Function, typeof func>>
+type _Arg = Assert<Check<Arg, typeof arg>>
+type _OverFunction = Assert<Equal<Over<Function, 0>, readonly ['=>', number, 0, 0]>>
+type _OverArg = Assert<Equal<Over<Arg, 0>, readonly ['arg', number]>>
 type _Primitive = Assert<Check<Primitive, typeof primitive>>
 type _Exps = Assert<Check<Exps, typeof exps>>
 type _Spread = Assert<Check<Spread, typeof spread>>

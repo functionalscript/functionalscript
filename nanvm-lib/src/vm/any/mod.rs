@@ -155,6 +155,21 @@ impl<A: IVm> Any<A> {
         self.dispatch(StringCoercion)
     }
 
+    /// `ToString` where the algorithm discards the result: its throws still
+    /// happen, and an object with its own `toString` is still refused, but a
+    /// function's text, which cannot throw and is never read here, is not
+    /// needed — so `[].join(f)` answers `""`, as it does in JavaScript
+    /// (`nanvm-lib/todo/to-primitive.md`, Stage 1). An array converts
+    /// through its elements alone, since it owns no `toString`, so a
+    /// function inside one is skipped too: `[].join([f])` is `""`.
+    pub fn to_string_unused(self) -> Result<(), Any<A>> {
+        match self.clone().into() {
+            Unpacked::Function(_) => Ok(()),
+            Unpacked::Array(a) => a.into_iter().try_for_each(Self::to_string_unused),
+            _ => self.to_string().map(|_| ()),
+        }
+    }
+
     pub fn to_number(self) -> Result<Number, Any<A>> {
         self.dispatch(NumberCoercion)
     }
@@ -167,6 +182,11 @@ impl<A: IVm> Any<A> {
 
     pub fn to_numeric(self) -> Result<Numeric<A>, Any<A>> {
         // https://tc39.es/ecma262/#sec-tonumeric
+        // A function's primitive, its text, is a string and not a bigint, so
+        // its `ToNumber` answers without converting it.
+        if let Unpacked::Function(_) = self.clone().into() {
+            return Ok(Numeric::Number(self.to_number()?));
+        }
         let prim_value = self.to_primitive(Some(ToPrimitivePreferredType::Number))?;
         match prim_value {
             Primitive::BigInt(bi) => Ok(Numeric::BigInt(bi)),

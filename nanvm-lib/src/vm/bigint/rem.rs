@@ -1,25 +1,13 @@
 use core::ops::Rem;
 
-use super::DIVISION_BY_ZERO;
 use crate::vm::{Any, BigInt, IVm};
 
 impl<A: IVm> Rem for BigInt<A> {
     type Output = Result<Self, Any<A>>;
 
-    /// The result's sign follows the dividend, matching Rust's own integer
-    /// `%`; only the zero divisor is special (JS throws instead of the `NaN`
-    /// a `Number` remainder would give).
+    /// The remainder of [`BigInt::div_mod`].
     fn rem(self, rhs: Self) -> Self::Output {
-        if rhs.is_zero() {
-            return Err(DIVISION_BY_ZERO.into());
-        }
-        let sign = self.sign();
-        let (_, remainder) = self.abs_divmod_vec(rhs);
-        Ok(if remainder.is_empty() {
-            Self::default()
-        } else {
-            Self::unchecked_new(sign, remainder)
-        })
+        self.div_mod(rhs).map(|(_, remainder)| remainder)
     }
 }
 

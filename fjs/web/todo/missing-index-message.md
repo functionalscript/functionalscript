@@ -73,7 +73,7 @@ knows. So the question is which message is true, and only one of them is.
 
 Three constraints on the wording:
 
-- **Name the URL path, not the resolved path.** `fileResponse` already
+- **Name the URL path, not the resolved path.** `openFailure` already
   prefers `errorSummary` to `errorMessage` so a client is not handed the
   server's filesystem layout; a message reading `no index.html in
   /home/…/fjs/` would give back exactly that.
@@ -141,7 +141,7 @@ Three constraints on the wording:
 The obstacle is that the distinction is gone by the time it is needed.
 `resolve` computes `isDirectory` and then returns `Result<string, Refusal>` —
 a path and nothing else — so `respond` cannot tell an appended `index.html`
-from a requested one, and `fileResponse` sees only a `stat` failure. Options:
+from a requested one, and `openFailure` sees only a failed `open`. Options:
 
 1. Widen what `resolve` returns, so the routing fact travels with the path.
    Keeps every routing decision in the one pure function that owns them, at

@@ -57,11 +57,9 @@
 
 import { assert } from '../../asserts/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
-import { length, msb, u8ListToVec, uint } from '../../types/bit_vec/module.f.mjs'
+import { u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
 import { take } from '../../types/list/module.f.mjs'
-import { digestOf } from '../oid/module.f.mjs'
-
-const toVec = u8ListToVec(msb)
+import { digestOf, isOidOf } from '../oid/module.f.mjs'
 
 /** The four bytes a version 2 index begins with: `\377tOc`. */
 const magic = /** @type {const} */ ([0xFF, 0x74, 0x4F, 0x63])
@@ -99,7 +97,7 @@ const u64 = (b, at) => {
 }
 
 /** @type {(b: readonly number[], at: number, width: number) => Oid} */
-const oidAt = (b, at, width) => toVec(b.slice(at, at + width))
+const oidAt = (b, at, width) => u8ListToVecMsb(b.slice(at, at + width))
 
 /**
  * The first byte position at which the ids at `x` and `y` differ, or `width`
@@ -398,9 +396,12 @@ const offsetIn = (ids, offsets, target, lo, hi) => {
  *
  * @type {(idx: Idx) => (id: Oid) => Nullable<number>}
  */
-export const offsetOf = ({ oidBytes, ids, offsets }) => id => {
-    assert(length(id) === BigInt(oidBytes) * 8n, ['not an id of the index width', id])
-    return offsetIn(ids, offsets, uint(id), 0, ids.length)
+export const offsetOf = ({ oidBytes, ids, offsets }) => {
+    const isOid = isOidOf(oidBytes)
+    return id => {
+        assert(isOid(id), ['not an id of the index width', id])
+        return offsetIn(ids, offsets, uint(id), 0, ids.length)
+    }
 }
 
 /**
@@ -437,7 +438,7 @@ const nextStep = offset => (best, v) =>
  * A scan and not a search: `offsets` runs parallel to `ids` and so is in id
  * order, not in pack order. One pass per entry read, which a delta chain pays
  * per link. The alternative is a table in pack order, which is what Git's own
- * reverse index is and what [packfiles.md](../todo/packfiles.md) leaves out of
+ * reverse index is and what [`fjs/git/README.md`](../README.md) leaves out of
  * this reader: building one costs a sort of the whole index per read unless it
  * is kept, and keeping it is a second shape {@link Idx} does not have.
  *

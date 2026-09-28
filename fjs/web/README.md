@@ -5,7 +5,9 @@ fjs web [root] [port]
 ```
 
 Serves `root` (default `.`) over HTTP on `port` (default `8080`), bound to
-loopback. One request, one file:
+loopback. One request, one file — of any size, and without holding it: the body is
+read from one open file a chunk at a time, as fast as the client takes it. One
+request, one file:
 
 ```
 fjs web            # http://127.0.0.1:8080/ serves the working directory
@@ -41,6 +43,13 @@ The split is what makes the middle layer testable: `respond` performs IO but no
 networking, so the [virtual runner](../effects/node/virtual/) can drive it with
 an in-memory file system and read the response back. `main` is thin on purpose —
 everything that could be decided without a socket was already decided below it.
+
+`respond` answers with a **frame**, not with bytes. The body it carries is a list
+the runner pulls, and the file it reads from is open by the time the frame is
+built, so the frame also carries the `release` that gives that file back. The
+runner is the party that runs it, because the runner is the only one present at
+every way a response can end — a `HEAD` whose body it never pulls, a client that
+hangs up mid-download, a refusal before the headers.
 
 ### Resolving
 
@@ -102,7 +111,6 @@ relative. That is also why the path is built with `join` rather than `concat`.
 | any other method | `405`, with `Allow: GET, HEAD` |
 | a `Host` this server does not answer for | `403` |
 | a path that escapes `root`, or an undecodable URL | `400` |
-| a file larger than one `Vec` | `413` |
 | any other host failure | `500` |
 
 Failures carry a `text/plain` body. A `500` reports the error *kind*
@@ -110,11 +118,40 @@ Failures carry a `text/plain` body. A `500` reports the error *kind*
 the absolute path it could not read — a client is not entitled to the server's
 filesystem layout.
 
-Every response states its `Content-Length`, computed from the body it carries.
-The runner does not: Node sends an unmeasured body with `Transfer-Encoding:
-chunked`. `HEAD` is then answered exactly like `GET`, bytes included — Node drops
-the body of a `HEAD` response itself and keeps these headers, so the one frame
-serves both, and the client still learns the size it asked for.
+Every response states its `Content-Length`, **taken from the `fstat` of the open
+file the body is read through, with the reads bounded by that same number.** The
+two are one measurement rather than a promise and a hope: a size read from a *name*
+before the bytes are is a guess about a file that may have grown or shrunk by the
+time the read reaches it — a fold that ended at the end of the file would stream
+the surplus past the count already promised — and a handle the reads come from
+cannot answer one thing to the `fstat` and another to the read.
+
+The runner counts as well, and destroys the socket where the count and the header
+disagree in **either** direction, because that bound is one producer's discipline
+and `ServerResponse` is every listener's. A body longer than it promised has its
+surplus parsed by the client as the next response's status line; a body shorter
+than it promised is not noticed on the server side at all, and what tells the
+client is an idle timeout minutes later.
+
+`HEAD` is answered exactly like `GET`, body included — and **the runner is now the
+party that drops it**, where Node used to be: a gate declines to pull a body Node
+will not carry, so a multi-gigabyte file is not read at the speed of the disk to
+send nothing. The headers go out as they stand, so the client learns the size it
+asked for. Measured against the host in
+[`fjs/effects/node/proof.mjs`](../effects/node/proof.mjs)
+(`createServer.suppressesABodyNodeWillNotCarry`), because what a host does with a
+body it is offered is a claim only the host can settle — and there on every runtime
+the suite runs, since what is claimed is the runner's own behaviour rather than
+Node's.
+
+A response may **not** declare its own `Transfer-Encoding`: framing is between the
+runner and the socket, and a listener that writes one is answered `500` before the
+headers. Neither may a body with no `Content-Length` go out on a request the host
+will not frame chunked — such a response is delimited by the connection closing, so
+a producer that failed mid-body would hand the client a truncated body byte for
+byte identical to a whole one. That is `500` too. Neither refusal is reachable
+through this module, which declares the `fstat` size and writes no framing header;
+they are there for the next listener.
 
 `Content-Type` comes from the file's extension
 ([`fjs/media/type`](../media/type/)'s `detectPath`), never from its bytes.
@@ -132,18 +169,88 @@ extension check is a check on the name as *written*.
 
 ### What is not read at all
 
-`stat` runs before every read, and it answers two questions rather than one: how
-big the entry is, and whether it is a **regular file**. A FIFO, a device or a
-socket is answered `404` and never opened — `open` on a FIFO with no writer
-blocks until one appears, so the read would never return and would hold a
-thread-pool slot while it waited. A served tree with one FIFO in it and a handful
-of requests would stall every other response. Size cannot stand in for the check:
-a FIFO stats as zero bytes and passes every bound.
+One question is asked before any byte is read, and it is whether the entry is a
+**regular file**. A FIFO, a device or a socket is answered `404` and never read: a
+FIFO is a stream with a writer at the other end, not a file with contents, and a
+served tree with one in it would stall every other response if a request waited on
+one.
+
+**It is asked of the open file rather than of the name**, and that is the whole of
+what reading through a handle buys. `fstat` on the descriptor the body will be read
+through describes the entry those reads come from; a `stat` of a name describes
+whatever the name held at that moment, and the two need not be the same entry. The
+same `fstat` gives the size the `Content-Length` declares, so the guard and the
+header are answers about one file.
+
+**Except for the kind there is no descriptor for.** A Unix-domain socket cannot be
+opened at all — `open` refuses it — so the guard above is never reached, and the
+`404` is decided from the failure instead. Not from the failure's *code*: one errno
+wears four names across the hosts and runtimes this suite runs on. Linux answers
+`ENXIO`; Darwin's errno −102 (`EOPNOTSUPP`) is reported as
+`Unknown system error -102` by Node 26.8.1, as `EOPNOTSUPP` by Bun 1.4.2 and as
+`UNKNOWN` by Deno 2.8.3, all measured against the same socket. So a failed open
+asks the file system what the name holds, and an entry that is there and is no
+regular file is the `404` it was always owed. A `stat` that fails, or one that
+reports a regular file the host would not open, leaves the `500` standing: a host
+that will not say what a name holds has not said the name is unservable.
+
+That second `stat` is **not** the race reading through a handle closed. That race
+was `stat`-then-*read* — describing one entry and reading another, which puts bytes
+on the wire no guard has seen. Nothing is read here: the open produced no
+descriptor, so there is no body, and all the answer decides is which of two
+refusals goes out. An entry replaced between the failed open and the `stat` can
+turn a `404` into a `500` or the other way about, and can do nothing else. It costs
+one `stat` on a failed open and nothing on a successful one — and nothing on the
+ordinary `404` either, since `ENOENT` is answered before the question is asked.
+
+**It is the kind that decides, not the code, so one other answer moved with it.**
+An `EACCES` on a **non-regular** entry is now a `404`: a directory with mode `000`
+cannot be opened, and the `stat` says it is no regular file, which is the row the
+table below has always promised. An `EACCES` on a **regular** file stays a `500` —
+measured on Darwin arm64 with Node 26.8.1 against a mode-`000` file and a mode-`000`
+directory in one served root, `500 io error: EACCES` and `404 not found`.
+
+That order is only possible because **the open does not wait for a writer.** A
+plain read-only open of a writerless FIFO never returns — measured on Darwin with
+Node 26.8.1, it left the process unable to exit at all, holding a thread-pool slot
+for as long as it lived — so a guard that asked the descriptor could never be
+reached at all. `open` passes `O_NONBLOCK`: the FIFO opens at once, `fstat` says it
+is no regular file, and the handle is given back unread. Windows has neither the
+flag nor a FIFO an `open` reaches, and gets the open it always had.
+
+It used to ask about the size as well, and that question retired with the
+ceiling: nothing here bounds a file any more. The kind is not the same question
+wearing a different name — a FIFO stats as zero bytes and would have passed every
+bound there ever was.
+
+**Which guard each kind meets.** Every row is `404`, and the column that differs is
+where the refusal is decided.
+
+| entry | its `open` | what refuses it |
+|---|---|---|
+| FIFO | opens at once, which is what `O_NONBLOCK` buys | the `fstat` |
+| character device | opens | the `fstat` |
+| block device | opens where the process may read it | the `fstat`, or the failed open's `stat` where it may not |
+| Unix-domain socket | refused, under four code names | the failed open's `stat` |
+| directory | opens on POSIX; `EISDIR` on Windows | the `fstat`; the code on Windows |
+
+The directory row is why `EISDIR` is mapped rather than left to the `stat` beneath
+it: one request does not have two statuses depending on the host it ran on.
+
+The socket, the character device and the directory were measured on Darwin arm64
+against Node 26.8.1, Bun 1.4.2 and Deno 2.8.3. The FIFO row is the measurement
+recorded on `Open` in
+[`../effects/node/types.ts`](../effects/node/types.ts) — nothing in `Fs` or in
+`node:fs` makes a FIFO, and `mkfifo` is an external tool
+([AGENTS.md §6](../../AGENTS.md#6-external-tools)), so it is measured and not
+proven. The block device's second column is reasoned rather than measured: this
+host refused a read of its own disk with `EACCES`, and that is the failure the
+`stat` then answers about.
 
 ### A path that descends through a file
 
-`/README.md/` asks for `README.md/index.html`, and a POSIX host answers that
-`stat` with `ENOTDIR`: the name before the slash exists and has nothing under
+`/README.md/` asks for `README.md/index.html`, and a POSIX host refuses that
+`open` with `ENOTDIR`: the name before the slash exists and has nothing under
 it. That is client-caused in the way a missing name is — every served tree has
 thousands of regular files, so any client can ask — so it is a `404`, the same
 answer `/nope.md/` gets.
@@ -157,9 +264,12 @@ request had two statuses depending on the host it ran on.
 **Only `ENOTDIR`.** A directory whose mode denies traversal (`EACCES`) and a
 symlink cycle (`ELOOP`) reach the same directory-form shape on POSIX and stay at
 `500`: both are entries an operator placed, and a `500` saying the host could not
-read what it was pointed at is not obviously the wrong answer for them. `EISDIR`
-needs no rule — `stat` succeeds on a directory, `isFile` is false, and it is
-already `404`.
+read what it was pointed at is not obviously the wrong answer for them. The `stat`
+above does not reach them either, and for the same reason it does not reach a
+`500` anywhere else: it fails too. `GET /lockeddir/` asks for
+`lockeddir/index.html`, which nothing can `stat` through a directory nothing can
+traverse — measured, `500 io error: EACCES`, where `GET /lockeddir` is the `404` a
+non-regular entry is owed.
 
 **And only while the root is a directory.** `fjs web README.md` would make every
 request stat a path descending through a file, and mapping that to `404` would
@@ -168,9 +278,13 @@ root is checked twice over: `main` refuses a root that is not a directory before
 it binds anything — reported on `stderr` with exit code `1`, like a bad port —
 and the `ENOTDIR` mapping re-stats the root before answering, so a root
 *replaced* while the server runs goes back to `500`. The re-check costs a `stat`
-on the `ENOTDIR` path and nothing on any other, and what it leaves is the
-request-local window [stat-then-read](./todo/stat-then-read.md) already
-describes, rather than a wrong status for the life of the process.
+on the `ENOTDIR` path and nothing on any other. It is a `stat` of the **root** and
+not of the requested entry, because what it re-reads is the operator's
+configuration; the worst a stale answer can do is turn one `404` into the `500` an
+operator needs to see. Neither it nor the `stat` under "What is not read at all" is
+the race reading through a handle closed, and for the same reason: both run after an
+open that gave back no descriptor, so neither decides anything but which refusal
+goes out.
 
 A root that is *deleted* rather than replaced is not covered: every later `stat`
 fails `ENOENT`, which is the ordinary `404` path, and validating the root before
@@ -178,8 +292,10 @@ accepting an `ENOENT` too would put a second `stat` on the most common answer a
 static server gives to improve a diagnostic. `404` is not false in either case —
 with the root gone or a file, nothing under it exists — so what the asymmetry
 costs is diagnostic reach, not correctness. The version that answers both is
-holding the root **open** and resolving beneath the handle, which is
-[stat-then-read](./todo/stat-then-read.md)'s effect.
+holding the root **open** and resolving beneath the handle — which `Fs` can now
+express, since it has handles, and which would drop the re-check rather than
+sharpen it. Nothing needs it yet: the two statuses it would tell apart are both
+`404`, and the cost is one `stat` on the rarest answer this server gives.
 
 `FileStat` grew `isDirectory` for the startup check: `isFile === false` is not
 "is a directory", since a FIFO, a device and a socket answer that too, and
@@ -192,14 +308,43 @@ without being listable — mode `--x` permits opening a known path under it whil
 be refused at startup. Reading a whole directory only to discard it is the
 smaller objection.
 
-### The size limit
+### There is no size limit, and what replaced it
 
-`readFile` yields a single `Vec`, which caps at 131,072 bytes, and
-`ServerResponse.body` is one `Vec` too. So this version cannot answer with a
-larger file — and it must not answer with part of one, which is why the size is
-read with `stat` **before** the bytes are, and a file over the cap is refused
-with `413`. Serving larger files needs a streaming response body, which is an
-effect-layer change:
+There used to be one, and it was the `Vec`: `readFile` answers a single one,
+which caps at 131,072 bytes, and `ServerResponse.body` was one too, so a larger
+file was refused with `413` rather than truncated. A demo that tried to replace
+`python3 -m http.server` with this command found eleven of the modules its page
+imports over that ceiling and reverted the swap
+([#1819](https://github.com/functionalscript/functionalscript/issues/1819)).
+
+The body is now a **lazy list the runner pulls at the socket's pace** — one chunk
+a pull, from one open file — so the response frame can carry any file and the
+process holds a chunk of it rather than the whole thing. `res.write` answering
+`false` is what parks the next pull, so a client that reads slowly is a server that
+reads slowly; a client that hangs up is a server that stops reading. Serving a
+gigabyte costs what serving a kilobyte costs, in memory.
+
+Both things the old refusal was protecting are still held, and by a stronger
+guarantee than the chunk list gave: the bytes are one file's because they come from
+one **open file**, which cannot be replaced underneath the reads the way a name can,
+and the declared length is that file's own `fstat` size with the reads bounded by
+it, so it cannot promise a count the body does not have in either direction.
+
+There was an intermediate route, and it is recorded rather than deleted: a chunk
+list read through `readWhole`, which lifted the cap and left the whole file in
+memory. It remains what a caller who wants a file's bytes in hand should use, and
+`fjs/git` does.
+
+**A file whose size is a lie is served as its size**, which is the one thing the
+two routes answer differently. A procfs file is a regular file of nought bytes that
+yields thousands when read; `readWhole` read it to the end, and this reads it to the
+declared length, so such a file is served as `200` with no body. The answer stays
+self-consistent — the header and the bytes agree — and a served tree of ordinary
+files never meets the case, but pointing this server at `/proc` no longer shows
+their contents.
+
+The **request** side still has the cap — see "Request bodies" below — which is
+stage 2 of
 [streaming-http-bodies](../effects/node/todo/streaming-http-bodies.md).
 
 ### Request targets
@@ -219,42 +364,38 @@ all, and reading "whatever precedes `://`" as one served them.
 
 ### Request bodies
 
-`GET` and `HEAD` carry none worth reading, and this server ignores what a client
-sends anyway — but ignoring it is not the same as surviving it. A body larger
-than one `Vec` used to kill the process: the runner buffered it, `listToVec`
-threw at the cap, and the throw landed in an `async` handler whose promise
-nobody awaited. Any client could end the server with one request.
+**There is no size limit on what a client sends either, and this server reads
+none of it.** `GET` and `HEAD` carry no body worth reading, and every other
+method is `405`, so the request body never has a reader here. That used to cost
+something anyway: the runner read the whole body before calling the listener, gave
+up at 131,072 bytes, and answered `413` — a refusal for a request this server was
+not going to read a byte of.
 
-The runner counts as it reads — into an array it mutates, which is the one place
-in this repository where that is the right answer: rebuilding the array per chunk
-copies everything received so far on every chunk, and 20,000 one-byte chunks is
-20 KB of payload and 200 million copies. A cap on payload size is not a cap on
-chunk count, and a request that will be refused must not cost more than one that
-is served. Measured here: 2,794 ms to refuse that request before, 167 ms after,
-and doubling the chunk count now doubles the time instead of quadrupling it —
-again one machine's numbers, with the change in shape rather than the
-milliseconds being what is claimed.
+`IncomingMessage.body` is a stream the listener pulls from now
+([streaming-http-bodies](../effects/node/todo/streaming-http-bodies.md), stage
+2), so there is nothing to give up at and no `413` anywhere in this server. What a
+client sends is bounded by nothing, and what it costs this server is nothing
+either, because the answer goes out before the bytes arrive.
 
-Past the cap it answers `413` itself, without calling the listener — there is no
-`IncomingMessage` to build up there, since its `body` is a single `Vec`. It also
-answers `500` rather than dying if a listener throws: a panic must not outlive
-the request that caused it.
+**Not reading a body has a consequence, and the runner is who answers for it.**
+A response that goes out while the client is still sending leaves bytes on the
+socket. The runner adds `connection: close` to such a response — measured, the
+whole answer arrives and then the connection ends, and a request with nothing
+left to send keeps its connection as before. Draining the remainder is the polite
+alternative and the wrong one: it waits at whatever pace the client chooses for
+bytes the server has already decided not to use. So a `POST` to this server is
+refused, answered and closed, in that order. Whatever had already arrived when
+the answer went out, Node discards; what had not is what the close declines to
+wait for.
 
-Both answers close the connection, which is the difference between refusing a
-request and surviving the refusal. Neither has read the request to its end, so
-on a keep-alive connection Node would sit waiting for a body that never arrives
-— one client declaring ten megabytes and sending a hundred kilobytes could hold
-sockets open indefinitely. Draining the rest would be the polite alternative and
-the wrong one: it reads bytes the server has already refused.
+It also answers `500` rather than dying if a listener throws: a panic must not
+outlive the request that caused it. That answer closes the connection too, and
+for the same reason.
 
-All of it goes away with
-[streaming bodies](../effects/node/todo/streaming-http-bodies.md).
-
-What is *not* covered: a body that stalls under the cap. The runner reads a body
-to its end before the listener sees it, so a client declaring twenty megabytes
-and sending one hundred kilobytes holds a connection until Node's five-minute
-`requestTimeout` — even for a `POST`, which this server was never going to serve.
-Loopback bounds it; the fix is
+What is *not* covered: a listener that *does* want a body, on a client that stops
+sending. This server has no such listener — it reads nothing — but the five-minute
+`requestTimeout` every deployment inherits is still the only thing that ends such
+a request, and that is
 [request-body-timeouts](../effects/node/todo/request-body-timeouts.md).
 
 ## Proving it without a socket
@@ -262,10 +403,33 @@ Loopback bounds it; the fix is
 `main` is proven end to end against the virtual runner, request in and response
 out. The runner grew two operations for it: `createServer` hands back a handle
 carrying the listener, and `listen` gives that listener every request the fixture
-queued, recording what came back. No socket is involved, and it is the same
-listener the Node runner would drive. The listener rides in the handle rather
-than in the state so that two servers in one program are two servers there too,
-as they are on a host.
+queued, **pulls the body it answered with**, and records what went out. No socket
+is involved, and it is the same listener the Node runner would drive — the same
+gates in the same order, the same byte count against the declared length. A
+fixture states its request body as the chunks that arrive rather than as the
+stream a listener pulls, because that is what a client sends; `listen` turns one
+into the other, and how far the listener then read it is in the state for a proof
+to assert — which is how "this server answers without reading the body" is checked
+here, there being no connection to watch close. The listener rides in the handle
+rather than in the state so that two servers in one program are two servers there
+too, as they are on a host.
+
+It pulls rather than reads the frame and stops, and the difference is the whole
+point of a lazy body: a proof that asserted about the frame alone would be
+asserting about a response no byte of which had been produced. What it records is
+the chunks that went out **and what stopped them**, since a body that was cut short
+holds the same chunks a whole one does up to the point they differ.
+
+And it runs the `release` the response carries, which is what makes the leak
+provable: the virtual file system keeps its open files in the state, so every case
+asserts that nothing is still open once the request is over. That assertion is
+shown failing, on a listener that opens a file and writes the pure end as its
+`release`, in the virtual runner's own proofs.
+
+Two claims are left that no fixture can make, and they live in
+[`./proof.mjs`](./proof.mjs) beside a real socket: that a file far larger than the
+process should hold arrives byte for byte and in order, and that the process does
+not hold it.
 
 The run ends where a real one would not: `forever`'s result type is
 `Result<never, NotImplemented>`, so `error(notImplemented)` is the *only* value
@@ -354,15 +518,6 @@ only a listener knows what it allows, while `501` is precisely a method the
 server cannot support for any resource. That is true of every server the effect
 layer can build: a `RequestListener` maps a request frame to a response frame
 and has no vocabulary for a tunnel.
-
-**The entry checked is not the entry read.** `stat` and `readFile` are two
-operations on a name, so an entry swapped between them answers for something
-that is gone: an oversized file becomes `500` instead of `413`, and a FIFO is
-opened despite the `isFile` guard. Doing it properly means reading through one
-opened handle, and `Fs` offers no handles:
-[stat-then-read](./todo/stat-then-read.md). Whoever can swap an entry inside the
-served tree can already put anything there, so the window costs the *promises*
-in the table above rather than the boundary itself.
 
 **Symlinks are followed.** `resolve` decides containment from the URL, which a
 link inside the root can defeat by pointing outside it — the root boundary holds

@@ -5,6 +5,12 @@ type-only TypeScript (`types.ts`) beside it. Repository-wide rules live in the
 root [AGENTS.md](../AGENTS.md), and the design principles both code bases follow
 live in [DESIGN.md](../doc/DESIGN.md).
 
+Authored FunctionalScript has two extensions: `.f.mjs`, and `.f.js` for source
+the current compiler accepts ([`compiler/README.md`](./compiler/README.md) defines
+both). Every rule below stated for `.f.mjs` applies to `.f.js` alike; the one
+difference, that a proof stays `proof.f.mjs`, is in
+[§1.2](#12-proof-coverage-is-mandatory).
+
 ## Contents
 
 1. [Testing and proof coverage](#1-testing-and-proof-coverage)
@@ -30,26 +36,31 @@ live in [DESIGN.md](../doc/DESIGN.md).
 New FunctionalScript modules and functions must have **100% proof coverage**
 across every dimension: every exported function called, every line executed, and
 every branch (both sides of each conditional) taken. This applies to authored
-FunctionalScript source, `.f.mjs`
-([`fjs/fsc/README.md`](./fsc/README.md) defines the extensions). A new
+FunctionalScript source, `.f.mjs` and `.f.js`
+([`fjs/compiler/README.md`](./compiler/README.md) defines the extensions). A new
 implementation module ships with a co-located proof (its `proof` export) that
 exercises all of its exports along all code paths — partial coverage of new code
 is not acceptable. If a line or branch genuinely cannot be reached, restructure
 the code so it isn't there rather than leaving it uncovered.
 
-An implementation is `module.f.mjs` and its proof is `proof.f.mjs`. Stage 1 of
-the TypeScript-to-JavaScript migration is complete: no authored implementation or
-proof `.f.ts` remains, so write both files as JavaScript with JSDoc. Authored
-`types.ts` companions may remain permanently and hold the type-level API.
+An implementation is `module.f.mjs`, or `module.f.js` once the compiler
+accepts it (stage 2, [`fjs/compiler/README.md`](./compiler/README.md)), and its proof is
+`proof.f.mjs` either way. Stage 1 of the TypeScript-to-JavaScript migration is
+complete: no authored implementation or proof `.f.ts` remains, so write both
+files as JavaScript with JSDoc. Authored `types.ts` companions may remain
+permanently and hold the type-level API.
 
 Proof discovery and coverage follow the same extension: `shouldLoad` in
 [`fjs/dev/module.f.mjs`](./dev/module.f.mjs) matches authored
 FunctionalScript source, and both `npm run cov` and `deno task cov` include
-`module.f.mjs`. Ordinary (non-FunctionalScript) `.mjs` files stay opt-in through
-the `proof.mjs` filename convention.
+`module.f.mjs` and `module.f.js`. Ordinary (non-FunctionalScript) `.mjs` files
+stay opt-in through the `proof.mjs` filename convention.
 
 A `proof.f.mjs` is authored `.f.mjs` like any other. Its relative **runtime**
-imports must target `.f.mjs` modules. Type-only APIs may live in an authored
+imports must target FunctionalScript modules, `.f.mjs` or `.f.js`. A
+`module.f.js` keeps a `proof.f.mjs` for now: a proof fails by throwing, and
+the compiler does not accept `throw` yet
+([`ci/todo/f-js-package-support.md`](./ci/todo/f-js-package-support.md)). Type-only APIs may live in an authored
 `types.ts` companion and are referenced directly through that real source path.
 Its leading JSDoc block may include, for example:
 
@@ -70,7 +81,7 @@ need independently of one implementation belongs in `types.ts`, not in a JSDoc
 typedef that consumers would have to reach into the implementation for. Never add
 a runtime value for a TypeScript-only declaration such as `declare const`.
 Compiler support remains independent of this JavaScript/JSDoc rule. See
-[`fjs/fsc/README.md`](./fsc/README.md) for the extension contract and module
+[`fjs/compiler/README.md`](./compiler/README.md) for the extension contract and module
 policy.
 
 ### 1.3 Use `assert` / `assertEq`, never a hand-written `if`/`throw`
@@ -252,7 +263,7 @@ Which reader differs by file kind, and the tag does not decide it.
 `module.f.mjs` and `types.ts` are public API surface. `private.ts` is not: it
 holds implementation-private types outside the public declaration closure, and
 its generated declarations are excluded from the package entirely
-([`fsc/README.md`](./fsc/README.md)). Its prose is for contributors reading the
+([`compiler/README.md`](./compiler/README.md)). Its prose is for contributors reading the
 sources, so the tag belongs there — but a public documentation build must not be
 pointed at it.
 
@@ -430,16 +441,16 @@ Name private types and private runtime constants with a leading `_`, even when
 module linkage requires an export: exportability is linkage, not API status, so
 renaming or removing a `_`-prefixed name is not by itself a breaking change.
 The public contract still governs transitive effects. See
-[Private types](./fsc/README.md#private-types) for the full rule.
+[Private types](./compiler/README.md#private-types) for the full rule.
 
 The prefix marks a name that **is** exported as no part of the API — "even when
 module linkage requires an export" is the reach of the rule, not an example of
 it. A `const` that is never exported reaches no emitted declaration and no
 consumer, so it has nothing to disclaim and takes no prefix: `toNode` and
 `accessed` in
-[`fjs/fsc/parser`](./fsc/parser/module.f.mjs) are the
+[`fjs/compiler/parser`](./compiler/parser/module.f.mjs) are the
 ordinary shape, beside the exported `_Frame` and `_NegFrame` in its
-[`private.ts`](./fsc/parser/private.ts), which are the rule's. Measured across `fjs/`, module-private constants run about 1,900
+[`private.ts`](./compiler/parser/private.ts), which are the rule's. Measured across `fjs/`, module-private constants run about 1,900
 unprefixed to eight prefixed — so reading the rule as reaching them would put
 nearly every `.f.mjs` in the tree in violation, which is the check that the
 reading is wrong.
@@ -1110,17 +1121,24 @@ duplicating it (e.g. `parse` reuses `Path`, `ValidationError`, `verror`,
 
 Hoist helpers (functions, types, constants) to module scope when they don't
 capture local state — don't redeclare them inside another function on every call.
-If a `reduce`/`map` callback needs context that varies per call, thread it
-through the accumulator rather than closing over a local, so the step function
-itself can live at module scope.
 
-Treat "doesn't capture local state" as a target to restructure toward, not just a
-condition to check: for any nested helper meaningful enough to carry a name, lift
-its captures into leading curried parameters and hoist it — even a helper with a
-single call site and no per-call cost. A closed, module-scope function has a
-context-free identity: content-addressable FunctionalScript can deduplicate
-structurally identical closed functions across modules (and repositories), while
-a helper that captures enclosing locals hashes uniquely to its context.
+"Doesn't capture local state" is a condition to check, not a target to
+restructure toward. A helper that captures local state stays in the scope that
+holds it: don't lift a capture into a leading curried parameter just to hoist
+the helper, and don't thread a `reduce`/`map` callback's per-call context
+through the accumulator just so the step function can live at module scope.
+Either way every call passes the same local, so the extra parameter or
+accumulator field carries no information, each call repeats what the scope
+already says, and the helper is generalized for a caller that doesn't exist
+([DESIGN.md §1](../doc/DESIGN.md#1-simplicity-first)). A closed, module-scope
+function does have a context-free identity: content-addressable FunctionalScript
+can deduplicate structurally identical closed functions across modules (and
+repositories). That is a reason to hoist what is already closed, not to close
+what isn't. Deduplication is an optimization, and it doesn't outweigh a simpler
+helper. For example, `loop` in `crypto/vdf` captures the field's `reduce` and
+stays inside `sloth_vdf`. Helpers shaped by an earlier text of this rule, which
+asked for the opposite and which their comments still cite, are migration debt,
+not precedent: [lifted-captures](./todo/lifted-captures.md) lists them.
 
 Don't split below the semantic seam, though — if a fragment can't be described by
 a one-line JSDoc claim ("renews the lease", "publishes the staging file"),
@@ -1143,14 +1161,14 @@ makes the computation's dependency structure visible: the scope a binding lives
 in tells the reader which arguments it needs without tracing the whole call
 chain.
 
-Example (`fjs/basen/module.f.mjs`): `chunkList(msb)` depends on neither `bits`
-nor `v`, so it's bound once at module scope (`chunkListMsb`), shared by every
-`baseN(...)` codec; `chunkListMsb(bits)` depends on `bits` but not `v`, so it's
-applied once inside `baseN`'s body, not once per `vecToString(v)` call. When the
-fully-applied chain is itself the thing captured once — assigned directly as an
-object property, e.g.
-`vecToString: compose(chunkListMsb(bits))(fold(chunkToString)(''))` — naming the
-intermediate halves separately adds nothing: the composition already shows,
+Example (`fjs/basen/module.f.mjs`): `tailPaddedUintChunkList(msb)` depends on
+neither `bits` nor `v`, so it's bound once at module scope (`uintChunkListMsb`),
+shared by every `baseN(...)` codec; `uintChunkListMsb(bits)` depends on `bits`
+but not `v`, so it's applied once inside `baseN`'s body, not once per
+`vecToString(v)` call. When the fully-applied chain is itself the thing captured
+once — assigned directly as an object property, e.g.
+`vecToString: compose(uintChunkListMsb(bits))(fold(chunkToString)(''))` — naming
+the intermediate halves separately adds nothing: the composition already shows,
 structurally, that neither operand depends on `v`. Content addressing gives a
 second reason beyond readability: each partial application bound at its own scope
 is a closed value with its own identity, shareable wherever the same layer

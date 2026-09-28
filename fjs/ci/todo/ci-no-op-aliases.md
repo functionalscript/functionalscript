@@ -8,31 +8,26 @@
 Two names in `fjs/ci` are exact aliases of the thing they wrap, so a reader
 follows a hop to arrive where they started:
 
-- `fjs/ci/node/module.f.mjs:129` — `const nodeJob = steps => ubuntuArm(steps)`,
+- `nodeJob` in `fjs/ci/node/module.f.mjs` — `const nodeJob = steps => ubuntuArm(steps)`,
   an eta-expansion of `ubuntuArm`;
-- `:155` — `export const nodeMainSteps = platformNodeSteps`, imported under
-  that name by `fjs/ci/module.f.mjs:28` while `platformNodeSteps` is exported
-  too, so the same function is public twice.
+- `nodeMainSteps` in the same module — `export const nodeMainSteps = platformNodeSteps`,
+  imported under that name by `fjs/ci/module.f.mjs` while `platformNodeSteps` is
+  exported too, so the same function is public twice.
 
-`nixJobs` was a third and is not one any more: `deno` owns a flake now, so
-`fjs/ci/module.f.mjs` composes `[...nodeNixJobs, denoNixJob]` and its comment —
-"every generated flake, across all job families that own one" — describes what it
-holds. The spidermonkey runner was expected to be the first second family; the Deno
-migration got there first.
-
-`basicNode` (`fjs/ci/node/module.f.mjs:44`) is exported but reached only by its
-own proof.
+`nixJobs` was a third and is not one any more: `fjs/ci/module.f.mjs` composes
+`[...nodeNixJobs, devNixJob]` — the Node flakes and the shared developer shell
+every other job enters — and its comment describes what it holds.
 
 ### Proposal
 
 Drop `nodeJob` and `nodeMainSteps`; call `ubuntuArm` and `platformNodeSteps`
-directly. Either use `basicNode` from `nodeInstall`'s callers or make it private.
+directly.
 
 ### Tasks
 
 - [ ] Remove the `nodeJob` and `nodeMainSteps` aliases
-- [x] Decide `nixJobs`: kept, and no longer an alias — it composes three families
-- [ ] Use `basicNode` or make it private
+- [x] Decide `nixJobs`: kept, and no longer an alias — it composes the Node
+      flakes and the shared shell
 
 ### Related
 

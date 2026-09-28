@@ -40,8 +40,9 @@ its file system (`fjs/effects/node/virtual/`) has no symlinks at all, so
 `realpath` there is the identity and the guard cannot be proven where every other
 `respond` case is. Either the virtual `Dir` grows a link entity — a fourth
 `_Entity` case beside `Vec[]`, `Dir` and `JsModule` — or the proof for this one
-guard has to reach a real file system, which no other proof in the repository
-does.
+guard has to reach a real file system. That has a precedent:
+`fjs/effects/node/proof.mjs`'s `symlinkIdentity` and `writeExclusive` `symlink`
+cases plant links in a host temporary directory.
 
 ### Tasks
 

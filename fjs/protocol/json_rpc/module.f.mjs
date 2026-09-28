@@ -7,8 +7,8 @@
  * value to a response value (or `null` for a notification) and performs no I/O.
  *
  * Out of scope here (follow-ups): transports — stdio / HTTP framing — over
- * `fjs/effects/node`, and concrete method sets such as MCP (i665-mcp), which layer
- * on top of `dispatch`.
+ * `fjs/effects/node`, and concrete method sets such as MCP
+ * ([`fjs/protocol/mcp`](../mcp/module.f.mjs)), which layer on top of `dispatch`.
  *
  * https://www.jsonrpc.org/specification
  *

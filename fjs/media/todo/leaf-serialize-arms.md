@@ -101,9 +101,12 @@ only its `numberSerialize` and `{}`; extended adds `bigint`; DataJS adds
 
 ### Related
 
-- [../../fsc/todo/157-json-djs-shared-value-machine.md](../../fsc/todo/157-json-djs-shared-value-machine.md)
+- [../json/todo/157-json-djs-shared-value-machine.md](../json/todo/157-json-djs-shared-value-machine.md)
   — shares the *container walker* and names `leafSerialize` as the seam
   that legitimately differs; this issue shares the unvarying arms of that
   seam.
 - [../json/todo/remove-native-json.md](../json/todo/remove-native-json.md)
   — replaces `numberSerialize`'s body, the arm that varies; independent.
+- [json-dialect-factory](./json-dialect-factory.md) — plans an encode-side
+  walk that refuses a `bigint` leaf because the standard serializer writes it
+  as `null`; the assertion here would refuse it in the serializer instead.

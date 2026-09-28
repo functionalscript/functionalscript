@@ -7,6 +7,8 @@ import type { Exp } from '../types.ts'
 export type Context = {
     readonly frame: unknown,
     readonly args: readonly unknown[],
+    readonly fixed?: readonly unknown[] | undefined,
+    readonly rest?: readonly unknown[] | undefined,
     /**
      * Nodes whose values the caller already established, consulted by node
      * identity before anything is computed — `../execution-models.md`'s

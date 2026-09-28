@@ -5,23 +5,30 @@
  *
  * @import { Vec } from '../../../types/bit_vec/types.ts'
  * @import { PartialMemOperationMap, RunInstance } from '../../mock/types.ts'
- * @import { Dirent, FileStat, IoError, IoResult, Module, NodeOp, NodeProgramOptions, OpResult, RequestListener, SandboxResult, Server } from '../types.ts'
- * @import { Operation } from '../../types.ts'
+ * @import { MemoryState } from '../../memory/types.ts'
+ * @import { Dirent, FileStat, Handle, Headers, IncomingMessage, IoError, IoResult, Module, NodeOp, NodeProgramOptions, OpResult, RequestBody, RequestListener, SandboxResult, Server, _Gate } from '../types.ts'
+ * @import { Effect, IoChannel, Operation } from '../../types.ts'
+ * @import { List } from '../../list/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Error } from '../../../types/result/types.ts'
- * @import { Dir, JsModule, State, _Entity, _VirtualListener, _VirtualServer } from './types.ts'
+ * @import { Nullable } from '../../../types/nullable/types.ts'
+ * @import { Dir, JsModule, Overrun, RecordedResponse, State, Underrun, _Entity, _OpenFile, _QueuedRequest, _RequestBodyCursor, _VirtualListener, _VirtualServer } from './types.ts'
  */
 
 import { assert, todo } from '../../../asserts/module.f.mjs'
 import { isProperPrefix, join, normalize, parse } from '../../../path/module.f.mjs'
 import { resolve as resolveImportPath } from '../../../path/import/module.f.mjs'
 import { utf8ToString } from '../../../text/module.f.mjs'
-import { empty, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
+import { byteLength, bytesIn, empty, isWholeBytes, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok, unwrap } from '../../../types/result/module.f.mjs'
-import { emptyHost, emptyHostError, ioError, nodeCommands, notAFileCode, notAFileMessage } from '../module.f.mjs'
+import {
+    badPortCode, badPortMessage, carriesNoBody, emptyHost, emptyHostError, ioError, isPort, nodeCommands,
+    notAFileCode, notAFileMessage, refusalMessage, refusedStatus, requestBody, requestBodyOffsetMessage,
+    responseGate, runnerResponse, windowRefusal,
+} from '../module.f.mjs'
 import { partialRun } from '../../mock/module.f.mjs'
-import { asBase, asNominal } from '../../memory/module.f.mjs'
-import { asBase as asBaseServer, asNominal as asNominalServer } from '../../../types/nominal/module.f.mjs'
+import { memoryInitial, memoryOperationMap } from '../../memory/module.f.mjs'
+import { asBase, asNominal } from '../../../types/nominal/module.f.mjs'
 
 /** @type {State} */
 export const emptyState = {
@@ -31,12 +38,14 @@ export const emptyState = {
     root: {},
     internet: {},
     epochNs: 0,
-    memoryNext: 0,
-    memoryValues: {},
+    memory: memoryInitial,
     randomNext: 0,
     listening: [],
     requests: [],
     responses: [],
+    bodies: [],
+    handles: [],
+    handleNext: 0,
 }
 
 /**
@@ -78,7 +87,7 @@ const { hasOwn } = Object
  * `{ '__proto__': e }` — set the *prototype* instead, so there is no entry for
  * this to find. That is not a rule invented here: FunctionalScript's own parser
  * refuses both spellings with `__proto__ requires the computed key form`
- * (`../../../fsc/parser/`), for this exact reason. The refused spelling was
+ * (`../../../compiler/parser/`), for this exact reason. The refused spelling was
  * never a working fixture anyway — `readdir` walks `Object.entries`, which is
  * own-only, so such a directory listed as empty while `stat` claimed the entry
  * existed. Now every operation agrees it is absent.
@@ -131,13 +140,48 @@ const okVoid = ok(undefined)
  */
 const fail = message => error(ioError({ message }))
 
-/** @type {(recursive: boolean) => (dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<void>]} */
+/**
+ * Creates the directories `path` names below `dir`, the nearest directory
+ * `operation` could descend to — or refuses, creating nothing, with the code a
+ * host answers. Measured on node 22.22.2, for a directory `x`:
+ *
+ * | `mkdir('x/a/b')`, where `x/a` is… | `recursive: true` | non-recursive |
+ * | --- | --- | --- |
+ * | absent | `ok`, both created | `ENOENT` |
+ * | a directory | `ok`, `b` created | `ok`, `b` created |
+ * | a file | `ENOTDIR` | `ENOTDIR` |
+ *
+ * | `mkdir('x/a')`, where `x/a` is… | `recursive: true` | non-recursive |
+ * | --- | --- | --- |
+ * | absent | `ok`, created | `ok`, created |
+ * | a directory | `ok`, nothing changed | `EEXIST` |
+ * | a file | `EEXIST` | `EEXIST` |
+ *
+ * **Presence is asked before length.** `operation` hands this the whole
+ * remaining path both when its first name is absent and when that name holds
+ * something that is not a directory, so a length test alone would answer
+ * `ENOTDIR` for the absent case. `entryOf` tells them apart, exactly as in
+ * {@link statPath}; the check comes before anything is spread, because the
+ * spread is what used to replace the file with an empty directory and answer
+ * `ok`. A `JsModule` is not a directory either, and is refused the same way.
+ *
+ * An empty path never reaches this: {@link mkdir} answers it before `parse`
+ * can turn it into the root, which is what `.` is.
+ *
+ * @type {(recursive: boolean) => (dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<void>]}
+ */
 const mkdirOp = recursive => (dir, path) => {
+    if (path.length === 0) {
+        return [dir, recursive ? okVoid : eexist]
+    }
+    if (entryOf(dir, path[0]) !== undefined) {
+        return [dir, path.length === 1 ? eexist : enotdir]
+    }
+    if (path.length > 1 && !recursive) {
+        return [dir, enoent]
+    }
     let d = {}
     let i = path.length
-    if (i > 1 && !recursive) {
-        return [dir, fail('non-recursive')]
-    }
     while (i > 0) {
         i -= 1
         d = { [path[i]]: d }
@@ -146,15 +190,42 @@ const mkdirOp = recursive => (dir, path) => {
     return [dir, okVoid]
 }
 
-/** @type {(recursive: boolean) => (path: string) => (state: State) => readonly [State, IoResult<void>]} */
-const mkdir = recursive => operation(mkdirOp(recursive))
+/**
+ * {@link mkdirOp} behind the descent and {@link emptyPathIsAbsent}. Measured on
+ * node 22.22.2:
+ *
+ * | path | `recursive: true` | non-recursive |
+ * | --- | --- | --- |
+ * | `''` | `ENOENT` | `ENOENT` |
+ * | `.` | `ok` | `EEXIST` |
+ *
+ * @type {(recursive: boolean) => (path: string) => (state: State) => readonly [State, IoResult<void>]}
+ */
+const mkdir = recursive => emptyPathIsAbsent(operation(mkdirOp(recursive)))
 
 /** Absent-path error mirroring Node's `ENOENT`, so `isNotFound` recognizes it. */
 const enoent = error(ioError({ code: 'ENOENT', message: 'no such file or directory' }))
 
+/**
+ * An empty path names nothing, and `parse` cannot say so: it collapses `''` to
+ * the same empty segment list `.` gives, and `.` is the root. A host answers
+ * `ENOENT` for `''` wherever it answers something else for `.`, so this asks
+ * the question `parse` throws away — before the answer can depend on it.
+ * {@link statOp}, {@link exclusive} and {@link mkdir} are its users.
+ *
+ * @type {<T>(op: (path: string) => (state: State) => readonly [State, IoResult<T>]) => (path: string) => (state: State) => readonly [State, IoResult<T>]}
+ */
+const emptyPathIsAbsent = op => path => path === '' ? state => [state, enoent] : op(path)
+
 /** What a POSIX host answers for a path that descends through a name which is
- * not a directory — see {@link statPath}, its only source here. */
+ * not a directory — see {@link statPath} and {@link mkdirOp}, its sources here. */
 const enotdir = error(ioError({ code: 'ENOTDIR', message: 'not a directory' }))
+
+/** What a host answers for `rmdir` of a directory that holds anything. */
+const enotempty = error(ioError({ code: 'ENOTEMPTY', message: 'directory not empty' }))
+
+/** What a host answers for `rmdir('.')`: the directory the path is relative to. */
+const einval = error(ioError({ code: 'EINVAL', message: 'invalid argument' }))
 
 /**
  * What a file operation answers for a name holding a `JsModule` — the one
@@ -371,10 +442,16 @@ const access = readOperation((dir, path) => {
 
 /** @type {(dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<void>]} */
 const rmOp = (dir, path) => {
-    if (path.length !== 1) { return [dir, fail('invalid path')] }
+    // Presence before length, as `statPath` does: `operation` hands over the
+    // whole remaining path both when its first name is absent and when that
+    // name is a file, and a host answers `ENOENT` for the one and `ENOTDIR`
+    // for the other — measured on node 22.22.2, `rm('absent/deeper')` and
+    // `rm('file/x')`. A directory reaches here with nothing left of the path.
+    if (path.length === 0) { return [dir, fail('invalid path')] }
     const [name] = path
     const entry = entryOf(dir, name)
-    if (entry === undefined) { return [dir, fail('no such file')] }
+    if (entry === undefined) { return [dir, enoent] }
+    if (path.length !== 1) { return [dir, enotdir] }
     // No "is a directory" guard here: `operation`'s wrapper descends into
     // every plain-object (`Dir`) entry before this op ever runs, so `entry`
     // is always a `Vec[]` or a `JsModule` — never a bare `Dir` — and rm can
@@ -386,6 +463,50 @@ const rmOp = (dir, path) => {
 
 /** @type {(path: string) => (state: State) => readonly [State, IoResult<void>]} */
 const rm = operation(rmOp)
+
+/** Whether a directory holds nothing, which is when a host will remove it. */
+const isEmptyDir = /** @type {(d: Dir) => boolean} */ (d => !Object.values(d).some(v => v !== undefined))
+
+/**
+ * Removes an empty directory from its parent, with the codes a host answers —
+ * measured on node 22.22.2:
+ *
+ * | the name is… | answer |
+ * | --- | --- |
+ * | an empty directory | `ok`, and it is gone |
+ * | a directory holding anything | `ENOTEMPTY`, untouched |
+ * | a file, or reached through one | `ENOTDIR` |
+ * | absent, at any depth | `ENOENT` |
+ * | `.`, the root | `EINVAL` |
+ *
+ * The walk is to the *parent*, as {@link extractEntity}'s is, because
+ * `operation` would descend into the directory and hand over its contents with
+ * nothing left of the path, from which it cannot remove itself. A host's `rmdir`
+ * does not follow a symbolic link either — it is `ENOTDIR` — and this runner
+ * has none. `''` is `ENOENT` through {@link emptyPathIsAbsent}.
+ *
+ * @type {(dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<void>]}
+ */
+const rmdirAt = (dir, path) => {
+    if (path.length === 0) { return [dir, einval] }
+    const [first, ...rest] = path
+    const entry = entryOf(dir, first)
+    if (entry === undefined) { return [dir, enoent] }
+    if (!isDir(entry)) { return [dir, enotdir] }
+    if (rest.length === 0) {
+        if (!isEmptyDir(entry)) { return [dir, enotempty] }
+        const { [first]: _, ...kept } = dir
+        return [kept, okVoid]
+    }
+    const [inner, r] = rmdirAt(entry, rest)
+    return r[0] === 'error' ? [dir, r] : [{ ...dir, [first]: inner }, r]
+}
+
+/** @type {(path: string) => (state: State) => readonly [State, IoResult<void>]} */
+const rmdir = emptyPathIsAbsent(path => state => {
+    const [root, r] = rmdirAt(state.root, parse(path))
+    return [{ ...state, root }, r]
+})
 
 /** @type {(dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<_Entity>]} */
 const extractEntity = (dir, path) => {
@@ -426,12 +547,8 @@ const insertEntityAt = (dir, path, entity) => {
             if (!entityIsDir && existingIsDir) {
                 return [dir, fail(`'${name}' is a directory`)]
             }
-            if (entityIsDir && existingIsDir) {
-                const existingDir = existing
-                const hasContent = Object.values(existingDir).some(v => v !== undefined)
-                if (hasContent) {
-                    return [dir, fail(`cannot overwrite non-empty directory '${name}'`)]
-                }
+            if (entityIsDir && existingIsDir && !isEmptyDir(existing)) {
+                return [dir, fail(`cannot overwrite non-empty directory '${name}'`)]
             }
         }
         return [{ ...dir, [name]: entity }, okVoid]
@@ -462,16 +579,23 @@ const rename = (src, dst) => state => {
     return [{ ...state, root: dstRoot }, okVoid]
 }
 
-/** @type {(path: string, offset: number, size: number) => (state: State) => readonly [State, IoResult<Vec>]} */
-const readBytesOp = (path, offset, size) => readOperation((dir, p) => {
-    const resolved = resolveFile(jsModuleUnsupported('readBytes'))(dir, p)
-    if (resolved[0] === 'error') { return resolved }
-    if (!Number.isInteger(offset)) { return fail(`Offset ${offset} is not an integer`) }
-    if (!Number.isInteger(size)) { return fail(`Chunk size ${size} is not an integer`) }
-    if (offset < 0) { return fail(`Offset ${offset} is negative`) }
-    if (size < 0) { return fail(`Chunk size ${size} is negative`) }
-    if (BigInt(size) > maxLengthBytes) { return fail(`Chunk size ${size} exceeds maximum allowed size of ${maxLengthBytes} bytes`) }
-    const chunks = resolved[1]
+/**
+ * The window `offset`/`size` names of a chunk-list file, or the refusal that says
+ * the window is not one a host would read. Shared by `readBytes`, which resolves a
+ * *name* per call, and by {@link preadOp}, which reads the entity a handle holds —
+ * the window arithmetic is the same question and the difference between the two
+ * operations is entirely which bytes it is asked of.
+ *
+ * **Which numbers are a window at all is {@link windowRefusal}'s to say**, not
+ * this function's: the node runner asks the same question of the same two numbers
+ * before it allocates a buffer, and a bound spelled out twice is a bound the two
+ * runners can come to disagree about.
+ *
+ * @type {(chunks: readonly Vec[], offset: number, size: number) => IoResult<Vec>}
+ */
+const window_ = (chunks, offset, size) => {
+    const refusal = windowRefusal(offset, size)
+    if (refusal !== null) { return fail(refusal) }
     let toSkip = BigInt(offset) * 8n
     let toRead = BigInt(size) * 8n
     let result = empty
@@ -488,6 +612,12 @@ const readBytesOp = (path, offset, size) => readOperation((dir, p) => {
         toRead -= takeBits
     }
     return ok(result)
+}
+
+/** @type {(path: string, offset: number, size: number) => (state: State) => readonly [State, IoResult<Vec>]} */
+const readBytesOp = (path, offset, size) => readOperation((dir, p) => {
+    const resolved = resolveFile(jsModuleUnsupported('readBytes'))(dir, p)
+    return resolved[0] === 'error' ? resolved : window_(resolved[1], offset, size)
 })(path)
 
 /** What `stat` answers for a name that exists and is neither a regular file nor
@@ -509,9 +639,10 @@ const directory = ok({ size: 0, isFile: false, isDirectory: true })
  * @type {(chunks: readonly Vec[]) => number}
  */
 const fileSizeBytes = chunks =>
-    chunks.reduce((acc, c) => acc + Number(length(c) / 8n), 0)
+    chunks.reduce((acc, c) => acc + Number(byteLength(c)), 0)
 
-/** Absent-path error for an already-existing exclusive create, mirroring `EEXIST`. */
+/** A name that is already taken, mirroring `EEXIST`: an exclusive create of an
+ * existing name, or a `mkdir` of one — see {@link mkdirOp}. */
 const eexist = error(ioError({ code: 'EEXIST', message: 'file already exists' }))
 
 /**
@@ -541,19 +672,12 @@ const exclusiveOp = chunks => (dir, path) => {
 }
 
 /**
- * `exclusiveOp` behind the descent, with the one question `parse` throws away
- * asked first: **an empty path names nothing, and `.` is the root**. Both
- * collapse to no segments at all, so the handler cannot tell them apart, and a
- * host answers differently — measured on node 22.22.2, a `wx` open of `''` is
- * `ENOENT` where one of `.` is `EEXIST`. {@link statOp} carves the same case out
- * for the same reason.
+ * `exclusiveOp` behind the descent and {@link emptyPathIsAbsent}: measured on
+ * node 22.22.2, a `wx` open of `''` is `ENOENT` where one of `.` is `EEXIST`.
  *
  * @type {(chunks: readonly Vec[]) => (path: string) => (state: State) => readonly [State, IoResult<void>]}
  */
-const exclusive = chunks => {
-    const op = operation(exclusiveOp(chunks))
-    return path => path === '' ? state => [state, enoent] : op(path)
-}
+const exclusive = chunks => emptyPathIsAbsent(operation(exclusiveOp(chunks)))
 
 /** @type {(path: string) => (state: State) => readonly [State, IoResult<void>]} */
 const createExclusive = exclusive([])
@@ -564,9 +688,9 @@ const createExclusive = exclusive([])
  * reach the pathname in between. See `WriteExclusive` in `../types.ts` for what
  * the two separate calls let through on a real host.
  *
- * @type {(payload: Vec) => (path: string) => (state: State) => readonly [State, IoResult<void>]}
+ * @type {(payload: readonly Vec[]) => (path: string) => (state: State) => readonly [State, IoResult<void>]}
  */
-const writeExclusive = payload => exclusive([payload])
+const writeExclusive = payload => exclusive(payload)
 
 // The lock-free upload only ever writes sequentially at the current end of the
 // staging file (`offset === size`), so the virtual model implements that append
@@ -632,14 +756,150 @@ const statPath = readOperation((dir, path) => {
 })
 
 /**
- * An empty path names nothing, and `parse` cannot say so: it collapses to the
- * same empty segment list `.` does, and `.` is the root. A host answers `ENOENT`
- * for `stat('')`, so this asks the question `parse` has already thrown away —
- * before the answer can depend on it.
+ * {@link statPath} behind {@link emptyPathIsAbsent}: a host answers `ENOENT` for
+ * `stat('')`, and stats `.` as the directory it is.
  *
  * @type {(path: string) => (state: State) => readonly [State, IoResult<FileStat>]}
  */
-const statOp = path => path === '' ? state => [state, enoent] : statPath(path)
+const statOp = emptyPathIsAbsent(statPath)
+
+// ── Open files ────────────────────────────────────────────────────────────────
+//
+// A handle is an identifier into {@link State.handles}, and what that entry holds
+// is the entity the name held **when it was opened**. That snapshot is the whole
+// point: a `Dir` entry can be replaced while a program runs, and a reader that
+// went back to the name per chunk could join two files into one correctly-sized
+// body. Reads here cannot, which is what makes the guard provable rather than
+// merely intended.
+
+/**
+ * What the entry `p` names is, for {@link openOp} — the entity itself, since a
+ * handle records what it opened rather than what kind of thing that was.
+ *
+ * It answers where {@link statPath} answers and refuses where that refuses, and
+ * for the same reasons: a directory arrives as an empty remaining path because
+ * `operation` has already descended into it, a name that is absent is `ENOENT`,
+ * and more than one segment left over means the name before them exists with
+ * nothing under it, which POSIX calls `ENOTDIR`. Both were measured through
+ * `open` itself on Darwin with Node 26.8.1 — an absent name is `ENOENT`, a path
+ * through a regular file is `ENOTDIR`, and a directory opens successfully.
+ *
+ * @type {(dir: Dir, path: readonly string[]) => IoResult<_Entity>}
+ */
+const openEntity = (dir, path) => {
+    if (path.length === 0) { return ok(dir) }
+    const entry = entryOf(dir, path[0])
+    if (entry === undefined) { return enoent }
+    if (path.length !== 1) { return enotdir }
+    return ok(entry)
+}
+
+/**
+ * Opens `path`, recording what it held.
+ *
+ * **Nothing here blocks, and on a host that is a flag rather than a fact.** A
+ * plain read-only open of a FIFO with no writer never returns; the node runner
+ * passes `O_NONBLOCK` so that it does, which is what lets a caller ask the
+ * *descriptor* whether it holds a regular file instead of asking the name and
+ * then opening whatever the name has become. This runner has no FIFOs, only a
+ * `JsModule` standing in for one, and it opens like everything else.
+ *
+ * @type {(path: string) => (state: State) => readonly [State, IoResult<Handle>]}
+ */
+const openOp = emptyPathIsAbsent(path => state => {
+    const [s, resolved] = readOperation(openEntity)(path)(state)
+    if (resolved[0] === 'error') { return [s, resolved] }
+    const id = s.handleNext
+    // Bound and annotated, as `createServer` binds its own: `asNominal` cannot
+    // infer which brand its caller meant.
+    /** @type {Handle} */
+    const handle = asNominal({ id })
+    return [
+        { ...s, handles: [...s.handles, { id, entity: resolved[1] }], handleNext: id + 1 },
+        ok(handle),
+    ]
+})
+
+/**
+ * What a read or an `fstat` through a handle that is no longer open answers, and
+ * it is the host's own code: measured on Darwin with Node 26.8.1, both a `read`
+ * and a `stat` through a closed `FileHandle` fail `EBADF`. A runner answering
+ * anything else would give a caller a branch it cannot reach on the host it ships
+ * against.
+ */
+const ebadf = error(ioError({ code: 'EBADF', message: 'bad file descriptor' }))
+
+/**
+ * The open file `handle` names, or `null` if it names none — it was closed, or it
+ * was never this runner's.
+ *
+ * @type {(state: State, handle: Handle) => Nullable<_OpenFile>}
+ */
+const openFile = (state, handle) => {
+    const { id } = /** @type {{ readonly id: number }} */ (asBase(handle))
+    return state.handles.find(h => h.id === id) ?? null
+}
+
+/**
+ * {@link FileStat} of what a handle holds, which is the same answer
+ * {@link statPath} gives for the same entity — the kinds a caller acts on do not
+ * depend on how it got there.
+ *
+ * **The size is the bound a reader may declare**, because it is the size of the
+ * file the reads will come from: nothing can be substituted under the handle
+ * between this and them.
+ *
+ * @type {(handle: Handle) => (state: State) => readonly [State, IoResult<FileStat>]}
+ */
+const fstatOp = handle => state => {
+    const held = openFile(state, handle)
+    if (held === null) { return [state, ebadf] }
+    const { entity } = held
+    if (isDir(entity)) { return [state, directory] }
+    if (isJsModule(entity)) { return [state, notRegular] }
+    return [state, ok({ size: fileSizeBytes(entity), isFile: true, isDirectory: false })]
+}
+
+/**
+ * The bytes at `offset`, at most `size` of them, from what the handle holds.
+ *
+ * A **directory** handle is `EISDIR`, measured on Darwin with Node 26.8.1 through
+ * a descriptor opened on one: the open succeeds and the read is what fails.
+ *
+ * A **`JsModule`** handle answers nought bytes, which is what the entry stands in
+ * for measured through the same descriptor: a non-blocking read of a writerless
+ * FIFO returned nought bytes rather than failing. It is a value and not a panic
+ * for the reason {@link jsModuleNotAFile} gives — a caller's branch for it is only
+ * reachable if the runner returns it — and under a declared bound `readChunks`
+ * turns it into the failed cell a truncated body deserves.
+ *
+ * @type {(handle: Handle, offset: number, size: number) => (state: State) => readonly [State, IoResult<Vec>]}
+ */
+const preadOp = (handle, offset, size) => state => {
+    const held = openFile(state, handle)
+    if (held === null) { return [state, ebadf] }
+    const { entity } = held
+    if (isDir(entity)) { return [state, error(ioError({ code: 'EISDIR', message: 'illegal operation on a directory' }))] }
+    if (isJsModule(entity)) { return [state, ok(empty)] }
+    return [state, window_(entity, offset, size)]
+}
+
+/**
+ * Gives the open file back.
+ *
+ * **A second close is `ok`**, and that is the host's answer rather than a
+ * convenience here: measured on Darwin with Node 26.8.1, a second
+ * `FileHandle.close()` resolved. It also means a handle this runner never handed
+ * out closes cleanly, which is the same thing a program cannot tell apart.
+ *
+ * @type {(handle: Handle) => (state: State) => readonly [State, IoResult<void>]}
+ */
+const closeOp = handle => state => {
+    const held = openFile(state, handle)
+    return held === null
+        ? [state, okVoid]
+        : [{ ...state, handles: state.handles.filter(h => h !== held) }, okVoid]
+}
 
 // ── HTTP ──────────────────────────────────────────────────────────────────────
 //
@@ -651,24 +911,113 @@ const statOp = path => path === '' ? state => [state, enoent] : statPath(path)
 // of a socket. `forever` is the one HTTP-adjacent operation with no meaning
 // here; see the note on {@link virtual} below.
 
-/**
- * Whether `port` is one a host would accept: an integer in `0`–`65535`, where
- * `0` asks for an ephemeral one. Node throws `ERR_SOCKET_BAD_PORT` for anything
- * else, and a runner that accepted `-1` or `NaN` would let a program be proven
- * that cannot run.
- *
- * @type {(port: number) => boolean}
- */
-const isPort = port => Number.isInteger(port) && port >= 0 && port <= maxPort
-
-/** @type {number} */
-const maxPort = 0xffff
-
 /** The port that asks for any free port rather than naming one.
  *
  * @type {number}
  */
 const ephemeral = 0
+
+/**
+ * The chunks from the first one that has bits, the ones before it dropped.
+ *
+ * **No bytes is how a pull says *end***: `readChunks` ends an unbounded stream
+ * at an empty answer ([`../module.f.mjs`](../module.f.mjs)), so a chunk of no
+ * bytes cannot be handed to a listener as a chunk. The Node runner's reader
+ * steps over one for that reason — Node's parser owes nobody a promise to keep
+ * an empty chunk out of a body — and a fixture chunk with no bits is that
+ * chunk, so it is stepped over here too.
+ *
+ * **Bits, not bytes.** `bytesIn` rounds down, so a chunk of one bit is nought
+ * bytes; dropping by byte length would drop it and throw the bit away, where
+ * `readChunks` refuses a chunk that is not whole bytes and says how many bits it
+ * had.
+ *
+ * @type {(rest: readonly Vec[]) => readonly Vec[]}
+ */
+const fromFirstWithBits = rest => {
+    const i = rest.findIndex(v => length(v) !== 0n)
+    return i === -1 ? [] : rest.slice(i)
+}
+
+/**
+ * Hands out the next chunk of one delivered request's body, or no bytes at its
+ * end.
+ *
+ * **The offset is checked, not sought to**, which is the one thing this
+ * operation has to get the same as the Node runner: there, the position belongs
+ * to a socket that only moves forward, so a pull naming an offset the body is
+ * past cannot be answered with the bytes it asks for and must not be answered
+ * with the bytes that come next. A fixture's chunks *could* be replayed here,
+ * which is exactly why they are not — a proof that re-pulled a cell would pass
+ * against this runner and fail against a socket.
+ *
+ * A pull at the offset the body **ended** at is not that case: nothing with
+ * bits is left, no bytes is the answer, and the offset does not move, so asking
+ * again answers the same. The end of a stream is worth the same however many
+ * times it is asked for.
+ *
+ * A chunk of no bytes is not that end either — see {@link fromFirstWithBits},
+ * which is why a pull answers from the first chunk that has bits rather than
+ * from the next one in the fixture.
+ *
+ * **A chunk the stream will not take stays where it is.** `readChunks` refuses
+ * one that is not whole bytes ([`../module.f.mjs`](../module.f.mjs)) and says
+ * how many bits it had, and a listener may catch that refusal and pull the same
+ * cell again. Handed out and dropped, such a chunk left the cursor moved while
+ * its nought bytes left the offset alone, so the retry named an offset that
+ * still matched and was answered with the bytes *after* it — the body the
+ * listener asked for, in order, one bit short, and nothing to say so. So the
+ * chunk is handed out without being consumed: nothing advances, and the retry
+ * meets the same refusal in the same words. The offset refusal above is not
+ * sticky in that way and must not be — it belongs to the pull that named the
+ * wrong offset, not to the body.
+ *
+ * The handle is the cursor's place in {@link State.bodies} — see
+ * {@link _RequestBodyCursor} for why the position is in the state and not
+ * behind the handle.
+ *
+ * @type {(body: RequestBody, offset: number, size: number) => (state: State) => readonly[State, IoResult<Vec>]}
+ */
+const readRequestBytes = (body, offset, _size) => state => {
+    const index = /** @type {number} */ (asBase(body))
+    const cursor = state.bodies[index]
+    if (offset !== cursor.offset) {
+        return [state, error(ioError({ message: requestBodyOffsetMessage(offset, cursor.offset) }))]
+    }
+    const kept = fromFirstWithBits(cursor.rest)
+    const [first, ...rest] = kept
+    /** @type {_RequestBodyCursor} */
+    const next = first === undefined
+        ? { rest: [], offset }
+        : isWholeBytes(first)
+            ? { rest, offset: offset + Number(byteLength(first)) }
+            : { rest: kept, offset }
+    /** @type {State} */
+    const moved = { ...state, bodies: state.bodies.map((c, i) => i === index ? next : c) }
+    return [moved, first === undefined ? ok(empty) : ok(first)]
+}
+
+/**
+ * The request a listener is handed, and the cursor its body will be read
+ * through.
+ *
+ * The cursor goes on the end of {@link State.bodies} and the handle is where it
+ * landed, so the body list the listener receives is built by the same
+ * {@link requestBody} the Node runner builds its own with — the shape of the
+ * stream is stated once and neither runner can drift from it.
+ *
+ * @type {(request: _QueuedRequest) => (state: State) => readonly[State, IncomingMessage]}
+ */
+const deliver = ({ method, url, headers, body, chunkedResponse }) => state => [
+    { ...state, bodies: [...state.bodies, { rest: body, offset: 0 }] },
+    {
+        method,
+        url,
+        headers,
+        body: requestBody(/** @type {RequestBody} */ (asNominal(state.bodies.length))),
+        chunkedResponse,
+    },
+]
 
 /**
  * The handle **is** the listener.
@@ -694,13 +1043,157 @@ const createServer = listener => state => {
     /** @type {_VirtualServer} */
     const server = { listener: /** @type {_VirtualListener} */ (listener) }
     /** @type {Server} */
-    const handle = asNominalServer(server)
+    const handle = asNominal(server)
     return [state, ok(handle)]
 }
 
 /**
+ * The bytes one response chunk puts on the wire, which is **not** its
+ * {@link byteLength}.
+ *
+ * `ServerResponse` admits any `Vec`, and a `Vec` is a count of *bits*. The node
+ * runner writes `fromVec(chunk)`, which pads a partial byte out to a whole one, so
+ * a one-bit chunk reaches the client as one byte. `byteLength` rounds the other way
+ * and calls it nought. Measured: a 1-bit `Vec` has `byteLength` `0n` and
+ * `fromVec(...).length` `1`; a 9-bit `Vec`, `1n` and `2`.
+ *
+ * Counting the rounded-down figure gave two contradictory answers for one response.
+ * Against `Content-Length: 1` and a one-bit body the host completed and this runner
+ * recorded an underrun; against `Content-Length: 0` this runner accepted a body the
+ * host destroys as an overrun. Either way a proof could pass on a frame the host
+ * does not produce.
+ *
+ * It is not `fromVec(chunk).length` because that would build the array to measure
+ * it. This is the same arithmetic — the whole bytes in the bits, rounded up.
+ *
+ * **The response side pads where the request side refuses**, and that asymmetry is
+ * the host's rather than this runner's. `readChunks` refuses a request chunk that
+ * is not whole bytes — `chunk at N is B bits, not whole bytes` — because it is
+ * `fjs`'s own reader and can. A response chunk goes through `fromVec` into
+ * `res.write`, which pads and says nothing, so there is no refusal to mirror and
+ * counting what the padding sends is the only answer that matches the host.
+ *
+ * @type {(v: Vec) => bigint}
+ */
+const sentBytes = v => bytesIn(length(v) + 7n)
+
+/**
+ * Pulls a response body cell by cell, counting the bytes against `bound`, and
+ * answers what went out together with what stopped it.
+ *
+ * This is the virtual counterpart of the node runner's pump, and it mirrors the
+ * one thing that is not about sockets: the count. `fjs/web` can be trusted to stop
+ * at the size it declared because it writes both the header and the fold; nothing
+ * in `ServerResponse<O>` ties them together, and no other listener is under that
+ * discipline. A `Content-Length` smaller than what the body goes on to produce is
+ * ordinary code, and what it buys on a host is one response's surplus eaten as the
+ * next one's status line.
+ *
+ * What it does **not** mirror is the pace, because there is no socket to take it
+ * from — so every cell is pulled at once here, and a proof about backpressure is a
+ * host proof ([`../proof.mjs`](../proof.mjs)).
+ *
+ * **It steps rather than recurses, because the node runner does.** A body is
+ * however many cells a listener writes, and each one cost this a stack frame while
+ * the node runner spent none: a valid body of 5,000 already-built pure cells threw
+ * `RangeError: Maximum call stack size exceeded` on Node 23.11.0, before the
+ * response was recorded and before `release` ran, where the host carried the same
+ * body and answered it. A runner that cannot model a body the host delivers cannot
+ * be proven against for it.
+ *
+ * @type {(bound: Nullable<number>) => (state: State, e: List<NodeOp, Vec, IoChannel>, written: number, body: readonly Vec[]) => readonly [State, readonly Vec[], Nullable<IoChannel | Overrun | Underrun>]}
+ */
+const pump = bound => (state, e, written, body) => {
+    let s = state
+    let cursor = e
+    let count = written
+    let chunks = body
+    while (true) {
+        const [next, cell] = virtual(s)(cursor)
+        s = next
+        // The cell's own failure, which is the producer's and not the runner's.
+        if (cell[0] === 'error') { return [s, chunks, cell[1]] }
+        const node = cell[1]
+        if (node === undefined) {
+            // A body that ended before the length it declared is destroyed on a
+            // host exactly as one that would run past it is — see `Underrun`.
+            return [s, chunks, bound !== null && count !== bound ? /** @type {Underrun} */ (['underrun', bound]) : null]
+        }
+        const got = Number(sentBytes(node.first))
+        // None of the chunk is recorded: cutting it to fit would answer a body
+        // exactly as long as it promised, which every client reads as whole.
+        if (bound !== null && count + got > bound) { return [s, chunks, /** @type {Overrun} */ (['overrun', bound])] }
+        count += got
+        chunks = [...chunks, node.first]
+        cursor = node.tail
+    }
+}
+
+/**
+ * What the gate decided, as the record of it: the response frame that went out and
+ * what made it incomplete.
+ *
+ * A **suppressed** body holds no chunks and no failure — nothing went out and
+ * nothing went wrong, which is exactly what a `HEAD` or a `204` is. A **refused**
+ * response is the runner's own frame rather than the listener's, as it is on a
+ * socket, since the listener's is the one that may not be sent.
+ *
+ * **A refusal to a `HEAD` is that frame with the bytes taken off it**, because
+ * that is what the socket gets. Node drops a `HEAD` body whoever wrote it, the
+ * runner's own refusal included: measured on Darwin with Node 23.11.0, the same
+ * `writeHead(500, …).end(body)` `respondWith` performs put the status line, the
+ * three headers and `content-length: 53` on the wire and **nought** bytes after
+ * them for a `HEAD`, where a `GET` carried all 53. The frame is what a client
+ * reads, so the frame is kept; recording the chunk as well would have this runner
+ * report a body no host emits, which is a response a proof can pass against and
+ * production never sends.
+ *
+ * The method decides it and not the gate, through the same {@link carriesNoBody}
+ * the gate asks — at the **refusal's** status, `500`, since that is the status
+ * line that goes out. A listener's own `204` rewritten to `500` carries its
+ * refusal on a `GET`, which is the host's answer too.
+ *
+ * @type {(gate: _Gate, method: string) => (state: State, status: number, headers: Headers, body: List<NodeOp, Vec, IoChannel>) => readonly [State, RecordedResponse]}
+ */
+const recordResponse = (gate, method) => (state, status, headers, body) => {
+    if (gate[0] === 'noBody') { return [state, { status, headers, body: [], failure: null }] }
+    if (gate[0] !== 'pump') {
+        const refused = runnerResponse(refusedStatus, refusalMessage(gate))
+        return [state, {
+            ...refused,
+            body: carriesNoBody(method, refusedStatus) ? [] : refused.body,
+            failure: null,
+        }]
+    }
+    const [next, chunks, failure] = pump(gate[1])(state, body, 0, [])
+    return [next, { status, headers, body: chunks, failure }]
+}
+
+/**
+ * Answers one queued request: the listener, then the gates in their stated order,
+ * then the body, then `release` — which runs on **every** one of those paths,
+ * including the two that never pull a byte.
+ *
+ * `RecordedResponse` gains no field saying whether it ran. What a proof asserts is
+ * that {@link State.handles} is empty once the request is over, which is the leak
+ * itself rather than a report of it.
+ *
+ * @type {(listener: _VirtualListener) => (state: State, request: IncomingMessage) => State}
+ */
+const answerRequest = listener => (state, request) => {
+    const [afterListener, answered] = virtual(state)(listener(request))
+    const { status, headers, body, release } = unwrap(answered)
+    const [afterBody, recorded] = recordResponse(
+        responseGate(request.method, request.chunkedResponse, status, headers),
+        request.method,
+    )(afterListener, status, headers, body)
+    const [afterRelease] = virtual(afterBody)(release)
+    return { ...afterRelease, responses: [...afterRelease.responses, recorded] }
+}
+
+/**
  * Takes the address, then hands `server`'s listener every queued request in
- * turn, threading the state through each and recording what came back. The
+ * turn, threading the state through each and recording what went out. The
  * queue is emptied, so a second `listen` does not re-deliver.
  *
  * **Binding can fail here, because it can fail on a host.** A port outside
@@ -741,7 +1234,7 @@ const listen = (server, port, host) => state => {
     // listening one, and an already-listening server retried with `''` reported
     // `ERR_SERVER_ALREADY_LISTEN` here against `ERR_INVALID_ARG_VALUE` there.
     if (host === emptyHost) { return [state, error(emptyHostError)] }
-    const bound = /** @type {_VirtualServer} */ (asBaseServer(server))
+    const bound = /** @type {_VirtualServer} */ (asBase(server))
     const { listener } = bound
     // Asked **before** the port, because that is the order Node asks in: a
     // server already listening reports `ERR_SERVER_ALREADY_LISTEN` for `-1`,
@@ -757,13 +1250,7 @@ const listen = (server, port, host) => state => {
         }))]
     }
     if (!isPort(port)) {
-        return [state, error(ioError({
-            code: 'ERR_SOCKET_BAD_PORT',
-            // Byte-for-byte what Node says, type included: this runner claims
-            // to report failures in the shape the host reports them, and a
-            // message that is nearly right is a claim that is not.
-            message: `options.port should be >= 0 and < 65536. Received type number (${port}).`,
-        }))]
+        return [state, error(ioError({ code: badPortCode, message: badPortMessage(port) }))]
     }
     // Lower-cased because a DNS name is case-insensitive and so is the
     // hexadecimal of an IPv6 literal: `LOCALHOST` and `localhost` are one
@@ -786,11 +1273,27 @@ const listen = (server, port, host) => state => {
     }
     /** @type {State} */
     let s = { ...state, listening: [...state.listening, { address, server: bound }], requests: [] }
-    for (const request of state.requests) {
-        const [next, response] = virtual(s)(listener(request))
-        s = { ...next, responses: [...next.responses, unwrap(response)] }
+    const answer = answerRequest(listener)
+    for (const queued of state.requests) {
+        // The body's cursor is registered before the listener runs, because the
+        // listener is what reads it — the same order the Node runner puts the
+        // socket in the handle before it calls one.
+        const [withBody, request] = deliver(queued)(s)
+        s = answer(withBody, request)
     }
     return [s, okVoid]
+}
+
+/**
+ * Runs a handler of `../../memory`'s interpreter on the memory field of the
+ * state, so this runner answers the memory operations exactly as that one
+ * does — the same keys, and the same panic on a key it never handed out.
+ *
+ * @type {<R>(f: (memory: MemoryState) => readonly[MemoryState, R]) => (state: State) => readonly[State, R]}
+ */
+const onMemory = f => state => {
+    const [memory, result] = f(state.memory)
+    return [{ ...state, memory }, result]
 }
 
 /** @type {PartialMemOperationMap<NodeOp, State>} */
@@ -808,35 +1311,9 @@ const map = {
         }
         return [state, ok(e)]
     },
-    memCreate: value => state => {
-        const id = `mem${state.memoryNext}`
-        const key = asNominal(id)
-        return [{
-            ...state,
-            memoryNext: state.memoryNext + 1,
-            memoryValues: { ...state.memoryValues, [id]: value },
-        }, ok(key)]
-    },
-    // A key `memCreate` never handed out is a caller bug, so both operations
-    // panic on one with the sentence the real interpreter already uses
-    // (`../memory/module.mjs`). Answering a read `ok(undefined)` instead made
-    // this runner disagree with the one it stands in for, and turned the bug
-    // into whatever the value's first reader did with `undefined` — a
-    // `TypeError` naming that reader's field, not the key or the missing slot.
-    // Presence is the test, not the value: `memCreate(undefined)` is legal.
-    memRead: key => state => {
-        const id = asBase(key)
-        assert(hasOwn(state.memoryValues, id), `memory key not found: ${id}`)
-        return [state, ok(state.memoryValues[id])]
-    },
-    memWrite: (key, value) => state => {
-        const id = asBase(key)
-        assert(hasOwn(state.memoryValues, id), `memory key not found: ${id}`)
-        return [{
-            ...state,
-            memoryValues: { ...state.memoryValues, [id]: value },
-        }, okVoid]
-    },
+    memCreate: value => onMemory(memoryOperationMap.memCreate(value)),
+    memRead: key => onMemory(memoryOperationMap.memRead(key)),
+    memWrite: (key, value) => onMemory(memoryOperationMap.memWrite(key, value)),
     fetch: url => state => {
         const result = state.internet[url]
         return result === undefined ? [state, fail('not found')] : [state, ok(result)]
@@ -852,6 +1329,7 @@ const map = {
     access,
     import: import_,
     rm,
+    rmdir,
     rename,
     readBytes: readBytesOp,
     createExclusive,
@@ -859,8 +1337,13 @@ const map = {
     writeBytes: writeBytesOp,
     readWhole,
     stat: statOp,
+    open: openOp,
+    fstat: fstatOp,
+    pread: preadOp,
+    close: closeOp,
     createServer,
     listen,
+    readRequestBytes,
     randomInt: () => state => [{ ...state, randomNext: state.randomNext + 1 }, ok(state.randomNext)],
     now: () => state => [state, ok(state.epochNs)],
     // Virtual sandbox is a pass-through: the fixture's test function is
@@ -922,10 +1405,11 @@ const testContext = { test: todo }
  * Safe, inert defaults for every {@link NodeProgramOptions} field, intended for
  * proof files that need to call a program without owning the full literal.
  *
- * Proofs spread-override only what their test cares about:
+ * Proofs spread-override only what their test cares about; for the common
+ * case of arguments alone, {@link nodeProgramOptions} does it:
  *
  * ```ts
- * const opts: NodeProgramOptions = { ...defaultNodeProgramOptions, args }
+ * const opts: NodeProgramOptions = { ...defaultNodeProgramOptions, env }
  * ```
  *
  * Future additions to `NodeProgramOptions` only need a default added here,
@@ -943,3 +1427,10 @@ export const defaultNodeProgramOptions = {
     engine: 'node',
     inlineTestContext: false,
 }
+
+/**
+ * {@link defaultNodeProgramOptions} with the given command-line arguments.
+ *
+ * @type {(args: readonly string[]) => NodeProgramOptions}
+ */
+export const nodeProgramOptions = args => ({ ...defaultNodeProgramOptions, args })

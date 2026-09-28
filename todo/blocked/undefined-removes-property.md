@@ -11,10 +11,12 @@ It must be explicitly moved out before implementation.
 
 ### Scope
 
-[Undefined properties](../../spec/todo/1010-undefined-property.md) already
-states the language-level equivalence and restricts observations: `in` and bare
-`Object.entries`/`Object.values` are prohibited; the documented filtered patterns
-are permitted. This TODO neither revokes nor extends those restrictions. Its
+[Undefined properties](../../spec/todo/1010-undefined-property.md) withdrew
+the unconditional `{ x: undefined } ≡ {}` rule: an entry holding `undefined`
+is observable, so no language-level equivalence holds today. It keeps `in`
+and bare `Object.entries`/`Object.values` out of the language and proposes
+only the filtered enumeration patterns, as projections rather than proof of
+equivalence. This TODO neither revokes nor extends those restrictions. Its
 blocked status applies to this research, not to those specification documents.
 
 [The VM-layer question](../../spec/todo/1015-undefined-property-vm-layer.md)
@@ -23,9 +25,9 @@ settle it or authorize construction-time removal of `undefined`-valued entries.
 
 ### Problem
 
-Can that language-level equivalence extend to more operations or to the VM
-representation without changing successful JavaScript behavior in the supported
-subset? Direct property reads alone do not establish equivalence. These
+Can any narrower equivalence between an `undefined`-valued entry and an absent
+one hold, for some operations or in the VM representation, without changing
+successful JavaScript behavior in the supported subset? Direct property reads alone do not establish equivalence. These
 JavaScript examples distinguish the same objects after composition:
 
 ```js

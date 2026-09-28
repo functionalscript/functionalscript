@@ -16,10 +16,14 @@ grammars built on them:
 - [`token_symbol/`](./token_symbol/README.md), [`byte/`](./byte/README.md),
   [`utf16/`](./utf16/) — the alphabets: token names as symbols above Unicode,
   bytes, UTF-16 code units;
-- [`lib/`](./lib/) — grammars: JSON, DataJS, the JavaScript tokens.
+- [`railroad/`](./railroad/module.f.mjs) — a rule set read back as syntax
+  diagrams, one per rule a caller titles, drawn by
+  [`website/demo/railroad`](../website/demo/railroad/module.f.mjs);
+- [`lib/`](./lib/) — grammars: JSON, DataJS, the JavaScript tokens, Markdown
+  inlines.
 
 A module belongs here iff it defines, transforms or executes grammars over a
-symbol alphabet. `fsc` is a compiler and `js/tokenizer` the JavaScript token
+symbol alphabet. [`compiler`](../compiler/README.md) is a compiler and `js/tokenizer` the JavaScript token
 stream read from `lib/js`: both are consumers and stay out. The
 alphabet adapters are not parts of the front end, and nothing in the front
 end imports them: [`byte/`](./byte/README.md) builds on it, returning
@@ -76,7 +80,7 @@ every level.
   a string of BMP characters as is and an astral character as its two
   surrogate units — `'😀'` lowers to `0x1F600`, a symbol no unit is;
   `token_symbol/` names its symbols with a constructor instead, as
-  `fjs/fsc/parser` does with `sym()`.
+  `fjs/compiler/parser` does with `sym()`.
 - **`['const', c]`** is RTTI's escape under RTTI's name, for a plain rule
   behind a thunk. Every recursive rule pays it; RTTI pays the same.
 - **`['set', …]`** is a range set of ordinary symbols — a strictly increasing

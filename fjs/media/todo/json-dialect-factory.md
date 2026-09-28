@@ -11,11 +11,11 @@ concept, but it is spelled out verbatim in each dialect module. `revision`,
 `lock`, and `note` each define the same seven-line kit:
 
 ```js
-// revision/module.f.mjs:37-40, lock/module.f.mjs:45-48, note/module.f.mjs:46-49
+// revision, lock and note: dialect and mediaType
 export const dialect = /** @type {const} */ ('vnd.fjs.revision')   // .lock / .note
 export const mediaType = /** @type {const} */ (`application/${dialect}+json`)
 
-// revision :136-258, lock :77-114, note :111-129
+// revision, lock and note: encodeText, validate and decodeText
 export const encodeText = stringify(sort)
 const validateShape = rttiParse(theSchema)
 export const validate = value => okThen(checkReferences)(validateShape(value))  // note: no refinement
@@ -23,12 +23,12 @@ export const decodeText = text => okThen(validate)(parseJson(text))
 ```
 
 plus, where a refinement exists, the same `Result → boolean` adapter twice
-(`isValidRevision`, `revision/module.f.mjs:263`; `isValidLock`,
-`lock/module.f.mjs:119`), feeding `dialectEntry(schema, isValid…)`.
+(`isValidRevision` in `revision/module.f.mjs`, `isValidLock` in
+`lock/module.f.mjs`), feeding `dialectEntry(schema, isValid…)`.
 
 The media-type rule is derived a **fourth** time in the registry itself:
-`dialectEntry` returns only `{ dialect, match }`, so `detect` rebuilds
-`` `application/${matched.dialect}+json` `` (`module.f.mjs:165`) while the
+`dialectEntry` returns only `{ dialect, match }`, so `detect` in
+`module.f.mjs` rebuilds `` `application/${matched.dialect}+json` `` while the
 three exported `mediaType` constants are read by nothing but proofs.
 
 A fourth dialect is already planned
@@ -76,7 +76,7 @@ would erase those to a common supertype. Two facts make a precise signature
 straightforward rather than a guess:
 
 - **The value type needs no parameter.** `Revision`, `Lock`, and `Note` are
-  each already `Ts<typeof theSchema>` (`../revision/types.ts:52` and its
+  each already `Ts<typeof theSchema>` (`../revision/types.ts` and its
   siblings), so the factory derives the value from the schema parameter with
   the same `Ts<>` the modules use.
 - **The error union turns on the refinement alone.** `note`, which has no
@@ -123,11 +123,11 @@ export type JsonDialect<S extends Struct, E = never> = {
 ```
 
 **The constraint mirrors `dialectEntry`'s, deliberately.** That function is
-declared `@template {Struct} S` taking `@param {Rest<S, Type>} type`
-(`../module.f.mjs:126-127`), and the factory hands it the same schema — so a
+declared `@template {Struct} S` taking `@param {Rest<S, Type>} type` in
+`../module.f.mjs`, and the factory hands it the same schema — so a
 looser `S extends Type` would admit primitives and bare thunks the runtime
 rejects, and the call would need a cast or fail outright. The **parameter**
-is therefore `Rest<S, Type>`, not a bare struct: `../module.f.mjs:119-124`
+is therefore `Rest<S, Type>`, not a bare struct: `dialectEntry`'s JSDoc
 explains that a closed struct would make an older reader reject a blob a
 newer writer extended, which is the fail-closed misread the additive-
 extension rule exists to prevent. Every dialect states `open`, and the type
@@ -137,11 +137,14 @@ should require it.
 so.** `S extends Struct` admits a schema whose members include rtti `bigint`,
 but `encodeText` is `stringify(sort)` over the standard JSON serializer,
 whose `primitiveSerialize` sends anything that is not a boolean, number, or
-string to `nullSerialize` (`../json/module.f.mjs:59-66`) — so a `bigint`
+string to `nullSerialize` (`../json/module.f.mjs`) — so a `bigint`
 member would encode as `null`, silently, and `decodeText` would then reject
 what `encodeText` produced. The three dialects here are all JSON-valued, so
 nothing is wrong today; the gap is that a fourth could be added without the
-type objecting.
+type objecting. [leaf-serialize-arms](./leaf-serialize-arms.md) plans to make
+that arm assert instead of answering `null`; if it lands first, the serializer
+itself refuses an out-of-type `bigint`, and the refusals below that exist only
+for that case are the serializer's rather than the factory's.
 
 **Refuse it at construction**, the way `dialectEntry` already refuses a
 schema whose `dialect` is not a direct string:
@@ -150,7 +153,7 @@ schema whose `dialect` is not a direct string:
 assert(typeof dialect === 'string', 'dialectEntry: schema has no direct string `dialect` member')
 ```
 
-(`../module.f.mjs:134`). That is the same shape of problem — a schema rtti
+(`dialectEntry` in `../module.f.mjs`). That is the same shape of problem — a schema rtti
 accepts but this registry cannot use — answered loudly, once, when the entry
 is built rather than silently at encode time. The factory walks the schema's
 members and asserts each renders a JSON primitive, so a `bigint` member
@@ -160,13 +163,13 @@ with a `null`.
 **The walk must be cycle-safe, and must not hand-roll that.** A member's
 schema can be recursive: `revision`'s `lock` is
 `() => ['record', lockValue]` with `lockValue = () => ['or', string, lock]`
-(`../revision/module.f.mjs:75-86`), so `lock → lockValue → lock` is a cycle,
+(`../revision/module.f.mjs`), so `lock → lockValue → lock` is a cycle,
 and a naive descent through `array`/`record`/`or` would not terminate at
 module load — the very moment the assert runs. The schema's own JSDoc names
 both the hazard and the answer: the data form (`fjs/rtti/data`, which
 `toJsonSchema` already routes through) "closes reference cycles by
 identity", tracking schemas by identity rather than structure
-(`../../rtti/data/module.f.mjs:792`, `:850`).
+(`../../rtti/data/module.f.mjs`).
 
 Reuse that traversal rather than writing a visited set here — a second
 cycle-closing walk over rtti schemas is exactly the duplication this issue
@@ -176,10 +179,9 @@ silently diverge. Pin it: the proof must run the factory over
 
 Walk the **declared** members only, and do not follow the `open` rest. The
 rest contributes nothing to what `encodeText` accepts: `open(c)` is
-`rest(c, unknown)` (`../../rtti/module.f.mjs:166`), and `RestTs<C, R>` for a
-non-tuple container is `ConstTs<C>` (`../../rtti/ts/types.ts:353-354`), so
-the rest is discarded and `StructTs` adds no index signature
-(`:376-378`). `ValueOf<S>` *names* exactly the declared members, so walking
+`rest(c, unknown)` (`../../rtti/module.f.mjs`), and `RestTs<C, R>` for a
+non-tuple container is `ConstTs<C>` (`../../rtti/ts/types.ts`), so
+the rest is discarded and `StructTs` adds no index signature. `ValueOf<S>` *names* exactly the declared members, so walking
 them is what settles the schema's own kinds. Following the rest instead
 would reject all three dialects for an `unknown` that never reaches the
 encoder's parameter type.
@@ -195,12 +197,12 @@ below, not something a schema walk can reach.
 members are all JSON kinds still admits
 values the encoder cannot round-trip: rtti `number` has no finiteness
 refinement, `numberSerialize` is `[jsonStringify(input)]`
-(`../json/serializer/module.f.mjs:83-84`), and `JSON.stringify` renders
-`NaN` and `±Infinity` as `null` — a rule this repo already documents at
-`../json/extended/module.f.mjs:50-52`, in the same breath as the fact that
+(`../json/serializer/module.f.mjs`), and `JSON.stringify` renders
+`NaN` and `±Infinity` as `null` — a rule this repo already documents in
+`../json/extended/module.f.mjs`, in the same breath as the fact that
 those values "cannot arrive from JSON text but can be supplied
 programmatically". So `revisionSchema`'s
-`generation: number` (`../revision/module.f.mjs:128`) is a live instance:
+`generation: number` is a live instance:
 `encodeText({ …, generation: NaN })` emits `null` and `decodeText` then
 rejects it, exactly the `bigint` failure one layer down. Claiming the
 construction assert establishes "JSON-representable" without qualification
@@ -216,12 +218,18 @@ const jsonExact = x => Number.isFinite(x) && !Object.is(x, -0)
 ```
 
 Both bad cases are one failure. `NaN` and `±Infinity` serialize as `null`
-(`../json/extended/module.f.mjs:50-52`), and `-0` serializes as `0` —
+(`../json/extended/module.f.mjs`), and `-0` serializes as `0` —
 `JSON.stringify(-0)` is `"0"` — while this repo deliberately keeps the two
-apart: `../../types/object/structurally_same/module.f.mjs:25` says `0` and
-`-0` differ, and `../../rtti/data/module.f.mjs:122-128` orders them apart.
+apart: `../../types/object/structurally_same/module.f.mjs` says `0` and
+`-0` differ, and `../../rtti/data/module.f.mjs` orders them apart.
 Neither survives a round trip; one is rejected on the way back, the other
 silently changes value.
+
+**The `-0` half depends on an open decision.**
+[preserve-negative-zero](../json/todo/preserve-negative-zero.md) makes the
+standard serializer's `numberSerialize` write `-0` as `-0`. If it lands first,
+`-0` round-trips and `jsonExact` needs only `Number.isFinite`; the `-0` rows
+below are then the serializer's proofs, not the factory's.
 
 **Why `validate` owns this and not "the value came from JSON text".**
 Provenance is not something the type carries. `validate` is a *public*
@@ -230,8 +238,8 @@ so `validate({ dialect: 'x', value: NaN })` is a well-typed call on a
 hand-built object — scoping the guarantee to JSON-sourced values would be
 an assumption about callers, not a property of the API. And `-0` needs no
 such caller at all: `../json/module.f.mjs`'s parser returns negative zero
-for the `-0` literal, pinned at `../json/extended/proof.f.mjs:61`
-(`Object.is(parseValue('-0'), -0)`), so it arrives from JSON text.
+for the `-0` literal — the extended codec's proof pins the same for its
+reader (`Object.is(parseValue('-0'), -0)`) — so it arrives from JSON text.
 
 **One generic walk, after the parse — not a schema-specialized check.** It
 would be possible to compile the schema's `number` positions at construction
@@ -241,8 +249,8 @@ member path and a traversal only where it is a pattern beneath an
 dialects that have no numbers, and pays for it with compiled positions, two
 checking strategies to keep in agreement, and the schema's reference cycles
 to re-handle — optimization ahead of any measured need, which
-the repo-root `AGENTS.md:23-26` puts first among the three principles that
-outrank everything else. The generic walk is over the *rebuilt value*, a finite JSON
+the repo-root [`AGENTS.md`](../../../AGENTS.md) puts first among the three
+principles that outrank everything else. The generic walk is over the *rebuilt value*, a finite JSON
 tree, so it has no cycle problem at all — the cycle hazard was in walking
 schemas, and this walk never does.
 
@@ -260,11 +268,11 @@ the value `validate` *returns*, which is the one thing both sides share. It
 cannot be stated over an accepted input, because these schemas are
 deliberately `open` and `rttiParse` rebuilds declared members only:
 `parse(open({ a: number }))({ a: 1, b: 2 })` is `['ok', { a: 1 }]`, spelled
-out in the reader's own JSDoc (`../../rtti/parse/module.f.mjs:525-533`). So
+out in the reader's own JSDoc (`../../rtti/parse/module.f.mjs`). So
 a revision carrying a `future` field is accepted while `encodeText` of the
 *input* would carry a member the round trip drops — and `ValueOf<S>` cannot
 exclude that input, since TypeScript object types are structurally open.
-Dropping extras is the versioning rule working as designed (`../module.f.mjs:119-124`);
+Dropping extras is the versioning rule working as designed (`dialectEntry`'s JSDoc);
 the contract just has to be stated where it is true.
 
 On `validate`'s output the fixpoint holds exactly, with no caveat about
@@ -274,8 +282,8 @@ the offending path — which the walk collects as it descends, and which
 signature changes.
 
 `revision` should still add `Object.is(r.generation, -0)` beside its
-existing check (`:232`), but now as a better message rather than as the
-guarantee: `../revision/module.f.mjs:204-208` already argues a generation is
+existing check in `checkReferences`, but now as a better message rather than
+as the guarantee: that function's JSDoc already argues a generation is
 an exact count derived as `1 + max(parents')`, which never yields negative
 zero, so the dialect has its own reason to name the value. It stops being
 load-bearing once the factory enforces the rule.
@@ -284,7 +292,7 @@ load-bearing once the factory enforces the rule.
 reports.** `encodeText` is public and takes a bare `ValueOf<S>`, with
 nothing marking the value as having passed `validate`, so a caller may hand
 it one that never did. `fjs/cas/evo` does exactly that in production:
-`encodeText(canonicalRevision)` (`../../cas/evo/module.f.mjs:521`), on a
+`encodeText(canonicalRevision)` (`../../cas/evo/module.f.mjs`), on a
 revision that module builds itself. Left unchecked, a `NaN` `generation`
 there produces well-formed JSON containing `null` — a plausible wrong
 answer to an unsupported input, which `doc/DESIGN.md §10` refuses outright.
@@ -299,7 +307,7 @@ types are structurally open, so a *variable* holding
 object literal would be caught, by excess-property checking). `stringify`
 walks the runtime object, not the schema, and `primitiveSerialize` sends
 anything that is not a boolean, number, or string to `nullSerialize`
-(`../json/module.f.mjs:59-65`) — so that `bigint` is emitted as
+(`../json/module.f.mjs`) — so that `bigint` is emitted as
 `"future": null`. Checking only numbers at this boundary would leave
 exactly the failure the boundary exists to prevent.
 
@@ -327,8 +335,8 @@ They differ in how they fail, too:
 - `encodeText` receives a **typed value the caller vouched for**. A leaf
   that cannot be encoded is a broken precondition, i.e. a programming
   error, and this repo answers those with a loud `assert` — the same
-  instrument `dialectEntry` uses one line above its own cast
-  (`../module.f.mjs:134`). Changing the return type to a `Result` would
+  instrument `dialectEntry` uses one line above its own cast. Changing the
+  return type to a `Result` would
   break `evo` and every other caller for a case that is a bug at the call
   site, not a runtime condition to handle.
 
@@ -344,7 +352,7 @@ A type constraint — requiring `ValueOf<S>` assignable to `JsonUnknown` — is
 strictly better where it can be expressed, since it moves the failure to
 compile time, and is worth attempting first. But it is not a substitute for
 the assert and must not be the only answer: `dialectEntry`'s own JSDoc
-(`../module.f.mjs:113-118`) records that TypeScript could not express the
+records that TypeScript could not express the
 direct-string-`dialect` half either, which is why the assert exists. Assume
 the same may hold here. A JSDoc precondition alone is **not** an option: it
 constrains no caller, and this issue's own task requires refusal rather than
@@ -370,22 +378,22 @@ construction-time assert, not optimism: the schema has already been refused
 if any member is a non-JSON kind, so by the time either boundary runs, the
 cast restates a fact established at module load. That is exactly the trade
 `dialectEntry` already makes one line above its own assert —
-`/** @type {ValidateE} */ (rttiParse(type))` (`../module.f.mjs:135`) — an
+`/** @type {ValidateE} */ (rttiParse(type))` — an
 erased cast paid for by a check that ran first. Keep the constraint if it
 expresses; if it doesn't, this is the shape of the fallback, and it is
 sound for the same reason.
 
 **The value is `Ts<S>` — not `Ts<Rest<S, Type>>`.** The two are the
 same type here: `RestTs<C, R>` is `C extends Tuple ? TupleRestTs<C, R> :
-ConstTs<C>` (`../../rtti/ts/types.ts:353-354`), so for a non-tuple container
+ConstTs<C>` (`../../rtti/ts/types.ts`), so for a non-tuple container
 the rest is *discarded*, and `Ts` of a bare struct falls through to
-`ConstTs` as well (`:484`). Both spellings reduce to `ConstTs<S>`, which is
+`ConstTs` as well. Both spellings reduce to `ConstTs<S>`, which is
 exactly the `Revision`/`Lock`/`Note` each module already derives.
 
 Prefer the short one. Writing `Ts<Rest<S, Type>>` in a *generic* signature
 makes inference expand the wrapper through rtti's recursive `Type` and risks
 TS2589 — a hazard this file takes seriously enough to carry an explicit
-fast-path against (`../../rtti/ts/types.ts:451-453`). Since the long form
+fast-path against in `Ts`. Since the long form
 buys nothing for a struct, it is only a way to fail the `tsc` check the
 tasks below require.
 
@@ -396,25 +404,24 @@ thing this section exists to prevent. Deriving it from `S` removes the
 problem: `S` *is* inferable, from the first argument.
 
 The derivation is sound because each schema already pins the tag —
-`revisionSchema = open(/** @type {const} */ ({ dialect, … }))`
-(`../revision/module.f.mjs:123`) — and it is the type-level counterpart of
-what `dialectEntry` does at runtime, reading `dialect` off the schema and
-asserting it is a string (`../module.f.mjs:131-135`). If `Ts<>` turns out to
+`revisionSchema = open(/** @type {const} */ ({ dialect, … }))` — and it is
+the type-level counterpart of what `dialectEntry` does at runtime, reading
+`dialect` off the schema and asserting it is a string. If `Ts<>` turns out to
 widen the member rather than preserving the literal, the fallback is an
 explicit first argument, `jsonDialect(dialect, schema, …)` — which costs a
 redundant-looking parameter but keeps the literal, and is the only other way
 to make it inferable.
 
 Constraining `S` at all is required, not decorative: `Ts` is declared
-`Ts<T extends Type>` (`../../rtti/ts/types.ts:450`), so an unconstrained
+`Ts<T extends Type>` (`../../rtti/ts/types.ts`), so an unconstrained
 parameter does not typecheck anywhere `ValueOf` reaches it.
 
-The `JsonUnknown` alias is load-bearing too. `../types.ts:8` already binds
+The `JsonUnknown` alias is load-bearing too. `../types.ts` already binds
 the bare name `Unknown` to rtti's — the encoding-neutral one admitting
-`bigint` and `undefined` — and its own JSDoc at `:14-15` draws exactly this
-contrast for `DialectEntry.match`. But the three `validate` exports take
-`fjs/media/json`'s JSON-only `Unknown` (`../revision/module.f.mjs:17`,
-`../note/module.f.mjs:28`), so writing the bare name in this file would
+`bigint` and `undefined` — and its JSDoc on `DialectEntry.match` draws exactly
+this contrast. But the three `validate` exports take `fjs/media/json`'s
+JSON-only `Unknown` (the `@import`s of `../revision/module.f.mjs` and its
+siblings), so writing the bare name in this file would
 silently widen their parameter type and break the identical-declarations
 requirement below. Import the JSON one under an explicit alias.
 
@@ -437,11 +444,10 @@ Each dialect module then states its schema and (for `revision`/`lock`) its
 describing the format, the mechanics live once.
 
 **Re-export under the existing names.** The kit's `entry` is generic, but
-each module publishes its own: `revisionDialect` (`../revision/module.f.mjs:276`),
-`lockDialect` (`../lock/module.f.mjs:131`), and `noteDialect`
-(`../note/module.f.mjs:138`). These are not proof-only conveniences —
-`../../mcp/cas/module.f.mjs:120-122` imports all three and passes them to
-`detect` at `:168`, and `../module.f.mjs:17` names them in its own JSDoc — so
+each module publishes its own: `revisionDialect`, `lockDialect`, and
+`noteDialect`. These are not proof-only conveniences —
+`../../mcp/cas/module.f.mjs` imports all three and passes them to `detect`,
+and `../module.f.mjs` names them in its own module JSDoc — so
 spreading the kit and letting `entry` stand would delete three public names
 that production code depends on. Each module keeps its own:
 
@@ -452,11 +458,10 @@ export const revisionDialect = kit.entry
 The same applies to every other name the modules publish today: `dialect`,
 `mediaType`, `encodeText`, `validate`, `decodeText`, `isHash` on `revision`,
 and — the one this list first missed — **`checkReferences` on both
-`revision` and `lock`**. That one is not a detail: `../../cas/evo/module.f.mjs:78`
+`revision` and `lock`**. That one is not a detail: `../../cas/evo/module.f.mjs`
 imports `revision`'s alongside `encodeText`, `decodeText`, `dialect` and
-`isHash`, so deleting it breaks production, and `lock`'s is exported at
-`../lock/module.f.mjs:94` with its own proof rows
-(`../lock/proof.f.mjs:117-123`). The refinement is the **input** the factory
+`isHash`, so deleting it breaks production, and `lock`'s is exported with its
+own proof rows in `../lock/proof.f.mjs`. The refinement is the **input** the factory
 takes, not something it replaces: each module keeps defining and exporting
 its own, and passes it in. `note` has none, which is exactly why the
 factory's `checkReferences` parameter is optional.
@@ -472,10 +477,10 @@ For the media type, share the **rule**, not a field on the entry:
 const dialectMediaType = dialect => `application/${dialect}+json`
 ```
 
-`detect` keeps deriving from `matched.dialect` (`module.f.mjs:165`) and the
+`detect` keeps deriving from `matched.dialect` and the
 factory builds each module's exported `mediaType` constant with the same
 helper, so the two stop being independent spellings of one rule. Do **not**
-move the derivation onto `DialectEntry`: `../types.ts:18-28` states that the
+move the derivation onto `DialectEntry`: its JSDoc in `../types.ts` states that the
 type is deliberately not opaque and a caller may write the `{ dialect, match }`
 struct by hand, so reading `matched.mediaType` in `detect` would report
 `undefined` for every handwritten entry, and making the field required would
@@ -488,11 +493,11 @@ additionally) `fjs/types/result` grows the `isOk` they both hand-roll.
 **`match` and `validate` must be the same acceptance rule.** This is where
 the adapters going into the factory earns its keep, and it is not optional.
 `dialectEntry` builds `match` as `matchWith(rttiParse(type))(extraValidate)`
-(`../module.f.mjs:136`, `:72-75`) — the rtti shape check plus whatever
+— the rtti shape check plus whatever
 boolean the registrant passed, and nothing else. If the factory's exact-number
 walk lives only in its `validate`, the two predicates diverge: for a
 factory-built dialect that supplies no refinement, `detect` would classify a
-blob carrying `-0` as `application/vnd.fjs.x+json` (`:165`) while that
+blob carrying `-0` as `application/vnd.fjs.x+json` while that
 dialect's own `decodeText` rejects it — detection labelling a blob its
 decoder will not read, which is the plausible-wrong-answer failure
 `doc/DESIGN.md §10` refuses.
@@ -504,10 +509,10 @@ schema a second time:
 const entry = { dialect, match: u => isOk(validate(/** @type {JsonUnknown} */ (u))) }
 ```
 
-The cast is the one `dialectEntry` already performs for the same reason
-(`../module.f.mjs:135`): `DialectEntry.match` takes rtti's encoding-neutral
-`Unknown` so an entry stays usable by a future non-JSON detector
-(`../types.ts:14-16`), while `validate` takes the JSON-only one. One rule,
+The cast is the one `dialectEntry` already performs for the same reason:
+`DialectEntry.match` takes rtti's encoding-neutral `Unknown` so an entry stays
+usable by a future non-JSON detector (its JSDoc in `../types.ts`), while
+`validate` takes the JSON-only one. One rule,
 two spellings of the same question — which is this issue's whole point, one
 level up from the seven-line kit.
 
@@ -540,11 +545,11 @@ level up from the seven-line kit.
 - [ ] Walk `encodeText`'s argument for `jsonLeaf` — every runtime leaf, not
       just the numbers — and `assert` rather than returning a `Result`. It
       takes a bare `ValueOf<S>` no one has to have validated, and
-      `../../cas/evo/module.f.mjs:521` calls it directly. Prove both leaf
+      `fjs/cas/evo` calls it directly. Prove both leaf
       kinds throw rather than encoding: a `NaN` `generation`, and an extra
       member the type system cannot exclude —
       `const r = { ...revision, future: 1n }; encodeText(r)`, which today
-      emits `"future": null` (`../json/module.f.mjs:59-65`). Do not strip
+      emits `"future": null`. Do not strip
       the value through the schema instead; refuse it. Confirm `evo`'s
       existing proofs still pass.
 - [ ] Run one generic `jsonExact` walk over the value `rttiParse` rebuilds,
@@ -556,13 +561,13 @@ level up from the seven-line kit.
       element (the case a per-schema check would have missed); and the
       fixpoint `decodeText(encodeText(validate(x)[1])) = validate(x)` for a
       revision — stated on `validate`'s **output**, since `open` schemas
-      drop undeclared members (`../../rtti/parse/module.f.mjs:525-533`) and
+      drop undeclared members (`../../rtti/parse/module.f.mjs`) and
       the identity does not hold over an accepted input. Compare with
       `assertStructurallySame`, not `Object.is` — `decodeText` builds a
       fresh object, so `Object.is` on the whole value is false for any
       input; the structural comparison is the one that reaches primitives
       with `Object.is` and so still separates `0` from `-0`
-      (`../../types/object/structurally_same/module.f.mjs:25`).
+      (`../../types/object/structurally_same/module.f.mjs`).
 - [ ] Add a proof row for the dropped-extras case itself, so the fixpoint's
       scope is pinned rather than assumed: a revision blob with a `future`
       member validates, and the value it returns does not carry it.
@@ -574,7 +579,7 @@ level up from the seven-line kit.
       that would otherwise diverge: for a factory-built dialect with no
       refinement, a blob whose only fault is a `-0` is rejected by
       `decodeText` **and** not classified by `detect` — today's `match`
-      (`../module.f.mjs:136`) would accept it, since it runs the shape check
+      would accept it, since it runs the shape check
       and the refinement only.
 - [ ] Rewrite `revision`, `lock`, and `note` over it; delete the per-module
       copies and the two `isValid…` adapters. Keep every published name —
@@ -583,10 +588,10 @@ level up from the seven-line kit.
       `decodeText`, `revision`'s `isHash`, and `checkReferences` on both
       `revision` and `lock` — the refinement stays each module's own
       definition and export, passed *into* the factory
-      (`../../cas/evo/module.f.mjs:78` imports `revision`'s).
+      (`../../cas/evo/module.f.mjs` imports `revision`'s).
 - [ ] Diff the three modules' `.d.mts` against the pre-change ones: the set
       of exported names and their types should be identical. That is the
-      check, not reading the diff — `../../mcp/cas/module.f.mjs:120-122` is
+      check, not reading the diff — `../../mcp/cas/module.f.mjs` is
       production code importing the three entry names.
 - [ ] `tsc`, `fjs t`; the media and mcp proofs pass unchanged.
 
@@ -595,5 +600,11 @@ level up from the seven-line kit.
 - [change-content-format.md](./change-content-format.md) — the planned
   fourth dialect; land the factory first so `change` states only its schema.
 - [json/todo/stringify-sorted-canonical.md](../json/todo/stringify-sorted-canonical.md)
-  — the `stringify(sort)` idiom; its site list predates these three
-  `encodeText` copies, which the factory would collapse to one.
+  — the `stringify(sort)` idiom; the three `encodeText` copies are among its
+  sites, and the factory would collapse them to one.
+- [json/todo/preserve-negative-zero.md](../json/todo/preserve-negative-zero.md)
+  — makes the standard serializer keep `-0`, which removes the `-0` half of
+  `jsonExact`'s reason.
+- [leaf-serialize-arms](./leaf-serialize-arms.md) — makes the standard
+  serializer assert on an out-of-type `bigint` rather than writing `null`,
+  which overlaps `jsonLeaf`'s encode-side refusal.

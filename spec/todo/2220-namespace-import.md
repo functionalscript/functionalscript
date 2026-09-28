@@ -41,7 +41,7 @@ export type Value = readonly [number];
 
 Both JavaScript's JSDoc references and TypeScript's `import type` declarations
 name the same real `types.ts` source file, following the
-[shared module policy](../../fjs/fsc/README.md). Do not introduce a `types.js`
+[shared module policy](../../fjs/compiler/README.md). Do not introduce a `types.js`
 runtime module or rely on extension substitution for these source references.
 FJS treats the JSDoc as a comment; it neither loads that companion nor gains a
 TypeScript grammar.
@@ -64,6 +64,8 @@ an annotation: the import still has JavaScript dependency semantics.
 ## Related
 
 - [Import](../README.md#importing-other-modules).
+- [Named imports](../README.md#importing-other-modules) — implemented selection of
+  exported bindings; namespace imports are not its prerequisite.
 - [Standard type annotations](../../todo/blocked/js-extension-type-annotations.md)
   — blocked until ECMAScript standardizes the syntax and declared runtimes support it.
 - [ECMAScript namespace imports](https://tc39.es/ecma262/multipage/ecmascript-language-scripts-and-modules.html#prod-NameSpaceImport).

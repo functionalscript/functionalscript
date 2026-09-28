@@ -5,40 +5,52 @@
 
 ### Problem
 
-The defect [derived-keyword-union](../../keywords/todo/derived-keyword-union.md)
-files against `keywords`, in its sibling: [`module.f.mjs`](../module.f.mjs)
-declares seven per-type lists and then `prototypeNames`, about a hundred
-strings re-typed by hand in alphabetical order, held to the lists by a
-proof:
+[`module.f.mjs`](../module.f.mjs) declares seven per-type lists and then
+`prototypeNames`, about a hundred strings re-typed by hand in alphabetical
+order, held to the lists by a proof:
 
 ```js
-// fjs/js/prototype/proof.f.mjs, aggregate      // fjs/js/keywords/proof.f.mjs, aggregate
-const union = new Set(lists.flat())              const union = [...reservedWords, …, ...literalGlobals]
+// fjs/js/prototype/proof.f.mjs, aggregate
+const union = new Set(lists.flat())
 assertEq(prototypeNames.join(), sorted([...union]))
-                                                 assertEq(keywords.join(), union.toSorted((a, b) => a < b ? -1 : 1).join())
-assertEq(prototypeNames.length, union.size)      assertEq(keywords.length, new Set(keywords).size)
+assertEq(prototypeNames.length, union.size)
 ```
 
-Both proofs also spell the comparator inline rather than `cmp` from
-`fjs/types/string`. And the placement disagrees: `prototype/types.ts`
-states that a compile-time claim about exports lives at module scope and
-holds `_NamesPinned` there; `keywords` has no `types.ts` and buries its pin
-in a proof-body typedef.
+Its sibling `fjs/js/keywords` had the same defect and now derives
+`keywords` from its groups instead:
+
+```js
+// fjs/js/keywords/module.f.mjs
+const groups = [...reservedWords, ...strictModeReservedWords, ...restrictedNames, ...literalGlobals]
+
+/** @type {readonly (typeof groups)[number][]} */
+export const keywords = groups.toSorted()
+```
+
+The proof there reduces to one check — strictly ascending, so sorted and
+each name once — plus the type-level pin that the element type is the
+literal union. The derivation widened `keywords`' public type from the exact
+`as const` tuple to a `readonly` array of that union, and was declared as a
+breaking change for it.
+
+The placement also disagrees: `prototype/types.ts` states that a
+compile-time claim about exports lives at module scope and holds
+`_NamesPinned` there; `keywords` has no `types.ts` and keeps its pin in a
+proof-body typedef. And this proof spells the comparator inline rather than
+`cmp` from `fjs/types/string`.
 
 ### Proposal
 
-Whatever the keyword issue decides — derive the union from the lists,
-sorted, with the literal type preserved — is decided once and applied
-here too; the two proofs share one sorted-and-distinct check; `keywords`
-gains the `types.ts` its sibling's rule asks for.
+Apply the `keywords` construction here: derive `prototypeNames` from the
+seven lists, sorted, with the literal element type preserved, and declare
+the same tuple→array widening. Unlike the keyword groups, the prototype
+lists share names (`toString`, `valueOf`, …), so the derivation dedupes
+before sorting. Decide whether `keywords` gains the `types.ts` its sibling's
+rule asks for.
 
 ### Tasks
 
-- [ ] Land with, or immediately after, the keyword derivation, by the same
-      construction.
+- [ ] Derive `prototypeNames` by the `keywords` construction, deduped.
+- [ ] Declare the type widening with a `**BREAKING CHANGES:**` changelog
+      item in the implementing PR.
 - [ ] `tsc`, `fjs test`.
-
-### Related
-
-- [`../../keywords/todo/derived-keyword-union.md`](../../keywords/todo/derived-keyword-union.md) —
-  the same construction, scoped to `keywords` only.

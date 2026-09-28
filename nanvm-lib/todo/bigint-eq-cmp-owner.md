@@ -8,16 +8,16 @@
 `PartialEq` and `Ord` for `BigInt<A>` are computed by two independent owners:
 
 ```rust
-// src/vm/bigint/partial_eq.rs:3-7 — generic container walk (header, then items)
+// PartialEq for BigInt, src/vm/bigint/partial_eq.rs — generic container walk (header, then items)
 impl<A: IVm> PartialEq for BigInt<A> {
     fn eq(&self, other: &Self) -> bool {
         self.0.items_eq(&other.0)
     }
 }
 
-// src/vm/bigint/cmp.rs:12-23 — bigint's own sign dispatch over abs_cmp_vec
-let lhs_sign = *self.0.header();
-let rhs_sign = *rhs.0.header();
+// Ord for BigInt, src/vm/bigint/cmp.rs — bigint's own sign dispatch over abs_cmp_vec
+let lhs_sign = self.sign();
+let rhs_sign = rhs.sign();
 match (lhs_sign, rhs_sign) { ... }
 ```
 

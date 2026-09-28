@@ -1,6 +1,6 @@
 /**
  * Type-level API of the class-by-role matrix: what it is generated from.
- * The matrix itself is `spec/datajs/vectors/matrix.md`, and the prose that
+ * The matrix itself is `spec/datajs/vectors/gen.matrix.md`, and the prose that
  * says why it exists is `spec/datajs/vectors/README.md`.
  *
  * @module

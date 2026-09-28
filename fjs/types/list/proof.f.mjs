@@ -3,7 +3,7 @@
  * @import { List } from './types.ts'
  */
 
-import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, take, takeWhile, toArray, zip, first, filterMap, isEmpty, equal, tryFold } from './module.f.mjs'
+import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, someBy, none, includes, take, takeWhile, toArray, zip, first, filterMap, isEmpty, equal, tryFold } from './module.f.mjs'
 import { stringify } from '../../media/json/module.f.mjs'
 import { sort } from '../object/module.f.mjs'
 import { addition, strictEqual, reduceToScan } from '../function/operator/module.f.mjs'
@@ -210,6 +210,28 @@ const logic = () => {
     ]
 }
 
+const quantifiers = () => {
+    const gt5 = (/** @type {number} */ x) => x > 5
+
+    return {
+        someBy: [
+            () => assertEq(someBy(gt5)([0, 1, 7]), true),
+            () => assertEq(someBy(gt5)([0, 1, 4]), false),
+            () => assertEq(someBy(gt5)([]), false),
+        ],
+        none: [
+            () => assertEq(none(gt5)([0, 1, 7]), false),
+            () => assertEq(none(gt5)([0, 1, 4]), true),
+            () => assertEq(none(gt5)([]), true),
+        ],
+        includes: [
+            () => assertEq(includes(4)([0, 4, 7]), true),
+            () => assertEq(includes(4)([0, 1, 7]), false),
+            () => assertEq(includes(4)([]), false),
+        ],
+    }
+}
+
 // stress tests
 
 const stress = () => ({
@@ -318,6 +340,7 @@ export const proof = {
     reverse: reverseTest,
     zip: zipTest,
     logic,
+    quantifiers,
     strictEqual: [
         () => {
             const result = equal(strictEqual)([1])([2, 3])

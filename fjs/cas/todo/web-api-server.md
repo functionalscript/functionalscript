@@ -39,14 +39,13 @@ set over HTTP(S):
 - large blobs favour HTTP *in principle*: the protocol streams
   request/response bodies, so `add`/`get` of arbitrary-size content is a
   natural fit for this transport where MCP is capped at 128 KiB of inline
-  content. But the current HTTP effects do not stream:
-  `IncomingMessage.body` / `ServerResponse.body`
-  (`fjs/effects/node/module.f.mjs`) are single `Vec`s, and the Node runner
-  buffers the whole request (`collect(req)` → `listToVec`) — past the
-  128 KiB `Vec` limit it throws. The CAS store side already streams
-  (`Cas.read`/`Cas.write` deal in chunk lists), so lifting the cap needs
-  **streaming request/response body effects** as a prerequisite; until that
-  design exists, an HTTP adapter inherits the same inline cap as MCP.
+  content. The HTTP effects meet it. `ServerResponse.body`
+  (`fjs/effects/node/types.ts`) is a lazy `List` the runner pulls at the socket's
+  pace, so a `get` of any size is answered with one chunk of the blob held rather
+  than the blob. `IncomingMessage.body` is a `List` the listener pulls
+  from, with no cap and no `413`, so an `add` of any size has a way in. The CAS
+  store side already streams (`Cas.read`/`Cas.write` deal in chunk lists), so what
+  this transport still waits on is not the bodies at all: it is the server itself.
 
 **Human-readable HTML pages.** The same server should also serve HTML, so a
 human can browse a CAS in an ordinary browser — one server, two
@@ -57,7 +56,7 @@ should cover at least:
 - the hash list (`list`) as a page of links;
 - a blob page (`get`): metadata (size, detected media type) plus a rendered
   view of the content — images inline, text as text, JSON syntax-highlighted
-  ([fjs/media/json-html](../../media/html/todo/665-json-html.md) is the
+  ([fjs/media/json-html](../../media/json/todo/665-json-html.md) is the
   building block for that), binaries as a download link;
 - recognized dialects rendered with their structure: a
   `vnd.fjs.revision` blob (`fjs/media/revision/`) should show its `subject`,
@@ -72,10 +71,16 @@ HTML form is an exposure-matrix decision for
 
 - [ ] Wait for the CAS command architecture design
       ([command-architecture](./command-architecture.md)).
-- [ ] Streaming HTTP request/response body effects in `fjs/effects/node`
-      ([streaming-http-bodies](../../effects/node/todo/streaming-http-bodies.md))
-      — prerequisite for arbitrary-size `add`/`get`; without it the adapter
-      keeps the 128 KiB inline cap.
+- [x] Streaming HTTP **request** body effects in `fjs/effects/node`
+      ([streaming-http-bodies](../../effects/node/todo/streaming-http-bodies.md),
+      stage 2). — `IncomingMessage.body` is a `List` the listener pulls from,
+      uncapped, so an `add` of any size has a way in and the adapter needs no
+      128 KiB inline cap on what a client sends.
+- [ ] Serve a blob without materializing it. The effect it waited on has landed:
+      `ServerResponse.body` is a lazy `List` the runner pulls at the socket's pace
+      ([streaming-http-bodies](../../effects/node/todo/streaming-http-bodies.md)),
+      so what is left is this adapter writing a blob as one. No size bounds what it
+      can serve any more.
 - [ ] Design authentication and the exposed command subset.
 - [ ] Design the HTML browsing surface: routes / content negotiation, the
       list and blob pages, dialect-aware rendering (revision DAG links).
@@ -89,7 +94,7 @@ HTML form is an exposure-matrix decision for
 - [command-architecture](./command-architecture.md) — prerequisite design.
 - [`fjs/cas/evo`](../evo/) — already floats an HTTP(S) server and its auth
   question.
-- [fjs/media/json-html](../../media/html/todo/665-json-html.md) — JSON →
+- [fjs/media/json-html](../../media/json/todo/665-json-html.md) — JSON →
   syntax-highlighted HTML rendering for the blob page.
 - `fjs/media/revision/` — dialect whose blobs the browser should render as a
   navigable DAG.
@@ -98,6 +103,6 @@ HTML form is an exposure-matrix decision for
 - [`fjs/web`](../../web/README.md) — the static file server, already built on
   these effects; a CAS HTTP front end is the same layer with a command set
   behind it instead of a file system.
-- `fjs/effects/node/module.f.mjs` (`IncomingMessage`/`ServerResponse`) — the
-  whole-body `Vec` HTTP effects that need a streaming redesign before this
-  transport can carry blobs past 128 KiB.
+- `fjs/effects/node/types.ts` (`IncomingMessage`/`ServerResponse`) — both bodies
+  are `List`s, one the listener pulls and one the runner pulls, so nothing here
+  caps what this transport can carry in either direction.

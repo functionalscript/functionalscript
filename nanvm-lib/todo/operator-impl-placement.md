@@ -8,14 +8,14 @@
 Two more single-type impls sit in the `vm/impls/` grab-bag — the same
 violation already filed for `Debug for String` and the UTF-16 `From` impls:
 
-- `src/vm/impls/add.rs:5-10` and `src/vm/impls/add_assign.rs:5-9` —
+- `src/vm/impls/add.rs` and `src/vm/impls/add_assign.rs` —
   `Add`/`AddAssign for String<A>` is string concatenation, pure
   string-domain logic, while `vm/string/` exists and already holds
   `index.rs`, `partial_eq.rs`, `sized_index.rs`, `to_string.rs`.
-- `src/vm/impls/mul.rs:5-11` — `Mul for Any<A>`, while `Any`'s other
+- `src/vm/impls/mul.rs` — `Mul for Any<A>`, while `Any`'s other
   operators live in `vm/any/add.rs`, `vm/any/neg.rs`,
   `vm/any/partial_eq.rs`. The convention is stated in the opposite direction
-  at `src/vm/bigint/mul.rs:9`: "BigInt's Mul is implemented here, not under
+  in `src/vm/bigint/mul.rs`'s comment on `Mul for BigInt`: "BigInt's Mul is implemented here, not under
   impls, because it needs private BigInt's stuff."
 
 ### Proposal

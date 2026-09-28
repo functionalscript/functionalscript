@@ -10,17 +10,22 @@ split off the root — and the rootedness rule is re-stated beside it:
 
 ```js
 // ../module.f.mjs
-124: export const root = path => split(toPosix(path))[0]
-139:     const [r, rest] = split(toPosix(path))
-140:     return posixSegments(r !== '')(rest)
-160: export const escapes = path => posixSegments(false)(split(toPosix(path))[1]).includes('..')
-169: export const normalize = path => rejoin(split(toPosix(path)))
-183:     const [rb, restb] = split(toPosix(b))
+// root
+export const root = path => split(toPosix(path))[0]
+// parse
+    const [r, rest] = split(toPosix(path))
+    return posixSegments(r !== '')(rest)
+// escapes
+export const escapes = path => posixSegments(false)(split(toPosix(path))[1]).includes('..')
+// normalize
+export const normalize = path => rejoin(split(toPosix(path)))
+// concat
+    const [rb, restb] = split(toPosix(b))
 ```
 
 `split(toPosix(p))` appears five times, and "a path is rooted exactly when
-its root is non-empty" (`r !== ''`) at three sites: `:101`, `:140`, and
-`:184`. `escapes` (`:160`) is not a fourth — it passes a literal `false`,
+its root is non-empty" (`r !== ''`) at three sites: `rejoin`, `parse`, and
+`concat`. `escapes` is not a fourth — it passes a literal `false`,
 deliberately declining the test, because an escape check treats even a
 rooted path's `..` as escaping. The module's own docs leave root detection
 open (UNC `server/share`, drive-relative `C:foo`), so a change there
@@ -45,9 +50,9 @@ has to cover all three or the "one owner" claim is not true:
 
 | site | today | reads as |
 |---|---|---|
-| `rejoin` (`../module.f.mjs:101`) | `posixSegments(r !== '')` | via `segmentsOf` |
-| `parse` (`:140`) | `posixSegments(r !== '')` | via `segmentsOf` |
-| `concat` (`:184`) | `if (rb !== '')` | `if (isRooted(pb))` |
+| `rejoin` | `posixSegments(r !== '')` | via `segmentsOf` |
+| `parse` | `posixSegments(r !== '')` | via `segmentsOf` |
+| `concat` | `if (rb !== '')` | `if (isRooted(pb))` |
 
 `rejoin` matters most among them — `normalize` and `concat` reach the folding
 rule only by delegating to it, so leaving its own `r !== ''` would let every
@@ -58,7 +63,7 @@ a different decision — does an absolute `b` replace `a` — and so is
 reachable through neither `parts` nor `segmentsOf`.
 
 That table is the whole set: the only other `!== ''` in the module is
-`base !== ''` at `:212`, which tests a served-prefix argument rather than a
+`base !== ''` in `relativize`, which tests a served-prefix argument rather than a
 decoded root. After the rewrite, `root`, `parse`, `normalize`, and `concat`
 are single expressions over `parts`/`segmentsOf`/`rejoin`, the rootedness
 rule has one definition, and `escapes` keeps its explicit `false` as the

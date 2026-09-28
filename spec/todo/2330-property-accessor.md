@@ -16,7 +16,7 @@ source pattern and the `Object.hasOwn`-based alternative. `Object.hasOwn`
 and `obj.hasOwnProperty(...)` are prohibited source operations, not operations
 to reinterpret. [Enumerable presence](./2345-has-own-property.md) proposes a
 separate `hasEntity` pattern. All such instructions follow
-[statement-aware AST recognition](../../fjs/fsc/parser/todo/statement-aware-intrinsics.md).
+[statement-aware AST recognition](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md).
 
 Syntax examples (planned computed/runtime-key forms included):
 
@@ -35,10 +35,10 @@ const c3 = entry(a, c2)
 In this note we consider whether or not to support JS's property accessors, maybe also
 considering partial support. A very important aspect is - whether or not accessing
 a given property (in this or that way) might enable side effects - if implemented in
-100% JS-compliant way, such a property caused violations of FS's design principles.
-So the most straightforward way to deal with such a property in FS could be a compilation
+100% JS-compliant way, such a property caused violations of FJS's design principles.
+So the most straightforward way to deal with such a property in FJS could be a compilation
 error. In other cases we might decide to provide a limited property access.
-Finally, some JS standard properties / methods are 100% FS-legit and so will be implemented
+Finally, some JS standard properties / methods are 100% FJS-legit and so will be implemented
 in full.
 
 A runtime data-entry read bypasses prototypes through an explicitly written
@@ -54,7 +54,7 @@ which the language intentionally offers a narrower, explicitly spelled pattern.
 One important detail regarding run-time access to instance properties, methods is
 `obj[<expression>]` syntax when <expression> can evaluate to a string. On one hand,
 in JS that syntax enables possibilities to abuse; on another hand, it's a regular
-syntax for array indexing, legit in FS. Our current approach is to force FS users to
+syntax for array indexing, legit in FJS. Our current approach is to force FJS users to
 wrap `<expression>` in `Number(...)` in cases when `<expression>` type is not known at
 compile time.
 
@@ -141,7 +141,7 @@ The current decision is to prohibit both.
 |`__proto__`  |access to function constructor|
 |`constructor`|access to function constructor|
 
-Examples of how to abuse (in JS) so FS should strictly prohibit (compile-time and, most likely, run-time as well):
+Examples of how to abuse (in JS) so FJS should strictly prohibit (compile-time and, most likely, run-time as well):
 
 ```js
 const f = () => {}
@@ -177,7 +177,7 @@ const f = () => {}
 'Error' in run-time column above means: we plan to have a run-time error in the intial
 implementation for the sake of simplicity, since correspondent functionality has better
 alternatives. However we need to investigate whether or not we want to change that
-for the sake of supporting JS legacy in cases when that is FS-safe.
+for the sake of supporting JS legacy in cases when that is FJS-safe.
 
 [Map Instance Properties](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map#instance_properties)
 
@@ -205,7 +205,7 @@ JavaScript-only receiver example, not admission of these built-in methods:
 const a = ["bison"]
 a.indexOf("bison") // returns 0
 const p = a.indexOf
-p("bison") // run-time exception in JS, so FS should throw an exception here as well
+p("bison") // run-time exception in JS, so FJS should throw an exception here as well
 ```
 The example explains why admitting a method requires preserving its receiver;
 absence of side effects alone does not admit it.
@@ -351,7 +351,7 @@ export default {
 In `obj[index]`, `index` has to be a `number`. If we don't know what `index` is, wrap it in
 `Number(...)`. It means the byte code for the expression inside the `[]` should be either
 `Number(...)`, a number literal, or a string literal (excluding some strings).
-If it references an object, FS gives up. FS may try deeper analyses in the future, and type inference can help a lot.
+If it references an object, FJS gives up. FJS may try deeper analyses in the future, and type inference can help a lot.
 
 ## Regression requirements
 
@@ -366,7 +366,7 @@ If it references an object, FS gives up. FS may try deeper analyses in the futur
 ## Iterators
 
 Direct access to an object with the [`Iterator` protocol](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols)
-is not allowed in FS.
+is not allowed in FJS.
 
 ```ts
 type Value<T> = { done: true } | { done?: false, value: T }
@@ -375,7 +375,7 @@ type Iterator<T> = {
 }
 ```
 
-However, FS allows access to objects with the `Iterable` protocol.
+However, FJS allows access to objects with the `Iterable` protocol.
 
 ```ts
 type Iterable<T> = {
@@ -385,7 +385,7 @@ type Iterable<T> = {
 
 For example, JS Array implements the `Iterable` protocol.
 
-If we need to implement support for [generators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function*) in the FS,
+If we need to implement support for [generators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function*) in the FJS,
 the generator function has to be wrapped into `Iterable` interface. For example,
 
 ```js

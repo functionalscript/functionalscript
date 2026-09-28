@@ -1,9 +1,10 @@
 /**
  * Provides ASCII code point constants and helpers for creating numeric code points and inclusive ranges.
  *
- * It also owns the hexadecimal digit codec (`hexDigitValue` /
- * `hexDigitCodePoint`), so no consumer has to rederive the `'0'`, `'a' - 10`
- * and `'A' - 10` offsets for itself.
+ * It also owns the hexadecimal digit codec (`hexDigitValue`,
+ * `lowerHexDigitValue` / `hexDigitCodePoint`), so no consumer has to rederive the `'0'`, `'a' - 10`
+ * and `'A' - 10` offsets for itself, and the fold of a run of decimal-alphabet
+ * digits into the number it spells (`digitsValue`, `isCanonicalDigits`).
  *
  * @module
  *
@@ -11,7 +12,10 @@
  * @import { Range } from '../../types/range/types.ts'
  */
 
+import { assert } from '../../asserts/module.f.mjs'
 import { contains } from '../../types/range/module.f.mjs'
+
+const { isInteger } = Number
 
 /** @type {(s: string) => (i: number) => number} */
 const at = s => i => {
@@ -294,6 +298,21 @@ export const hexDigitValue = codePoint =>
                 : null
 
 /**
+ * The value `0..15` denoted by a lowercase hexadecimal digit code point, or
+ * `null` when the code point is not one of `0-9`, `a-f`: `hexDigitValue`
+ * without `A-F`, for a spelling that admits only the lowercase form. A
+ * non-integer such as `97.5` is `null`, never the `10.5` a bare range test
+ * would spell.
+ *
+ * @type {(codePoint: number) => Nullable<number>}
+ */
+export const lowerHexDigitValue = codePoint =>
+    !isInteger(codePoint) ? null
+        : isDigit(codePoint) ? codePoint - digit0
+            : isLatinSmallLetterAF(codePoint) ? codePoint - latinSmallLetterAFOffset
+                : null
+
+/**
  * The lowercase hexadecimal digit code point denoting a value in `0..15`.
  * `hexDigitValue(hexDigitCodePoint(v))` is `v` for every such value.
  *
@@ -301,3 +320,41 @@ export const hexDigitValue = codePoint =>
  */
 export const hexDigitCodePoint = value =>
     value < 10 ? digit0 + value : latinSmallLetterAFOffset + value
+
+// digit runs
+
+/**
+ * Whether a run of code points is a canonical decimal spelling: one or more
+ * of `0-9`, with no leading `0` unless the run is `0` alone — the rule Git
+ * holds an object's size and an ident's time to, and JSON a number's integer
+ * part. `false` for `[]`, for `010`, and for a run holding anything but a
+ * decimal digit, a non-integer such as `48.5` included.
+ *
+ * @type {(digits: readonly number[]) => boolean}
+ */
+export const isCanonicalDigits = digits =>
+    digits.length !== 0
+    && digits.every(d => isInteger(d) && isDigit(d))
+    && (digits.length === 1 || digits[0] !== digit0)
+
+/**
+ * The number a run of digits spells in `radix`, or `null` where the run is
+ * empty or holds a code point that is not a digit of that radix. The
+ * alphabet is `0-9` and nothing else, so `radix` is `2n`..`10n`; a
+ * hexadecimal digit is {@link hexDigitValue}'s business. A leading zero is
+ * read, not refused: canonicality is {@link isCanonicalDigits}'s question.
+ *
+ * @throws If `radix` is outside `2n`..`10n`, before any digit is read: a
+ * caller's mistake no input can cause.
+ *
+ * @type {(radix: bigint) => (digits: readonly number[]) => Nullable<bigint>}
+ */
+export const digitsValue = radix => {
+    assert(2n <= radix && radix <= 10n, ['radix out of range', radix])
+    const end = digit0 + Number(radix)
+    /** @type {(d: number) => boolean} */
+    const isRadixDigit = d => isInteger(d) && digit0 <= d && d < end
+    return digits => digits.length !== 0 && digits.every(isRadixDigit)
+        ? digits.reduce((n, d) => n * radix + BigInt(d - digit0), 0n)
+        : null
+}

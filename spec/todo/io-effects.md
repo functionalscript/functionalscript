@@ -90,7 +90,7 @@ Failures travel in the operation's return type — Node operations return
 `IoResult<T> = Result<T, unknown>` — because FunctionalScript reserves `throw`
 for panics and has no `try`/`catch`. Making that error channel part of `step`
 itself is
-[io-effect-migration](../../fjs/effects/todo/io-effect-migration.md).
+[why the effect layer exists](../../fjs/effects/README.md#why-the-layer-exists).
 
 ## 5.3. Composition
 

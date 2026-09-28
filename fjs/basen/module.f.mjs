@@ -16,17 +16,15 @@
  * @import { BaseN } from './types.ts'
  */
 
-import { msb, lsb, vec, chunkList, unpack } from '../types/bit_vec/module.f.mjs'
+import { msb, lsb, vec, tailPaddedUintChunkList } from '../types/bit_vec/module.f.mjs'
 import { fold } from '../types/list/module.f.mjs'
 import { compose } from '../types/function/module.f.mjs'
 
-const { unpackSplit } = msb
-
 const { tryListToVec: reversedListToVec } = lsb
 
-// `chunkList(msb)` doesn't depend on `bits` or `v` — shared across every
-// `baseN(...)` codec (base64, cbase32, ...).
-const chunkListMsb = chunkList(msb)
+// `tailPaddedUintChunkList(msb)` doesn't depend on `bits` or `v` — shared
+// across every `baseN(...)` codec (base64, cbase32, ...).
+const uintChunkListMsb = tailPaddedUintChunkList(msb)
 
 /**
  * Builds a {@link BaseN} codec for a fixed chunk width and alphabet.
@@ -48,28 +46,19 @@ export const baseN = (
     const toIndex = normalize === undefined
         ? (/** @type {string} */c) => alphabet.indexOf(c)
         : (/** @type {string} */c) => alphabet.indexOf(normalize(c))
-    const unpackSplitBits = unpackSplit(bits)
-    // Converts one `<= bits`-wide chunk (as yielded by `chunkList`, already
-    // masked to its own length) to its alphabet index. A trailing partial
-    // chunk shorter than `bits` is left-padded with zeros: `unpackSplit`'s
-    // shift amount goes negative, which per spec becomes a left shift.
-    /** @type {(chunk: Vec) => number} */
-    const chunkToIndex = chunk => {
-        const u = unpack(chunk)
-        return Number(u.length < bits ? unpackSplitBits(u)[0] : u.uint)
-    }
-    // Folds directly over `chunkList`'s lazy list in one pass — faster than
+    // Folds directly over the chunks' lazy list in one pass — faster than
     // `map` into a second lazy list before joining, since there's no second
-    // list to allocate/traverse.
-    /** @type {(chunk: Vec) => (acc: string) => string} */
-    const chunkToString = chunk => acc =>
-        acc + alphabet[chunkToIndex(chunk)]
+    // list to allocate/traverse. A trailing partial chunk arrives already
+    // zero-extended to `bits` (see `tailPaddedUintChunkList`).
+    /** @type {(index: bigint) => (acc: string) => string} */
+    const chunkToString = index => acc =>
+        acc + alphabet[Number(index)]
     return {
-        // `chunkListMsb(bits)` then `fold(chunkToString)('')` — neither half
+        // `uintChunkListMsb(bits)` then `fold(chunkToString)('')` — neither half
         // depends on `v`, so `compose` builds (and this closure captures)
         // the composed function once per `baseN(...)` codec; no need to name
         // the halves separately just to get that one-time build.
-        vecToString: compose(chunkListMsb(bits))(fold(chunkToString)('')),
+        vecToString: compose(uintChunkListMsb(bits))(fold(chunkToString)('')),
         stringToVec: s => {
             // Build a reversed chunk list, bailing out at the first invalid
             // character so malformed input is rejected in O(prefix) time and

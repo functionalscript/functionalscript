@@ -8,15 +8,16 @@ import type { Equal, Reduce } from '../function/operator/types.ts'
 import type { Range } from '../range/types.ts'
 import type { SortedList } from '../sorted_list/types.ts'
 
-export type Entry<T> = readonly [T, number]
+/** A value with the upper bound of the numeric range it covers. */
+export type RangeEntry<T> = readonly [T, number]
 
 /**
  * A sorted list of entries, where each entry is a tuple `[T, number]` that maps
  * a value of type `T` to an upper boundary of a numeric range.
  */
-export type RangeMap<T> = SortedList<Entry<T>>
+export type RangeMap<T> = SortedList<RangeEntry<T>>
 
-export type RangeMapArray<T> = readonly Entry<T>[]
+export type RangeMapArray<T> = readonly RangeEntry<T>[]
 
 /**
  * Defines the properties and operations required for managing range maps.

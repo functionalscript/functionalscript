@@ -1,19 +1,11 @@
-/**
- * @import { NodeProgramOptions } from '../../effects/node/types.ts'
- */
-
 import { exitCode } from '../../effects/node/module.f.mjs'
 import { commands } from './module.f.mjs'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
 import { maxLength, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
-import { defaultNodeProgramOptions, emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
+import { emptyState, nodeProgramOptions, virtual } from '../../effects/node/virtual/module.f.mjs'
 import { dispatch } from '../../cli/module.f.mjs'
 import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-
-/** @type {(args: readonly string[]) => NodeProgramOptions} */
-const makeOptions = args =>
-    ({ ...defaultNodeProgramOptions, args })
 
 const main = dispatch(commands)
 
@@ -21,7 +13,7 @@ export const proof = {
     mainAdd: () => {
         const content = vec8(0x2An)
         const state = { ...emptyState, root: { myfile: [content] } }
-        const [finalState, code] = virtual(state)(main(makeOptions(['add', 'myfile'])))
+        const [finalState, code] = virtual(state)(main(nodeProgramOptions(['add', 'myfile'])))
         assertEq(exitCode(code), 0, ['expected exit 0', code])
         assert(finalState.stdout.length !== 0, 'expected hash in stdout')
     },
@@ -30,7 +22,7 @@ export const proof = {
         const content = [chunk, chunk]
         const state = { ...emptyState, root: { myfile: content } }
         //
-        const [finalState, code] = virtual(state)(main(makeOptions(['add', 'myfile'])))
+        const [finalState, code] = virtual(state)(main(nodeProgramOptions(['add', 'myfile'])))
         assertEq(exitCode(code), 0)
         const stdout = finalState.stdout
         assert(stdout.length !== 0)
@@ -39,7 +31,7 @@ export const proof = {
         const hs = vecToCBase32(h)
         assertEq(stdout, `${hs}\n`)
         //
-        const [finalState2, exitCode2] = virtual(finalState)(main(makeOptions(['get', hs, 'myfile2'])))
+        const [finalState2, exitCode2] = virtual(finalState)(main(nodeProgramOptions(['get', hs, 'myfile2'])))
         // console.log(finalState2.stderr)
         assertEq(exitCode(exitCode2), 0, 'e2')
         const { myfile2 } = finalState2.root
@@ -48,7 +40,7 @@ export const proof = {
         assertEq(h, h2, 'h')
     },
     mainAddWrongArgs: () => {
-        const [finalState, code] = virtual(emptyState)(main(makeOptions(['add'])))
+        const [finalState, code] = virtual(emptyState)(main(nodeProgramOptions(['add'])))
         assertEq(exitCode(code), 1)
         assert(finalState.stderr.length !== 0)
     },
@@ -56,27 +48,27 @@ export const proof = {
         // The source path doesn't exist, so `streamFile`'s first read comes back as a
         // stream failure; `write` fails closed with that error and the handler exits 1
         // without ever calling `log` — covers `exitStep`'s error branch.
-        const [finalState, code] = virtual(emptyState)(main(makeOptions(['add', 'missing'])))
+        const [finalState, code] = virtual(emptyState)(main(nodeProgramOptions(['add', 'missing'])))
         assertEq(exitCode(code), 1)
         assertEq(finalState.stderr, 'no such file or directory\n', finalState.stderr)
     },
     mainGetFound: () => {
         const content = vec8(0x2An)
         const state = { ...emptyState, root: { myfile: [content] } }
-        const [state1, exitCode1] = virtual(state)(main(makeOptions(['add', 'myfile'])))
+        const [state1, exitCode1] = virtual(state)(main(nodeProgramOptions(['add', 'myfile'])))
         assertEq(exitCode(exitCode1), 0, ['expected add exit 0', exitCode1])
         const hashStr = state1.stdout.trim()
-        const [, exitCode2] = virtual(state1)(main(makeOptions(['get', hashStr, 'output'])))
+        const [, exitCode2] = virtual(state1)(main(nodeProgramOptions(['get', hashStr, 'output'])))
         assertEq(exitCode(exitCode2), 0, ['expected get exit 0', exitCode2])
     },
     mainGetNotFound: () => {
         // valid cBase32 hash that has not been stored
         const content = vec8(0x2An)
         const state = { ...emptyState, root: { myfile: [content] } }
-        const [state1] = virtual(state)(main(makeOptions(['add', 'myfile'])))
+        const [state1] = virtual(state)(main(nodeProgramOptions(['add', 'myfile'])))
         const hashStr = state1.stdout.trim()
         // use an empty store so the hash is not found
-        const [finalState, code] = virtual(emptyState)(main(makeOptions(['get', hashStr, 'output'])))
+        const [finalState, code] = virtual(emptyState)(main(nodeProgramOptions(['get', hashStr, 'output'])))
         assertEq(exitCode(code), 1, ['expected exit 1', code])
         // The *message*, not just a non-empty line: the failure reaches the user
         // as the host's own words. Asserting only that something was written is
@@ -84,36 +76,36 @@ export const proof = {
         assertEq(finalState.stderr, 'no such file or directory\n', finalState.stderr)
     },
     mainGetWrongArgs: () => {
-        const [finalState, code] = virtual(emptyState)(main(makeOptions(['get'])))
+        const [finalState, code] = virtual(emptyState)(main(nodeProgramOptions(['get'])))
         assertEq(exitCode(code), 1, ['expected exit 1', code])
         assert(finalState.stderr.length !== 0, 'expected error in stderr')
     },
     mainGetInvalidHash: () => {
-        const [finalState, code] = virtual(emptyState)(main(makeOptions(['get', 'not-a-valid-hash', 'output'])))
+        const [finalState, code] = virtual(emptyState)(main(nodeProgramOptions(['get', 'not-a-valid-hash', 'output'])))
         assertEq(exitCode(code), 1, ['expected exit 1', code])
         assert(finalState.stderr.length !== 0, 'expected error in stderr')
     },
     mainList: () => {
         const content = vec8(0x2An)
         const state = { ...emptyState, root: { myfile: [content] } }
-        const [state1] = virtual(state)(main(makeOptions(['add', 'myfile'])))
-        const [, code] = virtual(state1)(main(makeOptions(['list'])))
+        const [state1] = virtual(state)(main(nodeProgramOptions(['add', 'myfile'])))
+        const [, code] = virtual(state1)(main(nodeProgramOptions(['list'])))
         assertEq(exitCode(code), 0, ['expected exit 0', code])
     },
     mainListEmptyStore: () => {
         // A fresh directory has no `.cas` yet; listing must succeed (empty),
         // not crash unwrapping a readdir ENOENT.
-        const [finalState, code] = virtual(emptyState)(main(makeOptions(['list'])))
+        const [finalState, code] = virtual(emptyState)(main(nodeProgramOptions(['list'])))
         assertEq(exitCode(code), 0, ['expected exit 0', code])
         assertEq(finalState.stdout, '', ['expected empty stdout', finalState.stdout])
     },
     mainNoCmd: () => {
-        const [finalState, code] = virtual(emptyState)(main(makeOptions([])))
+        const [finalState, code] = virtual(emptyState)(main(nodeProgramOptions([])))
         assertEq(exitCode(code), 1, ['expected exit 1', code])
         assert(finalState.stderr.length !== 0, 'expected error in stderr')
     },
     mainUnknownCmd: () => {
-        const [finalState, code] = virtual(emptyState)(main(makeOptions(['bogus'])))
+        const [finalState, code] = virtual(emptyState)(main(nodeProgramOptions(['bogus'])))
         assertEq(exitCode(code), 1, ['expected exit 1', code])
         assert(finalState.stderr.length !== 0, 'expected error in stderr')
     },
@@ -123,7 +115,7 @@ export const proof = {
     // and exits 1, which is why this is an ordinary proof rather than a
     // `throw` one.
     mainListCorruptStore: () => {
-        const [state, code] = virtual({ ...emptyState, root: { '.cas': [vec8(0x2An)] } })(main(makeOptions(['list'])))
+        const [state, code] = virtual({ ...emptyState, root: { '.cas': [vec8(0x2An)] } })(main(nodeProgramOptions(['list'])))
         assertEq(exitCode(code), 1)
         assert(state.stderr !== '', ['expected the storage error reported on stderr', state.stderr])
         assertEq(state.stdout, '')

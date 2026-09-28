@@ -1,5 +1,4 @@
-
-# NaNVM function objects
+# Function frames: NaNVM function objects
 
 A user function object is serialized as an EDAG — the stable, canonical representation of functions
 (see [serialization](./serialization.md)). On loading, a VM
@@ -7,6 +6,19 @@ implementation may transform the EDAG into internal, VM-specific bytecode, execu
 interpreter upon a call. This document describes such an internal bytecode scheme; nothing here is
 part of the stable serializable format. The VM's bytecode generator produces that bytecode plus
 metadata that it needs to generate correct call site bytecode.
+
+**Argument-model boundary:** slots and argument arrays in the sketches below
+are VM-internal storage, not a requirement to expose a complete-arguments EDAG
+node. The former zero-arity format used `['args']`; the implemented
+[named-and-rest plan](./3120-parameters.md) replaces it with
+`['=>', length, frame, body]`, constant `['arg', N]` and one per-invocation
+`['rest']` array. Validate canonical integer metadata (positive zero, never
+`-0`) and `0 <= N < length`; missing fixed values are `undefined`, and rest
+is the actual tail beginning at `length`. Preserve rest identity within a
+call and through captures, with fresh rest bindings across JS-compatible
+calls. Slot lowering must implement those observations, not restore the
+retired positive-arity/full-`args` proposal. Bytecode implementation remains
+separate from the compiler, JavaScript executor and Rust source migration.
 
 That metadata specifies the size of function's frame - a span of NaNVM's 64-bit values that keeps:
 
@@ -70,7 +82,7 @@ any result value, a simple scheme places "undefined" value in that slot to compl
 
 ## Optimizations to consider
 
-1) Let's assume that the FS compiler does a good job on tail recursion optimization so "truly
+1) Let's assume that the FJS compiler does a good job on tail recursion optimization so "truly
 recursive" functions are rare in compiled bytecode. In that case the compiler marks a compiled
 function as not "truly recursive" and calculates an expanded frame size of it - allowing for
 expanded frame sizes of all functions called from the given one. Such a not "truly recursive"
@@ -106,16 +118,23 @@ fn b(frame: Array<Any>, param: Array<Any>) {
 }
 ```
 
-Neither spelling is in the language yet — a named parameter is
-[parameters](./3120-parameters.md), and reaching a name declared later is
-[forward-references](./3140-forward-references.md) — and the capture that
-makes `frame` necessary is what this issue holds: a body that names
-anything bound outside it is refused today
-([functions](../README.md#functions)).
+The named parameter and the conditional are in the language; `a` reaching
+`b`, declared after it, is not yet
+([forward-references](./3140-forward-references.md)). These are illustrative
+mutual-recursion/slot sketches, not implemented source or permission to
+expose a complete `args` binding. Ordinary captures are implemented: the
+compiler's frame is described under [EDAG](../../fjs/compiler/README.md#edag), and
+[`fjs/edag/rust`](../../fjs/edag/rust/module.f.mjs) prints it as the frame
+array a Rust closure is built with.
 
-This document's frame is the bytecode-interpreter design. The parallel plan
-for the AOT path — Rust code generated per FS function, called directly —
-reuses the same copy-scheme decision and `["args"]`/`["frame"]`/`["self"]`
-model but needs no explicit slot layout, since rustc's own call frame plays
-that role; see
-[callable-function-objects](../../nanvm-lib/todo/callable-function-objects.md).
+This document's frame is the bytecode-interpreter design. The parallel AOT
+plan reuses the captured-value copy scheme and the applicable EDAG contract,
+not a permanent `['args']` model: historical zero-arity behavior is distinguished
+from the implemented `length` / `arg` / `rest` format. Rust's own call frame
+supplies local storage, so AOT does not need this explicit slot layout.
+A private Rust argument array may remain transport but must not expose the
+original fixed-prefix count to the new EDAG body. Neither slot layouts nor
+AOT inherit a JavaScript factory-table arity cap. See
+[callable-function-objects](../../nanvm-lib/todo/callable-function-objects.md)
+for the matching binding, identity and regression-test obligations. Existing
+frame/self semantics and separate recursion work are not expanded here.

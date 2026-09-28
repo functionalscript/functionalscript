@@ -50,16 +50,7 @@ export const isObject =
     value =>
     typeof value === 'object' && !isArray(value) && value !== null
 
-const { values, entries } = Object
-
-/**
- * Returns only the defined (non-undefined) values of a partial record.
- *
- * @type {<T>(map: StringMap<Exclude<T, undefined>>) => readonly Exclude<T, undefined>[]}
- */
-export const definedValues =
-    map =>
-    values(map).filter(v => v !== undefined)
+const { entries } = Object
 
 /**
  * Returns only the defined (non-undefined) entries of a partial record.
@@ -75,3 +66,13 @@ export const definedValues =
 export const definedEntries =
     cmd =>
     entries(cmd).flatMap(([a, b]) => b === undefined ? [] : [[a, b]])
+
+/**
+ * Returns only the defined (non-undefined) values of a partial record: the
+ * values of {@link definedEntries}.
+ *
+ * @type {<T>(map: StringMap<Exclude<T, undefined>>) => readonly Exclude<T, undefined>[]}
+ */
+export const definedValues =
+    map =>
+    definedEntries(map).map(([, v]) => v)

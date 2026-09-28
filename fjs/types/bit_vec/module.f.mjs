@@ -36,6 +36,7 @@ import { asBase, asNominal } from '../nominal/module.f.mjs'
 import { foldAbsorbing, repeat as mRepeat } from '../../common/monoid/module.f.mjs'
 import { cmp, max, min } from '../function/compare/module.f.mjs'
 import { map as nullableMap, mapUnwrap } from '../nullable/module.f.mjs'
+import { assert } from '../../asserts/module.f.mjs'
 
 /**
  * Maximum length of a bit vector in bits (1_048_576 = 0x10_0000).
@@ -44,7 +45,43 @@ import { map as nullableMap, mapUnwrap } from '../nullable/module.f.mjs'
  */
 export { maxLength }
 
-export const maxLengthBytes = maxLength >> 3n
+/**
+ * `bits`, asserted to be a count. A negative one has no byte meaning, and the
+ * arithmetic below would answer it anyway: `-1n >> 3n` is `-1n`, and `-8n` is
+ * a multiple of eight. A caller can reach one only by subtracting lengths
+ * wrongly, so it panics rather than returns.
+ *
+ * @type {(bits: bigint) => bigint}
+ */
+const bitCount = bits => {
+    assert(bits >= 0n, ['negative bit count', bits])
+    return bits
+}
+
+/**
+ * The whole bytes in `bits`; `bits` need not be a multiple of eight, and a
+ * trailing partial byte is not counted.
+ *
+ * The primitive takes a bit count rather than a `Vec`, so a consumer that
+ * holds only a running length, never the vector, asks the same question.
+ *
+ * @throws On a negative `bits`.
+ *
+ * @type {(bits: bigint) => bigint}
+ */
+export const bytesIn = bits => bitCount(bits) >> 3n
+
+/**
+ * Whether `bits` is a whole number of bytes.
+ *
+ * @throws On a negative `bits`.
+ *
+ * @type {(bits: bigint) => boolean}
+ */
+export const isWholeBytesIn = bits => (bitCount(bits) & 0b111n) === 0n
+
+/** {@link maxLength} in whole bytes. */
+export const maxLengthBytes = bytesIn(maxLength)
 
 /**
  * An empty vector of bits.
@@ -59,6 +96,21 @@ export const empty = asNominal(0n)
  * @type {(v: Vec) => bigint}
  */
 export const length = v => bitLength(asBase(v))
+
+/**
+ * The whole bytes in `v`: {@link bytesIn} of its {@link length}.
+ *
+ * @type {(v: Vec) => bigint}
+ */
+export const byteLength = v => bytesIn(length(v))
+
+/**
+ * Whether `v` is a whole number of bytes: {@link isWholeBytesIn} of its
+ * {@link length}.
+ *
+ * @type {(v: Vec) => boolean}
+ */
+export const isWholeBytes = v => isWholeBytesIn(length(v))
 
 const lazyEmpty = () => empty
 
@@ -157,17 +209,24 @@ export const pack = ({ length, uint }) => vec(length)(uint)
 export const unpackedUint = ({ uint }) => uint
 
 /**
+ * Lifts a binary operation over `Unpacked` to one over `Vec`: the one binary
+ * crossing of the representation, shared by every operation that combines two
+ * vectors.
+ *
+ * @type {<T>(f: (a: Unpacked) => (b: Unpacked) => T) => (a: Vec) => (b: Vec) => T}
+ */
+const lift2 = f => a => b => f(unpack(a))(unpack(b))
+
+/**
  * Normalizes two vectors to the same length before applying a bigint reducer.
  *
  * @type {(norm: _NormOp) => (op: BigintReduce) => Reduce}
  */
-const op = norm => op => ap => bp => {
-    const au = unpack(ap)
-    const bu = unpack(bp)
+const op = norm => op => lift2(au => bu => {
     const len = max(au.length)(bu.length)
     const { a, b } = norm(au)(bu)(len)
     return vec(len)(op(a)(b))
-}
+})
 
 const unpackEmpty = /** @type {const} */{ length: 0n, uint: 0n }
 
@@ -268,18 +327,29 @@ const bo = ({ norm, uintCmp, unpackSplit, unpackConcatUint }) => {
             return /** @type {const} */([uint & m, { length: v.length - len, uint: rest }])
         }
     }
-    // `front` and `removeFront` are the two projections of `unpackPopFront`,
-    // so each bit order supplies only `unpackSplit` and both fall out of it.
-    // `pack` re-masks, so `removeFront` can hand on the unmasked rest.
+    /**
+     * `unpackPopFront` over `Vec` input: the one unary crossing of the
+     * representation, shared by `front`, `removeFront` and `popFront`.
+     *
+     * @type {(len: bigint) => (v: Vec) => readonly [bigint, Unpacked]}
+     */
+    const onUnpacked = len => {
+        const f = unpackPopFront(len)
+        return v => f(unpack(v))
+    }
+    // `front`, `removeFront` and `popFront` are the three projections of
+    // `onUnpacked`, so each bit order supplies only `unpackSplit` and all
+    // three fall out of it. `front` never packs the rest it does not return,
+    // and `pack` re-masks, so `removeFront` can hand on the unmasked rest.
     /** @type {(len: bigint) => (v: Vec) => bigint} */
     const front = len => {
-        const f = unpackPopFront(len)
-        return v => f(unpack(v))[0]
+        const f = onUnpacked(len)
+        return v => f(v)[0]
     }
     /** @type {(len: bigint) => (v: Vec) => Vec} */
     const removeFront = len => {
-        const f = unpackPopFront(len)
-        return v => pack(f(unpack(v))[1])
+        const f = onUnpacked(len)
+        return v => pack(f(v)[1])
     }
     /** @type {_UnpackConcat} */
     const unpackConcat = a => b => ({
@@ -288,38 +358,36 @@ const bo = ({ norm, uintCmp, unpackSplit, unpackConcatUint }) => {
     })
     /** @type {PopFront<Vec>} */
     const popFront = len => {
-        const f = unpackPopFront(len)
+        const f = onUnpacked(len)
         return v => {
-            const [uint, u] = f(unpack(v))
+            const [uint, u] = f(v)
             return [uint, pack(u)]
         }
     }
     /** @type {Reduce} */
-    const concat = a => b => {
-        const au = unpack(a)
-        const bu = unpack(b)
-        return pack(unpackConcat(au)(bu))
-    }
+    const concat = lift2(a => b => pack(unpackConcat(a)(b)))
+    const { operation } = tryUnpackConcat(unpackConcat).monoid
+    /** @type {(a: Vec) => (b: Vec) => Nullable<Vec>} */
+    const tryConcat = lift2(a => b => nullableMap(pack)(operation(a)(b)))
     const tryListToVec = mappedListToVec(unpack)({ unpackConcat })
     return {
         front,
         removeFront,
         concat,
+        tryConcat,
         tryListToVec,
         listToVec: mapUnwrap(tryListToVec),
         xor: op(norm)(xor),
         unpackPopFront,
         popFront,
         norm,
-        cmp: a => b => {
-            const au = unpack(a)
-            const bu = unpack(b)
+        cmp: lift2(au => bu => {
             const al = au.length
             const bl = bu.length
             const { a: aui, b: bui } = norm(au)(bu)(min(al)(bl))
             const c = uintCmp(aui)(bui)
             return c === 0 ? cmp(al)(bl) : c
-        },
+        }),
         unpackSplit,
         unpackConcat,
         startsWith: prefix => {
@@ -386,6 +454,14 @@ export const tryU8ListToVec = mappedListToVec(u8ToUnpacked)
 export const u8ListToVec = bo =>
     mapUnwrap(tryU8ListToVec(bo))
 
+/**
+ * `u8ListToVec(msb)`: a vector from its bytes, most significant first — the
+ * byte order of every byte-oriented format in this repository.
+ *
+ * @type {(list: List<number>) => Vec}
+ */
+export const u8ListToVecMsb = u8ListToVec(msb)
+
 /** @type {({ unpackSplit }: BitOrder) => (n: bigint) => (u: Unpacked) => Thunk<Unpacked>} */
 const unpackChunkList = ({ unpackSplit }) => n => {
     const divUpN2 = divUp(n << 1n)
@@ -438,29 +514,67 @@ export const uintChunkList
     = mappedChunkList(identity/*<Unpacked>*/)(unpackedUint)
 
 /**
+ * {@link mappedChunkList} over a bit vector: `unpack` depends on neither the
+ * chunk mapping, `bo` nor `n`, so this layer is shared by every chunk list
+ * that starts from a `Vec`.
+ */
+const vecMappedChunkList = mappedChunkList(unpack)
+
+/**
  * Chunks a bit vector into fixed-size pieces of `n` bits using the provided bit order.
  * The last chunk may be smaller than `n` bits if the vector length is not a multiple of `n`.
  *
  * @type {(bo: BitOrder) => (n: bigint) => (v: Vec) => Thunk<Vec>}
  */
-export const chunkList = mappedChunkList(unpack)(pack)
+export const chunkList = vecMappedChunkList(pack)
 
-/** @type {({ unpackSplit }: BitOrder) => (chunk: Vec) => number} */
-const vecToU8 = ({ unpackSplit }) => {
-    const unpackSplit8 = unpackSplit(8n)
-    return chunk => {
-        const u = unpack(chunk)
-        return Number(u.length < 8n ? unpackSplit8(u)[0] : u.uint)
-    }
+/**
+ * The unsigned value of an `n`-bit chunk. A chunk shorter than `n` is
+ * zero-extended at the tail of the bit order: `unpackSplit`'s shift amount
+ * goes negative, which per spec becomes a left shift. Under `msb` the value
+ * is shifted left (`101` reads as `10100000`, zeros in the low bits); under
+ * `lsb` it is unchanged (zeros in the high bits).
+ *
+ * @type {({ unpackSplit }: BitOrder) => (n: bigint) => (u: Unpacked) => bigint}
+ */
+const tailPaddedUint = ({ unpackSplit }) => n => {
+    const us = unpackSplit(n)
+    return u => u.length < n ? us(u)[0] : u.uint
 }
+
+/**
+ * Chunks a bit vector into fixed-size pieces of `n` bits using the provided bit order,
+ * returning each chunk as an unsigned `n`-bit integer. A short trailing chunk is
+ * zero-extended at the tail of the bit order — under `msb` the value is shifted
+ * left (zeros in the low bits), under `lsb` it is unchanged (zeros in the high bits).
+ *
+ * @type {(bo: BitOrder) => (n: bigint) => (v: Vec) => Thunk<bigint>}
+ */
+export const tailPaddedUintChunkList = bo => {
+    const boTailPaddedUint = tailPaddedUint(bo)
+    return n => vecMappedChunkList(boTailPaddedUint(n))(bo)(n)
+}
+
+/** @type {(list: List<bigint>) => Thunk<number>} */
+const numberList = map(Number)
 
 /**
  * Converts a bit vector to a list of unsigned 8-bit integers based on the provided bit order.
  *
  * @type {(bo: BitOrder) => (v: Vec) => Thunk<number>}
  */
-export const u8List = bo => v =>
-    map(vecToU8(bo))(chunkList(bo)(8n)(v))
+export const u8List = bo =>
+    compose(tailPaddedUintChunkList(bo)(8n))(numberList)
+
+/**
+ * `u8List(msb)`: the bytes of a vector, most significant first. A trailing
+ * partial byte is zero-padded in its low bits (`vec(9n)(0x83n)` gives
+ * `[0x41, 0x80]`), so this inverts `u8ListToVecMsb` only on whole-byte
+ * vectors.
+ *
+ * @type {(v: Vec) => Thunk<number>}
+ */
+export const u8ListMsb = u8List(msb)
 
 /**
  * Repeats a vector to create a padded block of the desired length.

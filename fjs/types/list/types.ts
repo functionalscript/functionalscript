@@ -43,4 +43,5 @@ export type Accumulator<I, T, R> = {
     readonly end: (state: T) => R
 }
 
-export type Entry<T> = readonly [number, T]
+/** An element with its index, as produced by `entries`. */
+export type Indexed<T> = readonly [number, T]

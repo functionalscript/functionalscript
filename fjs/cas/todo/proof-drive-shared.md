@@ -49,5 +49,7 @@ exactly as both copies have them.
 - [filecasoperation-duplicates.md](./filecasoperation-duplicates.md) —
   duplication in the operation type itself; this is the proof-side echo of
   the same vocabulary.
-- [../../effects/memory/todo/sync-interpreter-owner.md](../../effects/memory/todo/sync-interpreter-owner.md)
-  — names the `MemOperationMap` copies; adjacent, different helper.
+- `memoryOperationMap` in
+  [`fjs/effects/memory`](../../effects/memory/module.f.mjs) — the shared
+  synchronous `MemOp` interpreter, which replaced the proofs' own copies;
+  adjacent, different helper.

@@ -231,12 +231,13 @@ const readIndices = value => {
 }
 
 /**
- * The members of `value` that `declared` does not name — every one the
+ * The members of `value` that `declared` does not admit — every one the
  * schema's `rest` has to answer for, as `[key, value]` pairs.
  *
- * `declared` is a container schema's own key list, so for a struct these are
- * its undeclared own keys, and for a tuple they are the positions past the
- * prefix together with every own key that is no position at all.
+ * `declared` tests membership in a container schema's own keys, so for a
+ * struct these are its undeclared own keys, and for a tuple they are the
+ * positions past the prefix together with every own key that is no position
+ * at all.
  *
  * **A tuple's positions are read, not enumerated.** `length` is what says how
  * far an array reaches, and every own index below it is a member the `rest`
@@ -247,16 +248,22 @@ const readIndices = value => {
  * An index at or above `length` is not answered here. See "Beyond `length`" in
  * `../README.md`.
  *
- * Passing an empty `declared` asks for every member, which is what the uniform
+ * Passing {@link noDeclared} asks for every member, which is what the uniform
  * `array`/`record` readers want — so they share this walk rather than reaching
  * for `Object.entries` and disagreeing with the data form on an inherited
  * index.
  *
- * @type {(declared: readonly string[], value: ReadonlyArray<Unknown> | StringMap<Unknown>) => ReadonlyArray<readonly [string, Unknown]>}
+ * `declared` is a **membership test**, built once per schema by
+ * {@link declaredTest}, for the reason {@link hasUndeclaredMember} gives: asked
+ * per member, a scan of the declared names made the walk quadratic in a dense
+ * tuple, whose own index `i` sits at position `i` of that list. With the test,
+ * the walk is linear in the members of `value`.
+ *
+ * @type {(declared: (k: string) => boolean, value: ReadonlyArray<Unknown> | StringMap<Unknown>) => ReadonlyArray<readonly [string, Unknown]>}
  */
 export const undeclaredMembers = (declared, value) => {
     /** @type {(k: string) => boolean} */
-    const undeclared = k => !declared.some(d => d === k)
+    const undeclared = k => !declared(k)
     if (!commonIsArray(value)) {
         return Object.entries(value).filter(([k]) => undeclared(k))
     }
@@ -301,8 +308,9 @@ export const hasUndeclaredMember = (declared, value) => {
 }
 
 /**
- * {@link hasUndeclaredMember}'s membership test over a schema's declared
- * names — built once per schema, so each key costs one lookup.
+ * The membership test {@link undeclaredMembers} and
+ * {@link hasUndeclaredMember} take, over a schema's declared names — built
+ * once per schema, so each key costs one lookup.
  *
  * @type {(declared: readonly string[]) => (k: string) => boolean}
  */
@@ -310,6 +318,14 @@ export const declaredTest = declared => {
     const names = new Set(declared)
     return k => names.has(k)
 }
+
+/**
+ * The membership test of a container that declares no member by name — a
+ * uniform `array`/`record` — so every member is undeclared.
+ *
+ * @type {(k: string) => boolean}
+ */
+export const noDeclared = () => false
 
 /**
  * Whether `rtti` admits **absence** with `visited` already ruled out — the

@@ -12,7 +12,7 @@
  * | Tool           | args                                          | action           | result                              |
  * |----------------|------------------------------------------------|------------------|--------------------------------------|
  * | `cas_add`      | `{ content, type? }`                          | `c.write(...)`   | hash (cBase32)                      |
- * | `cas_get`      | `{ hash, content?: boolean }`                 | `c.read(key)`    | JSON `{length,mimeType,type[,uri][,text\|blob]}` |
+ * | `cas_get`      | `{ hash, content?: boolean }`                 | `c.read(key)`    | JSON `{length,mimeType,type,uri[,text\|blob]}` |
  * | `cas_list`     | `{}`                                          | `c.list()`       | hashes, one per line                |
  * | `evo_list`     | `{ archived? }`                               | `e.list(...)`    | subjects, as a JSON array of strings |
  * | `evo_head`     | `{ subject }`                                 | `e.head(...)`    | head hashes, one per line           |

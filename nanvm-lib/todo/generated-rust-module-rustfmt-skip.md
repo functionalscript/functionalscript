@@ -5,10 +5,10 @@
 
 ### Problem
 
-`fjs/nanvm/rust/module.f.mjs` currently emits `#[rustfmt::skip]` before `eq`
-and each generated per-operation function in
-`nanvm-lib/tests/test/generated.rs`. The final `all` function is not currently
-annotated.
+`fjs/nanvm/rust/module.f.mjs` currently emits `#[rustfmt::skip]` before the
+`run` function of each generated per-group file in
+`nanvm-lib/tests/test/gen.corpus/`. The `all` function in its `mod.rs` is not
+currently annotated.
 
 The whole module is generated and intentionally uses one statement per test
 case. Formatting those generated functions is therefore not useful, and
@@ -21,9 +21,15 @@ one-statement-per-case layout.
 This follows the post-merge review comment on #1489 to make the formatting skip
 global for the generated module.
 
+**Open question:**
+[let-bindings-owner](../../fjs/edag/rust/todo/let-bindings-owner.md) proposes
+the opposite: a shared `skipFn` in `fjs/edag/rust` through which both Rust
+printers, this corpus printer included, keep emitting `#[rustfmt::skip]` per
+function. Which of the two the corpus follows is undecided.
+
 ### Proposal
 
-Do not use an inner `#![rustfmt::skip]` attribute inside `generated.rs`.
+Do not use an inner `#![rustfmt::skip]` attribute inside `gen.corpus/`.
 Custom tool attributes in inner position are unstable on stable Rust and make
 `cargo check --tests` fail.
 
@@ -53,14 +59,13 @@ the layout chosen by the generator.
 
 - [ ] Add `#[rustfmt::skip]` to the `mod generated;` declaration in
       `nanvm-lib/tests/test/main.rs`.
-- [ ] Stop emitting `#[rustfmt::skip]` before `eq` and individual generated
-      operation functions.
-- [ ] Do not emit `#![rustfmt::skip]` inside `generated.rs`.
+- [ ] Stop emitting `#[rustfmt::skip]` before each generated `run` function.
+- [ ] Do not emit `#![rustfmt::skip]` inside `gen.corpus/`.
 - [ ] Update comments/documentation in `fjs/nanvm/rust/module.f.mjs` to describe
       the module-level formatting policy owned by `main.rs`.
 - [ ] Update the Rust generator proof if its expected output covers these
       attributes.
-- [ ] Regenerate `nanvm-lib/tests/test/generated.rs` with `npm run gen`.
+- [ ] Regenerate `nanvm-lib/tests/test/gen.corpus/` with `npm run gen`.
 - [ ] Verify a second `npm run gen` leaves the tree unchanged.
 - [ ] Run `fjs test`, `cargo check --tests`, `cargo test`, and
       `cargo fmt -- --check`.
@@ -69,3 +74,5 @@ the layout chosen by the generator.
 
 - #1489 — introduced the generated shared operator tests.
 - #1489 review: https://github.com/functionalscript/functionalscript/pull/1489#discussion_r3770843238
+- [let-bindings-owner](../../fjs/edag/rust/todo/let-bindings-owner.md) — the
+  conflicting `skipFn` proposal; see the open question above.

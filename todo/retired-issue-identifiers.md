@@ -1,4 +1,4 @@
-## retired-issue-identifiers. Resolve the remaining bare `iNNN` citations
+## Resolve the remaining bare `iNNN` citations
 
 **Priority:** P4
 **Status:** open
@@ -6,7 +6,7 @@
 ### Problem
 
 Citations to the retired tracker survive across the tree as bare identifiers —
-`i163`, `i183`, `i662` and so on. [#1692](https://github.com/functionalscript/functionalscript/pull/1692)
+`i163`, `i183`, `i189` and so on. [#1692](https://github.com/functionalscript/functionalscript/pull/1692)
 resolved the ones it had claimed were untraceable and documented the search that
 finds them ([`todo/README.md`](./README.md), "Retired `iNNN` identifiers"), but
 stopped there rather than widening further. This issue is the remainder.
@@ -23,22 +23,20 @@ Every cited identifier below has a file:
 |`i163`|`issues/163-reporter-test-method.md`|open|`emergent_testing/todo/211-reporter-modes.md` ×2|
 |`i183`|`issues/183-tf-framework-scenario-tests.md`|open|`emergent_testing/todo/206-workers-as-a-sandbox.md` ×1, `65y-proof-asserteq-adoption.md` ×1, `65z-singleton-effect.md` ×1, `65z-tf-test-tree-walker.md` ×1|
 |`i189`|`issues/189-asn1-decode-all-unfold.md`|done|`fjs/asn.1/todo/65z-asn1-tag-codec-table.md` ×1|
-|`i180-sorted-set-intersect-symmetry`|`issues/180-…`|done|`fjs/types/todo/66b-sorted-list-cmp-reduce-factory.md` ×1|
-|`i662`|`issues/662-rtti-ts-printer-visit.md`|open|`fjs/types/todo/66d-ts-printer-tuple-readonly-fold.md` ×1|
-|`i665-mcp`|`issues/665-mcp.md`|open|`fjs/protocol/mcp/todo/README.md` ×1, `json_rpc/todo/effectful-dispatch-skeleton.md` ×1|
 |`i666-utf8-continuation-helpers`|`issues/666-…`|done|`fjs/text/todo/666-utf16-encode-errormask.md` ×1|
 |`i65X-sandbox-async`|`issues/65X-sandbox-async.md`|done|`emergent_testing/todo/65y-proof-asserteq-adoption.md` ×1|
-|`i65Y-sandbox-await-overhead`|`issues/65Y-sandbox-await-overhead.md`|done|`emergent_testing/todo/661-sandbox-isolated-test-execution.md` ×1|
 |`i65Y-proof-by-export`|`issues/65Y-proof-by-export.md`|open|`emergent_testing/todo/65y-proof-asserteq-adoption.md` ×1|
 
-**18 bare citations across 13 files.** The column counts *bare* occurrences
-only. `i665-mcp` also appears once as a working link — `mcp/todo/README.md`'s
-own anchor reference to its `## 665-mcp` section — and that needs nothing. A
-second such link lived in `json_rpc/todo/response-constructors.md`, which was
-deleted when the constructors shipped. Regenerate the
-whole column rather than trusting it — an earlier revision of this issue built
-it from a scan that printed only the first two paths per identifier, and listed
-two of `i183`'s four sites.
+At `0a5bc32`, **thirteen bare citations across eight files.** The column
+counts *bare* occurrences only. Three rows have left the table since it was
+filed, resolved when the issues citing them moved:
+`i180-sorted-set-intersect-symmetry` (the citation was dropped from
+`fjs/types/sorted_list/todo/cmp-reduce-factory.md`), `i662` (written in the
+retired form in `fjs/types/ts/todo/tuple-readonly.md`) and `i665-mcp` (split
+into `fjs/protocol/mcp/todo/roadmap.md`, which its citers now link).
+Regenerate the whole column rather than trusting it — an earlier revision of
+this issue built it from a scan that printed only the first two paths per
+identifier, and listed two of `i183`'s four sites.
 
 Run this from the repo root. The identifier list is read out of the table's own
 first column rather than repeated, so the check cannot go stale against the
@@ -63,7 +61,7 @@ removing a row changes what gets checked; an earlier revision hard-coded seven
 of the twelve, which is the failure this form exists to prevent.
 
 For the totals, drop the per-identifier grouping. This prints one line per bare
-citation, so it should emit **18** lines:
+citation, so at `0a5bc32` it emits thirteen lines:
 
 ```sh
 sed -n '/^|`i/s/^|`\([^`]*\)`.*/\1/p' todo/retired-issue-identifiers.md \
@@ -73,7 +71,7 @@ sed -n '/^|`i/s/^|`\([^`]*\)`.*/\1/p' todo/retired-issue-identifiers.md \
   done
 ```
 
-Append `| sed 's|:[0-9]*:.*||' | sort -u` for the **13** files they live in.
+Append `| sed 's|:[0-9]*:.*||' | sort -u` for the eight files they live in.
 
 Line numbers are deliberately omitted. This file is an inventory of citation
 rot, and pinning it to line numbers would make it rot the same way.
@@ -81,9 +79,9 @@ rot, and pinning it to line numbers would make it rot the same way.
 Finding the file is mechanical. Deciding what the citation should say instead is
 not, and both outcomes occur:
 
-- **It migrated.** `i665-mcp` is `fjs/protocol/mcp/todo/README.md`'s `## 665-mcp`
-  section, which that file already links to by anchor — only the citations in
-  *other* files are stale.
+- **It migrated.** `i665-mcp` became the MCP roadmap, now
+  [`fjs/protocol/mcp/todo/roadmap.md`](../fjs/protocol/mcp/todo/roadmap.md);
+  once its citers linked it, the row was done.
 - **It may not have.** `i65Y-proof-by-export` was open when it was deleted and no
   file on disk carries its content. Either it was dropped deliberately and the
   citation should go, or it was lost in the migration and should be restored
@@ -97,20 +95,20 @@ not, and both outcomes occur:
 
 `iNNN` is not the only naming scheme this hits. Todo files under their current
 `{slug-kebab}.md` names are deleted when their issue is fixed, as the README
-requires, and a citation to one is left just as bare — `nullable-analysis-shared`
-in `fjs/bnf/todo/rule-visitor.md` — itself since retired, shipped as
-`matchRule` in [`fjs/ebnf/data`](../fjs/ebnf/data/module.f.mjs) — was one
-until this branch resolved it (shipped as `emptyTagMap` in `fjs/bnf/data`,
-commit `94b7ff06`, which deleted the file in the same change). The same search
-finds these, against the todo path rather than `issues/`:
+requires, and a citation to one is left just as bare. The worked example was
+`nullable-analysis-shared`, cited bare from the `rule-visitor` issue after it
+had shipped as `emptyTagMap` — now in
+[`fjs/ebnf/data`](../fjs/ebnf/data/module.f.mjs) — and its file had been
+deleted in the same change. `rule-visitor` has since been retired too, shipped
+as `matchRule` in the same module, so neither is left to repair. The same
+search finds such citations, against the todo path rather than `issues/`:
 
 ```sh
 git log --all --format='%h %s' --diff-filter=D -- '*nullable-analysis-shared*'
 ```
 
-That commit's message names both what shipped and the deletion, which is the
-whole answer. This issue does not enumerate that class, and there is no reason
-to think `rule-visitor.md` is the only instance.
+A deleting commit's message usually names both what shipped and the deletion,
+which is the whole answer. This issue does not enumerate that class.
 
 ### Proposal
 
@@ -123,8 +121,8 @@ identifier behind, since the next reader has no way to tell "unresolved" from
 
 ### Tasks
 
-- [ ] Resolve the twelve identifiers above against their retired files — all
-      **18** bare citations, not one per identifier; four of them are `i183`.
+- [ ] Resolve the identifiers above against their retired files — every bare
+      citation, not one per identifier; four of them are `i183`.
 - [ ] Decide `i65Y-proof-by-export`: restore it or drop its citation.
 - [ ] Sweep for slug-named deletions the same way, per the section above.
 - [ ] Re-run the check below; it should print nothing.
@@ -164,28 +162,24 @@ sed -n '/^|`i/s/^|`\([^`]*\)`.*/\1/p' todo/retired-issue-identifiers.md \
 ```
 
 It prints every file that still cites an identifier without resolving it, and
-should print nothing when this issue is done. Run against the branch that filed
-this issue it prints 16 lines — one per (identifier, file) pair, `i183`
-contributing four — and prints nothing for any identifier already resolved.
-
-One place the two counts differ, which is not a defect:
-`fjs/protocol/mcp/todo/README.md` has a bare `i665-mcp` in its prose *and* links
-it by anchor further down, so the table counts the occurrence while this check
-passes the file. Rewriting it is tidying, not repair.
+should print nothing when this issue is done. At `0a5bc32` it prints twelve
+lines — one per (identifier, file) pair, `i183` contributing four — and
+prints nothing for any identifier already resolved.
 
 ### Caveat for whoever sweeps this
 
-`\bi\d+\b` matches Rust and Wasm integer type names, and the collision is not
-theoretical — an earlier revision of this issue listed one of them as a citation
-to repair. Three occur today, none of them citations:
+`\bi\d+\b` matches Rust and Wasm integer type names and CPU architecture
+names, and the collision is not theoretical — an earlier revision of this issue
+listed one of them as a citation to repair. None of these is a citation:
 
-- `i32` in `fjs/text/README.md:44-45,76-77` — `List<i32>` in four codec
-  signatures. There is a retired `issues/032-stupid-parser.md`, but nothing in
-  the tree cites it.
-- `i64` in `fjs/nanvm/README.md` and
-  `nanvm-lib/todo/bigint-operator-test-scaffolding.md` — `f64`/`i64` spelling
-  and `From<i64>`.
-- `i8` in `nanvm-lib/todo/sign-algebra.md` — the sign representation.
+- Rust integer types: `i8` in `nanvm-lib/todo/sign-algebra.md` (the sign
+  representation); `i32` in `nanvm-lib/todo/numeric-binary-operator-zip.md`
+  (the `int32_op` signature); `i64` in `fjs/nanvm/README.md` and
+  `nanvm-lib/todo/bigint-operator-test-scaffolding.md` (`f64`/`i64` spelling
+  and `From<i64>`); `i64` and `i128` in `spec/datajs/vectors/README.md`.
+- CPU architectures: `i386` and `i686` in `fjs/ci/README.md` and
+  `fjs/ci/todo/65z-ci-nix.md`, and the `i686-…` target triples in `fjs/ci`
+  source.
 
 Check the surrounding line before treating a match as a citation: a real one
 reads as prose about an issue, not as a type argument.

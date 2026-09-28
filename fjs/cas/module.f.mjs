@@ -12,8 +12,8 @@
  * @import { Cas, FileCas, FileCasOperation } from './types.ts'
  */
 
-import { join, normalize, parse } from '../path/module.f.mjs'
-import { empty, length, maxLength, msb, vec } from '../types/bit_vec/module.f.mjs'
+import { join, normalize } from '../path/module.f.mjs'
+import { byteLength, empty, maxLength, msb, vec } from '../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import {
     catchStep,
@@ -52,15 +52,35 @@ const split2 = splitAt(2)
 
 const prefix = '.cas'
 
+/** The sharded location of a content key: its relative directory and file name.
+ * The one owner of the shard layout; `toPath` and `publish` are its two views,
+ * and `unshard` is its inverse.
+ *
+ * @type {(key: Vec) => { readonly dir: string, readonly name: string }}
+ */
+const shard = key => {
+    const s = vecToCBase32(key)
+    const [a, bc] = split2(s)
+    const [b, c] = split2(bc)
+    return { dir: join(prefix, a, b), name: c }
+}
+
+/** The inverse of `shard`: recovers a content key from its shard path relative
+ * to the `.cas` directory, or `null` if the path, without its separators, is
+ * not cBase32. It does not check the key's length, so a cBase32 path of the
+ * wrong length decodes to a key no hash produced.
+ *
+ * @type {(relPath: string) => Vec | null}
+ */
+const unshard = relPath => cBase32ToVec(relPath.replaceAll('/', ''))
+
 /** Converts a content key to its sharded relative CAS file path.
  *
  * @type {(key: Vec) => string}
  */
 export const toPath = key => {
-    const s = vecToCBase32(key)
-    const [a, bc] = split2(s)
-    const [b, c] = split2(bc)
-    return join(prefix, a, b, c)
+    const { dir, name } = shard(key)
+    return join(dir, name)
 }
 
 /**
@@ -81,10 +101,11 @@ export const collectRead = stream => {
         ioStep(s, node => {
             if (node === undefined) { return pureOk(acc) }
             const { first, tail } = node
-            if (length(acc) + length(first) > maxLength) {
+            const next = msb.tryConcat(acc)(first)
+            if (next === null) {
                 return pureError(ioError({ message: `cas blob exceeds maximum vector length of ${maxLength} bits` }))
             }
-            return loop(msb.concat(acc)(first))(tail)
+            return loop(next)(tail)
         })
     return loop(empty)(stream)
 }
@@ -180,9 +201,9 @@ const writeImpl = (sha2, path, stageDir, payload) => {
     /** @type {(state: Sha2State, offset: number, curPath: string) => Effect<FileCasOperation, Vec, IoChannel>} */
     const publish = (state, offset, curPath) => {
         const hash = sha2.end(state)
-        const rel = toPath(hash)
-        const dst = join(path, rel)
-        const dstDir = join(path, ...parse(rel).slice(0, -1))
+        const { dir, name } = shard(hash)
+        const dstDir = join(path, dir)
+        const dst = join(dstDir, name)
         // `resultStep` throughout, and that is the "ignores results" above
         // written in the type: each link runs whatever the previous one
         // answered, and only the closing `stat` decides the outcome.
@@ -222,7 +243,7 @@ const writeImpl = (sha2, path, stageDir, payload) => {
                     return resultStep(writeBytes(curPath, offset, chunk), wb => {
                         if (wb[0] === 'error') { return fail(curPath, wb[1]) }
                         const newState = sha2.append(chunk)(state)
-                        const newOffset = offset + Number(length(chunk) / 8n)
+                        const newOffset = offset + Number(byteLength(chunk))
                         // Renew the lease: rename to a fresh deadline (keeps `delta` constant).
                         // The new path is still needed after the rename, to recurse with,
                         // so the rename captures it rather than closing over it.
@@ -293,7 +314,7 @@ export const fileCas = sha2 => path => {
                         readdir(storePrefix, { recursive: true }),
                         r => r.flatMap(({ name, parentPath, isFile }) =>
                             toOption(isFile
-                                ? cBase32ToVec(normalize(parentPath).substring(normalizedStorePrefix.length).replaceAll('/', '') + name)
+                                ? unshard(join(normalize(parentPath).substring(normalizedStorePrefix.length), name))
                                 : null)))),
         url: hash =>
             join(path, toPath(hash))

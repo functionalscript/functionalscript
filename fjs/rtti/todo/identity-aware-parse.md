@@ -1,10 +1,13 @@
 ## Identity-aware `parse` and `validate`
 
-**Priority:** P3 (correctness for `parse`) / P2 (`validate`'s CPU blowup is a DoS vector
-on a public input boundary, not just a fidelity gap)
+**Priority:** P2
 **Status:** open
 
 ### Problem
+
+The priority is the higher of the two halves below: `parse`'s identity loss is
+a P3 correctness gap, while `validate`'s CPU blowup is a DoS vector on a public
+input boundary, not just a fidelity gap, and so P2.
 
 Neither `parse` nor `validate` track input identity — no notion of "I already
 handled this exact reference elsewhere." For `parse`, that loses information silently

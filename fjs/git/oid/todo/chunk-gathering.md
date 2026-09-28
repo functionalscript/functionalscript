@@ -70,6 +70,13 @@ Whichever it is, the case to pin is the one the table above exposes: an object
 of a few bytes must not cost a 64 KiB walk, and a payload as the envelope reader
 hands it over must not cost more than the same bytes as an array.
 
+### Tasks
+
+- [ ] Whichever shape lands, keep `rest` and `taken` in the body that declares
+      them: today the `Array.from` callback reassigns both, and
+      [§3.1](../../../AGENTS.md#31-immutability-and-purity) allows a `let` only
+      within the function body where it is declared.
+
 ### Related
 
 - [`fjs/git/oid`](../module.f.mjs) — `chunks`, and the `of`/`digestOf` pair

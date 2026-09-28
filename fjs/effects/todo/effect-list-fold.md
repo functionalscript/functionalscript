@@ -30,14 +30,21 @@ in the store lives in memory at once, purely because `foldStep` cannot consume
 anything else.
 
 **The layering is inverted.** `fjs/effects/module.f.mjs` — the core effect module
-— imports `fjs/types/list` for `fold` and `List`, and *nothing else in
-that file uses either*. The two fold combinators are the module's only dependency
-on the strict list type.
+— imports `fjs/types/list` for `List`, and `concat` / `next` for `walkStep`'s
+loop. The fold combinators and `walkStep` are the module's only dependency on
+the strict list type, so the move below has to take `walkStep` too, or say why
+it stays.
 
-**The stream fold is being hand-written separately.** See
-[fold-stream-combinator](./fold-stream-combinator.md): the *EOF → finalize;
-error item → propagate; chunk → fold and recurse* skeleton appears in four
-places. That is `foldStep` over a stream, plus a short-circuit.
+**The stream fold is being hand-written separately.** The *EOF → finalize;
+chunk → fold and recurse* skeleton appears in four places — `detectStream`
+(`fjs/media/type/module.f.mjs`), `collectRead` (`fjs/cas/module.f.mjs`),
+`writeLoop` (`fjs/effects/node/module.f.mjs`) and `fileCas.write`'s inner loop
+(`fjs/cas/module.f.mjs`). That is `foldStep` over a stream. The *error item →
+propagate* case it once also had is gone: a `List` cell carries its own failure,
+and `step` propagates it. The two pure folds fit the plain shape; `writeLoop`
+threads its offset as the accumulator; `fileCas.write` threads
+`{ state, offset, curPath }`, and whether its end-of-stream `publish` fits an
+`ok(acc)` answer, or needs an explicit `onDone`, is to be checked.
 
 ### Proposal
 
@@ -96,18 +103,17 @@ Six, all currently strict:
 | `fjs/cas/evo/module.f.mjs:280` | `pure(parents)` | `fromList(parents)` |
 | `fjs/cas/module.f.mjs:149` | `pure(expired)` | `fromList(expired)` |
 | `fjs/cas/module.f.mjs:310` | `pure([0…7])` | `fromList([0…7])` |
-| `fjs/fsc/transpiler/module.f.mjs:73` | `pure(pathsArray)` | `fromList(pathsArray)` |
+| `fjs/compiler/transpiler/module.f.mjs:73` | `pure(pathsArray)` | `fromList(pathsArray)` |
 
 The two `cas.list()` sites are the ones this exists for; converting them is a
 follow-up in `fjs/cas` (see *Related*), not part of this issue.
 
 ### What it unblocks
 
-- **`foldStream` mostly dissolves.**
-  [fold-stream-combinator](./fold-stream-combinator.md) becomes an ordinary
-  `foldStep`, rather than a fourth hand-written skeleton. The short-circuit it
-  described is no longer part of the shape at all: a `List` cell carries its own
-  failure now, so the Io `step` propagates it. Re-scope or close that issue.
+- **No separate `foldStream`.** The four hand-written stream folds above become
+  ordinary `foldStep` calls, rather than needing a combinator of their own —
+  which is why the `fold-stream-combinator` issue that proposed one was folded
+  into this one.
 - **`cas.list()` can stream.** `Effect<O, readonly Vec[]>` → `EffectList<O, Vec>`,
   so a large store's hash list never materializes. This is where the memory win
   actually is — `foldStep` taking a stream buys nothing until the producer
@@ -146,18 +152,15 @@ follow-up in `fjs/cas` (see *Related*), not part of this issue.
       `fjs/effects/module.f.mjs`.
 - [ ] Migrate the six call sites; the four strict ones go through `fromList`.
 - [ ] Create `fjs/effects/list/proof.f.mjs` with full coverage.
-- [ ] Re-scope or close [fold-stream-combinator](./fold-stream-combinator.md).
+- [ ] Convert the four stream folds — `detectStream`, `collectRead`,
+      `writeLoop`, `fileCas.write` — to `foldStep`, or record here why one
+      does not fit.
 - [ ] Run `tsc` and `fjs t`.
 
 ### Related
 
-- [fold-stream-combinator](./fold-stream-combinator.md) — the stream fold this
-  subsumes; blocked-on/blocks relationship should be settled when this is
-  reviewed.
 - [allreduce-combinator](./allreduce-combinator.md) — the parallel sibling;
   it is specified over `List<T>` and will want the same treatment.
-- [write-closed-helpers](../../cas/todo/write-closed-helpers.md) — already
-  blocked by `fold-stream-combinator`, so transitively affected.
 - `fjs/effects/module.f.mjs` — `foldStep`'s JSDoc carries the step-variant /
   `do`-notation rationale that fixes the argument order; the header carries the
   one-argument-per-line rule it refers to.

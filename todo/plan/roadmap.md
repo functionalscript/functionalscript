@@ -25,7 +25,8 @@
 **Layer 1 — Base (done)**
 - `cas_add`, `cas_get`, `cas_list` implemented in `fjs/mcp/cas/module.f.mjs` ✓
 - stdio transport implemented in `fjs/protocol/mcp/stdio/module.f.mjs` ✓
-- `fjs cas mcp` CLI subcommand registered in `fjs/cas/module.f.mjs` ✓
+- `fjs mcp` CLI command registered in `fjs/module.f.mjs`, running
+  `casMcpServer` from `fjs/mcp/module.f.mjs` ✓
 - Remaining: refactor to extract `casMcpStep` for transport-agnostic shape
 
 **Layer 2 — Content encoding (done)**
@@ -98,26 +99,39 @@ See [architecture.md §Human-readable paths](./architecture.md).
 ## Future — FunctionalScript compiler via fjs/ebnf
 
 **Current state:**
-- `fjs/ebnf/` — grammar front end and LL(1) backend exist; no FunctionalScript grammar written yet
-- `fjs/fsc/` — full data pipeline (tokenizer → parser → AST → evaluator) for `const`, `import`, objects, arrays; **functions not yet supported**
-- `nanvm-lib` (Rust) — type system implemented (primitives, arrays, objects, bigints); **no interpreter, no execution loop**
+- `fjs/ebnf/` — grammar front end and LL(1) backend; the FunctionalScript grammar
+  is written, in [`fjs/compiler/parser/grammar`](../../fjs/compiler/parser/grammar/module.f.mjs),
+  and read by `fjs/ebnf/ll1`
+- `fjs/compiler/` — tokenizer → parser → AST → EDAG for `const`, `import`, objects,
+  arrays, operators and functions, capturing ones included
+- Rust code generator ✓ — `fjs compile <module> <output>.rs` emits a Rust module
+  calling the `nanvm-lib` API (`fjs/compiler/rust`, `fjs/edag/rust`), built and run
+  by the `nanvm-harness` fixtures
+- `nanvm-lib` (Rust) — type system and operators implemented; kept low-level
+- FJS EDAG interpreter — baseline memo executor implemented; remaining validation
+  and integration tracked in [interpret-edag](../../fjs/compiler/todo/interpret-edag.md)
 
 **Remaining work:**
-1. Function support in `fjs/fsc/`
-2. FunctionalScript grammar in `fjs/ebnf/` (single source for parser + generated language spec)
-3. Rust code generator (FJS) — compiles FJS modules into Rust code calling the `nanvm-lib` API;
-   the MVP pipeline, the compiler-bootstrap vehicle, and the AOT backend
+1. ~~Function support in `fjs/compiler/`~~ — done.
+2. ~~FunctionalScript grammar~~ — done; generating the language spec from it
+   remains.
+3. ~~Rust code generator (FJS)~~ — done: the MVP pipeline, the
+   compiler-bootstrap vehicle, and the AOT backend
    (see [`nanvm-lib/todo/mvp-roadmap.md`](../../nanvm-lib/todo/mvp-roadmap.md))
-4. `Function` constructor + interpreter in `nanvm-lib` — executes the EDAG as data
-   (see [`spec/todo/serialization.md`](../../spec/todo/serialization.md));
-   bytecode is an optional, VM-internal, performance-oriented representation
+4. [FJS module loading](../../fjs/compiler/todo/load-modules-without-import-effect.md)
+   and [proof loading](../../fjs/emergent_testing/todo/load-proofs-through-fjs.md)
+   through the parser/linker and FJS interpreter. For native self-hosting,
+   compile that FJS pipeline to direct Rust, with low-level effects supplied by
+   [nanvm-effects-node](../nanvm-effects-node.md). The optional
+   [Rust EDAG library](../rust-edag.md) is on hold, outside MVP and self-hosting
+   prerequisites.
 5. Generic `Any` serialization (CBOR) in `nanvm-lib` — covers code as data; needed for CAS/CAVM
 
 **Repository source migration and compiler coverage:**
 
 The repository source-language migration is independent of compiler feature
 coverage. Its stage-1 issue is complete and deleted; the contract it left is
-[`fjs/fsc/README.md`](../../fjs/fsc/README.md):
+[`fjs/compiler/README.md`](../../fjs/compiler/README.md):
 
 1. **Stage 1 is done.** It migrated authored `.f.ts` to `.f.mjs`
    dependency-first, moving types to JSDoc or to an authored `types.ts` beside
@@ -137,7 +151,7 @@ coverage. Its stage-1 issue is complete and deleted; the contract it left is
    packed, and resolves for a clean consumer. That task is itself no longer
    blocked — its stage-1 precondition is met — so it can proceed now. The
    boundary the rename must respect is in
-   [`fjs/fsc/README.md`](../../fjs/fsc/README.md).
+   [`fjs/compiler/README.md`](../../fjs/compiler/README.md).
 4. An authored `.f.js` is the compiler-compatibility marker: the parser/compiler
    in the same repository revision must accept it. Unsupported modules remain
    `.f.mjs` until their compiler features land.
@@ -145,7 +159,7 @@ coverage. Its stage-1 issue is complete and deleted; the contract it left is
 This lets TypeScript removal and compiler implementation proceed independently
 without either one blocking unrelated progress. The authoritative extension
 contract and detailed workflow are documented in
-[`fjs/fsc/README.md`](../../fjs/fsc/README.md), and the Stage-2 compiler migration
+[`fjs/compiler/README.md`](../../fjs/compiler/README.md), and the Stage-2 compiler migration
 is tracked in [`todo/fjs-nanvm-integration.md`](../fjs-nanvm-integration.md).
 
 This is the longest dependency chain. Everything after it depends on it.
@@ -183,9 +197,9 @@ Prerequisite: compiler + CA FunctionalScript complete.
 | HTTP transport | `fjs/effects/node/` effects ✓ | `httpTransport` wrapper only |
 | Signed directories | — | Directory block type + path resolver |
 | SUL deduplication | `fjs/sul/` L1–L4 ✓ | CAS integration layer |
-| Compiler (parsing) | `fjs/fsc/` data pipeline ✓, `fjs/ebnf/` framework ✓ | Function support, FS grammar |
-| Compiler (codegen) | — | Rust code generator (FJS), `Function` constructor + interpreter in `nanvm-lib` |
+| Compiler (parsing) | `fjs/compiler/` pipeline with functions ✓, FJS grammar on `fjs/ebnf/` ✓ | Language spec generated from the grammar |
+| Compiler (codegen) | Rust code generator (`fjs compile … .rs`) ✓ | AOT-compile the FJS loader/interpreter for native self-hosting; Rust EDAG deferred |
 | Compiler (repository coverage) | Stage-1 `.f.mjs` source migration complete and compiler-independent ✓ | Validate supported `.f.mjs` as coverage grows; then authored-`.f.js` package support, then rename supported groups `.f.mjs` → `.f.js` |
 | CA FunctionalScript | — | Depends on VM + EDAG canonicalization |
-| Sandboxed execution | — | Depends on CA FS |
+| Sandboxed execution | — | Depends on CA FJS |
 | Hybrid intelligence | — | Depends on all above |

@@ -9,7 +9,7 @@ Bespoke `Debug` impls live in each type's own directory — `impl Debug for
 BigInt` in `nanvm-lib/src/vm/bigint/debug.rs` and `impl Debug for Function`
 in `nanvm-lib/src/vm/function/debug.rs` — but the equally bespoke
 `impl<A: IVm> Debug for String<A>` sits in the shared grab-bag
-`nanvm-lib/src/vm/impls/debug.rs:26-47`:
+`nanvm-lib/src/vm/impls/debug.rs`:
 
 ```rust
 impl<A: IVm> Debug for String<A> {
@@ -22,7 +22,7 @@ impl<A: IVm> Debug for String<A> {
 }
 ```
 
-That is ~22 lines of string-domain logic (UTF-16 iteration, quote/backslash
+That is about twenty lines of string-domain logic (UTF-16 iteration, quote/backslash
 escaping, `\uXXXX` for non-printable code units) grouped with the trivial
 delegating impls (`Any`, `Array`, `Object`, `Unpacked`). The placement is
 inconsistent with the per-type convention the other two bespoke Debug impls

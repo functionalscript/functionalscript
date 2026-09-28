@@ -21,21 +21,24 @@
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
  * @import { List as List_ } from '../../types/list/types.ts'
- * @import { Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _ReadChunks, _UtfList, _WriteLoop } from './types.ts'
+ * @import { Access, Await, Catch, Close, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fstat, Fs, Handle, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, Open, Pread, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadRequestBytes, RequestBody, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Rmdir, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _DoubledLength, _FramingHeader, _Gate, _NoBody, _ReadChunks, _Unframed, _UtfList, _WriteLoop } from './types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
 import { toCodePointList } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { concat } from '../../types/list/module.f.mjs'
-import { length, maxLengthBytes, msb, u8List } from '../../types/bit_vec/module.f.mjs'
+import { definedEntries } from '../../types/object/module.f.mjs'
+import { byteLength, bytesIn, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, u8ListMsb } from '../../types/bit_vec/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../list/module.f.mjs'
+import { ok } from '../../types/result/module.f.mjs'
 import { do_, errorMessage, ioError, toIoError } from '../module.f.mjs'
 import {
     all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write,
 } from '../common/module.f.mjs'
 import {
-    mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
+    catchStep, mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
 } from '../module.f.mjs'
 
 /**
@@ -107,6 +110,44 @@ export const emptyHostError = ioError({
     code: emptyHostCode,
     message: emptyHostMessage,
 })
+
+/**
+ * The largest port a number names: ports are 16 bits wide.
+ *
+ * @type {number}
+ */
+export const maxPort = 0xffff
+
+/**
+ * Whether `port` is one a host would accept: an integer in `0`–{@link maxPort},
+ * where `0` asks for an ephemeral one. Node throws {@link badPortCode} for
+ * anything else, and a runner that accepted `-1` or `NaN` would let a program
+ * be proven that cannot run.
+ *
+ * @type {(port: number) => boolean}
+ */
+export const isPort = port => Number.isInteger(port) && port >= 0 && port <= maxPort
+
+/**
+ * Node's code for a port {@link isPort} refuses.
+ *
+ * Unlike {@link emptyHostCode}, this refusal is Node's own: the Node runner
+ * forwards the port and Node throws it, so only a runner without a socket
+ * has to restate it.
+ *
+ * @type {string}
+ */
+export const badPortCode = 'ERR_SOCKET_BAD_PORT'
+
+/**
+ * Node's message for {@link badPortCode}, byte-for-byte, type included: a runner
+ * that claims to report failures in the shape the host reports them makes a
+ * claim that is not true with a message that is nearly right.
+ *
+ * @type {(port: number) => string}
+ */
+export const badPortMessage = port =>
+    `options.port should be >= 0 and < 65536. Received type number (${port}).`
 
 /**
  * True if `e` is a "file or directory does not exist" (`ENOENT`) error.
@@ -210,12 +251,15 @@ export const isDirectory = ([tag, payload]) =>
  * @type {CommandSet<NodeOp>}
  */
 const nodeCommandSet = {
-    access: null, all: null, await: null, catch: null, createExclusive: null,
-    createServer: null, exec: null, fetch: null, forever: null,
+    access: null, all: null, await: null, catch: null, close: null,
+    createExclusive: null,
+    createServer: null, exec: null, fetch: null, forever: null, fstat: null,
     import: null, inflate: null, listen: null, memCreate: null, memRead: null,
-    memWrite: null, mkdir: null, now: null, randomInt: null,
-    read: null, readBytes: null, readFile: null, readWhole: null, readdir: null,
-    rename: null, resolveFileModule: null, rm: null, sandbox: null, stat: null,
+    memWrite: null, mkdir: null, now: null, open: null, pread: null,
+    randomInt: null,
+    read: null, readBytes: null, readFile: null, readRequestBytes: null,
+    readWhole: null, readdir: null, rename: null, resolveFileModule: null,
+    rm: null, rmdir: null, sandbox: null, stat: null,
     test: null, write: null, writeBytes: null, writeExclusive: null,
     writeFile: null,
 }
@@ -268,10 +312,27 @@ export const readUtf8File = path =>
 /** @type {Func<Readdir>} */
 export const readdir = do_('readdir')
 
+/**
+ * The refusal of a `Vec` that is not whole bytes, where bytes are what a host
+ * is handed: {@link writeFile}, {@link inflate}, {@link writeExclusive} and
+ * {@link writeBytes} each refuse one with it, ahead of the host, whose
+ * conversion would pad the last byte and act on bytes that were never given.
+ */
+const invalidBufferSize = pureError(ioError({ message: 'invalid buffer size' }))
+
 // writeFile
 
-/** @type {Func<WriteFile>} */
-export const writeFile = do_('writeFile')
+const writeFileOp = /** @type {Func<WriteFile>} */ (do_('writeFile'))
+
+/**
+ * Writes `data` to `path`, replacing what it held. A file holds bytes, so a
+ * `Vec` that is not whole bytes is refused here as `invalid buffer size`,
+ * before any host sees it, as {@link writeExclusive} refuses one.
+ *
+ * @type {Func<WriteFile>}
+ */
+export const writeFile = (path, data) =>
+    isWholeBytes(data) ? writeFileOp(path, data) : invalidBufferSize
 
 /**
  * Writes a string to `path` as UTF-8 bytes.
@@ -285,6 +346,11 @@ export const writeUtf8File = (path, content) =>
 
 /** @type {Func<Rm>} */
 export const rm = do_('rm')
+
+// rmdir
+
+/** @type {Func<Rmdir>} */
+export const rmdir = do_('rmdir')
 
 // rename
 
@@ -303,15 +369,13 @@ const inflateOp = /** @type {Func<Inflate>} */ (do_('inflate'))
 /**
  * Inflates a zlib stream. The stream is bytes, so a `Vec` that is not
  * whole bytes is refused here as `invalid buffer size`, before any host
- * sees it, as {@link writeFromStream} refuses one: a host's conversion
+ * sees it, as {@link writeFile} refuses one: a host's conversion
  * would pad the last byte and read a stream that was never given.
  *
  * @type {Func<Inflate>}
  */
 export const inflate = data =>
-    (length(data) & 0b111n) !== 0n
-        ? pureError(ioError({ message: 'invalid buffer size' }))
-        : inflateOp(data)
+    isWholeBytes(data) ? inflateOp(data) : invalidBufferSize
 
 /**
  * The code an {@link Inflate} refuses bytes after the end of the stream
@@ -356,17 +420,16 @@ export const createExclusive = do_('createExclusive')
 const writeExclusiveOp = /** @type {Func<WriteExclusive>} */ (do_('writeExclusive'))
 
 /**
- * Creates `path` and writes `data` through that one open. A file holds bytes, so
- * a `Vec` that is not whole bytes is refused here as `invalid buffer size`,
- * before any host sees it, as {@link inflate} refuses one: a host's conversion
- * would pad the last byte, and the file would not hold `data`.
+ * Creates `path` and writes the chunks of `data` through that one open. A file
+ * holds bytes, so a chunk that is not whole bytes is refused here as
+ * `invalid buffer size`, before any host sees it, as {@link inflate} refuses
+ * one: a host's conversion would pad its last byte, and the file would not hold
+ * `data`.
  *
  * @type {Func<WriteExclusive>}
  */
 export const writeExclusive = (path, data) =>
-    (length(data) & 0b111n) !== 0n
-        ? pureError(ioError({ message: 'invalid buffer size' }))
-        : writeExclusiveOp(path, data)
+    data.every(isWholeBytes) ? writeExclusiveOp(path, data) : invalidBufferSize
 
 /**
  * Creates `path` and writes `content` to it as UTF-8 bytes, through one open,
@@ -376,12 +439,21 @@ export const writeExclusive = (path, data) =>
  * @type {(path: string, content: string) => Effect<WriteExclusive, void, IoChannel>}
  */
 export const writeExclusiveUtf8File = (path, content) =>
-    writeExclusive(path, utf8(content))
+    writeExclusive(path, [utf8(content)])
 
 // writeBytes
 
-/** @type {Func<WriteBytes>} */
-export const writeBytes = do_('writeBytes')
+const writeBytesOp = /** @type {Func<WriteBytes>} */ (do_('writeBytes'))
+
+/**
+ * Writes `data` into the existing `path` at byte `offset`. A `Vec` that is not
+ * whole bytes is refused here as `invalid buffer size`, before any host sees
+ * it, as {@link writeFile} refuses one.
+ *
+ * @type {Func<WriteBytes>}
+ */
+export const writeBytes = (path, offset, data) =>
+    isWholeBytes(data) ? writeBytesOp(path, offset, data) : invalidBufferSize
 
 /** @type {(path: string) => _WriteLoop} */
 const writeLoop = path => {
@@ -392,27 +464,40 @@ const writeLoop = path => {
                 return pureOk(undefined)
             }
             const { first: v, tail } = node
-            const lenV = length(v)
-            if ((lenV & 0b111n) !== 0n) {
-                return pureError(ioError({ message: 'invalid buffer size' }))
-            }
             return ioStep(
                 writeBytes(path, offset, v),
-                () => f(offset + Number(lenV >> 3n), tail))
+                () => f(offset + Number(byteLength(v)), tail))
         })
     return f
 }
 
 /**
+ * Creates `path` and writes the byte stream `e` to it, chunk by chunk.
+ *
+ * **It fails closed.** Once `path` exists, any failure — of the stream itself,
+ * of a chunk that is not whole bytes, of a `writeBytes` — removes it before
+ * the error is returned, so a failed write leaves no partial file behind for
+ * a later reader to mistake for the whole. The removal's own outcome is
+ * discarded, as `fjs/cas`'s staging cleanup discards it: the write's error is
+ * what the caller needs to hear, and a failed `rm` has no better answer.
+ *
+ * The removal names `path`, as every `writeBytes` before it does, so a file
+ * put there by someone else mid-write is written into and then removed —
+ * [write-from-stream-private-name.md](./todo/write-from-stream-private-name.md).
+ *
  * @template {Operation} O
  * @param {string} path
  * @param {List<O, Vec, IoChannel>} e
- * @returns {Effect<O | WriteBytes | CreateExclusive, void, IoChannel>}
+ * @returns {Effect<O | WriteBytes | CreateExclusive | Rm, void, IoChannel>}
  */
-export const writeFromStream = (path, e) =>
-    ioStep(
-        createExclusive(path),
-        () => writeLoop(path)(0, e))
+export const writeFromStream = (path, e) => {
+    // Only what runs after `createExclusive` is cleaned up after: an `EEXIST`
+    // is someone else's file, and removing it would be the failure's doing.
+    const written = catchStep(
+        writeLoop(path)(0, e),
+        err => resultStep(rm(path), () => pureError(err)))
+    return ioStep(createExclusive(path), () => written)
+}
 
 /** One chunk's worth of bytes: the `Vec` cap, which is what a chunk may not exceed. */
 const chunkBytes = Number(maxLengthBytes)
@@ -445,13 +530,13 @@ export const readChunks = (source, bound) => {
     const cell = (chunk, offset) => {
         const bits = length(chunk)
         // A chunk that is not whole bytes is refused rather than rounded down.
-        // `_ChunkSource`'s type permits one, and `>> 3n` would report a 1-bit
+        // `_ChunkSource`'s type permits one, and `bytesIn` would report a 1-bit
         // chunk as nought — an EOF the source never signalled, with the bits
         // thrown away. That is DESIGN §10's plausible wrong value.
-        if (bits % 8n !== 0n) {
+        if (!isWholeBytesIn(bits)) {
             return pureError(ioError({ message: `chunk at ${offset} is ${bits} bits, not whole bytes` }))
         }
-        const got = Number(bits >> 3n)
+        const got = Number(bytesIn(bits))
         // An empty read ends an unbounded stream. Under a bound it is a file
         // that shrank mid-read: a truncated body under a declared length, so
         // it fails the cell instead of ending the stream short.
@@ -475,6 +560,310 @@ export const readChunks = (source, bound) => {
         return ioStep(source(offset, Math.min(chunkBytes, remaining)), chunk => cell(chunk, offset))
     }
     return loop(0)
+}
+
+// open, fstat, pread, close
+
+/** @type {Func<Open>} */
+export const open = do_('open')
+
+/** @type {Func<Fstat>} */
+export const fstat = do_('fstat')
+
+/** @type {Func<Pread>} */
+export const pread = do_('pread')
+
+/** @type {Func<Close>} */
+export const close = do_('close')
+
+// The window a positional read names, read by both runners
+
+/**
+ * The largest byte a positional read may name. **Node's own limit, not a
+ * choice**: measured on Darwin with Node 23.11.0, `FileHandle.read` at this
+ * position answers nought bytes for a short file, and at one more it fails
+ * `ERR_OUT_OF_RANGE` — `must be >= -1 && <= 9007199254740991`. A runner that
+ * answered the plausible empty read for the second would hand a caller an
+ * end-of-file branch the host never takes.
+ *
+ * @type {number}
+ */
+export const maxOffset = Number.MAX_SAFE_INTEGER
+
+/**
+ * The refusal a positional read's `offset` and `size` deserve, or `null` for a
+ * window a host will read.
+ *
+ * **It is here so that the two runners refuse the same numbers in the same
+ * words**, as {@link refusalMessage} is for the gates: `readBytes` and `pread`
+ * each have two implementations, the node runner's and the virtual one's, and a
+ * bound checked in one of the four is a window a proof passes and production
+ * refuses — or the reverse. Every caller asks this before it touches a byte.
+ *
+ * **Each bound is one the host draws, and two of them the host draws silently.**
+ * Node's `Buffer.alloc` takes a fractional size and *truncates* it: measured on
+ * Node 23.11.0, `Buffer.alloc(1.5)` is one byte long and `Buffer.alloc(0.5)` is
+ * none, so a size of `1.5` read one byte and said nothing about the half it
+ * dropped. A fractional *position* it does refuse, `ERR_OUT_OF_RANGE`, and an
+ * `offset` past {@link maxOffset} likewise. Refusing all of them here, before the
+ * allocation and before the read, is what makes the refusal a program meets its
+ * own rather than whichever of the two runners it happened to run under.
+ *
+ * @type {(offset: number, size: number) => Nullable<string>}
+ */
+export const windowRefusal = (offset, size) => {
+    if (!Number.isInteger(offset)) { return `Offset ${offset} is not an integer` }
+    if (!Number.isInteger(size)) { return `Chunk size ${size} is not an integer` }
+    if (offset < 0) { return `Offset ${offset} is negative` }
+    if (size < 0) { return `Chunk size ${size} is negative` }
+    if (!Number.isSafeInteger(offset)) { return `Offset ${offset} exceeds maximum allowed offset of ${maxOffset}` }
+    if (BigInt(size) > maxLengthBytes) { return `Chunk size ${size} exceeds maximum allowed size of ${maxLengthBytes} bytes` }
+    return null
+}
+
+/**
+ * A {@link _ChunkSource} that reads through one open file, which is what makes a
+ * body both lazy and one inode's.
+ *
+ * `readBytes` is the other source of that shape and it takes a *path*, so a fold
+ * over it resolves the name once per chunk: a served entry replaced mid-response
+ * yields an old prefix joined to a new suffix, under a length that is correct and
+ * an end that is clean, and nothing downstream can tell. `readWhole` binds the
+ * chunks too and spends the laziness to do it. This binds them and keeps it.
+ *
+ * @type {(handle: Handle) => _ChunkSource<Pread>}
+ */
+export const handleSource = handle => (offset, size) => pread(handle, offset, size)
+
+/**
+ * Gives `handle` back, as the `release` a `ServerResponse` carries: the outcome
+ * is discarded because there is nobody left to tell — by the time a runner runs
+ * this the response is either complete or already destroyed, which is the sense
+ * `release`'s `never` channel is declared in.
+ *
+ * @type {(handle: Handle) => Effect<Close, null, never>}
+ */
+export const releaseHandle = handle => resultMapStep(close(handle), () => ok(null))
+
+// Response framing, read by both runners
+
+/**
+ * The value `headers` holds for `name`, or `null` for none — matched the way Node
+ * matches a header name, **case-insensitively**.
+ *
+ * `Headers` is a `StringMap<string>`, so a listener may spell `Content-Length`
+ * any of a dozen ways and Node reads all of them. A runner that compared the key
+ * exactly would find no length on a response that declares one, and then refuse
+ * or mis-frame it.
+ *
+ * **It reads the entries the host reads**, which is what `definedEntries` is doing
+ * here: an index signature admits `undefined`, `writeListenerHead`
+ * ([`./module.mjs`](./module.mjs)) skips such an entry rather than calling
+ * `setHeader` for it, and so a header present with no value is a header no client
+ * ever sees. Scanning `Object.entries` instead stopped at the first key that
+ * *spelled* the name and answered `null` for its missing value, so
+ * `{ 'Content-Length': undefined, 'content-length': '2' }` read as declaring no
+ * length at all. Measured on Darwin with Node 23.11.0, that response went out
+ * under `content-length: 2` with the pump counting against nothing: an
+ * eight-byte body on the wire beneath a two-byte promise.
+ *
+ * Where two entries are *both* defined this answers the first, and no count is
+ * ever taken against it — {@link responseGate}'s fourth gate refuses such a
+ * response before a bound is read.
+ *
+ * `name` is given already lower-cased; every caller here is a literal.
+ *
+ * @type {(headers: Headers, name: string) => Nullable<string>}
+ */
+export const headerValue = (headers, name) => {
+    for (const [k, v] of definedEntries(headers)) {
+        if (k.toLowerCase() === name) { return v }
+    }
+    return null
+}
+
+/**
+ * How many of `headers`'s defined entries spell `name`, which is how a runner asks
+ * whether the listener declared one thing twice.
+ *
+ * @type {(headers: Headers, name: string) => number}
+ */
+const headerCount = (headers, name) =>
+    definedEntries(headers).filter(([k]) => k.toLowerCase() === name).length
+
+/**
+ * The length `headers` declares, or `null` for a response that declares none this
+ * runner can read.
+ *
+ * **A header it cannot read is no declaration**, for either the gate or the
+ * count. A `Content-Length` that is not a non-negative decimal integer describes
+ * nothing a client can check a body against, so treating it as a number would put
+ * the runner's count against a value it invented. Nothing in the tree produces
+ * one: `fjs/web` writes the `fstat` size.
+ *
+ * **Absent and unreadable are the same answer here and different ones at the
+ * gate**, which is why {@link responseGate} asks {@link headerValue} as well as
+ * this. What Node does with such a header is not "whatever it likes": the header
+ * goes out as written and its mere presence turns Node's own chunked framing off.
+ * Measured on Node 23.11.0, a listener answering `content-length: '1 '` and a
+ * two-byte body put
+ *
+ * ```
+ * HTTP/1.1 200 OK
+ * content-length: 1
+ * Connection: keep-alive
+ * ```
+ *
+ * on the wire — the padded value verbatim, no `Transfer-Encoding`, and the socket
+ * back in the pool. So the surplus byte is the next response's status line, which
+ * is the one outcome gate 3 exists to prevent.
+ *
+ * @type {(headers: Headers) => Nullable<number>}
+ */
+export const declaredLength = headers => {
+    const v = headerValue(headers, 'content-length')
+    if (v === null || !isDigits(v)) { return null }
+    const n = Number(v)
+    return Number.isSafeInteger(n) ? n : null
+}
+
+/** Whether `s` is a non-empty run of decimal digits — no sign, no space, no
+ * exponent, which is the whole of what a `Content-Length` may be.
+ *
+ * @type {(s: string) => boolean}
+ */
+const isDigits = s => s !== '' && [...s].every(c => c >= '0' && c <= '9')
+
+/**
+ * Whether Node will carry no body for this response, so the producer is never
+ * pulled at all.
+ *
+ * **The set is the host's, not the RFC's.** Node drops the body of a `HEAD`
+ * response and of a `204`, `304` or `1xx`, and `res.write` on one of those does
+ * not merely discard the bytes — it answers `true`, so the socket stops being a
+ * brake in exactly the cases where there is nothing to brake. A method-agnostic
+ * pump therefore reads a multi-gigabyte file at the speed of the disk to send
+ * nothing. `205` forbids a body too (RFC 9110 §15.3.6) and Node sends one anyway,
+ * so a guard written from the specification would suppress a body the host was
+ * about to send — the same plausible wrong answer, produced by the check meant to
+ * prevent one.
+ *
+ * It is the runner that asks, not the listener: `fjs/web` answers a `HEAD`
+ * exactly like a `GET` and takes its `Content-Length` from the `fstat`, so a
+ * `HEAD` is the common case here and not a corner of one.
+ *
+ * @type {(method: string, status: number) => boolean}
+ */
+export const carriesNoBody = (method, status) =>
+    method === 'HEAD' || status === 204 || status === 304 || (status >= 100 && status <= 199)
+
+/**
+ * What a runner does with a response before it pulls a byte of the body — see
+ * {@link _Gate} for the four gates and why their order is the design's rather
+ * than each runner's.
+ *
+ * @type {(method: string, chunkedResponse: boolean, status: number, headers: Headers) => _Gate}
+ */
+export const responseGate = (method, chunkedResponse, status, headers) => {
+    // The framing header first, because it is the response being malformed
+    // rather than this body being undeliverable.
+    if (headerValue(headers, 'transfer-encoding') !== null) { return framingHeader }
+    // Suppression before the length refusal: that refusal exists to stop a
+    // truncated body from passing for a whole one, and a body Node drops is never
+    // on the wire to be truncated. A `HEAD` or a `304` is a complete answer
+    // whatever framing the body it does not carry would have had, so the other
+    // order answers `500` to a request this server can satisfy exactly.
+    if (carriesNoBody(method, status)) { return noBody }
+    const declared = declaredLength(headers)
+    // `chunkedResponse` is an escape only where the response declares no length at
+    // all. A `Content-Length` that is *present* and unreadable takes Node's
+    // chunked framing away — see {@link declaredLength} for what the host put on
+    // the wire — so there is nothing left to frame the body by and gate 3 refuses
+    // it, on an HTTP/1.1 request exactly as on a 1.0 one.
+    if (declared === null && (headerValue(headers, 'content-length') !== null || !chunkedResponse)) {
+        return unframed
+    }
+    // Last, because a length declared twice is a length: the two gates above
+    // overlap it and both answer it correctly, and gate 3 catches the response
+    // that is doubled *and* unreadable with a blunter but true message.
+    if (headerCount(headers, 'content-length') > 1) { return doubledLength }
+    return ['pump', declared]
+}
+
+/** @type {_FramingHeader} */
+const framingHeader = ['framingHeader']
+
+/** @type {_NoBody} */
+const noBody = ['noBody']
+
+/** @type {_Unframed} */
+const unframed = ['unframed']
+
+/** @type {_DoubledLength} */
+const doubledLength = ['doubledLength']
+
+/**
+ * The status a runner refuses a response it cannot frame with, and the three
+ * messages it explains the refusal by. Declared here so that the two runners say
+ * the same thing, as {@link emptyHostError} is, and so a proof asserting one
+ * asserts both.
+ *
+ * `500` rather than `505` for the unframed case: RFC 9110 §15.6.6 names the
+ * request's *major* version, which 1.0 shares with 1.1, and this server answers
+ * HTTP/1.0 perfectly well for a body whose size it knows. It is the pre-headers
+ * case `failSafe` already answers `500` in, reached before rather than after the
+ * fact.
+ *
+ * @type {number}
+ */
+export const refusedStatus = 500
+
+/** @type {string} */
+export const framingHeaderMessage = 'a response may not declare its own transfer encoding'
+
+/** @type {string} */
+export const unframedBodyMessage = 'a body with no content-length cannot be framed for this request'
+
+/** @type {string} */
+export const doubledLengthMessage = 'a response may not declare its content-length twice'
+
+/**
+ * What a runner answers a {@link _Gate} refusal with.
+ *
+ * @type {(gate: _FramingHeader | _Unframed | _DoubledLength) => string}
+ */
+export const refusalMessage = ([tag]) =>
+    tag === 'framingHeader'
+        ? framingHeaderMessage
+        : tag === 'unframed' ? unframedBodyMessage : doubledLengthMessage
+
+/**
+ * The runner's own answer, as a response frame — for the cases a listener never
+ * gets to give one, or gave one the runner may not put on a socket.
+ *
+ * **It closes the connection**, which is the difference between refusing a request
+ * and surviving the refusal. The cases that reach it have not read the request to
+ * its end, and on a keep-alive connection Node then waits for the rest of a body
+ * that is never coming: the socket is stuck and the next request on it is never
+ * answered.
+ *
+ * Declared here rather than in a runner because both build it — the Node one puts
+ * it on the socket, the virtual one records it — and a refusal the two spell
+ * differently is a refusal a program cannot be proven against.
+ *
+ * @type {(status: number, message: string) => { readonly status: number, readonly headers: Headers, readonly body: readonly Vec[] }}
+ */
+export const runnerResponse = (status, message) => {
+    const body = utf8(`${message}\n`)
+    return {
+        status,
+        headers: {
+            'content-type': 'text/plain; charset=utf-8',
+            'content-length': `${byteLength(body)}`,
+            connection: 'close',
+        },
+        body: [body],
+    }
 }
 
 // stat
@@ -544,8 +933,52 @@ export const notAFileMessage = path => `${path} is not a regular file`
 export const readWholeBytes = path => ioMapStep(
     readWhole(path),
     chunks => chunks.reduce(
-        (bytes, v) => concat(bytes)(u8List(msb)(v)),
+        (bytes, v) => concat(bytes)(u8ListMsb(v)),
         /** @type {List_<number>} */ (null)))
+
+// readRequestBytes
+
+/** @type {Func<ReadRequestBytes>} */
+export const readRequestBytes = do_('readRequestBytes')
+
+/**
+ * What {@link readRequestBytes} refuses a misplaced offset with: the one asked
+ * for and the one the body is at.
+ *
+ * Declared here rather than in a runner, so that the two that raise it say the
+ * same thing and a program that meets the refusal in the virtual runner meets
+ * the same words on a host. This is the pair {@link notAFileCode} and
+ * {@link notAFileMessage} already are.
+ *
+ * @type {(offset: number, position: number) => string}
+ */
+export const requestBodyOffsetMessage = (offset, position) =>
+    `request body is at ${position}, not ${offset}`
+
+/**
+ * A request body as a byte stream: the chunks the client sent, in order.
+ *
+ * **A runner calls this, not a listener.** It is how each runner turns the
+ * handle it holds into the `body` of the {@link IncomingMessage} it hands over,
+ * so the stream's shape is written once and the two runners cannot disagree
+ * about it. A listener receives the list and never sees the handle.
+ *
+ * It is {@link readChunks} unbounded, which is what a request body is: nobody
+ * declared how long it would be, so it ends where the client stopped sending
+ * and an empty read is that end. The bound the other caller passes belongs to a
+ * body whose length was declared ahead of it, and a request has no such
+ * promise to keep — a `Content-Length` a client sent is the client's claim, and
+ * a server that trusted it in place of reading would frame its own reads from
+ * something it has no reason to believe.
+ *
+ * What {@link readChunks} contributes beyond the loop is the offset, and the
+ * offset is what makes a re-pull of an already-read cell a refusal rather than
+ * a spliced body — see {@link ReadRequestBytes}.
+ *
+ * @type {(body: RequestBody) => List<ReadRequestBytes, Vec, IoChannel>}
+ */
+export const requestBody = body =>
+    readChunks((offset, size) => readRequestBytes(body, offset, size), null)
 
 // createServer
 

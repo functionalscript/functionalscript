@@ -15,7 +15,7 @@ export const casAddArgs = /** @type {const} */ ({
 })
 ```
 
-There are 119 of these across `fjs/`. The cast pins, but it checks nothing —
+There are many of these across `fjs/`. The cast pins, but it checks nothing —
 `/** @type {const} */` is `as const`, and a const assertion asks TypeScript only
 to stop widening. Nothing here says the value is a `Type`. Misspell a member
 (`conten: string`) or use a value that is not a schema at all and the

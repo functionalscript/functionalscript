@@ -23,13 +23,13 @@ it.
 > has no scoping, evaluation order, or error messages of its own, and it makes
 > recognition one token rather than a parse. Reconciling the text below with
 > that rule is stage 2 of the epic — including the two consequences it has:
-> [expression](./3410-expression.md) is no longer a dependency of the
-> annotation body, and whether a dotted `ns.myType`
+> an expression parser is no longer a dependency of the annotation body, and
+> whether a dotted `ns.myType`
 > ([namespace-import](./2220-namespace-import.md)) counts as a name is open.
 
 **Evaluating and checking an annotation** depends on the compiler being able to
 load and run a module as meta-programming
-([`fjs/fsc/todo/047-fsc-meta-programming.md`](../../fjs/fsc/todo/047-fsc-meta-programming.md)). Recognizing one does not:
+([`fjs/compiler/todo/047-compiler-meta-programming.md`](../../fjs/compiler/todo/047-compiler-meta-programming.md)). Recognizing one does not:
 settling the annotation's form, matching the comment, and resolving its single
 identifier against the module's bindings need neither meta-programming nor the
 expression parser, and are stages 2–3 of
@@ -165,7 +165,7 @@ TypeScript aliases out.
    grammar is one name, so recognizing it needs no expression grammar inside a
    comment, and the parser gains no new syntax surface.
 2. Resolve that name to a binding in scope and evaluate **the binding** at
-   compile time ([`fjs/fsc/todo/047-fsc-meta-programming.md`](../../fjs/fsc/todo/047-fsc-meta-programming.md)) — ordinary
+   compile time ([`fjs/compiler/todo/047-compiler-meta-programming.md`](../../fjs/compiler/todo/047-compiler-meta-programming.md)) — ordinary
    identifier resolution, the same lookup any other reference gets. There is no
    "annotation expression" to evaluate.
 
@@ -202,21 +202,22 @@ annotation form and how a name resolves — rather than a paraphrase of a stage.
 
 ## Depends on
 
-- [compile-modules-to-edag](../../fjs/fsc/todo/compile-modules-to-edag.md) —
+- [compile-modules-to-edag](../../fjs/compiler/todo/compile-modules-to-edag.md) —
   the `,` anchoring operation for a non-resulting computation, which the
   compiler emits for whatever a module's export does not reach: a module whose
   only use of an import is in an annotation compiles, its import anchored and
   evaluated.
-- [`fjs/fsc/todo/047-fsc-meta-programming.md`](../../fjs/fsc/todo/047-fsc-meta-programming.md) — the compiler loading and
+- [`fjs/compiler/todo/047-compiler-meta-programming.md`](../../fjs/compiler/todo/047-compiler-meta-programming.md) — the compiler loading and
   running modules as meta-programming, which is what compile-time evaluation of
   an annotation's named binding requires.
 - [fjs-nanvm-integration.md](../../todo/fjs-nanvm-integration.md) and
-  [`fjs/fsc/README.md`](../../fjs/fsc/README.md) — the path to a compiler that
+  [`fjs/compiler/README.md`](../../fjs/compiler/README.md) — the path to a compiler that
   parses authored FunctionalScript.
 - [js-string-literals](./2460-js-string-literals.md) — FunctionalScript's string
-  grammar is JSON's, so the repository's own single-quoted `.mjs` sources are
-  not yet input the parser accepts. Normalizing them is a precondition of the
-  [stage-2](../../fjs/fsc/README.md#stage-2-mark-compiler-compatible-functionalscript)
+  is JSON's between either quote, so the repository's own single-quoted `.mjs`
+  sources tokenize; the rest of JavaScript's string spellings do not yet, and
+  normalizing those is a precondition of the
+  [stage-2](../../fjs/compiler/README.md#stage-2-mark-compiler-compatible-functionalscript)
   rename, not a tokenizer defect.
 
 ## Consequences for the TypeScript-era work
@@ -254,9 +255,11 @@ annotation form and how a name resolves — rather than a paraphrase of a stage.
 - [new-pl.md § Type System](../../todo/new-pl.md#type-system) — the same idea one
   level further out: type checking as an opt-in library rather than a language
   feature. This document is the FunctionalScript-scoped version.
-- [edag-spec.md](../../todo/edag-spec.md) — already specifies the EDAG with RTTI and
-  generates Rust from it; the same schemas would feed both.
-- [types-for-fs.md](../../todo/types-for-fs.md) — why TypeScript's own type system is not
+- [`fjs/edag`](../../fjs/edag/README.md) — already specifies the EDAG with RTTI;
+  generating Rust from it is
+  [rust-schema-codegen](../../fjs/edag/todo/rust-schema-codegen.md), and the
+  same schemas would feed both.
+- [types-for-fjs.md](../../todo/types-for-fjs.md) — why TypeScript's own type system is not
   the target.
 - [`fjs/ebnf/todo/layered-parser.md`](../../fjs/ebnf/todo/layered-parser.md) — the
   transducer stack the tokenizer work belongs to.

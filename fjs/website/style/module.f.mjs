@@ -37,6 +37,14 @@ export const stylesheetPath = '/_main.css'
 export const stylesheetLink = ['link', { rel: 'stylesheet', href: stylesheetPath }]
 
 /**
+ * The site's mark, as the root-relative URL both the favicon and the header
+ * load it by — one file, so the tab and the page cannot show two logos.
+ *
+ * @type {string}
+ */
+export const logoPath = '/fjs/website/favicon.svg'
+
+/**
  * The two `<link rel="icon">` elements every page carries, so that no page
  * spells the paths itself.
  *
@@ -51,7 +59,7 @@ export const stylesheetLink = ['link', { rel: 'stylesheet', href: stylesheetPath
  */
 export const faviconLinks = [
     ['link', { rel: 'icon', href: '/favicon.ico', sizes: '32x32' }],
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/fjs/website/favicon.svg' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: logoPath }],
 ]
 
 /**
@@ -59,9 +67,9 @@ export const faviconLinks = [
  *
  * @type {string}
  */
-export const stylesheet = `:root { color-scheme: light dark; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6 }
+export const stylesheet = `:root { color-scheme: light dark; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6; --value: #174ea6; --value-bg: #e8f0fe }
 @media (prefers-color-scheme: dark) {
-    :root { --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414 }
+    :root { --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414; --value: #8ab4f8; --value-bg: #172033 }
 }
 /* Every link on the site is coloured the same whether or not it has been
    opened: nearly every word here is a link into the tree, and the visited
@@ -75,7 +83,13 @@ a, a:visited { color: var(--link) }
    sideways, or the report's panel clips the line. So any line may break inside
    a word: an identifier split across two lines is still read, and one cut off
    is not. */
-body { background-color: var(--bg); color: var(--text); font: 16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; margin: 3rem auto; max-width: 48rem; overflow-wrap: anywhere; padding: 0 1rem }
+body { background-color: var(--bg); color: var(--text); font: 16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; margin: 0; overflow-wrap: anywhere }
+/* The column is the page's, not the body's, so the header above it can span
+   the whole window. 63.25rem is GitHub's container-lg, 1012px at 16px — the
+   column GitHub reads a rendered Markdown file in — so a page here is as wide
+   as the same directory's view on GitHub. It is in rem, like every other
+   length here, so it grows with a reader's own font size. */
+main { margin: 1.5rem auto 3rem; max-width: 63.25rem; padding: 0 1rem }
 [data-state="passed"] [data-test-summary] { color: var(--pass) }
 [data-state="failed"] [data-test-summary], [data-state="infrastructure-error"] [data-test-summary] { color: var(--fail) }
 [data-test-results] { color: var(--text) }
@@ -134,11 +148,16 @@ li[data-status="passed"] { color: var(--muted) }
    so Run was Arial at 13.33px on a page set in monospace at 16px. Inheriting
    is what makes "one face" true of the whole page rather than of its text.
 
-   Every control, not only the ones the site has today: a demo's field is an
-   input, and it was Arial the moment the first demo landed. A list that has to
-   be extended for each new control is a rule that is wrong between the element
-   arriving and somebody noticing. */
-button, input, textarea, pre { font: inherit }
+   The selector names elements one by one, so it covers only what it names.
+   It names every element a browser gives a face of its own, not only the ones
+   the site uses: a demo's field is an input, and it was Arial the moment the
+   first demo landed; a select, missing here, was Arial when the first examples
+   drop-down landed. Those are the four form controls — button, input, select,
+   textarea, with an option or optgroup taking its select's font — plus pre.
+   Every other form element — output, fieldset, legend, meter, progress —
+   already inherits the page's font, as a label does. An element a browser
+   starts giving its own face has to be added here. */
+button, input, select, textarea, pre { font: inherit }
 pre { white-space: pre-wrap }
 /* A textarea's own baseline sits at its bottom edge, so a label before a
    multi-line field — the JSON demo's, the first of its kind — floated to the
@@ -156,6 +175,35 @@ textarea { vertical-align: top }
    redraws focus and the caret), and a field a reader just widened would
    silently narrow back on the next keystroke. */
 textarea { box-sizing: border-box; resize: vertical; width: 100% }
+/* The header every page opens with: the logo and the site's name on the left,
+   the site-wide links on the right, across the full width of the window with
+   one rule under it, as a site's own bar. Its contents go to the window's
+   edges, not the page's column: the bar belongs to the site, and the column
+   to the page under it. The menu is bold and a step larger than the text, as a
+   site's own navigation is set apart from what it navigates.
+   It wraps rather than hiding behind a menu button: in a monospace face a
+   phone has no room for the name and the links on one line, and a line break
+   costs no script.
+   A header link is not underlined: its place in the header is what says it is
+   a link, as a site's own navigation does everywhere, and the underline comes
+   back on hover. Every link in the header is padded to a finger's target,
+   whatever the pointer: it is one row, not a dense list, so the padding
+   costs nothing a mouse would miss. */
+header { border-bottom: 1px solid var(--border) }
+header nav, [data-build] { padding-inline: 1rem }
+header nav, [data-site-links] { align-items: center; display: flex; flex-wrap: wrap; gap: .25rem 1.5rem }
+header nav { font-size: 1.125rem; font-weight: 700; padding-block: .5rem }
+header nav a { padding-block: .25rem; text-decoration: none }
+header nav a:hover { text-decoration: underline }
+[data-home] { align-items: center; display: inline-flex; gap: .5rem; margin-right: auto }
+[data-home] img { height: 1.5rem; width: 1.5rem }
+/* A preview says which build it is — the branch and the commit — so a
+   reader comparing two previews, or a preview with production, knows which
+   one they are looking at. Muted and small: it is about the build, not the
+   page. It is a full-width strip under the menu, tinted from the border and
+   the background rather than a colour of its own, so it follows both
+   schemes, and set to the right, under the links, as a status bar is. */
+[data-build] { background: color-mix(in srgb, var(--border) 30%, var(--bg)); border-top: 1px solid var(--border); color: var(--muted); font-size: .8rem; margin: 0; padding-block: .35rem; text-align: right }
 /* Every section of a page is a disclosure, so a reader can fold away what
    they are not reading — the platform's own collapsible, and no script on a
    site that is static files. Its summary is the section's heading, and is
@@ -179,6 +227,26 @@ textarea { box-sizing: border-box; resize: vertical; width: 100% }
    bigger than it has always been. */
 [data-section] > summary > h2 { display: inline; font: inherit; margin: 0 }
 [data-section] > ul { margin-top: .5rem }
+/* A directory's catalogue lists three kinds of entry — directory and file
+   under Contents, issue under Issues — and each entry's kind is the icon in
+   front of it, where a list's bullet would be. The icon is a mask over the muted colour, so it
+   follows the colour scheme like the text does. It is not decoration: an
+   issue and a file can have the same name, so the icon carries a text
+   alternative after the slash. The kind is on the link rather than its list
+   item, so the alternative is part of the link's accessible name: a reader
+   going through the page's links hears "file a.md" and "issue a.md", not the
+   same name twice. The plain content before it is for a browser without that
+   syntax, which drops the whole declaration and would otherwise draw no icon
+   at all. */
+ul:has(> li > [data-kind]) { padding-left: 0 }
+li:has(> [data-kind]) { list-style: none }
+[data-kind]::before { background-color: var(--muted); content: ""; display: inline-block; height: 1em; margin-right: .5em; mask: var(--icon) center / contain no-repeat; vertical-align: -.125em; width: 1em }
+[data-kind="dir"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1 3.5A1.5 1.5 0 0 1 2.5 2h3.6l1.5 1.5h5.9A1.5 1.5 0 0 1 15 5v7.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 12.5z'/%3E%3C/svg%3E") }
+[data-kind="dir"]::before { content: "" / "directory" }
+[data-kind="file"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M3 1h6.5L13 4.5V15H3zM4.5 2.5v11h7v-8h-3v-3z'/%3E%3C/svg%3E") }
+[data-kind="file"]::before { content: "" / "file" }
+[data-kind="issue"] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1.5a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11zM8 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z'/%3E%3C/svg%3E") }
+[data-kind="issue"]::before { content: "" / "issue" }
 /* A list of links, one per line — a section's catalogue, the release index —
    is marked data-links, and has nothing under WCAG 2.2's 24px minimum to tap:
    at d05b70ce, rendered at 390px, a listed link was 19px tall. The marker is
@@ -208,20 +276,57 @@ svg text { font: inherit }
    its node may never evaluate, and a solid line there would say the value
    is always wanted. A node is drawn once however many edges reach it, so
    the marking has to be on the line rather than on the box.
-   A node with outgoing edges carries a row of ports under its label, one
-   cell per edge holding that edge's label, and the edge leaves from the
-   bottom of its cell — so a label always sits in the box it names rather
-   than over a line. A port is a thinner, unfilled cell inside the node's
-   own border. No edge crosses a box — the layout routes one that skips a
-   rank down a lane of its own — so a line needs no casing to stand out
-   from a border it passes. */
+   A node with outgoing edges carries a row per port under its label, one
+   per edge holding that edge's label, and the edge leaves from the right
+   end of its row — so a label always sits in the box it names rather than
+   over a line. A port is a thinner, unfilled cell inside the node's own
+   border, clipped to its rounded corners, with the border drawn once more
+   over the cells so it stays one weight all round. A primitive — a
+   number, null, undefined — is no node of its own: its value draws in a
+   cell right of its key, and no line leaves for it. A value is tinted and
+   a key is grey, so the two differ by more than their order in the row.
+   An inline input — the EDAG demo's args and rest — is filled like the
+   terminal node it would otherwise be, not tinted like a constant. An
+   edge's key fills its whole row, so no cell is left empty. No edge
+   crosses a box — the layout routes one that skips a rank across a lane
+   of its own — so a line needs no casing to stand out from a border it
+   passes.
+   A graph is not text, so the page's reading width does not bind it: its
+   container is as wide as the drawing, never narrower than the text column
+   and never wider than the window, and centred on the page. Only a graph
+   wider than the window scrolls, sideways in its own container, so the page
+   around it stays still. The 3rem kept from the window's width leaves a
+   margin either side, and room for a vertical scroll bar, which 100vw
+   counts. */
+[data-graph] { overflow-x: auto; width: max-content; min-width: 100%; max-width: calc(100vw - 3rem); position: relative; left: 50%; transform: translateX(-50%) }
+[data-graph] > svg { display: block }
 [data-graph-node] { fill: var(--bg); stroke: var(--text); stroke-width: 1.5 }
+[data-graph-outline] { fill: none; stroke: var(--text); stroke-width: 1.5 }
 [data-graph-kind="leaf"] { stroke: var(--muted); stroke-dasharray: 3 2 }
 [data-graph-kind="terminal"] { fill: var(--border) }
 [data-graph-label] { dominant-baseline: middle; fill: var(--text); font-size: .75rem }
 [data-graph-edge] { fill: none; stroke: var(--muted); stroke-width: 1.5 }
 [data-graph-edge-kind="lazy"] { stroke-dasharray: 5 3 }
 [data-graph-port] { fill: none; stroke: var(--muted); stroke-width: 1 }
+[data-graph-value] { fill: var(--value-bg); stroke: var(--muted); stroke-width: 1 }
+[data-graph-value-label] { dominant-baseline: middle; fill: var(--value); font-size: .75rem }
+[data-graph-value][data-graph-value-kind="terminal"] { fill: var(--border) }
+[data-graph-value-label][data-graph-value-kind="terminal"] { fill: var(--text) }
 [data-graph-edge-label] { dominant-baseline: middle; fill: var(--muted); font-size: .7rem }
 [data-graph-arrow] { fill: var(--muted) }
+/* A syntax diagram: a track, the pills of the text an input holds and the
+   boxes of other diagrams. A terminal is tinted as a value is in a graph,
+   since both are what the input itself spells; a box is hollow, since it
+   stands for a diagram drawn elsewhere, and it is a link there, so it fills
+   under a pointer. A diagram scrolls sideways in its own container, as a
+   graph does. */
+[data-railroad] { overflow-x: auto }
+[data-railroad] > svg { display: block }
+[data-railroad-line] { fill: none; stroke: var(--text); stroke-width: 1.5 }
+[data-railroad-box="terminal"] { fill: var(--value-bg); stroke: var(--value); stroke-width: 1.5 }
+[data-railroad-box="nonTerminal"] { fill: var(--bg); stroke: var(--text); stroke-width: 1.5 }
+a:hover > [data-railroad-box="nonTerminal"] { fill: var(--pass-bg) }
+[data-railroad-label] { dominant-baseline: middle; font-size: .75rem }
+[data-railroad-label="terminal"] { fill: var(--value) }
+[data-railroad-label="nonTerminal"] { fill: var(--text); font-weight: 700 }
 `

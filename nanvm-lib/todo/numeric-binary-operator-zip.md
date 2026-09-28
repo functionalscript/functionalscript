@@ -7,10 +7,9 @@
 
 `src/vm/numeric.rs` states the ECMAScript mixed-operand rule — same-typed
 operands combine, a `Number`/`BigInt` mix throws — twelve times, once per
-binary operation: `Add` (`:52`), `Mul` (`:64`), `Sub` (`:76`), `Rem`
-(`:88`), `Div` (`:100`), `BitAnd` (`:112`), `BitOr` (`:126`), `BitXor`
-(`:140`), `Shl` (`:154`), `Shr` (`:168`), plus `pow` (`:201`) and
-`unsigned_right_shift` (`:231`). Every impl is the same three-arm skeleton:
+binary operation: `Add`, `Mul`, `Sub`, `Rem`, `Div`, `BitAnd`, `BitOr`,
+`BitXor`, `Shl`, `Shr`, plus `pow` and `unsigned_right_shift`. Every impl is
+the same three-arm skeleton:
 
 ```rust
 Ok(match (self, rhs) {

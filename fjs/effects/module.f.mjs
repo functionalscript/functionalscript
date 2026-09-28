@@ -16,7 +16,8 @@
  *
  * Around them: {@link pure} and the two lifts {@link pureOk} / {@link pureError}
  * that enter the layer, the projections {@link mapStep} and
- * {@link resultMapStep} that end a chain, {@link history} /
+ * {@link resultMapStep} that end a chain, {@link finallyStep} for a cleanup
+ * that runs however a chain ended, {@link history} /
  * {@link historyStep} for a chain whose later links read earlier values, and
  * {@link foldStep} / {@link forEachStep} for iteration. The operation
  * constructor is {@link do_}, and the eliminators are {@link match},
@@ -443,10 +444,9 @@ export const catchStep = (e, f) => {
  * not, so the general function lives here now, at the type that says what its
  * continuation receives.
  *
- * `finallyStep` is declined on the principle that a derivable form earns a name
- * by being canonical vocabulary, and that one has not shown it is. It is
- * `resultStep` plus a policy, and adds no expressive power until real consumers
- * demonstrate a repeated policy worth naming.
+ * {@link finallyStep} is `resultStep` plus one policy — run a cleanup whatever
+ * the answer was, and keep the answer — which is named because two consumers
+ * wrote that policy out by hand before it was.
  *
  * **It is not lazy.** It reads `e`'s shape immediately, so a `Pure` head is
  * forced and `f` is called right there: `resultStep(pure(r), f)` *is* `f(r)`,
@@ -525,6 +525,32 @@ export const mapStep = (e, f) => resultMapStep(e, mapOk(f))
  * ) => Effect<O, OkOf<R>, ErrOf<R>>}
  */
 export const resultMapStep = (e, f) => resultStep(e, r => pure(f(r)))
+
+/**
+ * Runs `e`, then the cleanup `f` makes of whatever `e` answered, and answers
+ * what `e` answered: `f`'s own answer, a failure included, is dropped.
+ *
+ * Dropped because the answer a caller can act on is `e`'s. A lock that cannot be
+ * given back, or a directory that cannot be removed, is not the reason a delete
+ * failed and is not a reason to call a finished one failed — and reporting it
+ * would replace the answer that is.
+ *
+ * `f` receives the `Result` so a cleanup can depend on how `e` ended: releasing a
+ * lock does not, and undoing only what an attempt left behind does. It is the
+ * effect-level `finally` for a composer still on the stack for both halves; a
+ * body pumped by a runner is not that shape
+ * (`./node/todo/streaming-http-bodies.md`).
+ *
+ * Named because two consumers wrote it out by hand, in `fjs/git/refstore`: a lock
+ * held across a delete, and the directories made for one. Before them it was
+ * declined as `resultStep` plus a policy that had not repeated.
+ *
+ * @type {<O extends Operation, T, E, Q extends Operation>(
+ *     e: Effect<O, T, E>,
+ *     f: (r: Result<T, E>) => Effect<Q, unknown, unknown>
+ * ) => Effect<O | Q, T, E>}
+ */
+export const finallyStep = (e, f) => resultStep(e, r => resultMapStep(f(r), () => r))
 
 /**
  * Empties the error channel by **panicking** on it: `ok` values continue

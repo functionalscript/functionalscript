@@ -141,15 +141,15 @@ enter the published runtime graph remains unblocked by this issue.
 
 ### Related
 
-- [`fjs/fsc/README.md`](../../fsc/README.md) — source-extension convention and
+- [`fjs/compiler/README.md`](../../compiler/README.md) — source-extension convention and
   two-stage repository migration.
 - Stage-1 of the repository-wide migration, tracked in
   `todo/migrate-typescript-to-mjs.md` until it was completed and deleted; the
-  contract it left is [`fjs/fsc/README.md`](../../fsc/README.md). It was once
+  contract it left is [`fjs/compiler/README.md`](../../compiler/README.md). It was once
   **blocked by** this fixture task; that gate was de-scoped rather than met, since every conversion happened
   first and the repository itself became the evidence the fixture was to supply
   in advance. This task is independent regression work now and blocks nothing.
-- [`664-emergent-testing-module-files.md`](./664-emergent-testing-module-files.md)
-  — separate proposal to bulk-load ordinary `module.*` files for white-box
-  testing. Ordinary `.mjs` files stay opt-in through the `proof.mjs` convention
-  until then; this issue does not expand that rule.
+- `shouldLoad` in [`../../dev/module.f.mjs`](../../dev/module.f.mjs) — ordinary
+  `.mjs` files stay opt-in through the `proof.mjs` convention, because a
+  non-FunctionalScript module may have import side effects; this issue does not
+  expand that rule.

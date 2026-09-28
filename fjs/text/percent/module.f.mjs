@@ -6,16 +6,12 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
+import { hexDigitValue } from '../ascii/module.f.mjs'
 import { isValidCodePoint } from '../code_point/module.f.mjs'
 import { fromCodePointList, toCodePointList } from '../utf8/module.f.mjs'
 import { codePointListToString, stringToCodePointList } from '../utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-
-/** @type {string} */
-const hexDigits = '0123456789abcdef'
-
-/** @type {(c: string) => number} */
-const hexDigit = c => hexDigits.indexOf(c.toLowerCase())
+import { unwrap } from '../../types/nullable/module.f.mjs'
 
 /** @type {(s: string) => readonly number[]} */
 const utf8Bytes = s => toArray(fromCodePointList(stringToCodePointList(s)))
@@ -29,13 +25,24 @@ const utf8String = bytes => {
     return codePointListToString(codePoints)
 }
 
+/**
+ * The byte the two hexadecimal digits beginning a part split on `%` denote,
+ * or `null` when they are not both digits. A missing character reads as
+ * `NaN`, which denotes no digit.
+ *
+ * @type {(part: string) => Nullable<number>}
+ */
+const escapeByte = part => {
+    const hi = hexDigitValue(part.charCodeAt(0))
+    const lo = hexDigitValue(part.charCodeAt(1))
+    return hi === null || lo === null ? null : hi * 16 + lo
+}
+
 /** Whether a part split on `%` begins with two hexadecimal digits. @type {(part: string) => boolean} */
-const isEscape = part =>
-    part.length >= 2 && hexDigit(part.charAt(0)) >= 0 && hexDigit(part.charAt(1)) >= 0
+const isEscape = part => escapeByte(part) !== null
 
 /** The escape byte and following literal bytes; `isEscape` has validated the part. @type {(part: string) => readonly number[]} */
-const escapeBytes = part =>
-    [hexDigit(part.charAt(0)) * 16 + hexDigit(part.charAt(1)), ...utf8Bytes(part.slice(2))]
+const escapeBytes = part => [unwrap(escapeByte(part)), ...utf8Bytes(part.slice(2))]
 
 /**
  * Percent-decodes UTF-8 text. Returns `null` for malformed escapes or byte

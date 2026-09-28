@@ -90,8 +90,8 @@ export type TokenPosition = {
  * - `'invalid number'`, whose anchor is the character that *spoiled* the
  *   number rather than the number's start. The source it is about therefore
  *   ends where the anchor begins, and a forward span cannot describe it.
- * - a `JsToken` the DJS layer cannot accept, which it remaps to an error while
- *   holding no positions at all.
+ * - a `JsToken` the module tokenizer cannot accept, which it remaps to an
+ *   error while holding no positions at all.
  *
  * So absent means "the tokenizer knows where, not how far" rather than "the
  * span is empty".

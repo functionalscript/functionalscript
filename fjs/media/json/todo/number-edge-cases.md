@@ -20,13 +20,22 @@ superset and can represent values that standard JSON cannot. The DJS requirement
 to round-trip `-0`, `NaN`, `Infinity`, and `-Infinity` is specified by
 [`spec/datajs/README.md`](../../../../spec/datajs/README.md) and implemented by
 [`fjs/media/datajs`](../../datajs/README.md);
-[`compile-modules-to-edag.md`](../../../fsc/todo/compile-modules-to-edag.md)
+[`compile-modules-to-edag.md`](../../../compiler/todo/compile-modules-to-edag.md)
 needs it.
 That work must not silently redefine the standard JSON codec's policy here.
 
 The extended codec's decisions are settled and shipped (below). What remains
 open is the **standard** bigint-free codec, whose serializer still delegates
 finite-number spelling to the host's `JSON.stringify`.
+
+### Settled direction: preserve negative zero
+
+The standard codec must preserve `-0` through serialization and parsing.
+[Preserve negative zero](./preserve-negative-zero.md) owns the implementation
+and regression proofs, including sharing `numberSerialize` with DataJS for
+finite values. The parser already preserves the sign; serialization still
+needs the change. This is a chosen policy, not a claim that it has shipped.
+JSON and DataJS retain their separate non-finite spellings.
 
 ### Settled: extended codec
 
@@ -56,7 +65,8 @@ is classified from a sign and a length.
 A valid bare integer beyond the runtime's bigint limit (V8: above 2^30 bits,
 some 3.2e8 decimal digits) throws inside `BigInt`. FunctionalScript has no
 `try`/`catch`, so this cannot be contained as a `Result`, and predicting it
-from a digit count is exactly the size-estimating preflight AGENTS.md §5.6
+from a digit count is exactly the size-estimating preflight
+[DESIGN.md §6](../../../../doc/DESIGN.md#6-never-precompute-a-size-to-predict-whether-something-fits)
 rules out. It is documented as a runtime limit in
 [`../README.md`](../README.md). Reopen it only if FunctionalScript gains a
 fallible-call primitive — a `tryBigInt`-shaped boundary would then be the
@@ -68,15 +78,25 @@ it as a `number` without ever constructing a bigint.
 
 ### Open: standard FunctionalScript JSON codec
 
-The ordinary `json.parse` / `json.stringify` codec is specified in
-[standard-parse-serialize.md](./standard-parse-serialize.md). Its parse policy
-is already explicit — every token becomes a `number`, read the way JavaScript
-reads that text, so `1e400` is `Infinity` and `1e-400` is `0`. What is still
-undecided is serialization:
+The ordinary bigint-free `json.parse` / `json.stringify` codec runs on the
+shared grammar reader and `treeSerialize`, and its parse policy is already
+explicit — every token becomes a `number`, read the way JavaScript reads that
+text, so `1e400` is `Infinity` and `1e-400` is `0`. Negative-zero preservation
+is settled above. Its stringify owes:
+
+- output that is valid, deterministic JSON text;
+- a defined spelling for every supported finite `number`, which reparses under
+  this codec to the intended value;
+- explicit, documented behavior for `NaN`, `Infinity`, and `-Infinity`;
+- object-entry ordering that follows the serializer's explicit ordering
+  contract.
+
+It does **not** owe native `JSON.stringify`'s bytes — that is the P5
+[native JSON compatibility](./native-json-compatibility.md) task. What is still
+undecided is:
 
 - what deterministic valid JSON spelling is used for finite `number` values,
   now that `numberSerialize` still calls the host's `JSON.stringify`;
-- how negative zero is preserved or normalized (`JSON.stringify(-0)` is `0`);
 - how programmatic `NaN` / infinities are handled;
 - whether a parsed `Infinity` is representable in `json.Unknown` at all, or
   should be normalized on the way out.
@@ -87,11 +107,14 @@ or adding a separate compatible API, is deliberately deferred to P5.
 
 ### Tasks
 
-- [ ] Choose the default FunctionalScript standard stringify policy for `-0`,
-      `NaN`, `Infinity`, and `-Infinity`.
+- [ ] Choose the default FunctionalScript standard stringify policy for
+      `NaN`, `Infinity`, and `-Infinity`; the
+      [negative-zero task](./preserve-negative-zero.md) leaves their current
+      behavior unchanged.
 - [ ] Define a deterministic finite-number serialization rule sufficient for the
-      FunctionalScript standard codec, and stop routing it through the host's
-      `JSON.stringify`.
+      FunctionalScript standard codec, without undoing negative-zero
+      preservation. Implementing it off the host's `JSON.stringify` is
+      [remove-native-json](./remove-native-json.md)'s phase 2.
 - [ ] Decide how a non-finite `number` parsed from valid text is represented or
       normalized in `json.Unknown`.
 - [ ] Add proof cases for every settled default behavior, including oversized
@@ -101,17 +124,19 @@ or adding a separate compatible API, is deliberately deferred to P5.
 
 ### Related
 
+- [Preserve negative zero](./preserve-negative-zero.md) — the chosen `-0`
+  contract and shared finite-number serialization with DataJS.
 - [`fjs/media/json/README.md`](../README.md) — the shipped codec architecture and
   the settled extended policy.
-- [Standard JSON parse/serialize](./standard-parse-serialize.md) — owns the default
-  bigint-free FunctionalScript codec.
+- [Remove native JSON](./remove-native-json.md) — self-hosts serialization;
+  its phase 2 implements the finite-number rule decided here.
 - [Standard/extended value transforms](./standard-transform.md) — reusable runtime
   conversions; they do not depend on native stringify compatibility.
 - [Native JSON compatibility](./native-json-compatibility.md) — P5 follow-up; does
   not block this investigation.
 - [`fjs/media/json/serializer/module.f.mjs`](../serializer/module.f.mjs) — current
   primitive serialization implementation to replace/self-host.
-- [`fjs/fsc/todo/compile-modules-to-edag.md`](../../../fsc/todo/compile-modules-to-edag.md)
+- [`fjs/compiler/todo/compile-modules-to-edag.md`](../../../compiler/todo/compile-modules-to-edag.md)
   — owns DJS `.f.js` round-tripping of special number values needed by EDAG artifacts.
-- [`fjs/fsc/todo/157-json-djs-shared-value-machine.md`](../../../fsc/todo/157-json-djs-shared-value-machine.md) — shared JSON/DJS parser and
+- [`157-json-djs-shared-value-machine.md`](./157-json-djs-shared-value-machine.md) — shared JSON/DJS parser and
   serializer extraction; coordinate reusable machinery without merging codec policy.

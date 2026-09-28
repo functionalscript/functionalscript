@@ -10,9 +10,11 @@
  * this demo draws exactly what [the specification](../../../spec/datajs/README.md)
  * says every document denotes: a directed acyclic graph.
  *
- * **A container gets one node per distinct reference; a leaf gets one node
- * per occurrence** — "primitive sharing is not [written]", in the
- * specification's own words. Reference identity, checked with `Object.is`,
+ * **A container gets one node per distinct reference; a leaf gets no node
+ * at all** — "primitive sharing is not [written]", in the specification's
+ * own words, so a leaf is drawn inline, in the port of the container that
+ * holds it. Only a document that is a leaf and nothing else draws one as a
+ * node, having no container to sit in. Reference identity, checked with `Object.is`,
  * is what a parsed value already carries: this walk reads it rather than
  * reconstructing it.
  *
@@ -31,6 +33,7 @@
  * @import { Primitive, Unknown } from './types.ts'
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Edge, Node, Ranked } from '../../website/demo/graph/types.ts'
+ * @import { Examples } from '../../website/demo/examples/types.ts'
  * @import { _State } from './private.ts'
  */
 
@@ -39,6 +42,7 @@ import { keySerialize, leafSerialize } from './serializer/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { ranked, graphSvg } from '../../website/demo/graph/module.f.mjs'
+import { examplePicker, name as exampleName } from '../../website/demo/examples/module.f.mjs'
 
 const { is } = Object
 
@@ -53,6 +57,9 @@ const findRef = state => ref => {
     return found === undefined ? null : found[1]
 }
 
+/** @type {(value: Unknown) => value is Primitive} */
+const isPrimitive = value => value === null || typeof value !== 'object'
+
 /**
  * `value`'s node id, and the state with `value` and everything under it
  * added — or just the state, when `value` is a reference already walked.
@@ -65,10 +72,10 @@ const findRef = state => ref => {
  * @type {(state: _State) => (value: Unknown) => { readonly id: number, readonly state: _State }}
  */
 const walk = state => value => {
-    if (value === null || typeof value !== 'object') {
+    if (isPrimitive(value)) {
         const id = state.next
         /** @type {Node} */
-        const node = { id, kind: 'leaf', label: concat(leafSerialize(/** @type {Primitive} */ (value))) }
+        const node = { id, kind: 'leaf', label: concat(leafSerialize(value)) }
         return { id, state: { ...state, next: id + 1, nodes: [...state.nodes, node] } }
     }
     const existing = findRef(state)(value)
@@ -90,6 +97,9 @@ const walk = state => value => {
     const walkEntries = entries => entries.reduce(
         /** @type {(acc: _State, entry: readonly [string, Unknown]) => _State} */
         (acc, [label, item]) => {
+            if (isPrimitive(item)) {
+                return { ...acc, edges: [...acc.edges, { from: id, to: { inline: concat(leafSerialize(item)) }, label }] }
+            }
             const step = walk(acc)(item)
             return { ...step.state, edges: [...step.state.edges, { from: id, to: step.id, label }] }
         },
@@ -114,25 +124,82 @@ export const _graphOf = text => {
 }
 
 /**
+ * The documents the examples drop-down offers, each under the name it is
+ * picked by: one per thing the drawing has to say, so a reader can see each
+ * without first working out how to write it.
+ *
+ * **The first is the overview**, and the demo opens on it. It carries both of
+ * this demo's reasons for existing. `"a"` and `"c"` name the same array — the
+ * one thing plain JSON cannot show, drawn as one node with two incoming
+ * edges. And they reach it by routes of different lengths, `"a"` directly and
+ * `"c"` through `"b"`, so the array ranks by the longer one: `"a"`'s edge is
+ * the one that visibly skips a rank, not the one that decided where the array
+ * sits.
+ *
+ * The other ten take one point each, on its own:
+ *
+ * - **JSON** is a JSON value made a document the way the specification
+ *   converts one — `export default` before it, `;` after — and draws as the
+ *   tree it is: nothing in JSON can be reached twice.
+ * - **Primitives** puts every kind of leaf — `null`, a boolean, a string, a
+ *   number, `-0`, `NaN`, an infinity, a bigint, `undefined` — inline in the
+ *   port that holds it.
+ * - **Equal is not shared** writes the same array twice, and draws two
+ *   nodes: only a `const` makes sharing.
+ * - **One node, many references** is one object reached from three indices,
+ *   each its own port and line.
+ * - **Diamond** builds two `const`s on a third, which both reach.
+ * - **Longest path wins** reaches a shared array one rank away and three,
+ *   and the array ranks at three.
+ * - **A shared primitive is not a node** names `1` once and uses it twice:
+ *   a primitive has no identity, so it draws as two cells.
+ * - **Unused const** declares a value the export never reaches, which is
+ *   not part of what the document means; the document is a leaf, drawn as a
+ *   node since there is no container to hold it.
+ * - **Object keys** repeats a key, which keeps its first position and its
+ *   last value, writes index keys out of order, which read back in numeric
+ *   order before every other key, and uses the one spelling `__proto__`
+ *   has.
+ * - **Error: JSON is not a document** is JSON without the conversion, which
+ *   the parser refuses: at the top of a module, `{` opens a block.
+ *
+ * @type {Examples}
+ */
+export const examples = [
+    ['Overview', 'const $0=[1,2];\nexport default {"a":$0,"b":{"c":$0}};'],
+    ['JSON', 'export default {"name":"fjs","tags":["data","graph"],"version":1};'],
+    ['Primitives', 'export default [null,true,"s",-42.5,-0,NaN,-Infinity,1n,undefined];'],
+    ['Equal is not shared', 'export default [[1,2],[1,2]];'],
+    ['One node, many references', 'const $0={"n":1};\nexport default [$0,$0,$0];'],
+    ['Diamond', 'const $leaf=[1];\nconst $l={"x":$leaf};\nconst $r={"y":$leaf};\nexport default [$l,$r];'],
+    ['Longest path wins', 'const $0=[1];\nexport default {"a":$0,"b":{"c":{"d":$0}}};'],
+    ['A shared primitive is not a node', 'const $x=1;\nexport default [$x,$x];'],
+    ['Unused const', 'const $dead=undefined;\nexport default 1;'],
+    ['Object keys', 'export default {"b":1,"2":2,"1":3,"b":4,["__proto__"]:5};'],
+    ['Error: JSON is not a document', '{"a":1}'],
+]
+
+const picker = examplePicker(examples)
+
+/**
  * The state is the text itself, not the graph: the graph is a function of
  * it, and storing a value the state can already compute is how the two
- * drift apart.
+ * drift apart. Picking an example replaces the text with its source.
  *
- * The initial document carries both of this demo's reasons for existing.
- * `"a"` and `"c"` name the same array — the one thing plain JSON cannot
- * show, drawn as one node with two incoming edges. And they reach it by
- * routes of different lengths, `"a"` directly and `"c"` through `"b"`, so
- * the array ranks by the longer one: `"a"`'s edge is the one that visibly
- * skips a rank, not the one that decided where the array sits.
+ * `picker`, above, is built once, as the module loads, which is where a
+ * list with a repeated name or source is refused.
  *
  * @type {Demo<string, DemoEvent>}
  */
 export const demo = {
-    init: 'const $0=[1,2];\nexport default {"a":$0,"b":{"c":$0}};',
-    update: state => event => pureOk(event.kind === 'input' ? event.value : state),
+    init: examples[0][1],
+    update: state => event => pureOk(event.kind !== 'input' ? state
+        : event.name === exampleName ? picker.pick(event.value)
+            : event.value),
     view: text => {
         const g = _graphOf(text)
         return ['div',
+            picker.view(text),
             ['p',
                 ['label', { for: 'datajs' }, 'DataJS '],
                 ['textarea', { id: 'datajs', name: 'datajs', rows: '8' }, text],

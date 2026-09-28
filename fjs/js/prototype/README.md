@@ -4,7 +4,7 @@ The names JavaScript finds on a built-in prototype, and what a
 FunctionalScript module may do with each. [`module.f.mjs`](./module.f.mjs)
 holds the lists — `prototypeNames`, the union of the seven prototypes, and
 its partition into `prohibitedCalls` and `allowedCalls` — and the compiler
-([`fjs/fsc/parser`](../../fsc/parser/module.f.mjs)) applies them; this table
+([`fjs/compiler/parser`](../../compiler/parser/module.f.mjs)) applies them; this table
 is the same data with the reason for each row.
 
 Two rules, both by name alone, since the receiver's type is unknown at
@@ -114,7 +114,7 @@ included, string keys only; they grow with the language's types — `Map` and
 | `toLowerCase` | ❌ | ❌ | String. Depends on the engine's Unicode version. |
 | `toPrecision` | ❌ | ✅ | Number. Specified exactly. |
 | `toReversed` | ❌ | ✅ | Array. Pure, answers a new array. |
-| `toSorted` | ❌ | ✅ | Array. Pure, default order by string conversion. |
+| `toSorted` | ❌ | ✅ | Array. Pure, default order by string conversion. The order an inconsistent comparator gives is the engine's (`todo/to-sorted-inconsistent-comparator.md`). |
 | `toSpliced` | ❌ | ✅ | Array. Pure, answers a new array. |
 | `toString` | ❌ | ✅ | Object, Array, String, Number, Boolean, BigInt, Function. Pure on each type; on a function it answers the conversion's placeholder rather than its source, a stub until a function carries its EDAG (`nanvm-lib/todo/member-functions.md`). |
 | `toUpperCase` | ❌ | ❌ | String. Depends on the engine's Unicode version. |

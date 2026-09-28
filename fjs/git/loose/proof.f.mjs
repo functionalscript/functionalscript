@@ -6,22 +6,20 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { ioError } from '../../effects/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
-import { msb, u8ListToVec, uint } from '../../types/bit_vec/module.f.mjs'
+import { u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { write as writeEnvelope } from '../object/module.f.mjs'
 import { latin1, tagLoose, tagPayload } from '../testlib.f.mjs'
 import { tryRead } from './module.f.mjs'
 
-const toVec = u8ListToVec(msb)
-
-const compressed = toVec(tagLoose)
+const compressed = u8ListToVecMsb(tagLoose)
 
 /** What the host inflates {@link compressed} to: the envelope and the payload. */
-const inflated = toVec(toArray(writeEnvelope('tag', tagPayload)))
+const inflated = u8ListToVecMsb(toArray(writeEnvelope('tag', tagPayload)))
 
 /** A stream the host inflates to bytes that are no object. */
-const junk = toVec(latin1('junk'))
+const junk = u8ListToVecMsb(latin1('junk'))
 
 const notZlib = ioError({ code: 'Z_DATA_ERROR', message: 'incorrect header check' })
 

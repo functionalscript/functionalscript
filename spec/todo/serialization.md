@@ -3,16 +3,17 @@
 Formerly §9 of the main [spec README](../README.md).
 
 **Decision:** the stable, canonical representation of functions is the **EDAG**, expressed as an
-FJS value (`Any`). Code is data: the `Function` constructor accepts an `Any` that describes the
-code, and the VM knows how to execute it (see [functions](../README.md#functions); the exact shape
-is specified by the [edag-spec](../../todo/edag-spec.md)). The reasons:
+FJS value (`Any`). The code description is independent of its execution strategy
+(see [functions](../README.md#functions); the exact shape is the RTTI schema in
+[`fjs/edag`](../../fjs/edag/README.md)). It does not require every VM to implement
+a native EDAG representation or interpreter. The reasons:
 
 1. We need a canonical data representation of functions in FunctionalScript — and in the future
    content-addressable VM ([CAVM](./content-addressable-vm.md)) — to compute a hash.
 2. The EDAG can be transformed back to source code. The adopted
    [function-source exception](../README.md#function-source-representation-exception)
    uses EDAG-derived text for default function string conversion; whether
-   that operation is also the FSC function serializer is open below.
+   that operation is also the compiler's function serializer is open below.
 3. Because code is an FJS value, serializing functions requires no separate format: once the VM
    serializes `Any` values, it serializes code too. The binary encoding of `Any` values is
    **CBOR** ([RFC 8949](https://www.rfc-editor.org/rfc/rfc8949)), chosen because it represents
@@ -21,17 +22,31 @@ is specified by the [edag-spec](../../todo/edag-spec.md)). The reasons:
 
 There are two execution paths, observably identical except in performance:
 
-- **Interpretation** — the `Function` constructor executes the `Any` code description directly:
-  the baseline path, required for the self-hosted `nanvm` and for code constructed at run time.
+- **FJS interpretation** — the FJS interpreter executes the EDAG as data.
+  Native self-hosting compiles this interpreter and the FJS loading pipeline to
+  Rust ahead of time; loading a new module requires no native `import` or
+  function-construction effect.
 - **AOT compilation** — the FJS compiler generates Rust code that calls the `nanvm-lib` API, and
-  rustc compiles it to native code: the bootstrap vehicle for compiling the compiler itself into
-  `nanvm`, and the backend for platforms where interpretation is undesirable or JIT is forbidden
-  (e.g. iOS, embedded).
+  rustc compiles it to native code: the bootstrap vehicle for compiling the FJS
+  toolchain into `nanvm`. Ordinary AOT programs need no runtime EDAG executor
+  or runtime code generation.
 
-Both paths bottom out in the same `nanvm-lib` operators, so shared operator tests cover their
-common layer. A natively compiled function still carries its `Any` code description (as static
-data), so hashing and `toString(f)` apply uniformly to all functions: the EDAG is the stable
-**code/content identity**, while native code is a cached acceleration of it.
+The [public FJS final-EDAG entry](../../fjs/compiler/todo/interpret-edag.md) owns the
+[total-validation contract](../../todo/edag-stage1-discussion.md#5-validation)
+for code supplied as data, including graphs the compiler would never emit.
+Deferring the native `Function` constructor does not narrow that contract.
+
+On Rust both paths use `nanvm-lib` operators, with shared operator tests covering
+that layer and end-to-end tests covering the execution paths. The optional
+[Rust EDAG library](../../todo/rust-edag.md) is deferred beyond MVP and is not
+required for self-hosting. It would depend on the VM, never the reverse.
+
+Hashing and function text require an association with semantic EDAG, independently
+of the executor used: the EDAG is the stable **code/content identity**, while
+native code is a cached acceleration of it. Embedded `Any` data versus out-of-band
+lookup remains open in the
+[roadmap](../../nanvm-lib/todo/mvp-roadmap.md#open-questions). This metadata
+requirement does not imply a dependency on the dynamic Rust EDAG library.
 
 Code/content identity is not callable allocation identity. Under a JS-compatible execution
 profile, separately created function objects remain separately allocated even when their EDAGs
@@ -72,10 +87,11 @@ outside the FJS VM; this decision does not patch its built-ins.
 ### Open questions
 
 These questions are deliberately open, not implementation instructions with
-an implicit answer. The examples illustrate future capabilities; they do not
-claim current compiler support for captures or `self`.
+an implicit answer. Captures are in the language
+([functions](../README.md#functions)); the examples do not claim current
+compiler support for `self` or for rendering either as text.
 
-1. **Should the FSC function serializer and `String(f)` be the same function?**
+1. **Should the compiler's function serializer and `String(f)` be the same function?**
    Should they have one output contract and implementation, or distinct
    contracts that may share rendering machinery? In particular, does `String(f)`
    promise self-contained source that reconstructs the callable value,

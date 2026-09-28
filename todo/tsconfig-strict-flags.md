@@ -24,7 +24,8 @@ candidates: `fjs/effects/node/virtual/`, `fjs/rtti/data/`,
 
 Error counts from `tsc --<flag>` on a clean tree (TypeScript 7.0.2), one
 flag at a time. The four enabled flags are listed with the count they carried
-when they were turned on; the rest are current.
+when they were turned on; the rest were taken before `05601a5` and are not
+re-measured.
 
 | Flag | New errors | Notes |
 | --- | --: | --- |
@@ -43,7 +44,7 @@ sites were switches whose exhaustiveness TypeScript could not see, so the end of
 the enclosing `case` was reachable and control would have fallen into the next
 one:
 
-- `fjs/fsc/tokenizer/module.f.mjs` — `stringDecodeScan`'s `escape` state
+- `fjs/js/tokenizer/module.f.mjs` — `stringDecodeScan`'s `escape` state
   switches on a code point against the ASCII constants of `fjs/text/ascii`,
   which are `number`, not literal types. No such switch can ever be exhaustive
   to TypeScript, so the last clause became a `default`.
@@ -82,9 +83,9 @@ cost of closing it rather than the reason not to.
       `noFallthroughCasesInSwitch`, `noImplicitOverride`, `isolatedModules`.
 - [ ] Enable `noUnusedParameters` (8 sites) and
       `noPropertyAccessFromIndexSignature` (33 sites) as small follow-ups.
-- [ ] Take `noUncheckedIndexedAccess` as its own task, sequenced **after** the
-      `assert` conversions in [inline-type-casts.md](./inline-type-casts.md) —
-      the two overlap, and doing the casts first shrinks the 212.
+- [ ] Take `noUncheckedIndexedAccess` as its own task. The `assert`
+      conversions in [inline-type-casts.md](./inline-type-casts.md) it was
+      sequenced after have landed, so re-measure the 212 first.
 - [ ] For `noUnusedLocals`, fix the 137 stale `@import` entries first; that is
       worth doing on its own even if the flag stays off. Decide the 81 unused
       values separately.
@@ -100,5 +101,3 @@ before starting one: the counts above are a snapshot, and
 - [inline-type-casts.md](./inline-type-casts.md) — the cast audit; overlaps with
   `noUncheckedIndexedAccess`.
 - [eslint.md](./eslint.md) — the rules no `tsc` flag can express.
-- [123-tsgo-types-node.md](./123-tsgo-types-node.md) — the other open
-  `tsconfig.json` question.

@@ -12,7 +12,7 @@
  */
 
 import { do_, pure, pureOk, resultMapStep, step } from '../module.f.mjs'
-import { ok as resultOk, unwrap } from '../../types/result/module.f.mjs'
+import { okList } from '../../types/result/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { toCodePointList } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
@@ -55,23 +55,6 @@ export const all =
     // is written out here and `do_`'s is set aside.
     /** @type {<O extends Operation, T, E>(...a: readonly Effect<O, T, E>[]) => Effect<O | All, readonly Result<T, E>[], NotImplemented>} */
     (/** @type {unknown} */ (do_('all')))
-
-/**
- * Collapses a list of results into a result of the list, keeping the **first**
- * error in list order and discarding the later ones.
- *
- * Keeping one is what makes this a `Result` rather than a report: the callers
- * that need it are chains, and a chain has one error channel. A site that wants
- * every failure wants a different return type and should not reach for this.
- *
- * @type {<T, E>(list: readonly Result<T, E>[]) => Result<readonly T[], E>}
- */
-const okList = list => {
-    for (const r of list) {
-        if (r[0] === 'error') { return r }
-    }
-    return resultOk(list.map(unwrap))
-}
 
 /**
  * {@link all} in the `ok` channel: collects the values when every effect

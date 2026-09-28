@@ -95,3 +95,21 @@ export const mapOk = f => r => r[0] === 'ok' ? ok(f(r[1])) : r
  * @type {<T, R, E>(f: (value: T) => Result<R, E>) => <F>(r: Result<T, F>) => Result<R, E | F>}
  */
 export const okThen = f => r => r[0] === 'error' ? r : f(r[1])
+
+/**
+ * Collapses a list of results into a result of the list, keeping the **first**
+ * error in list order and discarding the later ones. An empty list is an
+ * empty `ok`.
+ *
+ * Keeping one is what makes this a `Result` rather than a report: the callers
+ * that need it are chains, and a chain has one error channel. A site that wants
+ * every failure wants a different return type and should not reach for this.
+ *
+ * @type {<T, E>(list: readonly Result<T, E>[]) => Result<readonly T[], E>}
+ */
+export const okList = list => {
+    for (const r of list) {
+        if (r[0] === 'error') { return r }
+    }
+    return ok(list.map(unwrap))
+}

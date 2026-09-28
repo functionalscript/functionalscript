@@ -1,5 +1,5 @@
 /**
- * Compiled by `fjs compile` into the sibling `to-string.rs`, committed and
+ * Compiled by `fjs compile` into `../gen.fixtures/to_string.rs`, committed and
  * drift-checked by `npm run gen` (see `../../fjs/ci/README.md`). Consumed by
  * `../src/lib.rs`. Pins the first built-in member function, `toString`, as
  * a method call on every type that owns no property of the name — a

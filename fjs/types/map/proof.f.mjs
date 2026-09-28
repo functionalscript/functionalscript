@@ -7,6 +7,11 @@ export const proof = {
         assertEq(map.get('a'), 'b', 'error')
         assertEq(map.size, 1, 'error')
     },
+    setReplaces: () => {
+        const map = mapSet(mapSet(new Map(), 'a', 'b'), 'a', 'c')
+        assertEq(map.get('a'), 'c', 'error')
+        assertEq(map.size, 1, 'error')
+    },
     delete: () => {
         const map = mapDelete(mapSet(new Map(), 'a', 'b'), 'a')
         assertEq(map.get('a'), undefined, 'error')

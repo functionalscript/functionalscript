@@ -2,7 +2,7 @@
 
 **Priority:** P5
 **Status:** blocked
-**Blocked by:** [Standard JSON parse/serialize](./standard-parse-serialize.md)
+**Blocked by:** [JSON numeric edge cases](./number-edge-cases.md)
 
 ### Goal
 
@@ -30,8 +30,13 @@ There are two valid paths:
 Do not choose between these approaches now. The existence of a future
 compatibility requirement is not enough reason to maintain two APIs today.
 
-Any compatibility implementation must reuse the same tokenizer, lossless
-`NumberToken` structural parse, and recursive serializer. Only materialization,
+Negative-zero preservation is a deliberate default-policy exception, not a
+native-parity bug: [preserve-negative-zero](./preserve-negative-zero.md)
+requires the standard codec to keep `-0` through serialization and parsing.
+Do not normalize it to `0` in the default serializer as compatibility work.
+
+Any compatibility implementation must reuse the same grammar reader, its
+lexeme-first `NumberPolicy` seam, and recursive serializer. Only materialization,
 normalization, and numeric formatting policy should differ.
 
 ### Compatibility areas
@@ -39,7 +44,6 @@ normalization, and numeric formatting policy should differ.
 Investigate only as demanded by real consumers. Candidate differences include:
 
 - throwing vs `Result`-returning parse APIs;
-- `-0` parsing/stringification;
 - `NaN`, `Infinity`, and `-Infinity` serialization;
 - exponent overflow such as `1e400`;
 - very large integer input and JavaScript-number rounding/overflow;
@@ -64,8 +68,8 @@ not cause additional P3 design work.
 
 ### Related
 
-- [Standard JSON parse/serialize](./standard-parse-serialize.md) — P3 default
-  FunctionalScript codec; should not wait for this task.
+- [Preserve negative zero](./preserve-negative-zero.md) — intentional default
+  behavior that native-compatibility work must not undo.
 - [Standard/extended value transforms](./standard-transform.md) — make gradual
   policy changes easier once the runtime layers exist.
 - [`fjs/media/json/README.md`](../README.md) — the extended codec preserves

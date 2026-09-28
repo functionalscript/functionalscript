@@ -16,8 +16,8 @@ spelling.
 
 Those are separate concerns:
 
-- [Standard JSON parse/serialize](./standard-parse-serialize.md) owns the ordinary
-  FunctionalScript JSON codec over the shared lossless structural parser and
+- [JSON numeric edge cases](./number-edge-cases.md) owns the ordinary
+  FunctionalScript JSON codec's policy over the shared grammar reader and
   serializer.
 - [Native JSON compatibility](./native-json-compatibility.md) is P5 follow-up work
   and must not constrain these reusable transforms.
@@ -108,8 +108,6 @@ the P5 [native JSON compatibility](./native-json-compatibility.md) task.
 
 - [`fjs/media/json/extended/types.ts`](../extended/types.ts) — the extended
   runtime value domain these transforms convert to and from.
-- [Standard JSON parse/serialize](./standard-parse-serialize.md) — owns the
-  ordinary `json.parse` / `json.stringify` codec.
 - [Native JSON compatibility](./native-json-compatibility.md) — P5 follow-up;
   does not block this task.
 - [JSON numeric edge cases](./number-edge-cases.md) — owns extended/default codec
