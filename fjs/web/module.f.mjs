@@ -44,7 +44,7 @@
  * @import { Refusal, Resolve, Respond, WebOp } from './types.ts'
  */
 
-import { pureOk, resultMapStep, resultStep, step } from '../effects/module.f.mjs'
+import { catchStep, pureOk, resultMapStep, resultStep, step } from '../effects/module.f.mjs'
 import { empty, nonEmpty } from '../effects/list/module.f.mjs'
 import {
     createServer, errorExit, errorMessage, errorSummary, exitStep, forever, fstat, handleSource,
@@ -427,7 +427,7 @@ const methodNotAllowed = () => {
  *
  * @type {(path: string) => (handle: Handle) => (s: FileStat) => ServerResponse<Fs>}
  */
-const openResponse = path => handle => ({ isFile, size }) =>
+const fileResponse = path => handle => ({ isFile, size }) =>
     isFile
         ? response(
             200,
@@ -436,6 +436,36 @@ const openResponse = path => handle => ({ isFile, size }) =>
             readChunks(handleSource(handle), size),
             releaseHandle(handle))
         : holding(handle)(plainText(404)('not found'))
+
+/**
+ * Both answers an `open` can earn once it has succeeded: what the descriptor
+ * says, framed by {@link fileResponse}, or the `500` an `fstat` that failed earns
+ * with the handle owed back.
+ *
+ * **The channel is `never`, and keeping it so is what makes {@link respond}'s
+ * absorber correct.** A trailing `catchStep` takes whatever failed anywhere
+ * before it, and the only thing that can is the `open`, because nothing after it
+ * reports a failure. Widen this channel and {@link answer} — which exists to ask
+ * the *name* what it holds and choose between `404` and `500` for an **open**
+ * failure — would be handed an `fstat` failure instead: it would stat a name that
+ * opened perfectly well, and answer without the handle that open is still
+ * holding.
+ *
+ * **Absorbed here rather than carried, because the flat chain cannot carry it.**
+ * `history(open(path))` then `historyStep(…, fstat)` builds its tuple out of `ok`
+ * values, so an `error` short-circuits and the tuple is never built: the absorber
+ * would receive a bare `IoChannel` and no handle — and the handle is exactly what
+ * this frame owes back. Nothing in `fjs/effects` binds both branches of a link
+ * while keeping what ran before it.
+ *
+ * @type {(path: string) => (handle: Handle) => Effect<Fs, ServerResponse<Fs>, never>}
+ */
+const openResponse = path => handle =>
+    resultMapStep(fstat(handle), ([tag, s]) => ok(tag === 'ok'
+        ? fileResponse(path)(handle)(s)
+        // The handle is open and the `fstat` is what failed, so this frame owes
+        // it back like any other.
+        : holding(handle)(plainText(500)(errorSummary(s)))))
 
 /**
  * Whether the open error **on its own** says the path names nothing this server
@@ -609,37 +639,10 @@ export const respond = root => ({ method, url, headers }) => {
     }
     const path = resolved[1]
     // One `open`, and every question after it is asked of what that open
-    // resolved: the kind, the size the header declares, and the bytes the body
-    // reads. `resultStep`, not `resultMapStep`, because framing an open that
-    // *failed* asks the file system one more question wherever the code is not
-    // the whole answer — see {@link answer}.
-    //
-    // **The second effect is inside the continuation because it is a branch and
-    // not a link**, which is the one shape [§3.4](../AGENTS.md#34-effects-fjseffects)'s
-    // flat chain cannot take. The two outcomes of the `open` need two *different*
-    // absorptions: a failure becomes a response through {@link answer}, and a
-    // success asks one more effect through the handle. `historyStep`, which the
-    // rule offers wherever a later link needs an earlier value, carries `ok`
-    // values and propagates the channel, so a chain of `open` then `fstat` would
-    // hand both failures to one continuation as one `IoChannel` — and the two are
-    // not interchangeable there either, because the `fstat` failure is the one
-    // that owes a handle back and the channel does not carry it. Nothing in
-    // `fjs/effects` binds a branch flat today; a combinator that did would be the
-    // place to fix this, not a rewrite here.
-    return resultStep(open(path), r => {
-        // Bound rather than returned inline, for the reason `main` binds its own:
-        // the branches are two different `Effect`s and `step` would infer neither
-        // from the union.
-        /** @type {Effect<Fs, ServerResponse<Fs>, never>} */
-        const framed = r[0] === 'error'
-            ? answer(root)(path)(r[1])
-            : resultMapStep(fstat(r[1]), s => ok(s[0] === 'ok'
-                ? openResponse(path)(r[1])(s[1])
-                // The handle is open and the `fstat` is what failed, so this
-                // frame owes it back like any other.
-                : holding(r[1])(plainText(500)(errorSummary(s[1])))))
-        return framed
-    })
+    // resolved — see {@link openResponse}. Its failure is the only one this chain
+    // carries, and {@link answer} is where it becomes a status.
+    const described = step(open(path), openResponse(path))
+    return catchStep(described, answer(root)(path))
 }
 
 // ── The program ───────────────────────────────────────────────────────────────
