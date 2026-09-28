@@ -39,14 +39,13 @@ set over HTTP(S):
 - large blobs favour HTTP *in principle*: the protocol streams
   request/response bodies, so `add`/`get` of arbitrary-size content is a
   natural fit for this transport where MCP is capped at 128 KiB of inline
-  content. The HTTP effects meet it half way. `ServerResponse.body`
-  (`fjs/effects/node/types.ts`) is a chunk list, so a `get` of any size can be
-  *answered* — at the cost of holding the whole blob in memory, since the body is
-  whole rather than pulled. `IncomingMessage.body` is a `List` the listener pulls
+  content. The HTTP effects meet it. `ServerResponse.body`
+  (`fjs/effects/node/types.ts`) is a lazy `List` the runner pulls at the socket's
+  pace, so a `get` of any size is answered with one chunk of the blob held rather
+  than the blob. `IncomingMessage.body` is a `List` the listener pulls
   from, with no cap and no `413`, so an `add` of any size has a way in. The CAS
   store side already streams (`Cas.read`/`Cas.write` deal in chunk lists), so what
-  this transport still waits on is not the bodies at all: it is the server itself,
-  and, for a blob it can serve without materializing, the lazy response body.
+  this transport still waits on is not the bodies at all: it is the server itself.
 
 **Human-readable HTML pages.** The same server should also serve HTML, so a
 human can browse a CAS in an ordinary browser — one server, two
@@ -77,11 +76,11 @@ HTML form is an exposure-matrix decision for
       stage 2). — `IncomingMessage.body` is a `List` the listener pulls from,
       uncapped, so an `add` of any size has a way in and the adapter needs no
       128 KiB inline cap on what a client sends.
-- [ ] Serve a blob without materializing it: the lazy **response** body, which is
-      [streaming-http-bodies](../../effects/node/todo/streaming-http-bodies.md)'s
-      remaining half of stage 1. A `get` of any size can already be answered,
-      holding the whole blob in memory to do it, so this bounds how large a blob
-      the transport can serve rather than whether it can.
+- [ ] Serve a blob without materializing it. The effect it waited on has landed:
+      `ServerResponse.body` is a lazy `List` the runner pulls at the socket's pace
+      ([streaming-http-bodies](../../effects/node/todo/streaming-http-bodies.md)),
+      so what is left is this adapter writing a blob as one. No size bounds what it
+      can serve any more.
 - [ ] Design authentication and the exposed command subset.
 - [ ] Design the HTML browsing surface: routes / content negotiation, the
       list and blob pages, dialect-aware rendering (revision DAG links).
@@ -104,7 +103,6 @@ HTML form is an exposure-matrix decision for
 - [`fjs/web`](../../web/README.md) — the static file server, already built on
   these effects; a CAS HTTP front end is the same layer with a command set
   behind it instead of a file system.
-- `fjs/effects/node/types.ts` (`IncomingMessage`/`ServerResponse`) — the request
-  body is a `List` the listener pulls from, so nothing caps what this transport can
-  carry *inward*; the response body is a chunk list, whole in memory rather than
-  streamed, which is what still bounds a blob it serves.
+- `fjs/effects/node/types.ts` (`IncomingMessage`/`ServerResponse`) — both bodies
+  are `List`s, one the listener pulls and one the runner pulls, so nothing here
+  caps what this transport can carry in either direction.
