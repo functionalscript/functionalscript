@@ -301,9 +301,13 @@ accident:
       the commit with the fetched heads as parents. Nothing in [`fjs/git`](../fjs/git/README.md)
       writes an object to a store yet — the effects have `inflate` and no
       `deflate`, and [`fjs/git/loose`](../fjs/git/loose/module.f.mjs) only
-      reads — so a loose-object writer comes first, then the branch tip
-      through [`fjs/git/refstore/write`](../fjs/git/refstore/write/module.f.mjs)'s
-      `tryWrite`.
+      reads — so a loose-object writer comes first, then the branch tip.
+      The tip is written only if the ref still holds the head the run
+      fetched, a compare-and-swap;
+      [`fjs/git/refstore/write`](../fjs/git/refstore/write/module.f.mjs)'s
+      `tryWrite` renames over whatever is there, so the conditional write
+      is part of this work, and the push is `--force-with-lease` against
+      the same head.
 - [ ] The command, under [disot-cli-epic](../fjs/todo/disot-cli-epic.md)'s
       surface: fetch, read, walk, write, push, in that order, refusing to
       publish over a head it did not fetch.
