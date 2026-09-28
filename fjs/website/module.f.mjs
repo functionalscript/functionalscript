@@ -48,10 +48,8 @@
  * @import { _Demos, _Graph, _Imports, _Tree, _Walked } from './private.ts'
  * @import { OrderedMap } from '../types/ordered_map/types.ts'
  * @import { Build, Dir, Proof } from './page/types.ts'
- * @import { Node } from '../media/html/types.ts'
  */
 
-import { htmlUtf8 } from '../media/html/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
 import { allOk, exitStep, isNotFound, readdir, readUtf8File, writeFile, writeUtf8File } from '../effects/node/module.f.mjs'
 import { foldStep, forEachStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
@@ -63,8 +61,8 @@ import { toArray } from '../types/list/module.f.mjs'
 import { log } from '../effects/common/module.f.mjs'
 import { indexPage, isVersion, releasePage, releasePath, releases } from './changelog/module.f.mjs'
 import { tryParse } from '../media/markdown/module.f.mjs'
-import { faviconLinks, stylesheet, stylesheetLink } from './style/module.f.mjs'
-import { demoSection, header, lang, page, sections, siteName, subtree, testSection } from './page/module.f.mjs'
+import { stylesheet } from './style/module.f.mjs'
+import { changelogDir, demoSection, page, pagePath, sections, shell, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
 import { toHex, tryFromHexOf } from '../git/oid/module.f.mjs'
 
 /**
@@ -86,33 +84,26 @@ import { toHex, tryFromHexOf } from '../git/oid/module.f.mjs'
  * page — named for what it is, with the prose that introduces it inside —
  * and the page is the repository's root.
  *
- * The repository and the releases are linked from the {@link header} every
- * page carries, not from this page's own frame.
+ * The repository and the releases are linked from the header every page
+ * carries ({@link shell}), not from this page's own frame.
  *
  * @type {(build: Build) => (dir: Dir) => Vec}
  */
-const rootPage = build => dir => htmlUtf8(lang)(
-    ['title', siteName],
-    stylesheetLink,
-    ...faviconLinks,
-)(
-    header(build),
-    ['main', { 'data-browser-tests': '', 'data-state': 'idle' },
-        ['h1', 'FunctionalScript'],
-        .../** @type {readonly Node[]} */ (dir.demo === null ? [] : demoSection(dir.demo)),
-        .../** @type {readonly Node[]} */ (sections(build.commit)(dir)),
-        .../** @type {readonly Node[]} */ (testSection(dir)([
-            ['p',
-                'FunctionalScript derives this browser-native unit-test suite from exported proofs. ',
-                ['a',
-                    { href: 'https://medium.com/javascript-in-plain-english/emergent-testing-in-javascript-e44760d71688' },
-                    'Read “Emergent Testing in JavaScript”'
-                ],
-                '.'
+const rootPage = build => dir => shell(build)(siteName)(testsMain(
+    ['h1', 'FunctionalScript'],
+    ...(dir.demo === null ? [] : demoSection(dir.demo)),
+    ...sections(build.commit)(dir),
+    ...testSection(dir)([
+        ['p',
+            'FunctionalScript derives this browser-native unit-test suite from exported proofs. ',
+            ['a',
+                { href: 'https://medium.com/javascript-in-plain-english/emergent-testing-in-javascript-e44760d71688' },
+                'Read “Emergent Testing in JavaScript”'
             ],
-        ])),
-    ],
-)
+            '.'
+        ],
+    ]),
+))
 
 /**
  * Whether a directory is this repository's source at all.
@@ -549,15 +540,6 @@ const toDir = tree => proofs => demos => walked => ({
 })
 
 /**
- * The directory the release history is kept in. Its page is written by
- * {@link writeChangelog} rather than by {@link writePages}: a reader who
- * opens the changelog wants the releases, not the names of the files they
- * are stored under, and those files are one click away on GitHub where every
- * other file of the repository is.
- */
-const changelogDir = 'changelog'
-
-/**
  * A release file's version, or `null` for a file that is not one.
  *
  * The version is the file name, which is why no release file carries a
@@ -617,7 +599,7 @@ const writeChangelog = build => tree => {
                     : writeFile(releasePath(release.version), releasePage(build)(release)(document[1]))
             })),
         () => step(
-            writeFile(`${changelogDir}/index.html`, indexPage(build)(versions)),
+            writeFile(pagePath(changelogDir), indexPage(build)(versions)),
             () => log(`releases: ${versions.length}`)))
 }
 
@@ -639,7 +621,7 @@ const writePages = build => tree => proofs => demos => {
         .map(toDir(byPath)(proofs)(demos))
     return step(
         forEachStep(pureOk(dirs), dir => writeFile(
-            pathConcat(dir.path)('index.html'),
+            pagePath(dir.path),
             dir.path === '.' ? rootPage(build)(dir) : page(build)(dir))),
         () => log(`directory pages: ${dirs.length}`))
 }

@@ -6,7 +6,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { element } from '../../media/html/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { utf8ToString } from '../../text/module.f.mjs'
-import { demoSection, header, page, pageHref, repository, sections, subtree, testSection } from './module.f.mjs'
+import { demoSection, header, page, pageHref, pagePath, repository, sections, subtree, testSection } from './module.f.mjs'
 
 /** @type {(dir: Dir) => string} */
 const sectionsHtml = dir => concat(element(['body', ...sections(null)(dir)]))
@@ -85,6 +85,16 @@ export const proof = {
         production: () => assert(!headerHtml({ commit, branch: 'main' }).includes('data-build'), 'main'),
         // Nor does a local build, which names no branch.
         local: () => assert(!headerHtml({ commit, branch: null }).includes('data-build'), 'local'),
+    },
+    /**
+     * **A page is written where its directory is**, and the root's at the
+     * root itself rather than under `./`. Neither is encoded: a path to
+     * write is not a URL.
+     */
+    pagePath: {
+        root: () => assertEq(pagePath('.'), 'index.html'),
+        nested: () => assertEq(pagePath('fjs/types/list'), 'fjs/types/list/index.html'),
+        notEncoded: () => assertEq(pagePath('fjs/x y#1'), 'fjs/x y#1/index.html'),
     },
     pageHref: {
         // The root has no segments, so its page is `/index.html` and not

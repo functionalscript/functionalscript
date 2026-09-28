@@ -28,9 +28,7 @@
  * @import { Build } from '../page/types.ts'
  */
 
-import { htmlUtf8 } from '../../media/html/module.f.mjs'
-import { header, lang, pageTitle, repository } from '../page/module.f.mjs'
-import { faviconLinks, stylesheetLink } from '../style/module.f.mjs'
+import { changelogDir, pageHref, pageTitle, repository, shell } from '../page/module.f.mjs'
 
 const zero = 0x30
 const nine = 0x39
@@ -255,16 +253,16 @@ export const entryNode = entry => ['li', ...linked(entry).map(spanNode)]
  *
  * @type {(version: string) => string}
  */
-export const releasePath = version => `changelog/_${version}.html`
+export const releasePath = version => `${changelogDir}/_${version}.html`
 
 /** @type {(version: string) => string} */
 export const releaseHref = version => `/${releasePath(version)}`
 
 /** The breadcrumb every changelog page carries. @type {(tail: readonly Node[]) => Element} */
 const nav = tail => ['nav',
-    ['a', { href: '/index.html' }, 'root'],
+    ['a', { href: pageHref('.') }, 'root'],
     ' / ',
-    ['a', { href: '/changelog/index.html' }, 'changelog'],
+    ['a', { href: pageHref(changelogDir) }, 'changelog'],
     ...tail,
 ]
 
@@ -312,21 +310,14 @@ const neighbours = ({ previous, next }) => {
  *
  * @type {(build: Build) => (release: Release) => (document: Document) => Vec}
  */
-export const releasePage = build => release => document => htmlUtf8(lang)(
-    pageTitle(release.version),
-    stylesheetLink,
-    ...faviconLinks,
-)(
-    header(build),
-    ['main',
-        nav([' / ', release.version]),
-        ['h1', release.version],
-        ...neighbours(release),
-        ...(document.length === 0
-            ? [/** @type {Element} */(['p', 'This release shipped no notable change.'])]
-            : [/** @type {Element} */(['ul', ...document.map(entryNode)])]),
-    ],
-)
+export const releasePage = build => release => document => shell(build)(pageTitle(release.version))(['main',
+    nav([' / ', release.version]),
+    ['h1', release.version],
+    ...neighbours(release),
+    ...(document.length === 0
+        ? [/** @type {Element} */(['p', 'This release shipped no notable change.'])]
+        : [/** @type {Element} */(['ul', ...document.map(entryNode)])]),
+])
 
 /**
  * The release index: every release, newest first.
@@ -338,17 +329,10 @@ export const releasePage = build => release => document => htmlUtf8(lang)(
  *
  * @type {(build: Build) => (versions: readonly string[]) => Vec}
  */
-export const indexPage = build => versions => htmlUtf8(lang)(
-    pageTitle('Releases'),
-    stylesheetLink,
-    ...faviconLinks,
-)(
-    header(build),
-    ['main',
-        nav([]),
-        ['h1', 'Releases'],
-        // One link per line, so marked for the stylesheet's tap-target rule.
-        ['ul', { 'data-links': '' }, ...descending(versions).map(version =>
-            /** @type {Element} */(['li', ['a', { href: releaseHref(version) }, version]]))],
-    ],
-)
+export const indexPage = build => versions => shell(build)(pageTitle('Releases'))(['main',
+    nav([]),
+    ['h1', 'Releases'],
+    // One link per line, so marked for the stylesheet's tap-target rule.
+    ['ul', { 'data-links': '' }, ...descending(versions).map(version =>
+        /** @type {Element} */(['li', ['a', { href: releaseHref(version) }, version]]))],
+])
