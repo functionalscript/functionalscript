@@ -132,23 +132,19 @@ for later, not part of the format.
 A commit on `disot` is an ordinary commit, signed and timestamped the way
 [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md)
 signs one. The table files carry no signature of their own; they are data,
-and everything a reader trusts about them it gets from the commit. In a
-SHA-1 repository the commit's `tree` header reaches those files only by
-SHA-1, and a timestamp over the commit's bytes alone would bind the new
-pairs through the one link this record exists not to rely on. So the signed
-payload carries a **header naming the tree by SHA-256** — its compat name,
-computable before signing since a delta's files are blobs — and the
-timestamp then binds every pair the commit introduces through SHA-256 at
-the commit's own time. This is the collisions issue's third candidate, a
-commit naming the SHA-256 of what it points to, defined once for this
-branch and for any signed commit later. The next commit's table holds the
-pair for this commit as well, which binds the whole record again one commit
-late and is how a renewal works; it is not a substitute for the header,
-since a pair's proof is its introducing timestamp (below). With a strict
-table format the header is not needed against the attacks known today — an
-attacker who authors none of the table's bytes cannot collide it — and it
-is required so that the chain from the timestamp to every pair is SHA-256
-end to end, with no per-format argument to maintain.
+and everything a reader trusts about them it gets from the commit, and the
+commit adds nothing for them either: no extra header, no second name for its
+tree. In a SHA-1 repository the commit's `tree` header reaches the files by
+SHA-1, so a commit's own timestamp binds the pairs it introduces through
+that one link, and the SHA-256 binding comes from the chain: the next
+commit's table holds the pairs for this commit, its tree and its files, so
+every table but the newest is bound by SHA-256 through its successor's
+timestamp, one commit late. The lag is accepted. With a strict table format
+the SHA-1 link is not the weakness it looks like against the attacks known
+today — every one needs the attacker to author both colliding inputs, and
+an attacker who authors none of the table's bytes cannot collide it — and
+the successor closes it in any case. What the argument depends on is the
+format staying strict, which the open question on the line format records.
 
 **4. Take every published table before publishing one.** Before a run
 records anything, it fetches `disot` from every remote it publishes to,
@@ -174,7 +170,11 @@ the parent commit's line then binds the whole earlier chain by SHA-256.
   that SHA-256 name existed by that time, and the proof is the timestamp
   plus the objects: whoever checks it recomputes the name from the bytes
   and compares. The **oldest** timestamp naming the content is the whole
-  proof of when it existed; later ones add nothing to that bound.
+  proof of when it existed; later ones add nothing to that bound. That
+  timestamp reaches the pair through the commit's SHA-1 `tree` link, as
+  step 3 says; the first timestamp that reaches it through SHA-256 alone
+  is the successor's, one commit later, and a reader that will not lean on
+  the SHA-1 link takes that one as the bound.
 - **Why the chain keeps adding timestamps anyway.** A timestamp verifies
   only while its authority's certificate chain does, and a newer timestamp
   over the chain proves the older token existed before that chain expired
@@ -255,9 +255,8 @@ accident:
 
 - [ ] Define the table file format and its tree layout, as a `todo/` beside
       the module that will read it, with the open questions above answered.
-- [ ] Define the SHA-256 tree header in the signed payload, in
-      [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md),
-      and require SHA-256 as the timestamp's imprint digest there.
+- [ ] Require SHA-256 as the timestamp's imprint digest, in
+      [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md).
 - [ ] The walk: from the missing commits and a table in hand to the pairs it
       lacks, pruning at what is held and recording in post-order, over
       [`fjs/git/store`](../fjs/git/store/module.f.mjs) and
@@ -284,7 +283,7 @@ accident:
   answer to, and the choice of which SHA-256 it records.
 - [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md)
   — what signs and timestamps a commit on the `disot` branch, and where the
-  SHA-256 tree header and the imprint digest are defined.
+  imprint digest is defined.
 - [git-name-resolution](./git-name-resolution.md) — the other DISOT
   metadata, and the `.disot.*` files a table format might join.
 - [disot-cli-epic](../fjs/todo/disot-cli-epic.md) — where the command
