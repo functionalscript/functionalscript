@@ -140,6 +140,90 @@ const okVoid = ok(undefined)
  */
 const fail = message => error(ioError({ message }))
 
+// ── A handle follows its file ─────────────────────────────────────────────────
+//
+// An open file holds the name it still answers to as well as what that name held
+// ({@link _OpenFile}), and the two decorators below are what keeps the pair true:
+// a write copies what the name now holds into every handle under it, and a
+// removal takes the name away. {@link rename} does neither — it moves the name —
+// and that is the whole difference between a file written through the name a
+// handle opened and another file moved onto it.
+//
+// **The name is what a host would call the inode.** Nothing in a `Dir` can make
+// two names for one entity, so at most one name ever reaches one, and which name
+// that is says which entity a write means. Every operation that frees a name
+// either detaches the handles under it ({@link rm}, {@link rmdir}) or moves them
+// ({@link rename}), which is why {@link createExclusive}, {@link writeExclusive}
+// and {@link mkdir} need nothing: they only succeed on a name nothing holds, and
+// no handle is left naming such a name.
+
+/**
+ * Whether `name` is `prefix` or something under it.
+ *
+ * A prefix rather than an equality because {@link rename} moves a whole subtree:
+ * a handle opened on `d/a.bin` is a handle on `e/a.bin` once `d` is `e`. Measured
+ * on Darwin with Node 23.11.0, a write through the new name reaches such a
+ * descriptor and a file recreated at the old name does not, so an equality would
+ * answer wrongly on both — it would miss the write, and then copy a stranger's
+ * bytes into the handle.
+ *
+ * A segment past the end of `name` reads as `undefined`, which no segment is, so
+ * a shorter name fails without its length being asked for separately.
+ *
+ * **No caller passes an empty prefix**, which would match every handle: the root
+ * is refused by every operation that reaches here — `writeFile` and `writeBytes`
+ * want a name, `rm` and `rmdir` answer `.` with a refusal, and `rename` rejects
+ * root as either end.
+ *
+ * @type {(name: readonly string[], prefix: readonly string[]) => boolean}
+ */
+const isUnder = (name, prefix) => prefix.every((s, i) => name[i] === s)
+
+/**
+ * The handles `f` leaves, asked of every one a name still reaches.
+ *
+ * A handle with no name is a host's unlinked file: it holds what it held and no
+ * operation on any name can reach it again, so it is the one entry nothing here
+ * rewrites.
+ *
+ * @type {(f: (handle: _OpenFile, name: readonly string[]) => _OpenFile) => (handles: readonly _OpenFile[]) => readonly _OpenFile[]}
+ */
+const mapNamed = f => handles => handles.map(h => h.name === null ? h : f(h, h.name))
+
+/**
+ * `op`, and then what the path now holds copied into every handle under that
+ * name — the in-place write half of a handle following its file.
+ *
+ * `unwrap` rather than a test: an operation that answered `ok` left something at
+ * the name, so the re-read cannot fail, and a branch for a case no input reaches
+ * is a branch no proof can take.
+ *
+ * @type {<T>(op: (path: string) => (state: State) => readonly [State, IoResult<T>]) => (path: string) => (state: State) => readonly [State, IoResult<T>]}
+ */
+const mirrorsToHandles = op => path => state => {
+    const [s, result] = op(path)(state)
+    if (result[0] === 'error') { return [s, result] }
+    const entity = unwrap(readOperation(openEntity)(path)(s)[1])
+    const prefix = parse(path)
+    const handles = mapNamed((h, name) => isUnder(name, prefix) ? { ...h, entity } : h)(s.handles)
+    return [{ ...s, handles }, result]
+}
+
+/**
+ * `op`, and then the name taken away from every handle under it — the unlink
+ * half. The handle keeps what it holds, as a descriptor on a removed file does,
+ * and nothing written at that name later reaches it.
+ *
+ * @type {<T>(op: (path: string) => (state: State) => readonly [State, IoResult<T>]) => (path: string) => (state: State) => readonly [State, IoResult<T>]}
+ */
+const detachesHandles = op => path => state => {
+    const [s, result] = op(path)(state)
+    if (result[0] === 'error') { return [s, result] }
+    const prefix = parse(path)
+    const handles = mapNamed((h, name) => isUnder(name, prefix) ? { ...h, name: null } : h)(s.handles)
+    return [{ ...s, handles }, result]
+}
+
 /**
  * Creates the directories `path` names below `dir`, the nearest directory
  * `operation` could descend to — or refuses, creating nothing, with the code a
@@ -407,7 +491,7 @@ const writeFileOp = payload => (dir, path) => {
 }
 
 /** @type {(payload: Vec) => (path: string) => (state: State) => readonly [State, IoResult<void>]} */
-const writeFile = payload => operation(writeFileOp(payload))
+const writeFile = payload => mirrorsToHandles(operation(writeFileOp(payload)))
 
 const invalidPath = fail('invalid path')
 
@@ -462,7 +546,7 @@ const rmOp = (dir, path) => {
 }
 
 /** @type {(path: string) => (state: State) => readonly [State, IoResult<void>]} */
-const rm = operation(rmOp)
+const rm = detachesHandles(operation(rmOp))
 
 /** Whether a directory holds nothing, which is when a host will remove it. */
 const isEmptyDir = /** @type {(d: Dir) => boolean} */ (d => !Object.values(d).some(v => v !== undefined))
@@ -502,11 +586,25 @@ const rmdirAt = (dir, path) => {
     return r[0] === 'error' ? [dir, r] : [{ ...dir, [first]: inner }, r]
 }
 
-/** @type {(path: string) => (state: State) => readonly [State, IoResult<void>]} */
-const rmdir = emptyPathIsAbsent(path => state => {
+/**
+ * {@link rmdirAt} behind {@link emptyPathIsAbsent}, and the last name off any
+ * handle on the directory it removed.
+ *
+ * **That detach is the invariant and not an answer anyone reads directly**: a
+ * directory handle is stale from the moment anything under it changes and no
+ * operation reports it ({@link _OpenFile}). What it stops is the one sequence
+ * where staleness would become a wrong answer — a `wx` create taking the freed
+ * name for a *file*, whose write would otherwise be copied into a handle that
+ * still has to call itself a directory. Measured on Darwin with Node 23.11.0, a
+ * descriptor on a removed directory stats as a directory and reads `EISDIR` after
+ * a file has taken its name.
+ *
+ * @type {(path: string) => (state: State) => readonly [State, IoResult<void>]}
+ */
+const rmdir = detachesHandles(emptyPathIsAbsent(path => state => {
     const [root, r] = rmdirAt(state.root, parse(path))
     return [{ ...state, root }, r]
-})
+}))
 
 /** @type {(dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<_Entity>]} */
 const extractEntity = (dir, path) => {
@@ -562,7 +660,22 @@ const insertEntityAt = (dir, path, entity) => {
     return [{ ...dir, [first]: newSub }, result]
 }
 
-/** @type {(src: string, dst: string) => (state: State) => readonly [State, IoResult<void>]} */
+/**
+ * Moves a name, and moves the handles with it.
+ *
+ * **This is the one operation that neither mirrors nor detaches**, and that is
+ * what the model is for: a handle on the *source* goes on holding the same file
+ * under its new name, so a write through that new name reaches it, while a handle
+ * on the *destination* has just had its last name taken by the arriving file and
+ * reaches nothing again. Both sides are prefixes because a directory moves whole:
+ * a handle on `d/a.bin` is a handle on `e/a.bin` once `d` is `e`.
+ *
+ * Renaming a name onto itself moves it to where it already was, which leaves the
+ * handle attached — measured on Darwin with Node 23.11.0, a write after such a
+ * rename reaches the descriptor.
+ *
+ * @type {(src: string, dst: string) => (state: State) => readonly [State, IoResult<void>]}
+ */
 const rename = (src, dst) => state => {
     const srcParsed = parse(src)
     const dstParsed = parse(dst)
@@ -576,7 +689,10 @@ const rename = (src, dst) => state => {
     }
     const [dstRoot, dstResult] = insertEntityAt(srcRoot, dstParsed, srcResult[1])
     if (dstResult[0] === 'error') { return [state, dstResult] }
-    return [{ ...state, root: dstRoot }, okVoid]
+    const handles = mapNamed((h, name) => isUnder(name, srcParsed)
+        ? { ...h, name: [...dstParsed, ...name.slice(srcParsed.length)] }
+        : isUnder(name, dstParsed) ? { ...h, name: null } : h)(state.handles)
+    return [{ ...state, root: dstRoot, handles }, okVoid]
 }
 
 /**
@@ -712,7 +828,7 @@ const writeBytesRawOp = (offset, data) => (dir, p) => {
 }
 
 /** @type {(path: string, offset: number, data: Vec) => (state: State) => readonly [State, IoResult<void>]} */
-const writeBytesOp = (path, offset, data) => operation(writeBytesRawOp(offset, data))(path)
+const writeBytesOp = (path, offset, data) => mirrorsToHandles(operation(writeBytesRawOp(offset, data)))(path)
 
 /**
  * `stat` reports what is there, including when what is there is not a regular
@@ -766,15 +882,18 @@ const statOp = emptyPathIsAbsent(statPath)
 // ── Open files ────────────────────────────────────────────────────────────────
 //
 // A handle is an identifier into {@link State.handles}, and what that entry holds
-// is the entity the name held **when it was opened**. That snapshot is the whole
-// point: a `Dir` entry can be replaced while a program runs, and a reader that
-// went back to the name per chunk could join two files into one correctly-sized
-// body. Reads here cannot, which is what makes the guard provable rather than
-// merely intended.
+// is the file it was opened on — the contents, and the name that still reaches
+// them. Reads go to the contents and never back to the name, which is what makes
+// the guard provable rather than merely intended: a reader that resolved the name
+// per chunk could join two files into one correctly-sized body. What keeps the
+// contents current instead is the writing end, decorated above
+// ("A handle follows its file").
 
 /**
  * What the entry `p` names is, for {@link openOp} — the entity itself, since a
- * handle records what it opened rather than what kind of thing that was.
+ * handle records what it opened rather than what kind of thing that was. It is
+ * also what {@link mirrorsToHandles} re-reads after a write, so the two ends of a
+ * handle's life read the name the same way.
  *
  * It answers where {@link statPath} answers and refuses where that refuses, and
  * for the same reasons: a directory arrives as an empty remaining path because
@@ -795,7 +914,7 @@ const openEntity = (dir, path) => {
 }
 
 /**
- * Opens `path`, recording what it held.
+ * Opens `path`, recording what it held and the name it held it under.
  *
  * **Nothing here blocks, and on a host that is a flag rather than a fact.** A
  * plain read-only open of a FIFO with no writer never returns; the node runner
@@ -815,7 +934,7 @@ const openOp = emptyPathIsAbsent(path => state => {
     /** @type {Handle} */
     const handle = asNominal({ id })
     return [
-        { ...s, handles: [...s.handles, { id, entity: resolved[1] }], handleNext: id + 1 },
+        { ...s, handles: [...s.handles, { id, entity: resolved[1], name: parse(path) }], handleNext: id + 1 },
         ok(handle),
     ]
 })
@@ -845,9 +964,17 @@ const openFile = (state, handle) => {
  * {@link statPath} gives for the same entity — the kinds a caller acts on do not
  * depend on how it got there.
  *
- * **The size is the bound a reader may declare**, because it is the size of the
- * file the reads will come from: nothing can be substituted under the handle
- * between this and them.
+ * **The size is the bound a reader may declare**, and what makes it one is
+ * narrower than it was. No *other* file can arrive under the handle — a `rename`
+ * over the name moves the name and leaves the file alone — so the reads come from
+ * the file this measured, which is the property no path-taking operation has. A
+ * write to that same file does reach the handle now, as it does on a host, and the
+ * bound holds either way: a file that grew is read to the declared length and
+ * framed by it, and one that shrank ends a read early, which `readChunks`
+ * ([`../module.f.mjs`](../module.f.mjs)) fails the cell for rather than ending the
+ * body short. Nothing in this tree writes to a file it holds open; a program that
+ * did would meet a host's own read-while-write race here too, which is the point
+ * of modelling it.
  *
  * @type {(handle: Handle) => (state: State) => readonly [State, IoResult<FileStat>]}
  */

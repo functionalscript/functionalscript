@@ -141,26 +141,47 @@ export type _Binding = {
 }
 
 /**
- * An open file this runner handed out: the identifier a `Handle` carries, and
- * **what the name held at the moment it was opened**.
+ * An open file this runner handed out: the identifier a `Handle` carries, what
+ * the file holds, and the name that still reaches it.
  *
- * That snapshot is the whole of what a handle is for. A `Dir` entry can be
- * replaced while a program runs — `rename` does it, and a fixture that pulls a
- * body one cell at a time can do it between two pulls — so a reader that went
- * back to the *name* per chunk would answer an old prefix joined to a new suffix.
- * Reads through a handle come from the entity recorded here, which is the same
- * thing a descriptor gives on a host: measured on Darwin with Node 26.8.1, a file
- * renamed over the name a handle was opened on is still read as the bytes the
- * handle opened.
+ * **A handle follows its file, and a name is how it is followed here.** The two
+ * halves look alike and are opposites, and a handle owes both:
+ *
+ * | while a handle is open | the handle reads |
+ * | --- | --- |
+ * | `rename` puts another file at the name | its own bytes, at its own size |
+ * | a write goes through the name | the new bytes, at the new size |
+ *
+ * Both were measured through a real descriptor — the first on Darwin with Node
+ * 26.8.1, the second with Node 23.11.0 — and neither can be had by re-reading
+ * the name per read: that answers the second row and gets the first wrong, which
+ * is how a response framed by one file's size could carry another file's bytes.
+ * So `name` moves the way a host moves an inode. A write through a name copies
+ * what the name now holds into every handle under it, `rename` moves the name
+ * instead of copying, and `rm` takes it away, leaving `null` — the unlinked file
+ * no later write can reach again, which a descriptor on a host goes on reading
+ * all the same.
+ *
+ * **The name is the inode here** because nothing in a {@link Dir} can make two
+ * names for one entity: at most one name ever reaches an entity, so which name
+ * that is says which entity a write means. It is a path in segments, as
+ * `fjs/path`'s `parse` gives it, so that `a.bin` and `./a.bin` are one name.
  *
  * The entity rather than a chunk list, because a directory and a `JsModule` open
- * successfully too and `fstat` has to say what they are.
+ * successfully too and `fstat` has to say what they are. **A directory handle
+ * does go stale** — no operation copies a changed directory back into one — and
+ * nothing can read the difference: `fstatOp` answers a fixed directory stat and
+ * `preadOp` answers `EISDIR`, and neither looks at the entity's contents.
+ * Measured the same way, a descriptor on a removed directory still stats as a
+ * directory and still reads `EISDIR` after a file has taken its name.
  *
  * @internal
  */
 export type _OpenFile = {
     readonly id: number
     readonly entity: _Entity
+    /** The name that reaches {@link entity}, or `null` once none does. */
+    readonly name: Nullable<readonly string[]>
 }
 
 /**

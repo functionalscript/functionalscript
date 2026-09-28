@@ -201,6 +201,41 @@ const assertIoMessage = (e, message) => {
 /** @type {(name: string) => (parent: string | null) => import('../types.ts').IoResult<import('../types.ts').FileModule>} */
 const resolvedModule = name => parent => virtual(emptyState)(resolveFileModule(name, parent))[1]
 
+/**
+ * What a handle opened on `path` answers once `between` has run: the size
+ * `fstat` gives and the bytes `pread` gives.
+ *
+ * **Both, always**, because either alone can agree with the wrong file: a
+ * replacement of the same length leaves the size right and the bytes wrong, and a
+ * size read from a stale entry is right about nothing in particular. The handle is
+ * given back and the assertion that nothing is left open comes with it, so a proof
+ * written here cannot leak one.
+ *
+ * @type {<T>(root: Dir, path: string, between: Effect<NodeOp, T, IoChannel>) => readonly [number, string]}
+ */
+const heldAfter = (root, path, between) => {
+    const e = step(open(path), handle =>
+        step(between, () =>
+            step(fstat(handle), stats =>
+                step(pread(handle, 0, 32), taken => step(close(handle), () =>
+                    pureOk(/** @type {readonly [number, string]} */([stats.size, utf8ToString(taken)])))))))
+    const [s, result] = virtual({ ...emptyState, root })(e)
+    assertEq(s.handles.length, 0, s.handles)
+    return unwrap(result)
+}
+
+/** The file every handle proof below opens, and what it holds. */
+const held = utf8('old')
+
+/** A replacement of a different length, so that the size tells the two apart. */
+const arrived = utf8('brandnew!')
+
+/** What {@link heldAfter} answers for a handle still on {@link held}. */
+const unchanged = /** @type {readonly [number, string]} */([3, 'old'])
+
+/** What it answers for one that followed {@link arrived}. */
+const followed = /** @type {readonly [number, string]} */([9, 'brandnew!'])
+
 export const proof = {
     nodeProgramOptions: () => {
         const options = nodeProgramOptions(['a', 'b'])
@@ -1210,6 +1245,128 @@ export const proof = {
             const [, after] = virtual({ ...emptyState, root })(step(rename('b.bin', 'a.bin'), () => readFile('a.bin')))
             assertEq(utf8ToString(unwrap(after)), 'new')
         },
+        // **The other half of the same claim, and the half a snapshot answers
+        // wrong.** A write through the name a handle was opened on *does* reach the
+        // handle: the name still means the same file, and the write fills it. The
+        // replacement is a different length on purpose — a same-length one leaves
+        // the size agreeing with both files, and then nothing downstream can tell.
+        //
+        // Measured through a real descriptor on Darwin with Node 23.11.0, and kept
+        // there by `open.seesAnInPlaceWrite` in [`../proof.mjs`](../proof.mjs).
+        seesAnInPlaceWrite: () => {
+            assertStructurallySame(
+                heldAfter({ 'a.bin': [held] }, 'a.bin', writeFile('a.bin', arrived)),
+                followed)
+            // An append is the same write through the other operation that makes
+            // one.
+            assertStructurallySame(
+                heldAfter({ 'a.bin': [held] }, 'a.bin', writeBytes('a.bin', 3, utf8('er!'))),
+                [6, 'older!'])
+            // A write somewhere else is not this handle's write.
+            assertStructurallySame(
+                heldAfter({ 'a.bin': [held], 'b.bin': [held] }, 'a.bin', writeFile('b.bin', arrived)),
+                unchanged)
+        },
+        // **Both requirements at once, which is the pair that makes this hard.**
+        // Another file is moved onto the name and then written through it. The
+        // rename must not reach the handle — {@link namesAnInode} above — and
+        // neither must the write, because it is a write to the *arriving* file and
+        // the name it goes through is the name this handle had taken away.
+        //
+        // A fix that only matched paths would pass `namesAnInode` and answer this
+        // with the arriving file's bytes, at the arriving file's size.
+        doesNotFollowAReplacedName: () => {
+            assertStructurallySame(
+                heldAfter({ 'a.bin': [held], 'b.bin': [utf8('other')] }, 'a.bin',
+                    step(rename('b.bin', 'a.bin'), () => writeFile('a.bin', arrived))),
+                unchanged)
+        },
+        // **A removed file answers to no name**, so nothing that takes the name
+        // afterwards is it. `writeExclusive` is what takes it here, and it needs no
+        // handling of its own for exactly the reason it succeeds at all: it only
+        // ever takes a name nothing holds, and whatever freed that name has already
+        // taken the name off the handles under it.
+        answersToNoNameOnceRemoved: () => {
+            assertStructurallySame(
+                heldAfter({ 'a.bin': [held] }, 'a.bin',
+                    step(rm('a.bin'), () =>
+                        step(writeExclusive('a.bin', [utf8('other')]), () => writeFile('a.bin', arrived)))),
+                unchanged)
+            // A removal somewhere else leaves the name this handle holds alone, so
+            // the write after it still arrives.
+            assertStructurallySame(
+                heldAfter({ 'a.bin': [held], 'b.bin': [held] }, 'a.bin',
+                    step(rm('b.bin'), () => writeFile('a.bin', arrived))),
+                followed)
+            // A directory tells the same story in the one place it is readable. A
+            // directory handle is stale the moment anything under it changes and
+            // nothing reports that; what `rmdir` taking the name away stops is a
+            // `wx` create putting a *file* at the freed name, whose write would
+            // otherwise be copied into a handle that still has to call itself a
+            // directory. Measured the same way on Darwin with Node 23.11.0: the
+            // descriptor still stats as a directory and still reads `EISDIR`.
+            /** @type {<T>(f: (handle: Handle) => Effect<NodeOp, T, IoChannel>) => Result<T, IoChannel>} */
+            const staleDirectory = f => {
+                const e = step(open('d'), handle =>
+                    step(rmdir('d'), () =>
+                        step(writeExclusive('d', [utf8('other')]), () =>
+                            step(writeFile('d', arrived), () =>
+                                resultStep(f(handle), r => step(close(handle), () => pureOk(r)))))))
+                const [s, result] = virtual({ ...emptyState, root: { d: {} } })(e)
+                assertEq(s.handles.length, 0, s.handles)
+                return unwrap(result)
+            }
+            const stats = staleDirectory(handle => fstat(handle))
+            assert(stats[0] === 'ok', stats)
+            assertStructurallySame(stats[1], { size: 0, isFile: false, isDirectory: true })
+            const read = staleDirectory(handle => pread(handle, 0, 8))
+            assert(read[0] === 'error', read)
+            assertIoCode(read[1], 'EISDIR')
+        },
+        // **A name moves and takes its handles with it.** A handle on the *source*
+        // of a rename holds the file that moved, so a write through the new name
+        // reaches it. That is the mirror image of {@link namesAnInode} and the
+        // reason `rename` moves a name rather than copying whatever it finds: one
+        // operation, two handles, opposite answers.
+        //
+        // The first two rows were inode reasoning until they were measured on
+        // Darwin with Node 23.11.0, and so were the directory rows below;
+        // `open.seesAnInPlaceWrite` in [`../proof.mjs`](../proof.mjs) is where those
+        // measurements live.
+        movesWithItsName: () => {
+            assertStructurallySame(
+                heldAfter({ 'a.bin': [held] }, 'a.bin',
+                    step(rename('a.bin', 'c.bin'), () => writeFile('c.bin', arrived))),
+                followed)
+            // A name renamed onto itself is still the same name.
+            assertStructurallySame(
+                heldAfter({ 'a.bin': [held] }, 'a.bin',
+                    step(rename('a.bin', 'a.bin'), () => writeFile('a.bin', arrived))),
+                followed)
+            // A directory moves whole, so a handle opened inside it moves too —
+            // which is why the name a handle holds is matched as a prefix.
+            assertStructurallySame(
+                heldAfter({ d: { 'a.bin': [held] } }, 'd/a.bin',
+                    step(rename('d', 'e'), () => writeFile('e/a.bin', arrived))),
+                followed)
+            // And the name it left behind belongs to whoever takes it next: a file
+            // recreated there is not the file this handle holds. Matching the name
+            // exactly would answer both of these wrongly — it would miss the write
+            // above and copy this stranger's bytes in.
+            assertStructurallySame(
+                heldAfter({ d: { 'a.bin': [held] } }, 'd/a.bin',
+                    step(rename('d', 'e'), () =>
+                        step(mkdir('d'), () =>
+                            step(writeExclusive('d/a.bin', [utf8('other')]), () =>
+                                writeFile('d/a.bin', arrived))))),
+                unchanged)
+            // A rename touching neither end of the name a handle holds leaves it
+            // where it is.
+            assertStructurallySame(
+                heldAfter({ 'a.bin': [held], 'b.bin': [held] }, 'a.bin',
+                    step(rename('b.bin', 'c.bin'), () => writeFile('a.bin', arrived))),
+                followed)
+        },
         // `fstat` answers about the entity the handle holds, and the three kinds
         // it can be are the three `stat` reports for a name.
         kinds: () => {
@@ -1774,7 +1931,7 @@ export const proof = {
         // body behind it is a complete answer rather than an underrun.
         suppressesABodyNodeWillNotCarry: () => {
             /** @type {RequestListener<NodeOp>} */
-            const listener = () => pureOk({
+            const listener = _request => pureOk({
                 status: 200,
                 headers: { 'content-length': '7' },
                 body: neverPulled,
