@@ -156,6 +156,9 @@ covers.
   names.
 - [git-name-resolution](./git-name-resolution.md) — a name resolved to an
   id, and what that id is trusted to mean.
+- [git-sha256-map-branch](./git-sha256-map-branch.md) — the process for
+  the per-repository table in 2: built by a walk, grown by deltas, kept on
+  a `disot` branch.
 - [Git hash-function transition](https://git-scm.com/docs/hash-function-transition.html)
   — Git's own SHA-1 ↔ SHA-256 mapping and its rules.
 - [SHAttered](https://shattered.io/) and
