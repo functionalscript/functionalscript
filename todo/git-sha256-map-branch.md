@@ -197,7 +197,10 @@ digest the parent's token carries.
   only while its authority's certificate chain does, and a newer timestamp
   over the chain proves the older token existed before that chain expired
   or its key was compromised — the renewal RFC 3161 and long-term
-  validation describe. So a renewal-only commit is a normal commit.
+  validation describe — provided the renewal's own bound precedes that
+  expiry or compromise; a renewal made after it proves only its own time,
+  and a reader does not report the older proof as preserved by it. So a
+  renewal-only commit is a normal commit, made in time.
 - **The imprint is the delta's SHA-256 name.** A request that hashed the
   commit's SHA-1 id, or the delta with SHA-1, would bind a name the
   attacker can collide, and the record would prove nothing more than the
@@ -211,13 +214,12 @@ list is so that none is decided by accident.
 
 - **Which SHA-256.** [git-sha1-collisions](./git-sha1-collisions.md)'s
   question; this process assumes the compat name and says why above.
-- **The delta's file layout.** A delta per commit is decided: a pair lives
+- **A local index.** A delta per commit is decided, and a delta is one
+  file, since the token's imprint is that file's blob name: a pair lives
   in the deltas that introduced it, usually one, so its time is the oldest
-  of their timestamps with nothing to look up. What is open is how a delta is laid out in its tree — one
-  file, or files fanned out by the SHA-1's leading byte so that a large
-  first delta splits — and whether a reader that answers one SHA-1 without
-  scanning the whole branch is worth a local index, which is tooling and
-  not format.
+  of their timestamps with nothing to look up. What is open is whether a
+  reader that answers one SHA-1 without scanning the whole branch is worth
+  a local index, which is tooling and not format.
 - **The line format of a pair.** `<sha1> SP <sha256> LF`, sorted by SHA-1
   as `packed-refs` is sorted, is the least a reader needs and the format Git
   already parses in its compat index; or a `.disot.*` DataJS document beside
