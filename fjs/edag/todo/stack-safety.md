@@ -122,10 +122,14 @@ discovered one `RangeError` at a time.
       `fjs/compiler/parser/proof.f.mjs`) for a chain of operators, nested
       containers, and whatever other shape reaches this walk.
 - [ ] A proof that compiles `spec/datajs/vectors/accept/data.f.mjs` to
-      `.js` and `.rs`, the crash's reproduction in the repository's own
-      corpus — its array vector, since its object vector is shallower
-      than the line; a proof of object nesting needs a deeper fixture of
-      its own.
+      `.js`, the crash's reproduction in the repository's own corpus — its
+      array vector, since its object vector is shallower than the line; a
+      proof of object nesting needs a deeper fixture of its own. To `.rs`
+      the whole corpus never compiles: it holds bigints past `i64`, which
+      `fjs/edag/rust`'s `bigintExpr` refuses by design, so the Rust proof
+      is that the writer reaches that refusal, `no Rust i64 for`, rather
+      than the overflow before it — or a fixture of the array vector
+      alone.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 
 ### Related
