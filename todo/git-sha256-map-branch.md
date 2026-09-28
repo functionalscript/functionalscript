@@ -25,15 +25,16 @@ a chain that keeps adding timestamps for as long as the repository lives.
 
 That is the per-repository answer to the collisions issue's second
 candidate, and it is a process before it is a format: how the table is
-built, how it grows, how tables from several parties merge, and what a
+built, how it grows, how tables from several parties are read together, and what a
 verifier trusts. This issue is the process. The formats and the tooling
 come after it, one pull request at a time.
 
 ### Proposal
 
 The table is a **set of pairs** `(sha1, sha256)`, one per Git object, and
-every step treats it as a set: nothing is changed or removed, a merge is a
-union, and the table in hand is the union of every table already published.
+every step treats it as a set: nothing is changed or removed, a commit only
+adds, and the table in hand is the union, in memory, of every table already
+published. Nothing in Git ever merges tables.
 Which SHA-256 a pair names is decided in
 [git-sha1-collisions](./git-sha1-collisions.md); this process assumes and
 recommends **Git's compat name**, the hash of the object with every embedded
@@ -98,6 +99,13 @@ the way it carries any branch, with no server support and no separate
 transport. The branch's history is unrelated to the history it maps: its
 first commit has no parent, and its trees hold table files and nothing else.
 
+Each commit on the branch carries **only the pairs new since its parents**,
+and its parents are the earlier table commits it was built on: the branch is
+a Merkle DAG of deltas, and the whole table is never written to Git. A
+reader builds it by scanning every `disot` commit and taking the union of
+their deltas in memory; that union is a cache, rebuilt from the branch, and
+a local on-disk form of it is tooling for later, not part of the format.
+
 A commit on `disot` is an ordinary commit, signed and timestamped the way
 [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md)
 signs one. The table files carry no signature of their own; they are data,
@@ -119,15 +127,15 @@ argument to maintain.
 
 **4. Take every published table before publishing one.** Before a run
 records anything, it fetches `disot` from every remote it publishes to,
-reads that branch, and takes the union of the tables it finds as the table
-in hand for step 2. Then the walk records only pairs absent from that union,
-the run writes them as one new commit whose parents are the branch heads it
-fetched — one parent in the usual case, several when two publishers raced —
-and pushes. Two writers who each fetched the same head and each pushed
-produce two heads, and the next run merges them by union with no conflict to
-resolve, because the table is a set and a merge never chooses between pairs.
-So the branch never carries a pair twice, and a commit carries only what its
-author computed.
+scans every commit reachable from the heads it fetched, and takes the union
+of their deltas, in memory, as the table in hand for step 2. Then the walk
+records only pairs absent from that union, the run writes them as one new
+commit whose parents are the heads it fetched — one parent in the usual
+case, several when two publishers raced — and pushes. Two writers who each
+fetched the same head and each pushed produce two heads, and the next commit
+simply names both as parents: nothing is merged, since the next delta only
+adds and a reader's union sees both. So the branch never carries a pair
+twice, and a commit carries only what its author computed.
 
 Each new table also holds the pair for the table commit it descends from,
 since that commit is an existing object. A reader who holds an older table
@@ -159,17 +167,19 @@ signed and timestamped:
   holds twin A, and swap later. So a verifier ranks pairs for one SHA-1 by
   whether it trusts their signer before it ranks them by time, and a run
   prunes only at pairs it trusts, as step 2 says.
-- **Tables from trusted parties merge earliest first.** Where two trusted
-  tables pair one SHA-1 with the same SHA-256, the older record stands and
-  the newer adds nothing. Where they pair it with **two different SHA-256
-  names, that is a collision**, and the verifier **reports it**, always. By
-  default it then answers with the **oldest** pair, on the assumption that
-  the later one is an attempt to pass a twin off under a name already known;
-  a strict verifier may refuse the object instead, since among honest
-  parties two names for one SHA-1 can only mean a real collision, and a
-  compromised trusted party who published first would win the default. The
-  union in step 4 keeps both lines, so the report has its evidence and the
-  choice is the verifier's, not the merge's.
+- **Tables from trusted parties are read earliest first.** Where two
+  trusted tables pair one SHA-1 with the same SHA-256, the older record
+  stands and the newer adds nothing. Where they pair it with **two different
+  SHA-256 names, that is a collision**, and the verifier **reports it**,
+  always. By default it then answers with the **oldest** pair, on the
+  assumption that the later one is an attempt to pass a twin off under a
+  name already known; a strict verifier may refuse the object instead, since
+  among honest parties two names for one SHA-1 can only mean a real
+  collision, and a compromised trusted party who published first would win
+  the default. The in-memory union of step 4 holds both lines, so the report
+  has its evidence, and the branch itself records no decision. A
+  conflict-resolving record — a later commit saying which pair stands — is
+  not part of the initial design and may come later.
 - **The timestamp's imprint is SHA-256 over the commit's bytes.** A request
   that hashes the commit's SHA-1 id, or the payload with SHA-1, binds a name
   the attacker can collide. The digest the timestamp contract names is an
@@ -191,20 +201,13 @@ list is so that none is decided by accident.
 
 - **Which SHA-256.** [git-sha1-collisions](./git-sha1-collisions.md)'s
   question; this process assumes the compat name and says why above.
-- **Delta per commit, or sharded snapshot.** A delta per commit makes
-  answering one SHA-1 a walk over the branch's whole history unless a reader
-  builds a local index first. A snapshot fanned out by the SHA-1's leading
-  byte, one file per shard, answers one id by a tree walk to one file, and
-  costs each commit only the shards it changed, since Git's tree sharing
-  stores an untouched shard once; step 4's "read every table" then collapses
-  to "read the head's tree". That layout is a Git notes tree, and
-  `refs/notes/` would give the fan-out, the lookup and a union merge for
-  free, at the cost of a ref hosts do not show and clones do not fetch by
-  default. Against the snapshot: **Trust** needs a time per pair, the
-  timestamp of the commit that first introduced it, and a delta gives that
-  for free because a pair lives in exactly one delta, where a snapshot
-  needs a per-line time or a history walk to find the introducing commit.
-  Either way the union of a shard is the tool's, not Git's text merge.
+- **The delta's file layout.** A delta per commit is decided, and it is
+  what **Trust** needs: a pair lives in exactly one delta, so its time is
+  that commit's timestamp with nothing to look up. What is open is how a
+  delta is laid out in its tree — one file, or files fanned out by the
+  SHA-1's leading byte so that a large first delta splits — and whether a
+  reader that answers one SHA-1 without scanning the whole branch is worth
+  a local index, which is tooling and not format.
 - **The line format of a pair.** `<sha1> SP <sha256> LF`, sorted by SHA-1
   as `packed-refs` is sorted, is the least a reader needs and the format Git
   already parses in its compat index; or a `.disot.*` DataJS document beside
@@ -250,10 +253,10 @@ list is so that none is decided by accident.
       [`fjs/git/walk`](../fjs/git/walk/module.f.mjs); a proof against a
       fixture repository that the second run over an unchanged repository
       records nothing.
-- [ ] Reading the table: the union over the `disot` branch, the closure
-      check that refuses a table an object of which references an unmapped
-      one, the descent check against a table already held, and the
-      earliest-first rule with its collision report.
+- [ ] Reading the table: the in-memory union from a scan of every `disot`
+      commit, the closure check that refuses a table an object of which
+      references an unmapped one, the descent check against a table already
+      held, and the earliest-first rule with its collision report.
 - [ ] Writing the table: the pairs as a blob, its tree, and the commit with
       the fetched heads as parents. Nothing in [`fjs/git`](../fjs/git/README.md)
       writes an object to a store yet — the effects have `inflate` and no
