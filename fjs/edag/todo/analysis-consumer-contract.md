@@ -9,11 +9,11 @@
 complete graph, and each of them writes that obligation out:
 
 ```js
-// fjs/fsc/serializer, trySerialize and again tryModuleSerialize
+// fjs/compiler/serializer, trySerialize and again tryModuleSerialize
 const a = analysis(e)
 const problem = bindingError(a)
 if (problem !== null) { return error(problem) }
-// fjs/fsc/rust, bodyLines
+// fjs/compiler/rust, bodyLines
 const problem = bindingError(analysis(root))
 // fjs/edag/memo, memo
 const problem = bindingError(a); assert(problem === null, problem)
@@ -53,7 +53,7 @@ the merging rule it is, and the two are documented as the two
 different facts they are.
 
 `checked` takes an analysis, not an expression, so every consumer can
-call it: the three `fsc` sites write `checked(analysis(e))` and branch
+call it: the three compiler sites write `checked(analysis(e))` and branch
 on the result, and `memo` asserts on it. `memo`'s runtime check stays
 — an executor refusing a graph nothing has checked is a contract worth
 keeping, and a type cannot carry it: `Phantom` is structural, its marker
@@ -82,5 +82,5 @@ separate handling in `frameItems`. Then `mintsIdentity` filters, and
 - [identity-shared-walks.md](./identity-shared-walks.md) — adds
   `identityShared` to the analysis for the same reason: a consumer was
   recomputing it.
-- [../../fsc/serializer/todo/stage-a-operators.md](../../fsc/serializer/todo/stage-a-operators.md)
+- [../../compiler/serializer/todo/stage-a-operators.md](../../compiler/serializer/todo/stage-a-operators.md)
   — where `operands`'s `default: []` would first bite.

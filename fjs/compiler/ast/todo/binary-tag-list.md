@@ -7,8 +7,8 @@
 
 `BinaryTag` in `types.ts` names the two dozen binary operator tags, and
 nothing at run time does. Four switches therefore spell the list:
-`enter` in `fsc/parser`, `toDjs` and `operandsOf` in `fsc/ast`, and
-`lower` in `fsc/edag`, each as a column of
+`enter` in `compiler/parser`, `toDjs` and `operandsOf` in `compiler/ast`, and
+`lower` in `compiler/edag`, each as a column of
 
 ```js
 case '*': case '/': case '%': case '**': case '+': … case '>>>': case '&&': case '||': case '??':
@@ -16,9 +16,9 @@ case '*': case '/': case '%': case '**': case '+': … case '>>>': case '&&': ca
 
 `operandsOf` restates the lazy three inside its copy, which is
 `lazyOp2Id` from `fjs/edag` again. And the grammar's operator names are
-written twice more: `fsc/parser/grammar` builds `multiplicativeOp = {
+written twice more: `compiler/parser/grammar` builds `multiplicativeOp = {
 mul: sym('*'), div: sym('/'), mod: sym('%') }` and its siblings, and
-`fsc/parser`'s `binaryOpTag = { mul: '*', div: '/', mod: '%', … }` copies
+`compiler/parser`'s `binaryOpTag = { mul: '*', div: '/', mod: '%', … }` copies
 the same pairs.
 
 A new operator — `is`, from
