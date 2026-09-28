@@ -92,34 +92,11 @@ such as a newline before `=>` cannot reach matching at all.
 
 #### JavaScript statement boundaries, not newline splitting
 
-Grow the shared syntactic front end to accept omitted `;` where ECMAScript's
-ASI rules permit it. Newlines are not separators by themselves:
-
-```js
-const f = (...a) => a[0]
-const x = f
-(7)
-export default x
-```
-
-This initializes `x` by calling `f(7)`; it does not end the initializer at `f`.
-Likewise `[1]\n[0]` is an index access, and a newline inside `return (\n...\n)`
-does not end the return. `return\nexpression` is different, while a newline
-before `=>` remains invalid. Cover expression continuation before inserting a
-terminator, including continuations using operators not yet admitted by FJS:
-"unsupported" is not a reason to invent an earlier statement boundary.
-
-Centralize ECMAScript's restricted productions, including line breaks in
-comments, and the insertion rules at a line break, `}` and end of input.
-Do not mechanically make every `;` optional or insert one at every newline.
-When constructs such as `for` or `throw` are added, their own grammar and ASI
-restrictions apply too. Keep the explicit-stack parsing approach; if the
-current LL(1) representation cannot express the boundary rule, extend the
-shared parser rather than giving each intrinsic a miniature parser.
-
-Canonical output may continue emitting `;`, and DataJS's separate syntax
-continues requiring it. The current mandatory-semicolon FJS subset is
-compatible: optional-semicolon support is a **P2 syntax expansion**, not a
+Accepting an omitted `;` is a syntax expansion of its own, [asi](./asi.md):
+the shared front end grows to insert a terminator where ECMAScript's rules
+permit one, never at every newline, and canonical output and DataJS keep
+their `;`. What this issue requires of it is the boundary above. The current
+mandatory-semicolon subset is compatible, so that expansion is **P2**, not a
 current P1 defect. The **P1 requirement** is that no pattern bypass correct
 statement/expression recognition, before or after that expansion.
 
@@ -139,14 +116,6 @@ statement/expression recognition, before or after that expansion.
       Compare valid layouts with native JavaScript and verify rejected invalid
       layouts; distinguish different statements even when ordinary tokens agree.
       Also test syntax that parses but is refused during EDAG compilation.
-- [ ] **P2:** implement JavaScript-compatible statement termination/ASI for
-      supported syntax. Preserve refusal for unsupported constructs;
-      update the current-language specification when the implementation lands.
-- [ ] Cover LF, CR, CRLF, line/block comments, newline before `=>`, newline
-      after `return`, return with a parenthesized multiline expression,
-      call/index/member continuation, EOF/`}` insertion, and same-line missing
-      semicolons. Preserve existing Unicode-separator refusal unless support
-      is added through the shared tokenizer/parser contract.
 - [ ] Test matching with renamed bindings, shadowing, extra statements and
       escaped protected operations. A parsed descriptor used outside a whole
       approved pattern must not become an executable FJS value.
@@ -160,4 +129,4 @@ statement/expression recognition, before or after that expansion.
 - [Entry function](../../../edag/todo/entry.md).
 - [Enumerable presence](../../../../spec/todo/2345-has-own-property.md).
 - [Named parameters](../../../../spec/todo/3120-parameters.md).
-- [ECMAScript ASI](https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#sec-automatic-semicolon-insertion).
+- [asi](./asi.md) — the P2 syntax expansion this issue once held.
