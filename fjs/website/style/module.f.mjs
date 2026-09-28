@@ -148,11 +148,16 @@ li[data-status="passed"] { color: var(--muted) }
    so Run was Arial at 13.33px on a page set in monospace at 16px. Inheriting
    is what makes "one face" true of the whole page rather than of its text.
 
-   Every control, not only the ones the site has today: a demo's field is an
-   input, and it was Arial the moment the first demo landed. A list that has to
-   be extended for each new control is a rule that is wrong between the element
-   arriving and somebody noticing. */
-button, input, textarea, pre { font: inherit }
+   The selector names elements one by one, so it covers only what it names.
+   It names every element a browser gives a face of its own, not only the ones
+   the site uses: a demo's field is an input, and it was Arial the moment the
+   first demo landed; a select, missing here, was Arial when the first examples
+   drop-down landed. Those are the four form controls — button, input, select,
+   textarea, with an option or optgroup taking its select's font — plus pre.
+   Every other form element — output, fieldset, legend, meter, progress —
+   already inherits the page's font, as a label does. An element a browser
+   starts giving its own face has to be added here. */
+button, input, select, textarea, pre { font: inherit }
 pre { white-space: pre-wrap }
 /* A textarea's own baseline sits at its bottom edge, so a label before a
    multi-line field — the JSON demo's, the first of its kind — floated to the
@@ -309,4 +314,19 @@ svg text { font: inherit }
 [data-graph-value-label][data-graph-value-kind="terminal"] { fill: var(--text) }
 [data-graph-edge-label] { dominant-baseline: middle; fill: var(--muted); font-size: .7rem }
 [data-graph-arrow] { fill: var(--muted) }
+/* A syntax diagram: a track, the pills of the text an input holds and the
+   boxes of other diagrams. A terminal is tinted as a value is in a graph,
+   since both are what the input itself spells; a box is hollow, since it
+   stands for a diagram drawn elsewhere, and it is a link there, so it fills
+   under a pointer. A diagram scrolls sideways in its own container, as a
+   graph does. */
+[data-railroad] { overflow-x: auto }
+[data-railroad] > svg { display: block }
+[data-railroad-line] { fill: none; stroke: var(--text); stroke-width: 1.5 }
+[data-railroad-box="terminal"] { fill: var(--value-bg); stroke: var(--value); stroke-width: 1.5 }
+[data-railroad-box="nonTerminal"] { fill: var(--bg); stroke: var(--text); stroke-width: 1.5 }
+a:hover > [data-railroad-box="nonTerminal"] { fill: var(--pass-bg) }
+[data-railroad-label] { dominant-baseline: middle; font-size: .75rem }
+[data-railroad-label="terminal"] { fill: var(--value) }
+[data-railroad-label="nonTerminal"] { fill: var(--text); font-weight: 700 }
 `

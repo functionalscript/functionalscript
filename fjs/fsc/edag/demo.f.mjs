@@ -24,12 +24,17 @@
  * shapes, and this demo does not walk it: a node it cannot describe is shown
  * as itself, not silently dropped or wrongly drawn.
  *
- * **A constant or an input draws inside the node that uses it.** A number,
- * a string, `null` or `undefined` is not a node of its own but a value in
- * its user's port, beside the operand's role; so is a scope's input —
+ * **A primitive or an input draws inside the node that uses it.** A
+ * number, a string, a boolean, a bigint, `null` or `undefined` is not a
+ * node of its own but a value in its user's port, beside the operand's role; so is a scope's input —
  * `args`, `rest`, `frame`, `arg n` — marked as the terminal it is. Only an
  * expression that is one of these and nothing else draws one as a node,
  * having no user to sit in.
+ *
+ * "Primitive" is JavaScript's word here, which counts `undefined` among
+ * them. The EDAG's own `Primitive` type does not: it holds `undefined` as
+ * the zero-operand operator `['undefined']`. This demo draws the two alike,
+ * because a reader sees the same value either way.
  *
  * **An operand a node may never evaluate draws dashed.** `&&`, `||` and `??`
  * establish their right operand only where the left has not already
@@ -50,6 +55,7 @@
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Edge, Inline, Node } from '../../website/demo/graph/types.ts'
  * @import { Element } from '../../media/html/types.ts'
+ * @import { Examples } from '../../website/demo/examples/types.ts'
  * @import { _Shape, _State } from './types.ts'
  */
 
@@ -60,6 +66,7 @@ import { ranked, graphSvg } from '../../website/demo/graph/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
+import { examplePicker, name as exampleName } from '../../website/demo/examples/module.f.mjs'
 
 const { is } = Object
 
@@ -190,11 +197,11 @@ export const _shapeOf = exp => {
     }
     if (typeof tag === 'string' && op0.has(tag)) {
         // `Op0Id` groups by operand count, not by meaning — its own doc in
-        // `fjs/edag` says so: `undefined` is a constant, where `args` and
-        // `frame` are the two places a value enters a scope from outside it.
-        // A drawing wants the meaning, so the constant draws as the leaf it
-        // is, beside `null` and every other one, and the two inputs draw as
-        // terminals of their own.
+        // `fjs/edag` says so. `undefined` is a primitive, where `args`,
+        // `frame` and `rest` are the places a value enters a scope from
+        // outside it. A drawing wants the meaning, so `undefined` draws as
+        // the leaf every other primitive is, beside `null`, and the inputs
+        // draw as terminals of their own.
         return { kind: tag === 'undefined' ? 'leaf' : 'terminal', label: tag, children: [] }
     }
     if (typeof tag === 'string' && op1.has(tag)) {
@@ -224,8 +231,8 @@ export const _shapeOf = exp => {
 
 /**
  * `exp` as a value the drawing puts inline in its user's port, or `null`
- * for one that is a node of its own. A constant — a primitive, or the
- * `undefined` operator — is inline, and so is a terminal, marked as one.
+ * for one that is a node of its own. A primitive — an EDAG `Primitive`,
+ * or the `undefined` operator — is inline, and so is a terminal, marked as one.
  *
  * **A terminal's identity is its scope's**, so drawing it inline loses
  * nothing. `args`, `rest`, `frame` and `arg n` are the values a scope
@@ -311,18 +318,18 @@ export const _graphOf = text => {
 }
 
 /**
- * The state is the text itself, not the graph: the graph is a function of
- * it, and storing a value the state can already compute is how the two
- * drift apart.
+ * The sources the examples drop-down offers, each under the name it is
+ * picked by: one per thing the drawing has to say, so a reader can see
+ * each without first working out how to write it.
  *
- * The initial source carries this demo's whole reason for existing. `a` is
+ * **The first is the overview**, and the demo opens on it. `a` is
  * referenced four times — twice in the array, once inside `a * 3`, once as
  * `m && a`'s right operand — and every reference is the same `Exp` object,
  * so the `+` node draws once with four incoming edges.
  *
  * It carries one of every look the drawing has, too, so that what the
- * three mean is on screen before a reader has typed anything. The numbers
- * and `undefined` are constants, tinted cells inside the ports that use
+ * three mean is on screen before a reader has picked anything. The numbers
+ * and `undefined` are primitives, tinted cells inside the ports that use
  * them. `args` and `rest` are inputs, filled grey cells: a value arriving
  * from outside a scope rather than computed from operands. `args` is the
  * module's, which its import reaches through `.default` on argument 0,
@@ -347,14 +354,66 @@ export const _graphOf = text => {
  * is. It reads `m` rather than `a`, so `a` keeps the four references the
  * paragraph above counts.
  *
+ * The other ten take one point each, on its own:
+ *
+ * - **Sharing** sets a `const` used twice beside the same expression
+ *   written out again: only `const` makes sharing, so that is one `+` node
+ *   with two edges and a second `+` of its own.
+ * - **Primitives** puts every kind of primitive — `null`, `undefined`, a
+ *   boolean, a number, a bigint, a string — inline in the port that uses it.
+ * - **Operators** draws arithmetic, unary, comparison and bitwise operators
+ *   over a function's two parameters.
+ * - **Laziness: `&&` `||` `??`** breaks each one's right edge, and
+ *   **Laziness: `?:`** both arms and not the condition — with a function's
+ *   body in each, every lazy position the compiler has.
+ * - **Closures** is a function that captures its enclosing parameter, read
+ *   inside the body through `frame`.
+ * - **Objects and properties** draws an object's keys as its ports and a
+ *   property read, by name or by a string index, as a `.` node.
+ * - **Imports and calls** reaches a default and a named import through the
+ *   module's `args`, and calls one with the other.
+ * - **Comma** is an unused `const` the compiler keeps as an `anchor`,
+ *   beside the `result` the module is.
+ * - **Parse error** does not parse, because an error is something this
+ *   demo shows too.
+ *
+ * @type {Examples}
+ */
+export const examples = [
+    ['Overview', 'import m from "./m.f.js";\nconst a = 1 + 2;\nconst checked = m.x < 4;\nexport default [a, a, a * 3, m && a, (...x) => x, undefined];'],
+    ['Sharing: a const, not a repeated expression', 'const a = 1 + 2;\nconst b = 1 + 2;\nexport default [a, a, b];'],
+    ['Primitives', 'export default [null, undefined, true, 1, 2n, "s"];'],
+    ['Operators', 'export default (a, b) => [a + b, a * b, a ** b, -a, ~a, a === b, a < b, a & b, a << b];'],
+    ['Laziness: && || ??', 'export default (...a) => [a[0] && a[1], a[0] || a[1], a[0] ?? a[1]];'],
+    ['Laziness: ?:', 'export default (...a) => a[0] ? a[1] : a[2];'],
+    ['Closures: parameters and frame', 'export default x => y => x * 2 + y;'],
+    ['Objects and properties', 'const o = { a: 1, "b c": [2, 3] };\nexport default [o.a, o["b c"][1]];'],
+    ['Imports and calls', 'import m from "./m.f.js";\nimport { x } from "./n.f.js";\nexport default m(x);'],
+    ['Comma: an anchored const', 'import m from "./m.f.js";\nconst checked = m.x;\nexport default 42;'],
+    ['Parse error', 'export default {bad'],
+]
+
+const picker = examplePicker(examples)
+
+/**
+ * The state is the text itself, not the graph: the graph is a function of
+ * it, and storing a value the state can already compute is how the two
+ * drift apart. Picking an example replaces the text with its source.
+ *
+ * `picker`, above, is built once, as the module loads, which is where a
+ * list with a repeated name or source is refused.
+ *
  * @type {Demo<string, DemoEvent>}
  */
 export const demo = {
-    init: 'import m from "./m.f.js";\nconst a = 1 + 2;\nconst checked = m.x < 4;\nexport default [a, a, a * 3, m && a, (...x) => x, undefined];',
-    update: state => event => pureOk(event.kind === 'input' ? event.value : state),
+    init: examples[0][1],
+    update: state => event => pureOk(event.kind !== 'input' ? state
+        : event.name === exampleName ? picker.pick(event.value)
+            : event.value),
     view: text => {
         const g = _graphOf(text)
         return ['div',
+            picker.view(text),
             ['p',
                 ['label', { for: 'edag' }, 'Source '],
                 ['textarea', { id: 'edag', name: 'edag', rows: '8' }, text],
