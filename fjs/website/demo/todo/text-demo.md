@@ -20,8 +20,11 @@ update: state => event => pureOk(event.kind === 'input' ? event.value : state),
 ],
 ```
 
-The changelog demo writes the textarea twice, once per branch of its
-`view`. The `id`/`name` pair is what the page runtime's `refocus` and
+The DataJS and EDAG demos also share an examples drop-down from
+`fjs/website/demo/examples`, and each writes the same `update` again to
+route its pick through `picker.pick` and the same `picker.view` above
+the textarea. The changelog demo writes the textarea twice, once per
+branch of its `view`. The `id`/`name` pair is what the page runtime's `refocus` and
 `resize` key on, so each copy is a place that can break them, and `rows`
 already varies between copies for no reason a reader can see.
 
@@ -35,12 +38,16 @@ one of the five.
 A named layer beside the protocol, in `fjs/website/demo/module.f.mjs`:
 
 ```ts
-export const textDemo: (o: { name: string, label: string, rows?: number, init: string })
+export const textDemo: (o: { name: string, label: string, rows?: number, init: string, examples?: Examples })
     => (render: (text: string) => readonly Node[]) => Demo<string, DemoEvent>
 ```
 
 It owns `update` and the textarea, and spreads what `render` answers
-after it; each demo keeps its initial text and its `render`. The answer
+after it; each demo keeps its initial text and its `render`. With
+`examples`, it also owns the drop-down: it builds the picker, draws it
+above the textarea, and routes a pick through `pick`, as the DataJS and
+EDAG demos do by hand today. Without `examples`, there is no drop-down
+and `update` is the one-line version. The answer
 is a list of nodes, not one element, because the JSON demo's view puts
 two siblings after its textarea, a `p` and a `pre`, and a single
 `Element` would force a wrapper the page does not have today. The SHA-2 demo stays as it is. If a second single-line
