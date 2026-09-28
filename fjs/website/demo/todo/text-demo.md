@@ -9,7 +9,7 @@ The `Demo<State, Event>` protocol is general, and most demos are the
 same special case of it: the state is a text, the page shows a labelled
 textarea holding it and something derived from it. Each of
 `fjs/media/json`, `fjs/media/markdown`, `fjs/media/datajs`,
-`fjs/fsc/edag` and `fjs/website/changelog` writes the case out:
+`fjs/compiler/edag` and `fjs/website/changelog` writes the case out:
 
 ```js
 update: state => event => pureOk(event.kind === 'input' ? event.value : state),

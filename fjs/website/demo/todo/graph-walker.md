@@ -9,7 +9,7 @@
 drawn graph is made of, and `ranked` and `graphSvg` that lay it out —
 but not the walk that produces one from a value. Two demos each write
 it: `findRef`, `walk` and `_graphOf` in `fjs/media/datajs/demo.f.mjs`,
-and `findRef`, `_walk` and `_graphOf` in `fjs/fsc/edag/demo.f.mjs`.
+and `findRef`, `_walk` and `_graphOf` in `fjs/compiler/edag/demo.f.mjs`.
 `findRef` is identical in both:
 
 ```js
