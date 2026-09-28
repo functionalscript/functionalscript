@@ -1,6 +1,6 @@
 /**
  * The module grammar over token symbols, spelled LL(1) for
- * `fjs/ebnf/ll1`, which `../module.f.mjs` reads a module with:
+ * `fjs/ebnf/ll1`, which `../syntax/module.f.mjs` reads a module with:
  *
  * ```text
  * module ::= t import* const* export eof
@@ -358,7 +358,7 @@ const bitwiseOrOp = /** @type {const} */ ({ or: sym('|') })
  * Stage B of
  * [`spec/todo/2340-operators.md`](../../../../spec/todo/2340-operators.md).
  * Each is a tagged choice of one branch, as every layer's operator is,
- * because the reader in `../module.f.mjs` looks a round's operator up by
+ * because the reader in `../syntax/module.f.mjs` looks a round's operator up by
  * that tag; three choices rather than one of three branches, since which
  * of them opens a chain decides what may follow it — see
  * {@link circuitTail}.
@@ -483,7 +483,7 @@ const powTail = option([sym('**'), trivia, unary])
  * The four leaves are each still wrapped one tuple deep, `[primitiveValue]`
  * rather than `primitiveValue` bare, matching {@link unary}'s own
  * `[primitiveValue, powTail]` at the same depth minus the slot `powTail`
- * held — `./module.f.mjs`'s reader shares one function, `baseOf`, between
+ * held — `../syntax/module.f.mjs`'s reader shares one function, `baseOf`, between
  * both rules, and that depth is what lets it.
  *
  * @type {UnaryOperand}
@@ -541,7 +541,7 @@ const bitwiseOrTail = repeatFrom0([bitwiseOrOp, trivia, unary, multiplicativeTai
  * operand — `unary` followed by these eight lists, which is what a
  * `bitwiseOr`-level expression is.
  *
- * Exported for the reader in `../module.f.mjs`, which splits a value's
+ * Exported for the reader in `../syntax/module.f.mjs`, which splits a value's
  * whole {@link tail} at this list's length: the eager layers are one shape,
  * a repeat of rounds each, and the two positions after them another.
  *

@@ -9,7 +9,12 @@ It is the upper layer of a layered parser: the tokenizer turns code points into
 tokens, and this turns tokens into an `AstModule`. Both layers are an LL(1)
 grammar read by [`fjs/ebnf/ll1`](../../ebnf/ll1/README.md) and a fold over what
 the grammar matched; only the alphabet differs — code points there, token
-symbols here.
+symbols here. This layer is two modules along the line its two questions
+draw: [`./syntax`](./syntax/module.f.mjs) holds the rewrite set, which turns
+the grammar's tree into the syntax tree — a node per value, a record per
+statement — and `parseSyntax`, the reader over tokens; `./module.f.mjs` is
+the fold, which resolves the tree's names into the AST and refuses what only
+a word or a line can tell, and `parseFromTokens`, the two in sequence.
 
 ## The grammar is written down
 

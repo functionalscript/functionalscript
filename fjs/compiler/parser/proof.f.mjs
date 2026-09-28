@@ -1,9 +1,9 @@
 /**
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { Node } from './types.ts'
  */
 
-import { _parseSyntaxFromTokens, parseFromTokens } from './module.f.mjs'
+import { parseFromTokens } from './module.f.mjs'
+import { parseSyntax } from './syntax/module.f.mjs'
 import { _own, run } from '../ast/module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
@@ -48,28 +48,6 @@ const repeated = element => count => `${`${element},`.repeat(count - 1)}${elemen
 const numberedMembers = count =>
     Array.from({ length: count }, (_, i) => `k${i}:${i}`).join(',')
 
-/** @type {(kind: 'ws' | 'nl' | 'null' | 'true' | 'false' | 'undefined' | 'eof' | ';', line: number) => DjsTokenWithMetadata} */
-const proofKind = (kind, line) => ({ token: { kind }, metadata: { path: 'a.js', line, column: 1 }, newline: false })
-
-/** @type {(value: string, line: number) => DjsTokenWithMetadata} */
-const proofId = (value, line) => ({ token: { kind: 'id', value }, metadata: { path: 'a.js', line, column: 1 }, newline: false })
-
-/**
- * The value a block's final `return` holds, the block being a function's
- * body: what a proof of the syntax tree pins, the statement's own token
- * being a position and not a shape.
- *
- * @type {(node: Node) => Node}
- */
-const returned = node => {
-    assert(node[0] === '=>')
-    const body = node[2]
-    assert(body[0] === 'block')
-    const last = body[1][body[1].length - 1]
-    assert(last[0] === 'return')
-    return last[1].value
-}
-
 export const proof = {
     namedImports: {
         bindings: () => {
@@ -77,7 +55,7 @@ export const proof = {
             const module = unwrap(parseFromTokens(tokenizeString(source)))
             assertStructurallySame(module[0], ['default', 'x', 'x', 'default', 'as'].map(name => ({ specifier: './dep', json: false, name })))
             assertStructurallySame(unwrap(run(module[1])([1, 2, 2, 1, 3])), { default: [1, 2, 2, 1, 3] })
-            const syntax = unwrap(_parseSyntaxFromTokens(tokenizeString(source)))
+            const syntax = unwrap(parseSyntax(tokenizeString(source)))
             assertStructurallySame(syntax.imports[0].bindings.map(({ name, local }) => [name, local.token]), [
                 ['default', { kind: 'id', value: 'd' }], ['x', { kind: 'id', value: 'x' }],
                 ['x', { kind: 'id', value: 'y' }], ['default', { kind: 'id', value: 'z' }],
@@ -127,14 +105,6 @@ export const proof = {
                 assertStructurallySame(Object.keys(/** @type {object} */ (result)), Object.keys(expected))
             }
         },
-        syntax: () => {
-            const source = unwrap(_parseSyntaxFromTokens(tokenizeString('const x=1; export const a=x; const y=a; export const b=y;')))
-            assertEq(source.exported, null)
-            assertStructurallySame(source.consts.map(c => c.exported), [false, true, false, true])
-            assertStructurallySame(source.consts.map(c => c.declaration.name.token), [
-                { kind: 'id', value: 'x' }, { kind: 'id', value: 'a' }, { kind: 'id', value: 'y' }, { kind: 'id', value: 'b' },
-            ])
-        },
         errors: () => {
             for (const source of [
                 'export const a=1; export const a=2;',
@@ -160,52 +130,13 @@ export const proof = {
         },
     },
     sourceBlocks: {
-        // Literal expectations pin syntax before lowering can erase it.
-        explicitReturn: () => {
-            const expression = unwrap(_parseSyntaxFromTokens(tokenizeString('export default () => 7;')))
-            const block = unwrap(_parseSyntaxFromTokens(tokenizeString('export default () => { return 7; };')))
-            assert(expression.exported !== null && block.exported !== null)
-            assertStructurallySame(expression.exported.value, ['=>', [], ['primitive', 7]])
-            assertStructurallySame(returned(block.exported.value), ['primitive', 7])
-        },
-        orderedDeclarations: () => {
-            const { exported } = unwrap(_parseSyntaxFromTokens(tokenizeString(
-                'export default () => { const x = 1; const y = 2; return [x, y]; };')))
-            assert(exported !== null && exported.value[0] === '=>')
-            const body = exported.value[2]
-            assert(body[0] === 'block')
-            const [first, second, last] = body[1]
-            assert(first[0] === 'const' && second[0] === 'const' && last[0] === 'return')
-            assertStructurallySame(first[1].name.token, { kind: 'id', value: 'x' })
-            assertStructurallySame(second[1].name.token, { kind: 'id', value: 'y' })
-            assertStructurallySame(first[1].value, ['primitive', 1])
-            assertStructurallySame(second[1].value, ['primitive', 2])
-            assertEq(first[1].name.metadata.column, 30)
-            assertEq(second[1].name.metadata.column, 43)
-            // each statement begins at its keyword and ended with its `;`
-            assertEq(first[1].start.metadata.column, 24)
-            assertEq(last[1].start.metadata.column, 50)
-            assertStructurallySame([first[1].semicolon, second[1].semicolon, last[1].semicolon], [true, true, true])
-            const array = last[1].value
-            assert(array[0] === 'array')
-            const [x, y] = array[1]
-            assert(x[0] === 'ref' && y[0] === 'ref')
-            assertStructurallySame(x[1].token, first[1].name.token)
-            assertStructurallySame(y[1].token, second[1].name.token)
-        },
-        nestedBlocks: () => {
-            const { exported } = unwrap(_parseSyntaxFromTokens(tokenizeString(
-                'export default () => { return () => { return 7; }; };')))
-            assert(exported !== null)
-            assertStructurallySame(returned(returned(exported.value)), ['primitive', 7])
-        },
         // A statement's `;` may be omitted where JavaScript inserts one —
         // before `}`, and before a statement on a new line — and the
         // syntax tree records the omission; where the next statement
         // shares the line, the grammar still reads the module and the fold
         // refuses it at that statement's first token, as JavaScript does.
         omittedSemicolons: () => {
-            const { exported } = unwrap(_parseSyntaxFromTokens(tokenizeString(
+            const { exported } = unwrap(parseSyntax(tokenizeString(
                 'export default () => {\n    const x = 1\n    return x\n}')))
             assert(exported !== null && exported.value[0] === '=>')
             assertEq(exported.semicolon, false)
@@ -215,7 +146,7 @@ export const proof = {
             assertEq(parseFromTokens(tokenizeString('export default () => {\n    const x = 1\n    return x\n}'))[0], 'ok')
             assertEq(parseFromTokens(tokenizeString('export default () => { return 7 };'))[0], 'ok')
             const sameLine = 'export default () => { const x = 1 return x; };'
-            assertEq(_parseSyntaxFromTokens(tokenizeString(sameLine))[0], 'ok')
+            assertEq(parseSyntax(tokenizeString(sameLine))[0], 'ok')
             const refused = parseFromTokens(tokenizeString(sameLine))
             assert(refused[0] === 'error')
             assertEq(refused[1].message, 'unexpected token')
@@ -231,12 +162,12 @@ export const proof = {
                 'export default () => { return\n7; };',
                 'export default () => { return /*\n*/ 7; };',
             ]) {
-                assertEq(_parseSyntaxFromTokens(tokenizeString(source))[0], 'error')
+                assertEq(parseSyntax(tokenizeString(source))[0], 'error')
                 assertEq(parseFromTokens(tokenizeString(source))[0], 'error')
             }
             // A line break inside the returned group is still admitted.
             const source = 'export default () => { return (\n7\n); };'
-            assertEq(_parseSyntaxFromTokens(tokenizeString(source))[0], 'ok')
+            assertEq(parseSyntax(tokenizeString(source))[0], 'ok')
             assertEq(parseFromTokens(tokenizeString(source))[0], 'ok')
         },
     },
@@ -529,73 +460,6 @@ export const proof = {
             assert(tag === 'error', tag)
             assertEq(value.message, 'const not found')
             assertEq(value.metadata?.column, 16)
-        },
-    ],
-    // The tokenizer's EOF contract, checked through the parser rather than
-    // through `splitEof` alone.
-    //
-    // The parser requires exactly one `eof`, in final position, because the
-    // backend synthesizes its own logical end and a second marker would be a
-    // symbol the grammar has no rule for. Neither stream can come from the
-    // tokenizer, so only a hand-built list reaches these.
-    eofContract: [
-        () => {
-            const wellFormed = [
-                proofId('export', 1), proofKind('ws', 1), proofId('default', 1),
-                proofKind('ws', 1), proofKind('null', 1), proofKind(';', 1), proofKind('eof', 1),
-            ]
-            assertEq(parseFromTokens(wellFormed)[0], 'ok')
-        },
-        () => {
-            // no `eof`: the state machine read this as a complete module
-            const noEof = [
-                proofId('export', 1), proofKind('ws', 1), proofId('default', 1),
-                proofKind('ws', 1), proofKind('null', 1), proofKind(';', 1),
-            ]
-            const [tag, value] = parseFromTokens(noEof)
-            assert(tag === 'error', tag)
-            assertEq(value.message, 'missing end-of-input token')
-        },
-        () => {
-            // a second `eof`: likewise invisible to the state machine
-            const twoEof = [
-                proofId('export', 1), proofKind('ws', 1), proofId('default', 1),
-                proofKind('ws', 1), proofKind('null', 1), proofKind(';', 1), proofKind('eof', 1), proofKind('eof', 2),
-            ]
-            const [tag, value] = parseFromTokens(twoEof)
-            assert(tag === 'error', tag)
-            assertEq(value.message, 'end-of-input token is not final')
-        },
-        () => {
-            const [tag, value] = parseFromTokens([])
-            assert(tag === 'error', tag)
-            assertEq(value.message, 'missing end-of-input token')
-        },
-    ],
-    // A lexical failure ends the token stream at an `error` token and emits no
-    // `eof`. `splitEof` reads a missing `eof` that way rather than as a broken
-    // tokenizer contract, and reports the error where it happened — so that
-    // reading is pinned here against the real tokenizer, alongside the position
-    // the current parser reports for the same input.
-    lexicalErrorStreamShape: [
-        () => {
-            const tokens = tokenizeString('const a = "abc')
-            assertEq(tokens.length, 1)
-            assertEq(tokens[0].token.kind, 'error')
-            assertEq(tokens[0].metadata.column, 11)
-        },
-        () => {
-            const [tag, value] = parseFromTokens(tokenizeString('const a = "abc'))
-            assert(tag === 'error', tag)
-            assertEq(value.metadata?.line, 1)
-            assertEq(value.metadata?.column, 11)
-        },
-        () => {
-            // anchored at the `/*` that was never closed, not at the end of
-            // input — the same convention the unterminated string above uses
-            const [tag, value] = parseFromTokens(tokenizeString('const a = /* x'))
-            assert(tag === 'error', tag)
-            assertEq(value.metadata?.column, 11)
         },
     ],
     // An object's members stand in the order they are written, as JavaScript
