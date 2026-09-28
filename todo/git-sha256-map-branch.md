@@ -128,9 +128,9 @@ a Merkle DAG of deltas, and the whole table is never written to Git. The
 table of a long-lived repository is huge, and a commit that re-listed it
 would make the branch grow with every timestamp; a commit that adds only the
 missing commits' objects grows with the content instead, and a commit made
-only to renew the timestamps carries only the pairs for what its parent
-alone introduced — the parent commit, its tree, its delta and its timestamp
-file, which could not be in the parent's own delta. A reader builds the
+only to renew the timestamps carries only the pairs for what its parents
+alone introduced — each parent commit, its tree, its delta and its
+timestamp file, which could not be in that parent's own delta. A reader builds the
 whole table by
 scanning every `disot`
 commit and taking the union of their deltas in memory; that union is a
@@ -176,12 +176,13 @@ If the union holds two different SHA-256 names for one SHA-1, the run has
 no name to build on and refuses to publish; what to do then is out of
 scope below.
 
-Each new table also holds the pairs for the table commit it descends from
-and for the tree, the delta and the timestamp file that commit introduced —
-existing objects like any other, and the closure invariant demands them;
-under compat naming the parent commit's line then binds the whole earlier
-chain by SHA-256, and the line for the parent's delta repeats the very
-digest the parent's token carries.
+Each new table also holds the pairs for every table commit it descends
+from — one parent usually, each of the fetched heads after a race — and
+for the tree, the delta and the timestamp file each of them introduced:
+existing objects like any other, and the closure invariant demands them.
+Under compat naming a parent commit's line then binds the whole chain
+below it by SHA-256, and the line for a parent's delta repeats the very
+digest that parent's token carries.
 
 ### What a timestamp proves
 
