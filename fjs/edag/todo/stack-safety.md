@@ -17,6 +17,22 @@ $ fjs compile in.f.js out.rs
 RangeError: Maximum call stack size exceeded
 ```
 
+Nesting reaches it far sooner than a chain does. Every level of a
+container costs the walk about nine frames — `walk`, `node`, `fresh`,
+`dispatch`, the container's handler, `each` and its `reduce` callback,
+and `item` or `property` — so at `0802ecda` a plain nested array,
+`export default [[[…1…]]];`, compiles to `.js` and `.rs` at six hundred
+levels and overflows at six hundred and fifty, and a nested object,
+`{"a":{"a":…}}`, at the same depths. The repository's own DataJS
+vectors cross that line: `spec/datajs/vectors/accept/data.f.mjs`, whose
+`array-nested-deep` graph is a thousand levels deep, compiles to
+`.edag.data.js` and `.data.js`, which never reach this walk, and fails
+with this `RangeError` to `.js` and `.rs`. Its `object-nested-deep`
+graph is three hundred levels deep and compiles to every output; a
+thousand-level object would fail the same way. No proof sends that
+module, or its deep document, through a graph output, which is why the
+suite stays green.
+
 This is not new: the same crash reproduces for deeply nested array
 literals with no operator involved at all, so it
 predates [operators](../../../spec/todo/2340-operators.md)
@@ -77,8 +93,23 @@ separately, and the two narrower fixes already landed (`refsOf`,
 `lower`) are natural precedents for the technique, not a substitute
 for it.
 
+Whether recursion can be replaced everywhere this path reaches is the
+first question, not a settled one. The walk here is one of several on
+the way to a graph output: past it, the FunctionalScript writer, `fjs/edag/rust`'s
+`sharedNodesOf` and the Rust printer each descend the same depth, and a
+walk made iterative here only moves the overflow to the next one. The
+investigation lists every walk between the front end and the `.js` and
+`.rs` outputs, says for each whether an explicit stack or the trampoline
+keeps it as readable as the recursion it replaces, and names any walk
+where neither does — so the fix is planned as a whole rather than
+discovered one `RangeError` at a time.
+
 ### Tasks
 
+- [ ] Investigate replacing recursion on the graph-output path: list
+      every walk from the front end to the `.js` and `.rs` outputs whose
+      depth is the input's, and for each, an explicit stack, the
+      trampoline, or the reason neither fits.
 - [ ] Identify every recursive call in `fjs/edag/analysis/module.f.mjs`
       (and any sibling module with the same shape) whose depth is the
       *input's*, not a bounded constant.
@@ -90,6 +121,15 @@ for it.
       elsewhere in the repository use (`stackSafety` in
       `fjs/compiler/parser/proof.f.mjs`) for a chain of operators, nested
       containers, and whatever other shape reaches this walk.
+- [ ] A proof that compiles `spec/datajs/vectors/accept/data.f.mjs` to
+      `.js`, the crash's reproduction in the repository's own corpus — its
+      array vector, since its object vector is shallower than the line; a
+      proof of object nesting needs a deeper fixture of its own. To `.rs`
+      the whole corpus never compiles: it holds bigints past `i64`, which
+      `fjs/edag/rust`'s `bigintExpr` refuses by design, so the Rust proof
+      is that the writer reaches that refusal, `no Rust i64 for`, rather
+      than the overflow before it — or a fixture of the array vector
+      alone.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 
 ### Related
@@ -105,5 +145,7 @@ for it.
 - [`bound-edag-interpreter-resources`](../../compiler/todo/bound-edag-interpreter-resources.md)
   — deterministic resource limits; its host-stack independence is this
   issue's.
+- [`spec/datajs/vectors/accept/data.f.mjs`](../../../spec/datajs/vectors/accept/data.f.mjs)
+  — the DataJS accept vectors, whose deep graphs reach this crash.
 - [`../../compiler/parser/module.f.mjs`](../../compiler/parser/module.f.mjs) —
   `evaluate`, whose `_Stack` is the same shape again, for the same reason.
