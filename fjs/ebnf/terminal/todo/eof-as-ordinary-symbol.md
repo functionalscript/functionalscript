@@ -63,7 +63,7 @@ in the tree ends.
 
 `fjs/compiler/parser` is the evidence that synthesis costs its callers rather than
 saving them: `splitEof` in
-[`../../../compiler/parser/module.f.mjs`](../../../compiler/parser/module.f.mjs)
+[`../../../compiler/parser/syntax/module.f.mjs`](../../../compiler/parser/syntax/module.f.mjs)
 strips the tokenizer's real `eof` token to avoid a second end marker and then
 keeps that token's metadata in a side channel, because the synthesized symbol
 has none to report a failure at end-of-input from. Both halves of that
@@ -91,7 +91,7 @@ receives a real `Meta<I>` from the caller, so nothing has to invent one.
 - [ ] Delete `splitEof`'s reason for existing, and probably most of `splitEof`.
       With no synthesis there is no second marker to avoid: the tokenizer's
       `eof` token is the symbol the grammar's `eof` matches, its metadata
-      rides along, and `eofMetadata` — threaded to `parseFromTokens`'
+      rides along, and `eofMetadata` — threaded to `parseSyntax`'
       `atEnd` branch — has nothing left to carry. `djsModule` requires `eof`,
       so this caller is not optional: leaving it stripped fails every valid
       module at its final terminal.

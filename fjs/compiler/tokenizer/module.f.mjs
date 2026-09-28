@@ -23,23 +23,27 @@
  * ([`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md))
  * is an error, since the language has no other.
  *
- * This layer holds no state. An operator is a token like any other and the
- * grammar reads it, so that `-1 .x` and `-1()` are the negation of the
- * access and of the call, as JavaScript reads them, rather than an access
- * and a call on a negative literal — recognized is not accepted, and the
- * same is true of every operator token `fjs/js/tokenizer` already carries
- * that this layer does not admit, `?.` and `,` and the rest of
- * `spec/todo/2340-operators.md`'s later stages among them.
+ * The one state this layer holds is whether a newline stands before each
+ * token, which the parser reads where a statement is written without its
+ * `;` — see `DjsTokenWithMetadata` in `./types.ts`. An operator is a token
+ * like any other and the grammar reads it, so that `-1 .x` and `-1()` are
+ * the negation of the access and of the call, as JavaScript reads them,
+ * rather than an access and a call on a negative literal — recognized is
+ * not accepted, and the same is true of every operator token
+ * `fjs/js/tokenizer` already carries that this layer does not admit, `?.`
+ * and `,` and the rest of `spec/todo/2340-operators.md`'s later stages
+ * among them.
  *
  * @module
  *
  * @import { JsToken, JsTokenWithMetadata } from '../../ebnf/lib/js/types.ts'
+ * @import { StateScan } from '../../types/function/operator/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { DjsToken, DjsTokenWithMetadata } from './types.ts'
  */
 import { tokenize as tokenizeJs } from '../../js/tokenizer/module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.mjs'
-import { map } from '../../types/list/module.f.mjs'
+import { stateScan } from '../../types/list/module.f.mjs'
 
 /** @type {ReadonlySet<string>} */
 const keywordSet = new Set(keywords)
@@ -83,8 +87,23 @@ const mapDjsToken = input =>
     : keywordSet.has(input.kind) ? { kind: 'id', value: input.kind }
     : { kind: 'error', message: 'invalid token' }
 
-/** One token of the stream, with the metadata of the JavaScript token it came from. @type {(input: JsTokenWithMetadata) => DjsTokenWithMetadata} */
-const mapDjsTokenWithMetadata = ({ token, metadata }) => ({ token: mapDjsToken(token), metadata })
+/** Whether a token is trivia: what stands between two tokens without being one of them. @type {(kind: JsToken['kind']) => boolean} */
+const isTrivia = kind => kind === 'ws' || kind === 'nl' || kind === '//' || kind === '/*'
+
+/**
+ * One token of the stream, with the metadata of the JavaScript token it came
+ * from, and whether a newline precedes it. The state is that answer for
+ * the next token: `true` after an `nl` — the trivia run holding a newline,
+ * and the one the JavaScript tokenizer puts after a block comment holding
+ * one — carried across any further trivia, and `false` after any other
+ * token.
+ *
+ * @type {StateScan<JsTokenWithMetadata, boolean, DjsTokenWithMetadata>}
+ */
+const withNewline = ({ token, metadata }, newline) => [
+    { token: mapDjsToken(token), metadata, newline },
+    token.kind === 'nl' || (newline && isTrivia(token.kind)),
+]
 
 /** @type {(input: List<number>) => (path: string) => List<DjsTokenWithMetadata>} */
-export const tokenize = input => path => map(mapDjsTokenWithMetadata)(tokenizeJs(input)(path))
+export const tokenize = input => path => stateScan(withNewline)(false)(tokenizeJs(input)(path))

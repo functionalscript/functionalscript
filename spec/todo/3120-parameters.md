@@ -166,7 +166,7 @@ Here "required parameters" means the fixed named positions, not a requirement
 that callers supply them. Missing fixed arguments bind to `undefined`; extra
 arguments remain permitted.
 
-1. Extend the shared [source AST](../../fjs/compiler/parser/types.ts) to retain an
+1. Extend the shared [source AST](../../fjs/compiler/parser/syntax/types.ts) to retain an
    ordered list of fixed bindings and an optional rest binding. Preserve
    source locations, blocks and explicit returns. Names are erased only after
    binding and syntax validation.
