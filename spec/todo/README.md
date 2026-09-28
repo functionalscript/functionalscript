@@ -20,9 +20,10 @@ These rules apply at every stage, regardless of a feature's priority below.
 
 [Statement-aware intrinsics](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md)
 requires every instruction pattern to match already-recognized statements and
-expressions, never raw token sequences. It also plans JavaScript-compatible
-statement termination and optional semicolons as a separate syntax expansion;
-canonical output and DataJS's required-semicolon format need not change.
+expressions, never raw token sequences. JavaScript-compatible statement
+termination is a separate syntax expansion,
+[asi](../../fjs/compiler/parser/todo/asi.md); canonical output and DataJS's
+required-semicolon format need not change.
 
 ### TypeScript boundary
 
@@ -97,6 +98,10 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
 7. [ ] import attribute spellings — a string key, `with { "type": "json" }`,
    a trailing comma and an empty `with {}`
    ([importing](../README.md#importing-other-modules)).
+8. [ ] [asi](../../fjs/compiler/parser/todo/asi.md) — an omitted `;` where
+   ECMAScript's automatic semicolon insertion permits one, which every
+   `.f.mjs` module written in the repository's style omits
+   ([module structure](../README.md#module-structure)).
 
 ## 3. Functions
 
