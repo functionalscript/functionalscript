@@ -44,7 +44,7 @@ phase starts.
 | --- | --- | --- |
 | **Leaf serializer** | `fjs/media/json/serializer`'s `numberSerialize` | FunctionalScript number formatting — blocks everything below |
 | Expected-output comparison | the proofs of `fjs/media/json/serializer`, `fjs/js/tokenizer`, `fjs/rtti/data`, `fjs/rtti/ts`, `fjs/text/code_point`; `fjs/media/revision` and `fjs/media/lock` build test input with it | `stringify(identity)` |
-| Assertion messages | `fjs/rtti/ts`'s proof; `fjs/media/datajs/vectors` and its `matrix` quote values in their reports | pass the value, or `fjs/fsc`'s `_stringifyTree` |
+| Assertion messages | `fjs/rtti/ts`'s proof; `fjs/media/datajs/vectors` and its `matrix` quote values in their reports | pass the value, or `fjs/compiler`'s `_stringifyTree` |
 | Source-text quoting | `fjs/emergent_testing/module.f.mjs`, `fjs/types/ts/module.f.mjs`, `fjs/edag/rust/module.f.mjs` | `stringSerialize` — already designed in `fjs/types/ts/todo/66c-emit-literals-via-owner-modules.md` |
 | JSON line framing | `fjs/emergent_testing/proof.f.mjs`'s `writeEvent`, `fjs/mcp/proof.f.mjs`, `fjs/ci/package`'s `tsconfig.json` line | `stringify(identity)` |
 | Pretty-printed file output | `fjs/ci/module.f.mjs`'s `workflowText` | needs indentation support, which `serialize` does not have |
@@ -59,7 +59,7 @@ Three semantic differences to respect while migrating, none of them blocking:
   them into `null` inside arrays, and throws on `bigint`. `serialize` takes
   `Unknown`, which excludes `undefined` outright, and `definedEntries` does the
   dropping — so `fjs/protocol/mcp/stdio/proof.f.mjs`'s omission test keeps
-  its meaning. `bigint` values (token payloads, for one) need `fjs/fsc`'s
+  its meaning. `bigint` values (token payloads, for one) need `fjs/compiler`'s
   `_stringifyTree`, which already handles them.
 - **Types.** `serialize` demands `Unknown`; the proof sites pass domain types
   (`dm`, `mr`, `emptyTags`). Confirm each is structurally assignable rather
@@ -117,7 +117,7 @@ instead of duplicating the decision. The assertion-message row is the cheapest:
 says a thrown payload is read only by a human after something already went
 wrong, so most of those sites can pass the value itself — but note that the
 reporter in `fjs/emergent_testing/module.f.mjs` renders a failure payload with
-`String(v)`, so passing a raw object degrades the message. Either serialize with `fjs/fsc`'s `_stringifyTree` (it handles the
+`String(v)`, so passing a raw object degrades the message. Either serialize with `fjs/compiler`'s `_stringifyTree` (it handles the
 `bigint` token payloads) or improve the reporter's rendering first.
 
 **4. Indentation for `fjs/ci/module.f.mjs`'s `workflowText`**, the only site asking for
@@ -157,7 +157,7 @@ Consider a guard so it does not come back — the cheapest is a proof in
   — done: `fjs/cas/evo/proof.f.mjs` stringified two values only to compare
   them, and now uses `assertStructurallySame`. The proofs that still compare a
   `JSON.stringify` result against a JSON *string literal* are tracked in
-  [`fjs/fsc/tokenizer/todo/serialized-proof-expectations.md`](../../../fsc/tokenizer/todo/serialized-proof-expectations.md);
+  [`fjs/compiler/tokenizer/todo/serialized-proof-expectations.md`](../../../compiler/tokenizer/todo/serialized-proof-expectations.md);
   those are not phase-2 work either way.
 - [`fjs/effects/node/todo/readjsonfile-writejsonfile-helpers.md`](../../../effects/node/todo/readjsonfile-writejsonfile-helpers.md)
   — an on-hold design whose `writeJsonFile` half waits on phase 4.

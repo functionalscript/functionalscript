@@ -7,7 +7,7 @@ Converting between a single character-code number and a one-character JS `string
 is a `fjs/text` concern. Half of it has an owner: `codePointToString` in
 [`fjs/text/utf16`](../utf16/module.f.mjs), the scalar counterpart of
 `codePointListToString`, which `fjs/media/json/serializer` and
-`fjs/fsc/serializer` already use. The code-unit half has none, so modules
+`fjs/compiler/serializer` already use. The code-unit half has none, so modules
 reach into the `String` built-in directly:
 
 ```ts
@@ -88,7 +88,7 @@ namespace.
   constant-string lookup; the other streams code units lazily and ends on
   `NaN`). They share a concept, not an algorithm, so frame the reader half as
   separation-of-concerns, not a single parameterized factory.
-- Keep `fjs/text` free of cyclic deps: `ascii`, `ebnf`, `fsc`, `js/tokenizer`,
+- Keep `fjs/text` free of cyclic deps: `ascii`, `ebnf`, `compiler`, `js/tokenizer`,
   `media/json` and `html` already sit above the text layer, so importing
   downward is clean.
 

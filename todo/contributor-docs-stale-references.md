@@ -44,7 +44,7 @@ longer shows the rule.
   `Nullable<Vec>`; `base64Decode` is only an import alias in `fjs/mcp/cas`.
 - **[changelog/README.md](../changelog/README.md#entries)** uses
   `djs/tokenizer` as its module-path topic example. `fjs/djs` is gone;
-  CONTRIBUTING.md's title rule uses `fsc/tokenizer`.
+  CONTRIBUTING.md's title rule uses `compiler/tokenizer`.
 - **[fjs/README.md](../fjs/README.md)** shows the `fjs run` convention in
   TypeScript — `export const main: NodeProgram = options => …` and
   `(v.main as NodeProgram)({ ...options, args })`. Authored modules are

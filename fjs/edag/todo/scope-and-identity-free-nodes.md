@@ -21,12 +21,12 @@ evaluated per call. The analysis merges two such nodes within a scope for
 exactly that reason — they are indistinguishable — and then refuses the same
 two across a boundary.
 
-That asymmetry cost a crash. `fjs/fsc/edag` kept `['undefined']` as a
+That asymmetry cost a crash. `fjs/compiler/edag` kept `['undefined']` as a
 module-level constant and returned it for every occurrence, so
 `export default [undefined, (...a) => undefined];` — source the parser
 accepts and the writer spells — linked to a graph whose analysis threw. The
 linker now builds a node per occurrence
-([`fjs/fsc/edag/module.f.mjs`](../../fsc/edag/module.f.mjs)), which is the
+([`fjs/compiler/edag/module.f.mjs`](../../compiler/edag/module.f.mjs)), which is the
 smaller fix and the one that keeps the analysis's contract as written and
 proved. It is not obviously the *right* fix.
 
@@ -73,5 +73,5 @@ answer.
 - [`analysis.md`](./analysis.md) — the table the rule lives in.
 - [`../execution-models.md`](../execution-models.md) — where a scope is
   defined, and where the answer belongs.
-- [`fjs/fsc/serializer`](../../fsc/serializer/module.f.mjs) — the writer
+- [`fjs/compiler/serializer`](../../compiler/serializer/module.f.mjs) — the writer
   whose round trip met the crash.

@@ -4,7 +4,7 @@
  * Shared by two generators that print the same node shapes for two different
  * purposes: [`../../nanvm/rust/module.f.mjs`](../../nanvm/rust/module.f.mjs)
  * prints the operator conformance corpus as `nanvm-lib/tests/test/gen.corpus/`,
- * and [`../../fsc/rust/module.f.mjs`](../../fsc/rust/module.f.mjs) prints a
+ * and [`../../compiler/rust/module.f.mjs`](../../compiler/rust/module.f.mjs) prints a
  * compiled module's EDAG as the `.rs` output of `fjs compile`. Both need the
  * same literal rendering, the same operator tables, and the same binding
  * mechanism — a `let` per node, one line, one expression, each referenced by
@@ -380,7 +380,7 @@ const last = e => {
  * referenced twice, which JavaScript establishes at its declaration
  * whatever the operators around its uses do, and which the
  * eager-restricted reference sweep of `anchors`
- * ([`fjs/fsc/ast`](../../fsc/ast/module.f.mjs)) anchors through the comma
+ * ([`fjs/compiler/ast`](../../compiler/ast/module.f.mjs)) anchors through the comma
  * root when reached only lazily — an eager reach, so the binding is right
  * again. An {@link atomic} node is the exception: its construction
  * establishes nothing the program could skip — `args` is the closure's
@@ -419,7 +419,7 @@ const printer = nested => shared => root => {
     }
     // `Exps` admits an empty operand list in the schema (shape-only, per
     // `fjs/edag/types.ts`), but the Rust backend has no value to give an
-    // empty comma — `resolve` in `fjs/fsc/edag/module.f.mjs` never anchors
+    // empty comma — `resolve` in `fjs/compiler/edag/module.f.mjs` never anchors
     // zero operands anyway, always the export among them, so refusing here
     // loses no real input.
     const emptyComma = order.find(([n]) => isComma(n) && /** @type {readonly any[]} */ (n)[1].length === 0)
@@ -652,7 +652,7 @@ const printer = nested => shared => root => {
      * `null`, the empty `Array::default()`, as is an empty array literal;
      * an array literal's items otherwise, each a value of the scope around
      * the function, collected by `to_array` — what the lowering builds
-     * (`fjs/fsc/edag`). The schema admits any `exp` there, and one that is
+     * (`fjs/compiler/edag`). The schema admits any `exp` there, and one that is
      * not an array literal is refused: its value is an `Any<A>` known to be
      * an array only when the module runs.
      *
@@ -897,7 +897,7 @@ const visit = operands => visited => root => {
  * Whether a scope reads its own arguments: an `['args']` node among the
  * distinct nodes {@link visit} reaches through {@link operandsOf}, which
  * stops at a nested function's body — that one's `args` is its own. A
- * module's own scope reading them is refused by `fjs/fsc/rust`: a module
+ * module's own scope reading them is refused by `fjs/compiler/rust`: a module
  * has no arguments.
  *
  * @type {(root: Exp) => boolean}
@@ -906,7 +906,7 @@ export const readsArgs = root => reads('args')(root) || reads('arg')(root) || re
 
 /**
  * The same, for `['frame']`: whether a scope reads the frame it was built
- * with. A module's own scope reading one is refused by `fjs/fsc/rust`: a
+ * with. A module's own scope reading one is refused by `fjs/compiler/rust`: a
  * module has no frame.
  *
  * @type {(root: Exp) => boolean}
@@ -1021,7 +1021,7 @@ const eagerOperandsOf = node => {
  * The distinct nodes an EDAG reaches from more than one place, in dependency
  * order — the generalization of a corpus's explicit, named `data.shared` to
  * a linked EDAG, where sharing is implicit: two references to one `const`
- * are the same `Exp` object by identity (see `fjs/fsc/edag/module.f.mjs`'s
+ * are the same `Exp` object by identity (see `fjs/compiler/edag/module.f.mjs`'s
  * `lower`), never restated as data.
  *
  * `root` itself is never "shared" by this count — nothing outside the graph
@@ -1089,7 +1089,7 @@ const held = e => {
  * through eager positions alone — in walk order, `root` first. A node
  * {@link sharedNodesOf} lists that is not among these is reached only
  * through lazy operands, and a `let` binding for it before the root would
- * establish what the program may not: the shape `fjs/fsc/rust` refuses,
+ * establish what the program may not: the shape `fjs/compiler/rust` refuses,
  * an {@link atomic} node excepted, whose binding establishes nothing.
  *
  * @type {(root: Exp) => readonly Exp[]}

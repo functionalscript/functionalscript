@@ -27,7 +27,7 @@ export const serialize = a => `${a}n`
 
 `fjs/media/datajs/serializer/module.f.mjs` is a good citizen — it imports the
 owner rather than re-spelling the template, and the compiler's proof dump in
-`fjs/fsc/module.f.mjs` does the same:
+`fjs/compiler/module.f.mjs` does the same:
 
 ```js
 // fjs/media/datajs/serializer/module.f.mjs

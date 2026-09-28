@@ -17,7 +17,7 @@ The [roadmap](../../../nanvm-lib/todo/mvp-roadmap.md) supplies that native path
 by AOT-compiling the FJS interpreter and its runner to Rust. It does not add
 an interpreter to `nanvm-lib`. The native conformance run depends on the
 [immutable-cache rewrite](../../edag/memo/todo/immutable-cache.md),
-[host-container migration](../../fsc/todo/load-modules-without-import-effect.md#native-prerequisites),
+[host-container migration](../../compiler/todo/load-modules-without-import-effect.md#native-prerequisites),
 public interpreter integration and compiler coverage of the required FJS dependency
 closure. Host-side corpus integration can proceed independently.
 
@@ -60,7 +60,7 @@ tests that must fail, is
 **The transport.** Keep the direct-operator output. Add generated Rust that
 *constructs* each derivable case's EDAG as `Any` data and passes it to the
 AOT-compiled FJS conformance runner, using the FJS interpreter's
-[public entry](../../fsc/todo/interpret-edag.md). This is a data handoff to
+[public entry](../../compiler/todo/interpret-edag.md). This is a data handoff to
 compiled FJS, not a new `nanvm-lib` interpreter or Rust EDAG representation.
 Authoring stays single-source; only the transport is generated. The same
 expressions may later travel through `Any`/CBOR serialization, but that is
@@ -112,7 +112,7 @@ plan or native self-hosting.
   — deferred optional Rust validation that may reuse these vectors.
 - [`../../../nanvm-lib/todo/mvp-roadmap.md`](../../../nanvm-lib/todo/mvp-roadmap.md)
   — direct Rust AOT and native execution through the compiled FJS interpreter.
-- [`../../fsc/todo/interpret-edag.md`](../../fsc/todo/interpret-edag.md) — the
+- [`../../compiler/todo/interpret-edag.md`](../../compiler/todo/interpret-edag.md) — the
   FunctionalScript executor run beside the `amnesia` oracle here.
 - [`../../../todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md)
   — positional laziness.

@@ -42,6 +42,6 @@ numbers reshape the `.` branch of `operator` anyway.
   — the lookahead the prefix tree leaves out.
 - [The roadmap](../../../../spec/todo/README.md) — number spellings beyond
   JSON's, leading-dot numbers among them.
-- [`fjs/fsc/todo/compile-modules-to-edag.md`](../../../fsc/todo/compile-modules-to-edag.md)
+- [`fjs/compiler/todo/compile-modules-to-edag.md`](../../../compiler/todo/compile-modules-to-edag.md)
   — optional chaining is not in the source subset yet; its lowering is
   planned there.

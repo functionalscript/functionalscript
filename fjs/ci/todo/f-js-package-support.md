@@ -19,7 +19,7 @@ the package.
 
 This work was gated on the stage-1 TypeScript migration (tracked in
 `todo/migrate-typescript-to-mjs.md`, deleted when it finished; the contract it
-established is [`fjs/fsc/README.md`](../../fsc/README.md)) for two stated
+established is [`fjs/compiler/README.md`](../../compiler/README.md)) for two stated
 reasons: while `.f.ts` existed, TypeScript could generate
 `.f.js`, and the repository ignored `**/*.js`. Both are now false — stage 1
 removed the last `.f.ts` and the emission pass with it
@@ -30,7 +30,7 @@ the gate is satisfied and this task is open.
 
 What stays gated is the *rename*, not this work: the first `.f.mjs` -> `.f.js`
 is blocked by **this** task completing, per the acceptance criteria below, and
-by the stage-2 boundary in [`fjs/fsc/README.md`](../../fsc/README.md). Reading
+by the stage-2 boundary in [`fjs/compiler/README.md`](../../compiler/README.md). Reading
 the dependency the other way was circular while the stage-1 issue existed — it
 stayed open until stage 2 started, stage 2 needed this task done, and this task
 waited on it — which is why the block is recorded here as met rather than
@@ -102,14 +102,14 @@ that keep those true, plus five gaps the list below did not name:
   rule `fjs/AGENTS.md` sets for every FunctionalScript module. Fixed with
   the fixture.
 - **Compiler acceptance is not enforced.** The `.f.js` contract is that the
-  current compiler accepts the module ([`fjs/fsc/README.md`](../../fsc/README.md)),
+  current compiler accepts the module ([`fjs/compiler/README.md`](../../compiler/README.md)),
   but nothing compiles authored `.f.js`: a module could be renamed, or
   edited later, into something the compiler refuses, and every check would
   stay green. The measured module compiles to `.rs`; its JSON target refuses
   it only because a function has no JSON. The compiler requires the
   terminating `;` (without it, `unexpected end`), which `tsc` does not, so
   only such a check catches a module written for `tsc` alone. The check is
-  owned by [lint-compiler-compatible-files](../../fsc/todo/lint-compiler-compatible-files.md),
+  owned by [lint-compiler-compatible-files](../../compiler/todo/lint-compiler-compatible-files.md),
   which waits for the first authored `.f.js` to exist; this task's fixture
   is that file, so the lint is unblocked by it, and neither task waits on
   the other.
@@ -159,12 +159,12 @@ that keep those true, plus five gaps the list below did not name:
       that must fail — one command per step
       ([AGENTS.md §7](../../../AGENTS.md#7-continuous-integration)).
 - [x] Update package/contributor documentation for the stage-2 authored
-      `.f.js` meaning: the `.f.js` row of [`fjs/fsc/README.md`](../../fsc/README.md)'s
+      `.f.js` meaning: the `.f.js` row of [`fjs/compiler/README.md`](../../compiler/README.md)'s
       extension table, including why a proof stays `.f.mjs` until `throw`
       compiles.
 
 Compiler acceptance of every authored `.f.js` is not a task here: it is
-[lint-compiler-compatible-files](../../fsc/todo/lint-compiler-compatible-files.md),
+[lint-compiler-compatible-files](../../compiler/todo/lint-compiler-compatible-files.md),
 unblocked by the fixture above and landing on its own schedule.
 
 **Open question: a synthetic fixture, or the first real rename?** As
@@ -206,12 +206,12 @@ follows this task, as `fjs-nanvm-integration` has it.
 
 ### Related
 
-- [`fjs/fsc/README.md`](../../fsc/README.md) — the extension contract. Stage 1
+- [`fjs/compiler/README.md`](../../compiler/README.md) — the extension contract. Stage 1
   removed authored TypeScript and made `.js` authorable again; this task is
   what makes it *packable*.
 - [`f-mjs-package-support.md`](./f-mjs-package-support.md) — stage-1 authored
   `.mjs` package support.
 - [`publishing-packages.md`](./publishing-packages.md) — broader package plan.
-- [`fjs/fsc/README.md`](../../fsc/README.md) — extension contract.
+- [`fjs/compiler/README.md`](../../compiler/README.md) — extension contract.
 - [`todo/fjs-nanvm-integration.md`](../../../todo/fjs-nanvm-integration.md) —
   compiler-compatibility migration blocked by this package prerequisite.

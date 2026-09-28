@@ -8,7 +8,7 @@
 [`../module.f.mjs`](../module.f.mjs) exports `keywords` as a sorted array, so
 each consumer that asks whether a name is a keyword builds its own set:
 `const keywordSet = new Set(keywords)` is written in `fjs/js/tokenizer`,
-`fjs/fsc/tokenizer` and `fjs/fsc/parser`. The three copies answer the same
+`fjs/compiler/tokenizer` and `fjs/compiler/parser`. The three copies answer the same
 question and can drift in how they ask it.
 
 ### Tasks

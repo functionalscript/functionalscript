@@ -206,7 +206,7 @@ separate language; its function-introspection and identity sketches do not
 approve FJS APIs. This correction selects no `String(f)`, frame or `self` strategy.
 
 An AST-less recognizer remains valid. The
-[statement-aware instruction requirement](../../fsc/parser/todo/statement-aware-intrinsics.md)
+[statement-aware instruction requirement](../../compiler/parser/todo/statement-aware-intrinsics.md)
 governs admitting FJS instructions during source-to-EDAG compilation; an
 accept/reject grammar recognizer neither performs nor replaces that admission.
 
@@ -234,7 +234,7 @@ naming the rule. Every builder follows it, each with its own constraint
 (LL(1) conflict-free, regular, …).
 
 This is the FunctionalScript meta-programming strategy — **no new language**,
-or equivalently: an **embedded DSL**. Grammars are ordinary FS values; the
+or equivalently: an **embedded DSL**. Grammars are ordinary FJS values; the
 builders are ordinary functions; `const g = dfaParser(grammar)` *is* the compile
 step, just eager evaluation, with no bespoke compiler pass or new syntax. The
 contrast is an **external** DSL — React/JSX, TypeScript's type syntax — which

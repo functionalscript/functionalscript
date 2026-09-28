@@ -77,7 +77,7 @@ const { fromEntries, is } = Object
  * `Object.getOwnPropertyDescriptor` read is not a copy of `amnesia`'s
  * stricter receiver/key invariants — `nonStringKeyThrows` (`[{1: 42}, 1]`) is
  * real JS and does *not* throw through the descriptor read, only through
- * `amnesia`'s FS-specific string-key check — so the two are expected to
+ * `amnesia`'s FJS-specific string-key check — so the two are expected to
  * disagree there, and every `own` case is proven by `amnesia` alone.
  *
  * The `any` parameters are the point of the exercise: these operators are

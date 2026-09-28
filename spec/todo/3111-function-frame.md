@@ -82,7 +82,7 @@ any result value, a simple scheme places "undefined" value in that slot to compl
 
 ## Optimizations to consider
 
-1) Let's assume that the FS compiler does a good job on tail recursion optimization so "truly
+1) Let's assume that the FJS compiler does a good job on tail recursion optimization so "truly
 recursive" functions are rare in compiled bytecode. In that case the compiler marks a compiled
 function as not "truly recursive" and calculates an expanded frame size of it - allowing for
 expanded frame sizes of all functions called from the given one. Such a not "truly recursive"
@@ -123,7 +123,7 @@ The named parameter and the conditional are in the language; `a` reaching
 ([forward-references](./3140-forward-references.md)). These are illustrative
 mutual-recursion/slot sketches, not implemented source or permission to
 expose a complete `args` binding. Ordinary captures are implemented: the
-compiler's frame is described under [EDAG](../../fjs/fsc/README.md#edag), and
+compiler's frame is described under [EDAG](../../fjs/compiler/README.md#edag), and
 [`fjs/edag/rust`](../../fjs/edag/rust/module.f.mjs) prints it as the frame
 array a Rust closure is built with.
 

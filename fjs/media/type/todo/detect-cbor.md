@@ -9,7 +9,7 @@ CBOR machinery at all, while tiers 2–3 consume the codec once it lands.
 
 ### Problem
 
-CBOR (RFC 8949) is the designated binary counterpart of the FS dialect scheme: it is
+CBOR (RFC 8949) is the designated binary counterpart of the FJS dialect scheme: it is
 the only binary JSON-family encoding with both a registered media type
 (`application/cbor`) and a registered structured-syntax suffix (`+cbor`, plus
 `+cbor-seq` for sequences, RFC 8742). The dialect naming rule
@@ -52,7 +52,7 @@ the size bound keep the generic tier-1 verdict.
 
 #### 2. Dialect-tagged CBOR — the binary analog of tagged-JSON detection
 
-The tagged-JSON convention carries over: an FS-designed CBOR format is a CBOR map
+The tagged-JSON convention carries over: an FJS-designed CBOR format is a CBOR map
 carrying the text key `"dialect"` with a text-string value. Detection is
 semantic, matching the JSON path — no entry-order assumption, no byte-level
 signature: within the size-bounded path (the 128 KiB inline cap — a limit of the
@@ -67,7 +67,7 @@ satisfies a dialect's schema is detected as that dialect, whatever its entry
 order or encoding details.
 
 The non-settling requirement is therefore **not** limited to tier-1 tag
-matches. A canonical FS blob carries no wrapper (see the producer rule below),
+matches. A canonical FJS blob carries no wrapper (see the producer rule below),
 so its first byte is an ordinary CBOR header (e.g. a map header such as
 `0xA4`): no magic signature matches and the UTF-8 factor goes invalid almost
 immediately — exactly the state today's `isSettled`
@@ -79,7 +79,7 @@ definitively fails; only on a failed decode, a non-validating value, or a blob
 exceeding the cap does the verdict fall back to `application/octet-stream` (or
 generic `application/cbor` on a tier-1 tag match).
 
-**Encoding rule for producers** (to be stated in the format specs): FS-produced
+**Encoding rule for producers** (to be stated in the format specs): FJS-produced
 tagged CBOR MUST use RFC 8949 §4.2 core deterministic encoding (definite
 lengths, keys in deterministic bytewise order) and no tag-55799 wrapper — the
 dialect entry already identifies the blob, and the canonical bytes must not
@@ -110,7 +110,7 @@ the honest answer.
       tier-2 dialect probe before emitting the generic verdict; proof cases
       including a tagged blob split across chunks and a tag-wrapped dialect map
       that must report the derived type, not generic `application/cbor`
-- [ ] Specify the FS canonical tagged-CBOR form: RFC 8949 §4.2 core
+- [ ] Specify the FJS canonical tagged-CBOR form: RFC 8949 §4.2 core
       deterministic encoding (definite lengths, deterministic key order), no
       tag-55799 wrapper
 - [ ] Implement tier 2: size-bounded (128 KiB inline cap) CBOR decode, with and

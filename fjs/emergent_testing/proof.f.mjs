@@ -864,7 +864,7 @@ export const helpers = {
         assert(!isIdentifier('a-b'))
     },
     shouldLoad: () => {
-        // all .f.ts / .f.js — FS modules are safe to bulk-load
+        // all .f.ts / .f.js — FJS modules are safe to bulk-load
         assert(shouldLoad('module.f.ts'))
         assert(shouldLoad('module.f.js'))
         assert(shouldLoad('a.proof.f.ts'))
@@ -878,7 +878,7 @@ export const helpers = {
         assert(shouldLoad('math.proof.js'))
         assert(shouldLoad('math.proof.mts'))
         assert(shouldLoad('dir/math.proof.ts'))
-        // non-FS, non-proof vanilla files are not loaded
+        // non-FJS, non-proof vanilla files are not loaded
         assert(!shouldLoad('helper.ts'))
         assert(!shouldLoad('module.ts'))
         assert(!shouldLoad('proof.tsx'))

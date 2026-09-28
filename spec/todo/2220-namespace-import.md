@@ -41,7 +41,7 @@ export type Value = readonly [number];
 
 Both JavaScript's JSDoc references and TypeScript's `import type` declarations
 name the same real `types.ts` source file, following the
-[shared module policy](../../fjs/fsc/README.md). Do not introduce a `types.js`
+[shared module policy](../../fjs/compiler/README.md). Do not introduce a `types.js`
 runtime module or rely on extension substitution for these source references.
 FJS treats the JSDoc as a comment; it neither loads that companion nor gains a
 TypeScript grammar.

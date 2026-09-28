@@ -34,7 +34,7 @@
  * only where nothing before it was wrong.
  *
  * This stream is what every reader of JavaScript text in the repository
- * shares: [`fjs/fsc/tokenizer`](../../fsc/tokenizer/module.f.mjs) folds it
+ * shares: [`fjs/compiler/tokenizer`](../../compiler/tokenizer/module.f.mjs) folds it
  * once more into the compiler's tokens, and a source view or a linter reads
  * it as it is. It replaced a hand-written scanner, whose stream it matched
  * token for token on every input the scanner accepted; where the scanner

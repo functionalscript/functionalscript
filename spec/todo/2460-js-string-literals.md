@@ -54,7 +54,7 @@ them.
 Design rule: we extend JSON only where JS has values JSON cannot express
 (`undefined`, `bigint`, functions), or where a spelling is common enough that
 refusing it keeps familiar code from compiling, as single quotes did. Keeping a
-single string grammar across the JSON ⊂ DJS ⊂ FS lattice avoids parser
+single string grammar across the JSON ⊂ DJS ⊂ FJS lattice avoids parser
 differentials ("is it valid JSON?" is answerable at the string level) and keeps
 values closer to a canonical byte form for content addressing.
 
@@ -65,11 +65,11 @@ literal TAB → `\t`, `\v` → `\u000b`, `\x41` → `A`.
 expression interpolation, not just lexical syntax. They are tracked separately
 as [template-literals](./3440-template-literals.md).
 
-**Note**: if a universal parser — one that recognizes JSON, DJS, and FS in a
+**Note**: if a universal parser — one that recognizes JSON, DJS, and FJS in a
 single pass — implements any of these spellings, it must still distinguish JS
 strings from JSON strings: a string literal using any JS-only spelling is not a
 JSON string, and the parser has to report the input as outside JSON (it stays
-valid DJS/FS, since this feature is DJS-level sugar). For example, via two
+valid DJS/FJS, since this feature is DJS-level sugar). For example, via two
 grammar rules (`json-string` ⊂ `js-string`) sharing the escape sub-rules, or by
 recording which sub-language each matched token stayed within. Single quotes
 take the first of those.
@@ -81,4 +81,4 @@ See
 
 - [ ] Admit the other escapes, raw control characters or line continuations
       only when a measured need appears, through the lexing issue's
-      `jsonEscapes` check in `fjs/fsc/tokenizer`'s fold.
+      `jsonEscapes` check in `fjs/compiler/tokenizer`'s fold.

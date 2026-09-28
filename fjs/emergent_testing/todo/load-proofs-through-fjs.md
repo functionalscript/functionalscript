@@ -11,7 +11,7 @@ FJS, with the same testing logic shared across engines.
 
 ### Proposal
 
-Use the [FJS module loader](../../fsc/todo/load-modules-without-import-effect.md)
+Use the [FJS module loader](../../compiler/todo/load-modules-without-import-effect.md)
 to obtain a module's export object, then let the existing proof runner discover
 and run its proofs through `sandbox`. Loading and invoking proofs remain
 separate operations. Keep native JavaScript execution as an independent

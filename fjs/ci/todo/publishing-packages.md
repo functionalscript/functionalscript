@@ -35,7 +35,7 @@ producing package artifacts.
 
 The repository source migration is split into two stages; both, and the
 authoritative FunctionalScript extension contract, are in
-[`fjs/fsc/README.md`](../../fsc/README.md).
+[`fjs/compiler/README.md`](../../compiler/README.md).
 
 Stage 1 used different extensions for authored JavaScript and generated
 TypeScript output. Only the `.mjs` line survives it — no TypeScript pass emits
@@ -218,13 +218,13 @@ must cover both runtime and declarations. These requirements are owned by
 
 - [PR #1451](https://github.com/functionalscript/functionalscript/pull/1451) —
   initial implementation and CI validation of authored `.mjs` package support.
-- [`fjs/fsc/README.md`](../../fsc/README.md) — repository-wide two-stage
+- [`fjs/compiler/README.md`](../../compiler/README.md) — repository-wide two-stage
   ordering and the extension contract.
 - [`f-mjs-package-support.md`](./f-mjs-package-support.md) — focused stage-1
   authored `.mjs` prerequisite.
 - [`f-js-package-support.md`](./f-js-package-support.md) — focused stage-2
   authored `.f.js` prerequisite.
-- [`fjs/fsc/README.md`](../../fsc/README.md) — authoritative FunctionalScript
+- [`fjs/compiler/README.md`](../../compiler/README.md) — authoritative FunctionalScript
   extension and migration contract.
 - [GitHub issue #398](https://github.com/functionalscript/functionalscript/issues/398)
   — the original package report.

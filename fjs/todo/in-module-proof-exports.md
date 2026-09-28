@@ -15,7 +15,7 @@ each already has a `proof.f.mjs` beside it:
 - [`fjs/mcp`](../mcp/module.f.mjs) — calls `casMcpServer('/')` "to cover its
   effect-building body". `casMcpServer` is exported, so nothing about the
   case needs the module's scope.
-- [`fjs/fsc/transpiler`](../fsc/transpiler/module.f.mjs) —
+- [`fjs/compiler/transpiler`](../compiler/transpiler/module.f.mjs) —
   `mapDjsUnresolvedImport`, a guard its comment calls "unreachable through
   `transpile`'s public API".
 - [`fjs/types/bigfloat`](../types/bigfloat/module.f.mjs) —
@@ -46,7 +46,7 @@ test. Removing an exported `proof` is a breaking change to declare.
 - [ ] `fjs/dev`: move the suite into `proof.f.mjs`; drop the `asserts` and
       `effects/node/virtual` imports from the module.
 - [ ] `fjs/mcp`: move the `casMcpServer` case into `proof.f.mjs`.
-- [ ] `fjs/fsc/transpiler`, `fjs/types/bigfloat`, `fjs/types/btree/remove`:
+- [ ] `fjs/compiler/transpiler`, `fjs/types/bigfloat`, `fjs/types/btree/remove`:
       remove the unreachable branches, then the `proof` exports.
 - [ ] Declare the break; `tsc`, `fjs test`, `npm run cov` at 100%.
 

@@ -14,7 +14,7 @@ does not need one.
 
 `fjs compile` cannot answer the simplest question either. Its value outputs,
 `.json` and `.data.js`, go through `_transpileDefault` in
-[`fjs/fsc/transpiler`](../../fsc/transpiler/module.f.mjs), and that path
+[`fjs/compiler/transpiler`](../../compiler/transpiler/module.f.mjs), and that path
 refuses an operator: `export default 2 + 2;` compiled to `.json` fails with
 `an operator has no value`. The EDAG route lowers the operator. The
 [memo executor](../../edag/memo/module.f.mjs) can run it. No entry point
@@ -36,7 +36,7 @@ The tool is a new registry, `fjs/mcp/eval/`, a sibling of
 extension point [`fjs/mcp/module.f.mjs`](../module.f.mjs) documents: the
 composition root knows about registries, not about what is in them. The
 registry is one `toolEntry` from [`fjs/protocol/mcp`](../../protocol/mcp/module.f.mjs).
-The evaluation is a pure function in `fjs/fsc` that the tool calls, so a CLI
+The evaluation is a pure function in `fjs/compiler` that the tool calls, so a CLI
 command or another front end can reuse it later without copying it.
 
 The pipeline reuses what exists and adds no second front end or interpreter:
@@ -44,10 +44,10 @@ The pipeline reuses what exists and adds no second front end or interpreter:
 ```text
 text
   -> catch_(() =>                 (effects/common)
-       parse                      (fsc/transpiler: parse(path)(text))
+       parse                      (compiler/transpiler: parse(path)(text))
        -> refuse any import
-       -> unresolved(module).edag (fsc/edag)
-       -> _defaultExport          (fsc/edag)
+       -> unresolved(module).edag (compiler/edag)
+       -> _defaultExport          (compiler/edag)
        -> analysis                (edag/analysis)
        -> memo                    (edag/memo)
        -> JSON)                   (identity-tracking walk, below)
@@ -68,7 +68,7 @@ This also keeps the tool within the server's
 An import specifier is a path the client names, and resolving one would read a
 local file. Supporting imports later needs a resolution that stays inside that
 invariant, such as modules named by CAS hash. It is not a matter of reusing
-`resolve` in [`fjs/fsc/edag`](../../fsc/edag/module.f.mjs).
+`resolve` in [`fjs/compiler/edag`](../../compiler/edag/module.f.mjs).
 
 **A module can throw anywhere after `text`, not only when it runs.**
 `export default null.x;` parses and lowers, and then `memo` throws the host's
@@ -89,16 +89,16 @@ It returns `ok(value)` or `error(thrown)`, and the error becomes an
 Node runner already implements `Catch`.
 
 Catching the overflow refuses deep input. It does not remove the depth limit.
-[`bound-edag-interpreter-resources.md`](../../fsc/todo/bound-edag-interpreter-resources.md)
+[`bound-edag-interpreter-resources.md`](../../compiler/todo/bound-edag-interpreter-resources.md)
 gives that rewrite to two issues:
 [`stack-safety.md`](../../edag/todo/stack-safety.md) for the analysis walk in
 `fjs/edag/analysis`, which every executor reads, and
-[`deep-nesting-recursion.md`](../../fsc/todo/deep-nesting-recursion.md) for the
-compiler's own walks, the lowering in `fjs/fsc/edag` and `toDjs` in
-`fjs/fsc/ast`. Until both land, `catch_` is the tool's whole answer to depth.
+[`deep-nesting-recursion.md`](../../compiler/todo/deep-nesting-recursion.md) for the
+compiler's own walks, the lowering in `fjs/compiler/edag` and `toDjs` in
+`fjs/compiler/ast`. Until both land, `catch_` is the tool's whole answer to depth.
 
 Bounding time and memory is a separate task,
-[`bound-edag-interpreter-resources.md`](../../fsc/todo/bound-edag-interpreter-resources.md).
+[`bound-edag-interpreter-resources.md`](../../compiler/todo/bound-edag-interpreter-resources.md).
 Until that lands, a module that loops forever blocks the server. The tool's
 description should say so, and the argument should be capped at the same
 128 KiB `maxLength` as `cas_add`'s content.
@@ -158,7 +158,7 @@ not a transport error. Those failures are: a parse error, an import, a throw
 during evaluation, a value JSON cannot spell, and a shared node. A parse error needs a name
 for its location because there is no file. Use a fixed pseudo-path such as
 `<eval>`, so the message reads `<eval>:line:column - error: …`, formatted by
-`_errorLocation` in [`fjs/fsc`](../../fsc/module.f.mjs).
+`_errorLocation` in [`fjs/compiler`](../../compiler/module.f.mjs).
 
 **A result too large to encode is the transport's failure, not the tool's.**
 The input cap does not bound the output. At `940eff9`, a 420-byte module of
@@ -195,7 +195,7 @@ which fixes it in the transport for every tool at once.
 
 ### Tasks
 
-- [ ] Add the text-to-value function to `fjs/fsc`: parse, refuse imports,
+- [ ] Add the text-to-value function to `fjs/compiler`: parse, refuse imports,
       lower, select the default, analyse, and run `memo`. Prove it with 100%
       coverage. The tool runs it, JSON step included, under one `catch_`.
 - [ ] Add a `'function'` case to `jsonLeaf` that refuses a function, and prove
@@ -225,10 +225,10 @@ which fixes it in the transport for every tool at once.
 
 - [`spec/todo/3120-parameters.md`](../../../spec/todo/3120-parameters.md#default-function-text-render-or-refuse):
   the render-or-refuse mechanism this tool is blocked by.
-- [`fjs/fsc/todo/interpret-edag.md`](../../fsc/todo/interpret-edag.md): the
+- [`fjs/compiler/todo/interpret-edag.md`](../../compiler/todo/interpret-edag.md): the
   memo executor this tool runs. Its open validation tasks apply to this entry
   too.
-- [`fjs/fsc/todo/compile-modules-to-edag.md`](../../fsc/todo/compile-modules-to-edag.md):
+- [`fjs/compiler/todo/compile-modules-to-edag.md`](../../compiler/todo/compile-modules-to-edag.md):
   the lowering used here.
-- [`fjs/fsc/todo/value-refusal-names-the-output.md`](../../fsc/todo/value-refusal-names-the-output.md):
+- [`fjs/compiler/todo/value-refusal-names-the-output.md`](../../compiler/todo/value-refusal-names-the-output.md):
   how a value refusal is worded, which this tool should follow.

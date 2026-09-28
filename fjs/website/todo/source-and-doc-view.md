@@ -35,7 +35,7 @@ at the site's own view, and GitHub can stay as a second link.
 - **One tokenization serves both views.** The source view and the doc view are
   two renderings of the same token list, read from the JS token grammar
   [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.mjs) the way the compiler's
-  [`fjs/fsc/tokenizer`](../../fsc/tokenizer/module.f.mjs) reads it: comments
+  [`fjs/compiler/tokenizer`](../../compiler/tokenizer/module.f.mjs) reads it: comments
   and trivia are tokens, every token knows where it begins, and the stream is
   contiguous, so a token's text runs from its start to the next token's — the
   prerequisite says what that still needs — and it is authored

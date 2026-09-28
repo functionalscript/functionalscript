@@ -166,11 +166,11 @@ Here "required parameters" means the fixed named positions, not a requirement
 that callers supply them. Missing fixed arguments bind to `undefined`; extra
 arguments remain permitted.
 
-1. Extend the shared [source AST](../../fjs/fsc/parser/types.ts) to retain an
+1. Extend the shared [source AST](../../fjs/compiler/parser/types.ts) to retain an
    ordered list of fixed bindings and an optional rest binding. Preserve
    source locations, blocks and explicit returns. Names are erased only after
    binding and syntax validation.
-2. Extend the [parameter and parenthesis grammar](../../fjs/fsc/parser/grammar/module.f.mjs).
+2. Extend the [parameter and parenthesis grammar](../../fjs/compiler/parser/grammar/module.f.mjs).
    Named parameters overlap the identifier/grouped-expression prefix: factor
    that shared prefix and distinguish a parameter list from a group using
    the arrow continuation. Do not add an independent token-pattern parser or
@@ -241,7 +241,7 @@ list uses a rest-only function, whose length is zero.
 
 An unresolved module is not a function invocation. Its `['args']` remains the
 ordered array of imported module export objects, as specified by the
-[unresolved-module plan](../../fjs/fsc/todo/compile-modules-to-edag.md#resolve-unresolved-modules-to-one-edag).
+[unresolved-module plan](../../fjs/compiler/todo/compile-modules-to-edag.md#resolve-unresolved-modules-to-one-edag).
 For example, `['.', ['.', ['args'], 0], 'default']` still reads the first
 import's default export. Import order, attributes, evaluation anchors and
 sharing are unchanged; no synthetic function arity or factory limit is added
@@ -502,7 +502,7 @@ source rest binding in that future case or silently admit initializers now.
   — require rendering without regressing supported callable exports.
 - [Negative-zero review](https://github.com/functionalscript/functionalscript/pull/2220#discussion_r4095048215)
   — canonical positive-zero arity and index metadata.
-- [Statement-aware compilation](../../fjs/fsc/parser/todo/statement-aware-intrinsics.md)
+- [Statement-aware compilation](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md)
   — preserve JavaScript syntax and bindings before EDAG admission/lowering.
 - [Destructuring](./2450-destructuring.md) — separate binding-pattern work.
 - [Function frame](./3111-function-frame.md) — capture semantics.

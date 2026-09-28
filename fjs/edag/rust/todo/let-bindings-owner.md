@@ -47,7 +47,7 @@ files document is stated once.
 proposes the opposite for the corpus printer: `fjs/nanvm/rust` stops emitting
 `#[rustfmt::skip]` per function, and one `#[rustfmt::skip] mod generated;`
 in `nanvm-lib/tests/test/main.rs` covers the generated file. If that lands,
-`skipFn` has one caller, `fjs/fsc/rust`'s module, and may not earn its place.
+`skipFn` has one caller, `fjs/compiler/rust`'s module, and may not earn its place.
 Which of the two the corpus follows is undecided.
 
 ### Tasks

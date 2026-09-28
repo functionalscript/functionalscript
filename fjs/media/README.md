@@ -83,7 +83,7 @@ the dialect name.
 
 An earlier design named the subset `fjs/djs` implemented `vnd.fjs.djs`, with
 the chain `vnd.fjs.djs+vnd.fjs.fjs`. `fjs/djs` is gone — its format became
-[`datajs/`](./datajs/README.md) and its front end [`fsc/`](../fsc/README.md) —
+[`datajs/`](./datajs/README.md) and its front end [`compiler/`](../compiler/README.md) —
 and whether `vnd.fjs.djs` still names anything is open:
 [datajs-dialect-name](./todo/datajs-dialect-name.md).
 

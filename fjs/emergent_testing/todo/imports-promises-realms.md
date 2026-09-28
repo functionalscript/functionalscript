@@ -30,7 +30,7 @@ what nobody has stated:
 what a module exports, so a module exporting a function named `then` corrupts
 its own dynamic import. That is why exporting `then` from a proof module is
 forbidden ([`spec/README.md#exporting-a-value`](../../../spec/README.md#exporting-a-value)) —
-FSC now enforces this for compiled modules. Proof discovery in
+The compiler now enforces this for compiled modules. Proof discovery in
 `../../dev/module.f.mjs` still imports authored `.f.mjs` directly without that
 compiler check.
 

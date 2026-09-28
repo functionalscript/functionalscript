@@ -55,7 +55,7 @@ in [`fjs/edag`](../../fjs/edag/README.md), shared by producers and executors.
 #### Execution: two paths (decided)
 
 1. **FJS interpretation** — the existing
-   [FJS interpreter](../../fjs/fsc/todo/interpret-edag.md) executes the linked
+   [FJS interpreter](../../fjs/compiler/todo/interpret-edag.md) executes the linked
    EDAG as data. For the native executable, this interpreter and the FJS
    loading pipeline are themselves compiled to Rust ahead of time. Runtime
    module loading needs no native `Function`-constructor interpreter.
@@ -111,7 +111,7 @@ repository migration, complete, moved authored `.ts` / `.f.ts` to `.mjs` /
 the compiled source marker. Once authored `.f.js` package support is complete,
 compiler-supported `.f.mjs` modules may move to authored `.f.js`; `.f.js` is the
 repository compiler-compatibility marker. The extension contract and migration
-strategy are documented in [`fjs/fsc/README.md`](../../fjs/fsc/README.md).
+strategy are documented in [`fjs/compiler/README.md`](../../fjs/compiler/README.md).
 
 Impure runner modules, authored as `.mjs`, remain outside the FJS compiler. A
 native build therefore still needs a hand-written Rust twin interpreting the
@@ -153,7 +153,7 @@ Scoping notes:
   (tokio?) lurks; implement operations incrementally, driven by what the
   CLI actually exercises, and defer that decision entirely.
 - **Module loading stays in FJS.** The
-  [loader](../../fjs/fsc/todo/load-modules-without-import-effect.md) composes
+  [loader](../../fjs/compiler/todo/load-modules-without-import-effect.md) composes
   `ReadFile` / `ResolveFileModule`, parsing, linking and FJS interpretation.
   This workflow requires no `import` or native-function-construction effect;
   source `import` syntax remains supported. Existing host `import` consumers
@@ -298,7 +298,7 @@ tracked in [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md#tasks).
       Current status: [operator tables in `nanvm-lib/README.md`](../README.md).
       Spec: [operators](../../spec/todo/2340-operators.md).
 - [x] **LL(1) parser foundation** —
-      [`fjs/fsc/parser`](../../fjs/fsc/parser/README.md) uses
+      [`fjs/compiler/parser`](../../fjs/compiler/parser/README.md) uses
       [`fjs/ebnf/ll1`](../../fjs/ebnf/ll1/README.md) and implements the
       source subset used by the walking skeleton. This does not mark the
       full language grammar complete. Named-import parsing is also
@@ -334,7 +334,7 @@ tracked in [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md#tasks).
 #### P3
 
 - [ ] **FJS module loading and testing** — compose the parser/linker and existing
-      interpreter in the [loader](../../fjs/fsc/todo/load-modules-without-import-effect.md),
+      interpreter in the [loader](../../fjs/compiler/todo/load-modules-without-import-effect.md),
       then use it for [proof loading](../../fjs/emergent_testing/todo/load-proofs-through-fjs.md)
       on Node and, as compiler coverage permits, AOT-compiled Rust.
 - [ ] **Control statements**: `if`, `while`, etc. (Rust).
@@ -369,7 +369,7 @@ removing host behavior outside FJS: the memo executor's captured mutable cache
 needs an [immutable rewrite](../../fjs/edag/memo/todo/immutable-cache.md) preserving
 sharing and lazy evaluation before native self-hosting. Host `Map` dependencies
 in the compiler, analysis and executor also need
-[container migration](../../fjs/fsc/todo/load-modules-without-import-effect.md#native-prerequisites)
+[container migration](../../fjs/compiler/todo/load-modules-without-import-effect.md#native-prerequisites)
 or a separately approved language design. Both are semantic prerequisites, not
 ordinary compiler coverage. As these migrations and language
 coverage permit, compiler-supported modules move from `.f.mjs` to `.f.js`.
@@ -391,7 +391,7 @@ coverage permit, compiler-supported modules move from `.f.mjs` to `.f.js`.
    crate's binary also be named `fjs` (same CLI surface, native), or `nanvm`?
 4. **Embedded EDAG or a lookup effect.** The semantic association required
    above can be represented as embedded data or outside the function value,
-   as [associate-edag-with-functions](../../fjs/fsc/todo/associate-edag-with-functions.md)
+   as [associate-edag-with-functions](../../fjs/compiler/todo/associate-edag-with-functions.md)
    proposes with `edagAdd` / `edagGet`. Which representation the runtime
    follows remains undecided; neither requires a dynamic Rust EDAG executor.
 
@@ -400,7 +400,7 @@ coverage permit, compiler-supported modules move from `.f.mjs` to `.f.js`.
 - [`spec/README.md`](../../spec/README.md) — the language spec;
   [`spec/todo/serialization.md`](../../spec/todo/serialization.md) records the
   EDAG-as-data decision and the two execution paths.
-- [`fjs/fsc/README.md`](../../fjs/fsc/README.md) — source extension contract
+- [`fjs/compiler/README.md`](../../fjs/compiler/README.md) — source extension contract
   and incremental repository migration.
 - [`fjs/edag`](../../fjs/edag/README.md) — the schema (RTTI) of the
   code-describing `Any`; optional Rust schema generation is tracked separately
@@ -411,4 +411,4 @@ coverage permit, compiler-supported modules move from `.f.mjs` to `.f.js`.
   (post-MVP).
 - [`nanvm-lib/tests/README.md`](../tests/README.md) — the shared operator test
   data driving both the FJS proof and the generated Rust tests.
-- [fs-vm-load-save](./fs-vm-load-save.md) — load/execute/save semantics.
+- [fjs-vm-load-save](./fjs-vm-load-save.md) — load/execute/save semantics.

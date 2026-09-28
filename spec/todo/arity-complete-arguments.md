@@ -54,7 +54,7 @@ limits `length` to 16.
   — the complete-list writer obstruction that motivated the earlier task.
 - [Serialization](./serialization.md#function-text-and-serialization) —
   callable serialization and default function text have separate open questions.
-- [Statement-aware intrinsics](../../fjs/fsc/parser/todo/statement-aware-intrinsics.md),
+- [Statement-aware intrinsics](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md),
   [built-in](./2360-built-in.md) — how a complete source pattern is
   recognized; `defineProperty` stays prohibited outside one.
 - [new-array-out-of-subset](../../todo/new-array-out-of-subset.md) —

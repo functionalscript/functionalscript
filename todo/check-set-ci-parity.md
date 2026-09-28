@@ -26,7 +26,7 @@ request that passes every documented check can still fail CI.
   commands — does not contain it.
 - **Generated Rust.** "`cargo test` — only if you touched Rust" misses Rust
   that `npm run gen` writes from FunctionalScript source: the
-  `nanvm-harness/gen.fixtures/*.rs` modules `fjs/fsc/rust` compiles, and
+  `nanvm-harness/gen.fixtures/*.rs` modules `fjs/compiler/rust` compiles, and
   `nanvm-lib/tests/test/gen.corpus/` and `nanvm-lib/src/vm/lambda/gen.methods.rs` from `fjs/nanvm`. A change to either
   generator changes Rust without touching a `.rs` file by hand.
 - **Which runner.** AGENTS.md's list starts with `fjs test`, and its §2 sets
@@ -48,7 +48,7 @@ linking to it. What belongs on it, and whether a slow check such as
 - [ ] Decide whether `npm run cov` is part of the local set, and say so
 - [ ] Make `node --test` part of CONTRIBUTING.md's pull-request checklist, as
       AGENTS.md requires
-- [ ] Say that a change to a Rust generator (`fjs/fsc/rust`, `fjs/nanvm`)
+- [ ] Say that a change to a Rust generator (`fjs/compiler/rust`, `fjs/nanvm`)
       needs `cargo test` after `npm run gen`
 - [ ] Reconcile how AGENTS.md and CONTRIBUTING.md classify `fjs test`
 

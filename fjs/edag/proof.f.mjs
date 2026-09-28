@@ -4,7 +4,7 @@
  * Exception: `comma` has no section of its own — its shape, `[',', exps]`,
  * says nothing of its contract (at least two operands, the last the result,
  * each earlier operand a true root), which the emitter keeps and
- * `fjs/fsc/edag`'s proof pins. The `exps` section does validate `,`-tagged
+ * `fjs/compiler/edag`'s proof pins. The `exps` section does validate `,`-tagged
  * values, but only to reach `exps`, which `comma` is the sole route to; it
  * pins the operand array's element schema, and claims nothing about what a
  * `,` means.
@@ -446,7 +446,7 @@ export const proof = {
     // grammar exists to distinguish — the shape only, since what each
     // denotes is the JSDoc on the nodes in `./module.f.mjs` and the executor
     // proofs in `./amnesia/proof.f.mjs`, and lowering these spellings is
-    // `../fsc/todo/compile-modules-to-edag.md`. Read as pairs: the members
+    // `../compiler/todo/compile-modules-to-edag.md`. Read as pairs: the members
     // of a pair differ in JS, so they must differ here too.
     chains: {
         // A receiver is born in a `.` (or `?.`) node and spent by the call

@@ -18,7 +18,7 @@ successful-result agreement, purity and indistinguishable execution failures.
 tracks the current and proposed P1 violations and their root-cause corrections.
 These rules apply at every stage, regardless of a feature's priority below.
 
-[Statement-aware intrinsics](../../fjs/fsc/parser/todo/statement-aware-intrinsics.md)
+[Statement-aware intrinsics](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md)
 requires every instruction pattern to match already-recognized statements and
 expressions, never raw token sequences. It also plans JavaScript-compatible
 statement termination and optional semicolons as a separate syntax expansion;
@@ -199,6 +199,6 @@ numbers:
 |[mutability](./mutability.md)|§8 — mutable objects and ownership tracking|
 |[serialization](./serialization.md)|§9 — EDAG as data, CBOR, bytecode as VM-internal|
 |[vm-command-format](./vm-command-format.md)|NPN command format of the VM|
-|[design-principles](./design-principles.md)|design principles of the "ideal" FS 0.*|
+|[design-principles](./design-principles.md)|design principles of the "ideal" FJS 0.*|
 |[function-frame](./3111-function-frame.md)|NaNVM function objects: frames and captured values, VM-internal|
 |[call-like-instructions](./9100-call-like-instructions.md)|VM-internal bytecode for calls|

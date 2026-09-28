@@ -12,13 +12,13 @@ sources used on JavaScript hosts), and a thin hand-written `main`, built by
 cargo into a single native executable that parses and runs supported authored
 FJS — no Node/Deno, no rustc at the user's run time. Its AOT-compiled FJS
 interpreter evaluates loaded EDAG as data. The
-[loader](../../fjs/fsc/todo/load-modules-without-import-effect.md) needs no
+[loader](../../fjs/compiler/todo/load-modules-without-import-effect.md) needs no
 native `import` or function-construction effect, and the optional
 [Rust EDAG library](../../todo/rust-edag.md) is not a prerequisite.
 
 The native CLI's source contract is authored FunctionalScript, which is `.f.mjs`
 today. Note what `.f.mjs` does and does not mean, per
-[`fjs/fsc/README.md`](../../fjs/fsc/README.md): it marks FunctionalScript-intent
+[`fjs/compiler/README.md`](../../fjs/compiler/README.md): it marks FunctionalScript-intent
 JavaScript and does **not** promise that the compiler in the same repository
 revision accepts the module. That promise is what the stage-2 `.f.js` marker
 will carry, so the extension this command accepts becomes `.f.js` for renamed
@@ -58,5 +58,5 @@ which no export name is mandatory and exported functions are never invoked
 just because the module was loaded. Whether the native CLI mirrors
 `fjs run`, explicitly selects and calls a default export, or offers both is
 undecided. This is the CLI's entry-selection policy: it supplies the chosen
-export to [fs-vm-load-save](./fs-vm-load-save.md)'s generic Execute step, whose
+export to [fjs-vm-load-save](./fjs-vm-load-save.md)'s generic Execute step, whose
 selection comes from its caller.

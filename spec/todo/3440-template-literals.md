@@ -59,7 +59,7 @@ template literals, with hundreds of substitutions between them. Unlike
 single-quoted strings, which the tokenizer accepts since
 [#2251](https://github.com/functionalscript/functionalscript/pull/2251), they
 have to be normalized before the parser accepts the repository's own sources — a precondition of the
-[stage-2](../../fjs/fsc/README.md#stage-2-mark-compiler-compatible-functionalscript)
+[stage-2](../../fjs/compiler/README.md#stage-2-mark-compiler-compatible-functionalscript)
 `.f.mjs` -> `.f.js` rename, which commits that the compiler in the same revision
 accepts the complete module.
 

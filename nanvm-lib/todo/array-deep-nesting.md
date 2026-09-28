@@ -30,7 +30,7 @@ arrays.
 ### Proposal
 
 Walk with an explicit stack of the arrays being flattened or joined, in place of
-recursion, as `fjs/fsc/edag`'s `lower` does for operator chains.
+recursion, as `fjs/compiler/edag`'s `lower` does for operator chains.
 
 ### Tasks
 

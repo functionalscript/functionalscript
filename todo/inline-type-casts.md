@@ -165,9 +165,9 @@ nothing. Two rows have since moved: the `fjs/cas/evo/module.f.mjs` cast went
 with the flattening of `Evo.add`'s nested `Result`, and the
 `fjs/cas/module.f.mjs` one now reads `Effect<Rm, Vec, IoChannel>` — the same
 type, spelled through the three-parameter `Effect`. And the
-`fjs/fsc/proof.f.mjs` row names a file that has since been replaced: the
+`fjs/compiler/proof.f.mjs` row names a file that has since been replaced: the
 range-map lexer stub it audited was deleted when the front end moved into
-`fjs/fsc`, and the `proof.f.mjs` at that path today is the compiler's,
+`fjs/compiler`, and the `proof.f.mjs` at that path today is the compiler's,
 moved from `fjs/djs`, whose casts this table never recorded. The three
 `fjs/types/btree/find/module.f.mjs` rows are gone too, and they were the
 `Index`/tuple arity case named above: `find` now builds each tuple inside the
@@ -181,11 +181,11 @@ is the way to refresh this file, not a partial edit.
 | `fjs/cas/evo/module.f.mjs` | 466 | `Effect<MemOp, Result<Hash, string>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/cas/module.f.mjs` | 348 | `(v: Vec) => Effect<Rm, IoResult<Vec>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/crypto/sign/proof.f.mjs` | 65 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/fsc/module.f.mjs` | 41 | `(result: Result<Unknown, ParseError>) => Effect<_CompileOp…` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/fsc/tokenizer/module.f.mjs` | 295 | `TokenMetadata` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/fsc/tokenizer/module.f.mjs` | 393 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/fsc/tokenizer/module.f.mjs` | 406 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/fsc/transpiler/module.f.mjs` | 103 | `(context: ParseContext) => Effect<ReadFile, Result<Unknown…` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/compiler/module.f.mjs` | 41 | `(result: Result<Unknown, ParseError>) => Effect<_CompileOp…` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/compiler/tokenizer/module.f.mjs` | 295 | `TokenMetadata` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/compiler/tokenizer/module.f.mjs` | 393 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/compiler/tokenizer/module.f.mjs` | 406 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/compiler/transpiler/module.f.mjs` | 103 | `(context: ParseContext) => Effect<ReadFile, Result<Unknown…` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/effects/memory/module.f.mjs` | 34 | `<T>(value: T) => Effect<MemCreate, Key<T>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/effects/memory/module.f.mjs` | 39 | `<T>(key: Key<T>) => Effect<MemRead, T>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/effects/node/memory/module.mjs` | 60 | `ToAsyncOperationMap<MemOp>` | cast overrides the inferred type — needs a type/API change, not a different cast |
@@ -203,7 +203,7 @@ is the way to refresh this file, not a partial edit.
 | `fjs/emergent_testing/proof.f.mjs` | 434 | `Parameters<typeof mockRun<_RegisterMockOps \| Readdir \| Imp…` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/emergent_testing/proof.f.mjs` | 443 | `readonly [undefined, readonly unknown[]]` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
 | `fjs/emergent_testing/proof.f.mjs` | 448 | `Effect<_RegisterMockOps \| Readdir \| Import, number>` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/fsc/proof.f.mjs` | 21 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/compiler/proof.f.mjs` | 21 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
 | `fjs/js/tokenizer/module.f.mjs` | 262 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/js/tokenizer/module.f.mjs` | 689 | `List<List<number \| null>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/mcp/cas/proof.f.mjs` | 33 | `readonly unknown[]` | arrived on `main` after the audit — not measured here |

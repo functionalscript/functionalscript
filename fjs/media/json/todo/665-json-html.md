@@ -85,7 +85,7 @@ Which serialises to:
 - [ ] `fjs/media/json/html/module.f.mjs` — `toHtml(value: Unknown): VDom` converter
 - [ ] `proof.f.mjs` covering each value type and a nested example. No
       `deno.json` `exports` entry: the file has no map today, and
-      [group-fs-subdirectories-by-concern](../../../todo/group-fs-subdirectories-by-concern.md)
+      [group-fjs-subdirectories-by-concern](../../../todo/group-fjs-subdirectories-by-concern.md)
       reserves introducing one for the change that enumerates every module.
 
 ### Related

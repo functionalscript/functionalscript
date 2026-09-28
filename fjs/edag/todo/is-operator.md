@@ -31,7 +31,7 @@ as a call ([`entry.md`](./entry.md)).
   proof pins the four cases above against `===`'s answers.
 - **Source.** Recognize the parsed call `Object.is(a, b)` and lower it to
   `['is', a, b]`, never a raw-token pattern. Follow the
-  [statement-aware recognition boundary](../../fsc/parser/todo/statement-aware-intrinsics.md):
+  [statement-aware recognition boundary](../../compiler/parser/todo/statement-aware-intrinsics.md):
   statements, expressions and bindings are resolved before the complete
   pattern is admitted. `Object` must resolve to the intrinsic namespace.
   The earlier `Object.hasOwn` precedent is withdrawn; it is not needed to
@@ -42,7 +42,7 @@ as a call ([`entry.md`](./entry.md)).
   only where both executors can run it, and `is` joins the corpus with the
   Rust operation, as `===` did with `strict_eq`.
 - **Output.** The FunctionalScript writer
-  ([`fjs/fsc/serializer`](../../fsc/serializer/module.f.mjs))
+  ([`fjs/compiler/serializer`](../../compiler/serializer/module.f.mjs))
   writes `['is', a, b]` as `Object.is(a, b)`, so the round trip holds once the
   source spelling lands, and refuses it by name until then.
 

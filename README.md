@@ -11,6 +11,11 @@ FunctionalScript is a safe, purely functional programming language and a strict 
   as a subset of JavaScript.
 - [TypeScript](https://en.wikipedia.org/wiki/TypeScript), as a superset of JavaScript.
 
+Its abbreviation is **FJS**, which the `fjs` CLI and the `fjs/` directory
+carry. There is no "Java" in the name, and that is deliberate: JavaScript is a
+trademark, so the language is not called FunctionalJavaScript, but the
+abbreviation says what it is — a functional subset of JavaScript.
+
 [The FunctionalScript specification](./spec/README.md) describes the language
 the compiler accepts today; features not implemented yet are in
 [`spec/todo/`](./spec/todo/README.md).
@@ -85,7 +90,7 @@ output writes or refuses.
 | Command       | Description                                                    | Documentation                                          |
 |---------------|----------------------------------------------------------------|--------------------------------------------------------|
 | `fjs test`    | Run the FunctionalScript test suite                            | [fjs/emergent_testing](fjs/emergent_testing/README.md) |
-| `fjs compile` | Compile a FunctionalScript module to JavaScript or JSON        | [fjs/fsc](fjs/fsc/README.md) |
+| `fjs compile` | Compile a FunctionalScript module to JavaScript or JSON        | [fjs/compiler](fjs/compiler/README.md) |
 | `fjs cas`     | Content-addressable storage (`add`, `get`, `list`)             | [fjs/cas/README.md](fjs/cas/README.md)                 |
 | `fjs mcp`     | [MCP](https://modelcontextprotocol.io/) server over stdio, exposing the CAS and Evo as tools | [fjs/mcp/README.md](fjs/mcp/README.md) |
 | `fjs ci`      | Generate the GitHub Actions CI and npm publishing workflows    | [fjs/ci/README.md](fjs/ci/README.md)                   |
