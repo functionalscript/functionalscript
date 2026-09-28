@@ -1,13 +1,13 @@
 /**
  * @import { Effect } from '../effects/types.ts'
- * @import { FileStat, Handle, IncomingMessage, IoChannel, IoResult, NodeOp, ServerResponse } from '../effects/node/types.ts'
+ * @import { FileStat, IncomingMessage, IoChannel, IoResult, NodeOp, ServerResponse } from '../effects/node/types.ts'
  * @import { List } from '../effects/list/types.ts'
  * @import { Dir, RecordedResponse, State, _QueuedRequest } from '../effects/node/virtual/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  */
 
 import { assert, assertEq } from '../asserts/module.f.mjs'
-import { createServer, exitCode, ioError, listen, readBytes } from '../effects/node/module.f.mjs'
+import { createServer, exitCode, ioError, listen, open, readBytes } from '../effects/node/module.f.mjs'
 import { emptyState, nodeProgramOptions, virtual } from '../effects/node/virtual/module.f.mjs'
 import { nodeCommands } from '../effects/node/module.f.mjs'
 import { partialRun } from '../effects/mock/module.f.mjs'
@@ -17,7 +17,6 @@ import { empty as elEmpty } from '../effects/list/module.f.mjs'
 import { length, u8ListMsb, u8ListToVecMsb } from '../types/bit_vec/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
 import { error, ok, unwrap } from '../types/result/module.f.mjs'
-import { asNominal } from '../types/nominal/module.f.mjs'
 import { main, resolve, respond } from './module.f.mjs'
 
 /** @type {string} */
@@ -654,17 +653,26 @@ export const proof = {
         },
         // And a runner that can **open** but not describe what it opened is the
         // same answer with the handle already in hand — so this is the one refusal
-        // that is decided after the `open` and still owes it back. `release` is the
-        // handle's `close`, which this runner cannot perform either; that failure
-        // is absorbed, which is what `release`'s `never` channel says about a
-        // response that is already finished.
+        // that is decided after the `open` and still owes it back. The `release`
+        // the frame carries is run below and the open-handle list is what says the
+        // handle came home: written the status-and-sentence way first, this case
+        // passed with `holding` taken out of the frame, which is a `500` going out
+        // with the file still open.
+        //
+        // The runner is the virtual one with `fstat` taken out — the `open`
+        // delegates to it — so the handle is one that runner really handed out and
+        // really tracks, and an empty list is a close that really happened.
         fstatFailure: () => {
-            /** @type {Handle} */
-            const handle = asNominal({ id: 0 })
-            const noFstat = partialRun(nodeCommands)({ open: () => state => [state, ok(handle)] })
-            const r = unwrap(noFstat(emptyState)(respond('.')(request('GET', '/index.html')))[1])
+            const noFstat = partialRun(nodeCommands)({
+                open: path => state => virtual(state)(open(path)),
+            })
+            const [afterListener, answered] = noFstat({ ...emptyState, root: site })(
+                respond('.')(request('GET', '/index.html')))
+            const r = unwrap(answered)
             assertEq(r.status, 500)
             assertEq(textOf(r.body), 'operation not implemented: fstat\n')
+            // And the handle is given back by the `release` the response carries.
+            assertEq(virtual(afterListener)(r.release)[0].handles.length, 0)
         },
     },
     main: {

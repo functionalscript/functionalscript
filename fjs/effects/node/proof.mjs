@@ -35,7 +35,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { asBase } from '../../types/nominal/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 import { toVec } from '../../types/uint8array/module.f.mjs'
-import { utf8ToString } from '../../text/module.f.mjs'
+import { utf8, utf8ToString } from '../../text/module.f.mjs'
 import { write as writeEnvelope } from '../../git/object/module.f.mjs'
 import { tagLoose, tagPayload } from '../../git/testlib.f.mjs'
 import {
@@ -43,6 +43,7 @@ import {
     framingHeaderMessage, fstat,
     inflate, inflateTrailingCode, listen, open, pread, readWhole, rename, requestBodyOffsetMessage,
     resolveFileModule, maxOffset, readBytes, rmdir, unframedBodyMessage, writeExclusive,
+    writeFile as writeFileEffect,
 } from './module.f.mjs'
 import { readFlags, runEffect } from './module.mjs'
 
@@ -874,6 +875,55 @@ export const proof = {
             // The rename landed, so the read above answered the entry the open
             // resolved to rather than the one the name holds.
             assertEq(`${await readFile(path)}`, 'new')
+        }),
+        // **The other half of the same claim, and the half a snapshot answers
+        // wrong.** A write through the name a handle was opened on *does* reach the
+        // handle: the name still means the same file, and the write fills it. Both
+        // rows at once are the requirement, and a runner that models either by
+        // re-reading the name breaks the other — which is what `./virtual/`'s handles
+        // are written against.
+        //
+        // Measured on Darwin with Node 23.11.0, through the operations rather than
+        // through `node:fs`, so the descriptor is what answers:
+        //
+        // | while the handle is open | it reads |
+        // | --- | --- |
+        // | a write of a different length through the name | the new bytes, at the new size |
+        // | `rename` to another name, then a write through that one | the same |
+        // | `rename` onto its own name, then a write | the same |
+        //
+        // The last two were reasoning about inodes until this ran, and they are what
+        // lets `handles.movesWithItsName` in `./virtual/proof.f.mjs` claim them.
+        //
+        // Skipped on Windows for `namesAnInode`'s reason: what that host does with a
+        // name another handle holds open is unmeasured here.
+        seesAnInPlaceWrite: () => withTemporary('fjs-handle-write-', async root => {
+            if (process.platform === 'win32') { return }
+            const path = join(root, 'a.bin')
+            const moved = join(root, 'c.bin')
+            const arrived = utf8('brandnew!')
+            /**
+             * That the handle followed its file once `between` has run — the size
+             * and the bytes together, because a replacement of the same length
+             * leaves the size agreeing with both files and nothing downstream then
+             * telling them apart.
+             *
+             * @type {<T>(between: Effect<NodeOp, T, IoChannel>) => Promise<void>}
+             */
+            const follows = async between => {
+                await writeFile(path, 'old')
+                await hostCheck(
+                    step(open(path), handle =>
+                        step(between, () =>
+                            step(fstat(handle), stats =>
+                                step(pread(handle, 0, 32), taken =>
+                                    step(close(handle), () => pureOk(
+                                        /** @type {readonly [number, string]} */([stats.size, utf8ToString(taken)]))))))),
+                    result => assertStructurallySame(unwrap(result), [9, 'brandnew!']))
+            }
+            await follows(writeFileEffect(path, arrived))
+            await follows(step(rename(path, moved), () => writeFileEffect(moved, arrived)))
+            await follows(step(rename(path, path), () => writeFileEffect(path, arrived)))
         }),
         // **The open does not wait for a writer, and this is the weakest proof in
         // this file — deliberately.** It asserts the flag the runner asks for,

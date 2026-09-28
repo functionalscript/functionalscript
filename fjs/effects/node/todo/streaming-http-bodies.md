@@ -1141,11 +1141,13 @@ buffering half is what this stage answered.
       grew. Then whatever is held given back through `release`. This is what
       takes the memory footprint from the whole file down to one chunk; the cap
       itself was already gone. — `respond` opens once and asks the descriptor;
-      `openResponse` declares the `fstat` size and bounds `readChunks` by it, and
+      `fileResponse` declares the `fstat` size and bounds `readChunks` by it, and
       every frame built after a successful `open` carries `releaseHandle` as its
       `release`. Every case in [`../../../web/proof.f.mjs`](../../../web/proof.f.mjs)
-      goes through `listen` and asserts the virtual file system has nothing open
-      afterwards; `respond.oneInode` replaces the served entry between two pulls
+      that a virtual file system can answer goes through `listen` and asserts it
+      has nothing open afterwards, and `respond.fstatFailure`, which states a
+      failure no such runner produces, runs the frame's `release` and asserts the
+      same; `respond.oneInode` replaces the served entry between two pulls
       and still reads the opened one, and `respond.boundedByTheFstat` grows it and
       still stops at the declared length. The footprint is a host measurement:
       [`../../../web/proof.mjs`](../../../web/proof.mjs) serves a file of a
