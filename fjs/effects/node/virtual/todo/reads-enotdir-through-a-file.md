@@ -156,23 +156,19 @@ this runner rather than a host, for two *different* reasons. Only
 all, so a proof reading a real `stat` would cover it on one host and not the
 other.
 
-Against this runner, `respond`'s `ENOTDIR` comes from `stat`, which models it,
-and never from the read, which does not. On a real host the *read* can produce
-it too — `stat` succeeds, a component is replaced by a file, and the separate
-`readWhole` fails `ENOTDIR`, which is exactly the race
-[stat-then-read](../../../../web/todo/stat-then-read.md) documents; that error
-reaches `answer` and takes the same root re-check. So the gap is narrower than
-"callers never see this from a read": **no fixture here can produce `ENOTDIR`
-from a read**, and `ENOENT` will not stand in for it — `isNotFound` is
-`code === 'ENOENT'` and `fileResponse` maps it to `404`, so the distinction is
-lost rather than reported differently.
+Against this runner, `respond`'s `ENOTDIR` comes from `open`, which models it,
+and never from a read of an already-open file, which does not — and on a host it
+cannot come from one either, since a descriptor names an inode and a path through
+it names nothing. So the gap is narrower than "callers never see this from a
+read": **no fixture here can produce `ENOTDIR` from a read**, and `ENOENT` will
+not stand in for it — `isNotFound` is `code === 'ENOENT'` and `openFailure` maps
+it to `404`, so the distinction is lost rather than reported differently.
 
-No current plan needs that.
-[stat-then-read](../../../../web/todo/stat-then-read.md) replaces the
-`stat`-then-`readWhole` pair with an `open`/`fstat`/bounded-read handle, not
-with a bare read, and a root held open would drop the re-check rather than
-depend on it. So this issue does not gate that one; it bounds what a future
-caller can ask a read for.
+No current plan needs that. `fjs/web` reads through an `open`/`fstat`/bounded-read
+handle rather than a `stat`-then-`readWhole` pair, so the `ENOTDIR` a request can
+meet is the `open`'s — which this runner does model — and a root held open would
+drop the re-check rather than depend on it. So this issue does not gate that
+change; it bounds what a future caller can ask a read for.
 
 Whichever option is chosen, then:
 
@@ -218,10 +214,10 @@ Whichever option is chosen, then:
   descent side — "fail with `ENOENT` when a component is missing, and with
   `ENOTDIR` when one is a file" — so whichever lands second must not contradict
   the first.
-- [stat-then-read](../../../../web/todo/stat-then-read.md) — where `fjs/web`'s
-  `stat`-then-`readWhole` pair goes. It does **not** depend on this issue: its
-  proposal is an `open`/`fstat`/bounded-read handle, and a root held open needs
-  no `ENOTDIR` re-check at all.
+- [`fjs/web`](../../../../web/README.md) — where the `stat`-then-`readWhole` pair
+  went: `respond` opens once and asks the descriptor, so the `ENOTDIR` a request
+  can meet is the `open`'s. Holding the **root** open would need no `ENOTDIR`
+  re-check at all, and does not depend on this issue either.
 - [trailing-separator-discarded](./trailing-separator-discarded.md) — the third
   of the three `parse` normalizations, and the one where this runner *creates*
   something a host refuses rather than answering a different code.

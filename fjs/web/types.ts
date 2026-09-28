@@ -42,4 +42,4 @@ export type Resolve = (root: string) => (url: string) => Result<string, Refusal>
  * server that cannot read a file still has a status code to answer with, so
  * every failure becomes a response rather than an error.
  */
-export type Respond = (root: string) => (request: IncomingMessage) => Effect<Fs, ServerResponse, never>
+export type Respond = (root: string) => (request: IncomingMessage) => Effect<Fs, ServerResponse<Fs>, never>
