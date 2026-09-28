@@ -24,20 +24,20 @@ export type _TokenStream = {
 export type _Leaf = Meta<DjsTokenWithMetadata | Out> | readonly unknown[]
 
 /**
- * `**`'s own optional round, `'**' t unary`: no round, or one holding the
- * operand at the third position — the symbol itself, not a variant, since
+ * `**`'s own optional round, `'**' unary`: no round, or one holding the
+ * operand at the second position — the symbol itself, not a variant, since
  * `**` is the one spelling.
  */
-export type _PowTailNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, _Leaf]>]>
+export type _PowTailNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, _Leaf]>]>
 
 /**
- * One round of a binary layer's repeat, `op t unary tail*`: the matched
- * operator's own variant at the first position, the operand at the third,
+ * One round of a binary layer's repeat, `op unary tail*`: the matched
+ * operator's own variant at the first position, the operand at the second,
  * and every layer below this one's own tail list trailing it — as many
  * positions as the layer is deep, `multiplicative`'s own round carrying
  * none, each unmapped where {@link applyTail} reads it.
  */
-export type _TailRound = Unmapped<readonly [Unmapped<readonly [string, _Leaf]>, unknown, _Leaf, ..._Leaf[]]>
+export type _TailRound = Unmapped<readonly [Unmapped<readonly [string, _Leaf]>, _Leaf, ..._Leaf[]]>
 
 /**
  * The node of the short-circuit level, `circuitTail`: no round, or one
@@ -50,12 +50,12 @@ export type _CircuitNode = Unmapped<readonly [] | readonly [Unmapped<readonly [s
 
 /**
  * The node of the conditional, `conditionalTail`: no round, or one holding
- * `? t value : t value`, the arms at the third and sixth positions, each
+ * `? value : value`, the arms at the second and fourth positions, each
  * a value its mapping replaced by a symbol.
  */
-export type _ConditionalNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, _Leaf, unknown, unknown, _Leaf]>]>
+export type _ConditionalNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, _Leaf, unknown, _Leaf]>]>
 
-/** The node of a statement's end, `[ ';' t ]`: no round, or the one holding the `;`. */
+/** The node of a statement's end, `[ ';' ]`: no round, or the one holding the `;`. */
 export type _EndNode = Unmapped<readonly [] | readonly [unknown]>
 
 /**
@@ -65,49 +65,49 @@ export type _EndNode = Unmapped<readonly [] | readonly [unknown]>
 export type _OptionalList = Unmapped<readonly [] | readonly [_Leaf]>
 
 /**
- * The node of a list rule, `item [ ',' t [ items ] ]`, typed by shape as
- * `Unmapped` describes: the item, and optionally the comma, its trivia and
- * the rest of the list. One reader serves both lists.
+ * The node of a list rule, `item [ ',' [ items ] ]`, typed by shape as
+ * `Unmapped` describes: the item, and optionally the comma and the rest of
+ * the list. One reader serves both lists.
  */
 export type _ListNode = readonly [
     _Leaf,
-    Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, _OptionalList]>]>,
+    Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, _OptionalList]>]>,
 ]
 
 /**
  * The node of a function's parameter list: no round, or one holding
- * `... t id t`, the parameter's token at the third position. The parameter
+ * `... id`, the parameter's token at the second position. The parameter
  * is an `identifierName`, a choice of one symbol per word, so its token is
  * one level in, under the alternative the word matched — as a `const`'s
  * name is.
  */
-export type _ParameterNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, Unmapped<readonly [unknown, _Leaf]>, unknown]>]>
+export type _ParameterNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, Unmapped<readonly [unknown, _Leaf]>]>]>
 
-/** The node of one named parameter after the first, `id t`: the name's token one level in, under the alternative its word matched, as a `const`'s name is. */
-export type _NameNode = Unmapped<readonly [Unmapped<readonly [unknown, _Leaf]>, unknown]>
+/** The node of one named parameter after the first, `id`: the name's token one level in, under the alternative its word matched, as a `const`'s name is. */
+export type _NameNode = Unmapped<readonly [unknown, _Leaf]>
 
 /** The node of one access, `[tag, branch]`: the branch holds the key's token at its third position, under the name's own alternative for `.name`. */
 export type _AccessNode = Unmapped<readonly [string, unknown]>
 
 /**
- * The branch of a property access, `. t name t` or `[ t key t ] t`: the
- * token its key is read from at the third position, under the identifier's
- * or the constant's own alternative.
+ * The branch of a property access, `. name` or `[ key ]`: the token its
+ * key is read from at the second position, under the identifier's or the
+ * constant's own alternative.
  */
-export type _KeyBranch = Unmapped<readonly [unknown, unknown, Unmapped<readonly [unknown, _Leaf]>, ...unknown[]]>
+export type _KeyBranch = Unmapped<readonly [unknown, Unmapped<readonly [unknown, _Leaf]>, ...unknown[]]>
 
 /**
- * The branch of a call, `( t [ items(value) ] ) t`: the `(` an error against
- * the call is anchored at, and its arguments at the third position, the same
- * optional list an array holds.
+ * The branch of a call, `( [ items(value) ] )`: the `(` an error against
+ * the call is anchored at, and its arguments at the second position, the
+ * same optional list an array holds.
  */
-export type _CallBranch = Unmapped<readonly [_Leaf, unknown, _OptionalList, ...unknown[]]>
+export type _CallBranch = Unmapped<readonly [_Leaf, _OptionalList, ...unknown[]]>
 
 /**
  * The node of an import's optional attribute: no round, or one holding
- * `with t { t identifier t : t string t } t`, the key at the fifth position
- * and the value's token at the ninth. The key is an `identifier`, a choice
- * of one symbol per word, so its token is one level in, under the
- * alternative the word matched — as a `const`'s name is.
+ * `with { identifier : string }`, the key at the third position and the
+ * value's token at the fifth. The key is an `identifier`, a choice of one
+ * symbol per word, so its token is one level in, under the alternative
+ * the word matched — as a `const`'s name is.
  */
-export type _AttributeNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, unknown, unknown, Unmapped<readonly [unknown, _Leaf]>, unknown, unknown, unknown, _Leaf, ...unknown[]]>]>
+export type _AttributeNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, Unmapped<readonly [unknown, _Leaf]>, unknown, _Leaf, ...unknown[]]>]>

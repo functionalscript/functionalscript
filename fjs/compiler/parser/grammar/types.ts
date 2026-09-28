@@ -22,8 +22,6 @@ import type {
     index,
     key,
     primitive,
-    sameLine,
-    trivia,
 } from './module.f.mjs'
 
 // The alphabet the grammar is written over is described twice — as the lists
@@ -76,9 +74,8 @@ type _EofIsNotAName = Assert<Equal<Extract<_OrdinaryTokenName, 'eof'>, never>>
 
 /**
  * A comma-separated list of `Item`s, at least one, a trailing comma
- * allowed: an item and its trivia, then optionally a comma, its trivia, and
- * the rest of the list — or nothing after the comma, which is the trailing
- * one. Right-recursive, so that one symbol of lookahead decides whether a
+ * allowed: an item, then optionally a comma and the rest of the list — or
+ * nothing after the comma, which is the trailing one. Right-recursive, so that one symbol of lookahead decides whether a
  * comma is followed by an item or by the closing bracket.
  *
  * The rest of the list is the list itself, which the type leaves as
@@ -89,14 +86,14 @@ type _EofIsNotAName = Assert<Equal<Extract<_OrdinaryTokenName, 'eof'>, never>>
  */
 export type Items<Item extends Rule> = () => readonly ['const', readonly [
     Item,
-    Option<readonly [number, typeof trivia, Option<Rule>]>,
+    Option<readonly [number, Option<Rule>]>,
 ]]
 
-/** An opening symbol, trivia, an optional list, the closing symbol, and the trivia after it. */
-export type Container<Item extends Rule> = readonly [number, typeof trivia, Option<Items<Item>>, number, typeof trivia]
+/** An opening symbol, an optional list, and the closing symbol. */
+export type Container<Item extends Rule> = readonly [number, Option<Items<Item>>, number]
 
-/** A key, trivia, `:`, trivia, and a value. */
-export type Member = readonly [typeof key, typeof trivia, number, typeof trivia, Value]
+/** A key, `:`, and a value. */
+export type Member = readonly [typeof key, number, Value]
 
 /**
  * One step after a value: `.name`, `[key]`, or a call and its arguments.
@@ -106,9 +103,9 @@ export type Member = readonly [typeof key, typeof trivia, number, typeof trivia,
  * other and neither can be read off its own initializer.
  */
 export type Access = {
-    readonly property: readonly [number, typeof trivia, typeof identifierName, typeof trivia]
-    readonly index: readonly [number, typeof trivia, typeof index, typeof trivia, number, typeof trivia]
-    readonly call: readonly [number, typeof trivia, Option<Items<Value>>, number, typeof trivia]
+    readonly property: readonly [number, typeof identifierName]
+    readonly index: readonly [number, typeof index, number]
+    readonly call: readonly [number, Option<Items<Value>>, number]
 }
 
 /**
@@ -116,7 +113,7 @@ export type Access = {
  * a power: optional, and {@link Unary} again when present — right-recursive,
  * so `2 ** 3 ** 2` is `2 ** (3 ** 2)`.
  */
-export type PowTail = Option<readonly [number, typeof trivia, Unary]>
+export type PowTail = Option<readonly [number, Unary]>
 
 /**
  * What a `-` or a `~` takes: a value less the function, JavaScript's unary
@@ -127,10 +124,10 @@ export type PowTail = Option<readonly [number, typeof trivia, Unary]>
  * JavaScript refuses `**` immediately after a unary-prefixed operand.
  */
 export type Unary = () => readonly ['const', {
-    readonly neg: readonly [number, typeof trivia, UnaryOperand]
-    readonly bitnot: readonly [number, typeof trivia, UnaryOperand]
-    readonly primitive: readonly [readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>], PowTail]
-    readonly ref: readonly [readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>], PowTail]
+    readonly neg: readonly [number, UnaryOperand]
+    readonly bitnot: readonly [number, UnaryOperand]
+    readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>], PowTail]
+    readonly ref: readonly [readonly [typeof identifier, RepeatFrom<0, Access>], PowTail]
     readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>], PowTail]
     readonly object: readonly [readonly [Container<Member>, RepeatFrom<0, Access>], PowTail]
     readonly group: ParenGroup
@@ -145,10 +142,10 @@ export type Unary = () => readonly ['const', {
  * refusal at every depth a `-`/`~` chain reaches.
  */
 export type UnaryOperand = () => readonly ['const', {
-    readonly neg: readonly [number, typeof trivia, UnaryOperand]
-    readonly bitnot: readonly [number, typeof trivia, UnaryOperand]
-    readonly primitive: readonly [readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>]]
-    readonly ref: readonly [readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>]]
+    readonly neg: readonly [number, UnaryOperand]
+    readonly bitnot: readonly [number, UnaryOperand]
+    readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>]]
+    readonly ref: readonly [readonly [typeof identifier, RepeatFrom<0, Access>]]
     readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>]]
     readonly object: readonly [readonly [Container<Member>, RepeatFrom<0, Access>]]
     readonly group: ParenGroupOperand
@@ -170,7 +167,7 @@ export type UnaryOperand = () => readonly ['const', {
  * conflict `fjs/ebnf/ll1` has no way to resolve. See `unary`'s own comment
  * in `./module.f.mjs`.
  */
-type _OpRound<Prev extends readonly Rule[]> = readonly [Rule, typeof trivia, Unary, ...Prev]
+type _OpRound<Prev extends readonly Rule[]> = readonly [Rule, Unary, ...Prev]
 
 /** One layer of the precedence ladder: zero or more {@link _OpRound}s over the layers below it. */
 type _OpTail<Prev extends readonly Rule[]> = RepeatFrom<0, _OpRound<Prev>>
@@ -229,12 +226,12 @@ export type CircuitTail = Option<{
 }>
 
 /**
- * The conditional above {@link CircuitTail}: nothing, or `?`, trivia, an
- * arm, `:`, trivia, and the other arm — each arm a whole {@link Value}, so
+ * The conditional above {@link CircuitTail}: nothing, or `?`, an arm, `:`
+ * and the other arm — each arm a whole {@link Value}, so
  * a nested conditional associates to the right through the arm's own
  * recursion.
  */
-export type ConditionalTail = Option<readonly [number, typeof trivia, Value, number, typeof trivia, Value]>
+export type ConditionalTail = Option<readonly [number, Value, number, Value]>
 
 /**
  * The whole operator suffix: {@link EagerTail}, then the two lazy
@@ -247,7 +244,7 @@ export type Tail = readonly [...EagerTail, CircuitTail, ConditionalTail]
 
 /**
  * A value: a primitive token, a reference, an array of values, or an
- * object of members, each ending with its trivia and each followed by the
+ * object of members, each followed by the
  * accesses after it and optionally raised to a power — or a `-`/`~`
  * prefix — each carrying {@link Tail}, the binary-operator suffix, above
  * it — or `(`, the choice between a function and a group, {@link Paren},
@@ -256,10 +253,10 @@ export type Tail = readonly [...EagerTail, CircuitTail, ConditionalTail]
  * alias name itself.
  */
 export type Value = () => readonly ['const', {
-    readonly neg: readonly [number, typeof trivia, UnaryOperand, ...Tail]
-    readonly bitnot: readonly [number, typeof trivia, UnaryOperand, ...Tail]
-    readonly primitive: readonly [readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>], PowTail, ...Tail]
-    readonly name: readonly [typeof identifier, typeof sameLine, ArrowOrRest]
+    readonly neg: readonly [number, UnaryOperand, ...Tail]
+    readonly bitnot: readonly [number, UnaryOperand, ...Tail]
+    readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>], PowTail, ...Tail]
+    readonly name: readonly [typeof identifier, ArrowOrRest]
     readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly object: readonly [readonly [Container<Member>, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly paren: Paren
@@ -271,17 +268,17 @@ export type Value = () => readonly ['const', {
  * a group, which is the other spelling of a body that is an object.
  */
 export type Body = () => readonly ['const', {
-    readonly neg: readonly [number, typeof trivia, UnaryOperand, ...Tail]
-    readonly bitnot: readonly [number, typeof trivia, UnaryOperand, ...Tail]
-    readonly primitive: readonly [readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>], PowTail, ...Tail]
-    readonly name: readonly [typeof identifier, typeof sameLine, ArrowOrRest]
+    readonly neg: readonly [number, UnaryOperand, ...Tail]
+    readonly bitnot: readonly [number, UnaryOperand, ...Tail]
+    readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>], PowTail, ...Tail]
+    readonly name: readonly [typeof identifier, ArrowOrRest]
     readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly paren: Paren
     readonly block: Block
 }]
 
-/** `(`, trivia, and what it opens: the one alternative a `(` starts. */
-export type Paren = readonly [number, typeof trivia, Parenthesized]
+/** `(` and what it opens: the one alternative a `(` starts. */
+export type Paren = readonly [number, Parenthesized]
 
 /**
  * What a `(` opens: the rest of a function whose list is the rest
@@ -295,49 +292,48 @@ export type Parenthesized = {
 }
 
 /**
- * What follows the value a `(` opened: `,`, trivia, the names after the
- * first, `)`, same-line trivia, `=>`, trivia and the body — a named
- * parameter list — or `)`, same-line trivia and {@link ArrowOrRest}.
+ * What follows the value a `(` opened: `,`, the names after the first,
+ * `)`, `=>` and the body — a named parameter list — or `)` and
+ * {@link ArrowOrRest}.
  */
 export type AfterValue = {
-    readonly list: readonly [number, typeof trivia, Option<ParameterNames>, number, typeof sameLine, number, typeof trivia, Body]
-    readonly closed: readonly [number, typeof sameLine, ArrowOrRest]
+    readonly list: readonly [number, Option<ParameterNames>, number, number, Body]
+    readonly closed: readonly [number, ArrowOrRest]
 }
 
 /**
- * What follows a name, or a `( value )`: `=>`, trivia and the body, the
- * name or the value being the one parameter — or the rest of the value:
- * the trivia from the newline `sameLine` stopped at, if any, the steps,
- * the power and the binary layers, exactly as {@link Value}'s other
- * branches carry them.
+ * What follows a name, or a `( value )`: `=>` and the body, the name or
+ * the value being the one parameter — or the rest of the value: the
+ * steps, the power and the binary layers, exactly as {@link Value}'s
+ * other branches carry them.
  */
 export type ArrowOrRest = {
-    readonly func: readonly [number, typeof trivia, Body]
-    readonly rest: readonly [Option<readonly [number, typeof trivia]>, RepeatFrom<0, Access>, PowTail, ...Tail]
+    readonly func: readonly [number, Body]
+    readonly rest: readonly [RepeatFrom<0, Access>, PowTail, ...Tail]
 }
 
-/** The named parameters after the first: each a name and its trivia, listed as {@link Items} lists anything. */
+/** The named parameters after the first: each a name, listed as {@link Items} lists anything. */
 export type ParameterNames = () => readonly ['const', {
-    readonly rest: readonly [number, typeof trivia, typeof identifierName, typeof trivia]
-    readonly fixed: readonly [readonly [typeof identifierName, typeof trivia], Option<readonly [number, typeof trivia, Option<ParameterNames>]>]
+    readonly rest: readonly [number, typeof identifierName]
+    readonly fixed: readonly [typeof identifierName, Option<readonly [number, Option<ParameterNames>]>]
 }]
 
 /**
- * A group after its `(`, under a `-`/`~`: the value, `)`, the trivia after
- * it, the steps the group takes — which are the group's and not the
+ * A group after its `(`, under a `-`/`~`: the value, `)`, the steps the
+ * group takes — which are the group's and not the
  * value's, the one thing the parentheses change — and the power it may be
  * raised to, {@link PowTail}. A value's own `(` reads its group through
  * {@link AfterValue} instead, where `=>` may follow the `)`.
  */
-export type Group = readonly [Value, number, typeof trivia, RepeatFrom<0, Access>, PowTail]
+export type Group = readonly [Value, number, RepeatFrom<0, Access>, PowTail]
 
 /**
- * `(`, trivia and a group: what a `-` may take in parentheses. It is not
+ * `(` and a group: what a `-` may take in parentheses. It is not
  * {@link Paren}, which a function shares — `-(...a) => 1` is a syntax error
  * in JavaScript, and `-((...a) => 1)` is not, the group being the
  * `UnaryExpression` the function is not.
  */
-export type ParenGroup = readonly [number, typeof trivia, Group]
+export type ParenGroup = readonly [number, Group]
 
 /**
  * A group after its `(`, without the power {@link Group} itself may carry:
@@ -345,30 +341,30 @@ export type ParenGroup = readonly [number, typeof trivia, Group]
  * a syntax error in JavaScript, so {@link UnaryOperand}'s restricted `(`
  * stands on this type rather than {@link Group}'s.
  */
-export type GroupOperand = readonly [Value, number, typeof trivia, RepeatFrom<0, Access>]
+export type GroupOperand = readonly [Value, number, RepeatFrom<0, Access>]
 
 /**
- * `(`, trivia and {@link GroupOperand}: what a `-`/`~` may take in
+ * `(` and {@link GroupOperand}: what a `-`/`~` may take in
  * parentheses, {@link UnaryOperand}'s own `(` branch.
  */
-export type ParenGroupOperand = readonly [number, typeof trivia, GroupOperand]
+export type ParenGroupOperand = readonly [number, GroupOperand]
 
-/** A statement's terminator: `;` and its trivia, or nothing. */
-export type End = Option<readonly [number, typeof trivia]>
+/** A statement's terminator: `;`, or nothing. */
+export type End = Option<readonly [number]>
 
 /**
- * `{`, trivia, the body's `const` statements, `return`, same-line trivia,
- * the value, its {@link End}, `}`, and the trivia after it.
+ * `{`, the body's `const` statements, `return`, the value, its
+ * {@link End}, and `}`.
  *
  * The statements are {@link constStatement}, the module's own rule: a body
  * binds names the way a module does, and which scope a name lands in is the
  * fold's answer, not the grammar's.
  */
-export type Block = readonly [number, typeof trivia, RepeatFrom<0, typeof constStatement>, number, typeof sameLine, Value, End, number, typeof trivia]
+export type Block = readonly [number, RepeatFrom<0, typeof constStatement>, number, Value, End, number]
 
 /**
- * The one rest parameter, when a function has one: `...`, trivia, the
- * parameter, and its trivia.
+ * The one rest parameter, when a function has one: `...` and the
+ * parameter.
  *
  * The parameter is an {@link identifierName} and not an `identifier`: a
  * binding takes every word a name may be, and the fold refuses the reserved
@@ -376,17 +372,16 @@ export type Block = readonly [number, typeof trivia, RepeatFrom<0, typeof constS
  * to the wider one — while leaving `Children<Func>` unable to hold a tree
  * the grammar produces.
  */
-export type Parameter = readonly [number, typeof trivia, typeof identifierName, typeof trivia]
+export type Parameter = readonly [number, typeof identifierName]
 
 /** A function's parameter list where it begins with no value: the one rest parameter, or nothing. */
 export type Parameters = Option<Parameter>
 
 /**
  * A function after its `(`, which is {@link Paren}'s, where the list is
- * the rest parameter or empty: that list, `)`, same-line trivia, `=>`,
- * trivia, and the body.
+ * the rest parameter or empty: that list, `)`, `=>`, and the body.
  */
-export type Func = readonly [Parameters, number, typeof sameLine, number, typeof trivia, Body]
+export type Func = readonly [Parameters, number, number, Body]
 
 // Which of the two rules the parameter is, pinned — one guard per
 // direction, since neither covers both:
@@ -401,10 +396,10 @@ export type Func = readonly [Parameters, number, typeof sameLine, number, typeof
 // So this assertion guards the second direction alone, which is the one
 // that would leave `Children<Func>` unable to hold a tree the grammar
 // produces while every file still compiles.
-type _FuncParameterIsAName = Assert<Equal<Parameter[2], typeof identifierName>>
+type _FuncParameterIsAName = Assert<Equal<Parameter[1], typeof identifierName>>
 
 /** An export and the declarations after a named export; default ends the module. */
-export type ExportStatement = () => readonly ['const', readonly [number, typeof trivia, {
-    readonly default: readonly [number, typeof trivia, Value, End]
+export type ExportStatement = () => readonly ['const', readonly [number, {
+    readonly default: readonly [number, Value, End]
     readonly named: readonly [typeof constStatement, RepeatFrom<0, typeof constStatement>, Option<Rule>]
 }]]

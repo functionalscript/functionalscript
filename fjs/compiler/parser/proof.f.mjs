@@ -158,13 +158,35 @@ export const proof = {
                 'export default () => { return; };',
                 'export default () => { return 7; const x = 1; };',
                 'export default () => { return 7; return 8; };',
-                'export default ()\n=> 7;',
-                'export default () => { return\n7; };',
-                'export default () => { return /*\n*/ 7; };',
             ]) {
                 assertEq(parseSyntax(tokenizeString(source))[0], 'error')
                 assertEq(parseFromTokens(tokenizeString(source))[0], 'error')
             }
+            // a line break where JavaScript forbids one, before `=>` and
+            // after `return`: the syntax tree holds it, since trivia is no
+            // symbol the grammar reads, and the fold refuses it at the token
+            // on the wrong side of the break — the `=>`, or the value
+            for (const [source, line, column] of /** @type {const} */ ([
+                ['export default ()\n=> 7;', 2, 1],
+                ['export default (a)\n=> 7;', 2, 1],
+                ['export default (a, b)\n=> 7;', 2, 1],
+                ['export default a\n=> 7;', 2, 1],
+                ['export default a // c\n=> 7;', 2, 1],
+                ['export default (...a) /* x\ny */ => 7;', 2, 6],
+                ['export default () => { return\n7; };', 2, 1],
+                ['export default () => { return /*\n*/ 7; };', 2, 4],
+            ])) {
+                assertEq(parseSyntax(tokenizeString(source))[0], 'ok', source)
+                const refused = parseFromTokens(tokenizeString(source))
+                assert(refused[0] === 'error', source)
+                assertEq(refused[1].message, 'unexpected token', source)
+                assertEq(refused[1].metadata?.line, line, source)
+                assertEq(refused[1].metadata?.column, column, source)
+            }
+            // a list malformed before its `=>` answers for the list
+            const malformed = parseFromTokens(tokenizeString('export default (1)\n=> 7;'))
+            assert(malformed[0] === 'error')
+            assertEq(malformed[1].message, 'malformed parameter list')
             // A line break inside the returned group is still admitted.
             const source = 'export default () => { return (\n7\n); };'
             assertEq(parseSyntax(tokenizeString(source))[0], 'ok')
