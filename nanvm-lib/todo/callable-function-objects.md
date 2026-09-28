@@ -34,7 +34,7 @@ variables that the generated code and `nanvm-lib` agree on.
 #### Scope and non-goals
 
 - **In scope**: the AOT path — `fjs compile <module> <output>.rs` emitting a
-  real Rust function body per FS function, plus the `nanvm-lib` runtime
+  real Rust function body per FJS function, plus the `nanvm-lib` runtime
   support (`Function<A>`, `IVm`) needed to construct and call the resulting
   values, including closures with captured state and self-recursion.
 - **Out of scope**: the optional [Rust EDAG library](../../todo/rust-edag.md)

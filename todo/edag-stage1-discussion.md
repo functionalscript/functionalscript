@@ -241,7 +241,7 @@ in practice it doesn't: `"own"`, `"Number"`, `"String"`, and `","` are marked `l
 below, `"=>"` was marked a not-yet-implemented Stage 2, and `["frame"]` was marked
 `later` too (further down, under [Operations](#operations)) — yet all were already
 validated by `exp`, before any compiler emitted them. The optional nodes are the sharpest case: `"?."` and `"?.()"` are in the
-schema even though `?.` is not an FS source operator in its own right (see below), because
+schema even though `?.` is not an FJS source operator in its own right (see below), because
 the public FJS final-EDAG entry takes EDAG from any producer and a chain's hidden control flow has
 to be representable and validatable when it does. A node being schema-valid says nothing about whether any parser emits it or
 any interpreter executes it — that's what the `Stage`/`later` marker tracks, and the
@@ -342,7 +342,7 @@ This discussion does not silently change the existing opcode implementation.
 All instruction patterns follow the
 [JavaScript AST → checked EDAG compilation boundary](../fjs/compiler/parser/todo/statement-aware-intrinsics.md).
 
-`"=>"` is the function constructor because FS has only **arrow
+`"=>"` is the function constructor because FJS has only **arrow
 functions** — there is exactly one spelling to reuse, so the tag is
 unambiguous. A named function expression was suggested as a source
 representation of `["self"]`; it remains a candidate, not a selected spelling
@@ -350,10 +350,10 @@ or a newly admitted function form (subject 12).
 
 Word tags remain only where no unambiguous JS spelling exists:
 
-- `"args"` — FS has no `arguments` object to borrow a spelling from
+- `"args"` — FJS has no `arguments` object to borrow a spelling from
   (subject 2);
 - `"frame"`, `"self"` — JS has no expression for either (`arguments`
-  is not FS's model, and `arguments.callee` is forbidden in strict
+  is not FJS's model, and `arguments.callee` is forbidden in strict
   mode);
 - `"throw"` — a JS keyword, but a *statement*, so there is no
   expression spelling to reuse;
@@ -479,12 +479,12 @@ expression — there is no operator symbol to reuse. Consequences:
   *provably throwing* — the mirror of the "provably non-throwing"
   predicate. It must never be speculated into a position JS would not
   reach.
-- **The thrown value is not observable to FS code** (A4: errors carry no
+- **The thrown value is not observable to FJS code** (A4: errors carry no
   information; no catch). So whether `v` is evaluated at all is
   unobservable — the operation fails either way, including when
   evaluating `v` would itself throw. Engines *should* evaluate it for
   out-of-band diagnostics, and a test framework may reveal it
-  (subject 8), but nothing in FS semantics depends on it.
+  (subject 8), but nothing in FJS semantics depends on it.
 - **Callable-source wrinkle**: since `throw` is a statement, a `throw`
   node inside an expression has no direct JS spelling. A wrapper such as
   `(() => { throw v })()` is a candidate, subject to FJS admission and
@@ -559,7 +559,7 @@ are then derived from the accepted set.
 
 **Status:** accepted
 
-Code and functions have no side effects (FS principle 1,
+Code and functions have no side effects (FJS principle 1,
 [spec/README.md](../spec/README.md)). Successful observations follow the
 declared identity and function-text contracts. In the JS-compatible identity
 model, repeated calls may create distinct objects or functions; determinism
@@ -618,9 +618,9 @@ Required failure is preserved; its payload and first failing operation are not.
 throws the language mandates (e.g. `null[0]` fails on every run);
 excluded are engine-dependent failures (stack-overflow depth,
 out-of-memory), which ECMAScript does not pin down — those fall under
-A2's interrupt freedom instead. Together with FS principle 2: when JS
-always completes with a value, an uninterrupted FS run completes with
-that value — so for spec-deterministic behavior, FS fails iff JS throws
+A2's interrupt freedom instead. Together with FJS principle 2: when JS
+always completes with a value, an uninterrupted FJS run completes with
+that value — so for spec-deterministic behavior, FJS fails iff JS throws
 or the runner interrupts (A2).
 
 #### A4. Computation order is preserved
@@ -655,7 +655,7 @@ one indistinguishable "unexpected error":
   the same information-free failure. Opaque errors are not only what
   *permits* rejecting A4 — they are what makes unordered guards *safe*
   in the presence of secret-carrying throws;
-- FS code cannot catch or inspect errors — stage 1 has no catch, and
+- FJS code cannot catch or inspect errors — stage 1 has no catch, and
   failures propagate to the host. A future catch/Result facility
   observes failure only at region granularity, and reordering must then
   respect region boundaries;
@@ -663,7 +663,7 @@ one indistinguishable "unexpected error":
   aborts, JS-mandated throws, and non-termination all collapse into one
   failure outcome;
 - runners may emit out-of-band diagnostics (which operation failed, and
-  where) for humans; FS code can never read them.
+  where) for humans; FJS code can never read them.
 
 Soundness: by A1 the completed value is order-independent; by A3 plus
 anchoring (subject 8) every may-throw operation still evaluates under
@@ -1190,7 +1190,7 @@ these rules bind it.
   How engines *prioritize* branches is deliberately unspecified — order
   is not semantic, so any schedule is legal: racing cheap guards first
   (fail-fast), parking expensive branches, full parallelism, or plain
-  sequential. A `throw` in FS is the analogue of a panic in other
+  sequential. A `throw` in FJS is the analogue of a panic in other
   languages, so engines may reasonably assume asserts rarely fire and
   optimize for the happy path. The spec assumes nothing about any of
   this; the freedoms above are illustrations of what A1–A4 make sound
@@ -1237,7 +1237,7 @@ these rules bind it.
   validation that needs to explain itself must produce a value.
 
   Asserts and throws are fully at home in **tests**. A test framework is
-  a host, not FS code — it sits on the out-of-band side of the A4
+  a host, not FJS code — it sits on the out-of-band side of the A4
   contract, where diagnostics already flow — so it may reveal everything
   about a triggered assert (which one, where, with what context) to the
   human. Contract breaches are precisely what tests exist to detect.
@@ -1408,7 +1408,7 @@ none of this ([Operations](#operations)).
 
 Everything expressible by looping is expressible by recursion —
 `["()", ["self"], args]` with a `"?:"` base case — and the NaNVM may
-implement **TCO** — but most JavaScript engines do not, and FS
+implement **TCO** — but most JavaScript engines do not, and FJS
 compiles to JavaScript (`.f.js`) as well as to Rust. A recursion-only
 language would therefore stack-overflow on ordinary JS engines for
 ordinary loops. [let](../spec/todo/3220-let.md) exists to give loops a

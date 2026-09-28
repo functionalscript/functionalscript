@@ -197,9 +197,9 @@ Prerequisite: compiler + CA FunctionalScript complete.
 | HTTP transport | `fjs/effects/node/` effects ✓ | `httpTransport` wrapper only |
 | Signed directories | — | Directory block type + path resolver |
 | SUL deduplication | `fjs/sul/` L1–L4 ✓ | CAS integration layer |
-| Compiler (parsing) | `fjs/compiler/` pipeline with functions ✓, FS grammar on `fjs/ebnf/` ✓ | Language spec generated from the grammar |
+| Compiler (parsing) | `fjs/compiler/` pipeline with functions ✓, FJS grammar on `fjs/ebnf/` ✓ | Language spec generated from the grammar |
 | Compiler (codegen) | Rust code generator (`fjs compile … .rs`) ✓ | AOT-compile the FJS loader/interpreter for native self-hosting; Rust EDAG deferred |
 | Compiler (repository coverage) | Stage-1 `.f.mjs` source migration complete and compiler-independent ✓ | Validate supported `.f.mjs` as coverage grows; then authored-`.f.js` package support, then rename supported groups `.f.mjs` → `.f.js` |
 | CA FunctionalScript | — | Depends on VM + EDAG canonicalization |
-| Sandboxed execution | — | Depends on CA FS |
+| Sandboxed execution | — | Depends on CA FJS |
 | Hybrid intelligence | — | Depends on all above |

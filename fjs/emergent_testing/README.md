@@ -148,7 +148,7 @@ two tiers:
 
 | Language | Load gate |
 |----------|-----------|
-| FunctionalScript (`.f.mjs` / `.f.js`) | **all** files are loaded — FS modules have no import side effects by construction |
+| FunctionalScript (`.f.mjs` / `.f.js`) | **all** files are loaded — FJS modules have no import side effects by construction |
 | Vanilla TypeScript / JavaScript | opt-in by filename: names ending in `proof.ts`, `proof.js`, `proof.mts`, or `proof.mjs` (e.g. `math.proof.ts`) |
 
 A loaded module that does not export `proof` is silently skipped.

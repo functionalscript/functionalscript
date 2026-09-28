@@ -71,7 +71,7 @@ Anything the eDSL cannot yet say is a gap in the eDSL, to be closed there —
 not a reason to grow a second notation beside it. This is the rule that keeps
 the whole direction from collapsing back into "a superset of JavaScript with a
 type grammar", which is the thing this project exists to avoid
-([types-for-fs.md](./types-for-fs.md)).
+([types-for-fjs.md](./types-for-fjs.md)).
 
 **The eDSL is expected to grow, and growing it is library work.** Today it says
 primitives, `array`, `record`, `or`, `option`, `never`, `rest`, `open`, and
@@ -245,7 +245,7 @@ and tuple as `readonly`
 thing for it to render.
 
 That is the difference between this checker and TypeScript's, and it is not a
-detail. [types-for-fs.md](./types-for-fs.md) states the flaw in one example:
+detail. [types-for-fjs.md](./types-for-fjs.md) states the flaw in one example:
 
 ```ts
 type A = { p: number }
@@ -1763,7 +1763,7 @@ splits around inference, so the runnable order is 668's representation half
 
   `subset` shipped in [`rtti/data`](../fjs/rtti/data/module.f.mjs); the
   parser half is this epic.
-- [types-for-fs.md](./types-for-fs.md) — why TypeScript's own type system is not
+- [types-for-fjs.md](./types-for-fjs.md) — why TypeScript's own type system is not
   the target: it cannot analyze mutable types soundly, which is the argument
   commitment 3 turns around. It also already sketches `const x = //: RTTI-TYPE`
   under "Benefits" — the annotation form of this epic, proposed there first.

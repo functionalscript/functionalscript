@@ -199,7 +199,7 @@ job data only reaches quotable positions, so `flakeText` never fails today).
 `flakeText` is the only importer *in this repository*, which is not the same as
 the only consumer. `nix` and `nixToString` are exported from a published
 package with no `exports` map in `deno.json` (see
-[group-fs-subdirectories-by-concern](../../../todo/group-fs-subdirectories-by-concern.md),
+[group-fjs-subdirectories-by-concern](../../../todo/group-fjs-subdirectories-by-concern.md),
 which notes that nothing restricts module reachability today), so every module
 path is public API and any downstream caller gets a tagged `Result` tuple where
 it used to get a chunk list, a string, or `undefined`. A repository search

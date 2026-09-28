@@ -81,7 +81,7 @@ written out again.
       classes and `isInteger` over `isCanonicalDigits`, with a co-located proof
       at 100% (the cases in `fjs/emergent_testing/proof.f.mjs` are the start).
       No `deno.json` `exports` entry: the file has no map today, and
-      [group-fs-subdirectories-by-concern](../../../todo/group-fs-subdirectories-by-concern.md)
+      [group-fjs-subdirectories-by-concern](../../../todo/group-fjs-subdirectories-by-concern.md)
       reserves introducing one for the change that enumerates every module.
 - [ ] `fjs/emergent_testing`: drop the four definitions, import the two.
 - [ ] `fjs/js/tokenizer`: `isDigit` from `text/ascii`, the magic numbers gone.

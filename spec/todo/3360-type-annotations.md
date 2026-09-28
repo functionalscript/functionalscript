@@ -259,7 +259,7 @@ annotation form and how a name resolves — rather than a paraphrase of a stage.
   generating Rust from it is
   [rust-schema-codegen](../../fjs/edag/todo/rust-schema-codegen.md), and the
   same schemas would feed both.
-- [types-for-fs.md](../../todo/types-for-fs.md) — why TypeScript's own type system is not
+- [types-for-fjs.md](../../todo/types-for-fjs.md) — why TypeScript's own type system is not
   the target.
 - [`fjs/ebnf/todo/layered-parser.md`](../../fjs/ebnf/todo/layered-parser.md) — the
   transducer stack the tokenizer work belongs to.
