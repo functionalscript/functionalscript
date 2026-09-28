@@ -51,6 +51,15 @@ export const proof = {
             assertEq(next(picked)('x')({ kind: 'click', name: 'go' }), 'x')
         },
     },
-    // A repeated example is refused where the demo is built.
-    throw: () => textDemo({ name: 'src', label: 'Source', init: '', examples: [['A', 'a'], ['A', 'b']] })(() => []),
+    // Refused where the demo is built.
+    throw: {
+        // A repeated example.
+        repeatedExample: () => textDemo({ name: 'src', label: 'Source', init: '', examples: [['A', 'a'], ['A', 'b']] })(() => []),
+        // A textarea named like the drop-down: typing would arrive as a pick.
+        nameCollision: () => textDemo({ name: exampleName, label: 'Source', init: '', examples: [['A', 'a']] })(() => []),
+    },
+    // Without examples, the drop-down's name is free for the textarea.
+    exampleNameWithoutExamples: () => assertEq(
+        next(textDemo({ name: exampleName, label: 'Source', init: '' })(() => []))('')({ kind: 'input', name: exampleName, value: 'typed' }),
+        'typed'),
 }

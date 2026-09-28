@@ -16,6 +16,10 @@
  * source is refused — draws it above the textarea, and routes a pick to its
  * source. Without, there is no drop-down, and every `input` is the new text.
  *
+ * **A textarea named like the drop-down is refused**, where the demo is
+ * built: the two would share an `id`, and typing would arrive as a pick of
+ * an example no one has.
+ *
  * @module
  *
  * @import { Demo, DemoEvent, TextDemoOptions } from './types.ts'
@@ -32,6 +36,7 @@ import { examplePicker, name as exampleName } from './examples/module.f.mjs'
  * @type {(o: TextDemoOptions) => (render: (text: string) => readonly Node[]) => Demo<string, DemoEvent>}
  */
 export const textDemo = ({ name, label, rows = 8, init, examples }) => render => {
+    if (examples !== undefined && name === exampleName) { throw 'textDemo: the textarea is named like the examples drop-down' }
     const picker = examples === undefined ? undefined : examplePicker(examples)
     return {
         init,
