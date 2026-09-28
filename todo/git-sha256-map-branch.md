@@ -85,10 +85,22 @@ violates it is corrupt, refused rather than extended
 compat naming the invariant is also what makes a pair meaningful, since the
 name is defined only where the subgraph below it is named.
 
-A pair is an observation of bytes at hand, so a run computes the pairs for
-the objects it records from the bytes it holds, and prunes only at pairs
-already on the chain it extends. Whether a run may also prune at pairs
-another party published is the trust question below, out of scope here.
+What a pruned pair records is exact, and worth stating. A commit's bytes
+name its tree and parents by SHA-1, and a tree's bytes name its entries the
+same way; under compat naming the commit's pair is those bytes with each
+SHA-1 replaced by the name the chain already observed for it. So a run that
+prunes at an object records that the new commit reaches *that object as
+observed earlier*, by the earlier commit, at the earlier time — not that it
+read the object's bytes today. That is the whole of the claim, and it is
+right even if the repository now serves the object's colliding twin: the
+recorded root names the original, and whoever verifies the twin against the
+chain recomputes its name and finds the mismatch. Re-reading and re-hashing
+every reached object on every run would make the builder a verifier at the
+cost of the full walk each time; that check is a verifier's, out of scope
+here, and a tool may offer it as an option. A run computes from bytes it
+holds every pair it records, and prunes only at pairs already on the chain
+it extends; whether it may prune at pairs another party published is the
+trust question below.
 
 So the second run over a repository costs the new commits and the trees and
 blobs they introduced, and nothing more; the first run over a large
@@ -109,8 +121,10 @@ a Merkle DAG of deltas, and the whole table is never written to Git. The
 table of a long-lived repository is huge, and a commit that re-listed it
 would make the branch grow with every timestamp; a commit that adds only the
 missing commits' objects grows with the content instead, and a commit made
-only to renew the timestamps carries one pair, the one for the commit it
-descends from. A reader builds the whole table by scanning every `disot`
+only to renew the timestamps carries only the pairs for what its parent
+alone introduced — the parent commit, its tree, and its table files, which
+could not be in the parent's own delta. A reader builds the whole table by
+scanning every `disot`
 commit and taking the union of their deltas in memory; that union is a
 cache, rebuilt from the branch, and a local on-disk form of it is tooling
 for later, not part of the format.
@@ -120,19 +134,21 @@ A commit on `disot` is an ordinary commit, signed and timestamped the way
 signs one. The table files carry no signature of their own; they are data,
 and everything a reader trusts about them it gets from the commit. In a
 SHA-1 repository the commit's `tree` header reaches those files only by
-SHA-1, and two things bind them by SHA-256 instead. The next commit's table
-holds the pair for this commit, which under compat naming is a root over
-this commit's tree, table, signatures and timestamp — so every table but the
-newest is bound by SHA-256 through its successor's timestamp, one commit
-late. And, optionally, a header in the signed payload naming the tree by
-SHA-256, which binds the newest table at its own timestamp rather than the
-next one's; the collisions issue's third candidate, defined once for this
-branch and for any signed commit later. The header is the tight bound; the
-chain is the bound without it. With a strict table format neither is needed
-against the attacks known today — an attacker who authors none of the table's
-bytes cannot collide it — and both are kept so that the chain from the
-timestamp to every pair is SHA-256 end to end, with no per-format argument
-to maintain.
+SHA-1, and a timestamp over the commit's bytes alone would bind the new
+pairs through the one link this record exists not to rely on. So the signed
+payload carries a **header naming the tree by SHA-256** — its compat name,
+computable before signing since a delta's files are blobs — and the
+timestamp then binds every pair the commit introduces through SHA-256 at
+the commit's own time. This is the collisions issue's third candidate, a
+commit naming the SHA-256 of what it points to, defined once for this
+branch and for any signed commit later. The next commit's table holds the
+pair for this commit as well, which binds the whole record again one commit
+late and is how a renewal works; it is not a substitute for the header,
+since a pair's proof is its introducing timestamp (below). With a strict
+table format the header is not needed against the attacks known today — an
+attacker who authors none of the table's bytes cannot collide it — and it
+is required so that the chain from the timestamp to every pair is SHA-256
+end to end, with no per-format argument to maintain.
 
 **4. Take every published table before publishing one.** Before a run
 records anything, it fetches `disot` from every remote it publishes to,
@@ -146,9 +162,10 @@ simply names both as parents: nothing is merged, since the next delta only
 adds and a reader's union sees both. So the branch never carries a pair
 twice, and a commit carries only what its author computed.
 
-Each new table also holds the pair for the table commit it descends from,
-since that commit is an existing object; under compat naming that one line
-binds the whole earlier chain by SHA-256.
+Each new table also holds the pairs for the table commit it descends from
+and for the tree and table files that commit introduced — existing objects
+like any other, and the closure invariant demands them; under compat naming
+the parent commit's line then binds the whole earlier chain by SHA-256.
 
 ### What a timestamp proves
 
