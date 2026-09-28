@@ -11,11 +11,12 @@
  * @import { CommandSet, Commands } from '../effects/types.ts'
  * @import { Catch, Sandbox } from '../effects/common/types.ts'
  * @import { Demo, DemoEvent } from './demo/types.ts'
+ * @import { Element as HtmlElement } from '../media/html/types.ts'
  */
 
 import { asyncPartialRun } from '../effects/module.mjs'
 import { commonOperationMap } from '../effects/common/module.mjs'
-import { htmlToString } from '../media/html/module.f.mjs'
+import { toDom } from '../media/html/module.mjs'
 
 /**
  * What a demo may ask this page for.
@@ -210,13 +211,13 @@ const rescroll = (root, was) => {
  * far a field can scroll; and the offset comes back last, because focusing a
  * field and setting its selection may scroll it on its own.
  *
- * @type {(root: Element, view: string) => void}
+ * @type {(root: Element, view: HtmlElement) => void}
  */
 const render = (root, view) => {
     const was = focused(root)
     const sizes = resized(root)
     const offsets = scrolled(root)
-    root.innerHTML = view
+    root.replaceChildren(toDom(root.ownerDocument, view))
     resize(root, sizes)
     refocus(root, was)
     rescroll(root, offsets)
@@ -265,7 +266,7 @@ const stepper = (root, demo) => {
                 busy(root, true, demo.wait === undefined ? null : demo.wait(state))
                 await macrotask()
                 state = unwrapState(await run(demo.update(state)(event)))
-                render(root, htmlToString(demo.view(state)))
+                render(root, demo.view(state))
             } catch (cause) {
                 fail(root, cause)
             } finally {
@@ -314,7 +315,7 @@ export const startDemo = async root => {
         const demo = /** @type {Demo<any, DemoEvent, never>} */ (module.demo)
         if (demo === undefined) { throw new Error(`${path} exports no demo`) }
         const step = stepper(root, demo)
-        render(root, htmlToString(demo.view(demo.init)))
+        render(root, demo.view(demo.init))
         root.addEventListener('input', e => {
             const target = /** @type {HTMLInputElement} */ (e.target)
             step({ kind: 'input', name: target.name, value: target.value })

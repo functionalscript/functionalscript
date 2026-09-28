@@ -9,24 +9,12 @@
  *
  * The stand-in is small because the runtime asks for little: an element whose
  * contents can be replaced, a lookup by `name`, one listener, and a document
- * that remembers what has focus. The demos themselves arrive as `data:` URLs,
+ * that creates elements and remembers what has focus. The demos themselves arrive as `data:` URLs,
  * so a proof carries the module it drives rather than a fixture file.
  */
 
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
 import { startDemo } from './demo-runtime.mjs'
-
-/**
- * Every `name="…"` the rendered HTML declares, in order.
- *
- * The runtime hands the section a string and then looks elements up inside
- * it, so a stand-in that did not read the string back could not observe
- * whether focus was restored — it would answer for elements the render never
- * produced.
- *
- * @type {(html: string) => readonly string[]}
- */
-const namesIn = html => html.split('name="').slice(1).map(rest => rest.split('"')[0])
 
 /**
  * The DOM this runtime needs, and nothing else. A factory rather than
@@ -55,13 +43,45 @@ const dom = path => {
      *
      * @type {string[]} */
     const steps = []
-    /** @type {any[]} */
-    let buttons = []
-    /** @type {(name: string) => any} */
-    const element = (/** @type {string} */ name) => {
+    /**
+     * Every element under the section, depth first — what a selector searches.
+     *
+     * @type {() => readonly any[]}
+     */
+    const descendants = () => {
+        /** @type {(node: any) => readonly any[]} */
+        const walk = node => typeof node === 'string' ? [] : [node, ...node.children.flatMap(walk)]
+        return children.flatMap(walk)
+    }
+    /**
+     * The markup a node stands for, so a proof can say what was rendered in
+     * the words a demo wrote it in.
+     *
+     * @type {(node: any) => string}
+     */
+    const markup = node => typeof node === 'string'
+        ? node
+        : `<${node.localName}${[...node.attributes].map(([k, v]) => ` ${k}="${v}"`).join('')}>${node.children.map(markup).join('')}</${node.localName}>`
+    /** @type {any} */
+    const document = {
+        get activeElement() { return active },
+        createElementNS: (/** @type {string} */ _, /** @type {string} */ tag) => element(tag),
+    }
+    /** @type {(tag: string) => any} */
+    const element = tag => {
+        let off = false
         /** @type {any} */
         const self = {
-            name,
+            localName: tag,
+            namespaceURI: 'http://www.w3.org/1999/xhtml',
+            ownerDocument: document,
+            attributes: new Map(),
+            children: [],
+            get name() { return self.attributes.get('name') ?? '' },
+            setAttribute: (/** @type {string} */ name, /** @type {string} */ value) => {
+                self.attributes.set(name, value)
+            },
+            replaceChildren: (/** @type {any[]} */ ...nodes) => { self.children = nodes },
             selectionStart: 0,
             selectionEnd: 0,
             style: { width: '', height: '' },
@@ -72,6 +92,14 @@ const dom = path => {
                 self.selectionStart = start
                 self.selectionEnd = end
             },
+            // The same sequence the flag and the render write to: a control
+            // that goes unavailable and back inside one turn cannot be caught
+            // by looking afterwards either.
+            get disabled() { return off },
+            set disabled(/** @type {boolean} */ value) {
+                if (value !== off) { steps.push(value ? 'disabled' : 'enabled') }
+                off = value
+            },
         }
         return self
     }
@@ -80,39 +108,24 @@ const dom = path => {
         textContent: '',
         attributes: new Map([['data-demo', path]]),
         getAttribute: (/** @type {string} */ name) => root.attributes.get(name) ?? null,
-        get innerHTML() { return rendered.length === 0 ? '' : rendered[rendered.length - 1] },
-        set innerHTML(/** @type {string} */ html) {
-            rendered.push(html)
-            steps.push('render')
+        get innerHTML() { return children.map(markup).join('') },
+        replaceChildren: (/** @type {any[]} */ ...nodes) => {
             // **Replacing the contents detaches what was focused**, which is
             // the whole reason the runtime has to put focus back. A stand-in
             // that kept the old node focused would pass whether or not the
             // runtime restored anything — the proof would be describing the
             // stand-in rather than the code.
-            if (children.includes(active)) { active = null }
-            children = namesIn(html).map(element)
-            buttons = children
-                .filter(child => html.includes(`<button type="button" name="${child.name}"`))
-                .map(button => {
-                    let off = false
-                    // The same sequence the flag and the render write to: a
-                    // control that goes unavailable and back inside one turn
-                    // cannot be caught by looking afterwards either.
-                    Object.defineProperty(button, 'disabled', {
-                        get: () => off,
-                        set: (/** @type {boolean} */ value) => {
-                            if (value !== off) { steps.push(value ? 'disabled' : 'enabled') }
-                            off = value
-                        },
-                    })
-                    return button
-                })
+            if (descendants().includes(active)) { active = null }
+            children = nodes
+            rendered.push(root.innerHTML)
+            steps.push('render')
         },
         querySelector: (/** @type {string} */ selector) =>
-            children.find(child => selector.includes(`"${child.name}"`)) ?? null,
-        contains: (/** @type {any} */ node) => children.includes(node),
+            descendants().find(node => node.name !== '' && selector === `[name="${node.name}"]`) ?? null,
+        contains: (/** @type {any} */ node) => descendants().includes(node),
         querySelectorAll: (/** @type {string} */ selector) =>
-            selector === 'button' ? buttons : selector === '[name]' ? children : [],
+            descendants().filter(node =>
+                selector === 'button' ? node.localName === 'button' : selector === '[name]' && node.name !== ''),
         setAttribute: (/** @type {string} */ name, /** @type {string} */ value) => {
             root.attributes.set(name, value)
             if (name === 'data-demo-working') { workedWith = value; steps.push('working') }
@@ -125,7 +138,7 @@ const dom = path => {
             if (kind === 'input') { listeners.push(f) }
             if (kind === 'click') { clicks.push(f) }
         },
-        ownerDocument: { get activeElement() { return active } },
+        ownerDocument: document,
     }
     return {
         root,
@@ -149,7 +162,7 @@ const dom = path => {
         // The last value the flag carried, kept after it is removed: the
         // attribute lives for one turn, so reading it afterwards reads nothing.
         workedWith: () => workedWith,
-        disabled: () => buttons.map((/** @type {any} */ b) => b.disabled),
+        disabled: () => root.querySelectorAll('button').map((/** @type {any} */ b) => b.disabled),
         caret: () => active === null ? null : active.selectionStart,
         focusOn: (/** @type {string} */ name, /** @type {number} */ caret) => {
             const el = root.querySelector(`[name="${name}"]`)
