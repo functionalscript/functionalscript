@@ -262,7 +262,7 @@ have different source bodies; the fold lowers them to the same executable
 body. The grammar still requires zero or more declarations followed by one
 value-returning statement. This representation change adds no syntax or ASI.
 
-`_parseSyntaxFromTokens` exposes that internal tree for proofs before the
+`parseSyntax`, in `./syntax`, exposes that tree for proofs before the
 fold. It does not establish binding validity, JavaScript early errors or FunctionalScript
 admission; `parseFromTokens` remains the checked compilation entry point.
 
