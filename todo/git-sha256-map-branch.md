@@ -6,7 +6,8 @@
 ### Problem
 
 A trusted timestamp (TTS, RFC 3161) proves that a digest existed at a time
-`T`. DISOT (Decentralized Immutable Source of Truth,
+`T`. DISOT (Decentralized Immutable Source of Truth:
+[what it is](https://medium.com/@sergeyshandar/digital-space-how-it-should-be-done-4c2f3bd3cf9e),
 [architecture](./plan/architecture.md)) wants that proof to be about Git
 content — commits, trees, blobs,
 and the signatures inside them — so that anyone can show a history existed
@@ -300,3 +301,5 @@ list is so that none is decided by accident.
   detection for the SHA-1 side of each pair.
 - [Git hash-function transition](https://git-scm.com/docs/hash-function-transition.html)
   — the compat mapping and the index formats Git keeps it in.
+- [Digital space: how it should be done](https://medium.com/@sergeyshandar/digital-space-how-it-should-be-done-4c2f3bd3cf9e)
+  — what DISOT is, and why a source of truth holds only what was observed.
