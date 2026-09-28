@@ -22,13 +22,16 @@ container costs the walk about nine frames — `walk`, `node`, `fresh`,
 `dispatch`, the container's handler, `each` and its `reduce` callback,
 and `item` or `property` — so at `0802ecda` a plain nested array,
 `export default [[[…1…]]];`, compiles to `.js` and `.rs` at six hundred
-levels and overflows at six hundred and fifty. The repository's own
-DataJS vectors cross that line: `spec/datajs/vectors/accept/data.f.mjs`,
-whose `array-nested-deep` and `object-nested-deep` graphs are a thousand
-levels deep, compiles to `.edag.data.js` and `.data.js`, which never
-reach this walk, and fails with this `RangeError` to `.js` and `.rs`.
-No proof sends that module, or its deep documents, through a graph
-output, which is why the suite stays green.
+levels and overflows at six hundred and fifty, and a nested object,
+`{"a":{"a":…}}`, at the same depths. The repository's own DataJS
+vectors cross that line: `spec/datajs/vectors/accept/data.f.mjs`, whose
+`array-nested-deep` graph is a thousand levels deep, compiles to
+`.edag.data.js` and `.data.js`, which never reach this walk, and fails
+with this `RangeError` to `.js` and `.rs`. Its `object-nested-deep`
+graph is three hundred levels deep and compiles to every output; a
+thousand-level object would fail the same way. No proof sends that
+module, or its deep document, through a graph output, which is why the
+suite stays green.
 
 This is not new: the same crash reproduces for deeply nested array
 literals with no operator involved at all, so it
@@ -120,7 +123,9 @@ discovered one `RangeError` at a time.
       containers, and whatever other shape reaches this walk.
 - [ ] A proof that compiles `spec/datajs/vectors/accept/data.f.mjs` to
       `.js` and `.rs`, the crash's reproduction in the repository's own
-      corpus.
+      corpus — its array vector, since its object vector is shallower
+      than the line; a proof of object nesting needs a deeper fixture of
+      its own.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 
 ### Related
