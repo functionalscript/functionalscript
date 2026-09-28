@@ -12,18 +12,21 @@ first statement boundary. JavaScript accepts the same text and reads it by its
 automatic semicolon insertion (ASI) rules. Refusing it is compatible: the
 accepted language stays a subset of JavaScript, and requiring `;` is not a
 defect ([compatibility](../../../../todo/fjs-javascript-compatibility.md)).
-The cost is reach. A missing `;` is the first error in almost every existing
-`.f.mjs` module, and it hides whatever the module does next.
+The cost is reach. Every module written in that style meets it: a missing
+`;` stands at the first statement boundary of each, is the first thing the
+compiler reports in half of the refused ones, and hides whatever the module
+does next.
 
 At `0802ecda`, every tracked `.f.mjs` module with no `import` statement, no
-`export … from` and no `import()` — twenty-seven of them — was compiled to
+`export … from` and no `import()` outside a comment — twenty-eight of them —
+was compiled to
 `.edag.data.js`, the output that refuses least: the `.js` writer refuses
 every operator but unary `-` and every call, and the Rust one a `bigint`
 past `i64`, so either would count the writer's limits along with the
 parser's. Seven compiled, `fjs/compiler/examples/m` and the six DataJS
-vector modules; twenty were refused. In ten of those the first thing the
-compiler reports is the missing `;` after the first statement. In the
-other ten a token the language does not have — a template literal, a `\v`
+vector modules; twenty-one were refused. In ten of those the first thing
+the compiler reports is the missing `;` after the first statement. In the
+other eleven a token the language does not have — a template literal, a `\v`
 escape, a hex number — or a construct inside the first statement is
 reported first, since a lexical error is reported wherever it sits, and the
 missing `;` shows only once that is fixed. With a `;` added after every

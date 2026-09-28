@@ -99,8 +99,8 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
    a trailing comma and an empty `with {}`
    ([importing](../README.md#importing-other-modules)).
 8. [ ] [asi](../../fjs/compiler/parser/todo/asi.md) — an omitted `;` where
-   ECMAScript's automatic semicolon insertion permits one, the first thing
-   the compiler refuses in nearly every existing `.f.mjs` module
+   ECMAScript's automatic semicolon insertion permits one, which every
+   `.f.mjs` module written in the repository's style omits
    ([module structure](../README.md#module-structure)).
 
 ## 3. Functions
