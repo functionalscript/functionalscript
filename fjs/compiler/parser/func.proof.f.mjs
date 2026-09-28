@@ -9,7 +9,6 @@
  */
 
 import { parseFromTokens } from './module.f.mjs'
-import { run } from '../ast/module.f.mjs'
 import { stringifyDjsModule, tokenizeString } from './proof.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 

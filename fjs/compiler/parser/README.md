@@ -22,12 +22,13 @@ a word or a line can tell, and `parseFromTokens`, the two in sequence.
 
 ```
 module ::= t import* const* export eof
-import ::= 'import' t clause 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
+import ::= 'import' t clause 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] end
 clause ::= named | id t [ ',' t named ]
 named  ::= '{' t [ items(binding) ] '}' t
 binding ::= id t [ 'as' t id t ]
-const  ::= 'const' t id t '=' t value ';' t
-export ::= 'export' t ( 'default' t value ';' t | const const* [ export ] )
+const  ::= 'const' t id t '=' t value end
+export ::= 'export' t ( 'default' t value end | const const* [ export ] )
+end    ::= [ ';' t ]
 value  ::= '-' t unaryOperand tail | '~' t unaryOperand tail
          | (primitive t | array | object) access* powTail tail
          | id s arrowOrRest
@@ -42,7 +43,7 @@ unary  ::= '-' t unaryOperand | '~' t unaryOperand
 unaryOperand ::= '-' t unaryOperand | '~' t unaryOperand
          | (primitive t | id t | array | object) access*
          | '(' t groupOperand
-block  ::= '{' t const* 'return' s value ';' t '}' t
+block  ::= '{' t const* 'return' s value end '}' t
 func   ::= [ '...' t id t ] ')' s '=>' t body
 afterValue ::= ',' t [ names ] ')' s '=>' t body | ')' s arrowOrRest
 arrowOrRest ::= '=>' t body | [ nl t ] access* powTail tail

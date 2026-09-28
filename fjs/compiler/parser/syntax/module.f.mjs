@@ -36,7 +36,7 @@
  * @import { ParseError } from '../types.ts'
  * @import { Const, Entry, Import, ImportBinding, Module, ModuleConst, Node, Out, ParameterBinding, ParameterList, ValueStatement } from './types.ts'
  * @import { ArrowOrRest, Body, Group, Items, Member, ParameterNames, Parenthesized, Unary, UnaryOperand, Value } from '../grammar/types.ts'
- * @import { key, primitive } from '../grammar/module.f.mjs'
+ * @import { key, namedImports, primitive } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _CircuitNode, _ConditionalNode, _EndNode, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _PowTailNode, _TailRound, _TokenStream } from './private.ts'
  */
 
@@ -48,7 +48,7 @@ import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import {
     body, callArguments, constStatement, djsModule, eagerTail, exportStatement, importBinding, importBindings,
-    importStatement, namedImports, member, members, parameterNames, symbolOf, unary, unaryOperand, value, values,
+    importStatement, member, members, parameterNames, symbolOf, unary, unaryOperand, value, values,
 } from '../grammar/module.f.mjs'
 
 /**

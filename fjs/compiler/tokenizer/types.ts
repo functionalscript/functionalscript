@@ -66,8 +66,9 @@ type _KindsAreComplete = Assert<Equal<(typeof _djsTokenKinds)[number], DjsToken[
  * a rule reads: JavaScript ends a statement written without its `;` at a
  * newline, so the parser asks it of the token after such a statement
  * ([spec: module structure](../../../spec/README.md#module-structure)).
- * The stream's first token has none before it, and a trivia token carries
- * the answer for its own position, which nothing reads.
+ * A token after leading trivia carries the newline that trivia holds, the
+ * stream's first token included; a trivia token carries the answer for its
+ * own position, which nothing reads.
  */
 export type DjsTokenWithMetadata = {
     readonly token: DjsToken
