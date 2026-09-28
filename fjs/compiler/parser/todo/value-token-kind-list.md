@@ -10,7 +10,7 @@ unlinked places across the parser:
 
 - `fjs/compiler/parser/grammar/module.f.mjs` — the `primitive` grammar variant
   (`null/true/false/undefined/number/string/bigint`, each as `sym(...)`);
-- `fjs/compiler/parser/module.f.mjs` — `primitiveOf`, a seven-arm `switch` over
+- `fjs/compiler/parser/syntax/module.f.mjs` — `primitiveOf`, a seven-arm `switch` over
   the variant's branch tags.
 
 The switch is typed from the variant, so a branch removed from the grammar

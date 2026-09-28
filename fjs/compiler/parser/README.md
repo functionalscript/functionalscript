@@ -2,13 +2,19 @@
 
 Reads the compiler's token stream as a FunctionalScript module: `import` statements, then
 ordinary and exported `const` statements, with an optional final `export default`.
-Every statement ends with `;`, and at least one export is required.
+Every statement ends with `;`, or where JavaScript inserts one, and at least
+one export is required.
 
 It is the upper layer of a layered parser: the tokenizer turns code points into
 tokens, and this turns tokens into an `AstModule`. Both layers are an LL(1)
 grammar read by [`fjs/ebnf/ll1`](../../ebnf/ll1/README.md) and a fold over what
 the grammar matched; only the alphabet differs — code points there, token
-symbols here.
+symbols here. This layer is two modules along the line its two questions
+draw: [`./syntax`](./syntax/module.f.mjs) holds the rewrite set, which turns
+the grammar's tree into the syntax tree — a node per value, a record per
+statement — and `parseSyntax`, the reader over tokens; `./module.f.mjs` is
+the fold, which resolves the tree's names into the AST and refuses what only
+a word or a line can tell, and `parseFromTokens`, the two in sequence.
 
 ## The grammar is written down
 
@@ -16,12 +22,13 @@ symbols here.
 
 ```
 module ::= t import* const* export eof
-import ::= 'import' t clause 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
+import ::= 'import' t clause 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] end
 clause ::= named | id t [ ',' t named ]
 named  ::= '{' t [ items(binding) ] '}' t
 binding ::= id t [ 'as' t id t ]
-const  ::= 'const' t id t '=' t value ';' t
-export ::= 'export' t ( 'default' t value ';' t | const const* [ export ] )
+const  ::= 'const' t id t '=' t value end
+export ::= 'export' t ( 'default' t value end | const const* [ export ] )
+end    ::= [ ';' t ]
 value  ::= '-' t unaryOperand tail | '~' t unaryOperand tail
          | (primitive t | array | object) access* powTail tail
          | id s arrowOrRest
@@ -36,7 +43,7 @@ unary  ::= '-' t unaryOperand | '~' t unaryOperand
 unaryOperand ::= '-' t unaryOperand | '~' t unaryOperand
          | (primitive t | id t | array | object) access*
          | '(' t groupOperand
-block  ::= '{' t const* 'return' s value ';' t '}' t
+block  ::= '{' t const* 'return' s value end '}' t
 func   ::= [ '...' t id t ] ')' s '=>' t body
 afterValue ::= ',' t [ names ] ')' s '=>' t body | ')' s arrowOrRest
 arrowOrRest ::= '=>' t body | [ nl t ] access* powTail tail
@@ -136,12 +143,21 @@ the backtracking grammar this replaced had
   value ends with its own `t`, and what follows a value adds none: any
   value may be followed by an access, `a . b` and `[1] [0]` included, and
   the trivia between them would otherwise have to lead the access rule.
-- **`;` ends every statement, the export included.** A newline does not: it is
-  trivia, read past, so a missing `;` is found at what came instead — the next
-  statement's keyword, or the end of input. This is the rule
-  [`spec/README.md`](../../../spec/README.md) states for FunctionalScript and
-  what DataJS requires; telling a newline from a `;` reached through newlines
-  took unbounded lookahead.
+- **A statement ends at `;`, or at nothing.** A newline is never the symbol
+  it ends at: it is trivia, read past by the value before it, and telling a
+  newline from a `;` reached through newlines took unbounded lookahead. So
+  the `;` is optional and the grammar looks no further — one symbol still
+  decides, since `;` begins no statement and no statement's continuation.
+  JavaScript's rule, that a `;` is inserted before a token on a new line and
+  not before one on the same line, is then a fact of the token: the
+  tokenizer marks each token with whether a newline precedes it, and the
+  fold refuses a statement whose predecessor omitted its `;` at its first
+  token unless that token began a line. Which is why the refusal is the
+  fold's and not the grammar's: the grammar reads `const a = 1 export default
+  a;`, and `foldModule` answers `unexpected token` at the `export`, as the
+  grammar did when the `;` was required
+  ([`spec/README.md`](../../../spec/README.md#module-structure)). DataJS
+  still requires the `;`, in its own reader.
 - **A list is right-recursive.** After an item and its comma, the lookahead says
   whether an item or the closing bracket follows, so a trailing comma is a comma
   nothing follows.
@@ -247,7 +263,7 @@ have different source bodies; the fold lowers them to the same executable
 body. The grammar still requires zero or more declarations followed by one
 value-returning statement. This representation change adds no syntax or ASI.
 
-`_parseSyntaxFromTokens` exposes that internal tree for proofs before the
+`parseSyntax`, in `./syntax`, exposes that tree for proofs before the
 fold. It does not establish binding validity, JavaScript early errors or FunctionalScript
 admission; `parseFromTokens` remains the checked compilation entry point.
 
@@ -334,9 +350,13 @@ an error already carries and the point when there is none.
 ## What changed at the LL(1) port
 
 One difference from the backtracking parser this replaced, deliberate and
-pinned by proof: a newline no longer ends a statement. `export default 1`
-alone is `unexpected end` at the end of input, and `const a = 1` followed by
-`export default a;` on the next line is `unexpected token` at `export`. Every
-other expectation of the parser's proof — values, positions, the order errors
-are reported in, the syntax failure found before the unresolved name — is met
-unchanged, with the `;` added to its inputs.
+pinned by proof at the time: a newline no longer ended a statement, so
+`export default 1` alone was `unexpected end` at the end of input, and
+`const a = 1` followed by `export default a;` on the next line was
+`unexpected token` at `export`. Both are modules again since the `;` became
+optional — but by JavaScript's rule, read by the fold from the token after
+the omitted `;`, never by the grammar reading a newline as a terminator, which
+is what the port removed. Every other expectation of the parser's proof —
+values, positions, the order errors are reported in, the syntax failure found
+before the unresolved name — was met unchanged, with the `;` added to its
+inputs.

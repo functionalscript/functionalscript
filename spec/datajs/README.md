@@ -75,9 +75,11 @@ exactly one byte sequence.
 [conformance matrix](./vectors/gen.matrix.md) awaits nothing for the reader, the
 serializer or normalization. The reader is
 [`fjs/media/datajs/parser`](../../fjs/media/datajs/parser/module.f.mjs), and
-the `;` this format requires after every statement is what the compiler's
-parser requires too, so a document parses there as well — `NaN` and the
-infinities included. Both surfaces of
+the `;` this format requires after every statement is one the compiler's
+parser accepts, so a document parses there as well — `NaN` and the
+infinities included. The compiler also accepts the `;` omitted where
+JavaScript inserts one; this format does not, and its reader is the one that
+refuses it. Both surfaces of
 [§Encoding](#encoding) exist, on the codec's public
 [`module.f.mjs`](../../fjs/media/datajs/module.f.mjs): `tryParse` takes the
 document as code units, and `tryParseBytes` takes it as bytes — refusing what

@@ -60,4 +60,18 @@ export type DjsToken = |
 // membership against; this pin keeps the list and the union agreeing.
 type _KindsAreComplete = Assert<Equal<(typeof _djsTokenKinds)[number], DjsToken['kind']>>
 
-export type DjsTokenWithMetadata = {readonly token: DjsToken, readonly metadata: TokenMetadata}
+/**
+ * A token of the stream, where it is, and whether a newline stands between
+ * it and the token before it, trivia aside — the one fact about the trivia
+ * a rule reads: JavaScript ends a statement written without its `;` at a
+ * newline, so the parser asks it of the token after such a statement
+ * ([spec: module structure](../../../spec/README.md#module-structure)).
+ * A token after leading trivia carries the newline that trivia holds, the
+ * stream's first token included; a trivia token carries the answer for its
+ * own position, which nothing reads.
+ */
+export type DjsTokenWithMetadata = {
+    readonly token: DjsToken
+    readonly metadata: TokenMetadata
+    readonly newline: boolean
+}
