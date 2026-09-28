@@ -87,4 +87,4 @@ differs, which is the expected element.
   the per-newtype trait-impl inventory; this is an inherent method and is
   not on its lists.
 - [`../../fjs/js/array_index/todo/one-array-index-rule.md`](../../fjs/js/array_index/todo/one-array-index-rule.md) —
-  the same rule's three JavaScript copies.
+  the same rule's JavaScript copies.

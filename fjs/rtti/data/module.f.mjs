@@ -26,7 +26,7 @@
 import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
 import { at, definedEntries, definedValues } from '../../types/object/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
-import { eachEntry, isArray, undeclaredMembers, verror } from '../common/module.f.mjs'
+import { declaredTest, eachEntry, isArray, undeclaredMembers, verror } from '../common/module.f.mjs'
 
 /**
  * The unit kind's enumeration: bit `1 << i` of a {@link UnionSet}'s `unit`
@@ -1228,7 +1228,9 @@ const arraySetValidate = rules => p => value => {
         noAccumulate,
     )
     if (declared[0] === 'error') { return declared }
-    const extra = undeclaredMembers(p.prefix.map((_, i) => String(i)), value)
+    // Built per read: `p` arrives with the value, so there is no per-schema
+    // closure to hoist it into. One pass over the prefix keeps the read linear.
+    const extra = undeclaredMembers(declaredTest(p.prefix.map((_, i) => String(i))), value)
     if (rest === undefined) {
         // Nothing past the prefix, by length as well as by entry: a hole past
         // it is not an entry, but the array is still that long, and this is

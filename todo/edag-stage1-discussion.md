@@ -4,11 +4,12 @@
 **Status:** open — working document for designing the stage 1 function
 EDAG (expression DAG — see the core invariant).
 Each subject below is resolved separately; once all are **decided**, the
-result is distilled into a concrete design in [edag-spec.md](./edag-spec.md)
-and this document is deleted.
+result is distilled into [`fjs/edag/README.md`](../fjs/edag/README.md) — the
+schema of record is [`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs) — and
+this document is deleted.
 
 The concrete DJS rollout is tracked in
-[`compile-modules-to-edag.md`](../fjs/fsc/todo/compile-modules-to-edag.md):
+[`compile-modules-to-edag.md`](../fjs/compiler/todo/compile-modules-to-edag.md):
 Stage 1 introduces `.` and unresolved modules; Stage 2 introduces
 non-capturing `=>` and `()`, in its ordinary and method-call forms. This document owns the EDAG semantics,
 not parser scheduling. Property/method-access safety is shared with
@@ -27,6 +28,15 @@ alternate source spelling. The affected sections below follow that decision;
 the remaining subjects retain their individual discussion status. Parsing
 JavaScript syntax does not itself admit it into FunctionalScript.
 
+**Implemented argument-model migration:** the
+[named-and-rest parameter plan](../spec/todo/3120-parameters.md) owns the
+implemented `['=>', length, frame, body]`, `['arg', N]` and `['rest']` contract.
+Subjects 2 and 7 below follow that contract. The
+remaining baseline examples and operation table using `['args']` describe
+the historical zero-arity format, not the current fixed/rest target.
+Current schema, compiler and executors now use fixed/rest. Do not mix the
+historical invocation vocabulary with retained module-import `args`.
+
 ### Baseline: an expression DAG with anchored evaluation
 
 *This baseline supersedes the original index-based sequence proposal; the
@@ -36,7 +46,7 @@ A function body is a **single operation node** — the root of the
 expression DAG. Non-resulting computations (asserts — fail-fast
 guards, A4) are merged into the graph by the **`","` operation**:
 
-- `[",", ...asserts, result]` establishes **all** of its operands
+- `[",", [...asserts, result]]` establishes **all** of its operands
   (subject 8) and takes the value of the **last** one — it *is* the JS
   comma operator, `(a, b) → b`. The assert operands' values are
   discarded — they exist for their throw-potential only — and are
@@ -156,9 +166,9 @@ family but carries control edges and a scheduling phase this design
 does not have.
 
 *AST* is reserved for **grammar parser output** ([fjs/ebnf](../fjs/ebnf/README.md),
-[fjs/fsc](../fjs/fsc/README.md)). The source AST represents a subset of
+[fjs/compiler](../fjs/compiler/README.md)). The source AST represents a subset of
 JavaScript syntax, including statements, not an already-valid FJS program.
-[AST-to-EDAG compilation](../fjs/fsc/parser/todo/statement-aware-intrinsics.md)
+[AST-to-EDAG compilation](../fjs/compiler/parser/todo/statement-aware-intrinsics.md)
 resolves bindings and const visibility, checks early errors, matches complete
 instruction patterns and enforces FJS restrictions before producing EDAG.
 The function representation is the EDAG, not that source tree.
@@ -178,9 +188,12 @@ The function representation is the EDAG, not that source tree.
 Two consequences worth stating plainly:
 
 - **Validation is a total gate.** The invariant binds *every* validated
-  graph, not just compiler output — the `Function` constructor accepts
-  an `Any` from anywhere, so "the FJS compiler would never emit that" is
-  never an admissible argument. This is why the property-key rule is
+  graph, not just compiler output. The
+  [public FJS final-EDAG entry](../fjs/compiler/todo/interpret-edag.md) validates code
+  supplied as `Any`, independently of its producer, before interpretation on
+  either Node or Rust. A native `Function` constructor is not required for
+  this boundary. "The FJS compiler would never emit that" is never an
+  admissible argument. This is why the property-key rule is
   syntactic ([Operations](#operations)) rather than a convention:
   anything a hostile graph could express, validation must have already
   ruled out.
@@ -217,7 +230,7 @@ Agreed points (not under discussion):
 The operations we want, with their stage. Every operand is an operation
 node; `node` below means any of them. The stage numbers match the concrete
 DJS rollout in
-[`compile-modules-to-edag.md`](../fjs/fsc/todo/compile-modules-to-edag.md).
+[`compile-modules-to-edag.md`](../fjs/compiler/todo/compile-modules-to-edag.md).
 
 #### Structural operations
 
@@ -228,8 +241,8 @@ in practice it doesn't: `"own"`, `"Number"`, `"String"`, and `","` are marked `l
 below, `"=>"` was marked a not-yet-implemented Stage 2, and `["frame"]` was marked
 `later` too (further down, under [Operations](#operations)) — yet all were already
 validated by `exp`, before any compiler emitted them. The optional nodes are the sharpest case: `"?."` and `"?.()"` are in the
-schema even though `?.` is not an FS source operator in its own right (see below), because
-the `Function` constructor takes EDAG from anywhere and a chain's hidden control flow has
+schema even though `?.` is not an FJS source operator in its own right (see below), because
+the public FJS final-EDAG entry takes EDAG from any producer and a chain's hidden control flow has
 to be representable and validatable when it does. A node being schema-valid says nothing about whether any parser emits it or
 any interpreter executes it — that's what the `Stage`/`later` marker tracks, and the
 schema is free to change independently of both.
@@ -250,8 +263,8 @@ schema is free to change independently of both.
 |`["own", object, key]`|— internal only|later|no standalone source spelling; runtime-entry API and semantic migration belong to [entry](../fjs/edag/todo/entry.md)|
 |`["Number", node]`|`Number(x)`|later|numeric coercion that accepts bigints, unlike unary `+`|
 |`["String", node]`|`String(x)`|later|string coercion|
-|`[",", ...node, node]`|`(a, b)`|later|membership without order (subject 8)|
-|`["=>", frame, body]`|`(…) => …`|2|function; `frame` is a general `exp` in the schema — Stage 2's own compiler/interpreter scope was narrower and only emitted/accepted a placeholder for it; the compiler now emits an array of captured values, `null` where there is none ([functions](../spec/README.md#functions))|
+|`[",", [...node, node]]`|`(a, b)`|later|membership without order (subject 8); the operands are one operand, an array, as for `"[]"`|
+|`["=>", length, frame, body]`|`(…) => …`|2|function; `length` is integer metadata (subject 7); `frame` is a general `exp` in the schema — Stage 2's own compiler/interpreter scope was narrower and only emitted/accepted a placeholder for it; the compiler now emits an array of captured values, `null` where there is none ([functions](../spec/README.md#functions))|
 
 `["{}", [...entry]]` is an ordered object-construction operation. Stage 1
 uses `[":", key, value]` entries.
@@ -293,8 +306,8 @@ must be one of:
 - a `"Number"` node — guaranteed to yield a number, or throw.
 
 So a run-time-computed **string** can never reach `"."`. This is a
-*syntactic* rule, checkable when the `Function` constructor validates
-its input (subject 5), which is what 2330 already asks of the byte code:
+*syntactic* rule, checkable at the public FJS final-EDAG validation entry
+(subject 5), which is what 2330 already asks of the byte code:
 the expression inside `[]` must be `Number(...)`, a number literal, or a
 permitted string literal.
 
@@ -327,9 +340,9 @@ descriptor-value expression. The entry proposal owns receiver/key conversion,
 function observations and the coordinated migration of internal semantics.
 This discussion does not silently change the existing opcode implementation.
 All instruction patterns follow the
-[JavaScript AST → checked EDAG compilation boundary](../fjs/fsc/parser/todo/statement-aware-intrinsics.md).
+[JavaScript AST → checked EDAG compilation boundary](../fjs/compiler/parser/todo/statement-aware-intrinsics.md).
 
-`"=>"` is the function constructor because FS has only **arrow
+`"=>"` is the function constructor because FJS has only **arrow
 functions** — there is exactly one spelling to reuse, so the tag is
 unambiguous. A named function expression was suggested as a source
 representation of `["self"]`; it remains a candidate, not a selected spelling
@@ -337,10 +350,10 @@ or a newly admitted function form (subject 12).
 
 Word tags remain only where no unambiguous JS spelling exists:
 
-- `"args"` — FS has no `arguments` object to borrow a spelling from
+- `"args"` — FJS has no `arguments` object to borrow a spelling from
   (subject 2);
 - `"frame"`, `"self"` — JS has no expression for either (`arguments`
-  is not FS's model, and `arguments.callee` is forbidden in strict
+  is not FJS's model, and `arguments.callee` is forbidden in strict
   mode);
 - `"throw"` — a JS keyword, but a *statement*, so there is no
   expression spelling to reuse;
@@ -466,12 +479,12 @@ expression — there is no operator symbol to reuse. Consequences:
   *provably throwing* — the mirror of the "provably non-throwing"
   predicate. It must never be speculated into a position JS would not
   reach.
-- **The thrown value is not observable to FS code** (A4: errors carry no
+- **The thrown value is not observable to FJS code** (A4: errors carry no
   information; no catch). So whether `v` is evaluated at all is
   unobservable — the operation fails either way, including when
   evaluating `v` would itself throw. Engines *should* evaluate it for
   out-of-band diagnostics, and a test framework may reveal it
-  (subject 8), but nothing in FS semantics depends on it.
+  (subject 8), but nothing in FJS semantics depends on it.
 - **Callable-source wrinkle**: since `throw` is a statement, a `throw`
   node inside an expression has no direct JS spelling. A wrapper such as
   `(() => { throw v })()` is a candidate, subject to FJS admission and
@@ -546,7 +559,7 @@ are then derived from the accepted set.
 
 **Status:** accepted
 
-Code and functions have no side effects (FS principle 1,
+Code and functions have no side effects (FJS principle 1,
 [spec/README.md](../spec/README.md)). Successful observations follow the
 declared identity and function-text contracts. In the JS-compatible identity
 model, repeated calls may create distinct objects or functions; determinism
@@ -605,9 +618,9 @@ Required failure is preserved; its payload and first failing operation are not.
 throws the language mandates (e.g. `null[0]` fails on every run);
 excluded are engine-dependent failures (stack-overflow depth,
 out-of-memory), which ECMAScript does not pin down — those fall under
-A2's interrupt freedom instead. Together with FS principle 2: when JS
-always completes with a value, an uninterrupted FS run completes with
-that value — so for spec-deterministic behavior, FS fails iff JS throws
+A2's interrupt freedom instead. Together with FJS principle 2: when JS
+always completes with a value, an uninterrupted FJS run completes with
+that value — so for spec-deterministic behavior, FJS fails iff JS throws
 or the runner interrupts (A2).
 
 #### A4. Computation order is preserved
@@ -642,7 +655,7 @@ one indistinguishable "unexpected error":
   the same information-free failure. Opaque errors are not only what
   *permits* rejecting A4 — they are what makes unordered guards *safe*
   in the presence of secret-carrying throws;
-- FS code cannot catch or inspect errors — stage 1 has no catch, and
+- FJS code cannot catch or inspect errors — stage 1 has no catch, and
   failures propagate to the host. A future catch/Result facility
   observes failure only at region granularity, and reordering must then
   respect region boundaries;
@@ -650,7 +663,7 @@ one indistinguishable "unexpected error":
   aborts, JS-mandated throws, and non-termination all collapse into one
   failure outcome;
 - runners may emit out-of-band diagnostics (which operation failed, and
-  where) for humans; FS code can never read them.
+  where) for humans; FJS code can never read them.
 
 Soundness: by A1 the completed value is order-independent; by A3 plus
 anchoring (subject 8) every may-throw operation still evaluates under
@@ -748,35 +761,56 @@ authored and never part of the EDAG.
 
 #### 2. Arguments reference
 
-**Status:** decided for `['args']`; declared-arity representation reopened
-by the [named-parameter proposal](../spec/todo/3120-parameters.md), pending
-language-designer approval
+**Status:** fixed/rest bindings implemented in #2237, following
+[named and rest parameters](../spec/todo/3120-parameters.md). The remaining
+migration and default-text work is tracked there.
 
-**Resolution: a zero-parameter `["args"]` command yields the array of
-arguments passed to the function.**
+**Historical format:** `['=>', frame, body]` had length zero, and its
+function-owned `['args']` yielded the complete supplied argument array.
+That invocation contract is superseded; the examples elsewhere in this
+document using it remain historical.
 
-- The arguments array is first-class and always an array — the actual
-  arguments the caller passed, whatever the declaration looked like.
-  Missing arguments read as `undefined` via ordinary array indexing; extra
-  arguments are simply present; forwarding is `["()", f, ["args"]]` —
-  all ordinary array semantics, matching JS.
-- Parameter names are a compiler-side convention over the arguments array
-  and remain erased. The former decision also erased declared arity; the
-  named-parameter prototype exposed a `.length` mismatch. The linked
-  proposal would supersede that part by recording the count in every
-  function node (subject 7), without changing `['args']`.
-- The rejected `["arg", i]` (single-argument access, no reified array)
-  cannot express rest parameters (`(...xs) => xs`) or forwarding;
-  `["arg", i]` is expressible as `[".", ["args"], i]` while the reverse
-  is not.
+**Current format:** `['=>', length, frame, body]` records canonical nonnegative
+integer `length` metadata and exposes two invocation bindings. Length and
+index zero must be positive zero; `-0` metadata is refused.
 
-Examples — named parameters are positions in the arguments array; the
-compiler erases names:
+- `['arg', N]` reads fixed position `N`, where `N` is a constant integer
+  and `0 <= N < length`. A missing fixed argument reads as `undefined`.
+  Validate the index against the owning function, not an enclosing or nested
+  function's length. Parameter names are erased after binding validation.
+- `['rest']` reads the supplied tail beginning at `length`, including any
+  explicitly supplied `undefined` in that tail. It is one array binding per
+  invocation, not a new slice on each read. Repeated reads share it; distinct
+  invocations have distinct rest arrays in the JS-compatible profile.
+
+Function invocation scopes have no complete-list `['args']`. Unresolved
+modules retain their separate ordered import binding under that tag.
+Omission versus explicit
+`undefined` within the fixed prefix is intentionally unobservable; at length
+zero, rest is the complete supplied list. Fixed values and rest captured by
+another function use the existing frame mechanism.
+
+The earlier rejection of `['arg', i]` concerned a design with no rest array.
+It does not apply to this pair: `['rest']` supplies the reified tail and can
+be forwarded through the ordinary array-valued call operand. Rebuilding the
+fixed prefix plus rest yields normalized arguments, not a promise to recover
+the original number of supplied fixed arguments.
+
+Implemented lowering examples (names erased):
 
 ```js
-const f = (...a) => a[5]   // [".", ["args"], 5]
-const g = (a) => a[5]      // [".", [".", ["args"], 0], 5]
+const f = (...a) => a[5];          // length 0; body ['.', ['rest'], 5]
+const g = a => a[5];               // length 1; body ['.', ['arg', 0], 5]
+const h = (a, b, ...tail) => tail; // length 2; body ['rest']
 ```
+
+For old zero-arity nodes, migrate function-owned `['args']` to `['rest']`
+in its owning scope while preserving module-import `['args']`. A function's
+frame belongs to the enclosing scope; only its body opens a new invocation.
+Positive-arity/full-arguments sketches are a different, stronger
+contract and have no general lossless conversion. They remain only in the
+[complete-arguments alternative](../spec/todo/arity-complete-arguments.md),
+not as an implementation prerequisite for the fixed/rest contract.
 
 #### 3. Lazy operators and the branch extension path
 
@@ -818,7 +852,7 @@ entry sequence is semantic.** Stage 1 uses one entry form,
 `[":", key, value]`. Both the key and value positions are ordinary EDAG
 nodes — `{ ["sss" + 3]: x }` is valid JS, the key is a computed expression
 coerced via `ToPropertyKey` at runtime, and validation admits it: an `Any`
-handed to the `Function` constructor can contain any key node, and "the FJS
+supplied to the public FJS final-EDAG entry can contain any key node, and "the FJS
 compiler would never emit that" is not an admissible reason to narrow what
 validation accepts (subject 1). Entry forms belong to the object constructor
 rather than to the general expression vocabulary.
@@ -922,15 +956,29 @@ already follow —
 
 #### 5. Validation
 
-**Status:** open (list agreed in direction, details when the RTTI schema
-is written)
+**Status:** open (list agreed in direction). The RTTI schema is written —
+[`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs) — and checks shape only:
+constants, the single-node body, unknown tags, entry forms and the form of a
+property operand. Complete public validation remains open
+([interpret-edag](../fjs/compiler/todo/interpret-edag.md)): analysis rejects
+operation nodes shared across function scopes, and `bindingError` checks
+invocation bindings, but these internal checks do not close the public gate.
+Prohibited property names and acyclicity still need entry checks, and the
+`","` well-formedness rule is left to the emitter.
+Whether that `","` rule belongs to validation, as this list says, or stays
+the emitter's, as the README says, is open.
 
-The EDAG is the `Function` constructor's public input and will see shapes
-the FJS compiler would never emit. To validate:
+The public FJS final-EDAG entry must handle code supplied as data, including
+shapes the compiler would never emit. It validates before interpretation;
+schema shape checks or the low-level `memo` executor's assertions alone are
+insufficient. The same boundary applies when the FJS entry is AOT-compiled
+to Rust. A future native Rust EDAG adapter must meet the same contract, but
+neither that adapter nor a native `Function` constructor is a prerequisite.
+To validate:
 
-- constants: function values in constant position are a validation error
-  (until a `["=>", ...]` node exists,
-  [functions](../spec/README.md#functions));
+- constants: function values in constant position are a validation error —
+  a function is a `"=>"` node, never a constant
+  ([functions](../spec/README.md#functions));
 - the body: a single operation node;
 - `","` (when introduced): at least two operands — a single-operand
   `","` is the identity and non-canonical; an assert operand reachable
@@ -964,7 +1012,7 @@ the FJS compiler would never emit. To validate:
   ([spec: the `__proto__` key](../spec/README.md#the-__proto__-key),
   subject 12);
 - **acyclicity**: DJS cannot express cycles (const-before-use), but an
-  `Any` handed to the `Function` constructor can be built by other means —
+  `Any` supplied at a host boundary can be built by other means —
   cyclic node graphs must be rejected;
 - aliasing of **operation nodes is valid only within one function EDAG scope**:
   referencing the same node from many operand positions in that scope is the sharing
@@ -972,7 +1020,7 @@ the FJS compiler would never emit. To validate:
   function boundary (the closed-scope model above). Structural containers that are not
   nodes, such as object-entry descriptors, follow their operation-specific canonicality
   rules above instead. The initial Stage 2 validator/proofs for this boundary are tracked
-  by [`compile-modules-to-edag.md`](../fjs/fsc/todo/compile-modules-to-edag.md).
+  by [`compile-modules-to-edag.md`](../fjs/compiler/todo/compile-modules-to-edag.md).
 
 #### 6. Command vocabulary vs. the existing spec names
 
@@ -1068,35 +1116,44 @@ Word tags now survive only where JS genuinely has no expression spelling:
 
 #### 7. Top-level shape of a function
 
-**Status:** open
+**Status:** function-node shape and fixed/rest bindings implemented in #2237;
+the constructor's input API remains open.
 
-With the body a single operation node, no special top-level shape
-remains — every position, the body included, is a node, and the body
-composes directly into `["=>", frame, body]`
-([Operations](#operations)).
+The body is an expression graph in `['=>', length, frame, body]`, following
+the [named-and-rest parameter plan](../spec/todo/3120-parameters.md).
+The three-element `["=>", frame, body]` in the historical
+[Operations](#operations) examples is superseded.
 
-The [named-parameter proposal](../spec/todo/3120-parameters.md) would replace
-that current shape with `["=>", parameterCount, frame, body]`. If approved,
-it selects the function node as the owner of declared arity and supersedes
-the earlier alternative of keeping that metadata only in a `Function`
-constructor wrapper. It remains pending language-designer approval; do not
-implement both representations as parallel contracts. The constructor's
-input API otherwise remains open.
+`length` is canonical nonnegative integer metadata, not an expression
+operand; the invocation bindings are the fixed/rest pair in subject 2,
+not a count added to the old complete-arguments model. The function node
+owns its arity. The implementation request recorded in the parameter plan
+selected this replacement; the old invocation model is not a parallel
+contract. This does not settle the constructor's input API or default-text
+choices.
 
-The function-text exception does not permit changing arity. Exact parameter
-spelling need not reproduce authored text; source rendering and callable
-reconstruction follow subject 12, with the explicit writer limitation in the
-named-parameter proposal for positive-arity graphs that inspect complete
-argument lists.
+The function-text exception does not permit changing arity. The current
+writer emits fixed parameters plus rest, retaining unused fixed positions;
+`['arg', N]` and `['rest']` render as those bindings. The earlier writer
+obstruction for positive arity plus complete `['args']` does not apply to
+this new format, which cannot express that combination. Unrelated source
+serialization questions in subject 12 stay separate, but the adopted
+EDAG-derived default-text rule is still required: use the shared renderer
+or explicitly refuse unsupported observations before exposing wrapper text
+([default-text boundary](../spec/todo/3120-parameters.md#default-function-text-render-or-refuse)).
+
+Hand-written factories materialize these functions without the retired
+[length pattern](https://github.com/functionalscript/functionalscript/blob/245649cdeeb0fb6318004ee273121143273262db/spec/todo/arity-complete-arguments.md#candidate-mechanism-the-withlength-pattern) for every
+valid arity: the language limits `length` to 16, and the table covers 0–16.
 
 #### 8. `","`: anchored evaluation
 
 **Status:** decided (revised: the merge is the `","` operation)
 
 **Resolution: non-resulting computations are merged into the graph by
-the `","` operation — `[",", ...asserts, result]`, the JS comma
+the `","` operation — `[",", [...asserts, result]]`, the JS comma
 operator — which guarantees *membership*, not order.** Introduced in
-`fjs/fsc/edag` after Stage 1, for what a module's export does not reach;
+`fjs/compiler/edag` after Stage 1, for what a module's export does not reach;
 these rules bind it.
 
 - A throw is an effect. A reference edge can only express "the result is
@@ -1133,7 +1190,7 @@ these rules bind it.
   How engines *prioritize* branches is deliberately unspecified — order
   is not semantic, so any schedule is legal: racing cheap guards first
   (fail-fast), parking expensive branches, full parallelism, or plain
-  sequential. A `throw` in FS is the analogue of a panic in other
+  sequential. A `throw` in FJS is the analogue of a panic in other
   languages, so engines may reasonably assume asserts rarely fire and
   optimize for the happy path. The spec assumes nothing about any of
   this; the freedoms above are illustrations of what A1–A4 make sound
@@ -1170,8 +1227,9 @@ these rules bind it.
   asserts to validate untrusted input — a function handling an HTTP
   request must not guard the request with asserts, or any user can crash
   the program (a DoS vector). Untrusted-input validation is an ordinary,
-  *expected* outcome and belongs in values (`Result` / `Nullable`,
-  [044-error-handling-pattern](./044-error-handling-pattern.md)); an
+  *expected* outcome and belongs in values
+  ([`Result`](../fjs/types/result/module.f.mjs) /
+  [`Nullable`](../fjs/types/nullable/module.f.mjs)); an
   assert firing means the program itself is wrong — a breach of an
   internal API contract. The opaque-error contract (A4) enforces this
   discipline by construction: an error carries no information, so an
@@ -1179,7 +1237,7 @@ these rules bind it.
   validation that needs to explain itself must produce a value.
 
   Asserts and throws are fully at home in **tests**. A test framework is
-  a host, not FS code — it sits on the out-of-band side of the A4
+  a host, not FJS code — it sits on the out-of-band side of the A4
   contract, where diagnostics already flow — so it may reveal everything
   about a triggered assert (which one, where, with what context) to the
   human. Contract breaches are precisely what tests exist to detect.
@@ -1292,8 +1350,9 @@ would capture `x` while `x` is still being constructed, a cycle in the
 *value* graph. It needs the group mechanism from subject 9 (or passing
 the partner as an argument), not just relaxed ordering.
 
-The EDAG's only leaves are constants and `["args"]`. Nothing references a
-name the function did not compute itself:
+The EDAG's only leaves are constants and bindings — `["arg", N]`, `["rest"]`
+and `["frame"]` in a function, the import `["args"]` in a module (subject 2).
+Nothing references a name the function did not compute itself:
 
 - a module-level `const` or `import` the body uses
   ([const](../spec/README.md#shared-values-constants),
@@ -1349,7 +1408,7 @@ none of this ([Operations](#operations)).
 
 Everything expressible by looping is expressible by recursion —
 `["()", ["self"], args]` with a `"?:"` base case — and the NaNVM may
-implement **TCO** — but most JavaScript engines do not, and FS
+implement **TCO** — but most JavaScript engines do not, and FJS
 compiles to JavaScript (`.f.js`) as well as to Rust. A recursion-only
 language would therefore stack-overflow on ordinary JS engines for
 ordinary loops. [let](../spec/todo/3220-let.md) exists to give loops a

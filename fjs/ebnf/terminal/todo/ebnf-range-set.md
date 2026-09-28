@@ -2,9 +2,6 @@
 
 **Priority:** P3
 **Status:** open
-**Blocked by:** nothing. The value type, the algebra and the terminal form
-shipped; what is left is `fjs/ebnf/terminal/`, the integer helpers over the
-value, and the adapter's `not`.
 
 ### Problem
 
@@ -28,7 +25,7 @@ below was designed against:
   way back to ranges.
 - **An implicit universe.** `not` complemented over every ordinary symbol
   including token symbols above Unicode. Harmless for code-point input,
-  silently over-broad for the token-symbol alphabet `fjs/fsc/parser` feeds
+  silently over-broad for the token-symbol alphabet `fjs/compiler/parser` feeds
   through the same matcher.
 
 The packed terminal also did not survive the bigint domain
@@ -47,8 +44,9 @@ and that is the validating constructor a lowering calls), the order of
 checks beyond what soundness needs, helper signatures, and how proofs are
 grouped. Where this text and shipped code disagree, the code and its proof
 are the record, and this issue is corrected to match rather than the other
-way round. The value type shipped; what remains is `fjs/ebnf/terminal/` and
-the adapter's `not`, in the tasks.
+way round. The value type, the algebra and the terminal form shipped; what
+remains is `fjs/ebnf/terminal/`, in the tasks. The Unicode adapter's `not` is
+[unicode-rules](../../unicode/todo/unicode-rules.md)'s.
 
 #### The value: a toggle list
 
@@ -121,8 +119,9 @@ be there is gone, along with its one consumer's use of it
 there are not two. The module exports the algebra (`contains`, `union`,
 `intersection`, `complement`, `difference`), the half-open `fromRange`, and
 `rangeSet`, `empty` and `full` with `isRangeSet` for the validation they panic
-on; `toRangeMap`, which is what the LL(1) dispatch map is built from, is the
-terminal layer's. A probe outside the universe panics too — `contains(s)(NaN)`
+on; `toRangeMap` is the terminal layer's, and nothing consumes it yet — the
+LL(1) backend reads its first sets with `range_set`'s `contains`, not through
+a range map. A probe outside the universe panics too — `contains(s)(NaN)`
 and `contains(s)(Infinity)` — since no set can say whether such a value is a
 member, and answering `false` would put it in neither a set nor its
 complement.
@@ -173,10 +172,10 @@ to swallow. That is what makes the injection unnecessary rather than skipped.
 The empty set moves with it. `['set']` is constructible — it is `union()`'s
 identity and what `remove(a, a)` returns, so refusing it at construction
 would make the algebra partial and every fold need a special case. Whether an
-empty *terminal* is legal in a grammar is the lowering's question, and the
-lowering does not exist yet; when it does, it is the place to decide, since
-it is the first code that can tell a terminal that matches nothing from one
-that was never meant to match.
+empty *terminal* is legal in a grammar is the lowering's question, since it
+is the first code that can tell a terminal that matches nothing from one that
+was never meant to match — and the lowering answers it: `validate` in
+[`../../data`](../../data/module.f.mjs) refuses an empty set.
 
 **A set holds ordinary symbols only; `eof` is not a set.** EOF is the `null`
 rule (**Amended**: it was the bare `-1`), with the no-leaf behaviour
@@ -215,7 +214,7 @@ that is what every grammar in the tree uses today.
 
 The generic `complement` is over the whole number line, which no grammar ever
 means. The terminal domain is a set value, `[0]`, owned by `fjs/ebnf/terminal/`
-([symbol-domain-owner](../../todo/symbol-domain-owner.md)),
+(the tasks below),
 and the lowering intersects every set with it: that clips a `-Infinity` a generic
 complement produced back to `0`, drops EOF and anything below it, and so
 restores canonicity before the IR. It also requires every boundary to be a
@@ -309,8 +308,13 @@ justification is the API and the AST, which is where
       `Number.MAX_SAFE_INTEGER`, rejecting a negative endpoint, a reversed
       pair or a larger end; `eof` as `[-1, 0]`; the domain `[0]`;
       and `toRangeMap` (inclusive upper bound `b - 1`; an open tail is
-      `Infinity`). No integer range-set module: these arithmetic facts are
-      the whole difference.
+      `Infinity`) once a consumer needs one. The front end's `rangeEncode` and
+      `range` in [`../../module.f.mjs`](../../module.f.mjs) refuse a range
+      ending at the top today; the singleton already lowers to the open
+      tail, through `symbolTerminal` in `../../data`. No integer range-set
+      module: these arithmetic facts are the whole difference. The symbol predicate `isSymbol` and EOF's
+      number `eofSymbol` already have one owner, `../../data`, which the
+      front end and `../../ll1` import; they move here with the rest.
 - [x] Settle the IR carrier together with ebnf-front-end's Problem 1 —
       settled in [`../../data`](../../data/README.md), the
       `data/` issue, before any backend touches a set: a tagged tuple for
@@ -319,21 +323,10 @@ justification is the API and the AST, which is where
       `number`, and the lowering validates the range-set invariants,
       intersects with the domain and requires safe-integer boundaries
       ([`../../README.md`](../../README.md), [`../../data`](../../data/README.md)).
-- [ ] Alphabet adapters: `not` in `fjs/ebnf/unicode/`, as difference against
-      the Unicode universe. `range` and `set` are not adapter names — they
-      ship in the front end and return terminal rules (**Amended** above, and
-      [unicode-rules](../../unicode/todo/unicode-rules.md)) — so `not` follows
-      them rather than producing a set value. `str` is not one of them
-      either: `str('true')` is a `Tuple` of one-symbol terminals, the
-      front-end type with sequence semantics, one per code point, exactly
-      as a bare `string` lowers today
-      ([unicode-rules](../../unicode/todo/unicode-rules.md) says the
-      same). `byte/`'s
-      `not` shipped ([`../../byte`](../../byte/README.md)).
 - [x] `fjs/ebnf/ll1/`: the first sets are range sets, and a conflict error
       names the rule.
 - [x] The ported grammars — `ebnf/lib/json`, `ebnf/lib/datajs`, `ebnf/lib/js`
-      and `fjs/fsc/parser/grammar` — spell their character classes as sets;
+      and `fjs/compiler/parser/grammar` — spell their character classes as sets;
       the per-character variant nodes of the classical ASTs are gone with
       them. The `djs` tokenizer's grammar spells each complement as a
       difference against the Unicode universe with the front end's `remove`
@@ -355,11 +348,8 @@ justification is the API and the AST, which is where
   own the alphabet-scoped `not`.
 - [terminal-range-representation](./terminal-range-representation.md) — the
   bigint domain; the toggle list is the representation it was looking for.
-- [symbol-domain-owner](../../todo/symbol-domain-owner.md) — the
-  `ebnf/terminal/` module, which owns the domain set `[0]`, `eof` and the
-  integer helpers. The migration this landed under is
-  [DESIGN.md §11](../../../../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces)'s worked
-  example.
+- [DESIGN.md §11](../../../../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces) —
+  the migration that reserved `ebnf/terminal/`, its worked example.
 - rule-visitor (retired; shipped as `matchRule` in
   [`../../data`](../../data/module.f.mjs)) — discriminates the data
   `Rule`, so it waited on the same IR carrier decision and landed with it.

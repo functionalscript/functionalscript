@@ -3,7 +3,7 @@
  *
  * Every case in [`module.f.mjs`](./module.f.mjs) is lowered to the EDAG
  * expression it denotes and evaluated here, so the shared data is proven to
- * describe JavaScript before `nanvm-lib/tests/test/generated.rs` holds
+ * describe JavaScript before `nanvm-lib/tests/test/gen.corpus/` holds
  * `nanvm-lib` to it. This module contains no test cases of its own beyond
  * `jsOnly` (below `edagShape`) and `crossCheck` (below `group`) — adding a
  * case means editing the data.
@@ -28,17 +28,21 @@
  *
  * @import { Exp } from '../edag/types.ts'
  * @import { Context } from '../edag/amnesia/types.ts'
- * @import { Case, Expectation, Group, SharedNode, Value } from './types.ts'
+ * @import { AnyCase, CallbackName, Expectation, Group, SharedNode, Value } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
+import { structurallySame } from '../types/object/structurally_same/module.f.mjs'
 import { exp } from '../edag/module.f.mjs'
 import { vm } from '../edag/amnesia/module.f.mjs'
 import { validate } from '../rtti/validate/module.f.mjs'
 import {
+    callback,
+    callbackExp,
     caseExp,
     casesOf,
     data,
+    functionExp,
     functionValue,
     groupKey,
     hasUnreached,
@@ -46,6 +50,7 @@ import {
     lambdaExp,
     orders,
     ref,
+    returns,
     sharedExp,
     unreached,
     unreachedExp,
@@ -72,7 +77,7 @@ const { fromEntries, is } = Object
  * `Object.getOwnPropertyDescriptor` read is not a copy of `amnesia`'s
  * stricter receiver/key invariants — `nonStringKeyThrows` (`[{1: 42}, 1]`) is
  * real JS and does *not* throw through the descriptor read, only through
- * `amnesia`'s FS-specific string-key check — so the two are expected to
+ * `amnesia`'s FJS-specific string-key check — so the two are expected to
  * disagree there, and every `own` case is proven by `amnesia` alone.
  *
  * The `any` parameters are the point of the exercise: these operators are
@@ -111,6 +116,26 @@ const js = {
     '!==': (a, b) => a !== b,
     '?:': (a, b, c) => a ? b : c,
 }
+
+/**
+ * The JavaScript a method group denotes: the host's own built-in, called on
+ * the receiver with the rest as its arguments — `(r, ...a) => r.at(...a)`.
+ * One entry for every method rather than one per name in {@link js}: the
+ * method is the host's, so there is nothing per name to write, and
+ * `amnesia`'s `callProperty` reaching the same built-in through the chain
+ * node is exactly what this checks against.
+ *
+ * @type {(method: string) => (...args: readonly any[]) => unknown}
+ */
+const methodReference = method => (r, ...a) => r[method](...a)
+
+/**
+ * A group's reference: {@link js}'s entry for an operator, possibly absent,
+ * and {@link methodReference} for a method, never absent.
+ *
+ * @type {(g: Group) => ((...args: readonly any[]) => unknown) | undefined}
+ */
+const referenceOf = g => 'method' in g ? methodReference(g.method) : js[groupKey(g)]
 
 /**
  * The operation a key names. A key with no entry is a gap in this module, not
@@ -215,7 +240,7 @@ const run = g => args => corpus()(exprOf(g)(args))
  * that asserts a throw can assert one call, so the two implementations cannot
  * share it. Everything around that they can, which is what this is.
  *
- * @type {(g: Group) => (leaves: (c: Case<1> | Case<2> | Case<3>) => readonly (readonly[string, () => void])[]) => object}
+ * @type {(g: Group) => (leaves: (c: AnyCase) => readonly (readonly[string, () => void])[]) => object}
  */
 const tree = g => leaves => {
     const cases = casesOf(g)
@@ -232,20 +257,22 @@ const tree = g => leaves => {
  * @type {(g: Group) => object}
  */
 const group = g => {
-    /** @type {(c: Case<1> | Case<2> | Case<3>) => readonly (readonly[string, () => void])[]} */
+    /** @type {(c: AnyCase) => readonly (readonly[string, () => void])[]} */
     const leaves = c => {
         const { expected } = c
         /** @type {(args: readonly Value[]) => () => void} */
         const fn = isThrows(expected)
             ? args => () => { run(g)(args) }
             : args => () => {
-                // `Object.is` rather than `===`, so `NaN` matches `NaN` and
-                // `0` does not match `-0`; the Rust side compares the same way.
+                // Structurally, with `Object.is` at the leaves, so `NaN`
+                // matches `NaN` and `0` does not match `-0`, and a fresh
+                // array matches an equal one; the Rust side compares the
+                // same way.
                 const result = run(g)(args)
                 // `expected` describes the outcome, not the program, so it is
                 // built as a value and never joined to the case's expression.
                 const e = vm(context)(valueExp(expected))
-                assert(is(result, e), [result, 'is not', e])
+                assert(structurallySame(result, e), [result, 'is not', e])
             }
         return orders(g)(c).map(([name, args]) => [name, fn(args)])
     }
@@ -289,9 +316,9 @@ const group = g => {
  */
 const crossCheck = g => {
     const key = groupKey(g)
-    const f = js[key]
+    const f = referenceOf(g)
     if (f === undefined) { return {} }
-    /** @type {(c: Case<1> | Case<2> | Case<3>) => readonly (readonly[string, () => void])[]} */
+    /** @type {(c: AnyCase) => readonly (readonly[string, () => void])[]} */
     const leaves = c => c.args.some(hasUnreached) ? [] : orders(g)(c).map(([name, args]) => {
         const e = exprOf(g)(args)
         // One evaluator per run: the case's expression and the reference's
@@ -305,7 +332,7 @@ const crossCheck = g => {
                 const ev = corpus()
                 const amnesiaValue = ev(e)
                 const r = refValue(ev)
-                assert(is(amnesiaValue, r), [amnesiaValue, 'is not', r, 'for', key])
+                assert(structurallySame(amnesiaValue, r), [amnesiaValue, 'is not', r, 'for', key])
             }
         return [name, fn]
     })
@@ -325,7 +352,7 @@ const crossCheck = g => {
 const referenceCoverage = () => {
     for (const g of data.groups) {
         const key = groupKey(g)
-        assert(key === 'own' || key in js, ['no JavaScript reference for', key])
+        assert(key === 'own' || referenceOf(g) !== undefined, ['no JavaScript reference for', key])
     }
     assert(!('own' in js), ['own is excluded deliberately; see the js table'])
 }
@@ -340,11 +367,14 @@ const referenceCoverage = () => {
  * operand without either consumer needing a second walk.
  */
 const lambda = () => {
-    assertStructurallySame(valueExp(functionValue), ['=>', ['[]', []], ['undefined']])
+    assertStructurallySame(valueExp(functionValue), ['=>', 0, ['[]', []], ['undefined']])
     assertStructurallySame(valueExp(functionValue), lambdaExp())
     assertStructurallySame(valueExp([functionValue]), ['[]', [lambdaExp()]])
     assertStructurallySame(valueExp({ f: functionValue }), ['{}', [[':', 'f', lambdaExp()]]])
     assertEq(typeof value(corpus())(functionValue), 'function')
+    // A `returns` is the function a callback is, its value the body.
+    assertStructurallySame(valueExp(returns([1])), ['=>', 0, null, ['[]', [1]]])
+    assertStructurallySame(valueExp(returns(unreached)), functionExp(unreachedExp()))
     // Two function operands are two closures, not one node reached twice.
     const [f, g] = /** @type {readonly unknown[]} */ (
         value(corpus())([functionValue, functionValue]))
@@ -362,6 +392,43 @@ const lambda = () => {
     assertEq(same(ref('holder'), [ref('fn')]), false)
     const [[, fn], [, holder]] = sharedMemo(own)
     assert(/** @type {readonly unknown[]} */ (holder)[0] === fn, ['nested function is a copy'])
+}
+
+/**
+ * Each callback does what its JavaScript spelling says, called through
+ * `amnesia` as a member function calls it, and lowers to a function with a
+ * body wherever it appears.
+ */
+const callbacksProof = () => {
+    /** @type {(name: CallbackName, args: readonly Value[]) => unknown} */
+    const call = (name, args) => corpus()(['()', callbackExp(name), valueExp(args)])
+    assertStructurallySame(call('args', [1, 'a']), [1, 'a'])
+    assertEq(call('first', [3, 4]), 3)
+    assertEq(call('prop', [{ x: 5 }]), 5)
+    assertEq(call('double', [3]), 6)
+    assertEq(call('add', ['a', 'b']), 'ab')
+    assertStructurallySame(call('pair', [1]), [1, [1]])
+    assertEq(call('ascending', [1, 3]), -2)
+    assertEq(call('descending', [1, 3]), 2)
+    assertEq(call('zero', [1, 3]), 0)
+    assertStructurallySame(valueExp(callback('double')), callbackExp('double'))
+    assertStructurallySame(valueExp([callback('args')]), ['[]', [['=>', 0, null, ['rest']]]])
+    assertEq(typeof value(corpus())(callback('args')), 'function')
+}
+
+/**
+ * A method case lowers to the chain node a compiled call is, the receiver
+ * first and the arguments one array operand, and files under a key no
+ * operator's can be.
+ */
+const method = () => {
+    const g = { method: /** @type {const} */ ('at'), cases: [] }
+    assertStructurallySame(
+        exprOf(g)([[1, 2], 0]),
+        ['.', ['[]', [1, 2]], 'at', ['|()', ['[]', [0]]]])
+    assertStructurallySame(exprOf(g)([[]]), ['.', ['[]', []], 'at', ['|()', ['[]', []]]])
+    assertEq(groupKey(g), '.at')
+    assertEq(corpus()(exprOf(g)([[1, 2], -1])), 2)
 }
 
 /**
@@ -465,18 +532,12 @@ const jsOnly = {
     functionToString: () => {
         assertEq(typeof String(() => 5), 'string')
     },
-    /**
-     * `ToPrimitive` consults a `toString` method. `nanvm-lib` has no object
-     * methods yet, so these cases cannot be shared; see
-     * `nanvm-lib/todo/mvp-roadmap.md`.
-     */
-    toStringMethod: () => {
-        assertEq(String({ toString: () => 'custom string' }), 'custom string')
-    },
     throw: {
-        toStringThrows: () => String({ toString: () => { throw 'Custom error' } }),
-        toStringNotAFunction: () => String({ toString: 'hello' }),
-        toStringNotPrimitive: () => String({ toString: () => [] }),
+        /**
+         * A function's body is lowered where nothing is shared: the
+         * lowering shares no node across a function boundary.
+         */
+        refInReturns: () => valuesExp(sharedExp({ a: [] }))(returns(ref('a'))),
         /**
          * `valueExp` resolves no names, so a `ref` in an `expected` — the one
          * position built with it — is a mistake.
@@ -510,11 +571,15 @@ const jsOnly = {
          * `exp` schema.
          */
         wrongOperandCount: () => exprOf({ op: '*', cases: [] })([1]),
+        /** A method case's first operand is its receiver, so it has one. */
+        noReceiver: () => exprOf({ method: 'at', cases: [] })([]),
     },
 }
 
 export const proof = {
     lambda,
+    callbacks: callbacksProof,
+    method,
     referenceCoverage,
     ...fromEntries(data.groups.map(g => [groupKey(g), group(g)])),
     crossCheck: fromEntries(data.groups.map(g => [groupKey(g), crossCheck(g)])),

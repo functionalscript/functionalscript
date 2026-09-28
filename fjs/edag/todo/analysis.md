@@ -1,7 +1,9 @@
 ## EDAG analysis: the nodes to memoize, as one table for a writer and a VM
 
 **Priority:** P2
-**Status:** open
+**Status:** done — kept as the record; cited by
+[`../execution-models.md`](../execution-models.md) and
+[interpret-edag](../../compiler/todo/interpret-edag.md) for the design below
 
 ### Problem
 
@@ -9,7 +11,7 @@ Two consumers of an EDAG have to know which nodes are shared without
 running it, and neither can ask the graph directly.
 
 - The FunctionalScript writer
-  ([`fjs/fsc/serializer`](../../fsc/serializer/module.f.mjs))
+  ([`fjs/compiler/serializer`](../../compiler/serializer/module.f.mjs))
   hoists a shared node into a `const $n`.
 - A JavaScript-compatible executor
   ([`../execution-models.md`](../execution-models.md) §2) evaluates a shared
@@ -17,7 +19,7 @@ running it, and neither can ask the graph directly.
   as JavaScript's does; [`amnesia`](../amnesia/README.md) deliberately does
   not, and evaluates it once per edge.
 - The `fjs compile` value outputs decide sharing on the AST today, by a
-  sweep in [`fjs/fsc/ast`](../../fsc/ast/module.f.mjs) that follows references
+  sweep in [`fjs/compiler/ast`](../../compiler/ast/module.f.mjs) that follows references
   and access keys, because the value path has no graph to read.
 
 Sharing in an EDAG is node identity, which a walk can only see with a memo
@@ -120,7 +122,7 @@ type Analysis = {
   answers as one that computes it twice does. It is what lets the
   EDAG-backed outputs retire the AST's route sweep, and it is the equality
   the writer's round trip is stated over
-  ([`fjs/fsc/serializer`](../../fsc/serializer/module.f.mjs)):
+  ([`fjs/compiler/serializer`](../../compiler/serializer/module.f.mjs)):
   two graphs are the same to the analysis when they differ only where the
   merge says they are one.
 - **Sharing decides how many times, never when.** A shared node has a cache
@@ -145,7 +147,7 @@ type Analysis = {
   writes the JavaScript meaning, so an EDAG the CAVM has optimized is not
   necessarily expressible in `.f.js` and is not promised to survive the
   round trip; that promise is made for the JavaScript-compatible model
-  ([`fjs/fsc/serializer`](../../fsc/serializer/module.f.mjs)).
+  ([`fjs/compiler/serializer`](../../compiler/serializer/module.f.mjs)).
 - **Numbered, not keyed.** The table is built as the DataJS serializer builds
   its graph, a finished list numbered once, and the one `Map` by object
   lives inside that build; no consumer holds one, since each reads indices:
@@ -174,9 +176,9 @@ Two consumers then follow, and share amnesia's operations:
   `[s, s]` one array, and the DataJS serializer hoists and refuses JSON by
   walking that value, as it does today; the `Denotation`'s value and sharing
   are then the executed value's, which is what
-  [`interpret-edag.md`](../../fsc/todo/interpret-edag.md) preserves.
+  [`interpret-edag.md`](../../compiler/todo/interpret-edag.md) preserves.
 
-The table replaces the sharing sweep in `fjs/fsc/ast` — its route-following
+The table replaces the sharing sweep in `fjs/compiler/ast` — its route-following
 becomes the merge step here for the FunctionalScript writer, and the value
 it predicted becomes the executor's real value for the value outputs; the
 value outputs keep the sweep until they run the EDAG.
@@ -198,11 +200,13 @@ value outputs keep the sweep until they run the EDAG.
       operand is evaluated only when demanded — each beside amnesia's answer
       where sharing does not decide it, and `['===', s, s]` pinned as `true`
       here and `false` in amnesia.
-- [ ] The FunctionalScript writer reads the table for its hoisting; the value
-      outputs run the EDAG through `fjs/edag/memo` and hand the value to the
-      DataJS serializer, whose JSON refusal is pinned on `[cfg.x, cfg.x]` with
-      `x: []` refused and `x: 1` written, as the AST proof pins it today.
-- [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
+- [x] The FunctionalScript writer reads the table for its hoisting: `analysis`
+      in [`fjs/compiler/serializer`](../../compiler/serializer/module.f.mjs), which hoists
+      from `shared`. The value outputs running the EDAG through `fjs/edag/memo`
+      is the integration task of
+      [`interpret-edag.md`](../../compiler/todo/interpret-edag.md), which carries the
+      `[cfg.x, cfg.x]` JSON-refusal pin.
+- [x] `tsc`, `fjs test`, `npm run cov` at 100%.
 
 ### Related
 
@@ -210,9 +214,9 @@ value outputs keep the sweep until they run the EDAG.
   §2.3 the writer over it.
 - [`../amnesia/README.md`](../amnesia/README.md) — the operations both
   executors share, and why amnesia itself stays an oracle.
-- [`fjs/fsc/todo/interpret-edag.md`](../../fsc/todo/interpret-edag.md) — the
+- [`fjs/compiler/todo/interpret-edag.md`](../../compiler/todo/interpret-edag.md) — the
   interpreter plan, whose per-invocation memoization this table serves.
-- [`fjs/fsc/serializer`](../../fsc/serializer/module.f.mjs) — the writer
+- [`fjs/compiler/serializer`](../../compiler/serializer/module.f.mjs) — the writer
   that hoists `shared`.
 - [`fjs/media/datajs/serializer`](../../media/datajs/serializer/module.f.mjs) —
   the numbering technique, a finished list and one `Map`, reused here.

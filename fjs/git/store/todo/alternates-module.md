@@ -18,7 +18,7 @@ finding but evidence that "decode a Git-quoted string" recurs and has no
 module, and that in `store`'s case it sits between `objectsDir` and the
 hash check.
 
-Both of this file's issues, [alternates-line-quirks](../../todo/alternates-line-quirks.md)
+Both of this file's issues, [alternates-line-quirks](./alternates-line-quirks.md)
 and [byte-paths](../../todo/byte-paths.md), are about the decoder alone;
 each points at a region of a file rather than at a module.
 
@@ -26,7 +26,7 @@ each points at a region of a file rather than at a module.
 
 `fjs/git/alternates/module.f.mjs` with `alternatesIn` as its one export and
 the decoder private to it, its rooted-entry test built on `fjs/path`'s
-exported predicates per [export-drive-predicates](../../../path/todo/export-drive-predicates.md).
+exported drive predicates (`isDriveLetter`, `isDriveRoot`), as it already is.
 `store` imports one function and keeps the path builders and the search.
 The decoder's proof then runs line shape by line shape against the
 measurement table already in its doc, with no filesystem.
@@ -41,7 +41,7 @@ measurement table already in its doc, with no filesystem.
 
 ### Related
 
-- [`../../todo/alternates-line-quirks.md`](../../todo/alternates-line-quirks.md) —
+- [alternates-line-quirks.md](./alternates-line-quirks.md) —
   what the decoder answers; entirely about the code this moves.
-- [`../../../path/todo/export-drive-predicates.md`](../../../path/todo/export-drive-predicates.md) —
-  the rooted-entry test's owner.
+- [`fjs/path`](../../../path/module.f.mjs) — owns the drive predicates the
+  rooted-entry test reads.

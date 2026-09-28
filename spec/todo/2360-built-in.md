@@ -6,7 +6,7 @@ only inside a complete recognized pattern, not as independent calls.
 
 https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 
-Some of the JS built-in objects and functions are "not allowed" in FS. It means, an FS compiler rejects code that contains "not allowed" objects and functions.
+Some of the JS built-in objects and functions are "not allowed" in FJS. It means, an FJS compiler rejects code that contains "not allowed" objects and functions.
 
 ## Global Scope
 
@@ -15,6 +15,13 @@ Global objects can't be assigned to a variable (`const r = Object`). They can on
 None of these names may be *bound* by a module either, or admitting one
 later would change what a module already means:
 [`2365-global-names.md`](./2365-global-names.md), which lands first.
+
+A ticked box below marks a name the language is to admit, not one it admits
+today. Only `Infinity`, `NaN` and `undefined` are implemented, as reserved
+words ([numbers](../README.md#numbers)); every other global is refused as an
+unbound name (`const not found`), so `export default isFinite(1);` does not
+compile yet. An unticked box is a name not yet decided, or, where it says
+so, never admitted.
 
 ### Value Properties
 
@@ -132,7 +139,7 @@ Use explicit enumerable-entry patterns instead:
 `hasEntity` pattern. `Object.getOwnPropertyDescriptor` is permitted only as
 part of a complete approved AST pattern, never as an exposed descriptor API.
 
-[Statement-aware recognition](../../fjs/fsc/parser/todo/statement-aware-intrinsics.md)
+[Statement-aware recognition](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md)
 resolves statements, expressions and bindings before matching. No built-in
 receives a whitespace-insensitive token-parser shortcut. A standard operation
 must either retain its successful JavaScript behavior or remain prohibited.
@@ -202,7 +209,7 @@ https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 |`decodeURIComponent()`   |no         |
 |`encodeURI()`            |no         |
 |`encodeURIComponent()`   |no         |
-|`eval()`                 |no         |
+|`eval()`                 |runs source; never admitted|
 |`isFinite()`             |no         |
 |`isNaN()`                |no         |
 |`parseFloat()`           |no         |

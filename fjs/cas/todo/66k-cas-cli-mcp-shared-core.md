@@ -14,7 +14,7 @@
 
 ### Problem
 
-The CAS CLI (`fjs/cas/module.f.mjs` `commands`) and the CAS MCP server
+The CAS CLI (`fjs/cas/cli/module.f.mjs` `commands`) and the CAS MCP server
 (`fjs/mcp/cas/module.f.mjs`) both implement the same three operations — add,
 get, list — but with duplicated logic:
 
@@ -58,11 +58,9 @@ and `no such hash` is spelled in both. The shared layer's
 `{ length, mimeType, type }` plus optional `text`/`blob` and a tagged error
 (`absent` / `tooLarge(length)`), with the re-read step one private helper
 and the caller deciding whether a failed second read is a fallback or an
-error. **The `uri` field is not part of that record**: what `uri` is for is
-the open decision in
-[`fjs/mcp/todo/cas-get-uri-discloses-host-path.md`](../../mcp/todo/cas-get-uri-discloses-host-path.md),
-and the MCP adapter shapes it (or omits it) per that decision, so the
-shared layer neither settles nor forecloses it.
+error. **The `uri` field is not part of that record**: it is the MCP
+adapter's opaque `cas:<hash>`, built from the hash alone, so the shared layer
+has nothing to supply for it.
 
 > **Scope note (see `remove-local-file-urls-mcp`, implemented — MCP `type:'url'` is gone):** the shared `add`
 > design below originally included a `url` (file-path) source for *both*
@@ -180,9 +178,8 @@ accepted as-is, the same as `cp`.
 - `remove-local-file-urls-mcp` (implemented, todo file deleted) — removed the
   MCP file-path (`url`) source; this issue's shared `add` must keep the
   file-path source CLI-only
-- `fjs/cas/module.f.mjs` — CLI commands and core types
+- `fjs/cas/cli/module.f.mjs` — CLI commands; `fjs/cas/module.f.mjs` — the store
+  and core types
 - `fjs/mcp/cas/module.f.mjs` — MCP tool registry and server
-- [`fjs/mcp/todo/cas-get-uri-discloses-host-path.md`](../../mcp/todo/cas-get-uri-discloses-host-path.md)
-  — decides what `uri` is; the shared `get` leaves it to the adapter
-- [`fjs/mcp/todo/cas-get-mcp-resource-response.md`](../../mcp/todo/cas-get-mcp-resource-response.md)
-  — gets one place to re-shape once the inspection is a value
+- [`fjs/mcp/todo/remote-url.md`](../../mcp/todo/remote-url.md)
+  — the resource view that re-shapes the same inspection once it is a value

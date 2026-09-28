@@ -18,7 +18,7 @@ import { create } from '../effects/memory/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
 import { number as rttiNumber, option, or, string as rttiString } from '../rtti/module.f.mjs'
 import { parse as rttiParse } from '../rtti/parse/module.f.mjs'
-import { msb, u8ListToVec, vec8, repeat, length, maxLengthBytes } from '../types/bit_vec/module.f.mjs'
+import { u8ListToVecMsb, vec8, repeat, length, maxLengthBytes, bytesIn } from '../types/bit_vec/module.f.mjs'
 import { vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import { encode as base64Encode } from '../basen/base64/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
@@ -249,7 +249,7 @@ const binarySample = base64Encode(vec8(0x2An))
 // A base64 blob whose leading bytes are the PNG magic-byte signature, so
 // `cas_get` detects its type and returns base64 with mimeType image/png.
 const pngSample = base64Encode(
-    u8ListToVec(msb)([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01]))
+    u8ListToVecMsb([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01]))
 
 // Returns the RFC 4648 base64 encoding of `n` zero bytes, computed directly
 // without bigint arithmetic — independent of `base64.encode` so these tests
@@ -285,7 +285,7 @@ const largeMultiChunkBlobMeta =
         const meta = casGetResultOf(metaResp)
         assertEq(meta.type, expectedType)
         assertEq(meta.mimeType, expectedMime)
-        assertEq(meta.length, Number((length(chunk0) + length(chunk1)) / 8n))
+        assertEq(meta.length, Number(bytesIn(length(chunk0) + length(chunk1))))
         assertEq(meta.text, undefined)
         assertEq(meta.blob, undefined)
     }
@@ -293,7 +293,7 @@ const largeMultiChunkBlobMeta =
 // A full `maxLengthBytes`-long chunk of repeated ASCII 'a' — valid UTF-8.
 const asciiChunk = repeat(maxLengthBytes)(vec8(0x61n))
 // The same length, but repeated 2-byte "é" (C3 A9) — valid UTF-8 of multi-byte symbols.
-const symbolChunk = repeat(maxLengthBytes / 2n)(u8ListToVec(msb)([0xc3, 0xa9]))
+const symbolChunk = repeat(maxLengthBytes / 2n)(u8ListToVecMsb([0xc3, 0xa9]))
 // A full chunk of 0xFF — an invalid UTF-8 lead byte, so binary (no magic match).
 const binaryChunk = repeat(maxLengthBytes)(vec8(0xffn))
 
@@ -341,6 +341,35 @@ export const proof = {
         const text = textOf(getResp)
         assert(text.includes('too large'))
         assert(!text.includes('no such hash'))
+        // The way out is the CLI, named with this hash, and never the
+        // server's store path.
+        assert(text.includes(`npx functionalscript cas get ${hash} <path>`), text)
+        // …and says where to run it: the CLI reads its own account's store,
+        // so the same command in a client shell over `ssh` reads another one.
+        assert(text.includes('where this server runs'), text)
+        assert(!text.includes('/home/user'), text)
+    },
+
+    // `uri` is the opaque `cas:<hash>`, never the blob's host path: the store
+    // lives under the account's home directory, which a client of a server
+    // run over `ssh` or in a container must not learn from a hash it named.
+    // Checked on both content shapes and on an oversized blob's metadata.
+    getUriIsOpaqueHash: () => {
+        const [root, hash] = seedBlob({})([vec8(0x41n)])
+        const [meta, inline] = runSessionVirtual(root)([
+            init, initialized,
+            call(2, 'cas_get', { hash }),
+            call(3, 'cas_get', { hash, content: true }),
+        ]).slice(2)
+        const [bigRoot, bigHash] = seedBlob({})([asciiChunk, asciiChunk])
+        const [big] = runSessionVirtual(bigRoot)([
+            init, initialized,
+            call(4, 'cas_get', { hash: bigHash }),
+        ]).slice(2)
+        for (const [resp, h] of /** @type {const} */ ([[meta, hash], [inline, hash], [big, bigHash]])) {
+            assertEq(casGetResultOf(resp).uri, `cas:${h}`)
+            assert(!textOf(resp).includes('/home/user'), textOf(resp))
+        }
     },
 
     // content:true on a genuinely absent hash still reports "no such hash" — the
@@ -722,7 +751,7 @@ export const proof = {
     },
 
     getMetaOctetStreamForUnknownBinary: () => {
-        const binaryContent = u8ListToVec(msb)([0xFF, 0xFE, 0x00, 0x01])
+        const binaryContent = u8ListToVecMsb([0xFF, 0xFE, 0x00, 0x01])
         const binaryB64 = base64Encode(binaryContent)
         const [addResp] = session(call(2, 'cas_add', { content: binaryB64, type: 'base64' }))
         const hash = textOf(addResp)
@@ -740,7 +769,7 @@ export const proof = {
     // A NUL-bearing blob is valid UTF-8 yet binary: cas_get must report
     // base64/octet-stream, not text/plain.
     getMetaOctetStreamForNulBlob: () => {
-        const nulContent = u8ListToVec(msb)([0x00, 0x00, 0x00])
+        const nulContent = u8ListToVecMsb([0x00, 0x00, 0x00])
         const nulB64 = base64Encode(nulContent)
         const [addResp] = session(call(2, 'cas_add', { content: nulB64, type: 'base64' }))
         const hash = textOf(addResp)
@@ -767,7 +796,7 @@ export const proof = {
 
     // cas_get with content:true on octet-stream (no magic bytes, not UTF-8) returns inline base64.
     getOctetStreamWithContentIncludesBase64: () => {
-        const binaryContent = u8ListToVec(msb)([0xFF, 0xFE, 0x00, 0x01])
+        const binaryContent = u8ListToVecMsb([0xFF, 0xFE, 0x00, 0x01])
         const binaryB64 = base64Encode(binaryContent)
         const [addResp] = session(call(2, 'cas_add', { content: binaryB64, type: 'base64' }))
         const hash = textOf(addResp)

@@ -8,29 +8,43 @@
  * @module
  */
 
+import type { Assert } from '../../../asserts/types.ts'
+import type { Equal } from '../../../types/ts/types.ts'
 import type { Rule } from '../../types.ts'
-import type { Container, Entry } from '../json/types.ts'
-import type { string } from '../json/module.f.mjs'
+import type { Value as JsonValue } from '../json/types.ts'
 import type { id, number, property } from './module.f.mjs'
 
 /**
- * The ten alternatives a DataJS value has: JSON's seven, with `number`
- * replaced by this grammar's own — the integer form takes a bigint suffix
- * and `Infinity` is a word — and `NaN`, `undefined` and a reference beside
- * them. A property is a JSON string or the one spelling of `__proto__`.
+ * The members {@link Value} flattens: JSON's seven over this grammar's
+ * property, `number` omitted, and this grammar's four beside them.
+ */
+type Members<V extends Rule> =
+    Omit<JsonValue<typeof property, V>, 'number'> & {
+        readonly number: typeof number
+        readonly nan: 'NaN'
+        readonly undefined: 'undefined'
+        readonly id: typeof id
+    }
+
+/**
+ * The ten alternatives a DataJS value has, spelled the way `value` in
+ * `./module.f.mjs` builds them: JSON's seven over this grammar's property,
+ * with `number` replaced by this grammar's own — the integer form takes a
+ * bigint suffix and `Infinity` is a word — and `NaN`, `undefined` and a
+ * reference beside them. A property is a JSON string or the one spelling of
+ * `__proto__`. A branch JSON's value gains, this one gains too.
+ *
+ * The members are mapped into one object type rather than left as an
+ * intersection, so the type is identical, not only assignable, to the plain
+ * object type that lists the ten members.
  */
 export type Value<V extends Rule> = {
-    readonly array: Container<V>
-    readonly object: Container<Entry<typeof property, V>>
-    readonly string: typeof string
-    readonly number: typeof number
-    readonly true: 'true'
-    readonly false: 'false'
-    readonly null: 'null'
-    readonly nan: 'NaN'
-    readonly undefined: 'undefined'
-    readonly id: typeof id
+    readonly [K in keyof Members<V>]: Members<V>[K]
 }
+
+// `Value` is one object type, not an intersection: it equals its own
+// flattening, which an `Omit<…> & {…}` spelling does not.
+type _Flat = Assert<Equal<Value<DataJsValue>, { readonly [K in keyof Value<DataJsValue>]: Value<DataJsValue>[K] }>>
 
 /**
  * The DataJS grammar's value: a `const` thunk whose payload is {@link Value}

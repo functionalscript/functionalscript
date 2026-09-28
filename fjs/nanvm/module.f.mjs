@@ -8,11 +8,13 @@
  * - [`proof.f.mjs`](./proof.f.mjs) evaluates each case against a standard
  *   JavaScript engine, proving that the expectations describe JavaScript.
  * - [`rust/module.f.mjs`](./rust/module.f.mjs) prints each case as Rust,
- *   producing `nanvm-lib/tests/test/generated.rs`, which runs the same case
+ *   producing `nanvm-lib/tests/test/gen.corpus/`, which runs the same case
  *   against `nanvm-lib`.
  *
- * Beside the data are the format's **constructors** (`functionValue`, `ref`,
- * `throws`, `unreached`), its **eliminators** (`isThrows`, `hasUnreached`,
+ * Beside the data are the format's **constructors** (`functionValue`,
+ * `callback`, `returns`, `ref`, `throws`, `unreached`, written in
+ * [`constructors/module.f.mjs`](./constructors/module.f.mjs) and re-exported
+ * here), its **eliminators** (`isThrows`, `hasUnreached`,
  * `orders`, `groupKey`, `casesOf`, `arityOf`), and the **lowering** that
  * turns a case into the EDAG expression it denotes (`lambdaExp`,
  * `unreachedExp`, `sharedExp`, `valuesExp`, `valueExp`, `caseExp`). All
@@ -25,6 +27,10 @@
  * count — except for an `Op12Id`, legal at both of the first two counts,
  * where the group's own `arity` does.
  *
+ * The operator groups are written here; the member-function groups are in
+ * [`member/module.f.mjs`](./member/module.f.mjs), so that no one file
+ * outgrows the repository's file reader.
+ *
  * Cases `nanvm-lib` does not implement yet carry a `rust` reason and are
  * emitted as commented-out `TODO`s instead of being silently dropped — the
  * gaps between the two implementations are part of the data.
@@ -32,19 +38,23 @@
  * @module
  *
  * @import { Exp, Op1, Op1Id, Op12, Op12Id, Op2, Op2Id, Op3, Op3Id, Property } from '../edag/types.ts'
- * @import { Case, Data, Expectation, FunctionValue, Group, Ref, SharedNode, Struct, Throws, Unreached, Value } from './types.ts'
+ * @import { AnyCase, CallbackName, Case, Data, Expectation, Group, OperatorGroup, SharedNode, Struct, Throws, Value } from './types.ts'
  *
  * @example
  *
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 28
+ * data.groups.length // 73
  * ```
  */
 
 import { op1Id, op3Id } from '../edag/module.f.mjs'
 import { validate } from '../rtti/validate/module.f.mjs'
+import { functionValue, ref, returns, throws, unreached } from './constructors/module.f.mjs'
+import { groups as memberGroups } from './member/module.f.mjs'
+
+export { callback, functionValue, ref, returns, throws, unreached } from './constructors/module.f.mjs'
 
 const { entries } = Object
 
@@ -53,44 +63,6 @@ const isOp1Id = validate(op1Id)
 
 /** The same, for the ternary vocabulary. */
 const isOp3Id = validate(op3Id)
-
-// Constructors — the four things a literal cannot express.
-
-/**
- * A function value.
- *
- * Every operator here coerces a function through `ToPrimitive`, which never
- * inspects it, so which function it is does not matter — and so it lowers to
- * the smallest one, {@link lambdaExp}.
- *
- * @type {FunctionValue}
- */
-export const functionValue = () => ['function']
-
-/**
- * The case must throw. Valid only as a case's `expected`.
- *
- * @type {Throws}
- */
-export const throws = () => ['throw']
-
-/**
- * One of `data.shared`'s values, so the same node — and hence the same
- * object — reaches every `ref` to that name.
- *
- * @type {(name: string) => Ref}
- */
-export const ref = name => () => ['ref', name]
-
-/**
- * An operand the operation must not establish. Lowers to
- * {@link unreachedExp}, an operation that throws when established, so a
- * case's value proves the operand was left alone — `false && unreached` is
- * `false` on both sides only because neither establishes the right operand.
- *
- * @type {Unreached}
- */
-export const unreached = () => ['unreached']
 
 // Eliminators — the constructors read back, so each rule has one owner.
 
@@ -135,7 +107,7 @@ const isCommutative = g => g.commutative === true
  * owner — spelled differently in the two consumers, the JavaScript and Rust
  * names for one case would silently diverge.
  *
- * @type {(g: Group) => (c: Case<1> | Case<2> | Case<3>) => readonly (readonly[string, readonly Value[]])[]}
+ * @type {(g: Group) => (c: AnyCase) => readonly (readonly[string, readonly Value[]])[]}
  */
 export const orders = g => c => isCommutative(g)
     ? [[c.name, c.args], [`${c.name}Swapped`, c.args.toReversed()]]
@@ -145,7 +117,9 @@ export const orders = g => c => isCommutative(g)
  * The name both consumers file a group under: the proof's test key, and the
  * key of the printer's Rust-name table.
  *
- * For every group but an `Op12` one it is the operation tag. Two `Op12`
+ * For a method group it is the method name after a `.`, `'.at'`, which no
+ * operation tag is, so a method never files under an operator's key. For
+ * every operator group but an `Op12` one it is the operation tag. Two `Op12`
  * groups share a tag and differ in arity — `-` at one operand is negation, at
  * two subtraction — so theirs carries the arity too: `'-/1'`, `'-/2'`. One
  * owner for the spelling, as `orders` is for the `Swapped` suffix: spelled
@@ -154,7 +128,10 @@ export const orders = g => c => isCommutative(g)
  *
  * @type {(g: Group) => string}
  */
-export const groupKey = g => 'arity' in g ? `${g.op}/${g.arity}` : g.op
+export const groupKey = g =>
+    'method' in g ? `.${g.method}`
+    : 'arity' in g ? `${g.op}/${g.arity}`
+    : g.op
 
 /**
  * A group's cases, read without first deciding which kind of group it is.
@@ -162,7 +139,7 @@ export const groupKey = g => 'arity' in g ? `${g.op}/${g.arity}` : g.op
  * The operand count is the point of the three group types, and it is fixed
  * before a consumer gets here; walking the cases does not need it back.
  *
- * @type {(g: Group) => readonly (Case<1> | Case<2> | Case<3>)[]}
+ * @type {(g: Group) => readonly AnyCase[]}
  */
 export const casesOf = g => g.cases
 
@@ -177,7 +154,10 @@ export const casesOf = g => g.cases
  * statically, for the consumers that walk `data.groups` and so hold a
  * `Group` whose arm is no longer known.
  *
- * @type {(g: Group) => 1 | 2 | 3}
+ * A method group has no such count — a call takes any number of arguments
+ * — so it is not asked.
+ *
+ * @type {(g: OperatorGroup) => 1 | 2 | 3}
  */
 export const arityOf = g => {
     if ('arity' in g) { return g.arity }
@@ -199,7 +179,59 @@ export const arityOf = g => {
  *
  * @type {() => Exp}
  */
-export const lambdaExp = () => ['=>', ['[]', []], ['undefined']]
+export const lambdaExp = () => ['=>', 0, ['[]', []], ['undefined']]
+
+/** `a[i]`, over the invocation's rest array: how a callback reads its arguments. @type {(i: number) => Exp} */
+const restAt = i => ['.', ['rest'], i]
+
+/**
+ * The corpus's callbacks by name, each the body of a function of one rest
+ * parameter, `(...a) => body`, with its JavaScript spelling:
+ *
+ * - `args`, `(...a) => a`: what the callback was given, so a `map(args)`
+ *   case pins the element, the index, the array and how many there are —
+ *   `reduce`'s four included.
+ * - `first`, `(...a) => a[0]`: the element itself, a predicate by its
+ *   truthiness.
+ * - `prop`, `(...a) => a[0].x`: truthy on `{ x: 1 }`, falsy on `{}`, and a
+ *   throw on `null`, so a case can prove an element was never visited.
+ * - `double`, `(...a) => a[0] * 2`.
+ * - `add`, `(...a) => a[0] + a[1]`: a fold whose order shows with strings.
+ * - `pair`, `(...a) => [a[0], [a[0]]]`: one level of an array, and one below.
+ * - `ascending`, `(...a) => a[0] - a[1]`, and `descending`,
+ *   `(...a) => a[1] - a[0]`: comparators.
+ * - `zero`, `() => 0`: a comparator calling every pair equal, which only a
+ *   stable sort answers with the elements in their order.
+ *
+ * @type {{ readonly [k in CallbackName]: () => Exp }}
+ */
+export const callbacks = {
+    args: () => ['rest'],
+    first: () => restAt(0),
+    prop: () => ['.', restAt(0), 'x'],
+    double: () => ['*', restAt(0), 2],
+    add: () => ['+', restAt(0), restAt(1)],
+    pair: () => ['[]', [restAt(0), ['[]', [restAt(0)]]]],
+    ascending: () => ['-', restAt(0), restAt(1)],
+    descending: () => ['-', restAt(1), restAt(0)],
+    zero: () => 0,
+}
+
+/**
+ * A function with a body: `(...a) => body`, no captures, a fresh node on
+ * every call like {@link lambdaExp}. What a `callback` and a `returns`
+ * both lower to; they differ only in the body.
+ *
+ * @type {(body: Exp) => Exp}
+ */
+export const functionExp = body => ['=>', 0, null, body]
+
+/**
+ * The expression a callback denotes: the {@link functionExp} of its body.
+ *
+ * @type {(name: CallbackName) => Exp}
+ */
+export const callbackExp = name => functionExp(callbacks[name]())
 
 /**
  * The expression an `unreached` denotes: `1n / 0n`, which throws when
@@ -228,9 +260,10 @@ export const unreachedExp = () => ['/', 1n, 0n]
  * fresh node, so a multiply-referenced node in a derived expression is always
  * a `ref` and never an accident of the walk.
  *
- * A {@link Value} admits three thunks, and this walk has a case for each: a
- * `ref` resolves, a `functionValue` is {@link lambdaExp}, and an `unreached`
- * is {@link unreachedExp}. `throws` is an {@link Expectation}, not spellable
+ * A {@link Value} admits five thunks, and this walk has a case for each: a
+ * `ref` resolves, a `functionValue` is {@link lambdaExp}, a `callback` is
+ * {@link callbackExp}, a `returns` is the {@link functionExp} of its value,
+ * and an `unreached` is {@link unreachedExp}. `throws` is an {@link Expectation}, not spellable
  * here, so it is not rejected here either.
  *
  * @type {(resolve: (name: string) => Exp) => (v: Value) => Exp}
@@ -242,6 +275,8 @@ const constExp = resolve => {
             const info = v()
             return info[0] === 'ref' ? resolve(info[1])
                 : info[0] === 'function' ? lambdaExp()
+                : info[0] === 'callback' ? callbackExp(info[1])
+                : info[0] === 'returns' ? functionExp(valueExp(info[1]))
                 : unreachedExp()
         }
         if (v === undefined) { return ['undefined'] }
@@ -278,6 +313,7 @@ export const valueExp = constExp(name => { throw ['no shared value here', name] 
  * @type {(shared: readonly SharedNode[]) => (g: Group) => (args: readonly Value[]) => Exp}
  */
 export const caseExp = shared => g => args => {
+    if ('method' in g) { return methodExp(valuesExp(shared))(g.method)(args) }
     // The operand count comes from the group, not from the operands. A
     // `Case<N>` cannot carry the wrong number, but this function is exported
     // and its `args` are a plain array, so a caller can hand over a count the
@@ -297,6 +333,24 @@ export const caseExp = shared => g => args => {
             ? [/** @type {Op2Id | Op12Id} */ (g.op), a, b]
             : [/** @type {Op3Id} */ (g.op), a, b, c]
     return e
+}
+
+/**
+ * The expression a method case denotes: the call `receiver.method(...rest)`
+ * as the chain node a compiled one is — the `.` read owning its `|()` call
+ * step, the arguments one array operand spread at the call
+ * ([Chains](../edag/README.md#chains)). So `[1, 2].at(0)` is
+ * `['.', ['[]', [1, 2]], 'at', ['|()', ['[]', [0]]]]`.
+ *
+ * A case holds its receiver, so `args` is never empty; the refusal is for a
+ * caller of the exported `caseExp`, whose `args` are a plain array.
+ *
+ * @type {(f: (v: Value) => Exp) => (method: string) => (args: readonly Value[]) => Exp}
+ */
+const methodExp = f => method => args => {
+    if (args.length === 0) { throw ['a method case has no receiver', method] }
+    const [receiver, ...rest] = args.map(f)
+    return ['.', receiver, method, ['|()', ['[]', rest]]]
 }
 
 /**
@@ -378,6 +432,18 @@ const numberCoercionCases = negate => {
         { name: 'arrayNull', args: [[null]], expected: result(0) },
         { name: 'arrayPair', args: [[null, null]], expected: NaN },
         { name: 'objectEmpty', args: [{}], expected: NaN },
+        // `OrdinaryToPrimitive` with the `number` hint: `valueOf` first,
+        // then `toString`, each an own method if the object has one.
+        { name: 'objectOwnValueOf', args: [{ valueOf: functionValue }], expected: NaN },
+        { name: 'objectOwnValueOfNumber', args: [{ valueOf: returns(2.3) }], expected: result(2.3) },
+        { name: 'objectOwnToString', args: [{ toString: returns('2.3') }], expected: result(2.3) },
+        { name: 'objectOwnBoth', args: [{ valueOf: returns(1), toString: returns('2') }], expected: result(1) },
+        // A method that is no function is skipped.
+        { name: 'objectOwnValueOfNotAFunction', args: [{ valueOf: 'x' }], expected: NaN },
+        // A result that is no primitive moves on to the next method.
+        { name: 'objectOwnValueOfNotPrimitive', args: [{ valueOf: returns({}), toString: returns('2') }], expected: result(2) },
+        { name: 'objectOwnNoPrimitive', args: [{ toString: returns([]) }], expected: throws },
+        { name: 'objectOwnValueOfThrows', args: [{ valueOf: returns(unreached), toString: returns('2') }], expected: throws },
         { name: 'function', args: [functionValue], expected: NaN },
     ]
 }
@@ -668,6 +734,10 @@ const addCases = [
     { name: 'onePlusStringTwo', args: [1, '2'], expected: '12' },
     { name: 'bigOnePlusBigOne', args: [1n, 1n], expected: 2n },
     { name: 'bigOnePlusStringTwo', args: [1n, '2'], expected: '12' },
+    // No hint: an object's own `valueOf` first, as for `number`.
+    { name: 'ownValueOfPlusOne', args: [{ valueOf: returns(1) }, 1], expected: 2 },
+    { name: 'ownBothPlusString', args: [{ valueOf: returns(1), toString: returns('t') }, '!'], expected: '1!' },
+    { name: 'stringPlusOwnToString', args: ['a', { toString: returns('b') }], expected: 'ab' },
     { name: 'stringOnePlusBigTwo', args: ['1', 2n], expected: '12' },
     { name: 'emptyArrayPlusOne', args: [[], 1], expected: '1' },
     { name: 'arrayOnePlusTwo', args: [[1], 2], expected: '12' },
@@ -1070,8 +1140,23 @@ const stringCoercionCases = [
     { name: 'array', args: [[1, 2, 3]], expected: '1,2,3' },
     { name: 'nestedArray', args: [[1, [2, 3], 4]], expected: '1,2,3,4' },
     { name: 'arrayWithNullish', args: [[null, undefined, 1]], expected: ',,1' },
+    { name: 'arrayWithOwnToString', args: [[{ toString: returns('x') }, 1]], expected: 'x,1' },
     { name: 'emptyObject', args: [{}], expected: '[object Object]' },
     { name: 'object', args: [{ a: 1 }], expected: '[object Object]' },
+    // `OrdinaryToPrimitive` with the `string` hint: `toString` first, then
+    // `valueOf`, each an own method if the object has one.
+    { name: 'objectOwnToString', args: [{ toString: functionValue }], expected: 'undefined' },
+    { name: 'objectOwnToStringMethod', args: [{ toString: returns('custom string') }], expected: 'custom string' },
+    { name: 'objectOwnValueOf', args: [{ valueOf: returns(1) }], expected: '[object Object]' },
+    { name: 'objectOwnBoth', args: [{ valueOf: returns(1), toString: returns('t') }], expected: 't' },
+    // A method that is no function is skipped: after `toString`, the stock
+    // `valueOf` answers the object, so the conversion throws.
+    { name: 'objectOwnToStringNotAFunction', args: [{ toString: 'h' }], expected: throws },
+    { name: 'objectOwnValueOfNotAFunction', args: [{ valueOf: 'x' }], expected: '[object Object]' },
+    // A result that is no primitive moves on to the next method.
+    { name: 'objectOwnToStringNotPrimitive', args: [{ toString: returns({}), valueOf: returns(1) }], expected: '1' },
+    { name: 'objectOwnNoPrimitive', args: [{ toString: returns([]) }], expected: throws },
+    { name: 'objectOwnToStringThrows', args: [{ toString: returns(unreached) }], expected: throws },
 ]
 
 /**
@@ -1406,6 +1491,9 @@ const ownCases = [
     { name: 'valuePreservesNullType', args: [{ a: null }, 'a'], expected: null },
     { name: 'multiplePropertiesDistinguished', args: [{ a: 1, b: 2 }, 'b'], expected: 2 },
     { name: 'numericStringKey', args: [{ 1: 42 }, '1'], expected: 42 },
+    // A key no UTF-8 literal can spell: it reaches Rust as code units, both
+    // in the object literal and as the operand.
+    { name: 'loneSurrogateKey', args: [{ '\uD800': 42 }, '\uD800'], expected: 42 },
     { name: 'nonObjectNumberReceiver', args: [5, 'a'], expected: undefined },
     // `'length'` would be the wrong probe here: real JS strings and arrays
     // carry real own properties for `.length` (and, for arrays, numeric
@@ -1541,5 +1629,6 @@ export const data = {
         { op: 'typeof', cases: typeofCases },
         { op: 'String', cases: stringCoercionCases },
         { op: 'own', cases: ownCases },
+        ...memberGroups,
     ],
 }

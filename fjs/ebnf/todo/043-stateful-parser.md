@@ -11,7 +11,7 @@ materializes every symbol before parsing starts. That rules out parsing a
 stream, checkpointing a partial parse, and composing a parser with the decoders
 and tokenizers that produce its input ([layered-parser](./layered-parser.md),
 where every layer is a streaming fold). The token layer works around it with
-the `start` index: `fjs/fsc/tokenizer` holds the whole input and resumes the
+the `start` index: `fjs/js/tokenizer` holds the whole input and resumes the
 one-token parser where the last token ended, which is a loop over an array,
 not a fold over a stream.
 
@@ -114,8 +114,11 @@ this document"). Both hold at once because they are different layers.
       those are not.
 - [ ] Replace the cursor-into-array reads in
       [`../ll1/module.f.mjs`](../ll1/module.f.mjs) with a state that suspends
-      when it needs the next symbol. `symbolAt`, `accepts`, `leafAt` and the
-      `pos <= length` comparisons are the sites.
+      when it needs the next symbol. `symbolAt` and `leafAt` are the reads;
+      the end-of-input handling around them — `symbolAt`'s end case,
+      `accepts`' `pos <= length` guard, `physical` — is
+      [eof-as-ordinary-symbol](../terminal/todo/eof-as-ordinary-symbol.md)'s
+      to delete.
 - [ ] Replace the "ran out of input" test. The machine tells that from
       "rejected" by comparing against a known length, which a streaming
       parser does not have. It no longer needs one: the caller's EOF symbol

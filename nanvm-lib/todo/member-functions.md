@@ -1,8 +1,8 @@
 ## Member functions of the built-in types
 
 **Priority:** P2
-**Status:** open — `toString` is answered on every type, as a dispatch to
-`Any::to_string`, and `Array`'s `at`; the rest is unchecked
+**Status:** open — `toString` dispatch and `Array`'s `at` are wired; default
+function-text semantics remain incomplete, as tracked in the checklist below
 
 ### Problem
 
@@ -54,54 +54,70 @@ unchanged: no user function reads `this`, and the receiver is consumed by
 the built-in and never handed on. The printer and the generated code are
 unchanged — `Any::dot(a, key).end_call(args)` is already the spelling.
 
-**One file per built-in**, under the receiver's type — `vm/array/at.rs`,
-`vm/string/at.rs`, `vm/number/to_fixed.rs` — each with its tests, the same
-layout the per-type `member_access.rs` files have. A name shared by types,
-`at`, `concat`, `includes`, `indexOf`, `lastIndexOf`, `slice`, `toString`,
-is one entry per type, since the algorithms differ. Callbacks — `map`,
-`filter`, `reduce` and the rest — reach the user's function through
-`Function::call` with an arguments array of the element, its index and the
-array itself.
+**One file per built-in, or per family sharing one algorithm**, under the
+receiver's type — `vm/array/at.rs`, `vm/array/reduce.rs` for `reduce` and
+`reduceRight`, `vm/string/reads.rs` for the six code-unit reads — each with
+its tests, the same layout the per-type `member_access.rs` files have. A
+name shared by types, `at`, `concat`, `includes`, `indexOf`, `lastIndexOf`,
+`slice`, `toString`, is one entry per type, since the algorithms differ.
+Callbacks — `map`, `filter`, `reduce` and the rest — reach the user's
+function through `Function::call` with an arguments array of the element,
+its index and the array itself.
 
 **Completeness is tested, not promised.** The compiler's list and the VM's
 tables must agree, or a name compiles and throws. One test walks
 `allowedCalls` against the per-type prototype lists and asserts every
 type-and-name pair has an entry — the lists live in FunctionalScript, so
 the pairs reach Rust as a generated table, the way the operator corpus
-reaches `nanvm-lib/tests/test/generated.rs` through `npm run gen`. Until
+reaches `nanvm-lib/tests/test/gen.corpus/` through `npm run gen`. Until
 that test passes, this file is the checklist, and a pair is checked here
 in the pull request that lands it. Each entry's behavior is pinned against
 the JavaScript oracle as the operators are: the shared corpus drives both
 the amnesia evaluator on the host engine and the generated Rust tests.
+Default function text is the explicit exception: its oracle is the adopted
+EDAG-rendering contract, not authored JavaScript or factory-wrapper source.
 
-**Function `toString`** is on the list and is a stub until a function
-carries its EDAG (`callable-function-objects.md`, Stage 7): it answers the
-placeholder `fn_to_string` in `vm/primitive_coercion.rs` already answers,
-since the compiler has transformed the source text the real one would
-answer. The same stub reaches every method that converts a function to a
-string on the way — an array's `join` or `toString` over an element that
-is a function, a string method whose argument is one — and the host
-evaluator in `fjs/edag/operations` has the same gap with a different
-placeholder, the text of the closure it wraps a function in. One task,
-Stage 7, closes all of it. A stub with its TODO is the accepted shape here;
-the design principle against a plausible wrong value binds the MVP
-surface. `Number`'s `toString` with a radix is the other stub, and today
-it is a stub in full: the entry reads no arguments, so `(255).toString(16)`
-answers `"255"` and `(1.5).toString(2)` answers `"1.5"`. The plan, the
-radix task below, is a radix for integers and for bigints, and a throw for
-a non-integer with a radix other than ten, which the specification leaves
-implementation-approximated, with the corpus pinning integers and radix
-ten alone.
+**Function `toString`: required semantic rendering.** The placeholder in
+`fn_to_string` (`vm/primitive_coercion.rs`) and the host evaluator's wrapper
+text are existing implementation gaps, not accepted successful output.
+The former direction to accept that stub until Stage 7 is superseded by the
+[default function-text contract](../../spec/todo/serialization.md#function-text-and-serialization)
+and the [named/rest rendering requirements](../../spec/todo/3120-parameters.md#default-function-text-render-or-refuse).
+
+Keep enough association with the function's semantic EDAG, and captured
+frame where the selected contract needs it, to use the shared default
+renderer. Direct `f.toString()`, `Any::to_string` / `String(f)`, array
+`join` / `toString` over functions, property-key conversion and admitted
+string-method coercions must reach the same operation. Fixing only the
+member-dispatch entry leaves the indirect paths wrong. Full EDAG embedding
+and hashing may remain Stage 7 work; the association needed for supported
+default conversions may not wait for it. Resolve only the rendering choices
+needed by each supported case in the serialization TODO; user-defined
+overrides are separate from this required default behavior.
+
+Preserve supported function creation, calls, returns, exports and host calls,
+including call-only consumers and nested returned functions. Supply and prove
+the association/rendering mechanism before replacing a supported callable
+path. Do not reject exports to avoid later conversion. Explicit refusal is
+only for genuinely unsupported conversion cases at their established boundary,
+not a replacement for supported behavior. Neither placeholders nor host
+wrapper text satisfy the contract. This documentation correction changes no
+runtime behavior; the `Function` checklist remains open until semantic
+rendering and its conversion paths are proved, not merely dispatched.
+
+`Number`'s and `BigInt`'s `toString` take a radix, `2` to `36`: an integer
+and every bigint convert exactly, and a fraction with a radix other than ten
+is refused, since ECMAScript leaves its digits to the engine
+([`vm/string/README.md`](../src/vm/string/README.md)).
 
 **`toString` is mostly written.** `Any::to_string`, the `String(x)`
 conversion in `vm/string_coercion.rs`, answers what `x.toString()` answers
 for a number, a boolean, a bigint and a string, `[object Object]` for an
 object and the comma-joined elements for an array, so the first entries
-are a dispatch over bodies that exist. Two gaps it shares with the
-conversion path: an own `toString` or `valueOf` on an object is not
-called by `ToPrimitive` yet, where JavaScript's `String({ toString: f })`
-calls `f` — the same own-property-first lookup as the call step, to wire
-once for both — and `Number`'s `toString` takes no radix.
+are a dispatch over bodies that exist. `ToPrimitive` calls an object's
+own `toString` or `valueOf`, the same own-property-first lookup as the call
+step, so `String(o)` and `o.toString()` agree
+([`to-primitive.md`](./to-primitive.md)).
 
 ### Tasks
 
@@ -115,82 +131,92 @@ Infrastructure:
       answers `toString` on the key alone, since every type has it, and
       every other name from the receiver type's own table, `array` the
       first.
-- [ ] The generated completeness test over `allowedCalls`.
-- [ ] `toString` reads its arguments: a radix for `Number` and `BigInt`.
-      Today the arguments are not read, so `(255).toString(16)` answers
-      `"255"` — a stub with this as its TODO.
+- [x] The generated completeness test over `allowedCalls` —
+      `completeness` in `vm/lambda/method.rs`, over the table
+      `fjs/nanvm/methods` prints as `vm/lambda/gen.methods.rs`, with the
+      unanswered pairs listed there as `pending`.
+- [x] `toString` on a `Number` or a `BigInt` throws for any radix argument
+      but `undefined` and `10`, pinned by `to_string_radix` in
+      `vm/lambda/method.rs`, so no module gets `"255"` for
+      `(255).toString(16)` while the radix is written.
+- [x] `toString` applies a radix for `Number` and `BigInt`, with corpus
+      cases, lifting the refusal above.
 - [ ] Corpus cases for every entry, run on the host engine and as
-      generated Rust.
-- [ ] `ToPrimitive` calls an object's own `toString` and `valueOf`, the
-      lookup the call step uses, so `String(o)` and `o.toString()` agree.
+      generated Rust. Use the adopted EDAG-rendering contract as the oracle
+      for default function text; native wrapper text is not that oracle.
+- [x] `ToPrimitive` calls an object's own `toString` and `valueOf`, the
+      lookup the call step uses, so `String(o)` and `o.toString()` agree:
+      [`to-primitive.md`](./to-primitive.md).
 
 `Object`:
 
 - [x] `toString`
 
-`Array`:
+`Array` — complete; what is out by design, and the arguments whose
+presence decides an answer, are
+[`vm/array/README.md`](../src/vm/array/README.md):
 
 - [x] `at` — `vm/array/at.rs`; the index is `Number::to_integer_or_infinity`,
       `ToIntegerOrInfinity` of the argument converted by `ToNumber`.
-- [ ] `concat`
-- [ ] `every`
-- [ ] `filter`
-- [ ] `find`
-- [ ] `findIndex`
-- [ ] `findLast`
-- [ ] `findLastIndex`
-- [ ] `flat`
-- [ ] `flatMap`
-- [ ] `includes`
-- [ ] `indexOf`
-- [ ] `join`
-- [ ] `lastIndexOf`
-- [ ] `map`
-- [ ] `reduce`
-- [ ] `reduceRight`
-- [ ] `slice`
-- [ ] `some`
-- [ ] `toReversed`
-- [ ] `toSorted`
-- [ ] `toSpliced`
+- [x] `concat` — `vm/array/concat.rs`
+- [x] `every` — `vm/array/every.rs`
+- [x] `filter` — `vm/array/filter.rs`
+- [x] `find` — `vm/array/find.rs`
+- [x] `findIndex` — `vm/array/find_index.rs`
+- [x] `findLast` — `vm/array/find.rs`
+- [x] `findLastIndex` — `vm/array/find_last_index.rs`
+- [x] `flat` — `vm/array/flat.rs`
+- [x] `flatMap` — `vm/array/flat.rs`
+- [x] `includes` — `vm/array/includes.rs`
+- [x] `indexOf` — `vm/array/index_of.rs`
+- [x] `join` — `vm/array/join.rs`
+- [x] `lastIndexOf` — `vm/array/last_index_of.rs`
+- [x] `map` — `vm/array/map.rs`
+- [x] `reduce` — `vm/array/reduce.rs`
+- [x] `reduceRight` — `vm/array/reduce.rs`
+- [x] `slice` — `vm/array/slice.rs`
+- [x] `some` — `vm/array/some.rs`
+- [x] `toReversed` — `vm/array/to_reversed.rs`
+- [x] `toSorted` — `vm/array/to_sorted.rs`
+- [x] `toSpliced` — `vm/array/to_spliced.rs`
 - [x] `toString`
-- [ ] `with`
+- [x] `with` — `vm/array/with.rs`
 
-`String`:
+`String` — complete; what is out by design, and when an argument is read,
+are [`vm/string/README.md`](../src/vm/string/README.md):
 
-- [ ] `at`
-- [ ] `charAt`
-- [ ] `charCodeAt`
-- [ ] `codePointAt`
-- [ ] `concat`
-- [ ] `endsWith`
-- [ ] `includes`
-- [ ] `indexOf`
-- [ ] `isWellFormed`
-- [ ] `lastIndexOf`
-- [ ] `padEnd`
-- [ ] `padStart`
-- [ ] `repeat`
-- [ ] `replace`
-- [ ] `replaceAll`
-- [ ] `slice`
-- [ ] `split`
-- [ ] `startsWith`
-- [ ] `substring`
+- [x] `at` — `vm/string/reads.rs`
+- [x] `charAt` — `vm/string/reads.rs`
+- [x] `charCodeAt` — `vm/string/reads.rs`
+- [x] `codePointAt` — `vm/string/reads.rs`
+- [x] `concat` — `vm/string/building.rs`
+- [x] `endsWith` — `vm/string/search.rs`
+- [x] `includes` — `vm/string/search.rs`
+- [x] `indexOf` — `vm/string/search.rs`
+- [x] `isWellFormed` — `vm/string/reads.rs`
+- [x] `lastIndexOf` — `vm/string/search.rs`
+- [x] `padEnd` — `vm/string/building.rs`
+- [x] `padStart` — `vm/string/building.rs`
+- [x] `repeat` — `vm/string/building.rs`
+- [x] `replace` — `vm/string/patterns.rs`
+- [x] `replaceAll` — `vm/string/patterns.rs`
+- [x] `slice` — `vm/string/building.rs`
+- [x] `split` — `vm/string/patterns.rs`
+- [x] `startsWith` — `vm/string/search.rs`
+- [x] `substring` — `vm/string/building.rs`
 - [x] `toString`
-- [ ] `toWellFormed`
-- [ ] `trim`
-- [ ] `trimEnd`
-- [ ] `trimStart`
+- [x] `toWellFormed` — `vm/string/reads.rs`
+- [x] `trim` — `vm/string/building.rs`
+- [x] `trimEnd` — `vm/string/building.rs`
+- [x] `trimStart` — `vm/string/building.rs`
 
-`Number`:
+`Number` — complete, [`vm/string/README.md`](../src/vm/string/README.md) too:
 
-- [ ] `toExponential`
-- [ ] `toFixed`
-- [ ] `toPrecision`
-- [x] `toString` — radix ten; the radix argument is the infrastructure
-      task above, since the specification leaves other radices
-      implementation-approximated for non-integers.
+- [x] `toExponential` — `vm/number/format.rs`
+- [x] `toFixed` — `vm/number/format.rs`
+- [x] `toPrecision` — `vm/number/format.rs`
+- [x] `toString` — every radix for an integer; a fraction only in radix
+      ten, since ECMAScript leaves its other radices to the engine.
 
 `Boolean`:
 
@@ -198,16 +224,32 @@ Infrastructure:
 
 `BigInt`:
 
-- [x] `toString` — radix ten; every radix is fully specified and is the
-      infrastructure task above.
+- [x] `toString` — every radix, `vm/bigint/radix.rs`.
 
 `Function`:
 
-- [x] `toString` — a stub answering `fn_to_string`'s placeholder until a
-      function carries its EDAG.
+- [ ] `toString` — dispatch exists, but `fn_to_string` still returns a
+      placeholder. Provide semantic EDAG association and the shared default
+      renderer; full Stage 7 embedding is not a prerequisite or a waiver.
+- [ ] Prove direct and indirect default conversions: `f.toString()`,
+      `String(f)`, function elements in arrays (`join` / `toString`), property
+      keys and admitted string-method coercions. Include returned/exported
+      and nested callables, call-only export consumers, and identity checks.
+      A registered method is not enough: test each conversion path against
+      the selected EDAG renderer, with no placeholder or wrapper fallback.
+      Preserve supported calls/returns/exports; refuse only genuinely
+      unsupported conversion cases at their established boundary.
 
 ### Related
 
+- [Default function text](../../spec/todo/serialization.md#function-text-and-serialization)
+  — adopted rendering contract and the remaining rendering choices.
+- [Named/rest rendering requirements](../../spec/todo/3120-parameters.md#default-function-text-render-or-refuse)
+  — shared rendering without regressing supported calls, returns or exports.
+- [Native function-text review](https://github.com/functionalscript/functionalscript/pull/2220#discussion_r4096310135)
+  — remove the obsolete Stage 7 placeholder exception and completion claim.
+- [`vm/array/README.md`](../src/vm/array/README.md) — the `Array`
+  built-ins: what is out by design, and why.
 - [`fjs/js/prototype/README.md`](../../fjs/js/prototype/README.md) — the
   table: both lists, one row per name with its reason.
 - [`fjs/edag/README.md`](../../fjs/edag/README.md), Chains — the two bits

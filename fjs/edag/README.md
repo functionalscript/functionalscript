@@ -8,13 +8,13 @@ serialization trick. Evaluation memoizes every node by identity within one
 invocation — shared nodes evaluate once, per the baseline in
 [edag-stage1-discussion.md](../../todo/edag-stage1-discussion.md), and each
 call starts fresh, per the per-invocation memo scope in
-[interpret-edag.md](../fsc/todo/interpret-edag.md). There is no normal form: a function's hash is the
+[interpret-edag.md](../compiler/todo/interpret-edag.md). There is no normal form: a function's hash is the
 structural identity of its graph as written, the name-erased source.
 Lowering rules make agreed-on spellings coincide; hash equality does not
 decide semantic equivalence. This module owns the data model only: node kinds, operand
 shapes, and their schema. Producers and executors are staged work that will
-consume it — the [FunctionalScript](../fsc/) compiler lowering parsed modules to EDAG
-([compile-modules-to-edag.md](../fsc/todo/compile-modules-to-edag.md)), the
+consume it — the [FunctionalScript](../compiler/) compiler lowering parsed modules to EDAG
+([compile-modules-to-edag.md](../compiler/todo/compile-modules-to-edag.md)), the
 interpreter and Rust code generation executing it — and the dependency is
 one-way by design: `fjs/edag` imports nothing from them.
 
@@ -36,7 +36,7 @@ the static tuples and the runtime ones agree exactly, an exact-length
 [TupleTs](../rtti/ts/types.ts) rendering over an exact-length set.
 [proof.f.mjs](proof.f.mjs) pins what the schema accepts and rejects, node
 kind by node kind — validation behavior, not execution semantics — with
-`comma` pinned by the compiler that emits it, `fjs/fsc/edag`. Its `ownJs` and
+`comma` pinned by the compiler that emits it, `fjs/compiler/edag`. Its `ownJs` and
 `chainsJs` sections are the exception that proves the rule: they run the JS
 whose behavior the nodes are built around, which is how those semantics were
 pinned before anything executed an EDAG. [amnesia](amnesia/README.md) now
@@ -76,7 +76,10 @@ vocabularies.
 | `['[]', items[]]`, each an `exp` or a `spread` | array literal; `[a, ...b]` splices `b`'s elements in at that position |
 | `['{}', properties[]]`, each `[':', key, value]` or a `spread` | object literal; ordered entries applied in written order, duplicates allowed with the later winning; the key is an `exp`, one form for `a:`, `"a":`, and computed `[exp]:` keys; the `:` descriptor is a structural operand, not a node — only its key and value are; `{...a}` splices `a`'s own properties in at that position |
 | `['...', exp]` | spread — only valid as an `items`/`properties` entry above, never a top-level `Exp` |
-| `['args']` | the function's arguments |
+| `['args']` | unresolved module imports, in import order |
+| `['arg', N]` | fixed parameter `N` of the owning function |
+| `['rest']` | the invocation's rest array, after the fixed prefix |
+| `['=>', length, frame, body]` | function; integer length metadata, enclosing-scope frame, invocation-scope body |
 | `['frame']` | the captured frame |
 | `['()', exp, exp]` | call with no receiver: `exp0(...exp1)` — see [Chains](#chains) |
 | `['.', exp, index]`, `['.', exp, index, propertyLambda]` | property access `exp0[exp1]`, owning whatever its receiver is used for |
@@ -85,7 +88,7 @@ vocabularies.
 | `['\|()', exp, k?]`, `['\|.', index, k?]`, `['\|?.()', exp, k?]`, `['\|!()', exp]` | a chain step and, where the chain continues, its continuation — only valid in the continuation operand of a node above, or of another step |
 | `[',', exps]` | comma: establish all operands, take the value of the last |
 | `[id, exp]` | unary operation, `id` one of `String` `Number` `!` `~` `typeof` |
-| `[id, exp, exp]` | binary operation, `id` one of `=>` `own` `is` `===` `!==` `>` `>=` `<` `<=` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` `&&` `\|\|` `??` |
+| `[id, exp, exp]` | binary operation, `id` one of `own` `is` `===` `!==` `>` `>=` `<` `<=` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` `&&` `\|\|` `??` |
 | `[id, exp]`, `[id, exp, exp]` | `id` one of `+` `-`: unary plus or negation, addition or subtraction — one tag at two arities, the node's length deciding, as a chain step's does; unary `+` is JS's and throws on a bigint where `Number` converts |
 | `['?:', exp, exp, exp]` | conditional: the condition, then exactly one arm — the one `ToBoolean` selects; the other is never established |
 
@@ -119,12 +122,32 @@ list ends by **arity**: the step or node that ends it is simply the shorter
 tuple, with no continuation operand at all, which is why every kind that can
 end is a union of its two closed lengths.
 
+Function `length` and `arg` indices satisfy `Number.isInteger(n) && n >= 0
+&& !Object.is(n, -0)`. An index also requires `N < length`. They are metadata,
+not operand nodes. Missing fixed arguments bind to `undefined`; rest begins
+at `length`, has stable identity within a call, and is fresh between calls.
+`arg` and `rest` require a function scope; `args` is only a module binding.
+Frames retain their enclosing scope, including for nested captures.
+
+This format replaces `['=>', frame, body]`. Recompile source or migrate
+function-owned `args` to `rest` and insert length `0`; retain module import
+`args`, including in module-level frames. Old tuples are rejected rather
+than reinterpreted. Earlier positive-arity/full-argument experiments have
+no general lossless migration to this format.
+
+A function's `length` is at most 16, the language's limit: `bindingError`
+refuses a larger one. Amnesia and memo share the
+[arrow factories](../types/function/length/README.md) of
+`fjs/types/function/length`, which cover every valid length. The default-text
+renderer remains tracked in
+[the parameter plan](../../spec/todo/3120-parameters.md).
+
 An `index` — the property operand of `.`, `?.`, and the `|.` step — is a
 `string`, a `number`, or `['Number', exp]`, a computed index cast to a
 number. Widening those positions to a bare `exp` was weighed and rejected:
 `exp` and `index` overlap, since `['Number', e]` is both a `numberCast` and
 an `op1`, so it would buy a second spelling of every computed key and no new
-expressive power. Among the binary ids, `=>` builds a function and `own` reads
+expressive power. Among the binary ids, `own` reads
 an own property, bypassing the prototype chain (including `__proto__` — see
 the `ownJs` proof); calling a function is not among them — `()` takes two
 `exp` operands and so *is* binary in count, but a call's receiver comes from
@@ -364,7 +387,7 @@ need it.
   operation-node identity may be shared only within one function's scope,
   never across a `=>` boundary — goes unchecked. The Stage 2 validator for
   that boundary is tracked in
-  [compile-modules-to-edag.md](../fsc/todo/compile-modules-to-edag.md).
+  [compile-modules-to-edag.md](../compiler/todo/compile-modules-to-edag.md).
   In particular `parse` is not a way to canonicalize a graph: it constructs a
   fresh container at every position it visits, so two edges reaching the same
   input reference come back as two distinct outputs, flattening the one
@@ -373,7 +396,7 @@ need it.
   the last the result, each earlier operand a true root: not reachable from
   another operand of the same `,` — is the emitter's to keep, as the `=>`
   scope rule is; a single-operand `,` is the identity, an operand a sibling
-  reaches a redundant anchor, both non-canonical. `fjs/fsc/edag` keeps it:
+  reaches a redundant anchor, both non-canonical. `fjs/compiler/edag` keeps it:
   the operands before the result are the roots of what a module's export
   does not reach, in source order (the order among them is not yet
   canonical — the discussion's candidate is content-hash order).
@@ -392,9 +415,12 @@ need it.
 ## Design
 
 The semantics and operation vocabulary are decided subject by subject in
-[edag-stage1-discussion.md](../../todo/edag-stage1-discussion.md); the module
-boundary and the plan for generating the Rust types from this schema live in
-[edag-spec.md](../../todo/edag-spec.md). Both predate [Chains](#chains) above
-and describe the chain nodes as one call tag carrying a flat `lambdas` array
-of steps; that array is gone, and this file is the record for what replaced
-it and why.
+[edag-stage1-discussion.md](../../todo/edag-stage1-discussion.md). The module
+boundary is the one stated at the top of this file: the compiler's temporary
+`Unresolved { imports, edag }` wrapper, module resolution and serialization
+stay in `fjs/compiler`, since import paths are not part of an EDAG. Generating the
+Rust types and validation from this schema is
+[rust-schema-codegen.md](./todo/rust-schema-codegen.md). The discussion
+predates [Chains](#chains) above and describes the chain nodes as one call tag
+carrying a flat `lambdas` array of steps; that array is gone, and this file is
+the record for what replaced it and why.

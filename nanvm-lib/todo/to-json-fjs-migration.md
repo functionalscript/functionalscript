@@ -26,7 +26,7 @@ exists now and reaches literals, arrays, objects, `const` sharing, and
 string-keyed property access, but not yet this serializer's own dependency
 closure — recursion, loops, and string concatenation, none of which the
 compiler accepts as expressions yet (see
-[`fjs/fsc/README.md`](../../fjs/fsc/README.md)'s accepted subset) — so
+[`fjs/compiler/README.md`](../../fjs/compiler/README.md)'s accepted subset) — so
 `to_json` stays hand-written until that closure is compiler-supported, not
 because nothing compiles FJS to Rust at all.
 

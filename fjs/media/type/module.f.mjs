@@ -50,7 +50,7 @@
  * @import { DetectMeta, DetectState, _MagicState, _Signature, _Utf8Detect } from './types.ts'
  */
 
-import { msb, length, u8List } from '../../types/bit_vec/module.f.mjs'
+import { length, u8ListMsb, bytesIn, isWholeBytesIn } from '../../types/bit_vec/module.f.mjs'
 import { iterable } from '../../types/list/module.f.mjs'
 import { pureOk, step as ioStep } from '../../effects/module.f.mjs'
 import { isValidCodePoint, isTextCodePoint } from '../../text/code_point/module.f.mjs'
@@ -129,7 +129,7 @@ const magicMime = m => m.tag === 'matched' ? m.mime : null
  * scanning many large text blobs for signatures alone should know it is paying
  * for the UTF-8 fold too.
  *
- * The bytes come from `u8List`, so a `Vec` whose length is not a whole number of
+ * The bytes come from `u8ListMsb`, so a `Vec` whose length is not a whole number of
  * bytes has its trailing partial byte zero-padded — the same reading of a ragged
  * `Vec` the streaming detector already uses.
  *
@@ -214,7 +214,7 @@ export const push = s => chunk => {
     let magic = s.magic
     let utf8 = s.utf8
     if (!isSettled(magic, utf8)) {
-        for (const byte of iterable(u8List(msb)(chunk))) {
+        for (const byte of iterable(u8ListMsb(chunk))) {
             magic = magicStep(magic, byte)
             utf8 = utf8Step(utf8, byte)
             if (isSettled(magic, utf8)) { break }
@@ -234,10 +234,10 @@ export const push = s => chunk => {
  * @type {(s: DetectState) => DetectMeta}
  */
 export const finish = s => {
-    const byteLength = s.length >> 3n
+    const byteLength = bytesIn(s.length)
     const mime = magicMime(s.magic)
     if (mime !== null) { return { length: byteLength, mime_type: mime, type: 'base64' } }
-    if (utf8Text(s.utf8) && (s.length & 0b111n) === 0n) {
+    if (utf8Text(s.utf8) && isWholeBytesIn(s.length)) {
         return { length: byteLength, mime_type: 'text/plain', type: 'text' }
     }
     return { length: byteLength, mime_type: 'application/octet-stream', type: 'base64' }

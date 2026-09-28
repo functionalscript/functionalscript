@@ -26,7 +26,7 @@ fjs <command> [args]
 | Command | Description | Documentation |
 |---------|-------------|---------------|
 | `test`   | Run the FunctionalScript test suite | [emergent_testing](emergent_testing/README.md) |
-| `compile`| Compile a FunctionalScript module to JavaScript or JSON | [fsc](fsc/README.md) |
+| `compile`| Compile a FunctionalScript module to JavaScript or JSON | [compiler](compiler/README.md) |
 | `cas`    | Content-addressable storage operations (`add`, `get`, `list`) | [cas](cas/README.md) |
 | `mcp`    | Run an MCP server over stdio exposing the CAS and Evo as tools | [mcp](mcp/README.md) |
 | `ci`     | Generate the GitHub Actions CI and npm publishing workflows | [ci](ci/README.md) |
@@ -62,7 +62,7 @@ FunctionalScript. Any other extension is refused: it names no language, and
 writing one the name does not declare is the silent substitution this route
 exists to avoid.
 Imports are resolved and inlined in every case. See
-[fsc/README.md](fsc/README.md) for the accepted subset.
+[compiler/README.md](compiler/README.md) for the accepted subset.
 
 ## `fjs ci` — generating the standard workflows
 

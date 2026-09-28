@@ -5,17 +5,10 @@
  *
  * @import { TNode } from '../types/types.ts'
  * @import { Compare } from '../../function/compare/types.ts'
- * @import { KeyOf } from '../../array/types.ts'
  * @import { First, Path, PathItem, Result } from './types.ts'
  */
 
 import { index3, index5 } from '../../function/compare/module.f.mjs'
-
-/** @type {<T>(item: PathItem<T>) => TNode<T>} */
-const child = item => {
-    /** @typedef {typeof item extends PathItem<infer T> ? T : never} T */
-    return /** @type {TNode<T>} */ (item[1][item[0]])
-}
 
 /** @type {<T>(c: Compare<T>) => (node: TNode<T>) => Result<T>} */
 export const find = c => {
@@ -24,28 +17,25 @@ export const find = c => {
     const i5 = index5(c)
     /** @type {(tail: Path<T>) => (node: TNode<T>) => Result<T>} */
     const f = tail => node => {
-        /** @type {(index: KeyOf<typeof node>) => Result<T>} */
-        const append = index => {
-            const first = /** @type {PathItem<T>} */ ([index, node])
-            return f({ first, tail })(child(first))
-        }
-        /** @type {(index: KeyOf<typeof node>) => Result<T>} */
-        const done = index => ({ first: /** @type {First<T>} */ ([index, node]), tail })
+        /** @type {(first: PathItem<T>) => (child: TNode<T>) => Result<T>} */
+        const append = first => f({ first, tail })
+        /** @type {(first: First<T>) => Result<T>} */
+        const done = first => ({ first, tail })
         switch (node.length) {
-            case 1: { return done(i3(node[0])) }
-            case 2: { return done(i5(node)) }
+            case 1: { return done([i3(node[0]), node]) }
+            case 2: { return done([i5(node), node]) }
             case 3: {
                 const i = i3(node[1])
                 switch (i) {
-                    case 0: case 2: { return append(i) }
-                    case 1: { return done(i) }
+                    case 0: case 2: { return append([i, node])(node[i]) }
+                    case 1: { return done([i, node]) }
                 }
             }
             case 5: {
                 const i = i5([node[1], node[3]])
                 switch (i) {
-                    case 0: case 2: case 4: { return append(i) }
-                    case 1: case 3: { return done(i) }
+                    case 0: case 2: case 4: { return append([i, node])(node[i]) }
+                    case 1: case 3: { return done([i, node]) }
                 }
             }
         }

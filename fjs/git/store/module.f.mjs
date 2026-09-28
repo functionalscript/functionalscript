@@ -66,12 +66,11 @@
 import { assert } from '../../asserts/module.f.mjs'
 import { catchStep, ioError, mapStep, pureError, pureOk, resultStep, step, walkStep } from '../../effects/module.f.mjs'
 import { namesNothing, readUtf8File } from '../../effects/node/module.f.mjs'
-import { join, root, under } from '../../path/module.f.mjs'
-import { length } from '../../types/bit_vec/module.f.mjs'
+import { isDriveLetter, isDriveRoot, join, root, under } from '../../path/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { tryOidBytes } from '../config/module.f.mjs'
 import { tryRead as readLoose } from '../loose/module.f.mjs'
-import { hexText, of } from '../oid/module.f.mjs'
+import { hexText, isOidOf, of } from '../oid/module.f.mjs'
 import { tryRead as readPacked } from '../packstore/module.f.mjs'
 
 /**
@@ -177,7 +176,7 @@ const untilNul = entry => {
  * its first character — so there is no reading of it to copy, and this takes the
  * quoted path alone. A store named only by that mangled second entry is one this
  * does not reach; see
- * [`todo/alternates-line-quirks.md`](../todo/alternates-line-quirks.md).
+ * [`todo/alternates-line-quirks.md`](./todo/alternates-line-quirks.md).
  *
  * **A path ends at its first `NUL`**, which is why {@link untilNul} runs last and
  * a line left with nothing is skipped like an empty one. That is not this
@@ -239,7 +238,7 @@ const octalAt = (line, i) => {
  * the host writes back as the two UTF-8 bytes of it — a different directory than
  * Git looks in. That one is not answerable in this layer, where every path is a
  * string, and is [`todo/byte-paths.md`](../todo/byte-paths.md)'s to fix and
- * [`todo/alternates-line-quirks.md`](../todo/alternates-line-quirks.md)'s to
+ * [`todo/alternates-line-quirks.md`](./todo/alternates-line-quirks.md)'s to
  * record. A `\000` is different: it decodes to a `\u0000` here and the path
  * ends there, which {@link untilNul} does and which agrees with Git.
  *
@@ -291,7 +290,7 @@ const unquoted = line => {
  * nobody writes by hand. Both are ordinary paths now that simply are not found,
  * which is a miss and never a wrong object, since the id is checked against
  * whatever answers. What is left of them is
- * [`todo/alternates-line-quirks.md`](../todo/alternates-line-quirks.md).
+ * [`todo/alternates-line-quirks.md`](./todo/alternates-line-quirks.md).
  *
  * A third shape *was* on that list and is not any more: a `NUL` inside a path,
  * where the entry would have reached the host whole and been turned down before
@@ -352,11 +351,18 @@ const isAbsolute = (od, entry) => entry.startsWith('/')
     || ((entry.startsWith('\\') || isDrive(entry)) && isWindows(od))
 
 /**
- * Whether a path begins with a drive's letter and colon — `C:` and not `/`.
+ * Whether a path begins with a drive's letter and colon — `C:` and not `/`,
+ * and not `1:` or `::` either, which [`fjs/path`](../../path/module.f.mjs)
+ * reads as no drive: this asks its {@link isDriveLetter}, so the two readers
+ * of one entry cannot disagree about whether it is rooted.
+ *
+ * No `/` is required after the colon, as Git's `has_dos_drive_prefix` requires
+ * none: `C:x` is drive C's current directory to Windows, which is somewhere of
+ * its own rather than a name below `od`.
  *
  * @type {(x: string) => boolean}
  */
-const isDrive = x => x.length > 1 && x[1] === ':'
+const isDrive = x => x.length > 1 && x[1] === ':' && isDriveLetter(x[0])
 
 /**
  * Whether an object directory is on a system where a drive and a backslash are
@@ -389,7 +395,7 @@ const isDrive = x => x.length > 1 && x[1] === ':'
  *
  * @type {(od: string) => boolean}
  */
-const isWindows = od => isDrive(root(od))
+const isWindows = od => isDriveRoot(root(od))
 
 /**
  * The code an object is refused with when the bytes at its path hash to
@@ -688,9 +694,9 @@ const kept = (found, o) => {
  */
 export const readIn = (ods, oidBytes) => {
     const idOf = of(oidBytes)
-    const bits = BigInt(oidBytes) * 8n
+    const isOid = isOidOf(oidBytes)
     return id => {
-        assert(length(id) === bits, ['not an id of the width', id])
+        assert(isOid(id), ['not an id of the width', id])
         const walked = walkStep(
             pureOk(ods),
             /** @type {Nullable<_Outcome>} */ (null),
@@ -724,12 +730,12 @@ export const readIn = (ods, oidBytes) => {
  */
 export const tryRead = (dir, oidBytes) => {
     const dirs = objectsDirs(dir)
-    const bits = BigInt(oidBytes) * 8n
+    const isOid = isOidOf(oidBytes)
     return id => {
         // Asked here as well as in `readIn`, because the effect below is not run
         // until it is stepped: a caller that hands over an id of the wrong width
         // has a bug now, not one command later.
-        assert(length(id) === bits, ['not an id of the width', id])
+        assert(isOid(id), ['not an id of the width', id])
         return step(dirs, ods => readIn(ods, oidBytes)(id))
     }
 }

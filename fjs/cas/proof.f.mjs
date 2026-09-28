@@ -13,7 +13,7 @@ import { computeSync, sha256 } from '../crypto/sha2/module.f.mjs'
 import { fileCas, casAddFile, collectRead } from './module.f.mjs'
 import { match, runPure } from '../effects/module.f.mjs'
 import { mapStep as ioMapStep, pureError, pureOk, step as ioStep } from '../effects/module.f.mjs'
-import { ioError, mkdir, writeFile, readFile, access } from '../effects/node/module.f.mjs'
+import { ioError, mkdir, writeFile, readFile, readdir, access } from '../effects/node/module.f.mjs'
 import { error, ok, unwrap as unwrapResult } from '../types/result/module.f.mjs'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { join } from '../path/module.f.mjs'
@@ -270,6 +270,24 @@ export const proof = {
         const [, listed] = virtual(state1)(c.list())
         const hashes = unwrapResult(listed)
         assertEq(hashes.length, 0, ['expected nothing published on abort', hashes])
+    },
+    casWriteNotWholeBytesAborts: () => {
+        // A chunk that is not whole bytes is not file contents: the hash would
+        // cover bits the node runner pads into a byte the caller never gave, so
+        // the stored shard would not match its address. `writeBytes` refuses the
+        // chunk, the partial staging file is deleted, and nothing is published.
+        const c = fileCas(sha256)('.')
+        /** @type {List<never, Vec, IoChannel>} */
+        const payload = nonEmpty(vec8(0x11n), nonEmpty(vec(5n)(0b10101n), empty()))
+        const [state1, result] = virtual(emptyState)(c.write(payload))
+        assert(result[0] === 'error', ['expected write error', result])
+        assertIoMessage(result[1], 'invalid buffer size')
+        const [, listed] = virtual(state1)(c.list())
+        const hashes = unwrapResult(listed)
+        assertEq(hashes.length, 0, ['expected nothing published on abort', hashes])
+        const [, staged] = virtual(state1)(readdir('.cas/_stage', {}))
+        assert(staged[0] === 'ok', staged)
+        assertEq(staged[1].length, 0, ['expected the staging file removed', staged[1]])
     },
     casWriteReadExceedsMaxLength: () => {
         // The point of streaming: a payload larger than a single `Vec`'s `maxLength`

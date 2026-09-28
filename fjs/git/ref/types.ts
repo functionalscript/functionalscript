@@ -20,6 +20,17 @@ export type Ref =
     | { readonly kind: 'symbolic', readonly target: Bytes }
 
 /**
+ * What taking one name out of `packed-refs` comes to — see `tryPackedWithout`
+ * in `./module.f.mjs`: a file Git refuses, a file whose header claims an order
+ * its lines do not have, no entry by that name, or the file without it.
+ */
+export type PackedWithout =
+    | readonly ['malformed']
+    | readonly ['unsorted']
+    | readonly ['absent']
+    | readonly ['removed', readonly number[]]
+
+/**
  * One line of `packed-refs`: the id, the name it is packed under, and the
  * id the `^` line below it gave, where there was one.
  *

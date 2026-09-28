@@ -45,6 +45,8 @@
  */
 
 import { ascii, byteArray } from '../../ebnf/byte/module.f.mjs'
+import { strictEqual } from '../../types/function/operator/module.f.mjs'
+import { equal } from '../../types/list/module.f.mjs'
 
 const dot = /** @type {const} */ (0x2E)
 
@@ -218,3 +220,20 @@ export const isWholeName = input => {
     const name = byteArray(input)
     return isName(name) && !(name.length === 1 && name[0] === at)
 }
+
+/**
+ * Whether two names are the same bytes: `fjs/types/list`'s `equal` over
+ * `strictEqual`, which is byte-for-byte equality and nothing more. A name
+ * is bytes, compared as they are — no case folding, no normalisation,
+ * since Git compares them so and two names differing by either are two
+ * names. It stops at the first byte that differs, and materialises
+ * neither name to get there.
+ *
+ * The one comparison of names in `fjs/git`: a tree entry's name in
+ * [`fjs/git/walk`](../walk/module.f.mjs), a ref's in
+ * [`fjs/git/refstore`](../refstore/module.f.mjs) and a header's key in
+ * [`fjs/git/header`](../header/module.f.mjs) all ask it.
+ *
+ * @type {(a: Bytes) => (b: Bytes) => boolean}
+ */
+export const sameBytes = equal(strictEqual)

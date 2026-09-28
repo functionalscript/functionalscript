@@ -2,23 +2,7 @@
 
 **Priority:** P4
 **Status:** blocked
-**Blocked by:** [node-module-layering](./node-module-layering.md)
-
-> **Destination superseded (2026-07), and the lowering has now happened.** The
-> proposal below places `allVoid` in `fjs/effects/node/module.f.mjs` because
-> that is where `all`/`All` lived when it was written, and notes that if `All`
-> is ever lowered out of the node module `allVoid` "moves down with it".
-> [node-module-layering](./node-module-layering.md) was that lowering, and it
-> landed: `All`, `all`, `allOk` and `both` are in
-> **`fjs/effects/common`** — not `fjs/effects/all`, which is the name this file
-> and that one both used before the destination was settled. `allVoid` belongs
-> there with them, and everything below naming the node module as their home
-> is describing the tree before that move.
->
-> The `All` move has landed, so what remains is to add `allVoid` beside it. The
-> proposal's body is otherwise unchanged and still correct; substitute
-> **`fjs/effects/common/module.f.mjs`** wherever it says
-> `fjs/effects/node/module.f.mjs`.
+**Blocked by:** [all-argument-limit](./all-argument-limit.md)
 
 ### Problem
 
@@ -40,13 +24,12 @@ missing, so every call site re-spells the whole fan-out-then-discard dance.
 
 ### Proposal
 
-Add the void sibling next to `all` / `All` / `both` — in
-`fjs/effects/common/module.f.mjs` as of the move above, `fjs/effects/node` as
-originally written. It cannot live next to `forEachStep` in the core
-`fjs/effects/module.f.mjs`: `all`/`All` are defined in a module that already
-imports the core one, so placing `allVoid` in core would invert that
-dependency. That argument is unchanged by the move; only the module it names
-is.
+Add the void sibling next to `all` / `All` / `both` / `allOk`, in
+`fjs/effects/common/module.f.mjs`, where
+[node-module-layering](./node-module-layering.md) moved them. It cannot live
+next to `forEachStep` in the core `fjs/effects/module.f.mjs`: `all`/`All` are
+defined in a module that already imports the core one, so placing `allVoid` in
+core would invert that dependency.
 
 Build it on `allOk`, not on `all`. `all` answers `readonly Result<T, E>[]` —
 the children's failures arrive *inside* its value — so discarding that value
@@ -89,19 +72,12 @@ said less directly; either works. Note `pureOk`, not `pure`: `pure` takes a
 use the standalone combinators: `allOk(...)` returns a raw `Effect`, which has
 no `.step` method.
 
-If `All` is ever lowered out of the node module (it is runner
-infrastructure, not node-specific I/O — a separate design question),
-`allVoid` moves down with it alongside `all` and `both`.
-
-**`allOk` moves with them.** [node-module-layering](./node-module-layering.md)
-originally moved `All` / `all` / `both` only, which would have left `allOk` in
-`fjs/effects/node/module.f.mjs` — and an `allVoid` built on `allOk` would then
-make `fjs/effects/all` import from `fjs/effects/node`, the inversion that
-lowering exists to remove, and a cycle once `effects/node` imports the moved
-`All` family back. That issue's move set now names `allOk` too, so nothing
-further is needed there. It belongs in it by the layering issue's own test:
-`allOk` is `ioStep(all(…), rs => pure(okList(rs)))`, concurrency plumbing with
-no host API in it.
+**`allOk` moved with them**, which is what makes that placement work: an
+`allVoid` built on an `allOk` left in `fjs/effects/node/module.f.mjs` would have
+made the shared module import from `fjs/effects/node`, the inversion the
+lowering exists to remove. `allOk` belongs there by the layering issue's own
+test: it is `step(all(…), rs => pure(okList(rs)))`, concurrency plumbing with no
+host API in it.
 
 The three call sites become `allVoid(e => registerOne(t, e))(sub)` etc.
 If [allreduce-combinator](./allreduce-combinator.md) lands first, consider
@@ -126,8 +102,8 @@ recorded as superseded there.)
       `allOk`, and hand it the list: `allVoid` is an arbitrary-length
       fan-out, so a spread in its body would rebuild the argument ceiling it
       is called at (the note under the proposal).
-- [ ] Add `allVoid` there (next to `all`/`both`) with proof coverage — **not**
-      to `fjs/effects/node/module.f.mjs`, per the note at the top of this issue.
+- [ ] Add `allVoid` to `fjs/effects/common/module.f.mjs` (next to
+      `all`/`both`/`allOk`) with proof coverage.
 - [ ] Convert the three `mapStep(allOk(...), () => undefined)` call sites in
       `fjs/emergent_testing/module.f.mjs`.
 - [ ] Run `tsc` and `fjs t`.

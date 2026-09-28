@@ -27,10 +27,9 @@
  */
 
 import { assert } from '../../asserts/module.f.mjs'
-import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { toArray, tryFold } from '../../types/list/module.f.mjs'
 import { rangeEncode, remove, union } from '../module.f.mjs'
-import { toData } from '../data/module.f.mjs'
+import { codePoints, toData } from '../data/module.f.mjs'
 import { parser } from '../ll1/module.f.mjs'
 
 const { isInteger } = Number
@@ -82,7 +81,7 @@ const symbol = b => ({ symbol: b, meta })
 /**
  * The input a parser over this alphabet is given: the bytes of a list, in
  * order, each with the shared metadata. A `Vec` is read through
- * `u8List(msb)` from `fjs/types/bit_vec`, and a `Uint8Array` through
+ * `u8ListMsb` from `fjs/types/bit_vec`, and a `Uint8Array` through
  * `fromArrayLike` from `fjs/types/list`.
  *
  * @throws If an item is not a byte: the input is refused at the boundary,
@@ -102,17 +101,26 @@ export const symbols = input => byteArray(input).map(symbol)
 export const symbolsOf = leaves => leaves.map(({ symbol }) => symbol)
 
 /**
+ * Whether code point `c` is ASCII: below `0x80`, where a code point and its
+ * byte coincide.
+ *
+ * @type {(c: number) => boolean}
+ */
+const isAsciiCodePoint = c => c < 0x80
+
+/**
  * ASCII text as the bytes it spells, for a reader or a writer that holds a
  * keyword as a string — `'commit'`, a header's key — and needs it as bytes.
  *
  * @throws If `s` is not ASCII: above `0x7F` a code point and its bytes
- * part ways, and no text spells such a byte here.
+ * part ways, and no text spells such a byte here. A lone surrogate is no
+ * code point at all.
  *
  * @type {(s: string) => readonly number[]}
  */
 export const ascii = s => {
-    const a = toArray(stringToCodePointList(s))
-    assert(a.every(c => c < 0x80), ['not ASCII', s])
+    const a = codePoints(s)
+    assert(a.every(isAsciiCodePoint), ['not ASCII', s])
     return a
 }
 
@@ -170,7 +178,7 @@ export const bytes = (...b) => {
  *
  * @type {(s: string) => boolean}
  */
-const isAscii = s => toArray(stringToCodePointList(s)).every(c => c < 0x80)
+const isAscii = s => codePoints(s).every(isAsciiCodePoint)
 
 /**
  * Refuses a rule the lowering met that reaches past the alphabet: a string

@@ -7,18 +7,12 @@
 
 `container_fmt.rs` exists precisely to encapsulate "iterate indexed items,
 emit a separator between them, wrap in open/close"
-(`nanvm-lib/src/vm/container_fmt.rs:10-21`), and `Array`/`Object` `Debug` use
-it. But two other `Debug` impls re-implement the same delimited iteration
-instead of reusing it:
+(`ContainerFmt::container_fmt` in `nanvm-lib/src/vm/container_fmt.rs`), and
+`Array`/`Object` `Debug` use it. But `Debug for BigInt` re-implements the same
+delimited iteration instead of reusing it:
 
 ```rust
-// nanvm-lib/src/vm/function/debug.rs:11-14 — parameter list, ',' separator
-for i in 0..self.length() {
-    if i != 0 { f.write_char(',')?; }
-    write!(f, "a{i}")?;
-}
-
-// nanvm-lib/src/vm/bigint/debug.rs:17-23 — '_'-separated MSB-first hex join
+// Debug for BigInt, nanvm-lib/src/vm/bigint/debug.rs — '_'-separated MSB-first hex join
 let last = items.length() - 1;
 write!(f, "{:X}", items[last])?;
 for i in (0..last).rev() {
@@ -26,11 +20,14 @@ for i in (0..last).rev() {
 }
 ```
 
-The `if i != 0 { write sep }` idiom in `function/debug.rs` is byte-for-byte
-the core of `container_fmt`, differing only in the per-item output (`a{i}`
-instead of `self[i].fmt(f)`). The bigint join is the same delimited-iteration
-concern with two twists: reverse (MSB-first) order and a differently-padded
-first item (`{:X}` vs `_{:016X}`).
+The bigint join is the same delimited-iteration concern as `container_fmt`
+with two twists: reverse (MSB-first) order and a differently-padded first item
+(`{:X}` vs `_{:016X}`).
+
+This issue was filed with a second site, a `,`-separated parameter list in
+`Debug for Function`. At `36c8d4a` that impl writes the fixed marker
+`[Function]` and iterates nothing, so the bigint join is the only candidate
+left.
 
 ### Proposal
 
@@ -47,21 +44,19 @@ fn fmt_delimited(
 ```
 
 `ContainerFmt::container_fmt` becomes open + `fmt_delimited(f, ',', len,
-|f, i| self[i].fmt(f))` + close; `function/debug.rs`'s parameter list becomes
-`fmt_delimited(f, ',', self.length(), |f, i| write!(f, "a{i}"))`. The bigint
-join can route through it with an index-aware closure choosing the pad (the
-iteration order/index mapping stays at the call site); if that obscures more
-than it shares, scope bigint out and dedup only the two `,`-separated sites —
-decide with the code in front of you.
+|f, i| self[i].fmt(f))` + close. The bigint join can route through it with an
+index-aware closure choosing the pad (the iteration order/index mapping stays
+at the call site); if that obscures more than it shares, the helper has a
+single consumer and this issue is not worth doing — decide with the code in
+front of you.
 
 ### Tasks
 
-- [ ] Extract `fmt_delimited`; route `ContainerFmt` and `function/debug.rs`
-      through it.
-- [ ] Evaluate the bigint join; include or document why not.
+- [ ] Evaluate the bigint join against `container_fmt`; extract
+      `fmt_delimited` and route both through it, or record why not.
 - [ ] `cargo test`, `cargo clippy`, `cargo fmt -- --check`.
 
 ### Related
 
 - [159](./159-collapse-per-type-wrapper-traits.md) — lists `ContainerFmt` as an "already-correct abstraction
-  to leave alone"; this issue is about the two impls that fail to consume it.
+  to leave alone"; this issue is about the impl that fails to consume it.

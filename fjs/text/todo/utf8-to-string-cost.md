@@ -7,7 +7,9 @@
 
 [`../module.f.mjs`](../module.f.mjs)'s `utf8ToString` is the slow half of
 reading text through the effect system, by more than an order of magnitude over
-the read itself. Measured on this repository's own `.f.mjs` files, node 22:
+the read itself. Measured in
+[#1827](https://github.com/functionalscript/functionalscript/pull/1827), at its
+head `5ff95f85`, on this repository's own `.f.mjs` files, node 22:
 
 | | 100 files | per file |
 | --- | --- | --- |
@@ -17,8 +19,8 @@ the read itself. Measured on this repository's own `.f.mjs` files, node 22:
 
 The consequence is visible in a command: `npm run website` walks the tree and
 reads every authored module, and it takes **42 s** where the plain-JavaScript
-script it replaced took **1.65 s** (functionalscript#1827). Reading is 0.1 s of
-that. Nothing else in the program is close.
+script it replaced took **1.65 s**, measured in the same pull request. Reading
+is 0.1 s of that. Nothing else in the program is close.
 
 **Concurrency is not the answer, and that is worth stating because it is the
 first thing suggested.** The cost is CPU inside one decoder, not waiting on a
@@ -28,7 +30,7 @@ would put back the concurrency the proof runners
 
 ### Where it goes
 
-`utf8ToString` is `codePointListToString(toCodePointList(u8List(msb)(msbV)))`:
+`utf8ToString` is `codePointListToString(toCodePointList(u8ListMsb(msbV)))`:
 a bit vector becomes a lazy byte list, the bytes become a code-point list
 through a state machine one byte at a time, and the code points become a string.
 Every byte of a 30 KB module travels that path as an individual `List` cell and
@@ -47,9 +49,15 @@ measuring, cheapest first:
 - **Chunk the traversal.** The list is walked one cell per byte; a decoder that
   reads a whole `Vec` word at a time does the same work with a fraction of the
   cells.
-- **Build the string in blocks.** `codePointListToString` accumulates a string;
-  joining an array of chunks is the usual FunctionalScript answer to that shape
-  (catalog item 9's argument, applied to characters).
+- ~~**Build the string in blocks.**~~ Measured, and not where the time goes.
+  `listToString` now folds through `types/string`'s balanced `concat` instead
+  of a left `reduce`. Measured at `35a34d8` (the left `reduce`) and at
+  `b07098e` (the same tree with only that change), on the first 100 `.f.mjs`
+  files under `fjs/` (1 MB, node 22), neither the string build nor
+  `utf8ToString` moved outside run-to-run noise: `listToString` alone is
+  ~0.2 s of `utf8ToString`'s ~1.6 s either way.
+  V8 concatenates into ropes, so the left fold was never quadratic there. The
+  remaining ~85% is upstream of the string: the byte list and the decoder.
 - **Let the host decode.** `readUtf8File` could hand bytes to a `TextDecoder`
   in `effects/node`'s impure shell. It is the smallest change and the least
   useful one: it fixes one operation on one host and leaves the pure decoder
@@ -71,6 +79,6 @@ own measurement, not something to fold into a caller.
 
 ### Related
 
-- functionalscript#1827 — where the cost surfaced: the website generator moved
+- [#1827](https://github.com/functionalscript/functionalscript/pull/1827) — where the cost surfaced: the website generator moved
   from `fs.readFile` to the `readFile` operation and the build went 1.65 s to
   42 s.

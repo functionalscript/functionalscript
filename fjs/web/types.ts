@@ -26,7 +26,8 @@ export type Refusal = {
  * path does. Pure — the whole routing decision, with nothing to run.
  *
  * Everything it can fail on is a property of the URL. What is discovered by
- * *reading* — a missing file, one too large to send — is not its business.
+ * *reading* — a missing file, an entry that is no regular file — is not its
+ * business.
  */
 export type Resolve = (root: string) => (url: string) => Result<string, Refusal>
 
@@ -41,4 +42,4 @@ export type Resolve = (root: string) => (url: string) => Result<string, Refusal>
  * server that cannot read a file still has a status code to answer with, so
  * every failure becomes a response rather than an error.
  */
-export type Respond = (root: string) => (request: IncomingMessage) => Effect<Fs, ServerResponse, never>
+export type Respond = (root: string) => (request: IncomingMessage) => Effect<Fs, ServerResponse<Fs>, never>

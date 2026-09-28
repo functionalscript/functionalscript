@@ -5,36 +5,37 @@
 
 ### Problem
 
-The primary focus is to get to MVP ASAP.
+The MVP is reached, as
+[fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md) records. The
+remaining tasks here, P2 and below, and the self-hosting milestone are
+post-MVP.
 
-**MVP definition:** the MVP is reached when `fjs compile` can emit Rust code
-that calls the `nanvm-lib` API, and a harness crate builds and runs the
-generated code with cargo:
-
-```
-source ──(fjs compile <module> <output>.rs)──> Rust code
-       ──(cargo: harness crate + nanvm-lib)──> executable ──(run)──> result
-```
-
-The harness evaluates the module's `export default` (running it if it is a
-function) and prints the result to stdout as JSON.
-
-`fjs` never invokes cargo: the npm-shipped tool emits `.rs` files, and
-building/running them is an ordinary cargo workflow. Each ecosystem keeps its
-native tool. The self-hosted `nanvm` crate is the post-MVP milestone below
-(see [console-program](./console-program.md)).
+The MVP — `fjs compile` emitting Rust that calls the `nanvm-lib` API, built and
+run by a harness crate with cargo — is defined and tracked in
+[fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md): the export-object
+module contract, the named-module acceptance example, the `.rs` output target
+and harness export selection.
+This file records the design decided around that pipeline and the work after
+it, toward the self-hosted `nanvm` crate
+([console-program](./console-program.md)).
 
 See [`spec/`](../../spec/README.md) for language details. Details
 for individual items below are added only after discussion.
 
 ### Proposal
 
+Keep handwritten Rust low-level: VM values/operators and host effect handlers.
+The parser, compiler, loader, interpreter and test logic belong in FJS and are
+compiled to direct Rust ahead of time as their dependency closures become
+compiler-supported. The optional [Rust EDAG library](../../todo/rust-edag.md)
+is on hold, outside MVP and the self-hosting prerequisites.
+
 #### Canonical representation: the EDAG as data (decided)
 
 The stable, canonical representation of functions is the **EDAG**, expressed
-as an FJS value (`Any`). Code is data: the `Function` constructor accepts an
-`Any` that describes the code, and the VM knows how to execute it. The
-reasons:
+as an FJS value (`Any`). Code as data does not require a handwritten Rust
+EDAG representation or executor in the VM foundation. The reasons for the
+canonical representation:
 
 1. We need a canonical data representation of functions in FunctionalScript —
    and in the future content-addressable VM (CAVM) — to compute a hash.
@@ -48,61 +49,56 @@ across architectures, VM implementations, and versions, while the EDAG is the
 stable representation. See
 [`spec/todo/serialization.md`](../../spec/todo/serialization.md).
 
-The exact shape of the code-describing `Any` is specified by the
-[edag-spec](../../todo/edag-spec.md) — the contract of the `Function`
-constructor.
+The exact shape of the code-describing `Any` is specified by the RTTI schema
+in [`fjs/edag`](../../fjs/edag/README.md), shared by producers and executors.
 
 #### Execution: two paths (decided)
 
-1. **Interpretation** — the `Function` constructor executes the `Any` code
-   description directly. This is the baseline path, required for the
-   self-hosted `nanvm` crate and for code constructed at run time.
+1. **FJS interpretation** — the existing
+   [FJS interpreter](../../fjs/compiler/todo/interpret-edag.md) executes the linked
+   EDAG as data. For the native executable, this interpreter and the FJS
+   loading pipeline are themselves compiled to Rust ahead of time. Runtime
+   module loading needs no native `Function`-constructor interpreter.
 2. **AOT compilation** — the FJS compiler generates Rust code that calls the
    `nanvm-lib` API, and rustc compiles it to native code. This path is the
-   MVP pipeline, the bootstrap vehicle for compiling the compiler itself into
-   the `nanvm` crate, and the future AOT backend for platforms where
-   interpretation is undesirable or JIT is forbidden (e.g. iOS, embedded).
+   MVP pipeline and the bootstrap vehicle for compiling the FJS toolchain into
+   the `nanvm` crate. It remains direct code generation: `Result` propagation
+   and lazy-operand closures are acceptable; a Rust EDAG is not a required
+   intermediate runtime representation. Future native targets are separate work.
 
 Invariants:
 
-- The two paths are **observably identical** except in performance. Both
-  bottom out in the same `nanvm-lib` operators, so the shared operator tests
-  (see below) cover their common layer; divergence risk is confined to
-  control flow and dispatch.
-- A natively compiled function still **carries its `Any` code description**
-  (as static data), so content hashing and `toString(f)` apply uniformly to
-  all functions. The EDAG is the stable **code/content identity** of a
+- The two paths must agree on the specified observable results for their
+  supported subset. On Rust both use `nanvm-lib` operators; shared operator
+  tests cover that layer, while end-to-end fixtures cover linking, control
+  flow, calls and errors. Native JS remains an independent reference, with
+  the specified FJS function-text exception accounted for.
+- A natively compiled function needs an **association with its semantic EDAG**
+  when hashing or function-text operations require it. The EDAG is the stable
+  **code/content identity** of a
   function; native code is a cached acceleration of it. It is not the
   allocation identity of a callable value. In a JS-compatible execution
   profile, two separately created function objects remain distinct under
   `===` even when their EDAGs and captured values are equal. A profile such
   as CAVM may deliberately use content identity only when that profile
   explicitly specifies the different identity semantics. This invariant is
-  **staged**: the MVP code
-  generator omits the embedded description while the
-  [edag-spec](../../todo/edag-spec.md) (P2) is not yet defined — it must not
-  invent its own shapes ahead of the spec. Embedding becomes mandatory once
-  the spec lands, and before the `Function` constructor, hashing, or
-  `toString(f)` ship.
-- The interpreter sits behind a cargo **feature flag**, so AOT builds for
-  embedded targets that never construct functions from data at run time can
-  compile without it.
+  **staged**: the MVP generator omits the association. Embedded data versus
+  out-of-band lookup remains open below. Until association and rendering are
+  available, unsupported observations must be refused rather than produce
+  placeholder function text. Metadata does not require a Rust EDAG executor.
+- Direct AOT programs depend on VM objects and the effects they use. The
+  optional Rust EDAG library depends on the VM, never the reverse; VM
+  implementations need not supply their own EDAG. The self-hosted CLI embeds
+  the AOT-compiled FJS interpreter because it loads source at runtime, while
+  ordinary AOT programs need not include that interpreter.
 
 #### Rust code generation: an output target of `fjs compile` (decided)
 
-`fjs compile <input> <output>` already dispatches on the output extension
-(`.json` vs. DJS — see [`fjs/fsc/module.f.mjs`](../../fjs/fsc/module.f.mjs));
-Rust code generation is a third branch, selected by the `.rs` extension. No
-new CLI surface: the previously proposed `fjs vm build` / `fjs vm run`
-command group is dropped.
-
-One FJS module compiles to one Rust file, and the generated file is a Rust
-**module** — exposing the module's value via the `nanvm-lib` API (e.g.
-`pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>`, the `Err` a thrown
-value) — not a `main`. A thin, hand-written
-`main` lives in the consumer: the test harness in this repo, the `nanvm`
-crate, or a user's own crate. This way the same generated output serves
-testing, self-hosting, and AOT embedding.
+Shipped as the `.rs` output of `fjs compile`: one Rust **module** per compiled
+program, not a `main`, so the same generated output serves the test harness,
+self-hosting and AOT embedding. The decision and its rejected `fjs vm`
+command group are recorded in
+[fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md#cli-an-output-target-not-a-command-group-decided).
 
 #### Effects: the `nanvm-effects-node` runner crate (decided)
 
@@ -110,15 +106,14 @@ The compiler CLI is pure FJS that *returns* effect descriptions
 (`Effect<NodeOp, T>`); all actual impurity lives in thin runner modules
 (e.g. [`fjs/effects/node/module.mjs`](../../fjs/effects/node/module.mjs)),
 which are not FJS and never pass through the code generator. Stage 1 of the
-repository migration moves authored `.ts` / `.f.ts` to `.mjs` / `.f.mjs` with
-JSDoc independently of compiler support, so `.f.mjs` is **not** the compiled
-source marker. After Stage 1 and authored `.f.js` package support are complete,
+repository migration, complete, moved authored `.ts` / `.f.ts` to `.mjs` /
+`.f.mjs` with JSDoc independently of compiler support, so `.f.mjs` is **not**
+the compiled source marker. Once authored `.f.js` package support is complete,
 compiler-supported `.f.mjs` modules may move to authored `.f.js`; `.f.js` is the
 repository compiler-compatibility marker. The extension contract and migration
-strategy are documented in [`fjs/fsc/README.md`](../../fjs/fsc/README.md).
+strategy are documented in [`fjs/compiler/README.md`](../../fjs/compiler/README.md).
 
-Impure runner modules remain outside the FJS compiler regardless of whether their
-authored JavaScript extension is `.ts` during migration or `.mjs` afterward. A
+Impure runner modules, authored as `.mjs`, remain outside the FJS compiler. A
 native build therefore still needs a hand-written Rust twin interpreting the
 same operation vocabulary against the OS (`std::fs`, `std::process`, stdio)
 instead of Node built-ins.
@@ -133,22 +128,22 @@ embedded profile open), and the `nanvm` binary depends on both. It serves
 any AOT-compiled effectful FJS program, not just the embedded compiler —
 it is to native FJS what `fjs/effects/node/module.mjs` is to Node FJS.
 
-**Generated stub — the vocabulary is machine-checked.** The Rust side of
-the effect vocabulary is not written by hand: a **generated stub** (op,
-parameter, and result types, plus a trait with one method per operation)
-is produced from the effects description, and the hand-written
-`nanvm-effects-node` runner implements the generated trait — so rustc
-enforces that the runner covers exactly the same effects, and any
-vocabulary drift (a new operation, a changed signature) breaks the Rust
-build until the twin catches up. Since `NodeOp` today is TypeScript types
-only and the code generator compiles FJS values, the vocabulary becomes an
-**RTTI schema** (the specification of record) from which both the TS types
-(`Ts<T>`) and the Rust stub are derived — the third instance of the
-single-source pattern, after the [edag-spec](../../todo/edag-spec.md) and the
-operator tests. The stub is generated code: it is committed to the
-repository and regenerated through the same single-script / drift-check
-rules as the generated compiler source (see the distribution section
-below).
+**Generated stub for the RTTI-representable subset.** For operations whose
+request and result types fit the existing RTTI vocabulary, an **RTTI schema**
+is the specification of record. Derive both the TS declarations and a Rust
+stub (op, parameter and result types, plus a trait with one method per
+operation). The handwritten `nanvm-effects-node` runner implements that trait,
+so rustc checks coverage and signature drift for this subset. The stub is
+committed and regenerated through the same single-script / drift-check rules
+as the generated compiler source (see the distribution section below).
+
+`sandbox` has a handwritten declaration on each side: current RTTI cannot
+describe its generic callback or arbitrary returned/thrown VM values, including
+functions. Compose it with the generated subset and test its dispatch and
+result/duration contract separately. Do not encode the callback as RTTI
+`unknown` or claim the generated trait checks the whole vocabulary. The
+[schema boundary](../../todo/nanvm-effects-node.md#schema-boundary) records this
+exception and requires an audit before generating additional operations.
 
 Scoping notes:
 
@@ -157,23 +152,28 @@ Scoping notes:
   `Fetch`, and parallel effects are where an async-runtime decision
   (tokio?) lurks; implement operations incrementally, driven by what the
   CLI actually exercises, and defer that decision entirely.
-- **`import` is the special operation.** On Node it delegates to the module
-  loader; natively, importing an FJS module means invoking the embedded
-  compiler and the `Function`-constructor interpreter — its implementation
-  is the VM itself, not an OS call. It is part of the self-hosting loop,
-  not a syscall port.
+- **Module loading stays in FJS.** The
+  [loader](../../fjs/compiler/todo/load-modules-without-import-effect.md) composes
+  `ReadFile` / `ResolveFileModule`, parsing, linking and FJS interpretation.
+  This workflow requires no `import` or native-function-construction effect;
+  source `import` syntax remains supported. Existing host `import` consumers
+  must be accounted for before removing that effect from the vocabulary.
+- **`sandbox` is a low-level boundary.** Invoke a VM computation and capture
+  its result or language throw, preserving the shared result/duration contract.
+  This does not require replacing `Result` with panics, and error capture is
+  separate from time/memory budgets or process isolation. Implementation tasks
+  are in [nanvm-effects-node](../../todo/nanvm-effects-node.md).
 - **Testing comes cheap.** The pure in-memory interpreters
   ([`fjs/effects/mock`](../../fjs/effects/mock),
-  [`fjs/effects/node/virtual`](../../fjs/effects/node/virtual)) are currently
-  `.f.ts` code. Stage 1 migrates them to `.f.mjs` when their JavaScript/JSDoc
-  and dependency closure are ready, independently of parser support. Once the
+  [`fjs/effects/node/virtual`](../../fjs/effects/node/virtual)) are `.f.mjs`
+  since Stage 1. Once the
   compiler supports their complete syntax in Stage 2, rename them to `.f.js`;
   from that point they compile through the code generator unchanged, so the
   compiled CLI can run against in-memory effects with no Rust twins. The
   `nanvm-effects-node` runner can then be cross-checked against the pure
   interpreter operation by operation. The exception is
   [`fjs/effects/node/memory`](../../fjs/effects/node/memory) — the runner for
-  the mutable memory effects (`MemOp`) — which is an impure `.ts` module
+  the mutable memory effects (`MemOp`) — which is an impure `.mjs` module
   (mutable state, `node:crypto` UUIDs) and so joins the hand-written Rust
   twin set: implementing mutable memory effects in Rust is fine, same as
   the OS operations.
@@ -210,8 +210,8 @@ byte-exactness, a direct correctness signal; mark the generated paths
 `linguist-generated=true` in `.gitattributes` so the diffs stay collapsed
 by default. The gitignored `_*` convention remains reserved for
 *uncommitted* generated scratch, so the committed generated code lives in a
-normally-named location (its layout is part of the generated-module-imports
-open question below).
+normally-named location chosen by the embedding crate. Each compiler invocation
+produces one Rust file containing the linked source dependency graph.
 
 This reverses the earlier publish-time-generation decision (gitignored
 `_*` output packaged via `Cargo.toml`'s `include`, published with
@@ -280,24 +280,10 @@ as a generic `Any` facility, post-MVP.
 
 #### P1
 
-- [x] **Rust code generator** (FJS) — the `.rs` output branch of
-      `fjs compile`: compiles an FJS module into a Rust module that builds
-      the module's value via the `nanvm-lib` API. The central MVP task;
-      rustc replaces the previous deserializer task. Covers the
-      constant-default-export walking-skeleton subset (literals, arrays,
-      objects, `const` sharing, property access); see
-      [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md) for what
-      it does and does not cover yet. Continuously verified now by the
-      `nanvm-harness` crate below: `npm run gen` compiles the harness's
-      fixtures with this generator, and `cargo test` runs the result.
-- [x] **Harness + walking skeleton** — a harness crate (`nanvm-harness`)
-      whose `main` evaluates a generated module's `export default` and
-      prints the result as JSON; the pipeline is wired end-to-end with
-      fixtures covering the walking-skeleton subset
-      (`nanvm-harness/fixtures/{number,boolean,string,array,object,sharing,property}.mjs`),
-      compiled by `fjs compile` into sibling `.rs` files committed and
-      drift-checked via `npm run gen`, and proven by `cargo test` in CI. See
-      [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md).
+The MVP pipeline's own tasks — the `.rs` generator, the harness, harness
+export selection and the `.f.mjs` → `.f.js` repository migration — are
+tracked in [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md#tasks).
+
 - [x] **Test generation for operators** — one test-data module drives both
       the FJS proof (JS engine reference) and the generated Rust tests, so
       every new operator is tested once, not twice. Doubly important now: the
@@ -311,25 +297,23 @@ as a generic `Any` facility, post-MVP.
       tests it on both sides.
       Current status: [operator tables in `nanvm-lib/README.md`](../README.md).
       Spec: [operators](../../spec/todo/2340-operators.md).
-- [ ] **Parser**, using [`fjs/ebnf/`](../../fjs/ebnf/README.md) (FJS).
-- [ ] **Incremental repository compiler coverage** — this is not an MVP gate.
-      First complete the repository TypeScript-to-JavaScript Stage 1 and authored
-      `.f.js` package support. Then, as compiler coverage grows, rename eligible
-      dependency-closed `.f.mjs` modules to `.f.js` and keep them in the
-      end-to-end compiler test set. Unsupported modules remain `.f.mjs`.
+- [x] **LL(1) parser foundation** —
+      [`fjs/compiler/parser`](../../fjs/compiler/parser/README.md) uses
+      [`fjs/ebnf/ll1`](../../fjs/ebnf/ll1/README.md) and implements the
+      source subset used by the walking skeleton. This does not mark the
+      full language grammar complete. Named-import parsing is also
+      implemented, and harness export selection completed the harness side.
+      There is no separate unspecified parser gate.
 
 #### P2
 
-- [ ] **EDAG spec** — the RTTI schema of the code-describing `Any`; the
-      contract of the `Function` constructor, shared by the compiler, the
-      interpreter, and the code generator (which embeds it as static data).
-      Blocks the staged embedding invariant above and the `Function`
-      constructor below — the MVP code generator does not embed code
-      descriptions until this spec exists.
-      See [edag-spec](../../todo/edag-spec.md).
-- [ ] **`Function` constructor + interpreter** (Rust) — accepts an `Any`
-      described by the EDAG spec and executes it; behind a cargo feature
-      flag. Related: [fs-vm-load-save](./fs-vm-load-save.md).
+- [ ] **EDAG metadata integration** — use the canonical
+      [`fjs/edag`](../../fjs/edag/README.md) schema for the staged association
+      invariant above, resolving embedded data versus lookup before implementing
+      that choice. Track native callable integration in
+      [callable-function-objects](./callable-function-objects.md) Stage 7.
+      This work does not require a Rust EDAG executor or generated Rust EDAG
+      types; those belong to the deferred library below.
 - [x] **Basic control operator `?:`** (Rust) — `Any::conditional`, its arms
       thunks so a compiled module establishes only the selected one, covered
       by the corpus as a `Group3`; the operator table in
@@ -343,13 +327,16 @@ as a generic `Any` facility, post-MVP.
       capturing closure is its Stage 3, landed; self-reference is Stage 5.
 - [ ] **`nanvm-effects-node` crate** (Rust) — the effect runner: implements
       the generated stub trait against the OS; sync subset (fs, console)
-      first. Preceded by defining the effect vocabulary as an RTTI schema
-      and generating the Rust stub from it, so rustc enforces that the
-      runner implements the same effects (see the effects section above).
-      Required for the self-hosted CLI.
+      and `sandbox` first. Its schema, generated stub and conformance tasks
+      are tracked in [nanvm-effects-node](../../todo/nanvm-effects-node.md).
+      Required for the self-hosted CLI; no native module parser or import handler.
 
 #### P3
 
+- [ ] **FJS module loading and testing** — compose the parser/linker and existing
+      interpreter in the [loader](../../fjs/compiler/todo/load-modules-without-import-effect.md),
+      then use it for [proof loading](../../fjs/emergent_testing/todo/load-proofs-through-fjs.md)
+      on Node and, as compiler coverage permits, AOT-compiled Rust.
 - [ ] **Control statements**: `if`, `while`, etc. (Rust).
       See [`spec/todo/README.md` §3.2](../../spec/todo/README.md).
 - [ ] **`Any` serialization (CBOR)** — generic serialization of `Any`
@@ -359,22 +346,33 @@ as a generic `Any` facility, post-MVP.
 #### P4
 
 - [ ] **Generators**, etc. (Rust).
+- [ ] **Optional Rust EDAG library/EDSL** —
+      [rust-edag](../../todo/rust-edag.md), **on hold, not planned for MVP**.
+      A shared native executor and its
+      [schema-generated types](../../fjs/edag/todo/rust-schema-codegen.md)
+      may be explored later; neither blocks self-hosting.
 
 ### Post-MVP milestone: self-hosting
 
-Compile the compiler itself (written in FJS) to Rust with the code generator
+Compile the compiler, loader, interpreter and required testing logic (written
+in FJS) to direct Rust with the code generator
 and ship it as the `nanvm` crate
 ([console-program](./console-program.md)): a single native executable that
-parses and runs FunctionalScript JavaScript directly — no Node/Deno, no rustc at
-the user's run time — executing code via the interpreter behind the `Function`
-constructor, with its I/O interpreted by the `nanvm-effects-node` runner (see the
-effects section above).
+parses and runs supported FunctionalScript source — no Node/Deno, no rustc at
+the user's run time. Its AOT-compiled FJS interpreter evaluates newly loaded
+EDAG as data, with I/O and `sandbox` handled by `nanvm-effects-node`. Arbitrary
+JavaScript and host modules are not part of the Rust source-loading contract.
 
-Reached incrementally: Stage 1 first removes authored TypeScript from the
-compiler source into `.f.mjs` independently of parser coverage. As the code
-generator's language coverage grows, compiler-supported modules move from
-`.f.mjs` to `.f.js`; self-hosting is the completion of that same Stage-2
-compiler-compatibility migration rather than a separate rewrite.
+Reached incrementally: Stage 1 removed authored TypeScript from the compiler
+source into `.f.mjs` independently of parser coverage. Stage 2 also requires
+removing host behavior outside FJS: the memo executor's captured mutable cache
+needs an [immutable rewrite](../../fjs/edag/memo/todo/immutable-cache.md) preserving
+sharing and lazy evaluation before native self-hosting. Host `Map` dependencies
+in the compiler, analysis and executor also need
+[container migration](../../fjs/compiler/todo/load-modules-without-import-effect.md#native-prerequisites)
+or a separately approved language design. Both are semantic prerequisites, not
+ordinary compiler coverage. As these migrations and language
+coverage permit, compiler-supported modules move from `.f.mjs` to `.f.js`.
 
 ### Open questions
 
@@ -385,30 +383,32 @@ compiler-compatibility migration rather than a separate rewrite.
    conflicts with "always 8-byte doubles". Do we adopt RFC 8949 §4.2 as-is,
    or define our own profile (e.g. always 64-bit floats)? Belongs to the
    `Any` serialization task (P3).
-2. **Generated module imports.** An FJS module imports other modules. What is
-   the convention for how generated Rust modules reference each other
-   (`use` paths, file/directory layout mirroring the FJS module graph)? And
-   does `fjs compile <input> <output>.rs` emit the transitive closure as
-   multiple files, or is it invoked per module?
-3. **Result printing.** The harness prints the result to stdout as JSON, but
-   a result can be non-JSON (`undefined`, `bigint`, a function). Does the MVP
-   print DJS for those, or report an error?
-4. **Binary name.** The npm tool is `fjs`; the crate is `nanvm`. Should the
+2. **Result printing beyond JSON.** Keep the harness's explicit JSON refusal
+   for a selected value or call result that JSON cannot represent. Whether to
+   add DJS output later remains open; serializing the entire export object is
+   not a prerequisite for invoking one of its functions.
+3. **Binary name.** The npm tool is `fjs`; the crate is `nanvm`. Should the
    crate's binary also be named `fjs` (same CLI surface, native), or `nanvm`?
+4. **Embedded EDAG or a lookup effect.** The semantic association required
+   above can be represented as embedded data or outside the function value,
+   as [associate-edag-with-functions](../../fjs/compiler/todo/associate-edag-with-functions.md)
+   proposes with `edagAdd` / `edagGet`. Which representation the runtime
+   follows remains undecided; neither requires a dynamic Rust EDAG executor.
 
 ### Related
 
 - [`spec/README.md`](../../spec/README.md) — the language spec;
   [`spec/todo/serialization.md`](../../spec/todo/serialization.md) records the
   EDAG-as-data decision and the two execution paths.
-- [`fjs/fsc/README.md`](../../fjs/fsc/README.md) — source extension contract
+- [`fjs/compiler/README.md`](../../fjs/compiler/README.md) — source extension contract
   and incremental repository migration.
-- [edag-spec](../../todo/edag-spec.md) — the schema (RTTI) of the
-  code-describing `Any`; the `Function` constructor contract.
-- [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md) — the
-  walking-skeleton integration: the `.rs` output target and the harness.
+- [`fjs/edag`](../../fjs/edag/README.md) — the schema (RTTI) of the
+  code-describing `Any`; optional Rust schema generation is tracked separately
+  in [rust-schema-codegen](../../fjs/edag/todo/rust-schema-codegen.md).
+- [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md) — the MVP
+  definition and its tasks: the `.rs` output target and the harness.
 - [console-program](./console-program.md) — the self-hosted `nanvm` crate
   (post-MVP).
 - [`nanvm-lib/tests/README.md`](../tests/README.md) — the shared operator test
   data driving both the FJS proof and the generated Rust tests.
-- [fs-vm-load-save](./fs-vm-load-save.md) — load/execute/save semantics.
+- [fjs-vm-load-save](./fjs-vm-load-save.md) — load/execute/save semantics.

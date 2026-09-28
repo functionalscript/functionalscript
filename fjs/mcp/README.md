@@ -54,7 +54,7 @@ with your CAS instance, and the `evo_list`, `evo_head`, `evo_revision`, and
 | Tool           | args                                         | CAS call          | result                                    |
 |----------------|----------------------------------------------|-------------------|-------------------------------------------|
 | `cas_add`      | `{ content, type? }`                         | `c.write(value)`  | hash (cBase32)                            |
-| `cas_get`      | `{ hash, content?: boolean }`                | `c.read(key)`     | JSON `{length,mimeType,type[,uri][,text\|blob]}` |
+| `cas_get`      | `{ hash, content?: boolean }`                | `c.read(key)`     | JSON `{length,mimeType,type,uri[,text\|blob]}` |
 | `cas_list`     | `{}`                                         | `c.list()`        | hashes, one per line                      |
 | `evo_list`     | `{ archived? }`                              | `e.list(...)`     | subjects, as a JSON array of strings      |
 | `evo_head`     | `{ subject }`                                | `e.head(...)`     | head hashes, one per line                 |
@@ -89,8 +89,10 @@ Inline content (`text`/`base64`) resolves into a single `Vec`, which caps at
 returns `isError` with a descriptive message pointing at the CLI. There is no
 MCP route to store a larger blob — run `npx functionalscript cas add <path>`
 instead, either yourself (if you're an agent with shell access) or by giving
-the user that exact command to run; it stores the file directly from the
-caller's own filesystem and prints the resulting hash. A future `type` may add
+the user that exact command to run; it stores the file directly and prints the
+resulting hash. Like `cas get`, it must run where the server runs — the same
+host, container and account, over the same `ssh host` if the server was
+launched that way — since the CLI writes the store of the account it runs as. A future `type` may add
 a *remote* `http(s)://` URL fetch, downloaded server-side into the store with
 no local-path involved; see the design invariant below.
 
@@ -108,14 +110,14 @@ in the metadata-only response as the discriminator for which of `text` /
 content type:
 
 ```json
-{ "length": 42, "mimeType": "text/plain", "type": "text" }
+{ "length": 42, "mimeType": "text/plain", "type": "text", "uri": "cas:<hash>" }
 ```
 
 When `content: true` is passed, the inline payload is also included — as
 `text` for `type: 'text'`, or `blob` for `type: 'base64'`:
 
 ```json
-{ "length": 42, "mimeType": "text/plain", "type": "text", "text": "hello world\n" }
+{ "length": 42, "mimeType": "text/plain", "type": "text", "uri": "cas:<hash>", "text": "hello world\n" }
 ```
 
 The `type` field (`'text'` or `'base64'`) is always present and lets the agent
@@ -125,12 +127,20 @@ themselves. The typical decision protocol:
 1. Call `cas_get` (default `content: false`) — inspect `length`, `mimeType`,
    and `type`.
 2. If `type: 'text'` and `length` is small → call again with `content: true`.
-3. If `type: 'base64'` or `length` is large → use `uri` from the response
-   to download directly (when present; see below).
+3. If `length` is past the inline limit, or the bytes are wanted in a file →
+   run `npx functionalscript cas get <hash> <path>`, or give the user that
+   exact command: it writes the blob of any size to `<path>`. It must run
+   where the server runs — the same host, container and account, so over the
+   same `ssh host` if the server was launched that way. The CLI reads the store
+   of the account it runs as, so run anywhere else it reports the hash
+   missing.
 
-`uri` is present only when the server was started with a `toUrl` resolver
-(production filesystem-backed server); it is omitted in memory-backed contexts
-such as tests.
+`uri` is always present and is the blob's opaque identifier, `cas:<hash>`,
+with the hash in canonical cBase32 — the name the future `resources/read`
+view will read it under ([remote-url](./todo/remote-url.md)). It is not a
+path and not a download route: it is built from the hash the client named,
+so it discloses nothing about the server (see the emit-side invariant
+below).
 
 ### Metadata is size-independent (the default `content: false`)
 
@@ -178,19 +188,20 @@ Because the size and type are derived first with the size-independent
 the byte size and pointing at the alternatives, e.g.
 
 ```
-blob too large to fetch inline (262144 bytes, limit 131072 bytes); use the uri field (…) or omit content for metadata
+blob too large to fetch inline (262144 bytes, limit 131072 bytes); run `npx functionalscript cas get <hash> <path>` where this server runs (same host, container and account; over the same ssh if it was launched that way), or have the user run it there, or omit content for metadata
 ```
 
 So `no such hash` means the hash genuinely is not in the store, while the message
-above means the blob exists but exceeds the inline limit — fetch it via `uri`, or
-call `cas_get` without `content: true` for size-independent metadata.
+above means the blob exists but exceeds the inline limit — write it to a file
+with the `cas get` command it names, or call `cas_get` without `content: true`
+for size-independent metadata.
 
 Examples:
 
 ```json
-{ "length": 12, "mimeType": "text/plain",               "type": "text",   "text": "hello world\n" }
-{ "length": 10, "mimeType": "image/png",                 "type": "base64", "blob": "iVBOR..."      }
-{ "length":  4, "mimeType": "application/octet-stream",  "type": "base64", "blob": "/v8A..."       }
+{ "length": 12, "mimeType": "text/plain",               "type": "text",   "uri": "cas:…", "text": "hello world\n" }
+{ "length": 10, "mimeType": "image/png",                 "type": "base64", "uri": "cas:…", "blob": "iVBOR..."      }
+{ "length":  4, "mimeType": "application/octet-stream",  "type": "base64", "uri": "cas:…", "blob": "/v8A..."       }
 ```
 
 ## Encoding split: hashes (cBase32) vs. content
@@ -215,6 +226,24 @@ MCP draws a line the dispatcher already respects:
   - `cas_get` with `content: true` on a blob larger than the inline limit
     (distinct "too large" message — see above — not "no such hash");
   - an unknown tool `name`.
+
+## Design invariant: the server never emits a server path
+
+> No tool result or error text carries a path on the server's filesystem.
+
+The store lives under the home directory of the account the server runs as,
+and its absolute path names that account. Over stdio the client is a local
+*process*, but not always one that could learn the path for itself — `ssh host
+npx functionalscript mcp`, a container, or a wrapper running the server under
+another user are all ordinary stdio launches. So what a client learns about a
+blob is what it already knows, its hash: `cas_get`'s `uri` is `cas:<hash>`,
+and a blob too large for inline content is pointed at the `cas get` CLI
+command, which the user runs with their own access, in the server's
+environment.
+
+This is the emit side of the invariant below: a new field or message that
+would carry a server path is a decision to make here first, not a detail of
+the tool that adds it.
 
 ## Design invariant: the server never opens a client-named local path
 
@@ -259,8 +288,8 @@ its cBase32 hash:
 ```
 
 where `AB`, `CD`, and `<rest-of-hash>` are the first two, next two, and
-remaining characters of the cBase32 hash. The `uri` field returned by
-`cas_get` contains the full absolute path to the blob file.
+remaining characters of the cBase32 hash. No response carries this path:
+`cas_get`'s `uri` is `cas:<hash>`, not the file's location.
 
 ### Testing without a live process
 

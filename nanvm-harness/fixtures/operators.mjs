@@ -1,5 +1,5 @@
 /**
- * Compiled by `fjs compile` into the sibling `operators.rs`, committed and
+ * Compiled by `fjs compile` into `../gen.fixtures/operators.rs`, committed and
  * drift-checked by `npm run gen` (see `../../fjs/ci/README.md`). Consumed by
  * `../src/lib.rs`. Pins every eager operator the grammar admits, each
  * printed as `(…)?` against `nanvm-lib`. `n` is itself an operation, not a

@@ -15,16 +15,21 @@ import { remove as btreeRemove } from '../btree/remove/module.f.mjs'
 import { values } from '../btree/module.f.mjs'
 import { cmp } from '../string/module.f.mjs'
 import { fold } from '../list/module.f.mjs'
+import { map as nullableMap } from '../nullable/module.f.mjs'
 
 /** @type {(a: string) => <T>(b: Entry<T>) => Sign} */
 const keyCmp = a => ([b]) => cmp(a)(b)
 
+/**
+ * Projects a found entry to its value, passing a miss through as `null`.
+ *
+ * @type {<T>(entry: Entry<T> | null) => T | null}
+ */
+const entryValue = nullableMap(([, v]) => v)
+
 /** @type {(name: string) => <T>(map: OrderedMap<T>) => T | null} */
-export const at = name => map => {
-    if (map === null) { return null }
-    const result = value(find(keyCmp(name))(map).first)
-    return result === null ? null : result[1]
-}
+export const at = name => map =>
+    map === null ? null : entryValue(value(find(keyCmp(name))(map).first))
 
 /** @type {<T>(reduce: Reduce<T>) => (entry: Entry<T>) => (map: OrderedMap<T>) => OrderedMap<T>} */
 const setReduceEntry = reduce => entry =>

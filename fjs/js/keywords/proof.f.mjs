@@ -7,7 +7,11 @@ import { assertEq } from '../../asserts/module.f.mjs'
 import { keywords, literalGlobals, literalWords, reservedWords, restrictedNames, strictModeReservedWords } from './module.f.mjs'
 
 export const proof = {
-    // `keywords` is exactly the sorted union of the four groups
+    // `keywords` is derived from the four groups; what the derivation does
+    // not give by construction is that no name is in two groups — strictly
+    // ascending means sorted and each name once. The order is by code unit,
+    // so the capitalized globals come first. The type-level pin keeps the
+    // element type the literal union rather than `string`.
     aggregate: () => {
         /**
          * @typedef {Assert<Equal<
@@ -18,11 +22,8 @@ export const proof = {
          *  | typeof literalGlobals[number]
          * >>} _KeywordsPinned
          */
-        /** @type {readonly string[]} */
-        const union = [...reservedWords, ...strictModeReservedWords, ...restrictedNames, ...literalGlobals]
-        // the names are unique, so the comparator never sees an equal pair
-        assertEq(keywords.join(), union.toSorted((a, b) => a < b ? -1 : 1).join())
-        assertEq(keywords.length, new Set(keywords).size)
+        assertEq(keywords.every((w, i) => i === 0 || keywords[i - 1] < w), true)
+        assertEq(keywords.slice(0, 3).join(), 'Infinity,NaN,arguments')
     },
     // `literalWords` is the three literals the reserved words hold and the
     // three literal globals, and nothing else — a keyword either denotes a

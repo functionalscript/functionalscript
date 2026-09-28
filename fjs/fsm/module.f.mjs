@@ -7,7 +7,7 @@
  * @import { StringMap } from '../types/object/types.ts'
  * @import { ByteSet } from '../types/byte_set/types.ts'
  * @import { SortedSet } from '../types/sorted_set/types.ts'
- * @import { RangeMap, Properties, RangeMapArray, Entry } from '../types/range_map/types.ts'
+ * @import { RangeMap, Properties, RangeMapArray, RangeEntry } from '../types/range_map/types.ts'
  * @import { Fold } from '../types/function/operator/types.ts'
  * @import { Grammar, _Dfa, _Rule } from './types.ts'
  */
@@ -48,7 +48,7 @@ const hasState = s => set => !isEmpty(intersect(cmp)([s])(set))
  * `byte_set.toRangeMap` answers only whether each range is in the set; which
  * state that means is a DFA question, so it is answered here.
  *
- * @type {(ruleOut: string) => (entry: Entry<boolean>) => Entry<SortedSet<string>>}
+ * @type {(ruleOut: string) => (entry: RangeEntry<boolean>) => RangeEntry<SortedSet<string>>}
  */
 const labelRange = ruleOut => ([inSet, max]) => [inSet ? [ruleOut] : [], max]
 
@@ -63,7 +63,7 @@ const foldOp = set => ([ruleIn, bs, ruleOut]) => rm => {
 /**
  * Renders an entry's state set as its `_Dfa` key, keeping the range boundary.
  *
- * @type {(entry: Entry<SortedSet<string>>) => Entry<string>}
+ * @type {(entry: RangeEntry<SortedSet<string>>) => RangeEntry<string>}
  */
 const keyEntry = ([sortedSet, max]) => [toKey(sortedSet), max]
 
@@ -72,7 +72,7 @@ const keyEntries = map(keyEntry)
 /**
  * Drops an entry's range boundary, leaving the state set.
  *
- * @type {(entry: Entry<SortedSet<string>>) => SortedSet<string>}
+ * @type {(entry: RangeEntry<SortedSet<string>>) => SortedSet<string>}
  */
 const entryValue = ([value]) => value
 

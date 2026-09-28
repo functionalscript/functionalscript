@@ -22,10 +22,10 @@ originating one. So **no FunctionalScript expression builds a sparse array**,
 and [`fjs/types/object/structurally_same/README.md`](../fjs/types/object/structurally_same/README.md)
 already says so outright.
 
-The tree does not agree with that. **Twenty-nine `new Array(` expressions on
-twenty-eight lines across nine `.f.mjs` files**, and one of them is not a
-proof. The table counts lines, which is what a sweep works through; the one
-place the two differ is noted in it:
+The tree does not agree with that. At `36c8d4a`, **thirty-one `new Array(`
+expressions on thirty lines of code across eleven `.f.mjs` files**, and one of
+them is not a proof. The table counts lines, which is what a sweep works
+through; the one place the two differ is noted in it:
 
 | where | uses |
 | - | - |
@@ -37,9 +37,15 @@ place the two differ is noted in it:
 | `fjs/media/datajs/serializer/proof.f.mjs` | 1 |
 | `fjs/rtti/parse/proof.f.mjs` | 1 |
 | `fjs/sul/proof.f.mjs` | 1 |
+| `fjs/git/refname/proof.f.mjs` | 1 |
+| `fjs/git/ref/proof.f.mjs` | 1 |
 | **`fjs/rtti/parse/module.f.mjs`** | **1** |
 
-A further eight sites mention `new Array` in prose only. The one occurrence in
+The two `fjs/git` rows arrived after the survey: `isName` in `fjs/git/refname`
+and `packed` in `fjs/git/ref` are each proved to refuse `new Array(1)`, and
+`fjs/git/refname`'s JSDoc explains the hole it guards against.
+
+About ten comment lines mention `new Array` in prose only. The one occurrence in
 `spec/datajs/vectors/reject/data.f.mjs` is not an offender: it is the document
 text of a vector proving DataJS rejects `new Array()`.
 
@@ -90,9 +96,11 @@ module they live in.
   interior hole when its *input* already has one: for a dense input, every
   index below the highest present one is present, so the allocate-and-write
   body produces exactly what the subset-legal `arrayRebuild` beside it
-  produces. If the exception is refused, `arrayRebuild` replaces it for both
-  tuple kinds and the difference is visible only on an input the ruling says
-  cannot be constructed. **Confirm that empirically before acting on it.**
+  produces. Confirmed empirically, and the edit under either ruling is
+  [`fjs/rtti/parse/todo/tuple-rebuild-out-of-subset.md`](../fjs/rtti/parse/todo/tuple-rebuild-out-of-subset.md)'s
+  to choose, including what a sparse input means: `arrayRebuild` alone
+  reindexes one, and whether that is a wrong answer or undefined behaviour
+  is settled there.
 - **Guards that become unreachable.** The container and rest length checks
   across `fjs/rtti/parse`, `fjs/rtti/validate` and `fjs/rtti/data` are
   consulted only when no undeclared member was found, which for a dense array
@@ -141,11 +149,16 @@ module they live in.
       their covers in the same commit. Keep the const-tuple bound, which takes
       both arms on dense values. Run `npm run cov` before and after; anything
       below 100% means the unreachable-versus-live split is wrong somewhere.
-- [ ] **`fjs/rtti/parse`'s hole producer**, gated on the first task. If the
-      exception was refused, `arrayRebuild` replaces `tupleRebuild` for both
-      tuple kinds, and the three proofs whose subject is hole preservation go
-      with it. If it was granted, the opposite edit: cite the new spec
-      paragraph in the JSDoc instead of arguing local freshness, and note in
+- [ ] **`fjs/rtti/parse`'s hole producer**, gated on the first task and now
+      owned by
+      [`fjs/rtti/parse/todo/tuple-rebuild-out-of-subset.md`](../fjs/rtti/parse/todo/tuple-rebuild-out-of-subset.md),
+      which records the bug, what is known about it, and the directions a
+      fix could take without choosing one. That issue decides the edit under
+      either ruling, including what a sparse input means, since
+      `arrayRebuild` alone reindexes one, `[, 3]` becoming `[3]`. If the
+      exception was granted, the edit is the one the issue
+      lists first: cite the new spec paragraph in the JSDoc instead of
+      arguing local freshness, and note in
       [`fjs/types/object/structurally_same/README.md`](../fjs/types/object/structurally_same/README.md)
       that `parse` output is the one source of sparse arrays its dense premise
       does not cover.
@@ -158,7 +171,11 @@ module they live in.
       [the module README](../fjs/media/datajs/README.md#every-entry-point-is-fallible-and-the-names-say-so),
       so a hole is a value only a host can hand it. Separate the hole half of
       its array check from the extra-own-property half before touching either.
-- [ ] **The prose sweep.** Eight sites mention `new Array` in explanation.
+- [ ] **`fjs/git/refname` and `fjs/git/ref`.** Decide whether the hole half of
+      `byteArray`'s refusal, which both proofs exercise with `new Array(1)`,
+      defends a FunctionalScript caller or only a host one, and keep or drop
+      the proof entries and the JSDoc sentence together.
+- [ ] **The prose sweep.** About ten sites mention `new Array` in explanation.
       Rewrite each to say which caller it is about, and fix the one in
       `fjs/types/range_set` that reads as though `new Array(1)` were an
       ordinary FunctionalScript value, which contradicts its sibling in
@@ -179,3 +196,7 @@ module they live in.
   there. The corpus that argument was about is
   [`spec/datajs/vectors`](../spec/datajs/vectors/README.md), whose README
   records the gap from its own side.
+- [`withLength` pattern](https://github.com/functionalscript/functionalscript/blob/245649cdeeb0fb6318004ee273121143273262db/spec/todo/arity-complete-arguments.md#candidate-mechanism-the-withlength-pattern)
+  — retired: it would have admitted one construction-time `defineProperty`,
+  on a fresh function's `length`, as a complete matched pattern; nothing in
+  it legalized `tupleRebuild`.

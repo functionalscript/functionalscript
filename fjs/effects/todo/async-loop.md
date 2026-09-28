@@ -36,5 +36,5 @@ mirroring `mock`'s `partialRun`, injector at the runner as its doc argues.
 
 ### Related
 
-- [io-effect-migration.md](./io-effect-migration.md) — why the two runners
-  exist; treats the pair as settled and does not mention the loop.
+- `partialMatch` in [`../module.f.mjs`](../module.f.mjs) — why each runner
+  writes its own `onMissing` injector, which is why the two runners exist.

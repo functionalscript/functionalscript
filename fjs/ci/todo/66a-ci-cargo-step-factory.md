@@ -102,9 +102,7 @@ factory.
 
 ### Related
 
-- [i170-ci-tool-steps](./170-ci-tool-step-builder.md) — the sibling DRY cleanup for the
-  Node version-job builders in `fjs/ci/node`. Same root cause (per-variant step
-  builders that differ only in command flags), different module; the two are
-  independent and could land separately.
-- [i175-ci-setup-tool](./175-ci-setup-tool-factory.md), [i170-ci-tool-steps](./170-ci-tool-step-builder.md)
-  — other `fjs/ci` step-builder refactors.
+- [66H-ci-npm-global-install](./66h-ci-npm-global-install.md) — another
+  `fjs/ci` step-builder refactor, and where the lesson of the two closed ones
+  (`toolSteps`, `setupTool`) is recorded: re-check the call-site count before
+  building a factory.

@@ -58,11 +58,15 @@ const { listToVec } = msb
 export const concat = (...x) => listToVec(x)
 
 /**
- * Computes deterministic ECDSA nonce `k` as described by RFC6979.
+ * RFC6979 §3.2 from step b on: the nonce `k` for the digest `h1 = H(m)`.
+ * Step a, hashing the message, is the caller's, so that `sign` can hash
+ * once and derive both `h` and the nonce from one digest. Private, because
+ * `h1` must be a digest of `hf`, which no check on a `Vec` can establish:
+ * its only callers are `computeK` and `sign`, and both make `h1` with `hf`.
  *
- * @type {(_: All) => (_: Sha2) => (x: bigint) => (m: Vec) => bigint}
+ * @type {(_: All) => (_: Sha2) => (x: bigint) => (h1: Vec) => bigint}
  */
-export const computeK =
+const computeKFromDigest =
     ({ q, bits2int, qlen, int2octets, bits2octets }) => hf => {
         // TODO: Look at https://www.rfc-editor.org/rfc/rfc6979#section-3.3 to reformulate
         //       it using `HMAC_DRBG`.
@@ -82,13 +86,13 @@ export const computeK =
         //    such that the length of K, in bits, is equal to 8*ceil(hlen/8).
         const k0 = rep(x00)
         //
-        return x => m => {
+        return x => h1 => {
             let v = v0
             let k = k0
             // a. Process m through the hash function H, yielding:
             //      h1 = H(m)
             //   (h1 is a sequence of hlen bits).
-            const h1 = computeSync(hf)([m])
+            //    The caller's step: `h1` is the parameter.
             // d. Set:
             //      K = HMAC_K(V || 0x00 || int2octets(x) || bits2octets(h1))
             //    where '||' denotes concatenation.
@@ -134,6 +138,16 @@ export const computeK =
     }
 
 /**
+ * Computes deterministic ECDSA nonce `k` as described by RFC6979.
+ *
+ * @type {(_: All) => (_: Sha2) => (x: bigint) => (m: Vec) => bigint}
+ */
+export const computeK = a => hf => {
+    const f = computeKFromDigest(a)(hf)
+    return x => m => f(x)(computeSync(hf)([m]))
+}
+
+/**
  * Signs a message bit vector and returns an ECDSA `(r, s)` signature pair.
  *
  * @type {(c: Curve) => (hf: Sha2) => (x: bigint) => (m: Vec) => _Signature}
@@ -160,7 +174,7 @@ export const sign = c => hf => x => m => {
     //    used to generate k.  In plain DSA or ECDSA, k should be selected
     //    through a random selection that chooses a value among the q-1
     //    possible values with uniform probability.
-    const k = computeK(a)(hf)(x)(m)
+    const k = computeKFromDigest(a)(hf)(x)(hm)
     // 3.  A value r (modulo q) is computed from k and the key parameters:
     //
     //     *  For ECDSA: the point kG is computed; its X coordinate (a

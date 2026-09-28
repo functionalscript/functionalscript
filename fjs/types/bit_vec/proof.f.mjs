@@ -4,10 +4,10 @@
  * @import { List } from '../list/types.ts'
  */
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { mask } from '../bigint/module.f.mjs'
 import { asBase, asNominal } from '../nominal/module.f.mjs'
-import { length, empty, uint, vec, lsb, msb, repeat, vec8, maxLength, u8ListToVec, tryU8ListToVec, u8List, chunkList, fromSentinel } from './module.f.mjs'
+import { length, empty, uint, vec, lsb, msb, repeat, vec8, maxLength, maxLengthBytes, u8ListToVec, tryU8ListToVec, u8List, u8ListToVecMsb, u8ListMsb, chunkList, tailPaddedUintChunkList, fromSentinel, bytesIn, isWholeBytesIn, byteLength, isWholeBytes } from './module.f.mjs'
 import { repeat as listRepeat, toArray } from '../list/module.f.mjs'
 
 /** @type {(a: bigint) => Vec} */
@@ -174,6 +174,37 @@ export const proof = {
     length: () => {
         const len = length(empty)
         assertEq(len, 0n)
+    },
+    bytes: {
+        // Seven, eight and nine bits: short of a byte, exactly one, one past.
+        bytesIn: () => {
+            assertEq(bytesIn(7n), 0n)
+            assertEq(bytesIn(8n), 1n)
+            assertEq(bytesIn(9n), 1n)
+        },
+        isWholeBytesIn: () => {
+            assert(!isWholeBytesIn(7n))
+            assert(isWholeBytesIn(8n))
+            assert(!isWholeBytesIn(9n))
+        },
+        byteLength: () => {
+            assertEq(byteLength(empty), 0n)
+            assertEq(byteLength(vec(9n)(0n)), 1n)
+            assertEq(byteLength(vec(16n)(0n)), 2n)
+        },
+        isWholeBytes: () => {
+            assert(isWholeBytes(empty))
+            assert(!isWholeBytes(vec(9n)(0n)))
+            assert(isWholeBytes(vec(16n)(0n)))
+        },
+        // A negative count is refused, not answered: `-1n >> 3n` would be
+        // `-1n`, and `-8n` would pass as whole bytes.
+        negativeBytesIn: { throw: () => bytesIn(-1n) },
+        negativeIsWholeBytesIn: { throw: () => isWholeBytesIn(-8n) },
+        maxLengthBytes: () => {
+            assertEq(maxLengthBytes, 131_072n)
+            assert(isWholeBytesIn(maxLength))
+        },
     },
     bitset: () => {
         const v = vec(8n)(0x5FEn)
@@ -419,6 +450,31 @@ export const proof = {
             }
         }
     },
+    msbBytes: () => {
+        const bytes = [0x12, 0x34, 0x56]
+        const v = u8ListToVecMsb(bytes)
+        assertEq(v, u8ListToVec(msb)(bytes))
+        assertEq(v, vec(24n)(0x123456n))
+        assertStructurallySame(toArray(u8ListMsb(v)), bytes)
+        // not an inverse off whole bytes: the partial byte is zero-padded
+        const ragged = toArray(u8ListMsb(vec(9n)(0x83n)))
+        assertStructurallySame(ragged, [0x41, 0x80])
+        assertEq(u8ListToVecMsb(ragged), vec(16n)(0x4180n))
+    },
+    tryConcat: () => {
+        const a = vec(8n)(0x45n)
+        const b = vec(8n)(0x89n)
+        // Within the cap it is `concat`.
+        assertEq(lsb.tryConcat(a)(b), lsb.concat(a)(b))
+        assertEq(msb.tryConcat(a)(b), msb.concat(a)(b))
+        // Exactly `maxLength` is allowed; one bit past it is refused.
+        const one = vec(1n)(1n)
+        const full = vec(maxLength - 1n)(1n)
+        assertEq(lsb.tryConcat(full)(one), lsb.concat(full)(one))
+        assertEq(msb.tryConcat(full)(one), msb.concat(full)(one))
+        assertEq(lsb.tryConcat(vec(maxLength)(1n))(one), null)
+        assertEq(msb.tryConcat(one)(vec(maxLength)(1n)), null)
+    },
     tryListToVecOverflow: () => {
         /** @type {List<Vec>} */
         const list = [vec(maxLength)(1n), vec(1n)(1n)]
@@ -516,6 +572,29 @@ export const proof = {
             assert(!(length(chunks[0]) !== 4n || uint(chunks[0]) !== 6n), chunks[0])
             assert(!(length(chunks[1]) !== 4n || uint(chunks[1]) !== 0xDn), chunks[1])
             assert(!(length(chunks[2]) !== 2n || uint(chunks[2]) !== 1n), chunks[2])
+        },
+    },
+    // 10-bit vector 0x1B5 = 0b01_1011_0101 in 4-bit chunks: the 2-bit trailing
+    // chunk is zero-extended at the tail of the bit order.
+    tailPaddedUintChunkList: {
+        empty: () => {
+            assertEq(toArray(tailPaddedUintChunkList(msb)(4n)(empty)).length, 0)
+        },
+        // LSB: the trailing chunk `01` keeps its value; zeros fill the high bits.
+        lsb: () => {
+            const [a, b, c, ...rest] = toArray(tailPaddedUintChunkList(lsb)(4n)(vec(10n)(0x1B5n)))
+            assertEq(rest.length, 0)
+            assertEq(a, 5n)
+            assertEq(b, 0xBn)
+            assertEq(c, 1n)
+        },
+        // MSB: the trailing chunk `01` is shifted left to `0100`; zeros fill the low bits.
+        msb: () => {
+            const [a, b, c, ...rest] = toArray(tailPaddedUintChunkList(msb)(4n)(vec(10n)(0x1B5n)))
+            assertEq(rest.length, 0)
+            assertEq(a, 6n)
+            assertEq(b, 0xDn)
+            assertEq(c, 4n)
         },
     },
 }

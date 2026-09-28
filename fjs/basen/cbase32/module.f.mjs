@@ -7,13 +7,13 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
-import { msb, lsb, length, maxLength, vec, empty } from '../../types/bit_vec/module.f.mjs'
+import { msb, lsb, length, vec, empty } from '../../types/bit_vec/module.f.mjs'
 import { baseN } from '../module.f.mjs'
 
 //                         0123456789abcdef
 const m = '0123456789abcdefghjkmnpqrstvwxyz'
 
-const { concat } = msb
+const { concat, tryConcat } = msb
 
 const popBack1 = lsb.popFront(1n)
 
@@ -58,10 +58,7 @@ export const cBase32ToVec = s => {
             tail = rest
             if (last === 1n) {
                 const head = cBase32ToVec5x(s.slice(0, i))
-                if (head === null || length(head) + length(rest) > maxLength) {
-                    return null
-                }
-                return concat(head)(rest)
+                return head === null ? null : tryConcat(head)(rest)
             }
         }
     }

@@ -136,6 +136,25 @@ export type WriteFile = readonly['writeFile', (path: string, data: Vec) => IoRes
 
 export type Rm = readonly['rm', (path: string) => IoResult<void>]
 
+// rmdir
+
+/**
+ * Removes the directory at `path`, which must be empty — `ENOTEMPTY` otherwise,
+ * so it cannot take anything with it. Nothing is followed: a symbolic link, to a
+ * directory or not, is `ENOTDIR`, as is a file. An absent name is `ENOENT`.
+ *
+ * `ENOTDIR` for a link holds on every host, and on Windows the runner has to make
+ * it hold: there a junction or a directory symlink is removed by the host's own
+ * `rmdir` whatever its target holds, so the node runner refuses a link before it
+ * asks.
+ *
+ * **A custom runner must implement it**: `NodeOperationMap` and
+ * `CommandSet<NodeOp>` are both checked for *completeness*, so annotating
+ * either without a handler does not compile, and an exhaustive `switch` over
+ * `NodeOp` needs an arm.
+ */
+export type Rmdir = readonly['rmdir', (path: string) => IoResult<void>]
+
 // rename
 
 export type Rename = readonly['rename', (src: string, dst: string) => IoResult<void>]
@@ -191,7 +210,8 @@ export type CreateExclusive = readonly['createExclusive', (path: string) => IoRe
 
 /**
  * Creates `path` with `O_CREAT|O_EXCL` **and writes `data` through that same
- * open**.
+ * open** — the chunks in order, since a `Vec` holds at most `maxLengthBytes` and
+ * a file has no such bound.
  *
  * Three things hold, and a caller may rely on each:
  *
@@ -213,16 +233,17 @@ export type CreateExclusive = readonly['createExclusive', (path: string) => IoRe
  *   followed — so a symlink planted in the window is written *through*.
  *
  * `createExclusive` remains for a name claimed now and written later, which is
- * the lock-free upload's staging file. This one is what a **lock file** wants,
- * and [`fjs/git/refstore`](../../git/refstore/module.f.mjs)'s `tryWrite` is that
- * caller.
+ * the lock-free upload's staging file. This one is what a file must be when its
+ * contents are published by renaming it: [`fjs/git/refstore/write`](../../git/refstore/write/module.f.mjs)'s
+ * `tryWrite` fills a ref's lock with it, and `tryDelete` the rewritten
+ * `packed-refs`, which is what needs more than one chunk.
  *
  * **A custom runner must implement it**: `NodeOperationMap` and
  * `CommandSet<NodeOp>` are both checked for *completeness*, so annotating
  * either without a handler does not compile, and an exhaustive `switch` over
  * `NodeOp` needs an arm.
  */
-export type WriteExclusive = readonly['writeExclusive', (path: string, data: Vec) => IoResult<void>]
+export type WriteExclusive = readonly['writeExclusive', (path: string, data: readonly Vec[]) => IoResult<void>]
 
 // writeBytes
 
@@ -249,6 +270,13 @@ export type _WriteLoop = <O extends Operation>(offset: number, e: List<O, Vec, I
  * no such guarantee, so `fjs/web` must read through something bound to one
  * inode. Parameterizing the source lets the two differ instead of forcing one
  * to wait for the other.
+ *
+ * **For a source that cannot seek, `offset` is a claim rather than a
+ * destination.** {@link ReadRequestBytes} reads a socket, which has one
+ * position and no way back to an earlier one, so it compares the `offset` it is
+ * handed against the position it is at and refuses a mismatch. That is what
+ * makes a re-pull of an already-read cell a refusal instead of the next chunk
+ * served as though it were the earlier one.
  */
 export type _ChunkSource<O extends Operation> = (offset: number, size: number) => Effect<O, Vec, IoChannel>
 
@@ -333,9 +361,112 @@ export type Stat = readonly['stat', (path: string) => IoResult<FileStat>]
  */
 export type ReadWhole = readonly['readWhole', (path: string) => IoResult<readonly Vec[]>]
 
+// open, fstat, pread, close
+
+/**
+ * An open file, as a value a program holds.
+ *
+ * **It names an inode, which no path does.** Every other read in `Fs` takes a
+ * path, and a path is resolved again on every call: what the second call opens
+ * need not be what the first one described. A reader that asks a question about
+ * a name and then reads that name answers for something that may be gone —
+ * `readWhole`'s own `stat`-before-`open` is the narrowest form of it, and a
+ * chunk loop over {@link ReadBytes} is the widest, since it resolves the name
+ * once per chunk and can join two files into one correctly-sized body. A handle
+ * cannot: measured on Darwin with Node 26.8.1, a file renamed over the name a
+ * handle was opened on is still read as the bytes the handle opened, and
+ * {@link Fstat} through it still answers the original size.
+ *
+ * The four operations on one are POSIX's four, and they carry POSIX's names:
+ * {@link Open}, {@link Fstat}, {@link Pread}, {@link Close}. A nominal over
+ * `unknown`, as {@link Server} is, because what a runner keeps inside one is the
+ * runner's business — a `FileHandle` for the Node one, an identifier into its
+ * state for the virtual one.
+ *
+ * **Whoever opens one owes a {@link Close}.** Unlike `readFile`, `readBytes` and
+ * `readWhole`, which open and close inside the one operation, this one hands the
+ * descriptor out and a program that drops it leaks it — a leak per request is
+ * descriptor exhaustion. Where the reads are a response body, the owner is the
+ * runner, through `ServerResponse.release`.
+ */
+export type Handle =
+    Nominal<'handle', `431863ca93dc26fa3d9a1dc3e7d3db2183f5d4f3051f0a29b6ac98d4fd065fc4`, unknown>
+
+/**
+ * Opens `path` for reading, answering the {@link Handle} the reads go through.
+ *
+ * **It does not wait for a writer, and that is what makes the kind checkable at
+ * all.** A plain read-only open of a FIFO with no writer blocks until one
+ * appears, so a guard that asked the descriptor what it holds could never be
+ * reached — which is why every operation beside this one asks a *name* first and
+ * accepts the window that leaves. A runner therefore opens without blocking
+ * (`O_NONBLOCK` on a host), so a FIFO substituted under the name is opened,
+ * reported by {@link Fstat} as no regular file, and closed. Measured on Darwin
+ * with Node 26.8.1: the non-blocking open of a writerless FIFO answered at once
+ * and `fstat` said `isFile: false`, where the plain open never returned at all
+ * and held its thread-pool slot for the life of the process.
+ *
+ * A **directory** opens successfully, as it does on POSIX, and {@link Fstat}
+ * reports it; {@link Pread} on it fails `EISDIR`. A name that is absent is
+ * `ENOENT` and a path descending through a file is `ENOTDIR`, both measured the
+ * same way — the codes a caller already maps for `stat`.
+ *
+ * **A Unix-domain socket is the kind this cannot deliver at all**, so a caller
+ * that refuses non-regular entries cannot refuse them all from {@link Fstat}: it
+ * has to answer for a failed open too. And not by its code, which is one errno
+ * under four names — Linux answers `ENXIO`, while Darwin's errno −102
+ * (`EOPNOTSUPP`) reaches a program as `Unknown system error -102` on Node 26.8.1,
+ * as `EOPNOTSUPP` on Bun 1.4.2 and as `UNKNOWN` on Deno 2.8.3, all measured on
+ * Darwin arm64 against one socket made by listening on a path. What every host
+ * does answer alike is a `stat` of the name, which `fjs/web` asks — see `answer`
+ * in [`../../web/module.f.mjs`](../../web/module.f.mjs).
+ */
+export type Open = readonly['open', (path: string) => IoResult<Handle>]
+
+/**
+ * What the open file is: the size in bytes, and which of the two entry kinds a
+ * caller can act on it is — {@link FileStat}, asked of a descriptor rather than
+ * of a name.
+ *
+ * **The size it answers is the bound a reader may declare.** A `stat` size is a
+ * promise about a file a later read has not reached yet; this one is the size of
+ * the file the reads will come from, because they come from this handle.
+ *
+ * It is still only what the host says. A procfs file is a regular file of nought
+ * bytes that yields thousands when read, so a reader that bounds itself by this
+ * size reads nothing of one — which {@link ReadWhole} avoids by reading to the end
+ * instead, and pays for with the whole file in memory. Neither answer is wrong;
+ * they are the two ends of the same trade.
+ *
+ * A handle that has been closed is `EBADF`, measured on Darwin with Node 26.8.1.
+ */
+export type Fstat = readonly['fstat', (handle: Handle) => IoResult<FileStat>]
+
+/**
+ * The bytes at `offset`, at most `size` of them, read through `handle` — POSIX's
+ * `pread`, and {@link ReadBytes} with the name replaced by the handle.
+ *
+ * It answers fewer bytes than asked for at the end of the file, and nought bytes
+ * past it. A closed handle is `EBADF`. Bounded to ≤128 KiB per call, like
+ * `readBytes`, because the answer is a `Vec`.
+ */
+export type Pread = readonly['pread', (handle: Handle, offset: number, size: number) => IoResult<Vec>]
+
+/**
+ * Gives the open file back.
+ *
+ * **Closing twice is not an error**, which is the host's own answer rather than a
+ * convenience: measured on Darwin with Node 26.8.1, a second
+ * `FileHandle.close()` resolved. So a caller that cannot tell whether it has
+ * already released a handle may release it again, and a runner that answered
+ * otherwise would give that caller a branch it cannot reach on the host it ships
+ * against. What is not forgiving is *reading* after a close — that is `EBADF`.
+ */
+export type Close = readonly['close', (handle: Handle) => IoResult<void>]
+
 // Fs
 
-export type Fs = Mkdir | ResolveFileModule | ReadFile | ReadBytes | ReadWhole | Readdir | WriteFile | Rm | Rename | Exec | Access | CreateExclusive | WriteExclusive | WriteBytes | Stat
+export type Fs = Mkdir | ResolveFileModule | ReadFile | ReadBytes | ReadWhole | Readdir | WriteFile | Rm | Rmdir | Rename | Exec | Access | CreateExclusive | WriteExclusive | WriteBytes | Stat | Open | Fstat | Pread | Close
 
 // Server
 
@@ -346,25 +477,285 @@ export type Server =
 
 export type Headers = StringMap<string>
 
+// readRequestBytes
+
+/**
+ * One request's body, while that request is being answered.
+ *
+ * A {@link Nominal} for the reason {@link Server} is one: what it stands for is
+ * a live thing the interpreter holds — a socket half-read — and nothing about it
+ * is a value pure code could construct, compare or keep. A listener never sees
+ * one: the runner wraps it in the `body` list of the {@link IncomingMessage} it
+ * hands over, so what reaches pure code is a stream of `Vec`s.
+ */
+export type RequestBody =
+    Nominal<'requestBody', `ab4778a2fc5e344692231e8b030866172d6136f7ba96eb74f662edc7dc787c4e`, unknown>
+
+/**
+ * The next bytes of a request body: at most `size` of them, none at its end.
+ *
+ * **`offset` says where the reader believes it is, and the runner checks it.**
+ * This is the shape {@link _ChunkSource} asks for, and on a file the offset is a
+ * destination — {@link ReadBytes} seeks to it. A socket has no such thing: it
+ * has one position, it only moves forward, and the bytes behind it are gone. So
+ * a runner compares the offset it is handed against the position it is at and
+ * refuses anything else.
+ *
+ * That refusal is the answer to the one question a `List` body raises that a
+ * `Vec` body could not. A `List`'s tail is a value
+ * ([`../list/types.ts`](../list/types.ts)), so pulling the same tail twice is
+ * ordinary code — and over a socket the second pull would hand back the *next*
+ * chunk as though it were the one already read, which is a body no client ever
+ * sent, arriving in order and whole. That is the plausible wrong value
+ * [DESIGN §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle) exists
+ * to refuse, so it is refused, and the two runners refuse it the same way.
+ *
+ * **Two pulls at the same time are the same second pull**, and they get the same
+ * answer. `all` starts its effects before it awaits them, so a listener that
+ * pulls one cell twice through `all` or `both` is the case where a check made
+ * per pull would let both through: both would read, both would answer `ok`, and
+ * the body would be spliced with no offset ever named wrongly. So a runner
+ * answers one pull of a body at a time — a cell has one consumer, and a `List`
+ * gives a consumer no way to tell a producer it has stopped
+ * ([`../list/types.ts`](../list/types.ts)) — and the pull that arrives second
+ * meets the position the first left. The refusal is then this same one, in the
+ * same words, whichever runner it came from.
+ *
+ * A pull at the position where the body *ended* is not that case and is not
+ * refused: the answer is no bytes, again, which is what the end of a stream is
+ * worth however many times it is asked for.
+ *
+ * No bytes means the end, as it does for {@link ReadBytes} read unbounded —
+ * `readChunks` in [`./module.f.mjs`](./module.f.mjs) reads both the same way.
+ *
+ * **So a runner never answers no bytes while the body still has some.** A chunk
+ * of no bytes is something a source can produce with the stream still running:
+ * Node's parser may hand one on, and a virtual fixture may carry one. Passed
+ * through as it came, it would end the body early — the listener would read a
+ * short body as a whole one, DESIGN §10's plausible wrong value again — so both
+ * runners step over it and answer the next chunk that has bytes.
+ *
+ * **And a body that has failed goes on failing.** A failure is not the end of a
+ * body, and a listener may pull the cell it failed on again: `RequestListener`
+ * absorbs its failures into a response, so catching one and reading on is
+ * ordinary code rather than a mistake. What the retry must not receive is bytes
+ * or an end. Both runners reached that answer by a different road and both were
+ * a truncated body accepted as a whole one:
+ *
+ * - a client that cut the connection made Node's iterator answer `done` to every
+ *   call after the one that threw, and `done` is *end* here, so the retry read a
+ *   prefix of the body as all of it;
+ * - a chunk of a virtual fixture that is not whole bytes is refused by
+ *   `readChunks`, and dropping it while its nought bytes left the offset alone
+ *   let the retry read the bytes behind it, one bit short.
+ *
+ * So a failure of the *body* is answered again, in the same words, however often
+ * it is asked for. A failure of the *pull* — the offset refusal above — is not:
+ * it names a position, leaves the body untouched, and the pulls after it read
+ * on.
+ *
+ * **A pull after the request has been answered is not refused yet**, and the two
+ * runners do not agree about it: a body a listener kept and pulled under a later
+ * request reads as empty on a host and as the original bytes here. That is
+ * [request-body-lifetime](./todo/request-body-lifetime.md).
+ */
+export type ReadRequestBytes =
+    readonly['readRequestBytes', (body: RequestBody, offset: number, size: number) => IoResult<Vec>]
+
+/**
+ * A request as a listener receives it: the head, and the body as a stream.
+ *
+ * **The body is a `List`, so the runner holds none of it.** It used to be one
+ * `Vec` — the whole body buffered before the listener was called, and a request
+ * past 131,072 bytes refused `413` because there was no request value to build
+ * ([#1819](https://github.com/functionalscript/functionalscript/issues/1819)).
+ * A listener now pulls the chunks it wants, one at a time, so a body of any size
+ * arrives and the `413` is gone with the cap that produced it.
+ *
+ * Its operation is pinned rather than a parameter, as `fjs/cas`'s `read` pins
+ * `List<FileCasOperation, …>`: a listener that reads the body performs
+ * {@link ReadRequestBytes} and says so in its own op-set, and one that does not
+ * read it — `fjs/web` answers `405` to every method that could carry a body —
+ * never names the operation at all.
+ */
 export type IncomingMessage = {
     readonly method: string
     readonly url: string
     readonly headers: Headers
-    readonly body: Vec
+    readonly body: List<ReadRequestBytes, Vec, IoChannel>
+    /**
+     * Whether a body with no `Content-Length` is framed
+     * `Transfer-Encoding: chunked` for this request — the host's own answer, on
+     * the request because only the host computes it.
+     *
+     * **It is on the request rather than derived from one**, and the alternative
+     * is a version. Node's `ServerResponse` constructor takes the flag from the
+     * request's version *and* its `TE` header, through a regular expression over
+     * that header's value — which a `.f.mjs` may not write at all
+     * ([`fjs/AGENTS.md`](../../AGENTS.md)) and which answers `true` for
+     * `x-chunked`, a value no reading of the protocol makes chunked. A runner
+     * restating that scan would have to reproduce it on purpose to keep the two
+     * runners agreeing about a request neither has any trouble with.
+     *
+     * Its name says which direction it frames: a *request* body may be chunked
+     * too, and this is not that. A listener may read it and learns only what the
+     * runner has already decided; what it may not do is act on it, which is
+     * gate 1 of `./todo/streaming-http-bodies.md`.
+     */
+    readonly chunkedResponse: boolean
 }
 
-export type ServerResponse = {
+/**
+ * What a listener answers with: a status, headers, a **lazy** body, and whatever
+ * that body holds, given back.
+ *
+ * **The body is a `List`, so a response costs one chunk rather than a file.**
+ * It was `readonly Vec[]`, which lifted the 131,072-byte cap one `Vec` had been
+ * ([#1819](https://github.com/functionalscript/functionalscript/issues/1819))
+ * and replaced it with an appetite: every chunk was in hand before the status
+ * went out, so peak memory was the whole file per request in flight. A list is
+ * pulled one cell at a time, and the runner's pump pulls at the socket's pace —
+ * `res.write` answering `false` parks the pull until `drain`.
+ *
+ * **`O` is the listener's own operations**, because a lazy body *is* an effect.
+ * `fjs/web`'s is a bounded read from one {@link Open} — not {@link ReadBytes},
+ * which takes a path and so resolves the name again on every chunk.
+ *
+ * **`release` is required rather than optional**, and a listener holding nothing
+ * writes the pure end. A lazy body may *hold* something — `fjs/web` holds a
+ * {@link Handle} — and the runner is the only party present at every way a
+ * response ends: a refusal before the headers, a suppression, a client that hung
+ * up mid-body, a failed cell, a destroy. None of those reaches the far end of the
+ * body, which is the only place a `close` cell could sit, and no `List`
+ * combinator can be written that tells a producer the consumer has stopped
+ * ([`../list/types.ts`](../list/types.ts)). A field that must be written is one
+ * that cannot be forgotten; an optional one would record no obligation.
+ *
+ * Its channel is `never` in the sense [`../types.ts`](../types.ts) gives that
+ * word — the failure is absorbed here — because a `close` that fails at this
+ * point has nobody left to tell: the response is either complete or already
+ * destroyed.
+ */
+export type ServerResponse<O extends Operation> = {
     readonly status: number
     readonly headers: Headers
-    readonly body: Vec
+    readonly body: List<O, Vec, IoChannel>
+    /** Whatever the body held, given back — see above. */
+    readonly release: Effect<O, null, never>
 }
 
 /**
  * An HTTP request handler. The channel is `never` because the response frame
  * *is* where a failure goes — a listener that cannot answer still has a status
  * code to answer with, so absorbing is the contract rather than an omission.
+ * A body that fails *after* the status has gone out has none, which is why the
+ * body's own channel is {@link IoChannel} and this one is not.
  */
-export type RequestListener<O extends Operation> = (_: IncomingMessage) => Effect<O, ServerResponse, never>
+export type RequestListener<O extends Operation> = (_: IncomingMessage) => Effect<O, ServerResponse<O>, never>
+
+/**
+ * What a runner does with a response instead of pulling its body, or
+ * {@link _Pump} with the length the pull is counted against.
+ *
+ * **Four gates stand before the pump, and the order they are asked in is part
+ * of the design**, because they overlap: a `HEAD` on a request Node will not
+ * chunk, answered with a body whose size the listener does not know, satisfies
+ * two of them at once. A runner asks them in the order `responseGate`
+ * ([`./module.f.mjs`](./module.f.mjs)) answers in and acts on the first that
+ * fires. Both runners read that one function, or they disagree about a request
+ * neither of them has any trouble with.
+ *
+ * @internal
+ */
+export type _Gate = _FramingHeader | _NoBody | _Unframed | _DoubledLength | _Pump
+
+/**
+ * Gate 1 — the listener wrote a `Transfer-Encoding`. `500`, before the headers:
+ * the response is one the listener had no business framing, whatever body this
+ * particular request would have carried. Framing is between the runner and the
+ * socket, and what a listener writes is a description of its body.
+ *
+ * @internal
+ */
+export type _FramingHeader = readonly['framingHeader']
+
+/**
+ * Gate 2 — Node will carry no body for this response: a `HEAD`, a `204`, a `304`
+ * or a `1xx`. The producer is never pulled, and the status and headers go out as
+ * they stand. The set is the host's own and not the RFC's: `205` forbids a body
+ * too and Node sends one anyway, so a guard written from the specification would
+ * suppress a body the host was about to send.
+ *
+ * @internal
+ */
+export type _NoBody = readonly['noBody']
+
+/**
+ * Gate 3 — the body that would go out cannot be framed: no `Content-Length` this
+ * runner can read, and no chunked framing to fall back on. `500`, before the
+ * headers. Such a response is delimited by the connection closing, so a producer
+ * that fails mid-body hands the client a truncated body it reads as whole — there
+ * is no terminator to withhold.
+ *
+ * **Two responses reach it, and the second is why the header is read twice.** One
+ * declares no length on a request whose `chunkedResponse` is `false`. The other
+ * declares a length that is *present and unreadable* — `content-length: '1 '` —
+ * on any request at all, because Node sends such a header as written and stops
+ * chunking once it is there. The fallback the first case lacks is the fallback the
+ * second case removes.
+ *
+ * @internal
+ */
+export type _Unframed = readonly['unframed']
+
+/**
+ * Gate 4 — the listener declared its length twice, under two spellings of the one
+ * name: `{ 'Content-Length': '1', 'content-length': '2' }`. `500`, before the
+ * headers.
+ *
+ * **Node emits one of the two values and a runner would count against the other.**
+ * `writeListenerHead` ([`./module.mjs`](./module.mjs)) hands every entry to
+ * `setHeader`, which keeps its pending headers under lower-cased names, so the
+ * later value replaces the earlier one; `headerValue` answers the first. Measured
+ * on Darwin with Node 23.11.0, that response went out as
+ *
+ * ```
+ * HTTP/1.1 200 OK
+ * content-length: 2
+ * Connection: keep-alive
+ * ```
+ *
+ * with the pump's one byte beneath it and the socket back in the pool — so a
+ * keep-alive client waits for a byte that is never coming, or reads the next
+ * response's status line as the end of this body. Which of the two the listener
+ * meant is not a question a runner may answer, so it answers neither.
+ *
+ * **Asked last, because the three gates above overlap it and each is right where
+ * it fires.** A `HEAD` is suppressed rather than refused, for the reason gate 2 is
+ * asked before gate 3 at all: the body a doubled length would mis-frame is one Node
+ * never carries, and a length gate 2 lets stand unreadable it may let stand twice.
+ * A response that is doubled *and* unreadable is refused by gate 3 with a blunter
+ * message, which is true of it as well.
+ *
+ * Only the length, because only the length is counted. A runner reads two header
+ * names — this one and the `Transfer-Encoding` gate 1 refuses — and forwards every
+ * other entry as the listener wrote it. Node collapses a doubled `Content-Type`
+ * the same way and nothing here is the worse for it, so a gate on that name would
+ * refuse a response the host had no trouble with
+ * ([DESIGN.md §9](../../../doc/DESIGN.md#9-maximize-signal-to-noise)).
+ *
+ * @internal
+ */
+export type _DoubledLength = readonly['doubledLength']
+
+/**
+ * No gate fires: pull the body, counting the bytes against the declared length —
+ * or against nothing, where the request will be framed chunked and the listener
+ * declared no length.
+ *
+ * @internal
+ */
+export type _Pump = readonly['pump', Nullable<number>]
 
 /**
  * The tuple itself is a documented exception to the repo-wide `readonly`
@@ -396,7 +787,7 @@ export type Listen = ['listen', (server: Server, port: number, host: string) => 
 
 // HTTP
 
-export type Http = CreateServer | Listen
+export type Http = CreateServer | Listen | ReadRequestBytes
 
 // Wait forever
 

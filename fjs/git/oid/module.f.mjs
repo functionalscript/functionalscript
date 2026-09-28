@@ -22,13 +22,11 @@ import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { hexDigitCodePoint, hexDigitValue } from '../../text/ascii/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { length, msb, tryU8ListToVec, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
+import { isWholeBytesIn, length, msb, tryU8ListToVec, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { next, toArray } from '../../types/list/module.f.mjs'
 import { write } from '../object/module.f.mjs'
 
 const toVec = tryU8ListToVec(msb)
-
-const toBytes = u8List(msb)
 
 /**
  * Reads an id from its hex spelling, or refuses it: a byte that is no hex
@@ -51,6 +49,22 @@ export const tryFromHex = hex => {
 }
 
 /**
+ * Whether an id is as wide as a repository's ids: `oidBytes` whole bytes.
+ * The width is bound once, so a reader that asks of every id it is handed
+ * converts it once.
+ *
+ * Every holder of a width asks this — a reader refusing an id of another
+ * repository, a writer refusing to spell one — so it is spelled here, beside
+ * the id, rather than as `BigInt(oidBytes) * 8n` at each of them.
+ *
+ * @type {(oidBytes: OidBytes) => (id: Vec) => boolean}
+ */
+export const isOidOf = oidBytes => {
+    const bits = BigInt(oidBytes) * 8n
+    return id => length(id) === bits
+}
+
+/**
  * {@link tryFromHex} at the repository's width: an id of any other width
  * is refused too, which is the check every header that names an object
  * makes, in a commit's `validate` and a tag's alike.
@@ -59,12 +73,13 @@ export const tryFromHex = hex => {
  *
  * @type {(oidBytes: OidBytes) => (hex: Bytes) => Nullable<Oid>}
  */
-export const tryFromHexOf = oidBytes => hex => {
-    const id = tryFromHex(hex)
-    return id !== null && length(id) === BigInt(oidBytes) * 8n ? id : null
+export const tryFromHexOf = oidBytes => {
+    const isOid = isOidOf(oidBytes)
+    return hex => {
+        const id = tryFromHex(hex)
+        return id !== null && isOid(id) ? id : null
+    }
 }
-
-const chunkVec = u8ListToVec(msb)
 
 /**
  * How many bytes of an object go into one `Vec` on the way to the hash:
@@ -100,7 +115,7 @@ const chunks = bytes => () => {
     })
     return taken === 0
         ? null
-        : { first: chunkVec(taken === chunkBytes ? gathered : gathered.slice(0, taken)), tail: chunks(rest) }
+        : { first: u8ListToVecMsb(taken === chunkBytes ? gathered : gathered.slice(0, taken)), tail: chunks(rest) }
 }
 
 /**
@@ -161,8 +176,8 @@ export const digestOf = oidBytes => {
  */
 export const toHex = oid => {
     const bits = length(oid)
-    assert(bits !== 0n && bits % 8n === 0n, ['not whole bytes', oid])
-    return toArray(toBytes(oid)).flatMap(b => [hexDigitCodePoint(b >> 4), hexDigitCodePoint(b & 15)])
+    assert(bits !== 0n && isWholeBytesIn(bits), ['not whole bytes', oid])
+    return toArray(u8ListMsb(oid)).flatMap(b => [hexDigitCodePoint(b >> 4), hexDigitCodePoint(b & 15)])
 }
 
 /**

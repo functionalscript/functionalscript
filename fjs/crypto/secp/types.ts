@@ -21,8 +21,12 @@ export type Point = Point2D | null
  */
 export type Init = {
     readonly p: bigint
-    readonly a: readonly [bigint, bigint]
-    readonly g: readonly [bigint, bigint]
+    /**
+     * The non-cubic coefficients of the curve equation
+     * `y² = x³ + c[1]·x + c[0]` — index = power of `x`.
+     */
+    readonly c: readonly [bigint, bigint]
+    readonly g: Point2D
     readonly n: bigint
 }
 

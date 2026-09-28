@@ -6,8 +6,10 @@
  */
 
 import type { Vec } from '../../../types/bit_vec/types.ts'
-import type { Effect } from '../../types.ts'
-import type { IncomingMessage, Module, NodeOp, ServerResponse } from '../types.ts'
+import type { Effect, IoChannel } from '../../types.ts'
+import type { Headers, IncomingMessage, Module, NodeOp, ServerResponse } from '../types.ts'
+import type { MemoryState } from '../../memory/types.ts'
+import type { Nullable } from '../../../types/nullable/types.ts'
 
 /**
  * In-memory JS module entry. When `import_` is called on the path, the
@@ -36,7 +38,7 @@ export type Dir = {
  *
  * @internal
  */
-export type _VirtualListener = (request: IncomingMessage) => Effect<NodeOp, ServerResponse, never>
+export type _VirtualListener = (request: IncomingMessage) => Effect<NodeOp, ServerResponse<NodeOp>, never>
 
 /**
  * What a virtual `Server` handle carries.
@@ -50,6 +52,73 @@ export type _VirtualListener = (request: IncomingMessage) => Effect<NodeOp, Serv
  */
 export type _VirtualServer = {
     readonly listener: _VirtualListener
+}
+
+/**
+ * A request as a fixture queues it: the head, and the body as the chunks a
+ * client sends.
+ *
+ * **This is not an {@link IncomingMessage}, and the difference is the body.** A
+ * listener receives its body as a `List` it pulls from — a stream over a socket
+ * the runner holds — and a fixture has no socket and nothing to pull from. What
+ * a fixture states is what *arrives*: `readonly Vec[]`, which is also the shape
+ * a {@link Dir} stores a file in ({@link _Entity}), so a file fixture can be
+ * posted as a body without being reshaped. `listen` is what turns one of these
+ * into the request the listener sees.
+ *
+ * Chunks rather than one `Vec` because the chunk boundaries are part of what a
+ * fixture is describing: a body arriving in many small pieces and a body
+ * arriving in one are different inputs to a listener's fold, and only the first
+ * of them catches a fold that drops all but its last chunk.
+ *
+ * @internal
+ */
+export type _QueuedRequest = {
+    readonly method: string
+    readonly url: string
+    readonly headers: Headers
+    readonly body: readonly Vec[]
+    /**
+     * Passed through to the {@link IncomingMessage} `listen` builds — the host's
+     * answer about *this* request's response framing, which a fixture states
+     * because there is no version or `TE` header here to derive it from. What it
+     * decides is gate 3 (`IncomingMessage.chunkedResponse` in
+     * [`../types.ts`](../types.ts)).
+     */
+    readonly chunkedResponse: boolean
+}
+
+/**
+ * How far one delivered request's body has been read.
+ *
+ * `rest` shrinks by a chunk per pull and `offset` grows by that chunk's bytes,
+ * so between them they say both what is left to hand out and where the next pull
+ * must claim to be. The position is in the state rather than behind the handle
+ * because this runner is pure: a `RequestBody` handle carries nothing but which
+ * of these it is, and the reading is a state transition like every other.
+ *
+ * **A proof reads it to ask what the listener did.** A body the listener never
+ * touched is a `rest` as long as the fixture's and an `offset` of nought; one it
+ * read to the end is an empty `rest`. That is how a listener answering without
+ * reading its body is observable here, where on a host it is observable as the
+ * connection the runner closes — there being no socket to close.
+ *
+ * @internal
+ */
+export type _RequestBodyCursor = {
+    /**
+     * The chunks not yet handed out, oldest first. A fixture chunk of no bytes
+     * is never handed out — a pull steps over it, and drops it from here with
+     * the pull that did, so nothing left here is waiting to be read.
+     *
+     * **A chunk the stream refuses is not dropped**, so the head of this stays
+     * the chunk a listener's retry meets again. `readChunks` refuses one that is
+     * not whole bytes, and dropping it let the retry read the bytes behind it
+     * instead ([`./module.f.mjs`](./module.f.mjs), `readRequestBytes`).
+     */
+    readonly rest: readonly Vec[]
+    /** The byte offset the next pull must name. */
+    readonly offset: number
 }
 
 /**
@@ -71,6 +140,75 @@ export type _Binding = {
     readonly server: _VirtualServer
 }
 
+/**
+ * An open file this runner handed out: the identifier a `Handle` carries, and
+ * **what the name held at the moment it was opened**.
+ *
+ * That snapshot is the whole of what a handle is for. A `Dir` entry can be
+ * replaced while a program runs — `rename` does it, and a fixture that pulls a
+ * body one cell at a time can do it between two pulls — so a reader that went
+ * back to the *name* per chunk would answer an old prefix joined to a new suffix.
+ * Reads through a handle come from the entity recorded here, which is the same
+ * thing a descriptor gives on a host: measured on Darwin with Node 26.8.1, a file
+ * renamed over the name a handle was opened on is still read as the bytes the
+ * handle opened.
+ *
+ * The entity rather than a chunk list, because a directory and a `JsModule` open
+ * successfully too and `fstat` has to say what they are.
+ *
+ * @internal
+ */
+export type _OpenFile = {
+    readonly id: number
+    readonly entity: _Entity
+}
+
+/**
+ * What went out, as the pump left it.
+ *
+ * `readonly Vec[]` is the shape a `Dir` already stores a file in
+ * ({@link _Entity}), so a fixture and a recorded response read alike.
+ *
+ * `failure` is what a proof asserting a whole body needs and a bare chunk array
+ * cannot give: a body that stopped and one that finished hold the same chunks up
+ * to the point they differ. It widens past {@link IoChannel} because two of the
+ * three ways a response ends early are the *runner's* refusals rather than the
+ * producer's failures — the cell was fine, and a proof that could not tell those
+ * destroys from a clean end could not assert the count at all.
+ */
+export type RecordedResponse = {
+    readonly status: number
+    readonly headers: Headers
+    readonly body: readonly Vec[]
+    /**
+     * What made this response incomplete, or `null` for one a client reads as
+     * whole.
+     */
+    readonly failure: Nullable<IoChannel | Overrun | Underrun>
+}
+
+/**
+ * A cell that would have carried the body past its declared length. None of that
+ * chunk is recorded: a body exactly as long as it promised is a body every client
+ * reads as whole, so the runner leaves it **short** over a socket no client can
+ * read a whole body from rather than cutting the chunk to fit. The number is the
+ * length that was declared.
+ */
+export type Overrun = readonly['overrun', number]
+
+/**
+ * A body that ended before the length it declared, which nothing on a host's
+ * server side notices: `res.end()` raises nothing and the socket goes back into
+ * the keep-alive pool, so what tells the client is the idle timeout — or, for a
+ * pipelined connection, the next response's status line read as the tail of this
+ * body. The record states it rather than a proof deriving it, because the
+ * subtraction is wrong exactly where it would matter: a `HEAD` or a `304` declares
+ * a length and records an empty body, and a proof comparing the two would fail the
+ * responses the gates were written to let through. The number is the declared
+ * length again.
+ */
+export type Underrun = readonly['underrun', number]
+
 export type State = {
     readonly stdout: string
     readonly stderr: string
@@ -81,8 +219,8 @@ export type State = {
         readonly[url: string]: Vec
     }
     readonly epochNs: number
-    readonly memoryNext: number
-    readonly memoryValues: { readonly [key: string]: unknown }
+    /** The slots of `memCreate`, kept by `../../memory`'s interpreter. */
+    readonly memory: MemoryState
     /** Monotonically increasing counter returned by `randomInt`; starts at 0. */
     readonly randomNext: number
     /**
@@ -95,7 +233,29 @@ export type State = {
      * every one of them to the {@link _VirtualListener} its handle carries, and
      * empties the queue — the virtual counterpart of accepting connections.
      */
-    readonly requests: readonly IncomingMessage[]
-    /** What the listener answered, oldest first. */
-    readonly responses: readonly ServerResponse[]
+    readonly requests: readonly _QueuedRequest[]
+    /** What went out, oldest first. */
+    readonly responses: readonly RecordedResponse[]
+    /**
+     * One cursor per request `listen` has delivered, in delivery order — the
+     * bodies, as far as the listeners read them.
+     *
+     * It is not emptied with {@link requests}: what a listener did with the body
+     * it was handed is the record a proof reads afterwards, and a `listen` that
+     * cleared it would take that away. A `RequestBody` handle is an index into
+     * it.
+     */
+    readonly bodies: readonly _RequestBodyCursor[]
+    /**
+     * The files that are open, in the order they were opened.
+     *
+     * **A proof reads this to fail a leak.** A held handle is the one thing in
+     * `Fs` that outlives the operation that produced it, so a program that drops
+     * one leaks a descriptor — and a leak per request is descriptor exhaustion
+     * rather than something to notice later. The list being empty once a request
+     * is over is the assertion; nothing else reports it, and nothing needs to.
+     */
+    readonly handles: readonly _OpenFile[]
+    /** The identifier the next {@link _OpenFile} takes; starts at 0. */
+    readonly handleNext: number
 }

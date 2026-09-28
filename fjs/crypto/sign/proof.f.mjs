@@ -25,6 +25,25 @@ const v600 = vec(600n)
 const r32 = repeat(32n)
 const hmac256 = hmac(sha256)
 
+/**
+ * Walks one RFC 6979 A.2 test vector: the messages `sample` and `test`, each
+ * under the four SHA-2 variants, in the order the RFC lists them. `check`
+ * asserts one `(sha, expected, message)` case.
+ *
+ * @type {<E>(check: (sha: Sha2, expected: E, m: Vec) => void, msg0: FixedArray<4, E>, msg1: FixedArray<4, E>) => void}
+ */
+const forEachVector = (check, msg0, msg1) => {
+    /** @type {(m: Vec, h: typeof msg0) => void} */
+    const check4 = (m, h) => {
+        check(sha224, h[0], m)
+        check(sha256, h[1], m)
+        check(sha384, h[2], m)
+        check(sha512, h[3], m)
+    }
+    check4(sample, msg0)
+    check4(test, msg1)
+}
+
 export const proof = {
     bits2int: () => {
         assertEq(all(7n).bits2int(vec(5n)(0b10100n)), 0b101n, new Error("fail"))
@@ -136,20 +155,10 @@ export const proof = {
         /** @type {(p: _P) => void} */
         const check = ({ q, x, msg0, msg1 }) => {
             const a = all(q)
-            /** @type {(sha: Sha2, expected: bigint, m: Vec) => void} */
-            const check = (sha, expected, m) => {
+            forEachVector((sha, expected, m) => {
                 const k = computeK(a)(sha)(x)(m)
                 assertEq(k, expected, [k.toString(16), expected.toString(16)])
-            }
-            /** @type {(m: Vec, h: _H) => void} */
-            const check4 = (m, h) => {
-                check(sha224, h[0], m)
-                check(sha256, h[1], m)
-                check(sha384, h[2], m)
-                check(sha512, h[3], m)
-            }
-            check4(sample, msg0)
-            check4(test, msg1)
+            }, msg0, msg1)
         }
         /** @type {{ readonly [key: string]: _P }} */
         const testVectors = {
@@ -383,24 +392,14 @@ export const proof = {
          */
         /** @type {(p: _P) => void} */
         const check = ({ q, x, msg0, msg1 }) => {
-            const a = all(q.nf.p)
-            /** @type {(sha: Sha2, result: _Result, m: Vec) => void} */
-            const check = (sha, { k, r, s }, m) => {
+            const a = fromCurve(q)
+            forEachVector((sha, { k, r, s }, m) => {
                 const k0 = computeK(a)(sha)(x)(m)
                 assertEq(k0, k, [k0.toString(16), k.toString(16)])
                 const [r0, s0] = sign(q)(sha)(x)(m)
                 assertEq(r0, r, [r0, r])
                 assertEq(s0, s, [s0, s])
-            }
-            /** @type {(m: Vec, h: _H) => void} */
-            const check4 = (m, h) => {
-                check(sha224, h[0], m)
-                check(sha256, h[1], m)
-                check(sha384, h[2], m)
-                check(sha512, h[3], m)
-            }
-            check4(sample, msg0)
-            check4(test, msg1)
+            }, msg0, msg1)
         }
         /** @type {{ readonly [key: string]: _P }} */
         const testVectors = {

@@ -20,7 +20,7 @@ const visit = visited => root => {
 export const sharedNodesOf = root => visit([])(root).filter(([, count]) => count >= 2).map(([node]) => node)
 ```
 
-and `fjs/fsc/rust`'s `bodyLines` runs both over the same root:
+and `fjs/compiler/rust`'s `bodyLines` runs both over the same root:
 `analysis(root)` for the negation check, then `sharedNodesOf(root)` for the
 bindings. The two notions do differ — `analysis` merges structurally equal
 identity-free nodes within a scope, `sharedNodesOf` counts object identity
@@ -69,7 +69,7 @@ instead of a second one with a `findIndex` memo. It answers in source objects ra
 because identity is the question; the entries are the merged view.
 
 `fjs/edag/rust`'s `sharedNodesOf(root)` is then `analysis(root).identityShared`
-and `visit` goes; `fsc/rust`'s `bodyLines` reads the negation check and
+and `visit` goes; `compiler/rust`'s `bodyLines` reads the negation check and
 the binding list off one `analysis(root)`. Generated Rust is unchanged,
 since the count is the same count.
 
@@ -80,7 +80,7 @@ since the count is the same count.
       `sharedNodesOf` — the nested-constructor case pins inner before
       outer — plus the twin-parents case: two structurally equal mergeable
       parents of one constructor child, the child reported shared.
-- [ ] `fjs/edag/rust` and `fjs/fsc/rust` rewritten; `npm run gen`; generated Rust
+- [ ] `fjs/edag/rust` and `fjs/compiler/rust` rewritten; `npm run gen`; generated Rust
       unchanged; `tsc`, `fjs test`.
 
 ### Related

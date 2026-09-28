@@ -5,16 +5,24 @@
 
 ### Problem
 
-`handleLine` (`fjs/protocol/mcp/stdio/module.f.mjs:100-111`) hand-nests the same
+`handleLine` (`fjs/protocol/mcp/stdio/module.f.mjs`) hand-nests the same
 *"write a response; if it didn't fit, try the next smaller one"* structure
 three levels deep:
 
-```ts
-: writeResponse(resp).step(([t2]) => t2 === 'error'
-    ? writeResponse(internalErrorResponse(resp.id)).step(([t3]) => t3 === 'error'
-        ? writeResponse(internalErrorResponse(null)).step(() => pure(undefined))
-        : pure(undefined))
-    : pure(undefined))
+```js
+: resultStep(
+    writeResponse(resp),
+    r2 => r2[0] === 'error'
+        ? resultStep(
+            writeResponse(internalErrorResponse(resp.id)),
+            r3 => r3[0] === 'error'
+                ? resultStep(
+                    writeResponse(internalErrorResponse(null)),
+                    () => pureOk(undefined),
+                )
+                : pureOk(undefined)
+        )
+        : pureOk(undefined))
 ```
 
 The fallback chain is exactly the ordered list
@@ -31,11 +39,11 @@ Fold over the candidate list, stopping at the first response that writes
 without `error`:
 
 ```ts
-const writeFirst = ([first, ...rest]: readonly [Response, ...(readonly Response[])]): Effect<Write, void> =>
+const writeFirst = ([first, ...rest]: readonly [Response, ...(readonly Response[])]): Effect<Write, void, IoChannel> =>
     rest.length === 0
-        ? writeResponse(first).step(() => pure(undefined))
-        : writeResponse(first).step(([t]) =>
-            t === 'error' ? writeFirst(rest as readonly [Response, ...(readonly Response[])]) : pure(undefined))
+        ? resultStep(writeResponse(first), () => pureOk(undefined))
+        : resultStep(writeResponse(first), ([t]) =>
+            t === 'error' ? writeFirst(rest as readonly [Response, ...(readonly Response[])]) : pureOk(undefined))
 ```
 
 (Settle the non-empty-tuple typing during implementation — a plain
@@ -45,8 +53,8 @@ the tuple type fights the spread; avoid `as` if the simpler type suffices.)
 Call site:
 
 ```ts
-: step(value).step(resp => resp === null
-    ? pure(undefined)
+: step(handler(value), resp => resp === null
+    ? pureOk(undefined)
     : writeFirst([resp, internalErrorResponse(resp.id), internalErrorResponse(null)]))
 ```
 

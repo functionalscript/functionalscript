@@ -449,7 +449,7 @@ section is its record. What it taught:
   shapes, each a place where the backtracking backend had been deciding by
   trial. So each port was a grammar rewrite plus a backend swap, not a swap
   alone; the eight are recorded in
-  [`fjs/fsc/README.md`](../fjs/fsc/README.md#both-grammars-are-ll1).
+  [`fjs/compiler/README.md`](../fjs/compiler/README.md#both-grammars-are-ll1).
 - **A stricter backend can change the language.** One of the eight was the
   parser's statement terminator, and resolving it made `;` required after
   every statement — a change to what DJS accepts, not to any `bnf/` path.
@@ -461,7 +461,7 @@ section is its record. What it taught:
   said so from the start, "numbered for reference, not for order", and
   nothing waited on a stage that had not shipped. Two pieces of its layout
   are still open, as ordinary issues rather than stages —
-  [`ebnf/terminal/`](../fjs/ebnf/todo/symbol-domain-owner.md) and
+  [`ebnf/terminal/`](../fjs/ebnf/terminal/todo/ebnf-range-set.md) and
   [`ebnf/unicode/`](../fjs/ebnf/unicode/todo/unicode-rules.md) — and their
   being open did not keep the old module alive.
 

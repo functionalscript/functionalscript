@@ -3,8 +3,8 @@
  *
  * Shared by two generators that print the same node shapes for two different
  * purposes: [`../../nanvm/rust/module.f.mjs`](../../nanvm/rust/module.f.mjs)
- * prints the operator conformance corpus as `nanvm-lib/tests/test/generated.rs`,
- * and [`../../fsc/rust/module.f.mjs`](../../fsc/rust/module.f.mjs) prints a
+ * prints the operator conformance corpus as `nanvm-lib/tests/test/gen.corpus/`,
+ * and [`../../compiler/rust/module.f.mjs`](../../compiler/rust/module.f.mjs) prints a
  * compiled module's EDAG as the `.rs` output of `fjs compile`. Both need the
  * same literal rendering, the same operator tables, and the same binding
  * mechanism — a `let` per node, one line, one expression, each referenced by
@@ -24,9 +24,10 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { f64Bits, i64Literal, stringLiteral } from '../../media/rust/module.f.mjs'
-import { error, mapOk, ok, okThen } from '../../types/result/module.f.mjs'
+import { f64Bits, i64Literal, stringLiteral, utf16Literal } from '../../media/rust/module.f.mjs'
+import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
 import { lazyOp2Id } from '../module.f.mjs'
+import { maxLength } from '../../types/function/length/module.f.mjs'
 
 /**
  * The `nanvm-lib` expression each unary operation prints as.
@@ -185,23 +186,6 @@ const map3 = f => (ra, rb, rc) => map2((a, [b, c]) => f(a, b, c))(ra, map2((b, c
 /** The same, for four. @type {<A, B, C, D, R>(f: (a: A, b: B, c: C, d: D) => R) => (ra: Result<A, readonly unknown[]>, rb: Result<B, readonly unknown[]>, rc: Result<C, readonly unknown[]>, rd: Result<D, readonly unknown[]>) => Result<R, readonly unknown[]>} */
 const map4 = f => (ra, rb, rc, rd) => map2((a, [b, c, d]) => f(a, b, c, d))(ra, map3((b, c, d) => [b, c, d])(rb, rc, rd))
 
-/**
- * A list of `Result`s as one `Result` of a list, short-circuiting on the
- * first `error` — an array literal's items, an object literal's members
- * and a block's `let` lines are each printed this way, so one failed item
- * refuses the whole rather than a list of holes. An empty list is an empty
- * `ok`: a block with nothing to bind.
- *
- * Builds the prefix before appending the last element, so a prefix that
- * already carries an error short-circuits without `map2` ever looking at
- * the tail — the first `error` in the list is the one reported.
- *
- * @type {(results: readonly Result<string, readonly unknown[]>[]) => Result<readonly string[], readonly unknown[]>}
- */
-const allOk = results => results.length === 0
-    ? ok([])
-    : map2((xs, x) => [...xs, x])(allOk(results.slice(0, -1)), results[results.length - 1])
-
 const op1 = lookup(op1Rust)
 
 const op2 = lookup(op2Rust)
@@ -209,18 +193,16 @@ const op2 = lookup(op2Rust)
 const op3 = lookup(op3Rust)
 
 /**
- * A Rust string literal for `v`, or the refusal: `stringLiteral` answers a
- * string it cannot spell — one holding a lone surrogate, which no `&str`
- * can hold — with the string itself under `unknown`, and this printer
- * names the reason in the `[reason, detail]` shape every refusal here has.
- * The detail is written by `JSON.stringify`, which spells the surrogate as
- * its escape rather than the unpaired code unit a diagnostic cannot show.
+ * A call of the `vm::unstable` helper `name` building the string `v`:
+ * `name("…")` over a Rust string literal, or, for a string no `&str` can
+ * hold — one with a lone surrogate — `name_utf16(&[…])` over its UTF-16 code
+ * units. Every string has a spelling, so none is refused.
  *
- * @type {(v: string) => Result<string, readonly unknown[]>}
+ * @type {(name: string) => (v: string) => string}
  */
-const stringExpr = v => {
+const stringCall = name => v => {
     const r = stringLiteral(v)
-    return r[0] === 'ok' ? r : error(['no Rust string literal for a lone surrogate in', JSON.stringify(v)])
+    return r[0] === 'ok' ? `${name}(${r[1]})` : `${name}_utf16(${utf16Literal(v)})`
 }
 
 /**
@@ -240,7 +222,7 @@ const primitiveExpr = v => {
     switch (typeof v) {
         case 'boolean': { return ok(`${v}.to_any()`) }
         case 'number': { return ok(`f64_any(${f64Bits(v)})`) }
-        case 'string': { return mapOk(s => `string_any(${s})`)(stringExpr(v)) }
+        case 'string': { return ok(stringCall('string_any')(v)) }
         case 'bigint': { return mapOk(s => `bigint_any(${s})`)(bigintExpr(v)) }
     }
 }
@@ -256,7 +238,7 @@ const primitiveExpr = v => {
  *
  * @type {(k: Exp) => Result<string, readonly unknown[]>}
  */
-const keyExpr = k => typeof k === 'string' ? mapOk(s => `string_key(${s})`)(stringExpr(k)) : error(['not a literal key', k])
+const keyExpr = k => typeof k === 'string' ? ok(stringCall('string_key')(k)) : error(['not a literal key', k])
 
 /**
  * A `.` node's index, as the `Any<A>` key `Any::dot` takes: a literal
@@ -273,7 +255,7 @@ const keyExpr = k => typeof k === 'string' ? mapOk(s => `string_key(${s})`)(stri
  * @type {(index: Index) => Result<string, readonly unknown[]>}
  */
 const indexExpr = index => {
-    if (typeof index === 'string') { return mapOk(s => `string_any(${s})`)(stringExpr(index)) }
+    if (typeof index === 'string') { return ok(stringCall('string_any')(index)) }
     if (typeof index === 'number') { return ok(`f64_any(${f64Bits(index)})`) }
     return error(['no Rust for a Number(...) cast index', index])
 }
@@ -318,10 +300,10 @@ const lines = statements => statements.flatMap(s => s.split('\n'))
  * @type {(e: Exp) => boolean}
  */
 const atomic = e => {
-    const [id, a, b] = /** @type {readonly any[]} */ (e)
-    return ['undefined', 'args', 'frame'].includes(id)
+    const [id, a, b, c] = /** @type {readonly any[]} */ (e)
+    return ['undefined', 'args', 'frame', 'arg', 'rest'].includes(id)
         || (['[]', '{}'].includes(id) && a.length === 0)
-        || (id === '=>' && isSmallestLambda(a, b))
+        || (id === '=>' && a === 0 && isSmallestLambda(b, c))
 }
 
 /**
@@ -344,7 +326,7 @@ const isComma = e => e instanceof Array && e[0] === ','
  *
  * @type {(e: Exp) => boolean}
  */
-const isOperation = e => e instanceof Array && !['undefined', 'args', 'frame', '[]', '{}', '=>', ',', ':', '...'].includes(e[0])
+const isOperation = e => e instanceof Array && !['undefined', 'args', 'frame', 'arg', 'rest', '[]', '{}', '=>', ',', ':', '...'].includes(e[0])
 
 /**
  * A comma's last operand, its value.
@@ -398,7 +380,7 @@ const last = e => {
  * referenced twice, which JavaScript establishes at its declaration
  * whatever the operators around its uses do, and which the
  * eager-restricted reference sweep of `anchors`
- * ([`fjs/fsc/ast`](../../fsc/ast/module.f.mjs)) anchors through the comma
+ * ([`fjs/compiler/ast`](../../compiler/ast/module.f.mjs)) anchors through the comma
  * root when reached only lazily — an eager reach, so the binding is right
  * again. An {@link atomic} node is the exception: its construction
  * establishes nothing the program could skip — `args` is the closure's
@@ -437,7 +419,7 @@ const printer = nested => shared => root => {
     }
     // `Exps` admits an empty operand list in the schema (shape-only, per
     // `fjs/edag/types.ts`), but the Rust backend has no value to give an
-    // empty comma — `resolve` in `fjs/fsc/edag/module.f.mjs` never anchors
+    // empty comma — `resolve` in `fjs/compiler/edag/module.f.mjs` never anchors
     // zero operands anyway, always the export among them, so refusing here
     // loses no real input.
     const emptyComma = order.find(([n]) => isComma(n) && /** @type {readonly any[]} */ (n)[1].length === 0)
@@ -578,7 +560,7 @@ const printer = nested => shared => root => {
      * @type {(e: Exp) => Result<string, readonly unknown[]>}
      */
     const node = e => {
-        const [id, a, b] = /** @type {readonly any[]} */ (e)
+        const [id, a, b, c] = /** @type {readonly any[]} */ (e)
         if (id === 'undefined') { return ok('Nullish::Undefined.to_any()') }
         // The arguments a function was called with: the `args` parameter of
         // the closure {@link closure} prints, an `Array<A>` — as a value, an
@@ -586,6 +568,8 @@ const printer = nested => shared => root => {
         // an ordinary `.` node over this, `Any::dot(…).end()` answering
         // `undefined` past the end as JavaScript does.
         if (id === 'args') { return ok('args.clone().to_any()') }
+        if (id === 'rest') { return ok('rest.clone().to_any()') }
+        if (id === 'arg') { return ok(`args.clone().into_iter().${a === 0 ? 'next()' : `nth(${a})`}.unwrap_or_else(|| Nullish::Undefined.to_any())`) }
         // The frame the function was built with, read through the closure's
         // `self_` parameter, {@link closure}: an `Array<A>` as `args` is,
         // and so the same value — its slot `i`, `['.', ['frame'], i]`, an
@@ -594,12 +578,12 @@ const printer = nested => shared => root => {
         if (id === '[]') {
             return a.length === 0
                 ? ok('Array::default().to_any()')
-                : mapOk((/** @type {readonly string[]} */ items) => `[${items.join(', ')}].to_array().to_any()`)(allOk(a.map(f)))
+                : mapOk((/** @type {readonly string[]} */ items) => `[${items.join(', ')}].to_array().to_any()`)(okList(a.map(f)))
         }
         if (id === '{}') {
             return a.length === 0
                 ? ok('Object::default().to_any()')
-                : mapOk((/** @type {readonly string[]} */ items) => `[${items.join(', ')}].to_object().to_any()`)(allOk(a.map(propertyExpr)))
+                : mapOk((/** @type {readonly string[]} */ items) => `[${items.join(', ')}].to_object().to_any()`)(okList(a.map(propertyExpr)))
         }
         if (id === ',') {
             // A comma is its last operand's value, the operands before it
@@ -617,23 +601,27 @@ const printer = nested => shared => root => {
                 ? mapOk((/** @type {readonly string[]} */ parts) => {
                     const before = parts.slice(0, -1).map(s => `let _: Any<A> = ${s}; `).join('')
                     return `{ ${before}${parts[parts.length - 1]} }`
-                })(allOk(a.map(f)))
+                })(okList(a.map(f)))
                 : f(last(e))
         }
         if (id === '=>') {
+            // A fragment has no complete graph for `bindingError`, so the
+            // language's limit is checked here too; IStaticFunction's u32
+            // holds every length it admits.
+            if (a > maxLength) { return error([`a function length above ${maxLength}`, a]) }
             // The corpus's `() => undefined`, which no operator inspects,
             // is the one the harness binds as `function_any`; every other
             // function is a closure, over its frame.
-            return isSmallestLambda(a, b) ? ok('function_any()') : closure(b)(frameExpr(a))
+            return a === 0 && isSmallestLambda(b, c) ? ok('function_any()') : closure(a, c)(frameExpr(b))
         }
         return bare(/** @type {readonly any[]} */ (e))
     }
     /**
-     * A function, `['=>', frame, body]`, as a function value: a closure
+     * A function, `['=>', length, frame, body]`, as a function value: a closure
      * bound through `IStaticFunction`, the `StaticCode<A>` signature's two
-     * parameters, a `length` of `0` — a rest parameter or none counts
-     * nothing (`spec/README.md`, Functions) — and its frame, the
-     * `Array<A>` {@link frameExpr} prints in the scope around it. A
+     * parameters, the EDAG's fixed parameter count, and its frame, the
+     * `Array<A>` {@link frameExpr} prints in the scope around it. Rest is
+     * materialized once per invocation, after that fixed prefix. A
      * closure that captures nothing of Rust's coerces to the `fn` pointer
      * `StaticCode<A>` is, and rustc infers its parameters from it, so the
      * text declares no types.
@@ -654,17 +642,17 @@ const printer = nested => shared => root => {
      * under `-D warnings` is otherwise an error in the crate the module
      * lands in.
      *
-     * @type {(body: Exp) => (frame: Result<string, readonly unknown[]>) => Result<string, readonly unknown[]>}
+     * @type {(length: number, body: Exp) => (frame: Result<string, readonly unknown[]>) => Result<string, readonly unknown[]>}
      */
-    const closure = body => frame => map2((/** @type {readonly string[]} */ statements, /** @type {string} */ fr) =>
-        `A::static_function(|${readsFrame(body) ? 'self_' : '_self'}, ${readsArgs(body) ? 'args' : '_args'}| ${braced(statements)}, 0, ${fr}).to_any()`
+    const closure = (length, body) => frame => map2((/** @type {readonly string[]} */ statements, /** @type {string} */ fr) =>
+        `A::static_function(|${readsFrame(body) ? 'self_' : '_self'}, ${readsArgs(body) ? 'args' : '_args'}| ${braced(reads('rest')(body) ? [`let rest = args.clone().into_iter()${length === 0 ? '' : `.skip(${length})`}.to_array();`, ...statements] : statements)}, ${length}, ${fr}).to_any()`
     )(statements(body), frame)
     /**
      * A function's frame as the `Array<A>` its construction takes: none,
      * `null`, the empty `Array::default()`, as is an empty array literal;
      * an array literal's items otherwise, each a value of the scope around
      * the function, collected by `to_array` — what the lowering builds
-     * (`fjs/fsc/edag`). The schema admits any `exp` there, and one that is
+     * (`fjs/compiler/edag`). The schema admits any `exp` there, and one that is
      * not an array literal is refused: its value is an `Any<A>` known to be
      * an array only when the module runs.
      *
@@ -676,7 +664,7 @@ const printer = nested => shared => root => {
         const items = /** @type {readonly Exp[]} */ (frame[1])
         return items.length === 0
             ? ok('Array::default()')
-            : mapOk((/** @type {readonly string[]} */ xs) => `[${xs.join(', ')}].to_array()`)(allOk(items.map(f)))
+            : mapOk((/** @type {readonly string[]} */ xs) => `[${xs.join(', ')}].to_array()`)(okList(items.map(f)))
     }
     /**
      * An operation — a `.` read, a call, or an operator node — as the bare
@@ -821,7 +809,7 @@ const printer = nested => shared => root => {
      * @type {(e: Exp) => Result<readonly string[], readonly unknown[]>}
      */
     const block = e => map2((/** @type {readonly string[]} */ lets, /** @type {string} */ value) => [...lets, value])(
-        allOk(declaredBy(e).map(letLine)), result(e))
+        okList(declaredBy(e).map(letLine)), result(e))
     /**
      * One object entry.
      *
@@ -909,16 +897,16 @@ const visit = operands => visited => root => {
  * Whether a scope reads its own arguments: an `['args']` node among the
  * distinct nodes {@link visit} reaches through {@link operandsOf}, which
  * stops at a nested function's body — that one's `args` is its own. A
- * module's own scope reading them is refused by `fjs/fsc/rust`: a module
+ * module's own scope reading them is refused by `fjs/compiler/rust`: a module
  * has no arguments.
  *
  * @type {(root: Exp) => boolean}
  */
-export const readsArgs = root => reads('args')(root)
+export const readsArgs = root => reads('args')(root) || reads('arg')(root) || reads('rest')(root)
 
 /**
  * The same, for `['frame']`: whether a scope reads the frame it was built
- * with. A module's own scope reading one is refused by `fjs/fsc/rust`: a
+ * with. A module's own scope reading one is refused by `fjs/compiler/rust`: a
  * module has no frame.
  *
  * @type {(root: Exp) => boolean}
@@ -942,8 +930,8 @@ const reads = tag => root => visit(operandsOf)([])(root).some(([node]) => tagOf(
  * @type {(node: Exp) => readonly Exp[]}
  */
 const frameOf = node => {
-    const [id, a, b] = /** @type {readonly any[]} */ (node)
-    return id === '=>' && a !== null && !isSmallestLambda(a, b) ? [a] : []
+    const [id, a, b, c] = /** @type {readonly any[]} */ (node)
+    return id === '=>' && b !== null && !(a === 0 && isSmallestLambda(b, c)) ? [b] : []
 }
 
 /**
@@ -960,7 +948,7 @@ const tagOf = node => /** @type {readonly unknown[]} */ (/** @type {unknown} */ 
  *
  * @type {(node: readonly unknown[]) => readonly unknown[]}
  */
-const withBodies = node => node[0] === '=>' ? node.slice(1) : operandsOf(node)
+const withBodies = node => node[0] === '=>' ? node.slice(2) : operandsOf(node)
 
 /**
  * Whether an EDAG holds a function the printer binds — any `=>` node but
@@ -972,8 +960,8 @@ const withBodies = node => node[0] === '=>' ? node.slice(1) : operandsOf(node)
  */
 export const holdsFunction = root => visit(withBodies)([])(root)
     .some(([node]) => {
-        const [id, a, b] = /** @type {readonly any[]} */ (node)
-        return id === '=>' && !isSmallestLambda(a, b)
+        const [id, a, b, c] = /** @type {readonly any[]} */ (node)
+        return id === '=>' && !(a === 0 && isSmallestLambda(b, c))
     })
 
 /**
@@ -995,7 +983,8 @@ export const holdsFunction = root => visit(withBodies)([])(root)
  */
 const operandsOf = node => {
     const [id] = node
-    return id === '=>' ? [node[1]]
+    return id === '=>' ? [node[2]]
+        : id === 'arg' ? []
         : ['[]', '{}', ','].includes(/** @type {string} */ (id)) ? /** @type {readonly unknown[]} */ (node[1])
         : isChain(id) ? [...eagerOperandsOf(node), ...lazyOperandsOf(/** @type {Exp} */ (/** @type {unknown} */ (node)))]
         : node.slice(1)
@@ -1032,7 +1021,7 @@ const eagerOperandsOf = node => {
  * The distinct nodes an EDAG reaches from more than one place, in dependency
  * order — the generalization of a corpus's explicit, named `data.shared` to
  * a linked EDAG, where sharing is implicit: two references to one `const`
- * are the same `Exp` object by identity (see `fjs/fsc/edag/module.f.mjs`'s
+ * are the same `Exp` object by identity (see `fjs/compiler/edag/module.f.mjs`'s
  * `lower`), never restated as data.
  *
  * `root` itself is never "shared" by this count — nothing outside the graph
@@ -1100,7 +1089,7 @@ const held = e => {
  * through eager positions alone — in walk order, `root` first. A node
  * {@link sharedNodesOf} lists that is not among these is reached only
  * through lazy operands, and a `let` binding for it before the root would
- * establish what the program may not: the shape `fjs/fsc/rust` refuses,
+ * establish what the program may not: the shape `fjs/compiler/rust` refuses,
  * an {@link atomic} node excepted, whose binding establishes nothing.
  *
  * @type {(root: Exp) => readonly Exp[]}

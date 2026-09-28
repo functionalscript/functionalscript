@@ -21,7 +21,7 @@ the name came from its being the *fallible* half — and with the twins gone the
 was neither a collision nor a second module to justify.
 
 The migration is recorded in
-[`./todo/io-effect-migration.md`](./todo/io-effect-migration.md) and is
+[`changelog/0.46.0.md`](../../changelog/0.46.0.md) and is
 complete: every operation declares a `Result` return, every runner answers with
 one, and every consumer composes with `step` / `catchStep` / `resultStep`
 instead of stating a policy per site.
@@ -98,8 +98,12 @@ value is being transformed. `resultMapStep` is also the honest spelling for a
 site that means to discard an error: the discarding is written down, in a
 function that says it takes both branches.
 
-`finallyStep` is declined on the principle that a derivable form earns a name by
-being canonical vocabulary, and that one has not shown it is.
+`finallyStep` is `resultStep` plus one policy: run a cleanup whatever `e`
+answered, hand the cleanup that answer, and keep it. It was declined while no
+policy had repeated, on the principle that a derivable form earns a name by
+being canonical vocabulary, and added once two consumers in `fjs/git/refstore`
+— a lock held across a delete, and the directories made for one — had each
+written it out by hand.
 
 ### `pureOk` / `pureError`, not `ok` / `error`
 
@@ -169,9 +173,6 @@ This section used to list `notImplemented`, `historyStep`, `foldStep` and
 first consumer. All four exist now, and the list outlived them; what follows is
 what is still absent, and why.
 
-- **No `finallyStep`.** It is `resultStep` plus a policy. A derivable form earns
-  a name by being canonical vocabulary, and no repeated policy has shown up to
-  make this one canonical.
 - **No `defer`.** `(() => Effect<O, T, E>) => Effect<O, T, E>` cannot be
   written: composition reads the `Pure` / `Do` tag before anything runs, and the
   union has no third case meaning "not yet decided". That is the representation,

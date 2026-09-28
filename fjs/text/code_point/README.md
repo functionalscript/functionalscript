@@ -16,6 +16,16 @@ the two hand-written eof ops used to. A codec whose end-of-input step is *not*
 this shape can still pass `decoder` an arbitrary function; `eofFlush` is a
 factory for the common case, not a restriction on the interface.
 
+`restart` shares the first step's fresh-state dispatch with its error recovery.
+Each decoder dispatches a unit from the empty state in two places: the
+`state === null` arm, and recovery, where a pending state the unit refuses is
+flushed as an error unit and the unit is dispatched afresh. The two differ only
+in what goes out ahead of the unit's own output — nothing, or the flushed error
+— so each codec writes its classifier once and calls it as `restart(fresh)([])`
+and `restart(fresh)([error])`. In UTF-16 recovery the fresh dispatch's
+third case, a lone low surrogate, is unreachable — the pair would have been
+accepted — so recovery needs no classifier of its own.
+
 ## Shared code-point predicates
 
 The code-point classification predicates — `isBmpCodePoint`, `isHighSurrogate`,
@@ -26,6 +36,22 @@ derived from one set of boundary constants so the surrogate bounds
 (`0xD800`–`0xDFFF`) and the maximum code point (`0x10FFFF`) are spelled out
 exactly once. UTF-8 and UTF-16 import them instead of redefining their own range
 checks.
+
+The surrogate-pair arithmetic lives beside them for the same reason:
+`tryToSurrogatePair` splits a supplementary-plane code point into its high and
+low surrogates and `tryFromSurrogatePair` combines them back. Both are derived
+from the same constants as `isHighSurrogate`, `isLowSurrogate`, and
+`isSupplementaryPlane`, which they invert, so UTF-16 re-spells none of
+`0xD800`, `0xDC00`, or `0x10000`.
+
+Both refuse input outside their domain with `null` rather than answering it
+([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)): the
+arithmetic would otherwise turn `0xFFFF` into a "pair" whose first half is not a
+high surrogate, a high surrogate and a BMP word into a plausible code point,
+and a fraction inside a range into the pair or code point of its truncation.
+The domain check is the same one a caller would have to make before calling, so
+UTF-16 branches on the `null` instead of gating first — each classification
+happens once.
 
 `isTextCodePoint` lives here too, but answers a different question: not whether a
 code point is *well-formed* (`isValidCodePoint`) but whether it is *text*. A code
