@@ -170,7 +170,8 @@ fetched the same head and each pushed produce two heads, and the next commit
 simply names both as parents: nothing is merged, since the next delta only
 adds and a reader's union sees both. Two such writers may each have
 recorded the same pair, since neither saw the other's commit; that is
-normal, and a pair's timestamp is then the oldest of the deltas holding it.
+normal, and a pair's proof is then the delta whose token gives the
+earliest conservative bound, a token with no bound not competing.
 If the union holds two different SHA-256 names for one SHA-1, the run has
 no name to build on and refuses to publish; what to do then is out of
 scope below.
@@ -218,8 +219,9 @@ list is so that none is decided by accident.
   question; this process assumes the compat name and says why above.
 - **A local index.** A delta per commit is decided, and a delta is one
   file, since the token's imprint is that file's blob name: a pair lives
-  in the deltas that introduced it, usually one, so its time is the oldest
-  of their timestamps with nothing to look up. What is open is whether a
+  in the deltas that introduced it, usually one, so its proof is the one
+  with the earliest conservative bound, with nothing to look up. What is
+  open is whether a
   reader that answers one SHA-1 without scanning the whole branch is worth
   a local index, which is tooling and not format.
 - **The line format of a pair.** `<sha1> SP <sha256> LF`, sorted by SHA-1
