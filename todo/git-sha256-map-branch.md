@@ -192,8 +192,11 @@ digest the parent's token carries.
   no accuracy gives its time with no precise bound claimed, never a bound
   taken as zero. The proof is the timestamp
   plus the objects: whoever checks it recomputes the name from the bytes
-  and compares. The **oldest** timestamp naming the content is the whole
-  proof of when it existed; later ones add nothing to that bound. The
+  and compares. The timestamp with the **earliest conservative bound**
+  naming the content is the whole proof of when it existed; later ones add
+  nothing to that bound. Where no token naming the content declares an
+  accuracy, a reader shows the earliest `genTime` and claims no finer
+  ordering, as the companion design does. The
   token reaches the pair directly, through the delta's SHA-256 name, so the
   bound is the introducing commit's own time.
 - **Why the chain keeps adding timestamps anyway.** A timestamp verifies
@@ -225,8 +228,9 @@ list is so that none is decided by accident.
   reader that answers one SHA-1 without scanning the whole branch is worth
   a local index, which is tooling and not format.
 - **The line format of a pair.** `<sha1> SP <sha256> LF`, sorted by SHA-1
-  as `packed-refs` is sorted, is the least a reader needs and the format Git
-  already parses in its compat index; or a `.disot.*` DataJS document beside
+  as `packed-refs` is sorted, is the least a reader needs — Git's own
+  loose-object index is a line per pair too, with the SHA-256 first and no
+  order; or a `.disot.*` DataJS document beside
   the other DISOT metadata, which reads with the readers the name-resolution
   work already needs. Whichever, sorted and refused when unsorted, so lookup
   is a search that fails rather than answers wrongly, as
