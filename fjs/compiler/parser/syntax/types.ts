@@ -126,8 +126,13 @@ export type Const = Statement & {
     readonly value: Node
 }
 
-/** A statement that is a value: a block's `return`, and a module's `export default`. */
+/**
+ * A statement that is a value: a block's `return`, and a module's `export
+ * default`. `first` is the token the value begins with — after `return`,
+ * the one JavaScript refuses on a new line, and the fold with it.
+ */
 export type ValueStatement = Statement & {
+    readonly first: DjsTokenWithMetadata
     readonly value: Node
 }
 
@@ -147,10 +152,12 @@ export type Module = {
 /**
  * Ordered fixed names and an optional final rest name, with source tokens.
  * An invalid expression in a binding position retains its opening token so
- * the binding pass reports the early error at the parameter list.
+ * the binding pass reports the early error at the parameter list; an `=>`
+ * on a line after the list, which JavaScript refuses, retains the `=>`.
  */
 export type ParameterList =
     | { readonly invalid: DjsTokenWithMetadata }
+    | { readonly arrow: DjsTokenWithMetadata }
     | readonly ParameterBinding[]
 
 /** A parameter token and whether it binds the tail. */
@@ -165,11 +172,12 @@ export type ParameterBinding = { readonly name: DjsTokenWithMetadata, readonly r
  * A value a `(` opened is `paren` rather than `value`, holding the same
  * node: a group is no node of its own, so this id is the one trace of the
  * parentheses, and what tells the parameter `(a)` from `((a))`, which
- * JavaScript refuses.
+ * JavaScript refuses. Either carries the token it begins with, `first`,
+ * which a `return` asks for its line.
  */
 export type Out =
-    | { readonly id: 'value', readonly node: Node }
-    | { readonly id: 'paren', readonly node: Node }
+    | { readonly id: 'value', readonly node: Node, readonly first: DjsTokenWithMetadata }
+    | { readonly id: 'paren', readonly node: Node, readonly first: DjsTokenWithMetadata }
     | { readonly id: 'parameters', readonly items: List<ParameterBinding> }
     | { readonly id: 'values', readonly items: List<Node> }
     | { readonly id: 'member', readonly member: Entry }
