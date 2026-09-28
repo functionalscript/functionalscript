@@ -15,12 +15,24 @@ defect ([compatibility](../../../../todo/fjs-javascript-compatibility.md)).
 The cost is reach. A missing `;` is the first error in almost every existing
 `.f.mjs` module, and it hides whatever the module does next.
 
-At `0802ecda`, of the twenty-seven `.f.mjs` modules with no runtime import,
-six compiled. The other twenty-one all stopped first at a missing `;`. For
-five of them, `fjs/ci/config`, `fjs/js/prototype`, `fjs/nanvm/constructors`,
-`fjs/types/btree/types` and `fjs/types/range`, it was the only obstacle:
-adding the `;` was enough to compile them. For two more, `fjs/js/keywords`
-and `fjs/website/style`, one other construct remained.
+At `0802ecda`, every tracked `.f.mjs` module with no `import` statement, no
+`export … from` and no `import()` — twenty-seven of them — was compiled to
+`.edag.data.js`, the output that refuses least: the `.js` writer refuses
+every operator but unary `-` and every call, and the Rust one a `bigint`
+past `i64`, so either would count the writer's limits along with the
+parser's. Seven compiled, `fjs/compiler/examples/m` and the six DataJS
+vector modules; twenty were refused. In ten of those the first thing the
+compiler reports is the missing `;` after the first statement. In the
+other ten a token the language does not have — a template literal, a `\v`
+escape, a hex number — or a construct inside the first statement is
+reported first, since a lexical error is reported wherever it sits, and the
+missing `;` shows only once that is fixed. With a `;` added after every
+statement and nothing else changed, five compile to `.edag.data.js` and to
+`.rs`: `fjs/ci/config`, `fjs/js/prototype`, `fjs/nanvm/constructors`,
+`fjs/types/btree/types` and `fjs/types/range` — the last two not to `.js`,
+whose writer refuses their `&&` and `?:`. For two more, `fjs/js/keywords`
+and `fjs/website/style`, one other construct remains, a spread and a
+template literal.
 
 ### Proposal
 
