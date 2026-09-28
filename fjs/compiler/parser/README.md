@@ -350,9 +350,13 @@ an error already carries and the point when there is none.
 ## What changed at the LL(1) port
 
 One difference from the backtracking parser this replaced, deliberate and
-pinned by proof: a newline no longer ends a statement. `export default 1`
-alone is `unexpected end` at the end of input, and `const a = 1` followed by
-`export default a;` on the next line is `unexpected token` at `export`. Every
-other expectation of the parser's proof — values, positions, the order errors
-are reported in, the syntax failure found before the unresolved name — is met
-unchanged, with the `;` added to its inputs.
+pinned by proof at the time: a newline no longer ended a statement, so
+`export default 1` alone was `unexpected end` at the end of input, and
+`const a = 1` followed by `export default a;` on the next line was
+`unexpected token` at `export`. Both are modules again since the `;` became
+optional — but by JavaScript's rule, read by the fold from the token after
+the omitted `;`, never by the grammar reading a newline as a terminator, which
+is what the port removed. Every other expectation of the parser's proof —
+values, positions, the order errors are reported in, the syntax failure found
+before the unresolved name — was met unchanged, with the `;` added to its
+inputs.

@@ -749,7 +749,9 @@ const foldModule = ({ imports, consts, exported }) => {
 /**
  * Reads the token list as a FunctionalScript module: `import` statements, then
  * `const` and `export const` statements, with an optional final `export default`.
- * At least one export is required; every statement ends with `;`.
+ * At least one export is required; every statement ends with `;`, or where
+ * JavaScript inserts one — before a statement on a new line, before `}`,
+ * and at the end of the input.
  *
  * This is the only language the parser reads. A JSON document is data, not a
  * module, and `fjs/media/json` is its reader
