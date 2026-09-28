@@ -4,7 +4,7 @@
  *
  * ```text
  * code points ==fjs/js/tokenizer: the grammar, then its fold==> JsToken stream
- *             ==fold: keywords demoted==> DjsToken stream
+ *             ==fold: keywords demoted, trivia dropped, newlines marked==> DjsToken stream
  * ```
  *
  * The grammar is [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.mjs) and
@@ -23,9 +23,13 @@
  * ([`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md))
  * is an error, since the language has no other.
  *
- * The one state this layer holds is whether a newline stands before each
- * token, which the parser reads where a statement is written without its
- * `;` — see `DjsTokenWithMetadata` in `./types.ts`. An operator is a token
+ * Trivia — whitespace, newlines and comments — is not in this stream: what
+ * a rule of the language reads of it is whether a newline stands before
+ * a token, and each token carries that answer, `newline` in
+ * `DjsTokenWithMetadata` (`./types.ts`), which is the one state this
+ * layer holds. The parser asks it where a statement is written without
+ * its `;`, and where JavaScript forbids a line break, before `=>` and
+ * after `return`. An operator is a token
  * like any other and the grammar reads it, so that `-1 .x` and `-1()` are
  * the negation of the access and of the call, as JavaScript reads them,
  * rather than an access and a call on a negative literal — recognized is
@@ -43,7 +47,7 @@
  */
 import { tokenize as tokenizeJs } from '../../js/tokenizer/module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.mjs'
-import { stateScan } from '../../types/list/module.f.mjs'
+import { flat, stateScan } from '../../types/list/module.f.mjs'
 
 /** @type {ReadonlySet<string>} */
 const keywordSet = new Set(keywords)
@@ -67,7 +71,6 @@ export const _djsTokenKinds = /** @type {const} */ ([
     '&', '|', '^', '~', '<<', '>>', '>>>',
     '&&', '||', '??', '?',
     'string', 'number', 'error', 'id', 'bigint',
-    'ws', 'nl', '//', '/*',
     'eof',
 ])
 
@@ -91,19 +94,20 @@ const mapDjsToken = input =>
 const isTrivia = kind => kind === 'ws' || kind === 'nl' || kind === '//' || kind === '/*'
 
 /**
- * One token of the stream, with the metadata of the JavaScript token it came
- * from, and whether a newline precedes it. The state is that answer for
- * the next token: `true` after an `nl` — the trivia run holding a newline,
- * and the one the JavaScript tokenizer puts after a block comment holding
- * one — carried across any further trivia, and `false` after any other
- * token.
+ * One JavaScript token as the stream has it: nothing, for trivia, which
+ * the stream leaves out, and otherwise the token with the metadata it
+ * came with and whether a newline precedes it. The state is that answer
+ * for the next token: `true` after an `nl` — the trivia run holding a
+ * newline, and the one the JavaScript tokenizer puts after a block
+ * comment holding one — carried across any further trivia, and `false`
+ * after any other token.
  *
- * @type {StateScan<JsTokenWithMetadata, boolean, DjsTokenWithMetadata>}
+ * @type {StateScan<JsTokenWithMetadata, boolean, List<DjsTokenWithMetadata>>}
  */
 const withNewline = ({ token, metadata }, newline) => [
-    { token: mapDjsToken(token), metadata, newline },
+    isTrivia(token.kind) ? null : [{ token: mapDjsToken(token), metadata, newline }],
     token.kind === 'nl' || (newline && isTrivia(token.kind)),
 ]
 
 /** @type {(input: List<number>) => (path: string) => List<DjsTokenWithMetadata>} */
-export const tokenize = input => path => stateScan(withNewline)(false)(tokenizeJs(input)(path))
+export const tokenize = input => path => flat(stateScan(withNewline)(false)(tokenizeJs(input)(path)))

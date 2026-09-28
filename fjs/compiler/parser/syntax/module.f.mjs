@@ -256,7 +256,7 @@ const optionalItems = itemsAt => node => {
 }
 
 /**
- * The items of a list node, `item [ ',' t [ items ] ]`: the item, then
+ * The items of a list node, `item [ ',' [ items ] ]`: the item, then
  * the items the nested list's mapping already returned — so a list of any
  * length costs one step at each of its nodes, and the tree, as deep as the
  * list is long, is never walked.
@@ -267,8 +267,8 @@ const listOf = (itemAt, itemsAt) => {
     const rest = optionalItems(itemsAt)
     return ([item, more]) => {
         const rounds = unmapped(more)
-        // no round, or the one holding the comma, its trivia and the optional rest
-        const tail = rounds.length === 0 ? null : rest(unmapped(rounds[0])[2])
+        // no round, or the one holding the comma and the optional rest
+        const tail = rounds.length === 0 ? null : rest(unmapped(rounds[0])[1])
         return { first: itemAt(item), tail }
     }
 }
@@ -282,11 +282,11 @@ const memberItems = optionalItems(membersAt)
 /** The items of a list of values, its tail already mapped. */
 const valuesOf = listOf(nodeAt, valuesAt)
 
-/** The names a parameter list's optional tail holds, `[ ',' t [ names ] ]` after the first. */
+/** The names a parameter list's optional tail holds, `[ ',' [ names ] ]` after the first. */
 const parameterItems = optionalItems(parametersAt)
 
-/** The token of a named parameter after the first, `id t`: under the alternative its word matched. @type {(node: _Leaf) => DjsTokenWithMetadata} */
-const nameTokenAt = node => tokenAt(unmapped(unmapped(/** @type {_NameNode} */ (node))[0])[1])
+/** The token of a named parameter after the first: under the alternative its word matched. @type {(node: _Leaf) => DjsTokenWithMetadata} */
+const nameTokenAt = node => tokenAt(unmapped(/** @type {_NameNode} */ (node))[1])
 
 /** The names of a parameter list after the first, its tail already mapped. */
 const parametersOf = listOf(node => ({ name: nameTokenAt(node), rest: false }), parametersAt)
@@ -299,17 +299,17 @@ const symbol = out => ({ symbol: 0, meta: out })
 
 /**
  * The token an access names its key by: `.name`'s identifier, or `[key]`'s
- * constant — at the third position of either branch, under the identifier's
- * or the constant's own alternative.
+ * constant — at the second position of either branch, under the
+ * identifier's or the constant's own alternative.
  *
  * @type {(branch: _KeyBranch) => DjsTokenWithMetadata}
  */
-const accessKey = branch => tokenAt(unmapped(unmapped(branch)[2])[1])
+const accessKey = branch => tokenAt(unmapped(unmapped(branch)[1])[1])
 
 /**
  * A function's parameter list where it begins with no value: the rest
- * parameter, its token the identifier at the third position of
- * `... t id t`, under the alternative its word matched, as a `const`'s
+ * parameter, its token the identifier at the second position of
+ * `... id`, under the alternative its word matched, as a `const`'s
  * name is — or the empty list, which has no token, and the fold has no
  * word to bind, so a body under it names nothing.
  *
@@ -317,7 +317,7 @@ const accessKey = branch => tokenAt(unmapped(unmapped(branch)[2])[1])
  */
 const parameterOf = node => {
     const rounds = unmapped(node)
-    return rounds.length === 0 ? [] : [{ name: tokenAt(unmapped(unmapped(rounds[0])[2])[1]), rest: true }]
+    return rounds.length === 0 ? [] : [{ name: tokenAt(unmapped(unmapped(rounds[0])[1])[1]), rest: true }]
 }
 
 /**
@@ -337,8 +337,8 @@ const namedList = (open, head, more) => {
 /**
  * One step applied to the node before it: a property access by the token
  * its key is read from, or a call by its arguments — the optional list at
- * the third position of `( t [ items(value) ] ) t`, read as an array's
- * items are.
+ * the second position of `( [ items(value) ] )`, read as an array's items
+ * are.
  *
  * What a step applies to is everything written before it, which is what
  * folding them in order says: `a.b(1)[0]` is the index of the call of the
@@ -352,7 +352,7 @@ const accessed = (base, round) => {
     const [tag, branch] = unmapped(round)
     if (tag !== 'call') { return ['.', base, accessKey(/** @type {_KeyBranch} */(branch))] }
     const call = unmapped(/** @type {_CallBranch} */(branch))
-    return ['()', base, toArray(valueItems(call[2]))]
+    return ['()', base, toArray(valueItems(call[1]))]
 }
 
 /**
@@ -365,7 +365,7 @@ const steps = (base, accesses) => accesses.reduce(accessed, base)
 
 /**
  * `**`'s round, when a primitive, a reference, an array, an object or a
- * group is raised to a power: the operand at the third position of `'**' t
+ * group is raised to a power: the operand at the second position of `'**'
  * unary`, under the one round the option holds.
  *
  * @type {(base: Node, powTail: _PowTailNode) => Node}
@@ -373,7 +373,7 @@ const steps = (base, accesses) => accesses.reduce(accessed, base)
 const withPow = (base, powTail) => {
     const rounds = unmapped(powTail)
     if (rounds.length === 0) { return base }
-    const [, , v] = unmapped(rounds[0])
+    const [, v] = unmapped(rounds[0])
     return ['**', base, nodeAt(v)]
 }
 
@@ -402,7 +402,7 @@ const binaryOpTag = {
 
 /**
  * One binary layer's rounds folded onto `base`, left-associative: each
- * round is `op t unary tail*`, its own trailing tail lists — one per layer
+ * round is `op unary tail*`, its own trailing tail lists — one per layer
  * below this one — read the same way {@link applyLayers} reads a value's
  * own, so a round's right operand is its `unary` with everything below
  * this layer already applied to it, `1 + 2 * 3` folding `2 * 3` before
@@ -414,7 +414,7 @@ const binaryOpTag = {
  * @type {(base: Node, rounds: readonly _TailRound[]) => Node}
  */
 const foldLayer = (base, rounds) => rounds.reduce((left, round) => {
-    const [opChoice, , v, ...lowerTails] = unmapped(round)
+    const [opChoice, v, ...lowerTails] = unmapped(round)
     const [opTag] = unmapped(opChoice)
     const right = applyLayers(nodeAt(v), lowerTails)
     return [binaryOpTag[opTag], left, right]
@@ -452,8 +452,8 @@ const applyCircuit = (base, circuit) => {
 }
 
 /**
- * The conditional folded onto `base`: nothing, or `? t value : t value`,
- * the arms at the third and sixth positions of the one round the option
+ * The conditional folded onto `base`: nothing, or `? value : value`, the
+ * arms at the second and fourth positions of the one round the option
  * holds — each a whole value already mapped, so a nested conditional in
  * either arm is a node here and never a call, however deep the source
  * nests them.
@@ -463,7 +463,7 @@ const applyCircuit = (base, circuit) => {
 const applyConditional = (base, conditional) => {
     const rounds = unmapped(conditional)
     if (rounds.length === 0) { return base }
-    const [, , t, , , e] = unmapped(rounds[0])
+    const [, t, , e] = unmapped(rounds[0])
     return ['?:', base, nodeAt(t), nodeAt(e)]
 }
 
@@ -508,8 +508,8 @@ const tailStep = (acc, rounds) => foldLayer(acc, /** @type {readonly _TailRound[
 /**
  * The node a value's own part makes, before the accesses, the power and the
  * binary layers above it: a primitive converted from its token, a reference
- * by its token, and a container of the items its list returned — `[ open t
- * [ items ] close t ]`, the list at the third position, under the
+ * by its token, and a container of the items its list returned — `[ open
+ * [ items ] close ]`, the list at the second position, under the
  * `[thing, accesses]` pair every one of these branches opens with, at the
  * first position of the branch itself. What a `(` opens, a name, a block,
  * a negation and a bitwise not are not here: each of those takes no access
@@ -531,54 +531,86 @@ const baseOf = ([tag, branch]) => {
         case 'primitive': {
             const x = unmapped(branch)[0]
             const p = unmapped(x)[0]
-            return ['primitive', primitiveOf(unmapped(unmapped(p)[0]))]
+            return ['primitive', primitiveOf(unmapped(p))]
         }
         case 'ref': {
             const x = unmapped(branch)[0]
             const p = unmapped(x)[0]
-            return ['ref', tokenAt(unmapped(unmapped(p)[0])[1])]
+            return ['ref', tokenAt(unmapped(p)[1])]
         }
         case 'array': {
             const x = unmapped(branch)[0]
             const a = unmapped(x)[0]
-            return ['array', toArray(valueItems(unmapped(a)[2]))]
+            return ['array', toArray(valueItems(unmapped(a)[1]))]
         }
         case 'object': {
             const x = unmapped(branch)[0]
             const o = unmapped(x)[0]
-            return ['object', toArray(memberItems(unmapped(o)[2]))]
+            return ['object', toArray(memberItems(unmapped(o)[1]))]
         }
     }
 }
 
 /**
+ * The token a value begins with, `first` of what its mapping returned,
+ * whether or not a `(` opened it: what a `return` asks for its line.
+ *
+ * @type {(node: _Leaf) => DjsTokenWithMetadata}
+ */
+const firstAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'value' || out.id === 'paren')
+    return out.first
+}
+
+/**
+ * The token a value's own part begins with: a primitive's or a name's own
+ * token, under the alternative it matched, or a container's opening
+ * bracket, the first symbol of `[ open [ items ] close ]`.
+ *
+ * @type {(tag: 'primitive' | 'ref' | 'array' | 'object', base: _Leaf) => DjsTokenWithMetadata}
+ */
+const baseFirst = (tag, base) => tokenAt(/** @type {_Leaf} */ (unmapped(base)[tag === 'array' || tag === 'object' ? 0 : 1]))
+
+/**
+ * A function's parameter list against its `=>`: the list, or the `=>`
+ * where a newline precedes it, which JavaScript forbids — `a\n=> 1` is a
+ * syntax error there — for the fold to refuse at the `=>`. A list already
+ * malformed keeps its own refusal, which comes first in the source.
+ *
+ * @type {(list: ParameterList, arrow: DjsTokenWithMetadata) => ParameterList}
+ */
+const arrowed = (list, arrow) => 'invalid' in list || !arrow.newline ? list : { arrow }
+
+/**
  * What follows a name or a `( value )`, `arrowOrRest`: the function whose
- * one parameter it is, by the body at the third position of `=> t body`,
- * `list` being that parameter — or the value with the steps at the second
- * position of `[ nl t ] access* powTail tail`, the power at the third and
- * the binary layers after them applied, exactly as {@link toNode} applies
- * a value's own.
+ * one parameter it is, by the `=>` and the body of `=> body`, `list`
+ * being that parameter — or the value with the steps at the first
+ * position of `access* powTail tail`, the power at the second and the
+ * binary layers after them applied, exactly as {@link toNode} applies a
+ * value's own.
  *
  * @type {(list: ParameterList, base: Node, node: Ast<ArrowOrRest, DjsTokenWithMetadata, Out>) => Node}
  */
 const continued = (list, base, node) => {
     const [tag, branch] = unmapped(node)
     if (tag === 'func') {
-        const [, , b] = unmapped(branch)
-        return ['=>', list, nodeAt(b)]
+        const [arrow, b] = unmapped(branch)
+        return ['=>', arrowed(list, tokenAt(arrow)), nodeAt(b)]
     }
-    const [, accesses, powTail, ...tailLists] = unmapped(branch)
+    const [accesses, powTail, ...tailLists] = unmapped(branch)
     return applyTail(withPow(steps(base, unmapped(accesses)), powTail), tailLists)
 }
 
 /**
- * What a `(` opened, at the third position of `( t (func | value afterValue)`:
+ * What a `(` opened, at the second position of `( (func | value afterValue)`:
  * a function whose list begins with no value, by that list at the first
- * position of `[ ... t id t ] ) s => t body` and its body at the sixth —
- * or a value and what follows it: `,`, the names after the value, and the
- * body at the eighth position of `, t [ names ] ) s => t body`, the value
- * heading a named list; or `)` and then {@link continued}, the value the
- * one parameter or a group.
+ * position of `[ ... id ] ) => body`, its `=>` at the third and its body
+ * at the fourth — or a value and what follows it: `,`, the names after the
+ * value, the `=>` and the body at the fifth position of
+ * `, [ names ] ) => body`, the value heading a named list; or `)` and then
+ * {@link continued}, the value the one parameter or a group. Each `=>` is
+ * checked against its line, {@link arrowed}.
  *
  * A group is no node of its own: `(x)` is whatever `x` is, and the steps
  * after the `)` apply to that same node, so nothing downstream can tell a
@@ -592,28 +624,28 @@ const continued = (list, base, node) => {
  */
 const parenNode = (open, [tag, branch]) => {
     if (tag === 'func') {
-        const [p, , , , , b] = unmapped(branch)
-        return ['=>', parameterOf(p), nodeAt(b)]
+        const [p, , arrow, b] = unmapped(branch)
+        return ['=>', arrowed(parameterOf(p), tokenAt(arrow)), nodeAt(b)]
     }
     const [v, after] = unmapped(branch)
     const [kind, rest] = unmapped(after)
     if (kind === 'list') {
-        const [, , names, , , , , b] = unmapped(rest)
-        return ['=>', namedList(open, v, parameterItems(names)), nodeAt(b)]
+        const [, names, , arrow, b] = unmapped(rest)
+        return ['=>', arrowed(namedList(open, v, parameterItems(names)), tokenAt(arrow)), nodeAt(b)]
     }
-    const [, , next] = unmapped(rest)
+    const [, next] = unmapped(rest)
     return continued(namedList(open, v, null), nodeAt(v), next)
 }
 
 /**
- * A group's node, from `value ) t access* '**' t unary`: the value at the
- * first position, the steps after the `)` at the fourth applied to it, and
- * the power at the fifth raised over that.
+ * A group's node, from `value ) access* '**' unary`: the value at the
+ * first position, the steps after the `)` at the third applied to it, and
+ * the power at the fourth raised over that.
  *
  * @type {(node: Ast<Group, DjsTokenWithMetadata, Out>) => Node}
  */
 const groupNode = node => {
-    const [v, , , accesses, powTail] = unmapped(node)
+    const [v, , accesses, powTail] = unmapped(node)
     return withPow(steps(nodeAt(v), unmapped(accesses)), powTail)
 }
 
@@ -639,33 +671,35 @@ const groupNode = node => {
  */
 const toNode = node => {
     if (node[0] === 'paren') {
-        const [open, , p] = unmapped(node[1])
-        return symbol({ id: 'paren', node: parenNode(tokenAt(open), unmapped(p)) })
+        const [open, p] = unmapped(node[1])
+        const first = tokenAt(open)
+        return symbol({ id: 'paren', node: parenNode(first, unmapped(p)), first })
     }
     if (node[0] === 'name') {
-        const [id, , after] = unmapped(node[1])
+        const [id, after] = unmapped(node[1])
         const token = tokenAt(unmapped(id)[1])
-        return symbol({ id: 'value', node: continued([{ name: token, rest: false }], ['ref', token], after) })
+        return symbol({ id: 'value', node: continued([{ name: token, rest: false }], ['ref', token], after), first: token })
     }
     if (node[0] === 'group') {
-        return symbol({ id: 'value', node: groupNode(unmapped(node[1])[2]) })
+        const [open, g] = unmapped(node[1])
+        return symbol({ id: 'value', node: groupNode(g), first: tokenAt(open) })
     }
     if (node[0] === 'neg' || node[0] === 'bitnot') {
-        const [, , v, ...tailLists] = unmapped(node[1])
-        return symbol({ id: 'value', node: applyTail([node[0] === 'neg' ? '-' : '~', nodeAt(v)], tailLists) })
+        const [op, v, ...tailLists] = unmapped(node[1])
+        return symbol({ id: 'value', node: applyTail([node[0] === 'neg' ? '-' : '~', nodeAt(v)], tailLists), first: tokenAt(op) })
     }
     if (node[0] === 'block') {
-        const [, , consts, ret, , v, end] = unmapped(node[1])
+        const [open, consts, ret, v, end] = unmapped(node[1])
         const statements = unmapped(consts).map(constAt).map(constNode)
         /** @type {ValueStatement} */
-        const returned = { start: tokenAt(ret), semicolon: ended(end), value: nodeAt(v) }
-        return symbol({ id: 'value', node: ['block', [...statements, ['return', returned]]] })
+        const returned = { start: tokenAt(ret), semicolon: ended(end), first: firstAt(v), value: nodeAt(v) }
+        return symbol({ id: 'value', node: ['block', [...statements, ['return', returned]]], first: tokenAt(open) })
     }
     const x = unmapped(node[1])[0]
-    const [, accesses] = unmapped(x)
+    const [base, accesses] = unmapped(x)
     const [, powTail, ...tailLists] = unmapped(node[1])
     const withSteps = steps(baseOf(node), unmapped(accesses))
-    return symbol({ id: 'value', node: applyTail(withPow(withSteps, powTail), tailLists) })
+    return symbol({ id: 'value', node: applyTail(withPow(withSteps, powTail), tailLists), first: baseFirst(node[0], base) })
 }
 
 /**
@@ -682,17 +716,17 @@ const toNode = node => {
  */
 const operandToNode = node => {
     if (node[0] === 'neg' || node[0] === 'bitnot') {
-        const [, , v] = unmapped(node[1])
-        return symbol({ id: 'value', node: [node[0] === 'neg' ? '-' : '~', nodeAt(v)] })
+        const [op, v] = unmapped(node[1])
+        return symbol({ id: 'value', node: [node[0] === 'neg' ? '-' : '~', nodeAt(v)], first: tokenAt(op) })
     }
     if (node[0] === 'group') {
-        const [, , g] = unmapped(node[1])
-        const [v, , , accesses] = unmapped(g)
-        return symbol({ id: 'value', node: steps(nodeAt(v), unmapped(accesses)) })
+        const [open, g] = unmapped(node[1])
+        const [v, , accesses] = unmapped(g)
+        return symbol({ id: 'value', node: steps(nodeAt(v), unmapped(accesses)), first: tokenAt(open) })
     }
     const x = unmapped(node[1])[0]
-    const [, accesses] = unmapped(x)
-    return symbol({ id: 'value', node: steps(baseOf(node), unmapped(accesses)) })
+    const [base, accesses] = unmapped(x)
+    return symbol({ id: 'value', node: steps(baseOf(node), unmapped(accesses)), first: baseFirst(node[0], base) })
 }
 
 /** A declaration in a block's ordered statement list. @type {(statement: Const) => readonly ['const', Const]} */
@@ -700,7 +734,7 @@ const constNode = statement => ['const', statement]
 
 /**
  * The token a key is read from, the name it spells, and whether it is the
- * computed spelling — `[ '[' t string t ']' ]`, the string at the third
+ * computed spelling — `[ '[' string ']' ]`, the string at the second
  * position. The distinction exists for `__proto__` alone.
  *
  * @type {(node: Children<typeof key, DjsTokenWithMetadata, Out>) => readonly [DjsTokenWithMetadata, string, boolean]}
@@ -716,22 +750,22 @@ const keyOf = ([tag, branch]) => {
             return [t, textOf(t), false]
         }
         case 'computed': {
-            const t = tokenAt(unmapped(branch)[2])
+            const t = tokenAt(unmapped(branch)[1])
             return [t, textOf(t), true]
         }
     }
 }
 
 /** @type {(node: Children<typeof member, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toMember = ([k, , , , v]) => {
+const toMember = ([k, , v]) => {
     const [token, name, computed] = keyOf(unmapped(k))
     return symbol({ id: 'member', member: { key: token, name, computed, value: nodeAt(v) } })
 }
 
 /**
  * An import's attribute, when the optional list holds one round: the key at
- * the fifth position of `with t { t identifier t : t string t } t`, under
- * the alternative its word matched, and the value at the ninth.
+ * the third position of `with { identifier : string }`, under the
+ * alternative its word matched, and the value at the fifth.
  *
  * @type {(node: _AttributeNode) => Import['attribute']}
  */
@@ -739,7 +773,7 @@ const attributeOf = node => {
     const rounds = unmapped(node)
     if (rounds.length === 0) { return null }
     const round = unmapped(rounds[0])
-    return [tokenAt(unmapped(round[4])[1]), tokenAt(round[8])]
+    return [tokenAt(unmapped(round[2])[1]), tokenAt(round[4])]
 }
 
 /** @type {(node: _Leaf) => ImportBinding} */
@@ -760,10 +794,10 @@ const importBindingsOf = listOf(importBindingAt, importBindingsAt)
 const importItems = optionalItems(importBindingsAt)
 
 /** @type {(node: Children<typeof importBinding, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toImportBinding = ([name, , alias]) => {
+const toImportBinding = ([name, alias]) => {
     const exported = tokenAt(unmapped(name)[1])
     const rounds = unmapped(alias)
-    const local = rounds.length === 0 ? exported : tokenAt(unmapped(unmapped(rounds[0])[2])[1])
+    const local = rounds.length === 0 ? exported : tokenAt(unmapped(unmapped(rounds[0])[1])[1])
     return symbol({ id: 'importBinding', binding: { name: nameOf(exported), local } })
 }
 
@@ -771,10 +805,10 @@ const toImportBinding = ([name, , alias]) => {
 const toImportBindings = node => symbol({ id: 'importBindings', items: importBindingsOf(node) })
 
 /** @type {(node: Children<typeof namedImports, DjsTokenWithMetadata, Out>) => readonly ImportBinding[]} */
-const namedBindings = ([, , bindings]) => toArray(importItems(bindings))
+const namedBindings = ([, bindings]) => toArray(importItems(bindings))
 
 /**
- * Whether a statement's end, `[ ';' t ]`, holds its `;`. Where it does
+ * Whether a statement's end, `[ ';' ]`, holds its `;`. Where it does
  * not, JavaScript inserts one at the newline before the next token, at `}`
  * or at the end of input, and refuses a next token on the same line; the
  * fold asks that of the next statement's first token, {@link unterminated}.
@@ -784,17 +818,17 @@ const namedBindings = ([, , bindings]) => toArray(importItems(bindings))
 const ended = node => unmapped(node).length !== 0
 
 /** @type {(node: Children<typeof importStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toImport = ([first, , clause, , , module, , attribute, end]) => {
+const toImport = ([first, clause, , module, attribute, end]) => {
     const [kind, branch] = unmapped(clause)
     /** @type {readonly ImportBinding[]} */
     let bindings
     if (kind === 'named') { bindings = namedBindings(unmapped(branch)) }
     else {
-        const [name, , more] = unmapped(branch)
+        const [name, more] = unmapped(branch)
         const rounds = unmapped(more)
         bindings = [
             { name: 'default', local: tokenAt(unmapped(name)[1]) },
-            ...(rounds.length === 0 ? [] : namedBindings(unmapped(unmapped(rounds[0])[2]))),
+            ...(rounds.length === 0 ? [] : namedBindings(unmapped(unmapped(rounds[0])[1]))),
         ]
     }
     return symbol({
@@ -810,7 +844,7 @@ const toImport = ([first, , clause, , , module, , attribute, end]) => {
 }
 
 /** @type {(node: Children<typeof constStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toConst = ([first, , name, , , , v, end]) =>
+const toConst = ([first, name, , v, end]) =>
     symbol({ id: 'const', statement: { start: tokenAt(first), semicolon: ended(end), name: tokenAt(unmapped(name)[1]), value: nodeAt(v) } })
 
 /** @type {(node: _Leaf) => ModuleConst} */
@@ -825,12 +859,12 @@ const ordinaryConst = node => ({ declaration: constAt(node), exported: false })
  *
  * @type {(node: Children<typeof exportStatement, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
-const toExport = ([first, , choice]) => {
+const toExport = ([first, choice]) => {
     const start = tokenAt(first)
     const [kind, branch] = unmapped(choice)
     if (kind === 'default') {
-        const [, , v, end] = unmapped(branch)
-        return symbol({ id: 'export', consts: null, default: { start, semicolon: ended(end), value: nodeAt(v) } })
+        const [, v, end] = unmapped(branch)
+        return symbol({ id: 'export', consts: null, default: { start, semicolon: ended(end), first: firstAt(v), value: nodeAt(v) } })
     }
     const [declaration, consts, tail] = unmapped(branch)
     const next = unmapped(tail)
@@ -846,7 +880,7 @@ const toExport = ([first, , choice]) => {
 }
 
 /** @type {(node: Children<typeof djsModule, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toModule = ([, imports, consts, exported]) => {
+const toModule = ([imports, consts, exported]) => {
     const result = exportAt(exported)
     return symbol({
         id: 'module',
@@ -870,7 +904,7 @@ const toMembers = node => symbol({ id: 'members', items: membersOf(node) })
 /** @type {(node: Children<ParameterNames, DjsTokenWithMetadata, Out>) => Meta<Out>} */
 const toParameterNames = ([tag, branch]) => {
     if (tag === 'fixed') { return symbol({ id: 'parameters', items: parametersOf(unmapped(branch)) }) }
-    const [, , name] = unmapped(branch)
+    const [, name] = unmapped(branch)
     return symbol({ id: 'parameters', items: [{ name: tokenAt(unmapped(name)[1]), rest: true }] })
 }
 

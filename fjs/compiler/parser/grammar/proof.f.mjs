@@ -16,7 +16,7 @@ import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
     _ordinaryTokenNames as names, access, array, attribute, block, body, circuitTail, conditionalTail, constStatement,
     djsModule, exportStatement, func, group, identifier, importStatement, index, items, key, member, object, parameters, paren,
-    parenGroup, parenthesized, primitive, sym, symbolOf, trivia, value,
+    parenGroup, parenthesized, primitive, sym, symbolOf, value,
 } from './module.f.mjs'
 
 // The value names itself, and the tree of a whole module is too deep a
@@ -56,7 +56,6 @@ const read = s => {
 export const proof = {
     // The grammar is LL(1): every rule builds, and so does the module.
     ll1: () => {
-        parser(trivia)
         parser(identifier)
         parser(primitive)
         parser(key)
@@ -189,17 +188,18 @@ export const proof = {
         // name is the fold's check, `malformed parameter list`
         assertStructurallySame(read('export default (1) => 2;'), ['ok'])
         assertStructurallySame(read('export default ((a)) => 1;'), ['ok'])
-        // the bare one-parameter form, `a => …`, and the newline JavaScript
-        // refuses before its `=>`: the newline is the value's own trivia
-        // here, `a\n.b` being an access, so the refusal is at the `=>`
-        // that cannot follow a value, where JavaScript reports it too
+        // the bare one-parameter form, `a => …`. The newline JavaScript
+        // refuses before its `=>` is not the grammar's to see: trivia is
+        // not in the stream, and whether a newline stood before the `=>`
+        // is a fact of the token the reader in `../module.f.mjs` checks,
+        // so `a\n=> 1` parses here and is refused there, at the `=>`
         assertStructurallySame(read('export default a => 1;'), ['ok'])
         assertStructurallySame(read('export default a => b => [a, b];'), ['ok'])
         assertStructurallySame(read('export default a /* c */ => 1;'), ['ok'])
         assertStructurallySame(read('export default a =>\n1;'), ['ok'])
-        assertStructurallySame(read('export default a\n=> 1;'), ['error', '=>'])
-        assertStructurallySame(read('export default (a)\n=> 1;'), ['error', '=>'])
-        assertStructurallySame(read('export default a // c\n=> 1;'), ['error', '=>'])
+        assertStructurallySame(read('export default a\n=> 1;'), ['ok'])
+        assertStructurallySame(read('export default (a)\n=> 1;'), ['ok'])
+        assertStructurallySame(read('export default a // c\n=> 1;'), ['ok'])
         assertStructurallySame(read('export default a\n.b;'), ['ok'])
         assertStructurallySame(read('export default (a)\n.b;'), ['ok'])
         assertStructurallySame(read('export default a\n** 2;'), ['ok'])
@@ -210,18 +210,16 @@ export const proof = {
         assertStructurallySame(read('export default (,) => 1;'), ['error', ','])
         assertStructurallySame(read('export default () 1;'), ['error', 'number'])
         assertStructurallySame(read('export default () => ;'), ['error', ';'])
-        assertStructurallySame(read('export default ()\n=> 1;'), ['error', 'nl'])
+        assertStructurallySame(read('export default ()\n=> 1;'), ['ok'])
         assertStructurallySame(read('export default (...a) 1;'), ['error', 'number'])
         assertStructurallySame(read('export default (...a) => ;'), ['error', ';'])
-        // no line terminator before `=>`, as JavaScript has it: a newline,
-        // a line comment's newline, or a block comment holding one is
-        // refused at the newline; a comment on the line is not, and the
-        // body may start on the next line
+        // a comment before the `=>`, or a newline after it, changes nothing
+        // the grammar sees, and a newline before it is the reader's
         assertStructurallySame(read('export default (...a) /* c */ => 1;'), ['ok'])
         assertStructurallySame(read('export default (...a) =>\n1;'), ['ok'])
-        assertStructurallySame(read('export default (...a)\n=> 1;'), ['error', 'nl'])
-        assertStructurallySame(read('export default (...a) // c\n=> 1;'), ['error', 'nl'])
-        assertStructurallySame(read('export default (...a) /* x\ny */ => 1;'), ['error', 'nl'])
+        assertStructurallySame(read('export default (...a)\n=> 1;'), ['ok'])
+        assertStructurallySame(read('export default (...a) // c\n=> 1;'), ['ok'])
+        assertStructurallySame(read('export default (...a) /* x\ny */ => 1;'), ['ok'])
         // the Unicode line and paragraph separators are no token outside a
         // string, so neither stands here, in a comment or bare
         assertStructurallySame(read('export default (...a) /* x\u2028y */ => 1;'), ['error', 'error'])
@@ -266,13 +264,14 @@ export const proof = {
         assertStructurallySame(read('export default (...a) => { a; };'), ['error', 'a'])
         assertStructurallySame(read('export default (...a) => { return a; return a; };'), ['error', 'return'])
         assertStructurallySame(read('export default (...a) => { return; };'), ['error', ';'])
-        // no line terminator between `return` and the value, where
-        // JavaScript's automatic semicolon insertion would end the
-        // statement and return `undefined`; a comment on the line is fine
+        // the line terminator JavaScript forbids between `return` and the
+        // value is the reader's to see, as the one before `=>` is: the
+        // grammar reads the value on the next line, and the reader refuses
+        // it there
         assertStructurallySame(read('export default (...a) => { return /* c */ a; };'), ['ok'])
-        assertStructurallySame(read('export default (...a) => { return\na; };'), ['error', 'nl'])
-        assertStructurallySame(read('export default (...a) => { return // c\na; };'), ['error', 'nl'])
-        assertStructurallySame(read('export default (...a) => { return /* x\ny */ a; };'), ['error', 'nl'])
+        assertStructurallySame(read('export default (...a) => { return\na; };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { return // c\na; };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { return /* x\ny */ a; };'), ['ok'])
     },
     // Any value takes accesses, `.name` and `[key]`, trivia allowed around
     // each token since a value ends with its own, and a key is a string or

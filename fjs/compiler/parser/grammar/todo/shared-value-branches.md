@@ -10,7 +10,7 @@ branches and differ only in their tail:
 
 ```js
 // value                              // unary                              // body
-neg: [sym('-'), trivia, unary],       neg: [sym('-'), trivia, unary],       neg: [sym('-'), trivia, unary],
+neg: [sym('-'), unary],       neg: [sym('-'), unary],       neg: [sym('-'), unary],
 primitive: primitiveValue,            primitive: primitiveValue,            primitive: primitiveValue,
 ref: reference,                       ref: reference,                       ref: reference,
 array: [array, accesses],             array: [array, accesses],             array: [array, accesses],
@@ -35,7 +35,7 @@ Name the shared four once, in both files:
 ```js
 /** The four branches every value form starts with. A thunk, like the rules: `unary` and `array` are declared after it, and the grammar is recursive through them. */
 const valueBranches = () => /** @type {const} */ ({
-    neg: [sym('-'), trivia, unary],
+    neg: [sym('-'), unary],
     primitive: primitiveValue,
     ref: reference,
     array: [array, accesses],

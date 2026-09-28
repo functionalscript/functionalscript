@@ -126,9 +126,11 @@ const f = (...a)
 export default f;
 ```
 
-**Current parser:** the ordinary grammar already applies `sameLine` after
-`return` and before `=>`; the tokenizer preserves newline information,
-including CR/LF inside block comments. The grammar proofs cover these refusals.
+**Current parser:** trivia is no symbol of the grammar; the tokenizer marks
+each token with whether a newline stood before it, CR/LF inside a block
+comment included, and the fold refuses a line break after `return` and
+before `=>` at the token on the wrong side of it. The parser proofs cover
+these refusals.
 The bad intrinsic match was proposed, not observed in a running matcher.
 
 **Root-cause correction:** use one JavaScript syntactic front end, then

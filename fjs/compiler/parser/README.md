@@ -14,64 +14,65 @@ draw: [`./syntax`](./syntax/module.f.mjs) holds the rewrite set, which turns
 the grammar's tree into the syntax tree — a node per value, a record per
 statement — and `parseSyntax`, the reader over tokens; `./module.f.mjs` is
 the fold, which resolves the tree's names into the AST and refuses what only
-a word or a line can tell, and `parseFromTokens`, the two in sequence.
+a word or a line can tell, and `parseFromTokens`, the two in sequence. Trivia is in neither alphabet's stream for
+long: the tokenizer reads it and leaves it out, keeping of it the one fact a
+rule of the language asks, whether a newline stood before a token
+([`fjs/compiler/tokenizer`](../tokenizer/module.f.mjs)).
 
 ## The grammar is written down
 
 [`./grammar`](./grammar/module.f.mjs) holds it:
 
 ```
-module ::= t import* const* export eof
-import ::= 'import' t clause 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] end
-clause ::= named | id t [ ',' t named ]
-named  ::= '{' t [ items(binding) ] '}' t
-binding ::= id t [ 'as' t id t ]
-const  ::= 'const' t id t '=' t value end
-export ::= 'export' t ( 'default' t value end | const const* [ export ] )
-end    ::= [ ';' t ]
-value  ::= '-' t unaryOperand tail | '~' t unaryOperand tail
-         | (primitive t | array | object) access* powTail tail
-         | id s arrowOrRest
-         | '(' t (func | value afterValue)
-body   ::= '-' t unaryOperand tail | '~' t unaryOperand tail
-         | (primitive t | array) access* powTail tail
-         | id s arrowOrRest
-         | '(' t (func | value afterValue) | block
-unary  ::= '-' t unaryOperand | '~' t unaryOperand
-         | (primitive t | id t | array | object) access* powTail
-         | '(' t group
-unaryOperand ::= '-' t unaryOperand | '~' t unaryOperand
-         | (primitive t | id t | array | object) access*
-         | '(' t groupOperand
-block  ::= '{' t const* 'return' s value end '}' t
-func   ::= [ '...' t id t ] ')' s '=>' t body
-afterValue ::= ',' t [ names ] ')' s '=>' t body | ')' s arrowOrRest
-arrowOrRest ::= '=>' t body | [ nl t ] access* powTail tail
-names  ::= '...' t id t | id t [ ',' t [ names ] ]
-group  ::= value ')' t access* powTail
-groupOperand ::= value ')' t access*
-powTail ::= [ '**' t unary ]
-eagerTail ::= { mulOp t unary }
-           { addOp t unary <the multiplicative repeat above> }
+module ::= import* const* export eof
+import ::= 'import' clause 'from' string [ 'with' '{' id ':' string '}' ] end
+clause ::= named | id [ ',' named ]
+named  ::= '{' [ items(binding) ] '}'
+binding ::= id [ 'as' id ]
+const  ::= 'const' id '=' value end
+export ::= 'export' ( 'default' value end | const const* [ export ] )
+end    ::= [ ';' ]
+value  ::= '-' unaryOperand tail | '~' unaryOperand tail
+         | (primitive | array | object) access* powTail tail
+         | id arrowOrRest
+         | '(' (func | value afterValue)
+body   ::= '-' unaryOperand tail | '~' unaryOperand tail
+         | (primitive | array) access* powTail tail
+         | id arrowOrRest
+         | '(' (func | value afterValue) | block
+unary  ::= '-' unaryOperand | '~' unaryOperand
+         | (primitive | id | array | object) access* powTail
+         | '(' group
+unaryOperand ::= '-' unaryOperand | '~' unaryOperand
+         | (primitive | id | array | object) access*
+         | '(' groupOperand
+block  ::= '{' const* 'return' value end '}'
+func   ::= [ '...' id ] ')' '=>' body
+afterValue ::= ',' [ names ] ')' '=>' body | ')' arrowOrRest
+arrowOrRest ::= '=>' body | access* powTail tail
+names  ::= '...' id | id [ ',' [ names ] ]
+group  ::= value ')' access* powTail
+groupOperand ::= value ')' access*
+powTail ::= [ '**' unary ]
+eagerTail ::= { mulOp unary }
+           { addOp unary <the multiplicative repeat above> }
            …six more layers, each repeating over every layer below it the
            same way — shift, relational, equality, bitwiseAnd, bitwiseXor,
            bitwiseOr, JavaScript's own order
-logicalAndRound ::= '&&' t unary eagerTail
-logicalOrRound  ::= '||' t unary eagerTail { logicalAndRound }
-nullishRound    ::= '??' t unary eagerTail
+logicalAndRound ::= '&&' unary eagerTail
+logicalOrRound  ::= '||' unary eagerTail { logicalAndRound }
+nullishRound    ::= '??' unary eagerTail
 circuitTail ::= [ logicalAndRound { logicalAndRound } { logicalOrRound }
                 | logicalOrRound { logicalOrRound }
                 | nullishRound { nullishRound } ]
-conditionalTail ::= [ '?' t value ':' t value ]
+conditionalTail ::= [ '?' value ':' value ]
 tail   ::= eagerTail circuitTail conditionalTail
-access ::= '.' t id t | '[' t (string | number) t ']' t | '(' t [ items(value) ] ')' t
-array  ::= '[' t [ items(value) ] ']' t
-object ::= '{' t [ items(member) ] '}' t
-member ::= key t ':' t value
-key    ::= id | string | '[' t string t ']'
-items  ::= item [ ',' t [ items ] ]
-t      ::= (ws | nl | comment)*
-s      ::= (ws | comment)*
+access ::= '.' id | '[' (string | number) ']' | '(' [ items(value) ] ')'
+array  ::= '[' [ items(value) ] ']'
+object ::= '{' [ items(member) ] '}'
+member ::= key ':' value
+key    ::= id | string | '[' string ']'
+items  ::= item [ ',' [ items ] ]
 ```
 
 It is LL(1): one symbol of lookahead decides every choice, and the backend
@@ -83,8 +84,10 @@ then selects the arrow or the ordinary expression continuation. The binding
 pass requires a name where that prefix becomes a parameter, rejecting
 `(a + b) => 1` while preserving `(a + b)`. Bare `a => a` uses the same arrow
 continuation. A final rest name is allowed after fixed names; it cannot be
-followed by another parameter or a comma. The grammar preserves the no-newline
-rule before `=>`, including comment trivia.
+followed by another parameter or a comma. The no-newline rule before `=>` is
+the fold's, not the grammar's: trivia is no symbol of the grammar, and the
+`=>` token says whether a line break stood before it, a line comment's end or
+a block comment holding one included.
 
 A `-` or a `~` takes the group under its `(` and not `paren`, the two
 differing by the function: `-(...a) => 1` is a syntax error in JavaScript
@@ -138,24 +141,28 @@ Three more things are spelled for one symbol of lookahead, each a conflict
 the backtracking grammar this replaced had
 ([the record](../README.md#both-grammars-are-ll1) of all eight):
 
-- **Trivia follows a token, never leads a rule.** Every token is followed by
-  `t`, so no rule begins with trivia and no two branches begin with it. A
-  value ends with its own `t`, and what follows a value adds none: any
-  value may be followed by an access, `a . b` and `[1] [0]` included, and
-  the trivia between them would otherwise have to lead the access rule.
+- **Trivia is no symbol.** Whitespace, newlines and comments are not in the
+  stream the grammar reads: `fjs/compiler/tokenizer` leaves them out and
+  marks each token with whether a newline stood before it, `newline` in
+  `DjsTokenWithMetadata`. So no rule mentions trivia and none begins with
+  it — the backtracking grammar's statement terminator and its final
+  optional `;` both did, a first/first conflict on the trivia symbols —
+  and JavaScript's three line-break rules are facts of a token the fold
+  checks rather than shapes the grammar spells: `[no LineTerminator here]`
+  before `=>` and after `return`, refused at the `=>` and at the value's
+  first token, and automatic semicolon insertion, below.
 - **A statement ends at `;`, or at nothing.** A newline is never the symbol
-  it ends at: it is trivia, read past by the value before it, and telling a
-  newline from a `;` reached through newlines took unbounded lookahead. So
-  the `;` is optional and the grammar looks no further — one symbol still
-  decides, since `;` begins no statement and no statement's continuation.
-  JavaScript's rule, that a `;` is inserted before a token on a new line and
-  not before one on the same line, is then a fact of the token: the
-  tokenizer marks each token with whether a newline precedes it, and the
-  fold refuses a statement whose predecessor omitted its `;` at its first
-  token unless that token began a line. Which is why the refusal is the
-  fold's and not the grammar's: the grammar reads `const a = 1 export default
-  a;`, and `foldModule` answers `unexpected token` at the `export`, as the
-  grammar did when the `;` was required
+  it ends at, and telling a newline from a `;` reached through newlines took
+  unbounded lookahead while it was one. So the `;` is optional and the
+  grammar looks no further — one symbol still decides, since `;` begins no
+  statement and no statement's continuation. JavaScript's rule, that a `;`
+  is inserted before a token on a new line and not before one on the same
+  line, is then the same fact of the token: the fold refuses a statement
+  whose predecessor omitted its `;` at its first token unless that token
+  began a line. Which is why the refusal is the fold's and not the
+  grammar's: the grammar reads `const a = 1 export default a;`, and
+  `foldModule` answers `unexpected token` at the `export`, as the grammar
+  did when the `;` was required
   ([`spec/README.md`](../../../spec/README.md#module-structure)). DataJS
   still requires the `;`, in its own reader.
 - **A list is right-recursive.** After an item and its comma, the lookahead says

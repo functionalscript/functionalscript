@@ -14,9 +14,6 @@ import type {
     ErrorToken,
     IdToken,
     BigIntToken,
-    WhitespaceToken,
-    NewLineToken,
-    CommentToken,
     EofToken,
     TokenMetadata,
 } from '../../ebnf/lib/js/types.ts'
@@ -36,7 +33,10 @@ import type {
  * a kind of its own on `JsToken`, so this layer only has to admit it —
  * and `&& || ??` with `?`, the lazy operators and the conditional's own
  * token, Stage B of the same; `:` the conditional shares with a member.
- * `?.` stays refused: optional chaining is not this language's yet.
+ * `?.` stays refused: optional chaining is not this language's yet. Trivia
+ * is no member: whitespace, newlines and comments are not in the stream,
+ * and what a rule reads of them is `newline` on the token after them,
+ * {@link DjsTokenWithMetadata}.
  */
 export type DjsToken = |
   {readonly kind: 'true' | 'false' | 'null' | 'undefined' | 'NaN' | 'Infinity'} |
@@ -51,9 +51,6 @@ export type DjsToken = |
   ErrorToken |
   IdToken |
   BigIntToken |
-  WhitespaceToken |
-  NewLineToken |
-  CommentToken |
   EofToken
 
 // The kinds are listed a second time, as the value `./module.f.mjs` tests
@@ -62,13 +59,14 @@ type _KindsAreComplete = Assert<Equal<(typeof _djsTokenKinds)[number], DjsToken[
 
 /**
  * A token of the stream, where it is, and whether a newline stands between
- * it and the token before it, trivia aside — the one fact about the trivia
- * a rule reads: JavaScript ends a statement written without its `;` at a
- * newline, so the parser asks it of the token after such a statement
- * ([spec: module structure](../../../spec/README.md#module-structure)).
+ * it and the token before it — the one fact about the trivia between them
+ * a rule reads, the trivia itself being left out of the stream: JavaScript
+ * ends a statement written without its `;` at a newline, so the parser
+ * asks it of the token after such a statement
+ * ([spec: module structure](../../../spec/README.md#module-structure)),
+ * and forbids one before `=>` and after `return`, so it asks it there too.
  * A token after leading trivia carries the newline that trivia holds, the
- * stream's first token included; a trivia token carries the answer for its
- * own position, which nothing reads.
+ * stream's first token included.
  */
 export type DjsTokenWithMetadata = {
     readonly token: DjsToken
