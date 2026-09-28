@@ -366,15 +366,20 @@ const writeListenerHead = (res, req, status, headers) => {
 const deliver = async (res, record, req, { status, headers, body }) => {
     if (record.closed) { return }
     const gate = responseGate(req.method, res.useChunkedEncodingByDefault, status, headers)
-    if (gate[0] === 'framingHeader' || gate[0] === 'unframed') {
+    if (gate[0] === 'noBody') {
+        writeListenerHead(res, req, status, headers)
+        res.end(emptyBody)
+        return
+    }
+    // Every remaining tag but `pump` is a refusal, asked this way round rather
+    // than listed, so a gate added to `responseGate` cannot fall through to the
+    // listener's headers by being left out of a list here. It is the form the
+    // virtual runner's `recordResponse` already takes.
+    if (gate[0] !== 'pump') {
         respondWith(res)(refusedStatus)(refusalMessage(gate))
         return
     }
     writeListenerHead(res, req, status, headers)
-    if (gate[0] === 'noBody') {
-        res.end(emptyBody)
-        return
-    }
     await pumpBody(res, record, gate[1], body)
 }
 

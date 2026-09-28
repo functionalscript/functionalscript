@@ -684,7 +684,7 @@ suppress a body the host was about to send — the same plausible wrong answer,
 produced by the check meant to prevent one. So it is written from the host's own
 predicate: `HEAD`, `204`, `304`, `1xx`.
 
-**Three gates stand before the pump, so the order they are asked in is part of
+**Four gates stand before the pump, so the order they are asked in is part of
 the design.** They overlap: a `HEAD` on an HTTP/1.0 request, answered with a
 body whose size the listener does not know, satisfies two of them at once. A
 runner asks them in this order and answers with the first that fires.
@@ -696,7 +696,11 @@ runner asks them in this order and answers with the first that fires.
    is never pulled, and the listener's status and headers go out as they stand.
 3. **Can the body that will go out be framed?** No `Content-Length` on a request
    whose `chunkedResponse` is `false` — `500`, before the headers.
-4. None of them fires, and the pump runs.
+4. **Did the listener declare its length twice?** Two spellings of the one name
+   — `500`, before the headers. `setHeader` keeps Node's pending headers
+   lower-cased, so the later value is the one on the wire and the earlier one is
+   gone; which of the two was meant is not a question a runner may answer.
+5. None of them fires, and the pump runs.
 
 The framing header first, because it is the response being malformed rather than
 this body being undeliverable; suppression before the length refusal, because
@@ -706,8 +710,18 @@ complete answer whatever framing the body it does not carry would have had, so
 the other order answers `500` to a request this server can satisfy exactly —
 refusing what it *can* handle, which is not what
 [DESIGN §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle) asks
-for. Both runners take the gates in this order, or they disagree about a request
-neither of them has any trouble with.
+for. The doubled length last, for that same reason and one more: the three gates
+above overlap it and each is right where it fires, and a response that is doubled
+*and* unreadable is refused by gate 3 with a blunter message that is true of it
+as well. Both runners take the gates in this order, or they disagree about a
+request neither of them has any trouble with.
+
+Only the length is gated, because only the length is counted. A runner reads two
+header names — this one and the `Transfer-Encoding` gate 1 refuses — and forwards
+every other entry as the listener wrote it. Node collapses a doubled
+`Content-Type` the same way and nothing here is the worse for it, so a gate on
+that name would refuse a response the host had no trouble with
+([DESIGN §9](../../../../doc/DESIGN.md#9-maximize-signal-to-noise)).
 
 **A handle the pump never finishes reading is a handle nobody closes.** Every
 exit above stops short of the far end of the body, and the far end is where a
@@ -1075,7 +1089,7 @@ buffering half is what this stage answered.
       the chunk list it carried was neither — and
       `IncomingMessage.chunkedResponse` for gate 3 to read; the Node runner's
       pump — its `drain` park released by a recorded `close`, including one
-      that fired before the pump existed, the three gates that keep it from
+      that fired before the pump existed, the gates that keep it from
       starting in their stated order, its byte count against a declared
       `Content-Length` compared at both ends, its destroy-on-failure in the
       cell, in either direction of the count and in `failSafe`, and the

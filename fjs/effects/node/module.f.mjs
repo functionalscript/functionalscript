@@ -21,7 +21,7 @@
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
  * @import { List as List_ } from '../../types/list/types.ts'
- * @import { Access, Await, Catch, Close, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fstat, Fs, Handle, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, Open, Pread, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadRequestBytes, RequestBody, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Rmdir, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _FramingHeader, _Gate, _NoBody, _ReadChunks, _Unframed, _UtfList, _WriteLoop } from './types.ts'
+ * @import { Access, Await, Catch, Close, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fstat, Fs, Handle, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, Open, Pread, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadRequestBytes, RequestBody, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Rmdir, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _DoubledLength, _FramingHeader, _Gate, _NoBody, _ReadChunks, _Unframed, _UtfList, _WriteLoop } from './types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
@@ -29,6 +29,7 @@ import { utf8, utf8ToString } from '../../text/module.f.mjs'
 import { toCodePointList } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { concat } from '../../types/list/module.f.mjs'
+import { definedEntries } from '../../types/object/module.f.mjs'
 import { byteLength, bytesIn, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, u8ListMsb } from '../../types/bit_vec/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../list/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
@@ -655,18 +656,40 @@ export const releaseHandle = handle => resultMapStep(close(handle), () => ok(nul
  * exactly would find no length on a response that declares one, and then refuse
  * or mis-frame it.
  *
+ * **It reads the entries the host reads**, which is what `definedEntries` is doing
+ * here: an index signature admits `undefined`, `writeListenerHead`
+ * ([`./module.mjs`](./module.mjs)) skips such an entry rather than calling
+ * `setHeader` for it, and so a header present with no value is a header no client
+ * ever sees. Scanning `Object.entries` instead stopped at the first key that
+ * *spelled* the name and answered `null` for its missing value, so
+ * `{ 'Content-Length': undefined, 'content-length': '2' }` read as declaring no
+ * length at all. Measured on Darwin with Node 23.11.0, that response went out
+ * under `content-length: 2` with the pump counting against nothing: an
+ * eight-byte body on the wire beneath a two-byte promise.
+ *
+ * Where two entries are *both* defined this answers the first, and no count is
+ * ever taken against it — {@link responseGate}'s fourth gate refuses such a
+ * response before a bound is read.
+ *
  * `name` is given already lower-cased; every caller here is a literal.
  *
  * @type {(headers: Headers, name: string) => Nullable<string>}
  */
 export const headerValue = (headers, name) => {
-    for (const [k, v] of Object.entries(headers)) {
-        // `?? null` because an index signature admits `undefined`, and a header
-        // present with no value is a header that names nothing.
-        if (k.toLowerCase() === name) { return v ?? null }
+    for (const [k, v] of definedEntries(headers)) {
+        if (k.toLowerCase() === name) { return v }
     }
     return null
 }
+
+/**
+ * How many of `headers`'s defined entries spell `name`, which is how a runner asks
+ * whether the listener declared one thing twice.
+ *
+ * @type {(headers: Headers, name: string) => number}
+ */
+const headerCount = (headers, name) =>
+    definedEntries(headers).filter(([k]) => k.toLowerCase() === name).length
 
 /**
  * The length `headers` declares, or `null` for a response that declares none this
@@ -736,7 +759,7 @@ export const carriesNoBody = (method, status) =>
 
 /**
  * What a runner does with a response before it pulls a byte of the body — see
- * {@link _Gate} for the three gates and why their order is the design's rather
+ * {@link _Gate} for the four gates and why their order is the design's rather
  * than each runner's.
  *
  * @type {(method: string, chunkedResponse: boolean, status: number, headers: Headers) => _Gate}
@@ -760,6 +783,10 @@ export const responseGate = (method, chunkedResponse, status, headers) => {
     if (declared === null && (headerValue(headers, 'content-length') !== null || !chunkedResponse)) {
         return unframed
     }
+    // Last, because a length declared twice is a length: the two gates above
+    // overlap it and both answer it correctly, and gate 3 catches the response
+    // that is doubled *and* unreadable with a blunter but true message.
+    if (headerCount(headers, 'content-length') > 1) { return doubledLength }
     return ['pump', declared]
 }
 
@@ -772,8 +799,11 @@ const noBody = ['noBody']
 /** @type {_Unframed} */
 const unframed = ['unframed']
 
+/** @type {_DoubledLength} */
+const doubledLength = ['doubledLength']
+
 /**
- * The status a runner refuses a response it cannot frame with, and the two
+ * The status a runner refuses a response it cannot frame with, and the three
  * messages it explains the refusal by. Declared here so that the two runners say
  * the same thing, as {@link emptyHostError} is, and so a proof asserting one
  * asserts both.
@@ -794,13 +824,18 @@ export const framingHeaderMessage = 'a response may not declare its own transfer
 /** @type {string} */
 export const unframedBodyMessage = 'a body with no content-length cannot be framed for this request'
 
+/** @type {string} */
+export const doubledLengthMessage = 'a response may not declare its content-length twice'
+
 /**
  * What a runner answers a {@link _Gate} refusal with.
  *
- * @type {(gate: _FramingHeader | _Unframed) => string}
+ * @type {(gate: _FramingHeader | _Unframed | _DoubledLength) => string}
  */
 export const refusalMessage = ([tag]) =>
-    tag === 'framingHeader' ? framingHeaderMessage : unframedBodyMessage
+    tag === 'framingHeader'
+        ? framingHeaderMessage
+        : tag === 'unframed' ? unframedBodyMessage : doubledLengthMessage
 
 /**
  * The runner's own answer, as a response frame — for the cases a listener never

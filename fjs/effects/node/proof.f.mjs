@@ -12,7 +12,7 @@ import { byteLength, empty, isVec, maxLengthBytes, u8ListMsb, u8ListToVecMsb, ui
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
 import { mapStep, pureError, pureOk, step as ioStep } from "../module.f.mjs"
-import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, errorMessage, errorSummary, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan, readWholeBytes, readChunks, windowRefusal, maxOffset } from "./module.f.mjs"
+import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan, readWholeBytes, readChunks, windowRefusal, maxOffset } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
@@ -839,6 +839,14 @@ export const proof = {
             // `req.headers` produces such entries, so the branch is a fixture
             // rather than a hypothetical.
             assertEq(headerValue({ 'content-length': undefined }, 'content-length'), null)
+            // **And the scan does not stop there.** The entries a runner forwards
+            // are the defined ones, so a name present with no value is not the
+            // answer to a name present with one further along. Reading the first
+            // *spelling* rather than the first defined entry made this response
+            // declare no length at all, and on Node 23.11.0 it went out under
+            // `content-length: 2` with the pump counting against nothing.
+            assertEq(headerValue({ 'Content-Length': undefined, 'content-length': '2' }, 'content-length'), '2')
+            assertEq(headerValue({ 'content-length': undefined, 'Content-Length': '2' }, 'content-length'), '2')
         },
         // The declared length, which is what the runner counts against. A header
         // it cannot read is **no declaration** for either the gate or the count:
@@ -875,7 +883,7 @@ export const proof = {
             assert(!carriesNoBody('GET', 206))
             assert(!carriesNoBody('POST', 200))
         },
-        // The three gates, and the order they are asked in — the same function
+        // The four gates, and the order they are asked in — the same function
         // both runners call, so the order is the design's rather than each
         // runner's.
         responseGate: () => {
@@ -919,6 +927,38 @@ export const proof = {
             // Gate 2 still comes first, so a `HEAD` is answered rather than
             // refused however unreadable the length it does not carry is.
             assertEq(named(responseGate('HEAD', true, 200, { 'content-length': '1 ' })), 'noBody')
+            // **Gate 4: a length declared twice is no length either.** Node keeps
+            // its pending headers under lower-cased names, so the later value
+            // replaces the earlier one and a runner reading the first would count
+            // against a number the client never sees. Measured on Darwin with Node
+            // 23.11.0, `{ 'Content-Length': '1', 'content-length': '2' }` and a
+            // one-byte body put `content-length: 2` and one byte on the wire and
+            // left the socket in the keep-alive pool.
+            assertEq(named(responseGate('GET', true, 200, { 'Content-Length': '1', 'content-length': '2' })), 'doubledLength')
+            // Either way round, since neither value is the one to count against.
+            assertEq(named(responseGate('GET', true, 200, { 'content-length': '2', 'Content-Length': '1' })), 'doubledLength')
+            // On the request that has no chunking too: the doubling is the
+            // response's, not this request's.
+            assertEq(named(responseGate('GET', false, 200, { 'Content-Length': '1', 'content-length': '2' })), 'doubledLength')
+            // Asked **last**, so each gate above keeps the answer it already had.
+            // A `HEAD` is suppressed rather than refused, for the reason gate 2
+            // comes before gate 3 at all — the body a doubled length would
+            // mis-frame is one Node never carries, and gate 2 already lets an
+            // unreadable length stand on a `HEAD`.
+            assertEq(named(responseGate('HEAD', true, 200, { 'Content-Length': '1', 'content-length': '2' })), 'noBody')
+            // Gate 1 still first: the response is malformed whatever it declares.
+            assertEq(named(responseGate('GET', true, 200, { 'transfer-encoding': 'chunked', 'Content-Length': '1', 'content-length': '2' })), 'framingHeader')
+            // And gate 3 catches the response that is doubled *and* unreadable,
+            // with a blunter message that is true of it as well.
+            assertEq(named(responseGate('GET', true, 200, { 'Content-Length': 'one', 'content-length': 'two' })), 'unframed')
+            // A name present with no value is not a second declaration: the entries
+            // a runner forwards are the defined ones, so this response declares its
+            // length once, and it is the one Node emits.
+            assertEq(named(responseGate('GET', true, 200, { 'Content-Length': undefined, 'content-length': '2' })), 'pump 2')
+            // Two spellings of a name the runner never counts against are no
+            // concern of the gate's: Node collapses them and the response is framed
+            // exactly as the single length says.
+            assertEq(named(responseGate('GET', true, 200, { 'content-length': '1', 'Content-Type': 'text/a', 'content-type': 'text/b' })), 'pump 1')
         },
         // The frame a refusal goes out as, shared so that the two runners spell it
         // alike: a refusal a program is proven against is the refusal it meets.
@@ -930,6 +970,7 @@ export const proof = {
             assertEq(`${headers.connection}`, 'close')
             assertEq(refusalMessage(['framingHeader']), framingHeaderMessage)
             assertEq(refusalMessage(['unframed']), unframedBodyMessage)
+            assertEq(refusalMessage(['doubledLength']), doubledLengthMessage)
         },
     },
 }

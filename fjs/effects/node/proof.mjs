@@ -39,7 +39,8 @@ import { utf8ToString } from '../../text/module.f.mjs'
 import { write as writeEnvelope } from '../../git/object/module.f.mjs'
 import { tagLoose, tagPayload } from '../../git/testlib.f.mjs'
 import {
-    awaitIfPromise, both, catch_, close, createServer, errorMessage, framingHeaderMessage, fstat,
+    awaitIfPromise, both, catch_, close, createServer, doubledLengthMessage, errorMessage,
+    framingHeaderMessage, fstat,
     inflate, inflateTrailingCode, listen, open, pread, readWhole, rename, requestBodyOffsetMessage,
     resolveFileModule, maxOffset, readBytes, rmdir, unframedBodyMessage, writeExclusive,
 } from './module.f.mjs'
@@ -1563,6 +1564,62 @@ export const proof = {
             assertEq(`${Buffer.from(answer.body)}`, `${framingHeaderMessage}\n`)
             assertEq(pulls.n, 0)
             assertEq(releases.n, 1)
+        },
+        // **Gate 4**, on the host, and the client's side of it. A listener that
+        // spells one header two ways has the later value go out and the earlier one
+        // vanish: `setHeader` keeps Node's pending headers under lower-cased names,
+        // so the last one applied is the one on the wire, while a runner reading the
+        // first would count the body against the other.
+        //
+        // Measured on Darwin with Node 23.11.0 against this very listener with the
+        // gate taken out: `content-length: 2` on the wire, **one** byte after it,
+        // and then the client waiting — six seconds of nothing, ended by
+        // `ECONNRESET` when the server's idle timeout cut a socket it had put back
+        // in the keep-alive pool. `ending` is asserted for that reason: it is the
+        // client's side of the defect, where the status alone is only the runner's.
+        // A pipelined client fares worse still, since the missing byte is the next
+        // response's status line.
+        refusesADoubledLength: async () => {
+            const pulls = counter()
+            const releases = counter()
+            /** @type {Erl<NodeOp>} */
+            const doubling = () => pureOk({
+                status: 200,
+                headers: { 'Content-Length': '1', 'content-length': '2' },
+                body: lazyBody(toVec(new TextEncoder().encode('a')), 1, pulls),
+                release: counting(releases),
+            })
+            const answer = await withServer(
+                doubling,
+                port => within('a refused doubled length', 10000, answered(port, 'GET')))
+            assertEq(answer.status, 500)
+            assertEq(`${Buffer.from(answer.body)}`, `${doubledLengthMessage}\n`)
+            // The refusal's own length, not either of the listener's: a response the
+            // gates turn down goes out as the runner's frame.
+            assertEq(answer.length, `${doubledLengthMessage.length + 1}`)
+            // **And the client reads it to the end**, which is what the defect took
+            // away: as many bytes as the frame promised, ended rather than reset.
+            assertEq(answer.ending, 'end')
+            // The listener's body was never pulled, and it was given back anyway.
+            assertEq(pulls.n, 0)
+            assertEq(releases.n, 1)
+            // **And the connection goes with the refusal**, which is what keeps a
+            // keep-alive client off a socket this response has just been refused on:
+            // the next request takes a fresh one instead of reading a frame nobody
+            // vouched for.
+            if (!isNode()) { return }
+            await withServer(doubling, async port => {
+                const agent = new http.Agent({ keepAlive: true, maxSockets: 1 })
+                const first = await within(
+                    'a refused doubled length over an agent', 10000, overAnAgent(port, 'GET', null, agent))
+                assertEq(first.status, 500)
+                assertEq(first.connection, 'close')
+                const second = await within(
+                    'a second request after a refused doubled length', 10000, overAnAgent(port, 'GET', null, agent))
+                assertEq(second.status, 500)
+                assertEq(second.reused, false)
+                agent.destroy()
+            })
         },
         // **Gate 3, and the gate order, over a raw HTTP/1.0 request** — raw
         // because Node's own client speaks 1.1 only, and 1.0 is the request whose

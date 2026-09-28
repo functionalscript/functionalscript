@@ -10,7 +10,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { both, resolveFileModule, access, awaitIfPromise, close, exec, fetch, framingHeaderMessage, fstat, handleSource, log, open, pread, readChunks, rm, rmdir, writeFile, readFile, readdir, import_, rename, readBytes, readRequestBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, errorMessage, forever, listen, readWhole, notAFileCode, notAFileMessage, requestBodyOffsetMessage, mkdir, unframedBodyMessage, maxOffset } from '../module.f.mjs'
+import { both, resolveFileModule, access, awaitIfPromise, close, doubledLengthMessage, exec, fetch, framingHeaderMessage, fstat, handleSource, log, open, pread, readChunks, rm, rmdir, writeFile, readFile, readdir, import_, rename, readBytes, readRequestBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, errorMessage, forever, listen, readWhole, notAFileCode, notAFileMessage, requestBodyOffsetMessage, mkdir, unframedBodyMessage, maxOffset } from '../module.f.mjs'
 import { empty, length, maxLengthBytes, msb, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
 import { history, historyStep, pureError, pureOk, resultMapStep, resultStep, step } from '../../module.f.mjs'
 import { empty as endOfBody, nonEmpty } from '../../list/module.f.mjs'
@@ -1890,6 +1890,58 @@ export const proof = {
             assertEq(answered({ 'content-length': 'seven' }, true).status, 500)
             // A length this runner *can* read is untouched on either request.
             assertEq(answered({ 'content-length': '7' }, true).status, 200)
+        },
+        // **Gate 4: a length declared twice is refused rather than counted.** Node
+        // keeps its pending headers under lower-cased names, so a listener that
+        // spells the name two ways has the later value go out and the earlier one
+        // vanish — and a runner reading the earlier one counts a body against a
+        // number no client ever sees. Measured on Darwin with Node 23.11.0,
+        // `{ 'Content-Length': '1', 'content-length': '2' }` with a one-byte body
+        // put `content-length: 2` and one byte on the wire and left the socket in
+        // the keep-alive pool, so the client waits for a byte that never comes or
+        // reads the next response's status line as the end of this body. Which of
+        // the two the listener meant is not a question a runner may answer.
+        refusesADoubledLength: () => {
+            const [s, r] = answerOne(
+                () => pureOk({
+                    status: 200,
+                    headers: { 'Content-Length': '1', 'content-length': '2' },
+                    body: neverPulled,
+                    release: recordRelease,
+                }),
+                requested('GET'))
+            assertEq(r.status, 500)
+            assertEq(responseText(r), `${doubledLengthMessage}\n`)
+            // Nothing of the listener's body was pulled, and the handle came back
+            // all the same. `failure` is the field that used to read `null` on a
+            // response this runner recorded as successful while the host emitted a
+            // length it did not match.
+            assertEq(r.failure, null)
+            assertEq(s.stdout, `${released}\n`)
+            // The listener's own headers are gone with it: a response the gates
+            // turn down goes out as the runner's frame, as it does on a socket.
+            assertEq(`${r.headers['content-length']}`, `${doubledLengthMessage.length + 1}`)
+        },
+        // **And a name present with no value is not a second declaration**, which
+        // is the other half of reading a header the way the host reads it. Only
+        // defined entries reach `setHeader`, so this response declares its length
+        // once — the value Node emits — and the body is counted against it. Reading
+        // the first *spelling* instead answered no length at all: the pump ran
+        // unbounded and eight bytes went out under `content-length: 2`.
+        countsPastAnUndefinedSpelling: () => {
+            const [s, r] = answerOne(
+                () => pureOk({
+                    status: 200,
+                    headers: { 'Content-Length': undefined, 'content-length': '2' },
+                    body: ofChunks([utf8('abcdefgh')]),
+                    release: recordRelease,
+                }),
+                requested('GET'))
+            assertEq(r.status, 200)
+            assertStructurallySame(r.failure, ['overrun', 2])
+            // None of the chunk was recorded, because none of it may go out.
+            assertEq(bodyBytes(r), 0)
+            assertEq(s.stdout, `${released}\n`)
         },
         // **The order the gates are asked in.** They overlap, so each of these
         // is a request two of them fire on, and the answer says which was asked

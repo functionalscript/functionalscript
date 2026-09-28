@@ -119,6 +119,11 @@ export type _ServerResponse = {
      * goes last and wins; Node keys pending headers by the lower-cased name, so
      * it replaces whichever spelling the listener used, and nothing else the
      * listener asked for is touched.
+     *
+     * That same keying is why a listener may not spell its `Content-Length` twice:
+     * the later value replaces the earlier one here and the runner would count
+     * against the other. The fourth gate in [`./types.ts`](./types.ts)'s `_Gate`
+     * refuses such a response.
      */
     readonly setHeader: (name: string, value: string) => void
 }

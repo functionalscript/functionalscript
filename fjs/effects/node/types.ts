@@ -657,7 +657,7 @@ export type RequestListener<O extends Operation> = (_: IncomingMessage) => Effec
  * What a runner does with a response instead of pulling its body, or
  * {@link _Pump} with the length the pull is counted against.
  *
- * **Three gates stand before the pump, and the order they are asked in is part
+ * **Four gates stand before the pump, and the order they are asked in is part
  * of the design**, because they overlap: a `HEAD` on a request Node will not
  * chunk, answered with a body whose size the listener does not know, satisfies
  * two of them at once. A runner asks them in the order `responseGate`
@@ -667,7 +667,7 @@ export type RequestListener<O extends Operation> = (_: IncomingMessage) => Effec
  *
  * @internal
  */
-export type _Gate = _FramingHeader | _NoBody | _Unframed | _Pump
+export type _Gate = _FramingHeader | _NoBody | _Unframed | _DoubledLength | _Pump
 
 /**
  * Gate 1 — the listener wrote a `Transfer-Encoding`. `500`, before the headers:
@@ -707,6 +707,46 @@ export type _NoBody = readonly['noBody']
  * @internal
  */
 export type _Unframed = readonly['unframed']
+
+/**
+ * Gate 4 — the listener declared its length twice, under two spellings of the one
+ * name: `{ 'Content-Length': '1', 'content-length': '2' }`. `500`, before the
+ * headers.
+ *
+ * **Node emits one of the two values and a runner would count against the other.**
+ * `writeListenerHead` ([`./module.mjs`](./module.mjs)) hands every entry to
+ * `setHeader`, which keeps its pending headers under lower-cased names, so the
+ * later value replaces the earlier one; `headerValue` answers the first. Measured
+ * on Darwin with Node 23.11.0, that response went out as
+ *
+ * ```
+ * HTTP/1.1 200 OK
+ * content-length: 2
+ * Connection: keep-alive
+ * ```
+ *
+ * with the pump's one byte beneath it and the socket back in the pool — so a
+ * keep-alive client waits for a byte that is never coming, or reads the next
+ * response's status line as the end of this body. Which of the two the listener
+ * meant is not a question a runner may answer, so it answers neither.
+ *
+ * **Asked last, because the three gates above overlap it and each is right where
+ * it fires.** A `HEAD` is suppressed rather than refused, for the reason gate 2 is
+ * asked before gate 3 at all: the body a doubled length would mis-frame is one Node
+ * never carries, and a length gate 2 lets stand unreadable it may let stand twice.
+ * A response that is doubled *and* unreadable is refused by gate 3 with a blunter
+ * message, which is true of it as well.
+ *
+ * Only the length, because only the length is counted. A runner reads two header
+ * names — this one and the `Transfer-Encoding` gate 1 refuses — and forwards every
+ * other entry as the listener wrote it. Node collapses a doubled `Content-Type`
+ * the same way and nothing here is the worse for it, so a gate on that name would
+ * refuse a response the host had no trouble with
+ * ([DESIGN.md §9](../../../doc/DESIGN.md#9-maximize-signal-to-noise)).
+ *
+ * @internal
+ */
+export type _DoubledLength = readonly['doubledLength']
 
 /**
  * No gate fires: pull the body, counting the bytes against the declared length —
