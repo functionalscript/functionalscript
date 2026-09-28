@@ -638,8 +638,9 @@ one line break. Those are JSON's four whitespace characters, the same four
 [DataJS](./datajs/README.md#whitespace) admits.
 
 Trivia may stand between any two tokens, before the first and after the last,
-and it is insignificant there, newlines included: a newline ends no statement
-([module structure](#module-structure)), and inside an expression a line break
+and it is insignificant there, newlines included, but for one: a statement
+written without its `;` ends at the newline before the next statement
+([module structure](#module-structure)). Inside an expression a line break
 reads as a space does, exactly as JavaScript reads it: `a` followed by
 `.length`, `[0]` or `+ 2` on the next line is `a.length`, `a[0]` or `a + 2`,
 and `f` followed by `(1)` is the call `f(1)`. Trivia is needed only where two
