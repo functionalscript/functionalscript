@@ -61,11 +61,13 @@ reader of JavaScript; they are listed so that the trade is a choice.
   missing `;` not at all, since a match that fails builds no module for
   the fold to check. That is the existing order of syntax before names,
   not a new one.
-- **One more fact a token carries.** Whether a newline stood before a token
-  is a fact the tokenizer has to keep and the parser to read, the one thing
-  a rule of the language asks of trivia. It is small — a boolean per token
-  and one check at each statement boundary — but it is a coupling between
-  the token stream and the fold that a `;`-only language does not have.
+- **One more place the newline is read.** The newline is already kept — the
+  tokenizer emits it as an `nl` token — and already read, in the two places
+  JavaScript forbids one, after `return` and before `=>` (`sameLine` in the
+  grammar). ASI adds a third reading, at every statement boundary, and a
+  different one: not a refusal where a newline stands, but a permission
+  where one does. That check, one per statement, is the whole incremental
+  cost; the machinery it reads is paid for.
 
 The benefit is reach, above: the repository's own modules, and JavaScript
 written in the common style, stop being refused for a token that carries
