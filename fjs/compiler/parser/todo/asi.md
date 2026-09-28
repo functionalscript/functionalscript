@@ -37,6 +37,40 @@ whose writer refuses their `&&` and `?:`. For two more, `fjs/js/keywords`
 and `fjs/website/style`, one other construct remains, a spread and a
 template literal.
 
+### Drawbacks
+
+Every drawback is JavaScript's own, inherited exactly, and none is new to a
+reader of JavaScript; they are listed so that the trade is a choice.
+
+- **Two spellings of one module.** With the `;` optional, a module written
+  with and without it is the same program, so a canonical form has to
+  choose: the compiler's `.js` output keeps writing every `;`, and DataJS
+  keeps requiring it, so a DataJS document stays one spelling. Nothing is
+  gained by admitting the second spelling into those.
+- **The hazards ASI is known for.** `a` followed by `(b)` on the next line
+  is the call `a(b)`, and `a` followed by `[0]` is the index `a[0]`, in
+  JavaScript and so here: a newline never ends a statement the parser can
+  continue. A reader who leaves the `;` out has to know that, exactly as
+  in JavaScript. The language has no `++`, `throw`, `break` or `yield`, so
+  the other restricted productions do not arise; the two it has, `return`
+  and `=>`, refuse a line break already.
+- **A worse message for one mistake.** Two statements on one line without
+  a `;` between them are refused at the second statement's first token,
+  `unexpected token`, as today; but where the second statement is itself
+  malformed, the grammar's failure inside it is reported first, and the
+  missing `;` not at all, since a match that fails builds no module for
+  the fold to check. That is the existing order of syntax before names,
+  not a new one.
+- **One more fact a token carries.** Whether a newline stood before a token
+  is a fact the tokenizer has to keep and the parser to read, the one thing
+  a rule of the language asks of trivia. It is small — a boolean per token
+  and one check at each statement boundary — but it is a coupling between
+  the token stream and the fold that a `;`-only language does not have.
+
+The benefit is reach, above: the repository's own modules, and JavaScript
+written in the common style, stop being refused for a token that carries
+no meaning.
+
 ### Proposal
 
 Grow the shared syntactic front end to accept an omitted `;` where
