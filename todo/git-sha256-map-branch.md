@@ -108,9 +108,12 @@ holds every pair it records, and prunes only at pairs already on the chain
 it extends; whether it may prune at pairs another party published is the
 trust question below.
 
-So the second run over a repository costs the new commits and the trees and
-blobs they introduced, and nothing more; the first run over a large
-repository costs every object it holds, once. Under compat naming the
+So a run costs the new commits and the trees and blobs they introduced,
+plus a re-check of the pairs the previous run recorded, which no successor
+pins until this run does (the command's step 1): the last increment and
+the new one, never the whole history again. The first run over a large
+repository costs every object it holds, and the second run pays that once
+more to check it; from then on each run re-checks only the run before. Under compat naming the
 commit roots are what a timestamp proves, and the per-object pairs are the
 cache that lets the next run prune at every subtree already named.
 
@@ -216,7 +219,7 @@ conversion Git's transition defines is not this command's.
    SHA-1, the record's SHA-256 — refusing two names for one SHA-1. Before
    a delta's pairs enter the cache, its bytes are hashed as a blob at the
    SHA-256 width and the name must equal the record's `sha256`, and the
-   record's token is checked as step 4 checks a fresh response — its
+   record's token is checked as step 4 below checks a fresh response — its
    imprint equal to that digest, its signature and its signer's
    certificate chain — before any pair of that delta enters the cache,
    since the `sha256` member alone is an unsigned claim. The same check
@@ -242,7 +245,7 @@ conversion Git's transition defines is not this command's.
    descends from it.
 2. **Walk.** From the commit `HEAD` names, in post-order, record a pair for
    every object the cache lacks; a cache hit ends the descent, on the
-   closure invariant of step 2 — everything below a hit is in the cache by
+   closure invariant of the Proposal's step 2 — everything below a hit is in the cache by
    construction. The walk also starts from the head read in 1, whose own
    commit, tree and record no delta holds yet; its delta is in the cache
    from its record.
@@ -278,7 +281,7 @@ conversion Git's transition defines is not this command's.
    tree says the one and the token, signed, the other.
 5. **Commit.** Write the two blobs, their tree, and a commit whose parent
    is the head read in 1 — one parent: joining a second publisher's head,
-   the several-parent commit of step 4, is open below — and move
+   the several-parent commit of the Proposal's step 4, is open below — and move
    `refs/heads/disot` to it only if it
    still holds what step 1 read. Nothing is pushed. The delta cannot hold
    its own pair — its bytes decide both hashes — which is why the tree and
