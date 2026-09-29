@@ -160,12 +160,14 @@ puts a timestamp in are for the commits of the mapped history; this branch
 does not use them, and shares only the RFC 3161 request and token handling.
 
 **4. Take every published table before publishing one.** Before a run
-records anything, it fetches `disot` from every remote it publishes to,
-scans every commit reachable from the heads it fetched, and takes the union
+records anything, it takes every `disot` head the repository holds —
+`refs/heads/disot` and each `refs/remotes/*/disot`, fetched by the user
+beforehand — scans every commit reachable from them, and takes the union
 of their deltas, in memory, as the table in hand for step 2. Then the walk
-records only pairs absent from that union, the run writes them as one new
-commit whose parents are the heads it fetched — one parent in the usual
-case, several when two publishers raced — and pushes. Two writers who each
+records only pairs absent from that union, and the run writes them as one
+new commit whose parents are those heads — one parent in the usual case,
+several when two publishers raced. Pushing is the user's, as fetching
+was. Two writers who each
 fetched the same head and each pushed produce two heads, and the next commit
 simply names both as parents: nothing is merged, since the next delta only
 adds and a reader's union sees both. Two such writers may each have
@@ -183,6 +185,47 @@ existing objects like any other, and the closure invariant demands them.
 Under compat naming a parent commit's line then binds the whole chain
 below it by SHA-256, and the line for a parent's delta repeats the very
 digest that parent's token carries.
+
+### The command: `fjs tts`
+
+One command, no arguments, run inside a repository; the timestamp
+authority's URL is its one option, `--tsa <url>`, until
+[disot-cli-epic](../fjs/todo/disot-cli-epic.md)'s profiles land. It never
+touches the index or the working tree: it reads committed objects and
+writes objects and one ref, so uncommitted changes cannot reach it and are
+not checked. Only committed content is named, and a working tree is not
+content.
+
+1. **Read the cache.** If the repository holds `refs/heads/disot` or any
+   `refs/remotes/*/disot`, scan every commit reachable from those heads and
+   take the union of their deltas in memory, refusing two names for one
+   SHA-1. If it holds none, the cache is empty and the new commit will have
+   no parent.
+2. **Walk.** From the commit `HEAD` names, in post-order, record a pair for
+   every object the cache lacks; a cache hit ends the descent, on the
+   closure invariant of step 2 — everything below a hit is in the cache by
+   construction. The walk also starts from each head read in 1, whose own
+   commit, tree, delta and token no delta holds yet.
+3. **Write the delta**, `map.json`: one JSON object, each key a SHA-1 in
+   lowercase hex, each value its SHA-256 in lowercase hex, keys in ascending
+   order, no whitespace beyond what JSON requires. One set of pairs then
+   has one byte sequence; a reader checks the order and refuses any other
+   spelling, so lookup is a search that fails rather than answers wrongly,
+   as [`fjs/git/packidx`](../fjs/git/packidx/module.f.mjs) does for its
+   ids.
+4. **Timestamp it.** Hash the delta as a blob at the SHA-256 width — the
+   name the next delta will record for it — request an RFC 3161 timestamp
+   with that digest as the imprint and a fresh nonce, check the response's
+   status, imprint, nonce and signature, and keep the token as `tts.der`,
+   the raw DER `TimeStampToken`. A response that fails any check ends the
+   run with nothing written to the branch.
+5. **Commit.** Write the two blobs, their tree, and a commit whose parents
+   are the heads read in 1, and move `refs/heads/disot` to it only if it
+   still holds what step 1 read. Nothing is pushed.
+
+A run over a repository the cache already covers still commits: its delta
+holds the pairs for the parents' own objects and its token renews the
+chain. That is a renewal, by design, not a no-op.
 
 ### What a timestamp proves
 
@@ -228,20 +271,6 @@ list is so that none is decided by accident.
   open is whether a
   reader that answers one SHA-1 without scanning the whole branch is worth
   a local index, which is tooling and not format.
-- **The line format of a pair.** `<sha1> SP <sha256> LF`, sorted by SHA-1
-  as `packed-refs` is sorted, is the least a reader needs — Git's own
-  loose-object index is a line per pair too, with the SHA-256 first and no
-  order; or a `.disot.*` DataJS document beside
-  the other DISOT metadata, which reads with the readers the name-resolution
-  work already needs. Whichever, sorted and refused when unsorted, so lookup
-  is a search that fails rather than answers wrongly, as
-  [`fjs/git/packidx`](../fjs/git/packidx/module.f.mjs) does for its ids.
-  And whichever, strict: a reader refuses a delta the tool would not have
-  written, rather than reading past what it does not understand.
-- **The two file names, and the token's encoding.** The delta and the
-  token need names in the tree, and the token is DER; whether it is stored
-  as the raw `TimeStampToken` bytes or wrapped so that the file says what
-  it is. Both are the format's to decide.
 - **Gitlinks.** A submodule's commit is an object of another repository. Its
   pair belongs to that repository's own `disot` branch, so the natural rule
   is: not followed, not recorded, and a reader that needs it asks the
@@ -286,8 +315,8 @@ accident:
 
 ### Tasks
 
-- [ ] Define the table file format and its tree layout, as a `todo/` beside
-      the module that will read it, with the open questions above answered.
+- [ ] The delta reader and writer: the JSON form of the command's step 3,
+      written canonically and refused when not.
 - [ ] The timestamp: the request with the delta's SHA-256 name as the
       imprint, the token checked against it and stored, reusing the
       RFC 3161 handling
@@ -313,9 +342,8 @@ accident:
       `tryWrite` renames over whatever is there, so the conditional write
       is part of this work, and the push is `--force-with-lease` against
       the same head.
-- [ ] The command, under [disot-cli-epic](../fjs/todo/disot-cli-epic.md)'s
-      surface: fetch, read, walk, write, push, in that order, refusing to
-      publish over a head it did not fetch.
+- [ ] `fjs tts`: read, walk, write, timestamp, commit, in that order,
+      refusing to move the ref over a head it did not read.
 
 ### Related
 
