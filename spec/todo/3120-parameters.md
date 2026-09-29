@@ -33,10 +33,12 @@ unticked tasks track it, together with the language-design approval record,
 the module-import preservation proofs and the executor-capacity proofs.
 No claim is made that factory construction alone satisfies this requirement.
 
-The unchanged `fjs/types/range/module.f.js` compilation candidate now parses
-its parameters and stops at the first statement that omits its `;`: the
-`export` after `contains`. Named-parameter examples with the compiler's
-current statement termination syntax compile successfully.
+The `fjs/types/range/module.f.js` compilation candidate compiles whole: it
+once stopped at the first statement that omitted its `;`, the `export` after
+`contains`, and the compiler has since accepted it unchanged, which is why it
+carries the `.f.js` extension and `fjs compile` with no arguments holds it
+there. Named-parameter examples with the compiler's current statement
+termination syntax compile successfully.
 
 The remaining sections retain the design and its unfinished obligations.
 
@@ -485,8 +487,9 @@ source rest binding in that future case or silently admit initializers now.
       invalid bindings, misplaced/rest trailing commas, newlines before `=>`,
       and deferred default/destructuring syntax. Test positive-zero metadata
       round trips and preservation of ordinary `-0` arguments.
-- [ ] Run generation and repository-required checks; retry the unchanged
-      [`types/range`](../../fjs/types/range/module.f.js) compilation candidate.
+- [x] Retry the unchanged [`types/range`](../../fjs/types/range/module.f.js)
+      compilation candidate: it compiles whole and is a `.f.js` now.
+- [ ] Run generation and repository-required checks.
       Move implemented decisions into the current specification/EDAG docs and
       retire the completed TODO without claiming unrelated features landed.
 
