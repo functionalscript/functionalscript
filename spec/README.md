@@ -304,8 +304,9 @@ fjs compile
 With no arguments `fjs compile` checks rather than compiles. An authored
 `.f.js` promises that the compiler of the same revision accepts it
 ([file types](#file-types)), and `tsc` cannot keep that promise for it — it
-accepts source the compiler refuses, a missing terminating `;` for one — so
-this is the check that does. Every `.f.js` under the current directory
+accepts source the compiler refuses, `let a = 1; export default a;` for one,
+which the compiler rejects at its first token, `1:1 - error: unexpected token`
+— so this is the check that does. Every `.f.js` under the current directory
 (`INIT_CWD` under `npm run`, so `npm start compile` from a subdirectory
 checks that subtree), hidden entries and `node_modules` skipped as the test
 runner skips them, is read and linked into its program exactly as every

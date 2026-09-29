@@ -119,11 +119,13 @@ const suiteNixSteps = version => [
  * Node 24's, with two differences that come from what this job does rather than
  * from Nix.
  *
- * `node ./fjs/module.mjs compile`, with no arguments, is the check that every
- * authored `.f.js` still compiles ([`fjs/compiler`](../../compiler/module.f.mjs)).
- * It runs this working tree's compiler, not a published one, since the promise
- * an `.f.js` makes is about the compiler of the same revision; and it runs once,
- * here, because the answer does not depend on the runtime.
+ * `npm start compile` — `npm start` is this tree's `node ./fjs/module.mjs`,
+ * as the other `npm` steps here are this tree's scripts — with no arguments is
+ * the check that every authored `.f.js` still compiles
+ * ([`fjs/compiler`](../../compiler/module.f.mjs)). It runs this working tree's
+ * compiler, not a published one, since the promise an `.f.js` makes is about
+ * the compiler of the same revision; and it runs once, here, because the
+ * answer does not depend on the runtime.
  *
  * `npm run gen` and the drift check it feeds run **last**, after every
  * other command. The check compares the working tree against what the generator
@@ -142,7 +144,7 @@ const node26NixSteps = [
     nodeVersionStep(nixShell, node.default),
     tscVersionStep,
     ...nixSteps(nixShell)(
-        ['npm ci', 'tsc', 'node ./fjs/module.mjs compile', 'npm run cov', 'npm pack', 'npm run gen']),
+        ['npm ci', 'tsc', 'npm start compile', 'npm run cov', 'npm pack', 'npm run gen']),
     test({ run: 'git add -A && git diff --cached --exit-code' }),
     // Hands the tarball to a job that has no checkout, which is the only place
     // the package can be checked as a consumer sees it. `if-no-files-found`
