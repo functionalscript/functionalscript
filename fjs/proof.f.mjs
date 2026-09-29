@@ -24,10 +24,17 @@ export const proof = {
         assertEq(exitCode(code), 0)
         assert(state.stdout.includes('compile'), 'expected command list in stdout')
     },
-    compileRequiresArgs: () => {
+    compileAloneChecks: () => {
+        // `fjs compile` with no arguments is the `.f.js` check, and an empty
+        // tree passes it, saying how many files it saw.
         const [state, code] = run({})(['compile'])
+        assertEq(exitCode(code), 0, state.stderr)
+        assertEq(state.stdout.trim(), '.f.js: 0 checked')
+    },
+    compileRequiresOutput: () => {
+        const [state, code] = run({})(['compile', 'input.f.js'])
         assertEq(exitCode(code), 1)
-        assert(state.stderr.length !== 0, 'expected error in stderr')
+        assert(state.stderr.includes('Requires 2 arguments'), state.stderr)
     },
     runModule: () => {
         /** @type {Dir} */
