@@ -12,7 +12,7 @@ import { _errorLocation, compile } from '../module.f.mjs'
 import { nodeCommands, exitCode, ioError } from '../../effects/node/module.f.mjs'
 import { tryStringify } from '../../media/datajs/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.mjs'
-import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
+import { virtual, emptyState, nodeProgramOptions } from '../../effects/node/virtual/module.f.mjs'
 import { partialRun } from '../../effects/mock/module.f.mjs'
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -58,7 +58,7 @@ export const proof = {
                 assertStructurallySame(run(root)('main'), expected)
                 assertStructurallySame(virtual({ ...emptyState, root })(resolve('main'))[1], expected)
                 for (const output of ['output.json', 'output.data.js', 'output.f.js', 'output.rs']) {
-                    const [state, code] = virtual({ ...emptyState, root })(compile(['main', output]))
+                    const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['main', output])))
                     assertEq(exitCode(code), 1)
                     assertEq(state.stderr.trim(), `one - error: module has no ${name} export`)
                     assertEq(state.root[output], undefined)
@@ -92,7 +92,7 @@ export const proof = {
             const descendants = _own(overlapResult.value, 'default')
             assert(descendants instanceof Array && descendants[0] === descendants[1])
             assert(overlapResult.shared)
-            const [state, code] = virtual({ ...emptyState, root: overlap })(compile(['main', 'output.json']))
+            const [state, code] = virtual({ ...emptyState, root: overlap })(compile(nodeProgramOptions(['main', 'output.json'])))
             assertEq(exitCode(code), 1)
             assertEq(state.root['output.json'], undefined)
             // An unused leaf import must not overwrite the reached export's sharing facts.
@@ -275,7 +275,7 @@ export const proof = {
                 assertEq(result[1].message, message)
             }
             for (const output of ['out.data.js', 'out.edag.data.js']) {
-                const [stderr, result] = runner(compile(['main.f.js', output]))
+                const [stderr, result] = runner(compile(nodeProgramOptions(['main.f.js', output])))
                 assertEq(exitCode(result), 1)
                 assertEq(stderr.trim(), `${location} - error: ${message}`)
             }
@@ -367,7 +367,7 @@ export const proof = {
                 'input.f.js': [utf8('import value from "pkg"; export default value;')],
                 pkg: [utf8('export default 7;')],
             }
-            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', output]))
+            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', output])))
             assertEq(exitCode(code), 1, state.stderr)
             assertEq(state.root[output], undefined)
             assertEq(state.stderr.trim(), 'input.f.js - error: unsupported import specifier "pkg": expected ./, ../, or /')
@@ -495,7 +495,7 @@ export const proof = {
         for (const specifier of ['./bad%.f.js', './dep.f.js?v=1', './dep.f.js#copy']) {
             for (const output of ['out.data.js', 'out.edag.data.js', 'out.f.js', 'out.json', 'out.rs']) {
                 const root = { 'input.f.js': [utf8(`import value from "${specifier}"; export default value;`)] }
-                const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', output]))
+                const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', output])))
                 assertEq(exitCode(code), 1, state.stderr)
                 assertEq(state.root[output], undefined)
                 assertEq(state.stderr.trim(), `input.f.js - error: invalid module specifier: ${specifier}`)
