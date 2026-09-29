@@ -313,10 +313,13 @@ Each needs the owner's approval before the step that depends on it.
    function-text cases with the renderer's text as their expected value, and
    a marker that skips the host side, as `rust` skips the Rust side. Tests
    cover every path in
-   [member-functions](./member-functions.md)'s `Function` checklist:
-   `f.toString()`, `String(f)`, `+`, a function in an array joined, a string
-   method's argument, and a returned or exported function. `ToNumber` of a
-   function stays `NaN` without its text, since that is exact for any text.
+   [member-functions](./member-functions.md)'s `Function` checklist except
+   the property key, which step 6 files: `f.toString()`, `String(f)`, `+`, a
+   function in an array joined, a string method's argument, a returned or
+   exported function, a nested function, a function an export's consumer
+   only calls, and identity checks, where the text leaves `===` unchanged.
+   `ToNumber` of a function stays `NaN` without its text, since that is
+   exact for any text.
 5. **Rust, for a frame,** after D2: names in the holes, or the run-time
    value renderer with lazy text, big enough for its own issue.
 6. **Follow-up issues:** rendering in the FJS interpreter, which drops the
