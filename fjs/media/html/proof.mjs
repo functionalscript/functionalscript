@@ -80,6 +80,18 @@ export const proof = {
             ['math', 'http://www.w3.org/1998/Math/MathML', {}, ['mi', 'http://www.w3.org/1998/Math/MathML', {}, 'x']])
     },
     /**
+     * **Foreign content does not switch again.** The HTML parser enters SVG or
+     * MathML only from HTML, so a `math` inside an `svg` is an SVG element
+     * named `math`, and an `svg` inside a `math` is MathML.
+     */
+    foreignContentKeepsItsNamespace: () => {
+        const mathMl = 'http://www.w3.org/1998/Math/MathML'
+        assertStructurallySame(shape(toDom(dom(), ['svg', ['math', ['mi', 'x']]])),
+            ['svg', svg, {}, ['math', svg, {}, ['mi', svg, {}, 'x']]])
+        assertStructurallySame(shape(toDom(dom(), ['math', ['svg']])),
+            ['math', mathMl, {}, ['svg', mathMl, {}]])
+    },
+    /**
      * **`fill` replaces the children and adds to the attributes.** What lets a
      * pending row settle in place: its old text goes, and an attribute the new
      * element does not name stays.

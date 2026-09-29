@@ -10,8 +10,9 @@
  * `svg` subtree in the SVG namespace and a `math` subtree in MathML without
  * being asked; `createElement` would make an inert HTML element named `svg`,
  * and a diagram would render nothing. So every element is created in its
- * namespace: `svg` and `math` enter theirs, `foreignObject` returns its
- * children to HTML, and everything else inherits its parent's.
+ * namespace: `svg` and `math` enter theirs from HTML, `foreignObject` returns
+ * its children to HTML, and everything else inherits its parent's — a `math`
+ * inside an `svg` included, which the parser keeps in SVG.
  *
  * @module
  *
@@ -32,7 +33,7 @@ const mathMl = 'http://www.w3.org/1998/Math/MathML'
  */
 const create = (document, parent, element) => {
     const [tag] = element
-    const namespace = tag === 'svg' ? svg : tag === 'math' ? mathMl : parent
+    const namespace = parent !== xhtml ? parent : tag === 'svg' ? svg : tag === 'math' ? mathMl : xhtml
     return fill(document.createElementNS(namespace, tag), element)
 }
 
