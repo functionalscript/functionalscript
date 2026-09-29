@@ -221,8 +221,11 @@ conversion Git's transition defines is not this command's.
    certificate chain — before any pair of that delta enters the cache,
    since the `sha256` member alone is an unsigned claim. The same check
    covers the rest of the branch:
-   each commit, tree and record is hashed at the SHA-256 width and must
-   equal the pair its successor's delta holds for it, so a substituted
+   each commit, tree and record is named as the walk names any object —
+   the record as a blob at the SHA-256 width, a tree or a commit with its
+   SHA-1 references rewritten to their pairs first, under the compat
+   naming — and the name must equal the pair its successor's delta holds
+   for it, so a substituted
    record cannot vouch for a substituted delta; the head's own commit,
    tree and record, which no delta names yet, are what this run names.
    An object that does not match is the substitution this table exists
