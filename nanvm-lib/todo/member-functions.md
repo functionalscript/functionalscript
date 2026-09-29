@@ -216,9 +216,11 @@ are [`vm/string/README.md`](../src/vm/string/README.md):
       EDAG (`nanvm-lib/todo/to-primitive.md`, Stage 3).
 - [ ] Prove direct and indirect default conversions. Done: `f.toString()`,
       `String(f)`, `+`, function elements in arrays (`join` / `toString`),
-      a string method's argument, returned, exported and nested functions
-      (the corpus's `host` cases and `nanvm-harness/fixtures/function-text.mjs`).
-      Left: property keys.
+      a string method's argument, returned, exported and nested functions,
+      and identity, which the text leaves unchanged (the corpus's `host` and
+      `===` cases and `nanvm-harness/fixtures/function-text.mjs`). A
+      call-only export consumer is the harness's `Action::Call`. Left:
+      property keys.
 
 ### Related
 

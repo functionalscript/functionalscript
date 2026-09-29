@@ -1529,6 +1529,7 @@ const sharedValues = {
     emptyArray: [],
     stringArray: ['0'],
     object: { '0': '0' },
+    first: callback('first'),
 }
 
 /**
@@ -1572,6 +1573,10 @@ const strictEqualityCases = [
     { name: 'stringArrayByItself', args: [ref('stringArray'), ref('stringArray')], expected: true },
     { name: 'objectByItself', args: [ref('object'), ref('object')], expected: true },
     { name: 'objectByEqualObject', args: [ref('object'), { '0': '0' }], expected: false },
+    // A function's text is no part of its identity: two functions with one
+    // text are two values.
+    { name: 'functionByItself', args: [ref('first'), ref('first')], expected: true },
+    { name: 'functionBySameText', args: [callback('first'), callback('first')], expected: false },
 ]
 
 /** @type {Data} */

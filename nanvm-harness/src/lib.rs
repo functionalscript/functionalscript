@@ -340,12 +340,13 @@ mod tests {
 
     /// A function's text is the FunctionalScript writer's: converted where
     /// it is made, returned from a call with its capture named by its slot,
-    /// and exported, read as a value and converted by the host.
+    /// and exported, read as a value and converted by the host. Two functions
+    /// with one text stay two identities.
     #[test]
     fn function_texts() {
         assert_eq!(
             run::<Naive>(function_text::module, "default", Action::Read),
-            Ok(r#"["()=>1","()=>1!","()=>1|2","(...$a)=>$0[0]+$a[0]","(...$a)=>(...$b)=>$a[0]+$b[0]"]"#.into())
+            Ok(r#"["()=>1","()=>1!","()=>1|2","(...$a)=>$0[0]+$a[0]","(...$a)=>(...$b)=>$a[0]+$b[0]",true,false]"#.into())
         );
         let exports: Object<Naive> = function_text::module::<Naive>()
             .unwrap()

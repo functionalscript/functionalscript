@@ -310,8 +310,9 @@ Each needs the owner's approval before the step that depends on it.
    writer itself, so the compiler's output and the Rust printer share one
    owner; the Rust printer, `fjs/edag/rust`, imports it, which makes no
    cycle, since the writer imports nothing of the printer. `['self']` has
-   no node kind yet, and the writer refuses any kind it cannot spell. Proofs: a text without a
-   frame is the module text of the same node, which reads back to it.
+   no node kind yet, and the writer refuses any kind it cannot spell.
+   Proofs: a text without a frame is the module text of the same node,
+   which reads back to it.
 4. **Rust, for an empty frame** (done). `static_function` takes the text,
    `Option<&'static str>`, and `IFunction::text` answers it. The printer
    emits the writer's text for every function node, `None` where the
@@ -321,9 +322,13 @@ Each needs the owner's approval before the step that depends on it.
    number or a bigint still answers without it. The corpus's function-text
    cases carry the writer's text as `expected` and a `host` marker that
    skips the JavaScript side, as `rust` skips the Rust side. They and
-   `nanvm-harness/fixtures/function-text.mjs` cover `f.toString()`,
-   `String(f)`, `+`, a function in an array joined, a string method's
-   argument, and a returned, exported and nested function. `ToNumber` of a
+   `nanvm-harness/fixtures/function-text.mjs` cover every path in
+   [member-functions](./member-functions.md)'s `Function` checklist except
+   the property key: `f.toString()`, `String(f)`, `+`, a function in an
+   array joined, a string method's argument, a returned, exported and
+   nested function, and identity checks, where two functions with one text
+   stay two identities under `===`. A function an export's consumer only
+   calls is the harness's `Action::Call`, unchanged. `ToNumber` of a
    function stays `NaN` without its text, since that is exact for any text.
 5. **Rust, for a frame** (done, with step 4): under D2's code-only answer
    the text is complete at compile time. Instantiating, if the owner
