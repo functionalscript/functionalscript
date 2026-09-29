@@ -1,3 +1,7 @@
+/**
+ * @import { PackageConsumer } from '../types.ts'
+ */
+
 import { packageCheckJob, packageCheckJobId } from './module.f.mjs'
 import { packageArtifact, packageJobId } from '../node/module.f.mjs'
 import { typescript } from '../config/module.f.js'
@@ -149,6 +153,7 @@ export const proof = {
         // the type refusing the value, and a `'` would end the `echo '…'`
         // around the source.
         encodesTheStrings: () => {
+            /** @type {PackageConsumer} */
             const odd = { ...packageConsumer, accepted: 'a"b', refused: "c'd\\e" }
             const runs = packageCheckJob(odd).steps.flatMap(step => step.run === undefined ? [] : [step.run])
             const good = runs.find(run => run.endsWith('> good.mts'))

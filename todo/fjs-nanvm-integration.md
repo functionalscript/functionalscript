@@ -97,7 +97,7 @@ validation runs from a clean CI checkout, so generated-output cleanup or
 repeated-pack safety is not part of it. Compiler acceptance alone was not a
 sufficient rename gate.
 
-**Decided: rename with one prerequisite task still open.** A synthetic
+**Decided, then: rename before the prerequisite's last task; done since.** A synthetic
 fixture proved type-checking, declaration emission, packing and coverage on
 `main`; what the prerequisite still lacked was `package-check` importing a
 `.f.js` from a consumer with a negative control, a check of the package job
