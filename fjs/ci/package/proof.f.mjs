@@ -143,6 +143,21 @@ export const proof = {
                 }
             }
         },
+        // A consumer string reaches the source as a TypeScript string literal,
+        // whatever it holds: a `"` in the refused value would otherwise make
+        // `bad.mts` a syntax error, which the negated compile would count as
+        // the type refusing the value, and a `'` would end the `echo '…'`
+        // around the source.
+        encodesTheStrings: () => {
+            const odd = { ...packageConsumer, accepted: 'a"b', refused: "c'd\\e" }
+            const runs = packageCheckJob(odd).steps.flatMap(step => step.run === undefined ? [] : [step.run])
+            const good = runs.find(run => run.endsWith('> good.mts'))
+            const bad = runs.find(run => run.endsWith('> bad.mts'))
+            assert(good !== undefined && bad !== undefined, 'expected both consumer files written')
+            assert(good.includes('const accepted: PrototypeName = "a\\"b";'), good)
+            assert(bad.includes('const refused: PrototypeName = "c\\u0027d\\\\e";'), bad)
+            assert(!bad.includes("'d"), 'expected no raw apostrophe inside the echo')
+        },
         // One command per step (root `AGENTS.md` §7): a consumer step never
         // chains, so a red step names the command that failed.
         oneCommandEach: () => {

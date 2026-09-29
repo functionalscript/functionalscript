@@ -81,25 +81,39 @@ const tsconfig = /** @type {const} */ ({
 })
 
 /**
- * The two consumer files, as one `echo` each writes them, so a source holds
- * double quotes only. `good.mts` imports the runtime export and a declared
- * type from the installed package and gives the type a value it accepts;
- * `bad.mts` gives it one it does not. `.mts` rather than `.ts` because
+ * A string as a TypeScript string literal: JSON's spelling, which TypeScript
+ * reads, with the one character JSON leaves raw that the `echo '…'` around
+ * the source cannot hold, `'`, written as its escape. The encoding is what
+ * keeps the negative control honest: a value interpolated raw could make
+ * `bad.mts` a syntax error, which the negated compile would count as the
+ * type refusing it.
+ *
+ * @type {(s: string) => string}
+ */
+const literal = s => JSON.stringify(s).replaceAll("'", '\\u0027')
+
+/**
+ * The two consumer files, as one `echo` each writes them. `good.mts` imports
+ * the runtime export and a declared type from the installed package and
+ * gives the type a value it accepts; `bad.mts` gives it one it does not.
+ * Every string is a {@link literal}; the export and the type are written
+ * bare, as the identifiers they are, and one that is not an identifier
+ * fails `good.mts`, which is not negated. `.mts` rather than `.ts` because
  * `npm init` declares no `type`, under which `.ts` would read as CommonJS.
  *
  * @type {(consumer: PackageConsumer) => string}
  */
 const goodConsumer = consumer => [
-    `import { ${consumer.value} } from "${alias}/${consumer.module}";`,
-    `import type { ${consumer.type} } from "${alias}/${consumer.types}";`,
-    `const accepted: ${consumer.type} = "${consumer.accepted}";`,
-    `if (${consumer.value} === undefined) { throw new Error("${consumer.value} did not load"); }`,
+    `import { ${consumer.value} } from ${literal(`${alias}/${consumer.module}`)};`,
+    `import type { ${consumer.type} } from ${literal(`${alias}/${consumer.types}`)};`,
+    `const accepted: ${consumer.type} = ${literal(consumer.accepted)};`,
+    `if (${consumer.value} === undefined) { throw new Error(${literal(`${consumer.value} did not load`)}); }`,
 ].join('\n')
 
 /** @type {(consumer: PackageConsumer) => string} */
 const badConsumer = consumer => [
-    `import type { ${consumer.type} } from "${alias}/${consumer.types}";`,
-    `const refused: ${consumer.type} = "${consumer.refused}";`,
+    `import type { ${consumer.type} } from ${literal(`${alias}/${consumer.types}`)};`,
+    `const refused: ${consumer.type} = ${literal(consumer.refused)};`,
 ].join('\n')
 
 /**

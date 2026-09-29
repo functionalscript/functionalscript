@@ -199,7 +199,7 @@ Prerequisite: compiler + CA FunctionalScript complete.
 | SUL deduplication | `fjs/sul/` L1–L4 ✓ | CAS integration layer |
 | Compiler (parsing) | `fjs/compiler/` pipeline with functions ✓, FJS grammar on `fjs/ebnf/` ✓ | Language spec generated from the grammar |
 | Compiler (codegen) | Rust code generator (`fjs compile … .rs`) ✓ | AOT-compile the FJS loader/interpreter for native self-hosting; Rust EDAG deferred |
-| Compiler (repository coverage) | Stage-1 `.f.mjs` source migration complete and compiler-independent ✓ | Validate supported `.f.mjs` as coverage grows; then authored-`.f.js` package support, then rename supported groups `.f.mjs` → `.f.js` |
+| Compiler (repository coverage) | Stage-1 `.f.mjs` source migration complete and compiler-independent ✓; authored-`.f.js` package support, `package-check` importing a published `.f.js` from a clean consumer ✓; every module the compiler accepted whole renamed `.f.mjs` → `.f.js`, held by `fjs compile` with no arguments ✓ | Rename further groups as compiler support grows |
 | CA FunctionalScript | — | Depends on VM + EDAG canonicalization |
 | Sandboxed execution | — | Depends on CA FJS |
 | Hybrid intelligence | — | Depends on all above |

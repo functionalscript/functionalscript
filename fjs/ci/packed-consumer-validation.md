@@ -8,8 +8,9 @@ clean consumer, imports a published `.f.js`, runs it and type-checks a use of
 its declaration with a negative control. The Deno and Bun halves below remain
 manual.
 
-The package ships `.mjs` runtime, `.d.mts` / `types.d.ts` declarations, and no
-`.js` files. The emitted declarations reference `…/types.ts` specifiers that name
+The package ships `.mjs` and `.f.js` runtime with `.d.mts` / `.d.ts`
+declarations beside them, `types.d.ts` for each authored `types.ts`, and no
+other `.js`. The emitted declarations reference `…/types.ts` specifiers that name
 no shipped file, so the thing to prove for every consumer toolchain is that those
 specifiers resolve to the shipped `types.d.ts` — genuinely, not as an `any`
 fallback. This file records the consumer sources and the per-runtime
