@@ -222,7 +222,14 @@ conversion Git's transition defines is not this command's.
    record's token is checked as step 4 below checks a fresh response — its
    imprint equal to that digest, its signature and its signer's
    certificate chain — before any pair of that delta enters the cache,
-   since the `sha256` member alone is an unsigned claim. The same check
+   since the `sha256` member alone is an unsigned claim. One thing differs
+   for a cached token: the time its certificate is judged at. A fresh
+   response is judged now; a cached token is judged at the conservative
+   bound of the first successor token that pins its record, the renewal
+   that proves it existed then, so an authority whose certificate has
+   since expired or been revoked still vouches for what it timestamped
+   before that, and a token made after the fact does not. The head's
+   token, which nothing pins yet, is judged now. The same check
    covers the rest of the branch:
    each commit, tree and record is named as the walk names any object —
    the record as a blob at the SHA-256 width, a tree or a commit with its
@@ -261,7 +268,10 @@ conversion Git's transition defines is not this command's.
    is what the record will hold for it — request an RFC 3161
    timestamp with the SHA-256 as the imprint, a fresh nonce and
    `certReq` set, so the token carries the signer's certificate and a
-   later clone can check it from the two blobs alone, and check
+   later clone can check it from the two blobs alone — the trust anchors
+   and revocation data it checks against are the reader's own, a
+   configured trust store as for any certificate, not the record's — and
+   check
    the response's status, imprint, nonce and signature, and the signer's
    certificate — its chain to a trusted root, its validity, its revocation
    status and its timestamping extended key usage — as
