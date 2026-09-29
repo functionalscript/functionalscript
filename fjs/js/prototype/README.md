@@ -1,10 +1,10 @@
 # Built-in prototype names
 
 The names JavaScript finds on a built-in prototype, and what a
-FunctionalScript module may do with each. [`module.f.mjs`](./module.f.js)
+FunctionalScript module may do with each. [`module.f.js`](./module.f.js)
 holds the lists — `prototypeNames`, the union of the seven prototypes, and
 its partition into `prohibitedCalls` and `allowedCalls` — and the compiler
-([`fjs/compiler/parser`](../../compiler/parser/module.f.mjs)) applies them; this table
+([`fjs/compiler/parser`](../../compiler/parser/module.f.js)) applies them; this table
 is the same data with the reason for each row.
 
 Two rules, both by name alone, since the receiver's type is unknown at

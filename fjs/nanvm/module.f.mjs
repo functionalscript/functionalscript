@@ -13,7 +13,7 @@
  *
  * Beside the data are the format's **constructors** (`functionValue`,
  * `callback`, `returns`, `ref`, `throws`, `unreached`, written in
- * [`constructors/module.f.mjs`](./constructors/module.f.js) and re-exported
+ * [`constructors/module.f.js`](./constructors/module.f.js) and re-exported
  * here), its **eliminators** (`isThrows`, `hasUnreached`,
  * `orders`, `groupKey`, `casesOf`, `arityOf`), and the **lowering** that
  * turns a case into the EDAG expression it denotes (`lambdaExp`,
