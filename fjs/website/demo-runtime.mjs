@@ -253,6 +253,13 @@ const fail = (root, cause) => {
  * with a later one waiting behind it updates the state and leaves the page
  * alone; the later one renders.
  *
+ * **A skipped state's `view` is not called, so a throw in it goes unreported —
+ * and nothing that was seen is lost.** Reported, it would be replaced by the
+ * very next render, the one this event was skipped for, a moment later. A
+ * `view` that throws on a state the reader stops at is still reported, because
+ * the last event always renders; a demo's proof is what calls `view` on every
+ * input it cares about.
+ *
  * @type {(root: Element, demo: Demo<any, DemoEvent, never>) => (event: DemoEvent) => void}
  */
 const stepper = (root, demo) => {
