@@ -173,7 +173,7 @@ const flake = (state, id) =>
 
 // A compiler pin no configuration anywhere holds, written into the fixture
 // project's `package.json` so that the generator can be shown to ignore it.
-// The packed-package check installs `../config/module.f.js`'s version; an
+// The packed-package check installs `./config/module.f.js`'s version; an
 // assertion that found this one instead would have found a generator reading
 // the project's dependencies, which is what this change stopped doing.
 const runPin = /** @type {const} */ ('=9.9.9')

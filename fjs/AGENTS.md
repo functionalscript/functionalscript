@@ -1309,8 +1309,12 @@ anywhere else as the rule being broken.
 Authored FunctionalScript source is JavaScript with JSDoc. Relative
 repository-owned dependencies follow these source rules:
 
-- `.f.mjs` is authored FunctionalScript implementation/proof source, and its
-  relative runtime imports target `.f.mjs`;
+- `.f.mjs` and `.f.js` are authored FunctionalScript implementation source,
+  and `.f.mjs` is proof source too. A relative runtime import from `.f.mjs`
+  targets a FunctionalScript module, `.f.mjs` or `.f.js`; one from `.f.js`
+  targets `.f.js` alone, since the compiler links a module's imports with it
+  and `fjs compile` with no arguments holds every `.f.js` to that
+  ([spec: checking every `.f.js`](../spec/README.md#checking-every-fjs));
 - `types.ts` is authored type-only TypeScript source and carries no runtime
   implementation;
 - `.f.mjs` — and later `.f.js` — consumes `types.ts` through JSDoc `@import`,
@@ -1320,8 +1324,10 @@ repository-owned dependencies follow these source rules:
   artificial runtime representation;
 - never add a runtime import/export or runtime value solely to represent a
   TypeScript-only type declaration;
-- compiler support does not gate the later `.f.mjs` -> `.f.js` rename;
-  FunctionalScript parser coverage and package support do.
+- a module is renamed `.f.mjs` -> `.f.js` once the compiler of the same
+  revision accepts it whole, its imports included; package support proved
+  itself on the package fixture before the first such rename
+  ([`ci/todo/f-js-package-support.md`](./ci/todo/f-js-package-support.md)).
 
 Avoid references to built-in or external Node modules such as `node:path` in
 FunctionalScript source. No `try`/`catch` — see
