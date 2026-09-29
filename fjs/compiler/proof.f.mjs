@@ -487,12 +487,12 @@ export const proof = {
             assertEq(compileSource('const a = { b: 1 }; export default a.b;')('output.data.js'), 'export default 1;')
             assertEq(fjsRoundTrip('export default (...a) => a;'), 'export default (...$a)=>$a;')
             assertEq(moduleRefused('export default (...a) => a;'), 'input.f.js - error: a function has no value')
-            assertEq(fjsRoundTrip('const f = (...a) => 1; export default 2;'), 'const $0=(...$a)=>1;export default 2;')
+            assertEq(fjsRoundTrip('const f = (...a) => 1; export default 2;'), 'const $0=()=>1;export default 2;')
             // an empty parameter list reaches here as the node a rest
-            // parameter's function does, the AST carrying no parameter, so
-            // the writer gives it the one spelling it has — which denotes
-            // the same function, a name and an arity being unobservable
-            assertEq(fjsRoundTrip('export default () => 1;'), 'export default (...$a)=>1;')
+            // parameter's function does, the AST carrying no parameter, and
+            // the writer names the rest parameter only where the body reads
+            // it — so both lists are written `()`, one node, one text
+            assertEq(fjsRoundTrip('export default () => 1;'), 'export default ()=>1;')
         },
         // An object's members are the graph's here and the value's there, so
         // the two outputs order them differently and hold a different number
@@ -632,17 +632,17 @@ export const proof = {
             // and the FunctionalScript output writes the body back as a
             // body, `const`s and all: the round trip is the claim, and the
             // text is pinned because the names are the writer's to choose
-            assertEq(fjsRoundTrip('export default (...a) => { const x = [1]; return [x, x]; };'), 'export default (...$a)=>{const $a0=[1];return [$a0,$a0];};')
-            assertEq(fjsRoundTrip('export default (...a) => { const x = []; return 1; };'), 'export default (...$a)=>{const $a0=[];return 1;};')
+            assertEq(fjsRoundTrip('export default (...a) => { const x = [1]; return [x, x]; };'), 'export default ()=>{const $a0=[1];return [$a0,$a0];};')
+            assertEq(fjsRoundTrip('export default (...a) => { const x = []; return 1; };'), 'export default ()=>{const $a0=[];return 1;};')
             // a `const` the body does not need is not written: one naming a
             // value reached once is that value in place, as at the module
             // level
-            assertEq(fjsRoundTrip('export default (...a) => { const x = 1; return x; };'), 'export default (...$a)=>1;')
+            assertEq(fjsRoundTrip('export default (...a) => { const x = 1; return x; };'), 'export default ()=>1;')
             // each scope numbers its own `const`s, and no two scopes share a
             // spelling: `$0` is the module's, `$a0` the outer body's, `$b0`
             // the inner one's
-            assertEq(fjsRoundTrip('const m = [1]; export default [m, m, (...a) => { const x = [2]; return [x, x]; }];'), 'const $0=[1];export default [$0,$0,(...$a)=>{const $a0=[2];return [$a0,$a0];}];')
-            assertEq(fjsRoundTrip('export default (...a) => { const f = (...b) => { const y = [1]; return [y, y]; }; return f; };'), 'export default (...$a)=>(...$b)=>{const $b0=[1];return [$b0,$b0];};')
+            assertEq(fjsRoundTrip('const m = [1]; export default [m, m, (...a) => { const x = [2]; return [x, x]; }];'), 'const $0=[1];export default [$0,$0,()=>{const $a0=[2];return [$a0,$a0];}];')
+            assertEq(fjsRoundTrip('export default (...a) => { const f = (...b) => { const y = [1]; return [y, y]; }; return f; };'), 'export default ()=>()=>{const $b0=[1];return [$b0,$b0];};')
             // a body's `const` may name the arguments, which no module `const` can
             assertEq(fjsRoundTrip('export default (...a) => { const x = [a]; return [x, x]; };'), 'export default (...$a)=>{const $a0=[$a];return [$a0,$a0];};')
         },
@@ -666,7 +666,7 @@ export const proof = {
             assertEq(jsonRefused('export default [1][0](2);'), 'input.f.js - error: a call has no value')
             // the writer spells both forms: the plain call, and the method
             // call on its access
-            assertEq(fjsRoundTrip('const f = (...a) => 1; export default f(1);'), 'export default ((...$a)=>1)(1);')
+            assertEq(fjsRoundTrip('const f = (...a) => 1; export default f(1);'), 'export default (()=>1)(1);')
             assertEq(fjsRoundTrip('export default [1][0](2);'), 'export default [1][0](2);')
         },
         // a program the linker refuses is reported against the input, as a

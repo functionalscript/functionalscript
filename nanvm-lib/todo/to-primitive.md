@@ -276,15 +276,21 @@ keep.
 
 Each needs the owner's approval before the step that depends on it.
 
-- **D1, the spelling (proposed).** One line, normalized, with the writer's
+- **D1, the spelling (implemented as proposed).** One line, normalized, with the writer's
   leaves and its `$a`, `$a_0`, `$a0` names. An expression, not a module. A
   rest parameter the body never reads is not written, so `() => 1` is
   `()=>1`, not `(...$a)=>1`. Both denote one node, and the shorter one is
   what a reader expects.
-- **D2, the frame (question 2).** Open. Code-only is small and matches
-  JavaScript. Instantiating is the owner's stated preference, and costs the
-  run-time renderer, an IIFE to keep the text one expression (so it needs
-  call spelling), and lazy text. Answered before step 5.
+- **D2, the frame (question 2): code-only, chosen for now; the owner may
+  override it.** A captured value is written as the name of its slot, `$0`,
+  `$1`, …, so `const make = x => () => [x];` gives every function it makes
+  the text `()=>[$0]`, as JavaScript gives them one text. It is small, it
+  matches JavaScript, and it needs no run-time renderer: the template has
+  no holes left, so step 5 is step 4. Instantiating stays open as the
+  owner's stated preference; it replaces each name with the rendered value,
+  which costs the run-time renderer, an IIFE to keep the text one
+  expression, and lazy text, and it changes no text of a function with an
+  empty frame.
 - **D3, `self` (question 3).** Deferred. The renderer refuses `['self']`
   until the compiler can produce it
   ([forward-references](../../spec/todo/3140-forward-references.md)).
@@ -297,11 +303,14 @@ Each needs the owner's approval before the step that depends on it.
    it.
 2. **The writer spells calls and chains** (done): `f(a)`, `a.b(c)`, and a
    callee that is an access through a `const`.
-3. **`functionText` in FunctionalScript**, beside the EDAG, so that the
-   compiler's writer and the Rust printer share one owner: a function node
-   to its expression template, refusing `['self']`. Proofs: a template with
-   no hole reads back to the same node, and one node always renders one
-   text.
+3. **`functionText` in FunctionalScript** (done): `tryFunctionText` in
+   the writer, [`fjs/compiler/serializer`](../../fjs/compiler/serializer/module.f.mjs),
+   a function node to its text, each slot named `$i` (D2). It is the
+   writer itself, so the compiler's output and the Rust printer share one
+   owner; the Rust printer, `fjs/edag/rust`, imports it, which makes no
+   cycle, since the writer imports nothing of the printer. `['self']` has no node kind yet, and
+   the writer refuses any kind it cannot spell. Proofs: a text without a
+   frame is the module text of the same node, which reads back to it.
 4. **Rust, for an empty frame.** `static_function` takes the template and
    `IFunction` answers it. The printer emits one for every function node,
    and the harness's `function_any()` gets one too.
@@ -314,8 +323,10 @@ Each needs the owner's approval before the step that depends on it.
    `f.toString()`, `String(f)`, `+`, a function in an array joined, a string
    method's argument, and a returned or exported function. `ToNumber` of a
    function stays `NaN` without its text, since that is exact for any text.
-5. **Rust, for a frame,** after D2: names in the holes, or the run-time
-   value renderer with lazy text, big enough for its own issue.
+5. **Rust, for a frame:** under D2's code-only answer the text is
+   complete at compile time, so this lands with step 4. Instantiating, if
+   the owner chooses it, is the run-time value renderer with lazy text, big
+   enough for its own issue.
 6. **Follow-up issues:** rendering in the FJS interpreter, which drops the
    corpus's host-skip marker, and the property-key conversion below.
 
@@ -344,9 +355,11 @@ needs its own issue, and it lands with or after Stage 1.
       its own `toString`, and the `toSorted` guard's test.
 - [x] Stage 2: call an object's own `toString` and `valueOf` per
       `OrdinaryToPrimitive`. Move the host-only cases into the corpus.
-- [ ] Stage 3 decisions: approve D1, and answer D2 before step 5.
+- [ ] Stage 3 decisions: approve D1, and confirm or override D2's
+      code-only answer.
 - [x] Stage 3 steps 1 and 2: the writer spells operators and calls.
-- [ ] Stage 3 step 3: `functionText`, the expression template with holes.
+- [x] Stage 3 step 3: `functionText`, the function's text with its slots
+      named.
 - [ ] Stage 3 step 4: Rust answers the text of a function with an empty
       frame (tracked with the `Function` checklist in `member-functions.md`).
 - [ ] Stage 3 step 5: a function with a frame, per D2.

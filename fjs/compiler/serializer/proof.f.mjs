@@ -23,7 +23,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { invert, unwrap } from '../../types/result/module.f.mjs'
 import { _defaultExport, unresolved } from '../edag/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
-import { trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify } from './module.f.mjs'
+import { tryFunctionText, trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify } from './module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.mjs'
 
 /** The name the front end gives the text it reads back. */
@@ -217,7 +217,7 @@ export const proof = {
         writes(['.', ['-', ['[]', []]], 0], 'export default (-[])[0];')
         writes(['.', ['-', ['[]', []]], 'a'], 'export default (-[]).a;')
         // a negated function likewise
-        writes(['-', ['=>', 0, null, 1]], 'export default -((...$a)=>1);')
+        writes(['-', ['=>', 0, null, 1]], 'export default -(()=>1);')
         // `~` is spelled as `-` is, and the two mix freely: `~~` is two
         // tokens, where `--` is one
         writes(['~', ['[]', []]], 'export default ~[];')
@@ -342,16 +342,16 @@ export const proof = {
     // reaches the ones outside it.
     functions: () => {
         writes(identity, 'export default (...$a)=>$a;')
-        writes(['=>', 0, null, ['=>', 0, null, ['rest']]], 'export default (...$a)=>(...$b)=>$b;')
-        writes(['=>', 0, null, ['[]', [['=>', 0, null, 1]]]], 'export default (...$a)=>[(...$b)=>1];')
+        writes(['=>', 0, null, ['=>', 0, null, ['rest']]], 'export default ()=>(...$b)=>$b;')
+        writes(['=>', 0, null, ['[]', [['=>', 0, null, 1]]]], 'export default ()=>[()=>1];')
         // `$z` then `$aa`: the letters carry past the twenty-sixth body.
-        assert(reads(nested(27)).endsWith('(...$y)=>(...$z)=>(...$aa)=>$aa;'))
+        assert(reads(nested(27)).endsWith('()=>()=>(...$aa)=>$aa;'))
     },
     // A function's `length` is at most 16: 16 reads back, and a larger one,
     // top-level or nested, is an error from every entry point, not a throw
     // out of allocating its parameter names.
     lengthLimit: () => {
-        assert(reads(['=>', 16, null, ['arg', 15]]).includes('_15,...$'))
+        assert(reads(['=>', 16, null, ['arg', 15]]).includes('_15)=>'))
         for (const e of /** @type {readonly Exp[]} */ ([
             ['=>', 2 ** 32, null, 1],
             ['=>', 0, null, ['=>', 2 ** 32, null, 1]],
@@ -368,10 +368,10 @@ export const proof = {
     // question is the text's and not the node's — an access on an object
     // literal opens with one too, and reads back as a block just the same.
     block: () => {
-        writes(['=>', 0, null, ['{}', [[':', 'x', 1]]]], 'export default (...$a)=>{return {"x":1};};')
-        writes(['=>', 0, null, ['.', ['{}', [[':', 'a', 1]]], 'a']], 'export default (...$a)=>{return {"a":1}.a;};')
-        writes(['=>', 0, null, ['[]', [1]]], 'export default (...$a)=>[1];')
-        writes(['=>', 0, null, ['.', 'x', 'length']], 'export default (...$a)=>"x".length;')
+        writes(['=>', 0, null, ['{}', [[':', 'x', 1]]]], 'export default ()=>{return {"x":1};};')
+        writes(['=>', 0, null, ['.', ['{}', [[':', 'a', 1]]], 'a']], 'export default ()=>{return {"a":1}.a;};')
+        writes(['=>', 0, null, ['[]', [1]]], 'export default ()=>[1];')
+        writes(['=>', 0, null, ['.', 'x', 'length']], 'export default ()=>"x".length;')
     },
     // A body's own `const`s: a shared constructor, hoisted so that it is one
     // value per call, and the anchors of a comma the body holds. Each is
@@ -384,10 +384,10 @@ export const proof = {
     bodyConsts: () => {
         /** @type {Exp} */
         const o = ['{}', []]
-        writes(['=>', 0, null, ['[]', [o, o]]], 'export default (...$a)=>{const $a0={};return [$a0,$a0];};')
-        writes(['=>', 0, null, ['.', 1, 'x']], 'export default (...$a)=>(1).x;')
-        writes(['=>', 0, null, ['[]', [identity, identity]]], 'export default (...$a)=>{const $a0=(...$b)=>$b;return [$a0,$a0];};')
-        writes(['=>', 0, null, [',', [['[]', []], 1]]], 'export default (...$a)=>{const $a0=[];return 1;};')
+        writes(['=>', 0, null, ['[]', [o, o]]], 'export default ()=>{const $a0={};return [$a0,$a0];};')
+        writes(['=>', 0, null, ['.', 1, 'x']], 'export default ()=>(1).x;')
+        writes(['=>', 0, null, ['[]', [identity, identity]]], 'export default ()=>{const $a0=(...$b)=>$b;return [$a0,$a0];};')
+        writes(['=>', 0, null, [',', [['[]', []], 1]]], 'export default ()=>{const $a0=[];return 1;};')
         // the arguments are a body's to name, which no module `const` can
         writes(['=>', 0, null, ['[]', [['[]', [['rest']]], ['[]', [['rest']]]]]], 'export default (...$a)=>[[$a],[$a]];')
         // one scope per body: the module's `$0`, the outer body's `$a0` and
@@ -400,7 +400,7 @@ export const proof = {
                 const inner = ['{}', []]
                 return [',', [['[]', [m, m]], ['=>', 0, null, ['[]', [['=>', 0, null, ['[]', [inner, inner]]]]]]]]
             })(),
-            'const $0=[];const $1=[$0,$0];export default (...$a)=>[(...$b)=>{const $b0={};return [$b0,$b0];}];')
+            'const $0=[];const $1=[$0,$0];export default ()=>[()=>{const $b0={};return [$b0,$b0];}];')
     },
     // A comma at the root is the module it came from: an unused `const` per
     // anchor and then the export, each anchor taking a name it does not
@@ -430,44 +430,44 @@ export const proof = {
         const c = ['[]', [1]]
         /** A read of slot `i`, a node of its own — one node in two bodies is no EDAG. @type {(i: number) => Exp} */
         const slot = i => ['.', ['frame'], i]
-        writes(['=>', 0, ['[]', [c]], slot(0)], 'const $0=[1];export default (...$a)=>$0;')
-        writes(['[]', [c, ['=>', 0, ['[]', [c]], slot(0)]]], 'const $0=[1];export default [$0,(...$a)=>$0];')
+        writes(['=>', 0, ['[]', [c]], slot(0)], 'const $0=[1];export default ()=>$0;')
+        writes(['[]', [c, ['=>', 0, ['[]', [c]], slot(0)]]], 'const $0=[1];export default [$0,()=>$0];')
         // the frame's `const` comes before the function's own
         /** @type {Exp} */
         const f = ['=>', 0, ['[]', [c]], ['[]', [slot(0), ['.', ['rest'], 0]]]]
         writes(['[]', [f, f]], 'const $0=[1];const $1=(...$a)=>[$0,$a[0]];export default [$1,$1];')
         // a slot read is a base like any name
-        writes(['=>', 0, ['[]', [c]], ['.', slot(0), 0]], 'const $0=[1];export default (...$a)=>$0[0];')
+        writes(['=>', 0, ['[]', [c]], ['.', slot(0), 0]], 'const $0=[1];export default ()=>$0[0];')
         // one slot read twice is one name, and two slots are two
         /** @type {Exp} */
         const d = ['{}', []]
-        writes(['=>', 0, ['[]', [c, d]], ['[]', [slot(0), slot(1), slot(0)]]], 'const $0=[1];const $1={};export default (...$a)=>[$0,$1,$0];')
+        writes(['=>', 0, ['[]', [c, d]], ['[]', [slot(0), slot(1), slot(0)]]], 'const $0=[1];const $1={};export default ()=>[$0,$1,$0];')
         // inside a body: a parameter is a name already, and a nested
         // function captures through its parent
         writes(
             ['=>', 0, null, ['=>', 0, ['[]', [['rest']]], ['=>', 0, ['[]', [slot(0), ['rest']]], ['[]', [slot(0), slot(1), slot(0)]]]]],
-            'export default (...$a)=>(...$b)=>(...$c)=>[$a,$b,$a];')
+            'export default (...$a)=>(...$b)=>()=>[$a,$b,$a];')
         writes(
             ['=>', 2, null, ['=>', 0, ['[]', [['arg', 1], ['arg', 0]]], ['[]', [slot(0), slot(1)]]]],
-            'export default ($a_0,$a_1,...$a)=>(...$b)=>[$a_1,$a_0];')
+            'export default ($a_0,$a_1)=>()=>[$a_1,$a_0];')
         // an access takes a `const` of the body
         writes(
             ['=>', 0, null, ['=>', 0, ['[]', [['.', ['rest'], 0]]], ['[]', [slot(0), slot(0)]]]],
-            'export default (...$a)=>{const $a0=$a[0];return (...$b)=>[$a0,$a0];};')
+            'export default (...$a)=>{const $a0=$a[0];return ()=>[$a0,$a0];};')
         // what the compiler builds is written, two `const`s reading one
         // value among it: the lowering gives them the one slot the
         // analysis sees
         assertEq(
             reads(_defaultExport(moduleGraph('const o=[1]; const x=o[0]; const y=o[0]; export default (...a)=>[x,y];'))),
-            'const $0=[1][0];export default (...$a)=>[$0,$0];')
+            'const $0=[1][0];export default ()=>[$0,$0];')
         // where the writer's own order would read the slots in another —
         // here the body's text is the frame's order backwards, and a shared
         // function hoisted above the `return` reads the later slot first —
         // the body names its slots in order before anything else
-        writes(['=>', 0, ['[]', [c, d]], ['[]', [slot(1), slot(0)]]], 'const $0=[1];const $1={};export default (...$a)=>{const $a0=$0;const $a1=$1;return [$a1,$a0];};')
+        writes(['=>', 0, ['[]', [c, d]], ['[]', [slot(1), slot(0)]]], 'const $0=[1];const $1={};export default ()=>{const $a0=$0;const $a1=$1;return [$a1,$a0];};')
         assertEq(
             reads(_defaultExport(moduleGraph('const x=[1]; const y=[2]; export default (...a)=>{const z=x; const f=(...b)=>y; return [z,f,f];};'))),
-            'const $0=[1];const $1=[2];export default (...$a)=>{const $a0=$0;const $a1=$1;const $a2=(...$b)=>$a1;return [$a0,$a2,$a2];};')
+            'const $0=[1];const $1=[2];export default ()=>{const $a0=$0;const $a1=$1;const $a2=()=>$a1;return [$a0,$a2,$a2];};')
         // a frame the parser would not build has no text that reads back,
         // and one of the enclosing scope, a comma, has no text yet
         refuses(['=>', 0, ['undefined'], 1], 'a frame that is not an array literal')
@@ -518,7 +518,7 @@ export const proof = {
         writes(f(['**', ['**', a, 2], 3]), 'export default (...$a)=>($a**2)**3;')
         writes(f(['**', a, ['**', 2, 3]]), 'export default (...$a)=>$a**2**3;')
         writes(f(['**', ['-', a], 2]), 'export default (...$a)=>(-$a)**2;')
-        writes(f(['**', -1, 2]), 'export default (...$a)=>(-1)**2;')
+        writes(f(['**', -1, 2]), 'export default ()=>(-1)**2;')
         writes(f(['**', ['~', a], 2]), 'export default (...$a)=>(~$a)**2;')
         writes(f(['**', 2, ['-', a]]), 'export default (...$a)=>2**-$a;')
         writes(f(['-', ['**', a, 2]]), 'export default (...$a)=>-($a**2);')
@@ -528,8 +528,8 @@ export const proof = {
         writes(f(['-', a, ['-', a]]), 'export default (...$a)=>$a- -$a;')
         writes(f(['+', a, -1]), 'export default (...$a)=>$a+-1;')
         // a function is an operand in a group, on either side
-        writes(f(['+', ['=>', 0, null, 1], a]), 'export default (...$a)=>((...$b)=>1)+$a;')
-        writes(f(['+', a, ['=>', 0, null, 1]]), 'export default (...$a)=>$a+((...$b)=>1);')
+        writes(f(['+', ['=>', 0, null, 1], a]), 'export default (...$a)=>(()=>1)+$a;')
+        writes(f(['+', a, ['=>', 0, null, 1]]), 'export default (...$a)=>$a+(()=>1);')
     },
     // `&&` binds tighter than `||`, and `??` mixes with neither
     // unparenthesized, on either side. The conditional is the loosest of
@@ -555,7 +555,7 @@ export const proof = {
         writes(f(['?:', a, 1, 2]), 'export default (...$a)=>$a?1:2;')
         writes(f(['?:', ['?:', a, 1, 2], 3, 4]), 'export default (...$a)=>($a?1:2)?3:4;')
         writes(f(['?:', a, ['?:', 1, 2, 3], ['?:', 4, 5, 6]]), 'export default (...$a)=>$a?1?2:3:4?5:6;')
-        writes(f(['?:', ['??', a, 1], ['=>', 0, null, 1], ['=>', 0, null, 2]]), 'export default (...$a)=>$a??1?(...$b)=>1:(...$b)=>2;')
+        writes(f(['?:', ['??', a, 1], ['=>', 0, null, 1], ['=>', 0, null, 2]]), 'export default (...$a)=>$a??1?()=>1:()=>2;')
         writes(f(['+', ['?:', a, 1, 2], 3]), 'export default (...$a)=>($a?1:2)+3;')
         writes(f(['.', ['&&', a, 1], 'x']), 'export default (...$a)=>($a&&1).x;')
         // A `const` a lazy operand alone reaches would be read back as an
@@ -568,10 +568,10 @@ export const proof = {
         refuses(f(['?:', a, ['=>', 0, ['[]', [['.', a, 0]]], ['.', ['frame'], 0]], 1]), 'a const only a lazy operand reaches')
         refuses(['{}', [[':', 'default', ['??', 1, ['[]', [o, o]]]]]], 'a const only a lazy operand reaches')
         writes(f(['[]', [['&&', a, o], o]]), 'export default (...$a)=>{const $a0=[];return [$a&&$a0,$a0];};')
-        writes(f(['&&', ['[]', [o]], ['[]', [o]]]), 'export default (...$a)=>{const $a0=[];return [$a0]&&[$a0];};')
+        writes(f(['&&', ['[]', [o]], ['[]', [o]]]), 'export default ()=>{const $a0=[];return [$a0]&&[$a0];};')
         writes(f([',', [o, ['?:', a, ['[]', [o, o]], 1]]]), 'export default (...$a)=>{const $a0=[];return $a?[$a0,$a0]:1;};')
         // a parameter is no `const`, and neither is its capture
-        writes(f(['?:', a, ['=>', 0, ['[]', [a]], ['.', ['frame'], 0]], 1]), 'export default (...$a)=>$a?(...$b)=>$a:1;')
+        writes(f(['?:', a, ['=>', 0, ['[]', [a]], ['.', ['frame'], 0]], 1]), 'export default (...$a)=>$a?()=>$a:1;')
         // what the compiler builds is written
         assertEq(
             reads(_defaultExport(moduleGraph('export default (...a)=>{const o=[]; return a ? [o, o] : 1;};'))),
@@ -589,14 +589,14 @@ export const proof = {
         writes(f(['()', a, ['[]', [1, 2]]]), 'export default (...$a)=>$a(1,2);')
         writes(f(['()', a, ['[]', []]]), 'export default (...$a)=>$a();')
         writes(f(['()', ['()', a, ['[]', [1]]], ['[]', [2]]]), 'export default (...$a)=>$a(1)(2);')
-        writes(f(['()', a, ['[]', [['=>', 0, null, 1], ['?:', a, 1, 2]]]]), 'export default (...$a)=>$a((...$b)=>1,$a?1:2);')
-        writes(f(['()', ['=>', 0, null, 1], ['[]', []]]), 'export default (...$a)=>((...$b)=>1)();')
+        writes(f(['()', a, ['[]', [['=>', 0, null, 1], ['?:', a, 1, 2]]]]), 'export default (...$a)=>$a(()=>1,$a?1:2);')
+        writes(f(['()', ['=>', 0, null, 1], ['[]', []]]), 'export default ()=>(()=>1)();')
         writes(f(['()', ['+', a, 1], ['[]', []]]), 'export default (...$a)=>($a+1)();')
         writes(f(['.', ['()', a, ['[]', []]], 'x']), 'export default (...$a)=>$a().x;')
         writes(f(['()', ['.', a, 'f'], ['[]', []]]), 'export default (...$a)=>{const $a0=$a.f;return $a0();};')
         writes(f(['.', a, 'f', ['|()', ['[]', [1]]]]), 'export default (...$a)=>$a.f(1);')
         writes(f(['.', ['+', a, 1], 'f', ['|()', ['[]', []]]]), 'export default (...$a)=>($a+1).f();')
-        writes(f(['.', 1, 'f', ['|()', ['[]', []]]]), 'export default (...$a)=>(1).f();')
+        writes(f(['.', 1, 'f', ['|()', ['[]', []]]]), 'export default ()=>(1).f();')
         writes(f(['()', ['.', a, 'f', ['|()', ['[]', []]]], ['[]', []]]), 'export default (...$a)=>$a.f()();')
         writes(f(['.', ['.', a, 'f', ['|()', ['[]', []]]], 'g', ['|()', ['[]', []]]]), 'export default (...$a)=>$a.f().g();')
         // a method call's key is refused by the parser's own list of the
@@ -610,7 +610,7 @@ export const proof = {
         writes(f(['[]', [c, c]]), 'export default (...$a)=>{const $a0=$a();return [$a0,$a0];};')
         writes(f(['[]', [['()', a, ['[]', []]], ['()', a, ['[]', []]]]]), 'export default (...$a)=>[$a(),$a()];')
         // a slot is a name, and a callee as it stands
-        writes(['=>', 0, ['[]', [['[]', []]]], ['()', ['.', ['frame'], 0], ['[]', []]]], 'const $0=[];export default (...$a)=>$0();')
+        writes(['=>', 0, ['[]', [['[]', []]]], ['()', ['.', ['frame'], 0], ['[]', []]]], 'const $0=[];export default ()=>$0();')
         // arguments the parser would not build
         /** @type {Exp} */
         const args = ['[]', [1]]
@@ -622,6 +622,42 @@ export const proof = {
         assertEq(
             reads(_defaultExport(moduleGraph('export default (...a)=>{const g=a.b; return [g(1), a.b(2), a.b(1)(2)];};'))),
             'export default (...$a)=>{const $a0=$a.b;return [$a0(1),$a.b(2),$a.b(1)(2)];};')
+    },
+    // A function's text is the function written as one expression: the
+    // module text of a function with no frame, less `export default` and
+    // the `;`, and with a frame, each slot a name, `$0` for slot `0`,
+    // whatever the slot holds. So a frame's items are not read at all: a
+    // rest parameter of an enclosing function is a slot like any other.
+    functionText: () => {
+        /** @type {(e: Exp) => string} */
+        const text = e => unwrap(tryFunctionText(e))
+        /** @type {(i: number) => Exp} */
+        const slot = i => ['.', ['frame'], i]
+        for (const e of /** @type {readonly Exp[]} */ ([
+            ['=>', 0, null, 1],
+            ['=>', 1, null, ['+', ['arg', 0], ['.', ['rest'], 'length']]],
+            ['=>', 0, null, ['[]', [['[]', []], ['=>', 0, null, ['rest']]]]],
+            ['=>', 0, null, ['?:', ['rest'], ['.', ['rest'], 'f', ['|()', ['[]', [1]]]], null]],
+        ])) { assertEq(`export default ${text(e)};`, reads(e)) }
+        // an empty frame, which the Rust printer builds, is no slot
+        assertEq(text(['=>', 0, ['[]', []], 1]), '()=>1')
+        assertEq(text(['=>', 0, null, 1]), '()=>1')
+        assertEq(text(['=>', 1, null, ['+', ['arg', 0], ['.', ['rest'], 'length']]]), '($a_0,...$a)=>$a_0+$a.length')
+        assertEq(text(['=>', 0, ['[]', [['rest']]], slot(0)]), '()=>$0')
+        assertEq(text(['=>', 0, ['[]', [['rest'], ['arg', 3]]], ['[]', [slot(0), slot(1), ['rest']]]]), '(...$a)=>[$0,$1,$a]')
+        // a nested function captures a slot through its own frame
+        assertEq(text(['=>', 0, ['[]', [['rest']]], ['=>', 0, ['[]', [slot(0)]], slot(0)]]), '()=>()=>$0')
+        // slots read out of order are named in order first, as a body's are
+        assertEq(text(['=>', 0, ['[]', [1, 2]], ['[]', [slot(1), slot(0)]]]), '()=>{const $a0=$0;const $a1=$1;return [$a1,$a0];}')
+        // refused: no function, a frame with no slot count, and a body the
+        // writer refuses
+        assertStructurallySame(tryFunctionText(1), ['error', 'not a function'])
+        assertStructurallySame(tryFunctionText(['[]', []]), ['error', 'not a function'])
+        assertStructurallySame(tryFunctionText(['=>', 0, ['undefined'], 1]), ['error', 'a frame that is not an array literal'])
+        assertStructurallySame(tryFunctionText(['=>', 0, ['[]', [['...', ['rest']]]], slot(0)]), ['error', 'a spread'])
+        assertStructurallySame(tryFunctionText(['=>', 0, null, slot(0)]), ['error', 'a frame read that is no slot'])
+        assertStructurallySame(tryFunctionText(['=>', 0, null, ['!', 1]]), ['error', 'a ! node'])
+        assertStructurallySame(tryFunctionText(['=>', 0, null, ['arg', 0]]), ['error', 'invalid fixed parameter index or scope'])
     },
     // Every refusal, by the message it carries: a node kind with no spelling
     // yet, a position a spelling has none in, and a key no literal reads

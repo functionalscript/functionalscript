@@ -31,7 +31,7 @@
  * ([spec: functions](../../../spec/README.md#functions)):
  *
  * ```js
- * export default (...$a)=>{const $a0=[1];return [$a0,$a0];};
+ * export default ()=>{const $a0=[1];return [$a0,$a0];};
  * ```
  *
  * The names say which scope: digits after the `$` for a module, the body's
@@ -43,10 +43,10 @@
  * `const` in the scope around the function, even one written in place
  * otherwise, since a capture is a name; a read of the frame's slot `i` is
  * that name, and a parameter of the scope, or a slot that reads the scope's
- * own frame, has its name already: `(...$a)=>(...$b)=>$a`. Read back, the body's outside names are its captures in
- * first-use order, which the writer keeps to the frame's by naming the
- * slots in order first where its own text would read them in another
- * ({@link closureBody}):
+ * own frame, has its name already: `(...$a)=>()=>$a`. Read back, the body's
+ * outside names are its captures in first-use order, which the writer keeps
+ * to the frame's by naming the slots in order first where its own text
+ * would read them in another ({@link closureBody}):
  *
  * ```js
  * const $0=[1];export default (...$a)=>[$0,$a[0]];
@@ -65,7 +65,7 @@
  * `(-a)**b`, since `-a**b` is no expression at all. A group makes no node,
  * so the text reads back as the graph it was written from. It is also how a
  * number, a function or an operator expression is the base of an access or
- * the callee of a call — `(1).x`, `((...$a)=>1).length`, `(-a)[0]` — and
+ * the callee of a call — `(1).x`, `(()=>1).length`, `(-a)[0]` — and
  * how a function is an operator's operand.
  *
  * **What it refuses**, each by name and with nothing written: a node kind it
@@ -483,7 +483,7 @@ const closureBody = (a, depth, names) => b => okThen(
  * one `const` each, and reads each slot by that `const` from then on:
  *
  * ```js
- * (...$a)=>{const $a0=$0;const $a1=$1;const $a2=(...$b)=>$a1;return [$a0,$a2,$a2];}
+ * ()=>{const $a0=$0;const $a1=$1;const $a2=()=>$a1;return [$a0,$a2,$a2];}
  * ```
  *
  * Read back, each `const` is the body's capture of that slot, taken in
@@ -620,6 +620,33 @@ const argumentItems = (a, args) => args instanceof Array && a.nodes[args[1]][0] 
     : [args]
 
 /**
+ * A function's parameter list, `($a_0,$a_1,...$a)=>`: one name per fixed
+ * parameter, and the rest parameter only where the body reads it — `()=>1`
+ * and not `(...$a)=>1`, the two being one node, and the shorter what a
+ * reader expects. The function is entry `i`, and the body's nodes are the
+ * ones its scope names.
+ *
+ * @type {(a: Analysis, depth: number, i: number, length: number) => string}
+ */
+const parameterList = (a, depth, i, length) => {
+    const fixed = Array.from({ length }, (_, k) => `${parameter(depth)}_${k}`)
+    const rest = a.nodes.some((n, j) => n[0] === 'rest' && a.scope[j] === i) ? [`...${parameter(depth)}`] : []
+    return `(${[...fixed, ...rest].join(',')})=>`
+}
+
+/**
+ * The function that is entry `i`, of `length` fixed parameters, at `depth`,
+ * over the names its frame's slots read as: its parameter list, then its
+ * body.
+ *
+ * @type {(a: Analysis, depth: number, i: number, length: number, names: readonly string[]) => (body: Operand) => Document}
+ */
+const lambda = (a, depth, i, length, names) => body => mapOk(
+    /** @type {(text: List<string>) => List<string>} */
+    (text => flat([[parameterList(a, depth, i, length)], text])),
+)(closureBody(a, depth, names)(body))
+
+/**
  * One entry of the table, written in place — every entry that is not a
  * hoisted value of the scope it stands in, which {@link operand} named
  * before reaching here.
@@ -659,10 +686,7 @@ const entry = (s, depth) => i => {
             const [, length, frame, body] = node
             return okThen(
                 /** @type {(names: readonly string[]) => Document} */
-                (names => mapOk(
-                    /** @type {(text: List<string>) => List<string>} */
-                    (text => flat([[`(${Array.from({ length }, (_, i) => `${parameter(depth + 1)}_${i},`).join('')}...${parameter(depth + 1)})=>`], text])),
-                )(closureBody(s.a, depth + 1, names)(body))),
+                (names => lambda(s.a, depth + 1, i, length, names)(body)),
             )(frameNames(s, depth)(frame))
         }
         case '~': { return prefix(s, depth, '~')(node[1]) }
@@ -916,6 +940,67 @@ export const tryStringify = e => mapOk(
     /** @type {(text: List<string>) => string} */
     (text => toArray(text).join('')),
 )(trySerialize(e))
+
+/**
+ * How many slots a function's frame has, for its text: none for a `null`
+ * frame, and an array literal's items otherwise. What the slots hold is not
+ * the text's: a slot is written as a name.
+ *
+ * @type {(frame: Exp) => Result<number, string>}
+ */
+const slotCount = frame => {
+    if (frame === null) { return ok(0) }
+    if (!(frame instanceof Array) || frame[0] !== '[]') { return error('a frame that is not an array literal') }
+    return frame[1].some(x => x instanceof Array && x[0] === '...') ? error('a spread') : ok(frame[1].length)
+}
+
+/**
+ * A function's text: the function node written as one expression — what
+ * `String(f)` answers for a function the compiler built, and the one
+ * spelling every executor shares
+ * ([spec: function source](../../../spec/README.md#function-source-representation-exception)).
+ *
+ * ```js
+ * ()=>1
+ * ($a_0,...$a)=>$a_0+$a.length
+ * ()=>{const $a0=[];return [$a0,$a0];}
+ * ```
+ *
+ * The text is the code's, not the value's: a captured value is written as
+ * the name of its slot, `$0`, `$1`, …, so every function one arrow makes has
+ * one text, as it has in JavaScript — `make(0)` and `make(1)` alike, for
+ * `const make = x => () => [x];` read as `()=>[$0]`. That answers the
+ * serialization spec's question 2 as code-only
+ * ([`spec/todo/serialization.md`](../../../spec/todo/serialization.md#open-questions));
+ * rendering the captured values instead is a text for the same node with
+ * each name replaced, which this spelling leaves room for.
+ *
+ * A primitive the source captured is no slot: the lowering wrote it into
+ * the body, so `const x = 3; const f = () => x;` is `()=>3`.
+ *
+ * Refused where the writer refuses the body, and for a node that is no
+ * function, or whose frame is no array literal.
+ *
+ * @type {(e: Exp) => Result<string, string>}
+ */
+export const tryFunctionText = e => {
+    if (!(e instanceof Array) || e[0] !== '=>') { return error('not a function') }
+    const [, length, frame, body] = e
+    return okThen(
+        /** @type {(slots: number) => Result<string, string>} */
+        (slots => {
+            const a = analysis(['=>', length, null, body])
+            const problem = bindingError(a)
+            if (problem !== null) { return error(problem) }
+            const i = /** @type {Ref} */ (a.root)[1]
+            const node = /** @type {Extract<Node, readonly ['=>', number, Operand, Operand]>} */ (a.nodes[i])
+            return mapOk(
+                /** @type {(text: List<string>) => string} */
+                (text => toArray(text).join('')),
+            )(lambda(a, 1, i, length, Array.from({ length: slots }, (_, k) => `$${k}`))(node[3]))
+        }),
+    )(slotCount(frame))
+}
 
 /** A generated-name prefix that cannot collide with any exported binding. @type {(keys: readonly string[], prefix: string) => string} */
 const modulePrefix = (keys, prefix) => keys.some(key => key.startsWith(prefix)) ? modulePrefix(keys, `${prefix}$`) : prefix
