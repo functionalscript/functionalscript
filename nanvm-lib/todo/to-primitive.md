@@ -222,10 +222,8 @@ cases join the corpus with the renderer's text as their expected value.
   [`fjs/compiler/serializer`](../../fjs/compiler/serializer/module.f.mjs),
   already writes a function node as text: `['=>', 1, null, ['arg', 0]]` is
   `($a_0,...$a)=>$a_0`, and a shared array in a body becomes a `const`. It
-  has two gaps. It has no spelling for operators or calls yet
-  ([stage-a-operators](../../fjs/compiler/serializer/todo/stage-a-operators.md),
-  [call-spelling](../../fjs/compiler/serializer/todo/call-spelling.md)), so
-  most real bodies are refused. And it writes a module,
+  had two gaps. It had no spelling for operators or calls, so most real
+  bodies were refused; steps 1 and 2 closed that. And it writes a module,
   `export default …;`, where a function's text is one expression.
 - **The Rust VM has no EDAG at run time.** A generated function is a code
   pointer, a `length` and a frame. The text must come from the one renderer,
@@ -294,12 +292,11 @@ Each needs the owner's approval before the step that depends on it.
 
 #### Steps
 
-1. **The writer spells operators**
-   ([stage-a-operators](../../fjs/compiler/serializer/todo/stage-a-operators.md)),
-   precedence- and associativity-correct. The largest step, and it gates
-   the rest.
-2. **The writer spells calls and chains**
-   ([call-spelling](../../fjs/compiler/serializer/todo/call-spelling.md)).
+1. **The writer spells operators** (done), precedence- and
+   associativity-correct, grouping an operand only where the ladder needs
+   it.
+2. **The writer spells calls and chains** (done): `f(a)`, `a.b(c)`, and a
+   callee that is an access through a `const`.
 3. **`functionText` in FunctionalScript**, beside the EDAG, so that the
    compiler's writer and the Rust printer share one owner: a function node
    to its expression template, refusing `['self']`. Proofs: a template with
@@ -348,7 +345,7 @@ needs its own issue, and it lands with or after Stage 1.
 - [x] Stage 2: call an object's own `toString` and `valueOf` per
       `OrdinaryToPrimitive`. Move the host-only cases into the corpus.
 - [ ] Stage 3 decisions: approve D1, and answer D2 before step 5.
-- [ ] Stage 3 steps 1 and 2: the writer spells operators and calls.
+- [x] Stage 3 steps 1 and 2: the writer spells operators and calls.
 - [ ] Stage 3 step 3: `functionText`, the expression template with holes.
 - [ ] Stage 3 step 4: Rust answers the text of a function with an empty
       frame (tracked with the `Function` checklist in `member-functions.md`).

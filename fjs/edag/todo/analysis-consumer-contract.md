@@ -82,5 +82,6 @@ separate handling in `frameItems`. Then `mintsIdentity` filters, and
 - [identity-shared-walks.md](./identity-shared-walks.md) — adds
   `identityShared` to the analysis for the same reason: a consumer was
   recomputing it.
-- [../../compiler/serializer/todo/stage-a-operators.md](../../compiler/serializer/todo/stage-a-operators.md)
-  — where `operands`'s `default: []` would first bite.
+- [../../compiler/serializer/module.f.mjs](../../compiler/serializer/module.f.mjs)
+  — the writer's `operands`, which lists every operator's operands since it
+  spells them.

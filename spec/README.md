@@ -539,15 +539,14 @@ module boundary, from which a default import selects the document.
   `const $0=[1];const $1=[$0];export const b=$1;export default 3;`. The
   names gain a `$`, `$$0`, when an export's name begins with `$`.
 
-  The writer does not spell most of what computes yet: it writes a property
-  access and unary `-`, and refuses a call and every other operator by the
-  name of the node it meets — `a () node`, `a chain step`, `a + node`,
-  `a binary - node`, `a ~ node`, `a && node`, `a ?: node` and the like —
-  wherever the node stands, a function body or a `const` nothing reads
-  included. The binary operators and `~` are
-  [`stage-a-operators.md`](../fjs/compiler/serializer/todo/stage-a-operators.md)'s
-  to add. A module holding a call or such an operator compiles to
-  `.edag.data.js` and `.rs` alone.
+  The writer spells every operator and call the language has, parenthesized
+  only where the precedence ladder needs it (`(a+b)*c`, `a-(b-c)`,
+  `(-a)**b`), and puts a number, a function or an operation that is an
+  access's base or a callee in a group, `(1).x`. A callee that is an access
+  takes a `const`, since `a.b(c)` and `(a.b)(c)` are both the method call. A
+  `const` only a lazy operand reaches is refused (`a const only a lazy
+  operand reaches`), since reading it back would anchor it: the text would
+  establish what the graph establishes only when the operator decides to.
 - Object properties are emitted in the order the value carries them for the
   value outputs — JavaScript's own-property order, array-index keys first,
   a repeated key keeping its first position and its last value — and in the
@@ -1158,13 +1157,10 @@ a primitive and refuses one of an array or an object ([numbers](#numbers)),
 and refuses every other operator the same way it refuses a function or a
 call (`an operator has no value`), until the EDAG interpreter answers for
 them there ([`interpret-edag.md`](../fjs/compiler/todo/interpret-edag.md)). The
-FunctionalScript writer, the `.js` output, spells unary `-` alone so far and
-refuses the rest by the name of the node it meets — `a + node`,
-`a binary - node`, `a ?: node` — until it can spell their precedence
-([`stage-a-operators.md`](../fjs/compiler/serializer/todo/stage-a-operators.md)
-tracks Stage A's). `.json`, `.data.js` and `.js` refuse such an operator
-wherever it stands, an unused `const` included, so a module holding any
-operator but unary `-` compiles to `.edag.data.js` and `.rs` alone.
+FunctionalScript writer, the `.js` output, spells every one of them, each
+operand parenthesized only where the ladder needs it
+([output](#output)). `.json` and `.data.js` refuse such an operator
+wherever it stands, an unused `const` included.
 
 ## Property Access
 

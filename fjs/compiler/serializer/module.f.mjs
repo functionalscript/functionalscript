@@ -42,8 +42,8 @@
  * **A function with a frame is a closure.** Each frame element takes a
  * `const` in the scope around the function, even one written in place
  * otherwise, since a capture is a name; a read of the frame's slot `i` is
- * that name, and a slot that reads the scope's own frame is that slot's
- * name already. Read back, the body's outside names are its captures in
+ * that name, and a parameter of the scope, or a slot that reads the scope's
+ * own frame, has its name already: `(...$a)=>(...$b)=>$a`. Read back, the body's outside names are its captures in
  * first-use order, which the writer keeps to the frame's by naming the
  * slots in order first where its own text would read them in another
  * ({@link closureBody}):
@@ -58,6 +58,16 @@
  * **One line, normalized**, as the DataJS output is, and its leaves are the
  * DataJS serializer's, which owns their spelling.
  *
+ * **Operators and calls take parentheses only where they must.** Every
+ * operand stands at a {@link level}, JavaScript's own precedence, and is
+ * grouped where its position asks for a higher one ({@link at}): `(a+b)*c`
+ * but `a+b*c`, `a-(b-c)` but `a-b-c`, `(a**b)**c` but `a**b**c`, and
+ * `(-a)**b`, since `-a**b` is no expression at all. A group makes no node,
+ * so the text reads back as the graph it was written from. It is also how a
+ * number, a function or an operator expression is the base of an access or
+ * the callee of a call — `(1).x`, `((...$a)=>1).length`, `(-a)[0]` — and
+ * how a function is an operator's operand.
+ *
  * **What it refuses**, each by name and with nothing written: a node kind it
  * has no spelling for, which is how a feature that adds one is made to add
  * its spelling here in the same change; a comma anywhere but where a scope
@@ -65,13 +75,10 @@
  * anywhere else a comma has no source form until the operator lands; a
  * key the parser would not read back — one no literal spells, and one naming
  * a property of a built-in prototype, which the grammar refuses in either
- * spelling; and a frame the parser would not build ({@link frameNames},
- * {@link closureBody}), or a read of one that is no slot.
- *
- * An identity-minting node reached only through lazy edges is refused too,
- * and needs no rule of its own yet: every lazy node kind is a kind this
- * writer has no spelling for, so such a graph is refused at the operator
- * before its sharing is reached.
+ * spelling; a call whose arguments are no array literal of its own; a frame
+ * the parser would not build ({@link frameNames}, {@link closureBody}), or a
+ * read of one that is no slot; and a `const` only a lazy operand reaches
+ * ({@link eagerReach}), which the parser would read back as an anchor.
  *
  * A graph that breaks the EDAG's own scope rule is not refused but throws,
  * out of the analysis, since it is no EDAG rather than one this writer
@@ -84,16 +91,16 @@
  * @import { List } from '../../types/list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Document } from './types.ts'
- * @import { _Hoisted, _Names, _Root, _Scope, _Statement } from './private.ts'
+ * @import { _Names, _Root, _Scope, _Statement } from './private.ts'
  */
 
 import { _defaultExport, _moduleExports } from '../edag/module.f.mjs'
 import { keywords, literalWords } from '../../js/keywords/module.f.mjs'
-import { analysis, bindingError } from '../../edag/analysis/module.f.mjs'
+import { analysis, bindingError, mergeable } from '../../edag/analysis/module.f.mjs'
 import { keySerialize, leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
-import { arrayWrap, colon, objectWrap } from '../../media/json/serializer/module.f.mjs'
+import { arrayWrap, colon, objectWrap, wrap } from '../../media/json/serializer/module.f.mjs'
 import { first, flat, toArray } from '../../types/list/module.f.mjs'
-import { _prohibitedNames } from '../parser/module.f.mjs'
+import { _prohibitedCallNames, _prohibitedNames } from '../parser/module.f.mjs'
 import { dollarSign, isDigit, isLatinLetter, latinSmallLetterA, latinSmallLetterZ, lowLine } from '../../text/ascii/module.f.mjs'
 import { codePointToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
@@ -102,59 +109,17 @@ import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mj
 /** Names the parser refuses to bind. */
 const reservedExports = new Set([...keywords, ...literalWords, 'then'])
 
-/** The node kinds a compiled graph holds and this writer spells. @type {(node: Node) => boolean} */
-const minting = node => {
-    switch (node[0]) {
-        case '[]': case '{}': case '=>': { return true }
-        default: { return false }
-    }
-}
+/** Whether an operand is a number or a bigint, which `1.x` would misread as a base. @type {(v: Operand) => boolean} */
+const numeric = v => typeof v === 'number' || typeof v === 'bigint'
 
 /**
- * Whether a base needs a `const` of its own — three bases this writer has
- * no text for, though linking puts all of them there:
+ * The slot a hoisted entry took in its scope, or `null` where it has none
+ * yet. A slot an anchor's `const` took holds no entry and matches nothing.
  *
- * - a number or a bigint, since `1.x` is one number and a stray word, and
- *   the space `1 .x` needs is not a spelling this writer keeps;
- * - a function, which takes no access in the grammar;
- * - a **negation**, because `-` binds looser than a step: `-1 .x` is
- *   `-(1 .x)` and `-1[0]` is `-(1[0])`, so the text for `['.', ['-', 1],
- *   0]` would be a different graph rather than an unreadable one. A name
- *   is what says the negation happens first, until this writer spells the
- *   group the grammar reads — `(-1)[0]`
- *   ([`./todo/parenthesized-object-body.md`](./todo/parenthesized-object-body.md)
- *   asks the same of a body).
- *
- * @type {(a: Analysis, base: Operand) => boolean}
- */
-const basedHoisted = (a, base) => {
-    if (!(base instanceof Array)) { return typeof base === 'number' || typeof base === 'bigint' }
-    const kind = a.nodes[base[1]][0]
-    return kind === '=>' || kind === '-'
-}
-
-/**
- * Whether a negation's operand needs a `const` of its own: a function, and
- * nothing else. JavaScript's unary operand is a `UnaryExpression`, which an
- * arrow function is not — `-(...a) => 1` is a syntax error — so the
- * function takes a name and the negation is written on that. A number needs
- * none here, `-1` being what the operator is most often written on.
- *
- * @type {(a: Analysis, v: Operand) => boolean}
- */
-const negHoisted = (a, v) => v instanceof Array && a.nodes[v[1]][0] === '=>'
-
-/** Two hoisted values are one when they name the same entry, or the same primitive by `Object.is`. @type {(x: _Hoisted, y: _Hoisted) => boolean} */
-const sameHoisted = (x, y) => x[0] === y[0] && Object.is(x[1], y[1])
-
-/**
- * The slot a hoisted value took in its scope, or `null` where it has none
- * yet. A slot an anchor's `const` took holds no value and matches nothing.
- *
- * @type {(names: _Names, h: _Hoisted) => number | null}
+ * @type {(names: _Names, h: number) => number | null}
  */
 const slotOf = (names, h) => {
-    const i = names.findIndex(([n]) => n !== null && sameHoisted(n, h))
+    const i = names.findIndex(([n]) => n === h)
     return i === -1 ? null : i
 }
 
@@ -169,6 +134,24 @@ const column = n => {
 
 /** The parameter of the body at `depth`, `1` being the outermost. @type {(depth: number) => string} */
 const parameter = depth => `$${column(depth)}`
+
+/** Whether a node reads a parameter, which has a name in its body already. @type {(node: Node) => boolean} */
+const isParameter = node => node[0] === 'rest' || node[0] === 'arg'
+
+/**
+ * The name a read of a parameter is written as in the body at `depth`: the
+ * rest parameter's own, `$a`, a fixed one's position after it, `$a_0`, and
+ * none for any other node.
+ *
+ * @type {(depth: number, node: Node) => string | null}
+ */
+const parameterName = (depth, node) => {
+    switch (node[0]) {
+        case 'rest': { return parameter(depth) }
+        case 'arg': { return `${parameter(depth)}_${node[1]}` }
+        default: { return null }
+    }
+}
 
 /**
  * The name a scope at `depth` gives the `const` in slot `i`: `$0` at the
@@ -190,7 +173,7 @@ const parameter = depth => `$${column(depth)}`
  */
 const hoistName = (depth, i) => depth === 0 ? `$${i}` : `${parameter(depth)}${i}`
 
-/** The name a hoisted value took in the scope at `depth`, or `null` where it has none yet. @type {(names: _Names, h: _Hoisted) => string | null} */
+/** The name a hoisted entry took in the scope at `depth`, or `null` where it has none yet. @type {(names: _Names, h: number) => string | null} */
 const nameOf = (names, h) => {
     const i = slotOf(names, h)
     return i === null ? null : names[i][1]
@@ -255,25 +238,91 @@ const frameItems = (a, frame) => {
  */
 const operand = (s, depth) => v => {
     if (!(v instanceof Array)) { return ok(leafSerialize(v)) }
-    const name = nameOf(s.names, ['entry', v[1]])
+    const name = nameOf(s.names, v[1])
     return name === null ? entry(s, depth)(v[1]) : ok([name])
 }
 
+/** A function, which no operator takes as an operand unparenthesized. */
+const functionLevel = 0
+
+/** The conditional, the lowest an operator binds. */
+const conditionalLevel = 1
+
+/** `|`, the loosest eager operator, and the tightest a `??` operand may be written at unparenthesized. */
+const bitwiseOrLevel = 5
+
+/** `**`. */
+const powerLevel = 13
+
+/** A prefix, `-` or `~`. */
+const unaryLevel = 14
+
+/** A name, a literal, an access or a call: what takes a step. */
+const primaryLevel = 15
+
 /**
- * An access's base: a hoisted one by its name, anything else as an operand.
- * The `const` it names is its own scope's, a body's as readily as the
- * module's, so a numeric or function base inside a body is written there
- * rather than refused.
+ * The level each binary operator binds at, JavaScript's own, `??` loosest.
+ *
+ * @type {{ readonly [op in string]?: number }}
+ */
+const binaryLevels = {
+    '??': 2, '||': 3, '&&': 4,
+    '|': bitwiseOrLevel, '^': 6, '&': 7,
+    '===': 8, '!==': 8,
+    '<': 9, '<=': 9, '>': 9, '>=': 9,
+    '<<': 10, '>>': 10, '>>>': 10,
+    '+': 11, '-': 11,
+    '*': 12, '/': 12, '%': 12,
+    '**': powerLevel,
+}
+
+/**
+ * The level an operand's text stands at: how tightly it binds, which is
+ * what decides whether a position takes it bare or in a group. A name
+ * binds as tightly as anything, however much it names, and so does every
+ * node that is no operator; a negative leaf is written with its prefix.
+ *
+ * @type {(s: _Scope) => (v: Operand) => number}
+ */
+const level = s => v => {
+    if (!(v instanceof Array)) { return firstChunk(leafSerialize(v)).startsWith('-') ? unaryLevel : primaryLevel }
+    if (nameOf(s.names, v[1]) !== null) { return primaryLevel }
+    const node = s.a.nodes[v[1]]
+    switch (node[0]) {
+        case '=>': { return functionLevel }
+        case '?:': { return conditionalLevel }
+        case '~': { return unaryLevel }
+        default: { return node.length === 2 && node[0] === '-' ? unaryLevel : binaryLevels[node[0]] ?? primaryLevel }
+    }
+}
+
+/** A text in parentheses: a group, which makes no node. @type {(text: List<string>) => List<string>} */
+const group = text => flat([['('], text, [')']])
+
+/**
+ * An operand in a position that takes it bare only where `fits` says its
+ * level does, and in a group otherwise.
+ *
+ * @type {(s: _Scope, depth: number, fits: (level: number) => boolean) => (v: Operand) => Document}
+ */
+const at = (s, depth, fits) => v => {
+    const text = operand(s, depth)(v)
+    return fits(level(s)(v)) ? text : mapOk(group)(text)
+}
+
+/** A position that takes any operand at `min` or above. @type {(min: number) => (level: number) => boolean} */
+const atLeast = min => x => x >= min
+
+/**
+ * An access's base, or a call's callee: what takes a step, so a primary,
+ * and in a group anything else — an operator, a function, and a number,
+ * since `1.x` is one number and a stray word.
  *
  * @type {(s: _Scope, depth: number) => (v: Operand) => Document}
  */
-const base = (s, depth) => v => {
-    if (!basedHoisted(s.a, v)) { return operand(s, depth)(v) }
-    const h = /** @type {_Hoisted} */ (v instanceof Array ? ['entry', v[1]] : ['leaf', v])
-    // Every such base was collected before the statement that needs it, so a
-    // missing name is this writer's own mistake.
-    return ok([assertNotNullish(nameOf(s.names, h), ['an access base that was not hoisted', v])])
-}
+const base = (s, depth) => v => numeric(v)
+    ? mapOk(group)(operand(s, depth)(v))
+    : at(s, depth, atLeast(primaryLevel))(v)
 
 /** An array's item: a spread has no source spelling. @type {(s: _Scope, depth: number) => (v: Operand | readonly ['...', Operand]) => Document} */
 const item = (s, depth) => v => v instanceof Array && v[0] === '...'
@@ -310,11 +359,16 @@ const bracketed = k => ok(flat([['['], leafSerialize(k), [']']]))
  * back, and writing it would break the round trip the output exists for. It
  * is a spelling to add with computed keys, not before them.
  *
- * @type {(k: Operand) => Document}
+ * A method call's key is refused by the parser's other list: the member
+ * functions a module may not call, `a.push(1)`, where `a.at(0)` is a call
+ * though `a.at` is no read.
+ *
+ * @type {(method: boolean) => (k: Operand) => Document}
  */
-const key = k => {
+const key = method => k => {
     if (typeof k === 'string') {
-        if (_prohibitedNames.has(k)) { return error('a prohibited property name') }
+        if (method && _prohibitedCallNames.has(k)) { return error('a prohibited member function') }
+        if (!method && _prohibitedNames.has(k)) { return error('a prohibited property name') }
         return identifierKey(k) ? ok([`.${k}`]) : bracketed(k)
     }
     if (typeof k !== 'number') { return error('an access key that is no literal') }
@@ -345,10 +399,10 @@ const slotName = s => k => typeof k === 'number' && Number.isInteger(k) && k >= 
 const slotRead = s => k => mapOk((/** @type {string} */ name) => [name])(slotName(s)(k))
 
 /**
- * The names a function's frame gives its slots, in the scope `s` the
- * function is written in: each element's own name there — the `const` the
- * hoisting walk gave it, or the name of the slot of `s`'s frame it reads —
- * and none for a `null` frame.
+ * The names a function's frame gives its slots, in the scope `s` at `depth`
+ * the function is written in: each element's own name there — a
+ * parameter's, the `const` the hoisting walk gave it, or the name of the
+ * slot of `s`'s frame it reads — and none for a `null` frame.
  *
  * A frame the parser would not have built has no text that reads back as
  * the same graph, and is refused: one that is no array literal, an empty
@@ -357,9 +411,9 @@ const slotRead = s => k => mapOk((/** @type {string} */ name) => [name])(slotNam
  * which the parser writes into the body instead — or repeats another slot,
  * since one name is one capture.
  *
- * @type {(s: _Scope) => (frame: Operand) => Result<readonly string[], string>}
+ * @type {(s: _Scope, depth: number) => (frame: Operand) => Result<readonly string[], string>}
  */
-const frameNames = s => frame => {
+const frameNames = (s, depth) => frame => {
     if (frame === null) { return ok([]) }
     if (!(frame instanceof Array) || s.a.nodes[frame[1]][0] !== '[]') { return error('a frame that is not an array literal') }
     if (s.a.shared.includes(frame[1])) { return error('a frame reached from anywhere but its function') }
@@ -370,9 +424,11 @@ const frameNames = s => frame => {
         if (!(x instanceof Array)) { return error('a frame slot holding a primitive') }
         if (x[0] === '...') { return error('a spread') }
         if (isSlotRead(s.a, x)) { return slotName(s)(/** @type {Operand} */(s.a.nodes[x[1]][2])) }
+        const parameterRead = parameterName(depth, s.a.nodes[x[1]])
+        if (parameterRead !== null) { return ok(parameterRead) }
         // every other element was hoisted before the statement holding the
         // function, so a missing name is this writer's own mistake
-        return ok(assertNotNullish(nameOf(s.names, ['entry', x[1]]), ['a frame element that was not hoisted', x]))
+        return ok(assertNotNullish(nameOf(s.names, x[1]), ['a frame element that was not hoisted', x]))
     }
     return okThen(
         /** @type {(names: readonly string[]) => Result<readonly string[], string>} */
@@ -490,6 +546,80 @@ const lambdaBody = (a, depth, frame) => b => okThen(
 )(scopeOperands(a, b))
 
 /**
+ * A binary operator between its operands, each grouped where the operator
+ * binds tighter than it, or as tightly on the side associativity does not
+ * favor: every operator reads left to right but `**`, which reads right to
+ * left and takes no prefix on its left — `-a**b` is no expression, so the
+ * left is a primary. `??` does not mix with `&&` and `||` unparenthesized,
+ * on either side, which is the one gap in the ladder.
+ *
+ * A `-` before a text that opens with one takes a space, since `--` is the
+ * decrement token and no two minus signs.
+ *
+ * @type {(s: _Scope, depth: number, op: string, p: number) => (left: Operand, right: Operand) => Document}
+ */
+const binary = (s, depth, op, p) => (left, right) => {
+    const fitsLeft = op === '**' ? atLeast(primaryLevel)
+        : op === '??' ? (/** @type {number} */ x) => x === p || x >= bitwiseOrLevel
+        : atLeast(p)
+    const fitsRight = atLeast(op === '**' ? p : op === '??' ? bitwiseOrLevel : p + 1)
+    return mapOk(
+        /** @type {(parts: readonly List<string>[]) => List<string>} */
+        (([l, r]) => flat([l, [op === '-' && firstChunk(r).startsWith('-') ? '- ' : op], r])),
+    )(okList([at(s, depth, fitsLeft)(left), at(s, depth, fitsRight)(right)]))
+}
+
+/**
+ * A prefix, `-` or `~`, on an operand that binds at least as tightly — a
+ * primary or another prefix: a power is grouped, since `-a**b` is no
+ * expression, and a function is, since JavaScript's unary operand is no
+ * arrow function. `- -1` and not `--1`, as for {@link binary}.
+ *
+ * @type {(s: _Scope, depth: number, op: string) => (v: Operand) => Document}
+ */
+const prefix = (s, depth, op) => v => mapOk(
+    /** @type {(text: List<string>) => List<string>} */
+    (text => flat([[op === '-' && firstChunk(text).startsWith('-') ? '- ' : op], text])),
+)(at(s, depth, atLeast(unaryLevel))(v))
+
+/**
+ * The conditional: a condition that binds tighter than it, and two arms,
+ * each any value — a function, or a further conditional, which nests to the
+ * right as JavaScript's does.
+ *
+ * @type {(s: _Scope, depth: number) => (condition: Operand, then: Operand, otherwise: Operand) => Document}
+ */
+const conditional = (s, depth) => (condition, then, otherwise) => mapOk(
+    /** @type {(parts: readonly List<string>[]) => List<string>} */
+    (([c, t, e]) => flat([c, ['?'], t, [':'], e])),
+)(okList([at(s, depth, atLeast(conditionalLevel + 1))(condition), operand(s, depth)(then), operand(s, depth)(otherwise)]))
+
+/**
+ * A call's arguments, `(a,b)`: the array literal the call holds, which no
+ * other edge reaches. The parser builds one for every call, so arguments
+ * that are anything else, or that are shared, have no text that reads back.
+ * Each argument is any value, a function included.
+ *
+ * @type {(s: _Scope, depth: number) => (args: Operand) => Document}
+ */
+const callArguments = (s, depth) => args => {
+    if (!(args instanceof Array) || s.a.nodes[args[1]][0] !== '[]') { return error('call arguments that are no array literal') }
+    if (s.a.shared.includes(args[1])) { return error('call arguments reached from anywhere but their call') }
+    return mapOk(wrap('(')(')'))(okList(argumentItems(s.a, args).map(item(s, depth))))
+}
+
+/**
+ * The items of a call's arguments where they are an array literal, and the
+ * arguments themselves otherwise, for the walks that visit them without
+ * visiting the array: a `const` for it would be no call's.
+ *
+ * @type {(a: Analysis, args: Operand) => readonly (Operand | readonly ['...', Operand])[]}
+ */
+const argumentItems = (a, args) => args instanceof Array && a.nodes[args[1]][0] === '[]'
+    ? /** @type {Extract<Node, readonly ['[]', unknown]>} */ (a.nodes[args[1]])[1]
+    : [args]
+
+/**
  * One entry of the table, written in place — every entry that is not a
  * hoisted value of the scope it stands in, which {@link operand} named
  * before reaching here.
@@ -500,19 +630,30 @@ const entry = (s, depth) => i => {
     const node = s.a.nodes[i]
     switch (node[0]) {
         case 'undefined': { return ok(['undefined']) }
-        case 'arg': { return ok([`${parameter(depth)}_${node[1]}`]) }
-        case 'rest': { return ok([parameter(depth)]) }
+        case 'arg': case 'rest': { return ok([assertNotNullish(parameterName(depth, node))]) }
         case '[]': { return mapOk(arrayWrap)(okList(node[1].map(item(s, depth)))) }
         case '{}': { return mapOk(objectWrap)(okList(node[1].map(property(s, depth)))) }
         case 'frame': { return error('the frame outside a slot read') }
         case '.': {
-            const [, b, k, continuation] = node
-            if (continuation !== undefined) { return error('a chain step') }
-            if (isFrame(s.a, b)) { return slotRead(s)(k) }
+            const [, b, k, step] = node
+            if (step === undefined && isFrame(s.a, b)) { return slotRead(s)(k) }
+            // a method call: the one continuation a `.` takes in this
+            // language, `a.b(c)`, which keeps `a` as the receiver
+            if (step !== undefined && step[0] !== '|()') { return error(`a ${step[0]} step`) }
             return mapOk(
                 /** @type {(parts: readonly List<string>[]) => List<string>} */
                 (parts => flat(parts)),
-            )(okList([base(s, depth)(b), key(k)]))
+            )(okList([base(s, depth)(b), key(step !== undefined)(k), ...(step === undefined ? [] : [callArguments(s, depth)(step[1])])]))
+        }
+        case '()': {
+            // A callee that is an access was named by the hoisting walk,
+            // since `a.b(c)` is the method call and `(a.b)(c)` is too; a
+            // `const` is the one spelling that calls what the access read.
+            const [, callee, args] = node
+            return mapOk(
+                /** @type {(parts: readonly List<string>[]) => List<string>} */
+                (parts => flat(parts)),
+            )(okList([base(s, depth)(callee), callArguments(s, depth)(args)]))
         }
         case '=>': {
             const [, length, frame, body] = node
@@ -522,28 +663,21 @@ const entry = (s, depth) => i => {
                     /** @type {(text: List<string>) => List<string>} */
                     (text => flat([[`(${Array.from({ length }, (_, i) => `${parameter(depth + 1)}_${i},`).join('')}...${parameter(depth + 1)})=>`], text])),
                 )(closureBody(s.a, depth + 1, names)(body))),
-            )(frameNames(s)(frame))
+            )(frameNames(s, depth)(frame))
         }
-        case '-': {
-            // `op12` of two operands is the binary minus, which the language
-            // has no spelling for yet; of one, it is the prefix.
-            if (node.length !== 2) { return error('a binary - node') }
-            return mapOk(
-                /** @type {(text: List<string>) => List<string>} */
-                // `- -1` and not `--1`: two adjacent minus characters are the
-                // one decrement token, which the parser has no rule for, so a
-                // minus before a minus takes a space. A negation whose operand
-                // is a function was given a `const` by the hoisting walk, so
-                // what stands here is a name and never `(...$a)=>…`, which
-                // JavaScript refuses after a `-`.
-                (text => flat([[firstChunk(text).startsWith('-') ? '- ' : '-'], text])),
-            )(operand(s, depth)(node[1]))
-        }
+        case '~': { return prefix(s, depth, '~')(node[1]) }
+        case '?:': { return conditional(s, depth)(node[1], node[2], node[3]) }
         // a comma is a scope's own form, read by `scopeOperands` where a
         // module's root or a function's body begins; anywhere else it has no
         // source spelling until the operator lands
         case ',': { return error('a comma outside a scope') }
-        default: { return error(`a ${node[0]} node`) }
+        default: {
+            const p = binaryLevels[node[0]]
+            if (node.length === 3 && p !== undefined) { return binary(s, depth, node[0], p)(node[1], node[2]) }
+            // `+` of one operand has no source spelling; `-` of one is the prefix
+            if (node.length === 2 && node[0] === '-') { return prefix(s, depth, '-')(node[1]) }
+            return error(`a ${node.length === 2 && p !== undefined ? 'unary ' : ''}${node[0]} node`)
+        }
     }
 }
 
@@ -557,58 +691,100 @@ const entry = (s, depth) => i => {
  * A body is not walked: nothing inside one is hoisted, because a `const`
  * at the module level would leave the body's scope.
  *
- * @type {(s: _Scope) => (v: Operand) => readonly _Hoisted[]}
+ * @type {(s: _Scope) => (v: Operand) => readonly number[]}
  */
 const hoists = s => {
-    /** @type {(found: readonly _Hoisted[], v: Operand) => readonly _Hoisted[]} */
+    /** @type {(found: readonly number[], v: Operand) => readonly number[]} */
     const found = (names, v) => {
-        /** @type {(ns: readonly _Hoisted[], h: _Hoisted) => readonly _Hoisted[]} */
-        const add = (ns, h) =>
-            slotOf(s.names, h) === null && !ns.some(n => sameHoisted(n, h)) ? [...ns, h] : ns
+        /** @type {(ns: readonly number[], h: number) => readonly number[]} */
+        const add = (ns, h) => slotOf(s.names, h) === null && !ns.includes(h) ? [...ns, h] : ns
         if (!(v instanceof Array)) { return names }
         const i = v[1]
-        if (slotOf(s.names, ['entry', i]) !== null) { return names }
+        if (slotOf(s.names, i) !== null) { return names }
         const node = s.a.nodes[i]
-        // every frame element but a spread and a slot of this scope's own
-        // frame takes a `const`, after what it reaches and before the
-        // function: a capture is a name
+        // every frame element but a spread, a parameter and a slot of this
+        // scope's own frame takes a `const`, after what it reaches and before
+        // the function: a capture is a name, and those three have one
         const inner = frameItems(s.a, node[0] === '=>' ? node[2] : null)
-            .filter(x => x instanceof Array && x[0] === '#' && !isSlotRead(s.a, /** @type {Ref} */(x)))
-            .reduce((ns, x) => add(found(ns, /** @type {Ref} */(x)), ['entry', /** @type {Ref} */(x)[1]]), operands(node).reduce(found, names))
-        const self = minting(node) && s.a.shared.includes(i) ? add(inner, ['entry', i]) : inner
-        if (node[0] === '-' && node.length === 2 && negHoisted(s.a, node[1])) {
-            return add(self, ['entry', /** @type {Ref} */(node[1])[1]])
-        }
-        return node[0] === '.' && basedHoisted(s.a, node[1])
-            ? add(self, node[1] instanceof Array ? ['entry', node[1][1]] : ['leaf', /** @type {number | bigint} */(node[1])])
-            : self
+            .filter(x => x instanceof Array && x[0] === '#' && !isSlotRead(s.a, /** @type {Ref} */(x)) && !isParameter(s.a.nodes[x[1]]))
+            .reduce((ns, x) => add(found(ns, /** @type {Ref} */(x)), /** @type {Ref} */(x)[1]), operands(s.a)(node).reduce(found, names))
+        const callee = node[0] === '()' && calleeHoisted(s.a, node[1]) ? add(inner, /** @type {Ref} */(node[1])[1]) : inner
+        return !mergeable(node) && s.a.shared.includes(i) ? add(callee, i) : callee
     }
-    return v => found(/** @type {readonly _Hoisted[]} */([]), v)
+    return v => found([], v)
+}
+
+/**
+ * Whether a callee takes a `const` of its own: an access, which a call
+ * would read as the method call in any spelling — `a.b(c)` and `(a.b)(c)`
+ * alike — where the graph calls what the access read. A slot read is a
+ * name already.
+ *
+ * @type {(a: Analysis, callee: Operand) => boolean}
+ */
+const calleeHoisted = (a, callee) => {
+    if (!(callee instanceof Array)) { return false }
+    const node = a.nodes[callee[1]]
+    return node[0] === '.' && node.length === 3 && !isSlotRead(a, callee)
 }
 
 /**
  * The operands a node holds, for the hoisting walk: a container's items and
- * a property's halves, an access's base and key, a negation's operand, and
- * a comma's operands. A function's body is not among them, since the walk
- * stops at a body.
+ * a property's halves, an access's base and key, a call's callee and each
+ * argument, an operator's operands, and a comma's. A function's body is not
+ * among them, since the walk stops at a body, and neither is a call's array
+ * of arguments, which is written as the call's own ({@link callArguments}).
  *
- * @type {(node: Node) => readonly Operand[]}
+ * @type {(a: Analysis) => (node: Node) => readonly Operand[]}
  */
-const operands = node => {
+const operands = a => node => {
+    /** @type {(items: readonly (Operand | readonly ['...', Operand])[]) => readonly Operand[]} */
+    const spread = items => items.flatMap(x => x instanceof Array && x[0] === '...' ? [x[1]] : [/** @type {Operand} */(x)])
     switch (node[0]) {
-        case '[]': { return node[1].flatMap(x => x instanceof Array && x[0] === '...' ? [x[1]] : [/** @type {Operand} */(x)]) }
+        case '[]': { return spread(node[1]) }
         case '{}': { return node[1].flatMap(p => p[0] === '...' ? [p[1]] : [p[1], p[2]]) }
-        case '.': { return [node[1], node[2]] }
-        case '-': { return node.length === 2 ? [node[1]] : [] }
+        case '.': { return [node[1], node[2], ...(node.length === 3 || node[3][0] !== '|()' ? [] : spread(argumentItems(a, node[3][1])))] }
+        case '()': { return [node[1], ...spread(argumentItems(a, node[2]))] }
         case ',': { return node[1] }
-        default: { return [] }
+        case '=>': case 'undefined': case 'arg': case 'rest': case 'frame': case 'args': case '?.': case '?.()': { return [] }
+        default: { return /** @type {readonly Operand[]} */ (node.slice(1)) }
     }
 }
 
-/** The text a hoisted value's `const` holds, in the scope at `depth`. @type {(s: _Scope, depth: number) => (h: _Hoisted) => Document} */
-const hoistedText = (s, depth) => h => h[0] === 'leaf'
-    ? ok(leafSerialize(h[1]))
-    : entry(s, depth)(h[1])
+/**
+ * The operands a node establishes before it is done, which is all of them
+ * but a lazy operator's: `&&`, `||` and `??` establish their right operand,
+ * and `?:` either arm, only when the left or the condition decides to.
+ *
+ * @type {(a: Analysis) => (node: Node) => readonly Operand[]}
+ */
+const eagerOperands = a => node => {
+    switch (node[0]) {
+        case '&&': case '||': case '??': case '?:': { return [node[1]] }
+        default: { return operands(a)(node) }
+    }
+}
+
+/**
+ * The entries a scope's statements reach through eager positions alone, a
+ * function's frame among them, since creating the function reads it — what
+ * the parser counts as reached when it reads the text back. A `const` it
+ * has to write that none of them reaches is one only a lazy operand does,
+ * and the parser anchors such a `const`: it is established whatever the
+ * lazy operand decides, where the graph establishes the value only when
+ * that operand does.
+ *
+ * @type {(a: Analysis) => (roots: readonly Operand[]) => readonly number[]}
+ */
+const eagerReach = a => roots => {
+    /** @type {(seen: readonly number[], v: Operand) => readonly number[]} */
+    const visit = (seen, v) => {
+        if (!(v instanceof Array) || seen.includes(v[1])) { return seen }
+        const node = a.nodes[v[1]]
+        return (node[0] === '=>' ? [node[2]] : eagerOperands(a)(node)).reduce(visit, [...seen, v[1]])
+    }
+    return roots.reduce(visit, [])
+}
 
 /**
  * One statement and every `const` it needed first: the hoists, in order,
@@ -621,12 +797,19 @@ const hoistedText = (s, depth) => h => h[0] === 'leaf'
  * computation — and the comma would be lost with it. Linking emits no such
  * graph, dropping the alias where the source writes one.
  *
- * @type {(a: Analysis, depth: number, frame: readonly string[], last: boolean) => (before: _Statement, v: Operand) => Result<_Statement, string>}
+ * The one exception is an anchor its own statement hoisted, which the scope
+ * reaches through lazy operands alone: `const o=[]; return c?[o,o]:1;`
+ * anchors `o`, since only the conditional's arm reads it. Its `const` is the
+ * anchor's statement, which the parser reads back as the anchor it is.
+ *
+ * @type {(a: Analysis, depth: number, frame: readonly string[], eager: readonly number[], all: _Root, i: number) => (before: _Statement, v: Operand) => Result<_Statement, string>}
  */
-const statement = (a, depth, frame, last) => ({ text, names }, v) => {
-    /** @type {(acc: Result<_Statement, string>, h: _Hoisted) => Result<_Statement, string>} */
+const statement = (a, depth, frame, eager, all, i) => ({ text, names }, v) => {
+    const last = i === all.length - 1
+    /** @type {(acc: Result<_Statement, string>, h: number) => Result<_Statement, string>} */
     const emit = (acc, h) => {
         if (acc[0] === 'error') { return acc }
+        if (!eager.includes(h)) { return error('a const only a lazy operand reaches') }
         const before = acc[1]
         const s = { a, names: before.names, frame }
         return mapOk(
@@ -635,13 +818,15 @@ const statement = (a, depth, frame, last) => ({ text, names }, v) => {
                 text: flat([before.text, [`const ${hoistName(depth, before.names.length)}=`], value, [';']]),
                 names: [...before.names, [h, hoistName(depth, before.names.length)]],
             })),
-        )(hoistedText(s, depth)(h))
+        )(entry(s, depth)(h))
     }
     const hoisted = hoists({ a, names, frame })(v).reduce(emit, ok({ text, names }))
     if (hoisted[0] === 'error') { return hoisted }
     const before = hoisted[1]
-    if (!last && v instanceof Array && slotOf(before.names, ['entry', v[1]]) !== null) {
-        return error('an anchor that repeats a hoisted value')
+    if (!last && v instanceof Array && slotOf(before.names, v[1]) !== null) {
+        const own = slotOf(names, v[1]) === null
+            && !eagerReach(a)([...all.filter((_, j) => j !== i), ...eagerOperands(a)(a.nodes[v[1]])]).includes(v[1])
+        return own ? ok(before) : error('an anchor that repeats a hoisted value')
     }
     const s = { a, names: before.names, frame }
     return mapOk(
@@ -674,10 +859,11 @@ const statement = (a, depth, frame, last) => ({ text, names }, v) => {
  * @type {(a: Analysis, depth: number, frame: readonly string[], start: _Statement) => (all: _Root) => Result<_Statement, string>}
  */
 const scope = (a, depth, frame, start) => all => {
+    const eager = eagerReach(a)(all)
     /** @type {(acc: Result<_Statement, string>, v: Operand, i: number) => Result<_Statement, string>} */
     const step = (acc, v, i) => acc[0] === 'error'
         ? acc
-        : statement(a, depth, frame, i === all.length - 1)(acc[1], v)
+        : statement(a, depth, frame, eager, all, i)(acc[1], v)
     return all.reduce(step, ok(start))
 }
 
@@ -734,44 +920,47 @@ export const tryStringify = e => mapOk(
 /** A generated-name prefix that cannot collide with any exported binding. @type {(keys: readonly string[], prefix: string) => string} */
 const modulePrefix = (keys, prefix) => keys.some(key => key.startsWith(prefix)) ? modulePrefix(keys, `${prefix}$`) : prefix
 
-/** Emit one named value using the same expression writer as value output. @type {(a: Analysis, prefix: string, h: _Hoisted) => (before: _Statement) => Result<_Statement, string>} */
+/** Emit one named value using the same expression writer as value output. @type {(a: Analysis, prefix: string, h: number) => (before: _Statement) => Result<_Statement, string>} */
 const moduleBinding = (a, prefix, h) => before => {
     const name = `${prefix}${before.names.length}`
     return mapOk(
         /** @type {(text: List<string>) => _Statement} */
         (text => ({ text: flat([before.text, [`const ${name}=`], text, [';']]), names: [...before.names, [h, name]] })),
-    )(hoistedText({ a, names: before.names, frame: [] }, 0)(h))
+    )(entry({ a, names: before.names, frame: [] }, 0)(h))
 }
 
 /**
  * Evaluate a module operand in graph order and name it once. Commas become
  * ordered declarations and an alias of their last operand. Function bodies
  * stay in the existing scope writer; no value is hoisted out of a function.
+ * A lazy operand is not named, which would establish it where the graph
+ * does not: it is written in place, and a `const` it would need that no
+ * eager position reaches is refused, as a scope's is ({@link eagerReach}).
  *
- * @type {(a: Analysis, prefix: string) => (before: _Statement, v: Operand) => Result<_Statement, string>}
+ * @type {(a: Analysis, prefix: string, eager: readonly number[]) => (before: _Statement, v: Operand) => Result<_Statement, string>}
  */
-const moduleOperand = (a, prefix) => (before, v) => {
-    if (!(v instanceof Array) || slotOf(before.names, ['entry', v[1]]) !== null) { return ok(before) }
+const moduleOperand = (a, prefix, eager) => (before, v) => {
+    if (!(v instanceof Array) || slotOf(before.names, v[1]) !== null) { return ok(before) }
     const node = a.nodes[v[1]]
     if (node[0] === ',' && node[1].length < 2) { return error('a comma with fewer than two operands') }
-    const children = operands(node).reduce(
+    const children = eagerOperands(a)(node).reduce(
         /** @type {(acc: Result<_Statement, string>, child: Operand) => Result<_Statement, string>} */
-        ((acc, child) => okThen(state => moduleOperand(a, prefix)(state, child))(acc)), ok(before))
+        ((acc, child) => okThen(state => moduleOperand(a, prefix, eager)(state, child))(acc)), ok(before))
     return okThen(state => {
         if (node[0] === ',') {
             const last = node[1][node[1].length - 1]
             const name = `${prefix}${state.names.length}`
             return mapOk(
                 /** @type {(text: List<string>) => _Statement} */
-                (text => ({ text: flat([state.text, [`const ${name}=`], text, [';']]), names: [...state.names, [['entry', v[1]], name]] })),
+                (text => ({ text: flat([state.text, [`const ${name}=`], text, [';']]), names: [...state.names, [v[1], name]] })),
             )(operand({ a, names: state.names, frame: [] }, 0)(last))
         }
         const prepared = hoists({ a, names: state.names, frame: [] })(v).reduce(
-            /** @type {(acc: Result<_Statement, string>, h: _Hoisted) => Result<_Statement, string>} */
-            ((acc, h) => okThen(moduleBinding(a, prefix, h))(acc)), ok(state))
-        return okThen(ready => slotOf(ready.names, ['entry', v[1]]) !== null
+            /** @type {(acc: Result<_Statement, string>, h: number) => Result<_Statement, string>} */
+            ((acc, h) => okThen(ready => !eager.includes(h) ? error('a const only a lazy operand reaches') : moduleBinding(a, prefix, h)(ready))(acc)), ok(state))
+        return okThen(ready => slotOf(ready.names, v[1]) !== null
             ? ok(ready)
-            : moduleBinding(a, prefix, ['entry', v[1]])(ready))(prepared)
+            : moduleBinding(a, prefix, v[1])(ready))(prepared)
     })(children)
 }
 
@@ -783,15 +972,15 @@ const exportOperands = (a, v) => {
         : /** @type {readonly (readonly [':', string, Operand])[]} */ (/** @type {Extract<Node, readonly ['{}', unknown]>} */ (node)[1])
 }
 
-/** Evaluate a module's sequence and exports without constructing a discarded namespace. @type {(a: Analysis, prefix: string) => (state: _Statement, v: Operand) => Result<_Statement, string>} */
-const moduleBody = (a, prefix) => (state, v) => {
+/** Evaluate a module's sequence and exports without constructing a discarded namespace. @type {(a: Analysis, prefix: string, eager: readonly number[]) => (state: _Statement, v: Operand) => Result<_Statement, string>} */
+const moduleBody = (a, prefix, eager) => (state, v) => {
     const node = a.nodes[/** @type {Ref} */ (v)[1]]
     const values = node[0] === ',' ? node[1].slice(0, -1) : exportOperands(a, v).map(([, , value]) => value)
     const before = values.reduce(
         /** @type {(acc: Result<_Statement, string>, value: Operand) => Result<_Statement, string>} */
-        ((acc, value) => okThen(s => moduleOperand(a, prefix)(s, value))(acc)), ok(state))
+        ((acc, value) => okThen(s => moduleOperand(a, prefix, eager)(s, value))(acc)), ok(state))
     return node[0] === ','
-        ? okThen(s => moduleBody(a, prefix)(s, node[1][node[1].length - 1]))(before)
+        ? okThen(s => moduleBody(a, prefix, eager)(s, node[1][node[1].length - 1]))(before)
         : before
 }
 
@@ -832,7 +1021,7 @@ export const tryModuleSerialize = e => {
     )(okList([
         ...exports.filter(([, key]) => key !== 'default'),
         ...exports.filter(([, key]) => key === 'default'),
-    ].map(moduleExport(a, state)))))(moduleBody(a, prefix)({ text: null, names: [] }, a.root))
+    ].map(moduleExport(a, state)))))(moduleBody(a, prefix, eagerReach(a)([a.root]))({ text: null, names: [] }, a.root))
 }
 
 /** The module source as one string. @type {(e: Exp) => Result<string, string>} */

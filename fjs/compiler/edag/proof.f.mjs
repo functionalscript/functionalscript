@@ -134,22 +134,21 @@ export const proof = {
             expectEdag(compile('import {} from "./dep"; export default 1;').edag, [',', [['.', ['args'], 0], 1]])
         },
         execution: () => {
-            for (const [source, expected, refusal] of /** @type {const} */ ([
-                ['import {add as sum} from "./dep"; export const main=()=>sum(20,22);', [20,22], 'a () node'],
-                ['import d,{add as sum,default as e} from "./dep"; export const main=()=>sum(d,e);', [7,7], 'a () node'],
-                ['import {add} from "./dep"; const f=(...a)=>(...b)=>add(a[0],b[0]); export const main=()=>f(20)(22);', [20,22], 'a () node'],
-                ['import {u} from "./dep"; export const main=()=>u;', undefined, null],
-                ['import {} from "./dep"; export const main=()=>3;', 3, null],
-                ['import {default as n} from "./data.json" with {type:"json"}; export const main=()=>n;', 5, null],
+            for (const [source, expected] of /** @type {const} */ ([
+                ['import {add as sum} from "./dep"; export const main=()=>sum(20,22);', [20,22]],
+                ['import d,{add as sum,default as e} from "./dep"; export const main=()=>sum(d,e);', [7,7]],
+                ['import {add} from "./dep"; const f=(...a)=>(...b)=>add(a[0],b[0]); export const main=()=>f(20)(22);', [20,22]],
+                ['import {u} from "./dep"; export const main=()=>u;', undefined],
+                ['import {} from "./dep"; export const main=()=>3;', 3],
+                ['import {default as n} from "./data.json" with {type:"json"}; export const main=()=>n;', 5],
             ])) {
                 const root = {
                     main: file(source), dep: file('export const add=(...args)=>args; export const u=undefined; export default 7;'),
                     'data.json': file('5'),
                 }
                 const graph = unwrap(linked(root)('main'))
-                const printed = tryModuleStringify(graph)
-                if (refusal !== null) { assertStructurallySame(printed, ['error', refusal]) }
-                const modules = refusal === null ? [graph, unresolved(unwrap(parse('')(unwrap(printed)))).edag] : [graph]
+                // the module and the source the writer gives it run alike
+                const modules = [graph, unresolved(unwrap(parse('')(unwrap(tryModuleStringify(graph))))).edag]
                 for (const module of modules) {
                     /** @type {Exp} */
                     const invoked = ['()', ['.', module, 'main'], ['[]', []]]
@@ -167,8 +166,11 @@ export const proof = {
             const invoked = ['()', ['.', graph, 'main'], ['[]', []]]
             assertEq(execute(invoked), 42)
             assertEq(vm({ frame: null, args: [] })(invoked), 42)
-            // Arithmetic serialization remains a separate unsupported form.
-            assertStructurallySame(tryModuleStringify(graph), ['error', 'a + node'])
+            // and its source, the call and the arithmetic written out, runs to
+            // the same answer
+            /** @type {Exp} */
+            const printed = ['()', ['.', unresolved(unwrap(parse('')(unwrap(tryModuleStringify(graph))))).edag, 'main'], ['[]', []]]
+            assertEq(execute(printed), 42)
         },
         identity: () => {
             const root = {

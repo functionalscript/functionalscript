@@ -201,6 +201,9 @@ const fjsCorpus = [
     'const n = null; const check = n.x; export default 1;',
     'export default {b:1,"0":2,a:3,b:4};',
     'const x = []; export default {a: x, a: 1};',
+    'export default (a, b) => (a + b) * 2 - (-a) ** 2 & ~b;',
+    'export default (a, b) => a ? b : c => a ?? (b || c);',
+    'export default (...a) => { const o = []; return a[0] ? [o, o] : a.at(0)(1); };',
 ]
 
 /** Whether the front end finds a shared node in the module at `path`. @type {(root: typeof emptyState.root) => (path: string) => boolean} */
@@ -661,11 +664,10 @@ export const proof = {
             // once a call is reached: applying one is the interpreter's
             assertEq(moduleRefused('export default [1][0](2);'), 'input.f.js - error: a call has no value')
             assertEq(jsonRefused('export default [1][0](2);'), 'input.f.js - error: a call has no value')
-            // the writer refuses both forms, each by the name of the node
-            // it met: the plain call, and the step a method call hangs on
-            // its access
-            assertEq(fjsRefused({ 'input.f.js': [utf8('const f = (...a) => 1; export default f(1);')] }), 'output.f.js - error: a () node')
-            assertEq(fjsRefused({ 'input.f.js': [utf8('export default [1][0](2);')] }), 'output.f.js - error: a chain step')
+            // the writer spells both forms: the plain call, and the method
+            // call on its access
+            assertEq(fjsRoundTrip('const f = (...a) => 1; export default f(1);'), 'export default ((...$a)=>1)(1);')
+            assertEq(fjsRoundTrip('export default [1][0](2);'), 'export default [1][0](2);')
         },
         // a program the linker refuses is reported against the input, as a
         // parse error is, and nothing is written: a missing import
