@@ -148,10 +148,11 @@ and a reader takes that pair into the table with the delta's own lines. The dige
 name as a Git blob — the envelope and the bytes, as
 [`fjs/git/oid`](../fjs/git/oid/module.f.mjs)'s `of` hashes any object at
 the SHA-256 width — so the imprint the token carries is the very name the
-next commit's table records for this delta, and a reader compares the two
-without a second hash. The stored file is the token
-(`TimeStampToken`), not the response that wrapped it, as
-[disot-cli-epic](../fjs/todo/disot-cli-epic.md) already asks.
+record holds for this delta, and a reader compares the two without a
+second hash. The second file is a record holding that digest and the
+token (`TimeStampToken`, not the response that wrapped it, as
+[disot-cli-epic](../fjs/todo/disot-cli-epic.md) already asks); its
+form is the command's, below.
 
 So the proof never touches SHA-1: token, imprint, delta, pairs, names, all
 SHA-256, and a reader that has the delta and the token verifies without
@@ -243,7 +244,7 @@ disturb one, and a `HEAD` that is `disot` names no content to map.
    ids.
 4. **Timestamp it.** Take the delta's blob name at both widths — its
    SHA-1, which is what the tree will say for it, and its SHA-256, which
-   is what the next delta will record for it — request an RFC 3161
+   is what the record will hold for it — request an RFC 3161
    timestamp with the SHA-256 as the imprint and a fresh nonce, and check
    the response's status, imprint, nonce and signature, and the signer's
    certificate — its chain to a trusted root, its validity, its revocation
