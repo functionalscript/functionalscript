@@ -249,15 +249,21 @@ conversion Git's transition defines is not this command's.
 4. **Timestamp it.** Take the delta's blob name at both widths — its
    SHA-1, which is what the tree will say for it, and its SHA-256, which
    is what the record will hold for it — request an RFC 3161
-   timestamp with the SHA-256 as the imprint and a fresh nonce, and check
+   timestamp with the SHA-256 as the imprint, a fresh nonce and
+   `certReq` set, so the token carries the signer's certificate and a
+   later clone can check it from the two blobs alone, and check
    the response's status, imprint, nonce and signature, and the signer's
    certificate — its chain to a trusted root, its validity, its revocation
    status and its timestamping extended key usage — as
    [disot-cli-epic](../fjs/todo/disot-cli-epic.md) asks. A response that
    fails any check ends the run with nothing written to the branch. On
    success write the **record**, `tts.json`: one JSON object with two
-   members, `sha256` as lowercase hex and `tts` as the DER
-   `TimeStampToken` in base64, canonical like the delta. The record and
+   members in this order, `sha256` as lowercase hex and `tts` as the DER
+   `TimeStampToken` in standard base64 with padding, no whitespace, and
+   no escape sequence anywhere — hex and base64 need none, so a reader
+   refuses a backslash, in the delta as in the record — one byte sequence
+   per record, as the delta has one per set of pairs. A token without
+   the signer's certificate is refused. The record and
    the tree together give the delta's own pair at this commit: the tree
    entry is its SHA-1, the record its SHA-256, and the token covers that
    SHA-256, so a reader checks the record against the token and takes the
