@@ -576,6 +576,18 @@ export const proof = {
         assertEq(
             reads(_defaultExport(moduleGraph('export default (...a)=>{const o=[]; return a ? [o, o] : 1;};'))),
             'export default (...$a)=>{const $a0=[];return $a?[$a0,$a0]:1;};')
+        // an anchor a lazy operand alone reads again is read through its
+        // `const`, a function's capture among them, never written twice
+        assertEq(
+            reads(_defaultExport(moduleGraph('export default (...a)=>{const x=a[0]+1; return true ? () => x : 1;};'))),
+            'export default (...$a)=>{const $a0=$a[0]+1;return true?()=>$a0:1;};')
+        assertEq(
+            reads(_defaultExport(moduleGraph('export default (...a)=>{const x=a[0]; return a[1] ? x : 1;};'))),
+            'export default (...$a)=>{const $a0=$a[0];return $a[1]?$a0:1;};')
+        // one an eager position reaches too is written where it is read
+        /** @type {Exp} */
+        const x = ['.', a, 0]
+        writes(f([',', [x, ['[]', [x, ['?:', a, x, 1]]]]]), 'export default (...$a)=>{const $a0=$a[0];return [$a[0],$a?$a[0]:1];};')
     },
     // A call's arguments are the array literal it holds, each any value. A
     // callee that is an access takes a `const`, since `a.b(c)` is the

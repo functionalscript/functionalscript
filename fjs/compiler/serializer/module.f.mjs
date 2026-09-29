@@ -862,10 +862,24 @@ const statement = (a, depth, frame, eager, all, i) => ({ text, names }, v) => {
                 value,
                 [';'],
             ]),
-            names: last ? before.names : [...before.names, [null, hoistName(depth, before.names.length)]],
+            names: last ? before.names : [...before.names, [anchorNode(a, all, i, v), hoistName(depth, before.names.length)]],
         })),
     )(operand(s, depth)(v))
 }
+
+/**
+ * The node an anchor's `const` names for the statements after it: the
+ * anchored node where every other statement reaches it only through lazy
+ * operands, and none otherwise. A later read of the name, a function's
+ * frame capturing it among them, is then lazy too, so the parser still
+ * reads the `const` back as the anchor, and the node is not written a
+ * second time under a name of its own. A node an eager position reaches is
+ * written where it is read, as the graph establishes it there.
+ *
+ * @type {(a: Analysis, all: _Root, i: number, v: Operand) => number | null}
+ */
+const anchorNode = (a, all, i, v) =>
+    v instanceof Array && !eagerReach(a)(all.filter((_, j) => j !== i)).includes(v[1]) ? v[1] : null
 
 /**
  * The statements of one scope: each operand preceded by the `const`s it
