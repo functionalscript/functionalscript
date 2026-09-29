@@ -1,7 +1,7 @@
 ## to-primitive. Converting an object or a function: stock behavior, refusal, then own methods
 
 **Priority:** P1
-**Status:** open — Stages 1 and 2 are done; Stage 3, a function's text, remains
+**Status:** open — Stages 1 and 2 are done; Stage 3, a function's text, is planned below and awaits the owner's decisions
 
 ### Problem
 
@@ -210,10 +210,122 @@ results, and the only recursion is the user's own call.
 
 ### Stage 3: a function's text
 
-This stage is the EDAG default rendering, as specified in the documents
-linked above. When it lands, the function rows of Stage 1 answer the text.
-The refusals are deleted, with the unit tests that pin them, and the function
+This stage is the EDAG default rendering that the
+[function-source exception](../../spec/README.md#function-source-representation-exception)
+adopts. When it lands, the function rows of Stage 1 answer the text. The
+refusals are deleted, with the unit tests that pin them, and the function
 cases join the corpus with the renderer's text as their expected value.
+
+#### What shapes the plan
+
+- **A renderer mostly exists.** The FunctionalScript writer,
+  [`fjs/compiler/serializer`](../../fjs/compiler/serializer/module.f.mjs),
+  already writes a function node as text: `['=>', 1, null, ['arg', 0]]` is
+  `($a_0,...$a)=>$a_0`, and a shared array in a body becomes a `const`. It
+  has two gaps. It has no spelling for operators or calls yet
+  ([stage-a-operators](../../fjs/compiler/serializer/todo/stage-a-operators.md),
+  [call-spelling](../../fjs/compiler/serializer/todo/call-spelling.md)), so
+  most real bodies are refused. And it writes a module,
+  `export default …;`, where a function's text is one expression.
+- **The Rust VM has no EDAG at run time.** A generated function is a code
+  pointer, a `length` and a frame. The text must come from the one renderer,
+  which is FunctionalScript, at compile time. A second renderer written in
+  Rust would drift from it.
+- **A captured primitive is already written into the body**
+  ([spec: functions](../../spec/README.md#functions)). So
+  `const x = 3; const f = () => x;` gives `f` an empty frame, and its text
+  is the owner's preferred `() => 3` with no frame rendering at all. A frame
+  holds only values fixed at run time: arrays, objects, functions (an
+  imported helper included), and an enclosing function's parameters.
+- **No source reaches `['self']` yet.** A function that names itself is
+  refused by the compiler, and the generator's Stage 5 of
+  [callable-function-objects](./callable-function-objects.md) has not
+  landed. The `self` question can wait without blocking anything.
+- **The JavaScript evaluators are not FJS VMs.** Amnesia and the operations
+  layer convert a function with the host's wrapper text, so a function-text
+  corpus case cannot be checked on the host side.
+
+#### Design: a compile-time template with holes
+
+The renderer turns a function node into an **expression template**: the
+function's canonical text, in which every read of a frame slot is a hole.
+The Rust printer passes the template to the function value as an
+`Option<&'static str>`:
+
+- `None` is a function that has no EDAG, a host or hand-written one. It
+  keeps refusing with `FUNCTION_TEXT`: not every function has an EDAG
+  ([associate-edag-with-functions](../../fjs/compiler/todo/associate-edag-with-functions.md)).
+- The template belongs to the code, not to each function value. It is
+  static data in the binary, so it allocates nothing, and no value retains
+  its own complete source, as the
+  [lazy frame rendering](../../spec/todo/serialization.md#conditional-requirement-lazy-frame-rendering)
+  requirement asks.
+- **An empty frame:** the template is the text. That holds under every
+  answer to the open questions in
+  [serialization](../../spec/todo/serialization.md#open-questions).
+- **A non-empty frame:** only filling the holes depends on question 2. If
+  `String(f)` is code-only, a hole is a name, and `make(0)` and `make(1)`
+  share one text, as they do in JavaScript. If it instantiates the frame, a
+  hole is the rendered value, which needs a run-time value renderer that
+  keeps sharing, a function's frame rendered in place, and lazy text.
+
+Hashing needs the EDAG itself, not its text, so this does not decide
+[Stage 7](./callable-function-objects.md)'s embedded-or-lookup question.
+The template is rendered from the same associated EDAG that choice will
+keep.
+
+#### Decisions
+
+Each needs the owner's approval before the step that depends on it.
+
+- **D1, the spelling (proposed).** One line, normalized, with the writer's
+  leaves and its `$a`, `$a_0`, `$a0` names. An expression, not a module. A
+  rest parameter the body never reads is not written, so `() => 1` is
+  `()=>1`, not `(...$a)=>1`. Both denote one node, and the shorter one is
+  what a reader expects.
+- **D2, the frame (question 2).** Open. Code-only is small and matches
+  JavaScript. Instantiating is the owner's stated preference, and costs the
+  run-time renderer, an IIFE to keep the text one expression (so it needs
+  call spelling), and lazy text. Answered before step 5.
+- **D3, `self` (question 3).** Deferred. The renderer refuses `['self']`
+  until the compiler can produce it
+  ([forward-references](../../spec/todo/3140-forward-references.md)).
+- **D4, a function without an EDAG.** Refused, as above.
+
+#### Steps
+
+1. **The writer spells operators**
+   ([stage-a-operators](../../fjs/compiler/serializer/todo/stage-a-operators.md)),
+   precedence- and associativity-correct. The largest step, and it gates
+   the rest.
+2. **The writer spells calls and chains**
+   ([call-spelling](../../fjs/compiler/serializer/todo/call-spelling.md)).
+3. **`functionText` in FunctionalScript**, beside the EDAG, so that the
+   compiler's writer and the Rust printer share one owner: a function node
+   to its expression template, refusing `['self']`. Proofs: a template with
+   no hole reads back to the same node, and one node always renders one
+   text.
+4. **Rust, for an empty frame.** `static_function` takes the template and
+   `IFunction` answers it. The printer emits one for every function node,
+   and the harness's `function_any()` gets one too.
+   `PrimitiveCoercionOp::function` answers the text of a function with an
+   empty frame, and refuses the rest with `FUNCTION_TEXT`. The corpus gains
+   function-text cases with the renderer's text as their expected value, and
+   a marker that skips the host side, as `rust` skips the Rust side. Tests
+   cover every path in
+   [member-functions](./member-functions.md)'s `Function` checklist:
+   `f.toString()`, `String(f)`, `+`, a function in an array joined, a string
+   method's argument, and a returned or exported function. `ToNumber` of a
+   function stays `NaN` without its text, since that is exact for any text.
+5. **Rust, for a frame,** after D2: names in the holes, or the run-time
+   value renderer with lazy text, big enough for its own issue.
+6. **Follow-up issues:** rendering in the FJS interpreter, which drops the
+   corpus's host-skip marker, and the property-key conversion below.
+
+The signature change in step 4 touches every hand-written function in the
+tests. Bundling the code, the `length` and the text into one static
+descriptor would be the cleaner API, but Rust has no generic `static`, so
+that needs a spike first.
 
 ### Related, not covered here
 
@@ -235,6 +347,11 @@ needs its own issue, and it lands with or after Stage 1.
       its own `toString`, and the `toSorted` guard's test.
 - [x] Stage 2: call an object's own `toString` and `valueOf` per
       `OrdinaryToPrimitive`. Move the host-only cases into the corpus.
-- [ ] Stage 3: a function's text, through the EDAG renderer (tracked with the
-      `Function` checklist in `member-functions.md`).
+- [ ] Stage 3 decisions: approve D1, and answer D2 before step 5.
+- [ ] Stage 3 steps 1 and 2: the writer spells operators and calls.
+- [ ] Stage 3 step 3: `functionText`, the expression template with holes.
+- [ ] Stage 3 step 4: Rust answers the text of a function with an empty
+      frame (tracked with the `Function` checklist in `member-functions.md`).
+- [ ] Stage 3 step 5: a function with a frame, per D2.
+- [ ] Stage 3 step 6: file the FJS-interpreter rendering issue.
 - [ ] File the property-key conversion as its own issue.
