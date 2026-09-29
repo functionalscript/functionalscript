@@ -63,10 +63,9 @@ import { parse } from '../transpiler/module.f.mjs'
 import { lazyOp2Id } from '../../edag/module.f.mjs'
 import { _defaultExport, unresolved } from './module.f.mjs'
 import { ranked, graphSvg } from '../../website/demo/graph/module.f.mjs'
-import { pureOk } from '../../effects/module.f.mjs'
 import { leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
-import { examplePicker, name as exampleName } from '../../website/demo/examples/module.f.mjs'
+import { textDemo } from '../../website/demo/module.f.mjs'
 
 const { is } = Object
 
@@ -393,32 +392,17 @@ export const examples = [
     ['Parse error', 'export default {bad'],
 ]
 
-const picker = examplePicker(examples)
-
 /**
  * The state is the text itself, not the graph: the graph is a function of
  * it, and storing a value the state can already compute is how the two
  * drift apart. Picking an example replaces the text with its source.
  *
- * `picker`, above, is built once, as the module loads, which is where a
- * list with a repeated name or source is refused.
+ * The picker is built once, as the module loads, which is where a list
+ * with a repeated name or source is refused.
  *
  * @type {Demo<string, DemoEvent>}
  */
-export const demo = {
-    init: examples[0][1],
-    update: state => event => pureOk(event.kind !== 'input' ? state
-        : event.name === exampleName ? picker.pick(event.value)
-            : event.value),
-    view: text => {
-        const g = _graphOf(text)
-        return ['div',
-            picker.view(text),
-            ['p',
-                ['label', { for: 'edag' }, 'Source '],
-                ['textarea', { id: 'edag', name: 'edag', rows: '8' }, text],
-            ],
-            g.ok ? graphSvg({ nodes: ranked(g.nodes, g.edges), edges: g.edges }) : ['p', `Error: ${g.error}`],
-        ]
-    },
-}
+export const demo = textDemo({ name: 'edag', label: 'Source', init: examples[0][1], examples })(text => {
+    const g = _graphOf(text)
+    return [g.ok ? graphSvg({ nodes: ranked(g.nodes, g.edges), edges: g.edges }) : ['p', `Error: ${g.error}`]]
+})

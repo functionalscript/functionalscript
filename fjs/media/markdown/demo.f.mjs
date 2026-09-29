@@ -26,7 +26,7 @@
  * @import { Entry, Inline } from './types.ts'
  */
 
-import { pureOk } from '../../effects/module.f.mjs'
+import { textDemo } from '../../website/demo/module.f.mjs'
 import { tryParse } from './module.f.mjs'
 
 /**
@@ -61,7 +61,9 @@ const entryView = entry => ['li', ['ul', ...entry.map(spanView)]]
  *
  * @type {Demo<string, DemoEvent>}
  */
-export const demo = {
+export const demo = textDemo({
+    name: 'changelog',
+    label: 'A release file',
     init: [
         '- `fjs/effects`: `match` resolves a command\'s handler with an `own',
         '  property` lookup, so a `command` naming `Object.prototype` throws (#1421)',
@@ -70,17 +72,9 @@ export const demo = {
         '- `media/markdown`: the parser this page is a demo of',
         '  [#2166](https://github.com/functionalscript/functionalscript/pull/2166)',
     ].join('\n'),
-    update: state => event => pureOk(event.kind === 'input' ? event.value : state),
-    view: text => {
-        const parsed = tryParse(text)
-        return ['div',
-            ['p',
-                ['label', { for: 'changelog' }, 'A release file '],
-                ['textarea', { id: 'changelog', name: 'changelog', rows: '8' }, text],
-            ],
-            parsed[0] === 'error'
-                ? ['p', `Error: ${parsed[1]}`]
-                : ['ol', ...parsed[1].map(entryView)],
-        ]
-    },
-}
+})(text => {
+    const parsed = tryParse(text)
+    return [parsed[0] === 'error'
+        ? ['p', `Error: ${parsed[1]}`]
+        : ['ol', ...parsed[1].map(entryView)]]
+})

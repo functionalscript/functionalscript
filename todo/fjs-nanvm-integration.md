@@ -69,8 +69,7 @@ serializer's admitted expressions; calls and arithmetic are still refused by
 that serializer. `main` is the fixture's selected
 export, not a required language-level name. The rest-only helper keeps this
 milestone independent of named function parameters. These are synthetic
-fixtures; renaming repository modules to `.f.js` retains its separate package
-prerequisite below.
+fixtures; renaming repository modules to `.f.js` is the migration below.
 
 ### Repository compiler-compatibility migration
 
