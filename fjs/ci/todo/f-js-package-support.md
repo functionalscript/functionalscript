@@ -28,9 +28,11 @@ the blanket ignore is gone
 ([#1545](https://github.com/functionalscript/functionalscript/pull/1545)) — so
 the gate is satisfied and this task is open.
 
-What stays gated is the *rename*, not this work: the first `.f.mjs` -> `.f.js`
-is blocked by **this** task completing, per the acceptance criteria below, and
-by the stage-2 boundary in [`fjs/compiler/README.md`](../../compiler/README.md). Reading
+What this task was to gate was the *rename*, not this work: the first
+`.f.mjs` -> `.f.js` was to wait for this task completing, per the acceptance
+criteria below, and for the stage-2 boundary in
+[`fjs/compiler/README.md`](../../compiler/README.md). The renames landed first,
+by the decision under the open question below; the boundary still holds. Reading
 the dependency the other way was circular while the stage-1 issue existed — it
 stayed open until stage 2 started, stage 2 needed this task done, and this task
 waited on it — which is why the block is recorded here as met rather than
@@ -200,8 +202,9 @@ The first real renames then followed on `fjs compile`'s check with the
 - A clean consumer can execute/import the `.f.js` runtime and type-check it.
 - No staging tree or package-time runtime/declaration specifier rewrite is
   required.
-- The first `.f.mjs` -> `.f.js` compiler-compatibility rename is **blocked by**
-  completion of this task.
+- The first `.f.mjs` -> `.f.js` compiler-compatibility renames were to wait
+  for this task; by the decision above they landed ahead of it, on
+  `fjs compile`'s check, so nothing here gates a rename now.
 
 ### Related
 
@@ -213,4 +216,5 @@ The first real renames then followed on `fjs compile`'s check with the
 - [`publishing-packages.md`](./publishing-packages.md) — broader package plan.
 - [`fjs/compiler/README.md`](../../compiler/README.md) — extension contract.
 - [`todo/fjs-nanvm-integration.md`](../../../todo/fjs-nanvm-integration.md) —
-  compiler-compatibility migration blocked by this package prerequisite.
+  the compiler-compatibility migration, whose first renames landed ahead of
+  this task's last step by the decision recorded there.

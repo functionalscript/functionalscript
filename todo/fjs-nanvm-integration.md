@@ -69,14 +69,13 @@ serializer's admitted expressions; calls and arithmetic are still refused by
 that serializer. `main` is the fixture's selected
 export, not a required language-level name. The rest-only helper keeps this
 milestone independent of named function parameters. These are synthetic
-fixtures; renaming repository modules to `.f.js` retains its separate package
-prerequisite below.
+fixtures; renaming repository modules to `.f.js` is the migration below.
 
 ### Repository compiler-compatibility migration
 
-**Blocked by:**
-
-- [package support for authored `.f.js`](../fjs/ci/todo/f-js-package-support.md)
+**Blocked by:** nothing, by the decision below. The one task still open in
+[package support for authored `.f.js`](../fjs/ci/todo/f-js-package-support.md)
+stays in that issue and gates no rename.
 
 Stage 1 — removing authored TypeScript — is complete and is no longer a
 blocker. It was tracked in `todo/migrate-typescript-to-mjs.md`, deleted once
