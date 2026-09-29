@@ -205,8 +205,13 @@ content.
 1. **Read the cache.** If the repository holds `refs/heads/disot`, scan
    every commit reachable from it and take the union of their deltas in
    memory, plus one pair per commit for its delta — the tree entry's
-   SHA-1, the record's SHA-256 — refusing two names for one SHA-1. If it
-   does not, the cache is empty and the new commit will have no parent.
+   SHA-1, the record's SHA-256 — refusing two names for one SHA-1. Before
+   a delta's pairs enter the cache, its bytes are hashed as a blob at the
+   SHA-256 width and the name must equal the record's `sha256`, the
+   digest the token covers; a delta that does not match is the
+   substitution this table exists to catch, and the run refuses the
+   branch. If the repository holds no `disot`, the cache is empty and the
+   new commit will have no parent.
    Remote-tracking heads are not read: a cache hit stops the walk, so
    reading another party's table is trusting it, which is out of scope
    here. A user who trusts a remote's `disot` makes it their own with
