@@ -210,8 +210,12 @@ disturb one, and a `HEAD` that is `disot` names no content to map.
    memory, plus one pair per commit for its delta — the tree entry's
    SHA-1, the record's SHA-256 — refusing two names for one SHA-1. Before
    a delta's pairs enter the cache, its bytes are hashed as a blob at the
-   SHA-256 width and the name must equal the record's `sha256`, the
-   digest the token covers. The same check covers the rest of the branch:
+   SHA-256 width and the name must equal the record's `sha256`, and the
+   record's token is checked as step 4 checks a fresh response — its
+   imprint equal to that digest, its signature and its signer's
+   certificate chain — before any pair of that delta enters the cache,
+   since the `sha256` member alone is an unsigned claim. The same check
+   covers the rest of the branch:
    each commit, tree and record is hashed at the SHA-256 width and must
    equal the pair its successor's delta holds for it, so a substituted
    record cannot vouch for a substituted delta; the head's own commit,
