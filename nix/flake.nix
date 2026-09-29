@@ -1,6 +1,6 @@
 {
     inputs.nixpkgs.url = "github:NixOS/nixpkgs/cf5e76507c6e23b59f7e0ffcc7baa2a39ddd8442";
-    inputs.rust-overlay.url = "github:oxalica/rust-overlay/3f4df219c0d9aa82710232324856755d51ef0b69";
+    inputs.rust-overlay.url = "github:oxalica/rust-overlay/49b6548d31019e8bfe9d4415193ac1df3c48f53a";
     inputs.rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
     outputs = { nixpkgs, rust-overlay, ... }: let
         shell = { pkgs, targets, shellHook, url, hash, ... }: let
