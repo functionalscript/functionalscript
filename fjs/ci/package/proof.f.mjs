@@ -119,6 +119,17 @@ export const proof = {
             assert(scriptHas(`= "${packageConsumer.refused}"`), 'expected the refused value in the bad file')
             assert(scriptHas(`= "${packageConsumer.accepted}"`), 'expected the accepted value in the good file')
         },
+        // The job's own `tsconfig.json` is in the directory when the consumer
+        // files are compiled, and TypeScript 7 refuses a file on the command
+        // line beside one (`TS5112`) unless told to ignore it. Both consumer
+        // compiles say so; the first CI run of this job failed without it.
+        ignoresTheJobConfig: () => {
+            for (const step of job.steps) {
+                if (step.run?.includes('tsc ') === true && step.run.includes('.mts')) {
+                    assert(step.run.includes(' --ignoreConfig '), `expected --ignoreConfig: ${step.run}`)
+                }
+            }
+        },
         // One command per step (root `AGENTS.md` §7): a consumer step never
         // chains, so a red step names the command that failed.
         oneCommandEach: () => {

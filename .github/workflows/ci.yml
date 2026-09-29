@@ -489,13 +489,13 @@
           "run": "echo 'import type { PrototypeName } from \"packed/fjs/js/prototype/types.js\";\nconst refused: PrototypeName = \"stone\";' > bad.mts"
         },
         {
-          "run": "npx tsc --pretty false --noEmit --strict --module nodenext --target esnext good.mts"
+          "run": "npx tsc --pretty false --ignoreConfig --noEmit --strict --module nodenext --target esnext good.mts"
         },
         {
           "run": "node good.mts"
         },
         {
-          "run": "! npx tsc --pretty false --noEmit --strict --module nodenext --target esnext bad.mts"
+          "run": "! npx tsc --pretty false --ignoreConfig --noEmit --strict --module nodenext --target esnext bad.mts"
         }
       ]
     }

@@ -124,11 +124,15 @@ const badConsumer = [
 
 /**
  * The compiler over one consumer file: flags rather than the job's
- * `tsconfig.json`, whose `include` is the package tree. `nodenext` is the
+ * `tsconfig.json`, whose `include` is the package tree. That file is still
+ * in the directory, and TypeScript 7 refuses files on the command line while
+ * one is present (`TS5112`) unless told to ignore it, so `--ignoreConfig`
+ * says so; the first run of this job in CI failed on exactly that, where a
+ * dry run in a directory without the file had passed. `nodenext` is the
  * resolution a Node consumer gets, and `strict` is what makes a declaration
  * that failed to resolve an error rather than an `any`.
  */
-const consumerTsc = 'npx tsc --pretty false --noEmit --strict --module nodenext --target esnext'
+const consumerTsc = 'npx tsc --pretty false --ignoreConfig --noEmit --strict --module nodenext --target esnext'
 
 const commands = [
     'npm init -y > /dev/null',
