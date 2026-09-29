@@ -225,11 +225,13 @@ conversion Git's transition defines is not this command's.
    since the `sha256` member alone is an unsigned claim. One thing differs
    for a cached token: the time its certificate is judged at. A fresh
    response is judged now; a cached token is judged at the conservative
-   bound of the first successor token that pins its record, the renewal
-   that proves it existed then, so an authority whose certificate has
-   since expired or been revoked still vouches for what it timestamped
-   before that, and a token made after the fact does not. The head's
-   token, which nothing pins yet, is judged now. The same check
+   bound of the first successor token that pins its record and has a
+   bound, the renewal that proves it existed then, so an authority whose
+   certificate has since expired or been revoked still vouches for what
+   it timestamped before that, and a token made after the fact does not.
+   A successor without a bound fixes no time and is passed over. A cached
+   token no bounded successor pins, and the head's token, which nothing
+   pins yet, are judged now, the strict side. The same check
    covers the rest of the branch:
    each commit, tree and record is named as the walk names any object —
    the record as a blob at the SHA-256 width, a tree or a commit with its
