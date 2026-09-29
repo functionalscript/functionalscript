@@ -6,7 +6,16 @@
  * @module
  */
 
-import type { Mkdir, ReadFile, ResolveFileModule, Write, WriteFile } from '../effects/node/types.ts'
+import type { All, Mkdir, ReadFile, Readdir, ResolveFileModule, Write, WriteFile } from '../effects/node/types.ts'
 
-/** The effect operations `compile` performs: file I/O and error output. */
-export type _CompileOp = Mkdir | ReadFile | ResolveFileModule | WriteFile | Write
+/**
+ * The effect operations `compile` performs: file I/O and error output, and
+ * the directory walk of the check it runs with no arguments.
+ */
+export type _CompileOp = All | Mkdir | ReadFile | Readdir | ResolveFileModule | WriteFile | Write
+
+/** What the no-argument check counted: the `.f.js` files it read, and among them the ones the compiler refused. */
+export type _Checked = {
+    readonly checked: number
+    readonly refused: number
+}

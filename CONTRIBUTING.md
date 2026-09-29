@@ -111,6 +111,7 @@ environment.
 | `npm start test`                        | Node 22+ | no             | The repo's runner, no type-check step.   |
 | `node --test`                           | Node 22+ | no             | Node's native test runner.               |
 | `npm run cov`                           | Node 22+ | no             | `node --test` plus coverage.             |
+| `npm start compile`                     | Node 22+ | no             | Every authored `.f.js` still compiles.   |
 | `deno task fjs test`                    | Deno     | no             | The repo's runner under Deno.            |
 | `deno task test` / `deno task cov`      | Deno     | no             | Deno's native test runner / coverage.    |
 | `bun fjs/module.mjs test`                | Bun      | no             | The repo's runner under Bun.             |

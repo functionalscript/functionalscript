@@ -334,7 +334,7 @@ FunctionalScript compiler.
 |---|---|
 | `.f.ts` | Authored FunctionalScript-intent TypeScript implementation/proof source. **No longer used**: stage 1 removed the last one, and new source must not use this extension. It appears below only to describe that completed migration. |
 | `.f.mjs` | Authored FunctionalScript-intent ESM JavaScript with JSDoc types. It may use FunctionalScript features the current parser/compiler does not support yet. |
-| `.f.js` | Authored FunctionalScript that the parser/compiler in the same revision accepts: the stage-2 compatibility marker ([below](#stage-2-mark-compiler-compatible-functionalscript)). Its proof stays `proof.f.mjs`, because a proof fails by throwing and the compiler does not accept `throw` yet. The first is the package fixture [`fjs/ci/package/fixture/module.f.js`](../ci/package/fixture/module.f.js). No build or packaging step produces one: stage 1's TypeScript runtime emission did, and that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)). `fjs compile <input> <output>.f.js` does still write one, to a path the caller names — that is the compiler's output for a user, not repository source. |
+| `.f.js` | Authored FunctionalScript that the parser/compiler in the same revision accepts: the stage-2 compatibility marker ([below](#stage-2-mark-compiler-compatible-functionalscript)). Its proof stays `proof.f.mjs`, because a proof fails by throwing and the compiler does not accept `throw` yet. The first is the package fixture [`fjs/ci/package/fixture/module.f.js`](../ci/package/fixture/module.f.js). No build or packaging step produces one: stage 1's TypeScript runtime emission did, and that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)). `fjs compile <input> <output>.f.js` does still write one, to a path the caller names — that is the compiler's output for a user, not repository source. `fjs compile` with no arguments checks every authored one against this compiler, and CI runs it ([spec: checking every `.f.js`](../../spec/README.md#checking-every-fjs)). |
 | `types.ts` | Authored TypeScript source for a type-level API. It may coexist with `.f.mjs` or later `.f.js` and holds no runtime implementation. |
 | `.d.ts`, `.d.mts` | Generated TypeScript declarations. |
 
@@ -566,8 +566,10 @@ module.f.mjs -> module.f.js
 An authored `.f.js` is a compatibility commitment: the FunctionalScript parser
 and compiler in the same repository revision must accept the complete module,
 and its runtime and declaration dependencies must satisfy the compiler migration
-rules. Unsupported modules remain `.f.mjs` until the required compiler features
-land. A sibling authored `types.ts` remains unchanged across this rename.
+rules. `fjs compile` with no arguments is what holds every `.f.js` to it, and CI
+runs that check once per revision. Unsupported modules remain `.f.mjs` until
+the required compiler features land. A sibling authored `types.ts` remains
+unchanged across this rename.
 
 A synthetic JavaScript compiler fixture may be used before repository migration;
 it does not change the extension contract for repository source.

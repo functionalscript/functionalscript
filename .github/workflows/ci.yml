@@ -425,6 +425,9 @@
           "run": "./nix/run tsc"
         },
         {
+          "run": "./nix/run node ./fjs/module.mjs compile"
+        },
+        {
           "run": "./nix/run npm run cov"
         },
         {

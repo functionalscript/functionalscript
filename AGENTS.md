@@ -15,6 +15,7 @@ Run the full check set before submitting:
 ```bash
 tsc                      # type-check; the compiler is the environment's
 fjs test                 # or any equivalent runner
+fjs compile              # every authored .f.js still compiles; no arguments
 cargo test               # only if you touched Rust
 cargo clippy
 cargo fmt -- --check

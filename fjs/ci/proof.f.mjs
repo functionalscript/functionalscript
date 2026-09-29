@@ -581,7 +581,7 @@ export const proof = {
         for (const [version, commands] of /** @type {const} */ ([
             [node.node22, ['npm ci', 'node --test']],
             [node.node24, ['npm ci', 'node --test']],
-            [node.default, ['npm ci', 'tsc', 'npm run cov', 'npm pack', 'npm run gen']],
+            [node.default, ['npm ci', 'tsc', 'node ./fjs/module.mjs compile', 'npm run cov', 'npm pack', 'npm run gen']],
         ])) {
             const id = `node${major(version)}`
             // The two older versions run in a flake of their own, because
