@@ -103,10 +103,11 @@ that keep those true, plus five gaps the list below did not name:
   the fixture.
 - **Compiler acceptance is enforced.** The `.f.js` contract is that the
   current compiler accepts the module ([`fjs/compiler/README.md`](../../compiler/README.md)),
-  and `tsc` cannot hold a module to it: the compiler requires the
-  terminating `;` (without it, `unexpected end`), which `tsc` does not. The
-  measured module compiles to `.rs`; its JSON target refuses it only because
-  a function has no JSON. `fjs compile` with no arguments checks every
+  and `tsc` cannot hold a module to it: `let a = 1; export default a;`
+  type-checks and the compiler refuses it at its first token,
+  `unexpected token`, as it refuses a `class` or two statements on one line.
+  The measured module compiles to `.rs`; its JSON target refuses it only
+  because a function has no JSON. `fjs compile` with no arguments checks every
   authored `.f.js`, and the Node 26 CI job runs it
   ([spec: checking every `.f.js`](../../../spec/README.md#checking-every-fjs));
   this task's fixture was the first file it had to check.
