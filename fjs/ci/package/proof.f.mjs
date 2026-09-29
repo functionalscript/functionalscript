@@ -1,6 +1,6 @@
 import { packageCheckJob, packageCheckJobId } from './module.f.mjs'
 import { packageArtifact, packageJobId } from '../node/module.f.mjs'
-import { typescript } from '../config/module.f.js'
+import { packageConsumer, typescript } from '../config/module.f.js'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 const job = packageCheckJob
@@ -84,5 +84,49 @@ export const proof = {
         // The default excludes node_modules, which is the only place the
         // artifact exists.
         assert(scriptHas('"exclude":[]'), 'expected node_modules not excluded')
+    },
+    // The consumer's half of the check, in the order a consumer meets it: the
+    // files written, the good one type-checked and run, the bad one refused.
+    consumer: {
+        importsThePublishedModule: () => {
+            // Through the alias, never this repository's package name, and
+            // through the specifiers a consumer writes: the runtime `.f.js`
+            // and `types.js` for the shipped `types.d.ts`.
+            assert(scriptHas(`from "packed/${packageConsumer.module}"`), 'expected the runtime module imported')
+            assert(scriptHas(`from "packed/${packageConsumer.types}"`), 'expected the declared type imported')
+            assert(
+                !job.steps.some(step => step.run?.includes('"functionalscript/') === true),
+                'the consumer must import the alias, not this repository\'s package name')
+        },
+        goodBeforeBad: () => {
+            const runs = job.steps.flatMap(step => step.run === undefined ? [] : [step.run])
+            const at = /** @type {(start: string, end: string) => number} */ ((start, end) =>
+                runs.findIndex(run => run.startsWith(start) && run.endsWith(end)))
+            const written = at('echo ', '> good.mts')
+            const checked = at('npx tsc ', ' good.mts')
+            const ran = at('node ', ' good.mts')
+            const refused = at('! npx tsc ', ' bad.mts')
+            assert(written !== -1 && checked !== -1 && ran !== -1 && refused !== -1, 'expected the good file written, checked and run, and the bad file refused')
+            assert(written < checked && checked < ran && ran < refused, 'expected the good file written, checked and run before the bad file is refused')
+        },
+        // The negative control is a negated command, so it is red when the bad
+        // file type-checks — the outcome a declaration resolved as `any` would
+        // give — and nothing else in the job is negated.
+        negativeControlMustFail: () => {
+            const negated = job.steps.filter(step => step.run?.startsWith('! ') === true)
+            assertEq(negated.length, 1)
+            assert(negated[0].run?.endsWith(' bad.mts') === true, 'expected the bad file to be the negated check')
+            assert(scriptHas(`= "${packageConsumer.refused}"`), 'expected the refused value in the bad file')
+            assert(scriptHas(`= "${packageConsumer.accepted}"`), 'expected the accepted value in the good file')
+        },
+        // One command per step (root `AGENTS.md` §7): a consumer step never
+        // chains, so a red step names the command that failed.
+        oneCommandEach: () => {
+            for (const step of job.steps) {
+                if (step.run?.includes('.mts') === true) {
+                    assert(!step.run.includes('&&'), `expected one command: ${step.run}`)
+                }
+            }
+        },
     },
 }

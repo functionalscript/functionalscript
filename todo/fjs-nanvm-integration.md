@@ -74,9 +74,9 @@ prerequisite below.
 
 ### Repository compiler-compatibility migration
 
-**Blocked by:**
-
-- [package support for authored `.f.js`](../fjs/ci/todo/f-js-package-support.md)
+**Blocked by:** nothing. Package support for authored `.f.js` is complete,
+`package-check` importing a published `.f.js` from a clean consumer
+([`fjs/ci/package/module.f.mjs`](../fjs/ci/package/module.f.mjs)).
 
 Stage 1 — removing authored TypeScript — is complete and is no longer a
 blocker. It was tracked in `todo/migrate-typescript-to-mjs.md`, deleted once
@@ -89,8 +89,7 @@ the blanket `**/*.js` ignore
 `.f.mjs` means authored FunctionalScript-intent JavaScript; it does not
 promise current compiler support.
 
-Before stage 2 renamed any repository source, the focused
-[`f-js-package-support.md`](../fjs/ci/todo/f-js-package-support.md)
+Before stage 2 renamed any repository source, the focused package-support
 prerequisite had to hold: a standalone authored `.f.js` directly included in
 TypeScript checking, given a generated `.d.ts`, included in the packed NPM
 artifact, and working from a clean consumer. Stage-2 package and publish
@@ -98,14 +97,15 @@ validation runs from a clean CI checkout, so generated-output cleanup or
 repeated-pack safety is not part of it. Compiler acceptance alone was not a
 sufficient rename gate.
 
-**Decided: rename with one prerequisite task still open.** The fixture proved
-type-checking, declaration emission, packing and coverage on `main`; what the
-prerequisite still lacks is `package-check` importing the fixture from a
-consumer with a negative control, a check of the package job rather than of
-any renamed module. Meanwhile `fjs compile` with no arguments holds every
-`.f.js` to the compiler of its revision, in CI, which is the guarantee the gate
-existed to protect. So the first renames landed on that check, and the
-`package-check` task stays open in its own issue rather than blocking them.
+**Decided: rename with one prerequisite task still open.** A synthetic
+fixture proved type-checking, declaration emission, packing and coverage on
+`main`; what the prerequisite still lacked was `package-check` importing a
+`.f.js` from a consumer with a negative control, a check of the package job
+rather than of any renamed module. Meanwhile `fjs compile` with no arguments
+held every `.f.js` to the compiler of its revision, in CI, which is the
+guarantee the gate existed to protect. So the first renames landed on that
+check, and the consumer check followed at once, against a real renamed module
+rather than the fixture, which is retired.
 
 Only then does the repository compiler-compatibility migration use:
 
@@ -185,14 +185,16 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
       `nanvm-harness/fixtures/{array,object,sharing,property}.mjs`, matched
       by [`Any::to_json`](../nanvm-lib/src/vm/any/to_json.rs) recursing into
       arrays/objects instead of refusing them.
-- [ ] Complete
-      [package support for authored `.f.js`](../fjs/ci/todo/f-js-package-support.md),
-      including direct type-checking, declaration emission, packing, and
-      clean-consumer runtime/type tests.
+- [x] Complete package support for authored `.f.js`, including direct
+      type-checking, declaration emission, packing, and clean-consumer
+      runtime/type tests — `package-check` imports
+      `fjs/js/prototype/module.f.js` from a clean consumer, runs it, and
+      type-checks a use of `PrototypeName` with a negative control
+      ([`fjs/ci/package/module.f.mjs`](../fjs/ci/package/module.f.mjs)).
 - [x] Verify `.js` is trackable and authored `.f.js` is a first-class package
-      source before the first compiler-compatibility rename — the fixture
-      [`fjs/ci/package/fixture/module.f.js`](../fjs/ci/package/fixture/module.f.js)
-      is tracked, type-checked, declared, packed and covered.
+      source before the first compiler-compatibility rename — proved first on
+      a synthetic package fixture, tracked, type-checked, declared, packed
+      and covered, and retired once the real modules below took its place.
 - [x] Convert the first eligible dependency-closed repository modules from
       `.f.mjs` to `.f.js`: every module the compiler accepted whole —
       `fjs/ci/config`, `fjs/js/prototype`, `fjs/nanvm/constructors`,
@@ -204,9 +206,8 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
 
 ### Related
 
-- [package support for authored `.f.js`](../fjs/ci/todo/f-js-package-support.md)
-  — the prerequisite the first stage-2 renames landed on, one `package-check`
-  task still open there.
+- [`fjs/ci/package/module.f.mjs`](../fjs/ci/package/module.f.mjs) —
+  `package-check`, the clean-consumer check of a published `.f.js`.
 - [`fjs/compiler/README.md`](../fjs/compiler/README.md) — the extension contract, and the
   stage-1/stage-2 boundary this migration starts from.
 - [nanvm-lib/todo/mvp-roadmap.md](../nanvm-lib/todo/mvp-roadmap.md) — the

@@ -7,7 +7,7 @@
  * @import { Job } from '../common/types.ts'
  */
 
-import { images, node, typescript } from '../config/module.f.js'
+import { images, node, packageConsumer, typescript } from '../config/module.f.js'
 import { uses } from '../common/module.f.mjs'
 import { packageArtifact, packageJobId } from '../node/module.f.mjs'
 
@@ -103,6 +103,33 @@ const tsconfig = /** @type {const} */ ({
  *
  * @type {readonly string[]}
  */
+/**
+ * The two consumer files, as one `echo` each writes them, so a source holds
+ * double quotes only. `good.mts` imports the runtime export and a declared
+ * type from the installed package and gives the type a value it accepts;
+ * `bad.mts` gives it one it does not. `.mts` rather than `.ts` because
+ * `npm init` declares no `type`, under which `.ts` would read as CommonJS.
+ */
+const goodConsumer = [
+    `import { ${packageConsumer.value} } from "${alias}/${packageConsumer.module}";`,
+    `import type { ${packageConsumer.type} } from "${alias}/${packageConsumer.types}";`,
+    `const accepted: ${packageConsumer.type} = "${packageConsumer.accepted}";`,
+    `if (${packageConsumer.value} === undefined) { throw new Error("${packageConsumer.value} did not load"); }`,
+].join('\n')
+
+const badConsumer = [
+    `import type { ${packageConsumer.type} } from "${alias}/${packageConsumer.types}";`,
+    `const refused: ${packageConsumer.type} = "${packageConsumer.refused}";`,
+].join('\n')
+
+/**
+ * The compiler over one consumer file: flags rather than the job's
+ * `tsconfig.json`, whose `include` is the package tree. `nodenext` is the
+ * resolution a Node consumer gets, and `strict` is what makes a declaration
+ * that failed to resolve an error rather than an `any`.
+ */
+const consumerTsc = 'npx tsc --pretty false --noEmit --strict --module nodenext --target esnext'
+
 const commands = [
     'npm init -y > /dev/null',
     // `echo` is the shell's own builtin expanding its own glob; `ls` would be
@@ -115,12 +142,27 @@ const commands = [
     `npm install "typescript@${typescript.version}"`,
     `echo '${JSON.stringify(tsconfig)}' > tsconfig.json`,
     'npx tsc',
+    // The consumer's half: the declarations above are read as a set, but a
+    // consumer reaches one through an import specifier, and the runtime file
+    // beside it has to load. `good.mts` passes the compiler and runs; then
+    // `bad.mts`, differing only in the value it gives the declared type, must
+    // fail the same compiler — negated, so the step is red when it passes.
+    // The negation is what the check rests on: were the declaration missing,
+    // `strict` would have failed `good.mts` first, so the one way left for
+    // `bad.mts` to fail is the type it names refusing the value.
+    `echo '${goodConsumer}' > good.mts`,
+    `echo '${badConsumer}' > bad.mts`,
+    `${consumerTsc} good.mts`,
+    'node good.mts',
+    `! ${consumerTsc} bad.mts`,
 ]
 
 /**
- * Downloads the packed tarball, installs it as a real dependency, and
+ * Downloads the packed tarball, installs it as a real dependency,
  * type-checks every declaration it ships with the compiler the CI
- * configuration names.
+ * configuration names, then imports the published module `packageConsumer`
+ * names from a consumer file, runs it, and type-checks a use of its
+ * declaration with a negative control that must fail.
  *
  * Deliberately not built through `toSteps`: that helper injects
  * `actions/checkout`, and the missing checkout is this job's whole point. With

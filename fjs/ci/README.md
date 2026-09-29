@@ -47,8 +47,11 @@ for, and whether that answer should change, is
   that is not part of `ci.yml`. See "The publishing workflow" below.
   `proof.f.mjs` — its property-based proofs.
 - `package/module.f.mjs` — the `package-check` job: downloads the tarball the
-  Node job uploads, installs it under a fixed alias outside any checkout, and
-  type-checks every declaration it ships. It is the one job built without
+  Node job uploads, installs it under a fixed alias outside any checkout,
+  type-checks every declaration it ships, then imports the published `.f.js`
+  `config/module.f.js` names from a consumer file, runs it, and type-checks a
+  use of its declaration with a negative control that must fail. It is the
+  one job built without
   `toSteps`, because that helper adds `actions/checkout` and the missing
   checkout is the point — with the repository on the runner there would be a
   `tsconfig.json` up the tree, a `node_modules` to resolve into, and sources

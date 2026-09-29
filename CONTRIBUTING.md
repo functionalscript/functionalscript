@@ -162,8 +162,8 @@ annotation that uses it, or function-local in a proof. Only `types.d.ts` ships:
 `package.json`'s `files` negates `**/private.d.ts`. `.f.js` is the stage-2
 compiler-compatibility marker described in
 [`fjs/compiler/README.md`](./fjs/compiler/README.md): authored FunctionalScript the current
-compiler accepts, so far only the package fixture
-[`fjs/ci/package/fixture/module.f.js`](./fjs/ci/package/fixture/module.f.js).
+compiler accepts, [`fjs/js/prototype`](./fjs/js/prototype/module.f.js) and
+[`fjs/types/range`](./fjs/types/range/module.f.js) among them.
 
 ### Website demos
 

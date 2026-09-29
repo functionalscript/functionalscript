@@ -481,6 +481,21 @@
         },
         {
           "run": "npx tsc"
+        },
+        {
+          "run": "echo 'import { prototypeNames } from \"packed/fjs/js/prototype/module.f.js\";\nimport type { PrototypeName } from \"packed/fjs/js/prototype/types.js\";\nconst accepted: PrototypeName = \"map\";\nif (prototypeNames === undefined) { throw new Error(\"prototypeNames did not load\"); }' > good.mts"
+        },
+        {
+          "run": "echo 'import type { PrototypeName } from \"packed/fjs/js/prototype/types.js\";\nconst refused: PrototypeName = \"stone\";' > bad.mts"
+        },
+        {
+          "run": "npx tsc --pretty false --noEmit --strict --module nodenext --target esnext good.mts"
+        },
+        {
+          "run": "node good.mts"
+        },
+        {
+          "run": "! npx tsc --pretty false --noEmit --strict --module nodenext --target esnext bad.mts"
         }
       ]
     }

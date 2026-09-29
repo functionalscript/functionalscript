@@ -1,9 +1,12 @@
 # Validating the packed npm package against clean consumers
 
 This is the manual method used by
-[#1520](https://github.com/functionalscript/functionalscript/pull/1520),
-reusable until a committed CI fixture from
-[`todo/f-mjs-package-support.md`](./todo/f-mjs-package-support.md) replaces it.
+[#1520](https://github.com/functionalscript/functionalscript/pull/1520). Its
+Node half runs in CI now: `package-check`
+([`package/module.f.mjs`](./package/module.f.mjs)) installs the tarball for a
+clean consumer, imports a published `.f.js`, runs it and type-checks a use of
+its declaration with a negative control. The Deno and Bun halves below remain
+manual.
 
 The package ships `.mjs` runtime, `.d.mts` / `types.d.ts` declarations, and no
 `.js` files. The emitted declarations reference `…/types.ts` specifiers that name
