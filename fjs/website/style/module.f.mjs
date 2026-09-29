@@ -159,6 +159,14 @@ li[data-status="passed"] { color: var(--muted) }
    starts giving its own face has to be added here. */
 button, input, select, textarea, pre { font: inherit }
 pre { white-space: pre-wrap }
+/* A button draws its own frame rather than the platform's. Safari keeps its
+   native push button only at the small size it was drawn for: at the page's
+   16px it falls back to a flat face with no edge, so Measure read as a word
+   beside the field rather than a control — while Chrome still drew a button.
+   Any background or border drops the native look in every browser, so the
+   site sets both and all of them draw the same thing, in both schemes. */
+button { background: color-mix(in srgb, var(--border) 40%, var(--bg)); border: 1px solid var(--muted); border-radius: .25rem; color: var(--text); cursor: pointer; padding: .125rem .75rem }
+button:hover { background: var(--border) }
 /* A textarea's own baseline sits at its bottom edge, so a label before a
    multi-line field — the JSON demo's, the first of its kind — floated to the
    bottom of the box beside it rather than the top. A single-line input has
