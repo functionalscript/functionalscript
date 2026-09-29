@@ -342,7 +342,7 @@ accident:
 - [ ] Reading the table: the in-memory union from a scan of every `disot`
       commit, and the closure check that refuses a table an object of which
       references an unmapped one.
-- [ ] Writing the table: the delta and the token as blobs, their tree, and
+- [ ] Writing the table: the delta and the record as blobs, their tree, and
       the commit with the fetched heads as parents. Nothing in [`fjs/git`](../fjs/git/README.md)
       writes an object to a store yet — the effects have `inflate` and no
       `deflate`, and [`fjs/git/loose`](../fjs/git/loose/module.f.mjs) only
