@@ -50,7 +50,9 @@ only what was observed and records no decisions.
 
 The smallest version that works: a milestone to build on, not a release,
 since it checks nothing the additions below check. One option,
-`--tsa <url>`. It reads committed objects and writes objects and one ref;
+`--tsa <url>`, a URL until
+[disot-cli-epic](../fjs/todo/disot-cli-epic.md)'s profiles exist. It
+reads committed objects and writes objects and one ref;
 it never touches the index or the working tree.
 
 1. **Read the cache.** If `refs/heads/disot` exists, scan its commits and
