@@ -6,6 +6,8 @@
  * `emergent_testing/browser/proof.mjs` makes. The stand-in records what it was
  * asked for and nothing else: the namespace each element was created in, its
  * attributes, and its children in order.
+ *
+ * @import { Element as HtmlElement } from './types.ts'
  */
 
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -36,6 +38,7 @@ const dom = () => {
                     self.attributes = new Map([...self.attributes, [name, value]])
                 },
                 replaceChildren: (/** @type {any[]} */ ...nodes) => { self.children = nodes },
+                getAttribute: (/** @type {string} */ name) => self.attributes.get(name) ?? null,
             }
             return self
         },
@@ -52,6 +55,17 @@ const dom = () => {
 const shape = node => typeof node === 'string'
     ? node
     : [node.localName, node.namespaceURI, Object.fromEntries(node.attributes), ...node.children.map(shape)]
+
+/**
+ * The namespace of the first element on the path down through first element
+ * children — the one element a case below is about.
+ *
+ * @type {(node: any) => string}
+ */
+const innermost = node => {
+    const child = node.children.find((/** @type {any} */ c) => typeof c !== 'string')
+    return child === undefined ? node.namespaceURI : innermost(child)
+}
 
 export const proof = {
     // Text and elements keep the positions the element gives them.
@@ -90,9 +104,49 @@ export const proof = {
             ['svg', svg, {}, ['math', svg, {}, ['mi', svg, {}, 'x']]])
         assertStructurallySame(shape(toDom(dom(), ['math', ['svg']])),
             ['math', mathMl, {}, ['svg', mathMl, {}]])
-        // Only an SVG `foreignObject` returns to HTML: in MathML it is a name.
-        assertStructurallySame(shape(toDom(dom(), ['math', ['foreignObject', ['mi', 'x']]])),
-            ['math', mathMl, {}, ['foreignObject', mathMl, {}, ['mi', mathMl, {}, 'x']]])
+    },
+    /**
+     * **Below an integration point the parser returns to HTML**, and only
+     * there. The cases are the standard's whole list, each with the innermost
+     * element's namespace the parser gives it, checked against Chromium's.
+     *
+     * A case that stays foreign uses `foo`, not `span`: `span` is one of the
+     * HTML tags the parser moves out of SVG and MathML altogether, the rule
+     * this module does not copy.
+     */
+    integrationPointsReturnToHtml: () => {
+        const mathMl = 'http://www.w3.org/1998/Math/MathML'
+        /** @type {readonly (readonly [HtmlElement, string])[]} */
+        const cases = [
+            // SVG: `foreignObject`, `desc` and `title`.
+            [['svg', ['foreignObject', ['span']]], xhtml],
+            [['svg', ['desc', ['span']]], xhtml],
+            [['svg', ['title', ['span']]], xhtml],
+            [['svg', ['g', ['foo']]], svg],
+            // MathML text integration points, except `mglyph` and `malignmark`.
+            [['math', ['mi', ['span']]], xhtml],
+            [['math', ['mo', ['span']]], xhtml],
+            [['math', ['mn', ['span']]], xhtml],
+            [['math', ['ms', ['span']]], xhtml],
+            [['math', ['mtext', ['span']]], xhtml],
+            [['math', ['mi', ['mglyph']]], mathMl],
+            [['math', ['mi', ['malignmark']]], mathMl],
+            [['math', ['mrow', ['foo']]], mathMl],
+            // HTML's rules there include entering SVG.
+            [['math', ['mi', ['svg', ['g']]]], svg],
+            // `annotation-xml`: HTML by its `encoding`, in any case; SVG always.
+            [['math', ['annotation-xml', { encoding: 'text/html' }, ['span']]], xhtml],
+            [['math', ['annotation-xml', { encoding: 'Application/XHTML+XML' }, ['span']]], xhtml],
+            [['math', ['annotation-xml', { encoding: 'text/plain' }, ['foo']]], mathMl],
+            [['math', ['annotation-xml', ['foo']]], mathMl],
+            [['math', ['annotation-xml', ['svg', ['g']]]], svg],
+            // A name is an integration point only in its own namespace.
+            [['math', ['foreignObject', ['foo']]], mathMl],
+            [['svg', ['mi', ['foo']]], svg],
+        ]
+        for (const [element, namespace] of cases) {
+            assertEq(innermost(toDom(dom(), element)), namespace)
+        }
     },
     /**
      * **`fill` replaces the children and adds to the attributes.** What lets a
