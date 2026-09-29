@@ -90,6 +90,9 @@ export const proof = {
             ['svg', svg, {}, ['math', svg, {}, ['mi', svg, {}, 'x']]])
         assertStructurallySame(shape(toDom(dom(), ['math', ['svg']])),
             ['math', mathMl, {}, ['svg', mathMl, {}]])
+        // Only an SVG `foreignObject` returns to HTML: in MathML it is a name.
+        assertStructurallySame(shape(toDom(dom(), ['math', ['foreignObject', ['mi', 'x']]])),
+            ['math', mathMl, {}, ['foreignObject', mathMl, {}, ['mi', mathMl, {}, 'x']]])
     },
     /**
      * **`fill` replaces the children and adds to the attributes.** What lets a

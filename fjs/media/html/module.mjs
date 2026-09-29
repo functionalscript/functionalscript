@@ -10,9 +10,10 @@
  * `svg` subtree in the SVG namespace and a `math` subtree in MathML without
  * being asked; `createElement` would make an inert HTML element named `svg`,
  * and a diagram would render nothing. So every element is created in its
- * namespace: `svg` and `math` enter theirs from HTML, `foreignObject` returns
- * its children to HTML, and everything else inherits its parent's — a `math`
- * inside an `svg` included, which the parser keeps in SVG.
+ * namespace: `svg` and `math` enter theirs from HTML, an SVG `foreignObject`
+ * returns its children to HTML, and everything else inherits its parent's — a
+ * `math` inside an `svg` included, which the parser keeps in SVG, and a
+ * `foreignObject` inside a `math`, which is only a name there.
  *
  * @module
  *
@@ -57,7 +58,7 @@ export const fill = (target, [, ...rest]) => {
     const attributes = hasAttributes ? /** @type {Readonly<Record<string, string>>} */ (first) : {}
     const children = /** @type {readonly (HtmlElement | string)[]} */ (hasAttributes ? rest.slice(1) : rest)
     for (const [name, value] of Object.entries(attributes)) { target.setAttribute(name, value) }
-    const namespace = target.localName === 'foreignObject' ? xhtml : target.namespaceURI ?? xhtml
+    const namespace = target.namespaceURI === svg && target.localName === 'foreignObject' ? xhtml : target.namespaceURI ?? xhtml
     target.replaceChildren(...children.map(child =>
         typeof child === 'string' ? child : create(target.ownerDocument, namespace, child)))
     return target
