@@ -200,7 +200,10 @@ authority's URL is its one option, `--tsa <url>`, until
 touches the index or the working tree: it reads committed objects and
 writes objects and one ref, so uncommitted changes cannot reach it and are
 not checked. Only committed content is named, and a working tree is not
-content.
+content. The one repository state it refuses is `disot` checked out in
+any worktree, as `git branch -f` refuses it: moving a checked-out
+branch's ref under its working tree is the one way the command could
+disturb one, and a `HEAD` that is `disot` names no content to map.
 
 1. **Read the cache.** If the repository holds `refs/heads/disot`, scan
    every commit reachable from it and take the union of their deltas in
@@ -208,10 +211,14 @@ content.
    SHA-1, the record's SHA-256 — refusing two names for one SHA-1. Before
    a delta's pairs enter the cache, its bytes are hashed as a blob at the
    SHA-256 width and the name must equal the record's `sha256`, the
-   digest the token covers; a delta that does not match is the
-   substitution this table exists to catch, and the run refuses the
-   branch. If the repository holds no `disot`, the cache is empty and the
-   new commit will have no parent.
+   digest the token covers. The same check covers the rest of the branch:
+   each commit, tree and record is hashed at the SHA-256 width and must
+   equal the pair its successor's delta holds for it, so a substituted
+   record cannot vouch for a substituted delta; the head's own commit,
+   tree and record, which no delta names yet, are what this run names.
+   An object that does not match is the substitution this table exists
+   to catch, and the run refuses the branch. If the repository holds no
+   `disot`, the cache is empty and the new commit will have no parent.
    Remote-tracking heads are not read: a cache hit stops the walk, so
    reading another party's table is trusting it, which is out of scope
    here. A user who trusts a remote's `disot` makes it their own with
