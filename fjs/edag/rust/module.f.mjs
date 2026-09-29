@@ -25,9 +25,10 @@
  */
 
 import { f64Bits, i64Literal, stringLiteral, utf16Literal } from '../../media/rust/module.f.mjs'
-import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
+import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.mjs'
 import { lazyOp2Id } from '../module.f.mjs'
 import { maxLength } from '../../types/function/length/module.f.mjs'
+import { tryFunctionText } from '../../compiler/serializer/module.f.mjs'
 
 /**
  * The `nanvm-lib` expression each unary operation prints as.
@@ -203,6 +204,21 @@ const op3 = lookup(op3Rust)
 const stringCall = name => v => {
     const r = stringLiteral(v)
     return r[0] === 'ok' ? `${name}(${r[1]})` : `${name}_utf16(${utf16Literal(v)})`
+}
+
+/**
+ * A function's source text as the `Option<&'static str>` `IStaticFunction`
+ * takes: `Some` over the FunctionalScript writer's spelling
+ * (`tryFunctionText`, its captured slots `$0`, `$1`, …), always a `&str`
+ * since the writer escapes a lone surrogate, and `None` for a body the
+ * writer refuses. `None` is not a guess: the VM refuses the function's
+ * `ToPrimitive` (`FUNCTION_TEXT`) rather than answer a text.
+ *
+ * @type {(e: Exp) => string}
+ */
+const textExpr = e => {
+    const t = tryFunctionText(e)
+    return t[0] === 'ok' ? `Some(${unwrap(stringLiteral(t[1]))})` : 'None'
 }
 
 /**
@@ -612,7 +628,7 @@ const printer = nested => shared => root => {
             // The corpus's `() => undefined`, which no operator inspects,
             // is the one the harness binds as `function_any`; every other
             // function is a closure, over its frame.
-            return a === 0 && isSmallestLambda(b, c) ? ok('function_any()') : closure(a, c)(frameExpr(b))
+            return a === 0 && isSmallestLambda(b, c) ? ok('function_any()') : closure(a, c, textExpr(e))(frameExpr(b))
         }
         return bare(/** @type {readonly any[]} */ (e))
     }
@@ -642,10 +658,12 @@ const printer = nested => shared => root => {
      * under `-D warnings` is otherwise an error in the crate the module
      * lands in.
      *
-     * @type {(length: number, body: Exp) => (frame: Result<string, readonly unknown[]>) => Result<string, readonly unknown[]>}
+     * `text` is the function's source text, {@link textExpr}.
+     *
+     * @type {(length: number, body: Exp, text: string) => (frame: Result<string, readonly unknown[]>) => Result<string, readonly unknown[]>}
      */
-    const closure = (length, body) => frame => map2((/** @type {readonly string[]} */ statements, /** @type {string} */ fr) =>
-        `A::static_function(|${readsFrame(body) ? 'self_' : '_self'}, ${readsArgs(body) ? 'args' : '_args'}| ${braced(reads('rest')(body) ? [`let rest = args.clone().into_iter()${length === 0 ? '' : `.skip(${length})`}.to_array();`, ...statements] : statements)}, ${length}, ${fr}).to_any()`
+    const closure = (length, body, text) => frame => map2((/** @type {readonly string[]} */ statements, /** @type {string} */ fr) =>
+        `A::static_function(|${readsFrame(body) ? 'self_' : '_self'}, ${readsArgs(body) ? 'args' : '_args'}| ${braced(reads('rest')(body) ? [`let rest = args.clone().into_iter()${length === 0 ? '' : `.skip(${length})`}.to_array();`, ...statements] : statements)}, ${length}, ${fr}, ${text}).to_any()`
     )(statements(body), frame)
     /**
      * A function's frame as the `Array<A>` its construction takes: none,

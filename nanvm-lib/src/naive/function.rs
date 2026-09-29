@@ -5,12 +5,13 @@ use crate::{
     vm::{Any, Array, IComplex, IFunction, StaticCode},
 };
 
-/// What a `naive` function holds: its code, its `length`, and the frame it
-/// captured.
+/// What a `naive` function holds: its code, its `length`, the frame it
+/// captured, and its text, where it has one.
 struct StaticFunction {
     code: StaticCode<Naive>,
     length: u32,
     frame: Array<Naive>,
+    text: Option<&'static str>,
 }
 
 /// `naive`'s function value: an `Rc` over one object, so `Clone` is the
@@ -20,11 +21,17 @@ struct StaticFunction {
 pub struct Function(Rc<StaticFunction>);
 
 impl Function {
-    pub fn new(code: StaticCode<Naive>, length: u32, frame: Array<Naive>) -> Self {
+    pub fn new(
+        code: StaticCode<Naive>,
+        length: u32,
+        frame: Array<Naive>,
+        text: Option<&'static str>,
+    ) -> Self {
         Function(Rc::new(StaticFunction {
             code,
             length,
             frame,
+            text,
         }))
     }
 
@@ -46,5 +53,9 @@ impl IFunction<Naive> for Function {
 
     fn length(&self) -> u32 {
         self.0.length
+    }
+
+    fn text(&self) -> Option<&'static str> {
+        self.0.text
     }
 }

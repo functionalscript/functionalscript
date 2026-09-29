@@ -9,8 +9,8 @@ use crate::vm::{
 };
 
 impl<A: IVm> Any<A> {
-    /// `<`. Throws where `ToPrimitive` does, and where a function's text
-    /// would be compared (`FUNCTION_TEXT`).
+    /// `<`. Throws where `ToPrimitive` does, and where the text of a function
+    /// without text would be compared (`FUNCTION_TEXT`).
     pub fn lt(self, rhs: Self) -> Result<Self, Self> {
         let (x, y) = operands(self, rhs)?;
         Ok(is_less_than(x, y)?.unwrap_or(false).to_any())
@@ -35,7 +35,7 @@ impl<A: IVm> Any<A> {
         Ok((!is_less_than(x, y)?.unwrap_or(true)).to_any())
     }
 }
-
+/// An operand's `ToPrimitive(v, number)`, `None` for a function without text
 /// An operand's `ToPrimitive(v, number)`, `None` for a function's text
 /// (see [`to_primitive_or_text`]).
 type Operand<A> = Option<Primitive<A>>;
@@ -72,13 +72,14 @@ fn is_less_than<A: IVm>(px: Operand<A>, py: Operand<A>) -> Result<Option<bool>, 
     }
 }
 
-/// `ToPrimitive(v, number)`, where `None` is a function's text, the one
-/// primitive not implemented (`FUNCTION_TEXT`). It is a string that neither
-/// `StringToNumber` nor `StringToBigInt` accepts, which `is_less_than` needs
-/// and nothing else.
+/// `ToPrimitive(v, number)`, where `None` is the text of a function that has
+/// none (`FUNCTION_TEXT`). A function's text is a string that neither
+/// `StringToNumber` nor `StringToBigInt` accepts, so `is_less_than` answers a
+/// function without text against a number or a bigint, and refuses it only
+/// against a string.
 fn to_primitive_or_text<A: IVm>(v: Any<A>) -> Result<Option<Primitive<A>>, Any<A>> {
     match v.clone().into() {
-        Unpacked::Function(_) => Ok(None),
+        Unpacked::Function(f) => Ok(f.text().map(|t| Primitive::String(t.into()))),
         _ => v
             .to_primitive(Some(ToPrimitivePreferredType::Number))
             .map(Some),

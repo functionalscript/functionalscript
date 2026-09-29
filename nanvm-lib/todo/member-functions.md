@@ -77,33 +77,17 @@ the amnesia evaluator on the host engine and the generated Rust tests.
 Default function text is the explicit exception: its oracle is the adopted
 EDAG-rendering contract, not authored JavaScript or factory-wrapper source.
 
-**Function `toString`: required semantic rendering.** The placeholder in
-`fn_to_string` (`vm/primitive_coercion.rs`) and the host evaluator's wrapper
-text are existing implementation gaps, not accepted successful output.
-The former direction to accept that stub until Stage 7 is superseded by the
-[default function-text contract](../../spec/todo/serialization.md#function-text-and-serialization)
-and the [named/rest rendering requirements](../../spec/todo/3120-parameters.md#default-function-text-render-or-refuse).
-
-Keep enough association with the function's semantic EDAG, and captured
-frame where the selected contract needs it, to use the shared default
-renderer. Direct `f.toString()`, `Any::to_string` / `String(f)`, array
-`join` / `toString` over functions, property-key conversion and admitted
-string-method coercions must reach the same operation. Fixing only the
-member-dispatch entry leaves the indirect paths wrong. Full EDAG embedding
-and hashing may remain Stage 7 work; the association needed for supported
-default conversions may not wait for it. Resolve only the rendering choices
-needed by each supported case in the serialization TODO; user-defined
-overrides are separate from this required default behavior.
-
-Preserve supported function creation, calls, returns, exports and host calls,
-including call-only consumers and nested returned functions. Supply and prove
-the association/rendering mechanism before replacing a supported callable
-path. Do not reject exports to avoid later conversion. Explicit refusal is
-only for genuinely unsupported conversion cases at their established boundary,
-not a replacement for supported behavior. Neither placeholders nor host
-wrapper text satisfy the contract. This documentation correction changes no
-runtime behavior; the `Function` checklist remains open until semantic
-rendering and its conversion paths are proved, not merely dispatched.
+**Function `toString`: semantic rendering.** A compiled function carries
+its text, the FunctionalScript writer's rendering of its EDAG
+(`tryFunctionText` in `fjs/compiler/serializer`), handed to
+`IStaticFunction::static_function` by the Rust printer; `ToPrimitive` of a
+function answers it, so `f.toString()`, `String(f)`, `+`, an array joined
+and a string method's argument all reach the one text. A function without
+text — a host or hand-written one — is refused (`FUNCTION_TEXT`), never
+answered with a placeholder. What remains is the property-key conversion
+([property-key-conversion](./property-key-conversion.md)), and the host
+evaluator's own rendering, which the corpus's `host` marker skips until it
+has one.
 
 `Number`'s and `BigInt`'s `toString` take a radix, `2` to `36`: an integer
 and every bigint convert exactly, and a fraction with a radix other than ten
@@ -228,17 +212,13 @@ are [`vm/string/README.md`](../src/vm/string/README.md):
 
 `Function`:
 
-- [ ] `toString` — dispatch exists, but `fn_to_string` still returns a
-      placeholder. Provide semantic EDAG association and the shared default
-      renderer; full Stage 7 embedding is not a prerequisite or a waiver.
-- [ ] Prove direct and indirect default conversions: `f.toString()`,
-      `String(f)`, function elements in arrays (`join` / `toString`), property
-      keys and admitted string-method coercions. Include returned/exported
-      and nested callables, call-only export consumers, and identity checks.
-      A registered method is not enough: test each conversion path against
-      the selected EDAG renderer, with no placeholder or wrapper fallback.
-      Preserve supported calls/returns/exports; refuse only genuinely
-      unsupported conversion cases at their established boundary.
+- [x] `toString` — the function's text, the writer's rendering of its
+      EDAG (`nanvm-lib/todo/to-primitive.md`, Stage 3).
+- [ ] Prove direct and indirect default conversions. Done: `f.toString()`,
+      `String(f)`, `+`, function elements in arrays (`join` / `toString`),
+      a string method's argument, returned, exported and nested functions
+      (the corpus's `host` cases and `nanvm-harness/fixtures/function-text.mjs`).
+      Left: property keys.
 
 ### Related
 

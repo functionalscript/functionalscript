@@ -21,12 +21,12 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("fromString", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("includes")).end_call(|| Ok([f64_any(0x3ff0000000000000), string_any("1")].to_array().to_any())), false.to_any());
     check::<A>("emptyBigintFrom", Any::dot(Array::default().to_any(), string_any("includes")).end_call(|| Ok([f64_any(0x3ff0000000000000), bigint_any(1)].to_array().to_any())), false.to_any());
     check::<A>("emptyOwnValueOfFrom", Any::dot(Array::default().to_any(), string_any("includes")).end_call(|| {
-        let c0: Any<A> = A::static_function(|_self, _args| { bigint_any(1) / bigint_any(0) }, 0, Array::default()).to_any();
+        let c0: Any<A> = A::static_function(|_self, _args| { bigint_any(1) / bigint_any(0) }, 0, Array::default(), Some("()=>1n/0n")).to_any();
         let c1: Any<A> = [(string_key("valueOf"), c0)].to_object().to_any();
         Ok([f64_any(0x3ff0000000000000), c1].to_array().to_any())
     }), false.to_any());
     check::<A>("ownValueOfFrom", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("includes")).end_call(|| {
-        let c0: Any<A> = A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default()).to_any();
+        let c0: Any<A> = A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default(), Some("()=>1")).to_any();
         let c1: Any<A> = [(string_key("valueOf"), c0)].to_object().to_any();
         Ok([f64_any(0x3ff0000000000000), c1].to_array().to_any())
     }), false.to_any());
@@ -45,7 +45,7 @@ pub fn run<A: IStaticFunction>() {
         Ok([c0].to_array().to_any())
     }), true.to_any());
     check::<A>("stringOwnToStringNeedle", Any::dot(string_any("xbx"), string_any("includes")).end_call(|| {
-        let c0: Any<A> = A::static_function(|_self, _args| { Ok(string_any("b")) }, 0, Array::default()).to_any();
+        let c0: Any<A> = A::static_function(|_self, _args| { Ok(string_any("b")) }, 0, Array::default(), Some("()=>\"b\"")).to_any();
         let c1: Any<A> = [(string_key("toString"), c0)].to_object().to_any();
         Ok([c1].to_array().to_any())
     }), true.to_any());

@@ -25,7 +25,7 @@ mod tests {
 
     /// A function that answers its arguments, as the array it was given.
     fn identity() -> Any<A> {
-        A::static_function(|_, args| Ok(args.to_any()), 0, [].to_array()).to_any()
+        A::static_function(|_, args| Ok(args.to_any()), 0, [].to_array(), None).to_any()
     }
 
     #[test]
@@ -44,6 +44,7 @@ mod tests {
             |self_, _| Ok(Function::new(self_.clone()).to_any()),
             0,
             [].to_array(),
+            None,
         )
         .to_any();
         assert_eq!(f.clone().call([].to_array().to_any()), Ok(f));

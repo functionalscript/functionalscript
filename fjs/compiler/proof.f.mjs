@@ -837,7 +837,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 '        let rest = args.clone().into_iter().to_array();',
                 '        let c0 = || Ok(rest.clone().to_any());',
                 '        Any::conditional(true.to_any(), c0, c0)',
-                '    }, 0, Array::default()).to_any();',
+                '    }, 0, Array::default(), Some("(...$a)=>true?$a:$a")).to_any();',
                 '    Ok([(string_key("default"), c0)].to_object().to_any())',
             ])
             assertStructurallySame(body('export default (...a) => true ? [a] : [a, a];'), [
@@ -847,7 +847,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 '        let c1 = || Ok([c0.clone()].to_array().to_any());',
                 '        let c2 = || Ok([c0.clone(), c0.clone()].to_array().to_any());',
                 '        Any::conditional(true.to_any(), c1, c2)',
-                '    }, 0, Array::default()).to_any();',
+                '    }, 0, Array::default(), Some("(...$a)=>true?[$a]:[$a,$a]")).to_any();',
                 '    Ok([(string_key("default"), c0)].to_object().to_any())',
             ])
         },

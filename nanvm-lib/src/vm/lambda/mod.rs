@@ -269,7 +269,7 @@ mod tests {
     }
     /// A function that answers its arguments, as the array it was given.
     fn identity() -> Any<A> {
-        A::static_function(|_, args| Ok(args.to_any()), 0, [].to_array()).to_any()
+        A::static_function(|_, args| Ok(args.to_any()), 0, [].to_array(), None).to_any()
     }
     /// A fresh arguments array, for a chain whose answer is not the array.
     fn args() -> Result<Any<A>, Any<A>> {
@@ -358,7 +358,7 @@ mod tests {
             Ok(1.0.to_any())
         );
         let returns_object: Any<A> =
-            A::static_function(|_, _| Ok(object()), 0, [].to_array()).to_any();
+            A::static_function(|_, _| Ok(object()), 0, [].to_array(), None).to_any();
         answers_arguments(|args| {
             returns_object
                 .option_call(|| Ok([].to_array().to_any()))
@@ -435,7 +435,7 @@ mod tests {
     #[test]
     fn unguarded_steps_throw_on_nullish_current_value() {
         let returns_undefined: Any<A> =
-            A::static_function(|_, _| Ok(undefined()), 0, [].to_array()).to_any();
+            A::static_function(|_, _| Ok(undefined()), 0, [].to_array(), None).to_any();
         assert_eq!(
             returns_undefined.clone().option_call(args).call(boom).end(),
             Err("boom".into())

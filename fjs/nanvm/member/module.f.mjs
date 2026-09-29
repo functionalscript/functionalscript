@@ -18,7 +18,7 @@
  * ```
  */
 
-import { callback, functionValue, returns, throws, unreached } from '../constructors/module.f.mjs'
+import { callback, functionText, functionValue, returns, throws, unreached } from '../constructors/module.f.mjs'
 
 /**
  * `Array.prototype.at`: the element from the start or, for a negative index,
@@ -320,6 +320,7 @@ const joinCases = [
     { name: 'ownToStringElement', args: [[{ toString: returns('x') }, 1], ';'], expected: 'x;1' },
     // The separator converts before any element, even with none to join.
     { name: 'emptyThrowingSeparator', args: [[], { toString: returns(unreached) }], expected: throws },
+    { name: 'functions', args: [[functionValue, callback('first')], '|'], expected: '()=>undefined|(...$a)=>$a[0]', host: functionText },
 ]
 
 /**
@@ -614,6 +615,7 @@ const startsWithCases = [
     { name: 'noArgument', args: ['undefinedx'], expected: true },
     { name: 'number', args: ['12', 1], expected: true },
     { name: 'bigintPosition', args: ['abc', 'a', 0n], expected: throws },
+    { name: 'function', args: ['()=>undefined!', functionValue], expected: true, host: functionText },
 ]
 
 /**
@@ -895,9 +897,8 @@ const toPrecisionCases = [
 ]
 
 /**
- * `toString()` on every type but a function, whose text is the
- * rendering `nanvm-lib/todo/member-functions.md` tracks (see
- * `FunctionValue`). A radix on a number or a bigint is read from `2` to
+ * `toString()` on every type, a function's the writer's text and so a
+ * `host` case (see `FunctionValue`). A radix on a number or a bigint is read from `2` to
  * `36`; the digits of a fraction in another radix stay a `rust` gap, since
  * ECMAScript leaves them to the engine.
  *
@@ -932,6 +933,8 @@ const toStringCases = [
     { name: 'argumentIgnored', args: [[1], 16], expected: '1' },
     { name: 'null', args: [null], expected: throws },
     { name: 'undefined', args: [undefined], expected: throws },
+    { name: 'function', args: [functionValue], expected: '()=>undefined', host: functionText },
+    { name: 'callback', args: [callback('first')], expected: '(...$a)=>$a[0]', host: functionText },
 ]
 /** @type {readonly MethodGroup[]} */
 export const groups = [

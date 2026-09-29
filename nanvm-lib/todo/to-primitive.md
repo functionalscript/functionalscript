@@ -308,27 +308,33 @@ Each needs the owner's approval before the step that depends on it.
    a function node to its text, each slot named `$i` (D2). It is the
    writer itself, so the compiler's output and the Rust printer share one
    owner; the Rust printer, `fjs/edag/rust`, imports it, which makes no
-   cycle, since the writer imports nothing of the printer. `['self']` has no node kind yet, and
-   the writer refuses any kind it cannot spell. Proofs: a text without a
+   cycle, since the writer imports nothing of the printer. `['self']` has
+   no node kind yet, and the writer refuses any kind it cannot spell. Proofs: a text without a
    frame is the module text of the same node, which reads back to it.
-4. **Rust, for an empty frame.** `static_function` takes the template and
-   `IFunction` answers it. The printer emits one for every function node,
-   and the harness's `function_any()` gets one too.
-   `PrimitiveCoercionOp::function` answers the text of a function with an
-   empty frame, and refuses the rest with `FUNCTION_TEXT`. The corpus gains
-   function-text cases with the renderer's text as their expected value, and
-   a marker that skips the host side, as `rust` skips the Rust side. Tests
-   cover every path in
-   [member-functions](./member-functions.md)'s `Function` checklist:
-   `f.toString()`, `String(f)`, `+`, a function in an array joined, a string
-   method's argument, and a returned or exported function. `ToNumber` of a
+4. **Rust, for an empty frame** (done). `static_function` takes the text,
+   `Option<&'static str>`, and `IFunction::text` answers it. The printer
+   emits the writer's text for every function node, `None` where the
+   writer refuses the body, and the harness's `function_any()` is
+   `()=>undefined`. `ToPrimitive` of a function answers its text, and
+   refuses a function without one with `FUNCTION_TEXT`; `<` against a
+   number or a bigint still answers without it. The corpus's function-text
+   cases carry the writer's text as `expected` and a `host` marker that
+   skips the JavaScript side, as `rust` skips the Rust side. They and
+   `nanvm-harness/fixtures/function-text.mjs` cover `f.toString()`,
+   `String(f)`, `+`, a function in an array joined, a string method's
+   argument, and a returned, exported and nested function. `ToNumber` of a
    function stays `NaN` without its text, since that is exact for any text.
-5. **Rust, for a frame:** under D2's code-only answer the text is
-   complete at compile time, so this lands with step 4. Instantiating, if
-   the owner chooses it, is the run-time value renderer with lazy text, big
-   enough for its own issue.
-6. **Follow-up issues:** rendering in the FJS interpreter, which drops the
-   corpus's host-skip marker, and the property-key conversion below.
+5. **Rust, for a frame** (done, with step 4): under D2's code-only answer
+   the text is complete at compile time. Instantiating, if the owner
+   chooses it, is the run-time value renderer with lazy text, big enough
+   for its own issue.
+6. **Follow-up issues** (filed): rendering in the FJS interpreter,
+   [function-text](../../fjs/edag/amnesia/todo/function-text.md), which
+   drops the corpus's `host` marker, and
+   [property-key-conversion](./property-key-conversion.md). Also filed:
+   [lazy-only-const](../../fjs/compiler/serializer/todo/lazy-only-const.md),
+   the writer's refusal that leaves a function without text, and
+   [empty-nested-frame](../../fjs/nanvm/todo/empty-nested-frame.md).
 
 The signature change in step 4 touches every hand-written function in the
 tests. Bundling the code, the `length` and the text into one static
@@ -341,7 +347,7 @@ A property key is not converted either. `Object::member_access` answers
 `undefined` for a key that is neither a number nor a string, where
 JavaScript converts it with `ToPropertyKey`: `o[{}]` reads `o["[object
 Object]"]`. That is the same missing conversion at a different entry. It
-needs its own issue, and it lands with or after Stage 1.
+is [property-key-conversion](./property-key-conversion.md).
 
 ### Tasks
 
@@ -360,8 +366,10 @@ needs its own issue, and it lands with or after Stage 1.
 - [x] Stage 3 steps 1 and 2: the writer spells operators and calls.
 - [x] Stage 3 step 3: `functionText`, the function's text with its slots
       named.
-- [ ] Stage 3 step 4: Rust answers the text of a function with an empty
+- [x] Stage 3 step 4: Rust answers the text of a function with an empty
       frame (tracked with the `Function` checklist in `member-functions.md`).
-- [ ] Stage 3 step 5: a function with a frame, per D2.
-- [ ] Stage 3 step 6: file the FJS-interpreter rendering issue.
-- [ ] File the property-key conversion as its own issue.
+- [x] Stage 3 step 5: a function with a frame, per D2 (code-only).
+- [x] Stage 3 step 6: file the FJS-interpreter rendering issue,
+      [function-text](../../fjs/edag/amnesia/todo/function-text.md).
+- [x] File the property-key conversion as its own issue,
+      [property-key-conversion](./property-key-conversion.md).

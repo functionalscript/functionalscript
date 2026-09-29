@@ -98,7 +98,8 @@ mod tests {
     /// `toString` throws, and `[x, x].toSorted()` throws it.
     #[test]
     fn a_lone_element_is_not_converted() {
-        let f: Any<A> = A::static_function(|_, _| Err("boom".into()), 0, [].to_array()).to_any();
+        let f: Any<A> =
+            A::static_function(|_, _| Err("boom".into()), 0, [].to_array(), None).to_any();
         let x = || [("toString".into(), f.clone())].to_object().to_any();
         let lone: Array<A> = [x(), Nullish::Undefined.to_any()].to_array();
         assert_eq!(lone.to_sorted(None).map(|a| a.length()), Ok(2));

@@ -51,7 +51,7 @@
 
 import { op1Id, op3Id } from '../edag/module.f.mjs'
 import { validate } from '../rtti/validate/module.f.mjs'
-import { functionValue, ref, returns, throws, unreached } from './constructors/module.f.mjs'
+import { callback, functionText, functionValue, ref, returns, throws, unreached } from './constructors/module.f.mjs'
 import { groups as memberGroups } from './member/module.f.mjs'
 
 export { callback, functionValue, ref, returns, throws, unreached } from './constructors/module.f.mjs'
@@ -744,6 +744,9 @@ const addCases = [
     { name: 'emptyObjectPlusOne', args: [{}, 1], expected: '[object Object]1' },
     { name: 'numberPlusBigint', args: [1, 1n], expected: throws },
     { name: 'bigintPlusNumber', args: [1n, 1], expected: throws },
+    // A function's text, the writer's: the Rust side's alone (`host`).
+    { name: 'functionPlusString', args: [functionValue, '!'], expected: '()=>undefined!', host: functionText },
+    { name: 'onePlusFunction', args: [1, functionValue], expected: '1()=>undefined', host: functionText },
 ]
 
 /**
@@ -1157,6 +1160,10 @@ const stringCoercionCases = [
     { name: 'objectOwnToStringNotPrimitive', args: [{ toString: returns({}), valueOf: returns(1) }], expected: '1' },
     { name: 'objectOwnNoPrimitive', args: [{ toString: returns([]) }], expected: throws },
     { name: 'objectOwnToStringThrows', args: [{ toString: returns(unreached) }], expected: throws },
+    // A function's text, the writer's: the Rust side's alone (`host`).
+    { name: 'function', args: [functionValue], expected: '()=>undefined', host: functionText },
+    { name: 'callback', args: [callback('double')], expected: '(...$a)=>$a[0]*2', host: functionText },
+    { name: 'arrayOfFunction', args: [[functionValue, 1]], expected: '()=>undefined,1', host: functionText },
 ]
 
 /**

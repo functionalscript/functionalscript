@@ -24,6 +24,7 @@ pub mod fixtures {
     pub mod exports;
     pub mod function;
     pub mod function_scope;
+    pub mod function_text;
     pub mod lazy;
     pub mod length;
     pub mod method;
@@ -169,14 +170,14 @@ pub fn run<A: IVm>(
 mod tests {
     use nanvm_lib::{
         naive::Naive,
-        vm::{Any, Array, IVm, JsonError, Nullish, Number, ToAny, ToArray},
+        vm::{Any, Array, IVm, JsonError, Nullish, Number, Object, ToAny, ToArray},
     };
 
     use crate::{
         Action, RunError,
         fixtures::{
             arity, array, at, boolean, call, calls, closure, escapes, exports, function,
-            function_scope, lazy, length, method, missing, named, named_imports,
+            function_scope, function_text, lazy, length, method, missing, named, named_imports,
             named_imports_throws, nested, not_a_function, nullish, number, object, operators,
             parameters, property, rest, rest_function, sharing, string, throws, to_string,
         },
@@ -335,6 +336,23 @@ mod tests {
             run::<Naive>(closure::module, "default", Action::Read),
             Ok("[3,15,[1,2,3,1],42]".into())
         );
+    }
+
+    /// A function's text is the FunctionalScript writer's: converted where
+    /// it is made, returned from a call with its capture named by its slot,
+    /// and exported, read as a value and converted by the host.
+    #[test]
+    fn function_texts() {
+        assert_eq!(
+            run::<Naive>(function_text::module, "default", Action::Read),
+            Ok(r#"["()=>1","()=>1!","()=>1|2","(...$a)=>$0[0]+$a[0]","(...$a)=>(...$b)=>$a[0]+$b[0]"]"#.into())
+        );
+        let exports: Object<Naive> = function_text::module::<Naive>()
+            .unwrap()
+            .try_into()
+            .unwrap();
+        let inc = exports.own_property(&"inc".into()).unwrap();
+        assert_eq!(inc.to_string(), Ok("(...$a)=>$0[0]+$a[0]".into()));
     }
 
     /// A read past the arguments supplied answers `undefined` — which has

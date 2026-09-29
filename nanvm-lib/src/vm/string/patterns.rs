@@ -277,7 +277,7 @@ mod tests {
     /// limit reads it, and it is refused.
     #[test]
     fn split_reads_a_function_separator_only_to_cut() {
-        let f = || A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array()).to_any();
+        let f = || A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any();
         assert_eq!(pieces(s("a").split(f(), 0.0.to_any())), vec![]);
         assert_eq!(
             pieces(s("a").split([f()].to_array().to_any(), 0.0.to_any())),
@@ -314,7 +314,8 @@ mod tests {
     #[test]
     fn too_long_answers_are_refused_before_they_are_copied() {
         let wide: String<A> = s("a").repeat(65536.0.to_any()).unwrap();
-        let itself = A::static_function(|_, args| Ok(args[2].clone()), 0, [].to_array()).to_any();
+        let itself =
+            A::static_function(|_, args| Ok(args[2].clone()), 0, [].to_array(), None).to_any();
         assert!(wide.replace_all(a(""), itself).is_err());
     }
 
@@ -326,7 +327,8 @@ mod tests {
         assert_eq!(s("aXbX").replace_all(a("X"), a("$&$&")), Ok(s("aXXbXX")));
         assert_eq!(s("ab").replace_all(a(""), a("-")), Ok(s("-a-b-")));
         assert_eq!(s("aaa").replace_all(a("aa"), a("b")), Ok(s("ba")));
-        let position = A::static_function(|_, args| Ok(args[1].clone()), 0, [].to_array()).to_any();
+        let position =
+            A::static_function(|_, args| Ok(args[1].clone()), 0, [].to_array(), None).to_any();
         assert_eq!(s("aXbX").replace_all(a("X"), position), Ok(s("a1b3")));
     }
 

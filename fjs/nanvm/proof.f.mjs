@@ -234,7 +234,8 @@ const run = g => args => corpus()(exprOf(g)(args))
 /**
  * One group's leaves as a proof object: the ordinary cases by name, and the
  * throwing ones under a nested `throw` key — the framework's structural way
- * of declaring that a test is expected to throw. A throwing leaf stops at its
+ * of declaring that a test is expected to throw. A case marked `host` is
+ * not a leaf of either. A throwing leaf stops at its
  * first exception, which is why each argument order is its own leaf, and why
  * {@link group} and {@link crossCheck} are two trees rather than one: a leaf
  * that asserts a throw can assert one call, so the two implementations cannot
@@ -243,7 +244,9 @@ const run = g => args => corpus()(exprOf(g)(args))
  * @type {(g: Group) => (leaves: (c: AnyCase) => readonly (readonly[string, () => void])[]) => object}
  */
 const tree = g => leaves => {
-    const cases = casesOf(g)
+    // A `host` case is the Rust side's alone: its `expected` is a
+    // function's text, which the host renders differently.
+    const cases = casesOf(g).filter(c => c.host === undefined)
     const ok = cases.filter(c => !isThrows(c.expected)).flatMap(leaves)
     const bad = cases.filter(c => isThrows(c.expected)).flatMap(leaves)
     return bad.length === 0
