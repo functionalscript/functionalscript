@@ -243,7 +243,9 @@ content.
    pair into the cache. Neither the SHA-1 nor the time is repeated: the
    tree says the one and the token, signed, the other.
 5. **Commit.** Write the two blobs, their tree, and a commit whose parent
-   is the head read in 1, and move `refs/heads/disot` to it only if it
+   is the head read in 1 — one parent: joining a second publisher's head,
+   the several-parent commit of step 4, is open below — and move
+   `refs/heads/disot` to it only if it
    still holds what step 1 read. Nothing is pushed. The delta cannot hold
    its own pair — its bytes decide both hashes — which is why the tree and
    the record hold it, and why the next delta records only the record, the
@@ -297,6 +299,13 @@ list is so that none is decided by accident.
   open is whether a
   reader that answers one SHA-1 without scanning the whole branch is worth
   a local index, which is tooling and not format.
+- **Joining raced heads.** Step 4 lets a commit name several parents when
+  two publishers raced, and `fjs tts` as designed reads one branch and
+  writes one parent; `git branch -f` adopts a head by replacing the
+  other, so no workflow here produces the join. How a user names a
+  second head they trust — an argument, a second local branch — is a
+  later version's, and until then a raced head is adopted whole or not
+  at all.
 - **Gitlinks.** A submodule's commit is an object of another repository. Its
   pair belongs to that repository's own `disot` branch, so the natural rule
   is: not followed, not recorded, and a reader that needs it asks the
@@ -353,7 +362,8 @@ accident:
       [`fjs/git/store`](../fjs/git/store/module.f.mjs) and
       [`fjs/git/walk`](../fjs/git/walk/module.f.mjs); a proof against a
       fixture repository that the second run over an unchanged repository
-      records nothing.
+      records nothing of the mapped history — only the previous `disot`
+      commit's own commit, tree and record, the renewal.
 - [ ] Reading the table: the in-memory union from a scan of every `disot`
       commit, and the closure check that refuses a table an object of which
       references an unmapped one.
