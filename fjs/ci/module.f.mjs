@@ -8,14 +8,14 @@
  * @import { NodeOp } from '../effects/node/types.ts'
  * @import { Architecture, GitHubAction, Job, Jobs, MetaStep, Os } from './common/types.ts'
  * @import { NixJob } from './nix/types.ts'
- * @import { Setup } from './types.ts'
+ * @import { PackageConsumer, Setup } from './types.ts'
  * @import { Effect } from '../effects/types.ts'
  */
 
 import { resultStep } from '../effects/module.f.mjs'
 import { access, exitStep, writeUtf8File } from '../effects/node/module.f.mjs'
 import { step as ioStep } from '../effects/module.f.mjs'
-import { functionalscript, images, node } from './config/module.f.js'
+import { functionalscript, images, node, packageConsumer } from './config/module.f.js'
 import {
     architecture,
     os,
@@ -266,27 +266,27 @@ export const nixJobs = [
  * `TS18003` — see `./todo/ci-generator-audience.md`, which owns the general
  * shape of this trade.
  *
- * @type {(rust: boolean) => Jobs}
+ * @type {(rust: boolean, packageConsumer: PackageConsumer | undefined) => Jobs}
  */
-const canonicalJobs = rust => ({
+const canonicalJobs = (rust, packageConsumer) => ({
     ...(rust
         ? { wasm: ubuntuArm(rustWasmSteps) }
         : {}),
     deno: ubuntuArm(denoSteps),
     bun: ubuntuArm(bunSteps),
     ...nodeVersionJobs(),
-    [packageCheckJobId]: packageCheckJob,
+    [packageCheckJobId]: packageCheckJob(packageConsumer),
 })
 
 /** @type {(setup: Setup) => Effect<NodeOp, 0, number>} */
-export const ci = ({ nodeExtra }) => resultStep(
+export const ci = ({ nodeExtra, packageConsumer }) => resultStep(
     access('Cargo.toml'),
     result => {
         const rust = result[0] === 'ok'
         /** @type {Jobs} */
         const jobs = {
             ...Object.fromEntries(os.flatMap(o => architecture.map(job(rust, nodeExtra(o))(o)))),
-            ...canonicalJobs(rust),
+            ...canonicalJobs(rust, packageConsumer),
         }
         /** @type {GitHubAction} */
         const gha = {
@@ -313,4 +313,11 @@ export const ci = ({ nodeExtra }) => resultStep(
         return exitStep(flakesWritten)
     })
 
-export const main = () => ci({ nodeExtra: () => [] })
+/**
+ * The built-in `fjs ci`: no extra platform steps, and this repository's own
+ * module as the packed package's consumer. Another project calling `ci`
+ * names its own, or none.
+ *
+ * @type {() => Effect<NodeOp, 0, number>}
+ */
+export const main = () => ci({ nodeExtra: () => [], packageConsumer })

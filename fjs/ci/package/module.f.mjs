@@ -5,9 +5,10 @@
  * @module
  *
  * @import { Job } from '../common/types.ts'
+ * @import { PackageConsumer } from '../types.ts'
  */
 
-import { images, node, packageConsumer, typescript } from '../config/module.f.js'
+import { images, node, typescript } from '../config/module.f.js'
 import { uses } from '../common/module.f.mjs'
 import { packageArtifact, packageJobId } from '../node/module.f.mjs'
 
@@ -85,17 +86,20 @@ const tsconfig = /** @type {const} */ ({
  * type from the installed package and gives the type a value it accepts;
  * `bad.mts` gives it one it does not. `.mts` rather than `.ts` because
  * `npm init` declares no `type`, under which `.ts` would read as CommonJS.
+ *
+ * @type {(consumer: PackageConsumer) => string}
  */
-const goodConsumer = [
-    `import { ${packageConsumer.value} } from "${alias}/${packageConsumer.module}";`,
-    `import type { ${packageConsumer.type} } from "${alias}/${packageConsumer.types}";`,
-    `const accepted: ${packageConsumer.type} = "${packageConsumer.accepted}";`,
-    `if (${packageConsumer.value} === undefined) { throw new Error("${packageConsumer.value} did not load"); }`,
+const goodConsumer = consumer => [
+    `import { ${consumer.value} } from "${alias}/${consumer.module}";`,
+    `import type { ${consumer.type} } from "${alias}/${consumer.types}";`,
+    `const accepted: ${consumer.type} = "${consumer.accepted}";`,
+    `if (${consumer.value} === undefined) { throw new Error("${consumer.value} did not load"); }`,
 ].join('\n')
 
-const badConsumer = [
-    `import type { ${packageConsumer.type} } from "${alias}/${packageConsumer.types}";`,
-    `const refused: ${packageConsumer.type} = "${packageConsumer.refused}";`,
+/** @type {(consumer: PackageConsumer) => string} */
+const badConsumer = consumer => [
+    `import type { ${consumer.type} } from "${alias}/${consumer.types}";`,
+    `const refused: ${consumer.type} = "${consumer.refused}";`,
 ].join('\n')
 
 /**
@@ -134,7 +138,7 @@ const consumerTsc = /** @type {const} */ ('npx tsc --pretty false --ignoreConfig
  *
  * @type {readonly string[]}
  */
-const commands = [
+const declarationCommands = [
     'npm init -y > /dev/null',
     // `echo` is the shell's own builtin expanding its own glob; `ls` would be
     // a second process to learn what the shell already knew.
@@ -146,16 +150,29 @@ const commands = [
     `npm install "typescript@${typescript.version}"`,
     `echo '${JSON.stringify(tsconfig)}' > tsconfig.json`,
     'npx tsc',
-    // The consumer's half: the declarations above are read as a set, but a
-    // consumer reaches one through an import specifier, and the runtime file
-    // beside it has to load. `good.mts` passes the compiler and runs; then
-    // `bad.mts`, differing only in the value it gives the declared type, must
-    // fail the same compiler — negated, so the step is red when it passes.
-    // The negation is what the check rests on: were the declaration missing,
-    // `strict` would have failed `good.mts` first, so the one way left for
-    // `bad.mts` to fail is the type it names refusing the value.
-    `echo '${goodConsumer}' > good.mts`,
-    `echo '${badConsumer}' > bad.mts`,
+]
+
+/**
+ * The consumer's half: the declarations above are read as a set, but a
+ * consumer reaches one through an import specifier, and the runtime file
+ * beside it has to load. `good.mts` passes the compiler and runs; then
+ * `bad.mts`, differing only in the value it gives the declared type, must
+ * fail the same compiler — negated, so the step is red when it passes. The
+ * negation is what the check rests on: were the declaration missing, `strict`
+ * would have failed `good.mts` first, so the one way left for `bad.mts` to
+ * fail is the type it names refusing the value.
+ *
+ * It is the caller's to supply, through `Setup`: `fjs ci` generates this job
+ * for any project, and the generator cannot know what another package
+ * publishes, so a project that names no consumer gets the declaration check
+ * alone — what every project got before the consumer half existed — rather
+ * than a `TS2307` for a module its tarball never held.
+ *
+ * @type {(consumer: PackageConsumer) => readonly string[]}
+ */
+const consumerCommands = consumer => [
+    `echo '${goodConsumer(consumer)}' > good.mts`,
+    `echo '${badConsumer(consumer)}' > bad.mts`,
     `${consumerTsc} good.mts`,
     'node good.mts',
     `! ${consumerTsc} bad.mts`,
@@ -164,7 +181,7 @@ const commands = [
 /**
  * Downloads the packed tarball, installs it as a real dependency,
  * type-checks every declaration it ships with the compiler the CI
- * configuration names, then imports the published module `packageConsumer`
+ * configuration names, and, given a consumer, imports the published module it
  * names from a consumer file, runs it, and type-checks a use of its
  * declaration with a negative control that must fail.
  *
@@ -175,9 +192,9 @@ const commands = [
  * stand in for a declaration the tarball omits — so the job can only see what a
  * real consumer sees.
  *
- * @type {Job}
+ * @type {(consumer: PackageConsumer | undefined) => Job}
  */
-export const packageCheckJob = {
+export const packageCheckJob = consumer => ({
     'runs-on': images.ubuntu.arm,
     // Without this the two jobs race and the download fails before the check
     // has run — red for a reason unrelated to what it tests.
@@ -185,6 +202,7 @@ export const packageCheckJob = {
     steps: [
         uses('actions/download-artifact', { name: packageArtifact }),
         uses('actions/setup-node', { 'node-version': node.default }),
-        ...commands.map(run => ({ run })),
+        ...declarationCommands.map(run => ({ run })),
+        ...(consumer === undefined ? [] : consumerCommands(consumer)).map(run => ({ run })),
     ],
-}
+})

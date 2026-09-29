@@ -47,11 +47,13 @@ for, and whether that answer should change, is
   that is not part of `ci.yml`. See "The publishing workflow" below.
   `proof.f.mjs` — its property-based proofs.
 - `package/module.f.mjs` — the `package-check` job: downloads the tarball the
-  Node job uploads, installs it under a fixed alias outside any checkout,
-  type-checks every declaration it ships, then imports the published `.f.js`
-  `config/module.f.js` names from a consumer file, runs it, and type-checks a
-  use of its declaration with a negative control that must fail. It is the
-  one job built without
+  Node job uploads, installs it under a fixed alias outside any checkout, and
+  type-checks every declaration it ships. Given a `packageConsumer` in the
+  caller's `Setup`, it then imports the published module that names from a
+  consumer file, runs it, and type-checks a use of its declaration with a
+  negative control that must fail; the built-in command passes this
+  repository's, `config/module.f.js`'s `packageConsumer`, and a project that
+  names none gets the declaration check alone. It is the one job built without
   `toSteps`, because that helper adds `actions/checkout` and the missing
   checkout is the point — with the repository on the runner there would be a
   `tsconfig.json` up the tree, a `node_modules` to resolve into, and sources
@@ -457,15 +459,24 @@ workflow is the sharpest instance of.
 
 ## Customisation
 
-`ci` accepts a `Setup` record to inject extra steps per runtime:
+`ci` accepts a `Setup` record to inject extra steps per runtime and to name
+the packed package's consumer:
 
 ```ts
 export type Setup = {
     readonly nodeExtra: (os: Os) => readonly MetaStep[]
+    readonly packageConsumer?: PackageConsumer
 }
 ```
 
 `nodeExtra` receives the target OS so callers can conditionally add OS-specific steps.
+
+`packageConsumer` is the consumer half of `package-check`: a published module
+and a runtime export it must load, its `types.ts` as a consumer spells it,
+a declared type, a value of that type and one that is not, which must fail to
+type-check. The built-in command passes this repository's
+(`config/module.f.js`); a project that names none gets the declaration check
+alone, since the generator cannot know what another package publishes.
 
 On every platform but Windows, an injected step that names a **command** runs
 inside the shared shell, alongside the job's own — these jobs no longer install

@@ -6,7 +6,7 @@
 
 import { exitCode } from '../effects/node/module.f.mjs'
 import { ci, main, nixJobs } from './module.f.mjs'
-import { actions, bun, deno, functionalscript, node, typescript, wasmer, wasmtime } from './config/module.f.js'
+import { actions, bun, deno, functionalscript, node, packageConsumer, typescript, wasmer, wasmtime } from './config/module.f.js'
 import { major, nodeNixJobs, packageArtifact, packageJobId } from './node/module.f.mjs'
 import { flakePath, flakeText, nixDevelop, nixShell, runPath } from './nix/module.f.mjs'
 import { packageCheckJobId } from './package/module.f.mjs'
@@ -895,6 +895,22 @@ export const proof = {
         assert(
             job.steps.some(step => step.run?.includes(`"typescript@${typescript.version}"`) === true),
             'expected the configured compiler installed')
+    },
+    // The consumer half of the job is the caller's, through `Setup`: a project
+    // that names none gets the declaration check alone, since the generator
+    // cannot know what another package publishes, and this repository's own
+    // `main` names its module. Proved on the assembled workflow, because the
+    // wiring from `Setup` to the job is what only the assembly shows.
+    packageConsumerIsTheCallersToName: () => {
+        /** @type {(job: Job | undefined) => boolean} */
+        const hasConsumer = job => job?.steps.some(step => step.run?.includes(' good.mts') === true) === true
+        assert(!hasConsumer(run(false).jobs[packageCheckJobId]), 'expected no consumer step without a consumer in Setup')
+        const [state, result] = virtual(makeState(false, runPackageJson))(ci({ nodeExtra: () => [], packageConsumer }))
+        assertEq(exitCode(result), 0)
+        assert(hasConsumer(workflow(state).jobs[packageCheckJobId]), 'expected the consumer step when Setup names one')
+        const [own, ownResult] = virtual(makeState(false, runPackageJson))(main())
+        assertEq(exitCode(ownResult), 0)
+        assert(hasConsumer(workflow(own).jobs[packageCheckJobId]), 'expected the built-in command to name this repository\'s consumer')
     },
     // The job used to appear only when the project's `package.json` pinned an
     // exact compiler, and it is now generated for every project — there is no

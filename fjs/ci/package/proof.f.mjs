@@ -3,7 +3,7 @@ import { packageArtifact, packageJobId } from '../node/module.f.mjs'
 import { packageConsumer, typescript } from '../config/module.f.js'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
-const job = packageCheckJob
+const job = packageCheckJob(packageConsumer)
 
 /** @type {(fragment: string) => boolean} */
 const scriptHas = fragment => job.steps.some(step => step.run?.includes(fragment) === true)
@@ -84,6 +84,18 @@ export const proof = {
         // The default excludes node_modules, which is the only place the
         // artifact exists.
         assert(scriptHas('"exclude":[]'), 'expected node_modules not excluded')
+    },
+    // Without a consumer the job is the declaration check alone, step for step
+    // what it was before the consumer half existed: `fjs ci` generates it for
+    // any project, and a module this repository publishes is not one another
+    // package's tarball holds.
+    withoutConsumer: () => {
+        const bare = packageCheckJob(undefined)
+        assert(!bare.steps.some(step => step.run?.includes('.mts') === true), 'expected no consumer step without a consumer')
+        assertEq(bare.steps.length, job.steps.length - 5)
+        for (const [i, step] of bare.steps.entries()) {
+            assertEq(JSON.stringify(step), JSON.stringify(job.steps[i]))
+        }
     },
     // The consumer's half of the check, in the order a consumer meets it: the
     // files written, the good one type-checked and run, the bad one refused.
