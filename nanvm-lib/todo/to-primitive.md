@@ -220,11 +220,11 @@ cases join the corpus with the renderer's text as their expected value.
 
 - **A renderer mostly exists.** The FunctionalScript writer,
   [`fjs/compiler/serializer`](../../fjs/compiler/serializer/module.f.mjs),
-  already writes a function node as text: `['=>', 1, null, ['arg', 0]]` is
-  `($a_0,...$a)=>$a_0`, and a shared array in a body becomes a `const`. It
-  had two gaps. It had no spelling for operators or calls, so most real
-  bodies were refused; steps 1 and 2 closed that. And it writes a module,
-  `export default …;`, where a function's text is one expression.
+  already wrote a function node as text: `['=>', 1, null, ['arg', 0]]` was
+  `($a_0,...$a)=>$a_0` (now `($a_0)=>$a_0`, since step 3), and a shared
+  array in a body became a `const`. It had two gaps. It had no spelling
+  for operators or calls, so most real bodies were refused; steps 1 and 2
+  closed that. And it writes a module, `export default …;`, where a function's text is one expression.
 - **The Rust VM has no EDAG at run time.** A generated function is a code
   pointer, a `length` and a frame. The text must come from the one renderer,
   which is FunctionalScript, at compile time. A second renderer written in

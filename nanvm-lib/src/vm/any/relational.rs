@@ -35,8 +35,8 @@ impl<A: IVm> Any<A> {
         Ok((!is_less_than(x, y)?.unwrap_or(true)).to_any())
     }
 }
+
 /// An operand's `ToPrimitive(v, number)`, `None` for a function without text
-/// An operand's `ToPrimitive(v, number)`, `None` for a function's text
 /// (see [`to_primitive_or_text`]).
 type Operand<A> = Option<Primitive<A>>;
 
