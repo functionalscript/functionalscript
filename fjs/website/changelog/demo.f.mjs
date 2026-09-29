@@ -26,7 +26,7 @@
  * @import { Document } from '../../media/markdown/types.ts'
  */
 
-import { pureOk } from '../../effects/module.f.mjs'
+import { textDemo } from '../demo/module.f.mjs'
 import { tryParse } from '../../media/markdown/module.f.mjs'
 import { entryNode, linked } from './module.f.mjs'
 
@@ -56,7 +56,10 @@ const plural = (n, one) => `${n} ${one}${n === 1 ? '' : 's'}`
  *
  * @type {Demo<string, DemoEvent>}
  */
-export const demo = {
+export const demo = textDemo({
+    name: 'release',
+    label: 'A release file',
+    rows: 9,
     init: [
         "- `fjs/effects`: `match` resolves a command's handler with an own-property",
         '  lookup, so a `command` naming `Object.prototype` throws (#1421)',
@@ -66,30 +69,16 @@ export const demo = {
         '  [#1553](https://github.com/functionalscript/functionalscript/pull/1553)',
         '- `media/nix`: an indented string is its parts (e.g. one nobody imports)',
     ].join('\n'),
-    update: state => event => pureOk(event.kind === 'input' ? event.value : state),
-    view: text => {
-        const document = tryParse(text)
-        if (document[0] === 'error') {
-            return ['div',
-                ['p',
-                    ['label', { for: 'release' }, 'A release file '],
-                    ['textarea', { id: 'release', name: 'release', rows: '9' }, text],
-                ],
-                ['p', `Error: ${document[1]}`],
-            ]
-        }
-        const [derived, written] = counted(document[1])
-        return ['div',
-            ['p',
-                ['label', { for: 'release' }, 'A release file '],
-                ['textarea', { id: 'release', name: 'release', rows: '9' }, text],
-            ],
-            ['p', [
-                plural(document[1].length, 'entry').replace('entrys', 'entries'),
-                ` · ${plural(derived, 'reference')} derived`,
-                ` · ${plural(written, 'link')} already written out`,
-            ].join('')],
-            ['ul', ...document[1].map(entry => /** @type {Element} */(entryNode(entry)))],
-        ]
-    },
-}
+})(text => {
+    const document = tryParse(text)
+    if (document[0] === 'error') { return [['p', `Error: ${document[1]}`]] }
+    const [derived, written] = counted(document[1])
+    return [
+        ['p', [
+            plural(document[1].length, 'entry').replace('entrys', 'entries'),
+            ` · ${plural(derived, 'reference')} derived`,
+            ` · ${plural(written, 'link')} already written out`,
+        ].join('')],
+        ['ul', ...document[1].map(entry => /** @type {Element} */(entryNode(entry)))],
+    ]
+})
