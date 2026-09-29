@@ -22,11 +22,7 @@ and the Rust printer gives such a function no text (`None`, so
 The front end anchors such a `const` itself, so no compiled module has
 reached this yet: the refusal shows on hand-built graphs, and on one
 module-level shape found while landing operator spelling, a node shared
-through a merged parent. A related oddity, not a refusal:
-`(...a) => { const x = a[0] + 1; return true ? () => x : 1; }` is written
-with the anchor and the captured `const` as two statements,
-`const $a0=$a[0]+1;const $a1=$a[0]+1;`, longer than the source; whether
-the two are one node is unchecked.
+through a merged parent.
 
 ### Proposal
 

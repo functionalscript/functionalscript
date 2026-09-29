@@ -174,8 +174,12 @@ export const arityOf = g => {
  * A fresh node on every call, like every other lowered value, so two
  * function operands are two closures and never one node reached twice.
  * Both consumers know this shape: `amnesia` establishes it as any `=>`,
- * and the Rust printer, which has no closures to print, renders exactly this
- * node as the harness's one function value and refuses any other.
+ * and the Rust printer renders exactly this node as the harness's one
+ * function value, `function_any()`. Its empty frame, which the parser never
+ * builds, is what keeps it apart from a compiled `() => undefined`, whose
+ * frame is `null`. The writer refuses that frame on a nested function, so
+ * `returns(functionValue)` has no text: the Rust side's function-text
+ * cases use callbacks instead.
  *
  * @type {() => Exp}
  */

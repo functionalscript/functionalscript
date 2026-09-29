@@ -336,11 +336,15 @@ Each needs the owner's approval before the step that depends on it.
    for its own issue.
 6. **Follow-up issues** (filed): rendering in the FJS interpreter,
    [function-text](../../fjs/edag/amnesia/todo/function-text.md), which
-   drops the corpus's `host` marker, and
-   [property-key-conversion](./property-key-conversion.md). Also filed:
+   drops the corpus's `host` marker. The property-key conversion needs no
+   issue of its own (below). Also filed:
    [lazy-only-const](../../fjs/compiler/serializer/todo/lazy-only-const.md),
-   the writer's refusal that leaves a function without text, and
-   [empty-nested-frame](../../fjs/nanvm/todo/empty-nested-frame.md).
+   the writer's refusal that leaves a function without text. The corpus's
+   `() => undefined` keeps its empty frame, which the parser never builds:
+   that is what keeps it apart from a compiled `() => undefined` in the
+   Rust printer. The writer refuses that frame nested, so a corpus function
+   returning it has no text; the fixture covers returned functions
+   instead.
 
 The signature change in step 4 touches every hand-written function in the
 tests. Bundling the code, the `length` and the text into one static
@@ -352,8 +356,10 @@ that needs a spike first.
 A property key is not converted either. `Object::member_access` answers
 `undefined` for a key that is neither a number nor a string, where
 JavaScript converts it with `ToPropertyKey`: `o[{}]` reads `o["[object
-Object]"]`. That is the same missing conversion at a different entry. It
-is [property-key-conversion](./property-key-conversion.md).
+Object]"]`. No module reaches it today: a key is a literal
+([spec: property access](../../spec/README.md#property-access)), and the
+runtime key is the planned [`entry`](../../fjs/edag/todo/entry.md), which
+already names its key conversion, `entry(o, f)` included, as its own work.
 
 ### Tasks
 
@@ -377,5 +383,5 @@ is [property-key-conversion](./property-key-conversion.md).
 - [x] Stage 3 step 5: a function with a frame, per D2 (code-only).
 - [x] Stage 3 step 6: file the FJS-interpreter rendering issue,
       [function-text](../../fjs/edag/amnesia/todo/function-text.md).
-- [x] File the property-key conversion as its own issue,
-      [property-key-conversion](./property-key-conversion.md).
+- [x] Place the property-key conversion: it is
+      [`entry`](../../fjs/edag/todo/entry.md)'s key conversion.
