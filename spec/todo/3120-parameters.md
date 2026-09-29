@@ -33,7 +33,7 @@ unticked tasks track it, together with the language-design approval record,
 the module-import preservation proofs and the executor-capacity proofs.
 No claim is made that factory construction alone satisfies this requirement.
 
-The unchanged `fjs/types/range/module.f.mjs` compilation candidate now parses
+The unchanged `fjs/types/range/module.f.js` compilation candidate now parses
 its parameters and stops at the first statement that omits its `;`: the
 `export` after `contains`. Named-parameter examples with the compiler's
 current statement termination syntax compile successfully.
@@ -486,7 +486,7 @@ source rest binding in that future case or silently admit initializers now.
       and deferred default/destructuring syntax. Test positive-zero metadata
       round trips and preservation of ordinary `-0` arguments.
 - [ ] Run generation and repository-required checks; retry the unchanged
-      [`types/range`](../../fjs/types/range/module.f.mjs) compilation candidate.
+      [`types/range`](../../fjs/types/range/module.f.js) compilation candidate.
       Move implemented decisions into the current specification/EDAG docs and
       retire the completed TODO without claiming unrelated features landed.
 

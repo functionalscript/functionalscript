@@ -21,7 +21,7 @@
  * machine has, so a shell without it is one a developer leaves immediately.
  *
  * The versions come from the declarations the jobs already own — the Node
- * version is `../config/module.f.mjs`'s, the Bun override is `../bun`'s, the
+ * version is `../config/module.f.js`'s, the Bun override is `../bun`'s, the
  * toolchain and its targets are `../rust`'s — so the tools stay next to the
  * commands that use them, and this file stays a list rather than a second copy
  * of what they say.
@@ -30,7 +30,7 @@
  * are; a Windows developer reaches this shell through WSL2 as a Linux one, or
  * works the way this repository has always supported natively — `npm ci`,
  * `tsc`, `fjs test`, none of which need Nix. That developer installs the
- * compiler globally at the version `../config/module.f.mjs` pins, which
+ * compiler globally at the version `../config/module.f.js` pins, which
  * `CONTRIBUTING.md` spells out; `npx tsc` is no longer the same thing, since
  * there is nothing left in `node_modules` for it to resolve.
  *
@@ -39,7 +39,7 @@
  * @import { NixJob } from '../nix/types.ts'
  */
 
-import { node, typescript } from '../config/module.f.mjs'
+import { node, typescript } from '../config/module.f.js'
 import { bunPin } from '../bun/module.f.mjs'
 import { major } from '../node/module.f.mjs'
 import { i686PerSystem, wasmPackages, wasmRust } from '../rust/module.f.mjs'

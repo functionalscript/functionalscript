@@ -41,7 +41,7 @@ over `npm view` output (root [`AGENTS.md`](../../../AGENTS.md) §6) — this
 repository already has a JSON reader and a semantic-version comparison. The
 generator itself reads no `package.json` today — `ci` in `fjs/ci/module.f.mjs`
 probes only `Cargo.toml`, and the compiler pin is `typescript` in
-`fjs/ci/config/module.f.mjs`. What it must not become is a shell pipeline in a
+`fjs/ci/config/module.f.js`. What it must not become is a shell pipeline in a
 generated `run:` line.
 
 Open question the design has to answer first: a step that runs conditionally

@@ -3,7 +3,7 @@
  */
 
 import { assert, assertEq } from '../../../../fjs/asserts/module.f.mjs'
-import notApplicable from './data.f.mjs'
+import notApplicable from './data.f.js'
 
 /** The set, typed at the import since a data module carries no annotations. */
 const set = /** @type {readonly NotApplicable[]} */ (/** @type {unknown} */ (notApplicable))

@@ -34,7 +34,7 @@ base, never the prototype chain, as
 it — a name a built-in prototype gives a value, `a.toString` or `a.push`,
 is refused at the key rather than read as `undefined` where JavaScript
 finds a function, `length` excepted, since a value owns it
-([`fjs/js/prototype`](../js/prototype/module.f.mjs)) — a method call is
+([`fjs/js/prototype`](../js/prototype/module.f.js)) — a method call is
 the exception the other way, `a.at(0)` and `a.toString()` being calls the
 VM answers by the receiver's type, and only the member functions the same
 module's `prohibitedCalls` names, `a.push(1)` or `a.valueOf()`, are refused
@@ -104,7 +104,7 @@ lexicographic key order. Source initializers remain ordered in the AST; the EDAG
 preserves dependencies and required evaluations under the specification's
 [failure-equivalence rule](../../spec/README.md#failure-is-one-outcome).
 
-See [examples/input.f.mjs](./examples/input.f.mjs).
+See [examples/input.f.js](./examples/input.f.js).
 
 ## EDAG
 
@@ -334,7 +334,7 @@ FunctionalScript compiler.
 |---|---|
 | `.f.ts` | Authored FunctionalScript-intent TypeScript implementation/proof source. **No longer used**: stage 1 removed the last one, and new source must not use this extension. It appears below only to describe that completed migration. |
 | `.f.mjs` | Authored FunctionalScript-intent ESM JavaScript with JSDoc types. It may use FunctionalScript features the current parser/compiler does not support yet. |
-| `.f.js` | Authored FunctionalScript that the parser/compiler in the same revision accepts: the stage-2 compatibility marker ([below](#stage-2-mark-compiler-compatible-functionalscript)). Its proof stays `proof.f.mjs`, because a proof fails by throwing and the compiler does not accept `throw` yet. The first is the package fixture [`fjs/ci/package/fixture/module.f.js`](../ci/package/fixture/module.f.js). No build or packaging step produces one: stage 1's TypeScript runtime emission did, and that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)). `fjs compile <input> <output>.f.js` does still write one, to a path the caller names — that is the compiler's output for a user, not repository source. `fjs compile` with no arguments checks every authored one against this compiler, and CI runs it ([spec: checking every `.f.js`](../../spec/README.md#checking-every-fjs)). |
+| `.f.js` | Authored FunctionalScript that the parser/compiler in the same revision accepts: the stage-2 compatibility marker ([below](#stage-2-mark-compiler-compatible-functionalscript)). Its proof stays `proof.f.mjs`, because a proof fails by throwing and the compiler does not accept `throw` yet. The first was the package fixture [`fjs/ci/package/fixture/module.f.js`](../ci/package/fixture/module.f.js); every repository module the compiler accepted whole followed, [`fjs/js/prototype`](../js/prototype/module.f.js) and [`fjs/types/range`](../types/range/module.f.js) among them, and none of them imports an `.f.mjs`. No build or packaging step produces one: stage 1's TypeScript runtime emission did, and that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)). `fjs compile <input> <output>.f.js` does still write one, to a path the caller names — that is the compiler's output for a user, not repository source. `fjs compile` with no arguments checks every authored one against this compiler, and CI runs it ([spec: checking every `.f.js`](../../spec/README.md#checking-every-fjs)). |
 | `types.ts` | Authored TypeScript source for a type-level API. It may coexist with `.f.mjs` or later `.f.js` and holds no runtime implementation. |
 | `.d.ts`, `.d.mts` | Generated TypeScript declarations. |
 
@@ -551,13 +551,15 @@ a clean checkout either way. Authored `types.ts` files remain.
 
 The repository compiler-compatibility migration is
 [`todo/fjs-nanvm-integration.md`](../../todo/fjs-nanvm-integration.md). Stage 1
-was its first blocker and is complete, so what remains before its first rename
-is [authored `.f.js` package support](../ci/todo/f-js-package-support.md), so a
+was its first blocker and is complete; [authored `.f.js` package
+support](../ci/todo/f-js-package-support.md) proved on its fixture that a
 standalone `.f.js` is directly type-checked, receives a `.d.ts`, is packed in
-the clean CI package build, and resolves for a clean consumer. That is the one
-gate now, and it matches the `**Blocked by:**` list in the integration issue.
+the clean CI package build and is covered; and the first renames followed —
+every module the compiler accepted whole, `fjs/js/prototype` and
+`fjs/types/range` among them. What keeps them honest is `fjs compile` with no
+arguments, which CI runs.
 
-Then migrate compiler-supported dependency-closed groups incrementally:
+Compiler-supported dependency-closed groups migrate incrementally:
 
 ```text
 module.f.mjs -> module.f.js

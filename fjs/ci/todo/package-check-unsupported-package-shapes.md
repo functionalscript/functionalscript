@@ -34,7 +34,7 @@ project's `package.json` pinned an exact `devDependencies.typescript`, so a
 project with no compiler of its own simply had no packed-package check; the
 open question then was whether `fjs ci` should refuse loudly instead of quietly
 emitting one job fewer. [`typescript-ci-tool`](https://github.com/functionalscript/functionalscript/pull/1795)
-moved the compiler to `../config/module.f.mjs`, which settled that by removing
+moved the compiler to `../config/module.f.js`, which settled that by removing
 the choice: there is no longer anything about the project for the job to depend
 on.
 

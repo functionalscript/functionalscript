@@ -9,7 +9,7 @@ The per-job Deno, Bun and WASM flakes and the `dev` job were folded into one
 shared shell, [`nix/flake.nix`](../../../nix/flake.nix), which every job but
 Node 22, Node 24, the two Windows jobs and `package-check` enters through
 `./nix/run`. [`fjs/ci/README.md`](../README.md) and the comments in
-[`config/module.f.mjs`](../config/module.f.mjs) still describe the layout
+[`config/module.f.mjs`](../config/module.f.js) still describe the layout
 from before that.
 
 In the README:

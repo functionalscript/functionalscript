@@ -182,8 +182,10 @@ rename task in `fjs-nanvm-integration` moves here. Until that decision is
 recorded, implement the synthetic fixture.
 
 **Decided: synthetic,** the default the task owner left in place; review
-also preferred the smaller step that keeps a breaking change out of this task; the rename
-follows this task, as `fjs-nanvm-integration` has it.
+also preferred the smaller step that keeps a breaking change out of this task.
+The first real renames then followed on `fjs compile`'s check with the
+`package-check` task above still open — the decision and its reason are in
+[`fjs-nanvm-integration`](../../../todo/fjs-nanvm-integration.md).
 
 ### Acceptance criteria
 

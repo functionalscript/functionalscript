@@ -25,7 +25,7 @@ difference, that a proof stays `proof.f.mjs`, is in
 
 - `tsc` — type-check. The compiler is the environment's, not a dependency of
   this package: the Nix developer shell provides it, or install the version
-  `fjs/ci/config/module.f.mjs` pins globally. Not `npx tsc`, which resolves
+  `fjs/ci/config/module.f.js` pins globally. Not `npx tsc`, which resolves
   nothing locally and fetches the registry's latest.
 - `fjs test` (or any equivalent from
   [CONTRIBUTING.md](../CONTRIBUTING.md#ways-to-run-the-functionalscript-test-suite))
@@ -250,7 +250,7 @@ Use JSDoc for module documentation in both JavaScript and TypeScript source.
 a marker of entry-point-ness. `deno doc` reads the tag and nothing else: a file
 whose leading block carries it gets that prose as its `module_doc`, and a file
 without it gets no `module_doc` at all — the block is dropped, not demoted.
-Verified against the pinned Deno (`fjs/ci/config/module.f.mjs`), for `.mjs` and
+Verified against the pinned Deno (`fjs/ci/config/module.f.js`), for `.mjs` and
 `.ts` alike; the tag need not be in the first block, only in some block.
 
 **So the tag goes wherever a file has module-level documentation a reader is
@@ -1080,7 +1080,7 @@ languages require. TypeScript narrows string literals precisely, so the string
    mapping (and `keyof typeof my` gives you the key type).
 
 Existing examples: `os` / `Os` and `architecture` / `Architecture` in
-`fjs/ci/common/module.f.mjs`, and `actions` in `fjs/ci/config/module.f.mjs`.
+`fjs/ci/common/module.f.mjs`, and `actions` in `fjs/ci/config/module.f.js`.
 
 #### Write the call, not the value it computes
 

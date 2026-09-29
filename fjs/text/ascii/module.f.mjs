@@ -13,7 +13,7 @@
  */
 
 import { assert } from '../../asserts/module.f.mjs'
-import { contains } from '../../types/range/module.f.mjs'
+import { contains } from '../../types/range/module.f.js'
 
 const { isInteger } = Number
 
