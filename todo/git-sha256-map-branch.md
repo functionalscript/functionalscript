@@ -201,10 +201,14 @@ authority's URL is its one option, `--tsa <url>`, until
 touches the index or the working tree: it reads committed objects and
 writes objects and one ref, so uncommitted changes cannot reach it and are
 not checked. Only committed content is named, and a working tree is not
-content. The one repository state it refuses is `disot` checked out in
+content. It refuses two repository states. One is `disot` checked out in
 any worktree, as `git branch -f` refuses it: moving a checked-out
 branch's ref under its working tree is the one way the command could
-disturb one, and a `HEAD` that is `disot` names no content to map.
+disturb one, and a `HEAD` that is `disot` names no content to map. The
+other is a SHA-256 repository, `extensions.objectFormat` as
+[`fjs/git/config`](../fjs/git/config/module.f.mjs) reads it: its content
+already bears the name this branch exists to add, and the reverse
+conversion Git's transition defines is not this command's.
 
 1. **Read the cache.** If the repository holds `refs/heads/disot`, scan
    every commit reachable from it and take the union of their deltas in
