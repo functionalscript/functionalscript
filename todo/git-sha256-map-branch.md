@@ -120,7 +120,7 @@ delta.** The table lives in the repository it describes, on a branch named
 the way it carries any branch, with no server support and no separate
 transport. The branch's history is unrelated to the history it maps: its
 first commit has no parent, and its trees hold two files and nothing else:
-the delta, and the trusted timestamp over it.
+the delta, and the record of the trusted timestamp over it.
 
 Each commit on the branch carries **only the pairs new since its parents**,
 and its parents are the earlier table commits it was built on: the branch is
@@ -139,8 +139,8 @@ for later, not part of the format.
 
 The timestamp is a **file beside the delta, not a commit header**. A run
 writes the delta, hashes it with SHA-256, requests an RFC 3161 timestamp
-with that digest as the imprint, and stores the token it gets back as the
-second file; then it commits the two. The digest is the delta's SHA-256
+with that digest as the imprint, and stores the token it gets back in the
+second file, beside the delta's two names; then it commits the two. The digest is the delta's SHA-256
 name as a Git blob — the envelope and the bytes, as
 [`fjs/git/oid`](../fjs/git/oid/module.f.mjs)'s `of` hashes any object at
 the SHA-256 width — so the imprint the token carries is the very name the
@@ -206,22 +206,33 @@ content.
    closure invariant of step 2 — everything below a hit is in the cache by
    construction. The walk also starts from each head read in 1, whose own
    commit, tree, delta and token no delta holds yet.
-3. **Write the delta**, `map.json`: one JSON object, each key a SHA-1 in
+3. **Write the delta**, `sha1-sha256-map.json`: one JSON object, each key a SHA-1 in
    lowercase hex, each value its SHA-256 in lowercase hex, keys in ascending
    order, no whitespace beyond what JSON requires. One set of pairs then
    has one byte sequence; a reader checks the order and refuses any other
    spelling, so lookup is a search that fails rather than answers wrongly,
    as [`fjs/git/packidx`](../fjs/git/packidx/module.f.mjs) does for its
    ids.
-4. **Timestamp it.** Hash the delta as a blob at the SHA-256 width — the
-   name the next delta will record for it — request an RFC 3161 timestamp
-   with that digest as the imprint and a fresh nonce, check the response's
-   status, imprint, nonce and signature, and keep the token as `tts.der`,
-   the raw DER `TimeStampToken`. A response that fails any check ends the
-   run with nothing written to the branch.
+4. **Timestamp it.** Take the delta's blob name at both widths — its
+   SHA-1, which is what the tree will say for it, and its SHA-256, which
+   is what the next delta will record for it — request an RFC 3161
+   timestamp with the SHA-256 as the imprint and a fresh nonce, and check
+   the response's status, imprint, nonce and signature. A response that
+   fails any check ends the run with nothing written to the branch. On
+   success write the **record**, `tts.json`: one JSON object with three
+   members, `sha1` and `sha256` as lowercase hex and `tts` as the DER
+   `TimeStampToken` in base64, canonical like the delta. The record gives
+   a reader the delta's own pair at this commit, one commit before the
+   next delta records it; the token covers the pair's SHA-256 side, and
+   the tree entry for the delta is the SHA-1 side, so a reader checks the
+   record against both. The time is inside the token, signed, and is not
+   repeated outside it.
 5. **Commit.** Write the two blobs, their tree, and a commit whose parents
    are the heads read in 1, and move `refs/heads/disot` to it only if it
-   still holds what step 1 read. Nothing is pushed.
+   still holds what step 1 read. Nothing is pushed. The delta cannot hold
+   its own pair — its bytes decide both hashes — which is why the record
+   holds it, and why the next delta records the delta, the record, the
+   tree and the commit as the objects this commit introduced.
 
 A run over a repository the cache already covers still commits: its delta
 holds the pairs for the parents' own objects and its token renews the
