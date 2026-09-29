@@ -33,6 +33,7 @@
  */
 
 import { htmlUtf8 } from '../../media/html/module.f.mjs'
+import { concat as pathConcat } from '../../path/module.f.mjs'
 import { faviconLinks, logoPath, stylesheetLink } from '../style/module.f.mjs'
 
 /**
@@ -64,9 +65,9 @@ export const siteName = 'FunctionalScript'
  * would read the same few letters; with it last, what is cut is the part
  * that is the same on every tab.
  *
- * @type {(page: string) => Element}
+ * @type {(page: string) => string}
  */
-export const pageTitle = page => ['title', `${page} · ${siteName}`]
+export const pageTitle = page => `${page} · ${siteName}`
 
 /**
  * The language every page of the site is written in, as its `<html lang>`.
@@ -282,15 +283,39 @@ export const testSection = dir => intro => {
 const urlPath = path => path.split('/').map(encodeURIComponent).join('/')
 
 /**
+ * Where a directory's page is written, relative to the site's root:
+ * `changelog/index.html`, and `index.html` for the root itself.
+ *
+ * **The file-system twin of {@link pageHref}, kept apart from it**, because
+ * a path to write is neither root-relative nor URL-encoded, and an href is
+ * both. Every page the generator writes is named here, and every link to one
+ * is built from it, so the layout is written once.
+ *
+ * @type {(path: string) => string}
+ */
+export const pagePath = path => pathConcat(path)('index.html')
+
+/**
  * The page for a directory path, as a root-relative URL.
  *
  * The root's page is `/index.html` rather than `/./index.html`: `'.'` is the
  * path of the repository root, and a URL says that by having no segments at
- * all.
+ * all — which {@link pagePath} already does, by normalizing.
  *
  * @type {(path: string) => string}
  */
-export const pageHref = path => path === '.' ? '/index.html' : `/${urlPath(path)}/index.html`
+export const pageHref = path => `/${urlPath(pagePath(path))}`
+
+/**
+ * The directory the release history is kept in, and whose page is the
+ * release index rather than a listing of its files.
+ *
+ * Here rather than beside the changelog's builders because the
+ * {@link header} every page carries links to it.
+ *
+ * @type {string}
+ */
+export const changelogDir = 'changelog'
 
 /**
  * A file in a directory, as a reader opens it: on GitHub at `commit`, or
@@ -436,15 +461,49 @@ const buildLine = ({ branch, commit }) => branch === null || branch === producti
  */
 export const header = build => ['header',
     ['nav', { 'aria-label': 'Site' },
-        ['a', { href: '/index.html', 'data-home': '' },
+        ['a', { href: pageHref('.'), 'data-home': '' },
             ['img', { src: logoPath, alt: '', width: '24', height: '24' }],
             siteName],
         // The site's links are one group, so a narrow screen wraps them
         // together under the name rather than one beside it and one below.
         ['span', { 'data-site-links': '' },
-            ['a', { href: '/changelog/index.html' }, 'Releases'],
+            ['a', { href: pageHref(changelogDir) }, 'Releases'],
             ['a', { href: repository }, 'GitHub', ['span', { 'aria-hidden': 'true' }, ' ↗']]]],
     ...buildLine(build)]
+
+/**
+ * The frame every page of the site shares: its `<head>` and its
+ * {@link header}, around the page's own `main`.
+ *
+ * **One builder, so a page cannot drift from the rest.** The root page, a
+ * directory's page, a release's page and the release index each used to
+ * spell out the same title, stylesheet, icons and header; a meta tag added to
+ * one of them would have been missing from the others with nothing to say
+ * so.
+ *
+ * **`main` is the page's, attributes and all**, because pages differ there on
+ * purpose: one that runs a suite marks it for the runtime — see
+ * {@link testsMain} — and a changelog page does not.
+ *
+ * @type {(build: Build) => (title: string) => (main: Element) => Vec}
+ */
+export const shell = build => title => main => htmlUtf8(lang)(
+    ['title', title],
+    stylesheetLink,
+    ...faviconLinks,
+)(
+    header(build),
+    main,
+)
+
+/**
+ * The `main` of a page that carries a test suite, marked for the
+ * browser-test runtime, which looks for `data-browser-tests` and tracks the
+ * run in `data-state`.
+ *
+ * @type {(...nodes: readonly Node[]) => Element}
+ */
+export const testsMain = (...nodes) => ['main', { 'data-browser-tests': '', 'data-state': 'idle' }, ...nodes]
 
 /**
  * The whole page for a directory below the root: where it sits, what it
@@ -452,21 +511,14 @@ export const header = build => ['header',
  *
  * @type {(build: Build) => (dir: Dir) => Vec}
  */
-export const page = build => dir => htmlUtf8(lang)(
-    pageTitle(dir.path),
-    stylesheetLink,
-    ...faviconLinks,
-)(
-    header(build),
-    ['main', { 'data-browser-tests': '', 'data-state': 'idle' },
-        ['nav', ...ancestors(dir.path).flatMap(([path, name], at) => {
-            /** @type {Element} */
-            const link = ['a', { href: pageHref(path) }, name]
-            return at === 0 ? [link] : [' / ', link]
-        })],
-        ['h1', dir.path],
-        ...(dir.demo === null ? [] : demoSection(dir.demo)),
-        ...sections(build.commit)(dir),
-        ...testSection(dir)([]),
-    ],
-)
+export const page = build => dir => shell(build)(pageTitle(dir.path))(testsMain(
+    ['nav', ...ancestors(dir.path).flatMap(([path, name], at) => {
+        /** @type {Element} */
+        const link = ['a', { href: pageHref(path) }, name]
+        return at === 0 ? [link] : [' / ', link]
+    })],
+    ['h1', dir.path],
+    ...(dir.demo === null ? [] : demoSection(dir.demo)),
+    ...sections(build.commit)(dir),
+    ...testSection(dir)([]),
+))

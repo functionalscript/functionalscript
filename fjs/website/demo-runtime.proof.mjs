@@ -259,6 +259,25 @@ export const proof = {
         assert(d.root.innerHTML.includes('<pre>ab</pre>'), d.root.innerHTML)
     },
     /**
+     * **A render never shows a state older than an event already queued.**
+     * Rendering replaces the field being typed into, so a render of the
+     * state after `a`, landing once the reader has typed `ab`, would put a
+     * field holding `a` under their next keystroke — and the `b` is gone.
+     */
+    skipsAStaleRender: async () => {
+        const d = dom(echo)
+        await startDemo(d.root)
+        await settle()
+        const before = d.rendered.length
+        d.input('text', 'a')
+        d.input('text', 'ab')
+        await settle()
+        await settle()
+        const after = d.rendered.slice(before)
+        assert(!after.some((/** @type {string} */ html) => html.includes('value="a"')), after.join('\n'))
+        assert(after[after.length - 1].includes('value="ab"'), after.join('\n'))
+    },
+    /**
      * **Focus and the caret survive a re-render.** Replacing the section's
      * contents destroys the element being typed into; a new one takes its
      * place with the same `name`, but focus belongs to the node. Without the

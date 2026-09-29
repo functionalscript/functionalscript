@@ -24,7 +24,7 @@
 
 import { parse, stringify } from './module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
-import { pureOk } from '../../effects/module.f.mjs'
+import { textDemo } from '../../website/demo/module.f.mjs'
 
 /**
  * `text` parsed and written back in normalized form — sorted keys, one line
@@ -48,15 +48,11 @@ export const roundTrip = text => {
  *
  * @type {Demo<string, DemoEvent>}
  */
-export const demo = {
+export const demo = textDemo({
+    name: 'json',
+    label: 'JSON',
     init: '{\n  "b": 2,\n  "a": [3, 2, 1],\n  "c": "hello"\n}',
-    update: state => event => pureOk(event.kind === 'input' ? event.value : state),
-    view: text => ['div',
-        ['p',
-            ['label', { for: 'json' }, 'JSON '],
-            ['textarea', { id: 'json', name: 'json', rows: '8' }, text],
-        ],
-        ['p', 'Parsed, then written back:'],
-        ['pre', roundTrip(text)],
-    ],
-}
+})(text => [
+    ['p', 'Parsed, then written back:'],
+    ['pre', roundTrip(text)],
+])
