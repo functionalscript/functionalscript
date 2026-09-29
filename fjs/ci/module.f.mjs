@@ -15,7 +15,7 @@
 import { resultStep } from '../effects/module.f.mjs'
 import { access, exitStep, writeUtf8File } from '../effects/node/module.f.mjs'
 import { step as ioStep } from '../effects/module.f.mjs'
-import { functionalscript, images, node, packageConsumer } from './config/module.f.js'
+import { functionalscript, images, node } from './config/module.f.js'
 import {
     architecture,
     os,
@@ -314,10 +314,13 @@ export const ci = ({ nodeExtra, packageConsumer }) => resultStep(
     })
 
 /**
- * The built-in `fjs ci`: no extra platform steps, and this repository's own
- * module as the packed package's consumer. Another project calling `ci`
- * names its own, or none.
+ * The built-in `fjs ci`, the generator any project gets: no extra platform
+ * steps and no packed-package consumer, since this command cannot know what
+ * another package publishes, and `package-check` without a consumer is the
+ * declaration check every project had. A project with a module to offer
+ * calls `ci` with one, as this repository does in `./self/module.f.mjs`,
+ * which is what its `npm run gen` runs.
  *
  * @type {() => Effect<NodeOp, 0, number>}
  */
-export const main = () => ci({ nodeExtra: () => [], packageConsumer })
+export const main = () => ci({ nodeExtra: () => [] })

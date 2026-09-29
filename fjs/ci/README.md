@@ -34,6 +34,10 @@ for, and whether that answer should change, is
   `Cargo.toml` at the repository root via the `access` effect.
 - `proof.f.mjs` — property-based proofs for the CI generator (Rust/no-Rust job presence,
   per-OS extra steps).
+- `self/module.f.mjs` — this repository's own generation: `ci` with its
+  `packageConsumer`, the published `.f.js` that `package-check` imports. It is
+  what `npm run gen` runs, where the built-in `fjs ci` stays the generator any
+  project gets and names no consumer.
 - `common/module.f.mjs` — shared RTTI schemas and types (`Step`, `Job`, `Jobs`,
   `GitHubAction`, `MetaStep`, `Os`, `Architecture`), and step-builder helpers
   (`test`, `install`, `uses`).
@@ -51,9 +55,9 @@ for, and whether that answer should change, is
   type-checks every declaration it ships. Given a `packageConsumer` in the
   caller's `Setup`, it then imports the published module that names from a
   consumer file, runs it, and type-checks a use of its declaration with a
-  negative control that must fail; the built-in command passes this
-  repository's, `config/module.f.js`'s `packageConsumer`, and a project that
-  names none gets the declaration check alone. It is the one job built without
+  negative control that must fail; this repository's `self/module.f.mjs`
+  passes its own, the built-in `fjs ci` passes none, and a project that names
+  none gets the declaration check alone. It is the one job built without
   `toSteps`, because that helper adds `actions/checkout` and the missing
   checkout is the point — with the repository on the runner there would be a
   `tsconfig.json` up the tree, a `node_modules` to resolve into, and sources
@@ -354,9 +358,10 @@ Without that file, third-party test runners discover no FunctionalScript proofs
 and will report zero tests. `fjs test` is the exception: it discovers proof modules
 directly and does not need an entry file at all.
 
-**Note,** `npm run gen` in this repository runs the same built-in command through the
-checked-in Node entry point, which avoids relying on the package bin before the
-package has been installed. Custom projects that need different runtime setup steps
+**Note,** `npm run gen` in this repository runs `fjs run ./fjs/ci/self/module.f.mjs`
+through the checked-in Node entry point, which avoids relying on the package bin
+before the package has been installed; that module calls `ci` with this
+repository's `packageConsumer`, which the built-in command does not have. Custom projects that need different runtime setup steps
 should use `fjs run <custom-ci-module>` and call `ci(setup)` directly instead of
 modifying the built-in command.
 
@@ -474,9 +479,9 @@ export type Setup = {
 `packageConsumer` is the consumer half of `package-check`: a published module
 and a runtime export it must load, its `types.ts` as a consumer spells it,
 a declared type, a value of that type and one that is not, which must fail to
-type-check. The built-in command passes this repository's
-(`config/module.f.js`); a project that names none gets the declaration check
-alone, since the generator cannot know what another package publishes.
+type-check. The built-in command passes none, since it cannot know what
+another package publishes, and a project that names none gets the declaration
+check alone; this repository passes its own from `self/module.f.mjs`.
 
 On every platform but Windows, an injected step that names a **command** runs
 inside the shared shell, alongside the job's own — these jobs no longer install

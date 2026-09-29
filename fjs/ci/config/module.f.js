@@ -122,22 +122,6 @@ export const typescript = /** @type {const} */({
     attribute: 'typescript-go',
 })
 
-// What `package-check` asks of the packed tarball as a clean consumer: one
-// published `.f.js` module and a runtime export it must load; its `types.ts`
-// spelled as a consumer spells it, `types.js`, which resolves to the shipped
-// `types.d.ts`; a declared type, a value of that type, and one that is not —
-// the negative control, which must fail to type-check. The module is one the
-// compiler accepts whole, so the check also covers what the `.f.js` extension
-// promises a consumer: the file ships, loads, and carries its declaration.
-export const packageConsumer = /** @type {const} */({
-    module: 'fjs/js/prototype/module.f.js',
-    value: 'prototypeNames',
-    types: 'fjs/js/prototype/types.js',
-    type: 'PrototypeName',
-    accepted: 'map',
-    refused: 'stone',
-})
-
 // The Rust the `wasm` job's flake provides, resolved by `rust-overlay` from
 // the official release manifest — so unlike the Nixpkgs pins below, this is an
 // exact release rather than whatever a snapshot happens to carry, and the flake
