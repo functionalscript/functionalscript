@@ -48,9 +48,10 @@ only what was observed and records no decisions.
 
 ### Skeleton: `fjs tts`
 
-The smallest version that works. One option, `--tsa <url>`. It reads
-committed objects and writes objects and one ref; it never touches the
-index or the working tree.
+The smallest version that works: a milestone to build on, not a release,
+since it checks nothing the additions below check. One option,
+`--tsa <url>`. It reads committed objects and writes objects and one ref;
+it never touches the index or the working tree.
 
 1. **Read the cache.** If `refs/heads/disot` exists, scan its commits and
    take the union of their deltas in memory, plus one pair per commit for
@@ -64,7 +65,9 @@ index or the working tree.
    no whitespace.
 4. **Timestamp it.** Request an RFC 3161 timestamp with the delta's SHA-256
    blob name as imprint; on a granted response write the record,
-   `tts.json`: `{"sha256":"…","tts":"…"}`, the token as DER in base64.
+   `tts.json`: `{"sha256":"…","tts":"…"}`, members in that order, the
+   token as DER in standard base64 with padding, no whitespace, no
+   escapes.
 5. **Commit** the two blobs and their tree, with the `disot` head as the
    one parent, and move `refs/heads/disot` to it. Nothing is fetched or
    pushed.
@@ -110,14 +113,15 @@ concern comes first, then the fix.
 
 ### What a timestamp proves
 
-- **Existence by a time.** The token's time plus its accuracy is the bound.
+- **Existence by a time.** The token's time plus its accuracy is the bound;
+  a token without an accuracy gives its time and claims no bound.
   The proof is the token plus the objects: a reader recomputes the name
   from the bytes and compares. The earliest bound naming the content is
   the whole proof.
 - **Why the chain keeps adding timestamps.** A token verifies only while
   its authority's certificate does; a later token over the chain proves
-  the earlier one existed before that. That is the renewal RFC 3161
-  describes.
+  the earlier one existed before that, if the later bound comes first.
+  That is the renewal RFC 3161 describes.
 - **The imprint is a SHA-256 name.** Hashing anything by SHA-1 would bind a
   name an attacker can collide.
 
