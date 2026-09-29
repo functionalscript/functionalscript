@@ -1,8 +1,9 @@
 /**
  * A node-and-edge diagram, laid out and drawn as SVG — the shared half of
- * any demo whose value is a graph rather than a scalar. A demo turns its own
- * value into {@link Node}s and {@link Edge}s (reference identity decides
- * what is shared, a demo's own business); this module ranks and draws them.
+ * any demo whose value is a graph rather than a scalar. A demo says what
+ * {@link Shape} each of its values has; `graphOf` walks a value into
+ * {@link Node}s and {@link Edge}s, reference identity deciding what is
+ * shared, and this module ranks and draws them.
  *
  * **Ranks run left to right.** The root is the leftmost column, and each
  * rank is a column of its own to the right of the one before, its nodes
@@ -41,9 +42,9 @@
  *
  * @module
  *
- * @import { Edge, Graph, Inline, Node, Ranked } from './types.ts'
+ * @import { Edge, Graph, Inline, Node, Ranked, Shape } from './types.ts'
  * @import { Element } from '../../../media/html/types.ts'
- * @import { _Lane, _Out, _Placed, _Point, _Port, _Positioned, _Route, _Slot } from './private.ts'
+ * @import { _Lane, _Out, _Placed, _Point, _Port, _Positioned, _Route, _Slot, _Walk } from './private.ts'
  */
 
 /**
@@ -77,6 +78,68 @@ export const ranked = (nodes, edges) => {
     }
     return current
 }
+
+const { is } = Object
+
+/**
+ * `root` as the graph it denotes, each value read by `shape`.
+ *
+ * **A value whose shape is a node is drawn once**, and found again by
+ * identity (`Object.is`) on any later edge to it: two edges to one value
+ * are one node with two incoming edges, not two nodes that happen to look
+ * alike. A value whose shape is inline is drawn in its parent's port. A
+ * root whose shape is inline, having no port to sit in, is one node whose
+ * `kind` is the inline's own where it has one and `"leaf"` where it has
+ * none.
+ *
+ * Ranks nothing while it walks: which rank a node belongs to depends on
+ * every edge that reaches it, including ones the walk has not taken yet
+ * when it first creates the node, so {@link ranked} decides that
+ * afterward, once the whole graph is known.
+ */
+export const graphOf =
+    /**
+     * @template V
+     * @param {(v: V) => Shape<V>} shape
+     * @returns {(root: V) => Graph}
+     */
+    shape => root => {
+        /**
+         * `value`'s node id, and the walk with `value` and everything under
+         * it added — or just the walk, when `value` is already drawn.
+         *
+         * @type {(walk: _Walk) => (value: V, s: Shape<V>) => { readonly id: number, readonly walk: _Walk }}
+         */
+        const node = walk => (value, s) => {
+            const found = walk.refs.find(([r]) => is(r, value))
+            if (found !== undefined) { return { id: found[1], walk } }
+            const id = walk.next
+            const [kind, label, children] = 'inline' in s
+                ? [s.kind ?? 'leaf', s.inline, []]
+                : [s.kind, s.label, s.children]
+            /** @type {_Walk} */
+            const withNode = {
+                refs: [...walk.refs, [value, id]],
+                nodes: [...walk.nodes, { id, kind, label }],
+                edges: walk.edges,
+                next: id + 1,
+            }
+            const final = children.reduce(
+                /** @type {(acc: _Walk, child: readonly [string, V, string?]) => _Walk} */
+                (acc, [label, child, kind]) => {
+                    const c = shape(child)
+                    if ('inline' in c) {
+                        return { ...acc, edges: [...acc.edges, { from: id, to: c, label, kind }] }
+                    }
+                    const step = node(acc)(child, c)
+                    return { ...step.walk, edges: [...step.walk.edges, { from: id, to: step.id, label, kind }] }
+                },
+                withNode)
+            return { id, walk: final }
+        }
+        const { walk } = node({ refs: [], nodes: [], edges: [], next: 0 })(root, shape(root))
+        return { nodes: ranked(walk.nodes, walk.edges), edges: walk.edges }
+    }
 
 const headerHeight = /** @type {const} */ (26)
 const portHeight = /** @type {const} */ (20)

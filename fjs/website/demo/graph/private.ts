@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { Edge, Ranked } from './types.ts'
+import type { Edge, Node, Ranked } from './types.ts'
 
 /**
  * An outgoing edge and its `index`, its position in the graph's list of
@@ -83,4 +83,16 @@ export type _Point = readonly [number, number]
 export type _Route = {
     readonly edge: Edge
     readonly points: readonly _Point[]
+}
+
+/**
+ * `graphOf`'s walk so far: every value drawn as a node and the id it was
+ * given, the {@link Node}s and {@link Edge}s built from them, and the next
+ * id to hand out.
+ */
+export type _Walk = {
+    readonly refs: readonly (readonly [unknown, number])[]
+    readonly nodes: readonly Node[]
+    readonly edges: readonly Edge[]
+    readonly next: number
 }

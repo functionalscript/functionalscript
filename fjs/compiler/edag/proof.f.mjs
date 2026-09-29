@@ -7,6 +7,7 @@
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Dir } from '../../effects/node/virtual/types.ts'
  * @import { DemoEvent } from '../../website/demo/types.ts'
+ * @import { Inline, Shape } from '../../website/demo/graph/types.ts'
  */
 
 import { memo } from '../../edag/memo/module.f.mjs'
@@ -14,8 +15,8 @@ import { vm } from '../../edag/amnesia/module.f.mjs'
 import { tryModuleStringify } from '../serializer/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { _defaultExport, resolve, unresolved } from './module.f.mjs'
-import { _graphOf, _shapeOf, _walk, demo, examples } from './demo.f.mjs'
-import { _crossings, ranked } from '../../website/demo/graph/module.f.mjs'
+import { _graphOf, _shapeOf, demo, examples } from './demo.f.mjs'
+import { _crossings, graphOf } from '../../website/demo/graph/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { exp } from '../../edag/module.f.mjs'
 import { validate } from '../../rtti/validate/module.f.mjs'
@@ -25,6 +26,17 @@ import { utf8 } from '../../text/module.f.mjs'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
+
+/**
+ * `exp`'s shape, asserted to be a node rather than a value drawn inline.
+ *
+ * @type {(exp: unknown, msg: string) => Exclude<Shape<unknown>, Inline>}
+ */
+const nodeShapeOf = (exp, msg) => {
+    const shape = _shapeOf(exp)
+    assert(!('inline' in shape), msg)
+    return shape
+}
 
 /** The default export's computation through the front end and lowering, a parse refusal thrown. @type {(source: string) => Unresolved} */
 const compile = source => {
@@ -863,14 +875,14 @@ export const proof = {
         shapeOf: {
             array: {
                 plain: () => {
-                    const shape = assertNotNullish(_shapeOf(['[]', [1, 2]]), 'expected a shape')
+                    const shape = nodeShapeOf(['[]', [1, 2]], 'expected a shape')
                     assertEq(shape.label, '[]')
                     assertStructurallySame(shape.children, [['0', 1], ['1', 2]])
                 },
                 // A spread item is one child, named by its position rather
                 // than by an index that would claim it names one array slot.
                 spread: () => {
-                    const shape = assertNotNullish(_shapeOf(['[]', [['...', ['a']]]]), 'expected a shape')
+                    const shape = nodeShapeOf(['[]', [['...', ['a']]]], 'expected a shape')
                     assertStructurallySame(shape.children, [['...0', ['a']]])
                 },
             },
@@ -879,18 +891,18 @@ export const proof = {
                 // node for it, the same economy the DataJS demo spends on
                 // object keys.
                 literalKey: () => {
-                    const shape = assertNotNullish(_shapeOf(['{}', [[':', 'x', 1]]]), 'expected a shape')
+                    const shape = nodeShapeOf(['{}', [[':', 'x', 1]]], 'expected a shape')
                     assertStructurallySame(shape.children, [['x', 1]])
                 },
                 // A computed key is itself an `Exp` with nothing to fold
                 // into a label, so it gets a node of its own, alongside the
                 // value's.
                 computedKey: () => {
-                    const shape = assertNotNullish(_shapeOf(['{}', [[':', ['a'], 1]]]), 'expected a shape')
+                    const shape = nodeShapeOf(['{}', [[':', ['a'], 1]]], 'expected a shape')
                     assertStructurallySame(shape.children, [['key0', ['a']], ['value0', 1]])
                 },
                 spread: () => {
-                    const shape = assertNotNullish(_shapeOf(['{}', [['...', ['a']]]]), 'expected a shape')
+                    const shape = nodeShapeOf(['{}', [['...', ['a']]]], 'expected a shape')
                     assertStructurallySame(shape.children, [['...0', ['a']]])
                 },
             },
@@ -898,29 +910,31 @@ export const proof = {
                 // A string index folds into the node's own label; nothing
                 // about it needs a child edge to say what it is.
                 literalString: () => {
-                    const shape = assertNotNullish(_shapeOf(['.', ['a'], 'x']), 'expected a shape')
+                    const shape = nodeShapeOf(['.', ['a'], 'x'], 'expected a shape')
                     assertEq(shape.label, '.x')
                     assertStructurallySame(shape.children, [['obj', ['a']]])
                 },
                 literalNumber: () => {
-                    const shape = assertNotNullish(_shapeOf(['.', ['a'], 0]), 'expected a shape')
+                    const shape = nodeShapeOf(['.', ['a'], 0], 'expected a shape')
                     assertEq(shape.label, '[0]')
                 },
                 // A computed index — `Number(x)`, the one shape `Index`
                 // allows beyond a bare literal — is an `Exp`, so it gets a
                 // child edge the way a computed object key does.
                 computed: () => {
-                    const shape = assertNotNullish(_shapeOf(['.', ['a'], ['Number', ['b']]]), 'expected a shape')
+                    const shape = nodeShapeOf(['.', ['a'], ['Number', ['b']]], 'expected a shape')
                     assertEq(shape.label, '.')
                     assertStructurallySame(shape.children, [['obj', ['a']], ['idx', ['Number', ['b']]]])
                 },
                 // A chain continuation is a fourth element past the
                 // ordinary two- or three-element form — not yet drawn, so
-                // refused rather than misread as an extra plain operand.
-                continuation: () => assertEq(_shapeOf(['.', ['a'], 'x', ['|()', 1]]), null),
+                // drawn as itself rather than misread as an extra plain operand.
+                continuation: () => assertStructurallySame(
+                    _shapeOf(['.', ['a'], 'x', ['|()', 1]]),
+                    { kind: 'unsupported', label: '. (not yet drawn)', children: [] }),
             },
             call: () => {
-                const shape = assertNotNullish(_shapeOf(['()', ['a'], ['b']]), 'expected a shape')
+                const shape = nodeShapeOf(['()', ['a'], ['b']], 'expected a shape')
                 assertEq(shape.label, '()')
                 assertStructurallySame(shape.children, [['callee', ['a']], ['arg', ['b']]])
             },
@@ -932,7 +946,7 @@ export const proof = {
              * happen.
              */
             comma: () => {
-                const shape = assertNotNullish(_shapeOf([',', [1, 2, 3]]), 'expected a shape')
+                const shape = nodeShapeOf([',', [1, 2, 3]], 'expected a shape')
                 assertStructurallySame(shape.children, [
                     ['anchor', 1], ['anchor', 2], ['result', 3]])
             },
@@ -940,11 +954,11 @@ export const proof = {
             // value. A single operand would be the identity, which the
             // emitter does not write.
             commaOfTwo: () => {
-                const shape = assertNotNullish(_shapeOf([',', [1, 2]]), 'expected a shape')
+                const shape = nodeShapeOf([',', [1, 2]], 'expected a shape')
                 assertStructurallySame(shape.children, [['anchor', 1], ['result', 2]])
             },
             ternary: () => {
-                const shape = assertNotNullish(_shapeOf(['?:', ['a'], 1, 2]), 'expected a shape')
+                const shape = nodeShapeOf(['?:', ['a'], 1, 2], 'expected a shape')
                 assertEq(shape.label, '?:')
                 // The condition always runs; exactly one arm does, so both
                 // arms are marked.
@@ -963,19 +977,19 @@ export const proof = {
              */
             lazyRightOperand: () => {
                 for (const tag of ['&&', '||', '??']) {
-                    const shape = assertNotNullish(_shapeOf([tag, ['a'], ['b']]), tag)
+                    const shape = nodeShapeOf([tag, ['a'], ['b']], tag)
                     assertStructurallySame(shape.children, [
                         ['left', ['a']], ['right', ['b'], 'lazy']])
                 }
             },
             // An eager binary operator marks neither operand.
             eagerOperandsAreUnmarked: () => {
-                const shape = assertNotNullish(_shapeOf(['*', ['a'], ['b']]), 'expected a shape')
+                const shape = nodeShapeOf(['*', ['a'], ['b']], 'expected a shape')
                 assertStructurallySame(shape.children, [['left', ['a']], ['right', ['b']]])
             },
             // The condition always runs; exactly one arm does.
             lazyArms: () => {
-                const shape = assertNotNullish(_shapeOf(['?:', ['a'], ['b'], ['c']]), 'expected a shape')
+                const shape = nodeShapeOf(['?:', ['a'], ['b'], ['c']], 'expected a shape')
                 assertStructurallySame(shape.children, [
                     ['cond', ['a']], ['then', ['b'], 'lazy'], ['else', ['c'], 'lazy']])
             },
@@ -983,14 +997,14 @@ export const proof = {
             // Building a closure establishes its frame and never its body,
             // which runs only on a call — so the body is marked.
             fixed: () => {
-                assertStructurallySame(_shapeOf(['arg', 2]), { kind: 'terminal', label: 'arg 2', children: [] })
+                assertStructurallySame(_shapeOf(['arg', 2]), { inline: 'arg 2', kind: 'terminal' })
             },
             lambda: () => {
-                const shape = assertNotNullish(_shapeOf(['=>', 0, null, ['rest']]), 'expected a shape')
+                const shape = nodeShapeOf(['=>', 0, null, ['rest']], 'expected a shape')
                 assertEq(shape.label, '=> (0)')
                 assertStructurallySame(shape.children, [['frame', null], ['body', ['rest'], 'lazy']])
             },
-            // Every Op0 name renders with no children, and the three part
+            // Every Op0 name draws inline, and the four part
             // by meaning where `Op0Id` groups them by operand count:
             // `undefined` is a primitive and draws as the leaf it is, beside
             // `null` and the numbers, where `args` and `frame` are the two
@@ -999,16 +1013,18 @@ export const proof = {
             // own field — its one function captures nothing — which is why
             // the tags are built here by hand.
             op0: () => {
-                for (const [tag, kind] of [['undefined', 'leaf'], ['args', 'terminal'], ['frame', 'terminal'], ['rest', 'terminal']]) {
-                    const shape = assertNotNullish(_shapeOf([tag]), tag)
-                    assertEq(shape.label, tag)
-                    assertEq(shape.kind, kind)
-                    assertStructurallySame(shape.children, [])
+                for (const [tag, shape] of [
+                    ['undefined', { inline: 'undefined' }],
+                    ['args', { inline: 'args', kind: 'terminal' }],
+                    ['frame', { inline: 'frame', kind: 'terminal' }],
+                    ['rest', { inline: 'rest', kind: 'terminal' }],
+                ]) {
+                    assertStructurallySame(_shapeOf([tag]), shape, tag)
                 }
             },
             op1: () => {
                 for (const tag of ['String', 'Number', '!', '~', 'typeof']) {
-                    const shape = assertNotNullish(_shapeOf([tag, ['a']]), tag)
+                    const shape = nodeShapeOf([tag, ['a']], tag)
                     assertEq(shape.label, tag)
                     assertStructurallySame(shape.children, [['operand', ['a']]])
                 }
@@ -1022,52 +1038,53 @@ export const proof = {
             // all three rather than one standing for them.
             op2: () => {
                 for (const tag of ['===', '*', '&', 'own', 'is']) {
-                    const shape = assertNotNullish(_shapeOf([tag, ['a'], ['b']]), tag)
+                    const shape = nodeShapeOf([tag, ['a'], ['b']], tag)
                     assertEq(shape.label, tag)
                     assertStructurallySame(shape.children, [['left', ['a']], ['right', ['b']]])
                 }
             },
             op12: {
                 unary: () => {
-                    const shape = assertNotNullish(_shapeOf(['-', ['a']]), 'expected a shape')
+                    const shape = nodeShapeOf(['-', ['a']], 'expected a shape')
                     assertStructurallySame(shape.children, [['operand', ['a']]])
                 },
                 binary: () => {
-                    const shape = assertNotNullish(_shapeOf(['-', ['a'], ['b']]), 'expected a shape')
+                    const shape = nodeShapeOf(['-', ['a'], ['b']], 'expected a shape')
                     assertStructurallySame(shape.children, [['left', ['a']], ['right', ['b']]])
                 },
             },
             // A tag naming none of the recognized shapes — optional
-            // chaining's own, here — is refused the same way a chain
-            // continuation is.
-            unrecognizedTag: () => assertEq(_shapeOf(['?.', ['a'], 'x']), null),
+            // chaining's own, here — is drawn as itself the same way a
+            // chain continuation is.
+            unrecognizedTag: () => assertStructurallySame(
+                _shapeOf(['?.', ['a'], 'x']),
+                { kind: 'unsupported', label: '?. (not yet drawn)', children: [] }),
         },
-        // `_shapeOf` refusing a shape does not drop the node: `_walk` still
+        // A node `_shapeOf` cannot describe is not dropped: the walk still
         // draws it, labeled by its own tag, with no outgoing edges. No
         // source the parser accepts today reaches this — optional chaining
         // does not parse yet — so it needs the same hand-built `Exp` the
-        // `shapeOf.unrecognizedTag` test above refuses, carried one level up
-        // to where a node is actually built rather than only described.
+        // `shapeOf.unrecognizedTag` test above describes, carried one level
+        // up to where a node is actually built rather than only described.
         walk: {
             unsupported: () => {
-                const exp = /** @type {Exp} */ (/** @type {unknown} */ (['?.', ['a'], 'x']))
-                const { id, state } = _walk({ refs: [], nodes: [], edges: [], next: 0 })(exp)
-                assertEq(id, 0)
-                assertStructurallySame(state.nodes, [{ id: 0, kind: 'unsupported', label: '?. (not yet drawn)' }])
-                assertStructurallySame(state.edges, [])
+                assertStructurallySame(graphOf(_shapeOf)(['?.', ['a'], 'x']), {
+                    nodes: [{ id: 0, kind: 'unsupported', label: '?. (not yet drawn)', rank: 0 }],
+                    edges: [],
+                })
             },
             // An input with no user to sit in — the whole walk — is still
             // drawn, as the terminal node it is. No source the parser
             // accepts exports a bare input, so the `Exp` is built by hand.
             terminalRoot: () => {
-                const { state } = _walk({ refs: [], nodes: [], edges: [], next: 0 })(['args'])
-                assertStructurallySame(state.nodes, [{ id: 0, kind: 'terminal', label: 'args' }])
+                const { nodes } = graphOf(_shapeOf)(['args'])
+                assertStructurallySame(nodes, [{ id: 0, kind: 'terminal', label: 'args', rank: 0 }])
             },
             // A childless operator — an empty array literal — is a value
             // of its own, not an input, and stays a node.
             emptyArrayIsANode: () => {
-                const { state } = _walk({ refs: [], nodes: [], edges: [], next: 0 })(['[]', [['[]', []]]])
-                assertStructurallySame(state.nodes, [{ id: 0, kind: 'op', label: '[]' }, { id: 1, kind: 'op', label: '[]' }])
+                const { nodes } = graphOf(_shapeOf)(['[]', [['[]', []]]])
+                assertStructurallySame(nodes, [{ id: 0, kind: 'op', label: '[]', rank: 0 }, { id: 1, kind: 'op', label: '[]', rank: 1 }])
             },
         },
         // The initial source is the demo's whole reason for being: `a` is
@@ -1132,7 +1149,7 @@ export const proof = {
         noEdgeCrossesABox: () => {
             const g = _graphOf(demo.init)
             assert(g.ok, g)
-            assertEq(_crossings({ nodes: ranked(g.nodes, g.edges), edges: g.edges }), 0)
+            assertEq(_crossings(g), 0)
         },
         lazyEdgeInTheInitialSource: () => {
             const html = htmlToString(demo.view(demo.init))
