@@ -228,6 +228,10 @@ conversion Git's transition defines is not this command's.
    for it, so a substituted
    record cannot vouch for a substituted delta; the head's own commit,
    tree and record, which no delta names yet, are what this run names.
+   The head's delta has no successor to pin it either, so it is not
+   trusted on its record alone: each of its pairs is recomputed from the
+   object's bytes before it may prune the walk — the previous run's work
+   at most — and a pair that does not match refuses the branch.
    An object that does not match is the substitution this table exists
    to catch, and the run refuses the branch. If the repository holds no
    `disot`, the cache is empty and the new commit will have no parent.
