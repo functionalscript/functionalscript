@@ -82,15 +82,26 @@ const tsconfig = /** @type {const} */ ({
 
 /**
  * A string as a TypeScript string literal: JSON's spelling, which TypeScript
- * reads, with the one character JSON leaves raw that the `echo '…'` around
- * the source cannot hold, `'`, written as its escape. The encoding is what
- * keeps the negative control honest: a value interpolated raw could make
- * `bad.mts` a syntax error, which the negated compile would count as the
- * type refusing it.
+ * reads. The encoding is what keeps the negative control honest: a value
+ * interpolated raw could make `bad.mts` a syntax error, which the negated
+ * compile would count as the type refusing it.
  *
  * @type {(s: string) => string}
  */
-const literal = s => JSON.stringify(s).replaceAll("'", '\\u0027')
+const literal = s => JSON.stringify(s)
+
+/**
+ * A string as one single-quoted shell word. Nothing inside single quotes is
+ * special to the shell but the quote itself, so `'` is written as the quote
+ * closed, the character escaped, and the quote reopened. Every consumer
+ * string reaches its command through this, the identifiers included, which
+ * {@link literal} cannot cover: so a `value` of `x'; printf PWNED; #` is an
+ * import the compiler refuses, not a command the runner executes. An
+ * unsupported consumer fails the check; it never runs.
+ *
+ * @type {(s: string) => string}
+ */
+const shellWord = s => `'${s.replaceAll("'", "'\\''")}'`
 
 /**
  * The two consumer files, as one `echo` each writes them. `good.mts` imports
@@ -98,7 +109,9 @@ const literal = s => JSON.stringify(s).replaceAll("'", '\\u0027')
  * gives the type a value it accepts; `bad.mts` gives it one it does not.
  * Every string is a {@link literal}; the export and the type are written
  * bare, as the identifiers they are, and one that is not an identifier
- * fails `good.mts`, which is not negated. `.mts` rather than `.ts` because
+ * fails `good.mts`, which is not negated. The shell sees none of it raw:
+ * {@link consumerCommands} writes each file as one {@link shellWord}. `.mts`
+ * rather than `.ts` because
  * `npm init` declares no `type`, under which `.ts` would read as CommonJS.
  *
  * @type {(consumer: PackageConsumer) => string}
@@ -185,8 +198,8 @@ const declarationCommands = [
  * @type {(consumer: PackageConsumer) => readonly string[]}
  */
 const consumerCommands = consumer => [
-    `echo '${goodConsumer(consumer)}' > good.mts`,
-    `echo '${badConsumer(consumer)}' > bad.mts`,
+    `echo ${shellWord(goodConsumer(consumer))} > good.mts`,
+    `echo ${shellWord(badConsumer(consumer))} > bad.mts`,
     `${consumerTsc} good.mts`,
     'node good.mts',
     `! ${consumerTsc} bad.mts`,

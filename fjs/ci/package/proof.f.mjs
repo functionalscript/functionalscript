@@ -13,6 +13,19 @@ const job = packageCheckJob(packageConsumer)
 /** @type {(fragment: string) => boolean} */
 const scriptHas = fragment => job.steps.some(step => step.run?.includes(fragment) === true)
 
+/**
+ * The two commands writing a consumer's files, `good.mts` first.
+ *
+ * @type {(consumer: PackageConsumer) => readonly [string, string]}
+ */
+const consumerFiles = consumer => {
+    const runs = packageCheckJob(consumer).steps.flatMap(step => step.run === undefined ? [] : [step.run])
+    const good = runs.find(run => run.endsWith('> good.mts'))
+    const bad = runs.find(run => run.endsWith('> bad.mts'))
+    if (good === undefined || bad === undefined) { throw new Error('expected both consumer files written') }
+    return [good, bad]
+}
+
 /** @type {(s: string) => boolean} */
 const digits = s => s !== '' && [...s].every(c => c >= '0' && c <= '9')
 
@@ -150,18 +163,32 @@ export const proof = {
         // A consumer string reaches the source as a TypeScript string literal,
         // whatever it holds: a `"` in the refused value would otherwise make
         // `bad.mts` a syntax error, which the negated compile would count as
-        // the type refusing the value, and a `'` would end the `echo '…'`
-        // around the source.
+        // the type refusing the value.
         encodesTheStrings: () => {
             /** @type {PackageConsumer} */
-            const odd = { ...packageConsumer, accepted: 'a"b', refused: "c'd\\e" }
-            const runs = packageCheckJob(odd).steps.flatMap(step => step.run === undefined ? [] : [step.run])
-            const good = runs.find(run => run.endsWith('> good.mts'))
-            const bad = runs.find(run => run.endsWith('> bad.mts'))
-            assert(good !== undefined && bad !== undefined, 'expected both consumer files written')
+            const odd = { ...packageConsumer, accepted: 'a"b', refused: 'c"d\\e' }
+            const [good, bad] = consumerFiles(odd)
             assert(good.includes('const accepted: PrototypeName = "a\\"b";'), good)
-            assert(bad.includes('const refused: PrototypeName = "c\\u0027d\\\\e";'), bad)
-            assert(!bad.includes("'d"), 'expected no raw apostrophe inside the echo')
+            assert(bad.includes('const refused: PrototypeName = "c\\"d\\\\e";'), bad)
+        },
+        // Each file reaches the shell as one single-quoted word, so the one
+        // character the shell would read inside it, `'`, is the closed quote,
+        // an escaped `'` and the quote reopened, wherever it stands: in a
+        // literal, or in the identifiers a literal cannot cover. A `value`
+        // that reads as a command is then an import the compiler refuses,
+        // not a command the runner executes.
+        quotesEachFileForTheShell: () => {
+            /** @type {PackageConsumer} */
+            const odd = { ...packageConsumer, value: "x'; printf PWNED; #", type: "T'", refused: "c'd" }
+            const [good, bad] = consumerFiles(odd)
+            assert(good.includes(`import { x'\\''; printf PWNED; # } from`), good)
+            assert(good.includes(`import type { T'\\'' } from`), good)
+            assert(bad.includes(`const refused: T'\\'' = "c'\\''d";`), bad)
+            for (const file of [good, bad]) {
+                assert(file.startsWith(`echo '`) && file.endsWith(`' > ${file.endsWith('good.mts') ? 'good' : 'bad'}.mts`), file)
+                const inner = file.slice(`echo '`.length, file.lastIndexOf(`' > `))
+                assert(!inner.replaceAll(`'\\''`, '').includes("'"), `expected every apostrophe escaped: ${file}`)
+            }
         },
         // One command per step (root `AGENTS.md` §7): a consumer step never
         // chains, so a red step names the command that failed.
