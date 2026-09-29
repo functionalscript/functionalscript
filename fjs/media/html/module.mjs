@@ -26,8 +26,11 @@
  *
  * @module
  *
- * @import { Element as HtmlElement } from './types.ts'
+ * @import { Element as HtmlElement, Node as HtmlNode } from './types.ts'
  */
+
+import { definedEntries } from '../../types/object/module.f.mjs'
+import { isRawText, isVoidTag, parseElement, rawTextContent } from './module.f.mjs'
 
 const xhtml = 'http://www.w3.org/1999/xhtml'
 
@@ -113,17 +116,40 @@ const create = (document, rules, element) => {
  * **Attributes are added, not replaced.** One the element does not name is
  * left as it was.
  *
+ * **The serializer's rules for content.** A void element such as `br` gets no
+ * children, and a `style` gets only its text, with element children dropped —
+ * both by the helpers [`./module.f.mjs`](./module.f.mjs) serializes with, so
+ * the same element reads the same whichever way it reaches the page.
+ *
+ * **A `script` is refused.** Serialized and parsed through `innerHTML`, a
+ * script is inert; built and connected, it runs. A view describes what to
+ * show, so one that names a script throws rather than executes it.
+ *
  * @type {(target: Element, element: HtmlElement) => Element}
  */
-export const fill = (target, [, ...rest]) => {
-    const [first] = rest
-    const hasAttributes = first !== undefined && typeof first === 'object' && !(first instanceof Array)
-    const attributes = hasAttributes ? /** @type {Readonly<Record<string, string>>} */ (first) : {}
-    const children = /** @type {readonly (HtmlElement | string)[]} */ (hasAttributes ? rest.slice(1) : rest)
-    for (const [name, value] of Object.entries(attributes)) { target.setAttribute(name, value) }
-    target.replaceChildren(...children.map(child =>
-        typeof child === 'string' ? child : create(target.ownerDocument, rulesFor(target, child[0]), child)))
+export const fill = (target, element) => {
+    const [tag, attributes, children] = parseElement(element)
+    if (tag === 'script') { throw new Error('media/html: a `script` element is refused: built into a page, it would run') }
+    for (const [name, value] of definedEntries(attributes)) { target.setAttribute(name, value) }
+    target.replaceChildren(...content(target, tag, children))
     return target
+}
+
+/**
+ * What `fill` puts inside a `tag` element, by the serializer's rules: nothing
+ * for a void tag, the joined text for a raw-text one (no node for no text, as
+ * the parser makes none), and otherwise each child in order.
+ *
+ * @type {(target: Element, tag: string, children: readonly HtmlNode[]) => readonly (Element | string)[]}
+ */
+const content = (target, tag, children) => {
+    if (isVoidTag(tag)) { return [] }
+    if (isRawText(tag)) {
+        const text = rawTextContent(children)
+        return text === '' ? [] : [text]
+    }
+    return children.map(child =>
+        typeof child === 'string' ? child : create(target.ownerDocument, rulesFor(target, child[0]), child))
 }
 
 /**

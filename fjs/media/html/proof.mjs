@@ -149,6 +149,29 @@ export const proof = {
         }
     },
     /**
+     * **The serializer's rules for content**, so an element reads the same
+     * built or serialized: a void element gets no children, and a `style`
+     * only its text, element children dropped and `</` escaped.
+     */
+    voidAndRawTextFollowTheSerializer: () => {
+        assertStructurallySame(shape(toDom(dom(), ['br', { id: 'x' }, 'text', ['b']])),
+            ['br', xhtml, { id: 'x' }])
+        assertStructurallySame(shape(toDom(dom(), ['style', 'a{}', ['span', 'dropped'], '</style>'])),
+            ['style', xhtml, {}, 'a{}<\\/style>'])
+        // No text, no node: the parser makes none for `<style></style>`.
+        assertStructurallySame(shape(toDom(dom(), ['style', ['span']])), ['style', xhtml, {}])
+    },
+    /**
+     * **A `script` is refused**, in either namespace and by either entry
+     * point: built and connected, it would run, where the `innerHTML` it
+     * replaces left it inert.
+     */
+    throw: {
+        script: () => toDom(dom(), ['div', ['script', 'alert(1)']]),
+        svgScript: () => toDom(dom(), ['svg', ['script', 'alert(1)']]),
+        fillScript: () => fill(toDom(dom(), ['div']), ['script', 'alert(1)']),
+    },
+    /**
      * **`fill` replaces the children and adds to the attributes.** What lets a
      * pending row settle in place: its old text goes, and an attribute the new
      * element does not name stays.
