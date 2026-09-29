@@ -80,30 +80,6 @@ const tsconfig = /** @type {const} */ ({
 })
 
 /**
- * One command per step, so a failure names what failed rather than arriving as
- * an opaque script.
- *
- * The compiler is `../config/module.f.js`'s, installed from npm because this
- * job has no flake to take it from — no checkout means no file tree for one to
- * live in. It is the same version the `node26` shell provides through Nix, so
- * the declarations in the tarball are read by the compiler that emitted them.
- *
- * That version must stay exact for a reason peculiar to this job: with no
- * checkout there is no lockfile, so a range would let a later registry release
- * change the verdict with nothing here changing. It is a constant rather than a
- * range by construction now — the earlier design read it out of the project's
- * `package.json`, where it could be written as one, and validated it.
- *
- * `npm`, `npx` and `tsc` are the only external tools left, and root
- * `AGENTS.md` §6 is why there are no others: `tsc` is the established tool
- * that parses what it checks, and `npm` is the subject — a job proving the
- * package installs for a consumer cannot avoid the consumer's package manager.
- * `npx` stays here, unlike in every other job: it runs the compiler this job
- * just installed into a directory it built, which is the point.
- *
- * @type {readonly string[]}
- */
-/**
  * The two consumer files, as one `echo` each writes them, so a source holds
  * double quotes only. `good.mts` imports the runtime export and a declared
  * type from the installed package and gives the type a value it accepts;
@@ -132,8 +108,32 @@ const badConsumer = [
  * resolution a Node consumer gets, and `strict` is what makes a declaration
  * that failed to resolve an error rather than an `any`.
  */
-const consumerTsc = 'npx tsc --pretty false --ignoreConfig --noEmit --strict --module nodenext --target esnext'
+const consumerTsc = /** @type {const} */ ('npx tsc --pretty false --ignoreConfig --noEmit --strict --module nodenext --target esnext')
 
+/**
+ * One command per step, so a failure names what failed rather than arriving as
+ * an opaque script.
+ *
+ * The compiler is `../config/module.f.js`'s, installed from npm because this
+ * job has no flake to take it from — no checkout means no file tree for one to
+ * live in. It is the same version the `node26` shell provides through Nix, so
+ * the declarations in the tarball are read by the compiler that emitted them.
+ *
+ * That version must stay exact for a reason peculiar to this job: with no
+ * checkout there is no lockfile, so a range would let a later registry release
+ * change the verdict with nothing here changing. It is a constant rather than a
+ * range by construction now — the earlier design read it out of the project's
+ * `package.json`, where it could be written as one, and validated it.
+ *
+ * `npm`, `npx` and `tsc` are the only external tools left, and root
+ * `AGENTS.md` §6 is why there are no others: `tsc` is the established tool
+ * that parses what it checks, and `npm` is the subject — a job proving the
+ * package installs for a consumer cannot avoid the consumer's package manager.
+ * `npx` stays here, unlike in every other job: it runs the compiler this job
+ * just installed into a directory it built, which is the point.
+ *
+ * @type {readonly string[]}
+ */
 const commands = [
     'npm init -y > /dev/null',
     // `echo` is the shell's own builtin expanding its own glob; `ls` would be
