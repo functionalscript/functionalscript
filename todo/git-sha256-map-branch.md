@@ -5,444 +5,177 @@
 
 ### Problem
 
-A trusted timestamp (TTS, RFC 3161) proves that a digest existed at a time
-`T`. DISOT (Decentralized Immutable Source of Truth:
+A trusted timestamp (TTS, RFC 3161) proves that a digest existed at a time.
+DISOT (Decentralized Immutable Source of Truth:
 [what it is](https://medium.com/@sergeyshandar/digital-space-how-it-should-be-done-4c2f3bd3cf9e),
 [architecture](./plan/architecture.md)) wants that proof to be about Git
-content — commits, trees, blobs, and the signatures inside them — so that
-anyone can show a history existed by `T`, and show *which* history, not one
-of a pair. A SHA-1 name cannot carry that proof: a collision gives two
-contents one name, so a timestamp over a SHA-1 id proves that one of the
-pair existed, and not which
-([git-sha1-collisions](./git-sha1-collisions.md)). The digest the timestamp
-covers has to be SHA-256 over the content.
+content, and to name *which* content, not one of a colliding pair. A SHA-1
+name cannot do that ([git-sha1-collisions](./git-sha1-collisions.md)); the
+digest has to be SHA-256 over the content.
 
 Git can name objects by SHA-256, and in practice nothing does: every host,
-every clone and every historical repository is SHA-1, and will be for years.
-So the content stays SHA-1-named where it lives, and DISOT adds the second
-name beside it: a **mapping table** from each SHA-1 object id to a SHA-256
-name, carried in the repository on a `disot` branch, each table in a commit
-beside a trusted timestamp over the table's own SHA-256. Each such commit
-descends from the previous one and its table names the previous one, so
-every new timestamp also covers the earlier commits and their timestamps —
-a chain that keeps adding timestamps for as long as the repository lives.
+every clone and every old repository is SHA-1. So the content stays where it
+is, and DISOT adds the second name beside it: a **mapping table** from SHA-1
+object id to SHA-256 name, kept on a `disot` branch, each delta in a commit
+beside a trusted timestamp over the delta's own SHA-256. Each commit
+descends from the previous one, so the chain keeps adding timestamps for as
+long as the repository lives.
 
-The branch is a source of truth in DISOT's sense, and that fixes what it
-may hold: **only what was observed, and the original content it was
-observed of**. A pair is an observation — these bytes, at hand, hashed to
-this name, at this time — and a commit is a set of observations under one
-timestamp. The branch records no decisions.
+The branch holds **only what was observed**: a pair is an observation, a
+commit is a set of observations under one timestamp, and the branch records
+no decisions.
 
-**Scope.** This issue covers one thing: **recording** a timestamp over
-hardened hashes — how the pairs are computed, how a commit carries them,
-and how the chain grows. What a reader makes of the record — which parties
-it trusts, how it ranks two records, what it does with a collision — is
-out of scope and listed at the end so that it is not decided by accident.
+**Scope.** Recording only: how pairs are computed, how a commit carries
+them, how the chain grows. Reading the record — trusting a party, ranking
+two records, resolving a collision, verifying a branch — is out of scope
+and listed at the end.
 
 ### Proposal
 
-The table is a **set of pairs** `(sha1, sha256)`, one per Git object, and
-every step treats it as a set: nothing is changed or removed, a commit only
-adds, and the table in hand is the union, in memory, of every table already
-published. Nothing in Git ever merges tables.
+The table is a **set of pairs** `(sha1, sha256)`, one per object. A commit
+only adds; nothing in Git merges tables; the table in hand is the union, in
+memory, of every delta on the branch.
 
-Which SHA-256 a pair names is decided in
-[git-sha1-collisions](./git-sha1-collisions.md); this process assumes and
-recommends **Git's compat name**, the hash of the object converted exactly
-as the
-[transition document](https://git-scm.com/docs/hash-function-transition.html)
-converts it — every embedded SHA-1 id rewritten to its SHA-256 twin, and
-whatever it does with a signed commit's signature headers — because under
-it the pair for a
-commit is a Merkle root over everything the commit reaches, and one
-timestamped line proves a whole history. Under the SHA-256 of the stored
-bytes, each line proves only its own object, and a history is proved only by
-a complete table. The steps below hold under either; where the choice
-matters, it is said.
+Which SHA-256 a pair names is [git-sha1-collisions](./git-sha1-collisions.md)'s
+decision. This process assumes **Git's compat name**, the object converted
+as the [transition document](https://git-scm.com/docs/hash-function-transition.html)
+converts it, because then a commit's pair is a Merkle root over everything
+it reaches, and one timestamped line proves a whole history.
 
-**1. Build the table for the missing commits by walking what they reach.**
-A run starts at the commits no earlier table on the chain covers, and
-traverses their history — parents, recursively — and, for each commit, its
-tree, every subtree, and every blob; an annotated tag reached by a
-`mergetag` header or given as a start is an object too. Each object met is
-hashed once and its pair recorded. Under compat naming an object's name
-depends on the names of what it points to, so a pair is recorded only after
-the pairs of everything it references: a post-order walk, which is what a
-walk from the leaves up gives anyway.
-
-The walk reads objects with [`fjs/git/store`](../fjs/git/store/module.f.mjs)
-and follows them with [`fjs/git/walk`](../fjs/git/walk/module.f.mjs); the
-hash is `sha256` from [`fjs/crypto/sha2`](../fjs/crypto/sha2/module.f.mjs),
-applied as [`fjs/git/oid`](../fjs/git/oid/module.f.mjs)'s `of` applies a hash
-to an object at a width. A tree entry of gitlink mode names a commit of
-another repository, whose pair this walk cannot obtain, so a tree holding
-one is refused rather than named with a guess; where its pair belongs is
-open below.
-
-**2. Add only what the table does not hold.** The table in hand is the
-walk's stopping condition: an object whose SHA-1 is already paired is not
-hashed again, and nothing it references is visited, as `git fetch` does not
-descend below a commit it already has. That pruning is safe only under an
-invariant the process guarantees: **the table is closed under
-reachability** — if an object is in it, everything the object references
-is too. Recording in post-order gives the invariant for free; a table that
-violates it is corrupt, refused rather than extended
-([DESIGN.md §10](../doc/DESIGN.md#10-refuse-what-you-cannot-handle)). Under
-compat naming the invariant is also what makes a pair meaningful, since the
-name is defined only where the subgraph below it is named.
-
-What a pruned pair records is exact, and worth stating. A commit's bytes
-name its tree and parents by SHA-1, and a tree's bytes name its entries the
-same way; under compat naming the commit's pair is those bytes with each
-SHA-1 replaced by the name the chain already observed for it. So a run that
-prunes at an object records that the new commit reaches *that object as
-observed earlier*, by the earlier commit, at the earlier time — not that it
-read the object's bytes today. That is the whole of the claim, and it is
-right even if the repository now serves the object's colliding twin: the
-recorded root names the original, and whoever verifies the twin against the
-chain recomputes its name and finds the mismatch. Re-reading and re-hashing
-every reached object on every run would make the builder a verifier at the
-cost of the full walk each time; that check is a verifier's, out of scope
-here, and a tool may offer it as an option. A run computes from bytes it
-holds every pair it records, and prunes only at pairs already on the chain
-it extends; whether it may prune at pairs another party published is the
-trust question below.
-
-So a run costs the new commits and the trees and blobs they introduced,
-plus a re-check of the pairs the previous run recorded, which no successor
-pins until this run does (the command's step 1): the last increment and
-the new one, never the whole history again. The first run over a large
-repository costs every object it holds, and the second run pays that once
-more to check it; from then on each run re-checks only the run before. Under compat naming the
-commit roots are what a timestamp proves, and the per-object pairs are the
-cache that lets the next run prune at every subtree already named.
-
-**3. Keep the table in Git, on its own branch, with a timestamp over each
-delta.** The table lives in the repository it describes, on a branch named
-`disot` — `refs/heads/disot`, so that every host and every clone carries it
-the way it carries any branch, with no server support and no separate
-transport. The branch's history is unrelated to the history it maps: its
-first commit has no parent, and its trees hold two files and nothing else:
-the delta, and the record of the trusted timestamp over it.
-
-Each commit on the branch carries **only the pairs new since its parents**,
-and its parents are the earlier table commits it was built on: the branch is
-a Merkle DAG of deltas, and the whole table is never written to Git. The
-table of a long-lived repository is huge, and a commit that re-listed it
-would make the branch grow with every timestamp; a commit that adds only the
-missing commits' objects grows with the content instead, and a commit made
-only to renew the timestamps carries only the pairs for what its parents
-alone introduced — each parent commit, its tree and its record, which
-could not be in that parent's own delta; the parent's delta is already
-paired by its record, below. A reader builds the
-whole table by
-scanning every `disot`
-commit and taking the union of their deltas in memory; that union is a
-cache, rebuilt from the branch, and a local on-disk form of it is tooling
-for later, not part of the format.
-
-The timestamp is a **file beside the delta, not a commit header**. A run
-writes the delta, hashes it with SHA-256, requests an RFC 3161 timestamp
-with that digest as the imprint, and stores the token it gets back in the
-second file, beside that digest; then it commits the two. The tree entry
-for the delta is the delta's SHA-1 and the record holds its SHA-256, so a
-commit on the branch pairs its own delta without the delta naming itself,
-and a reader takes that pair into the table with the delta's own lines. The digest is the delta's SHA-256
-name as a Git blob — the envelope and the bytes, as
-[`fjs/git/oid`](../fjs/git/oid/module.f.mjs)'s `of` hashes any object at
-the SHA-256 width — so the imprint the token carries is the very name the
-record holds for this delta, and a reader compares the two without a
-second hash. The second file is a record holding that digest and the
-token (`TimeStampToken`, not the response that wrapped it, as
-[disot-cli-epic](../fjs/todo/disot-cli-epic.md) already asks); its
-form is the command's, below.
-
-So the proof never touches SHA-1: token, imprint, delta, pairs, names, all
-SHA-256, and a reader that has the delta and the token verifies without
-the commit. The commit is ordinary and plain — no signature, no extra
-header, nothing in it a reader relies on — and is only Git's way of
-carrying two files and naming the tables they were built on. The commit
-headers that
-[git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md)
-puts a timestamp in are for the commits of the mapped history; this branch
-does not use them, and shares only the RFC 3161 request and token handling.
-
-**4. Take every published table before publishing one.** Before a run
-records anything, it takes every `disot` head it is given — its own
-`refs/heads/disot`, and any other party's head the user chose to adopt,
-since which parties' pairs a run may prune at is the trust question, out
-of scope — scans every commit reachable from them, and takes the union
-of their deltas, in memory, as the table in hand for step 2. Then the walk
-records only pairs absent from that union, and the run writes them as one
-new commit whose parents are those heads — one parent in the usual case,
-several when two publishers raced. Pushing is the user's, as fetching
-was. Two writers who each
-fetched the same head and each pushed produce two heads, and the next commit
-simply names both as parents: nothing is merged, since the next delta only
-adds and a reader's union sees both. Two such writers may each have
-recorded the same pair, since neither saw the other's commit; that is
-normal, and a pair's proof is then the delta whose token gives the
-earliest conservative bound, a token with no bound not competing.
-If the union holds two different SHA-256 names for one SHA-1, the run has
-no name to build on and refuses to publish; what to do then is out of
-scope below.
-
-Each new table also holds the pairs for every table commit it descends
-from — one parent usually, each of the fetched heads after a race — and
-for the tree and the record each of them introduced: existing objects
-like any other, and the closure invariant demands them. The parent's
-delta needs no line, since the parent's tree entry and record already
-pair it. Under compat naming a parent commit's line then binds the whole
-chain below it by SHA-256, and the pair a record gives for its delta has
-the very digest that record's token carries as its SHA-256.
+1. **Walk.** Start at the commits no delta covers yet. Traverse parents,
+   trees and blobs in post-order, since under compat naming an object's
+   name depends on the names of what it references. Record a pair for
+   every object met. A tree with a gitlink is refused: the submodule
+   commit's pair is not this repository's to compute.
+2. **Prune at the table.** An object already paired is not hashed again and
+   nothing below it is visited. That is safe because the table is **closed
+   under reachability**: post-order recording puts every referenced object
+   in before the object that references it. A pruned pair records that the
+   new commit reaches the object *as observed earlier*, not that its bytes
+   were read today; re-reading them is a verifier's job. So a run costs
+   the new content, and the first run over a large repository costs every
+   object it holds, once.
+3. **One delta and one timestamp per commit.** The branch is
+   `refs/heads/disot`, so every host and clone carries it with no
+   configuration. Its history is unrelated to the mapped history. Each
+   commit's tree holds two files: the delta, the pairs new since the
+   parent; and the record, the delta's SHA-256 blob name beside the RFC
+   3161 token whose imprint is that name. The tree entry gives the delta's
+   SHA-1, the record its SHA-256, so the commit pairs its own delta without
+   the delta naming itself. The commit is plain: no signature, no header.
+   The next delta records the parent commit, its tree and its record, which
+   the parent could not name; the delta was paired by the record.
+4. **A run over a covered repository still commits.** Its delta holds the
+   parent's own three objects and its token renews the chain. A renewal is
+   not a no-op.
 
 ### The command: `fjs tts`
 
-One command, no arguments, run inside a repository; the timestamp
-authority's URL is its one option, `--tsa <url>`, until
-[disot-cli-epic](../fjs/todo/disot-cli-epic.md)'s profiles land. It never
-touches the index or the working tree: it reads committed objects and
-writes objects and one ref, so uncommitted changes cannot reach it and are
-not checked. Only committed content is named, and a working tree is not
-content. It refuses two repository states. One is `disot` checked out in
-any worktree, as `git branch -f` refuses it: moving a checked-out
-branch's ref under its working tree is the one way the command could
-disturb one, and a `HEAD` that is `disot` names no content to map. The
-other is a SHA-256 repository, `extensions.objectFormat` as
-[`fjs/git/config`](../fjs/git/config/module.f.mjs) reads it: its content
-already bears the name this branch exists to add, and the reverse
-conversion Git's transition defines is not this command's.
+One command, one option, `--tsa <url>`, run inside a repository. It reads
+committed objects and writes objects and one ref. It never touches the
+index or the working tree, so a dirty tree is not checked. It refuses a
+`disot` checked out in any worktree, as `git branch -f` would, and a
+SHA-256 repository, whose content already has the name.
 
-1. **Read the cache.** If the repository holds `refs/heads/disot`, scan
-   every commit reachable from it and take the union of their deltas in
-   memory, plus one pair per commit for its delta — the tree entry's
-   SHA-1, the record's SHA-256 — refusing two names for one SHA-1. Before
-   a delta's pairs enter the cache, its bytes are hashed as a blob at the
-   SHA-256 width and the name must equal the record's `sha256`, and the
-   record's token is checked as step 4 below checks a fresh response — its
-   imprint equal to that digest, its signature and its signer's
-   certificate chain — before any pair of that delta enters the cache,
-   since the `sha256` member alone is an unsigned claim. One thing differs
-   for a cached token: the time its certificate is judged at. A fresh
-   response is judged now; a cached token is judged at the conservative
-   bound of the first successor token that pins its record and has a
-   bound, the renewal that proves it existed then, so an authority whose
-   certificate has since expired or been revoked still vouches for what
-   it timestamped before that, and a token made after the fact does not.
-   A successor without a bound fixes no time and is passed over. A cached
-   token no bounded successor pins, and the head's token, which nothing
-   pins yet, are judged now, the strict side. The same check
-   covers the rest of the branch:
-   each commit, tree and record is named as the walk names any object —
-   the record as a blob at the SHA-256 width, a tree or a commit with its
-   SHA-1 references rewritten to their pairs first, under the compat
-   naming — and the name must equal the pair its successor's delta holds
-   for it, so a substituted
-   record cannot vouch for a substituted delta; the head's own commit,
-   tree and record, which no delta names yet, are what this run names.
-   The head's delta has no successor to pin it either, so it is not
-   trusted on its record alone: each of its pairs is recomputed from the
-   object's bytes before it may prune the walk — the previous run's work
-   at most — and a pair that does not match refuses the branch.
-   An object that does not match is the substitution this table exists
-   to catch, and the run refuses the branch. If the repository holds no
-   `disot`, the cache is empty and the new commit will have no parent.
-   Remote-tracking heads are not read: a cache hit stops the walk, so
-   reading another party's table is trusting it, which is out of scope
-   here. A user who trusts a remote's `disot` makes it their own with
-   `git branch -f disot origin/disot` before the run, and the run then
-   descends from it.
-2. **Walk.** From the commit `HEAD` names, in post-order, record a pair for
-   every object the cache lacks; a cache hit ends the descent, on the
-   closure invariant of the Proposal's step 2 — everything below a hit is in the cache by
-   construction. The walk also starts from the head read in 1, whose own
-   commit, tree and record no delta holds yet; its delta is in the cache
-   from its record.
-3. **Write the delta**, `sha1-sha256-map.json`: one JSON object, each key a SHA-1 in
-   lowercase hex, each value its SHA-256 in lowercase hex, keys in ascending
-   order, no whitespace beyond what JSON requires. One set of pairs then
-   has one byte sequence; a reader checks the order and refuses any other
-   spelling, so lookup is a search that fails rather than answers wrongly,
-   as [`fjs/git/packidx`](../fjs/git/packidx/module.f.mjs) does for its
-   ids.
-4. **Timestamp it.** Take the delta's blob name at both widths — its
-   SHA-1, which is what the tree will say for it, and its SHA-256, which
-   is what the record will hold for it — request an RFC 3161
-   timestamp with the SHA-256 as the imprint, a fresh nonce and
-   `certReq` set, so the token carries the signer's certificate and a
-   later clone can check it from the two blobs alone — the trust anchors
-   and revocation data it checks against are the reader's own, a
-   configured trust store as for any certificate, not the record's — and
-   check
-   the response's status, imprint, nonce and signature, and the signer's
-   certificate — its chain to a trusted root, its validity, its revocation
-   status and its timestamping extended key usage — as
-   [disot-cli-epic](../fjs/todo/disot-cli-epic.md) asks. A response that
-   fails any check ends the run with nothing written to the branch. On
-   success write the **record**, `tts.json`: one JSON object with two
-   members in this order, `sha256` as lowercase hex and `tts` as the DER
-   `TimeStampToken` in standard base64 with padding, no whitespace, and
-   no escape sequence anywhere — hex and base64 need none, so a reader
-   refuses a backslash, in the delta as in the record — one byte sequence
-   per record, as the delta has one per set of pairs. A token without
-   the signer's certificate is refused. The record and
-   the tree together give the delta's own pair at this commit: the tree
-   entry is its SHA-1, the record its SHA-256, and the token covers that
-   SHA-256, so a reader checks the record against the token and takes the
-   pair into the cache. Neither the SHA-1 nor the time is repeated: the
-   tree says the one and the token, signed, the other.
-5. **Commit.** Write the two blobs, their tree, and a commit whose parent
-   is the head read in 1 — one parent: joining a second publisher's head,
-   the several-parent commit of the Proposal's step 4, is open below — and move
-   `refs/heads/disot` to it only if it
-   still holds what step 1 read. Nothing is pushed. The delta cannot hold
-   its own pair — its bytes decide both hashes — which is why the tree and
-   the record hold it, and why the next delta records only the record, the
-   tree and the commit as the objects this commit introduced.
-
-A run over a repository the cache already covers still commits: its delta
-holds the pairs for the parents' own objects and its token renews the
-chain. That is a renewal, by design, not a no-op.
+1. **Read the cache.** Scan `refs/heads/disot`, if it exists, and take the
+   union of its deltas in memory, plus one pair per commit for its delta:
+   the tree entry's SHA-1, the record's SHA-256. Each delta is hashed as a
+   blob at the SHA-256 width and must equal its record, so a damaged blob
+   does not feed the cache. Two names for one SHA-1 refuse the run. No
+   branch, empty cache, no parent. Remote-tracking heads are not read:
+   pruning at another party's pairs is trusting them. A user who trusts
+   a remote's `disot` makes it their own branch first.
+2. **Walk** from `HEAD`, and from the `disot` head, whose commit, tree and
+   record no delta holds yet, recording what the cache lacks.
+3. **Write the delta**, `sha1-sha256-map.json`: one JSON object, SHA-1 keys
+   in lowercase hex in ascending order, SHA-256 values in lowercase hex,
+   no whitespace, no escapes. One set of pairs, one byte sequence; a reader
+   refuses any other spelling.
+4. **Timestamp it.** Request an RFC 3161 timestamp with the delta's SHA-256
+   blob name as imprint, a fresh nonce and `certReq` set. Check the
+   response's status, imprint, nonce, signature and the signer's
+   certificate chain, as [disot-cli-epic](../fjs/todo/disot-cli-epic.md)
+   asks. Any failure ends the run with nothing written. Write the record,
+   `tts.json`: `{"sha256":"…","tts":"…"}`, the token as DER in standard
+   base64, no whitespace, no escapes.
+5. **Commit** the two blobs and their tree, with the `disot` head as the
+   one parent, and move `refs/heads/disot` only if it still holds what
+   step 1 read. Nothing is fetched or pushed; both are the user's.
 
 ### What a timestamp proves
 
-- **Existence, of named content, by a time.** A pair's timestamp is the
-  TTS of the commit that first introduced it. It proves that content with
-  that SHA-256 name existed by the token's time plus its accuracy, from
-  the token or, where the token omits it, from its TSA policy — the
-  conservative bound the companion design uses; a token with neither gives
-  its time with no precise bound claimed, never a bound taken as zero. The proof is the timestamp
-  plus the objects: whoever checks it recomputes the name from the bytes
-  and compares. The timestamp with the **earliest conservative bound**
-  naming the content is the whole proof of when it existed; later ones add
-  nothing to that bound. Where no token naming the content has a bound, a
-  reader shows the earliest `genTime` and claims no finer ordering, as the
-  companion design does. The
-  token reaches the pair directly, through the delta's SHA-256 name, so the
-  bound is the introducing commit's own time.
-- **Why the chain keeps adding timestamps anyway.** A timestamp verifies
-  only while its authority's certificate chain does, and a newer timestamp
-  over the chain proves the older token existed before that chain expired
-  or its key was compromised — the renewal RFC 3161 and long-term
-  validation describe — provided the renewal's own bound precedes that
-  expiry or compromise; a renewal made after it proves only its own time,
-  and a reader does not report the older proof as preserved by it. So a
-  renewal-only commit is a normal commit, made in time.
-- **The imprint is the delta's SHA-256 name.** A request that hashed the
-  commit's SHA-1 id, or the delta with SHA-1, would bind a name the
-  attacker can collide, and the record would prove nothing more than the
-  SHA-1 did. The digest is fixed here, by this process; what digest the
-  companion design's commit headers use is that design's open item.
+- **Existence by a time.** The token's time plus its accuracy, from the
+  token or its TSA policy, is the bound; a token with neither gives its
+  time and claims no bound. The proof is the token plus the objects: a
+  reader recomputes the name from the bytes and compares. The earliest
+  bound naming the content is the whole proof; later tokens add nothing to
+  it.
+- **Why the chain keeps adding timestamps.** A token verifies only while
+  its authority's certificate does. A later token over the chain proves
+  the earlier one existed before that, if the later bound precedes the
+  expiry. That is the renewal RFC 3161 describes.
+- **The imprint is the delta's SHA-256 name.** Hashing anything by SHA-1
+  would bind a name an attacker can collide.
 
 ### Open questions
 
-Each is decided in the format or the tool that needs it, not here; this
-list is so that none is decided by accident.
-
-- **Which SHA-256.** [git-sha1-collisions](./git-sha1-collisions.md)'s
-  question; this process assumes the compat name and says why above.
-- **A local index.** A delta per commit is decided, and a delta is one
-  file, since the token's imprint is that file's blob name: a pair lives
-  in the deltas that introduced it, usually one, so its proof is the one
-  with the earliest conservative bound, with nothing to look up. What is
-  open is whether a
-  reader that answers one SHA-1 without scanning the whole branch is worth
-  a local index, which is tooling and not format.
-- **Joining raced heads.** Step 4 lets a commit name several parents when
-  two publishers raced, and `fjs tts` as designed reads one branch and
-  writes one parent; `git branch -f` adopts a head by replacing the
-  other, so no workflow here produces the join. How a user names a
-  second head they trust — an argument, a second local branch — is a
-  later version's, and until then a raced head is adopted whole or not
-  at all.
-- **Gitlinks.** A submodule's commit is an object of another repository. Its
-  pair belongs to that repository's own `disot` branch, so the natural rule
-  is: not followed, not recorded, and a reader that needs it asks the
-  submodule. Open whether the table should at least name the boundary.
-- **Shallow and partial clones.** A walk that cannot reach the bottom cannot
-  establish the closure invariant, so a run over such a clone refuses to
-  publish rather than publishing a partial table. Whether it may publish
-  pairs for the objects it does hold, marked as unclosed, is open.
-- **Tags.** An annotated tag reached only through a ref is outside a
-  commit's reachability. Whether the walk starts from refs or from commits
-  decides whether tags are inputs.
-- **The branch name.** `disot` is a name people will type and hosts will
-  show; a ref outside `refs/heads/` would hide it from branch listings and
-  from `git clone`'s default fetch. The visible branch is proposed because it
-  needs no configuration on any side; open whether a refspec is worth the
-  hiding.
+- **Which SHA-256**: the collisions issue's; compat naming assumed here.
+- **Joining raced heads.** Two publishers who raced produce two heads.
+  The command writes one parent and `git branch -f` replaces rather than
+  joins; how a user names a second trusted head is a later version's.
+- **Gitlinks.** A submodule's pair belongs to its own `disot` branch.
+  Whether the table should name the boundary is open.
+- **Shallow clones.** A walk that cannot reach the bottom cannot close the
+  table, so it refuses. Whether it may publish an unclosed part is open.
+- **Tags** reached only through refs, and **a local index** for lookup
+  without a scan, are tooling questions.
 
 ### Out of scope
 
-Reading the record is a separate design. These were discussed while this
-one was written and are kept here only so they are not lost or decided by
-accident:
+Reading the record is a separate design, kept here only so it is not
+decided by accident:
 
-- **Trust between parties.** Which publishers' tables a reader accepts, and
-  whether a run may prune at pairs another party published. A timestamp
-  orders claims and a signature attributes them, so a reader ranks records
-  by signer before it ranks them by time. This record authenticates only
-  the timestamp authority: the commit is unsigned and its author line is
-  a claim, so attribution needs a record of its own.
-- **Two records for one SHA-1.** Among trusted records, the earliest first;
-  two different SHA-256 names for one SHA-1 is a collision, always reported,
-  with the oldest pair as the working default on the assumption that a later
-  one passes a twin off under a known name. The branch records both
-  observations and no decision. A proper resolution may need consensus and
-  signatures from many parties, and its records are a later layer.
-- **Suppression.** A timestamp proves existence, not priority; an attacker
-  who controls the only copy of the branch can drop the honest commit, and
-  the defenses — a reader refusing a head that does not descend by SHA-256
-  from a table it holds, and publication to more than one host — are the
-  reader's and the publisher's, not the record's.
-- **A miss.** What a reader does with an object no table holds.
+- **Verifying a branch.** The command reads its own branch as it finds it.
+  Checking tokens against their authorities at the time a renewal proves,
+  detecting a substituted twin, checking closure: a verifier's, and a
+  later command's. Closure is the writer's guarantee; checking it costs
+  the full walk the table exists to avoid.
+- **Trust between parties.** Which publishers' tables a reader accepts. The
+  record authenticates only the timestamp authority; the commit is
+  unsigned and its author line is a claim.
+- **Two records for one SHA-1.** A collision, always reported; the oldest
+  pair as the working default. Resolution may need many parties'
+  signatures, a later layer.
+- **Suppression** of the honest head by whoever holds the only copy, and
+  **a miss**, an object no table holds.
 
 ### Tasks
 
-- [ ] The delta reader and writer: the JSON form of the command's step 3,
-      written canonically and refused when not.
-- [ ] The timestamp: the request with the delta's SHA-256 name as the
-      imprint, the token checked against it and stored, reusing the
-      RFC 3161 handling
+- [ ] The delta and record readers and writers, canonical and refused when
+      not.
+- [ ] The timestamp request and check, reusing the RFC 3161 handling
       [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md)
       defines.
-- [ ] The walk: from the missing commits and a table in hand to the pairs it
-      lacks, pruning at what is held and recording in post-order, over
-      [`fjs/git/store`](../fjs/git/store/module.f.mjs) and
-      [`fjs/git/walk`](../fjs/git/walk/module.f.mjs); a proof against a
-      fixture repository that the second run over an unchanged repository
-      records nothing of the mapped history — only the previous `disot`
-      commit's own commit, tree and record, the renewal.
-- [ ] Reading the table: the in-memory union from a scan of every `disot`
-      commit, and the closure check that refuses a table an object of which
-      references an unmapped one.
-- [ ] Writing the table: the delta and the record as blobs, their tree, and
-      the commit with the head it read as parent. Nothing in [`fjs/git`](../fjs/git/README.md)
-      writes an object to a store yet — the effects have `inflate` and no
-      `deflate`, and [`fjs/git/loose`](../fjs/git/loose/module.f.mjs) only
-      reads — so a loose-object writer comes first, then the branch tip.
-      The tip is written only if the ref still holds the head the run
-      read, a compare-and-swap;
+- [ ] The walk over [`fjs/git/store`](../fjs/git/store/module.f.mjs) and
+      [`fjs/git/walk`](../fjs/git/walk/module.f.mjs), with a proof that a
+      second run over an unchanged repository records only the renewal.
+- [ ] A loose-object writer: nothing in [`fjs/git`](../fjs/git/README.md)
+      writes an object yet, and the effects have `inflate` and no
+      `deflate`. Then the branch tip as a compare-and-swap, which
       [`fjs/git/refstore/write`](../fjs/git/refstore/write/module.f.mjs)'s
-      `tryWrite` renames over whatever is there, so the conditional write
-      is part of this work. Nothing is pushed.
-- [ ] `fjs tts`: read, walk, write, timestamp, commit, in that order,
-      refusing to move the ref over a head it did not read.
+      `tryWrite` does not do.
+- [ ] `fjs tts`: read, walk, write, timestamp, commit.
 
 ### Related
 
-- [git-sha1-collisions](./git-sha1-collisions.md) — the policy this is one
-  answer to, and the choice of which SHA-256 it records.
+- [git-sha1-collisions](./git-sha1-collisions.md) — the policy this
+  answers, and which SHA-256 a pair names.
 - [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md)
-  — the RFC 3161 request and token handling this reuses; its commit headers
-  are for the mapped history's commits, not this branch's.
+  — the RFC 3161 handling this reuses; its commit headers are not used here.
 - [git-name-resolution](./git-name-resolution.md) — the other DISOT
-  metadata, and the `.disot.*` files a table format might join.
-- [disot-cli-epic](../fjs/todo/disot-cli-epic.md) — where the command
-  lands.
+  metadata.
+- [disot-cli-epic](../fjs/todo/disot-cli-epic.md) — where the command lands.
 - [`fjs/crypto/todo/sha1.md`](../fjs/crypto/todo/sha1.md) — collision
-  detection for the SHA-1 side of each pair.
+  detection for the SHA-1 side.
 - [Git hash-function transition](https://git-scm.com/docs/hash-function-transition.html)
-  — the compat mapping and the index formats Git keeps it in.
-- [Digital space: how it should be done](https://medium.com/@sergeyshandar/digital-space-how-it-should-be-done-4c2f3bd3cf9e)
-  — what DISOT is, and why a source of truth holds only what was observed.
+  — the compat naming.
