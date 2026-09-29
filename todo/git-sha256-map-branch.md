@@ -129,8 +129,9 @@ table of a long-lived repository is huge, and a commit that re-listed it
 would make the branch grow with every timestamp; a commit that adds only the
 missing commits' objects grows with the content instead, and a commit made
 only to renew the timestamps carries only the pairs for what its parents
-alone introduced — each parent commit, its tree, its delta and its
-timestamp file, which could not be in that parent's own delta. A reader builds the
+alone introduced — each parent commit, its tree and its record, which
+could not be in that parent's own delta; the parent's delta is already
+paired by its record, below. A reader builds the
 whole table by
 scanning every `disot`
 commit and taking the union of their deltas in memory; that union is a
@@ -140,7 +141,10 @@ for later, not part of the format.
 The timestamp is a **file beside the delta, not a commit header**. A run
 writes the delta, hashes it with SHA-256, requests an RFC 3161 timestamp
 with that digest as the imprint, and stores the token it gets back in the
-second file, beside the delta's two names; then it commits the two. The digest is the delta's SHA-256
+second file, beside that digest; then it commits the two. The tree entry
+for the delta is the delta's SHA-1 and the record holds its SHA-256, so a
+commit on the branch pairs its own delta without the delta naming itself,
+and a reader takes that pair into the table with the delta's own lines. The digest is the delta's SHA-256
 name as a Git blob — the envelope and the bytes, as
 [`fjs/git/oid`](../fjs/git/oid/module.f.mjs)'s `of` hashes any object at
 the SHA-256 width — so the imprint the token carries is the very name the
@@ -180,11 +184,12 @@ scope below.
 
 Each new table also holds the pairs for every table commit it descends
 from — one parent usually, each of the fetched heads after a race — and
-for the tree, the delta and the timestamp file each of them introduced:
-existing objects like any other, and the closure invariant demands them.
-Under compat naming a parent commit's line then binds the whole chain
-below it by SHA-256, and the line for a parent's delta repeats the very
-digest that parent's token carries.
+for the tree and the record each of them introduced: existing objects
+like any other, and the closure invariant demands them. The parent's
+delta needs no line, since the parent's tree entry and record already
+pair it. Under compat naming a parent commit's line then binds the whole
+chain below it by SHA-256, and the pair a record gives for its delta has
+the very digest that record's token carries as its SHA-256.
 
 ### The command: `fjs tts`
 
@@ -198,14 +203,16 @@ content.
 
 1. **Read the cache.** If the repository holds `refs/heads/disot` or any
    `refs/remotes/*/disot`, scan every commit reachable from those heads and
-   take the union of their deltas in memory, refusing two names for one
-   SHA-1. If it holds none, the cache is empty and the new commit will have
-   no parent.
+   take the union of their deltas in memory, plus one pair per commit for
+   its delta — the tree entry's SHA-1, the record's SHA-256 — refusing two
+   names for one SHA-1. If it holds none, the cache is empty and the new
+   commit will have no parent.
 2. **Walk.** From the commit `HEAD` names, in post-order, record a pair for
    every object the cache lacks; a cache hit ends the descent, on the
    closure invariant of step 2 — everything below a hit is in the cache by
    construction. The walk also starts from each head read in 1, whose own
-   commit, tree, delta and token no delta holds yet.
+   commit, tree and record no delta holds yet; its delta is in the cache
+   from its record.
 3. **Write the delta**, `sha1-sha256-map.json`: one JSON object, each key a SHA-1 in
    lowercase hex, each value its SHA-256 in lowercase hex, keys in ascending
    order, no whitespace beyond what JSON requires. One set of pairs then
@@ -219,19 +226,19 @@ content.
    timestamp with the SHA-256 as the imprint and a fresh nonce, and check
    the response's status, imprint, nonce and signature. A response that
    fails any check ends the run with nothing written to the branch. On
-   success write the **record**, `tts.json`: one JSON object with three
-   members, `sha1` and `sha256` as lowercase hex and `tts` as the DER
-   `TimeStampToken` in base64, canonical like the delta. The record gives
-   a reader the delta's own pair at this commit, one commit before the
-   next delta records it; the token covers the pair's SHA-256 side, and
-   the tree entry for the delta is the SHA-1 side, so a reader checks the
-   record against both. The time is inside the token, signed, and is not
-   repeated outside it.
+   success write the **record**, `tts.json`: one JSON object with two
+   members, `sha256` as lowercase hex and `tts` as the DER
+   `TimeStampToken` in base64, canonical like the delta. The record and
+   the tree together give the delta's own pair at this commit: the tree
+   entry is its SHA-1, the record its SHA-256, and the token covers that
+   SHA-256, so a reader checks the record against the token and takes the
+   pair into the cache. Neither the SHA-1 nor the time is repeated: the
+   tree says the one and the token, signed, the other.
 5. **Commit.** Write the two blobs, their tree, and a commit whose parents
    are the heads read in 1, and move `refs/heads/disot` to it only if it
    still holds what step 1 read. Nothing is pushed. The delta cannot hold
-   its own pair — its bytes decide both hashes — which is why the record
-   holds it, and why the next delta records the delta, the record, the
+   its own pair — its bytes decide both hashes — which is why the tree and
+   the record hold it, and why the next delta records only the record, the
    tree and the commit as the objects this commit introduced.
 
 A run over a repository the cache already covers still commits: its delta
