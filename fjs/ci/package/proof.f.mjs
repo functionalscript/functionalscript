@@ -22,7 +22,7 @@ const consumerFiles = consumer => {
     const runs = packageCheckJob(consumer).steps.flatMap(step => step.run === undefined ? [] : [step.run])
     const good = runs.find(run => run.endsWith('> good.mts'))
     const bad = runs.find(run => run.endsWith('> bad.mts'))
-    if (good === undefined || bad === undefined) { throw new Error('expected both consumer files written') }
+    assert(good !== undefined && bad !== undefined, 'expected both consumer files written')
     return [good, bad]
 }
 

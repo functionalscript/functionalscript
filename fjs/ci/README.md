@@ -88,10 +88,16 @@ for, and whether that answer should change, is
 ## Usage
 
 1. Ensure dependencies are installed with `npm ci`.
-2. Regenerate the workflow definitions and the Nix environments:
+2. Regenerate the workflow definitions and the Nix environments with the
+   project's `gen` script:
    ```
-   fjs ci
+   npm run gen
    ```
+   In a project that generates with the built-in command, that script is
+   `fjs ci`. In this repository it is `fjs run ./fjs/ci/self/module.f.mjs`
+   through the checked-in entry point, because the repository's own generation
+   passes a `packageConsumer` the built-in command does not have; running
+   `fjs ci` here writes a `package-check` without the consumer steps.
 3. Commit the updated `.github/workflows/ci.yml`,
    `.github/workflows/npm-publish.yml` and `nix/*/flake.nix` files if they have
    changed.
@@ -311,7 +317,8 @@ leave behind is tracked. Staging with `git add -A` before diffing makes the chec
 cover newly created and deleted generated files, not just modified ones — a plain
 `git diff` never reports untracked files. Because the job runs `npm ci` first,
 `fjs ci` resolves the project's own `functionalscript` devDependency; this repository
-instead uses its checked-in sources (`node ./fjs/module.mjs ci`), so the check always
+instead uses its checked-in sources
+(`node ./fjs/module.mjs r ./fjs/ci/self/module.f.mjs`), so the check always
 reflects the generator being reviewed, not the pinned published release.
 
 `gen` is deliberately Nix-independent — it never shells out to `nix`, so it
