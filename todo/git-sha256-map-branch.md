@@ -164,9 +164,10 @@ puts a timestamp in are for the commits of the mapped history; this branch
 does not use them, and shares only the RFC 3161 request and token handling.
 
 **4. Take every published table before publishing one.** Before a run
-records anything, it takes every `disot` head the repository holds —
-`refs/heads/disot` and each `refs/remotes/*/disot`, fetched by the user
-beforehand — scans every commit reachable from them, and takes the union
+records anything, it takes every `disot` head it is given — its own
+`refs/heads/disot`, and any other party's head the user chose to adopt,
+since which parties' pairs a run may prune at is the trust question, out
+of scope — scans every commit reachable from them, and takes the union
 of their deltas, in memory, as the table in hand for step 2. Then the walk
 records only pairs absent from that union, and the run writes them as one
 new commit whose parents are those heads — one parent in the usual case,
@@ -201,16 +202,20 @@ writes objects and one ref, so uncommitted changes cannot reach it and are
 not checked. Only committed content is named, and a working tree is not
 content.
 
-1. **Read the cache.** If the repository holds `refs/heads/disot` or any
-   `refs/remotes/*/disot`, scan every commit reachable from those heads and
-   take the union of their deltas in memory, plus one pair per commit for
-   its delta — the tree entry's SHA-1, the record's SHA-256 — refusing two
-   names for one SHA-1. If it holds none, the cache is empty and the new
-   commit will have no parent.
+1. **Read the cache.** If the repository holds `refs/heads/disot`, scan
+   every commit reachable from it and take the union of their deltas in
+   memory, plus one pair per commit for its delta — the tree entry's
+   SHA-1, the record's SHA-256 — refusing two names for one SHA-1. If it
+   does not, the cache is empty and the new commit will have no parent.
+   Remote-tracking heads are not read: a cache hit stops the walk, so
+   reading another party's table is trusting it, which is out of scope
+   here. A user who trusts a remote's `disot` makes it their own with
+   `git branch -f disot origin/disot` before the run, and the run then
+   descends from it.
 2. **Walk.** From the commit `HEAD` names, in post-order, record a pair for
    every object the cache lacks; a cache hit ends the descent, on the
    closure invariant of step 2 — everything below a hit is in the cache by
-   construction. The walk also starts from each head read in 1, whose own
+   construction. The walk also starts from the head read in 1, whose own
    commit, tree and record no delta holds yet; its delta is in the cache
    from its record.
 3. **Write the delta**, `sha1-sha256-map.json`: one JSON object, each key a SHA-1 in
@@ -224,7 +229,10 @@ content.
    SHA-1, which is what the tree will say for it, and its SHA-256, which
    is what the next delta will record for it — request an RFC 3161
    timestamp with the SHA-256 as the imprint and a fresh nonce, and check
-   the response's status, imprint, nonce and signature. A response that
+   the response's status, imprint, nonce and signature, and the signer's
+   certificate — its chain to a trusted root, its validity, its revocation
+   status and its timestamping extended key usage — as
+   [disot-cli-epic](../fjs/todo/disot-cli-epic.md) asks. A response that
    fails any check ends the run with nothing written to the branch. On
    success write the **record**, `tts.json`: one JSON object with two
    members, `sha256` as lowercase hex and `tts` as the DER
@@ -234,8 +242,8 @@ content.
    SHA-256, so a reader checks the record against the token and takes the
    pair into the cache. Neither the SHA-1 nor the time is repeated: the
    tree says the one and the token, signed, the other.
-5. **Commit.** Write the two blobs, their tree, and a commit whose parents
-   are the heads read in 1, and move `refs/heads/disot` to it only if it
+5. **Commit.** Write the two blobs, their tree, and a commit whose parent
+   is the head read in 1, and move `refs/heads/disot` to it only if it
    still holds what step 1 read. Nothing is pushed. The delta cannot hold
    its own pair — its bytes decide both hashes — which is why the tree and
    the record hold it, and why the next delta records only the record, the
@@ -355,11 +363,10 @@ accident:
       `deflate`, and [`fjs/git/loose`](../fjs/git/loose/module.f.mjs) only
       reads — so a loose-object writer comes first, then the branch tip.
       The tip is written only if the ref still holds the head the run
-      fetched, a compare-and-swap;
+      read, a compare-and-swap;
       [`fjs/git/refstore/write`](../fjs/git/refstore/write/module.f.mjs)'s
       `tryWrite` renames over whatever is there, so the conditional write
-      is part of this work, and the push is `--force-with-lease` against
-      the same head.
+      is part of this work. Nothing is pushed.
 - [ ] `fjs tts`: read, walk, write, timestamp, commit, in that order,
       refusing to move the ref over a head it did not read.
 
