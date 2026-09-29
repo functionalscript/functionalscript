@@ -246,14 +246,23 @@ const fail = (root, cause) => {
  * it is what the virtual runner can reproduce. The queue is this promise: each
  * event chains onto the last.
  *
+ * **Only the last event queued renders.** A render replaces the field being
+ * typed into, so rendering the state after one keystroke once the reader has
+ * typed the next would put a field holding the older text under their caret,
+ * and whatever they type lands in it: the newer keystroke is lost. An event
+ * with a later one waiting behind it updates the state and leaves the page
+ * alone; the later one renders.
+ *
  * @type {(root: Element, demo: Demo<any, DemoEvent, never>) => (event: DemoEvent) => void}
  */
 const stepper = (root, demo) => {
     let state = demo.init
     /** @type {Promise<void>} */
     let queue = Promise.resolve()
+    let pending = 0
     /** @type {(event: DemoEvent) => void} */
     return event => {
+        pending += 1
         queue = queue.then(async () => {
             // A throw is not a state. `update` and `view` are FunctionalScript
             // and total by construction, so one that throws is a defect in the
@@ -265,10 +274,11 @@ const stepper = (root, demo) => {
                 busy(root, true, demo.wait === undefined ? null : demo.wait(state))
                 await macrotask()
                 state = unwrapState(await run(demo.update(state)(event)))
-                render(root, htmlToString(demo.view(state)))
+                if (pending === 1) { render(root, htmlToString(demo.view(state))) }
             } catch (cause) {
                 fail(root, cause)
             } finally {
+                pending -= 1
                 busy(root, false)
             }
         })
