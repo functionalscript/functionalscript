@@ -10,9 +10,10 @@ The MVP ([mvp-roadmap](../nanvm-lib/todo/mvp-roadmap.md)) is reached when
 harness crate builds and runs the generated code with cargo. It is reached:
 the [named-module acceptance](#named-module-acceptance) example runs through
 the harness's `run`, in a `cargo test` that builds and runs the generated code
-with cargo. The open tasks below, `.f.js` package support and the repository
-migration, do not gate it: the walking skeleton needs no repository source
-migration ([below](#repository-compiler-compatibility-migration)). This
+with cargo. The one task still open below, the repository migration, does not
+gate it, and neither did `.f.js` package support, complete since: the walking
+skeleton needs no repository source migration
+([below](#repository-compiler-compatibility-migration)). This
 integration does **not** need to wait for everything else: it can start as
 soon as a minimal subset works end-to-end (e.g. a module whose default
 export is a constant), before the operators, the full parser, and the rest
