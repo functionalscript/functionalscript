@@ -3,57 +3,55 @@
  * `fjs/ebnf/ll1`, which `../syntax/module.f.mjs` reads a module with:
  *
  * ```text
- * module ::= t import* const* export eof
- * import ::= 'import' t clause 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] end
- * clause ::= named | id t [ ',' t named ]
- * named  ::= '{' t [ items(binding) ] '}' t
- * binding ::= id t [ 'as' t id t ]
- * const  ::= 'const' t id t '=' t value end
- * export ::= 'export' t ( 'default' t value end | const const* [ export ] )
- * end    ::= [ ';' t ]
- * value  ::= '-' t unaryOperand tail | '~' t unaryOperand tail
- *          | (primitive t | array | object) access* powTail tail
- *          | id s arrowOrRest
- *          | '(' t (func | value afterValue)
- * body   ::= '-' t unaryOperand tail | '~' t unaryOperand tail
- *          | (primitive t | array) access* powTail tail
- *          | id s arrowOrRest
- *          | '(' t (func | value afterValue) | block
- * unary  ::= '-' t unaryOperand | '~' t unaryOperand
- *          | (primitive t | id t | array | object) access* powTail
- *          | '(' t group
- * unaryOperand ::= '-' t unaryOperand | '~' t unaryOperand
- *          | (primitive t | id t | array | object) access*
- *          | '(' t groupOperand
- * block  ::= '{' t const* 'return' s value end '}' t
- * func   ::= [ '...' t id t ] ')' s '=>' t body
- * afterValue ::= ',' t [ names ] ')' s '=>' t body | ')' s arrowOrRest
- * arrowOrRest ::= '=>' t body | [ nl t ] access* powTail tail
- * names  ::= '...' t id t | id t [ ',' t [ names ] ]
- * group  ::= value ')' t access* powTail
- * groupOperand ::= value ')' t access*
- * powTail ::= [ '**' t unary ]
- * eagerTail ::= { mulOp t unary }
- *            { addOp t unary <the multiplicative repeat above> }
+ * module ::= import* const* export eof
+ * import ::= 'import' clause 'from' string [ 'with' '{' id ':' string '}' ] end
+ * clause ::= named | id [ ',' named ]
+ * named  ::= '{' [ items(binding) ] '}'
+ * binding ::= id [ 'as' id ]
+ * const  ::= 'const' id '=' value end
+ * export ::= 'export' ( 'default' value end | const const* [ export ] )
+ * end    ::= [ ';' ]
+ * value  ::= '-' unaryOperand tail | '~' unaryOperand tail
+ *          | (primitive | array | object) access* powTail tail
+ *          | id arrowOrRest
+ *          | '(' (func | value afterValue)
+ * body   ::= '-' unaryOperand tail | '~' unaryOperand tail
+ *          | (primitive | array) access* powTail tail
+ *          | id arrowOrRest
+ *          | '(' (func | value afterValue) | block
+ * unary  ::= '-' unaryOperand | '~' unaryOperand
+ *          | (primitive | id | array | object) access* powTail
+ *          | '(' group
+ * unaryOperand ::= '-' unaryOperand | '~' unaryOperand
+ *          | (primitive | id | array | object) access*
+ *          | '(' groupOperand
+ * block  ::= '{' const* 'return' value end '}'
+ * func   ::= [ '...' id ] ')' '=>' body
+ * afterValue ::= ',' [ names ] ')' '=>' body | ')' arrowOrRest
+ * arrowOrRest ::= '=>' body | access* powTail tail
+ * names  ::= '...' id | id [ ',' [ names ] ]
+ * group  ::= value ')' access* powTail
+ * groupOperand ::= value ')' access*
+ * powTail ::= [ '**' unary ]
+ * eagerTail ::= { mulOp unary }
+ *            { addOp unary <the multiplicative repeat above> }
  *            …six more layers, each repeating over every layer below it
  *            the same way — shift, relational, equality, bitwiseAnd,
  *            bitwiseXor, bitwiseOr, in that order, JavaScript's own
- * logicalAndRound ::= '&&' t unary eagerTail
- * logicalOrRound  ::= '||' t unary eagerTail { logicalAndRound }
- * nullishRound    ::= '??' t unary eagerTail
+ * logicalAndRound ::= '&&' unary eagerTail
+ * logicalOrRound  ::= '||' unary eagerTail { logicalAndRound }
+ * nullishRound    ::= '??' unary eagerTail
  * circuitTail ::= [ logicalAndRound { logicalAndRound } { logicalOrRound }
  *                 | logicalOrRound { logicalOrRound }
  *                 | nullishRound { nullishRound } ]
- * conditionalTail ::= [ '?' t value ':' t value ]
+ * conditionalTail ::= [ '?' value ':' value ]
  * tail   ::= eagerTail circuitTail conditionalTail
- * access ::= '.' t id t | '[' t (string | number) t ']' t | '(' t [ items(value) ] ')' t
- * array  ::= '[' t [ items(value) ] ']' t
- * object ::= '{' t [ items(member) ] '}' t
- * member ::= key t ':' t value
- * key    ::= id | string | '[' t string t ']'
- * items  ::= item [ ',' t [ items ] ]
- * t      ::= (ws | nl | comment)*
- * s      ::= (ws | comment)*
+ * access ::= '.' id | '[' (string | number) ']' | '(' [ items(value) ] ')'
+ * array  ::= '[' [ items(value) ] ']'
+ * object ::= '{' [ items(member) ] '}'
+ * member ::= key ':' value
+ * key    ::= id | string | '[' string ']'
+ * items  ::= item [ ',' [ items ] ]
  * ```
  *
  * A `(` opens two things, so it is read before either: {@link paren} takes
@@ -81,23 +79,29 @@
  * conflict the classical grammar this replaced had, measured before the
  * port and recorded in `fjs/compiler/README.md` ("Both grammars are LL(1)"):
  *
- * - **Trivia follows a token, never leads a rule.** Every token is
- *   followed by `t`, so no rule begins with trivia and no two branches
- *   begin with it; the classical grammar's statement terminator and the
- *   module's final optional `;` both did.
+ * - **Trivia is no symbol.** Whitespace, newlines and comments are not in
+ *   the stream the grammar reads: the tokenizer leaves them out and marks
+ *   each token with whether a newline stood before it, `newline` in
+ *   `DjsTokenWithMetadata`. So no rule mentions them, none begins with
+ *   them — the classical grammar's statement terminator and the module's
+ *   final optional `;` both did, a first/first conflict on the trivia
+ *   symbols — and the two places JavaScript forbids a line break, before
+ *   `=>` and after `return`, are a fact of a token the reader in
+ *   `../module.f.mjs` checks rather than a shape the grammar spells.
  * - **A statement ends at `;`, or at nothing.** A newline is never a
- *   symbol a statement ends at: it is trivia, read past by the value
- *   before it, and deciding between a newline and a `;` reached through
- *   newlines took unbounded lookahead. So {@link end} is optional and
- *   the grammar looks no further; whether the token that follows an
- *   omitted `;` began a line — JavaScript's own rule for inserting one —
- *   is a fact the token carries, and the reader's to check.
+ *   symbol a statement ends at, and deciding between a newline and a `;`
+ *   reached through newlines took unbounded lookahead while it was one.
+ *   So {@link end} is optional and the grammar looks no further; whether
+ *   the token that follows an omitted `;` began a line — JavaScript's own
+ *   rule for inserting one — is the same fact of the token, and the
+ *   reader's to check.
  * - **A list is right-recursive.** After an item and its comma, one
  *   symbol of lookahead says whether an item or the closing bracket
  *   follows, so a trailing comma is a comma nothing follows; the classical
  *   grammar rested it on a failed repetition round rewinding.
  *
  * The alphabet is {@link _ordinaryTokenNames}: one name per token kind,
+ * trivia having none, since it is not in the stream,
  * and the framing keywords with names of their own, since the
  * tokenizer emits them as identifiers — encoded by `fjs/ebnf/token_symbol`;
  * `eof` has none, since the backend synthesizes the end of input. A symbol
@@ -188,27 +192,6 @@ export const symbolOf = t => {
     return { symbol: sym(name), meta: t }
 }
 
-/** Trivia between any two tokens; it follows every token below. */
-export const trivia = repeatFrom0({
-    ws: sym('ws'),
-    nl: sym('nl'),
-    lineComment: sym('//'),
-    blockComment: sym('/*'),
-})
-
-/**
- * Trivia on one line: {@link trivia} less the newline, where JavaScript
- * has `[no LineTerminator here]` — before `=>`. A block comment holding a
- * newline is refused too, since the tokenizer follows it with `nl`, and a
- * line comment ends at the newline it is followed by; the Unicode line and
- * paragraph separators are no token outside a string, so none stands here.
- */
-export const sameLine = repeatFrom0({
-    ws: sym('ws'),
-    lineComment: sym('//'),
-    blockComment: sym('/*'),
-})
-
 /**
  * Every word that may stand where an identifier is expected: `id`, and the
  * keywords with symbols of their own, which arrive as `id` tokens too.
@@ -265,14 +248,12 @@ export const primitive = /** @type {const} */ ({
 
 /**
  * A comma-separated list of items, at least one, a trailing comma allowed.
- * An item ends with its own trivia — every item is a value or ends in one —
- * so none stands between an item and its comma.
  *
  * @type {<const I extends Rule>(item: I) => Items<I>}
  */
 export const items = item => {
     /** @type {Items<typeof item>} */
-    const list = () => ['const', [item, option([sym(','), trivia, option(list)])]]
+    const list = () => ['const', [item, option([sym(','), option(list)])]]
     return list
 }
 
@@ -301,8 +282,7 @@ export const callArguments = () => values()
  * One step after a value: a property access, `.name` with the name any
  * identifier or `[key]` with the key a constant, or a call, `(a, b)` with
  * its arguments any values. What a property's two spellings may name is the
- * fold's to check, since the name is a word the grammar does not see. Each
- * step ends with its trivia, as a value does.
+ * fold's to check, since the name is a word the grammar does not see.
  *
  * Three symbols decide between them — `.`, `[` and `(` — and none of them
  * follows a value any other way, so the step a value takes is read in one.
@@ -310,19 +290,19 @@ export const callArguments = () => values()
  * step applies to is everything written before it.
  */
 export const access = /** @type {Access} */ ({
-    property: [sym('.'), trivia, identifierName, trivia],
-    index: [sym('['), trivia, index, trivia, sym(']'), trivia],
-    call: [sym('('), trivia, option(callArguments), sym(')'), trivia],
+    property: [sym('.'), identifierName],
+    index: [sym('['), index, sym(']')],
+    call: [sym('('), option(callArguments), sym(')')],
 })
 
 /** The accesses after a value, `a.b[0]`, none or more. */
 const accesses = repeatFrom0(access)
 
-/** A primitive value and its trivia, then its accesses. */
-const primitiveValue = /** @type {const} */ ([[primitive, trivia], accesses])
+/** A primitive value, then its accesses. */
+const primitiveValue = /** @type {const} */ ([primitive, accesses])
 
-/** A reference and its trivia, then its accesses. */
-const reference = /** @type {const} */ ([[identifier, trivia], accesses])
+/** A reference, then its accesses. */
+const reference = /** @type {const} */ ([identifier, accesses])
 
 /** `*`, `/`, `%` — the binary layer directly above {@link unary}. */
 const multiplicativeOp = /** @type {const} */ ({ mul: sym('*'), div: sym('/'), mod: sym('%') })
@@ -384,20 +364,20 @@ const nullishOp = /** @type {const} */ ({ nullish: sym('??') })
  *
  * @type {Parameters}
  */
-export const parameters = option([sym('...'), trivia, identifierName, trivia])
+export const parameters = option([sym('...'), identifierName])
 
 /**
  * The named parameters after the first and its comma: `b, c` in
- * `(a, b, c)`, none in `(a,)`. Each is a name with its trivia, a trailing
- * comma allowed as {@link items} allows one everywhere. The first
+ * `(a, b, c)`, none in `(a,)`. Each is a name, a trailing comma allowed as
+ * {@link items} allows one everywhere. The first
  * parameter is not this rule's: it is read as a value, and
  * {@link afterValue} has why.
  *
  * @type {ParameterNames}
  */
 export const parameterNames = () => ['const', {
-    rest: [sym('...'), trivia, identifierName, trivia],
-    fixed: [[identifierName, trivia], option([sym(','), trivia, option(parameterNames)])],
+    rest: [sym('...'), identifierName],
+    fixed: [identifierName, option([sym(','), option(parameterNames)])],
 }]
 
 /**
@@ -438,8 +418,8 @@ export const parameterNames = () => ['const', {
  * @type {Unary}
  */
 export const unary = () => ['const', {
-    neg: [sym('-'), trivia, unaryOperand],
-    bitnot: [sym('~'), trivia, unaryOperand],
+    neg: [sym('-'), unaryOperand],
+    bitnot: [sym('~'), unaryOperand],
     primitive: [primitiveValue, powTail],
     ref: [reference, powTail],
     array: [[array, accesses], powTail],
@@ -458,7 +438,7 @@ export const unary = () => ['const', {
  *
  * @type {PowTail}
  */
-const powTail = option([sym('**'), trivia, unary])
+const powTail = option([sym('**'), unary])
 
 /**
  * What a `-` or a `~` takes: every alternative {@link unary} has — a
@@ -489,8 +469,8 @@ const powTail = option([sym('**'), trivia, unary])
  * @type {UnaryOperand}
  */
 export const unaryOperand = () => ['const', {
-    neg: [sym('-'), trivia, unaryOperand],
-    bitnot: [sym('~'), trivia, unaryOperand],
+    neg: [sym('-'), unaryOperand],
+    bitnot: [sym('~'), unaryOperand],
     primitive: [primitiveValue],
     ref: [reference],
     array: [[array, accesses]],
@@ -507,32 +487,32 @@ export const unaryOperand = () => ['const', {
  * unit, which is what let {@link func}'s body leak a wide follow set in
  * the first place.
  */
-const multiplicativeTail = repeatFrom0([multiplicativeOp, trivia, unary])
+const multiplicativeTail = repeatFrom0([multiplicativeOp, unary])
 
 /**
  * `+`, `-` — above {@link multiplicativeTail}. Each repeated operand is a
  * {@link unary} followed by its own {@link multiplicativeTail}, so `1 + 2
  * * 3` nests as `1 + (2 * 3)` rather than `(1 + 2) * 3`.
  */
-const additiveTail = repeatFrom0([additiveOp, trivia, unary, multiplicativeTail])
+const additiveTail = repeatFrom0([additiveOp, unary, multiplicativeTail])
 
 /** `<<`, `>>`, `>>>` — above {@link additiveTail}. */
-const shiftTail = repeatFrom0([shiftOp, trivia, unary, multiplicativeTail, additiveTail])
+const shiftTail = repeatFrom0([shiftOp, unary, multiplicativeTail, additiveTail])
 
 /** `<`, `<=`, `>`, `>=` — above {@link shiftTail}. */
-const relationalTail = repeatFrom0([relationalOp, trivia, unary, multiplicativeTail, additiveTail, shiftTail])
+const relationalTail = repeatFrom0([relationalOp, unary, multiplicativeTail, additiveTail, shiftTail])
 
 /** `===`, `!==` — above {@link relationalTail}; `==`/`!=` are not this language's, per `spec/todo/2340-operators.md`. */
-const equalityTail = repeatFrom0([equalityOp, trivia, unary, multiplicativeTail, additiveTail, shiftTail, relationalTail])
+const equalityTail = repeatFrom0([equalityOp, unary, multiplicativeTail, additiveTail, shiftTail, relationalTail])
 
 /** `&` — above {@link equalityTail}. */
-const bitwiseAndTail = repeatFrom0([bitwiseAndOp, trivia, unary, multiplicativeTail, additiveTail, shiftTail, relationalTail, equalityTail])
+const bitwiseAndTail = repeatFrom0([bitwiseAndOp, unary, multiplicativeTail, additiveTail, shiftTail, relationalTail, equalityTail])
 
 /** `^` — above {@link bitwiseAndTail}. */
-const bitwiseXorTail = repeatFrom0([bitwiseXorOp, trivia, unary, multiplicativeTail, additiveTail, shiftTail, relationalTail, equalityTail, bitwiseAndTail])
+const bitwiseXorTail = repeatFrom0([bitwiseXorOp, unary, multiplicativeTail, additiveTail, shiftTail, relationalTail, equalityTail, bitwiseAndTail])
 
 /** `|` — above {@link bitwiseXorTail}, the eager ladder's own top. */
-const bitwiseOrTail = repeatFrom0([bitwiseOrOp, trivia, unary, multiplicativeTail, additiveTail, shiftTail, relationalTail, equalityTail, bitwiseAndTail, bitwiseXorTail])
+const bitwiseOrTail = repeatFrom0([bitwiseOrOp, unary, multiplicativeTail, additiveTail, shiftTail, relationalTail, equalityTail, bitwiseAndTail, bitwiseXorTail])
 
 /**
  * The eager binary-operator suffix, {@link multiplicativeTail} through
@@ -553,11 +533,11 @@ export const eagerTail = [
 ]
 
 /**
- * One round of the `&&` layer: `&& t unary <every eager tail>`, the same
+ * One round of the `&&` layer: `&& unary <every eager tail>`, the same
  * shape as {@link bitwiseOrTail}'s round one layer up, so `a && b | c` is
  * `a && (b | c)`.
  */
-const logicalAndRound = /** @type {const} */ ([logicalAndOp, trivia, unary, ...eagerTail])
+const logicalAndRound = /** @type {const} */ ([logicalAndOp, unary, ...eagerTail])
 
 /** The `&&` rounds after the first, `a && b && c` folding left as every layer does. */
 const logicalAndTail = repeatFrom0(logicalAndRound)
@@ -567,13 +547,13 @@ const logicalAndTail = repeatFrom0(logicalAndRound)
  * as a layer's round carries every layer below it, so `a || b && c` is
  * `a || (b && c)`.
  */
-const logicalOrRound = /** @type {const} */ ([logicalOrOp, trivia, unary, ...eagerTail, logicalAndTail])
+const logicalOrRound = /** @type {const} */ ([logicalOrOp, unary, ...eagerTail, logicalAndTail])
 
 /** The `||` rounds after the first. */
 const logicalOrTail = repeatFrom0(logicalOrRound)
 
-/** One round of the `??` layer: `?? t unary <every eager tail>`, an operand no `&&` or `||` may enter. */
-const nullishRound = /** @type {const} */ ([nullishOp, trivia, unary, ...eagerTail])
+/** One round of the `??` layer: `?? unary <every eager tail>`, an operand no `&&` or `||` may enter. */
+const nullishRound = /** @type {const} */ ([nullishOp, unary, ...eagerTail])
 
 /** The `??` rounds after the first. */
 const nullishTail = repeatFrom0(nullishRound)
@@ -633,10 +613,10 @@ export const circuitTail = option({
  * @type {Value}
  */
 export const value = () => ['const', {
-    neg: [sym('-'), trivia, unaryOperand, ...tail],
-    bitnot: [sym('~'), trivia, unaryOperand, ...tail],
+    neg: [sym('-'), unaryOperand, ...tail],
+    bitnot: [sym('~'), unaryOperand, ...tail],
     primitive: [primitiveValue, powTail, ...tail],
-    name: [identifier, sameLine, arrowOrRest],
+    name: [identifier, arrowOrRest],
     array: [[array, accesses], powTail, ...tail],
     object: [[object, accesses], powTail, ...tail],
     paren,
@@ -660,10 +640,10 @@ export const value = () => ['const', {
  * @type {Body}
  */
 export const body = () => ['const', {
-    neg: [sym('-'), trivia, unaryOperand, ...tail],
-    bitnot: [sym('~'), trivia, unaryOperand, ...tail],
+    neg: [sym('-'), unaryOperand, ...tail],
+    bitnot: [sym('~'), unaryOperand, ...tail],
     primitive: [primitiveValue, powTail, ...tail],
-    name: [identifier, sameLine, arrowOrRest],
+    name: [identifier, arrowOrRest],
     array: [[array, accesses], powTail, ...tail],
     paren,
     block,
@@ -671,7 +651,7 @@ export const body = () => ['const', {
 
 /**
  * The conditional, above {@link circuitTail} and the top of {@link tail}:
- * nothing, or `? t value : t value`, each arm a whole {@link value} —
+ * nothing, or `? value : value`, each arm a whole {@link value} —
  * JavaScript's arms are `AssignmentExpression`s, and this language, having
  * no assignment, takes the ladder's own top as the nearest — so an arm may
  * be a function, a further conditional or anything else a value is, and
@@ -694,7 +674,7 @@ export const body = () => ['const', {
  *
  * @type {ConditionalTail}
  */
-export const conditionalTail = option([sym('?'), trivia, value, sym(':'), trivia, value])
+export const conditionalTail = option([sym('?'), value, sym(':'), value])
 
 /**
  * The whole operator suffix, {@link eagerTail} and then the two lazy
@@ -708,9 +688,10 @@ const tail = [...eagerTail, circuitTail, conditionalTail]
 
 /**
  * A function after its `(`, where the list is the rest parameter or empty:
- * that list, the `)`, then `=>` on the same line as that `)`, as JavaScript
- * requires, and the body, which ends with its own trivia as every value
- * does. The rest parameter is the arguments array, and the body names it
+ * that list, the `)`, `=>` and the body. JavaScript requires the `=>` on
+ * the line of the `)`, which is a fact of the `=>` token the reader in
+ * `../module.f.mjs` checks, trivia being no symbol here. The rest
+ * parameter is the arguments array, and the body names it
  * and nothing outside — which names it may use is the fold's to say, since
  * a name is a word the grammar does not see. A function with no parameter
  * names nothing at all, its arguments included.
@@ -722,26 +703,26 @@ const tail = [...eagerTail, circuitTail, conditionalTail]
  *
  * @type {Func}
  */
-export const func = [parameters, sym(')'), sameLine, sym('=>'), trivia, body]
+export const func = [parameters, sym(')'), sym('=>'), body]
 
 /**
- * What follows a name, or a `( value )`, on the line it ends on: `=>` —
- * the name, or the value in the parentheses, being the one parameter — and
- * the body; or the rest of the value the name or the group is: the trivia
- * {@link sameLine} left, which begins at a newline or not at all, then the
- * steps, the power and the binary layers above, exactly as every other
- * branch of {@link value} carries them.
+ * What follows a name, or a `( value )`: `=>` — the name, or the value in
+ * the parentheses, being the one parameter — and the body; or the rest of
+ * the value the name or the group is: the steps, the power and the binary
+ * layers above, exactly as every other branch of {@link value} carries
+ * them.
  *
- * `=>` decides it in one symbol, and splitting the trivia at the newline
- * is what reads JavaScript's `[no LineTerminator here]` before `=>` while
- * any trivia may precede a step: `a\n.b` is the access, and `a\n=> 1` is
- * refused at the newline, as JavaScript refuses it.
+ * `=>` decides it in one symbol. JavaScript's `[no LineTerminator here]`
+ * before `=>` is no shape of this rule: `a\n.b` and `a\n=> 1` are read
+ * alike, and the reader in `../module.f.mjs` refuses the second at the
+ * `=>`, whose `newline` says a line break stood before it, as JavaScript
+ * refuses it.
  *
  * @type {ArrowOrRest}
  */
 export const arrowOrRest = {
-    func: [sym('=>'), trivia, body],
-    rest: [option([sym('nl'), trivia]), accesses, powTail, ...tail],
+    func: [sym('=>'), body],
+    rest: [accesses, powTail, ...tail],
 }
 
 /**
@@ -763,8 +744,8 @@ export const arrowOrRest = {
  * @type {AfterValue}
  */
 export const afterValue = {
-    list: [sym(','), trivia, option(parameterNames), sym(')'), sameLine, sym('=>'), trivia, body],
-    closed: [sym(')'), sameLine, arrowOrRest],
+    list: [sym(','), option(parameterNames), sym(')'), sym('=>'), body],
+    closed: [sym(')'), arrowOrRest],
 }
 
 /**
@@ -792,7 +773,7 @@ export const afterValue = {
  *
  * @type {Group}
  */
-export const group = [value, sym(')'), trivia, accesses, powTail]
+export const group = [value, sym(')'), accesses, powTail]
 
 /**
  * What a `(` opens: the rest of a function whose list is the rest
@@ -813,7 +794,7 @@ export const parenthesized = { func, value: [value, afterValue] }
  *
  * @type {Paren}
  */
-export const paren = [sym('('), trivia, parenthesized]
+export const paren = [sym('('), parenthesized]
 
 /**
  * A `(` and the group it opens, with no function among the alternatives:
@@ -822,38 +803,38 @@ export const paren = [sym('('), trivia, parenthesized]
  *
  * @type {ParenGroup}
  */
-export const parenGroup = [sym('('), trivia, group]
+export const parenGroup = [sym('('), group]
 
 /**
  * A group after its `(`, without the power {@link group} itself may
- * carry: the value, `)`, the trivia after it, and the steps the group
- * takes — everything {@link group} has but its own {@link powTail}.
+ * carry: the value, `)` and the steps the group takes — everything
+ * {@link group} has but its own {@link powTail}.
  * `-(1).x` is the negation of the access, but `-(1) ** 2` is a syntax
  * error in JavaScript, so {@link unaryOperand}'s restricted `(` stops
  * here rather than reaching {@link group}'s own.
  *
  * @type {GroupOperand}
  */
-export const groupOperand = [value, sym(')'), trivia, accesses]
+export const groupOperand = [value, sym(')'), accesses]
 
 /**
- * `(`, trivia and {@link groupOperand}: what a `-`/`~` may take in
+ * `(` and {@link groupOperand}: what a `-`/`~` may take in
  * parentheses, {@link unaryOperand}'s own `(` branch — not {@link
  * parenGroup}, whose {@link group} still carries a `**` of its own.
  *
  * @type {ParenGroupOperand}
  */
-export const parenGroupOperand = [sym('('), trivia, groupOperand]
+export const parenGroupOperand = [sym('('), groupOperand]
 
 /** A property name: bare identifier, string literal, or a computed `["a"]`. */
 export const key = /** @type {const} */ ({
     plain: identifierName,
     string: sym('string'),
-    computed: [sym('['), trivia, sym('string'), trivia, sym(']')],
+    computed: [sym('['), sym('string'), sym(']')],
 })
 
 /** @type {Member} */
-export const member = [key, trivia, sym(':'), trivia, value]
+export const member = [key, sym(':'), value]
 
 /** The members of an object, likewise. */
 export const members = items(member)
@@ -861,24 +842,23 @@ export const members = items(member)
 /** The items of an array. A rule of its own, so that a reader may map it. */
 export const values = items(value)
 
-export const array = /** @type {const} */ ([sym('['), trivia, option(values), sym(']'), trivia])
+export const array = /** @type {const} */ ([sym('['), option(values), sym(']')])
 
-export const object = /** @type {const} */ ([sym('{'), trivia, option(members), sym('}'), trivia])
+export const object = /** @type {const} */ ([sym('{'), option(members), sym('}')])
 
 /**
- * A statement's terminator: `;` and the trivia after it, or nothing, where
- * JavaScript inserts the `;` itself — before a token on a new line, before
- * `}`, and at the end of input. The grammar admits the omission everywhere
- * and asks nothing of what follows: `;` begins no statement and no
- * statement's continuation, so one symbol of lookahead still decides, and
- * a statement's own trailing trivia has already read the newline. Whether
- * the token after an omitted `;` begins a line is the token's to say,
+ * A statement's terminator: `;`, or nothing, where JavaScript inserts the
+ * `;` itself — before a token on a new line, before `}`, and at the end
+ * of input. The grammar admits the omission everywhere and asks nothing
+ * of what follows: `;` begins no statement and no statement's
+ * continuation, so one symbol of lookahead still decides. Whether the
+ * token after an omitted `;` begins a line is the token's to say,
  * `newline` in `DjsTokenWithMetadata`, and the reader in `../module.f.mjs`
  * refuses the same-line case JavaScript refuses.
  *
  * @type {End}
  */
-export const end = option([sym(';'), trivia])
+export const end = option([sym(';')])
 
 /**
  * A `const` statement: the name, `=`, the value, and its {@link end}. A
@@ -891,7 +871,7 @@ export const end = option([sym(';'), trivia])
  * into `value` goes through a thunk.
  */
 export const constStatement = /** @type {const} */ ([
-    sym('const'), trivia, identifierName, trivia, sym('='), trivia, value, end,
+    sym('const'), identifierName, sym('='), value, end,
 ])
 
 /**
@@ -911,11 +891,13 @@ export const constStatement = /** @type {const} */ ([
  * body reaches the same object through a group, `=> ({ a: 1 })`, and the two
  * are one function.
  *
- * `s` and not `t` before it, where JavaScript has
- * `return [no LineTerminator here] Expression`: a newline there ends the
- * statement by automatic semicolon insertion, so `return` and the value on
- * two lines would return `undefined` in JavaScript and this value here.
- * The same reason {@link func} has `s` before `=>`.
+ * JavaScript has `return [no LineTerminator here] Expression`: a newline
+ * there ends the statement by automatic semicolon insertion, so `return`
+ * and the value on two lines would return `undefined` in JavaScript and
+ * this value here. The grammar reads the value either way, trivia being
+ * no symbol of it, and the reader in `../module.f.mjs` refuses the value
+ * whose first token began a line — the same way it refuses an `=>` after
+ * one, {@link func}.
  *
  * The `return`'s {@link end} may be omitted before the `}`, as it may in
  * JavaScript, and a `const`'s where the statement after it begins a line.
@@ -923,7 +905,7 @@ export const constStatement = /** @type {const} */ ([
  * @type {Block}
  */
 export const block = /** @type {const} */ ([
-    sym('{'), trivia, repeatFrom0(constStatement), sym('return'), sameLine, value, end, sym('}'), trivia,
+    sym('{'), repeatFrom0(constStatement), sym('return'), value, end, sym('}'),
 ])
 
 /**
@@ -942,43 +924,42 @@ export const block = /** @type {const} */ ([
  * say, not a token the grammar did not expect.
  */
 export const attribute = /** @type {const} */ ([
-    sym('with'), trivia, sym('{'), trivia, identifierName, trivia, sym(':'), trivia, sym('string'), trivia, sym('}'), trivia,
+    sym('with'), sym('{'), identifierName, sym(':'), sym('string'), sym('}'),
 ])
 
 /** An exported identifier and an optional local alias. */
 export const importBinding = /** @type {const} */ ([
-    identifierName, trivia, option([sym('as'), trivia, identifierName, trivia]),
+    identifierName, option([sym('as'), identifierName]),
 ])
 
 /** Named bindings use the same empty/trailing-comma convention as other lists. */
 export const importBindings = items(importBinding)
 
 export const namedImports = /** @type {const} */ ([
-    sym('{'), trivia, option(importBindings), sym('}'), trivia,
+    sym('{'), option(importBindings), sym('}'),
 ])
 
 export const importClause = /** @type {const} */ ({
     named: namedImports,
-    default: [identifierName, trivia, option([sym(','), trivia, namedImports])],
+    default: [identifierName, option([sym(','), namedImports])],
 })
 
 export const importStatement = /** @type {const} */ ([
-    sym('import'), trivia, importClause, sym('from'), trivia, sym('string'), trivia, option(attribute), end,
+    sym('import'), importClause, sym('from'), sym('string'), option(attribute), end,
 ])
 
 /** @type {ExportStatement} */
-export const exportStatement = () => ['const', [sym('export'), trivia, {
-    default: [sym('default'), trivia, value, end],
+export const exportStatement = () => ['const', [sym('export'), {
+    default: [sym('default'), value, end],
     named: [constStatement, repeatFrom0(constStatement), option(exportStatement)],
 }]]
 
 /**
  * The whole module: imports first, ordinary and exported constants in order,
- * an optional `export default` last, at least one export, and trivia around
- * them. Ending on `eof` is what makes a trailing stray token a failure.
+ * an optional `export default` last, and at least one export. Ending on
+ * `eof` is what makes a trailing stray token a failure.
  */
 export const djsModule = /** @type {const} */ ([
-    trivia,
     repeatFrom0(importStatement),
     repeatFrom0(constStatement),
     exportStatement,

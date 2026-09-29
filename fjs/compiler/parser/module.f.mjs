@@ -23,10 +23,13 @@
  * string `__proto__` key, which JavaScript reads as an instruction to replace the
  * prototype; the computed spelling `{ ["__proto__"]: v }` denotes an
  * ordinary property and is accepted. So is every check that has to read
- * a token's *position*: a statement written without its `;` ends where
- * JavaScript inserts one, and whether the next statement began a line is
- * the fold's to ask of its first token, {@link unterminated}, the grammar
- * having read the `;` as optional and looked no further. The error
+ * a token's *line*: trivia is not in the stream, and whether a newline
+ * stood before a token is a fact the token carries, so a statement
+ * written without its `;` ends where JavaScript inserts one, and whether
+ * the next statement began a line is the fold's to ask of its first token,
+ * {@link unterminated}, the grammar having read the `;` as optional and
+ * looked no further; and the two places JavaScript forbids a line break,
+ * before `=>` and after `return`, are the fold's the same way. The error
  * reported is the first met in document order, and a match that fails
  * builds no module: a malformed suffix is found before any name is
  * resolved. `./README.md` holds the argument.
@@ -103,11 +106,15 @@ const captureShadowed = foldError('capture shadowed')
 const reservedWord = foldError('reserved word')
 
 /**
- * The first token of a statement on the line of the statement before it,
- * written without its `;`, at that token: the error the grammar would
- * have reported there when the `;` was required, and the one JavaScript
- * reports, which inserts a `;` before a token only where a newline does
- * ([spec: module structure](../../../spec/README.md#module-structure)).
+ * A token on the wrong side of a line break, at that token: the first
+ * token of a statement on the line of the statement before it, written
+ * without its `;` — the error the grammar reported there when the `;` was
+ * required, and the one JavaScript reports, which inserts a `;` before a
+ * token only where a newline does
+ * ([spec: module structure](../../../spec/README.md#module-structure)) —
+ * and the two tokens JavaScript forbids a newline before, an `=>` and the
+ * value after `return`
+ * ([spec: line terminators](../../../spec/README.md#whitespace-and-line-terminators)).
  */
 const unexpectedToken = foldError('unexpected token')
 
@@ -459,13 +466,15 @@ const captured = (body, word, [outer, ref]) => {
  * A named parameter is refused as a `const` is: a reserved word, or a
  * name the list already binds, `(a, a) => 1` being a syntax error in
  * JavaScript for an arrow function. A list whose head is no name was
- * refused before any word of it, {@link malformedParameters}. A fixed
- * parameter past the language's limit is refused, {@link tooManyParameters}.
+ * refused before any word of it, {@link malformedParameters}, and so is
+ * an `=>` on a line after the list, {@link arrowed}. A fixed parameter
+ * past the language's limit is refused, {@link tooManyParameters}.
  *
  * @type {(list: ParameterList) => Result<readonly [_Env, number], ParseError>}
  */
 const functionScope = list => {
     if ('invalid' in list) { return error(malformedParameters(list.invalid)) }
+    if ('arrow' in list) { return error(unexpectedToken(list.arrow)) }
     /** @type {(acc: Result<_Env, ParseError>, binding: ParameterBinding, i: number) => Result<_Env, ParseError>} */
     const bind = (acc, { name, rest }, i) => {
         if (acc[0] === 'error') { return acc }
@@ -495,7 +504,14 @@ const bodyRound = (stack, scope, frame) => {
     if (unterminated(index === 0 ? null : statements[index - 1][1], statement)) {
         return [stack, scope, error(unexpectedToken(statement.start))]
     }
-    if (kind === 'return') { return [{ top: frame, rest: stack }, scope, ['enter', statement.value]] }
+    if (kind === 'return') {
+        // `return [no LineTerminator here] value`: a newline there ends
+        // the statement in JavaScript, returning `undefined`, so the value
+        // on the next line is refused rather than read another way
+        return statement.first.newline
+            ? [stack, scope, error(unexpectedToken(statement.first))]
+            : [{ top: frame, rest: stack }, scope, ['enter', statement.value]]
+    }
     const [tag, word] = bindable(scope.names)(statement.name)
     if (tag === 'error') { return [stack, scope, error(word)] }
     // a name the body already read from outside is refused before the

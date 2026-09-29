@@ -36,7 +36,7 @@ export const proof = {
         () => {
             // `NaN` and `Infinity` are literals, kept as keywords like `undefined`
             const result = toArray(tokenize(stringToList('NaN Infinity'))(''))
-            assertEq(stringify(result), '[{"metadata":{"column":1,"line":1,"path":""},"newline":false,"token":{"kind":"NaN"}},{"metadata":{"column":4,"line":1,"path":""},"newline":false,"token":{"kind":"ws"}},{"metadata":{"column":5,"line":1,"path":""},"newline":false,"token":{"kind":"Infinity"}},{"metadata":{"column":13,"line":1,"path":""},"newline":false,"token":{"kind":"eof"}}]')
+            assertEq(stringify(result), '[{"metadata":{"column":1,"line":1,"path":""},"newline":false,"token":{"kind":"NaN"}},{"metadata":{"column":5,"line":1,"path":""},"newline":false,"token":{"kind":"Infinity"}},{"metadata":{"column":13,"line":1,"path":""},"newline":false,"token":{"kind":"eof"}}]')
         },
         () => {
             // `-` is a token of its own, and folds into nothing: `-Infinity`
@@ -103,7 +103,7 @@ export const proof = {
             const kinds = toArray(tokenize(stringToList('a&&b||c??d?e:f'))('')).map(t => t.token.kind)
             assertEq(kinds.join(' '), 'id && id || id ?? id ? id : id eof')
             assertEq(toArray(tokenize(stringToList('??'))('')).map(t => t.token.kind).join(' '), '?? eof')
-            assertEq(toArray(tokenize(stringToList('? ?'))('')).map(t => t.token.kind).join(' '), '? ws ? eof')
+            assertEq(toArray(tokenize(stringToList('? ?'))('')).map(t => t.token.kind).join(' '), '? ? eof')
         },
         () => {
             // `?.` is optional chaining, a token this language has no rule
@@ -117,29 +117,30 @@ export const proof = {
             assertEq(stringify(result), '[{"metadata":{"column":2,"line":1,"path":""},"newline":false,"token":{"kind":"error","message":"invalid number"}}]')
         },
     ],
-    // Whether a newline stands before a token, trivia aside: the fact the
-    // parser reads of the token after a statement written without its `;`.
+    // Trivia is not in the stream; whether a newline stood before a token
+    // is: the fact the parser reads of the token after a statement written
+    // without its `;`, of the token after `return`, and of an `=>`.
     newline: [
         () => {
             // a token on a new line carries it, a token after a space does
             // not, and the newline is carried across the trivia after it
             const flags = toArray(tokenize(stringToList('a b\nc \n /* x */ d'))('')).map(t => `${t.token.kind}${t.newline ? '+' : ''}`)
-            assertEq(flags.join(' '), 'id ws id nl id+ nl /*+ ws+ id+ eof')
+            assertEq(flags.join(' '), 'id id id+ id+ eof')
         },
         () => {
             // a line comment ends at a newline, so what follows it is on a
             // new line; a block comment holding a newline is followed by one
             // too; a block comment on the line is not
-            // `a`, the space, the comment, its newline, `b`, `eof`
-            assertEq(toArray(tokenize(stringToList('a // c\nb'))('')).map(t => t.newline).join(' '), 'false false false false true false')
-            // `a`, the space, the comment, the newline it holds, the space, `b`, `eof`
-            assertEq(toArray(tokenize(stringToList('a /* c\n */ b'))('')).map(t => t.newline).join(' '), 'false false false false true true false')
-            assertEq(toArray(tokenize(stringToList('a /* c */ b'))('')).map(t => t.newline).join(' '), 'false false false false false false')
+            assertEq(toArray(tokenize(stringToList('a // c\nb'))('')).map(t => t.newline).join(' '), 'false true false')
+            assertEq(toArray(tokenize(stringToList('a /* c\n */ b'))('')).map(t => t.newline).join(' '), 'false true false')
+            assertEq(toArray(tokenize(stringToList('a /* c */ b'))('')).map(t => t.newline).join(' '), 'false false false')
         },
         () => {
             // the first token has nothing before it, on the first line or
             // not; `eof` is a token after `a` like any other
-            assertEq(toArray(tokenize(stringToList('\na'))('')).map(t => t.newline).join(' '), 'false true false')
+            assertEq(toArray(tokenize(stringToList('\na'))('')).map(t => t.newline).join(' '), 'true false')
+            // a text of trivia alone is its `eof`
+            assertEq(toArray(tokenize(stringToList(' // c'))('')).map(t => t.token.kind).join(' '), 'eof')
         },
     ],
 }

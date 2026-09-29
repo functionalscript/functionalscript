@@ -25,7 +25,7 @@ export const images = /** @type {const} */({
 // published FunctionalScript release; do not tie it to package.json's current
 // in-repo version.
 // https://www.npmjs.com/package/functionalscript
-export const functionalscript = /** @type {const} */ '0.50.0'
+export const functionalscript = /** @type {const} */ '0.52.0'
 
 // The one runtime a generated flake takes from outside the pinned snapshot.
 // Nixpkgs ships 1.3.13 — on the pin and on `master` — and two of this
@@ -165,7 +165,7 @@ export const rustOverlay = /** @type {const} */({
     owner: 'oxalica',
     repo: 'rust-overlay',
     ref: 'master',
-    commit: '3f4df219c0d9aa82710232324856755d51ef0b69',
+    commit: '49b6548d31019e8bfe9d4415193ac1df3c48f53a',
 })
 
 // Moving either `commit` above needs `npm run lock-update` (real Nix) to
