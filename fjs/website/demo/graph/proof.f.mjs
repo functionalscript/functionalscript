@@ -74,6 +74,26 @@ export const proof = {
             nodes: [{ id: 0, kind: 'leaf', label: '1', rank: 0 }],
             edges: [],
         }),
+        /**
+         * **A value that reaches itself is refused**, whether directly or
+         * through another node: an edge back to a node the walk is inside
+         * has no rank to point right to.
+         */
+        throw: {
+            // `0` is its own child.
+            self: () => graphOf(/** @type {(v: number) => Shape<number>} */ (
+                v => ({ kind: 'n', label: `${v}`, children: [['self', v]] })))(0),
+            // `0`'s child is `1`, whose child is `0` again.
+            throughAnother: () => graphOf(/** @type {(v: number) => Shape<number>} */ (
+                v => ({ kind: 'n', label: `${v}`, children: [['next', 1 - v]] })))(0),
+        },
+        // A value reached again from outside the node it is under is shared,
+        // not a cycle: `0` reaches `1` directly and through `2`.
+        sharedIsNotACycle: () => {
+            const g = graphOf(/** @type {(v: number) => Shape<number>} */ (
+                v => ({ kind: 'n', label: `${v}`, children: v === 0 ? [['a', 1], ['b', 2]] : v === 2 ? [['c', 1]] : [] })))(0)
+            assertStructurallySame(g.nodes.map(n => n.rank), [0, 2, 1])
+        },
     },
     ranked: {
         // The root alone is rank 0.

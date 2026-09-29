@@ -1007,9 +1007,9 @@ export const proof = {
             // Every Op0 name draws inline, and the four part
             // by meaning where `Op0Id` groups them by operand count:
             // `undefined` is a primitive and draws as the leaf it is, beside
-            // `null` and the numbers, where `args` and `frame` are the two
-            // places a value enters a scope from outside it and draw as
-            // terminals of their own. `frame` is not reached from the demo's
+            // `null` and the numbers, where `args`, `rest` and `frame` are
+            // three of the places a value enters a scope from outside it and
+            // draw as terminals of their own. `frame` is not reached from the demo's
             // own field — its one function captures nothing — which is why
             // the tags are built here by hand.
             op0: () => {

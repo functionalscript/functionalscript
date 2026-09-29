@@ -92,6 +92,12 @@ const { is } = Object
  * `kind` is the inline's own where it has one and `"leaf"` where it has
  * none.
  *
+ * **A value that reaches itself is refused.** An edge back to a node the
+ * walk is still inside would be drawn pointing left, which is the one thing
+ * {@link ranked}'s longest path cannot place: it would push the cycle's
+ * ranks up for as many rounds as it runs and answer a plausible wrong
+ * picture instead.
+ *
  * Ranks nothing while it walks: which rank a node belongs to depends on
  * every edge that reaches it, including ones the walk has not taken yet
  * when it first creates the node, so {@link ranked} decides that
@@ -107,12 +113,16 @@ export const graphOf =
         /**
          * `value`'s node id, and the walk with `value` and everything under
          * it added — or just the walk, when `value` is already drawn.
+         * `path` is the ids of the nodes the walk is inside, root first.
          *
-         * @type {(walk: _Walk) => (value: V, s: Shape<V>) => { readonly id: number, readonly walk: _Walk }}
+         * @type {(walk: _Walk, path: readonly number[]) => (value: V, s: Shape<V>) => { readonly id: number, readonly walk: _Walk }}
          */
-        const node = walk => (value, s) => {
+        const node = (walk, path) => (value, s) => {
             const found = walk.refs.find(([r]) => is(r, value))
-            if (found !== undefined) { return { id: found[1], walk } }
+            if (found !== undefined) {
+                if (path.includes(found[1])) { throw `graph: a cycle through node ${found[1]}` }
+                return { id: found[1], walk }
+            }
             const id = walk.next
             const [kind, label, children] = 'inline' in s
                 ? [s.kind ?? 'leaf', s.inline, []]
@@ -124,6 +134,7 @@ export const graphOf =
                 edges: walk.edges,
                 next: id + 1,
             }
+            const inside = [...path, id]
             const final = children.reduce(
                 /** @type {(acc: _Walk, child: readonly [string, V, string?]) => _Walk} */
                 (acc, [label, child, kind]) => {
@@ -131,13 +142,13 @@ export const graphOf =
                     if ('inline' in c) {
                         return { ...acc, edges: [...acc.edges, { from: id, to: c, label, kind }] }
                     }
-                    const step = node(acc)(child, c)
+                    const step = node(acc, inside)(child, c)
                     return { ...step.walk, edges: [...step.walk.edges, { from: id, to: step.id, label, kind }] }
                 },
                 withNode)
             return { id, walk: final }
         }
-        const { walk } = node({ refs: [], nodes: [], edges: [], next: 0 })(root, shape(root))
+        const { walk } = node({ refs: [], nodes: [], edges: [], next: 0 }, [])(root, shape(root))
         return { nodes: ranked(walk.nodes, walk.edges), edges: walk.edges }
     }
 
