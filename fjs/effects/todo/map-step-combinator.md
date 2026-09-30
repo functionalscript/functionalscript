@@ -1,7 +1,7 @@
 ## map-step-combinator. Convert the remaining `step(e, x => pureOk(f(x)))` sites to `mapStep`
 
 **Priority:** P3
-**Status:** wip
+**Status:** open
 
 > **The API has landed.** `mapStep` is in `fjs/effects/module.f.mjs` with proof
 > coverage, and its first real consumers were converted in the same change —
@@ -79,7 +79,7 @@ closely related group per PR.
 
 ### Tasks
 
-- [ ] `fjs/protocol/mcp`: the `tools/list` and `tools/call` responses.
+- [x] `fjs/protocol/mcp`: the `tools/list` and `tools/call` responses.
 - [ ] `fjs/website`: `scan`'s per-file step.
 - [ ] `fjs/compiler/edag`: `linkModule`.
 - [ ] `tsc` clean; `fjs t` passes after each PR.
