@@ -198,6 +198,10 @@ lazy strings or frame serialization are implemented today.
 
 - [ ] Resolve each question before implementing the cases whose observable
   output depends on it; do not make unrelated work wait on all three.
+  [to-primitive Stage 3](../../nanvm-lib/todo/to-primitive.md#stage-3-a-functions-text)
+  stages the Rust VM's work that way: a function with an empty frame first,
+  since its text is the same under every answer, and a frame after
+  question 2.
 - [ ] Specify deterministic rendering for the chosen inputs and share the
   default function-representation operation across FJS executors and coercion
   paths. Render associated semantic EDAG, not mutable optimization/cache state.
