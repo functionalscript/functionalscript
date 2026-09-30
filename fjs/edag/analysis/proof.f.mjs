@@ -54,33 +54,39 @@ const nodesOf = e => an(e).nodes
 const empty = ['[]', []]
 
 /** `(...a) => a[0]`, no frame. @type {Exp} */
-const first = ['=>', 0, null, ['.', ['rest'], 0]]
+const first = ['=>', 0, [], ['.', ['rest'], 0]]
 
 export const proof = {
     validation: () => {
         for (const e of /** @type {readonly Exp[]} */ ([
-            ['rest'], ['arg',0], ['=>',0,null,['arg',0]], ['=>',1,null,['arg',1]],
-            ['=>',1,null,['arg',-0]], ['=>',1,null,['arg',-1]], ['=>',1,null,['arg',0.5]],
-            ['=>',1,null,['arg',Infinity]], ['=>',1,null,['args']],
-            ['=>',1,null,['=>',0,['[]',[['arg',0],['rest']]],['arg',0]]],
+            ['rest'], ['arg',0], ['=>',0,[],['arg',0]], ['=>',1,[],['arg',1]],
+            ['=>',1,[],['arg',-0]], ['=>',1,[],['arg',-1]], ['=>',1,[],['arg',0.5]],
+            ['=>',1,[],['arg',Infinity]], ['=>',1,[],['args']],
+            ['=>',1,[],['=>',0,[['arg',0],['rest']],['arg',0]]],
             // a frame slot read outside a function, and one whose index is
             // no canonical index
             ['frame',0], ['[]',[['frame',0]]],
-            ['=>',0,['[]',[['[]',[]]]],['frame',-0]], ['=>',0,['[]',[['[]',[]]]],['frame',-1]],
-            ['=>',0,['[]',[['[]',[]]]],['frame',0.5]], ['=>',0,['[]',[['[]',[]]]],['frame',Infinity]],
+            ['=>',0,[['[]',[]]],['frame',-0]], ['=>',0,[['[]',[]]],['frame',-1]],
+            ['=>',0,[['[]',[]]],['frame',0.5]], ['=>',0,[['[]',[]]],['frame',Infinity]],
         ])) { assert(bindingError(analysis(e)) !== null, e) }
         assertEq(bindingError(analysis(['frame',0])), 'invalid frame slot index or scope')
         // a frame slot read belongs to the function whose body holds it,
-        // nested or not
-        assertEq(bindingError(analysis(['=>',0,['[]',[['[]',[]]]],['frame',0]])), null)
-        assertEq(bindingError(analysis(['=>',0,['[]',[['[]',[]]]],['=>',0,['[]',[['frame',0]]],['frame',0]]])), null)
+        // nested or not, and its index is below that function's slot count
+        assertEq(bindingError(analysis(['=>',0,[['[]',[]]],['frame',0]])), null)
+        assertEq(bindingError(analysis(['=>',0,[['[]',[]],['{}',[]]],['frame',1]])), null)
+        assertEq(bindingError(analysis(['=>',0,[['[]',[]]],['frame',1]])), 'invalid frame slot index or scope')
+        assertEq(bindingError(analysis(['=>',0,[],['frame',0]])), 'invalid frame slot index or scope')
+        assertEq(bindingError(analysis(['=>',0,[['[]',[]]],['=>',0,[['frame',0]],['frame',0]]])), null)
+        // a nested body's index is checked against that function's slots,
+        // not its parent's
+        assertEq(bindingError(analysis(['=>',0,[['[]',[]],['{}',[]]],['=>',0,[['frame',1]],['frame',1]]])), 'invalid frame slot index or scope')
         // a function's `length` is at most 16, nested or not
-        assertEq(bindingError(analysis(['=>',16,null,['arg',15]])), null)
+        assertEq(bindingError(analysis(['=>',16,[],['arg',15]])), null)
         for (const e of /** @type {readonly Exp[]} */ ([
-            ['=>',17,null,1], ['=>',2 ** 32,null,1], ['=>',0,null,['=>',17,null,1]],
+            ['=>',17,[],1], ['=>',2 ** 32,[],1], ['=>',0,[],['=>',17,[],1]],
         ])) { assertEq(bindingError(analysis(e)), 'a function length above 16') }
-        assertEq(bindingError(analysis(['=>',1,['[]',[['args']]],['arg',0]])), null)
-        assertEq(bindingError(analysis(['=>',1,null,['=>',0,['[]',[['arg',0],['rest']]],['rest']]])), null)
+        assertEq(bindingError(analysis(['=>',1,[['args']],['arg',0]])), null)
+        assertEq(bindingError(analysis(['=>',1,[],['=>',0,[['arg',0],['rest']],['rest']]])), null)
     },
 
     // A primitive is a leaf, written and evaluated in place: `export
@@ -120,7 +126,7 @@ export const proof = {
             shared: [],
         })
         assertStructurallySame(nodesOf(['[]', [['{}', []], ['{}', []]]]), [['{}', []], ['{}', []], ['[]', [['#', 0], ['#', 1]]]])
-        assertEq(nodesOf(['[]', [first, ['=>', 0, null, ['.', ['rest'], 0]]]]).length, 7)
+        assertEq(nodesOf(['[]', [first, ['=>', 0, [], ['.', ['rest'], 0]]]]).length, 7)
     },
     // A plain read is decided by its inputs, so two spelled the same over
     // the same inputs are one entry — shared, since both edges stay — and
@@ -199,36 +205,44 @@ export const proof = {
     // body inside a body names the inner `=>`.
     scope: () => {
         // `(...a) => [a[0], a[0]]` — shared inside the body, cached per call.
-        table(['=>', 0, null, ['[]', [['.', ['rest'], 0], ['.', ['rest'], 0]]]], {
+        table(['=>', 0, [], ['[]', [['.', ['rest'], 0], ['.', ['rest'], 0]]]], {
             root: ['#', 3],
-            nodes: [['rest'], ['.', ['#', 0], 0], ['[]', [['#', 1], ['#', 1]]], ['=>', 0, null, ['#', 2]]],
+            nodes: [['rest'], ['.', ['#', 0], 0], ['[]', [['#', 1], ['#', 1]]], ['=>', 0, [], ['#', 2]]],
             scope: [3, 3, 3, -1],
             shared: [0, 1],
         })
-        // The frame operand belongs to the enclosing scope; a slot read is
+        // The slots belong to the enclosing scope; a slot read is
         // a leaf of the body, one entry however many places read it.
-        table(['=>', 0, ['[]', [1]], ['[]', [['frame', 0], ['frame', 0]]]], {
+        table(['=>', 0, [['[]', [1]]], ['[]', [['frame', 0], ['frame', 0]]]], {
             root: ['#', 3],
-            nodes: [['[]', [1]], ['frame', 0], ['[]', [['#', 1], ['#', 1]]], ['=>', 0, ['#', 0], ['#', 2]]],
+            nodes: [['[]', [1]], ['frame', 0], ['[]', [['#', 1], ['#', 1]]], ['=>', 0, [['#', 0]], ['#', 2]]],
             scope: [-1, 3, 3, -1],
             shared: [1],
         })
+        // A slot that is a primitive stands in place, as any operand does,
+        // and a slot reached elsewhere too is shared.
+        table(['[]', [['=>', 0, [1, empty], ['frame', 1]], empty]], {
+            root: ['#', 3],
+            nodes: [['[]', []], ['frame', 1], ['=>', 0, [1, ['#', 0]], ['#', 1]], ['[]', [['#', 2], ['#', 0]]]],
+            scope: [-1, 2, -1, -1],
+            shared: [0],
+        })
         // `[(...a) => "x".length, (...b) => "x".length]` keeps a `.` per body.
-        table(['[]', [['=>', 0, null, ['.', 'x', 'length']], ['=>', 0, null, ['.', 'x', 'length']]]], {
+        table(['[]', [['=>', 0, [], ['.', 'x', 'length']], ['=>', 0, [], ['.', 'x', 'length']]]], {
             root: ['#', 4],
-            nodes: [['.', 'x', 'length'], ['=>', 0, null, ['#', 0]], ['.', 'x', 'length'], ['=>', 0, null, ['#', 2]], ['[]', [['#', 1], ['#', 3]]]],
+            nodes: [['.', 'x', 'length'], ['=>', 0, [], ['#', 0]], ['.', 'x', 'length'], ['=>', 0, [], ['#', 2]], ['[]', [['#', 1], ['#', 3]]]],
             scope: [1, -1, 3, -1, -1],
             shared: [],
         })
         // A body inside a body: `() => () => "x".length`.
-        table(['=>', 0, null, ['=>', 0, null, ['.', 'x', 'length']]], {
+        table(['=>', 0, [], ['=>', 0, [], ['.', 'x', 'length']]], {
             root: ['#', 2],
-            nodes: [['.', 'x', 'length'], ['=>', 0, null, ['#', 0]], ['=>', 0, null, ['#', 1]]],
+            nodes: [['.', 'x', 'length'], ['=>', 0, [], ['#', 0]], ['=>', 0, [], ['#', 1]]],
             scope: [1, 2, -1],
             shared: [],
         })
         // A body's primitive root is an operand of the `=>`, and no entry.
-        table(['=>', 0, null, 5], { root: ['#', 0], nodes: [['=>', 0, null, 5]], scope: [-1], shared: [] })
+        table(['=>', 0, [], 5], { root: ['#', 0], nodes: [['=>', 0, [], 5]], scope: [-1], shared: [] })
     },
     // Every node kind and every step, walked in written order — the shapes
     // `order`, `access`, `calls` and `scope` do not reach.
@@ -264,8 +278,8 @@ export const proof = {
     // the EDAG's scope rule forbids it: refused where it is met, from either
     // side of the boundary.
     throw: {
-        outsideThenInside: () => an(['[]', [empty, ['=>', 0, null, empty]]]),
-        insideThenOutside: () => an(['[]', [['=>', 0, null, empty], empty]]),
-        siblingBodies: () => an(['[]', [['=>', 0, null, empty], ['=>', 0, null, empty]]]),
+        outsideThenInside: () => an(['[]', [empty, ['=>', 0, [], empty]]]),
+        insideThenOutside: () => an(['[]', [['=>', 0, [], empty], empty]]),
+        siblingBodies: () => an(['[]', [['=>', 0, [], empty], ['=>', 0, [], empty]]]),
     },
 }

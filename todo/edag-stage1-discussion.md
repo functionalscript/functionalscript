@@ -30,7 +30,7 @@ JavaScript syntax does not itself admit it into FunctionalScript.
 
 **Implemented argument-model migration:** the
 [named-and-rest parameter plan](../spec/todo/3120-parameters.md) owns the
-implemented `['=>', length, frame, body]`, `['arg', N]` and `['rest']` contract.
+implemented `['=>', length, slots, body]`, `['arg', N]` and `['rest']` contract.
 Subjects 2 and 7 below follow that contract. The
 remaining baseline examples and operation table using `['args']` describe
 the historical zero-arity format, not the current fixed/rest target.
@@ -264,7 +264,7 @@ schema is free to change independently of both.
 |`["Number", node]`|`Number(x)`|later|numeric coercion that accepts bigints, unlike unary `+`|
 |`["String", node]`|`String(x)`|later|string coercion|
 |`[",", [...node, node]]`|`(a, b)`|later|membership without order (subject 8); the operands are one operand, an array, as for `"[]"`|
-|`["=>", length, frame, body]`|`(…) => …`|2|function; `length` is integer metadata (subject 7); `frame` is a general `exp` in the schema — Stage 2's own compiler/interpreter scope was narrower and only emitted/accepted a placeholder for it; the compiler now emits an array of captured values, `null` where there is none ([functions](../spec/README.md#functions))|
+|`["=>", length, slots, body]`|`(…) => …`|2|function; `length` is integer metadata (subject 7); `slots` is the array of captured values, an array operand of `exp`s evaluated in the enclosing scope, `[]` where there is none, each read in the body as `["frame", i]` — Stage 2 emitted only a placeholder for it ([functions](../spec/README.md#functions))|
 
 `["{}", [...entry]]` is an ordered object-construction operation. Stage 1
 uses `[":", key, value]` entries.
@@ -410,16 +410,16 @@ section first described the frame as a bare `["frame"]` node, its slots
 ordinary `[".", ["frame"], i]` reads; that was the spelling the compiler
 emitted, and it is the one `["frame", i]` replaced.)
 
-Frame construction mirrors a call: `["=>", length, frame, body]`, where
-`frame` is built in the *enclosing* scope and `body` is the inner
-function's graph. Compare `["()", f, args]`: same shape, one for entering
-a call, one for creating a closure.
+Frame construction mirrors a call: `["=>", length, slots, body]`, where
+`slots` is the array of captured values, each evaluated in the *enclosing*
+scope, and `body` is the inner function's graph. Compare `["()", f, args]`:
+same shape, one for entering a call, one for creating a closure.
 
 ```js
 // const f = x => { … const b = y => { … f(y) … }; … b(…) … }
 // inside f, building b — f puts its own ["self"] into b's frame;
 // b has one fixed parameter, y, so its length is 1 and y is ["arg", 0]:
-["=>", 1, ["[]", [["self"]]], /* b's body */ …]
+["=>", 1, [["self"]], /* b's body */ …]
 // inside b, calling f with y — slot 0 of b's frame:
 ["()", ["frame", 0], ["[]", [["arg", 0]]]]
 ```
@@ -774,7 +774,7 @@ function-owned `['args']` yielded the complete supplied argument array.
 That invocation contract is superseded; the examples elsewhere in this
 document using it remain historical.
 
-**Current format:** `['=>', length, frame, body]` records canonical nonnegative
+**Current format:** `['=>', length, slots, body]` records canonical nonnegative
 integer `length` metadata and exposes two invocation bindings. Length and
 index zero must be positive zero; `-0` metadata is refused.
 
@@ -1123,7 +1123,7 @@ Word tags now survive only where JS genuinely has no expression spelling:
 **Status:** function-node shape and fixed/rest bindings implemented in #2237;
 the constructor's input API remains open.
 
-The body is an expression graph in `['=>', length, frame, body]`, following
+The body is an expression graph in `['=>', length, slots, body]`, following
 the [named-and-rest parameter plan](../spec/todo/3120-parameters.md).
 The three-element `["=>", frame, body]` in the historical
 [Operations](#operations) examples is superseded.

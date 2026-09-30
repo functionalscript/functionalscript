@@ -347,14 +347,6 @@ export const proof = {
          * single case.
          */
         noRustNameForGroup: () => generate({ shared: {}, groups: [{ op: 'is', cases: [] }] }),
-        /**
-         * A lambda whose frame is no array literal: every other prints, the
-         * corpus's `() => undefined` as `function_any()` and the rest as a
-         * closure, so these two alone are refused — a frame that is a
-         * primitive, and one that is a node but not an array literal.
-         */
-        lambdaFramePrimitive: () => nodeExpr(['=>', 0, 1, 2]),
-        lambdaFrameNotArray: () => nodeExpr(['=>', 0, ['undefined'], ['undefined']]),
         /** An object key the corpus cannot produce and Rust cannot spell. */
         computedKey: () => nodeExpr(['{}', [[':', ['undefined'], 1]]]),
         /**

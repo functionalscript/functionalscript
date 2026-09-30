@@ -67,8 +67,9 @@ its node's scope is the one being written. That is the function-body
 boundary `operands` keeps by answering nothing for `=>` — a shared
 container inside a body belongs to the body's scope and is hoisted
 there, never into the enclosing module — and the analysis states it as
-data rather than as an omitted `case`. Frame captures keep their
-separate handling in `frameItems`. Then `mintsIdentity` filters, and
+data rather than as an omitted `case`. A function's slots keep their
+separate handling: they are the `=>` entry's own array operand, which
+`hoists` reads directly. Then `mintsIdentity` filters, and
 `operands` and `minting` go.
 
 ### Tasks
