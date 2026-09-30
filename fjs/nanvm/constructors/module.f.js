@@ -56,7 +56,7 @@ export const returns = v => () => ['returns', v]
 /**
  * The `host` reason of a case whose `expected` is a function's text: the
  * evaluator answers it only through the host's `withText`, which
- * `../text.proof.mjs` supplies.
+ * `../text/module.mjs` supplies.
  */
 export const functionText = 'a function text needs the host withText'
 

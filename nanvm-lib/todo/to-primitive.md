@@ -341,7 +341,7 @@ Each needs the owner's approval before the step that depends on it.
    Its `withText` hook gives the value a `=>` node makes the writer's text
    through a host `Proxy`
    ([`fjs/types/function/text`](../../fjs/types/function/text/README.md)),
-   and `fjs/nanvm/text.proof.mjs` runs the corpus's `host` cases with it. The property-key conversion needs no
+   and `fjs/nanvm/text` runs the corpus's `host` cases with it. The property-key conversion needs no
    issue of its own (below). A `const` only a lazy operand reaches, which
    the writer refused at first, is now the operand's own block, an IIFE the
    front end inlines. The corpus's

@@ -94,7 +94,7 @@ export type Info =
  * `withText`. A case whose result depends on it — `String` of a function,
  * `+` with one, `toString`, `join`, or a string method handed one — carries
  * a `host` marker ({@link Case}), so `proof.f.mjs` skips it and
- * `text.proof.mjs` runs it. Every other coercion of a function, nested or not, agrees on both
+ * `text/proof.mjs` runs it. Every other coercion of a function, nested or not, agrees on both
  * sides (`NaN`, `false`, `'function'`, the function itself), which is what
  * the unmarked function cases exercise.
  */
@@ -201,7 +201,7 @@ export type OpId = Op1Id | Op2Id | Op12Id | Op3Id
  * `host` marks a case the FunctionalScript proof cannot run: its `expected`
  * is a function's text, which the evaluator answers only through the
  * host's `withText` (see {@link FunctionValue}). `proof.f.mjs` skips it,
- * and `text.proof.mjs` and the Rust side run it; the value is the reason.
+ * and `text/proof.mjs` and the Rust side run it; the value is the reason.
  */
 export type Case<N extends number> = {
     readonly name: string

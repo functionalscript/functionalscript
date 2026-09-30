@@ -24,7 +24,7 @@ evaluator hands both to it through its `withText`
 ([`fjs/edag/operations/types.ts`](../../../edag/operations/types.ts)), with
 the writer's `tryFunctionText`
 ([`fjs/compiler/serializer`](../../../compiler/serializer/module.f.mjs)) as
-the text. [`fjs/nanvm/text.proof.mjs`](../../../nanvm/text.proof.mjs) runs
+the text. [`fjs/nanvm/text`](../../../nanvm/text/module.mjs) runs
 the operator corpus's function-text cases that way.
 
 `Function.prototype.toString.call(f)` does not reach the trap: it reads

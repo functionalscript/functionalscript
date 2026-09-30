@@ -593,7 +593,7 @@ const jsOnly = {
  * tree, and every group's cross-check against JavaScript.
  *
  * A function's text needs a `withText` FunctionalScript cannot write, so
- * this module runs every other case and [`text.proof.mjs`](./text.proof.mjs)
+ * this module runs every other case and [`text`](./text/module.mjs)
  * runs those, under the host's.
  *
  * @type {(context: Context, keep: (c: AnyCase) => boolean) => object}
