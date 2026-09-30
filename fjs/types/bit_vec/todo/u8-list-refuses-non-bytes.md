@@ -1,7 +1,7 @@
 ## `u8ListToVec` refuses an item that is not a byte
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
