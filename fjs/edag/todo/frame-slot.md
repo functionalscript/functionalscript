@@ -10,8 +10,9 @@ admit far more than they mean. `['frame']` is a zero-operand binding that
 evaluates to the frame array, and a slot is a property access over it,
 `['.', ['frame'], i]` — the one shape the compiler's `fn` lowering in
 `fjs/compiler/edag` ever emits. The schema knows nothing of that: `.` takes
-any `index`, so `['.', ['frame'], 'length']`, `['.', ['frame'], ['arg', 0]]`
-and a bare `['frame']` passed on as a value all validate, and no producer
+any `index`, so `['.', ['frame'], 'length']`, the computed
+`['.', ['frame'], ['Number', ['arg', 0]]]` and a bare `['frame']` passed on
+as a value all validate, and no producer
 means any of them. Each consumer then draws the line by hand:
 
 - the serializer in `fjs/compiler/serializer` pattern-matches the slot
@@ -114,6 +115,16 @@ in the same change.
 - [ ] Demo.
 - [ ] `npm run gen`, the full check set, and a `Changelog:` section
       declaring the break.
+- [ ] Reconcile every document that still spells the old form as the
+      current one, so that nobody builds against it: the captures section
+      and the node table of
+      [`todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md),
+      the terminal [`graph-visualizer.md`](./graph-visualizer.md) keeps,
+      the `frameItems` handling
+      [`analysis-consumer-contract.md`](./analysis-consumer-contract.md)
+      counts on, the landed stages of
+      [`nanvm-lib/todo/callable-function-objects.md`](../../../nanvm-lib/todo/callable-function-objects.md),
+      and the compiler's `todo/` files that name `['frame']`.
 - [ ] Delete this file.
 
 ### Related
