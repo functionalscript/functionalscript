@@ -12,8 +12,8 @@
  */
 
 import { assertNotNullish } from '../../asserts/module.f.mjs'
-import { bitLength, roundUp8 } from '../../types/bigint/module.f.mjs'
-import { empty, length, msb, repeat, unpack, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
+import { bitLength } from '../../types/bigint/module.f.mjs'
+import { empty, length, msb, repeat, unpack, vec8, wholeBytes } from '../../types/bit_vec/module.f.mjs'
 import { hmac } from '../hmac/module.f.mjs'
 import { computeSync } from '../sha2/module.f.mjs'
 
@@ -31,7 +31,7 @@ export const all = q => {
         const diff = length - qlen
         return diff > 0n ? uint >> diff : uint
     }
-    const int2octets = vec(roundUp8(qlen))
+    const int2octets = wholeBytes(qlen)
     return {
         q,
         qlen,
