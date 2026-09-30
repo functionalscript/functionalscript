@@ -21,7 +21,10 @@ restating them, so they cannot drift apart.
 
 Issues are tracked in `todo/` directories inside the repository, **not** on
 GitHub. Check [todo/README.md](./todo/README.md) for existing work before you
-start, and for the format to use when filing a new one.
+start, and for the format to use when filing a new one. Before taking a `todo/`,
+also check that no open pull request, draft or not, already works on it, and
+claim it by opening a draft pull request at once
+([SESSION.md](./doc/SESSION.md#claim-the-task)).
 
 To **file** an issue yourself, add its `todo/` file in a pull request. Note that
 a pull request that **fixes** an issue does the opposite — it deletes that
@@ -287,6 +290,11 @@ changelog is written once per release from the pull requests that shipped in it
 ([changelog/RELEASE.md](./changelog/RELEASE.md)). What a pull request owes
 instead is a declaration in its description, below. The everyday workflow around
 this is [AGENTS.md §1](./AGENTS.md#1-workflow).
+
+Open it as a **draft** as soon as the branch has a commit, and name the `todo/`
+file it works on in its description, so anyone about to start the same task
+finds it taken ([SESSION.md](./doc/SESSION.md#claim-the-task)). Mark it ready
+for review once it carries its change and every check passes.
 
 ### Commit messages
 
