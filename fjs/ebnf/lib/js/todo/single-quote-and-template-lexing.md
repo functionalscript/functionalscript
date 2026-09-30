@@ -242,26 +242,25 @@ regular expression or is an operator is decided by the token before it, which
 is exactly the layer-above question the number boundary already answers, so
 recognising it is the same shape of work as the template context stack.
 
-The repository has two, one per module, and **they are not the same case**:
+The repository had two, one per module, and **they are not the same case**:
 
 | regex | tokenizes as | cost |
 | --- | --- | --- |
 | [`effects/node`](../../../../effects/node/module.f.mjs)'s `versionParts` `` /^v/ `` | `/`, `^`, `id v`, `/` | one line coloured as divisions |
-| [`text/sgr`](../../../../text/sgr/module.f.mjs)'s `str` `` /\x1b\[[0-9;]*m/g `` | `invalid token` at the `\` | the module is lost from there on |
+| `text/sgr`'s `str` `` /\x1b\[[0-9;]*m/g ``, since replaced by the scanner `stripSgr` | `invalid token` at the `\` | the module is lost from there on |
 
-Both are `.f.mjs` modules, where regular expressions are ruled out;
-[strip-sgr-without-regex](../../../../text/sgr/todo/strip-sgr-without-regex.md)
-removes the second. The token is still owed to every other JavaScript reader.
+Both are `.f.mjs` modules, where regular expressions are ruled out, which is
+why the second is gone. The token is still owed to every other JavaScript
+reader.
 
 The second is what the earlier draft of this section missed by measuring `/x/`
 alone. A regex body is not JavaScript, so a backslash in it begins no token,
 and the grammar stops — where an escape *inside a string* is the string rule's
-business and lexes fine. Today both modules stop earlier anyway — `text/sgr`
-at a `'\x08'` escape and `effects/node` at a template literal; when this
-section was written, at their first single-quoted string — so the regex is
-invisible; **once the escapes and templates above land it becomes the first
-stop in `text/sgr`**, and the last task's tree scan cannot reach
-zero while it does.
+business and lexes fine. `effects/node` stops earlier anyway, at a template
+literal — when this section was written, at its first single-quoted string —
+so its regex is invisible; **once the escapes and templates above land, a regex
+in any module scanned becomes its first stop**, and the last task's tree scan
+cannot reach zero while one does.
 
 So this issue owes a decision rather than an exclusion, and the cheap one is
 enough: lex a regular expression as a token whose body runs to the unescaped
