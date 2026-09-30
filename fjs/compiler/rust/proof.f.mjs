@@ -230,7 +230,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 ['=>', 17, null, 1],
                 ['=>', 2 ** 32, null, 1],
                 ['=>', 0, null, ['=>', 17, null, 1]],
-                ['=>', 0, ['[]', [['=>', 17, null, 1]]], ['frame']],
+                ['=>', 0, ['[]', [['=>', 17, null, 1]]], ['frame', 0]],
                 ['?:', true, 1, ['=>', 17, null, 1]],
                 ['{}', [[':', 'f', ['=>', 17, null, 1]]]],
             ])) { assertEq(toRust(graph)[0], 'error') }
@@ -258,7 +258,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             for (const e of /** @type {readonly Exp[]} */ ([
                 ['=>', 1, null, ['arg', 0]],
                 ['=>', 16, null, ['arg', 15]],
-                ['=>', 2, null, ['=>', 0, ['[]', [['arg', 1], ['rest']]], ['frame']]],
+                ['=>', 2, null, ['=>', 0, ['[]', [['arg', 1], ['rest']]], ['frame', 1]]],
             ])) { assertEq(toRust(e)[0], 'ok') }
         },
         ok: () => {
@@ -367,10 +367,10 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assertEq(toRust(['[]', [['args']]])[0], 'error')
             assertEq(toRust(['=>', 0, null, ['rest']])[0], 'ok')
         },
-        /** `frame` too: a module has none, a function body has its own. */
+        /** A frame slot too: a module has none, a function body has its own. */
         refusedFrameInModuleScope: () => {
-            assertEq(toRust(['frame'])[0], 'error')
-            assertEq(toRust(['=>', 0, ['[]', [['[]', []]]], ['frame']])[0], 'ok')
+            assertEq(toRust(['frame', 0])[0], 'error')
+            assertEq(toRust(['=>', 0, ['[]', [['[]', []]]], ['frame', 0]])[0], 'ok')
         },
         /**
          * A property read on a nullish base compiles: the `.rs` output is a

@@ -18,7 +18,7 @@ import { operation } from './module.f.mjs'
  * @type {Evaluator<unknown>}
  */
 const values = {
-    frame: 'F',
+    frame: ['F'],
     args: [10, 20],
     operand: v => v,
     invoke: (frame, fixed, rest, body) => operation({ ...values, frame, fixed, rest })(/**@type {any}*/(body)),
@@ -68,7 +68,7 @@ export const proof = {
     },
     context: () => {
         eq(['undefined'], undefined)
-        eq(['frame'], 'F')
+        eq(['frame', 0], 'F')
         assertStructurallySame(run(['args']), [10, 20])
     },
     containers: () => {
@@ -95,14 +95,18 @@ export const proof = {
         eq(['?.()', (/**@type {number}*/x) => ({ y: x }), [3], ['|.', 'y']], 3)
     },
     // `=>` closes over the frame operand's value and starts a new
-    // invocation per call, whose body reads its own `args` and `frame`.
+    // invocation per call, whose body reads its own `args` and frame slots.
     lambda: () => {
-        const f = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', 0, 'captured', ['frame']]))
+        const f = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', 0, ['captured'], ['frame', 0]]))
         assertEq(f(), 'captured')
         const g = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', 0, null, ['rest']]))
         assertStructurallySame(g(1, 2), [1, 2])
     },
     throw: {
+        // A slot the frame does not have, and a frame that is no array.
+        frameSlotPastTheEnd: () => run(['frame', 1]),
+        frameSlotNotAnIndex: () => run(['frame', -0]),
+        frameNotAnArray: () => operation({ ...values, frame: 'F' })(['frame', 0]),
         escapingStep: () => run(['?.', null, 'a', ['|!()', []]]),
         ownKey: () => run(['own', {}, 1]),
         ownNullish: () => run(['own', null, 'a']),

@@ -62,7 +62,7 @@ export type AstFunction = readonly ['=>', number, AstBody] | readonly ['=>', num
 /**
  * Slot `i` of the frame of the function whose body holds it: the value its
  * capture `i` names in the scope around the function. The EDAG's
- * `['.', ['frame'], i]`.
+ * `['frame', i]`.
  */
 export type AstFrameRef = readonly ['fref', number]
 

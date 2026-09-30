@@ -288,7 +288,7 @@ const lines = statements => statements.flatMap(s => s.split('\n'))
 
 /**
  * `true` for a node that prints as one atom holding no other node's text:
- * `undefined`, `args`, `frame`, an empty array or object, and the corpus's
+ * `undefined`, `args`, a frame slot, an empty array or object, and the corpus's
  * lambda, `function_any()` — a primitive being the other atom, and never a node
  * {@link visit} lists, so never asked. Every
  * other node holds its operands' text, and is a temporary of its scope
@@ -570,11 +570,12 @@ const printer = nested => shared => root => {
         if (id === 'args') { return ok('args.clone().to_any()') }
         if (id === 'rest') { return ok('rest.clone().to_any()') }
         if (id === 'arg') { return ok(`args.clone().into_iter().${a === 0 ? 'next()' : `nth(${a})`}.unwrap_or_else(|| Nullish::Undefined.to_any())`) }
-        // The frame the function was built with, read through the closure's
-        // `self_` parameter, {@link closure}: an `Array<A>` as `args` is,
-        // and so the same value — its slot `i`, `['.', ['frame'], i]`, an
-        // ordinary `.` node over this, as an argument is over `args`.
-        if (id === 'frame') { return ok('A::frame(self_).clone().to_any()') }
+        // Slot `i` of the frame the function was built with, read through
+        // the closure's `self_` parameter, {@link closure}: the `Array<A>`
+        // {@link frameExpr} built, indexed directly — the slot exists, since
+        // the lowering emits no read past its frame, so no `undefined` case
+        // as an `args` read has.
+        if (id === 'frame') { return ok(`A::frame(self_)[${a}].clone()`) }
         if (id === '[]') {
             return a.length === 0
                 ? ok('Array::default().to_any()')
@@ -905,9 +906,9 @@ const visit = operands => visited => root => {
 export const readsArgs = root => reads('args')(root) || reads('arg')(root) || reads('rest')(root)
 
 /**
- * The same, for `['frame']`: whether a scope reads the frame it was built
- * with. A module's own scope reading one is refused by `fjs/compiler/rust`: a
- * module has no frame.
+ * The same, for `['frame', i]`: whether a scope reads a slot of the frame
+ * it was built with. A module's own scope reading one is refused by
+ * `fjs/compiler/rust`: a module has no frame.
  *
  * @type {(root: Exp) => boolean}
  */

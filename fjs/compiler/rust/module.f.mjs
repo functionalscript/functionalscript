@@ -106,7 +106,7 @@ const importsFor = (text, bound) => [...new Set([
  * belongs to the enclosing scope. The fragment printer cannot perform that
  * check without the complete graph. A module has no arguments and no frame,
  * so an `['args']` or
- * `['frame']` node in its own scope — a function body's node, which the lowering
+ * `['frame', i]` node in its own scope — a function body's node, which the lowering
  * never puts here, handed in directly — is refused rather than printed as
  * a name nothing binds.
  *

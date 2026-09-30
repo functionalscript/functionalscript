@@ -75,8 +75,8 @@ remaining native callable work must use the same contract.
   materialized once per call. The old function-owned `['args']` is gone;
   module-owned imports retain it. The original supplied count within the
   fixed prefix is intentionally unobservable.
-- `['frame']` remains the captured-values array, read as
-  `['.', ['frame'], i]`; it also carries captured outer fixed/rest bindings.
+- the frame remains the captured-values array, its slot `i` read as
+  `['frame', i]`; it also carries captured outer fixed/rest bindings.
 - `["self"]` is the planned direct self-reference (Stage 5), primitive because
   a top-level recursive function has no enclosing scope to seed a frame slot with itself
   (subject 10); it reaches only the innermost enclosing function (mutual

@@ -101,7 +101,7 @@ const shapes = p => [
     ...p.map(x => /** @type {Exp} */([',', [x, x]])),
     ...p.map(x => /** @type {Exp} */([',', [x]])),
     ...p.map(x => /** @type {Exp} */(['[]', [x, ['=>', 0, null, copy(x)]]])),
-    ...p.map(x => /** @type {Exp} */(['[]', [x, ['=>', 0, ['[]', [x]], ['.', ['frame'], 0]]]])),
+    ...p.map(x => /** @type {Exp} */(['[]', [x, ['=>', 0, ['[]', [x]], ['frame', 0]]]])),
 ]
 
 /**
@@ -422,7 +422,7 @@ export const proof = {
         /** @type {Exp} */
         const c = ['[]', [1]]
         /** A read of slot `i`, a node of its own — one node in two bodies is no EDAG. @type {(i: number) => Exp} */
-        const slot = i => ['.', ['frame'], i]
+        const slot = i => ['frame', i]
         writes(['=>', 0, ['[]', [c]], slot(0)], 'const $0=[1];export default (...$a)=>$0;')
         writes(['[]', [c, ['=>', 0, ['[]', [c]], slot(0)]]], 'const $0=[1];export default [$0,(...$a)=>$0];')
         // the frame's `const` comes before the function's own
@@ -466,9 +466,10 @@ export const proof = {
         refuses(['=>', 0, ['[]', [c, c]], ['[]', [slot(0), slot(1)]]], 'a frame slot that repeats another')
         refuses(['=>', 0, ['[]', [c]], 1], 'a frame slot the body never reads')
         refuses(['=>', 0, ['[]', [c]], slot(1)], 'a frame read that is no slot')
-        refuses(['=>', 0, ['[]', [c]], ['.', ['frame'], 'a']], 'a frame read that is no slot')
-        refuses(['.', ['frame'], 0], 'a frame read that is no slot')
-        refuses(['=>', 0, ['[]', [c]], ['frame']], 'the frame outside a slot read')
+        // an index that is no canonical index, and a read outside a
+        // function, are the analysis's refusals, before any text is written
+        refuses(['=>', 0, ['[]', [c]], slot(-0)], 'invalid frame slot index or scope')
+        refuses(slot(0), 'invalid frame slot index or scope')
         refuses((() => {
             /** @type {Exp} */
             const frame = ['[]', [c]]

@@ -1,7 +1,7 @@
 ## Frame slot node
 
 **Priority:** P3
-**Status:** open
+**Status:** wip — `['frame', N]` landed with the frame operand still an `exp`; `slots[]` is the step left
 
 ### Problem
 
@@ -102,16 +102,29 @@ in the same change.
 
 ### Tasks
 
-- [ ] Schema: `frame`, `func` with `slots[]`, `op0Id` without `'frame'`;
-      `types.ts` and the README's node table and binding rules.
-- [ ] Analysis: the walk, the leaf case, and `bindingError` against the
-      slot count, with proofs for an index at, below and past the count,
-      a `-0`, and a read outside a function.
-- [ ] Memo interpreter and its proof.
-- [ ] Rust backend and its proof: a direct index, `readsFrame` untouched.
-- [ ] Compiler lowering and serializer, with the special cases removed and
-      their proofs adjusted.
-- [ ] Demo.
+The two halves land as two steps: the slot read first, with the frame
+operand still a general `exp`, then the operand.
+
+- [x] Schema: `frame`, `op0Id` without `'frame'`; `types.ts` and the
+      README's node table and binding rules.
+- [x] Analysis: the leaf case, and `bindingError` refusing a read outside a
+      function and an index that is no canonical index.
+- [x] The operations, with the executors' proofs: a slot read, and a read
+      past the end refused rather than answered with `undefined`.
+- [x] Rust backend and its proof: a direct index, `readsFrame` untouched.
+- [x] Compiler lowering and serializer, with the slot-read special cases
+      removed and their proofs adjusted.
+- [x] Demo.
+- [ ] Schema: `func` with `slots[]`, `[]` for no captures; `types.ts` and
+      the README.
+- [ ] Analysis: the walk over the slots, and `bindingError` against the
+      slot count, with proofs for an index at, below and past the count.
+- [ ] The `=>` operation evaluating each slot; the Rust backend's
+      `frameExpr` over the list, the "not an array literal" and shared-frame
+      refusals gone; the compiler's `fn` emitting the list; the serializer's
+      `frameNames` over it, `frameItems` and the `[]` check gone; the demo's
+      one edge per slot.
+- [ ] Every proof with a `null` frame, and the corpus's smallest closure.
 - [ ] `npm run gen`, the full check set, and a `Changelog:` section
       declaring the break.
 - [ ] Delete this file.

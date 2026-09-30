@@ -274,7 +274,15 @@ export const operations = {
         assert(rest !== undefined, 'rest outside a function')
         return rest
     },
-    frame: ({ frame }) => () => frame,
+    // A slot of the frame the function was built with: the frame is the
+    // array its `=>` evaluated in the enclosing invocation, and the slot
+    // must exist, as a fixed parameter must be below the length — an index
+    // past the end is a graph no lowering emits, refused rather than read
+    // as `undefined`.
+    frame: ({ frame }) => ([, n]) => {
+        assert(frame instanceof Array && isIndex(n) && n < frame.length, ['invalid frame slot', n])
+        return frame[n]
+    },
     // The key must *evaluate* to a string — a runtime constraint the
     // shape-only schema cannot express, so the executor upholds it. Without
     // the check JS `ToPropertyKey` would coerce, and `['own', o, 1]` would
