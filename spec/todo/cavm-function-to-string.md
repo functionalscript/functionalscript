@@ -41,10 +41,10 @@ const g = () => f() * 2
 `String(g)` renders as something like
 
 ```js
-() => $031a340e…() * 2
+() => $Axo0DuQ…() * 2
 ```
 
-where `$031a340e…` is the hash of `f` — the content identity of its EDAG and
+where `$Axo0DuQ…` is the hash of `f` — the content identity of its EDAG and
 captured frame, the same hash the CAVM keys `f` by. Rendering does not
 recurse: the name stands for `f`, and a reader who wants `f`'s text asks
 the CAVM for that hash. `self` is the same case, not a special one: a
@@ -64,10 +64,17 @@ Why this answers the open questions for the CAVM profile:
   Text containing hash names is source over a namespace the CAVM defines,
   so `String(f)` in this profile is a code representation and not a
   self-contained one — question 1's second reading, decided by the profile.
-- **Legal spelling.** `$` followed by hex digits is an
-  [identifier](../README.md#identifiers) FunctionalScript already accepts,
-  so the text stays parseable source, and `$` is rarely written by hand,
-  which keeps the generated names out of the way of real ones.
+- **Legal spelling.** The characters an
+  [identifier](../README.md#identifiers) may continue with — `A`–`Z`,
+  `a`–`z`, `0`–`9`, `_` and `$` — are exactly sixty-four, so a hash spells
+  as base64 over that alphabet with no character outside it: a 255-bit
+  hash is forty-three characters, against sixty-four in hex. Standard
+  base64's `+` and `/`, and base64url's `-`, are not identifier
+  characters, so the alphabet is this one and not either standard's;
+  `fjs/basen`'s `baseN` builds the codec from the alphabet alone, as the
+  standard `base64` and `cbase32` modules already do. A leading `$` makes
+  the name start with a non-digit and marks it as generated — `$` is rarely
+  written by hand, which keeps the names out of the way of real ones.
 
 Hash names are for captured *functions*. A captured non-function value keeps
 whatever the serialization questions decide for it; `() => 3` and
@@ -86,13 +93,15 @@ with the naming of a captured function as its one profile-dependent choice.
 ### Open
 
 - **Length.** The full hash is 255 bits
-  ([content-addressable-vm](./content-addressable-vm.md)), some sixty hex
-  digits: correct, and unreadable. A prefix is readable but reintroduces
-  collisions; the CAVM design already weighs a 48-bit prefix against a full
-  hash for its *value* representation, and the same trade applies to the
-  name. Whether text may abbreviate what the VM keys by in full, and how a
+  ([content-addressable-vm](./content-addressable-vm.md)), forty-three
+  base64 characters: correct, and still long for a name. A prefix is
+  readable but reintroduces collisions; the CAVM design already weighs a
+  48-bit prefix against a full hash for its *value* representation, and the
+  same trade applies to the name. Whether text may abbreviate what the VM keys by in full, and how a
   reader resolves an abbreviated name, is undecided.
-- **Encoding.** Hex is the obvious spelling; the tag bit and the
+- **Encoding details.** Base64 over the identifier alphabet is proposed
+  above, and the alphabet's order is the one open choice in it. Forty-three
+  characters carry 258 bits, so three are padding; the tag bit and the
   `undefined` all-zero hash of the CAVM design need not appear in a name
   that only ever stands for a function.
 - **Round trip.** Whether the compiler should *accept* `$…` names as
@@ -103,7 +112,8 @@ with the naming of a captured function as its one profile-dependent choice.
 
 ### Tasks
 
-- [ ] Decide the hash spelling in a name: full or prefix, and the encoding.
+- [ ] Decide the hash spelling in a name: full or prefix, and the alphabet's
+      order.
 - [ ] Record the rule in [serialization](./serialization.md) as the CAVM
       profile's answer to questions 1–3, and the JS-compatible profile's
       remaining choice beside it.
