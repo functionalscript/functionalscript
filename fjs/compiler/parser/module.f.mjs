@@ -54,7 +54,7 @@ import { sort } from '../../types/object/module.f.mjs'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { maxLength } from '../../types/function/length/module.f.mjs'
-import { keywords } from '../../js/keywords/module.f.mjs'
+import { isKeyword } from '../../js/keywords/module.f.mjs'
 import { prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.js'
 import { nameOf, parseSyntax, textOf } from './syntax/module.f.mjs'
 
@@ -154,9 +154,6 @@ const tooManyParameters = foldError(`more than ${maxLength} fixed parameters`)
 /** The rest array after the fixed parameters of the function whose body is being resolved. @type {AstRest} */
 const restBinding = ['rest']
 
-/** @type {ReadonlySet<string>} */
-const keywordSet = new Set(keywords)
-
 /**
  * The word an identifier token spells where JavaScript wants an identifier
  * — a name bound or referenced — refusing every keyword: the tokenizer
@@ -168,7 +165,7 @@ const keywordSet = new Set(keywords)
  */
 const identifierOf = name => {
     const word = nameOf(name)
-    return keywordSet.has(word) ? error(reservedWord(name)) : ok(word)
+    return isKeyword(word) ? error(reservedWord(name)) : ok(word)
 }
 
 /** An attribute key the language does not know, at the key: `type` is the one JavaScript defines. */

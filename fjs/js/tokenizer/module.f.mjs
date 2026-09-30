@@ -51,7 +51,7 @@
 import { assert } from '../../asserts/module.f.mjs'
 import { parser } from '../../ebnf/ll1/module.f.mjs'
 import { mergeTrivia, token } from '../../ebnf/lib/js/module.f.mjs'
-import { keywords } from '../keywords/module.f.mjs'
+import { isKeyword } from '../keywords/module.f.mjs'
 import { escapeToCodePoint } from '../string_escape/module.f.mjs'
 import {
     apostrophe, asterisk, lf,
@@ -227,9 +227,6 @@ const stringDecodeScan = (cp, state) => {
  */
 const decodeString = codePoints => codePointListToString(flat(stateScan(stringDecodeScan)({ kind: 'normal' })(codePoints.slice(1, -1))))
 
-/** @type {ReadonlySet<string>} */
-const keywordSet = new Set(keywords)
-
 /**
  * The token a word is: a string decoded, a word a keyword or an identifier,
  * a number a `number` or a `bigint` by its suffix, a comment its text
@@ -241,7 +238,7 @@ const toJsToken = ({ kind, text }) => {
     const value = codePointListToString(text)
     switch (kind) {
         case 'string': { return { kind: 'string', value: decodeString(text) } }
-        case 'id': { return keywordSet.has(value) ? /** @type {JsToken} */ ({ kind: value }) : { kind: 'id', value } }
+        case 'id': { return isKeyword(value) ? /** @type {JsToken} */ ({ kind: value }) : { kind: 'id', value } }
         case 'number': {
             return value.endsWith('n') ? { kind: 'bigint', value: BigInt(value.slice(0, -1)) } : { kind: 'number', value }
         }

@@ -46,11 +46,8 @@
  * @import { DjsToken, DjsTokenWithMetadata } from './types.ts'
  */
 import { tokenize as tokenizeJs } from '../../js/tokenizer/module.f.mjs'
-import { keywords } from '../../js/keywords/module.f.mjs'
+import { isKeyword } from '../../js/keywords/module.f.mjs'
 import { flat, stateScan } from '../../types/list/module.f.mjs'
-
-/** @type {ReadonlySet<string>} */
-const keywordSet = new Set(keywords)
 
 // -- layer 3: the DjsToken stream -------------------------------------------
 
@@ -87,7 +84,7 @@ const djsTokenKindSet = new Set(_djsTokenKinds)
  */
 const mapDjsToken = input =>
     djsTokenKindSet.has(input.kind) ? /** @type {DjsToken} */ (input)
-    : keywordSet.has(input.kind) ? { kind: 'id', value: input.kind }
+    : isKeyword(input.kind) ? { kind: 'id', value: input.kind }
     : { kind: 'error', message: 'invalid token' }
 
 /** Whether a token is trivia: what stands between two tokens without being one of them. @type {(kind: JsToken['kind']) => boolean} */
