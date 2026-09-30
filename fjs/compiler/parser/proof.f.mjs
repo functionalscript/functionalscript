@@ -48,7 +48,31 @@ const repeated = element => count => `${`${element},`.repeat(count - 1)}${elemen
 const numberedMembers = count =>
     Array.from({ length: count }, (_, i) => `k${i}:${i}`).join(',')
 
+/**
+ * A module read to the tree the proofs pin, a refusal thrown.
+ *
+ * @type {(source: string, expected: string) => void}
+ */
+const expectModule = (source, expected) => {
+    const [tag, value] = parseFromTokens(tokenizeString(source))
+    assert(tag === 'ok', value)
+    assertEq(stringifyDjsModule(value), expected)
+}
+
 export const proof = {
+    // A module may end in `throw` in place of its exports: the body's last
+    // entry is the throw of the value, resolved against every name bound,
+    // and no export object follows it — a named export before it is the
+    // entry it is, and nothing the module exports, since the load never
+    // completes. The `;` may be omitted at the end of input, as any
+    // statement's may.
+    throws: () => {
+        expectModule('throw 1;', '[[],[["throw",1]]]')
+        expectModule('throw 1', '[[],[["throw",1]]]')
+        expectModule('const a = [1]; throw a;', '[[],[["array",[1]],["throw",["cref",0]]]]')
+        expectModule('export const a = [1]; throw a;', '[[],[["array",[1]],["throw",["cref",0]]]]')
+        expectModule('import m from "./m.f.js";\nthrow m.x', '[[{"json":false,"name":"default","specifier":"./m.f.js"}],[["throw",[".",["aref",0],"x"]]]]')
+    },
     namedImports: {
         bindings: () => {
             const source = 'import d, { x, x as y, default as z, as as from, } from "./dep"; export default [d,x,y,z,from];'
@@ -327,6 +351,16 @@ export const proof = {
                 ["const a = 1; const b = 2 export const c = 3;", "unexpected token", [1, 26]],
                 ["export const a = 1 export default a;", "unexpected token", [1, 20]],
                 ["export default () => { const x = 1 return x; };", "unexpected token", [1, 36]],
+                // a module may end in `throw` where `export default` would,
+                // and nothing follows it; `throw` and its value share a line,
+                // as `return` and its value do; and the value is resolved
+                ["throw 1; export default 2;", "unexpected token", [1, 10]],
+                ["export default 2; throw 1;", "unexpected token", [1, 19]],
+                ["throw\n1;", "unexpected token", [2, 1]],
+                ["throw;", "unexpected token", [1, 6]],
+                ["const a = 1 throw a;", "unexpected token", [1, 13]],
+                ["export const a = 1 throw a;", "unexpected token", [1, 20]],
+                ["throw zzz;", "const not found", [1, 7]],
                 // a module with no export is one still, however it ends
                 ["import x from \"m\"", "unexpected end", [1, 18]],
                 ["const a = 1", "unexpected end", [1, 12]],

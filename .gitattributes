@@ -11,10 +11,11 @@ gen.* linguist-generated=true
 **/gen.*/** linguist-generated=true
 
 # Generated at a path another tool fixes.
-/.github/workflows/ci.yml linguist-generated=true
-/.github/workflows/npm-publish.yml linguist-generated=true
 /nix/flake.nix linguist-generated=true
 /nix/run linguist-generated=true
 /nix/lock-update.sh linguist-generated=true
 /nix/*/flake.nix linguist-generated=true
 /nix/*/run linguist-generated=true
+# The locks: written by nix/lock-update.sh, which `npm run gen` ends with.
+/nix/flake.lock linguist-generated=true
+/nix/*/flake.lock linguist-generated=true

@@ -34,7 +34,7 @@ base, never the prototype chain, as
 it — a name a built-in prototype gives a value, `a.toString` or `a.push`,
 is refused at the key rather than read as `undefined` where JavaScript
 finds a function, `length` excepted, since a value owns it
-([`fjs/js/prototype`](../js/prototype/module.f.mjs)) — a method call is
+([`fjs/js/prototype`](../js/prototype/module.f.js)) — a method call is
 the exception the other way, `a.at(0)` and `a.toString()` being calls the
 VM answers by the receiver's type, and only the member functions the same
 module's `prohibitedCalls` names, `a.push(1)` or `a.valueOf()`, are refused
@@ -104,7 +104,7 @@ lexicographic key order. Source initializers remain ordered in the AST; the EDAG
 preserves dependencies and required evaluations under the specification's
 [failure-equivalence rule](../../spec/README.md#failure-is-one-outcome).
 
-See [examples/input.f.mjs](./examples/input.f.mjs).
+See [examples/input.f.js](./examples/input.f.js).
 
 ## EDAG
 
@@ -157,7 +157,10 @@ into the body rather than captured, and a function that captures nothing
 else has a `null` frame. A nested function captures through its parent, its
 slot a read of the parent's frame. The body is any value except an object, since
 `=> {` opens a block in JavaScript — or that block, in which an object is a
-value again: any number of `const` statements and then one `return`. A body
+value again: any number of `const` statements and then one `return` or one
+`throw`, which lowers to the node `['throw', v]`, an operation of one operand
+that always fails, in place of the value returned
+([spec: functions](../../spec/README.md#functions)). A body
 `const` is an entry of the function's own body, as a module `const` is of the
 module — one node however many references reach it, and what the returned
 value does not reach anchored by the comma rather than dropped, which is the
@@ -211,8 +214,9 @@ lazy position is anchored, since its own statement runs at load whatever
 the operator later decides, so `const c = null.x; export default [a && c,
 b && c];` throws at load in both languages. The sharing sweep counts a
 lazy position as any other — identity does not care which position a
-reference is made from. The writer refuses every operator node, Stage B's
-as Stage A's, until it can spell their precedence.
+reference is made from. The writer spells Stage B's operators, with the
+parentheses their precedence asks for, and refuses every Stage A node until
+it can spell that precedence too.
 A call is a step after a value, as an access is, and the callee picks which of
 the EDAG's two forms it lowers to: an access as the callee is a method call,
 `a.b(c)`, whose receiver is that access's base, so the access owns the call
@@ -223,9 +227,17 @@ spreads. The plain form over an access is the *detached* receiver,
 source writes one — `(a.b)(c)` keeps the receiver and is the method call
 again, parentheses preserving the property reference. A call mints identity — two calls are
 two nodes and a `const` naming one is one — which is what a body's `const`
-keeps. [`serializer`](serializer/module.f.mjs) has no spelling for either
-form yet and refuses both by name, so a module with a call in it compiles to
-the EDAG output alone. When it gets one, a negative callee needs the care an
+keeps. One call lowers to no call at all: a parameterless function written
+at the call and called with no arguments, `(() => { const x = f(); return
+[x, x]; })()`, is its body where the call stands, its captures the enclosing
+scope's own nodes and what its value does not reach anchored at the nearest
+block root, a scope's root or a lazy operand — `isInlinedCall` in
+[`ast`](ast/module.f.mjs) names the conditions and the argument, and
+[spec: functions](../../spec/README.md#functions) the rule. The writer
+spells the same idiom back where a lazy operand shares a value nothing else
+reaches. [`serializer`](serializer/module.f.mjs) has no spelling for either
+call form yet and refuses both by name, so a module with a call in it
+compiles to the EDAG output alone. When it gets one, a negative callee needs the care an
 access base takes: `-1()` is `-(1())`, so `['()', -1, args]` cannot be
 written `-1()` — the grammar spells it, `(-1)()`, and until the writer reads
 a group a `const` does. The writer's proof refuses that shape by name, so
@@ -334,7 +346,7 @@ FunctionalScript compiler.
 |---|---|
 | `.f.ts` | Authored FunctionalScript-intent TypeScript implementation/proof source. **No longer used**: stage 1 removed the last one, and new source must not use this extension. It appears below only to describe that completed migration. |
 | `.f.mjs` | Authored FunctionalScript-intent ESM JavaScript with JSDoc types. It may use FunctionalScript features the current parser/compiler does not support yet. |
-| `.f.js` | Authored FunctionalScript that the parser/compiler in the same revision accepts: the stage-2 compatibility marker ([below](#stage-2-mark-compiler-compatible-functionalscript)). Its proof stays `proof.f.mjs`, because a proof fails by throwing and the compiler does not accept `throw` yet. The first is the package fixture [`fjs/ci/package/fixture/module.f.js`](../ci/package/fixture/module.f.js). No build or packaging step produces one: stage 1's TypeScript runtime emission did, and that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)). `fjs compile <input> <output>.f.js` does still write one, to a path the caller names — that is the compiler's output for a user, not repository source. |
+| `.f.js` | Authored FunctionalScript that the parser/compiler in the same revision accepts: the stage-2 compatibility marker ([below](#stage-2-mark-compiler-compatible-functionalscript)). Its proof stays `proof.f.mjs`, because a proof fails through `assert`, whose `if` and `!` the compiler does not accept yet. Every repository module the compiler accepts whole is one, [`fjs/js/prototype`](../js/prototype/module.f.js) and [`fjs/types/range`](../types/range/module.f.js) among them, and none of them imports an `.f.mjs`; the `package-check` job imports one from a clean consumer of the packed package ([`fjs/ci/package`](../ci/package/module.f.mjs)). No build or packaging step produces one: stage 1's TypeScript runtime emission did, and that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)). `fjs compile <input> <output>.f.js` does still write one, to a path the caller names — that is the compiler's output for a user, not repository source. `fjs compile` with no arguments checks every authored one against this compiler, and CI runs it ([spec: checking every `.f.js`](../../spec/README.md#checking-every-fjs)). |
 | `types.ts` | Authored TypeScript source for a type-level API. It may coexist with `.f.mjs` or later `.f.js` and holds no runtime implementation. |
 | `.d.ts`, `.d.mts` | Generated TypeScript declarations. |
 
@@ -551,13 +563,16 @@ a clean checkout either way. Authored `types.ts` files remain.
 
 The repository compiler-compatibility migration is
 [`todo/fjs-nanvm-integration.md`](../../todo/fjs-nanvm-integration.md). Stage 1
-was its first blocker and is complete, so what remains before its first rename
-is [authored `.f.js` package support](../ci/todo/f-js-package-support.md), so a
-standalone `.f.js` is directly type-checked, receives a `.d.ts`, is packed in
-the clean CI package build, and resolves for a clean consumer. That is the one
-gate now, and it matches the `**Blocked by:**` list in the integration issue.
+was its first blocker and is complete; a standalone `.f.js` is directly
+type-checked, receives a `.d.ts`, is packed in the clean CI package build and
+is covered, and the `package-check` job imports a published one from a clean
+consumer, runs it and type-checks a use of its declaration with a negative
+control ([`fjs/ci/package`](../ci/package/module.f.mjs)); and the first
+renames followed — every module the compiler accepted whole,
+`fjs/js/prototype` and `fjs/types/range` among them. What keeps them honest is
+`fjs compile` with no arguments, which CI runs.
 
-Then migrate compiler-supported dependency-closed groups incrementally:
+Compiler-supported dependency-closed groups migrate incrementally:
 
 ```text
 module.f.mjs -> module.f.js
@@ -566,8 +581,10 @@ module.f.mjs -> module.f.js
 An authored `.f.js` is a compatibility commitment: the FunctionalScript parser
 and compiler in the same repository revision must accept the complete module,
 and its runtime and declaration dependencies must satisfy the compiler migration
-rules. Unsupported modules remain `.f.mjs` until the required compiler features
-land. A sibling authored `types.ts` remains unchanged across this rename.
+rules. `fjs compile` with no arguments is what holds every `.f.js` to it, and CI
+runs that check once per revision. Unsupported modules remain `.f.mjs` until
+the required compiler features land. A sibling authored `types.ts` remains
+unchanged across this rename.
 
 A synthetic JavaScript compiler fixture may be used before repository migration;
 it does not change the extension contract for repository source.

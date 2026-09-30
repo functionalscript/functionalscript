@@ -8,7 +8,7 @@
  * @import { NixJob } from '../nix/types.ts'
  */
 
-import { node, typescript } from '../config/module.f.mjs'
+import { node, typescript } from '../config/module.f.js'
 import { install, test, ubuntuArm, uses } from '../common/module.f.mjs'
 import { nixInstall, nixShell, nixSteps, nixSystems, nixVersionStep } from '../nix/module.f.mjs'
 
@@ -60,7 +60,7 @@ const nodeVersionStep = (shell, version) =>
  * Asserts the compiler this job's flake provides.
  *
  * `tsc` here is `typescript-go`'s, and the attribute names no version, so this
- * is the only tie between `../config/module.f.mjs` and what the shell hands
+ * is the only tie between `../config/module.f.js` and what the shell hands
  * `npm ci`'s successors. It matters more than most: `tsc` is not run as `tsc`
  * alone but through `npm pack`, whose `prepack` script emits the declarations
  * the package ships — a compiler nobody confirmed would put its own idea of a
@@ -119,6 +119,14 @@ const suiteNixSteps = version => [
  * Node 24's, with two differences that come from what this job does rather than
  * from Nix.
  *
+ * `npm start compile` — `npm start` is this tree's `node ./fjs/module.mjs`,
+ * as the other `npm` steps here are this tree's scripts — with no arguments is
+ * the check that every authored `.f.js` still compiles
+ * ([`fjs/compiler`](../../compiler/module.f.mjs)). It runs this working tree's
+ * compiler, not a published one, since the promise an `.f.js` makes is about
+ * the compiler of the same revision; and it runs once, here, because the
+ * answer does not depend on the runtime.
+ *
  * `npm run gen` and the drift check it feeds run **last**, after every
  * other command. The check compares the working tree against what the generator
  * produces, so putting it at the end makes it the last word: any file an earlier
@@ -136,7 +144,7 @@ const node26NixSteps = [
     nodeVersionStep(nixShell, node.default),
     tscVersionStep,
     ...nixSteps(nixShell)(
-        ['npm ci', 'tsc', 'npm run cov', 'npm pack', 'npm run gen']),
+        ['npm ci', 'tsc', 'npm start compile', 'npm run cov', 'npm pack', 'npm run gen']),
     test({ run: 'git add -A && git diff --cached --exit-code' }),
     // Hands the tarball to a job that has no checkout, which is the only place
     // the package can be checked as a consumer sees it. `if-no-files-found`

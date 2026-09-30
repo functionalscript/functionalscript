@@ -15,6 +15,7 @@ Run the full check set before submitting:
 ```bash
 tsc                      # type-check; the compiler is the environment's
 fjs test                 # or any equivalent runner
+npm start compile        # every authored .f.js still compiles; the working tree's compiler
 cargo test               # only if you touched Rust
 cargo clippy
 cargo fmt -- --check
@@ -35,7 +36,7 @@ report the PR as unready; do not treat an unavailable required check as passing.
 
 `tsc` is not a dependency of this package. It comes from the Nix developer
 shell (`./dev.sh`), or from a global npm install of the version
-`fjs/ci/config/module.f.mjs` pins — [CONTRIBUTING.md](./CONTRIBUTING.md) has
+`fjs/ci/config/module.f.js` pins — [CONTRIBUTING.md](./CONTRIBUTING.md) has
 both. `npx tsc` no longer runs the repository's compiler: with nothing to
 resolve in `node_modules` it fetches whatever the registry calls latest.
 
@@ -231,6 +232,6 @@ Repeating a wrapper per step costs nothing that matters. Entering a Nix
 development shell re-runs that shell's `shellHook`, so a job-local environment
 is re-established for every step instead of being exported across them.
 
-Both workflows are generated — `.github/workflows/ci.yml` and
-`.github/workflows/npm-publish.yml`. Change `fjs/ci`, run `npm run gen`,
+Both workflows are generated — `.github/workflows/gen.ci.yml` and
+`.github/workflows/gen.npm-publish.yml`. Change `fjs/ci`, run `npm run gen`,
 and commit the result. Never edit either by hand.

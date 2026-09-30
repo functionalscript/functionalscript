@@ -13,7 +13,7 @@
  * flake takes the toolchain from `rust-overlay` instead, which unpacks the same
  * release artifacts `rustup` would.
  *
- * Both name `../config/module.f.mjs`'s `rust`, so the version cannot differ
+ * Both name `../config/module.f.js`'s `rust`, so the version cannot differ
  * between a platform job and this one.
  *
  * @module
@@ -22,7 +22,7 @@
  * @import { NixPerSystem, NixRust } from '../nix/types.ts'
  */
 
-import { rust, wasmer, wasmtime } from '../config/module.f.mjs'
+import { rust, wasmer, wasmtime } from '../config/module.f.js'
 import { test } from '../common/module.f.mjs'
 import { nixInstall, nixShell, nixSteps, nixVersionStep } from '../nix/module.f.mjs'
 

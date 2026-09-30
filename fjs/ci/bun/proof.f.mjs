@@ -1,6 +1,6 @@
 import { bunJobId, bunPin, bunSteps } from './module.f.mjs'
 import { toSteps } from '../common/module.f.mjs'
-import { bun, bunSources } from '../config/module.f.mjs'
+import { bun, bunSources } from '../config/module.f.js'
 import { nixDevelop, nixShell, nixSystem, runPath } from '../nix/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 

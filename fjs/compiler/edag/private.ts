@@ -35,23 +35,41 @@ export type _Binding = {
 
 /**
  * `lower`'s own explicit stack, in place of the recursion a chain of
- * operator/negation/bitwise-not/conditional nodes would otherwise call it
+ * operator/negation/bitwise-not/conditional/throw nodes would otherwise call it
  * through: a node still to lower, an operator whose one operand is already
  * on top of `_LowerResults` and needs negating or complementing, a binary
  * operator whose two operands are — right on top, left under it — or the
  * conditional whose three are, the else arm on top and the condition
- * lowest.
+ * lowest — or a `throw` whose one value is.
  */
 export type _LowerWork =
     | { readonly kind: 'expand', readonly ast: AstConst, readonly rest: _LowerWork }
     | { readonly kind: 'neg', readonly rest: _LowerWork }
     | { readonly kind: 'bitnot', readonly rest: _LowerWork }
+    | { readonly kind: 'throw', readonly rest: _LowerWork }
     | { readonly kind: 'binary', readonly tag: BinaryTag, readonly rest: _LowerWork }
     | { readonly kind: 'ternary', readonly rest: _LowerWork }
     | null
 
-/** The `Exp`s `_LowerWork`'s combine steps read and replace, most recently lowered on top. */
-export type _LowerResults = { readonly top: Exp, readonly rest: _LowerResults } | null
+/** The values `_LowerWork`'s combine steps read and replace, most recently lowered on top. */
+export type _LowerResults = { readonly top: _Lowered, readonly rest: _LowerResults } | null
+
+/**
+ * A lowered value and what it floats: the roots an inlined body anchors —
+ * its `const`s the value does not reach — carried up through eager
+ * positions to the nearest block root, a scope's root or a lazy operand,
+ * where the comma establishes them before the value.
+ */
+export type _Lowered = {
+    readonly exp: Exp
+    readonly anchors: readonly Exp[]
+}
+
+/** The entries of a body lowered so far: each entry's node, and beside each what lowering it floated. */
+export type _Entries = {
+    readonly nodes: readonly Exp[]
+    readonly floated: readonly (readonly Exp[])[]
+}
 
 /**
  * A module's full result and its export bindings. Select once so repeated

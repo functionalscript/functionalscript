@@ -8,14 +8,14 @@
  * @import { NodeOp } from '../effects/node/types.ts'
  * @import { Architecture, GitHubAction, Job, Jobs, MetaStep, Os } from './common/types.ts'
  * @import { NixJob } from './nix/types.ts'
- * @import { Setup } from './types.ts'
+ * @import { PackageConsumer, Setup } from './types.ts'
  * @import { Effect } from '../effects/types.ts'
  */
 
 import { resultStep } from '../effects/module.f.mjs'
-import { access, exitStep, writeUtf8File } from '../effects/node/module.f.mjs'
+import { access, exitStep, mkdir, writeUtf8File } from '../effects/node/module.f.mjs'
 import { step as ioStep } from '../effects/module.f.mjs'
-import { functionalscript, images, node } from './config/module.f.mjs'
+import { functionalscript, images, node } from './config/module.f.js'
 import {
     architecture,
     os,
@@ -42,6 +42,16 @@ import { bunSteps } from './bun/module.f.mjs'
 import { devNixJob } from './dev/module.f.mjs'
 import { denoSteps } from './deno/module.f.mjs'
 import { npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
+
+/** The one directory GitHub reads workflows from. */
+const workflowsDirectory = /** @type {const} */ ('.github/workflows')
+
+/**
+ * Where the pipeline writes the CI workflow. GitHub reads any `.yml` in
+ * {@link workflowsDirectory}, so the file takes the `gen.` name every generated
+ * file has ([CONTRIBUTING.md](../../CONTRIBUTING.md#naming-generated-files)).
+ */
+export const ciPath = /** @type {const} */ (`${workflowsDirectory}/gen.ci.yml`)
 
 /**
  * A workflow as the file the generator writes. JSON, which every YAML reader
@@ -266,27 +276,27 @@ export const nixJobs = [
  * `TS18003` — see `./todo/ci-generator-audience.md`, which owns the general
  * shape of this trade.
  *
- * @type {(rust: boolean) => Jobs}
+ * @type {(rust: boolean, packageConsumer: PackageConsumer | undefined) => Jobs}
  */
-const canonicalJobs = rust => ({
+const canonicalJobs = (rust, packageConsumer) => ({
     ...(rust
         ? { wasm: ubuntuArm(rustWasmSteps) }
         : {}),
     deno: ubuntuArm(denoSteps),
     bun: ubuntuArm(bunSteps),
     ...nodeVersionJobs(),
-    [packageCheckJobId]: packageCheckJob,
+    [packageCheckJobId]: packageCheckJob(packageConsumer),
 })
 
 /** @type {(setup: Setup) => Effect<NodeOp, 0, number>} */
-export const ci = ({ nodeExtra }) => resultStep(
+export const ci = ({ nodeExtra, packageConsumer }) => resultStep(
     access('Cargo.toml'),
     result => {
         const rust = result[0] === 'ok'
         /** @type {Jobs} */
         const jobs = {
             ...Object.fromEntries(os.flatMap(o => architecture.map(job(rust, nodeExtra(o))(o)))),
-            ...canonicalJobs(rust),
+            ...canonicalJobs(rust, packageConsumer),
         }
         /** @type {GitHubAction} */
         const gha = {
@@ -300,9 +310,11 @@ export const ci = ({ nodeExtra }) => resultStep(
             },
             jobs,
         }
-        const workflowWritten = writeUtf8File(
-            '.github/workflows/ci.yml',
-            workflowText(gha))
+        // A generator creates its output directory: after `gen:clean` on a
+        // fresh checkout nothing else does.
+        const workflowWritten = ioStep(
+            mkdir(workflowsDirectory, { recursive: true }),
+            () => writeUtf8File(ciPath, workflowText(gha)))
         // The publish workflow is a function of the configuration alone — no
         // job of it varies with the project's Rust, its compiler pin, or the
         // caller's `Setup` — so it is written rather than built here.
@@ -313,4 +325,14 @@ export const ci = ({ nodeExtra }) => resultStep(
         return exitStep(flakesWritten)
     })
 
+/**
+ * The built-in `fjs ci`, the generator any project gets: no extra platform
+ * steps and no packed-package consumer, since this command cannot know what
+ * another package publishes, and `package-check` without a consumer is the
+ * declaration check every project had. A project with a module to offer
+ * calls `ci` with one, as this repository does in `./self/module.f.mjs`,
+ * which is what its `npm run gen` runs.
+ *
+ * @type {() => Effect<NodeOp, 0, number>}
+ */
 export const main = () => ci({ nodeExtra: () => [] })

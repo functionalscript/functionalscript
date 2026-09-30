@@ -8,7 +8,7 @@
  * @import { Compare } from '../../function/compare/types.ts'
  */
 
-import { collapseRoot } from '../types/module.f.mjs'
+import { collapseRoot } from '../types/module.f.js'
 import { find } from '../find/module.f.mjs'
 import { fold } from '../../list/module.f.mjs'
 import { assert } from '../../../asserts/module.f.mjs'

@@ -26,6 +26,18 @@ It is also the only `continue-on-error` in either generated workflow, which is
 why `fjs/ci/common/module.f.mjs` admits the field as the literal `true` rather
 than as a boolean — there is one step it is for.
 
+### Evidence
+
+Release 0.53.0 (#2401) showed the case in full. Its first `publish-npm` run
+(attempt 1 of
+[run 36686949183](https://github.com/functionalscript/functionalscript/actions/runs/36686949183))
+signed a provenance statement and then failed the PUT with
+`npm error 404 Not Found - PUT https://registry.npmjs.org/functionalscript`
+— the trusted publisher on npm did not yet name the renamed workflow — and
+the workflow reported green. Nothing was published. Attempt 2, re-run by hand
+after the setting was changed, printed `+ functionalscript@0.53.0`. A reader
+of the Actions page cannot tell the two apart.
+
 ### Proposal
 
 Make "already published" a decision the workflow takes rather than an error it
@@ -41,7 +53,7 @@ over `npm view` output (root [`AGENTS.md`](../../../AGENTS.md) §6) — this
 repository already has a JSON reader and a semantic-version comparison. The
 generator itself reads no `package.json` today — `ci` in `fjs/ci/module.f.mjs`
 probes only `Cargo.toml`, and the compiler pin is `typescript` in
-`fjs/ci/config/module.f.mjs`. What it must not become is a shell pipeline in a
+`fjs/ci/config/module.f.js`. What it must not become is a shell pipeline in a
 generated `run:` line.
 
 Open question the design has to answer first: a step that runs conditionally

@@ -227,7 +227,7 @@ export type Arg = readonly ['arg', number]
 // Op1Ids
 
 export type Op1Id =
-    | 'String' | 'Number' | '!' | '~' | 'typeof'
+    | 'String' | 'Number' | '!' | '~' | 'typeof' | 'throw'
 
 export type Op1 = readonly[Op1Id, Exp]
 

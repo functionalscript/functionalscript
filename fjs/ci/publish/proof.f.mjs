@@ -5,7 +5,7 @@ import {
     npmPublishWorkflow,
     publishBranch,
 } from './module.f.mjs'
-import { images, node, typescript } from '../config/module.f.mjs'
+import { images, node, typescript } from '../config/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { definedValues } from '../../types/object/module.f.mjs'
 
@@ -26,7 +26,7 @@ export const proof = {
     // registry's trust, and `merge_group` would publish a merge that has not
     // landed.
     onlyPushesToTheBranch: () => {
-        assertEq(npmPublishPath, '.github/workflows/npm-publish.yml')
+        assertEq(npmPublishPath, '.github/workflows/gen.npm-publish.yml')
         assertEq(npmPublishWorkflow.name, 'npm publish')
         assertStructurallySame(npmPublishWorkflow.on.push?.branches, [publishBranch])
         assertEq(publishBranch, 'main')

@@ -25,7 +25,7 @@ difference, that a proof stays `proof.f.mjs`, is in
 
 - `tsc` — type-check. The compiler is the environment's, not a dependency of
   this package: the Nix developer shell provides it, or install the version
-  `fjs/ci/config/module.f.mjs` pins globally. Not `npx tsc`, which resolves
+  `fjs/ci/config/module.f.js` pins globally. Not `npx tsc`, which resolves
   nothing locally and fetches the registry's latest.
 - `fjs test` (or any equivalent from
   [CONTRIBUTING.md](../CONTRIBUTING.md#ways-to-run-the-functionalscript-test-suite))
@@ -58,9 +58,9 @@ stay opt-in through the `proof.mjs` filename convention.
 
 A `proof.f.mjs` is authored `.f.mjs` like any other. Its relative **runtime**
 imports must target FunctionalScript modules, `.f.mjs` or `.f.js`. A
-`module.f.js` keeps a `proof.f.mjs` for now: a proof fails by throwing, and
-the compiler does not accept `throw` yet
-([`ci/todo/f-js-package-support.md`](./ci/todo/f-js-package-support.md)). Type-only APIs may live in an authored
+`module.f.js` keeps a `proof.f.mjs` for now: a proof fails through `assert`,
+whose `if` and `!` the compiler does not accept yet
+([`compiler/README.md`](./compiler/README.md)). Type-only APIs may live in an authored
 `types.ts` companion and are referenced directly through that real source path.
 Its leading JSDoc block may include, for example:
 
@@ -250,7 +250,7 @@ Use JSDoc for module documentation in both JavaScript and TypeScript source.
 a marker of entry-point-ness. `deno doc` reads the tag and nothing else: a file
 whose leading block carries it gets that prose as its `module_doc`, and a file
 without it gets no `module_doc` at all — the block is dropped, not demoted.
-Verified against the pinned Deno (`fjs/ci/config/module.f.mjs`), for `.mjs` and
+Verified against the pinned Deno (`fjs/ci/config/module.f.js`), for `.mjs` and
 `.ts` alike; the tag need not be in the first block, only in some block.
 
 **So the tag goes wherever a file has module-level documentation a reader is
@@ -1080,7 +1080,7 @@ languages require. TypeScript narrows string literals precisely, so the string
    mapping (and `keyof typeof my` gives you the key type).
 
 Existing examples: `os` / `Os` and `architecture` / `Architecture` in
-`fjs/ci/common/module.f.mjs`, and `actions` in `fjs/ci/config/module.f.mjs`.
+`fjs/ci/common/module.f.mjs`, and `actions` in `fjs/ci/config/module.f.js`.
 
 #### Write the call, not the value it computes
 
@@ -1309,8 +1309,12 @@ anywhere else as the rule being broken.
 Authored FunctionalScript source is JavaScript with JSDoc. Relative
 repository-owned dependencies follow these source rules:
 
-- `.f.mjs` is authored FunctionalScript implementation/proof source, and its
-  relative runtime imports target `.f.mjs`;
+- `.f.mjs` and `.f.js` are authored FunctionalScript implementation source,
+  and `.f.mjs` is proof source too. A relative runtime import from `.f.mjs`
+  targets a FunctionalScript module, `.f.mjs` or `.f.js`; one from `.f.js`
+  targets `.f.js` alone, since the compiler links a module's imports with it
+  and `fjs compile` with no arguments holds every `.f.js` to that
+  ([spec: checking every `.f.js`](../spec/README.md#checking-every-fjs));
 - `types.ts` is authored type-only TypeScript source and carries no runtime
   implementation;
 - `.f.mjs` — and later `.f.js` — consumes `types.ts` through JSDoc `@import`,
@@ -1320,8 +1324,11 @@ repository-owned dependencies follow these source rules:
   artificial runtime representation;
 - never add a runtime import/export or runtime value solely to represent a
   TypeScript-only type declaration;
-- compiler support does not gate the later `.f.mjs` -> `.f.js` rename;
-  FunctionalScript parser coverage and package support do.
+- a module is renamed `.f.mjs` -> `.f.js` once the compiler of the same
+  revision accepts it whole, its imports included; the `package-check` job
+  imports a published `.f.js` from a clean consumer of the packed package,
+  runs it and type-checks a use of its declaration with a negative control
+  ([`ci/package/module.f.mjs`](./ci/package/module.f.mjs)).
 
 Avoid references to built-in or external Node modules such as `node:path` in
 FunctionalScript source. No `try`/`catch` — see

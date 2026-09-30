@@ -431,8 +431,8 @@ not, and the pipeline is simplified accordingly.
   — upstream JSDoc typedef stripping limitation; no longer a blocker here, since
   no authored `.mjs` declares a file-scope typedef to strip.
 - [`publishing-packages.md`](./publishing-packages.md) — broader package roadmap.
-- [`f-js-package-support.md`](./f-js-package-support.md) — stage-2 authored
-  `.f.js` package prerequisite.
+- [`../package/module.f.mjs`](../package/module.f.mjs) — `package-check`, which
+  imports a published `.f.js` from a clean consumer of the packed package.
 - [`fjs/compiler/README.md`](../../compiler/README.md) — authoritative extension contract.
 - [`.f.mjs` test and coverage support](../../emergent_testing/todo/f-mjs-test-and-coverage.md)
   — runtime proof/coverage fixtures for authored `.f.mjs`.

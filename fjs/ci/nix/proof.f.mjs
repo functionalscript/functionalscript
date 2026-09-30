@@ -8,13 +8,14 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { step as ioStep } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
-import { nixpkgs, node, rustOverlay, typescript } from '../config/module.f.mjs'
+import { nixpkgs, rustOverlay, typescript } from '../config/module.f.js'
 import { devJobId, devSystems } from '../dev/module.f.mjs'
 import { nixJobs } from '../module.f.mjs'
 import { nodeNixJobs } from '../node/module.f.mjs'
 import {
     flakePath,
     flakeText,
+    lockUpdatePath,
     lockUpdateText,
     generatedDirectory,
     nixDevelop,
@@ -530,6 +531,7 @@ export const proof = {
             const [, [tag, result]] = virtual(emptyState)(written)
             assert(tag === 'ok', result)
             assertEq(result, lockUpdateText(nixJobs))
+            assertEq(lockUpdatePath, './nix/lock-update.sh')
         },
         // One `nix flake lock` per generated directory — Nix has no form that
         // locks several flakes at once — under `set -e`, so a later directory
@@ -539,10 +541,16 @@ export const proof = {
         // `run` scripts do: `nix flake` is gated behind `nix-command` and
         // `flakes` exactly as `nix develop` is, so a stock installation that
         // could not run `./nix/run` could not run this either.
+        //
+        // Each lock is deleted before it is locked, so the script is a
+        // regeneration from nothing and the drift check sees a lock Nix
+        // produces from the pinned revision alone.
         lockUpdateText: () => {
             assertEq(lockUpdateText([plain, withRust]), `#!/bin/sh
 set -e
+rm -f ${flakePath(plain.id)}/flake.lock
 nix flake lock --extra-experimental-features 'nix-command flakes' ${flakePath(plain.id)}
+rm -f ${flakePath(withRust.id)}/flake.lock
 nix flake lock --extra-experimental-features 'nix-command flakes' ${flakePath(withRust.id)}
 `)
         },

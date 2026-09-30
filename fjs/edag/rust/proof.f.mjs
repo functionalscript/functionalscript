@@ -196,6 +196,21 @@ export const proof = {
                 'let c0 = || bigint_any(1) / bigint_any(0);',
                 'Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), c0)',
             ])
+        // `throw` is the `Err` arm of the `Result` every operation answers:
+        // in an arm of `?:` it is a thunk like any lazy operand, and where
+        // a scope ends in one the scope answers that `Err`.
+        assertStructurallySame(
+            scoped(['?:', true, 1, ['throw', 2]]),
+            [
+                'let c0 = || Err(f64_any(0x4000000000000000));',
+                'Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), c0)',
+            ])
+        // the value is evaluated before the failure, so a container is
+        // established first, as one is under any other operator
+        assertStructurallySame(scoped(['throw', ['[]', [1]]]), [
+            'let c0: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();',
+            'Err(c0)',
+        ])
         assertEq(
             printed(['?:', ['&&', true, false], ['||', false, 1], 2]),
             'Any::conditional((Any::logical_and(true.to_any(), || Ok(false.to_any()))), || Any::logical_or(false.to_any(), || Ok(f64_any(0x3ff0000000000000))), || Ok(f64_any(0x4000000000000000)))')
@@ -511,8 +526,51 @@ export const proof = {
         refusedSharedOnlyThroughLazyOperands: () => {
             /** @type {Exp} */
             const c = ['[]', [1]]
-            const result = scope(['?:', true, 1, ['[]', [c, c]]])
-            assert(result[0] === 'error', result)
+            // two thunks reach it, and neither may bind it for the other
+            assert(scope(['[]', [['&&', true, c], ['&&', false, c]]])[0] === 'error')
+            // it is the thunk, twice
+            assert(scope(['?:', true, c, c])[0] === 'error')
+            // and one thunk reaches it only through its own lazy operands
+            assert(scope(['?:', true, 1, ['[]', [['&&', 1, c], ['&&', 2, c]]]])[0] === 'error')
+        },
+        /**
+         * A shared node one thunk's root reaches eagerly, and nothing
+         * outside that thunk reaches at all, binds in the thunk's block:
+         * established exactly when the program establishes it, once. It
+         * is the shape a `const` inside an arm lowers to, the arm's call
+         * inlined — `true ? 1 : (() => { const c = [1]; return [c, c];
+         * })()` — and nests as arms nest.
+         */
+        sharedOwnedByAThunk: () => {
+            /** @type {Exp} */
+            const c = ['[]', [1]]
+            assertStructurallySame(scoped(['?:', true, 1, ['[]', [c, c]]]), [
+                'let c0 = || {',
+                '    let c1: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();',
+                '    Ok([c1.clone(), c1.clone()].to_array().to_any())',
+                '};',
+                'Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), c0)',
+            ])
+            /** @type {Exp} */
+            const d = ['[]', [2]]
+            assertStructurallySame(scoped(['?:', true, 1, ['&&', 2, ['[]', [d, d]]]]), [
+                'let c0 = || {',
+                '    let c1 = || {',
+                '        let c2: Any<A> = [f64_any(0x4000000000000000)].to_array().to_any();',
+                '        Ok([c2.clone(), c2.clone()].to_array().to_any())',
+                '    };',
+                '    Any::logical_and(f64_any(0x4000000000000000), c1)',
+                '};',
+                'Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), c0)',
+            ])
+            // one the scope's root reaches eagerly as well is the scope's
+            // temporary, as ever
+            assertStructurallySame(scoped(['[]', [c, ['?:', true, 1, ['[]', [c, c]]]]]), [
+                'let c0: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();',
+                'let c1 = || Ok([c0.clone(), c0.clone()].to_array().to_any());',
+                'let c2: Any<A> = (Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), c1))?;',
+                'Ok([c0.clone(), c2].to_array().to_any())',
+            ])
         },
         /**
          * A shared atom reached only through lazy operands is not refused:
@@ -958,16 +1016,23 @@ export const proof = {
         },
         /**
          * A node shared but reached only through a chain's lazy positions
-         * has no block that may bind it — the same refusal a node reached
-         * only through lazy operands gets, an atom excepted as there —
-         * where one reached eagerly as well is a temporary of the scope,
-         * and the thunk answers its name.
+         * binds in the block of the one thunk that owns it, or has no block
+         * that may bind it — the same rule a node reached only through lazy
+         * operands follows, an atom excepted as there — where one reached
+         * eagerly as well is a temporary of the scope, and the thunk
+         * answers its name.
          */
         sharing: () => {
             /** @type {Exp} */
             const one = ['[]', [1]]
-            const result = scope(['?.()', ['undefined'], ['[]', [one, one]]])
-            assert(result[0] === 'error', result)
+            assertStructurallySame(scoped(['?.()', ['undefined'], ['[]', [one, one]]]), [
+                'let c0 = || {',
+                '    let c1: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();',
+                '    Ok([c1.clone(), c1.clone()].to_array().to_any())',
+                '};',
+                'Any::option_call(Nullish::Undefined.to_any(), c0).end()',
+            ])
+            assert(scope(['[]', [['?.()', ['undefined'], ['[]', [one]]], ['?.()', ['undefined'], ['[]', [one]]]]])[0] === 'error')
             /** @type {Exp} */
             const c = ['[]', []]
             assertStructurallySame(scoped(['?.()', ['undefined'], ['[]', [c, c]]]), [

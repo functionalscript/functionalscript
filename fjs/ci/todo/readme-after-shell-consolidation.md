@@ -9,7 +9,7 @@ The per-job Deno, Bun and WASM flakes and the `dev` job were folded into one
 shared shell, [`nix/flake.nix`](../../../nix/flake.nix), which every job but
 Node 22, Node 24, the two Windows jobs and `package-check` enters through
 `./nix/run`. [`fjs/ci/README.md`](../README.md) and the comments in
-[`config/module.f.mjs`](../config/module.f.mjs) still describe the layout
+[`config/module.f.js`](../config/module.f.js) still describe the layout
 from before that.
 
 In the README:
@@ -17,7 +17,7 @@ In the README:
 - **A `dev` CI job.** The Files list says of `dev/module.f.mjs`: "The `dev` CI
   job enters it and asserts every version". [`module.f.mjs`](../module.f.mjs)'s
   comment on `canonicalJobs` says "There is no `dev` job any more", and the
-  generated `ci.yml` has none.
+  generated `gen.ci.yml` has none.
 - **A `denoNixJob`.** "`nodeNixJobs` in `node/module.f.mjs`, `denoNixJob` in
   its own module". No `denoNixJob` exists; `nixJobs` is `nodeNixJobs` plus
   `devNixJob`.
@@ -27,7 +27,7 @@ In the README:
   the overridden Bun itself.
 - **"The `wasm` job's flake"** with a second input — that input,
   `rust-overlay`, belongs to the shared shell.
-- **The version-check example** shows `"v26.8.1"`; `config/module.f.mjs`'s
+- **The version-check example** shows `"v26.8.1"`; `config/module.f.js`'s
   `node.default` is `26.8.2`.
 - **A missing section.** "see "Generated flake locks" below" — the README has
   no such section; the heading is in [65z-ci-nix](./65z-ci-nix.md).
@@ -35,7 +35,7 @@ In the README:
   `nix/flake.nix`, and the generator also writes each `run` script and
   `nix/lock-update.sh`.
 
-In `config/module.f.mjs`'s comments:
+In `config/module.f.js`'s comments:
 
 - Above `rustOverlay`: "The `wasm` job is not on a flake", citing
   `../todo/wasm-nix-blocked-on-rust-targets.md`, which does not exist; the
@@ -55,11 +55,11 @@ In `config/module.f.mjs`'s comments:
       the shared shell, and drop the `dev` job
 - [ ] Replace `denoNixJob` with `devNixJob` in "Generated Nix environments",
       and give `rust-overlay` to the shared shell rather than to `wasm`
-- [ ] Take the example versions from `config/module.f.mjs`
+- [ ] Take the example versions from `config/module.f.js`
 - [ ] Point "Generated flake locks" at [65z-ci-nix](./65z-ci-nix.md), or
       drop the reference
 - [ ] Correct the paths in Usage step 3
-- [ ] Correct or delete the four stale comments in `config/module.f.mjs`,
+- [ ] Correct or delete the four stale comments in `config/module.f.js`,
       including the reference to the missing todo
 
 ### Related

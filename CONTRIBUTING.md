@@ -48,7 +48,7 @@ work is tracked from then on.
 TypeScript is the one row that is not simply "latest", and the only one that is
 **not** an npm dependency of this package, so `npm ci` does not install it: it
 is a tool the environment provides, like the others in this table.
-[`fjs/ci/config/module.f.mjs`](./fjs/ci/config/module.f.mjs) pins the version CI
+[`fjs/ci/config/module.f.js`](./fjs/ci/config/module.f.js) pins the version CI
 uses — install exactly that one globally, or take the Nix shell below and skip
 the question. Either way, do not reach for `npx tsc`: with nothing to resolve in
 `node_modules` it downloads whatever the registry calls latest, which is not the
@@ -111,6 +111,7 @@ environment.
 | `npm start test`                        | Node 22+ | no             | The repo's runner, no type-check step.   |
 | `node --test`                           | Node 22+ | no             | Node's native test runner.               |
 | `npm run cov`                           | Node 22+ | no             | `node --test` plus coverage.             |
+| `npm start compile`                     | Node 22+ | no             | Every authored `.f.js` still compiles.   |
 | `deno task fjs test`                    | Deno     | no             | The repo's runner under Deno.            |
 | `deno task test` / `deno task cov`      | Deno     | no             | Deno's native test runner / coverage.    |
 | `bun fjs/module.mjs test`                | Bun      | no             | The repo's runner under Bun.             |
@@ -132,7 +133,7 @@ published versions; add `--minimum-dependency-age=0` to force the newest.
 
 CI exercises these same combinations — see the `node22`, `node24`, `node26`,
 `deno`, and `bun` jobs in
-[.github/workflows/ci.yml](./.github/workflows/ci.yml) for the exact commands
+[.github/workflows/gen.ci.yml](./.github/workflows/gen.ci.yml) for the exact commands
 and pinned runtime versions.
 
 To run only the tests under a subtree, `cd` into that directory and run the
@@ -161,8 +162,8 @@ annotation that uses it, or function-local in a proof. Only `types.d.ts` ships:
 `package.json`'s `files` negates `**/private.d.ts`. `.f.js` is the stage-2
 compiler-compatibility marker described in
 [`fjs/compiler/README.md`](./fjs/compiler/README.md): authored FunctionalScript the current
-compiler accepts, so far only the package fixture
-[`fjs/ci/package/fixture/module.f.js`](./fjs/ci/package/fixture/module.f.js).
+compiler accepts, [`fjs/js/prototype`](./fjs/js/prototype/module.f.js) and
+[`fjs/types/range`](./fjs/types/range/module.f.js) among them.
 
 ### Website demos
 
@@ -205,17 +206,22 @@ npm run gen
 ```
 
 Run this after changing anything a generator reads — `fjs/ci`'s workflows and
-Nix flakes, `fjs/nanvm`'s Rust test data. It needs nothing beyond Node, runs on
-Windows, and never touches a lockfile of any kind.
+Nix flakes, `fjs/nanvm`'s Rust test data. It needs Node and Nix: its last
+command is the generated `nix/lock-update.sh`, which deletes every
+`flake.lock` and locks each flake again from its pinned commit, so it does not
+run on Windows for now. The dependency lockfiles it never touches.
 
 `gen` starts by deleting every generated output — the same module as
 `npm run gen:clean` — so regeneration starts from nothing: an output no
 generator writes any more shows up as a deletion, and a generator that needs
-a previous output — its own or another's — fails. CI's drift check runs `gen`
-and then `git add -A && git diff --cached --exit-code`; run the same two
-commands to see what CI will. The cleanup lives in `gen` rather than in its
-own CI step because the workflow `fjs ci` generates is shared with downstream
-projects, whose contract is only `cov` and `gen`.
+a previous output — its own or another's — fails. The `flake.lock` files are
+held to the same standard by the lock script `gen` ends with: deleted, then
+locked again from the pinned commit, so a committed lock is byte-identical to
+what that commit produces from nothing. CI's drift check runs `gen` and then
+`git add -A && git diff --cached --exit-code`; run the same two commands to
+see what CI will. The cleanup lives in `gen` rather than in its own CI step
+because the workflow `fjs ci` generates is shared with downstream projects,
+whose contract is only `cov` and `gen`.
 
 #### Naming generated files
 
@@ -236,17 +242,22 @@ are handwritten.
   `*.d.mts`, `index.html`, `_*`), or the drift check cannot see it.
 - A generator creates its output directory, and imports nothing generated —
   the `fjs` CLI that runs it included.
-- `gen:clean` walks the tree with the same test, skipping dot-names,
-  `node_modules` and `target`. It removes files only; the emptied directories
-  are invisible to git.
+- `gen:clean` walks the tree with the same test, skipping dot-names other
+  than `.github`, `node_modules` and `target`. It removes files only; the
+  emptied directories are invisible to git.
 
 `.gitattributes` marks the `gen.*` names with two lines — an attribute on a
 directory does not reach the files inside it — and lists the outputs whose path
 another tool fixes, which keep their names and are not deleted by `gen:clean`:
-the two workflows (npm trusted publishing is bound to `npm-publish.yml`'s exact
-name) and the generated files in `nix/` (Nix needs `flake.nix`, and every CI
-step enters the shell through `./nix/run`). Lockfiles are not generated
-outputs: `npm run lock-update` refreshes them, not `gen`.
+the generated files in `nix/` (Nix needs `flake.nix`, and every CI step enters
+the shell through `./nix/run`). The two workflows follow the rule — GitHub
+reads any name in `.github/workflows/` — but npm trusted publishing is bound to
+`gen.npm-publish.yml`'s exact name, so a project that renames it updates its
+trusted publisher on npm as well
+([fjs/ci/README.md](./fjs/ci/README.md#the-publishing-workflow)). The
+dependency lockfiles are not generated outputs: `npm run lock-update`
+refreshes them, not `gen`. The `flake.lock` files are, and are listed there
+too: `gen` regenerates them through `nix/lock-update.sh`.
 
 A known gap: because fixed-path outputs are not deleted, an obsolete one — a
 Nix job directory the CI generator stopped writing — survives the drift check.
@@ -257,18 +268,17 @@ Deleting them waits on the generator restoring executable bits
 
 To bump an npm devDependency version, edit `package.json` by hand first (there
 is no `npm-check-updates` step anymore). To move a pinned Nixpkgs or
-`rust-overlay` commit, edit `fjs/ci/config/module.f.mjs`. Either way, then run:
+`rust-overlay` commit, edit `fjs/ci/config/module.f.js`. Either way, then run:
 
 ```bash
 npm run lock-update
 ```
 
 This is a maintainer action, not something to run after an ordinary source
-change — `gen` above covers that. It requires Node, Deno, Bun, Cargo, and Nix
-all installed (so it does not run on Windows): it runs `gen` first, then
-refreshes `package-lock.json`, `deno.lock`, `bun.lock`, and `Cargo.lock`, and
-runs the generated `nix/lock-update.sh` to refresh every `flake.lock` through
-real Nix — see [`nix/README.md`](./nix/README.md).
+change — `gen` above covers that, the `flake.lock` files included. It requires
+Node, Deno, Bun, Cargo, and Nix all installed: it runs `gen` first, then
+refreshes `package-lock.json`, `deno.lock`, `bun.lock`, and `Cargo.lock` — see
+[`nix/README.md`](./nix/README.md).
 
 ## Opening a pull request
 

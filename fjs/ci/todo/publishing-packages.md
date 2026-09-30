@@ -49,8 +49,8 @@ types.ts   -> types.d.ts
 private.ts -> private.d.ts   # emitted, then excluded by `files`
 ```
 
-The stage-1 invariant, as it stands now that stage 1's source conversion is
-complete:
+The invariant stage 1 left, with the one item stage 2 has since changed
+marked as such:
 
 - `.mjs` is authored ESM JavaScript with JSDoc types, and `.f.mjs` is its
   FunctionalScript-intent form;
@@ -61,14 +61,17 @@ complete:
   `files` negates `**/private.d.ts`;
 - `.ts` is otherwise gone: no authored implementation or proof `.ts` / `.f.ts`
   remains;
-- `.js` is neither authored nor emitted by a build or packaging step — the pass
-  that produced it was removed in
-  [#1520](https://github.com/functionalscript/functionalscript/pull/1520).
-  `fjs compile` still writes one to a caller-named output path; that is the
-  compiler's output for a user, not repository source. A publish does not carry
-  it, because package and publish jobs run from a clean CI checkout — but that
-  is the only reason: `files` still selects `**/*.js`, so `npm pack` in a dirty
-  working tree *does* include such a file (measured with `npm pack --dry-run`);
+- `.js` is not emitted by a build or packaging step — the pass that produced
+  it was removed in
+  [#1520](https://github.com/functionalscript/functionalscript/pull/1520). At
+  the end of stage 1 none was authored either; stage 2 has since changed that,
+  and only that: `.f.js` is authored FunctionalScript the current compiler
+  accepts whole, and `**/*.js` in `files` is what ships it. `fjs compile` still
+  writes a `.js` to a caller-named output path; that is the compiler's output
+  for a user, not repository source, and a publish does not carry it because
+  package and publish jobs run from a clean CI checkout — the only reason,
+  since the same `**/*.js` would take it from a dirty working tree (measured
+  with `npm pack --dry-run`);
 - `.d.ts` and `.d.mts` are generated declarations.
 
 `.f.mjs` does **not** promise that the current FunctionalScript
@@ -82,11 +85,10 @@ The two end-of-stage-1 cleanups are done: the TypeScript-to-JavaScript emit path
 is gone (#1520) and the blanket `**/*.js` ignore is gone from `.gitignore`
 ([#1545](https://github.com/functionalscript/functionalscript/pull/1545)),
 though `**/*.js` deliberately stays in `package.json`'s `files`. Stage 2 can
-therefore use `.f.js` as authored compiler-compatible FunctionalScript. Before
-the first `.f.mjs` -> `.f.js` rename, complete
-[`f-js-package-support.md`](./f-js-package-support.md) so standalone authored
-`.f.js` source is directly checked, gets `.d.ts`, is packed, and resolves for a
-clean consumer.
+therefore use `.f.js` as authored compiler-compatible FunctionalScript.
+Standalone authored `.f.js` source is directly checked, gets `.d.ts`, is
+packed, and resolves for a clean consumer, which `package-check`
+([`../package/module.f.mjs`](../package/module.f.mjs)) proves on every run.
 
 ### Stage-1 TypeScript configuration
 
@@ -193,8 +195,10 @@ source.f.js -> source.f.js + source.f.d.ts
 
 TypeScript with `allowJs` / `checkJs` must include authored `.f.js` directly in
 its checked source roots and declaration emission. NPM and clean-consumer tests
-must cover both runtime and declarations. These requirements are owned by
-[`f-js-package-support.md`](./f-js-package-support.md).
+must cover both runtime and declarations. They hold: `package-check`
+([`../package/module.f.mjs`](../package/module.f.mjs)) imports a published
+`.f.js` from a clean consumer, runs it and type-checks a use of its
+declaration with a negative control.
 
 ### Tasks
 
@@ -210,9 +214,13 @@ must cover both runtime and declarations. These requirements are owned by
       prescribed: the second `tsc` invocation survives as a no-emit check
       because it is the declaration round-trip gate (see Stage-1 emission
       above).
-- [ ] Complete [`f-js-package-support.md`](./f-js-package-support.md) after
-      stage 1 and before the first authored `.f.js` compiler-compatibility
-      conversion.
+- [x] Complete authored `.f.js` package support after stage 1. Done: a
+      standalone `.f.js` is type-checked, declared, packed and covered, and
+      `package-check` imports a published one from a clean consumer with a
+      negative control; the first renames landed on `fjs compile`'s check
+      before that last step, as
+      [`fjs-nanvm-integration.md`](../../../todo/fjs-nanvm-integration.md)
+      records.
 
 ### Related
 
@@ -222,8 +230,8 @@ must cover both runtime and declarations. These requirements are owned by
   ordering and the extension contract.
 - [`f-mjs-package-support.md`](./f-mjs-package-support.md) — focused stage-1
   authored `.mjs` prerequisite.
-- [`f-js-package-support.md`](./f-js-package-support.md) — focused stage-2
-  authored `.f.js` prerequisite.
+- [`../package/module.f.mjs`](../package/module.f.mjs) — `package-check`, the
+  clean-consumer check of the packed package and its published `.f.js`.
 - [`fjs/compiler/README.md`](../../compiler/README.md) — authoritative FunctionalScript
   extension and migration contract.
 - [GitHub issue #398](https://github.com/functionalscript/functionalscript/issues/398)

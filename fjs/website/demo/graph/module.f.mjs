@@ -1,8 +1,9 @@
 /**
  * A node-and-edge diagram, laid out and drawn as SVG — the shared half of
- * any demo whose value is a graph rather than a scalar. A demo turns its own
- * value into {@link Node}s and {@link Edge}s (reference identity decides
- * what is shared, a demo's own business); this module ranks and draws them.
+ * any demo whose value is a graph rather than a scalar. A demo says what
+ * {@link Shape} each of its values has; `graphOf` walks a value into
+ * {@link Node}s and {@link Edge}s, reference identity deciding what is
+ * shared, and this module ranks and draws them.
  *
  * **Ranks run left to right.** The root is the leftmost column, and each
  * rank is a column of its own to the right of the one before, its nodes
@@ -41,10 +42,13 @@
  *
  * @module
  *
- * @import { Edge, Graph, Inline, Node, Ranked } from './types.ts'
+ * @import { Edge, Graph, Inline, Node, Ranked, Shape } from './types.ts'
  * @import { Element } from '../../../media/html/types.ts'
- * @import { _Lane, _Out, _Placed, _Point, _Port, _Positioned, _Route, _Slot } from './private.ts'
+ * @import { _Column, _Lane, _Out, _Placed, _PlacedSlot, _Point, _Port, _Positioned, _Route, _Size, _Sized, _Slot, _Walk } from './private.ts'
+ * @import { StateScan } from '../../../types/function/operator/types.ts'
  */
+
+import { stateScan, toArray } from '../../../types/list/module.f.mjs'
 
 /**
  * Every node's rank: the longest path from the root, so every edge points
@@ -59,6 +63,10 @@
  * the DataJS demo — a 1500-element document went from 138 ms to 3.9 s under
  * that version.
  *
+ * A round builds the next ranks from the prior ones and compares the two
+ * after, rather than flagging a change from inside `map`'s callback; the
+ * same 1500-element document takes as long as it did with the flag.
+ *
  * @type {(nodes: readonly Node[], edges: readonly Edge[]) => readonly Ranked[]}
  */
 export const ranked = (nodes, edges) => {
@@ -66,17 +74,88 @@ export const ranked = (nodes, edges) => {
     const incomingOf = nodes.map(n => edges.filter(e => e.to === n.id))
     let current = nodes.map(n => ({ ...n, rank: n.id === 0 ? 0 : -Infinity }))
     for (let round = 0; round < nodes.length; round++) {
-        let changed = false
-        current = current.map((node, i) => {
-            const best = incomingOf[i].reduce((m, e) => Math.max(m, current[e.from].rank + 1), node.rank)
-            if (best === node.rank) { return node }
-            changed = true
-            return { ...node, rank: best }
+        const prior = current
+        current = prior.map((node, i) => {
+            const best = incomingOf[i].reduce((m, e) => Math.max(m, prior[e.from].rank + 1), node.rank)
+            return best === node.rank ? node : { ...node, rank: best }
         })
-        if (!changed) { break }
+        if (current.every((node, i) => node === prior[i])) { break }
     }
     return current
 }
+
+const { is } = Object
+
+/**
+ * `root` as the graph it denotes, each value read by `shape`.
+ *
+ * **A value whose shape is a node is drawn once**, and found again by
+ * identity (`Object.is`) on any later edge to it: two edges to one value
+ * are one node with two incoming edges, not two nodes that happen to look
+ * alike. A value whose shape is inline is drawn in its parent's port. A
+ * root whose shape is inline, having no port to sit in, is one node whose
+ * `kind` is the inline's own where it has one and `"leaf"` where it has
+ * none.
+ *
+ * **A value that reaches itself is refused.** An edge back to a node the
+ * walk is still inside would be drawn pointing left, which is the one thing
+ * {@link ranked}'s longest path cannot place: it would push the cycle's
+ * ranks up for as many rounds as it runs and answer a plausible wrong
+ * picture instead.
+ *
+ * Ranks nothing while it walks: which rank a node belongs to depends on
+ * every edge that reaches it, including ones the walk has not taken yet
+ * when it first creates the node, so {@link ranked} decides that
+ * afterward, once the whole graph is known.
+ */
+export const graphOf =
+    /**
+     * @template V
+     * @param {(v: V) => Shape<V>} shape
+     * @returns {(root: V) => Graph}
+     */
+    shape => root => {
+        /**
+         * `value`'s node id, and the walk with `value` and everything under
+         * it added — or just the walk, when `value` is already drawn.
+         * `path` is the ids of the nodes the walk is inside, root first.
+         *
+         * @type {(walk: _Walk, path: readonly number[]) => (value: V, s: Shape<V>) => { readonly id: number, readonly walk: _Walk }}
+         */
+        const node = (walk, path) => (value, s) => {
+            const found = walk.refs.find(([r]) => is(r, value))
+            if (found !== undefined) {
+                if (path.includes(found[1])) { throw `graph: a cycle through node ${found[1]}` }
+                return { id: found[1], walk }
+            }
+            const id = walk.next
+            const [kind, label, children] = 'inline' in s
+                ? [s.kind ?? 'leaf', s.inline, []]
+                : [s.kind, s.label, s.children]
+            /** @type {_Walk} */
+            const withNode = {
+                refs: [...walk.refs, [value, id]],
+                nodes: [...walk.nodes, { id, kind, label }],
+                edges: walk.edges,
+                next: id + 1,
+            }
+            const inside = [...path, id]
+            const final = children.reduce(
+                /** @type {(acc: _Walk, child: readonly [string, V, string?]) => _Walk} */
+                (acc, [label, child, kind]) => {
+                    const c = shape(child)
+                    if ('inline' in c) {
+                        return { ...acc, edges: [...acc.edges, { from: id, to: c, label, kind }] }
+                    }
+                    const step = node(acc, inside)(child, c)
+                    return { ...step.walk, edges: [...step.walk.edges, { from: id, to: step.id, label, kind }] }
+                },
+                withNode)
+            return { id, walk: final }
+        }
+        const { walk } = node({ refs: [], nodes: [], edges: [], next: 0 }, [])(root, shape(root))
+        return { nodes: ranked(walk.nodes, walk.edges), edges: walk.edges }
+    }
 
 const headerHeight = /** @type {const} */ (26)
 const portHeight = /** @type {const} */ (20)
@@ -121,7 +200,7 @@ const valueKindOf = ({ to }) =>
  * node — no row carries an empty cell. A node is as wide as the widest of
  * its label, a key beside its value, and an edge's key.
  *
- * @type {(label: string) => (out: readonly _Out[]) => { readonly width: number, readonly height: number, readonly keyWidth: number, readonly ports: readonly _Port[] }}
+ * @type {(label: string) => (out: readonly _Out[]) => _Size}
  */
 const portsOf = label => out => {
     const inlines = out.flatMap(({ edge }) => {
@@ -177,8 +256,9 @@ const missingEnds = ids => (edge, index) => [
  * the drawing that grows faster than the graph — a root reaching every
  * node of an `n`-long chain needs about `n²/2` of them — so a column's
  * lanes are read off each edge's span of ranks rather than filtered out
- * of every lane there is, and a column is placed with a running `y`
- * rather than by copying what it has placed so far at every step. Built
+ * of every lane there is, and a column is placed with a running `y`,
+ * carried by `stateScan`, rather than by copying what it has placed so far
+ * at every step. Built
  * the obvious way, both were quadratic in the lanes; a 300-node chain of
  * that shape took five times as long as the drawing had before lanes
  * existed.
@@ -211,28 +291,25 @@ const layout = nodes => edges => {
         ...nodes.filter(node => node.rank === rank).map(node => ({ node, rank, key: node.id })),
         ...spans.flatMap((span, lane) => span.from < rank && rank < span.to ? [{ lane, rank, key: span.key }] : []),
     ].toSorted((a, b) => a.key - b.key))
-    let x = margin
-    const placedColumns = columns.map(column => {
-        const left = x
+    /** @type {(left: number) => (widest: number) => StateScan<_Sized, number, _PlacedSlot>} */
+    const placeSlot = left => widest => ({ slot, size }, top) => {
+        if (size === null) {
+            /** @type {_Lane} */
+            const lane = { index: /** @type {number} */ (slot.lane), rank: slot.rank, y: top + laneSize / 2, left, right: left + widest }
+            return [{ lane }, top + laneSize + nodeGap]
+        }
+        /** @type {_Positioned} */
+        const node = { .../** @type {Ranked} */ (slot.node), x: left, y: top, ...size }
+        return [{ node }, top + size.height + nodeGap]
+    }
+    /** @type {StateScan<readonly _Slot[], number, _Column>} */
+    const placeColumn = (column, left) => {
         const sized = column.map(slot => ({ slot, size: slot.node === undefined ? null : portsOf(slot.node.label)(outgoingOf(slot.node.id)) }))
         const widest = sized.reduce((m, { size }) => Math.max(m, size === null ? laneSize : size.width), 0)
-        x += widest + rankGap
-        let y = margin
-        const slots = sized.map(({ slot, size }) => {
-            const top = y
-            if (size === null) {
-                y += laneSize + nodeGap
-                /** @type {_Lane} */
-                const lane = { index: /** @type {number} */ (slot.lane), rank: slot.rank, y: top + laneSize / 2, left, right: left + widest }
-                return { lane }
-            }
-            y += size.height + nodeGap
-            /** @type {_Positioned} */
-            const node = { .../** @type {Ranked} */ (slot.node), x: left, y: top, ...size }
-            return { node }
-        })
-        return { end: left + widest, slots }
-    })
+        const slots = toArray(stateScan(placeSlot(left)(widest))(margin)(sized))
+        return [{ end: left + widest, slots }, left + widest + rankGap]
+    }
+    const placedColumns = toArray(stateScan(placeColumn)(margin)(columns))
     const placed = placedColumns.flatMap(column => column.slots)
     return {
         nodes: placed.flatMap(p => p.node === undefined ? [] : [p.node]),

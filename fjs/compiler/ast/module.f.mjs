@@ -6,14 +6,15 @@
  * @import { Array, Unknown } from '../../media/datajs/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstConditional, AstConst, AstBody, AstMember, AstModule, AstModuleRef, AstNeg, AstObject, Import, Sharing, Anchors } from './types.ts'
- * @import { _Node, _OperandStack, _Reach, _Ref, _Routes, _RunState, _View } from './private.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstBody, AstFunction, AstMember, AstModule, AstModuleRef, AstNeg, AstObject, AstThrow, Import, Sharing, Anchors } from './types.ts'
+ * @import { _Node, _OperandStack, _Reach, _Ref, _RefNode, _Routes, _RunState, _View } from './private.ts'
  */
 
 import { concat, empty, flat, last, map, take, toArray } from '../../types/list/module.f.mjs'
 import { fromEntries } from '../../types/object/module.f.mjs'
 import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
-import { cmp as stringCmp } from '../../types/string/module.f.mjs'
+import { cmp as stringCmp, concat as stringConcat } from '../../types/string/module.f.mjs'
+import { leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { at as routesAt, empty as noRoutes, setReplace } from '../../types/ordered_map/module.f.mjs'
 
 const { hasOwn } = Object
@@ -116,6 +117,20 @@ const noOperatorValue = 'an operator has no value'
 const noNumber = 'no number for this value'
 
 /**
+ * The failure a `throw` makes of the value it established: what the value
+ * outputs report for a module whose load throws, as they report a read of
+ * `null`. The thrown value is no observation of the language's
+ * ([spec: failure is one outcome](../../../spec/README.md#failure-is-one-outcome)),
+ * so the message is a diagnostic: a primitive as DataJS spells it, a
+ * container by its kind.
+ *
+ * @type {(value: Unknown) => Result<never, string>}
+ */
+const thrown = value => error(`throw ${value !== null && typeof value === 'object'
+    ? (value instanceof Array ? 'an array' : 'an object')
+    : stringConcat(leafSerialize(value))}`)
+
+/**
  * A value negated, as JavaScript's unary `-` negates it: a bigint stays a
  * bigint, and every other primitive converts — `-null` is `-0`, `-"2"` is
  * `-2`, `-true` is `-1`, `-undefined` is `NaN`. `Number` is total over
@@ -163,6 +178,9 @@ const toDjs = state => ast => {
         case '===': case '!==': case '<': case '<=': case '>': case '>=':
         case '&': case '|': case '^': case '<<': case '>>': case '>>>':
         case '&&': case '||': case '??': case '?:': { return error(noOperatorValue) }
+        // the operand is established first, as JavaScript establishes it,
+        // and its own failure is the one reported where it has one
+        case 'throw': { return okThen(thrown)(toDjs(state)(ast[1])) }
         default: { return okThen(ownProperty(ast[2]))(toDjs(state)(ast[1])) }
     }
 }
@@ -256,12 +274,12 @@ const pushedAll = (operands, rest) => operands.reduceRight(pushed, rest)
  * operand and the condition, established whatever the value, are every
  * view's.
  *
- * @type {(view: _View) => (ast: AstConst) => List<Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional>>}
+ * @type {(view: _View) => (ast: AstConst) => List<Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional | AstThrow>>}
  */
 const operandsOf = view => ast => {
     /** @type {_OperandStack} */
     let stack = { top: ast, rest: null }
-    /** @type {List<Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional>>} */
+    /** @type {List<Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional | AstThrow>>} */
     let bottom = empty
     while (stack !== null) {
         const node = stack.top
@@ -277,7 +295,9 @@ const operandsOf = view => ast => {
                 stack = pushedAll(view.negated(node[1]), rest)
                 break
             }
-            case '~': { stack = { top: node[1], rest }; break }
+            // a `throw`'s value is established whatever comes of it, in
+            // every view: eager, as an operator's operand is
+            case '~': case 'throw': { stack = { top: node[1], rest }; break }
             case '*': case '/': case '%': case '**':
             case '+':
             case '===': case '!==': case '<': case '<=': case '>': case '>=':
@@ -319,7 +339,7 @@ const refsOf = view => ast => flat(map(refsOfOperand(view))(operandsOf(view)(ast
  * access chain nests only as deep as the source that built it, which is a
  * separate, narrower concern than an operator chain's unbounded length.
  *
- * @type {(view: _View) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional>) => List<_Ref>}
+ * @type {(view: _View) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional | AstThrow>) => List<_Ref>}
  */
 const refsOfOperand = view => ast => {
     if (ast === null || typeof ast !== 'object') { return empty }
@@ -328,8 +348,10 @@ const refsOfOperand = view => ast => {
         case 'object': { return flat(view.members(ast[1]).map(refsOf(view))) }
         // a call reaches its callee and every argument, each written where
         // it stands: what the call *returns* is not reachable from the
-        // syntax at all, which is why a module holding one has no value
-        case '()': { return flat([ast[1], ...ast[2]].map(refsOf(view))) }
+        // syntax at all, which is why a module holding one has no value —
+        // except the call the lowering inlines, which is its body where the
+        // call stands
+        case '()': { return isInlinedCall(ast) ? inlinedRefs(view)(ast) : flat([ast[1], ...ast[2]].map(refsOf(view))) }
         // an access reaches what its key names inside its base: the base's
         // reference, one key deeper — once the view has read the access
         case '.': {
@@ -339,14 +361,111 @@ const refsOfOperand = view => ast => {
                 : refsOf(view)(read)
         }
         // a function names what it captures, the enclosing scope's own
-        // references, which it establishes when it is made
-        case '=>': { return flat((ast[3] ?? []).map(refsOf(view))) }
-        // its arguments and its frame are its own
+        // references, which it establishes when it is made — the captures
+        // its body reads, since an unused alias of one names nothing
+        case '=>': {
+            const captures = ast[3]
+            return captures === undefined ? empty : flat(readCaptures(ast).map(i => refsOf(view)(captures[i])))
+        }
+        // its arguments are its own
         case 'arg':
-        case 'rest':
-        case 'fref': { return empty }
+        case 'rest': { return empty }
+        // a slot of its frame is a reference too, one the sweep of the body
+        // ignores and the sweep of a scope the body is inlined into follows
+        // into the capture the slot holds ({@link inlinedRefs})
         default: { return [{ ref: ast, keys: [] }] }
     }
+}
+
+/**
+ * Whether a call is one the lowering inlines: a call, with no arguments, of
+ * a function written at the call and nowhere else, which takes no
+ * parameter and reads no rest array — `(() => { const x = f(); return [x,
+ * x]; })()`, the idiom for a `const` inside an expression, an arm of a
+ * conditional say, where no statement can stand.
+ *
+ * Such a call denotes its body where the call stands. Nothing observes the
+ * function: it is called once and compared with nothing, so it mints no
+ * identity the program could see, and its body evaluates exactly once, as
+ * a body of the enclosing scope would; a slot of its frame is the
+ * enclosing scope's own node, so what the body shares stays shared and
+ * nothing else is. An argument list that is not empty would have to be
+ * evaluated for what it establishes, `(() => 1)(null.x)` throws, and a
+ * body reading its own rest array names something the enclosing scope
+ * does not hold, so both stay calls. A function with fixed parameters
+ * binds names, so a `length` above zero stays a call too.
+ *
+ * @type {(ast: AstCall) => boolean}
+ */
+export const isInlinedCall = ([, callee, args]) =>
+    args.length === 0 && callee !== null && typeof callee === 'object' && callee[0] === '=>' && callee[1] === 0 && !readsRest(callee[2])
+
+/**
+ * Whether a body reads its own rest array: an `['rest']` in one of its
+ * entries, outside a nested function's body — that one's rest is its own —
+ * and in a nested function's captures, which name this body's.
+ *
+ * @type {(body: AstBody) => boolean}
+ */
+const readsRest = body => body.some(entry => toArray(operandsOf(every)(entry)).some(operandReadsRest))
+
+/** @type {(ast: Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional>) => boolean} */
+const operandReadsRest = ast => {
+    if (ast === null || typeof ast !== 'object') { return false }
+    switch (ast[0]) {
+        case 'rest': { return true }
+        case 'array': { return readsRest(ast[1]) }
+        case 'object': { return readsRest(ast[1].map(([, v]) => v)) }
+        case '()': { return readsRest([ast[1], ...ast[2]]) }
+        case '.': { return readsRest([ast[1]]) }
+        case '=>': { return readsRest(ast[3] ?? []) }
+        default: { return false }
+    }
+}
+
+/**
+ * The references a body makes, read as `view` says: every entry of the
+ * body is established — the value, and the ones the value does not reach,
+ * which the lowering anchors — so each entry's references count, but a
+ * bare alias's, which is the node it names and no code of its own, unless
+ * the alias is the value. A reference to a body `const` is resolved to the
+ * node it names, so a slot of the body's frame reached through an alias is
+ * that slot.
+ *
+ * @type {(view: _View) => (body: AstBody) => List<_Ref>}
+ */
+const bodyRefs = view => body => {
+    const nodes = body.reduce(nodeEntry([]), [])
+    return map(resolved([], nodes))(flat(body.filter((e, i) => i === body.length - 1 || !isAlias(e)).map(refsOf(view))))
+}
+
+/**
+ * The captures a function's body reads, by index into its captures, each
+ * once in the order the body first names them: the slots of its frame. A
+ * capture the parser listed that the body names only through an unused
+ * alias, `const x = c;` and nothing more, is not among them — the alias
+ * is dropped, so nothing reads the slot, and the enclosing scope's `const`
+ * is anchored there as one nothing reaches. Read anywhere counts: a lazy
+ * position, and a nested function's captures.
+ *
+ * @type {(ast: AstFunction) => readonly number[]}
+ */
+export const readCaptures = ([, , body]) =>
+    toArray(bodyRefs(every)(body)).flatMap(({ ref }) => ref[0] === 'fref' ? [ref[1]] : []).filter((i, k, all) => all.indexOf(i) === k)
+
+/**
+ * The references a call the lowering inlines makes, read as `view` says:
+ * the body's, {@link bodyRefs}, with a slot of the body's frame followed
+ * into the capture it holds, one key deeper by the keys the reference
+ * applied.
+ *
+ * @type {(view: _View) => (ast: AstCall) => List<_Ref>}
+ */
+const inlinedRefs = view => ([, callee]) => {
+    const [, , body, captures = []] = /** @type {AstFunction} */ (callee)
+    /** @type {(r: _Ref) => List<_Ref>} */
+    const captured = ({ ref, keys }) => ref[0] === 'fref' ? map(deeperBy(keys))(refsOf(view)(captures[ref[1]])) : empty
+    return flat(map(captured)(bodyRefs(view)(body)))
 }
 
 /** A reference one key deeper: the key as JavaScript reads it, so `0` and `"0"` are one. @type {(key: string) => (ref: _Ref) => _Ref} */
@@ -388,8 +507,14 @@ const argStep = (args, { ref: [kind, i] }) => kind === 'aref' ? args | bit(i) : 
 /** The indices a set of `n` leaves out. @type {(set: bigint) => (n: number) => readonly number[]} */
 const missing = set => n => Array.from({ length: n }, (_, i) => i).filter(i => (set & bit(i)) === 0n)
 
-/** Whether an entry is a bare reference: a `const` naming another entry or an import is that node, not a node of its own. @type {(ast: AstConst) => boolean} */
-const isAlias = ast => ast !== null && typeof ast === 'object' && (ast[0] === 'cref' || ast[0] === 'aref')
+/**
+ * Whether an entry is a bare reference: a `const` naming another entry, an
+ * import, a slot of its frame or the arguments is that node, not a node of
+ * its own.
+ *
+ * @type {(ast: AstConst) => boolean}
+ */
+const isAlias = ast => ast !== null && typeof ast === 'object' && ['cref', 'aref', 'fref', 'rest', 'arg'].includes(ast[0])
 
 /** The first import standing for the same node as import `k`, which `imports` says by identity. @type {(imports: readonly unknown[]) => (k: number) => AstModuleRef} */
 const importNode = imports => k => ['aref', imports.indexOf(imports[k])]
@@ -399,22 +524,26 @@ const importNode = imports => k => ['aref', imports.indexOf(imports[k])]
  * the node it names — an alias names an earlier entry, so its node is known
  * by the time the fold arrives at it.
  *
- * @type {(imports: readonly unknown[]) => (ast: AstConst, i: number, nodes: readonly AstModuleRef[]) => AstModuleRef}
+ * @type {(imports: readonly unknown[]) => (ast: AstConst, i: number, nodes: readonly _RefNode[]) => _RefNode}
  */
 const nodeOf = imports => (ast, i, nodes) => {
     if (ast === null || typeof ast !== 'object') { return ['cref', i] }
     switch (ast[0]) {
         case 'cref': { return nodes[ast[1]] }
         case 'aref': { return importNode(imports)(ast[1]) }
+        case 'fref': { return ast }
         default: { return ['cref', i] }
     }
 }
 
-/** @type {(imports: readonly unknown[]) => (nodes: readonly AstModuleRef[], ast: AstConst, i: number) => readonly AstModuleRef[]} */
+/** @type {(imports: readonly unknown[]) => (nodes: readonly _RefNode[], ast: AstConst, i: number) => readonly _RefNode[]} */
 const nodeEntry = imports => (nodes, ast, i) => [...nodes, nodeOf(imports)(ast, i, nodes)]
 
-/** A reference by the node it reaches, aliases and imports resolved. @type {(imports: readonly unknown[], nodes: readonly AstModuleRef[]) => (r: _Ref) => _Ref} */
-const resolved = (imports, nodes) => ({ ref, keys }) => ({ ref: ref[0] === 'cref' ? nodes[ref[1]] : importNode(imports)(ref[1]), keys })
+/** A reference by the node it reaches, aliases and imports resolved; a slot of the frame is its own node. @type {(imports: readonly unknown[], nodes: readonly _RefNode[]) => (r: _Ref) => _Ref} */
+const resolved = (imports, nodes) => ({ ref, keys }) => ({
+    ref: ref[0] === 'cref' ? nodes[ref[1]] : ref[0] === 'aref' ? importNode(imports)(ref[1]) : ref,
+    keys,
+})
 
 /**
  * What an EDAG of the module anchors, by index: exactly the code the graph
@@ -559,6 +688,16 @@ const written = { members: memberValuesWritten, through: ast => ast, negated: op
  * @type {_View}
  */
 const value = { members: memberValues, through: selected, negated: () => [], lazy: operands => operands }
+
+/**
+ * The syntax as written, every position counted: what the written view
+ * reads, the lazy operands included — for a question about what a body
+ * names anywhere in it, {@link readsRest}, which neither establishing nor
+ * selecting decides.
+ *
+ * @type {_View}
+ */
+const every = { ...written, lazy: operands => operands }
 
 /** A reference with keys beyond its own: the rest of a route that ran into it. @type {(keys: readonly string[]) => (ref: _Ref) => _Ref} */
 const deeperBy = keys => ({ ref, keys: own }) => ({ ref, keys: [...own, ...keys] })

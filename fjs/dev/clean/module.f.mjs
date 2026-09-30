@@ -8,7 +8,9 @@
  * directory, so the drift check cannot see one. Outside a generated directory,
  * dot-names (`.git` among them), `node_modules` and `target` are not entered:
  * they hold third-party files, whose names follow no convention of this
- * repository. Inside one, everything is generated, dot-names included.
+ * repository. `.github` is the one dot-name entered: the generated workflows
+ * live there. Inside a generated directory, everything is generated, dot-names
+ * included.
  *
  * Only the path below the scan root is examined, so a root that itself lies
  * under a `gen.*` directory does not make its handwritten files generated.
@@ -35,7 +37,7 @@ export const isGenerated = name => name.startsWith('gen.')
  */
 const classify = (path, { name, isDirectory }) =>
     path.split('/').some(isGenerated) ? (isDirectory ? 'descend' : 'take')
-    : name.startsWith('.') || name === 'node_modules' || name === 'target' ? 'skip'
+    : (name.startsWith('.') && name !== '.github') || name === 'node_modules' || name === 'target' ? 'skip'
     : isDirectory ? 'descend'
     : 'skip'
 

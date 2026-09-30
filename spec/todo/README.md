@@ -134,6 +134,10 @@ information — see [serialization](./serialization.md) and
 4. [ ] Ownership of Mutable Objects (Singletons). Wanted for local mutability
    ([mutability](./mutability.md)), **not** for I/O: effects keep I/O state in
    the runner ([io-effects](./io-effects.md)).
+5. [x] `throw` — a panic as a statement, in a function body and at module
+   level ([functions](../README.md#functions),
+   [module structure](../README.md#module-structure)); with `if` it is what
+   `assert` needs.
 
 ### 3.3. Priority 3
 
@@ -196,6 +200,7 @@ numbers:
 |--------|-----|
 |[io-effects](./io-effects.md)|§5 — I/O with effects: `Effect`, operations, runners|
 |[content-addressable-vm](./content-addressable-vm.md)|§6 — content-addressable VM, hashing|
+|[cavm-function-to-string](./cavm-function-to-string.md)|function text in the CAVM: a call forwarding to the function's own hash|
 |[object-identity](./object-identity.md)|§7 — object identity, custom dictionaries, `Map`|
 |[mutability](./mutability.md)|§8 — mutable objects and ownership tracking|
 |[serialization](./serialization.md)|§9 — EDAG as data, CBOR, bytecode as VM-internal|

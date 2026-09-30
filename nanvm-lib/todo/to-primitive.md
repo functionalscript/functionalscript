@@ -233,9 +233,12 @@ cases join the corpus with the renderer's text as their expected value.
 - **A captured primitive is already written into the body**
   ([spec: functions](../../spec/README.md#functions)). So
   `const x = 3; const f = () => x;` gives `f` an empty frame, and its text
-  is the owner's preferred `() => 3` with no frame rendering at all. A frame
-  holds only values fixed at run time: arrays, objects, functions (an
-  imported helper included), and an enclosing function's parameters.
+  is the owner's preferred `() => 3` with no frame rendering at all. Only a
+  literal primitive is inlined: every other captured node is a frame slot,
+  and its run-time value can be anything. That includes arrays, objects,
+  functions (an imported helper included), an enclosing function's
+  parameters, and computed values such as `x` in
+  `(...a) => { const x = a[0] + 1; return () => x; }`, which is a number.
 - **No source reaches `['self']` yet.** A function that names itself is
   refused by the compiler, and the generator's Stage 5 of
   [callable-function-objects](./callable-function-objects.md) has not
@@ -337,9 +340,9 @@ Each needs the owner's approval before the step that depends on it.
 6. **Follow-up issues** (filed): rendering in the FJS interpreter,
    [function-text](../../fjs/edag/amnesia/todo/function-text.md), which
    drops the corpus's `host` marker. The property-key conversion needs no
-   issue of its own (below). Also filed:
-   [lazy-only-const](../../fjs/compiler/serializer/todo/lazy-only-const.md),
-   the writer's refusal that leaves a function without text. The corpus's
+   issue of its own (below). A `const` only a lazy operand reaches, which
+   the writer refused at first, is now the operand's own block, an IIFE the
+   front end inlines. The corpus's
    `() => undefined` keeps its empty frame, which the parser never builds:
    that is what keeps it apart from a compiled `() => undefined` in the
    Rust printer. The writer refuses that frame nested, so a corpus function

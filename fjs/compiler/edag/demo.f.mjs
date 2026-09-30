@@ -52,22 +52,19 @@
  * @module
  *
  * @import { Exp } from '../../edag/types.ts'
+ * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
- * @import { Edge, Inline, Node } from '../../website/demo/graph/types.ts'
- * @import { Element } from '../../media/html/types.ts'
+ * @import { Graph, Shape } from '../../website/demo/graph/types.ts'
  * @import { Examples } from '../../website/demo/examples/types.ts'
- * @import { _Shape, _State } from './types.ts'
  */
 
 import { parse } from '../transpiler/module.f.mjs'
 import { lazyOp2Id } from '../../edag/module.f.mjs'
 import { _defaultExport, unresolved } from './module.f.mjs'
-import { ranked, graphSvg } from '../../website/demo/graph/module.f.mjs'
+import { graphOf, graphSvg } from '../../website/demo/graph/module.f.mjs'
 import { leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { textDemo } from '../../website/demo/module.f.mjs'
-
-const { is } = Object
 
 // The operator tag groups `fjs/edag/types.ts` names, read here rather than
 // reconstructed from the compiler's own runtime schemas: a demo is allowed
@@ -104,16 +101,38 @@ const dotLabel = index => typeof index === 'number' || typeof index === 'string'
     : '.'
 
 /**
- * `exp`'s own label and its labeled children — everything a walk needs to
- * turn one operation node into edges, without yet creating anything.
+ * A node this demo does not draw — optional chaining's own tags, and a
+ * `.`/`()` carrying a continuation past its ordinary operands (a longer
+ * tuple than the plain two- or three-element form) — drawn as itself,
+ * labelled by its tag, rather than silently dropped or wrongly drawn.
  *
- * `null` for a shape this demo does not draw: optional chaining's own tags,
- * and a `.`/`()` carrying a continuation past its ordinary operands (a
- * longer tuple than the plain two- or three-element form).
- *
- * @type {(exp: readonly unknown[]) => _Shape | null}
+ * @type {(exp: readonly unknown[]) => Shape<unknown>}
  */
-export const _shapeOf = exp => {
+const unsupported = exp => ({ kind: 'unsupported', label: `${exp[0]} (not yet drawn)`, children: [] })
+
+/**
+ * How the walk reads one `Exp`: an operation node, with its own label and
+ * its labeled children, or a value drawn inline in its user's port.
+ *
+ * **A primitive or an input is inline.** A primitive — an EDAG
+ * `Primitive`, or the `undefined` operator — is a plain value, and a
+ * terminal is marked as one. **A terminal's identity is its scope's**, so
+ * drawing it inline loses nothing. `args`, `rest`, `frame` and `arg n` are
+ * the values a scope receives from outside it, and every reference to one
+ * inside a body is that body's own: one scope never reaches another's
+ * inputs except through `frame`. A node with several arrows into it would
+ * only restate what the reference's position already says. Operators, even
+ * childless ones like an empty `[]`, stay nodes: two of those are two
+ * values.
+ *
+ * Reads `exp` by its runtime shape rather than its static type, so a proof
+ * can hand it a tag the parser does not produce yet.
+ *
+ * @type {(exp: unknown) => Shape<unknown>}
+ */
+export const _shapeOf = e => {
+    if (e === null || typeof e !== 'object') { return { inline: concat(leafSerialize(/** @type {Primitive} */ (e))) } }
+    const exp = /** @type {readonly unknown[]} */ (e)
     const tag = exp[0]
     if (tag === '[]') {
         const items = /** @type {readonly (readonly unknown[] | Exp)[]} */ (exp[1])
@@ -139,7 +158,7 @@ export const _shapeOf = exp => {
         }
     }
     if (tag === '.') {
-        if (exp.length > 3) { return null }
+        if (exp.length > 3) { return unsupported(exp) }
         const index = exp[2]
         /** @type {readonly (readonly [string, Exp])[]} */
         const indexChild = index instanceof Array
@@ -184,7 +203,7 @@ export const _shapeOf = exp => {
         }
     }
     // Length is metadata, while frame and lazy body are expression edges.
-    if (tag === 'arg') { return { kind: 'terminal', label: `arg ${exp[1]}`, children: [] } }
+    if (tag === 'arg') { return { inline: `arg ${exp[1]}`, kind: 'terminal' } }
     if (tag === '=>') {
         return {
             kind: 'op', label: `=> (${exp[1]})`,
@@ -201,7 +220,13 @@ export const _shapeOf = exp => {
         // outside it. A drawing wants the meaning, so `undefined` draws as
         // the leaf every other primitive is, beside `null`, and the inputs
         // draw as terminals of their own.
-        return { kind: tag === 'undefined' ? 'leaf' : 'terminal', label: tag, children: [] }
+        return tag === 'undefined' ? { inline: tag } : { inline: tag, kind: 'terminal' }
+    }
+    // `throw` is an `op1` in the schema, but its one operand is not an
+    // operand a value is computed from: it is the value the failure
+    // carries, so the port says so.
+    if (tag === 'throw') {
+        return { kind: 'op', label: 'throw', children: [['value', /** @type {Exp} */ (exp[1])]] }
     }
     if (typeof tag === 'string' && op1.has(tag)) {
         return { kind: 'op', label: tag, children: [['operand', /** @type {Exp} */ (exp[1])]] }
@@ -225,95 +250,20 @@ export const _shapeOf = exp => {
                 children: [['left', /** @type {Exp} */ (exp[1])], ['right', /** @type {Exp} */ (exp[2])]],
             }
     }
-    return null
-}
-
-/**
- * `exp` as a value the drawing puts inline in its user's port, or `null`
- * for one that is a node of its own. A primitive — an EDAG `Primitive`,
- * or the `undefined` operator — is inline, and so is a terminal, marked as one.
- *
- * **A terminal's identity is its scope's**, so drawing it inline loses
- * nothing. `args`, `rest`, `frame` and `arg n` are the values a scope
- * receives from outside it, and every reference to one inside a body is
- * that body's own: one scope never reaches another's inputs except through
- * `frame`. A node with several arrows into it would only restate what the
- * reference's position already says. Operators, even childless ones like
- * an empty `[]`, stay nodes: two of those are two values.
- *
- * @type {(exp: Exp) => Inline | null}
- */
-const inlineOf = exp => {
-    if (exp === null || typeof exp !== 'object') { return { inline: concat(leafSerialize(exp)) } }
-    const shape = _shapeOf(exp)
-    return shape === null ? null
-        : shape.kind === 'leaf' ? { inline: shape.label }
-            : shape.kind === 'terminal' ? { inline: shape.label, kind: 'terminal' }
-                : null
-}
-
-/** @type {(state: _State) => (ref: object) => number | null} */
-const findRef = state => ref => {
-    const found = state.refs.find(([r]) => is(r, ref))
-    return found === undefined ? null : found[1]
-}
-
-/**
- * `exp`'s node id, and the state with `exp` and everything under it added —
- * or just the state, when `exp` is a reference already walked.
- *
- * Exported as linkage, not API: a shape `_shapeOf` refuses draws as itself
- * here rather than being dropped, and no source the parser accepts today
- * reaches that path, so it needs a hand-built `Exp` to test at all — the
- * same reason `_shapeOf` itself is exported.
- *
- * @type {(state: _State) => (exp: Exp) => { readonly id: number, readonly state: _State }}
- */
-export const _walk = state => exp => {
-    if (exp === null || typeof exp !== 'object') {
-        const id = state.next
-        /** @type {Node} */
-        const node = { id, kind: 'leaf', label: concat(leafSerialize(exp)) }
-        return { id, state: { ...state, next: id + 1, nodes: [...state.nodes, node] } }
-    }
-    const existing = findRef(state)(exp)
-    if (existing !== null) { return { id: existing, state } }
-    const shape = _shapeOf(exp)
-    const id = state.next
-    /** @type {Node} */
-    const node = shape === null
-        ? { id, kind: 'unsupported', label: `${exp[0]} (not yet drawn)` }
-        : { id, kind: shape.kind, label: shape.label }
-    /** @type {readonly [object, number]} */
-    const ref = [exp, id]
-    /** @type {_State} */
-    const withNode = { refs: [...state.refs, ref], nodes: [...state.nodes, node], edges: state.edges, next: id + 1 }
-    const final = (shape?.children ?? []).reduce((acc, [label, child, kind]) => {
-        const inline = inlineOf(child)
-        if (inline !== null) {
-            return { ...acc, edges: [...acc.edges, { from: id, to: inline, label, kind }] }
-        }
-        const step = _walk(acc)(child)
-        return {
-            ...step.state,
-            edges: [...step.state.edges, { from: id, to: step.id, label, kind }],
-        }
-    }, withNode)
-    return { id, state: final }
+    return unsupported(exp)
 }
 
 /**
  * `text` as the EDAG its default export lowers to, or the parser's own
  * error if it does not compile.
  *
- * @type {(text: string) => { readonly ok: true, readonly nodes: readonly Node[], readonly edges: readonly Edge[] } | { readonly ok: false, readonly error: string }}
+ * @type {(text: string) => ({ readonly ok: true } & Graph) | { readonly ok: false, readonly error: string }}
  */
 export const _graphOf = text => {
     const result = parse('')(text)
-    if (result[0] === 'error') { return { ok: false, error: result[1].message } }
-    const { edag } = unresolved(result[1])
-    const { state } = _walk({ refs: [], nodes: [], edges: [], next: 0 })(_defaultExport(edag))
-    return { ok: true, nodes: state.nodes, edges: state.edges }
+    return result[0] === 'error'
+        ? { ok: false, error: result[1].message }
+        : { ok: true, ...graphOf(_shapeOf)(_defaultExport(unresolved(result[1]).edag)) }
 }
 
 /**
@@ -353,7 +303,7 @@ export const _graphOf = text => {
  * is. It reads `m` rather than `a`, so `a` keeps the four references the
  * paragraph above counts.
  *
- * The other ten take one point each, on its own:
+ * The other eleven take one point each, on its own:
  *
  * - **Sharing** sets a `const` used twice beside the same expression
  *   written out again: only `const` makes sharing, so that is one `+` node
@@ -373,6 +323,10 @@ export const _graphOf = text => {
  *   module's `args`, and calls one with the other.
  * - **Comma** is an unused `const` the compiler keeps as an `anchor`,
  *   beside the `result` the module is.
+ * - **Throw** is a function whose block body ends in `throw` rather than
+ *   `return`: the body is the `throw` node, its port the value the failure
+ *   carries, and the function's `body` edge is broken as every function's
+ *   is, since making the function does not run it.
  * - **Parse error** does not parse, because an error is something this
  *   demo shows too.
  *
@@ -389,6 +343,7 @@ export const examples = [
     ['Objects and properties', 'const o = { a: 1, "b c": [2, 3] };\nexport default [o.a, o["b c"][1]];'],
     ['Imports and calls', 'import m from "./m.f.js";\nimport { x } from "./n.f.js";\nexport default m(x);'],
     ['Comma: an anchored const', 'import m from "./m.f.js";\nconst checked = m.x;\nexport default 42;'],
+    ['Throw: a function that fails', 'export default (...a) => {\n    const reason = ["not implemented", a[0]];\n    throw reason;\n};'],
     ['Parse error', 'export default {bad'],
 ]
 
@@ -404,5 +359,5 @@ export const examples = [
  */
 export const demo = textDemo({ name: 'edag', label: 'Source', init: examples[0][1], examples })(text => {
     const g = _graphOf(text)
-    return [g.ok ? graphSvg({ nodes: ranked(g.nodes, g.edges), edges: g.edges }) : ['p', `Error: ${g.error}`]]
+    return [g.ok ? graphSvg(g) : ['p', `Error: ${g.error}`]]
 })

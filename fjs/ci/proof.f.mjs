@@ -5,8 +5,9 @@
  */
 
 import { exitCode } from '../effects/node/module.f.mjs'
-import { ci, main, nixJobs } from './module.f.mjs'
-import { actions, bun, deno, functionalscript, node, typescript, wasmer, wasmtime } from './config/module.f.mjs'
+import { ci, ciPath, main, nixJobs } from './module.f.mjs'
+import { actions, bun, deno, functionalscript, node, typescript, wasmer, wasmtime } from './config/module.f.js'
+import { main as ownMain, packageConsumer } from './self/module.f.mjs'
 import { major, nodeNixJobs, packageArtifact, packageJobId } from './node/module.f.mjs'
 import { flakePath, flakeText, nixDevelop, nixShell, runPath } from './nix/module.f.mjs'
 import { packageCheckJobId } from './package/module.f.mjs'
@@ -132,7 +133,6 @@ const injectedIndex = jobId => stepIndex(jobId, step => step.run === injectedLin
 const makeState = (/** @type {boolean} */ rust, /** @type {string | undefined} */ packageJson) => ({
     ...emptyState,
     root: {
-        '.github': { workflows: {} },
         ...(packageJson !== undefined ? { 'package.json': [utf8(packageJson)] } : {}),
         ...(rust ? { 'Cargo.toml': [emptyVec] } : {}),
     },
@@ -165,7 +165,7 @@ const workflowFile = (state, file) => {
 }
 
 /** @type {(state: State) => GitHubAction} */
-const workflow = state => workflowFile(state, 'ci.yml')
+const workflow = state => workflowFile(state, 'gen.ci.yml')
 
 /** @type {(state: State, id: string) => string} */
 const flake = (state, id) =>
@@ -173,7 +173,7 @@ const flake = (state, id) =>
 
 // A compiler pin no configuration anywhere holds, written into the fixture
 // project's `package.json` so that the generator can be shown to ignore it.
-// The packed-package check installs `../config/module.f.mjs`'s version; an
+// The packed-package check installs `./config/module.f.js`'s version; an
 // assertion that found this one instead would have found a generator reading
 // the project's dependencies, which is what this change stopped doing.
 const runPin = /** @type {const} */ ('=9.9.9')
@@ -581,7 +581,7 @@ export const proof = {
         for (const [version, commands] of /** @type {const} */ ([
             [node.node22, ['npm ci', 'node --test']],
             [node.node24, ['npm ci', 'node --test']],
-            [node.default, ['npm ci', 'tsc', 'npm run cov', 'npm pack', 'npm run gen']],
+            [node.default, ['npm ci', 'tsc', 'npm start compile', 'npm run cov', 'npm pack', 'npm run gen']],
         ])) {
             const id = `node${major(version)}`
             // The two older versions run in a flake of their own, because
@@ -623,7 +623,7 @@ export const proof = {
     // that flake — the four platform jobs included, and they are listed below.
     // The two Windows jobs are not: they run `run` steps under PowerShell,
     // where this POSIX command would not survive. Nothing else ties the
-    // versions `fjs/ci/config/module.f.mjs` records to what a job really runs
+    // versions `fjs/ci/config/module.f.js` records to what a job really runs
     // — and for Deno and Bun nothing else could, since `pkgs.deno` and
     // `pkgs.bun` name no version.
     nixVersionChecks: () => {
@@ -896,6 +896,27 @@ export const proof = {
             job.steps.some(step => step.run?.includes(`"typescript@${typescript.version}"`) === true),
             'expected the configured compiler installed')
     },
+    // The consumer half of the job is the caller's, through `Setup`: a project
+    // that names none gets the declaration check alone, since the generator
+    // cannot know what another package publishes. The built-in `fjs ci` is
+    // that generator, so its `main` names none; this repository's own
+    // generation, `./self`, names its module. Proved on the assembled
+    // workflow, because the wiring from `Setup` to the job is what only the
+    // assembly shows.
+    packageConsumerIsTheCallersToName: () => {
+        /** @type {(job: Job | undefined) => boolean} */
+        const hasConsumer = job => job?.steps.some(step => step.run?.includes(' good.mts') === true) === true
+        assert(!hasConsumer(run(false).jobs[packageCheckJobId]), 'expected no consumer step without a consumer in Setup')
+        const [state, result] = virtual(makeState(false, runPackageJson))(ci({ nodeExtra: () => [], packageConsumer }))
+        assertEq(exitCode(result), 0)
+        assert(hasConsumer(workflow(state).jobs[packageCheckJobId]), 'expected the consumer step when Setup names one')
+        const [builtIn, builtInResult] = virtual(makeState(false, runPackageJson))(main())
+        assertEq(exitCode(builtInResult), 0)
+        assert(!hasConsumer(workflow(builtIn).jobs[packageCheckJobId]), 'expected the built-in command to name no consumer')
+        const [own, ownResult] = virtual(makeState(false, runPackageJson))(ownMain())
+        assertEq(exitCode(ownResult), 0)
+        assert(hasConsumer(workflow(own).jobs[packageCheckJobId]), 'expected this repository\'s own generation to name its consumer')
+    },
     // The job used to appear only when the project's `package.json` pinned an
     // exact compiler, and it is now generated for every project — there is no
     // longer anything about the project for it to depend on. So the shapes that
@@ -938,11 +959,12 @@ export const proof = {
         assertEq(exitCode(result), 0)
         // The path is a constant of the module rather than a literal here, so
         // the two cannot name different files.
-        assertEq(npmPublishPath, '.github/workflows/npm-publish.yml')
+        assertEq(ciPath, '.github/workflows/gen.ci.yml')
+        assertEq(npmPublishPath, '.github/workflows/gen.npm-publish.yml')
         assertStructurallySame(
-            workflowFile(state, 'npm-publish.yml'),
+            workflowFile(state, 'gen.npm-publish.yml'),
             npmPublishWorkflow)
-        // Two workflows, kept apart. `ci.yml` gates a pull request and must
+        // Two workflows, kept apart. `gen.ci.yml` gates a pull request and must
         // never publish; the publish workflow runs one job and none of the
         // matrix. Both would be true of a single file that merged them, and
         // neither is what this generator writes.

@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { Edge, Ranked } from './types.ts'
+import type { Edge, Node, Ranked } from './types.ts'
 
 /**
  * An outgoing edge and its `index`, its position in the graph's list of
@@ -52,6 +52,34 @@ export type _Slot = {
 }
 
 /**
+ * A node's size and its ports, as `portsOf` lays them out under its label.
+ */
+export type _Size = {
+    readonly width: number
+    readonly height: number
+    readonly keyWidth: number
+    readonly ports: readonly _Port[]
+}
+
+/** A {@link _Slot} with its node's {@link _Size}, or `null` for a lane. */
+export type _Sized = {
+    readonly slot: _Slot
+    readonly size: _Size | null
+}
+
+/** A {@link _Slot}, placed: a node or a lane. */
+export type _PlacedSlot = {
+    readonly node?: _Positioned
+    readonly lane?: _Lane
+}
+
+/** A column, placed: its slots, and the right of its widest one. */
+export type _Column = {
+    readonly end: number
+    readonly slots: readonly _PlacedSlot[]
+}
+
+/**
  * A lane, placed: the horizontal an edge runs across one column it skips,
  * `y` its centre and `left`/`right` the column's own. `index` is the
  * edge's, as a port carries it, and `rank` the column's, which together
@@ -83,4 +111,16 @@ export type _Point = readonly [number, number]
 export type _Route = {
     readonly edge: Edge
     readonly points: readonly _Point[]
+}
+
+/**
+ * `graphOf`'s walk so far: every value drawn as a node and the id it was
+ * given, the {@link Node}s and {@link Edge}s built from them, and the next
+ * id to hand out.
+ */
+export type _Walk = {
+    readonly refs: readonly (readonly [unknown, number])[]
+    readonly nodes: readonly Node[]
+    readonly edges: readonly Edge[]
+    readonly next: number
 }

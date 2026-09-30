@@ -10,7 +10,7 @@
  * @import { Step, Job, MetaStep, StepType } from './types.ts'
  */
 
-import { actions, images } from '../config/module.f.mjs'
+import { actions, images } from '../config/module.f.js'
 import { array, option, or, record, string } from '../../rtti/module.f.mjs'
 import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
 
@@ -58,7 +58,7 @@ export const jobsSchema = record(jobSchema)
 export const gitHubActionSchema = /** @type {const} */ ({
     name: string,
     // Every trigger any generated workflow uses, all optional, because no
-    // workflow uses them all: `ci.yml` is a pull-request gate and the publish
+    // workflow uses them all: `gen.ci.yml` is a pull-request gate and the publish
     // workflow fires on a push to a branch. `push` carries the branch list;
     // without it a push to any branch would publish.
     on: {

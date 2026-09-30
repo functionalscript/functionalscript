@@ -10,7 +10,7 @@
  * @import { _Branch, _Leaf01, _Merge, _RemovePath } from './private.ts'
  */
 
-import { collapseRoot } from '../types/module.f.mjs'
+import { collapseRoot } from '../types/module.f.js'
 import { find } from '../find/module.f.mjs'
 import { fold, concat, next } from '../../list/module.f.mjs'
 import { map } from '../../nullable/module.f.mjs'

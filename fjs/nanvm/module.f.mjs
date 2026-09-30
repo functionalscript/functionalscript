@@ -13,7 +13,7 @@
  *
  * Beside the data are the format's **constructors** (`functionValue`,
  * `callback`, `returns`, `ref`, `throws`, `unreached`, written in
- * [`constructors/module.f.mjs`](./constructors/module.f.mjs) and re-exported
+ * [`constructors/module.f.js`](./constructors/module.f.js) and re-exported
  * here), its **eliminators** (`isThrows`, `hasUnreached`,
  * `orders`, `groupKey`, `casesOf`, `arityOf`), and the **lowering** that
  * turns a case into the EDAG expression it denotes (`lambdaExp`,
@@ -51,10 +51,10 @@
 
 import { op1Id, op3Id } from '../edag/module.f.mjs'
 import { validate } from '../rtti/validate/module.f.mjs'
-import { callback, functionText, functionValue, ref, returns, throws, unreached } from './constructors/module.f.mjs'
+import { callback, functionText, functionValue, ref, returns, throws, unreached } from './constructors/module.f.js'
 import { groups as memberGroups } from './member/module.f.mjs'
 
-export { callback, functionValue, ref, returns, throws, unreached } from './constructors/module.f.mjs'
+export { callback, functionValue, ref, returns, throws, unreached } from './constructors/module.f.js'
 
 const { entries } = Object
 
@@ -1057,6 +1057,20 @@ const nullishCases = [
 ]
 
 /**
+ * `throw` establishes its operand and fails with it, whatever the value:
+ * the language's `throw` statement, which the VM answers as its `Err`. An
+ * `unreached` operand throws first, as any eager operand does.
+ *
+ * @type {readonly Case<1>[]}
+ */
+const throwCases = [
+    { name: 'number', args: [1], expected: throws },
+    { name: 'string', args: ['a'], expected: throws },
+    { name: 'null', args: [null], expected: throws },
+    { name: 'unreachedOperand', args: [unreached], expected: throws },
+]
+
+/**
  * `?:`, the corpus's one ternary group:
  * `args` is `[condition, consequent, alternate]`, and `expected` is whichever
  * branch `ToBoolean(condition)` selects — the same coercion `!`/`&&`/`||`
@@ -1643,6 +1657,7 @@ export const data = {
         { op: '??', cases: nullishCases },
         { op: '?:', cases: ternaryCases },
         { op: 'typeof', cases: typeofCases },
+        { op: 'throw', cases: throwCases },
         { op: 'String', cases: stringCoercionCases },
         { op: 'own', cases: ownCases },
         ...memberGroups,

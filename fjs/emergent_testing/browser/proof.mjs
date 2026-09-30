@@ -29,8 +29,8 @@ import { error, ok, unwrap } from '../../types/result/module.f.mjs'
  * element/document/view types can stay function-local.
  */
 const dom = () => {
-    /** @typedef {{ readonly tag: string, attributes: ReadonlyMap<string, string>, readonly ownerDocument: _Document, textContent: string, readonly texts: string[], children: readonly _Element[], readonly setAttribute: (name: string, value: string) => void, readonly removeAttribute: (name: string) => void, readonly querySelector: (selector: string) => _Element | null, readonly replaceChildren: (...nodes: readonly _Element[]) => void, readonly append: (node: _Element) => void, readonly getAttribute: (name: string) => string | null }} _Element */
-    /** @typedef {{ defaultView: _View | null, readonly baseURI: string, readonly createElement: (tag: string) => _Element }} _Document */
+    /** @typedef {{ readonly tag: string, readonly localName: string, readonly namespaceURI: string, attributes: ReadonlyMap<string, string>, readonly ownerDocument: _Document, textContent: string, readonly texts: string[], children: readonly _Element[], readonly setAttribute: (name: string, value: string) => void, readonly removeAttribute: (name: string) => void, readonly querySelector: (selector: string) => _Element | null, readonly replaceChildren: (...nodes: readonly (_Element | string)[]) => void, readonly append: (node: _Element) => void, readonly getAttribute: (name: string) => string | null }} _Element */
+    /** @typedef {{ defaultView: _View | null, readonly baseURI: string, readonly createElement: (tag: string) => _Element, readonly createElementNS: (namespace: string, tag: string) => _Element }} _Document */
     /** @typedef {{ events: readonly CustomEvent[], readonly dispatchEvent: (event: Event) => boolean, fjsBrowserTestReport?: Promise<unknown> }} _View */
 
     /** @type {(node: _Element, name: string) => _Element | null} */
@@ -48,6 +48,8 @@ const dom = () => {
         /** @type {_Element} */
         const self = {
             tag,
+            localName: tag,
+            namespaceURI: 'http://www.w3.org/1999/xhtml',
             attributes: new Map(attributes.map(name => [name, ''])),
             ownerDocument: document,
             // Every line the element was given, not only the last: a page that
@@ -71,7 +73,13 @@ const dom = () => {
                 (/** @type {_Element | null} */ acc, child) =>
                     acc ?? find(child, selector.slice(1, -1)),
                 null),
-            replaceChildren: (...nodes) => { self.children = nodes },
+            // Text given among the children is the element's text, as the
+            // runner's views give it; its position is `media/html`'s business
+            // and proven there.
+            replaceChildren: (...nodes) => {
+                texts.push(nodes.filter(node => typeof node === 'string').join(''))
+                self.children = nodes.filter(node => typeof node !== 'string')
+            },
             append: node => { self.children = [...self.children, node] },
             getAttribute: name => self.attributes.get(name) ?? null,
         }
@@ -100,6 +108,7 @@ const dom = () => {
             // makes them usable as fixtures at all.
             baseURI,
             createElement: tag => element(document, tag, [], states),
+            createElementNS: (_, tag) => element(document, tag, [], states),
         }
         /** @type {_View} */
         const view = {
@@ -866,6 +875,7 @@ export const proof = {
             // makes them usable as fixtures at all.
             baseURI: 'https://example.invalid/',
             createElement: tag => element(document, tag, [], states),
+            createElementNS: (_, tag) => element(document, tag, [], states),
         }
         const root = element(document, 'main', ['data-browser-tests'], states)
         root.replaceChildren(

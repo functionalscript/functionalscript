@@ -493,8 +493,16 @@ export const op0 = /** @type {const} */ ([op0Id])
  * whether the language admits it as syntax is decided in
  * `../../spec/todo/2340-operators.md`, not here. Negation is not here
  * either: it is `-` at unary arity, an `op12`.
+ *
+ * `throw` is the one operation that never has a value: it establishes its
+ * operand and fails, with that value as the failure's — the language's
+ * `throw` statement, `../../spec/README.md`'s "Failure is one outcome". It
+ * has no result to mint identity for, so the analysis merges two spelled
+ * alike as it merges any operator, and its laziness is positional as every
+ * node's is: in an arm of `?:` it fails only where the arm is selected,
+ * and an executor never establishes it where the program would not.
  */
-export const op1Id = or('String', 'Number', '!', '~', 'typeof')
+export const op1Id = or('String', 'Number', '!', '~', 'typeof', 'throw')
 
 export const op1 = /** @type {const} */ ([op1Id, exp])
 
