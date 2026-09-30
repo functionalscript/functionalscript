@@ -13,7 +13,7 @@
  *
  * Beside the data are the format's **constructors** (`functionValue`,
  * `callback`, `returns`, `ref`, `throws`, `unreached`, written in
- * [`constructors/module.f.mjs`](./constructors/module.f.mjs) and re-exported
+ * [`constructors/module.f.js`](./constructors/module.f.js) and re-exported
  * here), its **eliminators** (`isThrows`, `hasUnreached`,
  * `orders`, `groupKey`, `casesOf`, `arityOf`), and the **lowering** that
  * turns a case into the EDAG expression it denotes (`lambdaExp`,
@@ -51,10 +51,10 @@
 
 import { op1Id, op3Id } from '../edag/module.f.mjs'
 import { validate } from '../rtti/validate/module.f.mjs'
-import { functionValue, ref, returns, throws, unreached } from './constructors/module.f.mjs'
+import { functionValue, ref, returns, throws, unreached } from './constructors/module.f.js'
 import { groups as memberGroups } from './member/module.f.mjs'
 
-export { callback, functionValue, ref, returns, throws, unreached } from './constructors/module.f.mjs'
+export { callback, functionValue, ref, returns, throws, unreached } from './constructors/module.f.js'
 
 const { entries } = Object
 

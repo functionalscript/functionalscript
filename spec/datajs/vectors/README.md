@@ -14,7 +14,7 @@ here — the rounds that produced them are in this repository's history.
 
 ## The sets are DataJS modules
 
-Each set is `<set>/data.f.mjs`, a FunctionalScript data module written in
+Each set is `<set>/data.f.js`, a FunctionalScript data module written in
 the DataJS subset the specification describes: `const $n = …;` statements,
 one `export default`, string keys, JSON's values and the leaves DataJS adds.
 So the engine imports it today and the reader reads the same file as a

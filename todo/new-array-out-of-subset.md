@@ -46,7 +46,7 @@ and `packed` in `fjs/git/ref` are each proved to refuse `new Array(1)`, and
 `fjs/git/refname`'s JSDoc explains the hole it guards against.
 
 About ten comment lines mention `new Array` in prose only. The one occurrence in
-`spec/datajs/vectors/reject/data.f.mjs` is not an offender: it is the document
+`spec/datajs/vectors/reject/data.f.js` is not an offender: it is the document
 text of a vector proving DataJS rejects `new Array()`.
 
 **This is not a find-and-replace, and that is the whole difficulty.** Three

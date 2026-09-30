@@ -14,7 +14,7 @@ established by proofs over the generator's output. The Node milestone that set t
 shape every migrated job follows was tracked as `66B-dockerfile-nix-integration`,
 closed once all three Node jobs had migrated; its open tasks are this issue's.
 
-`setup-deno` is gone with the Deno migration, and `fjs/ci/config/module.f.mjs` no longer
+`setup-deno` is gone with the Deno migration, and `fjs/ci/config/module.f.js` no longer
 records that action version; its `deno` pin now names what the snapshot provides — 2.8.3
 — rather than deno.com's latest, exactly as the Node pins do. `nixJobs` in
 `fjs/ci/module.f.mjs` composes the flakes of two families rather than aliasing the Node
@@ -60,7 +60,7 @@ same tarballs `rustup` would install, pinned by hashes that live in a flake inpu
 repository pins. Nixpkgs ignores that manifest and builds the compiler from source,
 which is the whole of the difference.
 
-The cost is a second upstream, recorded in `fjs/ci/config/module.f.mjs` beside the
+The cost is a second upstream, recorded in `fjs/ci/config/module.f.js` beside the
 Nixpkgs commit and updated on its own schedule.
 `inputs.rust-overlay.inputs.nixpkgs.follows` keeps the flake resolving one snapshot
 rather than two. The `minimal` profile plus the two components the job runs is
@@ -108,7 +108,7 @@ and an overlay was the only way in.
 
 **Treat it as an exception with an expiry, not a pattern.** It works because the
 package is a repackaged binary; a package built from source would make this repository
-the maintainer of a package definition. `fjs/ci/config/module.f.mjs` carries the
+the maintainer of a package definition. `fjs/ci/config/module.f.js` carries the
 version and the hash together, and both are deleted the day the snapshot carries a Bun
 this suite passes on. The job's version check is what holds it: unlike every other
 check, which confirms a snapshot provides what the configuration claims, this one
@@ -293,7 +293,7 @@ Those concerns evolve independently and must not block the first Node flakes.
 
 #### Configuration
 
-For this milestone, extend the existing `fjs/ci/config/module.f.mjs` configuration. It is
+For this milestone, extend the existing `fjs/ci/config/module.f.js` configuration. It is
 already consumed by CI generation and works on native Windows.
 
 A future task may migrate CI configuration to another format. That migration is not a
@@ -410,7 +410,7 @@ At a high level it:
    unversioned attributes this is the only way to learn them, and today all five were
    read from the snapshot's package files by hand;
 4. updates the Nixpkgs commit and relevant exact versions in
-   `fjs/ci/config/module.f.mjs`;
+   `fjs/ci/config/module.f.js`;
 5. runs ordinary CI generation (`npm run gen`) to regenerate the declared
    flakes' `flake.nix`;
 6. runs `npm run lock-update` to refresh every `flake.lock` against the new
@@ -432,7 +432,7 @@ Nix-independent, and a lock's two facts on top of a pinned revision,
 So `fjs ci` also writes `nix/lock-update.sh`, one `nix flake lock <path>` per
 generated directory, and a maintainer runs it — through `npm run lock-update`,
 which needs Nix and is never run by ordinary contributors — only when a pin in
-`../config/module.f.mjs` moves.
+`../config/module.f.js` moves.
 
 CI passes `--no-update-lock-file`, not the more tempting `--no-write-lock-file`:
 the latter still resolves a mismatched input in memory and only skips the
@@ -513,7 +513,7 @@ For each job:
 4. remove the old setup only after equivalent behavior is demonstrated.
 
 Step 1 is a step of the job rather than a separate flake job: the version
-`fjs/ci/config/module.f.mjs` records is a claim about what the pinned snapshot provides,
+`fjs/ci/config/module.f.js` records is a claim about what the pinned snapshot provides,
 and the job that runs on it is where that claim is worth checking.
 
 #### Independent follow-ups

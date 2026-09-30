@@ -216,7 +216,7 @@ the fold's:
   ordinary property and is accepted, so this is not a lexical rule either;
 - an access naming a property of a built-in prototype, `a.push`,
   `a["toString"]` or `a.__proto__` in either spelling — every name
-  [`fjs/js/prototype`](../../js/prototype/module.f.mjs) lists but `length`,
+  [`fjs/js/prototype`](../../js/prototype/module.f.js) lists but `length`,
   which a value owns — since an access reads an own property and JavaScript
   would read the prototype's, as
   [spec: property accessor](../../../spec/todo/2330-property-accessor.md)

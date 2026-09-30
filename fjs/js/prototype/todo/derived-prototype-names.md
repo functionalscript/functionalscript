@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`module.f.mjs`](../module.f.mjs) declares seven per-type lists and then
+[`module.f.js`](../module.f.js) declares seven per-type lists and then
 `prototypeNames`, about a hundred strings re-typed by hand in alphabetical
 order, held to the lists by a proof:
 

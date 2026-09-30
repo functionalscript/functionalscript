@@ -1,6 +1,6 @@
 import { denoJobId, denoSteps } from './module.f.mjs'
 import { toSteps } from '../common/module.f.mjs'
-import { deno } from '../config/module.f.mjs'
+import { deno } from '../config/module.f.js'
 import { nixDevelop, nixShell, runPath } from '../nix/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 

@@ -48,7 +48,7 @@ work is tracked from then on.
 TypeScript is the one row that is not simply "latest", and the only one that is
 **not** an npm dependency of this package, so `npm ci` does not install it: it
 is a tool the environment provides, like the others in this table.
-[`fjs/ci/config/module.f.mjs`](./fjs/ci/config/module.f.mjs) pins the version CI
+[`fjs/ci/config/module.f.js`](./fjs/ci/config/module.f.js) pins the version CI
 uses — install exactly that one globally, or take the Nix shell below and skip
 the question. Either way, do not reach for `npx tsc`: with nothing to resolve in
 `node_modules` it downloads whatever the registry calls latest, which is not the
@@ -258,7 +258,7 @@ Deleting them waits on the generator restoring executable bits
 
 To bump an npm devDependency version, edit `package.json` by hand first (there
 is no `npm-check-updates` step anymore). To move a pinned Nixpkgs or
-`rust-overlay` commit, edit `fjs/ci/config/module.f.mjs`. Either way, then run:
+`rust-overlay` commit, edit `fjs/ci/config/module.f.js`. Either way, then run:
 
 ```bash
 npm run lock-update

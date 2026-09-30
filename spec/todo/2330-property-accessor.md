@@ -3,7 +3,7 @@
 **Status:** the constant-key read is in the language
 ([spec: property access](../README.md#property-access)): an own-property
 read, with every built-in prototype name but `length` a compilation error,
-the names held by [`fjs/js/prototype`](../../fjs/js/prototype/module.f.mjs),
+the names held by [`fjs/js/prototype`](../../fjs/js/prototype/module.f.js),
 and an access on a numeric literal read as JavaScript reads it — `-1 .x` is
 `-(1 .x)`, the unary minus binding looser than the access. The computed key,
 `a[Number(b)]`, is not; an index is a constant key, a string or a number,

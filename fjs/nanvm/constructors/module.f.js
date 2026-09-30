@@ -14,7 +14,7 @@
  * @example
  *
  * ```js
- * import { callback, throws } from './module.f.mjs'
+ * import { callback, throws } from './module.f.js'
  *
  * throws()             // ['throw']
  * callback('first')()  // ['callback', 'first']

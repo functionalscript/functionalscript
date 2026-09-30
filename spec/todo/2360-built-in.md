@@ -224,7 +224,7 @@ https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 
 The two lists that decide this today — every prototype name refused as a
 property read, `length` excepted, and the member functions refused as a
-call — are [`fjs/js/prototype`](../../fjs/js/prototype/module.f.mjs)'s
+call — are [`fjs/js/prototype`](../../fjs/js/prototype/module.f.js)'s
 `prototypeNames` and `prohibitedCalls`, with one row per name and its reason
 in [its README](../../fjs/js/prototype/README.md). The notes below predate
 them and are kept as the record of the reasoning.

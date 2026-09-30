@@ -18,7 +18,7 @@
  * ```
  */
 
-import { callback, functionValue, returns, throws, unreached } from '../constructors/module.f.mjs'
+import { callback, functionValue, returns, throws, unreached } from '../constructors/module.f.js'
 
 /**
  * `Array.prototype.at`: the element from the start or, for a negative index,

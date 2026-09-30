@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/js/prototype/module.f.mjs`: the pin that
+ * Type-level API for `fjs/js/prototype/module.f.js`: the pin that
  * `prototypeNames` is exactly the union of the seven prototypes' lists.
  * A compile-time claim about exports lives here, at module scope, where
  * `tsc` checks it whatever a proof body does.
@@ -20,7 +20,7 @@ import type {
     prohibitedCalls,
     prototypeNames,
     stringPrototype,
-} from './module.f.mjs'
+} from './module.f.js'
 
 /** Every name a built-in prototype gives a value. */
 export type PrototypeName = (typeof prototypeNames)[number]

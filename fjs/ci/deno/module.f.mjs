@@ -12,7 +12,7 @@
  * @import { MetaStep } from '../common/types.ts'
  */
 
-import { deno } from '../config/module.f.mjs'
+import { deno } from '../config/module.f.js'
 import { nixInstall, nixShell, nixSteps, nixVersionStep } from '../nix/module.f.mjs'
 
 /** CI job id, and the directory name of its generated flake. */
@@ -24,7 +24,7 @@ export const denoJobId = /** @type {const} */ ('deno')
  * configure. `Deno.version.deno` is the one field, on one line.
  *
  * `pkgs.deno` carries no version in its name, so this check is the whole tie
- * between `../config/module.f.mjs` and what the shell provides — and it is the
+ * between `../config/module.f.js` and what the shell provides — and it is the
  * only one, since the shared shell has no job of its own to re-check it.
  */
 const denoVersionStep = nixVersionStep(

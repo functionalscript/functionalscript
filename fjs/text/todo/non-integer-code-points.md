@@ -10,7 +10,7 @@
 only the *integers* in range and a fraction falls between two arms.
 
 The root cause is one line — `contains = (b, e) => i => b <= i && i <= e` in
-`fjs/types/range/module.f.mjs`. It is a numeric range, nothing more, so every
+`fjs/types/range/module.f.js`. It is a numeric range, nothing more, so every
 predicate built on it answers `true` for a fraction inside its bounds, however
 integral the domain its doc describes. Arithmetic downstream then truncates
 with `>>`, `&`, or `|`, and the fraction disappears into a plausible result.

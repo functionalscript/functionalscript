@@ -3,7 +3,7 @@
  */
 
 import { assertEq } from '../../asserts/module.f.mjs'
-import { callback, functionValue, ref, returns, throws, unreached } from './module.f.mjs'
+import { callback, functionValue, ref, returns, throws, unreached } from './module.f.js'
 
 export const proof = {
     tags: () => {
