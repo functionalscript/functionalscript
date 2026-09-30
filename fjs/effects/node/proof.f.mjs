@@ -12,7 +12,7 @@ import { byteLength, empty, isVec, maxLengthBytes, u8ListMsb, u8ListToVecMsb, ui
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
 import { mapStep, pureError, pureOk, step as ioStep } from "../module.f.mjs"
-import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan, readWholeBytes, readChunks, windowRefusal, maxOffset } from "./module.f.mjs"
+import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, readWholeBytes, readChunks, windowRefusal, maxOffset } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
@@ -170,13 +170,15 @@ export const proof = {
         assert(usesInlineTestContext('node', '25.99.99'))
         assert(!usesInlineTestContext('node', '26.0.0'))
         assert(!usesInlineTestContext('node', '26.1.0'))
+        // Nightly and release-candidate builds suffix `process.version`.
+        assert(usesInlineTestContext('node', 'v25.0.0-nightly20260930abc'))
+        assert(usesInlineTestContext('node', 'v26.0.0-rc.1'))
+        assert(usesInlineTestContext('node', 'v26.0.0-rc.1+build-1'))
+        assert(!usesInlineTestContext('node', 'v26.0.0+build-1'))
+        assert(!usesInlineTestContext('node', 'v26.1.0-nightly20260930abc'))
         assert(!usesInlineTestContext('node'))
         assert(usesInlineTestContext('bun'))
         assert(!usesInlineTestContext('deno', '22.0.0'))
-        assert(versionLessThan('25.99.99', '26.0.0'))
-        assert(versionLessThan('26.0.0', '26.1.0'))
-        assert(versionLessThan('26.1.0', '26.1.1'))
-        assert(!versionLessThan('26.1.1', '26.1.1'))
     },
     map: () => {
         const e = mapStep(readFile('hello'), v => uint(v) * 2n)

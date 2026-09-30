@@ -26,7 +26,8 @@
  * unaryOperand ::= '-' unaryOperand | '~' unaryOperand
  *          | (primitive | id | array | object) access*
  *          | '(' groupOperand
- * block  ::= '{' const* terminator '}'
+ * block  ::= '{' statement* terminator '}'
+ * statement ::= const | 'if' '(' value ')' block
  * terminator ::= 'return' value end | 'throw' value end
  * func   ::= [ '...' id ] ')' '=>' body
  * afterValue ::= ',' [ names ] ')' '=>' body | ')' arrowOrRest
@@ -117,7 +118,7 @@
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { BinaryTag } from '../../ast/types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
- * @import { Access, AfterValue, ArrowOrRest, Block, Body, CircuitTail, ConditionalTail, EagerTail, End, Func, Group, GroupOperand, Items, LastStatement, Member, ParameterNames, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Tail, Terminator, Unary, UnaryOperand, Value } from './types.ts'
+ * @import { Access, AfterValue, ArrowOrRest, Block, Body, CircuitTail, ConditionalTail, EagerTail, End, Func, Group, GroupOperand, Items, LastStatement, Member, ParameterNames, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Terminator, Unary, UnaryOperand, Value } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -151,8 +152,8 @@ export const _tokenKindNames = _djsTokenKinds.filter(kind => kind !== 'eof')
  * tokenizer emits as `id` tokens carrying the word in `value`. Kept as its
  * own list because {@link symbolOf} has to recognize exactly these values,
  * not merely encode them. Six frame a module, `return` and `throw` end a
- * function's block body — `throw` a module too — and `as` introduces an
- * import alias.
+ * function's block body — `throw` a module too — `if` opens a guard in
+ * one, and `as` introduces an import alias.
  *
  * **A grammar over this alphabet owes them an identifier rule.** Once each
  * carries its own symbol, a rule whose identifier terminal is the bare `id`
@@ -167,7 +168,7 @@ export const _tokenKindNames = _djsTokenKinds.filter(kind => kind !== 'eof')
  * Giving a word its own symbol narrows where it is *required*, never where
  * it is *allowed*.
  */
-export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'as'])
+export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'as'])
 
 /**
  * The complete alphabet: one name per `DjsToken` kind except `eof`, plus
@@ -216,6 +217,7 @@ export const identifier = /** @type {const} */ ({
     with: sym('with'),
     return: sym('return'),
     throw: sym('throw'),
+    if: sym('if'),
     as: sym('as'),
 })
 
@@ -947,9 +949,32 @@ export const terminator = /** @type {const} */ ({
 })
 
 /**
+ * A statement of a function's block body before its {@link terminator}: a
+ * `const`, or a guard, `if (condition) block` — its block this same
+ * {@link block}, so the branch always ends in `return` or `throw`, and the
+ * statements after the guard are what runs when the condition is falsy
+ * ([spec: functions](../../../../spec/README.md#functions)). No {@link end}
+ * follows the guard's `}`: a block statement takes no `;` in JavaScript,
+ * and one written there is the empty statement the language refuses, as
+ * `;;` is. `const` and `if` decide the two in one symbol. A thunk, since
+ * the block holds this rule and this rule holds the block.
+ *
+ * The bare consequent, `if (c) return v;`, and `else` are not read: the
+ * guard admits one form, and the others are follow-ups
+ * ([spec: functions](../../../../spec/README.md#functions)).
+ *
+ * @type {Statement}
+ */
+export const statement = () => ['const', {
+    const: constStatement,
+    if: [sym('if'), sym('('), value, sym(')'), block],
+}]
+
+/**
  * A function's block body: `{ const x = 1; return value; }` — any number of
- * `const` statements and then the one {@link terminator}, a `return` or a
- * `throw` ([spec: functions](../../../../spec/README.md#functions)).
+ * {@link statement}s, `const`s and guards, and then the one
+ * {@link terminator}, a `return` or a `throw`
+ * ([spec: functions](../../../../spec/README.md#functions)).
  *
  * The `const` is {@link constStatement}, the module's own rule: the body
  * binds names the way a module does, and the fold is what says the two
@@ -977,7 +1002,7 @@ export const terminator = /** @type {const} */ ({
  * @type {Block}
  */
 export const block = /** @type {const} */ ([
-    sym('{'), repeatFrom0(constStatement), terminator, sym('}'),
+    sym('{'), repeatFrom0(statement), terminator, sym('}'),
 ])
 
 /**

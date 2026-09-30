@@ -84,10 +84,9 @@ and `cBase32ToVec = s => { const v = cBase32ToVec5x(s); return v === null ? null
 - **`block` generality.** `cbase32` only ever pads to 5; keep the `block`
   parameter so the primitive reads as a general bit-vec operation rather than a
   base32-specific one, but don't over-engineer beyond a single bigint argument.
-- Relatedly, `fjs/asn.1/module.f.mjs` has a `round8` (round a bit length up to
-  a byte boundary) that is the byte-aligned cousin of this concern; it is
-  single-module today and out of scope here, but a future `bit_vec` alignment
-  family could absorb both.
+- Relatedly, `fjs/types/bit_vec`'s `wholeBytes` (a `vec` whose length is
+  rounded up to a byte boundary) is the byte-aligned cousin of this concern; a
+  future `bit_vec` alignment family could absorb both.
 
 ### Related
 

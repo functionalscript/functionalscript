@@ -45,6 +45,10 @@ export const proof = {
 
     // Overflow: two 127-bit raw payloads sum to 254 bits, exceeding the 253-bit inline limit
     overflow_is_hash: () => assert(isHash(overflowHash)),
+    // The merged hash's eight SHA2 words are packed most significant first
+    overflow_hash_value: () => assertEq(
+        asBase(overflowHash),
+        0xc0caa9d6cf74446133e0d3c5d891a40103045a3df74963c8ecf796f96dbf9017n),
 
     // Hash input: either argument being a hash always triggers SHA2-based merge
     hash_left_is_hash:  () => assert(isHash(compress(overflowHash, level3Id(0n)))),

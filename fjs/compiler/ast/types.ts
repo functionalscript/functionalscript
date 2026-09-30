@@ -147,6 +147,12 @@ export type AstAccess = readonly ['.', AstConst, string | number]
  * over an access is the detached receiver, `(0, a.b)(c)`. That one needs the
  * comma operator and is unspellable, so every call written on a property
  * today is a method call.
+ *
+ * One call the lowering does not keep: a call, with no arguments, of a
+ * parameterless function written at the call, `isInlinedCall`, is its body
+ * where the call stands. The parser writes that call for a guard's two
+ * arms, `if (c) { … }` being sugar for `c ? (() => { … })() : (() => …rest…)()`
+ * ([spec: functions](../../../spec/README.md#functions)).
  */
 export type AstCall = readonly ['()', AstConst, readonly AstConst[]]
 

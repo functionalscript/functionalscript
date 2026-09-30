@@ -114,6 +114,81 @@ export const proof = {
             expect('export default () => { throw zzz; };', 'const not found', 1, 30)
             expect('export default (...throw) => 1;', 'reserved word', 1, 20)
         },
+        // A guard, `if (c) { … }`, is folded to what it is sugar for: its
+        // block and the statements after it are each the body of a
+        // parameterless function called where it stands — the call the
+        // lowering inlines — and the guard is the conditional of the two.
+        // A `const` after the guard is an entry of the second arm's body,
+        // what either arm reads from the enclosing body a capture, and a
+        // second guard nests as the alternate of the first.
+        guards: () => {
+            /** @type {(source: string, expected: string) => void} */
+            const expect = (source, expected) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), expected)
+            }
+            expect('export default (a) => { if (a) { return 1; } return 2; };', '[[],[["object",[["default",["=>",1,[["?:",["arg",0],["()",["=>",0,[1]],[]],["()",["=>",0,[2]],[]]]]]]]]]]')
+            expect('export default (a) => {\n    if (a) { return 1 }\n    return 2\n}', '[[],[["object",[["default",["=>",1,[["?:",["arg",0],["()",["=>",0,[1]],[]],["()",["=>",0,[2]],[]]]]]]]]]]')
+            expect('export default (a) => { if (a) { const x = [1]; return [x, x]; } return 0; };', '[[],[["object",[["default",["=>",1,[["?:",["arg",0],["()",["=>",0,[["array",[1]],["array",[["cref",0],["cref",0]]]]],[]],["()",["=>",0,[0]],[]]]]]]]]]]')
+            expect('export default (m) => { const a = [1]; if (m) { return a; } return 0; };', '[[],[["object",[["default",["=>",1,[["array",[1]],["?:",["arg",0],["()",["=>",0,[["fref",0]],[["cref",0]]],[]],["()",["=>",0,[0]],[]]]]]]]]]]')
+            expect('export default (a) => { if (a) { throw 1; } const y = [2]; return y; };', '[[],[["object",[["default",["=>",1,[["?:",["arg",0],["()",["=>",0,[["throw",1]]],[]],["()",["=>",0,[["array",[2]],["cref",0]]],[]]]]]]]]]]')
+            expect('export default (a) => { if (a) { return 1; } if (a) { return 2; } return 3; };', '[[],[["object",[["default",["=>",1,[["?:",["arg",0],["()",["=>",0,[1]],[]],["()",["=>",0,[["?:",["fref",0],["()",["=>",0,[2]],[]],["()",["=>",0,[3]],[]]]],[["arg",0]]],[]]]]]]]]]]')
+            expect('export default (...a) => { if (a[0]) { return a; } return a[1]; };', '[[],[["object",[["default",["=>",0,[["?:",[".",["rest"],0],["()",["=>",0,[["fref",0]],[["rest"]]],[]],["()",["=>",0,[[".",["fref",0],1]],[["rest"]]],[]]]]]]]]]]')
+            expect('const c = [1]; export default (a) => { if (a) { return c; } return [c]; };', '[[],[["array",[1]],["object",[["default",["=>",1,[["?:",["arg",0],["()",["=>",0,[["fref",0]],[["fref",0]]],[]],["()",["=>",0,[["array",[["fref",0]]]],[["fref",0]]],[]]]],[["cref",0]]]]]]]]')
+            // the guard's block is a block of JavaScript's own, so it may
+            // bind a name the body has bound, or one the condition read
+            // from outside
+            expect('export default (a) => { const b = 1; if (a) { const b = 2; return b; } return b; };', '[[],[["object",[["default",["=>",1,[1,["?:",["arg",0],["()",["=>",0,[2,["cref",0]]],[]],["()",["=>",0,[["fref",0]],[["cref",0]]],[]]]]]]]]]]')
+            expect('const x = 10; export default (a) => { if (x) { const x = 2; return x; } return 0; };', '[[],[10,["object",[["default",["=>",1,[["?:",["fref",0],["()",["=>",0,[2,["cref",0]]],[]],["()",["=>",0,[0]],[]]]],[["cref",0]]]]]]]]')
+            // and the statements after the guard read from outside as the
+            // body does, a capture of the arm through the body
+            expect('const x = 10; export default (a) => { if (a) { return 1; } const y = x; return y; };', '[[],[10,["object",[["default",["=>",1,[["?:",["arg",0],["()",["=>",0,[1]],[]],["()",["=>",0,[["fref",0],["cref",0]],[["fref",0]]],[]]]],[["cref",0]]]]]]]]')
+        },
+        // The forms outside this step are refused where the grammar stops:
+        // the bare consequent, `else`, a `;` after the `}`, a block that
+        // does not terminate, and a guard at module level. The statements
+        // after a guard are JavaScript's one block with the ones before
+        // it, so a name that block has bound — a parameter, a `const`
+        // before the guard, or one after an earlier guard — is `duplicate
+        // id` there, as it is in JavaScript, and a word that block has
+        // already read from outside — in the condition, in the guard's
+        // block, or before the guard — is `capture shadowed`, since in
+        // JavaScript every such read would have named the later `const`
+        // before its declaration; a name nothing binds is `const not
+        // found` in either arm; and the line rules hold across a guard as
+        // they do elsewhere.
+        guardRefused: () => {
+            /** @type {(source: string, message: string, line: number, column: number) => void} */
+            const expect = (source, message, line, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, message)
+                assertEq(value.metadata?.line, line)
+                assertEq(value.metadata?.column, column)
+            }
+            expect('export default (a) => { if (a) return 1; return 2; };', 'unexpected token', 1, 32)
+            expect('export default (a) => { if (a) { return 1; } else { return 2; } };', 'unexpected token', 1, 46)
+            expect('export default (a) => { if (a) { return 1; }; return 2; };', 'unexpected token', 1, 45)
+            expect('export default (a) => { if (a) { const x = 1; } return 2; };', 'unexpected token', 1, 47)
+            expect('export default (a) => { if (a) { return 1; } };', 'unexpected token', 1, 46)
+            expect('if (1) { throw 1; } export default 2;', 'unexpected token', 1, 1)
+            expect('export default (a) => { if (a) { return 1; } const a = 2; return a; };', 'duplicate id', 1, 52)
+            expect('export default (a) => { const b = 1; if (a) { return 1; } const b = 2; return b; };', 'duplicate id', 1, 65)
+            expect('export default (a) => { if (a) { return 1; } if (a) { return 2; } const a = 3; return a; };', 'duplicate id', 1, 73)
+            expect('export default (a) => { if (a) { return 1; } const x = a; const x = 2; return x; };', 'duplicate id', 1, 65)
+            expect('const x = 10; export default (a) => { if (x) { return 1; } const x = 2; return x; };', 'capture shadowed', 1, 66)
+            expect('const x = 10; export default (a) => { if (a) { return x; } const x = 2; return x; };', 'capture shadowed', 1, 66)
+            expect('const x = 10; export default (a) => { if (a) { return (() => x)(); } const x = 2; return x; };', 'capture shadowed', 1, 76)
+            expect('const x = 10; export default (a) => { if (a) { return 1; } if (x) { return 2; } const x = 3; return x; };', 'capture shadowed', 1, 87)
+            expect('export default (a) => { if (a) { return zzz; } return 1; };', 'const not found', 1, 41)
+            expect('export default (a) => { if (a) { return 1; } return zzz; };', 'const not found', 1, 53)
+            expect('export default (a) => { if (zzz) { return 1; } return 2; };', 'const not found', 1, 29)
+            expect('export default (a) => { if (a) { return 1; } const if = 1; return 2; };', 'reserved word', 1, 52)
+            expect('export default (a) => { if (a) { return 1; } const b = 1 return b; };', 'unexpected token', 1, 58)
+            expect('export default (a) => { const b = 1 if (a) { return 1; } return b; };', 'unexpected token', 1, 37)
+            expect('export default (a) => { if (a) { return\n1; } return 2; };', 'unexpected token', 2, 1)
+        },
         refused: () => {
             /** @type {(source: string, message: string, column: number) => void} */
             const expect = (source, message, column) => {
