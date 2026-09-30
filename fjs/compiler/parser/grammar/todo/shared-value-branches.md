@@ -64,7 +64,7 @@ it. `proof.f.mjs` pins the branch tags, so the shape is checked.
 
 ### Related
 
-- [`../../todo/value-token-kind-list.md`](../../todo/value-token-kind-list.md) —
-  the token kinds *inside* `primitive`; this is the alternation around it.
+- `_valueKinds` in [`../module.f.mjs`](../module.f.mjs) — the token kinds
+  *inside* `primitive`, one list; this is the alternation around it.
 - [`../../todo/statement-aware-intrinsics.md`](../../todo/statement-aware-intrinsics.md) —
   will add branches to these rules; cheaper once they are written once.

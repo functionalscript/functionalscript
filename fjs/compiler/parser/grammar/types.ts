@@ -12,10 +12,12 @@ import type { Assert } from '../../../asserts/types.ts'
 import type { Option, RepeatFrom, Rule } from '../../../ebnf/types.ts'
 import type { Equal } from '../../../types/ts/types.ts'
 import type { DjsToken } from '../../tokenizer/types.ts'
+import type { literalWords } from '../../../js/keywords/module.f.mjs'
 import type {
     _framingKeywords,
     _ordinaryTokenNames,
     _tokenKindNames,
+    _valueKinds,
     constStatement,
     identifier,
     identifierName,
@@ -66,6 +68,14 @@ export type _OrdinaryTokenName = Exclude<DjsToken['kind'], 'eof'> | _FramingKeyw
 
 type _KindsAreComplete = Assert<Equal<(typeof _tokenKindNames)[number], Exclude<DjsToken['kind'], 'eof'>>>
 type _AlphabetIsComplete = Assert<Equal<(typeof _ordinaryTokenNames)[number], _OrdinaryTokenName>>
+
+// The token kinds that are a whole value are one list, `_valueKinds`; the
+// `primitive` variant spells one branch per kind, and `identifierName` admits
+// the six words among them as names. A kind added to the list, or a branch
+// added to either variant, breaks the build here rather than going
+// unrepresented on the other side.
+type _ValueKindsArePrimitive = Assert<Equal<keyof typeof primitive, (typeof _valueKinds)[number]>>
+type _ValueKindsAreNames = Assert<Equal<Exclude<keyof typeof identifierName, keyof typeof identifier>, (typeof literalWords)[number]>>
 
 // `eof` is not a member of the alphabet, so a second end marker cannot be
 // encoded rather than merely going unused — and `encode` would reject the name

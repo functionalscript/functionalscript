@@ -1,10 +1,13 @@
 /**
+ * @import { Primitive } from '../../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { Node } from './types.ts'
  */
 
 import { parseSyntax } from './module.f.mjs'
 import { tokenizeString } from '../proof.f.mjs'
+import { _valueKinds } from '../grammar/module.f.mjs'
+import { fromEntries } from '../../../types/object/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
 
@@ -13,6 +16,25 @@ const proofKind = (kind, line) => ({ token: { kind }, metadata: { path: 'a.js', 
 
 /** @type {(value: string, line: number) => DjsTokenWithMetadata} */
 const proofId = (value, line) => ({ token: { kind: 'id', value }, metadata: { path: 'a.js', line, column: 1 }, newline: false })
+
+/**
+ * A source value of every kind in {@link _valueKinds}, and the primitive it
+ * folds to: keyed by the list, so a kind added there is a sample missing
+ * here, and the switch that converts each kind is run once per kind.
+ *
+ * @type {{ readonly [k in (typeof _valueKinds)[number]]: readonly [string, Primitive] }}
+ */
+const valueSamples = {
+    Infinity: ['Infinity', Infinity],
+    NaN: ['NaN', NaN],
+    false: ['false', false],
+    null: ['null', null],
+    true: ['true', true],
+    undefined: ['undefined', undefined],
+    number: ['1.5', 1.5],
+    string: ['"a"', 'a'],
+    bigint: ['7n', 7n],
+}
 
 /**
  * The value a block's final `return` holds, the block being a function's
@@ -31,6 +53,13 @@ const returned = node => {
 }
 
 export const proof = {
+    // One token that is a whole value, of each kind, folded to its primitive.
+    primitives: fromEntries(_valueKinds.map(kind => [kind, () => {
+        const [source, expected] = valueSamples[kind]
+        const { exported } = unwrap(parseSyntax(tokenizeString(`export default ${source};`)))
+        assert(exported !== null)
+        assertStructurallySame(exported.value, ['primitive', expected])
+    }])),
     // The syntax tree of a function's block body: its statements in order,
     // each a record, and the value its `return` holds — pinned before the
     // fold, which lowers it, can erase it.
