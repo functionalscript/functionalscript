@@ -71,6 +71,7 @@ pub mod shl;
 pub mod shr;
 pub mod string_coercion;
 pub mod sub;
+pub mod throw;
 pub mod typeof_;
 pub mod unary_plus;
 pub mod unsigned_right_shift;
@@ -105,6 +106,7 @@ pub fn all<A: IStaticFunction>() {
     nullish_coalescing::run::<A>();
     conditional::run::<A>();
     typeof_::run::<A>();
+    throw::run::<A>();
     string_coercion::run::<A>();
     own_property::run::<A>();
     method_at::run::<A>();

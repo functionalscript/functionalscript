@@ -75,6 +75,45 @@ export const proof = {
             expect('export default () => a;', 'const not found', 22)
             expect('export default () => { const x = a; return x; };', 'const not found', 34)
         },
+        // A block may end in `throw` in place of its `return`: the body's
+        // last entry is the throw of the value, and nothing else changes —
+        // the `const`s before it are its entries, the value is resolved in
+        // the body's scope, a capture is a capture, and the `;` may be
+        // omitted where JavaScript inserts it.
+        throws: () => {
+            /** @type {(source: string, expected: string) => void} */
+            const expect = (source, expected) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), expected)
+            }
+            expect('export default () => { throw 1; };', '[[],[["object",[["default",["=>",0,[["throw",1]]]]]]]]')
+            expect('export default () => { throw 1 };', '[[],[["object",[["default",["=>",0,[["throw",1]]]]]]]]')
+            expect('export default (...a) => { const x = a[0]; throw [x, x]; };', '[[],[["object",[["default",["=>",0,[[".",["rest"],0],["throw",["array",[["cref",0],["cref",0]]]]]]]]]]]')
+            expect('const c = 1; export default () => { throw c; };', '[[],[1,["object",[["default",["=>",0,[["throw",["fref",0]]],[["cref",0]]]]]]]]')
+            expect('export default () => {\n    const x = 1\n    throw x\n}', '[[],[["object",[["default",["=>",0,[1,["throw",["cref",0]]]]]]]]]')
+        },
+        // `throw [no LineTerminator here] value`, as `return` has it — a
+        // value on the next line is refused at its first token; a `throw`
+        // with no value, and a statement after one, are the grammar's to
+        // refuse; a name nothing binds is the fold's, and `throw` is no
+        // name a parameter may take.
+        throwRefused: () => {
+            /** @type {(source: string, message: string, line: number, column: number) => void} */
+            const expect = (source, message, line, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, message)
+                assertEq(value.metadata?.line, line)
+                assertEq(value.metadata?.column, column)
+            }
+            expect('export default () => { throw\n1; };', 'unexpected token', 2, 1)
+            expect('export default () => { throw; };', 'unexpected token', 1, 29)
+            expect('export default () => { throw 1; return 2; };', 'unexpected token', 1, 33)
+            expect('export default () => { const x = 1 throw x; };', 'unexpected token', 1, 36)
+            expect('export default () => { throw zzz; };', 'const not found', 1, 30)
+            expect('export default (...throw) => 1;', 'reserved word', 1, 20)
+        },
         refused: () => {
             /** @type {(source: string, message: string, column: number) => void} */
             const expect = (source, message, column) => {

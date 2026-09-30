@@ -256,6 +256,7 @@ const handlers = {
     String: o1,
     Number: o1,
     typeof: o1,
+    throw: o1,
     '+': o12,
     '-': o12,
     own: o2,
