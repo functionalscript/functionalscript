@@ -106,9 +106,14 @@ Everything else about it is JavaScript's, read as the specification reads
   or wherever a hand-written EDAG puts one — it spells the node as the call
   of a function that throws, `(() => { throw v; })()`: JavaScript's one
   spelling of an expression that fails, and itself FunctionalScript under
-  this proposal, so the output compiles again and fails at the same point.
-  That is the writer's spelling, as a `const` for a shared node is, not a
-  second form in the source language. When `if` lands, spelling
+  this proposal, so the output reads back and fails at the same point — as
+  the call of a function that throws, which is what the text says, not as
+  the `['throw', v]` node it was written from; the pattern is not
+  normalized back to the node. A second pass of the `.js` writer over that
+  text therefore waits on the writer's spelling for a call, the gap
+  [output](../README.md#output) already records for every call, not on
+  anything this proposal adds. That is the writer's spelling, as a `const`
+  for a shared node is, not a second form in the source language. When `if` lands, spelling
   `['?:', c, ['throw', m], rest]` in a terminating position as
   `if (c) { throw m; } return rest;` is that proposal's writer task. The EDAG
   output carries the node; the Rust output fails as the VM fails. The value
