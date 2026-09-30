@@ -352,7 +352,8 @@ needs its own issue, and it lands with or after Stage 1.
 - [x] Stage 2: call an object's own `toString` and `valueOf` per
       `OrdinaryToPrimitive`. Move the host-only cases into the corpus.
 - [ ] Stage 3 decisions: approve D1, and answer D2 before step 5.
-- [ ] Stage 3 steps 1 and 2: the writer spells operators and calls.
+- [x] Stage 3 step 1: the writer spells operators.
+- [ ] Stage 3 step 2: the writer spells calls.
 - [ ] Stage 3 step 3: `functionText`, the expression template with holes.
 - [ ] Stage 3 step 4: Rust answers the text of a function with an empty
       frame (tracked with the `Function` checklist in `member-functions.md`).
