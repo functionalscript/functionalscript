@@ -1,7 +1,7 @@
 ## Export the keyword membership test once
 
 **Priority:** P5
-**Status:** open
+**Status:** wip
 
 ### Problem
 
