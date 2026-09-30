@@ -1134,7 +1134,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         assertEq(compileSource('export default (a) => { if (a) { throw 1; } const y = [2]; return y; };')('output.js'), 'export default ($a_0,...$a)=>$a_0?(()=>{throw 1;})():[2];')
         assertEq(compileSource('export default (a) => { if (a) { throw 1; } const z = [2]; return 1; };')('output.js'), 'export default ($a_0,...$a)=>$a_0?(()=>{throw 1;})():(()=>{const $b0=[2];return 1;})();')
         assertEq(compileSource('export default (v, msg) => { if (v) { return undefined; } throw msg ?? "assertion failed"; };')('output.js'), 'export default ($a_0,$a_1,...$a)=>$a_0?undefined:(()=>{throw $a_1??"assertion failed";})();')
-        assertEq(compileSource('export default (a) => { if (a) { throw 1; } const z = [2]; return 1; };')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",1,null,["?:",["arg",0],["throw",1],[",",[["[]",[2]],1]]]]]]];')
+        assertEq(compileSource('export default (a) => { if (a) { throw 1; } const z = [2]; return 1; };')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",1,[],["?:",["arg",0],["throw",1],[",",[["[]",[2]],1]]]]]]];')
         assert(compileSource('export default (a) => { if (a) { const x = [1]; return [x, x]; } return 0; };')('output.rs').includes([
             '        let c0 = || {',
             '            let c1: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();',

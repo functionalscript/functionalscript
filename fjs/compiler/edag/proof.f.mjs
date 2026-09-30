@@ -980,18 +980,18 @@ export const proof = {
     // the alternate alone, an unused one anchored at the alternate's comma.
     guards: {
         graphs: () => {
-            expectEdag(compile('export default (a) => { if (a) { return 1; } return 2; };').edag, ['=>', 1, null, ['?:', ['arg', 0], 1, 2]])
+            expectEdag(compile('export default (a) => { if (a) { return 1; } return 2; };').edag, ['=>', 1, [], ['?:', ['arg', 0], 1, 2]])
             /** @type {Exp} */
             const one = ['[]', [1]]
-            expectEdag(compile('export default (a) => { if (a) { const x = [1]; return [x, x]; } return 0; };').edag, ['=>', 1, null, ['?:', ['arg', 0], ['[]', [one, one]], 0]])
-            expectEdag(compile('export default (m) => { const a = [1]; if (m) { return a; } return 0; };').edag, ['=>', 1, null, [',', [one, ['?:', ['arg', 0], one, 0]]]])
-            expectEdag(compile('export default (m) => { const a = [1]; if (m) { return a; } return a; };').edag, ['=>', 1, null, [',', [one, ['?:', ['arg', 0], one, one]]]])
-            expectEdag(compile('export default (a) => { if (a) { throw 1; } const y = [2]; return y; };').edag, ['=>', 1, null, ['?:', ['arg', 0], ['throw', 1], ['[]', [2]]]])
-            expectEdag(compile('export default (a) => { if (a) { throw 1; } const z = [2]; return 1; };').edag, ['=>', 1, null, ['?:', ['arg', 0], ['throw', 1], [',', [['[]', [2]], 1]]]])
-            expectEdag(compile('export default (n) => { if (n < 0) { return -1; } if (n > 0) { return 1; } return 0; };').edag, ['=>', 1, null, ['?:', ['<', ['arg', 0], 0], -1, ['?:', ['>', ['arg', 0], 0], 1, 0]]])
+            expectEdag(compile('export default (a) => { if (a) { const x = [1]; return [x, x]; } return 0; };').edag, ['=>', 1, [], ['?:', ['arg', 0], ['[]', [one, one]], 0]])
+            expectEdag(compile('export default (m) => { const a = [1]; if (m) { return a; } return 0; };').edag, ['=>', 1, [], [',', [one, ['?:', ['arg', 0], one, 0]]]])
+            expectEdag(compile('export default (m) => { const a = [1]; if (m) { return a; } return a; };').edag, ['=>', 1, [], [',', [one, ['?:', ['arg', 0], one, one]]]])
+            expectEdag(compile('export default (a) => { if (a) { throw 1; } const y = [2]; return y; };').edag, ['=>', 1, [], ['?:', ['arg', 0], ['throw', 1], ['[]', [2]]]])
+            expectEdag(compile('export default (a) => { if (a) { throw 1; } const z = [2]; return 1; };').edag, ['=>', 1, [], ['?:', ['arg', 0], ['throw', 1], [',', [['[]', [2]], 1]]]])
+            expectEdag(compile('export default (n) => { if (n < 0) { return -1; } if (n > 0) { return 1; } return 0; };').edag, ['=>', 1, [], ['?:', ['<', ['arg', 0], 0], -1, ['?:', ['>', ['arg', 0], 0], 1, 0]]])
             /** @type {Exp} */
             const rest = ['rest']
-            expectEdag(compile('export default (...a) => { if (a[0]) { return a; } return a[1]; };').edag, ['=>', 0, null, ['?:', ['.', rest, 0], rest, ['.', rest, 1]]])
+            expectEdag(compile('export default (...a) => { if (a[0]) { return a; } return a[1]; };').edag, ['=>', 0, [], ['?:', ['.', rest, 0], rest, ['.', rest, 1]]])
         },
         // the graph is the one the conditional-with-block spelling has, node
         // for node: sharing included, since a `const` of an arm is one node
