@@ -485,7 +485,7 @@ export const proof = {
         expectEdag(compile('export default (...a) => { return { x: a }; };').edag, ['=>', 0, [], ['{}', [[':', 'x', ['rest']]]]])
         expectEdag(compile('export default (...a) => { return (...b) => { return b; }; };').edag, ['=>', 0, [], ['=>', 0, [], ['rest']]])
     },
-    // A function that captures is `['=>', ['[]', slots], body]`: each slot
+    // A function that captures is `['=>', length, slots, body]`: each slot
     // the enclosing scope's own node for a captured value — one per node,
     // in the order the body first names them — and each read of it in the
     // body `['frame', i]`, one node per slot. A primitive is no slot:

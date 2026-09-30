@@ -30,7 +30,7 @@ JavaScript syntax does not itself admit it into FunctionalScript.
 
 **Implemented argument-model migration:** the
 [named-and-rest parameter plan](../spec/todo/3120-parameters.md) owns the
-implemented `['=>', length, frame, body]`, `['arg', N]` and `['rest']` contract.
+implemented `['=>', length, slots, body]`, `['arg', N]` and `['rest']` contract.
 Subjects 2 and 7 below follow that contract. The
 remaining baseline examples and operation table using `['args']` describe
 the historical zero-arity format, not the current fixed/rest target.
@@ -1123,7 +1123,7 @@ Word tags now survive only where JS genuinely has no expression spelling:
 **Status:** function-node shape and fixed/rest bindings implemented in #2237;
 the constructor's input API remains open.
 
-The body is an expression graph in `['=>', length, frame, body]`, following
+The body is an expression graph in `['=>', length, slots, body]`, following
 the [named-and-rest parameter plan](../spec/todo/3120-parameters.md).
 The three-element `["=>", frame, body]` in the historical
 [Operations](#operations) examples is superseded.

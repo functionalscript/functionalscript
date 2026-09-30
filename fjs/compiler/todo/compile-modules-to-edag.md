@@ -262,7 +262,7 @@ invocation scope: it reads fixed positions through `['arg', N]` and its tail thr
 `['rest']`. Function-local `['args']` is invalid. Module linking must not substitute
 import parameters inside that body. The slots belong to the enclosing
 scope, so linking must still reach import reads used to construct a captured frame.
-Nested frame expressions can instead capture their enclosing function's fixed/rest
+A nested function's slots can instead capture its enclosing function's fixed/rest
 bindings. Import reachability checks use the same ownership; `length` is metadata,
 not an expression to traverse.
 

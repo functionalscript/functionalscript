@@ -211,7 +211,7 @@ export const proof = {
             scope: [3, 3, 3, -1],
             shared: [0, 1],
         })
-        // The frame operand belongs to the enclosing scope; a slot read is
+        // The slots belong to the enclosing scope; a slot read is
         // a leaf of the body, one entry however many places read it.
         table(['=>', 0, [['[]', [1]]], ['[]', [['frame', 0], ['frame', 0]]]], {
             root: ['#', 3],
