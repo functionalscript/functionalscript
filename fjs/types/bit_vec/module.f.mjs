@@ -29,7 +29,7 @@
  * @import { BitOrder, PopFront, Reduce, Unpacked, Vec, _Base, _NormOp, _UnpackConcat, } from './types.ts'
  */
 
-import { bitLength, divUp, mask, maxLength, xor } from '../bigint/module.f.mjs'
+import { bitLength, divUp, mask, maxLength, roundUp8, xor } from '../bigint/module.f.mjs'
 import { compose, flip, identity } from '../function/module.f.mjs'
 import { map } from '../list/module.f.mjs'
 import { asBase, asNominal } from '../nominal/module.f.mjs'
@@ -79,6 +79,19 @@ export const bytesIn = bits => bitCount(bits) >> 3n
  * @type {(bits: bigint) => boolean}
  */
 export const isWholeBytesIn = bits => (bitCount(bits) & 0b111n) === 0n
+
+/**
+ * The bits in `bytes` whole bytes; the inverse of {@link bytesIn} on a
+ * whole-byte count.
+ *
+ * @throws On a negative `bytes`.
+ *
+ * @type {(bytes: bigint) => bigint}
+ */
+export const bitsIn = bytes => {
+    assert(bytes >= 0n, ['negative byte count', bytes])
+    return bytes << 3n
+}
 
 /** {@link maxLength} in whole bytes. */
 export const maxLengthBytes = bytesIn(maxLength)
@@ -146,6 +159,22 @@ export const vec = len => {
  * Creates an 8-bit vector from an unsigned integer.
  */
 export const vec8 = vec(8n)
+
+/**
+ * {@link vec} with `len` rounded up to whole bytes: the unsigned integer as a
+ * big-endian run of whole bytes, zero-padded at the front.
+ *
+ * @example
+ *
+ * ```js
+ * const v = wholeBytes(9n)(0x1FFn) // vec(16n)(0x1FFn)
+ * ```
+ *
+ * @throws On a negative `len`.
+ *
+ * @type {(len: bigint) => (ui: bigint) => Vec}
+ */
+export const wholeBytes = len => vec(roundUp8(bitCount(len)))
 
 /**
  * Builds a vector from a bigint whose most-significant set bit is a sentinel

@@ -29,6 +29,7 @@
  */
 
 import { changelogDir, pageHref, pageTitle, repository, shell } from '../page/module.f.mjs'
+import { cmp as versionCmp, tryParse } from '../../types/version/module.f.mjs'
 
 const zero = 0x30
 const nine = 0x39
@@ -166,40 +167,30 @@ export const linked = entry => _merged(entry.flatMap(
  * before nor after. A typo would become a page rather than a refusal, which
  * is the plausible wrong value `DESIGN.md` §10 rules out.
  *
+ * **A version is what {@link descending} can order.** The parts are
+ * [`types/version`](../../types/version/module.f.mjs)'s `tryParse`, the same
+ * definition its `cmp` refuses anything outside of, so a release admitted here
+ * never makes the sort throw.
+ *
  * @type {(name: string) => boolean}
  */
 export const isVersion = name => {
-    const parts = name.split('.')
-    return parts.length === 3
-        && parts.every(part => part.length !== 0 && [...part].every(isDigit))
+    const parts = tryParse(name)
+    return parts !== null && parts.length === 3
 }
-
-/**
- * A version as its numbers, for ordering.
- *
- * **Releases do not sort by their names.** `0.11.10` precedes `0.11.2` as
- * text and follows it as a version, and `0.1.608` lands nowhere sensible
- * among the `0.10.x` files at all. Every index that lists them has to
- * compare the numbers.
- *
- * @type {(version: string) => readonly number[]}
- */
-export const numbers = version => version.split('.').map(Number)
 
 /**
  * Newest first, which is the order a reader wants a release list in.
  *
+ * **Releases do not sort by their names.** `0.11.10` precedes `0.11.2` as
+ * text and follows it as a version, and `0.1.608` lands nowhere sensible
+ * among the `0.10.x` files at all. Every index that lists them has to
+ * compare the numbers, which [`types/version`](../../types/version/module.f.mjs)
+ * does.
+ *
  * @type {(versions: readonly string[]) => readonly string[]}
  */
-export const descending = versions => versions.toSorted((x, y) => {
-    const [p, q] = [numbers(x), numbers(y)]
-    const n = Math.max(p.length, q.length)
-    for (let i = 0; i < n; i++) {
-        const d = (q[i] ?? 0) - (p[i] ?? 0)
-        if (d !== 0) { return d }
-    }
-    return 0
-})
+export const descending = versions => versions.toSorted((x, y) => versionCmp(y)(x))
 
 /**
  * Every release with the releases either side of it, newest first.

@@ -7,7 +7,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { mask } from '../bigint/module.f.mjs'
 import { asBase, asNominal } from '../nominal/module.f.mjs'
-import { length, empty, uint, vec, lsb, msb, repeat, vec8, maxLength, maxLengthBytes, u8ListToVec, tryU8ListToVec, u8List, u8ListToVecMsb, u8ListMsb, chunkList, tailPaddedUintChunkList, fromSentinel, bytesIn, isWholeBytesIn, byteLength, isWholeBytes } from './module.f.mjs'
+import { length, empty, uint, vec, lsb, msb, repeat, vec8, maxLength, maxLengthBytes, u8ListToVec, tryU8ListToVec, u8List, u8ListToVecMsb, u8ListMsb, chunkList, tailPaddedUintChunkList, fromSentinel, bytesIn, bitsIn, wholeBytes, isWholeBytesIn, byteLength, isWholeBytes } from './module.f.mjs'
 import { repeat as listRepeat, toArray } from '../list/module.f.mjs'
 
 /** @type {(a: bigint) => Vec} */
@@ -182,6 +182,18 @@ export const proof = {
             assertEq(bytesIn(8n), 1n)
             assertEq(bytesIn(9n), 1n)
         },
+        bitsIn: () => {
+            assertEq(bitsIn(0n), 0n)
+            assertEq(bitsIn(3n), 24n)
+            assertEq(bytesIn(bitsIn(3n)), 3n)
+        },
+        // Zero, seven, eight and nine bits: no bytes, one, one, two.
+        wholeBytes: () => {
+            assertEq(wholeBytes(0n)(0xFFn), empty)
+            assertEq(wholeBytes(7n)(0x7Fn), vec8(0x7Fn))
+            assertEq(wholeBytes(8n)(0xFFn), vec8(0xFFn))
+            assertEq(wholeBytes(9n)(0x1FFn), vec(16n)(0x1FFn))
+        },
         isWholeBytesIn: () => {
             assert(!isWholeBytesIn(7n))
             assert(isWholeBytesIn(8n))
@@ -201,6 +213,8 @@ export const proof = {
         // `-1n`, and `-8n` would pass as whole bytes.
         negativeBytesIn: { throw: () => bytesIn(-1n) },
         negativeIsWholeBytesIn: { throw: () => isWholeBytesIn(-8n) },
+        negativeBitsIn: { throw: () => bitsIn(-1n) },
+        negativeWholeBytes: { throw: () => wholeBytes(-8n) },
         maxLengthBytes: () => {
             assertEq(maxLengthBytes, 131_072n)
             assert(isWholeBytesIn(maxLength))

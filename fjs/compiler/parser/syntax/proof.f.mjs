@@ -90,6 +90,28 @@ export const proof = {
                 assertEq(last[1].semicolon, true)
             },
     },
+    // A guard is a block statement tagged `if`: the token it begins with, its
+    // condition, and its block, read as a body's is, with the statements
+    // after the guard following it in the same list. It records no `;`: a
+    // block statement ends at its `}`.
+    guard: () => {
+        const { exported } = unwrap(parseSyntax(tokenizeString('export default (a) => { if (a) { return 1; } return 2; };')))
+        assert(exported !== null && exported.value[0] === '=>')
+        const body = exported.value[2]
+        assert(body[0] === 'block')
+        const [guard, last] = body[1]
+        assert(guard[0] === 'if' && last[0] === 'return')
+        assertEq(guard[1].start.metadata.column, 25)
+        const condition = guard[1].condition
+        assert(condition[0] === 'ref')
+        assertEq(condition[1].metadata.column, 29)
+        const [inner] = guard[1].block[1]
+        assert(inner[0] === 'return')
+        assertStructurallySame(inner[1].value, ['primitive', 1])
+        assertEq(inner[1].semicolon, true)
+        assertStructurallySame(last[1].value, ['primitive', 2])
+        assertEq(last[1].start.metadata.column, 46)
+    },
     // A module ending in `throw` records it where its default would be, the
     // declarations before it kept with their export markers.
     thrownModule: () => {
