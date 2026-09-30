@@ -13,8 +13,11 @@ it cannot be used as one. The original report
 asked for an [identifier-safe base64](https://en.wikipedia.org/wiki/Base64)
 alongside the other base-N encodings; `fjs/basen/cbase32` (Crockford's base32)
 has since shipped, and Base16 is tracked in
-[base16-byte-codec](./base16-byte-codec.md). No in-tree consumer needs the
-identifier variant yet.
+[base16-byte-codec](./base16-byte-codec.md). The first consumer is the
+content-addressable VM's function text
+([cavm-function-to-string](../../../spec/todo/cavm-function-to-string.md)),
+which spells a function's hash as an identifier, `$` and then the hash; it
+is a fixed-size input, so it needs no stop bit.
 
 ### Proposal
 
@@ -34,8 +37,9 @@ of a bit sequence, as `cbase32` does. Parameters to settle:
 
 ### Tasks
 
-- [ ] Name the first consumer, then add the codec under `fjs/basen/` with its
-      proof.
+- [x] Name the first consumer —
+      [cavm-function-to-string](../../../spec/todo/cavm-function-to-string.md).
+- [ ] Add the codec under `fjs/basen/` with its proof.
 
 ### Related
 
@@ -43,3 +47,5 @@ of a bit sequence, as `cbase32` does. Parameters to settle:
   — the original report.
 - [base16-byte-codec](./base16-byte-codec.md) — Base16, the other encoding this
   directory tracks.
+- [cavm-function-to-string](../../../spec/todo/cavm-function-to-string.md) —
+  the first consumer.
