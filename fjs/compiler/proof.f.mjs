@@ -1130,12 +1130,12 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     // Rust output binds an arm's `const` in the arm's own block. The value
     // outputs refuse a function as ever.
     guards: () => {
-        assertEq(compileSource('export default (a) => { if (a) { return 1; } return 2; };')('output.js'), 'export default ($a_0,...$a)=>$a_0?1:2;')
-        assertEq(compileSource('export default (a) => { if (a) { const x = [1]; return [x, x]; } return 0; };')('output.js'), 'export default ($a_0,...$a)=>$a_0?(()=>{const $b0=[1];return [$b0,$b0];})():0;')
-        assertEq(compileSource('export default (m) => { const a = [1]; if (m) { return a; } return 0; };')('output.js'), 'export default ($a_0,...$a)=>{const $a0=[1];return $a_0?$a0:0;};')
-        assertEq(compileSource('export default (a) => { if (a) { throw 1; } const y = [2]; return y; };')('output.js'), 'export default ($a_0,...$a)=>$a_0?(()=>{throw 1;})():[2];')
-        assertEq(compileSource('export default (a) => { if (a) { throw 1; } const z = [2]; return 1; };')('output.js'), 'export default ($a_0,...$a)=>$a_0?(()=>{throw 1;})():(()=>{const $b0=[2];return 1;})();')
-        assertEq(compileSource('export default (v, msg) => { if (v) { return undefined; } throw msg ?? "assertion failed"; };')('output.js'), 'export default ($a_0,$a_1,...$a)=>$a_0?undefined:(()=>{throw $a_1??"assertion failed";})();')
+        assertEq(compileSource('export default (a) => { if (a) { return 1; } return 2; };')('output.js'), 'export default ($a_0)=>$a_0?1:2;')
+        assertEq(compileSource('export default (a) => { if (a) { const x = [1]; return [x, x]; } return 0; };')('output.js'), 'export default ($a_0)=>$a_0?(()=>{const $b0=[1];return [$b0,$b0];})():0;')
+        assertEq(compileSource('export default (m) => { const a = [1]; if (m) { return a; } return 0; };')('output.js'), 'export default ($a_0)=>{const $a0=[1];return $a_0?$a0:0;};')
+        assertEq(compileSource('export default (a) => { if (a) { throw 1; } const y = [2]; return y; };')('output.js'), 'export default ($a_0)=>$a_0?(()=>{throw 1;})():[2];')
+        assertEq(compileSource('export default (a) => { if (a) { throw 1; } const z = [2]; return 1; };')('output.js'), 'export default ($a_0)=>$a_0?(()=>{throw 1;})():(()=>{const $b0=[2];return 1;})();')
+        assertEq(compileSource('export default (v, msg) => { if (v) { return undefined; } throw msg ?? "assertion failed"; };')('output.js'), 'export default ($a_0,$a_1)=>$a_0?undefined:(()=>{throw $a_1??"assertion failed";})();')
         assertEq(compileSource('export default (a) => { if (a) { throw 1; } const z = [2]; return 1; };')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",1,[],["?:",["arg",0],["throw",1],[",",[["[]",[2]],1]]]]]]];')
         assert(compileSource('export default (a) => { if (a) { const x = [1]; return [x, x]; } return 0; };')('output.rs').includes([
             '        let c0 = || {',
