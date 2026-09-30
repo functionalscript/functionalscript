@@ -5,7 +5,7 @@
  */
 
 import { exitCode } from '../effects/node/module.f.mjs'
-import { ci, main, nixJobs } from './module.f.mjs'
+import { ci, ciPath, main, nixJobs } from './module.f.mjs'
 import { actions, bun, deno, functionalscript, node, typescript, wasmer, wasmtime } from './config/module.f.js'
 import { main as ownMain, packageConsumer } from './self/module.f.mjs'
 import { major, nodeNixJobs, packageArtifact, packageJobId } from './node/module.f.mjs'
@@ -133,7 +133,6 @@ const injectedIndex = jobId => stepIndex(jobId, step => step.run === injectedLin
 const makeState = (/** @type {boolean} */ rust, /** @type {string | undefined} */ packageJson) => ({
     ...emptyState,
     root: {
-        '.github': { workflows: {} },
         ...(packageJson !== undefined ? { 'package.json': [utf8(packageJson)] } : {}),
         ...(rust ? { 'Cargo.toml': [emptyVec] } : {}),
     },
@@ -166,7 +165,7 @@ const workflowFile = (state, file) => {
 }
 
 /** @type {(state: State) => GitHubAction} */
-const workflow = state => workflowFile(state, 'ci.yml')
+const workflow = state => workflowFile(state, 'gen.ci.yml')
 
 /** @type {(state: State, id: string) => string} */
 const flake = (state, id) =>
@@ -960,11 +959,12 @@ export const proof = {
         assertEq(exitCode(result), 0)
         // The path is a constant of the module rather than a literal here, so
         // the two cannot name different files.
-        assertEq(npmPublishPath, '.github/workflows/npm-publish.yml')
+        assertEq(ciPath, '.github/workflows/gen.ci.yml')
+        assertEq(npmPublishPath, '.github/workflows/gen.npm-publish.yml')
         assertStructurallySame(
-            workflowFile(state, 'npm-publish.yml'),
+            workflowFile(state, 'gen.npm-publish.yml'),
             npmPublishWorkflow)
-        // Two workflows, kept apart. `ci.yml` gates a pull request and must
+        // Two workflows, kept apart. `gen.ci.yml` gates a pull request and must
         // never publish; the publish workflow runs one job and none of the
         // matrix. Both would be true of a single file that merged them, and
         // neither is what this generator writes.

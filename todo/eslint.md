@@ -102,7 +102,7 @@ on the compiler. They are worth writing now.
    starting from `no-unnecessary-type-assertion`.
 3. Add the three custom rules — inline `@type` cast, unknown JSDoc tag, type
    predicate — since they are what AGENTS.md already forbids and nothing checks.
-4. Add it to the generated workflow via `fjs/ci/` (not to `ci.yml` directly),
+4. Add it to the generated workflow via `fjs/ci/` (not to `gen.ci.yml` directly),
    next to `tsc` and `fjs test`.
 5. Gate the cast rule behind an allowlist of the casts
    [inline-type-casts.md](./inline-type-casts.md) keeps, each with its
