@@ -152,7 +152,13 @@ export const proof = {
         assertNoMatch(v(['=>', 0, null, 1]))
         assertNoMatch(v(['=>', 0, ['[]', []], 1]))
         assertNoMatch(v(['=>', 0, ['[]', [1]], 1]))
+        assertNoMatch(v(['=>', 0, ['[]', [['[]', []]]], 1]))
         assertNoMatch(v(['=>', 0, [['...', ['[]', []]]], 1]))
+        // the one corner the two encodings share, per the README: an old
+        // frame whose items spell a node reads as two slots, the string
+        // `'[]'` and that node — a shape the compiler never built, since
+        // its slots are all nodes and a node's first item is a tag
+        assertOk(v(['=>', 0, ['[]', ['()', null, ['[]', []]]], 1]))
     },
     // A frame slot read carries its index as `arg` does; the frame as a
     // whole is no node, so the bare `['frame']` of the previous format is

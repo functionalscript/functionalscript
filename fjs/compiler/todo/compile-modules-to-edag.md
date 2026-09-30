@@ -621,8 +621,8 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 
 #### Stage 2
 
-- [x] Use the current `['=>', length, frame, body]` schema, with `frame` a general
-      `exp`, `['frame', i]` the read of slot `i`, and fixed/rest invocation bindings.
+- [x] Use the current `['=>', length, slots, body]` schema, with `slots` an array
+      operand of `exp`s, `['frame', i]` the read of slot `i`, and fixed/rest invocation bindings.
       Metadata and binding validation are owned by
       [`fjs/edag/analysis`](../../edag/analysis/module.f.mjs).
 - [x] Lower both non-capturing functions (`null` frame) and captured values through

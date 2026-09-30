@@ -144,8 +144,15 @@ literal, or `null` for no captures — and `['frame', N]` replaces the bare
 `['frame']` binding and the `['.', ['frame'], N]` read over it. Recompile
 source or migrate function-owned `args` to `rest` and insert length `0`;
 retain module import `args`, including in module-level slots. Old tuples
-are rejected rather than reinterpreted. Earlier positive-arity/full-argument
-experiments have no general lossless migration to this format.
+are rejected rather than reinterpreted, with one corner the two encodings
+share: an old array-literal frame, `['[]', items]`, reads under this format
+as two slots, the string `'[]'` and `items`, wherever `items` itself spells
+a node — which takes a string in its first position, so a frame the
+compiler built, whose slots are all nodes, never does. A graph in that corner
+validates as two slots and is not refused; its body's reads of the old
+frame, `['.', ['frame'], N]`, still are, so only a frame no read reached is
+ever reinterpreted. Earlier positive-arity/full-argument experiments have no
+general lossless migration to this format.
 
 A function's `length` is at most 16, the language's limit: `bindingError`
 refuses a larger one. Amnesia and memo share the
