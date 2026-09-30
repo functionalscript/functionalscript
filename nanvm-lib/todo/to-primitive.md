@@ -285,8 +285,9 @@ Each needs the owner's approval before the step that depends on it.
   rest parameter the body never reads is not written, so `() => 1` is
   `()=>1`, not `(...$a)=>1`. Both denote one node, and the shorter one is
   what a reader expects.
-- **D2, the frame (question 2): code-only, approved by the owner on
-  2026-09-30.** A captured value is written as the name of its slot, `$0`,
+- **D2, the frame (question 2): code-only, approved by the owner,
+  @sasha-gil, on 2026-09-30
+  ([recorded on #2418](https://github.com/functionalscript/functionalscript/pull/2418)).** A captured value is written as the name of its slot, `$0`,
   `$1`, …, so `const make = x => () => [x];` gives every function it makes
   the text `()=>[$0]`, as JavaScript gives them one text. It is small, it
   matches JavaScript, and it needs no run-time renderer: the template has

@@ -101,7 +101,8 @@ compiler support for `self` or for rendering either as text.
 
 2. **Should `String(f)` instantiate the captured frame?**
 
-   **Answered for `String(f)`: code-only** (approved 2026-09-30). A captured
+   **Answered for `String(f)`: code-only** (approved by @sasha-gil on
+   2026-09-30, [recorded on #2418](https://github.com/functionalscript/functionalscript/pull/2418)). A captured
    value is written as its slot's name, so every function one arrow makes has
    one text; see
    [to-primitive's D2](../../nanvm-lib/todo/to-primitive.md#stage-3-a-functions-text).
