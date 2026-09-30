@@ -1599,10 +1599,13 @@ are not supported yet. A newline before `=>` is refused.
   ([operators](#operators)), which is where JavaScript's own semantics can
   tell no difference under the [failure contract](#failure-is-one-outcome).
   `(() => [1, 2])()` is `[1, 2]`, and a module holding either hashes the
-  same. A call with an argument, `(() => 1)(null.x)`, has an argument to
-  evaluate; a function with a parameter binds a name; and a body reading
-  its own rest array names what the enclosing scope does not hold — each
-  stays a call. The FunctionalScript writer uses the same idiom in reverse:
+  same. A capture a body names only through an unused alias, `const x =
+  c;` and nothing more, is no slot of its frame, in a body or in a call
+  inlined into one: the alias is dropped, so nothing reads it, and the
+  scope's `const` is anchored as one nothing reaches. A call with an
+  argument, `(() => 1)(null.x)`, has an argument to evaluate; a function
+  with a parameter binds a name; and a body reading its own rest array
+  names what the enclosing scope does not hold — each stays a call. The FunctionalScript writer uses the same idiom in reverse:
   a value shared under one lazy operand alone, which no `const` of the
   scope could hold without evaluating it whatever the operator decides, is
   written in a block opened at the operand,

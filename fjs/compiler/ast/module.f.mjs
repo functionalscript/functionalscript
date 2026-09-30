@@ -361,8 +361,12 @@ const refsOfOperand = view => ast => {
                 : refsOf(view)(read)
         }
         // a function names what it captures, the enclosing scope's own
-        // references, which it establishes when it is made
-        case '=>': { return flat((ast[3] ?? []).map(refsOf(view))) }
+        // references, which it establishes when it is made — the captures
+        // its body reads, since an unused alias of one names nothing
+        case '=>': {
+            const captures = ast[3]
+            return captures === undefined ? empty : flat(readCaptures(ast).map(i => refsOf(view)(captures[i])))
+        }
         // its arguments are its own
         case 'arg':
         case 'rest': { return empty }
@@ -420,23 +424,48 @@ const operandReadsRest = ast => {
 }
 
 /**
+ * The references a body makes, read as `view` says: every entry of the
+ * body is established — the value, and the ones the value does not reach,
+ * which the lowering anchors — so each entry's references count, but a
+ * bare alias's, which is the node it names and no code of its own, unless
+ * the alias is the value. A reference to a body `const` is resolved to the
+ * node it names, so a slot of the body's frame reached through an alias is
+ * that slot.
+ *
+ * @type {(view: _View) => (body: AstBody) => List<_Ref>}
+ */
+const bodyRefs = view => body => {
+    const nodes = body.reduce(nodeEntry([]), [])
+    return map(resolved([], nodes))(flat(body.filter((e, i) => i === body.length - 1 || !isAlias(e)).map(refsOf(view))))
+}
+
+/**
+ * The captures a function's body reads, by index into its captures, each
+ * once in the order the body first names them: the slots of its frame. A
+ * capture the parser listed that the body names only through an unused
+ * alias, `const x = c;` and nothing more, is not among them — the alias
+ * is dropped, so nothing reads the slot, and the enclosing scope's `const`
+ * is anchored there as one nothing reaches. Read anywhere counts: a lazy
+ * position, and a nested function's captures.
+ *
+ * @type {(ast: AstFunction) => readonly number[]}
+ */
+export const readCaptures = ([, , body]) =>
+    toArray(bodyRefs(every)(body)).flatMap(({ ref }) => ref[0] === 'fref' ? [ref[1]] : []).filter((i, k, all) => all.indexOf(i) === k)
+
+/**
  * The references a call the lowering inlines makes, read as `view` says:
- * every entry of the body is established where the call stands — the
- * value, and the ones the value does not reach, which the lowering anchors
- * there — so each entry's references count, but a bare alias's, which is
- * the node it names and no code of its own, unless the alias is the value.
- * A reference to a body `const` is resolved to the node it names, and a
- * slot of the body's frame is followed into the capture it holds, one key
- * deeper by the keys the reference applied.
+ * the body's, {@link bodyRefs}, with a slot of the body's frame followed
+ * into the capture it holds, one key deeper by the keys the reference
+ * applied.
  *
  * @type {(view: _View) => (ast: AstCall) => List<_Ref>}
  */
 const inlinedRefs = view => ([, callee]) => {
     const [, , body, captures = []] = /** @type {AstFunction} */ (callee)
-    const nodes = body.reduce(nodeEntry([]), [])
     /** @type {(r: _Ref) => List<_Ref>} */
     const captured = ({ ref, keys }) => ref[0] === 'fref' ? map(deeperBy(keys))(refsOf(view)(captures[ref[1]])) : empty
-    return flat(map(captured)(map(resolved([], nodes))(flat(body.filter((e, i) => i === body.length - 1 || !isAlias(e)).map(refsOf(view))))))
+    return flat(map(captured)(bodyRefs(view)(body)))
 }
 
 /** A reference one key deeper: the key as JavaScript reads it, so `0` and `"0"` are one. @type {(key: string) => (ref: _Ref) => _Ref} */

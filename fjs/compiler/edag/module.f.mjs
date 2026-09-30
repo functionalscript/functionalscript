@@ -17,7 +17,7 @@
  * @import { _Binding, _Entries, _Link, _Lowered, _LowerResults, _LowerWork, _Nodes, _Resolved } from './private.ts'
  */
 
-import { anchors, isInlinedCall } from '../ast/module.f.mjs'
+import { anchors, isInlinedCall, readCaptures } from '../ast/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { _attributeError, _importSources, _missingExport, _rootSource, _parseJson, _parseModule } from '../transpiler/module.f.mjs'
 import { foldStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
@@ -133,8 +133,12 @@ const call = nodes => ast => {
  * capture whose node is a
  * primitive is no slot at all: the primitive is written into the body where
  * the capture is read, as it is wherever a `const` holding one is read,
- * since it has nothing to share and nothing to compute. A function whose
- * frame is left with nothing has a `null` one.
+ * since it has nothing to share and nothing to compute. Nor is a capture
+ * the body never reads, `readCaptures`: one the parser listed for an
+ * unused alias, `const x = c;`, which the body drops — whether written in
+ * the body or in a call inlined into it — so that no slot is left that
+ * nothing reads, and the enclosing scope anchors the `const` instead. A
+ * function whose frame is left with nothing has a `null` one.
  *
  * Inside the body a slot is one node, `['.', ['frame'], i]`, however many
  * references reach it, over one `['frame']` for the body — the node
@@ -143,8 +147,9 @@ const call = nodes => ast => {
  * @type {(nodes: _Nodes) => (length: number, body: AstBody, captures: readonly AstConst[]) => Exp}
  */
 const fn = nodes => (length, body, captures) => {
+    const read = readCaptures(['=>', length, body, captures])
     const outer = captures.map(c => lower(nodes)(c).exp)
-    const candidates = outer.filter(n => n instanceof Array)
+    const candidates = outer.filter((n, i) => n instanceof Array && read.includes(i))
     const keys = slotKeys(candidates)
     /** Each candidate's first twin: the candidate whose slot it reads. */
     const firsts = keys.map(k => keys.indexOf(k))
@@ -154,8 +159,8 @@ const fn = nodes => (length, body, captures) => {
     /** @type {readonly Exp[]} */
     const reads = slots.map((_, i) => ['.', frameNode, i])
     /** @type {(n: typeof candidates[number]) => Exp} */
-    const read = n => reads[slots.indexOf(candidates[firsts[candidates.indexOf(n)]])]
-    const inner = outer.map(n => n instanceof Array ? read(n) : n)
+    const slotRead = n => reads[slots.indexOf(candidates[firsts[candidates.indexOf(n)]])]
+    const inner = outer.map(n => candidates.includes(n) ? slotRead(n) : n)
     return ['=>', length, slots.length === 0 ? null : ['[]', slots], scope(body, inner)]
 }
 
