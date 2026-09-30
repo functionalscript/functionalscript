@@ -53,7 +53,7 @@
  *
  * @module
  *
- * @import { Exp, ExpOp, Index, Items, Op0, Op1, Op2, Op3, Op12, Properties, TagMap } from '../types.ts'
+ * @import { Arg, Exp, ExpOp, Frame, Index, Items, Op0, Op1, Op2, Op3, Op12, Properties, TagMap } from '../types.ts'
  * @import { OptionLambda, OptionPropertyLambda, PropertyLambda } from '../types.ts'
  * @import { Analysis, IndexOperand, ItemOperand, Node, Operand, PropertyOperand, Ref, Step } from './types.ts'
  * @import { _Entry, _Handlers, _Scope, _State, _Walk } from './private.ts'
@@ -214,6 +214,9 @@ const step = scope => (state, k) => {
 /** An operation with no operands is its own entry. @type {_Walk<Op0, Node>} */
 const o0 = () => (state, e) => [state, e]
 
+/** A binding read with its index as metadata: no operand, its own entry. @type {_Walk<Arg | Frame, Node>} */
+const indexed = () => (state, e) => [state, e]
+
 /** @type {_Walk<Op1, Node>} */
 const o1 = scope => (state, [tag, a]) => {
     const [t, x] = walk(scope)(state, a)
@@ -249,8 +252,8 @@ const handlers = {
     undefined: o0,
     args: o0,
     rest: o0,
-    arg: () => (state, e) => [state, e],
-    frame: o0,
+    arg: indexed,
+    frame: indexed,
     '!': o1,
     '~': o1,
     String: o1,
@@ -412,7 +415,8 @@ export const analysis = e => {
  * Validate invocation bindings after scopes have been assigned, and each
  * function's length against the language's limit. Analysis also serves
  * isolated compiler fragments, so executable consumers call this once on the
- * complete graph. Frames keep their enclosing scope.
+ * complete graph. Frames keep their enclosing scope: a slot read names the
+ * frame of the function whose body holds it, and a module has none.
  * @type {(a: Analysis) => string | null}
  */
 export const bindingError = ({ nodes, scope }) => {
@@ -424,6 +428,11 @@ export const bindingError = ({ nodes, scope }) => {
         if (node[0] === 'arg') {
             if (owner === null || owner[0] !== '=>' || !isIndex(node[1]) || node[1] >= owner[1]) {
                 return 'invalid fixed parameter index or scope'
+            }
+        }
+        if (node[0] === 'frame') {
+            if (owner === null || owner[0] !== '=>' || !isIndex(node[1])) {
+                return 'invalid frame slot index or scope'
             }
         }
     }

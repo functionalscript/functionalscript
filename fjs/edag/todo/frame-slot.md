@@ -1,7 +1,7 @@
 ## Frame slot node
 
 **Priority:** P3
-**Status:** open
+**Status:** wip — `['frame', N]` landed with the frame operand still an `exp`; `slots[]` is the step left
 
 ### Problem
 
@@ -68,7 +68,13 @@ one special case the compiler and the serializer both carry.
 Why not stop at `['frame', N]` and keep the frame an `exp`: it closes the
 gap on the reading side and leaves it open on the producing side, and the
 binding check has nothing to count against unless it looks through the
-`[]` tag as the serializer does today. The two halves are one change.
+`[]` tag as the serializer does today. The two halves are one design,
+landing as two steps of one stack — the read first, the operand on top of
+it — so that each is reviewable on its own. The schema between the two,
+with the read indexed and the operand still an `exp`, is a migration step
+and not an end state: it is where the executors refuse a slot the frame
+lacks at run time, and the second step is what lets the analysis refuse it
+before anything runs.
 
 Old tuples are rejected, not reinterpreted, as the README already says of
 the previous format change: `['frame']` fails the schema once it leaves
@@ -106,25 +112,40 @@ in the same change.
 
 ### Tasks
 
-- [ ] Schema: `frame`, `func` with `slots[]`, `op0Id` without `'frame'`;
-      `types.ts` and the README's node table and binding rules.
-- [ ] Analysis: the walk, the leaf case, and `bindingError` against the
-      slot count, with proofs for an index at, below and past the count,
-      a `-0`, and a read outside a function. `refs` enumerates each slot's
-      edge on its own: `named` reads any array as a `['#', i]` reference,
-      so a slot list handed to it whole would count one edge where there
-      are several and `places` would miss sharing through a slot.
-- [ ] The operations, with both executors' proofs — amnesia's and memo's.
-- [ ] Rust backend and its proof: a direct index, `readsFrame` untouched;
-      the graph walks `operandsOf` and `withBodies` descend into the slots
-      themselves, since a slot list is no node, so that `readsArgs` sees a
-      capture of `['arg', 0]` and the closure names its `args`.
-- [ ] Compiler lowering and serializer, with the special cases removed and
-      their proofs adjusted.
-- [ ] Demo.
-- [ ] The corpus's own producers in [`fjs/nanvm`](../../nanvm/module.f.mjs),
-      `lambdaExp` and `functionExp`, which build the smallest closure and a
-      callback's function by hand, with the corpus proofs on both executors.
+The two halves land as two steps: the slot read first, with the frame
+operand still a general `exp`, then the operand.
+
+- [x] Schema: `frame`, `op0Id` without `'frame'`; `types.ts` and the
+      README's node table and binding rules.
+- [x] Analysis: the leaf case, and `bindingError` refusing a read outside a
+      function and an index that is no canonical index.
+- [x] The operations, with both executors' proofs — amnesia's and memo's:
+      a slot read, and a read past the end refused rather than answered
+      with `undefined`.
+- [x] Rust backend and its proof: a direct index, `readsFrame` untouched.
+- [x] Compiler lowering and serializer, with the slot-read special cases
+      removed and their proofs adjusted.
+- [x] Demo.
+- [ ] Schema: `func` with `slots[]`, `[]` for no captures; `types.ts` and
+      the README.
+- [ ] Analysis: the walk over the slots, and `bindingError` against the
+      slot count, with proofs for an index at, below and past the count.
+      `refs` enumerates each slot's edge on its own: `named` reads any
+      array as a `['#', i]` reference, so a slot list handed to it whole
+      would count one edge where there are several and `places` would
+      miss sharing through a slot.
+- [ ] The `=>` operation evaluating each slot; the Rust backend's
+      `frameExpr` over the list, the "not an array literal" and shared-frame
+      refusals gone; the compiler's `fn` emitting the list; the serializer's
+      `frameNames` over it, `frameItems` and the `[]` check gone; the demo's
+      one edge per slot. The Rust graph walks `operandsOf` and `withBodies`
+      descend into the slots themselves, since a slot list is no node, so
+      that `readsArgs` sees a capture of `['arg', 0]` and the closure names
+      its `args`.
+- [ ] Every proof with a `null` frame, and the corpus's own producers in
+      [`fjs/nanvm`](../../nanvm/module.f.mjs), `lambdaExp` and
+      `functionExp`, which build the smallest closure and a callback's
+      function by hand, with the corpus proofs on both executors.
 - [ ] `npm run gen`, the full check set, and a `Changelog:` section
       declaring the break.
 - [ ] Reconcile every document that still spells the old form as the
