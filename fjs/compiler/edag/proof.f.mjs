@@ -14,7 +14,7 @@ import { memo } from '../../edag/memo/module.f.mjs'
 import { vm } from '../../edag/amnesia/module.f.mjs'
 import { tryModuleStringify } from '../serializer/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
-import { _defaultExport, resolve, unresolved } from './module.f.mjs'
+import { _defaultExport, _moduleExports, _moduleThrows, resolve, unresolved } from './module.f.mjs'
 import { _graphOf, _shapeOf, demo, examples } from './demo.f.mjs'
 import { _crossings, graphOf } from '../../website/demo/graph/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
@@ -862,6 +862,45 @@ export const proof = {
         for (let i = 0; i < 20000; i++) { otherwise = ['?:', 1, 2, otherwise] }
         expectElseChain(20000)(lowered(otherwise))
     },
+    // A `throw` lowers to the EDAG's own `['throw', v]`, the node a body or
+    // a module that ends in the statement is: a body's value, with the
+    // `const`s it does not reach anchored before it as any body's are; a
+    // module's computation in place of its export object, with no export
+    // for a name to select — importing one from it is refused, and an
+    // import for its effect alone anchors the throw in the importer.
+    throws: {
+        body: () => {
+            expectEdag(compile('export default () => { throw 1; };').edag, ['=>', 0, null, ['throw', 1]])
+            /** @type {Exp} */
+            const x = ['.', ['rest'], 0]
+            expectEdag(compile('export default (...a) => { const x = a[0]; throw [x, x]; };').edag, ['=>', 0, null, ['throw', ['[]', [x, x]]]])
+            expectEdag(compile('export default () => { const x = []; throw 1; };').edag, ['=>', 0, null, [',', [['[]', []], ['throw', 1]]]])
+            expectEdag(lowered(['throw', 1]), ['throw', 1])
+        },
+        module: () => {
+            const { imports, edag } = unresolved(unwrap(parse('')('throw "x";')))
+            assertEq(imports.length, 0)
+            expectEdag(edag, ['throw', 'x'])
+            expectEdag(unresolved(unwrap(parse('')('const a = []; throw 1;'))).edag, [',', [['[]', []], ['throw', 1]]])
+            expectEdag(unresolved(unwrap(parse('')('export const a = [1]; throw a;'))).edag, ['throw', ['[]', [1]]])
+            // the module helpers: no export, and the throw is its own selection
+            assertStructurallySame(_moduleExports(['throw', 1]), [])
+            assertStructurallySame(_moduleExports([',', [['[]', []], ['throw', 1]]]), [])
+            assertEq(_moduleThrows(['throw', 1]), true)
+            assertEq(_moduleThrows([',', [['[]', []], ['throw', 1]]]), true)
+            assertEq(_moduleThrows([',', [['[]', []], ['{}', []]]]), false)
+            assertEq(_moduleThrows(1), false)
+            /** @type {Exp} */
+            const t = ['throw', 1]
+            assert(_defaultExport(t) === t)
+        },
+        linked: () => {
+            const dep = file('throw "boom";')
+            assertEq(linkRefusal({ 'main.f.js': file('import d from "./dep.f.js"; export default d;'), 'dep.f.js': dep })('main.f.js'), 'module has no default export at no position')
+            assertEq(linkRefusal({ 'main.f.js': file('import { a } from "./dep.f.js"; export default a;'), 'dep.f.js': file('export const a = 1; throw a;') })('main.f.js'), 'module has no a export at no position')
+            expectEdag(program({ 'main.f.js': file('import {} from "./dep.f.js"; export default 1;'), 'dep.f.js': dep })('main.f.js'), [',', [['throw', 'boom'], 1]])
+        },
+    },
     demo: {
         /**
          * `_shapeOf` against hand-built `Exp` values, not source text: most
@@ -1026,6 +1065,11 @@ export const proof = {
                     assertEq(shape.label, tag)
                     assertStructurallySame(shape.children, [['operand', ['a']]])
                 }
+                // `throw` is an `op1` whose port names what the operand is
+                // to the failure: its value, not an operand it computes from.
+                const thrown = nodeShapeOf(['throw', ['a']], 'throw')
+                assertEq(thrown.label, 'throw')
+                assertStructurallySame(thrown.children, [['value', ['a']]])
             },
             // A sample across Op2's range, not all twenty-one tags: the
             // dispatch is one membership test per group, so one tag from

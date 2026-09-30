@@ -16,8 +16,13 @@
 import { node, typescript } from '../config/module.f.js'
 import { install, test, ubuntuArm, uses } from '../common/module.f.mjs'
 
-/** Where the pipeline writes the workflow below. */
-export const npmPublishPath = /** @type {const} */ ('.github/workflows/npm-publish.yml')
+/**
+ * Where the pipeline writes the workflow below. npm's trusted publishing binds
+ * a package to this exact filename, so renaming it is a change to every
+ * publishing project's npm settings as well, and a mismatch fails only at
+ * publish time.
+ */
+export const npmPublishPath = /** @type {const} */ ('.github/workflows/gen.npm-publish.yml')
 
 /**
  * The branch a publish follows. The version in `package.json` is the single

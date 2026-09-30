@@ -35,9 +35,10 @@ import type {
 // the shape exactly.
 
 /**
- * The words a rule requires in some position — six framing a module and
- * `return` framing a function's block body and `as` an import alias — which the grammar has to tell
- * apart from an ordinary identifier.
+ * The words a rule requires in some position — six framing a module,
+ * `return` and `throw` ending a function's block body, `throw` a module
+ * too, and `as` an import alias — which the grammar has to tell apart from
+ * an ordinary identifier.
  *
  * The tokenizer emits these words as `{ kind: 'id' }` with the word in `value`, so
  * a parser layer keyed on `kind` alone would give them the same symbol as any
@@ -46,7 +47,7 @@ import type {
  * their own, which is what a registered alphabet allows: a name's symbol comes
  * from its position in the list, so a name has no length limit.
  */
-export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return' | 'as'
+export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return' | 'throw' | 'as'
 
 type _KeywordsAreComplete = Assert<Equal<(typeof _framingKeywords)[number], _FramingKeyword>>
 
@@ -360,7 +361,13 @@ export type End = Option<readonly [number]>
  * binds names the way a module does, and which scope a name lands in is the
  * fold's answer, not the grammar's.
  */
-export type Block = readonly [number, RepeatFrom<0, typeof constStatement>, number, Value, End, number]
+export type Block = readonly [number, RepeatFrom<0, typeof constStatement>, Terminator, number]
+
+/** The statement a block ends with: `return` or `throw`, its value, and {@link End}. */
+export type Terminator = {
+    readonly return: readonly [number, Value, End]
+    readonly throw: readonly [number, Value, End]
+}
 
 /**
  * The one rest parameter, when a function has one: `...` and the
@@ -398,8 +405,15 @@ export type Func = readonly [Parameters, number, number, Body]
 // produces while every file still compiles.
 type _FuncParameterIsAName = Assert<Equal<Parameter[1], typeof identifierName>>
 
-/** An export and the declarations after a named export; default ends the module. */
-export type ExportStatement = () => readonly ['const', readonly [number, {
-    readonly default: readonly [number, Value, End]
-    readonly named: readonly [typeof constStatement, RepeatFrom<0, typeof constStatement>, Option<Rule>]
-}]]
+/**
+ * What a module ends with: `export` and the default, or an exported `const`,
+ * the declarations after it and optionally this rule again — or `throw`
+ * and its value, in place of the exports.
+ */
+export type LastStatement = () => readonly ['const', {
+    readonly export: readonly [number, {
+        readonly default: readonly [number, Value, End]
+        readonly named: readonly [typeof constStatement, RepeatFrom<0, typeof constStatement>, Option<Rule>]
+    }]
+    readonly throw: readonly [number, Value, End]
+}]

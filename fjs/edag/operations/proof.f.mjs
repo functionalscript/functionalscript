@@ -107,6 +107,8 @@ export const proof = {
         frameSlotPastTheEnd: () => run(['frame', 1]),
         frameSlotNotAnIndex: () => run(['frame', -0]),
         frameNotAnArray: () => operation({ ...values, frame: 'F' })(['frame', 0]),
+        // The language's `throw`: its operand is the thrown value.
+        thrown: () => run(['throw', 1]),
         escapingStep: () => run(['?.', null, 'a', ['|!()', []]]),
         ownKey: () => run(['own', {}, 1]),
         ownNullish: () => run(['own', null, 'a']),

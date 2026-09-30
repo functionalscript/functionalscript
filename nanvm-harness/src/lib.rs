@@ -43,6 +43,7 @@ pub mod fixtures {
     pub mod rest_function;
     pub mod sharing;
     pub mod string;
+    pub mod throw;
     pub mod throws;
     pub mod to_string;
 }
@@ -178,7 +179,7 @@ mod tests {
             arity, array, at, boolean, call, calls, closure, escapes, exports, function,
             function_scope, lazy, length, method, missing, named, named_imports,
             named_imports_throws, nested, not_a_function, nullish, number, object, operators,
-            parameters, property, rest, rest_function, sharing, string, throws, to_string,
+            parameters, property, rest, rest_function, sharing, string, throw, throws, to_string,
         },
         run,
     };
@@ -235,6 +236,17 @@ mod tests {
             run::<Naive>(nullish::module, "default", Action::Read),
             Err(RunError::Thrown(_))
         ));
+    }
+
+    /// The language's own `throw`: a function whose block body ends in the
+    /// statement fails with the value when called, and the module, calling
+    /// it at load, answers that value — `7`, the argument it threw.
+    #[test]
+    fn compiled_throw_statement_is_reported() {
+        assert_eq!(
+            run::<Naive>(throw::module, "default", Action::Read),
+            Err(RunError::Thrown(Number::from(7.0).to_any()))
+        );
     }
 
     /// Every eager operator, computed by `nanvm-lib` from the compiled

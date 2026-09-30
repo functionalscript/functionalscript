@@ -15,7 +15,7 @@ import { toArray } from '../../../types/list/module.f.mjs'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
     _ordinaryTokenNames as names, access, array, attribute, block, body, circuitTail, conditionalTail, constStatement,
-    djsModule, exportStatement, func, group, identifier, importStatement, index, items, key, member, object, parameters, paren,
+    djsModule, func, group, identifier, importStatement, index, items, key, lastStatement, member, object, parameters, paren,
     parenGroup, parenthesized, primitive, sym, symbolOf, value,
 } from './module.f.mjs'
 
@@ -78,7 +78,7 @@ export const proof = {
         parser(attribute)
         parser(/** @type {Rule} */ (importStatement))
         parser(/** @type {Rule} */ (constStatement))
-        parser(/** @type {Rule} */ (exportStatement))
+        parser(/** @type {Rule} */ (lastStatement))
     },
     // One symbol per name, all distinct, all above every code point; a
     // framing keyword is not an identifier's symbol, and the token rides
@@ -272,6 +272,25 @@ export const proof = {
         assertStructurallySame(read('export default (...a) => { return\na; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { return // c\na; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { return /* x\ny */ a; };'), ['ok'])
+        // `throw` ends a block as `return` does, one or the other and
+        // nothing after either, and a module in place of its exports —
+        // after its `const`s, exported or not, with nothing after it. The
+        // line terminator JavaScript forbids after `throw` is the reader's
+        // to see, as it is after `return`.
+        assertStructurallySame(read('export default (...a) => { throw a };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { const x = 1; throw x; };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { throw; };'), ['error', ';'])
+        assertStructurallySame(read('export default (...a) => { throw a; return a; };'), ['error', 'return'])
+        assertStructurallySame(read('export default (...a) => { return a; throw a; };'), ['error', 'throw'])
+        assertStructurallySame(read('export default (...a) => { throw\na; };'), ['ok'])
+        assertStructurallySame(read('throw 1;'), ['ok'])
+        assertStructurallySame(read('throw 1'), ['ok'])
+        assertStructurallySame(read('import a from "./a.f.js"; const b = a; throw b;'), ['ok'])
+        assertStructurallySame(read('export const a = 1; const b = a; throw b;'), ['ok'])
+        assertStructurallySame(read('throw;'), ['error', ';'])
+        assertStructurallySame(read('throw 1; export default 2;'), ['error', 'export'])
+        assertStructurallySame(read('export default 2; throw 1;'), ['error', 'throw'])
+        assertStructurallySame(read('throw 1; const a = 1;'), ['error', 'const'])
     },
     // Any value takes accesses, `.name` and `[key]`, trivia allowed around
     // each token since a value ends with its own, and a key is a string or
@@ -485,7 +504,7 @@ export const proof = {
     // too — the order is the module's rule, not lookahead's.
     statements: () => {
         parser(/** @type {Rule} */ (repeatFrom0({ importStatement, constStatement })))
-        parser(/** @type {Rule} */ (exportStatement))
+        parser(/** @type {Rule} */ (lastStatement))
     },
     throw: {
         eofRejected: () => symbolOf({ token: { kind: 'eof' }, metadata: { path: 'a.js', line: 1, column: 1 }, newline: false }),

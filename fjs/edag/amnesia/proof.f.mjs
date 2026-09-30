@@ -126,6 +126,10 @@ export const proof = {
         eq(['typeof', 'a'], 'string')
         eq(['typeof', ['[]', []]], 'object')
         eq(['typeof', identity], 'function')
+        // `throw` in a lazy position is not established, as nothing there
+        // is; where it is, it fails — `throw.thrown` below.
+        eq(['?:', true, 1, ['throw', 2]], 1)
+        eq(['&&', false, ['throw', 2]], false)
     },
     // `o12` — the node's length picks the operation. The unary arms coerce
     // with `ToNumber`, so a string operand pins that they are not the binary
@@ -612,6 +616,10 @@ export const proof = {
         eq(['()', ['()', add, ['[]', [2]]], ['[]', [3]]], 5)
     },
     throw: {
+        // The language's own `throw`: the operand is established, then the
+        // operation fails with it — an array here, so that the case shows
+        // the operand was built before the throw.
+        thrown: () => ev(['throw', ['[]', [1]]]),
         // The index of a `?.` whose input is *not* nullish is evaluated, the
         // mirror of `optionRegion.skips`'s skipped operands.
         evaluatedIndex: () => ev(['?.', ['{}', []], boomIndex]),

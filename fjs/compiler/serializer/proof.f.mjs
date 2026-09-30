@@ -480,6 +480,45 @@ export const proof = {
     // Every refusal, by the message it carries: a node kind with no spelling
     // yet, a position a spelling has none in, and a key no literal reads
     // back. Each names the feature that replaces it.
+    // A scope whose value is a `throw` node ends in the statement it came
+    // from, `throw v;` where `return v;` or `export default v;` would stand
+    // — a body always a block, since the statement has no expression form —
+    // with the `const`s the scope needs before it as ever. Anywhere else
+    // the node is the call of a function that throws, JavaScript's one
+    // spelling of an expression that fails: it reads back as that call and
+    // fails at the same point (`throw.nested` below), so that round trip is
+    // by behaviour and not by table.
+    throws: () => {
+        writes(['=>', 0, null, ['throw', 1]], 'export default (...$a)=>{throw 1;};')
+        writes(['=>', 0, null, ['throw', ['[]', [1]]]], 'export default (...$a)=>{throw [1];};')
+        writes(['=>', 0, null, [',', [['[]', []], ['throw', 1]]]], 'export default (...$a)=>{const $a0=[];throw 1;};')
+        writes(['throw', 'x'], 'throw "x";')
+        // `null` is a value to throw, not the absence of one
+        writes(['throw', null], 'throw null;')
+        writes(['=>', 0, null, ['throw', null]], 'export default (...$a)=>{throw null;};')
+        assertEq(unwrap(tryModuleStringify(['throw', null])), 'throw null;')
+        writes([',', [['[]', []], ['throw', 1]]], 'const $0=[];throw 1;')
+        // a shared constructor the throw holds is hoisted before the statement
+        /** @type {Exp} */
+        const o = ['{}', []]
+        writes(['throw', ['[]', [o, o]]], 'const $0={};throw [$0,$0];')
+        // the module writer takes a throwing module to the same text
+        assertEq(unwrap(tryModuleStringify(['throw', 'x'])), 'throw "x";')
+        assertEq(unwrap(tryModuleStringify([',', [['[]', []], ['throw', 1]]])), 'const $0=[];throw 1;')
+        // nested: the call of a function that throws, read back as one
+        const text = unwrap(tryStringify(['[]', [['throw', 1]]]))
+        assertEq(text, 'export default [(()=>{throw 1;})()];')
+        const { edag } = unresolved(unwrap(parse(path)(text)))
+        assertStructurallySame(_defaultExport(edag), ['[]', [['()', ['=>', 0, null, ['throw', 1]], ['[]', []]]]])
+        assertEq(unwrap(tryStringify(['=>', 0, null, ['[]', [['throw', ['rest']]]]])), 'export default (...$a)=>[(()=>{throw $a;})()];')
+    },
+    throw: {
+        // the call a nested `throw` is written as fails where the node does
+        nested: () => {
+            const { edag } = unresolved(unwrap(parse(path)(unwrap(tryStringify(['[]', [['throw', 1]]])))))
+            memo(analysis(_defaultExport(edag)))({ frame: null, args: [] })
+        },
+    },
     refuses: () => {
         // A node kind this writer has no spelling for, which is how the
         // feature that adds one is made to add its spelling here too.

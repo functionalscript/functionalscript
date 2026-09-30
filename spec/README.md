@@ -125,6 +125,9 @@ All execution failures are one indistinguishable semantic outcome:
 throw A ≡ throw B ≡ memory failure ≡ time failure
 ```
 
+`throw value;` is the statement that reaches this outcome on purpose
+([functions](#functions)); an operation that fails, `null.x` or `1n / 0n`,
+reaches it by accident, and the two are not distinguished.
 Error types, messages, stacks, source positions, the first failing operation
 and the work performed before failure are not language-level observations.
 Operational diagnostics may report a cause, but cannot become program values
@@ -458,6 +461,7 @@ the selected value (below):
 |A module holding|`.json`|`.data.js`|`.js`|`.edag.data.js`|`.rs`|
 |----------------|-------|----------|-----|---------------|-----|
 |a function|refused|refused|written|written|written|
+|a `throw` at module level|refused|refused|written|written|written|
 |a call|refused|refused|refused|written|written|
 |unary `-`|computed|computed|written|written|written|
 |any other operator|refused|refused|refused|written|written|
@@ -465,7 +469,10 @@ the selected value (below):
 |a `bigint`|refused|written|written|written|written, a literal within `i64`|
 
 A value output refuses a function, which neither DataJS nor JSON can spell
-(`a function has no value`), and a call or an operator other than unary `-`,
+(`a function has no value`), a module that ends in `throw`, whose load fails
+as one reaching `null.x` does (`throw "boom"`, naming the value thrown, or
+`throw an array`, `throw an object` for a container)
+([module structure](#module-structure)), and a call or an operator other than unary `-`,
 whose result is the interpreter's to compute
 ([`interpret-edag.md`](../fjs/compiler/todo/interpret-edag.md)): `a call has no
 value`, `an operator has no value`. It computes unary `-` over a primitive, as
@@ -607,7 +614,7 @@ module boundary, from which a default import selects the document.
 Comments are [trivia](#whitespace-and-line-terminators). Their text does not
 become an AST value, but the parser preserves line-terminator information
 needed by JavaScript's grammar. A line break inside a block comment counts at
-a restricted boundary too, such as after `return` or before `=>`
+a restricted boundary too, such as after `return` or `throw`, or before `=>`
 ([functions](#functions)).
 
 ```js
@@ -678,7 +685,7 @@ tokens would otherwise read as one: `const a`, not `consta`
 ([property access](#property-access)).
 
 The exceptions are the boundaries JavaScript restricts, before `=>` and after
-`return`, where a line break is refused ([functions](#functions)). There the
+`return` and `throw`, where a line break is refused ([functions](#functions)). There the
 trivia is a line break if a newline of any of the three forms stands in it,
 inside a block comment or not ([comments](#comments)).
 
@@ -1579,15 +1586,61 @@ are not supported yet. A newline before `=>` is refused.
   an object, so the spelling is refused rather than read another way, and the
   object is written in parentheses instead ([grouping](#grouping)) —
   `(...args) => ({ a: 1 })`, as in JavaScript. The block
-  is any number of `const` statements and then one `return`, each ended as
+  is any number of `const` statements and then one terminating statement, a
+  `return` or a `throw` (below), each ended as
   every statement is — by its `;`, or by the newline before the next
-  statement, and the `return`'s by the `}`
+  statement, and the last one's by the `}`
   ([module structure](#module-structure)) — and an object literal is an
   ordinary value again, since after `return` JavaScript expects an
   expression. `return` and the value share a line: a newline between them
   ends the statement in JavaScript, which would return `undefined`, so it is
   refused here rather than read another way, exactly as a newline before
-  `=>` is.
+  `=>` is. Nothing follows the terminating statement: a statement after it
+  is unreachable, and JavaScript's admitting the text does not make it
+  anything but a mistake.
+- **`throw value;`** terminates a block as `return value;` does, and a
+  function whose body ends in it fails at every call — the one failure
+  outcome the language has ([failure is one outcome](#failure-is-one-outcome)),
+  reached on purpose, as a panic on a broken invariant rather than an
+  expected error, which travels as a value
+  ([`fjs/AGENTS.md` §1.5](../fjs/AGENTS.md#15-never-use-trycatch-test-throwing-with-the-throw-key)).
+  Everything else about it is JavaScript's, read as `return` is: the value
+  is any expression and is evaluated first, so `throw f(x)` calls `f` before
+  failing; `throw` and its value share a line, since JavaScript's restricted
+  production forbids a line terminator between them, and `throw;` with no
+  value is not JavaScript; and nothing in the language catches the value,
+  so the language promises the failure and not the payload, which an
+  executor carries out of band for a human or a test runner to read.
+
+  ```js
+  export const todo = () => { throw "not implemented"; };
+  export const checked = (n) => {
+      const half = n / 2;
+      throw ["not yet", half];
+  };
+  ```
+
+  The body lowers to the node `['throw', v]`, an operation of one operand
+  that always fails, and it follows the positional laziness every operator
+  has: in an eager position it is evaluated and fails, and in a lazy one —
+  an arm of `?:`, the right operand of `&&`, `||` or `??` — it is not
+  established unless JavaScript would establish it, so
+  `c ? 1 : (() => { throw 0; })()` is `1` under a true `c`. The
+  FunctionalScript writer spells the node in a terminating position, a
+  block's or [the module's](#module-structure), as the statement it came
+  from, and anywhere else — wherever a graph puts one, and an arm of `?:`
+  once `if` lowers there — as the call of a function that throws,
+  `(() => { throw v; })()`: JavaScript's one spelling of an expression that
+  fails, and FunctionalScript itself, so the text reads back and fails at
+  the same point — as the call of a function that throws, which is what
+  the text says, not as the node it was written from, so a second pass of
+  the `.js` writer over it waits on that writer's spelling for a call, the
+  gap [output](#output) records, not on anything of `throw`'s. That is the
+  writer's spelling, not a second source form:
+  `throw` is a statement only, and an expression that must fail goes
+  through a function that throws, as in JavaScript. The EDAG output carries
+  the node, and the Rust output fails as the VM fails
+  ([output](#output)).
 - A function **carries no name**. Its EDAG is `['=>', length, frame, body]`,
   name-erased, so the function in `{ make: () => 0 }.make`, in
   `const hello = () => 0` and in `export default () => 0` is the same node,
@@ -1716,7 +1769,7 @@ followed by `(7)` on the next line is the call `f(7)`, and `[1]` followed by
 `[0]` is an index — a `;` is inserted only where the parser cannot continue
 the statement, never at a newline as such — except at the two boundaries of
 this language where JavaScript forbids one, before `=>` and after `return`
-([line terminators](#whitespace-and-line-terminators)).
+or `throw` ([line terminators](#whitespace-and-line-terminators)).
 
 [DataJS](./datajs/README.md) *requires* the `;` after every statement, and
 every DataJS document must be a valid FunctionalScript module —
@@ -1751,6 +1804,7 @@ so every DataJS document parses here.
 |constant|`const name = expression;`|
 |named export|`export const name = expression;`|
 |default export|`export default expression;`|
+|throw|`throw expression;`|
 
 ```js
 import base from "./base.f.js";    // imports first
@@ -1761,8 +1815,21 @@ export default [base, extra];      // optional, at most one, last
 ```
 
 These statement forms are the whole language. A statement begins with `import`,
-`const`, or `export`, and never with a value; more forms land as the language
-grows ([`spec/todo/`](./todo/README.md)).
+`const`, `export`, or `throw`, and never with a value; more forms land as the
+language grows ([`spec/todo/`](./todo/README.md)).
+
+JavaScript accepts `throw` at the top level of a module, and
+[a module is a function](#a-module-is-a-function), so a block's rule
+([functions](#functions)) is the module's: after its imports and every
+`const`, exported or not, `throw expression;` may stand where
+`export default` would, in place of it and not beside it, and nothing
+follows it. Such a module fails at every load and exports nothing: a module
+that imports it fails to load too, as one importing a module that reads
+`null.x` at load does, and a name imported from it is refused at link as
+an export the module does not have. The graph outputs write it, as they
+write a module holding `const c = null.x;`, since they evaluate none of it,
+and the value outputs, which evaluate, refuse it as they refuse that module
+([output](#output)).
 
 ### A Module Is a Function
 
@@ -1770,7 +1837,8 @@ A module is one function, and the compiler reads it that way. Its imports are
 its parameters, in source order; its constants are the constants of its body;
 and what it returns is the object of its exports
 ([exporting a value](#exporting-a-value)), `export default` being that
-object's `default` member. So a module's imports and constants are one scope,
+object's `default` member — or, where the module ends in `throw`, it
+returns nothing and fails, as a function whose body ends in `throw` does. So a module's imports and constants are one scope,
 as a function's parameters and body constants are: one namespace, each name
 bound once, and a name used only after it is declared.
 

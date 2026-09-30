@@ -41,6 +41,9 @@ export const op1Rust = {
     '~': a => `Any::bitwise_not(${a})`,
     typeof: a => `Any::typeof_(${a})`,
     String: a => `${a}.to_string().map(|v| v.to_any())`,
+    // The `Result` every operation answers, its `Err` arm: the thrown value
+    // is the operand, and the enclosing `?` or function carries it out.
+    throw: a => `Err(${a})`,
 }
 
 /**

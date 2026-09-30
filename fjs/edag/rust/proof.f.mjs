@@ -196,6 +196,21 @@ export const proof = {
                 'let c0 = || bigint_any(1) / bigint_any(0);',
                 'Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), c0)',
             ])
+        // `throw` is the `Err` arm of the `Result` every operation answers:
+        // in an arm of `?:` it is a thunk like any lazy operand, and where
+        // a scope ends in one the scope answers that `Err`.
+        assertStructurallySame(
+            scoped(['?:', true, 1, ['throw', 2]]),
+            [
+                'let c0 = || Err(f64_any(0x4000000000000000));',
+                'Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), c0)',
+            ])
+        // the value is evaluated before the failure, so a container is
+        // established first, as one is under any other operator
+        assertStructurallySame(scoped(['throw', ['[]', [1]]]), [
+            'let c0: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();',
+            'Err(c0)',
+        ])
         assertEq(
             printed(['?:', ['&&', true, false], ['||', false, 1], 2]),
             'Any::conditional((Any::logical_and(true.to_any(), || Ok(false.to_any()))), || Any::logical_or(false.to_any(), || Ok(f64_any(0x3ff0000000000000))), || Ok(f64_any(0x4000000000000000)))')

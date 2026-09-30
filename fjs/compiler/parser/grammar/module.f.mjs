@@ -3,13 +3,14 @@
  * `fjs/ebnf/ll1`, which `../syntax/module.f.mjs` reads a module with:
  *
  * ```text
- * module ::= import* const* export eof
+ * module ::= import* const* last eof
  * import ::= 'import' clause 'from' string [ 'with' '{' id ':' string '}' ] end
  * clause ::= named | id [ ',' named ]
  * named  ::= '{' [ items(binding) ] '}'
  * binding ::= id [ 'as' id ]
  * const  ::= 'const' id '=' value end
- * export ::= 'export' ( 'default' value end | const const* [ export ] )
+ * last   ::= 'export' ( 'default' value end | const const* [ last ] )
+ *          | 'throw' value end
  * end    ::= [ ';' ]
  * value  ::= '-' unaryOperand tail | '~' unaryOperand tail
  *          | (primitive | array | object) access* powTail tail
@@ -25,7 +26,8 @@
  * unaryOperand ::= '-' unaryOperand | '~' unaryOperand
  *          | (primitive | id | array | object) access*
  *          | '(' groupOperand
- * block  ::= '{' const* 'return' value end '}'
+ * block  ::= '{' const* terminator '}'
+ * terminator ::= 'return' value end | 'throw' value end
  * func   ::= [ '...' id ] ')' '=>' body
  * afterValue ::= ',' [ names ] ')' '=>' body | ')' arrowOrRest
  * arrowOrRest ::= '=>' body | access* powTail tail
@@ -113,7 +115,7 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { Access, AfterValue, ArrowOrRest, Block, Body, CircuitTail, ConditionalTail, EagerTail, End, ExportStatement, Func, Group, GroupOperand, Items, Member, ParameterNames, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Tail, Unary, UnaryOperand, Value } from './types.ts'
+ * @import { Access, AfterValue, ArrowOrRest, Block, Body, CircuitTail, ConditionalTail, EagerTail, End, Func, Group, GroupOperand, Items, LastStatement, Member, ParameterNames, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Tail, Terminator, Unary, UnaryOperand, Value } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -143,8 +145,9 @@ export const _tokenKindNames = _djsTokenKinds.filter(kind => kind !== 'eof')
  * The keywords a rule below *requires* in some position, which the
  * tokenizer emits as `id` tokens carrying the word in `value`. Kept as its
  * own list because {@link symbolOf} has to recognize exactly these values,
- * not merely encode them. Six frame a module and `return` frames a
- * function's block body; `as` introduces an import alias.
+ * not merely encode them. Six frame a module, `return` and `throw` end a
+ * function's block body — `throw` a module too — and `as` introduces an
+ * import alias.
  *
  * **A grammar over this alphabet owes them an identifier rule.** Once each
  * carries its own symbol, a rule whose identifier terminal is the bare `id`
@@ -159,7 +162,7 @@ export const _tokenKindNames = _djsTokenKinds.filter(kind => kind !== 'eof')
  * Giving a word its own symbol narrows where it is *required*, never where
  * it is *allowed*.
  */
-export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'as'])
+export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'as'])
 
 /**
  * The complete alphabet: one name per `DjsToken` kind except `eof`, plus
@@ -207,6 +210,7 @@ export const identifier = /** @type {const} */ ({
     from: sym('from'),
     with: sym('with'),
     return: sym('return'),
+    throw: sym('throw'),
     as: sym('as'),
 })
 
@@ -875,9 +879,25 @@ export const constStatement = /** @type {const} */ ([
 ])
 
 /**
+ * The statement a block ends with, {@link terminator}: `return value`, or
+ * `throw value` — the function fails with the value, the language's one way
+ * to fail on purpose ([spec: functions](../../../../spec/README.md#functions)).
+ * Each is followed by its own {@link end}. JavaScript has
+ * `throw [no LineTerminator here] Expression` exactly as it has `return`'s,
+ * so the reader refuses a value beginning a line after either the same way
+ * ({@link block}). One symbol decides between the two.
+ *
+ * @type {Terminator}
+ */
+export const terminator = /** @type {const} */ ({
+    return: [sym('return'), value, end],
+    throw: [sym('throw'), value, end],
+})
+
+/**
  * A function's block body: `{ const x = 1; return value; }` — any number of
- * `const` statements and then the one `return`
- * ([spec: functions](../../../../spec/README.md#functions)).
+ * `const` statements and then the one {@link terminator}, a `return` or a
+ * `throw` ([spec: functions](../../../../spec/README.md#functions)).
  *
  * The `const` is {@link constStatement}, the module's own rule: the body
  * binds names the way a module does, and the fold is what says the two
@@ -899,13 +919,13 @@ export const constStatement = /** @type {const} */ ([
  * whose first token began a line — the same way it refuses an `=>` after
  * one, {@link func}.
  *
- * The `return`'s {@link end} may be omitted before the `}`, as it may in
+ * The terminator's {@link end} may be omitted before the `}`, as it may in
  * JavaScript, and a `const`'s where the statement after it begins a line.
  *
  * @type {Block}
  */
 export const block = /** @type {const} */ ([
-    sym('{'), repeatFrom0(constStatement), sym('return'), value, end, sym('}'),
+    sym('{'), repeatFrom0(constStatement), terminator, sym('}'),
 ])
 
 /**
@@ -948,20 +968,34 @@ export const importStatement = /** @type {const} */ ([
     sym('import'), importClause, sym('from'), sym('string'), option(attribute), end,
 ])
 
-/** @type {ExportStatement} */
-export const exportStatement = () => ['const', [sym('export'), {
-    default: [sym('default'), value, end],
-    named: [constStatement, repeatFrom0(constStatement), option(exportStatement)],
-}]]
+/**
+ * What a module ends with, after its imports and constants: its exports —
+ * `export default value`, or an exported `const`, the statements after it,
+ * and optionally the rest of this rule again — or a `throw`, which stands
+ * where `export default` would and ends the module as it ends a block: a
+ * module is a function ([spec: a module is a
+ * function](../../../../spec/README.md#a-module-is-a-function)), so its
+ * body may end in the terminator a function's may, in place of what it
+ * would return. `export` and `throw` decide the two in one symbol.
+ *
+ * @type {LastStatement}
+ */
+export const lastStatement = () => ['const', {
+    export: [sym('export'), {
+        default: [sym('default'), value, end],
+        named: [constStatement, repeatFrom0(constStatement), option(lastStatement)],
+    }],
+    throw: [sym('throw'), value, end],
+}]
 
 /**
  * The whole module: imports first, ordinary and exported constants in order,
- * an optional `export default` last, and at least one export. Ending on
+ * and {@link lastStatement} — at least one export, or a `throw`. Ending on
  * `eof` is what makes a trailing stray token a failure.
  */
 export const djsModule = /** @type {const} */ ([
     repeatFrom0(importStatement),
     repeatFrom0(constStatement),
-    exportStatement,
+    lastStatement,
     eof,
 ])

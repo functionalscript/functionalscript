@@ -88,8 +88,11 @@ What each consumer becomes:
 - **Analysis**: `'=>'` walks the slots as `'[]'` walks its items, in the
   enclosing scope; `'frame'` joins `'arg'` as a leaf that names no operand;
   `bindingError` checks the index against the owner's slot count.
-- **Memo interpreter**: the `'=>'` operation evaluates each slot and
-  passes the list as the frame; `frame` reads one entry of it.
+- **Operations** (`fjs/edag/operations`, the one table both executors
+  run): the `'=>'` operation evaluates each slot and passes the list as
+  the frame; `frame` reads one entry of it and refuses a slot the frame
+  lacks. Amnesia and memo change nothing of their own, and both proofs
+  cover the new shapes.
 - **Rust backend**: the closure builds the frame from the slot list and
   a read indexes `A::frame(self_)` directly, no dot operation and no
   undefined case; `readsFrame` is unchanged, since the tag is.
@@ -116,8 +119,9 @@ operand still a general `exp`, then the operand.
       README's node table and binding rules.
 - [x] Analysis: the leaf case, and `bindingError` refusing a read outside a
       function and an index that is no canonical index.
-- [x] The operations, with the executors' proofs: a slot read, and a read
-      past the end refused rather than answered with `undefined`.
+- [x] The operations, with both executors' proofs — amnesia's and memo's:
+      a slot read, and a read past the end refused rather than answered
+      with `undefined`.
 - [x] Rust backend and its proof: a direct index, `readsFrame` untouched.
 - [x] Compiler lowering and serializer, with the slot-read special cases
       removed and their proofs adjusted.
