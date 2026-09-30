@@ -1,7 +1,7 @@
 ## whole-byte-vec. Padding a uint to whole bytes is spelled three ways, two of them here
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
