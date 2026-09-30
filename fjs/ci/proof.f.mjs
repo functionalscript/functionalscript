@@ -9,7 +9,7 @@ import { ci, ciPath, main, nixJobs } from './module.f.mjs'
 import { actions, bun, deno, functionalscript, node, typescript, wasmer, wasmtime } from './config/module.f.js'
 import { main as ownMain, packageConsumer } from './self/module.f.mjs'
 import { major, nodeNixJobs, packageArtifact, packageJobId } from './node/module.f.mjs'
-import { flakePath, flakeText, nixDevelop, nixShell, runPath } from './nix/module.f.mjs'
+import { flakePath, flakeText, nixDevelop, nixShell } from './nix/module.f.mjs'
 import { packageCheckJobId } from './package/module.f.mjs'
 import { npmPublishJobId, npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
@@ -36,7 +36,7 @@ const installsNix = job =>
 
 /**
  * Whether a job actually *enters* its own generated shell — some step's command
- * is `nix/<id>/run`.
+ * is `sh gen.nix/<id>/run`.
  *
  * Deliberately not the same question as `installsNix`. A job could install Nix
  * and then run its commands on the runner's own toolchain: it would look
@@ -45,19 +45,19 @@ const installsNix = job =>
  * the version check is the step that would have caught it and it is one of the
  * steps that would be missing.
  *
- * The step's **command** is its first field, which is what a `run:` line is:
- * one command (root `AGENTS.md` §7), and `nixSteps` writes the script's path
- * as that command. So this compares the first field rather than searching the
- * line — a step that merely names the path, `echo ./nix/deno/run`, is not
- * entry and is not counted. Neither is the version check, whose command is
- * `test` and which reaches the script inside a substitution; a job whose only
- * mention of its flake were that would fail here, which is the right answer
- * rather than a gap.
+ * The step's **command** is its first two fields, which is what a `run:` line
+ * is: one command (root `AGENTS.md` §7), and `nixSteps` writes `sh` and the
+ * script's path as that command. So this compares those fields rather than
+ * searching the line — a step that merely names the path,
+ * `echo ./gen.nix/deno/run`, is not entry and is not counted. Neither is the
+ * version check, whose command is `test` and which reaches the script inside
+ * a substitution; a job whose only mention of its flake were that would fail
+ * here, which is the right answer rather than a gap.
  *
  * @type {(job: Job | undefined, id: string) => boolean}
  */
 const entersFlake = (job, id) =>
-    job?.steps.some(step => step.run?.split(' ')[0] === runPath(id)) === true
+    job?.steps.some(step => step.run?.startsWith(`${nixDevelop(id, '')}`) === true) === true
 
 /**
  * Which declared flakes a job enters. Usually one; never, for a job with no
@@ -85,7 +85,7 @@ const hasExactRunInJob = (jobId, cmd) => gha =>
  * variable and nothing else — the command itself is not in it, which is the
  * property {@link hasInjected} exists to check.
  */
-const injectedLine = `${runPath(nixShell)} bash -e -c "$FJS_CI_RUN"`
+const injectedLine = nixDevelop(nixShell, 'bash -e -c "$FJS_CI_RUN"')
 
 /**
  * An injected command as it reaches the shell: that one fixed line, and the
@@ -605,12 +605,12 @@ export const proof = {
             assertStructurallySame(
                 job.steps.flatMap(step => step.run === undefined ? [] : [step.run]),
                 [
-                    `test "$(${runPath(shell)} node --version)" = "v${version}"`,
+                    `test "$(${nixDevelop(shell, 'node --version')})" = "v${version}"`,
                     // Node 26 is the one that type-checks and packs, so it is
                     // the one that also asserts a compiler before running
                     // anything.
                     ...(version === node.default
-                        ? [`test "$(${runPath(shell)} tsc --version)" = "Version ${typescript.version}"`]
+                        ? [`test "$(${nixDevelop(shell, 'tsc --version')})" = "Version ${typescript.version}"`]
                         : []),
                     ...commands.map(command => nixDevelop(shell, command)),
                     ...(id === `node${major(node.default)}`
