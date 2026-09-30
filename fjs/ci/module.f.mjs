@@ -28,7 +28,7 @@ import {
     rustWasmSteps,
     shellRustCommands,
 } from './rust/module.f.mjs'
-import { nodeMainSteps, nodeNixJobs, nodeVersionJobs } from './node/module.f.mjs'
+import { nodeNixJobs, nodeVersionJobs, platformNodeSteps } from './node/module.f.mjs'
 import {
     nixDevelop,
     nixFlakes,
@@ -210,7 +210,7 @@ const job = (rust, nodeExtra) => o => a => {
     const result = o === 'windows'
         ? [
             ...(rust ? rustPlatformSteps(o, a) : []),
-            ...nodeMainSteps(functionalscript),
+            ...platformNodeSteps(functionalscript),
             ...nodeExtra,
         ]
         : [...shellPlatformSteps(rust, o, a), ...nodeExtra.map(inShell)]
