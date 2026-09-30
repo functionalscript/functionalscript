@@ -33,6 +33,7 @@ import { definedEntries } from '../../types/object/module.f.mjs'
 import { byteLength, bytesIn, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, u8ListMsb } from '../../types/bit_vec/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../list/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
+import { cmp as versionCmp } from '../../types/version/module.f.mjs'
 import { do_, errorMessage, ioError, toIoError } from '../module.f.mjs'
 import {
     all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write,
@@ -1085,23 +1086,6 @@ export const exitStep = e =>
         return code
     })
 
-/** @type {(version: string) => readonly number[]} */
-const versionParts = version =>
-    version.replace(/^v/, '').split('.').map(Number)
-
-/**
- * Compares semantic versions numerically by major, minor, then patch.
- *
- * @type {(version: string, minimum: string) => boolean}
- */
-export const versionLessThan = (version, minimum) => {
-    const [major = 0, minor = 0, patch = 0] = versionParts(version)
-    const [minMajor = 0, minMinor = 0, minPatch = 0] = versionParts(minimum)
-    return major < minMajor || major === minMajor && (
-        minor < minMinor || minor === minMinor && patch < minPatch
-    )
-}
-
 /**
  * Reports whether an external runner needs FunctionalScript's flattened test
  * registration strategy. Node uses the native `expectFailure` option only
@@ -1113,5 +1097,5 @@ export const versionLessThan = (version, minimum) => {
 export const usesInlineTestContext = (engine, nodeVersion) => {
     if (engine === 'bun') { return true }
     if (engine !== 'node' || nodeVersion === undefined) { return false }
-    return versionLessThan(nodeVersion, '26.0.0')
+    return versionCmp(nodeVersion)('26.0.0') < 0
 }

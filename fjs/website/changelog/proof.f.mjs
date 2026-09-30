@@ -13,7 +13,7 @@ import { tryParse } from '../../media/markdown/module.f.mjs'
 import { demo } from './demo.f.mjs'
 import { utf8ToString } from '../../text/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
-import { _group, _linked, _reference, descending, isVersion, entryNode, indexPage, linked, numbers, releaseHref, releasePage, releases, spanNode } from './module.f.mjs'
+import { _group, _linked, _reference, descending, isVersion, entryNode, indexPage, linked, releaseHref, releasePage, releases, spanNode } from './module.f.mjs'
 
 const pull = /** @type {(n: string) => string} */(n => `${repository}/pull/${n}`)
 
@@ -118,7 +118,6 @@ const core = {
         beginsWithADigit: () => assertEq(isVersion('0.51.O'), false),
     },
     order: {
-        numbers: () => assertStructurallySame(numbers('0.11.10'), [0, 11, 10]),
         descending: () => assertStructurallySame(
             descending(['0.10.0', '0.11.2', '0.1.608', '0.11.10', '0.2.0']),
             ['0.11.10', '0.11.2', '0.10.0', '0.2.0', '0.1.608']),

@@ -29,6 +29,7 @@
  */
 
 import { changelogDir, pageHref, pageTitle, repository, shell } from '../page/module.f.mjs'
+import { cmp as versionCmp } from '../../types/version/module.f.mjs'
 
 const zero = 0x30
 const nine = 0x39
@@ -175,31 +176,17 @@ export const isVersion = name => {
 }
 
 /**
- * A version as its numbers, for ordering.
+ * Newest first, which is the order a reader wants a release list in.
  *
  * **Releases do not sort by their names.** `0.11.10` precedes `0.11.2` as
  * text and follows it as a version, and `0.1.608` lands nowhere sensible
  * among the `0.10.x` files at all. Every index that lists them has to
- * compare the numbers.
- *
- * @type {(version: string) => readonly number[]}
- */
-export const numbers = version => version.split('.').map(Number)
-
-/**
- * Newest first, which is the order a reader wants a release list in.
+ * compare the numbers, which [`types/version`](../../types/version/module.f.mjs)
+ * does.
  *
  * @type {(versions: readonly string[]) => readonly string[]}
  */
-export const descending = versions => versions.toSorted((x, y) => {
-    const [p, q] = [numbers(x), numbers(y)]
-    const n = Math.max(p.length, q.length)
-    for (let i = 0; i < n; i++) {
-        const d = (q[i] ?? 0) - (p[i] ?? 0)
-        if (d !== 0) { return d }
-    }
-    return 0
-})
+export const descending = versions => versions.toSorted((x, y) => versionCmp(y)(x))
 
 /**
  * Every release with the releases either side of it, newest first.
