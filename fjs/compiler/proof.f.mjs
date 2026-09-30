@@ -584,6 +584,25 @@ export const proof = {
             // the same function, a name and an arity being unobservable
             assertEq(fjsRoundTrip('export default () => 1;'), 'export default (...$a)=>1;')
         },
+        // The lazy operators and the conditional, and the block a lazy
+        // operand opens where it needs one: a call of a parameterless
+        // function written at the call, which the lowering inlines, so
+        // the text reads back as the graph it was written from — the same
+        // graph, not the same text: `(() => [1, 2])()` is the array.
+        lazy: () => {
+            assertEq(fjsRoundTrip('export default (...a) => (a[0] && a[1] || a[2]) ?? a[3];'), 'export default (...$a)=>($a[0]&&$a[1]||$a[2])??$a[3];')
+            assertEq(fjsRoundTrip('export default (...a) => a[0] ? a[1] ? 1 : 2 : a[2] ? 3 : 4;'), 'export default (...$a)=>$a[0]?$a[1]?1:2:$a[2]?3:4;')
+            assertEq(fjsRoundTrip('export default (() => [1, 2])();'), 'export default [1,2];')
+            assertEq(fjsRoundTrip('export default (() => { const x = [1]; return [x, x]; })();'), 'const $0=[1];export default [$0,$0];')
+            assertEq(fjsRoundTrip('export default (...a) => a[0] ? (() => { const x = [1]; return [x, x]; })() : 4;'), 'export default (...$a)=>$a[0]?(()=>{const $b0=[1];return [$b0,$b0];})():4;')
+            assertEq(fjsRoundTrip('export default (...a) => a[0] && (() => { const x = null.x; return 1; })();'), 'export default (...$a)=>$a[0]&&(()=>{const $b0=null.x;return 1;})();')
+            assertEq(fjsRoundTrip('export default (...a) => [(() => { const x = null.x; return 1; })()];'), 'export default (...$a)=>{const $a0=null.x;return [1];};')
+            assertEq(fjsRoundTrip('export default (...a) => a[0] ? (() => { const x = [1]; return [a[1] && x, a[2] && x]; })() : 4;'), 'export default (...$a)=>$a[0]?(()=>{const $b0=[1];return [$a[1]&&$b0,$a[2]&&$b0];})():4;')
+            assertEq(fjsRoundTrip('export default (...a) => a[0] ? (() => { const x = [1]; return [x, x, (() => { const y = [2]; return a[1] ? [y, y] : 1; })()]; })() : 4;'), 'export default (...$a)=>$a[0]?(()=>{const $b0=[2];const $b1=[1];return [$b1,$b1,$a[1]?[$b0,$b0]:1];})():4;')
+            assertEq(fjsRoundTrip('const c = []; export default (...a) => [a[0] && c, a[1] && c];'), 'const $0=[];export default (...$a)=>[$a[0]&&$0,$a[1]&&$0];')
+            assertEq(fjsRoundTrip('export default (...a) => { const y = a[0] ? [] : 1; return [y, y]; };'), 'export default (...$a)=>{const $a0=$a[0]?[]:1;return [$a0,$a0];};')
+            assertEq(fjsRoundTrip('export const f = (...a) => a[0] ? (() => { const x = [1]; return [x, x]; })() : 4; export default 1;'), 'const $0=(...$a)=>$a[0]?(()=>{const $b0=[1];return [$b0,$b0];})():4;export const f=$0;export default 1;')
+        },
         // An object's members are the graph's here and the value's there, so
         // the two outputs order them differently and hold a different number
         // of them: the value output writes the object JavaScript builds from
