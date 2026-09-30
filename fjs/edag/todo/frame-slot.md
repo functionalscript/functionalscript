@@ -157,10 +157,13 @@ operand still a general `exp`, then the operand.
       [`analysis-consumer-contract.md`](./analysis-consumer-contract.md)
       counts on, the landed stages of
       [`nanvm-lib/todo/callable-function-objects.md`](../../../nanvm-lib/todo/callable-function-objects.md),
-      the compiler's `todo/` files that name `['frame']`, and the live
+      the compiler's `todo/` files that name `['frame']`, the live
       compiler documentation — [`fjs/compiler/README.md`](../../compiler/README.md)
       and the `AstFrameRef` JSDoc in
-      [`fjs/compiler/ast/types.ts`](../../compiler/ast/types.ts).
+      [`fjs/compiler/ast/types.ts`](../../compiler/ast/types.ts) — and the
+      plans that spell the function tuple with a general frame operand:
+      [`spec/todo/3120-parameters.md`](../../../spec/todo/3120-parameters.md)
+      and [`todo/edag-stage1-flat-examples.md`](../../../todo/edag-stage1-flat-examples.md).
 - [ ] Delete this file.
 
 ### Related
