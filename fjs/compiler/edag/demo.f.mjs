@@ -27,7 +27,7 @@
  * **A primitive or an input draws inside the node that uses it.** A
  * number, a string, a boolean, a bigint, `null` or `undefined` is not a
  * node of its own but a value in its user's port, beside the operand's role; so is a scope's input —
- * `args`, `rest`, `frame`, `arg n` — marked as the terminal it is. Only an
+ * `args`, `rest`, `arg n`, `frame n` — marked as the terminal it is. Only an
  * expression that is one of these and nothing else draws one as a node,
  * having no user to sit in.
  *
@@ -70,7 +70,7 @@ import { textDemo } from '../../website/demo/module.f.mjs'
 // reconstructed from the compiler's own runtime schemas: a demo is allowed
 // the loss of automatic drift-detection a schema import would buy, for a
 // flat list of strings simple enough to check against the type file by eye.
-const op0 = new Set(['undefined', 'args', 'frame', 'rest'])
+const op0 = new Set(['undefined', 'args', 'rest'])
 const op1 = new Set(['String', 'Number', '!', '~', 'typeof'])
 const op2 = new Set([
     'own', 'is',
@@ -117,10 +117,10 @@ const unsupported = exp => ({ kind: 'unsupported', label: `${exp[0]} (not yet dr
  * **A primitive or an input is inline.** A primitive — an EDAG
  * `Primitive`, or the `undefined` operator — is a plain value, and a
  * terminal is marked as one. **A terminal's identity is its scope's**, so
- * drawing it inline loses nothing. `args`, `rest`, `frame` and `arg n` are
+ * drawing it inline loses nothing. `args`, `rest`, `arg n` and `frame n` are
  * the values a scope receives from outside it, and every reference to one
  * inside a body is that body's own: one scope never reaches another's
- * inputs except through `frame`. A node with several arrows into it would
+ * inputs except through a frame slot. A node with several arrows into it would
  * only restate what the reference's position already says. Operators, even
  * childless ones like an empty `[]`, stay nodes: two of those are two
  * values.
@@ -202,8 +202,10 @@ export const _shapeOf = e => {
             ],
         }
     }
-    // Length is metadata, while frame and lazy body are expression edges.
+    // Length is metadata, while frame and lazy body are expression edges;
+    // a fixed parameter and a frame slot are inputs, their index metadata.
     if (tag === 'arg') { return { inline: `arg ${exp[1]}`, kind: 'terminal' } }
+    if (tag === 'frame') { return { inline: `frame ${exp[1]}`, kind: 'terminal' } }
     if (tag === '=>') {
         return {
             kind: 'op', label: `=> (${exp[1]})`,
@@ -215,11 +217,11 @@ export const _shapeOf = e => {
     }
     if (typeof tag === 'string' && op0.has(tag)) {
         // `Op0Id` groups by operand count, not by meaning — its own doc in
-        // `fjs/edag` says so. `undefined` is a primitive, where `args`,
-        // `frame` and `rest` are the places a value enters a scope from
-        // outside it. A drawing wants the meaning, so `undefined` draws as
-        // the leaf every other primitive is, beside `null`, and the inputs
-        // draw as terminals of their own.
+        // `fjs/edag` says so. `undefined` is a primitive, where `args` and
+        // `rest` are places a value enters a scope from outside it. A
+        // drawing wants the meaning, so `undefined` draws as the leaf every
+        // other primitive is, beside `null`, and the inputs draw as
+        // terminals of their own.
         return tag === 'undefined' ? { inline: tag } : { inline: tag, kind: 'terminal' }
     }
     // `throw` is an `op1` in the schema, but its one operand is not an
@@ -316,7 +318,7 @@ export const _graphOf = text => {
  *   **Laziness: `?:`** both arms and not the condition — with a function's
  *   body in each, every lazy position the compiler has.
  * - **Closures** is a function that captures its enclosing parameter, read
- *   inside the body through `frame`.
+ *   inside the body through a frame slot.
  * - **Objects and properties** draws an object's keys as its ports and a
  *   property read, by name or by a string index, as a `.` node.
  * - **Imports and calls** reaches a default and a named import through the

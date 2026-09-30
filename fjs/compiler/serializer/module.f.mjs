@@ -262,11 +262,11 @@ const identifierKey = key => {
         && word.every(c => identifierStart(c) || isDigit(c))
 }
 
+/** Whether an entry reads a slot of the frame, `['frame', i]`. @type {(a: Analysis, v: Ref) => boolean} */
+const isSlotRead = (a, v) => a.nodes[v[1]][0] === 'frame'
+
 /** Whether an operand is written as a name the scope binds without a `const`: the arguments, a parameter, or a slot of the frame. @type {(a: Analysis, v: Operand) => boolean} */
 const isName = (a, v) => v instanceof Array && (['rest', 'arg'].includes(a.nodes[v[1]][0]) || isSlotRead(a, v))
-
-/** Whether an operand is the `frame` node. @type {(a: Analysis, v: Operand) => boolean} */
-const isFrame = (a, v) => v instanceof Array && a.nodes[v[1]][0] === 'frame'
 
 /**
  * The value a `throw` entry throws, where the operand is one, and `null`
@@ -280,17 +280,6 @@ const thrownValue = (a, v) => {
     if (!(v instanceof Array)) { return null }
     const node = a.nodes[v[1]]
     return node[0] === 'throw' ? [node[1]] : null
-}
-
-/**
- * Whether an entry reads a slot of the frame: `['.', ['frame'], i]`, the
- * one read of the frame the parser builds.
- *
- * @type {(a: Analysis, v: Ref) => boolean}
- */
-const isSlotRead = (a, v) => {
-    const node = a.nodes[v[1]]
-    return node[0] === '.' && node.length === 3 && isFrame(a, node[1])
 }
 
 /**
@@ -626,19 +615,17 @@ const firstChunk = first('')
 /**
  * The name the frame's slot `k` reads as in the scope `s`: the name the
  * slot's element took in the scope around the function. A slot out of
- * range, and a key no slot is, has no name to write. A `-0` key is slot
- * `0`'s: JavaScript reads the number `-0` as the key `"0"`, and so do the
- * EDAG interpreter and `nanvm-lib` (`canonical_index`), so the read is
- * written as slot `0`'s name — the same program, the table differing only
- * in the key's sign, which collapsing would be an optimization.
+ * range has no name to write. The index is a canonical one, and the read
+ * inside a function: the analysis's `bindingError` refused every other
+ * before any text was written.
  *
- * @type {(s: _Scope) => (k: Operand) => Result<string, string>}
+ * @type {(s: _Scope) => (k: number) => Result<string, string>}
  */
-const slotName = s => k => typeof k === 'number' && Number.isInteger(k) && k >= 0 && k < s.frame.length
+const slotName = s => k => k < s.frame.length
     ? ok(s.frame[k])
     : error('a frame read that is no slot')
 
-/** A read of the frame's slot `k`, written as its name. @type {(s: _Scope) => (k: Operand) => Document} */
+/** A read of the frame's slot `k`, written as its name. @type {(s: _Scope) => (k: number) => Document} */
 const slotRead = s => k => mapOk((/** @type {string} */ name) => [name])(slotName(s)(k))
 
 /**
@@ -666,7 +653,7 @@ const frameNames = s => frame => {
     const name = x => {
         if (!(x instanceof Array)) { return error('a frame slot holding a primitive') }
         if (x[0] === '...') { return error('a spread') }
-        if (isSlotRead(s.a, x)) { return slotName(s)(/** @type {Operand} */(s.a.nodes[x[1]][2])) }
+        if (isSlotRead(s.a, x)) { return slotName(s)(/** @type {number} */(s.a.nodes[x[1]][1])) }
         // every other element was hoisted before the statement holding the
         // function, so a missing name is this writer's own mistake
         return ok(assertNotNullish(nameOf(visible(s), ['entry', x[1]]), ['a frame element that was not hoisted', x]))
@@ -818,11 +805,10 @@ const entry = (s, depth) => i => {
         case 'rest': { return ok([s.param]) }
         case '[]': { return mapOk(arrayWrap)(okList(node[1].map(item(s, depth)))) }
         case '{}': { return mapOk(objectWrap)(okList(node[1].map(property(s, depth)))) }
-        case 'frame': { return error('the frame outside a slot read') }
+        case 'frame': { return slotRead(s)(node[1]) }
         case '.': {
             const [, b, k, continuation] = node
             if (continuation !== undefined) { return error('a chain step') }
-            if (isFrame(s.a, b)) { return slotRead(s)(k) }
             return mapOk(
                 /** @type {(parts: readonly List<string>[]) => List<string>} */
                 (parts => flat(parts)),

@@ -47,7 +47,7 @@ What the rendering must show, beyond a plain tree:
   result, and which operand positions are **lazy** (`"&&"`, `"||"`,
   `"??"`, `"?:"`);
 - **leaves** distinctly: constants inline in the node, and fixed `["arg", N]`,
-  `["rest"]`, `["frame"]` and module-import `["args"]` as marked terminals;
+  `["rest"]`, `["frame", N]` and module-import `["args"]` as marked terminals;
 - **nested functions as clusters**: an `["=>", length, frame, body]` node draws
   its body as a subgraph, with edges from the enclosing scope into the
   frame — making the closed-scope model visible (a body's only inbound
@@ -66,7 +66,7 @@ remain open; the format's implementation does not complete this visualizer task.
 For `['=>', length, frame, body]`, show `length` as function metadata,
 not an evaluated operand or edge. Mark `['arg', N]` and `['rest']` as
 terminals of the owning invocation; `N` is metadata bounded by that
-function's length. Retain the `['frame']` terminal; `['self']` remains a future
+function's length, as `['frame', N]`'s is by its frame's slot count. `['self']` remains a future
 terminal when that node is supported, not a currently admitted function binding.
 The frame operand stays in the enclosing scope; only the body opens a
 new function cluster. A nested function's frame can therefore read its

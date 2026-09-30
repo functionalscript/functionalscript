@@ -1004,9 +1004,8 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         inlinedCall: () => {
             assert(compileSource('const f = () => [1]; export default (...a) => a[0] ? (() => { const x = f(); return [x, x]; })() : 4;')('output.rs').includes([
                 '        let c1 = || {',
-                '            let c2: Any<A> = Any::dot(A::frame(self_).clone().to_any(), f64_any(0x0000000000000000)).end()?;',
-                '            let c3: Any<A> = Any::call(c2, Array::default().to_any())?;',
-                '            Ok([c3.clone(), c3.clone()].to_array().to_any())',
+                '            let c2: Any<A> = Any::call(A::frame(self_)[0].clone(), Array::default().to_any())?;',
+                '            Ok([c2.clone(), c2.clone()].to_array().to_any())',
                 '        };',
                 '        Any::conditional(c0, c1, || Ok(f64_any(0x4010000000000000)))',
             ].join('\n')))

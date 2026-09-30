@@ -12,7 +12,7 @@ import { analysis } from '../analysis/module.f.mjs'
 import { lazyOp2Id } from '../module.f.mjs'
 import { memo } from './module.f.mjs'
 
-const context = { frame: { x: 1 }, args: [10, 20] }
+const context = { frame: null, args: [10, 20] }
 
 /** @type {(e: Exp) => unknown} */
 const run = e => memo(analysis(e))(context)
@@ -92,17 +92,17 @@ export const proof = {
         }
     },
     // A body's slots are per call: a constructor inside is fresh per call
-    // and one within a call, and a body's `args` and `frame` are its own.
+    // and one within a call, and a body's `args` and frame slots are its own.
     body: () => {
         /** @type {Exp} */
         const inner = ['[]', []]
-        const f = callable(run(['=>', 0, ['[]', [5]], ['[]', [inner, inner, ['rest'], ['frame']]]]))
+        const f = callable(run(['=>', 0, ['[]', [5]], ['[]', [inner, inner, ['rest'], ['frame', 0]]]]))
         const first = array(f(1))
         const second = array(f(2))
         assert(first[0] === first[1])
         assert(first[0] !== second[0])
         assertStructurallySame(first[2], [1])
-        assertStructurallySame(first[3], [5])
+        assertEq(first[3], 5)
         // A body inside a body, each its own scope: the inner closure's
         // constructor is fresh per inner call, whichever outer call made it.
         const g = callable(run(['=>', 0, null, ['=>', 0, null, ['[]', [inner, inner]]]]))
@@ -121,7 +121,7 @@ export const proof = {
         agrees(['+', ['*', 2, 3], ['-', 1]])
         agrees(['[]', [1, ['...', ['[]', [2, 3]]], ['{}', [[':', 'a', ['String', 4]], ['...', ['{}', [[':', 'b', ['undefined']]]]]]]]])
         agrees(['.', ['args'], 1])
-        agrees(['.', ['frame'], 'x'])
+        agrees(['()', ['=>', 0, ['[]', [['{}', [[':', 'x', 1]]]]], ['.', ['frame', 0], 'x']], ['[]', []]])
         agrees(['own', ['{}', [[':', 'k', 9]]], 'k'])
         agrees([',', [1, ['!', 0]]])
         agrees(['?.', ['undefined'], 'x', ['|.', 'y']])
@@ -131,6 +131,9 @@ export const proof = {
         agrees(['typeof', ['&&', 1, 'a']])
     },
     throw: {
+        // A frame slot read outside a function is refused before anything
+        // runs, as `rest` is: a module has no frame.
+        frameInModule: () => run(['frame', 0]),
         // Amnesia's throws are this executor's: a demanded lazy operand that throws, throws.
         forced: () => run(['&&', true, boom]),
         nullishBase: () => run(['.', ['undefined'], 'x']),
