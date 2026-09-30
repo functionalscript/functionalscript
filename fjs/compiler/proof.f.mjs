@@ -608,6 +608,32 @@ export const proof = {
             assertEq(fjsRoundTrip('const c = [1]; export default (...a) => { const x = c; return [x, c]; };'), 'const $0=[1];export default (...$a)=>[$0,$0];')
             assertEq(fjsRoundTrip('export const f = (...a) => a[0] ? (() => { const x = [1]; return [x, x]; })() : 4; export default 1;'), 'const $0=(...$a)=>$a[0]?(()=>{const $b0=[1];return [$b0,$b0];})():4;export const f=$0;export default 1;')
         },
+        // Stage A's operators, with the parentheses JavaScript's own
+        // precedence and associativity ask for and no more, so that the
+        // text reads back as the graph: a group the source wrote that
+        // changed nothing is gone, and one it needed is written again.
+        operators: () => {
+            assertEq(fjsRoundTrip('export default 1 + 2 * 3;'), 'export default 1+2*3;')
+            assertEq(fjsRoundTrip('export default (1 + 2) * 3;'), 'export default (1+2)*3;')
+            assertEq(fjsRoundTrip('export default (1 + 2) + 3;'), 'export default 1+2+3;')
+            assertEq(fjsRoundTrip('export default 1 - (2 - 3);'), 'export default 1-(2-3);')
+            assertEq(fjsRoundTrip('export default 2 ** 3 ** 2;'), 'export default 2**3**2;')
+            assertEq(fjsRoundTrip('export default (2 ** 3) ** 2;'), 'export default (2**3)**2;')
+            assertEq(fjsRoundTrip('export default (-2) ** 2;'), 'export default (-2)**2;')
+            assertEq(fjsRoundTrip('export default -(2 ** 2);'), 'export default -(2**2);')
+            assertEq(fjsRoundTrip('export default 2 ** -2;'), 'export default 2**-2;')
+            assertEq(fjsRoundTrip('export default 1 - -2;'), 'export default 1- -2;')
+            assertEq(fjsRoundTrip('export default 1 << 2 + 3 < 5 === true & 1 ^ 2 | 3;'), 'export default 1<<2+3<5===true&1^2|3;')
+            assertEq(fjsRoundTrip('export default ((1 << 2) + 3 < 5) === (true & (1 ^ (2 | 3)));'), 'export default (1<<2)+3<5===(true&(1^(2|3)));')
+            assertEq(fjsRoundTrip('export default ~1 + -[] * 1n;'), 'export default ~1+-[]*1n;')
+            assertEq(fjsRoundTrip('export default (1 + 2).x;'), 'export default (1+2).x;')
+            assertEq(fjsRoundTrip('export default (-[1])[0];'), 'export default (-[1])[0];')
+            assertEq(fjsRoundTrip('export default -((...a) => 1);'), 'export default -((...$a)=>1);')
+            assertEq(fjsRoundTrip('export default (...a) => (a[0] + 1) && a[1] + (a[2] ? 1 : 2);'), 'export default (...$a)=>$a[0]+1&&$a[1]+($a[2]?1:2);')
+            assertEq(fjsRoundTrip('const o = []; export default [o + 1, o + 1];'), 'const $0=[];export default [$0+1,$0+1];')
+            assertEq(compileSource('export default 1 + 2 * 3;')('x.edag.data.js'), 'export default ["{}",[[":","default",["+",1,["*",2,3]]]]];')
+            assertEq(moduleRefused('export default 1 + 2;'), 'input.f.js - error: an operator has no value')
+        },
         // An object's members are the graph's here and the value's there, so
         // the two outputs order them differently and hold a different number
         // of them: the value output writes the object JavaScript builds from

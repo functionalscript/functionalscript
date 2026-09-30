@@ -44,6 +44,8 @@ that refusal is not this issue.
 
 ### Related
 
-- [stage-a-operators](./stage-a-operators.md) — the same gap for operators.
+- `levels`, `operandGrouped` and `grouped` in [`../module.f.mjs`](../module.f.mjs)
+  — the precedence machinery every operator is spelled with, which a call's
+  callee reads too: a callee binds tighter than any operator.
 - [`spec/README.md`](../../../../spec/README.md#functions) — calls in the
   language.
