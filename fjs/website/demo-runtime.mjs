@@ -16,7 +16,7 @@
 
 import { asyncPartialRun } from '../effects/module.mjs'
 import { commonOperationMap } from '../effects/common/module.mjs'
-import { toDom } from '../media/html/module.mjs'
+import { patch, toDom } from '../media/html/module.mjs'
 
 /**
  * What a demo may ask this page for.
@@ -106,12 +106,11 @@ const busy = (root, working, note = null) => {
 /**
  * What the reader was doing, so re-rendering does not take it away.
  *
- * **Replacing the section's contents destroys the element they are typing
- * into.** A new one takes its place with the same `name` and the right value,
- * but focus and the caret belong to the node, not the name, so without this a
- * demo accepts exactly one character and then drops you. That is not a
- * refinement of wholesale replacement, it is what makes wholesale replacement
- * usable at all.
+ * **A render keeps the elements it can, but not every one.** {@link render}
+ * patches the section in place, so a field that stays is the node the reader
+ * is typing into and nothing here touches it. A field whose place in the view
+ * changes is a new element with the same `name`, and focus and the caret
+ * belong to the node, not the name — so for that one, this puts them back.
  *
  * The caret is `null` on a control that has no text to put one in — a
  * checkbox, a range — and restoring it is skipped rather than guessed.
@@ -137,7 +136,9 @@ const refocus = (root, was) => {
     if (was === null) { return }
     const next = /** @type {HTMLInputElement | null} */ (
         root.querySelector(`[name="${was.name}"]`))
-    if (next === null) { return }
+    // The reader's own element, still in place: its focus and selection are
+    // already theirs, and setting them again could only disturb them.
+    if (next === null || next === root.ownerDocument.activeElement) { return }
     next.focus()
     if (was.start !== null && was.end !== null && next.setSelectionRange !== undefined) {
         next.setSelectionRange(was.start, was.end)
@@ -207,9 +208,21 @@ const rescroll = (root, was) => {
 /**
  * Renders a state, and leaves the reader where they were.
  *
+ * **Patched, not replaced.** Replacing the section's contents rebuilt the
+ * field under the reader's hands on every keystroke, leaving the runtime to
+ * carry focus, caret, size and scroll across to a node the reader never
+ * touched — and anything the browser held for the old node was lost with it:
+ * its undo history, so Ctrl+Z did nothing in a demo field, and any
+ * composition in progress. A patch keeps every element whose place
+ * in the view is unchanged.
+ * The section is rebuilt only when it holds something other than the
+ * previous view — nothing yet, or a reported failure.
+ *
  * The size comes back before the scroll offset, because the size bounds how
  * far a field can scroll; and the offset comes back last, because focusing a
- * field and setting its selection may scroll it on its own.
+ * field and setting its selection may scroll it on its own. A size comes
+ * back even to a field that stayed, because a patch removes the `style` a
+ * drag wrote, the view not naming it.
  *
  * @type {(root: Element, view: HtmlElement) => void}
  */
@@ -217,7 +230,12 @@ const render = (root, view) => {
     const was = focused(root)
     const sizes = resized(root)
     const offsets = scrolled(root)
-    root.replaceChildren(toDom(root.ownerDocument, view))
+    const shown = root.firstElementChild
+    if (shown !== null && root.childNodes.length === 1 && shown.localName === view[0]) {
+        patch(shown, view)
+    } else {
+        root.replaceChildren(toDom(root.ownerDocument, view))
+    }
     resize(root, sizes)
     refocus(root, was)
     rescroll(root, offsets)
@@ -247,10 +265,10 @@ const fail = (root, cause) => {
  * it is what the virtual runner can reproduce. The queue is this promise: each
  * event chains onto the last.
  *
- * **Only the last event queued renders.** A render replaces the field being
- * typed into, so rendering the state after one keystroke once the reader has
- * typed the next would put a field holding the older text under their caret,
- * and whatever they type lands in it: the newer keystroke is lost. An event
+ * **Only the last event queued renders.** A render makes the field being
+ * typed into show the state's text, so rendering the state after one
+ * keystroke once the reader has typed the next would put the older text back
+ * under their caret: the newer keystroke is lost. An event
  * with a later one waiting behind it updates the state and leaves the page
  * alone; the later one renders.
  *
