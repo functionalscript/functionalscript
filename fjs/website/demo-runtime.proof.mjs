@@ -27,7 +27,7 @@ const dom = path => {
     /** @type {any} */
     let active = null
     let workedWith = ''
-    /** @type {readonly any[]} */
+    /** @type {any[]} */
     let children = []
     /** @type {((event: any) => void)[]} */
     const listeners = []
@@ -44,53 +44,132 @@ const dom = path => {
      * @type {string[]} */
     const steps = []
     /**
+     * What the runtime asked of the elements themselves: every `focus` and
+     * `setSelectionRange`, by name. A field the reader is typing into must
+     * see neither, because either one interrupts what the operating system
+     * is doing with it.
+     *
+     * @type {string[]} */
+    const touched = []
+    /**
      * Every element under the section, depth first — what a selector searches.
      *
      * @type {() => readonly any[]}
      */
     const descendants = () => {
         /** @type {(node: any) => readonly any[]} */
-        const walk = node => typeof node === 'string' ? [] : [node, ...node.children.flatMap(walk)]
+        const walk = node => node.nodeType === 3 ? [] : [node, ...node.childNodes.flatMap(walk)]
         return children.flatMap(walk)
     }
     /**
      * The markup a node stands for, so a proof can say what was rendered in
-     * the words a demo wrote it in.
+     * the words a demo wrote it in. A field shows its current value, which is
+     * what a reader sees.
      *
      * @type {(node: any) => string}
      */
-    const markup = node => typeof node === 'string'
-        ? node
-        : `<${node.localName}${[...node.attributes].map(([k, v]) => ` ${k}="${v}"`).join('')}>${node.children.map(markup).join('')}</${node.localName}>`
+    const markup = node => {
+        if (node.nodeType === 3) { return node.data }
+        const attributes = new Map(node.attributes)
+        if (node.localName === 'input') { attributes.set('value', node.value) }
+        return `<${node.localName}${[...attributes].map(([k, v]) => ` ${k}="${v}"`).join('')}>${node.childNodes.map(markup).join('')}</${node.localName}>`
+    }
+    /**
+     * Records a change the reader can see: one `render` step for a run of
+     * changes, and what the section shows after each. A change to an element
+     * not yet in the section is a node being built, not one being shown.
+     *
+     * @type {(node: any) => void}
+     */
+    const changed = node => {
+        if (node !== root && !descendants().includes(node)) { return }
+        rendered.push(root.innerHTML)
+        if (steps.at(-1) !== 'render') { steps.push('render') }
+    }
+    /** @type {(parent: any, node: any) => any} */
+    const adopt = (parent, node) => {
+        const child = typeof node === 'string' ? text(node) : node
+        child.parent = parent
+        return child
+    }
+    /** @type {(data: string) => any} */
+    const text = data => {
+        /** @type {any} */
+        const self = {
+            nodeType: 3,
+            parent: null,
+            get data() { return data },
+            set data(/** @type {string} */ value) { data = value; changed(self.parent) },
+        }
+        return self
+    }
     /** @type {any} */
     const document = {
         get activeElement() { return active },
         createElementNS: (/** @type {string} */ _, /** @type {string} */ tag) => element(tag),
+        createTextNode: text,
     }
     /** @type {(tag: string) => any} */
     const element = tag => {
         let off = false
+        /** @type {string | null} */
+        let dirty = null
         /** @type {any} */
         const self = {
+            nodeType: 1,
+            parent: null,
             localName: tag,
             namespaceURI: 'http://www.w3.org/1999/xhtml',
             ownerDocument: document,
             attributes: new Map(),
-            children: [],
+            childNodes: [],
             get name() { return self.attributes.get('name') ?? '' },
+            getAttribute: (/** @type {string} */ name) => self.attributes.get(name) ?? null,
+            getAttributeNames: () => [...self.attributes.keys()],
             setAttribute: (/** @type {string} */ name, /** @type {string} */ value) => {
                 self.attributes.set(name, value)
+                changed(self)
             },
-            replaceChildren: (/** @type {any[]} */ ...nodes) => { self.children = nodes },
+            removeAttribute: (/** @type {string} */ name) => {
+                self.attributes.delete(name)
+                changed(self)
+            },
+            replaceChildren: (/** @type {any[]} */ ...nodes) => {
+                self.childNodes = nodes.map(node => adopt(self, node))
+                changed(self)
+            },
+            appendChild: (/** @type {any} */ node) => {
+                self.childNodes = [...self.childNodes, adopt(self, node)]
+                changed(self)
+            },
+            replaceChild: (/** @type {any} */ node, /** @type {any} */ old) => {
+                self.childNodes = self.childNodes.map((/** @type {any} */ c) => c === old ? adopt(self, node) : c)
+                if (active !== null && !descendants().includes(active)) { active = null }
+                changed(self)
+            },
+            removeChild: (/** @type {any} */ old) => {
+                self.childNodes = self.childNodes.filter((/** @type {any} */ c) => c !== old)
+                if (active !== null && !descendants().includes(active)) { active = null }
+                changed(self)
+            },
+            // A field shows its markup's default until the reader types, as
+            // a browser's does — so a patch has something to leave alone.
+            get defaultValue() { return self.attributes.get('value') ?? '' },
+            get value() { return dirty ?? self.defaultValue },
+            set value(/** @type {string} */ value) { dirty = value; changed(self) },
+            // The reader's keystroke: what the field shows changes, and that
+            // is not a render.
+            type: (/** @type {string} */ value) => { dirty = value },
             selectionStart: 0,
             selectionEnd: 0,
             style: { width: '', height: '' },
             scrollTop: 0,
             scrollLeft: 0,
-            focus: () => { active = self },
+            focus: () => { active = self; touched.push(`focus ${self.name}`) },
             setSelectionRange: (/** @type {number} */ start, /** @type {number} */ end) => {
                 self.selectionStart = start
                 self.selectionEnd = end
+                touched.push(`select ${self.name}`)
             },
             // The same sequence the flag and the render write to: a control
             // that goes unavailable and back inside one turn cannot be caught
@@ -105,10 +184,21 @@ const dom = path => {
     }
     /** @type {any} */
     const root = {
-        textContent: '',
+        get textContent() {
+            /** @type {(node: any) => string} */
+            const textOf = node => node.nodeType === 3 ? node.data : node.childNodes.map(textOf).join('')
+            return children.map(textOf).join('')
+        },
+        // As a DOM does: the contents become one text node.
+        set textContent(/** @type {string} */ value) {
+            if (descendants().includes(active)) { active = null }
+            children = [adopt(root, value)]
+        },
         attributes: new Map([['data-demo', path]]),
         getAttribute: (/** @type {string} */ name) => root.attributes.get(name) ?? null,
         get innerHTML() { return children.map(markup).join('') },
+        get childNodes() { return children },
+        get firstElementChild() { return children.find(c => c.nodeType === 1) ?? null },
         replaceChildren: (/** @type {any[]} */ ...nodes) => {
             // **Replacing the contents detaches what was focused**, which is
             // the whole reason the runtime has to put focus back. A stand-in
@@ -116,9 +206,8 @@ const dom = path => {
             // runtime restored anything — the proof would be describing the
             // stand-in rather than the code.
             if (descendants().includes(active)) { active = null }
-            children = nodes
-            rendered.push(root.innerHTML)
-            steps.push('render')
+            children = nodes.map(node => adopt(root, node))
+            changed(root)
         },
         querySelector: (/** @type {string} */ selector) =>
             descendants().find(node => node.name !== '' && selector === `[name="${node.name}"]`) ?? null,
@@ -169,10 +258,18 @@ const dom = path => {
             el.focus()
             el.setSelectionRange(caret, caret)
         },
-        /** @type {(name: string, value: string) => void} */
+        /**
+         * The reader typing `value` into the field named `name`: the field
+         * shows it, then says so.
+         *
+         * @type {(name: string, value: string) => void}
+         */
         input: (name, value) => {
+            const field = root.querySelector(`[name="${name}"]`)
+            if (field !== null) { field.type(value) }
             for (const f of listeners) { f({ target: { name, value } }) }
         },
+        touched,
         /**
          * A click on the element named `name`, which is a
          * `<button type="button">` unless the proof says otherwise, or on
@@ -327,9 +424,9 @@ export const proof = {
         assertEq(after.style.height, '300px')
     },
     /**
-     * **A scrolled field stays scrolled across a re-render.** A fresh element
-     * starts at the top, and a render follows every keystroke, so without a
-     * restore typing in a long field jumps it back to its first line.
+     * **A scrolled field stays scrolled across a re-render.** A render follows
+     * every keystroke, so a field that lost its offset would jump back to its
+     * first line as the reader typed.
      */
     keepsScrollOffset: async () => {
         const d = dom(echo)
@@ -341,7 +438,6 @@ export const proof = {
         d.input('text', 'ab')
         await settle()
         const after = d.root.querySelector('[name="text"]')
-        assert(after !== before, 'expected the input to re-render the field')
         assertEq(after.scrollTop, 120)
         assertEq(after.scrollLeft, 30)
     },
@@ -363,13 +459,83 @@ export const proof = {
     },
     // An `<input type="button">` is a button too, and asks like one.
     acceptsAnInputButton: async () => {
+        const d = dom(moduleUrl(`
+export const demo = {
+    init: 'idle',
+    update: state => event => () => ['ok', event.kind === 'click' ? event.name : state],
+    view: text => ['div', ['input', { type: 'button', name: 'go', value: 'Go' }], ['pre', text]],
+}
+`))
+        await startDemo(d.root)
+        await settle()
+        d.click('go', { tagName: 'INPUT', type: 'button' })
+        await settle()
+        assert(d.root.innerHTML.includes('<pre>go</pre>'), d.root.innerHTML)
+    },
+    /**
+     * **Typing keeps the field.** The element the reader types into is the
+     * one still there after the render, and the runtime neither focuses it
+     * again nor sets its selection: both are already the reader's.
+     */
+    typingKeepsTheField: async () => {
         const d = dom(echo)
         await startDemo(d.root)
         await settle()
-        const renders = d.rendered.length
-        d.click('go', { tagName: 'INPUT', type: 'button' })
+        const before = d.root.querySelector('[name="text"]')
+        d.focusOn('text', 0)
+        const touches = d.touched.length
+        for (const text of ['a', 'aa', 'aaa']) {
+            d.input('text', text)
+            await settle()
+        }
+        assertEq(d.root.querySelector('[name="text"]'), before)
+        assertEq(d.activeName(), 'text')
+        assertStructurallySame(d.touched.slice(touches), [])
+        assert(d.root.innerHTML.includes('<pre>aaa</pre>'), d.root.innerHTML)
+    },
+    /**
+     * **A field whose place in the view changes is a new element**, and
+     * focus and the caret come back to it by name.
+     */
+    refocusesAFieldThatMoved: async () => {
+        const d = dom(moduleUrl(`
+export const demo = {
+    init: '',
+    update: state => event => () => ['ok', event.kind === 'input' ? event.value : state],
+    view: text => text === 'shift'
+        ? ['div', ['p', 'moved'], ['input', { name: 'text', value: text }]]
+        : ['div', ['input', { name: 'text', value: text }], ['pre', text]],
+}
+`))
+        await startDemo(d.root)
         await settle()
-        assertEq(d.rendered.length, renders + 1)
+        const before = d.root.querySelector('[name="text"]')
+        d.focusOn('text', 3)
+        d.input('text', 'shift')
+        await settle()
+        const after = d.root.querySelector('[name="text"]')
+        assert(after !== before, 'expected the field to be a new element')
+        assertEq(d.activeName(), 'text')
+        assertEq(d.caret(), 3)
+    },
+    /**
+     * **A field shows the state, not only what was typed.** A demo that
+     * answers a keystroke with different text gets its text into the field,
+     * as the field's default would be on a fresh element.
+     */
+    showsTheStateInAField: async () => {
+        const d = dom(moduleUrl(`
+export const demo = {
+    init: '',
+    update: state => event => () => ['ok', event.kind === 'input' ? event.value.toUpperCase() : state],
+    view: text => ['div', ['input', { name: 'text', value: text }]],
+}
+`))
+        await startDemo(d.root)
+        await settle()
+        d.input('text', 'ab')
+        await settle()
+        assertEq(d.root.querySelector('[name="text"]').value, 'AB')
     },
     /**
      * **A click on a button's label is a click on the button.** A label may
@@ -451,14 +617,14 @@ export const demo = {
          * passed with the disabling and the yield both deleted, which is how
          * they came to be unprotected.
          *
-         * **No `enabled` here, and that is not an omission.** The render
-         * rebuilds the section, so the control that comes back is a new one,
-         * already available. The explicit re-enable covers the path where no
-         * render happens — see below.
+         * **`enabled` last, and that is what gives the control back.** The
+         * render patches the section, so the button is the one that was
+         * disabled; the explicit re-enable is the only thing that makes it
+         * available again.
          */
         assertStructurallySame(
             d.steps.slice(before),
-            ['working', 'disabled', 'turn', 'render', 'idle'])
+            ['working', 'disabled', 'turn', 'render', 'idle', 'enabled'])
         assert(!d.working(), 'expected the flag down once the update finished')
         assertStructurallySame(d.disabled(), [false])
     },
@@ -523,7 +689,10 @@ export const demo = {
         const d = dom(moduleUrl(`
 export const demo = {
     init: '',
-    update: () => () => { throw new Error('boom') },
+    update: state => event => () => {
+        if (event.kind === 'click') { throw new Error('boom') }
+        return ['ok', state]
+    },
     view: text => ['div', ['button', { type: 'button', name: 'go' }, 'Go'], ['pre', text]],
 }
 `))
@@ -534,18 +703,34 @@ export const demo = {
         d.click('go')
         await settle()
         assert(d.root.textContent.startsWith('demo failed: boom'), d.root.textContent)
-        /**
-         * **The control comes back even when nothing re-renders.** A reported
-         * failure replaces the section's text rather than its contents, so the
-         * button is the same element it was — and the explicit re-enable is
-         * the only thing that gives it back. On the ordinary path a render
-         * rebuilds it, which is why this is the sequence that shows the
-         * difference.
-         */
+        // The report replaces the section's contents, button and all, so
+        // there is nothing left to re-enable.
         assertStructurallySame(
             d.steps.slice(before),
-            ['working', 'disabled', 'turn', 'idle', 'enabled'])
-        assertStructurallySame(d.disabled(), [false])
+            ['working', 'disabled', 'turn', 'idle'])
+    },
+    /**
+     * **A report is not a view**, so the next event rebuilds the section
+     * rather than patching the report's text.
+     */
+    rendersOverAReportedFailure: async () => {
+        const d = dom(moduleUrl(`
+export const demo = {
+    init: '',
+    update: state => event => () => {
+        if (event.kind === 'click') { throw new Error('boom') }
+        return ['ok', event.kind === 'input' ? event.value : state]
+    },
+    view: text => ['div', ['button', { type: 'button', name: 'go' }, 'Go'], ['pre', text]],
+}
+`))
+        await startDemo(d.root)
+        await settle()
+        d.click('go')
+        await settle()
+        d.input('other', 'x')
+        await settle()
+        assert(d.root.innerHTML.includes('<pre>x</pre>'), d.root.innerHTML)
     },
     /**
      * **The first render is reported like every later one.** It runs before

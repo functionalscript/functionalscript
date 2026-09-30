@@ -152,9 +152,16 @@ const rulesFor = (target, tag) => {
  */
 const create = (document, rules, element) => {
     const [tag] = element
-    const namespace = rules !== xhtml ? rules : tag === 'svg' ? svg : tag === 'math' ? mathMl : xhtml
-    return fill(document.createElementNS(namespace, tag), element)
+    return fill(document.createElementNS(namespaceFor(rules, tag), tag), element)
 }
+
+/**
+ * The namespace a `tag` element is created in by the rules of `rules`.
+ *
+ * @type {(rules: string, tag: string) => string}
+ */
+const namespaceFor = (rules, tag) =>
+    rules !== xhtml ? rules : tag === 'svg' ? svg : tag === 'math' ? mathMl : xhtml
 
 /**
  * Writes a `media/html` element onto a DOM element — its attributes, then its
@@ -193,14 +200,148 @@ export const fill = (target, element) => {
  *
  * @type {(target: Element, tag: string, children: readonly HtmlNode[]) => readonly (Element | string)[]}
  */
-const content = (target, tag, children) => {
+const content = (target, tag, children) =>
+    childrenFor(tag, children).map(child =>
+        typeof child === 'string' ? child : create(target.ownerDocument, rulesFor(target, child[0]), child))
+
+/**
+ * The children a `tag` element holds, by the serializer's rules: none for a
+ * void tag, the joined text for a raw-text one (none for no text, as the
+ * parser makes none), and otherwise each child in order.
+ *
+ * @type {(tag: string, children: readonly HtmlNode[]) => readonly HtmlNode[]}
+ */
+const childrenFor = (tag, children) => {
     if (isVoidTag(tag)) { return [] }
     if (isRawText(tag)) {
         const text = rawTextContent(children)
         return text === '' ? [] : [text]
     }
-    return children.map(child =>
-        typeof child === 'string' ? child : create(target.ownerDocument, rulesFor(target, child[0]), child))
+    return children
+}
+
+/**
+ * `Node.TEXT_NODE`, spelled out: a host's `Node` global is not something
+ * this module should need to find.
+ */
+const textNode = 3
+
+/**
+ * Brings an existing DOM element into line with a `media/html` element of
+ * the same tag, in place, and answers the DOM element.
+ *
+ * **What is already right is left alone.** A node that stays is the same
+ * node, so what a reader was doing with it survives: focus, the caret, an
+ * open selection, its undo history, and whatever the browser's text input
+ * holds for it, such as a composition in progress. A
+ * page that rebuilt the element instead handed all of that to a node the
+ * reader never touched. That is the whole reason this exists beside
+ * {@link fill}.
+ *
+ * - **Attributes are made exactly the element's.** One it does not name is
+ *   removed, and one it names is written only when its value differs.
+ * - **Children are matched by position.** A text node takes the new text; an
+ *   element of the tag and namespace the child would be created with is
+ *   patched in turn; anything else is replaced by a new node. Extra children
+ *   go.
+ * - **A form control shows what its markup says.** Markup sets a control's
+ *   default — an `input`'s `value` attribute, a `textarea`'s text, a
+ *   `checked` or `selected` attribute — and the browser shows the default
+ *   only until the reader edits it, so a patched control whose shown state
+ *   differs from its default is set to it. A control that already shows it,
+ *   which is every field a reader just typed into, is not touched.
+ *
+ * The element's tag is not checked against the target's: which one to patch
+ * is the caller's decision. A `script` is refused, as {@link fill} refuses it.
+ *
+ * @type {(target: Element, element: HtmlElement) => Element}
+ */
+export const patch = (target, element) => {
+    const [tag, attributes, children] = parseElement(element)
+    if (tag === 'script') { throw new Error('media/html: a `script` element is refused: built into a page, it would run') }
+    const wanted = definedEntries(attributes)
+    const names = new Set(wanted.map(([name]) => name))
+    for (const name of target.getAttributeNames()) {
+        if (!names.has(name)) { target.removeAttribute(name) }
+    }
+    for (const [name, value] of wanted) {
+        if (target.getAttribute(name) !== value) { setAttribute(target, name, value) }
+    }
+    const parent = childrenOf(target)
+    const nodes = [...parent.childNodes]
+    const next = childrenFor(tag, children)
+    next.forEach((child, i) => {
+        const node = nodes.at(i)
+        if (typeof child === 'string') {
+            if (node?.nodeType === textNode) {
+                const text = /** @type {Text} */ (node)
+                if (text.data !== child) { text.data = child }
+                return
+            }
+            place(parent, node, target.ownerDocument.createTextNode(child))
+            return
+        }
+        const [childTag] = child
+        const rules = rulesFor(target, childTag)
+        const same = node !== undefined
+            && /** @type {Element} */ (node).localName === childTag
+            && /** @type {Element} */ (node).namespaceURI === namespaceFor(rules, childTag)
+        if (same) {
+            patch(/** @type {Element} */ (node), child)
+            return
+        }
+        place(parent, node, create(target.ownerDocument, rules, child))
+    })
+    for (const node of nodes.slice(next.length)) { parent.removeChild(node) }
+    showDefault(target)
+    return target
+}
+
+/**
+ * Puts `fresh` where `node` is, or after the last child when there is no
+ * `node` there.
+ *
+ * @type {(parent: ParentNode, node: ChildNode | undefined, fresh: Node) => void}
+ */
+const place = (parent, node, fresh) => {
+    if (node === undefined) {
+        parent.appendChild(fresh)
+    } else {
+        parent.replaceChild(fresh, node)
+    }
+}
+
+/**
+ * Makes an HTML form control show its default, where it shows something
+ * else.
+ *
+ * A checkbox or radio button shows `checked`, not a value — its `value` is
+ * what it submits. A file input's value is the reader's pick and can only be
+ * cleared, so it is left alone.
+ *
+ * @type {(target: Element) => void}
+ */
+const showDefault = target => {
+    if (target.namespaceURI !== xhtml) { return }
+    if (target.localName === 'option') {
+        const option = /** @type {HTMLOptionElement} */ (target)
+        if (option.selected !== option.defaultSelected) { option.selected = option.defaultSelected }
+        return
+    }
+    if (target.localName === 'textarea') {
+        const area = /** @type {HTMLTextAreaElement} */ (target)
+        if (area.value !== area.defaultValue) { area.value = area.defaultValue }
+        return
+    }
+    if (target.localName !== 'input') { return }
+    const input = /** @type {HTMLInputElement} */ (target)
+    const type = (input.getAttribute('type') ?? '').toLowerCase()
+    if (type === 'checkbox' || type === 'radio') {
+        if (input.checked !== input.defaultChecked) { input.checked = input.defaultChecked }
+        return
+    }
+    if (type === 'file') { return }
+    if (input.value !== input.defaultValue) { input.value = input.defaultValue }
 }
 
 /**
