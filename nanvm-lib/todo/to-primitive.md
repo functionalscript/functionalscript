@@ -244,8 +244,9 @@ cases join the corpus with the renderer's text as their expected value.
   [callable-function-objects](./callable-function-objects.md) has not
   landed. The `self` question can wait without blocking anything.
 - **The JavaScript evaluators are not FJS VMs.** Amnesia and the operations
-  layer convert a function with the host's wrapper text, so a function-text
-  corpus case cannot be checked on the host side.
+  layer convert a function with the host's wrapper text unless the host
+  supplies `withText` (step 6), which only a host module can build, so the
+  FunctionalScript runner and `memo` still answer the wrapper's text.
 
 #### Design: a compile-time template with holes
 
