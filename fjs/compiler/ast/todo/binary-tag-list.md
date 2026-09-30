@@ -1,7 +1,7 @@
 ## binary-tag-list. The binary operator tags exist only as a type, so four switches list them by hand
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
