@@ -174,7 +174,8 @@ const hoistedKind = (a, i) => minting(a.nodes[i])
  *
  * An operator's text is no base either, since every operator binds looser
  * than a step — `-1[0]` is `-(1[0])` — but it has a text of its own: the
- * group the grammar reads, `(-1)[0]` ({@link base}).
+ * group the grammar reads, `(-[1])[0]` ({@link base}); a negated number is
+ * a number by the time it reaches here, folded by the lowering.
  *
  * @type {(a: Analysis, base: Operand) => boolean}
  */
@@ -562,7 +563,7 @@ const conditional = (s, depth) => ([, c, t, e]) => mapOk(
 const base = (s, depth) => v => {
     if (!basedHoisted(s.a, v)) {
         // every operator, a prefix included, binds looser than a step, so
-        // its text is grouped: `(-1)[0]`, where `-1[0]` is `-(1[0])`
+        // its text is grouped: `(-[1])[0]`, where `-[1][0]` is `-([1][0])`
         return mapOk(grouped(precedence(nodeOf(s, v)) <= levels.length))(operand(s, depth)(v))
     }
     const h = /** @type {_Hoisted} */ (v instanceof Array ? ['entry', v[1]] : ['leaf', v])
