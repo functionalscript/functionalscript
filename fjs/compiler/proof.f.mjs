@@ -1602,4 +1602,26 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assertEq(moduleRefused("export default '\\x41';"), 'input.f.js:1:16-23 - error: unexpected token')
         },
     },
+    // `throw`: a function whose block body ends in it is written as that
+    // block by the FunctionalScript output and refused by the value outputs
+    // as any function is; a module ending in it is written as the statement,
+    // its EDAG the node, and refused by the value outputs, which evaluate
+    // it, by the value thrown — a primitive as DataJS spells it, a container
+    // by its kind. The Rust output holds either, `throw.mjs` in
+    // `nanvm-harness/fixtures` being the one the harness runs; and a module
+    // importing one that throws fails as that module fails.
+    throws: () => {
+        assertEq(compileSource('export default () => { throw 1; };')('output.js'), 'export default (...$a)=>{throw 1;};')
+        assertEq(compileSource('export default (...a) => { const x = a[0]; throw [x, x]; };')('output.js'), 'export default (...$a)=>{throw [$a[0],$a[0]];};')
+        assertEq(compileSource('export default () => { throw 1; };')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",0,null,["throw",1]]]]];')
+        assertEq(moduleRefused('export default () => { throw 1; };'), 'input.f.js - error: a function has no value')
+        assertEq(compileSource('throw "boom";')('output.js'), 'throw "boom";')
+        assertEq(compileSource('const a = []; throw 1;')('output.js'), 'const $0=[];throw 1;')
+        assertEq(compileSource('throw "boom";')('output.edag.data.js'), 'export default ["throw","boom"];')
+        assertEq(moduleRefused('throw "boom";'), 'input.f.js - error: throw "boom"')
+        assertEq(jsonRefused('export const a = [1]; throw a;'), 'input.f.js - error: throw an array')
+        assert(compileSource('throw "boom";')('output.rs').includes('    Err(string_any("boom"))\n'))
+        assert(compileSource('export default () => { throw 1; };')('output.rs').includes('{ Err(f64_any(0x3ff0000000000000)) }'))
+        assertEq(stderrOf({ 'input.f.js': [utf8('import d from "./dep.f.js"; export default d;')], 'dep.f.js': [utf8('throw 1;')] }), 'dep.f.js - error: throw 1')
+    },
 }

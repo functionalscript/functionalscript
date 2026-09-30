@@ -78,8 +78,9 @@ const copy = e => /** @type {Exp} */ (deep(e))
  * operand, the same graph twice over in two scopes, a function that
  * captures the graph beside it, and the lazy operators: the graph as both
  * operands of `&&`, as the lazy operand of `??`, shared under one arm of a
- * conditional, as the condition and both arms of one, and anchored by a
- * comma under the lazy operand of `||`.
+ * conditional, as the condition and both arms of one, anchored by a comma
+ * under the lazy operand of `||`, and under one access both arms of a
+ * conditional read.
  *
  * That last one is a copy and not the node again: two nodes, one in a body
  * and one outside it, which is a graph the compiler emits — and which the
@@ -110,6 +111,7 @@ const shapes = p => [
     ...p.map(x => /** @type {Exp} */(['?:', true, ['[]', [x, x]], 2])),
     ...p.map(x => /** @type {Exp} */(['?:', x, ['-', ['[]', [x]]], x])),
     ...p.map(x => /** @type {Exp} */(['||', 1, [',', [x, 2]]])),
+    ...p.map(x => /** @type {Exp} */(['?:', true, ['.', x, 'k'], ['.', x, 'k']])),
 ]
 
 /**
@@ -487,6 +489,43 @@ export const proof = {
     // Every refusal, by the message it carries: a node kind with no spelling
     // yet, a position a spelling has none in, and a key no literal reads
     // back. Each names the feature that replaces it.
+    // A scope whose value is a `throw` node ends in the statement it came
+    // from, `throw v;` where `return v;` or `export default v;` would stand
+    // — a body always a block, since the statement has no expression form —
+    // with the `const`s the scope needs before it as ever. Anywhere else
+    // the node is the call of a function that throws, JavaScript's one
+    // spelling of an expression that fails: it reads back as that call and
+    // fails at the same point (`throw.nested` below), so that round trip is
+    // by behaviour and not by table.
+    throws: () => {
+        writes(['=>', 0, null, ['throw', 1]], 'export default (...$a)=>{throw 1;};')
+        writes(['=>', 0, null, ['throw', ['[]', [1]]]], 'export default (...$a)=>{throw [1];};')
+        writes(['=>', 0, null, [',', [['[]', []], ['throw', 1]]]], 'export default (...$a)=>{const $a0=[];throw 1;};')
+        writes(['throw', 'x'], 'throw "x";')
+        // `null` is a value to throw, not the absence of one
+        writes(['throw', null], 'throw null;')
+        writes(['=>', 0, null, ['throw', null]], 'export default (...$a)=>{throw null;};')
+        assertEq(unwrap(tryModuleStringify(['throw', null])), 'throw null;')
+        writes([',', [['[]', []], ['throw', 1]]], 'const $0=[];throw 1;')
+        // a shared constructor the throw holds is hoisted before the statement
+        /** @type {Exp} */
+        const o = ['{}', []]
+        writes(['throw', ['[]', [o, o]]], 'const $0={};throw [$0,$0];')
+        // the module writer takes a throwing module to the same text
+        assertEq(unwrap(tryModuleStringify(['throw', 'x'])), 'throw "x";')
+        assertEq(unwrap(tryModuleStringify([',', [['[]', []], ['throw', 1]]])), 'const $0=[];throw 1;')
+        // nested: the call of a function that throws, which the front end
+        // inlines, so it reads back as the node it was written from
+        writes(['[]', [['throw', 1]]], 'export default [(()=>{throw 1;})()];')
+        writes(['=>', 0, null, ['[]', [['throw', ['rest']]]]], 'export default (...$a)=>[(()=>{throw $a;})()];')
+    },
+    throw: {
+        // the call a nested `throw` is written as fails where the node does
+        nested: () => {
+            const { edag } = unresolved(unwrap(parse(path)(unwrap(tryStringify(['[]', [['throw', 1]]])))))
+            memo(analysis(_defaultExport(edag)))({ frame: null, args: [] })
+        },
+    },
     refuses: () => {
         // A node kind this writer has no spelling for, which is how the
         // feature that adds one is made to add its spelling here too.
@@ -671,6 +710,18 @@ export const proof = {
             refuses(['[]', [['&&', 1, c], ['&&', 2, c]]], 'a shared node reached from outside the lazy operand that establishes it')
             refuses(['?:', true, ['[]', [c, c]], c], 'a shared node reached from outside the lazy operand that establishes it')
             refuses(fn(['?:', r0, ['[]', [['&&', 1, c], ['&&', 2, c]]], 1]), 'a shared node reached from outside the lazy operand that establishes it')
+            // and so has an operand two edges reach that holds one: the
+            // access is written at each and merges again when read, but
+            // the array under it would be built twice
+            /** @type {Exp} */
+            const length = ['.', c, 'length']
+            refuses(['?:', true, length, length], 'a shared node reached from outside the lazy operand that establishes it')
+            refuses(['[]', [['&&', 1, length], ['&&', 2, length]]], 'a shared node reached from outside the lazy operand that establishes it')
+            // where one holding values alone is written at each, and reads
+            // back merged
+            writes(fn(['?:', r0, r1, r1]), 'export default (...$a)=>$a[0]?$a[1]:$a[1];')
+            // and one the scope reaches eagerly as well is the scope's
+            writes([',', [c, ['?:', true, length, length]]], 'const $0=[1];export default true?$0.length:$0.length;')
         },
     },
     // The writer's one law, over graphs nobody chose: a graph is refused,

@@ -289,6 +289,9 @@ export const operations = {
         assert(typeof b === 'string', ['own: key is not a string', b])
         return Object.getOwnPropertyDescriptor(a, b)?.value
     }),
+    // The language's `throw`: the operand is the thrown value, established
+    // first as JavaScript establishes it, and the operation never answers.
+    throw: o1(a => { throw a }),
     typeof: o1(a => typeof a),
     undefined: () => () => undefined,
     '{}': ({ operand }) => ([, a]) => {
