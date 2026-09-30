@@ -8,7 +8,7 @@
 CI runs the `wasm32-wasip1-threads` tests under Wasmer only: `wasmerOnlyTarget`
 in [`../rust/module.f.mjs`](../rust/module.f.mjs) takes the target out of the
 Wasmtime runs, because Wasmtime 47 removed wasi-threads. But the Wasmtime CI
-runs is the one `wasmtime` in [`../config/module.f.mjs`](../config/module.f.mjs)
+runs is the one `wasmtime` in [`../config/module.f.js`](../config/module.f.js)
 pins — 45.0.2 at `36c8d4a` — which still runs wasi-threads. The cell was
 dropped ahead of the Nixpkgs snapshot reaching 47, not forced by today's pin,
 so the coverage it gave is available now and nothing tracks whether to take

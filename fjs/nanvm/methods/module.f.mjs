@@ -4,7 +4,7 @@
  * `nanvm-lib/todo/member-functions.md` asks for.
  *
  * The compiler admits a call of every name in `allowedCalls`
- * ([`fjs/js/prototype`](../../js/prototype/module.f.mjs)), and the VM must
+ * ([`fjs/js/prototype`](../../js/prototype/module.f.js)), and the VM must
  * answer each on every type whose prototype has it, or a module compiles and
  * then throws. It must equally answer none of `prohibitedCalls`, so that a
  * name the compiler refuses cannot be reached another way, and no known name
@@ -44,7 +44,7 @@ import {
     prohibitedCalls,
     prototypeNames,
     stringPrototype,
-} from '../../js/prototype/module.f.mjs'
+} from '../../js/prototype/module.f.js'
 
 /**
  * Each type a receiver can have, and the prototype a call on it looks in.

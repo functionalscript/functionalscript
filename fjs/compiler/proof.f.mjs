@@ -20,8 +20,8 @@ import { invert, mapOk, unwrap } from '../types/result/module.f.mjs'
 import { fromEntries, isObject } from '../types/object/module.f.mjs'
 import { toVec } from '../types/uint8array/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
-import accept from '../../spec/datajs/vectors/accept/data.f.mjs'
-import normalize from '../../spec/datajs/vectors/normalize/data.f.mjs'
+import accept from '../../spec/datajs/vectors/accept/data.f.js'
+import normalize from '../../spec/datajs/vectors/normalize/data.f.js'
 
 /** The DataJS accept corpus, typed at the import since a data module carries no annotations. */
 const acceptSet = /** @type {readonly Accept[]} */ (accept)

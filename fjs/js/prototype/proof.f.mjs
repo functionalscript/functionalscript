@@ -2,7 +2,7 @@ import { assertEq } from '../../asserts/module.f.mjs'
 import {
     allowedCalls, arrayPrototype, bigintPrototype, booleanPrototype, functionPrototype, numberPrototype,
     objectPrototype, prohibitedCalls, prototypeNames, stringPrototype,
-} from './module.f.mjs'
+} from './module.f.js'
 
 /** @type {readonly (readonly string[])[]} */
 const lists = [objectPrototype, arrayPrototype, stringPrototype, numberPrototype, booleanPrototype, bigintPrototype, functionPrototype]

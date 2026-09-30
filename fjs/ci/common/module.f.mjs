@@ -10,7 +10,7 @@
  * @import { Step, Job, MetaStep, StepType } from './types.ts'
  */
 
-import { actions, images } from '../config/module.f.mjs'
+import { actions, images } from '../config/module.f.js'
 import { array, option, or, record, string } from '../../rtti/module.f.mjs'
 import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
 

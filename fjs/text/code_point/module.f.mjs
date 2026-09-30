@@ -17,7 +17,7 @@
  */
 
 import { empty, flat, stateScan } from '../../types/list/module.f.mjs'
-import { contains } from '../../types/range/module.f.mjs'
+import { contains } from '../../types/range/module.f.js'
 
 //
 

@@ -36,7 +36,7 @@ report the PR as unready; do not treat an unavailable required check as passing.
 
 `tsc` is not a dependency of this package. It comes from the Nix developer
 shell (`./dev.sh`), or from a global npm install of the version
-`fjs/ci/config/module.f.mjs` pins — [CONTRIBUTING.md](./CONTRIBUTING.md) has
+`fjs/ci/config/module.f.js` pins — [CONTRIBUTING.md](./CONTRIBUTING.md) has
 both. `npx tsc` no longer runs the repository's compiler: with nothing to
 resolve in `node_modules` it fetches whatever the registry calls latest.
 
