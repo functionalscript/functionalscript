@@ -1,4 +1,4 @@
-import { anchors, run, sharing, values } from './module.f.mjs'
+import { anchors, isInlinedCall, readCaptures, run, sharing, values } from './module.f.mjs'
 import { _stringifyTree } from '../module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -108,6 +108,88 @@ export const proof = {
         assertEq(anchorsOf([[a], [['array', []], ['()', 1, [2, ['cref', 0]]]]]), 'consts ; imports 0')
         // what it does not reach is anchored as ever
         assertEq(anchorsOf([[a], [['array', []], ['()', 1, [2]]]]), 'consts 0; imports 0')
+    },
+    // The call the lowering inlines: no arguments, a parameterless function
+    // written at the call, reading no rest array. Every other call stays
+    // one.
+    inlined: () => {
+        assert(isInlinedCall(['()', ['=>', 0, [1]], []]))
+        assert(isInlinedCall(['()', ['=>', 0, [['fref', 0]], [['cref', 0]]], []]))
+        // a nested function's own rest array is its own
+        assert(isInlinedCall(['()', ['=>', 0, [['=>', 0, [['rest']]]]], []]))
+        assert(!isInlinedCall(['()', ['=>', 0, [1]], [2]]))
+        assert(!isInlinedCall(['()', ['=>', 1, [1]], []]))
+        assert(!isInlinedCall(['()', ['cref', 0], []]))
+        assert(!isInlinedCall(['()', 1, []]))
+        // the rest array read anywhere in the body, a nested function's
+        // captures included, outside a nested function's body
+        assert(!isInlinedCall(['()', ['=>', 0, [['rest']]], []]))
+        assert(!isInlinedCall(['()', ['=>', 0, [['array', [['rest']]]]], []]))
+        assert(!isInlinedCall(['()', ['=>', 0, [['object', [['a', ['rest']]]]]], []]))
+        assert(!isInlinedCall(['()', ['=>', 0, [['()', ['rest'], []]]], []]))
+        assert(!isInlinedCall(['()', ['=>', 0, [['()', 1, [['rest']]]]], []]))
+        assert(!isInlinedCall(['()', ['=>', 0, [['.', ['rest'], 0]]], []]))
+        assert(!isInlinedCall(['()', ['=>', 0, [['-', ['rest']]]], []]))
+        assert(!isInlinedCall(['()', ['=>', 0, [['&&', 1, ['rest']]]], []]))
+        assert(!isInlinedCall(['()', ['=>', 0, [['=>', 0, [['fref', 0]], [['rest']]]]], []]))
+        assert(!isInlinedCall(['()', ['=>', 0, [1, ['rest']]], []]))
+        // To the sweep such a call is its body where it stands: a capture
+        // is reached as the body reaches it — eagerly through the value or
+        // through an entry the value does not reach, which the lowering
+        // anchors at the call, and lazily where the body's own lazy
+        // position holds it — and not by being captured.
+        /** @type {(body: import('./types.ts').AstBody) => string} */
+        const inlining = body => anchorsOf([[a], [['array', []], ['()', ['=>', 0, body, [['cref', 0]]], []]]])
+        assertEq(inlining([['fref', 0]]), 'consts ; imports 0')
+        assertEq(inlining([['array', [['fref', 0]]], 1]), 'consts ; imports 0')
+        assertEq(inlining([['&&', 1, ['fref', 0]]]), 'consts 0; imports 0')
+        assertEq(inlining([['?:', 1, ['fref', 0], 2]]), 'consts 0; imports 0')
+        assertEq(inlining([['&&', ['fref', 0], 1]]), 'consts ; imports 0')
+        // a body `const` naming the capture is the capture, reached where
+        // the `const` is; an unused alias reaches nothing
+        assertEq(inlining([['fref', 0], ['cref', 0]]), 'consts ; imports 0')
+        assertEq(inlining([['fref', 0], 1]), 'consts 0; imports 0')
+        assertEq(inlining([['array', [['fref', 0]]], ['.', ['cref', 0], 0]]), 'consts ; imports 0')
+        // a nested function capturing through the body establishes its
+        // frame where it is made
+        assertEq(inlining([['=>', 0, [['fref', 0]], [['fref', 0]]]]), 'consts ; imports 0')
+        // an import is a capture like any other
+        assertEq(anchorsOf([[a], [['()', ['=>', 0, [['&&', 1, ['fref', 0]]], [['aref', 0]]], []]]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['()', ['=>', 0, [['fref', 0]], [['aref', 0]]], []]]]), 'consts ; imports ')
+        // a call that is not inlined still reaches what its function
+        // captures, whatever position the body reads it in
+        assertEq(anchorsOf([[a], [['array', []], ['()', ['=>', 0, [['&&', 1, ['fref', 0]]], [['cref', 0]]], [1]]]]), 'consts ; imports 0')
+        // inside a function body a slot of the frame is a reference the
+        // body's own sweep passes over
+        assertEq(anchorsOf([[], [['array', [['fref', 0]]], 1]]), 'consts 0; imports ')
+        // an unused alias of a slot, of the rest array or of a parameter is
+        // the node it names and anchors nothing
+        assertEq(anchorsOf([[], [['fref', 0], 1]]), 'consts ; imports ')
+        assertEq(anchorsOf([[], [['rest'], 1]]), 'consts ; imports ')
+        assertEq(anchorsOf([[], [['arg', 0], 1]]), 'consts ; imports ')
+    },
+    // The captures a body reads, by index, each once in first-use order:
+    // the slots of the function's frame. A capture the body names only
+    // through an unused alias is not read, so a function names only what
+    // its body reads, and the enclosing `const` behind an unread capture is
+    // anchored as one nothing reaches.
+    readCaptures: () => {
+        assertStructurallySame(readCaptures(['=>', 0, [['fref', 0]], [['cref', 0]]]), [0])
+        assertStructurallySame(readCaptures(['=>', 0, [['fref', 1], ['array', [['fref', 0], ['cref', 0], ['fref', 1]]]], [['cref', 0], ['cref', 1]]]), [0, 1])
+        assertStructurallySame(readCaptures(['=>', 0, [['fref', 0], 1], [['cref', 0]]]), [])
+        assertStructurallySame(readCaptures(['=>', 0, [['fref', 0], ['cref', 0]], [['cref', 0]]]), [0])
+        // read anywhere: a lazy position, a nested function's captures, a
+        // call the lowering inlines, a negation
+        assertStructurallySame(readCaptures(['=>', 0, [['&&', 1, ['fref', 0]]], [['cref', 0]]]), [0])
+        assertStructurallySame(readCaptures(['=>', 0, [['=>', 0, [['fref', 0]], [['fref', 0]]]], [['cref', 0]]]), [0])
+        assertStructurallySame(readCaptures(['=>', 0, [['()', ['=>', 0, [['fref', 0]], [['fref', 0]]], []]], [['cref', 0]]]), [0])
+        assertStructurallySame(readCaptures(['=>', 0, [['()', ['=>', 0, [['fref', 0], 1], [['fref', 0]]], []]], [['cref', 0]]]), [])
+        assertStructurallySame(readCaptures(['=>', 0, [['-', ['fref', 0]]], [['cref', 0]]]), [0])
+        assertStructurallySame(readCaptures(['=>', 0, [1]]), [])
+        // the sweep names only what the body reads
+        assertEq(anchorsOf([[a], [['array', []], ['=>', 0, [['fref', 0], 1], [['cref', 0]]]]]), 'consts 0; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], ['=>', 0, [['fref', 0], ['cref', 0]], [['cref', 0]]]]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], ['=>', 0, [['()', ['=>', 0, [['fref', 0], 1], [['fref', 0]]], []]], [['cref', 0]]]]]), 'consts 0; imports 0')
     },
     // A binary operator and a bitwise not have no value here — `+` alone
     // needs `ToPrimitive`, and folding the rest while leaving it a node
