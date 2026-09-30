@@ -367,9 +367,13 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assertEq(toRust(['[]', [['args']]])[0], 'error')
             assertEq(toRust(['=>', 0, null, ['rest']])[0], 'ok')
         },
-        /** A frame slot too: a module has none, a function body has its own. */
+        /**
+         * A frame slot too: a module has none, a function body has its own.
+         * The refusal is the analysis's, before anything is printed.
+         */
         refusedFrameInModuleScope: () => {
-            assertEq(toRust(['frame', 0])[0], 'error')
+            assertStructurallySame(toRust(['frame', 0]),
+                ['error', 'no Rust spelling for this module: invalid frame slot index or scope: frame,0'])
             assertEq(toRust(['=>', 0, ['[]', [['[]', []]]], ['frame', 0]])[0], 'ok')
         },
         /**

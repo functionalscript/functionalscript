@@ -25,7 +25,7 @@
 
 import { error, mapOk, unwrap } from '../../types/result/module.f.mjs'
 import { analysis, bindingError } from '../../edag/analysis/module.f.mjs'
-import { holdsFunction, indent, readsArgs, readsFrame, scope } from '../../edag/rust/module.f.mjs'
+import { holdsFunction, indent, readsArgs, scope } from '../../edag/rust/module.f.mjs'
 import { withoutStringLiterals } from '../../media/rust/module.f.mjs'
 
 /**
@@ -104,11 +104,11 @@ const importsFor = (text, bound) => [...new Set([
  * refusal. Validate bindings against their owning functions before printing:
  * a fixed read cannot reach past its owner's length, and a closure's frame
  * belongs to the enclosing scope. The fragment printer cannot perform that
- * check without the complete graph. A module has no arguments and no frame,
- * so an `['args']` or
- * `['frame', i]` node in its own scope — a function body's node, which the lowering
- * never puts here, handed in directly — is refused rather than printed as
- * a name nothing binds.
+ * check without the complete graph. A module has no arguments, so an
+ * `['args']` node in its own scope — a function body's node, which the
+ * lowering never puts here, handed in directly — is refused rather than
+ * printed as a name nothing binds; a module has no frame either, and a
+ * `['frame', i]` in its own scope is `bindingError`'s refusal.
  *
  * @type {(root: Exp) => Result<readonly string[], readonly unknown[]>}
  */
@@ -117,8 +117,6 @@ const bodyLines = root => {
     return problem !== null ? error([problem, root])
     : readsArgs(root)
     ? error(['no Rust for `args` in a module\'s own scope; a module has no arguments', root])
-    : readsFrame(root)
-    ? error(['no Rust for `frame` in a module\'s own scope; a module has no frame', root])
     : mapOk((/** @type {readonly string[]} */ lines) => lines.map(l => `${indent}${l}`))(scope(root))
 }
 

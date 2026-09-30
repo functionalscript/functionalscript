@@ -185,7 +185,7 @@ hardening TODO after the baseline interpreter exists.
       the step supplies the `this` binding. Function bodies use fixed `['arg', N]`
       and per-invocation `['rest']`, not module-import `['args']`.
 - [x] Evaluate frames in the enclosing scope and make their captured values available
-      through `['frame']` in each body invocation. The old null-only restriction is
+      through `['frame', i]` in each body invocation. The old null-only restriction is
       historical; capture and fixed/rest identity proofs are in
       [`../parameters/proof.f.mjs`](../parameters/proof.f.mjs).
 - [x] Memoize results by EDAG node identity within one evaluation context so shared

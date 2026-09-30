@@ -403,7 +403,7 @@ returned and exported functions preserve that declared length too.
 
 **Stage 3 — capturing closures. Landed.**
 Extend the generator to lower the approved function-node shape for a body
-that references `["frame"]`: build the `frame` operand (an array literal over the
+that references `["frame", i]`: build the `frame` operand (an array literal over the
 captured names) as an `Array<A>` in the enclosing scope, then construct the
 `Function<A>` value through `A::static_function` with that as its frame.
 The nested body reads slot `i` of `A::frame(self_)` exactly as it reads
@@ -416,8 +416,8 @@ neither document spells this particular example.
 
 It landed as described, the frame an array literal whose items are the
 enclosing scope's own nodes, printed as `[…].to_array()` in the third
-argument of `A::static_function`, and `['frame']` as
-`A::frame(self_).clone().to_any()`. The fixture is
+argument of `A::static_function`, and `['frame', i]` as
+`A::frame(self_)[i].clone()`. The fixture is
 `nanvm-harness/fixtures/closure.mjs`: `(...a) => (...b) => a[0] + b[0]`,
 the language's only admitted parameter then being rest, beside a capture of a
 module `const` and one through a parent's frame.
