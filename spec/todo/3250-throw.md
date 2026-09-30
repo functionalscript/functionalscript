@@ -78,11 +78,18 @@ Everything else about it is JavaScript's, read as the specification reads
   is unreachable. JavaScript allows the text; refusing it prevents the
   mistake it can only be, the same reason a block may not fall off its end
   without a `return` ([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
-- **A module body has no `throw`.** JavaScript accepts one at the top level,
-  where it would make the module fail at every load and its value
-  unreachable, so no output could ever be written for it. Refusing it at
-  compile time reports that mistake where it is made rather than at load; a
-  use for a module that always throws can lift the restriction later.
+- **A module body may end in one too.** JavaScript accepts `throw` at the
+  top level, and [a module is a function](../README.md#a-module-is-a-function),
+  so the block's rule is the module's: after its imports and every `const`,
+  exported or not, `throw value;` may stand where `export default` would,
+  and nothing follows it. Such a module fails at every load. The graph
+  outputs write it, as they write a module holding `const c = null.x`, since
+  they evaluate none of it, and the value outputs, which evaluate, refuse it
+  as they refuse that module ([output](../README.md#output)). The first
+  draft of this proposal refused the top-level form; no guarantee needed the
+  restriction, and a restriction without a reason is what
+  [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
+  rules out.
 - **Lowering.** The body `{ const …; throw v; }` lowers to a body whose value
   is the node `['throw', v]`, an operation of one operand that always fails,
   the "provably throwing" node the stage-1 discussion describes. It follows
@@ -93,11 +100,21 @@ Everything else about it is JavaScript's, read as the specification reads
   not reach. Once [`if`](./README.md#32-priority-2) lands as surface syntax
   over `?:`, `if (!v) throw msg` is `['?:', cond, ['throw', msg], rest]`, and
   `assert` compiles with no node this proposal does not add.
-- **Outputs.** The FunctionalScript writer spells the node as the statement
-  it came from; the EDAG output carries it; the Rust output fails as the
-  VM fails. The value outputs are unchanged: a function is refused by them
-  already, and a module whose load reaches a `throw` fails to load, which
-  they refuse as they refuse a load that reaches `null.x`.
+- **Outputs.** The FunctionalScript writer spells a `throw` node in a
+  terminating position, a block's or the module's, as the statement
+  `throw v;`. In any other position — an arm of `?:` once `if` lowers there,
+  or wherever a hand-written EDAG puts one — it spells the node as the call
+  of a function that throws, `(() => { throw v; })()`: JavaScript's one
+  spelling of an expression that fails, and itself FunctionalScript under
+  this proposal, so the output compiles again and fails at the same point.
+  That is the writer's spelling, as a `const` for a shared node is, not a
+  second form in the source language. When `if` lands, spelling
+  `['?:', c, ['throw', m], rest]` in a terminating position as
+  `if (c) { throw m; } return rest;` is that proposal's writer task. The EDAG
+  output carries the node; the Rust output fails as the VM fails. The value
+  outputs are unchanged: a function is refused by them already, and a module
+  whose load reaches a `throw` fails to load, which they refuse as they
+  refuse a load that reaches `null.x`.
 
 **Benefits.** The source is JavaScript as written today, in the one spelling
 the repository already uses. A panic becomes a language construct rather than
@@ -120,28 +137,33 @@ fails is a temptation to signal expected errors with it, against the
 to make the temptation useful. A function ending in `throw` returns nothing,
 which TypeScript types as `never`; JSDoc handles that today for `todo`.
 `throw` is a statement only, so an expression that needs to fail still goes
-through a function that throws, `(() => { throw v })()`, as JavaScript would
-have it; an expression form is not proposed, the stage-1 discussion's
-alternatives being unnecessary once the statement exists.
+through a function that throws, `(() => { throw v; })()`, as JavaScript would
+have it and as the writer spells a nested node; an expression form is not
+proposed, the stage-1 discussion's alternatives being unnecessary once the
+statement exists.
 
 ### Tasks
 
 - [ ] Approval from a language designer other than the proposer, recorded
       above.
 - [ ] Grammar: `block` takes `throw value end` where it takes
-      `return value end`, with the same line-terminator refusal
+      `return value end`, and the module rule takes it where it takes
+      `export default`, with the same line-terminator refusal
       ([`fjs/compiler/parser/grammar`](../../fjs/compiler/parser/grammar/module.f.mjs)).
 - [ ] AST and EDAG: the `['throw', v]` node, its rtti schema and `types.ts`
       entry, its evaluation in the JavaScript evaluators and the Rust VM, and
       its place in the sharing analysis as a node that is never speculated.
-- [ ] Writers: the FunctionalScript spelling `throw v;` in a block; the EDAG
-      output; the Rust output; value outputs unchanged.
+- [ ] Writers: the FunctionalScript spelling, `throw v;` in a terminating
+      position and `(() => { throw v; })()` elsewhere; the EDAG output; the
+      Rust output; value outputs unchanged.
 - [ ] Proofs: a body ending in `throw`, `throw` after `const`s, the newline
-      and empty-value refusals, a `throw` in a `?:` arm not established, and
-      a module-level `throw` refused — in the parser, EDAG, transpiler and
-      serializer proofs, using the test runner's `throw` key.
-- [ ] Fold the statement into [functions](../README.md#functions) and delete
-      this file and its roadmap entry.
+      and empty-value refusals, a `throw` in a `?:` arm not established and
+      written as the call, and a module-level `throw` written by the graph
+      outputs and refused by the value outputs — in the parser, EDAG,
+      transpiler and serializer proofs, using the test runner's `throw` key.
+- [ ] Fold the statement into [functions](../README.md#functions) and
+      [module structure](../README.md#module-structure), and delete this
+      file and its roadmap entry.
 - [ ] After `if` and logical `!`: rename `fjs/asserts` to `.f.js`, then the
       modules that depend on it, then the proofs
       ([fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md#repository-compiler-compatibility-migration)).
