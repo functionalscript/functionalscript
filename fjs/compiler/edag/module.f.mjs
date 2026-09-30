@@ -6,7 +6,7 @@
  * @module
  *
  * @import { Exp } from '../../edag/types.ts'
- * @import { AstBinary, AstBitnot, AstBody, AstConditional, AstConst, AstImport, AstMember, AstModule, AstNeg } from '../ast/types.ts'
+ * @import { AstBinary, AstBitnot, AstBody, AstCall, AstConditional, AstConst, AstFunction, AstImport, AstModule, AstNeg } from '../ast/types.ts'
  * @import { _ImportSource, _Source } from '../transpiler/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
@@ -14,10 +14,10 @@
  * @import { Unknown as JsonUnknown } from '../../media/json/types.ts'
  * @import { Entry } from '../../types/object/types.ts'
  * @import { Unresolved } from './types.ts'
- * @import { _Binding, _Link, _LowerResults, _LowerWork, _Nodes, _Resolved } from './private.ts'
+ * @import { _Binding, _Entries, _Link, _Lowered, _LowerResults, _LowerWork, _Nodes, _Resolved } from './private.ts'
  */
 
-import { anchors } from '../ast/module.f.mjs'
+import { anchors, isInlinedCall } from '../ast/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { _attributeError, _importSources, _missingExport, _rootSource, _parseJson, _parseModule } from '../transpiler/module.f.mjs'
 import { foldStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
@@ -52,11 +52,36 @@ const undefinedNode = () => ['undefined']
 /** Import `i` as the module's EDAG sees it: a property of the arguments. @type {(imported: AstImport, i: number) => Exp} */
 const parameter = ({ name }, i) => name === null ? ['.', args, i] : ['.', ['.', args, i], name]
 
-/** @type {(lower: (ast: AstConst) => Exp) => (member: AstMember) => readonly [':', string, Exp]} */
-const property = lower => ([key, value]) => [':', key, lower(value)]
+/** A value that floats nothing. @type {(exp: Exp) => _Lowered} */
+const plain = exp => ({ exp, anchors: [] })
+
+/** What several lowered values float, in their order. @type {(xs: readonly _Lowered[]) => readonly Exp[]} */
+const floated = xs => xs.flatMap(x => x.anchors)
+
+/**
+ * A value under what it floats: the value alone where nothing is floated,
+ * and otherwise the comma establishing the floated roots first — the form
+ * a scope's root takes, and a lazy operand's, the two positions that open a
+ * block ({@link parts}).
+ *
+ * @type {(x: _Lowered) => Exp}
+ */
+const anchoring = ({ exp, anchors }) => anchors.length === 0 ? exp : [',', [...anchors, exp]]
 
 /**
  * A call's EDAG, by what it calls.
+ *
+ * A call `isInlinedCall` admits — no arguments, a parameterless function
+ * written at the call, reading no rest array — is its body where the call
+ * stands: the body is lowered as a scope of its own over the enclosing
+ * scope's nodes for its captures, in place of a frame, so a slot read is
+ * the enclosing node itself and the sharing the body spells is the
+ * enclosing scope's. What the body anchors, the `const`s its value does
+ * not reach, floats out of the call to the nearest block root
+ * ({@link parts}); nothing else changes, and nothing observes the function
+ * that was written — `isInlinedCall` has the argument. `(() => [1, 2])()`
+ * is the array, and the module holding it hashes as the module holding the
+ * array does.
  *
  * A callee that is a property access is a **method call**: `a.b(c)` passes
  * `a` as the receiver, so the access owns the call and the two are one node,
@@ -77,14 +102,23 @@ const property = lower => ([key, value]) => [':', key, lower(value)]
  * takes: `exp0(...exp1)`, its second operand spread. A fresh node per call
  * site, since each call writes its own list.
  *
- * @type {(nodes: _Nodes) => (callee: AstConst, args: readonly AstConst[]) => Exp}
+ * @type {(nodes: _Nodes) => (ast: AstCall) => _Lowered}
  */
-const call = nodes => (callee, args) => {
+const call = nodes => ast => {
+    const [, callee, args] = ast
+    if (isInlinedCall(ast)) {
+        const [, , body, captures] = /** @type {AstFunction} */ (callee)
+        return parts(body, (captures ?? []).map(c => lower(nodes)(c).exp))
+    }
+    const items = args.map(lower(nodes))
     /** @type {Exp} */
-    const spread = ['[]', args.map(lower(nodes))]
-    return callee !== null && typeof callee === 'object' && callee[0] === '.'
-        ? ['.', lower(nodes)(callee[1]), callee[2], ['|()', spread]]
-        : ['()', lower(nodes)(callee), spread]
+    const spread = ['[]', items.map(x => x.exp)]
+    if (callee !== null && typeof callee === 'object' && callee[0] === '.') {
+        const base = lower(nodes)(callee[1])
+        return { exp: ['.', base.exp, callee[2], ['|()', spread]], anchors: [...base.anchors, ...floated(items)] }
+    }
+    const f = lower(nodes)(callee)
+    return { exp: ['()', f.exp, spread], anchors: [...f.anchors, ...floated(items)] }
 }
 
 /**
@@ -109,7 +143,7 @@ const call = nodes => (callee, args) => {
  * @type {(nodes: _Nodes) => (length: number, body: AstBody, captures: readonly AstConst[]) => Exp}
  */
 const fn = nodes => (length, body, captures) => {
-    const outer = captures.map(lower(nodes))
+    const outer = captures.map(c => lower(nodes)(c).exp)
     const candidates = outer.filter(n => n instanceof Array)
     const keys = slotKeys(candidates)
     /** Each candidate's first twin: the candidate whose slot it reads. */
@@ -150,25 +184,34 @@ const slotKeys = nodes => {
  * length ({@link lower}'s own comment has why that one gets an explicit
  * stack instead).
  *
- * @type {(nodes: _Nodes) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional>) => Exp}
+ * @type {(nodes: _Nodes) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional>) => _Lowered}
  */
 const lowerLeaf = nodes => ast => {
-    if (ast === undefined) { return undefinedNode() }
-    if (ast === null || typeof ast !== 'object') { return ast }
+    if (ast === undefined) { return plain(undefinedNode()) }
+    if (ast === null || typeof ast !== 'object') { return plain(ast) }
     switch (ast[0]) {
-        case 'aref': { return nodes.parameters[ast[1]] }
-        case 'cref': { return nodes.consts[ast[1]] }
-        case 'array': { return ['[]', ast[1].map(lower(nodes))] }
-        case 'object': { return ['{}', ast[1].map(property(lower(nodes)))] }
+        case 'aref': { return plain(nodes.parameters[ast[1]]) }
+        case 'cref': { return plain(nodes.consts[ast[1]]) }
+        case 'array': {
+            const items = ast[1].map(lower(nodes))
+            return { exp: ['[]', items.map(x => x.exp)], anchors: floated(items) }
+        }
+        case 'object': {
+            const members = ast[1].map(([key, value]) => /** @type {const} */ ([key, lower(nodes)(value)]))
+            return { exp: ['{}', members.map(([key, x]) => [':', key, x.exp])], anchors: floated(members.map(([, x]) => x)) }
+        }
         // a function's body is a scope of its own: it names its arguments,
         // one node however many references reach them, and nothing outside
-        case '=>': { return fn(nodes)(ast[1], ast[2], ast[3] ?? []) }
-        case 'arg': { return ['arg', ast[1]] }
-        case 'rest': { return nodes.args }
-        case 'fref': { return nodes.frame[ast[1]] }
-        case '()': { return call(nodes)(ast[1], ast[2]) }
+        case '=>': { return plain(fn(nodes)(ast[1], ast[2], ast[3] ?? [])) }
+        case 'arg': { return plain(['arg', ast[1]]) }
+        case 'rest': { return plain(nodes.args) }
+        case 'fref': { return plain(nodes.frame[ast[1]]) }
+        case '()': { return call(nodes)(ast) }
         // the EDAG's own form already, its key a constant the parser admitted
-        default: { return ['.', lower(nodes)(ast[1]), ast[2]] }
+        default: {
+            const base = lower(nodes)(ast[1])
+            return { exp: ['.', base.exp, ast[2]], anchors: base.anchors }
+        }
     }
 }
 
@@ -200,7 +243,14 @@ const lowerLeaf = nodes => ast => {
  * positional rule and no shape of its own — and the conditional its
  * `op3`, `['?:', c, t, e]`, three operands lowered the same way.
  *
- * @type {(nodes: _Nodes) => (ast: AstConst) => Exp}
+ * What an operand floats — the anchors of a call inlined inside it,
+ * {@link call} — floats on through an eager position, and stops at a lazy
+ * one: the right operand of `&&`, `||` or `??` and an arm of `?:` is a
+ * block root, established only when the operator decides to, so what its
+ * inlined body anchors is anchored there, by the comma {@link anchoring}
+ * puts under the operand, and never before the operator.
+ *
+ * @type {(nodes: _Nodes) => (ast: AstConst) => _Lowered}
  */
 const lower = nodes => root => {
     /** @type {_LowerWork} */
@@ -251,9 +301,10 @@ const lower = nodes => root => {
             /** @type {_LowerWork} */
             const rest = work.rest
             const operand = assertNotNullish(results, ['no operand for a negation', root])
+            const { exp, anchors } = operand.top
             /** @type {Exp} */
-            const value = typeof operand.top === 'number' || typeof operand.top === 'bigint' ? -operand.top : ['-', operand.top]
-            results = { top: value, rest: operand.rest }
+            const value = typeof exp === 'number' || typeof exp === 'bigint' ? -exp : ['-', exp]
+            results = { top: { exp: value, anchors }, rest: operand.rest }
             work = rest
             continue
         }
@@ -261,7 +312,7 @@ const lower = nodes => root => {
             /** @type {_LowerWork} */
             const rest = work.rest
             const operand = assertNotNullish(results, ['no operand for a bitwise not', root])
-            results = { top: ['~', operand.top], rest: operand.rest }
+            results = { top: { exp: ['~', operand.top.exp], anchors: operand.top.anchors }, rest: operand.rest }
             work = rest
             continue
         }
@@ -271,7 +322,7 @@ const lower = nodes => root => {
             const otherwise = assertNotNullish(results, ['no else arm for a conditional', root])
             const then = assertNotNullish(otherwise.rest, ['no then arm for a conditional', root])
             const condition = assertNotNullish(then.rest, ['no condition for a conditional', root])
-            results = { top: ['?:', condition.top, then.top, otherwise.top], rest: condition.rest }
+            results = { top: { exp: ['?:', condition.top.exp, anchoring(then.top), anchoring(otherwise.top)], anchors: condition.top.anchors }, rest: condition.rest }
             work = rest
             continue
         }
@@ -280,40 +331,65 @@ const lower = nodes => root => {
         const tag = work.tag
         const right = assertNotNullish(results, ['no right operand for', tag, root])
         const left = assertNotNullish(right.rest, ['no left operand for', tag, root])
-        results = { top: [tag, left.top, right.top], rest: left.rest }
+        results = {
+            top: ['&&', '||', '??'].includes(tag)
+                ? { exp: [tag, left.top.exp, anchoring(right.top)], anchors: left.top.anchors }
+                : { exp: [tag, left.top.exp, right.top.exp], anchors: [...left.top.anchors, ...right.top.anchors] },
+            rest: left.rest,
+        }
         work = rest
     }
     return assertNotNullish(results, ['no result lowering', root]).top
 }
 
 /**
- * One entry of a body, folded over the entries before it, under the
- * arguments node that body names: a fresh one per function, since a node
- * belongs to one scope and two bodies naming one `['args']` is no EDAG.
+ * The entries of a body, each lowered over the entries before it, under
+ * the arguments node that body names: a fresh one per function, since a
+ * node belongs to one scope and two bodies naming one `['args']` is no
+ * EDAG. Beside each entry's node, what lowering it floated.
  *
- * @type {(parameters: readonly Exp[], args: Exp, frame: readonly Exp[]) => (consts: readonly Exp[], ast: AstConst) => readonly Exp[]}
+ * @type {(parameters: readonly Exp[], args: Exp, frame: readonly Exp[]) => (body: AstBody) => _Entries}
  */
-const entry = (parameters, args, frame) => (consts, ast) => [...consts, lower({ parameters, consts, args, frame })(ast)]
+const entries = (parameters, args, frame) => body => body.reduce(
+    /** @type {(acc: _Entries, ast: AstConst) => _Entries} */
+    ((acc, ast) => {
+        const { exp, anchors } = lower({ parameters, consts: acc.nodes, args, frame })(ast)
+        return { nodes: [...acc.nodes, exp], floated: [...acc.floated, anchors] }
+    }),
+    { nodes: [], floated: [] })
 
 /**
- * A body as one node: its entries lowered in order, each `cref` taking the
- * node of the entry it names, each `fref` the node `frame` has for its
- * slot, and the last entry's node the value — with what that value does
- * not reach anchored by the comma, as a module's unreached entries are.
+ * What a scope anchors before its value, in order: for each entry, what
+ * its lowering floated — the anchors of the calls inlined in it, established
+ * where the entry is — and then the entry itself where it is one `anchors`
+ * names, an entry the value does not reach.
+ *
+ * @type {(e: _Entries, consts: readonly number[]) => readonly Exp[]}
+ */
+const anchored = ({ nodes, floated }, consts) => nodes.flatMap((node, i) => [...floated[i], ...(consts.includes(i) ? [node] : [])])
+
+/**
+ * A body as a value and what it anchors: its entries lowered in order, each
+ * `cref` taking the node of the entry it names, each `fref` the node
+ * `frame` has for its slot, the last entry's node the value, and what the
+ * value does not reach the anchors, as a module's unreached entries are.
  *
  * A module and a function body are the same shape and the same rule, and
  * `anchors` reads a body out of a module, so the body is handed over as one
  * that imports nothing: a function names no import, a reference out of it
- * being a capture, read through its frame.
+ * being a capture, read through its frame — or, for a body a call inlines,
+ * the enclosing scope's node itself.
  *
- * @type {(body: AstBody, frame: readonly Exp[]) => Exp}
+ * @type {(body: AstBody, frame: readonly Exp[]) => _Lowered}
  */
-const scope = (body, frame) => {
-    const nodes = body.reduce(entry([], ['rest'], frame), [])
-    const value = nodes[nodes.length - 1]
+const parts = (body, frame) => {
+    const e = entries([], ['rest'], frame)(body)
     const { consts } = anchors([[], body])([])
-    return consts.length === 0 ? value : [',', [...consts.map(i => nodes[i]), value]]
+    return { exp: e.nodes[e.nodes.length - 1], anchors: anchored(e, consts) }
 }
+
+/** A body as one node: its value under its anchors, {@link parts}. @type {(body: AstBody, frame: readonly Exp[]) => Exp} */
+const scope = (body, frame) => anchoring(parts(body, frame))
 
 /**
  * The module as an EDAG over the nodes given for its imports. The body is
@@ -336,12 +412,9 @@ const scope = (body, frame) => {
  * @type {(imports: readonly Exp[]) => (module: AstModule) => Exp}
  */
 const lowered = imports => module => {
-    const nodes = module[1].reduce(entry(imports, args, []), [])
-    const exported = nodes[nodes.length - 1]
+    const e = entries(imports, args, [])(module[1])
     const { consts, imports: unbound } = anchors(module)(imports)
-    return unbound.length === 0 && consts.length === 0
-        ? exported
-        : [',', [...unbound.map(i => imports[i]), ...consts.map(i => nodes[i]), exported]]
+    return anchoring({ exp: e.nodes[e.nodes.length - 1], anchors: [...unbound.map(i => imports[i]), ...anchored(e, consts)] })
 }
 
 /** @type {(imports: readonly AstImport[]) => (edag: Exp) => Unresolved} */

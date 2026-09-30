@@ -220,6 +220,9 @@ const identifierKey = key => {
         && word.every(c => identifierStart(c) || isDigit(c))
 }
 
+/** Whether an operand is written as a name the scope binds without a `const`: the arguments, a parameter, or a slot of the frame. @type {(a: Analysis, v: Operand) => boolean} */
+const isName = (a, v) => v instanceof Array && (['rest', 'arg'].includes(a.nodes[v[1]][0]) || isSlotRead(a, v))
+
 /** Whether an operand is the `frame` node. @type {(a: Analysis, v: Operand) => boolean} */
 const isFrame = (a, v) => v instanceof Array && a.nodes[v[1]][0] === 'frame'
 
@@ -615,11 +618,13 @@ const hoistedText = (s, depth) => h => h[0] === 'leaf'
  * then the operand itself — an anchor as a `const` of its own, and the last
  * operand as the export.
  *
- * An anchor whose operand already has a name is refused. Its statement
- * would be a bare alias, `const $1=$0;`, which the front end reads back as
- * nothing at all — an alias to a reached `const` is not an anchored
- * computation — and the comma would be lost with it. Linking emits no such
- * graph, dropping the alias where the source writes one.
+ * An anchor whose operand already has a name is refused, and so is one
+ * that is a name of the scope's own — the arguments, a parameter, a slot
+ * of the frame. Its statement would be a bare alias, `const $1=$0;`, which
+ * the front end reads back as nothing at all — an alias is the node it
+ * names, not an anchored computation — and the comma would be lost with
+ * it. Linking emits no such graph, dropping the alias where the source
+ * writes one.
  *
  * @type {(a: Analysis, depth: number, frame: readonly string[], last: boolean) => (before: _Statement, v: Operand) => Result<_Statement, string>}
  */
@@ -643,6 +648,7 @@ const statement = (a, depth, frame, last) => ({ text, names }, v) => {
     if (!last && v instanceof Array && slotOf(before.names, ['entry', v[1]]) !== null) {
         return error('an anchor that repeats a hoisted value')
     }
+    if (!last && isName(a, v)) { return error('an anchor that is a name') }
     const s = { a, names: before.names, frame }
     return mapOk(
         /** @type {(value: List<string>) => _Statement} */

@@ -945,6 +945,28 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         // A shared operation is established once, in its `let`, with the
         // same `?`; each reference clones the value it produced, where a
         // value referenced once — the array — is moved.
+        // A `const` inside an arm — a call inlined by the lowering — is a
+        // shared node the arm alone reaches, bound in the arm's own block
+        // and so established exactly when the arm is taken. Through the
+        // whole of `fjs compile`, as the review of the design asked, so
+        // that the shape's Rust is pinned by the compiler and not by the
+        // corpus.
+        inlinedCall: () => {
+            assert(compileSource('const f = () => [1]; export default (...a) => a[0] ? (() => { const x = f(); return [x, x]; })() : 4;')('output.rs').includes([
+                '        let c1 = || {',
+                '            let c2: Any<A> = Any::dot(A::frame(self_).clone().to_any(), f64_any(0x0000000000000000)).end()?;',
+                '            let c3: Any<A> = Any::call(c2, Array::default().to_any())?;',
+                '            Ok([c3.clone(), c3.clone()].to_array().to_any())',
+                '        };',
+                '        Any::conditional(c0, c1, || Ok(f64_any(0x4010000000000000)))',
+            ].join('\n')))
+            // and one at an eager position, its anchor floated to the
+            // scope's root, prints as an anchored `const` does
+            assert(compileSource('export default [(() => { const x = null.x; return 1; })()];')('output.rs').includes([
+                '    let _: Any<A> = Any::dot(Nullish::Null.to_any(), string_any("x")).end()?;',
+                '    let c0: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();',
+            ].join('\n')))
+        },
         sharedOperation: () => {
             assertStructurallySame(
                 compileSource('const a = 1 + 2; export default [a, a];')('output.rs').split('\n').filter(line => line.startsWith('    ')),

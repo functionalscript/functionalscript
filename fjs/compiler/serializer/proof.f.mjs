@@ -541,6 +541,11 @@ export const proof = {
                 return [',', [o, o]]
             })(),
             'an anchor that repeats a hoisted value')
+        // and one that is a name the scope binds without a `const`: the
+        // front end reads `const $a0=$a;` as an alias, no anchor at all
+        refuses(['=>', 0, null, [',', [['rest'], 1]]], 'an anchor that is a name')
+        refuses(['=>', 1, null, [',', [['arg', 0], 1]]], 'an anchor that is a name')
+        refuses(['[]', [['[]', []], ['=>', 0, ['[]', [['[]', []]]], [',', [['.', ['frame'], 0], 1]]]]], 'an anchor that is a name')
     },
     // The writer's one law, over graphs nobody chose: a graph is refused,
     // or its text is read back to the same table. Every case above is a

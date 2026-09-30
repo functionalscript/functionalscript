@@ -50,8 +50,25 @@ export type _LowerWork =
     | { readonly kind: 'ternary', readonly rest: _LowerWork }
     | null
 
-/** The `Exp`s `_LowerWork`'s combine steps read and replace, most recently lowered on top. */
-export type _LowerResults = { readonly top: Exp, readonly rest: _LowerResults } | null
+/** The values `_LowerWork`'s combine steps read and replace, most recently lowered on top. */
+export type _LowerResults = { readonly top: _Lowered, readonly rest: _LowerResults } | null
+
+/**
+ * A lowered value and what it floats: the roots an inlined body anchors —
+ * its `const`s the value does not reach — carried up through eager
+ * positions to the nearest block root, a scope's root or a lazy operand,
+ * where the comma establishes them before the value.
+ */
+export type _Lowered = {
+    readonly exp: Exp
+    readonly anchors: readonly Exp[]
+}
+
+/** The entries of a body lowered so far: each entry's node, and beside each what lowering it floated. */
+export type _Entries = {
+    readonly nodes: readonly Exp[]
+    readonly floated: readonly (readonly Exp[])[]
+}
 
 /**
  * A module's full result and its export bindings. Select once so repeated
