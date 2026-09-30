@@ -17,7 +17,7 @@ In the README:
 - **A `dev` CI job.** The Files list says of `dev/module.f.mjs`: "The `dev` CI
   job enters it and asserts every version". [`module.f.mjs`](../module.f.mjs)'s
   comment on `canonicalJobs` says "There is no `dev` job any more", and the
-  generated `ci.yml` has none.
+  generated `gen.ci.yml` has none.
 - **A `denoNixJob`.** "`nodeNixJobs` in `node/module.f.mjs`, `denoNixJob` in
   its own module". No `denoNixJob` exists; `nixJobs` is `nodeNixJobs` plus
   `devNixJob`.

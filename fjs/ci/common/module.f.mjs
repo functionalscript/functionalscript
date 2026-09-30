@@ -58,7 +58,7 @@ export const jobsSchema = record(jobSchema)
 export const gitHubActionSchema = /** @type {const} */ ({
     name: string,
     // Every trigger any generated workflow uses, all optional, because no
-    // workflow uses them all: `ci.yml` is a pull-request gate and the publish
+    // workflow uses them all: `gen.ci.yml` is a pull-request gate and the publish
     // workflow fires on a push to a branch. `push` carries the branch list;
     // without it a push to any branch would publish.
     on: {

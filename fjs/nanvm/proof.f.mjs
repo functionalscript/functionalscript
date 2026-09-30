@@ -92,6 +92,7 @@ const js = {
     '!': a => !a,
     '~': a => ~a,
     typeof: a => typeof a,
+    throw: a => { throw a },
     String: a => String(a),
     '*': (a, b) => a * b,
     '/': (a, b) => a / b,

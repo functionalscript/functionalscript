@@ -250,13 +250,13 @@ Open for review before code:
 - [ ] `deno.json`: add `--allow-run` to the tasks that run the suite. `test`,
       `cov` and `cov-html` (`../../../../deno.json:4-6`) grant only
       `--allow-read --allow-write --allow-env --allow-sys`, and the `deno` CI job runs
-      `deno task cov` (`../../../../.github/workflows/ci.yml:404`), so the
+      `deno task cov` (`../../../../.github/workflows/gen.ci.yml:404`), so the
       first discovered proof to reach `node:child_process.spawn` fails there on
       a permission error before a single case runs. Scope the grant to what the
       proofs actually spawn if that suffices — under a scoped
       `--allow-run=node` the "command that does not exist" case above surfaces
       as a Deno permission error rather than `ENOENT`, so scope or assert
-      accordingly. The `ci.yml:398` step already runs with `-A` and needs
+      accordingly. The `gen.ci.yml:398` step already runs with `-A` and needs
       nothing. This belongs to the implementation, not to this note: nothing
       spawns yet, so widening the grant now would loosen CI for code that does
       not exist.

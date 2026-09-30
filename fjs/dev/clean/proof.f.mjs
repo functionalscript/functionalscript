@@ -18,6 +18,7 @@ const root = {
         'gen.fixtures': { 'a.rs': [], '.hidden': [], 'deep': { 'b.rs': [] } },
     },
     '.git': { 'gen.pack': [] },
+    '.github': { 'FUNDING.yml': [], 'workflows': { 'gen.ci.yml': [] } },
     'node_modules': { 'gen.js': [] },
     'target': { 'gen.o': [] },
 }
@@ -30,6 +31,7 @@ export const proof = {
     generatedFiles: () => {
         const [, result] = virtual({ ...emptyState, root })(generatedFiles('.'))
         assertEq(unwrap(result).toSorted().join(','), [
+            './.github/workflows/gen.ci.yml',
             './gen.matrix.md',
             './src/gen.fixtures/.hidden',
             './src/gen.fixtures/a.rs',
@@ -54,6 +56,7 @@ export const proof = {
             'regen.md': [],
             'src': { 'main.rs': [], 'gen.fixtures': { 'deep': {} } },
             '.git': { 'gen.pack': [] },
+            '.github': { 'FUNDING.yml': [], 'workflows': {} },
             'node_modules': { 'gen.js': [] },
             'target': { 'gen.o': [] },
         })

@@ -222,6 +222,12 @@ export const _shapeOf = e => {
         // draw as terminals of their own.
         return tag === 'undefined' ? { inline: tag } : { inline: tag, kind: 'terminal' }
     }
+    // `throw` is an `op1` in the schema, but its one operand is not an
+    // operand a value is computed from: it is the value the failure
+    // carries, so the port says so.
+    if (tag === 'throw') {
+        return { kind: 'op', label: 'throw', children: [['value', /** @type {Exp} */ (exp[1])]] }
+    }
     if (typeof tag === 'string' && op1.has(tag)) {
         return { kind: 'op', label: tag, children: [['operand', /** @type {Exp} */ (exp[1])]] }
     }
@@ -297,7 +303,7 @@ export const _graphOf = text => {
  * is. It reads `m` rather than `a`, so `a` keeps the four references the
  * paragraph above counts.
  *
- * The other ten take one point each, on its own:
+ * The other eleven take one point each, on its own:
  *
  * - **Sharing** sets a `const` used twice beside the same expression
  *   written out again: only `const` makes sharing, so that is one `+` node
@@ -317,6 +323,10 @@ export const _graphOf = text => {
  *   module's `args`, and calls one with the other.
  * - **Comma** is an unused `const` the compiler keeps as an `anchor`,
  *   beside the `result` the module is.
+ * - **Throw** is a function whose block body ends in `throw` rather than
+ *   `return`: the body is the `throw` node, its port the value the failure
+ *   carries, and the function's `body` edge is broken as every function's
+ *   is, since making the function does not run it.
  * - **Parse error** does not parse, because an error is something this
  *   demo shows too.
  *
@@ -333,6 +343,7 @@ export const examples = [
     ['Objects and properties', 'const o = { a: 1, "b c": [2, 3] };\nexport default [o.a, o["b c"][1]];'],
     ['Imports and calls', 'import m from "./m.f.js";\nimport { x } from "./n.f.js";\nexport default m(x);'],
     ['Comma: an anchored const', 'import m from "./m.f.js";\nconst checked = m.x;\nexport default 42;'],
+    ['Throw: a function that fails', 'export default (...a) => {\n    const reason = ["not implemented", a[0]];\n    throw reason;\n};'],
     ['Parse error', 'export default {bad'],
 ]
 
