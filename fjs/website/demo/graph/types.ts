@@ -1,7 +1,7 @@
 /**
  * Type-level API for `fjs/website/demo/graph/module.f.mjs`: a node-and-edge
- * diagram any demo can hand a walked value to, once it has turned that value
- * into nodes and edges of its own.
+ * diagram any demo can hand a value to, once it can say what {@link Shape}
+ * each of its values has.
  *
  * @module
  */
@@ -71,3 +71,19 @@ export type Graph = {
     readonly nodes: readonly Ranked[]
     readonly edges: readonly Edge[]
 }
+
+/**
+ * How `graphOf` (`./module.f.mjs`) reads one value: a node, with the
+ * values its edges lead to, or a spelling drawn inline in its parent's port.
+ *
+ * A node shape's `kind` and `label` become its {@link Node}'s, and each
+ * child's label and optional kind become an {@link Edge}'s. The inline
+ * shape is an {@link Inline} as it stands.
+ */
+export type Shape<V> =
+    | {
+        readonly kind: string
+        readonly label: string
+        readonly children: readonly (readonly [label: string, value: V, kind?: string])[]
+    }
+    | Inline
