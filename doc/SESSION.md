@@ -38,8 +38,9 @@ task taken, so the first commit is only whatever gives the branch a diff:
 setting the `todo/`'s `**Status:**` to `wip`, or filing the `todo/` when the
 task has none. Open it as step 1's pull request, with the `todo/` path in
 the description, and grow it in place. It leaves draft — marked ready for
-review — once it carries its step and every check passes; the checks still
-run before each push, draft or not ([AGENTS.md](../AGENTS.md)).
+review — once it carries its step and the full check set passes. A draft
+does not relax what each push owes: `node --test` still passes before every
+commit and push ([AGENTS.md](../AGENTS.md)).
 
 ## The loop
 
