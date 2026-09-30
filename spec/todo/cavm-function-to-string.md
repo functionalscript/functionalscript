@@ -109,8 +109,13 @@ what makes it right:
 Evaluated where `$…` resolves to the function it names, the text is a
 function that *behaves* as `g` — but it is not `g`. It is a new arrow whose
 EDAG calls `$…`, and content identity is structural, so its hash differs
-from `g`'s unless the CAVM's normalizer eta-reduces a forwarding call,
-`(...rest) => h(...rest)`, to `h`. Whether it does is a normalizer choice
+from `g`'s unless the CAVM's normalizer eta-reduces a forwarding wrapper to
+its callee — the whole length-indexed family, not one member of it: a
+function whose body is a single call passing its own parameters, fixed
+then rest, in order and unchanged, `(a0, ..., aL_1, ...rest) =>
+h(a0, ..., aL_1, ...rest)` for every `L`, `(...rest) => h(...rest)` at
+`L` zero, reduces to `h` when `h`'s `length` is `L`. Whether it does is a
+normalizer choice
 the [content-addressable VM](./content-addressable-vm.md) design has not
 made and this proposal does not make; without it, `String(f)` is a
 reference to `f`, not a round trip, and round trip is a separate question
@@ -146,9 +151,12 @@ with this as its one profile-dependent branch.
   normalizer version it was produced under, as
   [new-pl](../../todo/new-pl.md) suggests for persisted ids, or leaves that
   to the CAVM that stores it.
-- **Eta-reduction.** Whether the normalizer treats `(...rest) => h(...rest)`
-  as `h`, above; if it does, evaluating the text gives the function back,
-  and if it does not, the text is a reference only.
+- **Eta-reduction.** Whether the normalizer treats a forwarding wrapper of
+  any length, `(a0, ..., aL_1, ...rest) => h(a0, ..., aL_1, ...rest)`, as
+  `h`, above; if it does, evaluating the text gives the function back at
+  every arity, and if it does not, the text is a reference only. A rule
+  that covered only `(...rest) => h(...rest)` would round-trip zero-arity
+  functions alone, which is not a rule worth having.
 - **Round trip.** Whether the compiler should *accept* `$…` names as
   references into a CAVM — making the rendered text loadable, not just
   readable — is a language question and needs the
