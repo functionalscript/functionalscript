@@ -417,10 +417,11 @@ a call, one for creating a closure.
 
 ```js
 // const f = x => { … const b = y => { … f(y) … }; … b(…) … }
-// inside f, building b — f puts its own ["self"] into b's frame:
-["=>", 0, ["[]", [["self"]]], /* b's body */ …]
-// inside b, calling f — slot 0 of b's frame:
-["()", ["frame", 0], ["[]", [[".", ["rest"], 0]]]]
+// inside f, building b — f puts its own ["self"] into b's frame;
+// b has one fixed parameter, y, so its length is 1 and y is ["arg", 0]:
+["=>", 1, ["[]", [["self"]]], /* b's body */ …]
+// inside b, calling f with y — slot 0 of b's frame:
+["()", ["frame", 0], ["[]", [["arg", 0]]]]
 ```
 
 Consequences:
