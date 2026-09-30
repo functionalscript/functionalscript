@@ -110,12 +110,21 @@ in the same change.
       `types.ts` and the README's node table and binding rules.
 - [ ] Analysis: the walk, the leaf case, and `bindingError` against the
       slot count, with proofs for an index at, below and past the count,
-      a `-0`, and a read outside a function.
+      a `-0`, and a read outside a function. `refs` enumerates each slot's
+      edge on its own: `named` reads any array as a `['#', i]` reference,
+      so a slot list handed to it whole would count one edge where there
+      are several and `places` would miss sharing through a slot.
 - [ ] The operations, with both executors' proofs — amnesia's and memo's.
-- [ ] Rust backend and its proof: a direct index, `readsFrame` untouched.
+- [ ] Rust backend and its proof: a direct index, `readsFrame` untouched;
+      the graph walks `operandsOf` and `withBodies` descend into the slots
+      themselves, since a slot list is no node, so that `readsArgs` sees a
+      capture of `['arg', 0]` and the closure names its `args`.
 - [ ] Compiler lowering and serializer, with the special cases removed and
       their proofs adjusted.
 - [ ] Demo.
+- [ ] The corpus's own producers in [`fjs/nanvm`](../../nanvm/module.f.mjs),
+      `lambdaExp` and `functionExp`, which build the smallest closure and a
+      callback's function by hand, with the corpus proofs on both executors.
 - [ ] `npm run gen`, the full check set, and a `Changelog:` section
       declaring the break.
 - [ ] Reconcile every document that still spells the old form as the
@@ -127,7 +136,10 @@ in the same change.
       [`analysis-consumer-contract.md`](./analysis-consumer-contract.md)
       counts on, the landed stages of
       [`nanvm-lib/todo/callable-function-objects.md`](../../../nanvm-lib/todo/callable-function-objects.md),
-      and the compiler's `todo/` files that name `['frame']`.
+      the compiler's `todo/` files that name `['frame']`, and the live
+      compiler documentation — [`fjs/compiler/README.md`](../../compiler/README.md)
+      and the `AstFrameRef` JSDoc in
+      [`fjs/compiler/ast/types.ts`](../../compiler/ast/types.ts).
 - [ ] Delete this file.
 
 ### Related
