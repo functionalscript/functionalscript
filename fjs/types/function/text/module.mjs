@@ -9,13 +9,28 @@
  */
 
 /**
- * A `Proxy` whose `get` trap answers `toString` and forwards every other key,
- * so every host conversion (`String(f)`, `f + ''`, `[f].join()`) reaches the
- * text through `OrdinaryToPrimitive`. `text` runs at each conversion, not
- * here, and what it throws the conversion throws.
+ * A `Proxy` whose `get` trap answers `toString` and `Symbol.toPrimitive`
+ * and forwards every other key, so every host conversion (`String(f)`,
+ * `f + ''`, `[f].join()`, `+f`) reaches the text. `text` runs at each
+ * conversion, not here, and answers `undefined` for a text it refuses:
+ * the conversion then throws, save a numeric one, which is `NaN` for every
+ * function text and so needs none.
  *
- * @type {<F extends Callable>(f: F, text: () => string) => F}
+ * @type {<F extends Callable>(f: F, text: () => string | undefined) => F}
  */
-export const withText = (f, text) => new Proxy(f, {
-    get: (target, key, receiver) => key === 'toString' ? text : Reflect.get(target, key, receiver),
-})
+export const withText = (f, text) => {
+    /** @type {(hint: string) => string | number} */
+    const toPrimitive = hint => {
+        const t = text()
+        if (t !== undefined) { return t }
+        if (hint === 'number') { return NaN }
+        throw new TypeError('Cannot convert a function to its text')
+    }
+    const toString = () => toPrimitive('string')
+    return new Proxy(f, {
+        get: (target, key, receiver) =>
+            key === 'toString' ? toString
+            : key === Symbol.toPrimitive ? toPrimitive
+            : Reflect.get(target, key, receiver),
+    })
+}

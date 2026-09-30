@@ -19,15 +19,14 @@ import { withText } from '../types/function/text/module.mjs'
 import { cases } from './proof.f.mjs'
 
 /**
- * A `=>` node's text, or `nanvm-lib`'s refusal (`FUNCTION_TEXT`) where the
- * writer refuses the body.
+ * A `=>` node's text, or none where the writer refuses the body, which
+ * `withText` answers with `nanvm-lib`'s refusal (`FUNCTION_TEXT`).
  *
- * @type {(e: Exp) => () => string}
+ * @type {(e: Exp) => () => string | undefined}
  */
 const text = e => () => {
     const r = tryFunctionText(e)
-    if (r[0] === 'error') { throw new TypeError('Cannot convert a function to its text') }
-    return r[1]
+    return r[0] === 'error' ? undefined : r[1]
 }
 
 /** @type {Context} */
@@ -40,6 +39,10 @@ export const proof = {
         const f = vm(context)(['()', ['=>', 0, [], ['=>', 0, [['.', ['rest'], 0]], ['[]', [['frame', 0]]]]], ['[]', [5]]])
         assertEq(String(f), '()=>[$0]')
         assertEq(/** @type {() => readonly unknown[]} */ (f)()[0], 5)
+    },
+    /** A refused text refuses only what reads it: `+f` is `NaN` for any text. */
+    refusedNumeric: () => {
+        assertEq(vm(context)(['<', ['=>', 0, [], ['!', 1]], 5]), false)
     },
     throw: {
         /** The writer has no spelling for a `!` node, so the text is refused. */

@@ -1,6 +1,7 @@
 /**
  * Host proofs for `withText`: the value is the callable's in everything but
- * its text, and every host conversion answers the text.
+ * its text, every host conversion answers the text, and a refused text
+ * refuses only the conversions that read it.
  */
 
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
@@ -9,7 +10,16 @@ import { withText } from './module.mjs'
 /** @type {(...a: readonly unknown[]) => unknown} */
 const add = (a, b) => /** @type {number} */ (a) + /** @type {number} */ (b)
 
-const f = withText(add, () => 'text')
+const f = withText(add, () => '(a)=>a')
+
+/** A function whose text is refused. */
+const refused = withText(add, () => undefined)
+
+/** @type {any} */
+const anyF = f
+
+/** @type {any} */
+const anyRefused = refused
 
 export const proof = {
     callable: () => {
@@ -20,15 +30,27 @@ export const proof = {
     },
     identity: () => {
         assert(f !== add)
-        assert(withText(add, () => 'text') !== f)
+        assert(withText(add, () => '(a)=>a') !== f)
     },
     conversions: () => {
-        assertEq(String(f), 'text')
-        assertEq(f + '!', 'text!')
-        assertEq(`${f}`, 'text')
-        assertEq([f, 1].join(), 'text,1')
-        assertEq('xtext'.indexOf(/** @type {any} */ (f)), 1)
-        assertEq(f.toString(), 'text')
+        assertEq(String(f), '(a)=>a')
+        assertEq(f + '!', '(a)=>a!')
+        assertEq(`${f}`, '(a)=>a')
+        assertEq([f, 1].join(), '(a)=>a,1')
+        assertEq('x(a)=>a'.indexOf(anyF), 1)
+        assertEq(f.toString(), '(a)=>a')
+        // A relational comparison with a string compares the text.
+        assertEq(anyF < 'z', true)
+        assert(Number.isNaN(+anyF))
+        assertEq(anyF < 5, false)
+    },
+    /** What does not read the text answers without it: `NaN` for any text. */
+    refusedNumeric: () => {
+        assert(Number.isNaN(+anyRefused))
+        assert(Number.isNaN(anyRefused * 1))
+        assertEq(~anyRefused, -1)
+        assertEq(anyRefused < 5, false)
+        assertEq(refused(2, 3), 5)
     },
     lazy: () => {
         // `text` runs at each conversion and never before one.
@@ -36,6 +58,9 @@ export const proof = {
         assertEq(g(2, 3), 5)
     },
     throw: {
-        refused: () => String(withText(add, () => { throw new TypeError('refused') })),
+        string: () => String(refused),
+        concatenation: () => anyRefused + '',
+        toString: () => refused.toString(),
+        join: () => [refused].join(),
     },
 }
