@@ -24,7 +24,6 @@
  * @import { Effect, Func, ToAsyncOperationMap } from '../../effects/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { Element as HtmlElement } from '../../media/html/types.ts'
  */
 
 import {
@@ -34,6 +33,11 @@ import {
 // The phrase for a value that will not be read is the runners' shared one:
 // this host meets such a value at its `import` boundary, where the walk cannot.
 import { unknownValue } from '../module.f.mjs'
+// **One markup, two renderers.** What a report looks like is decided once, by
+// the pure views in `./module.f.mjs`: the runner's demo returns them for the
+// demo runtime to render, and this page turns the same views into nodes as
+// rows land.
+import { fill, toDom } from '../../media/html/module.mjs'
 import { asyncRun } from '../../effects/module.mjs'
 import { commonOperationMap } from '../../effects/common/module.mjs'
 import { ioError, toIoError } from '../../effects/module.f.mjs'
@@ -388,39 +392,6 @@ const setState = (root, state) => {
         }
     }
 }
-
-/**
- * Writes a `media/html` element onto a DOM element — its attributes, its text,
- * then its child elements — and answers the DOM element.
- *
- * **One markup, two renderers.** What a report looks like is decided once, by
- * the pure views in [`./module.f.mjs`](./module.f.mjs): the runner's demo
- * returns them for the demo runtime to render, and this page turns the same
- * views into nodes as rows land.
- *
- * Text first, then elements — the only order those views produce. Setting
- * `textContent` replaces what was there, which is also what lets a pending row
- * settle in place rather than gain a second line.
- *
- * @type {(target: Element, element: HtmlElement) => Element}
- */
-const fill = (target, [, ...rest]) => {
-    const [first] = rest
-    const hasAttributes = first !== undefined && typeof first === 'object' && !(first instanceof Array)
-    const attributes = hasAttributes ? /** @type {Readonly<Record<string, string>>} */ (first) : {}
-    const children = hasAttributes ? rest.slice(1) : rest
-    for (const [name, value] of Object.entries(attributes)) { target.setAttribute(name, value) }
-    target.textContent = children.filter(child => typeof child === 'string').join('')
-    // `instanceof Array` rather than "not a string": the tuple type lets the
-    // attributes object sit in any position, and only an element is an array.
-    for (const child of children) {
-        if (child instanceof Array) { target.append(toDom(target.ownerDocument, child)) }
-    }
-    return target
-}
-
-/** @type {(document: Document, element: HtmlElement) => Element} */
-const toDom = (document, element) => fill(document.createElement(element[0]), element)
 
 /**
  * Marks the entries of the page's sources list whose source produced no result
