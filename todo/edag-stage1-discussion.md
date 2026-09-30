@@ -410,15 +410,15 @@ section first described the frame as a bare `["frame"]` node, its slots
 ordinary `[".", ["frame"], i]` reads; that was the spelling the compiler
 emitted, and it is the one `["frame", i]` replaced.)
 
-Frame construction mirrors a call: `["=>", length, frame, body]`, where
-`frame` is built in the *enclosing* scope and `body` is the inner
-function's graph. Compare `["()", f, args]`: same shape, one for entering
-a call, one for creating a closure.
+Frame construction mirrors a call: `["=>", length, slots, body]`, where
+`slots` is the array of captured values, each evaluated in the *enclosing*
+scope, and `body` is the inner function's graph. Compare `["()", f, args]`:
+same shape, one for entering a call, one for creating a closure.
 
 ```js
 // const f = x => { … const b = y => { … f(y) … }; … b(…) … }
 // inside f, building b — f puts its own ["self"] into b's frame:
-["=>", 0, ["[]", [["self"]]], /* b's body */ …]
+["=>", 0, [["self"]], /* b's body */ …]
 // inside b, calling f — slot 0 of b's frame:
 ["()", ["frame", 0], ["[]", [[".", ["rest"], 0]]]]
 ```
