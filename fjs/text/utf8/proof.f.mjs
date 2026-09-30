@@ -8,7 +8,7 @@ import { sort } from '../../types/object/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { u8ListToVecMsb, vec } from '../../types/bit_vec/module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
-import { demo, codePoints, bytes } from './demo.f.mjs'
+import { demo, codePoints, examples } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
@@ -275,23 +275,36 @@ export const proof = {
                 'U+1F600  f0 9f 98 80',
             ].join('\n'))
         },
-        bytes: () => {
-            assertEq(bytes(''), '')
-            assertEq(bytes('hé€😀'), '68 c3 a9 e2 82 ac f0 9f 98 80')
+        /**
+         * **An example's name is a claim about its text**, so it is checked:
+         * a name saying `N code points` has exactly `N` lines of output.
+         */
+        examples: () => {
+            /** @type {(i: number, n: number) => void} */
+            const check = (i, n) => {
+                const [name, text] = examples[i]
+                assertEq(codePoints(text).split('\n').length, n, name)
+            }
+            check(4, 2)
+            check(5, 7)
+            check(6, 10)
         },
-        // Typing replaces the text; every other event leaves it alone.
+        // Typing replaces the text; picking an example replaces it with the
+        // example's; every other event leaves it alone.
         update: () => {
             /** @type {(event: DemoEvent) => (state: string) => string} */
             const step = event => state => unwrap(assertNotNullish(
                 runPure(demo.update(state)(event))[0],
                 'expected the demo to reach a value without asking for an operation'))
             assertEq(step({ kind: 'input', name: 'text', value: 'a' })(''), 'a')
+            assertEq(step({ kind: 'input', name: 'example', value: 'ASCII' })(''), 'Hello, world!')
             assertEq(step({ kind: 'start' })('kept'), 'kept')
         },
         view: () => {
             const html = htmlToString(demo.view(demo.init))
             assert(html.includes('name="text"'), html)
-            assert(html.includes(bytes(demo.init)), html)
+            assert(html.includes(codePoints(demo.init)), html)
+            assert(html.includes('name="example"'), html)
         },
     },
 }
