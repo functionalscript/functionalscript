@@ -41,7 +41,7 @@
 
 import { error, ok } from '../../../types/result/module.f.mjs'
 import { concat, toArray } from '../../../types/list/module.f.mjs'
-import { assert } from '../../../asserts/module.f.mjs'
+import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
 import { literalWords } from '../../../js/keywords/module.f.mjs'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
@@ -393,7 +393,10 @@ const foldLayer = (base, rounds) => rounds.reduce((left, round) => {
     const [opChoice, v, ...lowerTails] = unmapped(round)
     const [opTag] = unmapped(opChoice)
     const right = applyLayers(nodeAt(v), lowerTails)
-    return [binaryOpTag[opTag], left, right]
+    // every round's operator is a rule the grammar made from the same
+    // records, so a name the map lacks is the grammar's bug, not the input's
+    const tag = assertNotNullish(binaryOpTag[opTag], ['binary operator without a tag', opTag])
+    return [tag, left, right]
 }, base)
 
 /**

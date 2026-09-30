@@ -116,6 +116,7 @@
  * @import { Rule, Variant } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { BinaryTag } from '../../ast/types.ts'
+ * @import { StringMap } from '../../../types/object/types.ts'
  * @import { Access, AfterValue, ArrowOrRest, Block, Body, CircuitTail, ConditionalTail, EagerTail, End, Func, Group, GroupOperand, Items, LastStatement, Member, ParameterNames, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Tail, Terminator, Unary, UnaryOperand, Value } from './types.ts'
  */
 
@@ -123,8 +124,9 @@ import { assert } from '../../../asserts/module.f.mjs'
 import { eof, option, repeatFrom0 } from '../../../ebnf/module.f.mjs'
 import { encoding } from '../../../ebnf/token_symbol/module.f.mjs'
 import { _djsTokenKinds } from '../../tokenizer/module.f.mjs'
+import { definedEntries } from '../../../types/object/module.f.mjs'
 
-const { entries, fromEntries } = Object
+const { fromEntries } = Object
 
 /**
  * The token kinds, every `DjsToken` kind but `eof`: the tokenizer's
@@ -364,9 +366,11 @@ const nullishTags = /** @type {const} */ ({ nullish: '??' })
  * opens with, so {@link opOf} makes each layer's grammar from its own
  * record, and this one merged map serves `../syntax/module.f.mjs` a round
  * from any layer with a plain lookup. `**` is not here: it is
- * {@link powTail}'s, no layer's round.
+ * {@link powTail}'s, no layer's round. The lookup is by a name read at
+ * run time, so it is typed as one that may miss, and the reader refuses a
+ * name that does rather than build a node without a tag.
  *
- * @type {{ readonly [name: string]: Exclude<BinaryTag, '**'> }}
+ * @type {StringMap<Exclude<BinaryTag, '**'>>}
  */
 export const binaryOpTag = {
     ...multiplicativeTags,
@@ -386,9 +390,9 @@ export const binaryOpTag = {
  * One layer's operator: a choice of one branch per operator, keyed by its
  * name and matching the token its tag names.
  *
- * @type {(tags: { readonly [name: string]: Exclude<BinaryTag, '**'> }) => Variant}
+ * @type {(tags: StringMap<Exclude<BinaryTag, '**'>>) => Variant}
  */
-const opOf = tags => fromEntries(entries(tags).map(([name, tag]) => [name, sym(tag)]))
+const opOf = tags => fromEntries(definedEntries(tags).map(([name, tag]) => [name, sym(tag)]))
 
 // Each layer's operator, its record's names over its record's tokens.
 const multiplicativeOp = opOf(multiplicativeTags)
