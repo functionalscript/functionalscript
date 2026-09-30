@@ -1,7 +1,7 @@
 ## Strict element-wise equality has one home
 
 **Priority:** P5
-**Status:** open
+**Status:** wip
 
 ### Problem
 
