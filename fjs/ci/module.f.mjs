@@ -13,7 +13,7 @@
  */
 
 import { resultStep } from '../effects/module.f.mjs'
-import { access, exitStep, writeUtf8File } from '../effects/node/module.f.mjs'
+import { access, exitStep, mkdir, writeUtf8File } from '../effects/node/module.f.mjs'
 import { step as ioStep } from '../effects/module.f.mjs'
 import { functionalscript, images, node } from './config/module.f.js'
 import {
@@ -42,6 +42,16 @@ import { bunSteps } from './bun/module.f.mjs'
 import { devNixJob } from './dev/module.f.mjs'
 import { denoSteps } from './deno/module.f.mjs'
 import { npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
+
+/** The one directory GitHub reads workflows from. */
+const workflowsDirectory = /** @type {const} */ ('.github/workflows')
+
+/**
+ * Where the pipeline writes the CI workflow. GitHub reads any `.yml` in
+ * {@link workflowsDirectory}, so the file takes the `gen.` name every generated
+ * file has ([CONTRIBUTING.md](../../CONTRIBUTING.md#naming-generated-files)).
+ */
+export const ciPath = /** @type {const} */ (`${workflowsDirectory}/gen.ci.yml`)
 
 /**
  * A workflow as the file the generator writes. JSON, which every YAML reader
@@ -300,9 +310,11 @@ export const ci = ({ nodeExtra, packageConsumer }) => resultStep(
             },
             jobs,
         }
-        const workflowWritten = writeUtf8File(
-            '.github/workflows/ci.yml',
-            workflowText(gha))
+        // A generator creates its output directory: after `gen:clean` on a
+        // fresh checkout nothing else does.
+        const workflowWritten = ioStep(
+            mkdir(workflowsDirectory, { recursive: true }),
+            () => writeUtf8File(ciPath, workflowText(gha)))
         // The publish workflow is a function of the configuration alone — no
         // job of it varies with the project's Rust, its compiler pin, or the
         // caller's `Setup` — so it is written rather than built here.
