@@ -1,7 +1,7 @@
 ## object-type-lookup. One reader for the four object-type names
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
