@@ -28,8 +28,8 @@
  * written without its `;` ends where JavaScript inserts one, and whether
  * the next statement began a line is the fold's to ask of its first token,
  * {@link unterminated}, the grammar having read the `;` as optional and
- * looked no further; and the two places JavaScript forbids a line break,
- * before `=>` and after `return`, are the fold's the same way. The error
+ * looked no further; and the places JavaScript forbids a line break,
+ * before `=>` and after `return` or `throw`, are the fold's the same way. The error
  * reported is the first met in document order, and a match that fails
  * builds no module: a malformed suffix is found before any name is
  * resolved. `./README.md` holds the argument.
@@ -42,9 +42,9 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstFrameRef, AstFunction, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest } from '../ast/types.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstFrameRef, AstFunction, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstThrow } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
- * @import { Container, Entry, Import, Module, Node, ParameterBinding, ParameterList, Statement } from './syntax/types.ts'
+ * @import { Container, Entry, Import, Module, Node, ParameterBinding, ParameterList, Statement, ValueStatement } from './syntax/types.ts'
  * @import { _AccessFrame, _BodyFrame, _CallFrame, _ConditionalFrame, _ContainerFrame, _Env, _Frame, _Parameter, _Ref, _Scope, _Stack, _State } from './private.ts'
  */
 
@@ -112,11 +112,31 @@ const reservedWord = foldError('reserved word')
  * required, and the one JavaScript reports, which inserts a `;` before a
  * token only where a newline does
  * ([spec: module structure](../../../spec/README.md#module-structure)) —
- * and the two tokens JavaScript forbids a newline before, an `=>` and the
- * value after `return`
+ * and the tokens JavaScript forbids a newline before, an `=>` and the
+ * value after `return` or `throw`
  * ([spec: line terminators](../../../spec/README.md#whitespace-and-line-terminators)).
  */
 const unexpectedToken = foldError('unexpected token')
+
+/**
+ * The entry a `throw` statement makes of its value: a body's last, in a
+ * function or the module, in place of what it would return
+ * ([spec: functions](../../../spec/README.md#functions)).
+ *
+ * @type {(value: AstConst) => AstThrow}
+ */
+const thrown = value => ['throw', value]
+
+/**
+ * Whether a `return` or `throw`'s value is refused at its first token:
+ * JavaScript has `[no LineTerminator here]` after both keywords, so a value
+ * beginning a line would end the statement there — `return` returning
+ * `undefined`, `throw` a syntax error — and is refused rather than read
+ * another way.
+ *
+ * @type {(statement: ValueStatement) => boolean}
+ */
+const brokenLine = statement => statement.first.newline
 
 /**
  * Whether `next` is refused at its first token: `previous` ended without
@@ -492,7 +512,7 @@ const functionScope = list => {
  * The next step of a function's block body: the `const` at `index`, its name
  * checked before its value is entered — as a module's `const` is, so that a
  * statement wrong in both halves answers for the half a reader meets first
- * — or the expression of the explicit final `return`.
+ * — or the value of the explicit final `return` or `throw`.
  *
  * @type {(stack: _Stack, scope: _Scope, frame: _BodyFrame) => _State}
  */
@@ -504,11 +524,8 @@ const bodyRound = (stack, scope, frame) => {
     if (unterminated(index === 0 ? null : statements[index - 1][1], statement)) {
         return [stack, scope, error(unexpectedToken(statement.start))]
     }
-    if (kind === 'return') {
-        // `return [no LineTerminator here] value`: a newline there ends
-        // the statement in JavaScript, returning `undefined`, so the value
-        // on the next line is refused rather than read another way
-        return statement.first.newline
+    if (kind !== 'const') {
+        return brokenLine(statement)
             ? [stack, scope, error(unexpectedToken(statement.first))]
             : [{ top: frame, rest: stack }, scope, ['enter', statement.value]]
     }
@@ -619,7 +636,8 @@ const returned = (stack, scope, frame, value) => {
                 { ...scope, names: extended(scope.names)(frame.word, ['cref', frame.index]) },
                 { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) })
         }
-        return closed(stack, scope, [...toArray(frame.done), value])
+        // the body's last entry: what it returns, or the `throw` it ends with
+        return closed(stack, scope, [...toArray(frame.done), kind === 'throw' ? thrown(value) : value])
     }
     return closed(stack, scope, [value])
 }
@@ -696,12 +714,15 @@ const extended = env => (word, ref) => setReplace(word)(ref)(env)
  * the next argument, each `const` resolves its value against the names
  * bound so far — itself not among them, so a `cref` always names an earlier
  * entry — and then binds its name. The default export is resolved against
- * them all and placed in the module's result object. Ordinary function bodies
- * keep their own return values.
+ * them all and placed in the module's result object; a `throw` in its
+ * place is resolved the same way and is the body's last entry instead of
+ * that object, the module being a function whose body ends in it — its
+ * named exports, if any, unreachable and so not recorded. Ordinary
+ * function bodies keep their own return values.
  *
  * @type {(module: Module) => Result<AstModule, ParseError>}
  */
-const foldModule = ({ imports, consts, exported }) => {
+const foldModule = ({ imports, consts, exported, thrown: failing }) => {
     /** @type {_Env} */
     let env = empty
     /** @type {readonly AstImport[]} */
@@ -749,6 +770,15 @@ const foldModule = ({ imports, consts, exported }) => {
         if (named) { exports = [...exports, [word, ['cref', body.length]]] }
         body = [...body, value]
     }
+    if (failing !== null) {
+        if (unterminated(previous, failing)) { return error(unexpectedToken(failing.start)) }
+        if (brokenLine(failing)) { return error(unexpectedToken(failing.first)) }
+        const [resolved, last] = evaluate(env)(failing.value)
+        if (resolved === 'error') { return error(last) }
+        /** @type {AstModule} */
+        const failingModule = [modules, [...body, thrown(last)]]
+        return ok(failingModule)
+    }
     if (exported !== null) {
         if (unterminated(previous, exported)) { return error(unexpectedToken(exported.start)) }
         const [resolved, last] = evaluate(env)(exported.value)
@@ -764,8 +794,9 @@ const foldModule = ({ imports, consts, exported }) => {
 
 /**
  * Reads the token list as a FunctionalScript module: `import` statements, then
- * `const` and `export const` statements, with an optional final `export default`.
- * At least one export is required; every statement ends with `;`, or where
+ * `const` and `export const` statements, with an optional final `export default`
+ * — or a final `throw` in its place. At least one export is required of a
+ * module that does not throw; every statement ends with `;`, or where
  * JavaScript inserts one — before a statement on a new line, before `}`,
  * and at the end of the input.
  *

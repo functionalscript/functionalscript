@@ -62,11 +62,12 @@ export type Node =
     | Container
 
 /**
- * The block syntax currently understood: zero or more `const` declarations
- * followed by one explicit value-returning statement. The grammar enforces
- * this order; bare returns and extra statements remain unsupported.
+ * The block syntax: zero or more `const` declarations followed by the one
+ * statement that ends it, a `return` or a `throw` with its value. The
+ * grammar enforces this order; a bare `return`, a bare `throw` and a
+ * statement after the last are unsupported.
  */
-export type Block = readonly ['block', readonly [...(readonly ['const', Const])[], readonly ['return', ValueStatement]]]
+export type Block = readonly ['block', readonly [...(readonly ['const', Const])[], readonly ['return' | 'throw', ValueStatement]]]
 
 /** An array of its items, or an object of its members, each in the order written. */
 export type Container =
@@ -127,9 +128,10 @@ export type Const = Statement & {
 }
 
 /**
- * A statement that is a value: a block's `return`, and a module's `export
- * default`. `first` is the token the value begins with — after `return`,
- * the one JavaScript refuses on a new line, and the fold with it.
+ * A statement that is a value: a block's `return` or `throw`, and a
+ * module's `export default` or `throw`. `first` is the token the value
+ * begins with — after `return` or `throw`, the one JavaScript refuses on a
+ * new line, and the fold with it.
  */
 export type ValueStatement = Statement & {
     readonly first: DjsTokenWithMetadata
@@ -142,11 +144,16 @@ export type ModuleConst = {
     readonly exported: boolean
 }
 
-/** A whole module as matched: declarations in order and an optional final default. */
+/**
+ * A whole module as matched: declarations in order, and what ends it — an
+ * optional final `export default`, or the `throw` that stands in its place,
+ * never both. A module with neither exports its named `const`s alone.
+ */
 export type Module = {
     readonly imports: readonly Import[]
     readonly consts: readonly ModuleConst[]
     readonly exported: ValueStatement | null
+    readonly thrown: ValueStatement | null
 }
 
 /**
@@ -186,5 +193,5 @@ export type Out =
     | { readonly id: 'importBindings', readonly items: List<ImportBinding> }
     | { readonly id: 'import', readonly statement: Import }
     | { readonly id: 'const', readonly statement: Const }
-    | { readonly id: 'export', readonly consts: List<ModuleConst>, readonly default: ValueStatement | null }
+    | { readonly id: 'last', readonly consts: List<ModuleConst>, readonly default: ValueStatement | null, readonly thrown: ValueStatement | null }
     | { readonly id: 'module', readonly module: Module }

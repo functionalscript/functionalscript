@@ -240,7 +240,7 @@ regeneration leaves mtimes untouched and cargo's fingerprinting skips the
 rebuild. **One `package.json` script is the single regeneration entry
 point for every generated file** — the `gen` contract already
 required by generated CI (see [fjs/ci](../../fjs/ci/README.md)): today it
-generates `.github/workflows/ci.yml`; the compiler Rust, the effects stub,
+generates `.github/workflows/gen.ci.yml`; the compiler Rust, the effects stub,
 and any future generated files fold into the same script (possibly renamed
 to something generation-neutral once it outgrows CI), so each new
 generator is automatically covered by the whole-tree drift check with no

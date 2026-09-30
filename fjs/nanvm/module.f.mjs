@@ -1050,6 +1050,20 @@ const nullishCases = [
 ]
 
 /**
+ * `throw` establishes its operand and fails with it, whatever the value:
+ * the language's `throw` statement, which the VM answers as its `Err`. An
+ * `unreached` operand throws first, as any eager operand does.
+ *
+ * @type {readonly Case<1>[]}
+ */
+const throwCases = [
+    { name: 'number', args: [1], expected: throws },
+    { name: 'string', args: ['a'], expected: throws },
+    { name: 'null', args: [null], expected: throws },
+    { name: 'unreachedOperand', args: [unreached], expected: throws },
+]
+
+/**
  * `?:`, the corpus's one ternary group:
  * `args` is `[condition, consequent, alternate]`, and `expected` is whichever
  * branch `ToBoolean(condition)` selects — the same coercion `!`/`&&`/`||`
@@ -1627,6 +1641,7 @@ export const data = {
         { op: '??', cases: nullishCases },
         { op: '?:', cases: ternaryCases },
         { op: 'typeof', cases: typeofCases },
+        { op: 'throw', cases: throwCases },
         { op: 'String', cases: stringCoercionCases },
         { op: 'own', cases: ownCases },
         ...memberGroups,

@@ -6,7 +6,7 @@
  * @module
  *
  * @import { Exp } from '../../edag/types.ts'
- * @import { AstBinary, AstBitnot, AstBody, AstConditional, AstConst, AstImport, AstMember, AstModule, AstNeg } from '../ast/types.ts'
+ * @import { AstBinary, AstBitnot, AstBody, AstConditional, AstConst, AstImport, AstMember, AstModule, AstNeg, AstThrow } from '../ast/types.ts'
  * @import { _ImportSource, _Source } from '../transpiler/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
@@ -147,7 +147,7 @@ const slotKeys = nodes => {
  * length ({@link lower}'s own comment has why that one gets an explicit
  * stack instead).
  *
- * @type {(nodes: _Nodes) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional>) => Exp}
+ * @type {(nodes: _Nodes) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional | AstThrow>) => Exp}
  */
 const lowerLeaf = nodes => ast => {
     if (ast === undefined) { return undefinedNode() }
@@ -195,7 +195,9 @@ const lowerLeaf = nodes => ast => {
  * already, both operands lowered and nothing folded — the lazy `&&`, `||`
  * and `??` the same `op2` as the eager ones, laziness being the EDAG's
  * positional rule and no shape of its own — and the conditional its
- * `op3`, `['?:', c, t, e]`, three operands lowered the same way.
+ * `op3`, `['?:', c, t, e]`, three operands lowered the same way. A
+ * `throw` is the EDAG's own `['throw', v]`, an `op1` over its value, the
+ * node a body or a module that ends in the statement is.
  *
  * @type {(nodes: _Nodes) => (ast: AstConst) => Exp}
  */
@@ -225,6 +227,7 @@ const lower = nodes => root => {
                     break
                 }
                 case '~': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'bitnot', rest } }; break }
+                case 'throw': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'throw', rest } }; break }
                 case '*': case '/': case '%': case '**':
                 case '+':
                 case '===': case '!==': case '<': case '<=': case '>': case '>=':
@@ -259,6 +262,14 @@ const lower = nodes => root => {
             const rest = work.rest
             const operand = assertNotNullish(results, ['no operand for a bitwise not', root])
             results = { top: ['~', operand.top], rest: operand.rest }
+            work = rest
+            continue
+        }
+        if (work.kind === 'throw') {
+            /** @type {_LowerWork} */
+            const rest = work.rest
+            const operand = assertNotNullish(results, ['no value for a throw', root])
+            results = { top: ['throw', operand.top], rest: operand.rest }
             work = rest
             continue
         }
@@ -354,14 +365,28 @@ const over = imports => edag => ({ imports, edag })
 export const unresolved = module => over(module[0])(lowered(module[0].map(parameter))(module))
 
 /**
+ * Whether a module's computation ends in a `throw`, past its evaluation
+ * sequence: a module whose body ends in the statement in place of its
+ * exports ([spec: module structure](../../../spec/README.md#module-structure)).
+ * Such a module fails at every load and exports nothing.
+ *
+ * @type {(module: Exp) => boolean}
+ */
+export const _moduleThrows = module => module instanceof Array
+    && (module[0] === 'throw' || (module[0] === ',' && _moduleThrows(module[1][module[1].length - 1])))
+
+/**
  * The statically known exports at a module boundary, past its evaluation
- * sequence. A malformed boundary is an internal compiler error.
+ * sequence: none for a module that throws, since nothing is exported by a
+ * load that never completes. A malformed boundary is an internal compiler
+ * error.
  *
  * @type {(module: Exp) => readonly (readonly [':', string, Exp])[]}
  */
 export const _moduleExports = module => {
     if (module instanceof Array) {
         if (module[0] === ',') { return _moduleExports(module[1][module[1].length - 1]) }
+        if (module[0] === 'throw') { return [] }
         if (module[0] === '{}' && module[1].every(p => p[0] === ':' && typeof p[1] === 'string')) {
             return /** @type {readonly (readonly [':', string, Exp])[]} */ (module[1])
         }
@@ -374,10 +399,13 @@ export const _moduleExports = module => {
  * shape keeps its normalized spelling; a named module keeps its complete
  * computation under the access, including unselected initializers. A missing
  * default projects to undefined here; import linking checks presence separately.
+ * A module that throws is its own selection: selecting anything from it is
+ * the same failure, and the throw is what the computation is.
  *
  * @type {(module: Exp) => Exp}
  */
 export const _defaultExport = module => {
+    if (_moduleThrows(module)) { return module }
     const members = _moduleExports(module)
     if (members.length !== 1 || members[0][1] !== 'default') { return ['.', module, 'default'] }
     if (module instanceof Array && module[0] === ',') {

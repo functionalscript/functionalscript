@@ -24,13 +24,14 @@ rule of the language asks, whether a newline stood before a token
 [`./grammar`](./grammar/module.f.mjs) holds it:
 
 ```
-module ::= import* const* export eof
+module ::= import* const* last eof
 import ::= 'import' clause 'from' string [ 'with' '{' id ':' string '}' ] end
 clause ::= named | id [ ',' named ]
 named  ::= '{' [ items(binding) ] '}'
 binding ::= id [ 'as' id ]
 const  ::= 'const' id '=' value end
-export ::= 'export' ( 'default' value end | const const* [ export ] )
+last   ::= 'export' ( 'default' value end | const const* [ last ] )
+         | 'throw' value end
 end    ::= [ ';' ]
 value  ::= '-' unaryOperand tail | '~' unaryOperand tail
          | (primitive | array | object) access* powTail tail
@@ -46,7 +47,8 @@ unary  ::= '-' unaryOperand | '~' unaryOperand
 unaryOperand ::= '-' unaryOperand | '~' unaryOperand
          | (primitive | id | array | object) access*
          | '(' groupOperand
-block  ::= '{' const* 'return' value end '}'
+block  ::= '{' const* terminator '}'
+terminator ::= 'return' value end | 'throw' value end
 func   ::= [ '...' id ] ')' '=>' body
 afterValue ::= ',' [ names ] ')' '=>' body | ')' arrowOrRest
 arrowOrRest ::= '=>' body | access* powTail tail
@@ -149,8 +151,8 @@ the backtracking grammar this replaced had
   optional `;` both did, a first/first conflict on the trivia symbols —
   and JavaScript's three line-break rules are facts of a token the fold
   checks rather than shapes the grammar spells: `[no LineTerminator here]`
-  before `=>` and after `return`, refused at the `=>` and at the value's
-  first token, and automatic semicolon insertion, below.
+  before `=>` and after `return` or `throw`, refused at the `=>` and at the
+  value's first token, and automatic semicolon insertion, below.
 - **A statement ends at `;`, or at nothing.** A newline is never the symbol
   it ends at, and telling a newline from a `;` reached through newlines took
   unbounded lookahead while it was one. So the `;` is optional and the
@@ -264,11 +266,13 @@ container of nodes, a record per statement — and the names are resolved after
 the grammar has matched the whole module, statement by statement, on the
 pattern [`fjs/media/datajs`](../../media/datajs/parser/module.f.mjs) set.
 
-Function blocks retain an ordered list of tagged `const` and `return`
-statements in this source tree. `() => 7` and `() => { return 7; }` therefore
-have different source bodies; the fold lowers them to the same executable
-body. The grammar still requires zero or more declarations followed by one
-value-returning statement. This representation change adds no syntax or ASI.
+Function blocks retain an ordered list of tagged `const` statements and a
+tagged `return` or `throw` in this source tree. `() => 7` and
+`() => { return 7; }` therefore have different source bodies; the fold lowers
+them to the same executable body, and a `throw` to one whose value is the
+`['throw', v]` node. The grammar still requires zero or more declarations
+followed by one terminating statement, and a module ends in an export or a
+`throw` the same way. This representation change adds no ASI.
 
 `parseSyntax`, in `./syntax`, exposes that tree for proofs before the
 fold. It does not establish binding validity, JavaScript early errors or FunctionalScript
@@ -292,8 +296,8 @@ public types in `./types.ts`, as the rewrite set is.
 
 ## Required keywords are terminals of their own
 
-The tokenizer emits `import`, `const`, `export`, `default`, `from`, `with`, `return` and
-`as` as `id` tokens carrying the word in `value`. An alphabet keyed on a
+The tokenizer emits `import`, `const`, `export`, `default`, `from`, `with`, `return`,
+`throw` and `as` as `id` tokens carrying the word in `value`. An alphabet keyed on a
 token's *kind* would give them all the symbol of any other identifier, and the
 grammar could not tell `export default` from two arbitrary names — module
 framing would be inexpressible, and so would a block body's `return`.

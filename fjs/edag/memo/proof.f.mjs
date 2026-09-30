@@ -67,6 +67,8 @@ export const proof = {
     lazy: () => {
         assertStructurallySame(run(['[]', [['&&', false, boom], ['||', true, boom], ['??', 0, boom]]]), [false, true, 0])
         eq(['?:', true, 7, boom], 7)
+        // The language's own failure node is a lazy operand like any other.
+        eq(['?:', true, 7, ['throw', 1]], 7)
         const r = array(run(['[]', [['&&', true, s], ['||', false, s], ['?:', false, 0, s]]]))
         assert(r[0] === r[1] && r[1] === r[2])
         // A step past a failed guard is not taken, so its operand is not demanded.
