@@ -81,8 +81,8 @@ costing someone.
 - [generated-run-script-mode](generated-run-script-mode.md) — the missing
   effects-layer capability, and option 1 above; this issue is the consequence
   of that gap for someone who is not us
-- [65Z-ci-nix](65z-ci-nix.md) — owns the generated directory, and requires the
-  generator stay Windows-compatible
+- [65Z-ci-nix](65z-ci-nix.md) — owns the generated directory; `fjs ci` stays
+  Windows-compatible, while this repository's `gen` needs Nix since #2405
 - [ci-generator-audience](ci-generator-audience.md) — the same distinction this
   turns on: what the generator promises a project that runs it, versus what
   happens to hold in our tree
