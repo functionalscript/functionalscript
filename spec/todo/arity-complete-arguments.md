@@ -22,7 +22,7 @@ scope, while only its body opens a new invocation.
 
 The earlier hypothetical format combined positive declared arity with the
 complete supplied argument list. A graph such as
-`['=>', 2, ['[]', []], ['.', ['args'], 'length']]` would need a callable `f`
+`['=>', 2, [], ['.', ['args'], 'length']]` would need a callable `f`
 with `f.length === 2`, `f() === 0`, `f(undefined) === 1` and `f(1, 2, 3) === 3`.
 This is invalid under the implemented fixed/rest binding rules; the tuple's
 four elements do not make the complete-arguments interpretation valid.
