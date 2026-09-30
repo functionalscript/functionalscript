@@ -10,33 +10,66 @@
  * different numbers of parts still compare, and `cmp` answers `0` for them
  * instead of ordering them by length.
  *
+ * **A part that is not a number is refused.** `Number('bad')` is `NaN`, and
+ * `NaN` is neither less than nor greater than anything, so comparing it would
+ * answer "equal" for `1.bad` and `1.2`. {@link tryParse} answers `null`
+ * for such a version, and {@link cmp} throws on one.
+ *
  * @module
  *
  * @example
  *
  * ```js
- * import { cmp, parse } from './module.f.mjs'
+ * import { cmp, tryParse } from './module.f.mjs'
  *
- * parse('v26.1.0') // [26, 1, 0]
+ * tryParse('v26.1.0') // [26, 1, 0]
+ * tryParse('1.bad') // null
  * cmp('0.11.2')('0.11.10') // -1
  * ```
  *
  * @import { Sign } from '../function/compare/types.ts'
+ * @import { Nullable } from '../nullable/types.ts'
  */
 
 import { cmp as numberCmp } from '../number/module.f.mjs'
+import { isDigit } from '../../text/ascii/module.f.mjs'
 
 /**
- * A version as its numbers, ignoring a leading `v`.
+ * One or more decimal digits spelling a safe integer. A longer run would
+ * round, and two different versions would compare equal.
  *
- * @type {(version: string) => readonly number[]}
+ * @type {(part: string) => boolean}
  */
-export const parse = version =>
-    (version.startsWith('v') ? version.slice(1) : version).split('.').map(Number)
+const isPart = part =>
+    part.length !== 0
+    && [...part].every(c => isDigit(c.charCodeAt(0)))
+    && Number.isSafeInteger(Number(part))
+
+/**
+ * A version as its numbers, ignoring a leading `v`, or `null` where any
+ * dot-separated part is not a run of decimal digits.
+ *
+ * @type {(version: string) => Nullable<readonly number[]>}
+ */
+export const tryParse = version => {
+    const parts = (version.startsWith('v') ? version.slice(1) : version).split('.')
+    return parts.every(isPart) ? parts.map(Number) : null
+}
+
+/** @type {(version: string) => readonly number[]} */
+const parse = version => {
+    const result = tryParse(version)
+    if (result === null) { throw ['not a version', version] }
+    return result
+}
 
 /**
  * Compares two versions part by part. A part that one version lacks counts
  * as zero.
+ *
+ * @throws If either argument is not a version {@link tryParse} accepts: the
+ * caller validates a version where it enters, and an answer for one that is
+ * not would be a plausible wrong order.
  *
  * @type {(a: string) => (b: string) => Sign}
  */
