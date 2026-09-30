@@ -27,7 +27,7 @@
 import { f64Bits, i64Literal, stringLiteral, utf16Literal } from '../../media/rust/module.f.mjs'
 import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
 import { lazyOp2Id } from '../module.f.mjs'
-import { maxLength } from '../../types/function/length/module.f.mjs'
+import { isIndex, maxLength } from '../../types/function/length/module.f.mjs'
 
 /**
  * The `nanvm-lib` expression each unary operation prints as.
@@ -599,6 +599,12 @@ const printer = nested => shared => root => {
             // language's limit is checked here too; IStaticFunction's u32
             // holds every length it admits.
             if (a > maxLength) { return error([`a function length above ${maxLength}`, a]) }
+            // A slot the frame does not have, likewise: `bindingError`
+            // refuses it in a complete graph, and a fragment is refused
+            // here, since the index the body would print panics in
+            // `nanvm-lib` where the JavaScript executors throw.
+            const past = slotReads(c).find(i => !isIndex(i) || i >= b.length)
+            if (past !== undefined) { return error(['no Rust for a frame slot the frame does not have', past]) }
             // The corpus's `() => undefined`, which no operator inspects,
             // is the one the harness binds as `function_any`; every other
             // function is a closure, over its frame.
@@ -893,6 +899,15 @@ export const readsArgs = root => reads('args')(root) || reads('arg')(root) || re
  * @type {(root: Exp) => boolean}
  */
 export const readsFrame = root => reads('frame')(root)
+
+/**
+ * The indices a scope reads of its frame, one per distinct `['frame', i]`
+ * node, a nested function's body left out as in {@link readsFrame}.
+ *
+ * @type {(root: Exp) => readonly number[]}
+ */
+const slotReads = root => visit(operandsOf)([])(root)
+    .flatMap(([node]) => tagOf(node) === 'frame' ? [/** @type {number} */ (/** @type {readonly unknown[]} */ (/** @type {unknown} */ (node))[1])] : [])
 
 /**
  * Whether a scope holds a node tagged `tag`, a nested function's body left
