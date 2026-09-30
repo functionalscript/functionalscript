@@ -1,7 +1,7 @@
 ## value-token-kind-list. The value-carrying token kinds are spelled twice
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
