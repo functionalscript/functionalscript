@@ -1,4 +1,4 @@
-## Stage A and Stage B operators have no FunctionalScript spelling yet
+## Stage A operators have no FunctionalScript spelling yet
 
 **Priority:** P2
 **Status:** open
@@ -6,19 +6,20 @@
 ### Problem
 
 Stage A of [operators](../../../../spec/todo/2340-operators.md) made the
-eighteen binary operators and `~` reachable from source, and Stage B the
-short-circuit `&&`, `||`, `??` and the conditional `?:` — the parser, AST
-and EDAG lowering all accept them — but this writer still only spells
-unary `-`. Every other operator node falls to the `default` case and is
-refused, each by name, with nothing written:
+eighteen binary operators and `~` reachable from source — the parser, AST
+and EDAG lowering all accept them — but this writer spells unary `-` and
+Stage B alone: the short-circuit `&&`, `||`, `??` and the conditional `?:`,
+which landed with the block a lazy operand opens for what it shares. Every
+Stage A operator node falls to the `default` case and is refused, each by
+name, with nothing written:
 
 ```sh
 $ fjs compile in.f.js out.js   # in.f.js: export default 1 + 2;
 out.js - error: a + node
-$ fjs compile in.f.js out.js   # in.f.js: export default 1 && 2;
-out.js - error: a && node
-$ fjs compile in.f.js out.js   # in.f.js: export default 1 ? 2 : 3;
-out.js - error: a ?: node
+$ fjs compile in.f.js out.js   # in.f.js: export default 1 - 2;
+out.js - error: a binary - node
+$ fjs compile in.f.js out.js   # in.f.js: export default ~1;
+out.js - error: a ~ node
 ```
 
 That refusal is this module's own documented behavior for a node kind it
@@ -35,10 +36,13 @@ Stage A's parser/AST/EDAG PR did not, and is scoped to the front end
 
 Add a `case` per operator to `entry`'s `switch`, each producing the
 `Document` for `left OP right` (or `OP operand` for `~`), reusing
-`operand`/`base` the way the existing `-` case does. The real work is
-precedence-correct parenthesization: the written text has to read back to
-the same graph, so an operand whose own precedence is lower than the
-position it is written in needs `(` `)` around it — exactly the ladder
+`operand`/`base` the way the existing `-` case does, and `precedence`,
+`operandGrouped` and `grouped` the way the lazy operators' cases do — the
+ladder they encode stops at `&&`, and Stage A's levels go under it. The
+real work is precedence-correct parenthesization: the written text has to
+read back to the same graph, so an operand whose own precedence is lower
+than the position it is written in needs `(` `)` around it — exactly the
+ladder
 `fjs/compiler/parser/grammar/module.f.mjs`'s `multiplicativeTail` through
 `bitwiseOrTail`, `powTail`, and `unaryOperand` already encode, read in
 reverse. `-`/`~` immediately before `**` need the same care the parser's
@@ -56,7 +60,7 @@ other side does not), the same shape unary `-`'s own spacing rule
       and associativity-correct, in `fjs/compiler/serializer/module.f.mjs`'s
       `entry`.
 - [ ] Add spelling for `~`.
-- [ ] `&& || ??` and `?:`: `??` parenthesized against `&&`/`||`, the
+- [x] `&& || ??` and `?:`: `??` parenthesized against `&&`/`||`, the
       conditional right-nested.
 - [ ] New proof coverage: every operator round-trips (`fjs t`'s
       `fjsRoundTrip`-style check, `../../proof.f.mjs`), every precedence

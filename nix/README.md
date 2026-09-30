@@ -32,11 +32,14 @@ versions and pinned commits are chosen. Don't edit them by hand — change the
 generator or the config, run `npm run gen`, and commit the result. CI fails when
 the committed files no longer match what the generator produces.
 
-[`flake.lock`](./flake.lock) is the exception to the exception: `gen` runs on
-Windows, where Nix does not, so it cannot write a lock. It writes
-[`lock-update.sh`](./lock-update.sh) instead, and a maintainer runs
-`npm run lock-update` when a pinned commit moves. Forgetting is not silent — the
-next CI job into the shell fails rather than quietly resolving a new lock.
+[`flake.lock`](./flake.lock) is generated too, but not by `fjs ci`, which
+never runs Nix: the generator writes [`lock-update.sh`](./lock-update.sh),
+which deletes every lock and regenerates it from the pinned commit through
+real Nix, and `npm run gen` ends by running it. So a committed lock that
+differs from what the pinned commit produces is a drift-check failure like
+any other stale generated file, and `gen` needs Nix. Forgetting is not silent
+either way — the next CI job into the shell fails rather than quietly
+resolving a new lock.
 
 This README is written by hand, and [`../dev.sh`](../dev.sh) is the one script
 here that is not generated: nothing in it varies with a job, a pin or a system,
