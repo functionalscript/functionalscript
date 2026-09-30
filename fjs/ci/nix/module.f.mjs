@@ -1,7 +1,7 @@
 /**
  * Generates one self-contained Nix flake per declared CI job.
  *
- * Each job gets its own `nix/<id>/flake.nix` pinning the exact
+ * Each job gets its own `gen.nix/<id>/flake.nix` pinning the exact
  * Nixpkgs commit from `../config/module.f.js` and exposing a single
  * `devShells.<system>.default` development shell. The files are static and
  * readable on purpose: no job selection, no shared Nix modules, no helper
@@ -37,7 +37,7 @@ import { nixpkgs, rustOverlay } from '../config/module.f.js'
  * subdirectory named after it. So the generator owns `flake.nix`, `run`, and
  * every subdirectory here; `nix/README.md` is written by hand.
  */
-export const generatedDirectory = /** @type {const} */ ('nix')
+export const generatedDirectory = /** @type {const} */ ('gen.nix')
 
 /**
  * A flake input's `url`, built from the pin rather than spelled beside it.
@@ -456,24 +456,18 @@ export const lockUpdatePath = /** @type {const} */ (`./${generatedDirectory}/loc
  * asks Nix, and this repository's `npm run gen` ends by running it. That makes
  * `gen` need Nix, and so not run on Windows for now — accepted, rather than a
  * second generation step or job; a Node-only partial regeneration can be
- * added if it is ever needed. The drift check then compares a committed lock
- * against one Nix produces from the pinned revision alone, like every other
- * generated file.
+ * added if it is ever needed.
  *
- * Each lock is deleted before it is locked. Both facts are functions of the
- * pinned revision, so the regenerated file is byte-identical to a current
- * committed one, and a lock that was edited, or left behind by a pin that
- * moved, is a diff rather than an input `nix flake lock` quietly kept.
+ * The script locks from nothing without deleting anything itself: every lock
+ * lives under {@link generatedDirectory}, a `gen.` name, so `gen:clean` has
+ * already removed it when this runs. Both facts are functions of the pinned
+ * revision, so the regenerated file is byte-identical to a current committed
+ * one, and a lock that was edited, or left behind by a pin that moved, is a
+ * drift-check diff rather than an input `nix flake lock` quietly kept.
  *
  * One `nix flake lock` per generated directory, because Nix has no form that
  * locks several flakes at once. `set -e` stops at the first failure rather
  * than leaving a later directory silently unlocked.
- *
- * `rm -f` is the one tool this script calls besides `nix`, and root
- * `AGENTS.md` §6 wants such a call approved first: the maintainer approved it
- * for exactly this, deleting a lock so the regeneration is from nothing, in
- * the review that added it (#2405). The proof in `./proof.f.mjs` pins the
- * script's text, so no other tool enters it unnoticed.
  *
  * Deleting the shared shell's own lock from inside that shell is fine: the
  * lock is read once, on entry, and `gen`'s process is already in. The step
@@ -483,8 +477,7 @@ export const lockUpdatePath = /** @type {const} */ (`./${generatedDirectory}/loc
  */
 export const lockUpdateText = jobs => `#!/bin/sh
 set -e
-${jobs.map(({ id }) => `rm -f ${flakePath(id)}/flake.lock
-nix flake lock ${experimentalFeatures} ${flakePath(id)}`).join('\n')}
+${jobs.map(({ id }) => `nix flake lock ${experimentalFeatures} ${flakePath(id)}`).join('\n')}
 `
 
 /**
@@ -502,7 +495,7 @@ nix flake lock ${experimentalFeatures} ${flakePath(id)}`).join('\n')}
  *
  * **Both generated scripts, not only `run`.** `nix flake` is gated behind the
  * same two features as `nix develop`, so leaving {@link lockUpdateText} out
- * would fix `./nix/run` for exactly the contributor who would then meet the
+ * would fix `./gen.nix/run` for exactly the contributor who would then meet the
  * identical error from `npm run lock-update`.
  *
  * Passing them makes the script say what it needs instead of asking the machine
@@ -513,12 +506,12 @@ nix flake lock ${experimentalFeatures} ${flakePath(id)}`).join('\n')}
 const experimentalFeatures = `--extra-experimental-features 'nix-command flakes'`
 
 /**
- * The `run` script generated beside a flake. `./nix/run npm run cov` is what a
+ * The `run` script generated beside a flake. `sh ./gen.nix/run npm run cov` is what a
  * workflow step says; this is what makes that a command.
  *
  * The flake's path is written in, because the generator knows it. An earlier
  * version derived it from `$0` with a `case` arm and `${0%/*}` so the script
- * worked from any working directory; that bought one thing — `../nix/run` from
+ * worked from any working directory; that bought one thing — `../gen.nix/run` from
  * a subdirectory — at the cost of two lines of shell nobody should have to
  * read. Every caller runs from the repository root: CI checks out there, and
  * the path a step names is relative to it.
@@ -529,7 +522,7 @@ const experimentalFeatures = `--extra-experimental-features 'nix-command flakes'
  * repository root it would look for a `flake.nix` that is not there.
  *
  * `"$@"` passes the caller's argument vector through unsplit, which is what
- * lets a step keep quoting of its own — `./nix/run deno eval
+ * lets a step keep quoting of its own — `sh ./gen.nix/run deno eval
  * 'console.log(Deno.version.deno)'` arrives as three arguments, not as text to
  * re-parse.
  *
@@ -580,7 +573,7 @@ const experimentalFeatures = `--extra-experimental-features 'nix-command flakes'
  * cost is that a cache miss looks like a cache hit: Nix compiles from source in
  * silence, and the job is only slower. That is bounded, because the store
  * persists across a job's steps, so substitution happens on the first
- * `./nix/run` and no other.
+ * `sh ./gen.nix/run` and no other.
  *
  * **There used to be three**, and the second and third were spent on a single
  * warning: with no committed `flake.lock`, `--no-write-lock-file` made every
@@ -611,12 +604,10 @@ exec nix develop ${experimentalFeatures} --no-update-lock-file --quiet ${flakePa
  * Writes a job's flake and the `run` script beside it, stopping at the first
  * failure.
  *
- * The script's **content** is generated; its executable bit is not. Nothing in
- * `fjs/effects/node` can set a file mode, and `fs.writeFile` preserves the mode
- * of a file that already exists — so a script committed once as `100755` stays
- * executable through every regeneration, and only a job that has never been
- * generated needs `git update-index --chmod=+x` by hand. See
- * `../todo/generated-run-script-mode.md`.
+ * The script carries no executable bit, and nothing depends on one: a step
+ * runs it through `sh` (see {@link nixDevelop}). Nothing in `fjs/effects/node`
+ * can set a file mode, and every regeneration starts from nothing, so a mode
+ * the file had would not survive `gen:clean` anyway.
  *
  * @type {(job: NixJob) => Effect<Mkdir | WriteFile, void, IoChannel>}
  */
@@ -640,14 +631,9 @@ const writeJob = job => {
  *
  * `flake.lock` is deliberately not written here — see {@link lockUpdateText}
  * — so this leaves whatever lock is already committed alone; only
- * `nix/lock-update.sh` itself, and the generated `flake.nix`/`run` pair each
+ * `gen.nix/lock-update.sh` itself, and the generated `flake.nix`/`run` pair each
  * job takes, are this function's output. The locks are the script's, and
- * `npm run gen` runs it after this.
- *
- * `nix/lock-update.sh`'s executable bit is exactly as unmanaged as `run`'s —
- * see {@link writeJob}'s docstring and `../todo/generated-run-script-mode.md`
- * — so it needs the same one-time `git update-index --chmod=+x` if this file
- * is ever deleted and regenerated from scratch.
+ * `npm run gen` runs it after this, through `sh` like every `run`.
  *
  * @type {(jobs: readonly NixJob[]) => Effect<Mkdir | WriteFile, void, IoChannel>}
  */
@@ -676,8 +662,8 @@ export const nixFlakes = jobs => {
  *
  * The name is a label rather than a directory. This shell is written to
  * {@link generatedDirectory} itself — see {@link flakePath} — because it
- * belongs to no single job, and `nix develop ./nix` is the command a developer
- * should have to remember.
+ * belongs to no single job, and `nix develop ./gen.nix` is the command a
+ * developer should have to remember.
  */
 export const nixShell = /** @type {const} */ ('dev')
 
@@ -686,9 +672,10 @@ export const nixShell = /** @type {const} */ ('dev')
  * id.
  *
  * The shared shell is the generated directory itself, so a developer types
- * `nix develop ./nix` — the repository's environment, named after nothing in
- * particular, because it belongs to no single job. The rest get a subdirectory
- * apiece.
+ * `nix develop ./gen.nix` — the repository's environment, named after nothing
+ * in particular, because it belongs to no single job. The rest get a
+ * subdirectory apiece. The directory takes the `gen.` name every generated
+ * file has: nothing in it is handwritten, and `gen:clean` empties it.
  *
  * @type {(id: string) => string}
  */
@@ -708,19 +695,25 @@ export const nixInstall = install(uses('cachix/install-nix-action'))
  * Runs one command inside a job's generated development shell, through that
  * job's `run` script.
  *
- * A step reads as the command it runs — `./nix/node26/run npm run cov` — with
- * the `nix develop` spelling and its flags in one generated place rather than
- * repeated fifteen times across the workflow. {@link runText} documents what
- * that spelling is and why.
+ * A step reads as the command it runs — `sh ./gen.nix/node26/run npm run cov`
+ * — with the `nix develop` spelling and its flags in one generated place rather
+ * than repeated fifteen times across the workflow. {@link runText} documents
+ * what that spelling is and why.
+ *
+ * `sh` rather than the path alone, because the script has no executable bit
+ * to rely on: `gen:clean` deletes it, `fs.writeFile` recreates it with none,
+ * and the drift check compares modes. Naming the interpreter makes the mode
+ * irrelevant, on the runner and for a project regenerating for the first
+ * time.
  *
  * Every `flake.lock` is committed, not ignored: the script's
  * `--no-update-lock-file` keeps `nix develop` from resolving, let alone
- * writing, a mismatched one, so only `nix/lock-update.sh` — never a Nix step
- * in CI — ever changes one.
+ * writing, a mismatched one, so only `gen.nix/lock-update.sh` — never a Nix
+ * step in CI — ever changes one.
  *
  * @type {(id: string, command: string) => string}
  */
-export const nixDevelop = (id, command) => `${runPath(id)} ${command}`
+export const nixDevelop = (id, command) => `sh ${runPath(id)} ${command}`
 
 /**
  * The Nix system of the runner every job with a flake uses. `ubuntuArm` picks

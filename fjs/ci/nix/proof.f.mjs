@@ -419,7 +419,7 @@ const unwrapPin = ({ pin }) => {
 /** @type {(jobs: readonly NixJob[], id: string, file: string) => string} */
 const generatedFile = (jobs, id, file) => {
     // `flakePath` rather than a second spelling of it: the shared shell is the
-    // generated directory itself, so a literal `nix/<id>/` here would read the
+    // generated directory itself, so a literal `gen.nix/<id>/` here would read the
     // one path the generator never writes.
     const written = ioStep(
         nixFlakes(jobs),
@@ -531,7 +531,7 @@ export const proof = {
             const [, [tag, result]] = virtual(emptyState)(written)
             assert(tag === 'ok', result)
             assertEq(result, lockUpdateText(nixJobs))
-            assertEq(lockUpdatePath, './nix/lock-update.sh')
+            assertEq(lockUpdatePath, './gen.nix/lock-update.sh')
         },
         // One `nix flake lock` per generated directory — Nix has no form that
         // locks several flakes at once — under `set -e`, so a later directory
@@ -540,17 +540,16 @@ export const proof = {
         // Each line carries the experimental features for the same reason the
         // `run` scripts do: `nix flake` is gated behind `nix-command` and
         // `flakes` exactly as `nix develop` is, so a stock installation that
-        // could not run `./nix/run` could not run this either.
+        // could not run `sh ./gen.nix/run` could not run this either.
         //
-        // Each lock is deleted before it is locked, so the script is a
-        // regeneration from nothing and the drift check sees a lock Nix
-        // produces from the pinned revision alone.
+        // The script deletes nothing: `gen:clean` has emptied the `gen.`
+        // directory before it runs, so each lock is a regeneration from
+        // nothing and the drift check sees what the pinned revision alone
+        // produces.
         lockUpdateText: () => {
             assertEq(lockUpdateText([plain, withRust]), `#!/bin/sh
 set -e
-rm -f ${flakePath(plain.id)}/flake.lock
 nix flake lock --extra-experimental-features 'nix-command flakes' ${flakePath(plain.id)}
-rm -f ${flakePath(withRust.id)}/flake.lock
 nix flake lock --extra-experimental-features 'nix-command flakes' ${flakePath(withRust.id)}
 `)
         },
@@ -569,10 +568,10 @@ nix flake lock --extra-experimental-features 'nix-command flakes' ${flakePath(wi
         // appearing in a comment.
         runText: () => {
             assertEq(runText(nixShell), `#!/bin/sh
-exec nix develop --extra-experimental-features 'nix-command flakes' --no-update-lock-file --quiet ./nix --command "$@"
+exec nix develop --extra-experimental-features 'nix-command flakes' --no-update-lock-file --quiet ./gen.nix --command "$@"
 `)
             assertEq(runText(plain.id), `#!/bin/sh
-exec nix develop --extra-experimental-features 'nix-command flakes' --no-update-lock-file --quiet ./nix/node24 --command "$@"
+exec nix develop --extra-experimental-features 'nix-command flakes' --no-update-lock-file --quiet ./gen.nix/node24 --command "$@"
 `)
         },
         // One, and the count is arithmetic rather than taste. Nix has a single
@@ -649,13 +648,14 @@ exec nix develop --extra-experimental-features 'nix-command flakes' --no-update-
         flakePath: () => assertEq(flakePath(plain.id), `./${generatedDirectory}/node24`),
         // A step reads as the command it runs. The `nix develop` spelling and
         // its flags live in the generated script instead, once per job rather
-        // than once per step.
+        // than once per step. `sh` names the interpreter, so the script's
+        // mode — which no regeneration from nothing can set — never matters.
         nixDevelop: () => assertEq(
             nixDevelop(plain.id, 'node --version'),
-            './nix/node24/run node --version'),
-        runPath: () => assertEq(runPath(plain.id), './nix/node24/run'),
+            'sh ./gen.nix/node24/run node --version'),
+        runPath: () => assertEq(runPath(plain.id), './gen.nix/node24/run'),
         // The shared shell is the generated directory itself, not a `dev`
-        // below it. `nix develop ./nix` is what a developer types, and the
+        // below it. `nix develop ./gen.nix` is what a developer types, and the
         // name stays only as the label the declaration is found by.
         sharedShellIsTheDirectory: () => {
             assertEq(flakePath(nixShell), `./${generatedDirectory}`)
@@ -671,7 +671,7 @@ exec nix develop --extra-experimental-features 'nix-command flakes' --no-update-
             assertEq(steps.length, 2)
             assertStructurallySame(
                 steps.map(s => s.type === 'test' ? s.step.run : undefined),
-                ['./nix/node24/run npm ci', './nix/node24/run node --test'])
+                ['sh ./gen.nix/node24/run npm ci', 'sh ./gen.nix/node24/run node --test'])
         },
         // The command and the expected string are independent: Node's output
         // carries a leading `v` that the configured version does not.
@@ -680,7 +680,7 @@ exec nix develop --extra-experimental-features 'nix-command flakes' --no-update-
             assertEq(step.type, 'test')
             assertEq(
                 step.type === 'test' ? step.step.run : undefined,
-                'test "$(./nix/node24/run node --version)" = "v24.19.0"')
+                'test "$(sh ./gen.nix/node24/run node --version)" = "v24.19.0"')
         },
         nixInstall: () => {
             assertEq(nixInstall.type, 'install')

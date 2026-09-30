@@ -84,7 +84,7 @@ export const proof = {
     //
     // That one system and no other, which is the half that would rot quietly:
     // a hook reaching a system that cannot evaluate the package it names breaks
-    // `nix develop ./nix` there and nowhere else. And it has to be a system
+    // `nix develop ./gen.nix` there and nowhere else. And it has to be a system
     // this shell is generated for, or the capability reaches no shell at all.
     carriesWhatOnlyOneSystemCan: () => {
         assertStructurallySame(Object.keys(i686PerSystem), [i686System])

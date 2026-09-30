@@ -4,7 +4,7 @@ This directory contains the FunctionalScript source that defines the GitHub Acti
 workflows for this repository. Running the generator writes
 `.github/workflows/gen.ci.yml` with the latest matrix of jobs and steps and
 `.github/workflows/gen.npm-publish.yml` with the release job, plus three Nix
-development environments under `nix/`. The first of those, written to `nix/`
+development environments under `gen.nix/`. The first of those, written to `gen.nix/`
 itself, is the shell a developer enters and the shell eight of the thirteen
 jobs run inside; the other two exist for the jobs that cannot share it — Node
 22 and Node 24. Three jobs enter none: the two Windows ones,
@@ -23,7 +23,9 @@ and delete whatever the new version stopped writing. The workflows are the
 standing example: they took the `gen.` name, and a project upgrading across
 that rename deletes its old `ci.yml` and `npm-publish.yml` itself — GitHub
 loads every workflow in the directory, so each leftover runs beside its
-replacement.
+replacement. A job the generator stops writing leaves its `gen.nix/<job>/`
+behind the same way: this repository's `gen` empties `gen.nix/` through
+`gen:clean` before `fjs ci` runs, which `fjs ci` alone does not.
 
 That is a deliberate position rather than an oversight, and it is the reason the
 generator carries no migration code for its own past output. Who this command is
@@ -46,7 +48,7 @@ for, and whether that answer should change, is
   `GitHubAction`, `MetaStep`, `Os`, `Architecture`), and step-builder helpers
   (`test`, `install`, `uses`).
 - `config/module.f.js` — runner image matrix (OS × architecture → GitHub-hosted image name) and pinned tool/package versions, including the FunctionalScript package version used by generated smoke tests and the exact Nixpkgs commit the generated flakes pin.
-- `nix/module.f.mjs` — writes one self-contained `nix/<job>/flake.nix`
+- `nix/module.f.mjs` — writes one self-contained `gen.nix/<job>/flake.nix`
   per declared job (`NixJob` in `types.ts`), using the Nix eDSL in `fjs/media/nix`.
 - `node/module.f.mjs` — Node.js job steps: platform smoke tests, canonical
   per-version jobs, coverage, package checks, and the Node flake declarations.
@@ -103,7 +105,7 @@ for, and whether that answer should change, is
    passes a `packageConsumer` the built-in command does not have; running
    `fjs ci` here writes a `package-check` without the consumer steps.
 3. Commit the updated `.github/workflows/gen.ci.yml`,
-   `.github/workflows/gen.npm-publish.yml` and `nix/*/flake.nix` files if they have
+   `.github/workflows/gen.npm-publish.yml` and `gen.nix/*/flake.nix` files if they have
    changed.
 
 The generator is idempotent — rerunning it without modifying the source produces the
@@ -129,7 +131,7 @@ say what a *single* system adds, in `perSystem`: extra toolchain targets, and a
 the one, giving `x86_64-linux` the 32-bit target and the linker `cargo` needs
 for it — a package set that exists on x86 Linux and throws anywhere else, which
 is why it is a platform's capability rather than the shell's. See
-[nix/README.md](../../nix/README.md) for how the generated files are meant to be
+[nix/README.md](./nix/README.md) for how the generated files are meant to be
 consumed.
 
 `config/module.f.js` records the Node, Deno, Wasmtime and Wasmer versions the pinned
@@ -157,7 +159,7 @@ the flake names in full. The platform matrix's `dtolnay/rust-toolchain` reads th
 constant, so the two cannot drift.
 
 A generated `run` script sits beside every flake, and a workflow step reads as
-the command it runs — `./nix/run npm run cov` — rather than as a `nix develop`
+the command it runs — `sh ./gen.nix/run npm run cov` — rather than as a `nix develop`
 invocation repeated once per step. Its flags live in that one generated place,
 and `nix/module.f.mjs` says what each buys: a stale lock fails rather than
 resolving silently, substitution progress stays out of the log, and the script
@@ -167,27 +169,27 @@ works on a stock Nix install rather than only a configured one.
 for a person who wants the shell rather than one command in it. It is committed
 rather than generated: nothing in it varies with a job, a pin or a system, so
 there is nothing for a generator to compose or a drift check to catch. See
-[nix/README.md](../../nix/README.md).
+[nix/README.md](./nix/README.md).
 
 A `flake.lock` is committed beside every `flake.nix`, but `fjs ci` never
 writes one: `nix flake lock` is a real Nix command. Without a committed lock
 every `nix develop` would compute one, find it differed from nothing, and say
 so — which used to cost two more `--quiet`s and, with them, every Nix warning
-of any kind. Instead the generator writes `nix/lock-update.sh`, one `rm -f`
-and one `nix flake lock` per generated directory, and this repository's `gen`
-ends by running it, so the locks are regenerated from nothing and covered by
-the drift check; `gen` needs Nix for that, and does not run on Windows for
-now. See "Expected package scripts" below and
-[nix/README.md](../../nix/README.md).
+of any kind. Instead the generator writes `gen.nix/lock-update.sh`, one `nix flake lock`
+per generated directory, and this repository's `gen` ends by running it, after
+`gen:clean` has emptied `gen.nix/`, so the locks are regenerated from nothing
+and covered by the drift check; `gen` needs Nix for that, and does not run on
+Windows for now. See "Expected package scripts" below and
+[nix/README.md](./nix/README.md).
 
 No job checks the flakes; the jobs that use them check the runtime they get. Every
 canonical job asserts, as its first command, that its own shell reports the version
 `config/module.f.js` records for it:
 
 ```sh
-test "$(./nix/run node --version)" = "v26.8.1"
-test "$(./nix/run deno eval 'console.log(Deno.version.deno)')" = "2.8.3"
-test "$(./nix/node22/run node --version)" = "v22.23.2"
+test "$(sh ./gen.nix/run node --version)" = "v26.8.1"
+test "$(sh ./gen.nix/run deno eval 'console.log(Deno.version.deno)')" = "2.8.3"
+test "$(sh ./gen.nix/node22/run node --version)" = "v22.23.2"
 ```
 
 The runtimes disagree on both halves, which is why the check takes the command and
@@ -308,7 +310,7 @@ and `gen`. A typical FunctionalScript project can define them like this:
 Git, not only the workflows. `fjs ci` covers `.github/workflows/gen.ci.yml`,
 `.github/workflows/gen.npm-publish.yml` and the generated Nix flakes (`flake.nix`
 and `run`, deliberately not `flake.lock`, which the generated
-`nix/lock-update.sh` regenerates through Nix — see below); a project with other
+`gen.nix/lock-update.sh` regenerates through Nix — see below); a project with other
 generators chains them into the same script, as this repository does for
 `nanvm-lib/tests/test/gen.corpus/` (see
 [`fjs/nanvm/README.md`](../nanvm/README.md)) and for the lock script itself.
@@ -329,9 +331,9 @@ reflects the generator being reviewed, not the pinned published release.
 
 `fjs ci` itself is Nix-independent — it never shells out to `nix` — which is
 why it cannot be the thing that writes `flake.lock`. It writes
-`nix/lock-update.sh` instead, alongside the flakes: the script deletes every
-`flake.lock` and locks each flake again from its pinned revision, through real
-Nix. This repository chains that script into `gen`, so a committed lock that
+`gen.nix/lock-update.sh` instead, alongside the flakes: the script locks each
+flake from its pinned revision, through real Nix, into the directory
+`gen:clean` has just emptied. This repository chains that script into `gen`, so a committed lock that
 differs from what the pinned revision produces fails the drift check like any
 other stale generated file — at the cost that `gen` needs Nix and does not run
 on Windows for now. A project that keeps `gen` Nix-free keeps its locks out of
@@ -516,7 +518,7 @@ The generator writes JSON, which every YAML reader accepts; shown here as YAML
 because that is how a reader thinks of a workflow:
 
 ```yaml
-- run: ./nix/run bash -e -c "$FJS_CI_RUN"
+- run: sh ./gen.nix/run bash -e -c "$FJS_CI_RUN"
   env:
     FJS_CI_RUN: NODE_OPTIONS=--max-old-space-size=4096 node tool.mjs
 ```

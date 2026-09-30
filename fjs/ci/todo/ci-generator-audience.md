@@ -89,6 +89,10 @@ is speculative generality.
 ### Tasks
 
 - [ ] Decide which of the two the command is.
+- [ ] With it, whether `fjs ci` empties `gen.nix/` before writing, as this
+      repository's `gen` does through `gen:clean`, so a job a new version
+      stops writing is a deletion in a consumer's drift check rather than a
+      leftover ([65z-ci-nix](65z-ci-nix.md)).
 - [ ] Apply it, and make [`fjs/README.md`](../../README.md) and
       [`../README.md`](../README.md) agree.
 
