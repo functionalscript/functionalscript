@@ -144,12 +144,12 @@ coverage. Its stage-1 issue is complete and deleted; the contract it left is
    decided whether a Stage-1 source or proof file migrated.
 3. Stage 2 migrates compiler-supported dependency-closed groups from `.f.mjs` to
    `.f.js`. The first renames have landed —
-   [`fjs-nanvm-integration.md`](../fjs-nanvm-integration.md) performs them,
-   and records the decision — on `fjs compile` with no arguments holding every
-   `.f.js` to the compiler in CI. One task of
-   [authored `.f.js` package support](../../fjs/ci/todo/f-js-package-support.md)
-   is still open, `package-check` importing a `.f.js` from a clean consumer;
-   it gates no rename. The
+   [`fjs-nanvm-integration.md`](../fjs-nanvm-integration.md) performs them — on
+   two checks that run in CI: `fjs compile` with no arguments holds every
+   `.f.js` to the compiler, and `package-check`
+   ([`fjs/ci/package`](../../fjs/ci/package/module.f.mjs)) imports a published
+   `.f.js` from a clean consumer of the packed package, so a standalone `.f.js`
+   is type-checked, gets a `.d.ts`, is packed, and resolves. The
    boundary the rename must respect is in
    [`fjs/compiler/README.md`](../../fjs/compiler/README.md).
 4. An authored `.f.js` is the compiler-compatibility marker: the parser/compiler
@@ -199,7 +199,7 @@ Prerequisite: compiler + CA FunctionalScript complete.
 | SUL deduplication | `fjs/sul/` L1–L4 ✓ | CAS integration layer |
 | Compiler (parsing) | `fjs/compiler/` pipeline with functions ✓, FJS grammar on `fjs/ebnf/` ✓ | Language spec generated from the grammar |
 | Compiler (codegen) | Rust code generator (`fjs compile … .rs`) ✓ | AOT-compile the FJS loader/interpreter for native self-hosting; Rust EDAG deferred |
-| Compiler (repository coverage) | Stage-1 `.f.mjs` source migration complete and compiler-independent ✓ | Validate supported `.f.mjs` as coverage grows; then authored-`.f.js` package support, then rename supported groups `.f.mjs` → `.f.js` |
+| Compiler (repository coverage) | Stage-1 `.f.mjs` source migration complete and compiler-independent ✓; authored-`.f.js` package support, `package-check` importing a published `.f.js` from a clean consumer ✓; every module the compiler accepted whole renamed `.f.mjs` → `.f.js`, held by `fjs compile` with no arguments ✓ | Rename further groups as compiler support grows |
 | CA FunctionalScript | — | Depends on VM + EDAG canonicalization |
 | Sandboxed execution | — | Depends on CA FJS |
 | Hybrid intelligence | — | Depends on all above |
