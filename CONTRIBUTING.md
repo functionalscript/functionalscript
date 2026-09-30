@@ -291,10 +291,12 @@ changelog is written once per release from the pull requests that shipped in it
 instead is a declaration in its description, below. The everyday workflow around
 this is [AGENTS.md §1](./AGENTS.md#1-workflow).
 
-Open it as a **draft** as soon as the branch has a commit, and name the `todo/`
-file it works on in its description, so anyone about to start the same task
-finds it taken ([SESSION.md](./doc/SESSION.md#claim-the-task)). Mark it ready
-for review once it carries its change and every check passes.
+A pull request that works on a `todo/` is opened as a **draft** as soon as the
+branch has a commit, and names that `todo/` file in its description, so anyone
+about to start the same task finds it taken
+([SESSION.md](./doc/SESSION.md#claim-the-task)). It is marked ready for review
+once it carries its change and every check passes. A pull request with no
+`todo/` behind it has nothing to claim.
 
 ### Commit messages
 
