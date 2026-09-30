@@ -91,7 +91,7 @@ The simplest path found so far is two steps.
 
 **Nix is how the shell gets installed.** The repository already pins a Nixpkgs
 commit (`../../ci/config/module.f.js`) and generates one flake per job
-(`../../ci/nix/module.f.mjs`, [nix/README.md](../../../gen.nix/README.md)), so a
+(`../../ci/nix/module.f.mjs`, [fjs/ci/nix/README.md](../../ci/nix/README.md)), so a
 `spidermonkey` job declared there gives the same shell binary locally and in
 CI, at a version the pin decides:
 
