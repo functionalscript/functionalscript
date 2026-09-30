@@ -8,7 +8,7 @@
 The checks a contributor is told to run before submitting are listed in three
 places — [AGENTS.md](../AGENTS.md), [CONTRIBUTING.md](../CONTRIBUTING.md) and
 [nanvm-lib/AGENTS.md](../nanvm-lib/AGENTS.md) — and all three are weaker than
-what the generated [CI workflow](../.github/workflows/ci.yml) enforces. A pull
+what the generated [CI workflow](../.github/workflows/gen.ci.yml) enforces. A pull
 request that passes every documented check can still fail CI.
 
 - **Clippy warnings.** Every list says `cargo clippy`. CI runs

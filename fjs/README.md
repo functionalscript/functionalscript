@@ -83,7 +83,7 @@ fjs ci
 ```
 
 `fjs ci` runs the built-in CI generator from `fjs/ci/module.f.mjs`, writing
-`.github/workflows/ci.yml` and `.github/workflows/npm-publish.yml`. It is the
+`.github/workflows/gen.ci.yml` and `.github/workflows/gen.npm-publish.yml`. It is the
 standard entry point for projects that want FunctionalScript's default
 workflows. Projects with custom CI setup code should keep using
 `fjs run <custom-ci-module>`, so their module can call `ci(setup)` with its own
