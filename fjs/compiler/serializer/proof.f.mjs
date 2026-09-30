@@ -482,13 +482,13 @@ export const proof = {
     // fails at the same point (`throw.nested` below), so that round trip is
     // by behaviour and not by table.
     throws: () => {
-        writes(['=>', 0, null, ['throw', 1]], 'export default (...$a)=>{throw 1;};')
-        writes(['=>', 0, null, ['throw', ['[]', [1]]]], 'export default (...$a)=>{throw [1];};')
-        writes(['=>', 0, null, [',', [['[]', []], ['throw', 1]]]], 'export default (...$a)=>{const $a0=[];throw 1;};')
+        writes(['=>', 0, [], ['throw', 1]], 'export default (...$a)=>{throw 1;};')
+        writes(['=>', 0, [], ['throw', ['[]', [1]]]], 'export default (...$a)=>{throw [1];};')
+        writes(['=>', 0, [], [',', [['[]', []], ['throw', 1]]]], 'export default (...$a)=>{const $a0=[];throw 1;};')
         writes(['throw', 'x'], 'throw "x";')
         // `null` is a value to throw, not the absence of one
         writes(['throw', null], 'throw null;')
-        writes(['=>', 0, null, ['throw', null]], 'export default (...$a)=>{throw null;};')
+        writes(['=>', 0, [], ['throw', null]], 'export default (...$a)=>{throw null;};')
         assertEq(unwrap(tryModuleStringify(['throw', null])), 'throw null;')
         writes([',', [['[]', []], ['throw', 1]]], 'const $0=[];throw 1;')
         // a shared constructor the throw holds is hoisted before the statement
@@ -502,8 +502,8 @@ export const proof = {
         const text = unwrap(tryStringify(['[]', [['throw', 1]]]))
         assertEq(text, 'export default [(()=>{throw 1;})()];')
         const { edag } = unresolved(unwrap(parse(path)(text)))
-        assertStructurallySame(_defaultExport(edag), ['[]', [['()', ['=>', 0, null, ['throw', 1]], ['[]', []]]]])
-        assertEq(unwrap(tryStringify(['=>', 0, null, ['[]', [['throw', ['rest']]]]])), 'export default (...$a)=>[(()=>{throw $a;})()];')
+        assertStructurallySame(_defaultExport(edag), ['[]', [['()', ['=>', 0, [], ['throw', 1]], ['[]', []]]]])
+        assertEq(unwrap(tryStringify(['=>', 0, [], ['[]', [['throw', ['rest']]]]])), 'export default (...$a)=>[(()=>{throw $a;})()];')
     },
     throw: {
         // the call a nested `throw` is written as fails where the node does

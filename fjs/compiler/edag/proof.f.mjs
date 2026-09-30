@@ -870,11 +870,11 @@ export const proof = {
     // import for its effect alone anchors the throw in the importer.
     throws: {
         body: () => {
-            expectEdag(compile('export default () => { throw 1; };').edag, ['=>', 0, null, ['throw', 1]])
+            expectEdag(compile('export default () => { throw 1; };').edag, ['=>', 0, [], ['throw', 1]])
             /** @type {Exp} */
             const x = ['.', ['rest'], 0]
-            expectEdag(compile('export default (...a) => { const x = a[0]; throw [x, x]; };').edag, ['=>', 0, null, ['throw', ['[]', [x, x]]]])
-            expectEdag(compile('export default () => { const x = []; throw 1; };').edag, ['=>', 0, null, [',', [['[]', []], ['throw', 1]]]])
+            expectEdag(compile('export default (...a) => { const x = a[0]; throw [x, x]; };').edag, ['=>', 0, [], ['throw', ['[]', [x, x]]]])
+            expectEdag(compile('export default () => { const x = []; throw 1; };').edag, ['=>', 0, [], [',', [['[]', []], ['throw', 1]]]])
             expectEdag(lowered(['throw', 1]), ['throw', 1])
         },
         module: () => {

@@ -1572,7 +1572,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     throws: () => {
         assertEq(compileSource('export default () => { throw 1; };')('output.js'), 'export default (...$a)=>{throw 1;};')
         assertEq(compileSource('export default (...a) => { const x = a[0]; throw [x, x]; };')('output.js'), 'export default (...$a)=>{throw [$a[0],$a[0]];};')
-        assertEq(compileSource('export default () => { throw 1; };')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",0,null,["throw",1]]]]];')
+        assertEq(compileSource('export default () => { throw 1; };')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",0,[],["throw",1]]]]];')
         assertEq(moduleRefused('export default () => { throw 1; };'), 'input.f.js - error: a function has no value')
         assertEq(compileSource('throw "boom";')('output.js'), 'throw "boom";')
         assertEq(compileSource('const a = []; throw 1;')('output.js'), 'const $0=[];throw 1;')
