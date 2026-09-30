@@ -170,6 +170,12 @@ export const proof = {
         assert(usesInlineTestContext('node', '25.99.99'))
         assert(!usesInlineTestContext('node', '26.0.0'))
         assert(!usesInlineTestContext('node', '26.1.0'))
+        // Nightly and release-candidate builds suffix `process.version`.
+        assert(usesInlineTestContext('node', 'v25.0.0-nightly20260930abc'))
+        assert(usesInlineTestContext('node', 'v26.0.0-rc.1'))
+        assert(usesInlineTestContext('node', 'v26.0.0-rc.1+build-1'))
+        assert(!usesInlineTestContext('node', 'v26.0.0+build-1'))
+        assert(!usesInlineTestContext('node', 'v26.1.0-nightly20260930abc'))
         assert(!usesInlineTestContext('node'))
         assert(usesInlineTestContext('bun'))
         assert(!usesInlineTestContext('deno', '22.0.0'))
