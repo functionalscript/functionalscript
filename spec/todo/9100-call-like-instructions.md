@@ -8,7 +8,7 @@
 **Parameter model:** sections 5 and 6 follow the fixed/rest EDAG that the
 [named-and-rest parameter plan](./3120-parameters.md) shipped in
 [#2237](https://github.com/functionalscript/functionalscript/pull/2237):
-`['=>', length, frame, body]`, `['arg', N]` and `['rest']`. They replace the
+`['=>', length, slots, body]`, `['arg', N]` and `['rest']`. They replace the
 older either-fixed-or-complete-array call-frame sketch; no bytecode implements
 either yet. Bytecode layout is private; it must preserve the EDAG's bindings.
 

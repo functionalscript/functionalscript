@@ -207,10 +207,13 @@ export const _shapeOf = e => {
     if (tag === 'arg') { return { inline: `arg ${exp[1]}`, kind: 'terminal' } }
     if (tag === 'frame') { return { inline: `frame ${exp[1]}`, kind: 'terminal' } }
     if (tag === '=>') {
+        // One port per slot, named as the body's read of it is, and the
+        // body after them: a function that captures nothing has no frame
+        // port at all.
         return {
             kind: 'op', label: `=> (${exp[1]})`,
             children: [
-                ['frame', /** @type {Exp} */ (exp[2])],
+                .../** @type {readonly Exp[]} */ (exp[2]).map((slot, i) => /** @type {readonly [string, Exp]} */ ([`frame ${i}`, slot])),
                 ['body', /** @type {Exp} */ (exp[3]), 'lazy'],
             ],
         }
@@ -284,9 +287,9 @@ export const _graphOf = text => {
  * them. `args` and `rest` are inputs, filled grey cells: a value arriving
  * from outside a scope rather than computed from operands. `args` is the
  * module's, which its import reaches through `.default` on argument 0,
- * and `rest` the function's own. The function's `frame` port holds `null`
- * because it captures nothing, and its `body` port is broken because
- * building the function does not run it.
+ * and `rest` the function's own. The function has no frame port because
+ * it captures nothing, and its `body` port is broken because building the
+ * function does not run it.
  *
  * **`m && a` is what makes the marking legible**, and not because it
  * draws one dashed line. `a` is reached four times — twice by the array,

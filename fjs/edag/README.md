@@ -79,7 +79,7 @@ vocabularies.
 | `['args']` | unresolved module imports, in import order |
 | `['arg', N]` | fixed parameter `N` of the owning function |
 | `['rest']` | the invocation's rest array, after the fixed prefix |
-| `['=>', length, frame, body]` | function; integer length metadata, enclosing-scope frame, invocation-scope body |
+| `['=>', length, slots[], body]` | function; integer length metadata, the slots of its frame — each an `exp` evaluated in the enclosing scope, `[]` for no captures — and the invocation-scope body |
 | `['frame', N]` | slot `N` of the owning function's captured frame |
 | `['()', exp, exp]` | call with no receiver: `exp0(...exp1)` — see [Chains](#chains) |
 | `['.', exp, index]`, `['.', exp, index, propertyLambda]` | property access `exp0[exp1]`, owning whatever its receiver is used for |
@@ -100,7 +100,10 @@ a continuation position is simply not one of these forms.
 
 A `[]` suffix in the form column marks an operand that is an array of the
 named schema, not one of it: `['[]', items[]]` holds a whole array of
-`items`, and `exps` is likewise `exp[]`. The distinction is easy to lose in
+`items`, `exps` is likewise `exp[]`, and a function's `slots[]` is the same
+`exp[]` — an array of slots, not a node evaluating to one, so that a slot
+read has a count to be checked against and no spread can leave that count
+unknown. The distinction is easy to lose in
 prose and load-bearing in the schema — a single element where the array
 belongs still validates plenty of values, just the wrong ones.
 
@@ -124,24 +127,32 @@ end is a union of its two closed lengths.
 
 Function `length`, `arg` indices and `frame` indices satisfy
 `Number.isInteger(n) && n >= 0 && !Object.is(n, -0)`. An `arg` index also
-requires `N < length`, and a `frame` index a slot the frame has — the
-executors refuse a read past the end rather than answering `undefined`.
-They are metadata, not operand nodes. Missing fixed arguments bind to
-`undefined`; rest begins at `length`, has stable identity within a call, and
-is fresh between calls. `arg`, `rest` and `frame` require a function scope;
-`args` is only a module binding. Frames retain their enclosing scope,
-including for nested captures: `['frame', N]` reads the frame of the function
-whose body holds it, and the frame operand of `=>` is evaluated in the scope
-around that function, so a nested capture is a slot holding a read of the
-parent's slot.
+requires `N < length`, and a `frame` index `N < slots.length` of the owning
+function — the analysis refuses either, and the executors refuse a read
+past the end rather than answering `undefined`. They are metadata, not
+operand nodes. Missing fixed arguments bind to `undefined`; rest begins at
+`length`, has stable identity within a call, and is fresh between calls.
+`arg`, `rest` and `frame` require a function scope; `args` is only a module
+binding. Frames retain their enclosing scope, including for nested captures:
+`['frame', N]` reads the frame of the function whose body holds it, and the
+slots of `=>` are evaluated in the scope around that function, so a nested
+capture is a slot holding a read of the parent's slot.
 
-This format replaces `['=>', frame, body]`, and `['frame', N]` replaces the
-bare `['frame']` binding and the `['.', ['frame'], N]` read over it.
-Recompile source or migrate function-owned `args` to `rest` and insert
-length `0`; retain module import `args`, including in module-level frames.
-Old tuples are rejected rather than reinterpreted. Earlier
-positive-arity/full-argument experiments have no general lossless migration
-to this format.
+This format replaces `['=>', frame, body]` and the later
+`['=>', length, frame, body]` whose `frame` was a general `exp` — an array
+literal, or `null` for no captures — and `['frame', N]` replaces the bare
+`['frame']` binding and the `['.', ['frame'], N]` read over it. Recompile
+source or migrate function-owned `args` to `rest` and insert length `0`;
+retain module import `args`, including in module-level slots. Old tuples
+are rejected rather than reinterpreted, with one corner the two encodings
+share: an old array-literal frame, `['[]', items]`, reads under this format
+as two slots, the string `'[]'` and `items`, wherever `items` itself spells
+a node — which takes a string in its first position, so a frame the
+compiler built, whose slots are all nodes, never does. A graph in that corner
+validates as two slots and is not refused; its body's reads of the old
+frame, `['.', ['frame'], N]`, still are, so only a frame no read reached is
+ever reinterpreted. Earlier positive-arity/full-argument experiments have no
+general lossless migration to this format.
 
 A function's `length` is at most 16, the language's limit: `bindingError`
 refuses a larger one. Amnesia and memo share the

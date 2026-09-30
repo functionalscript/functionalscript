@@ -1583,7 +1583,7 @@ are not supported yet. A newline before `=>` is refused.
   parameter and by nothing else, and a word the list does not spell is
   unbound here exactly as any other unbound word is. Nothing else
   distinguishes the two lists. `() => 1` and `(...args) => 1` denote the one
-  function, the one node `['=>', 0, null, 1]` — though each arrow written is
+  function, the one node `['=>', 0, [], 1]` — though each arrow written is
   a function of its own (below) — and a body `const` may take the name a
   parameter would have taken, there being no parameter to collide with.
 - A parameterless function **called where it is written**, with no
@@ -1735,10 +1735,10 @@ are not supported yet. A newline before `=>` is refused.
   or a `throw` as the block opened at the operand (above), so the guarded
   body reads back as the same graph; the EDAG output carries the `?:`,
   and the Rust output prints it as it prints any conditional.
-- A function **carries no name**. Its EDAG is `['=>', length, frame, body]`,
+- A function **carries no name**. Its EDAG is `['=>', length, slots, body]`,
   name-erased, so the function in `{ make: () => 0 }.make`, in
   `const hello = () => 0` and in `export default () => 0` is the same node,
-  `['=>', 0, null, 0]`, whatever JavaScript would name it (`make`, `hello`,
+  `['=>', 0, [], 0]`, whatever JavaScript would name it (`make`, `hello`,
   `default`), and no program observes the difference: `f.name` is
   refused at the key of `.`, and `entry(f, 'name')` is `undefined`, since
   `name` is not an enumerable own property

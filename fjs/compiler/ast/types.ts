@@ -59,8 +59,8 @@ export type AstThrow = readonly ['throw', AstConst]
  * a nested function captures through its parent — and the body names
  * capture `i` as {@link AstFrameRef} `['fref', i]`. A function that
  * captures nothing has no fourth element. The second element is the fixed
- * parameter count. The EDAG's `['=>', length, frame, body]`,
- * its frame the array of the captured values less the primitives — `lower`
+ * parameter count. The EDAG's `['=>', length, slots, body]`,
+ * its slots the captured values less the primitives — `lower`
  * writes a primitive into the body — and its body a comma where an entry is
  * unreached, as a module's is.
  *

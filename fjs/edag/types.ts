@@ -220,8 +220,8 @@ export type Op0Id =
 
 export type Op0 = readonly[Op0Id]
 
-/** Function arity is canonical nonnegative integer metadata. */
-export type Function = readonly ['=>', number, Exp, Exp]
+/** Function arity is canonical nonnegative integer metadata; the slots of its frame are an array operand. */
+export type Function = readonly ['=>', number, Exps, Exp]
 
 /** Constant index, strictly smaller than the owning function's length. */
 export type Arg = readonly ['arg', number]
@@ -372,7 +372,7 @@ type _ExpAssert = Assert<Check3<Exp, typeof _exp, typeof exp>>
 type _Function = Assert<Check<Function, typeof func>>
 type _Arg = Assert<Check<Arg, typeof arg>>
 type _Frame = Assert<Check<Frame, typeof frame>>
-type _OverFunction = Assert<Equal<Over<Function, 0>, readonly ['=>', number, 0, 0]>>
+type _OverFunction = Assert<Equal<Over<Function, 0>, readonly ['=>', number, readonly 0[], 0]>>
 type _OverArg = Assert<Equal<Over<Arg, 0>, readonly ['arg', number]>>
 type _OverFrame = Assert<Equal<Over<Frame, 0>, readonly ['frame', number]>>
 type _Primitive = Assert<Check<Primitive, typeof primitive>>
