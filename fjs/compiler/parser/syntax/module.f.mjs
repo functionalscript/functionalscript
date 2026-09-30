@@ -32,7 +32,6 @@
  * @import { Rule } from '../../../ebnf/types.ts'
  * @import { Primitive } from '../../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { BinaryTag } from '../../ast/types.ts'
  * @import { ParseError } from '../types.ts'
  * @import { Const, Entry, Import, ImportBinding, Module, ModuleConst, Node, Out, ParameterBinding, ParameterList, ValueStatement } from './types.ts'
  * @import { ArrowOrRest, Body, Group, Items, LastStatement, Member, ParameterNames, Parenthesized, Unary, UnaryOperand, Value } from '../grammar/types.ts'
@@ -47,7 +46,7 @@ import { literalWords } from '../../../js/keywords/module.f.mjs'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import {
-    body, callArguments, constStatement, djsModule, eagerTail, importBinding, importBindings,
+    binaryOpTag, body, callArguments, constStatement, djsModule, eagerTail, importBinding, importBindings,
     importStatement, lastStatement, member, members, parameterNames, symbolOf, unary, unaryOperand, value, values,
 } from '../grammar/module.f.mjs'
 
@@ -375,29 +374,6 @@ const withPow = (base, powTail) => {
     if (rounds.length === 0) { return base }
     const [, v] = unmapped(rounds[0])
     return ['**', base, nodeAt(v)]
-}
-
-/**
- * Every binary layer's own tag, read to its operator, in one flat map:
- * `multiplicativeOp` through `nullishOp` (`./grammar/module.f.mjs`) each
- * key their own rounds by a name none of the other ten use, so one map
- * serves a round from any layer — no per-layer reader, and so no branch for
- * a tag no round can carry: a plain lookup has no branch to leave
- * unreachable where a `switch`'s `default` would. `**` is not here: it is
- * `powTail`'s, no layer's round, read by {@link withPow}.
- *
- * @type {{ readonly [tag: string]: Exclude<BinaryTag, '**'> }}
- */
-const binaryOpTag = {
-    mul: '*', div: '/', mod: '%',
-    add: '+', sub: '-',
-    left: '<<', right: '>>', unsigned: '>>>',
-    lt: '<', le: '<=', gt: '>', ge: '>=',
-    eq: '===', ne: '!==',
-    and: '&',
-    xor: '^',
-    or: '|',
-    logicalAnd: '&&', logicalOr: '||', nullish: '??',
 }
 
 /**

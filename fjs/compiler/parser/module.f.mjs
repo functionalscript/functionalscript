@@ -57,6 +57,7 @@ import { maxLength } from '../../types/function/length/module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.mjs'
 import { prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.js'
 import { nameOf, parseSyntax, textOf } from './syntax/module.f.mjs'
+import { isBinary } from '../ast/module.f.mjs'
 
 // -- resolving the names ------------------------------------------------------
 
@@ -556,6 +557,7 @@ const bodyRound = (stack, scope, frame) => {
  * @type {(stack: _Stack, scope: _Scope, node: Node) => _State}
  */
 const enter = (stack, scope, node) => {
+    if (isBinary(node)) { return [{ top: { tag: node[0], right: node[2] }, rest: stack }, scope, ['enter', node[1]]] }
     switch (node[0]) {
         case 'primitive': { return [stack, scope, ok(node[1])] }
         case 'ref': {
@@ -566,19 +568,8 @@ const enter = (stack, scope, node) => {
         }
         case '.': { return [{ top: { key: node[2], method: isCallee(stack) }, rest: stack }, scope, ['enter', node[1]]] }
         case '()': { return callRound(stack, scope, { call: node, index: 0, done: null }) }
-        case '-': {
-            return node.length === 2
-                ? [{ top: { neg: true }, rest: stack }, scope, ['enter', node[1]]]
-                : [{ top: { tag: node[0], right: node[2] }, rest: stack }, scope, ['enter', node[1]]]
-        }
+        case '-': { return [{ top: { neg: true }, rest: stack }, scope, ['enter', node[1]]] }
         case '~': { return [{ top: { bitnot: true }, rest: stack }, scope, ['enter', node[1]]] }
-        case '*': case '/': case '%': case '**':
-        case '+':
-        case '===': case '!==': case '<': case '<=': case '>': case '>=':
-        case '&': case '|': case '^': case '<<': case '>>': case '>>>':
-        case '&&': case '||': case '??': {
-            return [{ top: { tag: node[0], right: node[2] }, rest: stack }, scope, ['enter', node[1]]]
-        }
         case '?:': { return conditionalRound(stack, scope, { conditional: node, index: 0, done: null }) }
         case '=>': {
             const [tag, bound] = functionScope(node[1])
