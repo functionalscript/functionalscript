@@ -479,15 +479,17 @@ export const proof = {
         () => {
             // a body of many guards: each nests as the alternate of the one
             // before it, the arms resolved as bodies of their own under the
-            // fold's explicit stack, and the statements after a guard shared
-            // with the body they continue rather than copied per guard. The
-            // count is what the resolver's walk per read makes affordable
-            // (`./todo/capture-walk-cost.md`), not a bound on the input.
-            const [tag, value] = parseFromTokens(tokenizeString(`export default (a) => {\n${'if (a) { return 1; }\n'.repeat(1000)}return 0;\n};`))
+            // fold's explicit stack, the statements after a guard shared with
+            // the body they continue rather than copied per guard, and each
+            // guard's read of the parameter answered by the arm before it,
+            // which remembers the word, rather than by a walk out through
+            // every arm — the same count as the operators above, for the
+            // same reason
+            const [tag, value] = parseFromTokens(tokenizeString(`export default (a) => {\n${'if (a) { return 1; }\n'.repeat(20000)}return 0;\n};`))
             assert(tag === 'ok', tag)
             /** @type {any} */
             let arm = /** @type {any} */ (value[1][0])[1][0][1][2][0]
-            for (let depth = 1; depth < 1000; depth += 1) { arm = arm[3][1][2][0] }
+            for (let depth = 1; depth < 20000; depth += 1) { arm = arm[3][1][2][0] }
             assertEq(stringify(sort)(arm[3]), '["()",["=>",0,[0]],[]]')
         },
     ],

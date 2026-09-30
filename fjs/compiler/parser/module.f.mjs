@@ -420,9 +420,6 @@ const conditionalRound = (stack, scope, frame) => {
     return [stack, scope, ok(closed)]
 }
 
-/** Whether two references name one binding: element for element, a rest parameter naming the one {@link restBinding}. @type {(a: _Ref, b: _Ref) => boolean} */
-const sameRef = (a, b) => a.length === b.length && a.every((x, i) => x === b[i])
-
 /**
  * What `word` names in `scope`, and the scope chain with any capture it
  * takes, or `null` where nothing binds it: a name the scope binds itself,
@@ -436,7 +433,11 @@ const sameRef = (a, b) => a.length === b.length && a.every((x, i) => x === b[i])
  * A loop rather than a recursion, as {@link evaluate} is: out to the scope
  * that binds the word, then back in, each body on the way rebuilt around
  * the one outside it with its capture taken — so a capture however many
- * functions deep costs no call stack.
+ * functions deep costs no call stack. A body that has captured a word
+ * binds it, to its slot ({@link captured}), so the walk out stops at the
+ * nearest body that has read the word before, and a read repeated through
+ * many bodies — every guard of a long body reading the same parameter,
+ * say — costs a step, not a walk.
  *
  * @type {(scope: _Scope, word: string) => readonly [_Scope, _Ref] | null}
  */
@@ -461,20 +462,24 @@ const resolve = (scope, word) => {
 
 /**
  * A body with the value the scope around it resolved `word` to captured,
- * that scope rebuilt as its `outer`: the slot the body already has for the
- * binding, or a new one after the rest.
+ * that scope rebuilt as its `outer`: a new slot after the rest, since a
+ * body captures a word once — the word is bound in its names from then on
+ * and never resolved past it again.
  *
  * @type {(body: _Scope, word: string, outer: readonly [_Scope, _Ref]) => readonly [_Scope, _Ref]}
  */
 const captured = (body, word, [outer, ref]) => {
-    const i = body.captures.findIndex(c => sameRef(c, ref))
     /** @type {AstFrameRef} */
-    const slot = ['fref', i === -1 ? body.captures.length : i]
+    const slot = ['fref', body.captures.length]
     return [{
         ...body,
         outer,
-        captures: i === -1 ? [...body.captures, ref] : body.captures,
-        read: body.read.includes(word) ? body.read : [...body.read, word],
+        captures: [...body.captures, ref],
+        // the word is the body's to answer from now on: a later read of it,
+        // in this body or through it, stops here rather than walking out
+        // again, and a `const` of it in this body is refused as a capture
+        // shadowed
+        names: extended(body.names)(word, slot),
     }, slot]
 }
 
@@ -552,16 +557,8 @@ const bodyRound = (stack, scope, frame) => {
             ? [stack, scope, error(unexpectedToken(statement.first))]
             : [{ top: frame, rest: stack }, scope, ['enter', statement.value]]
     }
-    const [tag, word] = bindable(scope.names)(statement.name)
+    const [tag, word] = bodyBindable(scope)(statement.name)
     if (tag === 'error') { return [stack, scope, error(word)] }
-    // the statements after a guard are JavaScript's one block with the
-    // ones before it, so a name that block has bound is not theirs to bind
-    // again, though they are resolved as a body of their own
-    if (toArray(scope.enclosing).some(env => at(word)(env) !== null)) { return [stack, scope, error(duplicateId(statement.name))] }
-    // a name the body already read from outside is refused before the
-    // value is read, and one its own initializer reads once it has been
-    // (`returned`)
-    if (scope.read.includes(word)) { return [stack, scope, error(captureShadowed(statement.name))] }
     return [{ top: { ...frame, word }, rest: stack }, scope, ['enter', statement.value]]
 }
 
@@ -611,7 +608,7 @@ const enter = (stack, scope, node) => {
             if (tag === 'error') { return [stack, scope, error(bound)] }
             const [names, count] = bound
             /** @type {_Scope} */
-            const inner = { names, count, captures: [], read: [], enclosing: null, outer: scope }
+            const inner = { names, count, captures: [], enclosing: null, outer: scope }
             const body = node[2]
             return body[0] === 'block'
                 ? bodyRound(stack, inner, { statements: body[1], first: 0, index: 0, word: '', done: null })
@@ -654,8 +651,9 @@ const returned = (stack, scope, frame, value) => {
     if ('statements' in frame) {
         const [kind, statement] = frame.statements[frame.index]
         if (kind === 'const') {
-            // a name its own initializer read from outside
-            if (scope.read.includes(frame.word)) { return [stack, scope, error(captureShadowed(statement.name))] }
+            // a name its own initializer read from outside: unbound when the
+            // statement began, bound now only by the capture that read took
+            if (at(frame.word)(scope.names) !== null) { return [stack, scope, error(captureShadowed(statement.name))] }
             // the binding lands after the value, keeping the name out of its
             // own initializer's scope, and names the entry this statement
             // makes, counted from the body's first
@@ -666,7 +664,7 @@ const returned = (stack, scope, frame, value) => {
         }
         // a guard's condition: its block is the first arm, a block of
         // JavaScript's own, so it may bind what the body has bound or read
-        if (kind === 'if') { return arm(stack, scope, { guard: statement, body: frame, condition: value, then: null }, statement.block[1], 0, null, []) }
+        if (kind === 'if') { return arm(stack, scope, { guard: statement, body: frame, condition: value, then: null }, statement.block[1], 0, null) }
         // the body's last entry: what it returns, or the `throw` it ends with
         return closed(stack, scope, [...toArray(frame.done), kind === 'throw' ? thrown(value) : value])
     }
@@ -677,7 +675,7 @@ const returned = (stack, scope, frame, value) => {
         // second arm, JavaScript's same block as the ones before it — what
         // that block has bound, and what it has read from outside, the
         // condition and the first arm included, is not theirs to bind
-        if (frame.then === null) { return arm(stack, scope, { ...frame, then: call }, frame.body.statements, frame.body.index + 1, { first: scope.names, tail: scope.enclosing }, scope.read) }
+        if (frame.then === null) { return arm(stack, scope, { ...frame, then: call }, frame.body.statements, frame.body.index + 1, { first: scope.names, tail: scope.enclosing }) }
         /** @type {AstConditional} */
         const conditional = ['?:', frame.condition, frame.then, call]
         return closed(stack, scope, [...toArray(frame.body.done), conditional])
@@ -691,20 +689,20 @@ const returned = (stack, scope, frame, value) => {
  * after it in the body's own list, shared rather than copied — resolved as
  * the body of a parameterless function of its own, in a scope inside
  * `scope` that captures what it reads from there, under the guard's frame,
- * which receives the function once the body closes. `enclosing` and `read` are
- * what the arm may not bind: nothing for the guard's block, a block of
- * JavaScript's own; and for the statements after the guard the names the
- * block they continue has bound, and the words it has read from outside
- * so far — in a statement before the guard, in the condition, or in the
- * guard's block, whose reads pass through the block's scope — since a
- * `const` of that name after the guard would have been the one every such
- * read named in JavaScript, before its declaration
- * ({@link captureShadowed}).
+ * which receives the function once the body closes. `enclosing` is what
+ * the arm may not bind: nothing for the guard's block, a block of
+ * JavaScript's own; and for the statements after the guard the names of
+ * the block they continue — what it has bound, and what it has read from
+ * outside so far, in a statement before the guard, in the condition, or in
+ * the guard's block, whose reads pass through the block's scope and are
+ * remembered in its names — since a `const` of such a name after the guard
+ * would have been the one every such read named in JavaScript, before its
+ * declaration ({@link captureShadowed}).
  *
- * @type {(stack: _Stack, scope: _Scope, frame: _GuardFrame, statements: Block[1], first: number, enclosing: List<_Env>, read: readonly string[]) => _State}
+ * @type {(stack: _Stack, scope: _Scope, frame: _GuardFrame, statements: Block[1], first: number, enclosing: List<_Env>) => _State}
  */
-const arm = (stack, scope, frame, statements, first, enclosing, read) =>
-    bodyRound({ top: frame, rest: stack }, { names: empty, count: 0, captures: [], read, enclosing, outer: scope }, { statements, first, index: first, word: '', done: null })
+const arm = (stack, scope, frame, statements, first, enclosing) =>
+    bodyRound({ top: frame, rest: stack }, { names: empty, count: 0, captures: [], enclosing, outer: scope }, { statements, first, index: first, word: '', done: null })
 
 /**
  * A function closed over its body, resolved in `scope`: the scope around
@@ -736,7 +734,7 @@ const closed = (stack, scope, body) => {
  */
 const evaluate = env => root => {
     /** @type {_State} */
-    let state = [null, { names: env, count: 0, captures: [], read: [], enclosing: null, outer: null }, ['enter', root]]
+    let state = [null, { names: env, count: 0, captures: [], enclosing: null, outer: null }, ['enter', root]]
     while (true) {
         const [stack, scope, [tag, payload]] = state
         if (tag === 'enter') {
@@ -770,7 +768,31 @@ const bindable = env => name => {
     return at(word)(env) !== null ? error(duplicateId(name)) : ok(word)
 }
 
-/** The environment with a word bound to a reference, its two questions already answered. @type {(env: _Env) => (word: string, ref: AstModuleRef | AstRest | _Parameter) => _Env} */
+/**
+ * The word a body `const` may take: {@link bindable}'s question asked of
+ * the body's own names and of the names of the block it continues, the
+ * statements after a guard being JavaScript's one block with the ones
+ * before it. A name any of them binds is `duplicate id`; one none binds
+ * but one has read from outside — bound to a slot of its frame — is
+ * `capture shadowed`, and the binding wins where both hold, as it does in
+ * JavaScript, where the read named the block's own binding. A name the
+ * body's own initializer reads is refused once it has been, in
+ * {@link returned}.
+ *
+ * @type {(scope: _Scope) => (name: DjsTokenWithMetadata) => Result<string, ParseError>}
+ */
+const bodyBindable = scope => name => {
+    const [tag, word] = identifierOf(name)
+    if (tag === 'error') { return error(word) }
+    const refs = [scope.names, ...toArray(scope.enclosing)].flatMap(env => {
+        const ref = at(word)(env)
+        return ref === null ? [] : [ref]
+    })
+    if (refs.some(ref => ref[0] !== 'fref')) { return error(duplicateId(name)) }
+    return refs.length === 0 ? ok(word) : error(captureShadowed(name))
+}
+
+/** The environment with a word bound to a reference, its two questions already answered. @type {(env: _Env) => (word: string, ref: _Ref) => _Env} */
 const extended = env => (word, ref) => setReplace(word)(ref)(env)
 
 /**
