@@ -49,8 +49,8 @@ types.ts   -> types.d.ts
 private.ts -> private.d.ts   # emitted, then excluded by `files`
 ```
 
-The stage-1 invariant, as it stands now that stage 1's source conversion is
-complete:
+The invariant stage 1 left, with the one item stage 2 has since changed
+marked as such:
 
 - `.mjs` is authored ESM JavaScript with JSDoc types, and `.f.mjs` is its
   FunctionalScript-intent form;
@@ -61,14 +61,17 @@ complete:
   `files` negates `**/private.d.ts`;
 - `.ts` is otherwise gone: no authored implementation or proof `.ts` / `.f.ts`
   remains;
-- `.js` is neither authored nor emitted by a build or packaging step — the pass
-  that produced it was removed in
-  [#1520](https://github.com/functionalscript/functionalscript/pull/1520).
-  `fjs compile` still writes one to a caller-named output path; that is the
-  compiler's output for a user, not repository source. A publish does not carry
-  it, because package and publish jobs run from a clean CI checkout — but that
-  is the only reason: `files` still selects `**/*.js`, so `npm pack` in a dirty
-  working tree *does* include such a file (measured with `npm pack --dry-run`);
+- `.js` is not emitted by a build or packaging step — the pass that produced
+  it was removed in
+  [#1520](https://github.com/functionalscript/functionalscript/pull/1520). At
+  the end of stage 1 none was authored either; stage 2 has since changed that,
+  and only that: `.f.js` is authored FunctionalScript the current compiler
+  accepts whole, and `**/*.js` in `files` is what ships it. `fjs compile` still
+  writes a `.js` to a caller-named output path; that is the compiler's output
+  for a user, not repository source, and a publish does not carry it because
+  package and publish jobs run from a clean CI checkout — the only reason,
+  since the same `**/*.js` would take it from a dirty working tree (measured
+  with `npm pack --dry-run`);
 - `.d.ts` and `.d.mts` are generated declarations.
 
 `.f.mjs` does **not** promise that the current FunctionalScript
