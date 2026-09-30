@@ -88,7 +88,7 @@ mod tests {
     /// own behavior, which is tested in `vm/function/member_access.rs`.
     #[test]
     fn function_receiver_dispatches_to_function_member_access() {
-        let f: Any<A> = A::static_function(|_, _| Ok(undefined()), 0, [].to_array()).to_any();
+        let f: Any<A> = A::static_function(|_, _| Ok(undefined()), 0, [].to_array(), None).to_any();
         assert_eq!(f.clone().dot("length".into()).end(), Ok(0.0.to_any()));
         assert_eq!(f.dot("a".into()).end(), Ok(undefined()));
     }

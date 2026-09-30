@@ -22,14 +22,18 @@ use nanvm_lib::{
     vm::{Property, Unpacked},
 };
 
-/// An `Any` holding a function.
-///
-/// Which function does not matter: every operator covered by the shared data
-/// coerces a function through `ToPrimitive`, which never inspects its body.
-/// A function is a VM's own to construct, so the corpus bounds on
-/// `IStaticFunction`, the capability `naive` has.
+/// An `Any` holding the corpus's `() => undefined`, with the text the
+/// compiler renders for it: an operator that converts a function reads its
+/// text and never its body. A function is a VM's own to construct, so the
+/// corpus bounds on `IStaticFunction`, the capability `naive` has.
 pub fn function_any<A: IStaticFunction>() -> Any<A> {
-    A::static_function(|_, _| Ok(Nullish::Undefined.to_any()), 0, [].to_array()).to_any()
+    A::static_function(
+        |_, _| Ok(Nullish::Undefined.to_any()),
+        0,
+        [].to_array(),
+        Some("()=>undefined"),
+    )
+    .to_any()
 }
 
 /// The comparison the shared data's expectations are written in, the same

@@ -12,7 +12,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c4: Any<A> = [f64_any(0x3ff0000000000000), string_any("b")].to_array().to_any();
     let c5: Any<A> = Any::dot(c4, string_any("toString")).end_call(|| Ok(Array::default().to_any()))?;
     let c6: Any<A> = Any::dot(Object::default().to_any(), string_any("toString")).end_call(|| Ok(Array::default().to_any()))?;
-    let c7: Any<A> = A::static_function(|_self, _args| { Ok(string_any("own")) }, 0, Array::default()).to_any();
+    let c7: Any<A> = A::static_function(|_self, _args| { Ok(string_any("own")) }, 0, Array::default(), Some("()=>\"own\"")).to_any();
     let c8: Any<A> = [(string_key("toString"), c7)].to_object().to_any();
     let c9: Any<A> = Any::dot(c8, string_any("toString")).end_call(|| Ok(Array::default().to_any()))?;
     let c10: Any<A> = [c0, c1, c2, c3, c5, c6, c9].to_array().to_any();

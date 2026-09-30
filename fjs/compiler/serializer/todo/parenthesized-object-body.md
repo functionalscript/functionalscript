@@ -9,7 +9,7 @@ A function whose body's text begins with `{` is written as a block, because
 `=> {` opens a block in JavaScript and not an object:
 
 ```js
-export default (...$a)=>{return {"a":1};};
+export default ()=>{return {"a":1};};
 ```
 
 Grouping has landed ([spec: grouping](../../../../spec/README.md#grouping)),
@@ -17,7 +17,7 @@ so the source language has the shorter spelling for the same function, and
 the writer does not use it:
 
 ```js
-export default (...$a)=>({"a":1});
+export default ()=>({"a":1});
 ```
 
 ### Proposal

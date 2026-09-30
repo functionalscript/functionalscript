@@ -82,11 +82,12 @@ const same = (a, b) => a instanceof Array
 /**
  * Whether an entry may merge with a twin: its result identity is decided by
  * its inputs. A constructor mints identity and a call may; a chain that
- * continues may call.
+ * continues may call. The FunctionalScript writer hoists exactly the shared
+ * entries that do not, since only a `const` keeps one value in text.
  *
  * @type {(node: Node) => boolean}
  */
-const mergeable = node => {
+export const mergeable = node => {
     switch (node[0]) {
         case '[]': case '{}': case '=>': case '()': case '?.()': { return false }
         case '.': case '?.': { return node.length === 3 }
