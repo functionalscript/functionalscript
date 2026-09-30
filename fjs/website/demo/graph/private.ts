@@ -52,6 +52,34 @@ export type _Slot = {
 }
 
 /**
+ * A node's size and its ports, as `portsOf` lays them out under its label.
+ */
+export type _Size = {
+    readonly width: number
+    readonly height: number
+    readonly keyWidth: number
+    readonly ports: readonly _Port[]
+}
+
+/** A {@link _Slot} with its node's {@link _Size}, or `null` for a lane. */
+export type _Sized = {
+    readonly slot: _Slot
+    readonly size: _Size | null
+}
+
+/** A {@link _Slot}, placed: a node or a lane. */
+export type _PlacedSlot = {
+    readonly node?: _Positioned
+    readonly lane?: _Lane
+}
+
+/** A column, placed: its slots, and the right of its widest one. */
+export type _Column = {
+    readonly end: number
+    readonly slots: readonly _PlacedSlot[]
+}
+
+/**
  * A lane, placed: the horizontal an edge runs across one column it skips,
  * `y` its centre and `left`/`right` the column's own. `index` is the
  * edge's, as a port carries it, and `rank` the column's, which together
