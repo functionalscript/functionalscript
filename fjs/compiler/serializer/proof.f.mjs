@@ -76,13 +76,15 @@ const copy = e => /** @type {Exp} */ (deep(e))
  * each key, a function body, a node shared twice, each side of a root
  * comma, a root comma whose two sides are one node, a root comma with one
  * operand, the same graph twice over in two scopes, a function that
- * captures the graph beside it, and the lazy operators: the graph as both
- * operands of `&&`, as the lazy operand of `??`, shared under one arm of a
- * conditional, as the condition and both arms of one, anchored by a comma
- * under the lazy operand of `||`, under one access both arms of a
- * conditional read, and once in an array of each arm's own.
+ * captures the graph beside it, the graph three times under the eager
+ * operators — a power of a difference with a complement — and under both
+ * call forms, a call of a method call, and the lazy operators: the graph
+ * as both operands of `&&`, as the lazy operand of `??`, shared under one
+ * arm of a conditional, as the condition and both arms of one, anchored
+ * by a comma under the lazy operand of `||`, under one access both arms of
+ * a conditional read, and once in an array of each arm's own.
  *
- * That last one is a copy and not the node again: two nodes, one in a body
+ * The graph twice over in two scopes is a copy and not the node again: two nodes, one in a body
  * and one outside it, which is a graph the compiler emits — and which the
  * writer has to spell so that reading it back gives two nodes again, since
  * one node in two scopes is no EDAG and the analysis refuses it.
@@ -106,12 +108,8 @@ const shapes = p => [
     ...p.map(x => /** @type {Exp} */([',', [x]])),
     ...p.map(x => /** @type {Exp} */(['[]', [x, ['=>', 0, null, copy(x)]]])),
     ...p.map(x => /** @type {Exp} */(['[]', [x, ['=>', 0, ['[]', [x]], ['.', ['frame'], 0]]]])),
-    ...p.map(x => /** @type {Exp} */(['**', x, x])),
-    ...p.map(x => /** @type {Exp} */(['-', x, ['~', x]])),
-    ...p.map(x => /** @type {Exp} */(['??', ['&&', x, 1], x])),
-    ...p.map(x => /** @type {Exp} */(['?:', x, 1, x])),
-    ...p.map(x => /** @type {Exp} */(['()', x, ['[]', [x]]])),
-    ...p.map(x => /** @type {Exp} */(['.', x, 'm', ['|()', ['[]', [x]]]])),
+    ...p.map(x => /** @type {Exp} */(['**', x, ['-', x, ['~', x]]])),
+    ...p.map(x => /** @type {Exp} */(['()', ['.', x, 'm', ['|()', ['[]', [x]]]], ['[]', [x]]])),
     ...p.map(x => /** @type {Exp} */(['&&', x, x])),
     ...p.map(x => /** @type {Exp} */(['??', ['[]', []], x])),
     ...p.map(x => /** @type {Exp} */(['?:', true, ['[]', [x, x]], 2])),
@@ -122,13 +120,15 @@ const shapes = p => [
 ]
 
 /**
- * Every leaf, a negative one among them, the arguments, both empty
- * containers, `undefined`, and a negation, whose operand binds tighter than
- * it does, so every shape below has to say where the negation happens.
+ * Every leaf, the arguments, both empty containers, `undefined`, and a
+ * negation, whose operand binds tighter than it does, so every shape below
+ * has to say where the negation happens. A negative leaf is
+ * {@link proof}'s `negativeLeaves` and `operators`: as an atom it would
+ * cost the law a quarter of its time for no spelling of its own.
  *
  * @type {readonly Exp[]}
  */
-const atoms = [1, -1, 'a', null, true, 1n, ['rest'], ['[]', []], ['{}', []], ['undefined'], ['-', ['[]', []]]]
+const atoms = [1, 'a', null, true, 1n, ['rest'], ['[]', []], ['{}', []], ['undefined'], ['-', ['[]', []]]]
 
 /** The atoms and two rounds of shapes over them. @type {readonly Exp[]} */
 const generated = (() => {
