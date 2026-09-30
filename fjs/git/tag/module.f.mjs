@@ -27,7 +27,7 @@
 
 import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
 import { byteArray, byteLength } from '../../ebnf/byte/module.f.mjs'
-import { lf } from '../../text/ascii/module.f.mjs'
+import { lf, nul as nulByte } from '../../text/ascii/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { hasNulHeader, tryRead as readPayload, valueAt, write as writePayload } from '../header/module.f.mjs'
@@ -79,8 +79,8 @@ export const write = writePayload
 const typeOf = value => {
     const bs = byteArray(value)
     if (bs.includes(lf)) { return null }
-    const nul = bs.indexOf(0)
-    const text = codePointListToString(nul === -1 ? bs : bs.slice(0, nul))
+    const end = bs.indexOf(nulByte)
+    const text = codePointListToString(end === -1 ? bs : bs.slice(0, end))
     return objectTypes.find(t => t === text) ?? null
 }
 

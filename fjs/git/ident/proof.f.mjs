@@ -3,17 +3,12 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { greaterThanSign as gt, lessThanSign as lt, space as sp } from '../../text/ascii/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { tryRead as readPayload } from '../header/module.f.mjs'
 import { commitPayload, hole, latin1 } from '../testlib.f.mjs'
 import { maxTime, tryRead, write } from './module.f.mjs'
-
-const sp = /** @type {const} */ (0x20)
-
-const lt = /** @type {const} */ (0x3C)
-
-const gt = /** @type {const} */ (0x3E)
 
 /** @type {(value: readonly number[]) => Ident} */
 const read = value => {

@@ -27,15 +27,13 @@ import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
 import { ascii, byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, range, repeatFrom0, repeatFrom1, set, times } from '../../ebnf/module.f.mjs'
 import {
-    digit0, digitsValue, fullStop as dot, isLatinCapitalLetter, latinCapitalLetterA, latinSmallLetterA,
+    digit0, digitsValue, fullStop as dot, isLatinCapitalLetter, latinCapitalLetterA, latinSmallLetterA, nul,
     solidus as slash, space as sp,
 } from '../../text/ascii/module.f.mjs'
 import { u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
 import { flat } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { isOidOf } from '../oid/module.f.mjs'
-
-const nul = /** @type {const} */ (0)
 
 const octalDigit = range('07')
 

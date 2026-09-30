@@ -37,6 +37,9 @@ export const range = s => {
 
 // 0x00..
 
+/** 0x00 */
+export const nul = one('\0')
+
 /** 0x08 */
 export const backspace = one('\b')
 
