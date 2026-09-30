@@ -405,12 +405,14 @@ Its name follows the generated-file rule
 ([CONTRIBUTING.md](../../CONTRIBUTING.md#naming-generated-files)), and npm's
 trusted publishing is bound to that exact name: the package's trusted publisher
 on npmjs.com names the workflow file, and a mismatch fails only at publish
-time — quietly, since the publish step is `continue-on-error`. So a project
-whose workflow was `npm-publish.yml` does two things by hand when it takes this
-name: it changes the workflow filename in the package's trusted publisher
-settings on npm, and it deletes the old file, which this generator does not do
-(see "`fjs ci` is not stable" above) and which would otherwise be a second
-publish workflow on the same trigger.
+time — quietly, since the publish step is `continue-on-error`. npm keeps one
+trusted publisher per package, so the rename and the setting change are one
+act, not a transition with both names live. A project whose workflow was
+`npm-publish.yml` does two things by hand when it takes this name, in the same
+sitting as regenerating: it changes the workflow filename in the package's
+trusted publisher settings on npm, and it deletes the old file, which this
+generator does not do (see "`fjs ci` is not stable" above) and which would
+otherwise be a second publish workflow on the same trigger.
 
 The generated workflow is:
 
