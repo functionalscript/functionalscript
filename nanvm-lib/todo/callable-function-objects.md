@@ -205,7 +205,7 @@ concern with no counterpart here: this backend's "frame allocation" is
 rustc's own native call frame, and its "liveness analysis" is the borrow
 checker's. Nothing in this document proposes an explicit locals array.
 
-#### Captured values — `["frame"]`
+#### Captured values — `["frame", i]`
 
 An owned `Array<A>`, built once, in the *enclosing* Rust function, at the
 moment the closure value is created — the copy scheme
@@ -213,7 +213,8 @@ moment the closure value is created — the copy scheme
 reusing the very type Arguments uses above, rather than inventing a second
 "indexed sequence of `Any<A>`" container: a captured frame and an arguments
 list are the same *shape*, so they should be the same *type*. It is read
-inside the body the same way `args` is, by index — a well-formed
+inside the body the same way `args` is, by index — `["frame", i]` for
+slot `i`, as `["arg", i]` is for a parameter — and a well-formed
 function node's frame size is fixed by the compiler, so unlike
 `args` (caller-supplied, arbitrary length) the body's own reads need no
 length check, only the enclosing scope's *construction* of the frame does.
@@ -327,7 +328,7 @@ precisely.
    snippet for exactly this shape: an outer function puts its own
    `["self"]` into a nested closure's frame, and the nested closure calls
    back out through it — `const f = x => { … const b = y => { … f(y) … };
-   … b(…) … }`, under its `["frame"]`-and-closed-scope-model discussion
+   … b(…) … }`, under its `["frame", i]`-and-closed-scope-model discussion
    (not [function-frame](../../spec/todo/3111-function-frame.md)'s own
    `a`/`b` — that one is two independent *top-level* consts with no
    enclosing function and no `["self"]`, exactly the out-of-scope mutual
@@ -411,7 +412,7 @@ The nested body reads slot `i` of `A::frame(self_)` exactly as it reads
 closure fixture over an ordinary (non-`self`) captured value — e.g.
 `a => b => a + b`, the outer parameter captured into the inner function's
 frame — the general shape [function-frame](../../spec/todo/3111-function-frame.md)
-and edag-stage1-discussion's `["frame"]` design are built around, though
+and edag-stage1-discussion's `["frame", i]` design are built around, though
 neither document spells this particular example.
 
 It landed as described, the frame an array literal whose items are the
