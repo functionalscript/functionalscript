@@ -88,7 +88,7 @@ const call = nodes => (callee, args) => {
 }
 
 /**
- * A function's EDAG, `['=>', length, frame, body]`, in the scope `nodes` names: its
+ * A function's EDAG, `['=>', length, slots, body]`, in the scope `nodes` names: its
  * captures lowered here, each to the node the enclosing scope has for it,
  * and its body a scope of its own over them.
  *
@@ -100,7 +100,7 @@ const call = nodes => (callee, args) => {
  * primitive is no slot at all: the primitive is written into the body where
  * the capture is read, as it is wherever a `const` holding one is read,
  * since it has nothing to share and nothing to compute. A function whose
- * frame is left with nothing has a `null` one.
+ * frame is left with nothing has no slots.
  *
  * Inside the body a slot is one node, `['frame', i]`, however many
  * references reach it — the node `rest` is, for the rest arguments.
@@ -119,7 +119,7 @@ const fn = nodes => (length, body, captures) => {
     /** @type {(n: typeof candidates[number]) => Exp} */
     const read = n => reads[slots.indexOf(candidates[firsts[candidates.indexOf(n)]])]
     const inner = outer.map(n => n instanceof Array ? read(n) : n)
-    return ['=>', length, slots.length === 0 ? null : ['[]', slots], scope(body, inner)]
+    return ['=>', length, slots, scope(body, inner)]
 }
 
 /**

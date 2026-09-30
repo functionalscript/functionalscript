@@ -321,7 +321,7 @@ const restOnly = ['=>', 0, null, ['rest']] // (...a) => a
 const fixedAndRest = ['=>', 2, null, ['[]', [['arg', 0], ['arg', 1], ['rest']]]] // (a, b, ...tail) => [a, b, tail]
 ```
 
-`frame` remains a general expression in the schema. The compiler constructs captured
+The slots are an array operand of `=>`. The compiler constructs captured
 values in the enclosing scope and the body reads them through `['frame', i]`; it does
 not share an enclosing operation node directly into the body's scope. Capture
 lowering and its proofs are in [`../edag`](../edag/module.f.mjs) and
@@ -375,9 +375,9 @@ The current compiler uses these structural forms for the staged work:
 - Stage 1 property access: `['.', object, property]`, with the restricted
   property operands described above — the absent fourth operand is the continuation,
   and leaving it out says the receiver this access produced is dropped;
-- functions: `['=>', length, frame, body]`, using `null` when no frame is needed;
-  captured-frame expressions belong to the enclosing scope and `['frame', i]` reads
-  slot `i` of their value inside the body;
+- functions: `['=>', length, slots, body]`, `[]` when nothing is captured;
+  the slots belong to the enclosing scope and `['frame', i]` reads slot `i`
+  inside the body;
 - Stage 2 calls: `['()', callee, args]` for an ordinary call, and
   `['.', object, property, ['|()', args]]` for a method call, with the property
   operand using the same restriction as `.`;

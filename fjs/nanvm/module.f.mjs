@@ -179,7 +179,7 @@ export const arityOf = g => {
  *
  * @type {() => Exp}
  */
-export const lambdaExp = () => ['=>', 0, ['[]', []], ['undefined']]
+export const lambdaExp = () => ['=>', 0, [], ['undefined']]
 
 /** `a[i]`, over the invocation's rest array: how a callback reads its arguments. @type {(i: number) => Exp} */
 const restAt = i => ['.', ['rest'], i]
@@ -224,7 +224,7 @@ export const callbacks = {
  *
  * @type {(body: Exp) => Exp}
  */
-export const functionExp = body => ['=>', 0, null, body]
+export const functionExp = body => ['=>', 0, [], body]
 
 /**
  * The expression a callback denotes: the {@link functionExp} of its body.

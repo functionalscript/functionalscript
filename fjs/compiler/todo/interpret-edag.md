@@ -96,8 +96,8 @@ contract in #2237's [parameter plan](../../../spec/todo/3120-parameters.md).
 
 The original null-frame-only Stage 2 restriction is superseded. Creating a closure
 evaluates its `frame` expression in the enclosing invocation; the body reads that
-captured value through `['frame', i]` in its own invocation. The schema permits a general
-frame expression, and the compiler uses `null` when no frame is needed. Fixed values
+captured value through `['frame', i]` in its own invocation. The slots are an array
+operand of `=>`, `[]` when nothing is captured. Fixed values
 and rest arrays captured by nested functions use the same frame mechanism.
 
 Hand-written arrow factories ([`fjs/types/function/length`](../../types/function/length/README.md))

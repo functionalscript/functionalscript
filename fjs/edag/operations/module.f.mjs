@@ -211,13 +211,13 @@ export const operations = {
     '<<': o2((a, b) => a << b),
     '<=': o2((a, b) => a <= b),
     '===': o2((a, b) => a === b),
-    // The frame operand is evaluated here, in the enclosing invocation, and
-    // the body is not: the value is a closure over the captured frame and the
-    // body graph, and each call of it is a new invocation, which is the
-    // executor's to start — the enclosing invocation's values do not cross,
-    // the captured frame is a value and crosses as one.
-    '=>': ({ operand, invoke }) => ([, length, frameExp, body]) => {
-        const frame = operand(frameExp)
+    // The slots are evaluated here, in the enclosing invocation, into the
+    // frame, and the body is not: the value is a closure over the captured
+    // frame and the body graph, and each call of it is a new invocation,
+    // which is the executor's to start — the enclosing invocation's values
+    // do not cross, the captured frame is a value and crosses as one.
+    '=>': ({ operand, invoke }) => ([, length, slots, body]) => {
+        const frame = slots.map(operand)
         return callable(length, (fixed, rest) => invoke(frame, fixed, rest, body))
     },
     '>': o2((a, b) => a > b),
@@ -274,11 +274,11 @@ export const operations = {
         assert(rest !== undefined, 'rest outside a function')
         return rest
     },
-    // A slot of the frame the function was built with: the frame is the
-    // array its `=>` evaluated in the enclosing invocation, and the slot
+    // A slot of the frame the function was built with: the array its `=>`
+    // evaluated from its slots in the enclosing invocation, and the slot
     // must exist, as a fixed parameter must be below the length — an index
-    // past the end is a graph no lowering emits, refused rather than read
-    // as `undefined`.
+    // past the end is a graph the analysis refuses, refused here too rather
+    // than read as `undefined`.
     frame: ({ frame }) => ([, n]) => {
         assert(frame instanceof Array && isIndex(n) && n < frame.length, ['invalid frame slot', n])
         return frame[n]

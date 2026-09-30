@@ -99,7 +99,7 @@ export const proof = {
     lambda: () => {
         const f = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', 0, ['captured'], ['frame', 0]]))
         assertEq(f(), 'captured')
-        const g = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', 0, null, ['rest']]))
+        const g = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', 0, [], ['rest']]))
         assertStructurallySame(g(1, 2), [1, 2])
     },
     throw: {

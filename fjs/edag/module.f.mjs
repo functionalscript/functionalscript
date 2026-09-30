@@ -81,24 +81,6 @@ export const _exp = () => (['or',
 /** @type {Phantom<typeof _exp, Exp>} */
 export const exp = _exp
 
-/**
- * A function's fixed parameter count, enclosing-scope frame and invocation
- * body. Length is integer metadata, not an expression operand; negative zero
- * is invalid. Analysis and operations check the metadata, while this schema
- * checks tuple shape. Only the body opens a new scope.
- */
-export const func = /** @type {const} */ (['=>', number, exp, exp])
-/** A constant fixed-position read; its index must be canonical and below the owning length. */
-export const arg = /** @type {const} */ (['arg', number])
-/**
- * A constant read of slot `N` of the owning function's frame — the value
- * the enclosing scope put at position `N` of the `frame` operand of `func`.
- * The index is metadata, as `arg`'s is: canonical, and validated by the
- * analysis and the operations, since the frame as a whole is not a value
- * the body can name.
- */
-export const frame = /** @type {const} */ (['frame', number])
-
 // Primitive
 
 /**
@@ -114,6 +96,30 @@ export const primitive = or(null, boolean, number, string, bigint)
 // Exps
 
 export const exps = rttiArray(exp)
+
+// Function
+
+/**
+ * A function's fixed parameter count, the slots of its frame, and its
+ * invocation body. Length is integer metadata, not an expression operand;
+ * negative zero is invalid. The slots are an array operand, each an `exp`
+ * evaluated in the enclosing scope when the function is built — `[]` for a
+ * function that captures nothing — and never a spread, so that the count a
+ * `frame` read is checked against is the array's length. Analysis and
+ * operations check the metadata, while this schema checks tuple shape. Only
+ * the body opens a new scope.
+ */
+export const func = /** @type {const} */ (['=>', number, exps, exp])
+/** A constant fixed-position read; its index must be canonical and below the owning length. */
+export const arg = /** @type {const} */ (['arg', number])
+/**
+ * A constant read of slot `N` of the owning function's frame — the value
+ * the enclosing scope put at position `N` of the slots of `func`. The index
+ * is metadata, as `arg`'s is: canonical and below the slot count, validated
+ * by the analysis and the operations, since the frame as a whole is not a
+ * value the body can name.
+ */
+export const frame = /** @type {const} */ (['frame', number])
 
 // Spread
 

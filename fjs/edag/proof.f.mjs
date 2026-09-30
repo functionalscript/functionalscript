@@ -137,21 +137,29 @@ const desugarOptionalAt = o => o !== null && o !== undefined ? o.at : undefined
 
 export const proof = {
     parameters: () => {
-        assertOk(v(['=>', 3, null, ['[]', [['arg', 0], ['rest']]]]))
+        assertOk(v(['=>', 3, [], ['[]', [['arg', 0], ['rest']]]]))
         assertOk(v(['arg', 0]))
         assertNoMatch(v(['=>', null, 1]))
         assertNoMatch(v(['=>', ['+', 1, 2], null, 1]))
-        assertNoMatch(v(['=>', 0, null, 1, 2]))
+        assertNoMatch(v(['=>', 0, [], 1, 2]))
         assertNoMatch(v(['arg', ['+', 0, 1]]))
         assertNoMatch(v(['arg']))
         assertNoMatch(v(['arg', 0, 1]))
+        // the slots are an array of `exp`, never a spread among them, and
+        // `[]` for no captures — the previous format's `null` and array
+        // literal are refused rather than reinterpreted
+        assertOk(v(['=>', 0, [1, ['[]', []]], 1]))
+        assertNoMatch(v(['=>', 0, null, 1]))
+        assertNoMatch(v(['=>', 0, ['[]', []], 1]))
+        assertNoMatch(v(['=>', 0, ['[]', [1]], 1]))
+        assertNoMatch(v(['=>', 0, [['...', ['[]', []]]], 1]))
     },
     // A frame slot read carries its index as `arg` does; the frame as a
     // whole is no node, so the bare `['frame']` of the previous format is
     // refused rather than reinterpreted, as is the indexed read over it.
     frame: () => {
         assertOk(v(['frame', 0]))
-        assertOk(v(['=>', 0, ['[]', [['[]', []]]], ['frame', 0]]))
+        assertOk(v(['=>', 0, [['[]', []]], ['frame', 0]]))
         assertNoMatch(v(['frame']))
         assertNoMatch(v(['frame', ['+', 0, 1]]))
         assertNoMatch(v(['frame', 0, 1]))

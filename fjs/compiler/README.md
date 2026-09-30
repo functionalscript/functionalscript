@@ -147,14 +147,14 @@ its own scope: `['arg', N]` reads fixed position `N < length`, and `['rest']`
 reads the invocation's rest array. Repeated rest reads share that array.
 `['args']` remains the module import binding and is invalid in a function
 body. A function's frame is evaluated in the enclosing scope. A reference to a `const`, an import, an enclosing function's
-parameter or an enclosing body's `const` is a capture: the frame is
-`['[]', slots]`, each slot the enclosing scope's own node for a captured
-value, one per value — nodes the EDAG analysis merges, `o[0]` read by two
-`const`s, being one — in the order the body first names them, and the body
-reads slot `i` as `['frame', i]` — so no outside node is ever shared
-into a body, only read through its frame. A captured primitive is written
-into the body rather than captured, and a function that captures nothing
-else has a `null` frame. A nested function captures through its parent, its
+parameter or an enclosing body's `const` is a capture: the slots are
+`['=>', length, slots, body]`'s array operand, each slot the enclosing
+scope's own node for a captured value, one per value — nodes the EDAG
+analysis merges, `o[0]` read by two `const`s, being one — in the order the
+body first names them, and the body reads slot `i` as `['frame', i]` — so
+no outside node is ever shared into a body, only read through its frame. A
+captured primitive is written into the body rather than captured, and a
+function that captures nothing else has no slots. A nested function captures through its parent, its
 slot a read of the parent's frame. The body is any value except an object, since
 `=> {` opens a block in JavaScript — or that block, in which an object is a
 value again: any number of `const` statements and then one `return`. A body

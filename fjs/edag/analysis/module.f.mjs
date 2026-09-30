@@ -283,13 +283,13 @@ const handlers = {
     '||': o2,
     '??': o2,
     '?:': o3,
-    // The frame is walked in the enclosing scope; the body is the scope
+    // The slots are walked in the enclosing scope; the body is the scope
     // this node opens, so its entries name this node as their scope and
     // come before it, as operands come before the node that holds them.
     '=>': scope => (state, e) => {
-        const [, length, frame, body] = e
+        const [, length, slots, body] = e
         assert(isIndex(length), ['invalid function length', length])
-        const [t, f] = walk(scope)(state, frame)
+        const [t, f] = each(walk(scope))(state, slots)
         const [u, b] = walk(e)(t, body)
         return [u, ['=>', length, f, b]]
     },
@@ -363,6 +363,7 @@ const refs = node => {
         case '[]': { return node[1].flatMap(itemRefs) }
         case '{}': { return node[1].flatMap(propertyRefs) }
         case ',': { return node[1].flatMap(named) }
+        case '=>': { return [...node[2].flatMap(named), ...named(node[3])] }
         case '.': case '?.': case '?.()': {
             const [, a, b, k] = node
             return [...named(a), ...named(b), ...stepRefs(k)]
@@ -430,7 +431,7 @@ export const bindingError = ({ nodes, scope }) => {
             }
         }
         if (node[0] === 'frame') {
-            if (owner === null || owner[0] !== '=>' || !isIndex(node[1])) {
+            if (owner === null || owner[0] !== '=>' || !isIndex(node[1]) || node[1] >= owner[2].length) {
                 return 'invalid frame slot index or scope'
             }
         }

@@ -264,7 +264,7 @@ schema is free to change independently of both.
 |`["Number", node]`|`Number(x)`|later|numeric coercion that accepts bigints, unlike unary `+`|
 |`["String", node]`|`String(x)`|later|string coercion|
 |`[",", [...node, node]]`|`(a, b)`|later|membership without order (subject 8); the operands are one operand, an array, as for `"[]"`|
-|`["=>", length, frame, body]`|`(…) => …`|2|function; `length` is integer metadata (subject 7); `frame` is a general `exp` in the schema — Stage 2's own compiler/interpreter scope was narrower and only emitted/accepted a placeholder for it; the compiler now emits an array of captured values, `null` where there is none ([functions](../spec/README.md#functions))|
+|`["=>", length, slots, body]`|`(…) => …`|2|function; `length` is integer metadata (subject 7); `slots` is the array of captured values, an array operand of `exp`s evaluated in the enclosing scope, `[]` where there is none, each read in the body as `["frame", i]` — Stage 2 emitted only a placeholder for it ([functions](../spec/README.md#functions))|
 
 `["{}", [...entry]]` is an ordered object-construction operation. Stage 1
 uses `[":", key, value]` entries.
@@ -770,7 +770,7 @@ function-owned `['args']` yielded the complete supplied argument array.
 That invocation contract is superseded; the examples elsewhere in this
 document using it remain historical.
 
-**Current format:** `['=>', length, frame, body]` records canonical nonnegative
+**Current format:** `['=>', length, slots, body]` records canonical nonnegative
 integer `length` metadata and exposes two invocation bindings. Length and
 index zero must be positive zero; `-0` metadata is refused.
 

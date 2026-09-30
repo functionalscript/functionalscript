@@ -367,13 +367,13 @@ const referenceCoverage = () => {
  * operand without either consumer needing a second walk.
  */
 const lambda = () => {
-    assertStructurallySame(valueExp(functionValue), ['=>', 0, ['[]', []], ['undefined']])
+    assertStructurallySame(valueExp(functionValue), ['=>', 0, [], ['undefined']])
     assertStructurallySame(valueExp(functionValue), lambdaExp())
     assertStructurallySame(valueExp([functionValue]), ['[]', [lambdaExp()]])
     assertStructurallySame(valueExp({ f: functionValue }), ['{}', [[':', 'f', lambdaExp()]]])
     assertEq(typeof value(corpus())(functionValue), 'function')
     // A `returns` is the function a callback is, its value the body.
-    assertStructurallySame(valueExp(returns([1])), ['=>', 0, null, ['[]', [1]]])
+    assertStructurallySame(valueExp(returns([1])), ['=>', 0, [], ['[]', [1]]])
     assertStructurallySame(valueExp(returns(unreached)), functionExp(unreachedExp()))
     // Two function operands are two closures, not one node reached twice.
     const [f, g] = /** @type {readonly unknown[]} */ (
@@ -412,7 +412,7 @@ const callbacksProof = () => {
     assertEq(call('descending', [1, 3]), 2)
     assertEq(call('zero', [1, 3]), 0)
     assertStructurallySame(valueExp(callback('double')), callbackExp('double'))
-    assertStructurallySame(valueExp([callback('args')]), ['[]', [['=>', 0, null, ['rest']]]])
+    assertStructurallySame(valueExp([callback('args')]), ['[]', [['=>', 0, [], ['rest']]]])
     assertEq(typeof value(corpus())(callback('args')), 'function')
 }
 
