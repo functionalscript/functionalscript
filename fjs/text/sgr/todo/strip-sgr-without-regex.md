@@ -1,7 +1,7 @@
 ## Strip SGR sequences without a regular expression
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
