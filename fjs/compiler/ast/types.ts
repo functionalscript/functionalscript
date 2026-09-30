@@ -29,8 +29,20 @@ export type AstImport = {
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
-/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a binary operator, a conditional, a function, a fixed parameter, a rest array, or a slot of its frame. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstBitnot|AstBinary|AstConditional|AstFunction|AstRest|AstArg|AstFrameRef
+/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a binary operator, a conditional, a function, a fixed parameter, a rest array, a slot of its frame — or a `throw`, which a body may end with in place of a value. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstBitnot|AstBinary|AstConditional|AstFunction|AstRest|AstArg|AstFrameRef|AstThrow
+
+/**
+ * A `throw`, `throw v;`: the statement a function's block body, or a
+ * module's, may end with in place of its `return` or its exports — the
+ * EDAG's `['throw', exp]`, an operation that establishes its operand and
+ * fails with it as the thrown value
+ * ([spec: functions](../../../spec/README.md#functions)). The parser writes
+ * it as the last entry of a body and nowhere else; `lower` gives one
+ * anywhere the node, and `run` fails on it as the value outputs fail on any
+ * load that throws.
+ */
+export type AstThrow = readonly ['throw', AstConst]
 
 /**
  * A function: `(...a) => { const x = …; return v; }`, an {@link AstBody}
@@ -202,8 +214,8 @@ export type AstConditional = readonly ['?:', AstConst, AstConst, AstConst]
 
 /**
  * The constants of a body, in declaration order. The **last** entry is the
- * value the body yields; the preceding entries exist to be named by
- * `['cref', i]`.
+ * value the body yields — or the {@link AstThrow} it ends with instead; the
+ * preceding entries exist to be named by `['cref', i]`.
  *
  * A body describes the function
  *

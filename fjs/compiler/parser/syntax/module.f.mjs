@@ -35,8 +35,8 @@
  * @import { BinaryTag } from '../../ast/types.ts'
  * @import { ParseError } from '../types.ts'
  * @import { Const, Entry, Import, ImportBinding, Module, ModuleConst, Node, Out, ParameterBinding, ParameterList, ValueStatement } from './types.ts'
- * @import { ArrowOrRest, Body, Group, Items, Member, ParameterNames, Parenthesized, Unary, UnaryOperand, Value } from '../grammar/types.ts'
- * @import { key, namedImports, primitive } from '../grammar/module.f.mjs'
+ * @import { ArrowOrRest, Body, Group, Items, LastStatement, Member, ParameterNames, Parenthesized, Unary, UnaryOperand, Value } from '../grammar/types.ts'
+ * @import { key, namedImports, primitive, terminator } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _CircuitNode, _ConditionalNode, _EndNode, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _PowTailNode, _TailRound, _TokenStream } from './private.ts'
  */
 
@@ -47,8 +47,8 @@ import { literalWords } from '../../../js/keywords/module.f.mjs'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import {
-    body, callArguments, constStatement, djsModule, eagerTail, exportStatement, importBinding, importBindings,
-    importStatement, member, members, parameterNames, symbolOf, unary, unaryOperand, value, values,
+    body, callArguments, constStatement, djsModule, eagerTail, importBinding, importBindings,
+    importStatement, lastStatement, member, members, parameterNames, symbolOf, unary, unaryOperand, value, values,
 } from '../grammar/module.f.mjs'
 
 /**
@@ -167,10 +167,10 @@ const constAt = node => {
     return out.statement
 }
 
-/** @type {(node: _Leaf) => Extract<Out, { readonly id: 'export' }>} */
-const exportAt = node => {
+/** @type {(node: _Leaf) => Extract<Out, { readonly id: 'last' }>} */
+const lastAt = node => {
     const out = outAt(node)
-    assert(out.id === 'export')
+    assert(out.id === 'last')
     return out
 }
 
@@ -658,9 +658,10 @@ const groupNode = node => {
  * carry, which is what tells this reader whether to call {@link applyTail}
  * at all.
  *
- * A block preserves its ordered `const` declarations and explicit `return`,
- * including when no declaration precedes it. The source tree keeps that
- * syntax until the fold lowers it to an executable function body.
+ * A block preserves its ordered `const` declarations and the explicit
+ * `return` or `throw` that ends it, including when no declaration precedes
+ * it. The source tree keeps that syntax until the fold lowers it to an
+ * executable function body.
  *
  * A negation and a bitwise not are `op t unary tail*`, `unary` at the
  * third position exactly as a binary layer's own round has it — negated or
@@ -689,11 +690,10 @@ const toNode = node => {
         return symbol({ id: 'value', node: applyTail([node[0] === 'neg' ? '-' : '~', nodeAt(v)], tailLists), first: tokenAt(op) })
     }
     if (node[0] === 'block') {
-        const [open, consts, ret, v, end] = unmapped(node[1])
+        const [open, consts, term] = unmapped(node[1])
         const statements = unmapped(consts).map(constAt).map(constNode)
-        /** @type {ValueStatement} */
-        const returned = { start: tokenAt(ret), semicolon: ended(end), first: firstAt(v), value: nodeAt(v) }
-        return symbol({ id: 'value', node: ['block', [...statements, ['return', returned]]], first: tokenAt(open) })
+        const [kind, branch] = unmapped(term)
+        return symbol({ id: 'value', node: ['block', [...statements, [kind, valueStatementOf(unmapped(branch))]]], first: tokenAt(open) })
     }
     const x = unmapped(node[1])[0]
     const [base, accesses] = unmapped(x)
@@ -731,6 +731,17 @@ const operandToNode = node => {
 
 /** A declaration in a block's ordered statement list. @type {(statement: Const) => readonly ['const', Const]} */
 const constNode = statement => ['const', statement]
+
+/**
+ * The record of a statement that is a keyword and a value — `return`,
+ * `throw`, `export default` — from `keyword value end`: it begins at the
+ * keyword, and the value's first token is kept for the line the fold asks
+ * of it after `return` and `throw`.
+ *
+ * @type {(node: Children<(typeof terminator)['return'], DjsTokenWithMetadata, Out>) => ValueStatement}
+ */
+const valueStatementOf = ([keyword, v, end]) =>
+    ({ start: tokenAt(keyword), semicolon: ended(end), first: firstAt(v), value: nodeAt(v) })
 
 /**
  * The token a key is read from, the name it spells, and whether it is the
@@ -851,43 +862,50 @@ const toConst = ([first, name, , v, end]) =>
 const ordinaryConst = node => ({ declaration: constAt(node), exported: false })
 
 /**
- * An export statement: the default, or the exported `const` and the
- * statements after it. Either begins at the `export`, which is where the
- * exported `const` begins too — its own record's `const` is the token
- * after — since the `export` is the token a same-line statement before it
- * is refused at.
+ * What a module ends with: the `throw` that stands in place of its exports,
+ * read as a block's is; or an export statement — the default, or the
+ * exported `const` and the statements after it. An export begins at the
+ * `export`, which is where the exported `const` begins too — its own
+ * record's `const` is the token after — since the `export` is the token a
+ * same-line statement before it is refused at.
  *
- * @type {(node: Children<typeof exportStatement, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ * @type {(node: Children<LastStatement, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
-const toExport = ([first, choice]) => {
-    const start = tokenAt(first)
-    const [kind, branch] = unmapped(choice)
-    if (kind === 'default') {
-        const [, v, end] = unmapped(branch)
-        return symbol({ id: 'export', consts: null, default: { start, semicolon: ended(end), first: firstAt(v), value: nodeAt(v) } })
+const toLast = ([kind, branch]) => {
+    if (kind === 'throw') {
+        return symbol({ id: 'last', consts: null, default: null, thrown: valueStatementOf(unmapped(branch)) })
     }
-    const [declaration, consts, tail] = unmapped(branch)
+    const [first, choice] = unmapped(branch)
+    const start = tokenAt(first)
+    const [which, exported] = unmapped(choice)
+    if (which === 'default') {
+        const [, v, end] = unmapped(exported)
+        return symbol({ id: 'last', consts: null, default: { start, semicolon: ended(end), first: firstAt(v), value: nodeAt(v) }, thrown: null })
+    }
+    const [declaration, consts, tail] = unmapped(exported)
     const next = unmapped(tail)
-    const rest = next.length === 0 ? null : exportAt(next[0])
+    const rest = next.length === 0 ? null : lastAt(next[0])
     return symbol({
-        id: 'export',
+        id: 'last',
         consts: concat([
             { declaration: { ...constAt(declaration), start }, exported: true },
             ...unmapped(consts).map(ordinaryConst),
         ])(rest === null ? null : rest.consts),
         default: rest === null ? null : rest.default,
+        thrown: rest === null ? null : rest.thrown,
     })
 }
 
 /** @type {(node: Children<typeof djsModule, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toModule = ([imports, consts, exported]) => {
-    const result = exportAt(exported)
+const toModule = ([imports, consts, last]) => {
+    const result = lastAt(last)
     return symbol({
         id: 'module',
         module: {
             imports: unmapped(imports).map(importAt),
             consts: [...unmapped(consts).map(ordinaryConst), ...toArray(result.consts)],
             exported: result.default,
+            thrown: result.thrown,
         },
     })
 }
@@ -938,7 +956,7 @@ export const mappings = [
     map(importBindings, toImportBindings),
     map(importStatement, toImport),
     map(constStatement, toConst),
-    map(exportStatement, toExport),
+    map(lastStatement, toLast),
     map(djsModule, toModule),
 ]
 

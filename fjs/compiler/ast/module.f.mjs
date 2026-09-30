@@ -6,14 +6,15 @@
  * @import { Array, Unknown } from '../../media/datajs/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstConditional, AstConst, AstBody, AstMember, AstModule, AstModuleRef, AstNeg, AstObject, Import, Sharing, Anchors } from './types.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstConditional, AstConst, AstBody, AstMember, AstModule, AstModuleRef, AstNeg, AstObject, AstThrow, Import, Sharing, Anchors } from './types.ts'
  * @import { _Node, _OperandStack, _Reach, _Ref, _Routes, _RunState, _View } from './private.ts'
  */
 
 import { concat, empty, flat, last, map, take, toArray } from '../../types/list/module.f.mjs'
 import { fromEntries } from '../../types/object/module.f.mjs'
 import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
-import { cmp as stringCmp } from '../../types/string/module.f.mjs'
+import { cmp as stringCmp, concat as stringConcat } from '../../types/string/module.f.mjs'
+import { leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { at as routesAt, empty as noRoutes, setReplace } from '../../types/ordered_map/module.f.mjs'
 
 const { hasOwn } = Object
@@ -116,6 +117,20 @@ const noOperatorValue = 'an operator has no value'
 const noNumber = 'no number for this value'
 
 /**
+ * The failure a `throw` makes of the value it established: what the value
+ * outputs report for a module whose load throws, as they report a read of
+ * `null`. The thrown value is no observation of the language's
+ * ([spec: failure is one outcome](../../../spec/README.md#failure-is-one-outcome)),
+ * so the message is a diagnostic: a primitive as DataJS spells it, a
+ * container by its kind.
+ *
+ * @type {(value: Unknown) => Result<never, string>}
+ */
+const thrown = value => error(`throw ${value !== null && typeof value === 'object'
+    ? (value instanceof Array ? 'an array' : 'an object')
+    : stringConcat(leafSerialize(value))}`)
+
+/**
  * A value negated, as JavaScript's unary `-` negates it: a bigint stays a
  * bigint, and every other primitive converts — `-null` is `-0`, `-"2"` is
  * `-2`, `-true` is `-1`, `-undefined` is `NaN`. `Number` is total over
@@ -163,6 +178,9 @@ const toDjs = state => ast => {
         case '===': case '!==': case '<': case '<=': case '>': case '>=':
         case '&': case '|': case '^': case '<<': case '>>': case '>>>':
         case '&&': case '||': case '??': case '?:': { return error(noOperatorValue) }
+        // the operand is established first, as JavaScript establishes it,
+        // and its own failure is the one reported where it has one
+        case 'throw': { return okThen(thrown)(toDjs(state)(ast[1])) }
         default: { return okThen(ownProperty(ast[2]))(toDjs(state)(ast[1])) }
     }
 }
@@ -256,12 +274,12 @@ const pushedAll = (operands, rest) => operands.reduceRight(pushed, rest)
  * operand and the condition, established whatever the value, are every
  * view's.
  *
- * @type {(view: _View) => (ast: AstConst) => List<Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional>>}
+ * @type {(view: _View) => (ast: AstConst) => List<Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional | AstThrow>>}
  */
 const operandsOf = view => ast => {
     /** @type {_OperandStack} */
     let stack = { top: ast, rest: null }
-    /** @type {List<Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional>>} */
+    /** @type {List<Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional | AstThrow>>} */
     let bottom = empty
     while (stack !== null) {
         const node = stack.top
@@ -277,7 +295,9 @@ const operandsOf = view => ast => {
                 stack = pushedAll(view.negated(node[1]), rest)
                 break
             }
-            case '~': { stack = { top: node[1], rest }; break }
+            // a `throw`'s value is established whatever comes of it, in
+            // every view: eager, as an operator's operand is
+            case '~': case 'throw': { stack = { top: node[1], rest }; break }
             case '*': case '/': case '%': case '**':
             case '+':
             case '===': case '!==': case '<': case '<=': case '>': case '>=':
@@ -319,7 +339,7 @@ const refsOf = view => ast => flat(map(refsOfOperand(view))(operandsOf(view)(ast
  * access chain nests only as deep as the source that built it, which is a
  * separate, narrower concern than an operator chain's unbounded length.
  *
- * @type {(view: _View) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional>) => List<_Ref>}
+ * @type {(view: _View) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional | AstThrow>) => List<_Ref>}
  */
 const refsOfOperand = view => ast => {
     if (ast === null || typeof ast !== 'object') { return empty }
