@@ -13,35 +13,48 @@ import type { Result } from '../../types/result/types.ts'
 import type { AstConst, AstFrameRef, AstModuleRef, AstRest, BinaryTag } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 import type { ParseError } from './types.ts'
-import type { Block, Container, Node } from './syntax/types.ts'
+import type { Block, Container, If, Node } from './syntax/types.ts'
 
 /** A named parameter, `i` of the function whose body names it: what the body reads it as, the `i`th argument. */
 export type _Parameter = readonly ['arg', number]
 
-/** The names bound so far, each to the reference that names it: a module's import or entry, or a function's rest array or one of its fixed parameters. */
-export type _Env = OrderedMap<AstModuleRef | AstRest | _Parameter>
+/** The names bound so far, each to the reference that names it: a module's import or entry, a function's rest array or one of its fixed parameters — or a slot of a function's frame, for a word its body has read from the scopes around it and remembers, so that a later read of it stops at the body and a `const` of it in the body is refused. */
+export type _Env = OrderedMap<_Ref>
 
 /** What a name resolves to where it is written: a name bound in its own scope, or a slot of the function's frame. */
 export type _Ref = AstModuleRef | AstRest | _Parameter | AstFrameRef
 
 /**
- * The scope a node is resolved in: the names it binds itself, and — in a
- * function's body — what the body has captured so far from the scope
- * around it, `outer`, each the reference that names the value there, in
- * the order the body first named them, and the words it read from there,
- * which a `const` of the body may not then bind. The module's own scope
- * has no `outer` and captures nothing.
+ * The scope a node is resolved in: the names it binds itself — its own,
+ * and the words it has read from the scope around it, each bound to the
+ * slot of its frame that holds the value, so that a read of one stops at
+ * the body and a `const` of one is refused — and, in a function's body,
+ * what the body has captured so far from the scope around it, `outer`,
+ * each the reference that names the value there, in the order the body
+ * first named them. The module's own scope has no `outer` and captures
+ * nothing.
  *
  * The captures grow while the body is resolved, and so do those of every
  * function around it that a capture passes through, so the whole chain is
  * the state, rebuilt where a capture lands.
+ *
+ * The statements after a guard are resolved as the body of a function of
+ * their own — the one the fold makes of them, {@link _GuardFrame} — but
+ * JavaScript reads them in the block the guard stands in, so the names
+ * of that block, `enclosing` — one environment per body the block was
+ * continued from, a list so that each continuation adds one to the ones
+ * before it rather than copying them — are theirs not to bind: a `const`
+ * twice in one block is a syntax error there, and a `const` of a word the
+ * block has already read from outside is the capture-shadowing the fold
+ * refuses. A function's own body, a guard's block and the module enclose
+ * nothing.
  */
 export type _Scope = {
     readonly names: _Env
     /** The `length` of the function whose body this is: its named parameters counted, `0` for a rest parameter, none, or the module. */
     readonly count: number
     readonly captures: readonly _Ref[]
-    readonly read: readonly string[]
+    readonly enclosing: List<_Env>
     readonly outer: _Scope | null
 }
 
@@ -95,14 +108,38 @@ export type _FunctionFrame = {
  * wrong in both halves answers for the half a reader meets first; `done`
  * holds the entries before it, a list for the reason a container's is.
  *
+ * The body begins at `first`: `0` for a function's body, and for the
+ * statements after a guard the position after it in the same list, which
+ * the continuation shares with the body it continues rather than copies —
+ * a body of many guards would otherwise copy its tail once per guard. The
+ * entry a statement makes is numbered from `first`.
+ *
  * The current statement's tag distinguishes a declaration's initializer
  * from the final return value, where `word` names nothing.
  */
 export type _BodyFrame = {
+    /** The statements of the block, the grammar's list, the terminator last. */
     readonly statements: Block[1]
+    readonly first: number
     readonly index: number
     readonly word: string
     readonly done: List<AstConst>
+}
+
+/**
+ * A guard whose arms are being evaluated, each the body of a parameterless
+ * function called where it stands — the call the lowering inlines — so
+ * that a `const` of either arm is the arm's alone: `body` is the block
+ * body's frame at the guard, `condition` the guard's condition resolved,
+ * and `then` the function of the guard's block once it is closed, `null`
+ * while that block is being evaluated and the value once the statements
+ * after the guard are.
+ */
+export type _GuardFrame = {
+    readonly guard: If
+    readonly body: _BodyFrame
+    readonly condition: AstConst
+    readonly then: AstConst | null
 }
 
 /**
@@ -146,6 +183,7 @@ export type _Frame =
     | _ConditionalFrame
     | _FunctionFrame
     | _BodyFrame
+    | _GuardFrame
 
 /** The containers, calls, accesses, operators, conditionals and functions suspended around the node being evaluated, innermost on top. */
 export type _Stack = { readonly top: _Frame, readonly rest: _Stack } | null

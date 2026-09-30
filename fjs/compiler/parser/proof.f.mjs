@@ -166,7 +166,7 @@ export const proof = {
             assertEq(exported.semicolon, false)
             const body = exported.value[2]
             assert(body[0] === 'block')
-            assertStructurallySame(body[1].map(([, statement]) => statement.semicolon), [false, false])
+            assertStructurallySame(body[1].map(([, statement]) => 'semicolon' in statement && statement.semicolon), [false, false])
             assertEq(parseFromTokens(tokenizeString('export default () => {\n    const x = 1\n    return x\n}'))[0], 'ok')
             assertEq(parseFromTokens(tokenizeString('export default () => { return 7 };'))[0], 'ok')
             const sameLine = 'export default () => { const x = 1 return x; };'
@@ -475,6 +475,24 @@ export const proof = {
             // and through the then arm, whose `:` closes each in turn
             const [tag] = parseFromTokens(tokenizeString(`export default ${'1 ? '.repeat(20000)}2${' : 3'.repeat(20000)};`))
             assert(tag === 'ok', tag)
+        },
+        () => {
+            // a body of many guards: each nests as the alternate of the one
+            // before it, the arms resolved as bodies of their own on the same
+            // explicit stack the shapes above pin at twenty thousand, the
+            // statements after a guard shared with the body they continue
+            // rather than copied per guard, and each guard's read of the
+            // parameter answered by the arm before it, which remembers the
+            // word, rather than by a walk out through every arm. A quarter
+            // of the count above: a guard is nine tokens where a ternary's
+            // level is four, and the suite's slowest runner times a test out
+            // at five seconds
+            const [tag, value] = parseFromTokens(tokenizeString(`export default (a) => {\n${'if (a) { return 1; }\n'.repeat(5000)}return 0;\n};`))
+            assert(tag === 'ok', tag)
+            /** @type {any} */
+            let arm = /** @type {any} */ (value[1][0])[1][0][1][2][0]
+            for (let depth = 1; depth < 5000; depth += 1) { arm = arm[3][1][2][0] }
+            assertEq(stringify(sort)(arm[3]), '["()",["=>",0,[0]],[]]')
         },
     ],
     // A syntax error is reported ahead of a semantic one, wherever each sits.

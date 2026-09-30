@@ -37,8 +37,8 @@ import type {
 /**
  * The words a rule requires in some position — six framing a module,
  * `return` and `throw` ending a function's block body, `throw` a module
- * too, and `as` an import alias — which the grammar has to tell apart from
- * an ordinary identifier.
+ * too, `if` opening a guard in one, and `as` an import alias — which the
+ * grammar has to tell apart from an ordinary identifier.
  *
  * The tokenizer emits these words as `{ kind: 'id' }` with the word in `value`, so
  * a parser layer keyed on `kind` alone would give them the same symbol as any
@@ -47,7 +47,7 @@ import type {
  * their own, which is what a registered alphabet allows: a name's symbol comes
  * from its position in the list, so a name has no length limit.
  */
-export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return' | 'throw' | 'as'
+export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return' | 'throw' | 'if' | 'as'
 
 type _KeywordsAreComplete = Assert<Equal<(typeof _framingKeywords)[number], _FramingKeyword>>
 
@@ -354,14 +354,20 @@ export type ParenGroupOperand = readonly [number, GroupOperand]
 export type End = Option<readonly [number]>
 
 /**
- * `{`, the body's `const` statements, `return`, the value, its
- * {@link End}, and `}`.
+ * `{`, the body's statements, its {@link Terminator}, and `}`.
  *
- * The statements are {@link constStatement}, the module's own rule: a body
- * binds names the way a module does, and which scope a name lands in is the
- * fold's answer, not the grammar's.
+ * A statement is a `const`, {@link constStatement}, the module's own rule
+ * — a body binds names the way a module does, and which scope a name lands
+ * in is the fold's answer, not the grammar's — or a guard, `if`, `(`, the
+ * condition, `)` and a block, this same rule.
  */
-export type Block = readonly [number, RepeatFrom<0, typeof constStatement>, Terminator, number]
+export type Block = readonly [number, RepeatFrom<0, Statement>, Terminator, number]
+
+/** A block's statement before its terminator: a `const`, or a guard whose block is a {@link Block}. A thunk, as {@link Value} is, since it names itself through the block. */
+export type Statement = () => readonly ['const', {
+    readonly const: typeof constStatement
+    readonly if: readonly [number, number, Value, number, Block]
+}]
 
 /** The statement a block ends with: `return` or `throw`, its value, and {@link End}. */
 export type Terminator = {
