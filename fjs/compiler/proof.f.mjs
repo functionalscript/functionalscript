@@ -601,6 +601,11 @@ export const proof = {
             assertEq(fjsRoundTrip('export default (...a) => a[0] ? (() => { const x = [1]; return [x, x, (() => { const y = [2]; return a[1] ? [y, y] : 1; })()]; })() : 4;'), 'export default (...$a)=>$a[0]?(()=>{const $b0=[2];const $b1=[1];return [$b1,$b1,$a[1]?[$b0,$b0]:1];})():4;')
             assertEq(fjsRoundTrip('const c = []; export default (...a) => [a[0] && c, a[1] && c];'), 'const $0=[];export default (...$a)=>[$a[0]&&$0,$a[1]&&$0];')
             assertEq(fjsRoundTrip('export default (...a) => { const y = a[0] ? [] : 1; return [y, y]; };'), 'export default (...$a)=>{const $a0=$a[0]?[]:1;return [$a0,$a0];};')
+            // an unused alias of a capture leaves no slot behind, in a body
+            // or in a call inlined into one; the `const` is anchored instead
+            assertEq(fjsRoundTrip('const c = [1]; export default (...a) => { const x = c; return 1; };'), 'const $0=[1];export default (...$a)=>1;')
+            assertEq(fjsRoundTrip('const c = null.x; export default (...a) => (() => { const x = c; return 1; })();'), 'const $0=null.x;export default (...$a)=>1;')
+            assertEq(fjsRoundTrip('const c = [1]; export default (...a) => { const x = c; return [x, c]; };'), 'const $0=[1];export default (...$a)=>[$0,$0];')
             assertEq(fjsRoundTrip('export const f = (...a) => a[0] ? (() => { const x = [1]; return [x, x]; })() : 4; export default 1;'), 'const $0=(...$a)=>$a[0]?(()=>{const $b0=[1];return [$b0,$b0];})():4;export const f=$0;export default 1;')
         },
         // An object's members are the graph's here and the value's there, so

@@ -1,4 +1,4 @@
-import { anchors, isInlinedCall, run, sharing, values } from './module.f.mjs'
+import { anchors, isInlinedCall, readCaptures, run, sharing, values } from './module.f.mjs'
 import { _stringifyTree } from '../module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -167,6 +167,29 @@ export const proof = {
         assertEq(anchorsOf([[], [['fref', 0], 1]]), 'consts ; imports ')
         assertEq(anchorsOf([[], [['rest'], 1]]), 'consts ; imports ')
         assertEq(anchorsOf([[], [['arg', 0], 1]]), 'consts ; imports ')
+    },
+    // The captures a body reads, by index, each once in first-use order:
+    // the slots of the function's frame. A capture the body names only
+    // through an unused alias is not read, so a function names only what
+    // its body reads, and the enclosing `const` behind an unread capture is
+    // anchored as one nothing reaches.
+    readCaptures: () => {
+        assertStructurallySame(readCaptures(['=>', 0, [['fref', 0]], [['cref', 0]]]), [0])
+        assertStructurallySame(readCaptures(['=>', 0, [['fref', 1], ['array', [['fref', 0], ['cref', 0], ['fref', 1]]]], [['cref', 0], ['cref', 1]]]), [0, 1])
+        assertStructurallySame(readCaptures(['=>', 0, [['fref', 0], 1], [['cref', 0]]]), [])
+        assertStructurallySame(readCaptures(['=>', 0, [['fref', 0], ['cref', 0]], [['cref', 0]]]), [0])
+        // read anywhere: a lazy position, a nested function's captures, a
+        // call the lowering inlines, a negation
+        assertStructurallySame(readCaptures(['=>', 0, [['&&', 1, ['fref', 0]]], [['cref', 0]]]), [0])
+        assertStructurallySame(readCaptures(['=>', 0, [['=>', 0, [['fref', 0]], [['fref', 0]]]], [['cref', 0]]]), [0])
+        assertStructurallySame(readCaptures(['=>', 0, [['()', ['=>', 0, [['fref', 0]], [['fref', 0]]], []]], [['cref', 0]]]), [0])
+        assertStructurallySame(readCaptures(['=>', 0, [['()', ['=>', 0, [['fref', 0], 1], [['fref', 0]]], []]], [['cref', 0]]]), [])
+        assertStructurallySame(readCaptures(['=>', 0, [['-', ['fref', 0]]], [['cref', 0]]]), [0])
+        assertStructurallySame(readCaptures(['=>', 0, [1]]), [])
+        // the sweep names only what the body reads
+        assertEq(anchorsOf([[a], [['array', []], ['=>', 0, [['fref', 0], 1], [['cref', 0]]]]]), 'consts 0; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], ['=>', 0, [['fref', 0], ['cref', 0]], [['cref', 0]]]]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], ['=>', 0, [['()', ['=>', 0, [['fref', 0], 1], [['fref', 0]]], []]], [['cref', 0]]]]]), 'consts 0; imports 0')
     },
     // A binary operator and a bitwise not have no value here — `+` alone
     // needs `ToPrimitive`, and folding the rest while leaving it a node
