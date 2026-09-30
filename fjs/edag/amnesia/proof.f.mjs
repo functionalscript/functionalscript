@@ -576,7 +576,8 @@ export const proof = {
         },
     },
     // The frame is the only channel outward: a body's leaves are constants,
-    // `['args']` and `['frame', i]`, so a captured value has to arrive as data.
+    // `['arg', N]`, `['rest']` and `['frame', i]`, so a captured value has
+    // to arrive as data.
     closure: () => {
         // `['=>', ['[]', [100]], …]` captures `100` at closure-creation time.
         eq(['()', ['=>', 0, [100],

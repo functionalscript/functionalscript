@@ -842,8 +842,8 @@ open:
   machinery; sharing across a lazy boundary is a plain reference, and a
   node demanded from two branches evaluates at most once (memoization).
 - Resolved by the closed-scope model ([Operations](#operations)): a
-  nested function's body is a closed graph whose leaves — `["args"]`,
-  `["frame", i]`, `["self"]` — are its own, so a node simply cannot be
+  nested function's body is a closed graph whose leaves — `["arg", N]`,
+  `["rest"]`, `["frame", i]`, `["self"]` — are its own, so a node simply cannot be
   shared across a function boundary, and "whose arguments?" never
   arises.
 
