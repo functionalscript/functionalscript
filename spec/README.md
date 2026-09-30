@@ -267,8 +267,8 @@ output refusing the program — `a function has no value`,
 `a call has no value`, `an operator has no value` — names the module holding
 what it refused. A refusal of the output names the output as given instead,
 since the module itself is sound: an extension naming no format, a value JSON
-cannot spell, a node the FunctionalScript or Rust writer has no spelling for
-(`out.js - error: a () node`). A failure to write the output — a missing
+cannot spell, a node the FunctionalScript or Rust writer has no spelling
+for. A failure to write the output — a missing
 directory, a name that is a directory — is reported in the host's own words,
 which name the output too:
 `ENOENT: no such file or directory, open 'out/config.json'`.
@@ -575,12 +575,11 @@ module boundary, from which a default import selects the document.
   `const $0=[1];const $1=[$0];export const b=$1;export default 3;`. The
   names gain a `$`, `$$0`, when an export's name begins with `$`.
 
-  The writer spells a property access and every operator the language has
-  ([operators](#operators)), and refuses a call by the name of the node it
-  meets — `a () node`, `a chain step` — wherever the node stands, a
-  function body or a `const` nothing reads included
-  ([`call-spelling.md`](../fjs/compiler/serializer/todo/call-spelling.md)).
-  A module holding a call compiles to `.edag.data.js` and `.rs` alone.
+  The writer spells a property access, every operator the language has
+  ([operators](#operators)) and every call. A number or a function that is
+  an access's base or a callee takes a `const`, and so does a callee that
+  is an access: `a.b(c)` and `(a.b)(c)` are both the method call, and a
+  function called where it is written is inlined.
 - Object properties are emitted in the order the value carries them for the
   value outputs — JavaScript's own-property order, array-index keys first,
   a repeated key keeping its first position and its last value — and in the
@@ -1201,7 +1200,7 @@ the parentheses its precedence and associativity ask for and no more —
 or a negative number on the left of `**` is grouped, `(-2)**2`; a `-`
 before a text opening with `-` takes a space, `1- -2`; a function under an
 operator, and an operator's text under an access, stand in a group,
-`-((...$a)=>1)` and `(1+2).x`; and a value shared under one lazy operand
+`-(()=>1)` and `(1+2).x`; and a value shared under one lazy operand
 alone is written in a block of the operand's own ([functions](#functions)).
 Read back, that text is the graph it was written from. `.json` and
 `.data.js` refuse every operator but unary `-` wherever it stands, an
@@ -1754,22 +1753,17 @@ are not supported yet. A newline before `=>` is refused.
   ([default function text](./todo/3120-parameters.md#default-function-text-render-or-refuse),
   [member-functions](../nanvm-lib/todo/member-functions.md)).
 
-  Two outputs hold a call today, the EDAG and the generated Rust module,
-  which nanvm-lib runs, and the other three refuse one for two different
-  reasons. `.data.js` and `.json` are values, and what a call
-  *returns* is not a value the compiler computes — applying a function is the
-  interpreter's work
+  Three outputs hold a call today: the EDAG, the generated Rust module,
+  which nanvm-lib runs, and the FunctionalScript one, which writes both call
+  forms, `f(a)` and `a.b(c)` ([output](#output)). `.data.js` and `.json`
+  refuse one, since they are values, and what a call *returns* is not a
+  value the compiler computes — applying a function is the interpreter's
+  work
   ([`fjs/compiler/todo/interpret-edag.md`](../fjs/compiler/todo/interpret-edag.md)) — so
   a module reaching a call has no value output (`a call has no value`), as
-  one holding a function has none. The `.js` output is not a value and has
-  no such excuse: the writer simply has no spelling for either call form yet,
-  and refuses by the name of the node it meets, `a () node` and
-  `a chain step`. Spelling them is the writer's own step, and until it lands
-  a module with a call in it compiles to `.edag.data.js` and `.rs` alone.
+  one holding a function has none.
 - A function is written by the graph outputs, the FunctionalScript, EDAG
-  and Rust ones ([output](#output)), and by the FunctionalScript one only
-  while its body holds nothing that writer cannot spell yet: a call in it
-  is refused by the name of its node, `a () node`. `fjs compile` refuses
+  and Rust ones ([output](#output)). `fjs compile` refuses
   to write a module holding one as DataJS or as JSON
   (`a function has no value`), since a value has no function in it and the
   evaluator computing one has no function value to compute with

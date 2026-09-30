@@ -8,6 +8,10 @@ pub fn run<A: IStaticFunction>() {
     let empty_array: Any<A> = Array::default().to_any();
     let string_array: Any<A> = [string_any("0")].to_array().to_any();
     let object: Any<A> = [(string_key("0"), string_any("0"))].to_object().to_any();
+    let first: Any<A> = A::static_function(|_self, args| {
+    let rest = args.clone().into_iter().to_array();
+    Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
+}, 0, Array::default(), Some("(...$a)=>$a[0]")).to_any();
     check::<A>("nullByNull", strict_ne(Nullish::Null.to_any(), Nullish::Null.to_any()), false.to_any());
     check::<A>("nullByNullSwapped", strict_ne(Nullish::Null.to_any(), Nullish::Null.to_any()), false.to_any());
     check::<A>("undefinedByUndefined", strict_ne(Nullish::Undefined.to_any(), Nullish::Undefined.to_any()), false.to_any());
@@ -66,4 +70,20 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("objectByItselfSwapped", strict_ne(object.clone(), object.clone()), false.to_any());
     check::<A>("objectByEqualObject", strict_ne(object.clone(), [(string_key("0"), string_any("0"))].to_object().to_any()), true.to_any());
     check::<A>("objectByEqualObjectSwapped", strict_ne([(string_key("0"), string_any("0"))].to_object().to_any(), object.clone()), true.to_any());
+    check::<A>("functionByItself", strict_ne(first.clone(), first.clone()), false.to_any());
+    check::<A>("functionByItselfSwapped", strict_ne(first.clone(), first.clone()), false.to_any());
+    check::<A>("functionBySameText", strict_ne(A::static_function(|_self, args| {
+        let rest = args.clone().into_iter().to_array();
+        Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
+    }, 0, Array::default(), Some("(...$a)=>$a[0]")).to_any(), A::static_function(|_self, args| {
+        let rest = args.clone().into_iter().to_array();
+        Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
+    }, 0, Array::default(), Some("(...$a)=>$a[0]")).to_any()), true.to_any());
+    check::<A>("functionBySameTextSwapped", strict_ne(A::static_function(|_self, args| {
+        let rest = args.clone().into_iter().to_array();
+        Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
+    }, 0, Array::default(), Some("(...$a)=>$a[0]")).to_any(), A::static_function(|_self, args| {
+        let rest = args.clone().into_iter().to_array();
+        Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
+    }, 0, Array::default(), Some("(...$a)=>$a[0]")).to_any()), true.to_any());
 }

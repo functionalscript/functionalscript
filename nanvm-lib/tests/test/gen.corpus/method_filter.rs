@@ -9,21 +9,21 @@ pub fn run<A: IStaticFunction>() {
         let c0: Any<A> = A::static_function(|_self, args| {
             let rest = args.clone().into_iter().to_array();
             Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
-        }, 0, Array::default()).to_any();
+        }, 0, Array::default(), Some("(...$a)=>$a[0]")).to_any();
         Ok([c0].to_array().to_any())
     }), [f64_any(0x3ff0000000000000), string_any("a"), f64_any(0x4000000000000000)].to_array().to_any());
     check::<A>("none", Any::dot([f64_any(0x0000000000000000), string_any("")].to_array().to_any(), string_any("filter")).end_call(|| {
         let c0: Any<A> = A::static_function(|_self, args| {
             let rest = args.clone().into_iter().to_array();
             Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
-        }, 0, Array::default()).to_any();
+        }, 0, Array::default(), Some("(...$a)=>$a[0]")).to_any();
         Ok([c0].to_array().to_any())
     }), Array::default().to_any());
     check::<A>("empty", Any::dot(Array::default().to_any(), string_any("filter")).end_call(|| {
         let c0: Any<A> = A::static_function(|_self, args| {
             let rest = args.clone().into_iter().to_array();
             Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
-        }, 0, Array::default()).to_any();
+        }, 0, Array::default(), Some("(...$a)=>$a[0]")).to_any();
         Ok([c0].to_array().to_any())
     }), Array::default().to_any());
     check::<A>("elementsNotAnswers", Any::dot([[(string_key("x"), f64_any(0x3ff0000000000000))].to_object().to_any(), [(string_key("x"), f64_any(0x0000000000000000))].to_object().to_any()].to_array().to_any(), string_any("filter")).end_call(|| {
@@ -31,7 +31,7 @@ pub fn run<A: IStaticFunction>() {
             let rest = args.clone().into_iter().to_array();
             let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
             Any::dot(c0, string_any("x")).end()
-        }, 0, Array::default()).to_any();
+        }, 0, Array::default(), Some("(...$a)=>$a[0].x")).to_any();
         Ok([c0].to_array().to_any())
     }), [[(string_key("x"), f64_any(0x3ff0000000000000))].to_object().to_any()].to_array().to_any());
     check_throws::<A>("throw", Any::dot([Object::default().to_any(), Nullish::Null.to_any()].to_array().to_any(), string_any("filter")).end_call(|| {
@@ -39,7 +39,7 @@ pub fn run<A: IStaticFunction>() {
             let rest = args.clone().into_iter().to_array();
             let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
             Any::dot(c0, string_any("x")).end()
-        }, 0, Array::default()).to_any();
+        }, 0, Array::default(), Some("(...$a)=>$a[0].x")).to_any();
         Ok([c0].to_array().to_any())
     }));
     check_throws::<A>("filterNotAFunction", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("filter")).end_call(|| Ok([f64_any(0x3ff0000000000000)].to_array().to_any())));
@@ -50,7 +50,7 @@ pub fn run<A: IStaticFunction>() {
             let rest = args.clone().into_iter().to_array();
             let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
             Any::dot(c0, string_any("x")).end()
-        }, 0, Array::default()).to_any();
+        }, 0, Array::default(), Some("(...$a)=>$a[0].x")).to_any();
         let c1: Any<A> = [(string_key("x"), f64_any(0x0000000000000000))].to_object().to_any();
         Ok([c0, c1].to_array().to_any())
     }), [[(string_key("x"), f64_any(0x3ff0000000000000))].to_object().to_any()].to_array().to_any());
@@ -59,7 +59,7 @@ pub fn run<A: IStaticFunction>() {
             let rest = args.clone().into_iter().to_array();
             let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
             Any::dot(c0, string_any("x")).end()
-        }, 0, Array::default()).to_any();
+        }, 0, Array::default(), Some("(...$a)=>$a[0].x")).to_any();
         Ok([c0].to_array().to_any())
     }));
 }

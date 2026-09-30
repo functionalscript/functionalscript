@@ -33,4 +33,9 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("argumentIgnored", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("toString")).end_call(|| Ok([f64_any(0x4030000000000000)].to_array().to_any())), string_any("1"));
     check_throws::<A>("null", Any::dot(Nullish::Null.to_any(), string_any("toString")).end_call(|| Ok(Array::default().to_any())));
     check_throws::<A>("undefined", Any::dot(Nullish::Undefined.to_any(), string_any("toString")).end_call(|| Ok(Array::default().to_any())));
+    check::<A>("function", Any::dot(function_any(), string_any("toString")).end_call(|| Ok(Array::default().to_any())), string_any("()=>undefined"));
+    check::<A>("callback", Any::dot(A::static_function(|_self, args| {
+        let rest = args.clone().into_iter().to_array();
+        Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
+    }, 0, Array::default(), Some("(...$a)=>$a[0]")).to_any(), string_any("toString")).end_call(|| Ok(Array::default().to_any())), string_any("(...$a)=>$a[0]"));
 }

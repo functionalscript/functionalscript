@@ -31,7 +31,7 @@ mod tests {
     #[test]
     fn calls_a_function() {
         let identity: Any<A> =
-            A::static_function(|_, args| Ok(args.to_any()), 0, [].to_array()).to_any();
+            A::static_function(|_, args| Ok(args.to_any()), 0, [].to_array(), None).to_any();
         let a = args().unwrap();
         assert_eq!(identity.option_call(|| Ok(a.clone())).end(), Ok(a));
     }

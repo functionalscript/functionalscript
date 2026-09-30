@@ -233,10 +233,11 @@ export const _prohibitedNames = new Set(prototypeNames.filter(name => name !== '
 
 /**
  * The names a method call may not call: `prohibitedCalls`, as a set.
+ * Exported for the writer, as {@link _prohibitedNames} is.
  *
  * @type {ReadonlySet<string>}
  */
-const prohibitedCallNames = new Set(prohibitedCalls)
+export const _prohibitedCallNames = new Set(prohibitedCalls)
 
 /** What an access's key token names: a name's word, the string's text, or the number. @type {(t: DjsTokenWithMetadata) => string | number} */
 const keyNamed = t => {
@@ -262,7 +263,7 @@ const accessClosed = (frame, base) => {
     const { key, method } = frame
     const named = keyNamed(key)
     if (typeof named === 'string') {
-        if (method && prohibitedCallNames.has(named)) { return error(prohibitedCall(key)) }
+        if (method && _prohibitedCallNames.has(named)) { return error(prohibitedCall(key)) }
         if (!method && _prohibitedNames.has(named)) { return error(prohibitedKey(key)) }
     }
     /** @type {AstAccess} */

@@ -106,8 +106,13 @@ const joinOp
 const join
     = reduce(joinOp)(empty)
 
-/** @type {(open: string) => (close: string) => (input: List<List<string>>) => List<string>} */
-const wrap
+/**
+ * Entries joined by commas between an opening and a closing bracket. Shared
+ * with the FunctionalScript writer, which spells a call's arguments this way.
+ *
+ * @type {(open: string) => (close: string) => (input: List<List<string>>) => List<string>}
+ */
+export const wrap
     = open => close => {
         const seqOpen = [open]
         const seqClose = [close]

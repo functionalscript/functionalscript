@@ -88,17 +88,16 @@ export type Info =
  * anywhere a {@link Value} is. A function that is called is a
  * {@link Callback} or a {@link Returns}.
  *
- * One thing about a function is *not* shared data: its string form. JS
- * gives a closure's source text, engine-specific, and `nanvm-lib` refuses
- * it until it renders one (Stage 3 of `nanvm-lib/todo/to-primitive.md`), so
- * a case whose result depends on it — `String` of a function, `+` with one,
- * or either applied to an array or object holding one, since their
- * `ToPrimitive` stringifies the elements — would test two different values.
- * Such a case is not written here: the `String` and binary `+` groups have
- * no function case, and the JS-only half lives in `proof.f.mjs`'s
- * `jsOnly.functionToString`. Every other coercion of a function, nested or
- * not, agrees on both sides (`NaN`, `false`, `'function'`, the function
- * itself), which is what the function cases in the other groups exercise.
+ * One thing about a function is *not* shared data yet: its string form.
+ * `nanvm-lib` answers the FunctionalScript writer's text
+ * (`fjs/compiler/serializer`'s `tryFunctionText`), `()=>undefined` for this
+ * one, while the host evaluator gives its own closure's source. A case whose
+ * result depends on it — `String` of a function, `+` with one, `toString`,
+ * `join`, or a string method handed one — carries the writer's text as its
+ * `expected` and a `host` marker ({@link Case}), so it runs on the Rust side
+ * only. Every other coercion of a function, nested or not, agrees on both
+ * sides (`NaN`, `false`, `'function'`, the function itself), which is what
+ * the unmarked function cases exercise.
  */
 export type FunctionValue = Special<readonly ['function']>
 
@@ -199,12 +198,18 @@ export type OpId = Op1Id | Op2Id | Op12Id | Op3Id
  * reason, the generated Rust keeps the case as a commented-out `TODO`, and
  * the JavaScript proof still runs it. Removing the property is what turns the
  * case on for Rust — the gap list is data, not prose in a README.
+ *
+ * `host` is the other side's marker: the JavaScript proof skips the case and
+ * the Rust side runs it. It marks a case whose `expected` is a function's
+ * text, which the host evaluator does not render the way `nanvm-lib` does
+ * (see {@link FunctionValue}); the value is the reason.
  */
 export type Case<N extends number> = {
     readonly name: string
     readonly args: FixedArray<N, Value>
     readonly expected: Expectation
     readonly rust?: string
+    readonly host?: string
 }
 
 /** The cases of one unary EDAG operation. */
@@ -259,6 +264,7 @@ export type MethodCase = {
     readonly args: readonly [Value, ...(readonly Value[])]
     readonly expected: Expectation
     readonly rust?: string
+    readonly host?: string
 }
 
 /**

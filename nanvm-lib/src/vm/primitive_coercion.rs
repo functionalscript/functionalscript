@@ -7,9 +7,10 @@ use std::result::Result;
 
 const CANNOT_CONVERT_TO_PRIMITIVE_VALUE: &str = "TypeError: Cannot convert to primitive value";
 
-/// A function converts to its text, which is not implemented yet (Stage 3
-/// of `nanvm-lib/todo/to-primitive.md`). Only a result that does not depend
-/// on the text is answered: see `NumberCoercion` and `is_less_than`.
+/// A function converts to its text, and one that has none — a host or
+/// hand-written function, which no EDAG renders — is refused. A result that
+/// does not depend on the text is answered without it: see
+/// `NumberCoercion` and `is_less_than`.
 pub const FUNCTION_TEXT: &str = "TypeError: Cannot convert a function to its text";
 
 /// Preferred type for coercion to primitive, as per ECMAScript specification.
@@ -161,18 +162,20 @@ impl<A: IVm> Dispatch<A> for PrimitiveCoercionOp {
         arr_to_primitive(a, self.0.unwrap_or(ToPrimitivePreferredType::Number))
     }
 
-    fn function(self, _: Function<A>) -> Self::Result {
+    fn function(self, f: Function<A>) -> Self::Result {
         // https://tc39.es/ecma262/#sec-function.prototype.tostring: the
         // stock `valueOf` answers the function itself, so every hint ends at
-        // the function's text.
-        Err(FUNCTION_TEXT.into())
+        // the function's text, and one without a text is refused.
+        f.text()
+            .map(|text| Primitive::String(text.into()))
+            .ok_or_else(|| FUNCTION_TEXT.into())
     }
 }
 
 /// Stage 1 of `nanvm-lib/todo/to-primitive.md`, one test per row: a
-/// function's text is refused, and what does not depend on it keeps its
-/// value. Stage 2, `OrdinaryToPrimitive` calling an object's own methods,
-/// step by step.
+/// function's text is refused where it has none, and what does not depend
+/// on it keeps its value. Stage 2, `OrdinaryToPrimitive` calling an
+/// object's own methods, step by step. Stage 3, a function's text.
 #[cfg(test)]
 mod tests {
     use super::{CANNOT_CONVERT_TO_PRIMITIVE_VALUE, FUNCTION_TEXT};
@@ -188,12 +191,18 @@ mod tests {
     }
 
     fn function() -> Any<A> {
-        A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array()).to_any()
+        A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any()
     }
 
     /// `() => v`, answering its frame's one item.
     fn returns(v: Any<A>) -> Any<A> {
-        A::static_function(|self_, _| Ok(A::frame(self_)[0].clone()), 0, [v].to_array()).to_any()
+        A::static_function(
+            |self_, _| Ok(A::frame(self_)[0].clone()),
+            0,
+            [v].to_array(),
+            None,
+        )
+        .to_any()
     }
 
     /// `() => { throw v }`, throwing its frame's one item.
@@ -202,6 +211,7 @@ mod tests {
             |self_, _| Err(A::frame(self_)[0].clone()),
             0,
             [s(v)].to_array(),
+            None,
         )
         .to_any()
     }
@@ -345,9 +355,37 @@ mod tests {
         assert_eq!((o() + s("!")), Ok(s("[object Object]!")));
     }
 
-    /// `String(f)` and `f + x` observe the text.
+    /// `() => 1` with the text the compiler renders for it.
+    fn texted() -> Any<A> {
+        A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), Some("()=>1")).to_any()
+    }
+
+    /// `String(f)`, `f + x`, `f < "z"` and an array holding `f` read the
+    /// function's text.
     #[test]
-    fn function_text_is_refused() {
+    fn function_text() {
+        assert_eq!(texted().to_string(), Ok("()=>1".into()));
+        assert_eq!(texted() + s("!"), Ok(s("()=>1!")));
+        assert_eq!(1.0.to_any() + texted(), Ok(s("1()=>1")));
+        assert_eq!(texted() + texted(), Ok(s("()=>1()=>1")));
+        assert_eq!(texted().lt(s("z")), Ok(true.to_any()));
+        assert_eq!(s("(").lt(texted()), Ok(true.to_any()));
+        assert_eq!(
+            [texted(), 2.0.to_any()]
+                .to_array()
+                .to_any::<A>()
+                .to_string(),
+            Ok("()=>1,2".into())
+        );
+        assert!(is_nan([texted()].to_array().to_any().to_number()));
+        // and `NaN` wherever the number does not depend on it
+        assert!(is_nan(texted().to_number()));
+    }
+
+    /// `String(f)` and `f + x` observe the text, which a function without
+    /// one does not have.
+    #[test]
+    fn function_without_text_is_refused() {
         refused(function().to_string(), FUNCTION_TEXT);
         refused(function() + s("!"), FUNCTION_TEXT);
         refused(function() + 1.0.to_any(), FUNCTION_TEXT);

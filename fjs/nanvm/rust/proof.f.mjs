@@ -169,7 +169,7 @@ export const proof = {
         assertEq(valueExpr([functionValue]), '[function_any()].to_array().to_any()')
         // A function answering a value is a closure that ignores its
         // arguments.
-        assertEq(valueExpr(returns('a')), 'A::static_function(|_self, _args| { Ok(string_any("a")) }, 0, Array::default()).to_any()')
+        assertEq(valueExpr(returns('a')), 'A::static_function(|_self, _args| { Ok(string_any("a")) }, 0, Array::default(), Some("()=>\\"a\\"")).to_any()')
         // An `unreached` is the throwing operation it lowers to: where it
         // belongs, a lazy position, this is the thunk's own answer — see
         // `generate`'s `skip` case.
@@ -178,7 +178,7 @@ export const proof = {
         assertEq(valueExpr(callback('args')), `A::static_function(|_self, args| {
     let rest = args.clone().into_iter().to_array();
     Ok(rest.clone().to_any())
-}, 0, Array::default()).to_any()`)
+}, 0, Array::default(), Some("(...$a)=>$a")).to_any()`)
     },
     /**
      * The operation nodes, printed straight from the EDAG rather than through

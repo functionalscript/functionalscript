@@ -5,7 +5,7 @@
  * a method call on every type that owns no property of the name — a
  * number, a boolean, a string, a bigint, an array and an object — and an
  * own `toString` shadowing it (`nanvm-lib/todo/member-functions.md`). A
- * function's `toString` is a stub and is left out.
+ * function's `toString` is `function-text.mjs`'s.
  */
 /** @type {(...a: readonly unknown[]) => unknown} */
 const own = (...a) => "own";

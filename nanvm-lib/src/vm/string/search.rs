@@ -32,8 +32,8 @@ impl<A: IVm> String<A> {
     /// An empty search string is found at the clamped `pos` itself.
     pub(crate) fn index_of(&self, search: Any<A>, pos: Any<A>) -> Result<Option<u32>, Any<A>> {
         // The shared conversion calls a needle's own `toString`/`valueOf`,
-        // and refuses a function until its text exists: Stage 3 of
-        // `nanvm-lib/todo/to-primitive.md`. Every search in this file
+        // answers a function's text and refuses a function without one
+        // (`FUNCTION_TEXT`). Every search in this file
         // converts its needle here.
         let needle = search.to_string()?;
         let from = clamped(position(pos)?, self.length());
@@ -115,10 +115,10 @@ mod tests {
     /// searched for as what that method answers.
     #[test]
     fn converts_a_needle_through_the_shared_conversion() {
-        let f = || A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array()).to_any();
+        let f = || A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any();
         let hay: String<A> = "function".into();
         assert_eq!(hay.index_of(f(), undefined()), Err(FUNCTION_TEXT.into()));
-        let c = A::static_function(|_, _| Ok("c".into()), 0, [].to_array()).to_any();
+        let c = A::static_function(|_, _| Ok("c".into()), 0, [].to_array(), None).to_any();
         let own: Any<A> = [("toString".into(), c)].to_object().to_any();
         assert_eq!(hay.index_of(own, undefined()), Ok(Some(3)));
     }
