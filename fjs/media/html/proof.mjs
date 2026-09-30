@@ -360,6 +360,25 @@ export const proof = {
         assertStructurallySame(document.log.slice(before), [])
     },
     /**
+     * **An HTML attribute is compared as the browser stores it.** A browser
+     * lowercases an HTML attribute's name when it is set, so a view that
+     * spells `TITLE` finds `title` on the element; compared as written, every
+     * patch removed it and added it back. SVG keeps its case: `viewBox` is
+     * not `viewbox`.
+     */
+    patchComparesHtmlNamesLowercase: () => {
+        const document = dom()
+        // The stand-in stores names as written, so it is given what a
+        // browser would hold: `title`, lowercase.
+        const target = built(document, ['div', { title: 'x', 'data-Ä': 'y' }, ['svg', { viewBox: '0 0 1 1' }]])
+        const before = document.log.length
+        patch(target, ['div', { TITLE: 'x', 'data-Ä': 'y' }, ['svg', { viewBox: '0 0 1 1' }]])
+        assertStructurallySame(document.log.slice(before), [])
+        patch(target, ['div', { TITLE: 'z', 'data-Ä': 'y' }, ['svg', { viewBox: '0 0 1 1' }]])
+        assertEq(target.attributes.get('title'), 'z')
+        assertEq(target.attributes.has('TITLE'), false)
+    },
+    /**
      * **A node of another kind at a position is replaced**: an element where
      * text was, text where an element was, and an element of the right tag in
      * the wrong namespace — an HTML `a` is not the SVG `a` a diagram needs.

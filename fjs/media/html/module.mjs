@@ -239,7 +239,10 @@ const textNode = 3
  * {@link fill}.
  *
  * - **Attributes are made exactly the element's.** One it does not name is
- *   removed, and one it names is written only when its value differs.
+ *   removed, and one it names is written only when its value differs. On an
+ *   HTML element a name is compared as the browser stores it, ASCII
+ *   lowercase: `TITLE` is the `title` already there, not a stranger to
+ *   remove and add back on every patch.
  * - **Children are matched by position.** A text node takes the new text; an
  *   element of the tag and namespace the child would be created with is
  *   patched in turn; anything else is replaced by a new node. Extra children
@@ -259,7 +262,8 @@ const textNode = 3
 export const patch = (target, element) => {
     const [tag, attributes, children] = parseElement(element)
     if (tag === 'script') { throw new Error('media/html: a `script` element is refused: built into a page, it would run') }
-    const wanted = definedEntries(attributes)
+    const wanted = definedEntries(attributes).map(([name, value]) =>
+        /** @type {const} */ ([storedName(target, name), value]))
     const names = new Set(wanted.map(([name]) => name))
     for (const name of target.getAttributeNames()) {
         if (!names.has(name)) { target.removeAttribute(name) }
@@ -296,6 +300,17 @@ export const patch = (target, element) => {
     showDefault(target)
     return target
 }
+
+/**
+ * The name an attribute is stored under on `target`: ASCII lowercase on an
+ * HTML element, as a browser lowercases it when it is set, and as written
+ * on an SVG or MathML one, where case is part of the name (`viewBox`).
+ *
+ * @type {(target: Element, name: string) => string}
+ */
+const storedName = (target, name) => target.namespaceURI !== xhtml
+    ? name
+    : [...name].map(c => c >= 'A' && c <= 'Z' ? c.toLowerCase() : c).join('')
 
 /**
  * Puts `fresh` where `node` is, or after the last child when there is no
