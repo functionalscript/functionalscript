@@ -40,11 +40,13 @@ export type _Ref = AstModuleRef | AstRest | _Parameter | AstFrameRef
  * their own — the one the fold makes of them, {@link _GuardFrame} — but
  * JavaScript reads them in the block the guard stands in, so the names
  * that block has bound, `enclosing` — one environment per body the block
- * was continued from — are theirs not to bind again, a `const` twice in
- * one block being a syntax error there, and they begin with the block's
- * `read` rather than none, a `const` of a word the block has already read
- * from outside being the capture-shadowing the fold refuses. A function's
- * own body, a guard's block and the module enclose nothing.
+ * was continued from, a list so that each continuation adds one to the
+ * ones before it rather than copying them — are theirs not to bind again,
+ * a `const` twice in one block being a syntax error there, and they begin
+ * with the block's `read` rather than none, a `const` of a word the block
+ * has already read from outside being the capture-shadowing the fold
+ * refuses. A function's own body, a guard's block and the module enclose
+ * nothing.
  */
 export type _Scope = {
     readonly names: _Env
@@ -52,7 +54,7 @@ export type _Scope = {
     readonly count: number
     readonly captures: readonly _Ref[]
     readonly read: readonly string[]
-    readonly enclosing: readonly _Env[]
+    readonly enclosing: List<_Env>
     readonly outer: _Scope | null
 }
 
@@ -106,12 +108,19 @@ export type _FunctionFrame = {
  * wrong in both halves answers for the half a reader meets first; `done`
  * holds the entries before it, a list for the reason a container's is.
  *
+ * The body begins at `first`: `0` for a function's body, and for the
+ * statements after a guard the position after it in the same list, which
+ * the continuation shares with the body it continues rather than copies —
+ * a body of many guards would otherwise copy its tail once per guard. The
+ * entry a statement makes is numbered from `first`.
+ *
  * The current statement's tag distinguishes a declaration's initializer
  * from the final return value, where `word` names nothing.
  */
 export type _BodyFrame = {
-    /** The body's statements in order, the grammar's tuple or, after a guard, its tail — the terminator last either way. */
-    readonly statements: readonly Block[1][number][]
+    /** The statements of the block, the grammar's list, the terminator last. */
+    readonly statements: Block[1]
+    readonly first: number
     readonly index: number
     readonly word: string
     readonly done: List<AstConst>

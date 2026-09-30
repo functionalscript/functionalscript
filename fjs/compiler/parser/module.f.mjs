@@ -539,11 +539,11 @@ const functionScope = list => {
  * @type {(stack: _Stack, scope: _Scope, frame: _BodyFrame) => _State}
  */
 const bodyRound = (stack, scope, frame) => {
-    const { statements, index } = frame
+    const { statements, first, index } = frame
     const [kind, statement] = statements[index]
     // the statement's own beginning before either half of it: the one
     // before it, written without its `;`, ends at a newline or not at all
-    if (unterminated(index === 0 ? null : statements[index - 1][1], statement)) {
+    if (unterminated(index === first ? null : statements[index - 1][1], statement)) {
         return [stack, scope, error(unexpectedToken(statement.start))]
     }
     if (kind === 'if') { return [{ top: frame, rest: stack }, scope, ['enter', statement.condition]] }
@@ -557,7 +557,7 @@ const bodyRound = (stack, scope, frame) => {
     // the statements after a guard are JavaScript's one block with the
     // ones before it, so a name that block has bound is not theirs to bind
     // again, though they are resolved as a body of their own
-    if (scope.enclosing.some(env => at(word)(env) !== null)) { return [stack, scope, error(duplicateId(statement.name))] }
+    if (toArray(scope.enclosing).some(env => at(word)(env) !== null)) { return [stack, scope, error(duplicateId(statement.name))] }
     // a name the body already read from outside is refused before the
     // value is read, and one its own initializer reads once it has been
     // (`returned`)
@@ -611,10 +611,10 @@ const enter = (stack, scope, node) => {
             if (tag === 'error') { return [stack, scope, error(bound)] }
             const [names, count] = bound
             /** @type {_Scope} */
-            const inner = { names, count, captures: [], read: [], enclosing: [], outer: scope }
+            const inner = { names, count, captures: [], read: [], enclosing: null, outer: scope }
             const body = node[2]
             return body[0] === 'block'
-                ? bodyRound(stack, inner, { statements: body[1], index: 0, word: '', done: null })
+                ? bodyRound(stack, inner, { statements: body[1], first: 0, index: 0, word: '', done: null })
                 : [{ top: { function: true }, rest: stack }, inner, ['enter', body]]
         }
         // a block stands only as a function's body, which `'=>'` above
@@ -657,15 +657,16 @@ const returned = (stack, scope, frame, value) => {
             // a name its own initializer read from outside
             if (scope.read.includes(frame.word)) { return [stack, scope, error(captureShadowed(statement.name))] }
             // the binding lands after the value, keeping the name out of its
-            // own initializer's scope, and names entry `index` of this body
+            // own initializer's scope, and names the entry this statement
+            // makes, counted from the body's first
             return bodyRound(
                 stack,
-                { ...scope, names: extended(scope.names)(frame.word, ['cref', frame.index]) },
+                { ...scope, names: extended(scope.names)(frame.word, ['cref', frame.index - frame.first]) },
                 { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) })
         }
         // a guard's condition: its block is the first arm, a block of
         // JavaScript's own, so it may bind what the body has bound or read
-        if (kind === 'if') { return arm(stack, scope, { guard: statement, body: frame, condition: value, then: null }, statement.block[1], [], []) }
+        if (kind === 'if') { return arm(stack, scope, { guard: statement, body: frame, condition: value, then: null }, statement.block[1], 0, null, []) }
         // the body's last entry: what it returns, or the `throw` it ends with
         return closed(stack, scope, [...toArray(frame.done), kind === 'throw' ? thrown(value) : value])
     }
@@ -676,7 +677,7 @@ const returned = (stack, scope, frame, value) => {
         // second arm, JavaScript's same block as the ones before it — what
         // that block has bound, and what it has read from outside, the
         // condition and the first arm included, is not theirs to bind
-        if (frame.then === null) { return arm(stack, scope, { ...frame, then: call }, after(frame.body), [...scope.enclosing, scope.names], scope.read) }
+        if (frame.then === null) { return arm(stack, scope, { ...frame, then: call }, frame.body.statements, frame.body.index + 1, { first: scope.names, tail: scope.enclosing }, scope.read) }
         /** @type {AstConditional} */
         const conditional = ['?:', frame.condition, frame.then, call]
         return closed(stack, scope, [...toArray(frame.body.done), conditional])
@@ -685,10 +686,12 @@ const returned = (stack, scope, frame, value) => {
 }
 
 /**
- * An arm of a guard entered: its statements resolved as the body of a
- * parameterless function of its own, in a scope inside `scope` that
- * captures what it reads from there, under the guard's frame, which
- * receives the function once the body closes. `enclosing` and `read` are
+ * An arm of a guard entered: its statements from `first` on — the guard's
+ * block from its start, the statements after the guard from the position
+ * after it in the body's own list, shared rather than copied — resolved as
+ * the body of a parameterless function of its own, in a scope inside
+ * `scope` that captures what it reads from there, under the guard's frame,
+ * which receives the function once the body closes. `enclosing` and `read` are
  * what the arm may not bind: nothing for the guard's block, a block of
  * JavaScript's own; and for the statements after the guard the names the
  * block they continue has bound, and the words it has read from outside
@@ -698,18 +701,10 @@ const returned = (stack, scope, frame, value) => {
  * read named in JavaScript, before its declaration
  * ({@link captureShadowed}).
  *
- * @type {(stack: _Stack, scope: _Scope, frame: _GuardFrame, statements: readonly Block[1][number][], enclosing: readonly _Env[], read: readonly string[]) => _State}
+ * @type {(stack: _Stack, scope: _Scope, frame: _GuardFrame, statements: Block[1], first: number, enclosing: List<_Env>, read: readonly string[]) => _State}
  */
-const arm = (stack, scope, frame, statements, enclosing, read) =>
-    bodyRound({ top: frame, rest: stack }, { names: empty, count: 0, captures: [], read, enclosing, outer: scope }, { statements, index: 0, word: '', done: null })
-
-/**
- * The statements after the one a body frame stands at, the body's own
- * terminator last: what runs when a guard's condition is falsy.
- *
- * @type {(frame: _BodyFrame) => readonly Block[1][number][]}
- */
-const after = ({ statements, index }) => statements.slice(index + 1)
+const arm = (stack, scope, frame, statements, first, enclosing, read) =>
+    bodyRound({ top: frame, rest: stack }, { names: empty, count: 0, captures: [], read, enclosing, outer: scope }, { statements, first, index: first, word: '', done: null })
 
 /**
  * A function closed over its body, resolved in `scope`: the scope around
@@ -741,7 +736,7 @@ const closed = (stack, scope, body) => {
  */
 const evaluate = env => root => {
     /** @type {_State} */
-    let state = [null, { names: env, count: 0, captures: [], read: [], enclosing: [], outer: null }, ['enter', root]]
+    let state = [null, { names: env, count: 0, captures: [], read: [], enclosing: null, outer: null }, ['enter', root]]
     while (true) {
         const [stack, scope, [tag, payload]] = state
         if (tag === 'enter') {
