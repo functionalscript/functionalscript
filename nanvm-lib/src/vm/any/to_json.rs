@@ -482,8 +482,12 @@ mod tests {
 
     #[test]
     fn function_errors() {
-        let f: Function<A> =
-            A::static_function(|_, _| Ok(Nullish::Undefined.to_any()), 0, [].to_array());
+        let f: Function<A> = A::static_function(
+            |_, _| Ok(Nullish::Undefined.to_any()),
+            0,
+            [].to_array(),
+            None,
+        );
         assert_eq!(f.to_any::<A>().to_json(), Err(super::JsonError::Function));
     }
 

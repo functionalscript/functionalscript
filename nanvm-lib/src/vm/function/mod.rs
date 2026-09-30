@@ -25,4 +25,7 @@ impl<A: IVm> Function<A> {
     pub fn length(&self) -> u32 {
         self.0.length()
     }
+    pub fn text(&self) -> Option<&'static str> {
+        self.0.text()
+    }
 }

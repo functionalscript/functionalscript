@@ -51,7 +51,7 @@
 
 import { op1Id, op3Id } from '../edag/module.f.mjs'
 import { validate } from '../rtti/validate/module.f.mjs'
-import { functionValue, ref, returns, throws, unreached } from './constructors/module.f.js'
+import { callback, functionText, functionValue, ref, returns, throws, unreached } from './constructors/module.f.js'
 import { groups as memberGroups } from './member/module.f.mjs'
 
 export { callback, functionValue, ref, returns, throws, unreached } from './constructors/module.f.js'
@@ -174,8 +174,9 @@ export const arityOf = g => {
  * A fresh node on every call, like every other lowered value, so two
  * function operands are two closures and never one node reached twice.
  * Both consumers know this shape: `amnesia` establishes it as any `=>`,
- * and the Rust printer, which has no closures to print, renders exactly this
- * node as the harness's one function value and refuses any other.
+ * and the Rust printer renders exactly this node as the harness's one
+ * function value, `function_any()`, as it does a compiled `() => undefined`,
+ * the same node; its text is the writer's, `()=>undefined`.
  *
  * @type {() => Exp}
  */
@@ -744,6 +745,9 @@ const addCases = [
     { name: 'emptyObjectPlusOne', args: [{}, 1], expected: '[object Object]1' },
     { name: 'numberPlusBigint', args: [1, 1n], expected: throws },
     { name: 'bigintPlusNumber', args: [1n, 1], expected: throws },
+    // A function's text, the writer's: the Rust side's alone (`host`).
+    { name: 'functionPlusString', args: [functionValue, '!'], expected: '()=>undefined!', host: functionText },
+    { name: 'onePlusFunction', args: [1, functionValue], expected: '1()=>undefined', host: functionText },
 ]
 
 /**
@@ -1171,6 +1175,10 @@ const stringCoercionCases = [
     { name: 'objectOwnToStringNotPrimitive', args: [{ toString: returns({}), valueOf: returns(1) }], expected: '1' },
     { name: 'objectOwnNoPrimitive', args: [{ toString: returns([]) }], expected: throws },
     { name: 'objectOwnToStringThrows', args: [{ toString: returns(unreached) }], expected: throws },
+    // A function's text, the writer's: the Rust side's alone (`host`).
+    { name: 'function', args: [functionValue], expected: '()=>undefined', host: functionText },
+    { name: 'callback', args: [callback('double')], expected: '(...$a)=>$a[0]*2', host: functionText },
+    { name: 'arrayOfFunction', args: [[functionValue, 1]], expected: '()=>undefined,1', host: functionText },
 ]
 
 /**
@@ -1536,6 +1544,7 @@ const sharedValues = {
     emptyArray: [],
     stringArray: ['0'],
     object: { '0': '0' },
+    first: callback('first'),
 }
 
 /**
@@ -1579,6 +1588,10 @@ const strictEqualityCases = [
     { name: 'stringArrayByItself', args: [ref('stringArray'), ref('stringArray')], expected: true },
     { name: 'objectByItself', args: [ref('object'), ref('object')], expected: true },
     { name: 'objectByEqualObject', args: [ref('object'), { '0': '0' }], expected: false },
+    // A function's text is no part of its identity: two functions with one
+    // text are two values.
+    { name: 'functionByItself', args: [ref('first'), ref('first')], expected: true },
+    { name: 'functionBySameText', args: [callback('first'), callback('first')], expected: false },
 ]
 
 /** @type {Data} */

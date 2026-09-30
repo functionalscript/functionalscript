@@ -12,7 +12,7 @@ pub fn run<A: IStaticFunction>() {
             let c1: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
             let c2: Any<A> = [c1].to_array().to_any();
             Ok([c0, c2].to_array().to_any())
-        }, 0, Array::default()).to_any();
+        }, 0, Array::default(), Some("(...$a)=>[$a[0],[$a[0]]]")).to_any();
         Ok([c0].to_array().to_any())
     }), [f64_any(0x3ff0000000000000), [f64_any(0x3ff0000000000000)].to_array().to_any(), f64_any(0x4000000000000000), [f64_any(0x4000000000000000)].to_array().to_any()].to_array().to_any());
     check::<A>("notArrays", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("flatMap")).end_call(|| {
@@ -20,21 +20,21 @@ pub fn run<A: IStaticFunction>() {
             let rest = args.clone().into_iter().to_array();
             let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
             c0 * f64_any(0x4000000000000000)
-        }, 0, Array::default()).to_any();
+        }, 0, Array::default(), Some("(...$a)=>$a[0]*2")).to_any();
         Ok([c0].to_array().to_any())
     }), [f64_any(0x4000000000000000), f64_any(0x4010000000000000)].to_array().to_any());
     check::<A>("arguments", Any::dot([f64_any(0x4024000000000000)].to_array().to_any(), string_any("flatMap")).end_call(|| {
         let c0: Any<A> = A::static_function(|_self, args| {
             let rest = args.clone().into_iter().to_array();
             Ok(rest.clone().to_any())
-        }, 0, Array::default()).to_any();
+        }, 0, Array::default(), Some("(...$a)=>$a")).to_any();
         Ok([c0].to_array().to_any())
     }), [f64_any(0x4024000000000000), f64_any(0x0000000000000000), [f64_any(0x4024000000000000)].to_array().to_any()].to_array().to_any());
     check::<A>("emptyAnswer", Any::dot([Array::default().to_any(), [f64_any(0x3ff0000000000000)].to_array().to_any()].to_array().to_any(), string_any("flatMap")).end_call(|| {
         let c0: Any<A> = A::static_function(|_self, args| {
             let rest = args.clone().into_iter().to_array();
             Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
-        }, 0, Array::default()).to_any();
+        }, 0, Array::default(), Some("(...$a)=>$a[0]")).to_any();
         Ok([c0].to_array().to_any())
     }), [f64_any(0x3ff0000000000000)].to_array().to_any());
     check::<A>("empty", Any::dot(Array::default().to_any(), string_any("flatMap")).end_call(|| {
@@ -44,7 +44,7 @@ pub fn run<A: IStaticFunction>() {
             let c1: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
             let c2: Any<A> = [c1].to_array().to_any();
             Ok([c0, c2].to_array().to_any())
-        }, 0, Array::default()).to_any();
+        }, 0, Array::default(), Some("(...$a)=>[$a[0],[$a[0]]]")).to_any();
         Ok([c0].to_array().to_any())
     }), Array::default().to_any());
     check_throws::<A>("throw", Any::dot([Object::default().to_any(), Nullish::Null.to_any()].to_array().to_any(), string_any("flatMap")).end_call(|| {
@@ -52,7 +52,7 @@ pub fn run<A: IStaticFunction>() {
             let rest = args.clone().into_iter().to_array();
             let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
             Any::dot(c0, string_any("x")).end()
-        }, 0, Array::default()).to_any();
+        }, 0, Array::default(), Some("(...$a)=>$a[0].x")).to_any();
         Ok([c0].to_array().to_any())
     }));
     check_throws::<A>("flatMapNotAFunction", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("flatMap")).end_call(|| Ok([f64_any(0x3ff0000000000000)].to_array().to_any())));
@@ -63,7 +63,7 @@ pub fn run<A: IStaticFunction>() {
             let rest = args.clone().into_iter().to_array();
             let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
             Any::dot(c0, string_any("x")).end()
-        }, 0, Array::default()).to_any();
+        }, 0, Array::default(), Some("(...$a)=>$a[0].x")).to_any();
         let c1: Any<A> = [(string_key("x"), f64_any(0x0000000000000000))].to_object().to_any();
         Ok([c0, c1].to_array().to_any())
     }), [f64_any(0x3ff0000000000000)].to_array().to_any());
@@ -72,7 +72,7 @@ pub fn run<A: IStaticFunction>() {
             let rest = args.clone().into_iter().to_array();
             let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
             Any::dot(c0, string_any("x")).end()
-        }, 0, Array::default()).to_any();
+        }, 0, Array::default(), Some("(...$a)=>$a[0].x")).to_any();
         Ok([c0].to_array().to_any())
     }));
 }

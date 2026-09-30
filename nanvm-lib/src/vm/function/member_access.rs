@@ -30,6 +30,7 @@ mod tests {
             |_, _| Ok(Nullish::Undefined.to_any()),
             length,
             [].to_array(),
+            None,
         )
     }
 

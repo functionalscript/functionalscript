@@ -36,8 +36,9 @@ impl IStaticFunction for Naive {
         code: StaticCode<Naive>,
         length: u32,
         frame: Array<Naive>,
+        text: Option<&'static str>,
     ) -> crate::vm::Function<Naive> {
-        crate::vm::Function::new(Function::new(code, length, frame))
+        crate::vm::Function::new(Function::new(code, length, frame, text))
     }
 
     fn frame(self_: &Function) -> &Array<Naive> {

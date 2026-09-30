@@ -15,8 +15,20 @@ pub type StaticCode<A> =
 ///
 /// Generated and hand-written code that constructs functions bounds on this
 /// trait where it would bound on [`IVm`] alone.
+///
+/// `text` is the function's text, what `String(f)` answers: the compiler
+/// renders it from the function's EDAG, one `&'static str` per arrow in the
+/// source, shared by every function the arrow makes. `None` is a function
+/// with no text — a host or hand-written one, with no EDAG, or one whose
+/// body the renderer cannot spell yet — whose conversion to a string is
+/// refused.
 pub trait IStaticFunction: IVm {
-    fn static_function(code: StaticCode<Self>, length: u32, frame: Array<Self>) -> Function<Self>;
+    fn static_function(
+        code: StaticCode<Self>,
+        length: u32,
+        frame: Array<Self>,
+        text: Option<&'static str>,
+    ) -> Function<Self>;
     /// The frame `static_function` was given, read by the code through its `self_`.
     fn frame(self_: &Self::InternalFunction) -> &Array<Self>;
 }
