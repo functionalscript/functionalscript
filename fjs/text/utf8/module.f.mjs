@@ -21,7 +21,7 @@ import {
     restart,
 } from '../code_point/module.f.mjs'
 import { u8ListMsb, isWholeBytes } from '../../types/bit_vec/module.f.mjs'
-import { contains } from '../../types/range/module.f.mjs'
+import { contains } from '../../types/range/module.f.js'
 import { codePointListToString } from '../utf16/module.f.mjs'
 
 /**

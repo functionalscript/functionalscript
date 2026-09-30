@@ -16,7 +16,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { rust } from '../config/module.f.mjs'
+import { rust } from '../config/module.f.js'
 import { devNixJob } from '../dev/module.f.mjs'
 import { flakeText } from '../nix/module.f.mjs'
 import {

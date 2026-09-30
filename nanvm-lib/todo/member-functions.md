@@ -8,7 +8,7 @@ function-text semantics remain incomplete, as tracked in the checklist below
 
 The compiler admits a method call whose name is a built-in member function,
 `[1, 2].at(0)` or `n.toFixed(2)`: the names `allowedCalls` in
-[`fjs/js/prototype`](../../fjs/js/prototype/module.f.mjs) lists, one row
+[`fjs/js/prototype`](../../fjs/js/prototype/module.f.js) lists, one row
 each with its reason in [its README](../../fjs/js/prototype/README.md).
 The VM answers `toString` and nothing else. A call step —
 `PropertyLambda::end_call`, `OptionPropertyLambda::call`, `option_call` and

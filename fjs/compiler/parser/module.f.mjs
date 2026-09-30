@@ -55,7 +55,7 @@ import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { maxLength } from '../../types/function/length/module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.mjs'
-import { prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.mjs'
+import { prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.js'
 import { nameOf, parseSyntax, textOf } from './syntax/module.f.mjs'
 
 // -- resolving the names ------------------------------------------------------

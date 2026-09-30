@@ -3,7 +3,7 @@
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { allowedCalls, prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.mjs'
+import { allowedCalls, prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.js'
 import { directory, generate, path, pending, rows, types } from './module.f.mjs'
 
 /** @type {(pairs: readonly (readonly[string, string])[]) => readonly string[]} */

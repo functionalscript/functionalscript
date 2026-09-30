@@ -8,7 +8,7 @@
  * escapes the proof instead of being reported, which is a real difference in
  * when JavaScriptCore reads that property rather than a slow machine. So the
  * flake keeps the snapshot's packaging and replaces the archive it unpacks with
- * the release named in `../config/module.f.mjs`.
+ * the release named in `../config/module.f.js`.
  *
  * @module
  *
@@ -16,7 +16,7 @@
  * @import { NixPin } from '../nix/types.ts'
  */
 
-import { bun, bunSources } from '../config/module.f.mjs'
+import { bun, bunSources } from '../config/module.f.js'
 import { nixInstall, nixShell, nixSteps, nixVersionStep } from '../nix/module.f.mjs'
 import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.mjs'
 
@@ -31,7 +31,7 @@ export const bunJobId = /** @type {const} */ ('bun')
  * build. `../dev/module.f.mjs` asks for it by name and stays free of all of
  * that.
  *
- * The archive name and the hash travel together out of `../config/module.f.mjs`.
+ * The archive name and the hash travel together out of `../config/module.f.js`.
  * Deriving the name from the system while looking the hash up separately is
  * exactly how the two would come apart — and the names are not derivable
  * anyway, since Intel macOS takes a baseline build the others do not.

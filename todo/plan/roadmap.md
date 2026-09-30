@@ -143,13 +143,13 @@ coverage. Its stage-1 issue is complete and deleted; the contract it left is
    synthetic compiler fixtures may land earlier, but compiler readiness never
    decided whether a Stage-1 source or proof file migrated.
 3. Stage 2 migrates compiler-supported dependency-closed groups from `.f.mjs` to
-   `.f.js`. One thing gates the first rename now that stage 1 is done, and
-   [`fjs-nanvm-integration.md`](../fjs-nanvm-integration.md) — which performs it
-   — carries it as its only **Blocked by**:
-   [authored `.f.js` package support](../../fjs/ci/todo/f-js-package-support.md),
-   so that a standalone `.f.js` is directly type-checked, gets a `.d.ts`, is
-   packed, and resolves for a clean consumer. That task is itself no longer
-   blocked — its stage-1 precondition is met — so it can proceed now. The
+   `.f.js`. The first renames have landed —
+   [`fjs-nanvm-integration.md`](../fjs-nanvm-integration.md) performs them,
+   and records the decision — on `fjs compile` with no arguments holding every
+   `.f.js` to the compiler in CI. One task of
+   [authored `.f.js` package support](../../fjs/ci/todo/f-js-package-support.md)
+   is still open, `package-check` importing a `.f.js` from a clean consumer;
+   it gates no rename. The
    boundary the rename must respect is in
    [`fjs/compiler/README.md`](../../fjs/compiler/README.md).
 4. An authored `.f.js` is the compiler-compatibility marker: the parser/compiler

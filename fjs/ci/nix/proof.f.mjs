@@ -8,7 +8,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { step as ioStep } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
-import { nixpkgs, node, rustOverlay, typescript } from '../config/module.f.mjs'
+import { nixpkgs, rustOverlay, typescript } from '../config/module.f.js'
 import { devJobId, devSystems } from '../dev/module.f.mjs'
 import { nixJobs } from '../module.f.mjs'
 import { nodeNixJobs } from '../node/module.f.mjs'

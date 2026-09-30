@@ -131,7 +131,7 @@ as the specification defines an access and as amnesia's `own` reads today
 inherited property is `undefined` whatever a realm puts on a prototype.
 Validation refuses, besides, an access whose index is a prohibited property
 name — `constructor`, `__proto__`, every name a built-in prototype gives by
-the parser's list in [`fjs/js/prototype`](../../js/prototype/module.f.mjs),
+the parser's list in [`fjs/js/prototype`](../../js/prototype/module.f.js),
 all but `length` — since such a graph is not one the compiler emits.
 
 ### Existing value-producing API integration

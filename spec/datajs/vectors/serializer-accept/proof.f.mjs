@@ -8,7 +8,7 @@ import { difference } from '../../../../fjs/media/datajs/vectors/module.f.mjs'
 import { tryParse, tryStringify } from '../../../../fjs/media/datajs/module.f.mjs'
 import { stringToCodePointList } from '../../../../fjs/text/utf16/module.f.mjs'
 import { toArray } from '../../../../fjs/types/list/module.f.mjs'
-import serializerAccept from './data.f.mjs'
+import serializerAccept from './data.f.js'
 
 /** The set, typed at the import since a data module carries no annotations. */
 const set = /** @type {readonly SerializerAccept[]} */ (serializerAccept)
