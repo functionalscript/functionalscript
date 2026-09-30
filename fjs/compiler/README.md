@@ -211,8 +211,9 @@ lazy position is anchored, since its own statement runs at load whatever
 the operator later decides, so `const c = null.x; export default [a && c,
 b && c];` throws at load in both languages. The sharing sweep counts a
 lazy position as any other — identity does not care which position a
-reference is made from. The writer refuses every operator node, Stage B's
-as Stage A's, until it can spell their precedence.
+reference is made from. The writer spells Stage B's operators, with the
+parentheses their precedence asks for, and refuses every Stage A node until
+it can spell that precedence too.
 A call is a step after a value, as an access is, and the callee picks which of
 the EDAG's two forms it lowers to: an access as the callee is a method call,
 `a.b(c)`, whose receiver is that access's base, so the access owns the call
@@ -223,9 +224,17 @@ spreads. The plain form over an access is the *detached* receiver,
 source writes one — `(a.b)(c)` keeps the receiver and is the method call
 again, parentheses preserving the property reference. A call mints identity — two calls are
 two nodes and a `const` naming one is one — which is what a body's `const`
-keeps. [`serializer`](serializer/module.f.mjs) has no spelling for either
-form yet and refuses both by name, so a module with a call in it compiles to
-the EDAG output alone. When it gets one, a negative callee needs the care an
+keeps. One call lowers to no call at all: a parameterless function written
+at the call and called with no arguments, `(() => { const x = f(); return
+[x, x]; })()`, is its body where the call stands, its captures the enclosing
+scope's own nodes and what its value does not reach anchored at the nearest
+block root, a scope's root or a lazy operand — `isInlinedCall` in
+[`ast`](ast/module.f.mjs) names the conditions and the argument, and
+[spec: functions](../../spec/README.md#functions) the rule. The writer
+spells the same idiom back where a lazy operand shares a value nothing else
+reaches. [`serializer`](serializer/module.f.mjs) has no spelling for either
+call form yet and refuses both by name, so a module with a call in it
+compiles to the EDAG output alone. When it gets one, a negative callee needs the care an
 access base takes: `-1()` is `-(1())`, so `['()', -1, args]` cannot be
 written `-1()` — the grammar spells it, `(-1)()`, and until the writer reads
 a group a `const` does. The writer's proof refuses that shape by name, so
