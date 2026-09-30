@@ -295,7 +295,7 @@ not.
 
 **A body cell that fails after the headers are written must destroy the socket,
 not end the response.** Measured on Darwin with Node 26.8.1 — the version
-[`fjs/ci/config/module.f.mjs`](../../../ci/config/module.f.mjs) pins, with the
+[`fjs/ci/config/module.f.js`](../../../ci/config/module.f.js) pins, with the
 22.23.2 it pins beside it agreeing row for row — one 131,072-byte chunk written
 of a longer body, then the producer failing:
 
@@ -453,7 +453,7 @@ there is no row for the long one, and no event to put in it.
 
 Node 23.11.0 is not a version this repository pins. The pinned set is 26.8.1,
 24.19.0 and 22.23.2
-([`../../../ci/config/module.f.mjs`](../../../ci/config/module.f.mjs)); the
+([`../../../ci/config/module.f.js`](../../../ci/config/module.f.js)); the
 destroy table above and the overrun figures just given were measured on the
 first and the last of those and reproduced row for row. Three figures below are
 23.11.0's alone and say so where they appear: the short-read one, the
@@ -896,7 +896,7 @@ the handful of properties the pump leans on, and a compatibility layer is exactl
 where those might diverge. So each was asked of each runtime rather than assumed.
 
 Measured on Darwin, arm64, against the versions
-[`../../../ci/config/module.f.mjs`](../../../ci/config/module.f.mjs) pins:
+[`../../../ci/config/module.f.js`](../../../ci/config/module.f.js) pins:
 
 | what the pump leans on | Node 26.8.1 | Bun 1.4.2 | Deno 2.8.3 |
 | --- | --- | --- | --- |
@@ -1023,7 +1023,7 @@ at the client's pace and discarding it.
 `connection: close` rather than destroying the socket, because the client is then
 *told* rather than cut off. Measured on Darwin with Node 23.11.0 — not a version
 this repository pins, and the pinned set is
-[`../../../ci/config/module.f.mjs`](../../../ci/config/module.f.mjs)'s — a
+[`../../../ci/config/module.f.js`](../../../ci/config/module.f.js)'s — a
 200,000-byte answer to an unread 300,000-byte `POST` arrived whole, carried
 `connection: close`, and the next request over the same keep-alive agent took a
 fresh socket. A `res.destroy()` instead races the flush, and the destroy table

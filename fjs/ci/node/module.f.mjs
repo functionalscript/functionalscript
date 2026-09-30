@@ -8,7 +8,7 @@
  * @import { NixJob } from '../nix/types.ts'
  */
 
-import { node, typescript } from '../config/module.f.mjs'
+import { node, typescript } from '../config/module.f.js'
 import { install, test, ubuntuArm, uses } from '../common/module.f.mjs'
 import { nixInstall, nixShell, nixSteps, nixSystems, nixVersionStep } from '../nix/module.f.mjs'
 
@@ -60,7 +60,7 @@ const nodeVersionStep = (shell, version) =>
  * Asserts the compiler this job's flake provides.
  *
  * `tsc` here is `typescript-go`'s, and the attribute names no version, so this
- * is the only tie between `../config/module.f.mjs` and what the shell hands
+ * is the only tie between `../config/module.f.js` and what the shell hands
  * `npm ci`'s successors. It matters more than most: `tsc` is not run as `tsc`
  * alone but through `npm pack`, whose `prepack` script emits the declarations
  * the package ships — a compiler nobody confirmed would put its own idea of a

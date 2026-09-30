@@ -24,7 +24,7 @@ and `item` or `property` — so at `0802ecda` a plain nested array,
 `export default [[[…1…]]];`, compiles to `.js` and `.rs` at six hundred
 levels and overflows at six hundred and fifty, and a nested object,
 `{"a":{"a":…}}`, at the same depths. The repository's own DataJS
-vectors cross that line: `spec/datajs/vectors/accept/data.f.mjs`, whose
+vectors cross that line: `spec/datajs/vectors/accept/data.f.js`, whose
 `array-nested-deep` graph is a thousand levels deep, compiles to
 `.edag.data.js` and `.data.js`, which never reach this walk, and fails
 with this `RangeError` to `.js` and `.rs`. Its `object-nested-deep`
@@ -121,7 +121,7 @@ discovered one `RangeError` at a time.
       elsewhere in the repository use (`stackSafety` in
       `fjs/compiler/parser/proof.f.mjs`) for a chain of operators, nested
       containers, and whatever other shape reaches this walk.
-- [ ] A proof that compiles `spec/datajs/vectors/accept/data.f.mjs` to
+- [ ] A proof that compiles `spec/datajs/vectors/accept/data.f.js` to
       `.js`, the crash's reproduction in the repository's own corpus — its
       array vector, since its object vector is shallower than the line; a
       proof of object nesting needs a deeper fixture of its own. To `.rs`
@@ -145,7 +145,7 @@ discovered one `RangeError` at a time.
 - [`bound-edag-interpreter-resources`](../../compiler/todo/bound-edag-interpreter-resources.md)
   — deterministic resource limits; its host-stack independence is this
   issue's.
-- [`spec/datajs/vectors/accept/data.f.mjs`](../../../spec/datajs/vectors/accept/data.f.mjs)
+- [`spec/datajs/vectors/accept/data.f.js`](../../../spec/datajs/vectors/accept/data.f.js)
   — the DataJS accept vectors, whose deep graphs reach this crash.
 - [`../../compiler/parser/module.f.mjs`](../../compiler/parser/module.f.mjs) —
   `evaluate`, whose `_Stack` is the same shape again, for the same reason.

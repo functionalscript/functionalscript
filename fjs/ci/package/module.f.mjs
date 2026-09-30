@@ -7,7 +7,7 @@
  * @import { Job } from '../common/types.ts'
  */
 
-import { images, node, typescript } from '../config/module.f.mjs'
+import { images, node, typescript } from '../config/module.f.js'
 import { uses } from '../common/module.f.mjs'
 import { packageArtifact, packageJobId } from '../node/module.f.mjs'
 
@@ -83,7 +83,7 @@ const tsconfig = /** @type {const} */ ({
  * One command per step, so a failure names what failed rather than arriving as
  * an opaque script.
  *
- * The compiler is `../config/module.f.mjs`'s, installed from npm because this
+ * The compiler is `../config/module.f.js`'s, installed from npm because this
  * job has no flake to take it from — no checkout means no file tree for one to
  * live in. It is the same version the `node26` shell provides through Nix, so
  * the declarations in the tarball are read by the compiler that emitted them.

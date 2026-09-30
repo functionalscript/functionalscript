@@ -7,7 +7,7 @@ import {
     wasmPackages,
     wasmRust,
 } from '../rust/module.f.mjs'
-import { node } from '../config/module.f.mjs'
+import { node } from '../config/module.f.js'
 import { nixShell, nixSystem } from '../nix/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 

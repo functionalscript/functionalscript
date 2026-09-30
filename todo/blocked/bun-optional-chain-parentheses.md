@@ -11,7 +11,7 @@ and therefore `bun`, carries the short-circuit through the parentheses instead
 and evaluates the whole expression to `undefined`.
 
 Measured against Node v22.22.2 (V8) on `bun` 1.3.11, 1.4.0, and 1.4.2 — the
-last is the version pinned in [`fjs/ci/config/module.f.mjs`](../../fjs/ci/config/module.f.mjs),
+last is the version pinned in [`fjs/ci/config/module.f.js`](../../fjs/ci/config/module.f.js),
 so this is what CI runs — with `u` nullish. All three `bun` versions agree,
 including through `eval` and `new Function`, which is why the table has one
 `bun` column rather than one per version:
@@ -58,7 +58,7 @@ evaluating the node, which is an oracle that works on every runner.
 ### Trigger
 
 Unblocked when a `bun` release satisfies both halves and reaches the pinned
-version in `fjs/ci/config/module.f.mjs`:
+version in `fjs/ci/config/module.f.js`:
 
 - `(u?.b)(0)` throws on a nullish `u`, in a module, through `eval`, and through
   `new Function`;

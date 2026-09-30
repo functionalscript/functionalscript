@@ -116,7 +116,7 @@ still be **open under a new slug** — `i21` is
 `fjs/emergent_testing/todo/test-framework-silent-mode.md`, identical to the
 retired `issues/021-test-framework-silent-mode.md` but for its heading level
 (`#` → `##`, this README's format) — in which case link it. It
-may have **shipped**, like `i136` as `fjs/ci/config/module.f.mjs`; name the code.
+may have **shipped**, like `i136` as `fjs/ci/config/module.f.js`; name the code.
 Or it was **won't fix**, like `i171`, whose reason lives in `parseTestSet`'s
 JSDoc exactly as the won't-fix rule below requires; say so and cite that.
 

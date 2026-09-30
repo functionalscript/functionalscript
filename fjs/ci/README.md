@@ -37,7 +37,7 @@ for, and whether that answer should change, is
 - `common/module.f.mjs` — shared RTTI schemas and types (`Step`, `Job`, `Jobs`,
   `GitHubAction`, `MetaStep`, `Os`, `Architecture`), and step-builder helpers
   (`test`, `install`, `uses`).
-- `config/module.f.mjs` — runner image matrix (OS × architecture → GitHub-hosted image name) and pinned tool/package versions, including the FunctionalScript package version used by generated smoke tests and the exact Nixpkgs commit the generated flakes pin.
+- `config/module.f.js` — runner image matrix (OS × architecture → GitHub-hosted image name) and pinned tool/package versions, including the FunctionalScript package version used by generated smoke tests and the exact Nixpkgs commit the generated flakes pin.
 - `nix/module.f.mjs` — writes one self-contained `nix/<job>/flake.nix`
   per declared job (`NixJob` in `types.ts`), using the Nix eDSL in `fjs/media/nix`.
 - `node/module.f.mjs` — Node.js job steps: platform smoke tests, canonical
@@ -61,7 +61,7 @@ for, and whether that answer should change, is
   everywhere Nix runs, 32-bit Linux included; `i686Target` is the predicate that
   decides which jobs install a toolchain of their own instead, and
   `../module.f.mjs` asks it rather than restating the names. Both paths
-  name `config/module.f.mjs`'s `rust`, so the version cannot differ between
+  name `config/module.f.js`'s `rust`, so the version cannot differ between
   them.
 - `deno/module.f.mjs` — the `deno` job's steps and its flake declaration.
   `proof.f.mjs` — its property-based proofs.
@@ -89,7 +89,7 @@ for, and whether that answer should change, is
 
 The generator is idempotent — rerunning it without modifying the source produces the
 same files. It never runs Nix itself, so it stays Windows-compatible: the flakes are
-plain text built from the pinned commit in `config/module.f.mjs`.
+plain text built from the pinned commit in `config/module.f.js`.
 
 ### Generated Nix environments
 
@@ -113,7 +113,7 @@ is why it is a platform's capability rather than the shell's. See
 [nix/README.md](../../nix/README.md) for how the generated files are meant to be
 consumed.
 
-`config/module.f.mjs` records the Node, Deno, Wasmtime and Wasmer versions the pinned
+`config/module.f.js` records the Node, Deno, Wasmtime and Wasmer versions the pinned
 Nixpkgs snapshot provides — not each vendor's latest release, which the snapshot
 usually trails. They feed the flakes' package attributes where the attribute is
 versioned, as well as every `setup-node` step left: the two Windows jobs,
@@ -124,13 +124,13 @@ and copying the versions it offers.
 snapshot does not decide. Nixpkgs ships 1.3.13, which two of this repository's proofs
 fail on, so that job's flake keeps the snapshot's packaging — the unzip, the
 `autoPatchelfHook`, the wrapper — and replaces only `src`, with the version and SRI
-hash `config/module.f.mjs` records side by side. That works because Nixpkgs fetches
+hash `config/module.f.js` records side by side. That works because Nixpkgs fetches
 Bun as a prebuilt archive rather than building it, so the override moves bytes rather
 than adopting a package definition. It is an exception with an expiry: both constants
 go the day the snapshot carries a Bun this suite passes on.
 
 `rust` is not one of them either, and for the opposite reason. The `wasm` job's flake
-carries a second input, `rust-overlay`, pinned in `config/module.f.mjs` beside the
+carries a second input, `rust-overlay`, pinned in `config/module.f.js` beside the
 Nixpkgs commit. Nixpkgs builds one `rustc` and hard-codes the targets it builds `std`
 for, and three of that job's four are not among them at any version; the overlay
 unpacks the same release artifacts `rustup` would, so `rust` is an exact Rust release
@@ -158,11 +158,11 @@ which used to cost two more `--quiet`s and, with them, every Nix warning of any
 kind. Instead `fjs ci` also writes `nix/lock-update.sh`, one `nix flake lock`
 per generated directory, for a maintainer to run — with real Nix, hence
 `npm run lock-update` rather than `gen` — only when a pin in
-`config/module.f.mjs` moves. See [nix/README.md](../../nix/README.md).
+`config/module.f.js` moves. See [nix/README.md](../../nix/README.md).
 
 No job checks the flakes; the jobs that use them check the runtime they get. Every
 canonical job asserts, as its first command, that its own shell reports the version
-`config/module.f.mjs` records for it:
+`config/module.f.js` records for it:
 
 ```sh
 test "$(./nix/run node --version)" = "v26.8.1"
@@ -358,7 +358,7 @@ modifying the built-in command.
 The built-in command does not read `package.json` at all. It used to, for one
 thing — `devDependencies.typescript`, which decided whether the `package-check`
 job was generated and which compiler it installed. That version is now
-`config/module.f.mjs`'s, like every other version this generator names, so
+`config/module.f.js`'s, like every other version this generator names, so
 `package-check` is generated for every project.
 
 Two consequences worth knowing before you adopt this generator. The compiler the
@@ -368,7 +368,7 @@ check with `TS18003` rather than not being checked. See
 [`todo/ci-generator-audience.md`](./todo/ci-generator-audience.md).
 
 The FunctionalScript package version used by the surviving smoke tests is pinned
-in `config/module.f.mjs` too — nothing about the project reaches the generated
+in `config/module.f.js` too — nothing about the project reaches the generated
 steps except whether it has a `Cargo.toml`. That one flag reaches further than
 it used to: without Rust there are no 32-bit checks, so `ubuntu-intel` shares
 the shell like the rest and only Windows stays off it.
@@ -378,7 +378,7 @@ the shell like the rest and only Windows stays off it.
 `fjs ci` writes a second file, `.github/workflows/npm-publish.yml`. It is
 generated by the same command rather than by one of its own: the two workflows
 share every pin they name — the runner image, the Node version, the pinned
-action refs, all of `config/module.f.mjs` — and the Node 26 drift check
+action refs, all of `config/module.f.js` — and the Node 26 drift check
 (`npm run gen`, then `git add -A && git diff --cached --exit-code`) covers
 whatever `fjs ci` writes for free. A separate command would have to be chained
 into `gen` to reach the same place, and a consumer who forgot would keep a
@@ -412,7 +412,7 @@ without a flake to take it from, because a publish wants the `.npmrc`
 `setup-node` writes and a flake has nothing to say about a registry. `npm ci`
 still runs, for the `@types/node` that compiler resolves against.
 
-Being generated is what lets the step name `config/module.f.mjs`'s version as a
+Being generated is what lets the step name `config/module.f.js`'s version as a
 literal. A hand-written workflow would have to either restate the number, where
 nothing would catch it drifting from the flakes, or read it back out at run
 time.

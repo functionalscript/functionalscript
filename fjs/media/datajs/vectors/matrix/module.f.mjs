@@ -58,12 +58,12 @@ import { tryParse } from '../../module.f.mjs'
 import { difference } from '../module.f.mjs'
 import { cmp as strCmp } from '../../../../types/string/module.f.mjs'
 import { error, ok } from '../../../../types/result/module.f.mjs'
-import accept from '../../../../../spec/datajs/vectors/accept/data.f.mjs'
-import reject from '../../../../../spec/datajs/vectors/reject/data.f.mjs'
-import serializerAccept from '../../../../../spec/datajs/vectors/serializer-accept/data.f.mjs'
-import graphEquivalence from '../../../../../spec/datajs/vectors/graph-equivalence/data.f.mjs'
-import normalizeSet from '../../../../../spec/datajs/vectors/normalize/data.f.mjs'
-import notApplicableData from '../../../../../spec/datajs/vectors/not-applicable/data.f.mjs'
+import accept from '../../../../../spec/datajs/vectors/accept/data.f.js'
+import reject from '../../../../../spec/datajs/vectors/reject/data.f.js'
+import serializerAccept from '../../../../../spec/datajs/vectors/serializer-accept/data.f.js'
+import graphEquivalence from '../../../../../spec/datajs/vectors/graph-equivalence/data.f.js'
+import normalizeSet from '../../../../../spec/datajs/vectors/normalize/data.f.js'
+import notApplicableData from '../../../../../spec/datajs/vectors/not-applicable/data.f.js'
 
 /** Where the matrix is written. @type {string} */
 export const directory = 'spec/datajs/vectors'
@@ -593,7 +593,7 @@ export const write = text => step(mkdir(directory, { recursive: true }), () => w
 
 /**
  * Every data module the corpus is made of, under the name its directory
- * carries. The reasons are one of them: `not-applicable/data.f.mjs` makes the
+ * carries. The reasons are one of them: `not-applicable/data.f.js` makes the
  * same promise the vector sets make and broke it the same way.
  *
  * @type {(corpus: Corpus) => readonly (readonly [string, unknown])[]}
@@ -605,7 +605,7 @@ export const modules = ({ roles, notApplicable }) => [
 ]
 
 /** Where a data module's own source is. @type {(name: string) => string} */
-export const sourceOf = name => `${directory}/${name}/data.f.mjs`
+export const sourceOf = name => `${directory}/${name}/data.f.js`
 
 /**
  * What a data module's own source says, against the value the engine imported

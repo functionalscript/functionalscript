@@ -13,7 +13,7 @@
  * @import { GitHubAction, Job, MetaStep } from '../common/types.ts'
  */
 
-import { node, typescript } from '../config/module.f.mjs'
+import { node, typescript } from '../config/module.f.js'
 import { install, test, ubuntuArm, uses } from '../common/module.f.mjs'
 
 /** Where the pipeline writes the workflow below. */

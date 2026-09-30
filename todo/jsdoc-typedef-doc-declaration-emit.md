@@ -14,7 +14,7 @@ The first task, filing the upstream issue below, is ours and can be done now,
 so this issue is open rather than in `todo/blocked/`. Once it is filed, what
 remains waits on a third party and the file moves there with this as its
 **Trigger**: the pinned `typescript` in
-[`fjs/ci/config/module.f.mjs`](../fjs/ci/config/module.f.mjs) — the
+[`fjs/ci/config/module.f.js`](../fjs/ci/config/module.f.js) — the
 compiler this repository type-checks with; it is not a dependency — reaches a
 [microsoft/typescript-go](https://github.com/microsoft/typescript-go/issues)
 release that fixes the upstream issue below. Until then, substantial

@@ -2,7 +2,7 @@
  * Generates one self-contained Nix flake per declared CI job.
  *
  * Each job gets its own `nix/<id>/flake.nix` pinning the exact
- * Nixpkgs commit from `../config/module.f.mjs` and exposing a single
+ * Nixpkgs commit from `../config/module.f.js` and exposing a single
  * `devShells.<system>.default` development shell. The files are static and
  * readable on purpose: no job selection, no shared Nix modules, no helper
  * libraries.
@@ -26,7 +26,7 @@ import { nixToString } from '../../media/nix/module.f.mjs'
 import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { install, test, uses } from '../common/module.f.mjs'
-import { nixpkgs, rustOverlay } from '../config/module.f.mjs'
+import { nixpkgs, rustOverlay } from '../config/module.f.js'
 
 /**
  * Directory holding the generated environments, each a `flake.nix` and a `run`
@@ -43,7 +43,7 @@ export const generatedDirectory = /** @type {const} */ ('nix')
  * A flake input's `url`, built from the pin rather than spelled beside it.
  *
  * The owner, the repository and the commit are separate fields in
- * `../config/module.f.mjs` rather than one URL, so a caller that needs one of
+ * `../config/module.f.js` rather than one URL, so a caller that needs one of
  * the three alone — {@link lockUpdateText}'s script needs only the commit's
  * directory, not this URL — reads it without parsing this string back apart.
  *
@@ -453,7 +453,7 @@ export const flakeText = job =>
  * keeps that command Nix-independent so it still runs on Windows, and root
  * `AGENTS.md` §6 bars shelling out to an unapproved tool from ordinary
  * generation. So this is a second, narrower script — run by hand, only when
- * `../config/module.f.mjs` moves a pin — rather than a step `gen` takes on
+ * `../config/module.f.js` moves a pin — rather than a step `gen` takes on
  * every run.
  *
  * One `nix flake lock` per generated directory, because Nix has no form that
@@ -744,7 +744,7 @@ export const nixSteps = id => commands =>
  * it, read from inside that job's own generated flake.
  *
  * The flake resolves its package from the pinned Nixpkgs commit, which
- * `../config/module.f.mjs` only *claims* provides that version. The claim does
+ * `../config/module.f.js` only *claims* provides that version. The claim does
  * not check itself, and a job quietly testing on another runtime reports a
  * green result about something nobody asked for. This is the one thing about a
  * generated flake that only CI can establish: `nix develop` has to resolve the

@@ -1238,7 +1238,7 @@ with `.b` on the next line are each `a.b`, as JavaScript reads them.
 
 FunctionalScript has no prototype chains, so a name a built-in prototype
 gives a value — `push`, `toString`, `valueOf`, `constructor`, `__proto__`
-and the rest, listed in [`fjs/js/prototype`](../fjs/js/prototype/module.f.mjs)
+and the rest, listed in [`fjs/js/prototype`](../fjs/js/prototype/module.f.js)
 — is a **compilation error** as the key of an access, in either spelling,
 `o.toString` or `o["toString"]` (`prohibited property name`): JavaScript
 would find a function there and this language nothing, and a module must
@@ -1250,7 +1250,7 @@ array, a string and a function own it. The rules are
 
 A method call has a rule of its own. `a.push(1)`, `a.valueOf()` and the
 other member functions
-[`fjs/js/prototype`](../fjs/js/prototype/module.f.mjs)'s `prohibitedCalls`
+[`fjs/js/prototype`](../fjs/js/prototype/module.f.js)'s `prohibitedCalls`
 names are compilation errors (`prohibited member function`) — one row per
 name, with the reason, in [its README](../fjs/js/prototype/README.md). Every
 other prototype name but `length` is on its `allowedCalls`, and a call of one

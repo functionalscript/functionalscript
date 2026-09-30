@@ -26,7 +26,7 @@ install, as this issue predicted it would.
 were there because Node 22 could not run `node --test`, not to check a package,
 and the job runs the suite directly now.
 
-`<version>` is `functionalscript` in `../config/module.f.mjs`, and its comment
+`<version>` is `functionalscript` in `../config/module.f.js`, and its comment
 states the intent: a **published release**, deliberately not
 `package.json`'s in-repo version.
 
@@ -62,7 +62,7 @@ installed CLI. Same module, same artifact, different runner requirements.
 
 #### What falls out
 
-- **`functionalscript` in `../config/module.f.mjs` loses its last consumer.** It
+- **`functionalscript` in `../config/module.f.js` loses its last consumer.** It
   is now read only by `nodeMainSteps` → `platformNodeSteps`, which is the row
   above; `denoSteps` and `bunSteps` stopped reading it, and `nodeVersionJobs`
   stopped when Node 22 lost its global install. The constant, and the manual
@@ -101,7 +101,7 @@ installed CLI. Same module, same artifact, different runner requirements.
 - **How each runtime installs a tarball globally.** `npm install -g ./x.tgz`,
   `bun install -g ./x.tgz` and Deno's equivalent need checking against the
   pinned versions rather than assumed; Deno in particular installs from
-  `npm:` specifiers today. Deno 2.8.3 — the version `../config/module.f.mjs`
+  `npm:` specifiers today. Deno 2.8.3 — the version `../config/module.f.js`
   pins — was reported to break `deno run -A npm:functionalscript` when
   `deno install --frozen` runs first (`package.json … did not exist`), so a Deno
   check of the tarball must be tried in both orders before one is chosen.
@@ -116,7 +116,7 @@ installed CLI. Same module, same artifact, different runner requirements.
       with `needs: [packageJobId]`
 - [ ] Remove the registry install from `platformNodeSteps` (`denoSteps` and
       `bunSteps` no longer have one)
-- [ ] Delete `functionalscript` from `../config/module.f.mjs` once nothing reads
+- [ ] Delete `functionalscript` from `../config/module.f.js` once nothing reads
       it — `platformNodeSteps` is the last thing that does
 - [x] Drop Deno's `--minimum-dependency-age=0` with its reason — done when that
       job's registry install went
