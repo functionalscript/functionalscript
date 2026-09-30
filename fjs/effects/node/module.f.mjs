@@ -1115,6 +1115,11 @@ const nodeRelease = nodeVersion => {
  * A pre-release of 26.0.0 precedes it, as SemVer orders them, so it takes the
  * flattened strategy, which works on every Node.
  *
+ * @throws If `engine` is `'node'` and `nodeVersion`, with its `v`, pre-release
+ * and build metadata removed, is not a version
+ * [`types/version`](../../types/version/module.f.mjs)'s `tryParse` accepts —
+ * `''`, `'v'` or `'nightly'`, say. `process.version` always is one.
+ *
  * @type {(engine: Engine, nodeVersion?: string) => boolean}
  */
 export const usesInlineTestContext = (engine, nodeVersion) => {
