@@ -6,18 +6,20 @@
  * DataJS document of the graph), or a generated Rust module calling the
  * `nanvm-lib` API for `.rs`
  * ([fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md)). An output
- * whose extension declares no such language is refused.
+ * whose extension declares no such language is refused. With no arguments
+ * it is the check instead: every authored `.f.js` under the current
+ * directory compiled and nothing written ({@link check}).
  *
  * @module
  *
  * @import { List } from '../types/list/types.ts'
  * @import { Result } from '../types/result/types.ts'
  * @import { Unknown } from '../media/datajs/types.ts'
- * @import { _CompileOp } from './types.ts'
+ * @import { _Checked, _CompileOp } from './types.ts'
  * @import { Denotation } from './ast/types.ts'
  * @import { ParseError } from './parser/types.ts'
- * @import { Effect } from '../effects/types.ts'
- * @import { ReadFile, ResolveFileModule } from '../effects/node/types.ts'
+ * @import { Effect, IoChannel } from '../effects/types.ts'
+ * @import { Env, Program, ReadFile, ResolveFileModule, Write } from '../effects/node/types.ts'
  */
 
 import { _transpileDefault } from './transpiler/module.f.mjs'
@@ -31,9 +33,10 @@ import { error, mapOk, ok, okList } from '../types/result/module.f.mjs'
 import { concat } from '../types/string/module.f.mjs'
 import { serialize as bigintSerialize } from '../types/bigint/module.f.mjs'
 import { sort } from '../types/object/module.f.mjs'
-import { mapStep, resultStep, step } from '../effects/module.f.mjs'
-import { errorExit, exitStep, mkdir, writeUtf8File } from '../effects/node/module.f.mjs'
+import { errorMessage, foldStep, mapStep, pureOk, resultMapStep, resultStep, step } from '../effects/module.f.mjs'
+import { error as errorLine, errorExit, exitStep, log, mkdir, writeUtf8File } from '../effects/node/module.f.mjs'
 import { concat as pathConcat } from '../path/module.f.mjs'
+import { allFiles, sourceRoot } from '../dev/module.f.mjs'
 
 const { entries } = Object
 
@@ -326,6 +329,80 @@ const outputDirectory = outputFileName => {
 }
 
 /**
+ * The `path:line:column - error: message` line a failed compile reports:
+ * where the error is, as far as {@link _errorLocation} knows it, then the
+ * message. One spelling for the command and the check, so a diagnostic reads
+ * the same whichever asked for it.
+ *
+ * @type {(inputFileName: string) => (parseError: ParseError) => string}
+ */
+const diagnostic = inputFileName => parseError =>
+    `${_errorLocation(inputFileName)(parseError)} - error: ${parseError.message}`
+
+/**
+ * Whether a path is authored FunctionalScript the compiler promises to
+ * accept: the stage-2 `.f.js` marker
+ * ([`README.md`](./README.md#stage-2-mark-compiler-compatible-functionalscript)).
+ * An `.f.mjs` states the intent and makes no such promise, so the check
+ * leaves it alone.
+ *
+ * @type {(path: string) => boolean}
+ */
+const isAuthored = path => path.endsWith('.f.js')
+
+/** Nothing checked yet. @type {_Checked} */
+const noneChecked = { checked: 0, refused: 0 }
+
+/**
+ * Checks one `.f.js`: linked by `./edag` into its graph, as every output
+ * begins, and nothing written. A refusal is reported on `stderr` where the
+ * command would report it, and counted rather than returned, so the check
+ * goes on to the next file and a run names every file that fails, not the
+ * first.
+ *
+ * @type {(path: string) => (count: _Checked) => Effect<ReadFile | ResolveFileModule | Write, _Checked, IoChannel>}
+ */
+const checkOne = path => ({ checked, refused }) => resultStep(
+    resolve(path),
+    result => result[0] === 'ok'
+        ? pureOk({ checked: checked + 1, refused })
+        : mapStep(errorLine(diagnostic(path)(result[1])), () => ({ checked: checked + 1, refused: refused + 1 })))
+
+/**
+ * `fjs compile` with no arguments: every `.f.js` under the source root —
+ * `INIT_CWD` under `npm run`, the current directory otherwise, hidden
+ * entries and `node_modules` skipped, as the test runner discovers proofs —
+ * compiled by the pipeline every output shares and written nowhere. The
+ * `.f.js` extension promises that the compiler of the same revision accepts
+ * the module, and `tsc` cannot keep that promise for it, so this is the
+ * check that does.
+ *
+ * Every refusal is reported as the command reports one, then one line counts
+ * them. Exit `0` with `.f.js: N checked` on `stdout` when every file
+ * compiles — the count is the evidence that the walk found the files it was
+ * meant to — and `1` when one was refused or the tree could not be read.
+ *
+ * @type {(env: Env) => Effect<_CompileOp, 0, number>}
+ */
+const check = env => resultStep(
+    foldStep(allFiles(sourceRoot(env), isAuthored), noneChecked, checkOne),
+    result => {
+        if (result[0] === 'error') { return errorExit(errorMessage(result[1])) }
+        const { checked, refused } = result[1]
+        // Bound rather than returned inline, as `exitStep` binds its two
+        // branches: `Effect<Write, 0, never>` and `Effect<Write, never, number>`
+        // are both this type, and the conditional alone infers neither. The
+        // summary's own write outcome is discarded as `errorExit` discards its
+        // report's: the check has passed, and a `stdout` that would not take
+        // the line is not a refused module.
+        /** @type {Effect<Write, 0, number>} */
+        const code = refused === 0
+            ? resultMapStep(log(`.f.js: ${checked} checked`), () => ok(0))
+            : errorExit(`.f.js: ${checked} checked, ${refused} refused`)
+        return code
+    })
+
+/**
  * Compiles the FunctionalScript module `args[0]` into `args[1]`, in the
  * language `args[1]`'s extension declares: JSON for `.json`, a generated
  * Rust module calling the `nanvm-lib` API for `.rs`, the program's EDAG for
@@ -344,8 +421,11 @@ const outputDirectory = outputFileName => {
  * The output's directory is created first, so a compile can write into a
  * directory that does not exist yet — a deleted `gen.*` directory, say.
  *
+ * With no arguments it is {@link check} instead: every `.f.js` under the
+ * source root compiled and nothing written.
+ *
  * Returns the process exit code: `0` once the output file is written, `1` on
- * every failure — any argument count but two, an output extension naming no
+ * every failure — one argument or more than two, an output extension naming no
  * language,
  * a missing input file, a parse error, a `.json` output asked of a value
  * JSON cannot spell, a `.js` output asked of a graph the writer has no
@@ -356,9 +436,12 @@ const outputDirectory = outputFileName => {
  * since the module itself is sound; a refused program is reported against
  * the input, as a parse error is.
  *
- * @type {(args: readonly string[]) => Effect<_CompileOp, 0, number>}
+ * @type {Program<_CompileOp>}
  */
-export const compile = args => {
+export const compile = ({ args, env }) => {
+    if (args.length === 0) {
+        return check(env)
+    }
     if (args.length < 2) {
         return errorExit('Error: Requires 2 arguments: fjs compile <input> <output>')
     }
@@ -376,7 +459,7 @@ export const compile = args => {
         /** @type {(result: Result<Result<string, string>, ParseError>) => Effect<_CompileOp, 0, number>} */
         (result) => {
             if (result[0] === 'error') {
-                return errorExit(`${_errorLocation(inputFileName)(result[1])} - error: ${result[1].message}`)
+                return errorExit(diagnostic(inputFileName)(result[1]))
             }
             const [tag, content] = result[1]
             if (tag === 'error') {

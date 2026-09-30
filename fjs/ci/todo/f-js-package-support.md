@@ -101,18 +101,16 @@ that keep those true, plus five gaps the list below did not name:
   only `**/module.f.mjs`. A `module.f.js` would escape the proof-coverage
   rule `fjs/AGENTS.md` sets for every FunctionalScript module. Fixed with
   the fixture.
-- **Compiler acceptance is not enforced.** The `.f.js` contract is that the
+- **Compiler acceptance is enforced.** The `.f.js` contract is that the
   current compiler accepts the module ([`fjs/compiler/README.md`](../../compiler/README.md)),
-  but nothing compiles authored `.f.js`: a module could be renamed, or
-  edited later, into something the compiler refuses, and every check would
-  stay green. The measured module compiles to `.rs`; its JSON target refuses
-  it only because a function has no JSON. The compiler requires the
-  terminating `;` (without it, `unexpected end`), which `tsc` does not, so
-  only such a check catches a module written for `tsc` alone. The check is
-  owned by [lint-compiler-compatible-files](../../compiler/todo/lint-compiler-compatible-files.md),
-  which waits for the first authored `.f.js` to exist; this task's fixture
-  is that file, so the lint is unblocked by it, and neither task waits on
-  the other.
+  and `tsc` cannot hold a module to it: `let a = 1; export default a;`
+  type-checks and the compiler refuses it at its first token,
+  `unexpected token`, as it refuses a `class` or two statements on one line.
+  The measured module compiles to `.rs`; its JSON target refuses it only
+  because a function has no JSON. `fjs compile` with no arguments checks every
+  authored `.f.js`, and the Node 26 CI job runs it
+  ([spec: checking every `.f.js`](../../../spec/README.md#checking-every-fjs));
+  this task's fixture was the first file it had to check.
 - **Proofs stay `.f.mjs` for now.** Block bodies compile (`const` and
   `return`), but the `if` and `throw` statements do not: each is refused at
   its first token. A proof fails by throwing, directly or through
@@ -163,9 +161,8 @@ that keep those true, plus five gaps the list below did not name:
       extension table, including why a proof stays `.f.mjs` until `throw`
       compiles.
 
-Compiler acceptance of every authored `.f.js` is not a task here: it is
-[lint-compiler-compatible-files](../../compiler/todo/lint-compiler-compatible-files.md),
-unblocked by the fixture above and landing on its own schedule.
+Compiler acceptance of every authored `.f.js` is not a task here: `fjs compile`
+with no arguments checks it, and CI runs that check.
 
 **Open question: a synthetic fixture, or the first real rename?** As
 written, the fixture is synthetic: the acceptance criteria below and

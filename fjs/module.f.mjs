@@ -26,8 +26,8 @@ const commands = [
     },
     {
         names: ['compile', 'c'],
-        description: 'Compile a FunctionalScript module to JavaScript',
-        handler: ({ args }) => compile(args),
+        description: 'Compile a FunctionalScript module to JavaScript, or check every .f.js with no arguments',
+        handler: compile,
     },
     {
         names: ['cas', 's'],
