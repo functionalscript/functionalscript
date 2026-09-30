@@ -81,9 +81,14 @@ const raw = n =>
 
 const mr = map(raw)
 
-// Escape closing tags in raw text elements
-/** @type {(n: List<Node>) => string} */
-const rawMap = n => concat(mr(n)).replaceAll('</', '<\\/')
+/**
+ * The text of a raw-text element (`script`, `style`): its string children
+ * joined, element children dropped, and every `</` escaped so the text cannot
+ * close the element early.
+ *
+ * @type {(n: List<Node>) => string}
+ */
+export const rawTextContent = n => concat(mr(n)).replaceAll('</', '<\\/')
 
 /** @type {(entry: Entry<string>) => List<string>} */
 const attribute = ([name, value]) =>
@@ -92,8 +97,13 @@ const attribute = ([name, value]) =>
 /** @type {(a: StringMap<string>) => List<string>} */
 const attributes = a => flatMap(attribute)(definedEntries(a))
 
-/** @type {(e: Element) => readonly [string, StringMap<string>, readonly Node[]]} */
-const parseElement = e => {
+/**
+ * Splits an element into its tag, its attributes (`{}` when it has none) and
+ * its children.
+ *
+ * @type {(e: Element) => readonly [string, StringMap<string>, readonly Node[]]}
+ */
+export const parseElement = e => {
     const [tag, item1, ...list] = e
     return item1 === undefined ?
             [tag, {}, []] :
@@ -102,9 +112,15 @@ const parseElement = e => {
             [tag, {}, [item1, ...list]]
 }
 
-const isVoidTag = includes(voidTagList)
+/**
+ * Whether `tag` names a void element, which has no children and no end tag.
+ */
+export const isVoidTag = includes(voidTagList)
 
-const isRawText = includes(rawText)
+/**
+ * Whether `tag` names a raw-text element, whose content is text only.
+ */
+export const isRawText = includes(rawText)
 
 /**
  * Converts a FunctionalScript element into a list of HTML string chunks.
@@ -120,7 +136,7 @@ export const element = e => {
     if (isVoidTag(tag)) {
         return open
     }
-    return flat([open, isRawText(tag) ? [rawMap(n)] : nodes(n), ['</', tag, '>']])
+    return flat([open, isRawText(tag) ? [rawTextContent(n)] : nodes(n), ['</', tag, '>']])
 }
 
 /**
