@@ -101,8 +101,8 @@ set above, and delete the `todo/` issue file the PR fixes, if there is one.
 
 A file or directory whose name starts with `gen.` is generated, and so is
 everything inside a `gen.*` directory: change its generator, never the output,
-and never give a handwritten file that name. The few outputs whose path another
-tool fixes are listed in `.gitattributes`
+and never give a handwritten file that name. Every committed generated file
+follows it; `.gitattributes` marks the names
 ([CONTRIBUTING.md](./CONTRIBUTING.md#naming-generated-files)).
 
 Format, priorities, where each issue file belongs, and how GitHub-reported bugs
