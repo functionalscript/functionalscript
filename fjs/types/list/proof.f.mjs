@@ -3,10 +3,10 @@
  * @import { List } from './types.ts'
  */
 
-import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, someBy, none, includes, take, takeWhile, toArray, zip, first, filterMap, isEmpty, equal, tryFold } from './module.f.mjs'
+import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, someBy, none, includes, take, takeWhile, toArray, zip, first, filterMap, isEmpty, sameItems, tryFold } from './module.f.mjs'
 import { stringify } from '../../media/json/module.f.mjs'
 import { sort } from '../object/module.f.mjs'
-import { addition, strictEqual, reduceToScan } from '../function/operator/module.f.mjs'
+import { addition, reduceToScan } from '../function/operator/module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 
 /** @type {(sequence: List<Unknown>) => string} */
@@ -341,21 +341,21 @@ export const proof = {
     zip: zipTest,
     logic,
     quantifiers,
-    strictEqual: [
+    sameItems: [
         () => {
-            const result = equal(strictEqual)([1])([2, 3])
+            const result = sameItems([1])([2, 3])
             assert(!(result), result)
         },
         () => {
-            const result = equal(strictEqual)([1, 3])([1])
+            const result = sameItems([1, 3])([1])
             assert(!(result), result)
         },
         () => {
-            const result = equal(strictEqual)([15, 78])([15, 78])
+            const result = sameItems([15, 78])([15, 78])
             assert(result, result)
         },
         () => {
-            const result = equal(strictEqual)([])([])
+            const result = sameItems([])([])
             assert(result, result)
         }
     ],

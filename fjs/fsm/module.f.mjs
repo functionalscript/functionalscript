@@ -12,11 +12,10 @@
  * @import { Grammar, _Dfa, _Rule } from './types.ts'
  */
 
-import { equal, isEmpty, fold, map, toArray, foldScan, empty as emptyList } from '../types/list/module.f.mjs'
+import { sameItems, isEmpty, fold, map, toArray, foldScan, empty as emptyList } from '../types/list/module.f.mjs'
 import { toRangeMap, range } from '../types/byte_set/module.f.mjs'
 import { intersect, toKey, union as sortedSetUnion } from '../types/sorted_set/module.f.mjs'
 import { merge, get as rangeMapGet } from '../types/range_map/module.f.mjs'
-import { strictEqual } from '../types/function/operator/module.f.mjs'
 import { range as asciiRange } from '../text/ascii/module.f.mjs'
 import { compose } from '../types/function/module.f.mjs'
 import { at } from '../types/object/module.f.mjs'
@@ -36,7 +35,7 @@ import { cmp } from '../types/string/module.f.mjs'
 export const toRange = compose(asciiRange)(range)
 
 /** @type {Properties<SortedSet<string>>} */
-const mergeOp = { union: sortedSetUnion(cmp), equal: equal(strictEqual), def: [] }
+const mergeOp = { union: sortedSetUnion(cmp), equal: sameItems, def: [] }
 
 /** @type {(s: string) => (set: SortedSet<string>) => boolean} */
 const hasState = s => set => !isEmpty(intersect(cmp)([s])(set))

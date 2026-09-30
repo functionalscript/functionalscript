@@ -16,7 +16,7 @@ import { partialRun, run } from '../../effects/mock/module.f.mjs'
 import { nodeCommands, notAFileCode, notAFileMessage } from '../../effects/node/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { maxLengthBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
+import { sameItems, toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { digestOf, of, toHex, tryFromHex } from '../oid/module.f.mjs'
 import { hexBytes, latin1, packMixed, packMixedIdx } from '../testlib.f.mjs'
@@ -48,9 +48,6 @@ const id = hex => {
 
 /** @type {(oid: Oid) => readonly number[]} */
 const idBytes = oid => toArray(u8ListMsb(oid))
-
-/** @type {(a: readonly number[], b: readonly number[]) => boolean} */
-const same = (a, b) => a.length === b.length && a.every((v, i) => b[i] === v)
 
 /** A big-endian 32-bit word as bytes. */
 const u32 = /** @type {(v: number) => readonly number[]} */ (v => [
@@ -175,7 +172,7 @@ const streams = [
 
 /** @type {(table: readonly (readonly [readonly number[], readonly number[]])[]) => (input: readonly number[]) => Nullable<readonly number[]>} */
 const inflatedBy = table => input => {
-    const hit = table.find(([c]) => same(c, input))
+    const hit = table.find(([c]) => sameItems(c)(input))
     return hit === undefined ? null : hit[1]
 }
 
