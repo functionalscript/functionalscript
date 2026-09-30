@@ -74,6 +74,37 @@ export const proof = {
                 assert(exported !== null)
                 assertStructurallySame(returned(returned(exported.value)), ['primitive', 7])
             },
+            // A block's last statement is tagged by its keyword: a `throw`
+            // is recorded as a `return` is, beginning at the keyword, its
+            // value's first token kept for the line the fold asks of it.
+            thrown: () => {
+                const { exported, thrown } = unwrap(parseSyntax(tokenizeString('export default () => { const x = 1; throw x; };')))
+                assert(exported !== null && thrown === null && exported.value[0] === '=>')
+                const body = exported.value[2]
+                assert(body[0] === 'block')
+                const [first, last] = body[1]
+                assert(first[0] === 'const' && last[0] === 'throw')
+                assert(last[1].value[0] === 'ref')
+                assertEq(last[1].start.metadata.column, 37)
+                assertEq(last[1].first.metadata.column, 43)
+                assertEq(last[1].semicolon, true)
+            },
+    },
+    // A module ending in `throw` records it where its default would be, the
+    // declarations before it kept with their export markers.
+    thrownModule: () => {
+        const source = unwrap(parseSyntax(tokenizeString('export const a = 1;\nthrow a')))
+        assertEq(source.exported, null)
+        assert(source.thrown !== null)
+        assert(source.thrown.value[0] === 'ref')
+        assertEq(source.thrown.semicolon, false)
+        assertEq(source.thrown.start.metadata.line, 2)
+        assertStructurallySame(source.consts.map(c => c.exported), [true])
+        const plain = unwrap(parseSyntax(tokenizeString('throw 1;')))
+        assertStructurallySame([plain.exported, plain.consts], [null, []])
+        assert(plain.thrown !== null)
+        const exported = unwrap(parseSyntax(tokenizeString('export default 1;')))
+        assertEq(exported.thrown, null)
     },
     // A module's statements as records, each with its export marker.
     namedExports: {

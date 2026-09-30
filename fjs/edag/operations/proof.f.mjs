@@ -103,6 +103,8 @@ export const proof = {
         assertStructurallySame(g(1, 2), [1, 2])
     },
     throw: {
+        // The language's `throw`: its operand is the thrown value.
+        thrown: () => run(['throw', 1]),
         escapingStep: () => run(['?.', null, 'a', ['|!()', []]]),
         ownKey: () => run(['own', {}, 1]),
         ownNullish: () => run(['own', null, 'a']),

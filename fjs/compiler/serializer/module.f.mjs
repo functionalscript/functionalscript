@@ -55,6 +55,17 @@
  * A body needing no `const` keeps the expression form, `=> v`, which is the
  * same function and the shorter text.
  *
+ * **A `throw` is a statement where a scope ends, and a call elsewhere.** A
+ * scope whose value is a `throw` node ends in the statement it came from,
+ * `throw v;` in place of `return v;` or `export default v;`, so a function
+ * whose body throws is always a block. A `throw` node anywhere else — an
+ * arm of `?:` once `if` lowers there, or wherever a hand-built graph puts
+ * one — is written as the call of a function that throws,
+ * `(()=>{throw v;})()`: JavaScript's one spelling of an expression that
+ * fails, and FunctionalScript itself, so the text reads back and fails at
+ * the same point, though as a call of a function rather than the node it
+ * was written from ([spec: functions](../../../spec/README.md#functions)).
+ *
  * **One line, normalized**, as the DataJS output is, and its leaves are the
  * DataJS serializer's, which owns their spelling.
  *
@@ -87,7 +98,7 @@
  * @import { _Hoisted, _Names, _Root, _Scope, _Statement } from './private.ts'
  */
 
-import { _defaultExport, _moduleExports } from '../edag/module.f.mjs'
+import { _defaultExport, _moduleExports, _moduleThrows } from '../edag/module.f.mjs'
 import { keywords, literalWords } from '../../js/keywords/module.f.mjs'
 import { analysis, bindingError } from '../../edag/analysis/module.f.mjs'
 import { keySerialize, leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
@@ -222,6 +233,19 @@ const identifierKey = key => {
 
 /** Whether an operand is the `frame` node. @type {(a: Analysis, v: Operand) => boolean} */
 const isFrame = (a, v) => v instanceof Array && a.nodes[v[1]][0] === 'frame'
+
+/**
+ * The value a `throw` entry throws, where the operand is one, and `null`
+ * where it is not: what a scope ending in a `throw` writes after the
+ * keyword.
+ *
+ * @type {(a: Analysis, v: Operand) => Operand | null}
+ */
+const thrownValue = (a, v) => {
+    if (!(v instanceof Array)) { return null }
+    const node = a.nodes[v[1]]
+    return node[0] === 'throw' ? node[1] : null
+}
 
 /**
  * Whether an entry reads a slot of the frame: `['.', ['frame'], i]`, the
@@ -472,13 +496,14 @@ const aliasedBody = (a, depth, names) => b => {
  * A body needing one is a block, `=> {const $a0=…;return v;}`, which is
  * where a shared constructor inside a body, a numeric or function access
  * base, and a body's anchors are all written
- * ([spec: functions](../../../spec/README.md#functions)).
+ * ([spec: functions](../../../spec/README.md#functions)) — and so is a body
+ * that throws, `=> {throw v;}`, the statement having no expression form.
  *
  * @type {(a: Analysis, depth: number, frame: readonly string[]) => (b: Operand) => Document}
  */
 const lambdaBody = (a, depth, frame) => b => okThen(
     /** @type {(all: _Root) => Document} */
-    (all => all.length === 1 && hoists({ a, names: [], frame })(all[0]).length === 0
+    (all => all.length === 1 && thrownValue(a, all[0]) === null && hoists({ a, names: [], frame })(all[0]).length === 0
         ? mapOk(
             /** @type {(text: List<string>) => List<string>} */
             (text => firstChunk(text).startsWith('{') ? flat([['{return '], text, [';}']]) : text),
@@ -543,6 +568,15 @@ const entry = (s, depth) => i => {
         // module's root or a function's body begins; anywhere else it has no
         // source spelling until the operator lands
         case ',': { return error('a comma outside a scope') }
+        // a `throw` where a scope ends is `statement`'s, the statement it
+        // came from; anywhere else it is the call of a function that throws,
+        // JavaScript's one spelling of an expression that fails
+        case 'throw': {
+            return mapOk(
+                /** @type {(text: List<string>) => List<string>} */
+                (text => flat([['(()=>{throw '], text, [';})()']])),
+            )(operand(s, depth)(node[1]))
+        }
         default: { return error(`a ${node[0]} node`) }
     }
 }
@@ -588,9 +622,9 @@ const hoists = s => {
 
 /**
  * The operands a node holds, for the hoisting walk: a container's items and
- * a property's halves, an access's base and key, a negation's operand, and
- * a comma's operands. A function's body is not among them, since the walk
- * stops at a body.
+ * a property's halves, an access's base and key, a negation's operand, a
+ * `throw`'s value, and a comma's operands. A function's body is not among
+ * them, since the walk stops at a body.
  *
  * @type {(node: Node) => readonly Operand[]}
  */
@@ -599,6 +633,7 @@ const operands = node => {
         case '[]': { return node[1].flatMap(x => x instanceof Array && x[0] === '...' ? [x[1]] : [/** @type {Operand} */(x)]) }
         case '{}': { return node[1].flatMap(p => p[0] === '...' ? [p[1]] : [p[1], p[2]]) }
         case '.': { return [node[1], node[2]] }
+        case 'throw': { return [node[1]] }
         case '-': { return node.length === 2 ? [node[1]] : [] }
         case ',': { return node[1] }
         default: { return [] }
@@ -613,7 +648,9 @@ const hoistedText = (s, depth) => h => h[0] === 'leaf'
 /**
  * One statement and every `const` it needed first: the hoists, in order,
  * then the operand itself — an anchor as a `const` of its own, and the last
- * operand as the export.
+ * operand as the export or the `return` — or, where that operand is a
+ * `throw` node, as the `throw` statement it came from, the value after the
+ * keyword ([spec: functions](../../../spec/README.md#functions)).
  *
  * An anchor whose operand already has a name is refused. Its statement
  * would be a bare alias, `const $1=$0;`, which the front end reads back as
@@ -644,18 +681,15 @@ const statement = (a, depth, frame, last) => ({ text, names }, v) => {
         return error('an anchor that repeats a hoisted value')
     }
     const s = { a, names: before.names, frame }
+    const thrown = last ? thrownValue(a, v) : null
+    const lead = thrown !== null ? 'throw ' : last ? (depth === 0 ? 'export default ' : 'return ') : `const ${hoistName(depth, before.names.length)}=`
     return mapOk(
         /** @type {(value: List<string>) => _Statement} */
         (value => ({
-            text: flat([
-                before.text,
-                last ? [depth === 0 ? 'export default ' : 'return '] : [`const ${hoistName(depth, before.names.length)}=`],
-                value,
-                [';'],
-            ]),
+            text: flat([before.text, [lead], value, [';']]),
             names: last ? before.names : [...before.names, [null, hoistName(depth, before.names.length)]],
         })),
-    )(operand(s, depth)(v))
+    )(operand(s, depth)(thrown ?? v))
 }
 
 /**
@@ -810,6 +844,9 @@ const moduleExport = (a, state) => ([, key, v]) => mapOk(
  * @type {(e: Exp) => Document}
  */
 export const tryModuleSerialize = e => {
+    // a module that throws exports nothing: its computation is the one
+    // statement the value writer spells, `throw v;`, in place of the exports
+    if (_moduleThrows(e)) { return trySerialize(e) }
     const members = _moduleExports(e)
     if (members.length === 0) { return error('a module without exports') }
     const keys = members.map(([, key]) => key)

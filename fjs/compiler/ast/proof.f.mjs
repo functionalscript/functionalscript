@@ -130,6 +130,22 @@ export const proof = {
         // what it does not reach is anchored as ever
         assertEq(anchorsOf([[a], [['array', []], ['+', 1, 2]]]), 'consts 0; imports 0')
     },
+    // A `throw` fails the evaluation with the value it established, as a
+    // read of `null` fails it: the message is a diagnostic, a primitive as
+    // DataJS spells it and a container by its kind. The operand is
+    // established first, so its own failure comes first, and the sweep
+    // reaches it as it reaches any operand.
+    thrown: () => {
+        assertStructurallySame(run([['throw', 1]])([]), ['error', 'throw 1'])
+        assertStructurallySame(run([['throw', 's']])([]), ['error', 'throw "s"'])
+        assertStructurallySame(run([['throw', undefined]])([]), ['error', 'throw undefined'])
+        assertStructurallySame(run([['throw', ['array', []]]])([]), ['error', 'throw an array'])
+        assertStructurallySame(run([['throw', ['object', []]]])([]), ['error', 'throw an object'])
+        assertStructurallySame(values([['array', []], ['throw', ['cref', 0]]])([]), ['error', 'throw an array'])
+        assertStructurallySame(run([['throw', ['.', null, 'x']]])([]), ['error', 'cannot read property "x" of null'])
+        assertEq(anchorsOf([[a], [['array', []], ['throw', ['cref', 0]]]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], ['throw', 1]]]), 'consts 0; imports 0')
+    },
     // Stage B's lazy operators and the conditional have no value here
     // either, refused the same way. To the sweep their left operand and
     // condition are reached as any operand is; their right operand and arms
