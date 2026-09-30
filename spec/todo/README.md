@@ -134,6 +134,9 @@ information — see [serialization](./serialization.md) and
 4. [ ] Ownership of Mutable Objects (Singletons). Wanted for local mutability
    ([mutability](./mutability.md)), **not** for I/O: effects keep I/O state in
    the runner ([io-effects](./io-effects.md)).
+5. [ ] [throw](./3250-throw.md) — a panic as a statement in a function body,
+   the failure [the specification already defines](../README.md#failure-is-one-outcome);
+   with `if` it is what `assert` needs.
 
 ### 3.3. Priority 3
 
