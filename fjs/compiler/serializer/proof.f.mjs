@@ -272,6 +272,11 @@ export const proof = {
         // and one deeper, where the fold runs twice
         assertEq(unwrap(tryStringify(['-', ['-', 1]])), 'export default - -1;')
         assertStructurallySame(unresolved(unwrap(parse(path)('export default - -1;'))).edag, ['{}', [[':', 'default', 1]]])
+        // and under a binary operator, where the fold reaches the operand
+        // alone: `['-', 0]` is the leaf `-0` once read, the operator over it
+        // as written
+        assertEq(unwrap(tryStringify(['-', 1, ['-', 0]])), 'export default 1- -0;')
+        assertStructurallySame(unresolved(unwrap(parse(path)('export default 1- -0;'))).edag, ['{}', [[':', 'default', ['-', 1, -0]]]])
     },
     // A node that mints identity is one value however many edges reach it,
     // and a `const` is the only thing in text that keeps that, so a shared
