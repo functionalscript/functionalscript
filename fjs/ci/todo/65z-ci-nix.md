@@ -412,11 +412,10 @@ At a high level it:
 4. updates the Nixpkgs commit and relevant exact versions in
    `fjs/ci/config/module.f.js`;
 5. runs ordinary CI generation (`npm run gen`) to regenerate the declared
-   flakes' `flake.nix`;
-6. runs `npm run lock-update` to refresh every `flake.lock` against the new
-   commit — see "Generated flake locks" below, which this command needs Nix
-   for and `gen` deliberately does not;
-7. leaves all generated changes for review and commit.
+   flakes' `flake.nix` and, through the generated `nix/lock-update.sh` it
+   ends with, every `flake.lock` against the new commit — see "Generated
+   flake locks" below; this needs Nix;
+6. leaves all generated changes for review and commit.
 
 Do not require the generic dependency updater to run this flow. Package-manager manifests
 and lockfiles are changed only when a separately scoped task explicitly requires them.
@@ -424,15 +423,18 @@ Browser-runner and browser-package synchronization is outside this Node-only upd
 
 #### Generated flake locks
 
-A `flake.lock` is committed beside every `flake.nix`, but `npm run gen`
-(`fjs ci`) never writes one — this issue requires that command stay
-Nix-independent, and a lock's two facts on top of a pinned revision,
-`narHash` and `lastModified`, are only real Nix's to establish.
+A `flake.lock` is committed beside every `flake.nix`, but `fjs ci` never
+writes one — a lock's two facts on top of a pinned revision, `narHash` and
+`lastModified`, are only real Nix's to establish.
 
-So `fjs ci` also writes `nix/lock-update.sh`, one `nix flake lock <path>` per
-generated directory, and a maintainer runs it — through `npm run lock-update`,
-which needs Nix and is never run by ordinary contributors — only when a pin in
-`../config/module.f.js` moves.
+So `fjs ci` also writes `nix/lock-update.sh`, one `rm -f` and one
+`nix flake lock <path>` per generated directory, and this repository's
+`npm run gen` ends by running it, so the drift check compares the committed
+locks against ones regenerated from nothing. That makes `gen` need Nix. The
+earlier position — `gen` stays Nix-independent so it runs on Windows — is
+given up for now rather than paid for with a second generation step: if a
+Windows regeneration is ever needed, a partial, Node-only `gen` is the
+answer, not a second CI job.
 
 CI passes `--no-update-lock-file`, not the more tempting `--no-write-lock-file`:
 the latter still resolves a mismatched input in memory and only skips the
@@ -570,10 +572,13 @@ removed; `git log -- docker/` has it.
       `fjs/ci/nix/module.f.mjs`). Needs a recursive `rm` effect.
 - [x] Generate a `run` script per job, so a workflow step names a command rather
       than a `nix develop` invocation.
-- [x] Generate and commit a `flake.lock` per flake, refreshed by a
-      maintainer-run `npm run lock-update` (generated `nix/lock-update.sh`,
-      real `nix flake lock`) rather than by `gen`, which needs no Nix to run.
-- [x] Keep `npm run gen` Nix-independent and Windows-compatible.
+- [x] Generate and commit a `flake.lock` per flake, regenerated from nothing
+      by the generated `nix/lock-update.sh` (real `nix flake lock`), which
+      `npm run gen` ends with, so the drift check covers the locks.
+- [ ] ~~Keep `npm run gen` Nix-independent and Windows-compatible.~~ Given
+      up in #2405: `gen` needs Nix for the locks. A Node-only partial
+      regeneration is the answer if Windows regeneration is ever needed, not
+      a second CI step or job.
 - [x] Commit the generated flakes.
 - [x] Bootstrap Nix through a pinned CI action in each migrated job.
 - [x] Run each migrated job's complete command sequence through its flake, one

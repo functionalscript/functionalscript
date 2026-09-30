@@ -169,15 +169,16 @@ rather than generated: nothing in it varies with a job, a pin or a system, so
 there is nothing for a generator to compose or a drift check to catch. See
 [nix/README.md](../../nix/README.md).
 
-A `flake.lock` is committed beside every `flake.nix`, but `gen`
-never writes one: `nix flake lock` is a real Nix command, and `gen` has to
-work on Windows, where Nix does not run at all. Without a committed lock every
-`nix develop` would compute one, find it differed from nothing, and say so —
-which used to cost two more `--quiet`s and, with them, every Nix warning of any
-kind. Instead the generator also writes `nix/lock-update.sh`, one `nix flake lock`
-per generated directory, for a maintainer to run — with real Nix, hence
-`npm run lock-update` rather than `gen` — only when a pin in
-`config/module.f.js` moves. See [nix/README.md](../../nix/README.md).
+A `flake.lock` is committed beside every `flake.nix`, but `fjs ci` never
+writes one: `nix flake lock` is a real Nix command. Without a committed lock
+every `nix develop` would compute one, find it differed from nothing, and say
+so — which used to cost two more `--quiet`s and, with them, every Nix warning
+of any kind. Instead the generator writes `nix/lock-update.sh`, one `rm -f`
+and one `nix flake lock` per generated directory, and this repository's `gen`
+ends by running it, so the locks are regenerated from nothing and covered by
+the drift check; `gen` needs Nix for that, and does not run on Windows for
+now. See "Expected package scripts" below and
+[nix/README.md](../../nix/README.md).
 
 No job checks the flakes; the jobs that use them check the runtime they get. Every
 canonical job asserts, as its first command, that its own shell reports the version
@@ -306,11 +307,12 @@ and `gen`. A typical FunctionalScript project can define them like this:
 `gen` must regenerate every deterministic generated file the project keeps in
 Git, not only the workflows. `fjs ci` covers `.github/workflows/gen.ci.yml`,
 `.github/workflows/gen.npm-publish.yml` and the generated Nix flakes (`flake.nix`
-and `run`, deliberately not `flake.lock` — see "Generated flake locks" below);
-a project with other generators chains them into the same script, as this
-repository does for `nanvm-lib/tests/test/gen.corpus/` (see
-[`fjs/nanvm/README.md`](../nanvm/README.md)). Everything chained there is
-covered by the drift check below for free.
+and `run`, deliberately not `flake.lock`, which the generated
+`nix/lock-update.sh` regenerates through Nix — see below); a project with other
+generators chains them into the same script, as this repository does for
+`nanvm-lib/tests/test/gen.corpus/` (see
+[`fjs/nanvm/README.md`](../nanvm/README.md)) and for the lock script itself.
+Everything chained there is covered by the drift check below for free.
 
 The Node 26 job runs it last, after every other command, and fails via
 `git add -A && git diff --cached --exit-code` when the committed tree no longer
@@ -325,12 +327,15 @@ instead uses its checked-in sources
 (`node ./fjs/module.mjs r ./fjs/ci/self/module.f.mjs`), so the check always
 reflects the generator being reviewed, not the pinned published release.
 
-`gen` is deliberately Nix-independent — it never shells out to `nix`, so it
-also runs on Windows and needs no network fetch — which is exactly why it
-cannot be the thing that refreshes `flake.lock`. A separate, maintainer-run
-`npm run lock-update` (`nix/lock-update.sh`, generated alongside the flakes)
-does that with real Nix; ordinary contributors only ever run `gen` after
-changing source.
+`fjs ci` itself is Nix-independent — it never shells out to `nix` — which is
+why it cannot be the thing that writes `flake.lock`. It writes
+`nix/lock-update.sh` instead, alongside the flakes: the script deletes every
+`flake.lock` and locks each flake again from its pinned revision, through real
+Nix. This repository chains that script into `gen`, so a committed lock that
+differs from what the pinned revision produces fails the drift check like any
+other stale generated file — at the cost that `gen` needs Nix and does not run
+on Windows for now. A project that keeps `gen` Nix-free keeps its locks out of
+the check, and a maintainer runs the script by hand when a pin moves.
 
 Keep `tsc` passing independently because the generated CI runs it as its own
 step before coverage and package creation. Keep `test` as the fast local
