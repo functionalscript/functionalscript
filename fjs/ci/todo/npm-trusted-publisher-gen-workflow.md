@@ -58,11 +58,14 @@ of being carried by `continue-on-error`.
 
 ### Downstream
 
-Every project that publishes with an `fjs ci`-generated workflow does the same
-two things when it regenerates with this version: updates its trusted
-publisher's workflow filename, and deletes its old `npm-publish.yml`, which
-the generator does not remove and which would otherwise be a second publish
-workflow on the same trigger
+Every project that regenerates with this version deletes its old
+`.github/workflows/ci.yml` and `.github/workflows/npm-publish.yml` by hand:
+the generator does not remove what an earlier version wrote
+([README.md](../README.md#fjs-ci-is-not-stable)), and GitHub loads every
+workflow in the directory, so a leftover `ci.yml` runs the whole matrix a
+second time on every pull request and a leftover `npm-publish.yml` is a second
+publish workflow on the same trigger. A project that publishes also updates
+its trusted publisher's workflow filename, in the same sitting
 ([README.md](../README.md#the-publishing-workflow)).
 
 ### Tasks

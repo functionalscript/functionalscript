@@ -19,7 +19,11 @@ steps are reordered, and generated files move or are renamed. None of that is
 versioned, and the generator does not migrate a consumer's tree — it writes the
 files it generates now and leaves anything an older version wrote where it is.
 A project upgrading `functionalscript` is expected to regenerate, read the diff,
-and delete whatever the new version stopped writing.
+and delete whatever the new version stopped writing. The workflows are the
+standing example: they took the `gen.` name, and a project upgrading across
+that rename deletes its old `ci.yml` and `npm-publish.yml` itself — GitHub
+loads every workflow in the directory, so each leftover runs beside its
+replacement.
 
 That is a deliberate position rather than an oversight, and it is the reason the
 generator carries no migration code for its own past output. Who this command is
