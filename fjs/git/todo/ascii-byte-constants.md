@@ -1,7 +1,7 @@
 ## Git readers take byte constants from `text/ascii`
 
 **Priority:** P5
-**Status:** open
+**Status:** wip
 
 ### Problem
 
