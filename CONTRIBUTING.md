@@ -206,17 +206,22 @@ npm run gen
 ```
 
 Run this after changing anything a generator reads — `fjs/ci`'s workflows and
-Nix flakes, `fjs/nanvm`'s Rust test data. It needs nothing beyond Node, runs on
-Windows, and never touches a lockfile of any kind.
+Nix flakes, `fjs/nanvm`'s Rust test data. It needs Node and Nix: its last
+command is the generated `nix/lock-update.sh`, which deletes every
+`flake.lock` and locks each flake again from its pinned commit, so it does not
+run on Windows for now. The dependency lockfiles it never touches.
 
 `gen` starts by deleting every generated output — the same module as
 `npm run gen:clean` — so regeneration starts from nothing: an output no
 generator writes any more shows up as a deletion, and a generator that needs
-a previous output — its own or another's — fails. CI's drift check runs `gen`
-and then `git add -A && git diff --cached --exit-code`; run the same two
-commands to see what CI will. The cleanup lives in `gen` rather than in its
-own CI step because the workflow `fjs ci` generates is shared with downstream
-projects, whose contract is only `cov` and `gen`.
+a previous output — its own or another's — fails. The `flake.lock` files are
+held to the same standard by the lock script `gen` ends with: deleted, then
+locked again from the pinned commit, so a committed lock is byte-identical to
+what that commit produces from nothing. CI's drift check runs `gen` and then
+`git add -A && git diff --cached --exit-code`; run the same two commands to
+see what CI will. The cleanup lives in `gen` rather than in its own CI step
+because the workflow `fjs ci` generates is shared with downstream projects,
+whose contract is only `cov` and `gen`.
 
 #### Naming generated files
 
@@ -249,8 +254,10 @@ the shell through `./nix/run`). The two workflows follow the rule — GitHub
 reads any name in `.github/workflows/` — but npm trusted publishing is bound to
 `gen.npm-publish.yml`'s exact name, so a project that renames it updates its
 trusted publisher on npm as well
-([fjs/ci/README.md](./fjs/ci/README.md#the-publishing-workflow)). Lockfiles
-are not generated outputs: `npm run lock-update` refreshes them, not `gen`.
+([fjs/ci/README.md](./fjs/ci/README.md#the-publishing-workflow)). The
+dependency lockfiles are not generated outputs: `npm run lock-update`
+refreshes them, not `gen`. The `flake.lock` files are: `gen` regenerates them
+through `nix/lock-update.sh`.
 
 A known gap: because fixed-path outputs are not deleted, an obsolete one — a
 Nix job directory the CI generator stopped writing — survives the drift check.
@@ -268,11 +275,10 @@ npm run lock-update
 ```
 
 This is a maintainer action, not something to run after an ordinary source
-change — `gen` above covers that. It requires Node, Deno, Bun, Cargo, and Nix
-all installed (so it does not run on Windows): it runs `gen` first, then
-refreshes `package-lock.json`, `deno.lock`, `bun.lock`, and `Cargo.lock`, and
-runs the generated `nix/lock-update.sh` to refresh every `flake.lock` through
-real Nix — see [`nix/README.md`](./nix/README.md).
+change — `gen` above covers that, the `flake.lock` files included. It requires
+Node, Deno, Bun, Cargo, and Nix all installed: it runs `gen` first, then
+refreshes `package-lock.json`, `deno.lock`, `bun.lock`, and `Cargo.lock` — see
+[`nix/README.md`](./nix/README.md).
 
 ## Opening a pull request
 

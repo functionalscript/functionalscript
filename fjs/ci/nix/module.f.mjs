@@ -441,35 +441,44 @@ const flake = job => ['set',
 export const flakeText = job =>
     unwrapNullable(fromUndefined(nixToString(flake(job))))
 
+/** Where {@link nixFlakes} writes the lock script, as a CI step names it. */
+export const lockUpdatePath = /** @type {const} */ (`./${generatedDirectory}/lock-update.sh`)
+
 /**
- * The maintainer-run script that refreshes every generated flake's
- * `flake.lock`, through real Nix rather than data.
+ * The script that regenerates every generated flake's `flake.lock` from
+ * nothing, through real Nix rather than data.
  *
  * `flake.nix` already pins an exact revision — `github:owner/repo/<40 hex>` —
  * so `nix flake lock` adds nothing a person chose; it only fills in the two
  * facts about that revision Nix cannot read off the URL, `narHash` and
  * `lastModified`. Computing those needs Nix and a network fetch of the pinned
- * revision, neither of which `npm run gen` may require: `../todo/65z-ci-nix.md`
- * keeps that command Nix-independent so it still runs on Windows, and root
- * `AGENTS.md` §6 bars shelling out to an unapproved tool from ordinary
- * generation. So this is a second, narrower script — run by hand, only when
- * `../config/module.f.js` moves a pin — rather than a step `gen` takes on
- * every run.
+ * revision, so `fjs ci` does not compute them: it writes this script, which
+ * asks Nix, and this repository's `npm run gen` ends by running it. That makes
+ * `gen` need Nix, and so not run on Windows for now — accepted, rather than a
+ * second generation step or job; a Node-only partial regeneration can be
+ * added if it is ever needed. The drift check then compares a committed lock
+ * against one Nix produces from the pinned revision alone, like every other
+ * generated file.
+ *
+ * Each lock is deleted before it is locked. Both facts are functions of the
+ * pinned revision, so the regenerated file is byte-identical to a current
+ * committed one, and a lock that was edited, or left behind by a pin that
+ * moved, is a diff rather than an input `nix flake lock` quietly kept.
  *
  * One `nix flake lock` per generated directory, because Nix has no form that
  * locks several flakes at once. `set -e` stops at the first failure rather
  * than leaving a later directory silently unlocked.
  *
- * A stale committed lock is not silent: `nix develop`'s
- * `--no-update-lock-file` (see {@link runText}) refuses to resolve a mismatch
- * on its own, so every command through a mismatched flake errors until this
- * script is run and its result committed.
+ * Deleting the shared shell's own lock from inside that shell is fine: the
+ * lock is read once, on entry, and `gen`'s process is already in. The step
+ * after it, the drift check, is `git`'s and enters no shell.
  *
  * @type {(jobs: readonly NixJob[]) => string}
  */
 export const lockUpdateText = jobs => `#!/bin/sh
 set -e
-${jobs.map(({ id }) => `nix flake lock ${experimentalFeatures} ${flakePath(id)}`).join('\n')}
+${jobs.map(({ id }) => `rm -f ${flakePath(id)}/flake.lock
+nix flake lock ${experimentalFeatures} ${flakePath(id)}`).join('\n')}
 `
 
 /**
@@ -626,7 +635,8 @@ const writeJob = job => {
  * `flake.lock` is deliberately not written here — see {@link lockUpdateText}
  * — so this leaves whatever lock is already committed alone; only
  * `nix/lock-update.sh` itself, and the generated `flake.nix`/`run` pair each
- * job takes, are this function's output.
+ * job takes, are this function's output. The locks are the script's, and
+ * `npm run gen` runs it after this.
  *
  * `nix/lock-update.sh`'s executable bit is exactly as unmanaged as `run`'s —
  * see {@link writeJob}'s docstring and `../todo/generated-run-script-mode.md`
@@ -639,7 +649,7 @@ export const nixFlakes = jobs => {
     const written = forEachStep(pureOk(jobs), writeJob)
     return step(
         written,
-        () => writeUtf8File(`${generatedDirectory}/lock-update.sh`, lockUpdateText(jobs)))
+        () => writeUtf8File(lockUpdatePath.slice('./'.length), lockUpdateText(jobs)))
 }
 
 /**

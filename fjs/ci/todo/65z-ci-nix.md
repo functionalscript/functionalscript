@@ -424,15 +424,18 @@ Browser-runner and browser-package synchronization is outside this Node-only upd
 
 #### Generated flake locks
 
-A `flake.lock` is committed beside every `flake.nix`, but `npm run gen`
-(`fjs ci`) never writes one — this issue requires that command stay
-Nix-independent, and a lock's two facts on top of a pinned revision,
-`narHash` and `lastModified`, are only real Nix's to establish.
+A `flake.lock` is committed beside every `flake.nix`, but `fjs ci` never
+writes one — a lock's two facts on top of a pinned revision, `narHash` and
+`lastModified`, are only real Nix's to establish.
 
-So `fjs ci` also writes `nix/lock-update.sh`, one `nix flake lock <path>` per
-generated directory, and a maintainer runs it — through `npm run lock-update`,
-which needs Nix and is never run by ordinary contributors — only when a pin in
-`../config/module.f.js` moves.
+So `fjs ci` also writes `nix/lock-update.sh`, one `rm -f` and one
+`nix flake lock <path>` per generated directory, and this repository's
+`npm run gen` ends by running it, so the drift check compares the committed
+locks against ones regenerated from nothing. That makes `gen` need Nix. The
+earlier position — `gen` stays Nix-independent so it runs on Windows — is
+given up for now rather than paid for with a second generation step: if a
+Windows regeneration is ever needed, a partial, Node-only `gen` is the
+answer, not a second CI job.
 
 CI passes `--no-update-lock-file`, not the more tempting `--no-write-lock-file`:
 the latter still resolves a mismatched input in memory and only skips the
