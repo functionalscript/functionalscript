@@ -4,13 +4,12 @@ import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 export const proof = {
     tryParse: {
         plain: () => assertStructurallySame(tryParse('0.11.10'), [0, 11, 10]),
-        // `process.version` prints a leading `v`.
-        v: () => assertStructurallySame(tryParse('v22.20.0'), [22, 20, 0]),
+        // A prefix such as `process.version`'s `v` is the caller's to remove.
+        v: () => assertEq(tryParse('v22.20.0'), null),
         // `Number('bad')` is `NaN`, which compares equal to everything.
         letter: () => assertEq(tryParse('1.bad'), null),
         emptyPart: () => assertEq(tryParse('0..1'), null),
         empty: () => assertEq(tryParse(''), null),
-        onlyV: () => assertEq(tryParse('v'), null),
         sign: () => assertEq(tryParse('-1.0'), null),
         // Past `Number.MAX_SAFE_INTEGER` two different parts round to one.
         unsafe: () => assertEq(tryParse('9007199254740993'), null),
@@ -22,7 +21,6 @@ export const proof = {
         // Text ordering would put `0.11.10` first.
         notLexicographic: () => assertEq(cmp('0.11.2')('0.11.10'), -1),
         patch: () => assertEq(cmp('26.1.0')('26.1.1'), -1),
-        v: () => assertEq(cmp('v22.20.0')('26.0.0'), -1),
         missingIsZero: () => assertEq(cmp('0.11')('0.11.0'), 0),
         shorterIsSmaller: () => assertEq(cmp('0.11')('0.11.1'), -1),
         longerIsGreater: () => assertEq(cmp('0.11.1')('0.11'), 1),

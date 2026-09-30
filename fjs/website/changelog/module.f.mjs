@@ -29,7 +29,7 @@
  */
 
 import { changelogDir, pageHref, pageTitle, repository, shell } from '../page/module.f.mjs'
-import { cmp as versionCmp } from '../../types/version/module.f.mjs'
+import { cmp as versionCmp, tryParse } from '../../types/version/module.f.mjs'
 
 const zero = 0x30
 const nine = 0x39
@@ -167,12 +167,16 @@ export const linked = entry => _merged(entry.flatMap(
  * before nor after. A typo would become a page rather than a refusal, which
  * is the plausible wrong value `DESIGN.md` §10 rules out.
  *
+ * **A version is what {@link descending} can order.** The parts are
+ * [`types/version`](../../types/version/module.f.mjs)'s `tryParse`, the same
+ * definition its `cmp` refuses anything outside of, so a release admitted here
+ * never makes the sort throw.
+ *
  * @type {(name: string) => boolean}
  */
 export const isVersion = name => {
-    const parts = name.split('.')
-    return parts.length === 3
-        && parts.every(part => part.length !== 0 && [...part].every(isDigit))
+    const parts = tryParse(name)
+    return parts !== null && parts.length === 3
 }
 
 /**

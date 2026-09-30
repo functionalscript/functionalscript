@@ -1,6 +1,8 @@
 /**
- * Dotted version numbers, such as `26.1.0` or `v26.1.0` (the form Node's
- * `process.version` prints), compared by their numbers rather than as text.
+ * Dotted version numbers, such as `26.1.0`, compared by their numbers rather
+ * than as text. A prefix such as the `v` Node's `process.version` prints is
+ * the caller's to remove: a version here is decimal parts and dots, nothing
+ * else.
  *
  * **Numbers, not text.** `0.11.10` comes before `0.11.2` as text and after it
  * as a version, so a comparison has to split the parts and compare them as
@@ -22,7 +24,7 @@
  * ```js
  * import { cmp, tryParse } from './module.f.mjs'
  *
- * tryParse('v26.1.0') // [26, 1, 0]
+ * tryParse('26.1.0') // [26, 1, 0]
  * tryParse('1.bad') // null
  * cmp('0.11.2')('0.11.10') // -1
  * ```
@@ -46,13 +48,13 @@ const isPart = part =>
     && Number.isSafeInteger(Number(part))
 
 /**
- * A version as its numbers, ignoring a leading `v`, or `null` where any
- * dot-separated part is not a run of decimal digits.
+ * A version as its numbers, or `null` where any dot-separated part is not a
+ * run of decimal digits spelling a safe integer.
  *
  * @type {(version: string) => Nullable<readonly number[]>}
  */
 export const tryParse = version => {
-    const parts = (version.startsWith('v') ? version.slice(1) : version).split('.')
+    const parts = version.split('.')
     return parts.every(isPart) ? parts.map(Number) : null
 }
 

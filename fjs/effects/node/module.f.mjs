@@ -1097,5 +1097,7 @@ export const exitStep = e =>
 export const usesInlineTestContext = (engine, nodeVersion) => {
     if (engine === 'bun') { return true }
     if (engine !== 'node' || nodeVersion === undefined) { return false }
-    return versionCmp(nodeVersion)('26.0.0') < 0
+    // `process.version` prints a leading `v`, which is no part of a version.
+    const version = nodeVersion.startsWith('v') ? nodeVersion.slice(1) : nodeVersion
+    return versionCmp(version)('26.0.0') < 0
 }
