@@ -6,7 +6,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { fromArrayLike, toArray } from '../../types/list/module.f.mjs'
 import { commitPayload, hole, latin1 } from '../testlib.f.mjs'
-import { objectTypes, tryRead, write } from './module.f.mjs'
+import { objectTypes, tryRead, tryType, write } from './module.f.mjs'
 
 /** @type {(input: Bytes) => Envelope} */
 const read = input => {
@@ -35,6 +35,21 @@ export const proof = {
             assertEq(e.type, type)
             assertStructurallySame(toArray(e.payload), [])
         }
+    },
+    // Each of the four names reads as its type; bytes that spell none of
+    // them, or that are not bytes at all, read as `null`. An item above
+    // `0xFF` is compared, not truncated, so it cannot pass for the byte it
+    // would truncate to.
+    tryType: () => {
+        for (const type of objectTypes) {
+            assertEq(tryType(latin1(type)), type)
+        }
+        assertEq(tryType([]), null)
+        assertEq(tryType(latin1('blobs')), null)
+        assertEq(tryType(latin1('blo')), null)
+        assertEq(tryType(latin1('Blob')), null)
+        assertEq(tryType([0x110062, 0x11006c, 0x11006f, 0x110062]), null)
+        assertEq(tryType([0x162, 0x16c, 0x16f, 0x162]), null)
     },
     // The payload is sliced, not read: any byte may follow the NUL.
     binary: () => {
