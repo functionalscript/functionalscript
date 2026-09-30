@@ -598,7 +598,7 @@ export const proof = {
         // front end reads `const $a0=$a;` as an alias, no anchor at all
         refuses(['=>', 0, null, [',', [['rest'], 1]]], 'an anchor that is a name')
         refuses(['=>', 1, null, [',', [['arg', 0], 1]]], 'an anchor that is a name')
-        refuses(['[]', [['[]', []], ['=>', 0, ['[]', [['[]', []]]], [',', [['.', ['frame'], 0], 1]]]]], 'an anchor that is a name')
+        refuses(['[]', [['[]', []], ['=>', 0, ['[]', [['[]', []]]], [',', [['frame', 0], 1]]]]], 'an anchor that is a name')
     },
     // The lazy operators and the conditional. Each operand of `&&`, `||`
     // and `??` after the first, and each arm of `?:`, is a block root: a
@@ -675,7 +675,7 @@ export const proof = {
             writes(fn([',', [['[]', []], ['?:', r0, ['[]', [c, c]], 1]]]), 'export default (...$a)=>{const $a0=[];return $a[0]?(()=>{const $b0=[1];return [$b0,$b0];})():1;};')
             // a function in the block captures the block's `const`, and is
             // one depth further in
-            writes(['?:', true, ['[]', [c, ['=>', 0, ['[]', [c]], ['.', ['frame'], 0]]]], 1], 'export default true?(()=>{const $a0=[1];return [$a0,(...$b)=>$a0];})():1;')
+            writes(['?:', true, ['[]', [c, ['=>', 0, ['[]', [c]], ['frame', 0]]]], 1], 'export default true?(()=>{const $a0=[1];return [$a0,(...$b)=>$a0];})():1;')
             // blocks nest as lazy operands do
             /** @type {Exp} */
             const d = ['[]', [2]]
