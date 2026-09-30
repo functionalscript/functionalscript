@@ -27,6 +27,7 @@
 
 import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
 import { byteArray, byteLength } from '../../ebnf/byte/module.f.mjs'
+import { lf } from '../../text/ascii/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { hasNulHeader, tryRead as readPayload, valueAt, write as writePayload } from '../header/module.f.mjs'
@@ -82,9 +83,6 @@ const typeOf = value => {
     const text = codePointListToString(nul === -1 ? bs : bs.slice(0, nul))
     return objectTypes.find(t => t === text) ?? null
 }
-
-/** The byte a line ends with, and the one a folded continuation leaves in a value. */
-const lf = /** @type {const} */ (0x0A)
 
 /**
  * The id the `object` header names: the first header, a hex id.

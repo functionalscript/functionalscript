@@ -25,12 +25,9 @@
 import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
 import { ascii, byte, byteArray, byteLength, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, option, repeatFrom0, repeatFrom1, set } from '../../ebnf/module.f.mjs'
+import { lf, space as sp } from '../../text/ascii/module.f.mjs'
 import { flat, flatMap } from '../../types/list/module.f.mjs'
 import { sameBytes } from '../refname/module.f.mjs'
-
-const lf = /** @type {const} */ (0x0A)
-
-const sp = /** @type {const} */ (0x20)
 
 const key = repeatFrom1(not(set(' \n')))
 

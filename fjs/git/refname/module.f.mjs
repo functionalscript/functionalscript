@@ -45,16 +45,11 @@
  */
 
 import { ascii, byteArray } from '../../ebnf/byte/module.f.mjs'
+import {
+    commercialAt as at, fullStop as dot, leftCurlyBracket as brace, solidus as slash, space,
+} from '../../text/ascii/module.f.mjs'
 import { strictEqual } from '../../types/function/operator/module.f.mjs'
 import { equal } from '../../types/list/module.f.mjs'
-
-const dot = /** @type {const} */ (0x2E)
-
-const slash = /** @type {const} */ (0x2F)
-
-const at = /** @type {const} */ (0x40)
-
-const brace = /** @type {const} */ (0x7B)
 
 const del = /** @type {const} */ (0x7F)
 
@@ -170,7 +165,7 @@ export const hasRefComponents = input => components(byteArray(input)).every(isCo
  */
 export const isName = input => {
     const name = byteArray(input)
-    return name.every(b => b >= 0x20 && b !== del && !forbidden.includes(b))
+    return name.every(b => b >= space && b !== del && !forbidden.includes(b))
         && !holdsPair(name, dot, dot)
         && !holdsPair(name, at, brace)
         && name[name.length - 1] !== dot

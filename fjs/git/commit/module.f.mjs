@@ -31,6 +31,7 @@
 
 import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
 import { byteLength } from '../../ebnf/byte/module.f.mjs'
+import { lf } from '../../text/ascii/module.f.mjs'
 import { concat, includes } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { hasNulHeader, keyIs, tryRead as readPayload, valueAt, valuesOf, write as writePayload } from '../header/module.f.mjs'
@@ -239,8 +240,6 @@ export const encoding = c => first(c, 'encoding')
  * @type {(c: Commit) => Nullable<Bytes>}
  */
 export const gpgsig = c => first(c, 'gpgsig')
-
-const lf = /** @type {const} */ (0x0A)
 
 /**
  * A `mergetag` value as the tag's bytes: the value with the LF the

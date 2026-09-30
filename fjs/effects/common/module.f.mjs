@@ -14,6 +14,7 @@
 import { do_, pure, pureOk, resultMapStep, step } from '../module.f.mjs'
 import { okList } from '../../types/result/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
+import { lf } from '../../text/ascii/module.f.mjs'
 import { toCodePointList } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { reverse } from '../../types/list/module.f.mjs'
@@ -156,9 +157,6 @@ export const read = do_('read')
 /** @type {(bytes: _UtfList) => string} */
 const utf8ListToString = bytes =>
     codePointListToString(toCodePointList(bytes))
-
-/** The line-feed byte (`\n`) that terminates a line. */
-const lf = 0x0a
 
 /**
  * Reads bytes from `stream` up to and including the next line feed, and answers
