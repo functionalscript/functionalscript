@@ -1722,8 +1722,12 @@ are not supported yet. A newline before `=>` is refused.
   statements after a guard are JavaScript's one block with the ones before
   it, so a name that block has bound — a parameter, a `const` before the
   guard, or one after an earlier guard — may not be bound again there
-  (`duplicate id`), while the guard's block is a block of its own and may
-  shadow one. The FunctionalScript writer never
+  (`duplicate id`), and neither may a word that block has already read
+  from an enclosing scope, in a statement before the guard, in the
+  condition or in the guard's block (`capture shadowed`), since in
+  JavaScript every such read would have named the later `const` before
+  its declaration; the guard's block is a block of its own and may shadow
+  either. The FunctionalScript writer never
   writes `if`: it spells the conditional, and an arm that holds a `const`
   or a `throw` as the block opened at the operand (above), so the guarded
   body reads back as the same graph; the EDAG output carries the `?:`,

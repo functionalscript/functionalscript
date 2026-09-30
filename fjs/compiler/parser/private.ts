@@ -40,9 +40,11 @@ export type _Ref = AstModuleRef | AstRest | _Parameter | AstFrameRef
  * their own — the one the fold makes of them, {@link _GuardFrame} — but
  * JavaScript reads them in the block the guard stands in, so the names
  * that block has bound, `enclosing` — one environment per body the block
- * was continued from — are theirs not to bind again: a `const` twice in
- * one block is a syntax error there. A function's own body, a guard's
- * block and the module enclose nothing.
+ * was continued from — are theirs not to bind again, a `const` twice in
+ * one block being a syntax error there, and they begin with the block's
+ * `read` rather than none, a `const` of a word the block has already read
+ * from outside being the capture-shadowing the fold refuses. A function's
+ * own body, a guard's block and the module enclose nothing.
  */
 export type _Scope = {
     readonly names: _Env

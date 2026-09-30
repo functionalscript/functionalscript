@@ -664,8 +664,8 @@ const returned = (stack, scope, frame, value) => {
                 { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) })
         }
         // a guard's condition: its block is the first arm, a block of
-        // JavaScript's own, so it may bind what the body has bound
-        if (kind === 'if') { return arm(stack, scope, { guard: statement, body: frame, condition: value, then: null }, statement.block[1], []) }
+        // JavaScript's own, so it may bind what the body has bound or read
+        if (kind === 'if') { return arm(stack, scope, { guard: statement, body: frame, condition: value, then: null }, statement.block[1], [], []) }
         // the body's last entry: what it returns, or the `throw` it ends with
         return closed(stack, scope, [...toArray(frame.done), kind === 'throw' ? thrown(value) : value])
     }
@@ -673,8 +673,10 @@ const returned = (stack, scope, frame, value) => {
         /** @type {AstCall} */
         const call = ['()', value, []]
         // the guard's block closed: the statements after the guard are the
-        // second arm, JavaScript's same block as the ones before it
-        if (frame.then === null) { return arm(stack, scope, { ...frame, then: call }, after(frame.body), [...scope.enclosing, scope.names]) }
+        // second arm, JavaScript's same block as the ones before it — what
+        // that block has bound, and what it has read from outside, the
+        // condition and the first arm included, is not theirs to bind
+        if (frame.then === null) { return arm(stack, scope, { ...frame, then: call }, after(frame.body), [...scope.enclosing, scope.names], scope.read) }
         /** @type {AstConditional} */
         const conditional = ['?:', frame.condition, frame.then, call]
         return closed(stack, scope, [...toArray(frame.body.done), conditional])
@@ -686,14 +688,20 @@ const returned = (stack, scope, frame, value) => {
  * An arm of a guard entered: its statements resolved as the body of a
  * parameterless function of its own, in a scope inside `scope` that
  * captures what it reads from there, under the guard's frame, which
- * receives the function once the body closes. `enclosing` is what the arm
- * may not bind again: nothing for the guard's block, and for the
- * statements after the guard the names of the block they continue.
+ * receives the function once the body closes. `enclosing` and `read` are
+ * what the arm may not bind: nothing for the guard's block, a block of
+ * JavaScript's own; and for the statements after the guard the names the
+ * block they continue has bound, and the words it has read from outside
+ * so far — in a statement before the guard, in the condition, or in the
+ * guard's block, whose reads pass through the block's scope — since a
+ * `const` of that name after the guard would have been the one every such
+ * read named in JavaScript, before its declaration
+ * ({@link captureShadowed}).
  *
- * @type {(stack: _Stack, scope: _Scope, frame: _GuardFrame, statements: readonly Block[1][number][], enclosing: readonly _Env[]) => _State}
+ * @type {(stack: _Stack, scope: _Scope, frame: _GuardFrame, statements: readonly Block[1][number][], enclosing: readonly _Env[], read: readonly string[]) => _State}
  */
-const arm = (stack, scope, frame, statements, enclosing) =>
-    bodyRound({ top: frame, rest: stack }, { names: empty, count: 0, captures: [], read: [], enclosing, outer: scope }, { statements, index: 0, word: '', done: null })
+const arm = (stack, scope, frame, statements, enclosing, read) =>
+    bodyRound({ top: frame, rest: stack }, { names: empty, count: 0, captures: [], read, enclosing, outer: scope }, { statements, index: 0, word: '', done: null })
 
 /**
  * The statements after the one a body frame stands at, the body's own
