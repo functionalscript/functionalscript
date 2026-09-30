@@ -59,7 +59,7 @@ stay opt-in through the `proof.mjs` filename convention.
 A `proof.f.mjs` is authored `.f.mjs` like any other. Its relative **runtime**
 imports must target FunctionalScript modules, `.f.mjs` or `.f.js`. A
 `module.f.js` keeps a `proof.f.mjs` for now: a proof fails through `assert`,
-whose `if` and `!` the compiler does not accept yet
+whose `!`, bare `if` and default parameter the compiler does not accept yet
 ([`compiler/README.md`](./compiler/README.md)). Type-only APIs may live in an authored
 `types.ts` companion and are referenced directly through that real source path.
 Its leading JSDoc block may include, for example:
