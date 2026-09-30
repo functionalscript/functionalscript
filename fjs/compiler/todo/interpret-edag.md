@@ -96,7 +96,7 @@ contract in #2237's [parameter plan](../../../spec/todo/3120-parameters.md).
 
 The original null-frame-only Stage 2 restriction is superseded. Creating a closure
 evaluates its `frame` expression in the enclosing invocation; the body reads that
-captured value through `['frame']` in its own invocation. The schema permits a general
+captured value through `['frame', i]` in its own invocation. The schema permits a general
 frame expression, and the compiler uses `null` when no frame is needed. Fixed values
 and rest arrays captured by nested functions use the same frame mechanism.
 
@@ -185,7 +185,7 @@ hardening TODO after the baseline interpreter exists.
       the step supplies the `this` binding. Function bodies use fixed `['arg', N]`
       and per-invocation `['rest']`, not module-import `['args']`.
 - [x] Evaluate frames in the enclosing scope and make their captured values available
-      through `['frame']` in each body invocation. The old null-only restriction is
+      through `['frame', i]` in each body invocation. The old null-only restriction is
       historical; capture and fixed/rest identity proofs are in
       [`../parameters/proof.f.mjs`](../parameters/proof.f.mjs).
 - [x] Memoize results by EDAG node identity within one evaluation context so shared

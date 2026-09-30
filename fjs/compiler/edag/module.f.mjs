@@ -140,9 +140,8 @@ const call = nodes => ast => {
  * nothing reads, and the enclosing scope anchors the `const` instead. A
  * function whose frame is left with nothing has a `null` one.
  *
- * Inside the body a slot is one node, `['.', ['frame'], i]`, however many
- * references reach it, over one `['frame']` for the body — the node
- * `rest` is, for the rest arguments.
+ * Inside the body a slot is one node, `['frame', i]`, however many
+ * references reach it — the node `rest` is, for the rest arguments.
  *
  * @type {(nodes: _Nodes) => (length: number, body: AstBody, captures: readonly AstConst[]) => Exp}
  */
@@ -154,10 +153,8 @@ const fn = nodes => (length, body, captures) => {
     /** Each candidate's first twin: the candidate whose slot it reads. */
     const firsts = keys.map(k => keys.indexOf(k))
     const slots = candidates.filter((_, i) => firsts[i] === i)
-    /** @type {Exp} */
-    const frameNode = ['frame']
     /** @type {readonly Exp[]} */
-    const reads = slots.map((_, i) => ['.', frameNode, i])
+    const reads = slots.map((_, i) => ['frame', i])
     /** @type {(n: typeof candidates[number]) => Exp} */
     const slotRead = n => reads[slots.indexOf(candidates[firsts[candidates.indexOf(n)]])]
     const inner = outer.map(n => candidates.includes(n) ? slotRead(n) : n)

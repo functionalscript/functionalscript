@@ -105,7 +105,7 @@ const shapes = p => [
     ...p.map(x => /** @type {Exp} */([',', [x, x]])),
     ...p.map(x => /** @type {Exp} */([',', [x]])),
     ...p.map(x => /** @type {Exp} */(['[]', [x, ['=>', 0, null, copy(x)]]])),
-    ...p.map(x => /** @type {Exp} */(['[]', [x, ['=>', 0, ['[]', [x]], ['.', ['frame'], 0]]]])),
+    ...p.map(x => /** @type {Exp} */(['[]', [x, ['=>', 0, ['[]', [x]], ['frame', 0]]]])),
     ...p.map(x => /** @type {Exp} */(['&&', x, x])),
     ...p.map(x => /** @type {Exp} */(['??', ['[]', []], x])),
     ...p.map(x => /** @type {Exp} */(['?:', true, ['[]', [x, x]], 2])),
@@ -433,7 +433,7 @@ export const proof = {
         /** @type {Exp} */
         const c = ['[]', [1]]
         /** A read of slot `i`, a node of its own — one node in two bodies is no EDAG. @type {(i: number) => Exp} */
-        const slot = i => ['.', ['frame'], i]
+        const slot = i => ['frame', i]
         writes(['=>', 0, ['[]', [c]], slot(0)], 'const $0=[1];export default (...$a)=>$0;')
         writes(['[]', [c, ['=>', 0, ['[]', [c]], slot(0)]]], 'const $0=[1];export default [$0,(...$a)=>$0];')
         // the frame's `const` comes before the function's own
@@ -477,9 +477,10 @@ export const proof = {
         refuses(['=>', 0, ['[]', [c, c]], ['[]', [slot(0), slot(1)]]], 'a frame slot that repeats another')
         refuses(['=>', 0, ['[]', [c]], 1], 'a frame slot the body never reads')
         refuses(['=>', 0, ['[]', [c]], slot(1)], 'a frame read that is no slot')
-        refuses(['=>', 0, ['[]', [c]], ['.', ['frame'], 'a']], 'a frame read that is no slot')
-        refuses(['.', ['frame'], 0], 'a frame read that is no slot')
-        refuses(['=>', 0, ['[]', [c]], ['frame']], 'the frame outside a slot read')
+        // an index that is no canonical index, and a read outside a
+        // function, are the analysis's refusals, before any text is written
+        refuses(['=>', 0, ['[]', [c]], slot(-0)], 'invalid frame slot index or scope')
+        refuses(slot(0), 'invalid frame slot index or scope')
         refuses((() => {
             /** @type {Exp} */
             const frame = ['[]', [c]]
@@ -597,7 +598,7 @@ export const proof = {
         // front end reads `const $a0=$a;` as an alias, no anchor at all
         refuses(['=>', 0, null, [',', [['rest'], 1]]], 'an anchor that is a name')
         refuses(['=>', 1, null, [',', [['arg', 0], 1]]], 'an anchor that is a name')
-        refuses(['[]', [['[]', []], ['=>', 0, ['[]', [['[]', []]]], [',', [['.', ['frame'], 0], 1]]]]], 'an anchor that is a name')
+        refuses(['[]', [['[]', []], ['=>', 0, ['[]', [['[]', []]]], [',', [['frame', 0], 1]]]]], 'an anchor that is a name')
     },
     // The lazy operators and the conditional. Each operand of `&&`, `||`
     // and `??` after the first, and each arm of `?:`, is a block root: a
@@ -674,7 +675,7 @@ export const proof = {
             writes(fn([',', [['[]', []], ['?:', r0, ['[]', [c, c]], 1]]]), 'export default (...$a)=>{const $a0=[];return $a[0]?(()=>{const $b0=[1];return [$b0,$b0];})():1;};')
             // a function in the block captures the block's `const`, and is
             // one depth further in
-            writes(['?:', true, ['[]', [c, ['=>', 0, ['[]', [c]], ['.', ['frame'], 0]]]], 1], 'export default true?(()=>{const $a0=[1];return [$a0,(...$b)=>$a0];})():1;')
+            writes(['?:', true, ['[]', [c, ['=>', 0, ['[]', [c]], ['frame', 0]]]], 1], 'export default true?(()=>{const $a0=[1];return [$a0,(...$b)=>$a0];})():1;')
             // blocks nest as lazy operands do
             /** @type {Exp} */
             const d = ['[]', [2]]
