@@ -566,10 +566,18 @@ removed; `git log -- docker/` has it.
       provides fails this repository's suite.
 - [x] Generate one readable self-contained flake per job with
       `devShells.aarch64-linux.default`.
-- [x] Remove stale generated job directories: the directory is `gen.nix/`,
-      so `gen:clean` empties it by name and a job the generator stopped
-      writing is a set of deletions in the drift check. The hand-written
-      README moved beside the generator, `fjs/ci/nix/README.md`.
+- [x] Remove stale generated job directories, in this repository: the
+      directory is `gen.nix/`, so `gen:clean` empties it by name before
+      `fjs ci` writes, and a job the generator stopped writing is a set of
+      deletions in the drift check. The hand-written README moved beside the
+      generator, `fjs/ci/nix/README.md`.
+- [ ] The same for a project whose `gen` is `fjs ci` alone: the command
+      empties nothing, so a stopped job's `gen.nix/<job>/` survives its
+      regeneration and its drift check stays green. Whether `fjs ci` should
+      empty its own directory first is the audience question
+      ([ci-generator-audience](ci-generator-audience.md)); until it is
+      answered, [README.md](../README.md#fjs-ci-is-not-stable)'s position
+      holds and the consumer deletes what the new version stopped writing.
 - [x] Generate a `run` script per job, so a workflow step names a command rather
       than a `nix develop` invocation.
 - [x] Generate and commit a `flake.lock` per flake, regenerated from nothing

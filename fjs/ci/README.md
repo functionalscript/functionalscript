@@ -23,7 +23,9 @@ and delete whatever the new version stopped writing. The workflows are the
 standing example: they took the `gen.` name, and a project upgrading across
 that rename deletes its old `ci.yml` and `npm-publish.yml` itself — GitHub
 loads every workflow in the directory, so each leftover runs beside its
-replacement.
+replacement. A job the generator stops writing leaves its `gen.nix/<job>/`
+behind the same way: this repository's `gen` empties `gen.nix/` through
+`gen:clean` before `fjs ci` runs, which `fjs ci` alone does not.
 
 That is a deliberate position rather than an oversight, and it is the reason the
 generator carries no migration code for its own past output. Who this command is
