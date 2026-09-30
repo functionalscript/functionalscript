@@ -79,8 +79,8 @@ const copy = e => /** @type {Exp} */ (deep(e))
  * captures the graph beside it, and the lazy operators: the graph as both
  * operands of `&&`, as the lazy operand of `??`, shared under one arm of a
  * conditional, as the condition and both arms of one, anchored by a comma
- * under the lazy operand of `||`, and under one access both arms of a
- * conditional read.
+ * under the lazy operand of `||`, under one access both arms of a
+ * conditional read, and once in an array of each arm's own.
  *
  * That last one is a copy and not the node again: two nodes, one in a body
  * and one outside it, which is a graph the compiler emits — and which the
@@ -112,6 +112,7 @@ const shapes = p => [
     ...p.map(x => /** @type {Exp} */(['?:', x, ['-', ['[]', [x]]], x])),
     ...p.map(x => /** @type {Exp} */(['||', 1, [',', [x, 2]]])),
     ...p.map(x => /** @type {Exp} */(['?:', true, ['.', x, 'k'], ['.', x, 'k']])),
+    ...p.map(x => /** @type {Exp} */(['?:', true, ['[]', [x]], ['[]', [x]]])),
 ]
 
 /**
@@ -530,6 +531,10 @@ export const proof = {
         // A node kind this writer has no spelling for, which is how the
         // feature that adds one is made to add its spelling here too.
         refuses(['+', 1], 'a + node')
+        // a Stage A node under a lazy operand is walked for what it holds
+        // before it is refused for what it is
+        refuses(['?:', true, ['~', ['[]', []]], 2], 'a ~ node')
+        refuses(['?:', true, ['+', ['[]', []], 1], 2], 'a + node')
         refuses(['[]', [['...', ['[]', []]]]], 'a spread')
         refuses(['{}', [['...', ['[]', []]]]], 'a spread')
         refuses(['=>', 0, null, ['.', ['rest'], 'b', ['|()', ['rest']]]], 'a chain step')
@@ -717,6 +722,12 @@ export const proof = {
             const length = ['.', c, 'length']
             refuses(['?:', true, length, length], 'a shared node reached from outside the lazy operand that establishes it')
             refuses(['[]', [['&&', 1, length], ['&&', 2, length]]], 'a shared node reached from outside the lazy operand that establishes it')
+            // and so has one each of two lazy operands reaches once, held
+            // in place — under a container of the operand's own, or under
+            // an access two containers hold
+            refuses(['[]', [['&&', 1, ['[]', [c]]], ['&&', 2, ['[]', [c]]]]], 'a shared node reached from outside the lazy operand that establishes it')
+            refuses(['?:', true, ['[]', [c]], ['[]', [c]]], 'a shared node reached from outside the lazy operand that establishes it')
+            refuses(['[]', [['&&', 1, ['[]', [length]]], ['&&', 2, ['[]', [length]]]]], 'a shared node reached from outside the lazy operand that establishes it')
             // where one holding values alone is written at each, and reads
             // back merged
             writes(fn(['?:', r0, r1, r1]), 'export default (...$a)=>$a[0]?$a[1]:$a[1];')

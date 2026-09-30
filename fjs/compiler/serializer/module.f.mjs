@@ -401,31 +401,33 @@ const lazyOperand = (s, depth, takes) => v => mapOk(
  * around it visible, and its parameter the enclosing function's, since it
  * has none: a read of the arguments inside it is the function's.
  *
- * A shared value the block would hoist that anything outside the operand
- * reaches is refused: a `const` in the block establishes it exactly when
- * the operand is established, which is right only where nothing else
- * reads it — `a ? [c, c] : c` has no text that reads back as one node.
- * So is an operand more than one edge reaches, written in place at each,
- * when anything under it needs a `const` — `a ? c.length : c.length`,
- * one access over one array, would build the array twice. Linking emits
- * no such graph: what a body's `const` shares, the body holds, and the
- * body is one operand once inlined; and a scope's `const` two lazy
- * positions reach is anchored, an eager reach the scope hoists for.
+ * A node under the operand that anything outside the operand reaches too
+ * is written outside as well, so where it is, or holds, a value a `const`
+ * keeps and no scope around the block named, the block is refused: a
+ * `const` in the block establishes the value exactly when the operand is
+ * established, which is right only where nothing else reads it — `a ? [c,
+ * c] : c` has no text that reads back as one node, nor has `[a && [c], b
+ * && [c]]`, and `a ? c.length : c.length`, one access over one array,
+ * would build the array twice. Linking emits no such graph: what a body's
+ * `const` shares, the body holds, and the body is one operand once
+ * inlined; and a scope's `const` two lazy positions reach is anchored, an
+ * eager reach the scope hoists for.
  *
  * @type {(s: _Scope, depth: number) => (v: Operand) => Result<_Written, string>}
  */
 const block = (s, depth) => v => {
     /** @type {_Scope} */
     const inner = { a: s.a, outer: visible(s), names: [], frame: s.frame, param: s.param, eager: eagerFrom(s.a)(v), shared: sharedWithin(s.a)(v) }
-    // the operand itself is shared by the scope's count where the node
-    // holding it is written more than once — and then that node is a
-    // `const`, {@link hoistedKind}, and the operand is written once — or
-    // where more than one edge reaches it, which no block can spell
-    const candidates = v instanceof Array && s.a.shared.includes(v[1]) ? [v[1], ...inner.shared] : inner.shared
-    const outside = candidates.find(i => hoistedKind(s.a, i) && inner.eager.includes(i) && nameOf(inner.outer, ['entry', i]) === null && referencesWithin(s.a, v, i) !== references(s.a, i))
-    const twice = v instanceof Array && nameOf(inner.outer, ['entry', v[1]]) === null && references(s.a, v[1]) >= 2
-        && reachableFrom(s.a)(v).some(i => (hoistedKind(s.a, i) || s.a.nodes[i][0] === ',') && nameOf(inner.outer, ['entry', i]) === null)
-    if (outside !== undefined || twice) { return error('a shared node reached from outside the lazy operand that establishes it') }
+    /** @type {(i: number) => boolean} */
+    const unnamed = i => nameOf(inner.outer, ['entry', i]) === null
+    // Reached from outside by an edge the operand's subgraph does not
+    // hold: a count by edges, so that sharing the scope counts through a
+    // node holding the operand — a `const` there, {@link hoistedKind} —
+    // does not count here.
+    const outside = reachableFrom(s.a)(v).find(w => unnamed(w)
+        && references(s.a, w) > referencesWithin(s.a, v, w)
+        && reachableFrom(s.a)(['#', w]).some(i => unnamed(i) && (hoistedKind(s.a, i) || s.a.nodes[i][0] === ',')))
+    if (outside !== undefined) { return error('a shared node reached from outside the lazy operand that establishes it') }
     return okThen(
         /** @type {(all: _Root) => Result<_Written, string>} */
         (all => all.length === 1 && hoists(inner)(all[0]).length === 0
@@ -965,16 +967,25 @@ const sharedWithin = a => root => {
     const counts = reachableFrom(a)(root).toSorted((x, y) => y - x).reduce(
         /** @type {(counts: readonly (readonly [number, number])[], p: number) => readonly (readonly [number, number])[]} */
         ((counts, p) => {
-            const places = counts.find(([j]) => j === p)?.[1] ?? 0
+            // every entry but the root was counted through the entry
+            // holding it before this, so a missing count is this walk's
+            // own mistake
+            const places = assertNotNullish(counts.find(([j]) => j === p), ['an entry reached before what holds it', p])[1]
             return allOperands(a.nodes[p]).reduce((cs, c) => c instanceof Array ? bump(cs, c[1], places) : cs, counts)
         }),
         [[root[1], 1]])
     return counts.filter(([, n]) => n >= 2).map(([i]) => i)
 }
 
-/** How many places in the whole table hold the entry `i` as an operand, the root included. @type {(a: Analysis, i: number) => number} */
-const references = (a, i) =>
-    a.nodes.flatMap(allOperands).filter(x => x instanceof Array && x[1] === i).length + (a.root instanceof Array && a.root[1] === i ? 1 : 0)
+/**
+ * How many places in the whole table hold the entry `i` as an operand. The
+ * root's own place is not among them, and need not be: what is asked
+ * about is a value under a lazy operand ({@link block}), which the root
+ * never is.
+ *
+ * @type {(a: Analysis, i: number) => number}
+ */
+const references = (a, i) => a.nodes.flatMap(allOperands).filter(x => x instanceof Array && x[1] === i).length
 
 /** The text a hoisted value's `const` holds, in the scope at `depth`. @type {(s: _Scope, depth: number) => (h: _Hoisted) => Document} */
 const hoistedText = (s, depth) => h => h[0] === 'leaf'
