@@ -125,18 +125,18 @@ const shapes = p => [
 ]
 
 /**
- * Every leaf, the arguments, both empty containers, `undefined`, and a
- * negation — the prefix, whose operand binds tighter than it does, so
- * every shape below has to say where the negation happens, and whose text
- * opens with `-`, which `**` refuses on its left and a binary `-` cannot
- * touch. A negative leaf opens with `-` the same way, and is
- * {@link proof}'s `negativeLeaves` and `operators`: as an atom it would
- * cost the law a quarter of its time for no spelling of its own, and take
- * it past bun's five-second limit.
+ * Every leaf, a negative number among them, the arguments, both empty
+ * containers, `undefined`, and a negation — the prefix, whose operand
+ * binds tighter than it does, so every shape below has to say where the
+ * negation happens, and whose text opens with `-`, which `**` refuses on
+ * its left and a binary `-` cannot touch.
  *
  * @type {readonly Exp[]}
  */
-const atoms = [1, 'a', null, true, 1n, ['rest'], ['[]', []], ['{}', []], ['undefined'], ['-', ['[]', []]]]
+const atoms = [1, -1, 'a', null, true, 1n, ['rest'], ['[]', []], ['{}', []], ['undefined'], ['-', ['[]', []]]]
+
+/** How many tests {@link proof}'s `law` is split into. */
+const lawParts = 8
 
 /** The atoms and two rounds of shapes over them. @type {readonly Exp[]} */
 const generated = (() => {
@@ -930,11 +930,15 @@ export const proof = {
     // The graphs are every shape over every shape over the atoms, some
     // thousands of them, of which about half have a text and the rest are
     // refused by name.
-    law: () => {
-        generated.forEach(e => {
+    //
+    // The graphs are split into parts, each its own test, so that no one
+    // test runs near a runner's time limit.
+    law: Object.fromEntries(Array.from({ length: lawParts }, (_, k) => [
+        `part${k}`,
+        () => generated.filter((_, i) => i % lawParts === k).forEach(e => {
             const written = tryStringify(e)
             if (written[0] === 'error') { return }
             reads(e)
-        })
-    },
+        }),
+    ])),
 }
