@@ -101,6 +101,13 @@ compiler support for `self` or for rendering either as text.
 
 2. **Should `String(f)` instantiate the captured frame?**
 
+   **Answered for `String(f)`: code-only** (approved 2026-09-30). A captured
+   value is written as its slot's name, so every function one arrow makes has
+   one text; see
+   [to-primitive's D2](../../nanvm-lib/todo/to-primitive.md#stage-3-a-functions-text).
+   What the function serializer does with a frame stays with question 1. The
+   discussion below is kept for that.
+
    ```js
    const x = 3;
    const f = () => x;

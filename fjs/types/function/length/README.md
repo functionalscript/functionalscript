@@ -16,7 +16,6 @@ count and rest-array length are not limited by it.
 integer, positive zero only. [`fjs/edag/analysis`](../../../edag/analysis/module.f.mjs)
 validates EDAG function lengths with it.
 
-The factories provide callable values and arity. They do not provide EDAG-derived
-default text: native `toString()` still describes the wrapper. The shared
-renderer and host-conversion association remain unfinished in
-[the parameter plan](../../../../spec/todo/3120-parameters.md).
+The factories provide callable values and arity, not a function's text:
+native `toString()` describes the wrapper. The host adds the text with
+[`withText`](../text/README.md).

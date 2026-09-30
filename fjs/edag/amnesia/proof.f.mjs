@@ -616,6 +616,25 @@ export const proof = {
         ])
         eq(['()', ['()', add, ['[]', [2]]], ['[]', [3]]], 5)
     },
+    // `withText` is what a `=>` node's value is: the host gives it the
+    // node's text. Here a record stands for that value, so the proof can
+    // see which node made it and still call the callable.
+    withText: () => {
+        /** @type {Context} */
+        const texted = { ...context, withText: (f, node) => ({ f, node }) }
+        const made = /** @type {{ readonly f: (...a: readonly unknown[]) => unknown, readonly node: Exp }} */ (
+            vm(texted)(identity))
+        assert(made.node === identity)
+        assertEq(made.f(7), 7)
+        // It crosses into a body: the inner function of `x => y => x` is
+        // made in the outer's invocation, under the same `withText`.
+        const inner = /** @type {Exp} */ (['=>', 0, [['.', ['rest'], 0]], ['frame', 0]])
+        const outer = /** @type {Exp} */ (['=>', 0, [], inner])
+        const got = /** @type {{ readonly f: (...a: readonly unknown[]) => unknown, readonly node: Exp }} */ (
+            /** @type {{ readonly f: (...a: readonly unknown[]) => unknown }} */ (vm(texted)(outer)).f(3))
+        assert(got.node === inner)
+        assertEq(got.f(), 3)
+    },
     throw: {
         // The language's own `throw`: the operand is established, then the
         // operation fails with it — an array here, so that the case shows

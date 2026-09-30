@@ -285,16 +285,15 @@ Each needs the owner's approval before the step that depends on it.
   rest parameter the body never reads is not written, so `() => 1` is
   `()=>1`, not `(...$a)=>1`. Both denote one node, and the shorter one is
   what a reader expects.
-- **D2, the frame (question 2): code-only, chosen for now; the owner may
-  override it.** A captured value is written as the name of its slot, `$0`,
+- **D2, the frame (question 2): code-only, approved by the owner on
+  2026-09-30.** A captured value is written as the name of its slot, `$0`,
   `$1`, …, so `const make = x => () => [x];` gives every function it makes
   the text `()=>[$0]`, as JavaScript gives them one text. It is small, it
   matches JavaScript, and it needs no run-time renderer: the template has
-  no holes left, so step 5 is step 4. Instantiating stays open as the
-  owner's stated preference; it replaces each name with the rendered value,
-  which costs the run-time renderer, an IIFE to keep the text one
-  expression, and lazy text, and it changes no text of a function with an
-  empty frame.
+  no holes left, so step 5 is step 4. Instantiating, the alternative, would
+  replace each name with the rendered value, which would cost the run-time
+  renderer, an IIFE to keep the text one expression, and lazy text; it
+  would change no text of a function with an empty frame.
 - **D3, `self` (question 3).** Deferred. The renderer refuses `['self']`
   until the compiler can produce it
   ([forward-references](../../spec/todo/3140-forward-references.md)).
@@ -323,8 +322,8 @@ Each needs the owner's approval before the step that depends on it.
    `()=>undefined`. `ToPrimitive` of a function answers its text, and
    refuses a function without one with `FUNCTION_TEXT`; `<` against a
    number or a bigint still answers without it. The corpus's function-text
-   cases carry the writer's text as `expected` and a `host` marker that
-   skips the JavaScript side, as `rust` skips the Rust side. They and
+   cases carry the writer's text as `expected` and a `host` marker: the
+   FunctionalScript proof skips them and the host proof runs them (step 6). They and
    `nanvm-harness/fixtures/function-text.mjs` cover every path in
    [member-functions](./member-functions.md)'s `Function` checklist except
    the property key: `f.toString()`, `String(f)`, `+`, a function in an
@@ -337,9 +336,11 @@ Each needs the owner's approval before the step that depends on it.
    the text is complete at compile time. Instantiating, if the owner
    chooses it, is the run-time value renderer with lazy text, big enough
    for its own issue.
-6. **Follow-up issues** (filed): rendering in the FJS interpreter,
-   [function-text](../../fjs/edag/amnesia/todo/function-text.md), which
-   drops the corpus's `host` marker. The property-key conversion needs no
+6. **Follow-up issues** (done): the FJS evaluator renders the same text.
+   Its `withText` hook gives the value a `=>` node makes the writer's text
+   through a host `Proxy`
+   ([`fjs/types/function/text`](../../fjs/types/function/text/README.md)),
+   and `fjs/nanvm/text.proof.mjs` runs the corpus's `host` cases with it. The property-key conversion needs no
    issue of its own (below). A `const` only a lazy operand reaches, which
    the writer refused at first, is now the operand's own block, an IIFE the
    front end inlines. The corpus's
@@ -374,15 +375,14 @@ already names its key conversion, `entry(o, f)` included, as its own work.
       its own `toString`, and the `toSorted` guard's test.
 - [x] Stage 2: call an object's own `toString` and `valueOf` per
       `OrdinaryToPrimitive`. Move the host-only cases into the corpus.
-- [ ] Stage 3 decisions: approve D1, and confirm or override D2's
-      code-only answer.
+- [ ] Stage 3 decisions: approve D1. D2's code-only answer is approved.
 - [x] Stage 3 steps 1 and 2: the writer spells operators and calls.
 - [x] Stage 3 step 3: `functionText`, the function's text with its slots
       named.
 - [x] Stage 3 step 4: Rust answers the text of a function with an empty
       frame (tracked with the `Function` checklist in `member-functions.md`).
 - [x] Stage 3 step 5: a function with a frame, per D2 (code-only).
-- [x] Stage 3 step 6: file the FJS-interpreter rendering issue,
-      [function-text](../../fjs/edag/amnesia/todo/function-text.md).
+- [x] Stage 3 step 6: the FJS evaluator answers a function's text through
+      its host `withText`.
 - [x] Place the property-key conversion: it is
       [`entry`](../../fjs/edag/todo/entry.md)'s key conversion.

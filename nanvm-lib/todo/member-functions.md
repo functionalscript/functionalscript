@@ -87,8 +87,9 @@ text — a host or hand-written one — is refused (`FUNCTION_TEXT`), never
 answered with a placeholder. What remains is the property key, which no
 module can compute yet: a key is a literal, and the runtime key is the
 planned [`entry`](../../fjs/edag/todo/entry.md), whose key conversion
-reaches a function's text. And the host evaluator's own rendering, which the
-corpus's `host` marker skips until it has one.
+reaches a function's text. The FunctionalScript evaluator answers the same
+text through its host `withText`
+([`fjs/types/function/text`](../../fjs/types/function/text/README.md)).
 
 `Number`'s and `BigInt`'s `toString` take a radix, `2` to `36`: an integer
 and every bigint convert exactly, and a fraction with a radix other than ten
