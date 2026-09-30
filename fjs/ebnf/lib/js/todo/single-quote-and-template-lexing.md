@@ -256,11 +256,10 @@ reader.
 The second is what the earlier draft of this section missed by measuring `/x/`
 alone. A regex body is not JavaScript, so a backslash in it begins no token,
 and the grammar stops — where an escape *inside a string* is the string rule's
-business and lexes fine. `effects/node` stops earlier anyway, at a template
-literal — when this section was written, at its first single-quoted string —
-so its regex is invisible; **once the escapes and templates above land, a regex
-in any module scanned becomes its first stop**, and the last task's tree scan
-cannot reach zero while one does.
+business and lexes fine. `text/sgr`'s regex would have been that module's
+first stop once the escapes and templates above land, and the last task's tree
+scan could not have reached zero while it stood. `effects/node`'s has no
+backslash, so it is misread rather than refused: the scan passes it.
 
 So this issue owes a decision rather than an exclusion, and the cheap one is
 enough: lex a regular expression as a token whose body runs to the unescaped
@@ -354,8 +353,8 @@ the source view rests on.
       largest module in the tree and on the two shapes above.
 - [ ] A regex-literal token, with the preceding token deciding whether `/`
       opens one, and the compiler's fold refusing it as it refuses a
-      template. Without it `text/sgr` stops at its regex's backslash once
-      the escapes and templates land, so the scan below cannot reach zero.
+      template. Without it `effects/node`'s `/^v/` reads as divisions, and
+      a regex whose body holds a backslash stops the scan below there.
 - [ ] Re-run the tree scan; the failing modules should reach zero, or the
       remainder should be named and explained.
 

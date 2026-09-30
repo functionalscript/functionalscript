@@ -22,6 +22,7 @@ export const backspace = '\x08'
 
 //
 
+/** @type {string} */
 const esc = '\x1b'
 
 const begin = `${esc}[`
