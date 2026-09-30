@@ -164,6 +164,7 @@ fn static_function_call<A: IStaticFunction>() {
         },
         2,
         frame,
+        None,
     );
     assert_eq!(f.length(), 2);
     let args: Array<A> = [Number::from(1.0).to_any()].to_array();
@@ -177,8 +178,8 @@ fn function_identity<A: IStaticFunction>() {
         Ok(Nullish::Undefined.to_any())
     }
     let frame: Array<A> = [].to_array();
-    let f = A::static_function(code, 0, frame.clone());
-    let g = A::static_function(code, 0, frame);
+    let f = A::static_function(code, 0, frame.clone(), None);
+    let g = A::static_function(code, 0, frame, None);
     assert_ne!(f, g);
     assert_eq!(f.clone(), f);
     assert_eq!(

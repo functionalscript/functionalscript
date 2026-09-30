@@ -108,8 +108,8 @@ pub(super) fn position<A: IVm>(found: Option<u32>) -> Any<A> {
 /// which answers what the method answers for a number, a boolean, a
 /// bigint, a string, an object and an array — except that a number and a
 /// bigint read a radix (`vm/number/format.rs`, `vm/bigint/radix.rs`). A
-/// function's text is refused, as the conversion refuses it (Stage 3 of
-/// `to-primitive.md`). Every other type's `toString` ignores its
+/// function answers its text, and one without text is refused, as the
+/// conversion refuses it. Every other type's `toString` ignores its
 /// arguments, as JavaScript's does.
 fn to_string<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let radix = match Unpacked::from(receiver.clone()) {
@@ -317,9 +317,8 @@ fn array_join<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>
             separator.to_string_unused()?;
             "".into()
         }
-        // The shared conversion calls an object's own `toString`, and
-        // refuses a function until its text exists: Stage 3 of
-        // `nanvm-lib/todo/to-primitive.md`.
+        // The shared conversion calls an object's own `toString`, answers
+        // a function's text, and refuses a function without one.
         _ => separator.to_string()?,
     };
     Ok(a.join(separator)?.to_any())
@@ -404,8 +403,9 @@ mod tests {
             to_string([1.0.to_any(), "b".into()].to_array().to_any()),
             Ok("1,b".into())
         );
-        let f: Any<A> = A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array()).to_any();
-        // refused: its text is Stage 3 of `nanvm-lib/todo/to-primitive.md`
+        let f: Any<A> =
+            A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any();
+        // refused: a function without text
         assert_eq!(to_string(f), Err(FUNCTION_TEXT.into()));
     }
 
@@ -417,7 +417,7 @@ mod tests {
         // With fewer than two elements a function separator is never read:
         // `[].join(f)` is `""` and `[1].join(f)` is `"1"`, as in JavaScript.
         // A separator's own `toString` is still called, for its throws.
-        let g = || A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array()).to_any();
+        let g = || A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any();
         let joined = |a: Any<A>| {
             a.dot("join".into())
                 .end_call(|| Ok([g()].to_array().to_any()))
@@ -442,7 +442,7 @@ mod tests {
             .to_any();
         // An element's own `toString` is still called, for its throws.
         assert_eq!(join_with(own_inside), Ok("".into()));
-        let boom = A::static_function(|_, _| Err("boom".into()), 0, [].to_array()).to_any();
+        let boom = A::static_function(|_, _| Err("boom".into()), 0, [].to_array(), None).to_any();
         let throwing_inside: Any<A> = [[("toString".into(), boom)].to_object().to_any()]
             .to_array()
             .to_any();
@@ -455,7 +455,7 @@ mod tests {
                 .end_call(|| Ok([own].to_array().to_any())),
             Ok("".into())
         );
-        let f = || A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array()).to_any();
+        let f = || A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any();
         let join = |a: Any<A>, separator: Any<A>| {
             a.dot("join".into())
                 .end_call(|| Ok([separator].to_array().to_any()))
@@ -473,7 +473,8 @@ mod tests {
     /// `[0, 1].slice({ valueOf: () => 1 })` is `[1]`.
     #[test]
     fn slice_calls_an_own_value_of() {
-        let f: Any<A> = A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array()).to_any();
+        let f: Any<A> =
+            A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any();
         let start: Any<A> = [("valueOf".into(), f)].to_object().to_any();
         let a: Any<A> = [0.0.to_any(), 1.0.to_any()].to_array().to_any();
         let sliced = a
@@ -539,7 +540,9 @@ mod tests {
             "number" => 0.0.to_any(),
             "boolean" => true.to_any(),
             "bigint" => BigInt::<A>::from(0i64).to_any(),
-            "function" => A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array()).to_any(),
+            "function" => {
+                A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any()
+            }
             _ => panic!("no receiver of type {type_}"),
         }
     }

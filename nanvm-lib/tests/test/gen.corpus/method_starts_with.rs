@@ -15,4 +15,5 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("noArgument", Any::dot(string_any("undefinedx"), string_any("startsWith")).end_call(|| Ok(Array::default().to_any())), true.to_any());
     check::<A>("number", Any::dot(string_any("12"), string_any("startsWith")).end_call(|| Ok([f64_any(0x3ff0000000000000)].to_array().to_any())), true.to_any());
     check_throws::<A>("bigintPosition", Any::dot(string_any("abc"), string_any("startsWith")).end_call(|| Ok([string_any("a"), bigint_any(0)].to_array().to_any())));
+    check::<A>("function", Any::dot(string_any("()=>undefined!"), string_any("startsWith")).end_call(|| Ok([function_any()].to_array().to_any())), true.to_any());
 }

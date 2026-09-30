@@ -28,14 +28,18 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("one", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("join")).end_call(|| Ok([string_any("-")].to_array().to_any())), string_any("1"));
     check::<A>("bigintSeparator", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("join")).end_call(|| Ok([bigint_any(0)].to_array().to_any())), string_any("102"));
     check::<A>("ownToStringSeparator", Any::dot([f64_any(0x0000000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("join")).end_call(|| {
-        let c0: Any<A> = A::static_function(|_self, _args| { Ok(string_any("-")) }, 0, Array::default()).to_any();
+        let c0: Any<A> = A::static_function(|_self, _args| { Ok(string_any("-")) }, 0, Array::default(), Some("()=>\"-\"")).to_any();
         let c1: Any<A> = [(string_key("toString"), c0)].to_object().to_any();
         Ok([c1].to_array().to_any())
     }), string_any("0-2"));
-    check::<A>("ownToStringElement", Any::dot([[(string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("x")) }, 0, Array::default()).to_any())].to_object().to_any(), f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("join")).end_call(|| Ok([string_any(";")].to_array().to_any())), string_any("x;1"));
+    check::<A>("ownToStringElement", Any::dot([[(string_key("toString"), A::static_function(|_self, _args| { Ok(string_any("x")) }, 0, Array::default(), Some("()=>\"x\"")).to_any())].to_object().to_any(), f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("join")).end_call(|| Ok([string_any(";")].to_array().to_any())), string_any("x;1"));
     check_throws::<A>("emptyThrowingSeparator", Any::dot(Array::default().to_any(), string_any("join")).end_call(|| {
-        let c0: Any<A> = A::static_function(|_self, _args| { bigint_any(1) / bigint_any(0) }, 0, Array::default()).to_any();
+        let c0: Any<A> = A::static_function(|_self, _args| { bigint_any(1) / bigint_any(0) }, 0, Array::default(), Some("()=>1n/0n")).to_any();
         let c1: Any<A> = [(string_key("toString"), c0)].to_object().to_any();
         Ok([c1].to_array().to_any())
     }));
+    check::<A>("functions", Any::dot([function_any(), A::static_function(|_self, args| {
+        let rest = args.clone().into_iter().to_array();
+        Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
+    }, 0, Array::default(), Some("(...$a)=>$a[0]")).to_any()].to_array().to_any(), string_any("join")).end_call(|| Ok([string_any("|")].to_array().to_any())), string_any("()=>undefined|(...$a)=>$a[0]"));
 }

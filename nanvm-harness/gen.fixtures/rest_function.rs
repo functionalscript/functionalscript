@@ -8,6 +8,6 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = A::static_function(|_self, args| {
         let rest = args.clone().into_iter().to_array();
         Ok(rest.clone().to_any())
-    }, 0, Array::default()).to_any();
+    }, 0, Array::default(), Some("(...$a)=>$a")).to_any();
     Ok([(string_key("default"), c0)].to_object().to_any())
 }

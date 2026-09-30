@@ -82,7 +82,7 @@ mod tests {
 
     /// `(...a) => a`: the arguments a callback was given, as an array.
     fn args() -> Function<A> {
-        callback(A::static_function(|_, args| Ok(args.to_any()), 0, [].to_array()).to_any())
+        callback(A::static_function(|_, args| Ok(args.to_any()), 0, [].to_array(), None).to_any())
             .unwrap()
     }
 

@@ -111,7 +111,7 @@ mod tests {
     }
     /// A function answering `7`, whatever it is called with.
     fn seven() -> Any<A> {
-        A::static_function(|_, _| Ok(7.0.to_any()), 0, [].to_array()).to_any()
+        A::static_function(|_, _| Ok(7.0.to_any()), 0, [].to_array(), None).to_any()
     }
 
     /// An own property shadows the built-in of the same name, and an own

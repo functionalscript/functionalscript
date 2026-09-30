@@ -220,12 +220,12 @@ cases join the corpus with the renderer's text as their expected value.
 
 - **A renderer mostly exists.** The FunctionalScript writer,
   [`fjs/compiler/serializer`](../../fjs/compiler/serializer/module.f.mjs),
-  already writes a function node as text: `['=>', 1, [], ['arg', 0]]` is
-  `($a_0,...$a)=>$a_0`, and a shared array in a body becomes a `const`. It
-  has two gaps. It has no spelling for calls yet
-  ([call-spelling](../../fjs/compiler/serializer/todo/call-spelling.md)), so
-  most real bodies are refused. And it writes a module,
-  `export default …;`, where a function's text is one expression.
+  already wrote a function node as text: `['=>', 1, [], ['arg', 0]]` was
+  `($a_0,...$a)=>$a_0` (now `($a_0)=>$a_0`, since step 3), and a shared
+  array in a body became a `const`. It had two gaps. It had no spelling
+  for operators or calls, so most real bodies were refused; steps 1 and 2
+  closed that. And it writes a module, `export default …;`, where a
+  function's text is one expression.
 - **The Rust VM has no EDAG at run time.** A generated function is a code
   pointer, a `length` and a frame. The text must come from the one renderer,
   which is FunctionalScript, at compile time. A second renderer written in
@@ -280,15 +280,21 @@ keep.
 
 Each needs the owner's approval before the step that depends on it.
 
-- **D1, the spelling (proposed).** One line, normalized, with the writer's
+- **D1, the spelling (implemented as proposed).** One line, normalized, with the writer's
   leaves and its `$a`, `$a_0`, `$a0` names. An expression, not a module. A
   rest parameter the body never reads is not written, so `() => 1` is
   `()=>1`, not `(...$a)=>1`. Both denote one node, and the shorter one is
   what a reader expects.
-- **D2, the frame (question 2).** Open. Code-only is small and matches
-  JavaScript. Instantiating is the owner's stated preference, and costs the
-  run-time renderer, an IIFE to keep the text one expression (so it needs
-  call spelling), and lazy text. Answered before step 5.
+- **D2, the frame (question 2): code-only, chosen for now; the owner may
+  override it.** A captured value is written as the name of its slot, `$0`,
+  `$1`, …, so `const make = x => () => [x];` gives every function it makes
+  the text `()=>[$0]`, as JavaScript gives them one text. It is small, it
+  matches JavaScript, and it needs no run-time renderer: the template has
+  no holes left, so step 5 is step 4. Instantiating stays open as the
+  owner's stated preference; it replaces each name with the rendered value,
+  which costs the run-time renderer, an IIFE to keep the text one
+  expression, and lazy text, and it changes no text of a function with an
+  empty frame.
 - **D3, `self` (question 3).** Deferred. The renderer refuses `['self']`
   until the compiler can produce it
   ([forward-references](../../spec/todo/3140-forward-references.md)).
@@ -296,35 +302,50 @@ Each needs the owner's approval before the step that depends on it.
 
 #### Steps
 
-1. **The writer spells operators**, precedence- and associativity-correct
-   — done, every operator the language has.
-2. **The writer spells calls and chains**
-   ([call-spelling](../../fjs/compiler/serializer/todo/call-spelling.md)).
-3. **`functionText` in FunctionalScript**, beside the EDAG, so that the
-   compiler's writer and the Rust printer share one owner: a function node
-   to its expression template, refusing `['self']`. Proofs: a template with
-   no hole reads back to the same node, and one node always renders one
-   text.
-4. **Rust, for an empty frame.** `static_function` takes the template and
-   `IFunction` answers it. The printer emits one for every function node,
-   and the harness's `function_any()` gets one too.
-   `PrimitiveCoercionOp::function` answers the text of a function with an
-   empty frame, and refuses the rest with `FUNCTION_TEXT`. The corpus gains
-   function-text cases with the renderer's text as their expected value, and
-   a marker that skips the host side, as `rust` skips the Rust side. Tests
-   cover every path in
+1. **The writer spells operators** (done), precedence- and
+   associativity-correct, grouping an operand only where the ladder needs
+   it.
+2. **The writer spells calls and chains** (done): `f(a)`, `a.b(c)`, and a
+   callee that is an access through a `const`.
+3. **`functionText` in FunctionalScript** (done): `tryFunctionText` in
+   the writer, [`fjs/compiler/serializer`](../../fjs/compiler/serializer/module.f.mjs),
+   a function node to its text, each slot named `$i` (D2). It is the
+   writer itself, so the compiler's output and the Rust printer share one
+   owner; the Rust printer, `fjs/edag/rust`, imports it, which makes no
+   cycle, since the writer imports nothing of the printer. `['self']` has
+   no node kind yet, and the writer refuses any kind it cannot spell.
+   Proofs: a text without a frame is the module text of the same node,
+   which reads back to it.
+4. **Rust, for an empty frame** (done). `static_function` takes the text,
+   `Option<&'static str>`, and `IFunction::text` answers it. The printer
+   emits the writer's text for every function node, `None` where the
+   writer refuses the body, and the harness's `function_any()` is
+   `()=>undefined`. `ToPrimitive` of a function answers its text, and
+   refuses a function without one with `FUNCTION_TEXT`; `<` against a
+   number or a bigint still answers without it. The corpus's function-text
+   cases carry the writer's text as `expected` and a `host` marker that
+   skips the JavaScript side, as `rust` skips the Rust side. They and
+   `nanvm-harness/fixtures/function-text.mjs` cover every path in
    [member-functions](./member-functions.md)'s `Function` checklist except
-   the property key, which step 6 files: `f.toString()`, `String(f)`, `+`, a
-   function in an array joined, a string method's argument, a returned or
-   exported function, a nested function, a function an export's consumer
-   only calls, and identity checks, where the text leaves `===` unchanged.
-   `ToNumber` of a function stays `NaN` without its text, since that is
-   exact for any text.
-5. **Rust, for a frame,** after D2: names in the holes, or the run-time
-   value renderer with lazy text, big enough for its own issue. Either way
-   a hole takes any value, a computed primitive included.
-6. **Follow-up issues:** rendering in the FJS interpreter, which drops the
-   corpus's host-skip marker, and the property-key conversion below.
+   the property key: `f.toString()`, `String(f)`, `+`, a function in an
+   array joined, a string method's argument, a returned, exported and
+   nested function, and identity checks, where two functions with one text
+   stay two identities under `===`. A function an export's consumer only
+   calls is the harness's `Action::Call`, unchanged. `ToNumber` of a
+   function stays `NaN` without its text, since that is exact for any text.
+5. **Rust, for a frame** (done, with step 4): under D2's code-only answer
+   the text is complete at compile time. Instantiating, if the owner
+   chooses it, is the run-time value renderer with lazy text, big enough
+   for its own issue.
+6. **Follow-up issues** (filed): rendering in the FJS interpreter,
+   [function-text](../../fjs/edag/amnesia/todo/function-text.md), which
+   drops the corpus's `host` marker. The property-key conversion needs no
+   issue of its own (below). A `const` only a lazy operand reaches, which
+   the writer refused at first, is now the operand's own block, an IIFE the
+   front end inlines. The corpus's
+   `() => undefined` is now the node a compiled one is (a function's slots
+   are a list since #2395), so the Rust printer writes both as
+   `function_any()`, whose text is `()=>undefined`.
 
 The signature change in step 4 touches every hand-written function in the
 tests. Bundling the code, the `length` and the text into one static
@@ -336,8 +357,10 @@ that needs a spike first.
 A property key is not converted either. `Object::member_access` answers
 `undefined` for a key that is neither a number nor a string, where
 JavaScript converts it with `ToPropertyKey`: `o[{}]` reads `o["[object
-Object]"]`. That is the same missing conversion at a different entry. It
-needs its own issue, and it lands with or after Stage 1.
+Object]"]`. No module reaches it today: a key is a literal
+([spec: property access](../../spec/README.md#property-access)), and the
+runtime key is the planned [`entry`](../../fjs/edag/todo/entry.md), which
+already names its key conversion, `entry(o, f)` included, as its own work.
 
 ### Tasks
 
@@ -351,12 +374,15 @@ needs its own issue, and it lands with or after Stage 1.
       its own `toString`, and the `toSorted` guard's test.
 - [x] Stage 2: call an object's own `toString` and `valueOf` per
       `OrdinaryToPrimitive`. Move the host-only cases into the corpus.
-- [ ] Stage 3 decisions: approve D1, and answer D2 before step 5.
-- [x] Stage 3 step 1: the writer spells operators.
-- [ ] Stage 3 step 2: the writer spells calls.
-- [ ] Stage 3 step 3: `functionText`, the expression template with holes.
-- [ ] Stage 3 step 4: Rust answers the text of a function with an empty
+- [ ] Stage 3 decisions: approve D1, and confirm or override D2's
+      code-only answer.
+- [x] Stage 3 steps 1 and 2: the writer spells operators and calls.
+- [x] Stage 3 step 3: `functionText`, the function's text with its slots
+      named.
+- [x] Stage 3 step 4: Rust answers the text of a function with an empty
       frame (tracked with the `Function` checklist in `member-functions.md`).
-- [ ] Stage 3 step 5: a function with a frame, per D2.
-- [ ] Stage 3 step 6: file the FJS-interpreter rendering issue.
-- [ ] File the property-key conversion as its own issue.
+- [x] Stage 3 step 5: a function with a frame, per D2 (code-only).
+- [x] Stage 3 step 6: file the FJS-interpreter rendering issue,
+      [function-text](../../fjs/edag/amnesia/todo/function-text.md).
+- [x] Place the property-key conversion: it is
+      [`entry`](../../fjs/edag/todo/entry.md)'s key conversion.
