@@ -237,14 +237,15 @@ const isFrame = (a, v) => v instanceof Array && a.nodes[v[1]][0] === 'frame'
 /**
  * The value a `throw` entry throws, where the operand is one, and `null`
  * where it is not: what a scope ending in a `throw` writes after the
- * keyword.
+ * keyword. The value is boxed, since `null` is itself a value a program
+ * may throw, and `throw null;` is a `throw` all the same.
  *
- * @type {(a: Analysis, v: Operand) => Operand | null}
+ * @type {(a: Analysis, v: Operand) => readonly [Operand] | null}
  */
 const thrownValue = (a, v) => {
     if (!(v instanceof Array)) { return null }
     const node = a.nodes[v[1]]
-    return node[0] === 'throw' ? node[1] : null
+    return node[0] === 'throw' ? [node[1]] : null
 }
 
 /**
@@ -683,13 +684,14 @@ const statement = (a, depth, frame, last) => ({ text, names }, v) => {
     const s = { a, names: before.names, frame }
     const thrown = last ? thrownValue(a, v) : null
     const lead = thrown !== null ? 'throw ' : last ? (depth === 0 ? 'export default ' : 'return ') : `const ${hoistName(depth, before.names.length)}=`
+    const written = thrown === null ? v : thrown[0]
     return mapOk(
         /** @type {(value: List<string>) => _Statement} */
         (value => ({
             text: flat([before.text, [lead], value, [';']]),
             names: last ? before.names : [...before.names, [null, hoistName(depth, before.names.length)]],
         })),
-    )(operand(s, depth)(thrown ?? v))
+    )(operand(s, depth)(written))
 }
 
 /**

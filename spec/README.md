@@ -1632,7 +1632,11 @@ are not supported yet. A newline before `=>` is refused.
   once `if` lowers there — as the call of a function that throws,
   `(() => { throw v; })()`: JavaScript's one spelling of an expression that
   fails, and FunctionalScript itself, so the text reads back and fails at
-  the same point. That is the writer's spelling, not a second source form:
+  the same point — as the call of a function that throws, which is what
+  the text says, not as the node it was written from, so a second pass of
+  the `.js` writer over it waits on that writer's spelling for a call, the
+  gap [output](#output) records, not on anything of `throw`'s. That is the
+  writer's spelling, not a second source form:
   `throw` is a statement only, and an expression that must fail goes
   through a function that throws, as in JavaScript. The EDAG output carries
   the node, and the Rust output fails as the VM fails

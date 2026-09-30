@@ -492,6 +492,10 @@ export const proof = {
         writes(['=>', 0, null, ['throw', ['[]', [1]]]], 'export default (...$a)=>{throw [1];};')
         writes(['=>', 0, null, [',', [['[]', []], ['throw', 1]]]], 'export default (...$a)=>{const $a0=[];throw 1;};')
         writes(['throw', 'x'], 'throw "x";')
+        // `null` is a value to throw, not the absence of one
+        writes(['throw', null], 'throw null;')
+        writes(['=>', 0, null, ['throw', null]], 'export default (...$a)=>{throw null;};')
+        assertEq(unwrap(tryModuleStringify(['throw', null])), 'throw null;')
         writes([',', [['[]', []], ['throw', 1]]], 'const $0=[];throw 1;')
         // a shared constructor the throw holds is hoisted before the statement
         /** @type {Exp} */
