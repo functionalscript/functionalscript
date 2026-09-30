@@ -36,19 +36,37 @@ inlining is sound modulo sharing; this is the case where sharing is
 preserved by construction, since the frame's slots are substituted by the
 enclosing scope's own nodes.
 
-Inlining alone would be a regression. The FunctionalScript writer in
-[`../serializer/module.f.mjs`](../serializer/module.f.mjs) hoists a shared
-node to a `const` of its scope, and a node reached only through a lazy edge
-— a conditional's arm, the right operand of `&&`, `||` or `??` — has no
-eager position to hoist to: a `const` before the conditional would evaluate
-`f()` where the source did not. The writer's leading comment names the case
-and defers it, since today every lazy operator is a node kind it cannot
-spell, and since without inlining the case cannot arise from source at all
-— the anchoring rule of [operators](../../../spec/todo/2340-operators.md)
-keeps every source `const` reachable eagerly. Inlining is what makes the
-shape reachable, so the change that inlines owes the spelling, in the same
-pull request, exactly as a feature adding a node kind owes the writer its
-case.
+Inlining alone would be a regression, in two writers. Both rely on an
+invariant the lowering keeps today and inlining breaks: **a shared node
+is reached eagerly from the root of its scope**. The anchoring rule of
+[operators](../../../spec/todo/2340-operators.md) guarantees it for
+source — a `const` reached only through a lazy edge, a conditional's arm
+or the right operand of `&&`, `||` or `??`, is anchored at the scope's
+comma root, an eager reach — and inlining is what first puts a shared node
+under a lazy edge with no eager path: `x` above, once the arm holds
+`[x, x]` directly.
+
+- The FunctionalScript writer in
+  [`../serializer/module.f.mjs`](../serializer/module.f.mjs) hoists a
+  shared node to a `const` of its scope, and such a node has no eager
+  position to hoist to: a `const` before the conditional would evaluate
+  `f()` where the source did not. Its leading comment names the case and
+  defers it, since today every lazy operator is a node kind it cannot
+  spell. It also refuses a comma anywhere but a scope's root, and an
+  inlined body whose root is a comma — one with an unused `const`,
+  `[(() => { const x = null.x; return 1; })()]` — puts one at an eager
+  operand of an array.
+- The Rust writer in [`../../edag/rust/module.f.mjs`](../../edag/rust/module.f.mjs)
+  refuses outright "a shared node reached only through lazy operands",
+  and its `printer` doc says why that is safe today: no scope the lowering
+  links has the shape, because `anchors` anchors such a `const` through
+  the comma root. So the input above, which it prints today with the call
+  inside the function's body, would be refused once the body is inlined.
+
+Inlining makes the shapes reachable, so the change that inlines owes both
+writers their handling, in the same pull request, exactly as a feature
+adding a node kind owes a writer its case. Reviewing the corpus's
+generated Rust is not that: the corpus does not hold every source.
 
 **These are one issue because round-trip is one contract.** The written
 IIFE parses as a call of a function literal; only a reader that inlines
@@ -85,19 +103,43 @@ call. The conditions are the whole soundness argument:
 
 The body's own shared nodes join the enclosing function's scope, which the
 analysis in [`../../edag/analysis/module.f.mjs`](../../edag/analysis/module.f.mjs)
-scopes per function. A shared node then sits under a lazy edge, or under an
-eager one, and the anchoring rule applies to it as to any node.
+scopes per function.
+
+**Block roots.** The invariant the writers rely on is restated one level
+finer. A *block root* is a scope's root or a lazy operand — the positions
+JavaScript can open a block at, and the ones a Rust thunk's closure
+already does. After inlining, **every shared node is reached eagerly from
+its nearest block root, and a comma stands only at a block root**. The
+lowering keeps that in one move: the anchors of an inlined body's comma
+root — its unused `const`s — join the nearest enclosing block root's, as
+operands of its comma, which the anchoring rule already allows: an anchor
+is evaluated eagerly wherever it stands under that root, and under the
+opaque-error contract (A4) its place among the root's eager evaluations
+is unobservable. So `[(() => { const x = null.x; return 1; })()]` at a
+module's root lowers to the module's comma anchoring `null.x` before
+`['[]', [1]]`, and the same IIFE in a conditional's arm lowers to a comma
+at the arm. An inlined body whose shared nodes sit under the body's own
+lazy edges is already anchored at its root by the body's own lowering, so
+it needs nothing more.
 
 **Writing.** In [`../serializer/module.f.mjs`](../serializer/module.f.mjs),
 a scope's hoists are today one block, the scope's own `const`s before its
-`export default` or `return`. A shared node that no eager position of the
-scope reaches, and that a lazy operand does, is hoisted instead into a
-block opened at that operand: the operand is written as an IIFE,
-`(()=>{const …;return …;})()`, whose `const`s are the nodes reached only
-from under that operand, and whose `return` is the operand. The writer's
-"one scope, one block" becomes "one block per lazy operand that needs one",
-nested where lazy operands nest. A block with no `const` to hold is not
-written; the operand stays in place, and the text stays what it is today.
+`export default` or `return`. A lazy operand that needs a block gets one:
+the operand is written as an IIFE, `(()=>{const …;return …;})()`, whose
+statements are the operand's comma anchors, if it is a comma, and the
+`const`s of the shared nodes reached only from under that operand, and
+whose `return` is the operand's value. The writer's "one scope, one block"
+becomes "one block per block root that needs one", nested where lazy
+operands nest. A block with nothing to hold is not written; the operand
+stays in place, and the text stays what it is today.
+
+**Rust.** [`../../edag/rust/module.f.mjs`](../../edag/rust/module.f.mjs)
+already gives each lazy operand a block — its thunk's closure binds the
+temporaries only it reaches — so its refusal narrows from the scope to the
+block root: a shared node reached eagerly from the thunk's root binds in
+the thunk's block, and only a node no block root reaches eagerly, which
+the invariant excludes, stays refused. A comma at a thunk's root is one
+the writer prints already, its anchors as `_` temporaries.
 
 The block's `const`s are named in the writer's scheme, which derives a
 body's names from its parameter; a parameterless block has none, so the
@@ -128,20 +170,29 @@ folding `-1`.
 
 ### Tasks
 
-- [ ] Lowering: inline a call meeting the conditions above; proofs that a
-      call missing any one of them stays a call, and that a slot read
-      substitutes the enclosing node by identity.
-- [ ] Writer: hoist a shared node reached only through lazy edges into an
-      IIFE block at the outermost lazy operand that reaches every eager path
-      to it; proofs that the block round-trips through `fjsRoundTrip` in
+- [ ] Lowering: inline a call meeting the conditions above, an inlined
+      body's anchors joining the nearest block root's; proofs that a call
+      missing any one of the conditions stays a call, that a slot read
+      substitutes the enclosing node by identity, and that the block-root
+      invariant holds for an IIFE at an eager operand, at a lazy one, and
+      nested in either, with and without anchors.
+- [ ] FunctionalScript writer: a block at a lazy operand that is a comma or
+      holds a node shared only under it; proofs that each shape above
+      round-trips through `fjsRoundTrip` in
       [`../proof.f.mjs`](../proof.f.mjs) to the same graph, nested lazy
       operands included.
-- [ ] Remove the writer's leading-comment deferral of the lazy-edge case,
-      and update [`spec/README.md`](../../../spec/README.md#functions) with
-      the two facts a reader needs: a parameterless IIFE denotes its body,
-      and a lazy operand may be written as one.
-- [ ] `npm run gen`; `tsc`, `fjs test`, `node --test`; generated Rust of the
-      corpus reviewed for the modules whose graph changed.
+- [ ] Rust writer: the lazy-only refusal taken per block root; proofs, in
+      `fjs/edag/rust`'s own and through `fjs compile` to `.rs`, that every
+      shape above prints, the motivating input among them, and that a node
+      no block root reaches eagerly is still refused.
+- [ ] Remove the FunctionalScript writer's leading-comment deferral of the
+      lazy-edge case and the Rust writer's `printer` doc's reliance on the
+      scope-level invariant, and update
+      [`spec/README.md`](../../../spec/README.md#functions) with the two
+      facts a reader needs: a parameterless IIFE denotes its body, and a
+      lazy operand may be written as one.
+- [ ] `npm run gen`; `tsc`, `fjs test`, `node --test`, `cargo test` over the
+      regenerated corpus.
 
 ### Related
 
@@ -157,3 +208,5 @@ folding `-1`.
   the A4 note that allows it.
 - [`../../edag/README.md`](../../edag/README.md) — the `=>`, `()` and
   `frame` nodes.
+- [`../../edag/rust/module.f.mjs`](../../edag/rust/module.f.mjs) — the
+  thunk blocks and the lazy-only refusal its `printer` doc explains.
