@@ -1,7 +1,7 @@
 ## try-u8-list-msb. The fallible MSB byte-list binding is re-bound in three modules
 
 **Priority:** P5
-**Status:** open
+**Status:** wip
 
 ### Problem
 
