@@ -111,6 +111,16 @@ calls twice, which `[x, x]` above observes through the identity of what
 [call-spelling](../serializer/todo/call-spelling.md)'s to state when it
 gives `()` a spelling, and this issue's example depends on it.
 
+**Round-trip is graph identity, not text identity.** The source is not
+reproduced; the graph is. `export default (() => [1, 2])();` lowers to
+`['[]', [1, 2]]` and is written back as `export default [1,2];`, with no
+IIFE, since nothing in it is shared; and the block the writer does emit
+carries the writer's names, not the source's. What the round-trip
+promises is that reading the written text yields the graph that was
+written — `source → EDAG → source → EDAG`, the same EDAG at both ends —
+which is the contract the writer already keeps for `-1`, folded to a
+number and written as one, and for a body `const` renamed in the block.
+
 **Hash.** Every module holding a parameterless IIFE lowers to a different
 graph after this change, so its hash changes. That is the intended effect,
 since the two spellings denote one meaning, and the same kind of change as
