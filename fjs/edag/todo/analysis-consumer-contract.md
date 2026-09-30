@@ -67,8 +67,9 @@ its node's scope is the one being written. That is the function-body
 boundary `operands` keeps by answering nothing for `=>` — a shared
 container inside a body belongs to the body's scope and is hoisted
 there, never into the enclosing module — and the analysis states it as
-data rather than as an omitted `case`. Frame captures keep their
-separate handling in `frameItems`. Then `mintsIdentity` filters, and
+data rather than as an omitted `case`. A function's slots keep their
+separate handling: they are the `=>` entry's own array operand, which
+`hoists` reads directly. Then `mintsIdentity` filters, and
 `operands` and `minting` go.
 
 ### Tasks
@@ -82,5 +83,6 @@ separate handling in `frameItems`. Then `mintsIdentity` filters, and
 - [identity-shared-walks.md](./identity-shared-walks.md) — adds
   `identityShared` to the analysis for the same reason: a consumer was
   recomputing it.
-- [../../compiler/serializer/todo/stage-a-operators.md](../../compiler/serializer/todo/stage-a-operators.md)
-  — where `operands`'s `default: []` would first bite.
+- [../../compiler/serializer/module.f.mjs](../../compiler/serializer/module.f.mjs)'s
+  `operands`, whose `default: []` is where a node kind the writer does not
+  walk would first bite.

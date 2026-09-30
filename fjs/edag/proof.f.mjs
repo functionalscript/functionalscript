@@ -103,7 +103,7 @@ const vOptionPropertyLambda = value => validate(optionPropertyLambda)(value)
 /** Every id `op0` currently accepts — kept as a literal list, not derived
  * from `op0Id`, so deleting one from the schema reddens exactly its own
  * assertion below rather than silently shrinking this list too. */
-const op0Ids = /** @type {const} */ (['undefined', 'args', 'frame', 'rest'])
+const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest'])
 
 /** Same purpose as `op0Ids`, for `op1`. */
 const op1Ids = /** @type {const} */ (['String', 'Number', '!', '~', 'typeof', 'throw'])
@@ -137,14 +137,39 @@ const desugarOptionalAt = o => o !== null && o !== undefined ? o.at : undefined
 
 export const proof = {
     parameters: () => {
-        assertOk(v(['=>', 3, null, ['[]', [['arg', 0], ['rest']]]]))
+        assertOk(v(['=>', 3, [], ['[]', [['arg', 0], ['rest']]]]))
         assertOk(v(['arg', 0]))
         assertNoMatch(v(['=>', null, 1]))
         assertNoMatch(v(['=>', ['+', 1, 2], null, 1]))
-        assertNoMatch(v(['=>', 0, null, 1, 2]))
+        assertNoMatch(v(['=>', 0, [], 1, 2]))
         assertNoMatch(v(['arg', ['+', 0, 1]]))
         assertNoMatch(v(['arg']))
         assertNoMatch(v(['arg', 0, 1]))
+        // the slots are an array of `exp`, never a spread among them, and
+        // `[]` for no captures — the previous format's `null` and array
+        // literal are refused rather than reinterpreted
+        assertOk(v(['=>', 0, [1, ['[]', []]], 1]))
+        assertNoMatch(v(['=>', 0, null, 1]))
+        assertNoMatch(v(['=>', 0, ['[]', []], 1]))
+        assertNoMatch(v(['=>', 0, ['[]', [1]], 1]))
+        assertNoMatch(v(['=>', 0, ['[]', [['[]', []]]], 1]))
+        assertNoMatch(v(['=>', 0, [['...', ['[]', []]]], 1]))
+        // the one corner the two encodings share, per the README: an old
+        // frame whose items spell a node reads as two slots, the string
+        // `'[]'` and that node — a shape the compiler never built, since
+        // its slots are all nodes and a node's first item is a tag
+        assertOk(v(['=>', 0, ['[]', ['()', null, ['[]', []]]], 1]))
+    },
+    // A frame slot read carries its index as `arg` does; the frame as a
+    // whole is no node, so the bare `['frame']` of the previous format is
+    // refused rather than reinterpreted, as is the indexed read over it.
+    frame: () => {
+        assertOk(v(['frame', 0]))
+        assertOk(v(['=>', 0, [['[]', []]], ['frame', 0]]))
+        assertNoMatch(v(['frame']))
+        assertNoMatch(v(['frame', ['+', 0, 1]]))
+        assertNoMatch(v(['frame', 0, 1]))
+        assertNoMatch(v(['.', ['frame'], 0]))
     },
     primitive: {
         ok: () => {

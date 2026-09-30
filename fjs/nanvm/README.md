@@ -91,7 +91,7 @@ name is a type error; which of them `nanvm-lib` answers is pinned separately,
 by the completeness table [`methods/`](methods/module.f.mjs) generates.
 
 A `functionValue` operand is not an exception. It lowers to `() => undefined`,
-the smallest closure — `['=>', 0, ['[]', []], ['undefined']]` — which
+the smallest closure — `['=>', 0, [], ['undefined']]` — which
 `amnesia` establishes like any `=>` and the Rust printer renders as the
 harness's one function value, `function_any()`. A `callback(name)` and a
 `returns(v)` are functions with a body, `(...a) => body`, which the Rust

@@ -141,20 +141,20 @@ roots of the unreached part in source order, an entry another unreached entry
 reaches being anchored through it, an alias being the node it names, and two
 imports of one module being one node. A module the export reaches entirely
 has no comma.
-A function is `['=>', length, frame, body]`, where `length` is nonnegative
+A function is `['=>', length, slots, body]`, where `length` is nonnegative
 integer metadata (negative zero is invalid), not an operand. The body opens
 its own scope: `['arg', N]` reads fixed position `N < length`, and `['rest']`
 reads the invocation's rest array. Repeated rest reads share that array.
 `['args']` remains the module import binding and is invalid in a function
 body. A function's frame is evaluated in the enclosing scope. A reference to a `const`, an import, an enclosing function's
-parameter or an enclosing body's `const` is a capture: the frame is
-`['[]', slots]`, each slot the enclosing scope's own node for a captured
-value, one per value — nodes the EDAG analysis merges, `o[0]` read by two
-`const`s, being one — in the order the body first names them, and the body
-reads slot `i` as `['.', ['frame'], i]` — so no outside node is ever shared
-into a body, only read through its frame. A captured primitive is written
-into the body rather than captured, and a function that captures nothing
-else has a `null` frame. A nested function captures through its parent, its
+parameter or an enclosing body's `const` is a capture: the slots are
+`['=>', length, slots, body]`'s array operand, each slot the enclosing
+scope's own node for a captured value, one per value — nodes the EDAG
+analysis merges, `o[0]` read by two `const`s, being one — in the order the
+body first names them, and the body reads slot `i` as `['frame', i]` — so
+no outside node is ever shared into a body, only read through its frame. A
+captured primitive is written into the body rather than captured, and a
+function that captures nothing else has no slots. A nested function captures through its parent, its
 slot a read of the parent's frame. The body is any value except an object, since
 `=> {` opens a block in JavaScript — or that block, in which an object is a
 value again: any number of `const` statements and then one `return` or one
@@ -180,9 +180,10 @@ call on a numeric literal alike. What it takes is JavaScript's
 `UnaryExpression`, so not a function: `-(...a) => 1` is a syntax error in
 both. A group is that expression, though, so the prefix reaches a function
 through one, `-((...a) => 1)`, and the refusal falls on the `...` where
-JavaScript's does rather than on the `(`. The writer still gives a negated
-function a `const` of its own, as it does an access base, until it spells a
-group.
+JavaScript's does rather than on the `(`. The writer spells that group, for
+a negated function and for a negation under an access, `(-[1])[0]`, alike;
+a negated *number* is the number by the time the writer sees it, and a
+number under an access takes a `const`, `const $0=-1;export default $0[0];`.
 
 Stage A of [`spec/todo/2340-operators.md`](../../spec/todo/2340-operators.md)
 gave the language the rest: arithmetic, strict comparison, and bitwise —
@@ -214,9 +215,9 @@ lazy position is anchored, since its own statement runs at load whatever
 the operator later decides, so `const c = null.x; export default [a && c,
 b && c];` throws at load in both languages. The sharing sweep counts a
 lazy position as any other — identity does not care which position a
-reference is made from. The writer spells Stage B's operators, with the
-parentheses their precedence asks for, and refuses every Stage A node until
-it can spell that precedence too.
+reference is made from. The writer spells both stages, with the
+parentheses their precedence and associativity ask for and no more
+([spec: operators](../../spec/README.md#operators)).
 A call is a step after a value, as an access is, and the callee picks which of
 the EDAG's two forms it lowers to: an access as the callee is a method call,
 `a.b(c)`, whose receiver is that access's base, so the access owns the call
@@ -249,9 +250,11 @@ sharing a module spells survives the parentheses. What it adds is spelling:
 a function returning an object, `(...a) => ({ x: 1 })`, an access or a call
 on a value written in place, `([1]).length`, and the two the prefix cannot
 say without it — the access on a negation, `(-1).x` against `-1 .x`, and a
-negated function, `-((...a) => 1)`. The writer spells both today, through a
-`const` rather than a group: `negHoisted` hoists a negated function, and
-`basedHoisted` the negation an access reads.
+negated function, `-((...a) => 1)`. The writer spells both as that group,
+and every operator under an access or a prefix the same way, `(1+2).x` and
+`-(1+2)`; a number, a bigint or a function an access reads still takes a
+`const`, `basedHoisted`, since `1.x` and `1 .x` are spellings it does not
+keep.
 A member a later duplicate shadows is in the graph, since the constructor
 applies every member written, so a reference in it is reached here where the
 sharing decision, which reads the value, does not count it.

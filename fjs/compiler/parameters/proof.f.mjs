@@ -54,7 +54,7 @@ export const proof = {
     },
     binding: () => {
         const e = roundTrip('export default (a,b,c,...x)=>[a,b,c,x];')
-        assertStructurallySame(e, ['=>', 3, null, ['[]', [['arg', 0], ['arg', 1], ['arg', 2], ['rest']]]])
+        assertStructurallySame(e, ['=>', 3, [], ['[]', [['arg', 0], ['arg', 1], ['arg', 2], ['rest']]]])
         /** @type {(a?: unknown, b?: unknown, c?: unknown, ...x: readonly unknown[]) => readonly unknown[]} */
         const native = (a, b, c, ...x) => [a,b,c,x]
         for (const run of evaluators) {
@@ -119,13 +119,13 @@ export const proof = {
         assertEq(parse('bad.f.mjs')('export default (a,...x)=>{const a=1;return a;};')[0], 'error')
     },
     writerRefusesModuleBinding: () => {
-        assertEq(tryModuleStringify(['{}', [[':', 'f', ['=>', 1, null, ['args']]]]])[0], 'error')
+        assertEq(tryModuleStringify(['{}', [[':', 'f', ['=>', 1, [], ['args']]]]])[0], 'error')
     },
     throw: {
-        metadata: [-0,-1,0.5,Infinity,NaN].map(length => () => analysis(['=>',length,null,1])),
-        overLimit: evaluators.map(run => () => run(['=>',maxLength + 1,null,1])),
-        arg: evaluators.map(run => () => run(['=>',1,null,['arg',1]])()),
+        metadata: [-0,-1,0.5,Infinity,NaN].map(length => () => analysis(['=>',length,[],1])),
+        overLimit: evaluators.map(run => () => run(['=>',maxLength + 1,[],1])),
+        arg: evaluators.map(run => () => run(['=>',1,[],['arg',1]])()),
         moduleRest: evaluators.map(run => () => run(['rest'])),
-        functionArgs: evaluators.map(run => () => run(['=>',1,null,['args']])()),
+        functionArgs: evaluators.map(run => () => run(['=>',1,[],['args']])()),
     },
 }

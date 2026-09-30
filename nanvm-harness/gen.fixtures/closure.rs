@@ -9,10 +9,9 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         let rest = args.clone().into_iter().to_array();
         Ok(A::static_function(|self_, args| {
             let rest = args.clone().into_iter().to_array();
-            let c0: Any<A> = Any::dot(A::frame(self_).clone().to_any(), f64_any(0x0000000000000000)).end()?;
-            let c1: Any<A> = Any::dot(c0, f64_any(0x0000000000000000)).end()?;
-            let c2: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
-            c1 + c2
+            let c0: Any<A> = Any::dot(A::frame(self_)[0].clone(), f64_any(0x0000000000000000)).end()?;
+            let c1: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
+            c0 + c1
         }, 0, [rest.clone().to_any()].to_array()).to_any())
     }, 0, Array::default()).to_any();
     let c1: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();
@@ -22,10 +21,9 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c5: Any<A> = [f64_any(0x4024000000000000)].to_array().to_any();
     let c6: Any<A> = A::static_function(|self_, args| {
         let rest = args.clone().into_iter().to_array();
-        let c0: Any<A> = Any::dot(A::frame(self_).clone().to_any(), f64_any(0x0000000000000000)).end()?;
-        let c1: Any<A> = Any::dot(c0, f64_any(0x0000000000000000)).end()?;
-        let c2: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
-        c1 + c2
+        let c0: Any<A> = Any::dot(A::frame(self_)[0].clone(), f64_any(0x0000000000000000)).end()?;
+        let c1: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
+        c0 + c1
     }, 0, [c5.clone()].to_array()).to_any();
     let c7: Any<A> = [f64_any(0x4014000000000000)].to_array().to_any();
     let c8: Any<A> = Any::call(c6, c7)?;
@@ -33,18 +31,15 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         let rest = args.clone().into_iter().to_array();
         Ok(A::static_function(|self_, args| {
             let rest = args.clone().into_iter().to_array();
-            let c0: Any<A> = Any::dot(A::frame(self_).clone().to_any(), f64_any(0x0000000000000000)).end()?;
             Ok(A::static_function(|self_, args| {
                 let rest = args.clone().into_iter().to_array();
-                let c0: Any<A> = A::frame(self_).clone().to_any();
+                let c0: Any<A> = A::frame(self_)[0].clone();
                 let c1: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-                let c2: Any<A> = Any::dot(c1.clone(), f64_any(0x0000000000000000)).end()?;
-                let c3: Any<A> = Any::dot(c0.clone(), f64_any(0x3ff0000000000000)).end()?;
-                let c4: Any<A> = Any::dot(c3, f64_any(0x0000000000000000)).end()?;
-                let c5: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
-                let c6: Any<A> = Any::dot(c1.clone(), f64_any(0x0000000000000000)).end()?;
-                Ok([c2, c4, c5, c6].to_array().to_any())
-            }, 0, [c0, rest.clone().to_any()].to_array()).to_any())
+                let c2: Any<A> = Any::dot(A::frame(self_)[1].clone(), f64_any(0x0000000000000000)).end()?;
+                let c3: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
+                let c4: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
+                Ok([c1, c2, c3, c4].to_array().to_any())
+            }, 0, [A::frame(self_)[0].clone(), rest.clone().to_any()].to_array()).to_any())
         }, 0, [rest.clone().to_any()].to_array()).to_any())
     }, 0, Array::default()).to_any();
     let c10: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();
@@ -55,18 +50,14 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c15: Any<A> = Any::call(c13, c14)?;
     let c16: Any<A> = A::static_function(|self_, args| {
         let rest = args.clone().into_iter().to_array();
-        let c0: Any<A> = Any::dot(A::frame(self_).clone().to_any(), f64_any(0x0000000000000000)).end()?;
         Ok(A::static_function(|self_, args| {
             let rest = args.clone().into_iter().to_array();
-            let c0: Any<A> = A::frame(self_).clone().to_any();
-            let c1: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-            let c2: Any<A> = Any::dot(c1, f64_any(0x0000000000000000)).end()?;
-            let c3: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
-            let c4: Any<A> = (c2 + c3)?;
-            let c5: Any<A> = Any::dot(c0.clone(), f64_any(0x3ff0000000000000)).end()?;
-            let c6: Any<A> = Any::dot(c5, f64_any(0x0000000000000000)).end()?;
-            c4 + c6
-        }, 0, [rest.clone().to_any(), c0].to_array()).to_any())
+            let c0: Any<A> = Any::dot(A::frame(self_)[0].clone(), f64_any(0x0000000000000000)).end()?;
+            let c1: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
+            let c2: Any<A> = (c0 + c1)?;
+            let c3: Any<A> = Any::dot(A::frame(self_)[1].clone(), f64_any(0x0000000000000000)).end()?;
+            c2 + c3
+        }, 0, [rest.clone().to_any(), A::frame(self_)[0].clone()].to_array()).to_any())
     }, 0, [c5.clone()].to_array()).to_any();
     let c17: Any<A> = [f64_any(0x4034000000000000)].to_array().to_any();
     let c18: Any<A> = Any::call(c16, c17)?;

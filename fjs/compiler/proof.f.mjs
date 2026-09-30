@@ -256,12 +256,12 @@ const roundTripCorpus = [
 export const proof = {
     namedRestOutput: () => {
         const source = 'export default (a,b,c,...x)=>[a,b,c,x];'
-        assert(compileSource(source)('parameters.edag.data.mjs').includes('["=>",3,null,'))
+        assert(compileSource(source)('parameters.edag.data.mjs').includes('["=>",3,[],'))
         const written = compileSource(source)('parameters.f.mjs')
         assertEq(parse('parameters.f.mjs')(written)[0], 'ok')
         /** @type {(length: number) => string} */
         const large = length => `export default (${Array.from({ length }, (_, i) => `a${i},`).join('')}...x)=>x;`
-        assert(compileSource(large(16))('large.edag.data.mjs').includes('["=>",16,null,'))
+        assert(compileSource(large(16))('large.edag.data.mjs').includes('["=>",16,[],'))
         assertEq(parse('large.f.mjs')(compileSource(large(16))('large.f.mjs'))[0], 'ok')
         assert(moduleRefused(large(17)).includes('more than 16 fixed parameters'))
     },
@@ -528,7 +528,7 @@ export const proof = {
             assertEq(compileSource('export default [1];')('x.data.js'), 'export default [1];')
             assertEq(compileSource('export default [1];')('x.js'), 'export default [1];')
             assertEq(compileSource('export default (...a) => a;')('x.js'), 'export default (...$a)=>$a;')
-            assertEq(compileSource('export default (...a) => a;')('x.edag.data.js'), 'export default ["{}",[[":","default",["=>",0,null,["rest"]]]]];')
+            assertEq(compileSource('export default (...a) => a;')('x.edag.data.js'), 'export default ["{}",[[":","default",["=>",0,[],["rest"]]]]];')
             assertEq(moduleRefused('export default (...a) => a;'), 'input.f.js - error: a function has no value')
         },
         // Any other JavaScript name is FunctionalScript: `.f.js` says which
@@ -607,6 +607,32 @@ export const proof = {
             assertEq(fjsRoundTrip('const c = null.x; export default (...a) => (() => { const x = c; return 1; })();'), 'const $0=null.x;export default (...$a)=>1;')
             assertEq(fjsRoundTrip('const c = [1]; export default (...a) => { const x = c; return [x, c]; };'), 'const $0=[1];export default (...$a)=>[$0,$0];')
             assertEq(fjsRoundTrip('export const f = (...a) => a[0] ? (() => { const x = [1]; return [x, x]; })() : 4; export default 1;'), 'const $0=(...$a)=>$a[0]?(()=>{const $b0=[1];return [$b0,$b0];})():4;export const f=$0;export default 1;')
+        },
+        // Stage A's operators, with the parentheses JavaScript's own
+        // precedence and associativity ask for and no more, so that the
+        // text reads back as the graph: a group the source wrote that
+        // changed nothing is gone, and one it needed is written again.
+        operators: () => {
+            assertEq(fjsRoundTrip('export default 1 + 2 * 3;'), 'export default 1+2*3;')
+            assertEq(fjsRoundTrip('export default (1 + 2) * 3;'), 'export default (1+2)*3;')
+            assertEq(fjsRoundTrip('export default (1 + 2) + 3;'), 'export default 1+2+3;')
+            assertEq(fjsRoundTrip('export default 1 - (2 - 3);'), 'export default 1-(2-3);')
+            assertEq(fjsRoundTrip('export default 2 ** 3 ** 2;'), 'export default 2**3**2;')
+            assertEq(fjsRoundTrip('export default (2 ** 3) ** 2;'), 'export default (2**3)**2;')
+            assertEq(fjsRoundTrip('export default (-2) ** 2;'), 'export default (-2)**2;')
+            assertEq(fjsRoundTrip('export default -(2 ** 2);'), 'export default -(2**2);')
+            assertEq(fjsRoundTrip('export default 2 ** -2;'), 'export default 2**-2;')
+            assertEq(fjsRoundTrip('export default 1 - -2;'), 'export default 1- -2;')
+            assertEq(fjsRoundTrip('export default 1 << 2 + 3 < 5 === true & 1 ^ 2 | 3;'), 'export default 1<<2+3<5===true&1^2|3;')
+            assertEq(fjsRoundTrip('export default ((1 << 2) + 3 < 5) === (true & (1 ^ (2 | 3)));'), 'export default (1<<2)+3<5===(true&(1^(2|3)));')
+            assertEq(fjsRoundTrip('export default ~1 + -[] * 1n;'), 'export default ~1+-[]*1n;')
+            assertEq(fjsRoundTrip('export default (1 + 2).x;'), 'export default (1+2).x;')
+            assertEq(fjsRoundTrip('export default (-[1])[0];'), 'export default (-[1])[0];')
+            assertEq(fjsRoundTrip('export default -((...a) => 1);'), 'export default -((...$a)=>1);')
+            assertEq(fjsRoundTrip('export default (...a) => (a[0] + 1) && a[1] + (a[2] ? 1 : 2);'), 'export default (...$a)=>$a[0]+1&&$a[1]+($a[2]?1:2);')
+            assertEq(fjsRoundTrip('const o = []; export default [o + 1, o + 1];'), 'const $0=[];export default [$0+1,$0+1];')
+            assertEq(compileSource('export default 1 + 2 * 3;')('x.edag.data.js'), 'export default ["{}",[[":","default",["+",1,["*",2,3]]]]];')
+            assertEq(moduleRefused('export default 1 + 2;'), 'input.f.js - error: an operator has no value')
         },
         // An object's members are the graph's here and the value's there, so
         // the two outputs order them differently and hold a different number
@@ -726,10 +752,10 @@ export const proof = {
         // the value outputs refuse a module holding one, since a value has
         // no function in it
         func: () => {
-            assertEq(compileSource('export default (...a) => a;')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",0,null,["rest"]]]]];')
-            assertEq(compileSource('export default (...a) => [a, a];')('output.edag.data.js'), 'const $0=["rest"];export default ["{}",[[":","default",["=>",0,null,["[]",[$0,$0]]]]]];')
-            assertEq(compileSource('export default [(...a) => a, (...a) => a];')('output.edag.data.js'), 'export default ["{}",[[":","default",["[]",[["=>",0,null,["rest"]],["=>",0,null,["rest"]]]]]]];')
-            assertEq(compileSource('const f = (...a) => 1; export default 2;')('output.edag.data.js'), 'export default [",",[["=>",0,null,1],["{}",[[":","default",2]]]]];')
+            assertEq(compileSource('export default (...a) => a;')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",0,[],["rest"]]]]];')
+            assertEq(compileSource('export default (...a) => [a, a];')('output.edag.data.js'), 'const $0=["rest"];export default ["{}",[[":","default",["=>",0,[],["[]",[$0,$0]]]]]];')
+            assertEq(compileSource('export default [(...a) => a, (...a) => a];')('output.edag.data.js'), 'export default ["{}",[[":","default",["[]",[["=>",0,[],["rest"]],["=>",0,[],["rest"]]]]]]];')
+            assertEq(compileSource('const f = (...a) => 1; export default 2;')('output.edag.data.js'), 'export default [",",[["=>",0,[],1],["{}",[[":","default",2]]]]];')
             assertEq(moduleRefused('export default (...a) => a;'), 'input.f.js - error: a function has no value')
             assertEq(moduleRefused('const f = (...a) => 1; export default 2;'), 'input.f.js - error: a function has no value')
             assertEq(jsonRefused('export default (...a) => a;'), 'input.f.js - error: a function has no value')
@@ -739,8 +765,8 @@ export const proof = {
         // anchored by a comma inside the body — the first comma the
         // compiler emits anywhere but a module's root.
         bodyConst: () => {
-            assertEq(compileSource('export default (...a) => { const x = [1]; return [x, x]; };')('output.edag.data.js'), 'const $0=["[]",[1]];export default ["{}",[[":","default",["=>",0,null,["[]",[$0,$0]]]]]];')
-            assertEq(compileSource('export default (...a) => { const x = []; return 1; };')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",0,null,[",",[["[]",[]],1]]]]]];')
+            assertEq(compileSource('export default (...a) => { const x = [1]; return [x, x]; };')('output.edag.data.js'), 'const $0=["[]",[1]];export default ["{}",[[":","default",["=>",0,[],["[]",[$0,$0]]]]]];')
+            assertEq(compileSource('export default (...a) => { const x = []; return 1; };')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",0,[],[",",[["[]",[]],1]]]]]];')
             // the value outputs refuse the module for its function, as ever
             assertEq(moduleRefused('export default (...a) => { const x = 1; return x; };'), 'input.f.js - error: a function has no value')
             // and the FunctionalScript output writes the body back as a
@@ -766,7 +792,7 @@ export const proof = {
         // remaining Stage 2 task of
         // `fjs/compiler/todo/compile-modules-to-edag.md`.
         call: () => {
-            assertEq(compileSource('const f = (...a) => 1; export default f(1);')('output.edag.data.js'), 'export default ["{}",[[":","default",["()",["=>",0,null,1],["[]",[1]]]]]];')
+            assertEq(compileSource('const f = (...a) => 1; export default f(1);')('output.edag.data.js'), 'export default ["{}",[[":","default",["()",["=>",0,[],1],["[]",[1]]]]]];')
             assertEq(compileSource('const o = { b: 1 }; export default o.b(2);')('output.edag.data.js'), 'export default ["{}",[[":","default",[".",["{}",[[":","b",1]]],"b",["|()",["[]",[2]]]]]]];')
             // a member function `fjs/js/prototype`'s `allowedCalls` names is
             // a method call like any other, where the same name is refused
@@ -978,9 +1004,8 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         inlinedCall: () => {
             assert(compileSource('const f = () => [1]; export default (...a) => a[0] ? (() => { const x = f(); return [x, x]; })() : 4;')('output.rs').includes([
                 '        let c1 = || {',
-                '            let c2: Any<A> = Any::dot(A::frame(self_).clone().to_any(), f64_any(0x0000000000000000)).end()?;',
-                '            let c3: Any<A> = Any::call(c2, Array::default().to_any())?;',
-                '            Ok([c3.clone(), c3.clone()].to_array().to_any())',
+                '            let c2: Any<A> = Any::call(A::frame(self_)[0].clone(), Array::default().to_any())?;',
+                '            Ok([c2.clone(), c2.clone()].to_array().to_any())',
                 '        };',
                 '        Any::conditional(c0, c1, || Ok(f64_any(0x4010000000000000)))',
             ].join('\n')))
@@ -1618,7 +1643,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     throws: () => {
         assertEq(compileSource('export default () => { throw 1; };')('output.js'), 'export default (...$a)=>{throw 1;};')
         assertEq(compileSource('export default (...a) => { const x = a[0]; throw [x, x]; };')('output.js'), 'export default (...$a)=>{throw [$a[0],$a[0]];};')
-        assertEq(compileSource('export default () => { throw 1; };')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",0,null,["throw",1]]]]];')
+        assertEq(compileSource('export default () => { throw 1; };')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",0,[],["throw",1]]]]];')
         assertEq(moduleRefused('export default () => { throw 1; };'), 'input.f.js - error: a function has no value')
         assertEq(compileSource('throw "boom";')('output.js'), 'throw "boom";')
         assertEq(compileSource('const a = []; throw 1;')('output.js'), 'const $0=[];throw 1;')

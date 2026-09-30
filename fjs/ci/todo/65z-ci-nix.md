@@ -122,7 +122,7 @@ is what a developer enters, and what all but two CI jobs run inside.
 
 It is generated rather than hand-written for two reasons. It cannot drift from
 the jobs, since it is built from their own declarations; and the drift check
-covers it, which a hand-written `nix/flake.nix` would have escaped — verifying
+covers it, which a hand-written `gen.nix/flake.nix` would have escaped — verifying
 one would mean pattern-matching Nix source, which root `AGENTS.md` §6 rules out.
 
 **Sharing, and its one limit.** Each job started with a flake of its own, on the
@@ -206,7 +206,7 @@ own — and is now four steps of `ubuntu-intel` again, with neither.
 
 The flake went first. Its linker is `pkgsi686Linux.stdenv.cc`, and that
 attribute throws on every system the shared shell serves but `x86_64-linux`, so
-a job-wide `shellHook` would have broken `nix develop ./nix` on both macOS
+a job-wide `shellHook` would have broken `nix develop ./gen.nix` on both macOS
 systems and on ARM Linux. That is a fact about the *system*, not about the job,
 and it is now declared as one: `NixJob`'s `perSystem` gives one system extra
 toolchain targets and a hook of its own, and the flake writes them at that
@@ -338,13 +338,13 @@ this TODO does not prescribe which non-Node tools a job needs.
 Generate one self-contained file for each job:
 
 ```text
-nix/flake.nix
-nix/node22/flake.nix
-nix/node24/flake.nix
+gen.nix/flake.nix
+gen.nix/node22/flake.nix
+gen.nix/node24/flake.nix
 ```
 
-The shared shell is `nix/` itself rather than a directory under it: it belongs
-to no single job, and `nix develop ./nix` is the command a developer should have
+The shared shell is `gen.nix/` itself rather than a directory under it: it belongs
+to no single job, and `nix develop ./gen.nix` is the command a developer should have
 to remember. The two that do belong to one job are named after it.
 
 Each generated file should:
@@ -412,7 +412,7 @@ At a high level it:
 4. updates the Nixpkgs commit and relevant exact versions in
    `fjs/ci/config/module.f.js`;
 5. runs ordinary CI generation (`npm run gen`) to regenerate the declared
-   flakes' `flake.nix` and, through the generated `nix/lock-update.sh` it
+   flakes' `flake.nix` and, through the generated `gen.nix/lock-update.sh` it
    ends with, every `flake.lock` against the new commit — see "Generated
    flake locks" below; this needs Nix;
 6. leaves all generated changes for review and commit.
@@ -427,10 +427,10 @@ A `flake.lock` is committed beside every `flake.nix`, but `fjs ci` never
 writes one — a lock's two facts on top of a pinned revision, `narHash` and
 `lastModified`, are only real Nix's to establish.
 
-So `fjs ci` also writes `nix/lock-update.sh`, one `rm -f` and one
-`nix flake lock <path>` per generated directory, and this repository's
-`npm run gen` ends by running it, so the drift check compares the committed
-locks against ones regenerated from nothing. That makes `gen` need Nix. The
+So `fjs ci` also writes `gen.nix/lock-update.sh`, one `nix flake lock <path>`
+per generated directory, and this repository's `npm run gen` ends by running
+it — after `gen:clean` has emptied `gen.nix/`, a `gen.` name — so the drift
+check compares the committed locks against ones regenerated from nothing. That makes `gen` need Nix. The
 earlier position — `gen` stays Nix-independent so it runs on Windows — is
 given up for now rather than paid for with a second generation step: if a
 Windows regeneration is ever needed, a partial, Node-only `gen` is the
@@ -456,16 +456,16 @@ Neither flag is written in a workflow step. Each job directory holds a generated
 `run` script beside its flake, and a step invokes that:
 
 ```sh
-./nix/node26/run npm run cov
+sh ./gen.nix/node26/run npm run cov
 ```
 
 The script differs between jobs only in the path it names — written in, since the
 generator knows it — and `exec`s `nix develop … --command "$@"`, so the spelling
 and its flags have one home instead of fifteen, and a step reads as the command it
 runs. A generated script calls no external tool (§6), and this one has nothing that
-could. Its executable bit is committed rather than generated, because nothing in
-`fjs/effects/node` can set a file mode;
-[generated-run-script-mode](generated-run-script-mode.md) owns closing that gap.
+could. It carries no executable bit: nothing in `fjs/effects/node` can set a
+file mode and `gen:clean` deletes the file before every regeneration, so the
+step names `sh` and the mode never matters.
 
 An earlier revision took the opposite trade — ignore the lock rather than add a flag to
 every invocation — and added a scoped root `.gitignore` rule for `/nix/*/flake.lock`.
@@ -481,7 +481,7 @@ Adopt jobs independently. Each migrated workflow uses:
 3. one step per command of that job's existing sequence, each entering the job's shell:
 
 ```sh
-./nix/<job>/run <command>
+sh ./gen.nix/<job>/run <command>
 ```
 
 A CI step runs one command (root [`AGENTS.md`](../../../AGENTS.md) §7), so the sequence
@@ -492,7 +492,7 @@ A step enters the shell only when it needs a tool the flake pins. `git` is the
 runner's, so the Node 26 drift check stays a plain step:
 
 ```sh
-./nix/node26/run npm run gen
+sh ./gen.nix/node26/run npm run gen
 git add -A && git diff --cached --exit-code
 ```
 
@@ -566,14 +566,22 @@ removed; `git log -- docker/` has it.
       provides fails this repository's suite.
 - [x] Generate one readable self-contained flake per job with
       `devShells.aarch64-linux.default`.
-- [ ] Remove stale generated job directories — only the ones the generator
-      wrote: it owns `flake.nix`, `run` and the subdirectories of `nix/`, not
-      the hand-written `nix/README.md` (`generatedDirectory` in
-      `fjs/ci/nix/module.f.mjs`). Needs a recursive `rm` effect.
+- [x] Remove stale generated job directories, in this repository: the
+      directory is `gen.nix/`, so `gen:clean` empties it by name before
+      `fjs ci` writes, and a job the generator stopped writing is a set of
+      deletions in the drift check. The hand-written README moved beside the
+      generator, `fjs/ci/nix/README.md`.
+- [ ] The same for a project whose `gen` is `fjs ci` alone: the command
+      empties nothing, so a stopped job's `gen.nix/<job>/` survives its
+      regeneration and its drift check stays green. Whether `fjs ci` should
+      empty its own directory first is the audience question
+      ([ci-generator-audience](ci-generator-audience.md)); until it is
+      answered, [README.md](../README.md#fjs-ci-is-not-stable)'s position
+      holds and the consumer deletes what the new version stopped writing.
 - [x] Generate a `run` script per job, so a workflow step names a command rather
       than a `nix develop` invocation.
 - [x] Generate and commit a `flake.lock` per flake, regenerated from nothing
-      by the generated `nix/lock-update.sh` (real `nix flake lock`), which
+      by the generated `gen.nix/lock-update.sh` (real `nix flake lock`), which
       `npm run gen` ends with, so the drift check covers the locks.
 - [ ] ~~Keep `npm run gen` Nix-independent and Windows-compatible.~~ Given
       up in #2405: `gen` needs Nix for the locks. A Node-only partial

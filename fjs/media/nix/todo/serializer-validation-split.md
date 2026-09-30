@@ -261,7 +261,7 @@ where it lands.
       same PR as the signature change — it is the only thing that breaks.
 - [ ] Confirm the generated-flake proofs pass unchanged — `fjs/ci/nix/proof.f.mjs`
       (round-tripping `flakeText` through the writer) and
-      `fjs/ci/proof.f.mjs` (reading `nix/<id>/flake.nix`).
+      `fjs/ci/proof.f.mjs` (reading `gen.nix/<id>/flake.nix`).
       Every committed flake file must come out byte-identical: this changes how
       a failure is reported, never the text produced on success.
 - [ ] Replace `_Chunks` / `joinChunks` with `fjs/types/list` chunk building,

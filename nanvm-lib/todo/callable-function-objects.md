@@ -67,16 +67,16 @@ Historical and landed-stage descriptions below retain the original zero-arity
 examples. The compiler and Rust printer now implement the new bindings; the
 remaining native callable work must use the same contract.
 
-- The function node is `['=>', length, frame, body]`, with nonnegative
-  integer length metadata. `frame` belongs to the enclosing scope and
+- The function node is `['=>', length, slots, body]`, with nonnegative
+  integer length metadata. The slots belong to the enclosing scope and
   `body` opens its own invocation scope.
 - `['arg', N]` reads fixed position `N < length`; missing values are
   `undefined`. `['rest']` reads the supplied tail starting at `length`,
   materialized once per call. The old function-owned `['args']` is gone;
   module-owned imports retain it. The original supplied count within the
   fixed prefix is intentionally unobservable.
-- `['frame']` remains the captured-values array, read as
-  `['.', ['frame'], i]`; it also carries captured outer fixed/rest bindings.
+- the frame remains the captured-values array, its slot `i` read as
+  `['frame', i]`; it also carries captured outer fixed/rest bindings.
 - `["self"]` is the planned direct self-reference (Stage 5), primitive because
   a top-level recursive function has no enclosing scope to seed a frame slot with itself
   (subject 10); it reaches only the innermost enclosing function (mutual
@@ -205,7 +205,7 @@ concern with no counterpart here: this backend's "frame allocation" is
 rustc's own native call frame, and its "liveness analysis" is the borrow
 checker's. Nothing in this document proposes an explicit locals array.
 
-#### Captured values — `["frame"]`
+#### Captured values — `["frame", i]`
 
 An owned `Array<A>`, built once, in the *enclosing* Rust function, at the
 moment the closure value is created — the copy scheme
@@ -213,7 +213,8 @@ moment the closure value is created — the copy scheme
 reusing the very type Arguments uses above, rather than inventing a second
 "indexed sequence of `Any<A>`" container: a captured frame and an arguments
 list are the same *shape*, so they should be the same *type*. It is read
-inside the body the same way `args` is, by index — a well-formed
+inside the body the same way `args` is, by index — `["frame", i]` for
+slot `i`, as `["arg", i]` is for a parameter — and a well-formed
 function node's frame size is fixed by the compiler, so unlike
 `args` (caller-supplied, arbitrary length) the body's own reads need no
 length check, only the enclosing scope's *construction* of the frame does.
@@ -327,7 +328,7 @@ precisely.
    snippet for exactly this shape: an outer function puts its own
    `["self"]` into a nested closure's frame, and the nested closure calls
    back out through it — `const f = x => { … const b = y => { … f(y) … };
-   … b(…) … }`, under its `["frame"]`-and-closed-scope-model discussion
+   … b(…) … }`, under its `["frame", i]`-and-closed-scope-model discussion
    (not [function-frame](../../spec/todo/3111-function-frame.md)'s own
    `a`/`b` — that one is two independent *top-level* consts with no
    enclosing function and no `["self"]`, exactly the out-of-scope mutual
@@ -403,21 +404,21 @@ returned and exported functions preserve that declared length too.
 
 **Stage 3 — capturing closures. Landed.**
 Extend the generator to lower the approved function-node shape for a body
-that references `["frame"]`: build the `frame` operand (an array literal over the
-captured names) as an `Array<A>` in the enclosing scope, then construct the
+that references `["frame", i]`: build the slots (the captured
+names) as an `Array<A>` in the enclosing scope, then construct the
 `Function<A>` value through `A::static_function` with that as its frame.
 The nested body reads slot `i` of `A::frame(self_)` exactly as it reads
 `args[i]`. Proof surface: a two-level
 closure fixture over an ordinary (non-`self`) captured value — e.g.
 `a => b => a + b`, the outer parameter captured into the inner function's
 frame — the general shape [function-frame](../../spec/todo/3111-function-frame.md)
-and edag-stage1-discussion's `["frame"]` design are built around, though
+and edag-stage1-discussion's `["frame", i]` design are built around, though
 neither document spells this particular example.
 
 It landed as described, the frame an array literal whose items are the
 enclosing scope's own nodes, printed as `[…].to_array()` in the third
-argument of `A::static_function`, and `['frame']` as
-`A::frame(self_).clone().to_any()`. The fixture is
+argument of `A::static_function`, and `['frame', i]` as
+`A::frame(self_)[i].clone()`. The fixture is
 `nanvm-harness/fixtures/closure.mjs`: `(...a) => (...b) => a[0] + b[0]`,
 the language's only admitted parameter then being rest, beside a capture of a
 module `const` and one through a parent's frame.

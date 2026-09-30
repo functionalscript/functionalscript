@@ -56,22 +56,22 @@ compiler CI runs.
 
 ### Or one Nix shell
 
-If you have Nix, `nix/` is a development environment carrying every tool in that
+If you have Nix, `gen.nix/` is a development environment carrying every tool in that
 table at the versions CI uses. It is not a convenience built alongside CI: most
 jobs run their commands inside this very shell, so what passes here is what
 passes there.
 
 ```bash
 ./dev.sh                   # an interactive shell
-./nix/run npm run cov      # or one command in it
+sh ./gen.nix/run npm run cov      # or one command in it
 ```
 
-[`dev.sh`](./dev.sh) opens the shell; [`nix/run`](./nix/run) hands it a single
+[`dev.sh`](./dev.sh) opens the shell; [`gen.nix/run`](./gen.nix/run) hands it a single
 command, and is what a CI step names. Nix does not run natively on Windows, so a
 Windows contributor either works through WSL2 or installs the table above —
 nothing in this repository requires Nix.
 
-[`nix/README.md`](./nix/README.md) explains the shell and how it is generated.
+[`fjs/ci/nix/README.md`](./fjs/ci/nix/README.md) explains the shell and how it is generated.
 
 ### Node test-runner compatibility
 
@@ -207,9 +207,9 @@ npm run gen
 
 Run this after changing anything a generator reads — `fjs/ci`'s workflows and
 Nix flakes, `fjs/nanvm`'s Rust test data. It needs Node and Nix: its last
-command is the generated `nix/lock-update.sh`, which deletes every
-`flake.lock` and locks each flake again from its pinned commit, so it does not
-run on Windows for now. The dependency lockfiles it never touches.
+command is the generated `gen.nix/lock-update.sh`, which locks each flake
+from its pinned commit after the cleanup below emptied `gen.nix/`, so it does
+not run on Windows for now. The dependency lockfiles it never touches.
 
 `gen` starts by deleting every generated output — the same module as
 `npm run gen:clean` — so regeneration starts from nothing: an output no
@@ -247,22 +247,20 @@ are handwritten.
   emptied directories are invisible to git.
 
 `.gitattributes` marks the `gen.*` names with two lines — an attribute on a
-directory does not reach the files inside it — and lists the outputs whose path
-another tool fixes, which keep their names and are not deleted by `gen:clean`:
-the generated files in `nix/` (Nix needs `flake.nix`, and every CI step enters
-the shell through `./nix/run`). The two workflows follow the rule — GitHub
-reads any name in `.github/workflows/` — but npm trusted publishing is bound to
-`gen.npm-publish.yml`'s exact name, so a project that renames it updates its
-trusted publisher on npm as well
+directory does not reach the files inside it — and nothing else: no committed
+output keeps a name outside the rule. Nix needs `flake.nix` and `flake.lock`,
+so the whole environment directory is `gen.nix/`, entered as
+`nix develop ./gen.nix` and, from a CI step, `sh ./gen.nix/run <command>` —
+through `sh`, because a script regenerated from nothing has no executable bit
+and nothing may depend on one. The two workflows keep their suffix under the
+prefix, since GitHub reads any name in `.github/workflows/`; npm trusted
+publishing is bound to `gen.npm-publish.yml`'s exact name, so a project that
+renames it updates its trusted publisher on npm as well
 ([fjs/ci/README.md](./fjs/ci/README.md#the-publishing-workflow)). The
 dependency lockfiles are not generated outputs: `npm run lock-update`
-refreshes them, not `gen`. The `flake.lock` files are, and are listed there
-too: `gen` regenerates them through `nix/lock-update.sh`.
-
-A known gap: because fixed-path outputs are not deleted, an obsolete one — a
-Nix job directory the CI generator stopped writing — survives the drift check.
-Deleting them waits on the generator restoring executable bits
-([generated-run-script-mode](./fjs/ci/todo/generated-run-script-mode.md)).
+refreshes them, not `gen`. The `flake.lock` files are: `gen:clean` deletes
+them with the rest of `gen.nix/`, and `gen.nix/lock-update.sh` writes them
+back from the pinned commits.
 
 ### Updating dependencies
 
@@ -278,7 +276,7 @@ This is a maintainer action, not something to run after an ordinary source
 change — `gen` above covers that, the `flake.lock` files included. It requires
 Node, Deno, Bun, Cargo, and Nix all installed: it runs `gen` first, then
 refreshes `package-lock.json`, `deno.lock`, `bun.lock`, and `Cargo.lock` — see
-[`nix/README.md`](./nix/README.md).
+[`nix/README.md`](./fjs/ci/nix/README.md).
 
 ## Opening a pull request
 
