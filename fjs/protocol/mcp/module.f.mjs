@@ -23,7 +23,7 @@
  */
 
 import { boolean, string, open, option, array, record, or } from '../../rtti/module.f.mjs'
-import { pureOk, resultMapStep, resultStep, step as ioStep } from '../../effects/module.f.mjs'
+import { mapStep, pureOk, resultMapStep, resultStep } from '../../effects/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
 import { read, write } from '../../effects/memory/module.f.mjs'
 import {
@@ -435,10 +435,7 @@ export const mcpStep = ({
                     const [t, pr] = parse(toolsListParams)(params === undefined ? {} : params)
                     return t === 'error'
                         ? pureOk(errorResponseOf(id)(invalidParams))
-                        : ioStep(
-                            handlers.toolsList(pr),
-                            r => pureOk(successResponseOf(id)(r)),
-                        )
+                        : mapStep(handlers.toolsList(pr), successResponseOf(id))
                 }
 
                 if (method === 'tools/call') {
@@ -448,10 +445,7 @@ export const mcpStep = ({
                     const [t, pr] = parse(toolsCallParams)(params)
                     return t === 'error'
                         ? pureOk(errorResponseOf(id)(invalidParams))
-                        : ioStep(
-                            handlers.toolsCall(pr),
-                            r => pureOk(successResponseOf(id)(r)),
-                        )
+                        : mapStep(handlers.toolsCall(pr), successResponseOf(id))
                 }
 
                 return pureOk(errorResponseOf(id)(methodNotFound))
