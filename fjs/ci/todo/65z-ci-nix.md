@@ -481,7 +481,7 @@ Adopt jobs independently. Each migrated workflow uses:
 3. one step per command of that job's existing sequence, each entering the job's shell:
 
 ```sh
-./gen.nix/<job>/run <command>
+sh ./gen.nix/<job>/run <command>
 ```
 
 A CI step runs one command (root [`AGENTS.md`](../../../AGENTS.md) §7), so the sequence
