@@ -125,15 +125,18 @@ const shapes = p => [
 ]
 
 /**
- * Every leaf, a negative number among them, the arguments, both empty
- * containers, `undefined`, and a negation — the prefix, whose operand
- * binds tighter than it does, so every shape below has to say where the
- * negation happens, and whose text opens with `-`, which `**` refuses on
- * its left and a binary `-` cannot touch.
+ * Every leaf, the arguments, both empty containers, `undefined`, and a
+ * negation — the prefix, whose operand binds tighter than it does, so
+ * every shape below has to say where the negation happens, and whose text
+ * opens with `-`, which `**` refuses on its left and a binary `-` cannot
+ * touch. A negative leaf opens with `-` the same way, and is
+ * {@link proof}'s `negativeLeaves` and `operators`: as an atom it would
+ * cost the law a quarter of its time for no spelling of its own, and take
+ * it past bun's five-second limit.
  *
  * @type {readonly Exp[]}
  */
-const atoms = [1, -1, 'a', null, true, 1n, ['rest'], ['[]', []], ['{}', []], ['undefined'], ['-', ['[]', []]]]
+const atoms = [1, 'a', null, true, 1n, ['rest'], ['[]', []], ['{}', []], ['undefined'], ['-', ['[]', []]]]
 
 /** The atoms and two rounds of shapes over them. @type {readonly Exp[]} */
 const generated = (() => {
