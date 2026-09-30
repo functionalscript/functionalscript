@@ -4,7 +4,7 @@
  * @import { Vec } from '../../types/bit_vec/types.ts'
  */
 
-import { fgRed, reset, createConsoleText, backspace, csiWrite } from './module.f.mjs'
+import { fgRed, reset, bold, sgr, createConsoleText, backspace, csiWrite, stripSgr } from './module.f.mjs'
 import { run as mockRun } from '../../effects/mock/module.f.mjs'
 import { utf8ToString } from '../module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
@@ -43,6 +43,25 @@ export const proof = [
         const writeFn = csiWrite(makeStd(false))('stdout')
         const [written] = runner('')(writeFn(fgRed + 'hello' + reset))
         assertEq(written, 'hello', ['expected ANSI stripped', written])
+    },
+    () => {
+        // stripSgr removes SGR sequences and keeps everything else
+        /** @type {readonly (readonly [string, string])[]} */
+        const cases = [
+            ['', ''],
+            ['plain', 'plain'],
+            [fgRed + 'red' + reset + ' text', 'red text'],
+            [bold + fgRed + 'x' + reset + reset, 'x'],
+            [sgr('1;31') + 'x' + sgr(''), 'x'],
+            ['a\x1bb', 'a\x1bb'],
+            ['a\x1b', 'a\x1b'],
+            ['a\x1b[1', 'a\x1b[1'],
+            ['a\x1b[1K', 'a\x1b[1K'],
+            ['\x1b\x1b[1m', '\x1b'],
+        ]
+        for (const [input, expected] of cases) {
+            assertEq(stripSgr(input), expected, ['stripSgr', input])
+        }
     },
     () => {
         // csiWrite with isTTY=true preserves ANSI SGR sequences
