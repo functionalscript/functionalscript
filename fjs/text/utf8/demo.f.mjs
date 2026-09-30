@@ -11,6 +11,12 @@
  * them: `printf '%s' 'hé€😀' | od -An -tx1` prints the same bytes in the same
  * order.
  *
+ * **What UTF-8 cannot encode is refused, not shown as bytes.** A JavaScript
+ * string can hold half of a surrogate pair on its own, and no UTF-8 sequence
+ * encodes a surrogate. Such a line names the surrogate and says so, rather
+ * than printing the bytes `fromCodePointList` answers for it, which are not
+ * UTF-8 ([utf16-error-tag](./todo/utf16-error-tag.md)).
+ *
  * **It needs no operations.** Encoding is a pure function of the input, so
  * `update` declares `never` and returns its next state through `pureOk`.
  *
@@ -22,6 +28,7 @@
 
 import { fromCodePointList } from './module.f.mjs'
 import { stringToCodePointList } from '../utf16/module.f.mjs'
+import { errorMask, isValidCodePoint } from '../code_point/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { textDemo } from '../../website/demo/module.f.mjs'
 
@@ -37,13 +44,27 @@ const hex = bytes => bytes.map(b => b.toString(16).padStart(2, '0')).join(' ')
 const unicode = cp => `U+${cp.toString(16).toUpperCase().padStart(4, '0')}`
 
 /**
+ * One code point's line: the code point, then its UTF-8 bytes in hex.
+ *
+ * A code point that is not valid is an unpaired surrogate: a JavaScript
+ * string's code units are all in `0x0000`–`0xFFFF`, so a surrogate is the only
+ * invalid value `stringToCodePointList` can tag with `errorMask`, and removing
+ * the tag gives the surrogate back.
+ *
+ * @type {(cp: CodePoint) => string}
+ */
+const line = cp => isValidCodePoint(cp)
+    ? `${unicode(cp).padEnd(8)} ${hex(toArray(fromCodePointList([cp])))}`
+    : `${unicode(cp ^ errorMask).padEnd(8)} error: unpaired surrogate, no UTF-8`
+
+/**
  * One line per code point of `text`: the code point, then its UTF-8 bytes in
- * hex.
+ * hex, or why it has none.
  *
  * @type {(text: string) => string}
  */
 export const codePoints = text => toArray(stringToCodePointList(text))
-    .map(cp => `${unicode(cp).padEnd(8)} ${hex(toArray(fromCodePointList([cp])))}`)
+    .map(line)
     .join('\n')
 
 /**

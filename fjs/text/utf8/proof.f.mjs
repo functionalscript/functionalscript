@@ -275,6 +275,19 @@ export const proof = {
                 'U+1F600  f0 9f 98 80',
             ].join('\n'))
         },
+        /**
+         * **An unpaired surrogate is refused, not encoded.** No UTF-8
+         * sequence encodes one, so its line names it and says so; the code
+         * points around it are unaffected.
+         */
+        unpairedSurrogate: () => {
+            assertEq(codePoints('a\uD800b'), [
+                'U+0061   61',
+                'U+D800   error: unpaired surrogate, no UTF-8',
+                'U+0062   62',
+            ].join('\n'))
+            assertEq(codePoints('\uDC00'), 'U+DC00   error: unpaired surrogate, no UTF-8')
+        },
         // Typing replaces the text; every other event leaves it alone.
         update: () => {
             /** @type {(event: DemoEvent) => (state: string) => string} */
