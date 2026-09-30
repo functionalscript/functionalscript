@@ -469,6 +469,12 @@ export const lockUpdatePath = /** @type {const} */ (`./${generatedDirectory}/loc
  * locks several flakes at once. `set -e` stops at the first failure rather
  * than leaving a later directory silently unlocked.
  *
+ * `rm -f` is the one tool this script calls besides `nix`, and root
+ * `AGENTS.md` §6 wants such a call approved first: the maintainer approved it
+ * for exactly this, deleting a lock so the regeneration is from nothing, in
+ * the review that added it (#2405). The proof in `./proof.f.mjs` pins the
+ * script's text, so no other tool enters it unnoticed.
+ *
  * Deleting the shared shell's own lock from inside that shell is fine: the
  * lock is read once, on entry, and `gen`'s process is already in. The step
  * after it, the drift check, is `git`'s and enters no shell.

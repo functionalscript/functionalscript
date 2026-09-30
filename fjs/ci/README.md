@@ -169,15 +169,16 @@ rather than generated: nothing in it varies with a job, a pin or a system, so
 there is nothing for a generator to compose or a drift check to catch. See
 [nix/README.md](../../nix/README.md).
 
-A `flake.lock` is committed beside every `flake.nix`, but `gen`
-never writes one: `nix flake lock` is a real Nix command, and `gen` has to
-work on Windows, where Nix does not run at all. Without a committed lock every
-`nix develop` would compute one, find it differed from nothing, and say so —
-which used to cost two more `--quiet`s and, with them, every Nix warning of any
-kind. Instead the generator also writes `nix/lock-update.sh`, one `nix flake lock`
-per generated directory, for a maintainer to run — with real Nix, hence
-`npm run lock-update` rather than `gen` — only when a pin in
-`config/module.f.js` moves. See [nix/README.md](../../nix/README.md).
+A `flake.lock` is committed beside every `flake.nix`, but `fjs ci` never
+writes one: `nix flake lock` is a real Nix command. Without a committed lock
+every `nix develop` would compute one, find it differed from nothing, and say
+so — which used to cost two more `--quiet`s and, with them, every Nix warning
+of any kind. Instead the generator writes `nix/lock-update.sh`, one `rm -f`
+and one `nix flake lock` per generated directory, and this repository's `gen`
+ends by running it, so the locks are regenerated from nothing and covered by
+the drift check; `gen` needs Nix for that, and does not run on Windows for
+now. See "Expected package scripts" below and
+[nix/README.md](../../nix/README.md).
 
 No job checks the flakes; the jobs that use them check the runtime they get. Every
 canonical job asserts, as its first command, that its own shell reports the version
