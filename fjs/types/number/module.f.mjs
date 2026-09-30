@@ -1,6 +1,7 @@
 /**
- * Numeric list reductions (`sum`, `min`, `max`), comparison via `cmp`, and
- * `countOnes` for 32-bit population count using SWAR.
+ * Numeric list reductions (`sum`, `min`, `max`), comparison via `cmp`,
+ * `countOnes` for 32-bit population count using SWAR, and the `isByte`
+ * predicate.
  *
  * @module
  *
@@ -13,6 +14,9 @@ import { reduce } from '../list/module.f.mjs'
 import { addition } from '../function/operator/module.f.mjs'
 import { cmp as uCmp, min as uMin, max as uMax } from '../function/compare/module.f.mjs'
 import { fold } from '../../common/monoid/module.f.mjs'
+
+const { isInteger } = Number
+const { is: sameValue } = Object
 
 /** @type {(input: List<number>) => number} */
 export const sum = fold({ identity: 0, operation: addition })
@@ -52,3 +56,14 @@ export const countOnes = n => {
     }
     return n
 }
+
+/**
+ * Whether `b` is a byte: an integer in `0..255`, and not `-0`, which the
+ * data layer refuses as a second spelling of `0`. The one byte predicate,
+ * for a consumer that holds a `number` it means as a byte — a
+ * `List<number>` it is about to write, say — and has to refuse one that
+ * is not.
+ *
+ * @type {(b: number) => boolean}
+ */
+export const isByte = b => isInteger(b) && b >= 0 && b <= 0xFF && !sameValue(b, -0)
