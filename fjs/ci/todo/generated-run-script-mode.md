@@ -13,10 +13,9 @@ invokes it directly:
 ```
 
 It also generates one script that is not per-job, `nix/lock-update.sh` (see
-`../nix/module.f.mjs`'s `lockUpdateText`), invoked by hand as
-`./nix/lock-update.sh` when `npm run lock-update` bumps a Nix pin. Both are
-scripts the repository runs by path rather than through `sh <path>`, so both
-need the executable bit.
+`../nix/module.f.mjs`'s `lockUpdateText`), which `npm run gen` ends by
+running as `./nix/lock-update.sh`. Both are scripts the repository runs by
+path rather than through `sh <path>`, so both need the executable bit.
 
 The generator cannot set it. Nothing in
 [`fjs/effects/node`](../../effects/node/module.f.mjs) takes a file mode:
@@ -58,8 +57,9 @@ Give the effects layer a way to express "this file is executable", and have
 
 1. **A `chmod` operation.** Direct, and mirrors `fs.chmod`. It also invites
    callers to express modes this repository has no other use for, and forces a
-   decision about what a mode means on Windows, where `fjs ci` must keep running
-   (`65Z` requires the generator stay Nix-independent and Windows-compatible).
+   decision about what a mode means on Windows: `fjs ci` itself still runs
+   there, though this repository's `npm run gen` no longer does, since it ends
+   with the Nix lock script (`65Z` gave up Windows regeneration in #2405).
 2. **An `executable` flag on `writeFile`.** Narrower — the only distinction the
    generator needs is script-or-not — and it degrades honestly on Windows, where
    the concept is absent and the flag can be a no-op. It changes an operation's
@@ -94,8 +94,8 @@ proof is the thing this repository does not ship.
 - [Naming generated files](../../../CONTRIBUTING.md#naming-generated-files) —
   the drift check that deletes generated files, blocked on this for the
   fixed-path ones
-- [65Z-ci-nix](65z-ci-nix.md) — owns the generated directory, and requires the
-  generator stay Windows-compatible
+- [65Z-ci-nix](65z-ci-nix.md) — owns the generated directory; `fjs ci` stays
+  Windows-compatible, while this repository's `gen` needs Nix since #2405
 - [spidermonkey-test-runner](../../emergent_testing/todo/spidermonkey-test-runner.md)
   — the next job likely to be generated for the first time, and so the next to
   hit this
