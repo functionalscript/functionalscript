@@ -1,7 +1,7 @@
 ## No-op indirections in `fjs/ci`
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
