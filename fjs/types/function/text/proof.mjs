@@ -44,13 +44,10 @@ export const proof = {
         assert(Number.isNaN(+anyF))
         assertEq(anyF < 5, false)
     },
-    /** What does not read the text answers without it: `NaN` for any text. */
-    refusedNumeric: () => {
-        assert(Number.isNaN(+anyRefused))
-        assert(Number.isNaN(anyRefused * 1))
-        assertEq(~anyRefused, -1)
-        assertEq(anyRefused < 5, false)
+    /** A refused text refuses conversions, not calls. */
+    refusedCall: () => {
         assertEq(refused(2, 3), 5)
+        assertEq(refused.length, 2)
     },
     lazy: () => {
         // `text` runs at each conversion and never before one.
@@ -62,5 +59,8 @@ export const proof = {
         concatenation: () => anyRefused + '',
         toString: () => refused.toString(),
         join: () => [refused].join(),
+        /** The host sees `+f` and `f < "z"` alike, so both are refused. */
+        number: () => +anyRefused,
+        stringComparison: () => anyRefused < 'z',
     },
 }

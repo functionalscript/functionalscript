@@ -40,12 +40,10 @@ export const proof = {
         assertEq(String(f), '()=>[$0]')
         assertEq(/** @type {() => readonly unknown[]} */ (f)()[0], 5)
     },
-    /** A refused text refuses only what reads it: `+f` is `NaN` for any text. */
-    refusedNumeric: () => {
-        assertEq(vm(context)(['<', ['=>', 0, [], ['!', 1]], 5]), false)
-    },
     throw: {
         /** The writer has no spelling for a `!` node, so the text is refused. */
         refused: () => String(vm(context)(['=>', 0, [], ['!', 1]])),
+        /** And so is `f < 5`, which the host cannot tell from `f < "z"`. */
+        refusedComparison: () => vm(context)(['<', ['=>', 0, [], ['!', 1]], 5]),
     },
 }
