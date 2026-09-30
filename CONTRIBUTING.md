@@ -256,8 +256,8 @@ reads any name in `.github/workflows/` — but npm trusted publishing is bound t
 trusted publisher on npm as well
 ([fjs/ci/README.md](./fjs/ci/README.md#the-publishing-workflow)). The
 dependency lockfiles are not generated outputs: `npm run lock-update`
-refreshes them, not `gen`. The `flake.lock` files are: `gen` regenerates them
-through `nix/lock-update.sh`.
+refreshes them, not `gen`. The `flake.lock` files are, and are listed there
+too: `gen` regenerates them through `nix/lock-update.sh`.
 
 A known gap: because fixed-path outputs are not deleted, an obsolete one — a
 Nix job directory the CI generator stopped writing — survives the drift check.
