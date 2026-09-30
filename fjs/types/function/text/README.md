@@ -31,3 +31,5 @@ the operator corpus's function-text cases that way.
 
 `Function.prototype.toString.call(f)` does not reach the trap: it reads
 no property, and answers the engine's text for a callable `Proxy`.
+
+Filed to be removed: [drop-proxy](./todo/drop-proxy.md).
