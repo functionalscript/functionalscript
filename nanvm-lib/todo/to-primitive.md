@@ -220,7 +220,7 @@ cases join the corpus with the renderer's text as their expected value.
 
 - **A renderer mostly exists.** The FunctionalScript writer,
   [`fjs/compiler/serializer`](../../fjs/compiler/serializer/module.f.mjs),
-  already wrote a function node as text: `['=>', 1, null, ['arg', 0]]` was
+  already wrote a function node as text: `['=>', 1, [], ['arg', 0]]` was
   `($a_0,...$a)=>$a_0` (now `($a_0)=>$a_0`, since step 3), and a shared
   array in a body became a `const`. It had two gaps. It had no spelling
   for operators or calls, so most real bodies were refused; steps 1 and 2
@@ -343,11 +343,9 @@ Each needs the owner's approval before the step that depends on it.
    issue of its own (below). A `const` only a lazy operand reaches, which
    the writer refused at first, is now the operand's own block, an IIFE the
    front end inlines. The corpus's
-   `() => undefined` keeps its empty frame, which the parser never builds:
-   that is what keeps it apart from a compiled `() => undefined` in the
-   Rust printer. The writer refuses that frame nested, so a corpus function
-   returning it has no text; the fixture covers returned functions
-   instead.
+   `() => undefined` is now the node a compiled one is (a function's slots
+   are a list since #2395), so the Rust printer writes both as
+   `function_any()`, whose text is `()=>undefined`.
 
 The signature change in step 4 touches every hand-written function in the
 tests. Bundling the code, the `length` and the text into one static

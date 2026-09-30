@@ -41,7 +41,7 @@ const refusalReason = e => {
 
 export const proof = {
     fixedAndRest: () => {
-        const result = scope(['=>', 3, null, ['[]', [['arg', 0], ['arg', 2], ['rest']]]])
+        const result = scope(['=>', 3, [], ['[]', [['arg', 0], ['arg', 2], ['rest']]]])
         assert(result[0] === 'ok')
         assert(result[1].join('\n').includes('next().unwrap_or_else(|| Nullish::Undefined.to_any())'))
         assert(result[1].join('\n').includes('nth(2).unwrap_or_else(|| Nullish::Undefined.to_any())'))
@@ -97,7 +97,7 @@ export const proof = {
         assertEq(
             printed(['?:', true, 1, 2]),
             'Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000)))')
-        assertEq(printed(['=>', 0, ['[]', []], ['undefined']]), 'function_any()')
+        assertEq(printed(['=>', 0, [], ['undefined']]), 'function_any()')
         assertEq(printed(['*', 1, 2]), 'f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000)')
     },
     /**
@@ -305,7 +305,7 @@ export const proof = {
         // A function's `length` is a number, and a read on a number is
         // `undefined`: `f.length.x` prints, as the VM answers it.
         assertEq(
-            printed(['.', ['.', ['=>', 0, null, 1], 'length'], 'x']),
+            printed(['.', ['.', ['=>', 0, [], 1], 'length'], 'x']),
             'Any::dot(Any::dot(A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default(), Some("()=>1")).to_any(), string_any("length")).end(), string_any("x")).end()')
     },
     /**
@@ -412,8 +412,8 @@ export const proof = {
         stopsAtAFunctionBody: () => {
             /** @type {Exp} */
             const x = ['[]', []]
-            assertEq(sharedNodesOf(['=>', 0, null, ['[]', [x, x]]]).length, 0)
-            const found = sharedNodesOf(['[]', [['=>', 0, x, 1], x]])
+            assertEq(sharedNodesOf(['=>', 0, [], ['[]', [x, x]]]).length, 0)
+            const found = sharedNodesOf(['[]', [['=>', 0, [x], 1], x]])
             assertEq(found.length, 1)
             assert(found[0] === x, found)
         },
@@ -639,10 +639,10 @@ export const proof = {
      */
     functions: {
         lengthLimit: () => {
-            assertEq(printed(['=>', 16, null, 1]),
+            assertEq(printed(['=>', 16, [], 1]),
                 'A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 16, Array::default(), Some("($a_0,$a_1,$a_2,$a_3,$a_4,$a_5,$a_6,$a_7,$a_8,$a_9,$a_10,$a_11,$a_12,$a_13,$a_14,$a_15)=>1")).to_any()')
             for (const length of [17, 2 ** 32, Number.MAX_SAFE_INTEGER, 1e30]) {
-                assertStructurallySame(nodeExpr(['=>', length, null, 1]),
+                assertStructurallySame(nodeExpr(['=>', length, [], 1]),
                     ['error', ['a function length above 16', length]])
             }
         },
@@ -665,26 +665,22 @@ export const proof = {
          */
         closure: () => {
             assertEq(
-                printed(['=>', 0, null, ['rest']]),
+                printed(['=>', 0, [], ['rest']]),
                 'A::static_function(|_self, args| {\n    let rest = args.clone().into_iter().to_array();\n    Ok(rest.clone().to_any())\n}, 0, Array::default(), Some("(...$a)=>$a")).to_any()')
             assertEq(
-                printed(['=>', 0, null, 1]),
+                printed(['=>', 0, [], 1]),
                 'A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default(), Some("()=>1")).to_any()')
-            // The writer escapes a lone surrogate, so every text is a `&str`,
-            // and a body it refuses, a read of the whole frame, has none.
-            assert(printed(['=>', 0, null, '\uD800']).endsWith(', 0, Array::default(), Some("()=>\\"\\\\ud800\\"")).to_any()'))
-            assert(printed(['=>', 0, ['[]', [1]], ['frame']]).endsWith(', 0, [f64_any(0x3ff0000000000000)].to_array(), None).to_any()'))
         },
         /** A nested function's `args` are its own: the outer body reads none. */
         nested: () => {
             assertEq(
-                printed(['=>', 0, null, ['=>', 0, null, ['rest']]]),
+                printed(['=>', 0, [], ['=>', 0, [], ['rest']]]),
                 'A::static_function(|_self, _args| { Ok(A::static_function(|_self, args| {\n    let rest = args.clone().into_iter().to_array();\n    Ok(rest.clone().to_any())\n}, 0, Array::default(), Some("(...$a)=>$a")).to_any()) }, 0, Array::default(), Some("()=>(...$b)=>$b")).to_any()')
         },
         /** A body whose root is an operation answers that operation's own `Result`, as a thunk does. */
         operationBody: () => {
             assertEq(
-                printed(['=>', 0, null, ['.', ['rest'], 0]]),
+                printed(['=>', 0, [], ['.', ['rest'], 0]]),
                 'A::static_function(|_self, args| {\n    let rest = args.clone().into_iter().to_array();\n    Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()\n}, 0, Array::default(), Some("(...$a)=>$a[0]")).to_any()')
         },
         /**
@@ -696,10 +692,10 @@ export const proof = {
             /** @type {Exp} */
             const first = ['.', ['rest'], 0]
             assertEq(
-                printed(['=>', 0, null, ['[]', [first, first]]]),
+                printed(['=>', 0, [], ['[]', [first, first]]]),
                 'A::static_function(|_self, args| {\n    let rest = args.clone().into_iter().to_array();\n    let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;\n    Ok([c0.clone(), c0.clone()].to_array().to_any())\n}, 0, Array::default(), Some("(...$a)=>[$a[0],$a[0]]")).to_any()')
             assertStructurallySame(
-                scoped(['=>', 0, null, ['[]', [['.', ['rest'], 0], ['.', ['rest'], 1]]]]),
+                scoped(['=>', 0, [], ['[]', [['.', ['rest'], 0], ['.', ['rest'], 1]]]]),
                 [
                     'Ok(A::static_function(|_self, args| {',
                     '    let rest = args.clone().into_iter().to_array();',
@@ -713,52 +709,76 @@ export const proof = {
          * A frame is the third argument of `A::static_function`: its items
          * values of the scope around the function, collected as the
          * `Array<A>` it takes — an empty one `Array::default()`, as `null`
-         * is — and `['frame']` in the body is that array, read through
-         * `self_`, which the closure then names.
+         * is — and `['frame', i]` in the body is slot `i` of that array,
+         * indexed through `self_`, which the closure then names. A slot
+         * read twice is one temporary, as any shared atom is.
          */
         frame: () => {
             assertEq(
-                printed(['=>', 0, ['[]', [1]], ['.', ['frame'], 0]]),
-                'A::static_function(|self_, _args| { Any::dot(A::frame(self_).clone().to_any(), f64_any(0x0000000000000000)).end() }, 0, [f64_any(0x3ff0000000000000)].to_array(), Some("()=>$0")).to_any()')
+                printed(['=>', 0, [1], ['frame', 0]]),
+                'A::static_function(|self_, _args| { Ok(A::frame(self_)[0].clone()) }, 0, [f64_any(0x3ff0000000000000)].to_array(), Some("()=>$0")).to_any()')
             assertEq(
-                printed(['=>', 0, ['[]', []], 1]),
+                printed(['=>', 0, [['[]', []], ['{}', []]], ['[]', [['frame', 1], ['frame', 0]]]]),
+                'A::static_function(|self_, _args| { Ok([A::frame(self_)[1].clone(), A::frame(self_)[0].clone()].to_array().to_any()) }, 0, [Array::default().to_any(), Object::default().to_any()].to_array(), Some("()=>{const $a0=$0;const $a1=$1;return [$a1,$a0];}")).to_any()')
+            assertEq(
+                printed(['=>', 0, [], 1]),
                 'A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default(), Some("()=>1")).to_any()')
             // A frame's items are the scope's temporaries, moved where the
             // frame is their only reference and cloned where it is not.
             /** @type {Exp} */
             const read = ['.', ['{}', []], 'a']
             assertStructurallySame(
-                scoped(['[]', [['=>', 0, ['[]', [read]], ['frame']], read]]),
+                scoped(['[]', [['=>', 0, [read], ['frame', 0]], read]]),
                 [
                     'let c0: Any<A> = Any::dot(Object::default().to_any(), string_any("a")).end()?;',
-                    'let c1: Any<A> = A::static_function(|self_, _args| { Ok(A::frame(self_).clone().to_any()) }, 0, [c0.clone()].to_array(), None).to_any();',
+                    'let c1: Any<A> = A::static_function(|self_, _args| { Ok(A::frame(self_)[0].clone()) }, 0, [c0.clone()].to_array(), Some("()=>$0")).to_any();',
                     'Ok([c1, c0.clone()].to_array().to_any())',
                 ])
         },
         /**
          * A nested function captures through its parent: the inner frame
-         * is built in the outer body, from the outer frame's slot, and each
-         * body reads its own frame alone.
+         * is built in the outer body, from the outer frame's slot — an
+         * atom, written where the inner frame takes it, in the outer
+         * closure's text and outside the inner one's, so its `self_` is the
+         * outer's — and each body reads its own frame alone.
          */
         nestedFrame: () => {
             assertEq(
-                printed(['=>', 0, ['[]', [['[]', []]]], ['=>', 0, ['[]', [['.', ['frame'], 0]]], ['.', ['frame'], 0]]]),
-                'A::static_function(|self_, _args| {\n'
-                + '    let c0: Any<A> = Any::dot(A::frame(self_).clone().to_any(), f64_any(0x0000000000000000)).end()?;\n'
-                + '    Ok(A::static_function(|self_, _args| { Any::dot(A::frame(self_).clone().to_any(), f64_any(0x0000000000000000)).end() }, 0, [c0].to_array(), Some("()=>$0")).to_any())\n'
-                + '}, 0, [Array::default().to_any()].to_array(), Some("()=>()=>$0")).to_any()')
+                printed(['=>', 0, [['[]', []]], ['=>', 0, [['frame', 0]], ['frame', 0]]]),
+                'A::static_function(|self_, _args| { Ok(A::static_function(|self_, _args| { Ok(A::frame(self_)[0].clone()) }, 0, [A::frame(self_)[0].clone()].to_array(), Some("()=>$0")).to_any()) }, 0, [Array::default().to_any()].to_array(), Some("()=>()=>$0")).to_any()')
         },
         /**
-         * A frame that is no array literal is an `Any<A>` known to be an
-         * array only when the module runs, and one reached from anywhere
-         * but its function would be built twice: both refused.
+         * A slot the frame does not have is refused, as the JavaScript
+         * executors refuse it, rather than printed as an index that
+         * panics: a read past the slots, of a function with none, or with
+         * an index that is no canonical index. A nested body's reads are
+         * checked against its own slots, not its parent's.
          */
-        otherFrame: () => {
-            assertEq(refusalReason(['=>', 0, ['undefined'], 1])[0], 'no Rust for a frame that is not an array literal')
-            assertEq(refusalReason(['=>', 0, 1, 1])[0], 'no Rust for a frame that is not an array literal')
+        slotPastTheFrame: () => {
+            for (const e of /** @type {readonly Exp[]} */ ([
+                ['=>', 0, [1], ['frame', 1]],
+                ['=>', 0, [], ['frame', 0]],
+                ['=>', 0, [1], ['frame', -0]],
+                ['=>', 0, [1], ['frame', -1]],
+                ['=>', 0, [1, 2], ['=>', 0, [['frame', 1]], ['frame', 1]]],
+            ])) { assertEq(refusalReason(e)[0], 'no Rust for a frame slot the frame does not have') }
+            assertEq(nodeExpr(['=>', 0, [1, 2], ['=>', 0, [['frame', 1]], ['frame', 0]]])[0], 'ok')
+        },
+        /**
+         * A slot is an operand of the scope around the function: one the
+         * scope reaches elsewhere too is a temporary, bound once and cloned
+         * into the frame.
+         */
+        sharedSlot: () => {
             /** @type {Exp} */
-            const frame = ['[]', [1]]
-            assertEq(refusalReason(['[]', [['=>', 0, frame, 1], frame]])[0], 'no Rust for a frame reached from anywhere but its function')
+            const c = ['[]', [1]]
+            assertStructurallySame(
+                scoped(['[]', [['=>', 0, [c], 1], c]]),
+                [
+                    'let c0: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();',
+                    'let c1: Any<A> = A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, [c0.clone()].to_array(), None).to_any();',
+                    'Ok([c1, c0.clone()].to_array().to_any())',
+                ])
         },
         /**
          * A function anywhere — an item, a call's callee, a body inside
@@ -766,13 +786,13 @@ export const proof = {
          * lambda binds nothing, and a primitive holds nothing.
          */
         holdsFunction: () => {
-            assertEq(holdsFunction(['=>', 0, null, 1]), true)
-            assertEq(holdsFunction(['=>', 0, ['[]', [1]], 1]), true)
-            assertEq(holdsFunction(['=>', 0, ['[]', []], ['rest']]), true)
-            assertEq(holdsFunction(['[]', [1, ['=>', 0, null, 1]]]), true)
-            assertEq(holdsFunction(['()', ['=>', 0, null, ['rest']], ['[]', []]]), true)
-            assertEq(holdsFunction(['=>', 0, ['[]', []], ['=>', 0, null, 1]]), true)
-            assertEq(holdsFunction(['=>', 0, ['[]', []], ['undefined']]), false)
+            assertEq(holdsFunction(['=>', 0, [], 1]), true)
+            assertEq(holdsFunction(['=>', 0, [1], 1]), true)
+            assertEq(holdsFunction(['=>', 0, [], ['rest']]), true)
+            assertEq(holdsFunction(['[]', [1, ['=>', 0, [], 1]]]), true)
+            assertEq(holdsFunction(['()', ['=>', 0, [], ['rest']], ['[]', []]]), true)
+            assertEq(holdsFunction(['=>', 0, [], ['=>', 0, [], 1]]), true)
+            assertEq(holdsFunction(['=>', 0, [], ['undefined']]), false)
             assertEq(holdsFunction(['[]', [1, 'static_function(']]), false)
             assertEq(holdsFunction(1), false)
         },
@@ -789,9 +809,9 @@ export const proof = {
             assertEq(readsArgs(deep), false)
             assertEq(readsArgs(chain(40, ['args'])), true)
             assertEq(readsFrame(deep), false)
-            assertEq(readsFrame(chain(40, ['frame'])), true)
+            assertEq(readsFrame(chain(40, ['frame', 0])), true)
             assertEq(holdsFunction(deep), false)
-            assertEq(holdsFunction(chain(40, ['=>', 0, null, 1])), true)
+            assertEq(holdsFunction(chain(40, ['=>', 0, [], 1])), true)
             assertEq(sharedNodesOf(deep).length, 40)
         },
     },
@@ -820,7 +840,7 @@ export const proof = {
         assertEq(eagerNodesOf(['&&', c, 1]).includes(c), true)
         assertEq(eagerNodesOf(['?:', c, 1, 2]).includes(c), true)
         // Not through a function's body, established only when it is called.
-        assertEq(eagerNodesOf(['=>', 0, null, ['[]', [c]]]).includes(c), false)
+        assertEq(eagerNodesOf(['=>', 0, [], ['[]', [c]]]).includes(c), false)
         // Not through a lazy operand, at any depth below it.
         assertEq(eagerNodesOf(['&&', true, c]).includes(c), false)
         assertEq(eagerNodesOf(['||', true, c]).includes(c), false)
@@ -859,8 +879,6 @@ export const proof = {
         unknownOperation: () => printed(['is', 1, 2]),
         /** A bigint no `i64` can hold. */
         bigintOutOfRange: () => printed(-(2n ** 63n) - 1n),
-        /** A frame that is no array literal. */
-        lambdaFrameNotArray: () => printed(['=>', 0, ['undefined'], ['undefined']]),
         /** An object key the printer cannot spell. */
         computedKey: () => printed(['{}', [[':', ['undefined'], 1]]]),
         /**

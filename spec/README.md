@@ -575,14 +575,11 @@ module boundary, from which a default import selects the document.
   `const $0=[1];const $1=[$0];export const b=$1;export default 3;`. The
   names gain a `$`, `$$0`, when an export's name begins with `$`.
 
-  The writer spells every operator and call the language has, parenthesized
-  only where the precedence ladder needs it (`(a+b)*c`, `a-(b-c)`,
-  `(-a)**b`), and puts a number, a function or an operation that is an
-  access's base or a callee in a group, `(1).x`. A callee that is an access
-  or a function takes a `const`: `a.b(c)` and `(a.b)(c)` are both the
-  method call, and a function called where it is written is inlined. A
-  value shared under one lazy operand alone is hoisted in a block of the
-  operand's own ([functions](#functions)).
+  The writer spells a property access, every operator the language has
+  ([operators](#operators)) and every call. A number or a function that is
+  an access's base or a callee takes a `const`, and so does a callee that
+  is an access: `a.b(c)` and `(a.b)(c)` are both the method call, and a
+  function called where it is written is inlined.
 - Object properties are emitted in the order the value carries them for the
   value outputs — JavaScript's own-property order, array-index keys first,
   a repeated key keeping its first position and its last value — and in the
@@ -601,9 +598,12 @@ module boundary, from which a default import selects the document.
   named `$0`, `a["if"]` and `a['c']` are `$0.if` and `$0.c`, while
   `a["a-b"]`, `a["é"]` and `a["1"]` stay bracketed. A number key stays a
   number in brackets, in normalized spelling — `a[1e21]` is `$0[1e+21]` — so
-  `a["0"]` and `a[0]` keep their own spellings. A number, a `bigint`, a
-  function or a negation an access is taken on is named first rather than
-  written in place: `1 .x` is `const $0=1;export default $0.x;`.
+  `a["0"]` and `a[0]` keep their own spellings. A number, a `bigint` or a
+  function an access is taken on is named first rather than written in
+  place: `1 .x` is `const $0=1;export default $0.x;`, and so is `(-1).x`,
+  whose `-1` folds to a number. An operator's text under an access stands
+  in a group: `(-[1])[0]` and `(1 + 2).x` come back as `(-[1])[0]` and
+  `(1+2).x`.
 - `NaN`, `Infinity` and `-Infinity` — a literal, or a number that overflowed
   to infinity — are emitted as those words in a DataJS or FunctionalScript
   document, and `-0` as `-0` in every format.
@@ -1193,12 +1193,19 @@ a primitive and refuses one of an array or an object ([numbers](#numbers)),
 and refuses every other operator the same way it refuses a function or a
 call (`an operator has no value`), until the EDAG interpreter answers for
 them there ([`interpret-edag.md`](../fjs/compiler/todo/interpret-edag.md)). The
-FunctionalScript writer, the `.js` output, spells every one of them, each
-operand parenthesized only where the ladder needs it ([output](#output)),
-`??` never bare beside `&&` or `||`, and a value shared under one lazy
-operand alone in a block of the operand's own ([functions](#functions)).
-`.json` and `.data.js` refuse such an operator wherever it stands, an
-unused `const` included.
+FunctionalScript writer, the `.js` output, spells every operator here, with
+the parentheses its precedence and associativity ask for and no more —
+`1 + 2 * 3` and `(1 + 2) * 3` come back as written, less the spaces, and
+`(1 + 2) + 3` as `1+2+3`; `??` is never bare beside `&&` or `||`; a prefix
+or a negative number on the left of `**` is grouped, `(-2)**2`; a `-`
+before a text opening with `-` takes a space, `1- -2`; a function under an
+operator, and an operator's text under an access, stand in a group,
+`-(()=>1)` and `(1+2).x`; and a value shared under one lazy operand
+alone is written in a block of the operand's own ([functions](#functions)).
+Read back, that text is the graph it was written from. `.json` and
+`.data.js` refuse every operator but unary `-` wherever it stands, an
+unused `const` included, so a module holding one compiles to `.js`,
+`.edag.data.js` and `.rs`.
 
 ## Property Access
 
@@ -1552,7 +1559,7 @@ are not supported yet. A newline before `=>` is refused.
   ([DESIGN.md §12](../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
   The frame is the one [function-frame](./todo/3111-function-frame.md) and
   the EDAG's closed-scope model
-  ([`["frame"]`](../todo/edag-stage1-discussion.md)) describe.
+  ([`["frame", N]`](../todo/edag-stage1-discussion.md)) describe.
 
   ```js
   const base = [10];
@@ -1575,7 +1582,7 @@ are not supported yet. A newline before `=>` is refused.
   parameter and by nothing else, and a word the list does not spell is
   unbound here exactly as any other unbound word is. Nothing else
   distinguishes the two lists. `() => 1` and `(...args) => 1` denote the one
-  function, the one node `['=>', 0, null, 1]` — though each arrow written is
+  function, the one node `['=>', 0, [], 1]` — though each arrow written is
   a function of its own (below) — and a body `const` may take the name a
   parameter would have taken, there being no parameter to collide with.
 - A parameterless function **called where it is written**, with no
@@ -1666,10 +1673,10 @@ are not supported yet. A newline before `=>` is refused.
   through a function that throws, as in JavaScript. The EDAG output carries
   the node, and the Rust output fails as the VM fails
   ([output](#output)).
-- A function **carries no name**. Its EDAG is `['=>', length, frame, body]`,
+- A function **carries no name**. Its EDAG is `['=>', length, slots, body]`,
   name-erased, so the function in `{ make: () => 0 }.make`, in
   `const hello = () => 0` and in `export default () => 0` is the same node,
-  `['=>', 0, null, 0]`, whatever JavaScript would name it (`make`, `hello`,
+  `['=>', 0, [], 0]`, whatever JavaScript would name it (`make`, `hello`,
   `default`), and no program observes the difference: `f.name` is
   refused at the key of `.`, and `entry(f, 'name')` is `undefined`, since
   `name` is not an enumerable own property

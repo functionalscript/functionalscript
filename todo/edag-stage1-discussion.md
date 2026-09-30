@@ -30,7 +30,7 @@ JavaScript syntax does not itself admit it into FunctionalScript.
 
 **Implemented argument-model migration:** the
 [named-and-rest parameter plan](../spec/todo/3120-parameters.md) owns the
-implemented `['=>', length, frame, body]`, `['arg', N]` and `['rest']` contract.
+implemented `['=>', length, slots, body]`, `['arg', N]` and `['rest']` contract.
 Subjects 2 and 7 below follow that contract. The
 remaining baseline examples and operation table using `['args']` describe
 the historical zero-arity format, not the current fixed/rest target.
@@ -264,7 +264,7 @@ schema is free to change independently of both.
 |`["Number", node]`|`Number(x)`|later|numeric coercion that accepts bigints, unlike unary `+`|
 |`["String", node]`|`String(x)`|later|string coercion|
 |`[",", [...node, node]]`|`(a, b)`|later|membership without order (subject 8); the operands are one operand, an array, as for `"[]"`|
-|`["=>", length, frame, body]`|`(…) => …`|2|function; `length` is integer metadata (subject 7); `frame` is a general `exp` in the schema — Stage 2's own compiler/interpreter scope was narrower and only emitted/accepted a placeholder for it; the compiler now emits an array of captured values, `null` where there is none ([functions](../spec/README.md#functions))|
+|`["=>", length, slots, body]`|`(…) => …`|2|function; `length` is integer metadata (subject 7); `slots` is the array of captured values, an array operand of `exp`s evaluated in the enclosing scope, `[]` where there is none, each read in the body as `["frame", i]` — Stage 2 emitted only a placeholder for it ([functions](../spec/README.md#functions))|
 
 `["{}", [...entry]]` is an ordered object-construction operation. Stage 1
 uses `[":", key, value]` entries.
@@ -397,34 +397,38 @@ All operators are post-stage-1: stage 1 has no operators at all.
 |----|--|-----|-----|
 |`["throw", node]`|`throw v`|later|always fails; never produces a value|
 |`["self"]`|—|later|the function itself; recursion is `["()", ["self"], args]`|
-|`["frame"]`|—|captures|the captured-consts frame, an array — as `["args"]` is for arguments; emitted by the compiler task that made captures a frame slot, which read it as `[".", ["frame"], i]`|
+|`["frame", i]`|—|captures|slot `i` of the captured-consts frame, a constant index as `["arg", N]`'s is; the compiler task that made captures frame slots first spelled the frame as a bare `["frame"]` node read through `[".", ["frame"], i]`, a form since retired — see `fjs/edag/README.md`|
 
-**`["frame"]` and the closed-scope model.** A closure's free values are
+**`["frame", i]` and the closed-scope model.** A closure's free values are
 copied into a frame when the function object is created — the scheme
 [function-frame](../spec/todo/3111-function-frame.md) chooses — and
-`["frame"]` is that array. It needs no accessor of its own: a slot is
-ordinary indexing, `[".", ["frame"], i]`, exactly as an argument is
-`[".", ["args"], 0]` (subject 2).
+`["frame", i]` reads slot `i` of that array. The frame as a whole is no
+node: a slot read carries its index as metadata, exactly as a fixed
+parameter is `["arg", N]`, so that the index is validated against the
+function that owns it rather than read as a property of a value. (This
+section first described the frame as a bare `["frame"]` node, its slots
+ordinary `[".", ["frame"], i]` reads; that was the spelling the compiler
+emitted, and it is the one `["frame", i]` replaced.)
 
-Frame construction mirrors a call: `["=>", frame, body]`, where
-`frame` is one node evaluating to an array — built in the *enclosing*
-scope, usually `["[]", …]` — and `body` is the inner function's
-graph. Compare `["()", f, args]`: same shape, one for entering a call,
-one for creating a closure.
+Frame construction mirrors a call: `["=>", length, slots, body]`, where
+`slots` is the array of captured values, each evaluated in the *enclosing*
+scope, and `body` is the inner function's graph. Compare `["()", f, args]`:
+same shape, one for entering a call, one for creating a closure.
 
 ```js
 // const f = x => { … const b = y => { … f(y) … }; … b(…) … }
-// inside f, building b — f puts its own ["self"] into b's frame:
-["=>", ["[]", ["self"]], /* b's body */ …]
-// inside b, calling f — slot 0 of b's frame:
-["()", [".", ["frame"], 0], ["[]", [".", ["args"], 0]]]
+// inside f, building b — f puts its own ["self"] into b's frame;
+// b has one fixed parameter, y, so its length is 1 and y is ["arg", 0]:
+["=>", 1, [["self"]], /* b's body */ …]
+// inside b, calling f with y — slot 0 of b's frame:
+["()", ["frame", 0], ["[]", [["arg", 0]]]]
 ```
 
 Consequences:
 
 - **A function body is a closed graph.** Its only leaves are constants,
-  `["args"]`, `["frame"]` and `["self"]` — every other value is
-  computed from them. Nothing refers outward.
+  `["arg", N]`, `["rest"]`, `["frame", i]` and `["self"]` — every other
+  value is computed from them. Nothing refers outward.
 - That **resolves the nesting corner** flagged in subjects 3 and 9: a
   node cannot be shared across a function boundary, because the inner
   body's leaves mean something different there. It is not a rule to
@@ -770,7 +774,7 @@ function-owned `['args']` yielded the complete supplied argument array.
 That invocation contract is superseded; the examples elsewhere in this
 document using it remain historical.
 
-**Current format:** `['=>', length, frame, body]` records canonical nonnegative
+**Current format:** `['=>', length, slots, body]` records canonical nonnegative
 integer `length` metadata and exposes two invocation bindings. Length and
 index zero must be positive zero; `-0` metadata is refused.
 
@@ -838,8 +842,8 @@ open:
   machinery; sharing across a lazy boundary is a plain reference, and a
   node demanded from two branches evaluates at most once (memoization).
 - Resolved by the closed-scope model ([Operations](#operations)): a
-  nested function's body is a closed graph whose leaves — `["args"]`,
-  `["frame"]`, `["self"]` — are its own, so a node simply cannot be
+  nested function's body is a closed graph whose leaves — `["arg", N]`,
+  `["rest"]`, `["frame", i]`, `["self"]` — are its own, so a node simply cannot be
   shared across a function boundary, and "whose arguments?" never
   arises.
 
@@ -1119,7 +1123,7 @@ Word tags now survive only where JS genuinely has no expression spelling:
 **Status:** function-node shape and fixed/rest bindings implemented in #2237;
 the constructor's input API remains open.
 
-The body is an expression graph in `['=>', length, frame, body]`, following
+The body is an expression graph in `['=>', length, slots, body]`, following
 the [named-and-rest parameter plan](../spec/todo/3120-parameters.md).
 The three-element `["=>", frame, body]` in the historical
 [Operations](#operations) examples is superseded.
@@ -1351,7 +1355,7 @@ would capture `x` while `x` is still being constructed, a cycle in the
 the partner as an argument), not just relaxed ordering.
 
 The EDAG's only leaves are constants and bindings — `["arg", N]`, `["rest"]`
-and `["frame"]` in a function, the import `["args"]` in a module (subject 2).
+and `["frame", i]` in a function, the import `["args"]` in a module (subject 2).
 Nothing references a name the function did not compute itself:
 
 - a module-level `const` or `import` the body uses
@@ -1364,9 +1368,9 @@ Nothing references a name the function did not compute itself:
   [2360](../spec/todo/2360-built-in.md) says may be used only as a
   namespace, never assigned to a variable.
 
-**Largely answered by `["frame"]`** ([Operations](#operations)): free
+**Largely answered by `["frame", i]`** ([Operations](#operations)): free
 values are captured into the frame when the closure is created, and read
-back as `[".", ["frame"], i]`. `["self"]` covers self-reference, which
+back as `["frame", i]`. `["self"]` covers self-reference, which
 no frame can seed at the top level. What remains open:
 
 - **which values go into a frame, and in what order** — the compiler

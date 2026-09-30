@@ -32,11 +32,9 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         let rest = args.clone().into_iter().skip(1).to_array();
         Ok(A::static_function(|self_, args| {
             let rest = args.clone().into_iter().skip(1).to_array();
-            let c0: Any<A> = A::frame(self_).clone().to_any();
-            let c1: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
-            let c2: Any<A> = Any::dot(c0.clone(), f64_any(0x3ff0000000000000)).end()?;
-            let c3: Any<A> = rest.clone().to_any();
-            Ok([c1, c2.clone(), args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), c3.clone(), c2.clone(), c3.clone()].to_array().to_any())
+            let c0: Any<A> = A::frame(self_)[1].clone();
+            let c1: Any<A> = rest.clone().to_any();
+            Ok([A::frame(self_)[0].clone(), c0.clone(), args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), c1.clone(), c0.clone(), c1.clone()].to_array().to_any())
         }, 1, [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), rest.clone().to_any()].to_array(), Some("($a_0,...$a)=>[$0,$1,$a_0,$a,$1,$a]")).to_any())
     }, 1, Array::default(), Some("($a_0,...$a)=>($b_0,...$b)=>[$a_0,$a,$b_0,$b,$a,$b]")).to_any();
     let c21: Any<A> = [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any();

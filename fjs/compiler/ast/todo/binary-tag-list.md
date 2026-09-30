@@ -52,5 +52,6 @@ is the merge of those records.
 
 - [../../parser/todo/value-token-kind-list.md](../../parser/todo/value-token-kind-list.md)
   — the same fix for the primitive token kinds.
-- [../../serializer/module.f.mjs](../../serializer/module.f.mjs)
-  — the writer's `binaryLevels`, which would read the same list.
+- [../../serializer/module.f.mjs](../../serializer/module.f.mjs) — the
+  writer's spelling of the operators, whose `levels` and `entry` list the
+  same tags.

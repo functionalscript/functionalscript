@@ -27,11 +27,11 @@ this issue.
 
 Two more node kinds have the same split, and the inventory below originally
 missed them. The comma is `[',', exps]` and the function
-`['=>', length, frame, body]` in the schema (`comma` and `func` in
+`['=>', length, slots, body]` in the schema (`comma` and `func` in
 `fjs/edag/module.f.mjs`). The discussion's normative places — the
 structural-operations table, the Baseline definition and subject 8's
 resolution — now write `[",", [...node, node]]` and
-`["=>", length, frame, body]`, but its worked examples still spell the comma
+`["=>", length, slots, body]`, but its worked examples still spell the comma
 flat and the function with three elements.
 
 The risk is mild but real: someone reading a worked example rather than the

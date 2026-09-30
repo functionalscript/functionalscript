@@ -13,7 +13,7 @@
  * A refusal is checked by its message, since a message is what a user of the
  * compiler meets, and every one of them names a feature that will replace it.
  *
- * @import { Exp, Op2Id } from '../../edag/types.ts'
+ * @import { Exp } from '../../edag/types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -51,10 +51,10 @@ const writes = (e, expected) => { assertEq(reads(e), expected) }
 const refuses = (e, expected) => { assertEq(unwrap(invert(tryStringify(e))), expected) }
 
 /** `(...a) => ... => a`, `n` bodies deep. @type {(n: number) => Exp} */
-const nested = n => n === 0 ? ['rest'] : ['=>', 0, null, nested(n - 1)]
+const nested = n => n === 0 ? ['rest'] : ['=>', 0, [], nested(n - 1)]
 
 /** `(...a) => a`, the graph a spelling is wanted for rather than read from. @type {Exp} */
-const identity = ['=>', 0, null, ['rest']]
+const identity = ['=>', 0, [], ['rest']]
 
 /**
  * The keys a generated access is given: a word that follows `.`, a number,
@@ -76,15 +76,17 @@ const copy = e => /** @type {Exp} */ (deep(e))
  * each key, a function body, a node shared twice, each side of a root
  * comma, a root comma whose two sides are one node, a root comma with one
  * operand, the same graph twice over in two scopes, a function that
- * captures the graph beside it, the graph three times under the eager
- * operators — a power of a difference with a complement — and under both
- * call forms, a call of a method call, and the lazy operators: the graph
- * as both operands of `&&`, as the lazy operand of `??`, shared under one
- * arm of a conditional, as the condition and both arms of one, anchored
- * by a comma under the lazy operand of `||`, under one access both arms of
- * a conditional read, and once in an array of each arm's own.
+ * captures the graph beside it, and the lazy operators: the graph as both
+ * operands of `&&`, as the lazy operand of `??`, shared under one arm of a
+ * conditional, as the condition and both arms of one, anchored by a comma
+ * under the lazy operand of `||`, under one access both arms of a
+ * conditional read, and once in an array of each arm's own; and Stage
+ * A's: as both operands of a binary minus, whose right operand takes
+ * parentheses at its own level and a space before a `-`; as both
+ * operands of `**`, whose left one takes them; under `~` through `+`; as
+ * and as a base under `*`.
  *
- * The graph twice over in two scopes is a copy and not the node again: two nodes, one in a body
+ * That last one is a copy and not the node again: two nodes, one in a body
  * and one outside it, which is a graph the compiler emits — and which the
  * writer has to spell so that reading it back gives two nodes again, since
  * one node in two scopes is no EDAG and the analysis refuses it.
@@ -100,16 +102,14 @@ const shapes = p => [
     ...p.map(x => /** @type {Exp} */(['[]', [x]])),
     ...p.map(x => /** @type {Exp} */(['{}', [[':', 'k', x]]])),
     ...p.flatMap(x => keys.map(k => /** @type {Exp} */(['.', x, k]))),
-    ...p.map(x => /** @type {Exp} */(['=>', 0, null, x])),
+    ...p.map(x => /** @type {Exp} */(['=>', 0, [], x])),
     ...p.map(x => /** @type {Exp} */(['[]', [x, x]])),
     ...p.map(x => /** @type {Exp} */([',', [x, 1]])),
     ...p.map(x => /** @type {Exp} */([',', [['[]', []], x]])),
     ...p.map(x => /** @type {Exp} */([',', [x, x]])),
     ...p.map(x => /** @type {Exp} */([',', [x]])),
-    ...p.map(x => /** @type {Exp} */(['[]', [x, ['=>', 0, null, copy(x)]]])),
-    ...p.map(x => /** @type {Exp} */(['[]', [x, ['=>', 0, ['[]', [x]], ['.', ['frame'], 0]]]])),
-    ...p.map(x => /** @type {Exp} */(['**', x, ['-', x, ['~', x]]])),
-    ...p.map(x => /** @type {Exp} */(['()', ['.', x, 'm', ['|()', ['[]', [x]]]], ['[]', [x]]])),
+    ...p.map(x => /** @type {Exp} */(['[]', [x, ['=>', 0, [], copy(x)]]])),
+    ...p.map(x => /** @type {Exp} */(['[]', [x, ['=>', 0, [x], ['frame', 0]]]])),
     ...p.map(x => /** @type {Exp} */(['&&', x, x])),
     ...p.map(x => /** @type {Exp} */(['??', ['[]', []], x])),
     ...p.map(x => /** @type {Exp} */(['?:', true, ['[]', [x, x]], 2])),
@@ -117,18 +117,22 @@ const shapes = p => [
     ...p.map(x => /** @type {Exp} */(['||', 1, [',', [x, 2]]])),
     ...p.map(x => /** @type {Exp} */(['?:', true, ['.', x, 'k'], ['.', x, 'k']])),
     ...p.map(x => /** @type {Exp} */(['?:', true, ['[]', [x]], ['[]', [x]]])),
+    ...p.map(x => /** @type {Exp} */(['-', x, x])),
+    ...p.map(x => /** @type {Exp} */(['**', x, x])),
+    ...p.map(x => /** @type {Exp} */(['~', ['+', x, 1]])),
+    ...p.map(x => /** @type {Exp} */(['.', ['*', x, x], 'k'])),
 ]
 
 /**
- * Every leaf, the arguments, both empty containers, `undefined`, and a
- * negation, whose operand binds tighter than it does, so every shape below
- * has to say where the negation happens. A negative leaf is
- * {@link proof}'s `negativeLeaves` and `operators`: as an atom it would
- * cost the law a quarter of its time for no spelling of its own.
+ * Every leaf, a negative number among them, the arguments, both empty
+ * containers, `undefined`, and a negation — the prefix, whose operand
+ * binds tighter than it does, so every shape below has to say where the
+ * negation happens, and whose text opens with `-`, which `**` refuses on
+ * its left and a binary `-` cannot touch.
  *
  * @type {readonly Exp[]}
  */
-const atoms = [1, 'a', null, true, 1n, ['rest'], ['[]', []], ['{}', []], ['undefined'], ['-', ['[]', []]]]
+const atoms = [1, -1, 'a', null, true, 1n, ['rest'], ['[]', []], ['{}', []], ['undefined'], ['-', ['[]', []]]]
 
 /** The atoms and two rounds of shapes over them. @type {readonly Exp[]} */
 const generated = (() => {
@@ -154,8 +158,6 @@ export const proof = {
                 'export const $0=[]; export const $$0=$0; export default $$0;',
                 'export const a=undefined; export default undefined;',
                 'export const a=(1).x; export const b=-1;',
-                'const f=(...x)=>x[0]*2+1; export const a=[f(3)-f(1)]; export default a[0]**2;',
-                'const o=[1]; export const a=o.length>0&&o[0]; export const b=a?[a]:null; export default o.at(0);',
             ]) {
                 const graph = moduleGraph(source)
                 const text = unwrap(tryModuleStringify(graph))
@@ -185,10 +187,10 @@ export const proof = {
                 ['{}', [[':', 'not-a-name', 1]]],
                 ['{}', [[':', 'a', ['()', 1, 1]]]],
                 ['{}', [[':', 'a', [',', [1]]]]],
-                ['{}', [[':', 'a', ['!', 1]], [':', 'b', 1]]],
+                ['{}', [[':', 'a', ['+', 1]], [':', 'b', 1]]],
                 ['{}', [[':', 'a', ['.', 1, 'constructor']]]],
-                ['{}', [[':', 'a', ['=>', 0, 7, 1]]]],
-                ['{}', [[':', 'default', ['typeof', 1]]]],
+                ['{}', [[':', 'a', ['=>', 0, [7], ['frame', 0]]]]],
+                ['{}', [[':', 'default', ['()', 1, 1]]]],
             ])) { assertEq(tryModuleSerialize(graph)[0], 'error') }
         },
     },
@@ -206,9 +208,10 @@ export const proof = {
             'export default [null,true,false,1,1.5,1n,"a\\"b","\u{1f600}"];')
         writes(['{}', [[':', 'a', 1], [':', 'b', 2], [':', '', 3]]], 'export default {"a":1,"b":2,"":3};')
     },
-    // The prefixes. `-` binds looser than a step, so a negation under an
-    // access is a base the text puts in a group — `-1[0]` is `-(1[0])` —
-    // and a negated function is no `UnaryExpression`, so it is grouped too.
+    // The prefix `-`. It binds looser than a step, so a negation under an
+    // access is a base only in a group — `-1[0]` is `-(1[0])` — and a
+    // negated function is no `UnaryExpression`, so it stands in a group
+    // too. `op12` of two operands is the binary minus, `operators` below.
     neg: () => {
         writes(['-', ['[]', [1]]], 'export default -[1];')
         writes(['-', 'a'], 'export default -"a";')
@@ -221,14 +224,12 @@ export const proof = {
         writes(['.', ['-', ['[]', []]], 0], 'export default (-[])[0];')
         writes(['.', ['-', ['[]', []]], 'a'], 'export default (-[]).a;')
         // a negated function likewise
-        writes(['-', ['=>', 0, null, 1]], 'export default -(()=>1);')
-        // `~` is spelled as `-` is, and the two mix freely: `~~` is two
-        // tokens, where `--` is one
-        writes(['~', ['[]', []]], 'export default ~[];')
-        writes(['~', ['~', ['-', ['[]', []]]]], 'export default ~~-[];')
-        writes(['-', ['~', ['-', ['[]', []]]]], 'export default -~-[];')
-        // A negative callee is a group too: `-1()` is `-(1())`.
-        writes(['()', -1, ['[]', []]], 'export default (-1)();')
+        writes(['-', ['=>', 0, [], 1]], 'export default -(()=>1);')
+        writes(['-', 1, 2], 'export default 1-2;')
+        // `-1()` is `-(1())`, so a negative callee says that the negation
+        // happens first as an access base does: a negative leaf is a number,
+        // which takes a `const`, and a `['-', …]` node is grouped
+        writes(['()', -1, ['[]', []]], 'const $0=-1;export default $0();')
         writes(['()', ['-', ['[]', []]], ['[]', []]], 'export default (-[])();')
     },
     /**
@@ -268,6 +269,11 @@ export const proof = {
         // and one deeper, where the fold runs twice
         assertEq(unwrap(tryStringify(['-', ['-', 1]])), 'export default - -1;')
         assertStructurallySame(unresolved(unwrap(parse(path)('export default - -1;'))).edag, ['{}', [[':', 'default', 1]]])
+        // and under a binary operator, where the fold reaches the operand
+        // alone: `['-', 0]` is the leaf `-0` once read, the operator over it
+        // as written
+        assertEq(unwrap(tryStringify(['-', 1, ['-', 0]])), 'export default 1- -0;')
+        assertStructurallySame(unresolved(unwrap(parse(path)('export default 1- -0;'))).edag, ['{}', [[':', 'default', ['-', 1, -0]]]])
     },
     // A node that mints identity is one value however many edges reach it,
     // and a `const` is the only thing in text that keeps that, so a shared
@@ -289,39 +295,41 @@ export const proof = {
         writes(['[]', [['.', o, 'a'], ['.', o, 'a']]], 'const $0={"a":1};export default [$0.a,$0.a];')
     },
     // A base the grammar takes no access on — a number, a bigint, a function
-    // — is written in a group, since `1.x` is no spelling of `['.', 1, 'x']`.
-    // A container base is written in place, where `{}.a` is a spelling the
-    // parser reads back.
+    // — gets a `const` of its own, since `1.x` is no spelling of `['.', 1,
+    // 'x']`. A container base is written in place, where `{}.a` is a
+    // spelling the parser reads back.
     bases: () => {
-        writes(['.', 1, 'x'], 'export default (1).x;')
-        writes(['.', 1n, 'x'], 'export default (1n).x;')
-        writes(['.', -1, 'x'], 'export default (-1).x;')
-        writes(['.', identity, 'length'], 'export default ((...$a)=>$a).length;')
+        writes(['.', 1, 'x'], 'const $0=1;export default $0.x;')
+        writes(['.', 1n, 'x'], 'const $0=1n;export default $0.x;')
+        writes(['.', identity, 'length'], 'const $0=(...$a)=>$a;export default $0.length;')
         writes(['.', ['{}', [[':', 'a', 1]]], 'a'], 'export default {"a":1}.a;')
         writes(['.', ['[]', [1, 2]], 0], 'export default [1,2][0];')
-        writes(['[]', [['.', 1, 'x'], ['.', 1, 'y']]], 'export default [(1).x,(1).y];')
-        // a shared function is still one `const`, and a base by its name
-        writes(['[]', [['.', identity, 'length'], identity]], 'const $0=(...$a)=>$a;export default [$0.length,$0];')
+        // One `const` per base, and one only: two accesses on one base share
+        // it, two bases do not, and a base named by an earlier statement is
+        // not named again.
+        writes(['[]', [['.', 1, 'x'], ['.', 1, 'y']]], 'const $0=1;export default [$0.x,$0.y];')
+        writes(['[]', [['.', 1, 'x'], ['.', 2, 'y']]], 'const $0=1;const $1=2;export default [$0.x,$1.y];')
+        writes([',', [['.', 1, 'x'], ['.', 1, 'y']]], 'const $0=1;const $1=$0.x;export default $0.y;')
     },
     // A key is a name after `.` where the word admits one, and a key in
     // brackets otherwise: the empty word, a word a digit opens, a word
     // holding what an identifier may not, and every number.
     keys: () => {
-        writes(['=>', 0, null, ['.', ['rest'], 'length']], 'export default (...$a)=>$a.length;')
-        writes(['=>', 0, null, ['.', ['rest'], 'A_$9']], 'export default (...$a)=>$a.A_$9;')
-        writes(['=>', 0, null, ['.', ['rest'], '']], 'export default (...$a)=>$a[""];')
-        writes(['=>', 0, null, ['.', ['rest'], '0a']], 'export default (...$a)=>$a["0a"];')
-        writes(['=>', 0, null, ['.', ['rest'], 'a-b']], 'export default (...$a)=>$a["a-b"];')
+        writes(['=>', 0, [], ['.', ['rest'], 'length']], 'export default (...$a)=>$a.length;')
+        writes(['=>', 0, [], ['.', ['rest'], 'A_$9']], 'export default (...$a)=>$a.A_$9;')
+        writes(['=>', 0, [], ['.', ['rest'], '']], 'export default (...$a)=>$a[""];')
+        writes(['=>', 0, [], ['.', ['rest'], '0a']], 'export default (...$a)=>$a["0a"];')
+        writes(['=>', 0, [], ['.', ['rest'], 'a-b']], 'export default (...$a)=>$a["a-b"];')
         // a word that denotes a value names a property like any other
-        writes(['=>', 0, null, ['.', ['rest'], 'NaN']], 'export default (...$a)=>$a.NaN;')
-        writes(['=>', 0, null, ['.', ['rest'], '_x']], 'export default (...$a)=>$a._x;')
-        writes(['=>', 0, null, ['.', ['rest'], '$x']], 'export default (...$a)=>$a.$x;')
+        writes(['=>', 0, [], ['.', ['rest'], 'NaN']], 'export default (...$a)=>$a.NaN;')
+        writes(['=>', 0, [], ['.', ['rest'], '_x']], 'export default (...$a)=>$a._x;')
+        writes(['=>', 0, [], ['.', ['rest'], '$x']], 'export default (...$a)=>$a.$x;')
         // The Kelvin sign lowercases to `k` and is no letter the tokenizer
         // takes, so a key holding one is a key in brackets. The characters
         // are classified by code point for that reason, never by case fold.
-        writes(['=>', 0, null, ['.', ['rest'], '\u212a']], 'export default (...$a)=>$a["\u212a"];')
-        writes(['=>', 0, null, ['.', ['rest'], 0]], 'export default (...$a)=>$a[0];')
-        writes(['=>', 0, null, ['.', ['rest'], 1.5]], 'export default (...$a)=>$a[1.5];')
+        writes(['=>', 0, [], ['.', ['rest'], '\u212a']], 'export default (...$a)=>$a["\u212a"];')
+        writes(['=>', 0, [], ['.', ['rest'], 0]], 'export default (...$a)=>$a[0];')
+        writes(['=>', 0, [], ['.', ['rest'], 1.5]], 'export default (...$a)=>$a[1.5];')
     },
     // Every keyword is a name after `.`, the six words that denote a value
     // included: a property is named by an `IdentifierName` in JavaScript,
@@ -330,14 +338,14 @@ export const proof = {
     // keyword rather than over a list someone remembered to update.
     keywords: () => {
         keywords.forEach(k => {
-            const written = tryStringify(['=>', 0, null, ['.', ['rest'], k]])
+            const written = tryStringify(['=>', 0, [], ['.', ['rest'], k]])
             // `arguments` and `with` are on the prototypes, and an access on
             // either has no text at all.
             if (written[0] === 'error') {
                 assertEq(written[1], 'a prohibited property name', k)
                 return
             }
-            assertEq(reads(['=>', 0, null, ['.', ['rest'], k]]), `export default (...$a)=>$a.${k};`)
+            assertEq(reads(['=>', 0, [], ['.', ['rest'], k]]), `export default (...$a)=>$a.${k};`)
         })
     },
     // A function is written with its parameter and no other, since a body
@@ -346,8 +354,8 @@ export const proof = {
     // reaches the ones outside it.
     functions: () => {
         writes(identity, 'export default (...$a)=>$a;')
-        writes(['=>', 0, null, ['=>', 0, null, ['rest']]], 'export default ()=>(...$b)=>$b;')
-        writes(['=>', 0, null, ['[]', [['=>', 0, null, 1]]]], 'export default ()=>[()=>1];')
+        writes(['=>', 0, [], ['=>', 0, [], ['rest']]], 'export default ()=>(...$b)=>$b;')
+        writes(['=>', 0, [], ['[]', [['=>', 0, [], 1]]]], 'export default ()=>[()=>1];')
         // `$z` then `$aa`: the letters carry past the twenty-sixth body.
         assert(reads(nested(27)).endsWith('()=>()=>(...$aa)=>$aa;'))
     },
@@ -355,10 +363,10 @@ export const proof = {
     // top-level or nested, is an error from every entry point, not a throw
     // out of allocating its parameter names.
     lengthLimit: () => {
-        assert(reads(['=>', 16, null, ['arg', 15]]).includes('_15)=>'))
+        assert(reads(['=>', 16, [], ['arg', 15]]).includes('_15)=>'))
         for (const e of /** @type {readonly Exp[]} */ ([
-            ['=>', 2 ** 32, null, 1],
-            ['=>', 0, null, ['=>', 2 ** 32, null, 1]],
+            ['=>', 2 ** 32, [], 1],
+            ['=>', 0, [], ['=>', 2 ** 32, [], 1]],
         ])) {
             /** @type {Exp} */
             const module = ['{}', [[':', 'f', e], [':', 'default', 1]]]
@@ -372,13 +380,14 @@ export const proof = {
     // question is the text's and not the node's — an access on an object
     // literal opens with one too, and reads back as a block just the same.
     block: () => {
-        writes(['=>', 0, null, ['{}', [[':', 'x', 1]]]], 'export default ()=>{return {"x":1};};')
-        writes(['=>', 0, null, ['.', ['{}', [[':', 'a', 1]]], 'a']], 'export default ()=>{return {"a":1}.a;};')
-        writes(['=>', 0, null, ['[]', [1]]], 'export default ()=>[1];')
-        writes(['=>', 0, null, ['.', 'x', 'length']], 'export default ()=>"x".length;')
+        writes(['=>', 0, [], ['{}', [[':', 'x', 1]]]], 'export default ()=>{return {"x":1};};')
+        writes(['=>', 0, [], ['.', ['{}', [[':', 'a', 1]]], 'a']], 'export default ()=>{return {"a":1}.a;};')
+        writes(['=>', 0, [], ['[]', [1]]], 'export default ()=>[1];')
+        writes(['=>', 0, [], ['.', 'x', 'length']], 'export default ()=>"x".length;')
     },
     // A body's own `const`s: a shared constructor, hoisted so that it is one
-    // value per call, and the anchors of a comma the body holds. Each is
+    // value per call; a numeric or function access base, which the grammar
+    // takes no access on; and the anchors of a comma the body holds. Each is
     // named by the body's parameter and its slot, `$a0` where the parameter
     // is `$a`, so a scope's names collide with no other's and a body reads
     // only its own.
@@ -388,12 +397,12 @@ export const proof = {
     bodyConsts: () => {
         /** @type {Exp} */
         const o = ['{}', []]
-        writes(['=>', 0, null, ['[]', [o, o]]], 'export default ()=>{const $a0={};return [$a0,$a0];};')
-        writes(['=>', 0, null, ['.', 1, 'x']], 'export default ()=>(1).x;')
-        writes(['=>', 0, null, ['[]', [identity, identity]]], 'export default ()=>{const $a0=(...$b)=>$b;return [$a0,$a0];};')
-        writes(['=>', 0, null, [',', [['[]', []], 1]]], 'export default ()=>{const $a0=[];return 1;};')
+        writes(['=>', 0, [], ['[]', [o, o]]], 'export default ()=>{const $a0={};return [$a0,$a0];};')
+        writes(['=>', 0, [], ['.', 1, 'x']], 'export default ()=>{const $a0=1;return $a0.x;};')
+        writes(['=>', 0, [], ['.', identity, 'length']], 'export default ()=>{const $a0=(...$b)=>$b;return $a0.length;};')
+        writes(['=>', 0, [], [',', [['[]', []], 1]]], 'export default ()=>{const $a0=[];return 1;};')
         // the arguments are a body's to name, which no module `const` can
-        writes(['=>', 0, null, ['[]', [['[]', [['rest']]], ['[]', [['rest']]]]]], 'export default (...$a)=>[[$a],[$a]];')
+        writes(['=>', 0, [], ['[]', [['[]', [['rest']]], ['[]', [['rest']]]]]], 'export default (...$a)=>[[$a],[$a]];')
         // one scope per body: the module's `$0`, the outer body's `$a0` and
         // the inner one's `$b0` stand together, each numbering from zero
         writes(
@@ -402,7 +411,7 @@ export const proof = {
                 const m = ['[]', []]
                 /** @type {Exp} */
                 const inner = ['{}', []]
-                return [',', [['[]', [m, m]], ['=>', 0, null, ['[]', [['=>', 0, null, ['[]', [inner, inner]]]]]]]]
+                return [',', [['[]', [m, m]], ['=>', 0, [], ['[]', [['=>', 0, [], ['[]', [inner, inner]]]]]]]]
             })(),
             'const $0=[];const $1=[$0,$0];export default ()=>[()=>{const $b0={};return [$b0,$b0];}];')
     },
@@ -433,30 +442,26 @@ export const proof = {
         /** @type {Exp} */
         const c = ['[]', [1]]
         /** A read of slot `i`, a node of its own — one node in two bodies is no EDAG. @type {(i: number) => Exp} */
-        const slot = i => ['.', ['frame'], i]
-        writes(['=>', 0, ['[]', [c]], slot(0)], 'const $0=[1];export default ()=>$0;')
-        writes(['[]', [c, ['=>', 0, ['[]', [c]], slot(0)]]], 'const $0=[1];export default [$0,()=>$0];')
+        const slot = i => ['frame', i]
+        writes(['=>', 0, [c], slot(0)], 'const $0=[1];export default ()=>$0;')
+        writes(['[]', [c, ['=>', 0, [c], slot(0)]]], 'const $0=[1];export default [$0,()=>$0];')
         // the frame's `const` comes before the function's own
         /** @type {Exp} */
-        const f = ['=>', 0, ['[]', [c]], ['[]', [slot(0), ['.', ['rest'], 0]]]]
+        const f = ['=>', 0, [c], ['[]', [slot(0), ['.', ['rest'], 0]]]]
         writes(['[]', [f, f]], 'const $0=[1];const $1=(...$a)=>[$0,$a[0]];export default [$1,$1];')
         // a slot read is a base like any name
-        writes(['=>', 0, ['[]', [c]], ['.', slot(0), 0]], 'const $0=[1];export default ()=>$0[0];')
+        writes(['=>', 0, [c], ['.', slot(0), 0]], 'const $0=[1];export default ()=>$0[0];')
         // one slot read twice is one name, and two slots are two
         /** @type {Exp} */
         const d = ['{}', []]
-        writes(['=>', 0, ['[]', [c, d]], ['[]', [slot(0), slot(1), slot(0)]]], 'const $0=[1];const $1={};export default ()=>[$0,$1,$0];')
+        writes(['=>', 0, [c, d], ['[]', [slot(0), slot(1), slot(0)]]], 'const $0=[1];const $1={};export default ()=>[$0,$1,$0];')
         // inside a body: a parameter is a name already, and a nested
         // function captures through its parent
         writes(
-            ['=>', 0, null, ['=>', 0, ['[]', [['rest']]], ['=>', 0, ['[]', [slot(0), ['rest']]], ['[]', [slot(0), slot(1), slot(0)]]]]],
+            ['=>', 0, [], ['=>', 0, [['rest']], ['=>', 0, [slot(0), ['rest']], ['[]', [slot(0), slot(1), slot(0)]]]]],
             'export default (...$a)=>(...$b)=>()=>[$a,$b,$a];')
         writes(
-            ['=>', 2, null, ['=>', 0, ['[]', [['arg', 1], ['arg', 0]]], ['[]', [slot(0), slot(1)]]]],
-            'export default ($a_0,$a_1)=>()=>[$a_1,$a_0];')
-        // an access takes a `const` of the body
-        writes(
-            ['=>', 0, null, ['=>', 0, ['[]', [['.', ['rest'], 0]]], ['[]', [slot(0), slot(0)]]]],
+            ['=>', 0, [], ['=>', 0, [['.', ['rest'], 0]], ['[]', [slot(0), slot(0)]]]],
             'export default (...$a)=>{const $a0=$a[0];return ()=>[$a0,$a0];};')
         // what the compiler builds is written, two `const`s reading one
         // value among it: the lowering gives them the one slot the
@@ -468,153 +473,43 @@ export const proof = {
         // here the body's text is the frame's order backwards, and a shared
         // function hoisted above the `return` reads the later slot first —
         // the body names its slots in order before anything else
-        writes(['=>', 0, ['[]', [c, d]], ['[]', [slot(1), slot(0)]]], 'const $0=[1];const $1={};export default ()=>{const $a0=$0;const $a1=$1;return [$a1,$a0];};')
+        writes(['=>', 0, [c, d], ['[]', [slot(1), slot(0)]]], 'const $0=[1];const $1={};export default ()=>{const $a0=$0;const $a1=$1;return [$a1,$a0];};')
         assertEq(
             reads(_defaultExport(moduleGraph('const x=[1]; const y=[2]; export default (...a)=>{const z=x; const f=(...b)=>y; return [z,f,f];};'))),
             'const $0=[1];const $1=[2];export default ()=>{const $a0=$0;const $a1=$1;const $a2=()=>$a1;return [$a0,$a2,$a2];};')
-        // a frame the parser would not build has no text that reads back,
+        // slots the parser would not build have no text that reads back,
         // and one of the enclosing scope, a comma, has no text yet
-        refuses(['=>', 0, ['undefined'], 1], 'a frame that is not an array literal')
-        refuses(['=>', 0, ['[]', []], 1], 'an empty frame')
-        refuses(['=>', 0, ['[]', [1]], slot(0)], 'a frame slot holding a primitive')
-        refuses(['=>', 0, ['[]', [['...', c]]], slot(0)], 'a spread')
-        refuses(['=>', 0, ['[]', [c, c]], ['[]', [slot(0), slot(1)]]], 'a frame slot that repeats another')
-        refuses(['=>', 0, ['[]', [c]], 1], 'a frame slot the body never reads')
-        refuses(['=>', 0, ['[]', [c]], slot(1)], 'a frame read that is no slot')
-        refuses(['=>', 0, ['[]', [c]], ['.', ['frame'], 'a']], 'a frame read that is no slot')
-        refuses(['.', ['frame'], 0], 'a frame read that is no slot')
-        refuses(['=>', 0, ['[]', [c]], ['frame']], 'the frame outside a slot read')
-        refuses((() => {
-            /** @type {Exp} */
-            const frame = ['[]', [c]]
-            return ['[]', [frame, ['=>', 0, frame, slot(0)]]]
-        })(), 'a frame reached from anywhere but its function')
-        refuses(['=>', 0, ['[]', [[',', [['[]', []], c]]]], slot(0)], 'a comma outside a scope')
+        refuses(['=>', 0, [1], slot(0)], 'a frame slot holding a primitive')
+        refuses(['=>', 0, [c, c], ['[]', [slot(0), slot(1)]]], 'a frame slot that repeats another')
+        refuses(['=>', 0, [c], 1], 'a frame slot the body never reads')
+        // a read of no slot, one whose index is no canonical index, and one
+        // outside a function are the analysis's refusals, before any text
+        // is written
+        refuses(['=>', 0, [c], slot(1)], 'invalid frame slot index or scope')
+        refuses(['=>', 0, [c], slot(-0)], 'invalid frame slot index or scope')
+        refuses(slot(0), 'invalid frame slot index or scope')
+        refuses(['=>', 0, [[',', [['[]', []], c]]], slot(0)], 'a comma outside a scope')
     },
-    // Every binary operator between two operands that need no group, and
-    // then the groups: an operand is grouped where its operator binds
-    // looser than the position, or as loosely on the side associativity
-    // does not favor — the right one of every operator but `**`, whose left
-    // one takes no prefix either.
-    operators: () => {
-        /** A body over `$a`, where every operand below is written. @type {(e: Exp) => Exp} */
-        const f = e => ['=>', 0, null, e]
-        /** @type {Exp} */
-        const a = ['rest']
-        /** @type {readonly Op2Id[]} */
-        const ops = ['===', '!==', '>', '>=', '<', '<=', '*', '/', '%', '**', '&', '|', '^', '<<', '>>', '>>>', '&&', '||', '??']
-        ops.forEach(op => { writes(f([op, a, 1]), `export default (...$a)=>$a${op}1;`) })
-        writes(f(['+', a, 1]), 'export default (...$a)=>$a+1;')
-        writes(f(['-', a, 1]), 'export default (...$a)=>$a-1;')
-        // the ladder
-        writes(f(['*', ['+', a, 1], 2]), 'export default (...$a)=>($a+1)*2;')
-        writes(f(['+', a, ['*', 1, 2]]), 'export default (...$a)=>$a+1*2;')
-        writes(f(['<', ['+', a, 1], ['<<', a, 2]]), 'export default (...$a)=>$a+1<$a<<2;')
-        writes(f(['===', ['<', a, 1], true]), 'export default (...$a)=>$a<1===true;')
-        writes(f(['&', ['===', a, 1], ['|', a, 2]]), 'export default (...$a)=>$a===1&($a|2);')
-        writes(f(['^', ['&', a, 1], ['&', a, 2]]), 'export default (...$a)=>$a&1^$a&2;')
-        // left to right
-        writes(f(['-', ['-', a, 1], 2]), 'export default (...$a)=>$a-1-2;')
-        writes(f(['-', a, ['-', 1, a]]), 'export default (...$a)=>$a-(1-$a);')
-        writes(f(['/', a, ['*', 1, 2]]), 'export default (...$a)=>$a/(1*2);')
-        // right to left, and no prefix on the left of `**`: `-a**b` is no
-        // expression, `(-a)**b` and `-(a**b)` are its two readings
-        writes(f(['**', ['**', a, 2], 3]), 'export default (...$a)=>($a**2)**3;')
-        writes(f(['**', a, ['**', 2, 3]]), 'export default (...$a)=>$a**2**3;')
-        writes(f(['**', ['-', a], 2]), 'export default (...$a)=>(-$a)**2;')
-        writes(f(['**', -1, 2]), 'export default ()=>(-1)**2;')
-        writes(f(['**', ['~', a], 2]), 'export default (...$a)=>(~$a)**2;')
-        writes(f(['**', 2, ['-', a]]), 'export default (...$a)=>2**-$a;')
-        writes(f(['-', ['**', a, 2]]), 'export default (...$a)=>-($a**2);')
-        writes(f(['*', ['-', a], ['**', a, 2]]), 'export default (...$a)=>-$a*$a**2;')
-        // a minus before a minus takes a space; `+-` is two tokens already
-        writes(f(['-', a, -1]), 'export default (...$a)=>$a- -1;')
-        writes(f(['-', a, ['-', a]]), 'export default (...$a)=>$a- -$a;')
-        writes(f(['+', a, -1]), 'export default (...$a)=>$a+-1;')
-        // a function is an operand in a group, on either side
-        writes(f(['+', ['=>', 0, null, 1], a]), 'export default (...$a)=>(()=>1)+$a;')
-        writes(f(['+', a, ['=>', 0, null, 1]]), 'export default (...$a)=>$a+(()=>1);')
-    },
-    // `&&` binds tighter than `||`, and `??` mixes with neither
-    // unparenthesized, on either side. The conditional is the loosest of
-    // all: its condition is anything tighter, and each arm any value, a
-    // function or a further conditional, nesting to the right.
-    ladder: () => {
-        /** @type {(e: Exp) => Exp} */
-        const f = e => ['=>', 0, null, e]
-        /** @type {Exp} */
-        const a = ['rest']
-        writes(f(['||', ['&&', a, 1], 2]), 'export default (...$a)=>$a&&1||2;')
-        writes(f(['||', a, ['&&', 1, 2]]), 'export default (...$a)=>$a||1&&2;')
-        writes(f(['&&', ['||', a, 1], 2]), 'export default (...$a)=>($a||1)&&2;')
-        writes(f(['&&', a, ['||', 1, 2]]), 'export default (...$a)=>$a&&(1||2);')
-        writes(f(['&&', a, ['|', 1, 2]]), 'export default (...$a)=>$a&&1|2;')
-        writes(f(['??', ['??', a, 1], 2]), 'export default (...$a)=>$a??1??2;')
-        writes(f(['??', a, ['??', 1, 2]]), 'export default (...$a)=>$a??(1??2);')
-        writes(f(['??', ['||', a, 1], 2]), 'export default (...$a)=>($a||1)??2;')
-        writes(f(['??', ['&&', a, 1], 2]), 'export default (...$a)=>($a&&1)??2;')
-        writes(f(['??', a, ['&&', 1, 2]]), 'export default (...$a)=>$a??(1&&2);')
-        writes(f(['||', ['??', a, 1], 2]), 'export default (...$a)=>($a??1)||2;')
-        writes(f(['??', ['|', a, 1], 2]), 'export default (...$a)=>$a|1??2;')
-        writes(f(['?:', a, 1, 2]), 'export default (...$a)=>$a?1:2;')
-        writes(f(['?:', ['?:', a, 1, 2], 3, 4]), 'export default (...$a)=>($a?1:2)?3:4;')
-        writes(f(['?:', a, ['?:', 1, 2, 3], ['?:', 4, 5, 6]]), 'export default (...$a)=>$a?1?2:3:4?5:6;')
-        writes(f(['?:', ['??', a, 1], ['=>', 0, null, 1], ['=>', 0, null, 2]]), 'export default (...$a)=>$a??1?()=>1:()=>2;')
-        writes(f(['+', ['?:', a, 1, 2], 3]), 'export default (...$a)=>($a?1:2)+3;')
-        writes(f(['.', ['&&', a, 1], 'x']), 'export default (...$a)=>($a&&1).x;')
-        // A `const` a lazy operand alone reaches is the operand's block's
-        // ({@link lazy}), a capture among them, and at the module level too.
-        /** @type {Exp} */
-        const o = ['[]', []]
-        writes(f(['&&', a, ['[]', [o, o]]]), 'export default (...$a)=>$a&&(()=>{const $b0=[];return [$b0,$b0];})();')
-        writes(f(['?:', a, ['=>', 0, ['[]', [['.', a, 0]]], ['.', ['frame'], 0]], 1]), 'export default (...$a)=>$a?(()=>{const $b0=$a[0];return ()=>$b0;})():1;')
-        writes(['{}', [[':', 'default', ['??', 1, ['[]', [o, o]]]]]], 'export default {"default":1??(()=>{const $a0=[];return [$a0,$a0];})()};')
-        writes(f(['[]', [['&&', a, o], o]]), 'export default (...$a)=>{const $a0=[];return [$a&&$a0,$a0];};')
-        writes(f(['&&', ['[]', [o]], ['[]', [o]]]), 'export default ()=>{const $a0=[];return [$a0]&&[$a0];};')
-        writes(f([',', [o, ['?:', a, ['[]', [o, o]], 1]]]), 'export default (...$a)=>{const $a0=[];return $a?[$a0,$a0]:1;};')
-        // a parameter is no `const`, and neither is its capture
-        writes(f(['?:', a, ['=>', 0, ['[]', [a]], ['.', ['frame'], 0]], 1]), 'export default (...$a)=>$a?()=>$a:1;')
-        // what the compiler builds is written
-        assertEq(
-            reads(_defaultExport(moduleGraph('export default (...a)=>{const o=[]; return a ? [o, o] : 1;};'))),
-            'export default (...$a)=>{const $a0=[];return $a?[$a0,$a0]:1;};')
-        // an anchor a lazy operand alone reads again is read through its
-        // `const`, a function's capture among them, never written twice
-        assertEq(
-            reads(_defaultExport(moduleGraph('export default (...a)=>{const x=a[0]+1; return true ? () => x : 1;};'))),
-            'export default (...$a)=>{const $a0=$a[0]+1;return true?()=>$a0:1;};')
-        assertEq(
-            reads(_defaultExport(moduleGraph('export default (...a)=>{const x=a[0]; return a[1] ? x : 1;};'))),
-            'export default (...$a)=>{const $a0=$a[0];return $a[1]?$a0:1;};')
-        // one an eager position reaches too is written where it is read
-        /** @type {Exp} */
-        const x = ['.', a, 0]
-        writes(f([',', [x, ['[]', [x, ['?:', a, x, 1]]]]]), 'export default (...$a)=>{const $a0=$a[0];return [$a[0],$a?$a[0]:1];};')
-    },
-    // A call's arguments are the array literal it holds, each any value. A
-    // callee that is an access takes a `const`, since `a.b(c)` is the
-    // method call in any spelling, and a call mints what it returns, so a
-    // shared one is a `const` too.
     calls: () => {
         /** @type {(e: Exp) => Exp} */
-        const f = e => ['=>', 0, null, e]
+        const f = e => ['=>', 0, [], e]
         /** @type {Exp} */
         const a = ['rest']
         writes(f(['()', a, ['[]', [1, 2]]]), 'export default (...$a)=>$a(1,2);')
         writes(f(['()', a, ['[]', []]]), 'export default (...$a)=>$a();')
         writes(f(['()', ['()', a, ['[]', [1]]], ['[]', [2]]]), 'export default (...$a)=>$a(1)(2);')
-        writes(f(['()', a, ['[]', [['=>', 0, null, 1], ['?:', a, 1, 2]]]]), 'export default (...$a)=>$a(()=>1,$a?1:2);')
+        writes(f(['()', a, ['[]', [['=>', 0, [], 1], ['?:', a, 1, 2]]]]), 'export default (...$a)=>$a(()=>1,$a?1:2);')
         // a function called with no arguments is a callee by its name: the
         // front end inlines one called where it is written
-        writes(f(['()', ['=>', 0, null, 1], ['[]', []]]), 'export default ()=>{const $a0=()=>1;return $a0();};')
-        // and one called with arguments is written in place
-        writes(f(['()', ['=>', 1, null, ['arg', 0]], ['[]', [1]]]), 'export default ()=>(($b_0)=>$b_0)(1);')
+        writes(f(['()', ['=>', 0, [], 1], ['[]', []]]), 'export default ()=>{const $a0=()=>1;return $a0();};')
+        // and so is one called with arguments, as a function access base is
+        writes(f(['()', ['=>', 1, [], ['arg', 0]], ['[]', [1]]]), 'export default ()=>{const $a0=($b_0)=>$b_0;return $a0(1);};')
         writes(f(['()', ['+', a, 1], ['[]', []]]), 'export default (...$a)=>($a+1)();')
         writes(f(['.', ['()', a, ['[]', []]], 'x']), 'export default (...$a)=>$a().x;')
         writes(f(['()', ['.', a, 'f'], ['[]', []]]), 'export default (...$a)=>{const $a0=$a.f;return $a0();};')
         writes(f(['.', a, 'f', ['|()', ['[]', [1]]]]), 'export default (...$a)=>$a.f(1);')
         writes(f(['.', ['+', a, 1], 'f', ['|()', ['[]', []]]]), 'export default (...$a)=>($a+1).f();')
-        writes(f(['.', 1, 'f', ['|()', ['[]', []]]]), 'export default ()=>(1).f();')
+        writes(f(['.', 1, 'f', ['|()', ['[]', []]]]), 'export default ()=>{const $a0=1;return $a0.f();};')
         writes(f(['()', ['.', a, 'f', ['|()', ['[]', []]]], ['[]', []]]), 'export default (...$a)=>$a.f()();')
         writes(f(['.', ['.', a, 'f', ['|()', ['[]', []]]], 'g', ['|()', ['[]', []]]]), 'export default (...$a)=>$a.f().g();')
         // a method call's key is refused by the parser's own list of the
@@ -628,7 +523,7 @@ export const proof = {
         writes(f(['[]', [c, c]]), 'export default (...$a)=>{const $a0=$a();return [$a0,$a0];};')
         writes(f(['[]', [['()', a, ['[]', []]], ['()', a, ['[]', []]]]]), 'export default (...$a)=>[$a(),$a()];')
         // a slot is a name, and a callee as it stands
-        writes(['=>', 0, ['[]', [['[]', []]]], ['()', ['.', ['frame'], 0], ['[]', []]]], 'const $0=[];export default ()=>$0();')
+        writes(['=>', 0, [['[]', []]], ['()', ['frame', 0], ['[]', []]]], 'const $0=[];export default ()=>$0();')
         // arguments the parser would not build
         /** @type {Exp} */
         const args = ['[]', [1]]
@@ -650,32 +545,26 @@ export const proof = {
         /** @type {(e: Exp) => string} */
         const text = e => unwrap(tryFunctionText(e))
         /** @type {(i: number) => Exp} */
-        const slot = i => ['.', ['frame'], i]
+        const slot = i => ['frame', i]
         for (const e of /** @type {readonly Exp[]} */ ([
-            ['=>', 0, null, 1],
-            ['=>', 1, null, ['+', ['arg', 0], ['.', ['rest'], 'length']]],
-            ['=>', 0, null, ['[]', [['[]', []], ['=>', 0, null, ['rest']]]]],
-            ['=>', 0, null, ['?:', ['rest'], ['.', ['rest'], 'f', ['|()', ['[]', [1]]]], null]],
+            ['=>', 0, [], 1],
+            ['=>', 1, [], ['+', ['arg', 0], ['.', ['rest'], 'length']]],
+            ['=>', 0, [], ['[]', [['[]', []], ['=>', 0, [], ['rest']]]]],
+            ['=>', 0, [], ['?:', ['rest'], ['.', ['rest'], 'f', ['|()', ['[]', [1]]]], null]],
         ])) { assertEq(`export default ${text(e)};`, reads(e)) }
-        // an empty frame, which the Rust printer builds, is no slot
-        assertEq(text(['=>', 0, ['[]', []], 1]), '()=>1')
-        assertEq(text(['=>', 0, null, 1]), '()=>1')
-        assertEq(text(['=>', 1, null, ['+', ['arg', 0], ['.', ['rest'], 'length']]]), '($a_0,...$a)=>$a_0+$a.length')
-        assertEq(text(['=>', 0, ['[]', [['rest']]], slot(0)]), '()=>$0')
-        assertEq(text(['=>', 0, ['[]', [['rest'], ['arg', 3]]], ['[]', [slot(0), slot(1), ['rest']]]]), '(...$a)=>[$0,$1,$a]')
+        assertEq(text(['=>', 0, [], 1]), '()=>1')
+        assertEq(text(['=>', 1, [], ['+', ['arg', 0], ['.', ['rest'], 'length']]]), '($a_0,...$a)=>$a_0+$a.length')
+        assertEq(text(['=>', 0, [['rest']], slot(0)]), '()=>$0')
+        assertEq(text(['=>', 0, [['rest'], ['arg', 3]], ['[]', [slot(0), slot(1), ['rest']]]]), '(...$a)=>[$0,$1,$a]')
         // a nested function captures a slot through its own frame
-        assertEq(text(['=>', 0, ['[]', [['rest']]], ['=>', 0, ['[]', [slot(0)]], slot(0)]]), '()=>()=>$0')
+        assertEq(text(['=>', 0, [['rest']], ['=>', 0, [slot(0)], slot(0)]]), '()=>()=>$0')
         // slots read out of order are named in order first, as a body's are
-        assertEq(text(['=>', 0, ['[]', [1, 2]], ['[]', [slot(1), slot(0)]]]), '()=>{const $a0=$0;const $a1=$1;return [$a1,$a0];}')
-        // refused: no function, a frame with no slot count, and a body the
-        // writer refuses
+        assertEq(text(['=>', 0, [1, 2], ['[]', [slot(1), slot(0)]]]), '()=>{const $a0=$0;const $a1=$1;return [$a1,$a0];}')
+        // refused: no function, and a body the writer or the analysis refuses
         assertStructurallySame(tryFunctionText(1), ['error', 'not a function'])
         assertStructurallySame(tryFunctionText(['[]', []]), ['error', 'not a function'])
-        assertStructurallySame(tryFunctionText(['=>', 0, ['undefined'], 1]), ['error', 'a frame that is not an array literal'])
-        assertStructurallySame(tryFunctionText(['=>', 0, ['[]', [['...', ['rest']]]], slot(0)]), ['error', 'a spread'])
-        assertStructurallySame(tryFunctionText(['=>', 0, null, slot(0)]), ['error', 'a frame read that is no slot'])
-        assertStructurallySame(tryFunctionText(['=>', 0, null, ['!', 1]]), ['error', 'a ! node'])
-        assertStructurallySame(tryFunctionText(['=>', 0, null, ['arg', 0]]), ['error', 'invalid fixed parameter index or scope'])
+        assertStructurallySame(tryFunctionText(['=>', 0, [], ['!', 1]]), ['error', 'a ! node'])
+        assertStructurallySame(tryFunctionText(['=>', 0, [], ['arg', 0]]), ['error', 'invalid fixed parameter index or scope'])
     },
     // Every refusal, by the message it carries: a node kind with no spelling
     // yet, a position a spelling has none in, and a key no literal reads
@@ -689,13 +578,13 @@ export const proof = {
     // fails at the same point (`throw.nested` below), so that round trip is
     // by behaviour and not by table.
     throws: () => {
-        writes(['=>', 0, null, ['throw', 1]], 'export default ()=>{throw 1;};')
-        writes(['=>', 0, null, ['throw', ['[]', [1]]]], 'export default ()=>{throw [1];};')
-        writes(['=>', 0, null, [',', [['[]', []], ['throw', 1]]]], 'export default ()=>{const $a0=[];throw 1;};')
+        writes(['=>', 0, [], ['throw', 1]], 'export default ()=>{throw 1;};')
+        writes(['=>', 0, [], ['throw', ['[]', [1]]]], 'export default ()=>{throw [1];};')
+        writes(['=>', 0, [], [',', [['[]', []], ['throw', 1]]]], 'export default ()=>{const $a0=[];throw 1;};')
         writes(['throw', 'x'], 'throw "x";')
         // `null` is a value to throw, not the absence of one
         writes(['throw', null], 'throw null;')
-        writes(['=>', 0, null, ['throw', null]], 'export default ()=>{throw null;};')
+        writes(['=>', 0, [], ['throw', null]], 'export default ()=>{throw null;};')
         assertEq(unwrap(tryModuleStringify(['throw', null])), 'throw null;')
         writes([',', [['[]', []], ['throw', 1]]], 'const $0=[];throw 1;')
         // a shared constructor the throw holds is hoisted before the statement
@@ -708,7 +597,7 @@ export const proof = {
         // nested: the call of a function that throws, which the front end
         // inlines, so it reads back as the node it was written from
         writes(['[]', [['throw', 1]]], 'export default [(()=>{throw 1;})()];')
-        writes(['=>', 0, null, ['[]', [['throw', ['rest']]]]], 'export default (...$a)=>[(()=>{throw $a;})()];')
+        writes(['=>', 0, [], ['[]', [['throw', ['rest']]]]], 'export default (...$a)=>[(()=>{throw $a;})()];')
     },
     throw: {
         // the call a nested `throw` is written as fails where the node does
@@ -720,39 +609,36 @@ export const proof = {
     refuses: () => {
         // A node kind this writer has no spelling for, which is how the
         // feature that adds one is made to add its spelling here too: the
-        // operators the grammar has no token for, and `+` of one operand.
+        // unary plus, `op12`'s `+` of one operand, which the language has
+        // no prefix for
         refuses(['+', 1], 'a unary + node')
-        refuses(['!', 1], 'a ! node')
-        refuses(['typeof', 1], 'a typeof node')
-        refuses(['own', 1, 2], 'a own node')
-        // a node with no spelling under a lazy operand is walked for what it
-        // holds before it is refused for what it is
-        refuses(['?:', true, ['!', ['[]', []]], 2], 'a ! node')
+        // a node under a lazy operand is walked for what it holds before
+        // it is refused for what it is
         refuses(['[]', [['...', ['[]', []]]]], 'a spread')
         refuses(['{}', [['...', ['[]', []]]]], 'a spread')
-        refuses(['=>', 0, null, ['.', ['rest'], 'b', ['|?.()', ['[]', []]]]], 'a |?.() step')
-        refuses(['=>', 0, null, ['?.', ['rest'], 'b']], 'a ?. node')
+        refuses(['=>', 0, [], ['.', ['rest'], 'b', ['|()', ['rest']]]], 'call arguments that are no array literal')
+        refuses(['=>', 0, [], ['.', ['rest'], 'b', ['|?.()', ['[]', []]]]], 'a |?.() step')
         // A node kind with a spelling, in a position that has none.
         refuses(['rest'], 'the arguments outside a function')
         // a comma is a scope's own form — a module's root and a function's
         // body are where one is read — so one inside a container has no
         // source spelling until the operator lands
         refuses(['[]', [[',', [1, 2]]]], 'a comma outside a scope')
-        refuses(['=>', 0, null, ['[]', [[',', [1, 2]]]]], 'a comma outside a scope')
+        refuses(['=>', 0, [], ['[]', [[',', [1, 2]]]]], 'a comma outside a scope')
         // A key no literal spells: a computed one, an object key that is not
         // a string, and the three numbers the tokenizer does not read back.
-        refuses(['=>', 0, null, ['.', ['rest'], ['Number', ['rest']]]], 'an access key that is no literal')
+        refuses(['=>', 0, [], ['.', ['rest'], ['Number', ['rest']]]], 'an access key that is no literal')
         refuses(['{}', [[':', 1, 2]]], 'an object key that is not a string')
-        refuses(['=>', 0, null, ['.', ['rest'], NaN]], 'a number key no literal reads back')
-        refuses(['=>', 0, null, ['.', ['rest'], Infinity]], 'a number key no literal reads back')
-        refuses(['=>', 0, null, ['.', ['rest'], -0]], 'a number key no literal reads back')
+        refuses(['=>', 0, [], ['.', ['rest'], NaN]], 'a number key no literal reads back')
+        refuses(['=>', 0, [], ['.', ['rest'], Infinity]], 'a number key no literal reads back')
+        refuses(['=>', 0, [], ['.', ['rest'], -0]], 'a number key no literal reads back')
         // A key naming a property of a built-in prototype: the grammar
         // refuses it in either spelling, `.k` and `["k"]` alike, so an
         // access on one has no text at all — `length`, which both languages
         // read as an own property, is the one such name that has.
-        refuses(['=>', 0, null, ['.', ['rest'], 'constructor']], 'a prohibited property name')
-        refuses(['=>', 0, null, ['.', ['rest'], '__proto__']], 'a prohibited property name')
-        refuses(['=>', 0, null, ['.', ['rest'], 'toString']], 'a prohibited property name')
+        refuses(['=>', 0, [], ['.', ['rest'], 'constructor']], 'a prohibited property name')
+        refuses(['=>', 0, [], ['.', ['rest'], '__proto__']], 'a prohibited property name')
+        refuses(['=>', 0, [], ['.', ['rest'], 'toString']], 'a prohibited property name')
         // The first refusal is the one reported, and nothing after it is
         // written: among the values a statement hoists, and among the
         // statements of a module.
@@ -772,8 +658,8 @@ export const proof = {
         // where an anchor or an unbound import is there to carry.
         refuses([',', [1]], 'a comma with fewer than two operands')
         refuses([',', []], 'a comma with fewer than two operands')
-        refuses(['=>', 0, null, [',', [1]]], 'a comma with fewer than two operands')
-        refuses(['=>', 0, null, [',', []]], 'a comma with fewer than two operands')
+        refuses(['=>', 0, [], [',', [1]]], 'a comma with fewer than two operands')
+        refuses(['=>', 0, [], [',', []]], 'a comma with fewer than two operands')
         // An anchor whose operand already has a name: its statement would be
         // the alias `const $1=$0;`, which the front end reads back as
         // nothing — an alias to a reached `const` is not an anchored
@@ -789,9 +675,99 @@ export const proof = {
             'an anchor that repeats a hoisted value')
         // and one that is a name the scope binds without a `const`: the
         // front end reads `const $a0=$a;` as an alias, no anchor at all
-        refuses(['=>', 0, null, [',', [['rest'], 1]]], 'an anchor that is a name')
-        refuses(['=>', 1, null, [',', [['arg', 0], 1]]], 'an anchor that is a name')
-        refuses(['[]', [['[]', []], ['=>', 0, ['[]', [['[]', []]]], [',', [['.', ['frame'], 0], 1]]]]], 'an anchor that is a name')
+        refuses(['=>', 0, [], [',', [['rest'], 1]]], 'an anchor that is a name')
+        refuses(['=>', 1, [], [',', [['arg', 0], 1]]], 'an anchor that is a name')
+        refuses(['[]', [['[]', []], ['=>', 0, [['[]', []]], [',', [['frame', 0], 1]]]]], 'an anchor that is a name')
+    },
+    // Stage A: the eager binary operators and `~`, each spelled with the
+    // parentheses JavaScript's own precedence asks for and no more. A left
+    // operand as loose as the operator stands bare and a right one that
+    // loose takes them, the other way round for `**`, which associates to
+    // the right; a looser operand takes them on either side, a tighter one
+    // never. The text reads back as the graph, a leaf's negation folded.
+    operators: () => {
+        /** @type {(b: Exp) => Exp} */
+        const fn = b => ['=>', 0, [], b]
+        /** @type {Exp} */
+        const r0 = ['.', ['rest'], 0]
+        /** @type {Exp} */
+        const r1 = ['.', ['rest'], 1]
+        for (const op of /** @type {const} */ (['|', '^', '&', '===', '!==', '<', '<=', '>', '>=', '<<', '>>', '>>>', '+', '-', '*', '/', '%', '**'])) {
+            writes(fn([op, r0, r1]), `export default (...$a)=>$a[0]${op}$a[1];`)
+        }
+        writes(fn(['~', r0]), 'export default (...$a)=>~$a[0];')
+        writes(['+', 'a', 1n], 'export default "a"+1n;')
+        // associativity: to the left, `**` to the right
+        writes(['-', ['-', 1, 2], 3], 'export default 1-2-3;')
+        writes(['-', 1, ['-', 2, 3]], 'export default 1-(2-3);')
+        writes(['**', ['**', 2, 3], 2], 'export default (2**3)**2;')
+        writes(['**', 2, ['**', 3, 2]], 'export default 2**3**2;')
+        // the levels, each against its neighbours
+        writes(['+', 1, ['*', 2, 3]], 'export default 1+2*3;')
+        writes(['*', ['+', 1, 2], 3], 'export default (1+2)*3;')
+        writes(['**', 2, ['*', 3, 4]], 'export default 2**(3*4);')
+        writes(['%', ['/', 1, 2], 3], 'export default 1/2%3;')
+        writes(['<<', 1, ['+', 2, 3]], 'export default 1<<2+3;')
+        writes(['<', ['<<', 1, 2], 5], 'export default 1<<2<5;')
+        writes(['<<', ['<', 1, 2], 5], 'export default (1<2)<<5;')
+        writes(['===', ['<', 1, 2], true], 'export default 1<2===true;')
+        writes(['&', ['===', 1, 2], 1], 'export default 1===2&1;')
+        writes(['^', ['&', 1, 2], 3], 'export default 1&2^3;')
+        writes(['|', ['^', 1, 2], 3], 'export default 1^2|3;')
+        writes(['^', 1, ['|', 2, 3]], 'export default 1^(2|3);')
+        // under the lazy operators and the conditional, which bind looser
+        // than them all
+        writes(fn(['&&', ['+', r0, 1], r1]), 'export default (...$a)=>$a[0]+1&&$a[1];')
+        writes(fn(['+', ['&&', r0, r1], 1]), 'export default (...$a)=>($a[0]&&$a[1])+1;')
+        writes(fn(['+', r0, ['?:', r1, 1, 2]]), 'export default (...$a)=>$a[0]+($a[1]?1:2);')
+        writes(fn(['?:', ['+', r0, 1], 1, 2]), 'export default (...$a)=>$a[0]+1?1:2;')
+        writes(fn(['|', r0, ['??', r1, 1]]), 'export default (...$a)=>$a[0]|($a[1]??1);')
+        // the prefixes bind tighter than every binary operator, so an
+        // operator's text is grouped under one and a prefix stands bare
+        // under anything, another prefix included
+        writes(['-', ['+', 1, 2]], 'export default -(1+2);')
+        writes(['~', ['|', 1, 2]], 'export default ~(1|2);')
+        writes(['+', ['~', 1], ['-', ['[]', []]]], 'export default ~1+-[];')
+        writes(['~', ['~', 1]], 'export default ~~1;')
+        writes(['~', ['-', ['[]', []]]], 'export default ~-[];')
+        writes(['-', ['~', 1]], 'export default -~1;')
+        // `**` takes no prefix on its left bare, a negative number
+        // included, as JavaScript does not; on its right either stands bare
+        writes(['**', -2, 2], 'export default (-2)**2;')
+        writes(['**', ['-', ['[]', []]], 2], 'export default (-[])**2;')
+        writes(['**', ['~', 1], 2], 'export default (~1)**2;')
+        writes(['**', 2, -2], 'export default 2**-2;')
+        writes(['**', 2, ['~', 1]], 'export default 2**~1;')
+        writes(['-', ['**', 2, 2]], 'export default -(2**2);')
+        writes(['**', 2, ['-', ['**', 2, 2]]], 'export default 2**-(2**2);')
+        // a `-` before a text opening with `-` takes a space, `--` being
+        // the decrement token; no other operator meets its own character
+        writes(['-', 1, -2], 'export default 1- -2;')
+        writes(['-', 1, ['-', ['[]', []]]], 'export default 1- -[];')
+        writes(['+', 1, -2], 'export default 1+-2;')
+        // a function is an operand only in a group
+        writes(['+', ['=>', 0, [], 1], 1], 'export default (()=>1)+1;')
+        writes(['+', 1, ['=>', 0, [], 1]], 'export default 1+(()=>1);')
+        writes(['~', ['=>', 0, [], 1]], 'export default ~(()=>1);')
+        // and an operator an access base only in a group, where an access
+        // is a prefix's operand bare
+        writes(['.', ['+', 1, 2], 'x'], 'export default (1+2).x;')
+        writes(['.', ['~', ['[]', []]], 0], 'export default (~[])[0];')
+        writes(['~', ['.', ['[]', [1]], 0]], 'export default ~[1][0];')
+        // a shared operator over values is written in place at each
+        // occurrence, its minting operand hoisted, and merges again when
+        // read; one holding a minting node through a lazy edge takes a
+        // `const`, as the lazy operators' proof has
+        /** @type {Exp} */
+        const o = ['[]', []]
+        /** @type {Exp} */
+        const sum = ['+', o, 1]
+        writes(['[]', [sum, sum]], 'const $0=[];export default [$0+1,$0+1];')
+        /** @type {Exp} */
+        const held = ['+', ['?:', true, o, 1], 1]
+        writes(['[]', [held, held]], 'const $0=true?[]:1;const $1=$0+1;export default [$1,$1];')
+        // in a body, the same
+        writes(fn(['[]', [sum, sum]]), 'export default ()=>{const $a0=[];return [$a0+1,$a0+1];};')
     },
     // The lazy operators and the conditional. Each operand of `&&`, `||`
     // and `??` after the first, and each arm of `?:`, is a block root: a
@@ -804,7 +780,7 @@ export const proof = {
     lazy: {
         spelling: () => {
             /** @type {(b: Exp) => Exp} */
-            const fn = b => ['=>', 0, null, b]
+            const fn = b => ['=>', 0, [], b]
             /** @type {Exp} */
             const r0 = ['.', ['rest'], 0]
             /** @type {Exp} */
@@ -832,11 +808,11 @@ export const proof = {
             writes(fn(['&&', ['?:', r0, 1, 2], r1]), 'export default (...$a)=>($a[0]?1:2)&&$a[1];')
             writes(fn(['?:', r0, 1, ['&&', r1, r2]]), 'export default (...$a)=>$a[0]?1:$a[1]&&$a[2];')
             // a function is no operand bare, an arm excepted
-            writes(fn(['&&', r0, ['=>', 0, null, 1]]), 'export default (...$a)=>$a[0]&&(()=>1);')
-            writes(fn(['&&', ['=>', 0, null, 1], r0]), 'export default (...$a)=>(()=>1)&&$a[0];')
-            writes(fn(['?:', ['=>', 0, null, 1], 1, 2]), 'export default ()=>(()=>1)?1:2;')
-            writes(fn(['?:', r0, ['=>', 0, null, 1], 2]), 'export default (...$a)=>$a[0]?()=>1:2;')
-            writes(fn(['?:', r0, 1, ['=>', 0, null, 1]]), 'export default (...$a)=>$a[0]?1:()=>1;')
+            writes(fn(['&&', r0, ['=>', 0, [], 1]]), 'export default (...$a)=>$a[0]&&(()=>1);')
+            writes(fn(['&&', ['=>', 0, [], 1], r0]), 'export default (...$a)=>(()=>1)&&$a[0];')
+            writes(fn(['?:', ['=>', 0, [], 1], 1, 2]), 'export default ()=>(()=>1)?1:2;')
+            writes(fn(['?:', r0, ['=>', 0, [], 1], 2]), 'export default (...$a)=>$a[0]?()=>1:2;')
+            writes(fn(['?:', r0, 1, ['=>', 0, [], 1]]), 'export default (...$a)=>$a[0]?1:()=>1;')
             // an operator binds looser than a step and than the prefix
             writes(fn(['.', ['&&', r0, r1], 'x']), 'export default (...$a)=>($a[0]&&$a[1]).x;')
             writes(fn(['-', ['&&', r0, r1]]), 'export default (...$a)=>-($a[0]&&$a[1]);')
@@ -847,7 +823,7 @@ export const proof = {
         },
         blocks: () => {
             /** @type {(b: Exp) => Exp} */
-            const fn = b => ['=>', 0, null, b]
+            const fn = b => ['=>', 0, [], b]
             /** @type {Exp} */
             const r0 = ['.', ['rest'], 0]
             /** @type {Exp} */
@@ -864,11 +840,11 @@ export const proof = {
             // the block reads the names around it: the function's
             // arguments and parameters, and the scopes' `const`s
             writes(fn(['?:', r0, ['[]', [c, c, ['rest']]], 1]), 'export default (...$a)=>$a[0]?(()=>{const $b0=[1];return [$b0,$b0,$a];})():1;')
-            writes(['=>', 1, null, ['?:', ['arg', 0], ['[]', [c, c, ['arg', 0]]], 1]], 'export default ($a_0)=>$a_0?(()=>{const $b0=[1];return [$b0,$b0,$a_0];})():1;')
+            writes(['=>', 1, [], ['?:', ['arg', 0], ['[]', [c, c, ['arg', 0]]], 1]], 'export default ($a_0)=>$a_0?(()=>{const $b0=[1];return [$b0,$b0,$a_0];})():1;')
             writes(fn([',', [['[]', []], ['?:', r0, ['[]', [c, c]], 1]]]), 'export default (...$a)=>{const $a0=[];return $a[0]?(()=>{const $b0=[1];return [$b0,$b0];})():1;};')
             // a function in the block captures the block's `const`, and is
             // one depth further in
-            writes(['?:', true, ['[]', [c, ['=>', 0, ['[]', [c]], ['.', ['frame'], 0]]]], 1], 'export default true?(()=>{const $a0=[1];return [$a0,()=>$a0];})():1;')
+            writes(['?:', true, ['[]', [c, ['=>', 0, [c], ['frame', 0]]]], 1], 'export default true?(()=>{const $a0=[1];return [$a0,()=>$a0];})():1;')
             // blocks nest as lazy operands do
             /** @type {Exp} */
             const d = ['[]', [2]]

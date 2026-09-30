@@ -27,7 +27,7 @@
 import { f64Bits, i64Literal, stringLiteral, utf16Literal } from '../../media/rust/module.f.mjs'
 import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.mjs'
 import { lazyOp2Id } from '../module.f.mjs'
-import { maxLength } from '../../types/function/length/module.f.mjs'
+import { isIndex, maxLength } from '../../types/function/length/module.f.mjs'
 import { tryFunctionText } from '../../compiler/serializer/module.f.mjs'
 
 /**
@@ -307,7 +307,7 @@ const lines = statements => statements.flatMap(s => s.split('\n'))
 
 /**
  * `true` for a node that prints as one atom holding no other node's text:
- * `undefined`, `args`, `frame`, an empty array or object, and the corpus's
+ * `undefined`, `args`, a frame slot, an empty array or object, and the corpus's
  * lambda, `function_any()` — a primitive being the other atom, and never a node
  * {@link visit} lists, so never asked. Every
  * other node holds its operands' text, and is a temporary of its scope
@@ -470,17 +470,6 @@ const printer = nested => shared => root => {
     // loses no real input.
     const emptyComma = order.find(([n]) => isComma(n) && /** @type {readonly any[]} */ (n)[1].length === 0)
     if (emptyComma !== undefined) { return error(['no Rust for an empty comma', emptyComma[0]]) }
-    /**
-     * The frames of the functions in this scope: each printed as the
-     * `Array<A>` its function's construction takes, {@link frameExpr},
-     * never a temporary of its own — an `Any<A>` a `let` would hold is not
-     * the `Array<A>` `A::static_function` takes. So a frame is its
-     * function's alone: one reached from anywhere else too would be two
-     * values, and is refused rather than built twice.
-     */
-    const frames = order.flatMap(([n]) => frameOf(n))
-    const sharedFrame = order.find(([n, count]) => count >= 2 && frames.includes(n))
-    if (sharedFrame !== undefined) { return error(['no Rust for a frame reached from anywhere but its function', sharedFrame[0]]) }
     /** @type {(e: Exp) => boolean} */
     const isShared = e => order.some(([n, count]) => n === e && count >= 2)
     /**
@@ -518,7 +507,7 @@ const printer = nested => shared => root => {
      * @type {readonly (readonly [node: Exp, refs: number])[]}
      */
     const temporaries = order.flatMap(([n, count]) =>
-        (atomic(n) && count < 2) || isMember(n) || frames.includes(n) || structural.includes(n) || inline.includes(n)
+        (atomic(n) && count < 2) || isMember(n) || structural.includes(n) || inline.includes(n)
             ? []
             : [/** @type {readonly [Exp, number]} */ ([n, count - discarded.filter(d => d === n).length])])
     /** @type {(e: Exp) => boolean} */
@@ -610,11 +599,12 @@ const printer = nested => shared => root => {
         if (id === 'args') { return ok('args.clone().to_any()') }
         if (id === 'rest') { return ok('rest.clone().to_any()') }
         if (id === 'arg') { return ok(`args.clone().into_iter().${a === 0 ? 'next()' : `nth(${a})`}.unwrap_or_else(|| Nullish::Undefined.to_any())`) }
-        // The frame the function was built with, read through the closure's
-        // `self_` parameter, {@link closure}: an `Array<A>` as `args` is,
-        // and so the same value — its slot `i`, `['.', ['frame'], i]`, an
-        // ordinary `.` node over this, as an argument is over `args`.
-        if (id === 'frame') { return ok('A::frame(self_).clone().to_any()') }
+        // Slot `i` of the frame the function was built with, read through
+        // the closure's `self_` parameter, {@link closure}: the `Array<A>`
+        // {@link frameExpr} built, indexed directly — the slot exists, since
+        // `bindingError` refuses a read past the slots, so no `undefined`
+        // case as an `args` read has.
+        if (id === 'frame') { return ok(`A::frame(self_)[${a}].clone()`) }
         if (id === '[]') {
             return a.length === 0
                 ? ok('Array::default().to_any()')
@@ -649,6 +639,12 @@ const printer = nested => shared => root => {
             // language's limit is checked here too; IStaticFunction's u32
             // holds every length it admits.
             if (a > maxLength) { return error([`a function length above ${maxLength}`, a]) }
+            // A slot the frame does not have, likewise: `bindingError`
+            // refuses it in a complete graph, and a fragment is refused
+            // here, since the index the body would print panics in
+            // `nanvm-lib` where the JavaScript executors throw.
+            const past = slotReads(c).find(i => !isIndex(i) || i >= b.length)
+            if (past !== undefined) { return error(['no Rust for a frame slot the frame does not have', past]) }
             // The corpus's `() => undefined`, which no operator inspects,
             // is the one the harness binds as `function_any`; every other
             // function is a closure, over its frame.
@@ -657,10 +653,11 @@ const printer = nested => shared => root => {
         return bare(/** @type {readonly any[]} */ (e))
     }
     /**
-     * A function, `['=>', length, frame, body]`, as a function value: a closure
+     * A function, `['=>', length, slots, body]`, as a function value: a closure
      * bound through `IStaticFunction`, the `StaticCode<A>` signature's two
      * parameters, the EDAG's fixed parameter count, and its frame, the
-     * `Array<A>` {@link frameExpr} prints in the scope around it. Rest is
+     * `Array<A>` {@link frameExpr} prints from the slots in the scope around
+     * it. Rest is
      * materialized once per invocation, after that fixed prefix. A
      * closure that captures nothing of Rust's coerces to the `fn` pointer
      * `StaticCode<A>` is, and rustc infers its parameters from it, so the
@@ -690,24 +687,15 @@ const printer = nested => shared => root => {
         `A::static_function(|${readsFrame(body) ? 'self_' : '_self'}, ${readsArgs(body) ? 'args' : '_args'}| ${braced(reads('rest')(body) ? [`let rest = args.clone().into_iter()${length === 0 ? '' : `.skip(${length})`}.to_array();`, ...statements] : statements)}, ${length}, ${fr}, ${text}).to_any()`
     )(statements(body), frame)
     /**
-     * A function's frame as the `Array<A>` its construction takes: none,
-     * `null`, the empty `Array::default()`, as is an empty array literal;
-     * an array literal's items otherwise, each a value of the scope around
-     * the function, collected by `to_array` — what the lowering builds
-     * (`fjs/compiler/edag`). The schema admits any `exp` there, and one that is
-     * not an array literal is refused: its value is an `Any<A>` known to be
-     * an array only when the module runs.
+     * A function's frame as the `Array<A>` its construction takes: the
+     * empty `Array::default()` for no slots, and otherwise the slots, each
+     * a value of the scope around the function, collected by `to_array`.
      *
-     * @type {(frame: Exp) => Result<string, readonly unknown[]>}
+     * @type {(slots: readonly Exp[]) => Result<string, readonly unknown[]>}
      */
-    const frameExpr = frame => {
-        if (frame === null) { return ok('Array::default()') }
-        if (!(frame instanceof Array) || frame[0] !== '[]') { return error(['no Rust for a frame that is not an array literal', frame]) }
-        const items = /** @type {readonly Exp[]} */ (frame[1])
-        return items.length === 0
-            ? ok('Array::default()')
-            : mapOk((/** @type {readonly string[]} */ xs) => `[${xs.join(', ')}].to_array()`)(okList(items.map(f)))
-    }
+    const frameExpr = slots => slots.length === 0
+        ? ok('Array::default()')
+        : mapOk((/** @type {readonly string[]} */ xs) => `[${xs.join(', ')}].to_array()`)(okList(slots.map(f)))
     /**
      * An operation — a `.` read, a call, or an operator node — as the bare
      * `Result<Any<A>, Any<A>>` its `nanvm-lib` call answers, or the
@@ -882,14 +870,13 @@ const printer = nested => shared => root => {
 export const expExpr = shared => e => okThen(p => p.f(e))(printer(true)(shared)(e))
 
 /**
- * `true` for the operands of `() => undefined`: an empty frame and the
+ * `true` for the operands of `() => undefined`: no slots and the
  * `undefined` node — the one `=>` this printer has a spelling for.
  *
- * @type {(frame: Exp, body: Exp) => boolean}
+ * @type {(slots: readonly Exp[], body: Exp) => boolean}
  */
-const isSmallestLambda = (frame, body) =>
-    frame instanceof Array && frame[0] === '[]' && frame[1].length === 0
-    && body instanceof Array && body[0] === 'undefined'
+const isSmallestLambda = (slots, body) =>
+    slots.length === 0 && body instanceof Array && body[0] === 'undefined'
 
 /**
  * The same, for a node nothing shares — every node reached from exactly one
@@ -947,13 +934,22 @@ const visit = operands => visited => root => {
 export const readsArgs = root => reads('args')(root) || reads('arg')(root) || reads('rest')(root)
 
 /**
- * The same, for `['frame']`: whether a scope reads the frame it was built
- * with. A module's own scope reading one is refused by `fjs/compiler/rust`: a
- * module has no frame.
+ * The same, for `['frame', i]`: whether a scope reads a slot of the frame
+ * it was built with. A module's own scope reading one is refused by
+ * `fjs/compiler/rust`: a module has no frame.
  *
  * @type {(root: Exp) => boolean}
  */
 export const readsFrame = root => reads('frame')(root)
+
+/**
+ * The indices a scope reads of its frame, one per distinct `['frame', i]`
+ * node, a nested function's body left out as in {@link readsFrame}.
+ *
+ * @type {(root: Exp) => readonly number[]}
+ */
+const slotReads = root => visit(operandsOf)([])(root)
+    .flatMap(([node]) => tagOf(node) === 'frame' ? [/** @type {number} */ (/** @type {readonly unknown[]} */ (/** @type {unknown} */ (node))[1])] : [])
 
 /**
  * Whether a scope holds a node tagged `tag`, a nested function's body left
@@ -962,19 +958,6 @@ export const readsFrame = root => reads('frame')(root)
  * @type {(tag: string) => (root: Exp) => boolean}
  */
 const reads = tag => root => visit(operandsOf)([])(root).some(([node]) => tagOf(node) === tag)
-
-/**
- * The frame of a function the printer binds as a closure — any `=>` node's
- * but the corpus's `() => undefined` — as a list of one, and none for any
- * other node, a `null` frame included: nothing to print but
- * `Array::default()`.
- *
- * @type {(node: Exp) => readonly Exp[]}
- */
-const frameOf = node => {
-    const [id, a, b, c] = /** @type {readonly any[]} */ (node)
-    return id === '=>' && b !== null && !(a === 0 && isSmallestLambda(b, c)) ? [b] : []
-}
 
 /**
  * The tag of a node {@link visit} listed — every one an array, a primitive
@@ -990,7 +973,7 @@ const tagOf = node => /** @type {readonly unknown[]} */ (/** @type {unknown} */ 
  *
  * @type {(node: readonly unknown[]) => readonly unknown[]}
  */
-const withBodies = node => node[0] === '=>' ? node.slice(2) : operandsOf(node)
+const withBodies = node => node[0] === '=>' ? [...operandsOf(node), node[3]] : operandsOf(node)
 
 /**
  * Whether an EDAG holds a function the printer binds — any `=>` node but
@@ -1015,17 +998,17 @@ export const holdsFunction = root => visit(withBodies)([])(root)
  * operands follow its tag. A spread and a property are tagged pairs no
  * operator names, so they are walked as nodes are.
  *
- * A `=>` node's body is not among its operands: it is a scope of its own,
- * established when the function is called and not when it is made, and
- * shares no node with the scope around it — so a walk over one scope stops
- * at the function boundary, and {@link scope} walks the body afresh as its
- * own root.
+ * A `=>` node's slots are its operands, its body is not: the body is a
+ * scope of its own, established when the function is called and not when
+ * it is made, and shares no node with the scope around it — so a walk over
+ * one scope stops at the function boundary, and {@link scope} walks the
+ * body afresh as its own root.
  *
  * @type {(node: readonly unknown[]) => readonly unknown[]}
  */
 const operandsOf = node => {
     const [id] = node
-    return id === '=>' ? [node[2]]
+    return id === '=>' ? /** @type {readonly unknown[]} */ (node[2])
         : id === 'arg' ? []
         : ['[]', '{}', ','].includes(/** @type {string} */ (id)) ? /** @type {readonly unknown[]} */ (node[1])
         : isChain(id) ? [...eagerOperandsOf(node), ...lazyOperandsOf(/** @type {Exp} */ (/** @type {unknown} */ (node)))]

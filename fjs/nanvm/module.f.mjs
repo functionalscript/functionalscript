@@ -175,15 +175,12 @@ export const arityOf = g => {
  * function operands are two closures and never one node reached twice.
  * Both consumers know this shape: `amnesia` establishes it as any `=>`,
  * and the Rust printer renders exactly this node as the harness's one
- * function value, `function_any()`. Its empty frame, which the parser never
- * builds, is what keeps it apart from a compiled `() => undefined`, whose
- * frame is `null`. The writer refuses that frame on a nested function, so
- * `returns(functionValue)` has no text: the Rust side's function-text
- * cases use callbacks instead.
+ * function value, `function_any()`, as it does a compiled `() => undefined`,
+ * the same node; its text is the writer's, `()=>undefined`.
  *
  * @type {() => Exp}
  */
-export const lambdaExp = () => ['=>', 0, ['[]', []], ['undefined']]
+export const lambdaExp = () => ['=>', 0, [], ['undefined']]
 
 /** `a[i]`, over the invocation's rest array: how a callback reads its arguments. @type {(i: number) => Exp} */
 const restAt = i => ['.', ['rest'], i]
@@ -228,7 +225,7 @@ export const callbacks = {
  *
  * @type {(body: Exp) => Exp}
  */
-export const functionExp = body => ['=>', 0, null, body]
+export const functionExp = body => ['=>', 0, [], body]
 
 /**
  * The expression a callback denotes: the {@link functionExp} of its body.

@@ -27,7 +27,7 @@ import bindings.
 **What remains:** the required shared default renderer and the callable/graph
 association are not implemented. Native conversion of a factory arrow still
 reveals wrapper source — at `36c8d4a`, amnesia's `vm` evaluating
-`['=>', 1, null, ['arg', 0]]` gives a callable whose `String` is
+`['=>', 1, [], ['arg', 0]]` gives a callable whose `String` is
 `(a0, ...rest) => g([a0], rest)`. That is the P1 violation below. The
 unticked tasks track it, together with the language-design approval record,
 the module-import preservation proofs and the executor-capacity proofs.
@@ -198,7 +198,7 @@ interpreting them. The AST should leave room for later binding patterns.
 Proposed nodes:
 
 ```js
-['=>', length, frame, body]
+['=>', length, slots, body]
 ['arg', N]
 ['rest']
 ```
@@ -256,7 +256,7 @@ new-format function's invocation scope. Conversely, `['arg', N]` and
 After linking, no unresolved module-scoped `['args']` may remain; valid
 function-local `arg`/`rest` bindings remain untouched.
 
-A function's `frame` is evaluated in its enclosing scope; only `body` opens
+A function's slots are evaluated in its enclosing scope; only `body` opens
 the function's invocation scope. Thus a module-level closure's frame may read
 import `['args']`, while a nested closure's frame may capture its parent's
 `arg`/`rest`. Import substitution and reachability analysis traverse frames
