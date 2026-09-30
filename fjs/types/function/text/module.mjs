@@ -9,9 +9,10 @@
  */
 
 /**
- * A `Proxy` whose `get` trap answers `toString` and forwards every other
- * key, so every host conversion (`String(f)`, `f + ''`, `[f].join()`, `+f`)
- * reaches the text through `OrdinaryToPrimitive`. `text` runs at each
+ * A `Proxy` whose `get` trap answers `toString` and `Symbol.toPrimitive`
+ * and forwards every other key, so every host conversion (`String(f)`,
+ * `f + ''`, `[f].join()`, `+f`) reaches the text, whatever `f`'s own
+ * `valueOf` or `Symbol.toPrimitive` would answer. `text` runs at each
  * conversion, not here, and answers `undefined` for a text it refuses: the
  * conversion then throws.
  *
@@ -24,6 +25,7 @@ export const withText = (f, text) => {
         return t
     }
     return new Proxy(f, {
-        get: (target, key, receiver) => key === 'toString' ? toString : Reflect.get(target, key, receiver),
+        get: (target, key, receiver) =>
+            key === 'toString' || key === Symbol.toPrimitive ? toString : Reflect.get(target, key, receiver),
     })
 }

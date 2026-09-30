@@ -44,6 +44,15 @@ export const proof = {
         assert(Number.isNaN(+anyF))
         assertEq(anyF < 5, false)
     },
+    /** The text wins over the callable's own conversion hooks. */
+    ownHooks: () => {
+        const hooked = Object.assign(() => 0, { valueOf: () => 1, [Symbol.toPrimitive]: () => 'own' })
+        /** @type {any} */
+        const g = withText(hooked, () => '()=>0')
+        assertEq(String(g), '()=>0')
+        assertEq(g + '', '()=>0')
+        assertEq(`${g}`, '()=>0')
+    },
     /** A refused text refuses conversions, not calls. */
     refusedCall: () => {
         assertEq(refused(2, 3), 5)

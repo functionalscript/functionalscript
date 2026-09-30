@@ -2,7 +2,9 @@
 
 `withText(f, text)` gives a function value its text: it is `f` for calls,
 `length` and `typeof`, and every host conversion answers `text()`, computed
-at the conversion.
+at the conversion. The `get` trap answers both `toString` and
+`Symbol.toPrimitive`, so the text wins over the callable's own `valueOf` or
+`Symbol.toPrimitive`.
 
 `text` answers `undefined` for a text that cannot be rendered, and every
 conversion of the function then throws a `TypeError` rather than answering
