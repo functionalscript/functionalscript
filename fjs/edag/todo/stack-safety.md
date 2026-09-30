@@ -95,7 +95,11 @@ for it.
 
 Whether recursion can be replaced everywhere this path reaches is the
 first question, not a settled one. The walk here is one of several on
-the way to a graph output: past it, the FunctionalScript writer, `fjs/edag/rust`'s
+the way to a graph output: past it, the FunctionalScript writer —
+`operand`, `entry` and, since the writer spells every operator, `binary`
+and its operand helpers in
+[`../../compiler/serializer/module.f.mjs`](../../compiler/serializer/module.f.mjs),
+one frame set per level of a chain or a container — `fjs/edag/rust`'s
 `sharedNodesOf` and the Rust printer each descend the same depth, and a
 walk made iterative here only moves the overflow to the next one. The
 investigation lists every walk between the front end and the `.js` and
