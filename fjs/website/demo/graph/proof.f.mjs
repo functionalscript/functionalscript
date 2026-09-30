@@ -1,8 +1,8 @@
 /**
- * @import { Graph } from './types.ts'
+ * @import { Graph, Shape } from './types.ts'
  */
 
-import { _crossesBox, _crossings, ranked, graphSvg } from './module.f.mjs'
+import { _crossesBox, _crossings, graphOf, ranked, graphSvg } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
 
@@ -34,7 +34,67 @@ const skipLevel = {
     ],
 }
 
+/**
+ * A shape for plain arrays: each is a node whose children are its items, a
+ * number is inline, and a string is inline under the kind it spells.
+ *
+ * @type {(v: unknown) => Shape<unknown>}
+ */
+const arrayShape = v => v instanceof Array
+    ? { kind: 'array', label: '[ ]', children: v.map((item, i) => i === 0 ? [`${i}`, item, 'first'] : [`${i}`, item]) }
+    : typeof v === 'string' ? { inline: v, kind: v } : { inline: `${v}` }
+
 export const proof = {
+    graphOf: {
+        // Two edges to one array are one node with two incoming edges, and
+        // an equal array written again is a node of its own.
+        sharedChild: () => {
+            const shared = [1]
+            const g = graphOf(arrayShape)([shared, shared, [1]])
+            assertStructurallySame(g.nodes, [
+                { id: 0, kind: 'array', label: '[ ]', rank: 0 },
+                { id: 1, kind: 'array', label: '[ ]', rank: 1 },
+                { id: 2, kind: 'array', label: '[ ]', rank: 1 },
+            ])
+            assertStructurallySame(g.edges, [
+                { from: 1, to: { inline: '1' }, label: '0', kind: 'first' },
+                { from: 0, to: 1, label: '0', kind: 'first' },
+                { from: 0, to: 1, label: '1', kind: undefined },
+                { from: 2, to: { inline: '1' }, label: '0', kind: 'first' },
+                { from: 0, to: 2, label: '2', kind: undefined },
+            ])
+        },
+        // A root with no port to sit in is a node of the inline's own kind,
+        inlineRootWithKind: () => assertStructurallySame(graphOf(arrayShape)('terminal'), {
+            nodes: [{ id: 0, kind: 'terminal', label: 'terminal', rank: 0 }],
+            edges: [],
+        }),
+        // or a leaf where it has none.
+        inlineRoot: () => assertStructurallySame(graphOf(arrayShape)(1), {
+            nodes: [{ id: 0, kind: 'leaf', label: '1', rank: 0 }],
+            edges: [],
+        }),
+        /**
+         * **A value that reaches itself is refused**, whether directly or
+         * through another node: an edge back to a node the walk is inside
+         * has no rank to point right to.
+         */
+        throw: {
+            // `0` is its own child.
+            self: () => graphOf(/** @type {(v: number) => Shape<number>} */ (
+                v => ({ kind: 'n', label: `${v}`, children: [['self', v]] })))(0),
+            // `0`'s child is `1`, whose child is `0` again.
+            throughAnother: () => graphOf(/** @type {(v: number) => Shape<number>} */ (
+                v => ({ kind: 'n', label: `${v}`, children: [['next', 1 - v]] })))(0),
+        },
+        // A value reached again from outside the node it is under is shared,
+        // not a cycle: `0` reaches `1` directly and through `2`.
+        sharedIsNotACycle: () => {
+            const g = graphOf(/** @type {(v: number) => Shape<number>} */ (
+                v => ({ kind: 'n', label: `${v}`, children: v === 0 ? [['a', 1], ['b', 2]] : v === 2 ? [['c', 1]] : [] })))(0)
+            assertStructurallySame(g.nodes.map(n => n.rank), [0, 2, 1])
+        },
+    },
     ranked: {
         // The root alone is rank 0.
         rootAlone: () => {
