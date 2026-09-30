@@ -159,7 +159,7 @@ postponed rather than missed.
   renderer must satisfy the stricter reader.
 - **What counts as this design's output?** Three producers emit something the
   transport row cannot express: `fjs web` answers HTTP; `fjs compile` writes a
-  user-named path; `fjs ci` writes fixed files (`.github/workflows/ci.yml` and
+  user-named path; `fjs ci` writes fixed files (`.github/workflows/gen.ci.yml` and
   others). None is a stream, so none has an `isTTY` to be selected by. Calling
   them internal effects is hard to hold while `fjs mcp`'s JSON-RPC counts as
   output, so the design owes a **boundary** — a rule for what is in, not a

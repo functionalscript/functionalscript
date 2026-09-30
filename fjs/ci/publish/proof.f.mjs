@@ -26,7 +26,7 @@ export const proof = {
     // registry's trust, and `merge_group` would publish a merge that has not
     // landed.
     onlyPushesToTheBranch: () => {
-        assertEq(npmPublishPath, '.github/workflows/npm-publish.yml')
+        assertEq(npmPublishPath, '.github/workflows/gen.npm-publish.yml')
         assertEq(npmPublishWorkflow.name, 'npm publish')
         assertStructurallySame(npmPublishWorkflow.on.push?.branches, [publishBranch])
         assertEq(publishBranch, 'main')

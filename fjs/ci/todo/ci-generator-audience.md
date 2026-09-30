@@ -14,7 +14,7 @@ maintained, and they cannot both be the contract.
 The generator leans toward the first: `ci(setup)` lets a caller vary only
 `nodeExtra`, which reaches the per-OS platform jobs, while `nodeVersionJobs`
 yields the canonical Node jobs unconditionally — so every consumer's generated
-`ci.yml` gets this repository's `node26` job whether or not they want it.
+`gen.ci.yml` gets this repository's `node26` job whether or not they want it.
 
 Most of that job is a documented contract and works as intended.
 [`../README.md`](../README.md) states which commands a consuming `package.json`
@@ -35,7 +35,7 @@ pattern cannot answer a question about scope
 ([`../../../todo/jsdoc-verification.md`](../../../todo/jsdoc-verification.md)).
 
 **A second instance has since appeared, and it is not a convention gate.**
-`fjs ci` now writes `.github/workflows/npm-publish.yml` as well
+`fjs ci` now writes `.github/workflows/gen.npm-publish.yml` as well
 ([`../publish/module.f.mjs`](../publish/module.f.mjs)), so a project that
 regenerates gets a workflow that attempts to publish it to npm on every push to
 `main`. Deleting the file does not opt out: the next `fjs ci` writes it again,

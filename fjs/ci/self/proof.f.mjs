@@ -12,21 +12,21 @@ import { utf8ToString } from '../../text/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 /**
- * The `ci.yml` a program writes over an empty project — no `Cargo.toml`, no
- * `package.json`, the workflows directory present for the write.
+ * The `gen.ci.yml` a program writes over an empty project — no `Cargo.toml`, no
+ * `package.json`, not even the workflows directory: the generator creates it.
  *
  * @type {(program: Effect<NodeOp, 0, number>) => string}
  */
 const workflowOf = program => {
     /** @type {Dir} */
-    const root = { '.github': { workflows: {} } }
+    const root = {}
     const [state, code] = virtual({ ...emptyState, root })(program)
     assertEq(exitCode(code), 0, state.stderr)
     const github = state.root['.github']
     assert(typeof github === 'object' && !(github instanceof Array), github)
     const workflows = github['workflows']
     assert(typeof workflows === 'object' && !(workflows instanceof Array), workflows)
-    const file = workflows['ci.yml']
+    const file = workflows['gen.ci.yml']
     assert(file instanceof Array && file.length !== 0, file)
     return utf8ToString(file[0])
 }
