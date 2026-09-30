@@ -972,11 +972,13 @@ const hoists = s => {
             .filter(x => x instanceof Array && !isName(s.a, x))
             .reduce((ns, x) => own(/** @type {Ref} */(x)[1]) ? add(found(ns, /** @type {Ref} */(x)), ['entry', /** @type {Ref} */(x)[1]]) : found(ns, /** @type {Ref} */(x)),
                 [...operands(s.a)(node), ...lazyOperands(node)].reduce(found, names))
-        const self = hoistedKind(s.a, i) && s.shared.includes(i) && own(i) ? add(inner, ['entry', i]) : inner
+        // a base or a callee that takes a `const` takes it before the node
+        // does, since a call is shared by its own `const`, which reads it
         const named = (node[0] === '.' && basedHoisted(s.a, node[1])) || (node[0] === '()' && calleeHoisted(s.a, node[1]))
-        return named && own(i)
-            ? add(self, node[1] instanceof Array ? ['entry', node[1][1]] : ['leaf', /** @type {number | bigint} */(node[1])])
-            : self
+        const based = named && own(i)
+            ? add(inner, node[1] instanceof Array ? ['entry', node[1][1]] : ['leaf', /** @type {number | bigint} */(node[1])])
+            : inner
+        return hoistedKind(s.a, i) && s.shared.includes(i) && own(i) ? add(based, ['entry', i]) : based
     }
     return v => found(/** @type {readonly _Hoisted[]} */([]), v)
 }

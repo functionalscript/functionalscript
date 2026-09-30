@@ -83,8 +83,8 @@ const copy = e => /** @type {Exp} */ (deep(e))
  * conditional read, and once in an array of each arm's own; and Stage
  * A's: as both operands of a binary minus, whose right operand takes
  * parentheses at its own level and a space before a `-`; as both
- * operands of `**`, whose left one takes them; under `~` through `+`; as
- * and as a base under `*`.
+ * operands of `**`, whose left one takes them; under `~` through `+`; and
+ * as a base under `*`; and under both call forms, a call of a method call.
  *
  * That last one is a copy and not the node again: two nodes, one in a body
  * and one outside it, which is a graph the compiler emits — and which the
@@ -121,6 +121,7 @@ const shapes = p => [
     ...p.map(x => /** @type {Exp} */(['**', x, x])),
     ...p.map(x => /** @type {Exp} */(['~', ['+', x, 1]])),
     ...p.map(x => /** @type {Exp} */(['.', ['*', x, x], 'k'])),
+    ...p.map(x => /** @type {Exp} */(['()', ['.', x, 'm', ['|()', ['[]', [x]]]], ['[]', [x]]])),
 ]
 
 /**
@@ -524,6 +525,14 @@ export const proof = {
         writes(f(['[]', [['()', a, ['[]', []]], ['()', a, ['[]', []]]]]), 'export default (...$a)=>[$a(),$a()];')
         // a slot is a name, and a callee as it stands
         writes(['=>', 0, [['[]', []]], ['()', ['frame', 0], ['[]', []]]], 'const $0=[];export default ()=>$0();')
+        // a shared call under a lazy operand takes its block's `const` after
+        // the one its callee or its base takes
+        /** @type {Exp} */
+        const m = ['.', 1, 'm', ['|()', ['[]', []]]]
+        writes(['?:', true, ['[]', [m, m]], 2], 'export default true?(()=>{const $a0=1;const $a1=$a0.m();return [$a1,$a1];})():2;')
+        /** @type {Exp} */
+        const n = ['()', 1, ['[]', []]]
+        writes(['&&', ['[]', []], ['[]', [n, n]]], 'export default []&&(()=>{const $a0=1;const $a1=$a0();return [$a1,$a1];})();')
         // arguments the parser would not build
         /** @type {Exp} */
         const args = ['[]', [1]]
