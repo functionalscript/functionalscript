@@ -80,8 +80,16 @@ export const walk = (s, classify) => {
     return load(s)
 }
 
-/** @type {(s: string, predicate: (path: string) => boolean) => Effect<Readdir | All, readonly string[], IoChannel>} */
-const allFiles = (s, predicate) => walk(s, (path, { name, isDirectory }) =>
+/**
+ * Every file under `s` that `predicate` takes, by {@link walk}: a hidden
+ * entry and `node_modules` are skipped without descending, since neither is
+ * this repository's source. Exported for the checks that discover source the
+ * way the test runner does — `fjs compile` with no arguments checks every
+ * `.f.js` this finds.
+ *
+ * @type {(s: string, predicate: (path: string) => boolean) => Effect<Readdir | All, readonly string[], IoChannel>}
+ */
+export const allFiles = (s, predicate) => walk(s, (path, { name, isDirectory }) =>
     name.startsWith('.') ? 'skip'
     : isDirectory ? (name === 'node_modules' ? 'skip' : 'descend')
     : predicate(path) ? 'take'
@@ -90,6 +98,19 @@ const allFiles = (s, predicate) => walk(s, (path, { name, isDirectory }) =>
 /** @type {(f: string) => Effect<Access | Import, readonly (readonly [string, Module])[], IoChannel>} */
 const loadFile = f =>
     mapStep(import_(f), m => [/** @type {const} */ ([f, m])])
+
+/**
+ * Where discovery starts: `INIT_CWD`, the directory `npm run` was invoked
+ * from, when the environment carries it, and `.` otherwise — a runner invoked
+ * directly is already where its caller is. In POSIX form on every host, so
+ * the paths a walk from it builds are the ones the rest of the system reads.
+ *
+ * @type {(env: Env) => string}
+ */
+export const sourceRoot = env => {
+    const initCwd = env['INIT_CWD']
+    return initCwd === undefined ? '.' : toPosix(initCwd)
+}
 
 /**
  * Discovers all source files under `INIT_CWD` (or `.` if unset) that match
@@ -114,8 +135,7 @@ const loadFile = f =>
  * @type {(env: Env) => Effect<LoadModuleOperations, ModuleMap, IoChannel>}
  */
 export const loadModuleMap = env => {
-    const initCwd = env['INIT_CWD']
-    const s = initCwd === undefined ? '.' : toPosix(initCwd)
+    const s = sourceRoot(env)
     const prefix = s === '.' ? '' : s
     // TODO: there are multiple `all` effects here,
     //       we should consider optimizing them by ALIQ technique or something similar.

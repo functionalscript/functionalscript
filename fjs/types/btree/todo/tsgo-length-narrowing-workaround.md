@@ -23,7 +23,7 @@ none, and an extra binding the type system should not need.
 
 - [ ] Find the typescript-go release that contains the #4613 fix.
 - [ ] Once `typescript` in
-      [`fjs/ci/config/module.f.mjs`](../../../ci/config/module.f.mjs) is at or
+      [`fjs/ci/config/module.f.js`](../../../ci/config/module.f.js) is at or
       past it, delete both `xL` bindings and their asserts in `nodeSet`, and
       switch on `x.length` directly.
 - [ ] `tsc` clean with `noFallthroughCasesInSwitch` on; `fjs test`.

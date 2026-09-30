@@ -14,7 +14,7 @@ and gives a setup script that runs `rustup component add`, `npm ci` and
 `devDependency` is `@types/node`. The same document's
 [Requirements](../CONTRIBUTING.md#requirements) says TypeScript "is **not** an
 npm dependency of this package, so `npm ci` does not install it" and asks for
-exactly the version [`fjs/ci/config/module.f.mjs`](../fjs/ci/config/module.f.mjs)
+exactly the version [`fjs/ci/config/module.f.js`](../fjs/ci/config/module.f.js)
 pins in `typescript`. So in the environment the script builds, `npm test`
 either finds no `tsc` or runs whatever compiler the image happens to carry.
 

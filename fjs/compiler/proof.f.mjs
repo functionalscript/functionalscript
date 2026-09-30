@@ -13,15 +13,15 @@ import { analysis } from '../edag/analysis/module.f.mjs'
 import { _own, run } from './ast/module.f.mjs'
 import { tryParse as parseDataJs, tryStringify } from '../media/datajs/module.f.mjs'
 import { bytes, difference } from '../media/datajs/vectors/module.f.mjs'
-import { virtual, emptyState } from '../effects/node/virtual/module.f.mjs'
+import { virtual, emptyState, nodeProgramOptions } from '../effects/node/virtual/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { fromVec } from '../text/utf8/module.f.mjs'
 import { invert, mapOk, unwrap } from '../types/result/module.f.mjs'
 import { fromEntries, isObject } from '../types/object/module.f.mjs'
 import { toVec } from '../types/uint8array/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
-import accept from '../../spec/datajs/vectors/accept/data.f.mjs'
-import normalize from '../../spec/datajs/vectors/normalize/data.f.mjs'
+import accept from '../../spec/datajs/vectors/accept/data.f.js'
+import normalize from '../../spec/datajs/vectors/normalize/data.f.js'
 
 /** The DataJS accept corpus, typed at the import since a data module carries no annotations. */
 const acceptSet = /** @type {readonly Accept[]} */ (accept)
@@ -68,7 +68,7 @@ const readOutput = (root, path) => {
 /** @type {(source: string) => (outputFileName: string) => string} */
 const compileSource = source => outputFileName => {
     const root = { 'input.f.js': [utf8(source)] }
-    const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', outputFileName]))
+    const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', outputFileName])))
     assertEq(exitCode(code), 0, state.stderr)
     return readOutput(state.root, outputFileName)
 }
@@ -81,7 +81,7 @@ const compileSource = source => outputFileName => {
  * @type {(root: typeof emptyState.root) => string}
  */
 const stderrOf = root => {
-    const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.data.js']))
+    const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
     assertEq(exitCode(code), 1)
     assertEq(state.root['output.data.js'], undefined)
     return state.stderr.trim()
@@ -108,7 +108,7 @@ const withSelected = source => `const x = []; const a = { selected: 1, other: [x
  */
 const jsonRefused = source => {
     const root = { 'input.f.js': [utf8(source)] }
-    const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.json']))
+    const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
     assertEq(exitCode(code), 1, state.stderr)
     assertEq(state.root['output.json'], undefined)
     return state.stderr.trim()
@@ -123,7 +123,7 @@ const jsonRefused = source => {
  */
 const rustRefused = source => {
     const root = { 'input.f.js': [utf8(source)] }
-    const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.rs']))
+    const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.rs'])))
     assertEq(exitCode(code), 1, state.stderr)
     assertEq(state.root['output.rs'], undefined)
     return state.stderr.trim()
@@ -137,7 +137,7 @@ const rustRefused = source => {
  * @type {(root: typeof emptyState.root) => string}
  */
 const fjsRefused = root => {
-    const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.js']))
+    const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.f.js'])))
     assertEq(exitCode(code), 1, state.stderr)
     assertEq(state.root['output.f.js'], undefined)
     return state.stderr.trim()
@@ -278,15 +278,15 @@ export const proof = {
         imports: () => {
             const input = 'import a from "./dep.f.js"; export default a;'
             const root = { 'input.f.js': [utf8(input)], 'dep.f.js': [utf8('export const x=[]; export default x;')] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.json']))
+            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
             assertEq(exitCode(code), 0, state.stderr)
             assertEq(readOutput(state.root, 'output.json'), '[]')
-            const [source, sourceCode] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.js']))
+            const [source, sourceCode] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.f.js'])))
             assertEq(exitCode(sourceCode), 0, source.stderr)
             assertStructurallySame(evaluate(readOutput(source.root, 'output.f.js')), ['ok', []])
             assertEq(stderrOf({ ...root, 'dep.f.js': [utf8('export const x=7;')] }), 'dep.f.js - error: module has no default export')
             assertEq(stderrOf({ ...root, 'dep.f.js': [utf8('export const bad=null.x; export default 7;')] }), 'dep.f.js - error: cannot read property "x" of null')
-            const [defined, definedCode] = virtual({ ...emptyState, root: { ...root, 'dep.f.js': [utf8('export const x=1; export default undefined;')] } })(compile(['input.f.js', 'output.data.js']))
+            const [defined, definedCode] = virtual({ ...emptyState, root: { ...root, 'dep.f.js': [utf8('export const x=1; export default undefined;')] } })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
             assertEq(exitCode(definedCode), 0, defined.stderr)
             assertEq(readOutput(defined.root, 'output.data.js'), 'export default undefined;')
         },
@@ -314,7 +314,7 @@ export const proof = {
             for (const document of ['7', 'null', '{"default":7}']) {
                 for (const output of ['output.json', 'output.data.js', 'output.f.js']) {
                     const root = { 'input.json': [utf8(document)] }
-                    const [state, code] = virtual({ ...emptyState, root })(compile(['input.json', output]))
+                    const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.json', output])))
                     assertEq(exitCode(code), 0, state.stderr)
                     const expected = output.endsWith('.json') ? document : `export default ${document};`
                     assertEq(readOutput(state.root, output), expected)
@@ -323,15 +323,108 @@ export const proof = {
         },
     },
     tooFewArgs: {
-        noArgs: () => {
-            const [state, code] = virtual(emptyState)(compile([]))
+        oneArg: () => {
+            const [state, code] = virtual(emptyState)(compile(nodeProgramOptions(['input.f.js'])))
             assertEq(exitCode(code), 1)
             assert(state.stderr.includes('Requires 2 arguments'), state.stderr)
         },
-        oneArg: () => {
-            const [state, code] = virtual(emptyState)(compile(['input.f.js']))
+    },
+    // `fjs compile` with no arguments is the check: every `.f.js` under the
+    // source root compiled through the pipeline every output begins with, and
+    // nothing written. The `.f.js` extension promises the compiler of the same
+    // revision accepts the module, and only this check keeps that promise —
+    // `tsc` accepts source the compiler refuses.
+    check: {
+        everyFileAccepted: () => {
+            // Discovery descends into subdirectories, and the count on `stdout`
+            // says how many files the walk found: `0 checked` from a
+            // misplaced root would pass the exit code alone.
+            const root = {
+                'a.f.js': [utf8('export default 1;')],
+                'sub': { 'b.f.js': [utf8('export default (...x) => x;')] },
+            }
+            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions([])))
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(state.stdout.trim(), '.f.js: 2 checked')
+            assertEq(state.stderr, '')
+        },
+        nothingToCheck: () => {
+            // A tree with no `.f.js` passes, and says so, rather than failing a
+            // repository that has not renamed its first module yet.
+            const [state, code] = virtual({ ...emptyState, root: {} })(compile(nodeProgramOptions([])))
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(state.stdout.trim(), '.f.js: 0 checked')
+        },
+        reportsEveryRefusal: () => {
+            // Two refused among an accepted one: both are named, each with the
+            // diagnostic the command would print for it, so a run that stopped
+            // at the first would fail this. Nothing is written, and the last
+            // line counts what the walk saw.
+            const root = {
+                'ok.f.js': [utf8('export default 1;')],
+                'bad.f.js': [utf8('export default @;')],
+                'sub': { 'worse.f.js': [utf8('export default {')] },
+            }
+            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions([])))
             assertEq(exitCode(code), 1)
-            assert(state.stderr.includes('Requires 2 arguments'), state.stderr)
+            const lines = state.stderr.trim().split('\n')
+            assertEq(lines.length, 3, state.stderr)
+            assert(lines.some(line => line.startsWith('./bad.f.js:1:16-18 - error: ')), state.stderr)
+            assert(lines.some(line => line.startsWith('./sub/worse.f.js:1:17 - error: ')), state.stderr)
+            assertEq(lines[2], '.f.js: 3 checked, 2 refused')
+            assertEq(state.stdout, '')
+            assertEq(Object.keys(state.root).toSorted().join(','), 'bad.f.js,ok.f.js,sub')
+        },
+        checksAuthoredOnly: () => {
+            // An `.f.mjs` states intent and promises nothing, so a refused one
+            // beside an accepted `.f.js` is no failure; a hidden directory and
+            // `node_modules` are not walked, as the test runner's discovery
+            // does not walk them.
+            const root = {
+                'ok.f.js': [utf8('export default 1;')],
+                'refused.f.mjs': [utf8('export default @;')],
+                '.hidden': { 'a.f.js': [utf8('export default @;')] },
+                'node_modules': { 'b.f.js': [utf8('export default @;')] },
+            }
+            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions([])))
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(state.stdout.trim(), '.f.js: 1 checked')
+        },
+        followsImports: () => {
+            // The check links the program as a compile does, so an `.f.js`
+            // whose import the compiler refuses is refused with it: the
+            // promise is about the module as compiled, dependencies included,
+            // and the diagnostic names the module the error is in.
+            const root = {
+                'main.f.js': [utf8('import d from "./dep.f.mjs"; export default d;')],
+                'dep.f.mjs': [utf8('export default @;')],
+            }
+            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions([])))
+            assertEq(exitCode(code), 1)
+            assert(state.stderr.startsWith('dep.f.mjs:1:16-18 - error: '), state.stderr)
+            assert(state.stderr.trim().endsWith('.f.js: 1 checked, 1 refused'), state.stderr)
+        },
+        startsAtInitCwd: () => {
+            // Under `npm run`, `INIT_CWD` is where the command was invoked, so
+            // the check scopes to that subtree as `fjs test` does: the refused
+            // file above it is not seen.
+            const root = {
+                'a.f.js': [utf8('export default @;')],
+                'sub': { 'b.f.js': [utf8('export default 1;')] },
+            }
+            const options = { ...nodeProgramOptions([]), env: { INIT_CWD: 'sub' } }
+            const [state, code] = virtual({ ...emptyState, root })(compile(options))
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(state.stdout.trim(), '.f.js: 1 checked')
+        },
+        unreadableRoot: () => {
+            // A tree that cannot be listed is a failed check, reported in the
+            // host's words, not a pass over zero files.
+            const options = { ...nodeProgramOptions([]), env: { INIT_CWD: 'missing' } }
+            const [state, code] = virtual({ ...emptyState, root: {} })(compile(options))
+            assertEq(exitCode(code), 1)
+            assertEq(state.stderr.trim(), 'invalid path')
+            assertEq(state.stdout, '')
         },
     },
     malformedUtf8: () => {
@@ -354,7 +447,7 @@ export const proof = {
             ]
             for (const [input, bytes, named] of cases) {
                 const root = { [input]: [bytes] }
-                const [state, code] = virtual({ ...emptyState, root })(compile([input, 'output.json']))
+                const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions([input, 'output.json'])))
                 assertEq(exitCode(code), 1, state.stderr)
                 assert(state.stderr.includes(`${named} - error: not UTF-8 text`), state.stderr)
                 assertEq(state.root['output.json'], undefined)
@@ -363,13 +456,13 @@ export const proof = {
                 'input.f.js': [utf8('import a from "./a.json" with { type: "json" };\nexport default a;')],
                 'a.json': [source('"a', bad, '"')],
             }
-            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.json']))
+            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
             assertEq(exitCode(code), 1, state.stderr)
             assert(state.stderr.includes('a.json - error: not UTF-8 text'), state.stderr)
         }
         // Correct UTF-8 beyond ASCII still reads, a four-byte sequence included.
         const root = { 'input.f.js': [utf8('export default "é中😀";')] }
-        const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.json']))
+        const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
         assertEq(exitCode(code), 0, state.stderr)
         assertEq(readOutput(state.root, 'output.json'), '"é中😀"')
     },
@@ -378,14 +471,14 @@ export const proof = {
         // it, so a success would claim work the command line asked for and
         // never did (DESIGN.md §10). No output is written.
         const root = { 'input.f.js': [utf8('export default 42;')] }
-        const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.json', '--tree']))
+        const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.json', '--tree'])))
         assertEq(exitCode(code), 1)
         assert(state.stderr.includes('unexpected argument --tree'), state.stderr)
         assertEq(state.root['output.json'], undefined)
     },
     success: () => {
         const root = { 'input.f.js': [utf8('export default 42;')] }
-        const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.data.js']))
+        const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
         assertEq(exitCode(code), 0)
         const content = readOutput(state.root, 'output.data.js')
         assertEq(content, 'export default 42;')
@@ -393,14 +486,14 @@ export const proof = {
     // The output's directory is created when it does not exist, however deep.
     missingDirectory: () => {
         const root = { 'input.f.js': [utf8('export default 42;')] }
-        const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'gen.out/sub/output.data.js']))
+        const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'gen.out/sub/output.data.js'])))
         assertEq(exitCode(code), 0, state.stderr)
         const [, read] = virtual(state)(readUtf8File('gen.out/sub/output.data.js'))
         assertStructurallySame(read, ['ok', 'export default 42;'])
     },
     jsonOutput: () => {
         const root = { 'input.f.js': [utf8('export default 42;')] }
-        const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.json']))
+        const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
         assertEq(exitCode(code), 0)
         const content = readOutput(state.root, 'output.json')
         assertEq(content, '42')
@@ -457,7 +550,7 @@ export const proof = {
             /** @type {(outputFileName: string) => string} */
             const refused = outputFileName => {
                 const root = { 'input.f.js': [utf8('export default 1;')] }
-                const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', outputFileName]))
+                const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', outputFileName])))
                 assertEq(exitCode(code), 1)
                 assertEq(state.root[outputFileName], undefined)
                 return state.stderr.trim()
@@ -466,7 +559,7 @@ export const proof = {
             assertEq(refused('out.ts'), `out.ts - error: ${expected}`)
             assertEq(refused('out'), `out - error: ${expected}`)
             // the input is never read: a missing one is refused the same way
-            const [state, code] = virtual(emptyState)(compile(['missing.f.js', 'out.txt']))
+            const [state, code] = virtual(emptyState)(compile(nodeProgramOptions(['missing.f.js', 'out.txt'])))
             assertEq(exitCode(code), 1)
             assertEq(state.stderr.trim(), `out.txt - error: ${expected}`)
         },
@@ -525,11 +618,11 @@ export const proof = {
                 'input.f.js': [utf8('import m from "./m.f.js"; export default [m];')],
                 'm.f.js': [utf8('const u = []; export default 1;')],
             }
-            const [output, outputCode] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.js']))
+            const [output, outputCode] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.f.js'])))
             assertEq(exitCode(outputCode), 0, output.stderr)
             assertStructurallySame(evaluate(readOutput(output.root, 'output.f.js')), ['ok', [1]])
             // the EDAG holds it, the comma being a node like any other
-            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.edag.data.js']))
+            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.js'])))
             assertEq(exitCode(code), 0, state.stderr)
             assertEq(readOutput(state.root, 'output.edag.data.js'), 'export default ["{}",[[":","default",["[]",[[",",[["[]",[]],1]]]]]]];')
         },
@@ -542,7 +635,7 @@ export const proof = {
         // a `.json` input reaches this route too, as it reaches the others
         jsonInput: () => {
             const root = { 'a.json': [utf8('{"a":[1]}')] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(['a.json', 'out.f.js']))
+            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['a.json', 'out.f.js'])))
             assertEq(exitCode(code), 0, state.stderr)
             assertEq(readOutput(state.root, 'out.f.js'), 'export default {"a":[1]};')
         },
@@ -569,20 +662,20 @@ export const proof = {
                 'input.f.js': [utf8('import c from "./m.f.js"; const a = 1; export default [a, a, c, { x: c }];')],
                 'm.f.js': [utf8('export default ["text"];')],
             }
-            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.edag.data.js']))
+            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.js'])))
             assertEq(exitCode(code), 0, state.stderr)
             assertEq(readOutput(state.root, 'output.edag.data.js'), 'const $0=["[]",["text"]];export default ["{}",[[":","default",["[]",[1,1,$0,["{}",[[":","x",$0]]]]]]]];')
-            const [moduleState, moduleCode] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.data.js']))
+            const [moduleState, moduleCode] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
             assertEq(exitCode(moduleCode), 0, moduleState.stderr)
             assertEq(readOutput(moduleState.root, 'output.data.js'), 'const $0=["text"];export default [1,1,$0,{"x":$0}];')
         },
         // `.edag.data.mjs` asks for the same; `.data.mjs` alone is DataJS
         extension: () => {
             const root = { 'input.f.js': [utf8('export default { a: undefined };')] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.edag.data.mjs']))
+            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.mjs'])))
             assertEq(exitCode(code), 0, state.stderr)
             assertEq(readOutput(state.root, 'output.edag.data.mjs'), 'export default ["{}",[[":","default",["{}",[[":","a",["undefined"]]]]]]];')
-            const [moduleState, moduleCode] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.data.mjs']))
+            const [moduleState, moduleCode] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.data.mjs'])))
             assertEq(exitCode(moduleCode), 0, moduleState.stderr)
             assertEq(readOutput(moduleState.root, 'output.data.mjs'), 'export default {"a":undefined};')
         },
@@ -590,7 +683,7 @@ export const proof = {
         // the value outputs as what it reads
         access: () => {
             const root = { 'input.f.js': [utf8('const a = { b: 1 }; export default a.b;')] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.edag.data.js']))
+            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.js'])))
             assertEq(exitCode(code), 0, state.stderr)
             assertEq(readOutput(state.root, 'output.edag.data.js'), 'export default ["{}",[[":","default",[".",["{}",[[":","b",1]]],"b"]]]];')
             assertEq(compileSource('const a = { b: 1 }; export default a.b;')('output.data.js'), 'export default 1;')
@@ -671,7 +764,7 @@ export const proof = {
         // parse error is, and nothing is written: a missing import
         refused: () => {
             const missing = { 'input.f.js': [utf8('import m from "./m.f.js"; export default [m];')] }
-            const [missingState, missingCode] = virtual({ ...emptyState, root: missing })(compile(['input.f.js', 'output.edag.data.js']))
+            const [missingState, missingCode] = virtual({ ...emptyState, root: missing })(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.js'])))
             assertEq(exitCode(missingCode), 1)
             assertEq(missingState.stderr.trim(), 'm.f.js - error: file not found')
         },
@@ -868,13 +961,13 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     // separately.
     fileNotFound: {
         module: () => {
-            const [state, code] = virtual(emptyState)(compile(['missing.f.js', 'output.data.js']))
+            const [state, code] = virtual(emptyState)(compile(nodeProgramOptions(['missing.f.js', 'output.data.js'])))
             assertEq(exitCode(code), 1)
             assertEq(state.stderr.trim(), 'missing.f.js - error: file not found')
             assertEq(state.root['output.data.js'], undefined)
         },
         json: () => {
-            const [state, code] = virtual(emptyState)(compile(['missing.json', 'output.data.js']))
+            const [state, code] = virtual(emptyState)(compile(nodeProgramOptions(['missing.json', 'output.data.js'])))
             assertEq(exitCode(code), 1)
             assertEq(state.stderr.trim(), 'missing.json - error: file not found')
             assertEq(state.root['output.data.js'], undefined)
@@ -888,7 +981,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     parseError: {
         spanOneLine: () => {
             const root = { 'bad.f.js': [utf8('export default @')] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(['bad.f.js', 'output.data.js']))
+            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['bad.f.js', 'output.data.js'])))
             assertEq(exitCode(code), 1)
             assertEq(state.stderr.trim(), 'bad.f.js:1:16-17 - error: unexpected token')
             assertEq(state.root['output.data.js'], undefined)
@@ -897,7 +990,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             // an unterminated string swallowing a newline: the far end names its
             // own line, because repeating the start's would place it wrongly
             const root = { 'bad.f.js': [utf8('export default "a\nb"')] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(['bad.f.js', 'output.data.js']))
+            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['bad.f.js', 'output.data.js'])))
             assertEq(exitCode(code), 1)
             assertEq(state.stderr.trim(), 'bad.f.js:1:16-2:3 - error: unexpected token')
             assertEq(state.root['output.data.js'], undefined)
@@ -906,7 +999,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             // a *grammar* failure points at one token and has no span — see
             // `ParseError` in fjs/compiler/parser/types.ts for why
             const root = { 'bad.f.js': [utf8('export default ]')] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(['bad.f.js', 'output.data.js']))
+            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['bad.f.js', 'output.data.js'])))
             assertEq(exitCode(code), 1)
             assertEq(state.stderr.trim(), 'bad.f.js:1:16 - error: unexpected token')
             assertEq(state.root['output.data.js'], undefined)
@@ -1047,7 +1140,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 'a.f.js': [utf8('import m from "./m.f.js"; import b from "./b.f.js"; export default [m, b];')],
             }
             assert(sharedOf(root)('a.f.js'))
-            const [state, code] = virtual({ ...emptyState, root })(compile(['a.f.js', 'output.json']))
+            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['a.f.js', 'output.json'])))
             assertEq(exitCode(code), 1)
             assertEq(state.stderr.trim(), 'output.json - error: no JSON spelling for a shared node')
             // and the same module reached along one edge each by two
@@ -1125,7 +1218,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assertEq(stderrOf({ ...importing, 'm.f.js': [utf8('export default @')] }), 'm.f.js:1:16-17 - error: unexpected token')
             // a malformed JSON module likewise, under both readers
             const json = { 'input.f.js': [utf8('import d from "./d.json" with { type: "json" }; export default [d];')], 'd.json': [utf8('{')] }
-            const [edagState, edagCode] = virtual({ ...emptyState, root: json })(compile(['input.f.js', 'output.edag.data.js']))
+            const [edagState, edagCode] = virtual({ ...emptyState, root: json })(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.js'])))
             assertEq(exitCode(edagCode), 1)
             assertEq(edagState.stderr.trim(), 'd.json - error: unexpected end')
             assertEq(stderrOf(json), 'd.json - error: unexpected end')
@@ -1135,27 +1228,27 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         // imported with it, is refused under both readers
         jsonImport: () => {
             const root = { 'input.f.js': [utf8('import d from "./d.json" with { type: "json" }; export default [d, 1];')], 'd.json': [utf8('{"a": [null]}')] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.json']))
+            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.json'])))
             assertEq(exitCode(code), 0)
             assertEq(readOutput(state.root, 'output.json'), '[{"a":[null]},1]')
-            const [edagState, edagCode] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.edag.data.js']))
+            const [edagState, edagCode] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.js'])))
             assertEq(exitCode(edagCode), 0)
             assertEq(readOutput(edagState.root, 'output.edag.data.js'), 'export default ["{}",[[":","default",["[]",[["{}",[[":","a",["[]",[null]]]]],1]]]]];')
             const missing = { ...root, 'input.f.js': [utf8('import d from "./d.json"; export default [d, 1];')] }
             assertEq(stderrOf(missing), 'd.json - error: a JSON module needs the import attribute with { type: "json" }')
-            const [missingState, missingCode] = virtual({ ...emptyState, root: missing })(compile(['input.f.js', 'output.edag.data.js']))
+            const [missingState, missingCode] = virtual({ ...emptyState, root: missing })(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.js'])))
             assertEq(exitCode(missingCode), 1)
             assertEq(missingState.stderr.trim(), 'd.json - error: a JSON module needs the import attribute with { type: "json" }')
             const incompatible = { 'input.f.js': [utf8('import m from "./m.f.js" with { type: "json" }; export default [m];')], 'm.f.js': [utf8('export default 1;')] }
             assertEq(stderrOf(incompatible), 'm.f.js - error: only a JSON module is imported with { type: "json" }')
-            const [incompatibleState, incompatibleCode] = virtual({ ...emptyState, root: incompatible })(compile(['input.f.js', 'output.edag.data.js']))
+            const [incompatibleState, incompatibleCode] = virtual({ ...emptyState, root: incompatible })(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.js'])))
             assertEq(exitCode(incompatibleCode), 1)
             assertEq(incompatibleState.stderr.trim(), 'm.f.js - error: only a JSON module is imported with { type: "json" }')
             // a file met before is refused all the same when a later import
             // misspells it: the contract is the import's, not the file's
             const twice = { ...root, 'input.f.js': [utf8('import d from "./d.json" with { type: "json" }; import e from "./d.json"; export default [d, e];')] }
             assertEq(stderrOf(twice), 'd.json - error: a JSON module needs the import attribute with { type: "json" }')
-            const [twiceState, twiceCode] = virtual({ ...emptyState, root: twice })(compile(['input.f.js', 'output.edag.data.js']))
+            const [twiceState, twiceCode] = virtual({ ...emptyState, root: twice })(compile(nodeProgramOptions(['input.f.js', 'output.edag.data.js'])))
             assertEq(exitCode(twiceCode), 1)
             assertEq(twiceState.stderr.trim(), 'd.json - error: a JSON module needs the import attribute with { type: "json" }')
         },
@@ -1191,7 +1284,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             // an import resolved to the path `0` is not `const` 0
             /** @type {typeof emptyState.root} */
             const zero = { 'a.f.js': [utf8('import m from "./0"; const c = []; export default [c, m];')], 0: [utf8('export default [];')] }
-            const [zeroState, zeroCode] = virtual({ ...emptyState, root: zero })(compile(['a.f.js', 'output.json']))
+            const [zeroState, zeroCode] = virtual({ ...emptyState, root: zero })(compile(nodeProgramOptions(['a.f.js', 'output.json'])))
             assertEq(exitCode(zeroCode), 0, zeroState.stderr)
             assertEq(readOutput(zeroState.root, 'output.json'), '[[],[]]')
             /** @type {typeof emptyState.root} */
@@ -1362,7 +1455,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         // denotes one. Each hop uses its own language's spelling of the key.
         jsonInput: () => {
             const root = { 'proto.json': [utf8('{"__proto__":5}')] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(['proto.json', 'a.data.js']))
+            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['proto.json', 'a.data.js'])))
             assertEq(exitCode(code), 0, state.stderr)
             assertEq(readOutput(state.root, 'a.data.js'), 'export default {["__proto__"]:5};')
         },
@@ -1372,7 +1465,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         jsonInputRoundTrip: () => {
             const document = '{"__proto__":{"a":42}}'
             const root = { 'proto.json': [utf8(document)] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(['proto.json', 'a.data.js']))
+            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['proto.json', 'a.data.js'])))
             assertEq(exitCode(code), 0, state.stderr)
             const module = readOutput(state.root, 'a.data.js')
             assertEq(module, 'export default {["__proto__"]:{"a":42}};')
@@ -1386,7 +1479,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 'main.f.js': [utf8('import a from "./a.json" with { type: "json" };\nexport default [a];')],
                 'a.json': [utf8('{"__proto__":{"a":42}}')],
             }
-            const [state, code] = virtual({ ...emptyState, root })(compile(['main.f.js', 'out.json']))
+            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['main.f.js', 'out.json'])))
             assertEq(exitCode(code), 0, state.stderr)
             assertEq(readOutput(state.root, 'out.json'), '[{"__proto__":{"a":42}}]')
         },
@@ -1396,7 +1489,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         // named by its file instead.
         jsonInputIdKeyRejected: () => {
             const root = { 'proto.json': [utf8('{__proto__:5}')] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(['proto.json', 'a.data.js']))
+            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['proto.json', 'a.data.js'])))
             assertEq(exitCode(code), 1)
             assertEq(state.stderr.trim(), 'proto.json - error: unexpected symbol at 1')
             assertEq(state.root['a.data.js'], undefined)
@@ -1405,7 +1498,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         // a bigint is not JSON, whatever a module makes of it.
         jsonInputRejectsDjsExtensions: () => {
             const root = { 'a.json': [utf8('{"a":1n}')] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(['a.json', 'a.data.js']))
+            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['a.json', 'a.data.js'])))
             assertEq(exitCode(code), 1)
             assertEq(state.root['a.data.js'], undefined)
         },
@@ -1425,14 +1518,14 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         // compilation errors, not silently accepted properties.
         idKeyRejected: () => {
             const root = { 'input.f.js': [utf8('export default {__proto__:{"a":42}};')] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.data.js']))
+            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
             assertEq(exitCode(code), 1)
             assert(state.stderr.includes('__proto__ requires the computed key form'), state.stderr)
             assertEq(state.root['output.data.js'], undefined)
         },
         stringKeyRejected: () => {
             const root = { 'input.f.js': [utf8('export default {"__proto__":{"a":42}};')] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.data.js']))
+            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
             assertEq(exitCode(code), 1)
             assert(state.stderr.includes('__proto__ requires the computed key form'), state.stderr)
             assertEq(state.root['output.data.js'], undefined)
@@ -1454,7 +1547,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             /** @type {(source: string) => string} */
             const compiled = source => {
                 const root = { 'input.f.js': [utf8(source)], 'm.f.js': [utf8('export default [1];')] }
-                const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.data.js']))
+                const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.data.js'])))
                 assertEq(exitCode(code), 0, state.stderr)
                 return readOutput(state.root, 'output.data.js')
             }

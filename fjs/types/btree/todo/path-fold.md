@@ -80,7 +80,7 @@ ones. The single-child root collapse at the end is already shared:
 
 ### Related
 
-- i179 (retired; shipped as [`collapseRoot`](../types/module.f.mjs) in
+- i179 (retired; shipped as [`collapseRoot`](../types/module.f.js) in
   `btree/types`, imported by `btree/set` and `btree/remove`) — the single-child
   root collapse, the tail of both functions this issue folds together.
 - [uncurry-accumulator-types](../../function/todo/uncurry-accumulator-types.md)

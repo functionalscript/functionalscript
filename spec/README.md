@@ -207,6 +207,7 @@ See
 
 ```sh
 fjs compile <input> <output>
+fjs compile
 ```
 
 `fjs compile` reads the input and resolves every module it imports into one
@@ -239,9 +240,10 @@ import specifiers, so `%41`, `?` and `#` are ordinary characters in them. An
 extension is matched exactly, case included: `out.JSON` names no output format
 and is refused, `out.Data.js` is a FunctionalScript name rather than a DataJS
 one, and an `in.JSON` input is read by the module parser. The command takes
-exactly these two names, and any other count fails, naming no file: fewer
-with `Error: Requires 2 arguments`, and more with the first one it does not
-read, `Error: unexpected argument --tree`, rather than succeed without it.
+these two names, or none ([the check](#checking-every-fjs)); any other count
+fails, naming no file: one with `Error: Requires 2 arguments`, and more than
+two with the first one it does not read, `Error: unexpected argument --tree`,
+rather than succeed without it.
 
 On success the command writes the output and exits `0`. On failure it writes
 nothing, reports the error on `stderr`, and exits `1`:
@@ -292,6 +294,33 @@ counted from 0 — `/project/e.json - error: unexpected symbol at 19` — or
 
 `fjs compile` is one of several `fjs` commands; see
 [`fjs/README.md`](../fjs/README.md) for the rest.
+
+### Checking Every `.f.js`
+
+```sh
+fjs compile
+```
+
+With no arguments `fjs compile` checks rather than compiles. An authored
+`.f.js` promises that the compiler of the same revision accepts it
+([file types](#file-types)), and `tsc` cannot keep that promise for it — it
+accepts source the compiler refuses, `let a = 1; export default a;` for one,
+which the compiler rejects at its first token, `1:1 - error: unexpected token`
+— so this is the check that does. Every `.f.js` under the current directory
+(`INIT_CWD` under `npm run`, so `npm start compile` from a subdirectory
+checks that subtree), hidden entries and `node_modules` skipped as the test
+runner skips them, is read and linked into its program exactly as every
+output begins, its imports included, and nothing is written. An `.f.mjs`
+states the intent and makes no such promise, so it is not checked, though
+one an `.f.js` imports is linked with it and refuses it when refused.
+
+Every refused file is reported on `stderr` as a compile of it would report
+it, and the check goes on to the next, so one run names every file that
+fails. The last line counts what the walk found: `.f.js: 3 checked, 2 refused`
+on `stderr` with exit `1`, or `.f.js: 3 checked` on `stdout` with exit `0`.
+A tree holding no `.f.js` passes as `.f.js: 0 checked` — the count is there
+so that a walk from the wrong directory is visible. A tree that cannot be
+listed fails in the host's words.
 
 ### Source Text
 
@@ -1209,7 +1238,7 @@ with `.b` on the next line are each `a.b`, as JavaScript reads them.
 
 FunctionalScript has no prototype chains, so a name a built-in prototype
 gives a value — `push`, `toString`, `valueOf`, `constructor`, `__proto__`
-and the rest, listed in [`fjs/js/prototype`](../fjs/js/prototype/module.f.mjs)
+and the rest, listed in [`fjs/js/prototype`](../fjs/js/prototype/module.f.js)
 — is a **compilation error** as the key of an access, in either spelling,
 `o.toString` or `o["toString"]` (`prohibited property name`): JavaScript
 would find a function there and this language nothing, and a module must
@@ -1221,7 +1250,7 @@ array, a string and a function own it. The rules are
 
 A method call has a rule of its own. `a.push(1)`, `a.valueOf()` and the
 other member functions
-[`fjs/js/prototype`](../fjs/js/prototype/module.f.mjs)'s `prohibitedCalls`
+[`fjs/js/prototype`](../fjs/js/prototype/module.f.js)'s `prohibitedCalls`
 names are compilation errors (`prohibited member function`) — one row per
 name, with the reason, in [its README](../fjs/js/prototype/README.md). Every
 other prototype name but `length` is on its `allowedCalls`, and a call of one

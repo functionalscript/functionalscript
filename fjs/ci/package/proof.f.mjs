@@ -1,6 +1,6 @@
 import { packageCheckJob, packageCheckJobId } from './module.f.mjs'
 import { packageArtifact, packageJobId } from '../node/module.f.mjs'
-import { typescript } from '../config/module.f.mjs'
+import { typescript } from '../config/module.f.js'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 const job = packageCheckJob

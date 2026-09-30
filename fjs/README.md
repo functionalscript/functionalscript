@@ -26,7 +26,7 @@ fjs <command> [args]
 | Command | Description | Documentation |
 |---------|-------------|---------------|
 | `test`   | Run the FunctionalScript test suite | [emergent_testing](emergent_testing/README.md) |
-| `compile`| Compile a FunctionalScript module to JavaScript or JSON | [compiler](compiler/README.md) |
+| `compile`| Compile a FunctionalScript module to JavaScript or JSON; with no arguments, check every `.f.js` | [compiler](compiler/README.md) |
 | `cas`    | Content-addressable storage operations (`add`, `get`, `list`) | [cas](cas/README.md) |
 | `mcp`    | Run an MCP server over stdio exposing the CAS and Evo as tools | [mcp](mcp/README.md) |
 | `ci`     | Generate the GitHub Actions CI and npm publishing workflows | [ci](ci/README.md) |
@@ -63,6 +63,18 @@ writing one the name does not declare is the silent substitution this route
 exists to avoid.
 Imports are resolved and inlined in every case. See
 [compiler/README.md](compiler/README.md) for the accepted subset.
+
+```sh
+fjs compile
+```
+
+With no arguments the command is a check: every `.f.js` under the current
+directory is compiled the same way and nothing is written, so an authored
+`.f.js` — the extension that promises the current compiler accepts it — is
+held to that promise. Each refused file is reported as a compile of it would
+report it, then a count: `.f.js: 3 checked, 2 refused` and exit `1`, or
+`.f.js: 3 checked` and exit `0`. CI runs it once per revision
+([spec: checking every `.f.js`](../spec/README.md#checking-every-fjs)).
 
 ## `fjs ci` — generating the standard workflows
 

@@ -22,13 +22,13 @@ Four of them export functions:
 - [`fjs/effects/mock`](../effects/mock/module.f.mjs) — `run` and
   `partialRun`, the runner more than a dozen other proofs drive their effects
   with.
-- [`fjs/types/btree/types`](../types/btree/types/module.f.mjs) —
+- [`fjs/types/btree/types`](../types/btree/types/module.f.js) —
   `collapseRoot`; reached through `fjs/types/btree/remove` and
   `fjs/types/btree/set`.
 
 Two hold data only, and whether §1.2 reaches them is not written down:
 
-- [`fjs/ci/config`](../ci/config/module.f.mjs) — the pinned versions, images
+- [`fjs/ci/config`](../ci/config/module.f.js) — the pinned versions, images
   and actions.
 - [`fjs/website/style`](../website/style/module.f.mjs) — the stylesheet and
   its links.

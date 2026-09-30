@@ -28,9 +28,11 @@ the blanket ignore is gone
 ([#1545](https://github.com/functionalscript/functionalscript/pull/1545)) — so
 the gate is satisfied and this task is open.
 
-What stays gated is the *rename*, not this work: the first `.f.mjs` -> `.f.js`
-is blocked by **this** task completing, per the acceptance criteria below, and
-by the stage-2 boundary in [`fjs/compiler/README.md`](../../compiler/README.md). Reading
+What this task was to gate was the *rename*, not this work: the first
+`.f.mjs` -> `.f.js` was to wait for this task completing, per the acceptance
+criteria below, and for the stage-2 boundary in
+[`fjs/compiler/README.md`](../../compiler/README.md). The renames landed first,
+by the decision under the open question below; the boundary still holds. Reading
 the dependency the other way was circular while the stage-1 issue existed — it
 stayed open until stage 2 started, stage 2 needed this task done, and this task
 waited on it — which is why the block is recorded here as met rather than
@@ -101,18 +103,16 @@ that keep those true, plus five gaps the list below did not name:
   only `**/module.f.mjs`. A `module.f.js` would escape the proof-coverage
   rule `fjs/AGENTS.md` sets for every FunctionalScript module. Fixed with
   the fixture.
-- **Compiler acceptance is not enforced.** The `.f.js` contract is that the
+- **Compiler acceptance is enforced.** The `.f.js` contract is that the
   current compiler accepts the module ([`fjs/compiler/README.md`](../../compiler/README.md)),
-  but nothing compiles authored `.f.js`: a module could be renamed, or
-  edited later, into something the compiler refuses, and every check would
-  stay green. The measured module compiles to `.rs`; its JSON target refuses
-  it only because a function has no JSON. The compiler requires the
-  terminating `;` (without it, `unexpected end`), which `tsc` does not, so
-  only such a check catches a module written for `tsc` alone. The check is
-  owned by [lint-compiler-compatible-files](../../compiler/todo/lint-compiler-compatible-files.md),
-  which waits for the first authored `.f.js` to exist; this task's fixture
-  is that file, so the lint is unblocked by it, and neither task waits on
-  the other.
+  and `tsc` cannot hold a module to it: `let a = 1; export default a;`
+  type-checks and the compiler refuses it at its first token,
+  `unexpected token`, as it refuses a `class` or two statements on one line.
+  The measured module compiles to `.rs`; its JSON target refuses it only
+  because a function has no JSON. `fjs compile` with no arguments checks every
+  authored `.f.js`, and the Node 26 CI job runs it
+  ([spec: checking every `.f.js`](../../../spec/README.md#checking-every-fjs));
+  this task's fixture was the first file it had to check.
 - **Proofs stay `.f.mjs` for now.** Block bodies compile (`const` and
   `return`), but the `if` and `throw` statements do not: each is refused at
   its first token. A proof fails by throwing, directly or through
@@ -163,9 +163,8 @@ that keep those true, plus five gaps the list below did not name:
       extension table, including why a proof stays `.f.mjs` until `throw`
       compiles.
 
-Compiler acceptance of every authored `.f.js` is not a task here: it is
-[lint-compiler-compatible-files](../../compiler/todo/lint-compiler-compatible-files.md),
-unblocked by the fixture above and landing on its own schedule.
+Compiler acceptance of every authored `.f.js` is not a task here: `fjs compile`
+with no arguments checks it, and CI runs that check.
 
 **Open question: a synthetic fixture, or the first real rename?** As
 written, the fixture is synthetic: the acceptance criteria below and
@@ -186,8 +185,10 @@ rename task in `fjs-nanvm-integration` moves here. Until that decision is
 recorded, implement the synthetic fixture.
 
 **Decided: synthetic,** the default the task owner left in place; review
-also preferred the smaller step that keeps a breaking change out of this task; the rename
-follows this task, as `fjs-nanvm-integration` has it.
+also preferred the smaller step that keeps a breaking change out of this task.
+The first real renames then followed on `fjs compile`'s check with the
+`package-check` task above still open — the decision and its reason are in
+[`fjs-nanvm-integration`](../../../todo/fjs-nanvm-integration.md).
 
 ### Acceptance criteria
 
@@ -201,8 +202,9 @@ follows this task, as `fjs-nanvm-integration` has it.
 - A clean consumer can execute/import the `.f.js` runtime and type-check it.
 - No staging tree or package-time runtime/declaration specifier rewrite is
   required.
-- The first `.f.mjs` -> `.f.js` compiler-compatibility rename is **blocked by**
-  completion of this task.
+- The first `.f.mjs` -> `.f.js` compiler-compatibility renames were to wait
+  for this task; by the decision above they landed ahead of it, on
+  `fjs compile`'s check, so nothing here gates a rename now.
 
 ### Related
 
@@ -214,4 +216,5 @@ follows this task, as `fjs-nanvm-integration` has it.
 - [`publishing-packages.md`](./publishing-packages.md) — broader package plan.
 - [`fjs/compiler/README.md`](../../compiler/README.md) — extension contract.
 - [`todo/fjs-nanvm-integration.md`](../../../todo/fjs-nanvm-integration.md) —
-  compiler-compatibility migration blocked by this package prerequisite.
+  the compiler-compatibility migration, whose first renames landed ahead of
+  this task's last step by the decision recorded there.

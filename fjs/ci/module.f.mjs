@@ -15,7 +15,7 @@
 import { resultStep } from '../effects/module.f.mjs'
 import { access, exitStep, writeUtf8File } from '../effects/node/module.f.mjs'
 import { step as ioStep } from '../effects/module.f.mjs'
-import { functionalscript, images, node } from './config/module.f.mjs'
+import { functionalscript, images, node } from './config/module.f.js'
 import {
     architecture,
     os,

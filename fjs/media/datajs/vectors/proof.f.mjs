@@ -7,8 +7,8 @@
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 import { tryParse, tryParseBytes } from '../module.f.mjs'
 import { bytes, difference, isDocument } from './module.f.mjs'
-import accept from '../../../../spec/datajs/vectors/accept/data.f.mjs'
-import reject from '../../../../spec/datajs/vectors/reject/data.f.mjs'
+import accept from '../../../../spec/datajs/vectors/accept/data.f.js'
+import reject from '../../../../spec/datajs/vectors/reject/data.f.js'
 
 /** The reader accept set, typed at the import since a set carries no annotations. */
 const acceptSet = /** @type {readonly Accept[]} */ (accept)
