@@ -60,7 +60,8 @@ A `proof.f.mjs` is authored `.f.mjs` like any other. Its relative **runtime**
 imports must target FunctionalScript modules, `.f.mjs` or `.f.js`. A
 `module.f.js` keeps a `proof.f.mjs` for now: a proof fails by throwing, and
 the compiler does not accept `throw` yet
-([`compiler/README.md`](./compiler/README.md)). Type-only APIs may live in an authored
+([`compiler/README.md`](./compiler/README.md); the proposal is
+[spec: throw](../spec/todo/3250-throw.md)). Type-only APIs may live in an authored
 `types.ts` companion and are referenced directly through that real source path.
 Its leading JSDoc block may include, for example:
 
