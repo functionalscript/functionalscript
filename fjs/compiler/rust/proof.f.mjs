@@ -335,20 +335,27 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assert(result[1].includes('    let c0: Any<A> = Array::default().to_any();\n    let c1: Any<A> = (Any::logical_and(false.to_any(), || Ok(c0.clone())))?;\n    Ok([c0.clone(), c1].to_array().to_any())'), result)
         },
         /**
-         * A shared node reached only through lazy operands is refused: a
-         * `let` binding would establish it before the root, where the
-         * program may never establish it at all — `true ? 1 : [c, c]`
-         * answers `1` with `c`'s `1n / 0n` never run. The lowering anchors
-         * such a `const` eagerly, so no linked module has this shape; an
-         * EDAG handed in directly can, and is refused rather than compiled
-         * to a throw. An atom is not refused — `args` in a function, or an
-         * empty container — since binding one establishes nothing.
+         * A shared node reached only through lazy operands binds in the
+         * block of the one thunk that reaches it eagerly and outside which
+         * nothing reaches it — `true ? 1 : [c, c]` answers `1` with `c`'s
+         * `1n / 0n` never run, and runs it once when the arm is taken — and
+         * is refused where no thunk is that, since a `let` before the root
+         * would establish it where the program may never establish it at
+         * all. The lowering anchors a `const` reached only lazily, so a
+         * linked module has the first shape alone, an inlined call's; an
+         * EDAG handed in directly can have the second, and is refused rather
+         * than compiled to a throw. An atom is not refused — `args` in a
+         * function, or an empty container — since binding one establishes
+         * nothing.
          */
         refusedSharedOnlyThroughLazyOperands: () => {
             /** @type {Exp} */
             const boom = ['/', 1n, 0n]
+            const owned = toRust(['?:', true, 1, ['[]', [boom, boom]]])
+            assertEq(owned[0], 'ok')
+            assert(owned[1].includes('    let c0 = || {\n        let c1: Any<A> = (bigint_any(1) / bigint_any(0))?;\n        Ok([c1.clone(), c1.clone()].to_array().to_any())\n    };\n    Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), c0)'), owned)
             assertStructurallySame(
-                toRust(['?:', true, 1, ['[]', [boom, boom]]]),
+                toRust(['[]', [['&&', true, boom], ['&&', false, boom]]]),
                 ['error', 'no Rust spelling for this module: no Rust for a shared node reached only through lazy operands; a `let` binding would establish what the program may not: /,1,0'])
             /** @type {Exp} */
             const c = ['[]', [1]]

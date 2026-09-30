@@ -376,16 +376,23 @@ const last = e => {
  * thunk — itself a temporary, `let cN = || …;`, once it has a body of its
  * own — binds the temporaries only it reaches, inside its closure, so
  * nothing is established before the program establishes it. That is what
- * the refusal above checks: a node shared but eager nowhere has no block
- * to bind it in — `true ? 1 : [c, c]` answers `1` without establishing
- * `c`, and a `let` before the root would — and no scope the lowering
- * links has the shape, an implicitly shared node being a `const`
- * referenced twice, which JavaScript establishes at its declaration
- * whatever the operators around its uses do, and which the
- * eager-restricted reference sweep of `anchors`
- * ([`fjs/compiler/ast`](../../compiler/ast/module.f.mjs)) anchors through the comma
- * root when reached only lazily — an eager reach, so the binding is right
- * again. An {@link atomic} node is the exception: its construction
+ * the refusal above checks: a node shared but eager from no block's root
+ * has no block to bind it in — `[a && c, b && c]` establishes `c` in
+ * either thunk or neither, and a `let` before the root would establish it
+ * whatever `a` and `b` are. A node one thunk's root reaches eagerly, and
+ * nothing outside that thunk reaches at all, binds in that thunk's block —
+ * `true ? 1 : [c, c]` answers `1` without establishing `c`, and the else
+ * arm's block establishes it exactly when the arm is taken — which is the
+ * shape a `const` inside an arm lowers to: `true ? 1 : (() => { const c =
+ * [1]; return [c, c]; })()`, its call inlined by
+ * [`fjs/compiler/edag`](../../compiler/edag/module.f.mjs). Every other
+ * shared node the lowering links is eager from the scope's root, an
+ * implicitly shared node being a `const` referenced twice, which
+ * JavaScript establishes at its declaration whatever the operators around
+ * its uses do, and which the eager-restricted reference sweep of `anchors`
+ * ([`fjs/compiler/ast`](../../compiler/ast/module.f.mjs)) anchors through
+ * the comma root when reached only lazily — an eager reach, so the binding
+ * is right again. An {@link atomic} node is the exception: its construction
  * establishes nothing the program could skip — `args` is the closure's
  * parameter, already bound, and `undefined` or an empty container is a
  * value no evaluation precedes — so one shared only through lazy operands
@@ -413,10 +420,30 @@ const printer = nested => shared => root => {
      * each with how many places reach it — {@link visit}, stopping at a
      * bound node.
      */
-    const order = visit(node => isBound(/** @type {Exp} */ (/** @type {unknown} */ (node))) ? [] : operandsOf(node))([])(root)
-        .filter(([n]) => !isBound(n))
+    /** @type {(node: readonly unknown[]) => readonly unknown[]} */
+    const children = node => isBound(/** @type {Exp} */ (/** @type {unknown} */ (node))) ? [] : operandsOf(node)
+    const order = visit(children)([])(root).filter(([n]) => !isBound(n))
     const eager = eagerNodesOf(root)
-    const lazyOnly = order.find(([n, count]) => count >= 2 && !eager.includes(n) && !atomic(n))
+    /**
+     * Every lazy operand nothing establishes eagerly: the root of its
+     * thunk's block. A lazy operand also reached eagerly is an ordinary
+     * temporary, and its thunk answers the name.
+     */
+    const thunks = order.flatMap(([n]) => lazyOperandsOf(n)).filter(o => !eager.includes(o))
+    /**
+     * The thunk whose block binds a node the scope's root reaches only
+     * through lazy operands: the one whose own root reaches the node
+     * eagerly and outside which nothing reaches it — every place reaching
+     * it under the thunk, counted as {@link visit} counted them under the
+     * scope's root — so that a binding in that block is established
+     * exactly when the program establishes the node. `undefined` where no
+     * thunk is that: a node two thunks reach, or one a thunk is.
+     *
+     * @type {(n: Exp) => Exp | undefined}
+     */
+    const owner = n => thunks.find(t => eagerNodesOf(t).includes(n)
+        && visit(children)([])(t).some(([m, count]) => m === n && order.some(([o, total]) => o === n && total === count)))
+    const lazyOnly = order.find(([n, count]) => count >= 2 && !eager.includes(n) && !atomic(n) && owner(n) === undefined)
     if (lazyOnly !== undefined) {
         return error(['no Rust for a shared node reached only through lazy operands; a `let` binding would establish what the program may not', lazyOnly[0]])
     }
@@ -437,12 +464,6 @@ const printer = nested => shared => root => {
      * @type {(e: Exp) => readonly Exp[]}
      */
     const valueNodes = e => !isComma(e) || isShared(last(e)) ? [e] : [e, ...valueNodes(last(e))]
-    /**
-     * Every lazy operand nothing establishes eagerly: the root of its
-     * thunk's block. A lazy operand also reached eagerly is an ordinary
-     * temporary, and its thunk answers the name.
-     */
-    const thunks = order.flatMap(([n]) => lazyOperandsOf(n)).filter(o => !eager.includes(o))
     /** @type {(e: Exp) => boolean} */
     const isThunk = e => thunks.includes(e)
     /**
@@ -1075,8 +1096,9 @@ const held = e => {
  * through eager positions alone — in walk order, `root` first. A node
  * {@link sharedNodesOf} lists that is not among these is reached only
  * through lazy operands, and a `let` binding for it before the root would
- * establish what the program may not: the shape `fjs/compiler/rust` refuses,
- * an {@link atomic} node excepted, whose binding establishes nothing.
+ * establish what the program may not: it binds in the block of the one
+ * thunk that owns it, or the shape is refused, an {@link atomic} node
+ * excepted, whose binding establishes nothing ({@link printer}).
  *
  * @type {(root: Exp) => readonly Exp[]}
  */

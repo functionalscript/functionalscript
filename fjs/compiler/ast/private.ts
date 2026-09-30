@@ -7,7 +7,7 @@
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Array, Unknown } from '../../media/datajs/types.ts'
-import type { AstAccess, AstBody, AstConst, AstMember, AstModuleRef } from './types.ts'
+import type { AstAccess, AstBody, AstConst, AstFrameRef, AstMember, AstModuleRef } from './types.ts'
 
 /** An evaluation in progress: the body, its arguments, and the values so far. */
 export type _RunState = {
@@ -39,9 +39,17 @@ export type _View = {
 }
 
 export type _Ref = {
-    readonly ref: AstModuleRef
+    readonly ref: _RefNode
     readonly keys: readonly string[]
 }
+
+/**
+ * The node a reference rests on: a `const` or an import of the scope, or
+ * a slot of a body's frame — which the sweep of the body itself ignores,
+ * and the sweep of a scope the body is inlined into follows into the
+ * capture the slot holds.
+ */
+export type _RefNode = AstModuleRef | AstFrameRef
 
 /**
  * The explicit stack `operandsOf` walks a chain of operator/negation/

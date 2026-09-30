@@ -32,6 +32,11 @@ that refusal is not this issue.
       operator expression).
 - [ ] Spell a `.` node's continuation — `['|()', args]` and a `|.` step —
       so a method call keeps its receiver and reads back to the same node.
+- [ ] Hoist a shared call as a shared array is: the analysis merges neither,
+      and `f()` written twice calls twice, which `const x = f(); [x, x]`
+      observes through the identity of what `f` returned. `hoistedKind` in
+      [`../module.f.mjs`](../module.f.mjs) is where the kinds a `const`
+      keeps are named.
 - [ ] Proofs: each form round-trips through the parser (`fjsRoundTrip` in
       [`../../proof.f.mjs`](../../proof.f.mjs)), including a call of a call
       and a method call on a computed receiver.

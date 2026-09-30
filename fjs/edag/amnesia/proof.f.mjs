@@ -311,7 +311,7 @@ export const proof = {
             { a: [10, -1] },
         )
     },
-    // `=>` evaluates its *frame* operand and not its body: the value is the
+    // `=>` evaluates its *slots* and not its body: the value is the
     // captured frame paired with the body graph, which is why a closure can
     // outlive the scope that built it. Here that pair is a host function, so
     // these also pin that representation choice — a `typeof`-`'function'`
@@ -579,7 +579,7 @@ export const proof = {
     // `['arg', N]`, `['rest']` and `['frame', i]`, so a captured value has
     // to arrive as data.
     closure: () => {
-        // `['=>', ['[]', [100]], …]` captures `100` at closure-creation time.
+        // `['=>', 0, [100], …]` captures `100` at closure-creation time.
         eq(['()', ['=>', 0, [100],
             ['+', ['.', ['rest'], 0], ['frame', 0]]],
             ['[]', [5]]], 105)
@@ -591,8 +591,8 @@ export const proof = {
             ['=>', 0, [['.', ['rest'], 0]], ['frame', 0]],
         ])
         eq(['()', ['()', outer, ['[]', [7]]], noArgs], 7)
-        // The frame operand is evaluated in the enclosing scope, so it sees
-        // that scope's `['args']` — the one place a `=>` node reaches out.
+        // The slots are evaluated in the enclosing scope, so they see that
+        // scope's `['args']` — the one place a `=>` node reaches out.
         assertEq(vm({ frame: null, args: [11] })(
             ['()', ['=>', 0, [['.', ['args'], 0]], ['frame', 0]],
                 noArgs]),
