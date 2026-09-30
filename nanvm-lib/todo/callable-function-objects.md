@@ -67,8 +67,8 @@ Historical and landed-stage descriptions below retain the original zero-arity
 examples. The compiler and Rust printer now implement the new bindings; the
 remaining native callable work must use the same contract.
 
-- The function node is `['=>', length, frame, body]`, with nonnegative
-  integer length metadata. `frame` belongs to the enclosing scope and
+- The function node is `['=>', length, slots, body]`, with nonnegative
+  integer length metadata. The slots belong to the enclosing scope and
   `body` opens its own invocation scope.
 - `['arg', N]` reads fixed position `N < length`; missing values are
   `undefined`. `['rest']` reads the supplied tail starting at `length`,
@@ -403,8 +403,8 @@ returned and exported functions preserve that declared length too.
 
 **Stage 3 — capturing closures. Landed.**
 Extend the generator to lower the approved function-node shape for a body
-that references `["frame", i]`: build the `frame` operand (an array literal over the
-captured names) as an `Array<A>` in the enclosing scope, then construct the
+that references `["frame", i]`: build the slots (the captured
+names) as an `Array<A>` in the enclosing scope, then construct the
 `Function<A>` value through `A::static_function` with that as its frame.
 The nested body reads slot `i` of `A::frame(self_)` exactly as it reads
 `args[i]`. Proof surface: a two-level

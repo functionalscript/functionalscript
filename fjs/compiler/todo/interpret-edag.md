@@ -83,7 +83,7 @@ reuse the first call's `[1]`. Sharing of a body node remains memoized within eac
 individual invocation.
 
 The interpreter supports the compiler's current forms: `.` property access with no
-continuation, `['=>', length, frame, body]`, the ordinary call `['()', callee, args]`,
+continuation, `['=>', length, slots, body]`, the ordinary call `['()', callee, args]`,
 and the method call — a `.` node whose continuation is `['|()', args]`, which carries
 the `this` binding.
 
@@ -95,7 +95,7 @@ is a separate binding and is invalid in a function body. This is the implemented
 contract in #2237's [parameter plan](../../../spec/todo/3120-parameters.md).
 
 The original null-frame-only Stage 2 restriction is superseded. Creating a closure
-evaluates its `frame` expression in the enclosing invocation; the body reads that
+evaluates its slots in the enclosing invocation; the body reads that
 captured value through `['frame', i]` in its own invocation. The slots are an array
 operand of `=>`, `[]` when nothing is captured. Fixed values
 and rest arrays captured by nested functions use the same frame mechanism.
@@ -180,7 +180,7 @@ hardening TODO after the baseline interpreter exists.
 - [x] Interpret EDAG operations directly; do not generate JavaScript from EDAG and run
       it through the host JavaScript engine.
 - [x] Support `['.', object, property]` property access.
-- [x] Support `['=>', length, frame, body]`, `['()', callee, args]` for an ordinary
+- [x] Support `['=>', length, slots, body]`, `['()', callee, args]` for an ordinary
       call, and `['.', object, property, ['|()', args]]` for a method call —
       the step supplies the `this` binding. Function bodies use fixed `['arg', N]`
       and per-invocation `['rest']`, not module-import `['args']`.

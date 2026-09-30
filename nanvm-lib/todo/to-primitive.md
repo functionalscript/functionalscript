@@ -220,7 +220,7 @@ cases join the corpus with the renderer's text as their expected value.
 
 - **A renderer mostly exists.** The FunctionalScript writer,
   [`fjs/compiler/serializer`](../../fjs/compiler/serializer/module.f.mjs),
-  already writes a function node as text: `['=>', 1, null, ['arg', 0]]` is
+  already writes a function node as text: `['=>', 1, [], ['arg', 0]]` is
   `($a_0,...$a)=>$a_0`, and a shared array in a body becomes a `const`. It
   has two gaps. It has no spelling for operators or calls yet
   ([stage-a-operators](../../fjs/compiler/serializer/todo/stage-a-operators.md),

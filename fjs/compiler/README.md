@@ -141,7 +141,7 @@ roots of the unreached part in source order, an entry another unreached entry
 reaches being anchored through it, an alias being the node it names, and two
 imports of one module being one node. A module the export reaches entirely
 has no comma.
-A function is `['=>', length, frame, body]`, where `length` is nonnegative
+A function is `['=>', length, slots, body]`, where `length` is nonnegative
 integer metadata (negative zero is invalid), not an operand. The body opens
 its own scope: `['arg', N]` reads fixed position `N < length`, and `['rest']`
 reads the invocation's rest array. Repeated rest reads share that array.

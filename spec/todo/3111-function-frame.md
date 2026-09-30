@@ -11,7 +11,7 @@ metadata that it needs to generate correct call site bytecode.
 are VM-internal storage, not a requirement to expose a complete-arguments EDAG
 node. The former zero-arity format used `['args']`; the implemented
 [named-and-rest plan](./3120-parameters.md) replaces it with
-`['=>', length, frame, body]`, constant `['arg', N]` and one per-invocation
+`['=>', length, slots, body]`, constant `['arg', N]` and one per-invocation
 `['rest']` array. Validate canonical integer metadata (positive zero, never
 `-0`) and `0 <= N < length`; missing fixed values are `undefined`, and rest
 is the actual tail beginning at `length`. Preserve rest identity within a

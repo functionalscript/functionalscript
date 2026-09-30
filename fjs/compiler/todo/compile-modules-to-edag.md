@@ -5,7 +5,7 @@
 
 **Function support:** the initial rest-only, non-capturing rollout is historical.
 The compiler now supports fixed/rest parameters and captures; #2237 uses
-`['=>', length, frame, body]`, fixed `['arg', N]` reads and `['rest']`, following
+`['=>', length, slots, body]`, fixed `['arg', N]` reads and `['rest']`, following
 the [parameter plan](../../../spec/todo/3120-parameters.md). The remaining
 module-resolution and integration tasks below do not restore the old function
 tuple or require rejecting supported captures. Default function-text rendering
@@ -257,10 +257,10 @@ array order remains significant: position `i` in `imports` corresponds to import
 parameter `i` in the EDAG.
 
 **Import binding is scope-aware.** At module scope, `['args']` is the import-parameter
-array described above. In `['=>', length, frame, body]`, only `body` opens a new
+array described above. In `['=>', length, slots, body]`, only `body` opens a new
 invocation scope: it reads fixed positions through `['arg', N]` and its tail through
 `['rest']`. Function-local `['args']` is invalid. Module linking must not substitute
-import parameters inside that body. The `frame` operand belongs to the enclosing
+import parameters inside that body. The slots belong to the enclosing
 scope, so linking must still reach import reads used to construct a captured frame.
 Nested frame expressions can instead capture their enclosing function's fixed/rest
 bindings. Import reachability checks use the same ownership; `length` is metadata,
@@ -305,7 +305,7 @@ or interpreter contract. Fixed-only and mixed fixed/rest syntax is implemented i
 The current function operation is:
 
 ```js
-['=>', length, frame, body]
+['=>', length, slots, body]
 ```
 
 `length` is canonical nonnegative integer metadata: zero must be positive zero.
@@ -314,11 +314,11 @@ a missing supplied value is `undefined`. `['rest']` is the one array of argument
 after the fixed prefix for that invocation, including an empty tail. Repeated reads
 reuse that array. Module-import `['args']` remains separate.
 
-For example, these non-capturing functions have a `null` frame:
+For example, these non-capturing functions have no slots:
 
 ```js
-const restOnly = ['=>', 0, null, ['rest']] // (...a) => a
-const fixedAndRest = ['=>', 2, null, ['[]', [['arg', 0], ['arg', 1], ['rest']]]] // (a, b, ...tail) => [a, b, tail]
+const restOnly = ['=>', 0, [], ['rest']] // (...a) => a
+const fixedAndRest = ['=>', 2, [], ['[]', [['arg', 0], ['arg', 1], ['rest']]]] // (a, b, ...tail) => [a, b, tail]
 ```
 
 The slots are an array operand of `=>`. The compiler constructs captured
@@ -625,8 +625,8 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       operand of `exp`s, `['frame', i]` the read of slot `i`, and fixed/rest invocation bindings.
       Metadata and binding validation are owned by
       [`fjs/edag/analysis`](../../edag/analysis/module.f.mjs).
-- [x] Lower both non-capturing functions (`null` frame) and captured values through
-      enclosing-scope frame expressions. The original null-only restriction is
+- [x] Lower both non-capturing functions (no slots) and captured values through
+      enclosing-scope slots. The original null-only restriction is
       superseded by `captures` in [`../edag/proof.f.mjs`](../edag/proof.f.mjs).
 - [x] Parse empty, rest-only, fixed-only and mixed fixed/rest arrows. The original
       rest-only rollout is superseded by #2237; syntax, missing values, captures and

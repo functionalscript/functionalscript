@@ -11,7 +11,7 @@ not expose the original supplied argument count inside a positive-length
 fixed prefix. This file tracks the stronger, alternative requirement below;
 it is not a prerequisite for the fixed/rest implementation.
 
-The current function shape is `['=>', length, frame, body]`, with fixed
+The current function shape is `['=>', length, slots, body]`, with fixed
 `['arg', N]` and per-invocation `['rest']` bindings. The old three-element,
 zero-arity tuple and its function-owned `['args']` are historical. Unresolved
 modules retain their separate ordered import binding under `['args']`;
