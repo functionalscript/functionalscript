@@ -68,7 +68,13 @@ one special case the compiler and the serializer both carry.
 Why not stop at `['frame', N]` and keep the frame an `exp`: it closes the
 gap on the reading side and leaves it open on the producing side, and the
 binding check has nothing to count against unless it looks through the
-`[]` tag as the serializer does today. The two halves are one change.
+`[]` tag as the serializer does today. The two halves are one design,
+landing as two steps of one stack — the read first, the operand on top of
+it — so that each is reviewable on its own. The schema between the two,
+with the read indexed and the operand still an `exp`, is a migration step
+and not an end state: it is where the executors refuse a slot the frame
+lacks at run time, and the second step is what lets the analysis refuse it
+before anything runs.
 
 Old tuples are rejected, not reinterpreted, as the README already says of
 the previous format change: `['frame']` fails the schema once it leaves

@@ -689,6 +689,24 @@ export const proof = {
                 'A::static_function(|self_, _args| { Ok(A::static_function(|self_, _args| { Ok(A::frame(self_)[0].clone()) }, 0, [A::frame(self_)[0].clone()].to_array()).to_any()) }, 0, [Array::default().to_any()].to_array()).to_any()')
         },
         /**
+         * A slot the frame does not have is refused, as the JavaScript
+         * executors refuse it, rather than printed as an index that
+         * panics: a read past the items, of an empty or a `null` frame, or
+         * with an index that is no canonical index. A nested body's reads
+         * are checked against its own frame, not its parent's.
+         */
+        slotPastTheFrame: () => {
+            for (const e of /** @type {readonly Exp[]} */ ([
+                ['=>', 0, ['[]', [1]], ['frame', 1]],
+                ['=>', 0, ['[]', []], ['frame', 0]],
+                ['=>', 0, null, ['frame', 0]],
+                ['=>', 0, ['[]', [1]], ['frame', -0]],
+                ['=>', 0, ['[]', [1]], ['frame', -1]],
+                ['=>', 0, ['[]', [1, 2]], ['=>', 0, ['[]', [['frame', 1]]], ['frame', 1]]],
+            ])) { assertEq(refusalReason(e)[0], 'no Rust for a frame slot the frame does not have') }
+            assertEq(nodeExpr(['=>', 0, ['[]', [1, 2]], ['=>', 0, ['[]', [['frame', 1]]], ['frame', 0]]])[0], 'ok')
+        },
+        /**
          * A frame that is no array literal is an `Any<A>` known to be an
          * array only when the module runs, and one reached from anywhere
          * but its function would be built twice: both refused.
