@@ -128,9 +128,11 @@ information — see [serialization](./serialization.md) and
 
 ### 3.2. Priority 2
 
-1. [ ] [if](./3210-if.md) — the terminating guard, `if (c) { … return v; }`
-   or a `throw`, before the body's own terminator; surface syntax over `?:`,
-   no new EDAG node; with `throw` it is what `assert` needs.
+1. [x] `if` — the terminating guard, `if (c) { … return v; }` or a `throw`,
+   before the body's own terminator; surface syntax over `?:`, no new EDAG
+   node ([functions](../README.md#functions)). The bare consequent, a
+   non-terminating branch with `else`, and the module-level guard are
+   follow-ups.
 2. [ ] [let](./3220-let.md)
 3. [ ] `while`
 4. [ ] Ownership of Mutable Objects (Singletons). Wanted for local mutability

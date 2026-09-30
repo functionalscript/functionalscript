@@ -4,13 +4,15 @@
  *
  * @module
  *
- * @import { Unpacked, Vec } from '../types/bit_vec/types.ts'
+ * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { ObjectIdentifier, Raw, Record, Sequence, SupportedRecord, _Tag } from './types.ts'
- * @import { _ClassPc, _ParsedTag, _Round8 } from './private.ts'
+ * @import { _ClassPc, _ParsedTag } from './private.ts'
  */
 
-import { bitLength, divUp8 } from '../types/bigint/module.f.mjs'
+import { bitLength } from '../types/bigint/module.f.mjs'
 import {
+    bitsIn,
+    byteLength,
     empty,
     isVec,
     length,
@@ -19,6 +21,7 @@ import {
     unpack,
     vec,
     vec8,
+    wholeBytes,
 } from '../types/bit_vec/module.f.mjs'
 import { assert } from '../asserts/module.f.mjs'
 import { identity } from '../types/function/module.f.mjs'
@@ -64,7 +67,7 @@ const parsedTagDecode = v => {
 
 /** @type {(tag: _Tag) => Vec} */
 const tagEncode = tag =>
-    vec(max(divUp8(bitLength(tag)))(1n) << 3n)(tag)
+    wholeBytes(max(bitLength(tag))(1n))(tag)
 
 /** @type {(v: Vec) => readonly[_Tag, Vec]} */
 const tagDecode = v => {
@@ -122,19 +125,13 @@ export const constructedSet = 0x31n      // constructed | set
 
 //
 
-/** @type {(_: Unpacked) => _Round8} */
-const round8 = ({ length, uint }) => {
-    const byteLen = divUp8(length)
-    return { byteLen, v: vec(byteLen << 3n)(uint) }
-}
-
 /** @type {(uint: bigint) => Vec} */
 const lenEncode = uint => {
     if (uint < 0x80n) {
         return vec8(uint)
     }
-    const { byteLen, v } = round8({ length: bitLength(uint), uint })
-    return listToVec([vec8(0x80n | byteLen), v])
+    const v = wholeBytes(bitLength(uint))(uint)
+    return listToVec([vec8(0x80n | byteLength(v)), v])
 }
 
 /**
@@ -146,8 +143,8 @@ const lenEncode = uint => {
 const lenDecode = v => {
     const firstAndRest = pop8(v)
     const [first, rest1] = firstAndRest
-    const [byteLen, rest2] = first < 0x80n ? firstAndRest : pop((first & 0x7Fn) << 3n)(rest1)
-    return [byteLen << 3n, rest2]
+    const [byteLen, rest2] = first < 0x80n ? firstAndRest : pop(bitsIn(first & 0x7Fn))(rest1)
+    return [bitsIn(byteLen), rest2]
 }
 
 // raw
@@ -158,9 +155,8 @@ const lenDecode = v => {
  * @type {(_: Raw) => Vec}
  */
 export const encodeRaw = ([tag, value]) => {
-    const tagVec = tagEncode(tag)
-    const { byteLen, v } = round8(unpack(value))
-    return listToVec([tagVec, lenEncode(byteLen), v])
+    const v = wholeBytes(length(value))(uint(value))
+    return listToVec([tagEncode(tag), lenEncode(byteLength(v)), v])
 }
 
 /**
@@ -200,7 +196,7 @@ export const decodeBoolean = v => uint(v) !== 0n
  */
 export const encodeInteger = uint => {
     const offset = uint < 0n ? 1n : 0n
-    return round8({ length: bitLength(uint + offset) + 1n, uint }).v
+    return wholeBytes(bitLength(uint + offset) + 1n)(uint)
 }
 
 /**

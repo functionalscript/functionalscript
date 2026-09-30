@@ -62,12 +62,32 @@ export type Node =
     | Container
 
 /**
- * The block syntax: zero or more `const` declarations followed by the one
- * statement that ends it, a `return` or a `throw` with its value. The
- * grammar enforces this order; a bare `return`, a bare `throw` and a
- * statement after the last are unsupported.
+ * The block syntax: zero or more statements — `const` declarations and
+ * guards, {@link BlockStatement} — followed by the one statement that ends
+ * it, a `return` or a `throw` with its value. The grammar enforces this
+ * order; a bare `return`, a bare `throw` and a statement after the last are
+ * unsupported.
  */
-export type Block = readonly ['block', readonly [...(readonly ['const', Const])[], readonly ['return' | 'throw', ValueStatement]]]
+export type Block = readonly ['block', readonly [...(readonly BlockStatement[]), readonly ['return' | 'throw', ValueStatement]]]
+
+/** A block's statement before the one that ends it, tagged by its keyword: a `const`, or a guard. */
+export type BlockStatement = readonly ['const', Const] | readonly ['if', If]
+
+/**
+ * A guard, `if (condition) block`: the token it begins with, its condition,
+ * and its block, which ends in `return` or `throw` as every block does. It
+ * records no `;`: a block statement ends at its `}`, and JavaScript inserts
+ * no semicolon after one, so the statement after a guard may share its
+ * line. The statements after the guard, up to and including the body's own
+ * terminator, are what runs when the condition is falsy; the fold makes
+ * the two arms of a conditional of them
+ * ([spec: functions](../../../../spec/README.md#functions)).
+ */
+export type If = {
+    readonly start: DjsTokenWithMetadata
+    readonly condition: Node
+    readonly block: Block
+}
 
 /** An array of its items, or an object of its members, each in the order written. */
 export type Container =
@@ -193,5 +213,6 @@ export type Out =
     | { readonly id: 'importBindings', readonly items: List<ImportBinding> }
     | { readonly id: 'import', readonly statement: Import }
     | { readonly id: 'const', readonly statement: Const }
+    | { readonly id: 'statement', readonly statement: BlockStatement }
     | { readonly id: 'last', readonly consts: List<ModuleConst>, readonly default: ValueStatement | null, readonly thrown: ValueStatement | null }
     | { readonly id: 'module', readonly module: Module }
