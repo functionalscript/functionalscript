@@ -2,8 +2,8 @@
  * @import { Element } from './types.ts'
  */
 
-import { htmlToString, htmlUtf8 } from "./module.f.mjs"
-import { assertEq } from '../../asserts/module.f.mjs'
+import { htmlToString, htmlUtf8, isRawText, isVoidTag, parseElement, rawTextContent } from "./module.f.mjs"
+import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { utf8ToString } from '../../text/module.f.mjs'
 
 export const proof = {
@@ -84,5 +84,22 @@ export const proof = {
             const s = htmlToString(x)
             assertEq(s, '<!DOCTYPE html><script>visible</script>')
         },
-    }
+    },
+    // The helpers the DOM renderer shares, so both read an element alike.
+    parseElement: {
+        bare: () => assertStructurallySame(parseElement(['br']), ['br', {}, []]),
+        attributes: () => assertStructurallySame(
+            parseElement(['a', { href: 'x' }, 'y']), ['a', { href: 'x' }, ['y']]),
+        children: () => assertStructurallySame(
+            parseElement(['p', 'a', ['b']]), ['p', {}, ['a', ['b']]]),
+    },
+    isVoidTag: () => {
+        assertEq(isVoidTag('br'), true)
+        assertEq(isVoidTag('div'), false)
+    },
+    isRawText: () => {
+        assertEq(isRawText('style'), true)
+        assertEq(isRawText('div'), false)
+    },
+    rawTextContent: () => assertEq(rawTextContent(['a', ['b', 'x'], '</c']), 'a<\\/c'),
 }
