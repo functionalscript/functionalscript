@@ -708,13 +708,17 @@ export const proof = {
          * A frame is the third argument of `A::static_function`: its items
          * values of the scope around the function, collected as the
          * `Array<A>` it takes — an empty one `Array::default()`, as `null`
-         * is — and `['frame']` in the body is that array, read through
-         * `self_`, which the closure then names.
+         * is — and `['frame', i]` in the body is slot `i` of that array,
+         * indexed through `self_`, which the closure then names. A slot
+         * read twice is one temporary, as any shared atom is.
          */
         frame: () => {
             assertEq(
-                printed(['=>', 0, ['[]', [1]], ['.', ['frame'], 0]]),
-                'A::static_function(|self_, _args| { Any::dot(A::frame(self_).clone().to_any(), f64_any(0x0000000000000000)).end() }, 0, [f64_any(0x3ff0000000000000)].to_array()).to_any()')
+                printed(['=>', 0, ['[]', [1]], ['frame', 0]]),
+                'A::static_function(|self_, _args| { Ok(A::frame(self_)[0].clone()) }, 0, [f64_any(0x3ff0000000000000)].to_array()).to_any()')
+            assertEq(
+                printed(['=>', 0, ['[]', [['[]', []], ['{}', []]]], ['[]', [['frame', 1], ['frame', 0]]]]),
+                'A::static_function(|self_, _args| { Ok([A::frame(self_)[1].clone(), A::frame(self_)[0].clone()].to_array().to_any()) }, 0, [Array::default().to_any(), Object::default().to_any()].to_array()).to_any()')
             assertEq(
                 printed(['=>', 0, ['[]', []], 1]),
                 'A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default()).to_any()')
@@ -723,25 +727,42 @@ export const proof = {
             /** @type {Exp} */
             const read = ['.', ['{}', []], 'a']
             assertStructurallySame(
-                scoped(['[]', [['=>', 0, ['[]', [read]], ['frame']], read]]),
+                scoped(['[]', [['=>', 0, ['[]', [read]], ['frame', 0]], read]]),
                 [
                     'let c0: Any<A> = Any::dot(Object::default().to_any(), string_any("a")).end()?;',
-                    'let c1: Any<A> = A::static_function(|self_, _args| { Ok(A::frame(self_).clone().to_any()) }, 0, [c0.clone()].to_array()).to_any();',
+                    'let c1: Any<A> = A::static_function(|self_, _args| { Ok(A::frame(self_)[0].clone()) }, 0, [c0.clone()].to_array()).to_any();',
                     'Ok([c1, c0.clone()].to_array().to_any())',
                 ])
         },
         /**
          * A nested function captures through its parent: the inner frame
-         * is built in the outer body, from the outer frame's slot, and each
-         * body reads its own frame alone.
+         * is built in the outer body, from the outer frame's slot — an
+         * atom, written where the inner frame takes it, in the outer
+         * closure's text and outside the inner one's, so its `self_` is the
+         * outer's — and each body reads its own frame alone.
          */
         nestedFrame: () => {
             assertEq(
-                printed(['=>', 0, ['[]', [['[]', []]]], ['=>', 0, ['[]', [['.', ['frame'], 0]]], ['.', ['frame'], 0]]]),
-                'A::static_function(|self_, _args| {\n'
-                + '    let c0: Any<A> = Any::dot(A::frame(self_).clone().to_any(), f64_any(0x0000000000000000)).end()?;\n'
-                + '    Ok(A::static_function(|self_, _args| { Any::dot(A::frame(self_).clone().to_any(), f64_any(0x0000000000000000)).end() }, 0, [c0].to_array()).to_any())\n'
-                + '}, 0, [Array::default().to_any()].to_array()).to_any()')
+                printed(['=>', 0, ['[]', [['[]', []]]], ['=>', 0, ['[]', [['frame', 0]]], ['frame', 0]]]),
+                'A::static_function(|self_, _args| { Ok(A::static_function(|self_, _args| { Ok(A::frame(self_)[0].clone()) }, 0, [A::frame(self_)[0].clone()].to_array()).to_any()) }, 0, [Array::default().to_any()].to_array()).to_any()')
+        },
+        /**
+         * A slot the frame does not have is refused, as the JavaScript
+         * executors refuse it, rather than printed as an index that
+         * panics: a read past the items, of an empty or a `null` frame, or
+         * with an index that is no canonical index. A nested body's reads
+         * are checked against its own frame, not its parent's.
+         */
+        slotPastTheFrame: () => {
+            for (const e of /** @type {readonly Exp[]} */ ([
+                ['=>', 0, ['[]', [1]], ['frame', 1]],
+                ['=>', 0, ['[]', []], ['frame', 0]],
+                ['=>', 0, null, ['frame', 0]],
+                ['=>', 0, ['[]', [1]], ['frame', -0]],
+                ['=>', 0, ['[]', [1]], ['frame', -1]],
+                ['=>', 0, ['[]', [1, 2]], ['=>', 0, ['[]', [['frame', 1]]], ['frame', 1]]],
+            ])) { assertEq(refusalReason(e)[0], 'no Rust for a frame slot the frame does not have') }
+            assertEq(nodeExpr(['=>', 0, ['[]', [1, 2]], ['=>', 0, ['[]', [['frame', 1]]], ['frame', 0]]])[0], 'ok')
         },
         /**
          * A frame that is no array literal is an `Any<A>` known to be an
@@ -784,7 +805,7 @@ export const proof = {
             assertEq(readsArgs(deep), false)
             assertEq(readsArgs(chain(40, ['args'])), true)
             assertEq(readsFrame(deep), false)
-            assertEq(readsFrame(chain(40, ['frame'])), true)
+            assertEq(readsFrame(chain(40, ['frame', 0])), true)
             assertEq(holdsFunction(deep), false)
             assertEq(holdsFunction(chain(40, ['=>', 0, null, 1])), true)
             assertEq(sharedNodesOf(deep).length, 40)

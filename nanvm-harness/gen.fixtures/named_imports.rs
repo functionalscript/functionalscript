@@ -16,10 +16,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c2: Any<A> = [f64_any(0x4014000000000000)].to_array().to_any();
     let c3: Any<A> = [(string_key("a"), c2.clone()), (string_key("default"), c2.clone()), (string_key("z"), c2.clone())].to_object().to_any();
     let c4: Any<A> = Any::dot(c3.clone(), string_any("a")).end()?;
-    let c5: Any<A> = A::static_function(|self_, _args| {
-        let c0: Any<A> = Any::dot(A::frame(self_).clone().to_any(), f64_any(0x0000000000000000)).end()?;
-        Ok(A::static_function(|self_, _args| { Any::dot(A::frame(self_).clone().to_any(), f64_any(0x0000000000000000)).end() }, 0, [c0].to_array()).to_any())
-    }, 0, [c4.clone()].to_array()).to_any();
+    let c5: Any<A> = A::static_function(|self_, _args| { Ok(A::static_function(|self_, _args| { Ok(A::frame(self_)[0].clone()) }, 0, [A::frame(self_)[0].clone()].to_array()).to_any()) }, 0, [c4.clone()].to_array()).to_any();
     let c6: Any<A> = Any::dot(c3.clone(), string_any("default")).end()?;
     let c7: Any<A> = (strict_eq(c6.clone(), c4.clone()))?;
     let c8: Any<A> = Any::dot(c3.clone(), string_any("z")).end()?;
@@ -34,9 +31,8 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c17: Any<A> = [c7, c9, c10, c11, c14, c16].to_array().to_any();
     let c18: Any<A> = Any::dot(c1.clone(), string_any("add")).end()?;
     let c19: Any<A> = A::static_function(|self_, _args| {
-        let c0: Any<A> = Any::dot(A::frame(self_).clone().to_any(), f64_any(0x0000000000000000)).end()?;
-        let c1: Any<A> = [f64_any(0x4034000000000000), f64_any(0x4036000000000000)].to_array().to_any();
-        Any::call(c0, c1)
+        let c0: Any<A> = [f64_any(0x4034000000000000), f64_any(0x4036000000000000)].to_array().to_any();
+        Any::call(A::frame(self_)[0].clone(), c0)
     }, 0, [c18].to_array()).to_any();
     Ok([(string_key("captured"), c5.clone()), (string_key("checks"), c17), (string_key("main"), c19)].to_object().to_any())
 }

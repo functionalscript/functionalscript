@@ -103,7 +103,7 @@ const vOptionPropertyLambda = value => validate(optionPropertyLambda)(value)
 /** Every id `op0` currently accepts — kept as a literal list, not derived
  * from `op0Id`, so deleting one from the schema reddens exactly its own
  * assertion below rather than silently shrinking this list too. */
-const op0Ids = /** @type {const} */ (['undefined', 'args', 'frame', 'rest'])
+const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest'])
 
 /** Same purpose as `op0Ids`, for `op1`. */
 const op1Ids = /** @type {const} */ (['String', 'Number', '!', '~', 'typeof', 'throw'])
@@ -145,6 +145,17 @@ export const proof = {
         assertNoMatch(v(['arg', ['+', 0, 1]]))
         assertNoMatch(v(['arg']))
         assertNoMatch(v(['arg', 0, 1]))
+    },
+    // A frame slot read carries its index as `arg` does; the frame as a
+    // whole is no node, so the bare `['frame']` of the previous format is
+    // refused rather than reinterpreted, as is the indexed read over it.
+    frame: () => {
+        assertOk(v(['frame', 0]))
+        assertOk(v(['=>', 0, ['[]', [['[]', []]]], ['frame', 0]]))
+        assertNoMatch(v(['frame']))
+        assertNoMatch(v(['frame', ['+', 0, 1]]))
+        assertNoMatch(v(['frame', 0, 1]))
+        assertNoMatch(v(['.', ['frame'], 0]))
     },
     primitive: {
         ok: () => {

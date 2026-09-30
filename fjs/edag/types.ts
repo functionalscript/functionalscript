@@ -23,6 +23,7 @@ import type {
     dot,
     exp,
     exps,
+    frame,
     items,
     numberCast,
     object,
@@ -65,6 +66,7 @@ export type Exp =
     | Op0
     | Function
     | Arg
+    | Frame
 
 // primitive
 
@@ -214,7 +216,7 @@ export type Comma = readonly[',', Exps]
 // Op0Ids
 
 export type Op0Id =
-    | 'undefined' | 'args' | 'frame' | 'rest'
+    | 'undefined' | 'args' | 'rest'
 
 export type Op0 = readonly[Op0Id]
 
@@ -223,6 +225,9 @@ export type Function = readonly ['=>', number, Exp, Exp]
 
 /** Constant index, strictly smaller than the owning function's length. */
 export type Arg = readonly ['arg', number]
+
+/** Constant index of a slot of the owning function's frame. */
+export type Frame = readonly ['frame', number]
 
 // Op1Ids
 
@@ -366,8 +371,10 @@ type _OverIsClosed = Assert<And<
 type _ExpAssert = Assert<Check3<Exp, typeof _exp, typeof exp>>
 type _Function = Assert<Check<Function, typeof func>>
 type _Arg = Assert<Check<Arg, typeof arg>>
+type _Frame = Assert<Check<Frame, typeof frame>>
 type _OverFunction = Assert<Equal<Over<Function, 0>, readonly ['=>', number, 0, 0]>>
 type _OverArg = Assert<Equal<Over<Arg, 0>, readonly ['arg', number]>>
+type _OverFrame = Assert<Equal<Over<Frame, 0>, readonly ['frame', number]>>
 type _Primitive = Assert<Check<Primitive, typeof primitive>>
 type _Exps = Assert<Check<Exps, typeof exps>>
 type _Spread = Assert<Check<Spread, typeof spread>>

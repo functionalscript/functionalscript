@@ -63,7 +63,17 @@ export const proof = {
             ['=>',1,null,['arg',-0]], ['=>',1,null,['arg',-1]], ['=>',1,null,['arg',0.5]],
             ['=>',1,null,['arg',Infinity]], ['=>',1,null,['args']],
             ['=>',1,null,['=>',0,['[]',[['arg',0],['rest']]],['arg',0]]],
+            // a frame slot read outside a function, and one whose index is
+            // no canonical index
+            ['frame',0], ['[]',[['frame',0]]],
+            ['=>',0,['[]',[['[]',[]]]],['frame',-0]], ['=>',0,['[]',[['[]',[]]]],['frame',-1]],
+            ['=>',0,['[]',[['[]',[]]]],['frame',0.5]], ['=>',0,['[]',[['[]',[]]]],['frame',Infinity]],
         ])) { assert(bindingError(analysis(e)) !== null, e) }
+        assertEq(bindingError(analysis(['frame',0])), 'invalid frame slot index or scope')
+        // a frame slot read belongs to the function whose body holds it,
+        // nested or not
+        assertEq(bindingError(analysis(['=>',0,['[]',[['[]',[]]]],['frame',0]])), null)
+        assertEq(bindingError(analysis(['=>',0,['[]',[['[]',[]]]],['=>',0,['[]',[['frame',0]]],['frame',0]]])), null)
         // a function's `length` is at most 16, nested or not
         assertEq(bindingError(analysis(['=>',16,null,['arg',15]])), null)
         for (const e of /** @type {readonly Exp[]} */ ([
@@ -195,12 +205,13 @@ export const proof = {
             scope: [3, 3, 3, -1],
             shared: [0, 1],
         })
-        // The frame operand belongs to the enclosing scope.
-        table(['=>', 0, ['[]', [1]], ['.', ['frame'], 0]], {
+        // The frame operand belongs to the enclosing scope; a slot read is
+        // a leaf of the body, one entry however many places read it.
+        table(['=>', 0, ['[]', [1]], ['[]', [['frame', 0], ['frame', 0]]]], {
             root: ['#', 3],
-            nodes: [['[]', [1]], ['frame'], ['.', ['#', 1], 0], ['=>', 0, ['#', 0], ['#', 2]]],
+            nodes: [['[]', [1]], ['frame', 0], ['[]', [['#', 1], ['#', 1]]], ['=>', 0, ['#', 0], ['#', 2]]],
             scope: [-1, 3, 3, -1],
-            shared: [],
+            shared: [1],
         })
         // `[(...a) => "x".length, (...b) => "x".length]` keeps a `.` per body.
         table(['[]', [['=>', 0, null, ['.', 'x', 'length']], ['=>', 0, null, ['.', 'x', 'length']]]], {

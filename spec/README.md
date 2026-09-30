@@ -1557,7 +1557,7 @@ are not supported yet. A newline before `=>` is refused.
   ([DESIGN.md §12](../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
   The frame is the one [function-frame](./todo/3111-function-frame.md) and
   the EDAG's closed-scope model
-  ([`["frame"]`](../todo/edag-stage1-discussion.md)) describe.
+  ([`["frame", N]`](../todo/edag-stage1-discussion.md)) describe.
 
   ```js
   const base = [10];

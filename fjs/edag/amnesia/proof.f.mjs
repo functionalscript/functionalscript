@@ -13,8 +13,11 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { vm } from './module.f.mjs'
 
+/** The one value in `context`'s frame, slot `0`. */
+const captured = { x: 1 }
+
 /** @type {Context} */
-const context = { frame: { x: 1 }, args: [10, 20] }
+const context = { frame: [captured], args: [10, 20] }
 
 /** @type {(e: Exp) => unknown} */
 const ev = e => vm(context)(e)
@@ -93,16 +96,17 @@ export const proof = {
         eq(false, false)
         eq(1n, 1n)
     },
-    // `op0` — the three handlers that read `context` instead of operands.
+    // `op0` — the handlers that read `context` instead of operands, and
+    // the frame slot read, which reads it by its index.
     // `undefined` is a node, not the bare value (see `Primitive`).
     op0: () => {
         eq(undef, undefined)
-        eq(['frame'], context.frame)
+        eq(['frame', 0], captured)
         eq(['args'], context.args)
         // ... and `context` is threaded, not defaulted: another one is seen.
         /** @type {Context} */
-        const other = { frame: 'f', args: [] }
-        assertEq(vm(other)(['frame']), 'f')
+        const other = { frame: ['f'], args: [] }
+        assertEq(vm(other)(['frame', 0]), 'f')
         assertStructurallySame(vm(other)(['args']), [])
     },
     // `o1` — one evaluated operand.
@@ -301,7 +305,7 @@ export const proof = {
     nested: () => {
         eq(['+', ['+', 1, 2], 3], 6)
         eq(['.', ['args'], 1], 20)
-        eq(['.', ['frame'], 'x'], 1)
+        eq(['.', ['frame', 0], 'x'], 1)
         same(
             ['{}', [[':', 'a', ['[]', [['.', ['args'], 0], ['-', 1]]]]]],
             { a: [10, -1] },
@@ -572,24 +576,25 @@ export const proof = {
         },
     },
     // The frame is the only channel outward: a body's leaves are constants,
-    // `['args']` and `['frame']`, so a captured value has to arrive as data.
+    // `['arg', N]`, `['rest']` and `['frame', i]`, so a captured value has
+    // to arrive as data.
     closure: () => {
         // `['=>', ['[]', [100]], …]` captures `100` at closure-creation time.
         eq(['()', ['=>', 0, ['[]', [100]],
-            ['+', ['.', ['rest'], 0], ['.', ['frame'], 0]]],
+            ['+', ['.', ['rest'], 0], ['frame', 0]]],
             ['[]', [5]]], 105)
         // Nested: the outer call's argument is copied into the inner frame,
-        // and the inner body reads it as `['frame']` — the same node
+        // and the inner body reads it as `['frame', 0]` — the same node
         // `['.', ['args'], 0]` could not have been shared across the `=>`.
         const outer = /** @type {Exp} */ ([
             '=>', 0, ['[]', []],
-            ['=>', 0, ['[]', [['.', ['rest'], 0]]], ['.', ['frame'], 0]],
+            ['=>', 0, ['[]', [['.', ['rest'], 0]]], ['frame', 0]],
         ])
         eq(['()', ['()', outer, ['[]', [7]]], noArgs], 7)
         // The frame operand is evaluated in the enclosing scope, so it sees
         // that scope's `['args']` — the one place a `=>` node reaches out.
         assertEq(vm({ frame: null, args: [11] })(
-            ['()', ['=>', 0, ['[]', [['.', ['args'], 0]]], ['.', ['frame'], 0]],
+            ['()', ['=>', 0, ['[]', [['.', ['args'], 0]]], ['frame', 0]],
                 noArgs]),
             11)
     },
@@ -607,7 +612,7 @@ export const proof = {
         const add = /** @type {Exp} */ ([
             '=>', 0, ['[]', []],
             ['=>', 0, ['[]', [['.', ['rest'], 0]]],
-                ['+', ['.', ['frame'], 0], ['.', ['rest'], 0]]],
+                ['+', ['frame', 0], ['.', ['rest'], 0]]],
         ])
         eq(['()', ['()', add, ['[]', [2]]], ['[]', [3]]], 5)
     },
