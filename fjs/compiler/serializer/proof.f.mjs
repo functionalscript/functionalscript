@@ -75,8 +75,12 @@ const copy = e => /** @type {Exp} */ (deep(e))
  * One graph per shape over the graphs `p`: each container, an access with
  * each key, a function body, a node shared twice, each side of a root
  * comma, a root comma whose two sides are one node, a root comma with one
- * operand, the same graph twice over in two scopes, and a function that
- * captures the graph beside it.
+ * operand, the same graph twice over in two scopes, a function that
+ * captures the graph beside it, and the lazy operators: the graph as both
+ * operands of `&&`, as the lazy operand of `??`, shared under one arm of a
+ * conditional, as the condition and both arms of one, anchored by a comma
+ * under the lazy operand of `||`, under one access both arms of a
+ * conditional read, and once in an array of each arm's own.
  *
  * That last one is a copy and not the node again: two nodes, one in a body
  * and one outside it, which is a graph the compiler emits — and which the
@@ -102,6 +106,13 @@ const shapes = p => [
     ...p.map(x => /** @type {Exp} */([',', [x]])),
     ...p.map(x => /** @type {Exp} */(['[]', [x, ['=>', 0, null, copy(x)]]])),
     ...p.map(x => /** @type {Exp} */(['[]', [x, ['=>', 0, ['[]', [x]], ['frame', 0]]]])),
+    ...p.map(x => /** @type {Exp} */(['&&', x, x])),
+    ...p.map(x => /** @type {Exp} */(['??', ['[]', []], x])),
+    ...p.map(x => /** @type {Exp} */(['?:', true, ['[]', [x, x]], 2])),
+    ...p.map(x => /** @type {Exp} */(['?:', x, ['-', ['[]', [x]]], x])),
+    ...p.map(x => /** @type {Exp} */(['||', 1, [',', [x, 2]]])),
+    ...p.map(x => /** @type {Exp} */(['?:', true, ['.', x, 'k'], ['.', x, 'k']])),
+    ...p.map(x => /** @type {Exp} */(['?:', true, ['[]', [x]], ['[]', [x]]])),
 ]
 
 /**
@@ -505,12 +516,10 @@ export const proof = {
         // the module writer takes a throwing module to the same text
         assertEq(unwrap(tryModuleStringify(['throw', 'x'])), 'throw "x";')
         assertEq(unwrap(tryModuleStringify([',', [['[]', []], ['throw', 1]]])), 'const $0=[];throw 1;')
-        // nested: the call of a function that throws, read back as one
-        const text = unwrap(tryStringify(['[]', [['throw', 1]]]))
-        assertEq(text, 'export default [(()=>{throw 1;})()];')
-        const { edag } = unresolved(unwrap(parse(path)(text)))
-        assertStructurallySame(_defaultExport(edag), ['[]', [['()', ['=>', 0, null, ['throw', 1]], ['[]', []]]]])
-        assertEq(unwrap(tryStringify(['=>', 0, null, ['[]', [['throw', ['rest']]]]])), 'export default (...$a)=>[(()=>{throw $a;})()];')
+        // nested: the call of a function that throws, which the front end
+        // inlines, so it reads back as the node it was written from
+        writes(['[]', [['throw', 1]]], 'export default [(()=>{throw 1;})()];')
+        writes(['=>', 0, null, ['[]', [['throw', ['rest']]]]], 'export default (...$a)=>[(()=>{throw $a;})()];')
     },
     throw: {
         // the call a nested `throw` is written as fails where the node does
@@ -523,6 +532,10 @@ export const proof = {
         // A node kind this writer has no spelling for, which is how the
         // feature that adds one is made to add its spelling here too.
         refuses(['+', 1], 'a + node')
+        // a Stage A node under a lazy operand is walked for what it holds
+        // before it is refused for what it is
+        refuses(['?:', true, ['~', ['[]', []]], 2], 'a ~ node')
+        refuses(['?:', true, ['+', ['[]', []], 1], 2], 'a + node')
         refuses(['[]', [['...', ['[]', []]]]], 'a spread')
         refuses(['{}', [['...', ['[]', []]]]], 'a spread')
         refuses(['=>', 0, null, ['.', ['rest'], 'b', ['|()', ['rest']]]], 'a chain step')
@@ -581,6 +594,147 @@ export const proof = {
                 return [',', [o, o]]
             })(),
             'an anchor that repeats a hoisted value')
+        // and one that is a name the scope binds without a `const`: the
+        // front end reads `const $a0=$a;` as an alias, no anchor at all
+        refuses(['=>', 0, null, [',', [['rest'], 1]]], 'an anchor that is a name')
+        refuses(['=>', 1, null, [',', [['arg', 0], 1]]], 'an anchor that is a name')
+        refuses(['[]', [['[]', []], ['=>', 0, ['[]', [['[]', []]]], [',', [['.', ['frame'], 0], 1]]]]], 'an anchor that is a name')
+    },
+    // The lazy operators and the conditional. Each operand of `&&`, `||`
+    // and `??` after the first, and each arm of `?:`, is a block root: a
+    // value shared under it alone is hoisted in a block of its own, an
+    // IIFE, which is the call the front end inlines, and so is a comma
+    // there — its anchors the block's unreferenced `const`s. A value the
+    // scope reaches eagerly as well is the scope's `const`, as ever, and
+    // one a lazy operand reaches from outside the operand that would hoist
+    // it has no text that reads back as one node.
+    lazy: {
+        spelling: () => {
+            /** @type {(b: Exp) => Exp} */
+            const fn = b => ['=>', 0, null, b]
+            /** @type {Exp} */
+            const r0 = ['.', ['rest'], 0]
+            /** @type {Exp} */
+            const r1 = ['.', ['rest'], 1]
+            /** @type {Exp} */
+            const r2 = ['.', ['rest'], 2]
+            writes(fn(['&&', r0, r1]), 'export default (...$a)=>$a[0]&&$a[1];')
+            writes(fn(['||', r0, r1]), 'export default (...$a)=>$a[0]||$a[1];')
+            writes(fn(['??', r0, r1]), 'export default (...$a)=>$a[0]??$a[1];')
+            writes(fn(['?:', r0, r1, r2]), 'export default (...$a)=>$a[0]?$a[1]:$a[2];')
+            // precedence: a left operand as loose as the operator stands
+            // bare, a right one that loose takes parentheses, since bare it
+            // would read as the left operand's; `??` never mixes bare with
+            // `&&` or `||`; a conditional is looser than them all, and its
+            // arms take anything bare, a conditional and a function included
+            writes(fn(['&&', ['&&', r0, r1], r2]), 'export default (...$a)=>$a[0]&&$a[1]&&$a[2];')
+            writes(fn(['&&', r0, ['&&', r1, r2]]), 'export default (...$a)=>$a[0]&&($a[1]&&$a[2]);')
+            writes(fn(['||', ['&&', r0, r1], r2]), 'export default (...$a)=>$a[0]&&$a[1]||$a[2];')
+            writes(fn(['&&', ['||', r0, r1], r2]), 'export default (...$a)=>($a[0]||$a[1])&&$a[2];')
+            writes(fn(['??', r0, ['||', r1, r2]]), 'export default (...$a)=>$a[0]??($a[1]||$a[2]);')
+            writes(fn(['||', ['??', r0, r1], r2]), 'export default (...$a)=>($a[0]??$a[1])||$a[2];')
+            writes(fn(['?:', ['?:', r0, 1, 2], 3, 4]), 'export default (...$a)=>($a[0]?1:2)?3:4;')
+            writes(fn(['?:', r0, ['?:', r1, 1, 2], 3]), 'export default (...$a)=>$a[0]?$a[1]?1:2:3;')
+            writes(fn(['?:', r0, 1, ['?:', r1, 2, 3]]), 'export default (...$a)=>$a[0]?1:$a[1]?2:3;')
+            writes(fn(['&&', ['?:', r0, 1, 2], r1]), 'export default (...$a)=>($a[0]?1:2)&&$a[1];')
+            writes(fn(['?:', r0, 1, ['&&', r1, r2]]), 'export default (...$a)=>$a[0]?1:$a[1]&&$a[2];')
+            // a function is no operand bare, an arm excepted
+            writes(fn(['&&', r0, ['=>', 0, null, 1]]), 'export default (...$a)=>$a[0]&&((...$b)=>1);')
+            writes(fn(['&&', ['=>', 0, null, 1], r0]), 'export default (...$a)=>((...$b)=>1)&&$a[0];')
+            writes(fn(['?:', ['=>', 0, null, 1], 1, 2]), 'export default (...$a)=>((...$b)=>1)?1:2;')
+            writes(fn(['?:', r0, ['=>', 0, null, 1], 2]), 'export default (...$a)=>$a[0]?(...$b)=>1:2;')
+            writes(fn(['?:', r0, 1, ['=>', 0, null, 1]]), 'export default (...$a)=>$a[0]?1:(...$b)=>1;')
+            // an operator binds looser than a step and than the prefix
+            writes(fn(['.', ['&&', r0, r1], 'x']), 'export default (...$a)=>($a[0]&&$a[1]).x;')
+            writes(fn(['-', ['&&', r0, r1]]), 'export default (...$a)=>-($a[0]&&$a[1]);')
+            writes(fn(['&&', ['-', r0], r1]), 'export default (...$a)=>-$a[0]&&$a[1];')
+            // a body whose text opens with `{` is a block, whatever follows
+            writes(fn(['?:', ['.', ['{}', []], 'x'], 1, 2]), 'export default (...$a)=>{return {}.x?1:2;};')
+            writes(fn(['?:', r0, ['.', ['{}', []], 'x'], 2]), 'export default (...$a)=>$a[0]?{}.x:2;')
+        },
+        blocks: () => {
+            /** @type {(b: Exp) => Exp} */
+            const fn = b => ['=>', 0, null, b]
+            /** @type {Exp} */
+            const r0 = ['.', ['rest'], 0]
+            /** @type {Exp} */
+            const r1 = ['.', ['rest'], 1]
+            /** @type {Exp} */
+            const c = ['[]', [1]]
+            // a value shared under one arm alone is the arm's block's
+            writes(fn(['?:', r0, ['[]', [c, c]], 4]), 'export default (...$a)=>$a[0]?(()=>{const $b0=[1];return [$b0,$b0];})():4;')
+            writes(['?:', true, ['[]', [c, c]], 4], 'export default true?(()=>{const $a0=[1];return [$a0,$a0];})():4;')
+            // a comma under a lazy operand is a block too, its anchors the
+            // block's own `const`s, unreferenced
+            writes(fn(['&&', r0, [',', [['.', null, 'x'], 1]]]), 'export default (...$a)=>$a[0]&&(()=>{const $b0=null.x;return 1;})();')
+            writes(fn(['&&', r0, [',', [['.', null, 'x'], ['[]', [c, c]]]]]), 'export default (...$a)=>$a[0]&&(()=>{const $b0=null.x;const $b1=[1];return [$b1,$b1];})();')
+            // the block reads the names around it: the function's
+            // arguments and parameters, and the scopes' `const`s
+            writes(fn(['?:', r0, ['[]', [c, c, ['rest']]], 1]), 'export default (...$a)=>$a[0]?(()=>{const $b0=[1];return [$b0,$b0,$a];})():1;')
+            writes(['=>', 1, null, ['?:', ['arg', 0], ['[]', [c, c, ['arg', 0]]], 1]], 'export default ($a_0,...$a)=>$a_0?(()=>{const $b0=[1];return [$b0,$b0,$a_0];})():1;')
+            writes(fn([',', [['[]', []], ['?:', r0, ['[]', [c, c]], 1]]]), 'export default (...$a)=>{const $a0=[];return $a[0]?(()=>{const $b0=[1];return [$b0,$b0];})():1;};')
+            // a function in the block captures the block's `const`, and is
+            // one depth further in
+            writes(['?:', true, ['[]', [c, ['=>', 0, ['[]', [c]], ['.', ['frame'], 0]]]], 1], 'export default true?(()=>{const $a0=[1];return [$a0,(...$b)=>$a0];})():1;')
+            // blocks nest as lazy operands do
+            /** @type {Exp} */
+            const d = ['[]', [2]]
+            writes(fn(['?:', r0, ['[]', [c, c, ['&&', r1, ['[]', [d, d]]]]], 4]), 'export default (...$a)=>$a[0]?(()=>{const $b0=[1];return [$b0,$b0,$a[1]&&(()=>{const $c0=[2];return [$c0,$c0];})()];})():4;')
+            // a value the scope reaches eagerly as well — in the same
+            // statement, or a later one — is the scope's `const`
+            writes(fn(['[]', [c, ['?:', r0, ['[]', [c, c]], 1]]]), 'export default (...$a)=>{const $a0=[1];return [$a0,$a[0]?[$a0,$a0]:1];};')
+            writes([',', [['[]', [['&&', 1, c]]], ['[]', [c, 2]]]], 'const $0=[1];const $1=[1&&$0];export default [$0,2];')
+            // an anchor that is a value the scope reaches only lazily is
+            // its `const` and nothing more: read back, the `const` is
+            // anchored for the same reason
+            writes([',', [c, ['[]', [['&&', 1, c], ['&&', 2, c]]]]], 'const $0=[1];export default [1&&$0,2&&$0];')
+            writes([',', [['[]', [2]], c, ['[]', [['&&', 1, ['[]', [c, c]]], ['&&', 2, ['[]', [2]]]]]]], 'const $0=[2];const $1=[1];export default [1&&[$1,$1],2&&[2]];')
+            // a shared node that holds a value minting identity through a
+            // lazy edge takes a `const` as the value would: written twice
+            // it would mint twice. One reached eagerly by the scope is the
+            // scope's; one holding only values is written in place, as an
+            // access is, and merges again when read
+            /** @type {Exp} */
+            const y = ['?:', r0, ['[]', []], 1]
+            writes(fn(['[]', [y, y]]), 'export default (...$a)=>{const $a0=$a[0]?[]:1;return [$a0,$a0];};')
+            /** @type {Exp} */
+            const w = ['.', ['?:', r0, ['[]', []], 1], 'k']
+            writes(fn(['[]', [w, w]]), 'export default (...$a)=>{const $a0=$a[0]?[]:1;const $a1=$a0.k;return [$a1,$a1];};')
+            /** @type {Exp} */
+            const n = ['-', ['?:', r0, ['[]', []], 1]]
+            writes(fn(['[]', [n, n]]), 'export default (...$a)=>{const $a0=$a[0]?[]:1;const $a1=-$a0;return [$a1,$a1];};')
+            /** @type {Exp} */
+            const z = ['??', r0, r1]
+            writes(fn(['[]', [z, z]]), 'export default (...$a)=>[$a[0]??$a[1],$a[0]??$a[1]];')
+            /** @type {Exp} */
+            const m = ['?:', r0, c, 1]
+            writes(fn([',', [c, ['[]', [m, m]]]]), 'export default (...$a)=>{const $a0=[1];const $a1=$a[0]?$a0:1;return [$a1,$a1];};')
+            // a value nothing outside its lazy operand reaches, but two
+            // lazy operands do, or one that is the operand itself, has no
+            // text that reads back as one node
+            refuses(['?:', true, c, c], 'a shared node reached from outside the lazy operand that establishes it')
+            refuses(['[]', [['&&', 1, c], ['&&', 2, c]]], 'a shared node reached from outside the lazy operand that establishes it')
+            refuses(['?:', true, ['[]', [c, c]], c], 'a shared node reached from outside the lazy operand that establishes it')
+            refuses(fn(['?:', r0, ['[]', [['&&', 1, c], ['&&', 2, c]]], 1]), 'a shared node reached from outside the lazy operand that establishes it')
+            // and so has an operand two edges reach that holds one: the
+            // access is written at each and merges again when read, but
+            // the array under it would be built twice
+            /** @type {Exp} */
+            const length = ['.', c, 'length']
+            refuses(['?:', true, length, length], 'a shared node reached from outside the lazy operand that establishes it')
+            refuses(['[]', [['&&', 1, length], ['&&', 2, length]]], 'a shared node reached from outside the lazy operand that establishes it')
+            // and so has one each of two lazy operands reaches once, held
+            // in place — under a container of the operand's own, or under
+            // an access two containers hold
+            refuses(['[]', [['&&', 1, ['[]', [c]]], ['&&', 2, ['[]', [c]]]]], 'a shared node reached from outside the lazy operand that establishes it')
+            refuses(['?:', true, ['[]', [c]], ['[]', [c]]], 'a shared node reached from outside the lazy operand that establishes it')
+            refuses(['[]', [['&&', 1, ['[]', [length]]], ['&&', 2, ['[]', [length]]]]], 'a shared node reached from outside the lazy operand that establishes it')
+            // where one holding values alone is written at each, and reads
+            // back merged
+            writes(fn(['?:', r0, r1, r1]), 'export default (...$a)=>$a[0]?$a[1]:$a[1];')
+            // and one the scope reaches eagerly as well is the scope's
+            writes([',', [c, ['?:', true, length, length]]], 'const $0=[1];export default true?$0.length:$0.length;')
+        },
     },
     // The writer's one law, over graphs nobody chose: a graph is refused,
     // or its text is read back to the same table. Every case above is a
@@ -588,13 +742,13 @@ export const proof = {
     // is answered with a plausible wrong value
     // ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)),
     // which is what a writer whose contract is the round trip may not do,
-    // and which four hand-picked accept sets in a row did not catch.
+    // and which four hand-picked accept sets in a row did not catch — and
+    // which caught, when the lazy operators landed, a shared anchor the
+    // export reached eagerly, whose `const` read back as no anchor at all.
     //
-    // The graphs are every shape over every shape over the atoms: 2730 of
-    // them, of which 1447 have a text and the rest are refused by name.
-    // The capturing shape, a closure, is 320 of the graphs and 148 of the
-    // texts; before a body could hold a `const` the writer spelled 47 fewer
-    // of the rest, which is what a body's `const`s are worth to it.
+    // The graphs are every shape over every shape over the atoms, some
+    // thousands of them, of which about half have a text and the rest are
+    // refused by name.
     law: () => {
         generated.forEach(e => {
             const written = tryStringify(e)

@@ -576,11 +576,11 @@ module boundary, from which a default import selects the document.
   names gain a `$`, `$$0`, when an export's name begins with `$`.
 
   The writer does not spell most of what computes yet: it writes a property
-  access and unary `-`, and refuses a call and every other operator by the
-  name of the node it meets — `a () node`, `a chain step`, `a + node`,
-  `a binary - node`, `a ~ node`, `a && node`, `a ?: node` and the like —
-  wherever the node stands, a function body or a `const` nothing reads
-  included. The binary operators and `~` are
+  access, unary `-`, the lazy operators and the conditional, and refuses a
+  call and every other operator by the name of the node it meets — `a ()
+  node`, `a chain step`, `a + node`, `a binary - node`, `a ~ node` and the
+  like — wherever the node stands, a function body or a `const` nothing
+  reads included. The binary operators and `~` are
   [`stage-a-operators.md`](../fjs/compiler/serializer/todo/stage-a-operators.md)'s
   to add. A module holding a call or such an operator compiles to
   `.edag.data.js` and `.rs` alone.
@@ -1194,13 +1194,16 @@ a primitive and refuses one of an array or an object ([numbers](#numbers)),
 and refuses every other operator the same way it refuses a function or a
 call (`an operator has no value`), until the EDAG interpreter answers for
 them there ([`interpret-edag.md`](../fjs/compiler/todo/interpret-edag.md)). The
-FunctionalScript writer, the `.js` output, spells unary `-` alone so far and
-refuses the rest by the name of the node it meets — `a + node`,
-`a binary - node`, `a ?: node` — until it can spell their precedence
-([`stage-a-operators.md`](../fjs/compiler/serializer/todo/stage-a-operators.md)
-tracks Stage A's). `.json`, `.data.js` and `.js` refuse such an operator
-wherever it stands, an unused `const` included, so a module holding any
-operator but unary `-` compiles to `.edag.data.js` and `.rs` alone.
+FunctionalScript writer, the `.js` output, spells unary `-`, the lazy
+operators and the conditional — with the parentheses their precedence asks
+for, `??` never bare beside `&&` or `||`, and a value shared under one lazy
+operand alone in a block of the operand's own
+([functions](#functions)) — and refuses Stage A's by the name of the node it
+meets — `a + node`, `a binary - node` — until it can spell their precedence
+([`stage-a-operators.md`](../fjs/compiler/serializer/todo/stage-a-operators.md)).
+`.json` and `.data.js` refuse every operator but unary `-` wherever it
+stands, an unused `const` included, and `.js` a Stage A one, so a module
+holding a Stage A operator compiles to `.edag.data.js` and `.rs` alone.
 
 ## Property Access
 
@@ -1580,6 +1583,35 @@ are not supported yet. A newline before `=>` is refused.
   function, the one node `['=>', 0, null, 1]` — though each arrow written is
   a function of its own (below) — and a body `const` may take the name a
   parameter would have taken, there being no parameter to collide with.
+- A parameterless function **called where it is written**, with no
+  arguments, denotes its body where the call stands:
+  `a ? (() => { const x = f(); return [x, x]; })() : 4` is the idiom for a
+  `const` inside an expression, an arm of a conditional say, where no
+  statement can stand, and it lowers to the arm holding `[x, x]` with `x`
+  one shared node, no function and no call. Nothing observes the function:
+  it is called once and compared with nothing, so it mints no identity the
+  program could see, and its body evaluates exactly once, where the call
+  stands — a slot of its frame is the enclosing scope's own node, so what
+  the body shares stays shared and nothing else is. A body `const` the
+  returned value does not reach is evaluated where the call stands, as in
+  JavaScript; in the graph it is anchored at the nearest position that
+  opens a block, the scope's root or a lazy operand
+  ([operators](#operators)), which is where JavaScript's own semantics can
+  tell no difference under the [failure contract](#failure-is-one-outcome).
+  `(() => [1, 2])()` is `[1, 2]`, and a module holding either hashes the
+  same. A capture a body names only through an unused alias, `const x =
+  c;` and nothing more, is no slot of its frame, in a body or in a call
+  inlined into one: the alias is dropped, so nothing reads it, and the
+  scope's `const` is anchored as one nothing reaches. A call with an
+  argument, `(() => 1)(null.x)`, has an argument to evaluate; a function
+  with a parameter binds a name; and a body reading its own rest array
+  names what the enclosing scope does not hold — each stays a call. The FunctionalScript writer uses the same idiom in reverse:
+  a value shared under one lazy operand alone, which no `const` of the
+  scope could hold without evaluating it whatever the operator decides, is
+  written in a block opened at the operand,
+  `a ? (() => { const $b0 = [1]; return [$b0, $b0]; })() : 4`, which reads
+  back as the operand. Round-tripping through that writer keeps the graph,
+  not the text: the function written in the source is gone from both.
 - The body is an expression or a block, and `value` and `{ return value; }`
   denote the same function. As an expression the body is any value except a
   bare object literal: after `=>` JavaScript reads `{` as a block, never as
@@ -1631,12 +1663,10 @@ are not supported yet. A newline before `=>` is refused.
   from, and anywhere else — wherever a graph puts one, and an arm of `?:`
   once `if` lowers there — as the call of a function that throws,
   `(() => { throw v; })()`: JavaScript's one spelling of an expression that
-  fails, and FunctionalScript itself, so the text reads back and fails at
-  the same point — as the call of a function that throws, which is what
-  the text says, not as the node it was written from, so a second pass of
-  the `.js` writer over it waits on that writer's spelling for a call, the
-  gap [output](#output) records, not on anything of `throw`'s. That is the
-  writer's spelling, not a second source form:
+  fails, and FunctionalScript itself — the call of a parameterless function
+  written where it is called, which the front end inlines (above), so the
+  text reads back as the node it was written from and fails at the same
+  point. That is the writer's spelling, not a second source form:
   `throw` is a statement only, and an expression that must fail goes
   through a function that throws, as in JavaScript. The EDAG output carries
   the node, and the Rust output fails as the VM fails
@@ -1735,9 +1765,9 @@ are not supported yet. A newline before `=>` is refused.
   a module with a call in it compiles to `.edag.data.js` and `.rs` alone.
 - A function is written by the graph outputs, the FunctionalScript, EDAG
   and Rust ones ([output](#output)), and by the FunctionalScript one only
-  while its body holds nothing that writer cannot spell yet: an operator in
-  it other than unary `-` is refused by the name of its node, `a + node` or
-  `a ?: node`, as a call is ([operators](#operators)). `fjs compile` refuses
+  while its body holds nothing that writer cannot spell yet: a Stage A
+  operator in it is refused by the name of its node, `a + node`, as a call
+  is ([operators](#operators)). `fjs compile` refuses
   to write a module holding one as DataJS or as JSON
   (`a function has no value`), since a value has no function in it and the
   evaluator computing one has no function value to compute with
