@@ -51,10 +51,16 @@ const g = () => f() * 2
 ```
 
 where `$Bxo0DuQ…` is the hash of `g` — the content identity of its EDAG and
-captured frame, the same hash the CAVM keys `g` by. A function whose
-`length` is two reads `(a, b, ...rest) => $…(a, b, ...rest)`: the fixed
-parameters follow `length`, so the text's arity agrees with the function's,
-and the rest parameter forwards whatever else a caller passes.
+captured frame, the same hash the CAVM keys `g` by. The parameter list is
+the one the
+[source serialization boundary](./3120-parameters.md#source-serialization-boundary)
+already fixes for a function of length `L`: `(a0, ..., aL_1, ...rest)`,
+generated from `L` alone, `(...rest)` for zero arity. So a function whose
+`length` is two reads `(a0, a1, ...rest) => $…(a0, a1, ...rest)`. The text's
+arity agrees with the function's, the rest parameter forwards whatever else
+a caller passes, and the spelling is deterministic — the same names for the
+same `L` on every implementation — which the canonical-text promise below
+needs and a freely chosen sample such as `(a, b, ...rest)` would break.
 
 The text is a function of the function's identity and nothing else, which is
 what makes it right:
