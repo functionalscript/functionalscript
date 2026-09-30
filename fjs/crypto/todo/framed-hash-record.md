@@ -136,5 +136,5 @@ block length stated once, in the init, and nowhere else.
 
 - [sha1.md](./sha1.md) — asked for "the shape of `sha2`" when `sha1` was
   written; this issue shares the constructor of that shape.
-- [../../sul/todo/186-sul-id-reuse-sha2-fromv8.md](../../sul/todo/186-sul-id-reuse-sha2-fromv8.md)
-  — a third would-be consumer of `fromWords`.
+- [`fjs/sul/id`](../../sul/id/module.f.mjs) — `hashMerge` packs its
+  hash through `base32.fromV8`, a third consumer of `fromWords`.

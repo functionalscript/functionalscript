@@ -79,7 +79,7 @@ closely related group per PR.
 
 ### Tasks
 
-- [ ] `fjs/protocol/mcp`: the `tools/list` and `tools/call` responses.
+- [x] `fjs/protocol/mcp`: the `tools/list` and `tools/call` responses.
 - [ ] `fjs/website`: `scan`'s per-file step.
 - [ ] `fjs/compiler/edag`: `linkModule`.
 - [ ] `tsc` clean; `fjs t` passes after each PR.

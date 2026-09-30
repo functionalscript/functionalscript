@@ -13,7 +13,7 @@ import { tryParse } from '../../media/markdown/module.f.mjs'
 import { demo } from './demo.f.mjs'
 import { utf8ToString } from '../../text/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
-import { _group, _linked, _reference, descending, isVersion, entryNode, indexPage, linked, numbers, releaseHref, releasePage, releases, spanNode } from './module.f.mjs'
+import { _group, _linked, _reference, descending, isVersion, entryNode, indexPage, linked, releaseHref, releasePage, releases, spanNode } from './module.f.mjs'
 
 const pull = /** @type {(n: string) => string} */(n => `${repository}/pull/${n}`)
 
@@ -113,12 +113,14 @@ const core = {
         fourParts: () => assertEq(isVersion('0.51.0.1'), false),
         emptyPart: () => assertEq(isVersion('0..1'), false),
         empty: () => assertEq(isVersion(''), false),
+        // A part past `Number.MAX_SAFE_INTEGER` rounds, so two releases could
+        // compare equal; `descending` would refuse it, and so does this.
+        unsafe: () => assertEq(isVersion('9007199254740993.0.0'), false),
         // The one that motivated the check: it would have passed a test that
         // only asked whether the name begins with a digit.
         beginsWithADigit: () => assertEq(isVersion('0.51.O'), false),
     },
     order: {
-        numbers: () => assertStructurallySame(numbers('0.11.10'), [0, 11, 10]),
         descending: () => assertStructurallySame(
             descending(['0.10.0', '0.11.2', '0.1.608', '0.11.10', '0.2.0']),
             ['0.11.10', '0.11.2', '0.10.0', '0.2.0', '0.1.608']),
