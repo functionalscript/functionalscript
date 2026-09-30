@@ -126,13 +126,11 @@ export const hashId = hash =>
 
 const hash2 = base32.compress(iv)
 
-const vecX20 = vec(0x20n)
-
-const { concat, listToVec } = msb
+const { concat } = msb
 
 /** @type {(a: Id, b: Id) => Id} */
 const hashMerge = (a, b) =>
-    hashId(uint(listToVec(hash2((asBase(a) << 0x100n) | asBase(b)).map(vecX20))))
+    hashId(base32.fromV8(hash2((asBase(a) << 0x100n) | asBase(b))))
 
 /** @type {(a: Id, b: Id) => Id} */
 export const compress = (a, b) => {

@@ -33,6 +33,7 @@ import { definedEntries } from '../../types/object/module.f.mjs'
 import { byteLength, bytesIn, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, u8ListMsb } from '../../types/bit_vec/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../list/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
+import { cmp as versionCmp } from '../../types/version/module.f.mjs'
 import { do_, errorMessage, ioError, toIoError } from '../module.f.mjs'
 import {
     all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write,
@@ -1085,21 +1086,24 @@ export const exitStep = e =>
         return code
     })
 
-/** @type {(version: string) => readonly number[]} */
-const versionParts = version =>
-    version.replace(/^v/, '').split('.').map(Number)
-
 /**
- * Compares semantic versions numerically by major, minor, then patch.
+ * A Node version as `process.version` prints it — `v`, then a SemVer version
+ * that a nightly or release-candidate build suffixes with a pre-release
+ * (`-nightly20260930abc`, `-rc.1`) and may suffix with build metadata
+ * (`+…`) — as its numeric core and whether it is a pre-release.
  *
- * @type {(version: string, minimum: string) => boolean}
+ * Build metadata goes first: its identifiers may hold a `-`, and a
+ * pre-release's may too, but the core never does, so the first `-` left
+ * begins the pre-release.
+ *
+ * @type {(nodeVersion: string) => readonly [string, boolean]}
  */
-export const versionLessThan = (version, minimum) => {
-    const [major = 0, minor = 0, patch = 0] = versionParts(version)
-    const [minMajor = 0, minMinor = 0, minPatch = 0] = versionParts(minimum)
-    return major < minMajor || major === minMajor && (
-        minor < minMinor || minor === minMinor && patch < minPatch
-    )
+const nodeRelease = nodeVersion => {
+    const version = nodeVersion.startsWith('v') ? nodeVersion.slice(1) : nodeVersion
+    const plus = version.indexOf('+')
+    const release = plus === -1 ? version : version.slice(0, plus)
+    const dash = release.indexOf('-')
+    return dash === -1 ? [release, false] : [release.slice(0, dash), true]
 }
 
 /**
@@ -1108,10 +1112,20 @@ export const versionLessThan = (version, minimum) => {
  * from the Node 26 baseline; Deno is deliberately exempt from this Node-only
  * version check.
  *
+ * A pre-release of 26.0.0 precedes it, as SemVer orders them, so it takes the
+ * flattened strategy, which works on every Node.
+ *
+ * @throws If `engine` is `'node'` and `nodeVersion`, with its `v`, pre-release
+ * and build metadata removed, is not a version
+ * [`types/version`](../../types/version/module.f.mjs)'s `tryParse` accepts —
+ * `''`, `'v'` or `'nightly'`, say. `process.version` always is one.
+ *
  * @type {(engine: Engine, nodeVersion?: string) => boolean}
  */
 export const usesInlineTestContext = (engine, nodeVersion) => {
     if (engine === 'bun') { return true }
     if (engine !== 'node' || nodeVersion === undefined) { return false }
-    return versionLessThan(nodeVersion, '26.0.0')
+    const [core, preRelease] = nodeRelease(nodeVersion)
+    const sign = versionCmp(core)('26.0.0')
+    return sign < 0 || sign === 0 && preRelease
 }
