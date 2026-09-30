@@ -452,7 +452,7 @@ export const proof = {
             expectEdag(compile('const a = []; export default [a, 0][1];').edag, ['.', ['[]', [['[]', []], 0]], 1])
         },
     },
-    // A function that captures nothing is `['=>', null, body]`, the body a
+    // A function that captures nothing is `['=>', length, [], body]`, the body a
     // scope of its own, in which the arguments are one node however many
     // references reach them and no module node stands — so two such
     // functions share nothing, and a function `const` is one node like any
