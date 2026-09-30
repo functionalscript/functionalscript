@@ -34,10 +34,23 @@ const dom = () => {
                 ownerDocument: document,
                 attributes: new Map(),
                 children: [],
+                // The namespace each attribute was set in: `null` for a plain
+                // `setAttribute`, as the DOM reports it.
+                namespaces: new Map(),
                 setAttribute: (/** @type {string} */ name, /** @type {string} */ value) => {
                     self.attributes = new Map([...self.attributes, [name, value]])
+                    self.namespaces = new Map([...self.namespaces, [name, null]])
+                },
+                setAttributeNS: (/** @type {string} */ namespace, /** @type {string} */ name, /** @type {string} */ value) => {
+                    self.attributes = new Map([...self.attributes, [name, value]])
+                    self.namespaces = new Map([...self.namespaces, [name, namespace]])
                 },
                 replaceChildren: (/** @type {any[]} */ ...nodes) => { self.children = nodes },
+                // A `template`'s own fragment, as an HTML template has one.
+                content: /** @type {any} */ ({
+                    children: [],
+                    replaceChildren(/** @type {any[]} */ ...nodes) { this.children = nodes },
+                }),
                 getAttribute: (/** @type {string} */ name) => self.attributes.get(name) ?? null,
             }
             return self
@@ -45,6 +58,14 @@ const dom = () => {
     }
     return document
 }
+
+/**
+ * Builds `element` in a fresh stand-in document, answered as the stand-in so a
+ * proof can read what it recorded.
+ *
+ * @type {(element: HtmlElement) => any}
+ */
+const build = element => toDom(dom(), element)
 
 /**
  * What a rendered node is, as data a proof can compare: a string is itself,
@@ -170,6 +191,43 @@ export const proof = {
         script: () => toDom(dom(), ['div', ['script', 'alert(1)']]),
         svgScript: () => toDom(dom(), ['svg', ['script', 'alert(1)']]),
         fillScript: () => fill(toDom(dom(), ['div']), ['script', 'alert(1)']),
+    },
+    /**
+     * **On an SVG or MathML element, the parser's namespaced attributes go
+     * into their namespaces**, and everything else is set as written: on HTML,
+     * a name not on the list, and a name whose case differs from it.
+     */
+    foreignAttributesAreNamespaced: () => {
+        const xlink = 'http://www.w3.org/1999/xlink'
+        const xml = 'http://www.w3.org/XML/1998/namespace'
+        const xmlns = 'http://www.w3.org/2000/xmlns/'
+        const use = build(['svg', { xmlns: svg, 'xmlns:xlink': xlink }, ['use', {
+            'xlink:href': '#a', 'xlink:actuate': 'x', 'xlink:arcrole': 'x', 'xlink:role': 'x',
+            'xlink:show': 'x', 'xlink:title': 'x', 'xlink:type': 'x',
+            'xml:lang': 'en', 'xml:space': 'preserve', 'xlink:other': 'x', 'XLINK:HREF': 'x', href: '#b',
+        }]])
+        assertStructurallySame(Object.fromEntries(use.namespaces), { xmlns, 'xmlns:xlink': xmlns })
+        assertStructurallySame(Object.fromEntries(use.children[0].namespaces), {
+            'xlink:href': xlink, 'xlink:actuate': xlink, 'xlink:arcrole': xlink, 'xlink:role': xlink,
+            'xlink:show': xlink, 'xlink:title': xlink, 'xlink:type': xlink,
+            'xml:lang': xml, 'xml:space': xml, 'xlink:other': null, 'XLINK:HREF': null, href: null,
+        })
+        const math = build(['math', { 'xlink:href': '#a' }])
+        assertEq(math.namespaces.get('xlink:href'), xlink)
+        const a = build(['a', { 'xlink:href': '#a' }])
+        assertEq(a.namespaces.get('xlink:href'), null)
+    },
+    /**
+     * **A `template`'s children go into its `content`**, where the parser puts
+     * them and where cloning reads them; the element itself keeps none. Only
+     * an HTML `template` has one: in SVG it is an ordinary name.
+     */
+    templateFillsItsContent: () => {
+        const template = build(['template', ['p', 'x']])
+        assertStructurallySame(template.children, [])
+        assertStructurallySame(template.content.children.map(shape), [['p', xhtml, {}, 'x']])
+        const inSvg = build(['svg', ['template', ['g']]])
+        assertStructurallySame(shape(inSvg.children[0]), ['template', svg, {}, ['g', svg, {}]])
     },
     /**
      * **`fill` replaces the children and adds to the attributes.** What lets a

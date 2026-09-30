@@ -6,23 +6,31 @@
  * string to `innerHTML` would pay for an escape on the way out and a parse on
  * the way back in, and would learn nothing either step did not already know.
  *
- * **The namespace the HTML parser would have chosen.** `innerHTML` puts an
- * `svg` subtree in the SVG namespace and a `math` subtree in MathML without
- * being asked; `createElement` would make an inert HTML element named `svg`,
- * and a diagram would render nothing. So every element is created by the rules
- * the parser would apply at its place in the tree:
+ * **Built as written.** `toDom` builds exactly the tree the element gives,
+ * with every name spelled as it is written. It does not copy the fix-ups the
+ * HTML parser applies when it reads markup as text: it does not lowercase a
+ * tag or correct an attribute's case (`SVG`, `viewbox`), insert the `tbody` a
+ * table gets, read a `textarea` or `title` element child as literal text, or
+ * move an HTML tag such as `p` out of SVG. An element that relies on one of
+ * those is built as written, which is what the element says.
  *
- * - under HTML, `svg` and `math` enter their namespaces and anything else is
- *   HTML;
- * - under SVG or MathML, an element keeps its parent's namespace — a `math`
- *   inside an `svg` is SVG — except below an integration point, where the
- *   parser returns to HTML's rules. {@link rulesFor} holds the standard's
- *   list of them.
+ * It decides only what the element cannot say, and refuses only what would
+ * act differently once built:
  *
- * **One parser rule is not copied.** Meeting an HTML tag such as `p` or `div`
- * directly inside SVG or MathML, the parser closes the foreign element and puts
- * the tag after it. A builder keeps the tree it was given, so such an element
- * is created where it was written, in the foreign namespace.
+ * - **Namespaces.** An element names its tag, not its namespace, and
+ *   `createElement('svg')` would make an inert HTML element, so a diagram
+ *   would render nothing. Each element is created in the namespace the parser
+ *   would give it. Under HTML, `svg` and `math` enter their namespaces and
+ *   anything else is HTML. Under SVG or MathML, an element keeps its parent's
+ *   namespace (a `math` inside an `svg` is SVG), except below an integration
+ *   point, where HTML's rules apply again; {@link rulesFor} holds the
+ *   standard's list. On an SVG or MathML element, an attribute such as
+ *   `xlink:href` goes into its namespace; {@link foreignAttributes} holds that
+ *   list.
+ * - **`template`.** Its children go into its `content`, where the parser puts
+ *   them and where cloning reads them.
+ * - **`script`.** Refused: built and connected, it would run, where the
+ *   `innerHTML` it replaces left it inert.
  *
  * @module
  *
@@ -37,6 +45,8 @@ const xhtml = 'http://www.w3.org/1999/xhtml'
 const svg = 'http://www.w3.org/2000/svg'
 
 const mathMl = 'http://www.w3.org/1998/Math/MathML'
+
+const xlink = 'http://www.w3.org/1999/xlink'
 
 /**
  * The SVG elements whose children the parser reads as HTML.
@@ -77,6 +87,48 @@ const mathMlReadsAsHtml = (target, tag) => {
         : localName === 'annotation-xml'
             && (tag === 'svg' || htmlEncodings.includes((target.getAttribute('encoding') ?? '').toLowerCase()))
 }
+
+/**
+ * The attributes the parser puts into a namespace on an SVG or MathML
+ * element, each with that namespace. An attribute not listed is set as
+ * written.
+ *
+ * @type {ReadonlyMap<string, string>}
+ */
+const foreignAttributes = new Map([
+    ...['actuate', 'arcrole', 'href', 'role', 'show', 'title', 'type'].map(name =>
+        /** @type {const} */ ([`xlink:${name}`, xlink])),
+    ['xml:lang', 'http://www.w3.org/XML/1998/namespace'],
+    ['xml:space', 'http://www.w3.org/XML/1998/namespace'],
+    ['xmlns', 'http://www.w3.org/2000/xmlns/'],
+    ['xmlns:xlink', 'http://www.w3.org/2000/xmlns/'],
+])
+
+/**
+ * Sets one attribute on `target`: in its namespace when the parser would put
+ * it in one, and as written otherwise.
+ *
+ * @type {(target: Element, name: string, value: string) => void}
+ */
+const setAttribute = (target, name, value) => {
+    const namespace = target.namespaceURI === xhtml ? undefined : foreignAttributes.get(name)
+    if (namespace === undefined) {
+        target.setAttribute(name, value)
+    } else {
+        target.setAttributeNS(namespace, name, value)
+    }
+}
+
+/**
+ * Where `target`'s children go: a `template`'s `content`, and the element
+ * itself otherwise.
+ *
+ * @type {(target: Element) => ParentNode}
+ */
+const childrenOf = target =>
+    target.namespaceURI === xhtml && target.localName === 'template'
+        ? /** @type {HTMLTemplateElement} */ (target).content
+        : target
 
 /**
  * The namespace whose rules create a `tag` child of `target`: HTML's, unless
@@ -121,17 +173,16 @@ const create = (document, rules, element) => {
  * both by the helpers [`./module.f.mjs`](./module.f.mjs) serializes with, so
  * the same element reads the same whichever way it reaches the page.
  *
- * **A `script` is refused.** Serialized and parsed through `innerHTML`, a
- * script is inert; built and connected, it runs. A view describes what to
- * show, so one that names a script throws rather than executes it.
+ * A `template`'s children go into its `content`, and a `script` is refused;
+ * the module documentation says why.
  *
  * @type {(target: Element, element: HtmlElement) => Element}
  */
 export const fill = (target, element) => {
     const [tag, attributes, children] = parseElement(element)
     if (tag === 'script') { throw new Error('media/html: a `script` element is refused: built into a page, it would run') }
-    for (const [name, value] of definedEntries(attributes)) { target.setAttribute(name, value) }
-    target.replaceChildren(...content(target, tag, children))
+    for (const [name, value] of definedEntries(attributes)) { setAttribute(target, name, value) }
+    childrenOf(target).replaceChildren(...content(target, tag, children))
     return target
 }
 
