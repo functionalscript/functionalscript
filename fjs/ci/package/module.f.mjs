@@ -5,6 +5,7 @@
  * @module
  *
  * @import { Job } from '../common/types.ts'
+ * @import { PackageConsumer } from '../types.ts'
  */
 
 import { images, node, typescript } from '../config/module.f.js'
@@ -80,6 +81,67 @@ const tsconfig = /** @type {const} */ ({
 })
 
 /**
+ * A string as a TypeScript string literal: JSON's spelling, which TypeScript
+ * reads. The encoding is what keeps the negative control honest: a value
+ * interpolated raw could make `bad.mts` a syntax error, which the negated
+ * compile would count as the type refusing it.
+ *
+ * @type {(s: string) => string}
+ */
+const literal = s => JSON.stringify(s)
+
+/**
+ * A string as one single-quoted shell word. Nothing inside single quotes is
+ * special to the shell but the quote itself, so `'` is written as the quote
+ * closed, the character escaped, and the quote reopened. Every consumer
+ * string reaches its command through this, the identifiers included, which
+ * {@link literal} cannot cover: so a `value` of `x'; printf PWNED; #` is an
+ * import the compiler refuses, not a command the runner executes. An
+ * unsupported consumer fails the check; it never runs.
+ *
+ * @type {(s: string) => string}
+ */
+const shellWord = s => `'${s.replaceAll("'", "'\\''")}'`
+
+/**
+ * The two consumer files, as one `echo` each writes them. `good.mts` imports
+ * the runtime export and a declared type from the installed package and
+ * gives the type a value it accepts; `bad.mts` gives it one it does not.
+ * Every string is a {@link literal}; the export and the type are written
+ * bare, as the identifiers they are, and one that is not an identifier
+ * fails `good.mts`, which is not negated. The shell sees none of it raw:
+ * {@link consumerCommands} writes each file as one {@link shellWord}. `.mts`
+ * rather than `.ts` because
+ * `npm init` declares no `type`, under which `.ts` would read as CommonJS.
+ *
+ * @type {(consumer: PackageConsumer) => string}
+ */
+const goodConsumer = consumer => [
+    `import { ${consumer.value} } from ${literal(`${alias}/${consumer.module}`)};`,
+    `import type { ${consumer.type} } from ${literal(`${alias}/${consumer.types}`)};`,
+    `const accepted: ${consumer.type} = ${literal(consumer.accepted)};`,
+    `if (${consumer.value} === undefined) { throw new Error(${literal(`${consumer.value} did not load`)}); }`,
+].join('\n')
+
+/** @type {(consumer: PackageConsumer) => string} */
+const badConsumer = consumer => [
+    `import type { ${consumer.type} } from ${literal(`${alias}/${consumer.types}`)};`,
+    `const refused: ${consumer.type} = ${literal(consumer.refused)};`,
+].join('\n')
+
+/**
+ * The compiler over one consumer file: flags rather than the job's
+ * `tsconfig.json`, whose `include` is the package tree. That file is still
+ * in the directory, and TypeScript 7 refuses files on the command line while
+ * one is present (`TS5112`) unless told to ignore it, so `--ignoreConfig`
+ * says so; the first run of this job in CI failed on exactly that, where a
+ * dry run in a directory without the file had passed. `nodenext` is the
+ * resolution a Node consumer gets, and `strict` is what makes a declaration
+ * that failed to resolve an error rather than an `any`.
+ */
+const consumerTsc = /** @type {const} */ ('npx tsc --pretty false --ignoreConfig --noEmit --strict --module nodenext --target esnext')
+
+/**
  * One command per step, so a failure names what failed rather than arriving as
  * an opaque script.
  *
@@ -103,7 +165,7 @@ const tsconfig = /** @type {const} */ ({
  *
  * @type {readonly string[]}
  */
-const commands = [
+const declarationCommands = [
     'npm init -y > /dev/null',
     // `echo` is the shell's own builtin expanding its own glob; `ls` would be
     // a second process to learn what the shell already knew.
@@ -118,9 +180,37 @@ const commands = [
 ]
 
 /**
- * Downloads the packed tarball, installs it as a real dependency, and
+ * The consumer's half: the declarations above are read as a set, but a
+ * consumer reaches one through an import specifier, and the runtime file
+ * beside it has to load. `good.mts` passes the compiler and runs; then
+ * `bad.mts`, differing only in the value it gives the declared type, must
+ * fail the same compiler — negated, so the step is red when it passes. The
+ * negation is what the check rests on: were the declaration missing, `strict`
+ * would have failed `good.mts` first, so the one way left for `bad.mts` to
+ * fail is the type it names refusing the value.
+ *
+ * It is the caller's to supply, through `Setup`: `fjs ci` generates this job
+ * for any project, and the generator cannot know what another package
+ * publishes, so a project that names no consumer gets the declaration check
+ * alone — what every project got before the consumer half existed — rather
+ * than a `TS2307` for a module its tarball never held.
+ *
+ * @type {(consumer: PackageConsumer) => readonly string[]}
+ */
+const consumerCommands = consumer => [
+    `echo ${shellWord(goodConsumer(consumer))} > good.mts`,
+    `echo ${shellWord(badConsumer(consumer))} > bad.mts`,
+    `${consumerTsc} good.mts`,
+    'node good.mts',
+    `! ${consumerTsc} bad.mts`,
+]
+
+/**
+ * Downloads the packed tarball, installs it as a real dependency,
  * type-checks every declaration it ships with the compiler the CI
- * configuration names.
+ * configuration names, and, given a consumer, imports the published module it
+ * names from a consumer file, runs it, and type-checks a use of its
+ * declaration with a negative control that must fail.
  *
  * Deliberately not built through `toSteps`: that helper injects
  * `actions/checkout`, and the missing checkout is this job's whole point. With
@@ -129,9 +219,9 @@ const commands = [
  * stand in for a declaration the tarball omits — so the job can only see what a
  * real consumer sees.
  *
- * @type {Job}
+ * @type {(consumer: PackageConsumer | undefined) => Job}
  */
-export const packageCheckJob = {
+export const packageCheckJob = consumer => ({
     'runs-on': images.ubuntu.arm,
     // Without this the two jobs race and the download fails before the check
     // has run — red for a reason unrelated to what it tests.
@@ -139,6 +229,7 @@ export const packageCheckJob = {
     steps: [
         uses('actions/download-artifact', { name: packageArtifact }),
         uses('actions/setup-node', { 'node-version': node.default }),
-        ...commands.map(run => ({ run })),
+        ...declarationCommands.map(run => ({ run })),
+        ...(consumer === undefined ? [] : consumerCommands(consumer)).map(run => ({ run })),
     ],
-}
+})

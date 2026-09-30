@@ -8,7 +8,7 @@
  * @import { NodeOp } from '../effects/node/types.ts'
  * @import { Architecture, GitHubAction, Job, Jobs, MetaStep, Os } from './common/types.ts'
  * @import { NixJob } from './nix/types.ts'
- * @import { Setup } from './types.ts'
+ * @import { PackageConsumer, Setup } from './types.ts'
  * @import { Effect } from '../effects/types.ts'
  */
 
@@ -266,27 +266,27 @@ export const nixJobs = [
  * `TS18003` — see `./todo/ci-generator-audience.md`, which owns the general
  * shape of this trade.
  *
- * @type {(rust: boolean) => Jobs}
+ * @type {(rust: boolean, packageConsumer: PackageConsumer | undefined) => Jobs}
  */
-const canonicalJobs = rust => ({
+const canonicalJobs = (rust, packageConsumer) => ({
     ...(rust
         ? { wasm: ubuntuArm(rustWasmSteps) }
         : {}),
     deno: ubuntuArm(denoSteps),
     bun: ubuntuArm(bunSteps),
     ...nodeVersionJobs(),
-    [packageCheckJobId]: packageCheckJob,
+    [packageCheckJobId]: packageCheckJob(packageConsumer),
 })
 
 /** @type {(setup: Setup) => Effect<NodeOp, 0, number>} */
-export const ci = ({ nodeExtra }) => resultStep(
+export const ci = ({ nodeExtra, packageConsumer }) => resultStep(
     access('Cargo.toml'),
     result => {
         const rust = result[0] === 'ok'
         /** @type {Jobs} */
         const jobs = {
             ...Object.fromEntries(os.flatMap(o => architecture.map(job(rust, nodeExtra(o))(o)))),
-            ...canonicalJobs(rust),
+            ...canonicalJobs(rust, packageConsumer),
         }
         /** @type {GitHubAction} */
         const gha = {
@@ -313,4 +313,14 @@ export const ci = ({ nodeExtra }) => resultStep(
         return exitStep(flakesWritten)
     })
 
+/**
+ * The built-in `fjs ci`, the generator any project gets: no extra platform
+ * steps and no packed-package consumer, since this command cannot know what
+ * another package publishes, and `package-check` without a consumer is the
+ * declaration check every project had. A project with a module to offer
+ * calls `ci` with one, as this repository does in `./self/module.f.mjs`,
+ * which is what its `npm run gen` runs.
+ *
+ * @type {() => Effect<NodeOp, 0, number>}
+ */
 export const main = () => ci({ nodeExtra: () => [] })

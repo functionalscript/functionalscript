@@ -34,6 +34,10 @@ for, and whether that answer should change, is
   `Cargo.toml` at the repository root via the `access` effect.
 - `proof.f.mjs` — property-based proofs for the CI generator (Rust/no-Rust job presence,
   per-OS extra steps).
+- `self/module.f.mjs` — this repository's own generation: `ci` with its
+  `packageConsumer`, the published `.f.js` that `package-check` imports. It is
+  what `npm run gen` runs, where the built-in `fjs ci` stays the generator any
+  project gets and names no consumer.
 - `common/module.f.mjs` — shared RTTI schemas and types (`Step`, `Job`, `Jobs`,
   `GitHubAction`, `MetaStep`, `Os`, `Architecture`), and step-builder helpers
   (`test`, `install`, `uses`).
@@ -48,7 +52,12 @@ for, and whether that answer should change, is
   `proof.f.mjs` — its property-based proofs.
 - `package/module.f.mjs` — the `package-check` job: downloads the tarball the
   Node job uploads, installs it under a fixed alias outside any checkout, and
-  type-checks every declaration it ships. It is the one job built without
+  type-checks every declaration it ships. Given a `packageConsumer` in the
+  caller's `Setup`, it then imports the published module that names from a
+  consumer file, runs it, and type-checks a use of its declaration with a
+  negative control that must fail; this repository's `self/module.f.mjs`
+  passes its own, the built-in `fjs ci` passes none, and a project that names
+  none gets the declaration check alone. It is the one job built without
   `toSteps`, because that helper adds `actions/checkout` and the missing
   checkout is the point — with the repository on the runner there would be a
   `tsconfig.json` up the tree, a `node_modules` to resolve into, and sources
@@ -79,10 +88,16 @@ for, and whether that answer should change, is
 ## Usage
 
 1. Ensure dependencies are installed with `npm ci`.
-2. Regenerate the workflow definitions and the Nix environments:
+2. Regenerate the workflow definitions and the Nix environments with the
+   project's `gen` script:
    ```
-   fjs ci
+   npm run gen
    ```
+   In a project that generates with the built-in command, that script is
+   `fjs ci`. In this repository it is `fjs run ./fjs/ci/self/module.f.mjs`
+   through the checked-in entry point, because the repository's own generation
+   passes a `packageConsumer` the built-in command does not have; running
+   `fjs ci` here writes a `package-check` without the consumer steps.
 3. Commit the updated `.github/workflows/ci.yml`,
    `.github/workflows/npm-publish.yml` and `nix/*/flake.nix` files if they have
    changed.
@@ -150,12 +165,12 @@ rather than generated: nothing in it varies with a job, a pin or a system, so
 there is nothing for a generator to compose or a drift check to catch. See
 [nix/README.md](../../nix/README.md).
 
-A `flake.lock` is committed beside every `flake.nix`, but `gen` (`fjs ci`)
+A `flake.lock` is committed beside every `flake.nix`, but `gen`
 never writes one: `nix flake lock` is a real Nix command, and `gen` has to
 work on Windows, where Nix does not run at all. Without a committed lock every
 `nix develop` would compute one, find it differed from nothing, and say so —
 which used to cost two more `--quiet`s and, with them, every Nix warning of any
-kind. Instead `fjs ci` also writes `nix/lock-update.sh`, one `nix flake lock`
+kind. Instead the generator also writes `nix/lock-update.sh`, one `nix flake lock`
 per generated directory, for a maintainer to run — with real Nix, hence
 `npm run lock-update` rather than `gen` — only when a pin in
 `config/module.f.js` moves. See [nix/README.md](../../nix/README.md).
@@ -302,7 +317,8 @@ leave behind is tracked. Staging with `git add -A` before diffing makes the chec
 cover newly created and deleted generated files, not just modified ones — a plain
 `git diff` never reports untracked files. Because the job runs `npm ci` first,
 `fjs ci` resolves the project's own `functionalscript` devDependency; this repository
-instead uses its checked-in sources (`node ./fjs/module.mjs ci`), so the check always
+instead uses its checked-in sources
+(`node ./fjs/module.mjs r ./fjs/ci/self/module.f.mjs`), so the check always
 reflects the generator being reviewed, not the pinned published release.
 
 `gen` is deliberately Nix-independent — it never shells out to `nix`, so it
@@ -349,9 +365,10 @@ Without that file, third-party test runners discover no FunctionalScript proofs
 and will report zero tests. `fjs test` is the exception: it discovers proof modules
 directly and does not need an entry file at all.
 
-**Note,** `npm run gen` in this repository runs the same built-in command through the
-checked-in Node entry point, which avoids relying on the package bin before the
-package has been installed. Custom projects that need different runtime setup steps
+**Note,** `npm run gen` in this repository runs `fjs run ./fjs/ci/self/module.f.mjs`
+through the checked-in Node entry point, which avoids relying on the package bin
+before the package has been installed; that module calls `ci` with this
+repository's `packageConsumer`, which the built-in command does not have. Custom projects that need different runtime setup steps
 should use `fjs run <custom-ci-module>` and call `ci(setup)` directly instead of
 modifying the built-in command.
 
@@ -454,15 +471,24 @@ workflow is the sharpest instance of.
 
 ## Customisation
 
-`ci` accepts a `Setup` record to inject extra steps per runtime:
+`ci` accepts a `Setup` record to inject extra steps per runtime and to name
+the packed package's consumer:
 
 ```ts
 export type Setup = {
     readonly nodeExtra: (os: Os) => readonly MetaStep[]
+    readonly packageConsumer?: PackageConsumer
 }
 ```
 
 `nodeExtra` receives the target OS so callers can conditionally add OS-specific steps.
+
+`packageConsumer` is the consumer half of `package-check`: a published module
+and a runtime export it must load, its `types.ts` as a consumer spells it,
+a declared type, a value of that type and one that is not, which must fail to
+type-check. The built-in command passes none, since it cannot know what
+another package publishes, and a project that names none gets the declaration
+check alone; this repository passes its own from `self/module.f.mjs`.
 
 On every platform but Windows, an injected step that names a **command** runs
 inside the shared shell, alongside the job's own — these jobs no longer install
