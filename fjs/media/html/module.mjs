@@ -6,6 +6,11 @@
  * string to `innerHTML` would pay for an escape on the way out and a parse on
  * the way back in, and would learn nothing either step did not already know.
  *
+ * **Into an HTML document.** The DOM this module writes to is a page's: an
+ * HTML document, with HTML's rules for it. An XML document — XHTML among
+ * them — keeps rules of its own, such as case-sensitive attribute names on
+ * an HTML element, and is out of scope.
+ *
  * **Built as written.** `toDom` builds exactly the tree the element gives,
  * with every name spelled as it is written. It does not copy the fix-ups the
  * HTML parser applies when it reads markup as text: it does not lowercase a
@@ -305,6 +310,10 @@ export const patch = (target, element) => {
  * The name an attribute is stored under on `target`: ASCII lowercase on an
  * HTML element, as a browser lowercases it when it is set, and as written
  * on an SVG or MathML one, where case is part of the name (`viewBox`).
+ *
+ * The lowercasing is an HTML document's rule. In an XML document an HTML
+ * element keeps a name's case, which is one reason such a document is out
+ * of this module's scope.
  *
  * @type {(target: Element, name: string) => string}
  */
