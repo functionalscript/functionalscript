@@ -599,9 +599,11 @@ module boundary, from which a default import selects the document.
   named `$0`, `a["if"]` and `a['c']` are `$0.if` and `$0.c`, while
   `a["a-b"]`, `a["é"]` and `a["1"]` stay bracketed. A number key stays a
   number in brackets, in normalized spelling — `a[1e21]` is `$0[1e+21]` — so
-  `a["0"]` and `a[0]` keep their own spellings. A number, a `bigint`, a
-  function or a negation an access is taken on is named first rather than
-  written in place: `1 .x` is `const $0=1;export default $0.x;`.
+  `a["0"]` and `a[0]` keep their own spellings. A number, a `bigint` or a
+  function an access is taken on is named first rather than written in
+  place: `1 .x` is `const $0=1;export default $0.x;`. An operator's text
+  under an access stands in a group: `(-1).x` and `(1 + 2).x` come back as
+  `(-1).x` and `(1+2).x`.
 - `NaN`, `Infinity` and `-Infinity` — a literal, or a number that overflowed
   to infinity — are emitted as those words in a DataJS or FunctionalScript
   document, and `-0` as `-0` in every format.

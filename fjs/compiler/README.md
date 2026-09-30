@@ -248,9 +248,11 @@ sharing a module spells survives the parentheses. What it adds is spelling:
 a function returning an object, `(...a) => ({ x: 1 })`, an access or a call
 on a value written in place, `([1]).length`, and the two the prefix cannot
 say without it — the access on a negation, `(-1).x` against `-1 .x`, and a
-negated function, `-((...a) => 1)`. The writer spells both today, through a
-`const` rather than a group: `negHoisted` hoists a negated function, and
-`basedHoisted` the negation an access reads.
+negated function, `-((...a) => 1)`. The writer spells both as that group,
+and every operator under an access or a prefix the same way, `(1+2).x` and
+`-(1+2)`; a number, a bigint or a function an access reads still takes a
+`const`, `basedHoisted`, since `1.x` and `1 .x` are spellings it does not
+keep.
 A member a later duplicate shadows is in the graph, since the constructor
 applies every member written, so a reference in it is reached here where the
 sharing decision, which reads the value, does not count it.
