@@ -179,8 +179,8 @@ export const proof = {
             const invoked = ['()', ['.', graph, 'main'], ['[]', []]]
             assertEq(execute(invoked), 42)
             assertEq(vm({ frame: null, args: [] })(invoked), 42)
-            // Arithmetic serialization remains a separate unsupported form.
-            assertStructurallySame(tryModuleStringify(graph), ['error', 'a + node'])
+            // a call has no FunctionalScript spelling yet
+            assertStructurallySame(tryModuleStringify(graph), ['error', 'a () node'])
         },
         identity: () => {
             const root = {

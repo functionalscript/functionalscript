@@ -180,9 +180,8 @@ call on a numeric literal alike. What it takes is JavaScript's
 `UnaryExpression`, so not a function: `-(...a) => 1` is a syntax error in
 both. A group is that expression, though, so the prefix reaches a function
 through one, `-((...a) => 1)`, and the refusal falls on the `...` where
-JavaScript's does rather than on the `(`. The writer still gives a negated
-function a `const` of its own, as it does an access base, until it spells a
-group.
+JavaScript's does rather than on the `(`. The writer spells that group, for
+a negated function and for a negation under an access, `(-1)[0]`, alike.
 
 Stage A of [`spec/todo/2340-operators.md`](../../spec/todo/2340-operators.md)
 gave the language the rest: arithmetic, strict comparison, and bitwise —
@@ -214,9 +213,9 @@ lazy position is anchored, since its own statement runs at load whatever
 the operator later decides, so `const c = null.x; export default [a && c,
 b && c];` throws at load in both languages. The sharing sweep counts a
 lazy position as any other — identity does not care which position a
-reference is made from. The writer spells Stage B's operators, with the
-parentheses their precedence asks for, and refuses every Stage A node until
-it can spell that precedence too.
+reference is made from. The writer spells both stages, with the
+parentheses their precedence and associativity ask for and no more
+([spec: operators](../../spec/README.md#operators)).
 A call is a step after a value, as an access is, and the callee picks which of
 the EDAG's two forms it lowers to: an access as the callee is a method call,
 `a.b(c)`, whose receiver is that access's base, so the access owns the call

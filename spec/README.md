@@ -268,7 +268,7 @@ output refusing the program — `a function has no value`,
 what it refused. A refusal of the output names the output as given instead,
 since the module itself is sound: an extension naming no format, a value JSON
 cannot spell, a node the FunctionalScript or Rust writer has no spelling for
-(`out.js - error: a + node`). A failure to write the output — a missing
+(`out.js - error: a () node`). A failure to write the output — a missing
 directory, a name that is a directory — is reported in the host's own words,
 which name the output too:
 `ENOENT: no such file or directory, open 'out/config.json'`.
@@ -575,15 +575,12 @@ module boundary, from which a default import selects the document.
   `const $0=[1];const $1=[$0];export const b=$1;export default 3;`. The
   names gain a `$`, `$$0`, when an export's name begins with `$`.
 
-  The writer does not spell most of what computes yet: it writes a property
-  access, unary `-`, the lazy operators and the conditional, and refuses a
-  call and every other operator by the name of the node it meets — `a ()
-  node`, `a chain step`, `a + node`, `a binary - node`, `a ~ node` and the
-  like — wherever the node stands, a function body or a `const` nothing
-  reads included. The binary operators and `~` are
-  [`stage-a-operators.md`](../fjs/compiler/serializer/todo/stage-a-operators.md)'s
-  to add. A module holding a call or such an operator compiles to
-  `.edag.data.js` and `.rs` alone.
+  The writer spells a property access and every operator the language has
+  ([operators](#operators)), and refuses a call by the name of the node it
+  meets — `a () node`, `a chain step` — wherever the node stands, a
+  function body or a `const` nothing reads included
+  ([`call-spelling.md`](../fjs/compiler/serializer/todo/call-spelling.md)).
+  A module holding a call compiles to `.edag.data.js` and `.rs` alone.
 - Object properties are emitted in the order the value carries them for the
   value outputs — JavaScript's own-property order, array-index keys first,
   a repeated key keeping its first position and its last value — and in the
@@ -1194,16 +1191,19 @@ a primitive and refuses one of an array or an object ([numbers](#numbers)),
 and refuses every other operator the same way it refuses a function or a
 call (`an operator has no value`), until the EDAG interpreter answers for
 them there ([`interpret-edag.md`](../fjs/compiler/todo/interpret-edag.md)). The
-FunctionalScript writer, the `.js` output, spells unary `-`, the lazy
-operators and the conditional — with the parentheses their precedence asks
-for, `??` never bare beside `&&` or `||`, and a value shared under one lazy
-operand alone in a block of the operand's own
-([functions](#functions)) — and refuses Stage A's by the name of the node it
-meets — `a + node`, `a binary - node` — until it can spell their precedence
-([`stage-a-operators.md`](../fjs/compiler/serializer/todo/stage-a-operators.md)).
-`.json` and `.data.js` refuse every operator but unary `-` wherever it
-stands, an unused `const` included, and `.js` a Stage A one, so a module
-holding a Stage A operator compiles to `.edag.data.js` and `.rs` alone.
+FunctionalScript writer, the `.js` output, spells every operator here, with
+the parentheses its precedence and associativity ask for and no more —
+`1 + 2 * 3` and `(1 + 2) * 3` come back as written, less the spaces, and
+`(1 + 2) + 3` as `1+2+3`; `??` is never bare beside `&&` or `||`; a prefix
+or a negative number on the left of `**` is grouped, `(-2)**2`; a `-`
+before a text opening with `-` takes a space, `1- -2`; a function under an
+operator, and an operator's text under an access, stand in a group,
+`-((...$a)=>1)` and `(1+2).x`; and a value shared under one lazy operand
+alone is written in a block of the operand's own ([functions](#functions)).
+Read back, that text is the graph it was written from. `.json` and
+`.data.js` refuse every operator but unary `-` wherever it stands, an
+unused `const` included, so a module holding one compiles to `.js`,
+`.edag.data.js` and `.rs`.
 
 ## Property Access
 
@@ -1765,9 +1765,8 @@ are not supported yet. A newline before `=>` is refused.
   a module with a call in it compiles to `.edag.data.js` and `.rs` alone.
 - A function is written by the graph outputs, the FunctionalScript, EDAG
   and Rust ones ([output](#output)), and by the FunctionalScript one only
-  while its body holds nothing that writer cannot spell yet: a Stage A
-  operator in it is refused by the name of its node, `a + node`, as a call
-  is ([operators](#operators)). `fjs compile` refuses
+  while its body holds nothing that writer cannot spell yet: a call in it
+  is refused by the name of its node, `a () node`. `fjs compile` refuses
   to write a module holding one as DataJS or as JSON
   (`a function has no value`), since a value has no function in it and the
   evaluator computing one has no function value to compute with

@@ -52,6 +52,6 @@ is the merge of those records.
 
 - [../../parser/todo/value-token-kind-list.md](../../parser/todo/value-token-kind-list.md)
   — the same fix for the primitive token kinds.
-- [../../serializer/todo/stage-a-operators.md](../../serializer/todo/stage-a-operators.md)
-  — the writer's spelling of the operators, which would read the same
-  list.
+- [../../serializer/module.f.mjs](../../serializer/module.f.mjs) — the
+  writer's spelling of the operators, whose `levels` and `entry` list the
+  same tags.
