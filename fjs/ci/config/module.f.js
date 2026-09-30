@@ -139,7 +139,7 @@ export const rust = '1.98.1'
 // `commit` is the only fact `flake.nix` needs: `inputs.nixpkgs.url` names it
 // exactly, so the two other things a `flake.lock` records about a revision —
 // `narHash` and `lastModified` — are for real Nix to fill in, by
-// `nix/lock-update.sh`, rather than data kept here. See
+// `gen.nix/lock-update.sh`, rather than data kept here. See
 // `../nix/module.f.mjs`'s `lockUpdateText`.
 // https://channels.nixos.org/nixos-26.05/git-revision
 export const nixpkgs = /** @type {const} */({

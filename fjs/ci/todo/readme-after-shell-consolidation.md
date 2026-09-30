@@ -6,9 +6,9 @@
 ### Problem
 
 The per-job Deno, Bun and WASM flakes and the `dev` job were folded into one
-shared shell, [`nix/flake.nix`](../../../nix/flake.nix), which every job but
+shared shell, [`gen.nix/flake.nix`](../../../gen.nix/flake.nix), which every job but
 Node 22, Node 24, the two Windows jobs and `package-check` enters through
-`./nix/run`. [`fjs/ci/README.md`](../README.md) and the comments in
+`./gen.nix/run`. [`fjs/ci/README.md`](../README.md) and the comments in
 [`config/module.f.js`](../config/module.f.js) still describe the layout
 from before that.
 
@@ -23,7 +23,7 @@ In the README:
   `devNixJob`.
 - **Deno and Bun flakes.** `deno/module.f.mjs` and `bun/module.f.mjs` are each
   described as "the job's steps and its flake declaration". Both jobs run
-  `./nix/run deno …` and `./nix/run bun …` in the shared shell, which carries
+  `sh ./gen.nix/run deno …` and `sh ./gen.nix/run bun …` in the shared shell, which carries
   the overridden Bun itself.
 - **"The `wasm` job's flake"** with a second input — that input,
   `rust-overlay`, belongs to the shared shell.
@@ -31,15 +31,15 @@ In the README:
   `node.default` is `26.8.2`.
 - **A missing section.** "see "Generated flake locks" below" — the README has
   no such section; the heading is in [65z-ci-nix](./65z-ci-nix.md).
-- **Usage step 3** says to commit `nix/*/flake.nix`. The shared flake is
-  `nix/flake.nix`, and the generator also writes each `run` script and
-  `nix/lock-update.sh`.
+- **Usage step 3** says to commit `gen.nix/*/flake.nix`. The shared flake is
+  `gen.nix/flake.nix`, and the generator also writes each `run` script and
+  `gen.nix/lock-update.sh`.
 
 In `config/module.f.js`'s comments:
 
 - Above `rustOverlay`: "The `wasm` job is not on a flake", citing
   `../todo/wasm-nix-blocked-on-rust-targets.md`, which does not exist; the
-  comment that follows, and `nix/flake.nix`, give the shell `rust-overlay`,
+  comment that follows, and `gen.nix/flake.nix`, give the shell `rust-overlay`,
   `pkgs.wasmtime` and `pkgs.wasmer`.
 - In the same comment, "Wasmtime and Wasmer are installed by their own setup
   actions" — the `wasm` job takes both from that shell, and the comment above
