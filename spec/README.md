@@ -1618,10 +1618,10 @@ are not supported yet. A newline before `=>` is refused.
   an object, so the spelling is refused rather than read another way, and the
   object is written in parentheses instead ([grouping](#grouping)) —
   `(...args) => ({ a: 1 })`, as in JavaScript. The block
-  is any number of `const` statements and then one terminating statement, a
-  `return` or a `throw` (below), each ended as
-  every statement is — by its `;`, or by the newline before the next
-  statement, and the last one's by the `}`
+  is any number of statements — `const`s, and guards, `if` (below) — and
+  then one terminating statement, a `return` or a `throw` (below), each
+  ended as every statement is — by its `;`, or by the newline before the
+  next statement, a guard's by its `}`, and the last one's by the `}`
   ([module structure](#module-structure)) — and an object literal is an
   ordinary value again, since after `return` JavaScript expects an
   expression. `return` and the value share a line: a newline between them
@@ -1671,6 +1671,63 @@ are not supported yet. A newline before `=>` is refused.
   through a function that throws, as in JavaScript. The EDAG output carries
   the node, and the Rust output fails as the VM fails
   ([output](#output)).
+- **`if (condition) block`** is a guard: a statement of a block body,
+  standing where a `const` may, any number of times before the body's
+  terminating statement. Its block is a block as above — any number of
+  statements and then a `return` or a `throw` — so the branch always
+  terminates, and the statements after the guard, up to and including the
+  body's own terminator, are what runs when the condition is falsy. The
+  condition is any expression, evaluated where the statement stands and
+  tested as `?:` tests its condition. This is the one form: the braces are
+  required, there is no `else`, and the statement stands in a function
+  body only — each a scoping decision of a step-by-step plan rather than a
+  guarantee, the bare consequent `if (c) return v;`, a branch that does
+  not terminate and with it `else`, and a guard at module level being
+  follow-ups, each additive on top of this one. No `;` follows the `}`, as
+  in JavaScript: one there is the empty statement the language refuses
+  ([module structure](#module-structure)), and the next statement may
+  share the guard's line.
+
+  ```js
+  export const unwrap = r => {
+      if (r[0] === 'error') { throw r[1]; }
+      return r[1];
+  };
+  export const sign = n => {
+      if (n < 0) { return -1; }
+      if (n > 0) { return 1; }
+      return 0;
+  };
+  ```
+
+  The guard is syntactic sugar over the conditional and adds no node: a
+  body `s… if (c) B rest` denotes `c ? (() => B)() : (() => rest)()`, the
+  guard's block and the statements after it each the body of a
+  parameterless function called where it stands (above), and the compiler
+  reads it as exactly that, so `if (a) { const x = [1]; return [x, x]; }
+  return 0;` and `a ? (() => { const x = [1]; return [x, x]; })() : 0`
+  are one graph and one hash — `['?:', a, ['[]', [x, x]], 0]` with `x`
+  one shared node — and a second guard nests as the alternate of the
+  first. Where a `const` lives is which edges reach it: one before the
+  guard is the scope's, evaluated eagerly as JavaScript evaluates it before
+  the condition, so `const a = [1]; if (m) { return a; } return 0;` is
+  `[',', [a, ['?:', m, a, 0]]]`, the anchoring rule of
+  [operators](#operators) — and `m ? a : a` is not folded to `a`, the
+  condition being an evaluation of its own that may fail; one in the
+  guard's block, or after the guard, is reached from its arm alone, and
+  evaluated only when JavaScript would evaluate it, so `if (a) { throw 1;
+  } const y = [2]; return y;` is `['?:', a, ['throw', 1], ['[]', [2]]]`
+  and an unused `const z = [2]` in its place is anchored at the
+  alternate's comma, `[',', [z, 1]]`, never at the function's root. The
+  statements after a guard are JavaScript's one block with the ones before
+  it, so a name that block has bound — a parameter, a `const` before the
+  guard, or one after an earlier guard — may not be bound again there
+  (`duplicate id`), while the guard's block is a block of its own and may
+  shadow one. The FunctionalScript writer never
+  writes `if`: it spells the conditional, and an arm that holds a `const`
+  or a `throw` as the block opened at the operand (above), so the guarded
+  body reads back as the same graph; the EDAG output carries the `?:`,
+  and the Rust output prints it as it prints any conditional.
 - A function **carries no name**. Its EDAG is `['=>', length, frame, body]`,
   name-erased, so the function in `{ make: () => 0 }.make`, in
   `const hello = () => 0` and in `export default () => 0` is the same node,

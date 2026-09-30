@@ -34,6 +34,16 @@
  * builds no module: a malformed suffix is found before any name is
  * resolved. `./README.md` holds the argument.
  *
+ * A guard, `if (c) block`, is the fold's to shape as well as to check: it
+ * is syntactic sugar, and the fold writes what it is sugar for. The
+ * guard's block and the statements after it are each the body of a
+ * parameterless function called where it stands — the call the lowering
+ * inlines, {@link bodyRound} — and the guard is the conditional of the
+ * two, `c ? (() => { …block… })() : (() => { …rest… })()`, so a `const` of
+ * either arm is the arm's alone and the graph is the one that spelling
+ * has ([spec: functions](../../../spec/README.md#functions)). No node is
+ * added to the AST for it.
+ *
  * The resolution walks a value over an explicit stack of frames, so
  * nesting depth stays the input's.
  *
@@ -44,8 +54,8 @@
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstFrameRef, AstFunction, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstThrow } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
- * @import { Container, Entry, Import, Module, Node, ParameterBinding, ParameterList, Statement, ValueStatement } from './syntax/types.ts'
- * @import { _AccessFrame, _BodyFrame, _CallFrame, _ConditionalFrame, _ContainerFrame, _Env, _Frame, _Parameter, _Ref, _Scope, _Stack, _State } from './private.ts'
+ * @import { Block, Container, Entry, If, Import, Module, Node, ParameterBinding, ParameterList, Statement, ValueStatement } from './syntax/types.ts'
+ * @import { _AccessFrame, _BodyFrame, _CallFrame, _ConditionalFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Parameter, _Ref, _Scope, _Stack, _State } from './private.ts'
  */
 
 import { error, mapOk, ok } from '../../types/result/module.f.mjs'
@@ -142,11 +152,12 @@ const brokenLine = statement => statement.first.newline
  * Whether `next` is refused at its first token: `previous` ended without
  * its `;`, and `next` begins on the same line. Nothing before the first
  * statement, and a `}` or the end of input after the last, so neither is
- * asked.
+ * asked; nor is a guard, which ends at its `}` and takes no `;`, so the
+ * statement after one may share its line, as in JavaScript.
  *
- * @type {(previous: Statement | null, next: Statement) => boolean}
+ * @type {(previous: Statement | If | null, next: Statement | If) => boolean}
  */
-const unterminated = (previous, next) => previous !== null && !previous.semicolon && !next.start.newline
+const unterminated = (previous, next) => previous !== null && 'semicolon' in previous && !previous.semicolon && !next.start.newline
 
 /** A fixed parameter past the language's limit on a function's `length`, at the first one past it. */
 const tooManyParameters = foldError(`more than ${maxLength} fixed parameters`)
@@ -512,7 +523,18 @@ const functionScope = list => {
  * The next step of a function's block body: the `const` at `index`, its name
  * checked before its value is entered — as a module's `const` is, so that a
  * statement wrong in both halves answers for the half a reader meets first
- * — or the value of the explicit final `return` or `throw`.
+ * — the condition of a guard, or the value of the explicit final `return`
+ * or `throw`.
+ *
+ * A guard is the body's last entry, whatever follows it in the source: its
+ * condition is entered here, and {@link returned} then makes the arms of
+ * the conditional it lowers to — the guard's block, and the statements
+ * after the guard, each resolved as the body of a parameterless function of
+ * its own under a {@link _GuardFrame}, {@link arm}. So `if (c) { const x =
+ * f(); return [x, x]; } return 0;` is `c ? (() => { const x = f(); return
+ * [x, x]; })() : (() => { return 0; })()`, the call the lowering inlines,
+ * and a `const` after the guard is reached from the second arm alone, as
+ * JavaScript never evaluates it when the first is taken.
  *
  * @type {(stack: _Stack, scope: _Scope, frame: _BodyFrame) => _State}
  */
@@ -524,6 +546,7 @@ const bodyRound = (stack, scope, frame) => {
     if (unterminated(index === 0 ? null : statements[index - 1][1], statement)) {
         return [stack, scope, error(unexpectedToken(statement.start))]
     }
+    if (kind === 'if') { return [{ top: frame, rest: stack }, scope, ['enter', statement.condition]] }
     if (kind !== 'const') {
         return brokenLine(statement)
             ? [stack, scope, error(unexpectedToken(statement.first))]
@@ -531,6 +554,10 @@ const bodyRound = (stack, scope, frame) => {
     }
     const [tag, word] = bindable(scope.names)(statement.name)
     if (tag === 'error') { return [stack, scope, error(word)] }
+    // the statements after a guard are JavaScript's one block with the
+    // ones before it, so a name that block has bound is not theirs to bind
+    // again, though they are resolved as a body of their own
+    if (scope.enclosing.some(env => at(word)(env) !== null)) { return [stack, scope, error(duplicateId(statement.name))] }
     // a name the body already read from outside is refused before the
     // value is read, and one its own initializer reads once it has been
     // (`returned`)
@@ -584,7 +611,7 @@ const enter = (stack, scope, node) => {
             if (tag === 'error') { return [stack, scope, error(bound)] }
             const [names, count] = bound
             /** @type {_Scope} */
-            const inner = { names, count, captures: [], read: [], outer: scope }
+            const inner = { names, count, captures: [], read: [], enclosing: [], outer: scope }
             const body = node[2]
             return body[0] === 'block'
                 ? bodyRound(stack, inner, { statements: body[1], index: 0, word: '', done: null })
@@ -636,11 +663,45 @@ const returned = (stack, scope, frame, value) => {
                 { ...scope, names: extended(scope.names)(frame.word, ['cref', frame.index]) },
                 { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) })
         }
+        // a guard's condition: its block is the first arm, a block of
+        // JavaScript's own, so it may bind what the body has bound
+        if (kind === 'if') { return arm(stack, scope, { guard: statement, body: frame, condition: value, then: null }, statement.block[1], []) }
         // the body's last entry: what it returns, or the `throw` it ends with
         return closed(stack, scope, [...toArray(frame.done), kind === 'throw' ? thrown(value) : value])
     }
+    if ('guard' in frame) {
+        /** @type {AstCall} */
+        const call = ['()', value, []]
+        // the guard's block closed: the statements after the guard are the
+        // second arm, JavaScript's same block as the ones before it
+        if (frame.then === null) { return arm(stack, scope, { ...frame, then: call }, after(frame.body), [...scope.enclosing, scope.names]) }
+        /** @type {AstConditional} */
+        const conditional = ['?:', frame.condition, frame.then, call]
+        return closed(stack, scope, [...toArray(frame.body.done), conditional])
+    }
     return closed(stack, scope, [value])
 }
+
+/**
+ * An arm of a guard entered: its statements resolved as the body of a
+ * parameterless function of its own, in a scope inside `scope` that
+ * captures what it reads from there, under the guard's frame, which
+ * receives the function once the body closes. `enclosing` is what the arm
+ * may not bind again: nothing for the guard's block, and for the
+ * statements after the guard the names of the block they continue.
+ *
+ * @type {(stack: _Stack, scope: _Scope, frame: _GuardFrame, statements: readonly Block[1][number][], enclosing: readonly _Env[]) => _State}
+ */
+const arm = (stack, scope, frame, statements, enclosing) =>
+    bodyRound({ top: frame, rest: stack }, { names: empty, count: 0, captures: [], read: [], enclosing, outer: scope }, { statements, index: 0, word: '', done: null })
+
+/**
+ * The statements after the one a body frame stands at, the body's own
+ * terminator last: what runs when a guard's condition is falsy.
+ *
+ * @type {(frame: _BodyFrame) => readonly Block[1][number][]}
+ */
+const after = ({ statements, index }) => statements.slice(index + 1)
 
 /**
  * A function closed over its body, resolved in `scope`: the scope around
@@ -672,7 +733,7 @@ const closed = (stack, scope, body) => {
  */
 const evaluate = env => root => {
     /** @type {_State} */
-    let state = [null, { names: env, count: 0, captures: [], read: [], outer: null }, ['enter', root]]
+    let state = [null, { names: env, count: 0, captures: [], read: [], enclosing: [], outer: null }, ['enter', root]]
     while (true) {
         const [stack, scope, [tag, payload]] = state
         if (tag === 'enter') {

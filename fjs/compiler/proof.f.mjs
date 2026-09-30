@@ -1097,6 +1097,28 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     }),
     // Normalized form is a fixed point of the compiler: `fjs compile` on a
     // normalized document writes the same bytes back, for every text the
+    // A guard is written back as what it lowers to: the conditional, an arm
+    // that holds a `const` or a `throw` in a block opened at the operand, an
+    // arm with nothing to hold bare — `if` itself is never written — and the
+    // Rust output binds an arm's `const` in the arm's own block. The value
+    // outputs refuse a function as ever.
+    guards: () => {
+        assertEq(compileSource('export default (a) => { if (a) { return 1; } return 2; };')('output.js'), 'export default ($a_0,...$a)=>$a_0?1:2;')
+        assertEq(compileSource('export default (a) => { if (a) { const x = [1]; return [x, x]; } return 0; };')('output.js'), 'export default ($a_0,...$a)=>$a_0?(()=>{const $b0=[1];return [$b0,$b0];})():0;')
+        assertEq(compileSource('export default (m) => { const a = [1]; if (m) { return a; } return 0; };')('output.js'), 'export default ($a_0,...$a)=>{const $a0=[1];return $a_0?$a0:0;};')
+        assertEq(compileSource('export default (a) => { if (a) { throw 1; } const y = [2]; return y; };')('output.js'), 'export default ($a_0,...$a)=>$a_0?(()=>{throw 1;})():[2];')
+        assertEq(compileSource('export default (a) => { if (a) { throw 1; } const z = [2]; return 1; };')('output.js'), 'export default ($a_0,...$a)=>$a_0?(()=>{throw 1;})():(()=>{const $b0=[2];return 1;})();')
+        assertEq(compileSource('export default (v, msg) => { if (v) { return undefined; } throw msg ?? "assertion failed"; };')('output.js'), 'export default ($a_0,$a_1,...$a)=>$a_0?undefined:(()=>{throw $a_1??"assertion failed";})();')
+        assertEq(compileSource('export default (a) => { if (a) { throw 1; } const z = [2]; return 1; };')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",1,null,["?:",["arg",0],["throw",1],[",",[["[]",[2]],1]]]]]]];')
+        assert(compileSource('export default (a) => { if (a) { const x = [1]; return [x, x]; } return 0; };')('output.rs').includes([
+            '        let c0 = || {',
+            '            let c1: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();',
+            '            Ok([c1.clone(), c1.clone()].to_array().to_any())',
+            '        };',
+            '        Any::conditional(args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), c0, || Ok(f64_any(0x0000000000000000)))',
+        ].join('\n')))
+        assertEq(jsonRefused('export default (a) => { if (a) { return 1; } return 2; };'), 'input.f.js - error: a function has no value')
+    },
     // corpus pins. This is the whole command, file system included.
     normalizeFixedPoint: normalizeSet.map(({ id, text }) => () => {
         assertEq(compileSource(text)('output.data.js'), text, id)

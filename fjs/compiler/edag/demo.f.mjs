@@ -303,7 +303,7 @@ export const _graphOf = text => {
  * is. It reads `m` rather than `a`, so `a` keeps the four references the
  * paragraph above counts.
  *
- * The other eleven take one point each, on its own:
+ * The other twelve take one point each, on its own:
  *
  * - **Sharing** sets a `const` used twice beside the same expression
  *   written out again: only `const` makes sharing, so that is one `+` node
@@ -327,6 +327,10 @@ export const _graphOf = text => {
  *   `return`: the body is the `throw` node, its port the value the failure
  *   carries, and the function's `body` edge is broken as every function's
  *   is, since making the function does not run it.
+ * - **Guard** is a body of two `if`s that return early: each is a `?:`
+ *   node, the statements after a guard its alternate, so the drawing has
+ *   no `if` in it — the statement is sugar over the conditional, and the
+ *   graph is the one `n < 0 ? -1 : n > 0 ? 1 : 0` draws.
  * - **Parse error** does not parse, because an error is something this
  *   demo shows too.
  *
@@ -344,6 +348,7 @@ export const examples = [
     ['Imports and calls', 'import m from "./m.f.js";\nimport { x } from "./n.f.js";\nexport default m(x);'],
     ['Comma: an anchored const', 'import m from "./m.f.js";\nconst checked = m.x;\nexport default 42;'],
     ['Throw: a function that fails', 'export default (...a) => {\n    const reason = ["not implemented", a[0]];\n    throw reason;\n};'],
+    ['Guard: an if that returns early', 'export default (n) => {\n    if (n < 0) { return -1; }\n    if (n > 0) { return 1; }\n    return 0;\n};'],
     ['Parse error', 'export default {bad'],
 ]
 

@@ -13,7 +13,7 @@ import type { Result } from '../../types/result/types.ts'
 import type { AstConst, AstFrameRef, AstModuleRef, AstRest, BinaryTag } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 import type { ParseError } from './types.ts'
-import type { Block, Container, Node } from './syntax/types.ts'
+import type { Block, Container, If, Node } from './syntax/types.ts'
 
 /** A named parameter, `i` of the function whose body names it: what the body reads it as, the `i`th argument. */
 export type _Parameter = readonly ['arg', number]
@@ -35,6 +35,14 @@ export type _Ref = AstModuleRef | AstRest | _Parameter | AstFrameRef
  * The captures grow while the body is resolved, and so do those of every
  * function around it that a capture passes through, so the whole chain is
  * the state, rebuilt where a capture lands.
+ *
+ * The statements after a guard are resolved as the body of a function of
+ * their own — the one the fold makes of them, {@link _GuardFrame} — but
+ * JavaScript reads them in the block the guard stands in, so the names
+ * that block has bound, `enclosing` — one environment per body the block
+ * was continued from — are theirs not to bind again: a `const` twice in
+ * one block is a syntax error there. A function's own body, a guard's
+ * block and the module enclose nothing.
  */
 export type _Scope = {
     readonly names: _Env
@@ -42,6 +50,7 @@ export type _Scope = {
     readonly count: number
     readonly captures: readonly _Ref[]
     readonly read: readonly string[]
+    readonly enclosing: readonly _Env[]
     readonly outer: _Scope | null
 }
 
@@ -99,10 +108,27 @@ export type _FunctionFrame = {
  * from the final return value, where `word` names nothing.
  */
 export type _BodyFrame = {
-    readonly statements: Block[1]
+    /** The body's statements in order, the grammar's tuple or, after a guard, its tail — the terminator last either way. */
+    readonly statements: readonly Block[1][number][]
     readonly index: number
     readonly word: string
     readonly done: List<AstConst>
+}
+
+/**
+ * A guard whose arms are being evaluated, each the body of a parameterless
+ * function called where it stands — the call the lowering inlines — so
+ * that a `const` of either arm is the arm's alone: `body` is the block
+ * body's frame at the guard, `condition` the guard's condition resolved,
+ * and `then` the function of the guard's block once it is closed, `null`
+ * while that block is being evaluated and the value once the statements
+ * after the guard are.
+ */
+export type _GuardFrame = {
+    readonly guard: If
+    readonly body: _BodyFrame
+    readonly condition: AstConst
+    readonly then: AstConst | null
 }
 
 /**
@@ -146,6 +172,7 @@ export type _Frame =
     | _ConditionalFrame
     | _FunctionFrame
     | _BodyFrame
+    | _GuardFrame
 
 /** The containers, calls, accesses, operators, conditionals and functions suspended around the node being evaluated, innermost on top. */
 export type _Stack = { readonly top: _Frame, readonly rest: _Stack } | null
