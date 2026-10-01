@@ -149,6 +149,26 @@ export const items = or(exp, spread)
  */
 export const array = /** @type {const} */ (['[]', rttiArray(items)])
 
+// Args
+
+/**
+ * ```js
+ * f(exp0, ...exp1)   // ['()', f, [exp0, ['...', exp1]]]
+ * ```
+ *
+ * A call's arguments: the item list an `array` holds, read by position
+ * rather than wrapped in a node, so the arguments are never a node of their
+ * own. A spread item iterates its operand, `f(...'ab')` passing `'a'` and
+ * `'b'`, and forwarding a rest parameter spreads it like any other operand,
+ * `[['...', ['rest']]]`. A list whose first item is a string, `f('.', x)`, is
+ * `['.', x]` here: the position, not a tag, says it is a list.
+ *
+ * The list means one array, which the callee splits into its fixed
+ * parameters and its rest; an engine may build those two arrays directly
+ * from the callee's `length` (`../README.md`, Nodes).
+ */
+export const args = rttiArray(items)
+
 // Property
 
 /**
@@ -264,9 +284,9 @@ export const index = or(numberCast, string, number)
 //
 // Every tag carries the `|` prefix, which keeps the step vocabulary disjoint
 // from the node vocabulary: a tuple's tag alone says which grammar it belongs
-// to. Unprefixed, `['()', f, k]` would read as a `call` — call `f` with `k`
-// as its arguments — and as a step — call the chain's value with `f` as its
-// arguments, then continue with `k`. Closedness bounds a tuple's length and
+// to. Unprefixed, `['()', x, y]` would read as a `call` — call `x` with the
+// list `y` as its arguments — and as a step — call the chain's value with the
+// list `x` as its arguments, then continue with `y`. Closedness bounds a tuple's length and
 // says nothing about its tag, so no arity separates those readings; the
 // prefix does, and does it without anyone having to prove that a continuation
 // could never also be an expression.
@@ -289,15 +309,15 @@ export const index = or(numberCast, string, number)
  * `optionLambda` and `optionPropertyLambda`, which are declared below.
  *
  * @type {() => readonly[
- *  readonly['|()', typeof exp],
- *  readonly['|()', typeof exp, typeof optionLambda],
+ *  readonly['|()', typeof args],
+ *  readonly['|()', typeof args, typeof optionLambda],
  *  readonly['|.', typeof index],
  *  readonly['|.', typeof index, typeof optionPropertyLambda],
  * ]}
  */
 const regionProductions = () => ([
-    /** @type {const} */ (['|()', exp]),
-    /** @type {const} */ (['|()', exp, optionLambda]),
+    /** @type {const} */ (['|()', args]),
+    /** @type {const} */ (['|()', args, optionLambda]),
     /** @type {const} */ (['|.', index]),
     /** @type {const} */ (['|.', index, optionPropertyLambda]),
 ])
@@ -346,16 +366,16 @@ export const optionLambda = _optionLambda
  * region is terminal, so it never carries a continuation.
  *
  * @type {() => readonly['or', ...ReturnType<typeof regionProductions>,
- *  readonly['|?.()', typeof exp],
- *  readonly['|?.()', typeof exp, typeof optionLambda],
- *  readonly['|!()', typeof exp],
+ *  readonly['|?.()', typeof args],
+ *  readonly['|?.()', typeof args, typeof optionLambda],
+ *  readonly['|!()', typeof args],
  * ]}
  */
 export const _optionPropertyLambda = () => (['or',
     ...regionProductions(),
-    /** @type {const} */ (['|?.()', exp]),
-    /** @type {const} */ (['|?.()', exp, optionLambda]),
-    /** @type {const} */ (['|!()', exp]),
+    /** @type {const} */ (['|?.()', args]),
+    /** @type {const} */ (['|?.()', args, optionLambda]),
+    /** @type {const} */ (['|!()', args]),
 ])
 
 /** @type {Phantom<typeof _optionPropertyLambda, OptionPropertyLambda>} */
@@ -373,16 +393,16 @@ export const optionPropertyLambda = _optionPropertyLambda
  * path exactly one spelling: `a.b.c` is nested `dot`s and nothing else.
  */
 export const propertyLambda = or(
-    /** @type {const} */ (['|()', exp]),
-    /** @type {const} */ (['|?.()', exp]),
-    /** @type {const} */ (['|?.()', exp, optionLambda]),
+    /** @type {const} */ (['|()', args]),
+    /** @type {const} */ (['|?.()', args]),
+    /** @type {const} */ (['|?.()', args, optionLambda]),
 )
 
 // Call
 
 /**
  * ```js
- * exp0(...exp1)
+ * exp0(exp1, ...exp2)   // ['()', exp0, [exp1, ['...', exp2]]]
  * ```
  *
  * A call with **no** receiver and no region: the callee is an ordinary
@@ -390,17 +410,13 @@ export const propertyLambda = or(
  * whose continuation is the call, and `(0, a.b)(...c)` is this node over a
  * complete `dot`. The two differ, which is why the distinction is structural.
  *
- * The last operand is one node evaluating to the complete argument array,
- * not a literal operand list: `f(a, b)` is `['()', f, ['[]', [a, b]]]`,
- * and spread `f(...xs)` is `['()', f, ['[]', [['...', xs]]]]`, since a
- * spread iterates its operand: `f(...'ab')` passes `'a'` and `'b'`. Only an
- * operand that is an array by construction, such as a forwarded `['rest']`,
- * may be the last operand itself.
+ * The last operand is the argument list, {@link args}: `f(a, b)` is
+ * `['()', f, [a, b]]`, and spread `f(...xs)` is `['()', f, [['...', xs]]]`.
  *
  * One arity, unlike the three chain nodes below: `()` produces a bare value
  * and so has no continuation operand to leave out.
  */
-export const call = /** @type {const} */ (['()', exp, exp])
+export const call = /** @type {const} */ (['()', exp, args])
 
 // Dot
 
@@ -455,8 +471,8 @@ export const optionDot = or(
 
 /**
  * ```js
- * exp0?.(...exp1)            // ['?.()', exp0, exp1]
- * exp0?.(...exp1).k          // ['?.()', exp0, exp1, ['|.', 'k']]
+ * exp0?.(exp1)            // ['?.()', exp0, [exp1]]
+ * exp0?.(exp1).k          // ['?.()', exp0, [exp1], ['|.', 'k']]
  * ```
  *
  * Optional call, owning the rest of its optional region the way `?.` does.
@@ -465,8 +481,8 @@ export const optionDot = or(
  * is nullish the arguments are not evaluated and the region short-circuits.
  */
 export const optionCall = or(
-    /** @type {const} */ (['?.()', exp, exp]),
-    /** @type {const} */ (['?.()', exp, exp, optionLambda]),
+    /** @type {const} */ (['?.()', exp, args]),
+    /** @type {const} */ (['?.()', exp, args, optionLambda]),
 )
 
 // Comma

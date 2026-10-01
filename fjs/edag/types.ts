@@ -93,6 +93,15 @@ export type Items = Exp | Spread
 
 export type Array = readonly['[]', readonly Items[]]
 
+// call arguments
+
+/**
+ * A call's arguments: the item list `[]` holds, read by position, so
+ * `f(a, ...b)` is `['()', f, [a, ['...', b]]]` and the arguments are no
+ * node of their own.
+ */
+export type Args = readonly Items[]
+
 // property
 
 export type Property = readonly[':', Exp, Exp]
@@ -132,17 +141,17 @@ export type Index = number | NumberCast | string
  * and so has only the shorter arity; `|?.()` opens a region and has both.
  */
 export type PropertyLambda =
-    | readonly['|()', Exp]
-    | readonly['|?.()', Exp]
-    | readonly['|?.()', Exp, OptionLambda]
+    | readonly['|()', Args]
+    | readonly['|?.()', Args]
+    | readonly['|?.()', Args, OptionLambda]
 
 /**
  * The continuation of a step that produced a plain value inside an open
  * region: `OptionCall`'s, and every call step that stays in its region.
  */
 export type OptionLambda =
-    | readonly['|()', Exp]
-    | readonly['|()', Exp, OptionLambda]
+    | readonly['|()', Args]
+    | readonly['|()', Args, OptionLambda]
     | readonly['|.', Index]
     | readonly['|.', Index, OptionPropertyLambda]
 
@@ -155,9 +164,9 @@ export type OptionLambda =
  */
 export type OptionPropertyLambda =
     | OptionLambda
-    | readonly['|?.()', Exp]
-    | readonly['|?.()', Exp, OptionLambda]
-    | readonly['|!()', Exp]
+    | readonly['|?.()', Args]
+    | readonly['|?.()', Args, OptionLambda]
+    | readonly['|!()', Args]
 
 // The chain states nest, and saying so beats restating the four productions
 // the two option states share — which is what both of these used to do, and
@@ -183,13 +192,13 @@ type _PropertyInsideOptionProperty = Assert<Equal<PropertyLambda extends OptionP
 // against the type, which either change makes disagree.
 type _OptionPropertyAdds = Assert<Equal<
     Exclude<OptionPropertyLambda, OptionLambda>,
-    | readonly['|?.()', Exp]
-    | readonly['|?.()', Exp, OptionLambda]
-    | readonly['|!()', Exp]>>
+    | readonly['|?.()', Args]
+    | readonly['|?.()', Args, OptionLambda]
+    | readonly['|!()', Args]>>
 
 // call
 
-export type Call = readonly['()', Exp, Exp]
+export type Call = readonly['()', Exp, Args]
 
 // dot
 
@@ -206,8 +215,8 @@ export type OptionDot =
 // optionCall
 
 export type OptionCall =
-    | readonly['?.()', Exp, Exp]
-    | readonly['?.()', Exp, Exp, OptionLambda]
+    | readonly['?.()', Exp, Args]
+    | readonly['?.()', Exp, Args, OptionLambda]
 
 // Comma
 
@@ -312,13 +321,16 @@ type _DotIsDot = Assert<Equal<TagMap['.'], Dot>>
  * consumers that use this — an executor's step walk carries no state.
  */
 export type StepOver<E, I = E> =
-    | readonly ['|()', E]
-    | readonly ['|()', E, StepOver<E, I>]
+    | readonly ['|()', ItemsOver<E>]
+    | readonly ['|()', ItemsOver<E>, StepOver<E, I>]
     | readonly ['|.', I]
     | readonly ['|.', I, StepOver<E, I>]
-    | readonly ['|?.()', E]
-    | readonly ['|?.()', E, StepOver<E, I>]
-    | readonly ['|!()', E]
+    | readonly ['|?.()', ItemsOver<E>]
+    | readonly ['|?.()', ItemsOver<E>, StepOver<E, I>]
+    | readonly ['|!()', ItemsOver<E>]
+
+/** An item list whose operands are `E`, an array's or a call's arguments: {@link Items} translated, a spread's operand included. */
+export type ItemsOver<E> = readonly (E | readonly ['...', E])[]
 
 /**
  * One position of a node kind, by the type the EDAG declares for it: an
@@ -329,7 +341,7 @@ type Position<T, E, I> =
     Equal<T, Exp> extends true ? E :
     Equal<T, Index> extends true ? I :
     Equal<T, Exps> extends true ? readonly E[] :
-    Equal<T, readonly Items[]> extends true ? readonly (E | readonly ['...', E])[] :
+    Equal<T, readonly Items[]> extends true ? ItemsOver<E> :
     Equal<T, readonly Properties[]> extends true ? readonly (readonly [':', E, E] | readonly ['...', E])[] :
     Equal<T, PropertyLambda> extends true ? StepOver<E, I> :
     Equal<T, OptionLambda> extends true ? StepOver<E, I> :
@@ -354,7 +366,7 @@ type _OverDot = Assert<Equal<Over<Dot, 0, 1>,
     | readonly ['.', 0, 1, StepOver<0, 1>]>>
 type _OverIsClosed = Assert<And<
     Equal<Over<ExpOp, 0> extends readonly [ExpOp[0], ...readonly unknown[]] ? true : false, true>,
-    Equal<Over<Call, 0>, readonly ['()', 0, 0]>>>
+    Equal<Over<Call, 0>, readonly ['()', 0, ItemsOver<0>]>>>
 
 // Each RTTI constant in `./module.f.mjs` matches its declared type above.
 //

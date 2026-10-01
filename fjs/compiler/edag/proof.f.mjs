@@ -163,7 +163,7 @@ export const proof = {
                 const modules = [graph, unresolved(unwrap(parse('')(unwrap(tryModuleStringify(graph))))).edag]
                 for (const module of modules) {
                     /** @type {Exp} */
-                    const invoked = ['()', ['.', module, 'main'], ['[]', []]]
+                    const invoked = ['()', ['.', module, 'main'], []]
                     assertStructurallySame(execute(invoked), expected)
                     assertStructurallySame(vm({ frame: null, args: [] })(invoked), expected)
                 }
@@ -175,13 +175,13 @@ export const proof = {
                 math: file('export const add=(...args)=>args[0]+args[1];'),
             })('main'))
             /** @type {Exp} */
-            const invoked = ['()', ['.', graph, 'main'], ['[]', []]]
+            const invoked = ['()', ['.', graph, 'main'], []]
             assertEq(execute(invoked), 42)
             assertEq(vm({ frame: null, args: [] })(invoked), 42)
             // and its source, the call and the arithmetic written out, runs to
             // the same answer
             /** @type {Exp} */
-            const printed = ['()', ['.', unresolved(unwrap(parse('')(unwrap(tryModuleStringify(graph))))).edag, 'main'], ['[]', []]]
+            const printed = ['()', ['.', unresolved(unwrap(parse('')(unwrap(tryModuleStringify(graph))))).edag, 'main'], []]
             assertEq(execute(printed), 42)
         },
         identity: () => {
@@ -283,7 +283,7 @@ export const proof = {
                 'dep.f.js': file('export default () => 7;'),
             }
             expectEdag(unwrap(linked(root)('main.f.js')),
-                ['{}', [[':', 'default', ['()', ['=>', 0, [], 7], ['[]', []]]]]])
+                ['{}', [[':', 'default', ['()', ['=>', 0, [], 7], []]]]])
         },
         repeatedAnchoredImport: () => {
             const root = {
@@ -534,7 +534,7 @@ export const proof = {
         // a function `const` called from another function
         expectEdag(
             compile('const f = (...a) => a; export default (...b) => f(b);').edag,
-            ['=>', 0, [['=>', 0, [], ['rest']]], ['()', ['frame', 0], ['[]', [['rest']]]]])
+            ['=>', 0, [['=>', 0, [], ['rest']]], ['()', ['frame', 0], [['rest']]]])
     },
     // Source blocks and returns survive parsing, but lowering still gives
     // equivalent bodies the same EDAG, including nested block functions.
@@ -559,14 +559,14 @@ export const proof = {
     // `chainsJs.receiver` in `fjs/edag/proof.f.mjs` pins against JavaScript
     // — so it needs the comma operator and no source writes one.
     call: () => {
-        expectEdag(compile('const f = (...a) => 1; export default f();').edag, ['()', ['=>', 0, [], 1], ['[]', []]])
-        expectEdag(compile('const f = (...a) => 1; export default f(1, 2);').edag, ['()', ['=>', 0, [], 1], ['[]', [1, 2]]])
-        expectEdag(compile('const o = { b: 1 }; export default o.b(3);').edag, ['.', ['{}', [[':', 'b', 1]]], 'b', ['|()', ['[]', [3]]]])
-        expectEdag(compile('const a = [1]; export default a[0](2);').edag, ['.', ['[]', [1]], 0, ['|()', ['[]', [2]]]])
+        expectEdag(compile('const f = (...a) => 1; export default f();').edag, ['()', ['=>', 0, [], 1], []])
+        expectEdag(compile('const f = (...a) => 1; export default f(1, 2);').edag, ['()', ['=>', 0, [], 1], [1, 2]])
+        expectEdag(compile('const o = { b: 1 }; export default o.b(3);').edag, ['.', ['{}', [[':', 'b', 1]]], 'b', ['|()', [3]]])
+        expectEdag(compile('const a = [1]; export default a[0](2);').edag, ['.', ['[]', [1]], 0, ['|()', [2]]])
         // a call upon a call: what a step applies to is everything before it
-        expectEdag(compile('const f = (...a) => 1; export default f(1)(2);').edag, ['()', ['()', ['=>', 0, [], 1], ['[]', [1]]], ['[]', [2]]])
+        expectEdag(compile('const f = (...a) => 1; export default f(1)(2);').edag, ['()', ['()', ['=>', 0, [], 1], [1]], [2]])
         // the arguments of a body's call name that body's arguments
-        expectEdag(compile('export default (...a) => a[0](a);').edag, ['=>', 0, [], ['.', ['rest'], 0, ['|()', ['[]', [['rest']]]]]])
+        expectEdag(compile('export default (...a) => a[0](a);').edag, ['=>', 0, [], ['.', ['rest'], 0, ['|()', [['rest']]]]])
         // A call mints identity, so two calls are two nodes and a `const`
         // is one — which is the whole reason a body may name one.
         const twice = compile('const f = (...a) => 1; export default [f(1), f(1)];').edag
@@ -582,7 +582,7 @@ export const proof = {
         // property reference, so this is the method call above, node for
         // node, and not the detached `(0, o.b)(3)` the comma operator will
         // spell
-        expectEdag(compile('const o = { b: 1 }; export default (o.b)(3);').edag, ['.', ['{}', [[':', 'b', 1]]], 'b', ['|()', ['[]', [3]]]])
+        expectEdag(compile('const o = { b: 1 }; export default (o.b)(3);').edag, ['.', ['{}', [[':', 'b', 1]]], 'b', ['|()', [3]]])
     },
     // A call of a parameterless function written at the call, with no
     // arguments, is its body where the call stands: the idiom for a
@@ -643,8 +643,8 @@ export const proof = {
             expectEdag(compile('export default 1 + (() => { const x = null.x; return 2; })();').edag, [',', [x, ['+', 1, 2]]])
             expectEdag(compile('export default (() => { const x = null.x; return 1; })() && 2;').edag, [',', [x, ['&&', 1, 2]]])
             expectEdag(compile('export default (() => { const x = null.x; return 1; })() ? 2 : 3;').edag, [',', [x, ['?:', 1, 2, 3]]])
-            expectEdag(compile('const f = (...a) => 1; export default f((() => { const x = null.x; return 2; })());').edag, [',', [x, ['()', ['=>', 0, [], 1], ['[]', [2]]]]])
-            expectEdag(compile('const o = { b: 1 }; export default o.b((() => { const x = null.x; return 2; })());').edag, [',', [x, ['.', ['{}', [[':', 'b', 1]]], 'b', ['|()', ['[]', [2]]]]]])
+            expectEdag(compile('const f = (...a) => 1; export default f((() => { const x = null.x; return 2; })());').edag, [',', [x, ['()', ['=>', 0, [], 1], [2]]]])
+            expectEdag(compile('const o = { b: 1 }; export default o.b((() => { const x = null.x; return 2; })());').edag, [',', [x, ['.', ['{}', [[':', 'b', 1]]], 'b', ['|()', [2]]]]])
             // a lazy operand is a block root: the anchor stays under it
             expectEdag(compile('export default 1 && (() => { const x = null.x; return 2; })();').edag, ['&&', 1, [',', [x, 2]]])
             expectEdag(compile('export default 1 || (() => { const x = null.x; return 2; })();').edag, ['||', 1, [',', [x, 2]]])
@@ -678,10 +678,10 @@ export const proof = {
         },
         // every other call stays a call
         stays: () => {
-            expectEdag(compile('export default (() => 1)(2);').edag, ['()', ['=>', 0, [], 1], ['[]', [2]]])
-            expectEdag(compile('export default ((x) => x)();').edag, ['()', ['=>', 1, [], ['arg', 0]], ['[]', []]])
-            expectEdag(compile('export default ((...a) => a)();').edag, ['()', ['=>', 0, [], ['rest']], ['[]', []]])
-            expectEdag(compile('const f = () => 1; export default f();').edag, ['()', ['=>', 0, [], 1], ['[]', []]])
+            expectEdag(compile('export default (() => 1)(2);').edag, ['()', ['=>', 0, [], 1], [2]])
+            expectEdag(compile('export default ((x) => x)();').edag, ['()', ['=>', 1, [], ['arg', 0]], []])
+            expectEdag(compile('export default ((...a) => a)();').edag, ['()', ['=>', 0, [], ['rest']], []])
+            expectEdag(compile('const f = () => 1; export default f();').edag, ['()', ['=>', 0, [], 1], []])
         },
     },
     // A group lowers to the node of the value it holds and adds none of its
@@ -1119,13 +1119,13 @@ export const proof = {
                 // ordinary two- or three-element form — not yet drawn, so
                 // drawn as itself rather than misread as an extra plain operand.
                 continuation: () => assertStructurallySame(
-                    _shapeOf(['.', ['a'], 'x', ['|()', 1]]),
+                    _shapeOf(['.', ['a'], 'x', ['|()', [1]]]),
                     { kind: 'unsupported', label: '. (not yet drawn)', children: [] }),
             },
             call: () => {
-                const shape = nodeShapeOf(['()', ['a'], ['b']], 'expected a shape')
+                const shape = nodeShapeOf(['()', ['a'], [['b'], ['...', ['c']]]], 'expected a shape')
                 assertEq(shape.label, '()')
-                assertStructurallySame(shape.children, [['callee', ['a']], ['arg', ['b']]])
+                assertStructurallySame(shape.children, [['callee', ['a']], ['0', ['b']], ['...1', ['c']]])
             },
             /**
              * **A comma's operands are named, not numbered.** It establishes

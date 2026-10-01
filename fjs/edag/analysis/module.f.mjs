@@ -199,12 +199,12 @@ const step = scope => (state, k) => {
             return [u, ['|.', x, c]]
         }
         case '|!()': {
-            const [t, x] = walk(scope)(state, k[1])
+            const [t, x] = each(item(scope))(state, k[1])
             return [t, ['|!()', x]]
         }
         default: {
             const [tag, e, cont] = k
-            const [t, x] = walk(scope)(state, e)
+            const [t, x] = each(item(scope))(state, e)
             if (cont === undefined) { return [t, [tag, x]] }
             const [u, c] = step(scope)(t, cont)
             return [u, [tag, x, c]]
@@ -309,7 +309,7 @@ const handlers = {
     },
     '()': scope => (state, [, a, b]) => {
         const [t, f] = walk(scope)(state, a)
-        const [u, args] = walk(scope)(t, b)
+        const [u, args] = each(item(scope))(t, b)
         return [u, ['()', f, args]]
     },
     '.': scope => (state, [, a, i, p]) => {
@@ -328,7 +328,7 @@ const handlers = {
     },
     '?.()': scope => (state, [, a, b, p]) => {
         const [t, f] = walk(scope)(state, a)
-        const [u, args] = walk(scope)(t, b)
+        const [u, args] = each(item(scope))(t, b)
         if (p === undefined) { return [u, ['?.()', f, args]] }
         const [v, k] = step(scope)(u, p)
         return [v, ['?.()', f, args, k]]
@@ -341,8 +341,9 @@ const named = x => x instanceof Array ? [x[1]] : []
 /** @type {(k: Step | undefined) => readonly number[]} */
 const stepRefs = k => {
     if (k === undefined) { return [] }
+    if (k[0] === '|.') { return [...named(k[1]), ...stepRefs(k[2])] }
     const [, x, cont] = k
-    return [...named(x), ...stepRefs(cont)]
+    return [...x.flatMap(itemRefs), ...stepRefs(cont)]
 }
 
 /** @type {(x: ItemOperand) => readonly number[]} */
@@ -366,9 +367,14 @@ const refs = node => {
         case '{}': { return node[1].flatMap(propertyRefs) }
         case ',': { return node[1].flatMap(named) }
         case '=>': { return [...node[2].flatMap(named), ...named(node[3])] }
-        case '.': case '?.': case '?.()': {
+        case '.': case '?.': {
             const [, a, b, k] = node
             return [...named(a), ...named(b), ...stepRefs(k)]
+        }
+        case '()': { return [...named(node[1]), ...node[2].flatMap(itemRefs)] }
+        case '?.()': {
+            const [, a, b, k] = node
+            return [...named(a), ...b.flatMap(itemRefs), ...stepRefs(k)]
         }
         default: {
             const [, ...operands] = node

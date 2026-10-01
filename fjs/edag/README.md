@@ -81,11 +81,11 @@ vocabularies.
 | `['rest']` | the invocation's rest array, after the fixed prefix |
 | `['=>', length, slots[], body]` | function; integer length metadata, the slots of its frame — each an `exp` evaluated in the enclosing scope, `[]` for no captures — and the invocation-scope body |
 | `['frame', N]` | slot `N` of the owning function's captured frame |
-| `['()', exp, exp]` | call with no receiver: `exp0(...exp1)` — see [Chains](#chains) |
+| `['()', exp, items[]]` | call with no receiver, `exp(…)` over the argument list `items[]` — see [Chains](#chains) |
 | `['.', exp, index]`, `['.', exp, index, propertyLambda]` | property access `exp0[exp1]`, owning whatever its receiver is used for |
 | `['?.', exp, index]`, `['?.', exp, index, optionPropertyLambda]` | optional property access `exp0?.[exp1]`, owning the rest of its optional region |
-| `['?.()', exp, exp]`, `['?.()', exp, exp, optionLambda]` | optional call `exp0?.(...exp1)`, likewise |
-| `['\|()', exp, k?]`, `['\|.', index, k?]`, `['\|?.()', exp, k?]`, `['\|!()', exp]` | a chain step and, where the chain continues, its continuation — only valid in the continuation operand of a node above, or of another step |
+| `['?.()', exp, items[]]`, `['?.()', exp, items[], optionLambda]` | optional call `exp?.(…)`, likewise |
+| `['\|()', items[], k?]`, `['\|.', index, k?]`, `['\|?.()', items[], k?]`, `['\|!()', items[]]` | a chain step and, where the chain continues, its continuation — only valid in the continuation operand of a node above, or of another step |
 | `[',', exps]` | comma: establish all operands, take the value of the last |
 | `[id, exp]` | unary operation, `id` one of `String` `Number` `!` `~` `typeof` `throw` — `throw` establishes its operand and fails with it as the thrown value, so it is the one node that never has a value |
 | `[id, exp, exp]` | binary operation, `id` one of `own` `is` `===` `!==` `>` `>=` `<` `<=` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` `&&` `\|\|` `??` |
@@ -100,7 +100,8 @@ a continuation position is simply not one of these forms.
 
 A `[]` suffix in the form column marks an operand that is an array of the
 named schema, not one of it: `['[]', items[]]` holds a whole array of
-`items`, `exps` is likewise `exp[]`, and a function's `slots[]` is the same
+`items`, a call's `items[]` is the same list, `exps` is likewise `exp[]`,
+and a function's `slots[]` is the same
 `exp[]` — an array of slots, not a node evaluating to one, so that a slot
 read has a count to be checked against and no spread can leave that count
 unknown. The distinction is easy to lose in
@@ -168,20 +169,35 @@ number. Widening those positions to a bare `exp` was weighed and rejected:
 an `op1`, so it would buy a second spelling of every computed key and no new
 expressive power. Among the binary ids, `own` reads
 an own property, bypassing the prototype chain (including `__proto__` — see
-the `ownJs` proof); calling a function is not among them — `()` takes two
-`exp` operands and so *is* binary in count, but a call's receiver comes from
-the node holding it, which no `op2` id has anywhere to put. A call's
-arguments — the last `exp` of `()`, the second of `?.()`, the operand of
-every call step — are one node evaluating to the complete argument array, not
-a literal operand list: `f(a, b)` is `['()', f, ['[]', [a, b]]]`, and
-`f(a, ...b)` is `['()', f, ['[]', [a, ['...', b]]]]`. A spread argument is a
-`...` entry of a new array, `f(...xs)` included: it is
-`['()', f, ['[]', [['...', xs]]]]`, not `['()', f, xs]`. A spread iterates
-its operand, so `f(...'ab')` passes `'a'` and `'b'`, where passing the
-string through would throw. Only an operand that is an array by
-construction, such as a rest parameter forwarded by `(...r) => f(...r)`, may
-be passed through as `['()', f, ['rest']]`. Every callee builds its own rest
-array from the arguments, so the forwarded array is never the callee's.
+the `ownJs` proof); calling a function is not among them — a call's
+receiver comes from the node holding it, which no `op2` id has anywhere to
+put. A call's arguments — the last operand of `()`, the second of `?.()`,
+the operand of every call step — are an item list, the list `[]` holds, read
+by position: `f(a, b)` is `['()', f, [a, b]]`, and `f(a, ...b)` is
+`['()', f, [a, ['...', b]]]`. The list is no node of its own, so it is never
+shared or hoisted, and its position, not its first item, says it is a list:
+`f('.', x)` is `['()', f, ['.', x]]`. A spread argument is a `...` item,
+`f(...xs)` included: it is `['()', f, [['...', xs]]]`, and forwarding a rest
+parameter, `(...r) => f(...r)`, is `['()', f, [['...', ['rest']]]]`. A spread
+iterates its operand, so `f(...'ab')` passes `'a'` and `'b'`. Every callee
+builds its own rest array from the arguments, so the caller's array is never
+the callee's.
+
+**An engine may form the arguments the way the callee reads them.** The
+semantics are one array, the item list evaluated left to right with each
+spread iterated, which the callee then splits: a function of `length` `N`
+reads its first `N` arguments as `['arg', 0]` … `['arg', N - 1]`, `undefined`
+past the end of a short call, and the arguments after them as `['rest']`. No
+node observes the one array — a function has no `['args']` of its own — so a
+runtime that checks how many fixed parameters the callee takes at the call
+may build the two arrays it reads instead: the fixed `[args; N]` and the rest.
+The items are still evaluated in order, a spread still iterated, and the
+boundary between the two arrays falls at the `N`th value, wherever a spread
+puts it. A call to a function that reads no `['rest']` need not build one.
+And where `N` is `1` an engine may pass the one fixed argument as the value
+itself, no array around it: a curried function, `a => b => a + b`, then takes
+each argument with no allocation at all, where the one-array reading would
+allocate one per call.
 
 ## Chains
 
@@ -225,9 +241,9 @@ produces a bare value, which is why it alone has no continuation operand.
 | step | effect | meaning |
 |---|---|---|
 | `['\|.', index, k]` | sets P, keeps O | property access; the input becomes the receiver |
-| `['\|()', exp, k]` | clears P, keeps O | call the current value with the current receiver |
-| `['\|?.()', exp, k]` | clears P, **sets** O | the same, `undefined` on a nullish current value — and the region it opens owns the rest of the chain |
-| `['\|!()', exp]` | clears P, **clears** O | the same as `\|()`, but *outside* the region: the parentheses ended it, so a short-circuit does not skip this step |
+| `['\|()', items[], k]` | clears P, keeps O | call the current value with the current receiver |
+| `['\|?.()', items[], k]` | clears P, **sets** O | the same, `undefined` on a nullish current value — and the region it opens owns the rest of the chain |
+| `['\|!()', items[]]` | clears P, **clears** O | the same as `\|()`, but *outside* the region: the parentheses ended it, so a short-circuit does not skip this step |
 
 `?` adds a guard and `!` escapes one, which makes the three call steps a
 complete taxonomy of how a call can relate to the region it sits in:
@@ -278,10 +294,8 @@ throws where `a?.b.c` does not.
 ### Spellings
 
 In this table `(...c)` stands for a call's whole argument list and `c` for
-the one node that builds its argument array: `f(a, b)` has
-`c = ['[]', [a, b]]`, and `f(...xs)` has `c = ['[]', [['...', xs]]]`. `c` is
-never a bare spread operand, since a spread iterates it
-([nodes](#nodes), above).
+its item list: `f(a, b)` has `c = [a, b]`, and `f(...xs)` has
+`c = [['...', xs]]` ([nodes](#nodes), above).
 
 | JS | EDAG |
 |---|---|

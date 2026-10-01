@@ -270,7 +270,7 @@ export type MethodCase = {
 /**
  * The cases of one built-in member function, `receiver.method(...args)`,
  * lowered to the chain node a compiled call is:
- * `['.', receiver, method, ['|()', ['[]', args]]]` (`fjs/edag/README.md`,
+ * `['.', receiver, method, ['|()', args]]` (`fjs/edag/README.md`,
  * Chains). `method` is a name a module may call
  * (`fjs/js/prototype`'s `allowedCalls`), so a misspelt or refused name is a
  * type error rather than a case that tests a `TypeError`.

@@ -11,7 +11,6 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         let c1: Any<A> = [c0.clone(), c0.clone()].to_array().to_any();
         Ok([c1.clone(), c1.clone()].to_array().to_any())
     }, 0, Array::default(), Some("(...$a)=>{const $a0=[$a[0],$a[0]];return [$a0,$a0];}")).to_any();
-    let c1: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();
-    let c2: Any<A> = Any::call(c0, c1)?;
-    Ok([(string_key("default"), c2)].to_object().to_any())
+    let c1: Any<A> = Any::call(c0, [f64_any(0x3ff0000000000000)].to_array().to_any())?;
+    Ok([(string_key("default"), c1)].to_object().to_any())
 }

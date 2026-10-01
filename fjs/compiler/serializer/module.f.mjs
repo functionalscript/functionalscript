@@ -123,7 +123,7 @@
  *
  * @module
  *
- * @import { Analysis, Node, Operand, Ref } from '../../edag/analysis/types.ts'
+ * @import { Analysis, ItemOperand, Node, Operand, Ref, Step } from '../../edag/analysis/types.ts'
  * @import { Exp } from '../../edag/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
@@ -815,29 +815,15 @@ const lambdaBody = (a, depth, frame) => b => {
 }
 
 /**
- * A call's arguments, `(a,b)`: the array literal the call holds, which no
- * other edge reaches. The parser builds one for every call, so arguments
- * that are anything else, or that are shared, have no text that reads back.
- * Each argument is any value, a function included.
+ * A call's arguments, `(a,b)`: its item list, each argument any value, a
+ * function included, and a spread one `...` before its operand.
  *
- * @type {(s: _Scope, depth: number) => (args: Operand) => Document}
+ * @type {(s: _Scope, depth: number) => (args: readonly ItemOperand[]) => Document}
  */
-const callArguments = (s, depth) => args => {
-    if (!(args instanceof Array) || s.a.nodes[args[1]][0] !== '[]') { return error('call arguments that are no array literal') }
-    if (s.a.shared.includes(args[1])) { return error('call arguments reached from anywhere but their call') }
-    return mapOk(wrap('(')(')'))(okList(argumentItems(s.a, args).map(item(s, depth))))
-}
+const callArguments = (s, depth) => args => mapOk(wrap('(')(')'))(okList(args.map(item(s, depth))))
 
-/**
- * The items of a call's arguments where they are an array literal, and the
- * arguments themselves otherwise, for the walks that visit them without
- * visiting the array: a `const` for it would be no call's.
- *
- * @type {(a: Analysis, args: Operand) => readonly (Operand | readonly ['...', Operand])[]}
- */
-const argumentItems = (a, args) => args instanceof Array && a.nodes[args[1]][0] === '[]'
-    ? /** @type {Extract<Node, readonly ['[]', unknown]>} */ (a.nodes[args[1]])[1]
-    : [args]
+/** The operand an item holds: itself, or a spread's operand. @type {(x: ItemOperand) => Operand} */
+const itemOperand = x => x instanceof Array && x[0] === '...' ? x[1] : /** @type {Operand} */(x)
 
 /**
  * Whether a callee takes a `const` of its own: a base that does
@@ -989,7 +975,7 @@ const hoists = s => {
         const inner = (node[0] === '=>' ? node[2] : [])
             .filter(x => x instanceof Array && !isName(s.a, x))
             .reduce((ns, x) => own(/** @type {Ref} */(x)[1]) ? add(found(ns, /** @type {Ref} */(x)), ['entry', /** @type {Ref} */(x)[1]]) : found(ns, /** @type {Ref} */(x)),
-                [...operands(s.a)(node), ...lazyOperands(node)].reduce(found, names))
+                [...operands(node), ...lazyOperands(node)].reduce(found, names))
         // a base or a callee that takes a `const` takes it before the node
         // does, since a call is shared by its own `const`, which reads it
         const named = (node[0] === '.' && basedHoisted(s.a, node[1])) || (node[0] === '()' && calleeHoisted(s.a, node[1]))
@@ -1008,25 +994,15 @@ const hoists = s => {
  * binary operator's two, a `throw`'s value, a comma's operands, a lazy
  * operator's left operand and a conditional's condition. A function's body
  * is not among them, since the walk stops at a body, and neither is its
- * frame, which the walk reads on its own, nor a call's array of arguments,
- * which is written as the call's own ({@link callArguments}).
+ * frame, which the walk reads on its own.
  *
- * @type {(a: Analysis) => (node: Node) => readonly Operand[]}
+ * @type {(node: Node) => readonly Operand[]}
  */
-const operands = a => node => {
-    /** @type {(args: Operand) => readonly Operand[]} */
-    const items = args => argumentItems(a, args).flatMap(x => x instanceof Array && x[0] === '...' ? [x[1]] : [/** @type {Operand} */(x)])
+const operands = node => {
     switch (node[0]) {
-        case '.': { return [node[1], node[2], ...(node.length === 3 || node[3][0] !== '|()' ? [] : items(node[3][1]))] }
-        case '()': { return [node[1], ...items(node[2])] }
-        default: { return nodeOperands(node) }
-    }
-}
-
-/** The eager operands of every node but a call, which {@link operands} reads with the analysis. @type {(node: Node) => readonly Operand[]} */
-const nodeOperands = node => {
-    switch (node[0]) {
-        case '[]': { return node[1].flatMap(x => x instanceof Array && x[0] === '...' ? [x[1]] : [/** @type {Operand} */(x)]) }
+        case '.': { return [node[1], node[2], ...(node.length === 3 || node[3][0] !== '|()' ? [] : node[3][1].map(itemOperand))] }
+        case '()': { return [node[1], ...node[2].map(itemOperand)] }
+        case '[]': { return node[1].map(itemOperand) }
         case '{}': { return node[1].flatMap(p => p[0] === '...' ? [p[1]] : [p[1], p[2]]) }
         case 'throw': case '~': { return [node[1]] }
         case '-': case '+': { return node.length === 2 ? [node[1]] : [node[1], node[2]] }
@@ -1037,6 +1013,11 @@ const nodeOperands = node => {
         default: { return [] }
     }
 }
+
+/** The operands a chain step and the steps after it hold, the writer's spelling or not. @type {(k: Step | undefined) => readonly Operand[]} */
+const stepOperands = k => k === undefined ? []
+    : k[0] === '|.' ? [k[1], ...stepOperands(k[2])]
+    : [...k[1].map(itemOperand), ...stepOperands(k[2])]
 
 /**
  * The operands a node establishes only when it decides to — the right
@@ -1063,11 +1044,11 @@ const lazyOperands = node => {
 const allOperands = node => {
     switch (node[0]) {
         case '=>': { return node[2] }
-        case '()': { return [node[1], node[2]] }
-        case '.': { return [node[1], node[2], .../** @type {readonly Operand[]} */ (node.length === 3 ? [] : /** @type {readonly unknown[]} */ (node[3]).slice(1).filter(x => x instanceof Array && x[0] === '#'))] }
-        case '[]': case '{}': case ',': case '-': case '+': case '~': case '&&': case '||': case '??': case '?:':
+        case '.': case '?.': { return [node[1], node[2], ...stepOperands(node[3])] }
+        case '?.()': { return [node[1], ...node[2].map(itemOperand), ...stepOperands(node[3])] }
+        case '()': case '[]': case '{}': case ',': case '-': case '+': case '~': case '&&': case '||': case '??': case '?:':
         case '|': case '^': case '&': case '===': case '!==': case '<': case '<=': case '>': case '>=':
-        case '<<': case '>>': case '>>>': case '*': case '/': case '%': case '**': { return [...nodeOperands(node), ...lazyOperands(node)] }
+        case '<<': case '>>': case '>>>': case '*': case '/': case '%': case '**': { return [...operands(node), ...lazyOperands(node)] }
         default: { return /** @type {readonly Operand[]} */ (/** @type {readonly unknown[]} */ (node).slice(1).filter(x => x instanceof Array && x[0] === '#')) }
     }
 }
@@ -1387,7 +1368,7 @@ const moduleOperand = (a, prefix) => (before, v) => {
     if (!(v instanceof Array) || slotOf(before.names, ['entry', v[1]]) !== null) { return ok(before) }
     const node = a.nodes[v[1]]
     if (node[0] === ',' && node[1].length < 2) { return error('a comma with fewer than two operands') }
-    const children = operands(a)(node).reduce(
+    const children = operands(node).reduce(
         /** @type {(acc: Result<_Statement, string>, child: Operand) => Result<_Statement, string>} */
         ((acc, child) => okThen(state => moduleOperand(a, prefix)(state, child))(acc)), ok(before))
     return okThen(state => {

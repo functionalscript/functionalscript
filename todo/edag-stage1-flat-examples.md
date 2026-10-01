@@ -50,12 +50,17 @@ become `["{}", []]`:
 |Section|What it shows|
 |-|-|
 |Baseline: an expression DAG with anchored evaluation|`["[]", x, x]` vs `["[]", ["{}"], ["{}"]]`, and the `export default` code block below it, including its flat `[",", …]`|
-|The core invariant|the same sharing pair; `["()", f, ["[]", a, b]]`|
-|Other operations|the `["=>", ["[]", ["self"]], …]` and `["()", …, ["[]", …]]` frame examples, and "Frame construction mirrors a call: `["=>", frame, body]`" — three elements where the schema has four; the `if` lowering pair's `[",", ["?:", …], v]`|
+|The core invariant|the same sharing pair|
+|Other operations|the `["=>", ["[]", ["self"]], …]` frame example, and "Frame construction mirrors a call: `["=>", frame, body]`" — three elements where the schema has four; the `if` lowering pair's `[",", ["?:", …], v]`|
 |4. Object constructor: ordered entries|the integer-key ordering caveat, `["{}", [":", "2", a], [":", "1", b]]`|
 |9. Canonical graph serialization and hashing|the sharing pair again|
-|10. Free variables|`["()", ["self"], ["[]"]]`; "`["=>", frame, body]` evaluates its `frame` operand first" — three elements|
+|10. Free variables|"`["=>", frame, body]` evaluates its `frame` operand first" — three elements|
 |12. `toString(f)`|the sharing pair again|
+
+The call examples these rows used to name, written `["()", f, ["[]", …]]`,
+are not this issue's: a call's arguments became an item list,
+`["()", f, [a, b]]`, and the discussion's call examples were re-spelled
+with that change.
 
 The sharing pair (`["[]", x, x]` against `["[]", ["{}"], ["{}"]]`) recurs in
 four sections and should read identically in all four.

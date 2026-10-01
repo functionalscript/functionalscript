@@ -339,9 +339,9 @@ export const caseExp = shared => g => args => {
 /**
  * The expression a method case denotes: the call `receiver.method(...rest)`
  * as the chain node a compiled one is — the `.` read owning its `|()` call
- * step, the arguments one array operand spread at the call
+ * step, the arguments its item list
  * ([Chains](../edag/README.md#chains)). So `[1, 2].at(0)` is
- * `['.', ['[]', [1, 2]], 'at', ['|()', ['[]', [0]]]]`.
+ * `['.', ['[]', [1, 2]], 'at', ['|()', [0]]]`.
  *
  * A case holds its receiver, so `args` is never empty; the refusal is for a
  * caller of the exported `caseExp`, whose `args` are a plain array.
@@ -351,7 +351,7 @@ export const caseExp = shared => g => args => {
 const methodExp = f => method => args => {
     if (args.length === 0) { throw ['a method case has no receiver', method] }
     const [receiver, ...rest] = args.map(f)
-    return ['.', receiver, method, ['|()', ['[]', rest]]]
+    return ['.', receiver, method, ['|()', rest]]
 }
 
 /**

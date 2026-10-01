@@ -14,20 +14,17 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
             c0 + c1
         }, 0, [rest.clone().to_any()].to_array(), Some("(...$a)=>$0[0]+$a[0]")).to_any())
     }, 0, Array::default(), Some("(...$a)=>(...$b)=>$a[0]+$b[0]")).to_any();
-    let c1: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();
-    let c2: Any<A> = Any::call(c0, c1)?;
-    let c3: Any<A> = [f64_any(0x4000000000000000)].to_array().to_any();
-    let c4: Any<A> = Any::call(c2, c3)?;
-    let c5: Any<A> = [f64_any(0x4024000000000000)].to_array().to_any();
-    let c6: Any<A> = A::static_function(|self_, args| {
+    let c1: Any<A> = Any::call(c0, [f64_any(0x3ff0000000000000)].to_array().to_any())?;
+    let c2: Any<A> = Any::call(c1, [f64_any(0x4000000000000000)].to_array().to_any())?;
+    let c3: Any<A> = [f64_any(0x4024000000000000)].to_array().to_any();
+    let c4: Any<A> = A::static_function(|self_, args| {
         let rest = args.clone().into_iter().to_array();
         let c0: Any<A> = Any::dot(A::frame(self_)[0].clone(), f64_any(0x0000000000000000)).end()?;
         let c1: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
         c0 + c1
-    }, 0, [c5.clone()].to_array(), Some("(...$a)=>$0[0]+$a[0]")).to_any();
-    let c7: Any<A> = [f64_any(0x4014000000000000)].to_array().to_any();
-    let c8: Any<A> = Any::call(c6, c7)?;
-    let c9: Any<A> = A::static_function(|_self, args| {
+    }, 0, [c3.clone()].to_array(), Some("(...$a)=>$0[0]+$a[0]")).to_any();
+    let c5: Any<A> = Any::call(c4, [f64_any(0x4014000000000000)].to_array().to_any())?;
+    let c6: Any<A> = A::static_function(|_self, args| {
         let rest = args.clone().into_iter().to_array();
         Ok(A::static_function(|self_, args| {
             let rest = args.clone().into_iter().to_array();
@@ -42,13 +39,10 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
             }, 0, [A::frame(self_)[0].clone(), rest.clone().to_any()].to_array(), Some("(...$a)=>[$0[0],$1[0],$a[0],$0[0]]")).to_any())
         }, 0, [rest.clone().to_any()].to_array(), Some("(...$a)=>(...$b)=>[$0[0],$a[0],$b[0],$0[0]]")).to_any())
     }, 0, Array::default(), Some("(...$a)=>(...$b)=>(...$c)=>[$a[0],$b[0],$c[0],$a[0]]")).to_any();
-    let c10: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();
-    let c11: Any<A> = Any::call(c9, c10)?;
-    let c12: Any<A> = [f64_any(0x4000000000000000)].to_array().to_any();
-    let c13: Any<A> = Any::call(c11, c12)?;
-    let c14: Any<A> = [f64_any(0x4008000000000000)].to_array().to_any();
-    let c15: Any<A> = Any::call(c13, c14)?;
-    let c16: Any<A> = A::static_function(|self_, args| {
+    let c7: Any<A> = Any::call(c6, [f64_any(0x3ff0000000000000)].to_array().to_any())?;
+    let c8: Any<A> = Any::call(c7, [f64_any(0x4000000000000000)].to_array().to_any())?;
+    let c9: Any<A> = Any::call(c8, [f64_any(0x4008000000000000)].to_array().to_any())?;
+    let c10: Any<A> = A::static_function(|self_, args| {
         let rest = args.clone().into_iter().to_array();
         Ok(A::static_function(|self_, args| {
             let rest = args.clone().into_iter().to_array();
@@ -58,11 +52,9 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
             let c3: Any<A> = Any::dot(A::frame(self_)[1].clone(), f64_any(0x0000000000000000)).end()?;
             c2 + c3
         }, 0, [rest.clone().to_any(), A::frame(self_)[0].clone()].to_array(), Some("(...$a)=>$0[0]+$a[0]+$1[0]")).to_any())
-    }, 0, [c5.clone()].to_array(), Some("(...$a)=>(...$b)=>$a[0]+$b[0]+$0[0]")).to_any();
-    let c17: Any<A> = [f64_any(0x4034000000000000)].to_array().to_any();
-    let c18: Any<A> = Any::call(c16, c17)?;
-    let c19: Any<A> = [f64_any(0x4028000000000000)].to_array().to_any();
-    let c20: Any<A> = Any::call(c18, c19)?;
-    let c21: Any<A> = [c4, c8, c15, c20].to_array().to_any();
-    Ok([(string_key("default"), c21)].to_object().to_any())
+    }, 0, [c3.clone()].to_array(), Some("(...$a)=>(...$b)=>$a[0]+$b[0]+$0[0]")).to_any();
+    let c11: Any<A> = Any::call(c10, [f64_any(0x4034000000000000)].to_array().to_any())?;
+    let c12: Any<A> = Any::call(c11, [f64_any(0x4028000000000000)].to_array().to_any())?;
+    let c13: Any<A> = [c2, c5, c9, c12].to_array().to_any();
+    Ok([(string_key("default"), c13)].to_object().to_any())
 }
