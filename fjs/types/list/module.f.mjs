@@ -307,4 +307,13 @@ export const equal = e => {
     return a => b => every(f(a)(b))
 }
 
+/**
+ * Whether two lists hold the same items, in the same order, compared with
+ * `===`: {@link equal} over `strictEqual`. It stops at the first item that
+ * differs, and materialises neither list to get there.
+ *
+ * @type {<T>(a: List<T>) => (b: List<T>) => boolean}
+ */
+export const sameItems = equal(strictEqual)
+
 export const empty = null

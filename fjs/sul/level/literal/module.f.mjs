@@ -12,8 +12,7 @@
 
 import { log2 } from '../../../types/bigint/module.f.mjs'
 import { msb, vec } from '../../../types/bit_vec/module.f.mjs'
-import { strictEqual } from '../../../types/function/operator/module.f.mjs'
-import { equal, map } from '../../../types/list/module.f.mjs'
+import { map, sameItems } from '../../../types/list/module.f.mjs'
 import { join } from '../../../types/string/module.f.mjs'
 
 /** @type {(s: bigint) => string} */
@@ -24,7 +23,7 @@ export const wordToString = word =>
     join(',')(map(symbolToString)(word))
 
 /** @type {Equal<List<bigint>>} */
-export const wordEqual = equal(strictEqual)
+export const wordEqual = sameItems
 
 /** Initial encoder state: no symbols seen, zero offset. */
 /** @type {EncodeState} */
