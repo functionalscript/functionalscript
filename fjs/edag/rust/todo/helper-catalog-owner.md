@@ -1,7 +1,7 @@
 ## helper-catalog-owner. Which `nanvm_lib` helpers the printer calls is written in three modules
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
