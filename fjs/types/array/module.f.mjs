@@ -134,3 +134,26 @@ export const repeat =
      * @return {FixedArray<N, T>}
      */
     v => /**@type{any}*/(toArray(listRepeat(v)(n)))
+
+/**
+ * The array without repeated items, each kept at its first position. Items are
+ * compared with `===`, so every `NaN` is kept: no `NaN` repeats another.
+ *
+ * @type {<T>(a: readonly T[]) => readonly T[]}
+ */
+export const dedup = a => a.filter((v, i) => a.slice(0, i).every(x => x !== v))
+
+/**
+ * The value of the first entry whose key is `key`, compared with `===`, or
+ * `null` when no entry has it — a linear lookup in an association list.
+ *
+ * A stored `undefined` is answered as `undefined`, not as absence. A stored
+ * `null` is answered as `null`, which is the absence answer too: a `V` that
+ * admits `null` cannot tell the two apart.
+ *
+ * @type {(key: unknown) => <V>(a: readonly (readonly [unknown, V])[]) => V | null}
+ */
+export const assoc = key => a => {
+    const entry = a.find(([k]) => k === key)
+    return entry === undefined ? null : entry[1]
+}

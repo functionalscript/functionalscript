@@ -1,4 +1,4 @@
-import { at, first, last, head, tail, splitFirst, splitLast, empty, repeat } from './module.f.mjs'
+import { at, first, last, head, tail, splitFirst, splitLast, empty, repeat, dedup, assoc } from './module.f.mjs'
 import { stringify as jsonStringify } from '../../media/json/module.f.mjs'
 import { sort } from '../object/module.f.mjs'
 import { assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -124,5 +124,31 @@ export const proof = {
     repeat: [
         () => assertStructurallySame(repeat(0)('x'), []),
         () => assertStructurallySame(repeat(3)('x'), ['x', 'x', 'x'])
+    ],
+    dedup: [
+        () => assertStructurallySame(dedup([]), []),
+        () => assertStructurallySame(dedup(['b', 'a', 'b', 'c', 'a']), ['b', 'a', 'c']),
+        // identity, not structure: two equal-looking objects both stay
+        () => {
+            const x = {}
+            assertEq(dedup([x, {}, x]).length, 2)
+        },
+        // `NaN !== NaN`: no `NaN` is a repeat, so none is dropped
+        () => assertEq(dedup([NaN, 1, NaN]).length, 3),
+        // `-0 === 0`: the later one is a repeat
+        () => assertStructurallySame(dedup([0, -0]), [0]),
+    ],
+    assoc: [
+        () => assertEq(assoc('b')([['a', 1], ['b', 2], ['b', 3]]), 2),
+        () => assertEq(assoc('c')([['a', 1], ['b', 2]]), null),
+        () => assertEq(assoc('a')([]), null),
+        // identity, not structure
+        () => {
+            const k = {}
+            assertEq(assoc(k)([[{}, 1], [k, 2]]), 2)
+        },
+        // a stored `undefined` is a value, not absence
+        () => assertEq(assoc('a')([['a', undefined]]), undefined),
+        () => assertEq(assoc('a')([['a', null]]), null),
     ]
 }
