@@ -1,9 +1,17 @@
+/**
+ * @import { DemoEvent } from '../../website/demo/types.ts'
+ */
+
 import { toCodePointList, fromCodePointList, fromVec, utf8ByteToCodePointOp } from './module.f.mjs'
 import { stringify as jsonStringify } from '../../media/json/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { u8ListToVecMsb, vec } from '../../types/bit_vec/module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
+import { demo, codePoints } from './demo.f.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.mjs'
+import { runPure } from '../../effects/module.f.mjs'
 
 const stringify = jsonStringify(sort)
 
@@ -250,5 +258,49 @@ export const proof = {
             const v = vec(4n)(0n)
             assertEq(fromVec(v), null)
         },
-    ]
+    ],
+    demo: {
+        /**
+         * **The bytes the demo shows are this module's own.** Pinned here so
+         * a change to the encoder, or to the way the demo prints it, lands on
+         * a test rather than only on a page nobody is looking at. The
+         * expected bytes are what `printf '%s' 'hé€😀' | od -An -tx1` prints.
+         */
+        codePoints: () => {
+            assertEq(codePoints(''), '')
+            assertEq(codePoints('hé€😀'), [
+                'U+0068   68',
+                'U+00E9   c3 a9',
+                'U+20AC   e2 82 ac',
+                'U+1F600  f0 9f 98 80',
+            ].join('\n'))
+        },
+        /**
+         * **An unpaired surrogate is refused, not encoded.** No UTF-8
+         * sequence encodes one, so its line names it and says so; the code
+         * points around it are unaffected.
+         */
+        unpairedSurrogate: () => {
+            assertEq(codePoints('a\uD800b'), [
+                'U+0061   61',
+                'U+D800   error: unpaired surrogate, no UTF-8',
+                'U+0062   62',
+            ].join('\n'))
+            assertEq(codePoints('\uDC00'), 'U+DC00   error: unpaired surrogate, no UTF-8')
+        },
+        // Typing replaces the text; every other event leaves it alone.
+        update: () => {
+            /** @type {(event: DemoEvent) => (state: string) => string} */
+            const step = event => state => unwrap(assertNotNullish(
+                runPure(demo.update(state)(event))[0],
+                'expected the demo to reach a value without asking for an operation'))
+            assertEq(step({ kind: 'input', name: 'text', value: 'a' })(''), 'a')
+            assertEq(step({ kind: 'start' })('kept'), 'kept')
+        },
+        view: () => {
+            const html = htmlToString(demo.view(demo.init))
+            assert(html.includes('name="text"'), html)
+            assert(html.includes(codePoints(demo.init)), html)
+        },
+    },
 }
