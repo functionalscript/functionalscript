@@ -30,6 +30,7 @@
 
 import { changelogDir, pageHref, pageTitle, repository, shell } from '../page/module.f.mjs'
 import { cmp as versionCmp, tryParse } from '../../types/version/module.f.mjs'
+import { intersperse, mergeAdjacent, toArray } from '../../types/list/module.f.mjs'
 
 const zero = 0x30
 const nine = 0x39
@@ -100,8 +101,7 @@ export const _group = inner => {
     const words = inner.split(', ')
     const out = words.map(_reference)
     if (out.some(x => x === null)) { return null }
-    return /** @type {readonly Inline[]} */(out).flatMap(
-        (link, i) => i === 0 ? [link] : [/** @type {Inline} */(['text', ', ']), link])
+    return toArray(intersperse(/** @type {Inline} */(['text', ', ']))(/** @type {readonly Inline[]} */(out)))
 }
 
 /**
@@ -128,6 +128,9 @@ export const _linked = text => {
         : _merged([['text', head], ...group, ..._linked(text.slice(close))])
 }
 
+/** @type {(a: Inline) => (b: Inline) => Inline | null} */
+const joinText = a => b => a[0] === 'text' && b[0] === 'text' ? ['text', `${a[1]}${b[1]}`] : null
+
 /**
  * Adjacent `text` spans folded into one.
  *
@@ -138,14 +141,7 @@ export const _linked = text => {
  *
  * @type {(spans: readonly Inline[]) => readonly Inline[]}
  */
-export const _merged = spans => spans.reduce(
-    (acc, span) => {
-        const last = acc[acc.length - 1]
-        return span[0] === 'text' && last !== undefined && last[0] === 'text'
-            ? [...acc.slice(0, -1), /** @type {Inline} */(['text', `${last[1]}${span[1]}`])]
-            : [...acc, span]
-    },
-    /** @type {readonly Inline[]} */([]))
+export const _merged = spans => toArray(mergeAdjacent(joinText)(spans))
 
 /**
  * One entry with its references linked. Only `text` spans are scanned: a
@@ -287,7 +283,7 @@ const neighbours = ({ previous, next }) => {
     return links.length === 0
         ? []
         : [['nav', { 'aria-label': 'Releases' },
-            ...links.flatMap((link, i) => i === 0 ? [link] : [' · ', link])]]
+            ...toArray(intersperse(' · ')(links))]]
 }
 
 /**
