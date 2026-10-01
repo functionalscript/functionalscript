@@ -1,7 +1,7 @@
 ## browser-failure-of. `failureOf` is written twice, and the host copy keeps a branch that cannot run
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
