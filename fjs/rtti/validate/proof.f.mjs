@@ -1,5 +1,5 @@
 /**
- * @import { ValidationError, ValidateE, Validate } from '../common/types.ts'
+ * @import { ResultE, ValidateE, Validate } from '../common/types.ts'
  * @import { Type } from '../types.ts'
  * @import { Equal } from '../../types/ts/types.ts'
  * @import { Ts, Unknown } from '../ts/types.ts'
@@ -12,21 +12,14 @@ import { parse } from '../parse/module.f.mjs'
 import { toData, validate as dataValidate } from '../data/module.f.mjs'
 import { boolean, number, string, bigint, unknown, array, never, open, record, rest, or, option } from '../module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-
-/** @type {(r: readonly [string, unknown]) => void} */
-const assertOk = ([k]) => { assertEq(k, 'ok', 'expected ok') }
-
-/** @type {(r: readonly [string, unknown]) => void} */
-const assertError = ([k]) => { assertEq(k, 'error', 'expected error') }
-
-/** @type {(expected: readonly string[]) => (r: readonly [string, unknown]) => void} */
-const assertErrorPath = expected =>
-    r => {
-        assert(r[0] === 'error', 'expected error')
-        const e = /** @type {ValidationError} */ (r[1])
-        assertStructurallySame(e.path, expected, 'unexpected error path')
-    }
+import {
+    assert,
+    assertEq,
+    assertError,
+    assertErrorPath,
+    assertOk,
+    assertStructurallySame,
+} from '../../asserts/module.f.mjs'
 
 /** Both readers with their payload type erased, so a table can hold rows of mixed schemas. */
 
@@ -309,7 +302,7 @@ export const proof = {
     // end.
     optionalPositions: () => {
         const t = /** @type {const} */ ([number, bigint, or(option, string), or(option, null)])
-        /** @type {(rtti: Type) => (check: (r: readonly [string, unknown]) => void) => (value: Unknown) => void} */
+        /** @type {(rtti: Type) => (check: (r: ResultE) => void) => (value: Unknown) => void} */
         const every = rtti =>
             check =>
                 value => {
@@ -354,7 +347,7 @@ export const proof = {
     // accepted, while `[5]` holds it at position 0 and is not.
     interiorOptionBeforeRequired: () => {
         const t = /** @type {const} */ ([or(option, string), number])
-        /** @type {(rtti: Type) => (check: (r: readonly [string, unknown]) => void) => (value: Unknown) => void} */
+        /** @type {(rtti: Type) => (check: (r: ResultE) => void) => (value: Unknown) => void} */
         const every = rtti =>
             check =>
                 value => {

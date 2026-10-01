@@ -9,8 +9,7 @@
  * pins the operand array's element schema, and claims nothing about what a
  * `,` means.
  *
- * @import { ValidationError } from '../rtti/common/types.ts'
- * @import { Unknown } from '../rtti/ts/types.ts'
+ * @import { ResultE, ValidateE } from '../rtti/common/types.ts'
  * @import { StringMap } from '../types/object/types.ts'
  * @import {
  *  array,
@@ -41,14 +40,11 @@
  */
 
 import { validate } from '../rtti/validate/module.f.mjs'
-import { assert, assertEq, assertStructurallySame, todo } from '../asserts/module.f.mjs'
+import { assertEq, assertError, assertErrorPath, assertOk, todo } from '../asserts/module.f.mjs'
 import {
     exp, op0Id, op1Id, op12Id, op2Id, op3Id,
     optionLambda, optionPropertyLambda, propertyLambda,
 } from './module.f.mjs'
-
-/** @type {(r: readonly [string, unknown]) => void} */
-const assertOk = ([k]) => { assertEq(k, 'ok', 'expected ok') }
 
 /**
  * `exp` is a top-level `or` trying every node kind in turn, so when a value
@@ -57,31 +53,29 @@ const assertOk = ([k]) => { assertEq(k, 'ok', 'expected ok') }
  * "the" failure. Same rule as `../rtti/validate/proof.f.mjs`'s `orRoot`.
  * The three lambda schemas are `or`s too, so their failures report the same
  * way.
- * @type {(r: readonly [string, unknown]) => void}
+ * @type {(r: ResultE) => void}
  */
 const assertNoMatch = r => {
-    assert(r[0] === 'error', 'expected error')
-    const e = /** @type {ValidationError} */ (r[1])
-    assertStructurallySame(e.path, [], 'unexpected error path')
-    assertEq(e.message, 'no match')
+    assertErrorPath([])(r)
+    assertEq(assertError(r).message, 'no match')
 }
 
-/** @type {(value: Unknown) => readonly [string, unknown]} */
+/** @type {ValidateE} */
 const v = value => validate(exp)(value)
 
-/** @type {(value: Unknown) => readonly [string, unknown]} */
+/** @type {ValidateE} */
 const vOp0Id = value => validate(op0Id)(value)
 
-/** @type {(value: Unknown) => readonly [string, unknown]} */
+/** @type {ValidateE} */
 const vOp1Id = value => validate(op1Id)(value)
 
-/** @type {(value: Unknown) => readonly [string, unknown]} */
+/** @type {ValidateE} */
 const vOp2Id = value => validate(op2Id)(value)
 
-/** @type {(value: Unknown) => readonly [string, unknown]} */
+/** @type {ValidateE} */
 const vOp12Id = value => validate(op12Id)(value)
 
-/** @type {(value: Unknown) => readonly [string, unknown]} */
+/** @type {ValidateE} */
 const vOp3Id = value => validate(op3Id)(value)
 
 /**
@@ -90,14 +84,14 @@ const vOp3Id = value => validate(op3Id)(value)
  * — a live receiver, an open short-circuit region — so which productions each
  * admits *is* the grammar, and reaching them only through `dot`/`?.`/`?.()`
  * would leave that untested where the states differ.
- * @type {(value: Unknown) => readonly [string, unknown]}
+ * @type {ValidateE}
  */
 const vPropertyLambda = value => validate(propertyLambda)(value)
 
-/** @type {(value: Unknown) => readonly [string, unknown]} */
+/** @type {ValidateE} */
 const vOptionLambda = value => validate(optionLambda)(value)
 
-/** @type {(value: Unknown) => readonly [string, unknown]} */
+/** @type {ValidateE} */
 const vOptionPropertyLambda = value => validate(optionPropertyLambda)(value)
 
 /** Every id `op0` currently accepts — kept as a literal list, not derived

@@ -88,7 +88,9 @@ policy.
 
 Assert results in `proof` code with `assert`/`assertEq` from
 [`fjs/asserts/module.f.mjs`](./asserts/module.f.mjs), not a hand-written
-`if (cond) { throw ... }`.
+`if (cond) { throw ... }`. For an `['ok' | 'error', payload]` result, the same
+module has `assertOk`/`assertError`, which return the payload so it can be
+compared: `assertEq(assertOk(r), expected)`.
 
 A local `if`/`throw` in a test is itself a new branch for the coverage tool to
 track, and its failure side is normally never exercised (the test is expected to

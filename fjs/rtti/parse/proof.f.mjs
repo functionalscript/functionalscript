@@ -1,5 +1,4 @@
 /**
- * @import { ValidationError } from '../common/types.ts'
  * @import { Equal } from '../../types/ts/types.ts'
  * @import { Ts } from '../ts/types.ts'
  * @import { Parse } from './types.ts'
@@ -10,35 +9,15 @@
 
 import { parse } from './module.f.mjs'
 import { boolean, number, string, bigint, unknown, array, open, record, rest, or, option } from '../module.f.mjs'
+import { unwrap } from '../../types/result/module.f.mjs'
 import {
     assert,
     assertEq,
+    assertError,
+    assertErrorPath,
+    assertOk,
     assertStructurallySame,
 } from '../../asserts/module.f.mjs'
-
-/** @type {(r: readonly [string, unknown]) => void} */
-const assertOk = ([k]) => { assertEq(k, 'ok', 'expected ok') }
-
-/** @type {(r: readonly [string, unknown]) => void} */
-const assertError = ([k]) => { assertEq(k, 'error', 'expected error') }
-
-/**
- * @template T
- * @param {readonly [string, unknown]} r
- * @returns {T}
- */
-const unwrap = r => {
-    assert(r[0] === 'ok', 'expected ok')
-    return /** @type {T} */ (r[1])
-}
-
-/** @type {(expected: readonly string[]) => (r: readonly [string, unknown]) => void} */
-const assertErrorPath = expected =>
-    r => {
-        assert(r[0] === 'error', 'expected error')
-        const e = /** @type {ValidationError} */ (r[1])
-        assertStructurallySame(e.path, expected, 'unexpected error path')
-    }
 
 export const proof = {
     boolean: {
@@ -243,7 +222,6 @@ export const proof = {
         // `parse` always constructs a new record.
         freshRecord: () => {
             const input = { a: 1, b: 2 }
-            /** @type {Record<string, number>} */
             const out = unwrap(parse(record(number))(input))
             assert(out !== input, 'expected a fresh record')
             assertStructurallySame(out, { a: 1, b: 2 })
@@ -292,7 +270,6 @@ export const proof = {
         // First matching variant wins; the freshly-constructed value comes from that variant.
         firstMatchWins: () => {
             const t = or(open([number]), array(number))
-            /** @type {readonly number[]} */
             const out = unwrap(parse(t)([1, 2, 3]))
             // The open tuple `open([number])` matches first and returns a
             // length-1 result; the closed `[number]` would not match at all.
