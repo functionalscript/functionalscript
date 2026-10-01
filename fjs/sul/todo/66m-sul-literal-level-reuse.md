@@ -1,7 +1,7 @@
 ## 66M-sul-literal-level-reuse. `literalToVec` rebuilds the SUL levels the pipeline already holds
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
