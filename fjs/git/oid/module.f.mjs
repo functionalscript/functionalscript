@@ -63,6 +63,28 @@ export const isOidOf = oidBytes => {
 }
 
 /**
+ * `f`, on an id of this width only: the precondition every reader that is
+ * handed an id makes, spelled once with its message so the readers cannot
+ * drift apart in what they say.
+ *
+ * The width is bound once, as {@link isOidOf} binds it, and the check runs
+ * when the id is given — before `f`, so a reader whose answer is an effect
+ * refuses now, not when the effect is stepped.
+ *
+ * @throws On an id that is not `oidBytes` wide: a caller that mixes the
+ * widths has a bug, not a missing object.
+ *
+ * @type {(oidBytes: OidBytes) => <R>(f: (id: Oid) => R) => (id: Oid) => R}
+ */
+export const ofWidth = oidBytes => {
+    const isOid = isOidOf(oidBytes)
+    return f => id => {
+        assert(isOid(id), ['not an id of the width', id])
+        return f(id)
+    }
+}
+
+/**
  * {@link tryFromHex} at the repository's width: an id of any other width
  * is refused too, which is the check every header that names an object
  * makes, in a commit's `validate` and a tag's alike.

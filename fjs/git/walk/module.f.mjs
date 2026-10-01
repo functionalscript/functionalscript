@@ -35,12 +35,11 @@
  * @import { Entry, Read, Step, Target } from './types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
 import { foldStep, mapStep, pureOk, step, walkStep } from '../../effects/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { tryTreeAt } from '../commit/module.f.mjs'
-import { isOidOf } from '../oid/module.f.mjs'
+import { ofWidth } from '../oid/module.f.mjs'
 import { sameBytes } from '../refname/module.f.mjs'
 import { tryTargetAt } from '../tag/module.f.mjs'
 import { isSubtree, tryRead as readTree } from '../tree/module.f.mjs'
@@ -146,8 +145,8 @@ const peelStep = (read, targetAt, treeAt) => ({ id, want }) => state => {
  * answering objects no repository holds, and the walk follows it as far as
  * it goes.
  *
- * @throws On an id that is not `oidBytes` wide: a caller that mixes the
- * widths has a bug, not a missing object.
+ * @throws As [`fjs/git/oid`](../oid/module.f.mjs)'s `ofWidth` does, on an
+ * id that is not `oidBytes` wide.
  *
  * @template {Operation} O
  * @param {Read<O>} read
@@ -156,11 +155,7 @@ const peelStep = (read, targetAt, treeAt) => ({ id, want }) => state => {
  */
 export const peel = (read, oidBytes) => {
     const f = peelStep(read, tryTargetAt(oidBytes), tryTreeAt(oidBytes))
-    const isOid = isOidOf(oidBytes)
-    return id => {
-        assert(isOid(id), ['not an id of the width', id])
-        return mapStep(walkStep(pureOk([{ id, want: null }]), noTarget, f), s => s.target)
-    }
+    return ofWidth(oidBytes)(id => mapStep(walkStep(pureOk([{ id, want: null }]), noTarget, f), s => s.target))
 }
 
 /**
