@@ -106,9 +106,9 @@ const textMapping = mapping
 
 /**
  * The mapping of the grammar's `escape` rule: to the character it spells —
- * a simple escape's from `../../../js/string_escape`'s table, which the
- * grammar draws its escape set from, so the lookup always answers; and a
- * `\u` escape's the one code unit its four digits name, so an escaped
+ * a simple escape's from `../../../js/string_escape`'s table, whose letters
+ * the grammar's proof pins its escape set to, so the lookup always answers;
+ * and a `\u` escape's the one code unit its four digits name, so an escaped
  * surrogate is one unit, as a raw one is. The node is the backslash and what
  * follows it.
  *
