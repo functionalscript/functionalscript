@@ -42,6 +42,6 @@ the `@throws` paragraph lives on the export.
 
 ### Related
 
-- [../../todo/header-field-accessors.md](../../todo/header-field-accessors.md)
-  — the same move for the positional accessors: a skeleton where each
-  site had a copy.
+- [`fjs/git/header`](../../header/module.f.mjs)'s `fieldAt` and its
+  siblings — the same move, made for the positional accessors: a skeleton
+  where each site had a copy.
