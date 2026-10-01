@@ -6,7 +6,7 @@ import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { empty, length, maxLengthBytes, u8ListMsb, vec } from '../../types/bit_vec/module.f.mjs'
 import { cycle, take, toArray } from '../../types/list/module.f.mjs'
 import { commitPayload, hole, latin1, mergePayload, modesTree, rootTree, sha256Commit, sha256Tree, tagPayload } from '../testlib.f.mjs'
-import { hexText, isOidOf, of, toHex, tryFromHex, tryFromHexOf } from './module.f.mjs'
+import { digestOf, hexText, isOidOf, of, toHex, tryFromHex, tryFromHexOf } from './module.f.mjs'
 
 /** @type {(hex: string) => readonly number[]} */
 const bytes = hex => {
@@ -125,6 +125,9 @@ export const proof = {
         nonByte: () => tryFromHex([0x100, 0x30]),
         hole: () => tryFromHex(hole),
         notAByteInPayload: () => of20('blob', [0x100]),
+        // `digestOf` hands its bytes to the hash as they are, with no `write`
+        // to check them first: `300` would hash as `44`.
+        notAByteInDigest: () => digestOf(20)([300]),
         // A one-bit `Vec` is no id: spelled, it would pad to `80` and read
         // back as a byte.
         notWholeBytes: () => toHex(vec(1n)(1n)),

@@ -1,5 +1,5 @@
-import { sum, min, max, cmp, countOnes } from './module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { sum, min, max, cmp, countOnes, isByte } from './module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {
     sum: () => {
@@ -19,6 +19,11 @@ export const proof = {
     max: () => {
         const result = max([1, 2, 12, -4, 8])
         assertEq(result, 12)
+    },
+    // The integers `0..255`, and no other number.
+    isByte: () => {
+        assert([0, 1, 0x7F, 0x80, 0xFF].every(isByte))
+        assert([-1, 0x100, 0.5, -0, NaN, Infinity].every(b => !isByte(b)))
     },
     cmp: () => {
         const result = cmp(4)(5)

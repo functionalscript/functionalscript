@@ -526,6 +526,19 @@ export const proof = {
             lsb.listToVec(list)
         },
     },
+    // An item that is no byte is refused where it becomes an 8-bit piece:
+    // above the range, below it, and a wide item beside a correct one, whose
+    // extra bit would otherwise land in its neighbour (`[64, 256]` read as
+    // `[65, 0]`). The `try` form refuses too — its `null` is only overflow.
+    u8ListNotAByte: {
+        throw: {
+            above: () => u8ListToVecMsb([256]),
+            below: () => u8ListToVec(lsb)([-1]),
+            middle: () => u8ListToVecMsb([65, 300, 66]),
+            neighbour: () => u8ListToVecMsb([64, 256]),
+            try: () => tryU8ListToVec(msb)([256]),
+        },
+    },
     u8ListToVecOverflow: {
         // 131_073 bytes is 8 bits past `maxLength`; same null/throw split as
         // `tryListToVec`/`listToVec` above, exercised through the byte-list API.

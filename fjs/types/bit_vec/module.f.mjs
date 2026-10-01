@@ -32,6 +32,7 @@
 import { bitLength, divUp, mask, maxLength, roundUp8, xor } from '../bigint/module.f.mjs'
 import { compose, flip, identity } from '../function/module.f.mjs'
 import { map } from '../list/module.f.mjs'
+import { isByte } from '../number/module.f.mjs'
 import { asBase, asNominal } from '../nominal/module.f.mjs'
 import { foldAbsorbing, repeat as mRepeat } from '../../common/monoid/module.f.mjs'
 import { cmp, max, min } from '../function/compare/module.f.mjs'
@@ -264,9 +265,21 @@ const unpackEmpty = /** @type {const} */{ length: 0n, uint: 0n }
  * differ by. Neither depends on a bit order, so both are bound once here
  * (`fjs/AGENTS.md` §3.3).
  *
+ * An item that is no byte is refused here, where it becomes an 8-bit piece:
+ * a wider `uint` would otherwise be carried into the concatenation as it is,
+ * and its extra bits would land in a neighbour — `[64, 256]` read as
+ * `[65, 0]` — a plausible wrong answer where a refusal is owed
+ * (`doc/DESIGN.md` §10). It is a caller's mistake, not an input to handle,
+ * so it panics, as `fjs/ebnf/byte`'s `byteArray` does.
+ *
+ * @throws If `b` is not a byte.
+ *
  * @type {(_: number) => Unpacked}
  */
-const u8ToUnpacked = b => ({ length: 8n, uint: BigInt(b) })
+const u8ToUnpacked = b => {
+    assert(isByte(b), ['not a byte', b])
+    return { length: 8n, uint: BigInt(b) }
+}
 
 /**
  * Concatenation as a monoid over `Nullable<Unpacked>`, where `null` means "the
@@ -469,12 +482,20 @@ export const msb = bo({
  * bit order, like `u8ListToVec`, but returns `null` instead of throwing when the
  * result would exceed `maxLength`.
  *
+ * `null` means only that: an item that is no byte is the caller's mistake, not
+ * an overflow, so it throws. The one exception is an item the fold never reads
+ * because the list overflowed first — the answer is `null` either way.
+ *
+ * @throws If an item it reads is not a byte.
+ *
  * @type {(_: BitOrder) => (list: List<number>) => Nullable<Vec>}
  */
 export const tryU8ListToVec = mappedListToVec(u8ToUnpacked)
 
 /**
  * Converts a list of unsigned 8-bit integers to a bit vector using the provided bit order.
+ *
+ * @throws If an item is not a byte, or the result would exceed `maxLength`.
  *
  * @param {BitOrder} bo The bit order for the conversion
  * @param list The list of unsigned 8-bit integers to be converted.
@@ -486,6 +507,8 @@ export const u8ListToVec = bo =>
 /**
  * `u8ListToVec(msb)`: a vector from its bytes, most significant first — the
  * byte order of every byte-oriented format in this repository.
+ *
+ * @throws As `u8ListToVec` does.
  *
  * @type {(list: List<number>) => Vec}
  */
