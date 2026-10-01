@@ -8,7 +8,7 @@
 Five implementation modules export a `proof` object of their own, although
 each already has a `proof.f.mjs` beside it:
 
-- [`fjs/dev`](../dev/module.f.mjs) — a whole suite (`isSourceFile`,
+- [`fjs/dev`](../dev/module.f.mjs) — a whole suite (`allFilesSkipsNodeModules`,
   `allFilesFindsFunctionalScript`, the `loadModuleMap…` cases). The module
   imports `fjs/asserts` and `fjs/effects/node/virtual` at runtime for it and
   for nothing else.
