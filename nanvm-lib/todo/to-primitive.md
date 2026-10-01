@@ -342,7 +342,9 @@ Each needs the owner's approval before the step that depends on it.
    [function-text](../../fjs/edag/amnesia/todo/function-text.md). It is
    ruled out: a FunctionalScript function cannot be given a custom
    `toString`, since a `Proxy` is not a FunctionalScript object and setting
-   the property is mutation, so the corpus's `host` marker stays. The property-key conversion needs no
+   the property is mutation, so the corpus's `host` marker stays. The
+   evaluator refuses the conversions it performs itself instead
+   ([function-text.md](../../fjs/edag/function-text.md)). The property-key conversion needs no
    issue of its own (below). A `const` only a lazy operand reaches, which
    the writer refused at first, is now the operand's own block, an IIFE the
    front end inlines. The corpus's
