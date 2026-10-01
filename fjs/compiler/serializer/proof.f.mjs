@@ -841,6 +841,8 @@ export const proof = {
             /** @type {Exp} */
             const r1 = ['.', ['rest'], 1]
             /** @type {Exp} */
+            const r2 = ['.', ['rest'], 2]
+            /** @type {Exp} */
             const c = ['[]', [1]]
             // a value shared under one arm alone is the arm's block's
             writes(fn(['?:', r0, ['[]', [c, c]], 4]), 'export default (...$a)=>$a[0]?(()=>{const $b0=[1];return [$b0,$b0];})():4;')
@@ -918,7 +920,8 @@ export const proof = {
             // and what a value the scope names holds is not the block's:
             // its `const` writes it once, and each occurrence reads the
             // name — a nested array, and a call, whose arguments are an
-            // array, read eagerly and in an arm, in one arm, or in both
+            // array, read in both arms, or eagerly and under `||` or in
+            // one arm
             /** @type {Exp} */
             const nest = ['[]', [c]]
             /** @type {Exp} */
@@ -932,15 +935,14 @@ export const proof = {
             writes(fn(['[]', [field, ['?:', r0, field, 0]]]), 'export default (...$a)=>{const $a0=$a();return [$a0.a,$a[0]?$a0.a:0];};')
             writes(fn([',', [call, ['?:', r0, field, field]]]), 'export default (...$a)=>{const $a0=$a();return $a[0]?$a0.a:$a0.a;};')
             // and so is what the value holds under a lazy operand of its
-            // own: an arm's array, or a `??` in a call's arguments
+            // own: an array in an arm, or an object after a `??` in a
+            // call's arguments
             /** @type {Exp} */
-            const r2 = ['.', ['rest'], 2]
+            const choice = ['?:', r0, ['[]', [r1]], 0]
             /** @type {Exp} */
-            const arm = ['?:', r0, ['[]', [r1]], 0]
-            /** @type {Exp} */
-            const armField = ['.', arm, 'a']
-            writes(fn([',', [arm, ['?:', r2, armField, armField]]]), 'export default (...$a)=>{const $a0=$a[0]?[$a[1]]:0;return $a[2]?$a0.a:$a0.a;};')
-            writes(fn(['[]', [arm, ['?:', r2, armField, ['[]', [armField]]]]]), 'export default (...$a)=>{const $a0=$a[0]?[$a[1]]:0;return [$a0,$a[2]?$a0.a:[$a0.a]];};')
+            const choiceField = ['.', choice, 'a']
+            writes(fn([',', [choice, ['?:', r2, choiceField, choiceField]]]), 'export default (...$a)=>{const $a0=$a[0]?[$a[1]]:0;return $a[2]?$a0.a:$a0.a;};')
+            writes(fn(['[]', [choice, ['?:', r2, choiceField, ['[]', [choiceField]]]]]), 'export default (...$a)=>{const $a0=$a[0]?[$a[1]]:0;return [$a0,$a[2]?$a0.a:[$a0.a]];};')
             /** @type {Exp} */
             const defaulted = ['()', ['rest'], ['[]', [['??', r0, ['{}', []]]]]]
             /** @type {Exp} */
