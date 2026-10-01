@@ -266,11 +266,12 @@ The Rust printer passes the template to the function value as an
 - **An empty frame:** the template is the text. That holds under every
   answer to the open questions in
   [serialization](../../spec/todo/serialization.md#open-questions).
-- **A non-empty frame:** only filling the holes depends on question 2. If
-  `String(f)` is code-only, a hole is a name, and `make(0)` and `make(1)`
-  share one text, as they do in JavaScript. If it instantiates the frame, a
-  hole is the rendered value, which needs a run-time value renderer that
-  keeps sharing, a function's frame rendered in place, and lazy text.
+- **A non-empty frame:** only filling the holes depends on question 2, and
+  D2 answers it code-only: a hole is a name, and `make(0)` and `make(1)`
+  share one text, as they do in JavaScript. Instantiating the frame, not
+  chosen, would have made a hole the rendered value, needing a run-time
+  value renderer that keeps sharing, a function's frame rendered in place,
+  and lazy text.
 
 Hashing needs the EDAG itself, not its text, so this does not decide
 [Stage 7](./callable-function-objects.md)'s embedded-or-lookup question.
@@ -335,9 +336,8 @@ Each needs the owner's approval before the step that depends on it.
    calls is the harness's `Action::Call`, unchanged. `ToNumber` of a
    function stays `NaN` without its text, since that is exact for any text.
 5. **Rust, for a frame** (done, with step 4): under D2's code-only answer
-   the text is complete at compile time. Instantiating, if the owner
-   chooses it, is the run-time value renderer with lazy text, big enough
-   for its own issue.
+   the text is complete at compile time, so no run-time value renderer is
+   needed.
 6. **Follow-up issues** (filed): rendering in the FJS interpreter,
    [function-text](../../fjs/edag/amnesia/todo/function-text.md). It is
    ruled out: a FunctionalScript function cannot be given a custom

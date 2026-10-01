@@ -114,13 +114,13 @@ compiler support for `self` or for rendering either as text.
    const f = () => x;
    ```
 
-   Should it produce `() => x` or `() => 3` (illustrative spellings)? The
-   **owner's preference is `() => 3`**. If question 1 chooses the same
-   self-contained function serializer for both operations, captured values
-   must be represented rather than left as unresolved external bindings;
-   that gives `3` in this example. Until question 1 is answered, the choice
-   for `String(f)` remains open. A code-only representation cannot promise
-   recovery of the original variable name from a name-erased EDAG.
+   Should the function serializer produce `() => x` or `() => 3`
+   (illustrative spellings)? A self-contained serializer must represent
+   captured values rather than leave them as unresolved external bindings,
+   which gives `3` in this example. `String(f)` does not follow it: its
+   code-only answer above stands whatever question 1 decides. A code-only
+   representation cannot promise recovery of the original variable name
+   from a name-erased EDAG.
 
    The distinction is code versus a bound callable:
 
@@ -166,6 +166,10 @@ candidates, not answers to these reopened questions. The questions change no
 EDAG `frame`/`self` semantics and no current serializer implementation.
 
 ### Conditional requirement: lazy frame rendering
+
+`String(f)` is code-only (question 2), so it never instantiates a frame and
+this requirement does not apply to it. It stays for a function serializer
+that represents captured values (question 1).
 
 **If `String(f)` instantiates the frame, its FJS VM implementation must support
 lazy source production.** A small function can capture other functions and,
@@ -213,7 +217,8 @@ lazy strings or frame serialization are implemented today.
 - [ ] Specify deterministic rendering for the chosen inputs and share the
   default function-representation operation across FJS executors and coercion
   paths. Render associated semantic EDAG, not mutable optimization/cache state.
-- [ ] If frame-instantiating `String(f)` is selected, implement deferred text
+- [ ] If a function serializer instantiates the frame (question 1; `String(f)`
+  does not, per question 2), implement deferred text
   production and incremental consumption without storing complete source on
   function values. Cover large shared dependency graphs, prefix-only use and
   full consumption; compare produced code units and admitted string operations
