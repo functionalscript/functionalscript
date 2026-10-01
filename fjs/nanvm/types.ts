@@ -91,9 +91,8 @@ export type Info =
  * One thing about a function is *not* shared data yet: its string form.
  * `nanvm-lib` answers the FunctionalScript writer's text
  * (`fjs/compiler/serializer`'s `tryFunctionText`), `()=>undefined` for this
- * one. The host evaluator refuses it where it converts a function itself
- * and gives its own closure's source where the host converts
- * (`fjs/edag/function-text.md`). A case whose result depends on it — `String` of a function, `+` with one, `toString`,
+ * one, while the host evaluator gives its own closure's source. A case whose
+ * result depends on it — `String` of a function, `+` with one, `toString`,
  * `join`, or a string method handed one — carries the writer's text as its
  * `expected` and a `host` marker ({@link Case}), so it runs on the Rust side
  * only. Every other coercion of a function, nested or not, agrees on both
@@ -202,8 +201,8 @@ export type OpId = Op1Id | Op2Id | Op12Id | Op3Id
  *
  * `host` is the other side's marker: the JavaScript proof skips the case and
  * the Rust side runs it. It marks a case whose `expected` is a function's
- * text, which the host evaluator refuses or answers wrongly where
- * `nanvm-lib` renders it (see {@link FunctionValue}); the value is the reason.
+ * text, which the host evaluator does not render the way `nanvm-lib` does
+ * (see {@link FunctionValue}); the value is the reason.
  */
 export type Case<N extends number> = {
     readonly name: string

@@ -131,47 +131,6 @@ export const proof = {
         eq(['?:', true, 1, ['throw', 2]], 1)
         eq(['&&', false, ['throw', 2]], false)
     },
-    // A function's text: the evaluator refuses the conversions it performs
-    // itself rather than answer its closure's wrapper source, and answers
-    // every comparison whose result does not depend on the text. See
-    // `../function-text.md`.
-    functionText: {
-        answered: () => {
-            // Against a number, bigint, boolean or nullish operand a
-            // function is `NaN`, so a comparison is `false` whatever its text.
-            eq(['<', identity, 5], false)
-            eq(['>=', 5, identity], false)
-            eq(['<=', identity, null], false)
-            eq(['>', true, identity], false)
-            // An object made primitive as a number is compared as one:
-            // its own `valueOf`, or its own `toString` without one.
-            eq(['<', identity, ['{}', [[':', 'valueOf', ['=>', 0, [], 0]]]]], false)
-            eq(['>', ['{}', [[':', 'toString', ['=>', 0, [], 1]]]], identity], false)
-            // String comparisons without a function are untouched, an
-            // array's primitive included.
-            eq(['<', 'a', 'b'], true)
-            eq(['<', ['[]', []], 'a'], true)
-            eq(['<', 1, 2], true)
-            // Unary `+` is `ToNumber`, `NaN` for any text.
-            eq(['is', ['+', identity], NaN], true)
-        },
-        throw: {
-            string: () => ev(['String', identity]),
-            plusString: () => ev(['+', identity, '!']),
-            numberPlus: () => ev(['+', 1, identity]),
-            lessThanString: () => ev(['<', identity, 'a']),
-            stringLessThan: () => ev(['<', 'a', identity]),
-            twoFunctions: () => ev(['<=', identity, identity]),
-            againstArray: () => ev(['>', identity, ['[]', []]]),
-            objectAgainst: () => ev(['>=', ['{}', []], identity]),
-            // An own `valueOf` answering a string, or a function that
-            // `ToPrimitive` passes over for the default `toString`, and an
-            // own `toString` answering a string.
-            stringValueOf: () => ev(['<', identity, ['{}', [[':', 'valueOf', ['=>', 0, [], 'a']]]]]),
-            functionValueOf: () => ev(['<', identity, ['{}', [[':', 'valueOf', ['=>', 0, [], identity]]]]]),
-            stringToString: () => ev(['<', identity, ['{}', [[':', 'toString', ['=>', 0, [], 'a']]]]]),
-        },
-    },
     // `o12` — the node's length picks the operation. The unary arms coerce
     // with `ToNumber`, so a string operand pins that they are not the binary
     // ones over a missing operand: `+'5'` is `5`, not `'5undefined'`.

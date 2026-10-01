@@ -51,83 +51,6 @@ const o1 = o => ({ operand }) => ([, a]) => o(operand(a))
 const o12 = (u, o) => ({ operand }) => e =>
     e.length === 2 ? u(operand(e[1])) : o(operand(e[1]), operand(e[2]))
 
-/** What every refusal below throws. */
-const refused = 'function text: the evaluator refuses it, see fjs/edag/function-text.md'
-
-/**
- * Refuses a function where an operation would read its text. This
- * evaluator's functions are host closures built by `callable`, and the host
- * answers their text with the factory's wrapper source, the same for every
- * function of one length. That is a wrong successful result, so the
- * conversions this table performs itself refuse instead; why, and which
- * conversions stay out of its reach, is [function-text.md](../function-text.md).
- *
- * @type {(v: unknown) => unknown}
- */
-const noText = v => {
-    assert(typeof v !== 'function', refused)
-    return v
-}
-
-/**
- * Whether `v` is a primitive, which `ToPrimitive` hands back unchanged.
- *
- * @type {(v: unknown) => boolean}
- */
-const isPrimitive = v => v === null || (typeof v !== 'object' && typeof v !== 'function')
-
-/**
- * An object's own method `k`, or `undefined`. A FunctionalScript object
- * inherits no method of its own making, so an own property is the only
- * place a `valueOf` or `toString` of its own can be — `own` below reads
- * the same way.
- *
- * @type {(v: object, k: string) => ((() => unknown) | undefined)}
- */
-const ownMethod = (v, k) => {
-    const m = Object.getOwnPropertyDescriptor(v, k)?.value
-    return typeof m === 'function' ? m : undefined
-}
-
-/**
- * Whether `v`, made primitive as a relational operator makes it
- * (`ToPrimitive` with the number hint), is a string: a string itself, a
- * function (its text), an array (its elements joined), or an object whose
- * own `valueOf` or, failing that, `toString` answers a string, or that has
- * neither (`"[object Object]"`). The methods are pure, so calling one here
- * and again in the operator observes nothing; one that throws throws the
- * value the operator would.
- *
- * @type {(v: unknown) => boolean}
- */
-const primitiveIsString = v => {
-    if (isPrimitive(v)) { return typeof v === 'string' }
-    if (typeof v === 'function') { return true }
-    const o = /** @type {object} */(v)
-    const valueOf = ownMethod(o, 'valueOf')
-    const r = valueOf === undefined ? o : valueOf()
-    if (isPrimitive(r)) { return typeof r === 'string' }
-    const toString = ownMethod(o, 'toString')
-    // Neither answered a primitive: the operator throws, which is not a
-    // read of any text.
-    return toString === undefined || typeof toString() === 'string'
-}
-
-/**
- * `<`, `<=`, `>` and `>=`, refusing the one input whose result is a
- * function's text: a function compared with an operand that, made
- * primitive, is a string. Against anything else a function is `NaN`, so the
- * result is `false` whatever its text, and it stays answered.
- *
- * @type {(o: (a: any, b: any) => unknown) => <E>(x: Evaluator<E>) => (e: Over<Op2, E>) => unknown}
- */
-const relational = o => o2((a, b) => {
-    /** @type {(f: unknown, v: unknown) => boolean} */
-    const readsText = (f, v) => typeof f === 'function' && primitiveIsString(v)
-    assert(!readsText(a, b) && !readsText(b, a), refused)
-    return o(a, b)
-})
-
 /** Both ways of being nullish, which is what every optional step guards. */
 /** @type {(v: unknown) => boolean} */
 const nullish = v => v === undefined || v === null
@@ -259,9 +182,8 @@ export const operations = {
     '*': o2((a, b) => a * b),
     '**': o2((a, b) => a ** b),
     // Unary plus is JS's: `ToNumber`, which throws on a bigint where
-    // `Number` converts — see `op12Id` in `../module.f.mjs`. Binary `+` with
-    // a function operand always concatenates its text, so it refuses.
-    '+': o12(a => +a, (a, b) => /**@type {any}*/(noText(a)) + noText(b)),
+    // `Number` converts — see `op12Id` in `../module.f.mjs`.
+    '+': o12(a => +a, (a, b) => a + b),
     ',': ({ operand }) => ([, a]) => a.reduce((/**@type {unknown}*/_, c) => operand(c), undefined),
     '-': o12(a => -a, (a, b) => a - b),
     // Property access, owning whatever its receiver is used for: with no
@@ -285,9 +207,9 @@ export const operations = {
     // value unchanged. Its `|.` and `|!()` arms are unreachable from here.
     '.': ({ operand }) => ([, a, k, p]) => optionPropertyLambda(operand, operand(a), operand(k), p),
     '/': o2((a, b) => a / b),
-    '<': relational((a, b) => a < b),
+    '<': o2((a, b) => a < b),
     '<<': o2((a, b) => a << b),
-    '<=': relational((a, b) => a <= b),
+    '<=': o2((a, b) => a <= b),
     '===': o2((a, b) => a === b),
     // The slots are evaluated here, in the enclosing invocation, into the
     // frame, and the body is not: the value is a closure over the captured
@@ -298,8 +220,8 @@ export const operations = {
         const frame = slots.map(operand)
         return callable(length, (fixed, rest) => invoke(frame, fixed, rest, body))
     },
-    '>': relational((a, b) => a > b),
-    '>=': relational((a, b) => a >= b),
+    '>': o2((a, b) => a > b),
+    '>=': o2((a, b) => a >= b),
     '>>': o2((a, b) => a >> b),
     '>>>': o2((a, b) => a >>> b),
     // Optional property access, owning the rest of its optional region. On a
@@ -326,9 +248,7 @@ export const operations = {
     '?:': ({ operand }) => ([, c, t, e]) => operand(c) ? operand(t) : operand(e),
     '??': o2lazy((a, b) => a ?? b()),
     Number: o1(Number),
-    // A function's text is refused; an array or object holding one is the
-    // host's to convert, out of reach — see `../function-text.md`.
-    String: o1(a => String(noText(a))),
+    String: o1(String),
     // The equality the language's guarantees are stated in: `NaN` is `NaN`
     // and `0` is not `-0`, where `===` answers the other way on both.
     is: o2(Object.is),

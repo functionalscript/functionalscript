@@ -56,7 +56,7 @@ export const returns = v => () => ['returns', v]
 /**
  * The `host` reason of a case whose `expected` is a function's text:
  * `nanvm-lib` answers the FunctionalScript writer's, and the host evaluator
- * refuses it or answers its own closure's source (`fjs/edag/function-text.md`).
+ * its own closure's source.
  */
 export const functionText = 'the host renders its own function text'
 
