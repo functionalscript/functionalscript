@@ -7,8 +7,11 @@
 import type { Reduce } from '../function/operator/types.ts'
 import type { Range } from '../range/types.ts'
 
-/** The bit operations of an integer type a `BitSet` is stored in. */
-export type BitOps<T> = {
+/**
+ * The bit operations of an integer type a `BitSet` is stored in. The type is a
+ * primitive, so `bitSet` compares its values with `!==`.
+ */
+export type BitOps<T extends number | bigint> = {
     /** The integer with only bit `n` set. */
     readonly one: (n: number) => T
     /** The integer with the low `len` bits set. */
@@ -22,7 +25,7 @@ export type BitOps<T> = {
  * Set operations over the members `0..size - 1`, where member `n` is bit `n`
  * of a `T`. Built by `bitSet` in `./module.f.mjs`.
  */
-export type BitSet<T> = {
+export type BitSet<T extends number | bigint> = {
     readonly empty: T
     readonly universe: T
     readonly has: (n: number) => (s: T) => boolean

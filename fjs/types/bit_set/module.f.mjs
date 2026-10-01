@@ -13,6 +13,7 @@
  */
 
 import { mask as bigintMask } from '../bigint/module.f.mjs'
+import { assert } from '../../asserts/module.f.mjs'
 
 /**
  * The bit operations of `bigint`; any size of universe.
@@ -28,14 +29,26 @@ export const bigintOps = {
 }
 
 /**
- * The bit operations of `number`. JavaScript's bitwise operators work on 32-bit
- * signed integers, so a universe has at most 30 members.
+ * `n`, asserted to be a bit index `number`'s bitwise operators keep positive.
+ * They work on 32-bit signed integers: `1 << 31` is negative and `1 << 32` is
+ * `1`, so a larger index would answer with a plausible wrong set.
+ *
+ * @type {(n: number) => number}
+ */
+const numberBit = n => {
+    assert(0 <= n && n <= 30, ['bit index outside 0..30', n])
+    return n
+}
+
+/**
+ * The bit operations of `number`. A universe has at most 30 members, and a
+ * member or size beyond that is refused.
  *
  * @type {BitOps<number>}
  */
 export const numberOps = {
-    one: n => 1 << n,
-    mask: len => (1 << len) - 1,
+    one: n => 1 << numberBit(n),
+    mask: len => (1 << numberBit(len)) - 1,
     or: a => b => a | b,
     and: a => b => a & b,
     xor: a => b => a ^ b,
@@ -44,7 +57,7 @@ export const numberOps = {
 /**
  * Builds the set operations over the members `0..size - 1`.
  *
- * @template T
+ * @template {number | bigint} T
  * @param {BitOps<T>} ops
  * @returns {(size: number) => BitSet<T>}
  */

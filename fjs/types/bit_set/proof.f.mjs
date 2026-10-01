@@ -41,6 +41,17 @@ export const proof = {
             assertEq(n.unset(1)(0b0011), 0b0001)
             assertEq(n.unset(2)(0b0011), 0b0011)
         },
+        largest: () => {
+            const s = bitSet(numberOps)(30)
+            assertEq(s.universe, 0x3FFF_FFFF)
+            assert(s.has(29)(s.universe), s.universe)
+            assert(!s.has(30)(s.universe), s.universe)
+        },
+        throw: {
+            size: () => bitSet(numberOps)(31),
+            member: () => n.has(31)(n.universe),
+            negative: () => n.one(-1),
+        },
     },
     bigint: {
         empty: () => assertEq(b.empty, 0n),
