@@ -1,25 +1,25 @@
 /**
- * A persistent B-tree as the graph two of its versions make together: type
- * keys, see what the last one changed — and everything it did not.
+ * A persistent B-tree before and after a step: type keys, see what the last
+ * one changed — and everything it did not.
  *
  * **Nothing here changes in place**, so inserting a key builds a new tree and
  * leaves the old one as it was. That would be expensive if the new tree were
  * a copy, and it is not: only the path from the root to the change is built
- * again, and every other subtree is the same object in both versions. This
- * demo draws both versions under one root, `versions`, so a subtree they
- * share is one node with an edge from each — the [graph
- * module](../../website/demo/graph/module.f.mjs) draws one node per distinct
- * reference, which is exactly the property on show.
+ * again, and every other subtree is the same object in both versions.
  *
- * **A node's colour says which version holds it**: `new` is only in the
- * version after the last step, `replaced` only in the one before, and
- * `shared` in both. The line under the drawing counts each.
+ * **Each version is a graph of its own, and a node's colour says which
+ * versions hold it**: `new` is only in the version after the last step,
+ * `replaced` only in the one before, and `shared` in both — a plain node in
+ * one drawing is the very object the other drawing shows plain too. The line
+ * under the drawings counts each. Drawing both versions under one root would
+ * show a shared subtree as one node with an edge from each, but tangles the
+ * two trees into a graph neither of them is; two drawings keep each tree's
+ * shape readable and leave the sharing to the colours.
  *
  * **The input is the steps, not a tree.** Each word is a step: an integer is
  * an insert, and one after `-` is a removal. The tree is a fold over the
- * steps from the empty tree, so the same text always draws the same graph,
- * and the drawing is of the last step only — the one before it is what the
- * `before` edge reaches. A word that is not a key is refused by name rather
+ * steps from the empty tree, so the same text always draws the same graphs,
+ * and they are of the last step only. A word that is not a key is refused by name rather
  * than skipped, which would draw a tree the text does not describe.
  *
  * **It needs no operations.** Folding and walking are pure functions of the
@@ -28,7 +28,7 @@
  * @module
  *
  * @import { TNode, Tree } from './types/types.ts'
- * @import { _Value, _Versions } from './private.ts'
+ * @import { _Versions } from './private.ts'
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Shape } from '../../website/demo/graph/types.ts'
  * @import { Examples } from '../../website/demo/examples/types.ts'
@@ -112,11 +112,12 @@ export const _census = ({ before, after }) => {
 }
 
 /**
- * How the walk reads one value, given both versions to tell a node's kind
+ * How the walk reads one tree, given both versions to tell a node's kind
  * from. A node's label is its keys, and each of its ports says which keys
- * the subtree it leads to holds.
+ * the subtree it leads to holds. Only a whole version can be empty, so the
+ * `empty` inline is drawn as the graph's one node.
  *
- * @type {(v: _Versions) => (value: _Value) => Shape<_Value>}
+ * @type {(v: _Versions) => (value: Tree<number>) => Shape<Tree<number>>}
  */
 const shapeOf = ({ before, after }) => {
     const old = nodesOf(before)
@@ -125,9 +126,6 @@ const shapeOf = ({ before, after }) => {
     const kindOf = node => !old.includes(node) ? 'new' : current.includes(node) ? 'shared' : 'replaced'
     return value => {
         if (value === null) { return { inline: 'empty' } }
-        if ('after' in value) {
-            return { kind: 'versions', label: 'versions', children: [['before', value.before], ['after', value.after]] }
-        }
         const kind = kindOf(value)
         switch (value.length) {
             case 1: { return { kind, label: String(value[0]), children: [] } }
@@ -151,8 +149,12 @@ const describe = word => word.startsWith('-') ? `remove ${word.slice(1)}` : `ins
 const render = v => {
     if (v.last === null) { return [['p', 'Type keys to insert, and see the tree they build.']] }
     const { built, shared, replaced } = _census(v)
+    const draw = graphOf(shapeOf(v))
     return [
-        graphSvg(graphOf(shapeOf(v))(v)),
+        ['h3', 'Before'],
+        graphSvg(draw(v.before)),
+        ['h3', 'After'],
+        graphSvg(draw(v.after)),
         ['p', `Last step, ${describe(v.last)}: ${built} new (green), ${shared} shared with the version before, ${replaced} replaced (red).`],
     ]
 }

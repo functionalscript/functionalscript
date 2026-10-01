@@ -95,15 +95,17 @@ const censusOf = text => {
 
 const demoProof = {
     // The opening example: inserting 8 builds the path to it again — the
-    // root, `6` and the leaf `7 8` — and shares the rest, so the whole left
-    // half is drawn once, reached from both roots.
+    // root, `6` and the leaf `7 8` — and shares the rest. Each version is
+    // its own graph, so a shared node is drawn once in each.
     insertIntoALeaf: () => {
         assertEq(JSON.stringify(censusOf(examples[0][1])), '{"built":3,"shared":4,"replaced":3}')
         const h = html(demo.init)
         assertEq(count(h)('data-graph-kind="new"'), 3)
-        assertEq(count(h)('data-graph-kind="shared"'), 4)
+        assertEq(count(h)('data-graph-kind="shared"'), 8)
+        assertEq(count(h)('<svg'), 2)
+        assert(h.includes('<h3>Before</h3>'), h)
+        assert(h.includes('<h3>After</h3>'), h)
         assertEq(count(h)('data-graph-kind="replaced"'), 3)
-        assertEq(count(h)('data-graph-kind="versions"'), 1)
         assert(h.includes('>7 8<'), h)
         assert(h.includes('3 new (green), 4 shared with the version before, 3 replaced (red).'), h)
     },
@@ -123,9 +125,10 @@ const demoProof = {
     },
     // A missing key changes nothing: both edges reach one tree.
     removeMissing: () => assertEq(JSON.stringify(censusOf(examples[4][1])), '{"built":0,"shared":7,"replaced":0}'),
-    // The empty tree is no node of its own, but a value in its port.
+    // The version before the first key is the empty tree, drawn as one node.
     firstKey: () => {
         const h = html(examples[5][1])
+        assert(h.includes('data-graph-kind="leaf"'), h)
         assert(h.includes('>empty<'), h)
         assert(h.includes('Last step, insert 1:'), h)
     },

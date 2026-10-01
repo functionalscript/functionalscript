@@ -15,9 +15,3 @@ export type _Versions = {
     readonly after: Tree<number>
     readonly last: string | null
 }
-
-/**
- * What the graph walk reads: the pair of versions at its root, and a tree or
- * a subtree everywhere under it.
- */
-export type _Value = Tree<number> | _Versions
