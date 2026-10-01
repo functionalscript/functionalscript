@@ -6,7 +6,10 @@
  * @module
  */
 
+import type { Assert } from '../../asserts/types.ts'
 import type { Primitive, Unknown } from '../../media/datajs/types.ts'
+import type { Equal } from '../../types/ts/types.ts'
+import type { binaryTags } from './module.f.mjs'
 
 /**
  * An imported binding: the selected export name, the specifier as written, and
@@ -144,6 +147,12 @@ export type AstAccess = readonly ['.', AstConst, string | number]
  * over an access is the detached receiver, `(0, a.b)(c)`. That one needs the
  * comma operator and is unspellable, so every call written on a property
  * today is a method call.
+ *
+ * One call the lowering does not keep: a call, with no arguments, of a
+ * parameterless function written at the call, `isInlinedCall`, is its body
+ * where the call stands. The parser writes that call for a guard's two
+ * arms, `if (c) { … }` being sugar for `c ? (() => { … })() : (() => …rest…)()`
+ * ([spec: functions](../../../spec/README.md#functions)).
  */
 export type AstCall = readonly ['()', AstConst, readonly AstConst[]]
 
@@ -194,13 +203,15 @@ export type AstBitnot = readonly ['~', AstConst]
  */
 export type AstBinary = readonly [BinaryTag, AstConst, AstConst]
 
-/** Every binary operator Stages A and B admit, the tag doubling as the EDAG's own — `op12Id`'s `-` included, told from the unary `['-', AstConst]` by arity. `../parser/syntax/types.ts`'s `Node` carries the same tags, imported from here, so `toNode`'s fold and `lower`'s dispatch both key off one name per operator. */
+/** Every binary operator Stages A and B admit, the tag doubling as the EDAG's own — `op12Id`'s `-` included, told from the unary `['-', AstConst]` by arity. `../parser/syntax/types.ts`'s `Node` carries the same tags, imported from here, so `toNode`'s fold and `lower`'s dispatch both key off one name per operator. `binaryTags` in `./module.f.mjs` is the same list at run time. */
 export type BinaryTag =
     | '*' | '/' | '%' | '**'
     | '+' | '-'
     | '===' | '!==' | '<' | '<=' | '>' | '>='
     | '&' | '|' | '^' | '<<' | '>>' | '>>>'
     | '&&' | '||' | '??'
+
+type _BinaryTagsAreComplete = Assert<Equal<(typeof binaryTags)[number], BinaryTag>>
 
 /**
  * The conditional, `c ? t : e`: the EDAG's `op3`, `['?:', c, t, e]`, the

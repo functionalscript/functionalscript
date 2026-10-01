@@ -32,23 +32,22 @@
  * @import { Rule } from '../../../ebnf/types.ts'
  * @import { Primitive } from '../../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { BinaryTag } from '../../ast/types.ts'
  * @import { ParseError } from '../types.ts'
- * @import { Const, Entry, Import, ImportBinding, Module, ModuleConst, Node, Out, ParameterBinding, ParameterList, ValueStatement } from './types.ts'
- * @import { ArrowOrRest, Body, Group, Items, LastStatement, Member, ParameterNames, Parenthesized, Unary, UnaryOperand, Value } from '../grammar/types.ts'
+ * @import { Block, BlockStatement, Const, Entry, Import, ImportBinding, Module, ModuleConst, Node, Out, ParameterBinding, ParameterList, ValueStatement } from './types.ts'
+ * @import { ArrowOrRest, Block as BlockRule, Body, Group, Items, LastStatement, Member, ParameterNames, Parenthesized, Statement, Unary, UnaryOperand, Value } from '../grammar/types.ts'
  * @import { key, namedImports, primitive, terminator } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _CircuitNode, _ConditionalNode, _EndNode, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _PowTailNode, _TailRound, _TokenStream } from './private.ts'
  */
 
 import { error, ok } from '../../../types/result/module.f.mjs'
 import { concat, toArray } from '../../../types/list/module.f.mjs'
-import { assert } from '../../../asserts/module.f.mjs'
+import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
 import { literalWords } from '../../../js/keywords/module.f.mjs'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import {
-    body, callArguments, constStatement, djsModule, eagerTail, importBinding, importBindings,
-    importStatement, lastStatement, member, members, parameterNames, symbolOf, unary, unaryOperand, value, values,
+    binaryOpTag, body, callArguments, constStatement, djsModule, eagerTail, importBinding, importBindings,
+    importStatement, lastStatement, member, members, parameterNames, statement, symbolOf, unary, unaryOperand, value, values,
 } from '../grammar/module.f.mjs'
 
 /**
@@ -164,6 +163,13 @@ const importAt = node => {
 const constAt = node => {
     const out = outAt(node)
     assert(out.id === 'const')
+    return out.statement
+}
+
+/** @type {(node: _Leaf) => BlockStatement} */
+const statementAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'statement')
     return out.statement
 }
 
@@ -378,29 +384,6 @@ const withPow = (base, powTail) => {
 }
 
 /**
- * Every binary layer's own tag, read to its operator, in one flat map:
- * `multiplicativeOp` through `nullishOp` (`./grammar/module.f.mjs`) each
- * key their own rounds by a name none of the other ten use, so one map
- * serves a round from any layer — no per-layer reader, and so no branch for
- * a tag no round can carry: a plain lookup has no branch to leave
- * unreachable where a `switch`'s `default` would. `**` is not here: it is
- * `powTail`'s, no layer's round, read by {@link withPow}.
- *
- * @type {{ readonly [tag: string]: Exclude<BinaryTag, '**'> }}
- */
-const binaryOpTag = {
-    mul: '*', div: '/', mod: '%',
-    add: '+', sub: '-',
-    left: '<<', right: '>>', unsigned: '>>>',
-    lt: '<', le: '<=', gt: '>', ge: '>=',
-    eq: '===', ne: '!==',
-    and: '&',
-    xor: '^',
-    or: '|',
-    logicalAnd: '&&', logicalOr: '||', nullish: '??',
-}
-
-/**
  * One binary layer's rounds folded onto `base`, left-associative: each
  * round is `op unary tail*`, its own trailing tail lists — one per layer
  * below this one — read the same way {@link applyLayers} reads a value's
@@ -417,7 +400,10 @@ const foldLayer = (base, rounds) => rounds.reduce((left, round) => {
     const [opChoice, v, ...lowerTails] = unmapped(round)
     const [opTag] = unmapped(opChoice)
     const right = applyLayers(nodeAt(v), lowerTails)
-    return [binaryOpTag[opTag], left, right]
+    // every round's operator is a rule the grammar made from the same
+    // records, so a name the map lacks is the grammar's bug, not the input's
+    const tag = assertNotNullish(binaryOpTag[opTag], ['binary operator without a tag', opTag])
+    return [tag, left, right]
 }, base)
 
 /**
@@ -690,10 +676,8 @@ const toNode = node => {
         return symbol({ id: 'value', node: applyTail([node[0] === 'neg' ? '-' : '~', nodeAt(v)], tailLists), first: tokenAt(op) })
     }
     if (node[0] === 'block') {
-        const [open, consts, term] = unmapped(node[1])
-        const statements = unmapped(consts).map(constAt).map(constNode)
-        const [kind, branch] = unmapped(term)
-        return symbol({ id: 'value', node: ['block', [...statements, [kind, valueStatementOf(unmapped(branch))]]], first: tokenAt(open) })
+        const [block, first] = blockOf(unmapped(node[1]))
+        return symbol({ id: 'value', node: block, first })
     }
     const x = unmapped(node[1])[0]
     const [base, accesses] = unmapped(x)
@@ -729,8 +713,32 @@ const operandToNode = node => {
     return symbol({ id: 'value', node: steps(baseOf(node), unmapped(accesses)), first: baseFirst(node[0], base) })
 }
 
-/** A declaration in a block's ordered statement list. @type {(statement: Const) => readonly ['const', Const]} */
-const constNode = statement => ['const', statement]
+/**
+ * A block from its children, `{`, the statements, the terminator and `}`:
+ * its ordered statements, `const`s and guards, then the `return` or `throw`
+ * that ends it, tagged by its keyword — and the `{` it begins at. A
+ * function's body and a guard's block are read the same way.
+ *
+ * @type {(node: Children<BlockRule, DjsTokenWithMetadata, Out>) => readonly [Block, DjsTokenWithMetadata]}
+ */
+const blockOf = ([open, statements, term]) => {
+    const [kind, branch] = unmapped(term)
+    return [['block', [...unmapped(statements).map(statementAt), [kind, valueStatementOf(unmapped(branch))]]], tokenAt(open)]
+}
+
+/**
+ * A block's statement, tagged by its keyword: a `const`, its record; or a
+ * guard, `if ( condition ) block` — the `if` it begins at, its condition,
+ * and its block read as a body's is.
+ *
+ * @type {(node: Children<Statement, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ */
+const toStatement = ([kind, branch]) => {
+    if (kind === 'const') { return symbol({ id: 'statement', statement: ['const', constAt(branch)] }) }
+    const [first, , condition, , blk] = unmapped(branch)
+    const [block] = blockOf(unmapped(blk))
+    return symbol({ id: 'statement', statement: ['if', { start: tokenAt(first), condition: nodeAt(condition), block }] })
+}
 
 /**
  * The record of a statement that is a keyword and a value — `return`,
@@ -956,6 +964,7 @@ export const mappings = [
     map(importBindings, toImportBindings),
     map(importStatement, toImport),
     map(constStatement, toConst),
+    map(statement, toStatement),
     map(lastStatement, toLast),
     map(djsModule, toModule),
 ]
