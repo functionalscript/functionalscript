@@ -4,8 +4,8 @@
  * under it.
  *
  * **Base64 fills, then pads.** A short last group is completed with zero
- * bits, shown after a `·`, and the result is padded with `=` to a multiple
- * of four characters: `h` is `00·0000` and `aA==`. The initial text, `hé`,
+ * fill bits, and the result is padded with `=` to a multiple of four
+ * characters: `h` is `011010` and `00` filled with `0000`, so `aA==`. The initial text, `hé`,
  * is three bytes, which is four whole groups, so it needs neither.
  *
  * **The result can be checked from outside**: `printf '%s' 'hé' | base64`
@@ -25,16 +25,12 @@ import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { bitGroupDemo, bitGroups } from '../../website/demo/bits/module.f.mjs'
 
 /**
- * Six bits a character; a short last group is filled with zeros, and whole
- * groups need nothing.
+ * Six bits a character, and no stop bit: a short last group is filled with
+ * zeros.
  *
  * @type {BitScheme}
  */
-const scheme = {
-    width: 6,
-    count: n => Math.ceil(n / 6),
-    fill: k => '0'.repeat(k),
-}
+const scheme = { width: 6, stop: false }
 
 /**
  * `encode`, for the only input the demo gives it: UTF-8 is whole bytes, so
@@ -49,7 +45,7 @@ export const groupsOf = bitGroups(scheme, encodeBytes)
 
 export const demo = bitGroupDemo({
     name: 'Base64',
-    how: '6 bits per character; a short last group is filled with zeros after ·, and = pads the result to a multiple of four',
+    how: '6 bits per character; = pads the result to a multiple of four',
     scheme,
     encode: encodeBytes,
     note: ['span', 'CBase32 cuts the same bits into 5-bit groups: ', ['a', { href: '/fjs/basen/cbase32/' }, 'cbase32']],

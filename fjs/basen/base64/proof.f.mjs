@@ -1,5 +1,6 @@
 /**
  * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { BitGroups } from '../../website/demo/bits/types.ts'
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
@@ -157,17 +158,23 @@ export const proof = {
      */
     demo: {
         groups: () => {
+            /** @type {(text: string) => BitGroups} */
+            const encoded = text => {
+                const g = groupsOf(text)
+                if (typeof g === 'string') { throw g }
+                return g
+            }
             assertEq(JSON.stringify(groupsOf('')), JSON.stringify({ bytes: [], groups: [], encoded: '' }))
             assertEq(JSON.stringify(groupsOf('h')), JSON.stringify({
                 bytes: ['01101000'],
-                groups: ['011010', '00·0000'],
+                groups: [
+                    { data: '011010', stop: '', fill: '' },
+                    { data: '00', stop: '', fill: '0000' },
+                ],
                 encoded: 'aA==',
             }))
-            assertEq(JSON.stringify(groupsOf('hé')), JSON.stringify({
-                bytes: ['01101000', '11000011', '10101001'],
-                groups: ['011010', '001100', '001110', '101001'],
-                encoded: 'aMOp',
-            }))
+            assertEq(JSON.stringify(encoded('hé').groups.map(g => g.data)), JSON.stringify(['011010', '001100', '001110', '101001']))
+            assertEq(encoded('hé').encoded, 'aMOp')
         },
         view: () => {
             const html = htmlToString(demo.view(demo.init))

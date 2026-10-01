@@ -342,4 +342,15 @@ a:hover > [data-railroad-box="nonTerminal"] { fill: var(--pass-bg) }
 [data-railroad-label] { dominant-baseline: middle; font-size: .75rem }
 [data-railroad-label="terminal"] { fill: var(--value) }
 [data-railroad-label="nonTerminal"] { fill: var(--text); font-weight: 700 }
+/* A codec's bit groups: a grid whose columns are each one group's bits over
+   the character the codec wrote for it, in a shaded header cell. The borders
+   are what pair a character with its bits — in one monospace face the two
+   rows are otherwise the same kind of text. Fill bits are muted and dotted
+   under, as they carry no data; a stop bit is in the colour of a value and
+   bold but not underlined, since an underline on this site is a link. */
+[data-bit-groups] { border-collapse: collapse; margin-block: .5rem }
+[data-bit-groups] td, [data-bit-groups] th { border: 1px solid var(--border); padding: .2rem .5rem; text-align: center }
+[data-bit-groups] th { background: color-mix(in srgb, var(--border) 45%, var(--bg)) }
+[data-bit="fill"] { color: var(--muted); text-decoration: underline dotted }
+[data-bit="stop"] { color: var(--value); font-weight: 700 }
 `

@@ -1,5 +1,6 @@
 /**
  * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { BitGroups } from '../../website/demo/bits/types.ts'
  */
 
 import { empty, maxLength, vec } from '../../types/bit_vec/module.f.mjs'
@@ -106,22 +107,28 @@ export const proof = {
      */
     demo: {
         groups: () => {
+            /** @type {(text: string) => BitGroups} */
+            const encoded = text => {
+                const g = groupsOf(text)
+                if (typeof g === 'string') { throw g }
+                return g
+            }
             // Empty text is the stop bit alone.
-            assertEq(JSON.stringify(groupsOf('')), JSON.stringify({ bytes: [], groups: ['·10000'], encoded: 'g' }))
+            assertEq(JSON.stringify(groupsOf('')), JSON.stringify({ bytes: [], groups: [{ data: '', stop: '1', fill: '0000' }], encoded: 'g' }))
             assertEq(JSON.stringify(groupsOf('h')), JSON.stringify({
                 bytes: ['01101000'],
-                groups: ['01101', '000·10'],
+                groups: [
+                    { data: '01101', stop: '', fill: '' },
+                    { data: '000', stop: '1', fill: '0' },
+                ],
                 encoded: 'd2',
             }))
-            assertEq(JSON.stringify(groupsOf('hé')), JSON.stringify({
-                bytes: ['01101000', '11000011', '10101001'],
-                groups: ['01101', '00011', '00001', '11010', '1001·1'],
-                encoded: 'd31tk',
-            }))
+            assertEq(JSON.stringify(encoded('hé').groups.map(g => g.data)), JSON.stringify(['01101', '00011', '00001', '11010', '1001']))
+            assertEq(encoded('hé').encoded, 'd31tk')
         },
         view: () => {
             const html = htmlToString(demo.view(demo.init))
-            assert(html.includes('<tr><td>1001·1</td></tr><tr><th>k</th></tr>'), html)
+            assert(html.includes('<tr><td>1001<span data-bit="stop">1</span></td></tr><tr><th>k</th></tr>'), html)
             assert(html.includes('Result: <strong>d31tk</strong>'), html)
             assert(html.includes('<a href="/fjs/basen/base64/">base64</a>'), html)
         },

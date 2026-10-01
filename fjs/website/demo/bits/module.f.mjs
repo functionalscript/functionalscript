@@ -13,10 +13,12 @@
  * here, so a scheme that drew the groups wrong would show a mismatch rather
  * than agree with itself.
  *
- * **Each encoding is a table.** The site sets everything in one monospace
+ * **Each encoding is a grid.** The site sets everything in one monospace
  * face, so a group's bits and its character would look alike as lines of
- * text. In a table the character sits in a header cell under its group,
- * which a browser bolds and centres.
+ * text. In a bordered grid each column pairs one group's bits with the
+ * character under them, in a shaded header cell; stop and fill bits are
+ * marked so they read apart from the data. The look is the stylesheet's,
+ * keyed on `data-bit-groups` and `data-bit`.
  *
  * **Text UTF-8 cannot encode is refused**: a JavaScript string can hold half
  * a surrogate pair, which has no UTF-8 bytes to encode (see `text/utf8`).
@@ -27,7 +29,7 @@
  * @import { Element, Node } from '../../../media/html/types.ts'
  * @import { Nullable } from '../../../types/nullable/types.ts'
  * @import { Vec } from '../../../types/bit_vec/types.ts'
- * @import { BitGroupDemoOptions, BitGroups, BitScheme } from './types.ts'
+ * @import { BitGroup, BitGroupDemoOptions, BitGroups, BitScheme } from './types.ts'
  */
 
 import { fromCodePointList } from '../../../text/utf8/module.f.mjs'
@@ -48,16 +50,22 @@ const utf8Bytes = text => {
 }
 
 /**
- * The groups `scheme` cuts `bits` into, each as its bits, with any fill bits
- * after a `·`.
+ * The groups `scheme` cuts `bits` into. Only the last can be short; it is
+ * completed with the stop bit, if the scheme has one, and zeros.
  *
- * @type {(scheme: BitScheme) => (bits: string) => readonly string[]}
+ * @type {(scheme: BitScheme) => (bits: string) => readonly BitGroup[]}
  */
-const groups = ({ width, count, fill }) => bits =>
-    Array.from({ length: count(bits.length) }, (_, i) => {
+const groups = ({ width, stop }) => bits => {
+    const n = bits.length
+    const count = stop ? Math.floor(n / width) + 1 : Math.ceil(n / width)
+    return Array.from({ length: count }, (_, i) => {
         const data = bits.slice(i * width, (i + 1) * width)
-        return data.length === width ? data : `${data}·${fill(width - data.length)}`
+        const rest = width - data.length
+        return rest === 0 ? { data, stop: '', fill: '' }
+            : stop ? { data, stop: '1', fill: '0'.repeat(rest - 1) }
+            : { data, stop: '', fill: '0'.repeat(rest) }
     })
+}
 
 /**
  * What the demo shows for `text`: its UTF-8 bytes in binary, the groups
@@ -79,12 +87,25 @@ export const bitGroups = (scheme, encode) => text => {
 /** Groups per row: four Base64 groups are three bytes, one whole quantum. */
 const perRow = 4
 
-/** @type {(tag: string) => (text: string) => Element} */
-const cell = tag => text => [tag, text]
+/**
+ * A group's bits: its data as text, then its stop and fill bits each marked,
+ * so the stylesheet can set them apart from the data.
+ *
+ * @type {(g: BitGroup) => Element}
+ */
+const groupCell = ({ data, stop, fill }) => ['td',
+    data,
+    ...(stop === '' ? [] : [/** @type {Element} */ (['span', { 'data-bit': 'stop' }, stop])]),
+    ...(fill === '' ? [] : [/** @type {Element} */ (['span', { 'data-bit': 'fill' }, fill])]),
+]
+
+/** @type {(c: string) => Element} */
+const charCell = c => ['th', c]
 
 /**
- * A table of the groups, four to a row: each group's bits, and under them,
- * in a header cell, the character the codec wrote for it.
+ * A grid of the groups, four to a row: each column is one group's bits over,
+ * in a header cell, the character the codec wrote for it. The stylesheet
+ * draws it by `data-bit-groups`.
  *
  * @type {(g: BitGroups) => Element}
  */
@@ -93,12 +114,24 @@ const table = ({ groups, encoded }) => {
     const rowPair = r => {
         const row = groups.slice(r * perRow, (r + 1) * perRow)
         return [
-            ['tr', ...row.map(cell('td'))],
-            ['tr', ...row.map((_, i) => cell('th')(encoded[r * perRow + i]))],
+            ['tr', ...row.map(groupCell)],
+            ['tr', ...row.map((_, i) => charCell(encoded[r * perRow + i]))],
         ]
     }
-    return ['table', ...Array.from({ length: Math.ceil(groups.length / perRow) }, (_, r) => rowPair(r)).flat()]
+    return ['table', { 'data-bit-groups': '' },
+        ...Array.from({ length: Math.ceil(groups.length / perRow) }, (_, r) => rowPair(r)).flat()]
 }
+
+/**
+ * What the marked bits mean, in their own colours: fill, and the stop bit if
+ * the scheme has one.
+ *
+ * @type {(scheme: BitScheme) => Element}
+ */
+const legend = ({ stop }) => ['p',
+    ['span', { 'data-bit': 'fill' }, '0'], ' fill bits carry no data',
+    ...(stop ? ['; ', /** @type {Element} */ (['span', { 'data-bit': 'stop' }, '1']), ' is the stop bit'] : []),
+]
 
 /** @type {(s: string) => string} */
 const orEmpty = s => s === '' ? '(empty)' : s
@@ -123,6 +156,7 @@ export const bitGroupDemo = ({ name, how, scheme, encode, note }) => {
             ['pre', orEmpty(g.bytes.join(' '))],
             ['p', ['strong', name], ` — ${how}`],
             ...(g.groups.length === 0 ? [] : [table(g)]),
+            legend(scheme),
             ['p', 'Result: ', ['strong', orEmpty(g.encoded)]],
             ['p', note],
         ]
