@@ -4,7 +4,7 @@
  * @module
  *
  * @import { Nullable } from '../nullable/types.ts'
- * @import {Scan, StateScan, Fold, Reduce, Equal} from '../function/operator/types.ts'
+ * @import {Binary, Scan, StateScan, Fold, Reduce, Equal} from '../function/operator/types.ts'
  * @import { Accumulator, Indexed, List, NonEmpty, NotLazy, Result, Thunk } from './types.ts'
  */
 
@@ -109,6 +109,34 @@ export const map = f => apply(mapStep(f))
 
 /** @type {<I, O>(f: (value: I) => List<O>) => (input: List<I>) => Thunk<O>} */
 export const flatMap = f => compose(map(f))(flat)
+
+/**
+ * `sep` between every two adjacent items, and nowhere else: `a, b, c`
+ * becomes `a, sep, b, sep, c`.
+ *
+ * @type {<S>(sep: S) => <T>(input: List<T>) => Thunk<T | S>}
+ */
+export const intersperse = sep => apply(({ first, tail }) =>
+    ({ first, tail: flatMap(i => [sep, i])(tail) }))
+
+/** @type {<T>(join: Binary<T, T, Nullable<T>>) => (first: T) => (tail: List<T>) => Thunk<T>} */
+const mergeFrom = join => first => tail => () => {
+    const n = next(tail)
+    if (n === null) { return [first] }
+    const merged = join(first)(n.first)
+    return merged === null
+        ? { first, tail: mergeFrom(join)(n.first)(n.tail) }
+        : mergeFrom(join)(merged)(n.tail)
+}
+
+/**
+ * Every run of adjacent items `join` accepts, folded into one. `join(a)(b)`
+ * is the item that replaces `a` followed by `b`, or `null` when the two stay
+ * apart; a merged item is joined again with the one after it.
+ *
+ * @type {<T>(join: Binary<T, T, Nullable<T>>) => (input: List<T>) => Thunk<T>}
+ */
+export const mergeAdjacent = join => apply(({ first, tail }) => mergeFrom(join)(first)(tail))
 
 /** @type {<T>(f: (value: T) => boolean) => (n: NonEmpty<T>) => List<T>} */
 const filterStep = f => ({ first, tail }) => {

@@ -12,9 +12,9 @@
  * @import { Grammar, _Dfa, _Rule } from './types.ts'
  */
 
-import { sameItems, isEmpty, fold, map, toArray, foldScan, empty as emptyList } from '../types/list/module.f.mjs'
+import { sameItems, fold, map, toArray, foldScan, empty as emptyList } from '../types/list/module.f.mjs'
 import { toRangeMap, range } from '../types/byte_set/module.f.mjs'
-import { intersect, toKey, union as sortedSetUnion } from '../types/sorted_set/module.f.mjs'
+import { has, toKey, union as sortedSetUnion } from '../types/sorted_set/module.f.mjs'
 import { merge, get as rangeMapGet } from '../types/range_map/module.f.mjs'
 import { range as asciiRange } from '../text/ascii/module.f.mjs'
 import { compose } from '../types/function/module.f.mjs'
@@ -37,8 +37,7 @@ export const toRange = compose(asciiRange)(range)
 /** @type {Properties<SortedSet<string>>} */
 const mergeOp = { union: sortedSetUnion(cmp), equal: sameItems, def: [] }
 
-/** @type {(s: string) => (set: SortedSet<string>) => boolean} */
-const hasState = s => set => !isEmpty(intersect(cmp)([s])(set))
+const hasState = has(cmp)
 
 /**
  * Labels a byte set's ranges with the rule they lead to: a range inside the set
@@ -103,7 +102,7 @@ export const dfa = grammar => addEntry(grammar)(initialState)({})
 const get = rangeMapGet(emptyStateKey)
 
 /** @type {(dfa: _Dfa) => Fold<number, string>} */
-const runOp = dfa => input => s => get(dfa[s] ?? [])(input)
+const runOp = dfa => input => s => get(at(s)(dfa) ?? [])(input)
 
 /** @type {(dfa: _Dfa) => (input: List<number>) => List<string>} */
 export const run = dfa => input =>

@@ -485,9 +485,8 @@ export const resultStep = (e, f) =>
  * continuation performs nothing further.
  *
  * A trailing pure projection is where a sequence *ends*, not another link in
- * it, and spelling it as a step misreports how many effects a chain runs
- * (`./todo/map-step-combinator.md`). Without this, every such site would
- * regress to exactly that spelling, now with a `pureOk` inside it.
+ * it, and spelling it as a step misreports how many effects a chain runs.
+ * Write `mapStep(e, f)`, never `step(e, x => pureOk(f(x)))`.
  *
  * **The operation set does not widen**: a pure projection issues no commands. Neither does the error channel — `f` cannot
  * fail, so a chain that only projects its value keeps the errors it already

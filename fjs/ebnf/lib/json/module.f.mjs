@@ -27,8 +27,11 @@ export const hex = /**@type {const}*/({
 })
 
 /**
- * An escape: the backslash, then the character of a simple escape, or `u`
- * and four hex digits.
+ * An escape: the backslash, then the letter of a simple escape, or `u` and
+ * four hex digits. The letters are `../../../js/string_escape`'s
+ * `simpleEscapes`, the table every reader decodes through. They are written
+ * out rather than derived so the set keeps its literal type, and the proof
+ * pins the two equal.
  */
 export const escape = /**@type {const}*/([
     '\\',
