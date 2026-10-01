@@ -114,9 +114,9 @@ export const proof = {
                 return g
             }
             // Empty text is the stop bit alone.
-            assertEq(JSON.stringify(groupsOf('')), JSON.stringify({ bytes: [], groups: [{ data: '', stop: '1', fill: '0000' }], encoded: 'g' }))
+            assertEq(JSON.stringify(groupsOf('')), JSON.stringify({ chars: [], groups: [{ data: '', stop: '1', fill: '0000' }], encoded: 'g' }))
             assertEq(JSON.stringify(groupsOf('h')), JSON.stringify({
-                bytes: ['01101000'],
+                chars: [{ label: 'h', standIn: false, bytes: ['01101000'] }],
                 groups: [
                     { data: '01101', stop: '', fill: '' },
                     { data: '000', stop: '1', fill: '0' },

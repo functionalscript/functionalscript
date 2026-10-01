@@ -164,9 +164,9 @@ export const proof = {
                 if (typeof g === 'string') { throw g }
                 return g
             }
-            assertEq(JSON.stringify(groupsOf('')), JSON.stringify({ bytes: [], groups: [], encoded: '' }))
+            assertEq(JSON.stringify(groupsOf('')), JSON.stringify({ chars: [], groups: [], encoded: '' }))
             assertEq(JSON.stringify(groupsOf('h')), JSON.stringify({
-                bytes: ['01101000'],
+                chars: [{ label: 'h', standIn: false, bytes: ['01101000'] }],
                 groups: [
                     { data: '011010', stop: '', fill: '' },
                     { data: '00', stop: '', fill: '0000' },

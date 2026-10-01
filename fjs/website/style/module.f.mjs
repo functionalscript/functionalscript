@@ -360,6 +360,16 @@ a:hover > [data-railroad-box="nonTerminal"] { fill: var(--pass-bg) }
 [data-bit-box] { border: 1px solid var(--border); display: flex; flex-direction: column; margin-left: -1px; text-align: center }
 [data-bit-box] > span { padding: .2rem .3rem }
 [data-bit-char] { background: color-mix(in srgb, var(--border) 45%, var(--bg)); border-top: 1px solid var(--border); font-weight: 700 }
+/* A text's characters over their UTF-8 bytes, in the same boxes: a character
+   is a unit that wraps whole, its bytes side by side over its label, shaded
+   and spanning them. A stand-in for a character a reader could not see is
+   muted, as it names the character rather than showing it. */
+[data-byte-chars] { column-gap: .75rem; display: flex; flex-wrap: wrap; margin-block: .5rem; padding-left: 1px; row-gap: .5rem }
+[data-byte-char] { display: flex; flex-direction: column; max-width: 100%; padding-left: 1px }
+[data-byte-row] { display: flex; flex-wrap: wrap }
+[data-byte] { border: 1px solid var(--border); margin-left: -1px; padding: .2rem .3rem }
+[data-byte-label] { background: color-mix(in srgb, var(--border) 45%, var(--bg)); border: 1px solid var(--border); border-top: 0; font-weight: 700; margin-left: -1px; padding: .2rem .3rem; text-align: center }
+[data-stand-in] { color: var(--muted) }
 [data-bit="fill"] { color: var(--muted); text-decoration: underline dotted }
 [data-bit="stop"] { color: var(--value); font-weight: 700 }
 `

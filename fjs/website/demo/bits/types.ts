@@ -37,12 +37,24 @@ export type BitGroup = {
 }
 
 /**
- * What a bit-group demo shows for a text: its UTF-8 bytes in binary, the
- * groups its bits are cut into, and the codec's own output, one character per
- * group plus any padding.
+ * One character of the text and its UTF-8 bytes in binary. `label` is the
+ * character itself, or, for one a reader could not see — a space, a tab, a
+ * line break, another control character — a visible stand-in, and then
+ * `standIn` is `true`.
+ */
+export type ByteChar = {
+    readonly label: string
+    readonly standIn: boolean
+    readonly bytes: readonly string[]
+}
+
+/**
+ * What a bit-group demo shows for a text: its characters with their UTF-8
+ * bytes, the groups those bits are cut into, and the codec's own output, one
+ * character per group plus any padding.
  */
 export type BitGroups = {
-    readonly bytes: readonly string[]
+    readonly chars: readonly ByteChar[]
     readonly groups: readonly BitGroup[]
     readonly encoded: string
 }

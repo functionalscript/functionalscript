@@ -1,7 +1,13 @@
 /**
  * The shared half of every demo that shows a base-N codec at work: a text
- * field, its UTF-8 bytes in binary, and the same bits cut into the codec's
- * groups, with the character the codec wrote for each group under it.
+ * field, each of its characters over its UTF-8 bytes in binary, and the same
+ * bits cut into the codec's groups, with the character the codec wrote for
+ * each group under it.
+ *
+ * **The bytes are drawn as the codec's groups are**, a bordered box per byte,
+ * each character spanning its own: `é` visibly takes two, `€` three, and the
+ * lead byte's high bits say how many. A character a reader could not see — a
+ * space, a tab, a line break — is named by a muted stand-in such as `␠`.
  *
  * **The demo supplies its scheme and its encoder.** The scheme says how wide
  * a group is and how a short last group is filled, which is where codecs
@@ -30,24 +36,44 @@
  * @import { Element, Node } from '../../../media/html/types.ts'
  * @import { Nullable } from '../../../types/nullable/types.ts'
  * @import { Vec } from '../../../types/bit_vec/types.ts'
- * @import { BitGroup, BitGroupDemoOptions, BitGroups, BitScheme } from './types.ts'
+ * @import { BitGroup, BitGroupDemoOptions, BitGroups, BitScheme, ByteChar } from './types.ts'
+ * @import { CodePoint } from '../../../text/code_point/types.ts'
  */
 
 import { fromCodePointList } from '../../../text/utf8/module.f.mjs'
-import { stringToCodePointList } from '../../../text/utf16/module.f.mjs'
+import { codePointToString, stringToCodePointList } from '../../../text/utf16/module.f.mjs'
 import { isValidCodePoint } from '../../../text/code_point/module.f.mjs'
 import { u8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { textDemo } from '../module.f.mjs'
 
 /**
- * The UTF-8 bytes of `text`, or `null` if it holds an unpaired surrogate.
+ * The stand-in a reader sees for a character they could not: `␠` for a space,
+ * `↵` for a line break, `⇥` for a tab, and its code, `U+` and four hex digits,
+ * for any other control character. `null` for a character that shows itself.
  *
- * @type {(text: string) => Nullable<readonly number[]>}
+ * @type {(cp: CodePoint) => string | null}
  */
-const utf8Bytes = text => {
-    const cps = toArray(stringToCodePointList(text))
-    return cps.every(isValidCodePoint) ? toArray(fromCodePointList(cps)) : null
+const standIn = cp =>
+    cp === 0x20 ? '␠'
+    : cp === 0x0a ? '↵'
+    : cp === 0x09 ? '⇥'
+    : cp < 0x20 || (0x7f <= cp && cp <= 0x9f) ? `U+${cp.toString(16).toUpperCase().padStart(4, '0')}`
+    : null
+
+/** @type {(b: number) => string} */
+const binary = b => b.toString(2).padStart(8, '0')
+
+/**
+ * One character and its UTF-8 bytes, as numbers for the encoder and in binary
+ * for the page.
+ *
+ * @type {(cp: CodePoint) => readonly [readonly number[], ByteChar]}
+ */
+const byteChar = cp => {
+    const bytes = toArray(fromCodePointList([cp]))
+    const s = standIn(cp)
+    return [bytes, { label: s ?? codePointToString(cp), standIn: s !== null, bytes: bytes.map(binary) }]
 }
 
 /**
@@ -75,15 +101,36 @@ const groups = ({ width, stop }) => bits => {
  * @type {(scheme: BitScheme, encode: (v: Vec) => string) => (text: string) => BitGroups | string}
  */
 export const bitGroups = (scheme, encode) => text => {
-    const bytes = utf8Bytes(text)
-    if (bytes === null) { return 'error: unpaired surrogate, no UTF-8' }
-    const binary = bytes.map(x => x.toString(2).padStart(8, '0'))
+    const cps = toArray(stringToCodePointList(text))
+    if (!cps.every(isValidCodePoint)) { return 'error: unpaired surrogate, no UTF-8' }
+    const chars = cps.map(byteChar)
+    const bytes = chars.flatMap(([b]) => b)
     return {
-        bytes: binary,
-        groups: groups(scheme)(binary.join('')),
+        chars: chars.map(([, c]) => c),
+        groups: groups(scheme)(bytes.map(binary).join('')),
         encoded: encode(u8ListToVecMsb(bytes)),
     }
 }
+
+/**
+ * One character as a unit: its bytes in binary, side by side, over the
+ * character spanning them, so how many bytes it takes is plain to see. A
+ * stand-in is marked, so the stylesheet can mute it.
+ *
+ * @type {(c: ByteChar) => Element}
+ */
+const charUnit = ({ label, standIn, bytes }) => ['div', { 'data-byte-char': '' },
+    ['div', { 'data-byte-row': '' }, ...bytes.map(b => /** @type {Element} */ (['span', { 'data-byte': '' }, b]))],
+    ['span', standIn ? { 'data-byte-label': '', 'data-stand-in': '' } : { 'data-byte-label': '' }, label],
+]
+
+/**
+ * The text's characters, each with its bytes, wrapping to the page's width a
+ * whole character at a time.
+ *
+ * @type {(chars: readonly ByteChar[]) => Element}
+ */
+const charUnits = chars => ['div', { 'data-byte-chars': '' }, ...chars.map(charUnit)]
 
 /**
  * One group as a box: its bits — the data as text, then its stop and fill bits
@@ -148,8 +195,8 @@ export const bitGroupDemo = ({ name, how, scheme, encode, note }) => {
         const g = f(text)
         /** @type {readonly Node[]} */
         const view = typeof g === 'string' ? [['p', ['strong', g]]] : [
-            ['p', ['strong', 'UTF-8 bytes'], ' — binary'],
-            ['pre', orEmpty(g.bytes.join(' '))],
+            ['p', ['strong', 'UTF-8 bytes'], ' — each character over its bytes'],
+            g.chars.length === 0 ? ['p', '(empty)'] : charUnits(g.chars),
             ['p', ['strong', name], ` — ${how}`],
             ...(g.groups.length === 0 ? [] : [draw(g)]),
             legend(scheme),

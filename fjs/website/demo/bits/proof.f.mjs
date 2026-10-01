@@ -14,11 +14,11 @@ import { length, uint } from '../../../types/bit_vec/module.f.mjs'
 /**
  * A toy codec, so these proofs are about drawing the groups and not about any
  * real one: an "encoding" that spells the input's length and value, one
- * character per group.
+ * character per group — and, as Base64 does, nothing at all for no bits.
  *
  * @type {(v: Vec) => string}
  */
-const encode = v => `${length(v)}:${uint(v)}`
+const encode = v => length(v) === 0n ? '' : `${length(v)}:${uint(v)}`
 
 /** Three-bit groups filled with zeros, and with a stop bit. */
 /** @type {BitScheme} */
@@ -44,7 +44,7 @@ export const proof = {
         // A short last group is completed with zeros; whole groups need
         // nothing.
         zeros: () => assertEq(JSON.stringify(bitGroups(zeros, encode)('h')), JSON.stringify({
-            bytes: ['01101000'],
+            chars: [{ label: 'h', standIn: false, bytes: ['01101000'] }],
             groups: [
                 { data: '011', stop: '', fill: '' },
                 { data: '010', stop: '', fill: '' },
@@ -63,9 +63,29 @@ export const proof = {
             assertEq(JSON.stringify(he.groups.at(-1)), JSON.stringify({ data: '', stop: '1', fill: '00' }))
         },
         empty: () => {
-            assertEq(JSON.stringify(bitGroups(zeros, encode)('')), JSON.stringify({ bytes: [], groups: [], encoded: '0:0' }))
+            assertEq(JSON.stringify(bitGroups(zeros, encode)('')), JSON.stringify({ chars: [], groups: [], encoded: '' }))
             assertEq(JSON.stringify(encoded(stops)('').groups), JSON.stringify([{ data: '', stop: '1', fill: '00' }]))
         },
+        /**
+         * **Each character keeps its own bytes**: one for `h`, two for `é`,
+         * three for `€`, four for `👋`.
+         */
+        chars: () => assertEq(
+            JSON.stringify(encoded(zeros)('hé€👋').chars.map(c => [c.label, c.bytes])),
+            JSON.stringify([
+                ['h', ['01101000']],
+                ['é', ['11000011', '10101001']],
+                ['€', ['11100010', '10000010', '10101100']],
+                ['👋', ['11110000', '10011111', '10010001', '10001011']],
+            ])),
+        /**
+         * **A character a reader could not see gets a stand-in**: a space,
+         * a line break and a tab by symbol, any other control character by
+         * its code. Its bytes are still its own.
+         */
+        standIns: () => assertEq(
+            JSON.stringify(encoded(zeros)(' \n\t\u0000\u007f\u0085a').chars.map(c => [c.label, c.standIn])),
+            JSON.stringify([['␠', true], ['↵', true], ['⇥', true], ['U+0000', true], ['U+007F', true], ['U+0085', true], ['a', false]])),
         // An unpaired surrogate has no UTF-8 bytes, so it is refused rather
         // than handed to the encoder.
         unpairedSurrogate: () => assertEq(bitGroups(zeros, encode)('a\uD800'), 'error: unpaired surrogate, no UTF-8'),
@@ -89,7 +109,7 @@ export const proof = {
         boxes: () => {
             const html = htmlToString(zeroDemo.view(zeroDemo.init))
             assert(html.includes('name="text"'), html)
-            assert(html.includes('<pre>01101000 11000011 10101001</pre>'), html)
+            assert(html.includes('<div data-byte-char=""><div data-byte-row=""><span data-byte="">11000011</span><span data-byte="">10101001</span></div><span data-byte-label="">é</span></div>'), html)
             assert(html.includes('<strong>Toy</strong> — 3 bits per character'), html)
             assert(html.includes('<div data-bit-groups=""><div data-bit-box=""><span>011</span><span data-bit-char="">2</span></div><div data-bit-box=""><span>010</span><span data-bit-char="">4</span></div>'), html)
             assert(!html.includes('data-bit-block'), html)
@@ -122,9 +142,14 @@ export const proof = {
         // No bits, no groups: no boxes, and `(empty)` rather than nothing.
         empty: () => {
             const html = htmlToString(zeroDemo.view(''))
-            assert(html.includes('<pre>(empty)</pre>'), html)
+            assert(html.includes('each character over its bytes</p><p>(empty)</p>'), html)
             assert(!html.includes('data-bit-groups'), html)
-            assert(html.includes('Result: <strong>0:0</strong>'), html)
+            assert(html.includes('Result: <strong>(empty)</strong>'), html)
+        },
+        // A stand-in is marked, so the stylesheet mutes it.
+        standIn: () => {
+            const html = htmlToString(zeroDemo.view(' '))
+            assert(html.includes('<span data-byte-label="" data-stand-in="">␠</span>'), html)
         },
         unpairedSurrogate: () => {
             const html = htmlToString(zeroDemo.view('a\uD800'))
