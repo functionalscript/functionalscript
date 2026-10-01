@@ -8,10 +8,12 @@ consumer, [`fjs/git`](../../git/README.md).
 
 - `module.f.mjs` — `byte`, `not`, `bytes`, `symbols`, `meta`, `byteParser`,
   and, for a consumer that reads or writes bytes: `symbolsOf`, the bytes
-  under a tree's leaves; `ascii`, ASCII text as bytes; `isByte`, the
-  alphabet's membership; `byteArray`, a list as a dense array of bytes with
-  anything else refused, a hole included; and `byteLength`, the same check
-  as a count that walks a list once and never holds it;
+  under a tree's leaves; `ascii`, ASCII text as bytes; `byteArray`, a list
+  as a dense array of bytes with anything else refused, a hole included; and
+  `byteLength`, the same check as a count that walks a list once and never
+  holds it. The alphabet's
+  membership is [`fjs/types/number`](../../types/number/module.f.mjs)'s
+  `isByte`, the one byte predicate `fjs/types/bit_vec` refuses with too;
 - `types.ts` — `Byte`, the metadata of a byte.
 
 ## What it is
