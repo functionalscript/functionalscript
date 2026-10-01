@@ -4,6 +4,8 @@
  * @module
  */
 
+/** @import { Result } from '../types/result/types.ts' */
+
 import { structurallySame } from '../types/object/structurally_same/module.f.mjs'
 
 /**
@@ -67,3 +69,34 @@ export const assertNotNullish = (a, msg) => {
     assert(a !== null && a !== undefined, msg)
     return a
 }
+
+/**
+ * Asserts that `r` is `ok`, throwing `r` if it is an `error`, and returns the
+ * `ok` value, so a proof can compare it: `assertEq(assertOk(r), expected)`.
+ *
+ * @type {<T>(r: Result<T, unknown>) => T}
+ */
+export const assertOk = r => {
+    assert(r[0] === 'ok', r)
+    return r[1]
+}
+
+/**
+ * Asserts that `r` is an `error`, throwing `r` if it is `ok`, and returns the
+ * error, so a proof can compare it: `assertEq(assertError(r), expected)`.
+ *
+ * @type {<E>(r: Result<unknown, E>) => E}
+ */
+export const assertError = r => {
+    assert(r[0] === 'error', r)
+    return r[1]
+}
+
+/**
+ * Asserts that `r` is an `error` whose `path` is structurally `expected` —
+ * the shape a validator reports a failure in, without naming its error type.
+ *
+ * @type {(expected: readonly string[]) => (r: Result<unknown, { readonly path: readonly string[] }>) => void}
+ */
+export const assertErrorPath = expected => r =>
+    assertStructurallySame(assertError(r).path, expected, 'unexpected error path')

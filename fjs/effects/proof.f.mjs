@@ -11,7 +11,7 @@ import {
 } from './module.f.mjs'
 import { run as mockRun } from './mock/module.f.mjs'
 import { error, ok } from '../types/result/module.f.mjs'
-import { assert, assertEq, todo } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk, todo } from '../asserts/module.f.mjs'
 
 /**
  * Asserts that `e` reaches `expected` without performing a command.
@@ -142,23 +142,7 @@ const pureResult = e => {
  * The `ok` value an effect reaches without performing a command.
  * @type {<O extends Operation, T, E>(e: Effect<O, T, E>) => T}
  */
-const unwrapPure = e => {
-    const r = pureResult(e)
-    assert(r[0] === 'ok', r)
-    return r[1]
-}
-
-/** @type {<T, E>(r: Result<T, E>, expected: T) => void} */
-const assertOk = (r, expected) => {
-    assert(r[0] === 'ok', r)
-    assertEq(r[1], expected)
-}
-
-/** @type {<T, E>(r: Result<T, E>, expected: E) => void} */
-const assertError = (r, expected) => {
-    assert(r[0] === 'error', r)
-    assertEq(r[1], expected)
-}
+const unwrapPure = e => assertOk(pureResult(e))
 
 /** @type {(v: number) => Effect<never, number, string>} */
 const positive = v => v > 0 ? pureOk(v) : pureError('not positive')
@@ -343,21 +327,21 @@ export const proof = {
         },
     },
     pureOk: () => {
-        assertOk(pureResult(pureOk(5)), 5)
+        assertEq(assertOk(pureResult(pureOk(5))), 5)
     },
     pureError: () => {
-        assertError(pureResult(pureError('nope')), 'nope')
+        assertEq(assertError(pureResult(pureError('nope'))), 'nope')
     },
     step: {
         ok: () => {
             const e = step(pureOk(5), v => pureOk(v * 2))
-            assertOk(pureResult(e), 10)
+            assertEq(assertOk(pureResult(e)), 10)
         },
         // The continuation does not run on an `error`: `todo` throws if it
         // does, so propagation is what keeps this proof passing.
         propagates: () => {
             const e = step(pureError('boom'), todo)
-            assertError(pureResult(e), 'boom')
+            assertEq(assertError(pureResult(e)), 'boom')
         },
         // ...and the error that comes out is the very tuple that went in,
         // rather than an equal one rebuilt to retag it.
@@ -370,13 +354,13 @@ export const proof = {
             // evaluation order.
             const x0 = step(pureOk(3), v => pureOk(v + 1))
             const x1 = step(x0, v => pureOk(v * 2))
-            assertOk(pureResult(x1), 8)
+            assertEq(assertOk(pureResult(x1)), 8)
         },
         // A `Do` node keeps its command, and the continuation resumes with the
         // operation's `ok` value rather than with the `Result` around it.
         overDo: () => {
             const e = step(div(6, 3), v => pureOk(v * 10))
-            assertOk(run(e), 20)
+            assertEq(assertOk(run(e)), 20)
         },
         // The same chain when the operation itself fails: the command was
         // performed, its error propagates, and the continuation never runs.
@@ -386,7 +370,7 @@ export const proof = {
             /** @typedef {readonly['div', (a: number, b: number) => Result<number, string>]} _DivOp */
             /** @type {Effect<_DivOp, never, string>} */
             const e = step(div(1, 0), todo)
-            assertError(run(e), 'div by zero')
+            assertEq(assertError(run(e)), 'div by zero')
         },
         // Adjacent links performing different commands: the operation sets
         // union, so one runner interprets the whole chain.
@@ -395,24 +379,24 @@ export const proof = {
             /** @typedef {readonly['neg', (a: number) => Result<number, string>]} _NegOp */
             /** @type {Effect<_DivOp | _NegOp, number, string>} */
             const e = step(div(6, 3), neg)
-            assertOk(run(e), -2)
+            assertEq(assertOk(run(e)), -2)
         },
         mixedErrorsOk: () => {
-            assertOk(pureResult(checked(5)), 5)
+            assertEq(assertOk(pureResult(checked(5))), 5)
         },
         // The first link's error type...
         mixedErrorsFirst: () => {
-            assertError(pureResult(checked(-1)), 'not positive')
+            assertEq(assertError(pureResult(checked(-1))), 'not positive')
         },
         // ...and the second's, in the same chain and the same channel.
         mixedErrorsSecond: () => {
-            assertError(pureResult(checked(50)), 50)
+            assertEq(assertError(pureResult(checked(50))), 50)
         },
     },
     catchStep: {
         recovers: () => {
             const e = catchStep(pureError('boom'), m => pureOk(m.length))
-            assertOk(pureResult(e), 4)
+            assertEq(assertOk(pureResult(e)), 4)
         },
         // The success passes through untouched — `todo` proves the recovery
         // does not run — and it is the same tuple, as in `step`'s mirror case.
@@ -425,7 +409,7 @@ export const proof = {
         // the failure means for it.
         overFailedDo: () => {
             const e = catchStep(div(1, 0), () => pureOk(0))
-            assertOk(run(e), 0)
+            assertEq(assertOk(run(e)), 0)
         },
         // The success channel unions `T | R`: a recovery may yield a different
         // type than the value it stands in for, and the error channel becomes
@@ -433,7 +417,7 @@ export const proof = {
         unionsSuccess: () => {
             /** @type {Effect<never, number | string, never>} */
             const e = catchStep(pureError('boom'), m => pureOk(m))
-            assertOk(pureResult(e), 'boom')
+            assertEq(assertOk(pureResult(e)), 'boom')
         },
     },
     resultStep: {
@@ -441,15 +425,15 @@ export const proof = {
         // turning an `error` into an `ok`.
         ok: () => {
             const e = resultStep(pureOk(5), ([tag]) => pureOk(tag))
-            assertOk(pureResult(e), 'ok')
+            assertEq(assertOk(pureResult(e)), 'ok')
         },
         error: () => {
             const e = resultStep(pureError('boom'), ([tag]) => pureOk(tag))
-            assertOk(pureResult(e), 'error')
+            assertEq(assertOk(pureResult(e)), 'error')
         },
         overDo: () => {
             const e = resultStep(div(1, 0), ([tag]) => pureOk(tag))
-            assertOk(run(e), 'error')
+            assertEq(assertOk(run(e)), 'error')
         },
     },
     historyStep: {
@@ -459,7 +443,7 @@ export const proof = {
             const h0 = history(pureOk(1))
             const h1 = historyStep(h0, x => pureOk(x + 1))
             const h2 = historyStep(h1, (y, x) => pureOk(`${x}${y}`))
-            assertOk(pureResult(mapStep(h2, ([z]) => z)), '12')
+            assertEq(assertOk(pureResult(mapStep(h2, ([z]) => z))), '12')
         },
         // The history carries `ok` values, so a later link reads them without
         // asking whether they are there...
@@ -472,11 +456,11 @@ export const proof = {
         // ...because a failed link short-circuits instead of contributing one.
         propagates: () => {
             const h0 = historyStep(history(pureOk(3)), () => pureError('boom'))
-            assertError(pureResult(historyStep(h0, todo)), 'boom')
+            assertEq(assertError(pureResult(historyStep(h0, todo))), 'boom')
         },
         // A failure in the effect the history starts from never reaches `f`.
         propagatesFromHead: () => {
-            assertError(pureResult(historyStep(history(pureError('boom')), todo)), 'boom')
+            assertEq(assertError(pureResult(historyStep(history(pureError('boom')), todo))), 'boom')
         },
         // Over a `Do` node: the captured value survives the command boundary.
         overDo: () => {
@@ -488,10 +472,10 @@ export const proof = {
     },
     foldStep: {
         empty: () => {
-            assertOk(pureResult(foldStep(pureOk([]), 10, x => s => pureOk(s + x))), 10)
+            assertEq(assertOk(pureResult(foldStep(pureOk([]), 10, x => s => pureOk(s + x)))), 10)
         },
         threadsState: () => {
-            assertOk(pureResult(foldStep(pureOk([1, 2, 3, 4]), 0, x => s => pureOk(s + x))), 10)
+            assertEq(assertOk(pureResult(foldStep(pureOk([1, 2, 3, 4]), 0, x => s => pureOk(s + x)))), 10)
         },
         // The first failure stops the fold: `4` never reaches the accumulator,
         // and the error is the result.
@@ -499,7 +483,7 @@ export const proof = {
             const e = foldStep(pureOk([1, 2, 4]),
                 0,
                 x => s => x === 2 ? pureError('two') : pureOk(s + x))
-            assertError(pureResult(e), 'two')
+            assertEq(assertError(pureResult(e)), 'two')
         },
         // A long fold whose items **perform commands** still completes, and
         // this is the pair's load-bearing half.
@@ -518,7 +502,7 @@ export const proof = {
         aLongCommandFoldCompletes: () => {
             const items = Array.from({ length: 20000 }, (_, i) => i)
             const e = foldStep(pureOk(items), 0, x => s => mapStep(neg(x), n => s - n))
-            assertOk(run(e), 199990000)
+            assertEq(assertOk(run(e)), 199990000)
         },
         // The same length with no command in it, which guards the *other*
         // half: that answering-with-a-value does not recurse either.
@@ -532,8 +516,7 @@ export const proof = {
         // the leaf that fails.
         aLongPureFoldCompletes: () => {
             const items = Array.from({ length: 20000 }, (_, i) => i)
-            assertOk(
-                pureResult(foldStep(pureOk(items), 0, x => s => pureOk(s + x))),
+            assertEq(assertOk(pureResult(foldStep(pureOk(items), 0, x => s => pureOk(s + x)))),
                 199990000)
         },
     },
@@ -541,8 +524,7 @@ export const proof = {
         // Answering no items is a plain fold, which is the relationship
         // `foldStep` is built on.
         addsNothing: () => {
-            assertOk(
-                pureResult(walkStep(pureOk([1, 2, 3]), 0, x => s => pureOk([s + x, null]))),
+            assertEq(assertOk(pureResult(walkStep(pureOk([1, 2, 3]), 0, x => s => pureOk([s + x, null])))),
                 6)
         },
         // What an item produces runs before what remains: `2` answers `[20,
@@ -552,7 +534,7 @@ export const proof = {
                 pureOk([1, 2, 3]),
                 '',
                 x => s => pureOk([`${s}${x} `, x === 2 ? [20, 21] : null]))
-            assertOk(pureResult(e), '1 2 20 21 3 ')
+            assertEq(assertOk(pureResult(e)), '1 2 20 21 3 ')
         },
         // A **deep** walk completes: 20,000 items each producing one more, so
         // the walk is a path rather than a list.
@@ -573,29 +555,29 @@ export const proof = {
                 pureOk([20000]),
                 0,
                 x => s => mapStep(neg(x), n => /** @type {const} */ ([s - n, x === 0 ? null : [x - 1]])))
-            assertOk(run(e), 200010000)
+            assertEq(assertOk(run(e)), 200010000)
         },
     },
     forEachStep: {
         empty: () => {
-            assertOk(pureResult(forEachStep(pureOk([]), todo)), undefined)
+            assertEq(assertOk(pureResult(forEachStep(pureOk([]), todo))), undefined)
         },
         runs: () => {
-            assertOk(pureResult(forEachStep(pureOk([1, 2, 3]), () => pureOk(undefined))), undefined)
+            assertEq(assertOk(pureResult(forEachStep(pureOk([1, 2, 3]), () => pureOk(undefined)))), undefined)
         },
         // Where a `Result`-blind `forEachStep` would run every item regardless,
         // this one stops — the difference a `void` accumulator hides.
         stopsAtTheFirstError: () => {
             const e = forEachStep(pureOk([1, 2, 3]),
                 x => x === 2 ? pureError('two') : pureOk(undefined))
-            assertError(pureResult(e), 'two')
+            assertEq(assertError(pureResult(e)), 'two')
         },
     },
     unwrapStep: {
         // An `ok` passes through untouched — what the panic empties is the
         // error channel, so the value is still carried in an `ok`.
         ok: () => {
-            assertOk(pureResult(unwrapStep(pureOk(5), show)), 5)
+            assertEq(assertOk(pureResult(unwrapStep(pureOk(5), show))), 5)
         },
         // An `error` is a panic — the policy the name exists to make greppable.
         // It throws where the composition is written, since `mapStep` forces a
@@ -608,7 +590,7 @@ export const proof = {
     },
     mapStep: {
         ok: () => {
-            assertOk(pureResult(mapStep(pureOk(3), v => v + 1)), 4)
+            assertEq(assertOk(pureResult(mapStep(pureOk(3), v => v + 1))), 4)
         },
         // An `error` is passed through unchanged — the same tuple, and `f` is
         // never applied to it.
@@ -619,35 +601,35 @@ export const proof = {
         // A projection over a `Do` node keeps the command intact and applies
         // `f` to the operation's `ok` value when the continuation resumes.
         overDo: () => {
-            assertOk(run(mapStep(div(6, 3), v => v * 10)), 20)
+            assertEq(assertOk(run(mapStep(div(6, 3), v => v * 10))), 20)
         },
     },
     resultMapStep: {
         // Both branches reach `f`, which is the difference from `mapStep`: the
         // error is handed over rather than passed around.
         ok: () => {
-            assertOk(pureResult(resultMapStep(pureOk(3), r => ok(r[0]))), 'ok')
+            assertEq(assertOk(pureResult(resultMapStep(pureOk(3), r => ok(r[0])))), 'ok')
         },
         error: () => {
-            assertOk(pureResult(resultMapStep(pureError('boom'), r => ok(r[0]))), 'error')
+            assertEq(assertOk(pureResult(resultMapStep(pureError('boom'), r => ok(r[0])))), 'error')
         },
         // `f` chooses the outgoing channel, so a failure can be turned into a
         // success — the discard `mapStep` cannot express, written as a function
         // that says it took both branches.
         absorbs: () => {
-            assertOk(pureResult(resultMapStep(pureError('boom'), () => ok(0))), 0)
+            assertEq(assertOk(pureResult(resultMapStep(pureError('boom'), () => ok(0)))), 0)
         },
         // ...and the reverse: a success can be rejected.
         rejects: () => {
-            assertError(pureResult(resultMapStep(pureOk(3), () => error('no'))), 'no')
+            assertEq(assertError(pureResult(resultMapStep(pureOk(3), () => error('no')))), 'no')
         },
         // Over a `Do` node the command survives and `f` runs on the operation's
         // whole answer, including when that answer is the operation's failure.
         overDo: () => {
-            assertOk(run(resultMapStep(div(6, 3), r => ok(r[1]))), 2)
+            assertEq(assertOk(run(resultMapStep(div(6, 3), r => ok(r[1])))), 2)
         },
         overFailedDo: () => {
-            assertOk(run(resultMapStep(div(1, 0), r => ok(r[0]))), 'error')
+            assertEq(assertOk(run(resultMapStep(div(1, 0), r => ok(r[0])))), 'error')
         },
     },    finallyStep: {
         // The cleanup runs after `e`, is handed what `e` answered, and `e`'s
@@ -656,19 +638,19 @@ export const proof = {
             const e = step(note('e'), () => pureOk(5))
             const [log, r] = runNoted(finallyStep(e, r => note(`cleanup ${r[0]}`)))
             assertEq(log.join(','), 'e,cleanup ok')
-            assertOk(r, 5)
+            assertEq(assertOk(r), 5)
         },
         error: () => {
             const e = step(note('e'), () => pureError('boom'))
             const [log, r] = runNoted(finallyStep(e, r => note(`cleanup ${r[0]}`)))
             assertEq(log.join(','), 'e,cleanup error')
-            assertError(r, 'boom')
+            assertEq(assertError(r), 'boom')
         },
         // The cleanup's own failure is dropped: the answer is still `e`'s.
         dropsCleanupFailure: () => {
             const [log, r] = runNoted(finallyStep(pureOk(5), () => note('fail')))
             assertEq(log.join(','), 'fail')
-            assertOk(r, 5)
+            assertEq(assertOk(r), 5)
         },
     },
 }

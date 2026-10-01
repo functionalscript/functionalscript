@@ -140,5 +140,6 @@ of this issue.
   parentheticals mis-recorded this issue as resolved; corrected to link here.
 - [data-set-validate-shared.md](./data-set-validate-shared.md) — the same
   duplication theme inside the data form.
-- [proof-shared-asserts.md](./proof-shared-asserts.md) — the proof-side
-  counterpart: the readers' proofs also copy their helpers.
+- `assertOk` / `assertError` / `assertErrorPath` in
+  [`fjs/asserts`](../../asserts/module.f.mjs) — the proof-side counterpart,
+  done: the readers' proofs no longer copy their helpers.

@@ -16,7 +16,7 @@ import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubl
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
-import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 
@@ -42,14 +42,6 @@ const readHello = match(readHelloMap)
 const assertIoMessage = (e, message) => {
     assert(e[0] === 'ioError', e)
     assertEq(e[1].message, message)
-}
-
-/** Asserts that an operation succeeded with `expected`.
- * @type {<T, E>(r: Result<T, E>, expected: T) => void}
- */
-const assertOk = (r, expected) => {
-    assert(r[0] === 'ok', r)
-    assertEq(r[1], expected)
 }
 
 /** `n` zero bytes as a `Vec`.
@@ -475,7 +467,7 @@ export const proof = {
     },
     now: () => {
         const [_, result] = virtual({ ...emptyState, epochNs: 1_000_000 })(now())
-        assertOk(result, 1_000_000)
+        assertEq(assertOk(result), 1_000_000)
     },
     sandbox: {
         // Virtual `sandbox` is now a pass-through: the function is expected
@@ -507,7 +499,7 @@ export const proof = {
         createAndRead: () => {
             const effect = ioStep(memCreate(42), key => memRead(key))
             const [_, value] = virtual(emptyState)(effect)
-            assertOk(value, 42)
+            assertEq(assertOk(value), 42)
         },
         createAndWrite: () => {
             const effect = ioStep(
@@ -516,7 +508,7 @@ export const proof = {
                         memWrite(key, 99),
                         () => memRead(key)))
             const [_, value] = virtual(emptyState)(effect)
-            assertOk(value, 99)
+            assertEq(assertOk(value), 99)
         },
     },
     rename: {
@@ -692,11 +684,11 @@ export const proof = {
     randomInt: {
         increments: () => {
             const [state1, r1] = virtual(emptyState)(randomInt())
-            assertOk(r1, 0)
+            assertEq(assertOk(r1), 0)
             const [state2, r2] = virtual(state1)(randomInt())
-            assertOk(r2, 1)
+            assertEq(assertOk(r2), 1)
             const [_, r3] = virtual(state2)(randomInt())
-            assertOk(r3, 2)
+            assertEq(assertOk(r3), 2)
         },
     },
     readChunks: {
