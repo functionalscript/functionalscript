@@ -39,9 +39,8 @@ the width the way every reader in this module is, because an `Oid` is
 a `Vec` that carries no width of its own: `tryLoose(oidBytes)` answers
 `null` for hex of any other length, so the round trip is a law only
 for an id of that width, and the writer refuses any other — the same
-precondition the readers assert, and the one
-[width-precondition](../../oid/todo/width-precondition.md) would spell
-once.
+precondition the readers assert, spelled once as
+[`fjs/git/oid`](../../oid/module.f.mjs)'s `ofWidth`.
 
 ### Tasks
 
@@ -54,5 +53,5 @@ once.
 
 - [../../refstore/todo/ref-writing.md](../../refstore/todo/ref-writing.md)
   — the symbolic write this gives a home to.
-- [../../oid/todo/width-precondition.md](../../oid/todo/width-precondition.md)
-  — the width assertion the writer shares with the readers.
+- [`fjs/git/oid`](../../oid/module.f.mjs)'s `ofWidth` — the width
+  assertion the writer shares with the readers.

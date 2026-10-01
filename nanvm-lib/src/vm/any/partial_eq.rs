@@ -1,4 +1,4 @@
-use crate::vm::{Any, IVm};
+use crate::vm::{Any, IVm, Unpacked};
 
 /// Same as `===` in ECMAScript.
 impl<A: IVm> PartialEq for Any<A> {
@@ -13,6 +13,12 @@ impl<A: IVm> Any<A> {
     /// `NaN`. `0` and `-0` stay equal, as under `===`.
     pub(crate) fn same_value_zero(&self, other: &Self) -> bool {
         self == other || (self.clone().is_nan() && other.clone().is_nan())
+    }
+
+    /// Whether `self` is the string `s`, compared without building a VM
+    /// string from `s` — a key against a built-in name.
+    pub(crate) fn is_str(&self, s: &str) -> bool {
+        matches!(Unpacked::from(self.clone()), Unpacked::String(k) if k.is_str(s))
     }
 }
 
@@ -34,5 +40,15 @@ mod tests {
         assert!(!n(1.0).same_value_zero(&n(2.0)));
         assert!(!n(f64::NAN).same_value_zero(&n(0.0)));
         assert!(!n(f64::NAN).same_value_zero(&"NaN".into()));
+    }
+
+    #[test]
+    fn is_str() {
+        let s: Any<A> = "at".into();
+        assert!(s.is_str("at"));
+        assert!(!s.is_str("a"));
+        assert!(!s.is_str("ats"));
+        let n: Any<A> = 0.0.to_any();
+        assert!(!n.is_str("0"));
     }
 }
