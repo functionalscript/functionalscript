@@ -1,7 +1,7 @@
 ## Shared result asserts for the proofs
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
