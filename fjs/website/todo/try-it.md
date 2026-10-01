@@ -45,8 +45,8 @@ FunctionalScript
   directory's page (`pageHref`), where the demo is the first section.
 - **Placed first, open.** Before Contents, after the page's own demo if it has
   one — the order `rootPage` in [`../module.f.mjs`](../module.f.mjs) already
-  argues for: what a module does is the quickest answer to what it is. Omitted when empty, like
-  every other section.
+  argues for: what a module does is the quickest answer to what it is.
+  Omitted when empty, like every other section.
 - **Path order.** The order the walk already sorts by. A curated order is a
   second list nobody would keep in step with the tree.
 - **A `data-links` list**, so it gets the touch padding every list of links
