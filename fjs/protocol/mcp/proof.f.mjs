@@ -433,6 +433,14 @@ export const proof = {
             assertEq(errorCode(resp), -32602)
         },
 
+        // Only an absent `params` defaults to `{}`; an explicit `null` is
+        // still decoded, and refused.
+        toolsListNullParamsReturnsInvalidParams: () => {
+            const msg = { jsonrpc: '2.0', method: 'tools/list', id: 21, params: null }
+            const [resp] = step3(config)(initMsg)(initNotif)(msg)
+            assertEq(errorCode(resp), -32602)
+        },
+
         toolsCallSucceeds: () => {
             const msg = { jsonrpc: '2.0', method: 'tools/call', id: 6,
                 params: { name: 'greet', arguments: {} } }
