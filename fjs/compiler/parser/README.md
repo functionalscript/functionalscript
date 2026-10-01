@@ -47,7 +47,8 @@ unary  ::= '-' unaryOperand | '~' unaryOperand
 unaryOperand ::= '-' unaryOperand | '~' unaryOperand
          | (primitive | id | array | object) access*
          | '(' groupOperand
-block  ::= '{' const* terminator '}'
+block  ::= '{' statement* terminator '}'
+statement ::= const | 'if' '(' value ')' block
 terminator ::= 'return' value end | 'throw' value end
 func   ::= [ '...' id ] ')' '=>' body
 afterValue ::= ',' [ names ] ')' '=>' body | ')' arrowOrRest
@@ -266,13 +267,18 @@ container of nodes, a record per statement — and the names are resolved after
 the grammar has matched the whole module, statement by statement, on the
 pattern [`fjs/media/datajs`](../../media/datajs/parser/module.f.mjs) set.
 
-Function blocks retain an ordered list of tagged `const` statements and a
-tagged `return` or `throw` in this source tree. `() => 7` and
+Function blocks retain an ordered list of tagged statements — `const`
+declarations and `if` guards, each guard holding its condition and a block of
+its own — and a tagged `return` or `throw` in this source tree. `() => 7` and
 `() => { return 7; }` therefore have different source bodies; the fold lowers
-them to the same executable body, and a `throw` to one whose value is the
-`['throw', v]` node. The grammar still requires zero or more declarations
-followed by one terminating statement, and a module ends in an export or a
-`throw` the same way. This representation change adds no ASI.
+them to the same executable body, a `throw` to one whose value is the
+`['throw', v]` node, and a guard to the conditional of two calls of
+parameterless functions, one of its block and one of the statements after
+it, which the lowering inlines
+([spec: functions](../../../spec/README.md#functions)). The grammar still
+requires zero or more statements followed by one terminating statement, and a
+module ends in an export or a `throw` the same way. This representation
+change adds no ASI.
 
 `parseSyntax`, in `./syntax`, exposes that tree for proofs before the
 fold. It does not establish binding validity, JavaScript early errors or FunctionalScript
@@ -297,7 +303,7 @@ public types in `./types.ts`, as the rewrite set is.
 ## Required keywords are terminals of their own
 
 The tokenizer emits `import`, `const`, `export`, `default`, `from`, `with`, `return`,
-`throw` and `as` as `id` tokens carrying the word in `value`. An alphabet keyed on a
+`throw`, `if` and `as` as `id` tokens carrying the word in `value`. An alphabet keyed on a
 token's *kind* would give them all the symbol of any other identifier, and the
 grammar could not tell `export default` from two arbitrary names — module
 framing would be inexpressible, and so would a block body's `return`.
