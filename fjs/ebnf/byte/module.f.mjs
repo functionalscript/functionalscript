@@ -28,26 +28,13 @@
 
 import { assert } from '../../asserts/module.f.mjs'
 import { toArray, tryFold } from '../../types/list/module.f.mjs'
+import { isByte } from '../../types/number/module.f.mjs'
 import { rangeEncode, remove, union } from '../module.f.mjs'
 import { codePoints, toData } from '../data/module.f.mjs'
 import { parser } from '../ll1/module.f.mjs'
 
-const { isInteger } = Number
-const { is: sameValue } = Object
-
 /** One past the last byte: the boundary a byte set never reaches past. */
 const byteEnd = /** @type {const} */ (0x100)
-
-/**
- * Whether `b` is a byte: an integer in `0..255`, and not `-0`, which the
- * data layer refuses as a second spelling of `0`. The alphabet's
- * membership, for a consumer that holds a `number` it means as a byte —
- * a `List<number>` it is about to write, say — and has to refuse one that
- * is not.
- *
- * @type {(b: number) => boolean}
- */
-export const isByte = b => isInteger(b) && b >= 0 && b < byteEnd && !sameValue(b, -0)
 
 /**
  * The metadata of every byte: one frozen record, shared by every leaf, so

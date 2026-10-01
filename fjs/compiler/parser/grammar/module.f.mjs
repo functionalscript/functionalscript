@@ -124,6 +124,7 @@
 import { assert } from '../../../asserts/module.f.mjs'
 import { eof, option, repeatFrom0 } from '../../../ebnf/module.f.mjs'
 import { encoding } from '../../../ebnf/token_symbol/module.f.mjs'
+import { literalWords } from '../../../js/keywords/module.f.mjs'
 import { _djsTokenKinds } from '../../tokenizer/module.f.mjs'
 import { definedEntries } from '../../../types/object/module.f.mjs'
 
@@ -222,6 +223,18 @@ export const identifier = /** @type {const} */ ({
 })
 
 /**
+ * The token kinds that are a whole value: the six words that denote one,
+ * which are `fjs/js/keywords`' {@link literalWords} rather than a copy of
+ * them, and the three literals. {@link primitive} is a variant over exactly
+ * these, and {@link identifierName} admits the six words as names; the
+ * `_ValueKindsAre…` assertions in `./types.ts` pin both to this list, and
+ * `../syntax/proof.f.mjs` folds a value of every kind through the switch
+ * that converts them. Exported with a leading `_` for that linkage — the
+ * export is not API.
+ */
+export const _valueKinds = /** @type {const} */ ([...literalWords, 'number', 'string', 'bigint'])
+
+/**
  * Every word that may *name* something — a property, or a binding — which
  * is {@link identifier} and the six words that denote a value.
  *
@@ -244,7 +257,7 @@ export const identifierName = /** @type {const} */ ({
     Infinity: sym('Infinity'),
 })
 
-/** A value that is one token. */
+/** A value that is one token: one branch per kind in {@link _valueKinds}. */
 export const primitive = /** @type {const} */ ({
     null: sym('null'),
     true: sym('true'),
