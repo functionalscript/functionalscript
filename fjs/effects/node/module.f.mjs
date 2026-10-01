@@ -26,8 +26,6 @@
  */
 
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
-import { toCodePointList } from '../../text/utf8/module.f.mjs'
-import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { concat } from '../../types/list/module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { byteLength, bytesIn, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, u8ListMsb } from '../../types/bit_vec/module.f.mjs'
