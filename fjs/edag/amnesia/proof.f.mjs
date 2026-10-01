@@ -334,8 +334,8 @@ export const proof = {
         // wrapped in another one, and not just its first element.
         same(['()', argsNode, ['[]', [5, 6]]], [5, 6])
         same(['()', argsNode, noArgs], [])
-        // ... and any node evaluating to an array serves, which is what
-        // makes `f(...xs)` need no `...` node: the whole array passes through.
+        // ... and any node evaluating to an array serves, a spread among its
+        // items included: `f(1, ...[2, 3])` is the array `[1, ...[2, 3]]`.
         same(['()', argsNode, ['[]', [1, ['...', ['[]', [2, 3]]]]]], [1, 2, 3])
         // Operands are evaluated in the *caller's* scope, before the callee's
         // exists: the callee expression as much as the arguments.

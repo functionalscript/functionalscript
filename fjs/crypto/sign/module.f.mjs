@@ -52,10 +52,7 @@ export const fromCurve = c => all(c.nf.p)
 const x01 = vec8(0x01n)
 const x00 = vec8(0x00n)
 
-const { listToVec } = msb
-
-/** @type {(...x: readonly Vec[]) => Vec} */
-export const concat = (...x) => listToVec(x)
+const { concat, listToVec } = msb
 
 /**
  * RFC6979 §3.2 from step b on: the nonce `k` for the digest `h1 = H(m)`.
@@ -96,14 +93,14 @@ const computeKFromDigest =
             // d. Set:
             //      K = HMAC_K(V || 0x00 || int2octets(x) || bits2octets(h1))
             //    where '||' denotes concatenation.
-            const xh1 = concat(int2octets(x), bits2octets(h1))
-            k = hmacf(k)(concat(v, x00, xh1))
+            const xh1 = concat(int2octets(x))(bits2octets(h1))
+            k = hmacf(k)(listToVec([v, x00, xh1]))
             // e. Set:
             //      V = HMAC_K(V)
             v = hmacf(k)(v)
             // f. Set:
             //      K = HMAC_K(V || 0x01 || int2octets(x) || bits2octets(h1))
-            k = hmacf(k)(concat(v, x01, xh1))
+            k = hmacf(k)(listToVec([v, x01, xh1]))
             // g. Set:
             //      V = HMAC_K(V)
             v = hmacf(k)(v)
@@ -121,7 +118,7 @@ const computeKFromDigest =
                 //   first concatenation.
                 while (length(t) < qlen) {
                     v = hmacf(k)(v)
-                    t = concat(t, v)
+                    t = concat(t)(v)
                 }
                 //    3. Compute `k = bits2int(T)`. If `k` is not in `[1, q-1]` or `kG = 0` then
                 //       - `K = HMAC_K(V || 0x00)`
@@ -131,7 +128,7 @@ const computeKFromDigest =
                 if (0n < result && result < q) {
                     return result
                 }
-                k = hmacf(k)(concat(v, x00))
+                k = hmacf(k)(concat(v)(x00))
                 v = hmacf(k)(v)
             }
         }

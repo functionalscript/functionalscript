@@ -70,8 +70,8 @@ Each item below is independently buildable and may become its own issue.
 
 ### Related
 
-- [validated-envelope.md](./validated-envelope.md) — the per-method
-  parse→error/ok envelope every new method arm will repeat until it is shared.
+- `validated` inside `mcpStep` ([`../module.f.mjs`](../module.f.mjs)) — the
+  per-method parse→error/ok envelope a new method arm answers through.
 - [effectful-dispatch-skeleton](../../json_rpc/todo/effectful-dispatch-skeleton.md)
   — envelope routing shared with the pure JSON-RPC dispatcher, worth doing if
   more JSON-RPC-based servers appear.

@@ -42,7 +42,7 @@ survives that move.
 
 ### Related
 
-- [validated-envelope.md](./validated-envelope.md) — `validated`/`toolMethod`,
-  one layer above, inside `mcpStep`.
+- `validated`/`toolMethod` inside `mcpStep` ([`../module.f.mjs`](../module.f.mjs))
+  — the same envelope one layer above.
 - [`../../../cas/todo/66k-cas-cli-mcp-shared-core.md`](../../../cas/todo/66k-cas-cli-mcp-shared-core.md) —
   the policy duplication in the same handlers.
