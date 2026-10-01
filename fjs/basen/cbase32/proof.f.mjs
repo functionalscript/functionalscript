@@ -8,6 +8,7 @@ import { cBase32ToVec, cBase32ToVec5x, vec5xToCBase32, vecToCBase32 } from './mo
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { demo, groupsOf } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.mjs'
 
 //
 
@@ -108,14 +109,10 @@ export const proof = {
     demo: {
         groups: () => {
             /** @type {(text: string) => BitGroups} */
-            const encoded = text => {
-                const g = groupsOf(text)
-                if (typeof g === 'string') { throw g }
-                return g
-            }
+            const encoded = text => unwrap(groupsOf(text))
             // Empty text is the stop bit alone.
-            assertEq(JSON.stringify(groupsOf('')), JSON.stringify({ chars: [], groups: [{ data: '', stop: '1', fill: '0000' }], encoded: 'g' }))
-            assertEq(JSON.stringify(groupsOf('h')), JSON.stringify({
+            assertEq(JSON.stringify(encoded('')), JSON.stringify({ chars: [], groups: [{ data: '', stop: '1', fill: '0000' }], encoded: 'g' }))
+            assertEq(JSON.stringify(encoded('h')), JSON.stringify({
                 chars: [{ label: 'h', standIn: false, bytes: ['01101000'] }],
                 groups: [
                     { data: '01101', stop: '', fill: '' },

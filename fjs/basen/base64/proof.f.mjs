@@ -8,6 +8,7 @@ import { empty, vec, repeat, vec8, maxLength } from '../../types/bit_vec/module.
 import { encode, decode } from './module.f.mjs'
 import { demo, groupsOf } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.mjs'
 
 /**
  * @param {string} s
@@ -159,13 +160,9 @@ export const proof = {
     demo: {
         groups: () => {
             /** @type {(text: string) => BitGroups} */
-            const encoded = text => {
-                const g = groupsOf(text)
-                if (typeof g === 'string') { throw g }
-                return g
-            }
-            assertEq(JSON.stringify(groupsOf('')), JSON.stringify({ chars: [], groups: [], encoded: '' }))
-            assertEq(JSON.stringify(groupsOf('h')), JSON.stringify({
+            const encoded = text => unwrap(groupsOf(text))
+            assertEq(JSON.stringify(encoded('')), JSON.stringify({ chars: [], groups: [], encoded: '' }))
+            assertEq(JSON.stringify(encoded('h')), JSON.stringify({
                 chars: [{ label: 'h', standIn: false, bytes: ['01101000'] }],
                 groups: [
                     { data: '011010', stop: '', fill: '' },

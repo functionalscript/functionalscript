@@ -36,6 +36,7 @@
  * @import { Element, Node } from '../../../media/html/types.ts'
  * @import { Nullable } from '../../../types/nullable/types.ts'
  * @import { Vec } from '../../../types/bit_vec/types.ts'
+ * @import { Result } from '../../../types/result/types.ts'
  * @import { BitGroup, BitGroupDemoOptions, BitGroups, BitScheme, ByteChar } from './types.ts'
  * @import { CodePoint } from '../../../text/code_point/types.ts'
  */
@@ -43,7 +44,8 @@
 import { fromCodePointList } from '../../../text/utf8/module.f.mjs'
 import { codePointToString, stringToCodePointList } from '../../../text/utf16/module.f.mjs'
 import { isValidCodePoint } from '../../../text/code_point/module.f.mjs'
-import { u8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
+import { maxLengthBytes, tryU8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
+import { error, ok } from '../../../types/result/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { textDemo } from '../module.f.mjs'
 
@@ -95,21 +97,26 @@ const groups = ({ width, stop }) => bits => {
 }
 
 /**
- * What the demo shows for `text`: its UTF-8 bytes in binary, the groups
- * `scheme` cuts them into, and what `encode` wrote — or why there is none.
+ * What the demo shows for `text`: its characters with their UTF-8 bytes, the
+ * groups `scheme` cuts those bits into, and what `encode` wrote — or why
+ * there is none. Two inputs are refused rather than shown wrong or crashing:
+ * an unpaired surrogate, which has no UTF-8 bytes, and text longer than the
+ * largest bit vector, which no codec here can be given.
  *
- * @type {(scheme: BitScheme, encode: (v: Vec) => string) => (text: string) => BitGroups | string}
+ * @type {(scheme: BitScheme, encode: (v: Vec) => string) => (text: string) => Result<BitGroups, string>}
  */
 export const bitGroups = (scheme, encode) => text => {
     const cps = toArray(stringToCodePointList(text))
-    if (!cps.every(isValidCodePoint)) { return 'error: unpaired surrogate, no UTF-8' }
+    if (!cps.every(isValidCodePoint)) { return error('unpaired surrogate, no UTF-8') }
     const chars = cps.map(byteChar)
     const bytes = chars.flatMap(([b]) => b)
-    return {
+    const v = tryU8ListToVecMsb(bytes)
+    if (v === null) { return error(`text too long: more than ${maxLengthBytes} UTF-8 bytes`) }
+    return ok({
         chars: chars.map(([, c]) => c),
         groups: groups(scheme)(bytes.map(binary).join('')),
-        encoded: encode(u8ListToVecMsb(bytes)),
-    }
+        encoded: encode(v),
+    })
 }
 
 /**
@@ -213,9 +220,9 @@ export const bitGroupDemo = ({ name, how, scheme, encode }) => {
     const f = bitGroups(scheme, encode)
     const draw = boxes(scheme)
     return textDemo({ name: 'text', label: 'Text', rows: 2, init: 'hé' })(text => {
-        const g = f(text)
+        const [kind, g] = f(text)
         /** @type {readonly Node[]} */
-        const view = typeof g === 'string' ? [['p', ['strong', g]]] : [
+        const view = kind === 'error' ? [['p', ['strong', `error: ${g}`]]] : [
             ['p', ['strong', 'UTF-8 bytes'], ' — each character over its bytes'],
             g.chars.length === 0 ? ['p', '(empty)'] : charUnits(g.chars),
             ['p', ['strong', name], ` — ${how}`],

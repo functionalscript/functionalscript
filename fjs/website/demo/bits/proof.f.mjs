@@ -9,7 +9,7 @@ import { htmlToString } from '../../../media/html/module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../../asserts/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.mjs'
 import { runPure } from '../../../effects/module.f.mjs'
-import { length, uint } from '../../../types/bit_vec/module.f.mjs'
+import { length, maxLengthBytes, uint } from '../../../types/bit_vec/module.f.mjs'
 
 /**
  * A toy codec, so these proofs are about drawing the groups and not about any
@@ -29,11 +29,7 @@ const stops = { width: 3, stop: true }
 const blocks = { width: 3, stop: false, block: 2 }
 
 /** @type {(scheme: BitScheme) => (text: string) => BitGroups} */
-const encoded = scheme => text => {
-    const g = bitGroups(scheme, encode)(text)
-    if (typeof g === 'string') { throw g }
-    return g
-}
+const encoded = scheme => text => unwrap(bitGroups(scheme, encode)(text))
 
 const zeroDemo = bitGroupDemo({ name: 'Toy', how: '3 bits per character', scheme: zeros, encode })
 const stopDemo = bitGroupDemo({ name: 'Stop', how: '3 bits, then a stop bit', scheme: stops, encode })
@@ -43,7 +39,7 @@ export const proof = {
     bitGroups: {
         // A short last group is completed with zeros; whole groups need
         // nothing.
-        zeros: () => assertEq(JSON.stringify(bitGroups(zeros, encode)('h')), JSON.stringify({
+        zeros: () => assertEq(JSON.stringify(encoded(zeros)('h')), JSON.stringify({
             chars: [{ label: 'h', standIn: false, bytes: ['01101000'] }],
             groups: [
                 { data: '011', stop: '', fill: '' },
@@ -63,7 +59,7 @@ export const proof = {
             assertEq(JSON.stringify(he.groups.at(-1)), JSON.stringify({ data: '', stop: '1', fill: '00' }))
         },
         empty: () => {
-            assertEq(JSON.stringify(bitGroups(zeros, encode)('')), JSON.stringify({ chars: [], groups: [], encoded: '' }))
+            assertEq(JSON.stringify(encoded(zeros)('')), JSON.stringify({ chars: [], groups: [], encoded: '' }))
             assertEq(JSON.stringify(encoded(stops)('').groups), JSON.stringify([{ data: '', stop: '1', fill: '00' }]))
         },
         /**
@@ -88,7 +84,17 @@ export const proof = {
             JSON.stringify([['␠', true], ['↵', true], ['⇥', true], ['U+0000', true], ['U+007F', true], ['U+0085', true], ['a', false]])),
         // An unpaired surrogate has no UTF-8 bytes, so it is refused rather
         // than handed to the encoder.
-        unpairedSurrogate: () => assertEq(bitGroups(zeros, encode)('a\uD800'), 'error: unpaired surrogate, no UTF-8'),
+        unpairedSurrogate: () => assertEq(
+            JSON.stringify(bitGroups(zeros, encode)('a\uD800')),
+            JSON.stringify(['error', 'unpaired surrogate, no UTF-8'])),
+        /**
+         * **Text longer than the largest bit vector is refused**, not
+         * handed to a codec that cannot take it: one byte past
+         * `maxLengthBytes` is too many.
+         */
+        tooLong: () => assertEq(
+            JSON.stringify(bitGroups(zeros, encode)('a'.repeat(Number(maxLengthBytes) + 1))),
+            JSON.stringify(['error', `text too long: more than ${maxLengthBytes} UTF-8 bytes`])),
     },
     // Typing replaces the text; every other event leaves it alone.
     update: () => {
