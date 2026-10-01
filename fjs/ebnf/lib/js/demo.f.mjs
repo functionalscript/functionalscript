@@ -24,7 +24,7 @@
  */
 
 import { content, id, newLine, number, operator, slash, string, token, ws } from './module.f.mjs'
-import { escape, hex, uint } from '../json/module.f.mjs'
+import { escape, hex } from '../json/module.f.mjs'
 import { toData } from '../../data/module.f.mjs'
 import { branch, toDiagrams } from '../../railroad/module.f.mjs'
 import { railroadDemo } from '../../../website/demo/railroad/module.f.mjs'
@@ -61,7 +61,6 @@ export const diagrams = [
     ['operator', nameOf(operator)],
     ['ws', nameOf(ws)],
     ['newLine', nameOf(newLine)],
-    ['uint', nameOf(uint)],
     ['escape', nameOf(escape)],
     ['hex', nameOf(hex)],
 ]

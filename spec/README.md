@@ -778,9 +778,26 @@ is `Infinity` (`1e400`); and one too small is `0` (`1e-400`), which is why
 overflowed literal is an `Infinity` like any other, written as the word where
 a format has one and refused by a `.json` output ([output](#output)).
 
-The syntax is JSON's, so the JavaScript spellings JSON leaves out are not
-recognized: no hexadecimal (`0x10`), no leading `+`, no leading decimal point
-(`.5`), no numeric separators (`1_000`). The three numbers JSON cannot spell
+A number may also be written in hexadecimal, as JavaScript writes it: `0x`
+or `0X`, then one or more digits `0`–`9`, `a`–`f` or `A`–`F`. It denotes the
+double nearest the integer its digits spell, as a decimal literal does, so
+`0xFF` is `255` and `0x20000000000001` is `9007199254740992`. It has no
+fraction and no exponent: after `0x`, `e` is a digit, so `0x10e1` is `4321`,
+and a `.` after the digits is the next token, so `0x10.length` is an access,
+as in JavaScript. `0x` with no digit, and a word or a digit standing directly
+after the literal (`0xg`, `0x1g`), are errors in both languages. The spelling
+is the source's and not the value's: every output writes `0xFF` as `255`, as
+it writes a single-quoted string between double quotes, and two modules that
+differ only in it are one graph.
+
+```js
+export default [0xFF, 0XfF, 0x10e1];
+```
+
+Otherwise the syntax is JSON's, so the other JavaScript spellings JSON
+leaves out are not recognized: no octal (`0o7`) or binary (`0b1`) prefix, no
+leading `+`, no leading decimal point (`.5`), no numeric separators
+(`1_000`). The three numbers JSON cannot spell
 are written as the words JavaScript gives them — `NaN`, `Infinity` and
 `-Infinity` — exactly as [DataJS](./datajs/README.md) writes them:
 
@@ -872,9 +889,17 @@ has no negative zero, as in JavaScript.
 export default [0n, 34n, -34n];
 ```
 
-The syntax is that integer part and the `n`, so the JavaScript spellings it
-leaves out are not recognized: no hexadecimal, octal or binary prefix
-(`0x10n`, `0o7n`, `0b1n`) and no numeric separators (`1_000n`). A fraction or
+A hexadecimal integer part, as a [number](#numbers) writes it, takes the
+`n` too: `0x10n` is `16n` and `0XFFn` is `255n`, exact at any width, and
+`-0x8000000000000000n` folds into the leaf `-9223372036854775808n`.
+
+```js
+export default [0x10n, 0XFFn, -0x8000000000000000n];
+```
+
+The syntax is those integer parts and the `n`, so the JavaScript spellings
+it leaves out are not recognized: no octal or binary prefix (`0o7n`,
+`0b1n`) and no numeric separators (`1_000n`). A fraction or
 an exponent (`1.5n`, `1e3n`), a leading zero (`01n`) and an uppercase `N` are
 errors in both languages. JSON has no spelling for a `bigint`, so a `.json`
 output refuses one ([output](#output)).

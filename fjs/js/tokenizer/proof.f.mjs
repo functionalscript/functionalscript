@@ -361,6 +361,16 @@ export const proof = {
             assertEq(result, '[{"kind":"bigint","value":0n},{"kind":"eof"}]')
         },
         () => {
+            // hexadecimal: the number keeps its spelling, the bigint is its value
+            const result = tokenizeString('0xFF 0XaBn')
+            assertEq(result, '[{"kind":"number","value":"0xFF"},{"kind":"ws"},{"kind":"bigint","value":171n},{"kind":"eof"}]')
+        },
+        () => {
+            assertEq(tokenizeString('0x'), 'error')
+            assertEq(tokenizeString('0x1g'), 'error')
+            assertEq(tokenizeString('0x1n2'), 'error')
+        },
+        () => {
             const result = tokenizeString('[-1234567890n]')
             assertEq(result, '[{"kind":"["},{"kind":"-"},{"kind":"bigint","value":1234567890n},{"kind":"]"},{"kind":"eof"}]')
         },
@@ -871,6 +881,9 @@ export const proof = {
         () => {
             // a number cut short points just past the input
             assertEq(errorAt('1.'), '1:3')
+            assertEq(errorAt('0x'), '1:3')
+            // or at the character where a digit was expected
+            assertEq(errorAt('0xg'), '1:3')
         },
         () => {
             // Unterminated tokens anchor at the token's *start*, not where the

@@ -19,7 +19,7 @@ const onenine = range('19')
 
 export const digit = range('09')
 
-/** One hex digit of a `\u` escape, tagged by the range it is drawn from. */
+/** One hex digit — of a `\u` escape, and of a JavaScript hexadecimal literal — tagged by the range it is drawn from. */
 export const hex = /**@type {const}*/({
     digit,
     AF: range('AF'),

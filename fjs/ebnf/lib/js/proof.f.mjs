@@ -100,6 +100,11 @@ export const proof = {
             assertStructurallySame(read('1n;'), ['number', '1n', 2])
             assertStructurallySame(read('1.5e-3+'), ['number', '1.5e-3', 6])
             assertStructurallySame(read('7E+2'), ['number', '7E+2', 4])
+            // hexadecimal: either `x`, digits of either case, and the
+            // bigint suffix, but no fraction or exponent — an `e` is a digit
+            assertStructurallySame(read('0xFF '), ['number', '0xFF', 4])
+            assertStructurallySame(read('0XaBn;'), ['number', '0XaBn', 5])
+            assertStructurallySame(read('0x10e1'), ['number', '0x10e1', 6])
         },
         string: () => {
             assertStructurallySame(read('"a\\n\\u0041"x'), ['string', '"a\\n\\u0041"', 11])
@@ -172,6 +177,9 @@ export const proof = {
         assertStructurallySame(read('00', 1), ['number', '0', 2])
         assertStructurallySame(read('1.5n'), ['number', '1.5', 3])
         assertStructurallySame(read('1.5n', 3), ['id', 'n', 4])
+        assertStructurallySame(read('0x1g'), ['number', '0x1', 3])
+        assertStructurallySame(read('0x1.5'), ['number', '0x1', 3])
+        assertStructurallySame(read('0x1n2'), ['number', '0x1n', 4])
         assertStructurallySame(read('a-1', 1), ['operator', '-', 2])
     },
     // What is no token fails where it fails: a symbol no token begins
@@ -182,6 +190,8 @@ export const proof = {
         assertStructurallySame(parseToken(cps('')), ['error', 0])
         assertStructurallySame(parseToken(cps('0.')), ['error', 2])
         assertStructurallySame(parseToken(cps('1e')), ['error', 2])
+        assertStructurallySame(parseToken(cps('0x')), ['error', 2])
+        assertStructurallySame(parseToken(cps('0xg')), ['error', 2])
         assertStructurallySame(parseToken(cps('"abc')), ['error', 4])
         assertStructurallySame(parseToken(cps('"\\x"')), ['error', 2])
         // `\'` is the single-quoted string's, not JSON's

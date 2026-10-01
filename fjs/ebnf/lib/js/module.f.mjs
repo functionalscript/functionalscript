@@ -23,19 +23,20 @@
  *   refuses the two for standing side by side, as that record says.
  *
  * A string is JSON's, or JSON's spelled between single quotes
- * ({@link string}), and a number's unsigned part with its fraction and
- * exponent is JSON's: the rules are imported from `../json`, not
- * restated. A line comment stops before its newline, which is the next
- * token; the classical grammar swallows it and splits it back out below
- * the grammar. Whitespace is one symbol per token, as it is there.
+ * ({@link string}), and a decimal number's unsigned part with its fraction
+ * and exponent is JSON's: the rules are imported from `../json`, not
+ * restated, and so are the hexadecimal digits {@link number} adds. A
+ * line comment stops before its newline, which is the next token; the
+ * classical grammar swallows it and splits it back out below the
+ * grammar. Whitespace is one symbol per token, as it is there.
  *
  * @module
  *
  * @import { AfterStar, Content, TriviaKind } from './types.ts'
  */
 
-import { literals, range, remove, repeatFrom0, set, union, unicodeMax } from '../../module.f.mjs'
-import { digit, escape, optionFloatSuffix, string as jsonString, uint } from '../json/module.f.mjs'
+import { literals, option, range, remove, repeatFrom0, set, union, unicodeMax } from '../../module.f.mjs'
+import { digit, escape, hex, optionFloatSuffix, string as jsonString, uint } from '../json/module.f.mjs'
 
 /** Every symbol of the alphabet: a code point. */
 const any = range(`\0${unicodeMax}`)
@@ -112,9 +113,20 @@ export const id = /**@type {const}*/([idStart, repeatFrom0(idChar)])
 
 /**
  * A number: JSON's unsigned integer, then either the bigint suffix or
- * JSON's optional fraction and exponent. The sign is an operator token.
+ * JSON's optional fraction and exponent; or, after a leading `0`, `x` or
+ * `X`, hexadecimal digits and an optional bigint suffix
+ * ([numbers](../../../../spec/README.md#numbers)). A hexadecimal literal
+ * has no fraction and no exponent, so an `e` after `0x` is a digit. The
+ * sign is an operator token.
  */
-export const number = /**@type {const}*/([uint, { bigint: 'n', real: optionFloatSuffix }])
+export const number = /**@type {const}*/({
+    zero: [uint[0], {
+        hex: [set('xX'), hex, repeatFrom0(hex), option('n')],
+        bigint: 'n',
+        real: optionFloatSuffix,
+    }],
+    onenine: [uint.onenine, { bigint: 'n', real: optionFloatSuffix }],
+})
 
 const notNewLine = remove(any, set(lineTerminators.join('')))
 
