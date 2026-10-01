@@ -70,25 +70,61 @@ const noText = v => {
 }
 
 /**
- * Whether a relational operator compares `v` as a string once it is a
- * primitive: a string, or an object, array or function, whose primitive is
- * its text.
+ * Whether `v` is a primitive, which `ToPrimitive` hands back unchanged.
  *
  * @type {(v: unknown) => boolean}
  */
-const isStringy = v => typeof v === 'string' || typeof v === 'function' || (typeof v === 'object' && v !== null)
+const isPrimitive = v => v === null || (typeof v !== 'object' && typeof v !== 'function')
+
+/**
+ * An object's own method `k`, or `undefined`. A FunctionalScript object
+ * inherits no method of its own making, so an own property is the only
+ * place a `valueOf` or `toString` of its own can be — `own` below reads
+ * the same way.
+ *
+ * @type {(v: object, k: string) => ((() => unknown) | undefined)}
+ */
+const ownMethod = (v, k) => {
+    const m = Object.getOwnPropertyDescriptor(v, k)?.value
+    return typeof m === 'function' ? m : undefined
+}
+
+/**
+ * Whether `v`, made primitive as a relational operator makes it
+ * (`ToPrimitive` with the number hint), is a string: a string itself, a
+ * function (its text), an array (its elements joined), or an object whose
+ * own `valueOf` or, failing that, `toString` answers a string, or that has
+ * neither (`"[object Object]"`). The methods are pure, so calling one here
+ * and again in the operator observes nothing; one that throws throws the
+ * value the operator would.
+ *
+ * @type {(v: unknown) => boolean}
+ */
+const primitiveIsString = v => {
+    if (isPrimitive(v)) { return typeof v === 'string' }
+    if (typeof v === 'function') { return true }
+    const o = /** @type {object} */(v)
+    const valueOf = ownMethod(o, 'valueOf')
+    const r = valueOf === undefined ? o : valueOf()
+    if (isPrimitive(r)) { return typeof r === 'string' }
+    const toString = ownMethod(o, 'toString')
+    // Neither answered a primitive: the operator throws, which is not a
+    // read of any text.
+    return toString === undefined || typeof toString() === 'string'
+}
 
 /**
  * `<`, `<=`, `>` and `>=`, refusing the one input whose result is a
- * function's text: a function in a string comparison. Against a number,
- * bigint, boolean or nullish operand a function is `NaN`, so the result is
- * `false` whatever its text, and it stays answered.
+ * function's text: a function compared with an operand that, made
+ * primitive, is a string. Against anything else a function is `NaN`, so the
+ * result is `false` whatever its text, and it stays answered.
  *
  * @type {(o: (a: any, b: any) => unknown) => <E>(x: Evaluator<E>) => (e: Over<Op2, E>) => unknown}
  */
 const relational = o => o2((a, b) => {
-    const readsText = isStringy(a) && isStringy(b) && (typeof a === 'function' || typeof b === 'function')
-    assert(!readsText, refused)
+    /** @type {(f: unknown, v: unknown) => boolean} */
+    const readsText = (f, v) => typeof f === 'function' && primitiveIsString(v)
+    assert(!readsText(a, b) && !readsText(b, a), refused)
     return o(a, b)
 })
 

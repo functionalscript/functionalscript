@@ -135,12 +135,18 @@ with costs of its own (above), and nothing here should wait on it.
 | ------------------------- | -------------------------------------------------------------------- | ------------------ |
 | `String(a)`               | `a` is a function                                                    | as the host does   |
 | `a + b` (binary)          | `a` or `b` is a function                                             | as the host does   |
-| `a < b`, `<=`, `>`, `>=`  | one operand is a function and the other is a string, object, array or function | as the host does   |
+| `a < b`, `<=`, `>`, `>=`  | one operand is a function and the other, made primitive, is a string | as the host does   |
 
-A relational operator compares as strings only when both operands become
-strings, and a function, array or object does. Against a number, bigint,
-boolean, `null` or `undefined` a function becomes `NaN`, and the result is
-`false` whatever its text. So `f < 5` stays answered as `false`.
+A relational operator compares as strings only when both operands, made
+primitive, are strings ([spec](../../spec/README.md)), and a function made
+primitive is its text. The other operand is made primitive as the operator
+makes it: a string stays one, a function is its text, an array is its
+elements joined, and an object is what its own `valueOf` answers, or failing
+that its own `toString`, or `"[object Object]"` with neither. Against
+anything that is not then a string, such as a number, `null` or an object
+whose `valueOf` answers `0`, a function becomes `NaN`, and the result is
+`false` whatever its text. So `f < 5` and `f < { valueOf: () => 0 }` stay
+answered as `false`.
 
 Unary `+` and `Number` of a function are `NaN` for any text, so they stay
 answered too. A function's text is never numeric.
