@@ -1,10 +1,11 @@
 /**
  * @import { Assert } from '../../asserts/types.ts'
  * @import { Equal } from '../../types/ts/types.ts'
+ * @import { restrictedNames, strictModeReservedWords } from './module.f.mjs'
  */
 
 import { assertEq } from '../../asserts/module.f.mjs'
-import { isKeyword, keywords, literalGlobals, literalWords, reservedWords, restrictedNames, strictModeReservedWords } from './module.f.mjs'
+import { isKeyword, keywords, literalGlobals, literalWords, reservedWords } from './module.f.mjs'
 
 export const proof = {
     // `keywords` is derived from the four groups; what the derivation does
