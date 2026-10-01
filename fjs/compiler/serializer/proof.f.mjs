@@ -915,6 +915,37 @@ export const proof = {
             writes(fn(['?:', r0, r1, r1]), 'export default (...$a)=>$a[0]?$a[1]:$a[1];')
             // and one the scope reaches eagerly as well is the scope's
             writes([',', [c, ['?:', true, length, length]]], 'const $0=[1];export default true?$0.length:$0.length;')
+            // and what a value the scope names holds is not the block's:
+            // its `const` writes it once, and each occurrence reads the
+            // name — a nested array, and a call, whose arguments are an
+            // array, read eagerly and in an arm, in one arm, or in both
+            /** @type {Exp} */
+            const nest = ['[]', [c]]
+            /** @type {Exp} */
+            const nestLength = ['.', nest, 'length']
+            writes([',', [nest, ['?:', true, nestLength, nestLength]]], 'const $0=[[1]];export default true?$0.length:$0.length;')
+            /** @type {Exp} */
+            const call = ['()', ['rest'], ['[]', []]]
+            /** @type {Exp} */
+            const field = ['.', call, 'a']
+            writes(fn(['||', ['===', field, 1], ['===', field, 2]]), 'export default (...$a)=>{const $a0=$a();return $a0.a===1||$a0.a===2;};')
+            writes(fn(['[]', [field, ['?:', r0, field, 0]]]), 'export default (...$a)=>{const $a0=$a();return [$a0.a,$a[0]?$a0.a:0];};')
+            writes(fn([',', [call, ['?:', r0, field, field]]]), 'export default (...$a)=>{const $a0=$a();return $a[0]?$a0.a:$a0.a;};')
+            // and so is what the value holds under a lazy operand of its
+            // own: an arm's array, or a `??` in a call's arguments
+            /** @type {Exp} */
+            const r2 = ['.', ['rest'], 2]
+            /** @type {Exp} */
+            const arm = ['?:', r0, ['[]', [r1]], 0]
+            /** @type {Exp} */
+            const armField = ['.', arm, 'a']
+            writes(fn([',', [arm, ['?:', r2, armField, armField]]]), 'export default (...$a)=>{const $a0=$a[0]?[$a[1]]:0;return $a[2]?$a0.a:$a0.a;};')
+            writes(fn(['[]', [arm, ['?:', r2, armField, ['[]', [armField]]]]]), 'export default (...$a)=>{const $a0=$a[0]?[$a[1]]:0;return [$a0,$a[2]?$a0.a:[$a0.a]];};')
+            /** @type {Exp} */
+            const defaulted = ['()', ['rest'], ['[]', [['??', r0, ['{}', []]]]]]
+            /** @type {Exp} */
+            const defaultedField = ['.', defaulted, 'a']
+            writes(fn([',', [defaulted, ['?:', r1, defaultedField, defaultedField]]]), 'export default (...$a)=>{const $a0=$a($a[0]??{});return $a[1]?$a0.a:$a0.a;};')
         },
     },
     // The writer's one law, over graphs nobody chose: a graph is refused,
