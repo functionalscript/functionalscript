@@ -134,3 +134,19 @@ export const repeat =
      * @return {FixedArray<N, T>}
      */
     v => /**@type{any}*/(toArray(listRepeat(v)(n)))
+
+/**
+ * The array without repeated items, each kept at its first position. Items are
+ * compared with `===`.
+ *
+ * @type {<T>(a: readonly T[]) => readonly T[]}
+ */
+export const dedup = a => a.filter((v, i) => a.indexOf(v) === i)
+
+/**
+ * The value of the first entry whose key is `key`, compared with `===`, or
+ * `null` when no entry has it — a linear lookup in an association list.
+ *
+ * @type {(key: unknown) => <V>(a: readonly (readonly [unknown, V])[]) => V | null}
+ */
+export const assoc = key => a => fromUndefined(a.find(([k]) => k === key)?.[1])
