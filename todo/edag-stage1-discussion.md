@@ -222,18 +222,17 @@ Agreed points (not under discussion):
   `"?.()"`'s and the call steps' (subject 6).
 
   **A spread argument is not the argument array.** `f(...xs)` is
-  `["()", f, ["[]", [["...", xs]]]]`, never the shortcut
-  `["()", f, xs]`, and forwarding `(...r) => f(...r)` builds a new array
-  the same way rather than passing `r` through. The shortcut is wrong
-  twice over:
+  `["()", f, ["[]", [["...", xs]]]]`, not the shortcut `["()", f, xs]`.
+  A spread iterates its operand, so `f(...'ab')` passes `'a'` and `'b'`,
+  while `["()", f, "ab"]` hands a string where the call expects an array,
+  and throws. The type of `xs` is unknown, so the shortcut is wrong in
+  general.
 
-  - **Strings.** A spread iterates its operand, so `f(...'ab')` passes `'a'`
-    and `'b'`. `["()", f, "ab"]` hands a string where the call expects an
-    array, and throws.
-  - **Identity.** Every invocation has its own rest array, so with
-    `g = (...r) => r`, `g(...x) === x` is `false` in JavaScript. Passing
-    `x` itself as the arguments lets the callee's rest array be `x`, and the
-    comparison `true`.
+  Forwarding stays free where the operand is an array by construction:
+  `(...r) => f(...r)` may be `["()", f, ["rest"]]`. Every callee builds its
+  own rest array from the arguments, the JS factories with `...rest` and the
+  Rust printer by collecting `args`, so the forwarded array is never the
+  callee's, and no identity is observable.
 
   A call spread is therefore an array spread, the arguments array built
   as `[a, ...x, b]` is, and runs the same `GetIterator`

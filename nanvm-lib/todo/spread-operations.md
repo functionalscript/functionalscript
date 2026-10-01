@@ -92,11 +92,14 @@ spread copies and the order a value is written in cannot drift.
 **A call spread is an array spread.** A call's arguments are one array node,
 and `ArgumentListEvaluation` runs the same `GetIterator` an array literal
 does. So `f(a, ...x, b)` is `['()', f, ['[]', [a, ['...', x], b]]]`, the
-array `[a, ...x, b]` passed as the arguments. A spread argument is always a
-`...` entry of a new array, `f(...x)` included. It is never the shortcut
-`['()', f, x]`, which would throw on `f(...'ab')` and could make
-`((...r) => r)(...x) === x` true, where JavaScript gives every invocation
-its own rest array. [`fjs/edag/README.md`](../../fjs/edag/README.md) and the
+array `[a, ...x, b]` passed as the arguments. A spread argument is a `...`
+entry of a new array, `f(...x)` included, because `x`'s type is unknown: the
+shortcut `['()', f, x]` hands a string where the call expects an array, and
+throws on `f(...'ab')`, which passes `'a'` and `'b'`. The one exception is an
+operand that is an array by construction, such as a rest parameter: there
+`(...r) => f(...r)` may pass `r` through, since every callee builds its own
+rest array from the arguments in both executors, so no identity leaks.
+[`fjs/edag/README.md`](../../fjs/edag/README.md) and the
 [stage 1 discussion](../../todo/edag-stage1-discussion.md) record the same
 rule.
 

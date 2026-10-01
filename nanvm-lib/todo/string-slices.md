@@ -51,9 +51,17 @@ indexed view rather than an owned buffer, so it can serve a slice's range
 without changing its signature. Every operation that produces part of a
 string then calls `slice`:
 
-- a string read by index;
-- `at`, `slice` and `substring`;
+- `at` and `charAt`, through `String::of_unit`, and a string read by index,
+  which builds the same one-unit string by hand in `member_access` today;
+- `slice` and `substring`;
+- `trim`, `trimStart` and `trimEnd`, which keep a range of the string;
+- each piece `split` produces;
 - each code point `get_iterator` yields.
+
+A new operation that produces part of a string joins this list.
+`concat`, `repeat`, `padStart` and `padEnd` build strings that are not one
+range of a single source, and `toWellFormed` replaces units, so none of them
+is a slice.
 
 That is one place for a VM to make the choice, instead of one per operation.
 
@@ -71,9 +79,11 @@ Questions for the investigation:
   array built-ins copy ranges too. `IContainer` is shared by strings,
   bigints, objects and arrays, so the one constructor serves all four.
   Whether an array VM would use it is that VM's question.
-- **Whether a one-unit string wants its own path.** A code-point walk over
-  most text produces one-unit strings. A VM may serve these from a table of
-  the 65,536 possible ones rather than from a slice.
+- **Whether a one-unit string wants its own path.** Indexed reads and a
+  code-point walk over most text produce one-unit strings. `String::of_unit`
+  builds them for `at` and `charAt`; the indexed read should use it too, so
+  there is one place. A VM may serve these from a table of the 65,536
+  possible ones rather than from a slice.
 
 ### Tasks
 
