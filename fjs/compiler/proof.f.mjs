@@ -1430,6 +1430,36 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assertEq(jsonRefused('export default -Infinity;'), 'output.json - error: no JSON spelling for -Infinity')
         },
     },
+    // Hexadecimal literals, a number's and a `bigint`'s: read as the values
+    // JavaScript gives them and written as those values, so the spelling is
+    // the source's and not the graph's. After `0x`, `e` is a digit, and a
+    // `.` is the next token, never a fraction.
+    hexNumbers: {
+        value: () => {
+            assertEq(compileSource('export default [0xFF, 0XfF, 0xabcdef, 0x10e1, 0x0];')('output.json'), '[255,255,11259375,4321,0]')
+            // the nearest double, as a decimal literal is
+            assertEq(compileSource('export default 0x20000000000001;')('output.json'), '9007199254740992')
+            assertEq(compileSource('export default [0x10n, 0XFFn, 0x0n];')('output.data.js'), 'export default [16n,255n,0n];')
+            // a key, read as the number it names
+            assertEq(compileSource('export default [1, 2][0x1];')('output.json'), '2')
+        },
+        // the unary minus over one folds into the leaf, as over a decimal one
+        negation: () => {
+            assertEq(compileSource('export default [-0xFF, -0x8000000000000000n];')('output.data.js'), 'export default [-255,-9223372036854775808n];')
+        },
+        access: () => {
+            assertEq(fjsRoundTrip('export default 0x10.length;'), 'const $0=16;export default $0.length;')
+        },
+        // what JavaScript refuses: no digit, a word or a digit against the
+        // literal, and a fraction or a suffix where the literal has ended
+        refused: () => {
+            assertEq(moduleRefused('export default 0x;'), 'input.f.js:1:18 - error: unexpected token')
+            assertEq(moduleRefused('export default 0xg;'), 'input.f.js:1:18 - error: unexpected token')
+            assertEq(moduleRefused('export default 0x1g;'), 'input.f.js:1:19 - error: unexpected token')
+            assertEq(moduleRefused('export default 0x1.5;'), 'input.f.js:1:20 - error: unexpected token')
+            assertEq(moduleRefused('export default 0x1n2;'), 'input.f.js:1:20 - error: unexpected token')
+        },
+    },
     // What JSON cannot spell, refused wherever it sits — at the root, as an
     // element, as a member's value — and nothing written. A bigint is
     // refused even though its digits are JSON: the standard reader would

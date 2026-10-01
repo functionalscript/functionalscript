@@ -237,7 +237,7 @@ const primitiveOf = ([tag, leaf]) => {
         case 'Infinity': { return Infinity }
         case 'number': {
             assert(token.kind === 'number')
-            return parseFloat(token.value)
+            return Number(token.value)
         }
         case 'string': {
             assert(token.kind === 'string')
