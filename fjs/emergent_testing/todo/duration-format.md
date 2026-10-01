@@ -1,7 +1,7 @@
 ## duration-format. One test duration is rendered three ways, and one of them by hand
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
