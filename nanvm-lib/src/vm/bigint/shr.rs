@@ -1,10 +1,12 @@
 use core::ops::Shr;
 
 use crate::{
-    common::{div_mod::DivMod, sized_index::SizedIndex},
+    common::sized_index::SizedIndex,
     sign::Sign,
     vm::{Any, BigInt, IVm},
 };
+
+use super::ShiftAmount;
 
 /// The result of shifting a nonzero-magnitude `self` right by a shift
 /// amount that reaches or exceeds `self`'s own bit length, i.e. the entire
@@ -55,20 +57,14 @@ impl<A: IVm> Shr for BigInt<A> {
         }
 
         let sign = self.sign();
-        let n_len = self.length();
-        if n_len == 0 {
-            return Ok(self);
-        }
-
-        let shift = match rhs.length() {
-            0 => return Ok(self),
-            1 => rhs[0],
+        let (word_shift, bit_shift) = match self.shift_amount(&rhs) {
+            ShiftAmount::Noop => return Ok(self),
             // `rhs` alone (>= 2^64) already exceeds any representable
             // `self`'s bit length.
-            _ => return Ok(shifted_to_extreme(sign)),
+            ShiftAmount::TooWide => return Ok(shifted_to_extreme(sign)),
+            ShiftAmount::Words(word_shift, bit_shift) => (word_shift, bit_shift),
         };
-
-        let (word_shift, bit_shift) = shift.div_mod(64);
+        let n_len = self.length();
         if word_shift >= n_len as u64 {
             return Ok(shifted_to_extreme(sign));
         }
