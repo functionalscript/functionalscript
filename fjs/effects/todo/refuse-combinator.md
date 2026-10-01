@@ -1,7 +1,7 @@
 ## refuse-combinator. `pureError(ioError({ code, message }))` is spelled at about a dozen sites
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
