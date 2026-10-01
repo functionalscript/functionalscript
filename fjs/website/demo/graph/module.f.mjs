@@ -164,6 +164,8 @@ const nodeGap = /** @type {const} */ (14)
 const laneSize = /** @type {const} */ (10)
 const margin = /** @type {const} */ (10)
 const charWidth = /** @type {const} */ (7)
+const entryLength = /** @type {const} */ (24)
+const entrySpread = /** @type {const} */ (8)
 
 /** @type {(label: string) => number} */
 const widthOf = label => Math.max(50, label.length * charWidth + 16)
@@ -287,9 +289,11 @@ const missingEnds = ids => (edge, index) => [
  * that shape took five times as long as the drawing had before lanes
  * existed.
  *
- * @type {(nodes: readonly Ranked[]) => (edges: readonly Edge[]) => _Placed}
+ * The first column starts at `left`.
+ *
+ * @type {(left: number) => (nodes: readonly Ranked[]) => (edges: readonly Edge[]) => _Placed}
  */
-const layout = nodes => edges => {
+const layout = left => nodes => edges => {
     // **An edge must name nodes the graph has, or the graph is refused.**
     // An edge is drawn from a port of its source, so one whose source is
     // missing would have nowhere to leave from and would simply vanish,
@@ -333,7 +337,7 @@ const layout = nodes => edges => {
         const slots = toArray(stateScan(placeSlot(left)(widest))(margin)(sized))
         return [{ end: left + widest, slots }, left + widest + rankGap]
     }
-    const placedColumns = toArray(stateScan(placeColumn)(margin)(columns))
+    const placedColumns = toArray(stateScan(placeColumn)(left)(columns))
     const placed = placedColumns.flatMap(column => column.slots)
     return {
         nodes: placed.flatMap(p => p.node === undefined ? [] : [p.node]),
@@ -413,6 +417,21 @@ export const _crossesBox = box => ([x0, y0]) => ([x1, y1]) => {
 }
 
 /**
+ * `g` laid out, with room left of the first column for its entries' arrows
+ * when it has any. **An entry must name a node of the graph**, for the
+ * reason an edge must ({@link layout}): an arrow into nothing would simply
+ * vanish.
+ *
+ * @type {(g: Graph) => _Placed}
+ */
+const placedOf = ({ nodes, edges, entries = [] }) => {
+    const ids = new Set(nodes.map(n => n.id))
+    const missing = entries.findIndex(({ to }) => !ids.has(to))
+    if (missing !== -1) { throw `graph: entry ${missing} ends at node ${entries[missing].to}, which is not in the graph` }
+    return layout(margin + (entries.length === 0 ? 0 : entryLength))(nodes)(edges)
+}
+
+/**
  * The number of edge segments that pass through a node's box — zero for
  * every graph this module draws, which is the claim {@link graphSvg} makes
  * and the proofs hold it to on each demo's own graphs.
@@ -420,7 +439,7 @@ export const _crossesBox = box => ([x0, y0]) => ([x1, y1]) => {
  * @type {(g: Graph) => number}
  */
 export const _crossings = g => {
-    const placed = layout(g.nodes)(g.edges)
+    const placed = placedOf(g)
     return routesOf(placed).reduce((n, { points }) =>
         n + points.slice(1).reduce((m, b, i) =>
             m + placed.nodes.filter(box => _crossesBox(box)(points[i])(b)).length, 0), 0)
@@ -477,7 +496,7 @@ const clipIdOf = p => `graph-clip-${p.x}-${p.y}-${p.width}-${p.height}`
  * @type {(g: Graph) => Element}
  */
 export const graphSvg = g => {
-    const placed = layout(g.nodes)(g.edges)
+    const placed = placedOf(g)
     const positioned = placed.nodes
     const width = margin + max([
         ...positioned.map(p => p.x + p.width),
@@ -493,6 +512,20 @@ export const graphSvg = g => {
         'data-graph-edge': '', 'marker-end': 'url(#graph-arrow)',
         ...(edge.kind === undefined ? {} : { 'data-graph-edge-kind': edge.kind }),
     }])
+    const entries = g.entries ?? []
+    // An entry runs straight right into its node, level with where an edge
+    // would arrive. Several into one node start a little apart and meet
+    // there, so none is drawn over another.
+    /** @type {readonly Element[]} */
+    const entryEls = positioned.flatMap(p => {
+        const into = entries.filter(({ to }) => to === p.id)
+        const y = p.y + p.entry
+        return into.map(({ kind }, i) => /** @type {Element} */ (['path', {
+            d: `M${p.x - entryLength},${y + (i - (into.length - 1) / 2) * entrySpread} L${p.x},${y}`,
+            'data-graph-edge': '', 'data-graph-entry': '', 'marker-end': 'url(#graph-arrow)',
+            ...(kind === undefined ? {} : { 'data-graph-edge-kind': kind }),
+        }]))
+    })
     /**
      * How wide a port's key cell is: the whole row for an edge, nothing for
      * a value with an empty key, and the key column for any other value.
@@ -567,6 +600,7 @@ export const graphSvg = g => {
             ...clipEls],
         ...boxEls,
         ...edgeEls,
+        ...entryEls,
         ...labelEls,
     ]]
 }

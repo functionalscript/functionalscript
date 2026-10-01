@@ -155,6 +155,20 @@ export const proof = {
             assertEq(html.split('<g data-graph-in-kind="leaf">').length - 1, 2)
             assert(html.includes('<g data-graph-in-kind="container"><text'), html)
         },
+        // An entry is an arrow from nowhere into a node. The first column
+        // moves right by an arrow's length to make room: the node is at
+        // x=34, and its header's middle, y=23, is where the arrows arrive.
+        // Two into one node start 8px apart, so neither hides the other.
+        entries: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0 }],
+                edges: [],
+                entries: [{ to: 0, kind: 'old' }, { to: 0 }],
+            }))
+            assert(html.includes('<rect x="34" y="10" width="50" height="26" rx="4" data-graph-node=""'), html)
+            assert(html.includes('<path d="M10,19 L34,23" data-graph-edge="" data-graph-entry="" marker-end="url(#graph-arrow)" data-graph-edge-kind="old">'), html)
+            assert(html.includes('<path d="M10,27 L34,23" data-graph-edge="" data-graph-entry="" marker-end="url(#graph-arrow)">'), html)
+        },
         // An empty label is no row when a node has ports: each node is its
         // one 20px row, and the edge runs from the middle of the first row
         // to the middle of the second's, (60,20) to (100,20). A node with
@@ -559,6 +573,8 @@ export const proof = {
                 nodes: skipLevel.nodes,
                 edges: [...skipLevel.edges, { from: 0, to: 9, label: 'ghost' }],
             }),
+            // An entry, too, must arrive at a node the graph has.
+            entryToAMissingNode: () => graphSvg({ nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0 }], edges: [], entries: [{ to: 1 }] }),
             // The crossing count lays the graph out the same way, and
             // refuses the same input.
             crossings: () => _crossings({

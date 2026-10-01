@@ -162,8 +162,10 @@ const kindOrder = kind => kind === 'replaced' ? 0 : kind === 'shared' ? 1 : 2
  * Both versions as one graph, built here rather than walked by `graphOf`,
  * because three things about it are the B-tree's, not any value's:
  *
- * - **No root above the two, and no titles.** The colours already tell
- *   the old root from the new one: faded red, or green.
+ * - **No root above the two, and no titles.** An arrow from nowhere
+ *   points at each version's root — faded for the old one, solid for the
+ *   new — so a root that both versions share has both arrows, which is
+ *   what a step that changed nothing looks like.
  * - **Leaves line up.** A node's rank is how far it is above the leaves,
  *   counted down from the taller root, so every leaf sits in the last
  *   column and the two roots sit where their heights put them.
@@ -186,6 +188,10 @@ export const _graphOf = ({ before, after }) => {
     const top = [before, after].reduce((m, tree) => tree === null ? m : Math.max(m, heightOf(tree)), 0)
     return {
         nodes: sorted.map((node, id) => ({ id, kind: kindOf(node), label: '', rank: top - heightOf(node) })),
+        entries: [
+            ...(before === null ? [] : [{ to: sorted.indexOf(before), kind: 'replaced' }]),
+            ...(after === null ? [] : [{ to: sorted.indexOf(after) }]),
+        ],
         edges: sorted.flatMap((node, id) => rowsOf(node).map(([label, value]) => typeof value === 'number'
             ? { from: id, to: { inline: String(value) }, label }
             : { from: id, to: sorted.indexOf(value), label, kind: kindOf(node) === 'replaced' ? 'replaced' : undefined })),

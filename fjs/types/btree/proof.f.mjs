@@ -129,9 +129,12 @@ const demoProof = {
         const h = html(demo.init)
         assertEq(JSON.stringify(demo.init), JSON.stringify(_load(presets[0][0])))
         assertEq(demo.init.versions.before, demo.init.versions.after)
-        // One graph, with no node above the tree and no titles.
+        // One graph, with no node above the tree and no titles: both
+        // versions' arrows point at its one root, the old one faded.
         assertEq(count(h)('<svg'), 1)
         assertEq(count(h)('data-graph-label='), 0)
+        assertEq(count(h)('data-graph-entry=""'), 2)
+        assertEq(count(h)('data-graph-entry="" marker-end="url(#graph-arrow)" data-graph-edge-kind="replaced"'), 1)
         assert(h.includes('name="insert"'), h)
         assert(h.includes('name="remove"'), h)
         assert(h.includes('value="8"'), h)
@@ -158,9 +161,14 @@ const demoProof = {
             // name beside it.
             assert(!h.includes('>Value'), h)
             assert(h.includes('data-graph-value-label="">8<'), h)
-            // The old nodes are drawn faded, edges and all.
+            // The old nodes are drawn faded, edges and all, and each root
+            // has its version's arrow.
             assertEq(count(h)('<g data-graph-in-kind="replaced">'), 6)
-            assertEq(count(h)('data-graph-edge-kind="replaced"'), 4)
+            const { nodes, entries = [] } = _graphOf(s.versions)
+            assertEq(JSON.stringify(entries.map(({ to, kind }) => [nodes[to].kind, kind ?? null])), '[["replaced","replaced"],["new",null]]')
+            // Four edges leave the two replaced branches, and the fifth faded
+            // arrow is the old root's.
+            assertEq(count(h)('data-graph-edge-kind="replaced"'), 5)
             assert(h.includes('Last step, insert 8: 3 new (green), 4 shared with the version before, 3 replaced (red).'), h)
             // A press leaves the preset behind.
             assert(h.includes('Custom'), h)
@@ -179,6 +187,16 @@ const demoProof = {
             assert(h.includes('Last step, insert 1:'), h)
             assert(h.includes('Before is the empty tree.'), h)
             assert(!h.includes('After is the empty tree.'), h)
+            // The empty version has no root, so no arrow.
+            assertEq(count(h)('data-graph-entry=""'), 1)
+            // Removing the last key leaves the new version empty: only the
+            // old root, and its faded arrow, are drawn.
+            const gone = press('remove')('1')(s)
+            const g = html(gone)
+            assert(g.includes('After is the empty tree.'), g)
+            assert(!g.includes('Before is the empty tree.'), g)
+            assertEq(count(g)('data-graph-entry=""'), 1)
+            assertEq(count(g)('data-graph-entry="" marker-end="url(#graph-arrow)" data-graph-edge-kind="replaced"'), 1)
         },
         // A full leaf splits, and its middle key moves up into a branch of
         // five: Left, 6, Middle, 8, Right, in the node's own order, and no
