@@ -66,9 +66,22 @@ export const unitBit = v =>
  */
 export const absentBit = 16
 
-const allUnits = unitBit(null) | unitBit(undefined) | unitBit(false) | unitBit(true)
+/** The `unit` bit of `null`. */
+export const nullBit = unitBit(null)
 
-const booleanUnits = unitBit(false) | unitBit(true)
+/** The `unit` bit of `undefined`. */
+export const undefinedBit = unitBit(undefined)
+
+/** The `unit` bit of `false`. */
+export const falseBit = unitBit(false)
+
+/** The `unit` bit of `true`. */
+export const trueBit = unitBit(true)
+
+/** The `unit` bits of both booleans — rtti `boolean`'s unit kind. */
+export const booleanBits = falseBit | trueBit
+
+const allUnits = nullBit | undefinedBit | booleanBits
 
 /**
  * The data form of the empty set — rtti `never`.
@@ -303,11 +316,22 @@ const merge = (a, b) => {
 
 // ── canonical constructors ───────────────────────────────────────────────────
 
-/** @type {(n: Node) => boolean} */
-const isNever = n => typeof n !== 'string' && cmpUnion(n, never) === 0
+/**
+ * Whether the node is the inline empty set, {@link never}. A reference is
+ * answered `false` without being read: a caller asking about the set a
+ * reference stands for resolves it first ({@link resolve}).
+ *
+ * @type {(n: Node) => boolean}
+ */
+export const isNever = n => typeof n !== 'string' && cmpUnion(n, never) === 0
 
-/** @type {(n: Node) => boolean} */
-const isTop = n => typeof n !== 'string' && cmpUnion(n, unknown) === 0
+/**
+ * Whether the node is the inline set of all values, {@link unknown}. A
+ * reference is answered `false` without being read, as by {@link isNever}.
+ *
+ * @type {(n: Node) => boolean}
+ */
+export const isTop = n => typeof n !== 'string' && cmpUnion(n, unknown) === 0
 
 /**
  * The **declared-member** top: any value, or nothing — `or(option, unknown)`.
@@ -456,13 +480,16 @@ const objectSet = (props, rest0) => {
  * so every cycle still crosses identified pairs and the memo closes it.
  */
 /**
+ * The node's own union, read through a reference if it is one.
+ *
  * Own-property lookups only: a `RuleSet`/`props` map is a plain object, so
  * reading through the prototype chain would return `Object.prototype`
  * members (`toString`, `constructor`, …) for names that are not defined.
+ * A name the rule set does not define is refused.
  *
  * @type {(rules: RuleSet) => (n: Node) => UnionSet}
  */
-const resolve = rules => n => typeof n === 'string' ? assertNotNullish(at(n)(rules)) : n
+export const resolve = rules => n => typeof n === 'string' ? assertNotNullish(at(n)(rules)) : n
 
 /** @type {<T>(a: T, b: T) => boolean} */
 const strictEqual = (a, b) => strictEqualCurried(a)(b)
@@ -488,7 +515,7 @@ const kindSubset = le => (a, b) => {
  *
  * @type {(rules: RuleSet) => (n: Node) => boolean}
  */
-const nodeAdmitsAbsence = rules => n =>
+export const admitsAbsence = rules => n =>
     ((resolve(rules)(n).unit ?? 0) & absentBit) !== 0
 
 /**
@@ -525,7 +552,7 @@ const arraySetSubset = ctx => assumed => (p, q) => {
     /** @type {(i: number) => Node} */
     const qAt = i => i < qn ? q.prefix[i] : assertNotNullish(q.rest)
     /** @type {(i: number) => boolean} */
-    const qAdmitsAbsenceAt = i => i >= qn || nodeAdmitsAbsence(ctx[1])(q.prefix[i])
+    const qAdmitsAbsenceAt = i => i >= qn || admitsAbsence(ctx[1])(q.prefix[i])
     return p.prefix.every((el, i) =>
             le(stripAbsent(el), qAt(i))
             && (typeof el === 'string'
@@ -573,7 +600,7 @@ const objectPresentSet = pattern => k => {
  */
 const objectMayOmit = rules => pattern => k => {
     const n = at(k)(pattern.props)
-    return n === null || nodeAdmitsAbsence(rules)(n)
+    return n === null || admitsAbsence(rules)(n)
 }
 
 /**
@@ -951,7 +978,7 @@ const thunkUnion = (state, t) => {
             assert(typeof c !== 'function', c)
             return constUnion(state, c)
         }
-        case 'boolean': { return [state, { unit: booleanUnits }] }
+        case 'boolean': { return [state, { unit: booleanBits }] }
         case 'number': { return [state, { number: true }] }
         case 'string': { return [state, { string: true }] }
         case 'bigint': { return [state, { bigint: true }] }
@@ -1203,7 +1230,7 @@ const arraySetValidate = rules => p => value => {
         Object.entries(p.prefix),
         (k, n) => {
             if (!(k in value)) {
-                return nodeAdmitsAbsence(rules)(n) ? ok(undefined) : verror('unexpected value')
+                return admitsAbsence(rules)(n) ? ok(undefined) : verror('unexpected value')
             }
             const m = nodeValidate(rules)(n)(value[Number(k)])
             return m[0] === 'error' ? m : ok(undefined)
@@ -1238,7 +1265,7 @@ const objectSetValidate = rules => p => value => {
         definedEntries(p.props),
         (k, n) => {
             if (!(k in value)) {
-                return nodeAdmitsAbsence(rules)(n) ? ok(undefined) : verror('unexpected value')
+                return admitsAbsence(rules)(n) ? ok(undefined) : verror('unexpected value')
             }
             const m = nodeValidate(rules)(n)(value[k])
             return m[0] === 'error' ? m : ok(undefined)

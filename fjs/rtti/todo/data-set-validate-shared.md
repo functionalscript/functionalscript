@@ -15,7 +15,7 @@ const declared = eachEntry(
     prefixEntries,                     // propEntries in the object arm
     (k, n) => {
         if (!(k in value)) {
-            return nodeAdmitsAbsence(rules)(n) ? ok(false) : verror('unexpected value')
+            return admitsAbsence(rules)(n) ? ok(false) : verror('unexpected value')
         }
         const m = nodeValidate(rules)(n)(value[Number(k)])   // value[k]
         return m[0] === 'error' ? m : ok(true)

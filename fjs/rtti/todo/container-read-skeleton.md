@@ -55,10 +55,10 @@ drift: `constContainerParse`'s comments are stubs pointing at
 while `../common/types.ts`'s says
 "`validate`, `parse`".
 
-Two sibling issues used to point at this duplication and now record it as
+Two sibling issues used to point at this duplication and recorded it as
 resolved — "resolved by deleting `validate`" in
-[kindset-eliminator.md](./kindset-eliminator.md) and
-[export-node-accessors.md](./export-node-accessors.md) — but no commit ever
+[kindset-eliminator.md](./kindset-eliminator.md) and in the since-closed
+`export-node-accessors` issue — but no commit ever
 deleted `fjs/rtti/validate/`, and it is actively developed. This file
 re-tracks the issue; the stale parentheticals are corrected to link here.
 
@@ -135,9 +135,8 @@ of this issue.
 
 ### Related
 
-- [kindset-eliminator.md](./kindset-eliminator.md),
-  [export-node-accessors.md](./export-node-accessors.md) — their closing
-  parentheticals mis-recorded this issue as resolved; corrected to link here.
+- [kindset-eliminator.md](./kindset-eliminator.md) — its closing
+  parenthetical mis-recorded this issue as resolved; corrected to link here.
 - [data-set-validate-shared.md](./data-set-validate-shared.md) — the same
   duplication theme inside the data form.
 - `assertOk` / `assertError` / `assertErrorPath` in
