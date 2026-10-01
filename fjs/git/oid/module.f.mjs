@@ -22,11 +22,9 @@ import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { hexDigitCodePoint, hexDigitValue } from '../../text/ascii/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { isWholeBytesIn, length, msb, tryU8ListToVec, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
+import { isWholeBytesIn, length, tryU8ListToVecMsb, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { next, toArray } from '../../types/list/module.f.mjs'
 import { write } from '../object/module.f.mjs'
-
-const toVec = tryU8ListToVec(msb)
 
 /**
  * Reads an id from its hex spelling, or refuses it: a byte that is no hex
@@ -45,7 +43,7 @@ export const tryFromHex = hex => {
         return v === null ? [] : [v]
     })
     if (values.length !== digits.length || values.length === 0 || values.length % 2 !== 0) { return null }
-    return toVec(values.filter((_, i) => i % 2 === 0).map((h, i) => h * 16 + values[2 * i + 1]))
+    return tryU8ListToVecMsb(values.filter((_, i) => i % 2 === 0).map((h, i) => h * 16 + values[2 * i + 1]))
 }
 
 /**

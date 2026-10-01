@@ -484,12 +484,21 @@ export const u8ListToVec = bo =>
     mapUnwrap(tryU8ListToVec(bo))
 
 /**
- * `u8ListToVec(msb)`: a vector from its bytes, most significant first — the
- * byte order of every byte-oriented format in this repository.
+ * `tryU8ListToVec(msb)`: a vector from its bytes, most significant first — the
+ * byte order of every byte-oriented format in this repository — or `null` when
+ * the result would exceed `maxLength`.
+ *
+ * @type {(list: List<number>) => Nullable<Vec>}
+ */
+export const tryU8ListToVecMsb = tryU8ListToVec(msb)
+
+/**
+ * `u8ListToVec(msb)`: {@link tryU8ListToVecMsb}, throwing where it answers
+ * `null`.
  *
  * @type {(list: List<number>) => Vec}
  */
-export const u8ListToVecMsb = u8ListToVec(msb)
+export const u8ListToVecMsb = mapUnwrap(tryU8ListToVecMsb)
 
 /** @type {({ unpackSplit }: BitOrder) => (n: bigint) => (u: Unpacked) => Thunk<Unpacked>} */
 const unpackChunkList = ({ unpackSplit }) => n => {
