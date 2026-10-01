@@ -1,7 +1,7 @@
 ## shared-helper-reuse. `rtti` re-spells tiny helpers that shared modules own
 
 **Priority:** P5
-**Status:** open
+**Status:** wip
 
 ### Problem
 
