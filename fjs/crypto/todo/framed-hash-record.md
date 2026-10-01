@@ -1,7 +1,7 @@
 ## framed-hash-record. `sha1` hand-rolls the record `sha2`'s private factory builds
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
