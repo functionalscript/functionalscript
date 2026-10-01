@@ -1,7 +1,7 @@
 ## third-party-tree-policy. "Skip third-party trees" is written three times, and the copies disagree
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
