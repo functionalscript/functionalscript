@@ -43,7 +43,7 @@ const issues = items => '<body><details data-section=""><summary><h2>Issues</h2>
     + `<ul data-links="">${items}</ul></details></body>`
 
 /** @type {Dir} */
-const empty = { path: '.', files: [], dirs: [], todo: [], proofs: [], demo: null }
+const empty = { path: '.', files: [], dirs: [], demoDirs: [], todo: [], proofs: [], demo: null }
 
 export const proof = {
     /**
@@ -150,6 +150,11 @@ export const proof = {
         dirsAtRoot: () => assertEq(
             sectionsHtml({ ...empty, dirs: ['fjs'] }),
             contents('<li><a href="/fjs/index.html" data-kind="dir">fjs</a></li>')),
+        // A directory with a demo under it is marked; one without is not.
+        dirsWithADemo: () => assertEq(
+            sectionsHtml({ ...empty, dirs: ['a', 'b'], demoDirs: ['b'] }),
+            contents('<li><a href="/a/index.html" data-kind="dir">a</a></li>'
+                + '<li><a href="/b/index.html" data-kind="dir" data-has-demo="">b</a></li>')),
         // An issue is linked inside the `todo/` it was filed in, which has no
         // page of its own.
         todo: () => assertEq(

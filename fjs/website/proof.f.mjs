@@ -684,6 +684,26 @@ export const proof = {
             const { root } = generate({ 'demo.f.mjs': file('export const demo = {}') })
             assert(pageAt(root, []).includes('data-demo="/demo.f.mjs"'), pageAt(root, []))
         },
+        /**
+         * **A directory is marked when a demo is anywhere under it**, so the
+         * marks lead from the root down to the demo: `a` on the root page,
+         * `b` on `a`'s, and not `c`, which holds none.
+         */
+        markedOnTheWayDown: () => {
+            const { root } = generate({
+                a: {
+                    b: { 'demo.f.mjs': file('export const demo = {}') },
+                    c: { 'module.f.mjs': file('export const x = 1') },
+                },
+                ab: { 'module.f.mjs': file('export const x = 1') },
+            })
+            const top = pageAt(root, [])
+            assert(top.includes('data-kind="dir" data-has-demo="">a</a>'), top)
+            assert(top.includes('data-kind="dir">ab</a>'), top)
+            const a = pageAt(root, ['a'])
+            assert(a.includes('data-kind="dir" data-has-demo="">b</a>'), a)
+            assert(a.includes('data-kind="dir">c</a>'), a)
+        },
         // The path is root-relative and whole, because the runtime that imports
         // it is one module at a fixed depth and resolves nothing itself.
         pathIsRootRelative: () => {

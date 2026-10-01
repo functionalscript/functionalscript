@@ -47,8 +47,8 @@ Remove `try_reduce` (restore it when a consumer appears).
 
 ### Related
 
-- [bigint-shift-decode](bigint-shift-decode.md) — explicitly rules the
-  mirrored carry loops out of its scope; this issue picks them up
+- [`ShiftAmount`](../src/vm/bigint/mod.rs) — `shl`/`shr` share only the
+  shift-amount decode; the mirrored carry loops are this issue's
 - [bigint-word-layer-owner](bigint-word-layer-owner.md) — the word-slice
   twins (`cmp_words`, `sub_words_assign`, the trim/ripple spellings) this
   issue's `BigInt`-level rewrite does not reach; whichever lands second
