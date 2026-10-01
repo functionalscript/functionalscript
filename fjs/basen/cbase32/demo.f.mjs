@@ -39,5 +39,4 @@ export const demo = bitGroupDemo({
     how: '5 bits per character, then a stop bit',
     scheme,
     encode: vecToCBase32,
-    note: ['span', 'Base64 cuts the same bits into 6-bit groups: ', ['a', { href: '/fjs/basen/base64/' }, 'base64']],
 })

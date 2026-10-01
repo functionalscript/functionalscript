@@ -35,9 +35,9 @@ const encoded = scheme => text => {
     return g
 }
 
-const zeroDemo = bitGroupDemo({ name: 'Toy', how: '3 bits per character', scheme: zeros, encode, note: 'the note' })
-const stopDemo = bitGroupDemo({ name: 'Stop', how: '3 bits, then a stop bit', scheme: stops, encode, note: 'the note' })
-const blockDemo = bitGroupDemo({ name: 'Block', how: '3 bits, 2 to a block', scheme: blocks, encode, note: 'the note' })
+const zeroDemo = bitGroupDemo({ name: 'Toy', how: '3 bits per character', scheme: zeros, encode })
+const stopDemo = bitGroupDemo({ name: 'Stop', how: '3 bits, then a stop bit', scheme: stops, encode })
+const blockDemo = bitGroupDemo({ name: 'Block', how: '3 bits, 2 to a block', scheme: blocks, encode })
 
 export const proof = {
     bitGroups: {
@@ -114,7 +114,6 @@ export const proof = {
             assert(html.includes('<div data-bit-groups=""><div data-bit-box=""><span>011</span><span data-bit-char="">2</span></div><div data-bit-box=""><span>010</span><span data-bit-char="">4</span></div>'), html)
             assert(!html.includes('data-bit-block'), html)
             assert(html.includes('Result: <strong>24:6865833</strong>'), html)
-            assert(html.includes('<p>the note</p>'), html)
         },
         /**
          * **With a block size, the boxes go in blocks**, which wrap as units:

@@ -182,7 +182,6 @@ export const proof = {
             assert(html.includes('<div data-bit-groups="" data-bit-blocks=""><div data-bit-block=""><div data-bit-box=""><span>011010</span><span data-bit-char="">a</span></div>'), html)
             assertEq(html.split('<div data-bit-block="">').length, 2)
             assert(html.includes('Result: <strong>aMOp</strong>'), html)
-            assert(html.includes('<a href="/fjs/basen/cbase32/">cbase32</a>'), html)
         },
     },
 }

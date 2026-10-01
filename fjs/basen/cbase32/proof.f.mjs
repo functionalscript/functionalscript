@@ -132,7 +132,6 @@ export const proof = {
             assert(html.includes('<div data-bit-box=""><span>1001<span data-bit="stop">1</span></span><span data-bit-char="">k</span></div>'), html)
             assert(!html.includes('data-bit-block'), html)
             assert(html.includes('Result: <strong>d31tk</strong>'), html)
-            assert(html.includes('<a href="/fjs/basen/base64/">base64</a>'), html)
         },
     },
 }

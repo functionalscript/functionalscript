@@ -50,5 +50,4 @@ export const demo = bitGroupDemo({
     how: '6 bits per character; every 4 characters encode 3 bytes, and = completes the last block',
     scheme,
     encode: encodeBytes,
-    note: ['span', 'CBase32 cuts the same bits into 5-bit groups: ', ['a', { href: '/fjs/basen/cbase32/' }, 'cbase32']],
 })

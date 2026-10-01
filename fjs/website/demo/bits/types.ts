@@ -6,7 +6,6 @@
  */
 
 import type { Vec } from '../../../types/bit_vec/types.ts'
-import type { Node } from '../../../media/html/types.ts'
 
 /**
  * How a codec cuts bits into groups: the group width, and whether the data
@@ -61,12 +60,11 @@ export type BitGroups = {
 
 /**
  * What `bitGroupDemo` needs: the codec's name and a line on how it cuts the
- * bits, its scheme, its encoder, and a note drawn after the result.
+ * bits, its scheme, and its encoder.
  */
 export type BitGroupDemoOptions = {
     readonly name: string
     readonly how: string
     readonly scheme: BitScheme
     readonly encode: (v: Vec) => string
-    readonly note: Node
 }

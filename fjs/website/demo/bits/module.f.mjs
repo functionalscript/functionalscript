@@ -180,7 +180,7 @@ const orEmpty = s => s === '' ? '(empty)' : s
 
 /**
  * A demo of one codec: the text, its bytes, the codec's name in bold and how
- * it cuts the bits, the boxes, the whole result in bold, and the note.
+ * it cuts the bits, the boxes, and the whole result in bold.
  *
  * The initial text is three bytes, one whole Base64 quantum and not a whole
  * number of five-bit groups, so one text shows a codec that needs no fill
@@ -188,7 +188,7 @@ const orEmpty = s => s === '' ? '(empty)' : s
  *
  * @type {(o: BitGroupDemoOptions) => Demo<string, DemoEvent>}
  */
-export const bitGroupDemo = ({ name, how, scheme, encode, note }) => {
+export const bitGroupDemo = ({ name, how, scheme, encode }) => {
     const f = bitGroups(scheme, encode)
     const draw = boxes(scheme)
     return textDemo({ name: 'text', label: 'Text', rows: 2, init: 'hé' })(text => {
@@ -201,7 +201,6 @@ export const bitGroupDemo = ({ name, how, scheme, encode, note }) => {
             ...(g.groups.length === 0 ? [] : [draw(g)]),
             legend(scheme),
             ['p', 'Result: ', ['strong', orEmpty(g.encoded)]],
-            ['p', note],
         ]
         return view
     })
