@@ -121,5 +121,3 @@ co-locating the RFC rationale.
 ### Related
 
 - `fjs/crypto/sign/module.f.mjs` — `all`, `fromCurve`, `sign`.
-- [variadic-concat-to-bit-vec](./variadic-concat-to-bit-vec.md) — the other
-  cleanup in the same module.
