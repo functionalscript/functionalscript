@@ -1,7 +1,7 @@
 ## alternates-module. The `alternates` decoder is a module living inside the object store
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
