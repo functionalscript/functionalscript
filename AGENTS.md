@@ -8,7 +8,9 @@ This repository is a monorepo with two code bases:
 | `nanvm-lib/` | Rust                                    | NaNVM, the native FunctionalScript VM       |
 
 Issues live in `todo/` directories, **not** on GitHub. Check them for existing
-work before starting.
+work before starting, and check that no open pull request, draft or not, already
+works on the same `todo/`. Claim a task by opening a draft pull request for it
+at once ([SESSION.md](./doc/SESSION.md#claim-the-task)).
 
 Run the full check set before submitting:
 

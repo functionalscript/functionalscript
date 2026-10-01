@@ -1,4 +1,4 @@
-import { anchors, isInlinedCall, readCaptures, run, sharing, values } from './module.f.mjs'
+import { anchors, binaryTags, isBinary, isInlinedCall, isLazy, readCaptures, run, sharing, values } from './module.f.mjs'
 import { _stringifyTree } from '../module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -211,6 +211,16 @@ export const proof = {
         assertEq(anchorsOf([[a], [['array', []], ['~', ['cref', 0]]]]), 'consts ; imports 0')
         // what it does not reach is anchored as ever
         assertEq(anchorsOf([[a], [['array', []], ['+', 1, 2]]]), 'consts 0; imports 0')
+    },
+    // Every tag of `binaryTags` with two operands is a binary operator, and
+    // nothing else is: the negation shares `-` and has one, and a node of
+    // two operands under any other tag is an access or the like. Of those
+    // tags, `&&`, `||` and `??` are lazy, and the rest eager.
+    binary: () => {
+        for (const tag of binaryTags) { assert(isBinary([tag, 1, 2])) }
+        assert(!isBinary(['-', 1]))
+        assert(!isBinary(['.', 1, 'x']))
+        assertEq(binaryTags.filter(isLazy).join(), '&&,||,??')
     },
     // A `throw` fails the evaluation with the value it established, as a
     // read of `null` fails it: the message is a diagnostic, a primitive as

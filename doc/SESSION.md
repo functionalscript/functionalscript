@@ -22,6 +22,26 @@ stack, from the `todo/` to its deletion —
 [#1927](https://github.com/functionalscript/functionalscript/pull/1927) are two
 steps of one, and the open stacks in the tree at any time show the shape.
 
+## Claim the task
+
+Before any work, **check that nobody else holds the task**: search the open
+pull requests, drafts included, for the `todo/` file's path and its slug
+(`is:pr is:open <slug>` — GitHub's search covers drafts and matches titles
+and descriptions, not diffs). Every pull request that works on a `todo/`
+names the file's path in its description, which is what makes this search
+find it. A match is a question for the owner, not a race: stop, name the
+pull request, and ask whether to take the task over, join it, or leave it.
+
+Then **claim it with a draft pull request, at once** — before the design is
+written, before any code. The draft is how everyone else's search finds the
+task taken, so the first commit is only whatever gives the branch a diff:
+setting the `todo/`'s `**Status:**` to `wip`, or filing the `todo/` when the
+task has none. Open it as step 1's pull request, with the `todo/` path in
+the description, and grow it in place. It leaves draft — marked ready for
+review — once it carries its step and the full check set passes. A draft
+does not relax what each push owes: `node --test` still passes before every
+commit and push ([AGENTS.md](../AGENTS.md)).
+
 ## The loop
 
 1. **A small pull request with the tasks.** File the `todo/` for the task, or
@@ -45,11 +65,12 @@ steps of one, and the open stacks in the tree at any time show the shape.
    is written.
 2. **The next pull request, on top.** Branch from the previous pull request's
    branch and open the pull request **against that branch**, not `main`, so
-   its diff shows only its own step. It takes the next step or steps from the
-   list — one feature, minimal change, every check passing — and its
-   description starts with what it stands on: `Stacked on #NNNN`. It ticks
-   what it took in the `todo/`; the pull request that takes the last step
-   deletes the file ([AGENTS.md §1](../AGENTS.md#1-workflow)). Before starting
+   its diff shows only its own step, and open it as a draft as soon as the
+   branch has a commit, as the claim above does. It takes the next step or
+   steps from the list — one feature, minimal change, every check passing —
+   and its description starts with what it stands on: `Stacked on #NNNN`,
+   then the `todo/` path. It ticks what it took in the `todo/`; the pull
+   request that takes the last step deletes the file ([AGENTS.md §1](../AGENTS.md#1-workflow)). Before starting
    it, propose: which steps next, and whether the list is still right now that
    the previous pull request is built — a step it made unnecessary is removed,
    one it revealed is added, and both are the owner's call.

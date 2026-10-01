@@ -6,7 +6,10 @@
  * @module
  */
 
+import type { Assert } from '../../asserts/types.ts'
 import type { Primitive, Unknown } from '../../media/datajs/types.ts'
+import type { Equal } from '../../types/ts/types.ts'
+import type { binaryTags } from './module.f.mjs'
 
 /**
  * An imported binding: the selected export name, the specifier as written, and
@@ -200,13 +203,15 @@ export type AstBitnot = readonly ['~', AstConst]
  */
 export type AstBinary = readonly [BinaryTag, AstConst, AstConst]
 
-/** Every binary operator Stages A and B admit, the tag doubling as the EDAG's own — `op12Id`'s `-` included, told from the unary `['-', AstConst]` by arity. `../parser/syntax/types.ts`'s `Node` carries the same tags, imported from here, so `toNode`'s fold and `lower`'s dispatch both key off one name per operator. */
+/** Every binary operator Stages A and B admit, the tag doubling as the EDAG's own — `op12Id`'s `-` included, told from the unary `['-', AstConst]` by arity. `../parser/syntax/types.ts`'s `Node` carries the same tags, imported from here, so `toNode`'s fold and `lower`'s dispatch both key off one name per operator. `binaryTags` in `./module.f.mjs` is the same list at run time. */
 export type BinaryTag =
     | '*' | '/' | '%' | '**'
     | '+' | '-'
     | '===' | '!==' | '<' | '<=' | '>' | '>='
     | '&' | '|' | '^' | '<<' | '>>' | '>>>'
     | '&&' | '||' | '??'
+
+type _BinaryTagsAreComplete = Assert<Equal<(typeof binaryTags)[number], BinaryTag>>
 
 /**
  * The conditional, `c ? t : e`: the EDAG's `op3`, `['?:', c, t, e]`, the
