@@ -9,7 +9,10 @@
  */
 
 import { assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { simpleEscapes } from '../../../js/string_escape/module.f.mjs'
+import { codePointListToString } from '../../../text/utf16/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.mjs'
+import { set } from '../../module.f.mjs'
 import { parser } from '../../ll1/module.f.mjs'
 import { units, utf16 } from '../../utf16/module.f.mjs'
 import {
@@ -130,6 +133,15 @@ export const proof = {
                 }],
             }],
             '"'])
+    },
+    // The simple escapes the grammar admits are exactly the letters of
+    // `js/string_escape`'s table, which the JSON reader decodes through, so
+    // every escape the grammar accepts has a meaning. A set is its sorted
+    // runs, so the order the letters are written in does not matter.
+    escapeLetters: () => {
+        assertStructurallySame(
+            escape[1].c(),
+            set(codePointListToString(simpleEscapes.map(([letter]) => letter)))())
     },
     // `cj` takes the bracket pair as one two-symbol string, the same way
     // `range` does, so the two symbols cannot drift apart at a call site.
