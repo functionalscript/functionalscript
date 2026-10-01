@@ -1,7 +1,7 @@
 ## binary-word-reader. `pack` and `packidx` each define the big-endian word and the magic test
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
