@@ -338,10 +338,14 @@ export const toCodePointList =
     decoder(utf8ByteToCodePointOp, utf8EofToCodePointOp)
 
 /**
- * Decodes an MSB-first UTF-8 bit vector into a list of Unicode code points,
- * unchecked: malformed bytes become error-tagged code points, exactly as in
- * {@link toCodePointList}. The one place the `Vec` → code-point decode is
- * spelled out; {@link fromVec} and `fjs/text`'s `utf8ToString` build on it.
+ * Decodes an MSB-first UTF-8 bit vector into a list of code points,
+ * unchecked, exactly as {@link toCodePointList} does for its bytes. A
+ * structurally malformed sequence becomes an error-tagged code point, but a
+ * well-formed one that encodes no Unicode scalar value — a surrogate
+ * (`ED A0 80`) or a value above `U+10FFFF` (`F4 90 80 80`) — comes back as
+ * that plain number; {@link fromVec}'s `isValidCodePoint` pass is what rejects
+ * those. The one place the `Vec` → code-point decode is spelled out;
+ * {@link fromVec} and `fjs/text`'s `utf8ToString` build on it.
  *
  * @type {(v: Vec) => List<CodePoint>}
  */

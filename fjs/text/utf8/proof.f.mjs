@@ -205,6 +205,11 @@ export const proof = {
             const v = u8ListToVecMsb([0x80])
             assertEq(stringify(toArray(vecToCodePointList(v))), '[-2147483520]')
         },
+        // Unchecked: a surrogate and a value above U+10FFFF come back untagged
+        () => {
+            const v = u8ListToVecMsb([0xed, 0xa0, 0x80, 0xf4, 0x90, 0x80, 0x80])
+            assertEq(stringify(toArray(vecToCodePointList(v))), '[55296,1114112]')
+        },
     ],
     fromVec: [
         // Valid ASCII → decoded string
