@@ -51,6 +51,7 @@ export const proof = {
             size: () => bitSet(numberOps)(31),
             member: () => n.has(31)(n.universe),
             negative: () => n.one(-1),
+            fraction: () => n.has(1.5)(n.universe),
         },
     },
     bigint: {
@@ -77,5 +78,10 @@ export const proof = {
         set: () => assertEq(b.set(199)(b.empty), b.one(199)),
         setRange: () => assertEq(b.setRange([64, 65])(b.one(0)), (3n << 64n) | 1n),
         unset: () => assertEq(b.unset(199)(b.universe), b.range([0, 198])),
+        throw: {
+            size: () => bitSet(bigintOps)(-1),
+            negative: () => b.one(-1),
+            fraction: () => b.has(1.5)(b.universe),
+        },
     },
 }

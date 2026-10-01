@@ -15,34 +15,42 @@
 import { mask as bigintMask } from '../bigint/module.f.mjs'
 import { assert } from '../../asserts/module.f.mjs'
 
+const { isInteger } = Number
+
 /**
- * The bit operations of `bigint`; any size of universe.
+ * `n`, asserted to be a bit index a shift keeps: an integer from `0` to `max`.
+ * Any other index answers with a plausible wrong set: a negative `bigint`
+ * shift reverses direction, and a `number` shift truncates a fraction and
+ * wraps past bit 30 (`1 << 31` is negative and `1 << 32` is `1`).
+ *
+ * @type {(max: number) => (n: number) => number}
+ */
+const bitIndex = max => n => {
+    assert(isInteger(n) && 0 <= n && n <= max, ['bit index outside 0..max', n, max])
+    return n
+}
+
+const bigintBit = bitIndex(Infinity)
+
+/**
+ * The bit operations of `bigint`; any size of universe. A negative or
+ * fractional member or size is refused.
  *
  * @type {BitOps<bigint>}
  */
 export const bigintOps = {
-    one: n => 1n << BigInt(n),
-    mask: len => bigintMask(BigInt(len)),
+    one: n => 1n << BigInt(bigintBit(n)),
+    mask: len => bigintMask(BigInt(bigintBit(len))),
     or: a => b => a | b,
     and: a => b => a & b,
     xor: a => b => a ^ b,
 }
 
-/**
- * `n`, asserted to be a bit index `number`'s bitwise operators keep positive.
- * They work on 32-bit signed integers: `1 << 31` is negative and `1 << 32` is
- * `1`, so a larger index would answer with a plausible wrong set.
- *
- * @type {(n: number) => number}
- */
-const numberBit = n => {
-    assert(0 <= n && n <= 30, ['bit index outside 0..30', n])
-    return n
-}
+const numberBit = bitIndex(30)
 
 /**
  * The bit operations of `number`. A universe has at most 30 members, and a
- * member or size beyond that is refused.
+ * member or size beyond that, negative or fractional is refused.
  *
  * @type {BitOps<number>}
  */
