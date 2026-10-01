@@ -51,6 +51,7 @@ import { length, maxLengthBytes, u8ListToVecMsb } from '../../../types/bit_vec/m
 import { solidus as slash } from '../../../text/ascii/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.mjs'
+import { startsWith } from '../../bytes/module.f.mjs'
 import { hexText, isOidOf } from '../../oid/module.f.mjs'
 import { tryPackedWithout, tryRef } from '../../ref/module.f.mjs'
 import { isWholeName, lockSuffix } from '../../refname/module.f.mjs'
@@ -233,7 +234,7 @@ const zeroIdWriteMessage = name => `${nameForMessage(name)} would hold the zero 
  * @type {(a: readonly number[], b: readonly number[]) => boolean}
  */
 const isNamePrefix = (a, b) =>
-    b.length > a.length && b[a.length] === slash && a.every((v, i) => b[i] === v)
+    b.length > a.length && b[a.length] === slash && startsWith(a)(b)
 
 /**
  * The packed name that collides with `name` as a directory prefix, either way
