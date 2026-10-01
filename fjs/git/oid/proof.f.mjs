@@ -6,7 +6,7 @@ import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { empty, length, maxLengthBytes, u8ListMsb, vec } from '../../types/bit_vec/module.f.mjs'
 import { cycle, take, toArray } from '../../types/list/module.f.mjs'
 import { commitPayload, hole, latin1, mergePayload, modesTree, rootTree, sha256Commit, sha256Tree, tagPayload } from '../testlib.f.mjs'
-import { digestOf, hexText, isOidOf, of, toHex, tryFromHex, tryFromHexOf } from './module.f.mjs'
+import { digestOf, hexText, isOidOf, of, ofWidth, toHex, tryFromHex, tryFromHexOf } from './module.f.mjs'
 
 /** @type {(hex: string) => readonly number[]} */
 const bytes = hex => {
@@ -62,9 +62,14 @@ export const proof = {
         assertEq(sha1(vec(161n)(0n)), false)
         assertEq(sha1(empty), false)
     },
+    // `f` on an id of the width, its answer passed through as it is.
+    ofWidth: () => {
+        assertEq(ofWidth(20)(length)(vec(160n)(5n)), 160n)
+        assertEq(ofWidth(32)(length)(vec(256n)(0n)), 256n)
+    },
     // At a width: the id of that width reads, any other is refused, and
     // what is no hex at all is refused as before.
-    ofWidth: () => {
+    tryFromHexOf: () => {
         const sha1 = latin1('ab'.repeat(20))
         const sha256 = latin1('ab'.repeat(32))
         assertEq(tryFromHexOf(20)(sha1) !== null, true)
@@ -124,6 +129,10 @@ export const proof = {
     throw: {
         nonByte: () => tryFromHex([0x100, 0x30]),
         hole: () => tryFromHex(hole),
+        // An id of the other width is refused, not handed to `f`, and so is
+        // one a bit short of the width.
+        otherWidth: () => ofWidth(20)(length)(vec(256n)(0n)),
+        bitShort: () => ofWidth(20)(length)(vec(159n)(0n)),
         notAByteInPayload: () => of20('blob', [0x100]),
         // `digestOf` hands its bytes to the hash as they are, with no `write`
         // to check them first: `300` would hash as `44`.

@@ -22,7 +22,7 @@ pub(crate) type Method<A> = fn(Any<A>, Array<A>) -> Result<Any<A>, Any<A>>;
 /// `toString` needs no receiver type: every type has it. Every other name
 /// is the receiver type's own table, one function per type below.
 pub(crate) fn method<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Option<Method<A>> {
-    if *key == "toString".into() {
+    if key.is_str("toString") {
         return Some(to_string);
     }
     match Unpacked::from(receiver.clone()) {
@@ -40,7 +40,7 @@ pub(super) fn lookup<A: IVm, const N: usize>(
 ) -> Option<Method<A>> {
     table
         .into_iter()
-        .find(|(name, _)| *key == (*name).into())
+        .find(|(name, _)| key.is_str(name))
         .map(|(_, m)| m)
 }
 
