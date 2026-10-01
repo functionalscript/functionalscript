@@ -1,7 +1,7 @@
 ## Share the parse→error/ok envelope in `mcpStep`
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
