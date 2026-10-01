@@ -95,10 +95,16 @@ Every README has a heading, so today's reader renders none of them.
   [`../README.md`](../README.md#one-face-the-whole-site) leaves to this issue
   whether rendered prose keeps a face of its own. Decide on the rendered page,
   not before.
-- **Where a relative link goes.** A link to a directory should open that
-  directory's page on the site; a link to a `.md` file, its rendered view if
-  it has one, else GitHub at the build's commit, as file links do today; a
-  link with a `#fragment` needs heading ids that match GitHub's.
+- **Where a relative link goes.** A link to a directory opens that
+  directory's page on the site. A link to a file — a `.md` without a
+  rendered view of its own, a `module.f.mjs`, any other file — goes where
+  the same file's link in a directory's catalogue goes: `fileHref` in
+  [`page/module.f.mjs`](../page/module.f.mjs), GitHub at the build's commit,
+  or the raw file in a local build. One rule for both, so a file never opens
+  in two places depending on which page linked it; when
+  [source-and-doc-view](source-and-doc-view.md) moves `fileHref` to the
+  site's own view, README links move with it. Still open: a link with a
+  `#fragment` needs heading ids that match GitHub's.
 - **Highlighting a code fence.** Optional, and if wanted it is
   [source-and-doc-view](source-and-doc-view.md)'s tokenizer, with its
   prerequisite. A plain `<pre>` needs neither, so it does not block this.
