@@ -1,7 +1,7 @@
 ## derived-prototype-names. `prototypeNames` restates the union its seven lists spell
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
