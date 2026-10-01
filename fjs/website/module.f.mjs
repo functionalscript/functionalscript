@@ -515,6 +515,18 @@ const isIssue = name => name.endsWith('.md')
 const isTodoDir = path => path.split('/').includes('todo')
 
 /**
+ * Whether a demo lives at `path` or anywhere under it — what marks a
+ * directory's entry on its parent's page.
+ *
+ * **A subtree is a prefix, and the test is on the separator**, as it is for
+ * proofs: `fjs/types/` and not `fjs/types`.
+ *
+ * @type {(demos: _Demos) => (path: string) => boolean}
+ */
+const holdsDemo = demos => path => toArray(entries(demos))
+    .some(([dir]) => dir === path || dir.startsWith(`${path}/`))
+
+/**
  * What a page needs about one directory, from what the walk found in it and
  * in its `todo/`.
  *
@@ -527,17 +539,21 @@ const isTodoDir = path => path.split('/').includes('todo')
  *
  * @type {(tree: _Tree) => (proofs: readonly Proof[]) => (demos: _Demos) => (walked: _Walked) => Dir}
  */
-const toDir = tree => proofs => demos => walked => ({
-    path: walked.path,
-    files: walked.files.filter(name => !generatedName(name)),
-    dirs: walked.dirs.filter(name => name !== 'todo'),
-    todo: at(pathConcat(walked.path)('todo'))(tree)
-        ?.files
-        ?.filter(isIssue)
-        ?? [],
-    proofs: subtree(walked.path)(proofs),
-    demo: at(walked.path)(demos),
-})
+const toDir = tree => proofs => demos => walked => {
+    const dirs = walked.dirs.filter(name => name !== 'todo')
+    return {
+        path: walked.path,
+        files: walked.files.filter(name => !generatedName(name)),
+        dirs,
+        demoDirs: dirs.filter(name => holdsDemo(demos)(pathConcat(walked.path)(name))),
+        todo: at(pathConcat(walked.path)('todo'))(tree)
+            ?.files
+            ?.filter(isIssue)
+            ?? [],
+        proofs: subtree(walked.path)(proofs),
+        demo: at(walked.path)(demos),
+    }
+}
 
 /**
  * A release file's version, or `null` for a file that is not one.

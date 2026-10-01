@@ -54,5 +54,5 @@ bundle both parts into any bigint cleanup that touches these files.
 
 ### Related
 
-- [bigint-shift-decode.md](./bigint-shift-decode.md) — the shift-amount
-  decode prelude shared by `shl`/`shr`; different part of the same functions.
+- [`ShiftAmount`](../src/vm/bigint/mod.rs) — the shift-amount decode
+  `shl`/`shr` already share; different part of the same functions.
