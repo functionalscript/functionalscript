@@ -244,9 +244,9 @@ cases join the corpus with the renderer's text as their expected value.
   [callable-function-objects](./callable-function-objects.md) has not
   landed. The `self` question can wait without blocking anything.
 - **The JavaScript evaluators are not FJS VMs.** Amnesia and the operations
-  layer convert a function with the host's wrapper text unless the host
-  supplies `withText` (step 6), which only a host module can build, so the
-  FunctionalScript runner and `memo` still answer the wrapper's text.
+  layer convert a function with the host's wrapper text, so a function-text
+  corpus case cannot be checked on the host side. They cannot carry the
+  text either: a FunctionalScript function has no custom `toString` (step 6).
 
 #### Design: a compile-time template with holes
 
@@ -324,8 +324,8 @@ Each needs the owner's approval before the step that depends on it.
    `()=>undefined`. `ToPrimitive` of a function answers its text, and
    refuses a function without one with `FUNCTION_TEXT`; `<` against a
    number or a bigint still answers without it. The corpus's function-text
-   cases carry the writer's text as `expected` and a `host` marker: the
-   FunctionalScript proof skips them and the host proof runs them (step 6). They and
+   cases carry the writer's text as `expected` and a `host` marker that
+   skips the JavaScript side, as `rust` skips the Rust side. They and
    `nanvm-harness/fixtures/function-text.mjs` cover every path in
    [member-functions](./member-functions.md)'s `Function` checklist except
    the property key: `f.toString()`, `String(f)`, `+`, a function in an
@@ -338,11 +338,11 @@ Each needs the owner's approval before the step that depends on it.
    the text is complete at compile time. Instantiating, if the owner
    chooses it, is the run-time value renderer with lazy text, big enough
    for its own issue.
-6. **Follow-up issues** (done): the FJS evaluator renders the same text.
-   Its `withText` hook gives the value a `=>` node makes the writer's text
-   through a host `Proxy`
-   ([`fjs/types/function/text`](../../fjs/types/function/text/README.md)),
-   and `fjs/nanvm/text` runs the corpus's `host` cases with it. The property-key conversion needs no
+6. **Follow-up issues** (filed): rendering in the FJS interpreter,
+   [function-text](../../fjs/edag/amnesia/todo/function-text.md). It is
+   ruled out: a FunctionalScript function cannot be given a custom
+   `toString`, since a `Proxy` is not a FunctionalScript object and setting
+   the property is mutation, so the corpus's `host` marker stays. The property-key conversion needs no
    issue of its own (below). A `const` only a lazy operand reaches, which
    the writer refused at first, is now the operand's own block, an IIFE the
    front end inlines. The corpus's
@@ -384,7 +384,8 @@ already names its key conversion, `entry(o, f)` included, as its own work.
 - [x] Stage 3 step 4: Rust answers the text of a function with an empty
       frame (tracked with the `Function` checklist in `member-functions.md`).
 - [x] Stage 3 step 5: a function with a frame, per D2 (code-only).
-- [x] Stage 3 step 6: the FJS evaluator answers a function's text through
-      its host `withText`.
+- [x] Stage 3 step 6: file the FJS-interpreter rendering issue,
+      [function-text](../../fjs/edag/amnesia/todo/function-text.md), which
+      records why the evaluator cannot carry the text.
 - [x] Place the property-key conversion: it is
       [`entry`](../../fjs/edag/todo/entry.md)'s key conversion.

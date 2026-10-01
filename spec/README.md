@@ -1807,12 +1807,10 @@ are not supported yet. A newline before `=>` is refused.
   call rule and not the read rule ([property access](#property-access)): a
   member function on `fjs/js/prototype`'s `prohibitedCalls` is a compilation
   error, every other prototype name but `length` is a call the VM answers by
-  the receiver's type, and the read of either stays refused. nanvm-lib
+  the receiver's type, and the read of either stays refused. No executor yet
   answers a function's `toString` with the text the
-  [exception](#function-source-representation-exception) adopts, and so
-  does the JavaScript evaluator under the host's
-  [`withText`](../fjs/types/function/text/README.md). nanvm-lib has only
-  some of these built-ins
+  [exception](#function-source-representation-exception) adopts, and
+  nanvm-lib has only some of these built-ins
   ([default function text](./todo/3120-parameters.md#default-function-text-render-or-refuse),
   [member-functions](../nanvm-lib/todo/member-functions.md)).
 

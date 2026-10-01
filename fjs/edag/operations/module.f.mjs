@@ -216,13 +216,9 @@ export const operations = {
     // frame and the body graph, and each call of it is a new invocation,
     // which is the executor's to start — the enclosing invocation's values
     // do not cross, the captured frame is a value and crosses as one.
-    // The value is the executor's too when it supplies `withText`: the
-    // callable alone has the factory's text, not the node's.
-    '=>': ({ operand, invoke, withText }) => node => {
-        const [, length, slots, body] = node
+    '=>': ({ operand, invoke }) => ([, length, slots, body]) => {
         const frame = slots.map(operand)
-        const f = callable(length, (fixed, rest) => invoke(frame, fixed, rest, body))
-        return withText === undefined ? f : withText(f, node)
+        return callable(length, (fixed, rest) => invoke(frame, fixed, rest, body))
     },
     '>': o2((a, b) => a > b),
     '>=': o2((a, b) => a >= b),

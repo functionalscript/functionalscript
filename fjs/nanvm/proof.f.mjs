@@ -178,26 +178,20 @@ const context = { frame: undefined, args: [] }
  * `amnesia` forgets by design, so the nodes it must not recompute are handed
  * to it rather than walked by a second evaluator here.
  *
- * @type {(context: Context) => (shared: readonly SharedNode[]) => readonly (readonly[Exp, unknown])[]}
+ * @type {(shared: readonly SharedNode[]) => readonly (readonly[Exp, unknown])[]}
  */
-const sharedMemoIn = context => shared => shared.reduce(
+const sharedMemo = shared => shared.reduce(
     (/** @type {readonly (readonly[Exp, unknown])[]} */ memo, [, node]) =>
         [...memo, /** @type {readonly[Exp, unknown]} */
             ([node, vm({ ...context, memo })(node)])],
     [])
 
-/** {@link sharedMemoIn} under {@link context}. */
-const sharedMemo = sharedMemoIn(context)
-
 /**
- * `amnesia` under `context`, with the given shared nodes established.
+ * `amnesia`, with the given shared nodes established.
  *
- * @type {(context: Context) => (shared: readonly SharedNode[]) => (e: Exp) => unknown}
+ * @type {(shared: readonly SharedNode[]) => (e: Exp) => unknown}
  */
-const sharedIn = context => s => vm({ ...context, memo: sharedMemoIn(context)(s) })
-
-/** {@link sharedIn} under {@link context}. */
-const shared = sharedIn(context)
+const shared = s => vm({ ...context, memo: sharedMemo(s) })
 
 /** The corpus's shared values as nodes, lowered once. */
 const nodes = sharedExp(data.shared)
@@ -209,12 +203,9 @@ const nodes = sharedExp(data.shared)
  * one invocation, so two cases never see the same object. Within one call
  * they do, which is what `arrayByItself` asserts.
  *
- * @type {(context: Context) => () => (e: Exp) => unknown}
+ * @type {() => (e: Exp) => unknown}
  */
-const corpusIn = context => () => sharedIn(context)(nodes)
-
-/** {@link corpusIn} under {@link context}. */
-const corpus = corpusIn(context)
+const corpus = () => shared(nodes)
 
 /** A case's expression, with the corpus's shared nodes resolved. @type {(g: Group) => (args: readonly Value[]) => Exp} */
 const exprOf = caseExp(nodes)
@@ -235,26 +226,28 @@ const value = ev => v => ev(valuesExp(nodes)(v))
 
 /**
  * The value one argument order produces: the case's expression evaluated
- * through the given evaluator, built as {@link corpus} is.
+ * through `amnesia`'s `vm`.
  *
- * @type {(corpus: () => (e: Exp) => unknown) => (g: Group) => (args: readonly Value[]) => unknown}
+ * @type {(g: Group) => (args: readonly Value[]) => unknown}
  */
-const run = corpus => g => args => corpus()(exprOf(g)(args))
+const run = g => args => corpus()(exprOf(g)(args))
 
 /**
  * One group's leaves as a proof object: the ordinary cases by name, and the
  * throwing ones under a nested `throw` key — the framework's structural way
- * of declaring that a test is expected to throw. A case `keep` rejects is
+ * of declaring that a test is expected to throw. A case marked `host` is
  * not a leaf of either. A throwing leaf stops at its
  * first exception, which is why each argument order is its own leaf, and why
  * {@link group} and {@link crossCheck} are two trees rather than one: a leaf
  * that asserts a throw can assert one call, so the two implementations cannot
  * share it. Everything around that they can, which is what this is.
  *
- * @type {(keep: (c: AnyCase) => boolean) => (g: Group) => (leaves: (c: AnyCase) => readonly (readonly[string, () => void])[]) => object}
+ * @type {(g: Group) => (leaves: (c: AnyCase) => readonly (readonly[string, () => void])[]) => object}
  */
-const tree = keep => g => leaves => {
-    const cases = casesOf(g).filter(keep)
+const tree = g => leaves => {
+    // A `host` case is the Rust side's alone: its `expected` is a
+    // function's text, which the host renders differently.
+    const cases = casesOf(g).filter(c => c.host === undefined)
     const ok = cases.filter(c => !isThrows(c.expected)).flatMap(leaves)
     const bad = cases.filter(c => isThrows(c.expected)).flatMap(leaves)
     return bad.length === 0
@@ -263,24 +256,23 @@ const tree = keep => g => leaves => {
 }
 
 /**
- * Each case `keep` selects run through the given evaluator, against the
- * `expected` the corpus states.
+ * Each case run through `amnesia`, against the `expected` the corpus states.
  *
- * @type {(corpus: () => (e: Exp) => unknown, keep: (c: AnyCase) => boolean) => (g: Group) => object}
+ * @type {(g: Group) => object}
  */
-const group = (corpus, keep) => g => {
+const group = g => {
     /** @type {(c: AnyCase) => readonly (readonly[string, () => void])[]} */
     const leaves = c => {
         const { expected } = c
         /** @type {(args: readonly Value[]) => () => void} */
         const fn = isThrows(expected)
-            ? args => () => { run(corpus)(g)(args) }
+            ? args => () => { run(g)(args) }
             : args => () => {
                 // Structurally, with `Object.is` at the leaves, so `NaN`
                 // matches `NaN` and `0` does not match `-0`, and a fresh
                 // array matches an equal one; the Rust side compares the
                 // same way.
-                const result = run(corpus)(g)(args)
+                const result = run(g)(args)
                 // `expected` describes the outcome, not the program, so it is
                 // built as a value and never joined to the case's expression.
                 const e = vm(context)(valueExp(expected))
@@ -288,7 +280,7 @@ const group = (corpus, keep) => g => {
             }
         return orders(g)(c).map(([name, args]) => [name, fn(args)])
     }
-    return tree(keep)(g)(leaves)
+    return tree(g)(leaves)
 }
 
 /**
@@ -324,9 +316,9 @@ const group = (corpus, keep) => g => {
  * compare thrown values: see
  * `../emergent_testing/todo/throw-payload-assertions.md`.
  *
- * @type {(corpus: () => (e: Exp) => unknown, keep: (c: AnyCase) => boolean) => (g: Group) => object}
+ * @type {(g: Group) => object}
  */
-const crossCheck = (corpus, keep) => g => {
+const crossCheck = g => {
     const key = groupKey(g)
     const f = referenceOf(g)
     if (f === undefined) { return {} }
@@ -348,7 +340,7 @@ const crossCheck = (corpus, keep) => g => {
             }
         return [name, fn]
     })
-    return tree(keep)(g)(leaves)
+    return tree(g)(leaves)
 }
 
 /**
@@ -588,30 +580,13 @@ const jsOnly = {
     },
 }
 
-/**
- * The corpus's cases that `keep` selects, run under `context`: each group's
- * tree, and every group's cross-check against JavaScript.
- *
- * A function's text needs a `withText` FunctionalScript cannot write, so
- * this module runs every other case and [`text`](./text/module.mjs)
- * runs those, under the host's.
- *
- * @type {(context: Context, keep: (c: AnyCase) => boolean) => object}
- */
-export const cases = (context, keep) => {
-    const ev = corpusIn(context)
-    return {
-        ...fromEntries(data.groups.map(g => [groupKey(g), group(ev, keep)(g)])),
-        crossCheck: fromEntries(data.groups.map(g => [groupKey(g), crossCheck(ev, keep)(g)])),
-    }
-}
-
 export const proof = {
     lambda,
     callbacks: callbacksProof,
     method,
     referenceCoverage,
-    ...cases(context, c => c.host === undefined),
+    ...fromEntries(data.groups.map(g => [groupKey(g), group(g)])),
+    crossCheck: fromEntries(data.groups.map(g => [groupKey(g), crossCheck(g)])),
     edagShape,
     nestedSharing,
     unreachedOperand,

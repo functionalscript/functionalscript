@@ -54,11 +54,11 @@ export const callback = name => () => ['callback', name]
 export const returns = v => () => ['returns', v]
 
 /**
- * The `host` reason of a case whose `expected` is a function's text: the
- * evaluator answers it only through the host's `withText`, which
- * `../text/module.mjs` supplies.
+ * The `host` reason of a case whose `expected` is a function's text:
+ * `nanvm-lib` answers the FunctionalScript writer's, and the host evaluator
+ * its own closure's source.
  */
-export const functionText = 'a function text needs the host withText'
+export const functionText = 'the host renders its own function text'
 
 /**
  * The case must throw. Valid only as a case's `expected`.

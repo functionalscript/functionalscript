@@ -1,5 +1,4 @@
-import type { Exp, TagMap } from '../types.ts'
-import type { Callable } from '../../types/function/length/types.ts'
+import type { Exp } from '../types.ts'
 
 /**
  * What an invocation holds: the captured frame and the arguments, and the
@@ -21,11 +20,4 @@ export type Context = {
      * from entries before it, since this is consulted and never extended.
      */
     readonly memo?: readonly (readonly [Exp, unknown])[],
-    /**
-     * The function value a `=>` node makes (`Evaluator`'s `withText` in
-     * `../operations/types.ts`). Unlike `memo`, it crosses into every
-     * invocation: it is how this evaluator makes functions, not what one
-     * invocation established.
-     */
-    readonly withText?: ((f: Callable, node: TagMap['=>']) => unknown) | undefined,
 }

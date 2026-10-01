@@ -88,13 +88,14 @@ export type Info =
  * anywhere a {@link Value} is. A function that is called is a
  * {@link Callback} or a {@link Returns}.
  *
- * Its string form is the FunctionalScript writer's text
+ * One thing about a function is *not* shared data yet: its string form.
+ * `nanvm-lib` answers the FunctionalScript writer's text
  * (`fjs/compiler/serializer`'s `tryFunctionText`), `()=>undefined` for this
- * one, on both sides; the evaluator answers it only through a host
- * `withText`. A case whose result depends on it — `String` of a function,
- * `+` with one, `toString`, `join`, or a string method handed one — carries
- * a `host` marker ({@link Case}), so `proof.f.mjs` skips it and
- * `text/proof.mjs` runs it. Every other coercion of a function, nested or not, agrees on both
+ * one, while the host evaluator gives its own closure's source. A case whose
+ * result depends on it — `String` of a function, `+` with one, `toString`,
+ * `join`, or a string method handed one — carries the writer's text as its
+ * `expected` and a `host` marker ({@link Case}), so it runs on the Rust side
+ * only. Every other coercion of a function, nested or not, agrees on both
  * sides (`NaN`, `false`, `'function'`, the function itself), which is what
  * the unmarked function cases exercise.
  */
@@ -198,10 +199,10 @@ export type OpId = Op1Id | Op2Id | Op12Id | Op3Id
  * the JavaScript proof still runs it. Removing the property is what turns the
  * case on for Rust — the gap list is data, not prose in a README.
  *
- * `host` marks a case the FunctionalScript proof cannot run: its `expected`
- * is a function's text, which the evaluator answers only through the
- * host's `withText` (see {@link FunctionValue}). `proof.f.mjs` skips it,
- * and `text/proof.mjs` and the Rust side run it; the value is the reason.
+ * `host` is the other side's marker: the JavaScript proof skips the case and
+ * the Rust side runs it. It marks a case whose `expected` is a function's
+ * text, which the host evaluator does not render the way `nanvm-lib` does
+ * (see {@link FunctionValue}); the value is the reason.
  */
 export type Case<N extends number> = {
     readonly name: string
