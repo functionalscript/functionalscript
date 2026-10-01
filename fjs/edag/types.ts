@@ -274,6 +274,9 @@ export type Op3Id = '?:'
 
 export type Op3 = readonly[Op3Id, Exp, Exp, Exp]
 
+/** The operator ids at every arity: the tag of an operator node. */
+export type OpId = Op1Id | Op2Id | Op12Id | Op3Id
+
 // Operation nodes by tag
 
 /** The operation nodes: every `Exp` but a primitive. */

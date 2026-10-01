@@ -16,11 +16,19 @@
  * — a test case, a whole module's `pub fn module<A: IVm>() -> Result<Any<A>,
  * Any<A>>`, whose statements {@link scope} prints.
  *
+ * The printer is also the one module that knows which `nanvm_lib` names its
+ * text spells: every piece it prints carries them ({@link Printed}), each
+ * recorded where it is spelled, so {@link scope} reports them beside the
+ * lines and {@link useLines} turns them into the `use` lines a caller needs.
+ * The corpus has no use for them: its files open with
+ * `use crate::harness::*;`, a glob over the hand-written harness's
+ * re-export of the same names, so that no generated file lists what it
+ * uses — and that copy is checked, since a name it lacks fails `cargo test`.
+ *
  * @module
  *
- * @import { Exp, Index, Primitive, Properties } from '../types.ts'
- * @import { OpId } from '../../nanvm/types.ts'
- * @import { Printer } from './types.ts'
+ * @import { Exp, Index, OpId, Primitive, Properties } from '../types.ts'
+ * @import { Printed, Printer, Scope, Use, Uses } from './types.ts'
  * @import { Result } from '../../types/result/types.ts'
  */
 
@@ -31,9 +39,57 @@ import { isIndex, maxLength } from '../../types/function/length/module.f.mjs'
 import { tryFunctionText } from '../../compiler/serializer/module.f.mjs'
 
 /**
+ * Text spelling no `nanvm_lib` name of its own.
+ *
+ * @type {(text: string) => Printed<string>}
+ */
+const code = text => [text, []]
+
+/**
+ * A name of `nanvm_lib`'s `module`, spelled: its text is the name, and it
+ * is the name's one use.
+ *
+ * @type {(module: Use[0]) => (name: string) => Printed<string>}
+ */
+const named = module => name => [name, [[module, name]]]
+
+/** An item of `nanvm_lib::vm`, spelled. */
+const vm = named('vm')
+
+/** A helper of `nanvm_lib::vm::unstable`, spelled. */
+const unstable = named('unstable')
+
+/**
+ * Pieces of text one after another, with every name any of them spells.
+ *
+ * @type {(parts: readonly (string | Printed<string>)[]) => Printed<string>}
+ */
+const cat = parts => {
+    const printed = parts.map(p => typeof p === 'string' ? code(p) : p)
+    return [printed.map(([text]) => text).join(''), printed.flatMap(([, uses]) => uses)]
+}
+
+/**
+ * A call of `vm`'s conversion trait `trait`'s method `method`, as the
+ * suffix a receiver takes.
+ *
+ * @type {(method: string, trait: string) => Printed<string>}
+ */
+const conversion = (method, trait) => [`.${method}()`, [['vm', trait]]]
+
+const toAny = conversion('to_any', 'ToAny')
+
+const toArray = conversion('to_array', 'ToArray')
+
+const toObject = conversion('to_object', 'ToObject')
+
+/** `undefined`, the value an `args` read past the end answers too. */
+const undefinedAny = cat([vm('Nullish'), '::Undefined', toAny])
+
+/**
  * The `nanvm-lib` expression each unary operation prints as.
  *
- * @type {{ readonly [k in OpId]?: (a: string) => string }}
+ * @type {{ readonly [k in OpId]?: (a: string) => string | Printed<string> }}
  */
 export const op1Rust = {
     '+': a => `Any::unary_plus(${a})`,
@@ -41,7 +97,7 @@ export const op1Rust = {
     '!': a => `!(${a})`,
     '~': a => `Any::bitwise_not(${a})`,
     typeof: a => `Any::typeof_(${a})`,
-    String: a => `${a}.to_string().map(|v| v.to_any())`,
+    String: a => cat([`${a}.to_string().map(|v| v`, toAny, ')']),
     // The `Result` every operation answers, its `Err` arm: the thrown value
     // is the operand, and the enclosing `?` or function carries it out.
     throw: a => `Err(${a})`,
@@ -73,7 +129,10 @@ export const op1Rust = {
  * `Any::unsigned_right_shift`. `own` follows it for a fifth: no Rust operator
  * spells a keyed property lookup at all, so it is `Any::own_property`.
  *
- * @type {{ readonly [k in OpId]?: (a: string, b: string) => string }}
+ * An entry that spells a `nanvm_lib` name answers it with its text, and
+ * one that spells none answers the text alone.
+ *
+ * @type {{ readonly [k in OpId]?: (a: string, b: string) => string | Printed<string> }}
  */
 export const op2Rust = {
     '*': (a, b) => `${a} * ${b}`,
@@ -100,8 +159,8 @@ export const op2Rust = {
     // pins neither operand's `A`; `nanvm_lib::vm::unstable`'s `strict_eq`
     // and `strict_ne` lift the answer into the `Result` every other
     // operator returns.
-    '===': (a, b) => `strict_eq(${a}, ${b})`,
-    '!==': (a, b) => `strict_ne(${a}, ${b})`,
+    '===': (a, b) => cat([unstable('strict_eq'), `(${a}, ${b})`]),
+    '!==': (a, b) => cat([unstable('strict_ne'), `(${a}, ${b})`]),
 }
 
 /**
@@ -111,7 +170,7 @@ export const op2Rust = {
  * Both arms arrive as thunks, `?:` being {@link lazy}: `Any::conditional`
  * establishes the one its condition selects.
  *
- * @type {{ readonly [k in OpId]?: (a: string, b: string, c: string) => string }}
+ * @type {{ readonly [k in OpId]?: (a: string, b: string, c: string) => string | Printed<string> }}
  */
 export const op3Rust = {
     '?:': (a, b, c) => `Any::conditional(${a}, ${b}, ${c})`,
@@ -167,28 +226,65 @@ const isChain = id => id === '.' || id === '?.' || id === '?.()'
  * `try`/`catch`, so a thrown value is never caught and recovered from by
  * FunctionalScript code — only `Result` is).
  *
- * @type {<K extends string, T>(table: { readonly [k in K]?: T }) => (id: K) => Result<T, readonly unknown[]>}
+ * @type {<K extends string, T>(table: { readonly [k in K]?: T }) => (id: K) => Result<Printed<T>, readonly unknown[]>}
  */
 const lookup = table => id => {
     const v = table[id]
-    return v === undefined ? error(['no Rust for', id]) : ok(v)
+    return v === undefined ? error(['no Rust for', id]) : ok([v, []])
 }
 
 /**
- * Combines two `Result`s with `f`, short-circuiting on the first `error` —
- * the shape every multi-operand node below needs, since a `nanvm-lib` call
- * takes several already-printed pieces at once and any one of them may be
- * the refusal.
+ * A printed value with `f` applied, its names kept.
  *
- * @type {<A, B, R>(f: (a: A, b: B) => R) => (ra: Result<A, readonly unknown[]>, rb: Result<B, readonly unknown[]>) => Result<R, readonly unknown[]>}
+ * @type {<A, R>(f: (a: A) => R) => (ra: Result<Printed<A>, readonly unknown[]>) => Result<Printed<R>, readonly unknown[]>}
  */
-const map2 = f => (ra, rb) => okThen(a => mapOk(b => f(a, b))(rb))(ra)
+const map1 = f => mapOk(([a, uses]) => [f(a), uses])
 
-/** The same, for three. @type {<A, B, C, R>(f: (a: A, b: B, c: C) => R) => (ra: Result<A, readonly unknown[]>, rb: Result<B, readonly unknown[]>, rc: Result<C, readonly unknown[]>) => Result<R, readonly unknown[]>} */
+/**
+ * Combines two printed values with `f`, short-circuiting on the first
+ * `error` — the shape every multi-operand node below needs, since a
+ * `nanvm-lib` call takes several already-printed pieces at once and any one
+ * of them may be the refusal — and keeping the names both spell.
+ *
+ * @type {<A, B, R>(f: (a: A, b: B) => R) => (ra: Result<Printed<A>, readonly unknown[]>, rb: Result<Printed<B>, readonly unknown[]>) => Result<Printed<R>, readonly unknown[]>}
+ */
+const map2 = f => (ra, rb) => okThen(([a, ua]) => mapOk(([b, ub]) => /** @type {const} */ ([f(a, b), [...ua, ...ub]]))(rb))(ra)
+
+/** The same, for three. @type {<A, B, C, R>(f: (a: A, b: B, c: C) => R) => (ra: Result<Printed<A>, readonly unknown[]>, rb: Result<Printed<B>, readonly unknown[]>, rc: Result<Printed<C>, readonly unknown[]>) => Result<Printed<R>, readonly unknown[]>} */
 const map3 = f => (ra, rb, rc) => map2((a, [b, c]) => f(a, b, c))(ra, map2((b, c) => [b, c])(rb, rc))
 
-/** The same, for four. @type {<A, B, C, D, R>(f: (a: A, b: B, c: C, d: D) => R) => (ra: Result<A, readonly unknown[]>, rb: Result<B, readonly unknown[]>, rc: Result<C, readonly unknown[]>, rd: Result<D, readonly unknown[]>) => Result<R, readonly unknown[]>} */
+/** The same, for four. @type {<A, B, C, D, R>(f: (a: A, b: B, c: C, d: D) => R) => (ra: Result<Printed<A>, readonly unknown[]>, rb: Result<Printed<B>, readonly unknown[]>, rc: Result<Printed<C>, readonly unknown[]>, rd: Result<Printed<D>, readonly unknown[]>) => Result<Printed<R>, readonly unknown[]>} */
 const map4 = f => (ra, rb, rc, rd) => map2((a, [b, c, d]) => f(a, b, c, d))(ra, map3((b, c, d) => [b, c, d])(rb, rc, rd))
+
+/**
+ * Printed values as one list, with every name any of them spells, or the
+ * first refusal.
+ *
+ * @template T
+ * @param {readonly Result<Printed<T>, readonly unknown[]>[]} list
+ * @returns {Result<Printed<readonly T[]>, readonly unknown[]>}
+ */
+const all = list => mapOk((/** @type {readonly Printed<T>[]} */ items) =>
+    /** @type {const} */ ([items.map(([v]) => v), items.flatMap(([, uses]) => uses)]))(okList(list))
+
+/**
+ * A printed value whose own value is printed text with names of its own,
+ * as that text with both sets of names: what a piece built through
+ * {@link cat} over printed operands answers.
+ *
+ * @type {(r: Result<Printed<string | Printed<string>>, readonly unknown[]>) => Result<Printed<string>, readonly unknown[]>}
+ */
+const flat = mapOk(([v, uses]) => {
+    const [text, own] = typeof v === 'string' ? code(v) : v
+    return [text, [...uses, ...own]]
+})
+
+/**
+ * Printed text, with no name spelled.
+ *
+ * @type {(text: string) => Result<Printed<string>, readonly unknown[]>}
+ */
+const plain = text => ok(code(text))
 
 const op1 = lookup(op1Rust)
 
@@ -202,11 +298,11 @@ const op3 = lookup(op3Rust)
  * hold — one with a lone surrogate — `name_utf16(&[…])` over its UTF-16 code
  * units. Every string has a spelling, so none is refused.
  *
- * @type {(name: string) => (v: string) => string}
+ * @type {(name: string) => (v: string) => Printed<string>}
  */
 const stringCall = name => v => {
     const r = stringLiteral(v)
-    return r[0] === 'ok' ? `${name}(${r[1]})` : `${name}_utf16(${utf16Literal(v)})`
+    return r[0] === 'ok' ? cat([unstable(name), `(${r[1]})`]) : cat([unstable(`${name}_utf16`), `(${utf16Literal(v)})`])
 }
 
 /**
@@ -235,14 +331,21 @@ const bigintExpr = v => {
     return r[0] === 'ok' ? r : error(['no Rust i64 for', v])
 }
 
-/** @type {(v: Primitive) => Result<string, readonly unknown[]>} */
+/**
+ * A number, as the `Any<A>` `f64_any` builds from its bits.
+ *
+ * @type {(v: number) => Printed<string>}
+ */
+const numberExpr = v => cat([unstable('f64_any'), `(${f64Bits(v)})`])
+
+/** @type {(v: Primitive) => Result<Printed<string>, readonly unknown[]>} */
 const primitiveExpr = v => {
-    if (v === null) { return ok('Nullish::Null.to_any()') }
+    if (v === null) { return ok(cat([vm('Nullish'), '::Null', toAny])) }
     switch (typeof v) {
-        case 'boolean': { return ok(`${v}.to_any()`) }
-        case 'number': { return ok(`f64_any(${f64Bits(v)})`) }
+        case 'boolean': { return ok(cat([`${v}`, toAny])) }
+        case 'number': { return ok(numberExpr(v)) }
         case 'string': { return ok(stringCall('string_any')(v)) }
-        case 'bigint': { return mapOk(s => `bigint_any(${s})`)(bigintExpr(v)) }
+        case 'bigint': { return mapOk((/** @type {string} */ s) => cat([unstable('bigint_any'), `(${s})`]))(bigintExpr(v)) }
     }
 }
 
@@ -255,7 +358,7 @@ const primitiveExpr = v => {
  * `string_key` takes. A computed one has no `nanvm-lib` spelling here and is
  * refused rather than approximated.
  *
- * @type {(k: Exp) => Result<string, readonly unknown[]>}
+ * @type {(k: Exp) => Result<Printed<string>, readonly unknown[]>}
  */
 const keyExpr = k => typeof k === 'string' ? ok(stringCall('string_key')(k)) : error(['not a literal key', k])
 
@@ -271,11 +374,11 @@ const keyExpr = k => typeof k === 'string' ? ok(stringCall('string_key')(k)) : e
  * stays refused — a separate, larger task, the same way operators were kept
  * out of the printer that first landed `.`/`[]`.
  *
- * @type {(index: Index) => Result<string, readonly unknown[]>}
+ * @type {(index: Index) => Result<Printed<string>, readonly unknown[]>}
  */
 const indexExpr = index => {
     if (typeof index === 'string') { return ok(stringCall('string_any')(index)) }
-    if (typeof index === 'number') { return ok(`f64_any(${f64Bits(index)})`) }
+    if (typeof index === 'number') { return ok(numberExpr(index)) }
     return error(['no Rust for a Number(...) cast index', index])
 }
 
@@ -356,6 +459,14 @@ const last = e => {
     const operands = /** @type {readonly Exp[]} */ (/** @type {readonly any[]} */ (e)[1])
     return operands[operands.length - 1]
 }
+
+/**
+ * The line binding a function's rest parameters, the arguments after its
+ * `length` fixed ones, as the `Array<A>` a `['rest']` read clones.
+ *
+ * @type {(length: number) => Printed<string>}
+ */
+const restLine = length => cat([`let rest = args.clone().into_iter()${length === 0 ? '' : `.skip(${length})`}`, toArray, ';'])
 
 /**
  * The printer for the EDAG under `root`, or the refusal of a shape this
@@ -613,12 +724,12 @@ const printer = nested => shared => root => {
      * root, a thunk's, or an eager node in the corpus's mode, nested as it
      * is.
      *
-     * @type {(e: Exp) => Result<string, readonly unknown[]>}
+     * @type {(e: Exp) => Result<Printed<string>, readonly unknown[]>}
      */
     const f = e => {
         if (!(e instanceof Array)) { return primitiveExpr(e) }
         const b = bound.find(([n]) => n === e)
-        return b === undefined ? node(e) : ok(b[1])
+        return b === undefined ? node(e) : plain(b[1])
     }
     /**
      * A node's own construction, its operands referenced through {@link f}:
@@ -626,30 +737,30 @@ const printer = nested => shared => root => {
      * `let` binds, with the `?` {@link letLine} adds, and what a node
      * printed where it stands is.
      *
-     * @type {(e: Exp) => Result<string, readonly unknown[]>}
+     * @type {(e: Exp) => Result<Printed<string>, readonly unknown[]>}
      */
     const node = e => {
         const [id, a, b, c] = /** @type {readonly any[]} */ (e)
-        if (id === 'undefined') { return ok('Nullish::Undefined.to_any()') }
+        if (id === 'undefined') { return ok(undefinedAny) }
         // The arguments a function was called with: the `args` parameter of
         // the closure {@link closure} prints, an `Array<A>` — as a value, an
         // `Rc`-cheap clone of it. An indexed read, `a[0]` or `a.length`, is
         // an ordinary `.` node over this, `Any::dot(…).end()` answering
         // `undefined` past the end as JavaScript does.
-        if (id === 'args') { return ok('args.clone().to_any()') }
-        if (id === 'rest') { return ok('rest.clone().to_any()') }
-        if (id === 'arg') { return ok(`args.clone().into_iter().${a === 0 ? 'next()' : `nth(${a})`}.unwrap_or_else(|| Nullish::Undefined.to_any())`) }
+        if (id === 'args') { return ok(cat(['args.clone()', toAny])) }
+        if (id === 'rest') { return ok(cat(['rest.clone()', toAny])) }
+        if (id === 'arg') { return ok(cat([`args.clone().into_iter().${a === 0 ? 'next()' : `nth(${a})`}.unwrap_or_else(|| `, undefinedAny, ')'])) }
         // Slot `i` of the frame the function was built with, read through
         // the closure's `self_` parameter, {@link closure}: the `Array<A>`
         // {@link frameExpr} built, indexed directly — the slot exists, since
         // `bindingError` refuses a read past the slots, so no `undefined`
         // case as an `args` read has.
-        if (id === 'frame') { return ok(`A::frame(self_)[${a}].clone()`) }
+        if (id === 'frame') { return plain(`A::frame(self_)[${a}].clone()`) }
         if (id === '[]') { return arrayExpr(a) }
         if (id === '{}') {
             return a.length === 0
-                ? ok('Object::default().to_any()')
-                : mapOk((/** @type {readonly string[]} */ items) => `[${items.join(', ')}].to_object().to_any()`)(okList(a.map(propertyExpr)))
+                ? ok(cat([vm('Object'), '::default()', toAny]))
+                : flat(map1((/** @type {readonly string[]} */ items) => cat([`[${items.join(', ')}]`, toObject, toAny]))(all(a.map(propertyExpr))))
         }
         if (id === ',') {
             // A comma is its last operand's value, the operands before it
@@ -664,10 +775,10 @@ const printer = nested => shared => root => {
             // block, named `_` ({@link nameOf}), and the comma is its last
             // operand's text.
             return inline.includes(e)
-                ? mapOk((/** @type {readonly string[]} */ parts) => {
+                ? map1((/** @type {readonly string[]} */ parts) => {
                     const before = parts.slice(0, -1).map(s => `let _: Any<A> = ${s}; `).join('')
                     return `{ ${before}${parts[parts.length - 1]} }`
-                })(okList(a.map(f)))
+                })(all(a.map(f)))
                 : f(last(e))
         }
         if (id === '=>') {
@@ -684,7 +795,7 @@ const printer = nested => shared => root => {
             // The corpus's `() => undefined`, which no operator inspects,
             // is the one the harness binds as `function_any`; every other
             // function is a closure, over its frame.
-            return a === 0 && isSmallestLambda(b, c) ? ok('function_any()') : closure(a, c, textExpr(e))(frameExpr(b))
+            return a === 0 && isSmallestLambda(b, c) ? plain('function_any()') : closure(a, c, textExpr(e))(frameExpr(b))
         }
         return bare(/** @type {readonly any[]} */ (e))
     }
@@ -692,11 +803,11 @@ const printer = nested => shared => root => {
      * An item list as the array it builds, an `[]` node's and a call's
      * arguments alike.
      *
-     * @type {(a: readonly Exp[]) => Result<string, readonly unknown[]>}
+     * @type {(a: readonly Exp[]) => Result<Printed<string>, readonly unknown[]>}
      */
     const arrayExpr = a => a.length === 0
-        ? ok('Array::default().to_any()')
-        : mapOk((/** @type {readonly string[]} */ items) => `[${items.join(', ')}].to_array().to_any()`)(okList(a.map(f)))
+        ? ok(cat([vm('Array'), '::default()', toAny]))
+        : flat(map1((/** @type {readonly string[]} */ items) => cat([`[${items.join(', ')}]`, toArray, toAny]))(all(a.map(f))))
     /**
      * A function, `['=>', length, slots, body]`, as a function value: a closure
      * bound through `IStaticFunction`, the `StaticCode<A>` signature's two
@@ -726,28 +837,28 @@ const printer = nested => shared => root => {
      *
      * `text` is the function's source text, {@link textExpr}.
      *
-     * @type {(length: number, body: Exp, text: string) => (frame: Result<string, readonly unknown[]>) => Result<string, readonly unknown[]>}
+     * @type {(length: number, body: Exp, text: string) => (frame: Result<Printed<string>, readonly unknown[]>) => Result<Printed<string>, readonly unknown[]>}
      */
-    const closure = (length, body, text) => frame => map2((/** @type {readonly string[]} */ statements, /** @type {string} */ fr) =>
-        `A::static_function(|${readsFrame(body) ? 'self_' : '_self'}, ${readsArgs(body) ? 'args' : '_args'}| ${braced(reads('rest')(body) ? [`let rest = args.clone().into_iter()${length === 0 ? '' : `.skip(${length})`}.to_array();`, ...statements] : statements)}, ${length}, ${fr}, ${text}).to_any()`
-    )(statements(body), frame)
+    const closure = (length, body, text) => frame => flat(map2((/** @type {readonly string[]} */ lines, /** @type {string} */ fr) =>
+        cat([`A::static_function(|${readsFrame(body) ? 'self_' : '_self'}, ${readsArgs(body) ? 'args' : '_args'}| ${braced(lines)}, ${length}, ${fr}, ${text})`, toAny])
+    )(reads('rest')(body) ? map2((/** @type {string} */ rest, /** @type {readonly string[]} */ s) => [rest, ...s])(ok(restLine(length)), statements(body)) : statements(body), frame))
     /**
      * A function's frame as the `Array<A>` its construction takes: the
      * empty `Array::default()` for no slots, and otherwise the slots, each
      * a value of the scope around the function, collected by `to_array`.
      *
-     * @type {(slots: readonly Exp[]) => Result<string, readonly unknown[]>}
+     * @type {(slots: readonly Exp[]) => Result<Printed<string>, readonly unknown[]>}
      */
     const frameExpr = slots => slots.length === 0
-        ? ok('Array::default()')
-        : mapOk((/** @type {readonly string[]} */ xs) => `[${xs.join(', ')}].to_array()`)(okList(slots.map(f)))
+        ? ok(cat([vm('Array'), '::default()']))
+        : flat(map1((/** @type {readonly string[]} */ xs) => cat([`[${xs.join(', ')}]`, toArray]))(all(slots.map(f))))
     /**
      * An operation — a `.` read, a call, or an operator node — as the bare
      * `Result<Any<A>, Any<A>>` its `nanvm-lib` call answers, or the
      * refusal: a block's own answer, or a `let`'s initializer before its
      * `?`.
      *
-     * @type {(e: readonly any[]) => Result<string, readonly unknown[]>}
+     * @type {(e: readonly any[]) => Result<Printed<string>, readonly unknown[]>}
      */
     const bare = e => {
         const [id, a, b, c] = e
@@ -769,9 +880,9 @@ const printer = nested => shared => root => {
         // The first operand is established in every operation; the ones
         // after it are what a lazy operation establishes conditionally.
         const rest = lazy.includes(id) ? lazyOperand : operand
-        return e.length === 2 ? map2((fn, x) => fn(x))(op1(id), operand(a))
+        return flat(e.length === 2 ? map2((fn, x) => fn(x))(op1(id), operand(a))
             : e.length === 3 ? map3((fn, x, y) => fn(x, y))(op2(id), operand(a), rest(b))
-            : map4((fn, x, y, z) => fn(x, y, z))(op3(id), operand(a), rest(b), rest(c))
+            : map4((fn, x, y, z) => fn(x, y, z))(op3(id), operand(a), rest(b), rest(c)))
     }
     /**
      * A continuation's steps as the methods they are, from the node's entry
@@ -787,29 +898,29 @@ const printer = nested => shared => root => {
      * literal, {@link keyThunk}, and its arguments a {@link lazyOperand}:
      * both are inside the region, or after an access that may throw first.
      *
-     * @type {(property: boolean) => (k: readonly any[] | undefined) => Result<string, readonly unknown[]>}
+     * @type {(property: boolean) => (k: readonly any[] | undefined) => Result<Printed<string>, readonly unknown[]>}
      */
     const steps = property => k => {
-        if (k === undefined) { return ok('.end()') }
+        if (k === undefined) { return plain('.end()') }
         const [step, x, next] = k
         if (step === '|.') { return map2((key, rest) => `.dot(${key})${rest}`)(keyThunk(x), steps(false)(next)) }
         if (!['|()', '|?.()', '|!()'].includes(step)) { return error(['no Rust for a chain step', k]) }
         const terminal = step === '|!()' || (step === '|()' && property)
         if (terminal && next !== undefined) { return error(['a terminal step with a continuation', k]) }
         const method = terminal ? 'end_call' : step === '|()' ? 'call' : 'option_call'
-        return map2((t, rest) => `.${method}(${t})${rest}`)(lazyOperand(x), terminal ? ok('') : steps(false)(next))
+        return map2((t, rest) => `.${method}(${t})${rest}`)(lazyOperand(x), terminal ? plain('') : steps(false)(next))
     }
     /**
      * An index inside a region, as the thunk `option_dot` and the `|.` step
      * take: `|| Ok(…)` around the literal key {@link indexExpr} spells,
      * since a literal has nothing to bind and cannot throw.
      *
-     * @type {(index: Index) => Result<string, readonly unknown[]>}
+     * @type {(index: Index) => Result<Printed<string>, readonly unknown[]>}
      */
-    const keyThunk = index => mapOk(k => `|| Ok(${k})`)(indexExpr(index))
+    const keyThunk = index => map1(k => `|| Ok(${k})`)(indexExpr(index))
     /** An operand, parenthesized where its rendering would otherwise re-associate. */
-    /** @type {(e: Exp) => Result<string, readonly unknown[]>} */
-    const operand = e => mapOk(s => composed(e) ? `(${s})` : s)(f(e))
+    /** @type {(e: Exp) => Result<Printed<string>, readonly unknown[]>} */
+    const operand = e => map1(s => composed(e) ? `(${s})` : s)(f(e))
     /**
      * `true` when a node prints as an operator expression where it stands:
      * an operation nested in the corpus's mode, and not one a name already
@@ -838,18 +949,18 @@ const printer = nested => shared => root => {
      * a lazy position, where an eager position of theirs still cannot
      * (`../../nanvm/todo/corpus-as-conformance-vectors.md`).
      *
-     * @type {(e: Exp) => Result<string, readonly unknown[]>}
+     * @type {(e: Exp) => Result<Printed<string>, readonly unknown[]>}
      */
-    const thunk = e => mapOk(statements => `|| ${statements.length === 1 ? statements[0] : braced(statements)}`)(block(e))
+    const thunk = e => map1((/** @type {readonly string[]} */ statements) => `|| ${statements.length === 1 ? statements[0] : braced(statements)}`)(block(e))
     /**
      * A lazy operand where its operation stands: its thunk's name, where
      * the thunk is a temporary of the block — one with a body of its own,
      * outside the corpus's mode — and the thunk itself otherwise: over an
      * atom, or over a value the block already holds by name.
      *
-     * @type {(e: Exp) => Result<string, readonly unknown[]>}
+     * @type {(e: Exp) => Result<Printed<string>, readonly unknown[]>}
      */
-    const lazyOperand = e => isThunk(e) && isTemporary(e) ? ok(nameOf(e)) : thunk(e)
+    const lazyOperand = e => isThunk(e) && isTemporary(e) ? plain(nameOf(e)) : thunk(e)
     /**
      * A node as the `Result<Any<A>, Any<A>>` a function answers for it: an
      * operation's own, bare — `Ok((…)?)` would say the same, and clippy's
@@ -858,12 +969,12 @@ const printer = nested => shared => root => {
      * answering by its last operand's value is that operand's `Result`.
      * What a thunk's closure answers, and what a block's last statement is.
      *
-     * @type {(e: Exp) => Result<string, readonly unknown[]>}
+     * @type {(e: Exp) => Result<Printed<string>, readonly unknown[]>}
      */
-    const result = e => isArgs(e) ? mapOk(s => `Ok(${s})`)(arrayExpr(/** @type {readonly Exp[]} */ (/** @type {unknown} */ (e))))
+    const result = e => isArgs(e) ? map1(s => `Ok(${s})`)(arrayExpr(/** @type {readonly Exp[]} */ (/** @type {unknown} */ (e))))
         : isComma(e) && !inline.includes(e) ? result(last(e))
         : isOperation(e) && bound.every(([n]) => n !== e) ? bare(/** @type {readonly any[]} */ (e))
-        : mapOk(s => `Ok(${s})`)(f(e))
+        : map1(s => `Ok(${s})`)(f(e))
     /**
      * A temporary's `let` line: a thunk's closure, its type the operation's
      * to infer; an operation's call followed by `?`, so the temporary is
@@ -871,21 +982,21 @@ const printer = nested => shared => root => {
      * chain's or a call's as it is — and any other node's construction
      * as it is.
      *
-     * @type {(n: Exp) => Result<string, readonly unknown[]>}
+     * @type {(n: Exp) => Result<Printed<string>, readonly unknown[]>}
      */
     const letLine = n => isThunk(n)
-        ? mapOk(s => `let ${nameOf(n)} = ${s};`)(thunk(n))
-        : mapOk(s => `let ${nameOf(n)}: Any<A> = ${
+        ? map1(s => `let ${nameOf(n)} = ${s};`)(thunk(n))
+        : map1(s => `let ${nameOf(n)}: Any<A> = ${
             !isOperation(n) ? s : isChain(tagOf(n)) || tagOf(n) === '()' ? `${s}?` : `(${s})?`};`)(node(n))
     /**
      * The statements of `e`'s block: a `let` per temporary it binds, then
      * `e` as the `Result` the block answers — a closure's body, a thunk's,
      * or a compiled module's.
      *
-     * @type {(e: Exp) => Result<readonly string[], readonly unknown[]>}
+     * @type {(e: Exp) => Result<Printed<readonly string[]>, readonly unknown[]>}
      */
     const block = e => map2((/** @type {readonly string[]} */ lets, /** @type {string} */ value) => [...lets, value])(
-        okList(declaredBy(e).map(letLine)), result(e))
+        all(declaredBy(e).map(letLine)), result(e))
     /**
      * One object entry.
      *
@@ -897,7 +1008,7 @@ const printer = nested => shared => root => {
      * an unmapped id, and so that the two entry shapes agree: a spread as an
      * *array* item already refuses, having no operator to render as.
      *
-     * @type {(p: Properties) => Result<string, readonly unknown[]>}
+     * @type {(p: Properties) => Result<Printed<string>, readonly unknown[]>}
      */
     const propertyExpr = p => p[0] !== ':'
         ? error(['not a property', p])
@@ -913,7 +1024,7 @@ const printer = nested => shared => root => {
  *
  * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => Result<string, readonly unknown[]>}
  */
-export const expExpr = shared => e => okThen(p => p.f(e))(printer(true)(shared)(e))
+export const expExpr = shared => e => mapOk((/** @type {Printed<string>} */ [text]) => text)(okThen(p => p.f(e))(printer(true)(shared)(e)))
 
 /**
  * `true` for the operands of `() => undefined`: no slots and the
@@ -1193,6 +1304,14 @@ const lazyOperandsOf = n => {
 export const eagerNodesOf = root => reach([], root)
 
 /**
+ * The statements of one scope over the caller's own bindings, with the
+ * names they spell.
+ *
+ * @type {(shared: readonly (readonly[Exp, string])[]) => (root: Exp) => Result<Printed<readonly string[]>, readonly unknown[]>}
+ */
+const blockOf = shared => root => okThen(p => p.block(root))(printer(false)(shared)(root))
+
+/**
  * The statements of one scope over the caller's own bindings — a corpus
  * case's, over the group's shared values — as {@link scope} prints a
  * module's over none: a `let` per temporary, then the root as the
@@ -1200,15 +1319,15 @@ export const eagerNodesOf = root => reach([], root)
  *
  * @type {(shared: readonly (readonly[Exp, string])[]) => (root: Exp) => Result<readonly string[], readonly unknown[]>}
  */
-export const statementsOf = shared => root => okThen(p => p.block(root))(printer(false)(shared)(root))
+export const statementsOf = shared => root => mapOk((/** @type {Printed<readonly string[]>} */ [s]) => s)(blockOf(shared)(root))
 
 /**
  * The statements of a scope's block — a compiled module's body, or a
- * function's — over no bindings but its own.
+ * function's — over no bindings but its own, with the names they spell.
  *
- * @type {(root: Exp) => Result<readonly string[], readonly unknown[]>}
+ * @type {(root: Exp) => Result<Printed<readonly string[]>, readonly unknown[]>}
  */
-const statements = statementsOf([])
+const statements = blockOf([])
 
 /**
  * `true` when an operation stands in an eager position under `root`, a
@@ -1224,7 +1343,15 @@ export const nestsOperation = shared => root => eagerNodesOf(root).slice(1)
     .some(n => isOperation(n) && !shared.some(([s]) => s === n))
 
 /**
- * The lines of one scope — a compiled module's body, or a function's — or
+ * The names of `module` among `uses`, sorted and without repeats.
+ *
+ * @type {(uses: readonly Use[]) => (module: Use[0]) => readonly string[]}
+ */
+const namesIn = uses => module => [...new Set(uses.flatMap(([m, n]) => m === module ? [n] : []))].toSorted()
+
+/**
+ * The lines of one scope — a compiled module's body, or a function's —
+ * with the `nanvm_lib` names they spell, or
  * the refusal: a `let` per temporary, `c0`, `c1`, … in dependency order,
  * one line, one expression, then the root as the `Result` the scope's
  * function answers — an operation's own, `Ok(…)` of any other value —
@@ -1252,6 +1379,21 @@ export const nestsOperation = shared => root => eagerNodesOf(root).slice(1)
  * anything — tracked with the other EDAG walks' recursion, not fixed here:
  * `../todo/stack-safety.md`.
  *
- * @type {(root: Exp) => Result<readonly string[], readonly unknown[]>}
+ * @type {(root: Exp) => Result<Scope, readonly unknown[]>}
  */
-export const scope = root => mapOk(lines)(statements(root))
+export const scope = root => mapOk((/** @type {Printed<readonly string[]>} */ [s, uses]) =>
+    ({ lines: lines(s), uses: { vm: namesIn(uses)('vm'), unstable: namesIn(uses)('unstable') } }))(statements(root))
+
+/**
+ * The `use` lines for a scope's names, {@link scope}'s `uses`, inside a
+ * function bound on `bound`, spelled as rustfmt spells them: the
+ * `vm::unstable` helpers' line, if any, one name bare and several braced,
+ * then `vm`'s, which always holds `Any` and the bound — every value is an
+ * `Any<A>`, and every function is generic over it.
+ *
+ * @type {(uses: Uses, bound: string) => readonly string[]}
+ */
+export const useLines = ({ vm, unstable }, bound) => [
+    ...(unstable.length === 0 ? [] : [`use nanvm_lib::vm::unstable::${unstable.length === 1 ? unstable[0] : `{${unstable.join(', ')}}`};`]),
+    `use nanvm_lib::vm::{${[...new Set(['Any', bound, ...vm])].toSorted().join(', ')}};`,
+]
