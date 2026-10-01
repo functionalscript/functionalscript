@@ -29,12 +29,12 @@
  * @import { Commit } from './types.ts'
  */
 
-import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.mjs'
 import { byteLength } from '../../ebnf/byte/module.f.mjs'
 import { lf } from '../../text/ascii/module.f.mjs'
 import { concat, includes } from '../../types/list/module.f.mjs'
-import { error, ok } from '../../types/result/module.f.mjs'
-import { hasNulHeader, keyIs, tryRead as readPayload, valueAt, valuesOf, write as writePayload } from '../header/module.f.mjs'
+import { error, mapOk, ok, okList } from '../../types/result/module.f.mjs'
+import { checkedAt, fieldAt, hasNulHeader, keyIs, tryFieldAt, tryRead as readPayload, valuesOf, write as writePayload } from '../header/module.f.mjs'
 import { tryRead as readIdent } from '../ident/module.f.mjs'
 import { tryFromHex, tryFromHexOf } from '../oid/module.f.mjs'
 import { tryRead as readTag, validate as validateTag } from '../tag/module.f.mjs'
@@ -77,13 +77,7 @@ const parentValues = c => {
  *
  * @type {(c: Commit) => Oid}
  */
-export const tree = c => {
-    const value = valueAt(c, 0, 'tree')
-    assertNotNullish(value, 'no tree')
-    const id = tryFromHex(value)
-    assert(id !== null, ['not a tree id', value])
-    return id
-}
+export const tree = fieldAt(0, 'tree', tryFromHex, 'no tree', 'not a tree id')
 
 /**
  * The id the `tree` header names, at the repository's width, or `null`
@@ -95,13 +89,7 @@ export const tree = c => {
  *
  * @type {(oidBytes: OidBytes) => (c: Commit) => Nullable<Oid>}
  */
-export const tryTree = oidBytes => {
-    const id = tryFromHexOf(oidBytes)
-    return c => {
-        const value = valueAt(c, 0, 'tree')
-        return value === null ? null : id(value)
-    }
-}
+export const tryTree = oidBytes => tryFieldAt(0, 'tree', tryFromHexOf(oidBytes))
 
 /**
  * The tree of bytes stored as a commit, at the repository's width, or
@@ -183,21 +171,6 @@ export const parents = c => parentValues(c).map(value => {
 })
 
 /**
- * The ident the header at `i` holds, where its key is `key`.
- *
- * @throws Where the header is not there, or holds what is not an ident.
- *
- * @type {(c: Commit, i: number, key: string) => Ident}
- */
-const identAt = (c, i, key) => {
-    const value = valueAt(c, i, key)
-    assertNotNullish(value, `no ${key}`)
-    const ident = readIdent(value)
-    assert(ident !== null, [`not an ${key}`, value])
-    return ident
-}
-
-/**
  * Who wrote the change and when: the `author` header, after the parents.
  *
  * @throws On a commit {@link validate} refuses: no `author` header after
@@ -205,7 +178,7 @@ const identAt = (c, i, key) => {
  *
  * @type {(c: Commit) => Ident}
  */
-export const author = c => identAt(c, 1 + parentValues(c).length, 'author')
+export const author = c => fieldAt(1 + parentValues(c).length, 'author', readIdent, 'no author', 'not an author')(c)
 
 /**
  * Who made the commit and when: the `committer` header, after `author`.
@@ -215,7 +188,7 @@ export const author = c => identAt(c, 1 + parentValues(c).length, 'author')
  *
  * @type {(c: Commit) => Ident}
  */
-export const committer = c => identAt(c, 2 + parentValues(c).length, 'committer')
+export const committer = c => fieldAt(2 + parentValues(c).length, 'committer', readIdent, 'no committer', 'not a committer')(c)
 
 /**
  * The value of the first header of a key, or `null` where there is none.
@@ -289,21 +262,22 @@ export const mergetags = c => valuesOf(c, 'mergetag').map(value => {
 export const validate = oidBytes => {
     const id = tryFromHexOf(oidBytes)
     const tagOk = validateTag(oidBytes)
+    const treeOk = checkedAt(0, 'tree', id, 'no tree', 'not a tree id')
+    /** @type {(cond: boolean, message: string) => Result<null, string>} */
+    const check = (cond, message) => cond ? ok(null) : error(message)
     return c => {
         if (hasNulHeader(c)) { return error('NUL in header') }
-        const treeValue = valueAt(c, 0, 'tree')
-        if (treeValue === null) { return error('no tree') }
-        if (id(treeValue) === null) { return error('not a tree id') }
         const ps = parentValues(c)
-        if (!ps.every(v => id(v) !== null)) { return error('not a parent id') }
-        const authorValue = valueAt(c, 1 + ps.length, 'author')
-        if (authorValue === null) { return error('no author') }
-        if (readIdent(authorValue) === null) { return error('not an author') }
-        const committerValue = valueAt(c, 2 + ps.length, 'committer')
-        if (committerValue === null) { return error('no committer') }
-        if (readIdent(committerValue) === null) { return error('not a committer') }
         const tags = valuesOf(c, 'mergetag').map(value => readTag(tagOf(value)))
-        if (!tags.every(t => t !== null && tagOk(t)[0] === 'ok')) { return error('not a mergetag') }
-        return includes(0)(c.message) ? error('NUL in message') : ok(c)
+        /** @type {readonly Result<unknown, string>[]} */
+        const checks = [
+            treeOk(c),
+            check(ps.every(v => id(v) !== null), 'not a parent id'),
+            checkedAt(1 + ps.length, 'author', readIdent, 'no author', 'not an author')(c),
+            checkedAt(2 + ps.length, 'committer', readIdent, 'no committer', 'not a committer')(c),
+            check(tags.every(t => t !== null && tagOk(t)[0] === 'ok'), 'not a mergetag'),
+            check(!includes(0)(c.message), 'NUL in message'),
+        ]
+        return mapOk(() => c)(okList(checks))
     }
 }

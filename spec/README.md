@@ -891,7 +891,9 @@ export default [0n, 34n, -34n];
 
 A hexadecimal integer part, as a [number](#numbers) writes it, takes the
 `n` too: `0x10n` is `16n` and `0XFFn` is `255n`, exact at any width, and
-`-0x8000000000000000n` folds into the leaf `-9223372036854775808n`.
+`-0x8000000000000000n` folds into the leaf `-9223372036854775808n`. An
+output that writes a `bigint` writes it in decimal, and one that refuses a
+`bigint` refuses it whatever its spelling: `.json` refuses every one.
 
 ```js
 export default [0x10n, 0XFFn, -0x8000000000000000n];
