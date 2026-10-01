@@ -39,7 +39,6 @@
  *
  * @module
  *
- * @import { RequiredMap } from '../../../types/object/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Ast, Children, Meta } from '../../../ebnf/ast/types.ts'
  * @import { Mapping, Mappings, RewriteSet } from '../../../ebnf/ll1/types.ts'
@@ -52,8 +51,8 @@
 
 import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
 import { hexDigitValue } from '../../../text/ascii/module.f.mjs'
+import { escapeToCodePoint } from '../../../js/string_escape/module.f.mjs'
 import { listToString } from '../../../text/utf16/module.f.mjs'
-import { at } from '../../../types/object/module.f.mjs'
 import { error, mapOk, ok, okList } from '../../../types/result/module.f.mjs'
 import { eof } from '../../../ebnf/module.f.mjs'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
@@ -92,14 +91,6 @@ const jsonAt = node => {
 }
 
 /**
- * The character a simple escape stands for, by the character after the
- * backslash — the eight the grammar's `set('"\\/bfnrt')` admits.
- *
- * @type {RequiredMap<'"' | '\\' | '/' | 'b' | 'f' | 'n' | 'r' | 't', string>}
- */
-const simpleEscape = { '"': '"', '\\': '\\', '/': '/', b: '\b', f: '\f', n: '\n', r: '\r', t: '\t' }
-
-/**
  * The value of a hex digit node. The grammar admits only a hex digit here,
  * so `hexDigitValue` never answers `null`.
  *
@@ -115,15 +106,17 @@ const textMapping = mapping
 
 /**
  * The mapping of the grammar's `escape` rule: to the character it spells —
- * a simple escape's from the table, and a `\u` escape's the one code unit
- * its four digits name, so an escaped surrogate is one unit, as a raw one
- * is. The node is the backslash and what follows it.
+ * a simple escape's from `../../../js/string_escape`'s table, whose letters
+ * the grammar's proof pins its escape set to, so the lookup always answers;
+ * and a `\u` escape's the one code unit its four digits name, so an escaped
+ * surrogate is one unit, as a raw one is. The node is the backslash and what
+ * follows it.
  *
  * @type {Mapping<Utf16, Text>}
  */
 const escapeMapping = textMapping(escape, ([, e]) => {
     const branch = unmapped(e)
-    if (branch[0] === 'c') { return text(assertNotNullish(at(fromCharCode(unitAt(branch[1])))(simpleEscape))) }
+    if (branch[0] === 'c') { return text(fromCharCode(assertNotNullish(escapeToCodePoint(unitAt(branch[1]))))) }
     const [, digits] = unmapped(branch[1])
     return text(fromCharCode(unmapped(digits).reduce((code, digit) => code * 16 + hexDigit(digit), 0)))
 })

@@ -35,6 +35,7 @@
 import { htmlUtf8 } from '../../media/html/module.f.mjs'
 import { concat as pathConcat } from '../../path/module.f.mjs'
 import { faviconLinks, logoPath, stylesheetLink } from '../style/module.f.mjs'
+import { intersperse, toArray } from '../../types/list/module.f.mjs'
 
 /**
  * The repository the site is built from, which is where a file is read when
@@ -512,11 +513,8 @@ export const testsMain = (...nodes) => ['main', { 'data-browser-tests': '', 'dat
  * @type {(build: Build) => (dir: Dir) => Vec}
  */
 export const page = build => dir => shell(build)(pageTitle(dir.path))(testsMain(
-    ['nav', ...ancestors(dir.path).flatMap(([path, name], at) => {
-        /** @type {Element} */
-        const link = ['a', { href: pageHref(path) }, name]
-        return at === 0 ? [link] : [' / ', link]
-    })],
+    ['nav', ...toArray(intersperse(' / ')(ancestors(dir.path).map(([path, name]) =>
+        /** @type {Element} */(['a', { href: pageHref(path) }, name]))))],
     ['h1', dir.path],
     ...(dir.demo === null ? [] : demoSection(dir.demo)),
     ...sections(build.commit)(dir),
