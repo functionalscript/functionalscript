@@ -65,9 +65,19 @@ Every README has a heading, so today's reader renders none of them.
   `_a_` stays underscores, `&amp;` stays an entity's spelling, among others.
   None of those raises an error, so the refusal above never fires and the
   page shows a dead link where GitHub shows a live one —
-  [`spec/README.md`](../../../spec/README.md) has seven autolinks. So no
-  README is rendered until every row of that table is either read as GitHub
-  reads it or refused.
+  [`spec/README.md`](../../../spec/README.md) has seven autolinks.
+
+  **That table is not the whole gate, because the target is GitHub, not
+  CommonMark.** GitHub renders GitHub Flavored Markdown, which adds to
+  CommonMark — among other things a bare URL becomes a link, and
+  [`crypto/sign/README.md`](../../crypto/sign/README.md) opens with one,
+  which the subset's plain `text` rule accepts as words. The table also says
+  of itself that it is open: each review has found rows it lacked. So the
+  gate is not "every row of the table" but the rule behind it: **a construct
+  a README uses is read as GitHub reads it, or refused.** A construct found
+  to be accepted and misread — the bare URL is the first beyond the table —
+  gets a row there, and no README using it renders until that row is
+  closed.
 - **The subset grows toward the corpus, one construct per pull request.**
   Each step turns more READMEs from refused to rendered and none renders
   anything wrong, so every step can merge on its own. The order is by how
@@ -114,6 +124,8 @@ Every README has a heading, so today's reader renders none of them.
 - [ ] Close the "accepted and still read differently" table in
       [commonmark-constructs](../../ebnf/lib/markdown/todo/commonmark-constructs.md):
       each row read as GitHub reads it (an autolink is a link) or refused.
+      Add the rows it lacks as they are found, starting with GFM's bare-URL
+      autolink.
 - [ ] A block reader: headings and paragraphs, the changelog's list check
       rebuilt on top of it.
 - [ ] The page generator renders a directory's `README.md` above its
