@@ -326,6 +326,7 @@ svg text { font: inherit }
 [data-graph-edge-kind="lazy"] { stroke-dasharray: 5 3 }
 [data-graph-port] { fill: none; stroke: var(--muted); stroke-width: 1 }
 [data-graph-value] { fill: var(--value-bg); stroke: var(--muted); stroke-width: 1 }
+[data-graph-value-alone] { fill: none }
 [data-graph-value-label] { dominant-baseline: middle; fill: var(--value); font-size: .75rem }
 [data-graph-value][data-graph-value-kind="terminal"] { fill: var(--border) }
 [data-graph-value-label][data-graph-value-kind="terminal"] { fill: var(--text) }

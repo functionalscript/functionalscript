@@ -200,6 +200,11 @@ const valueKindOf = ({ to }) =>
  * node — no row carries an empty cell. A node is as wide as the widest of
  * its label, a key beside its value, and an edge's key.
  *
+ * **An inline port with an empty key is its value alone**, filling the
+ * row, for a demo whose values need no name: a key column holding nothing
+ * would only push the value aside. Such a port takes no part in the key
+ * column.
+ *
  * **An empty label is no row at all** when the node has ports: its rows
  * already say what it is, and an empty header would be a blank band on
  * top of them. An edge into such a node arrives at its first row instead.
@@ -211,12 +216,12 @@ const portsOf = label => out => {
     const header = label === '' && out.length > 0 ? 0 : headerHeight
     const inlines = out.flatMap(({ edge }) => {
         const inline = inlineOf(edge)
-        return inline === null ? [] : [{ key: cellWidthOf(edge.label), value: cellWidthOf(inline) }]
+        return inline === null ? [] : [{ keyed: edge.label !== '', key: cellWidthOf(edge.label), value: cellWidthOf(inline) }]
     })
-    const keyColumn = max(inlines.map(c => c.key))
+    const keyColumn = max(inlines.flatMap(c => c.keyed ? [c.key] : []))
     const width = Math.max(
         widthOf(label),
-        keyColumn + max(inlines.map(c => c.value)),
+        max(inlines.map(c => (c.keyed ? keyColumn : 0) + c.value)),
         max(out.flatMap(({ edge }) => inlineOf(edge) === null ? [cellWidthOf(edge.label)] : [])))
     return {
         width,
@@ -476,8 +481,15 @@ export const graphSvg = g => {
         'data-graph-edge': '', 'marker-end': 'url(#graph-arrow)',
         ...(edge.kind === undefined ? {} : { 'data-graph-edge-kind': edge.kind }),
     }])
-    /** @type {(p: _Positioned) => (port: _Port) => number} */
-    const keyWidthOf = p => port => inlineOf(port.edge) === null ? p.width : p.keyWidth
+    /**
+     * How wide a port's key cell is: the whole row for an edge, nothing for
+     * a value with an empty key, and the key column for any other value.
+     *
+     * @type {(p: _Positioned) => (port: _Port) => number}
+     */
+    const keyWidthOf = p => port => inlineOf(port.edge) === null ? p.width
+        : port.edge.label === '' ? 0
+        : p.keyWidth
     /** @type {readonly Element[]} */
     const boxEls = positioned.flatMap(p => [
         /** @type {Element} */ (['rect', {
@@ -485,15 +497,19 @@ export const graphSvg = g => {
             'data-graph-node': '', 'data-graph-kind': p.kind,
         }]),
         ...(p.ports.length === 0 ? [] : [/** @type {Element} */ (['g', { 'clip-path': `url(#${clipIdOf(p)})` },
-            ...p.ports.map(port => /** @type {Element} */ (['rect', {
+            ...p.ports.flatMap(port => keyWidthOf(p)(port) === 0 ? [] : [/** @type {Element} */ (['rect', {
                 x: String(p.x), y: String(p.y + port.y),
                 width: String(keyWidthOf(p)(port)), height: String(portHeight),
                 'data-graph-port': '',
-            }])),
+            }])]),
             ...p.ports.flatMap(port => inlineOf(port.edge) === null ? [] : [/** @type {Element} */ (['rect', {
-                x: String(p.x + p.keyWidth), y: String(p.y + port.y),
-                width: String(p.width - p.keyWidth), height: String(portHeight),
+                x: String(p.x + keyWidthOf(p)(port)), y: String(p.y + port.y),
+                width: String(p.width - keyWidthOf(p)(port)), height: String(portHeight),
                 'data-graph-value': '',
+                // A value with no key is the whole row, so it is left
+                // unfilled: a tint across every row would hide the node's
+                // own fill, which is what its kind is drawn with.
+                ...(keyWidthOf(p)(port) === 0 ? { 'data-graph-value-alone': '' } : {}),
                 ...valueKindOf(port.edge),
                 // An edge carries its kind on its line; a value has no
                 // line, so its cell carries the kind instead.
@@ -516,14 +532,14 @@ export const graphSvg = g => {
             x: String(p.x + p.width / 2), y: String(p.y + headerHeight / 2),
             'text-anchor': 'middle', 'data-graph-label': '',
         }, p.label])]),
-        ...p.ports.map(port => /** @type {Element} */ (['text', {
+        ...p.ports.flatMap(port => keyWidthOf(p)(port) === 0 ? [] : [/** @type {Element} */ (['text', {
             x: String(p.x + keyWidthOf(p)(port) / 2), y: String(p.y + port.y + portHeight / 2),
             'text-anchor': 'middle', 'data-graph-edge-label': '',
-        }, port.edge.label])),
+        }, port.edge.label])]),
         ...p.ports.flatMap(port => {
             const inline = inlineOf(port.edge)
             return inline === null ? [] : [/** @type {Element} */ (['text', {
-                x: String(p.x + (p.keyWidth + p.width) / 2), y: String(p.y + port.y + portHeight / 2),
+                x: String(p.x + (keyWidthOf(p)(port) + p.width) / 2), y: String(p.y + port.y + portHeight / 2),
                 'text-anchor': 'middle', 'data-graph-value-label': '',
                 ...valueKindOf(port.edge),
             }, inline])]

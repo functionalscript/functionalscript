@@ -172,6 +172,22 @@ export const proof = {
             assert(html.includes('<rect x="100" y="44" width="50" height="26" rx="4" data-graph-node=""'), html)
             assertEq(routes(html)[0], 'M60,20 L100,20')
         },
+        // A value whose key is empty fills its row: no key cell, no key
+        // text, and the value centred across the whole 50px node. A keyed
+        // value in the same node keeps its key cell.
+        emptyKey: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [{ id: 0, kind: 'a', label: '', rank: 0 }],
+                edges: [
+                    { from: 0, to: { inline: '5' }, label: '' },
+                    { from: 0, to: { inline: '6' }, label: 'k' },
+                ],
+            }))
+            assert(html.includes('<rect x="10" y="10" width="50" height="20" data-graph-value="" data-graph-value-alone="">'), html)
+            assert(html.includes('<text x="35" y="20" text-anchor="middle" data-graph-value-label="">5<'), html)
+            assertEq(html.split('data-graph-port=""').length - 1, 1)
+            assert(html.includes('<rect x="34" y="30" width="26" height="20" data-graph-value="">'), html)
+        },
         /**
          * **An edge's label sits in a port of its own node**, not on the
          * line: the node is a header over a row per outgoing edge, and the

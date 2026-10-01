@@ -154,8 +154,9 @@ const demoProof = {
             assertEq(count(h)('data-graph-kind="new"'), 3)
             assertEq(count(h)('data-graph-kind="shared"'), 8)
             assertEq(count(h)('data-graph-kind="replaced"'), 3)
-            // The new leaf holds 7 and 8, each in a row of its own.
-            assert(h.includes('>Value0<'), h)
+            // The new leaf holds 7 and 8, each a row of its own with no
+            // name beside it.
+            assert(!h.includes('>Value'), h)
             assert(h.includes('data-graph-value-label="">8<'), h)
             assert(h.includes('Last step, insert 8: 3 new (green), 4 shared with the version before, 3 replaced (red).'), h)
             // A press leaves the preset behind.
@@ -171,18 +172,18 @@ const demoProof = {
             assert(html(s).includes('Last step, insert 1:'), '')
         },
         // A full leaf splits, and its middle key moves up into a branch of
-        // five: Left, Value0, Middle, Value1, Right, in the node's own
-        // order, and no title above them — the rows say what the node is.
+        // five: Left, 6, Middle, 8, Right, in the node's own order, and no
+        // title above them — the rows say what the node is.
         splitALeaf: () => {
             const s = follow('Split a leaf')
             assertEq(censusOf(s), '{"built":4,"shared":4,"replaced":3}')
             const h = html(s)
             assert(!h.includes('data-graph-label'), h)
-            const middle = h.indexOf('>Middle<')
-            assert(middle !== -1, h)
-            const node5 = h.lastIndexOf('>Left<', middle)
-            const rows = ['>Left<', '>Value0<', '>Middle<', '>Value1<', '>Right<'].map(row => h.indexOf(row, node5))
-            assert(rows.every((at, i) => at !== -1 && (i === 0 || rows[i - 1] < at)), h)
+            // The node's rows are 20px apart, from y=94: an edge's name, or
+            // a key alone.
+            const rows = [['edge-label', 'Left'], ['value-label', '6'], ['edge-label', 'Middle'], ['value-label', '8'], ['edge-label', 'Right']]
+            rows.forEach(([cell, text], i) =>
+                assert(h.includes(`<text x="127" y="${94 + i * 20}" text-anchor="middle" data-graph-${cell}="">${text}<`), h))
         },
         // The split reaches the root, and the tree grows a level.
         growALevel: () => {
