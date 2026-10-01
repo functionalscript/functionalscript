@@ -23,7 +23,7 @@ mod sub;
 use core::{cmp::Ordering, iter::once};
 
 use crate::{
-    common::{sized_index::SizedIndex, uint::Uint},
+    common::{div_mod::DivMod, sized_index::SizedIndex, uint::Uint},
     sign::Sign,
     vm::{Any, IContainer, IVm},
 };
@@ -31,6 +31,18 @@ use crate::{
 /// The exact V8 message for dividing (`/`) or taking the remainder (`%`) of
 /// a `BigInt` by zero.
 const DIVISION_BY_ZERO: &str = "RangeError: Division by zero";
+
+/// A non-negative shift amount, decoded once for `<<` (`shl.rs`) and `>>`
+/// (`shr.rs`) by [`BigInt::shift_amount`]. Each operation picks its own
+/// result for the two degenerate cases; only `Words` reaches a shift loop.
+enum ShiftAmount {
+    /// `self` is `0n`, or the amount is `0n`: the result is `self`.
+    Noop,
+    /// The amount does not fit one word (`>= 2^64`).
+    TooWide,
+    /// The amount as whole words and the bits left over (`< 64`).
+    Words(u64, u64),
+}
 
 // TODO: change it to Iterator/SizedIndex-based implementation.
 fn normalize(vec: &[u64]) -> &[u64] {
@@ -148,6 +160,21 @@ impl<A: IVm> BigInt<A> {
             Self::default()
         } else {
             Self::unchecked_new(sign, r.iter().copied())
+        }
+    }
+
+    /// Decodes `rhs`, a non-negative shift amount, against `self`.
+    fn shift_amount(&self, rhs: &Self) -> ShiftAmount {
+        if self.length() == 0 {
+            return ShiftAmount::Noop;
+        }
+        match rhs.length() {
+            0 => ShiftAmount::Noop,
+            1 => {
+                let (word_shift, bit_shift) = rhs[0].div_mod(64);
+                ShiftAmount::Words(word_shift, bit_shift)
+            }
+            _ => ShiftAmount::TooWide,
         }
     }
 

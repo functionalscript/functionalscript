@@ -26,6 +26,11 @@ export type Dir = {
     readonly files: readonly string[]
     /** The subdirectories that have pages of their own, by name. */
     readonly dirs: readonly string[]
+    /**
+     * The subdirectories, by name, whose subtree holds a demo — the
+     * subdirectory's own or one further down. A subset of `dirs`.
+     */
+    readonly demoDirs: readonly string[]
     /** The issues in this directory's `todo/`, by file name. */
     readonly todo: readonly string[]
     /**
