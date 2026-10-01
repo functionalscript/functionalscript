@@ -30,7 +30,7 @@
 
 import { catch_, import_ } from '../../effects/common/module.f.mjs'
 import {
-    addResult, collectTests, defaultTest, runEntries, text, zeroState, zeroTotals,
+    addResult, collectTests, defaultTest, formatDuration, runEntries, text, zeroState, zeroTotals,
 } from '../module.f.mjs'
 import { do_, errorMessage, foldStep, mapStep, pureOk, resultStep, step } from '../../effects/module.f.mjs'
 import { error } from '../../types/result/module.f.mjs'
@@ -406,14 +406,12 @@ export const groupLabel = (passed, failed) =>
     failed === 0 ? `${passed} passed` : `${failed} failed · ${passed} passed`
 
 /**
- * A run's duration as the report's title shows it: milliseconds under a
- * second, seconds from there on. The root page's suite takes the better part
- * of two minutes, and `103812.4 ms` is not a number a reader takes in at a
- * glance where `103.8 s` is.
+ * A duration as the report shows it, a run's and a row's alike: the shared
+ * {@link formatDuration} to one decimal.
  *
  * @type {(ms: number) => string}
  */
-export const formatDuration = ms => ms < 1000 ? `${ms.toFixed(1)} ms` : `${(ms / 1000).toFixed(1)} s`
+export const reportDuration = formatDuration(1)
 
 /**
  * A group's status from its counts: `failed` the moment anything failed,
@@ -440,7 +438,7 @@ export const groupStatus = (passed, failed, settled) =>
  * @type {(result: _BrowserTestResult) => Element}
  */
 export const resultView = result => {
-    const line = `${result.status === 'passed' ? 'PASS' : 'FAIL'} ${result.name} (${result.duration.toFixed(1)} ms)`
+    const line = `${result.status === 'passed' ? 'PASS' : 'FAIL'} ${result.name} (${reportDuration(result.duration)})`
     return result.status === 'failed'
         ? ['li', { 'data-status': 'failed' }, line, ['pre', { 'data-test-error': '' }, `${result.message}\n${result.stack}`]]
         : ['li', { 'data-status': 'passed' }, line]
@@ -492,7 +490,7 @@ export const reportView = results => groupByModule(results).map(group => groupVi
 export const countsView = ({ totals, duration }) => [
     ['span', { 'data-count-passed': '' }, `${totals.passed} passed`],
     ...(totals.failed === 0 ? [] : [/** @type {Element} */ (['span', { 'data-count-failed': '' }, `${totals.failed} failed`])]),
-    ['span', { 'data-duration': '' }, formatDuration(duration)],
+    ['span', { 'data-duration': '' }, reportDuration(duration)],
 ]
 
 /**
