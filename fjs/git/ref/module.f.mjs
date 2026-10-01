@@ -50,6 +50,7 @@
 
 import { ascii, byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, option, repeatFrom0, repeatFrom1, set } from '../../ebnf/module.f.mjs'
+import { nul as nulByte, space as traitSeparator } from '../../text/ascii/module.f.mjs'
 import { tryFromHexOf } from '../oid/module.f.mjs'
 import { isWholeName, sameBytes } from '../refname/module.f.mjs'
 
@@ -440,12 +441,6 @@ export const tryPacked = oidBytes => {
  * @type {(node: unknown) => readonly number[]}
  */
 const bytesOf = node => symbolsOf(/** @type {readonly Meta<Byte>[]} */ ([node].flat(Infinity)))
-
-/** The byte that separates the header's traits. */
-const traitSeparator = 0x20
-
-/** {@link nul}'s byte, which ends the header as it ends a name. */
-const nulByte = 0x00
 
 /** The trait that makes Git bisect the file. */
 const sortedTrait = ascii('sorted')
