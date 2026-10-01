@@ -163,6 +163,30 @@ tell whether the page was right. Being checkable is not theoretical — the
 digest is padded to 64 because one in sixteen begins with a zero hex digit, and
 what found that was someone typing `1234` into the page.
 
+## A directory says it holds a demo
+
+A demo is on its module's page, and every demo sits several levels below the
+root. So a directory's entry in Contents carries a play mark after its name
+when a demo is anywhere in its subtree — its own or one further down. From any
+page, the marks are a trail to every demo below it.
+
+- **Under it, not in it.** A mark only on a demo's own directory would leave
+  the root page, where a new reader lands, with nothing marked and nothing to
+  follow.
+- **A mark, not a section.** A separate list of demos was the alternative. It
+  needs a name, an order and a caption for each demo; the mark reuses the
+  list a reader already walks, and the directory's name is the caption.
+- **After the name.** The icon in front of an entry is what the entry is; this
+  is something about it. It says "has a demo" to a screen reader, as a kind
+  icon names its kind.
+- **A play button in a circle, muted, at the kind icons' size.** Six looks
+  were rendered side by side — a `demo` pill, this, a `[demo]` tag, a folder
+  icon with a play cut-out, a flask, and `→ demo` — after a bare green
+  triangle was rejected. This one is drawn the way the kind icons are, so the
+  list keeps one set of marks rather than gaining a second style. Its
+  triangle is as large as the ring allows: the first, smaller one shrank to
+  a few pixels on an ordinary monitor.
+
 ## Links are root-relative
 
 `/_main.css`, `/fjs/types/index.html`, `/fjs/emergent_testing/browser/module.mjs`

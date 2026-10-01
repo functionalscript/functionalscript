@@ -15,7 +15,7 @@ import { assert, assertEq, todo } from '../asserts/module.f.mjs'
 import {
     testAll, fmtPath, fmtImport, ghEscape, isInteger, isIdentifier,
     registerModule, parseTestSet,
-    addResult, defaultReporter, defaultTest, main, register, testResult, zeroTotals,
+    addResult, defaultReporter, defaultTest, formatDuration, main, register, testResult, zeroTotals,
 } from './module.f.mjs'
 import { run as mockRun } from '../effects/mock/module.f.mjs'
 import { shouldLoad } from '../dev/module.f.mjs'
@@ -282,7 +282,7 @@ export const defaultReporterOutput = () => {
     )
 }
 
-// timeFormat with duration >= 1ms covers the `yl <= 0` branch (no leading zeros needed)
+// A leaf over a millisecond: the terminal's four decimals, still in milliseconds.
 export const defaultReporterOutputLargeDuration = () => {
     const [stdout, , exit] = runMain({
         'a.proof.f.ts': () => ({ proof: { x: ok1 } }),
@@ -983,9 +983,27 @@ const runTotalsProofs = {
     },
 }
 
+/**
+ * One duration rule for every renderer: milliseconds under a second, seconds
+ * from there on, and only the precision is the caller's.
+ */
+const formatDurationProofs = {
+    underASecond: () => assertEq(formatDuration(1)(82.34), '82.3 ms'),
+    // From a second on, seconds: the root page's suite is minutes long.
+    fromASecond: () => assertEq(formatDuration(1)(1000), '1.0 s'),
+    long: () => assertEq(formatDuration(1)(103812.4), '103.8 s'),
+    // The terminal's precision: a leaf is often well under a millisecond.
+    fourDigits: () => {
+        assertEq(formatDuration(4)(0), '0.0000 ms')
+        assertEq(formatDuration(4)(0.00012), '0.0001 ms')
+        assertEq(formatDuration(4)(1500), '1.5000 s')
+    },
+}
+
 export const proof = {
     testResult: testResultProofs,
     runTotals: runTotalsProofs,
+    formatDuration: formatDurationProofs,
     throw: {
         registerBodyPanicsOnUndispatchableEffect,
     },

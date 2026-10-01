@@ -20,7 +20,7 @@ comments now point a reader at a rule that contradicts them:
   function has a context-free identity".
 - `fjs/git/refstore/module.f.mjs` — `stepped`, `refOf`, `readAsRef`.
 - `fjs/git/refstore/proof.f.mjs` — `nameAt`, `linkedHeadHost`.
-- `fjs/git/packidx/module.f.mjs` — `offsetIn`, `nextStep`.
+- `fjs/git/packidx/module.f.mjs` — `nextStep`.
 - `fjs/git/packidx/proof.f.mjs` — `withTwoSlots`.
 - `fjs/git/store/module.f.mjs` — `inOne`.
 
@@ -34,8 +34,8 @@ rule as it stands.
 For each helper, check whether a lifted parameter is filled with the same
 local at every call. Where it is, move the helper back into the scope that
 holds the value and drop the parameter. Where a parameter really varies
-between calls, such as `offsetIn`'s `lo` and `hi` across its bisection, keep
-that parameter, and replace the §3.3 citation with the actual reason. Either
+between calls, such as the bounds of a bisection that recurses on itself,
+keep that parameter, and replace the §3.3 citation with the actual reason. Either
 way no comment goes on citing §3.3 for lifting a capture.
 
 ### Tasks

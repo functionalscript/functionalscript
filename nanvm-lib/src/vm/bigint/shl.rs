@@ -1,10 +1,12 @@
 use core::ops::Shl;
 
 use crate::{
-    common::{div_mod::DivMod, sized_index::SizedIndex},
+    common::sized_index::SizedIndex,
     sign::Sign,
     vm::{Any, BigInt, IVm},
 };
+
+use super::ShiftAmount;
 
 const TOO_LARGE: &str = "RangeError: Maximum BigInt size exceeded";
 
@@ -43,18 +45,12 @@ impl<A: IVm> Shl for BigInt<A> {
             return self >> -rhs;
         }
 
-        let n_len = self.length();
-        if n_len == 0 {
-            return Ok(self);
-        }
-
-        let shift = match rhs.length() {
-            0 => return Ok(self),
-            1 => rhs[0],
-            _ => return too_large(),
+        let (word_shift, bit_shift) = match self.shift_amount(&rhs) {
+            ShiftAmount::Noop => return Ok(self),
+            ShiftAmount::TooWide => return too_large(),
+            ShiftAmount::Words(word_shift, bit_shift) => (word_shift, bit_shift),
         };
-
-        let (word_shift, bit_shift) = shift.div_mod(64);
+        let n_len = self.length();
 
         // A carry word is only produced when `bit_shift` actually pushes a
         // set bit out of the current top word — not on every shift, so this

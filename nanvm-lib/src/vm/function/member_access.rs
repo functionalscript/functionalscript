@@ -1,5 +1,5 @@
 use super::Function;
-use crate::vm::{Any, IVm, Number, ToAny, Unpacked};
+use crate::vm::{Any, IVm, Number, ToAny, Unpacked, member_access::LENGTH};
 
 impl<A: IVm> Function<A> {
     /// `self[key]`: the string key `"length"` reads the declared arity —
@@ -8,9 +8,7 @@ impl<A: IVm> Function<A> {
     /// `undefined`, the same contract `Array::member_access` has.
     pub(crate) fn member_access(&self, key: Any<A>) -> Option<Any<A>> {
         match Unpacked::from(key) {
-            Unpacked::String(s) if s == "length".into() => {
-                Some(Number::from(self.length()).to_any())
-            }
+            Unpacked::String(s) if s.is_str(LENGTH) => Some(Number::from(self.length()).to_any()),
             _ => None,
         }
     }

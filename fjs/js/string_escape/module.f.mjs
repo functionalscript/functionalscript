@@ -7,9 +7,11 @@
  * are JavaScript's `\0`, `\v`, `\xXX`, or a line continuation, which
  * FunctionalScript does not accept.
  *
- * The set is JSON's `char` production's, so the JSON serializer and both
- * tokenizers derive their view from this one list rather than keeping a copy
- * each: an encode side and two decode sides that cannot drift apart. A
+ * The set is JSON's `char` production's, so everything that reads or writes
+ * one derives its view from this one list rather than keeping a copy: the
+ * JSON grammar (`../../ebnf/lib/json`) admits its letters, the JSON reader
+ * and the JavaScript tokenizer decode through it, and the JSON serializer
+ * encodes through it, so none of them can drift apart. A
  * single-quoted string adds `\'`, which is not JSON's, so the JavaScript
  * tokenizer decodes it above this table: a row here would make the encode
  * view write `\'` into JSON.

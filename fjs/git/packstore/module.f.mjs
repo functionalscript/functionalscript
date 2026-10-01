@@ -105,7 +105,6 @@
  * @import { Held } from './types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
 import { catchStep, foldStep, history, historyStep, ioError, mapStep, pureError, pureOk, step, walkStep } from '../../effects/module.f.mjs'
 import { inflate, leadsNowhere, namesNothing, notAFileCode, notAFileMessage, readBytes, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
@@ -114,7 +113,7 @@ import { u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { headerBytes, tryApplyDelta, tryEntry, tryHeader } from '../pack/module.f.mjs'
 import { after, holdsEntryAt, offsetOf, tryIdx } from '../packidx/module.f.mjs'
-import { hexText, isOidOf } from '../oid/module.f.mjs'
+import { hexText, ofWidth } from '../oid/module.f.mjs'
 
 /**
  * The bytes a read hands back, as a dense array to index into.
@@ -604,16 +603,12 @@ const packOf = (pd, oidBytes, id) => name => {
  * and a store searching several directories of several packs has no one pack
  * to blame by default.
  *
- * @throws On an id that is not `oidBytes` wide: a caller that mixes the widths
- * has a bug, not a missing object.
+ * @throws As [`fjs/git/oid`](../oid/module.f.mjs)'s `ofWidth` does, on an
+ * id that is not `oidBytes` wide.
  *
  * @type {(od: string, oidBytes: OidBytes) => (id: Oid) => Effect<Readdir | Stat | ReadWhole | ReadBytes | Inflate, Nullable<Held>, IoChannel>}
  */
 export const tryRead = (od, oidBytes) => {
     const pd = packsIn(od)
-    const isOid = isOidOf(oidBytes)
-    return id => {
-        assert(isOid(id), ['not an id of the width', id])
-        return walkStep(idxNames(pd), /** @type {Nullable<Held>} */ (null), packOf(pd, oidBytes, id))
-    }
+    return ofWidth(oidBytes)(id => walkStep(idxNames(pd), /** @type {Nullable<Held>} */ (null), packOf(pd, oidBytes, id)))
 }

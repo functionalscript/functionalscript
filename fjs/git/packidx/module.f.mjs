@@ -55,11 +55,11 @@
  * @import { Idx } from './types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
+import { bsearch, cmp } from '../../types/function/compare/module.f.mjs'
 import { take } from '../../types/list/module.f.mjs'
-import { digestOf, isOidOf } from '../oid/module.f.mjs'
+import { digestOf, ofWidth } from '../oid/module.f.mjs'
 
 /** The four bytes a version 2 index begins with: `\377tOc`. */
 const magic = /** @type {const} */ ([0xFF, 0x74, 0x4F, 0x63])
@@ -115,31 +115,6 @@ const differsAt = (b, x, y, width, k) =>
     k === width ? width : b[x + k] !== b[y + k] ? k : differsAt(b, x, y, width, k + 1)
 
 /**
- * How many of `firsts` are `k` or less — a search and not a scan.
- *
- * `firsts` is the first byte of each id in file order, so it is non-decreasing
- * *because* {@link fanoutAgrees} has already refused a file whose ids do not
- * ascend. That is a real dependency and not a coincidence: this function is
- * wrong on an unsorted list, and the only caller checks the order first.
- *
- * A filter per bucket instead is 256 full passes over the ids, which is the
- * shape this replaced: linear in the index per bucket against logarithmic, and
- * measured hundreds of times slower on an index of a hundred thousand.
- *
- * The range it searches is a parameter rather than a capture, as `k` and the list
- * are, so this is closed and lives at module scope like {@link differsAt}: one
- * function for the whole file instead of a fresh closure per call, and there are
- * 256 calls per index — one per bucket the fanout names.
- *
- * @type {(firsts: readonly number[], k: number, lo: number, hi: number) => number}
- */
-const upTo = (firsts, k, lo, hi) => {
-    if (lo >= hi) { return lo }
-    const mid = lo + Math.floor((hi - lo) / 2)
-    return firsts[mid] <= k ? upTo(firsts, k, mid + 1, hi) : upTo(firsts, k, lo, mid)
-}
-
-/**
  * Whether the fanout table agrees with the ids that follow it: every
  * `fanout[k]` is the number of ids whose first byte is `k` or less, and the
  * ids ascend.
@@ -172,8 +147,19 @@ const fanoutAgrees = (b, fanoutAt, idsAt, stride, n, width) => {
     if (!ascends) { return false }
     /** The first byte of each id, which is the bucket the fanout counts. */
     const firsts = Array.from({ length: n }, (_, i) => b[idsAt + i * stride])
+    const search = bsearch(n)
+    /**
+     * How many of `firsts` are `k` or less: a search, not a filter per bucket,
+     * which would be 256 passes over the ids.
+     *
+     * A search needs `firsts` non-decreasing, and it is because the ids were
+     * checked to ascend above. On an unsorted list it would answer wrongly.
+     *
+     * @type {(k: number) => number}
+     */
+    const upTo = k => search(mid => firsts[mid] <= k ? 1 : -1)
     return Array.from({ length: fanout }, (_, k) => k)
-        .every(k => u32(b, fanoutAt + k * 4) === upTo(firsts, k, 0, firsts.length))
+        .every(k => u32(b, fanoutAt + k * 4) === upTo(k))
 }
 
 /**
@@ -348,30 +334,6 @@ export const tryIdx = oidBytes => input => {
 }
 
 /**
- * Where the id a value spells sits in the index's offsets, or `null` where the
- * index does not hold it: the bisection {@link offsetOf} is, over the range
- * `[lo, hi)`.
- *
- * Closed and at module scope, like {@link upTo} and {@link differsAt} above: the
- * tables, the value searched for and the range are parameters, so a lookup
- * allocates no closure and the function has an identity of its own (§3.3). The
- * value and not the id, because an id is a `Vec` and comparing two of them means
- * comparing their values — the width is the index's and {@link offsetOf} has
- * already checked it, so every comparison here is between equal widths.
- *
- * @type {(ids: readonly Oid[], offsets: readonly number[], target: bigint, lo: number, hi: number) => Nullable<number>}
- */
-const offsetIn = (ids, offsets, target, lo, hi) => {
-    if (lo >= hi) { return null }
-    const mid = lo + Math.floor((hi - lo) / 2)
-    const v = uint(ids[mid])
-    if (v === target) { return offsets[mid] }
-    return v < target
-        ? offsetIn(ids, offsets, target, mid + 1, hi)
-        : offsetIn(ids, offsets, target, lo, mid)
-}
-
-/**
  * Where an id's entry begins in the pack, or `null` where the pack does not
  * hold it.
  *
@@ -391,17 +353,19 @@ const offsetIn = (ids, offsets, target, lo, hi) => {
  * different answers, and reading the width from `ids[0]` would have had
  * nothing to read and would have reported the first as the second.
  *
- * @throws On an id of another width than the index holds, which is a caller
- * mixing two repositories rather than an id the pack lacks.
+ * @throws As [`fjs/git/oid`](../oid/module.f.mjs)'s `ofWidth` does, on an
+ * id of another width than the index holds: a caller mixing two repositories
+ * rather than an id the pack lacks.
  *
  * @type {(idx: Idx) => (id: Oid) => Nullable<number>}
  */
 export const offsetOf = ({ oidBytes, ids, offsets }) => {
-    const isOid = isOidOf(oidBytes)
-    return id => {
-        assert(isOid(id), ['not an id of the index width', id])
-        return offsetIn(ids, offsets, uint(id), 0, ids.length)
-    }
+    const search = bsearch(ids.length)
+    return ofWidth(oidBytes)(id => {
+        const target = uint(id)
+        const at = search(mid => cmp(target)(uint(ids[mid])))
+        return at < ids.length && uint(ids[at]) === target ? offsets[at] : null
+    })
 }
 
 /**
