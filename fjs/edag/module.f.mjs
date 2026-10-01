@@ -162,6 +162,10 @@ export const array = /** @type {const} */ (['[]', rttiArray(items)])
  * `'b'`, and forwarding a rest parameter spreads it like any other operand,
  * `[['...', ['rest']]]`. A list whose first item is a string, `f('.', x)`, is
  * `['.', x]` here: the position, not a tag, says it is a list.
+ *
+ * The list means one array, which the callee splits into its fixed
+ * parameters and its rest; an engine may build those two arrays directly
+ * from the callee's `length` (`../README.md`, Nodes).
  */
 export const args = rttiArray(items)
 

@@ -183,6 +183,18 @@ iterates its operand, so `f(...'ab')` passes `'a'` and `'b'`. Every callee
 builds its own rest array from the arguments, so the caller's array is never
 the callee's.
 
+**An engine may form the arguments the way the callee reads them.** The
+semantics are one array, the item list evaluated left to right with each
+spread iterated, which the callee then splits: a function of `length` `N`
+reads its first `N` arguments as `['arg', 0]` … `['arg', N - 1]`, `undefined`
+past the end of a short call, and the arguments after them as `['rest']`. No
+node observes the one array — a function has no `['args']` of its own — so a
+runtime that checks how many fixed parameters the callee takes at the call
+may build the two arrays it reads instead: the fixed `[args; N]` and the rest.
+The items are still evaluated in order, a spread still iterated, and the
+boundary between the two arrays falls at the `N`th value, wherever a spread
+puts it. A call to a function that reads no `['rest']` need not build one.
+
 ## Chains
 
 A JS member chain carries two kinds of hidden control flow that its operand
