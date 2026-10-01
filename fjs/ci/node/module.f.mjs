@@ -34,11 +34,12 @@ export const packageJobId = jobId(node.default)
  * Installs the pinned Node through `setup-node`. Every job that installs Node
  * this way installs the configured default; `inputs` are any further
  * `setup-node` inputs the job needs, such as the publish job's `registry-url`.
+ * The pin is written last, so an input cannot replace it.
  *
  * @type {(inputs?: Record<string, string>) => Step}
  */
 export const installNode = inputs =>
-    uses('actions/setup-node', { 'node-version': node.default, ...inputs })
+    uses('actions/setup-node', { ...inputs, 'node-version': node.default })
 
 /** @type {(version: string) => MetaStep} */
 const fjsGlobalInstall = version =>

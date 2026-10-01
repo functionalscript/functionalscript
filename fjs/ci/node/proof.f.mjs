@@ -41,8 +41,12 @@ export const proof = {
             'expected the published CLI installed globally')
         assert(runs.includes('fjs test'), 'expected the suite run by that CLI')
     },
-    // Extra `setup-node` inputs ride along with the pinned Node, after it.
+    // Extra `setup-node` inputs ride along with the pinned Node, and none of
+    // them replaces it.
     installNodeInputs: () => assertStructurallySame(
-        installNode({ 'registry-url': 'https://registry.example/' }).with,
-        { 'node-version': node.default, 'registry-url': 'https://registry.example/' }),
+        installNode({
+            'registry-url': 'https://registry.example/',
+            'node-version': '22.x',
+        }).with,
+        { 'registry-url': 'https://registry.example/', 'node-version': node.default }),
 }
