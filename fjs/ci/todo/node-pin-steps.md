@@ -1,7 +1,7 @@
 ## node-pin-steps. The pinned-Node steps are private to `ci/node` and respelled by three modules
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
