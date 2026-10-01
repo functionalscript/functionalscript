@@ -30,7 +30,8 @@ const bitIndex = max => n => {
     return n
 }
 
-const bigintBit = bitIndex(Infinity)
+/** A bit index with no upper bound. */
+const index = bitIndex(Infinity)
 
 /**
  * The bit operations of `bigint`; any size of universe. A negative or
@@ -39,8 +40,8 @@ const bigintBit = bitIndex(Infinity)
  * @type {BitOps<bigint>}
  */
 export const bigintOps = {
-    one: n => 1n << BigInt(bigintBit(n)),
-    mask: len => bigintMask(BigInt(bigintBit(len))),
+    one: n => 1n << BigInt(index(n)),
+    mask: len => bigintMask(BigInt(index(len))),
     or: a => b => a | b,
     and: a => b => a & b,
     xor: a => b => a ^ b,
@@ -68,7 +69,8 @@ export const numberOps = {
  * Every operation that builds a set refuses a member outside the universe,
  * and `range` a reversed range: either would answer with bits past `universe`
  * or the wrong run of bits. `has` is a query, so a member past the universe is
- * simply not in the set.
+ * simply not in the set; it never reaches the carrier, whose shifts may not
+ * go that far.
  *
  * @template {number | bigint} T
  * @param {BitOps<T>} ops
@@ -93,7 +95,7 @@ export const bitSet = ({ one, mask, or, and, xor }) => size => {
     return {
         empty,
         universe,
-        has: n => s => and(s)(one(n)) !== empty,
+        has: n => s => index(n) < size && and(s)(one(n)) !== empty,
         one: memberOne,
         range,
         union: or,

@@ -15,6 +15,7 @@ export const proof = {
             assertEq(n.universe, 0xFF)
             assert(n.has(7)(n.universe), n.universe)
             assert(!n.has(8)(n.universe), n.universe)
+            assert(!n.has(31)(n.universe), n.universe)
         },
         one: () => {
             const s = n.one(3)
@@ -49,7 +50,7 @@ export const proof = {
         },
         throw: {
             size: () => bitSet(numberOps)(31),
-            member: () => n.has(31)(n.universe),
+            member: () => numberOps.one(31),
             negative: () => n.one(-1),
             fraction: () => n.has(1.5)(n.universe),
             outside: () => n.one(8),
