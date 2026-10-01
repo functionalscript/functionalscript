@@ -46,9 +46,6 @@ exactly as both copies have them.
 
 ### Related
 
-- [filecasoperation-duplicates.md](./filecasoperation-duplicates.md) —
-  duplication in the operation type itself; this is the proof-side echo of
-  the same vocabulary.
 - `memoryOperationMap` in
   [`fjs/effects/memory`](../../effects/memory/module.f.mjs) — the shared
   synchronous `MemOp` interpreter, which replaced the proofs' own copies;
