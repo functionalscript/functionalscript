@@ -58,6 +58,16 @@ Every README has a heading, so today's reader renders none of them.
   from GitHub is the plausible wrong value
   [DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
   refuses; an honest "not rendered here" is not.
+- **Refusing is not enough: the reader must not accept what it misreads.**
+  The changelog's subset does not refuse everything GitHub reads
+  differently — commonmark-constructs has a table of what it *accepts* and
+  still reads differently: an autolink `<https://…>` becomes plain text,
+  `_a_` stays underscores, `&amp;` stays an entity's spelling, among others.
+  None of those raises an error, so the refusal above never fires and the
+  page shows a dead link where GitHub shows a live one —
+  [`spec/README.md`](../../../spec/README.md) has seven autolinks. So no
+  README is rendered until every row of that table is either read as GitHub
+  reads it or refused.
 - **The subset grows toward the corpus, one construct per pull request.**
   Each step turns more READMEs from refused to rendered and none renders
   anything wrong, so every step can merge on its own. The order is by how
@@ -95,6 +105,9 @@ Every README has a heading, so today's reader renders none of them.
 
 ### Tasks
 
+- [ ] Close the "accepted and still read differently" table in
+      [commonmark-constructs](../../ebnf/lib/markdown/todo/commonmark-constructs.md):
+      each row read as GitHub reads it (an autolink is a link) or refused.
 - [ ] A block reader: headings and paragraphs, the changelog's list check
       rebuilt on top of it.
 - [ ] The page generator renders a directory's `README.md` above its
