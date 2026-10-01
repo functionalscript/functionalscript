@@ -19,6 +19,7 @@
  * @import { Key, MemOp } from '../../effects/memory/types.ts'
  * @import { Response } from '../json_rpc/types.ts'
  * @import { Type } from '../../rtti/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
  * @import { Implementation, ServerCapabilities, InitializeResult, Tool, ToolsListParams, ToolsCallResult, McpHandlers, ToolEntry, McpSessionState, McpConfig, ProtocolVersions } from './types.ts'
  */
 
@@ -372,13 +373,37 @@ export const mcpStep = ({
             return pureOk(null)
         }
 
+        /**
+         * Answers a parse of the request's params: a mismatch is
+         * `invalidParams`, a match goes on to `onOk` with the decoded value.
+         *
+         * @template V
+         * @template R
+         * @param {Result<V, unknown>} parsed
+         * @param {(value: V) => R} onOk
+         * @returns {R | Effect<never, Response, never>}
+         */
+        const validated = ([t, v], onOk) => t === 'error'
+            ? pureOk(errorResponseOf(id)(invalidParams))
+            : onOk(v)
+
+        /**
+         * A method gated by the `tools` capability: `methodNotFound` without
+         * it, otherwise `handler`'s result for the {@link validated} params.
+         *
+         * @template V
+         * @template {Operation} P
+         * @param {Result<V, unknown>} parsed
+         * @param {(value: V) => Effect<P, Unknown, never>} handler
+         */
+        const toolMethod = (parsed, handler) => capabilities.tools === undefined
+            ? pureOk(errorResponseOf(id)(methodNotFound))
+            : validated(parsed, v => mapStep(handler(v), successResponseOf(id)))
+
         // `ping` is always valid regardless of session state, but its params
         // (if present) must be an object.
         if (method === 'ping') {
-            const [pt] = parse(_noParams)(params)
-            return pt === 'error'
-                ? pureOk(errorResponseOf(id)(invalidParams))
-                : pureOk(successResponseOf(id)({}))
+            return validated(parse(_noParams)(params), () => pureOk(successResponseOf(id)({})))
         }
 
         // `initialize` transitions uninitialized → initializing; reject if already done.
@@ -390,27 +415,25 @@ export const mcpStep = ({
                     if (r[1][0] !== 'uninitialized') {
                         return pureOk(errorResponseOf(id)(invalidRequest))
                     }
-                    const [pr, pv] = parse(initializeParams)(params)
-                    if (pr === 'error') {
-                        return pureOk(errorResponseOf(id)(invalidParams))
-                    }
-                    /** @type {InitializeResult} */
-                    const result = {
-                        protocolVersion: _negotiateVersion(protocolVersions, pv.protocolVersion),
-                        capabilities,
-                        serverInfo,
-                    }
-                    // The write's outcome decides the answer. It used to be
-                    // discarded by a `() =>` continuation, so a session that
-                    // failed to record the transition still replied with a
-                    // successful handshake and then rejected every call after
-                    // it as `notInitialized`.
-                    return resultStep(
-                        write(stateKey, ['initializing']),
-                        w => pureOk(w[0] === 'error'
-                            ? errorResponseOf(id)(internalError)
-                            : successResponseOf(id)(result)),
-                    )
+                    return validated(parse(initializeParams)(params), pv => {
+                        /** @type {InitializeResult} */
+                        const result = {
+                            protocolVersion: _negotiateVersion(protocolVersions, pv.protocolVersion),
+                            capabilities,
+                            serverInfo,
+                        }
+                        // The write's outcome decides the answer. It used to be
+                        // discarded by a `() =>` continuation, so a session that
+                        // failed to record the transition still replied with a
+                        // successful handshake and then rejected every call after
+                        // it as `notInitialized`.
+                        return resultStep(
+                            write(stateKey, ['initializing']),
+                            w => pureOk(w[0] === 'error'
+                                ? errorResponseOf(id)(internalError)
+                                : successResponseOf(id)(result)),
+                        )
+                    })
                 },
             )
         }
@@ -428,24 +451,13 @@ export const mcpStep = ({
                 }
 
                 if (method === 'tools/list') {
-                    if (capabilities.tools === undefined) {
-                        return pureOk(errorResponseOf(id)(methodNotFound))
-                    }
                     // `params` may be absent — `tools/list` without a cursor.
-                    const [t, pr] = parse(toolsListParams)(params === undefined ? {} : params)
-                    return t === 'error'
-                        ? pureOk(errorResponseOf(id)(invalidParams))
-                        : mapStep(handlers.toolsList(pr), successResponseOf(id))
+                    // Not `params ?? {}`: an explicit `null` stays `invalidParams`.
+                    return toolMethod(parse(toolsListParams)(params === undefined ? {} : params), handlers.toolsList)
                 }
 
                 if (method === 'tools/call') {
-                    if (capabilities.tools === undefined) {
-                        return pureOk(errorResponseOf(id)(methodNotFound))
-                    }
-                    const [t, pr] = parse(toolsCallParams)(params)
-                    return t === 'error'
-                        ? pureOk(errorResponseOf(id)(invalidParams))
-                        : mapStep(handlers.toolsCall(pr), successResponseOf(id))
+                    return toolMethod(parse(toolsCallParams)(params), handlers.toolsCall)
                 }
 
                 return pureOk(errorResponseOf(id)(methodNotFound))

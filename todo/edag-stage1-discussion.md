@@ -218,12 +218,25 @@ Agreed points (not under discussion):
   distinct `".()"` tag.
 - `args` is **a single operand that evaluates to an array**, not a
   literal list of operand nodes: `f(a, b)` is
-  `["()", f, ["[]", a, b]]`, while spread `f(...xs)` is just
-  `["()", f, xs]` and forwarding is `["()", f, ["args"]]` — free,
-  because `["args"]` is itself a first-class array (subject 2). A
-  literal-list operand would save the `["[]", …]` wrapper in the
-  common case but would need a spread marker for those. Same for every
-  other argument operand: `"?.()"`'s and the call steps' (subject 6).
+  `["()", f, ["[]", a, b]]`. Same for every other argument operand:
+  `"?.()"`'s and the call steps' (subject 6).
+
+  **A spread argument is not the argument array.** `f(...xs)` is
+  `["()", f, ["[]", [["...", xs]]]]`, not the shortcut `["()", f, xs]`.
+  A spread iterates its operand, so `f(...'ab')` passes `'a'` and `'b'`,
+  while `["()", f, "ab"]` hands a string where the call expects an array,
+  and throws. The type of `xs` is unknown, so the shortcut is wrong in
+  general.
+
+  Forwarding stays free where the operand is an array by construction:
+  `(...r) => f(...r)` may be `["()", f, ["rest"]]`. Every callee builds its
+  own rest array from the arguments, the JS factories with `...rest` and the
+  Rust printer by collecting `args`, so the forwarded array is never the
+  callee's, and no identity is observable.
+
+  A call spread is therefore an array spread, the arguments array built
+  as `[a, ...x, b]` is, and runs the same `GetIterator`
+  ([spread operations](../nanvm-lib/todo/spread-operations.md)).
 
 ### Operations
 

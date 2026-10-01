@@ -174,9 +174,14 @@ the node holding it, which no `op2` id has anywhere to put. A call's
 arguments — the last `exp` of `()`, the second of `?.()`, the operand of
 every call step — are one node evaluating to the complete argument array, not
 a literal operand list: `f(a, b)` is `['()', f, ['[]', [a, b]]]`, and
-`f(...xs)` needs no `...` node at all, since `['()', f, xs]` already passes
-the whole array through. A `...` node is what mixes the two: `f(a, ...b)` is
-`['()', f, ['[]', [a, ['...', b]]]]`.
+`f(a, ...b)` is `['()', f, ['[]', [a, ['...', b]]]]`. A spread argument is a
+`...` entry of a new array, `f(...xs)` included: it is
+`['()', f, ['[]', [['...', xs]]]]`, not `['()', f, xs]`. A spread iterates
+its operand, so `f(...'ab')` passes `'a'` and `'b'`, where passing the
+string through would throw. Only an operand that is an array by
+construction, such as a rest parameter forwarded by `(...r) => f(...r)`, may
+be passed through as `['()', f, ['rest']]`. Every callee builds its own rest
+array from the arguments, so the forwarded array is never the callee's.
 
 ## Chains
 
@@ -271,6 +276,12 @@ so the region will not let it leave. That single asymmetry is why `(a?.b).c`
 throws where `a?.b.c` does not.
 
 ### Spellings
+
+In this table `(...c)` stands for a call's whole argument list and `c` for
+the one node that builds its argument array: `f(a, b)` has
+`c = ['[]', [a, b]]`, and `f(...xs)` has `c = ['[]', [['...', xs]]]`. `c` is
+never a bare spread operand, since a spread iterates it
+([nodes](#nodes), above).
 
 | JS | EDAG |
 |---|---|
