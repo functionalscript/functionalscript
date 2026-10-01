@@ -82,6 +82,8 @@ export const proof = {
         unset: () => assertEq(b.unset(199)(b.universe), b.range([0, 198])),
         throw: {
             size: () => bitSet(bigintOps)(-1),
+            // A carrier that checks nothing: the factory refuses the size itself.
+            uncheckedSize: () => bitSet({ ...bigintOps, mask: len => (1n << BigInt(len)) - 1n })(-1),
             negative: () => b.one(-1),
             fraction: () => b.has(1.5)(b.universe),
             one: () => b.one(200),

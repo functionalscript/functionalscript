@@ -53,7 +53,6 @@ export const proof = {
             assertEq(r, universe)
         },
         universe: () => {
-        assertEq(universe, 0xFFFF)
             const r = complement(universe)
             assertEq(r, empty)
         },

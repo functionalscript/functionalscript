@@ -78,7 +78,8 @@ export const numberOps = {
  */
 export const bitSet = ({ one, mask, or, and, xor }) => size => {
     const empty = mask(0)
-    const universe = mask(size)
+    // `index` here, not only in the carriers: a custom `BitOps` need not check.
+    const universe = mask(index(size))
     const member = bitIndex(size - 1)
     /** @type {(n: number) => T} */
     const memberOne = n => one(member(n))
