@@ -1,5 +1,6 @@
 /**
- * Implementation-private types for the B-tree demo.
+ * Types for the B-tree demo (`./demo.f.mjs`). Its exports name them, so they
+ * are part of its declarations rather than private.
  *
  * @module
  */

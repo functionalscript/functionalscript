@@ -3,7 +3,7 @@
  * @import { TNode } from './types/types.ts'
  * @import { List, Result } from '../list/types.ts'
  * @import { DemoEvent } from '../../website/demo/types.ts'
- * @import { _State } from './private.ts'
+ * @import { _State } from './types.ts'
  */
 
 import { values } from './module.f.mjs'
@@ -122,7 +122,10 @@ const demoProof = {
         assertEq(count(h)('data-graph-kind="new"'), 3)
         assertEq(count(h)('data-graph-kind="shared"'), 8)
         assertEq(count(h)('data-graph-kind="replaced"'), 3)
-        assert(h.includes('>7 8<'), h)
+        // The new leaf holds 7 and 8, each in a row of its own.
+        assert(h.includes('>Leaf2<'), h)
+        assert(h.includes('>Value0<'), h)
+        assert(h.includes('data-graph-value-label="">8<'), h)
         assert(h.includes('Last step, insert 8: 3 new (green), 4 shared with the version before, 3 replaced (red).'), h)
     },
     // A full leaf splits, and its middle key moves up into a branch of five.
@@ -130,8 +133,11 @@ const demoProof = {
         const s = press('insert')('9')(press('insert')('8')(demo.init))
         assertEq(censusOf(s), '{"built":4,"shared":4,"replaced":3}')
         const h = html(s)
-        assert(h.includes('>6 8<'), h)
-        assert(h.includes('>6…8<'), h)
+        // Left, Value0, Middle, Value1, Right, in the node's own order.
+        const node5 = h.indexOf('>Node5<')
+        assert(node5 !== -1, h)
+        const rows = ['>Left<', '>Value0<', '>Middle<', '>Value1<', '>Right<'].map(row => h.indexOf(row, node5))
+        assert(rows.every((at, i) => at !== -1 && (i === 0 || rows[i - 1] < at)), h)
     },
     // Splitting up to the root grows the tree a level and still shares
     // every leaf it did not touch.

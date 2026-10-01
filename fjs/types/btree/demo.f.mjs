@@ -27,7 +27,7 @@
  * @module
  *
  * @import { TNode, Tree } from './types/types.ts'
- * @import { _State, _Versions } from './private.ts'
+ * @import { _State, _Versions } from './types.ts'
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Shape } from '../../website/demo/graph/types.ts'
  */
@@ -105,11 +105,13 @@ export const _census = ({ before, after }) => {
 
 /**
  * How the walk reads one tree, given both versions to tell a node's kind
- * from. A node's label is its keys, and each of its ports says which keys
- * the subtree it leads to holds. Only a whole version can be empty, so the
- * `empty` inline is drawn as the graph's one node.
+ * from. A node is drawn as its type — `Leaf1`, `Leaf2`, `Node3`, `Node5` —
+ * with one row per element, in the element's own order: a subtree row is an
+ * edge to it (`Left`, `Middle`, `Right`), and a key row holds the key
+ * (`Value`, or `Value0` and `Value1`). Only a whole version can be empty, so
+ * the `empty` inline is drawn as the graph's one node.
  *
- * @type {(v: _Versions) => (value: Tree<number>) => Shape<Tree<number>>}
+ * @type {(v: _Versions) => (value: Tree<number> | number) => Shape<Tree<number> | number>}
  */
 const shapeOf = ({ before, after }) => {
     const old = nodesOf(before)
@@ -118,17 +120,21 @@ const shapeOf = ({ before, after }) => {
     const kindOf = node => !old.includes(node) ? 'new' : current.includes(node) ? 'shared' : 'replaced'
     return value => {
         if (value === null) { return { inline: 'empty' } }
+        if (typeof value === 'number') { return { inline: String(value) } }
         const kind = kindOf(value)
         switch (value.length) {
-            case 1: { return { kind, label: String(value[0]), children: [] } }
-            case 2: { return { kind, label: `${value[0]} ${value[1]}`, children: [] } }
+            case 1: { return { kind, label: 'Leaf1', children: [['Value', value[0]]] } }
+            case 2: {
+                const [v0, v1] = value
+                return { kind, label: 'Leaf2', children: [['Value0', v0], ['Value1', v1]] }
+            }
             case 3: {
-                const [l, k, r] = value
-                return { kind, label: String(k), children: [[`< ${k}`, l], [`> ${k}`, r]] }
+                const [l, v, r] = value
+                return { kind, label: 'Node3', children: [['Left', l], ['Value', v], ['Right', r]] }
             }
             case 5: {
-                const [l, a, m, b, r] = value
-                return { kind, label: `${a} ${b}`, children: [[`< ${a}`, l], [`${a}…${b}`, m], [`> ${b}`, r]] }
+                const [l, v0, m, v1, r] = value
+                return { kind, label: 'Node5', children: [['Left', l], ['Value0', v0], ['Middle', m], ['Value1', v1], ['Right', r]] }
             }
         }
     }
