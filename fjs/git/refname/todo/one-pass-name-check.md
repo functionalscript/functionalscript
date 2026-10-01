@@ -1,7 +1,7 @@
 ## `isName` materialises a name it could read in one pass
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
