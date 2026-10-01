@@ -405,7 +405,7 @@ const lambda = () => {
  */
 const callbacksProof = () => {
     /** @type {(name: CallbackName, args: readonly Value[]) => unknown} */
-    const call = (name, args) => corpus()(['()', callbackExp(name), valueExp(args)])
+    const call = (name, args) => corpus()(['()', callbackExp(name), args.map(valueExp)])
     assertStructurallySame(call('args', [1, 'a']), [1, 'a'])
     assertEq(call('first', [3, 4]), 3)
     assertEq(call('prop', [{ x: 5 }]), 5)
@@ -429,8 +429,8 @@ const method = () => {
     const g = { method: /** @type {const} */ ('at'), cases: [] }
     assertStructurallySame(
         exprOf(g)([[1, 2], 0]),
-        ['.', ['[]', [1, 2]], 'at', ['|()', ['[]', [0]]]])
-    assertStructurallySame(exprOf(g)([[]]), ['.', ['[]', []], 'at', ['|()', ['[]', []]]])
+        ['.', ['[]', [1, 2]], 'at', ['|()', [0]]])
+    assertStructurallySame(exprOf(g)([[]]), ['.', ['[]', []], 'at', ['|()', []]])
     assertEq(groupKey(g), '.at')
     assertEq(corpus()(exprOf(g)([[1, 2], -1])), 2)
 }

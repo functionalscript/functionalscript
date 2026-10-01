@@ -73,7 +73,7 @@ export type Analysis = {
 
 type _Op1 = Assert<Equal<Over<Op1, Operand, IndexOperand>, readonly [Op1[0], Operand]>>
 type _Op2 = Assert<Equal<Over<Op2, Operand, IndexOperand>, readonly [Op2[0], Operand, Operand]>>
-type _Call = Assert<Equal<Over<Call, Operand, IndexOperand>, readonly ['()', Operand, Operand]>>
+type _Call = Assert<Equal<Over<Call, Operand, IndexOperand>, readonly ['()', Operand, readonly ItemOperand[]]>>
 type _Dot = Assert<Equal<Over<Dot, Operand, IndexOperand>,
     | readonly ['.', Operand, IndexOperand]
     | readonly ['.', Operand, IndexOperand, Step]>>

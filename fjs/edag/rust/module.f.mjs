@@ -440,6 +440,38 @@ const printer = nested => shared => root => {
     const children = node => isBound(/** @type {Exp} */ (/** @type {unknown} */ (node))) ? [] : operandsOf(node)
     const order = visit(children)([])(root).filter(([n]) => !isBound(n))
     const eager = eagerNodesOf(root)
+    /** The argument lists the nodes under `root` hold, each a thunk's root ({@link argListsOf}). */
+    const argLists = order.flatMap(([n]) => argListsOf(/** @type {readonly unknown[]} */ (/** @type {unknown} */ (n))))
+    /** @type {(e: Exp) => boolean} */
+    const isArgs = e => argLists.includes(e)
+    /**
+     * The nodes a thunk's root reaches eagerly: an argument list's items',
+     * the list being no node, and any other root's own, {@link eagerNodesOf}.
+     *
+     * @type {(e: Exp) => readonly Exp[]}
+     */
+    const reached = e => isArgs(e) ? /** @type {readonly unknown[]} */ (e).reduce(reach, []) : eagerNodesOf(e)
+    /**
+     * The nodes under a thunk's root, each with how many places reach it,
+     * {@link visit}'s count: an argument list's items', the list being no
+     * node, and any other root's own.
+     *
+     * @type {(e: Exp) => readonly (readonly [node: Exp, count: number])[]}
+     */
+    const visited = e => isArgs(e)
+        ? /** @type {readonly unknown[]} */ (e).reduce((/** @type {readonly (readonly [Exp, number])[]} */ v, child) => visit(children)(v)(child), [])
+        : visit(children)([])(e)
+    /**
+     * The nodes a block over `e` holds: the ones `e` reaches eagerly,
+     * {@link reached}, and the thunk over every lazy operand of an
+     * operation among them, which the block makes where the operation is.
+     *
+     * @type {(e: Exp) => readonly Exp[]}
+     */
+    const held = e => {
+        const r = reached(e)
+        return [...r, ...r.flatMap(lazyOperandsOf)]
+    }
     /**
      * Every lazy operand nothing establishes eagerly: the root of its
      * thunk's block. A lazy operand also reached eagerly is an ordinary
@@ -457,8 +489,8 @@ const printer = nested => shared => root => {
      *
      * @type {(n: Exp) => Exp | undefined}
      */
-    const owner = n => thunks.find(t => eagerNodesOf(t).includes(n)
-        && visit(children)([])(t).some(([m, count]) => m === n && order.some(([o, total]) => o === n && total === count)))
+    const owner = n => thunks.find(t => reached(t).includes(n)
+        && visited(t).some(([m, count]) => m === n && order.some(([o, total]) => o === n && total === count)))
     const lazyOnly = order.find(([n, count]) => count >= 2 && !eager.includes(n) && !atomic(n) && owner(n) === undefined)
     if (lazyOnly !== undefined) {
         return error(['no Rust for a shared node reached only through lazy operands; a `let` binding would establish what the program may not', lazyOnly[0]])
@@ -479,7 +511,7 @@ const printer = nested => shared => root => {
      *
      * @type {(e: Exp) => readonly Exp[]}
      */
-    const valueNodes = e => !isComma(e) || isShared(last(e)) ? [e] : [e, ...valueNodes(last(e))]
+    const valueNodes = e => isArgs(e) || !isComma(e) || isShared(last(e)) ? [e] : [e, ...valueNodes(last(e))]
     /** @type {(e: Exp) => boolean} */
     const isThunk = e => thunks.includes(e)
     /**
@@ -502,12 +534,20 @@ const printer = nested => shared => root => {
         : [])
     /**
      * The temporaries in dependency order, each with how many places
-     * reference it by name.
+     * reference it by name: among the nodes, and each argument list right
+     * before the chain holding it, after its items — a thunk's root, which
+     * is a temporary as any thunk is, and reached from one place, unless it
+     * is empty, an atom's thunk.
      *
      * @type {readonly (readonly [node: Exp, refs: number])[]}
      */
-    const temporaries = order.flatMap(([n, count]) =>
-        (atomic(n) && count < 2) || isMember(n) || structural.includes(n) || inline.includes(n)
+    const temporaries = order.flatMap(entry => [
+        ...argListsOf(/** @type {readonly unknown[]} */ (/** @type {unknown} */ (entry[0])))
+            .map(list => /** @type {readonly [Exp, number]} */ ([list, 1])),
+        entry,
+    ]).flatMap(([n, count]) =>
+        (isArgs(n) ? /** @type {readonly unknown[]} */ (n).length === 0 : (atomic(n) && count < 2) || isMember(n))
+            || structural.includes(n) || inline.includes(n)
             ? []
             : [/** @type {readonly [Exp, number]} */ ([n, count - discarded.filter(d => d === n).length])])
     /** @type {(e: Exp) => boolean} */
@@ -605,11 +645,7 @@ const printer = nested => shared => root => {
         // `bindingError` refuses a read past the slots, so no `undefined`
         // case as an `args` read has.
         if (id === 'frame') { return ok(`A::frame(self_)[${a}].clone()`) }
-        if (id === '[]') {
-            return a.length === 0
-                ? ok('Array::default().to_any()')
-                : mapOk((/** @type {readonly string[]} */ items) => `[${items.join(', ')}].to_array().to_any()`)(okList(a.map(f)))
-        }
+        if (id === '[]') { return arrayExpr(a) }
         if (id === '{}') {
             return a.length === 0
                 ? ok('Object::default().to_any()')
@@ -652,6 +688,15 @@ const printer = nested => shared => root => {
         }
         return bare(/** @type {readonly any[]} */ (e))
     }
+    /**
+     * An item list as the array it builds, an `[]` node's and a call's
+     * arguments alike.
+     *
+     * @type {(a: readonly Exp[]) => Result<string, readonly unknown[]>}
+     */
+    const arrayExpr = a => a.length === 0
+        ? ok('Array::default().to_any()')
+        : mapOk((/** @type {readonly string[]} */ items) => `[${items.join(', ')}].to_array().to_any()`)(okList(a.map(f)))
     /**
      * A function, `['=>', length, slots, body]`, as a function value: a closure
      * bound through `IStaticFunction`, the `StaticCode<A>` signature's two
@@ -717,10 +762,10 @@ const printer = nested => shared => root => {
                 : map2((fa, t) => `Any::option_call(${fa}, ${t})`)(f(a), lazyOperand(b))
             return map2((o, rest) => `${o}${rest}`)(open, steps(id === '.')(c))
         }
-        // A call, `['()', callee, args]`: `Any::call`, the callee and the
-        // arguments both values, as the node's operands are — the callee a
-        // function and the arguments an array, or `nanvm-lib` throws.
-        if (id === '()') { return map2((fn, x) => `Any::call(${fn}, ${x})`)(operand(a), operand(b)) }
+        // A call, `['()', callee, args]`: `Any::call`, the callee a value
+        // and the arguments the array their item list builds — the callee a
+        // function, or `nanvm-lib` throws.
+        if (id === '()') { return map2((fn, x) => `Any::call(${fn}, ${x})`)(operand(a), arrayExpr(b)) }
         // The first operand is established in every operation; the ones
         // after it are what a lazy operation establishes conditionally.
         const rest = lazy.includes(id) ? lazyOperand : operand
@@ -815,7 +860,8 @@ const printer = nested => shared => root => {
      *
      * @type {(e: Exp) => Result<string, readonly unknown[]>}
      */
-    const result = e => isComma(e) && !inline.includes(e) ? result(last(e))
+    const result = e => isArgs(e) ? mapOk(s => `Ok(${s})`)(arrayExpr(/** @type {readonly Exp[]} */ (/** @type {unknown} */ (e))))
+        : isComma(e) && !inline.includes(e) ? result(last(e))
         : isOperation(e) && bound.every(([n]) => n !== e) ? bare(/** @type {readonly any[]} */ (e))
         : mapOk(s => `Ok(${s})`)(f(e))
     /**
@@ -1011,20 +1057,62 @@ const operandsOf = node => {
     return id === '=>' ? /** @type {readonly unknown[]} */ (node[2])
         : id === 'arg' ? []
         : ['[]', '{}', ','].includes(/** @type {string} */ (id)) ? /** @type {readonly unknown[]} */ (node[1])
-        : isChain(id) ? [...eagerOperandsOf(node), ...lazyOperandsOf(/** @type {Exp} */ (/** @type {unknown} */ (node)))]
+        : id === '()' ? [node[1], .../** @type {readonly unknown[]} */ (node[2])]
+        : isChain(id) ? [...eagerOperandsOf(node), ...chainLazy(one, items)(node)]
         : node.slice(1)
 }
 
 /**
- * The operands of a continuation `k` — the step's own key or arguments,
- * then its continuation's — and none where there is none. A continuation
- * is not a node: it is a lambda over the chain's current value
+ * What a continuation `k` holds, the step's own key or arguments, then its
+ * continuation's, and nothing where there is none: `key` reads a `|.`
+ * step's key and `args` a call step's item list. A continuation is not a
+ * node: it is a lambda over the chain's current value
  * (`fjs/edag/README.md`, Chains), so a walk never lists it, only what it
  * holds, every item of which is inside the chain and so lazy.
  *
- * @type {(k: unknown) => readonly unknown[]}
+ * @type {(key: (x: unknown) => readonly unknown[], args: (x: unknown) => readonly unknown[]) => (k: unknown) => readonly unknown[]}
  */
-const stepOperands = k => k === undefined ? [] : [/** @type {readonly any[]} */ (k)[1], ...stepOperands(/** @type {readonly any[]} */ (k)[2])]
+const stepOperands = (key, args) => k => {
+    if (k === undefined) { return [] }
+    const [step, x, next] = /** @type {readonly any[]} */ (k)
+    return [...(step === '|.' ? key(x) : args(x)), ...stepOperands(key, args)(next)]
+}
+
+/**
+ * What a chain node holds in its lazy positions, {@link lazyOperandsOf},
+ * each key read by `key` and each argument list by `args`: a `?.` or `?.()`
+ * node's key or arguments, inside the region its guard opens, and its
+ * continuation's, {@link stepOperands}; a `.` node's continuation's, after
+ * an access that may throw with them untouched; none for any other node.
+ *
+ * @type {(key: (x: unknown) => readonly unknown[], args: (x: unknown) => readonly unknown[]) => (node: readonly unknown[]) => readonly unknown[]}
+ */
+const chainLazy = (key, args) => node => {
+    const [id, , b, k] = node
+    return id === '.' ? stepOperands(key, args)(k)
+        : id === '?.' ? [...key(b), ...stepOperands(key, args)(k)]
+        : id === '?.()' ? [...args(b), ...stepOperands(key, args)(k)]
+        : []
+}
+
+/** A position read as one operand. @type {(x: unknown) => readonly unknown[]} */
+const one = x => [x]
+
+/** An item list read as its items, an argument list's walk. @type {(x: unknown) => readonly unknown[]} */
+const items = x => /** @type {readonly unknown[]} */ (x)
+
+/** A position left out. @type {(x: unknown) => readonly unknown[]} */
+const none = () => []
+
+/**
+ * The argument lists a chain node holds in its lazy positions, each one
+ * operand a thunk establishes as the array a call takes: not a node, so a
+ * walk reads its items ({@link operandsOf}), and the printer knows it by
+ * position, from here.
+ *
+ * @type {(node: readonly unknown[]) => readonly unknown[]}
+ */
+const argListsOf = chainLazy(none, one)
 
 /**
  * The operands a node establishes unconditionally: a lazy operation's
@@ -1078,35 +1166,17 @@ const reach = (seen, root) => {
 
 /**
  * The operands a node establishes only conditionally, the ones its thunks
- * establish: a lazy operation's operands after the first; a `?.` or `?.()`
- * node's key or arguments, inside the region its guard opens, and its
- * continuation's operands, {@link stepOperands}; a `.` node's
- * continuation's operands, after an access that may throw with them
- * untouched; none for any other node. What is not eager is lazy, and the
- * two lists together are {@link operandsOf}'s.
+ * establish: a lazy operation's operands after the first, and a chain's
+ * lazy positions, {@link chainLazy}, an argument list as one operand —
+ * the array its thunk establishes. What is not eager is lazy, and the two
+ * lists together are {@link operandsOf}'s, an argument list read there as
+ * its items.
  *
  * @type {(n: Exp) => readonly Exp[]}
  */
 const lazyOperandsOf = n => {
     const node = /** @type {readonly any[]} */ (n)
-    const [id] = node
-    return /** @type {readonly Exp[]} */ (
-        lazy.includes(id) ? node.slice(2)
-        : id === '.' ? stepOperands(node[3])
-        : id === '?.' || id === '?.()' ? [node[2], ...stepOperands(node[3])]
-        : [])
-}
-
-/**
- * The nodes a block over `e` holds: the ones `e` reaches eagerly,
- * {@link eagerNodesOf}, and the thunk over every lazy operand of an
- * operation among them, which the block makes where the operation is.
- *
- * @type {(e: Exp) => readonly Exp[]}
- */
-const held = e => {
-    const reached = eagerNodesOf(e)
-    return [...reached, ...reached.flatMap(lazyOperandsOf)]
+    return /** @type {readonly Exp[]} */ (lazy.includes(node[0]) ? node.slice(2) : chainLazy(one, one)(node))
 }
 
 /**

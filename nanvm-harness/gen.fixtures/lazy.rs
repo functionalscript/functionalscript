@@ -49,9 +49,8 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         let c2: Any<A> = (Any::conditional(c1, || Ok(c0.clone()), || Ok(c0.clone())))?;
         Any::dot(c2, f64_any(0x0000000000000000)).end()
     }, 0, Array::default(), Some("(...$a)=>($a.length?$a:$a)[0]")).to_any();
-    let c38: Any<A> = [f64_any(0x402a000000000000)].to_array().to_any();
-    let c39: Any<A> = Any::call(c37, c38)?;
-    let c40: Any<A> = A::static_function(|_self, args| {
+    let c38: Any<A> = Any::call(c37, [f64_any(0x402a000000000000)].to_array().to_any())?;
+    let c39: Any<A> = A::static_function(|_self, args| {
         let rest = args.clone().into_iter().to_array();
         let c0: Any<A> = Any::dot(Array::default().to_any(), string_any("length")).end()?;
         let c1 = || Ok(rest.clone().to_any());
@@ -59,8 +58,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         let c3: Any<A> = (Any::logical_or(c2, c1))?;
         Any::dot(c3, string_any("length")).end()
     }, 0, Array::default(), Some("(...$a)=>([].length&&$a||$a).length")).to_any();
-    let c41: Any<A> = [f64_any(0x402c000000000000), f64_any(0x402e000000000000)].to_array().to_any();
-    let c42: Any<A> = Any::call(c40, c41)?;
-    let c43: Any<A> = [c2, c5, c9, c11, c12, c15, c19, c20, c23, c26, c28, c30, c32, c34, c36, c39, c42].to_array().to_any();
-    Ok([(string_key("default"), c43)].to_object().to_any())
+    let c40: Any<A> = Any::call(c39, [f64_any(0x402c000000000000), f64_any(0x402e000000000000)].to_array().to_any())?;
+    let c41: Any<A> = [c2, c5, c9, c11, c12, c15, c19, c20, c23, c26, c28, c30, c32, c34, c36, c38, c40].to_array().to_any();
+    Ok([(string_key("default"), c41)].to_object().to_any())
 }

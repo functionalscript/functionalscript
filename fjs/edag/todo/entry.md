@@ -41,7 +41,7 @@ const entry = (a, b) => {
 ```
 
 `['entry']` is the proposed nullary node denoting this function of arity `2`.
-A use is an ordinary call, `['()', E, ['[]', [a, b]]]`, where `E` denotes
+A use is an ordinary call, `['()', E, [a, b]]`, where `E` denotes
 that node. The descriptor remains inside the recognized function body.
 
 | Read | Result |

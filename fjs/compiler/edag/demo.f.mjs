@@ -111,6 +111,17 @@ const dotLabel = index => typeof index === 'number' || typeof index === 'string'
 const unsupported = exp => ({ kind: 'unsupported', label: `${exp[0]} (not yet drawn)`, children: [] })
 
 /**
+ * The ports of an item list, an `[]` node's and a call's arguments alike:
+ * one per item, numbered by position, a spread's marked `...`.
+ *
+ * @type {(items: unknown) => readonly (readonly [string, Exp])[]}
+ */
+const itemChildren = items => /** @type {readonly (readonly unknown[] | Exp)[]} */ (items).map((item, i) =>
+    item instanceof Array && item[0] === '...'
+        ? [`...${i}`, /** @type {Exp} */ (item[1])]
+        : [`${i}`, /** @type {Exp} */ (item)])
+
+/**
  * How the walk reads one `Exp`: an operation node, with its own label and
  * its labeled children, or a value drawn inline in its user's port.
  *
@@ -134,15 +145,7 @@ export const _shapeOf = e => {
     if (e === null || typeof e !== 'object') { return { inline: concat(leafSerialize(/** @type {Primitive} */ (e))) } }
     const exp = /** @type {readonly unknown[]} */ (e)
     const tag = exp[0]
-    if (tag === '[]') {
-        const items = /** @type {readonly (readonly unknown[] | Exp)[]} */ (exp[1])
-        return {
-            kind: 'op', label: '[]',
-            children: items.map((item, i) => item instanceof Array && item[0] === '...'
-                ? [`...${i}`, /** @type {Exp} */ (item[1])]
-                : [`${i}`, /** @type {Exp} */ (item)]),
-        }
-    }
+    if (tag === '[]') { return { kind: 'op', label: '[]', children: itemChildren(exp[1]) } }
     if (tag === '{}') {
         const props = /** @type {readonly (readonly unknown[])[]} */ (exp[1])
         return {
@@ -167,10 +170,7 @@ export const _shapeOf = e => {
         return { kind: 'op', label: dotLabel(index), children: [['obj', /** @type {Exp} */ (exp[1])], ...indexChild] }
     }
     if (tag === '()') {
-        return {
-            kind: 'op', label: '()',
-            children: [['callee', /** @type {Exp} */ (exp[1])], ['arg', /** @type {Exp} */ (exp[2])]],
-        }
+        return { kind: 'op', label: '()', children: [['callee', /** @type {Exp} */ (exp[1])], ...itemChildren(exp[2])] }
     }
     if (tag === ',') {
         const items = /** @type {readonly Exp[]} */ (exp[1])

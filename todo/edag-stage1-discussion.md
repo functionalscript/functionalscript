@@ -216,23 +216,25 @@ Agreed points (not under discussion):
   `a.indexOf(x)` and `const p = a.indexOf; p(x)` differ observably. It is
   spelled by the property-access node owning its call (subject 6), not by a
   distinct `".()"` tag.
-- `args` is **a single operand that evaluates to an array**, not a
-  literal list of operand nodes: `f(a, b)` is
-  `["()", f, ["[]", a, b]]`. Same for every other argument operand:
-  `"?.()"`'s and the call steps' (subject 6).
+- `args` is **an item list, the one `[]` holds**, read by position:
+  `f(a, b)` is `["()", f, [a, b]]`. Same for every other argument operand:
+  `"?.()"`'s and the call steps' (subject 6). The list is no node, so it is
+  never shared or hoisted, and its position, not its first item, says it is
+  a list: `f('.', x)` is `["()", f, [".", x]]`.
 
-  **A spread argument is not the argument array.** `f(...xs)` is
-  `["()", f, ["[]", [["...", xs]]]]`, not the shortcut `["()", f, xs]`.
-  A spread iterates its operand, so `f(...'ab')` passes `'a'` and `'b'`,
-  while `["()", f, "ab"]` hands a string where the call expects an array,
-  and throws. The type of `xs` is unknown, so the shortcut is wrong in
-  general.
+  An earlier draft made `args` one node evaluating to the argument array,
+  `["()", f, ["[]", [a, b]]]`, since a literal list would need a spread
+  marker and a node could pass a computed array through. The marker exists,
+  `["...", exp]`, and passing an array through is the exception: a spread
+  iterates its operand, so `f(...'ab')` passes `'a'` and `'b'`, and the type
+  of an operand is unknown in general, so the wrapper is gone.
 
-  Forwarding stays free where the operand is an array by construction:
-  `(...r) => f(...r)` may be `["()", f, ["rest"]]`. Every callee builds its
-  own rest array from the arguments, the JS factories with `...rest` and the
-  Rust printer by collecting `args`, so the forwarded array is never the
-  callee's, and no identity is observable.
+  **A spread argument is a `...` item.** `f(...xs)` is
+  `["()", f, [["...", xs]]]`, and forwarding, `(...r) => f(...r)`, is
+  `["()", f, [["...", ["rest"]]]]`. Every callee builds its own rest array
+  from the arguments, the JS factories with `...rest` and the Rust printer
+  by collecting `args`, so the caller's array is never the callee's, and an
+  executor may skip the copy where the operand is an array by construction.
 
   A call spread is therefore an array spread, the arguments array built
   as `[a, ...x, b]` is, and runs the same `GetIterator`
@@ -268,7 +270,7 @@ schema is free to change independently of both.
 |`["{}", [...entry]]`|`{ … }`|1|ordered object constructor; the entries are one operand, an array — initial entry form is `[":", key, value]` (subject 4)|
 |`["args"]`|—|1|the arguments array (subject 2)|
 |`[".", object, property]`, `[".", object, property, k]`|`o.p`, `o[p]`, `o.p(...args)`|1|property access, owning whatever its receiver is used for; a plain read leaves `k` out and is the shorter tuple; `property` is restricted (see below)|
-|`["()", callee, args]`|`f(...args)`|2|call with no receiver; `args` is one node yielding an array (subject 6)|
+|`["()", callee, args]`|`f(...args)`|2|call with no receiver; `args` is an item list (subject 6)|
 |`["?.", object, property]`, `["?.", object, property, k]`|`o?.p`, and the rest of its optional region|later|optional property access; same `property` restriction|
 |`["?.()", callee, args]`, `["?.()", callee, args, k]`|`f?.(...args)`, and the rest of its optional region|later|optional call|
 |`["\|()", args]`, `["\|()", args, k]`|one chain step, `(...args)`|2|not an `exp` node — only valid as the continuation `k` of a chain node or another step (subject 6); this is the step a method call's `.` node carries, so Stage 2 needs it|

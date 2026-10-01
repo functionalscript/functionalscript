@@ -92,10 +92,10 @@ select the enumerable-entry operation.
 | `a[0]` | `['.', A, 0]` | Current |
 | `a.foo(x)` | `['.', A, 'foo', ['\|()', Args]]` | Current receiver-preserving lowering, for permitted names |
 | Complete recognized `entry` definition | `['entry']` | Proposed in `entry.md` |
-| `entry(a, key)` | `['()', E, ['[]', [A, K]]]` | Proposed ordinary call of that helper |
+| `entry(a, key)` | `['()', E, [A, K]]` | Proposed ordinary call of that helper |
 
 `A`, `K` and `E` denote lowered receiver, key and helper expressions;
-`Args` denotes the lowered argument-array expression. The method-call
+`Args` denotes the lowered argument list. The method-call
 continuation preserves the receiver; a detached `()` over a completed
 property read does not. Parsing these constructs into a JavaScript-subset AST
 is separate from admitting and lowering them into EDAG.

@@ -30,9 +30,6 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c16: Any<A> = (strict_eq(c15, Nullish::Undefined.to_any()))?;
     let c17: Any<A> = [c7, c9, c10, c11, c14, c16].to_array().to_any();
     let c18: Any<A> = Any::dot(c1.clone(), string_any("add")).end()?;
-    let c19: Any<A> = A::static_function(|self_, _args| {
-        let c0: Any<A> = [f64_any(0x4034000000000000), f64_any(0x4036000000000000)].to_array().to_any();
-        Any::call(A::frame(self_)[0].clone(), c0)
-    }, 0, [c18].to_array(), Some("()=>$0(20,22)")).to_any();
+    let c19: Any<A> = A::static_function(|self_, _args| { Any::call(A::frame(self_)[0].clone(), [f64_any(0x4034000000000000), f64_any(0x4036000000000000)].to_array().to_any()) }, 0, [c18].to_array(), Some("()=>$0(20,22)")).to_any();
     Ok([(string_key("captured"), c5.clone()), (string_key("checks"), c17), (string_key("main"), c19)].to_object().to_any())
 }

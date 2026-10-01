@@ -98,9 +98,8 @@ const anchoring = ({ exp, anchors }) => anchors.length === 0 ? exp : [',', [...a
  *
  * Any other callee is the plain call, `['()', callee, args]`.
  *
- * The arguments are one array node in both, which is what the EDAG's call
- * takes: `exp0(...exp1)`, its second operand spread. A fresh node per call
- * site, since each call writes its own list.
+ * The arguments are an item list in both, the list `[]` would hold, which
+ * is no node of its own: `f(a, b)` is `['()', f, [a, b]]`.
  *
  * @type {(nodes: _Nodes) => (ast: AstCall) => _Lowered}
  */
@@ -111,14 +110,13 @@ const call = nodes => ast => {
         return parts(body, (captures ?? []).map(c => lower(nodes)(c).exp))
     }
     const items = args.map(lower(nodes))
-    /** @type {Exp} */
-    const spread = ['[]', items.map(x => x.exp)]
+    const list = items.map(x => x.exp)
     if (callee !== null && typeof callee === 'object' && callee[0] === '.') {
         const base = lower(nodes)(callee[1])
-        return { exp: ['.', base.exp, callee[2], ['|()', spread]], anchors: [...base.anchors, ...floated(items)] }
+        return { exp: ['.', base.exp, callee[2], ['|()', list]], anchors: [...base.anchors, ...floated(items)] }
     }
     const f = lower(nodes)(callee)
-    return { exp: ['()', f.exp, spread], anchors: [...f.anchors, ...floated(items)] }
+    return { exp: ['()', f.exp, list], anchors: [...f.anchors, ...floated(items)] }
 }
 
 /**

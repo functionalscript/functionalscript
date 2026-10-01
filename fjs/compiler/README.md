@@ -225,8 +225,8 @@ A call is a step after a value, as an access is, and the callee picks which of
 the EDAG's two forms it lowers to: an access as the callee is a method call,
 `a.b(c)`, whose receiver is that access's base, so the access owns the call
 and the two are one node, `['.', a, 'b', ['|()', args]]`; any other callee is
-the plain `['()', callee, args]`, its arguments one array node the call
-spreads. The plain form over an access is the *detached* receiver,
+the plain `['()', callee, args]`, its arguments an item list, the one an
+array literal holds. The plain form over an access is the *detached* receiver,
 `(0, a.b)(c)`, which needs the comma operator and is unspellable, so no
 source writes one — `(a.b)(c)` keeps the receiver and is the method call
 again, parentheses preserving the property reference. A call mints identity — two calls are
