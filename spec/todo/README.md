@@ -86,7 +86,8 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
 2. [ ] [destructuring](./2450-destructuring.md),
 3. [ ] [js-string-literals](./2460-js-string-literals.md),
 4. [ ] number spellings beyond JSON's — `0x10`, `0o7`, `0b1`, `.5`, `1.`,
-   `1_000` ([numbers](../README.md#numbers)); `.5` lands with
+   `1_000` ([numbers](../README.md#numbers)); hexadecimal is proposed in
+   [hex-literals](./2470-hex-literals.md); `.5` lands with
    [`?.` before a digit](../../fjs/js/tokenizer/todo/optional-chain-before-digit.md),
 5. [ ] names beyond ASCII — Unicode identifier characters and `\u` escapes
    in a name, `const é = 1` ([identifiers](../README.md#identifiers)),
