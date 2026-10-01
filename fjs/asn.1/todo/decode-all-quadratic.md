@@ -25,8 +25,10 @@ O(n) costs stacked per iteration:
 Total cost is O(n²) in the number of top-level elements of a SEQUENCE/SET.
 The second cost was the smaller one. At `93ed6ba`, decoding a SEQUENCE of
 small INTEGERs on Node took about 45 ms for 1,000 elements, 0.45 s for 4,000
-and 8 s for 16,000; with the array build fixed, the 16,000-element case took
-about 7 s, so the `pop` cost is what remains.
+and 8 s for 16,000. At `b4f3ae5`, the commit of
+[#2480](https://github.com/functionalscript/functionalscript/pull/2480) that
+fixed the array build, the 16,000-element case took about 7 s, so the `pop`
+cost is what remains.
 
 This is **latent**: nothing outside `fjs/asn.1` calls `decodeSequence` /
 `decodeSet` yet (not `fjs/crypto/sign` or anything else), and an OBJECT
