@@ -20,6 +20,7 @@
  */
 
 import { assertNotNullish } from '../../asserts/module.f.mjs'
+import { assoc, dedup } from '../../types/array/module.f.mjs'
 import { reservedWords, strictModeReservedWords } from '../../js/keywords/module.f.mjs'
 import { at, definedEntries } from '../../types/object/module.f.mjs'
 import { primitive, union, printer as tsPrinter } from '../../types/ts/module.f.mjs'
@@ -91,14 +92,6 @@ const identifiers = rules => {
     return result
 }
 
-/** @type {(ids: readonly (readonly [string, string])[], name: string) => string | undefined} */
-const idOf = (ids, name) => {
-    for (const [k, v] of ids) {
-        if (k === name) { return v }
-    }
-    return undefined
-}
-
 /**
  * A reference prints as its definition's identifier; a reference naming a
  * missing definition is malformed data and panics.
@@ -107,7 +100,7 @@ const idOf = (ids, name) => {
  */
 const nodeToTs = ctx => n =>
     typeof n === 'string'
-        ? assertNotNullish(idOf(ctx.ids, n), `missing definition: ${n}`)
+        ? assertNotNullish(assoc(n)(ctx.ids), `missing definition: ${n}`)
         : unionToTs(ctx)(n)
 
 /**
@@ -234,9 +227,6 @@ const interiorToTs = ctx => n => {
  * @type {(ctx: _Ctx) => (n: Node) => boolean}
  */
 const isNever = ctx => n => cmp([{}, resolveNode(ctx)(n)])([{}, bottom]) === 0
-
-/** @type {(list: readonly string[]) => readonly string[]} */
-const dedup = list => list.filter((s, i) => list.indexOf(s) === i)
 
 /**
  * A struct prints its fields — a key whose value set admits **absence**

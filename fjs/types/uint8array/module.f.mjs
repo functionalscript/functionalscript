@@ -15,19 +15,20 @@
 
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
-import { msb, tryU8ListToVec, u8ListMsb } from '../bit_vec/module.f.mjs'
+import { tryU8ListToVecMsb, u8ListMsb } from '../bit_vec/module.f.mjs'
 import { compose } from '../function/module.f.mjs'
 import { flat, fromArrayLike, iterable, map } from '../list/module.f.mjs'
 
-const tryU8ListToVecMsb = tryU8ListToVec(msb)
 const m = map(fromArrayLike)
 
 /**
  * Concatenates a list of `Uint8Array` values into one MSB-first bit vector.
  *
  * Throws if the result would exceed `maxLength`. The bound is not precomputed:
- * `tryU8ListToVec` attempts the real conversion and reports `null` when it does
- * not fit (`doc/DESIGN.md` §6).
+ * `tryU8ListToVecMsb` attempts the real conversion and reports `null` when it
+ * does not fit (`doc/DESIGN.md` §6). It unwraps that `null` itself rather than
+ * composing `u8ListToVecMsb`, whose failure is a bare assertion, so that the
+ * overflow says what went wrong.
  *
  * @type {(input: List<Uint8Array>) => Vec}
  */

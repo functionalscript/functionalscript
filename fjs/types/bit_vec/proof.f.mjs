@@ -7,7 +7,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { mask } from '../bigint/module.f.mjs'
 import { asBase, asNominal } from '../nominal/module.f.mjs'
-import { length, empty, uint, vec, lsb, msb, repeat, vec8, maxLength, maxLengthBytes, u8ListToVec, tryU8ListToVec, u8List, u8ListToVecMsb, u8ListMsb, chunkList, tailPaddedUintChunkList, fromSentinel, bytesIn, bitsIn, wholeBytes, isWholeBytesIn, byteLength, isWholeBytes } from './module.f.mjs'
+import { length, empty, uint, vec, lsb, msb, repeat, vec8, maxLength, maxLengthBytes, u8ListToVec, tryU8ListToVec, tryU8ListToVecMsb, u8List, u8ListToVecMsb, u8ListMsb, chunkList, tailPaddedUintChunkList, fromSentinel, bytesIn, bitsIn, wholeBytes, isWholeBytesIn, byteLength, isWholeBytes } from './module.f.mjs'
 import { repeat as listRepeat, toArray } from '../list/module.f.mjs'
 
 /** @type {(a: bigint) => Vec} */
@@ -544,9 +544,15 @@ export const proof = {
         // `tryListToVec`/`listToVec` above, exercised through the byte-list API.
         try: () => {
             assertEq(tryU8ListToVec(msb)(listRepeat(0x12)(131_073)), null)
+            assertEq(tryU8ListToVecMsb(listRepeat(0x12)(131_073)), null)
         },
-        throw: () => {
-            u8ListToVec(msb)(listRepeat(0x12)(131_073))
+        throw: {
+            u8ListToVec: () => {
+                u8ListToVec(msb)(listRepeat(0x12)(131_073))
+            },
+            u8ListToVecMsb: () => {
+                u8ListToVecMsb(listRepeat(0x12)(131_073))
+            },
         },
     },
     u8ListUnaligned: () => {
