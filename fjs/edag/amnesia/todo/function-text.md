@@ -31,7 +31,8 @@ writer's text:
   built it as a host adapter. It was reverted: a `Proxy` cannot be built
   in FunctionalScript, so the evaluator's own values would depend on a host
   object the language does not have. A thin `.mjs` adapter is no way around
-  it either: a `.f.mjs` module cannot import a `.mjs` one.
+  it either: a FunctionalScript module (`.f.mjs`, `.f.js`) cannot import a
+  JavaScript one (`.mjs`, `.js`).
 - **Setting `toString` is mutation.** `Object.defineProperty` on the fresh
   callable is property mutation, which the language does not grant.
 - **A host conversion never reaches an evaluator node.** `join`, `+`,
