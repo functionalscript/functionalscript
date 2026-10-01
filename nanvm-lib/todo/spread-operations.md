@@ -158,8 +158,11 @@ What `get_iterator` returns, and what `object_spread` returns beside it:
   scope: FunctionalScript has no such value.
 - **`size_hint` is exact for an array** and bounds a string, at least half
   its remaining code units, rounded up, and at most all of them. The array
-  builder can check the length limit from the upper bound before it
-  allocates, and must still check the count it actually got.
+  builder may reject early only when the lower bounds already exceed the
+  length limit, and may use the upper bounds to size its allocation. A
+  string's upper bound counts code units, so it can exceed the limit while
+  the code points it yields do not: that is no `RangeError`. Acceptance
+  depends on the count actually produced.
 - **`ObjectSpread<A>`** is the object side's counterpart, with
   `Item = (String<A>, Any<A>)`. Its object variant needs the deduplicated
   key order before its first entry, so it computes that order when it is

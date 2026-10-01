@@ -277,6 +277,12 @@ throws where `a?.b.c` does not.
 
 ### Spellings
 
+In this table `(...c)` stands for a call's whole argument list and `c` for
+the one node that builds its argument array: `f(a, b)` has
+`c = ['[]', [a, b]]`, and `f(...xs)` has `c = ['[]', [['...', xs]]]`. `c` is
+never a bare spread operand, since a spread iterates it
+([nodes](#nodes), above).
+
 | JS | EDAG |
 |---|---|
 | `a.b` | `['.', a, 'b']` |
