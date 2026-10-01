@@ -1,7 +1,7 @@
 ## has-state. `hasState` intersects where `sorted_set` already has `has`
 
 **Priority:** P5
-**Status:** open
+**Status:** wip
 
 ### Problem
 
