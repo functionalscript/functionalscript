@@ -1,7 +1,7 @@
 ## width-precondition. "The id must be this repository's width" is asserted five times, in two wordings
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
