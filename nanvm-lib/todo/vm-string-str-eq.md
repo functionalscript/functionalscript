@@ -1,7 +1,7 @@
 ## vm-string-str-eq. A property name is compared by building a VM string first
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
