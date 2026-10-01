@@ -1,4 +1,4 @@
-import { platformNodeSteps } from './module.f.mjs'
+import { installNode, platformNodeSteps } from './module.f.mjs'
 import { toSteps } from '../common/module.f.mjs'
 import { actions, node } from '../config/module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -41,4 +41,8 @@ export const proof = {
             'expected the published CLI installed globally')
         assert(runs.includes('fjs test'), 'expected the suite run by that CLI')
     },
+    // Extra `setup-node` inputs ride along with the pinned Node, after it.
+    installNodeInputs: () => assertStructurallySame(
+        installNode({ 'registry-url': 'https://registry.example/' }).with,
+        { 'node-version': node.default, 'registry-url': 'https://registry.example/' }),
 }
