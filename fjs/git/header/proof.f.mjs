@@ -1,4 +1,5 @@
 /**
+ * @import { List } from '../../types/list/types.ts'
  * @import { Payload } from './types.ts'
  */
 
@@ -6,7 +7,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { fromArrayLike, toArray } from '../../types/list/module.f.mjs'
 import { commitPayload, headerOnlyTagPayload, hole, latin1 } from '../testlib.f.mjs'
-import { hasNulHeader, keyIs, tryRead, valueAt, valuesOf, write } from './module.f.mjs'
+import { checkedAt, checkedOptionalAt, fieldAt, hasNulHeader, keyIs, optionalAt, tryFieldAt, tryRead, valueAt, valuesOf, write } from './module.f.mjs'
 
 /** @type {(input: readonly number[]) => Payload} */
 const read = input => {
@@ -86,6 +87,37 @@ export const proof = {
         assertEq(valueAt(p, 0, 'trees'), null)
         assertEq(valueAt(p, 6, 'gpgsig'), null)
         assertEq(valueAt(read(latin1('\n')), 0, 'tree'), null)
+    },
+    // A field by position, key and parser, in each of the five shapes:
+    // found and parsed, absent, and present but refused by the parser.
+    fields: () => {
+        const p = read(latin1('a 1\nb x\n\n'))
+        /** @type {(v: List<number>) => number | null} */
+        const parse = v => {
+            const [d] = toArray(v)
+            return d >= 0x30 && d <= 0x39 ? d - 0x30 : null
+        }
+        assertEq(fieldAt(0, 'a', parse, 'no a', 'bad a')(p), 1)
+        assertEq(tryFieldAt(0, 'a', parse)(p), 1)
+        assertEq(tryFieldAt(0, 'b', parse)(p), null)
+        assertEq(tryFieldAt(1, 'b', parse)(p), null)
+        assertEq(optionalAt(0, 'a', parse, 'bad a')(p), 1)
+        assertEq(optionalAt(2, 'c', parse, 'bad c')(p), null)
+        assertStructurallySame(checkedAt(0, 'a', parse, 'no a', 'bad a')(p), ['ok', 1])
+        assertStructurallySame(checkedAt(2, 'c', parse, 'no c', 'bad c')(p), ['error', 'no c'])
+        assertStructurallySame(checkedAt(1, 'b', parse, 'no b', 'bad b')(p), ['error', 'bad b'])
+        assertStructurallySame(checkedOptionalAt(0, 'a', parse, 'bad a')(p), ['ok', 1])
+        assertStructurallySame(checkedOptionalAt(2, 'c', parse, 'bad c')(p), ['ok', null])
+        assertStructurallySame(checkedOptionalAt(1, 'b', parse, 'bad b')(p), ['error', 'bad b'])
+    },
+    // The panicking shapes refuse a header that is absent, and one whose
+    // value the parser refuses.
+    fieldsRefused: {
+        throw: {
+            fieldAtMissing: () => fieldAt(2, 'c', toArray, 'no c', 'bad c')(read(latin1('a 1\nb x\n\n'))),
+            fieldAtBad: () => fieldAt(1, 'b', () => null, 'no b', 'bad b')(read(latin1('a 1\nb x\n\n'))),
+            optionalAtBad: () => optionalAt(1, 'b', () => null, 'bad b')(read(latin1('a 1\nb x\n\n'))),
+        },
     },
     // A key as bytes against a name: the same bytes, and nothing shorter,
     // longer or other.
