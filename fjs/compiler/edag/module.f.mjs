@@ -17,7 +17,7 @@
  * @import { _Binding, _Entries, _Link, _Lowered, _LowerResults, _LowerWork, _Nodes, _Resolved } from './private.ts'
  */
 
-import { anchors, isInlinedCall, readCaptures } from '../ast/module.f.mjs'
+import { anchors, isBinary, isInlinedCall, isLazy, readCaptures } from '../ast/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { _attributeError, _importSources, _missingExport, _rootSource, _parseJson, _parseModule } from '../transpiler/module.f.mjs'
 import { foldStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
@@ -272,25 +272,14 @@ const lower = nodes => root => {
                 work = rest
                 continue
             }
+            if (isBinary(ast)) {
+                work = { kind: 'expand', ast: ast[1], rest: { kind: 'expand', ast: ast[2], rest: { kind: 'binary', tag: ast[0], rest } } }
+                continue
+            }
             switch (ast[0]) {
-                case '-': {
-                    if (ast.length !== 2) {
-                        work = { kind: 'expand', ast: ast[1], rest: { kind: 'expand', ast: ast[2], rest: { kind: 'binary', tag: ast[0], rest } } }
-                        break
-                    }
-                    work = { kind: 'expand', ast: ast[1], rest: { kind: 'neg', rest } }
-                    break
-                }
+                case '-': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'neg', rest } }; break }
                 case '~': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'bitnot', rest } }; break }
                 case 'throw': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'throw', rest } }; break }
-                case '*': case '/': case '%': case '**':
-                case '+':
-                case '===': case '!==': case '<': case '<=': case '>': case '>=':
-                case '&': case '|': case '^': case '<<': case '>>': case '>>>':
-                case '&&': case '||': case '??': {
-                    work = { kind: 'expand', ast: ast[1], rest: { kind: 'expand', ast: ast[2], rest: { kind: 'binary', tag: ast[0], rest } } }
-                    break
-                }
                 case '?:': {
                     work = { kind: 'expand', ast: ast[1], rest: { kind: 'expand', ast: ast[2], rest: { kind: 'expand', ast: ast[3], rest: { kind: 'ternary', rest } } } }
                     break
@@ -345,7 +334,7 @@ const lower = nodes => root => {
         const right = assertNotNullish(results, ['no right operand for', tag, root])
         const left = assertNotNullish(right.rest, ['no left operand for', tag, root])
         results = {
-            top: ['&&', '||', '??'].includes(tag)
+            top: isLazy(tag)
                 ? { exp: [tag, left.top.exp, anchoring(right.top)], anchors: left.top.anchors }
                 : { exp: [tag, left.top.exp, right.top.exp], anchors: [...left.top.anchors, ...right.top.anchors] },
             rest: left.rest,
