@@ -1,7 +1,7 @@
 ## export-node-accessors. `rtti/ts` and `json/schema` re-implement `rtti/data`'s private `Node` accessors
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
