@@ -786,9 +786,10 @@ fraction and no exponent: after `0x`, `e` is a digit, so `0x10e1` is `4321`,
 and a `.` after the digits is the next token, so `0x10.length` is an access,
 as in JavaScript. `0x` with no digit, and a word or a digit standing directly
 after the literal (`0xg`, `0x1g`), are errors in both languages. The spelling
-is the source's and not the value's: every output writes `0xFF` as `255`, as
-it writes a single-quoted string between double quotes, and two modules that
-differ only in it are one graph.
+is the source's and not the value's: every output writes `0xFF` exactly as
+it writes `255` — `255` in the `.js`, DataJS, JSON and EDAG outputs, and
+the double's bits in `.rs` — as it writes a single-quoted string between
+double quotes, and two modules that differ only in it are one graph.
 
 ```js
 export default [0xFF, 0XfF, 0x10e1];
@@ -892,8 +893,9 @@ export default [0n, 34n, -34n];
 A hexadecimal integer part, as a [number](#numbers) writes it, takes the
 `n` too: `0x10n` is `16n` and `0XFFn` is `255n`, exact at any width, and
 `-0x8000000000000000n` folds into the leaf `-9223372036854775808n`. An
-output that writes a `bigint` writes it in decimal, and one that refuses a
-`bigint` refuses it whatever its spelling: `.json` refuses every one.
+output writes `0x10n` exactly as it writes `16n`, and one that refuses a
+`bigint` refuses it whatever its spelling: `.json` refuses every one, and
+`.rs` one outside `i64`.
 
 ```js
 export default [0x10n, 0XFFn, -0x8000000000000000n];
