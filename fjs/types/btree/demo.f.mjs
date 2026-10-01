@@ -21,6 +21,12 @@
  * to *Before*. A key that is not an integer is refused by name, and the
  * trees stay as they were.
  *
+ * **A preset loads a tree and a key, and takes no step.** Each puts a tree
+ * under both drawings, a key in the field and a hint naming the button to
+ * press, so the reader makes the change and sees it happen; picking one
+ * again is how to start over. After the first press the drop-down says
+ * `Custom`.
+ *
  * **It needs no operations.** Inserting, removing and walking are pure, so
  * `update` declares `never`.
  *
@@ -28,6 +34,7 @@
  *
  * @import { TNode, Tree } from './types/types.ts'
  * @import { _State, _Versions } from './types.ts'
+ * @import { Examples } from '../../website/demo/examples/types.ts'
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Shape } from '../../website/demo/graph/types.ts'
  */
@@ -37,6 +44,8 @@ import { remove } from './remove/module.f.mjs'
 import { cmp } from '../number/module.f.mjs'
 import { graphOf, graphSvg } from '../../website/demo/graph/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
+import { examplePicker, name as exampleName } from '../../website/demo/examples/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.mjs'
 
 /**
  * `text` as a key, or `null` if it is none. A key is a safe integer spelled
@@ -68,7 +77,7 @@ export const _press = op => state => {
     return {
         key: state.key,
         versions: { before: after, after: (op === 'insert' ? insert(key) : remove(cmp(key)))(after) },
-        last: `${op} ${key}`,
+        status: { last: `${op} ${key}` },
         error: null,
     }
 }
@@ -146,33 +155,75 @@ const empty = null
 /** @type {(tree: Tree<number>, key: number) => Tree<number>} */
 const insertInto = (tree, key) => insert(key)(tree)
 
-/** The tree holding 1 to 6, one insert away from the opening state. */
-const six = [1, 2, 3, 4, 5, 6].reduce(insertInto, empty)
+/** @type {(n: number) => readonly number[]} */
+const upTo = n => Array.from({ length: n }, (_, i) => i + 1)
 
 /**
- * The page opens on a step already taken — 7 inserted into the tree of 1 to
- * 6 — so there is something to compare before the first press, and the field
- * holds 8, the next key to try.
+ * The presets the drop-down offers: a name, the keys whose inserts build the
+ * starting tree, the key put in the field, and the hint naming the button
+ * to press and what it will show.
+ *
+ * @type {readonly (readonly [name: string, keys: readonly number[], key: number, hint: string])[]}
+ */
+export const presets = [
+    ['Insert into a leaf', upTo(7), 8, 'Press Insert to add 8: only the path to the leaf 7 is built again, and the rest is shared.'],
+    ['Empty tree', [], 1, 'Press Insert to add 1, then keep inserting 2, 3, … to watch the tree grow from a single leaf.'],
+    ['Split a leaf', upTo(8), 9, 'Press Insert to add 9: the leaf 7 8 is full, so it splits and 8 moves up into its parent.'],
+    ['Grow a level', upTo(14), 15, 'Press Insert to add 15: the split runs all the way up to the root, and the tree grows a level.'],
+    ['Remove and merge', upTo(7), 7, 'Press Remove to take out 7: its leaf empties and merges with its sibling, and the tree shrinks a level.'],
+    ['Remove a missing key', upTo(7), 9, 'Press Remove to take out 9: it is not in the tree, so nothing changes and every node is shared.'],
+    ['Big tree', upTo(31), 32, 'Press Insert to add 32: only the five nodes on its path are built again, and the other 26 are shared.'],
+]
+
+/**
+ * Each preset by its name, which is also its source: the selection is read
+ * off the status, and a loaded preset's status names it.
+ *
+ * @type {Examples}
+ */
+const examples = presets.map(([n]) => [n, n])
+
+const picker = examplePicker(examples)
+
+/**
+ * The state a preset loads: its tree under both drawings, so every node is
+ * shared until the first press.
+ *
+ * @type {(name: string) => _State}
+ */
+export const _load = name => {
+    // `pick` refuses a name no preset has, which only a bug can send.
+    const source = picker.pick(name)
+    const [, keys, key, hint] = assertNotNullish(presets.find(([n]) => n === source))
+    const tree = keys.reduce(insertInto, empty)
+    return { key: String(key), versions: { before: tree, after: tree }, status: { preset: name, hint }, error: null }
+}
+
+/** @type {(last: string) => (census: { readonly built: number, readonly shared: number, readonly replaced: number }) => string} */
+const lastLine = last => ({ built, shared, replaced }) =>
+    `Last step, ${last}: ${built} new (green), ${shared} shared with the version before, ${replaced} replaced (red).`
+
+/**
+ * The page opens on the first preset, loaded.
  *
  * @type {Demo<_State, DemoEvent>}
  */
 export const demo = {
-    init: { key: '8', versions: { before: six, after: insert(7)(six) }, last: 'insert 7', error: null },
+    init: _load(presets[0][0]),
     update: state => event => pureOk(
         event.kind === 'input' && event.name === 'key' ? { ...state, key: event.value }
+        : event.kind === 'input' && event.name === exampleName ? _load(event.value)
         : event.kind === 'click' && (event.name === 'insert' || event.name === 'remove') ? _press(event.name)(state)
         : state),
-    view: ({ key, versions, last, error }) => {
-        const { built, shared, replaced } = _census(versions)
+    view: ({ key, versions, status, error }) => {
         const draw = graphOf(shapeOf(versions))
         return ['div',
             ['p',
                 'Every step builds a new tree and leaves the old one as it was, ',
                 'but only the path from the root to the change is built again: ',
-                'everything else is shared by both versions. Try 8 and then 9, ',
-                'which splits a leaf; 10 to 15, which grow the tree a level; or ',
-                'removing 7, which merges two leaves.',
+                'everything else is shared by both versions.',
             ],
+            picker.view('preset' in status ? status.preset : ''),
             ['p',
                 ['label', { for: 'btree-key' }, 'Key '],
                 ['input', { type: 'text', id: 'btree-key', name: 'key', value: key, size: '6' }],
@@ -182,11 +233,11 @@ export const demo = {
                 ['button', { type: 'button', name: 'remove' }, 'Remove'],
             ],
             ...(error === null ? [] : [/** @type {const} */ (['p', `Error: ${error}`])]),
+            ['p', 'preset' in status ? status.hint : lastLine(status.last)(_census(versions))],
             ['h3', 'Before'],
             graphSvg(draw(versions.before)),
             ['h3', 'After'],
             graphSvg(draw(versions.after)),
-            ['p', `Last step, ${last}: ${built} new (green), ${shared} shared with the version before, ${replaced} replaced (red).`],
         ]
     },
 }

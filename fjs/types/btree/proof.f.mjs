@@ -1,6 +1,6 @@
 /**
  * @import { Unknown } from '../../media/json/types.ts'
- * @import { TNode } from './types/types.ts'
+ * @import { TNode, Tree } from './types/types.ts'
  * @import { List, Result } from '../list/types.ts'
  * @import { DemoEvent } from '../../website/demo/types.ts'
  * @import { _State } from './types.ts'
@@ -14,7 +14,7 @@ import { next, toArray } from '../list/module.f.mjs'
 import { set as setSet } from './set/module.f.mjs'
 import { value, find as findFind } from './find/module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
-import { _census, _press, demo } from './demo.f.mjs'
+import { _census, _load, _press, demo, presets } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { unwrap } from '../result/module.f.mjs'
@@ -99,82 +99,125 @@ const press = op => key => state => _press(op)({ ...state, key })
 /** @type {(event: DemoEvent) => (state: _State) => _State} */
 const update = event => state => unwrap(assertNotNullish(runPure(demo.update(state)(event))[0]))
 
+/**
+ * A preset loaded and its hint followed: the button the hint names, pressed
+ * with the key the preset put in the field.
+ *
+ * @type {(name: string) => _State}
+ */
+const follow = name => {
+    const loaded = _load(name)
+    const { status } = loaded
+    assert('preset' in status, '')
+    return press(status.hint.startsWith('Press Insert') ? 'insert' : 'remove')(loaded.key)(loaded)
+}
+
+/** @type {(tree: Tree<number>) => number} */
+const depth = tree => tree === null ? 0 : tree.length === 1 || tree.length === 2 ? 1 : 1 + depth(tree[0])
+
+/** @type {(name: string) => readonly [number, number]} */
+const depths = name => {
+    const { versions } = follow(name)
+    return [depth(versions.before), depth(versions.after)]
+}
+
 const demoProof = {
-    // The page opens on 7 inserted into 1 to 6, drawn twice: before and after.
+    // The page opens on the first preset loaded: one tree under both
+    // headings, every node shared, the key in the field and the hint saying
+    // what to press. Nothing has changed, so nothing is coloured.
     opening: () => {
         const h = html(demo.init)
+        assertEq(JSON.stringify(demo.init), JSON.stringify(_load(presets[0][0])))
+        assertEq(demo.init.versions.before, demo.init.versions.after)
         assertEq(count(h)('<svg'), 2)
         assert(h.includes('<h3>Before</h3>'), h)
         assert(h.includes('<h3>After</h3>'), h)
         assert(h.includes('name="insert"'), h)
         assert(h.includes('name="remove"'), h)
         assert(h.includes('value="8"'), h)
-        assert(h.includes('Last step, insert 7:'), h)
+        assert(h.includes('<option value="Insert into a leaf" selected="">'), h)
+        assert(h.includes('Press Insert to add 8'), h)
+        assertEq(count(h)('data-graph-kind="new"'), 0)
+        assertEq(count(h)('data-graph-kind="replaced"'), 0)
+        assert(!h.includes('Custom'), h)
         assert(!h.includes('Error'), h)
     },
-    // Inserting 8 builds the path to it again — the root, `6` and the leaf
-    // `7 8` — and shares the rest. Each version is its own graph, so a
-    // shared node is drawn once in each.
-    insertIntoALeaf: () => {
-        const s = press('insert')('8')(demo.init)
-        assertEq(censusOf(s), '{"built":3,"shared":4,"replaced":3}')
-        const h = html(s)
-        assertEq(count(h)('data-graph-kind="new"'), 3)
-        assertEq(count(h)('data-graph-kind="shared"'), 8)
-        assertEq(count(h)('data-graph-kind="replaced"'), 3)
-        // The new leaf holds 7 and 8, each in a row of its own.
-        assert(h.includes('>Value0<'), h)
-        assert(h.includes('data-graph-value-label="">8<'), h)
-        assert(h.includes('Last step, insert 8: 3 new (green), 4 shared with the version before, 3 replaced (red).'), h)
+    // Each preset's hint is what its press does.
+    presets: {
+        // Only the path to 8 is built again — the root, `6` and the leaf
+        // `7 8` — and the rest is shared. Each version is its own graph, so
+        // a shared node is drawn once in each.
+        insertIntoALeaf: () => {
+            const s = follow('Insert into a leaf')
+            assertEq(censusOf(s), '{"built":3,"shared":4,"replaced":3}')
+            const h = html(s)
+            assertEq(count(h)('data-graph-kind="new"'), 3)
+            assertEq(count(h)('data-graph-kind="shared"'), 8)
+            assertEq(count(h)('data-graph-kind="replaced"'), 3)
+            // The new leaf holds 7 and 8, each in a row of its own.
+            assert(h.includes('>Value0<'), h)
+            assert(h.includes('data-graph-value-label="">8<'), h)
+            assert(h.includes('Last step, insert 8: 3 new (green), 4 shared with the version before, 3 replaced (red).'), h)
+            // A press leaves the preset behind.
+            assert(h.includes('Custom'), h)
+            assert(!h.includes('Press Insert'), h)
+        },
+        // The empty tree is drawn as one node, and the first key is a leaf.
+        emptyTree: () => {
+            const loaded = html(_load('Empty tree'))
+            assertEq(count(loaded)('>empty<'), 2)
+            const s = follow('Empty tree')
+            assertEq(censusOf(s), '{"built":1,"shared":0,"replaced":0}')
+            assert(html(s).includes('Last step, insert 1:'), '')
+        },
+        // A full leaf splits, and its middle key moves up into a branch of
+        // five: Left, Value0, Middle, Value1, Right, in the node's own
+        // order, and no title above them — the rows say what the node is.
+        splitALeaf: () => {
+            const s = follow('Split a leaf')
+            assertEq(censusOf(s), '{"built":4,"shared":4,"replaced":3}')
+            const h = html(s)
+            assert(!h.includes('data-graph-label'), h)
+            const middle = h.indexOf('>Middle<')
+            assert(middle !== -1, h)
+            const node5 = h.lastIndexOf('>Left<', middle)
+            const rows = ['>Left<', '>Value0<', '>Middle<', '>Value1<', '>Right<'].map(row => h.indexOf(row, node5))
+            assert(rows.every((at, i) => at !== -1 && (i === 0 || rows[i - 1] < at)), h)
+        },
+        // The split reaches the root, and the tree grows a level.
+        growALevel: () => {
+            assertEq(censusOf(follow('Grow a level')), '{"built":7,"shared":8,"replaced":3}')
+            assertEq(JSON.stringify(depths('Grow a level')), '[3,4]')
+        },
+        // An emptied leaf merges, and the tree shrinks a level.
+        removeAndMerge: () => {
+            assertEq(censusOf(follow('Remove and merge')), '{"built":2,"shared":2,"replaced":5}')
+            assertEq(JSON.stringify(depths('Remove and merge')), '[3,2]')
+        },
+        // A missing key changes nothing: both versions are one tree.
+        removeAMissingKey: () => assertEq(censusOf(follow('Remove a missing key')), '{"built":0,"shared":7,"replaced":0}'),
+        // Five nodes built again, and 26 shared, without growing a level.
+        bigTree: () => {
+            assertEq(censusOf(follow('Big tree')), '{"built":5,"shared":26,"replaced":5}')
+            assertEq(JSON.stringify(depths('Big tree')), '[5,5]')
+        },
     },
-    // A full leaf splits, and its middle key moves up into a branch of five.
-    split: () => {
-        const s = press('insert')('9')(press('insert')('8')(demo.init))
-        assertEq(censusOf(s), '{"built":4,"shared":4,"replaced":3}')
-        const h = html(s)
-        // Left, Value0, Middle, Value1, Right, in the node's own order, and
-        // no title above them: the rows say what the node is.
-        assert(!h.includes('data-graph-label'), h)
-        const middle = h.indexOf('>Middle<')
-        assert(middle !== -1, h)
-        const node5 = h.lastIndexOf('>Left<', middle)
-        const rows = ['>Left<', '>Value0<', '>Middle<', '>Value1<', '>Right<'].map(row => h.indexOf(row, node5))
-        assert(rows.every((at, i) => at !== -1 && (i === 0 || rows[i - 1] < at)), h)
-    },
-    // Splitting up to the root grows the tree a level and still shares
-    // every leaf it did not touch.
-    growALevel: () => {
-        const s = ['8', '9', '10', '11', '12', '13', '14', '15'].reduce((state, key) => press('insert')(key)(state), demo.init)
-        assertEq(censusOf(s), '{"built":7,"shared":8,"replaced":3}')
-    },
-    // Removing 7 empties its leaf, which merges with its sibling.
-    remove: () => {
-        const s = press('remove')('7')(demo.init)
-        assertEq(censusOf(s), '{"built":2,"shared":2,"replaced":5}')
-        assert(html(s).includes('Last step, remove 7:'), '')
-    },
-    // A missing key changes nothing: both versions are one tree.
-    removeMissing: () => assertEq(censusOf(press('remove')('9')(demo.init)), '{"built":0,"shared":7,"replaced":0}'),
-    // The empty tree is drawn as one node.
-    firstKey: () => {
-        /** @type {_State} */
-        const empty = { key: '', versions: { before: null, after: null }, last: 'remove 1', error: null }
-        const h = html(press('insert')('1')(empty))
-        assert(h.includes('data-graph-kind="leaf"'), h)
-        assert(h.includes('>empty<'), h)
-        assert(h.includes('Last step, insert 1:'), h)
-    },
+    // A name no preset has is a bug in whatever sent it.
+    throw: () => _load('no such preset'),
     // Spaces around a key are not part of it, and a negative key is a key.
     keys: () => {
-        assertEq(press('insert')(' 8 ')(demo.init).last, 'insert 8')
-        assertEq(press('insert')('-3')(demo.init).last, 'insert -3')
+        assertEq(JSON.stringify(press('insert')(' 8 ')(demo.init).status), '{"last":"insert 8"}')
+        assertEq(JSON.stringify(press('insert')('-3')(demo.init).status), '{"last":"insert -3"}')
     },
-    // A field that holds no key changes no tree, and says why.
+    // A field that holds no key changes no tree, and says why; the hint
+    // stays, since nothing it describes has happened yet.
     refused: () => {
         const s = press('insert')('two')(demo.init)
         assertEq(s.versions, demo.init.versions)
-        assertEq(s.last, 'insert 7')
-        assert(html(s).includes('Error: &quot;two&quot; is not a key'), '')
+        assertEq(s.status, demo.init.status)
+        const h = html(s)
+        assert(h.includes('Error: &quot;two&quot; is not a key'), h)
+        assert(h.includes('Press Insert to add 8'), h)
         // A spelling `String` would not write back, and `NaN`, which has no
         // order for the tree to keep.
         assertEq(press('insert')('07')(demo.init).versions, demo.init.versions)
@@ -182,14 +225,15 @@ const demoProof = {
         // The next good press clears the error.
         assertEq(press('insert')('8')(s).error, null)
     },
-    // Typing changes the field only; a button applies it; anything else is
-    // ignored.
+    // Typing changes the field only; a button applies it; picking a preset
+    // loads it; anything else is ignored.
     update: () => {
         const typed = update({ kind: 'input', name: 'key', value: '9' })(demo.init)
         assertEq(typed.key, '9')
         assertEq(typed.versions, demo.init.versions)
-        assertEq(update({ kind: 'click', name: 'insert' })(typed).last, 'insert 9')
-        assertEq(update({ kind: 'click', name: 'remove' })(typed).last, 'remove 9')
+        assertEq(JSON.stringify(update({ kind: 'click', name: 'insert' })(typed).status), '{"last":"insert 9"}')
+        assertEq(JSON.stringify(update({ kind: 'click', name: 'remove' })(typed).status), '{"last":"remove 9"}')
+        assertEq(update({ kind: 'input', name: 'example', value: 'Big tree' })(typed).key, '32')
         assertEq(update({ kind: 'click', name: 'other' })(typed), typed)
         assertEq(update({ kind: 'input', name: 'other', value: '1' })(typed), typed)
         assertEq(update({ kind: 'start' })(typed), typed)

@@ -14,13 +14,21 @@ export type _Versions = {
 }
 
 /**
- * The demo's state: the key field as typed, the last two versions, the step
- * that turned one into the other (`insert 8`), and why the last press did
- * nothing, if it did nothing.
+ * What the drawings show: a preset as it was loaded — its name, and the hint
+ * saying which button to press — or the step that turned *Before* into
+ * *After* (`insert 8`).
+ */
+export type _Status =
+    | { readonly preset: string, readonly hint: string }
+    | { readonly last: string }
+
+/**
+ * The demo's state: the key field as typed, the last two versions, what
+ * they show, and why the last press did nothing, if it did nothing.
  */
 export type _State = {
     readonly key: string
     readonly versions: _Versions
-    readonly last: string
+    readonly status: _Status
     readonly error: string | null
 }
