@@ -77,8 +77,9 @@ export const assertNotNullish = (a, msg) => {
  * @type {<T>(r: Result<T, unknown>) => T}
  */
 export const assertOk = r => {
-    assert(r[0] === 'ok', r)
-    return r[1]
+    const [tag, value] = r
+    assert(tag === 'ok', r)
+    return value
 }
 
 /**
@@ -88,8 +89,9 @@ export const assertOk = r => {
  * @type {<E>(r: Result<unknown, E>) => E}
  */
 export const assertError = r => {
-    assert(r[0] === 'error', r)
-    return r[1]
+    const [tag, value] = r
+    assert(tag === 'error', r)
+    return value
 }
 
 /**
