@@ -1,7 +1,7 @@
-## function-text. The FunctionalScript evaluator answers a function's text
+## function-text. The FunctionalScript evaluator cannot answer a function's text
 
-**Priority:** P2
-**Status:** open, needs a design decision
+**Priority:** P3
+**Status:** open; a custom text is ruled out
 
 ### Problem
 
@@ -16,54 +16,39 @@ and `String(f)` of it is the factory's own source,
 ([default function text](../../../../spec/todo/3120-parameters.md#default-function-text-render-or-refuse))
 calls that a wrong successful result: it has to render or refuse.
 
-It also splits the operator corpus. Every case that shows a function's text
-carries a `host` marker (`fjs/nanvm/types.ts`) and runs in Rust only.
+The corpus's function-text cases therefore carry a `host` marker
+(`fjs/nanvm/types.ts`) and run on the Rust side only.
 
-Refusing is not enough on its own. The evaluator can refuse its own
-`String` node, but the host converts a function inside `join`, `+`,
-`startsWith` and the rest, and those paths never reach an evaluator node.
-Only the value itself can answer them.
+### Why the evaluator's functions cannot carry the text
 
-### Proposal
+A FunctionalScript function cannot be given a custom `toString`, so the
+evaluator, which is FunctionalScript, cannot make one that answers the
+writer's text:
 
-Give the value the text, through the one conversion every host path reads,
-`toString`:
+- **A `Proxy` is not a FunctionalScript object.** A `get` trap answering
+  `toString` would give every host conversion the text, and
+  [#2418](https://github.com/functionalscript/functionalscript/pull/2418)
+  built it as a host adapter. It was reverted: a `Proxy` cannot be built
+  in FunctionalScript, so the evaluator's own values would depend on a host
+  object the language does not have. A thin `.mjs` adapter is no way around
+  it either: a FunctionalScript module (`.f.mjs`, `.f.js`) cannot import a
+  JavaScript one (`.mjs`, `.js`).
+- **Setting `toString` is mutation.** `Object.defineProperty` on the fresh
+  callable is property mutation, which the language does not grant.
+- **A host conversion never reaches an evaluator node.** `join`, `+`,
+  `startsWith` and the rest convert the value itself, so refusing in the
+  evaluator's own `String` node would not cover them.
 
-1. **A `Proxy` over the callable** (recommended). A `get` trap answers
-   `toString` with a function returning the text and forwards every other
-   key. Nothing is mutated, and each evaluation still mints its own
-   identity; `typeof`, calls and `length` are the callable's. Every host
-   conversion reaches the trap through `OrdinaryToPrimitive`. FunctionalScript
-   has no `Proxy`, so this lives in a thin `.mjs` adapter beside
-   `types/function/length`, the host boundary AGENTS.md allows.
-2. **`Object.defineProperty` on the fresh callable.** It is smaller, but it
-   is property mutation, which the parameter plan says it does not grant.
+Rust's text does not depend on any of this: `nanvm-lib` holds the text
+beside the function (`IStaticFunction::static_function`), and the
+generated corpus tests check it there.
 
-Either way the text is computed on first conversion, not at creation:
-conversion is rare, and `tryFunctionText` walks the whole body. The node
-the `=>` operation holds, `['=>', length, frameExp, body]`, is exactly what
-`tryFunctionText` takes, and D2's code-only answer (`$0`, `$1`, …) needs
-no captured values, so the evaluator renders the same text `nanvm-lib`
-does. A body the writer refuses throws `FUNCTION_TEXT`'s message rather
-than answering the factory's text.
+### What remains open
 
-`fjs/edag` sits below `fjs/compiler`, so the renderer is handed to the
-executor rather than imported by `operations`: the `Context` that
-`amnesia` builds takes a `functionText` beside `invoke`. That keeps the
-EDAG layer free of the compiler, and the host-side tests can pass a stub.
-
-Then the corpus drops the `host` marker, and both sides run every
-function-text case.
-
-### Tasks
-
-- [ ] Approve the mechanism (the `Proxy` adapter or `defineProperty`).
-- [ ] The adapter, with its proof: calls, `length`, identity and every
-      host conversion of a text-bearing callable.
-- [ ] The `=>` operation answers its node's text through the context;
-      `amnesia` passes `tryFunctionText`.
-- [ ] Drop the corpus's `host` marker and its filter in `fjs/nanvm/proof.f.mjs`.
-- [ ] `tsc`, `fjs test`, `npm run cov`.
+Whether the evaluator should refuse where it can, in its own `String` node
+and the operations that convert operands themselves, rather than answer the
+wrapper's text there. The host conversions above stay out of reach either
+way, so the `host` marker stays.
 
 ### Related
 

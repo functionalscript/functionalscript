@@ -64,8 +64,3 @@ two boundary checks stay in front of it.
 - [ ] The module with proofs, including the top-bit case for `u32be`.
 - [ ] The three importers; no private `u32` left.
 - [ ] `tsc`, `fjs test`.
-
-### Related
-
-- [ascii-byte-constants.md](./ascii-byte-constants.md) — the same
-  readers' bare byte literals; a second thing they would share.

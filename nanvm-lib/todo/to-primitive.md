@@ -245,7 +245,8 @@ cases join the corpus with the renderer's text as their expected value.
   landed. The `self` question can wait without blocking anything.
 - **The JavaScript evaluators are not FJS VMs.** Amnesia and the operations
   layer convert a function with the host's wrapper text, so a function-text
-  corpus case cannot be checked on the host side.
+  corpus case cannot be checked on the host side. They cannot carry the
+  text either: a FunctionalScript function has no custom `toString` (step 6).
 
 #### Design: a compile-time template with holes
 
@@ -265,11 +266,12 @@ The Rust printer passes the template to the function value as an
 - **An empty frame:** the template is the text. That holds under every
   answer to the open questions in
   [serialization](../../spec/todo/serialization.md#open-questions).
-- **A non-empty frame:** only filling the holes depends on question 2. If
-  `String(f)` is code-only, a hole is a name, and `make(0)` and `make(1)`
-  share one text, as they do in JavaScript. If it instantiates the frame, a
-  hole is the rendered value, which needs a run-time value renderer that
-  keeps sharing, a function's frame rendered in place, and lazy text.
+- **A non-empty frame:** only filling the holes depends on question 2, and
+  D2 answers it code-only: a hole is a name, and `make(0)` and `make(1)`
+  share one text, as they do in JavaScript. Instantiating the frame, not
+  chosen, would have made a hole the rendered value, needing a run-time
+  value renderer that keeps sharing, a function's frame rendered in place,
+  and lazy text.
 
 Hashing needs the EDAG itself, not its text, so this does not decide
 [Stage 7](./callable-function-objects.md)'s embedded-or-lookup question.
@@ -285,16 +287,16 @@ Each needs the owner's approval before the step that depends on it.
   rest parameter the body never reads is not written, so `() => 1` is
   `()=>1`, not `(...$a)=>1`. Both denote one node, and the shorter one is
   what a reader expects.
-- **D2, the frame (question 2): code-only, chosen for now; the owner may
-  override it.** A captured value is written as the name of its slot, `$0`,
+- **D2, the frame (question 2): code-only, approved by the owner,
+  @sasha-gil, on 2026-09-30
+  ([recorded on #2418](https://github.com/functionalscript/functionalscript/pull/2418)).** A captured value is written as the name of its slot, `$0`,
   `$1`, …, so `const make = x => () => [x];` gives every function it makes
   the text `()=>[$0]`, as JavaScript gives them one text. It is small, it
   matches JavaScript, and it needs no run-time renderer: the template has
-  no holes left, so step 5 is step 4. Instantiating stays open as the
-  owner's stated preference; it replaces each name with the rendered value,
-  which costs the run-time renderer, an IIFE to keep the text one
-  expression, and lazy text, and it changes no text of a function with an
-  empty frame.
+  no holes left, so step 5 is step 4. Instantiating, the alternative, would
+  replace each name with the rendered value, which would cost the run-time
+  renderer, an IIFE to keep the text one expression, and lazy text; it
+  would change no text of a function with an empty frame.
 - **D3, `self` (question 3).** Deferred. The renderer refuses `['self']`
   until the compiler can produce it
   ([forward-references](../../spec/todo/3140-forward-references.md)).
@@ -334,12 +336,13 @@ Each needs the owner's approval before the step that depends on it.
    calls is the harness's `Action::Call`, unchanged. `ToNumber` of a
    function stays `NaN` without its text, since that is exact for any text.
 5. **Rust, for a frame** (done, with step 4): under D2's code-only answer
-   the text is complete at compile time. Instantiating, if the owner
-   chooses it, is the run-time value renderer with lazy text, big enough
-   for its own issue.
+   the text is complete at compile time, so no run-time value renderer is
+   needed.
 6. **Follow-up issues** (filed): rendering in the FJS interpreter,
-   [function-text](../../fjs/edag/amnesia/todo/function-text.md), which
-   drops the corpus's `host` marker. The property-key conversion needs no
+   [function-text](../../fjs/edag/amnesia/todo/function-text.md). It is
+   ruled out: a FunctionalScript function cannot be given a custom
+   `toString`, since a `Proxy` is not a FunctionalScript object and setting
+   the property is mutation, so the corpus's `host` marker stays. The property-key conversion needs no
    issue of its own (below). A `const` only a lazy operand reaches, which
    the writer refused at first, is now the operand's own block, an IIFE the
    front end inlines. The corpus's
@@ -374,8 +377,7 @@ already names its key conversion, `entry(o, f)` included, as its own work.
       its own `toString`, and the `toSorted` guard's test.
 - [x] Stage 2: call an object's own `toString` and `valueOf` per
       `OrdinaryToPrimitive`. Move the host-only cases into the corpus.
-- [ ] Stage 3 decisions: approve D1, and confirm or override D2's
-      code-only answer.
+- [ ] Stage 3 decisions: approve D1. D2's code-only answer is approved.
 - [x] Stage 3 steps 1 and 2: the writer spells operators and calls.
 - [x] Stage 3 step 3: `functionText`, the function's text with its slots
       named.
@@ -383,6 +385,7 @@ already names its key conversion, `entry(o, f)` included, as its own work.
       frame (tracked with the `Function` checklist in `member-functions.md`).
 - [x] Stage 3 step 5: a function with a frame, per D2 (code-only).
 - [x] Stage 3 step 6: file the FJS-interpreter rendering issue,
-      [function-text](../../fjs/edag/amnesia/todo/function-text.md).
+      [function-text](../../fjs/edag/amnesia/todo/function-text.md), which
+      records why the evaluator cannot carry the text.
 - [x] Place the property-key conversion: it is
       [`entry`](../../fjs/edag/todo/entry.md)'s key conversion.
