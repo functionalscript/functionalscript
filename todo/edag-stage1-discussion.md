@@ -218,12 +218,26 @@ Agreed points (not under discussion):
   distinct `".()"` tag.
 - `args` is **a single operand that evaluates to an array**, not a
   literal list of operand nodes: `f(a, b)` is
-  `["()", f, ["[]", a, b]]`, while spread `f(...xs)` is just
-  `["()", f, xs]` and forwarding is `["()", f, ["args"]]` — free,
-  because `["args"]` is itself a first-class array (subject 2). A
-  literal-list operand would save the `["[]", …]` wrapper in the
-  common case but would need a spread marker for those. Same for every
-  other argument operand: `"?.()"`'s and the call steps' (subject 6).
+  `["()", f, ["[]", a, b]]`. Same for every other argument operand:
+  `"?.()"`'s and the call steps' (subject 6).
+
+  **A spread argument is not the argument array.** `f(...xs)` is
+  `["()", f, ["[]", [["...", xs]]]]`, never the shortcut
+  `["()", f, xs]`, and forwarding `(...r) => f(...r)` builds a new array
+  the same way rather than passing `r` through. The shortcut is wrong
+  twice over:
+
+  - **Strings.** A spread iterates its operand, so `f(...'ab')` passes `'a'`
+    and `'b'`. `["()", f, "ab"]` hands a string where the call expects an
+    array, and throws.
+  - **Identity.** Every invocation has its own rest array, so with
+    `g = (...r) => r`, `g(...x) === x` is `false` in JavaScript. Passing
+    `x` itself as the arguments lets the callee's rest array be `x`, and the
+    comparison `true`.
+
+  A call spread is therefore an array spread, the arguments array built
+  as `[a, ...x, b]` is, and runs the same `GetIterator`
+  ([spread operations](../nanvm-lib/todo/spread-operations.md)).
 
 ### Operations
 

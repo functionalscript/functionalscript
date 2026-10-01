@@ -174,9 +174,13 @@ the node holding it, which no `op2` id has anywhere to put. A call's
 arguments — the last `exp` of `()`, the second of `?.()`, the operand of
 every call step — are one node evaluating to the complete argument array, not
 a literal operand list: `f(a, b)` is `['()', f, ['[]', [a, b]]]`, and
-`f(...xs)` needs no `...` node at all, since `['()', f, xs]` already passes
-the whole array through. A `...` node is what mixes the two: `f(a, ...b)` is
-`['()', f, ['[]', [a, ['...', b]]]]`.
+`f(a, ...b)` is `['()', f, ['[]', [a, ['...', b]]]]`. A spread argument is
+always a `...` entry of a new array, `f(...xs)` included: it is
+`['()', f, ['[]', [['...', xs]]]]` and never `['()', f, xs]`. A spread
+iterates its operand, so `f(...'ab')` passes `'a'` and `'b'`. And every
+invocation has its own rest array, so `((...r) => r)(...x) === x` is `false`.
+Passing `xs` through would fail on the first and answer `true` on the
+second.
 
 ## Chains
 
