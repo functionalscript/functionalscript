@@ -351,6 +351,26 @@ const fileHref = commit => path => name => {
 const item = kind => href => text => ['li', ['a', { href, 'data-kind': kind }, text]]
 
 /**
+ * A subdirectory's entry, marked when a demo is somewhere under it.
+ *
+ * **Under it, not in it.** Every demo lives several levels down, so a mark
+ * only on a demo's own directory would leave the root page with nothing
+ * marked, and no trail to follow. Marked by subtree, the marks lead from any
+ * page to every demo below it.
+ *
+ * The mark is an attribute for the same reason the kind is (see {@link item}):
+ * the stylesheet draws it and gives it its text alternative. It is not
+ * `data-demo`, which is what the demo runtime looks the demo's root up by.
+ *
+ * @type {(dir: Dir) => (name: string) => Element}
+ */
+const dirItem = dir => name => ['li', ['a', {
+    href: pageHref(dir.path === '.' ? name : `${dir.path}/${name}`),
+    'data-kind': 'dir',
+    'data-has-demo': dir.demoDirs.includes(name) ? '' : undefined,
+}, name]]
+
+/**
  * One section of a directory's catalogue: a heading a reader can fold the
  * section away under, over a list of entries — or nothing at all when there
  * are none, so a page says only what is true of its directory.
@@ -390,8 +410,7 @@ const section = heading => open => items =>
  */
 export const sections = commit => dir => [
     ...section('Contents')(true)([
-        ...dir.dirs.map(name =>
-            item('dir')(pageHref(dir.path === '.' ? name : `${dir.path}/${name}`))(name)),
+        ...dir.dirs.map(dirItem(dir)),
         ...dir.files.map(name => item('file')(fileHref(commit)(dir.path)(name))(name)),
     ]),
     ...section('Issues')(false)(dir.todo.map(name =>
