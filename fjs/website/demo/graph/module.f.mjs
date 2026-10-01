@@ -190,6 +190,18 @@ const valueKindOf = ({ to }) =>
     typeof to === 'number' || to.kind === undefined ? {} : { 'data-graph-value-kind': to.kind }
 
 /**
+ * The attribute of the two groups a node is drawn in — its box with its
+ * rows, and its text, which are apart because edges are drawn between
+ * them: the node's kind, so a stylesheet can treat the whole node as one,
+ * where `data-graph-kind`, on the box alone, styles the box. They are two
+ * names because a rule meant for a box, a fill or a dash, would be wrong
+ * on text.
+ *
+ * @type {(p: _Positioned) => { readonly 'data-graph-in-kind': string }}
+ */
+const inKindOf = p => ({ 'data-graph-in-kind': p.kind })
+
+/**
  * A node's ports: one row per outgoing edge, in the order the demo gave
  * the edges, stacked under the node's label.
  *
@@ -491,7 +503,7 @@ export const graphSvg = g => {
         : port.edge.label === '' ? 0
         : p.keyWidth
     /** @type {readonly Element[]} */
-    const boxEls = positioned.flatMap(p => [
+    const boxEls = positioned.map(p => ['g', inKindOf(p),
         /** @type {Element} */ (['rect', {
             x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: String(radius),
             'data-graph-node': '', 'data-graph-kind': p.kind,
@@ -527,7 +539,7 @@ export const graphSvg = g => {
     const clipEls = positioned.flatMap(p => p.ports.length === 0 ? [] : [/** @type {Element} */ (['clipPath', { id: clipIdOf(p) },
         ['rect', { x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: String(radius) }]])])
     /** @type {readonly Element[]} */
-    const labelEls = positioned.flatMap(p => [
+    const labelEls = positioned.map(p => ['g', inKindOf(p),
         ...(p.label === '' ? [] : [/** @type {Element} */ (['text', {
             x: String(p.x + p.width / 2), y: String(p.y + headerHeight / 2),
             'text-anchor': 'middle', 'data-graph-label': '',

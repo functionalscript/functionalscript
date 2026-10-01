@@ -329,6 +329,9 @@ svg text { font: inherit }
    one only the earlier one holds is replaced, and a shared one is plain. */
 [data-graph-kind="new"] { fill: var(--pass-bg) }
 [data-graph-kind="replaced"] { fill: var(--fail-bg) }
+/* A replaced node is only what the tree was: the whole node, and the edges
+   leaving it, are drawn faded. */
+[data-graph-in-kind="replaced"], [data-graph-edge-kind="replaced"] { opacity: .5 }
 [data-graph-label] { dominant-baseline: middle; fill: var(--text); font-size: .75rem }
 [data-graph-edge] { fill: none; stroke: var(--muted); stroke-width: 1.5 }
 [data-graph-edge-kind="lazy"] { stroke-dasharray: 5 3 }

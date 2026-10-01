@@ -148,6 +148,12 @@ export const proof = {
             assert(html.includes('>root<'), html)
             assert(html.includes('>42<'), html)
             assert(html.includes('>x<'), html)
+            // A node is drawn in two groups, its box and its text, each
+            // carrying its kind under a name of its own, so a rule can reach
+            // the whole node.
+            assertEq(html.split('<g data-graph-in-kind="container">').length - 1, 2)
+            assertEq(html.split('<g data-graph-in-kind="leaf">').length - 1, 2)
+            assert(html.includes('<g data-graph-in-kind="container"><text'), html)
         },
         // An empty label is no row when a node has ports: each node is its
         // one 20px row, and the edge runs from the middle of the first row
