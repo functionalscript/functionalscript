@@ -1,7 +1,7 @@
 ## map-step-combinator. Convert the remaining `step(e, x => pureOk(f(x)))` sites to `mapStep`
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 > **The API has landed.** `mapStep` is in `fjs/effects/module.f.mjs` with proof
 > coverage, and its first real consumers were converted in the same change —
