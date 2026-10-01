@@ -86,5 +86,5 @@ differs, which is the expected element.
 - [159-collapse-per-type-wrapper-traits.md](./159-collapse-per-type-wrapper-traits.md) —
   the per-newtype trait-impl inventory; this is an inherent method and is
   not on its lists.
-- [`../../fjs/js/array_index/todo/one-array-index-rule.md`](../../fjs/js/array_index/todo/one-array-index-rule.md) —
-  the same rule's JavaScript copies.
+- [`../../fjs/js/array_index/module.f.mjs`](../../fjs/js/array_index/module.f.mjs) —
+  the same rule's one JavaScript owner, `arrayIndex`.
