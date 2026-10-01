@@ -1,6 +1,9 @@
 #![doc = include_str!("README.md")]
 
-use crate::vm::{Any, BigInt, IVm, Number, String, ToAny, ToArray, ToString};
+use crate::vm::{
+    Any, BigInt, IVm, IteratorRecord, Number, String, ToAny, ToArray, ToString,
+    array::create::TOO_LONG,
+};
 
 /// An `Any` holding the string `v`.
 pub fn string_any<A: IVm>(v: &str) -> Any<A> {
@@ -68,18 +71,58 @@ pub fn spread_item<A: IVm>(v: Any<A>) -> ArrayItem<A> {
     ArrayItem::Spread(v)
 }
 
+/// An item of [`spread_array`] after its spreads' iterators are taken.
+enum Part<A: IVm> {
+    One(Any<A>),
+    Many(IteratorRecord<A>),
+}
+
 /// The array an item list holds, a spread among them: each value an
 /// element, and each spread every value its operand iterates, in order. A
 /// spread of a value that is not iterable throws, so the array is an
 /// operation's `Result` where an array without a spread is a value.
+///
+/// Every spread's iterator is taken first, and the array's length is
+/// bounded before anything is built: past JavaScript's limit, `2³² − 1`
+/// elements and `Array<A>`'s `u32` length, the result is the `RangeError`
+/// `ArrayCreate` throws, refused on the iterators' lower bounds — exact for
+/// an array — and, since a string's code points are only known by walking
+/// it, checked again as each element is added, so the build never passes
+/// the limit. Taking the iterators first is unobservable: neither an array
+/// nor a string runs code while iterated.
 pub fn spread_array<A: IVm>(
     items: impl IntoIterator<Item = ArrayItem<A>>,
 ) -> Result<Any<A>, Any<A>> {
-    let mut values = Vec::new();
-    for item in items {
-        match item {
-            ArrayItem::Value(v) => values.push(v),
-            ArrayItem::Spread(v) => values.extend(v.get_iterator()?),
+    let parts = items
+        .into_iter()
+        .map(|item| match item {
+            ArrayItem::Value(v) => Ok(Part::One(v)),
+            ArrayItem::Spread(v) => v.get_iterator().map(Part::Many),
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let at_least: u64 = parts
+        .iter()
+        .map(|p| match p {
+            Part::One(_) => 1,
+            Part::Many(i) => i.size_hint().0 as u64,
+        })
+        .sum();
+    let limit = u64::from(u32::MAX);
+    if at_least > limit {
+        return Err(TOO_LONG.into());
+    }
+    let mut values = Vec::with_capacity(at_least as usize);
+    let mut push = |v: Any<A>| -> Result<(), Any<A>> {
+        if values.len() as u64 == limit {
+            return Err(TOO_LONG.into());
+        }
+        values.push(v);
+        Ok(())
+    };
+    for part in parts {
+        match part {
+            Part::One(v) => push(v)?,
+            Part::Many(i) => i.into_iter().try_for_each(&mut push)?,
         }
     }
     Ok(values.to_array().to_any())
@@ -174,6 +217,26 @@ mod test {
             .is_empty()
         );
         assert!(spread_array([value_item(one()), spread_item(one())]).is_err());
+    }
+
+    /// Past `2³² − 1` elements the result is the `RangeError`, refused on
+    /// the iterators' exact lengths before anything is allocated: 65,537
+    /// spreads of one 65,536-element array would be 2³² + 2¹⁶ elements.
+    #[test]
+    fn spread_array_too_long() {
+        let one = || f64_any::<Naive>(0x3ff0000000000000);
+        let block: Any<Naive> = (0..65536)
+            .map(|_| one())
+            .collect::<Vec<_>>()
+            .to_array()
+            .to_any();
+        let too_many = (0..65537).map(|_| spread_item(block.clone()));
+        assert_eq!(
+            spread_array(too_many).err(),
+            Some("RangeError: Invalid array length".into())
+        );
+        let within = (0..2).map(|_| spread_item(block.clone()));
+        assert_eq!(elements(spread_array(within)).len(), 131072);
     }
 
     /// The callee receives the spread values as its arguments, and a spread
