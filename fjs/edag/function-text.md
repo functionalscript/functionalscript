@@ -13,9 +13,11 @@ without something new.
 FunctionalScript fixes a function's default text: it is the EDAG-derived
 rendering of the function's code
 ([function-source exception](../../spec/README.md#function-source-representation-exception)).
-Under D2, captured values are written as slot names
+Parameters take canonical names, and under D2 captured values are written
+as slot names
 ([to-primitive, Stage 3](../../nanvm-lib/todo/to-primitive.md#stage-3-a-functions-text)).
-So `x => x * 2` is `x=>x*2`, and `() => undefined` is `()=>undefined`.
+So `x => x * 2` is `($a_0)=>$a_0*2`, and `() => undefined` is
+`()=>undefined`.
 `nanvm-lib` answers exactly that. The FunctionalScript writer renders the
 text at compile time (`tryFunctionText` in
 [`fjs/compiler/serializer`](../compiler/serializer/module.f.mjs)), and the
@@ -38,12 +40,12 @@ g => (a0, ...rest) => g([a0], rest)
 
 The host answers a function's text from the function's own source, so:
 
-| FunctionalScript              | the evaluator answers                | `nanvm-lib` answers |
-| ----------------------------- | ------------------------------------ | ------------------- |
-| `String(x => x * 2)`          | `'(a0, ...rest) => g([a0], rest)'`   | `'x=>x*2'`          |
-| `String(x => x + 1)`          | `'(a0, ...rest) => g([a0], rest)'`   | `'x=>x+1'`          |
-| `(x => x * 2) + '!'`          | `'(a0, ...rest) => g([a0], rest)!'`  | `'x=>x*2!'`         |
-| `(x => x * 2) < (x => x + 1)` | `false`                              | `true`              |
+| FunctionalScript              | the evaluator answers                | `nanvm-lib` answers  |
+| ----------------------------- | ------------------------------------ | -------------------- |
+| `String(x => x * 2)`          | `'(a0, ...rest) => g([a0], rest)'`   | `'($a_0)=>$a_0*2'`   |
+| `String(x => x + 1)`          | `'(a0, ...rest) => g([a0], rest)'`   | `'($a_0)=>$a_0+1'`   |
+| `(x => x * 2) + '!'`          | `'(a0, ...rest) => g([a0], rest)!'`  | `'($a_0)=>$a_0*2!'`  |
+| `(x => x * 2) < (x => x + 1)` | `false`                              | `true`               |
 
 Every function of one length has the same text here, so a program that
 compares, concatenates or keys on function text can answer differently
