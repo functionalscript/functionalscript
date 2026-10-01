@@ -39,8 +39,9 @@ fn get_iterator(self) -> Result<IteratorRecord<A>, Any<A>>
 
 /// What `{...self}` copies — the source side of ECMAScript's
 /// `CopyDataProperties`: the own enumerable string-keyed properties of
-/// `self`, in `[[OwnPropertyKeys]]` order. `null`, `undefined` and other
-/// primitives have none, and nothing throws.
+/// `self`, in `[[OwnPropertyKeys]]` order. A string has one per UTF-16
+/// code unit; a number, bigint, boolean, function, `null` and `undefined`
+/// have none; and nothing throws.
 fn object_spread(self) -> ObjectSpread<A>
 ```
 
