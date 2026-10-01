@@ -315,6 +315,8 @@ export const _graphOf = text => {
  *   with two edges and a second `+` of its own.
  * - **Primitives** puts every kind of primitive — `null`, `undefined`, a
  *   boolean, a number, a bigint, a string — inline in the port that uses it.
+ *   A hexadecimal number and bigint are there too, drawn as the values they
+ *   spell, `255` and `16n`: the graph keeps the value, not the spelling.
  * - **Operators** draws arithmetic, unary, comparison and bitwise operators
  *   over a function's two parameters.
  * - **Laziness: `&&` `||` `??`** breaks each one's right edge, and
@@ -344,7 +346,7 @@ export const _graphOf = text => {
 export const examples = [
     ['Overview', 'import m from "./m.f.js";\nconst a = 1 + 2;\nconst checked = m.x < 4;\nexport default [a, a, a * 3, m && a, (...x) => x, undefined];'],
     ['Sharing: a const, not a repeated expression', 'const a = 1 + 2;\nconst b = 1 + 2;\nexport default [a, a, b];'],
-    ['Primitives', 'export default [null, undefined, true, 1, 2n, "s"];'],
+    ['Primitives', 'export default [null, undefined, true, 1, 0xFF, 2n, 0x10n, "s"];'],
     ['Operators', 'export default (a, b) => [a + b, a * b, a ** b, -a, ~a, a === b, a < b, a & b, a << b];'],
     ['Laziness: && || ??', 'export default (...a) => [a[0] && a[1], a[0] || a[1], a[0] ?? a[1]];'],
     ['Laziness: ?:', 'export default (...a) => a[0] ? a[1] : a[2];'],
