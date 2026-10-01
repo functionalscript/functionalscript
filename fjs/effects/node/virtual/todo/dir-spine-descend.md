@@ -1,7 +1,7 @@
 ## dir-spine-descend. Share the immutable `Dir`-spine descent
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
