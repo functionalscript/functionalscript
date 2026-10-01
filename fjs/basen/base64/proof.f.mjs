@@ -2,9 +2,11 @@
  * @import { Vec } from '../../types/bit_vec/types.ts'
  */
 
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { empty, vec, repeat, vec8, maxLength } from '../../types/bit_vec/module.f.mjs'
 import { encode, decode } from './module.f.mjs'
+import { demo, groupsOf } from './demo.f.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
 
 /**
  * @param {string} s
@@ -147,5 +149,31 @@ export const proof = {
         const big = repeat(90_000n)(vec8(0xffn))
         const result = encode(big)
         assertEq(result?.length, 120_000)
+    },
+    /**
+     * **What the demo shows is pinned**: the groups it draws and what
+     * `encode` wrote for them, which is what `printf '%s' … | base64`
+     * prints.
+     */
+    demo: {
+        groups: () => {
+            assertEq(JSON.stringify(groupsOf('')), JSON.stringify({ bytes: [], groups: [], encoded: '' }))
+            assertEq(JSON.stringify(groupsOf('h')), JSON.stringify({
+                bytes: ['01101000'],
+                groups: ['011010', '00·0000'],
+                encoded: 'aA==',
+            }))
+            assertEq(JSON.stringify(groupsOf('hé')), JSON.stringify({
+                bytes: ['01101000', '11000011', '10101001'],
+                groups: ['011010', '001100', '001110', '101001'],
+                encoded: 'aMOp',
+            }))
+        },
+        view: () => {
+            const html = htmlToString(demo.view(demo.init))
+            assert(html.includes('<tr><th>a</th><th>M</th><th>O</th><th>p</th></tr>'), html)
+            assert(html.includes('Result: <strong>aMOp</strong>'), html)
+            assert(html.includes('<a href="/fjs/basen/cbase32/">cbase32</a>'), html)
+        },
     },
 }

@@ -4,7 +4,9 @@
 
 import { empty, maxLength, vec } from '../../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, cBase32ToVec5x, vec5xToCBase32, vecToCBase32 } from './module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { demo, groupsOf } from './demo.f.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
 
 //
 
@@ -97,5 +99,31 @@ export const proof = {
         assertEq(cBase32ToVec('0'.repeat(209_717) + 'g'), null)
         assertEq(cBase32ToVec('0'.repeat(209_715) + '4'), null)
         assertEq(cBase32ToVec('0'.repeat(209_715) + '1'), null)
+    },
+    /**
+     * **What the demo shows is pinned**: the groups it draws, stop bit
+     * included, and what `vecToCBase32` wrote for them.
+     */
+    demo: {
+        groups: () => {
+            // Empty text is the stop bit alone.
+            assertEq(JSON.stringify(groupsOf('')), JSON.stringify({ bytes: [], groups: ['·10000'], encoded: 'g' }))
+            assertEq(JSON.stringify(groupsOf('h')), JSON.stringify({
+                bytes: ['01101000'],
+                groups: ['01101', '000·10'],
+                encoded: 'd2',
+            }))
+            assertEq(JSON.stringify(groupsOf('hé')), JSON.stringify({
+                bytes: ['01101000', '11000011', '10101001'],
+                groups: ['01101', '00011', '00001', '11010', '1001·1'],
+                encoded: 'd31tk',
+            }))
+        },
+        view: () => {
+            const html = htmlToString(demo.view(demo.init))
+            assert(html.includes('<tr><td>1001·1</td></tr><tr><th>k</th></tr>'), html)
+            assert(html.includes('Result: <strong>d31tk</strong>'), html)
+            assert(html.includes('<a href="/fjs/basen/base64/">base64</a>'), html)
+        },
     },
 }
