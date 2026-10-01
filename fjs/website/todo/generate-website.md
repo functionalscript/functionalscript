@@ -31,6 +31,8 @@
       proof, rendered on its page (`fjs/website/demo/`, `demo-runtime.mjs`;
       the first is `fjs/crypto/sha2/demo.f.mjs`, and the reasoning is
       [`../README.md`](../README.md))
+- [ ] A **Try it** section linking the demos under a page — see
+      [try-it](try-it.md)
 - [x] An `index.html` per module directory, cataloguing its files,
       subdirectories, `todo/` issues and the proofs of its subtree
       (`fjs/website/page/`; the design is [`../README.md`](../README.md))
