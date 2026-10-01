@@ -82,8 +82,8 @@ bigint_any(1) / bigint_any(0)`, the operation's own `Result`
 A **method group** is the one kind that is not an operator: `{ method: 'at',
 cases }` holds the cases of a built-in member function, and each case's `args`
 are the receiver and then the call's arguments. It lowers to the chain node a
-compiled `receiver.at(...args)` is, `['.', receiver, 'at', ['|()', ['[]',
-args]]]` ([Chains](../edag/README.md#chains)), which `amnesia` calls on the
+compiled `receiver.at(...args)` is, `['.', receiver, 'at', ['|()', args]]`
+([Chains](../edag/README.md#chains)), which `amnesia` calls on the
 host's own built-in and the Rust printer prints as `Any::dot(…).end_call(…)`,
 the call a compiled module makes. The method name is typed as
 [`fjs/js/prototype`](../js/prototype/README.md)'s `allowedCalls`, so a refused

@@ -15,7 +15,7 @@
  *
  * @module
  *
- * @import { ExpOp, Op1, Op2, Op12, Over, StepOver, TagMap } from '../types.ts'
+ * @import { ExpOp, ItemsOver, Op1, Op2, Op12, Over, StepOver, TagMap } from '../types.ts'
  * @import { Evaluator, Operations } from './types.ts'
  */
 
@@ -56,14 +56,23 @@ const o12 = (u, o) => ({ operand }) => e =>
 const nullish = v => v === undefined || v === null
 
 /**
- * The argument array of a call: one operand evaluating to the *complete*
- * array, spread at the call site — `f(a, b)` is `['()', f, ['[]', [a, b]]]`,
- * and the selected factory splits it into fixed values and rest. Passing
- * this array as a single argument would instead bind the array to position 0.
+ * The values of an item list, as `[]` builds them: each item is its value,
+ * and a spread item adds the values its operand iterates, not the operand
+ * as one element — `[...'ab']` is `['a', 'b']` and `[...1]` throws, per
+ * "array spread" in `../README.md`. `flatMap` alone would flatten only
+ * real arrays.
  *
- * @type {<E>(f: (e: E) => unknown, e: E) => readonly any[]}
+ * A call's arguments are such a list, `f(a, ...b)` is
+ * `['()', f, [a, ['...', b]]]`, and the selected factory splits the array
+ * into fixed values and rest.
+ *
+ * The cast: `E` is any operand type, so the item that is not a spread is
+ * `E` by exclusion, which a generic cannot narrow to.
+ *
+ * @type {<E>(f: (e: E) => unknown, items: ItemsOver<E>) => readonly unknown[]}
  */
-const argsOf = (f, e) => /**@type {any}*/(f(e))
+const itemsOf = (f, items) => items.flatMap(e =>
+    (e instanceof Array) && e[0] === '...' ? [.../**@type {any}*/(f(e[1]))] : [f(/**@type {any}*/(e))])
 
 /**
  * Calls a bare value — no receiver.
@@ -74,9 +83,9 @@ const argsOf = (f, e) => /**@type {any}*/(f(e))
  * method would then silently succeed on the wrapper instead of throwing:
  * `((a.at)(0))(0)` returned `Array.prototype.at`.
  *
- * @type {<E>(f: (e: E) => unknown, v: unknown, e: E) => unknown}
+ * @type {<E>(f: (e: E) => unknown, v: unknown, e: ItemsOver<E>) => unknown}
  */
-const callValue = (f, v, e) => /**@type {any}*/(v)(...argsOf(f, e))
+const callValue = (f, v, e) => /**@type {any}*/(v)(...itemsOf(f, e))
 
 /**
  * Calls `obj[prop]` *on* `obj`. That receiver is the whole reason a property
@@ -96,9 +105,9 @@ const callValue = (f, v, e) => /**@type {any}*/(v)(...argsOf(f, e))
  * argument list ahead of the property read, and every test would still
  * pass.
  *
- * @type {<E>(f: (e: E) => unknown, obj: any, prop: any, e: E) => unknown}
+ * @type {<E>(f: (e: E) => unknown, obj: any, prop: any, e: ItemsOver<E>) => unknown}
  */
-const callProperty = (f, obj, prop, e) => obj[prop](...argsOf(f, e))
+const callProperty = (f, obj, prop, e) => obj[prop](...itemsOf(f, e))
 
 /**
  * The short-circuit. A region whose guard failed produces `undefined` and
@@ -252,15 +261,7 @@ export const operations = {
     // The equality the language's guarantees are stated in: `NaN` is `NaN`
     // and `0` is not `-0`, where `===` answers the other way on both.
     is: o2(Object.is),
-    '[]': ({ operand }) => ([, a]) => {
-        // A spread operand is iterated, not spliced as one element: `[...'ab']`
-        // is `['a', 'b']` and `[...1]` throws, per "array spread" in
-        // `../README.md`. `flatMap` alone flattens only real arrays.
-        // The cast: `E` is any operand type, so the item that is not a
-        // spread is `E` by exclusion, which a generic cannot narrow to.
-        return a.flatMap(e =>
-            (e instanceof Array) && e[0] === '...' ? [.../**@type {any}*/(operand(e[1]))] : [operand(/**@type {any}*/(e))])
-    },
+    '[]': ({ operand }) => ([, a]) => itemsOf(operand, a),
     '^': o2((a, b) => a ^ b),
     args: ({ args, fixed }) => () => {
         assert(fixed === undefined, 'module args in a function')

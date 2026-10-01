@@ -475,10 +475,9 @@ export const proof = {
                 'let c1: Any<A> = Any::dot(c0, string_any("a")).end()?;',
                 'Any::dot(c1, string_any("b")).end()',
             ])
-            assertStructurallySame(scoped(['[]', [['()', ['args'], ['[]', [1]]]]]), [
-                'let c0: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();',
-                'let c1: Any<A> = Any::call(args.clone().to_any(), c0)?;',
-                'Ok([c1].to_array().to_any())',
+            assertStructurallySame(scoped(['[]', [['()', ['args'], [1]]]]), [
+                'let c0: Any<A> = Any::call(args.clone().to_any(), [f64_any(0x3ff0000000000000)].to_array().to_any())?;',
+                'Ok([c0].to_array().to_any())',
             ])
             // A literal root is `Ok` of the literal.
             assertStructurallySame(scoped(1), ['Ok(f64_any(0x3ff0000000000000))'])
@@ -651,11 +650,19 @@ export const proof = {
         },
         call: () => {
             /** @type {Exp} */
-            const e = ['()', ['args'], ['[]', [1]]]
+            const e = ['()', ['args'], [1]]
             assertEq(printed(e), 'Any::call(args.clone().to_any(), [f64_any(0x3ff0000000000000)].to_array().to_any())')
             assertStructurallySame(scoped(e), [
-                'let c0: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();',
-                'Any::call(args.clone().to_any(), c0)',
+                'Any::call(args.clone().to_any(), [f64_any(0x3ff0000000000000)].to_array().to_any())',
+            ])
+            // The arguments are a list by position, so a first item that
+            // spells a tag is a string, eager or in a thunk.
+            assertEq(
+                printed(['()', ['args'], [',', 'args']]),
+                'Any::call(args.clone().to_any(), [string_any(","), string_any("args")].to_array().to_any())')
+            assertStructurallySame(scoped(['?.()', ['undefined'], [',', 'args']]), [
+                'let c0 = || Ok([string_any(","), string_any("args")].to_array().to_any());',
+                'Any::option_call(Nullish::Undefined.to_any(), c0).end()',
             ])
         },
         /**
@@ -790,7 +797,7 @@ export const proof = {
             assertEq(holdsFunction(['=>', 0, [1], 1]), true)
             assertEq(holdsFunction(['=>', 0, [], ['rest']]), true)
             assertEq(holdsFunction(['[]', [1, ['=>', 0, [], 1]]]), true)
-            assertEq(holdsFunction(['()', ['=>', 0, [], ['rest']], ['[]', []]]), true)
+            assertEq(holdsFunction(['()', ['=>', 0, [], ['rest']], []]), true)
             assertEq(holdsFunction(['=>', 0, [], ['=>', 0, [], 1]]), true)
             assertEq(holdsFunction(['=>', 0, [], ['undefined']]), false)
             assertEq(holdsFunction(['[]', [1, 'static_function(']]), false)
@@ -910,13 +917,13 @@ export const proof = {
         /** `a.b(...c)`: `|()` with a receiver alone live is terminal. */
         methodCall: () => {
             assertEq(
-                printed(['.', ['{}', []], 'b', ['|()', ['[]', []]]]),
+                printed(['.', ['{}', []], 'b', ['|()', []]]),
                 'Any::dot(Object::default().to_any(), string_any("b")).end_call(|| Ok(Array::default().to_any()))')
         },
         /** `a.b?.(...c)`: `|?.()` opens a region the chain goes on inside, and `.end()` closes. */
         propertyOptionCall: () => {
             assertEq(
-                printed(['.', ['{}', []], 'b', ['|?.()', ['[]', []]]]),
+                printed(['.', ['{}', []], 'b', ['|?.()', []]]),
                 'Any::dot(Object::default().to_any(), string_any("b")).option_call(|| Ok(Array::default().to_any())).end()')
         },
         /**
@@ -932,9 +939,9 @@ export const proof = {
                 printed(['?.', ['{}', []], 0]),
                 'Any::option_dot(Object::default().to_any(), || Ok(f64_any(0x0000000000000000))).end()')
             assertEq(printed(['?.', ['{}', []], 'b', ['|.', 'c']]), `${open}.dot(|| Ok(string_any("c"))).end()`)
-            assertEq(printed(['?.', ['{}', []], 'b', ['|()', ['[]', []]]]), `${open}.call(${args}).end()`)
-            assertEq(printed(['?.', ['{}', []], 'b', ['|?.()', ['[]', []]]]), `${open}.option_call(${args}).end()`)
-            assertEq(printed(['?.', ['{}', []], 'b', ['|!()', ['[]', []]]]), `${open}.end_call(${args})`)
+            assertEq(printed(['?.', ['{}', []], 'b', ['|()', []]]), `${open}.call(${args}).end()`)
+            assertEq(printed(['?.', ['{}', []], 'b', ['|?.()', []]]), `${open}.option_call(${args}).end()`)
+            assertEq(printed(['?.', ['{}', []], 'b', ['|!()', []]]), `${open}.end_call(${args})`)
         },
         /**
          * `a?.(...c)`, `a?.(...c).d`, `a?.(...c)(...d)`, and the README's
@@ -944,11 +951,11 @@ export const proof = {
         optionCall: () => {
             const open = 'Any::option_call(Nullish::Undefined.to_any(), || Ok(Array::default().to_any()))'
             const args = '|| Ok(Array::default().to_any())'
-            assertEq(printed(['?.()', ['undefined'], ['[]', []]]), `${open}.end()`)
-            assertEq(printed(['?.()', ['undefined'], ['[]', []], ['|.', 'd']]), `${open}.dot(|| Ok(string_any("d"))).end()`)
-            assertEq(printed(['?.()', ['undefined'], ['[]', []], ['|()', ['[]', []]]]), `${open}.call(${args}).end()`)
+            assertEq(printed(['?.()', ['undefined'], []]), `${open}.end()`)
+            assertEq(printed(['?.()', ['undefined'], [], ['|.', 'd']]), `${open}.dot(|| Ok(string_any("d"))).end()`)
+            assertEq(printed(['?.()', ['undefined'], [], ['|()', []]]), `${open}.call(${args}).end()`)
             assertEq(
-                printed(['?.', ['{}', []], 'b', ['|()', ['[]', []], ['|.', 'd', ['|()', ['[]', []]]]]]),
+                printed(['?.', ['{}', []], 'b', ['|()', [], ['|.', 'd', ['|()', []]]]]),
                 `Any::option_dot(Object::default().to_any(), || Ok(string_any("b"))).call(${args}).dot(|| Ok(string_any("d"))).call(${args}).end()`)
         },
         /** Atomic as an operand: a method chain binds tighter than any infix operator. */
@@ -960,7 +967,7 @@ export const proof = {
         /** A `.` node with a continuation as a base: the outer read prints over the chain's own text. */
         opaqueBase: () => {
             assertEq(
-                printed(['.', ['.', ['{}', []], 'y', ['|()', ['[]', []]]], 'z']),
+                printed(['.', ['.', ['{}', []], 'y', ['|()', []]], 'z']),
                 'Any::dot(Any::dot(Object::default().to_any(), string_any("y")).end_call(|| Ok(Array::default().to_any())), string_any("z")).end()')
         },
         /**
@@ -973,10 +980,10 @@ export const proof = {
                 printed(['?.', null, 'a']),
                 'Any::option_dot(Nullish::Null.to_any(), || Ok(string_any("a"))).end()')
             assertEq(
-                printed(['?.()', ['undefined'], ['[]', []]]),
+                printed(['?.()', ['undefined'], []]),
                 'Any::option_call(Nullish::Undefined.to_any(), || Ok(Array::default().to_any())).end()')
             assertEq(
-                printed(['.', null, 'a', ['|()', ['[]', []]]]),
+                printed(['.', null, 'a', ['|()', []]]),
                 'Any::dot(Nullish::Null.to_any(), string_any("a")).end_call(|| Ok(Array::default().to_any()))')
         },
         /**
@@ -993,10 +1000,10 @@ export const proof = {
                 '}',
             ].join('\n')
             assertEq(
-                printed(['.', ['{}', []], 'b', ['|()', ['[]', [['/', 1n, 0n]]]]]),
+                printed(['.', ['{}', []], 'b', ['|()', [['/', 1n, 0n]]]]),
                 `Any::dot(Object::default().to_any(), string_any("b")).end_call(${thunk})`)
             assertStructurallySame(
-                scoped(['.', ['{}', []], 'b', ['|()', ['[]', [['/', 1n, 0n]]]]]),
+                scoped(['.', ['{}', []], 'b', ['|()', [['/', 1n, 0n]]]]),
                 [
                     'let c0 = || {',
                     '    let c1: Any<A> = (bigint_any(1) / bigint_any(0))?;',
@@ -1005,7 +1012,7 @@ export const proof = {
                     'Any::dot(Object::default().to_any(), string_any("b")).end_call(c0)',
                 ])
             assertStructurallySame(
-                scoped(['?.()', ['undefined'], ['[]', [['-', 1]]]]),
+                scoped(['?.()', ['undefined'], [['-', 1]]]),
                 [
                     'let c0 = || {',
                     '    let c1: Any<A> = (-(f64_any(0x3ff0000000000000)))?;',
@@ -1014,7 +1021,7 @@ export const proof = {
                     'Any::option_call(Nullish::Undefined.to_any(), c0).end()',
                 ])
             assertStructurallySame(
-                scoped(['?.', ['{}', []], 'b', ['|.', 'c', ['|()', ['[]', [['-', 1]]]]]]),
+                scoped(['?.', ['{}', []], 'b', ['|.', 'c', ['|()', [['-', 1]]]]]),
                 [
                     'let c0 = || {',
                     '    let c1: Any<A> = (-(f64_any(0x3ff0000000000000)))?;',
@@ -1043,27 +1050,28 @@ export const proof = {
         sharing: () => {
             /** @type {Exp} */
             const one = ['[]', [1]]
-            assertStructurallySame(scoped(['?.()', ['undefined'], ['[]', [one, one]]]), [
+            assertStructurallySame(scoped(['?.()', ['undefined'], [one, one]]), [
                 'let c0 = || {',
                 '    let c1: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();',
                 '    Ok([c1.clone(), c1.clone()].to_array().to_any())',
                 '};',
                 'Any::option_call(Nullish::Undefined.to_any(), c0).end()',
             ])
-            assert(scope(['[]', [['?.()', ['undefined'], ['[]', [one]]], ['?.()', ['undefined'], ['[]', [one]]]]])[0] === 'error')
+            assert(scope(['[]', [['?.()', ['undefined'], [one]], ['?.()', ['undefined'], [one]]]])[0] === 'error')
             /** @type {Exp} */
             const c = ['[]', []]
-            assertStructurallySame(scoped(['?.()', ['undefined'], ['[]', [c, c]]]), [
+            assertStructurallySame(scoped(['?.()', ['undefined'], [c, c]]), [
                 'let c0: Any<A> = Array::default().to_any();',
                 'let c1 = || Ok([c0.clone(), c0.clone()].to_array().to_any());',
                 'Any::option_call(Nullish::Undefined.to_any(), c1).end()',
             ])
             assertStructurallySame(
-                scoped(['[]', [c, ['?.()', ['undefined'], c]]]),
+                scoped(['[]', [c, ['?.()', ['undefined'], [c]]]]),
                 [
                     'let c0: Any<A> = Array::default().to_any();',
-                    'let c1: Any<A> = Any::option_call(Nullish::Undefined.to_any(), || Ok(c0.clone())).end()?;',
-                    'Ok([c0.clone(), c1].to_array().to_any())',
+                    'let c1 = || Ok([c0.clone()].to_array().to_any());',
+                    'let c2: Any<A> = Any::option_call(Nullish::Undefined.to_any(), c1).end()?;',
+                    'Ok([c0.clone(), c2].to_array().to_any())',
                 ])
         },
         /**
@@ -1074,16 +1082,16 @@ export const proof = {
         eagerNodesOf: () => {
             /** @type {Exp} */
             const c = ['[]', []]
-            assertEq(eagerNodesOf(['.', c, 'a', ['|()', ['[]', []]]]).includes(c), true)
+            assertEq(eagerNodesOf(['.', c, 'a', ['|()', []]]).includes(c), true)
             assertEq(eagerNodesOf(['?.', c, 'a']).includes(c), true)
-            assertEq(eagerNodesOf(['?.()', c, ['[]', []]]).includes(c), true)
-            assertEq(eagerNodesOf(['.', ['{}', []], 'a', ['|()', c]]).includes(c), false)
-            assertEq(eagerNodesOf(['?.()', ['undefined'], c]).includes(c), false)
-            assertEq(eagerNodesOf(['?.', ['{}', []], 'a', ['|.', 'b', ['|()', c]]]).includes(c), false)
+            assertEq(eagerNodesOf(['?.()', c, []]).includes(c), true)
+            assertEq(eagerNodesOf(['.', ['{}', []], 'a', ['|()', [c]]]).includes(c), false)
+            assertEq(eagerNodesOf(['?.()', ['undefined'], [c]]).includes(c), false)
+            assertEq(eagerNodesOf(['?.', ['{}', []], 'a', ['|.', 'b', ['|()', [c]]]]).includes(c), false)
             // A continuation is not a node: the walk lists what it holds
             // and never the tuple itself.
             /** @type {PropertyLambda} */
-            const k = ['|()', c]
+            const k = ['|()', [c]]
             assertEq(sharedNodesOf(['[]', [['.', ['{}', []], 'a', k], ['.', ['{}', []], 'b', k]]]).includes(c), true)
         },
         /**
@@ -1092,7 +1100,7 @@ export const proof = {
          */
         refusedTerminalWithContinuation: () => {
             /** @type {readonly unknown[]} */
-            const k = ['|()', ['[]', []], ['|.', 'c']]
+            const k = ['|()', [], ['|.', 'c']]
             assertStructurallySame(
                 refusalReason(/** @type {Exp} */ (/** @type {unknown} */ (['.', ['{}', []], 'b', k]))),
                 ['a terminal step with a continuation', k])

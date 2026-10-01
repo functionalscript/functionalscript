@@ -193,11 +193,11 @@ export const proof = {
     calls: () => {
         /** @type {Exp} */
         const args = ['args']
-        assertEq(nodesOf(['[]', [['()', args, args], ['()', args, args]]]).length, 4)
-        assertEq(nodesOf(['[]', [['?.()', args, args], ['?.()', args, args]]]).length, 4)
-        assertEq(nodesOf(['[]', [['.', args, 'f', ['|()', args]], ['.', args, 'f', ['|()', args]]]]).length, 4)
+        assertEq(nodesOf(['[]', [['()', args, [args]], ['()', args, [args]]]]).length, 4)
+        assertEq(nodesOf(['[]', [['?.()', args, [args]], ['?.()', args, [args]]]]).length, 4)
+        assertEq(nodesOf(['[]', [['.', args, 'f', ['|()', [args]]], ['.', args, 'f', ['|()', [args]]]]]).length, 4)
         assertEq(nodesOf(['[]', [['?.', args, 'f', ['|.', 'g']], ['?.', args, 'f', ['|.', 'g']]]]).length, 4)
-        assertEq(nodesOf(['[]', [['?.()', args, args, ['|.', 'g']], ['?.()', args, args, ['|.', 'g']]]]).length, 4)
+        assertEq(nodesOf(['[]', [['?.()', args, [args], ['|.', 'g']], ['?.()', args, [args], ['|.', 'g']]]]).length, 4)
     },
     // The `=>` boundary is the scope. A body's entries name their `=>`,
     // which comes after them; the frame is walked in the enclosing scope;
@@ -259,20 +259,20 @@ export const proof = {
         assertStructurallySame(nodesOf(['[]', [['+', a], ['+', a, a]]]), [['args'], ['+', ['#', 0]], ['+', ['#', 0], ['#', 0]], ['[]', [['#', 1], ['#', 2]]]])
         // `a.b?.(...a).c(...a).d`: a step of each kind that continues, each
         // operand an edge — four to `a` here, and the chain one entry.
-        table(['.', a, 'b', ['|?.()', a, ['|.', 'c', ['|()', a, ['|.', 'd']]]]], {
+        table(['.', a, 'b', ['|?.()', [['...', a]], ['|.', 'c', ['|()', [['...', a]], ['|.', 'd']]]]], {
             root: ['#', 1],
-            nodes: [['args'], ['.', ['#', 0], 'b', ['|?.()', ['#', 0], ['|.', 'c', ['|()', ['#', 0], ['|.', 'd']]]]]],
+            nodes: [['args'], ['.', ['#', 0], 'b', ['|?.()', [['...', ['#', 0]]], ['|.', 'c', ['|()', [['...', ['#', 0]]], ['|.', 'd']]]]]],
             scope: [-1, -1],
             shared: [0],
         })
         // `a?.b?.(...a)`, `(a?.b)(...a)` and `a?.b[a](...a)`: the guarded
         // and the escaping step ending a chain, and a computed key in a step.
-        assertStructurallySame(nodesOf(['?.', a, 'b', ['|?.()', a]]), [['args'], ['?.', ['#', 0], 'b', ['|?.()', ['#', 0]]]])
-        assertStructurallySame(nodesOf(['?.', a, 'b', ['|!()', a]]), [['args'], ['?.', ['#', 0], 'b', ['|!()', ['#', 0]]]])
-        assertStructurallySame(nodesOf(['?.', a, 'b', ['|.', ['Number', a], ['|()', a]]]),
-            [['args'], ['Number', ['#', 0]], ['?.', ['#', 0], 'b', ['|.', ['#', 1], ['|()', ['#', 0]]]]])
+        assertStructurallySame(nodesOf(['?.', a, 'b', ['|?.()', [['...', a]]]]), [['args'], ['?.', ['#', 0], 'b', ['|?.()', [['...', ['#', 0]]]]]])
+        assertStructurallySame(nodesOf(['?.', a, 'b', ['|!()', [['...', a]]]]), [['args'], ['?.', ['#', 0], 'b', ['|!()', [['...', ['#', 0]]]]]])
+        assertStructurallySame(nodesOf(['?.', a, 'b', ['|.', ['Number', a], ['|()', [['...', a]]]]]),
+            [['args'], ['Number', ['#', 0]], ['?.', ['#', 0], 'b', ['|.', ['#', 1], ['|()', [['...', ['#', 0]]]]]]])
         // `a?.(...a).b`
-        assertStructurallySame(nodesOf(['?.()', a, a, ['|.', 'b']]), [['args'], ['?.()', ['#', 0], ['#', 0], ['|.', 'b']]])
+        assertStructurallySame(nodesOf(['?.()', a, [['...', a]], ['|.', 'b']]), [['args'], ['?.()', ['#', 0], [['...', ['#', 0]]], ['|.', 'b']]])
     },
     // A node reached from two scopes is not a graph the compiler emits, and
     // the EDAG's scope rule forbids it: refused where it is met, from either

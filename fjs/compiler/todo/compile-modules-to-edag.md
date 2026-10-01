@@ -329,11 +329,12 @@ lowering and its proofs are in [`../edag`](../edag/module.f.mjs) and
 [`../parameters/proof.f.mjs`](../parameters/proof.f.mjs). Frame semantics remain owned by
 [`3111-function-frame.md`](../../../spec/todo/3111-function-frame.md).
 
-Calls keep their existing array-valued argument operand:
+A call's arguments are an item list, the one `[]` holds, read by position
+([Nodes](../../edag/README.md#nodes)); `args` below stands for such a list:
 
 ```js
-['()', object, args]                       // f(...args)
-['.', object, property, ['|()', args]]     // o.p(...args)
+['()', object, args]                       // f(a, ...xs) with args = [a, ['...', xs]]
+['.', object, property, ['|()', args]]     // o.p(a) with args = [a]
 ```
 
 There are two call spellings and the receiver is what tells them apart. `()` is the

@@ -20,18 +20,14 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
             c0 + c1
         }, 0, [rest.clone().to_any()].to_array(), Some("(...$a)=>$0[0]+$a[0]")).to_any())
     }, 0, Array::default(), Some("(...$a)=>(...$b)=>$a[0]+$b[0]")).to_any();
-    let c7: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();
-    let c8: Any<A> = Any::call(c6.clone(), c7)?;
-    let c9: Any<A> = Any::dot(c8, string_any("toString")).end_call(|| Ok(Array::default().to_any()))?;
-    let c10: Any<A> = Any::dot(c6.clone(), string_any("toString")).end_call(|| Ok(Array::default().to_any()))?;
-    let c11: Any<A> = (strict_eq(c0.clone(), c0.clone()))?;
-    let c12: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();
-    let c13: Any<A> = Any::call(c6.clone(), c12)?;
-    let c14: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();
-    let c15: Any<A> = Any::call(c6.clone(), c14)?;
-    let c16: Any<A> = (strict_eq(c13, c15))?;
-    let c17: Any<A> = [c1, c2, c5, c9, c10, c11, c16].to_array().to_any();
-    let c18: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();
-    let c19: Any<A> = Any::call(c6.clone(), c18)?;
-    Ok([(string_key("default"), c17), (string_key("inc"), c19)].to_object().to_any())
+    let c7: Any<A> = Any::call(c6.clone(), [f64_any(0x3ff0000000000000)].to_array().to_any())?;
+    let c8: Any<A> = Any::dot(c7, string_any("toString")).end_call(|| Ok(Array::default().to_any()))?;
+    let c9: Any<A> = Any::dot(c6.clone(), string_any("toString")).end_call(|| Ok(Array::default().to_any()))?;
+    let c10: Any<A> = (strict_eq(c0.clone(), c0.clone()))?;
+    let c11: Any<A> = Any::call(c6.clone(), [f64_any(0x3ff0000000000000)].to_array().to_any())?;
+    let c12: Any<A> = Any::call(c6.clone(), [f64_any(0x3ff0000000000000)].to_array().to_any())?;
+    let c13: Any<A> = (strict_eq(c11, c12))?;
+    let c14: Any<A> = [c1, c2, c5, c8, c9, c10, c13].to_array().to_any();
+    let c15: Any<A> = Any::call(c6.clone(), [f64_any(0x3ff0000000000000)].to_array().to_any())?;
+    Ok([(string_key("default"), c14), (string_key("inc"), c15)].to_object().to_any())
 }

@@ -90,16 +90,15 @@ the ordered, deduplicated view, with `array_index_value`. That view becomes
 one function that both `object_spread` and `to_json` call, so the order a
 spread copies and the order a value is written in cannot drift.
 
-**A call spread is an array spread.** A call's arguments are one array node,
-and `ArgumentListEvaluation` runs the same `GetIterator` an array literal
-does. So `f(a, ...x, b)` is `['()', f, ['[]', [a, ['...', x], b]]]`, the
-array `[a, ...x, b]` passed as the arguments. A spread argument is a `...`
-entry of a new array, `f(...x)` included, because `x`'s type is unknown: the
-shortcut `['()', f, x]` hands a string where the call expects an array, and
-throws on `f(...'ab')`, which passes `'a'` and `'b'`. The one exception is an
-operand that is an array by construction, such as a rest parameter: there
-`(...r) => f(...r)` may pass `r` through, since every callee builds its own
-rest array from the arguments in both executors, so no identity leaks.
+**A call spread is an array spread.** A call's arguments are the item list
+an array literal holds, and `ArgumentListEvaluation` runs the same
+`GetIterator` an array literal does. So `f(a, ...x, b)` is
+`['()', f, [a, ['...', x], b]]`, the array `[a, ...x, b]` passed as the
+arguments, and `f(...'ab')` passes `'a'` and `'b'`. Forwarding a rest
+parameter, `(...r) => f(...r)`, is a spread like any other,
+`['()', f, [['...', ['rest']]]]`: every callee builds its own rest array from
+the arguments in both executors, so an executor may skip the copy where the
+operand is an array by construction, and no identity leaks.
 [`fjs/edag/README.md`](../../fjs/edag/README.md) and the
 [stage 1 discussion](../../todo/edag-stage1-discussion.md) record the same
 rule.
