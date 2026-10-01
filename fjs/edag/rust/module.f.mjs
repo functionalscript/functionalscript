@@ -339,13 +339,25 @@ const isMember = e => e instanceof Array && [':', '...'].includes(e[0])
 const isComma = e => e instanceof Array && e[0] === ','
 
 /**
+ * `true` for an item list holding a spread, an `[]` node's or a call's:
+ * one that can throw, since a spread of what is not iterable does
+ * (`Any::get_iterator`), where a list of values cannot.
+ *
+ * @type {(items: readonly unknown[]) => boolean}
+ */
+const hasSpread = items => items.some(x => x instanceof Array && x[0] === '...')
+
+/**
  * `true` for a node that prints through an operation's `nanvm-lib` call,
- * answering a `Result`: a `.` read, a call, or an operator node — every
- * node but the value shapes, which construct an `Any` directly.
+ * answering a `Result`: a `.` read, a call, an operator node, or an array
+ * holding a spread — every node but the value shapes, which construct an
+ * `Any` directly.
  *
  * @type {(e: Exp) => boolean}
  */
-const isOperation = e => e instanceof Array && !['undefined', 'args', 'frame', 'arg', 'rest', '[]', '{}', '=>', ',', ':', '...'].includes(e[0])
+const isOperation = e => e instanceof Array
+    && (!['undefined', 'args', 'frame', 'arg', 'rest', '[]', '{}', '=>', ',', ':', '...'].includes(e[0])
+        || (e[0] === '[]' && hasSpread(/** @type {readonly unknown[]} */ (e[1]))))
 
 /**
  * A comma's last operand, its value.
@@ -645,7 +657,7 @@ const printer = nested => shared => root => {
         // `bindingError` refuses a read past the slots, so no `undefined`
         // case as an `args` read has.
         if (id === 'frame') { return ok(`A::frame(self_)[${a}].clone()`) }
-        if (id === '[]') { return arrayExpr(a) }
+        if (id === '[]' && !hasSpread(a)) { return arrayExpr(a) }
         if (id === '{}') {
             return a.length === 0
                 ? ok('Object::default().to_any()')
@@ -697,6 +709,17 @@ const printer = nested => shared => root => {
     const arrayExpr = a => a.length === 0
         ? ok('Array::default().to_any()')
         : mapOk((/** @type {readonly string[]} */ items) => `[${items.join(', ')}].to_array().to_any()`)(okList(a.map(f)))
+    /**
+     * An item list holding a spread, as the item array the
+     * `vm::unstable` helpers take: `value_item(…)` for a value and
+     * `spread_item(…)` for a spread's operand, in order.
+     *
+     * @type {(a: readonly any[]) => Result<string, readonly unknown[]>}
+     */
+    const itemsExpr = a => mapOk((/** @type {readonly string[]} */ items) => `[${items.join(', ')}]`)(okList(a.map(x =>
+        x instanceof Array && x[0] === '...'
+            ? mapOk(v => `spread_item(${v})`)(f(x[1]))
+            : mapOk(v => `value_item(${v})`)(f(x)))))
     /**
      * A function, `['=>', length, slots, body]`, as a function value: a closure
      * bound through `IStaticFunction`, the `StaticCode<A>` signature's two
@@ -764,8 +787,16 @@ const printer = nested => shared => root => {
         }
         // A call, `['()', callee, args]`: `Any::call`, the callee a value
         // and the arguments the array their item list builds — the callee a
-        // function, or `nanvm-lib` throws.
-        if (id === '()') { return map2((fn, x) => `Any::call(${fn}, ${x})`)(operand(a), arrayExpr(b)) }
+        // function, or `nanvm-lib` throws. Arguments holding a spread are
+        // `spread_call`'s, which builds them first, so a spread's throw
+        // comes before the call's.
+        if (id === '()') {
+            return hasSpread(b)
+                ? map2((fn, x) => `spread_call(${fn}, ${x})`)(operand(a), itemsExpr(b))
+                : map2((fn, x) => `Any::call(${fn}, ${x})`)(operand(a), arrayExpr(b))
+        }
+        // An array holding a spread, which may throw: `spread_array`.
+        if (id === '[]') { return mapOk(x => `spread_array(${x})`)(itemsExpr(a)) }
         // The first operand is established in every operation; the ones
         // after it are what a lazy operation establishes conditionally.
         const rest = lazy.includes(id) ? lazyOperand : operand
@@ -825,6 +856,7 @@ const printer = nested => shared => root => {
      * @type {(e: Exp) => boolean}
      */
     const composed = e => isOperation(e) && bound.every(([n]) => n !== e) && !isChain(/** @type {readonly any[]} */ (e)[0])
+        && /** @type {readonly any[]} */ (e)[0] !== '[]'
     /**
      * A lazy operand, as the thunk `nanvm-lib` takes: a closure answering
      * the `Result<Any<A>, Any<A>>` the operand's establishment is — the
@@ -860,7 +892,7 @@ const printer = nested => shared => root => {
      *
      * @type {(e: Exp) => Result<string, readonly unknown[]>}
      */
-    const result = e => isArgs(e) ? mapOk(s => `Ok(${s})`)(arrayExpr(/** @type {readonly Exp[]} */ (/** @type {unknown} */ (e))))
+    const result = e => isArgs(e) ? argsResult(/** @type {readonly Exp[]} */ (/** @type {unknown} */ (e)))
         : isComma(e) && !inline.includes(e) ? result(last(e))
         : isOperation(e) && bound.every(([n]) => n !== e) ? bare(/** @type {readonly any[]} */ (e))
         : mapOk(s => `Ok(${s})`)(f(e))
@@ -876,7 +908,17 @@ const printer = nested => shared => root => {
     const letLine = n => isThunk(n)
         ? mapOk(s => `let ${nameOf(n)} = ${s};`)(thunk(n))
         : mapOk(s => `let ${nameOf(n)}: Any<A> = ${
-            !isOperation(n) ? s : isChain(tagOf(n)) || tagOf(n) === '()' ? `${s}?` : `(${s})?`};`)(node(n))
+            !isOperation(n) ? s : isChain(tagOf(n)) || tagOf(n) === '()' || tagOf(n) === '[]' ? `${s}?` : `(${s})?`};`)(node(n))
+    /**
+     * The `Result` an argument list's thunk answers: the array it builds,
+     * `Ok(…)`, or `spread_array`'s own, which may throw, where it holds a
+     * spread.
+     *
+     * @type {(a: readonly Exp[]) => Result<string, readonly unknown[]>}
+     */
+    const argsResult = a => hasSpread(a)
+        ? mapOk(x => `spread_array(${x})`)(itemsExpr(a))
+        : mapOk(s => `Ok(${s})`)(arrayExpr(a))
     /**
      * The statements of `e`'s block: a `let` per temporary it binds, then
      * `e` as the `Result` the block answers — a closure's body, a thunk's,
@@ -894,8 +936,9 @@ const printer = nested => shared => root => {
      * would take the spread's operand as the key and its absent third element
      * as the value, printing a bare `undefined` into the generated file — text
      * that looks like Rust and is not. Refused for the reason `lookup` refuses
-     * an unmapped id, and so that the two entry shapes agree: a spread as an
-     * *array* item already refuses, having no operator to render as.
+     * an unmapped id, until `nanvm-lib` has `object_spread`
+     * (`nanvm-lib/todo/spread-operations.md`); an array's spread is
+     * `spread_array`'s.
      *
      * @type {(p: Properties) => Result<string, readonly unknown[]>}
      */

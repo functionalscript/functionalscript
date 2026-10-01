@@ -1,6 +1,6 @@
 #![doc = include_str!("README.md")]
 
-use crate::vm::{Any, BigInt, IVm, Number, String, ToAny, ToString};
+use crate::vm::{Any, BigInt, IVm, Number, String, ToAny, ToArray, ToString};
 
 /// An `Any` holding the string `v`.
 pub fn string_any<A: IVm>(v: &str) -> Any<A> {
@@ -50,10 +50,59 @@ pub fn strict_ne<A: IVm>(a: Any<A>, b: Any<A>) -> Result<Any<A>, Any<A>> {
     Ok((a != b).to_any())
 }
 
+/// One item of an array literal or a call's argument list, as
+/// [`spread_array`] and [`spread_call`] read it: a value, or a spread whose
+/// values the iterable gives ([`Any::get_iterator`]).
+pub enum ArrayItem<A: IVm> {
+    Value(Any<A>),
+    Spread(Any<A>),
+}
+
+/// An item that is its own value, `a` in `[a, ...b]`.
+pub fn value_item<A: IVm>(v: Any<A>) -> ArrayItem<A> {
+    ArrayItem::Value(v)
+}
+
+/// A spread item, `...b` in `[a, ...b]`.
+pub fn spread_item<A: IVm>(v: Any<A>) -> ArrayItem<A> {
+    ArrayItem::Spread(v)
+}
+
+/// The array an item list holds, a spread among them: each value an
+/// element, and each spread every value its operand iterates, in order. A
+/// spread of a value that is not iterable throws, so the array is an
+/// operation's `Result` where an array without a spread is a value.
+pub fn spread_array<A: IVm>(
+    items: impl IntoIterator<Item = ArrayItem<A>>,
+) -> Result<Any<A>, Any<A>> {
+    let mut values = Vec::new();
+    for item in items {
+        match item {
+            ArrayItem::Value(v) => values.push(v),
+            ArrayItem::Spread(v) => values.extend(v.get_iterator()?),
+        }
+    }
+    Ok(values.to_array().to_any())
+}
+
+/// `f(...)` over an argument list holding a spread: the arguments
+/// [`spread_array`] builds, then the call, so a spread's throw comes first,
+/// as JavaScript evaluates the arguments before it calls.
+pub fn spread_call<A: IVm>(
+    f: Any<A>,
+    items: impl IntoIterator<Item = ArrayItem<A>>,
+) -> Result<Any<A>, Any<A>> {
+    f.call(spread_array(items)?)
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{common::sized_index::SizedIndex, naive::Naive, vm::Unpacked};
+    use crate::{
+        common::sized_index::SizedIndex,
+        naive::Naive,
+        vm::{Array, Unpacked},
+    };
 
     #[test]
     fn strings() {
@@ -93,6 +142,54 @@ mod test {
         assert_eq!(strict_eq(nan(), nan()), Ok(false.to_any()));
         assert_eq!(strict_ne(nan(), nan()), Ok(true.to_any()));
         assert_eq!(strict_eq(one(), string_any("1")), Ok(false.to_any()));
+    }
+
+    /// The elements of an array result, compared by value: `==` on two
+    /// arrays is `===`, identity.
+    fn elements(r: Result<Any<Naive>, Any<Naive>>) -> Vec<Any<Naive>> {
+        Array::try_from(r.unwrap()).unwrap().into_iter().collect()
+    }
+
+    /// `[1, ...'ab', ...[2]]` is `[1, 'a', 'b', 2]`, an empty spread adds
+    /// nothing, and a spread of what is not iterable throws.
+    #[test]
+    fn spread_arrays() {
+        let one = || f64_any::<Naive>(0x3ff0000000000000);
+        let two = || f64_any::<Naive>(0x4000000000000000);
+        let inner: Any<Naive> = [two()].to_array().to_any();
+        assert_eq!(
+            elements(spread_array([
+                value_item(one()),
+                spread_item(string_any("ab")),
+                spread_item(inner),
+            ])),
+            [one(), string_any("a"), string_any("b"), two()]
+        );
+        let empty: Any<Naive> = [].to_array().to_any();
+        assert!(
+            elements(spread_array([
+                spread_item(string_any("")),
+                spread_item(empty)
+            ]))
+            .is_empty()
+        );
+        assert!(spread_array([value_item(one()), spread_item(one())]).is_err());
+    }
+
+    /// The callee receives the spread values as its arguments, and a spread
+    /// that throws throws before the call, a callee that is not a function
+    /// included.
+    #[test]
+    fn spread_calls() {
+        use crate::vm::IStaticFunction;
+        let identity: Any<Naive> =
+            Naive::static_function(|_, args| Ok(args.to_any()), 0, [].to_array(), None).to_any();
+        assert_eq!(
+            elements(spread_call(identity, [spread_item(string_any("ab"))])),
+            [string_any("a"), string_any("b")]
+        );
+        let one = || f64_any::<Naive>(0x3ff0000000000000);
+        assert!(spread_call(one(), [spread_item(one())]).is_err());
     }
 
     /// A string of code units holds what no `&str` can, a lone surrogate,
