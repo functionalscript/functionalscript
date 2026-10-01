@@ -10,10 +10,10 @@
  *
  * ```ts
  * import { vec } from '../../types/bit_vec/module.f.mjs'
- * import { msbUtf8 } from '../../text/module.f.mjs'
+ * import { utf8 } from '../../text/module.f.mjs'
  * import { sha256 } from '../sha2/module.f.mjs'
  *
- * const r = hmac(sha256)(msbUtf8('key'))(msbUtf8('The quick brown fox jumps over the lazy dog'))
+ * const r = hmac(sha256)(utf8('key'))(utf8('The quick brown fox jumps over the lazy dog'))
  * if (r !== vec(256n)(0xf7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8n)) { throw r }
  * ```
  *

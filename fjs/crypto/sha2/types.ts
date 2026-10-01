@@ -79,10 +79,13 @@ export type Base = {
  * @example
  *
  * ```js
- * const s = msbUtf8("The quick brown fox jumps over the lazy dog.")
- * let state = sha224.init
- * state = sha224.append(state)(s)
- * const h = sha224.end(state) // 0x1_619cba8e8e05826e9b8c519c0a5c68f4fb653e8a3d8aa04bb2c8cd4cn
+ * import { vec } from '../../types/bit_vec/module.f.mjs'
+ * import { utf8 } from '../../text/module.f.mjs'
+ * import { sha224 } from './module.f.mjs'
+ *
+ * const s = utf8('The quick brown fox jumps over the lazy dog.')
+ * const h = sha224.end(sha224.append(s)(sha224.init))
+ * if (h !== vec(224n)(0x619cba8e8e05826e9b8c519c0a5c68f4fb653e8a3d8aa04bb2c8cd4cn)) { throw h }
  * ```
  */
 export type Sha2 = Hash<State>
