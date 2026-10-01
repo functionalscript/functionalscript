@@ -98,16 +98,24 @@ export const addLeaf = (state, t, r) => ({
  */
 const emptyEntries = []
 
-/** @type {(a: number) => string} */
-const timeFormat = a => {
-    const y = Math.round(a * 10_000).toString()
-    const yl = 5 - y.length
-    const x = '0'.repeat(yl > 0 ? yl : 0) + y
-    const s = x.length - 4
-    const b = x.substring(0, s)
-    const e = x.substring(s)
-    return `${b}.${e} ms`
-}
+/**
+ * A duration, given in milliseconds, as every report spells it: milliseconds
+ * under a second, seconds from there on, to `digits` decimals.
+ *
+ * One rule for every renderer, so a leaf reads the same in its own line as in
+ * the totals above it; only the precision is the renderer's. The terminal
+ * keeps four decimals because its leaves are often well under a millisecond,
+ * and the browser report one because its rows are read at a glance. The
+ * switch to seconds is for a whole suite: `103812.4 ms` is not a number a
+ * reader takes in at a glance where `103.8 s` is.
+ *
+ * @type {(digits: number) => (ms: number) => string}
+ */
+export const formatDuration = digits => ms =>
+    ms < 1000 ? `${ms.toFixed(digits)} ms` : `${(ms / 1000).toFixed(digits)} s`
+
+/** The terminal's {@link formatDuration}. */
+const terminalDuration = formatDuration(4)
 
 /**
  * Converts an arbitrary JS value into a `TestSet`.
@@ -624,7 +632,7 @@ export const testResult = (file, path, r) => resultOf(testId(file, path), r)
  * @type {(r: TestResult, color: string, label: string) => string}
  */
 const fmtResultEnd = ({ duration }, color, label) =>
-    `${color}${label}${reset}, ${timeFormat(duration)}`
+    `${color}${label}${reset}, ${terminalDuration(duration)}`
 
 /**
  * What a value that cannot be read is called.
@@ -750,7 +758,7 @@ export const defaultReporter = options => {
                     ? pureOk(undefined)
                     : step(
                         csiLog(`${bold}Number of tests: pass: ${fgGreen}${passed}${reset}${bold}, fail: ${fgFail}${failed}${reset}${bold}, total: ${passed + failed}${reset}`),
-                        () => csiLog(`${bold}Time: ${timeFormat(duration)}${reset}`)))
+                        () => csiLog(`${bold}Time: ${terminalDuration(duration)}${reset}`)))
         },
         test: defaultTest,
     }

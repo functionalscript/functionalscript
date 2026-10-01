@@ -22,7 +22,7 @@ const structX = complex('{', '}')
 export const printer = (mut = undefined) => {
     const ro = mut ? '' : 'readonly'
     return {
-        tuple: (mut ? complex('[', ']') : complex('readonly[', ']')),
+        tuple: complex(`${ro}[`, ']'),
         struct: fields =>
             structX(fields.map(([k, v, opt]) => `${ro}${JSON.stringify(k)}${opt === true ? '?' : ''}:${v}`)),
         array: type => `${ro}(${type})[]`,

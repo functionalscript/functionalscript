@@ -16,7 +16,7 @@
  * @module
  *
  * @import {
- *     BrowserTestReport, Reporter, RunState, TestId, TestResult, _BrowserEvent, _BrowserReport,
+ *     BrowserTestReport, Reporter, RunState, RunTotals, TestId, TestResult, _BrowserEvent, _BrowserReport,
  *     _BrowserTestResult, _TestAndPath,
  * } from '../types.ts'
  * @import { Catch, Import, Sandbox, SandboxResult } from '../../effects/common/types.ts'
@@ -27,12 +27,13 @@
  */
 
 import {
-    countsView, errorDetails, formatDuration, groupLabel, groupStatus, groupView, loadProofs, moduleFailure,
-    pendingView, reportOf, reportView, resultView, runProofs, runnerSource, unreported,
+    countsView, errorDetails, groupLabel, groupStatus, groupView, loadProofs, moduleFailure,
+    pendingView, reportDuration, reportOf, reportView, resultView, runProofs, runnerSource, unreported,
 } from './module.f.mjs'
 // The phrase for a value that will not be read is the runners' shared one:
 // this host meets such a value at its `import` boundary, where the walk cannot.
-import { unknownValue } from '../module.f.mjs'
+// So is the fold that counts results: a group's label counts as the run does.
+import { addResult, unknownValue, zeroTotals } from '../module.f.mjs'
 // **One markup, two renderers.** What a report looks like is decided once, by
 // the pure views in `./module.f.mjs`: the runner's demo returns them for the
 // demo runtime to render, and this page turns the same views into nodes as
@@ -438,7 +439,7 @@ export const renderBrowserReport = (root, report) => {
         // title cannot: that the suite never reached its tests. A run that did
         // leaves it empty, and the stylesheet draws nothing for it.
         summary.textContent = report.status === 'infrastructure-error'
-            ? `Infrastructure error: ${report.totals.failed} failed to load (${formatDuration(report.duration)})`
+            ? `Infrastructure error: ${report.totals.failed} failed to load (${reportDuration(report.duration)})`
             : ''
     }
     const counts = root.querySelector('[data-test-counts]')
@@ -484,28 +485,28 @@ export const startBrowserTests = (root, modules) => {
     let pending = null
     // The group rows are landing in. One is enough for the same reason one
     // pending row is: a module's results are adjacent, and the group changes
-    // only when the module does.
-    /** @type {{ readonly module: string, readonly details: Element, readonly counts: Element, readonly list: Element, passed: number, failed: number } | null} */
+    // only when the module does. Its counts are the shared `addResult` fold,
+    // so a group's label and the run's totals cannot count differently.
+    /** @type {{ readonly module: string, readonly details: Element, readonly counts: Element, readonly list: Element, totals: RunTotals } | null} */
     let group = null
     /**
      * The group for `module`: the current one, or a new one — in which case the
      * previous group is settled first, so a module that passed folds as soon as
      * the run has moved past it rather than at the end of the suite.
      *
-     * @type {(target: Element, module: string) => { readonly module: string, readonly details: Element, readonly counts: Element, readonly list: Element, passed: number, failed: number }}
+     * @type {(target: Element, module: string) => { readonly module: string, readonly details: Element, readonly counts: Element, readonly list: Element, totals: RunTotals }}
      */
     const groupFor = (target, module) => {
         const current = group
         if (current !== null && current.module === module) { return current }
-        if (current !== null) { labelGroup(current, current.passed, current.failed, true) }
+        if (current !== null) { labelGroup(current, current.totals.passed, current.totals.failed, true) }
         const details = toDom(root.ownerDocument, groupView({ module, results: [], passed: 0, failed: 0 }, false))
         const next = {
             module,
             details,
             counts: /** @type {Element} */ (details.querySelector('[data-counts]')),
             list: /** @type {Element} */ (details.querySelector('[data-rows]')),
-            passed: 0,
-            failed: 0,
+            totals: zeroTotals,
         }
         target.append(details)
         group = next
@@ -528,8 +529,8 @@ export const startBrowserTests = (root, modules) => {
                 fill(pending, resultView(result))
             }
             pending = null
-            if (result.status === 'passed') { into.passed += 1 } else { into.failed += 1 }
-            labelGroup(into, into.passed, into.failed, false)
+            into.totals = addResult(into.totals, result)
+            labelGroup(into, into.totals.passed, into.totals.failed, false)
         },
         id => {
             if (output === null) { return }
