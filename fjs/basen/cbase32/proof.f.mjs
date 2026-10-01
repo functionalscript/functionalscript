@@ -3,7 +3,7 @@
  * @import { BitGroups } from '../../website/demo/bits/types.ts'
  */
 
-import { empty, maxLength, vec } from '../../types/bit_vec/module.f.mjs'
+import { empty, maxLength, maxLengthBytes, vec } from '../../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, cBase32ToVec5x, vec5xToCBase32, vecToCBase32 } from './module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { demo, groupsOf } from './demo.f.mjs'
@@ -122,6 +122,17 @@ export const proof = {
             }))
             assertEq(JSON.stringify(encoded('hé').groups.map(g => g.data)), JSON.stringify(['01101', '00011', '00001', '11010', '1001']))
             assertEq(encoded('hé').encoded, 'd31tk')
+        },
+        /**
+         * **The demo stops one byte short of the largest bit vector**, since
+         * `vecToCBase32` appends the stop bit before encoding and a vector
+         * past the largest throws on JavaScriptCore
+         * ([encode-at-max-length](./todo/encode-at-max-length.md)). One byte
+         * less encodes, on every engine.
+         */
+        maxLength: () => {
+            assertEq(groupsOf('a'.repeat(Number(maxLengthBytes)))[0], 'error')
+            assertEq(groupsOf('a'.repeat(Number(maxLengthBytes) - 1))[0], 'ok')
         },
         view: () => {
             const html = htmlToString(demo.view(demo.init))

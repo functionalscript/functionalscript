@@ -44,7 +44,7 @@
 import { fromCodePointList } from '../../../text/utf8/module.f.mjs'
 import { codePointToString, stringToCodePointList } from '../../../text/utf16/module.f.mjs'
 import { isValidCodePoint } from '../../../text/code_point/module.f.mjs'
-import { maxLengthBytes, tryU8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
+import { maxLength, maxLengthBytes, tryU8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { textDemo } from '../module.f.mjs'
@@ -99,9 +99,16 @@ const groups = ({ width, stop }) => bits => {
 /**
  * What the demo shows for `text`: its characters with their UTF-8 bytes, the
  * groups `scheme` cuts those bits into, and what `encode` wrote — or why
- * there is none. Two inputs are refused rather than shown wrong or crashing:
- * an unpaired surrogate, which has no UTF-8 bytes, and text longer than the
- * largest bit vector, which no codec here can be given.
+ * there is none. Three inputs are refused rather than shown wrong or crashing:
+ * an unpaired surrogate, which has no UTF-8 bytes; text longer than the
+ * largest bit vector, which no codec here can be given; and, for a scheme
+ * with a stop bit, text that leaves no room for it there.
+ *
+ * The last is CBase32's: `vecToCBase32` appends the stop bit and fill to its
+ * input before encoding, and on JavaScriptCore — Safari, Bun — a vector
+ * longer than the largest throws. Refusing here keeps the demo from crashing
+ * until the encoder stops building that vector
+ * ([encode-at-max-length](../../../basen/cbase32/todo/encode-at-max-length.md)).
  *
  * @type {(scheme: BitScheme, encode: (v: Vec) => string) => (text: string) => Result<BitGroups, string>}
  */
@@ -112,6 +119,10 @@ export const bitGroups = (scheme, encode) => text => {
     const bytes = chars.flatMap(([b]) => b)
     const v = tryU8ListToVecMsb(bytes)
     if (v === null) { return error(`text too long: more than ${maxLengthBytes} UTF-8 bytes`) }
+    const n = bytes.length * 8
+    if (scheme.stop && (Math.floor(n / scheme.width) + 1) * scheme.width > Number(maxLength)) {
+        return error('text too long: no room for the stop bit in the largest bit vector')
+    }
     return ok({
         chars: chars.map(([, c]) => c),
         groups: groups(scheme)(bytes.map(binary).join('')),

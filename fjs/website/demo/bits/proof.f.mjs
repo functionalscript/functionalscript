@@ -92,6 +92,15 @@ export const proof = {
          * handed to a codec that cannot take it: one byte past
          * `maxLengthBytes` is too many.
          */
+        /**
+         * **With a stop bit, the limit is lower**: the stop bit and its fill
+         * must fit in the largest bit vector too, so text of exactly
+         * `maxLengthBytes` is refused for a stop-bit scheme and handed to a
+         * zero-fill one.
+         */
+        noRoomForStop: () => assertEq(
+            JSON.stringify(bitGroups(stops, encode)('a'.repeat(Number(maxLengthBytes)))),
+            JSON.stringify(['error', 'text too long: no room for the stop bit in the largest bit vector'])),
         tooLong: () => assertEq(
             JSON.stringify(bitGroups(zeros, encode)('a'.repeat(Number(maxLengthBytes) + 1))),
             JSON.stringify(['error', `text too long: more than ${maxLengthBytes} UTF-8 bytes`])),
