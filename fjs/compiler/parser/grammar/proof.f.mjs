@@ -15,7 +15,7 @@ import { toArray } from '../../../types/list/module.f.mjs'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
     _ordinaryTokenNames as names, access, array, attribute, block, body, circuitTail, conditionalTail, constStatement,
-    djsModule, func, group, identifier, importStatement, index, items, key, lastStatement, member, object, parameters, paren,
+    djsModule, func, group, identifier, importStatement, index, items, key, lastStatement, member, object, parameters, paren, statement,
     parenGroup, parenthesized, primitive, sym, symbolOf, value,
 } from './module.f.mjs'
 
@@ -290,6 +290,29 @@ export const proof = {
         assertStructurallySame(read('throw;'), ['error', ';'])
         assertStructurallySame(read('throw 1; export default 2;'), ['error', 'export'])
         assertStructurallySame(read('export default 2; throw 1;'), ['error', 'throw'])
+        // a guard, `if ( value ) block`, stands where a `const` may, any
+        // number of times before the terminator; its block is the block
+        // rule itself, so it ends in `return` or `throw` and may hold
+        // `const`s and guards of its own. No `;` follows its `}`: one there
+        // is the empty statement, refused as `;;` is. The bare consequent,
+        // `else`, a block that does not terminate, and a guard at module
+        // level are outside the grammar.
+        assertStructurallySame(read('export default (...a) => { if (a) { return 1; } return 2; };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { if (a) { return 1; } return 2 };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => {if(a){return 1}return 2};'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { const x = 1; if (a) { const y = x; return y; } const z = 2; return z; };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { if (a) { throw 1; } return 2; };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { if (a) { if (a) { return 1; } return 2; } return 3; };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { if (a) { return 1; } if (a) { return 2; } throw 3; };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { if (a) return 1; return 2; };'), ['error', 'return'])
+        assertStructurallySame(read('export default (...a) => { if (a) { return 1; } else { return 2; } };'), ['error', 'else'])
+        assertStructurallySame(read('export default (...a) => { if (a) { return 1; }; return 2; };'), ['error', ';'])
+        assertStructurallySame(read('export default (...a) => { if (a) { const x = 1; } return 2; };'), ['error', '}'])
+        assertStructurallySame(read('export default (...a) => { if (a) { return 1; } };'), ['error', '}'])
+        assertStructurallySame(read('export default (...a) => { if a { return 1; } return 2; };'), ['error', 'a'])
+        assertStructurallySame(read('export default (...a) => { if (a) return 1; };'), ['error', 'return'])
+        assertStructurallySame(read('if (1) { throw 1; } export default 2;'), ['error', 'if'])
+        assertStructurallySame(read('export default 1; if (1) { throw 1; }'), ['error', 'if'])
         assertStructurallySame(read('throw 1; const a = 1;'), ['error', 'const'])
     },
     // Any value takes accesses, `.name` and `[key]`, trivia allowed around
@@ -505,6 +528,8 @@ export const proof = {
     statements: () => {
         parser(/** @type {Rule} */ (repeatFrom0({ importStatement, constStatement })))
         parser(/** @type {Rule} */ (lastStatement))
+        // a block's statement: `const` and `if` decide the two in one symbol
+        parser(/** @type {Rule} */ (statement))
     },
     throw: {
         eofRejected: () => symbolOf({ token: { kind: 'eof' }, metadata: { path: 'a.js', line: 1, column: 1 }, newline: false }),
