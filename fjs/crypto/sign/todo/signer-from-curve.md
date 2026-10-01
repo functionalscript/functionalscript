@@ -1,7 +1,7 @@
 ## `sign` bypasses `fromCurve` and re-derives RFC6979 helpers
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
