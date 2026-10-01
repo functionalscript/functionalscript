@@ -9,7 +9,7 @@ import { bytesIn, maxLengthBytes, repeat, u8ListToVecMsb, uint, vec } from '../.
 import { flip } from '../../types/function/module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { map } from '../../types/list/module.f.mjs'
-import { base32, base64, computeSync, sha224, sha256, sha384, sha512, sha512x224, sha512x256 } from './module.f.mjs'
+import { base32, base64, ch, computeSync, framed, fromWords, maj, sha224, sha256, sha384, sha512, sha512x224, sha512x256 } from './module.f.mjs'
 import { demo, digest } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
@@ -132,6 +132,56 @@ export const proof = {
                     assertEq(result, x, [result, x])
                 },
             }
+        }
+    },
+    // Each bit of the answer is a function of the three bits in its place,
+    // so eight bits holding all eight combinations pin the whole function.
+    ch: () => assertEq(ch(0b11110000n, 0b11001100n, 0b10101010n), 0b11001010n),
+    maj: () => assertEq(maj(0b11110000n, 0b11001100n, 0b10101010n), 0b11101000n),
+    fromWords: {
+        empty: () => assertEq(fromWords(32n)([]), 0n),
+        bytes: () => assertEq(fromWords(8n)([0xabn, 0xcdn, 0x00n, 0xffn]), 0xabcd00ffn),
+        // SHA-1's initial hash value, five words, as one number.
+        v5: () => assertEq(
+            fromWords(32n)([0x67452301n, 0xefcdab89n, 0x98badcfen, 0x10325476n, 0xc3d2e1f0n]),
+            0x67452301efcdab8998badcfe10325476c3d2e1f0n),
+        // The same field with one owner behind it: `base32.fromV8` is
+        // `fromWords(32n)` over eight words.
+        v8: () => {
+            const { hash } = sha256.init
+            assertEq(fromWords(32n)(hash), base32.fromV8(hash))
+        },
+        throw: {
+            zeroWidth: () => { fromWords(0n) },
+            negativeWidth: () => { fromWords(-8n) },
+            wideWord: () => { fromWords(8n)([0x100n, 0n]) },
+            negativeWord: () => { fromWords(8n)([-1n]) },
+        },
+    },
+    framed: () => {
+        const { bitLength, chunkLength, compress, fromV8 } = base32
+        const init = {
+            chunkLength,
+            lengthLength: bitLength << 1n,
+            digestLength: bitLength << 3n,
+            compress,
+            digest: fromV8,
+        }
+        const { hash } = sha256.init
+        const abc = [utf8('abc')]
+        return {
+            // `sha256` rebuilt from its parts is `sha256`.
+            sha256: () => {
+                const h = framed(init, hash, 256n)
+                checkBytes(h)(32n, 64n)
+                assertEq(computeSync(h)(abc), computeSync(sha256)(abc))
+            },
+            // The shortest hash the bound admits: the digest's top bit.
+            oneBit: () => assertEq(uint(computeSync(framed(init, hash, 1n))(abc)), uint(computeSync(sha256)(abc)) >> 255n),
+            throw: {
+                zero: () => { framed(init, hash, 0n) },
+                pastDigest: () => { framed(init, hash, 257n) },
+            },
         }
     },
     sha2: {

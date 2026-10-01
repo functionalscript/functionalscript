@@ -44,7 +44,5 @@ computes with; `sha1dc` is the one a verifier that must refuse chooses, and
   — what to do about a hash that can collide.
 - [`fjs/git/README.md`](../../git/README.md) — the readers this addresses
   the objects of.
-- [`fjs/crypto/sha2`](../sha2/module.f.mjs) — the shape `sha1` follows, and the
-  other width.
-- [framed-hash-record](./framed-hash-record.md) — shares the record `sha1` and
-  `sha2` both build.
+- [`fjs/crypto/sha2`](../sha2/module.f.mjs) — the shape `sha1` follows, the
+  other width, and `framed`, the constructor of the record both build.
