@@ -1,7 +1,7 @@
 ## one-array-index-rule. Two modules each decide what an array index is
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
