@@ -117,13 +117,21 @@ export const proof = {
         },
         /**
          * **With a block size, the boxes go in blocks**, which wrap as units:
-         * `h` is three groups, so a block of two and a last block of one.
+         * `h` is three groups, so a block of two and a last block of one —
+         * padded with a hidden placeholder to the width of two, so it wraps
+         * where a full block would.
          */
         blocks: () => {
             const html = htmlToString(blockDemo.view('h'))
             const box = (/** @type {string} */ bits, /** @type {string} */ c) =>
                 `<div data-bit-box=""><span>${bits}</span><span data-bit-char="">${c}</span></div>`
-            assert(html.includes(`<div data-bit-groups="" data-bit-blocks=""><div data-bit-block="">${box('011', '8')}${box('010', ':')}</div><div data-bit-block=""><div data-bit-box=""><span>00<span data-bit="fill">0</span></span><span data-bit-char="">1</span></div></div></div>`), html)
+            const placeholder = '<div data-bit-box="" data-bit-placeholder=""><span>000</span><span data-bit-char="">0</span></div>'
+            assert(html.includes(`<div data-bit-groups="" data-bit-blocks=""><div data-bit-block="">${box('011', '8')}${box('010', ':')}</div><div data-bit-block=""><div data-bit-box=""><span>00<span data-bit="fill">0</span></span><span data-bit-char="">1</span></div>${placeholder}</div></div>`), html)
+        },
+        // A last block that is already full needs no placeholder.
+        fullBlock: () => {
+            const html = htmlToString(blockDemo.view('hé'))
+            assert(!html.includes('data-bit-placeholder'), html)
         },
         /**
          * **Stop and fill bits are marked**, so the stylesheet sets them

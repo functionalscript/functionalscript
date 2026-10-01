@@ -149,19 +149,40 @@ const box = ({ data, stop, fill }, c) => ['div', { 'data-bit-box': '' },
 ]
 
 /**
+ * A box that holds a place and shows nothing: as wide as any of the scheme's
+ * boxes, since every group is `width` bits, fill included. The stylesheet
+ * hides it, which also keeps it from a screen reader.
+ *
+ * @type {(width: number) => Element}
+ */
+const placeholder = width => ['div', { 'data-bit-box': '', 'data-bit-placeholder': '' },
+    ['span', '0'.repeat(width)],
+    ['span', { 'data-bit-char': '' }, '0'],
+]
+
+/**
  * The groups as boxes that wrap to the page's width. With a block size, the
  * boxes go in blocks of that many, which wrap as units: a line breaks only
  * between whole blocks, so a reader sees the codec's block without counting.
+ *
+ * **A short last block is padded with placeholders to a full one.** A line
+ * breaks where the next block does not fit, and a short block is narrower
+ * than a full one: without the padding it would stay at the end of a line a
+ * full block would have left, and wrapping would depend on how much text
+ * there is rather than on the width of a block.
+ *
  * The stylesheet draws them by `data-bit-groups`.
  *
  * @type {(scheme: BitScheme) => (g: BitGroups) => Element}
  */
-const boxes = ({ block }) => ({ groups, encoded }) => {
+const boxes = ({ width, block }) => ({ groups, encoded }) => {
     const all = groups.map((g, i) => box(g, encoded[i]))
     if (block === undefined) { return ['div', { 'data-bit-groups': '' }, ...all] }
+    const count = Math.ceil(all.length / block)
+    const padded = [...all, ...Array.from({ length: count * block - all.length }, () => placeholder(width))]
     return ['div', { 'data-bit-groups': '', 'data-bit-blocks': '' },
-        ...Array.from({ length: Math.ceil(all.length / block) }, (_, i) =>
-            /** @type {Element} */ (['div', { 'data-bit-block': '' }, ...all.slice(i * block, (i + 1) * block)]))]
+        ...Array.from({ length: count }, (_, i) =>
+            /** @type {Element} */ (['div', { 'data-bit-block': '' }, ...padded.slice(i * block, (i + 1) * block)]))]
 }
 
 /**

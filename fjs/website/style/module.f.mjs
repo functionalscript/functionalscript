@@ -350,13 +350,16 @@ a:hover > [data-railroad-box="nonTerminal"] { fill: var(--pass-bg) }
    blocks, which wrap as units with a gap between them, so a line breaks only
    between whole blocks; a block wider than a very narrow screen wraps inside
    itself rather than scrolling the page sideways, and its lines touch so it
-   still reads as one. Fill bits are muted and dotted under, as they carry no
+   still reads as one. A short last block is padded to a full one with
+   placeholder boxes, hidden but holding their place, so it wraps where a full
+   block would. Fill bits are muted and dotted under, as they carry no
    data; a stop bit is in the colour of a value and bold but not underlined,
    since an underline on this site is a link. */
 [data-bit-groups] { display: flex; flex-wrap: wrap; margin-block: .5rem; padding-left: 1px; row-gap: .5rem }
 [data-bit-blocks] { column-gap: .75rem }
 [data-bit-block] { display: flex; flex-wrap: wrap; max-width: 100%; padding: 1px 0 0 1px }
 [data-bit-block] > [data-bit-box] { margin-top: -1px }
+[data-bit-placeholder] { visibility: hidden }
 [data-bit-box] { border: 1px solid var(--border); display: flex; flex-direction: column; margin-left: -1px; text-align: center }
 [data-bit-box] > span { padding: .2rem .3rem }
 [data-bit-char] { background: color-mix(in srgb, var(--border) 45%, var(--bg)); border-top: 1px solid var(--border); font-weight: 700 }

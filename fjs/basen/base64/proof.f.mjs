@@ -181,6 +181,10 @@ export const proof = {
             // `hé` is one whole block of four.
             assert(html.includes('<div data-bit-groups="" data-bit-blocks=""><div data-bit-block=""><div data-bit-box=""><span>011010</span><span data-bit-char="">a</span></div>'), html)
             assertEq(html.split('<div data-bit-block="">').length, 2)
+            // `h` is two characters, so its block is padded with two
+            // hidden placeholders to the width of a full one.
+            const short = htmlToString(demo.view('h'))
+            assertEq(short.split('data-bit-placeholder').length - 1, 2)
             assert(html.includes('Result: <strong>aMOp</strong>'), html)
         },
     },
