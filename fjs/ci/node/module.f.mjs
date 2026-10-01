@@ -4,7 +4,7 @@
  *
  * @module
  *
- * @import { Job, Jobs, MetaStep, Step } from '../common/types.ts'
+ * @import { Jobs, MetaStep, Step } from '../common/types.ts'
  * @import { NixJob } from '../nix/types.ts'
  */
 
@@ -158,14 +158,11 @@ const node26NixSteps = [
     })),
 ]
 
-/** @type {(steps: readonly MetaStep[]) => Job} */
-const nodeJob = steps => ubuntuArm(steps)
-
 /** @type {() => Jobs} */
 export const nodeVersionJobs = () => ({
-    [jobId(node.node22)]: nodeJob(suiteNixSteps(node.node22)),
-    [jobId(node.node24)]: nodeJob(suiteNixSteps(node.node24)),
-    [jobId(node.default)]: nodeJob(node26NixSteps),
+    [jobId(node.node22)]: ubuntuArm(suiteNixSteps(node.node22)),
+    [jobId(node.node24)]: ubuntuArm(suiteNixSteps(node.node24)),
+    [jobId(node.default)]: ubuntuArm(node26NixSteps),
 })
 
 /** @type {(version: string) => NixJob} */
@@ -194,5 +191,3 @@ export const nodeNixJobs = [
     nixJob(node.node22),
     nixJob(node.node24),
 ]
-
-export const nodeMainSteps = platformNodeSteps

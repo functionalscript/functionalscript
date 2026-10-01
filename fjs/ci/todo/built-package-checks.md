@@ -10,7 +10,7 @@ Two CI jobs install `functionalscript` and run it. Both of them install it
 
 | job | steps |
 |-----|-------|
-| the two Windows platform jobs (`job` in `../module.f.mjs`, where `o === 'windows'`), through `nodeMainSteps` → `platformNodeSteps` (`../node/module.f.mjs`) | `npm install -g functionalscript@<version>`, `fjs test` |
+| the two Windows platform jobs (`job` in `../module.f.mjs`, where `o === 'windows'`), through `platformNodeSteps` (`../node/module.f.mjs`) | `npm install -g functionalscript@<version>`, `fjs test` |
 
 The four other platform jobs were four more, until they moved into the shared
 Nix shell ([65Z-ci-nix](65z-ci-nix.md)) and lost the pair.
@@ -63,7 +63,7 @@ installed CLI. Same module, same artifact, different runner requirements.
 #### What falls out
 
 - **`functionalscript` in `../config/module.f.js` loses its last consumer.** It
-  is now read only by `nodeMainSteps` → `platformNodeSteps`, which is the row
+  is now read only by `platformNodeSteps`, which is the row
   above; `denoSteps` and `bunSteps` stopped reading it, and `nodeVersionJobs`
   stopped when Node 22 lost its global install. The constant, and the manual
   bump it needs after every release, go away with that row.
