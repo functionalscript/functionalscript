@@ -201,7 +201,7 @@
  * @import { _Entry, _Found, _Lookup, _Scope, _Walked } from './private.ts'
  */
 
-import { catchStep, foldStep, history, historyStep, ioError, mapStep, pureError, pureOk, step, walkStep } from '../../effects/module.f.mjs'
+import { catchStep, foldStep, history, historyStep, mapStep, pureError, pureOk, refuse, step, walkStep } from '../../effects/module.f.mjs'
 import { isDirectory, isNotFound, leadsNowhere, readFile, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
@@ -663,10 +663,7 @@ const askable = name => {
 const headBytes = dirs => catchStep(
     step(readdir(dirs.gitdir, {}), entries => headIsFile(entries)
         ? tryBytes(under(dirs.gitdir, head))
-        : pureError(ioError({
-            code: headKindCode,
-            message: headKindMessage(under(dirs.gitdir, head)),
-        }))),
+        : refuse(headKindCode)(headKindMessage(under(dirs.gitdir, head)))),
     e => isNotFound(e) ? pureOk(/** @type {Nullable<Bytes>} */ (null)) : pureError(e))
 
 /**
@@ -1003,10 +1000,7 @@ const descendInto = (item, found) =>
         const twice = twiceNamed(entries)
         return twice === null
             ? pureOk(walked(found, entries.map(childOf(item))))
-            : pureError(ioError({
-                code: lossyNameCode,
-                message: lossyNameMessage(item.path, twice),
-            }))
+            : refuse(lossyNameCode)(lossyNameMessage(item.path, twice))
     })
 
 /**
@@ -1020,7 +1014,7 @@ const readAsRef = (readRef, name, item, found) => {
     // A file whose name is no ref name refuses the listing, which is Git's
     // answer for one — see {@link badNameCode}.
     if (!isWholeName(name)) {
-        return pureError(ioError({ code: badNameCode, message: badNameMessage(item.path) }))
+        return refuse(badNameCode)(badNameMessage(item.path))
     }
     // the name is recorded whatever the file turns out to hold, because
     // that is what shadows the packed line
@@ -1086,7 +1080,7 @@ const statted = (readRef, name, item, found) => step(
         ? pureOk(walked(found, null))
         : s.isFile
             ? readAsRef(readRef, name, item, found)
-            : pureError(ioError({ code: linkedDirCode, message: linkedDirMessage(item.path) })))
+            : refuse(linkedDirCode)(linkedDirMessage(item.path)))
 
 /**
  * The body of the walk of `refs/`: a directory gives its entries to walk
@@ -1461,10 +1455,7 @@ const headName = nameBytes(head)
 const tryHeadFound = (dirs, oidBytes, entries) => {
     const readRef = tryRef(oidBytes)
     if (!headIsFile(entries)) {
-        return pureError(ioError({
-            code: headKindCode,
-            message: headKindMessage(under(dirs.gitdir, head)),
-        }))
+        return refuse(headKindCode)(headKindMessage(under(dirs.gitdir, head)))
     }
     return mapStep(tryBytes(under(dirs.gitdir, head)), bytes => {
         if (bytes === null) { return { roots: [], names: [], pending: [] } }
@@ -1691,10 +1682,7 @@ export const tryRoots = (dirs, oidBytes) => {
         // The one collision that is neither a shadow nor an answer. See
         // {@link packedHeadCollision}.
         if (packedHeadCollision(h, packed)) {
-            return pureError(ioError({
-                code: packedHeadCode,
-                message: packedHeadMessage(dirs),
-            }))
+            return refuse(packedHeadCode)(packedHeadMessage(dirs))
         }
         // The other two ways one name would stand for two roots, or one root for
         // no object. Both are asked of the finished list rather than of each
@@ -1702,10 +1690,7 @@ export const tryRoots = (dirs, oidBytes) => {
         // rule: see {@link zeroIdCode} and {@link packedTwiceCode}.
         const twice = packedDisagreement(packed)
         if (twice !== null) {
-            return pureError(ioError({
-                code: packedTwiceCode,
-                message: packedTwiceMessage(dirs, twice),
-            }))
+            return refuse(packedTwiceCode)(packedTwiceMessage(dirs, twice))
         }
         const roots = combine({
             roots: concat(found.roots)(h.roots),
@@ -1715,6 +1700,6 @@ export const tryRoots = (dirs, oidBytes) => {
         const zero = zeroRoot(roots)
         return zero === null
             ? pureOk(roots)
-            : pureError(ioError({ code: zeroIdCode, message: zeroIdMessage(zero.name) }))
+            : refuse(zeroIdCode)(zeroIdMessage(zero.name))
     })
 }

@@ -43,7 +43,7 @@
  * @import { Dirs } from '../types.ts'
  */
 
-import { catchStep, finallyStep, foldStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../../../effects/module.f.mjs'
+import { catchStep, finallyStep, foldStep, history, historyStep, ioError, mapStep, pureError, pureOk, refuse, resultStep, step } from '../../../effects/module.f.mjs'
 import { createExclusive, isNotFound, mkdir, rename, rm, rmdir, writeExclusive, writeExclusiveUtf8File } from '../../../effects/node/module.f.mjs'
 import { byteArray } from '../../../ebnf/byte/module.f.mjs'
 import { under } from '../../../path/module.f.mjs'
@@ -397,7 +397,7 @@ const collided = (packed, name) => {
     const other = prefixCollision(packed, byteArray(name))
     return other === null
         ? pureOk(undefined)
-        : pureError(ioError({ code: refPrefixCode, message: refPrefixMessage(other, name) }))
+        : refuse(refPrefixCode)(refPrefixMessage(other, name))
 }
 
 /**
@@ -475,10 +475,10 @@ export const tryWrite = (dirs, oidBytes) => {
         // Before `hexText`, which asserts on a `Vec` that is not whole bytes: an id
         // of the wrong width is a caller's error to be told about, not a panic.
         if (!isOid(id)) {
-            return pureError(ioError({ code: idWidthCode, message: idWidthMessage(oidBytes, id) }))
+            return refuse(idWidthCode)(idWidthMessage(oidBytes, id))
         }
         if (zeroId(id)) {
-            return pureError(ioError({ code: zeroIdCode, message: zeroIdWriteMessage(name) }))
+            return refuse(zeroIdCode)(zeroIdWriteMessage(name))
         }
         // The directory the name's file belongs in, which is one of the two and not
         // both: a per-worktree name is the worktree's own, the same rule the two
@@ -496,7 +496,7 @@ export const tryWrite = (dirs, oidBytes) => {
         // filesystem to refuse. See {@link refPrefixCode}.
         const read = tryPackedRefs(dirs, oidBytes)
         const checked = step(read, packed => packed === null
-            ? pureError(ioError({ code: badPackedCode, message: badPackedMessage(dirs) }))
+            ? refuse(badPackedCode)(badPackedMessage(dirs))
             : collided(packed, name))
         // A directory at the ref's own path, which the `rename` would refuse — unless
         // it is a *symlink* to one, which the `rename` silently replaces. One `stat`
@@ -504,7 +504,7 @@ export const tryWrite = (dirs, oidBytes) => {
         // See {@link refPrefixCode}.
         const kind = step(checked, () => isDirectoryAt(path))
         const clear = step(kind, there => there
-            ? pureError(ioError({ code: refPrefixCode, message: refIsDirectoryMessage(name, 'create') }))
+            ? refuse(refPrefixCode)(refIsDirectoryMessage(name, 'create'))
             : pureOk(/** @type {void} */ (undefined)))
         const made = step(clear, () => mkdir(parentOf(dir, text), { recursive: true }))
         // The cleanup starts *after* the exclusive write and covers the rename alone:
@@ -676,10 +676,10 @@ const chunked = bytes => {
  */
 const packedRewritten = dirs => without => {
     if (without[0] === 'malformed') {
-        return pureError(ioError({ code: badPackedCode, message: badPackedMessage(dirs) }))
+        return refuse(badPackedCode)(badPackedMessage(dirs))
     }
     if (without[0] === 'unsorted') {
-        return pureError(ioError({ code: unsortedPackedCode, message: unsortedPackedMessage(dirs) }))
+        return refuse(unsortedPackedCode)(unsortedPackedMessage(dirs))
     }
     if (without[0] === 'absent') { return pureOk(false) }
     const packed = under(dirs.common, packedRefs)
@@ -721,7 +721,7 @@ const looseRef = (readRef, name, path) => step(
     bytes => {
         if (bytes === null) { return pureOk(false) }
         return readRef(bytes) === null
-            ? pureError(ioError({ code: brokenRefCode, message: brokenRefMessage(name) }))
+            ? refuse(brokenRefCode)(brokenRefMessage(name))
             : pureOk(true)
     })
 
@@ -845,7 +845,7 @@ export const tryDelete = (dirs, oidBytes) => {
         // the path would be is the same `stat`'s `ENOTDIR`. See {@link refPrefixCode}.
         const kind = isDirectoryAt(path)
         const clear = step(kind, there => there
-            ? pureError(ioError({ code: refPrefixCode, message: refIsDirectoryMessage(name, 'delete') }))
+            ? refuse(refPrefixCode)(refIsDirectoryMessage(name, 'delete'))
             : pureOk(/** @type {void} */ (undefined)))
         const taken = removed(dirs, name, path, under(dir, `logs/${text}`), readRef, packedWithout(name))
         const packedLock = `${under(dirs.common, packedRefs)}${lockSuffix}`

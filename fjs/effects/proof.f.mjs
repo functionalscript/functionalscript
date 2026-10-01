@@ -6,7 +6,7 @@
 
 import {
     catchStep, do_, finallyStep, foldStep, forEachStep, history, historyStep, mapStep, walkStep,
-    match, partialMatch, pure, pureError, pureOk, resultMapStep, resultStep,
+    match, partialMatch, pure, pureError, pureOk, refuse, resultMapStep, resultStep,
     runPure, step, toIoError, unwrapStep,
 } from './module.f.mjs'
 import { run as mockRun } from './mock/module.f.mjs'
@@ -331,6 +331,12 @@ export const proof = {
     },
     pureError: () => {
         assertEq(assertError(pureResult(pureError('nope'))), 'nope')
+    },
+    refuse: () => {
+        const e = assertError(pureResult(refuse('EBAD')('bad input')))
+        assertEq(e[0], 'ioError')
+        assertEq(e[1].code, 'EBAD')
+        assertEq(e[1].message, 'bad input')
     },
     step: {
         ok: () => {

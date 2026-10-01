@@ -105,7 +105,7 @@
  * @import { Held } from './types.ts'
  */
 
-import { catchStep, foldStep, history, historyStep, ioError, mapStep, pureError, pureOk, step, walkStep } from '../../effects/module.f.mjs'
+import { catchStep, foldStep, history, historyStep, mapStep, pureError, pureOk, refuse, step, walkStep } from '../../effects/module.f.mjs'
 import { inflate, leadsNowhere, namesNothing, notAFileCode, notAFileMessage, readBytes, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
@@ -197,8 +197,7 @@ const channelText = c => c[0] === 'ioError'
  *
  * @type {(path: string, at: number) => (what: string) => Effect<never, never, IoChannel>}
  */
-const entryRefusal = (path, at) => what =>
-    pureError(ioError({ code: packEntryCode, message: `${path}:${at} ${what}` }))
+const entryRefusal = (path, at) => what => refuse(packEntryCode)(`${path}:${at} ${what}`)
 
 /**
  * The refusal for a path that is there and is no regular file, in the words
@@ -207,8 +206,7 @@ const entryRefusal = (path, at) => what =>
  *
  * @type {(path: string) => Effect<never, never, IoChannel>}
  */
-const notAFile = path =>
-    pureError(ioError({ code: notAFileCode, message: notAFileMessage(path) }))
+const notAFile = path => refuse(notAFileCode)(notAFileMessage(path))
 
 /**
  * One entry of the pack directory that ends in `.idx`, kept where it is a file.
@@ -315,7 +313,7 @@ const idxNames = pd => catchStep(
 const idxAt = (path, oidBytes) => {
     const read = mapStep(readWholeBytes(path), b => tryIdx(oidBytes)(b))
     return step(read, i => i === null
-        ? pureError(ioError({ code: packIdxCode, message: idxMessage(path) }))
+        ? refuse(packIdxCode)(idxMessage(path))
         : pureOk(i))
 }
 
@@ -418,22 +416,22 @@ const missingBase = (e, at) =>
  * @type {(idx: Idx, path: string, at: number, chain: _Chain, e: Entry, data: readonly number[]) => Effect<never, readonly [_Chain, List<number>], IoChannel>}
  */
 const advance = (idx, path, at, chain, e, data) => {
-    const refuse = entryRefusal(path, at)
+    const refused = entryRefusal(path, at)
     if (data.length !== e.size) {
-        return refuse(`inflates to ${data.length} bytes, not the ${e.size} its header declares`)
+        return refused(`inflates to ${data.length} bytes, not the ${e.size} its header declares`)
     }
     if (e.kind === 'object') {
         const payload = applied(chain.deltas, data)
         return payload === null
-            ? refuse('holds a delta that does not apply to its base')
+            ? refused('holds a delta that does not apply to its base')
             : pureOk(/** @type {const} */ ([{ ...chain, found: { type: e.type, payload } }, null]))
     }
     if (chain.links >= idx.ids.length) {
-        return refuse(`begins a chain of more deltas than the pack's ${idx.ids.length} objects`)
+        return refused(`begins a chain of more deltas than the pack's ${idx.ids.length} objects`)
     }
     const base = baseAt(idx, at, e)
     return base === null
-        ? refuse(missingBase(e, at))
+        ? refused(missingBase(e, at))
         : pureOk(/** @type {const} */ ([
             { deltas: concat([data])(chain.deltas), links: chain.links + 1, found: null },
             [base],
@@ -476,15 +474,15 @@ export const packFileCode = /** @type {const} */ ('ERR_PACK_FILE')
  */
 const agrees = (path, oidBytes, idx, size, front, tail) => {
     /** @type {(what: string) => Effect<never, never, IoChannel>} */
-    const refuse = what => pureError(ioError({ code: packFileCode, message: `${path} ${what}` }))
+    const refused = what => refuse(packFileCode)(`${path} ${what}`)
     const h = tryHeader(front)
-    if (h === null) { return refuse('is no pack file') }
+    if (h === null) { return refused('is no pack file') }
     if (h.count !== idx.ids.length) {
-        return refuse(`holds ${h.count} objects where its index names ${idx.ids.length}`)
+        return refused(`holds ${h.count} objects where its index names ${idx.ids.length}`)
     }
     return u8ListToVecMsb(tail) === idx.packChecksum
         ? pureOk(size)
-        : refuse(`does not match the index, whose pack checksum is ${hexText(idx.packChecksum)}`)
+        : refused(`does not match the index, whose pack checksum is ${hexText(idx.packChecksum)}`)
 }
 
 /**
@@ -523,10 +521,7 @@ const agrees = (path, oidBytes, idx, size, front, tail) => {
 const framingOf = (path, oidBytes, idx) => {
     const sized = history(mapStep(stat(path), s => s.size))
     const front = historyStep(sized, size => size < headerBytes + oidBytes
-        ? pureError(ioError({
-            code: packFileCode,
-            message: `${path} is ${size} bytes, too short to be a pack file`,
-        }))
+        ? refuse(packFileCode)(`${path} is ${size} bytes, too short to be a pack file`)
         : mapStep(readBytes(path, 0, headerBytes), denseBytes))
     const back = historyStep(front, (_, size) => mapStep(
         readBytes(path, size - oidBytes, oidBytes),

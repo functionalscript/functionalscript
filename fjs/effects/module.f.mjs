@@ -15,7 +15,7 @@
  * - {@link resultStep} — continue with the complete `Result`. Both paths.
  *
  * Around them: {@link pure} and the two lifts {@link pureOk} / {@link pureError}
- * that enter the layer, the projections {@link mapStep} and
+ * that enter the layer (with {@link refuse} for a coded host refusal), the projections {@link mapStep} and
  * {@link resultMapStep} that end a chain, {@link finallyStep} for a cleanup
  * that runs however a chain ended, {@link history} /
  * {@link historyStep} for a chain whose later links read earlier values, and
@@ -327,6 +327,19 @@ export const pureOk = v => pure(ok(v))
  * @type {<E>(e: E) => Effect<never, never, E>}
  */
 export const pureError = e => pure(error(e))
+
+/**
+ * A refused effect: an {@link IoError} carrying `code` and `message` —
+ * `pureError(ioError({ code, message }))` written once.
+ *
+ * Curried on the code first, since a code is what a module fixes and a message
+ * is what a site supplies: `refuse(badNameCode)(badNameMessage(path))` at a
+ * site, or `const refusal = refuse(packFileCode)` where a module refuses with
+ * one code many times.
+ *
+ * @type {(code: string) => (message: string) => Effect<never, never, IoError>}
+ */
+export const refuse = code => message => pureError(ioError({ code, message }))
 
 /**
  * Builds the {@link NotImplemented} a runner answers with when it cannot
