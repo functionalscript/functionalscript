@@ -1,7 +1,7 @@
 ## vec-to-code-point-pipeline. Single owner for the UTF-8 `Vec` → string decode pipeline
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
