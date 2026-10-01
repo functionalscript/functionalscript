@@ -1450,6 +1450,15 @@ export const proof = {
                     assert(!htmlToString(demo.view(source)).includes('not yet drawn'), name)
                 }
             },
+            // A hexadecimal number and bigint draw as the values they spell:
+            // the graph keeps the value, and the spelling stays in the text.
+            hex: () => {
+                const [, source] = assertNotNullish(examples.find(([name]) => name === 'Primitives'))
+                assert(source.includes('0xFF') && source.includes('0x10n'), source)
+                const html = htmlToString(demo.view(source))
+                assert(html.includes('>255<') && html.includes('>16n<'), html)
+                assert(!html.includes('>0xFF<') && !html.includes('>0x10n<'), html)
+            },
         },
     },
 }
