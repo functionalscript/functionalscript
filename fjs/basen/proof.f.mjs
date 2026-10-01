@@ -68,25 +68,25 @@ export const proof = {
     },
     demo: {
         /**
-         * **What the demo shows is pinned**, character for character: the
-         * groups it draws and the codecs' own characters under them. The
-         * Base64 lines are what `printf '%s' … | base64` prints.
+         * **What the demo shows is pinned**: the groups it draws and the
+         * codecs' own output for them. The Base64 results are what
+         * `printf '%s' … | base64` prints.
          */
         encodings: () => {
             assertEq(JSON.stringify(encodings('')), JSON.stringify({
-                bits: '(empty)',
-                base64: '(empty)',
-                cBase32: '·10000\ng\n= g',
+                bytes: [],
+                base64: { groups: [], encoded: '' },
+                cBase32: { groups: ['·10000'], encoded: 'g' },
             }))
             assertEq(JSON.stringify(encodings('h')), JSON.stringify({
-                bits: '01101000',
-                base64: '011010 00·0000\na      A\n= aA==',
-                cBase32: '01101 000·10\nd     2\n= d2',
+                bytes: ['01101000'],
+                base64: { groups: ['011010', '00·0000'], encoded: 'aA==' },
+                cBase32: { groups: ['01101', '000·10'], encoded: 'd2' },
             }))
             assertEq(JSON.stringify(encodings('hé')), JSON.stringify({
-                bits: '01101000 11000011 10101001',
-                base64: '011010 001100 001110 101001\na      M      O      p\n= aMOp',
-                cBase32: '01101 00011 00001 11010\nd     3     1     t\n1001·1\nk\n= d31tk',
+                bytes: ['01101000', '11000011', '10101001'],
+                base64: { groups: ['011010', '001100', '001110', '101001'], encoded: 'aMOp' },
+                cBase32: { groups: ['01101', '00011', '00001', '11010', '1001·1'], encoded: 'd31tk' },
             }))
         },
         // An unpaired surrogate has no UTF-8 bytes, so there is nothing to
@@ -103,13 +103,26 @@ export const proof = {
             assertEq(step({ kind: 'input', name: 'text', value: 'a' })(''), 'a')
             assertEq(step({ kind: 'start' })('kept'), 'kept')
         },
+        /**
+         * **A character sits under its group**: the two are one table column,
+         * the group in a data cell and the character in a header cell, four
+         * groups to a row — `hé` makes CBase32 five groups, so two rows.
+         */
         view: () => {
             const html = htmlToString(demo.view(demo.init))
             assert(html.includes('name="text"'), html)
-            assert(html.includes('= aMOp'), html)
-            assert(html.includes('= d31tk'), html)
+            assert(html.includes('<tr><td>011010</td><td>001100</td><td>001110</td><td>101001</td></tr><tr><th>a</th><th>M</th><th>O</th><th>p</th></tr>'), html)
+            assert(html.includes('<tr><td>1001·1</td></tr><tr><th>k</th></tr>'), html)
+            assert(html.includes('Result: <strong>aMOp</strong>'), html)
+            assert(html.includes('Result: <strong>d31tk</strong>'), html)
+            // Empty text has no bytes and no Base64 groups, so no Base64
+            // table; CBase32 still has its stop bit.
+            const empty = htmlToString(demo.view(''))
+            assert(empty.includes('<pre>(empty)</pre>'), empty)
+            assert(empty.includes('Result: <strong>(empty)</strong>'), empty)
+            assertEq(empty.split('<table>').length, 2)
             const refused = htmlToString(demo.view('a\uD800'))
-            assert(refused.includes('error: unpaired surrogate'), refused)
+            assert(refused.includes('<strong>error: unpaired surrogate, no UTF-8</strong>'), refused)
         },
     },
 }

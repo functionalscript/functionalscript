@@ -31,9 +31,9 @@
  * @module
  *
  * @import { Demo, DemoEvent } from '../website/demo/types.ts'
- * @import { Node } from '../media/html/types.ts'
+ * @import { Element, Node } from '../media/html/types.ts'
  * @import { Nullable } from '../types/nullable/types.ts'
- * @import { _Scheme } from './private.ts'
+ * @import { _Encoding, _Encodings, _Scheme } from './private.ts'
  */
 
 import { encode as base64 } from './base64/module.f.mjs'
@@ -92,38 +92,19 @@ const groups = ({ width, count, fill }) => b =>
         return data.length === width ? data : `${data}·${fill(width - data.length)}`
     })
 
-/** Groups per row: four Base64 groups are three bytes, one whole quantum. */
-const perRow = 4
-
 /**
- * Each group's bits, and under them the character the codec wrote for it, four
- * groups to a row.
+ * One encoding of the text: the groups its bits are cut into, and what the
+ * codec wrote for them, one character per group plus any `=` padding.
  *
- * @type {(gs: readonly string[]) => (encoded: string) => string}
+ * @type {(scheme: _Scheme, b: string, encoded: string) => _Encoding}
  */
-const rows = gs => encoded =>
-    Array.from({ length: Math.ceil(gs.length / perRow) }, (_, r) => {
-        const row = gs.slice(r * perRow, (r + 1) * perRow)
-        const chars = row.map((g, i) => encoded[r * perRow + i].padEnd(g.length))
-        return `${row.join(' ')}\n${chars.join(' ').trimEnd()}`
-    }).join('\n')
+const encoding = (scheme, b, encoded) => ({ groups: groups(scheme)(b), encoded })
 
 /**
- * One encoding's section: its groups with their characters, then the whole
- * encoded text.
+ * What the demo shows for `text`: its UTF-8 bytes in binary, then its Base64
+ * and CBase32 encodings — or why there are none.
  *
- * @type {(scheme: _Scheme, b: string, encoded: string) => string}
- */
-const section = (scheme, b, encoded) => {
-    const gs = groups(scheme)(b)
-    return gs.length === 0 ? '(empty)' : `${rows(gs)(encoded)}\n= ${encoded}`
-}
-
-/**
- * What the demo shows for `text`: its UTF-8 bits, then its Base64 and CBase32
- * sections — or why there are none.
- *
- * @type {(text: string) => { readonly bits: string, readonly base64: string, readonly cBase32: string } | string}
+ * @type {(text: string) => _Encodings | string}
  */
 export const encodings = text => {
     const bytes = utf8Bytes(text)
@@ -132,11 +113,52 @@ export const encodings = text => {
     const binary = bytes.map(x => x.toString(2).padStart(8, '0'))
     const b = binary.join('')
     return {
-        bits: b === '' ? '(empty)' : binary.join(' '),
-        base64: section(base64Scheme, b, assertNotNullish(base64(v), 'UTF-8 is whole bytes')),
-        cBase32: section(cBase32Scheme, b, vecToCBase32(v)),
+        bytes: binary,
+        base64: encoding(base64Scheme, b, assertNotNullish(base64(v), 'UTF-8 is whole bytes')),
+        cBase32: encoding(cBase32Scheme, b, vecToCBase32(v)),
     }
 }
+
+/** Groups per row: four Base64 groups are three bytes, one whole quantum. */
+const perRow = 4
+
+/**
+ * A table of an encoding's groups, four to a row: each group's bits, and under
+ * them, in a header cell, the character the codec wrote for it. The header
+ * cell is what sets the characters apart from the bits: a browser bolds and
+ * centres it, and the site sets everything in one monospace face, so nothing
+ * else would.
+ *
+ * @type {(e: _Encoding) => Element}
+ */
+const table = ({ groups, encoded }) => {
+    /** @type {(tag: string) => (text: string) => Element} */
+    const cell = tag => text => [tag, text]
+    /** @type {(r: number) => readonly Element[]} */
+    const rowPair = r => {
+        const row = groups.slice(r * perRow, (r + 1) * perRow)
+        return [
+            ['tr', ...row.map(cell('td'))],
+            ['tr', ...row.map((_, i) => cell('th')(encoded[r * perRow + i]))],
+        ]
+    }
+    return ['table', ...Array.from({ length: Math.ceil(groups.length / perRow) }, (_, r) => rowPair(r)).flat()]
+}
+
+/** @type {(s: string) => string} */
+const orEmpty = s => s === '' ? '(empty)' : s
+
+/**
+ * One encoding's part of the page: its name in bold and how it cuts the bits,
+ * the table, then the whole result in bold.
+ *
+ * @type {(name: string, how: string) => (e: _Encoding) => readonly Node[]}
+ */
+const section = (name, how) => e => [
+    ['p', ['strong', name], ` — ${how}`],
+    ...(e.groups.length === 0 ? [] : [table(e)]),
+    ['p', 'Result: ', ['strong', orEmpty(e.encoded)]],
+]
 
 /**
  * The state is the text itself, not its encodings: they are a function of it,
@@ -156,14 +178,10 @@ export const demo = textDemo({
     init: 'hé',
 })(text => {
     const e = encodings(text)
-    /** @type {readonly Node[]} */
-    const view = typeof e === 'string' ? [['pre', e]] : [
-        ['p', 'UTF-8 bytes, binary:'],
-        ['pre', e.bits],
-        ['p', 'Base64, 6 bits per character:'],
-        ['pre', e.base64],
-        ['p', 'CBase32, 5 bits per character, then a stop bit:'],
-        ['pre', e.cBase32],
+    return typeof e === 'string' ? [['p', ['strong', e]]] : [
+        ['p', ['strong', 'UTF-8 bytes'], ' — binary'],
+        ['pre', orEmpty(e.bytes.join(' '))],
+        ...section('Base64', '6 bits per character; fill bits after ·')(e.base64),
+        ...section('CBase32', '5 bits per character, then a stop bit; fill bits after ·')(e.cBase32),
     ]
-    return view
 })
