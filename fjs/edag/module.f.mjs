@@ -392,7 +392,10 @@ export const propertyLambda = or(
  *
  * The last operand is one node evaluating to the complete argument array,
  * not a literal operand list: `f(a, b)` is `['()', f, ['[]', [a, b]]]`,
- * while spread `f(...xs)` is `['()', f, xs]`.
+ * and spread `f(...xs)` is `['()', f, ['[]', [['...', xs]]]]`, since a
+ * spread iterates its operand: `f(...'ab')` passes `'a'` and `'b'`. Only an
+ * operand that is an array by construction, such as a forwarded `['rest']`,
+ * may be the last operand itself.
  *
  * One arity, unlike the three chain nodes below: `()` produces a bare value
  * and so has no continuation operand to leave out.
