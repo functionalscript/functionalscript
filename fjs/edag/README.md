@@ -241,9 +241,9 @@ produces a bare value, which is why it alone has no continuation operand.
 | step | effect | meaning |
 |---|---|---|
 | `['\|.', index, k]` | sets P, keeps O | property access; the input becomes the receiver |
-| `['\|()', exp, k]` | clears P, keeps O | call the current value with the current receiver |
-| `['\|?.()', exp, k]` | clears P, **sets** O | the same, `undefined` on a nullish current value — and the region it opens owns the rest of the chain |
-| `['\|!()', exp]` | clears P, **clears** O | the same as `\|()`, but *outside* the region: the parentheses ended it, so a short-circuit does not skip this step |
+| `['\|()', items[], k]` | clears P, keeps O | call the current value with the current receiver |
+| `['\|?.()', items[], k]` | clears P, **sets** O | the same, `undefined` on a nullish current value — and the region it opens owns the rest of the chain |
+| `['\|!()', items[]]` | clears P, **clears** O | the same as `\|()`, but *outside* the region: the parentheses ended it, so a short-circuit does not skip this step |
 
 `?` adds a guard and `!` escapes one, which makes the three call steps a
 complete taxonomy of how a call can relate to the region it sits in:

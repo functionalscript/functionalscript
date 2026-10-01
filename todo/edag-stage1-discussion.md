@@ -436,7 +436,7 @@ same shape, one for entering a call, one for creating a closure.
 // b has one fixed parameter, y, so its length is 1 and y is ["arg", 0]:
 ["=>", 1, [["self"]], /* b's body */ …]
 // inside b, calling f with y — slot 0 of b's frame:
-["()", ["frame", 0], ["[]", [["arg", 0]]]]
+["()", ["frame", 0], [["arg", 0]]]
 ```
 
 Consequences:
@@ -1330,7 +1330,7 @@ const b = 3
 ```
 
 In `f`'s body, `a` is a captured value — frame slot 0 — while `f()` is
-`["()", ["self"], ["[]"]]`, needing no frame entry at all.
+`["()", ["self"], []]`, needing no frame entry at all.
 
 This is exactly what makes frames constructible. `["=>", frame, body]`
 evaluates its `frame` operand *first*, so every captured value must
