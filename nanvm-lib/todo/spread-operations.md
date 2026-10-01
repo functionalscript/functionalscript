@@ -120,8 +120,7 @@ These operations do not wait on it, and do not decide it.
 
 ### The iterator type
 
-What `get_iterator` returns, and what `object_spread` returns beside it.
-The proposal, with the questions it leaves open:
+What `get_iterator` returns, and what `object_spread` returns beside it:
 
 - **A Rust type, never a VM value.** A FunctionalScript module cannot hold
   an iterator: `values()`, `entries()` and `keys()` are prohibited calls, and
@@ -131,9 +130,10 @@ The proposal, with the questions it leaves open:
   observe its state or advance it twice.
 - **A concrete, named type**, not `impl Iterator`. Generated Rust from
   [`fjs/edag/rust`](../../fjs/edag/rust/module.f.mjs) names it, and a named
-  type keeps the API stable. The proposed name is `IteratorRecord<A>`,
-  after the spec's Iterator Record that `GetIterator` returns, which also
-  keeps it apart from Rust's `Iterator` trait. It implements
+  type keeps the API stable. It is `IteratorRecord<A>`, after the spec's
+  Iterator Record that `GetIterator` returns, which also keeps it apart from
+  Rust's `Iterator` trait. The spec's record also holds a `next` method and
+  a `[[Done]]` flag; this one needs neither, and the name is kept anyway. It implements
   `Iterator<Item = Any<A>>` and is fused.
 - **An enum of the two iterable kinds**, each owning a clone of its value,
   which is a reference count, and a position:
@@ -162,14 +162,10 @@ The proposal, with the questions it leaves open:
   created. Its array and string variants stay index walks, and its empty
   variant covers everything else.
 
-Open:
-
-- **The names `IteratorRecord` and `ObjectSpread`.** `IteratorRecord`
-  borrows the spec's term, but the spec's record also holds a `next` method
-  and a `[[Done]]` flag, which this has no use for.
-- **Whether the code point an iteration yields is a new `String<A>` per
-  element**, as JavaScript's is, or a shared slice where an `IVm` backend
-  can offer one.
+**Each code point is a new `String<A>`**, as JavaScript makes it. Sharing
+the parent's buffer is an optimization, and
+[string slices](./string-slices.md) investigates it for every operation that
+produces part of a string, not for this one alone.
 
 ### Tasks
 
