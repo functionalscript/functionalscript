@@ -1,4 +1,4 @@
-import { toCodePointList, fromCodePointList, fromVec, utf8ByteToCodePointOp } from './module.f.mjs'
+import { toCodePointList, fromCodePointList, fromVec, utf8ByteToCodePointOp, vecToCodePointList } from './module.f.mjs'
 import { stringify as jsonStringify } from '../../media/json/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
@@ -193,6 +193,18 @@ export const proof = {
             const result = stringify(toArray(fromCodePointList(codePointList)))
             assertEq(result, '[240,160,160,244,160,160]')
         }
+    ],
+    vecToCodePointList: [
+        // Valid bytes → their code points
+        () => {
+            const v = u8ListToVecMsb([0x68, 0xc2, 0xa9])
+            assertEq(stringify(toArray(vecToCodePointList(v))), '[104,169]')
+        },
+        // Unchecked: a lone continuation byte becomes an error-tagged code point
+        () => {
+            const v = u8ListToVecMsb([0x80])
+            assertEq(stringify(toArray(vecToCodePointList(v))), '[-2147483520]')
+        },
     ],
     fromVec: [
         // Valid ASCII → decoded string

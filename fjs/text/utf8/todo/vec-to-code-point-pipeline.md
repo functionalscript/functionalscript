@@ -88,7 +88,7 @@ with every importer updated in the same PR; a re-export left in
 
 ### Tasks
 
-- [ ] Add `vecToCodePointList` to `fjs/text/utf8/module.f.mjs`; rewrite
+- [x] Add `vecToCodePointList` to `fjs/text/utf8/module.f.mjs`; rewrite
       `fromVec` and `utf8ToString` through it.
 - [ ] Decide whether `utf8ToString` moves next to `fromVec`; update importers
       if so.
@@ -105,7 +105,7 @@ with every importer updated in the same PR; a re-export left in
       stops sharing a name with a decoder. A renamed export is a declared
       breaking change (`**BREAKING CHANGES:**`), with every importer updated in
       the same PR.
-- [ ] Drop the two unused imports in `fjs/effects/node/module.f.mjs`.
+- [x] Drop the two unused imports in `fjs/effects/node/module.f.mjs`.
 - [ ] `tsc`, `fjs t`.
 
 ### Related
