@@ -1,7 +1,7 @@
 ## bigint-shift-decode. `Shl`/`Shr` duplicate the shift-amount decode
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
