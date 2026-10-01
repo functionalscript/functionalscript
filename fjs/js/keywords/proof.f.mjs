@@ -1,10 +1,11 @@
 /**
  * @import { Assert } from '../../asserts/types.ts'
  * @import { Equal } from '../../types/ts/types.ts'
+ * @import { restrictedNames, strictModeReservedWords } from './module.f.mjs'
  */
 
 import { assertEq } from '../../asserts/module.f.mjs'
-import { keywords, literalGlobals, literalWords, reservedWords, restrictedNames, strictModeReservedWords } from './module.f.mjs'
+import { isKeyword, keywords, literalGlobals, literalWords, reservedWords } from './module.f.mjs'
 
 export const proof = {
     // `keywords` is derived from the four groups; what the derivation does
@@ -39,5 +40,12 @@ export const proof = {
         assertEq(words.filter(w => reserved.has(w)).join(), 'false,null,true')
         assertEq(words.filter(w => globals.has(w)).join(), literalGlobals.join())
         assertEq(words.filter(w => all.has(w)).length, words.length)
+    },
+    // `isKeyword` holds for every keyword and nothing else: not a near miss
+    // by case, not a prototype member a plain object would answer for, and
+    // not the empty word.
+    isKeyword: () => {
+        assertEq(keywords.every(isKeyword), true)
+        assertEq(['If', 'nan', 'constructor', 'toString', 'x', ''].some(isKeyword), false)
     },
 }

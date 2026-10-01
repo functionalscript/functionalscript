@@ -3,9 +3,10 @@
  *
  * FunctionalScript is a strict subset of JavaScript: any FunctionalScript
  * program must run the same on JavaScript. Every consumer that decides
- * whether a name is a keyword — the JavaScript and module tokenizers, printers
- * that emit identifiers — derives its set from this module instead of
- * keeping a copy, so the sets cannot drift apart.
+ * whether a name is a keyword — the JavaScript and module tokenizers, the
+ * parser, printers that emit identifiers — asks {@link isKeyword} or derives
+ * its set from this module instead of keeping a copy, so the answers cannot
+ * drift apart.
  *
  * @module
  */
@@ -77,3 +78,14 @@ const groups = [...reservedWords, ...strictModeReservedWords, ...restrictedNames
  * @type {readonly (typeof groups)[number][]}
  */
 export const keywords = groups.toSorted()
+
+/** @type {ReadonlySet<string>} */
+const keywordSet = new Set(keywords)
+
+/**
+ * Whether a word is one of the {@link keywords} — the one membership test
+ * every tokenizer and parser asks, so none keeps a set of its own.
+ *
+ * @type {(word: string) => boolean}
+ */
+export const isKeyword = word => keywordSet.has(word)
