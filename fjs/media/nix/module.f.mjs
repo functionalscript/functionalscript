@@ -23,6 +23,7 @@ import {
     range,
 } from '../../text/ascii/module.f.mjs'
 import { contains, fromRange, union } from '../../types/range_set/module.f.mjs'
+import { intersperse, mergeAdjacent, toArray } from '../../types/list/module.f.mjs'
 
 const reservedWords = /** @type {const} */ ([
     'assert',
@@ -173,6 +174,9 @@ const serializeReferenceChunks = reference => {
     return serialized === undefined ? undefined : [serialized]
 }
 
+/** @type {(a: string | _Reference) => (b: string | _Reference) => string | _Reference | null} */
+const joinStrings = a => b => typeof a === 'string' && typeof b === 'string' ? `${a}${b}` : null
+
 /**
  * Adjacent string parts joined into one, so escaping sees the text a reader
  * sees rather than each half of it.
@@ -188,15 +192,7 @@ const serializeReferenceChunks = reference => {
  *
  * @type {(parts: readonly (string | _Reference)[]) => readonly (string | _Reference)[]}
  */
-const coalesceStrings = parts => parts.reduce(
-    /** @type {(acc: readonly (string | _Reference)[], part: string | _Reference) => readonly (string | _Reference)[]} */
-    (acc, part) => {
-        const last = acc[acc.length - 1]
-        return typeof part === 'string' && typeof last === 'string'
-            ? [...acc.slice(0, -1), `${last}${part}`]
-            : [...acc, part]
-    },
-    [])
+const coalesceStrings = parts => toArray(mergeAdjacent(joinStrings)(parts))
 
 /**
  * One part of an indented string: content, or an interpolation.
@@ -286,7 +282,7 @@ const serializeList = ([, ...references]) => {
         ? undefined
         : items.length === 0
             ? ['[ ]']
-            : ['[ ', ...definedItems.flatMap((item, index) => index === 0 ? [item] : [' ', item]), ' ]']
+            : ['[ ', ...toArray(intersperse(' ')(definedItems)), ' ]']
 }
 
 /** @type {(application: _Application, level: number) => _Chunks | undefined} */

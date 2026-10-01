@@ -3,7 +3,7 @@
  * @import { List } from './types.ts'
  */
 
-import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, someBy, none, includes, take, takeWhile, toArray, zip, first, filterMap, isEmpty, sameItems, tryFold } from './module.f.mjs'
+import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, someBy, none, includes, take, takeWhile, toArray, zip, first, filterMap, isEmpty, sameItems, tryFold, intersperse, mergeAdjacent } from './module.f.mjs'
 import { stringify } from '../../media/json/module.f.mjs'
 import { sort } from '../object/module.f.mjs'
 import { addition, reduceToScan } from '../function/operator/module.f.mjs'
@@ -373,6 +373,17 @@ export const proof = {
         assertEq(length([1, 2, 3]), 3)
         assertEq(length(null), 0)
         assertEq(length(flat([[1, 3], null, () => [3], concat([12])([4, 89])])), 6)
+    },
+    intersperse: [
+        () => assertEq(str(intersperse(0)([1, 2, 3])), '[1,0,2,0,3]'),
+        () => assertEq(str(intersperse(0)([1])), '[1]'),
+        () => assertEq(str(intersperse(0)([])), '[]'),
+    ],
+    mergeAdjacent: () => {
+        /** @type {(a: number) => (b: number) => number | null} */
+        const sumEven = a => b => a % 2 === 0 && b % 2 === 0 ? a + b : null
+        assertEq(str(mergeAdjacent(sumEven)([2, 4, 1, 6, 8, 10, 3, 2])), '[6,1,24,3,2]')
+        assertEq(str(mergeAdjacent(sumEven)([])), '[]')
     },
     filterMap: [
         () => {
