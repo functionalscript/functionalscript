@@ -39,10 +39,15 @@ The rest follows JavaScript, and each point needs a proof:
   keeps its text, and the parser reads it with `Number`, never with
   `parseFloat`, which reads `0xFF` as `0`.
 
-Every output that can write the value writes the value and not the spelling:
-`0xFF` writes `255` and `0x10n` writes `16n`. An output that cannot write a
-value refuses it as it does today, whichever spelling it came from: `.json`
-refuses every `bigint`, and `.rs` one outside `i64`. A single-quoted string
+Every output writes the value and not the spelling, each in the form it
+already writes that value in, so no output changes. The source-like outputs,
+`.js`, `.data.js`, `.json` and the EDAG's `.edag.data.js`, write `0xFF` as
+`255` and `0x10n` as `16n`. `.rs` writes a number as its IEEE 754 bits,
+`f64_any(0x406fe00000000000)` for `0xFF`, and a `bigint` as a Rust
+integer, `bigint_any(16)` for `0x10n`, exactly as it writes `255` and `16n`.
+An output that cannot write a value refuses it as it does today, whichever
+spelling it came from: `.json` refuses every `bigint`, and `.rs` one outside
+`i64`. A single-quoted string
 is likewise written between double quotes. The graph does not record the
 spelling, so two modules that differ only in it hash the same.
 
@@ -110,8 +115,9 @@ proposer.
       reads `0x10`.
 - [ ] Proofs: values with both cases of `x` and of the digits, `bigint`
       included; `0x10e1`; rounding above 2^53; `-0x10n` folding;
-      `0x10.length`; the refusals `0x`, `0xg`, `0x1.5`; and the value
-      outputs writing the decimal value where they can write it at all.
+      `0x10.length`; the refusals `0x`, `0xg`, `0x1.5`; and each output
+      writing the value, not the spelling, as it writes a decimal literal
+      of the same value.
 - [ ] Spec: the [numbers](../README.md#numbers) and
       [bigints](../README.md#bigints) sections accept hexadecimal, and item
       2.3.4 of [the roadmap](./README.md) drops it.
