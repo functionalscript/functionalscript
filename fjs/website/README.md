@@ -183,7 +183,9 @@ page, the marks are a trail to every demo below it.
   were rendered side by side — a `demo` pill, this, a `[demo]` tag, a folder
   icon with a play cut-out, a flask, and `→ demo` — after a bare green
   triangle was rejected. This one is drawn the way the kind icons are, so the
-  list keeps one set of marks rather than gaining a second style.
+  list keeps one set of marks rather than gaining a second style. Its
+  triangle is as large as the ring allows: the first, smaller one shrank to
+  a few pixels on an ordinary monitor.
 
 ## Links are root-relative
 
