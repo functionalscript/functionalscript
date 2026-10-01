@@ -53,18 +53,16 @@ use — the pair of separators the host has — rather than each deciding for
 itself, whether by calling `toPosix` as the five do or by naming the
 separators as `under` does. POSIX passes `/` alone and a backslash stays a
 filename byte; Windows passes both and nothing changes from today.
-[`decode-once.md`](./decode-once.md) is the step that gathers those calls
-into one place, which is where such an argument would go, so that issue
-comes first.
+Their calls are gathered into one place, the private `parts` in
+[`fjs/path`](../module.f.mjs), which is where such an argument would go.
 
 Until then the module's reading is Windows-shaped, and a caller that must
 hold a POSIX name containing a backslash cannot use these functions on it.
 
 ### Related
 
-- [`decode-once.md`](./decode-once.md) — the single decode this would
-  parameterise.
-- [`fjs/path`](../module.f.mjs) — `toPosix`, and the bare-drive limitation
+- [`fjs/path`](../module.f.mjs) — `parts`, the single decode this would
+  parameterise; `toPosix`; and the bare-drive limitation
   recorded on `concat` and `under`.
 - [`fjs/git/repo`](../../git/repo/module.f.mjs) — reads a leading `\` in a
   `gitdir:` line as an ordinary POSIX name rather than a root, for the
