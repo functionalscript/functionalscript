@@ -1,7 +1,7 @@
 ## variadic-concat-to-bit-vec. Move the variadic `concat` from `crypto/sign` to `bit_vec`
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
