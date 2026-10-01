@@ -2,9 +2,9 @@
  * Assertion helpers for runtime checks and compile-time type-level tests.
  *
  * @module
+ *
+ * @import { Result } from '../types/result/types.ts'
  */
-
-/** @import { Result } from '../types/result/types.ts' */
 
 import { structurallySame } from '../types/object/structurally_same/module.f.mjs'
 
