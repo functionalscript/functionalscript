@@ -123,11 +123,32 @@ const split = p =>
     : isDriveRoot(p) ? [p.slice(0, 3), p.slice(3)]
     : ['', p]
 
+/**
+ * The decode every entry point starts from: {@link toPosix}, then {@link split}.
+ *
+ * @type {(path: string) => readonly [root: string, rest: string]}
+ */
+const parts = path => split(toPosix(path))
+
+/**
+ * Whether a decoded path is rooted: exactly when its root is non-empty.
+ *
+ * @type {(p: readonly [root: string, rest: string]) => boolean}
+ */
+const isRooted = ([r]) => r !== ''
+
 /** @type {(rooted: boolean) => (rest: string) => readonly string[]} */
 const posixSegments = rooted => rest => toArray(fold(pathDotSegments(rooted))([])(rest.split('/')))
 
-/** @type {(s: readonly [string, string]) => string} */
-const rejoin = ([r, rest]) => stringConcat([r, listJoin('/')(posixSegments(r !== '')(rest))])
+/**
+ * The normalized segments of a decoded path, folded against its own root.
+ *
+ * @type {(p: readonly [root: string, rest: string]) => readonly string[]}
+ */
+const segmentsOf = p => posixSegments(isRooted(p))(p[1])
+
+/** @type {(p: readonly [root: string, rest: string]) => string} */
+const rejoin = p => stringConcat([p[0], listJoin('/')(segmentsOf(p))])
 
 /**
  * The root of a path, carrying its trailing separator: `'/'` for a POSIX
@@ -150,7 +171,7 @@ const rejoin = ([r, rest]) => stringConcat([r, listJoin('/')(posixSegments(r !==
  *
  * @type {(path: string) => string}
  */
-export const root = path => split(toPosix(path))[0]
+export const root = path => parts(path)[0]
 
 /**
  * Splits a path into normalized segments, *without* its root — `parse('/a/b')`
@@ -164,10 +185,7 @@ export const root = path => split(toPosix(path))[0]
  *
  * @type {(path: string) => readonly string[]}
  */
-export const parse = path => {
-    const [r, rest] = split(toPosix(path))
-    return posixSegments(r !== '')(rest)
-}
+export const parse = path => segmentsOf(parts(path))
 
 /**
  * Whether a `..` in `path` would climb above its root — what a caller asks when
@@ -186,7 +204,7 @@ export const parse = path => {
  *
  * @type {(path: string) => boolean}
  */
-export const escapes = path => posixSegments(false)(split(toPosix(path))[1]).includes('..')
+export const escapes = path => posixSegments(false)(parts(path)[1]).includes('..')
 
 /**
  * Normalizes a path string by parsing and rejoining it with POSIX separators,
@@ -195,7 +213,7 @@ export const escapes = path => posixSegments(false)(split(toPosix(path))[1]).inc
  *
  * @type {Unary<string, string>}
  */
-export const normalize = path => rejoin(split(toPosix(path)))
+export const normalize = path => rejoin(parts(path))
 
 /**
  * Concatenates two path fragments and returns a normalized path.
@@ -209,14 +227,14 @@ export const normalize = path => rejoin(split(toPosix(path)))
  * @type {Reduce<string>}
  */
 export const concat = a => b => {
-    const [rb, restb] = split(toPosix(b))
-    if (rb !== '') { return rejoin([rb, restb]) }
+    const pb = parts(b)
+    if (isRooted(pb)) { return rejoin(pb) }
     // `a` is normalized before its root is read, because what `a` *is* decides
     // the join and only the folded form answers that: `./C:` and `x/../C:` are
     // both the bare drive `C:`, and reading them unfolded would insert the
     // separator that makes a drive root out of one.
     const [ra, resta] = split(normalize(a))
-    return rejoin([ra, stringConcat([resta, isBareDrive(resta) ? '' : '/', restb])])
+    return rejoin([ra, stringConcat([resta, isBareDrive(resta) ? '' : '/', pb[1]])])
 }
 
 /**

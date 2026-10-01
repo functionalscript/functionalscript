@@ -19,8 +19,8 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import {
-    countsView, formatDuration, groupByModule, groupLabel, groupStatus, groupView, loadProofs,
-    pendingView, reportOf, reportView, resultView, runProofs, unreported,
+    countsView, groupByModule, groupLabel, groupStatus, groupView, loadProofs,
+    pendingView, reportDuration, reportOf, reportView, resultView, runProofs, unreported,
 } from './module.f.mjs'
 import { demo } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
@@ -423,11 +423,10 @@ export const proof = {
         // A failure leads, because it is the count a reader is scanning for.
         failed: () => assertEq(groupLabel(14, 1), '1 failed · 14 passed'),
     },
-    formatDuration: {
-        underASecond: () => assertEq(formatDuration(82.34), '82.3 ms'),
-        // From a second on, seconds: the root page's suite is minutes long.
-        fromASecond: () => assertEq(formatDuration(1000), '1.0 s'),
-        long: () => assertEq(formatDuration(103812.4), '103.8 s'),
+    // One decimal, and the shared unit rule — a row reads as the counts do.
+    reportDuration: {
+        underASecond: () => assertEq(reportDuration(82.34), '82.3 ms'),
+        fromASecond: () => assertEq(reportDuration(103812.4), '103.8 s'),
     },
     /**
      * **The report's markup, as data.** Both renderers draw these — the live

@@ -166,6 +166,12 @@ const minting = node => !mergeable(node)
  * values — is written in place at each occurrence, since the occurrences
  * merge again when the output is read.
  *
+ * It reads no names: its walks go on past a value a scope has named, so a
+ * shared access over one takes a `const` it need not —
+ * `const $a0=$a[0]?[]:1;const $a1=$a0.k;` — which costs text and not the
+ * round trip. {@link block}, asking what its own text would build, stops
+ * at names instead.
+ *
  * @type {(a: Analysis, i: number) => boolean}
  */
 const hoistedKind = (a, i) => minting(a.nodes[i])
@@ -494,7 +500,10 @@ const lazyOperand = (s, depth, takes) => v => mapOk(
  * would build the array twice. Linking emits no such graph: what a body's
  * `const` shares, the body holds, and the body is one operand once
  * inlined; and a scope's `const` two lazy positions reach is anchored, an
- * eager reach the scope hoists for.
+ * eager reach the scope hoists for. What a value named around the block
+ * holds is not the block's: the value's `const` writes it once, and every
+ * occurrence reads the name — in `x.a === 1 || x.a === 2`, `x` a `const`
+ * holding a call or a nested array, the lazy operand builds nothing.
  *
  * @type {(s: _Scope, depth: number) => (v: Operand) => Result<_Written, string>}
  */
@@ -506,10 +515,19 @@ const block = (s, depth) => v => {
     // Reached from outside by an edge the operand's subgraph does not
     // hold: a count by edges, so that sharing the scope counts through a
     // node holding the operand — a `const` there, {@link hoistedKind} —
-    // does not count here.
+    // does not count here. The entry and what it holds are walked through
+    // unnamed entries alone, each asked only whether it mints or is a
+    // comma: a named entry is written in its own `const` and read by name,
+    // so nothing under it is the block's to build, and {@link hoistedKind},
+    // whose walks go on past names, would count what lies behind one. The
+    // candidate walk and the count still go through names, which changes
+    // no answer: what a named entry holds eagerly is its scope's, which
+    // names each value there that a `const` keeps and two places read, and
+    // what it holds lazily, or shares past the block that names it, went
+    // through this test before the name was given.
     const outside = reachableFrom(s.a)(v).find(w => unnamed(w)
         && references(s.a, w) > referencesWithin(s.a, v, w)
-        && reachableFrom(s.a)(['#', w]).some(i => unnamed(i) && (hoistedKind(s.a, i) || s.a.nodes[i][0] === ',')))
+        && reachableThrough(s.a, unnamed)(['#', w]).some(i => minting(s.a.nodes[i]) || s.a.nodes[i][0] === ','))
     if (outside !== undefined) { return error('a shared node reached from outside the lazy operand that establishes it') }
     return okThen(
         /** @type {(all: _Root) => Result<_Written, string>} */
@@ -1075,17 +1093,22 @@ const eagerFrom = a => root => {
 
 /**
  * The entries an operand reaches through any edge in its own scope, in
- * walk order.
+ * walk order, entering only the entries `through` admits, the operand's
+ * own among them: the walk stops at any other, neither listing it nor
+ * reaching under it.
  *
- * @type {(a: Analysis) => (root: Operand) => readonly number[]}
+ * @type {(a: Analysis, through: (i: number) => boolean) => (root: Operand) => readonly number[]}
  */
-const reachableFrom = a => root => {
+const reachableThrough = (a, through) => root => {
     /** @type {(seen: readonly number[], v: Operand) => readonly number[]} */
-    const reach = (seen, v) => v instanceof Array && !seen.includes(v[1])
+    const reach = (seen, v) => v instanceof Array && !seen.includes(v[1]) && through(v[1])
         ? allOperands(a.nodes[v[1]]).reduce(reach, [...seen, v[1]])
         : seen
     return reach([], root)
 }
+
+/** Every entry an operand reaches in its own scope: {@link reachableThrough}, admitting all. @type {(a: Analysis) => (root: Operand) => readonly number[]} */
+const reachableFrom = a => reachableThrough(a, () => true)
 
 /**
  * How many places under `root`, in its own scope, hold the entry `i` —

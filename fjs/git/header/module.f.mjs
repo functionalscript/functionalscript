@@ -18,6 +18,7 @@
  * @import { Ast } from '../../ebnf/ast/types.ts'
  * @import { Byte } from '../../ebnf/byte/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
  * @import { Bytes } from '../types.ts'
  * @import { Header, Payload } from './types.ts'
  */
@@ -27,6 +28,7 @@ import { ascii, byte, byteArray, byteLength, byteParser, not, symbols, symbolsOf
 import { eof, option, repeatFrom0, repeatFrom1, set } from '../../ebnf/module.f.mjs'
 import { lf, space as sp } from '../../text/ascii/module.f.mjs'
 import { flat, flatMap } from '../../types/list/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.mjs'
 import { sameBytes } from '../refname/module.f.mjs'
 
 const key = repeatFrom1(not(set(' \n')))
@@ -141,6 +143,107 @@ export const valueAt = (p, i, key) => {
  * @type {(p: Payload, key: string) => readonly Bytes[]}
  */
 export const valuesOf = (p, key) => p.headers.filter(isKey(key)).map(([, v]) => v)
+
+/**
+ * A value read by `parse`, or a panic naming `bad` and the value where
+ * `parse` refuses it.
+ *
+ * @type {<T>(parse: (v: Bytes) => Nullable<T>, bad: string) => (value: Bytes) => T}
+ */
+const parsed = (parse, bad) => value => {
+    const r = parse(value)
+    assert(r !== null, [bad, value])
+    return r
+}
+
+/**
+ * The field at `i` under `key`, read by `parse`: the shape of every
+ * well-known field of a commit and a tag that {@link valueAt} reaches by
+ * position. The two messages are the caller's, since each field names
+ * its own absence and its own malformation.
+ *
+ * @throws `missing` where the header is not there; `[bad, value]` where it
+ * is and `parse` refuses its value.
+ *
+ * @type {<T>(i: number, key: string, parse: (v: Bytes) => Nullable<T>, missing: string, bad: string) => (p: Payload) => T}
+ */
+export const fieldAt = (i, key, parse, missing, bad) => {
+    const read = parsed(parse, bad)
+    return p => {
+        const value = valueAt(p, i, key)
+        assertNotNullish(value, missing)
+        return read(value)
+    }
+}
+
+/**
+ * {@link fieldAt} without the panic: the field, or `null` where the header
+ * is not there or `parse` refuses its value. For a caller holding an
+ * object it has not vouched for.
+ *
+ * @type {<T>(i: number, key: string, parse: (v: Bytes) => Nullable<T>) => (p: Payload) => Nullable<T>}
+ */
+export const tryFieldAt = (i, key, parse) => p => {
+    const value = valueAt(p, i, key)
+    return value === null ? null : parse(value)
+}
+
+/**
+ * A field that may be absent but is never malformed: `null` where the
+ * header is not there, and the parsed value where it is — a tag's
+ * `tagger`, which very old tags lack.
+ *
+ * @throws `[bad, value]` where the header is there and `parse` refuses its
+ * value.
+ *
+ * @type {<T>(i: number, key: string, parse: (v: Bytes) => Nullable<T>, bad: string) => (p: Payload) => Nullable<T>}
+ */
+export const optionalAt = (i, key, parse, bad) => {
+    const read = parsed(parse, bad)
+    return p => {
+        const value = valueAt(p, i, key)
+        return value === null ? null : read(value)
+    }
+}
+
+/**
+ * {@link parsed} for a `validate`: `bad` rather than a panic where `parse`
+ * refuses the value.
+ *
+ * @type {<T>(parse: (v: Bytes) => Nullable<T>, bad: string) => (value: Bytes) => Result<T, string>}
+ */
+const checkedParse = (parse, bad) => value => {
+    const r = parse(value)
+    return r === null ? error(bad) : ok(r)
+}
+
+/**
+ * {@link fieldAt} for a `validate`: the field, or the message for
+ * whichever of the two ways it is not there, rather than a panic.
+ *
+ * @type {<T>(i: number, key: string, parse: (v: Bytes) => Nullable<T>, missing: string, bad: string) => (p: Payload) => Result<T, string>}
+ */
+export const checkedAt = (i, key, parse, missing, bad) => {
+    const read = checkedParse(parse, bad)
+    return p => {
+        const value = valueAt(p, i, key)
+        return value === null ? error(missing) : read(value)
+    }
+}
+
+/**
+ * {@link optionalAt} for a `validate`: `ok(null)` where the header is not
+ * there, the field where it is, and `bad` where `parse` refuses its value.
+ *
+ * @type {<T>(i: number, key: string, parse: (v: Bytes) => Nullable<T>, bad: string) => (p: Payload) => Result<Nullable<T>, string>}
+ */
+export const checkedOptionalAt = (i, key, parse, bad) => {
+    const read = checkedParse(parse, bad)
+    return p => {
+        const value = valueAt(p, i, key)
+        return value === null ? ok(null) : read(value)
+    }
+}
 
 /**
  * Whether a NUL sits in any header, key or value: the grammar reads one,
