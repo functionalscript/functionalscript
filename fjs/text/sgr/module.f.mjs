@@ -15,13 +15,17 @@
 
 import { write } from '../../effects/common/module.f.mjs'
 import { utf8 } from "../module.f.mjs"
+import { isDigit, latinSmallLetterM, leftSquareBracket, semicolon } from '../ascii/module.f.mjs'
 
 /** @type {string} */
 export const backspace = '\x08'
 
 //
 
-const begin = '\x1b['
+/** @type {string} */
+const esc = '\x1b'
+
+const begin = `${esc}[`
 
 /**
  * Control Sequence Introducer (CSI) escape sequence.
@@ -78,9 +82,39 @@ export const createConsoleText = stdout => {
     return f('')
 }
 
+/** A character of an SGR parameter list: a decimal digit or `;`. @type {(c: number) => boolean} */
+const isParameter = c => isDigit(c) || c === semicolon
+
+/**
+ * Removes the SGR sequence that `chunk`, the text after an `ESC`, begins
+ * with, or restores the `ESC` when it does not begin one.
+ *
+ * @type {(chunk: string) => string}
+ */
+const afterEscape = chunk => {
+    if (chunk.charCodeAt(0) !== leftSquareBracket) { return esc + chunk }
+    let i = 1
+    while (isParameter(chunk.charCodeAt(i))) { i += 1 }
+    return chunk.charCodeAt(i) === latinSmallLetterM ? chunk.slice(i + 1) : esc + chunk
+}
+
+/**
+ * Removes every SGR sequence — `ESC [`, a run of decimal digits and `;`, then
+ * `m` — from `s`, and keeps everything else, including an `ESC` that does not
+ * begin one.
+ *
+ * A sequence contains no `ESC` after its first character, so splitting on
+ * `ESC` puts each one at the start of its own chunk.
+ *
+ * @type {(s: string) => string}
+ */
+export const stripSgr = s => {
+    const [first, ...rest] = s.split(esc)
+    return [first, ...rest.map(afterEscape)].join('')
+}
+
 /** @type {(isTTY: boolean) => (s: string) => string} */
-const str = isTTY => s =>
-    isTTY ? s : s.replace(/\x1b\[[0-9;]*m/g, '')
+const str = isTTY => isTTY ? s => s : stripSgr
 
 /**
  * Effect-based TTY-aware write. Strips ANSI SGR sequences when the target
