@@ -225,8 +225,9 @@ export const isWholeName = input => {
  *
  * The one comparison of names in `fjs/git`: a tree entry's name in
  * [`fjs/git/walk`](../walk/module.f.mjs), a ref's in
- * [`fjs/git/refstore`](../refstore/module.f.mjs) and a header's key in
- * [`fjs/git/header`](../header/module.f.mjs) all ask it.
+ * [`fjs/git/refstore`](../refstore/module.f.mjs), a header's key in
+ * [`fjs/git/header`](../header/module.f.mjs) and an object type's name in
+ * [`fjs/git/object`](../object/module.f.mjs) all ask it.
  *
  * @type {(a: Bytes) => (b: Bytes) => boolean}
  */
