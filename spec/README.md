@@ -114,11 +114,10 @@ syntax or API.
 owns the remaining questions: whether the compiler's function serializer and
 `String(f)` are the same operation, whether `String(f)` instantiates captured
 frames, and how each handles `self`. Adopting EDAG-derived text does not settle
-those questions or claim that the conversion is implemented today, and it is
-not: the Rust VM answers a conversion the compiler admits — `f.toString()`,
-`'' + f`, `[f].toString()` — with text other than the EDAG's, a defect that
-[default function text](./todo/3120-parameters.md#default-function-text-render-or-refuse)
-tracks, not a result the language promises.
+those questions. The Rust VM answers a conversion the compiler admits —
+`f.toString()`, `'' + f`, `[f].toString()` — with the EDAG-derived text,
+captured values written as slot names
+([to-primitive, Stage 3](../nanvm-lib/todo/to-primitive.md#stage-3-a-functions-text)).
 
 ### Failure is one outcome
 
