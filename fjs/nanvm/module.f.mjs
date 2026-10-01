@@ -720,6 +720,7 @@ const remCases = [
  * @type {readonly Case<2>[]}
  */
 const addCases = [
+    { name: 'wideBigintPlusOne', args: [2n ** 64n - 1n, 1n], expected: 2n ** 64n },
     // An eager position establishes its operand: the throw is the case's.
     { name: 'unreachedPlusOne', args: [unreached, 1], expected: throws },
     { name: 'nullPlusOne', args: [null, 1], expected: 1 },
@@ -1153,6 +1154,9 @@ const stringCoercionCases = [
     { name: 'string', args: ['already'], expected: 'already' },
     { name: 'bigint', args: [123n], expected: '123' },
     { name: 'negativeBigint', args: [-456n], expected: '-456' },
+    // Past `i64` the literal is its sign and `u64` words.
+    { name: 'wideBigint', args: [123456789012345678901234567890n], expected: '123456789012345678901234567890' },
+    { name: 'wideNegativeBigint', args: [-(2n ** 64n)], expected: '-18446744073709551616' },
     { name: 'emptyArray', args: [[]], expected: '' },
     { name: 'singletonArray', args: [[1]], expected: '1' },
     { name: 'array', args: [[1, 2, 3]], expected: '1,2,3' },
@@ -1219,7 +1223,7 @@ const bitAndCases = [
     { name: 'bigZeroBitAndZero', args: [0n, 0n], expected: 0n },
     { name: 'bigPositiveBitAndZero', args: [12345n, 0n], expected: 0n },
     { name: 'bigNegativeBitAndZero', args: [-12345n, 0n], expected: 0n },
-    // A magnitude near the largest value the corpus can print (`i64::MAX`),
+    // A magnitude near `i64::MAX`,
     // where `-1`'s all-ones pattern makes AND an identity.
     { name: 'bigLargeMagnitude', args: [-(2n ** 62n), -1n], expected: -(2n ** 62n) },
     { name: 'numberBitAndBigint', args: [1, 1n], expected: throws },
@@ -1252,7 +1256,7 @@ const bitOrCases = [
     { name: 'bigZeroBitOrZero', args: [0n, 0n], expected: 0n },
     { name: 'bigPositiveBitOrZero', args: [12345n, 0n], expected: 12345n },
     { name: 'bigNegativeBitOrZero', args: [-12345n, 0n], expected: -12345n },
-    // A magnitude near the largest value the corpus can print (`i64::MAX`):
+    // A magnitude near `i64::MAX`:
     // `-1`'s all-ones two's-complement pattern absorbs anything it meets, so
     // the result is `-1` regardless of the other operand's magnitude.
     { name: 'bigLargeMagnitude', args: [-(2n ** 62n), -1n], expected: -1n },
@@ -1287,7 +1291,7 @@ const bitXorCases = [
     { name: 'bigZeroBitXorZero', args: [0n, 0n], expected: 0n },
     { name: 'bigPositiveBitXorZero', args: [12345n, 0n], expected: 12345n },
     { name: 'bigNegativeBitXorZero', args: [-12345n, 0n], expected: -12345n },
-    // A magnitude near the largest value the corpus can print (`i64::MAX`):
+    // A magnitude near `i64::MAX`:
     // `x ^ -1` is `~x`, the identity `bitwiseNotCases` below checks
     // directly, exercised here at a large magnitude instead of a small one.
     { name: 'bigLargeMagnitude', args: [-(2n ** 62n), -1n], expected: 2n ** 62n - 1n },
@@ -1555,6 +1559,8 @@ const sharedValues = {
  * @type {readonly Case<2>[]}
  */
 const strictEqualityCases = [
+    { name: 'wideBigintByItself', args: [2n ** 64n, 2n ** 64n], expected: true },
+    { name: 'wideBigintByNext', args: [2n ** 64n, 2n ** 64n + 1n], expected: false },
     { name: 'nullByNull', args: [null, null], expected: true },
     { name: 'undefinedByUndefined', args: [undefined, undefined], expected: true },
     { name: 'nullByUndefined', args: [null, undefined], expected: false },
