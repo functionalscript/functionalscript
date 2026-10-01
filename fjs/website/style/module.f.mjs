@@ -263,9 +263,10 @@ li:has(> [data-kind]) { list-style: none }
 /* A directory with a demo anywhere under it carries a play mark after its
    name, so the marks are a trail from any page down to every demo below it.
    After the name rather than before: the icon in front is what the entry is,
-   and this is something about it. It takes the link's own colour, being the
-   reason to follow that link, and says "has a demo" to a screen reader. */
-[data-has-demo]::after { background-color: currentColor; content: ""; display: inline-block; height: .75em; margin-left: .5em; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 2v12l10-6z'/%3E%3C/svg%3E") center / contain no-repeat; width: .75em }
+   and this is something about it. It is drawn like the kind icons, a mask over
+   the muted colour at the same size, so the list keeps one set of marks; it
+   says "has a demo" to a screen reader. */
+[data-has-demo]::after { background-color: var(--muted); content: ""; display: inline-block; height: 1em; margin-left: .5em; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1.5a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11zM6.5 5v6l4.5-3z'/%3E%3C/svg%3E") center / contain no-repeat; vertical-align: -.125em; width: 1em }
 [data-has-demo]::after { content: "" / "has a demo" }
 /* A list of links, one per line — a section's catalogue, the release index —
    is marked data-links, and has nothing under WCAG 2.2's 24px minimum to tap:

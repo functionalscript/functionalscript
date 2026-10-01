@@ -177,8 +177,13 @@ page, the marks are a trail to every demo below it.
   needs a name, an order and a caption for each demo; the mark reuses the
   list a reader already walks, and the directory's name is the caption.
 - **After the name.** The icon in front of an entry is what the entry is; this
-  is something about it. It takes the link's colour and says "has a demo" to
-  a screen reader, as a kind icon names its kind.
+  is something about it. It says "has a demo" to a screen reader, as a kind
+  icon names its kind.
+- **A play button in a circle, muted, at the kind icons' size.** Six looks
+  were rendered side by side — a `demo` pill, this, a `[demo]` tag, a folder
+  icon with a play cut-out, a flask, and `→ demo` — after a bare green
+  triangle was rejected. This one is drawn the way the kind icons are, so the
+  list keeps one set of marks rather than gaining a second style.
 
 ## Links are root-relative
 
