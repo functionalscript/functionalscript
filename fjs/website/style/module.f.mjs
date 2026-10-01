@@ -317,6 +317,10 @@ svg text { font: inherit }
 [data-graph-outline] { fill: none; stroke: var(--text); stroke-width: 1.5 }
 [data-graph-kind="leaf"] { stroke: var(--muted); stroke-dasharray: 3 2 }
 [data-graph-kind="terminal"] { fill: var(--border) }
+/* The B-tree demo's two versions: a node only the later one holds is new,
+   one only the earlier one holds is replaced, and a shared one is plain. */
+[data-graph-kind="new"] { fill: var(--pass-bg) }
+[data-graph-kind="replaced"] { fill: var(--fail-bg) }
 [data-graph-label] { dominant-baseline: middle; fill: var(--text); font-size: .75rem }
 [data-graph-edge] { fill: none; stroke: var(--muted); stroke-width: 1.5 }
 [data-graph-edge-kind="lazy"] { stroke-dasharray: 5 3 }
