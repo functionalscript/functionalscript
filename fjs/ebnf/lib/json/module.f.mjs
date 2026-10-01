@@ -8,6 +8,8 @@
  */
 
 import { assert } from "../../../asserts/module.f.mjs"
+import { simpleEscapes } from "../../../js/string_escape/module.f.mjs"
+import { codePointListToString } from "../../../text/utf16/module.f.mjs"
 import { isFixedArray } from "../../../types/array/module.f.mjs"
 import { unmapped } from "../../ast/module.f.mjs"
 import { range, remove, repeatFrom0, unicodeMax, set, times, option, join, joined } from "../../module.f.mjs"
@@ -27,13 +29,14 @@ export const hex = /**@type {const}*/({
 })
 
 /**
- * An escape: the backslash, then the character of a simple escape, or `u`
- * and four hex digits.
+ * An escape: the backslash, then the letter of a simple escape, or `u` and
+ * four hex digits. The letters are `../../../js/string_escape`'s, so the set
+ * the grammar admits and the table every reader decodes through are one list.
  */
 export const escape = /**@type {const}*/([
     '\\',
     {
-        c: set('"\\/bfnrt'),
+        c: set(codePointListToString(simpleEscapes.map(([letter]) => letter))),
         u: ['u', times(4)(hex)],
     }
 ])
