@@ -8,9 +8,8 @@
  * again, and every other subtree is the same object in both versions.
  *
  * **Both versions are one graph.** A subtree both versions hold is drawn
- * once, reached from both roots: the sharing is the drawing itself. Each
- * root is titled with the version it is, the leaves all sit in the last
- * column, and each column reads in key order — see {@link _graphOf}. The
+ * once, reached from both roots: the sharing is the drawing itself. The
+ * leaves all sit in the last column, and each column reads in key order — see {@link _graphOf}. The
  * two roots sit on different ranks when a step grows or shrinks the tree,
  * which is the shape of what happened.
  *
@@ -20,12 +19,12 @@
  * tree was. The line above the drawing counts each.
  *
  * **A reader changes the tree one key at a time**: type a key, press
- * **Insert** or **Remove**, and the tree titled `After` is now titled
- * `Before`. A key that is not an integer is refused by name, and the
+ * **Insert** or **Remove**, and the tree that was the new version is now
+ * the old one. A key that is not an integer is refused by name, and the
  * trees stay as they were.
  *
  * **A preset loads a tree and a key, and takes no step.** Each makes one
- * tree both versions, titled `Before, After`, puts a key in the field and a hint naming the button
+ * tree both versions, puts a key in the field and a hint naming the button
  * to press, so the reader makes the change and sees it happen; picking one
  * again is how to start over. After the first press the drop-down says
  * `Custom`.
@@ -163,8 +162,8 @@ const kindOrder = kind => kind === 'replaced' ? 0 : kind === 'shared' ? 1 : 2
  * Both versions as one graph, built here rather than walked by `graphOf`,
  * because three things about it are the B-tree's, not any value's:
  *
- * - **No root above the two.** Each version's root carries its name as a
- *   title — `Before`, `After`, or both when a step changed nothing.
+ * - **No root above the two, and no titles.** The colours already tell
+ *   the old root from the new one: faded red, or green.
  * - **Leaves line up.** A node's rank is how far it is above the leaves,
  *   counted down from the taller root, so every leaf sits in the last
  *   column and the two roots sit where their heights put them.
@@ -185,10 +184,8 @@ export const _graphOf = ({ before, after }) => {
     const sorted = [...current, ...old.filter(node => !current.includes(node))]
         .toSorted((a, b) => average(a) - average(b) || kindOrder(kindOf(a)) - kindOrder(kindOf(b)))
     const top = [before, after].reduce((m, tree) => tree === null ? m : Math.max(m, heightOf(tree)), 0)
-    /** @type {(node: TNode<number>) => string} */
-    const titleOf = node => [...(node === before ? ['Before'] : []), ...(node === after ? ['After'] : [])].join(', ')
     return {
-        nodes: sorted.map((node, id) => ({ id, kind: kindOf(node), label: titleOf(node), rank: top - heightOf(node) })),
+        nodes: sorted.map((node, id) => ({ id, kind: kindOf(node), label: '', rank: top - heightOf(node) })),
         edges: sorted.flatMap((node, id) => rowsOf(node).map(([label, value]) => typeof value === 'number'
             ? { from: id, to: { inline: String(value) }, label }
             : { from: id, to: sorted.indexOf(value), label, kind: kindOf(node) === 'replaced' ? 'replaced' : undefined })),

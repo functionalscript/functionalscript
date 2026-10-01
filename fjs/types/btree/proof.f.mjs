@@ -129,11 +129,9 @@ const demoProof = {
         const h = html(demo.init)
         assertEq(JSON.stringify(demo.init), JSON.stringify(_load(presets[0][0])))
         assertEq(demo.init.versions.before, demo.init.versions.after)
-        // One graph, with no node above the tree: its root is titled with
-        // both versions.
+        // One graph, with no node above the tree and no titles.
         assertEq(count(h)('<svg'), 1)
-        assertEq(count(h)('data-graph-label='), 1)
-        assert(h.includes('>Before, After<'), h)
+        assertEq(count(h)('data-graph-label='), 0)
         assert(h.includes('name="insert"'), h)
         assert(h.includes('name="remove"'), h)
         assert(h.includes('value="8"'), h)
@@ -160,10 +158,8 @@ const demoProof = {
             // name beside it.
             assert(!h.includes('>Value'), h)
             assert(h.includes('data-graph-value-label="">8<'), h)
-            // The two roots are titled, and the old one is drawn faded,
-            // edges and all.
-            assert(h.includes('<g data-graph-in-kind="replaced"><text x="39" y="23" text-anchor="middle" data-graph-label="">Before<'), h)
-            assert(h.includes('data-graph-label="">After<'), h)
+            // The old nodes are drawn faded, edges and all.
+            assertEq(count(h)('<g data-graph-in-kind="replaced">'), 6)
             assertEq(count(h)('data-graph-edge-kind="replaced"'), 4)
             assert(h.includes('Last step, insert 8: 3 new (green), 4 shared with the version before, 3 replaced (red).'), h)
             // A press leaves the preset behind.
@@ -181,7 +177,6 @@ const demoProof = {
             assertEq(censusOf(s), '{"built":1,"shared":0,"replaced":0}')
             const h = html(s)
             assert(h.includes('Last step, insert 1:'), h)
-            assert(h.includes('>After<'), h)
             assert(h.includes('Before is the empty tree.'), h)
             assert(!h.includes('After is the empty tree.'), h)
         },
@@ -206,8 +201,10 @@ const demoProof = {
             const s = follow('Grow a level')
             assertEq(censusOf(s), '{"built":7,"shared":8,"replaced":3}')
             assertEq(JSON.stringify(depths('Grow a level')), '[3,4]')
-            const { nodes } = _graphOf(s.versions)
-            assertEq(JSON.stringify(nodes.flatMap(n => n.label === '' ? [] : [[n.label, n.rank]])), '[["Before",1],["After",0]]')
+            // The roots are the nodes no edge reaches.
+            const { nodes, edges } = _graphOf(s.versions)
+            const roots = nodes.filter(n => edges.every(e => e.to !== n.id))
+            assertEq(JSON.stringify(roots.map(n => [n.kind, n.rank])), '[["replaced",1],["new",0]]')
         },
         // An emptied leaf merges, and the tree shrinks a level.
         removeAndMerge: () => {
