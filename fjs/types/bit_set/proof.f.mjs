@@ -52,6 +52,7 @@ export const proof = {
             member: () => n.has(31)(n.universe),
             negative: () => n.one(-1),
             fraction: () => n.has(1.5)(n.universe),
+            outside: () => n.one(8),
         },
     },
     bigint: {
@@ -82,6 +83,11 @@ export const proof = {
             size: () => bitSet(bigintOps)(-1),
             negative: () => b.one(-1),
             fraction: () => b.has(1.5)(b.universe),
+            one: () => b.one(200),
+            set: () => b.set(200)(b.empty),
+            unset: () => b.unset(200)(b.universe),
+            rangeEnd: () => b.range([0, 200]),
+            reversed: () => b.range([5, 4]),
         },
     },
 }

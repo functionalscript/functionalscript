@@ -23,7 +23,8 @@ export type BitOps<T extends number | bigint> = {
 
 /**
  * Set operations over the members `0..size - 1`, where member `n` is bit `n`
- * of a `T`. Built by `bitSet` in `./module.f.mjs`.
+ * of a `T`. Built by `bitSet` in `./module.f.mjs`. An operation that builds a
+ * set refuses a member outside the universe; `has` answers `false` for one.
  */
 export type BitSet<T extends number | bigint> = {
     readonly empty: T

@@ -65,6 +65,11 @@ export const numberOps = {
 /**
  * Builds the set operations over the members `0..size - 1`.
  *
+ * Every operation that builds a set refuses a member outside the universe,
+ * and `range` a reversed range: either would answer with bits past `universe`
+ * or the wrong run of bits. `has` is a query, so a member past the universe is
+ * simply not in the set.
+ *
  * @template {number | bigint} T
  * @param {BitOps<T>} ops
  * @returns {(size: number) => BitSet<T>}
@@ -72,23 +77,31 @@ export const numberOps = {
 export const bitSet = ({ one, mask, or, and, xor }) => size => {
     const empty = mask(0)
     const universe = mask(size)
+    const member = bitIndex(size - 1)
+    /** @type {(n: number) => T} */
+    const memberOne = n => one(member(n))
     const complement = xor(universe)
     /** @type {(a: T) => (b: T) => T} */
     const difference = a => b => and(a)(complement(b))
-    /** @type {(r: Range) => T} */
-    const range = ([b, e]) => xor(mask(e + 1))(mask(b))
+    /**
+     * `bitIndex(e)` refuses a `b` past `e`, as `member` refuses an `e` past
+     * the universe.
+     *
+     * @type {(r: Range) => T}
+     */
+    const range = ([b, e]) => xor(mask(member(e) + 1))(mask(bitIndex(e)(b)))
     return {
         empty,
         universe,
         has: n => s => and(s)(one(n)) !== empty,
-        one,
+        one: memberOne,
         range,
         union: or,
         intersect: and,
         complement,
         difference,
-        set: n => or(one(n)),
+        set: n => or(memberOne(n)),
         setRange: r => or(range(r)),
-        unset: n => s => difference(s)(one(n)),
+        unset: n => s => difference(s)(memberOne(n)),
     }
 }
