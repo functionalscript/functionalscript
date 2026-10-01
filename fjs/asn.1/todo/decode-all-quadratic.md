@@ -1,7 +1,7 @@
 ## decode-all-quadratic. `decodeAll` is quadratic in both the bit vector and the result array
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 **Blocked by:** —
 
 ### Problem
