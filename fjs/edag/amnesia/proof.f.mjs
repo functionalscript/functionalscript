@@ -323,6 +323,10 @@ export const proof = {
         // Every evaluation builds a fresh closure, as `x => x` does in JS —
         // the `=>` node is shared, the values it produces are not.
         assert(ev(identity) !== ev(identity))
+        // A function's text is the host's, so only its type is promised
+        // (`../function-text.md`): never what the string is.
+        eq(['typeof', ['String', identity]], 'string')
+        eq(['typeof', ['+', identity, '']], 'string')
     },
     // `()` — the call with no receiver and no region. A call rebuilds the
     // callee's scope from two places: `frame` comes from the closure, `args`

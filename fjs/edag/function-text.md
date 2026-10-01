@@ -96,9 +96,12 @@ the same pull request, for these reasons:
 ## How to test it
 
 A proof on the JavaScript side checks only that a function's text is a
-string, never what the string is, because engines differ. The corpus's
-exact-text cases carry a `host` marker ([`fjs/nanvm/types.ts`](../nanvm/types.ts))
-and run on the Rust side, where the text is the language's.
+string, never what the string is, because engines differ: the `lambda` proof
+in [`amnesia/proof.f.mjs`](./amnesia/proof.f.mjs) converts an evaluated
+function with `String` and with `+`. The corpus's exact-text cases carry a
+`host` marker ([`fjs/nanvm/types.ts`](../nanvm/types.ts)). The JavaScript
+side skips them, and the Rust side alone runs them, where the text is the
+language's.
 
 ## What would change this
 

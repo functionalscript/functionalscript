@@ -345,7 +345,9 @@ The JavaScript-hosted EDAG evaluators in `fjs/edag` are outside this rule
 (ruled on [#2469](https://github.com/functionalscript/functionalscript/pull/2469)).
 Their functions are host closures, so their text is the host's, as on any
 JavaScript engine, and they neither render nor refuse it. A proof there
-checks only that the text is a string.
+checks only that the text is a string
+(the `lambda` proof in `fjs/edag/amnesia/proof.f.mjs`); the corpus's exact-text
+cases run on the Rust side alone.
 [`fjs/edag/function-text.md`](../../fjs/edag/function-text.md) records why.
 
 EDAG-derived **default** function text is already decided, not an optional
