@@ -1,7 +1,7 @@
 ## `packidx` bisects with `bsearch`
 
 **Priority:** P5
-**Status:** open
+**Status:** wip
 
 ### Problem
 
