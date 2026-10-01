@@ -194,6 +194,10 @@ may build the two arrays it reads instead: the fixed `[args; N]` and the rest.
 The items are still evaluated in order, a spread still iterated, and the
 boundary between the two arrays falls at the `N`th value, wherever a spread
 puts it. A call to a function that reads no `['rest']` need not build one.
+And where `N` is `1` an engine may pass the one fixed argument as the value
+itself, no array around it: a curried function, `a => b => a + b`, then takes
+each argument with no allocation at all, where the one-array reading would
+allocate one per call.
 
 ## Chains
 
