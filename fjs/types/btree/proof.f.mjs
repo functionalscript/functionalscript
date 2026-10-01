@@ -129,9 +129,11 @@ const demoProof = {
         const h = html(demo.init)
         assertEq(JSON.stringify(demo.init), JSON.stringify(_load(presets[0][0])))
         assertEq(demo.init.versions.before, demo.init.versions.after)
-        assertEq(count(h)('<svg'), 2)
-        assert(h.includes('<h3>Before</h3>'), h)
-        assert(h.includes('<h3>After</h3>'), h)
+        // One graph, its root's two rows leading to one tree.
+        assertEq(count(h)('<svg'), 1)
+        assertEq(count(h)('data-graph-kind="versions"'), 1)
+        assert(h.includes('>Before<'), h)
+        assert(h.includes('>After<'), h)
         assert(h.includes('name="insert"'), h)
         assert(h.includes('name="remove"'), h)
         assert(h.includes('value="8"'), h)
@@ -145,14 +147,14 @@ const demoProof = {
     // Each preset's hint is what its press does.
     presets: {
         // Only the path to 8 is built again — the root, `6` and the leaf
-        // `7 8` — and the rest is shared. Each version is its own graph, so
-        // a shared node is drawn once in each.
+        // `7 8` — and the rest is shared: drawn once, reached from both
+        // versions.
         insertIntoALeaf: () => {
             const s = follow('Insert into a leaf')
             assertEq(censusOf(s), '{"built":3,"shared":4,"replaced":3}')
             const h = html(s)
             assertEq(count(h)('data-graph-kind="new"'), 3)
-            assertEq(count(h)('data-graph-kind="shared"'), 8)
+            assertEq(count(h)('data-graph-kind="shared"'), 4)
             assertEq(count(h)('data-graph-kind="replaced"'), 3)
             // The new leaf holds 7 and 8, each a row of its own with no
             // name beside it.
@@ -179,11 +181,13 @@ const demoProof = {
             assertEq(censusOf(s), '{"built":4,"shared":4,"replaced":3}')
             const h = html(s)
             assert(!h.includes('data-graph-label'), h)
-            // The node's rows are 20px apart, from y=94: an edge's name, or
-            // a key alone.
+            // The node's rows are 20px apart around its `Middle` row: an
+            // edge's name, or a key alone.
+            const middle = h.lastIndexOf('<text x="', h.indexOf('data-graph-edge-label="">Middle<'))
+            const [, x, , y] = h.slice(middle).split('"')
             const rows = [['edge-label', 'Left'], ['value-label', '6'], ['edge-label', 'Middle'], ['value-label', '8'], ['edge-label', 'Right']]
             rows.forEach(([cell, text], i) =>
-                assert(h.includes(`<text x="127" y="${94 + i * 20}" text-anchor="middle" data-graph-${cell}="">${text}<`), h))
+                assert(h.includes(`<text x="${x}" y="${Number(y) + (i - 2) * 20}" text-anchor="middle" data-graph-${cell}="">${text}<`), h))
         },
         // The split reaches the root, and the tree grows a level.
         growALevel: () => {

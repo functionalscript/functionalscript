@@ -7,22 +7,25 @@
  * a copy, and it is not: only the path from the root to the change is built
  * again, and every other subtree is the same object in both versions.
  *
- * **Each version is a graph of its own, and a node's colour says which
- * versions hold it**: `new` is only in the version after the last step,
- * `replaced` only in the one before, and `shared` in both — a plain node in
- * one drawing is the very object the other drawing shows plain too. The line
- * under the drawings counts each. Drawing both versions under one root would
- * show a shared subtree as one node with an edge from each, but tangles the
- * two trees into a graph neither of them is; two drawings keep each tree's
- * shape readable and leave the sharing to the colours.
+ * **Both versions are one graph**, under a root whose two rows, `Before`
+ * and `After`, lead to each version's own root. The [graph
+ * module](../../website/demo/graph/module.f.mjs) draws one node per distinct
+ * reference, so a subtree both versions hold is drawn once, reached from
+ * both: the sharing is the drawing itself. The two roots may sit on
+ * different ranks — a step that grows or shrinks the tree puts one deeper
+ * than the other — and that is the shape of what happened.
+ *
+ * **A node's colour says which versions hold it**: `new` is only in the
+ * version after the last step, `replaced` only in the one before, and
+ * `shared` in both. The line above the drawing counts each.
  *
  * **A reader changes the tree one key at a time**: type a key, press
- * **Insert** or **Remove**, and the tree that was drawn under *After* moves
- * to *Before*. A key that is not an integer is refused by name, and the
+ * **Insert** or **Remove**, and the tree `After` led to is now what
+ * `Before` leads to. A key that is not an integer is refused by name, and the
  * trees stay as they were.
  *
- * **A preset loads a tree and a key, and takes no step.** Each puts a tree
- * under both drawings, a key in the field and a hint naming the button to
+ * **A preset loads a tree and a key, and takes no step.** Each puts one tree
+ * under both rows, a key in the field and a hint naming the button to
  * press, so the reader makes the change and sees it happen; picking one
  * again is how to start over. After the first press the drop-down says
  * `Custom`.
@@ -117,10 +120,11 @@ export const _census = ({ before, after }) => {
  * from. A node is drawn as one row per element, in the element's own order:
  * a subtree row is an edge to it (`Left`, `Middle`, `Right`), and a key row
  * is the key alone. It has no title and its keys no names: the number of
- * rows already says which of the four kinds it is. Only a whole version can be empty, so
- * the `empty` inline is drawn as the graph's one node.
+ * rows already says which of the four kinds it is. The root is the pair of
+ * versions, and only a whole version can be empty, so `empty` is drawn in
+ * the root's row.
  *
- * @type {(v: _Versions) => (value: Tree<number> | number) => Shape<Tree<number> | number>}
+ * @type {(v: _Versions) => (value: _Versions | Tree<number> | number) => Shape<_Versions | Tree<number> | number>}
  */
 const shapeOf = ({ before, after }) => {
     const old = nodesOf(before)
@@ -130,6 +134,9 @@ const shapeOf = ({ before, after }) => {
     return value => {
         if (value === null) { return { inline: 'empty' } }
         if (typeof value === 'number') { return { inline: String(value) } }
+        if ('after' in value) {
+            return { kind: 'versions', label: '', children: [['Before', value.before], ['After', value.after]] }
+        }
         const kind = kindOf(value)
         switch (value.length) {
             case 1: { return { kind, label: '', children: [['', value[0]]] } }
@@ -186,7 +193,7 @@ const examples = presets.map(([n]) => [n, n])
 const picker = examplePicker(examples)
 
 /**
- * The state a preset loads: its tree under both drawings, so every node is
+ * The state a preset loads: its tree under both rows, so every node is
  * shared until the first press.
  *
  * @type {(name: string) => _State}
@@ -216,7 +223,6 @@ export const demo = {
         : event.kind === 'click' && (event.name === 'insert' || event.name === 'remove') ? _press(event.name)(state)
         : state),
     view: ({ key, versions, status, error }) => {
-        const draw = graphOf(shapeOf(versions))
         return ['div',
             ['p',
                 'Every step builds a new tree and leaves the old one as it was, ',
@@ -234,10 +240,7 @@ export const demo = {
             ],
             ...(error === null ? [] : [/** @type {const} */ (['p', `Error: ${error}`])]),
             ['p', 'preset' in status ? status.hint : lastLine(status.last)(_census(versions))],
-            ['h3', 'Before'],
-            graphSvg(draw(versions.before)),
-            ['h3', 'After'],
-            graphSvg(draw(versions.after)),
+            graphSvg(graphOf(shapeOf(versions))(versions)),
         ]
     },
 }
