@@ -6,7 +6,7 @@
  * @import { Array, Unknown } from '../../media/datajs/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstBody, AstFunction, AstMember, AstModule, AstModuleRef, AstNeg, AstObject, AstThrow, Import, Sharing, Anchors } from './types.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstBody, AstFunction, AstMember, AstModule, AstModuleRef, AstNeg, AstObject, AstThrow, BinaryTag, Import, Sharing, Anchors } from './types.ts'
  * @import { _Node, _OperandStack, _Reach, _Ref, _RefNode, _Routes, _RunState, _View } from './private.ts'
  */
 
@@ -16,10 +16,45 @@ import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mj
 import { cmp as stringCmp, concat as stringConcat } from '../../types/string/module.f.mjs'
 import { leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { at as routesAt, empty as noRoutes, setReplace } from '../../types/ordered_map/module.f.mjs'
+import { lazyOp2Id } from '../../edag/module.f.mjs'
 
 const { hasOwn } = Object
 
 const { isInteger } = Number
+
+/**
+ * Every binary operator's tag, {@link BinaryTag} at run time — pinned to it
+ * in `./types.ts`, so a tag added to one and not the other is a type error.
+ * What reads a binary node asks {@link isBinary} instead of listing the
+ * tags again, so a new operator is written here and in the grammar, and
+ * nowhere a missed `case` would read it as something else.
+ */
+export const binaryTags = /** @type {const} */ ([
+    '*', '/', '%', '**',
+    '+', '-',
+    '===', '!==', '<', '<=', '>', '>=',
+    '&', '|', '^', '<<', '>>', '>>>',
+    '&&', '||', '??',
+])
+
+/**
+ * Whether a node is a binary operator, {@link AstBinary} or the parser's
+ * own node of the same shape: a tag of {@link binaryTags} and two operands.
+ * The arity is what tells a subtraction from the negation `['-', a]`.
+ *
+ * @param {readonly unknown[]} node
+ * @returns {node is readonly [BinaryTag, unknown, unknown]}
+ */
+export const isBinary = node => node.length === 3 && binaryTags.some(tag => tag === node[0])
+
+/**
+ * Whether a binary operator establishes its right operand only when the
+ * left decides nothing — `&&`, `||` and `??`, the EDAG's `lazyOp2Id` and
+ * no copy of it.
+ *
+ * @type {(tag: BinaryTag) => boolean}
+ */
+export const isLazy = tag => lazyOp2Id.some(lazy => lazy === tag)
 
 /**
  * The own property `key` of `base`, or `undefined` where there is none —
@@ -161,6 +196,7 @@ const negated = value => {
  */
 const toDjs = state => ast => {
     if (ast === null || typeof ast !== 'object') { return ok(ast) }
+    if (isBinary(ast)) { return error(noOperatorValue) }
     switch (ast[0]) {
         case 'aref': { return ok(state.args[ast[1]]) }
         case 'cref': { return ok(last(null)(take(ast[1] + 1)(state.consts))) }
@@ -171,13 +207,8 @@ const toDjs = state => ast => {
         case 'rest':
         case 'fref': { return error(noFunctionValue) }
         case '()': { return error(noCallValue) }
-        case '-': { return ast.length === 2 ? okThen(negated)(toDjs(state)(ast[1])) : error(noOperatorValue) }
-        case '~':
-        case '*': case '/': case '%': case '**':
-        case '+':
-        case '===': case '!==': case '<': case '<=': case '>': case '>=':
-        case '&': case '|': case '^': case '<<': case '>>': case '>>>':
-        case '&&': case '||': case '??': case '?:': { return error(noOperatorValue) }
+        case '-': { return okThen(negated)(toDjs(state)(ast[1])) }
+        case '~': case '?:': { return error(noOperatorValue) }
         // the operand is established first, as JavaScript establishes it,
         // and its own failure is the one reported where it has one
         case 'throw': { return okThen(thrown)(toDjs(state)(ast[1])) }
@@ -286,31 +317,23 @@ const operandsOf = view => ast => {
         /** @type {_OperandStack} */
         const rest = stack.rest
         if (node === null || typeof node !== 'object') { bottom = concat(bottom)([node]); stack = rest; continue }
+        if (isBinary(node)) {
+            // the left operand on top, so it is the next popped — the
+            // order the recursive walk read the two in. A lazy operator's
+            // left operand is established whatever it decides; the right
+            // one is the view's to count
+            stack = { top: node[1], rest: isLazy(node[0]) ? pushedAll(view.lazy([node[2]]), rest) : { top: node[2], rest } }
+            continue
+        }
         switch (node[0]) {
-            case '-': {
-                if (node.length !== 2) { stack = { top: node[1], rest: { top: node[2], rest } }; break }
-                // the view's own read of a negation's operand —
-                // `written`'s is one operand, `value`'s none, negation
-                // being a primitive
-                stack = pushedAll(view.negated(node[1]), rest)
-                break
-            }
+            // the view's own read of a negation's operand — `written`'s is
+            // one operand, `value`'s none, negation being a primitive
+            case '-': { stack = pushedAll(view.negated(node[1]), rest); break }
             // a `throw`'s value is established whatever comes of it, in
             // every view: eager, as an operator's operand is
             case '~': case 'throw': { stack = { top: node[1], rest }; break }
-            case '*': case '/': case '%': case '**':
-            case '+':
-            case '===': case '!==': case '<': case '<=': case '>': case '>=':
-            case '&': case '|': case '^': case '<<': case '>>': case '>>>': {
-                // the left operand on top, so it is the next popped — the
-                // order the recursive walk read the two in
-                stack = { top: node[1], rest: { top: node[2], rest } }
-                break
-            }
-            // the left operand is established whatever it decides; the
-            // right one is the view's to count
-            case '&&': case '||': case '??': { stack = { top: node[1], rest: pushedAll(view.lazy([node[2]]), rest) }; break }
-            // the condition likewise, and the arms are the view's
+            // the condition is established whatever it decides, as a lazy
+            // operator's left operand is; the arms are the view's
             case '?:': { stack = { top: node[1], rest: pushedAll(view.lazy([node[2], node[3]]), rest) }; break }
             default: { bottom = concat(bottom)([node]); stack = rest }
         }
