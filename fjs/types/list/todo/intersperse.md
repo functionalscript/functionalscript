@@ -1,7 +1,7 @@
 ## intersperse. Separators are interleaved by hand at four sites, and adjacent runs merged at two
 
 **Priority:** P5
-**Status:** open
+**Status:** wip
 
 ### Problem
 
