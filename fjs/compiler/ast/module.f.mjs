@@ -17,10 +17,9 @@ import { cmp as stringCmp, concat as stringConcat } from '../../types/string/mod
 import { leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { at as routesAt, empty as noRoutes, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { lazyOp2Id } from '../../edag/module.f.mjs'
+import { arrayIndex } from '../../js/array_index/module.f.mjs'
 
 const { hasOwn } = Object
-
-const { isInteger } = Number
 
 /**
  * Every binary operator's tag, {@link BinaryTag} at run time — pinned to it
@@ -633,21 +632,6 @@ const valueAt = keys => value => keys.reduce(_own, value)
 
 /** Whether a literal is a container literal — an array or an object written out — rather than a primitive or a reference. @type {(ast: AstConst) => ast is AstArray | AstObject} */
 const isContainerLiteral = ast => ast !== null && typeof ast === 'object' && (ast[0] === 'array' || ast[0] === 'object')
-
-/**
- * The position a key names in an array literal, or `undefined` when it
- * names none: only the canonical spelling of a non-negative integer is an
- * index — `'-1'`, `'01'`, `'1.5'`, `'1e3'` and `'length'` are properties an
- * array literal does not spell — and round-tripping the number back
- * through a string is what refuses every other spelling at once, as
- * `fjs/rtti/common` reads an index too.
- *
- * @type {(key: string) => number | undefined}
- */
-const arrayIndex = key => {
-    const n = Number(key)
-    return isInteger(n) && n >= 0 && `${n}` === key ? n : undefined
-}
 
 /**
  * The literal one key into a container literal: an object's member of that

@@ -25,14 +25,13 @@
  * @import { Tag } from './types.ts'
  */
 
-import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { byteArray, byteLength } from '../../ebnf/byte/module.f.mjs'
 import { lf, nul as nulByte } from '../../text/ascii/module.f.mjs'
-import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { error, ok } from '../../types/result/module.f.mjs'
-import { hasNulHeader, tryRead as readPayload, valueAt, write as writePayload } from '../header/module.f.mjs'
+import { error, mapOk, okList } from '../../types/result/module.f.mjs'
+import { checkedAt, checkedOptionalAt, fieldAt, hasNulHeader, optionalAt, tryFieldAt, tryRead as readPayload, valueAt, write as writePayload } from '../header/module.f.mjs'
 import { tryRead as readIdent } from '../ident/module.f.mjs'
-import { objectTypes } from '../object/module.f.mjs'
+import { tryType as typeNamed } from '../object/module.f.mjs'
 import { isName } from '../refname/module.f.mjs'
 import { tryFromHex, tryFromHexOf } from '../oid/module.f.mjs'
 
@@ -80,8 +79,7 @@ const typeOf = value => {
     const bs = byteArray(value)
     if (bs.includes(lf)) { return null }
     const end = bs.indexOf(nulByte)
-    const text = codePointListToString(end === -1 ? bs : bs.slice(0, end))
-    return objectTypes.find(t => t === text) ?? null
+    return typeNamed(end === -1 ? bs : bs.slice(0, end))
 }
 
 /**
@@ -92,13 +90,7 @@ const typeOf = value => {
  *
  * @type {(t: Tag) => Oid}
  */
-export const object = t => {
-    const value = valueAt(t, 0, 'object')
-    assertNotNullish(value, 'no object')
-    const id = tryFromHex(value)
-    assert(id !== null, ['not an id', value])
-    return id
-}
+export const object = fieldAt(0, 'object', tryFromHex, 'no object', 'not an id')
 
 /**
  * The id the `object` header names, at the repository's width, or `null`
@@ -109,13 +101,7 @@ export const object = t => {
  *
  * @type {(oidBytes: OidBytes) => (t: Tag) => Nullable<Oid>}
  */
-export const tryObject = oidBytes => {
-    const id = tryFromHexOf(oidBytes)
-    return t => {
-        const value = valueAt(t, 0, 'object')
-        return value === null ? null : id(value)
-    }
-}
+export const tryObject = oidBytes => tryFieldAt(0, 'object', tryFromHexOf(oidBytes))
 
 /**
  * The type the `type` header names: the second header, one of the four.
@@ -125,13 +111,7 @@ export const tryObject = oidBytes => {
  *
  * @type {(t: Tag) => ObjectType}
  */
-export const type = t => {
-    const value = valueAt(t, 1, 'type')
-    assertNotNullish(value, 'no type')
-    const type = typeOf(value)
-    assert(type !== null, ['unknown type', value])
-    return type
-}
+export const type = fieldAt(1, 'type', typeOf, 'no type', 'unknown type')
 
 /**
  * The type the `type` header names, or `null` where there is no `type`
@@ -142,10 +122,7 @@ export const type = t => {
  *
  * @type {(t: Tag) => Nullable<ObjectType>}
  */
-export const tryType = t => {
-    const value = valueAt(t, 1, 'type')
-    return value === null ? null : typeOf(value)
-}
+export const tryType = tryFieldAt(1, 'type', typeOf)
 
 /**
  * What a tag names and what it says that object is, or `null` where Git
@@ -223,13 +200,7 @@ export const name = t => {
  *
  * @type {(t: Tag) => Nullable<Ident>}
  */
-export const tagger = t => {
-    const value = valueAt(t, 3, 'tagger')
-    if (value === null) { return null }
-    const ident = readIdent(value)
-    assert(ident !== null, ['not a tagger', value])
-    return ident
-}
+export const tagger = optionalAt(3, 'tagger', readIdent, 'not a tagger')
 
 /**
  * Vouches for a tag, or refuses it, saying why: a NUL in any header, no
@@ -248,19 +219,12 @@ export const tagger = t => {
  * @type {(oidBytes: OidBytes) => (t: Tag) => Result<Tag, string>}
  */
 export const validate = oidBytes => {
-    const id = tryFromHexOf(oidBytes)
-    return t => {
-        if (hasNulHeader(t)) { return error('NUL in header') }
-        const objectValue = valueAt(t, 0, 'object')
-        if (objectValue === null) { return error('no object') }
-        if (id(objectValue) === null) { return error('not an id') }
-        const typeValue = valueAt(t, 1, 'type')
-        if (typeValue === null) { return error('no type') }
-        if (typeOf(typeValue) === null) { return error('unknown type') }
-        const nameValue = valueAt(t, 2, 'tag')
-        if (nameValue === null) { return error('no tag name') }
-        if (!isName(nameValue)) { return error('bad tag name') }
-        const taggerValue = valueAt(t, 3, 'tagger')
-        return taggerValue !== null && readIdent(taggerValue) === null ? error('not a tagger') : ok(t)
-    }
+    /** @type {readonly ((t: Tag) => Result<unknown, string>)[]} */
+    const checks = [
+        checkedAt(0, 'object', tryFromHexOf(oidBytes), 'no object', 'not an id'),
+        checkedAt(1, 'type', typeOf, 'no type', 'unknown type'),
+        checkedAt(2, 'tag', v => isName(v) ? v : null, 'no tag name', 'bad tag name'),
+        checkedOptionalAt(3, 'tagger', readIdent, 'not a tagger'),
+    ]
+    return t => hasNulHeader(t) ? error('NUL in header') : mapOk(() => t)(okList(checks.map(check => check(t))))
 }

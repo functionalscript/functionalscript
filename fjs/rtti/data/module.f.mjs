@@ -24,6 +24,9 @@
  */
 
 import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
+import { assoc, dedup } from '../../types/array/module.f.mjs'
+import { cmp as cmpValue } from '../../types/function/compare/module.f.mjs'
+import { strictEqual as strictEqualCurried } from '../../types/function/operator/module.f.mjs'
 import { at, definedEntries, definedValues } from '../../types/object/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
 import { declaredTest, eachEntry, isArray, undeclaredMembers, verror } from '../common/module.f.mjs'
@@ -110,7 +113,7 @@ export const withoutUnits = bits => n => {
 // ── canonical order ──────────────────────────────────────────────────────────
 
 /** @type {(a: string, b: string) => number} */
-const cmpString = (a, b) => a < b ? -1 : a > b ? 1 : 0
+const cmpString = (a, b) => cmpValue(a)(b)
 
 /**
  * Total order on number literals matching the SameValue equality the
@@ -129,7 +132,7 @@ const cmpNumber = (a, b) => {
 }
 
 /** @type {(a: bigint, b: bigint) => number} */
-const cmpBigint = (a, b) => a < b ? -1 : a > b ? 1 : 0
+const cmpBigint = (a, b) => cmpValue(a)(b)
 
 /**
  * Lexicographic order, shorter lists first.
@@ -462,7 +465,7 @@ const objectSet = (props, rest0) => {
 const resolve = rules => n => typeof n === 'string' ? assertNotNullish(at(n)(rules)) : n
 
 /** @type {<T>(a: T, b: T) => boolean} */
-const strictEqual = (a, b) => a === b
+const strictEqual = (a, b) => strictEqualCurried(a)(b)
 
 /**
  * Inclusion of one kind component: every member of `a` below some member of
@@ -572,9 +575,6 @@ const objectMayOmit = rules => pattern => k => {
     const n = at(k)(pattern.props)
     return n === null || nodeAdmitsAbsence(rules)(n)
 }
-
-/** @type {(list: readonly string[]) => readonly string[]} */
-const dedup = list => list.filter((n, i) => list.indexOf(n) === i)
 
 /**
  * Every key either side declares is checked twice — what `p` may hold there
@@ -791,30 +791,14 @@ const internData = (rules, entry) => [
 /** A thunk — the only schema form that can close a reference cycle. */
 /** A schema tracked by identity: a thunk or a const container. */
 /**
- * The first value associated with `key` by identity.
- *
- * @template K
- * @template T
- * @param {readonly (readonly [K, T])[]} list
- * @param {unknown} key
- * @returns {T | undefined}
- */
-const assoc = (list, key) => {
-    for (const [k, v] of list) {
-        if (k === key) { return v }
-    }
-    return undefined
-}
-
-/**
  * The rule name of `t`, assigning a fresh one on first request — the
  * defining function's name, disambiguated with a counter on collision.
  *
  * @type {(state: _State, t: _Thunk) => readonly [_State, string]}
  */
 const ensureName = (state, t) => {
-    const existing = assoc(state.names, t)
-    if (existing !== undefined) { return [state, existing] }
+    const existing = assoc(t)(state.names)
+    if (existing !== null) { return [state, existing] }
     const used = state.names.map(([, n]) => n)
     let name = t.name
     let i = 0
@@ -852,8 +836,8 @@ const primitiveUnion = p => {
  * @type {(state: _State, c: ConstObject) => readonly [_State, UnionSet]}
  */
 const containerMemo = (state, c) => {
-    const done = assoc(state.done, c)
-    if (done !== undefined) { return [state, done] }
+    const done = assoc(c)(state.done)
+    if (done !== null) { return [state, done] }
     const [state1, u] = containerUnion(state, c, never)
     return [{ ...state1, done: [...state1.done, [c, u]] }, u]
 }
@@ -943,8 +927,8 @@ const orUnion = (state, t, operands) => {
             s = defer(s, t, op)
             continue
         }
-        let u = assoc(s.done, op)
-        if (u === undefined) {
+        let u = assoc(op)(s.done)
+        if (u === null) {
             const [s1, u1] = convertThunk(s, op)
             s = s1
             u = u1
@@ -1021,10 +1005,10 @@ const nodeOf = state => t => {
     if (typeof t !== 'function') {
         return containerMemo(state, t)
     }
-    const name = assoc(state.names, t)
-    if (name !== undefined) { return [state, name] }
-    const done = assoc(state.done, t)
-    if (done !== undefined) { return [state, done] }
+    const name = assoc(t)(state.names)
+    if (name !== null) { return [state, name] }
+    const done = assoc(t)(state.done)
+    if (done !== null) { return [state, done] }
     if (state.converting.some(k => k === t)) {
         // a cycle: from here on, `t` is a named rule
         const [state1, name1] = ensureName(state, t)
@@ -1047,8 +1031,8 @@ const fixpoint = state => {
     while (changed) {
         changed = false
         for (const [target, source] of state.deferred) {
-            const targetUnion = assertNotNullish(assoc(done, target))
-            const merged = merge(targetUnion, assertNotNullish(assoc(done, source)))
+            const targetUnion = assertNotNullish(assoc(target)(done))
+            const merged = merge(targetUnion, assertNotNullish(assoc(source)(done)))
             if (cmpUnion(merged, targetUnion) !== 0) {
                 changed = true
                 done = done.map(e => e[0] === target ? /** @type {const} */ ([target, merged]) : e)
@@ -1131,8 +1115,8 @@ export const toData = t => {
     const ruleEntries = done.flatMap(
         /** @returns {readonly (readonly [string, UnionSet])[]} */
         ([key, u]) => {
-            const name = assoc(state.names, key)
-            return name === undefined ? [] : [[name, u]]
+            const name = assoc(key)(state.names)
+            return name === null ? [] : [[name, u]]
         })
     /** @type {RuleSet} */
     const rules = Object.fromEntries(ruleEntries)
