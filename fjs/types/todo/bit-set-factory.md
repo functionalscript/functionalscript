@@ -1,7 +1,7 @@
 ## bit-set-factory. `byte_set` and `nibble_set` are one bitmask-set algebra
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
