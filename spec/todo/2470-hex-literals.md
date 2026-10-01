@@ -1,7 +1,7 @@
 # Hexadecimal Literals
 
 **Priority:** P2
-**Status:** open — proposal, awaiting language-design approval
+**Status:** open — approved, not implemented
 
 A number or a `bigint` written in base 16, as JavaScript writes it:
 
@@ -74,23 +74,24 @@ differ only in it hash the same.
 The other spellings in the same roadmap item stay open, each needing its own
 approval:
 
-- octal `0o` and binary `0b`, which the repository also uses, about 260
-  occurrences. Each would be one more branch with the same value rule, so
-  approving them alongside is the owner's call;
+- binary `0b`, which may follow later with the same value rule;
+- octal `0o`, which has no use case yet;
 - numeric separators, `0xFF_FF` and `1_000`;
 - `.5` and `1.`;
 - legacy octal (`010`), which stays refused here.
 
 ## Approval
 
-None recorded yet.
-[DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo)
-requires explicit approval from a language designer distinct from the
-proposer, recorded here with a link, before implementation starts.
+`sergey-shandar` approved hexadecimal number and `bigint` literals, with
+octal and binary kept out of scope, in the
+[session that proposed them](https://claude.ai/code/session_01NHkT6r3jWYESeWwhL8x6tk),
+as [DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo)
+requires. The proposal was written by Claude, so the approver is not the
+proposer.
 
 ## Tasks
 
-- [ ] Language-design approval, recorded above.
+- [x] Language-design approval, recorded above.
 - [ ] Grammar: a `0x`/`0X` branch with an optional `n` after the leading `0`
       in `number` in [`fjs/ebnf/lib/js`](../../fjs/ebnf/lib/js/module.f.mjs),
       leaving `fjs/ebnf/lib/json` and `fjs/ebnf/lib/datajs` unchanged.
