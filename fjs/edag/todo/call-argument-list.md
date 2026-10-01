@@ -12,9 +12,12 @@ therefore wraps its arguments in an array node that exists only to be
 unwrapped again.
 
 The [stage 1 discussion](../../../todo/edag-stage1-discussion.md) chose the
-wrapper over a literal list because a literal list "would need a spread
-marker", and a node operand could pass a computed array through. Neither
-reason holds any longer:
+wrapper over a literal list for two reasons. At `dc037ef7c`, before #2460,
+it said a literal list "would save the `["[]", …]` wrapper in the common
+case but would need a spread marker". It still says `args` is "a single
+operand that evaluates to an array", so a node operand could pass a
+computed array through: "Forwarding stays free where the operand is an
+array by construction". Neither reason holds any longer:
 
 - **The spread marker exists.** `['...', exp]` is already an item of `[]`,
   with the semantics a call spread needs
@@ -84,8 +87,12 @@ the same pull request.
       [`fjs/nanvm/types.ts`](../../nanvm/types.ts); the
       [spread operations](../../../nanvm-lib/todo/spread-operations.md)
       todo; and the spellings in [`entry.md`](entry.md) and
-      [property accessor](../../../spec/todo/2330-property-accessor.md).
-      A search for `'[]'` under a call tag finds the rest.
+      [property accessor](../../../spec/todo/2330-property-accessor.md);
+      and [compile modules to EDAG](../../compiler/todo/compile-modules-to-edag.md),
+      whose open design says calls keep their array-valued argument
+      operand, spelled `args`. A search for `'[]'` under a call tag finds
+      the literal spellings, and one for `args` beside a call tag finds the
+      abstract ones.
 - [ ] Proofs updated to the new shape, including a call with a spread item,
       a forwarded rest, and a first argument that is a string.
 - [ ] `npm run gen`: the `nanvm-harness` fixtures are compiled from source,
