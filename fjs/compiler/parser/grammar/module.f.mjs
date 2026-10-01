@@ -114,8 +114,10 @@
  * @module
  *
  * @import { Meta } from '../../../ebnf/ast/types.ts'
- * @import { Rule } from '../../../ebnf/types.ts'
+ * @import { Rule, Variant } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
+ * @import { BinaryTag } from '../../ast/types.ts'
+ * @import { StringMap } from '../../../types/object/types.ts'
  * @import { Access, AfterValue, ArrowOrRest, Block, Body, CircuitTail, ConditionalTail, EagerTail, End, Func, Group, GroupOperand, Items, LastStatement, Member, ParameterNames, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Terminator, Unary, UnaryOperand, Value } from './types.ts'
  */
 
@@ -123,6 +125,9 @@ import { assert } from '../../../asserts/module.f.mjs'
 import { eof, option, repeatFrom0 } from '../../../ebnf/module.f.mjs'
 import { encoding } from '../../../ebnf/token_symbol/module.f.mjs'
 import { _djsTokenKinds } from '../../tokenizer/module.f.mjs'
+import { definedEntries } from '../../../types/object/module.f.mjs'
+
+const { fromEntries } = Object
 
 /**
  * The token kinds, every `DjsToken` kind but `eof`: the tokenizer's
@@ -311,36 +316,36 @@ const primitiveValue = /** @type {const} */ ([primitive, accesses])
 const reference = /** @type {const} */ ([identifier, accesses])
 
 /** `*`, `/`, `%` — the binary layer directly above {@link unary}. */
-const multiplicativeOp = /** @type {const} */ ({ mul: sym('*'), div: sym('/'), mod: sym('%') })
+const multiplicativeTags = /** @type {const} */ ({ mul: '*', div: '/', mod: '%' })
 
 /**
- * `+`, `-` — above {@link multiplicativeOp}. The `-` here is subtraction,
+ * `+`, `-` — above {@link multiplicativeTags}. The `-` here is subtraction,
  * distinct from the `neg` prefix {@link unary} already owns: the two share
  * a token and nothing else, one an operator of two operands and the other
  * of one, told apart by which branch of the grammar reads them.
  */
-const additiveOp = /** @type {const} */ ({ add: sym('+'), sub: sym('-') })
+const additiveTags = /** @type {const} */ ({ add: '+', sub: '-' })
 
-/** `<<`, `>>`, `>>>` — above {@link additiveOp}. */
-const shiftOp = /** @type {const} */ ({ left: sym('<<'), right: sym('>>'), unsigned: sym('>>>') })
+/** `<<`, `>>`, `>>>` — above {@link additiveTags}. */
+const shiftTags = /** @type {const} */ ({ left: '<<', right: '>>', unsigned: '>>>' })
 
-/** `<`, `<=`, `>`, `>=` — above {@link shiftOp}. */
-const relationalOp = /** @type {const} */ ({ lt: sym('<'), le: sym('<='), gt: sym('>'), ge: sym('>=') })
+/** `<`, `<=`, `>`, `>=` — above {@link shiftTags}. */
+const relationalTags = /** @type {const} */ ({ lt: '<', le: '<=', gt: '>', ge: '>=' })
 
-/** `===`, `!==` — above {@link relationalOp}; `==`/`!=` are not this language's, per `spec/todo/2340-operators.md`. */
-const equalityOp = /** @type {const} */ ({ eq: sym('==='), ne: sym('!==') })
+/** `===`, `!==` — above {@link relationalTags}; `==`/`!=` are not this language's, per `spec/todo/2340-operators.md`. */
+const equalityTags = /** @type {const} */ ({ eq: '===', ne: '!==' })
 
-/** `&` — above {@link equalityOp}. */
-const bitwiseAndOp = /** @type {const} */ ({ and: sym('&') })
+/** `&` — above {@link equalityTags}. */
+const bitwiseAndTags = /** @type {const} */ ({ and: '&' })
 
-/** `^` — above {@link bitwiseAndOp}. */
-const bitwiseXorOp = /** @type {const} */ ({ xor: sym('^') })
+/** `^` — above {@link bitwiseAndTags}. */
+const bitwiseXorTags = /** @type {const} */ ({ xor: '^' })
 
-/** `|` — above {@link bitwiseXorOp}, the eager ladder's own top. */
-const bitwiseOrOp = /** @type {const} */ ({ or: sym('|') })
+/** `|` — above {@link bitwiseXorTags}, the eager ladder's own top. */
+const bitwiseOrTags = /** @type {const} */ ({ or: '|' })
 
 /**
- * `&&`, `||`, `??` — the short-circuit level above {@link bitwiseOrOp},
+ * `&&`, `||`, `??` — the short-circuit level above {@link bitwiseOrTags},
  * Stage B of
  * [`spec/todo/2340-operators.md`](../../../../spec/todo/2340-operators.md).
  * Each is a tagged choice of one branch, as every layer's operator is,
@@ -349,13 +354,60 @@ const bitwiseOrOp = /** @type {const} */ ({ or: sym('|') })
  * of them opens a chain decides what may follow it — see
  * {@link circuitTail}.
  */
-const logicalAndOp = /** @type {const} */ ({ logicalAnd: sym('&&') })
+const logicalAndTags = /** @type {const} */ ({ logicalAnd: '&&' })
 
-/** `||` — beside {@link logicalAndOp}, and above it in precedence. */
-const logicalOrOp = /** @type {const} */ ({ logicalOr: sym('||') })
+/** `||` — beside {@link logicalAndTags}, and above it in precedence. */
+const logicalOrTags = /** @type {const} */ ({ logicalOr: '||' })
 
-/** `??` — beside {@link logicalAndOp} and {@link logicalOrOp}, and mixing with neither. */
-const nullishOp = /** @type {const} */ ({ nullish: sym('??') })
+/** `??` — beside {@link logicalAndTags} and {@link logicalOrTags}, and mixing with neither. */
+const nullishTags = /** @type {const} */ ({ nullish: '??' })
+
+/**
+ * Every binary layer's rounds keyed by a name none of the other layers
+ * use, read back to the operator's tag — which is also the token the round
+ * opens with, so {@link opOf} makes each layer's grammar from its own
+ * record, and this one merged map serves `../syntax/module.f.mjs` a round
+ * from any layer with a plain lookup. `**` is not here: it is
+ * {@link powTail}'s, no layer's round. The lookup is by a name read at
+ * run time, so it is typed as one that may miss, and the reader refuses a
+ * name that does rather than build a node without a tag.
+ *
+ * @type {StringMap<Exclude<BinaryTag, '**'>>}
+ */
+export const binaryOpTag = {
+    ...multiplicativeTags,
+    ...additiveTags,
+    ...shiftTags,
+    ...relationalTags,
+    ...equalityTags,
+    ...bitwiseAndTags,
+    ...bitwiseXorTags,
+    ...bitwiseOrTags,
+    ...logicalAndTags,
+    ...logicalOrTags,
+    ...nullishTags,
+}
+
+/**
+ * One layer's operator: a choice of one branch per operator, keyed by its
+ * name and matching the token its tag names.
+ *
+ * @type {(tags: StringMap<Exclude<BinaryTag, '**'>>) => Variant}
+ */
+const opOf = tags => fromEntries(definedEntries(tags).map(([name, tag]) => [name, sym(tag)]))
+
+// Each layer's operator, its record's names over its record's tokens.
+const multiplicativeOp = opOf(multiplicativeTags)
+const additiveOp = opOf(additiveTags)
+const shiftOp = opOf(shiftTags)
+const relationalOp = opOf(relationalTags)
+const equalityOp = opOf(equalityTags)
+const bitwiseAndOp = opOf(bitwiseAndTags)
+const bitwiseXorOp = opOf(bitwiseXorTags)
+const bitwiseOrOp = opOf(bitwiseOrTags)
+const logicalAndOp = opOf(logicalAndTags)
+const logicalOrOp = opOf(logicalOrTags)
+const nullishOp = opOf(nullishTags)
 
 /**
  * A function's parameter list where it begins with no value: the one rest
