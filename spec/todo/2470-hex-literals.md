@@ -40,16 +40,16 @@ The rest follows JavaScript, and each point needs a proof:
   `parseFloat`, which reads `0xFF` as `0`.
 
 Every output writes the value and not the spelling, each in the form it
-already writes that value in, so no output changes. The source-like outputs,
-`.js`, `.data.js`, `.json` and the EDAG's `.edag.data.js`, write `0xFF` as
-`255` and `0x10n` as `16n`. `.rs` writes a number as its IEEE 754 bits,
-`f64_any(0x406fe00000000000)` for `0xFF`, and a `bigint` as a Rust
-integer, `bigint_any(16)` for `0x10n`, exactly as it writes `255` and `16n`.
-An output that cannot write a value refuses it as it does today, whichever
-spelling it came from: `.json` refuses every `bigint`, and `.rs` one outside
-`i64`. A single-quoted string
-is likewise written between double quotes. The graph does not record the
-spelling, so two modules that differ only in it hash the same.
+already writes that value in, so no output changes. `.js`, `.data.js` and
+the EDAG's `.edag.data.js` write `0xFF` as `255` and `0x10n` as `16n`;
+`.json` writes `0xFF` as `255` and has no `bigint`. `.rs` writes a number as
+its IEEE 754 bits, `f64_any(0x406fe00000000000)` for `0xFF`, and a `bigint`
+as a Rust integer, `bigint_any(16)` for `0x10n`, exactly as it writes `255`
+and `16n`. An output that cannot write a value refuses it as it does today,
+whichever spelling it came from: `.json` refuses every `bigint`, and `.rs`
+one outside `i64`. A single-quoted string is likewise written between
+double quotes. The graph does not record the spelling, so two modules that
+differ only in it hash the same.
 
 ## Benefits
 
