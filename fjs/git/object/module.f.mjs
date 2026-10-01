@@ -22,8 +22,8 @@ import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { ascii, byteLength, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { range, repeatFrom1, set } from '../../ebnf/module.f.mjs'
 import { digitsValue, isCanonicalDigits } from '../../text/ascii/module.f.mjs'
-import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { concat, drop, take } from '../../types/list/module.f.mjs'
+import { sameBytes } from '../refname/module.f.mjs'
 
 const maxSize = BigInt(Number.MAX_SAFE_INTEGER)
 
@@ -73,16 +73,24 @@ const prefixLength = /** @type {const} */ (32)
  */
 const length = bytes => assertNotNullish(byteLength(bytes), 'not bytes')
 
+/** The four types' names as bytes, each paired with its type. */
+const typeBytes = objectTypes.map(t => /** @type {const} */ ([t, ascii(t)]))
+
 /**
- * The type a word names, or `null`: the four are ASCII, so the word is
- * compared as the text it spells.
+ * The object type these bytes spell, or `null`. The four are ASCII, so
+ * the bytes are compared with each name's bytes, not converted to text:
+ * an item outside `0x00`–`0xFF` matches no name's byte and is refused by
+ * construction, with no conversion to truncate it into a match.
+ *
+ * The one reader of a type's *name*, for an envelope and a tag's `type`
+ * header alike. A pack entry's header names a type by a three-bit code
+ * instead, so [`fjs/git/pack`](../pack/module.f.mjs) keeps a table of its
+ * own: going through this would turn a code into `'blob'` and the bytes of
+ * `'blob'` back into a code.
  *
  * @type {(w: readonly number[]) => Nullable<ObjectType>}
  */
-const typeOf = w => {
-    const s = codePointListToString(w)
-    return objectTypes.find(t => t === s) ?? null
-}
+export const tryType = w => typeBytes.find(([, b]) => sameBytes(b)(w))?.[0] ?? null
 
 /**
  * The size a digit string spells, or `null` where the spelling is not the
@@ -116,7 +124,7 @@ export const tryRead = input => {
     const r = parse(symbols(take(prefixLength)(input)))
     if (r[0] === 'error') { return null }
     const [[w, , digits], end] = r[1]
-    const type = typeOf(symbolsOf(w))
+    const type = tryType(symbolsOf(w))
     const size = decimal(symbolsOf(digits))
     const payload = drop(end)(input)
     return type !== null && size !== null && length(payload) === size

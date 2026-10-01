@@ -538,9 +538,9 @@ const linkImport = source => ({ context, bound }) => step(link(source)(context),
  *
  * @type {(source: _Source) => (context: _Link) => (module: AstModule) => Effect<ReadFile | ResolveFileModule, readonly [_Link, _Resolved], ParseError>}
  */
-const linkModule = source => context => module => step(
+const linkModule = source => context => module => mapStep(
     foldStep(_importSources(source)(module[0]), { context, bound: [] }, linkImport),
-    ({ context: linked, bound }) => pureOk(completed(source.id)(linked)(lowered(bound)(module))))
+    ({ context: linked, bound }) => completed(source.id)(linked)(lowered(bound)(module)))
 
 /**
  * The source resolved to its EDAG within one link: a module identity met

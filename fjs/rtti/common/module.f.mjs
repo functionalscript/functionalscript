@@ -43,6 +43,7 @@ import { assert } from '../../asserts/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { isArray as commonIsArray } from '../../types/array/module.f.mjs'
 import { isObject as commonIsObject } from '../../types/object/module.f.mjs'
+import { arrayIndex } from '../../js/array_index/module.f.mjs'
 
 /** Builds an error result with empty path and the given message. */
 /** @type {(message: string) => Error<ValidationError>} */
@@ -180,29 +181,6 @@ export const structSchemaEntries = rtti =>
     Object.entries(rtti)
 
 /**
- * The position `k` names, or `undefined` when `k` names no position at all.
- *
- * Only the canonical spelling of a non-negative integer is an index: `'-1'`,
- * `'01'`, `'1.5'` and `' 1'` are ordinary properties of an array object,
- * however `Number` maps them. Round-tripping the number back through `String`
- * is what rejects every non-canonical spelling at once, rather than one at a
- * time.
- *
- * And only one **below `2 ** 32 - 1`**, which is where the language draws the
- * line rather than a bound chosen here: assigning `a['4294967295']` creates an
- * ordinary enumerable property and leaves `a.length` alone. Reading such a key
- * as an index put it past every `length`-bounded walk *and* past the non-index
- * filter, so it was no member on either path and an undeclared property rode
- * through a closed container.
- *
- * @type {(k: string) => number | undefined}
- */
-const arrayIndex = k => {
-    const i = Number(k)
-    return Number.isInteger(i) && i >= 0 && i < 2 ** 32 - 1 && String(i) === k ? i : undefined
-}
-
-/**
  * Every index below `length` at which `value` reads something, ascending.
  *
  * Bounded by what the value **carries** rather than by `length`: an index that
@@ -226,7 +204,7 @@ const readIndices = value => {
     const { length } = value
     return Object.getOwnPropertyNames(value).flatMap(k => {
         const i = arrayIndex(k)
-        return i !== undefined && i < length ? [i] : []
+        return i !== null && i < length ? [i] : []
     })
 }
 
@@ -271,7 +249,7 @@ export const undeclaredMembers = (declared, value) => {
         ...readIndices(value)
             .filter(i => undeclared(String(i)))
             .map(i => /** @type {const} */ ([String(i), value[i]])),
-        ...Object.entries(value).filter(([k]) => arrayIndex(k) === undefined && undeclared(k)),
+        ...Object.entries(value).filter(([k]) => arrayIndex(k) === null && undeclared(k)),
     ]
 }
 
@@ -304,7 +282,7 @@ export const hasUndeclaredMember = (declared, value) => {
         return Object.keys(value).some(undeclared)
     }
     return readIndices(value).some(i => undeclared(String(i)))
-        || Object.keys(value).some(k => arrayIndex(k) === undefined && undeclared(k))
+        || Object.keys(value).some(k => arrayIndex(k) === null && undeclared(k))
 }
 
 /**
