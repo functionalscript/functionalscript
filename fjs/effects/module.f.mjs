@@ -333,9 +333,9 @@ export const pureError = e => pure(error(e))
  * `pureError(ioError({ code, message }))` written once.
  *
  * Curried on the code first, since a code is what a module fixes and a message
- * is what a site supplies: `refuse(badNameCode)(badNameMessage(path))` at a
- * site, or `const refusal = refuse(packFileCode)` where a module refuses with
- * one code many times.
+ * is what a site supplies. The partial application lives where the code does,
+ * once at module scope — `const refuseBadName = refuse(badNameCode)` — and a
+ * site supplies the message: `refuseBadName(badNameMessage(path))`.
  *
  * @type {(code: string) => (message: string) => Effect<never, never, IoError>}
  */

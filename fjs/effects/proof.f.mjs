@@ -333,10 +333,10 @@ export const proof = {
         assertEq(assertError(pureResult(pureError('nope'))), 'nope')
     },
     refuse: () => {
-        const e = assertError(pureResult(refuse('EBAD')('bad input')))
-        assertEq(e[0], 'ioError')
-        assertEq(e[1].code, 'EBAD')
-        assertEq(e[1].message, 'bad input')
+        const [tag, { code, message }] = assertError(pureResult(refuse('EBAD')('bad input')))
+        assertEq(tag, 'ioError')
+        assertEq(code, 'EBAD')
+        assertEq(message, 'bad input')
     },
     step: {
         ok: () => {

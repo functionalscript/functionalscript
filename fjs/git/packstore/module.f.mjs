@@ -156,6 +156,9 @@ export const packsIn = od => under(od, 'pack')
  */
 export const packIdxCode = /** @type {const} */ ('ERR_PACK_IDX')
 
+/** Refuses with {@link packIdxCode}. */
+const refusePackIdx = refuse(packIdxCode)
+
 /**
  * The code every refusal inside a pack shares: an entry that does not frame, an
  * inflated stream that is not the length its header declares, a base outside the
@@ -164,6 +167,9 @@ export const packIdxCode = /** @type {const} */ ('ERR_PACK_IDX')
  * this id — and each message names the pack and the offset it went wrong at.
  */
 export const packEntryCode = /** @type {const} */ ('ERR_PACK_ENTRY')
+
+/** Refuses with {@link packEntryCode}. */
+const refusePackEntry = refuse(packEntryCode)
 
 /** @type {(path: string) => string} */
 const idxMessage = path => `${path} is no pack index`
@@ -197,7 +203,10 @@ const channelText = c => c[0] === 'ioError'
  *
  * @type {(path: string, at: number) => (what: string) => Effect<never, never, IoChannel>}
  */
-const entryRefusal = (path, at) => what => refuse(packEntryCode)(`${path}:${at} ${what}`)
+const entryRefusal = (path, at) => what => refusePackEntry(`${path}:${at} ${what}`)
+
+/** Refuses with {@link notAFileCode}. */
+const refuseNotAFile = refuse(notAFileCode)
 
 /**
  * The refusal for a path that is there and is no regular file, in the words
@@ -206,7 +215,7 @@ const entryRefusal = (path, at) => what => refuse(packEntryCode)(`${path}:${at} 
  *
  * @type {(path: string) => Effect<never, never, IoChannel>}
  */
-const notAFile = path => refuse(notAFileCode)(notAFileMessage(path))
+const notAFile = path => refuseNotAFile(notAFileMessage(path))
 
 /**
  * One entry of the pack directory that ends in `.idx`, kept where it is a file.
@@ -313,7 +322,7 @@ const idxNames = pd => catchStep(
 const idxAt = (path, oidBytes) => {
     const read = mapStep(readWholeBytes(path), b => tryIdx(oidBytes)(b))
     return step(read, i => i === null
-        ? refuse(packIdxCode)(idxMessage(path))
+        ? refusePackIdx(idxMessage(path))
         : pureOk(i))
 }
 
@@ -466,6 +475,9 @@ const chainStart = /** @type {_Chain} */ ({ deltas: null, links: 0, found: null 
  */
 export const packFileCode = /** @type {const} */ ('ERR_PACK_FILE')
 
+/** Refuses with {@link packFileCode}. */
+const refusePackFile = refuse(packFileCode)
+
 /**
  * Whether the pack's framing agrees with the index that named it, and its
  * length once it does.
@@ -474,7 +486,7 @@ export const packFileCode = /** @type {const} */ ('ERR_PACK_FILE')
  */
 const agrees = (path, oidBytes, idx, size, front, tail) => {
     /** @type {(what: string) => Effect<never, never, IoChannel>} */
-    const refused = what => refuse(packFileCode)(`${path} ${what}`)
+    const refused = what => refusePackFile(`${path} ${what}`)
     const h = tryHeader(front)
     if (h === null) { return refused('is no pack file') }
     if (h.count !== idx.ids.length) {
@@ -521,7 +533,7 @@ const agrees = (path, oidBytes, idx, size, front, tail) => {
 const framingOf = (path, oidBytes, idx) => {
     const sized = history(mapStep(stat(path), s => s.size))
     const front = historyStep(sized, size => size < headerBytes + oidBytes
-        ? refuse(packFileCode)(`${path} is ${size} bytes, too short to be a pack file`)
+        ? refusePackFile(`${path} is ${size} bytes, too short to be a pack file`)
         : mapStep(readBytes(path, 0, headerBytes), denseBytes))
     const back = historyStep(front, (_, size) => mapStep(
         readBytes(path, size - oidBytes, oidBytes),
