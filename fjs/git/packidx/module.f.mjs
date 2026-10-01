@@ -55,11 +55,10 @@
  * @import { Idx } from './types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
 import { take } from '../../types/list/module.f.mjs'
-import { digestOf, isOidOf } from '../oid/module.f.mjs'
+import { digestOf, ofWidth } from '../oid/module.f.mjs'
 
 /** The four bytes a version 2 index begins with: `\377tOc`. */
 const magic = /** @type {const} */ ([0xFF, 0x74, 0x4F, 0x63])
@@ -391,18 +390,14 @@ const offsetIn = (ids, offsets, target, lo, hi) => {
  * different answers, and reading the width from `ids[0]` would have had
  * nothing to read and would have reported the first as the second.
  *
- * @throws On an id of another width than the index holds, which is a caller
- * mixing two repositories rather than an id the pack lacks.
+ * @throws As [`fjs/git/oid`](../oid/module.f.mjs)'s `ofWidth` does, on an
+ * id of another width than the index holds: a caller mixing two repositories
+ * rather than an id the pack lacks.
  *
  * @type {(idx: Idx) => (id: Oid) => Nullable<number>}
  */
-export const offsetOf = ({ oidBytes, ids, offsets }) => {
-    const isOid = isOidOf(oidBytes)
-    return id => {
-        assert(isOid(id), ['not an id of the index width', id])
-        return offsetIn(ids, offsets, uint(id), 0, ids.length)
-    }
-}
+export const offsetOf = ({ oidBytes, ids, offsets }) =>
+    ofWidth(oidBytes)(id => offsetIn(ids, offsets, uint(id), 0, ids.length))
 
 /**
  * {@link after}'s fold: the least of the offsets past the one asked about.
