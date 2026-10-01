@@ -133,6 +133,10 @@ export const proof = {
             const x = {}
             assertEq(dedup([x, {}, x]).length, 2)
         },
+        // `NaN !== NaN`: no `NaN` is a repeat, so none is dropped
+        () => assertEq(dedup([NaN, 1, NaN]).length, 3),
+        // `-0 === 0`: the later one is a repeat
+        () => assertStructurallySame(dedup([0, -0]), [0]),
     ],
     assoc: [
         () => assertEq(assoc('b')([['a', 1], ['b', 2], ['b', 3]]), 2),
@@ -143,5 +147,8 @@ export const proof = {
             const k = {}
             assertEq(assoc(k)([[{}, 1], [k, 2]]), 2)
         },
+        // a stored `undefined` is a value, not absence
+        () => assertEq(assoc('a')([['a', undefined]]), undefined),
+        () => assertEq(assoc('a')([['a', null]]), null),
     ]
 }
