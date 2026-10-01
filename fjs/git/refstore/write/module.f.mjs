@@ -48,6 +48,7 @@ import { createExclusive, isNotFound, mkdir, rename, rm, rmdir, writeExclusive, 
 import { byteArray } from '../../../ebnf/byte/module.f.mjs'
 import { under } from '../../../path/module.f.mjs'
 import { length, maxLengthBytes, u8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
+import { solidus as slash } from '../../../text/ascii/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.mjs'
 import { hexText, isOidOf } from '../../oid/module.f.mjs'
@@ -221,9 +222,6 @@ const idWidthMessage = (oidBytes, id) =>
 
 /** @type {(name: Bytes) => string} */
 const zeroIdWriteMessage = name => `${nameForMessage(name)} would hold the zero id`
-
-/** The byte a ref name's components are separated by. */
-const slash = /** @type {const} */ (0x2F)
 
 /**
  * Whether `a` names the directory `b` sits in, at any depth: `refs/heads/a` is a

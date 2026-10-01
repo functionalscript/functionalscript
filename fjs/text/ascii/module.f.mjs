@@ -37,6 +37,9 @@ export const range = s => {
 
 // 0x00..
 
+/** 0x00 */
+export const nul = one('\0')
+
 /** 0x08 */
 export const backspace = one('\b')
 
@@ -212,6 +215,9 @@ export const latinSmallLetterF = one('f')
 
 /** 0x61..0x66, the lowercase hexadecimal digits. */
 export const latinSmallLetterAFRange = range('af')
+
+/** 0x6D */
+export const latinSmallLetterM = one('m')
 
 /** 0x6E */
 export const latinSmallLetterN = one('n')

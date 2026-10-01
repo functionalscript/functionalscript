@@ -242,26 +242,24 @@ regular expression or is an operator is decided by the token before it, which
 is exactly the layer-above question the number boundary already answers, so
 recognising it is the same shape of work as the template context stack.
 
-The repository has two, one per module, and **they are not the same case**:
+The repository had two, one per module, and **they are not the same case**:
 
 | regex | tokenizes as | cost |
 | --- | --- | --- |
 | [`effects/node`](../../../../effects/node/module.f.mjs)'s `versionParts` `` /^v/ `` | `/`, `^`, `id v`, `/` | one line coloured as divisions |
-| [`text/sgr`](../../../../text/sgr/module.f.mjs)'s `str` `` /\x1b\[[0-9;]*m/g `` | `invalid token` at the `\` | the module is lost from there on |
+| `text/sgr`'s `str` `` /\x1b\[[0-9;]*m/g ``, since replaced by the scanner `stripSgr` | `invalid token` at the `\` | the module is lost from there on |
 
-Both are `.f.mjs` modules, where regular expressions are ruled out;
-[strip-sgr-without-regex](../../../../text/sgr/todo/strip-sgr-without-regex.md)
-removes the second. The token is still owed to every other JavaScript reader.
+Both are `.f.mjs` modules, where regular expressions are ruled out, which is
+why the second is gone. The token is still owed to every other JavaScript
+reader.
 
 The second is what the earlier draft of this section missed by measuring `/x/`
 alone. A regex body is not JavaScript, so a backslash in it begins no token,
 and the grammar stops — where an escape *inside a string* is the string rule's
-business and lexes fine. Today both modules stop earlier anyway — `text/sgr`
-at a `'\x08'` escape and `effects/node` at a template literal; when this
-section was written, at their first single-quoted string — so the regex is
-invisible; **once the escapes and templates above land it becomes the first
-stop in `text/sgr`**, and the last task's tree scan cannot reach
-zero while it does.
+business and lexes fine. `text/sgr`'s regex would have been that module's
+first stop once the escapes and templates above land, and the last task's tree
+scan could not have reached zero while it stood. `effects/node`'s has no
+backslash, so it is misread rather than refused: the scan passes it.
 
 So this issue owes a decision rather than an exclusion, and the cheap one is
 enough: lex a regular expression as a token whose body runs to the unescaped
@@ -355,8 +353,8 @@ the source view rests on.
       largest module in the tree and on the two shapes above.
 - [ ] A regex-literal token, with the preceding token deciding whether `/`
       opens one, and the compiler's fold refusing it as it refuses a
-      template. Without it `text/sgr` stops at its regex's backslash once
-      the escapes and templates land, so the scan below cannot reach zero.
+      template. Without it `effects/node`'s `/^v/` reads as divisions, and
+      a regex whose body holds a backslash stops the scan below there.
 - [ ] Re-run the tree scan; the failing modules should reach zero, or the
       remainder should be named and explained.
 

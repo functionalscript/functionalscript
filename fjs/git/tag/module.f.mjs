@@ -27,6 +27,7 @@
 
 import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
 import { byteArray, byteLength } from '../../ebnf/byte/module.f.mjs'
+import { lf, nul as nulByte } from '../../text/ascii/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { hasNulHeader, tryRead as readPayload, valueAt, write as writePayload } from '../header/module.f.mjs'
 import { tryRead as readIdent } from '../ident/module.f.mjs'
@@ -77,12 +78,9 @@ export const write = writePayload
 const typeOf = value => {
     const bs = byteArray(value)
     if (bs.includes(lf)) { return null }
-    const nul = bs.indexOf(0)
-    return typeNamed(nul === -1 ? bs : bs.slice(0, nul))
+    const end = bs.indexOf(nulByte)
+    return typeNamed(end === -1 ? bs : bs.slice(0, end))
 }
-
-/** The byte a line ends with, and the one a folded continuation leaves in a value. */
-const lf = /** @type {const} */ (0x0A)
 
 /**
  * The id the `object` header names: the first header, a hex id.

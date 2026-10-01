@@ -26,19 +26,14 @@
 import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
 import { ascii, byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, range, repeatFrom0, repeatFrom1, set, times } from '../../ebnf/module.f.mjs'
-import { digit0, digitsValue } from '../../text/ascii/module.f.mjs'
+import {
+    digit0, digitsValue, fullStop as dot, isLatinCapitalLetter, latinCapitalLetterA, latinSmallLetterA, nul,
+    solidus as slash, space as sp,
+} from '../../text/ascii/module.f.mjs'
 import { u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
 import { flat } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { isOidOf } from '../oid/module.f.mjs'
-
-const sp = /** @type {const} */ (0x20)
-
-const nul = /** @type {const} */ (0)
-
-const slash = /** @type {const} */ (0x2F)
-
-const dot = /** @type {const} */ (0x2E)
 
 const octalDigit = range('07')
 
@@ -134,7 +129,7 @@ const dotGit = ascii('.git')
 const maxNameLength = 4096
 
 /** A byte with an ASCII capital folded to its small letter. @type {(b: number) => number} */
-const lower = b => b >= 0x41 && b <= 0x5A ? b + 0x20 : b
+const lower = b => isLatinCapitalLetter(b) ? b - latinCapitalLetterA + latinSmallLetterA : b
 
 /**
  * Whether a name is `.git` in any case: the entry a checkout must never

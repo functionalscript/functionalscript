@@ -26,17 +26,12 @@
 import { assert } from '../../asserts/module.f.mjs'
 import { ascii, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, range, repeatFrom0, repeatFrom1, set, times } from '../../ebnf/module.f.mjs'
-import { digitsValue, isCanonicalDigits, isDigit } from '../../text/ascii/module.f.mjs'
+import {
+    digitsValue, greaterThanSign as gt, hyphenMinus, isCanonicalDigits, isDigit, lessThanSign as lt, lf,
+    plusSign, space as sp,
+} from '../../text/ascii/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { flat } from '../../types/list/module.f.mjs'
-
-const sp = /** @type {const} */ (0x20)
-
-const lf = /** @type {const} */ (0x0A)
-
-const lt = /** @type {const} */ (0x3C)
-
-const gt = /** @type {const} */ (0x3E)
 
 const digit = range('09')
 
@@ -110,7 +105,7 @@ export const tryRead = value => {
  */
 const isZone = tz => {
     const c = ascii(tz)
-    return c.length === 5 && (c[0] === 0x2B || c[0] === 0x2D) && c.slice(1).every(isDigit)
+    return c.length === 5 && (c[0] === plusSign || c[0] === hyphenMinus) && c.slice(1).every(isDigit)
 }
 
 /**
