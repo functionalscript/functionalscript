@@ -6,12 +6,20 @@
 
 import type { Tree } from './types/types.ts'
 
-/**
- * The last two versions of the tree, and the word that turned the first into
- * the second — `null` before any word was read.
- */
+/** The tree before the last step, and after it. */
 export type _Versions = {
     readonly before: Tree<number>
     readonly after: Tree<number>
-    readonly last: string | null
+}
+
+/**
+ * The demo's state: the key field as typed, the last two versions, the step
+ * that turned one into the other (`insert 8`), and why the last press did
+ * nothing, if it did nothing.
+ */
+export type _State = {
+    readonly key: string
+    readonly versions: _Versions
+    readonly last: string
+    readonly error: string | null
 }

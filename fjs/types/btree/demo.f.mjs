@@ -16,70 +16,62 @@
  * two trees into a graph neither of them is; two drawings keep each tree's
  * shape readable and leave the sharing to the colours.
  *
- * **The input is the steps, not a tree.** Each word is a step: an integer is
- * an insert, and one after `-` is a removal. The tree is a fold over the
- * steps from the empty tree, so the same text always draws the same graphs,
- * and they are of the last step only. A word that is not a key is refused by name rather
- * than skipped, which would draw a tree the text does not describe.
+ * **A reader changes the tree one key at a time**: type a key, press
+ * **Insert** or **Remove**, and the tree that was drawn under *After* moves
+ * to *Before*. A key that is not an integer is refused by name, and the
+ * trees stay as they were.
  *
- * **It needs no operations.** Folding and walking are pure functions of the
- * text, so `update` declares `never`.
+ * **It needs no operations.** Inserting, removing and walking are pure, so
+ * `update` declares `never`.
  *
  * @module
  *
  * @import { TNode, Tree } from './types/types.ts'
- * @import { _Versions } from './private.ts'
+ * @import { _State, _Versions } from './private.ts'
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Shape } from '../../website/demo/graph/types.ts'
- * @import { Examples } from '../../website/demo/examples/types.ts'
- * @import { Element } from '../../media/html/types.ts'
  */
 
 import { set } from './set/module.f.mjs'
 import { remove } from './remove/module.f.mjs'
 import { cmp } from '../number/module.f.mjs'
 import { graphOf, graphSvg } from '../../website/demo/graph/module.f.mjs'
-import { textDemo } from '../../website/demo/module.f.mjs'
+import { pureOk } from '../../effects/module.f.mjs'
 
 /**
- * `word` as the step it names, or `null` if it names none. A key is a safe
- * integer spelled the way `String` spells it, so `07`, `1e3` and `NaN` are
- * refused: `NaN` has no order for the tree to keep, and the other two would
- * be drawn under a spelling the reader did not type.
+ * `text` as a key, or `null` if it is none. A key is a safe integer spelled
+ * the way `String` spells it, so `07`, `1e3` and `NaN` are refused: `NaN` has
+ * no order for the tree to keep, and the other two would be drawn under a
+ * spelling the reader did not type.
  *
- * @type {(word: string) => ((tree: Tree<number>) => Tree<number>) | null}
+ * @type {(text: string) => number | null}
  */
-const stepOf = word => {
-    const isRemove = word.startsWith('-')
-    const digits = isRemove ? word.slice(1) : word
-    const key = Number(digits)
-    return !Number.isSafeInteger(key) || String(key) !== digits ? null
-        : isRemove ? remove(cmp(key))
-        : set(cmp(key))(() => key)
+const keyOf = text => {
+    const key = Number(text)
+    return Number.isSafeInteger(key) && String(key) === text ? key : null
 }
 
-/** @type {(text: string) => readonly string[]} */
-const wordsOf = text => text.split('\n').flatMap(line => line.split(' ')).filter(word => word !== '')
-
-/** @type {_Versions} */
-const empty = { before: null, after: null, last: null }
+/** @type {(key: number) => (tree: Tree<number>) => Tree<number>} */
+const insert = key => set(cmp(key))(() => key)
 
 /**
- * The last two versions `text`'s steps build, starting from the empty tree,
- * or the first word that is not a step.
+ * `state` after pressing `op`'s button: the tree it showed after its last
+ * step is the one before this step, or, if the field holds no key, the same
+ * trees and a reason.
  *
- * @type {(text: string) => _Versions | string}
+ * @type {(op: 'insert' | 'remove') => (state: _State) => _State}
  */
-export const _versions = text => wordsOf(text).reduce(
-    /** @type {(v: _Versions | string, word: string) => _Versions | string} */
-    (v, word) => {
-        if (typeof v === 'string') { return v }
-        const step = stepOf(word)
-        return step === null
-            ? `"${word}" is not a step: write an integer to insert it, or "-" and an integer to remove it.`
-            : { before: v.after, after: step(v.after), last: word }
-    },
-    empty)
+export const _press = op => state => {
+    const key = keyOf(state.key.trim())
+    if (key === null) { return { ...state, error: `"${state.key}" is not a key: type an integer.` } }
+    const { after } = state.versions
+    return {
+        key: state.key,
+        versions: { before: after, after: (op === 'insert' ? insert(key) : remove(cmp(key)))(after) },
+        last: `${op} ${key}`,
+        error: null,
+    }
+}
 
 /** @type {(node: TNode<number>) => readonly TNode<number>[]} */
 const childrenOf = node => node.length === 3 ? [node[0], node[2]]
@@ -142,59 +134,53 @@ const shapeOf = ({ before, after }) => {
     }
 }
 
-/** @type {(word: string) => string} */
-const describe = word => word.startsWith('-') ? `remove ${word.slice(1)}` : `insert ${word}`
+/** @type {Tree<number>} */
+const empty = null
 
-/** @type {(v: _Versions) => readonly Element[]} */
-const render = v => {
-    if (v.last === null) { return [['p', 'Type keys to insert, and see the tree they build.']] }
-    const { built, shared, replaced } = _census(v)
-    const draw = graphOf(shapeOf(v))
-    return [
-        ['h3', 'Before'],
-        graphSvg(draw(v.before)),
-        ['h3', 'After'],
-        graphSvg(draw(v.after)),
-        ['p', `Last step, ${describe(v.last)}: ${built} new (green), ${shared} shared with the version before, ${replaced} replaced (red).`],
-    ]
+/** @type {(tree: Tree<number>, key: number) => Tree<number>} */
+const insertInto = (tree, key) => insert(key)(tree)
+
+/** The tree holding 1 to 6, one insert away from the opening state. */
+const six = [1, 2, 3, 4, 5, 6].reduce(insertInto, empty)
+
+/**
+ * The page opens on a step already taken — 7 inserted into the tree of 1 to
+ * 6 — so there is something to compare before the first press, and the field
+ * holds 8, the next key to try.
+ *
+ * @type {Demo<_State, DemoEvent>}
+ */
+export const demo = {
+    init: { key: '8', versions: { before: six, after: insert(7)(six) }, last: 'insert 7', error: null },
+    update: state => event => pureOk(
+        event.kind === 'input' && event.name === 'key' ? { ...state, key: event.value }
+        : event.kind === 'click' && (event.name === 'insert' || event.name === 'remove') ? _press(event.name)(state)
+        : state),
+    view: ({ key, versions, last, error }) => {
+        const { built, shared, replaced } = _census(versions)
+        const draw = graphOf(shapeOf(versions))
+        return ['div',
+            ['p',
+                'Every step builds a new tree and leaves the old one as it was, ',
+                'but only the path from the root to the change is built again: ',
+                'everything else is shared by both versions. Try 8 and then 9, ',
+                'which splits a leaf; 10 to 15, which grow the tree a level; or ',
+                'removing 7, which merges two leaves.',
+            ],
+            ['p',
+                ['label', { for: 'btree-key' }, 'Key '],
+                ['input', { type: 'text', id: 'btree-key', name: 'key', value: key, size: '6' }],
+                ' ',
+                ['button', { type: 'button', name: 'insert' }, 'Insert'],
+                ' ',
+                ['button', { type: 'button', name: 'remove' }, 'Remove'],
+            ],
+            ...(error === null ? [] : [/** @type {const} */ (['p', `Error: ${error}`])]),
+            ['h3', 'Before'],
+            graphSvg(draw(versions.before)),
+            ['h3', 'After'],
+            graphSvg(draw(versions.after)),
+            ['p', `Last step, ${last}: ${built} new (green), ${shared} shared with the version before, ${replaced} replaced (red).`],
+        ]
+    },
 }
-
-/**
- * The step lists the examples drop-down offers, each ending on the step it
- * is named for.
- *
- * - **Insert into a leaf** puts 8 beside 7: the root, its right child and
- *   one leaf are built again, and the whole left half is shared.
- * - **Split a leaf** inserts 9 into the leaf `7 8`, which has no room: it
- *   splits, and 8 moves up into its parent.
- * - **Grow a level** splits all the way to the root, so the tree gets one
- *   level taller — and still shares every leaf it did not touch.
- * - **Remove** takes 7 out of its leaf, which leaves the leaf empty: it
- *   merges with its sibling, and the tree gets one level shorter.
- * - **Remove a missing key** changes nothing, so both versions are one
- *   tree: every node is shared and none is new.
- * - **The first key** starts from the empty tree, which has no nodes to
- *   share.
- * - **Error** is a word that is not a step.
- *
- * @type {Examples}
- */
-export const examples = [
-    ['Insert into a leaf', '1 2 3 4 5 6 7 8'],
-    ['Split a leaf', '1 2 3 4 5 6 7 8 9'],
-    ['Grow a level', '1 2 3 4 5 6 7 8 9 10 11 12 13 14 15'],
-    ['Remove', '1 2 3 4 5 6 7 -7'],
-    ['Remove a missing key', '1 2 3 4 5 6 7 -9'],
-    ['The first key', '1'],
-    ['Error', '1 two'],
-]
-
-/**
- * The state is the text, not the trees: both versions are a function of it.
- *
- * @type {Demo<string, DemoEvent>}
- */
-export const demo = textDemo({ name: 'btree', label: 'Steps', rows: 3, init: examples[0][1], examples })(text => {
-    const v = _versions(text)
-    return typeof v === 'string' ? [['p', `Error: ${v}`]] : render(v)
-})
