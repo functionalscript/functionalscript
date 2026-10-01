@@ -9,6 +9,10 @@ use crate::{
     vm::{IVm, Number, String},
 };
 
+/// The one name every indexed receiver and a function answer besides their
+/// indices: `Array`'s, `String`'s and `Function`'s `.length`.
+pub(crate) const LENGTH: &str = "length";
+
 /// A `Number` key that denotes a valid array/string index: a non-negative
 /// integer that fits in `u32`. `-0.0` passes (`-0.0 < 0.0` is `false` and
 /// `(-0.0).fract()` is `0.0`), matching real JS: a numeric `-0` key

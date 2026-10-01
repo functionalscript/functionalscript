@@ -63,14 +63,13 @@
  * @import { List } from '../../types/list/types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
 import { catchStep, ioError, mapStep, pureError, pureOk, resultStep, step, walkStep } from '../../effects/module.f.mjs'
 import { namesNothing, readUtf8File } from '../../effects/node/module.f.mjs'
 import { isDriveLetter, isDriveRoot, join, root, under } from '../../path/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { tryOidBytes } from '../config/module.f.mjs'
 import { tryRead as readLoose } from '../loose/module.f.mjs'
-import { hexText, isOidOf, of } from '../oid/module.f.mjs'
+import { hexText, of, ofWidth } from '../oid/module.f.mjs'
 import { tryRead as readPacked } from '../packstore/module.f.mjs'
 
 /**
@@ -687,16 +686,14 @@ const kept = (found, o) => {
  * The width is bound first, so the hash is chosen once for a store and
  * not once per object.
  *
- * @throws On an id that is not `oidBytes` wide: a caller that mixes the
- * widths has a bug, not a missing object.
+ * @throws As [`fjs/git/oid`](../oid/module.f.mjs)'s `ofWidth` does, on an
+ * id that is not `oidBytes` wide.
  *
  * @type {(ods: readonly string[], oidBytes: OidBytes) => (id: Oid) => Effect<Readdir | ReadFile | Stat | ReadWhole | ReadBytes | Inflate, Nullable<Envelope>, IoChannel>}
  */
 export const readIn = (ods, oidBytes) => {
     const idOf = of(oidBytes)
-    const isOid = isOidOf(oidBytes)
-    return id => {
-        assert(isOid(id), ['not an id of the width', id])
+    return ofWidth(oidBytes)(id => {
         const walked = walkStep(
             pureOk(ods),
             /** @type {Nullable<_Outcome>} */ (null),
@@ -707,7 +704,7 @@ export const readIn = (ods, oidBytes) => {
                 : found[0]
             return r[0] === 'error' ? pureError(r[1]) : pureOk(r[1])
         })
-    }
+    })
 }
 
 /**
@@ -723,19 +720,15 @@ export const readIn = (ods, oidBytes) => {
  * which is a cache with no way to spell its own invalidation, so the choice is
  * the caller's to make.
  *
- * @throws On an id that is not `oidBytes` wide: a caller that mixes the
- * widths has a bug, not a missing object.
+ * @throws As [`fjs/git/oid`](../oid/module.f.mjs)'s `ofWidth` does, on an
+ * id that is not `oidBytes` wide.
  *
  * @type {(dir: string, oidBytes: OidBytes) => (id: Oid) => Effect<Readdir | ReadFile | Stat | ReadWhole | ReadBytes | Inflate, Nullable<Envelope>, IoChannel>}
  */
 export const tryRead = (dir, oidBytes) => {
     const dirs = objectsDirs(dir)
-    const isOid = isOidOf(oidBytes)
-    return id => {
-        // Asked here as well as in `readIn`, because the effect below is not run
-        // until it is stepped: a caller that hands over an id of the wrong width
-        // has a bug now, not one command later.
-        assert(isOid(id), ['not an id of the width', id])
-        return step(dirs, ods => readIn(ods, oidBytes)(id))
-    }
+    // Asked here as well as in `readIn`, because the effect below is not run
+    // until it is stepped: a caller that hands over an id of the wrong width
+    // has a bug now, not one command later.
+    return ofWidth(oidBytes)(id => step(dirs, ods => readIn(ods, oidBytes)(id)))
 }

@@ -3,7 +3,7 @@ use crate::{
     common::sized_index::SizedIndex,
     vm::{
         Any, IVm, Number, ToAny, ToString, Unpacked,
-        member_access::{canonical_index, string_to_index},
+        member_access::{LENGTH, canonical_index, string_to_index},
     },
 };
 
@@ -33,7 +33,7 @@ impl<A: IVm> String<A> {
                 .filter(|&i| i < len)
                 .map(|i| [self[i]].to_string::<A>().to_any()),
             Unpacked::String(s) => {
-                if s == "length".into() {
+                if s.is_str(LENGTH) {
                     Some(Number::from(len).to_any())
                 } else {
                     string_to_index(&s)
