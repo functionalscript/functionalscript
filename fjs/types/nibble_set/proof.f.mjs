@@ -41,6 +41,7 @@ export const proof = {
         assertEq(result, 60)
     },
     universe: () => {
+        assertEq(universe, 0xFFFF)
         /** @type {(v: number) => boolean} */
         const hasInUniverse = v => has(v)(universe)
         const x = every(map(hasInUniverse)(countdown(16)))
@@ -52,6 +53,7 @@ export const proof = {
             assertEq(r, universe)
         },
         universe: () => {
+        assertEq(universe, 0xFFFF)
             const r = complement(universe)
             assertEq(r, empty)
         },
