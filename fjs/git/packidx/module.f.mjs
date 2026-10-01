@@ -148,6 +148,7 @@ const fanoutAgrees = (b, fanoutAt, idsAt, stride, n, width) => {
     if (!ascends) { return false }
     /** The first byte of each id, which is the bucket the fanout counts. */
     const firsts = Array.from({ length: n }, (_, i) => b[idsAt + i * stride])
+    const search = bsearch(n)
     /**
      * How many of `firsts` are `k` or less: a search, not a filter per bucket,
      * which would be 256 passes over the ids.
@@ -157,7 +158,7 @@ const fanoutAgrees = (b, fanoutAt, idsAt, stride, n, width) => {
      *
      * @type {(k: number) => number}
      */
-    const upTo = k => bsearch(n)(mid => firsts[mid] <= k ? 1 : -1)
+    const upTo = k => search(mid => firsts[mid] <= k ? 1 : -1)
     return Array.from({ length: fanout }, (_, k) => k)
         .every(k => u32(b, fanoutAt + k * 4) === upTo(k))
 }
@@ -360,10 +361,11 @@ export const tryIdx = oidBytes => input => {
  */
 export const offsetOf = ({ oidBytes, ids, offsets }) => {
     const isOid = isOidOf(oidBytes)
+    const search = bsearch(ids.length)
     return id => {
         assert(isOid(id), ['not an id of the index width', id])
         const target = uint(id)
-        const at = bsearch(ids.length)(mid => cmp(target)(uint(ids[mid])))
+        const at = search(mid => cmp(target)(uint(ids[mid])))
         return at < ids.length && uint(ids[at]) === target ? offsets[at] : null
     }
 }
