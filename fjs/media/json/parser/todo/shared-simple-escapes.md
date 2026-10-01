@@ -1,7 +1,7 @@
 ## The JSON reader decodes escapes through js/string_escape
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
