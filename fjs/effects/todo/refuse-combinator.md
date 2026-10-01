@@ -57,5 +57,5 @@ refuses what is checkable against the code.
 
 ### Related
 
-- [map-step-combinator.md](./map-step-combinator.md) — the precedent:
-  a derived combinator landed, then the call sites converted.
+- `mapStep` in `fjs/effects/module.f.mjs` — the precedent: a derived
+  combinator landed, then the call sites converted.
