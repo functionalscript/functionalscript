@@ -14,10 +14,16 @@ import type { Node } from '../../../media/html/types.ts'
  * and whole groups need nothing. With one, a `1` follows the data and zeros
  * complete its group — so there is always one group more than the whole ones,
  * even when the data fills them exactly.
+ *
+ * `block` is the number of characters the codec works in, if it has such a
+ * unit — Base64's four, which encode three bytes and which `=` completes. The
+ * demo keeps a block whole on a line. A codec without one leaves it out, and
+ * its groups wrap anywhere.
  */
 export type BitScheme = {
     readonly width: number
     readonly stop: boolean
+    readonly block?: number | undefined
 }
 
 /**

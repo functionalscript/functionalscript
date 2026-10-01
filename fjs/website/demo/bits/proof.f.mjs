@@ -25,6 +25,8 @@ const encode = v => `${length(v)}:${uint(v)}`
 const zeros = { width: 3, stop: false }
 /** @type {BitScheme} */
 const stops = { width: 3, stop: true }
+/** @type {BitScheme} */
+const blocks = { width: 3, stop: false, block: 2 }
 
 /** @type {(scheme: BitScheme) => (text: string) => BitGroups} */
 const encoded = scheme => text => {
@@ -35,6 +37,7 @@ const encoded = scheme => text => {
 
 const zeroDemo = bitGroupDemo({ name: 'Toy', how: '3 bits per character', scheme: zeros, encode, note: 'the note' })
 const stopDemo = bitGroupDemo({ name: 'Stop', how: '3 bits, then a stop bit', scheme: stops, encode, note: 'the note' })
+const blockDemo = bitGroupDemo({ name: 'Block', how: '3 bits, 2 to a block', scheme: blocks, encode, note: 'the note' })
 
 export const proof = {
     bitGroups: {
@@ -78,19 +81,30 @@ export const proof = {
     },
     view: {
         /**
-         * **A character sits under its group**: the two are one column of
-         * the `data-bit-groups` grid, the group in a data cell and the
-         * character in a header cell, four groups to a row. `hé` is 24
-         * bits, eight groups, so two rows.
+         * **A character sits under its group**: each group is a
+         * `data-bit-box`, its bits over its character, and without a block
+         * size the boxes are the `data-bit-groups` container's own children,
+         * so they wrap anywhere.
          */
-        grid: () => {
+        boxes: () => {
             const html = htmlToString(zeroDemo.view(zeroDemo.init))
             assert(html.includes('name="text"'), html)
             assert(html.includes('<pre>01101000 11000011 10101001</pre>'), html)
             assert(html.includes('<strong>Toy</strong> — 3 bits per character'), html)
-            assert(html.includes('<table data-bit-groups=""><tr><td>011</td><td>010</td><td>001</td><td>100</td></tr><tr><th>2</th><th>4</th><th>:</th><th>6</th></tr>'), html)
+            assert(html.includes('<div data-bit-groups=""><div data-bit-box=""><span>011</span><span data-bit-char="">2</span></div><div data-bit-box=""><span>010</span><span data-bit-char="">4</span></div>'), html)
+            assert(!html.includes('data-bit-block'), html)
             assert(html.includes('Result: <strong>24:6865833</strong>'), html)
             assert(html.includes('<p>the note</p>'), html)
+        },
+        /**
+         * **With a block size, the boxes go in blocks**, which wrap as units:
+         * `h` is three groups, so a block of two and a last block of one.
+         */
+        blocks: () => {
+            const html = htmlToString(blockDemo.view('h'))
+            const box = (/** @type {string} */ bits, /** @type {string} */ c) =>
+                `<div data-bit-box=""><span>${bits}</span><span data-bit-char="">${c}</span></div>`
+            assert(html.includes(`<div data-bit-groups="" data-bit-blocks=""><div data-bit-block="">${box('011', '8')}${box('010', ':')}</div><div data-bit-block=""><div data-bit-box=""><span>00<span data-bit="fill">0</span></span><span data-bit-char="">1</span></div></div></div>`), html)
         },
         /**
          * **Stop and fill bits are marked**, so the stylesheet sets them
@@ -99,23 +113,23 @@ export const proof = {
          */
         marked: () => {
             const zero = htmlToString(zeroDemo.view('h'))
-            assert(zero.includes('<td>00<span data-bit="fill">0</span></td>'), zero)
+            assert(zero.includes('<span>00<span data-bit="fill">0</span></span>'), zero)
             assert(zero.includes('<p><span data-bit="fill">0</span> fill bits carry no data</p>'), zero)
             const stop = htmlToString(stopDemo.view(stopDemo.init))
-            assert(stop.includes('<td><span data-bit="stop">1</span><span data-bit="fill">00</span></td>'), stop)
+            assert(stop.includes('<span><span data-bit="stop">1</span><span data-bit="fill">00</span></span>'), stop)
             assert(stop.includes('<span data-bit="fill">0</span> fill bits carry no data; <span data-bit="stop">1</span> is the stop bit'), stop)
         },
-        // No bits, no groups: no grid, and `(empty)` rather than nothing.
+        // No bits, no groups: no boxes, and `(empty)` rather than nothing.
         empty: () => {
             const html = htmlToString(zeroDemo.view(''))
             assert(html.includes('<pre>(empty)</pre>'), html)
-            assert(!html.includes('<table'), html)
+            assert(!html.includes('data-bit-groups'), html)
             assert(html.includes('Result: <strong>0:0</strong>'), html)
         },
         unpairedSurrogate: () => {
             const html = htmlToString(zeroDemo.view('a\uD800'))
             assert(html.includes('<strong>error: unpaired surrogate, no UTF-8</strong>'), html)
-            assert(!html.includes('<table'), html)
+            assert(!html.includes('data-bit-groups'), html)
         },
     },
 }

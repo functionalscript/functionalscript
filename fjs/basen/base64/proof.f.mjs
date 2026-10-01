@@ -178,7 +178,9 @@ export const proof = {
         },
         view: () => {
             const html = htmlToString(demo.view(demo.init))
-            assert(html.includes('<tr><th>a</th><th>M</th><th>O</th><th>p</th></tr>'), html)
+            // `hé` is one whole block of four.
+            assert(html.includes('<div data-bit-groups="" data-bit-blocks=""><div data-bit-block=""><div data-bit-box=""><span>011010</span><span data-bit-char="">a</span></div>'), html)
+            assertEq(html.split('<div data-bit-block="">').length, 2)
             assert(html.includes('Result: <strong>aMOp</strong>'), html)
             assert(html.includes('<a href="/fjs/basen/cbase32/">cbase32</a>'), html)
         },

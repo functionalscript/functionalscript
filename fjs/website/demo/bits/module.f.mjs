@@ -13,12 +13,13 @@
  * here, so a scheme that drew the groups wrong would show a mismatch rather
  * than agree with itself.
  *
- * **Each encoding is a grid.** The site sets everything in one monospace
- * face, so a group's bits and its character would look alike as lines of
- * text. In a bordered grid each column pairs one group's bits with the
- * character under them, in a shaded header cell; stop and fill bits are
- * marked so they read apart from the data. The look is the stylesheet's,
- * keyed on `data-bit-groups` and `data-bit`.
+ * **Each group is a box.** The site sets everything in one monospace face, so
+ * a group's bits and its character would look alike as lines of text. A
+ * bordered box pairs one group's bits with its character, shaded, under them;
+ * stop and fill bits are marked so they read apart from the data. The boxes
+ * wrap to the page's width, and a codec with blocks — Base64's four
+ * characters, three bytes — keeps each block whole on a line. The look is the
+ * stylesheet's, keyed on `data-bit-groups` and `data-bit`.
  *
  * **Text UTF-8 cannot encode is refused**: a JavaScript string can hold half
  * a surrogate pair, which has no UTF-8 bytes to encode (see `text/utf8`).
@@ -84,42 +85,36 @@ export const bitGroups = (scheme, encode) => text => {
     }
 }
 
-/** Groups per row: four Base64 groups are three bytes, one whole quantum. */
-const perRow = 4
-
 /**
- * A group's bits: its data as text, then its stop and fill bits each marked,
- * so the stylesheet can set them apart from the data.
+ * One group as a box: its bits — the data as text, then its stop and fill bits
+ * each marked, so the stylesheet can set them apart from the data — over the
+ * character the codec wrote for it.
  *
- * @type {(g: BitGroup) => Element}
+ * @type {(g: BitGroup, c: string) => Element}
  */
-const groupCell = ({ data, stop, fill }) => ['td',
-    data,
-    ...(stop === '' ? [] : [/** @type {Element} */ (['span', { 'data-bit': 'stop' }, stop])]),
-    ...(fill === '' ? [] : [/** @type {Element} */ (['span', { 'data-bit': 'fill' }, fill])]),
+const box = ({ data, stop, fill }, c) => ['div', { 'data-bit-box': '' },
+    ['span',
+        data,
+        ...(stop === '' ? [] : [/** @type {Element} */ (['span', { 'data-bit': 'stop' }, stop])]),
+        ...(fill === '' ? [] : [/** @type {Element} */ (['span', { 'data-bit': 'fill' }, fill])]),
+    ],
+    ['span', { 'data-bit-char': '' }, c],
 ]
 
-/** @type {(c: string) => Element} */
-const charCell = c => ['th', c]
-
 /**
- * A grid of the groups, four to a row: each column is one group's bits over,
- * in a header cell, the character the codec wrote for it. The stylesheet
- * draws it by `data-bit-groups`.
+ * The groups as boxes that wrap to the page's width. With a block size, the
+ * boxes go in blocks of that many, which wrap as units: a line breaks only
+ * between whole blocks, so a reader sees the codec's block without counting.
+ * The stylesheet draws them by `data-bit-groups`.
  *
- * @type {(g: BitGroups) => Element}
+ * @type {(scheme: BitScheme) => (g: BitGroups) => Element}
  */
-const table = ({ groups, encoded }) => {
-    /** @type {(r: number) => readonly Element[]} */
-    const rowPair = r => {
-        const row = groups.slice(r * perRow, (r + 1) * perRow)
-        return [
-            ['tr', ...row.map(groupCell)],
-            ['tr', ...row.map((_, i) => charCell(encoded[r * perRow + i]))],
-        ]
-    }
-    return ['table', { 'data-bit-groups': '' },
-        ...Array.from({ length: Math.ceil(groups.length / perRow) }, (_, r) => rowPair(r)).flat()]
+const boxes = ({ block }) => ({ groups, encoded }) => {
+    const all = groups.map((g, i) => box(g, encoded[i]))
+    if (block === undefined) { return ['div', { 'data-bit-groups': '' }, ...all] }
+    return ['div', { 'data-bit-groups': '', 'data-bit-blocks': '' },
+        ...Array.from({ length: Math.ceil(all.length / block) }, (_, i) =>
+            /** @type {Element} */ (['div', { 'data-bit-block': '' }, ...all.slice(i * block, (i + 1) * block)]))]
 }
 
 /**
@@ -138,7 +133,7 @@ const orEmpty = s => s === '' ? '(empty)' : s
 
 /**
  * A demo of one codec: the text, its bytes, the codec's name in bold and how
- * it cuts the bits, the table, the whole result in bold, and the note.
+ * it cuts the bits, the boxes, the whole result in bold, and the note.
  *
  * The initial text is three bytes, one whole Base64 quantum and not a whole
  * number of five-bit groups, so one text shows a codec that needs no fill
@@ -148,6 +143,7 @@ const orEmpty = s => s === '' ? '(empty)' : s
  */
 export const bitGroupDemo = ({ name, how, scheme, encode, note }) => {
     const f = bitGroups(scheme, encode)
+    const draw = boxes(scheme)
     return textDemo({ name: 'text', label: 'Text', rows: 2, init: 'hé' })(text => {
         const g = f(text)
         /** @type {readonly Node[]} */
@@ -155,7 +151,7 @@ export const bitGroupDemo = ({ name, how, scheme, encode, note }) => {
             ['p', ['strong', 'UTF-8 bytes'], ' — binary'],
             ['pre', orEmpty(g.bytes.join(' '))],
             ['p', ['strong', name], ` — ${how}`],
-            ...(g.groups.length === 0 ? [] : [table(g)]),
+            ...(g.groups.length === 0 ? [] : [draw(g)]),
             legend(scheme),
             ['p', 'Result: ', ['strong', orEmpty(g.encoded)]],
             ['p', note],
