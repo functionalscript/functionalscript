@@ -398,13 +398,13 @@ const reportClassification = proofs => {
 const scan = paths => foldStep(
     pureOk(paths),
     /** @type {readonly [readonly string[], readonly string[], _Graph]} */ ([[], [], emptyMap]),
-    path => ([proofs, demos, graph]) => step(
+    path => ([proofs, demos, graph]) => mapStep(
         readUtf8File(path),
-        source => pureOk(/** @type {const} */ ([
+        source => /** @type {const} */ ([
             exportsProof(source) ? [...proofs, path] : proofs,
             exportsDemo(source) ? [...demos, path] : demos,
             setReplace(path)(importsOf(path)(source))(graph),
-        ]))))
+        ])))
 
 /**
  * Whether a name is the generator's own output rather than a file a reader
