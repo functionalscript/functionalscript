@@ -200,9 +200,15 @@ const valueKindOf = ({ to }) =>
  * node — no row carries an empty cell. A node is as wide as the widest of
  * its label, a key beside its value, and an edge's key.
  *
+ * **An empty label is no row at all** when the node has ports: its rows
+ * already say what it is, and an empty header would be a blank band on
+ * top of them. An edge into such a node arrives at its first row instead.
+ * A node with neither keeps its header, or it would have no height.
+ *
  * @type {(label: string) => (out: readonly _Out[]) => _Size}
  */
 const portsOf = label => out => {
+    const header = label === '' && out.length > 0 ? 0 : headerHeight
     const inlines = out.flatMap(({ edge }) => {
         const inline = inlineOf(edge)
         return inline === null ? [] : [{ key: cellWidthOf(edge.label), value: cellWidthOf(inline) }]
@@ -214,9 +220,10 @@ const portsOf = label => out => {
         max(out.flatMap(({ edge }) => inlineOf(edge) === null ? [cellWidthOf(edge.label)] : [])))
     return {
         width,
-        height: headerHeight + out.length * portHeight,
+        height: header + out.length * portHeight,
         keyWidth: keyColumn,
-        ports: out.map(({ edge, index }, i) => ({ edge, index, y: headerHeight + i * portHeight })),
+        entry: (header === 0 ? portHeight : header) / 2,
+        ports: out.map(({ edge, index }, i) => ({ edge, index, y: header + i * portHeight })),
     }
 }
 
@@ -351,7 +358,7 @@ const routesOf = placed => {
                 const lane = /** @type {_Lane} */ (lanes.get(`${port.index} ${from.rank + 1 + i}`))
                 return /** @type {readonly _Point[]} */ ([[lane.left, lane.y], [lane.right, lane.y]])
             }).flat(),
-            [to.x, to.y + headerHeight / 2],
+            [to.x, to.y + to.entry],
         ]
         return [{ edge: port.edge, points }]
     }))
@@ -505,10 +512,10 @@ export const graphSvg = g => {
         ['rect', { x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: String(radius) }]])])
     /** @type {readonly Element[]} */
     const labelEls = positioned.flatMap(p => [
-        /** @type {Element} */ (['text', {
+        ...(p.label === '' ? [] : [/** @type {Element} */ (['text', {
             x: String(p.x + p.width / 2), y: String(p.y + headerHeight / 2),
             'text-anchor': 'middle', 'data-graph-label': '',
-        }, p.label]),
+        }, p.label])]),
         ...p.ports.map(port => /** @type {Element} */ (['text', {
             x: String(p.x + keyWidthOf(p)(port) / 2), y: String(p.y + port.y + portHeight / 2),
             'text-anchor': 'middle', 'data-graph-edge-label': '',

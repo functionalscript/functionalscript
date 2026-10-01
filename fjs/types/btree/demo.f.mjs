@@ -105,10 +105,10 @@ export const _census = ({ before, after }) => {
 
 /**
  * How the walk reads one tree, given both versions to tell a node's kind
- * from. A node is drawn as its type — `Leaf1`, `Leaf2`, `Node3`, `Node5` —
- * with one row per element, in the element's own order: a subtree row is an
- * edge to it (`Left`, `Middle`, `Right`), and a key row holds the key
- * (`Value`, or `Value0` and `Value1`). Only a whole version can be empty, so
+ * from. A node is drawn as one row per element, in the element's own order:
+ * a subtree row is an edge to it (`Left`, `Middle`, `Right`), and a key row
+ * holds the key (`Value`, or `Value0` and `Value1`). It has no title: the
+ * number of rows already says which of the four kinds it is. Only a whole version can be empty, so
  * the `empty` inline is drawn as the graph's one node.
  *
  * @type {(v: _Versions) => (value: Tree<number> | number) => Shape<Tree<number> | number>}
@@ -123,18 +123,18 @@ const shapeOf = ({ before, after }) => {
         if (typeof value === 'number') { return { inline: String(value) } }
         const kind = kindOf(value)
         switch (value.length) {
-            case 1: { return { kind, label: 'Leaf1', children: [['Value', value[0]]] } }
+            case 1: { return { kind, label: '', children: [['Value', value[0]]] } }
             case 2: {
                 const [v0, v1] = value
-                return { kind, label: 'Leaf2', children: [['Value0', v0], ['Value1', v1]] }
+                return { kind, label: '', children: [['Value0', v0], ['Value1', v1]] }
             }
             case 3: {
                 const [l, v, r] = value
-                return { kind, label: 'Node3', children: [['Left', l], ['Value', v], ['Right', r]] }
+                return { kind, label: '', children: [['Left', l], ['Value', v], ['Right', r]] }
             }
             case 5: {
                 const [l, v0, m, v1, r] = value
-                return { kind, label: 'Node5', children: [['Left', l], ['Value0', v0], ['Middle', m], ['Value1', v1], ['Right', r]] }
+                return { kind, label: '', children: [['Left', l], ['Value0', v0], ['Middle', m], ['Value1', v1], ['Right', r]] }
             }
         }
     }

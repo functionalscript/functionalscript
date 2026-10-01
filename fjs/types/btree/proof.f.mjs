@@ -123,7 +123,6 @@ const demoProof = {
         assertEq(count(h)('data-graph-kind="shared"'), 8)
         assertEq(count(h)('data-graph-kind="replaced"'), 3)
         // The new leaf holds 7 and 8, each in a row of its own.
-        assert(h.includes('>Leaf2<'), h)
         assert(h.includes('>Value0<'), h)
         assert(h.includes('data-graph-value-label="">8<'), h)
         assert(h.includes('Last step, insert 8: 3 new (green), 4 shared with the version before, 3 replaced (red).'), h)
@@ -133,9 +132,12 @@ const demoProof = {
         const s = press('insert')('9')(press('insert')('8')(demo.init))
         assertEq(censusOf(s), '{"built":4,"shared":4,"replaced":3}')
         const h = html(s)
-        // Left, Value0, Middle, Value1, Right, in the node's own order.
-        const node5 = h.indexOf('>Node5<')
-        assert(node5 !== -1, h)
+        // Left, Value0, Middle, Value1, Right, in the node's own order, and
+        // no title above them: the rows say what the node is.
+        assert(!h.includes('data-graph-label'), h)
+        const middle = h.indexOf('>Middle<')
+        assert(middle !== -1, h)
+        const node5 = h.lastIndexOf('>Left<', middle)
         const rows = ['>Left<', '>Value0<', '>Middle<', '>Value1<', '>Right<'].map(row => h.indexOf(row, node5))
         assert(rows.every((at, i) => at !== -1 && (i === 0 || rows[i - 1] < at)), h)
     },

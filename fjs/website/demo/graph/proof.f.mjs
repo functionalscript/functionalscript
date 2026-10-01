@@ -149,6 +149,29 @@ export const proof = {
             assert(html.includes('>42<'), html)
             assert(html.includes('>x<'), html)
         },
+        // An empty label is no row when a node has ports: each node is its
+        // one 20px row, and the edge runs from the middle of the first row
+        // to the middle of the second's, (60,20) to (100,20). A node with
+        // no ports keeps its 26px header, or it would have no height.
+        emptyLabel: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [
+                    { id: 0, kind: 'a', label: '', rank: 0 },
+                    { id: 1, kind: 'a', label: '', rank: 1 },
+                    { id: 2, kind: 'a', label: '', rank: 1 },
+                ],
+                edges: [
+                    { from: 0, to: 1, label: 'x' },
+                    { from: 1, to: { inline: '1' }, label: 'v' },
+                    { from: 0, to: 2, label: 'y' },
+                ],
+            }))
+            assert(!html.includes('data-graph-label'), html)
+            assert(html.includes('<rect x="10" y="10" width="50" height="40" rx="4" data-graph-node=""'), html)
+            assert(html.includes('<rect x="100" y="10" width="50" height="20" rx="4" data-graph-node=""'), html)
+            assert(html.includes('<rect x="100" y="44" width="50" height="26" rx="4" data-graph-node=""'), html)
+            assertEq(routes(html)[0], 'M60,20 L100,20')
+        },
         /**
          * **An edge's label sits in a port of its own node**, not on the
          * line: the node is a header over a row per outgoing edge, and the
