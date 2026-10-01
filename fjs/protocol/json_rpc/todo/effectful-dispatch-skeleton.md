@@ -65,16 +65,13 @@ stateful session gating). The abstraction pays off if more JSON-RPC-based
 servers appear; the methods on the [MCP roadmap](../../mcp/todo/roadmap.md)
 (`resources/*`, `prompts/*`, `logging/*`) grow `mcpStep`'s arms rather than
 add a consumer. If none appears, the duplication may be cheaper than the
-three-continuation indirection. Decide when a third consumer appears, or fold
-into the [validated-envelope](../../mcp/todo/validated-envelope.md) work if it
-touches the same lines anyway.
+three-continuation indirection. Decide when a third consumer appears.
 
 ### Tasks
 
-- [ ] Evaluate the `routeRequest` shape against the `validated`/`toolMethod`
-      restructuring in
-      [validated-envelope](../../mcp/todo/validated-envelope.md) (different
-      layer: that one is the per-method arms, this is the top preamble).
+- [ ] Evaluate the `routeRequest` shape against `mcpStep`'s
+      `validated`/`toolMethod` helpers (different layer: those are the
+      per-method arms, this is the top preamble).
 - [ ] If adopted: add `routeRequest` with proof coverage, rebuild `dispatch`
       on it, migrate `mcpStep`.
 - [ ] Run `tsc` and `fjs t`.
@@ -84,5 +81,6 @@ touches the same lines anyway.
 - `errorResponseOf` / `successResponseOf` (`../module.f.mjs`) — the envelope
   *constructors*, exported from this module; this issue is the envelope
   *routing*. Complementary, and the skeleton below builds on them.
-- [validated-envelope](../../mcp/todo/validated-envelope.md) — per-method
+- `validated`/`toolMethod` inside `mcpStep`
+  ([`../../mcp/module.f.mjs`](../../mcp/module.f.mjs)) — per-method
   parse/response arms.

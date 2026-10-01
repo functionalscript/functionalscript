@@ -10,11 +10,13 @@ import { empty, msb, repeat, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
 import { hmac } from '../hmac/module.f.mjs'
 import { secp192r1, secp256r1, secp384r1, secp521r1 } from '../secp/module.f.mjs'
 import { computeSync, sha224, sha256, sha384, sha512 } from '../sha2/module.f.mjs'
-import { all, concat, computeK, fromCurve, sign } from './module.f.mjs'
+import { all, computeK, fromCurve, sign } from './module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
 const sample = utf8("sample")
 const test = utf8("test")
+
+const { concat, listToVec } = msb
 
 const x00 = vec8(0x00n)
 const x01 = vec8(0x01n)
@@ -78,7 +80,7 @@ export const proof = {
         assertEq(k, v256(0x0000000000000000000000000000000000000000000000000000000000000000n))
         // d.
         // 256 + 8 + 168 + 168 = 600
-        const vv = concat(v, x00, xi2o, h1b2o)
+        const vv = listToVec([v, x00, xi2o, h1b2o])
         const vvu =
             0x0101010101010101010101010101010101010101010101010101010101010101_00_009A4D6792295A7F730FC3F2B49CBC0F62E862272F_01795EDF0D54DB760F156D0DAC04C0322B3A204224n
         assertEq(vv, v600(vvu), [(/** @type {any} */ (vv)).toString(16), vvu.toString(16)])
@@ -88,35 +90,35 @@ export const proof = {
         v = hmac256(k)(v)
         assertEq(v, v256(0xD5F4030F755EE86AA10BBA8C09DF114FF6B6111C238500D13C7343A8C01BECF7n))
         // f. K = HMAC_K(V || 0x01 || int2octets(x) || bits2octets(h1))
-        k = hmac256(k)(concat(v, x01, xi2o, h1b2o))
+        k = hmac256(k)(listToVec([v, x01, xi2o, h1b2o]))
         assertEq(k, v256(0x0CF2FE96D5619C9EF53CB7417D49D37EA68A4FFED0D7E623E38689289911BD57n))
         // g.
         v = hmac256(k)(v)
         assertEq(v, v256(0x783457C1CF3148A8F2A9AE73ED472FA98ED9CD925D8E964CE0764DEF3F842B9An))
         // h.
         v = hmac256(k)(v)
-        let t = msb.concat(empty)(v)
+        let t = concat(empty)(v)
         assertEq(t, v256(0x9305A46DE7FF8EB107194DEBD3FD48AA20D5E7656CBE0EA69D2A8D4E7C67314An))
         // 3.
         let kk = bits2int(t)
         assertEq(kk, 0x4982D236F3FFC758838CA6F5E9FEA455106AF3B2Bn)
         // 3. second try
-        k = hmac256(k)(concat(v, x00))
+        k = hmac256(k)(concat(v)(x00))
         assertEq(k, v256(0x75CB5C05B2A78C3D81DF12D74D7BE0A0E94AB19815781D4D8E2902A79D0A6699n))
         v = hmac256(k)(v)
         assertEq(v, v256(0xDCB9CA126107A9C27CE77BA58EA871C8C912D835EADDC305F2445D88F66C4C43n))
         v = hmac256(k)(v)
-        t = msb.concat(empty)(v)
+        t = concat(empty)(v)
         assertEq(t, v256(0xC70C78608A3B5BE9289BE90EF6E81A9E2C1516D5751D2F75F50033E45F73BDEBn))
         kk = bits2int(t)
         assertEq(kk, 0x63863C30451DADF4944DF4877B740D4F160A8B6ABn)
         // 3. third try
-        k = hmac256(k)(concat(v, x00))
+        k = hmac256(k)(concat(v)(x00))
         assertEq(k, v256(0x0A5A64B99C059520103686CB6F36BCFCA788EB3BCF69BA66A5BB080B0593BA53n))
         v = hmac256(k)(v)
         assertEq(v, v256(0x0B3B196811B19F6C6F729C43F35BCF0DFD725F17CA3430E8721453E55550A18Fn))
         v = hmac256(k)(v)
-        t = msb.concat(empty)(v)
+        t = concat(empty)(v)
         assertEq(t, v256(0x475E80E992140567FCC3A50DAB90FE84BCD7BB03638E9C4656A06F37F6508A7Cn))
         kk = bits2int(t)
         assertEq(kk, 0x23AF4074C90A02B3FE61D286D5C87F425E6BDD81Bn)
