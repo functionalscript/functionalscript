@@ -1,7 +1,7 @@
 ## block-module-split. The `Block` renderer shares a module with the UTF-8 boundary
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
