@@ -33,7 +33,8 @@
  * @import { Demo, DemoEvent } from '../website/demo/types.ts'
  * @import { Element, Node } from '../media/html/types.ts'
  * @import { Nullable } from '../types/nullable/types.ts'
- * @import { _Encoding, _Encodings, _Scheme } from './private.ts'
+ * @import { _Encoding, _Encodings } from './types.ts'
+ * @import { _Scheme } from './private.ts'
  */
 
 import { encode as base64 } from './base64/module.f.mjs'
