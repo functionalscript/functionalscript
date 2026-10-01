@@ -75,9 +75,17 @@ the same pull request.
       [`fjs/compiler/serializer`](../../compiler/serializer/module.f.mjs),
       the graph demo in [`fjs/compiler/edag`](../../compiler/edag/demo.f.mjs)
       and [`fjs/nanvm`](../../nanvm/module.f.mjs).
-- [ ] Docs: [`../README.md`](../README.md), whose Nodes section and
-      Spellings table drop the array-by-construction exception, and the
-      stage 1 discussion's subject on the args operand.
+- [ ] Docs: every description of the current format moves with it —
+      [`../README.md`](../README.md), whose Nodes section and Spellings
+      table drop the array-by-construction exception; the stage 1
+      discussion's subject on the args operand;
+      [`fjs/compiler/README.md`](../../compiler/README.md);
+      [`fjs/nanvm/README.md`](../../nanvm/README.md) and
+      [`fjs/nanvm/types.ts`](../../nanvm/types.ts); the
+      [spread operations](../../../nanvm-lib/todo/spread-operations.md)
+      todo; and the spellings in [`entry.md`](entry.md) and
+      [property accessor](../../../spec/todo/2330-property-accessor.md).
+      A search for `'[]'` under a call tag finds the rest.
 - [ ] Proofs updated to the new shape, including a call with a spread item,
       a forwarded rest, and a first argument that is a string.
 - [ ] `npm run gen`: the `nanvm-harness` fixtures are compiled from source,
@@ -87,6 +95,9 @@ the same pull request.
 ### Related
 
 - [spread operations](../../../nanvm-lib/todo/spread-operations.md): the
-  call-spread rule this replaces with a single shape.
+  call-spread rule this replaces with a single shape. Its semantics stand —
+  a call spread is an array spread — and only its spelling of the
+  arguments moves, in the same pull request as this one; an implementer of
+  the spread operations reads the argument list as this todo spells it.
 - [stage 1 discussion](../../../todo/edag-stage1-discussion.md): the
   original choice of a node operand.
