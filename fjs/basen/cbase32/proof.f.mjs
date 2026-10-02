@@ -4,7 +4,7 @@
  */
 
 import { empty, maxLength, maxLengthBytes, vec } from '../../types/bit_vec/module.f.mjs'
-import { cBase32ToVec, cBase32ToVec5x, vec5xToCBase32, vecToCBase32 } from './module.f.mjs'
+import { canonicalCBase32, cBase32ToVec, cBase32ToVec5x, vec5xToCBase32, vecToCBase32 } from './module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { demo, groupsOf } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
@@ -86,6 +86,18 @@ export const proof = {
     trailingZeroSymbols: () => {
         assertEq(cBase32ToVec('g0'), empty)
         assertEq(cBase32ToVec('80'), vec(1n)(0n))
+    },
+    canonical: {
+        // Case, the `i`/`l`/`o` aliases and trailing zero symbols all
+        // re-spell to the one string `vecToCBase32` writes.
+        respells: () => {
+            assertEq(canonicalCBase32('G'), 'g')
+            assertEq(canonicalCBase32('I'), '1')
+            assertEq(canonicalCBase32('Lo8'), '108')
+            assertEq(canonicalCBase32('80'), '8')
+        },
+        canonicalIsUnchanged: () => assertEq(canonicalCBase32('d31tk'), 'd31tk'),
+        invalidIsNull: () => assertEq(canonicalCBase32('u'), null),
     },
     decodeAtMaxLengthSucceeds: () => {
         const value = vec(maxLength)(0n)
