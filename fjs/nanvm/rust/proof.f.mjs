@@ -5,7 +5,6 @@
  * pins the exact text of every construct the printer can emit, so a change in
  * layout is a visible diff here and not only in the generated file.
  *
- * @import { Exp } from '../../edag/types.ts'
  * @import { Data, Value } from '../types.ts'
  */
 
@@ -336,17 +335,18 @@ export const proof = {
         /**
          * An operation the printer has no `nanvm-lib` spelling for. The
          * generated file would otherwise carry a statement that does not
-         * compile, or worse, one that does and means something else. `==`
-         * is such an id: no schema has it, so nothing maps it.
+         * compile, or worse, one that does and means something else. `!==`
+         * is such an id: the schema has it and the corpus has no group for
+         * it, so nothing maps it.
          */
-        unknownOperation: () => nodeExpr(/** @type {Exp} */ (/** @type {unknown} */ (['==', 1, 2]))),
+        unknownOperation: () => nodeExpr(['is', 1, 2]),
         /**
          * The same gap, met through {@link generate} rather than directly:
          * a group whose `op` has no entry in {@link rustName} has no Rust
          * function name to print, so `generate` refuses before printing a
          * single case.
          */
-        noRustNameForGroup: () => generate({ shared: {}, groups: [{ op: /** @type {'is'} */ (/** @type {unknown} */ ('==')), cases: [] }] }),
+        noRustNameForGroup: () => generate({ shared: {}, groups: [{ op: 'is', cases: [] }] }),
         /** An object key the corpus cannot produce and Rust cannot spell. */
         computedKey: () => nodeExpr(['{}', [[':', ['undefined'], 1]]]),
         /**

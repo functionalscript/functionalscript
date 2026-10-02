@@ -95,7 +95,6 @@ const js = {
     throw: a => { throw a },
     String: a => String(a),
     Number: a => Number(a),
-    is: (a, b) => Object.is(a, b),
     '*': (a, b) => a * b,
     '/': (a, b) => a / b,
     '**': (a, b) => a ** b,

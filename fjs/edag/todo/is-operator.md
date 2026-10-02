@@ -37,9 +37,10 @@ as a call ([`entry.md`](./entry.md)).
   The earlier `Object.hasOwn` precedent is withdrawn; it is not needed to
   justify preserving `Object.is`'s own semantics. The node can precede
   admission of its source pattern, as `own` did.
-- **Native.** `nanvm-lib` answers it with `Any::same_value`, and the corpus in
-  [`fjs/nanvm`](../../nanvm/module.f.mjs) pins `is` on both executors, as it
-  pins `===`.
+- **Native.** `nanvm-lib` has no SameValue operation yet, so the corpus in
+  [`fjs/nanvm`](../../nanvm/module.f.mjs) does not pin `is`; a case is pinned
+  only where both executors can run it, and `is` joins the corpus with the
+  Rust operation, as `===` did with `strict_eq`.
 - **Output.** The FunctionalScript writer
   ([`fjs/compiler/serializer`](../../compiler/serializer/module.f.mjs))
   writes `['is', a, b]` as `Object.is(a, b)`, so the round trip holds once the
@@ -52,8 +53,8 @@ as a call ([`entry.md`](./entry.md)).
 - [x] The operations table evaluates `is` as `Object.is`, so amnesia and memo
       both do, with proofs for `NaN`, `-0`, an object with itself and two
       equal objects, each beside `===`.
-- [x] `nanvm-lib` gains the operation (`Any::same_value`, printed as
-      `vm::unstable::object_is`), and the corpus pins `is` as it pins `===`.
+- [ ] `nanvm-lib` gains the operation, and the corpus pins `is` as it pins
+      `===`.
 - [ ] Recognize the bound AST call and lower it to the node, with proofs;
       the writer spells the node back.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
