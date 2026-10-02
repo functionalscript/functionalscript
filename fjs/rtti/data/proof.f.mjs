@@ -18,7 +18,7 @@ import {
     string,
     unknown as unknownRtti,
 } from '../module.f.mjs'
-import { absentBit, cmp, equal, never, subset, toData, unitBit, unitList, unknown, validate, withoutUnits } from './module.f.mjs'
+import { absentBit, cmp, equal, kindFold, never, subset, toData, unitBit, unitList, unknown, validate, withoutUnits } from './module.f.mjs'
 
 /** @type {(actual: Data) => (expected: Data) => void} */
 const assertData = actual => expected =>
@@ -225,6 +225,19 @@ export const proof = {
             withoutUnits(unitBit(undefined))({ unit: unitBit(undefined), string: true }),
             { string: true }),
     ],
+    kindFold: () => {
+        // each case observes its own branch: absent and whole carry no list,
+        // members receives the list itself
+        /** @type {(k: readonly number[] | true | undefined) => string} */
+        const spell = kindFold({
+            absent: () => 'absent',
+            whole: () => 'whole',
+            members: list => `members:${list.join()}`,
+        })
+        assertEq(spell(undefined), 'absent')
+        assertEq(spell(true), 'whole')
+        assertEq(spell([1, 2]), 'members:1,2')
+    },
     unitBits: () => {
         // the literal bits are the encoding under test
         assertEq(unitList.join(), 'null,undefined,false,true')

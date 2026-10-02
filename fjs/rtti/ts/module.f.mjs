@@ -24,7 +24,7 @@ import { assoc, dedup } from '../../types/array/module.f.mjs'
 import { reservedWords, strictModeReservedWords } from '../../js/keywords/module.f.mjs'
 import { at, definedEntries } from '../../types/object/module.f.mjs'
 import { primitive, union, printer as tsPrinter } from '../../types/ts/module.f.mjs'
-import { absentBit, cmp, never as bottom, toData, unitBit, unknown as top, withoutUnits } from '../data/module.f.mjs'
+import { absentBit, cmp, kindFold, never as bottom, toData, unitBit, unknown as top, withoutUnits } from '../data/module.f.mjs'
 
 const nullBit = unitBit(null)
 const undefinedBit = unitBit(undefined)
@@ -114,9 +114,7 @@ const nodeToTs = ctx => n =>
  * @returns {readonly string[]}
  */
 const kindToTs = (k, whole, item) =>
-    k === undefined ? [] :
-    k === true ? [whole] :
-    k.map(item)
+    kindFold({ absent: () => [], whole: () => [whole], members: list => list.map(item) })(k)
 
 /** @type {(bits: number) => readonly string[]} */
 const unitToTs = bits => [

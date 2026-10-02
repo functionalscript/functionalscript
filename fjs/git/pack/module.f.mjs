@@ -47,6 +47,7 @@
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { maxLengthBytes, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { concat, flat, toArray } from '../../types/list/module.f.mjs'
+import { startsWith, u32be } from '../bytes/module.f.mjs'
 
 /** The four bytes a pack begins with. */
 const signature = /** @type {const} */ ([0x50, 0x41, 0x43, 0x4B])
@@ -78,9 +79,6 @@ const versions = /** @type {readonly number[]} */ ([2, 3])
  */
 export const headerBytes = /** @type {const} */ (12)
 
-/** @type {(b: readonly number[], at: number) => number} */
-const u32 = (b, at) => b[at] * 16777216 + b[at + 1] * 65536 + b[at + 2] * 256 + b[at + 3]
-
 /**
  * The object kind each of the four object type codes names. Index 0 is unused
  * and 5 is reserved, so both read as `undefined` and refuse the entry; 6 and
@@ -109,9 +107,9 @@ const objectTypes = [undefined, 'commit', 'tree', 'blob', 'tag']
 export const tryHeader = input => {
     const b = byteArray(input)
     if (b.length < headerBytes) { return null }
-    if (!signature.every((v, i) => b[i] === v)) { return null }
-    const version = u32(b, 4)
-    return versions.includes(version) ? { version, count: u32(b, 8) } : null
+    if (!startsWith(signature)(b)) { return null }
+    const version = u32be(b, 4)
+    return versions.includes(version) ? { version, count: u32be(b, 8) } : null
 }
 
 /**

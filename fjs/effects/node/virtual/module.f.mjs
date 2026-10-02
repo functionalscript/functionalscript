@@ -552,6 +552,58 @@ const rm = detachesHandles(operation(rmOp))
 const isEmptyDir = /** @type {(d: Dir) => boolean} */ (d => !Object.values(d).some(v => v !== undefined))
 
 /**
+ * The walk to a name's parent, and `leaf` asked there of the parent and the
+ * name's last segment — the spine {@link rmdirAt}, {@link extractEntity} and
+ * {@link insertEntityAt} share. A segment on the way that holds nothing is
+ * `ENOENT`; one that holds something other than a directory is `notADir`, the
+ * one answer the three callers give differently.
+ *
+ * **A failure leaves the tree as it was**: the spine is rebuilt with `{ ...dir }`
+ * only on `ok`, so an error hands back the very `dir` it was given, at every
+ * level, and the caller can return its state untouched.
+ *
+ * {@link operation} is not one of them. It descends as far as directories go
+ * and hands `op` whatever path is left, rebuilding the spine whatever `op`
+ * answers, which is a different walk and not this one with other answers.
+ *
+ * **`path` is not empty**: what the root answers is each caller's own — `EINVAL`
+ * for `rmdir`, a refusal for extracting it, and never reached for inserting it —
+ * so each one says it before the walk starts.
+ *
+ * @template T
+ * @param {(parent: Dir, name: string) => readonly [Dir, IoResult<T>]} leaf
+ * @param {Error<IoError>} notADir
+ * @returns {(dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<T>]}
+ */
+const atParent = (leaf, notADir) => {
+    /** @type {(dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<T>]} */
+    const f = (dir, path) => {
+        const [first, ...rest] = path
+        if (rest.length === 0) { return leaf(dir, first) }
+        const sub = entryOf(dir, first)
+        if (sub === undefined) { return [dir, enoent] }
+        if (!isDir(sub)) { return [dir, notADir] }
+        const [inner, r] = f(sub, rest)
+        return r[0] === 'error' ? [dir, r] : [{ ...dir, [first]: inner }, r]
+    }
+    return f
+}
+
+/**
+ * {@link rmdirAt} past the root: the empty directory at `name` leaves `parent`.
+ *
+ * @type {(dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<void>]}
+ */
+const rmdirBelowRoot = atParent((parent, name) => {
+    const entry = entryOf(parent, name)
+    if (entry === undefined) { return [parent, enoent] }
+    if (!isDir(entry)) { return [parent, enotdir] }
+    if (!isEmptyDir(entry)) { return [parent, enotempty] }
+    const { [name]: _, ...kept } = parent
+    return [kept, okVoid]
+}, enotdir)
+
+/**
  * Removes an empty directory from its parent, with the codes a host answers —
  * measured on node 22.22.2:
  *
@@ -563,28 +615,15 @@ const isEmptyDir = /** @type {(d: Dir) => boolean} */ (d => !Object.values(d).so
  * | absent, at any depth | `ENOENT` |
  * | `.`, the root | `EINVAL` |
  *
- * The walk is to the *parent*, as {@link extractEntity}'s is, because
- * `operation` would descend into the directory and hand over its contents with
- * nothing left of the path, from which it cannot remove itself. A host's `rmdir`
+ * The walk is to the *parent*, through {@link atParent}, because `operation`
+ * would descend into the directory and hand over its contents with nothing left
+ * of the path, from which it cannot remove itself. A host's `rmdir`
  * does not follow a symbolic link either — it is `ENOTDIR` — and this runner
  * has none. `''` is `ENOENT` through {@link emptyPathIsAbsent}.
  *
  * @type {(dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<void>]}
  */
-const rmdirAt = (dir, path) => {
-    if (path.length === 0) { return [dir, einval] }
-    const [first, ...rest] = path
-    const entry = entryOf(dir, first)
-    if (entry === undefined) { return [dir, enoent] }
-    if (!isDir(entry)) { return [dir, enotdir] }
-    if (rest.length === 0) {
-        if (!isEmptyDir(entry)) { return [dir, enotempty] }
-        const { [first]: _, ...kept } = dir
-        return [kept, okVoid]
-    }
-    const [inner, r] = rmdirAt(entry, rest)
-    return r[0] === 'error' ? [dir, r] : [{ ...dir, [first]: inner }, r]
-}
+const rmdirAt = (dir, path) => path.length === 0 ? [dir, einval] : rmdirBelowRoot(dir, path)
 
 /**
  * {@link rmdirAt} behind {@link emptyPathIsAbsent}, and the last name off any
@@ -606,58 +645,45 @@ const rmdir = detachesHandles(emptyPathIsAbsent(path => state => {
     return [{ ...state, root }, r]
 }))
 
+/**
+ * {@link extractEntity} past the root: the entity at `name` leaves `parent`.
+ *
+ * @type {(dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<_Entity>]}
+ */
+const extractBelowRoot = atParent((parent, name) => {
+    const entry = entryOf(parent, name)
+    if (entry === undefined) { return [parent, enoent] }
+    const { [name]: _, ...rest } = parent
+    return [rest, ok(entry)]
+}, enoent)
+
 /** @type {(dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<_Entity>]} */
-const extractEntity = (dir, path) => {
-    if (path.length === 0) { return [dir, fail('cannot extract root')] }
-    if (path.length === 1) {
-        const [name] = path
-        const entry = entryOf(dir, name)
-        if (entry === undefined) { return [dir, enoent] }
-        const { [name]: _, ...rest } = dir
-        return [rest, ok(entry)]
-    }
-    const [first, ...rest] = path
-    const sub = entryOf(dir, first)
-    if (sub === undefined || !isDir(sub)) { return [dir, enoent] }
-    const [newSub, result] = extractEntity(sub, rest)
-    if (result[0] === 'error') { return [dir, result] }
-    return [{ ...dir, [first]: newSub }, result]
-}
+const extractEntity = (dir, path) => path.length === 0 ? [dir, fail('cannot extract root')] : extractBelowRoot(dir, path)
 
 /** @type {(dir: Dir, path: readonly string[], entity: _Entity) => readonly [Dir, IoResult<void>]} */
 const insertEntityAt = (dir, path, entity) => {
     // `insertEntityAt`'s only external caller, `rename`, always rejects an
     // empty `dst` earlier — `isProperPrefix([], srcParsed)` is true whenever
     // `srcParsed` is non-empty, so renaming onto root is already caught as
-    // "onto an ancestor" before this function runs. The recursive self-calls
-    // below never pass an empty path either (they only recurse when
-    // `path.length > 1`, with a non-empty remainder).
+    // "onto an ancestor" before this function runs.
     assert(path.length > 0, 'cannot insert at root')
-    if (path.length === 1) {
-        const [name] = path
-        const existing = entryOf(dir, name)
+    return atParent((parent, name) => {
+        const existing = entryOf(parent, name)
         if (existing !== undefined) {
             const entityIsDir = isDir(entity)
             const existingIsDir = isDir(existing)
             if (entityIsDir && !existingIsDir) {
-                return [dir, fail(`cannot overwrite file '${name}' with a directory`)]
+                return [parent, fail(`cannot overwrite file '${name}' with a directory`)]
             }
             if (!entityIsDir && existingIsDir) {
-                return [dir, fail(`'${name}' is a directory`)]
+                return [parent, fail(`'${name}' is a directory`)]
             }
             if (entityIsDir && existingIsDir && !isEmptyDir(existing)) {
-                return [dir, fail(`cannot overwrite non-empty directory '${name}'`)]
+                return [parent, fail(`cannot overwrite non-empty directory '${name}'`)]
             }
         }
-        return [{ ...dir, [name]: entity }, okVoid]
-    }
-    const [first, ...rest] = path
-    const sub = entryOf(dir, first)
-    if (sub === undefined) { return [dir, enoent] }
-    if (!isDir(sub)) { return [dir, fail('not a directory')] }
-    const [newSub, result] = insertEntityAt(sub, rest, entity)
-    if (result[0] === 'error') { return [dir, result] }
-    return [{ ...dir, [first]: newSub }, result]
+        return [{ ...parent, [name]: entity }, okVoid]
+    }, fail('not a directory'))(dir, path)
 }
 
 /**
