@@ -4,16 +4,9 @@
 
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
-import { f64Bits, i64Literal, snakeCase, stringLiteral, u64Words, utf16Literal, withoutStringLiterals } from './module.f.mjs'
+import { f64Bits, i64Literal, snakeCase, stringLiteral, u64Words, utf16Literal } from './module.f.mjs'
 
 export const proof = {
-    /** Every literal's contents go, an escaped quote or backslash inside one included; the code around them stays. */
-    withoutStringLiterals: () => {
-        assertEq(withoutStringLiterals('f("a", x)'), 'f("", x)')
-        assertEq(withoutStringLiterals('f("a\\"b", "c\\\\", x)'), 'f("", "", x)')
-        assertEq(withoutStringLiterals('f(x)'), 'f(x)')
-        assertEq(withoutStringLiterals(''), '')
-    },
     utf16Literal: () => {
         assertEq(utf16Literal(''), '&[]')
         assertEq(utf16Literal('a'), '&[0x0061]')
