@@ -5,7 +5,7 @@
 
 ### Progress
 
-Flake generation is implemented and **every canonical job that can be is migrated** —
+Flake generation is implemented and **every canonical job is migrated** —
 the three Node jobs, then `deno`, then `wasm`, then `bun`. Each installs Nix through the pinned action and runs its
 command sequence one `nix develop` step per command. Nix runs in CI only where a job uses
 a flake — the temporary `nix-flakes` job that instantiated them to check them is gone,
@@ -179,20 +179,25 @@ generator writes unconditionally.
 
 #### Jobs with no flake
 
-One canonical job has none. That the set is exactly this one is asserted by
-`fjs/ci/proof.f.mjs`'s `nixCoverage`, so a job added later has to come here and say
-which side of the line it falls on.
+No canonical job is without one any more. The set of jobs that are — the two
+Windows ones below — is asserted by `fjs/ci/proof.f.mjs`'s `nixCoverage`, so a job
+added later has to come here and say which side of the line it falls on.
 
-- **`package-check`** — not blocked: out of scope by construction. The job runs with
-  no checkout, which is its whole point — with the repository on the runner there
-  would be a `tsconfig.json` up the tree and a `node_modules` to resolve into, and
-  the check would pass on the repository rather than on the package. A generated
-  flake and its `run` script are files *in* the checkout, so entering one means
-  putting the repository back. Its Node comes from `setup-node`, and the version it
-  names is the one `node26`'s flake already checks.
+- **`package-check`** was the canonical one, out of scope by construction: a job
+  with no checkout, which was its whole point — with the repository on the runner
+  there would be a `tsconfig.json` up the tree and a `node_modules` to resolve into,
+  and the check would pass on the repository rather than on the package. A generated
+  flake and its `run` script are files *in* the checkout, so entering one meant
+  putting the repository back. The packed-package check is the closing steps of the
+  `node26` job now — waiting on that job cost it a second turn in the runner queue —
+  and still enters no flake, by choice rather than by construction: its commands
+  start in a consumer directory outside the checkout, and a flake's shell would put
+  this repository's toolchain on `PATH` where nothing of the repository should be in
+  reach. Its Node comes from `setup-node`, and the version it names is the one
+  `node26` already asserts from the shared shell.
 
-Two of the six platform jobs are here too, and for one reason: **Nix does not
-run natively on Windows**. `windows-intel` and `windows-arm` keep the runner's
+The two Windows platform jobs are the only jobs here, and for one reason: **Nix
+does not run natively on Windows**. `windows-intel` and `windows-arm` keep the runner's
 toolchain, and are the last jobs in the workflow that install one.
 
 The other four — `ubuntu-intel`, `ubuntu-arm`, `macos-intel`, `macos-arm` —
@@ -249,8 +254,8 @@ the Windows jobs still say it.
 
 What remains here is the Nixpkgs update command and removing stale generated
 directories, which waits on a recursive `rm` effect — the four directories this
-change orphaned had to be deleted by hand. Every canonical job but
-`package-check` now runs through a flake.
+change orphaned had to be deleted by hand. Every canonical job now runs through a
+flake; only the packed-package check closing `node26` stays out of it, by design.
 
 ### Problem
 
