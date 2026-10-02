@@ -1,18 +1,41 @@
 /**
- * The packed-package check: a job that consumes the `npm pack` artifact the
- * way an outside consumer would.
+ * The packed-package check: steps that install the tarball `npm pack` wrote
+ * and use it the way an outside consumer would, in a directory of their own.
  *
  * @module
  *
- * @import { Job } from '../common/types.ts'
+ * @import { Step } from '../common/types.ts'
  * @import { PackageConsumer } from '../types.ts'
  */
 
-import { images, typescript } from '../config/module.f.js'
-import { uses } from '../common/module.f.mjs'
-import { installNode, packageArtifact, packageJobId } from '../node/module.f.mjs'
+import { typescript } from '../config/module.f.js'
 
-export const packageCheckJobId = /** @type {const} */ ('package-check')
+/**
+ * The runner's temporary directory, which GitHub empties at the start and at
+ * the end of every job — so a directory made in it during the job is one this
+ * job made, and holds what this job put there and nothing else.
+ */
+const runnerTemp = /** @type {const} */ ('${{ runner.temp }}')
+
+/** The consumer project's directory name, under {@link runnerTemp}. */
+const consumerName = /** @type {const} */ ('consumer')
+
+/**
+ * The consumer project, as a `run` step spells it: one shell word, quoted, so
+ * the runner's path reaches the command whole. `RUNNER_TEMP` is the variable
+ * the runner sets to {@link runnerTemp}; the shell expands it, so nothing
+ * GitHub substitutes is read as shell source.
+ *
+ * The job that packs makes this directory and packs into it, before
+ * {@link packageCheckSteps} run in it.
+ */
+export const consumerDirectory = /** @type {const} */ (`"$RUNNER_TEMP/${consumerName}"`)
+
+/**
+ * The same directory as `working-directory` spells it. No shell reads that
+ * field, so the runner's own expression names the path.
+ */
+const consumerWorkingDirectory = /** @type {const} */ (`${runnerTemp}/${consumerName}`)
 
 // A fixed alias, so every later command names the package literally. The
 // artifact's own name would otherwise have to be derived and carried between
@@ -28,7 +51,7 @@ const alias = /** @type {const} */ ('packed')
  * ever serialised: a space or a quote in a directory name is a JSON string
  * here and a filename to `tsc`, with nothing in between to get it wrong. An
  * empty match is `TS18003`, which names the pattern that found nothing —
- * "checked nothing and passed" is the failure this job most needs to be
+ * "checked nothing and passed" is the failure this check most needs to be
  * legible about.
  *
  * An earlier revision walked the tree with `find`, guarded the result with
@@ -62,7 +85,7 @@ const alias = /** @type {const} */ ('packed')
  * `exclude` is emptied because the default excludes `node_modules`, which is
  * the only place the artifact exists. `skipLibCheck` is stated rather than
  * left at its default: it is the one option whose flip would stop `tsc`
- * opening these declarations at all, and the job would still pass.
+ * opening these declarations at all, and the check would still pass.
  */
 const tsconfig = /** @type {const} */ ({
     include: [
@@ -130,11 +153,11 @@ const badConsumer = consumer => [
 ].join('\n')
 
 /**
- * The compiler over one consumer file: flags rather than the job's
+ * The compiler over one consumer file: flags rather than the check's
  * `tsconfig.json`, whose `include` is the package tree. That file is still
  * in the directory, and TypeScript 7 refuses files on the command line while
  * one is present (`TS5112`) unless told to ignore it, so `--ignoreConfig`
- * says so; the first run of this job in CI failed on exactly that, where a
+ * says so; the first CI run of this check failed on exactly that, where a
  * dry run in a directory without the file had passed. `nodenext` is the
  * resolution a Node consumer gets, and `strict` is what makes a declaration
  * that failed to resolve an error rather than an `any`.
@@ -145,23 +168,26 @@ const consumerTsc = /** @type {const} */ ('npx tsc --pretty false --ignoreConfig
  * One command per step, so a failure names what failed rather than arriving as
  * an opaque script.
  *
- * The compiler is `../config/module.f.js`'s, installed from npm because this
- * job has no flake to take it from — no checkout means no file tree for one to
- * live in. It is the same version the `node26` shell provides through Nix, so
- * the declarations in the tarball are read by the compiler that emitted them.
+ * The compiler is `../config/module.f.js`'s, installed from npm as a consumer
+ * installs it, rather than taken from the flake the rest of the job enters:
+ * entering that flake would put this repository's toolchain on `PATH` in the
+ * one place nothing of the repository should be in reach. It is the same
+ * version the shell provides through Nix, so the declarations in the tarball
+ * are read by the compiler that emitted them.
  *
- * That version must stay exact for a reason peculiar to this job: with no
- * checkout there is no lockfile, so a range would let a later registry release
- * change the verdict with nothing here changing. It is a constant rather than a
- * range by construction now — the earlier design read it out of the project's
- * `package.json`, where it could be written as one, and validated it.
+ * That version must stay exact for a reason peculiar to this check: the
+ * consumer project has no lockfile, so a range would let a later registry
+ * release change the verdict with nothing here changing. It is a constant
+ * rather than a range by construction now — the earlier design read it out of
+ * the project's `package.json`, where it could be written as one, and
+ * validated it.
  *
  * `npm`, `npx` and `tsc` are the only external tools left, and root
  * `AGENTS.md` §6 is why there are no others: `tsc` is the established tool
- * that parses what it checks, and `npm` is the subject — a job proving the
+ * that parses what it checks, and `npm` is the subject — a check proving the
  * package installs for a consumer cannot avoid the consumer's package manager.
- * `npx` stays here, unlike in every other job: it runs the compiler this job
- * just installed into a directory it built, which is the point.
+ * `npx` stays here, unlike in every other step: it runs the compiler this
+ * check just installed into a directory it built, which is the point.
  *
  * @type {readonly string[]}
  */
@@ -189,8 +215,8 @@ const declarationCommands = [
  * would have failed `good.mts` first, so the one way left for `bad.mts` to
  * fail is the type it names refusing the value.
  *
- * It is the caller's to supply, through `Setup`: `fjs ci` generates this job
- * for any project, and the generator cannot know what another package
+ * It is the caller's to supply, through `Setup`: `fjs ci` generates this
+ * check for any project, and the generator cannot know what another package
  * publishes, so a project that names no consumer gets the declaration check
  * alone — what every project got before the consumer half existed — rather
  * than a `TS2307` for a module its tarball never held.
@@ -206,30 +232,48 @@ const consumerCommands = consumer => [
 ]
 
 /**
- * Downloads the packed tarball, installs it as a real dependency,
- * type-checks every declaration it ships with the compiler the CI
- * configuration names, and, given a consumer, imports the published module it
- * names from a consumer file, runs it, and type-checks a use of its
- * declaration with a negative control that must fail.
+ * Installs the packed tarball as a real dependency, type-checks every
+ * declaration it ships with the compiler the CI configuration names, and,
+ * given a consumer, imports the published module it names from a consumer
+ * file, runs it, and type-checks a use of its declaration with a negative
+ * control that must fail.
  *
- * Deliberately not built through `toSteps`: that helper injects
- * `actions/checkout`, and the missing checkout is this job's whole point. With
- * no repository on the runner there is no `tsconfig.json` up the tree to
- * inherit, no `node_modules` to resolve into, and no source file that could
- * stand in for a declaration the tarball omits — so the job can only see what a
- * real consumer sees.
+ * These are steps, not a job, and they run last in the job that packs. As a
+ * job of their own they waited for that one (`needs`), and GitHub creates a
+ * waiting job only when the job it waits for has finished — so whenever the
+ * runner queue was full, the check joined the back of it and waited a second
+ * time, for seconds of work.
  *
- * @type {(consumer: PackageConsumer | undefined) => Job}
+ * What made the separate job a clean consumer was that its runner had no
+ * checkout. Every run step here starts in {@link consumerDirectory} instead,
+ * which keeps each property that gave:
+ *
+ * - **Nothing of the repository up the tree.** The directory is under the
+ *   runner's temporary directory, not inside the checkout and not above it,
+ *   so there is no `tsconfig.json` to inherit, no `node_modules` for Node or
+ *   `tsc` to resolve into, and no source file that could stand in for a
+ *   declaration the tarball omits. Both resolve by walking up from the file
+ *   that imports, and the walk never reaches the checkout. It does cross the
+ *   temporary directory itself, which `install-nix-action` also exports as
+ *   every later step's `TMPDIR`; so this rests on nothing writing a
+ *   `package.json`, `node_modules` or `tsconfig.json` at its root, where
+ *   temporary files are directories of their own.
+ * - **Nothing but the tarball in it.** The job makes it with a `mkdir` that
+ *   fails if it already exists, and `npm pack` writes the tarball into it.
+ * - **No repository toolchain on `PATH`.** No step here enters the flake: each
+ *   Nix step entered its shell for its own command alone, so the `node`,
+ *   `npm` and `npx` here are those of the `setup-node` step the job runs just
+ *   before them, as a consumer's would be (`../node/module.f.mjs`).
+ *
+ * What the same runner still holds is outside a consumer's resolution: the
+ * checkout beside it, the Nix store, and the npm cache `npm ci` filled, which
+ * hands out package contents only against their recorded integrity.
+ *
+ * Commands only, each starting in that directory: the job these steps close
+ * has already checked out, and installs their Node itself.
+ *
+ * @type {(consumer: PackageConsumer | undefined) => readonly Step[]}
  */
-export const packageCheckJob = consumer => ({
-    'runs-on': images.ubuntu.arm,
-    // Without this the two jobs race and the download fails before the check
-    // has run — red for a reason unrelated to what it tests.
-    needs: [packageJobId],
-    steps: [
-        uses('actions/download-artifact', { name: packageArtifact }),
-        installNode(),
-        ...declarationCommands.map(run => ({ run })),
-        ...(consumer === undefined ? [] : consumerCommands(consumer)).map(run => ({ run })),
-    ],
-})
+export const packageCheckSteps = consumer =>
+    [...declarationCommands, ...(consumer === undefined ? [] : consumerCommands(consumer))]
+        .map(run => ({ run, 'working-directory': consumerWorkingDirectory }))

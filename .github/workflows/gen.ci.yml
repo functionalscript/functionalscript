@@ -431,7 +431,10 @@
           "run": "sh ./gen.nix/run npm run cov"
         },
         {
-          "run": "sh ./gen.nix/run npm pack"
+          "run": "mkdir \"$RUNNER_TEMP/consumer\""
+        },
+        {
+          "run": "sh ./gen.nix/run npm pack --pack-destination \"$RUNNER_TEMP/consumer\""
         },
         {
           "run": "sh ./gen.nix/run npm run gen"
@@ -440,62 +443,51 @@
           "run": "git add -A && git diff --cached --exit-code"
         },
         {
-          "uses": "actions/upload-artifact@v7.0.1",
-          "with": {
-            "name": "package-tarball",
-            "path": "*.tgz",
-            "if-no-files-found": "error"
-          }
-        }
-      ]
-    },
-    "package-check": {
-      "runs-on": "ubuntu-26.04-arm",
-      "needs": [
-        "node26"
-      ],
-      "steps": [
-        {
-          "uses": "actions/download-artifact@v8.0.1",
-          "with": {
-            "name": "package-tarball"
-          }
-        },
-        {
           "uses": "actions/setup-node@v7.0.0",
           "with": {
+            "package-manager-cache": "false",
             "node-version": "26.10.0"
           }
         },
         {
-          "run": "npm init -y > /dev/null"
+          "run": "npm init -y > /dev/null",
+          "working-directory": "${{ runner.temp }}/consumer"
         },
         {
-          "run": "npm install \"packed@file:$(echo *.tgz)\""
+          "run": "npm install \"packed@file:$(echo *.tgz)\"",
+          "working-directory": "${{ runner.temp }}/consumer"
         },
         {
-          "run": "npm install \"typescript@7.0.2\""
+          "run": "npm install \"typescript@7.0.2\"",
+          "working-directory": "${{ runner.temp }}/consumer"
         },
         {
-          "run": "echo '{\"include\":[\"node_modules/packed/**/*\",\"node_modules/packed/**/.*\",\"node_modules/packed/**/.*/**/*\"],\"exclude\":[],\"compilerOptions\":{\"module\":\"nodenext\",\"target\":\"esnext\",\"strict\":true,\"noEmit\":true,\"skipLibCheck\":false}}' > tsconfig.json"
+          "run": "echo '{\"include\":[\"node_modules/packed/**/*\",\"node_modules/packed/**/.*\",\"node_modules/packed/**/.*/**/*\"],\"exclude\":[],\"compilerOptions\":{\"module\":\"nodenext\",\"target\":\"esnext\",\"strict\":true,\"noEmit\":true,\"skipLibCheck\":false}}' > tsconfig.json",
+          "working-directory": "${{ runner.temp }}/consumer"
         },
         {
-          "run": "npx tsc"
+          "run": "npx tsc",
+          "working-directory": "${{ runner.temp }}/consumer"
         },
         {
-          "run": "echo 'import { prototypeNames } from \"packed/fjs/js/prototype/module.f.js\";\nimport type { PrototypeName } from \"packed/fjs/js/prototype/types.js\";\nconst accepted: PrototypeName = \"map\";\nif (prototypeNames === undefined) { throw new Error(\"prototypeNames did not load\"); }' > good.mts"
+          "run": "echo 'import { prototypeNames } from \"packed/fjs/js/prototype/module.f.js\";\nimport type { PrototypeName } from \"packed/fjs/js/prototype/types.js\";\nconst accepted: PrototypeName = \"map\";\nif (prototypeNames === undefined) { throw new Error(\"prototypeNames did not load\"); }' > good.mts",
+          "working-directory": "${{ runner.temp }}/consumer"
         },
         {
-          "run": "echo 'import type { PrototypeName } from \"packed/fjs/js/prototype/types.js\";\nconst refused: PrototypeName = \"stone\";' > bad.mts"
+          "run": "echo 'import type { PrototypeName } from \"packed/fjs/js/prototype/types.js\";\nconst refused: PrototypeName = \"stone\";' > bad.mts",
+          "working-directory": "${{ runner.temp }}/consumer"
         },
         {
-          "run": "npx tsc --pretty false --ignoreConfig --noEmit --strict --module nodenext --target esnext good.mts"
+          "run": "npx tsc --pretty false --ignoreConfig --noEmit --strict --module nodenext --target esnext good.mts",
+          "working-directory": "${{ runner.temp }}/consumer"
         },
         {
-          "run": "node good.mts"
+          "run": "node good.mts",
+          "working-directory": "${{ runner.temp }}/consumer"
         },
         {
-          "run": "! npx tsc --pretty false --ignoreConfig --noEmit --strict --module nodenext --target esnext bad.mts"
+          "run": "! npx tsc --pretty false --ignoreConfig --noEmit --strict --module nodenext --target esnext bad.mts",
+          "working-directory": "${{ runner.temp }}/consumer"
         }
       ]
     }
