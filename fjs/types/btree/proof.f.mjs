@@ -137,9 +137,9 @@ const demoProof = {
         assertEq(count(h)('data-graph-edge-kind="replaced"'), 0)
         assert(h.includes('name="insert"'), h)
         assert(h.includes('name="remove"'), h)
-        assert(h.includes('value="8"'), h)
+        assert(h.includes('value="80"'), h)
         assert(h.includes('<option value="Insert into a leaf" selected="">'), h)
-        assert(h.includes('Press Insert to add 8'), h)
+        assert(h.includes('Press Insert to add 80'), h)
         assertEq(count(h)('data-graph-kind="new"'), 0)
         assertEq(count(h)('data-graph-kind="replaced"'), 0)
         assert(!h.includes('Custom'), h)
@@ -160,7 +160,7 @@ const demoProof = {
             // The new leaf holds 7 and 8, each a row of its own with no
             // name beside it.
             assert(!h.includes('>Value'), h)
-            assert(h.includes('data-graph-value-label="">8<'), h)
+            assert(h.includes('data-graph-value-label="">80<'), h)
             // The old nodes are drawn faded, edges and all, and each root
             // has its version's arrow.
             assertEq(count(h)('<g data-graph-in-kind="replaced">'), 6)
@@ -169,7 +169,7 @@ const demoProof = {
             // Four edges leave the two replaced branches, and the fifth faded
             // arrow is the old root's.
             assertEq(count(h)('data-graph-edge-kind="replaced"'), 5)
-            assert(h.includes('Last step, insert 8: 3 new (green), 4 shared with the version before, 3 replaced (red).'), h)
+            assert(h.includes('Last step, insert 80: 3 new (blue), 4 shared with the version before, 3 replaced (amber).'), h)
             // A press leaves the preset behind.
             assert(h.includes('Custom'), h)
             assert(!h.includes('Press Insert'), h)
@@ -184,14 +184,14 @@ const demoProof = {
             const s = follow('Empty tree')
             assertEq(censusOf(s), '{"built":1,"shared":0,"replaced":0}')
             const h = html(s)
-            assert(h.includes('Last step, insert 1:'), h)
+            assert(h.includes('Last step, insert 10:'), h)
             assert(h.includes('Before is the empty tree.'), h)
             assert(!h.includes('After is the empty tree.'), h)
             // The empty version has no root, so no arrow.
             assertEq(count(h)('data-graph-entry=""'), 1)
             // Removing the last key leaves the new version empty: only the
             // old root, and its faded arrow, are drawn.
-            const gone = press('remove')('1')(s)
+            const gone = press('remove')('10')(s)
             const g = html(gone)
             assert(g.includes('After is the empty tree.'), g)
             assert(!g.includes('Before is the empty tree.'), g)
@@ -209,7 +209,7 @@ const demoProof = {
             // edge's name, or a key alone.
             const middle = h.lastIndexOf('<text x="', h.indexOf('data-graph-edge-label="">Middle<'))
             const [, x, , y] = h.slice(middle).split('"')
-            const rows = [['edge-label', 'Left'], ['value-label', '6'], ['edge-label', 'Middle'], ['value-label', '8'], ['edge-label', 'Right']]
+            const rows = [['edge-label', 'Left'], ['value-label', '60'], ['edge-label', 'Middle'], ['value-label', '80'], ['edge-label', 'Right']]
             rows.forEach(([cell, text], i) =>
                 assert(h.includes(`<text x="${x}" y="${Number(y) + (i - 2) * 20}" text-anchor="middle" data-graph-${cell}="">${text}<`), h))
         },
@@ -230,7 +230,14 @@ const demoProof = {
             assertEq(JSON.stringify(depths('Remove and merge')), '[3,2]')
         },
         // A missing key changes nothing: both versions are one tree.
-        removeAMissingKey: () => assertEq(censusOf(follow('Remove a missing key')), '{"built":0,"shared":7,"replaced":0}'),
+        // It says so, rather than counting nothing.
+        removeAMissingKey: () => {
+            const s = follow('Remove a missing key')
+            assertEq(censusOf(s), '{"built":0,"shared":7,"replaced":0}')
+            const h = html(s)
+            assert(h.includes('Last step, remove 90: the key is not in the tree, so nothing changed.'), h)
+            assert(!h.includes('0 new'), h)
+        },
         // Five nodes built again, and 26 shared, without growing a level.
         bigTree: () => {
             assertEq(censusOf(follow('Big tree')), '{"built":5,"shared":26,"replaced":5}')
@@ -253,14 +260,14 @@ const demoProof = {
         }
         nodes.forEach(a => nodes.forEach(b =>
             assert(a.rank !== b.rank || a.id >= b.id || averageOf(a.id) <= averageOf(b.id), '')))
-        // The leaf 31 was replaced by 31 32, with a larger average: the
+        // The leaf 310 was replaced by 310 320, with a larger average: the
         // old one is above.
-        const leaf31 = nodes.filter(n => n.rank === last && averageOf(n.id) >= 31)
-        assertEq(JSON.stringify(leaf31.map(n => n.kind)), '["replaced","new"]')
+        const leaf310 = nodes.filter(n => n.rank === last && averageOf(n.id) >= 310)
+        assertEq(JSON.stringify(leaf310.map(n => n.kind)), '["replaced","new"]')
         // A replaced node and the new node with the same average key: the
         // replaced one first.
-        const node30 = nodes.filter(n => n.rank === last - 1 && averageOf(n.id) === 30)
-        assertEq(JSON.stringify(node30.map(n => n.kind)), '["replaced","new"]')
+        const node300 = nodes.filter(n => n.rank === last - 1 && averageOf(n.id) === 300)
+        assertEq(JSON.stringify(node300.map(n => n.kind)), '["replaced","new"]')
     },
     // A name no preset has is a bug in whatever sent it.
     throw: () => _load('no such preset'),
@@ -277,7 +284,7 @@ const demoProof = {
         assertEq(s.status, demo.init.status)
         const h = html(s)
         assert(h.includes('Error: &quot;two&quot; is not a key'), h)
-        assert(h.includes('Press Insert to add 8'), h)
+        assert(h.includes('Press Insert to add 80'), h)
         // A spelling `String` would not write back, and `NaN`, which has no
         // order for the tree to keep.
         assertEq(press('insert')('07')(demo.init).versions, demo.init.versions)
@@ -293,7 +300,7 @@ const demoProof = {
         assertEq(typed.versions, demo.init.versions)
         assertEq(JSON.stringify(update({ kind: 'click', name: 'insert' })(typed).status), '{"last":"insert 9"}')
         assertEq(JSON.stringify(update({ kind: 'click', name: 'remove' })(typed).status), '{"last":"remove 9"}')
-        assertEq(update({ kind: 'input', name: 'example', value: 'Big tree' })(typed).key, '32')
+        assertEq(update({ kind: 'input', name: 'example', value: 'Big tree' })(typed).key, '320')
         assertEq(update({ kind: 'click', name: 'other' })(typed), typed)
         assertEq(update({ kind: 'input', name: 'other', value: '1' })(typed), typed)
         assertEq(update({ kind: 'start' })(typed), typed)

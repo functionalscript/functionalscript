@@ -216,8 +216,13 @@ const empty = null
 /** @type {(tree: Tree<number>, key: number) => Tree<number>} */
 const insertInto = (tree, key) => insert(key)(tree)
 
-/** @type {(n: number) => readonly number[]} */
-const upTo = n => Array.from({ length: n }, (_, i) => i + 1)
+/**
+ * 10, 20, … up to `n` tens: keys with room between them, so a reader can
+ * insert one anywhere.
+ *
+ * @type {(n: number) => readonly number[]}
+ */
+const tensUpTo = n => Array.from({ length: n }, (_, i) => (i + 1) * 10)
 
 /**
  * The presets the drop-down offers: a name, the keys whose inserts build the
@@ -227,13 +232,13 @@ const upTo = n => Array.from({ length: n }, (_, i) => i + 1)
  * @type {readonly (readonly [name: string, keys: readonly number[], key: number, hint: string])[]}
  */
 export const presets = [
-    ['Insert into a leaf', upTo(7), 8, 'Press Insert to add 8: only the path to the leaf 7 is built again, and the rest is shared.'],
-    ['Empty tree', [], 1, 'Press Insert to add 1, then keep inserting 2, 3, … to watch the tree grow from a single leaf.'],
-    ['Split a leaf', upTo(8), 9, 'Press Insert to add 9: the leaf 7 8 is full, so it splits and 8 moves up into its parent.'],
-    ['Grow a level', upTo(14), 15, 'Press Insert to add 15: the split runs all the way up to the root, and the tree grows a level.'],
-    ['Remove and merge', upTo(7), 7, 'Press Remove to take out 7: its leaf empties and merges with its sibling, and the tree shrinks a level.'],
-    ['Remove a missing key', upTo(7), 9, 'Press Remove to take out 9: it is not in the tree, so nothing changes and every node is shared.'],
-    ['Big tree', upTo(31), 32, 'Press Insert to add 32: only the five nodes on its path are built again, and the other 26 are shared.'],
+    ['Insert into a leaf', tensUpTo(7), 80, 'Press Insert to add 80: only the path to the leaf 70 is built again, and the rest is shared.'],
+    ['Empty tree', [], 10, 'Press Insert to add 10, then keep inserting 20, 30, … to watch the tree grow from a single leaf.'],
+    ['Split a leaf', tensUpTo(8), 90, 'Press Insert to add 90: the leaf 70 80 is full, so it splits and 80 moves up into its parent.'],
+    ['Grow a level', tensUpTo(14), 150, 'Press Insert to add 150: the split runs all the way up to the root, and the tree grows a level.'],
+    ['Remove and merge', tensUpTo(7), 70, 'Press Remove to take out 70: its leaf empties and merges with its sibling, and the tree shrinks a level.'],
+    ['Remove a missing key', tensUpTo(7), 90, 'Press Remove to take out 90: it is not in the tree, so nothing changes and every node is shared.'],
+    ['Big tree', tensUpTo(31), 320, 'Press Insert to add 320: only the five nodes on its path are built again, and the other 26 are shared.'],
 ]
 
 /**
@@ -260,9 +265,17 @@ export const _load = name => {
     return { key: String(key), versions: { before: tree, after: tree }, status: { preset: name, hint }, error: null }
 }
 
-/** @type {(last: string) => (census: { readonly built: number, readonly shared: number, readonly replaced: number }) => string} */
-const lastLine = last => ({ built, shared, replaced }) =>
-    `Last step, ${last}: ${built} new (green), ${shared} shared with the version before, ${replaced} replaced (red).`
+/**
+ * What the last step did. A step that left the tree as it was — removing a
+ * key the tree does not have — says so, rather than a count of nothing.
+ *
+ * @type {(last: string) => (versions: _Versions) => string}
+ */
+const lastLine = last => versions => {
+    if (versions.before === versions.after) { return `Last step, ${last}: the key is not in the tree, so nothing changed.` }
+    const { built, shared, replaced } = _census(versions)
+    return `Last step, ${last}: ${built} new (blue), ${shared} shared with the version before, ${replaced} replaced (amber).`
+}
 
 /**
  * The page opens on the first preset, loaded.
@@ -293,7 +306,7 @@ export const demo = {
                 ['button', { type: 'button', name: 'remove' }, 'Remove'],
             ],
             ...(error === null ? [] : [/** @type {const} */ (['p', `Error: ${error}`])]),
-            ['p', 'preset' in status ? status.hint : lastLine(status.last)(_census(versions))],
+            ['p', 'preset' in status ? status.hint : lastLine(status.last)(versions)],
             ...drawing(versions),
         ]
     },

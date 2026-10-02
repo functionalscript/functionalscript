@@ -67,9 +67,9 @@ export const faviconLinks = [
  *
  * @type {string}
  */
-export const stylesheet = `:root { color-scheme: light dark; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6; --value: #174ea6; --value-bg: #e8f0fe }
+export const stylesheet = `:root { color-scheme: light dark; --graph-new-bg: #aecbfa; --graph-old-bg: #fde293; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6; --value: #174ea6; --value-bg: #e8f0fe }
 @media (prefers-color-scheme: dark) {
-    :root { --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414; --value: #8ab4f8; --value-bg: #172033 }
+    :root { --graph-new-bg: #1c2d4d; --graph-old-bg: #453613; --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414; --value: #8ab4f8; --value-bg: #172033 }
 }
 /* Every link on the site is coloured the same whether or not it has been
    opened: nearly every word here is a link into the tree, and the visited
@@ -326,9 +326,13 @@ svg text { font: inherit }
 [data-graph-kind="leaf"] { stroke: var(--muted); stroke-dasharray: 3 2 }
 [data-graph-kind="terminal"] { fill: var(--border) }
 /* The B-tree demo's two versions: a node only the later one holds is new,
-   one only the earlier one holds is replaced, and a shared one is plain. */
-[data-graph-kind="new"] { fill: var(--pass-bg) }
-[data-graph-kind="replaced"] { fill: var(--fail-bg) }
+   one only the earlier one holds is replaced, and a shared one is plain.
+   Blue and amber, not green and red: the pair stays apart under red-green
+   colour blindness and in greyscale, and a new node is not a passed test
+   nor a replaced one a failed one, so they are not --pass-bg and
+   --fail-bg. */
+[data-graph-kind="new"] { fill: var(--graph-new-bg) }
+[data-graph-kind="replaced"] { fill: var(--graph-old-bg) }
 /* A replaced node is only what the tree was: the whole node, and the edges
    leaving it, are drawn faded. */
 [data-graph-in-kind="replaced"], [data-graph-edge-kind="replaced"] { opacity: .5 }
