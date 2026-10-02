@@ -2,26 +2,22 @@
  * Two Patricia tries, one graph: type keys, see which subtrees the trie
  * before the step and the trie after it have in common.
  *
+ * **The trie stores hashes as a prefix tree**, so each node is a prefix:
+ * the bits every key under it starts with. Here a key is eight bits, as a
+ * hash cut short would be, and a node shows its prefix and nothing else —
+ * no node has a hash of its own to show.
+ *
  * **Each trie is built from scratch**, from its sorted keys, and still the
- * two share most of their nodes. A node's identity is the hash of its two
- * children's, as in a Merkle tree, so a subtree whose leaves did not change
- * gets the same hash in both tries — and the same hash is the same node.
- * The B-tree demo shares by reusing objects; this one shares by content.
+ * two share most of their nodes. Underneath, the trie's `create` names a
+ * branch by the SHA-256 of its two children's names, and a leaf by that of
+ * `leaf ` and its key in binary, as a Merkle tree does; so a subtree whose
+ * keys did not change gets the same name in both tries, and is the same
+ * node. The B-tree demo shares by reusing objects; this one by content.
+ * The names are how the drawing knows two nodes are one, and are not shown.
  *
  * **The demo is a [versions demo](../../website/demo/versions/module.f.mjs)**,
  * which draws both versions as one graph; this module says only what the
  * trie is.
- *
- * **Every node is named by a SHA-256 hash, and titled with its first four
- * hex digits**, so a reader can check any of them with `sha256sum`:
- *
- * - a leaf, by the hash of `leaf ` and its key in binary —
- *   `leaf 00000011`;
- * - a branch, by the hash of its two children's hashes, in hex, joined by a
- *   space.
- *
- * The `leaf ` prefix keeps a leaf's hash from ever being a branch's: no
- * branch's text starts with it.
  *
  * **Keys are typed and shown in binary**, eight bits, since bits are what
  * the trie branches on. A branch shows the bits every key under it shares
@@ -145,7 +141,7 @@ const structure = {
                     ? [prefixRow(id)]
                     : [...(prefixLength(id) === 0 ? [] : [prefixRow(id)]), { to: n[1], corner: 'top' }, { to: n[2], corner: 'bottom' }]
             },
-            title: id => id.slice(0, 4),
+            title: () => '',
             order: firstKey,
             layout: 'depth',
         }
@@ -191,7 +187,7 @@ const versions = versionsDemo({
     structure,
     name: 'patricia',
     noun: 'trie',
-    intro: 'Each step builds the trie again from all its keys. A branch shows the bits all its keys start with, a leaf its whole key: grey, the bits its parent already fixed; dark, the bits it adds. Every node is named by a SHA-256 hash, and titled with its first four hex digits: a leaf by the hash of "leaf " and its key, a branch by the hash of its two children\'s hashes joined by a space. So every subtree whose keys did not change gets the same name, and is the same node in both tries.',
+    intro: 'The trie stores hashes, here eight bits each, as a prefix tree: each node is the prefix all its keys start with, and a leaf is a whole key. Grey, the bits a node\'s parent already fixed; dark, the bits it adds. Each step builds the trie again from all its keys, and every subtree whose keys did not change is the same node in both tries.',
     keys,
     presets,
 })

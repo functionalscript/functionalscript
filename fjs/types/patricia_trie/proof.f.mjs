@@ -182,8 +182,9 @@ const demoProof = {
         assertEq(again.versions.after.root, versions.after.root)
         assert(again.versions.after !== versions.after, '')
     },
-    // Every node's name is a real SHA-256 hash. The expected values are
-    // literal, from `printf '%s' 'leaf 3' | sha256sum` and so on, rather
+    // Every node's name — not shown, but what makes a node shared — is a
+    // real SHA-256 hash. The expected values are literal, from
+    // `printf '%s' 'leaf 00000011' | sha256sum` and so on, rather
     // than computed here: a proof that hashed with the same code as the
     // demo could not tell a wrong hash from a right one.
     hashes: () => {
@@ -194,15 +195,13 @@ const demoProof = {
         assertEq(JSON.stringify(nodes.get(leaf17)), '["leaf",17]')
         assertEq(JSON.stringify(nodes.get('7fe56b5491fbf2e9e4afd132f874141b7d4beff1e402c427c2794cbf8ffcb221')), JSON.stringify(['branch', leaf3, leaf17]))
     },
-    // Every node is titled with the start of its hash, leaves too; a leaf
-    // also shows its key in binary, beside the key in decimal.
+    // A node shows its prefix in binary, a leaf its whole key, each split
+    // into the bits its parent fixed and the bits it adds; nothing else.
     drawing: () => {
         const h = html(_load('Insert a key'))
-        const { root } = _load('Insert a key').versions.after
-        assert(root !== null, '')
-        assert(h.includes(`data-graph-label="">${root.slice(0, 4)}<`), h)
-        assert(h.includes('data-graph-label="">db9f<'), h)
-        assert(h.includes('data-graph-label="">7fe5<'), h)
+        // A node is its prefix and nothing else: no title, no hash.
+        assert(!h.includes('data-graph-label='), h)
+        assert(!h.includes('db9f'), h)
         assert(h.includes('<label for="patricia-key">Key (8 bits) </label>'), h)
         assert(h.includes('value="01100100"'), h)
         // The branch over 3 and 17: its keys start 000, its parent's 00.

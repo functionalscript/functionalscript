@@ -10,13 +10,19 @@ import type { Demo, DemoEvent } from '../types.ts'
 import type { Corner, Graph, Inline } from '../graph/types.ts'
 
 /**
- * One part of a node: an edge to a child node, leaving from a corner of
- * the node's right side — the top for its first child, the bottom for its
- * last, the middle for one between — or a value drawn in a row of its own.
- * An empty `label` draws the value alone, filling the row, and `parts`
- * draws it in pieces, as an {@link Inline}'s do.
+ * One part of a node: an edge to a child node, or a value drawn in a row
+ * of its own.
+ *
+ * - A child with a `label` leaves from a row of its own, named — a
+ *   B-tree's `Left`, `Middle`, `Right`.
+ * - A child with a `corner` takes no row and leaves from that point of the
+ *   node's right side — the top for its first child, the bottom for its
+ *   last.
+ * - A value with an empty `label` is drawn alone, filling its row, and
+ *   `parts` draws it in pieces, as an {@link Inline}'s do.
  */
 export type Row<N> =
+    | { readonly label: string, readonly to: N }
     | { readonly to: N, readonly corner: Corner }
     | { readonly label: string, readonly inline: string, readonly parts?: Inline['parts'] }
 

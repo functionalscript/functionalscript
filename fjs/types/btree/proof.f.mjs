@@ -199,20 +199,20 @@ const demoProof = {
             assertEq(count(g)('data-graph-entry="" marker-end="url(#graph-arrow)" data-graph-edge-kind="replaced"'), 1)
         },
         // A full leaf splits, and its middle key moves up into a branch of
-        // five, with no title above it: its keys and edges say what it is.
+        // five, with no title above it: its rows say what it is.
         splitALeaf: () => {
             const s = follow('Split a leaf')
             assertEq(censusOf(s), '{"built":4,"shared":4,"replaced":3}')
             const h = html(s)
-            // The new branch of five is its two keys, one row each, and
-            // three edges with no names: from the top corner to the first
-            // subtree, the middle to the second, the bottom to the third.
+            // The new branch of five is its rows in its elements' own order:
+            // Left, 60, Middle, 80, Right — each subtree's edge from a row
+            // named for it.
             const { nodes, edges } = _graphOf(s.versions)
             const keysOf = (/** @type {number} */ id) => edges.flatMap(e => e.from === id && typeof e.to !== 'number' ? [e.to.inline] : [])
             const node5 = assertNotNullish(nodes.find(n => JSON.stringify(keysOf(n.id)) === '["60","80"]'))
             const out = edges.filter(e => e.from === node5.id && typeof e.to === 'number')
-            assertEq(JSON.stringify(out.map(e => [e.corner, e.label])), '[["top",""],["middle",""],["bottom",""]]')
-            assert(!h.includes('>Left<') && !h.includes('>Middle<') && !h.includes('>Right<'), h)
+            assertEq(JSON.stringify(out.map(e => [e.corner ?? null, e.label])), '[[null,"Left"],[null,"Middle"],[null,"Right"]]')
+            assert(h.includes('data-graph-edge-label="">Middle<'), h)
         },
         // The split reaches the root, and the tree grows a level: the new
         // root is a rank further from the leaves than the old one.

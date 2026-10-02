@@ -92,7 +92,7 @@ export const graphOf = ({ root, shape }) => versions => {
             ...(newRoot === null ? [] : [{ to: all.indexOf(newRoot) }]),
         ],
         edges: all.flatMap((node, from) => rows(node).map(/** @type {(row: Row<N>) => Edge} */ (row => 'to' in row
-            ? { from, to: all.indexOf(row.to), label: '', corner: row.corner, kind: kindOf(node) === 'replaced' ? 'replaced' : undefined }
+            ? { from, to: all.indexOf(row.to), ...('corner' in row ? { label: '', corner: row.corner } : { label: row.label }), kind: kindOf(node) === 'replaced' ? 'replaced' : undefined }
             : { from, to: { inline: row.inline, parts: row.parts }, label: row.label }))),
     }
 }
