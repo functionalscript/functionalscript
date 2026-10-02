@@ -1,7 +1,7 @@
 /**
  * Type-level API for `fjs/media/revision/module.f.mjs`: `LockMap`,
- * `LockSchema`, `LockField`, `LockFieldSchema`, `Revision`, and
- * `RevisionError`.
+ * `LockSchema`, `LockField`, `LockFieldSchema`, `Revision`, `HashEntry`,
+ * and `RevisionError`.
  *
  * `LockMap` is written by hand rather than derived, so that the recursion
  * reads directly, and is pinned against the module's rtti schema below — the
@@ -57,6 +57,13 @@ type _LockField = Assert<Check<LockField, typeof lockField>>
 
 /** The TypeScript type derived from `revisionSchema` — the single source of truth. */
 export type Revision = Ts<typeof revisionSchema>
+
+/**
+ * One hash-bearing field of a revision: the path that reaches it and the hash
+ * it holds — `['parents', '0']`, `['snapshot']`, `['lock']` for a shared-lock
+ * reference, `['lock', 'a', 'b']` for a value inside a lock map.
+ */
+export type HashEntry = readonly [readonly string[], string]
 
 /** Either a structural validation error or a semantic (hash / generation) error message. */
 export type RevisionError = ValidationError | string
