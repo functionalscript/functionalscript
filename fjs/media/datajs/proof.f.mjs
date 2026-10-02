@@ -211,6 +211,16 @@ export const proof = {
         examples: {
             // The demo opens on the first, which is its overview.
             init: () => assertEq(demo.init, examples[0][1]),
+            // A tree draws each container centred beside the ones it holds:
+            // the object under "d", 66px tall, sits halfway down the span
+            // of its two arrays, 210 to 336, at (210 + 336 - 66) / 2 = 240.
+            nestedTree: () => {
+                const source = assertNotNullish(examples.find(([name]) => name === 'Nested tree'))[1]
+                const html = htmlToString(demo.view(source))
+                assert(html.includes('<rect x="280" y="210" width="50" height="66" rx="4" data-graph-node=""'), html)
+                assert(html.includes('<rect x="280" y="290" width="50" height="46" rx="4" data-graph-node=""'), html)
+                assert(html.includes('<rect x="190" y="240" width="50" height="66" rx="4" data-graph-node=""'), html)
+            },
             // Every example draws, except the one that is there to show an
             // error.
             draw: () => {

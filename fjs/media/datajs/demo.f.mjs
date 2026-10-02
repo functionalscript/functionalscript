@@ -81,11 +81,13 @@ export const _graphOf = text => {
  * the one that visibly skips a rank, not the one that decided where the array
  * sits.
  *
- * The other ten take one point each, on its own:
+ * The other eleven take one point each, on its own:
  *
  * - **JSON** is a JSON value made a document the way the specification
  *   converts one — `export default` before it, `;` after — and draws as the
  *   tree it is: nothing in JSON can be reached twice.
+ * - **Nested tree** is a tree three containers deep, drawn with each
+ *   container centred beside the containers it holds.
  * - **Primitives** puts every kind of leaf — `null`, a boolean, a string, a
  *   number, `-0`, `NaN`, an infinity, a bigint, `undefined` — inline in the
  *   port that holds it.
@@ -113,6 +115,7 @@ export const _graphOf = text => {
 export const examples = [
     ['Overview', 'const $0=[1,2];\nexport default {"a":$0,"b":{"c":$0}};'],
     ['JSON', 'export default {"name":"fjs","tags":["data","graph"],"version":1};'],
+    ['Nested tree', 'export default {"a":[[1],[2,3]],"b":{"c":[4],"d":{"e":[5,6],"f":[7]}},"g":[8]};'],
     ['Primitives', 'export default [null,true,"s",-42.5,-0,NaN,-Infinity,1n,undefined];'],
     ['Equal is not shared', 'export default [[1,2],[1,2]];'],
     ['One node, many references', 'const $0={"n":1};\nexport default [$0,$0,$0];'],
