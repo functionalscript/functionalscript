@@ -97,9 +97,15 @@ from `{ a: 1 }` and hashes differently, as `[...[1]]` and `[1]` do.
   languages.
 - **An object's keys depend on a value.** Without a spread, an object
   literal's keys are its constants; with one, they are known only once the
-  operand is. Nothing in the language reads a key statically today, so
-  nothing breaks, but a future static check of property reads has to treat
-  a spread's keys as unknown.
+  operand is. The compiler already reads keys statically: the sharing and
+  anchoring sweeps in [`fjs/compiler/ast`](../../fjs/compiler/ast/module.f.mjs)
+  keep the last member per key (`memberValues`) and resolve an access into
+  an object literal to the member it names (`literalAt`, `selected`). With
+  a spread, `[o.x, { ...o }.x]` reaches `o.x` twice, and a member that
+  seems to win may lose to a later spread, so those reads have to keep
+  every spread operand and treat the literal's keys as unknown — as array
+  and call spread already treat an array holding a spread, which no key
+  selects inside.
 - **JavaScript compatibility.** None lost. The change only accepts
   JavaScript, with JavaScript's values.
 
@@ -134,6 +140,14 @@ proposer before implementation; this proposal was written by Claude.
 - [ ] AST and lowering: a spread member in the object node of
       [`fjs/compiler/ast`](../../fjs/compiler/ast/module.f.mjs), lowered to
       `['...', exp]` by [`fjs/compiler/edag`](../../fjs/compiler/edag/module.f.mjs).
+- [ ] AST analysis: an object literal holding a spread selects no key
+      (`selectable`), a member before a spread is not dropped as shadowed,
+      and every spread operand is kept and read as `CopyDataProperties`
+      copies it — its own properties, each one key deeper — in the sharing,
+      anchoring and capture sweeps of
+      [`fjs/compiler/ast`](../../fjs/compiler/ast/module.f.mjs); proofs
+      that `[o.x, { ...o }.x]` and two spreads of one object are refused as
+      JSON where `o.x` is a container, and written where it is not.
 - [ ] `.js` writer: spell a spread member, `...x`, in
       [`fjs/compiler/serializer`](../../fjs/compiler/serializer/module.f.mjs),
       which refuses it today (`a spread`), and read back to the same graph.
