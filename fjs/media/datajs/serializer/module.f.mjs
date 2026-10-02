@@ -50,8 +50,10 @@
  * elements, or a cycle, so a refusal reached only through such a value
  * could not be proved through this module's entry points at all. The three
  * carry the `_` prefix because that export is linkage rather than API
- * ([`fjs/AGENTS.md`](../../../AGENTS.md) §3.2): `trySerialize` and
- * `tryStringify` are what this module promises.
+ * ([`fjs/AGENTS.md`](../../../AGENTS.md) §3.2), as `_tryTreeSerialize`
+ * does, the read and the write under a caller's leaf rule that
+ * `fjs/compiler`'s `.json` output is: `trySerialize` and `tryStringify` are
+ * what this module promises.
  *
  * @module
  *
@@ -66,7 +68,7 @@ import { assertNotNullish } from '../../../asserts/module.f.mjs'
 import { serialize as bigintSerialize } from '../../../types/bigint/module.f.mjs'
 import { empty, flat, toArray } from '../../../types/list/module.f.mjs'
 import { cmp } from '../../../types/number/module.f.mjs'
-import { error, mapOk, ok, okList, okThen } from '../../../types/result/module.f.mjs'
+import { error, mapOk, ok, okThen } from '../../../types/result/module.f.mjs'
 import { add, empty as noneStarted, has } from '../../../types/set/module.f.mjs'
 import { concat } from '../../../types/string/module.f.mjs'
 import { arrayWrap, colon, leafSerialize as leafSerializeWith, objectWrap, stringSerialize } from '../../json/serializer/module.f.mjs'
@@ -176,10 +178,10 @@ export const _elementNames = (names, length) =>
 /** @type {_Walk} */
 const start = { started: noneStarted, finished: empty }
 
-/** @type {(value: Primitive) => _Value<object>} */
-const leaf = value => ['leaf', value]
+/** A leaf as read: the chunks the leaf rule spelled it as. @type {(chunks: List<string>) => _Value<object, List<string>>} */
+const leaf = chunks => ['leaf', chunks]
 
-/** @type {(member: _Member<object>) => _Value<object>} */
+/** @type {(member: _Member<object, List<string>>) => _Value<object, List<string>>} */
 const memberOf = ([, value]) => value
 
 /** A value of the caller's, still to be read. @type {(value: unknown) => _Todo} */
@@ -221,7 +223,7 @@ const open = value => {
 /**
  * The node a frame closes into once every member is read.
  *
- * @type {(frame: _Frame) => _Node<object>}
+ * @type {(frame: _Frame) => _Node<object, List<string>>}
  */
 const close = ({ kind, done }) => {
     const members = toArray(done)
@@ -250,22 +252,24 @@ const round = (stack, walk, frame) => {
 }
 
 /**
- * One value of the caller's: a leaf as it stands; a container as a node of
- * its own the first time it is met and a reference to that node every time
- * after, which is what carries the sharing; and anything outside the data
- * model refused where it is met.
+ * One value of the caller's: a leaf spelled by the leaf rule where it is
+ * met, or refused there; a container as a node of its own the first time it
+ * is met and a reference to that node every time after, which is what
+ * carries the sharing; and anything outside the data model refused where it
+ * is met. So a refusal is the first one in the reader's order — a container
+ * reached twice met once — whichever rule refuses it.
  *
- * @type {(stack: _Stack, walk: _Walk, value: unknown) => _State}
+ * @type {(leafRule: _Leaf) => (stack: _Stack, walk: _Walk, value: unknown) => _State}
  */
-const enter = (stack, walk, value) => {
+const enter = leafRule => (stack, walk, value) => {
     switch (typeof value) {
         case 'bigint':
         case 'boolean':
         case 'number':
         case 'string':
-        case 'undefined': { return [stack, walk, ok(leaf(value))] }
+        case 'undefined': { return [stack, walk, mapOk(leaf)(leafRule(value))] }
         case 'object': {
-            if (value === null) { return [stack, walk, ok(leaf(null))] }
+            if (value === null) { return [stack, walk, mapOk(leaf)(leafRule(null))] }
             if (has(value)(walk.started)) { return [stack, walk, ok(['ref', value])] }
             const frame = open(value)
             return frame[0] === 'error'
@@ -277,15 +281,16 @@ const enter = (stack, walk, value) => {
 }
 
 /**
- * The caller's value read into the graph, over an explicit stack: a frame
- * per container being read, its members read in order, so that a value
- * nested as deep as the reader accepts costs no call stack. The reader walks
- * the same way, which is what makes a document it accepts one this can
- * write back.
+ * The caller's value read into the graph, its leaves spelled by the leaf
+ * rule as they are met, over an explicit stack: a frame per container being
+ * read, its members read in order, so that a value nested as deep as the
+ * reader accepts costs no call stack. The reader walks the same way, which
+ * is what makes a document it accepts one this can write back.
  *
- * @type {(value: unknown) => Result<_Step, string>}
+ * @type {(leafRule: _Leaf) => (value: unknown) => Result<_Step, string>}
  */
-const read = value => {
+const read = leafRule => value => {
+    const enterWith = enter(leafRule)
     /** @type {_State} */
     let state = [null, start, ok(toEnter(value))]
     while (true) {
@@ -293,7 +298,7 @@ const read = value => {
         if (next[0] === 'error') { return next }
         const todo = next[1]
         if (todo[0] === 'enter') {
-            state = enter(stack, walk, todo[1])
+            state = enterWith(stack, walk, todo[1])
         } else if (stack === null) {
             return ok([walk, todo])
         } else {
@@ -309,8 +314,21 @@ const read = value => {
 /** The values a node holds, in the order it holds them. @type {<R, L>(node: _Node<R, L>) => readonly _Value<R, L>[]} */
 const nodeValues = node => node.kind === 'array' ? node.items : node.members.map(([, value]) => value)
 
-/** The nodes a node refers to. @type {(node: _Node<number>) => readonly number[]} */
+/** The nodes a node refers to. @type {<L>(node: _Node<number, L>) => readonly number[]} */
 const nodeRefs = node => nodeValues(node).flatMap(value => value[0] === 'ref' ? [value[1]] : [])
+
+/** A value with its reference, if any, replaced by the index of the node it refers to. @type {(position: ReadonlyMap<object, number>) => <L>(value: _Value<object, L>) => _Value<number, L>} */
+const linkValueBy = position => value => value[0] === 'ref'
+    ? ['ref', assertNotNullish(position.get(value[1]), 'a reference to a container that was never finished')]
+    : value
+
+/** @type {(position: ReadonlyMap<object, number>) => <L>(node: _Node<object, L>) => _Node<number, L>} */
+const linkNodeBy = position => {
+    const linkValue = linkValueBy(position)
+    return node => node.kind === 'array'
+        ? { kind: 'array', items: node.items.map(linkValue) }
+        : { kind: 'object', members: node.members.map(([key, value]) => [key, linkValue(value)]) }
+}
 
 /**
  * The graph the read produced, with every reference to a host object
@@ -324,21 +342,15 @@ const nodeRefs = node => nodeValues(node).flatMap(value => value[0] === 'ref' ? 
  * Exported because a cycle is not a value FunctionalScript can build, where
  * a graph carrying one is ordinary data.
  *
- * @type {(finished: readonly _Read[], root: _Value<object>) => Result<_Graph, string>}
+ * @type {<L>(finished: readonly _Read<L>[], root: _Value<object, L>) => Result<_Graph<L>, string>}
  */
 export const _link = (finished, root) => {
     const position = new Map(finished.map(
-        /** @type {(entry: _Read, i: number) => readonly [object, number]} */
+        /** @type {(entry: readonly [object, unknown], i: number) => readonly [object, number]} */
         (([value], i) => [value, i])
     ))
-    /** @type {(value: _Value<object>) => _Value<number>} */
-    const linkValue = value => value[0] === 'ref'
-        ? ['ref', assertNotNullish(position.get(value[1]), 'a reference to a container that was never finished')]
-        : value
-    /** @type {(node: _Node<object>) => _Node<number>} */
-    const linkNode = node => node.kind === 'array'
-        ? { kind: 'array', items: node.items.map(linkValue) }
-        : { kind: 'object', members: node.members.map(([key, value]) => [key, linkValue(value)]) }
+    const linkValue = linkValueBy(position)
+    const linkNode = linkNodeBy(position)
     const nodes = finished.map(([, node]) => linkNode(node))
     return nodes.every((node, i) => nodeRefs(node).every(ref => ref < i))
         ? ok({ nodes, root: linkValue(root) })
@@ -384,38 +396,6 @@ const constNames = graph => {
             ((i, n) => [i, `$${n}`])
         ))
 }
-
-/**
- * A value with its leaf spelled, under a rule that may refuse the leaf.
- *
- * @type {(leaf: _Leaf) => (value: _Value<number>) => Result<_Value<number, List<string>>, string>}
- */
-const spell = leaf => value => value[0] === 'leaf'
-    ? mapOk(/** @type {(chunks: List<string>) => _Value<number, List<string>>} */ (chunks => ['leaf', chunks]))(leaf(value[1]))
-    : ok(value)
-
-/** @type {(leaf: _Leaf) => (node: _Node<number>) => Result<_Node<number, List<string>>, string>} */
-const spellNode = leaf => node => node.kind === 'array'
-    ? mapOk(/** @type {(items: readonly _Value<number, List<string>>[]) => _Node<number, List<string>>} */ (items => ({ kind: 'array', items })))(okList(node.items.map(spell(leaf))))
-    : mapOk(/** @type {(members: readonly _Member<number, List<string>>[]) => _Node<number, List<string>>} */ (members => ({ kind: 'object', members })))(okList(node.members.map(
-        /** @type {(member: _Member<number>) => Result<_Member<number, List<string>>, string>} */
-        (([key, value]) => mapOk(/** @type {(v: _Value<number, List<string>>) => _Member<number, List<string>>} */ (v => [key, v]))(spell(leaf)(value)))
-    )))
-
-/**
- * The graph with every leaf spelled, or the first leaf the rule refuses.
- * Every leaf of every node is seen once here, so a refusal is found over
- * the graph however many references reach the node holding it — which is
- * what lets a tree document, where a node is written once per reference,
- * refuse before it unfolds a graph that may be exponentially smaller than
- * its tree.
- *
- * @type {(leaf: _Leaf) => (graph: _Graph) => Result<_Graph<List<string>>, string>}
- */
-const spelled = leaf => ({ nodes, root }) => okThen(
-    /** @type {(spelledNodes: readonly _Node<number, List<string>>[]) => Result<_Graph<List<string>>, string>} */
-    (spelledNodes => mapOk(/** @type {(spelledRoot: _Value<number, List<string>>) => _Graph<List<string>>} */ (spelledRoot => ({ nodes: spelledNodes, root: spelledRoot })))(spell(leaf)(root)))
-)(okList(nodes.map(spellNode(leaf))))
 
 /**
  * The chunks of every node and of any value of a spelled graph, a hoisted
@@ -499,29 +479,33 @@ const writeTree = key => graph => chunksOf(key)(new Map())(graph).value(graph.ro
  */
 export const trySerialize = value => okThen(
     /** @type {(step: _Step) => Result<List<string>, string>} */
-    (([walk, root]) => mapOk(write)(okThen(spelled(dataJsLeaf))(_link(toArray(walk.finished), root))))
-)(read(value))
+    (([walk, root]) => mapOk(write)(_link(toArray(walk.finished), root)))
+)(read(dataJsLeaf)(value))
 
 /**
  * A value of the data model as the chunks of a tree document — JSON's
  * shape, under the caller's spelling of a leaf and of a key — or why it is
  * not one. The value is read into the same graph {@link trySerialize}
- * reads it into, every leaf of every distinct node is spelled once, and the
- * tree is written only then, a node reached twice written where each
- * reference reaches it as `JSON.stringify` writes it. That order is the
- * point: a leaf the spelling refuses — `undefined` under JSON's — is found
- * over the graph, which may be exponentially smaller than the tree it
- * unfolds to, so a document that will not be written costs no unfolding.
- * What the data model refuses, `trySerialize` refuses here too.
+ * reads it into, each leaf spelled by the caller's rule where the read
+ * meets it, and the tree is written only then, a node reached twice
+ * written where each reference reaches it as `JSON.stringify` writes it.
+ * That order is the point: a leaf the rule refuses — `undefined` under
+ * JSON's — is found over the graph, which may be exponentially smaller
+ * than the tree it unfolds to, so a document that will not be written
+ * costs no unfolding; and the leaf refused is the first in the reader's
+ * order, a node reached twice met once, so `[undefined, [1n]]` names
+ * `undefined` under a rule refusing both. What the data model refuses,
+ * `trySerialize` refuses here too.
  *
- * `fjs/compiler`'s `.json` output is this under JSON's leaf rule.
+ * Linkage, not API: `fjs/compiler`'s `.json` output is this under JSON's
+ * leaf rule, and the `_` says that is the one caller it is promised to.
  *
  * @type {(leaf: _Leaf) => (key: (key: string) => List<string>) => (value: Unknown) => Result<List<string>, string>}
  */
-export const tryTreeSerialize = leaf => key => value => okThen(
+export const _tryTreeSerialize = leaf => key => value => okThen(
     /** @type {(step: _Step) => Result<List<string>, string>} */
-    (([walk, root]) => mapOk(writeTree(key))(okThen(spelled(leaf))(_link(toArray(walk.finished), root))))
-)(read(value))
+    (([walk, root]) => mapOk(writeTree(key))(_link(toArray(walk.finished), root)))
+)(read(leaf)(value))
 
 /**
  * {@link trySerialize} as one string: the document in normalized form, the

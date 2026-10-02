@@ -1428,6 +1428,10 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assertEq(jsonRefused(`const a0 = { x: [1, 2n] }; ${consts} export default { a: a40 };`), 'output.json - error: no JSON spelling for 2n')
             const valid = Array.from({ length: 22 }, (_, i) => `const a${i + 1} = [a${i}, a${i}];`).join(' ')
             assertEq(jsonRefused(`const a0 = [1]; ${valid} export default [a22, undefined];`), 'output.json - error: no JSON spelling for undefined')
+            // the first in the reader's order, a leaf before a container
+            // before the container's own
+            assertEq(jsonRefused('export default [undefined, [2n]];'), 'output.json - error: no JSON spelling for undefined')
+            assertEq(jsonRefused('export default [[2n], undefined];'), 'output.json - error: no JSON spelling for 2n')
         },
         // the DataJS output takes every one of them
         moduleOutput: () => {

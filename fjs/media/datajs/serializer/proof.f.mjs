@@ -12,7 +12,7 @@ import { error, invert, mapOk, ok, unwrap } from '../../../types/result/module.f
 import { concat } from '../../../types/string/module.f.mjs'
 import { tryParse } from '../parser/module.f.mjs'
 import { difference } from '../vectors/module.f.mjs'
-import { _elementNames, _link, _memberValue, leafSerialize, trySerialize, tryStringify, tryTreeSerialize } from './module.f.mjs'
+import { _elementNames, _link, _memberValue, _tryTreeSerialize, leafSerialize, trySerialize, tryStringify } from './module.f.mjs'
 import { stringSerialize } from '../../json/serializer/module.f.mjs'
 
 /**
@@ -62,14 +62,14 @@ const denotes = value => {
 /** An empty array a `const` may hold, which `[]` alone types as an evolving array. @type {Unknown} */
 const emptyArray = /** @type {readonly Unknown[]} */ ([])
 
-/** A leaf rule that refuses `undefined`, the shape of JSON's. @type {_Leaf} */
-const noUndefined = value => value === undefined ? error('undefined') : ok(leafSerialize(value))
+/** A leaf rule that refuses `undefined` and a bigint, the shape of JSON's. @type {_Leaf} */
+const jsonLike = value => value === undefined ? error('undefined') : typeof value === 'bigint' ? error('a bigint') : ok(leafSerialize(value))
 
-/** The tree document a value is written as, under {@link noUndefined} and JSON's key spelling. @type {(value: unknown) => string} */
-const tree = value => unwrap(mapOk(concat)(tryTreeSerialize(noUndefined)(stringSerialize)(asHanded(value))))
+/** The tree document a value is written as, under {@link jsonLike} and JSON's key spelling. @type {(value: unknown) => string} */
+const tree = value => unwrap(mapOk(concat)(_tryTreeSerialize(jsonLike)(stringSerialize)(asHanded(value))))
 
 /** Why a value has no tree document. @type {(value: unknown) => string} */
-const treeRefused = value => unwrap(invert(tryTreeSerialize(noUndefined)(stringSerialize)(asHanded(value))))
+const treeRefused = value => unwrap(invert(_tryTreeSerialize(jsonLike)(stringSerialize)(asHanded(value))))
 
 /** A value `levels` doublings above `leaf`: two to the `levels` references to `leaf` in the tree, and `levels + 1` nodes in the graph. @type {(leaf: Unknown, levels: number) => Unknown} */
 const doubled = (leaf, levels) => {
@@ -199,15 +199,19 @@ export const proof = {
         leaves: () => {
             assertEq(tree(1), '1')
             assertEq(tree(null), 'null')
-            assertEq(tree([true, 'x', 2n, -0]), '[true,"x",2n,-0]')
+            assertEq(tree([true, 'x', -0]), '[true,"x",-0]')
             assertEq(tree({ ['__proto__']: 1 }), '{"__proto__":1}')
         },
         // a leaf the rule refuses, wherever it sits: at the root, in an
-        // array, in a member
+        // array, in a member — and the first in the reader's order where
+        // two are refused, a leaf before a container before the container's
         refused: () => {
             assertEq(treeRefused(undefined), 'undefined')
             assertEq(treeRefused([1, undefined]), 'undefined')
             assertEq(treeRefused({ a: undefined }), 'undefined')
+            assertEq(treeRefused([undefined, [1n]]), 'undefined')
+            assertEq(treeRefused([[1n], undefined]), 'a bigint')
+            assertEq(treeRefused({ a: { b: 1n }, c: undefined }), 'a bigint')
             // and what the data model refuses, as `trySerialize` refuses it
             assertEq(treeRefused(() => 1), 'a function is not a DataJS value')
         },
@@ -219,7 +223,7 @@ export const proof = {
         refusedOverTheGraph: () => {
             assertEq(treeRefused(doubled(undefined, 40)), 'undefined')
             assertEq(treeRefused([doubled(1, 22), undefined]), 'undefined')
-            assertEq(treeRefused({ a: doubled(1, 22), b: 2n, c: undefined }), 'undefined')
+            assertEq(treeRefused({ a: doubled(1, 22), b: 2n, c: undefined }), 'a bigint')
         },
     },
     // The document denotes the graph it was written from, sharing included.

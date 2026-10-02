@@ -10,13 +10,13 @@ writer by the output's extension, run it, report — and holds three:
 
 **A JSON writer's leaf rule.** `noJson`, `jsonLeaf`, `_tryJson` and
 `jsonText` are JSON's fallible leaf rule over the DataJS value model,
-handed to the DataJS writer's `tryTreeSerialize`, which reads the value into
-its graph, spells every leaf of every distinct node once, and unfolds the
-tree only then:
+handed to the DataJS writer's `_tryTreeSerialize`, which reads the value into
+its graph, spelling each leaf where the read meets it, a node reached twice
+met once, and unfolds the tree only then:
 
 ```js
 // _tryJson
-mapOk(concat)(tryTreeSerialize(jsonLeaf)(stringSerialize)(value))
+mapOk(concat)(_tryTreeSerialize(jsonLeaf)(stringSerialize)(value))
 ```
 
 The walk is the DataJS writer's, so it is no fourth walker; what the

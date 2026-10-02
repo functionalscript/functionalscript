@@ -1,6 +1,7 @@
 /**
  * Implementation-private types of the DataJS writer: what reading the
- * caller's value carries from one container to the next.
+ * caller's value carries from one container to the next. A leaf is carried
+ * spelled, as the chunks the leaf rule the read runs under gave for it.
  *
  * @module
  */
@@ -24,11 +25,11 @@ import type { _Member, _Read, _Value } from './types.ts'
  */
 export type _Walk = {
     readonly started: PersistentSet<object>
-    readonly finished: List<_Read>
+    readonly finished: List<_Read<List<string>>>
 }
 
 /** What the read leaves behind: the walk, and the value it read the root as. */
-export type _Step = readonly [_Walk, _Value<object>]
+export type _Step = readonly [_Walk, _Value<object, List<string>>]
 
 /**
  * A container being read: the own properties the read will follow, in
@@ -41,14 +42,14 @@ export type _Frame = {
     readonly kind: 'array' | 'object'
     readonly properties: readonly (readonly [string, PropertyDescriptor])[]
     readonly index: number
-    readonly done: List<_Member<object>>
+    readonly done: List<_Member<object, List<string>>>
 }
 
 /** The containers suspended around the value being read, innermost on top. */
 export type _Stack = { readonly top: _Frame, readonly rest: _Stack } | null
 
 /** What to do next: read a value of the caller's, or hand a value read to the frame on top. */
-export type _Todo = readonly ['enter', unknown] | _Value<object>
+export type _Todo = readonly ['enter', unknown] | _Value<object, List<string>>
 
 /** The next thing to do, or the refusal that ends the read. */
 export type _Next = Result<_Todo, string>

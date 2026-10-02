@@ -44,7 +44,7 @@ export type _Node<R, L = Primitive> =
 export type _Member<R, L = Primitive> = readonly [string, _Value<R, L>]
 
 /** A container node as it was read, paired with the host object it was read from. */
-export type _Read = readonly [object, _Node<object>]
+export type _Read<L = Primitive> = readonly [object, _Node<object, L>]
 
 /**
  * The linked graph. `nodes` is in post-order — a node comes after every

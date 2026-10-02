@@ -25,7 +25,7 @@
 import { _transpileDefault } from './transpiler/module.f.mjs'
 import { resolve } from './edag/module.f.mjs'
 import { toRust } from './rust/module.f.mjs'
-import { _numberSerialize, tryStringify, tryTreeSerialize } from '../media/datajs/serializer/module.f.mjs'
+import { _numberSerialize, _tryTreeSerialize, tryStringify } from '../media/datajs/serializer/module.f.mjs'
 import { tryStringify as fjsStringify, tryModuleStringify } from './serializer/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../media/json/serializer/module.f.mjs'
 import { flat, map } from '../types/list/module.f.mjs'
@@ -107,16 +107,17 @@ const jsonLeaf = value => {
  * The value as one JSON text, when it has one: the tree the value unfolds
  * to, every leaf spelled by {@link jsonLeaf} and every key by JSON's
  * `stringSerialize` — `__proto__` included, which DataJS alone has to spell
- * computed. The walk is the DataJS writer's, which spells the leaves over
- * the distinct nodes before it unfolds a node reached twice where each
- * reference reaches it, so a refused leaf under such a node is reported at
- * once however many references reach it. Exported for the proofs, which
+ * computed. The walk is the DataJS writer's, which spells each leaf where
+ * its read meets it, a node reached twice met once, before it unfolds the
+ * node where each reference reaches it: a refused leaf is reported at once
+ * however many references reach it, and the one reported is the first in
+ * the reader's order. Exported for the proofs, which
  * refuse one leaf at a time; `compile` is what a caller runs, and the `_`
  * says so.
  *
  * @type {(value: Unknown) => Result<string, string>}
  */
-export const _tryJson = value => mapOk(concat)(tryTreeSerialize(jsonLeaf)(stringSerialize)(value))
+export const _tryJson = value => mapOk(concat)(_tryTreeSerialize(jsonLeaf)(stringSerialize)(value))
 
 /**
  * A denotation as JSON: the tree the value is to JSON, which has no
