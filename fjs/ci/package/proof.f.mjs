@@ -3,7 +3,7 @@
  */
 
 import { consumerDirectory, packageCheckSteps } from './module.f.mjs'
-import { actions, node, typescript } from '../config/module.f.js'
+import { typescript } from '../config/module.f.js'
 import { generatedDirectory } from '../nix/module.f.mjs'
 import { packageConsumer } from '../self/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
@@ -37,28 +37,20 @@ export const proof = {
     // command starts in the consumer directory, under the runner's temporary
     // directory: neither inside the checkout nor above it.
     outsideTheCheckout: () => {
-        const commands = steps.filter(step => step.run !== undefined)
-        assert(commands.length !== 0, 'expected commands')
-        for (const step of commands) {
+        assert(steps.length !== 0, 'expected commands')
+        for (const step of steps) {
             assertEq(step['working-directory'], '${{ runner.temp }}/consumer')
         }
         // The spelling the shell reads names the same directory: the job that
         // packs makes it and packs into it under this name.
         assertEq(consumerDirectory, '"$RUNNER_TEMP/consumer"')
-        assert(
-            !steps.some(step => step.uses?.startsWith('actions/checkout@') === true),
-            'the package check must not check out the repository')
     },
-    // A consumer's toolchain, not the repository's: Node from `setup-node`,
-    // first, and no command entering a generated flake, whose shell would put
-    // this repository's `node` and `tsc` on `PATH`.
+    // A consumer's toolchain, not the repository's: commands only, the Node
+    // being the job's `setup-node` (proved on the assembled workflow, in
+    // `fjs/ci/proof.f.mjs`), and none entering a generated flake, whose shell
+    // would put this repository's `node` and `tsc` on `PATH`.
     consumerToolchain: () => {
-        assertEq(steps[0]?.uses, `actions/setup-node@${actions['actions/setup-node']}`)
-        assertEq(steps[0]?.with?.['node-version'], node.default)
-        // The action reads the checkout's `package.json` to decide whether to
-        // restore an npm cache; off, so the consumer's setup cannot depend on
-        // the repository.
-        assertEq(steps[0]?.with?.['package-manager-cache'], 'false')
+        assert(steps.every(step => step.run !== undefined), 'expected commands only')
         assert(
             !steps.some(step => step.run?.startsWith(`sh ./${generatedDirectory}/`) === true),
             'the package check must not enter a flake')

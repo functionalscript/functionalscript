@@ -26,9 +26,16 @@ const jobId = version => `node${major(version)}`
  */
 export const packageJobId = jobId(node.default)
 
-/** @type {(v: string) => Step} */
-const installNode = v =>
-    uses('actions/setup-node', { 'node-version': v })
+/**
+ * Installs the pinned Node through `setup-node`. Every job that installs Node
+ * this way installs the configured default; `inputs` are any further
+ * `setup-node` inputs the job needs, such as the publish job's `registry-url`.
+ * The pin is written last, so an input cannot replace it.
+ *
+ * @type {(inputs?: Record<string, string>) => Step}
+ */
+export const installNode = inputs =>
+    uses('actions/setup-node', { ...inputs, 'node-version': node.default })
 
 /** @type {(version: string) => MetaStep} */
 const fjsGlobalInstall = version =>
@@ -38,19 +45,19 @@ const fjsGlobalInstall = version =>
  * Asserts the Node a job is about to run on, through the shared check.
  *
  * `node --version` prints a leading `v` the configured version does not carry,
- * so the expected string restores it. Every canonical Node job runs this. The
- * steps that install Node through `setup-node` get no check: the platform
- * matrix, whose Windows jobs run `run` steps under PowerShell where this POSIX
- * command would not survive, and the packed-package check closing Node 26's
- * job, which takes its Node as a consumer would and enters no flake to check
- * one from.
+ * so the expected string restores it. The canonical Node jobs and the shell
+ * platform jobs run this. The steps that install Node through `setup-node` get
+ * no check: the Windows platform jobs, which run `run` steps under PowerShell
+ * where this POSIX command would not survive, and the packed-package check
+ * closing Node 26's job, which takes its Node as a consumer would and enters
+ * no flake to check one from.
  *
  * It takes the shell to enter, because the three canonical jobs no longer enter
  * the same one — see {@link nodeNixJobs}.
  *
  * @type {(shell: string, version: string) => MetaStep}
  */
-const nodeVersionStep = (shell, version) =>
+export const nodeVersionStep = (shell, version) =>
     nixVersionStep(shell, 'node --version', `v${version}`)
 
 /**
@@ -88,7 +95,7 @@ const tscVersionStep = nixVersionStep(
  * @type {(version: string) => readonly MetaStep[]}
  */
 export const platformNodeSteps = version => [
-    install(installNode(node.default)),
+    install(installNode()),
     fjsGlobalInstall(version),
     test({ run: 'fjs test' }),
 ]
@@ -141,10 +148,10 @@ const suiteNixSteps = version => [
  * The drift check itself is not a Nix command. `git` is the runner's tool, and a
  * step names the flake only when it needs something the flake pins.
  *
- * The packed-package check comes after it, and last. Its steps start in the
- * consumer directory, so nothing they write can reach the comparison; and the
- * `setup-node` they begin with changes `PATH` only for steps after every Nix
- * step.
+ * The packed-package check comes after it, and last, behind the `setup-node`
+ * that gives it a consumer's Node. Its steps start in the consumer directory,
+ * so nothing they write can reach the comparison; and `setup-node` changes
+ * `PATH` only for steps after every Nix step.
  *
  * @type {(consumer: PackageConsumer | undefined) => readonly MetaStep[]}
  */
@@ -156,6 +163,10 @@ const node26Steps = consumer => [
     test({ run: `mkdir ${consumerDirectory}` }),
     ...nixSteps(nixShell)([`npm pack --pack-destination ${consumerDirectory}`, 'npm run gen']),
     test({ run: 'git add -A && git diff --cached --exit-code' }),
+    // The consumer's Node. `setup-node` reads the checkout's `package.json`
+    // to decide whether to restore an npm cache, so caching is off: a
+    // consumer's setup must not depend on the repository it consumes.
+    test(installNode({ 'package-manager-cache': 'false' })),
     ...packageCheckSteps(consumer).map(test),
 ]
 

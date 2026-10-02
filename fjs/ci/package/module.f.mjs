@@ -8,8 +8,7 @@
  * @import { PackageConsumer } from '../types.ts'
  */
 
-import { node, typescript } from '../config/module.f.js'
-import { uses } from '../common/module.f.mjs'
+import { typescript } from '../config/module.f.js'
 
 /**
  * The runner's temporary directory, which GitHub empties at the start and at
@@ -263,22 +262,18 @@ const consumerCommands = consumer => [
  *   fails if it already exists, and `npm pack` writes the tarball into it.
  * - **No repository toolchain on `PATH`.** No step here enters the flake: each
  *   Nix step entered its shell for its own command alone, so the `node`,
- *   `npm` and `npx` here are `setup-node`'s, as a consumer's would be.
+ *   `npm` and `npx` here are those of the `setup-node` step the job runs just
+ *   before them, as a consumer's would be (`../node/module.f.mjs`).
  *
  * What the same runner still holds is outside a consumer's resolution: the
  * checkout beside it, the Nix store, and the npm cache `npm ci` filled, which
  * hands out package contents only against their recorded integrity.
  *
- * Deliberately not built through `toSteps`: that helper injects
- * `actions/checkout`, and the job these steps join has already checked out.
+ * Commands only, each starting in that directory: the job these steps close
+ * has already checked out, and installs their Node itself.
  *
  * @type {(consumer: PackageConsumer | undefined) => readonly Step[]}
  */
-export const packageCheckSteps = consumer => [
-    // `setup-node` reads the checkout's `package.json` to decide whether to
-    // restore an npm cache, so caching is off: a consumer's Node must not
-    // depend on the repository it consumes.
-    uses('actions/setup-node', { 'node-version': node.default, 'package-manager-cache': 'false' }),
-    ...[...declarationCommands, ...(consumer === undefined ? [] : consumerCommands(consumer))]
-        .map(run => ({ run, 'working-directory': consumerWorkingDirectory })),
-]
+export const packageCheckSteps = consumer =>
+    [...declarationCommands, ...(consumer === undefined ? [] : consumerCommands(consumer))]
+        .map(run => ({ run, 'working-directory': consumerWorkingDirectory }))

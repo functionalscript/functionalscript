@@ -8,7 +8,7 @@ import { exitCode } from '../effects/node/module.f.mjs'
 import { ci, ciPath, main, nixJobs } from './module.f.mjs'
 import { actions, bun, deno, functionalscript, node, typescript, wasmer, wasmtime } from './config/module.f.js'
 import { main as ownMain, packageConsumer } from './self/module.f.mjs'
-import { major, nodeNixJobs, packageJobId } from './node/module.f.mjs'
+import { installNode, major, nodeNixJobs, packageJobId } from './node/module.f.mjs'
 import { flakePath, flakeText, nixDevelop, nixShell } from './nix/module.f.mjs'
 import { consumerDirectory, packageCheckSteps } from './package/module.f.mjs'
 import { npmPublishJobId, npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
@@ -596,9 +596,11 @@ export const proof = {
             assert(
                 job.steps.some(step => step.uses?.startsWith('cachix/install-nix-action@') === true),
                 `expected a pinned Nix installer in ${id}`)
-            // Node 26's job ends with the packed-package check, whole; the
-            // rest is the job's own.
-            const check = id === packageJobId ? packageCheckSteps(undefined) : []
+            // Node 26's job ends with the packed-package check, whole, behind
+            // the consumer's Node; the rest is the job's own.
+            const check = id === packageJobId
+                ? [installNode({ 'package-manager-cache': 'false' }), ...packageCheckSteps(undefined)]
+                : []
             const own = job.steps.slice(0, job.steps.length - check.length)
             assertStructurallySame(job.steps.slice(own.length), check)
             assert(
@@ -880,6 +882,12 @@ export const proof = {
             // start outside the tree, after the one that puts a consumer's
             // Node on `PATH`.
             assert(made < packed && packed < drift && drift < setup, 'expected mkdir, pack, drift check, then the check')
+            // The consumer's Node is the pinned one, and `setup-node` is told
+            // not to restore an npm cache: it would decide that from the
+            // checkout's `package.json`, making the consumer's setup depend
+            // on the repository it consumes.
+            assertEq(job.steps[setup]?.with?.['node-version'], node.default)
+            assertEq(job.steps[setup]?.with?.['package-manager-cache'], 'false')
             const check = job.steps.slice(setup + 1)
             assert(check.length !== 0, 'expected the check after its Node')
             for (const step of check) {

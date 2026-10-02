@@ -28,14 +28,18 @@ import {
     rustWasmSteps,
     shellRustCommands,
 } from './rust/module.f.mjs'
-import { nodeNixJobs, nodeVersionJobs, platformNodeSteps } from './node/module.f.mjs'
+import {
+    nodeNixJobs,
+    nodeVersionJobs,
+    nodeVersionStep,
+    platformNodeSteps,
+} from './node/module.f.mjs'
 import {
     nixDevelop,
     nixFlakes,
     nixInstall,
     nixShell,
     nixSteps,
-    nixVersionStep,
 } from './nix/module.f.mjs'
 import { bunSteps } from './bun/module.f.mjs'
 import { devNixJob } from './dev/module.f.mjs'
@@ -108,7 +112,7 @@ const workflowText = gha => JSON.stringify(gha, null, '  ')
  */
 const shellPlatformSteps = (rust, o, a) => [
     nixInstall,
-    nixVersionStep(nixShell, 'node --version', `v${node.default}`),
+    nodeVersionStep(nixShell, node.default),
     ...nixSteps(nixShell)([
         'npm ci',
         ...(rust ? shellRustCommands(o, a) : []),
