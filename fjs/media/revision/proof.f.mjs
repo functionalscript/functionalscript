@@ -4,7 +4,8 @@
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { dialect, mediaType, isHash, validate, decodeText, encodeText, hashEntries, mapHashes } from './module.f.mjs'
+import { dialect, mediaType, isHash, validate, decodeText, encodeText, hashEntries, mapHashes, checkReferences } from './module.f.mjs'
+import { toArray } from '../../types/list/module.f.mjs'
 
 // Valid cbase32 hashes (round-tripped in fjs/basen/cbase32/proof.f.mjs): single
 // cbase32 symbols, cheap to write inline here.
@@ -249,7 +250,7 @@ export const proof = {
         // `parents`, `snapshot`, then `lock` — a nested map's scopes extend
         // the path, and never appear as hashes themselves.
         entries: () => assertEq(
-            JSON.stringify(hashEntries(validRevisionOf({ parents: [h1, h2], lock: { a: h1, b: { c: h2 } } }))),
+            JSON.stringify(toArray(hashEntries(validRevisionOf({ parents: [h1, h2], lock: { a: h1, b: { c: h2 } } })))),
             JSON.stringify([
                 [['parents', '0'], h1],
                 [['parents', '1'], h2],
@@ -259,9 +260,9 @@ export const proof = {
             ])),
         // A shared-lock reference is a hash at the field itself.
         referenceEntry: () => assertEq(
-            JSON.stringify(hashEntries(validRevisionOf({ lock: h1 })).at(-1)),
+            JSON.stringify(toArray(hashEntries(validRevisionOf({ lock: h1 }))).at(-1)),
             JSON.stringify([['lock'], h1])),
-        noLockNoLockEntries: () => assertEq(hashEntries(validRevisionOf({})).length, 1),
+        noLockNoLockEntries: () => assertEq(toArray(hashEntries(validRevisionOf({}))).length, 1),
         // `f` reaches every hash and nothing else: `subject` is a hash-shaped
         // string here and stays as it was, and so does every other field.
         map: () => {
@@ -269,6 +270,17 @@ export const proof = {
             assertEq(
                 encodeText(r),
                 `{"archived":true,"dialect":"${dialect}","generation":0,"lock":{"a":"<${h1}>","b":{"c":"<${h2}>"}},"parents":["<${h1}>"],"snapshot":"<${h2}>","subject":"${h1}"}`)
+        },
+        // The entries are lazy, so validation stops at the first invalid
+        // hash: an invalid parent is reported without walking a `lock` too
+        // deep to walk at all.
+        shortCircuits: () => {
+            /** @type {LockMap} */
+            let lock = { leaf: h1 }
+            for (let i = 0; i < 100_000; i++) { lock = { scope: lock } }
+            const r = checkReferences({ ...validRevisionOf({}), parents: ['not a hash!'], lock })
+            assert(r[0] === 'error', ['expected error', r])
+            assertEq(r[1], 'parent is not a valid hash: not a hash!')
         },
         mapReference: () => assertEq(mapHashes(h => `<${h}>`)(validRevisionOf({ lock: h1 })).lock, `<${h1}>`),
         // An absent `lock` stays absent rather than becoming a present `undefined`.

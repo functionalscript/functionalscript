@@ -18,6 +18,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { DialectEntry } from '../types.ts'
  * @import { String as RttiString } from '../../rtti/types.ts'
+ * @import { List, Thunk } from '../../types/list/types.ts'
  * @import { HashEntry, LockField, LockFieldSchema, LockMap, LockSchema, Revision, RevisionError } from './types.ts'
  */
 
@@ -29,6 +30,7 @@ import { error, ok, okThen } from '../../types/result/module.f.mjs'
 import { dialectEntry } from '../module.f.mjs'
 import { definedEntries, sort } from '../../types/object/module.f.mjs'
 import { stringify } from '../json/module.f.mjs'
+import { empty, find, flat, map } from '../../types/list/module.f.mjs'
 
 /**
  * Format tag: names the dialect of this BLOB. The media type it is served
@@ -146,15 +148,19 @@ const validateShape = rttiParse(revisionSchema)
  * reference's path is `scope` itself. Nested maps are scopes, not references:
  * their keys are subjects, extend the path, and are never hashes.
  *
+ * `node` gets each entry's answer as a thunk, so a `node` that builds a lazy
+ * list walks only as far as its consumer reads — a validator stops at the
+ * first invalid hash and never descends into the rest of the map.
+ *
  * @template L, N
  * @param {(path: readonly string[]) => (h: string) => L} leaf
- * @returns {(node: (entries: readonly (readonly [string, L | N])[]) => N) => (scope: readonly string[]) => (value: LockField) => L | N}
+ * @returns {(node: (entries: readonly (readonly [string, () => L | N])[]) => N) => (scope: readonly string[]) => (value: LockField) => L | N}
  */
 const walkLock = leaf => node => {
     /** @type {(scope: readonly string[]) => (value: LockField) => L | N} */
     const walk = scope => value => typeof value === 'string'
         ? leaf(scope)(value)
-        : node(definedEntries(value).map(([subject, v]) => [subject, walk([...scope, subject])(v)]))
+        : node(definedEntries(value).map(([subject, v]) => [subject, () => walk([...scope, subject])(v)]))
     return walk
 }
 
@@ -163,36 +169,38 @@ const walkLock = leaf => node => {
  * `parents` entry, `snapshot`, and every hash in `lock` ({@link walkLock}).
  * {@link hashEntries} and {@link mapHashes} are this walk and nothing else, so
  * a new hash-bearing field is added here and reaches the validator and every
- * canonicaliser at once.
+ * canonicaliser at once. `lock` is answered as a thunk, for the same reason
+ * `walkLock` hands `node` thunks.
  *
  * @template L, N
  * @param {(path: readonly string[]) => (h: string) => L} leaf
- * @returns {(node: (entries: readonly (readonly [string, L | N])[]) => N) => (r: Revision) => { readonly parents: readonly L[], readonly snapshot: L, readonly lock?: L | N }}
+ * @returns {(node: (entries: readonly (readonly [string, () => L | N])[]) => N) => (r: Revision) => { readonly parents: readonly L[], readonly snapshot: L, readonly lock?: () => L | N }}
  */
-const walkRevision = leaf => node => r => ({
-    parents: r.parents.map((h, i) => leaf(['parents', `${i}`])(h)),
-    snapshot: leaf(['snapshot'])(r.snapshot),
-    ...(r.lock === undefined ? {} : { lock: walkLock(leaf)(node)(['lock'])(r.lock) }),
+const walkRevision = leaf => node => ({ parents, snapshot, lock }) => ({
+    parents: parents.map((h, i) => leaf(['parents', `${i}`])(h)),
+    snapshot: leaf(['snapshot'])(snapshot),
+    ...(lock === undefined ? {} : { lock: () => walkLock(leaf)(node)(['lock'])(lock) }),
 })
 
-/** @type {(path: readonly string[]) => (h: string) => readonly HashEntry[]} */
+/** @type {(path: readonly string[]) => (h: string) => List<HashEntry>} */
 const entryOf = path => h => [[path, h]]
 
-/** @type {(entries: readonly (readonly [string, readonly HashEntry[]])[]) => readonly HashEntry[]} */
-const flatEntries = entries => entries.flatMap(([, e]) => e)
+/** @type {(entries: readonly (readonly [string, Thunk<HashEntry>])[]) => List<HashEntry>} */
+const flatEntries = entries => flat(map(([, e]) => e)(entries))
 
-/** @type {(entries: readonly (readonly [string, LockField])[]) => LockMap} */
-const lockMapOf = Object.fromEntries
+/** @type {(entries: readonly (readonly [string, () => LockField])[]) => LockMap} */
+const lockMapOf = entries => Object.fromEntries(entries.map(([subject, value]) => [subject, value()]))
 
 /**
  * Every hash-bearing field of a revision with its path, in the order
  * {@link checkReferences} reports them: `parents`, `snapshot`, then `lock`.
+ * The list is lazy: reading its first entries does not walk the rest.
  *
- * @type {(r: Revision) => readonly HashEntry[]}
+ * @type {(r: Revision) => List<HashEntry>}
  */
 export const hashEntries = r => {
     const { parents, snapshot, lock } = walkRevision(entryOf)(flatEntries)(r)
-    return [...parents.flat(), ...snapshot, ...(lock ?? [])]
+    return flat([flat(parents), snapshot, lock ?? empty])
 }
 
 /**
@@ -201,15 +209,20 @@ export const hashEntries = r => {
  *
  * @type {(f: (h: string) => string) => (r: Revision) => Revision}
  */
-export const mapHashes = f => r => ({ ...r, ...walkRevision(() => f)(lockMapOf)(r) })
+export const mapHashes = f => r => {
+    const { parents, snapshot, lock } = walkRevision(() => f)(lockMapOf)(r)
+    return { ...r, parents, snapshot, ...(lock === undefined ? {} : { lock: lock() }) }
+}
 
 /** True when `s` decodes as a cbase32 CAS hash (rejects `https://` and any other non-cbase32 string).
  * @type {(s: string) => boolean}
  */
 export const isHash = s => cBase32ToVec(s) !== null
 
-/** @type {(entries: readonly HashEntry[]) => HashEntry | undefined} */
-const firstInvalid = entries => entries.find(([, h]) => !isHash(h))
+/** The first entry whose hash is not one ({@link isHash}), or `null`; reads no further.
+ * @type {(entries: List<HashEntry>) => HashEntry | null}
+ */
+const firstInvalid = find(null)(([, h]) => !isHash(h))
 
 /**
  * Why the hash at `path` inside a `lock` field is not one: an empty path is
@@ -236,7 +249,7 @@ const lockMessage = path => h => path.length === 0
  */
 export const lockFieldError = value => {
     const invalid = firstInvalid(walkLock(entryOf)(flatEntries)([])(value))
-    return invalid === undefined ? null : lockMessage(invalid[0])(invalid[1])
+    return invalid === null ? null : lockMessage(invalid[0])(invalid[1])
 }
 
 /**
@@ -293,7 +306,7 @@ const hashMessage = ([field, ...rest]) => h =>
  */
 export const checkReferences = r => {
     const invalid = firstInvalid(hashEntries(r))
-    if (invalid !== undefined) { return error(hashMessage(invalid[0])(invalid[1])) }
+    if (invalid !== null) { return error(hashMessage(invalid[0])(invalid[1])) }
     if (!Number.isSafeInteger(r.generation) || r.generation < 0) {
         return error(`generation must be a non-negative safe integer: ${r.generation}`)
     }

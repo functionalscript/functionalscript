@@ -157,9 +157,10 @@ URLs), plus `generation` being a **non-negative safe integer** (`≤ 2 ** 53 −
 layered on top of the structural schema.
 
 Which fields hold hashes — every `parents` entry, `snapshot`, and every hash in
-`lock` — is stated once, by the walk behind `hashEntries` (each hash with its
-path) and `mapHashes` (the revision with each hash rewritten). The validator
-finds the first non-hash among `hashEntries`; a consumer that re-spells hashes,
+`lock` — is stated once, by the walk behind `hashEntries` (a lazy list of each
+hash with its path) and `mapHashes` (the revision with each hash rewritten).
+The validator finds the first non-hash among `hashEntries` and walks no
+further; a consumer that re-spells hashes,
 such as [`fjs/cas/evo`](../../cas/evo/) canonicalising them with
 `canonicalCBase32`, maps them with `mapHashes`, so a new hash-bearing field
 reaches both at once.
