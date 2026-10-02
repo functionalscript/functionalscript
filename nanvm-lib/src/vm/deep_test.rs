@@ -2,6 +2,7 @@
 //! stack is far too small for a recursion that follows the nesting, and the
 //! values to nest.
 
+#[cfg(not(target_family = "wasm"))]
 use std::thread;
 
 use crate::{
@@ -15,10 +16,16 @@ pub(crate) const DEPTH: usize = 100_000;
 
 /// A stack a tenth of the default's: a recursion that follows the nesting
 /// overflows it within a thousand levels.
+#[cfg(not(target_family = "wasm"))]
 const STACK: usize = 256 * 1024;
 
-/// Runs `f` on a thread with [`STACK`].
+/// Runs `f` on a thread with [`STACK`]. WebAssembly has no threads, so there it
+/// runs on the one stack, which a recursion that follows the nesting overflows
+/// all the same.
 pub(crate) fn small_stack(f: impl FnOnce() + Send + 'static) {
+    #[cfg(target_family = "wasm")]
+    f();
+    #[cfg(not(target_family = "wasm"))]
     thread::Builder::new()
         .stack_size(STACK)
         .spawn(f)
