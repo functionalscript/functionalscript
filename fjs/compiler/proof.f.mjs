@@ -1744,6 +1744,11 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             shared('const x = {}; const a = [x]; export default [...a, x];')
             shared('const b = [{}]; const a = [...b, 1]; export default [...a, b];')
             shared('const b = [[1]]; const a = [...b]; export default [...a, ...a];')
+            // an array literal spread holds its items as they stand
+            shared('const x = {}; export default [x, ...[x]];')
+            shared('const x = {}; export default [...[x], ...[x]];')
+            shared('const x = {}; export default [...[[x]][0], x];')
+            assertEq(compileSource('const x = {}; export default [...[x]];')('output.json'), '[{}]')
             // an access through an array holding a spread reads every item
             // it may select
             assertEq(compileSource('const a = [1, 2]; export default [[...a, 3][2], [0, ...a][1], [...a].length];')('output.json'), '[3,1,2]')

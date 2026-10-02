@@ -29,13 +29,16 @@ export type _RunState = {
  * conditionally established operands do: the right operand of `&&`, `||`
  * and `??`, and both arms of `?:` — the value's view every one of them,
  * since the value may be any of them, and the written view none, since
- * the EDAG establishes none of them unconditionally.
+ * the EDAG establishes none of them unconditionally — and what a spread's
+ * operand contributes, given the walk of an operand: its elements, in the
+ * value's view, and the operand as it stands in a view that reads no keys.
  */
 export type _View = {
     readonly members: (members: readonly AstMember[]) => readonly AstConst[]
     readonly through: (ast: AstAccess) => AstConst
     readonly negated: (operand: AstConst) => readonly AstConst[]
     readonly lazy: (operands: readonly AstConst[]) => readonly AstConst[]
+    readonly spread: (refs: (ast: AstConst) => List<_Ref>, operand: AstConst) => List<_Ref>
 }
 
 export type _Ref = {

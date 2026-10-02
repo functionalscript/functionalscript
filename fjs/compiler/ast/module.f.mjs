@@ -445,13 +445,12 @@ const refsOfOperand = view => ast => {
 }
 
 /**
- * The references an array's item makes: a value's own, and a spread's
- * operand's one key deeper, each of its elements — the elements are in
- * the array, and the operand itself is not.
+ * The references an array's item makes: a value's own, and what a spread's
+ * operand contributes as the view reads it, {@link _View}'s `spread`.
  *
  * @type {(view: _View) => (item: AstItem) => List<_Ref>}
  */
-const itemRefs = view => item => isSpread(item) ? map(deeper(null))(refsOf(view)(item[1])) : refsOf(view)(item)
+const itemRefs = view => item => isSpread(item) ? view.spread(refsOf(view), item[1]) : refsOf(view)(item)
 
 /**
  * Whether a call is one the lowering inlines: a call, with no arguments, of
@@ -544,7 +543,7 @@ const inlinedRefs = view => ([, callee]) => {
     return flat(map(captured)(bodyRefs(view)(body)))
 }
 
-/** A reference one key deeper: the key as JavaScript reads it, so `0` and `"0"` are one, or each element, `null`. @type {(key: _Key) => (ref: _Ref) => _Ref} */
+/** A reference one key deeper: the key as JavaScript reads it, so `0` and `"0"` are one. @type {(key: string) => (ref: _Ref) => _Ref} */
 const deeper = key => ({ ref, keys }) => ({ ref, keys: [...keys, key] })
 
 /** @type {(value: Unknown) => boolean} */
@@ -743,11 +742,12 @@ const selectedOf = ast => ast !== null && typeof ast === 'object' && ast[0] === 
  * not: the EDAG establishes `a && b`'s `b` only when `a` is truthy, so a
  * reference there is no guarantee the `const` it names is evaluated, and
  * {@link anchors} reads through this view exactly so that such a `const`
- * keeps its anchor.
+ * keeps its anchor. A spread's operand is read as it stands: what it
+ * establishes, not which of its parts the array holds.
  *
  * @type {_View}
  */
-const written = { members: memberValuesWritten, through: ast => ast, negated: operand => [operand], lazy: () => [] }
+const written = { members: memberValuesWritten, through: ast => ast, negated: operand => [operand], lazy: () => [], spread: (refs, operand) => refs(operand) }
 
 /**
  * The syntax as the value has it: the last member per key, of a literal
@@ -757,11 +757,15 @@ const written = { members: memberValuesWritten, through: ast => ast, negated: op
  * `[-0, -0]`, two primitives and no node shared between them — and of a
  * lazy operator every operand, since the value is whichever of them the
  * operator selects: `[a && c, b && c]` may hold `c` twice, and the sweep
- * says shared where it cannot say otherwise.
+ * says shared where it cannot say otherwise — and of a spread its operand's
+ * elements, the route of one `null` key, each element, walked into it: an
+ * array literal's items as they stand, `[x, ...[x]]` holding `x` twice, and
+ * a reference's elements one key deeper, which the evaluated value expands
+ * ({@link elementKeys}).
  *
  * @type {_View}
  */
-const value = { members: memberValues, through: selected, negated: () => [], lazy: operands => operands }
+const value = { members: memberValues, through: selected, negated: () => [], lazy: operands => operands, spread: (_, operand) => refsAlong(operand, [null]) }
 
 /**
  * The syntax as written, every position counted: what the written view
