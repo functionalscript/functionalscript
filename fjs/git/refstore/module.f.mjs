@@ -201,7 +201,7 @@
  * @import { _Entry, _Found, _Lookup, _Scope, _Walked } from './private.ts'
  */
 
-import { catchStep, foldStep, history, historyStep, ioError, mapStep, orElse, pureError, pureOk, step, walkStep } from '../../effects/module.f.mjs'
+import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, step, walkStep } from '../../effects/module.f.mjs'
 import { isDirectory, isNotFound, leadsNowhere, readFile, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
@@ -663,10 +663,7 @@ const askable = name => {
 const headBytes = dirs => catchStep(
     step(readdir(dirs.gitdir, {}), entries => headIsFile(entries)
         ? tryBytes(under(dirs.gitdir, head))
-        : pureError(ioError({
-            code: headKindCode,
-            message: headKindMessage(under(dirs.gitdir, head)),
-        }))),
+        : refuseHeadKind(headKindMessage(under(dirs.gitdir, head)))),
     orElse(isNotFound, null))
 
 /**
@@ -917,6 +914,9 @@ const walked = (state, items) => [state, items]
  */
 export const badNameCode = /** @type {const} */ ('ERR_BAD_NAME')
 
+/** Refuses with {@link badNameCode}. */
+const refuseBadName = refuse(badNameCode)
+
 /** @type {(path: string) => string} */
 export const badNameMessage = path => `${path} is not a ref name`
 
@@ -927,6 +927,9 @@ export const badNameMessage = path => `${path} is not a ref name`
  * refusal rather than a listing with one entry dropped.
  */
 export const lossyNameCode = /** @type {const} */ ('ERR_LOSSY_NAME')
+
+/** Refuses with {@link lossyNameCode}. */
+const refuseLossyName = refuse(lossyNameCode)
 
 /**
  * The message beside {@link lossyNameCode}: the directory listed, and the name
@@ -1003,10 +1006,7 @@ const descendInto = (item, found) =>
         const twice = twiceNamed(entries)
         return twice === null
             ? pureOk(walked(found, entries.map(childOf(item))))
-            : pureError(ioError({
-                code: lossyNameCode,
-                message: lossyNameMessage(item.path, twice),
-            }))
+            : refuseLossyName(lossyNameMessage(item.path, twice))
     })
 
 /**
@@ -1020,7 +1020,7 @@ const readAsRef = (readRef, name, item, found) => {
     // A file whose name is no ref name refuses the listing, which is Git's
     // answer for one — see {@link badNameCode}.
     if (!isWholeName(name)) {
-        return pureError(ioError({ code: badNameCode, message: badNameMessage(item.path) }))
+        return refuseBadName(badNameMessage(item.path))
     }
     // the name is recorded whatever the file turns out to hold, because
     // that is what shadows the packed line
@@ -1054,6 +1054,9 @@ const readAsRef = (readRef, name, item, found) => {
  */
 export const linkedDirCode = /** @type {const} */ ('ERR_LINKED_DIR')
 
+/** Refuses with {@link linkedDirCode}. */
+const refuseLinkedDir = refuse(linkedDirCode)
+
 /** @type {(path: string) => string} */
 const linkedDirMessage = path => `${path} is a link to a directory`
 
@@ -1084,7 +1087,7 @@ const statted = (readRef, name, item, found) => step(
         ? pureOk(walked(found, null))
         : s.isFile
             ? readAsRef(readRef, name, item, found)
-            : pureError(ioError({ code: linkedDirCode, message: linkedDirMessage(item.path) })))
+            : refuseLinkedDir(linkedDirMessage(item.path)))
 
 /**
  * The body of the walk of `refs/`: a directory gives its entries to walk
@@ -1314,6 +1317,9 @@ const ownRefs = (dirs, entries) => {
  */
 export const headKindCode = /** @type {const} */ ('ERR_HEAD_KIND')
 
+/** Refuses with {@link headKindCode}. */
+const refuseHeadKind = refuse(headKindCode)
+
 /** @type {(path: string) => string} */
 const headKindMessage = path => `${path} is not a regular file`
 
@@ -1328,6 +1334,9 @@ const headKindMessage = path => `${path} is not a regular file`
  * hold both.
  */
 export const packedHeadCode = /** @type {const} */ ('ERR_PACKED_HEAD')
+
+/** Refuses with {@link packedHeadCode}. */
+const refusePackedHead = refuse(packedHeadCode)
 
 /**
  * The code a listing is refused with when a ref holds the id no object has:
@@ -1355,6 +1364,9 @@ export const packedHeadCode = /** @type {const} */ ('ERR_PACKED_HEAD')
  */
 export const zeroIdCode = /** @type {const} */ ('ERR_ZERO_ID')
 
+/** Refuses with {@link zeroIdCode}. */
+const refuseZeroId = refuse(zeroIdCode)
+
 /** @type {(name: Bytes) => string} */
 const zeroIdMessage = name => `${nameForMessage(name)} holds the zero id`
 
@@ -1376,6 +1388,9 @@ const zeroIdMessage = name => `${nameForMessage(name)} holds the zero id`
  * loses nothing and is answered once.
  */
 export const packedTwiceCode = /** @type {const} */ ('ERR_PACKED_TWICE')
+
+/** Refuses with {@link packedTwiceCode}. */
+const refusePackedTwice = refuse(packedTwiceCode)
 
 /** @type {(dirs: Dirs, name: Bytes) => string} */
 const packedTwiceMessage = (dirs, name) =>
@@ -1459,10 +1474,7 @@ const headName = nameBytes(head)
 const tryHeadFound = (dirs, oidBytes, entries) => {
     const readRef = tryRef(oidBytes)
     if (!headIsFile(entries)) {
-        return pureError(ioError({
-            code: headKindCode,
-            message: headKindMessage(under(dirs.gitdir, head)),
-        }))
+        return refuseHeadKind(headKindMessage(under(dirs.gitdir, head)))
     }
     return mapStep(tryBytes(under(dirs.gitdir, head)), bytes => {
         if (bytes === null) { return { roots: [], names: [], pending: [] } }
@@ -1689,10 +1701,7 @@ export const tryRoots = (dirs, oidBytes) => {
         // The one collision that is neither a shadow nor an answer. See
         // {@link packedHeadCollision}.
         if (packedHeadCollision(h, packed)) {
-            return pureError(ioError({
-                code: packedHeadCode,
-                message: packedHeadMessage(dirs),
-            }))
+            return refusePackedHead(packedHeadMessage(dirs))
         }
         // The other two ways one name would stand for two roots, or one root for
         // no object. Both are asked of the finished list rather than of each
@@ -1700,10 +1709,7 @@ export const tryRoots = (dirs, oidBytes) => {
         // rule: see {@link zeroIdCode} and {@link packedTwiceCode}.
         const twice = packedDisagreement(packed)
         if (twice !== null) {
-            return pureError(ioError({
-                code: packedTwiceCode,
-                message: packedTwiceMessage(dirs, twice),
-            }))
+            return refusePackedTwice(packedTwiceMessage(dirs, twice))
         }
         const roots = combine({
             roots: concat(found.roots)(h.roots),
@@ -1713,6 +1719,6 @@ export const tryRoots = (dirs, oidBytes) => {
         const zero = zeroRoot(roots)
         return zero === null
             ? pureOk(roots)
-            : pureError(ioError({ code: zeroIdCode, message: zeroIdMessage(zero.name) }))
+            : refuseZeroId(zeroIdMessage(zero.name))
     })
 }
