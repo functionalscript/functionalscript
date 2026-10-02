@@ -22,7 +22,7 @@ export const listToString = compose(map(String.fromCharCode))(concat)
 String.fromCodePoint(node.symbol)
 ```
 
-`fjs/git/store` and `fjs/website` call `String.fromCharCode` inline too.
+`fjs/git/alternates` and `fjs/website` call `String.fromCharCode` inline too.
 
 And the inverse — index a string for a code unit / code point — is likewise
 split:
