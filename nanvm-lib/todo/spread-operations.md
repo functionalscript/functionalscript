@@ -11,8 +11,10 @@ array's items or an object's properties
 [`fjs/edag/types.ts`](../../fjs/edag/types.ts)). The JS evaluator in
 [`fjs/edag/operations`](../../fjs/edag/operations/module.f.mjs) runs both
 entries with JavaScript's semantics. The Rust writer,
-[`fjs/edag/rust`](../../fjs/edag/rust/module.f.mjs), refuses both: `Any` has
-no operation for either.
+[`fjs/edag/rust`](../../fjs/edag/rust/module.f.mjs), refused both: `Any` had
+no operation for either. It now prints an array's spread, and a call's,
+through `get_iterator` and the `vm::unstable` helpers `spread_array` and
+`spread_call`, and refuses an object's.
 
 The type of a spread's operand is unknown when the graph is built, so each
 spread needs one operation on `Any` that dispatches on the value it gets. The
@@ -187,10 +189,14 @@ produces part of a string, not for this one alone.
       - a surrogate pair and a lone surrogate;
       - an object with a duplicate key and with array-index keys out of order;
       - the four examples in the problem statement.
-- [ ] Spell `['...', exp]` in [`fjs/edag/rust`](../../fjs/edag/rust/module.f.mjs)
-      through these operations, as an array item, a call's argument and an
-      object property. Add generated fixtures in `nanvm-harness`, checked
-      against a JavaScript engine.
+- [x] Spell `['...', exp]` in [`fjs/edag/rust`](../../fjs/edag/rust/module.f.mjs)
+      as an array item and a call's argument, through `get_iterator` and
+      `spread_array`/`spread_call` in
+      [`vm::unstable`](../src/vm/unstable/mod.rs).
+- [ ] Spell it as an object property, through `object_spread`.
+- [ ] Add generated fixtures in `nanvm-harness`, checked against a
+      JavaScript engine, once FunctionalScript source can spell a spread
+      ([spread](../../spec/todo/2480-spread.md)).
 
 ### Related
 

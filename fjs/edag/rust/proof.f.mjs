@@ -7,7 +7,7 @@
  * convenience — the ordinary FunctionalScript panic `fjs/AGENTS.md` §1.5
  * describes, exactly what the `throw` cases below need.
  *
- * @import { Exp, PropertyLambda } from '../types.ts'
+ * @import { Exp, Property, PropertyLambda, Spread } from '../types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -1132,23 +1132,91 @@ export const proof = {
         },
     },
     /**
-     * Refusals met one step into a chain, each the inner node's own — a
-     * spread the printer cannot spell, a `Number(...)` cast key — surfacing
+     * Refusals met one step into a chain, each the inner node's own — an
+     * object spread the printer cannot spell, a `Number(...)` cast key — surfacing
      * with the inner node's reason when it is printed, and never a reason
      * about the base's value, which the printer does not predict.
      */
+    /**
+     * A spread, in an array or a call's arguments, prints through the
+     * `vm::unstable` helpers over `get_iterator`. It can throw, so the list
+     * holding it is an operation: `spread_array(…)` or `spread_call(…)`, a
+     * `Result` bound with `?` where it is a temporary, and an argument
+     * list's thunk answers `spread_array`'s own `Result`.
+     */
+    spread: {
+        array: () => {
+            assertEq(
+                printed(['[]', [1, ['...', 'ab']]]),
+                'spread_array([value_item(f64_any(0x3ff0000000000000)), spread_item(string_any("ab"))])')
+            assertStructurallySame(scoped(['[]', [['[]', [['...', 'ab']]], 3]]), [
+                'let c0: Any<A> = spread_array([spread_item(string_any("ab"))])?;',
+                'Ok([c0, f64_any(0x4008000000000000)].to_array().to_any())',
+            ])
+        },
+        call: () => {
+            assertEq(
+                printed(['()', ['args'], [0, ['...', 'ab']]]),
+                'spread_call(args.clone().to_any(), [value_item(f64_any(0x0000000000000000)), spread_item(string_any("ab"))])')
+        },
+        /** A call step's and an optional call's arguments are a thunk, answering `spread_array`'s `Result`. */
+        thunks: () => {
+            assertStructurallySame(scoped(['.', ['args'], 'at', ['|()', [['...', 'ab']]]]), [
+                'let c0 = || spread_array([spread_item(string_any("ab"))]);',
+                'Any::dot(args.clone().to_any(), string_any("at")).end_call(c0)',
+            ])
+            assertEq(
+                printed(['?.()', ['undefined'], [['...', 'ab']]]),
+                'Any::option_call(Nullish::Undefined.to_any(), || spread_array([spread_item(string_any("ab"))])).end()')
+        },
+        /** Without a spread, nothing changes: the array is a value and the call `Any::call`. */
+        noSpread: () => {
+            assertEq(printed(['[]', ['...']]), '[string_any("...")].to_array().to_any()')
+            assertEq(
+                printed(['()', ['args'], ['...']]),
+                'Any::call(args.clone().to_any(), [string_any("...")].to_array().to_any())')
+        },
+        /**
+         * One pair object standing twice in a list reaches its operand twice:
+         * a pair is no node, so its operand is counted per occurrence, a
+         * temporary, and never moved twice — a spread in an array and in an
+         * argument list's thunk, and a property in an object.
+         */
+        sharedPair: () => {
+            /** @type {Exp} */
+            const a = ['.', ['args'], 'a']
+            /** @type {Spread} */
+            const s = ['...', a]
+            assertStructurallySame(scoped(['[]', [s, s]]), [
+                'let c0: Any<A> = Any::dot(args.clone().to_any(), string_any("a")).end()?;',
+                'spread_array([spread_item(c0.clone()), spread_item(c0.clone())])',
+            ])
+            assertStructurallySame(scoped(['.', ['args'], 'at', ['|()', [s, s]]]), [
+                'let c0 = || {',
+                '    let c1: Any<A> = Any::dot(args.clone().to_any(), string_any("a")).end()?;',
+                '    spread_array([spread_item(c1.clone()), spread_item(c1.clone())])',
+                '};',
+                'Any::dot(args.clone().to_any(), string_any("at")).end_call(c0)',
+            ])
+            /** @type {Property} */
+            const p = [':', 'k', a]
+            assertStructurallySame(scoped(['{}', [p, p]]), [
+                'let c0: Any<A> = Any::dot(args.clone().to_any(), string_any("a")).end()?;',
+                'Ok([(string_key("k"), c0.clone()), (string_key("k"), c0.clone())].to_object().to_any())',
+            ])
+        },
+        /** A spread array nested in a corpus expression is an operation, as an operator is. */
+        nestsOperation: () => {
+            assertEq(nestsOperation([])(['[]', [['[]', [['...', 'ab']]]]]), true)
+            assertEq(nestsOperation([])(['[]', [['[]', ['ab']]]]), false)
+        },
+    },
     chainRefusals: {
         /** The spread is refused where the object is printed, the same one `objectSpread` (`fjs/nanvm/rust/proof.f.mjs`) pins. */
         dotOnObjectWithSpread: () => {
             assertStructurallySame(
                 refusalReason(['.', ['.', ['{}', [['...', 'x']]], 'y'], 'z']),
                 ['not a property', ['...', 'x']])
-        },
-        /** A spread in an array item list has no spelling, wherever the array stands. */
-        dotOnArrayWithSpread: () => {
-            assertStructurallySame(
-                refusalReason(['.', ['.', ['[]', [['...', 'x'], 1]], 0], 'y']),
-                ['no Rust for', '...'])
         },
         /** The cast key is `indexExpr`'s refusal, the same one `numberCastIndex` pins directly. */
         dotOnObjectWithNumberCastKey: () => {
