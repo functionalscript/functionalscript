@@ -143,20 +143,29 @@ proposer before implementation; this proposal was written by Claude.
 - [ ] AST and lowering: a spread member in the object node of
       [`fjs/compiler/ast`](../../fjs/compiler/ast/module.f.mjs), lowered to
       `['...', exp]` by [`fjs/compiler/edag`](../../fjs/compiler/edag/module.f.mjs).
+      A member is `[name, value]` today, so `['...', v]` would read as a
+      property named `...`, which `{ "...": 1 }` already is: the member
+      becomes the EDAG's tagged `[':', name, value]` and the spread the
+      array's `AstSpread`, `['...', v]`, two shapes no name can confuse.
 - [ ] Value evaluator: `toDjs` in
       [`fjs/compiler/ast`](../../fjs/compiler/ast/module.f.mjs), which the
       `.json` and `.data.js` outputs run, copies a spread's own properties
       into the object in its place, as `CopyDataProperties` does: an
       object's in own-property order, an array's elements by index, a
       string's code units, and nothing from every other value.
-- [ ] AST analysis: an object literal holding a spread selects no key
-      (`selectable`), a member before a spread is not dropped as shadowed,
-      and every spread operand is kept and read as `CopyDataProperties`
-      copies it — its own properties, each one key deeper — in the sharing,
-      anchoring and capture sweeps of
-      [`fjs/compiler/ast`](../../fjs/compiler/ast/module.f.mjs); proofs
-      that `[o.x, { ...o }.x]` and two spreads of one object are refused as
-      JSON where `o.x` is a container, and written where it is not.
+- [ ] AST analysis, in
+      [`fjs/compiler/ast`](../../fjs/compiler/ast/module.f.mjs): an
+      object literal holding a spread selects no key — `literalAt` and
+      `selected` resolve none, through the `selectable` check array spread
+      adds for an array holding one — a member before a spread is not
+      dropped as shadowed (`memberValues`), and every spread operand is
+      kept and read as `CopyDataProperties` copies it, its own properties,
+      each one key deeper, in the sharing, anchoring and capture sweeps;
+      and `readsRest`, which `isInlinedCall` asks, sees a spread's operand,
+      so `((...r) => ({ ...r }))()` stays a call. Proofs that
+      `[o.x, { ...o }.x]` and two spreads of one object are refused as JSON
+      where `o.x` is a container and written where it is not, and that the
+      call above is not inlined.
 - [ ] `.js` writer: spell a spread member, `...x`, in
       [`fjs/compiler/serializer`](../../fjs/compiler/serializer/module.f.mjs),
       which refuses it today (`a spread`), and read back to the same graph.

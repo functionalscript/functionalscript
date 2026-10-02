@@ -133,9 +133,11 @@ printer read it before any source can produce it.
       A call with a spread is never inlined.
 - [ ] Value evaluator and analysis: `toDjs` in
       [`fjs/compiler/ast`](../../fjs/compiler/ast/module.f.mjs), which the
-      `.json` and `.data.js` outputs run, iterates a spread in its place,
-      and the sharing sweep counts what the spread puts in the array — its
-      operand's elements, not the operand.
+      `.json` and `.data.js` outputs run, iterates a spread in its place;
+      the sharing sweep counts what the spread puts in the array — its
+      operand's elements, not the operand; and `readsRest`, which
+      `isInlinedCall` asks, sees a spread's operand, so
+      `((...r) => [...r])()` stays a call, a proof pinning it.
 - [ ] `.js` writer: spell a spread item, `...x`, in an array and in a
       call's arguments, in
       [`fjs/compiler/serializer`](../../fjs/compiler/serializer/module.f.mjs),
