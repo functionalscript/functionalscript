@@ -201,8 +201,8 @@ which fixes it in the transport for every tool at once.
       the server keeps serving; `undefined`, a bigint and
       `export default x => x;` are refused;
       `const a = [1]; export default [a, a];` and
-      `const a = [1]; export default [1, 2].map(x => a);` are refused as
-      shared; `(x => x).toString()`, `'' + (x => x)` and `[x => x].join()`
+      `const a = [1]; export default [1, 2].map(x => a);` each return
+      `[[1],[1]]`; `(x => x).toString()`, `'' + (x => x)` and `[x => x].join()`
       return the rendered function text or an error result, never the
       factory's source; a result whose response overflows
       `maxLength` gets the transport's `-32603` with the request's `id`, as

@@ -8,18 +8,25 @@
 [`fjs/compiler/module.f.mjs`](../module.f.mjs) says it is one thing — pick a
 writer by the output's extension, run it, report — and holds three:
 
-**A JSON writer.** `noJson`, `jsonLeaf`, `jsonMember`, `jsonValue`,
-`_tryJson` and `jsonText` are a complete fallible serializer over the
-DataJS value model, built from `fjs/media/json/serializer`'s atoms
+**A JSON writer.** `noJson`, `jsonLeaf`, `jsonMember`, `walked`,
+`jsonValue`, `_tryJson` and `jsonText` are a complete fallible serializer
+over the DataJS value model, built from `fjs/media/json/serializer`'s atoms
 (`stringSerialize`, `boolSerialize`, `nullSerialize`, `colon`, `arrayWrap`,
 `objectWrap`) with its own container recursion:
 
 ```js
 // jsonValue
 return value instanceof Array
-    ? mapOk(arrayWrap)(all(value.map(jsonValue)))
-    : mapOk(objectWrap)(all(entries(value).map(jsonMember)))
+    ? mapOk(arrayWrap)(walked(jsonValue)(value))
+    : mapOk(objectWrap)(walked(jsonMember)(entries(value)))
 ```
+
+`walked` stops at the first refused item. That is a requirement, not a
+detail: a node reached many times is written once per reference, so a
+refused leaf under one must be found along the first reference, or a module
+of forty doublings over `[undefined]` walks two to the fortieth references
+before it is refused. `jsonRefusals.firstRefusal` in
+[`../proof.f.mjs`](../proof.f.mjs) pins it.
 
 The one fact that is the compiler's here is the refusal list — a
 non-finite number, a `bigint`, `undefined` — and none of it is the
@@ -41,7 +48,8 @@ command.
 
 - `fjs/media/json/serializer` gains a fallible `tryStringify` over the
   DataJS `Unknown`, the mirror of DataJS's own, with today's refusal
-  wording; `jsonText` in the command becomes `tryStringify(value)`. The
+  wording and today's short circuit — no item after a refused one is
+  walked; `jsonText` in the command becomes `tryStringify(value)`. The
   walk itself is one instance of the
   `treeSerialize` shape 157 already wants to unify, so land it as that
   factory's fallible form rather than a fourth walker.
@@ -55,7 +63,8 @@ what its doc claims.
 ### Tasks
 
 - [ ] `tryStringify` in `fjs/media/json/serializer` with a proof of each
-      refusal; the command imports it.
+      refusal and of the short circuit, `firstRefusal`'s forty doublings
+      moved with the walk; the command imports it.
 - [ ] `_errorLocation` into `fjs/compiler/parser`; the command imports it; its
       proof moves with it.
 - [ ] `tsc`, `fjs test`.
