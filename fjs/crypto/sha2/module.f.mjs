@@ -8,9 +8,10 @@
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Fold } from '../../types/function/operator/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { Base, Framed, Framing, FramingInit, Hash, Sha2, State, V16, V8 } from './types.ts'
+ * @import { Base, Framed, Framing, FramingInit, Hash, Sha2, V16, V8 } from './types.ts'
  */
 
+import { assert } from '../../asserts/module.f.mjs'
 import { divUp8, mask } from '../../types/bigint/module.f.mjs'
 import {
     vec,
@@ -95,6 +96,78 @@ export const framing = ({ chunkLength, lengthLength, digestLength, compress, dig
     }
 }
 
+/**
+ * The `Hash` over the framing of `init`, starting from the hash value
+ * `hash` and answering `hashLength` bits: the one place the
+ * `hashBytes`/`blockBytes` rounding and the initial state are spelled.
+ * Every SHA-2 variant is one, and so is
+ * [`fjs/crypto/sha1`](../sha1/module.f.mjs).
+ *
+ * It takes the `FramingInit` rather than a built `Framing` so that the
+ * block length it advertises is the one its `append` and `end` were
+ * built for: there is no value in which the two exist separately.
+ *
+ * `hashLength` must be positive and at most `init.digestLength`, since
+ * `end` answers the high `hashLength` bits of the digest and a longer
+ * hash has no bits to answer with. A violation is a caller error no data
+ * can cause, so it throws.
+ *
+ * @type {<H>(init: FramingInit<H>, hash: H, hashLength: bigint) => Hash<Framed<H>>}
+ */
+export const framed = (init, hash, hashLength) => {
+    const { chunkLength, digestLength } = init
+    assert(0n < hashLength && hashLength <= digestLength, 'hashLength out of range')
+    const { append, end } = framing(init)
+    return {
+        hashLength,
+        blockLength: chunkLength,
+        hashBytes: divUp8(hashLength),
+        blockBytes: divUp8(chunkLength),
+        init: { hash, len: 0n, remainder: empty },
+        append,
+        end: end(hashLength),
+    }
+}
+
+/**
+ * The number `words` spell, most significant first, each `wordLength`
+ * bits wide: how a hash value of words becomes its digest. `[]` spells
+ * `0n`.
+ *
+ * `wordLength` must be positive and every word must fit in it, or two
+ * words could spell what no run of words that wide can. The words are
+ * hash state, masked by the compression, so a violation is a caller
+ * error no data can cause, and it throws.
+ *
+ * @type {(wordLength: bigint) => (words: readonly bigint[]) => bigint}
+ */
+export const fromWords = wordLength => {
+    assert(0n < wordLength, 'wordLength must be positive')
+    const limit = 1n << wordLength
+    return words => words.reduce(
+        (p, v) => {
+            assert(0n <= v && v < limit, 'word out of range')
+            return p << wordLength | v
+        },
+        0n)
+}
+
+/**
+ * The choice function SHA-1 and SHA-2 share: each bit of `x` picks the
+ * bit of `y` or of `z`.
+ *
+ * @type {(x: bigint, y: bigint, z: bigint) => bigint}
+ */
+export const ch = (x, y, z) => x & y ^ ~x & z
+
+/**
+ * The majority function SHA-1 and SHA-2 share: each bit is the one at
+ * least two of `x`, `y` and `z` hold.
+ *
+ * @type {(x: bigint, y: bigint, z: bigint) => bigint}
+ */
+export const maj = (x, y, z) => x & y ^ x & z ^ y & z
+
 /** @type {(init: {
  *   readonly logBitLen: bigint,
  *   readonly k: readonly V16[],
@@ -102,8 +175,8 @@ export const framing = ({ chunkLength, lengthLength, digestLength, compress, dig
  *   readonly bs1: FixedArray<3, bigint>,
  *   readonly ss0: FixedArray<3, bigint>,
  *   readonly ss1: FixedArray<3, bigint>,
- * }) => Base} */
-const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }) => {
+ * }) => FramingInit<V8>} */
+const framingInit = ({ logBitLen, k, bs0, bs1, ss0, ss1 }) => {
 
     const bitLength = 1n << logBitLen
 
@@ -132,12 +205,6 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }) => {
     const smallSigma0 = smallSigma(...ss0)
 
     const smallSigma1 = smallSigma(...ss1)
-
-    /** @type {(x: bigint, y: bigint, z: bigint) => bigint} */
-    const ch = (x, y, z) => x & y ^ ~x & z
-
-    /** @type {(x: bigint, y: bigint, z: bigint) => bigint} */
-    const maj = (x, y, z) => x & y ^ x & z ^ y & z
 
     const m = mask(bitLength)
 
@@ -239,57 +306,29 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }) => {
         ])
     }
 
-    const chunkLength = bitLength << 4n // * 16
-
-    /** @type {(a: V8) => bigint} */
-    const fromV8 = a => a.reduce((p, v) => (p << bitLength) | v)
-
-    // The length closing the last block is two words wide, and the digest
-    // the eight words spell is eight; see RFC 6234 section 4.
-    const { append, end } = framing({
-        chunkLength,
+    // A block is sixteen words, the length closing the last block is two
+    // words wide, and the digest the eight words spell is eight; see RFC
+    // 6234 section 4.
+    return {
+        chunkLength: bitLength << 4n,
         lengthLength: bitLength << 1n,
         digestLength: bitLength << 3n,
         compress,
-        digest: fromV8,
-    })
-
-    return { bitLength, chunkLength, compress, fromV8, append, end }
+        digest: fromWords(bitLength),
+    }
 }
 
 /**
- * SHA2. See https://en.wikipedia.org/wiki/SHA-2
+ * The exported view of a width's `FramingInit`.
  *
- * `hashLength` is a hash length, `blockLength` an internal block length,
- * `init` the initial state of the SHA-2 algorithm, `append` adds data to a
- * state and returns the new state, and `end` finalizes the hash of a state.
- *
- * @example
- *
- * ```js
- * import { vec } from '../../types/bit_vec/module.f.mjs'
- * import { utf8 } from '../../text/module.f.mjs'
- *
- * const s = utf8('The quick brown fox jumps over the lazy dog.')
- * const h = sha224.end(sha224.append(s)(sha224.init))
- * if (h !== vec(224n)(0x619cba8e8e05826e9b8c519c0a5c68f4fb653e8a3d8aa04bb2c8cd4cn)) { throw h }
- * ```
+ * @type {(init: FramingInit<V8>) => Base}
  */
-
-/** @type {(base: Base, hash: V8, hashLength: bigint) => Sha2} */
-const sha2 = ({ append, end, chunkLength }, hash, hashLength) => ({
-    hashLength,
-    blockLength: chunkLength,
-    hashBytes: divUp8(hashLength),
-    blockBytes: divUp8(chunkLength),
-    init: {
-        hash,
-        len: 0n,
-        remainder: empty,
-    },
-    append,
-    end: end(hashLength),
-})
+const base = init => {
+    const { chunkLength, compress, digest } = init
+    const { append, end } = framing(init)
+    // A block is sixteen words.
+    return { bitLength: chunkLength >> 4n, chunkLength, compress, fromV8: digest, append, end }
+}
 
 /**
  * Computes a hash from a list of message chunks: any SHA-2 variant, or
@@ -304,12 +343,8 @@ export const computeSync = ({ append, init, end }) => {
     return list => end(f(list))
 }
 
-/**
- * 32-bit SHA-2 base configuration shared by SHA-224 and SHA-256.
- *
- * @type {Base}
- */
-export const base32 = base({
+/** The framing of the 32-bit SHA-2 variants, SHA-224 and SHA-256. */
+const init32 = framingInit({
     logBitLen: 5n,
     k: [
         [
@@ -336,11 +371,14 @@ export const base32 = base({
 })
 
 /**
- * 64-bit SHA-2 base configuration shared by SHA-384, SHA-512, SHA-512/224 and SHA-512/256.
+ * 32-bit SHA-2 base configuration shared by SHA-224 and SHA-256.
  *
  * @type {Base}
  */
-export const base64 = base({
+export const base32 = base(init32)
+
+/** The framing of the 64-bit SHA-2 variants: SHA-384, SHA-512, SHA-512/224 and SHA-512/256. */
+const init64 = framingInit({
     logBitLen: 6n,
     k: [
         [
@@ -381,12 +419,19 @@ export const base64 = base({
 })
 
 /**
+ * 64-bit SHA-2 base configuration shared by SHA-384, SHA-512, SHA-512/224 and SHA-512/256.
+ *
+ * @type {Base}
+ */
+export const base64 = base(init64)
+
+/**
  * SHA-256
  *
  * @type {Sha2}
  */
-export const sha256 = sha2(
-    base32,
+export const sha256 = framed(
+    init32,
     [0x6a09e667n, 0xbb67ae85n, 0x3c6ef372n, 0xa54ff53an, 0x510e527fn, 0x9b05688cn, 0x1f83d9abn, 0x5be0cd19n],
     256n,
 )
@@ -396,8 +441,8 @@ export const sha256 = sha2(
  *
  * @type {Sha2}
  */
-export const sha224 = sha2(
-    base32,
+export const sha224 = framed(
+    init32,
     [0xc1059ed8n, 0x367cd507n, 0x3070dd17n, 0xf70e5939n, 0xffc00b31n, 0x68581511n, 0x64f98fa7n, 0xbefa4fa4n],
     224n,
 )
@@ -407,8 +452,8 @@ export const sha224 = sha2(
  *
  * @type {Sha2}
  */
-export const sha512 = sha2(
-    base64,
+export const sha512 = framed(
+    init64,
     [
         0x6a09e667f3bcc908n, 0xbb67ae8584caa73bn, 0x3c6ef372fe94f82bn, 0xa54ff53a5f1d36f1n,
         0x510e527fade682d1n, 0x9b05688c2b3e6c1fn, 0x1f83d9abfb41bd6bn, 0x5be0cd19137e2179n,
@@ -421,8 +466,8 @@ export const sha512 = sha2(
  *
  * @type {Sha2}
  */
-export const sha384 = sha2(
-    base64,
+export const sha384 = framed(
+    init64,
     [
         0xcbbb9d5dc1059ed8n, 0x629a292a367cd507n, 0x9159015a3070dd17n, 0x152fecd8f70e5939n,
         0x67332667ffc00b31n, 0x8eb44a8768581511n, 0xdb0c2e0d64f98fa7n, 0x47b5481dbefa4fa4n,
@@ -435,8 +480,8 @@ export const sha384 = sha2(
  *
  * @type {Sha2}
  */
-export const sha512x256 = sha2(
-    base64,
+export const sha512x256 = framed(
+    init64,
     [
         0x22312194fc2bf72cn, 0x9f555fa3c84c64c2n, 0x2393b86b6f53b151n, 0x963877195940eabdn,
         0x96283ee2a88effe3n, 0xbe5e1e2553863992n, 0x2b0199fc2c85b8aan, 0x0eb72ddC81c52ca2n,
@@ -449,8 +494,8 @@ export const sha512x256 = sha2(
  *
  * @type {Sha2}
  */
-export const sha512x224 = sha2(
-    base64,
+export const sha512x224 = framed(
+    init64,
     [
         0x8c3d37c819544da2n, 0x73e1996689dcd4d6n, 0x1dfab7ae32ff9c82n, 0x679dd514582f9fcfn,
         0x0f6d2b697bd44da8n, 0x77e36f7304C48942n, 0x3f9d85a86a1d36C8n, 0x1112e6ad91d692a1n,
