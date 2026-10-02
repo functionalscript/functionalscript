@@ -23,10 +23,11 @@ impl<T: Into<Unpacked<Naive>>> From<T> for Naive {
     }
 }
 
-/// How many nested drops run on the stack before the next is parked: a few
-/// hundred frames, which the 2 MiB stack of a test thread holds many times
+/// How many nested drops run on the stack before the next is parked. A level
+/// is several frames, and in a debug build on Windows more than a kilobyte, so
+/// the bound is a few dozen levels, which a 256 KiB stack holds many times
 /// over, and a value of any depth then unwinds from the outermost drop.
-const DROP_DEPTH: usize = 256;
+const DROP_DEPTH: usize = 32;
 
 thread_local! {
     /// The drops now on this thread's stack. A `Cell` of a `usize` has no
@@ -119,6 +120,7 @@ impl IStaticFunction for Naive {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(not(target_family = "wasm"))]
     use std::thread;
 
     use crate::{
@@ -127,8 +129,13 @@ mod tests {
     };
 
     /// A thread with a stack far smaller than the default 2 MiB: a value
-    /// whose drop recursed would not fit on it at a depth of 100,000.
+    /// whose drop recursed would not fit on it at a depth of 100,000. WebAssembly
+    /// has no threads, so there it runs on the one stack, which a million levels
+    /// of recursion overflow all the same.
     fn small_stack(f: impl FnOnce() + Send + 'static) {
+        #[cfg(target_family = "wasm")]
+        f();
+        #[cfg(not(target_family = "wasm"))]
         thread::Builder::new()
             .stack_size(256 * 1024)
             .spawn(f)
@@ -137,7 +144,7 @@ mod tests {
             .unwrap();
     }
 
-    const DEEP: usize = 1_000_000;
+    const DEEP: usize = 100_000;
 
     fn nested_arrays(depth: usize) -> Any<Naive> {
         (0..depth).fold(Nullish::Null.to_any(), |a, _| [a].to_array().to_any())
