@@ -71,18 +71,22 @@ const lock = ascii(lockSuffix)
 
 /**
  * Where a pass over a name stands after some of its bytes: the byte before,
- * or `null` before the first; the last bytes of the current component, at
- * most as many as {@link lock} has; whether every byte rule has held so far;
- * and whether every component closed so far was one.
+ * or `null` before the first; whether that byte is the name's only one so
+ * far; the last bytes of the current component, at most as many as
+ * {@link lock} has; whether every byte rule has held so far; and whether
+ * every component closed so far was one.
  *
  * Of the rules, `..` and `@{` need the byte before, the empty component and
  * the leading `.` need to know whether a component starts here — which the
  * byte before says too — and `.lock` needs the component's last bytes, read
- * when a slash or the end of the name closes it.
+ * when a slash or the end of the name closes it. `@` alone, which only
+ * {@link isWholeName} refuses, needs the byte before and whether it is the
+ * only one.
  */
 const init = {
     /** @type {number | null} */
     prev: null,
+    only: false,
     /** @type {readonly number[]} */
     tail: [],
     bytes: true,
@@ -116,6 +120,7 @@ const step = b => state => {
     const isSlash = b === slash
     return {
         prev: b,
+        only: prev === null,
         tail: isSlash ? [] : [...tail, b].slice(-lock.length),
         bytes: bytes
             && b >= space && b !== del && !forbidden.includes(b)
@@ -128,17 +133,19 @@ const step = b => state => {
 
 /**
  * A name read in one pass: whether every byte rule holds, a trailing `.`
- * included, and whether every component between slashes is one.
+ * included, whether every component between slashes is one, and whether the
+ * name is `@` alone.
  *
  * @throws If `name` is not a list of bytes.
  *
- * @type {(name: Bytes) => { readonly bytes: boolean, readonly components: boolean }}
+ * @type {(name: Bytes) => { readonly bytes: boolean, readonly components: boolean, readonly atAlone: boolean }}
  */
 const check = name => {
     const state = fold(step)(init)(name)
     return {
         bytes: state.bytes && state.prev !== dot,
         components: state.components && closes(state),
+        atAlone: state.only && state.prev === at,
     }
 }
 
@@ -243,7 +250,10 @@ export const isName = name => {
  *
  * @type {(name: Bytes) => boolean}
  */
-export const isWholeName = name => isName(name) && !sameItems(name)([at])
+export const isWholeName = name => {
+    const { bytes, components, atAlone } = check(name)
+    return bytes && components && !atAlone
+}
 
 /**
  * Whether two names are the same bytes: `fjs/types/list`'s `sameItems`,
