@@ -15,11 +15,14 @@ scanning:
 - each key's value is then read by `own_property(&k)`, which scans the
   property list again, `O(n²)` more.
 
-This is `ToJson::object` today. [spread-operations](./spread-operations.md)
-moves it, unchanged, into `Object::own_entries` and makes it the source of
-every `{...o}`, so a spread of a large object pays it, and pays it again for
-each spread of the same object. Measured with an object of distinct keys
-spread through `spread_object([spread_entries(o)])`:
+This is `Object::own_entries` (`vm/object/own_entries.rs`), the one view
+`ToJson::object` and the object spread (`Any::object_spread`) both read, moved
+unchanged out of `to_json` by [spread-operations](./spread-operations.md). It is
+the source of every `{...o}`, so a spread of a large object pays it, and pays it again for
+each spread of the same object. Measured at revision `f10b277` of `main`, in a
+release build on one core, with an object of distinct keys `k0`, `k1`, … spread
+through `spread_object([spread_entries(o)])` (`vm::unstable`), timed around that
+call alone:
 
 | keys | time |
 |---|---|
@@ -33,7 +36,10 @@ program that spreads an object it received, which is a sandbox's whole
 scenario.
 
 `array_index_value` also collects a `Vec<u16>` and a `String` for every key
-just to test and parse digits.
+just to test and parse digits; that is
+[to-json-array-index-scanner](./to-json-array-index-scanner.md)'s task, which
+makes `array_index_value` the `u32::MAX` filter over the shared scanner, and
+this one does not repeat it.
 
 ### Proposal
 
@@ -43,9 +49,6 @@ string to its slot, or the property indices sorted by key and the first-seen
 order restored — then split the keys into array-index keys, sorted by value,
 and the rest, as now. The `expect("key was just read …")` goes with the second
 scan, since nothing is looked up again.
-
-`array_index_value` reads the code units and accumulates into a `u64`, giving
-up past `u32::MAX − 1`, so it allocates nothing.
 
 Hashing a `String` needs a hash on `String<A>` that agrees with its equality;
 check what `IVm` already offers before adding one, and if the strings are
@@ -59,7 +62,6 @@ compared by content only through their code units, hash those.
 - [ ] `own_entries` in one pass, with the existing order tests unchanged:
       duplicates, array-index keys in numeric order, `01` and `4294967295` as
       ordinary keys.
-- [ ] `array_index_value` without allocation.
 - [ ] `ToJson::object` and `object_spread` keep calling the one view.
 - [ ] `cargo test`, `cargo clippy`, `cargo fmt -- --check`.
 
@@ -70,4 +72,5 @@ compared by content only through their code units, hash those.
 - [hash-table-improvement](./hash-table-improvement.md) — the VM's own keyed
   structures.
 - [to-json-array-index-scanner](./to-json-array-index-scanner.md) —
-  `array_index_value`'s own task.
+  the shared array-index scanner, which also removes `array_index_value`'s
+  allocation.
