@@ -10,8 +10,17 @@
  *
  * **The demo is a [versions demo](../../website/demo/versions/module.f.mjs)**,
  * which draws both versions as one graph; this module says only what the
- * trie is. A branch is titled with the first four hex digits of its hash,
- * SHA-256 of its children's identities. A leaf is its key, in binary and in
+ * trie is.
+ *
+ * **Every node is named by a SHA-256 hash, and titled with its first four
+ * hex digits**, so a reader can check any of them with `sha256sum`:
+ *
+ * - a leaf, by the hash of `leaf ` and its key — `leaf 3`;
+ * - a branch, by the hash of its two children's hashes, in hex, joined by a
+ *   space.
+ *
+ * The `leaf ` prefix keeps a leaf's hash from ever being a branch's: no
+ * branch's text starts with it. A leaf also shows its key, in binary and in
  * decimal: the binary is what the trie branches on. A trie is not balanced,
  * so a node is drawn one column right of its parent rather than every leaf
  * in the last column, which would stretch the shallow ones across the page.
@@ -54,7 +63,7 @@ const create = (a, b, storage) => {
 const { push, end } = patriciaTrie(create)
 
 /** @type {(key: number) => string} */
-const leafId = key => `leaf ${key}`
+const leafId = key => hashOf(`leaf ${key}`)
 
 /**
  * The trie over `keys`, which must be sorted, built from scratch.
@@ -99,7 +108,7 @@ const structure = {
                     : [{ label: 'Left', to: n[1] }, { label: 'Right', to: n[2] }]
                 return rows
             },
-            title: id => node(id)[0] === 'leaf' ? '' : id.slice(0, 4),
+            title: id => id.slice(0, 4),
             order: firstKey,
             layout: 'depth',
         }
@@ -133,7 +142,7 @@ const versions = versionsDemo({
     structure,
     name: 'patricia',
     noun: 'trie',
-    intro: 'Each step builds the trie again from all its keys. A node is named by the hash of its children, so every subtree whose keys did not change gets the same name, and is the same node in both tries.',
+    intro: 'Each step builds the trie again from all its keys. Every node is named by a SHA-256 hash, and titled with its first four hex digits: a leaf by the hash of "leaf " and its key, a branch by the hash of its two children\'s hashes joined by a space. So every subtree whose keys did not change gets the same name, and is the same node in both tries.',
     range: [0, 2 ** bits - 1],
     presets,
 })

@@ -182,13 +182,27 @@ const demoProof = {
         assertEq(again.versions.after.root, versions.after.root)
         assert(again.versions.after !== versions.after, '')
     },
-    // A branch is titled with the start of its hash; a leaf is its key in
-    // binary, beside the key in decimal.
+    // Every node's name is a real SHA-256 hash. The expected values are
+    // literal, from `printf '%s' 'leaf 3' | sha256sum` and so on, rather
+    // than computed here: a proof that hashed with the same code as the
+    // demo could not tell a wrong hash from a right one.
+    hashes: () => {
+        const { nodes } = _load('Insert a key').versions.after
+        const leaf3 = 'ca6e6588d55d58a70e0b4de60c2dab1e4574bb97d68fa88679852a5daaa9db02'
+        const leaf17 = '29a873fe7aa2874d9eb761738c2fcbdf87b0111d4dce56a5852fcb95abb78d66'
+        assertEq(JSON.stringify(nodes.get(leaf3)), '["leaf",3]')
+        assertEq(JSON.stringify(nodes.get(leaf17)), '["leaf",17]')
+        assertEq(JSON.stringify(nodes.get('b88a5a25664f3f78cfde82ed851de137bd89bef84ae91ea77f8ab0c6dbbc101b')), JSON.stringify(['branch', leaf3, leaf17]))
+    },
+    // Every node is titled with the start of its hash, leaves too; a leaf
+    // also shows its key in binary, beside the key in decimal.
     drawing: () => {
         const h = html(_load('Insert a key'))
         const { root } = _load('Insert a key').versions.after
         assert(root !== null, '')
         assert(h.includes(`data-graph-label="">${root.slice(0, 4)}<`), h)
+        assert(h.includes('data-graph-label="">ca6e<'), h)
+        assert(h.includes('data-graph-label="">b88a<'), h)
         assert(h.includes('data-graph-edge-label="">01100011<'), h)
         assert(h.includes('data-graph-value-label="">99<'), h)
         assert(h.includes('<label for="patricia-key">Key (0–255) </label>'), h)
@@ -200,7 +214,7 @@ const demoProof = {
         const roots = nodes.filter(n => edges.every(e => e.to !== n.id))
         assertEq(JSON.stringify(roots.map(n => n.rank)), '[0]')
         assert(edges.every(e => typeof e.to !== 'number' || nodes[e.to].rank === nodes[e.from].rank + 1), '')
-        const leafRanks = new Set(nodes.filter(n => n.label === '').map(n => n.rank))
+        const leafRanks = new Set(nodes.filter(n => edges.some(e => e.from === n.id && typeof e.to !== 'number')).map(n => n.rank))
         assert(leafRanks.size > 1, '')
     },
     // A step that leaves the keys as they were says why.
