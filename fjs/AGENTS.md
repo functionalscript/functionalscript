@@ -242,6 +242,18 @@ fails or behaves differently under the two.
 This one is a recommendation, not a rule. Both runners see every proof today,
 and `fjs t` stays the reference runner for everything `.f.mjs`.
 
+### 1.7 Name proof keys in camelCase
+
+A `proof` object's keys are the test names the runner prints
+(`proof.historyStep.overDo()`), so they follow the repository's identifier
+convention: camelCase — `lsbAligned`, `hashMergeShift`, not `lsb_aligned`.
+
+A key that names an export it exercises is spelled as the export is —
+`do_` in `fjs/effects/proof.f.mjs`, `prime_field` in
+`fjs/types/prime_field/proof.f.mjs` — and `throw` is the runner's structural
+marker ([§1.5](#15-never-use-trycatch-test-throwing-with-the-throw-key)), not
+a word to re-case.
+
 ---
 
 ## 2. Documentation
