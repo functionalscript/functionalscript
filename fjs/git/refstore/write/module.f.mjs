@@ -43,7 +43,7 @@
  * @import { Dirs } from '../types.ts'
  */
 
-import { catchStep, finallyStep, foldStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../../../effects/module.f.mjs'
+import { catchStep, finallyStep, foldStep, history, historyStep, ioError, mapStep, orElse, pureError, pureOk, resultStep, step } from '../../../effects/module.f.mjs'
 import { createExclusive, isNotFound, mkdir, rename, rm, rmdir, writeExclusive, writeExclusiveUtf8File } from '../../../effects/node/module.f.mjs'
 import { byteArray } from '../../../ebnf/byte/module.f.mjs'
 import { under } from '../../../path/module.f.mjs'
@@ -597,7 +597,7 @@ const emptied = paths => dropped(foldStep(
  */
 const madeHere = path => catchStep(
     mapStep(mkdir(path), () => true),
-    e => e[0] === 'ioError' && e[1].code === 'EEXIST' ? pureOk(false) : pureError(e))
+    orElse(e => e[0] === 'ioError' && e[1].code === 'EEXIST', false))
 
 /**
  * The directories above the ref, made one at a time from the top, and those this
@@ -706,7 +706,7 @@ const packedRewritten = dirs => without => {
  */
 const looseRemoved = path => catchStep(
     rm(path),
-    e => isNotFound(e) ? pureOk(undefined) : pureError(e))
+    orElse(isNotFound, undefined))
 
 /**
  * Whether the name's loose file holds a ref: `true` for an id or a `ref:` line,
