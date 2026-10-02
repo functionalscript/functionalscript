@@ -84,5 +84,6 @@ the shared one.
 - [container-read-skeleton.md](./container-read-skeleton.md) — the same
   duplication between the two schema-form readers; this issue is the data
   form's instance of the theme.
-- [kindset-eliminator.md](./kindset-eliminator.md) — touches
-  `patternsValidate`, the dispatcher above these two arms, not their bodies.
+- `kindFold` in [`fjs/rtti/data`](../data/module.f.mjs) — what
+  `patternsValidate`, the dispatcher above these two arms, reads its kind
+  through; it does not touch their bodies.
