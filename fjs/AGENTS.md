@@ -242,6 +242,18 @@ fails or behaves differently under the two.
 This one is a recommendation, not a rule. Both runners see every proof today,
 and `fjs t` stays the reference runner for everything `.f.mjs`.
 
+### 1.7 Name proof keys in camelCase
+
+A `proof` object's keys are the test names the runner prints
+(`proof.historyStep.overDo()`), so they follow the repository's identifier
+convention: camelCase — `lsbAligned`, `hashMergeShift`, not `lsb_aligned`.
+
+A key that names an export it exercises is spelled as the export is —
+`do_` in `fjs/effects/proof.f.mjs`, `prime_field` in
+`fjs/types/prime_field/proof.f.mjs` — and `throw` is the runner's structural
+marker ([§1.5](#15-never-use-trycatch-test-throwing-with-the-throw-key)), not
+a word to re-case.
+
 ---
 
 ## 2. Documentation
@@ -1025,7 +1037,12 @@ satisfy the rule. The cases in this repository:
   `IncomingMessage = Readable & {…}` in `fjs/effects/node/module.mjs` describes
   Node's object, which really does carry both member sets on one level. Nesting
   the base under a field there would describe something that isn't there — and
-  for a wire format it would change the encoding, not just the type.
+  for a wire format it would change the encoding, not just the type. A grammar
+  rule's branches are such a shape: `Value = () => readonly ['const',
+  ValueBranches & {…}]` in `fjs/compiler/parser/grammar/types.ts` describes
+  `{ ...valueBranches(), object }`, one record whose keys `fjs/ebnf/ll1` reads
+  as the rule's alternatives, so nesting the shared branches under a field
+  would describe a different grammar.
 - **A facade adding a member to a generic interface.**
   `FileCas = Cas<FileCasOperation> & { readonly url: (v: Vec) => string }` —
   composition would route every consumer through an extra hop

@@ -43,12 +43,19 @@ const helperCatalog = [
     ['bigint_any(', 'bigint_any'],
     ['bigint_any_words(', 'bigint_any_words'],
     ['f64_any(', 'f64_any'],
+    ['property_item(', 'property_item'],
+    ['spread_array(', 'spread_array'],
+    ['spread_call(', 'spread_call'],
+    ['spread_entries(', 'spread_entries'],
+    ['spread_item(', 'spread_item'],
+    ['spread_object(', 'spread_object'],
     ['strict_eq(', 'strict_eq'],
     ['strict_ne(', 'strict_ne'],
     ['string_any(', 'string_any'],
     ['string_any_utf16(', 'string_any_utf16'],
     ['string_key(', 'string_key'],
     ['string_key_utf16(', 'string_key_utf16'],
+    ['value_item(', 'value_item'],
 ]
 
 /**

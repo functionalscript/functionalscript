@@ -52,6 +52,6 @@ codepoint-aware — stays as the statement of the rule.
 
 ### Related
 
-- [zip-longest.md](./zip-longest.md) — the dual-sequence walks that *do*
-  need a combinator, all in `bigint` and `common/iter.rs`; this one needs
-  only std.
+- [`Iter::zip_longest`](../src/common/iter.rs) — the combinator the
+  dual-sequence walks in `bigint` and `common/iter.rs` *do* need; this one
+  needs only std.

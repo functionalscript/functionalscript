@@ -69,10 +69,24 @@ export type Inline = {
     readonly kind?: string | undefined
 }
 
-/** A graph `graphSvg` (`./module.f.mjs`) can draw: every node ranked, every edge named. */
+/**
+ * An arrow into a node from nowhere: where a reader enters the graph, such
+ * as a version's root. It has no label. `kind` is the demo's own
+ * vocabulary, drawn as `data-graph-edge-kind` like an {@link Edge}'s.
+ */
+export type Entry = {
+    readonly to: number
+    readonly kind?: string | undefined
+}
+
+/**
+ * A graph `graphSvg` (`./module.f.mjs`) can draw: every node ranked, every
+ * edge named, and the {@link Entry} arrows into it, if it has any.
+ */
 export type Graph = {
     readonly nodes: readonly Ranked[]
     readonly edges: readonly Edge[]
+    readonly entries?: readonly Entry[] | undefined
 }
 
 /**

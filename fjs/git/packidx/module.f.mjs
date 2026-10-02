@@ -59,6 +59,7 @@ import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
 import { bsearch, cmp } from '../../types/function/compare/module.f.mjs'
 import { take } from '../../types/list/module.f.mjs'
+import { startsWith, u32be, u64be } from '../bytes/module.f.mjs'
 import { digestOf, ofWidth } from '../oid/module.f.mjs'
 
 /** The four bytes a version 2 index begins with: `\377tOc`. */
@@ -66,35 +67,6 @@ const magic = /** @type {const} */ ([0xFF, 0x74, 0x4F, 0x63])
 
 /** How many entries the fanout table has, one per possible first byte. */
 const fanout = /** @type {const} */ (256)
-
-/**
- * A big-endian 32-bit word, read as arithmetic rather than with shifts.
- *
- * `<<` in JavaScript is a 32-bit *signed* operation, so `b[at] << 24` is
- * negative for a first byte of 0x80 or more and needs an unsigned coercion
- * to undo. Multiplying never has that shape.
- *
- * @type {(b: readonly number[], at: number) => number}
- */
-const u32 = (b, at) => b[at] * 16777216 + b[at + 1] * 65536 + b[at + 2] * 256 + b[at + 3]
-
-/**
- * A big-endian 64-bit word, or `null` where it is too large to be a byte
- * offset this repository can use.
- *
- * A `number` holds an integer exactly up to 2^53 - 1, and the offsets go on
- * to `readBytes`, which takes one. So an offset above that is refused rather
- * than rounded: 2^53 bytes is 8 PiB, which no pack is, and a value that big
- * is a corrupt file rather than a large one.
- *
- * @type {(b: readonly number[], at: number) => Nullable<number>}
- */
-const u64 = (b, at) => {
-    const high = u32(b, at)
-    const low = u32(b, at + 4)
-    const v = high * 4294967296 + low
-    return Number.isSafeInteger(v) ? v : null
-}
 
 /** @type {(b: readonly number[], at: number, width: number) => Oid} */
 const oidAt = (b, at, width) => u8ListToVecMsb(b.slice(at, at + width))
@@ -159,7 +131,7 @@ const fanoutAgrees = (b, fanoutAt, idsAt, stride, n, width) => {
      */
     const upTo = k => search(mid => firsts[mid] <= k ? 1 : -1)
     return Array.from({ length: fanout }, (_, k) => k)
-        .every(k => u32(b, fanoutAt + k * 4) === upTo(k))
+        .every(k => u32be(b, fanoutAt + k * 4) === upTo(k))
 }
 
 /**
@@ -205,7 +177,7 @@ const checksumAgrees = (b, oidBytes) => {
  */
 const tryV1 = (b, oidBytes) => {
     const width = oidBytes
-    const n = u32(b, (fanout - 1) * 4)
+    const n = u32be(b, (fanout - 1) * 4)
     const stride = 4 + width
     const entriesAt = fanout * 4
     if (b.length !== entriesAt + n * stride + 2 * width) { return null }
@@ -214,7 +186,7 @@ const tryV1 = (b, oidBytes) => {
     return {
         oidBytes,
         ids: Array.from({ length: n }, (_, i) => oidAt(b, entriesAt + i * stride + 4, width)),
-        offsets: Array.from({ length: n }, (_, i) => u32(b, entriesAt + i * stride)),
+        offsets: Array.from({ length: n }, (_, i) => u32be(b, entriesAt + i * stride)),
         packChecksum: oidAt(b, entriesAt + n * stride, width),
     }
 }
@@ -253,9 +225,9 @@ const largeOffsetFlag = /** @type {const} */ (0x80000000)
  */
 const tryV2 = (b, oidBytes) => {
     const width = oidBytes
-    if (u32(b, 4) !== 2) { return null }
+    if (u32be(b, 4) !== 2) { return null }
     const fanoutAt = /** @type {const} */ (8)
-    const n = u32(b, fanoutAt + (fanout - 1) * 4)
+    const n = u32be(b, fanoutAt + (fanout - 1) * 4)
     const idsAt = fanoutAt + fanout * 4
     const offsetsAt = idsAt + n * width + n * 4
     const largeAt = offsetsAt + n * 4
@@ -264,7 +236,7 @@ const tryV2 = (b, oidBytes) => {
     const large = largeBytes / 8
     if (!fanoutAgrees(b, fanoutAt, idsAt, width, n, width)) { return null }
     /** The 4-byte offset words, each either an offset or an index into the table. */
-    const words = Array.from({ length: n }, (_, i) => u32(b, offsetsAt + i * 4))
+    const words = Array.from({ length: n }, (_, i) => u32be(b, offsetsAt + i * 4))
     /** The indexes into the 8-byte table, in the order the words name them. */
     const named = words.filter(w => w >= largeOffsetFlag).map(w => w - largeOffsetFlag)
     // Every slot is named, exactly once, and in order: the k-th word that sets
@@ -285,7 +257,7 @@ const tryV2 = (b, oidBytes) => {
     // is Git's *object* reader, which takes such a file, that disagrees.
     if (large !== named.length || named.some((at, k) => at !== k)) { return null }
     const offsets = words.map(w =>
-        w < largeOffsetFlag ? w : u64(b, largeAt + (w - largeOffsetFlag) * 8))
+        w < largeOffsetFlag ? w : u64be(b, largeAt + (w - largeOffsetFlag) * 8))
     if (!offsets.every(o => o !== null)) { return null }
     if (!checksumAgrees(b, oidBytes)) { return null }
     return {
@@ -330,7 +302,7 @@ const tryV2 = (b, oidBytes) => {
 export const tryIdx = oidBytes => input => {
     const b = byteArray(input)
     if (b.length < fanout * 4 + 2 * oidBytes) { return null }
-    return magic.every((v, i) => b[i] === v) ? tryV2(b, oidBytes) : tryV1(b, oidBytes)
+    return startsWith(magic)(b) ? tryV2(b, oidBytes) : tryV1(b, oidBytes)
 }
 
 /**

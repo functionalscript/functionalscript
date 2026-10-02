@@ -1,5 +1,6 @@
 mod index;
 mod member_access;
+mod own_entries;
 mod own_property;
 mod partial_eq;
 mod sized_index;
