@@ -77,13 +77,15 @@ so the AST keeps the constants addressable and refers to them by index
 instead of inlining them. That is also what makes serialization a real
 choice: a value referenced more than once is emitted as a `const` and reused.
 
-An object is `['object', members]`, the members in the order written and a
+An object is `['object', members]`, each member `[':', key, value]` — tagged
+as the EDAG's property is, so that a spread member, `['...', v]`, can never
+read as a property named `...` — in the order written and a
 repeated key written twice, rather than a plain object: `run` builds the
 object JavaScript builds from the same literal — a repeated key at its first
 position with its last value, integer-like keys first — and the EDAG object
 constructor takes the members as written, which only the syntax still has.
 A module body's last entry is its export object: `export default 7;` lowers to
-`['object', [['default', 7]]]`. An ordinary function body still ends in its
+`['object', [[':', 'default', 7]]]`. An ordinary function body still ends in its
 returned value. Module `aref`s denote selected import bindings; default imports
 bind the dependency's `default` property, including for JSON imports. Named
 imports retain the selected export in `AstImport.name`; aliases resolve to the

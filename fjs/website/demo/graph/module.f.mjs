@@ -164,6 +164,7 @@ const nodeGap = /** @type {const} */ (14)
 const laneSize = /** @type {const} */ (10)
 const margin = /** @type {const} */ (10)
 const charWidth = /** @type {const} */ (7)
+const entryLength = /** @type {const} */ (24)
 
 /** @type {(label: string) => number} */
 const widthOf = label => Math.max(50, label.length * charWidth + 16)
@@ -190,6 +191,18 @@ const valueKindOf = ({ to }) =>
     typeof to === 'number' || to.kind === undefined ? {} : { 'data-graph-value-kind': to.kind }
 
 /**
+ * The attribute of the two groups a node is drawn in — its box with its
+ * rows, and its text, which are apart because edges are drawn between
+ * them: the node's kind, so a stylesheet can treat the whole node as one,
+ * where `data-graph-kind`, on the box alone, styles the box. They are two
+ * names because a rule meant for a box, a fill or a dash, would be wrong
+ * on text.
+ *
+ * @type {(p: _Positioned) => { readonly 'data-graph-in-kind': string }}
+ */
+const inKindOf = p => ({ 'data-graph-in-kind': p.kind })
+
+/**
  * A node's ports: one row per outgoing edge, in the order the demo gave
  * the edges, stacked under the node's label.
  *
@@ -200,23 +213,35 @@ const valueKindOf = ({ to }) =>
  * node — no row carries an empty cell. A node is as wide as the widest of
  * its label, a key beside its value, and an edge's key.
  *
+ * **An inline port with an empty key is its value alone**, filling the
+ * row, for a demo whose values need no name: a key column holding nothing
+ * would only push the value aside. Such a port takes no part in the key
+ * column.
+ *
+ * **An empty label is no row at all** when the node has ports: its rows
+ * already say what it is, and an empty header would be a blank band on
+ * top of them. An edge into such a node arrives at its first row instead.
+ * A node with neither keeps its header, or it would have no height.
+ *
  * @type {(label: string) => (out: readonly _Out[]) => _Size}
  */
 const portsOf = label => out => {
+    const header = label === '' && out.length > 0 ? 0 : headerHeight
     const inlines = out.flatMap(({ edge }) => {
         const inline = inlineOf(edge)
-        return inline === null ? [] : [{ key: cellWidthOf(edge.label), value: cellWidthOf(inline) }]
+        return inline === null ? [] : [{ keyed: edge.label !== '', key: cellWidthOf(edge.label), value: cellWidthOf(inline) }]
     })
-    const keyColumn = max(inlines.map(c => c.key))
+    const keyColumn = max(inlines.flatMap(c => c.keyed ? [c.key] : []))
     const width = Math.max(
         widthOf(label),
-        keyColumn + max(inlines.map(c => c.value)),
+        max(inlines.map(c => (c.keyed ? keyColumn : 0) + c.value)),
         max(out.flatMap(({ edge }) => inlineOf(edge) === null ? [cellWidthOf(edge.label)] : [])))
     return {
         width,
-        height: headerHeight + out.length * portHeight,
+        height: header + out.length * portHeight,
         keyWidth: keyColumn,
-        ports: out.map(({ edge, index }, i) => ({ edge, index, y: headerHeight + i * portHeight })),
+        entry: (header === 0 ? portHeight : header) / 2,
+        ports: out.map(({ edge, index }, i) => ({ edge, index, y: header + i * portHeight })),
     }
 }
 
@@ -263,9 +288,11 @@ const missingEnds = ids => (edge, index) => [
  * that shape took five times as long as the drawing had before lanes
  * existed.
  *
- * @type {(nodes: readonly Ranked[]) => (edges: readonly Edge[]) => _Placed}
+ * The first column starts at `left`.
+ *
+ * @type {(left: number) => (nodes: readonly Ranked[]) => (edges: readonly Edge[]) => _Placed}
  */
-const layout = nodes => edges => {
+const layout = left => nodes => edges => {
     // **An edge must name nodes the graph has, or the graph is refused.**
     // An edge is drawn from a port of its source, so one whose source is
     // missing would have nowhere to leave from and would simply vanish,
@@ -309,7 +336,7 @@ const layout = nodes => edges => {
         const slots = toArray(stateScan(placeSlot(left)(widest))(margin)(sized))
         return [{ end: left + widest, slots }, left + widest + rankGap]
     }
-    const placedColumns = toArray(stateScan(placeColumn)(margin)(columns))
+    const placedColumns = toArray(stateScan(placeColumn)(left)(columns))
     const placed = placedColumns.flatMap(column => column.slots)
     return {
         nodes: placed.flatMap(p => p.node === undefined ? [] : [p.node]),
@@ -351,7 +378,7 @@ const routesOf = placed => {
                 const lane = /** @type {_Lane} */ (lanes.get(`${port.index} ${from.rank + 1 + i}`))
                 return /** @type {readonly _Point[]} */ ([[lane.left, lane.y], [lane.right, lane.y]])
             }).flat(),
-            [to.x, to.y + headerHeight / 2],
+            [to.x, to.y + to.entry],
         ]
         return [{ edge: port.edge, points }]
     }))
@@ -389,6 +416,24 @@ export const _crossesBox = box => ([x0, y0]) => ([x1, y1]) => {
 }
 
 /**
+ * `g` laid out, with room left of the first column for its entries' arrows
+ * when it has any. **An entry must name a node of the graph**, for the
+ * reason an edge must ({@link layout}): an arrow into nothing would simply
+ * vanish. **And no node takes two**: they would be drawn one over the
+ * other, which reads as one.
+ *
+ * @type {(g: Graph) => _Placed}
+ */
+const placedOf = ({ nodes, edges, entries = [] }) => {
+    const ids = new Set(nodes.map(n => n.id))
+    const missing = entries.findIndex(({ to }) => !ids.has(to))
+    if (missing !== -1) { throw `graph: entry ${missing} ends at node ${entries[missing].to}, which is not in the graph` }
+    const repeated = entries.findIndex(({ to }, i) => entries.findIndex(e => e.to === to) !== i)
+    if (repeated !== -1) { throw `graph: entry ${repeated} ends at node ${entries[repeated].to}, which another entry already does` }
+    return layout(margin + (entries.length === 0 ? 0 : entryLength))(nodes)(edges)
+}
+
+/**
  * The number of edge segments that pass through a node's box — zero for
  * every graph this module draws, which is the claim {@link graphSvg} makes
  * and the proofs hold it to on each demo's own graphs.
@@ -396,7 +441,7 @@ export const _crossesBox = box => ([x0, y0]) => ([x1, y1]) => {
  * @type {(g: Graph) => number}
  */
 export const _crossings = g => {
-    const placed = layout(g.nodes)(g.edges)
+    const placed = placedOf(g)
     return routesOf(placed).reduce((n, { points }) =>
         n + points.slice(1).reduce((m, b, i) =>
             m + placed.nodes.filter(box => _crossesBox(box)(points[i])(b)).length, 0), 0)
@@ -453,7 +498,7 @@ const clipIdOf = p => `graph-clip-${p.x}-${p.y}-${p.width}-${p.height}`
  * @type {(g: Graph) => Element}
  */
 export const graphSvg = g => {
-    const placed = layout(g.nodes)(g.edges)
+    const placed = placedOf(g)
     const positioned = placed.nodes
     const width = margin + max([
         ...positioned.map(p => p.x + p.width),
@@ -469,24 +514,47 @@ export const graphSvg = g => {
         'data-graph-edge': '', 'marker-end': 'url(#graph-arrow)',
         ...(edge.kind === undefined ? {} : { 'data-graph-edge-kind': edge.kind }),
     }])
-    /** @type {(p: _Positioned) => (port: _Port) => number} */
-    const keyWidthOf = p => port => inlineOf(port.edge) === null ? p.width : p.keyWidth
+    const entries = g.entries ?? []
+    // An entry runs straight right into its node, level with where an edge
+    // would arrive.
     /** @type {readonly Element[]} */
-    const boxEls = positioned.flatMap(p => [
+    const entryEls = positioned.flatMap(p => entries.filter(({ to }) => to === p.id).map(({ kind }) => {
+        const y = p.y + p.entry
+        return /** @type {Element} */ (['path', {
+            d: `M${p.x - entryLength},${y} L${p.x},${y}`,
+            'data-graph-edge': '', 'data-graph-entry': '', 'marker-end': 'url(#graph-arrow)',
+            ...(kind === undefined ? {} : { 'data-graph-edge-kind': kind }),
+        }])
+    }))
+    /**
+     * How wide a port's key cell is: the whole row for an edge, nothing for
+     * a value with an empty key, and the key column for any other value.
+     *
+     * @type {(p: _Positioned) => (port: _Port) => number}
+     */
+    const keyWidthOf = p => port => inlineOf(port.edge) === null ? p.width
+        : port.edge.label === '' ? 0
+        : p.keyWidth
+    /** @type {readonly Element[]} */
+    const boxEls = positioned.map(p => ['g', inKindOf(p),
         /** @type {Element} */ (['rect', {
             x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: String(radius),
             'data-graph-node': '', 'data-graph-kind': p.kind,
         }]),
         ...(p.ports.length === 0 ? [] : [/** @type {Element} */ (['g', { 'clip-path': `url(#${clipIdOf(p)})` },
-            ...p.ports.map(port => /** @type {Element} */ (['rect', {
+            ...p.ports.flatMap(port => keyWidthOf(p)(port) === 0 ? [] : [/** @type {Element} */ (['rect', {
                 x: String(p.x), y: String(p.y + port.y),
                 width: String(keyWidthOf(p)(port)), height: String(portHeight),
                 'data-graph-port': '',
-            }])),
+            }])]),
             ...p.ports.flatMap(port => inlineOf(port.edge) === null ? [] : [/** @type {Element} */ (['rect', {
-                x: String(p.x + p.keyWidth), y: String(p.y + port.y),
-                width: String(p.width - p.keyWidth), height: String(portHeight),
+                x: String(p.x + keyWidthOf(p)(port)), y: String(p.y + port.y),
+                width: String(p.width - keyWidthOf(p)(port)), height: String(portHeight),
                 'data-graph-value': '',
+                // A value with no key is the whole row, so it is left
+                // unfilled: a tint across every row would hide the node's
+                // own fill, which is what its kind is drawn with.
+                ...(keyWidthOf(p)(port) === 0 ? { 'data-graph-value-alone': '' } : {}),
                 ...valueKindOf(port.edge),
                 // An edge carries its kind on its line; a value has no
                 // line, so its cell carries the kind instead.
@@ -504,19 +572,19 @@ export const graphSvg = g => {
     const clipEls = positioned.flatMap(p => p.ports.length === 0 ? [] : [/** @type {Element} */ (['clipPath', { id: clipIdOf(p) },
         ['rect', { x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: String(radius) }]])])
     /** @type {readonly Element[]} */
-    const labelEls = positioned.flatMap(p => [
-        /** @type {Element} */ (['text', {
+    const labelEls = positioned.map(p => ['g', inKindOf(p),
+        ...(p.label === '' ? [] : [/** @type {Element} */ (['text', {
             x: String(p.x + p.width / 2), y: String(p.y + headerHeight / 2),
             'text-anchor': 'middle', 'data-graph-label': '',
-        }, p.label]),
-        ...p.ports.map(port => /** @type {Element} */ (['text', {
+        }, p.label])]),
+        ...p.ports.flatMap(port => keyWidthOf(p)(port) === 0 ? [] : [/** @type {Element} */ (['text', {
             x: String(p.x + keyWidthOf(p)(port) / 2), y: String(p.y + port.y + portHeight / 2),
             'text-anchor': 'middle', 'data-graph-edge-label': '',
-        }, port.edge.label])),
+        }, port.edge.label])]),
         ...p.ports.flatMap(port => {
             const inline = inlineOf(port.edge)
             return inline === null ? [] : [/** @type {Element} */ (['text', {
-                x: String(p.x + (p.keyWidth + p.width) / 2), y: String(p.y + port.y + portHeight / 2),
+                x: String(p.x + (keyWidthOf(p)(port) + p.width) / 2), y: String(p.y + port.y + portHeight / 2),
                 'text-anchor': 'middle', 'data-graph-value-label': '',
                 ...valueKindOf(port.edge),
             }, inline])]
@@ -532,6 +600,7 @@ export const graphSvg = g => {
             ...clipEls],
         ...boxEls,
         ...edgeEls,
+        ...entryEls,
         ...labelEls,
     ]]
 }

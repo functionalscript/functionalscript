@@ -18,7 +18,29 @@ import {
     string,
     unknown as unknownRtti,
 } from '../module.f.mjs'
-import { absentBit, cmp, equal, never, subset, toData, unitBit, unitList, unknown, validate, withoutUnits } from './module.f.mjs'
+import {
+    absentBit,
+    admitsAbsence,
+    booleanBits,
+    cmp,
+    equal,
+    falseBit,
+    isNever,
+    isTop,
+    kindFold,
+    never,
+    nullBit,
+    resolve,
+    subset,
+    toData,
+    trueBit,
+    undefinedBit,
+    unitBit,
+    unitList,
+    unknown,
+    validate,
+    withoutUnits,
+} from './module.f.mjs'
 
 /** @type {(actual: Data) => (expected: Data) => void} */
 const assertData = actual => expected =>
@@ -225,6 +247,19 @@ export const proof = {
             withoutUnits(unitBit(undefined))({ unit: unitBit(undefined), string: true }),
             { string: true }),
     ],
+    kindFold: () => {
+        // each case observes its own branch: absent and whole carry no list,
+        // members receives the list itself
+        /** @type {(k: readonly number[] | true | undefined) => string} */
+        const spell = kindFold({
+            absent: () => 'absent',
+            whole: () => 'whole',
+            members: list => `members:${list.join()}`,
+        })
+        assertEq(spell(undefined), 'absent')
+        assertEq(spell(true), 'whole')
+        assertEq(spell([1, 2]), 'members:1,2')
+    },
     unitBits: () => {
         // the literal bits are the encoding under test
         assertEq(unitList.join(), 'null,undefined,false,true')
@@ -232,6 +267,42 @@ export const proof = {
         assertEq(unitBit(undefined), 2)
         assertEq(unitBit(false), 4)
         assertEq(unitBit(true), 8)
+        // the named bits are the same encoding
+        assertEq(nullBit, unitBit(null))
+        assertEq(undefinedBit, unitBit(undefined))
+        assertEq(falseBit, unitBit(false))
+        assertEq(trueBit, unitBit(true))
+        assertEq(booleanBits, falseBit | trueBit)
+    },
+    nodeAccessors: {
+        resolve: {
+            inline: () => assertStructurallySame(resolve({})({ number: true }), { number: true }),
+            reference: () => assertStructurallySame(resolve({ r: { string: true } })('r'), { string: true }),
+            throw: {
+                undefinedName: () => resolve({})('r'),
+                // own properties only: a name on `Object.prototype` is not a rule
+                prototypeName: () => resolve({})('toString'),
+            },
+        },
+        isNever: {
+            never: () => assert(isNever(never), 'never'),
+            unknown: () => assert(!isNever(unknown), 'unknown'),
+            // a reference is not read: resolve first to ask about its set
+            reference: () => assert(!isNever('r'), 'reference'),
+        },
+        isTop: {
+            unknown: () => assert(isTop(unknown), 'unknown'),
+            // the declared top carries the absent bit, so it is not `unknown`
+            declaredTop: () => assert(!isTop({ ...unknown, unit: (unknown.unit ?? 0) | absentBit }), 'declared top'),
+            never: () => assert(!isTop(never), 'never'),
+            reference: () => assert(!isTop('r'), 'reference'),
+        },
+        admitsAbsence: {
+            inline: () => assert(admitsAbsence({})({ unit: absentBit }), 'inline'),
+            reference: () => assert(admitsAbsence({ r: { unit: absentBit | nullBit } })('r'), 'reference'),
+            // `undefined` is a value, not absence
+            undefined: () => assert(!admitsAbsence({})({ unit: undefinedBit }), 'undefined'),
+        },
     },
     toData: {
         primitives: () => {

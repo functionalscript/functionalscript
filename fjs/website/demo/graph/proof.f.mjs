@@ -148,6 +148,66 @@ export const proof = {
             assert(html.includes('>root<'), html)
             assert(html.includes('>42<'), html)
             assert(html.includes('>x<'), html)
+            // A node is drawn in two groups, its box and its text, each
+            // carrying its kind under a name of its own, so a rule can reach
+            // the whole node.
+            assertEq(html.split('<g data-graph-in-kind="container">').length - 1, 2)
+            assertEq(html.split('<g data-graph-in-kind="leaf">').length - 1, 2)
+            assert(html.includes('<g data-graph-in-kind="container"><text'), html)
+        },
+        // An entry is an arrow from nowhere into a node, level with where
+        // an edge would arrive. The first column moves right by an arrow's
+        // length to make room: the first node is at x=34, and its header's
+        // middle, y=23, is where its arrow arrives. A node with no entry
+        // gets no arrow.
+        entries: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0 }, { id: 1, kind: 'a', label: 'm', rank: 0 }],
+                edges: [],
+                entries: [{ to: 0, kind: 'old' }],
+            }))
+            assert(html.includes('<rect x="34" y="10" width="50" height="26" rx="4" data-graph-node=""'), html)
+            assert(html.includes('<path d="M10,23 L34,23" data-graph-edge="" data-graph-entry="" marker-end="url(#graph-arrow)" data-graph-edge-kind="old">'), html)
+            assertEq(html.split('data-graph-entry=""').length - 1, 1)
+        },
+        // An empty label is no row when a node has ports: each node is its
+        // one 20px row, and the edge runs from the middle of the first row
+        // to the middle of the second's, (60,20) to (100,20). A node with
+        // no ports keeps its 26px header, or it would have no height.
+        emptyLabel: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [
+                    { id: 0, kind: 'a', label: '', rank: 0 },
+                    { id: 1, kind: 'a', label: '', rank: 1 },
+                    { id: 2, kind: 'a', label: '', rank: 1 },
+                ],
+                edges: [
+                    { from: 0, to: 1, label: 'x' },
+                    { from: 1, to: { inline: '1' }, label: 'v' },
+                    { from: 0, to: 2, label: 'y' },
+                ],
+            }))
+            assert(!html.includes('data-graph-label'), html)
+            assert(html.includes('<rect x="10" y="10" width="50" height="40" rx="4" data-graph-node=""'), html)
+            assert(html.includes('<rect x="100" y="10" width="50" height="20" rx="4" data-graph-node=""'), html)
+            assert(html.includes('<rect x="100" y="44" width="50" height="26" rx="4" data-graph-node=""'), html)
+            assertEq(routes(html)[0], 'M60,20 L100,20')
+        },
+        // A value whose key is empty fills its row: no key cell, no key
+        // text, and the value centred across the whole 50px node. A keyed
+        // value in the same node keeps its key cell.
+        emptyKey: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [{ id: 0, kind: 'a', label: '', rank: 0 }],
+                edges: [
+                    { from: 0, to: { inline: '5' }, label: '' },
+                    { from: 0, to: { inline: '6' }, label: 'k' },
+                ],
+            }))
+            assert(html.includes('<rect x="10" y="10" width="50" height="20" data-graph-value="" data-graph-value-alone="">'), html)
+            assert(html.includes('<text x="35" y="20" text-anchor="middle" data-graph-value-label="">5<'), html)
+            assertEq(html.split('data-graph-port=""').length - 1, 1)
+            assert(html.includes('<rect x="34" y="30" width="26" height="20" data-graph-value="">'), html)
         },
         /**
          * **An edge's label sits in a port of its own node**, not on the
@@ -514,6 +574,10 @@ export const proof = {
                 nodes: skipLevel.nodes,
                 edges: [...skipLevel.edges, { from: 0, to: 9, label: 'ghost' }],
             }),
+            // An entry, too, must arrive at a node the graph has.
+            entryToAMissingNode: () => graphSvg({ nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0 }], edges: [], entries: [{ to: 1 }] }),
+            // And two entries into one node would be drawn as one.
+            twoEntriesIntoOneNode: () => graphSvg({ nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0 }], edges: [], entries: [{ to: 0 }, { to: 0, kind: 'old' }] }),
             // The crossing count lays the graph out the same way, and
             // refuses the same input.
             crossings: () => _crossings({

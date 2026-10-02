@@ -575,14 +575,14 @@ export const proof = {
             assertEq(chunks.length, 0)
         },
         // 8-bit vector 0xF5 = 0b1111_0101, aligned to 4-bit chunks
-        lsb_aligned: () => {
+        lsbAligned: () => {
             const chunks = toArray(chunkList(lsb)(4n)(vec(8n)(0xF5n)))
             // LSB: low nibble first — bits 0-3 = 0101 = 5, bits 4-7 = 1111 = 15
             assertEq(chunks.length, 2)
             assert(!(length(chunks[0]) !== 4n || uint(chunks[0]) !== 5n), chunks[0])
             assert(!(length(chunks[1]) !== 4n || uint(chunks[1]) !== 0xFn), chunks[1])
         },
-        msb_aligned: () => {
+        msbAligned: () => {
             const chunks = toArray(chunkList(msb)(4n)(vec(8n)(0xF5n)))
             // MSB: high nibble first — bits 0-3 = 1111 = 15, bits 4-7 = 0101 = 5
             assertEq(chunks.length, 2)
@@ -590,7 +590,7 @@ export const proof = {
             assert(!(length(chunks[1]) !== 4n || uint(chunks[1]) !== 5n), chunks[1])
         },
         // 10-bit vector 0x1B5 = 0b01_1011_0101, unaligned to 4-bit chunks (last chunk is 2 bits)
-        lsb_unaligned: () => {
+        lsbUnaligned: () => {
             const chunks = toArray(chunkList(lsb)(4n)(vec(10n)(0x1B5n)))
             // LSB: bits 0-3 = 0101 = 5, bits 4-7 = 1011 = 11, bits 8-9 = 01 = 1
             assertEq(chunks.length, 3)
@@ -598,7 +598,7 @@ export const proof = {
             assert(!(length(chunks[1]) !== 4n || uint(chunks[1]) !== 0xBn), chunks[1])
             assert(!(length(chunks[2]) !== 2n || uint(chunks[2]) !== 1n), chunks[2])
         },
-        msb_unaligned: () => {
+        msbUnaligned: () => {
             const chunks = toArray(chunkList(msb)(4n)(vec(10n)(0x1B5n)))
             // MSB: bits 0-3 = 0110 = 6, bits 4-7 = 1101 = 13, bits 8-9 = 01 = 1
             assertEq(chunks.length, 3)

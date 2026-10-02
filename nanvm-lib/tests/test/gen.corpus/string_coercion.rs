@@ -19,6 +19,8 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("string", string_any("already").to_string().map(|v| v.to_any()), string_any("already"));
     check::<A>("bigint", bigint_any(123).to_string().map(|v| v.to_any()), string_any("123"));
     check::<A>("negativeBigint", bigint_any(-456).to_string().map(|v| v.to_any()), string_any("-456"));
+    check::<A>("wideBigint", bigint_any_words(false, &[0xc373e0ee4e3f0ad2, 0x000000018ee90ff6]).to_string().map(|v| v.to_any()), string_any("123456789012345678901234567890"));
+    check::<A>("wideNegativeBigint", bigint_any_words(true, &[0x0000000000000000, 0x0000000000000001]).to_string().map(|v| v.to_any()), string_any("-18446744073709551616"));
     check::<A>("emptyArray", Array::default().to_any().to_string().map(|v| v.to_any()), string_any(""));
     check::<A>("singletonArray", [f64_any(0x3ff0000000000000)].to_array().to_any().to_string().map(|v| v.to_any()), string_any("1"));
     check::<A>("array", [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any().to_string().map(|v| v.to_any()), string_any("1,2,3"));

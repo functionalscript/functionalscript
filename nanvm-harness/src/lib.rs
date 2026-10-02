@@ -16,6 +16,7 @@ pub mod fixtures {
     pub mod arity;
     pub mod array;
     pub mod at;
+    pub mod bigint;
     pub mod boolean;
     pub mod call;
     pub mod calls;
@@ -43,6 +44,7 @@ pub mod fixtures {
     pub mod rest;
     pub mod rest_function;
     pub mod sharing;
+    pub mod spread;
     pub mod string;
     pub mod throw;
     pub mod throws;
@@ -177,10 +179,11 @@ mod tests {
     use crate::{
         Action, RunError,
         fixtures::{
-            arity, array, at, boolean, call, calls, closure, escapes, exports, function,
+            arity, array, at, bigint, boolean, call, calls, closure, escapes, exports, function,
             function_scope, function_text, lazy, length, method, missing, named, named_imports,
             named_imports_throws, nested, not_a_function, nullish, number, object, operators,
-            parameters, property, rest, rest_function, sharing, string, throw, throws, to_string,
+            parameters, property, rest, rest_function, sharing, spread, string, throw, throws,
+            to_string,
         },
         run,
     };
@@ -312,6 +315,17 @@ mod tests {
         assert_eq!(
             run::<Naive>(function_scope::module, "default", Action::Read),
             Ok("[[1,1],[1,1]]".into())
+        );
+    }
+
+    /// Spread, end to end: an array's elements and a string's code points
+    /// spliced into an array literal and a call's arguments, a method
+    /// call's included — the values Node gives the fixture.
+    #[test]
+    fn spreads() {
+        assert_eq!(
+            run::<Naive>(spread::module, "default", Action::Read),
+            Ok(r#"[[0,1,2,3],["a","😀"],[1,2,4],4,2]"#.into())
         );
     }
 
@@ -504,6 +518,28 @@ mod tests {
             display("nothing", Action::Read),
             "`undefined` has no JSON representation"
         );
+    }
+
+    /// A bigint literal at and past the end of `i64`, read back as the decimal
+    /// text JavaScript gives each (JSON cannot hold a bigint).
+    #[test]
+    fn bigint_literals() {
+        let module = bigint::module::<Naive>().unwrap();
+        let list = Any::dot(module, "default".into()).end().unwrap();
+        let expected = [
+            "9223372036854775807",
+            "-9223372036854775808",
+            "9223372036854775808",
+            "-9223372036854775809",
+            "295147905179352825855",
+            "123456789012345678901234567890",
+        ];
+        for (i, text) in expected.into_iter().enumerate() {
+            let item = Any::dot(list.clone(), Number::from(i as f64).to_any())
+                .end()
+                .unwrap();
+            assert_eq!(item.to_string().unwrap(), text.into());
+        }
     }
 
     #[test]

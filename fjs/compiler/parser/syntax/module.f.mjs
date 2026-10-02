@@ -33,8 +33,8 @@
  * @import { Primitive } from '../../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
- * @import { Block, BlockStatement, Const, Entry, Import, ImportBinding, Module, ModuleConst, Node, Out, ParameterBinding, ParameterList, ValueStatement } from './types.ts'
- * @import { ArrowOrRest, Block as BlockRule, Body, Group, Items, LastStatement, Member, ParameterNames, Parenthesized, Statement, Unary, UnaryOperand, Value } from '../grammar/types.ts'
+ * @import { Block, BlockStatement, Const, Entry, Import, ImportBinding, Item, Module, ModuleConst, Node, Out, ParameterBinding, ParameterList, ValueStatement } from './types.ts'
+ * @import { ArrowOrRest, Block as BlockRule, Body, Group, Item as ItemRule, Items, LastStatement, Member, ParameterNames, Parenthesized, Statement, Unary, UnaryOperand, Value } from '../grammar/types.ts'
  * @import { key, namedImports, primitive, terminator } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _CircuitNode, _ConditionalNode, _EndNode, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _PowTailNode, _TailRound, _TokenStream } from './private.ts'
  */
@@ -47,7 +47,7 @@ import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import {
     binaryOpTag, body, callArguments, constStatement, djsModule, eagerTail, importBinding, importBindings,
-    importStatement, lastStatement, member, members, parameterNames, statement, symbolOf, unary, unaryOperand, value, values,
+    importStatement, item, lastStatement, member, members, parameterNames, statement, symbolOf, unary, unaryOperand, value, values,
 } from '../grammar/module.f.mjs'
 
 /**
@@ -131,7 +131,14 @@ const parametersAt = node => {
     return out.items
 }
 
-/** @type {(node: _Leaf) => List<Node>} */
+/** @type {(node: _Leaf) => Item} */
+const itemAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'item')
+    return out.item
+}
+
+/** @type {(node: _Leaf) => List<Item>} */
 const valuesAt = node => {
     const out = outAt(node)
     assert(out.id === 'values')
@@ -286,7 +293,7 @@ const valueItems = optionalItems(valuesAt)
 const memberItems = optionalItems(membersAt)
 
 /** The items of a list of values, its tail already mapped. */
-const valuesOf = listOf(nodeAt, valuesAt)
+const valuesOf = listOf(itemAt, valuesAt)
 
 /** The names a parameter list's optional tail holds, `[ ',' [ names ] ]` after the first. */
 const parameterItems = optionalItems(parametersAt)
@@ -921,7 +928,18 @@ const toModule = ([imports, consts, last]) => {
 /** @type {Mappings<DjsTokenWithMetadata, Out>} */
 const map = mapping
 
-/** @type {(node: Children<Items<Value>, DjsTokenWithMetadata, Out>) => Meta<Out>} */
+/**
+ * An item: the value's node, or a spread of it, the value at the second
+ * position of `... value`.
+ *
+ * @type {(node: Children<ItemRule, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ */
+const toItem = ([tag, branch]) => symbol({
+    id: 'item',
+    item: tag === 'value' ? nodeAt(branch) : ['...', nodeAt(unmapped(branch)[1])],
+})
+
+/** @type {(node: Children<Items<ItemRule>, DjsTokenWithMetadata, Out>) => Meta<Out>} */
 const toValues = node => symbol({ id: 'values', items: valuesOf(node) })
 
 /** @type {(node: Children<Items<Member>, DjsTokenWithMetadata, Out>) => Meta<Out>} */
@@ -951,6 +969,7 @@ export const mappings = [
     // a `-`/`~`'s own operand is a further rule of its own, its branches
     // `unary`'s minus the power, so it takes a reader of its own too
     map(unaryOperand, operandToNode),
+    map(item, toItem),
     map(values, toValues),
     // a call's arguments are that same list, reached through a rule of its
     // own, so the same reader serves both

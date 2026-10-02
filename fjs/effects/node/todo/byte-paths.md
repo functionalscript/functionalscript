@@ -45,7 +45,7 @@ converted once. Two smaller shapes are worth measuring first:
   round-trippable encoding. No API change; a subtle invariant everywhere.
 
 A `NUL` cut belongs here too once a path is a byte list: no system call takes a
-path holding one, and today `fjs/git/store`'s `alternatesIn` cuts it itself
+path holding one, and today `fjs/git/alternates`' `alternatesIn` cuts it itself
 because it was the only place that could.
 
 ### Tasks
