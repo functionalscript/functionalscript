@@ -1,7 +1,7 @@
-## Array flat and join overflow the stack on deep nesting
+## Array flat, join and to_json overflow the stack on deep nesting
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
@@ -27,10 +27,45 @@ before it is refused. That is slow, not wrong; a walk that remembers the
 count of an array it has already seen would make it linear in the distinct
 arrays.
 
+`Any::to_json` recurses the same way (`ToJson::array`, `ToJson::object`) and has
+a cost of its own: each level renders its children into a `String` of its own and
+copies it into its parent's, so a value `n` levels deep copies its text `n` times,
+quadratic in the depth, before it overflows.
+
 ### Proposal
 
 Walk with an explicit stack of the arrays being flattened or joined, in place of
-recursion, as `fjs/compiler/edag`'s `lower` does for operator chains.
+recursion, as `fjs/compiler/edag`'s `lower` does for operator chains. The three
+walks (`flat`, `join` and `to_json`) are the same task on three accumulators.
+
+**Why not a depth limit that throws.** JavaScript engines throw a `RangeError`
+at a depth in the thousands, so a limit looks like the natural answer. The
+stack a level costs rules it out here. On a 256 KiB stack the deepest value
+each read survives is:
+
+| operation | release build | debug build |
+|---|---|---|
+| `String(a)`, `join` | 109 levels | 30 levels |
+| `flat(Infinity)` | 499 | 150 |
+| `to_json` | 944 | 318 |
+| `{:?}` (`Debug`) | 2,293 | 638 |
+
+The shallowest, `String(a)`, costs about 2.4 KiB a level in a release build and
+about 8.7 KiB in a debug build, because the conversion goes through the
+`Dispatch` visitor and `Result<Any, Any>` frames. A limit safe on a 2 MiB test
+thread in a debug build would be a few hundred levels, and a program that nests
+an array a thousand deep and prints it would throw where JavaScript answers. An
+explicit stack has no such limit and no per-level stack.
+
+**`join` and `String(a)`.** An array cannot own a `toString`, so converting a
+nested array is always `Array.prototype.join(",")`, and the nesting can be walked
+without the visitor: a frame per array holding its pieces, an element that is an
+array pushing a frame with separator `","`, and any other element converted by
+`to_string` as now. An object's own `toString` that calls back into an array
+conversion is a function call, not nesting, and is bounded by the call depth.
+
+`Debug` is left out: it is a diagnostic, and its recursion costs far less a
+level.
 
 ### Tasks
 
@@ -40,3 +75,6 @@ recursion, as `fjs/compiler/edag`'s `lower` does for operator chains.
       over the same nesting.
 - [ ] `flat`'s length count remembers each shared array's count, so a
       deeply shared result is refused in time linear in the distinct arrays.
+- [ ] `to_json` over an explicit stack writing into one buffer, with tests
+      through `to_json` at a depth far past the stack and a check that the
+      text is the one the recursive version produced.
