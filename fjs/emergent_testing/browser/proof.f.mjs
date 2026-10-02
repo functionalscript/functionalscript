@@ -19,7 +19,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import {
-    countsView, groupByModule, groupLabel, groupStatus, groupView, loadProofs,
+    countsView, failureOf, groupByModule, groupLabel, groupStatus, groupView, loadProofs,
     pendingView, reportDuration, reportOf, reportView, resultView, runProofs, unreported,
 } from './module.f.mjs'
 import { demo } from './demo.f.mjs'
@@ -217,6 +217,14 @@ export const proof = {
             assertEq(outcome[1].length, 1)
             assertEq(outcome[1][0]?.module, 'the browser runner')
         },
+    },
+    // The walk always passes zero; the host passes its own clock, and the row
+    // carries whatever it was given.
+    failureOf: () => {
+        const [, answered] = working([])(failureOf('m', 7, 'boom'))
+        assertStructurallySame(answered, ok({
+            module: 'm', path: '', name: 'm', status: 'failed', duration: 7, message: 'boom', stack: 'boom',
+        }))
     },
     reportOf: {
         // The status the results decide: any failure fails the run.
