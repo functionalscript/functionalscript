@@ -7,7 +7,7 @@
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Array, Unknown } from '../../media/datajs/types.ts'
-import type { AstAccess, AstBody, AstConst, AstFrameRef, AstMember, AstModuleRef } from './types.ts'
+import type { AstAccess, AstBody, AstConst, AstFrameRef, AstEntry, AstModuleRef } from './types.ts'
 
 /** An evaluation in progress: the body, its arguments, and the values so far. */
 export type _RunState = {
@@ -34,7 +34,7 @@ export type _RunState = {
  * value's view, and the operand as it stands in a view that reads no keys.
  */
 export type _View = {
-    readonly members: (members: readonly AstMember[]) => readonly AstConst[]
+    readonly members: (entries: readonly AstEntry[]) => readonly AstConst[]
     readonly through: (ast: AstAccess) => AstConst
     readonly negated: (operand: AstConst) => readonly AstConst[]
     readonly lazy: (operands: readonly AstConst[]) => readonly AstConst[]

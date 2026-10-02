@@ -52,9 +52,9 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstFrameRef, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstThrow } from '../ast/types.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstThrow } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
- * @import { Block, Container, Entry, If, Import, Item, Module, Node, ParameterBinding, ParameterList, Statement, ValueStatement } from './syntax/types.ts'
+ * @import { Block, Container, If, Import, Item, Member, Module, Node, ParameterBinding, ParameterList, Statement, ValueStatement } from './syntax/types.ts'
  * @import { _AccessFrame, _BodyFrame, _CallFrame, _ConditionalFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Parameter, _Ref, _Scope, _Stack, _State } from './private.ts'
  */
 
@@ -312,18 +312,28 @@ const itemValue = item => value => {
     return spread
 }
 
+/**
+ * The node a member evaluates: a property's value, or a spread's operand —
+ * a spread is the one member that is a tuple, a property being a record.
+ *
+ * @type {(member: Member) => Node}
+ */
+const memberOperandOf = member => member instanceof Array ? member[1] : member.value
+
 /** @type {(container: Container, index: number) => Node} */
 const itemAt = ([kind, items], index) =>
-    kind === 'array' ? operandOf(items[index]) : items[index].value
+    kind === 'array' ? operandOf(items[index]) : memberOperandOf(items[index])
 
 /**
- * A container's value at `index`, its item's spread put back: an array's
- * item may be one, an object's member never is.
+ * A container's value at `index`, its item's or member's spread put back,
+ * {@link itemValue}.
  *
  * @type {(container: Container, index: number, value: AstConst) => AstItem}
  */
-const containerValue = ([kind, items], index, value) =>
-    kind === 'array' ? itemValue(items[index])(value) : value
+const containerValue = ([kind, items], index, value) => {
+    const entry = items[index]
+    return entry instanceof Array ? itemValue(entry)(value) : value
+}
 
 /**
  * The error a container's item earns before its value is read, or `null`:
@@ -339,19 +349,24 @@ const containerValue = ([kind, items], index, value) =>
  */
 const badKey = ([kind, items], index) => {
     if (kind === 'array') { return null }
-    const { key, name, computed } = items[index]
+    const member = items[index]
+    // a spread names no key
+    if (member instanceof Array) { return null }
+    const { key, name, computed } = member
     return name === protoKey && !computed ? protoKeyError(key) : null
 }
 
 /**
- * A member as an entry of the object being closed: its name, and the value
- * at its index among the resolved values, which are the leading parameter
- * so that the step lives here rather than closing over them — never a
- * spread, {@link containerValue}.
+ * A member as an entry of the object being closed: a property's name and
+ * the value at its index among the resolved values — the leading
+ * parameter, so that the step lives here rather than closing over them —
+ * or the spread {@link containerValue} put back there.
  *
- * @type {(done: readonly AstItem[]) => (member: Entry, index: number) => AstMember}
+ * @type {(done: readonly AstItem[]) => (member: Member, index: number) => AstEntry}
  */
-const memberEntry = done => ({ name }, index) => [':', name, /** @type {AstConst} */ (done[index])]
+const memberEntry = done => (member, index) => member instanceof Array
+    ? /** @type {AstSpread} */ (done[index])
+    : [':', member.name, /** @type {AstConst} */ (done[index])]
 
 /**
  * A container of the values its items resolved to: an array, or an object

@@ -33,8 +33,8 @@
  * @import { Primitive } from '../../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
- * @import { Block, BlockStatement, Const, Entry, Import, ImportBinding, Item, Module, ModuleConst, Node, Out, ParameterBinding, ParameterList, ValueStatement } from './types.ts'
- * @import { ArrowOrRest, Block as BlockRule, Body, Group, Item as ItemRule, Items, LastStatement, Member, ParameterNames, Parenthesized, Statement, Unary, UnaryOperand, Value } from '../grammar/types.ts'
+ * @import { Block, BlockStatement, Const, Entry, Import, ImportBinding, Item, Member, Module, ModuleConst, Node, Out, ParameterBinding, ParameterList, ValueStatement } from './types.ts'
+ * @import { ArrowOrRest, Block as BlockRule, Body, Group, Item as ItemRule, Items, LastStatement, Member as MemberRule, ParameterNames, Property, Parenthesized, Statement, Unary, UnaryOperand, Value } from '../grammar/types.ts'
  * @import { key, namedImports, primitive, terminator } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _CircuitNode, _ConditionalNode, _EndNode, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _PowTailNode, _TailRound, _TokenStream } from './private.ts'
  */
@@ -47,7 +47,7 @@ import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import {
     binaryOpTag, body, callArguments, constStatement, djsModule, eagerTail, importBinding, importBindings,
-    importStatement, item, lastStatement, member, members, parameterNames, statement, symbolOf, unary, unaryOperand, value, values,
+    importStatement, item, lastStatement, member, members, property, parameterNames, statement, symbolOf, unary, unaryOperand, value, values,
 } from '../grammar/module.f.mjs'
 
 /**
@@ -146,13 +146,20 @@ const valuesAt = node => {
 }
 
 /** @type {(node: _Leaf) => Entry} */
+const propertyAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'property')
+    return out.property
+}
+
+/** @type {(node: _Leaf) => Member} */
 const memberAt = node => {
     const out = outAt(node)
     assert(out.id === 'member')
     return out.member
 }
 
-/** @type {(node: _Leaf) => List<Entry>} */
+/** @type {(node: _Leaf) => List<Member>} */
 const membersAt = node => {
     const out = outAt(node)
     assert(out.id === 'members')
@@ -782,11 +789,22 @@ const keyOf = ([tag, branch]) => {
     }
 }
 
-/** @type {(node: Children<typeof member, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toMember = ([k, , v]) => {
+/** @type {(node: Children<typeof property, DjsTokenWithMetadata, Out>) => Meta<Out>} */
+const toProperty = ([k, , v]) => {
     const [token, name, computed] = keyOf(unmapped(k))
-    return symbol({ id: 'member', member: { key: token, name, computed, value: nodeAt(v) } })
+    return symbol({ id: 'property', property: { key: token, name, computed, value: nodeAt(v) } })
 }
+
+/**
+ * A member: the property's record, or a spread of the value at the
+ * second position of `... value`.
+ *
+ * @type {(node: Children<MemberRule, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ */
+const toMember = ([tag, branch]) => symbol({
+    id: 'member',
+    member: tag === 'property' ? propertyAt(branch) : ['...', nodeAt(unmapped(branch)[1])],
+})
 
 /**
  * An import's attribute, when the optional list holds one round: the key at
@@ -942,7 +960,7 @@ const toItem = ([tag, branch]) => symbol({
 /** @type {(node: Children<Items<ItemRule>, DjsTokenWithMetadata, Out>) => Meta<Out>} */
 const toValues = node => symbol({ id: 'values', items: valuesOf(node) })
 
-/** @type {(node: Children<Items<Member>, DjsTokenWithMetadata, Out>) => Meta<Out>} */
+/** @type {(node: Children<Items<MemberRule>, DjsTokenWithMetadata, Out>) => Meta<Out>} */
 const toMembers = node => symbol({ id: 'members', items: membersOf(node) })
 
 /** @type {(node: Children<ParameterNames, DjsTokenWithMetadata, Out>) => Meta<Out>} */
@@ -974,6 +992,7 @@ export const mappings = [
     // a call's arguments are that same list, reached through a rule of its
     // own, so the same reader serves both
     map(callArguments, toValues),
+    map(property, toProperty),
     map(member, toMember),
     map(members, toMembers),
     // the names after a named list's first, a list of its own so that a

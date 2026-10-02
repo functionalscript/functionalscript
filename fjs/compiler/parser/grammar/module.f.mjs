@@ -53,7 +53,8 @@
  * array  ::= '[' [ items(item) ] ']'
  * item   ::= '...' value | value
  * object ::= '{' [ items(member) ] '}'
- * member ::= key ':' value
+ * member ::= '...' value | property
+ * property ::= key ':' value
  * key    ::= id | string | '[' string ']'
  * items(x) ::= x [ ',' [ items(x) ] ]
  * ```
@@ -119,7 +120,7 @@
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { BinaryTag } from '../../ast/types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
- * @import { Access, AfterValue, ArrowOrRest, Block, Body, CircuitTail, ConditionalTail, EagerTail, End, Func, Group, GroupOperand, Item, Items, LastStatement, Member, ParameterNames, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
+ * @import { Access, AfterValue, ArrowOrRest, Block, Body, CircuitTail, ConditionalTail, EagerTail, End, Func, Group, GroupOperand, Item, Items, LastStatement, Member, ParameterNames, Property, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -909,8 +910,18 @@ export const key = /** @type {const} */ ({
     computed: [sym('['), sym('string'), sym(']')],
 })
 
-/** @type {Member} */
-export const member = [key, sym(':'), value]
+/** A property of an object, `key: value`. @type {Property} */
+export const property = [key, sym(':'), value]
+
+/**
+ * A member of an object: a property, or a spread of a value, `...value`,
+ * whose operand is any value, as JavaScript's `PropertyDefinition` takes
+ * an `AssignmentExpression` after `...`. `...` begins no key, so one
+ * symbol decides.
+ *
+ * @type {Member}
+ */
+export const member = { spread: [sym('...'), value], property }
 
 /** The members of an object, likewise. */
 export const members = items(member)

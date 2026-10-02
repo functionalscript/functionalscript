@@ -192,6 +192,7 @@ const fjsCorpus = [
     'const a = [1]; export default [...a, 0, ...a, ..."ab",];',
     'const f = (...r) => r; export default (...r) => f(...r);',
     'const o = { m: (...r) => r }; export default (...r) => o.m(...r, 1);',
+    'const o = { a: 1 }; export default [{ x: 0, ...o }, { ...o, x: 0 }, { ...o, ...o, }, (...r) => ({ ...r })];',
 ]
 
 /** Whether the front end finds a shared node in the module at `path`. @type {(root: typeof emptyState.root) => (path: string) => boolean} */
@@ -1754,6 +1755,66 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assertEq(compileSource('const a = [1, 2]; export default [[...a, 3][2], [0, ...a][1], [...a].length];')('output.json'), '[3,1,2]')
             shared('const a = [{}]; export default [[0, ...a][1], a];')
             shared('const s = [...[{}]]; export default [s[0], s[0]];')
+        },
+    },
+    // Spread in an object literal (`spec/README.md`, Object Spread): its
+    // operand's own properties copied in its place, as `CopyDataProperties`
+    // copies them, from an object, an array or a string, and nothing from
+    // any other value, so it never throws; each output spells it as it
+    // spells anything.
+    objectSpread: {
+        values: () => {
+            assertEq(
+                compileSource('const o = { a: 1, b: 2 }; export default [{ ...o, c: 3 }, { a: 0, ...o }, { ...o, a: 0 }, { ...o, ...o }, { ...o, }, { ...{} }];')('output.json'),
+                '[{"a":1,"b":2,"c":3},{"a":1,"b":2},{"a":0,"b":2},{"a":1,"b":2},{"a":1,"b":2},{}]')
+            // a copied key behaves as a written one: the later value wins
+            // and the key keeps its first position
+            assertEq(compileSource('export default { b: 1, a: 1, ...{ b: 2 } };')('output.json'), '{"b":2,"a":1}')
+            // an array's elements by index, a string's code units — two per
+            // code point, where an array's spread yields one item
+            assertEq(compileSource('export default [{ ...["p", "q"], z: 0 }, { ..."a😀" }];')('output.json'), '[{"0":"p","1":"q","z":0},{"0":"a","1":"\\ud83d","2":"\\ude00"}]')
+            // nothing from any other value, and no failure
+            assertEq(compileSource('export default [{ ...null }, { ...undefined }, { ...1 }, { ...true }, { ...1n }];')('output.json'), '[{},{},{},{},{}]')
+            // a copied `__proto__` key is an own property, as the computed
+            // spelling makes one
+            assertEq(compileSource('export default { ...{ ["__proto__"]: 1 } };')('output.data.js'), 'export default {["__proto__"]:1};')
+            // a property named `...` is a property
+            assertEq(compileSource('const o = { "...": 1 }; export default { ...o, ["..."]: 2 };')('output.json'), '{"...":2}')
+            // an access reads the object the spread made
+            assertEq(compileSource('const o = { a: 1 }; export default { ...o }.a;')('output.json'), '1')
+        },
+        // a function is refused first, as every value output refuses one
+        refused: () => {
+            assertEq(moduleRefused('export default { ...(() => 1) };'), 'input.f.js - error: a function has no value')
+            assertEq(moduleRefused('export default { ... };'), 'input.f.js:1:22 - error: unexpected token')
+            assertEq(moduleRefused('export default { ...a: 1 };'), 'input.f.js:1:22 - error: unexpected token')
+        },
+        outputs: () => {
+            assertEq(compileSource('const o = { a: 1 }; export default { ...o };')('output.edag.data.js'), 'export default ["{}",[[":","default",["{}",[["...",["{}",[[":","a",1]]]]]]]]];')
+            assertEq(compileSource('const o = { a: 1 }; export default { x: 0, ...o, ...{ y: 1 }, };')('output.js'), 'export default {"x":0,...{"a":1},...{"y":1}};')
+            assert(compileSource('const o = { a: 1 }; export default { x: 1, ...o, y: 2 };')('output.rs').includes('spread_object([property_item(string_key("x"), f64_any(0x3ff0000000000000)), spread_entries(c0), property_item(string_key("y"), f64_any(0x4000000000000000))])'))
+        },
+        // a call whose function reads its rest array through a spread stays
+        // a call
+        notInlined: () => {
+            assertEq(compileSource('export default ((...r) => ({ ...r }))();')('output.js'), 'const $0=(...$a)=>{return {...$a};};export default $0();')
+        },
+        // A spread puts its operand's properties in the object, not the
+        // operand: a node is shared through it when a property is a
+        // container reached twice, and an object of leaves spread twice
+        // shares nothing. With a spread among the members no key selects
+        // inside the literal, and no member before a spread is dropped.
+        sharing: () => {
+            /** @type {(source: string) => void} */
+            const shared = source => assertEq(jsonRefused(source), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(compileSource('const o = { k: 1 }; export default [{ ...o }, { ...o }];')('output.json'), '[{"k":1},{"k":1}]')
+            assertEq(compileSource('const s = "ab"; export default [{ ...s }, { ...s }];')('output.json'), '[{"0":"a","1":"b"},{"0":"a","1":"b"}]')
+            shared('const x = {}; const o = { k: x }; export default [{ ...o }, { ...o }];')
+            shared('const x = {}; export default [{ ...{ k: x } }, x];')
+            shared('const x = {}; const o = { k: x }; export default [{ ...o }.k, o];')
+            shared('const x = {}; export default [{ a: x, ...{ b: 1 } }.a, x];')
+            shared('const x = {}; export default [{ a: x, ...{ a: 1 } }, x];')
+            shared('const x = {}; const a = [x]; export default [{ ...a }, x];')
         },
     },
     throws: () => {

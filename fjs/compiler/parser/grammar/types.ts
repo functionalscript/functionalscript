@@ -103,8 +103,14 @@ export type Items<Item extends Rule> = () => readonly ['const', readonly [
 /** An opening symbol, an optional list, and the closing symbol. */
 export type Container<Item extends Rule> = readonly [number, Option<Items<Item>>, number]
 
-/** A key, `:`, and a value. */
-export type Member = readonly [typeof key, number, Value]
+/** A property: a key, `:`, and a value. */
+export type Property = readonly [typeof key, number, Value]
+
+/** A member of an object: `...` and a value, or a property. */
+export type Member = {
+    readonly spread: readonly [number, Value]
+    readonly property: Property
+}
 
 /** An item of an array or of a call's arguments: a value, or `...` and a value. */
 export type Item = {

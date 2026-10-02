@@ -98,7 +98,13 @@ export type Item = Node | readonly ['...', Node]
 /** An array of its items, or an object of its members, each in the order written. */
 export type Container =
     | readonly ['array', readonly Item[]]
-    | readonly ['object', readonly Entry[]]
+    | readonly ['object', readonly Member[]]
+
+/**
+ * A member of an object: a property, {@link Entry}, or a spread of a
+ * value, `...value`, which no node is — it stands only in a member list.
+ */
+export type Member = Entry | readonly ['...', Node]
 
 /**
  * One member of an object: the token its key is read from, which anchors
@@ -214,8 +220,9 @@ export type Out =
     | { readonly id: 'parameters', readonly items: List<ParameterBinding> }
     | { readonly id: 'item', readonly item: Item }
     | { readonly id: 'values', readonly items: List<Item> }
-    | { readonly id: 'member', readonly member: Entry }
-    | { readonly id: 'members', readonly items: List<Entry> }
+    | { readonly id: 'property', readonly property: Entry }
+    | { readonly id: 'member', readonly member: Member }
+    | { readonly id: 'members', readonly items: List<Member> }
     | { readonly id: 'importBinding', readonly binding: ImportBinding }
     | { readonly id: 'importBindings', readonly items: List<ImportBinding> }
     | { readonly id: 'import', readonly statement: Import }

@@ -6,7 +6,7 @@
  * @import { Array, Unknown } from '../../media/datajs/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstBody, AstFunction, AstItem, AstMember, AstModule, AstModuleRef, AstNeg, AstObject, AstSpread, AstThrow, BinaryTag, Import, Sharing, Anchors } from './types.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstBody, AstEntry, AstFunction, AstItem, AstMember, AstModule, AstModuleRef, AstNeg, AstObject, AstSpread, AstThrow, BinaryTag, Import, Sharing, Anchors } from './types.ts'
  * @import { _Key, _Node, _OperandStack, _Reach, _Ref, _RefNode, _Routes, _RunState, _View } from './private.ts'
  */
 
@@ -87,17 +87,24 @@ const ownProperty = key => base => base === null || base === undefined
 const keyed = key => value => [key, value]
 
 /**
- * Whether an item is a spread, `['...', v]`, rather than a value.
+ * Whether an item or an entry is a spread, `['...', v]`, rather than a
+ * value or a member.
  *
- * @type {(item: AstItem) => item is AstSpread}
+ * @type {(item: AstItem | AstEntry) => item is AstSpread}
  */
 export const isSpread = item => item instanceof Array && item[0] === '...'
 
 /** The node an item evaluates: itself, or a spread's operand. @type {(item: AstItem) => AstConst} */
 export const itemOperand = item => isSpread(item) ? item[1] : item
 
-/** Whether an item list holds a spread, so that its items' positions are no indices. @type {(items: readonly AstItem[]) => boolean} */
-const holdsSpread = items => items.some(isSpread)
+/** Whether an item or entry list holds a spread, so that no key names what it holds before the operand is evaluated. @type {(entries: readonly (AstItem | AstEntry)[]) => boolean} */
+const holdsSpread = entries => entries.some(isSpread)
+
+/** Whether an entry is a member, `[':', name, value]`, rather than a spread. @type {(entry: AstEntry) => entry is AstMember} */
+const isMember = entry => !isSpread(entry)
+
+/** The members among an object's entries, in order. @type {(entries: readonly AstEntry[]) => readonly AstMember[]} */
+const members = entries => entries.filter(isMember)
 
 /** @type {(items: List<readonly Unknown[]>) => Unknown} */
 const arrayOf = items => toArray(items).flat()
@@ -121,11 +128,31 @@ const iterated = value =>
     : typeof value === 'string' ? ok([...value])
     : error(notIterable)
 
-/** @type {(members: List<readonly [string, Unknown]>) => Unknown} */
-const objectOf = members => fromEntries(members)
+/** An object of its entries' properties in order: a repeated key keeps its first position and takes its last value. @type {(properties: readonly (readonly (readonly [string, Unknown])[])[]) => Unknown} */
+const objectOf = properties => fromEntries(properties.flat())
 
-/** A member with its value evaluated, by the evaluator given first. @type {(evaluate: (ast: AstConst) => Result<Unknown, string>) => (member: AstMember) => Result<readonly [string, Unknown], string>} */
-const memberValue = evaluate => ([, key, value]) => mapOk(keyed(key))(evaluate(value))
+/**
+ * The properties a spread's operand contributes, as `CopyDataProperties`
+ * copies them: its own enumerable string-keyed properties in own-property
+ * order — an object's, an array's elements by index, a string's code units —
+ * and none from `null`, `undefined`, a boolean, a number or a `bigint`.
+ * Never a failure, unlike an array's spread: `{ ...null }` is `{}`.
+ *
+ * @type {(value: Unknown) => readonly (readonly [string, Unknown])[]}
+ */
+const copied = value => value === null || value === undefined
+    ? []
+    : Object.entries(/** @type {{ readonly [k in string]?: Unknown }} */ (Object(value)))
+
+/**
+ * The properties an entry adds to an object, by the evaluator given first:
+ * a member's one, or the ones a spread's operand contributes, {@link copied}.
+ *
+ * @type {(evaluate: (ast: AstConst) => Result<Unknown, string>) => (entry: AstEntry) => Result<readonly (readonly [string, Unknown])[], string>}
+ */
+const entryProperties = evaluate => entry => isSpread(entry)
+    ? mapOk(copied)(evaluate(entry[1]))
+    : mapOk(value => [keyed(entry[1])(value)])(evaluate(entry[2]))
 
 /** One value, as the values an item adds to an array. @type {(value: Unknown) => readonly Unknown[]} */
 const single = value => [value]
@@ -245,7 +272,7 @@ const toDjs = state => ast => {
         case 'aref': { return ok(state.args[ast[1]]) }
         case 'cref': { return ok(last(null)(take(ast[1] + 1)(state.consts))) }
         case 'array': { return mapOk(arrayOf)(okList(ast[1].map(itemValues(toDjs(state))))) }
-        case 'object': { return mapOk(objectOf)(okList(ast[1].map(memberValue(toDjs(state))))) }
+        case 'object': { return mapOk(objectOf)(okList(ast[1].map(entryProperties(toDjs(state))))) }
         case '=>':
         case 'arg':
         case 'rest':
@@ -299,20 +326,34 @@ const bit = i => 1n << BigInt(i)
  * The values an object's members leave in the value: one per key, the last
  * written. A member a later duplicate shadows is syntax the value never
  * holds, so a reference in it reaches nothing. `Map` keeps the last value
- * per key, as `fromEntries` does in `toDjs`.
+ * per key, as `fromEntries` does in `toDjs`. With a spread among the
+ * entries the keys it copies are unknown, so no member is dropped: every
+ * one is read, which may say shared where the value is not, never the
+ * reverse.
  *
- * @type {(members: readonly AstMember[]) => readonly AstConst[]}
+ * @type {(entries: readonly AstEntry[]) => readonly AstConst[]}
  */
-const memberValues = members => [...new Map(members.map(([, key, value]) => [key, value])).values()]
+const memberValues = entries => holdsSpread(entries)
+    ? memberValuesWritten(entries)
+    : [...new Map(members(entries).map(([, key, value]) => [key, value])).values()]
 
 /**
  * The values of an object's members as written, a shadowed member's among
  * them: what the EDAG constructor takes, since it applies every member and
- * evaluates each.
+ * evaluates each. A spread's operand is not among them: a view reads it
+ * through its `spread`.
  *
- * @type {(members: readonly AstMember[]) => readonly AstConst[]}
+ * @type {(entries: readonly AstEntry[]) => readonly AstConst[]}
  */
-const memberValuesWritten = members => members.map(([, , value]) => value)
+const memberValuesWritten = entries => members(entries).map(([, , value]) => value)
+
+/**
+ * Every node an object's entries hold, as written: a member's value and a
+ * spread's operand.
+ *
+ * @type {(entries: readonly AstEntry[]) => readonly AstConst[]}
+ */
+const entryOperands = entries => entries.map(entry => isSpread(entry) ? entry[1] : entry[2])
 
 /** The stack with one more operand on top. @type {(s: _OperandStack, operand: AstConst) => _OperandStack} */
 const pushed = (s, operand) => ({ top: operand, rest: s })
@@ -412,7 +453,12 @@ const refsOfOperand = view => ast => {
     if (ast === null || typeof ast !== 'object') { return empty }
     switch (ast[0]) {
         case 'array': { return flat(ast[1].map(itemRefs(view))) }
-        case 'object': { return flat(view.members(ast[1]).map(refsOf(view))) }
+        case 'object': {
+            return flat([
+                ...view.members(ast[1]).map(refsOf(view)),
+                ...ast[1].flatMap(entry => isSpread(entry) ? [view.spread(refsOf(view), entry[1])] : []),
+            ])
+        }
         // a call reaches its callee and every argument, each written where
         // it stands: what the call *returns* is not reachable from the
         // syntax at all, which is why a module holding one has no value —
@@ -490,7 +536,7 @@ const operandReadsRest = ast => {
     switch (ast[0]) {
         case 'rest': { return true }
         case 'array': { return readsRest(ast[1].map(itemOperand)) }
-        case 'object': { return readsRest(memberValuesWritten(ast[1])) }
+        case 'object': { return readsRest(entryOperands(ast[1])) }
         case '()': { return readsRest([ast[1], ...ast[2].map(itemOperand)]) }
         case '.': { return readsRest([ast[1]]) }
         case '=>': { return readsRest(ast[3] ?? []) }
@@ -687,16 +733,16 @@ const valueAt = keys => value => keys.reduce(_own, value)
 const isContainerLiteral = ast => ast !== null && typeof ast === 'object' && (ast[0] === 'array' || ast[0] === 'object')
 
 /**
- * Whether a key selects inside a container literal: every object, and an
- * array holding no spread. A spread puts its operand's elements where it
- * stands, how many is known only once the operand is evaluated, so no key
- * names an item: such an array is read whole, every item it may select —
- * which may refuse a value whose selected item shares nothing
+ * Whether a key selects inside a container literal: one holding no spread.
+ * A spread puts its operand's elements or properties where it stands, which
+ * ones is known only once the operand is evaluated, so no key names an
+ * item or a member: such a literal is read whole, everything it may select
+ * — which may refuse a value whose selected part shares nothing
  * (`../todo/spread-index-sharing.md`), never answer a wrong one.
  *
  * @type {(ast: AstArray | AstObject) => boolean}
  */
-const selectable = ast => ast[0] === 'object' || !holdsSpread(ast[1])
+const selectable = ast => !holdsSpread(ast[1])
 
 /**
  * The literal one key into a container literal: an object's member of that
@@ -707,7 +753,7 @@ const selectable = ast => ast[0] === 'object' || !holdsSpread(ast[1])
  * @type {(ast: AstArray | AstObject, key: string) => AstConst}
  */
 const literalAt = (ast, key) => ast[0] === 'object'
-    ? ast[1].findLast(([, name]) => name === key)?.[2]
+    ? members(ast[1]).findLast(([, name]) => name === key)?.[2]
     // an array {@link selectable} holds no spread
     : /** @type {AstConst} */ (ast[1][arrayIndex(key) ?? ast[1].length])
 
@@ -760,10 +806,10 @@ const written = { members: memberValuesWritten, through: ast => ast, negated: op
  * lazy operator every operand, since the value is whichever of them the
  * operator selects: `[a && c, b && c]` may hold `c` twice, and the sweep
  * says shared where it cannot say otherwise — and of a spread its operand's
- * elements, the route of one `null` key, each element, walked into it: an
- * array literal's items as they stand, `[x, ...[x]]` holding `x` twice, and
- * a reference's elements one key deeper, which the evaluated value expands
- * ({@link elementKeys}).
+ * elements or properties, the route of one `null` key, each part, walked
+ * into it: an array literal's items and an object literal's members as
+ * they stand, `[x, ...[x]]` holding `x` twice, and a reference's parts one
+ * key deeper, which the evaluated value expands ({@link elementKeys}).
  *
  * @type {_View}
  */
@@ -794,9 +840,9 @@ const deeperBy = keys => ({ ref, keys: own }) => ({ ref, keys: [...own, ...keys]
  * is an access on a literal is walked as what it selects, so a route into
  * `{ a: [x, x] }.a` reaches the array and not `x` one key deeper.
  *
- * A `null` key, each element, walks every item of an array literal. The
- * literal is an array: a spread's operand that is an object throws, and
- * the sweep reads only a module that evaluated.
+ * A `null` key, each part, walks every item of an array literal and every
+ * member's value of an object literal — the last per key, {@link
+ * memberValues}, a copied key taking the last value as a written one does.
  *
  * @type {(ast: AstConst, route: readonly _Key[]) => List<_Ref>}
  */
@@ -806,9 +852,17 @@ const refsAlong = (ast, route) => {
     if (!selectable(read)) { return refsOf(value)(read) }
     const [key, ...rest] = route
     return key === null
-        ? flat(/** @type {AstArray} */ (read)[1].map(item => refsAlong(/** @type {AstConst} */ (item), rest)))
+        ? flat(partsOf(read).map(part => refsAlong(part, rest)))
         : refsAlong(literalAt(read, key), rest)
 }
+
+/**
+ * What a `null` key names in a {@link selectable} literal: an array's
+ * items, none a spread, and an object's members' values, the last per key.
+ *
+ * @type {(ast: AstArray | AstObject) => readonly AstConst[]}
+ */
+const partsOf = ast => ast[0] === 'array' ? /** @type {readonly AstConst[]} */ (ast[1]) : memberValues(ast[1])
 
 /** @type {(ast: AstConst) => (route: readonly _Key[]) => List<_Ref>} */
 const refsAlongEntry = ast => route => refsAlong(ast, route)
@@ -876,10 +930,10 @@ const containerNode = (imports, consts) => ({ ref: [kind, i], keys }) => {
 
 /**
  * The keys a reference's keys name in `value`, now that it is evaluated:
- * themselves, where none is each element, and otherwise one route per
- * element of the array the first such key stands on, its index in that
- * key's place. A string's elements are its code points, each a string, so
- * none is a node, and nothing else is spread in a module that evaluated.
+ * themselves, where none is each part, and otherwise one route per own
+ * key of the container the first such key stands on — an array's indices,
+ * an object's keys — in that key's place. A string's parts are strings, so
+ * none is a node, and a primitive has none.
  *
  * @type {(keys: readonly _Key[]) => (value: Unknown) => readonly (readonly string[])[]}
  */
@@ -888,8 +942,8 @@ const elementKeys = keys => value => {
     if (i === -1) { return [/** @type {readonly string[]} */ (keys)] }
     const prefix = /** @type {readonly string[]} */ (keys.slice(0, i))
     const at = valueAt(prefix)(value)
-    const length = at instanceof Array ? at.length : 0
-    return Array.from({ length }, (_, j) => [...prefix, `${j}`, ...keys.slice(i + 1)]).flatMap(k => elementKeys(k)(value))
+    const own = at !== null && typeof at === 'object' ? Object.keys(at) : []
+    return own.map(k => [...prefix, k, ...keys.slice(i + 1)]).flatMap(k => elementKeys(k)(value))
 }
 
 /**

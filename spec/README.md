@@ -988,8 +988,8 @@ different graph from `[1, 2]`, as `1 + 1` is from `2`. A spread puts its
 operand's elements in the array and not the operand, so it shares what an
 element shares: `const a = [1]; export default [[...a], a];` has no shared
 node and is written as JSON, where `const a = [{}]` in its place has one.
-An object's spread, `{ ...o }`, is not in the language yet
-([object spread](./todo/2490-object-spread.md)).
+An object literal takes a spread too, with a different reading
+([objects](#objects)).
 
 ### Objects
 
@@ -1003,6 +1003,51 @@ export default {
 
 An object may be empty and may end with a trailing comma, like an array. When
 one key is written twice, the last value wins, as in JavaScript.
+
+#### Object Spread
+
+A member may be a **spread**, `...` and any value, at any position and any
+number of times:
+
+```js
+const o = { a: 1, b: 2 };
+export default [{ ...o, c: 3 }, { a: 0, ...o }, { ...o, a: 0 }, { ...'ab' }, { ...null }];
+// [{ a: 1, b: 2, c: 3 }, { a: 1, b: 2 }, { a: 0, b: 2 }, { 0: 'a', 1: 'b' }, {}]
+```
+
+The operand is evaluated in its place among the members, left to right, and
+its own enumerable string-keyed properties are copied in, in its own
+property order, as JavaScript's `CopyDataProperties` copies them. A copied
+key behaves as a written one: when it is already present, the later value
+wins and the key keeps its first position. What each value contributes
+agrees with JavaScript:
+
+- **An object:** its own properties, array-index keys first in ascending
+  order, then the others in the order they were made.
+- **An array:** its elements, keyed `'0'`, `'1'`, ….
+- **A string:** one property per UTF-16 code unit, not per code point:
+  `{ ...'😀' }` is `{ 0: '\ud83d', 1: '\ude00' }`, where `[...'😀']` is
+  `['😀']`. The two spreads read a string differently in JavaScript, and so
+  here.
+- **Anything else** — `null`, `undefined`, a boolean, a number, a `bigint`,
+  a function — contributes nothing: `{ ...null }` is `{}`.
+
+So, unlike an [array's spread](#spread), an object's never throws. A
+copied `__proto__` key is an ordinary own property, as JavaScript's
+`CreateDataProperty` makes it: `{ ...{ ['__proto__']: 1 } }` owns a
+property named `__proto__` and has no new prototype
+([the `__proto__` key](#the-__proto__-key)).
+
+The value outputs write the object the spread made, and the graph outputs
+the spread itself: `.js` and `.f.js` write it back, `{ ...o, c: 3 }`, the
+EDAG keeps its `['...', exp]` entry, and `.rs` prints it through
+`nanvm-lib`'s `object_spread`. A constant spread is not folded, so
+`{ ...{ a: 1 } }` is a different graph from `{ a: 1 }`. With a spread among
+the members, which keys the literal has is known only once the operand is:
+no key selects inside such a literal, and no member before a spread is
+dropped as overwritten, so the sharing sweep reads every member and every
+spread operand's properties — which may refuse a `.json` output whose
+selected part shares nothing, never write a wrong one.
 
 A member may hold any value, `undefined` included, and a member holding
 `undefined` is still an own property, as in JavaScript: it keeps its key and

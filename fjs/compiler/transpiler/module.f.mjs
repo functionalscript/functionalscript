@@ -8,7 +8,7 @@
  * @import { Denotation, Import } from '../ast/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { ParseError } from '../parser/types.ts'
- * @import { AstImport, AstModule, AstObject } from '../ast/types.ts'
+ * @import { AstImport, AstMember, AstModule, AstObject } from '../ast/types.ts'
  * @import { _ImportSource, _Source } from './types.ts'
  * @import { Operation } from '../../effects/types.ts'
  * @import { IoChannel } from '../../effects/node/types.ts'
@@ -165,7 +165,8 @@ const done = (id, module, imports, context) => consts => {
     /** @type {ModuleDenotation} */
     const denotation = {
         exports: { value, ...sharing(module[1])(imports)(consts) },
-        bindings: result[1].map(([, key]) => {
+        // the module's result object holds a member per export and no spread
+        bindings: /** @type {readonly AstMember[]} */ (result[1]).map(([, key]) => {
             const selected = _own(value, key)
             return [key, {
                 value: selected,
