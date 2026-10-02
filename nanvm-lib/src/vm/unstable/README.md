@@ -21,8 +21,10 @@ Today's helpers are the values a literal becomes, each pinning the `A` a
 bare `into()` cannot infer at the point of use, and the two equality
 operators, `===` and `!==`: their `nanvm-lib` form is `PartialEq`, which
 answers a `bool`, and generated code wants the `Result<Any<A>, Any<A>>`
-every other operator returns. A spread has four: `spread_array` builds the
+every other operator returns. An array spread has four: `spread_array` builds the
 array an item list holds, `[a, ...b]`, as `spread_array([value_item(a),
 spread_item(b)])`, and `spread_call` calls with such a list; each answers a
 `Result`, since a spread of what is not iterable throws
-(`Any::get_iterator`).
+(`Any::get_iterator`). An object's, `{k: v, ...o}`, is
+`spread_object([property_item(k, v), spread_entries(o)])`, a value, since an
+object spread never throws (`Any::object_spread`).

@@ -3,7 +3,7 @@
 use crate::{
     sign::Sign,
     vm::{
-        Any, BigInt, IVm, IteratorRecord, Number, String, ToAny, ToArray, ToString,
+        Any, BigInt, IVm, IteratorRecord, Number, String, ToAny, ToArray, ToObject, ToString,
         array::create::TOO_LONG,
     },
 };
@@ -154,6 +154,41 @@ pub fn spread_call<A: IVm>(
     f.call(spread_array(items)?)
 }
 
+/// One entry of an object literal, as [`spread_object`] reads it: a
+/// property, a key and its value, or a spread whose entries the value
+/// gives ([`Any::object_spread`]).
+pub enum ObjectItem<A: IVm> {
+    Property(String<A>, Any<A>),
+    Spread(Any<A>),
+}
+
+/// A property entry, `k: v` in `{k: v, ...o}`.
+pub fn property_item<A: IVm>(k: String<A>, v: Any<A>) -> ObjectItem<A> {
+    ObjectItem::Property(k, v)
+}
+
+/// A spread entry, `...o` in `{k: v, ...o}`.
+pub fn spread_entries<A: IVm>(v: Any<A>) -> ObjectItem<A> {
+    ObjectItem::Spread(v)
+}
+
+/// The object an entry list holds, a spread among them: each property and
+/// each spread's entries appended in order to the raw property list, so a
+/// later key overwrites an earlier one's value and keeps its position, as
+/// JavaScript's does, through the view every reader takes
+/// ([`Object::own_entries`](crate::vm::Object::own_entries)). An object
+/// spread never throws, so this is a value, not a `Result`.
+pub fn spread_object<A: IVm>(items: impl IntoIterator<Item = ObjectItem<A>>) -> Any<A> {
+    let mut entries = Vec::new();
+    for item in items {
+        match item {
+            ObjectItem::Property(k, v) => entries.push((k, v)),
+            ObjectItem::Spread(v) => entries.extend(v.object_spread()),
+        }
+    }
+    entries.to_object().to_any()
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -292,6 +327,35 @@ mod test {
         );
         let one = || f64_any::<Naive>(0x3ff0000000000000);
         assert!(spread_call(one(), [spread_item(one())]).is_err());
+    }
+
+    /// `{a: 1, ...{b: 2, a: 3}, ...'x'}` is `{0: 'x', a: 3, b: 2}`: the
+    /// spread's `a` overwrites the first one's value and keeps its
+    /// position, and the index key comes first; `{...null}` adds nothing.
+    #[test]
+    fn spread_objects() {
+        use crate::vm::{Nullish, Object, ToObject};
+        let one = || f64_any::<Naive>(0x3ff0000000000000);
+        let two = || f64_any::<Naive>(0x4000000000000000);
+        let three = || f64_any::<Naive>(0x4008000000000000);
+        let inner: Any<Naive> = [(string_key("b"), two()), (string_key("a"), three())]
+            .to_object()
+            .to_any();
+        let result = spread_object([
+            property_item(string_key("a"), one()),
+            spread_entries(inner),
+            spread_entries(string_any("x")),
+            spread_entries(Nullish::Null.to_any()),
+        ]);
+        let entries = Object::try_from(result).unwrap().own_entries();
+        assert_eq!(
+            entries,
+            [
+                (string_key("0"), string_any("x")),
+                (string_key("a"), three()),
+                (string_key("b"), two()),
+            ]
+        );
     }
 
     /// A string of code units holds what no `&str` can, a lone surrogate,
