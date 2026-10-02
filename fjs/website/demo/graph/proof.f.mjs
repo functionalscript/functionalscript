@@ -170,6 +170,19 @@ export const proof = {
             assert(html.includes('<path d="M10,23 L34,23" data-graph-edge="" data-graph-entry="" marker-end="url(#graph-arrow)" data-graph-edge-kind="old">'), html)
             assertEq(html.split('data-graph-entry=""').length - 1, 1)
         },
+        // A value in parts is one text of tspans, each marked with its
+        // kind; a value without parts is plain text, as before.
+        inlineParts: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [{ id: 0, kind: 'a', label: '', rank: 0 }],
+                edges: [
+                    { from: 0, to: { inline: '0101', parts: [['01', 'prior'], ['01', 'current']] }, label: '' },
+                    { from: 0, to: { inline: '7' }, label: '' },
+                ],
+            }))
+            assert(html.includes('data-graph-value-label=""><tspan data-graph-part="prior">01</tspan><tspan data-graph-part="current">01</tspan></text>'), html)
+            assert(html.includes('data-graph-value-label="">7</text>'), html)
+        },
         // An empty label is no row when a node has ports: each node is its
         // one 20px row, and the edge runs from the middle of the first row
         // to the middle of the second's, (60,20) to (100,20). A node with
@@ -573,6 +586,11 @@ export const proof = {
             toAMissingNode: () => graphSvg({
                 nodes: skipLevel.nodes,
                 edges: [...skipLevel.edges, { from: 0, to: 9, label: 'ghost' }],
+            }),
+            // A value's parts must spell the value its cell is sized by.
+            misspeltParts: () => graphSvg({
+                nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0 }],
+                edges: [{ from: 0, to: { inline: '0101', parts: [['01', 'prior'], ['1', 'current']] }, label: '' }],
             }),
             // An entry, too, must arrive at a node the graph has.
             entryToAMissingNode: () => graphSvg({ nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0 }], edges: [], entries: [{ to: 1 }] }),

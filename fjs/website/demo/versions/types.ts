@@ -7,15 +7,29 @@
  */
 
 import type { Demo, DemoEvent } from '../types.ts'
-import type { Graph } from '../graph/types.ts'
+import type { Graph, Inline } from '../graph/types.ts'
 
 /**
  * One row of a node: an edge to a child node, or a value drawn in the row
- * itself. An empty `label` draws the value alone, filling the row.
+ * itself. An empty `label` draws the value alone, filling the row, and
+ * `parts` draws it in pieces, as an {@link Inline}'s do.
  */
 export type Row<N> =
     | { readonly label: string, readonly to: N }
-    | { readonly label: string, readonly inline: string }
+    | { readonly label: string, readonly inline: string, readonly parts?: Inline['parts'] }
+
+/**
+ * How a reader types a key and reads one back: `parse` answers `null` for a
+ * text that is no key, `show` spells a key as the field and the step line
+ * do, `label` names the field, and `accepts` finishes the sentence "type …"
+ * when a key is refused.
+ */
+export type Keys = {
+    readonly parse: (text: string) => number | null
+    readonly show: (key: number) => string
+    readonly label: string
+    readonly accepts: string
+}
 
 /**
  * Which column a node is drawn in.
@@ -118,15 +132,15 @@ export type Census = {
  * - `name` — the key field's `name` prefix and `id`, unique on its page;
  * - `noun` — what one version is called: `tree`, `trie`;
  * - `intro` — the paragraph above the controls;
- * - `range` — the keys the structure takes, as `[min, max]`, inclusive;
- *   any safe integer when it is absent.
+ * - `keys` — how keys are typed and read back; any safe integer, in
+ *   decimal, when it is absent.
  */
 export type Options<V, N> = {
     readonly structure: Structure<V, N>
     readonly name: string
     readonly noun: string
     readonly intro: string
-    readonly range?: readonly [min: number, max: number] | undefined
+    readonly keys?: Keys | undefined
     readonly presets: readonly Preset[]
 }
 

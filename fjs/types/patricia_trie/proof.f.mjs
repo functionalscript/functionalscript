@@ -178,7 +178,7 @@ const demoProof = {
     // node: sharing by content needs no object to be reused.
     contentAddressed: () => {
         const { versions } = _load('Insert a key')
-        const again = _press('remove')({ ..._press('insert')({ ..._load('Insert a key'), key: '5' }), key: '5' })
+        const again = _press('remove')({ ..._press('insert')({ ..._load('Insert a key'), key: '101' }), key: '101' })
         assertEq(again.versions.after.root, versions.after.root)
         assert(again.versions.after !== versions.after, '')
     },
@@ -188,11 +188,11 @@ const demoProof = {
     // demo could not tell a wrong hash from a right one.
     hashes: () => {
         const { nodes } = _load('Insert a key').versions.after
-        const leaf3 = 'ca6e6588d55d58a70e0b4de60c2dab1e4574bb97d68fa88679852a5daaa9db02'
-        const leaf17 = '29a873fe7aa2874d9eb761738c2fcbdf87b0111d4dce56a5852fcb95abb78d66'
+        const leaf3 = 'db9ff3e19ab9173be17800009bb08c5ad495f213fc72ab78f1d6fb7dde71964b'
+        const leaf17 = 'a477e6a5a5c02c8cad261851f9232b13b4b704804a427a5d6bfdb01b9f9f1b9e'
         assertEq(JSON.stringify(nodes.get(leaf3)), '["leaf",3]')
         assertEq(JSON.stringify(nodes.get(leaf17)), '["leaf",17]')
-        assertEq(JSON.stringify(nodes.get('b88a5a25664f3f78cfde82ed851de137bd89bef84ae91ea77f8ab0c6dbbc101b')), JSON.stringify(['branch', leaf3, leaf17]))
+        assertEq(JSON.stringify(nodes.get('7fe56b5491fbf2e9e4afd132f874141b7d4beff1e402c427c2794cbf8ffcb221')), JSON.stringify(['branch', leaf3, leaf17]))
     },
     // Every node is titled with the start of its hash, leaves too; a leaf
     // also shows its key in binary, beside the key in decimal.
@@ -201,11 +201,16 @@ const demoProof = {
         const { root } = _load('Insert a key').versions.after
         assert(root !== null, '')
         assert(h.includes(`data-graph-label="">${root.slice(0, 4)}<`), h)
-        assert(h.includes('data-graph-label="">ca6e<'), h)
-        assert(h.includes('data-graph-label="">b88a<'), h)
-        assert(h.includes('data-graph-edge-label="">01100011<'), h)
-        assert(h.includes('data-graph-value-label="">99<'), h)
-        assert(h.includes('<label for="patricia-key">Key (0–255) </label>'), h)
+        assert(h.includes('data-graph-label="">db9f<'), h)
+        assert(h.includes('data-graph-label="">7fe5<'), h)
+        assert(h.includes('<label for="patricia-key">Key (8 bits) </label>'), h)
+        assert(h.includes('value="01100100"'), h)
+        // The branch over 3 and 17: its keys start 000, its parent's 00.
+        assert(h.includes('<tspan data-graph-part="prior">00</tspan><tspan data-graph-part="current">0</tspan>'), h)
+        // The leaf 99, 01100011, under the branch of 66 and 99, which share 01.
+        assert(h.includes('<tspan data-graph-part="prior">01</tspan><tspan data-graph-part="current">100011</tspan>'), h)
+        // No decimal is shown.
+        assert(!h.includes('data-graph-value-label="">99<'), h)
     },
     // A node is one column right of its deepest parent: the root at 0, and
     // a leaf where its parent puts it, not in one last column.
@@ -220,14 +225,16 @@ const demoProof = {
     // A step that leaves the keys as they were says why.
     unchanged: () => {
         const loaded = _load('Insert a key')
-        assert(html(_press('insert')({ ...loaded, key: '3' })).includes('Last step, insert 3: nothing changed, the key is already in the trie.'), '')
-        assert(html(_press('remove')({ ...loaded, key: '5' })).includes('Last step, remove 5: nothing changed, the key is not in the trie.'), '')
+        assert(html(_press('insert')({ ...loaded, key: '11' })).includes('Last step, insert 00000011: nothing changed, the key is already in the trie.'), '')
+        assert(html(_press('remove')({ ...loaded, key: '101' })).includes('Last step, remove 00000101: nothing changed, the key is not in the trie.'), '')
     },
-    // A key the trie's eight bits cannot hold is refused.
+    // A key the trie's eight bits cannot hold, or not in binary, is refused.
     refused: () => {
-        const s = _press('insert')({ ...demo.init, key: '256' })
+        const s = _press('insert')({ ...demo.init, key: '100000000' })
         assertEq(s.versions, demo.init.versions)
-        assert(html(s).includes('type an integer from 0 to 255.'), '')
+        assert(html(s).includes('type up to eight binary digits, such as 01100100.'), '')
+        assertEq(_press('insert')({ ...demo.init, key: '2' }).versions, demo.init.versions)
+        assertEq(_press('insert')({ ...demo.init, key: '' }).versions, demo.init.versions)
     },
 }
 

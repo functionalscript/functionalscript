@@ -1,10 +1,10 @@
 /**
  * @import { DemoEvent } from '../types.ts'
- * @import { Layout, State, Structure } from './types.ts'
+ * @import { Keys, Layout, State, Structure } from './types.ts'
  * @import { _Cell, _List } from './private.ts'
  */
 
-import { census, graphOf, keyOf, stepLine, versionsDemo } from './module.f.mjs'
+import { census, decimal, graphOf, stepLine, versionsDemo } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { runPure } from '../../../effects/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.mjs'
@@ -53,15 +53,28 @@ const listOf = keys => keys.reduce(insertInto, nil)
 
 const ofThree = listOf([1, 2, 3])
 
-const { demo, load, press, graphOf: graph } = versionsDemo({
+/**
+ * Keys typed in binary, up to four digits, and shown in four: a format of
+ * the demo's own, as the Patricia trie's is.
+ *
+ * @type {Keys}
+ */
+const nibble = {
+    parse: text => text.length >= 1 && text.length <= 4 && [...text].every(c => c === '0' || c === '1') ? parseInt(text, 2) : null,
+    show: key => key.toString(2).padStart(4, '0'),
+    label: 'Bits',
+    accepts: 'up to four binary digits',
+}
+
+const { demo, load, press } = versionsDemo({
     structure: chain('depth'),
     name: 'chain',
     noun: 'list',
     intro: 'A list.',
-    range: [0, 9],
+    keys: nibble,
     presets: [
-        ['Three', [1, 2, 3], 4, 'Press Insert to add 4.'],
-        ['Empty', [], 5, 'Press Insert to add 5.'],
+        ['Three', [1, 2, 3], 4, 'Press Insert to add 0100.'],
+        ['Empty', [], 5, 'Press Insert to add 0101.'],
     ],
 })
 
@@ -75,21 +88,13 @@ const update = event => state => unwrap(assertNotNullish(runPure(demo.update(sta
 const count = s => part => s.split(part).length - 1
 
 export const proof = {
-    keyOf: {
-        // Any safe integer, spelled as `String` spells it.
-        open: () => {
-            assertEq(keyOf(undefined)('-12'), -12)
-            assertEq(keyOf(undefined)('07'), null)
-            assertEq(keyOf(undefined)('1e3'), null)
-            assertEq(keyOf(undefined)('NaN'), null)
-        },
-        // Given a range, only a key inside it, ends included.
-        ranged: () => {
-            assertEq(keyOf([0, 9])('0'), 0)
-            assertEq(keyOf([0, 9])('9'), 9)
-            assertEq(keyOf([0, 9])('10'), null)
-            assertEq(keyOf([0, 9])('-1'), null)
-        },
+    // The default keys: any safe integer, spelled as `String` spells it.
+    decimal: () => {
+        assertEq(decimal.parse('-12'), -12)
+        assertEq(decimal.parse('07'), null)
+        assertEq(decimal.parse('1e3'), null)
+        assertEq(decimal.parse('NaN'), null)
+        assertEq(decimal.show(12), '12')
     },
     graphOf: {
         // Inserting 0 in front builds one cell and shares the three after
@@ -131,25 +136,26 @@ export const proof = {
         },
     },
     stepLine: {
-        counts: () => assertEq(stepLine('list')({ op: 'insert', key: 4 })({ built: 1, shared: 3, replaced: 0 }),
+        counts: () => assertEq(stepLine('list')(String)({ op: 'insert', key: 4 })({ built: 1, shared: 3, replaced: 0 }),
             'Last step, insert 4: 1 new (blue), 3 shared with the list before, 0 replaced (amber).'),
         // A step that built nothing and left nothing behind says why.
-        alreadyThere: () => assertEq(stepLine('list')({ op: 'insert', key: 2 })({ built: 0, shared: 3, replaced: 0 }),
+        alreadyThere: () => assertEq(stepLine('list')(String)({ op: 'insert', key: 2 })({ built: 0, shared: 3, replaced: 0 }),
             'Last step, insert 2: nothing changed, the key is already in the list.'),
-        notThere: () => assertEq(stepLine('list')({ op: 'remove', key: 7 })({ built: 0, shared: 3, replaced: 0 }),
+        notThere: () => assertEq(stepLine('list')(String)({ op: 'remove', key: 7 })({ built: 0, shared: 3, replaced: 0 }),
             'Last step, remove 7: nothing changed, the key is not in the list.'),
     },
     demo: {
         // The first preset, loaded: its keys as both versions, the key in
         // the field, its hint, and nothing coloured.
         opening: () => {
-            assertEq(demo.init.key, '4')
+            assertEq(demo.init.key, '0100')
             assertEq(demo.init.versions.before, demo.init.versions.after)
             const h = html(demo.init)
             assert(h.includes('<p>A list.</p>'), h)
-            assert(h.includes('<label for="chain-key">Key (0–9) </label>'), h)
-            assert(h.includes('id="chain-key" name="key" value="4"'), h)
-            assert(h.includes('Press Insert to add 4.'), h)
+            assert(h.includes('<label for="chain-key">Bits </label>'), h)
+            // The field holds the key as the demo's own format spells it.
+            assert(h.includes('id="chain-key" name="key" value="0100"'), h)
+            assert(h.includes('Press Insert to add 0100.'), h)
             assert(h.includes('<option value="Three" selected="">'), h)
             assertEq(count(h)('<svg'), 1)
             assertEq(count(h)('data-graph-kind="new"'), 0)
@@ -162,17 +168,19 @@ export const proof = {
             assertEq(s.versions.before, demo.init.versions.after)
             assertEq(JSON.stringify(s.status), '{"step":{"op":"insert","key":4}}')
             const h = html(s)
-            assert(h.includes('Last step, insert 4:'), h)
+            // The step line spells the key the same way.
+            assert(h.includes('Last step, insert 0100:'), h)
             assert(h.includes('Custom'), h)
         },
-        // A field outside the range changes nothing, and says what it takes.
+        // A field the format cannot read changes nothing, and says what it
+        // takes.
         refused: () => {
-            const s = press('insert')({ ...demo.init, key: '10' })
+            const s = press('insert')({ ...demo.init, key: '2' })
             assertEq(s.versions, demo.init.versions)
             assertEq(s.status, demo.init.status)
-            assert(html(s).includes('Error: &quot;10&quot; is not a key: type an integer from 0 to 9.'), '')
+            assert(html(s).includes('Error: &quot;2&quot; is not a key: type up to four binary digits.'), '')
             // The next good press clears it.
-            assertEq(press('insert')({ ...s, key: '5' }).error, null)
+            assertEq(press('insert')({ ...s, key: '101' }).error, null)
         },
         // An empty version has no node: it is said instead, and two of them
         // draw no graph at all.
@@ -193,17 +201,17 @@ export const proof = {
         // Typing changes the field only; a button applies it; picking a
         // preset loads it; anything else is ignored.
         update: () => {
-            const typed = update({ kind: 'input', name: 'key', value: '6' })(demo.init)
-            assertEq(typed.key, '6')
+            const typed = update({ kind: 'input', name: 'key', value: '110' })(demo.init)
+            assertEq(typed.key, '110')
             assertEq(typed.versions, demo.init.versions)
             assertEq(JSON.stringify(update({ kind: 'click', name: 'insert' })(typed).status), '{"step":{"op":"insert","key":6}}')
             assertEq(JSON.stringify(update({ kind: 'click', name: 'remove' })(typed).status), '{"step":{"op":"remove","key":6}}')
-            assertEq(update({ kind: 'input', name: 'example', value: 'Empty' })(typed).key, '5')
+            assertEq(update({ kind: 'input', name: 'example', value: 'Empty' })(typed).key, '0101')
             assertEq(update({ kind: 'click', name: 'other' })(typed), typed)
             assertEq(update({ kind: 'input', name: 'other', value: '1' })(typed), typed)
             assertEq(update({ kind: 'start' })(typed), typed)
         },
-        // Without a range the label names none, and any integer is a key.
+        // Without a format of its own, a demo takes decimal keys.
         open: () => {
             const open = versionsDemo({ structure: chain('leaves'), name: 'open', noun: 'list', intro: '', presets: [['One', [1], 2, '']] })
             assert(htmlToString(open.demo.view(open.demo.init)).includes('<label for="open-key">Key </label>'), '')

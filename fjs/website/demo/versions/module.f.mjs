@@ -25,7 +25,7 @@
  *
  * @module
  *
- * @import { Census, Layout, Options, Preset, Row, Shape, State, Step, Structure, Versions, VersionsDemo } from './types.ts'
+ * @import { Census, Keys, Layout, Options, Preset, Row, Shape, State, Step, Structure, Versions, VersionsDemo } from './types.ts'
  * @import { Edge, Graph } from '../graph/types.ts'
  * @import { Element } from '../../../media/html/types.ts'
  */
@@ -36,19 +36,21 @@ import { pureOk } from '../../../effects/module.f.mjs'
 import { assertNotNullish } from '../../../asserts/module.f.mjs'
 
 /**
- * `text` as a key, or `null` if it is none. A key is a safe integer spelled
- * the way `String` spells it, so `07`, `1e3` and `NaN` are refused — `NaN`
- * has no order for a structure to keep, and the other two would be drawn
- * under a spelling the reader did not type — and, given a range, one inside
- * it.
+ * Keys as a reader types them unless a demo says otherwise: any safe
+ * integer, in decimal, spelled the way `String` spells it. So `07`, `1e3`
+ * and `NaN` are refused — `NaN` has no order for a structure to keep, and
+ * the other two would be drawn under a spelling the reader did not type.
  *
- * @type {(range: readonly [number, number] | undefined) => (text: string) => number | null}
+ * @type {Keys}
  */
-export const keyOf = range => text => {
-    const key = Number(text)
-    return Number.isSafeInteger(key) && String(key) === text && (range === undefined || (range[0] <= key && key <= range[1]))
-        ? key
-        : null
+export const decimal = {
+    parse: text => {
+        const key = Number(text)
+        return Number.isSafeInteger(key) && String(key) === text ? key : null
+    },
+    show: String,
+    label: 'Key',
+    accepts: 'an integer',
 }
 
 /** @type {(kind: string) => number} */
@@ -91,7 +93,7 @@ export const graphOf = ({ root, shape }) => versions => {
         ],
         edges: all.flatMap((node, from) => rows(node).map(/** @type {(row: Row<N>) => Edge} */ (row => 'to' in row
             ? { from, to: all.indexOf(row.to), label: row.label, kind: kindOf(node) === 'replaced' ? 'replaced' : undefined }
-            : { from, to: { inline: row.inline }, label: row.label }))),
+            : { from, to: { inline: row.inline, parts: row.parts }, label: row.label }))),
     }
 }
 
@@ -112,24 +114,23 @@ export const census = structure => versions => {
  * What the last step did, or, if it built nothing and left nothing behind,
  * why: the key was already there, or was not.
  *
- * @type {(noun: string) => (step: Step) => (c: Census) => string}
+ * @type {(noun: string) => (show: Keys['show']) => (step: Step) => (c: Census) => string}
  */
-export const stepLine = noun => ({ op, key }) => ({ built, shared, replaced }) => built === 0 && replaced === 0
-    ? `Last step, ${op} ${key}: nothing changed, the key is ${op === 'insert' ? 'already' : 'not'} in the ${noun}.`
-    : `Last step, ${op} ${key}: ${built} new (blue), ${shared} shared with the ${noun} before, ${replaced} replaced (amber).`
+export const stepLine = noun => show => ({ op, key }) => ({ built, shared, replaced }) => built === 0 && replaced === 0
+    ? `Last step, ${op} ${show(key)}: nothing changed, the key is ${op === 'insert' ? 'already' : 'not'} in the ${noun}.`
+    : `Last step, ${op} ${show(key)}: ${built} new (blue), ${shared} shared with the ${noun} before, ${replaced} replaced (amber).`
 
 /**
  * A demo of `options.structure`.
  *
  * @type {<V, N>(options: Options<V, N>) => VersionsDemo<V>}
  */
-export const versionsDemo = ({ structure, name, noun, intro, range, presets }) => {
-    const parse = keyOf(range)
-    const accepts = range === undefined ? 'an integer' : `an integer from ${range[0]} to ${range[1]}`
+export const versionsDemo = ({ structure, name, noun, intro, keys = decimal, presets }) => {
+    const { parse, show, label, accepts } = keys
     const picker = examplePicker(presets.map(([n]) => [n, n]))
     const graph = graphOf(structure)
     const count = census(structure)
-    const line = stepLine(noun)
+    const line = stepLine(noun)(show)
     /** @typedef {Parameters<typeof structure.root>[0]} V */
     /** @type {(name: string) => State<V>} */
     const load = presetName => {
@@ -137,7 +138,7 @@ export const versionsDemo = ({ structure, name, noun, intro, range, presets }) =
         const source = picker.pick(presetName)
         const [, keys, key, hint] = assertNotNullish(presets.find(([n]) => n === source))
         const version = keys.reduce((v, k) => structure.insert(k)(v), structure.empty)
-        return { key: String(key), versions: { before: version, after: version }, status: { preset: presetName, hint }, error: null }
+        return { key: show(key), versions: { before: version, after: version }, status: { preset: presetName, hint }, error: null }
     }
     /** @type {(op: Step['op']) => (state: State<V>) => State<V>} */
     const press = op => state => {
@@ -173,8 +174,8 @@ export const versionsDemo = ({ structure, name, noun, intro, range, presets }) =
                 ['p', intro],
                 picker.view('preset' in status ? status.preset : ''),
                 ['p',
-                    ['label', { for: keyId }, range === undefined ? 'Key ' : `Key (${range[0]}–${range[1]}) `],
-                    ['input', { type: 'text', id: keyId, name: 'key', value: key, size: '6' }],
+                    ['label', { for: keyId }, `${label} `],
+                    ['input', { type: 'text', id: keyId, name: 'key', value: key, size: '10' }],
                     ' ',
                     ['button', { type: 'button', name: 'insert' }, 'Insert'],
                     ' ',

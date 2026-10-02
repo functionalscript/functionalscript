@@ -420,7 +420,7 @@ export const _crossesBox = box => ([x0, y0]) => ([x1, y1]) => {
  * when it has any. **An entry must name a node of the graph**, for the
  * reason an edge must ({@link layout}): an arrow into nothing would simply
  * vanish. **And no node takes two**: they would be drawn one over the
- * other, which reads as one.
+ * other, which reads as one. **A value's parts must spell it.**
  *
  * @type {(g: Graph) => _Placed}
  */
@@ -430,6 +430,10 @@ const placedOf = ({ nodes, edges, entries = [] }) => {
     if (missing !== -1) { throw `graph: entry ${missing} ends at node ${entries[missing].to}, which is not in the graph` }
     const repeated = entries.findIndex(({ to }, i) => entries.findIndex(e => e.to === to) !== i)
     if (repeated !== -1) { throw `graph: entry ${repeated} ends at node ${entries[repeated].to}, which another entry already does` }
+    // A value drawn in parts must spell the value it sizes its cell by:
+    // otherwise the cell would be measured for one text and show another.
+    const misspelt = edges.findIndex(({ to }) => typeof to !== 'number' && to.parts !== undefined && to.parts.map(([text]) => text).join('') !== to.inline)
+    if (misspelt !== -1) { throw `graph: edge ${misspelt}'s parts do not spell its value` }
     return layout(margin + (entries.length === 0 ? 0 : entryLength))(nodes)(edges)
 }
 
@@ -582,12 +586,13 @@ export const graphSvg = g => {
             'text-anchor': 'middle', 'data-graph-edge-label': '',
         }, port.edge.label])]),
         ...p.ports.flatMap(port => {
-            const inline = inlineOf(port.edge)
-            return inline === null ? [] : [/** @type {Element} */ (['text', {
+            const { to } = port.edge
+            return typeof to === 'number' ? [] : [/** @type {Element} */ (['text', {
                 x: String(p.x + (keyWidthOf(p)(port) + p.width) / 2), y: String(p.y + port.y + portHeight / 2),
                 'text-anchor': 'middle', 'data-graph-value-label': '',
                 ...valueKindOf(port.edge),
-            }, inline])]
+            }, ...(to.parts === undefined ? [to.inline]
+                : to.parts.map(([text, kind]) => /** @type {Element} */ (['tspan', { 'data-graph-part': kind }, text])))])]
         }),
     ])
     return ['div', { 'data-graph': '' }, ['svg', { viewBox: `0 0 ${width} ${height}`, width: String(width), height: String(height) },

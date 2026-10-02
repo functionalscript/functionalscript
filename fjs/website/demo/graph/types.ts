@@ -63,10 +63,16 @@ export type Edge = {
  * absent for an ordinary value. The site's stylesheet draws a
  * `"terminal"` value — an input a scope receives, rather than a constant —
  * filled like a terminal node, where any other value, and none, is tinted.
+ *
+ * `parts`, when given, draws the value in pieces, each marked with its own
+ * kind as `data-graph-part`, so a stylesheet can colour them apart — the
+ * bits a prefix inherits beside the bits it adds, say. Joined, they must
+ * spell `inline`, which is still what sizes the cell.
  */
 export type Inline = {
     readonly inline: string
     readonly kind?: string | undefined
+    readonly parts?: readonly (readonly [text: string, kind: string])[] | undefined
 }
 
 /**
