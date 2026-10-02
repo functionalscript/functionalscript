@@ -35,7 +35,7 @@ const chain = layout => ({
     remove,
     root: list => list,
     shape: () => ({
-        rows: cell => [{ label: '', inline: String(cell.key) }, ...(cell.next === null ? [] : [{ label: 'next', to: cell.next }])],
+        rows: cell => [{ label: '', inline: String(cell.key) }, ...(cell.next === null ? [] : [/** @type {const} */ ({ to: cell.next, corner: 'bottom' })])],
         title: cell => cell.key === 1 ? 'first' : '',
         order: cell => cell.key,
         layout,

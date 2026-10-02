@@ -26,10 +26,10 @@ import { cmp } from '../number/module.f.mjs'
 import { versionsDemo } from '../../website/demo/versions/module.f.mjs'
 
 /**
- * A node's rows, in its elements' own order: a subtree is an edge to it
- * (`Left`, `Middle`, `Right`), and a key is the key alone. A node has no
- * names for its keys: the number of rows already says which of the four
- * kinds it is.
+ * A node's keys, each a row of its own, and its subtrees, each an edge
+ * from a corner of its right side: the first from the top, the last from
+ * the bottom, a middle one from the middle. Nothing is named: the number
+ * of keys and of edges already says which of the four kinds a node is.
  *
  * @type {(node: TNode<number>) => readonly Row<TNode<number>>[]}
  */
@@ -42,14 +42,14 @@ const rowsOf = node => {
         }
         case 3: {
             const [l, v, r] = node
-            return [{ label: 'Left', to: l }, { label: '', inline: String(v) }, { label: 'Right', to: r }]
+            return [{ to: l, corner: 'top' }, { label: '', inline: String(v) }, { to: r, corner: 'bottom' }]
         }
         case 5: {
             const [l, v0, m, v1, r] = node
             return [
-                { label: 'Left', to: l }, { label: '', inline: String(v0) },
-                { label: 'Middle', to: m }, { label: '', inline: String(v1) },
-                { label: 'Right', to: r },
+                { to: l, corner: 'top' }, { label: '', inline: String(v0) },
+                { to: m, corner: 'middle' }, { label: '', inline: String(v1) },
+                { to: r, corner: 'bottom' },
             ]
         }
     }

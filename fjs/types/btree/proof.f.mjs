@@ -199,19 +199,20 @@ const demoProof = {
             assertEq(count(g)('data-graph-entry="" marker-end="url(#graph-arrow)" data-graph-edge-kind="replaced"'), 1)
         },
         // A full leaf splits, and its middle key moves up into a branch of
-        // five: Left, 6, Middle, 8, Right, in the node's own order, and no
-        // title above them — the rows say what the node is.
+        // five, with no title above it: its keys and edges say what it is.
         splitALeaf: () => {
             const s = follow('Split a leaf')
             assertEq(censusOf(s), '{"built":4,"shared":4,"replaced":3}')
             const h = html(s)
-            // The node's rows are 20px apart around its `Middle` row: an
-            // edge's name, or a key alone.
-            const middle = h.lastIndexOf('<text x="', h.indexOf('data-graph-edge-label="">Middle<'))
-            const [, x, , y] = h.slice(middle).split('"')
-            const rows = [['edge-label', 'Left'], ['value-label', '60'], ['edge-label', 'Middle'], ['value-label', '80'], ['edge-label', 'Right']]
-            rows.forEach(([cell, text], i) =>
-                assert(h.includes(`<text x="${x}" y="${Number(y) + (i - 2) * 20}" text-anchor="middle" data-graph-${cell}="">${text}<`), h))
+            // The new branch of five is its two keys, one row each, and
+            // three edges with no names: from the top corner to the first
+            // subtree, the middle to the second, the bottom to the third.
+            const { nodes, edges } = _graphOf(s.versions)
+            const keysOf = (/** @type {number} */ id) => edges.flatMap(e => e.from === id && typeof e.to !== 'number' ? [e.to.inline] : [])
+            const node5 = assertNotNullish(nodes.find(n => JSON.stringify(keysOf(n.id)) === '["60","80"]'))
+            const out = edges.filter(e => e.from === node5.id && typeof e.to === 'number')
+            assertEq(JSON.stringify(out.map(e => [e.corner, e.label])), '[["top",""],["middle",""],["bottom",""]]')
+            assert(!h.includes('>Left<') && !h.includes('>Middle<') && !h.includes('>Right<'), h)
         },
         // The split reaches the root, and the tree grows a level: the new
         // root is a rank further from the leaves than the old one.

@@ -170,6 +170,30 @@ export const proof = {
             assert(html.includes('<path d="M10,23 L34,23" data-graph-edge="" data-graph-entry="" marker-end="url(#graph-arrow)" data-graph-edge-kind="old">'), html)
             assertEq(html.split('data-graph-entry=""').length - 1, 1)
         },
+        // An edge with a corner takes no row: the node is its 26px title
+        // and one 20px value row, 46px tall at y=10, and its three edges
+        // leave its right side, x=60, from the top corner, the middle and
+        // the bottom corner.
+        corners: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [
+                    { id: 0, kind: 'a', label: 'n', rank: 0 },
+                    { id: 1, kind: 'a', label: 'a', rank: 1 },
+                    { id: 2, kind: 'a', label: 'b', rank: 1 },
+                    { id: 3, kind: 'a', label: 'c', rank: 1 },
+                ],
+                edges: [
+                    { from: 0, to: 1, label: '', corner: 'top' },
+                    { from: 0, to: { inline: '5' }, label: '' },
+                    { from: 0, to: 2, label: '', corner: 'middle' },
+                    { from: 0, to: 3, label: '', corner: 'bottom' },
+                ],
+            }))
+            assert(html.includes('<rect x="10" y="10" width="50" height="46" rx="4" data-graph-node=""'), html)
+            assertEq(html.split('data-graph-port=""').length - 1, 0)
+            const starts = routes(html).map(d => d.split(' ')[0])
+            assertEq(JSON.stringify(starts), '["M60,10","M60,33","M60,56"]')
+        },
         // A value in parts is one text of tspans, each marked with its
         // kind; a value without parts is plain text, as before.
         inlineParts: () => {
@@ -594,6 +618,15 @@ export const proof = {
             }),
             // An entry, too, must arrive at a node the graph has.
             entryToAMissingNode: () => graphSvg({ nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0 }], edges: [], entries: [{ to: 1 }] }),
+            // An edge from a corner has no row for a label or a value.
+            labelledCorner: () => graphSvg({
+                nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0 }, { id: 1, kind: 'a', label: 'm', rank: 1 }],
+                edges: [{ from: 0, to: 1, label: 'left', corner: 'top' }],
+            }),
+            valueAtACorner: () => graphSvg({
+                nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0 }],
+                edges: [{ from: 0, to: { inline: '1' }, label: '', corner: 'top' }],
+            }),
             // And two entries into one node would be drawn as one.
             twoEntriesIntoOneNode: () => graphSvg({ nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0 }], edges: [], entries: [{ to: 0 }, { to: 0, kind: 'old' }] }),
             // The crossing count lays the graph out the same way, and

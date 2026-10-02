@@ -50,7 +50,17 @@ export type Edge = {
     readonly to: number | Inline
     readonly label: string
     readonly kind?: string | undefined
+    readonly corner?: Corner | undefined
 }
+
+/**
+ * Where an {@link Edge} with no row of its own leaves its node: the top or
+ * the bottom corner of its right side, or the middle of it. For a node
+ * whose children are ordered and need no names — a tree's left and right,
+ * and a B-tree's middle — the corner says which child it is. Such an edge
+ * ends at a node, not a value, and has no label.
+ */
+export type Corner = 'top' | 'middle' | 'bottom'
 
 /**
  * A value too simple to be a node of its own — a number, `null`,

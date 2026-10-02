@@ -143,7 +143,7 @@ const structure = {
                 const n = node(id)
                 return n[0] === 'leaf'
                     ? [prefixRow(id)]
-                    : [...(prefixLength(id) === 0 ? [] : [prefixRow(id)]), { label: 'Left', to: n[1] }, { label: 'Right', to: n[2] }]
+                    : [...(prefixLength(id) === 0 ? [] : [prefixRow(id)]), { to: n[1], corner: 'top' }, { to: n[2], corner: 'bottom' }]
             },
             title: id => id.slice(0, 4),
             order: firstKey,
