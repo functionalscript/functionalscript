@@ -1,7 +1,7 @@
 /**
  * Type-level API for `fjs/website/demo/versions/module.f.mjs`: a demo of a
- * persistent structure keyed by integers, drawn as its version before a step
- * and its version after it, in one graph.
+ * persistent structure keyed by integers, drawn as the version a step made,
+ * each node marked by whether the version before it holds it too.
  *
  * @module
  */

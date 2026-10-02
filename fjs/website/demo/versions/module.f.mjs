@@ -1,19 +1,17 @@
 /**
  * A demo of a persistent structure keyed by integers: type a key, press
- * **Insert** or **Remove**, and see the version before the step and the
- * version after it drawn as one graph. The shared half of the B-tree and
- * Patricia trie demos; each supplies only its {@link Structure}.
+ * **Insert** or **Remove**, and see the version the step made, each node
+ * marked by whether the version before it holds it too. The shared half of
+ * the B-tree and Patricia trie demos; each supplies only its
+ * {@link Structure}.
  *
- * **A node both versions hold is drawn once**, reached from both roots, so
- * the drawing itself shows what the step shared. A structure says what
- * "both hold" means by what `===` compares: the same object for one that
- * shares by reference, the same name for one that shares by content.
- *
- * **A node's kind says which versions hold it**: `new` only the new one,
- * `replaced` only the old one, `shared` both. The site's stylesheet draws
- * the first blue, the second amber and faded, the third plain; an edge
- * leaving a replaced node, and the arrow into the old root, fade with it.
- * The old root has an arrow only when it is not the new root too.
+ * **Only the new version is drawn**, so the drawing is one tree. A node's
+ * kind says whether the old version holds it: `shared` if it does, `new`
+ * if the step built it. The site's stylesheet draws a new node blue and a
+ * shared one plain. A structure says what "holds" means by what `===`
+ * compares: the same object for one that shares by reference, the same
+ * name for one that shares by content. What only the old version holds is
+ * counted, in the step line, but not drawn.
  *
  * **A step is judged by what it built, not by identity.** One that built
  * nothing and left nothing behind changed nothing, and says so — whether
@@ -53,48 +51,48 @@ export const decimal = {
     accepts: 'an integer',
 }
 
-/** @type {(kind: string) => number} */
-const kindOrder = kind => kind === 'replaced' ? 0 : kind === 'shared' ? 1 : 2
+/**
+ * Every node of each version, once: a node two paths reach — two rows of
+ * one parent, or two parents — is still one node.
+ *
+ * @type {<V, N>(structure: Structure<V, N>) => (versions: Versions<V>) => readonly [old: readonly N[], current: readonly N[]]}
+ */
+const nodesOfBoth = ({ root, shape }) => versions => {
+    const { rows } = shape(versions)
+    /** @typedef {Parameters<typeof rows>[0]} N */
+    /** @type {(node: N | null) => readonly N[]} */
+    const nodesOf = node => node === null ? [] : [node, ...rows(node).flatMap(row => 'to' in row ? nodesOf(row.to) : [])]
+    return [[...new Set(nodesOf(root(versions.before)))], [...new Set(nodesOf(root(versions.after)))]]
+}
 
 /**
- * Both versions as one graph: one node per distinct node, an arrow into
- * each root, and each column in the shape's `order`, a replaced node above
- * the one in its place.
+ * The new version as a graph: one node per distinct node, an arrow into
+ * its root, and each column in the shape's `order`.
  *
  * @type {<V, N>(structure: Structure<V, N>) => (versions: Versions<V>) => Graph}
  */
-export const graphOf = ({ root, shape }) => versions => {
-    const { rows, title, order, layout } = shape(versions)
+export const graphOf = structure => versions => {
+    const { rows, title, order, layout } = structure.shape(versions)
     /** @typedef {Parameters<typeof rows>[0]} N */
     /** @type {(node: N) => readonly N[]} */
     const childrenOf = node => rows(node).flatMap(row => 'to' in row ? [row.to] : [])
-    /** @type {(node: N | null) => readonly N[]} */
-    const nodesOf = node => node === null ? [] : [node, ...childrenOf(node).flatMap(nodesOf)]
-    const oldRoot = root(versions.before)
-    const newRoot = root(versions.after)
-    // A node two paths reach — two rows of one parent, or two parents in
-    // one version — is still one node.
-    const old = [...new Set(nodesOf(oldRoot))]
-    const current = [...new Set(nodesOf(newRoot))]
+    const newRoot = structure.root(versions.after)
+    const [old, current] = nodesOfBoth(structure)(versions)
     /** @type {(node: N) => string} */
-    const kindOf = node => !old.includes(node) ? 'new' : current.includes(node) ? 'shared' : 'replaced'
-    const all = [...current, ...old.filter(node => !current.includes(node))]
-        .toSorted((a, b) => order(a) - order(b) || kindOrder(kindOf(a)) - kindOrder(kindOf(b)))
+    const kindOf = node => old.includes(node) ? 'shared' : 'new'
+    const all = current.toSorted((a, b) => order(a) - order(b))
     /** @type {(node: N) => number} */
     const heightOf = node => childrenOf(node).reduce((m, child) => Math.max(m, heightOf(child) + 1), 0)
     /** @type {(node: N) => number} */
     const depthOf = node => all.filter(p => childrenOf(p).includes(node)).reduce((m, p) => Math.max(m, depthOf(p) + 1), 0)
-    const top = [oldRoot, newRoot].reduce((m, r) => r === null ? m : Math.max(m, heightOf(r)), 0)
+    const top = newRoot === null ? 0 : heightOf(newRoot)
     /** @type {Record<Layout, (node: N) => number>} */
     const rankOf = { leaves: node => top - heightOf(node), depth: depthOf }
     return {
         nodes: all.map((node, id) => ({ id, kind: kindOf(node), label: title(node), rank: rankOf[layout](node) })),
-        entries: [
-            ...(oldRoot === null || oldRoot === newRoot ? [] : [{ to: all.indexOf(oldRoot), kind: 'replaced' }]),
-            ...(newRoot === null ? [] : [{ to: all.indexOf(newRoot) }]),
-        ],
+        entries: newRoot === null ? [] : [{ to: all.indexOf(newRoot) }],
         edges: all.flatMap((node, from) => rows(node).map(/** @type {(row: Row<N>) => Edge} */ (row => 'to' in row
-            ? { from, to: all.indexOf(row.to), ...('corner' in row ? { label: '', corner: row.corner } : { label: row.label }), kind: kindOf(node) === 'replaced' ? 'replaced' : undefined }
+            ? { from, to: all.indexOf(row.to), ...('corner' in row ? { label: '', corner: row.corner } : { label: row.label }) }
             : { from, to: { inline: row.inline, parts: row.parts }, label: row.label }))),
     }
 }
@@ -106,10 +104,9 @@ export const graphOf = ({ root, shape }) => versions => {
  * @type {<V, N>(structure: Structure<V, N>) => (versions: Versions<V>) => Census}
  */
 export const census = structure => versions => {
-    const { nodes } = graphOf(structure)(versions)
-    /** @type {(kind: string) => number} */
-    const count = kind => nodes.filter(n => n.kind === kind).length
-    return { built: count('new'), shared: count('shared'), replaced: count('replaced') }
+    const [old, current] = nodesOfBoth(structure)(versions)
+    const shared = current.filter(node => old.includes(node)).length
+    return { built: current.length - shared, shared, replaced: old.length - shared }
 }
 
 /**
@@ -120,7 +117,7 @@ export const census = structure => versions => {
  */
 export const stepLine = noun => show => ({ op, key }) => ({ built, shared, replaced }) => built === 0 && replaced === 0
     ? `Last step, ${op} ${show(key)}: nothing changed, the key is ${op === 'insert' ? 'already' : 'not'} in the ${noun}.`
-    : `Last step, ${op} ${show(key)}: ${built} new (blue), ${shared} shared with the ${noun} before, ${replaced} replaced (amber).`
+    : `Last step, ${op} ${show(key)}: ${built} new (blue), ${shared} shared with the ${noun} before, ${replaced} only in the ${noun} before.`
 
 /**
  * A demo of `options.structure`.
@@ -149,16 +146,10 @@ export const versionsDemo = ({ structure, name, noun, intro, keys = decimal, pre
         const { after } = state.versions
         return { key: state.key, versions: { before: after, after: structure[op](key)(after) }, status: { step: { op, key } }, error: null }
     }
-    /** @type {(versions: Versions<V>) => readonly Element[]} */
-    const drawing = versions => {
-        const before = structure.root(versions.before)
-        const after = structure.root(versions.after)
-        return [
-            ...(before === null && after === null ? [] : [graphSvg(graph(versions))]),
-            ...(before === null ? [/** @type {const} */ (['p', `Before is the empty ${noun}.`])] : []),
-            ...(after === null ? [/** @type {const} */ (['p', `After is the empty ${noun}.`])] : []),
-        ]
-    }
+    /** @type {(versions: Versions<V>) => Element} */
+    const drawing = versions => structure.root(versions.after) === null
+        ? ['p', `The ${noun} is empty.`]
+        : graphSvg(graph(versions))
     const keyId = `${name}-key`
     return {
         load,
@@ -185,7 +176,7 @@ export const versionsDemo = ({ structure, name, noun, intro, keys = decimal, pre
                 ],
                 ...(error === null ? [] : [/** @type {const} */ (['p', `Error: ${error}`])]),
                 ['p', 'preset' in status ? status.hint : line(status.step)(count(versions))],
-                ...drawing(versions),
+                drawing(versions),
             ],
         },
     }

@@ -1,6 +1,6 @@
 /**
- * A persistent B-tree before and after a step: type keys, see what the last
- * one changed — and everything it did not.
+ * A persistent B-tree after a step: type keys, see what the last one
+ * built — and everything it shares with the tree before.
  *
  * **Nothing here changes in place**, so inserting a key builds a new tree and
  * leaves the old one as it was. That would be expensive if the new tree were
@@ -8,8 +8,8 @@
  * again, and every other subtree is the same object in both versions.
  *
  * **The demo is a [versions demo](../../website/demo/versions/module.f.mjs)**,
- * which draws both versions as one graph, a shared subtree once; this module
- * says only what a B-tree is. Its nodes are compared as objects, since that
+ * which draws the new version and marks what the old one holds too; this
+ * module says only what a B-tree is. Its nodes are compared as objects, since that
  * is how a B-tree shares. Every leaf of a B-tree is equally deep, so the
  * leaves line up in the last column, and a column reads in order of its
  * nodes' average keys.
