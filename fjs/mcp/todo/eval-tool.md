@@ -138,24 +138,18 @@ out. So the tool is blocked by that mechanism. The three inputs above go into
 the proofs, and each must return the rendered function text or an error
 result.
 
-**Sharing is detected on the evaluated value, not in the syntax.**
-`fjs compile`'s `.json` output refuses a node two references reach
-(`no JSON spelling for a shared node`), and the tool follows it. The compiler
-decides that from the module's syntax, which works because its value route
-runs no calls. The tool runs calls, and a call can create sharing that no
-syntax shows. At `4b63ec0`, `const a = [1]; export default [1, 2].map(x => a);`
-evaluates to an array whose two elements are the same array, while
-`analysis(...).shared` is empty, and `_tryJson` writes `[[1],[1]]`. So the
-tool's JSON step walks the value by identity: it keeps the set of arrays and
-objects it has entered and refuses one entered a second time. That is exact
-here, because `memo` builds a fresh container for every constructor it
-evaluates, so two positions hold the same container only when the program
-shared it. The walk shares `jsonLeaf` with `_tryJson`. `fjs compile` keeps its
-stateless walk, since its values are trees by the front end's word.
+**A shared node is written where each reference reaches it.** `fjs compile`'s
+`.json` output writes a node two references reach twice, as `JSON.stringify`
+does — JSON carries no identity, so `const a = [1]; export default [a, a];` is
+`[[1],[1]]` — and the tool follows it: its JSON step is `_tryJson`'s walk over
+the evaluated value, with no identity check. A call can create sharing no
+syntax shows, `const a = [1]; export default [1, 2].map(x => a);` evaluates to
+an array whose two elements are the same array, and the walk writes it the
+same way.
 
 Every failure the tool can see is an `errorResult`, a result the client reads,
 not a transport error. Those failures are: a parse error, an import, a throw
-during evaluation, a value JSON cannot spell, and a shared node. A parse error needs a name
+during evaluation, and a value JSON cannot spell. A parse error needs a name
 for its location because there is no file. Use a fixed pseudo-path such as
 `<eval>`, so the message reads `<eval>:line:column - error: …`, formatted by
 `_errorLocation` in [`fjs/compiler`](../../compiler/module.f.mjs).

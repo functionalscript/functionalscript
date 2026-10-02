@@ -112,9 +112,10 @@ const jsonMember = ([key, value]) => mapOk(
 /**
  * A value in JSON, or the refusal of a leaf. Members are written in the
  * order the object carries them, the order the DataJS output keeps too — the
- * other value output, and the one this walk shares its input with.
- * Sharing is not this walk's question: the front end answers it from the
- * module's syntax, so the walk carries no state.
+ * other value output, and the one this walk shares its input with. A node
+ * two references reach is written where each reaches it, as
+ * `JSON.stringify` writes it: JSON denotes a tree, so the sharing is no
+ * part of what a document can say.
  *
  * @type {(value: Unknown) => Result<List<string>, string>}
  */
@@ -127,26 +128,21 @@ const jsonValue = value => {
 
 /**
  * The value as one JSON text, when it has one: every leaf spelled by JSON.
- * The value is a tree by the front end's word — {@link Denotation} says
- * whether two references reach one node, decided from the module's syntax
- * rather than by walking the value by identity — so this walk carries no
- * state and asks no question about sharing. Exported for the proofs, which
- * refuse one leaf at a time; `compile` is what a caller runs, and the `_`
- * says so.
+ * Exported for the proofs, which refuse one leaf at a time; `compile` is
+ * what a caller runs, and the `_` says so.
  *
  * @type {(value: Unknown) => Result<string, string>}
  */
 export const _tryJson = value => mapOk(concat)(jsonValue(value))
 
 /**
- * A denotation as JSON. JSON denotes a tree, so a value with a node two
- * references reach is refused: writing the node twice would read back as
- * two nodes, and a document denoting a different graph is the silent
- * substitution the module output exists to avoid.
+ * A denotation as JSON: the tree the value is to JSON, which has no
+ * identity to carry, as `JSON.stringify` writes it. What JSON cannot spell
+ * — `undefined`, a `bigint`, `NaN`, an infinity — is refused.
  *
  * @type {(denotation: Denotation) => Result<string, string>}
  */
-const jsonText = ({ value, shared }) => shared ? noJson('a shared node') : _tryJson(value)
+const jsonText = ({ value }) => _tryJson(value)
 
 /** A denotation as a DataJS document, which denotes a graph and refuses nothing the front end builds. @type {(denotation: Denotation) => Result<string, string>} */
 const dataJsText = ({ value }) => tryStringify(value)
