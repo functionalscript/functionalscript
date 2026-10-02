@@ -468,7 +468,7 @@ the selected value (below):
 |unary `-`|computed|computed|written|written|written|
 |any other operator|refused|refused|refused|written|written|
 |an object or array reached twice|refused|a `const`|a `const`|a shared node|a shared value|
-|a `bigint`|refused|written|written|written|written, a literal within `i64`|
+|a `bigint`|refused|written|written|written|written|
 
 A value output refuses a function, which neither DataJS nor JSON can spell
 (`a function has no value`), a module that ends in `throw`, whose load fails
@@ -489,10 +489,11 @@ does, running the right operand of `&&`, `||` and
 `1n / 0n` never throws. The VM does not answer every member function the
 compiler admits yet
 ([member-functions](../nanvm-lib/todo/member-functions.md)). The Rust writer
-refuses a literal Rust has no spelling for, naming the output and writing
-nothing: a `bigint` outside `i64` — `-9223372036854775808n` is written and
-`9223372036854775808n` refused. A string holding a lone surrogate, which no
-Rust `&str` can hold, is written as its UTF-16 code units.
+spells a `bigint` of any size, a literal within `i64` as one number and a
+larger one as its sign and `u64` words. A string holding a lone surrogate,
+which no Rust `&str` can hold, is written as its UTF-16 code units. A literal
+Rust has no spelling for is refused, naming the output and writing nothing;
+none is left among the primitives.
 
 For a FunctionalScript input, JSON and DataJS output serialize the module
 result's `default` property, with sharing checked for that selected value.
@@ -896,8 +897,7 @@ A hexadecimal integer part, as a [number](#numbers) writes it, takes the
 `n` too: `0x10n` is `16n` and `0XFFn` is `255n`, exact at any width, and
 `-0x8000000000000000n` folds into the leaf `-9223372036854775808n`. An
 output writes `0x10n` exactly as it writes `16n`, and one that refuses a
-`bigint` refuses it whatever its spelling: `.json` refuses every one, and
-`.rs` one outside `i64`.
+`bigint` refuses it whatever its spelling: `.json` refuses every one.
 
 ```js
 export default [0x10n, 0XFFn, -0x8000000000000000n];
