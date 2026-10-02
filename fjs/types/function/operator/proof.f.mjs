@@ -114,9 +114,6 @@ const cascadeTest = {
         assertStructurallySame(c(1, ['', 0]), [0, ['1', 1]])
         assertStructurallySame(c(0, ['', 0]), [undefined, ['0', 0]])
     },
-    noSteps: () => {
-        assertStructurallySame(cascade([])(5, []), [5, []])
-    },
 }
 
 export const proof = { cascadeTest, joinTest, concatTest, logicalNotTest, strictEqualTest, additionTest, incrementTest, counterTest, stateScanToScanTest, foldToScanTest, reduceToScanTest }

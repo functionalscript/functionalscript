@@ -72,7 +72,9 @@ export type StateScan<I, S, O> = (input: I, prior: S) => readonly [O, S]
  * The mapped type alone infers `S` from a step tuple but not `I`, which a
  * JavaScript caller then gets as `any`. The array type it is intersected with
  * is the inference site for `I`: it says only that every step takes an `I`.
+ * For the same reason there is at least one step: with none, nothing names
+ * `I`, and a cascade of no steps is only the identity anyway.
  */
-export type CascadeSteps<I, S extends readonly unknown[]> =
+export type CascadeSteps<I, S extends readonly [unknown, ...unknown[]]> =
     { readonly [K in keyof S]: StateScan<I, S[K], I | undefined> } &
     readonly ((input: I, prior: never) => unknown)[]
