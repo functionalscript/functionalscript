@@ -117,7 +117,9 @@ Approved by Sergey Shandar (@sergey-shandar), language designer, on
 2026-10-02, in the
 [Claude Code session](https://claude.ai/code/session_01NHkT6r3jWYESeWwhL8x6tk)
 that wrote both spread proposals: "do the draft and add my approval
-there" for object spread, then "yes, add my approval to 2480 too".
+there" for object spread, then "yes, add my approval to 2480 too" — and
+on #2514, the pull request that records both:
+["I approve."](https://github.com/functionalscript/functionalscript/pull/2514#discussion_r4167432048)
 [DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo)
 asks for formal, explicit approval from a language designer other than the
 proposer before implementation; this proposal was written by Claude.
