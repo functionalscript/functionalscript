@@ -1,7 +1,7 @@
 ## `orElse`: one continuation for "forgive this error, re-raise the rest"
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
