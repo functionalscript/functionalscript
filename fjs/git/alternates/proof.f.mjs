@@ -31,6 +31,10 @@ export const proof = {
         // path is no longer folded, so nothing rewrites one into a separator
         assertStructurallySame(alternatesIn('od', '"/bad\\qescape"'), ['od/"/bad\\qescape"'])
         assertStructurallySame(alternatesIn('od', '"/short\\12"'), ['od/"/short\\12"'])
+        // an `8` or a `9` is no octal digit, so `\\089` is no escape: the one
+        // input that pins the digit range, since a wider `isOctal` would read
+        // it as `\\000` and cut the path at the `NUL` that names
+        assertStructurallySame(alternatesIn('od', '"/a\\089b"'), ['od/"/a\\089b"'])
         // `\\400` and above name no byte, so the unquoting fails and the line is
         // taken as it stands — measured on Git 2.43.0, `"x\\400"` read objects
         // from a directory named `"x\\400"`, quotes and all. Truncating to a byte
