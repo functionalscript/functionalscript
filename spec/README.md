@@ -1033,6 +1033,10 @@ agrees with JavaScript:
   a function — contributes nothing: `{ ...null }` is `{}`.
 
 So, unlike an [array's spread](#spread), an object's never throws. A
+function contributes nothing to the object, but the module holding it is
+still one holding a function: the value outputs refuse it, as they refuse any
+module holding one, and the others write the spread as it stands
+([Output](#output)). A
 copied `__proto__` key is an ordinary own property, as JavaScript's
 `CreateDataProperty` makes it: `{ ...{ ['__proto__']: 1 } }` owns a
 property named `__proto__` and has no new prototype

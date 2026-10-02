@@ -1783,9 +1783,15 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             // an access reads the object the spread made
             assertEq(compileSource('const o = { a: 1 }; export default { ...o }.a;')('output.json'), '1')
         },
-        // a function is refused first, as every value output refuses one
+        // a function contributes nothing to the object, as `JSON.stringify({
+        // ...(() => 1) })` is `{}`, but a module holding one has no value,
+        // spread or not: the value outputs refuse it as they refuse `const
+        // f = () => 1; export default 1;`, and the others write the spread
         refused: () => {
             assertEq(moduleRefused('export default { ...(() => 1) };'), 'input.f.js - error: a function has no value')
+            assertEq(jsonRefused('export default { ...(() => 1) };'), 'input.f.js - error: a function has no value')
+            assertEq(compileSource('export default { ...(() => 1) };')('output.js'), 'export default {...()=>1};')
+            assertEq(compileSource('export default { ...(() => 1) };')('output.edag.data.js'), 'export default ["{}",[[":","default",["{}",[["...",["=>",0,[],1]]]]]]];')
             assertEq(moduleRefused('export default { ... };'), 'input.f.js:1:22 - error: unexpected token')
             assertEq(moduleRefused('export default { ...a: 1 };'), 'input.f.js:1:22 - error: unexpected token')
         },
