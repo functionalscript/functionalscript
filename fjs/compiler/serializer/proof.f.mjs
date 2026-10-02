@@ -192,12 +192,12 @@ export const proof = {
                 ['{}', [[':', 'if', 1]]],
                 ['{}', [[':', 'NaN', 1]]],
                 ['{}', [[':', 'not-a-name', 1]]],
-                ['{}', [[':', 'a', ['()', 1, [['...', 1]]]]]],
+                ['{}', [[':', 'a', ['{}', [['...', 1]]]]]],
                 ['{}', [[':', 'a', [',', [1]]]]],
                 ['{}', [[':', 'a', ['+', 1]], [':', 'b', 1]]],
                 ['{}', [[':', 'a', ['.', 1, 'constructor']]]],
                 ['{}', [[':', 'a', ['=>', 0, [7], ['frame', 0]]]]],
-                ['{}', [[':', 'default', ['()', 1, [['...', 1]]]]]],
+                ['{}', [[':', 'default', ['{}', [['...', 1]]]]]],
             ])) { assertEq(tryModuleSerialize(graph)[0], 'error') }
         },
     },
@@ -214,6 +214,11 @@ export const proof = {
             ['[]', [null, true, false, 1, 1.5, 1n, 'a"b', '\u{1f600}']],
             'export default [null,true,false,1,1.5,1n,"a\\"b","\u{1f600}"];')
         writes(['{}', [[':', 'a', 1], [':', 'b', 2], [':', '', 3]]], 'export default {"a":1,"b":2,"":3};')
+        // an array's spread, `...` before its operand, which is any value an
+        // item is: a conditional or a function as it stands, ungrouped
+        writes(['[]', [1, ['...', ['[]', [2]]], ['...', 'ab']]], 'export default [1,...[2],..."ab"];')
+        writes(['[]', [['...', ['?:', true, ['[]', []], 'a']]]], 'export default [...true?[]:"a"];')
+        writes(['[]', [['...', ['=>', 0, [], 1]]]], 'export default [...()=>1];')
     },
     // The prefix `-`. It binds looser than a step, so a negation under an
     // access is a base only in a group — `-1[0]` is `-(1[0])` — and a
@@ -539,8 +544,9 @@ export const proof = {
         /** @type {Exp} */
         const n = ['()', 1, []]
         writes(['&&', ['[]', []], ['[]', [n, n]]], 'export default []&&(()=>{const $a0=1;const $a1=$a0();return [$a1,$a1];})();')
-        // a spread argument, which the writer has no spelling for yet
-        refuses(f(['()', a, [['...', a]]]), 'a spread')
+        // a spread argument, `...` before its operand
+        writes(f(['()', a, [['...', a]]]), 'export default (...$a)=>$a(...$a);')
+        writes(f(['.', a, 'm', ['|()', [1, ['...', a]]]]), 'export default (...$a)=>$a.m(1,...$a);')
         // what the compiler builds is written
         assertEq(
             reads(_defaultExport(moduleGraph('export default (...a)=>{const g=a.b; return [g(1), a.b(2), a.b(1)(2)];};'))),
@@ -623,8 +629,8 @@ export const proof = {
         // no prefix for
         refuses(['+', 1], 'a unary + node')
         // a node under a lazy operand is walked for what it holds before
-        // it is refused for what it is
-        refuses(['[]', [['...', ['[]', []]]]], 'a spread')
+        // it is refused for what it is: an object's spread, which waits on
+        // `spec/todo/2490-object-spread.md`
         refuses(['{}', [['...', ['[]', []]]]], 'a spread')
         refuses(['=>', 0, [], ['?.', ['rest'], 'a', ['|.', 'b', ['|()', [['[]', [1]]]]]]], 'a ?. node')
         // an argument list is read by position: `f('#', 0)` names no entry
@@ -657,7 +663,7 @@ export const proof = {
         refuses(
             (() => {
                 /** @type {Exp} */
-                const bad = ['[]', [['...', 1]]]
+                const bad = ['{}', [['...', 1]]]
                 /** @type {Exp} */
                 const good = ['{}', []]
                 return ['[]', [bad, bad, good, good]]

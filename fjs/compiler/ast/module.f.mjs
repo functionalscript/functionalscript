@@ -6,8 +6,8 @@
  * @import { Array, Unknown } from '../../media/datajs/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstBody, AstFunction, AstMember, AstModule, AstModuleRef, AstNeg, AstObject, AstThrow, BinaryTag, Import, Sharing, Anchors } from './types.ts'
- * @import { _Node, _OperandStack, _Reach, _Ref, _RefNode, _Routes, _RunState, _View } from './private.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstBody, AstFunction, AstItem, AstMember, AstModule, AstModuleRef, AstNeg, AstObject, AstSpread, AstThrow, BinaryTag, Import, Sharing, Anchors } from './types.ts'
+ * @import { _Key, _Node, _OperandStack, _Reach, _Ref, _RefNode, _Routes, _RunState, _View } from './private.ts'
  */
 
 import { concat, empty, flat, last, map, take, toArray } from '../../types/list/module.f.mjs'
@@ -86,14 +86,59 @@ const ownProperty = key => base => base === null || base === undefined
 /** @type {(key: string) => (value: Unknown) => readonly [string, Unknown]} */
 const keyed = key => value => [key, value]
 
-/** @type {(items: List<Unknown>) => Unknown} */
-const arrayOf = items => toArray(items)
+/**
+ * Whether an item is a spread, `['...', v]`, rather than a value.
+ *
+ * @type {(item: AstItem) => item is AstSpread}
+ */
+export const isSpread = item => item instanceof Array && item[0] === '...'
+
+/** The node an item evaluates: itself, or a spread's operand. @type {(item: AstItem) => AstConst} */
+export const itemOperand = item => isSpread(item) ? item[1] : item
+
+/** Whether an item list holds a spread, so that its items' positions are no indices. @type {(items: readonly AstItem[]) => boolean} */
+const holdsSpread = items => items.some(isSpread)
+
+/** @type {(items: List<readonly Unknown[]>) => Unknown} */
+const arrayOf = items => toArray(items).flat()
+
+/**
+ * The refusal of a spread whose operand is not iterable: every value but an
+ * array and a string, as JavaScript's `GetIterator` refuses it with a
+ * `TypeError` — a FunctionalScript object cannot define `Symbol.iterator`.
+ */
+const notIterable = 'a spread of a value that is not iterable'
+
+/**
+ * The values a spread's operand yields: an array's elements in index order,
+ * or a string's code points, each a string of its own — what JavaScript's
+ * iterator of each yields.
+ *
+ * @type {(value: Unknown) => Result<readonly Unknown[], string>}
+ */
+const iterated = value =>
+    value instanceof Array ? ok(value)
+    : typeof value === 'string' ? ok([...value])
+    : error(notIterable)
 
 /** @type {(members: List<readonly [string, Unknown]>) => Unknown} */
 const objectOf = members => fromEntries(members)
 
 /** A member with its value evaluated, by the evaluator given first. @type {(evaluate: (ast: AstConst) => Result<Unknown, string>) => (member: AstMember) => Result<readonly [string, Unknown], string>} */
 const memberValue = evaluate => ([key, value]) => mapOk(keyed(key))(evaluate(value))
+
+/** One value, as the values an item adds to an array. @type {(value: Unknown) => readonly Unknown[]} */
+const single = value => [value]
+
+/**
+ * The values one item adds to an array, by the evaluator given first: its
+ * own value, or the values a spread's operand yields, {@link iterated}.
+ *
+ * @type {(evaluate: (ast: AstConst) => Result<Unknown, string>) => (item: AstItem) => Result<readonly Unknown[], string>}
+ */
+const itemValues = evaluate => item => isSpread(item)
+    ? okThen(iterated)(evaluate(item[1]))
+    : mapOk(single)(evaluate(item))
 
 /** @type {(state: _RunState) => (djs: Unknown) => _RunState} */
 const evaluated = state => djs => ({ ...state, consts: concat(state.consts)([djs]) })
@@ -199,7 +244,7 @@ const toDjs = state => ast => {
     switch (ast[0]) {
         case 'aref': { return ok(state.args[ast[1]]) }
         case 'cref': { return ok(last(null)(take(ast[1] + 1)(state.consts))) }
-        case 'array': { return mapOk(arrayOf)(okList(ast[1].map(toDjs(state)))) }
+        case 'array': { return mapOk(arrayOf)(okList(ast[1].map(itemValues(toDjs(state))))) }
         case 'object': { return mapOk(objectOf)(okList(ast[1].map(memberValue(toDjs(state))))) }
         case '=>':
         case 'arg':
@@ -366,14 +411,14 @@ const refsOf = view => ast => flat(map(refsOfOperand(view))(operandsOf(view)(ast
 const refsOfOperand = view => ast => {
     if (ast === null || typeof ast !== 'object') { return empty }
     switch (ast[0]) {
-        case 'array': { return flat(ast[1].map(refsOf(view))) }
+        case 'array': { return flat(ast[1].map(itemRefs(view))) }
         case 'object': { return flat(view.members(ast[1]).map(refsOf(view))) }
         // a call reaches its callee and every argument, each written where
         // it stands: what the call *returns* is not reachable from the
         // syntax at all, which is why a module holding one has no value —
         // except the call the lowering inlines, which is its body where the
         // call stands
-        case '()': { return isInlinedCall(ast) ? inlinedRefs(view)(ast) : flat([ast[1], ...ast[2]].map(refsOf(view))) }
+        case '()': { return isInlinedCall(ast) ? inlinedRefs(view)(ast) : flat([ast[1], ...ast[2].map(itemOperand)].map(refsOf(view))) }
         // an access reaches what its key names inside its base: the base's
         // reference, one key deeper — once the view has read the access
         case '.': {
@@ -398,6 +443,14 @@ const refsOfOperand = view => ast => {
         default: { return [{ ref: ast, keys: [] }] }
     }
 }
+
+/**
+ * The references an array's item makes: a value's own, and what a spread's
+ * operand contributes as the view reads it, {@link _View}'s `spread`.
+ *
+ * @type {(view: _View) => (item: AstItem) => List<_Ref>}
+ */
+const itemRefs = view => item => isSpread(item) ? view.spread(refsOf(view), item[1]) : refsOf(view)(item)
 
 /**
  * Whether a call is one the lowering inlines: a call, with no arguments, of
@@ -436,9 +489,9 @@ const operandReadsRest = ast => {
     if (ast === null || typeof ast !== 'object') { return false }
     switch (ast[0]) {
         case 'rest': { return true }
-        case 'array': { return readsRest(ast[1]) }
+        case 'array': { return readsRest(ast[1].map(itemOperand)) }
         case 'object': { return readsRest(ast[1].map(([, v]) => v)) }
-        case '()': { return readsRest([ast[1], ...ast[2]]) }
+        case '()': { return readsRest([ast[1], ...ast[2].map(itemOperand)]) }
         case '.': { return readsRest([ast[1]]) }
         case '=>': { return readsRest(ast[3] ?? []) }
         default: { return false }
@@ -634,6 +687,18 @@ const valueAt = keys => value => keys.reduce(_own, value)
 const isContainerLiteral = ast => ast !== null && typeof ast === 'object' && (ast[0] === 'array' || ast[0] === 'object')
 
 /**
+ * Whether a key selects inside a container literal: every object, and an
+ * array holding no spread. A spread puts its operand's elements where it
+ * stands, how many is known only once the operand is evaluated, so no key
+ * names an item: such an array is read whole, every item it may select —
+ * which may refuse a value whose selected item shares nothing
+ * (`../todo/spread-index-sharing.md`), never answer a wrong one.
+ *
+ * @type {(ast: AstArray | AstObject) => boolean}
+ */
+const selectable = ast => ast[0] === 'object' || !holdsSpread(ast[1])
+
+/**
  * The literal one key into a container literal: an object's member of that
  * name, the last written, or an array's element at that index; `undefined`
  * where the literal has none — a member the object lacks, `length`, an
@@ -643,23 +708,26 @@ const isContainerLiteral = ast => ast !== null && typeof ast === 'object' && (as
  */
 const literalAt = (ast, key) => ast[0] === 'object'
     ? ast[1].findLast(([name]) => name === key)?.[1]
-    : ast[1][arrayIndex(key) ?? ast[1].length]
+    // an array {@link selectable} holds no spread
+    : /** @type {AstConst} */ (ast[1][arrayIndex(key) ?? ast[1].length])
 
 /**
  * What an access denotes once the keys that select inside a literal are
  * applied, for the value's view: the literal's item the key names, through
  * a chain of accesses — `[[x, x], 0][0]` is `[x, x]` — and through an
  * access the item itself is, `[{ a: z }.a][0]` being `z`; `undefined`
- * where the literal has none or the base is a primitive; and the access
- * itself where the chain reaches a reference, whose value the syntax does
- * not hold — an access on a reference, on an access on one, and so on.
+ * where the literal has none or the base is a primitive; the whole
+ * literal where no key selects inside it, {@link selectable}; and the
+ * access itself where the chain reaches a reference, whose value the
+ * syntax does not hold — an access on a reference, on an access on one,
+ * and so on.
  *
  * @type {(ast: AstAccess) => AstConst}
  */
 const selected = ast => {
     const base = selectedOf(ast[1])
     if (base === null || typeof base !== 'object') { return undefined }
-    if (isContainerLiteral(base)) { return selectedOf(literalAt(base, `${ast[2]}`)) }
+    if (isContainerLiteral(base)) { return selectable(base) ? selectedOf(literalAt(base, `${ast[2]}`)) : base }
     /** @type {AstAccess} */
     const access = ['.', base, ast[2]]
     return access
@@ -676,11 +744,12 @@ const selectedOf = ast => ast !== null && typeof ast === 'object' && ast[0] === 
  * not: the EDAG establishes `a && b`'s `b` only when `a` is truthy, so a
  * reference there is no guarantee the `const` it names is evaluated, and
  * {@link anchors} reads through this view exactly so that such a `const`
- * keeps its anchor.
+ * keeps its anchor. A spread's operand is read as it stands: what it
+ * establishes, not which of its parts the array holds.
  *
  * @type {_View}
  */
-const written = { members: memberValuesWritten, through: ast => ast, negated: operand => [operand], lazy: () => [] }
+const written = { members: memberValuesWritten, through: ast => ast, negated: operand => [operand], lazy: () => [], spread: (refs, operand) => refs(operand) }
 
 /**
  * The syntax as the value has it: the last member per key, of a literal
@@ -690,11 +759,15 @@ const written = { members: memberValuesWritten, through: ast => ast, negated: op
  * `[-0, -0]`, two primitives and no node shared between them — and of a
  * lazy operator every operand, since the value is whichever of them the
  * operator selects: `[a && c, b && c]` may hold `c` twice, and the sweep
- * says shared where it cannot say otherwise.
+ * says shared where it cannot say otherwise — and of a spread its operand's
+ * elements, the route of one `null` key, each element, walked into it: an
+ * array literal's items as they stand, `[x, ...[x]]` holding `x` twice, and
+ * a reference's elements one key deeper, which the evaluated value expands
+ * ({@link elementKeys}).
  *
  * @type {_View}
  */
-const value = { members: memberValues, through: selected, negated: () => [], lazy: operands => operands }
+const value = { members: memberValues, through: selected, negated: () => [], lazy: operands => operands, spread: (_, operand) => refsAlong(operand, [null]) }
 
 /**
  * The syntax as written, every position counted: what the written view
@@ -706,7 +779,7 @@ const value = { members: memberValues, through: selected, negated: () => [], laz
  */
 const every = { ...written, lazy: operands => operands }
 
-/** A reference with keys beyond its own: the rest of a route that ran into it. @type {(keys: readonly string[]) => (ref: _Ref) => _Ref} */
+/** A reference with keys beyond its own: the rest of a route that ran into it. @type {(keys: readonly _Key[]) => (ref: _Ref) => _Ref} */
 const deeperBy = keys => ({ ref, keys: own }) => ({ ref, keys: [...own, ...keys] })
 
 /**
@@ -714,32 +787,41 @@ const deeperBy = keys => ({ ref, keys: own }) => ({ ref, keys: [...own, ...keys]
  * the entry's literals as far as they go, and every reference in what the
  * walk ends at — the literal the route selects, when the route is spent,
  * or the reference the route ran into, with the rest of the route as its
- * keys, since what those keys select lies behind that reference; a
- * primitive the route runs into holds no reference at all. An entry that
+ * keys, since what those keys select lies behind that reference, or the
+ * literal it ran into whole, where no key selects inside it
+ * ({@link selectable}); a primitive the route runs into holds no
+ * reference at all. An entry that
  * is an access on a literal is walked as what it selects, so a route into
  * `{ a: [x, x] }.a` reaches the array and not `x` one key deeper.
  *
- * @type {(ast: AstConst, route: readonly string[]) => List<_Ref>}
+ * A `null` key, each element, walks every item of an array literal. The
+ * literal is an array: a spread's operand that is an object throws, and
+ * the sweep reads only a module that evaluated.
+ *
+ * @type {(ast: AstConst, route: readonly _Key[]) => List<_Ref>}
  */
 const refsAlong = (ast, route) => {
     const read = selectedOf(ast)
-    return route.length === 0 || !isContainerLiteral(read)
-        ? map(deeperBy(route))(refsOf(value)(read))
-        : refsAlong(literalAt(read, route[0]), route.slice(1))
+    if (route.length === 0 || !isContainerLiteral(read)) { return map(deeperBy(route))(refsOf(value)(read)) }
+    if (!selectable(read)) { return refsOf(value)(read) }
+    const [key, ...rest] = route
+    return key === null
+        ? flat(/** @type {AstArray} */ (read)[1].map(item => refsAlong(/** @type {AstConst} */ (item), rest)))
+        : refsAlong(literalAt(read, key), rest)
 }
 
-/** @type {(ast: AstConst) => (route: readonly string[]) => List<_Ref>} */
+/** @type {(ast: AstConst) => (route: readonly _Key[]) => List<_Ref>} */
 const refsAlongEntry = ast => route => refsAlong(ast, route)
 
-/** One route as text, for telling routes apart: each key by its length, so no key runs into the next. @type {(route: readonly string[]) => string} */
-const routeText = route => route.map(key => `${key.length}:${key}`).join('')
+/** One route as text, for telling routes apart: each key by its length, so no key runs into the next, and each element by `*`, which no length begins with. @type {(route: readonly _Key[]) => string} */
+const routeText = route => route.map(key => key === null ? '*' : `${key.length}:${key}`).join('')
 
 /**
  * The routes to walk of those by which an entry is reached: the whole
  * entry alone, when it is reached whole, since every other route lies
  * within it; and otherwise each route once.
  *
- * @type {(routes: List<readonly string[]>) => readonly (readonly string[])[]}
+ * @type {(routes: List<readonly _Key[]>) => readonly (readonly _Key[])[]}
  */
 const routesToWalk = routes => {
     const all = toArray(routes)
@@ -777,16 +859,37 @@ const exported = body => ({ routes: setReplace(`${body.length - 1}`)(whole)(noRo
 const moduleGroup = id => `module ${id}`
 
 /**
- * The node a reference reaches, when it is a container: the `const` by its
- * index or the module by its id, and the keys from there. A reference
- * reaching a leaf reaches nothing two references can share, and is left
- * out.
+ * The nodes a reference reaches, when they are containers: the `const` by
+ * its index or the module by its id, and the keys from there — one node,
+ * or one per element where a key is each element, {@link elementKeys}. A
+ * reference reaching a leaf reaches nothing two references can share, and
+ * is left out.
  *
  * @type {(imports: readonly Import[], consts: readonly Unknown[]) => (ref: _Ref) => readonly _Node[]}
  */
 const containerNode = (imports, consts) => ({ ref: [kind, i], keys }) => {
     const [group, value] = kind === 'cref' ? [`const ${i}`, consts[i]] : [moduleGroup(imports[i].id), imports[i].value]
-    return isContainer(valueAt(keys)(value)) ? [{ group, keys, aref: kind === 'aref' ? i : null }] : []
+    return elementKeys(keys)(value)
+        .filter(k => isContainer(valueAt(k)(value)))
+        .map(k => ({ group, keys: k, aref: kind === 'aref' ? i : null }))
+}
+
+/**
+ * The keys a reference's keys name in `value`, now that it is evaluated:
+ * themselves, where none is each element, and otherwise one route per
+ * element of the array the first such key stands on, its index in that
+ * key's place. A string's elements are its code points, each a string, so
+ * none is a node, and nothing else is spread in a module that evaluated.
+ *
+ * @type {(keys: readonly _Key[]) => (value: Unknown) => readonly (readonly string[])[]}
+ */
+const elementKeys = keys => value => {
+    const i = keys.indexOf(null)
+    if (i === -1) { return [/** @type {readonly string[]} */ (keys)] }
+    const prefix = /** @type {readonly string[]} */ (keys.slice(0, i))
+    const at = valueAt(prefix)(value)
+    const length = at instanceof Array ? at.length : 0
+    return Array.from({ length }, (_, j) => [...prefix, `${j}`, ...keys.slice(i + 1)]).flatMap(k => elementKeys(k)(value))
 }
 
 /**

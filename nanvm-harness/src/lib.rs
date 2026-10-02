@@ -44,6 +44,7 @@ pub mod fixtures {
     pub mod rest;
     pub mod rest_function;
     pub mod sharing;
+    pub mod spread;
     pub mod string;
     pub mod throw;
     pub mod throws;
@@ -181,7 +182,8 @@ mod tests {
             arity, array, at, bigint, boolean, call, calls, closure, escapes, exports, function,
             function_scope, function_text, lazy, length, method, missing, named, named_imports,
             named_imports_throws, nested, not_a_function, nullish, number, object, operators,
-            parameters, property, rest, rest_function, sharing, string, throw, throws, to_string,
+            parameters, property, rest, rest_function, sharing, spread, string, throw, throws,
+            to_string,
         },
         run,
     };
@@ -313,6 +315,17 @@ mod tests {
         assert_eq!(
             run::<Naive>(function_scope::module, "default", Action::Read),
             Ok("[[1,1],[1,1]]".into())
+        );
+    }
+
+    /// Spread, end to end: an array's elements and a string's code points
+    /// spliced into an array literal and a call's arguments, a method
+    /// call's included — the values Node gives the fixture.
+    #[test]
+    fn spreads() {
+        assert_eq!(
+            run::<Naive>(spread::module, "default", Action::Read),
+            Ok(r#"[[0,1,2,3],["a","😀"],[1,2,4],4,2]"#.into())
         );
     }
 

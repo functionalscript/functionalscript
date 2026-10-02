@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { Exp } from '../../edag/types.ts'
+import type { Exp, Items } from '../../edag/types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { AstConst, BinaryTag } from '../ast/types.ts'
@@ -60,8 +60,14 @@ export type _LowerResults = { readonly top: _Lowered, readonly rest: _LowerResul
  * positions to the nearest block root, a scope's root or a lazy operand,
  * where the comma establishes them before the value.
  */
-export type _Lowered = {
-    readonly exp: Exp
+export type _Lowered = _LoweredOver<Exp>
+
+/** An item lowered: a value's {@link _Lowered}, or a spread item's over its operand's. */
+export type _LoweredItem = _LoweredOver<Items>
+
+/** A lowered `E`, and what it floats. */
+export type _LoweredOver<E> = {
+    readonly exp: E
     readonly anchors: readonly Exp[]
 }
 

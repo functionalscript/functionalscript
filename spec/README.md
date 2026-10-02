@@ -957,6 +957,40 @@ elision: an array has no holes.
 See
 <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Trailing_commas>.
 
+#### Spread
+
+An item may be a **spread**, `...` and any value, at any position and any
+number of times:
+
+```js
+const a = [1, 2];
+export default [[0, ...a, 3], [...a, ...a], [...'a😀']];
+// [[0, 1, 2, 3], [1, 2, 1, 2], ['a', '😀']]
+```
+
+The operand is evaluated in its place among the items, left to right, and
+then iterated, each value it yields becoming one item, as JavaScript's
+`SpreadElement` does. An array yields its elements in index order, and a
+string its code points, each a string of its own: `[...'😀']` is one item
+of two code units. Every other value — `null`, `undefined`, a boolean, a
+number, a `bigint`, an object, a function — is not iterable, and the spread
+fails, as JavaScript's `GetIterator` throws its `TypeError` (`a spread of a
+value that is not iterable`): a FunctionalScript object cannot define
+`Symbol.iterator`, so no object is iterable here, and none is in JavaScript
+either. A call's arguments take a spread the same way
+([functions](#functions)).
+
+The value outputs write the array the spread made, and the graph outputs
+the spread itself: `.js` and `.f.js` write it back, `[0, ...a]`, the EDAG
+keeps its `['...', exp]` item, and `.rs` prints it through `nanvm-lib`'s
+`get_iterator`. A constant spread is not folded, so `[...[1, 2]]` is a
+different graph from `[1, 2]`, as `1 + 1` is from `2`. A spread puts its
+operand's elements in the array and not the operand, so it shares what an
+element shares: `const a = [1]; export default [[...a], a];` has no shared
+node and is written as JSON, where `const a = [{}]` in its place has one.
+An object's spread, `{ ...o }`, is not in the language yet
+([object spread](./todo/2490-object-spread.md)).
+
 ### Objects
 
 ```js
@@ -1824,7 +1858,10 @@ are not supported yet. A newline before `=>` is refused.
   value, as a property access is, and what a step applies to is everything
   written before it — so `f(1)(2)` calls what `f(1)` returns, and
   `o.m(1).n(2)` calls `n` on what `o.m(1)` returned. The arguments are the
-  list an array holds, a trailing comma included.
+  list an array holds, a trailing comma and a [spread](#spread) included:
+  `f(...a, 4)` passes `a`'s elements and then `4`, and
+  `(...r) => f(...r)` forwards the values and never the array, since every
+  callee builds its own rest array from the arguments.
 
   Parentheses around the property do not drop the receiver: `(o.m)(a)`
   passes `o` as surely as `o.m(a)` does, since the parentheses keep the

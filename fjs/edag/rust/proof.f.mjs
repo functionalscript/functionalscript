@@ -109,6 +109,22 @@ export const proof = {
             'use nanvm_lib::vm::unstable::{f64_any, strict_eq};',
             'use nanvm_lib::vm::{Any, IVm};',
         ])
+        // past rustfmt's 100 columns the braced names wrap as it wraps them:
+        // on lines of their own, filled to the width
+        assertStructurallySame(useLines({ vm: [], unstable: ['f64_any', 'spread_array', 'spread_call', 'spread_item', 'string_any', 'string_key', 'value_item'] }, 'IVm'), [
+            'use nanvm_lib::vm::unstable::{',
+            '    f64_any, spread_array, spread_call, spread_item, string_any, string_key, value_item,',
+            '};',
+            'use nanvm_lib::vm::{Any, IVm};',
+        ])
+        assertStructurallySame(useLines({ vm: [], unstable: Array.from({ length: 11 }, (_, i) => `helper_number_${i}`) }, 'IVm'), [
+            'use nanvm_lib::vm::unstable::{',
+            '    helper_number_0, helper_number_1, helper_number_2, helper_number_3, helper_number_4,',
+            '    helper_number_5, helper_number_6, helper_number_7, helper_number_8, helper_number_9,',
+            '    helper_number_10,',
+            '};',
+            'use nanvm_lib::vm::{Any, IVm};',
+        ])
     },
     fixedAndRest: () => {
         const text = scoped(['=>', 3, [], ['[]', [['arg', 0], ['arg', 2], ['rest']]]]).join('\n')

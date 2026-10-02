@@ -1456,14 +1456,46 @@ export const scope = root => mapOk((/** @type {Printed<readonly string[]>} */ [s
 
 /**
  * The `use` lines for a scope's names, {@link scope}'s `uses`, inside a
- * function bound on `bound`, spelled as rustfmt spells them: the
- * `vm::unstable` helpers' line, if any, one name bare and several braced,
- * then `vm`'s, which always holds `Any` and the bound — every value is an
- * `Any<A>`, and every function is generic over it.
+ * function bound on `bound`, spelled as rustfmt spells them,
+ * {@link useLine}: the `vm::unstable` helpers' line, if any, then `vm`'s,
+ * which always holds `Any` and the bound — every value is an `Any<A>`, and
+ * every function is generic over it.
  *
  * @type {(uses: Uses, bound: string) => readonly string[]}
  */
 export const useLines = ({ vm, unstable }, bound) => [
-    ...(unstable.length === 0 ? [] : [`use nanvm_lib::vm::unstable::${unstable.length === 1 ? unstable[0] : `{${unstable.join(', ')}}`};`]),
-    `use nanvm_lib::vm::{${[...new Set(['Any', bound, ...vm])].toSorted().join(', ')}};`,
+    ...(unstable.length === 0 ? [] : useLine('nanvm_lib::vm::unstable', unstable)),
+    ...useLine('nanvm_lib::vm', [...new Set(['Any', bound, ...vm])].toSorted()),
 ]
+
+/** rustfmt's default `max_width`, the column a line may not pass. */
+const maxWidth = 100
+
+/**
+ * One `use` of `names` from `path`, as rustfmt lays it out at its default
+ * width: one name bare, and several braced — on the one line where it
+ * fits, and otherwise one name per comma on lines of their own, filled to
+ * the width and indented one level, between the `{` and the `};`. A module
+ * is generated for a workspace whose `cargo fmt --check` reads it, and a
+ * generated function opts out with `#[rustfmt::skip]`, which a `use`
+ * cannot.
+ *
+ * @type {(path: string, names: readonly string[]) => readonly string[]}
+ */
+const useLine = (path, names) => {
+    if (names.length === 1) { return [`use ${path}::${names[0]};`] }
+    const line = `use ${path}::{${names.join(', ')}};`
+    return line.length <= maxWidth ? [line] : [`use ${path}::{`, ...names.reduce(filled, []), '};']
+}
+
+/**
+ * The lines of a wrapped `use` list with one more name: on the last line
+ * where it still fits the width, and on a line of its own otherwise.
+ *
+ * @type {(rows: readonly string[], name: string) => readonly string[]}
+ */
+const filled = (rows, name) => {
+    const last = rows.at(-1)
+    const joined = `${last} ${name},`
+    return last !== undefined && joined.length <= maxWidth ? [...rows.slice(0, -1), joined] : [...rows, `    ${name},`]
+}

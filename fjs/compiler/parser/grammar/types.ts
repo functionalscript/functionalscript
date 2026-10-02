@@ -106,6 +106,12 @@ export type Container<Item extends Rule> = readonly [number, Option<Items<Item>>
 /** A key, `:`, and a value. */
 export type Member = readonly [typeof key, number, Value]
 
+/** An item of an array or of a call's arguments: a value, or `...` and a value. */
+export type Item = {
+    readonly spread: readonly [number, Value]
+    readonly value: Value
+}
+
 /**
  * One step after a value: `.name`, `[key]`, or a call and its arguments.
  *
@@ -116,7 +122,7 @@ export type Member = readonly [typeof key, number, Value]
 export type Access = {
     readonly property: readonly [number, typeof identifierName]
     readonly index: readonly [number, typeof index, number]
-    readonly call: readonly [number, Option<Items<Value>>, number]
+    readonly call: readonly [number, Option<Items<Item>>, number]
 }
 
 /**
@@ -139,7 +145,7 @@ export type Unary = () => readonly ['const', {
     readonly bitnot: readonly [number, UnaryOperand]
     readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>], PowTail]
     readonly ref: readonly [readonly [typeof identifier, RepeatFrom<0, Access>], PowTail]
-    readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>], PowTail]
+    readonly array: readonly [readonly [Container<Item>, RepeatFrom<0, Access>], PowTail]
     readonly object: readonly [readonly [Container<Member>, RepeatFrom<0, Access>], PowTail]
     readonly group: ParenGroup
 }]
@@ -157,7 +163,7 @@ export type UnaryOperand = () => readonly ['const', {
     readonly bitnot: readonly [number, UnaryOperand]
     readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>]]
     readonly ref: readonly [readonly [typeof identifier, RepeatFrom<0, Access>]]
-    readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>]]
+    readonly array: readonly [readonly [Container<Item>, RepeatFrom<0, Access>]]
     readonly object: readonly [readonly [Container<Member>, RepeatFrom<0, Access>]]
     readonly group: ParenGroupOperand
 }]
@@ -271,7 +277,7 @@ export type ValueBranches = {
     readonly bitnot: readonly [number, UnaryOperand, ...Tail]
     readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly name: readonly [typeof identifier, ArrowOrRest]
-    readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>], PowTail, ...Tail]
+    readonly array: readonly [readonly [Container<Item>, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly paren: Paren
 }
 
