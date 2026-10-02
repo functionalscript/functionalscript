@@ -113,11 +113,15 @@ export type AstModuleRef = readonly ['aref' | 'cref', number]
 export type AstItem = AstConst | AstSpread
 
 /**
- * A spread, `...v`: its operand evaluated in its place among the items and
- * then iterated, each value it yields one item — an array's elements, a
- * string's code points — and every other value refused, as JavaScript's
- * `GetIterator` refuses it. No value of its own, so it stands only in an
- * item list.
+ * A spread, `...v`: its operand evaluated in its place, and what it
+ * contributes decided by where it stands, as JavaScript decides it. Among
+ * the items of an array or a call, {@link AstItem}, the operand is iterated,
+ * each value it yields one item — an array's elements, a string's code
+ * points — and every other value refused, as `GetIterator` refuses it.
+ * Among the entries of an object, {@link AstEntry}, the operand's own
+ * properties are copied — an array's elements by index, a string's code
+ * units — and every other value contributes nothing, as `CopyDataProperties`
+ * copies it. No value of its own, so it stands in those two lists alone.
  */
 export type AstSpread = readonly ['...', AstConst]
 
