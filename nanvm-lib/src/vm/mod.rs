@@ -3,13 +3,14 @@ mod array;
 mod bigint;
 mod boolean_coercion;
 mod container_fmt;
+#[cfg(test)]
+mod deep_test;
 mod dispatch;
 mod ecma_whitespace;
 mod function;
 mod impls;
 mod internal;
 mod iterator_record;
-mod join;
 mod lambda;
 mod member_access;
 mod nullish;

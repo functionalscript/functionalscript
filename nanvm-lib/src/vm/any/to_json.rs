@@ -1,11 +1,11 @@
-use core::fmt::{self, Display, Formatter, Write};
+use core::{
+    fmt::{self, Display, Formatter, Write},
+    mem,
+};
 
-use crate::{
-    common::sized_index::SizedIndex,
-    vm::{
-        Any, Array, BigInt, Function, IVm, Number, Object, String, dispatch::Dispatch,
-        nullish::Nullish, string_coercion::number_to_string,
-    },
+use crate::vm::{
+    Any, Array, BigInt, Function, IVm, Number, Object, String, Unpacked, dispatch::Dispatch,
+    nullish::Nullish, string_coercion::number_to_string,
 };
 
 /// An `Any<A>` shape [`Any::to_json`] does not (yet) know how to render.
@@ -126,34 +126,13 @@ impl<A: IVm> Dispatch<A> for ToJson {
         Err(JsonError::BigInt)
     }
 
-    fn object(self, v: Object<A>) -> Self::Result {
-        // The object's own enumerable entries in `[[OwnPropertyKeys]]`
-        // order, each key once with its last value: the view
-        // `JSON.stringify` and an object spread both read
-        // ([`Object::own_entries`]).
-        let mut out = std::string::String::from("{");
-        for (i, (k, value)) in v.own_entries().into_iter().enumerate() {
-            if i > 0 {
-                out.push(',');
-            }
-            out.push_str(&json_string(k));
-            out.push(':');
-            out.push_str(&value.to_json()?);
-        }
-        out.push('}');
-        Ok(out)
+    /// Containers are walked by [`Any::to_json`]'s own stack, never here.
+    fn object(self, _: Object<A>) -> Self::Result {
+        unreachable!("an object is walked by `to_json`'s stack")
     }
 
-    fn array(self, v: Array<A>) -> Self::Result {
-        let mut out = std::string::String::from("[");
-        for (i, item) in v.index_iter().enumerate() {
-            if i > 0 {
-                out.push(',');
-            }
-            out.push_str(&item.to_json()?);
-        }
-        out.push(']');
-        Ok(out)
+    fn array(self, _: Array<A>) -> Self::Result {
+        unreachable!("an array is walked by `to_json`'s stack")
     }
 
     fn function(self, _: Function<A>) -> Self::Result {
@@ -161,12 +140,73 @@ impl<A: IVm> Dispatch<A> for ToJson {
     }
 }
 
+/// A container being written: what is left of it, and whether a comma is due
+/// before the next item.
+enum Open<A: IVm> {
+    Array(<Array<A> as IntoIterator>::IntoIter, bool),
+    Object(std::vec::IntoIter<(String<A>, Any<A>)>, bool),
+}
+
 impl<A: IVm> Any<A> {
     /// An `Any<A>` -> JSON serializer covering everything with a direct JSON
     /// counterpart: numbers, strings, booleans, `null`, and arrays/objects
     /// recursed into. See [`JsonError`] for what's deliberately unhandled.
+    ///
+    /// The containers being written are a stack on the heap and the text goes
+    /// into one buffer, so a value nested to any depth is written in constant
+    /// stack and in time linear in its text.
+    ///
+    /// An object's entries are its own, in `[[OwnPropertyKeys]]` order, each
+    /// key once with its last value: the view `JSON.stringify` and an object
+    /// spread both read ([`Object::own_entries`]).
     pub fn to_json(self) -> Result<std::string::String, JsonError> {
-        self.dispatch(ToJson)
+        let mut out = std::string::String::new();
+        let mut stack: Vec<Open<A>> = Vec::new();
+        let mut value = Some(self);
+        loop {
+            if let Some(v) = value.take() {
+                match Unpacked::from(v) {
+                    Unpacked::Array(a) => {
+                        out.push('[');
+                        stack.push(Open::Array(a.into_iter(), false));
+                    }
+                    Unpacked::Object(o) => {
+                        out.push('{');
+                        stack.push(Open::Object(o.own_entries().into_iter(), false));
+                    }
+                    scalar => out.push_str(&Any::from(scalar).dispatch(ToJson)?),
+                }
+            }
+            match stack.last_mut() {
+                None => return Ok(out),
+                Some(Open::Array(items, comma)) => match items.next() {
+                    Some(item) => {
+                        if mem::replace(comma, true) {
+                            out.push(',');
+                        }
+                        value = Some(item);
+                    }
+                    None => {
+                        out.push(']');
+                        stack.pop();
+                    }
+                },
+                Some(Open::Object(entries, comma)) => match entries.next() {
+                    Some((key, item)) => {
+                        if mem::replace(comma, true) {
+                            out.push(',');
+                        }
+                        out.push_str(&json_string(key));
+                        out.push(':');
+                        value = Some(item);
+                    }
+                    None => {
+                        out.push('}');
+                        stack.pop();
+                    }
+                },
+            }
+        }
     }
 }
 
@@ -442,6 +482,60 @@ mod tests {
         assert_eq!(
             Nullish::Undefined.to_any::<A>().to_json(),
             Err(super::JsonError::Undefined)
+        );
+    }
+
+    /// A value nested far past the stack is written, in one buffer: a text as
+    /// long as the nesting is deep, which a recursion that copied each level's
+    /// text into its parent's would take quadratic time to write.
+    #[test]
+    fn writes_a_deeply_nested_value() {
+        use crate::vm::deep_test::{DEPTH, leak, nested_arrays, nested_objects, small_stack};
+        small_stack(|| {
+            let arrays = nested_arrays(DEPTH, Nullish::Null.to_any());
+            assert_eq!(
+                arrays.clone().to_json(),
+                Ok(format!("{}null{}", "[".repeat(DEPTH), "]".repeat(DEPTH)))
+            );
+            leak(arrays);
+            let objects = nested_objects(DEPTH, Nullish::Null.to_any());
+            assert_eq!(
+                objects.clone().to_json(),
+                Ok(format!(
+                    "{}null{}",
+                    r#"{"a":"#.repeat(DEPTH),
+                    "}".repeat(DEPTH)
+                ))
+            );
+            leak(objects);
+        });
+    }
+
+    /// A refusal deep inside is the first one in document order, as before.
+    #[test]
+    fn a_deep_refusal_is_reported() {
+        use crate::vm::deep_test::{DEPTH, leak, nested_arrays, small_stack};
+        small_stack(|| {
+            let a = nested_arrays(DEPTH, Nullish::Undefined.to_any());
+            assert_eq!(a.clone().to_json(), Err(super::JsonError::Undefined));
+            leak(a);
+        });
+    }
+
+    /// Commas fall between siblings only, whatever the nesting.
+    #[test]
+    fn commas_between_siblings_in_nested_containers() {
+        let inner: crate::vm::Any<A> = [s("x"), s("y")].to_array().to_any();
+        let o: crate::vm::Any<A> = [
+            ("a".into(), inner.clone()),
+            ("b".into(), [].to_array().to_any()),
+            ("c".into(), [inner, s("z")].to_array().to_any()),
+        ]
+        .to_object()
+        .to_any();
+        assert_eq!(
+            o.to_json(),
+            Ok(r#"{"a":["x","y"],"b":[],"c":[["x","y"],"z"]}"#.into())
         );
     }
 }

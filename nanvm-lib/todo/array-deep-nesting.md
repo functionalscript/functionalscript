@@ -1,7 +1,11 @@
 ## Array flat, join and to_json overflow the stack on deep nesting
 
 **Priority:** P3
-**Status:** wip
+**Status:** open
+
+**Done:** `flat`, `join` (so `String(a)` and the default `toSorted`) and `to_json`
+walk a heap stack and take a value of any depth. What is left is the shared-array
+count of `flat`, below, and `Debug`, which stays recursive.
 
 ### Problem
 
@@ -69,12 +73,12 @@ level.
 
 ### Tasks
 
-- [ ] `flat` over an explicit stack, with a test nesting deeper than the
+- [x] `flat` over an explicit stack, with a test nesting deeper than the
       default thread stack allows.
-- [ ] `join` the same, with tests for `String(a)` and `[a, 0].toSorted()`
+- [x] `join` the same, with tests for `String(a)` and `[a, 0].toSorted()`
       over the same nesting.
 - [ ] `flat`'s length count remembers each shared array's count, so a
       deeply shared result is refused in time linear in the distinct arrays.
-- [ ] `to_json` over an explicit stack writing into one buffer, with tests
+- [x] `to_json` over an explicit stack writing into one buffer, with tests
       through `to_json` at a depth far past the stack and a check that the
       text is the one the recursive version produced.
