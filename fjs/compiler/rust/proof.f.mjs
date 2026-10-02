@@ -11,6 +11,9 @@ import { _rustOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 
+/** The shared examples the Rust output refuses: three the parser does, and the import it has no file set for. */
+const refusedByRust = ['An import', 'Logical not', 'typeof', 'Parse error']
+
 export const proof = {
     throw: {
         invalidLength: [-0, -1, 0.5, NaN, Infinity].map(length => () => toRust(['=>', length, [], 1])),
@@ -437,12 +440,11 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             /** @type {(name: string) => Result<string, string>} */
             const rustOf = name => _rustOf(assertDefined(examples.find(([n]) => n === name))[1])
             for (const [name] of examples) {
-                const refused = name.startsWith('Refused') || name === 'Parse error'
-                assertEq(rustOf(name)[0], refused ? 'error' : 'ok')
+                assertEq(rustOf(name)[0], refusedByRust.includes(name) ? 'error' : 'ok')
             }
             assert(rustOf('Sharing: a const used twice')[1].includes('c0.clone(), c0.clone()'), 'sharing is one clone')
-            assert(rustOf('Refused: an import')[1].includes('args'), 'the import is refused for reading its arguments')
-            assertEq(rustOf('Refused: logical not')[1], 'unexpected token')
+            assert(rustOf('An import')[1].includes('args'), 'the import is refused for reading its arguments')
+            assertEq(rustOf('Logical not')[1], 'unexpected token')
         },
         view: () => {
             const shown = htmlToString(demo.view(demo.init))
