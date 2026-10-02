@@ -87,7 +87,7 @@ export const emptyPipelineState = [emptyEncodeState, emptyEncodeState, emptyEnco
  *
  * @type {StateScan<bigint, PipelineState, bigint | undefined>}
  */
-export const pipelineStep = cascade(/** @type {const} */ ([l1.encode, l2.encode, l3.encode]))
+export const pipelineStep = cascade([l1.encode, l2.encode, l3.encode])
 
 const vec1 = vec(1n)
 

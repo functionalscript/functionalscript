@@ -39,7 +39,7 @@ export const cascade =
      * step's output is the cascade's.
      *
      * @template I
-     * @template {readonly [unknown, ...unknown[]]} S
+     * @template {readonly [unknown, ...unknown[]]} const S
      * @param {CascadeSteps<I, S>} steps
      * @returns {StateScan<I, S, I | undefined>}
      */

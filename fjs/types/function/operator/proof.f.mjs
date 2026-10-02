@@ -100,7 +100,7 @@ const count = (input, n) => [input, n + 1]
 
 const cascadeTest = {
     stopsAtEachPosition: () => {
-        const c = cascade(/** @type {const} */ ([countDown, countDown, countDown]))
+        const c = cascade([countDown, countDown, countDown])
         /** @type {readonly [string, string, string]} */
         const prior = ['a', 'b', 'c']
         assertStructurallySame(c(0, prior), [undefined, ['a0', 'b', 'c']])
@@ -109,7 +109,7 @@ const cascadeTest = {
         assertStructurallySame(c(3, prior), [0, ['a3', 'b2', 'c1']])
     },
     eachStepKeepsItsStateType: () => {
-        const c = cascade(/** @type {const} */ ([countDown, count]))
+        const c = cascade([countDown, count])
         /** @typedef {Assert<Equal<typeof c, StateScan<number, readonly [string, number], number | undefined>>>} _Inferred */
         assertStructurallySame(c(1, ['', 0]), [0, ['1', 1]])
         assertStructurallySame(c(0, ['', 0]), [undefined, ['0', 0]])
