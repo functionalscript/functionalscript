@@ -3,7 +3,7 @@
  *
  * @module
  *
- * @import { Addition, Fold, Reduce, Scan, StateScan, Unary } from './types.ts'
+ * @import { Addition, CascadeSteps, Fold, Reduce, Scan, StateScan, Unary } from './types.ts'
  */
 
 /** @type {(separator: string) => Reduce<string>} */
@@ -29,6 +29,33 @@ export const stateScanToScan = op => prior => i => {
     const [o, s] = op(i, prior)
     return [o, stateScanToScan(op)(s)]
 }
+
+export const cascade =
+    /**
+     * Chains `steps` into one {@link StateScan}: each step's output is the next
+     * step's input, and the chain stops at the first step that outputs
+     * `undefined`. Each step keeps its own state, at its position in the state
+     * tuple; a step the chain did not reach keeps its state unchanged. The last
+     * step's output is the cascade's.
+     *
+     * @template I
+     * @template {readonly unknown[]} S
+     * @param {CascadeSteps<I, S>} steps
+     * @returns {StateScan<I, S, I | undefined>}
+     */
+    steps => (input, prior) => {
+        /** @type {(i: number, value: I) => readonly [I | undefined, readonly unknown[]]} */
+        const step = (i, value) => {
+            if (i === steps.length) { return [value, []] }
+            const [output, state] = steps[i](value, prior[i])
+            const [result, rest] = output === undefined
+                ? [undefined, prior.slice(i + 1)]
+                : step(i + 1, output)
+            return [result, [state, ...rest]]
+        }
+        const [output, state] = step(0, input)
+        return [output, /** @type {S} */ (state)]
+    }
 
 /** @type {<I, O>(fold: Fold<I, O>) => (prior: O) => Scan<I, O>} */
 export const foldToScan = fold => prior => i => {

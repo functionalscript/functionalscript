@@ -62,3 +62,17 @@ export type Scan<I, O> = (input: I) => readonly [O, Scan<I, O>]
  * {@link Scan}.
  */
 export type StateScan<I, S, O> = (input: I, prior: S) => readonly [O, S]
+
+/**
+ * The steps of a `cascade` in `./module.f.mjs`: one {@link StateScan} per
+ * position of the state tuple `S`, each over its own state `S[K]`, each
+ * mapping an `I` to the next step's `I` or to `undefined`, which ends the
+ * chain.
+ *
+ * The mapped type alone infers `S` from a step tuple but not `I`, which a
+ * JavaScript caller then gets as `any`. The array type it is intersected with
+ * is the inference site for `I`: it says only that every step takes an `I`.
+ */
+export type CascadeSteps<I, S extends readonly unknown[]> =
+    { readonly [K in keyof S]: StateScan<I, S[K], I | undefined> } &
+    readonly ((input: I, prior: never) => unknown)[]

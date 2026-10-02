@@ -12,6 +12,7 @@
 
 import { log2 } from '../../../types/bigint/module.f.mjs'
 import { msb, vec } from '../../../types/bit_vec/module.f.mjs'
+import { cascade } from '../../../types/function/operator/module.f.mjs'
 import { map, sameItems } from '../../../types/list/module.f.mjs'
 import { join } from '../../../types/string/module.f.mjs'
 
@@ -86,15 +87,7 @@ export const emptyPipelineState = [emptyEncodeState, emptyEncodeState, emptyEnco
  *
  * @type {StateScan<bigint, PipelineState, bigint | undefined>}
  */
-export const pipelineStep =
-    (bit, [l1s, l2s, l3s]) => {
-        const [l1Out, newL1s] = l1.encode(bit, l1s)
-        if (l1Out === undefined) return [undefined, [newL1s, l2s, l3s]]
-        const [l2Out, newL2s] = l2.encode(l1Out, l2s)
-        if (l2Out === undefined) return [undefined, [newL1s, newL2s, l3s]]
-        const [l3Out, newL3s] = l3.encode(l2Out, l3s)
-        return [l3Out, [newL1s, newL2s, newL3s]]
-    }
+export const pipelineStep = cascade(/** @type {const} */ ([l1.encode, l2.encode, l3.encode]))
 
 const vec1 = vec(1n)
 
