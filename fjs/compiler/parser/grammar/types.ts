@@ -254,37 +254,38 @@ export type ConditionalTail = Option<readonly [number, Value, number, Value]>
 export type Tail = readonly [...EagerTail, CircuitTail, ConditionalTail]
 
 /**
- * A value: a primitive token, a reference, an array of values, or an
- * object of members, each followed by the
+ * The branches {@link Value} and {@link Body} both start with: a primitive
+ * token, a reference, or an array of values, each followed by the
  * accesses after it and optionally raised to a power — or a `-`/`~`
  * prefix — each carrying {@link Tail}, the binary-operator suffix, above
  * it — or `(`, the choice between a function and a group, {@link Paren},
- * a function alone excepted, nothing following one unparenthesized. A
- * `const` thunk whose payload names the thunk, which is what lets a type
- * alias name itself.
+ * a function alone excepted, nothing following one unparenthesized.
  */
-export type Value = () => readonly ['const', {
+export type ValueBranches = {
     readonly neg: readonly [number, UnaryOperand, ...Tail]
     readonly bitnot: readonly [number, UnaryOperand, ...Tail]
     readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly name: readonly [typeof identifier, ArrowOrRest]
     readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>], PowTail, ...Tail]
-    readonly object: readonly [readonly [Container<Member>, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly paren: Paren
+}
+
+/**
+ * A value: {@link ValueBranches} and an object of members. A `const`
+ * thunk whose payload names the thunk, which is what lets a type alias
+ * name itself.
+ */
+export type Value = () => readonly ['const', ValueBranches & {
+    readonly object: readonly [readonly [Container<Member>, RepeatFrom<0, Access>], PowTail, ...Tail]
 }]
 
 /**
- * A function's body: a value less the object, since `=> {` opens a block
- * in JavaScript — or that block, in which an object is a value again, or
- * a group, which is the other spelling of a body that is an object.
+ * A function's body: {@link ValueBranches} without the object, since
+ * `=> {` opens a block in JavaScript — and that block, in which an object
+ * is a value again. A group is the other spelling of a body that is an
+ * object.
  */
-export type Body = () => readonly ['const', {
-    readonly neg: readonly [number, UnaryOperand, ...Tail]
-    readonly bitnot: readonly [number, UnaryOperand, ...Tail]
-    readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>], PowTail, ...Tail]
-    readonly name: readonly [typeof identifier, ArrowOrRest]
-    readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>], PowTail, ...Tail]
-    readonly paren: Paren
+export type Body = () => readonly ['const', ValueBranches & {
     readonly block: Block
 }]
 
