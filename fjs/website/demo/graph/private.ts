@@ -35,6 +35,7 @@ export type _Positioned = Ranked & {
     readonly width: number
     readonly height: number
     readonly keyWidth: number
+    readonly entry: number
     readonly ports: readonly _Port[]
 }
 
@@ -53,11 +54,15 @@ export type _Slot = {
 
 /**
  * A node's size and its ports, as `portsOf` lays them out under its label.
+ * `entry` is where an edge into the node arrives, measured from its top:
+ * the middle of its label's row, or of its first port's when it has no
+ * label row.
  */
 export type _Size = {
     readonly width: number
     readonly height: number
     readonly keyWidth: number
+    readonly entry: number
     readonly ports: readonly _Port[]
 }
 
