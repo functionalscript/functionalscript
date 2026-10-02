@@ -76,10 +76,9 @@ from `{ a: 1 }` and hashes differently, as `[...[1]]` and `[1]` do.
 ## Benefits
 
 - **Familiar code compiles.** At `93ed6ba`, about 84 of the 406 `.f.mjs`
-  modules use object spread, about 610 occurrences, as
-  [array spread](./2480-spread.md) counted them; a cruder line scan of the
-  same commit, in the review of #2484, found 78 modules. Every one of them
-  is refused today.
+  modules use object spread, about 610 occurrences, as the array spread
+  proposal counted them (#2470); a cruder line scan of the same commit, in
+  the review of #2484, found 78 modules. Every one of them is refused today.
   Among the leaf modules, it is one of the blockers of `fjs/git/config`.
 - **The rest of the pipeline is ready.** The EDAG, its analysis, the
   JavaScript evaluator and the Rust printer take an object's spread entry
@@ -184,8 +183,8 @@ proposer before implementation; this proposal was written by Claude.
 
 ## Related
 
-- [array and call spread](./2480-spread.md): the same `...` in `[]` and a
-  call's arguments.
+- [spread](../README.md#spread): the same `...` in `[]` and a call's
+  arguments, in the language.
 - [spread operations](../../nanvm-lib/todo/spread-operations.md): the
   `nanvm-lib` side, `get_iterator` and `object_spread`.
 - [`fjs/edag/README.md`](../../fjs/edag/README.md): the spread entry.

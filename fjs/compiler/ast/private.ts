@@ -29,19 +29,29 @@ export type _RunState = {
  * conditionally established operands do: the right operand of `&&`, `||`
  * and `??`, and both arms of `?:` — the value's view every one of them,
  * since the value may be any of them, and the written view none, since
- * the EDAG establishes none of them unconditionally.
+ * the EDAG establishes none of them unconditionally — and what a spread's
+ * operand contributes, given the walk of an operand: its elements, in the
+ * value's view, and the operand as it stands in a view that reads no keys.
  */
 export type _View = {
     readonly members: (members: readonly AstMember[]) => readonly AstConst[]
     readonly through: (ast: AstAccess) => AstConst
     readonly negated: (operand: AstConst) => readonly AstConst[]
     readonly lazy: (operands: readonly AstConst[]) => readonly AstConst[]
+    readonly spread: (refs: (ast: AstConst) => List<_Ref>, operand: AstConst) => List<_Ref>
 }
 
 export type _Ref = {
     readonly ref: _RefNode
-    readonly keys: readonly string[]
+    readonly keys: readonly _Key[]
 }
+
+/**
+ * A key a reference applies: a property's name, or `null` for each element
+ * of the array there — what a spread takes from its operand, which
+ * elements being known only once the operand is evaluated.
+ */
+export type _Key = string | null
 
 /**
  * The node a reference rests on: a `const` or an import of the scope, or
@@ -75,7 +85,7 @@ export type _Reach = {
  * along those routes.
  */
 export type _Routes = {
-    readonly routes: OrderedMap<List<readonly string[]>>
+    readonly routes: OrderedMap<List<readonly _Key[]>>
     readonly refs: List<_Ref>
 }
 
