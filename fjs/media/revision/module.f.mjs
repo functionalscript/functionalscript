@@ -30,7 +30,7 @@ import { error, ok, okThen } from '../../types/result/module.f.mjs'
 import { dialectEntry } from '../module.f.mjs'
 import { definedEntries, sort } from '../../types/object/module.f.mjs'
 import { stringify } from '../json/module.f.mjs'
-import { empty, find, flat, map } from '../../types/list/module.f.mjs'
+import { empty, entries, find, flat, map, toArray } from '../../types/list/module.f.mjs'
 
 /**
  * Format tag: names the dialect of this BLOB. The media type it is served
@@ -169,15 +169,16 @@ const walkLock = leaf => node => {
  * `parents` entry, `snapshot`, and every hash in `lock` ({@link walkLock}).
  * {@link hashEntries} and {@link mapHashes} are this walk and nothing else, so
  * a new hash-bearing field is added here and reaches the validator and every
- * canonicaliser at once. `lock` is answered as a thunk, for the same reason
- * `walkLock` hands `node` thunks.
+ * canonicaliser at once. `parents` is answered as a lazy list and `lock` as
+ * a thunk, for the same reason `walkLock` hands `node` thunks: a validator
+ * that stops at an invalid `parents[0]` touches nothing after it.
  *
  * @template L, N
  * @param {(path: readonly string[]) => (h: string) => L} leaf
- * @returns {(node: (entries: readonly (readonly [string, () => L | N])[]) => N) => (r: Revision) => { readonly parents: readonly L[], readonly snapshot: L, readonly lock?: () => L | N }}
+ * @returns {(node: (entries: readonly (readonly [string, () => L | N])[]) => N) => (r: Revision) => { readonly parents: List<L>, readonly snapshot: L, readonly lock?: () => L | N }}
  */
 const walkRevision = leaf => node => ({ parents, snapshot, lock }) => ({
-    parents: parents.map((h, i) => leaf(['parents', `${i}`])(h)),
+    parents: map(([i, h]) => leaf(['parents', `${i}`])(h))(entries(parents)),
     snapshot: leaf(['snapshot'])(snapshot),
     ...(lock === undefined ? {} : { lock: () => walkLock(leaf)(node)(['lock'])(lock) }),
 })
@@ -185,11 +186,11 @@ const walkRevision = leaf => node => ({ parents, snapshot, lock }) => ({
 /** @type {(path: readonly string[]) => (h: string) => List<HashEntry>} */
 const entryOf = path => h => [[path, h]]
 
-/** @type {(entries: readonly (readonly [string, Thunk<HashEntry>])[]) => List<HashEntry>} */
-const flatEntries = entries => flat(map(([, e]) => e)(entries))
+/** @type {(children: readonly (readonly [string, Thunk<HashEntry>])[]) => List<HashEntry>} */
+const flatEntries = children => flat(map(([, e]) => e)(children))
 
-/** @type {(entries: readonly (readonly [string, () => LockField])[]) => LockMap} */
-const lockMapOf = entries => Object.fromEntries(entries.map(([subject, value]) => [subject, value()]))
+/** @type {(children: readonly (readonly [string, () => LockField])[]) => LockMap} */
+const lockMapOf = children => Object.fromEntries(children.map(([subject, value]) => [subject, value()]))
 
 /**
  * Every hash-bearing field of a revision with its path, in the order
@@ -211,7 +212,7 @@ export const hashEntries = r => {
  */
 export const mapHashes = f => r => {
     const { parents, snapshot, lock } = walkRevision(() => f)(lockMapOf)(r)
-    return { ...r, parents, snapshot, ...(lock === undefined ? {} : { lock: lock() }) }
+    return { ...r, parents: toArray(parents), snapshot, ...(lock === undefined ? {} : { lock: lock() }) }
 }
 
 /** True when `s` decodes as a cbase32 CAS hash (rejects `https://` and any other non-cbase32 string).
