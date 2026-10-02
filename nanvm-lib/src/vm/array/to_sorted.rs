@@ -14,7 +14,13 @@ impl<A: IVm> Array<A> {
     /// With no comparator, elements compare by their `ToString` as UTF-16
     /// code units, so `[10, 9, 1]` sorts `[1, 10, 9]`; each element is
     /// converted once rather than once per comparison, which nothing pure
-    /// can tell apart but for which of several throws surfaces. Fewer than
+    /// can tell apart but for which of several throws surfaces. ECMAScript
+    /// leaves the order of the comparisons to the engine, so this is not a
+    /// deviation; V8 converts lazily inside each comparison, and so throws a
+    /// different one of several throws, `"b"` for two elements throwing
+    /// `"a"` and `"b"`, where this throws `"a"`. Matching it would mean
+    /// copying V8's comparison order, that is its sort algorithm, for a
+    /// difference only a throwing `toString` can show, so it is left. Fewer than
     /// two elements that are not `undefined` are never compared, so they are
     /// not converted either: a lone one whose conversion throws is copied,
     /// beside any number of `undefined`s. With a comparator, `a`
