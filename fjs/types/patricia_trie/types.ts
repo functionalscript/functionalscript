@@ -37,3 +37,19 @@ export type PatriciaTrie<S, T> = {
     readonly push: (c: Candidate<T>, state: State<S, T>) => State<S, T>
     readonly end: (state: State<S, T>) => readonly [T | undefined, S]
 }
+
+/**
+ * A node of a trie the demo (`./demo.f.mjs`) builds: a leaf holding its key,
+ * or a branch holding its two children's identities.
+ */
+export type _DemoNode = readonly ['leaf', number] | readonly ['branch', string, string]
+
+/**
+ * One version of the demo's trie: its keys, and the trie built from them —
+ * its root's identity, `null` for no keys, and every node by identity.
+ */
+export type _DemoTrie = {
+    readonly keys: readonly number[]
+    readonly root: string | null
+    readonly nodes: ReadonlyMap<string, _DemoNode>
+}
