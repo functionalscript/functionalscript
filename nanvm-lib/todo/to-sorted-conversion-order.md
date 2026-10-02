@@ -1,4 +1,4 @@
-## The default `toSorted` converts every element up front, so a different throw surfaces than in V8
+## The default `toSorted` converts every defined element up front, so a different throw surfaces than in V8
 
 **Priority:** P5
 **Status:** open
