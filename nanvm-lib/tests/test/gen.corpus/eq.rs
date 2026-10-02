@@ -12,6 +12,10 @@ pub fn run<A: IStaticFunction>() {
     let rest = args.clone().into_iter().to_array();
     Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
 }, 0, Array::default(), Some("(...$a)=>$a[0]")).to_any();
+    check::<A>("wideBigintByItself", strict_eq(bigint_any_words(false, &[0x0000000000000000, 0x0000000000000001]), bigint_any_words(false, &[0x0000000000000000, 0x0000000000000001])), true.to_any());
+    check::<A>("wideBigintByItselfSwapped", strict_eq(bigint_any_words(false, &[0x0000000000000000, 0x0000000000000001]), bigint_any_words(false, &[0x0000000000000000, 0x0000000000000001])), true.to_any());
+    check::<A>("wideBigintByNext", strict_eq(bigint_any_words(false, &[0x0000000000000000, 0x0000000000000001]), bigint_any_words(false, &[0x0000000000000001, 0x0000000000000001])), false.to_any());
+    check::<A>("wideBigintByNextSwapped", strict_eq(bigint_any_words(false, &[0x0000000000000001, 0x0000000000000001]), bigint_any_words(false, &[0x0000000000000000, 0x0000000000000001])), false.to_any());
     check::<A>("nullByNull", strict_eq(Nullish::Null.to_any(), Nullish::Null.to_any()), true.to_any());
     check::<A>("nullByNullSwapped", strict_eq(Nullish::Null.to_any(), Nullish::Null.to_any()), true.to_any());
     check::<A>("undefinedByUndefined", strict_eq(Nullish::Undefined.to_any(), Nullish::Undefined.to_any()), true.to_any());
