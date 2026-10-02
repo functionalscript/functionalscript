@@ -206,9 +206,7 @@ piece of the front end laziness reaches is `anchors` in
 [`ast`](ast/module.f.mjs): a `const` the export reaches only through a
 lazy position is anchored, since its own statement runs at load whatever
 the operator later decides, so `const c = null.x; export default [a && c,
-b && c];` throws at load in both languages. The sharing sweep counts a
-lazy position as any other — identity does not care which position a
-reference is made from. The writer spells both stages, with the
+b && c];` throws at load in both languages. The writer spells both stages, with the
 parentheses their precedence and associativity ask for and no more
 ([spec: operators](../../spec/README.md#operators)).
 A call is a step after a value, as an access is, and the callee picks which of
@@ -249,8 +247,8 @@ and every operator under an access or a prefix the same way, `(1+2).x` and
 `const`, `basedHoisted`, since `1.x` and `1 .x` are spellings it does not
 keep.
 A member a later duplicate shadows is in the graph, since the constructor
-applies every member written, so a reference in it is reached here where the
-sharing decision, which reads the value, does not count it.
+applies every member written, so a reference in it is reached here, where a
+value output, which reads the value the constructor built, never sees it.
 
 ## Both grammars are LL(1)
 
