@@ -715,6 +715,15 @@ const printer = nested => shared => root => {
      * `vm::unstable` helpers take: `value_item(…)` for a value and
      * `spread_item(…)` for a spread's operand, in order.
      *
+     * Every item is an operand of the list, evaluated before the helper
+     * runs, so a later item that throws — `null.x` in `[...1, null.x]` — is
+     * reported before the spread's own `TypeError`, where JavaScript stops at
+     * the spread. That is one outcome (`spec/README.md`, "Failure is one
+     * outcome"): the first failing operation is no observation, and the
+     * reordering cannot make either program succeed, since every item is
+     * evaluated when none throws. So no source-order barrier is imposed,
+     * as none is for any other temporary.
+     *
      * @type {(a: readonly any[]) => Result<string, readonly unknown[]>}
      */
     const itemsExpr = a => mapOk((/** @type {readonly string[]} */ items) => `[${items.join(', ')}]`)(okList(a.map(x =>

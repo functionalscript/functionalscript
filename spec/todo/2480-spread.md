@@ -86,8 +86,6 @@ Constant spreads are not folded, so `[...[1, 2]]` is a different graph from
 - **A spread can fail where an item cannot.** `[...1]` throws, where `[1]`
   never does. JavaScript has the same failure, so a module still means one
   thing in both languages.
-- **`.rs` lags.** Until `get_iterator` lands, a module holding a spread
-  compiles to every output but Rust, which refuses it rather than guess.
 - **JavaScript compatibility.** None lost. The change only accepts
   JavaScript, with JavaScript's values.
 
