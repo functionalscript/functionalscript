@@ -72,8 +72,10 @@ export const graphOf = ({ root, shape }) => versions => {
     const nodesOf = node => node === null ? [] : [node, ...childrenOf(node).flatMap(nodesOf)]
     const oldRoot = root(versions.before)
     const newRoot = root(versions.after)
-    const old = nodesOf(oldRoot)
-    const current = nodesOf(newRoot)
+    // A node two paths reach — two rows of one parent, or two parents in
+    // one version — is still one node.
+    const old = [...new Set(nodesOf(oldRoot))]
+    const current = [...new Set(nodesOf(newRoot))]
     /** @type {(node: N) => string} */
     const kindOf = node => !old.includes(node) ? 'new' : current.includes(node) ? 'shared' : 'replaced'
     const all = [...current, ...old.filter(node => !current.includes(node))]

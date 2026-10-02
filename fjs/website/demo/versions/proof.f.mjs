@@ -127,6 +127,30 @@ export const proof = {
             const ranks = g.nodes.map(n => n.rank)
             assertEq(JSON.stringify(ranks), '[1,0,2,1,3,2,3]')
         },
+        // A node reached by two paths in one version is drawn once, with
+        // an arrow from each path, and counted once.
+        diamond: () => {
+            /** @type {Structure<string | null, string>} */
+            const diamond = {
+                empty: null,
+                insert: () => v => v,
+                remove: () => v => v,
+                root: v => v,
+                shape: () => ({
+                    rows: node =>
+                        node === 'A' ? [{ to: 'B', corner: 'top' }, { to: 'C', corner: 'bottom' }]
+                        : node === 'D' ? [{ label: '', inline: 'D' }]
+                        : [{ to: 'D', corner: 'bottom' }],
+                    title: () => '',
+                    order: node => node.charCodeAt(0),
+                    layout: 'depth',
+                }),
+            }
+            const g = graphOf(diamond)({ before: null, after: 'A' })
+            assertEq(JSON.stringify(g.nodes.map(n => [n.rank, n.kind])), '[[0,"new"],[1,"new"],[1,"new"],[2,"new"]]')
+            assertEq(g.edges.filter(e => e.to === 3).length, 2)
+            assertEq(JSON.stringify(census(diamond)({ before: null, after: 'A' })), '{"built":4,"shared":0,"replaced":0}')
+        },
         // One root for both versions has one arrow; an empty version has
         // none.
         roots: () => {
