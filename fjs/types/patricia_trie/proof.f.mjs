@@ -1,9 +1,12 @@
 /**
- * @import { State } from './types.ts'
+ * @import { State, _DemoTrie } from './types.ts'
+ * @import { State as DemoState } from '../../website/demo/versions/types.ts'
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { emptyState, patriciaTrie } from './module.f.mjs'
+import { _census, _graphOf, _load, _press, demo, presets } from './demo.f.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
 
 /** @type {(a: bigint, b: bigint) => bigint} */
 const combine = (a, b) => a * 1_000n + b
@@ -140,10 +143,85 @@ const ascending = () => runExample(
     [0, 0, 0, 2, 1, 0, 1, 0, 3, 0, 0, 1, 2, 0, 0, 0],
 )
 
+/** @type {(state: DemoState<_DemoTrie>) => string} */
+const html = state => htmlToString(demo.view(state))
+
+/**
+ * A preset loaded and its hint followed: the button the hint names, pressed
+ * with the key the preset put in the field.
+ *
+ * @type {(name: string) => DemoState<_DemoTrie>}
+ */
+const follow = name => {
+    const loaded = _load(name)
+    const { status } = loaded
+    assert('preset' in status, '')
+    return _press(status.hint.startsWith('Press Remove') ? 'remove' : 'insert')(loaded)
+}
+
+/** @type {(name: string) => string} */
+const censusAfter = name => JSON.stringify(_census(follow(name).versions))
+
+const demoProof = {
+    // Each preset's hint is what its press does: a handful of branches
+    // built again, every other node shared — though the trie after the step
+    // was built from scratch.
+    presets: () => {
+        assertEq(presets.length, 5)
+        assertEq(censusAfter('Insert a key'), '{"built":5,"shared":12,"replaced":3}')
+        assertEq(censusAfter('Remove a key'), '{"built":2,"shared":11,"replaced":4}')
+        assertEq(censusAfter('Insert at the edge'), '{"built":4,"shared":13,"replaced":2}')
+        assertEq(censusAfter('Worked example'), '{"built":5,"shared":28,"replaced":3}')
+        assertEq(censusAfter('Empty trie'), '{"built":1,"shared":0,"replaced":0}')
+    },
+    // A trie built twice from the same keys is the same trie, node for
+    // node: sharing by content needs no object to be reused.
+    contentAddressed: () => {
+        const { versions } = _load('Insert a key')
+        const again = _press('remove')({ ..._press('insert')({ ..._load('Insert a key'), key: '5' }), key: '5' })
+        assertEq(again.versions.after.root, versions.after.root)
+        assert(again.versions.after !== versions.after, '')
+    },
+    // A branch is titled with the start of its hash; a leaf is its key in
+    // binary, beside the key in decimal.
+    drawing: () => {
+        const h = html(_load('Insert a key'))
+        const { root } = _load('Insert a key').versions.after
+        assert(root !== null, '')
+        assert(h.includes(`data-graph-label="">${root.slice(0, 4)}<`), h)
+        assert(h.includes('data-graph-edge-label="">01100011<'), h)
+        assert(h.includes('data-graph-value-label="">99<'), h)
+        assert(h.includes('<label for="patricia-key">Key (0–255) </label>'), h)
+    },
+    // A node is one column right of its deepest parent: the root at 0, and
+    // a leaf where its parent puts it, not in one last column.
+    layout: () => {
+        const { nodes, edges } = _graphOf(_load('Insert a key').versions)
+        const roots = nodes.filter(n => edges.every(e => e.to !== n.id))
+        assertEq(JSON.stringify(roots.map(n => n.rank)), '[0]')
+        assert(edges.every(e => typeof e.to !== 'number' || nodes[e.to].rank === nodes[e.from].rank + 1), '')
+        const leafRanks = new Set(nodes.filter(n => n.label === '').map(n => n.rank))
+        assert(leafRanks.size > 1, '')
+    },
+    // A step that leaves the keys as they were says why.
+    unchanged: () => {
+        const loaded = _load('Insert a key')
+        assert(html(_press('insert')({ ...loaded, key: '3' })).includes('Last step, insert 3: nothing changed, the key is already in the trie.'), '')
+        assert(html(_press('remove')({ ...loaded, key: '5' })).includes('Last step, remove 5: nothing changed, the key is not in the trie.'), '')
+    },
+    // A key the trie's eight bits cannot hold is refused.
+    refused: () => {
+        const s = _press('insert')({ ...demo.init, key: '256' })
+        assertEq(s.versions, demo.init.versions)
+        assert(html(s).includes('type an integer from 0 to 255.'), '')
+    },
+}
+
 export const proof = {
     empty,
     singleLeaf,
     twoLeaves,
     descending,
-    ascending
+    ascending,
+    demo: demoProof,
 }

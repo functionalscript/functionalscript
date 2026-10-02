@@ -3,7 +3,7 @@
  * @import { TNode, Tree } from './types/types.ts'
  * @import { List, Result } from '../list/types.ts'
  * @import { DemoEvent } from '../../website/demo/types.ts'
- * @import { _State } from './types.ts'
+ * @import { State } from '../../website/demo/versions/types.ts'
  */
 
 import { values } from './module.f.mjs'
@@ -84,26 +84,26 @@ const test = () => {
     }
 }
 
-/** @type {(state: _State) => string} */
+/** @type {(state: State<Tree<number>>) => string} */
 const html = state => htmlToString(demo.view(state))
 
 /** @type {(s: string) => (part: string) => number} */
 const count = s => part => s.split(part).length - 1
 
-/** @type {(state: _State) => string} */
+/** @type {(state: State<Tree<number>>) => string} */
 const censusOf = state => JSON.stringify(_census(state.versions))
 
-/** The state after typing `key` into the field and pressing `op`'s button. @type {(op: 'insert' | 'remove') => (key: string) => (state: _State) => _State} */
+/** The state after typing `key` into the field and pressing `op`'s button. @type {(op: 'insert' | 'remove') => (key: string) => (state: State<Tree<number>>) => State<Tree<number>>} */
 const press = op => key => state => _press(op)({ ...state, key })
 
-/** @type {(event: DemoEvent) => (state: _State) => _State} */
+/** @type {(event: DemoEvent) => (state: State<Tree<number>>) => State<Tree<number>>} */
 const update = event => state => unwrap(assertNotNullish(runPure(demo.update(state)(event))[0]))
 
 /**
  * A preset loaded and its hint followed: the button the hint names, pressed
  * with the key the preset put in the field.
  *
- * @type {(name: string) => _State}
+ * @type {(name: string) => State<Tree<number>>}
  */
 const follow = name => {
     const loaded = _load(name)
@@ -169,7 +169,7 @@ const demoProof = {
             // Four edges leave the two replaced branches, and the fifth faded
             // arrow is the old root's.
             assertEq(count(h)('data-graph-edge-kind="replaced"'), 5)
-            assert(h.includes('Last step, insert 80: 3 new (blue), 4 shared with the version before, 3 replaced (amber).'), h)
+            assert(h.includes('Last step, insert 80: 3 new (blue), 4 shared with the tree before, 3 replaced (amber).'), h)
             // A press leaves the preset behind.
             assert(h.includes('Custom'), h)
             assert(!h.includes('Press Insert'), h)
@@ -235,7 +235,7 @@ const demoProof = {
             const s = follow('Remove a missing key')
             assertEq(censusOf(s), '{"built":0,"shared":7,"replaced":0}')
             const h = html(s)
-            assert(h.includes('Last step, remove 90: the key is not in the tree, so nothing changed.'), h)
+            assert(h.includes('Last step, remove 90: nothing changed, the key is not in the tree.'), h)
             assert(!h.includes('0 new'), h)
         },
         // Five nodes built again, and 26 shared, without growing a level.
@@ -273,8 +273,8 @@ const demoProof = {
     throw: () => _load('no such preset'),
     // Spaces around a key are not part of it, and a negative key is a key.
     keys: () => {
-        assertEq(JSON.stringify(press('insert')(' 8 ')(demo.init).status), '{"last":"insert 8"}')
-        assertEq(JSON.stringify(press('insert')('-3')(demo.init).status), '{"last":"insert -3"}')
+        assertEq(JSON.stringify(press('insert')(' 8 ')(demo.init).status), '{"step":{"op":"insert","key":8}}')
+        assertEq(JSON.stringify(press('insert')('-3')(demo.init).status), '{"step":{"op":"insert","key":-3}}')
     },
     // A field that holds no key changes no tree, and says why; the hint
     // stays, since nothing it describes has happened yet.
@@ -298,8 +298,8 @@ const demoProof = {
         const typed = update({ kind: 'input', name: 'key', value: '9' })(demo.init)
         assertEq(typed.key, '9')
         assertEq(typed.versions, demo.init.versions)
-        assertEq(JSON.stringify(update({ kind: 'click', name: 'insert' })(typed).status), '{"last":"insert 9"}')
-        assertEq(JSON.stringify(update({ kind: 'click', name: 'remove' })(typed).status), '{"last":"remove 9"}')
+        assertEq(JSON.stringify(update({ kind: 'click', name: 'insert' })(typed).status), '{"step":{"op":"insert","key":9}}')
+        assertEq(JSON.stringify(update({ kind: 'click', name: 'remove' })(typed).status), '{"step":{"op":"remove","key":9}}')
         assertEq(update({ kind: 'input', name: 'example', value: 'Big tree' })(typed).key, '320')
         assertEq(update({ kind: 'click', name: 'other' })(typed), typed)
         assertEq(update({ kind: 'input', name: 'other', value: '1' })(typed), typed)

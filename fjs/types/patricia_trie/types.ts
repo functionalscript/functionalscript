@@ -44,28 +44,12 @@ export type PatriciaTrie<S, T> = {
  */
 export type _DemoNode = readonly ['leaf', number] | readonly ['branch', string, string]
 
-/** The demo's two key sets: before the last step, and after it. */
-export type _DemoVersions = {
-    readonly before: readonly number[]
-    readonly after: readonly number[]
-}
-
 /**
- * What the demo's drawing shows: a preset as it was loaded — its name, and
- * the hint saying which button to press — or the step that turned the old
- * key set into the new one (`insert 100`).
+ * One version of the demo's trie: its keys, and the trie built from them —
+ * its root's identity, `null` for no keys, and every node by identity.
  */
-export type _DemoStatus =
-    | { readonly preset: string, readonly hint: string }
-    | { readonly last: string }
-
-/**
- * The demo's state: the key field as typed, the two key sets, what they
- * show, and why the last press did nothing, if it did nothing.
- */
-export type _DemoState = {
-    readonly key: string
-    readonly versions: _DemoVersions
-    readonly status: _DemoStatus
-    readonly error: string | null
+export type _DemoTrie = {
+    readonly keys: readonly number[]
+    readonly root: string | null
+    readonly nodes: ReadonlyMap<string, _DemoNode>
 }
