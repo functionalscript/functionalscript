@@ -12,7 +12,7 @@
  * @module
  *
  * @import { MetaStep } from '../common/types.ts'
- * @import { IoChannel, Mkdir, WriteFile } from '../../effects/node/types.ts'
+ * @import { IoChannel, Mkdir, Rm, WriteBytes, WriteFile } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { Expression, _Binding, _Reference } from '../../media/nix/types.ts'
  * @import { NixArchive, NixJob, NixPerSystem, NixPin, NixRust } from './types.ts'
@@ -609,7 +609,7 @@ exec nix develop ${experimentalFeatures} --no-update-lock-file --quiet ${flakePa
  * can set a file mode, and every regeneration starts from nothing, so a mode
  * the file had would not survive `gen:clean` anyway.
  *
- * @type {(job: NixJob) => Effect<Mkdir | WriteFile, void, IoChannel>}
+ * @type {(job: NixJob) => Effect<Mkdir | Rm | WriteBytes | WriteFile, void, IoChannel>}
  */
 const writeJob = job => {
     // `flakePath` is what a workflow step names, so it is relative; the effects
@@ -635,7 +635,7 @@ const writeJob = job => {
  * job takes, are this function's output. The locks are the script's, and
  * `npm run gen` runs it after this, through `sh` like every `run`.
  *
- * @type {(jobs: readonly NixJob[]) => Effect<Mkdir | WriteFile, void, IoChannel>}
+ * @type {(jobs: readonly NixJob[]) => Effect<Mkdir | Rm | WriteBytes | WriteFile, void, IoChannel>}
  */
 export const nixFlakes = jobs => {
     const written = forEachStep(pureOk(jobs), writeJob)

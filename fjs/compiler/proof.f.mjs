@@ -23,6 +23,7 @@ import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mj
 import { _compiled, demo, outputs } from './demo.f.mjs'
 import { examples } from './examples/module.f.mjs'
 import { htmlToString } from '../media/html/module.f.mjs'
+import { maxLengthBytes } from '../types/bit_vec/module.f.mjs'
 import accept from '../../spec/datajs/vectors/accept/data.f.js'
 import normalize from '../../spec/datajs/vectors/normalize/data.f.js'
 
@@ -851,6 +852,20 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     Ok([(string_key("default"), c1)].to_object().to_any())
 }
 `)
+        },
+        // An output past one `Vec`, 128 KiB, is written whole, in several
+        // chunks, where it once ended the compile with a bare `assertion failed`.
+        largeOutput: () => {
+            const source = `export default [${Array.from({ length: 5000 }, (_, i) => i).join(', ')}];`
+            const root = { 'input.f.js': [utf8(source)] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.rs'])))
+            assertEq(exitCode(code), 0, state.stderr)
+            const file = state.root['output.rs']
+            assert(Array.isArray(file), file)
+            assert(file.length > 1, file.length)
+            const text = file.map(utf8ToString).join('')
+            assert(text.length > Number(maxLengthBytes), text.length)
+            assert(text.endsWith('}\n'), text.slice(-20))
         },
         // A property read on a nullish base compiles: the `.rs` output is a
         // program, and the read throws when it runs, as JavaScript throws —
