@@ -1,7 +1,7 @@
 ## `zip_longest` for the dual-sequence walks
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
