@@ -130,7 +130,7 @@ export const typescript = /** @type {const} */({
 // `dtolnay/rust-toolchain` installs; the two are the same constant so they
 // cannot drift.
 // https://rust-lang.org/
-export const rust = '1.98.1'
+export const rust = '1.99.0'
 
 // Official Nixpkgs snapshot used by the generated CI flakes. `ref` is the
 // stable channel the commit is accepted from; `commit` is the exact revision
@@ -147,7 +147,7 @@ export const nixpkgs = /** @type {const} */({
     owner: 'NixOS',
     repo: 'nixpkgs',
     ref: 'nixos-26.05',
-    commit: '78e9c786dc08cd4f3420c2395cd977206a9b1da2',
+    commit: '4feb8eb8bf30f323a8a5d285f14ee51d6a7197b1',
 })
 
 // Wasmtime and Wasmer are installed by their own setup actions, so these are
@@ -166,7 +166,7 @@ export const rustOverlay = /** @type {const} */({
     owner: 'oxalica',
     repo: 'rust-overlay',
     ref: 'master',
-    commit: 'b2ccad3b67335d368eef49ec48b9c8166858e73d',
+    commit: '368fee9beaab04ca6fe7af28db63caa9badb22fa',
 })
 
 // Moving either `commit` above needs `npm run lock-update` (real Nix) to
