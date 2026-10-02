@@ -218,7 +218,9 @@ export const proof = {
             assert(htmlToString(open.demo.view(open.press('insert')({ ...open.demo.init, key: 'x' }))).includes('type an integer.'), '')
             assertEq(open.graphOf(open.demo.init.versions).nodes.length, 1)
         },
-        // A name no preset has is a bug in whatever sent it.
-        throw: () => load('no such preset'),
+        // A name no preset has is a bug in whatever sent it. The thunk
+        // answers nothing: a state would put the proof's private list type
+        // in its published declaration, which the package does not ship.
+        throw: () => { load('no such preset') },
     },
 }
