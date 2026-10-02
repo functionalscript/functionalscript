@@ -42,7 +42,7 @@
  * @module
  *
  * @import { Result } from '../../../../types/result/types.ts'
- * @import { IoChannel, Mkdir, NodeProgram, ReadFile, WriteFile } from '../../../../effects/node/types.ts'
+ * @import { IoChannel, Mkdir, NodeProgram, ReadFile, Rm, WriteBytes, WriteFile } from '../../../../effects/node/types.ts'
  * @import { Effect } from '../../../../effects/types.ts'
  * @import { Vec } from '../../../../types/bit_vec/types.ts'
  * @import { Base } from '../types.ts'
@@ -587,7 +587,7 @@ export const matrix = (corpus, also = []) => {
  * Writes the matrix at `path`, one write over a directory the corpus
  * already has.
  *
- * @type {(text: string) => Effect<Mkdir | WriteFile, void, IoChannel>}
+ * @type {(text: string) => Effect<Mkdir | Rm | WriteBytes | WriteFile, void, IoChannel>}
  */
 export const write = text => step(mkdir(directory, { recursive: true }), () => writeUtf8File(path, text))
 

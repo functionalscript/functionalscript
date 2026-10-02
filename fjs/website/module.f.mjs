@@ -41,7 +41,7 @@
  *
  * @module
  *
- * @import { All, Env, NodeProgramOptions, ReadFile, Readdir, Write, WriteFile } from '../effects/node/types.ts'
+ * @import { All, Env, NodeProgramOptions, ReadFile, Readdir, Rm, Write, WriteBytes, WriteFile } from '../effects/node/types.ts'
  * @import { Effect, IoChannel } from '../effects/types.ts'
  * @import { StringSet } from '../types/string_set/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
@@ -587,7 +587,7 @@ const versionOf = name => {
  * it, which is how a build over one gets no release pages rather than no
  * build. The generator's own proofs run it over exactly such a tree.
  *
- * @type {(build: Build) => (tree: readonly _Walked[]) => Effect<ReadFile | WriteFile | Write, void, IoChannel>}
+ * @type {(build: Build) => (tree: readonly _Walked[]) => Effect<ReadFile | Rm | WriteBytes | WriteFile | Write, void, IoChannel>}
  */
 const writeChangelog = build => tree => {
     const dir = tree.find(walked => walked.path === changelogDir)
@@ -618,7 +618,7 @@ const writeChangelog = build => tree => {
  * runner — and every other directory's is {@link page}'s. Both write the same
  * catalogue.
  *
- * @type {(build: Build) => (tree: readonly _Walked[]) => (proofs: readonly Proof[]) => (demos: _Demos) => Effect<WriteFile | Write, void, IoChannel>}
+ * @type {(build: Build) => (tree: readonly _Walked[]) => (proofs: readonly Proof[]) => (demos: _Demos) => Effect<Rm | WriteBytes | WriteFile | Write, void, IoChannel>}
  */
 const writePages = build => tree => proofs => demos => {
     const byPath = tree.reduce(
@@ -686,7 +686,7 @@ const linksNote = env => commit =>
         : env.WORKERS_CI_COMMIT_SHA === undefined ? 'file links: this site'
             : 'file links: this site, because WORKERS_CI_COMMIT_SHA is not a commit id'
 
-/** @type {(build: Build) => (note: string) => Effect<Readdir | ReadFile | WriteFile | Write | All, 0, number>} */
+/** @type {(build: Build) => (note: string) => Effect<Readdir | ReadFile | Rm | WriteBytes | WriteFile | Write | All, 0, number>} */
 const program = build => note => exitStep(mapStep(
     step(log(note), () => step(walk('.'), tree => {
         const authored = authoredModules(tree)
@@ -705,7 +705,7 @@ const program = build => note => exitStep(mapStep(
     })),
     () => undefined))
 
-/** @type {(options: NodeProgramOptions) => Effect<Readdir | ReadFile | WriteFile | Write | All, 0, number>} */
+/** @type {(options: NodeProgramOptions) => Effect<Readdir | ReadFile | Rm | WriteBytes | WriteFile | Write | All, 0, number>} */
 export const main = ({ env }) => {
     const commit = commitOf(env)
     return program({ commit, branch: branchOf(env) })(linksNote(env)(commit))

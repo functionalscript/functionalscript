@@ -1,6 +1,6 @@
 /**
  * @import { Effect } from '../../../../effects/types.ts'
- * @import { IoChannel, Mkdir, WriteFile } from '../../../../effects/node/types.ts'
+ * @import { IoChannel, Mkdir, Rm, WriteBytes, WriteFile } from '../../../../effects/node/types.ts'
  * @import { Vec } from '../../../../types/bit_vec/types.ts'
  * @import { State } from '../../../../effects/node/virtual/types.ts'
  * @import { Corpus, Scope } from './types.ts'
@@ -72,7 +72,7 @@ const prose = 'is not prose the table can show as written'
  * then the fold's state. Each effect is bound at this level so the three read
  * in the order they run.
  *
- * @type {(source: readonly [string, string]) => (state: null) => Effect<Mkdir | WriteFile, null, IoChannel>}
+ * @type {(source: readonly [string, string]) => (state: null) => Effect<Mkdir | Rm | WriteBytes | WriteFile, null, IoChannel>}
  */
 const writeSource = ([name, text]) => () => {
     const made = mkdir(`${directory}/${name}`, { recursive: true })
