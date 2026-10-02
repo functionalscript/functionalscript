@@ -152,7 +152,7 @@
       "runs-on": "windows-2025",
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.98.1",
+          "uses": "dtolnay/rust-toolchain@1.99.0",
           "with": {
             "components": "rustfmt,clippy",
             "targets": "i686-pc-windows-msvc"
@@ -203,7 +203,7 @@
       "runs-on": "windows-11-arm",
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.98.1",
+          "uses": "dtolnay/rust-toolchain@1.99.0",
           "with": {
             "components": "rustfmt,clippy"
           }

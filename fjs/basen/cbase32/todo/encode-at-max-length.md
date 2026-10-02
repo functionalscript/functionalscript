@@ -30,6 +30,18 @@ The input is valid: `maxLength` is the largest vector `bit_vec` builds, and
 `cBase32ToVec` decodes its encoding. The proof's `decodeAtMaxLengthSucceeds`
 builds that encoding by hand for this reason.
 
+`canonicalCBase32` re-encodes what `cBase32ToVec` decoded, so it throws the
+same way for that boundary encoding, which it otherwise accepts:
+
+```js
+canonicalCBase32('0'.repeat(209_715) + '8')
+// Bun: RangeError: Out of memory: BigInt generated from this operation is too big
+```
+
+So does every canonicaliser built on it — `fjs/cas/evo`'s `canonicalHash`,
+which ran the same `vecToCBase32(cBase32ToVec(h))` before `canonicalCBase32`
+existed.
+
 The [`bitGroupDemo`](../../../website/demo/bits/module.f.mjs) refuses text
 that leaves no room for a stop bit, so the CBase32 demo stops one byte short
 of the limit rather than crashing on Safari.
@@ -46,6 +58,8 @@ its input for its own last character.
 - [ ] encode a `maxLength` vector on every engine
 - [ ] a proof encoding `vec(maxLength)(0n)` with `vecToCBase32` directly,
       replacing the hand-built string in `decodeAtMaxLengthSucceeds`
+- [ ] a proof canonicalising `'0'.repeat(209_715) + '8'` with
+      `canonicalCBase32`, answering that same string
 - [ ] remove the stop-bit refusal from `bitGroups` in `fjs/website/demo/bits`
 
 ### Related

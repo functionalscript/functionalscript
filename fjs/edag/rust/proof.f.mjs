@@ -8,17 +8,21 @@
  * describes, exactly what the `throw` cases below need.
  *
  * @import { Exp, Property, PropertyLambda, Spread } from '../types.ts'
+ * @import { Uses } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
-import { braced, eagerNodesOf, expExpr, holdsFunction, nestsOperation, nodeExpr, readsArgs, readsFrame, scope, sharedNodesOf, statementsOf } from './module.f.mjs'
+import { braced, eagerNodesOf, expExpr, holdsFunction, nestsOperation, nodeExpr, readsArgs, readsFrame, scope, sharedNodesOf, statementsOf, useLines } from './module.f.mjs'
 
 /** @type {(e: Exp) => string} */
 const printed = e => unwrap(nodeExpr(e))
 
 /** The lines of a scope over `e`: what a compiled module's body holds. @type {(e: Exp) => readonly string[]} */
-const scoped = e => unwrap(scope(e))
+const scoped = e => unwrap(scope(e)).lines
+
+/** The names a scope over `e` spells. @type {(e: Exp) => Uses} */
+const usedBy = e => unwrap(scope(e)).uses
 
 /** @type {(shared: readonly (readonly [Exp, string])[]) => (e: Exp) => string} */
 const printedWith = shared => e => unwrap(expExpr(shared)(e))
@@ -40,13 +44,94 @@ const refusalReason = e => {
 }
 
 export const proof = {
+    /**
+     * Every name a scope's text spells is reported, recorded where the
+     * printer spells it, and only those: a string literal spelling a name
+     * is data, and `Any` and a function's bound are no scope's to report.
+     */
+    uses: {
+        literal: () => {
+            assertStructurallySame(usedBy(['typeof', 'Nullish::Null.to_any()']), { vm: [], unstable: ['string_any'] })
+        },
+        primitives: () => {
+            assertStructurallySame(usedBy(['[]', [null, true, 1, 'a', '\ud800', 2n, 2n ** 64n]]), {
+                vm: ['Nullish', 'ToAny', 'ToArray'],
+                unstable: ['bigint_any', 'bigint_any_words', 'f64_any', 'string_any', 'string_any_utf16'],
+            })
+        },
+        containers: () => {
+            assertStructurallySame(usedBy(['[]', [['[]', []], ['{}', []], ['undefined']]]), {
+                vm: ['Array', 'Nullish', 'Object', 'ToAny', 'ToArray'],
+                unstable: [],
+            })
+            assertStructurallySame(usedBy(['{}', [[':', 'a', 1], [':', '\ud800', 2]]]), {
+                vm: ['ToAny', 'ToObject'],
+                unstable: ['f64_any', 'string_key', 'string_key_utf16'],
+            })
+        },
+        spreads: () => {
+            assertStructurallySame(usedBy(['[]', [1, ['...', ['args']]]]), {
+                vm: ['ToAny'],
+                unstable: ['f64_any', 'spread_array', 'spread_item', 'value_item'],
+            })
+            assertStructurallySame(usedBy(['()', ['args'], [['...', ['args']]]]), {
+                vm: ['ToAny'],
+                unstable: ['spread_call', 'spread_item'],
+            })
+            assertStructurallySame(usedBy(['{}', [[':', 'a', 1], ['...', ['args']]]]), {
+                vm: ['ToAny'],
+                unstable: ['f64_any', 'property_item', 'spread_entries', 'spread_object', 'string_key'],
+            })
+        },
+        operators: () => {
+            assertStructurallySame(usedBy(['===', ['String', 1], ['!==', 1, 2]]), {
+                vm: ['ToAny'],
+                unstable: ['f64_any', 'strict_eq', 'strict_ne'],
+            })
+            assertStructurallySame(usedBy(['.', ['undefined'], 0]), { vm: ['Nullish', 'ToAny'], unstable: ['f64_any'] })
+        },
+        functions: () => {
+            assertStructurallySame(usedBy(['=>', 0, [], 'a']), { vm: ['Array', 'ToAny'], unstable: ['string_any'] })
+            assertStructurallySame(usedBy(['=>', 0, [1], ['frame', 0]]), { vm: ['ToAny', 'ToArray'], unstable: ['f64_any'] })
+            assertStructurallySame(usedBy(['=>', 1, [], ['[]', [['arg', 0], ['args'], ['rest']]]]), {
+                vm: ['Array', 'Nullish', 'ToAny', 'ToArray'],
+                unstable: [],
+            })
+        },
+    },
+    useLines: () => {
+        assertStructurallySame(useLines({ vm: [], unstable: [] }, 'IVm'), ['use nanvm_lib::vm::{Any, IVm};'])
+        assertStructurallySame(useLines({ vm: ['ToAny', 'Array'], unstable: ['f64_any'] }, 'IStaticFunction'), [
+            'use nanvm_lib::vm::unstable::f64_any;',
+            'use nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny};',
+        ])
+        assertStructurallySame(useLines({ vm: ['Any'], unstable: ['f64_any', 'strict_eq'] }, 'IVm'), [
+            'use nanvm_lib::vm::unstable::{f64_any, strict_eq};',
+            'use nanvm_lib::vm::{Any, IVm};',
+        ])
+        // past rustfmt's 100 columns the braced names wrap as it wraps them:
+        // on lines of their own, filled to the width
+        assertStructurallySame(useLines({ vm: [], unstable: ['f64_any', 'spread_array', 'spread_call', 'spread_item', 'string_any', 'string_key', 'value_item'] }, 'IVm'), [
+            'use nanvm_lib::vm::unstable::{',
+            '    f64_any, spread_array, spread_call, spread_item, string_any, string_key, value_item,',
+            '};',
+            'use nanvm_lib::vm::{Any, IVm};',
+        ])
+        assertStructurallySame(useLines({ vm: [], unstable: Array.from({ length: 11 }, (_, i) => `helper_number_${i}`) }, 'IVm'), [
+            'use nanvm_lib::vm::unstable::{',
+            '    helper_number_0, helper_number_1, helper_number_2, helper_number_3, helper_number_4,',
+            '    helper_number_5, helper_number_6, helper_number_7, helper_number_8, helper_number_9,',
+            '    helper_number_10,',
+            '};',
+            'use nanvm_lib::vm::{Any, IVm};',
+        ])
+    },
     fixedAndRest: () => {
-        const result = scope(['=>', 3, [], ['[]', [['arg', 0], ['arg', 2], ['rest']]]])
-        assert(result[0] === 'ok')
-        assert(result[1].join('\n').includes('next().unwrap_or_else(|| Nullish::Undefined.to_any())'))
-        assert(result[1].join('\n').includes('nth(2).unwrap_or_else(|| Nullish::Undefined.to_any())'))
-        assert(result[1].join('\n').includes('let rest = args.clone().into_iter().skip(3).to_array();'))
-        assert(result[1].join('\n').includes('}, 3, Array::default(), Some("($a_0,$a_1,$a_2,...$a)=>[$a_0,$a_2,$a]")).to_any()'))
+        const text = scoped(['=>', 3, [], ['[]', [['arg', 0], ['arg', 2], ['rest']]]]).join('\n')
+        assert(text.includes('next().unwrap_or_else(|| Nullish::Undefined.to_any())'))
+        assert(text.includes('nth(2).unwrap_or_else(|| Nullish::Undefined.to_any())'))
+        assert(text.includes('let rest = args.clone().into_iter().skip(3).to_array();'))
+        assert(text.includes('}, 3, Array::default(), Some("($a_0,$a_1,$a_2,...$a)=>[$a_0,$a_2,$a]")).to_any()'))
     },
     /**
      * A case that nests an operation in an eager position is a scope: the

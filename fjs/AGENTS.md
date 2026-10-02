@@ -654,10 +654,10 @@ A type over data this repository defines and constructs is not exempt just
 because a change would be a breaking API change for consumers — that is a
 reason to plan and land the fix deliberately (see "Breaking changes and
 versioning" in [changelog/README.md](../changelog/README.md)), not a reason
-to leave the member mutable. `fjs/effects/node/todo/state-types-conventions.md`
-and the "Six operation tuples are not `readonly`" section of
+to leave the member mutable. The "Six operation tuples are not `readonly`"
+section of
 [`fjs/effects/todo/node-module-layering.md`](./effects/todo/node-module-layering.md)
-track exactly this kind of already-known, deliberately-deferred gap; a type
+tracks exactly this kind of already-known, deliberately-deferred gap; a type
 left mutable for this reason needs a comment pointing to its tracking issue,
 same as any other approved exception.
 

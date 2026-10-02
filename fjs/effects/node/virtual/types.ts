@@ -10,6 +10,7 @@ import type { Effect, IoChannel } from '../../types.ts'
 import type { Headers, IncomingMessage, Module, NodeOp, ServerResponse } from '../types.ts'
 import type { MemoryState } from '../../memory/types.ts'
 import type { Nullable } from '../../../types/nullable/types.ts'
+import type { StringMap } from '../../../types/object/types.ts'
 
 /**
  * In-memory JS module entry. When `import_` is called on the path, the
@@ -236,9 +237,7 @@ export type State = {
     /** Remaining stdin bytes; each `read` pops the first, `null` at EOF. */
     readonly stdin: readonly number[]
     readonly root: Dir
-    readonly internet: {
-        readonly[url: string]: Vec
-    }
+    readonly internet: StringMap<Vec>
     readonly epochNs: number
     /** The slots of `memCreate`, kept by `../../memory`'s interpreter. */
     readonly memory: MemoryState
