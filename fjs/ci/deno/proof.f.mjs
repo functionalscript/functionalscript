@@ -9,9 +9,10 @@ const runs = toSteps(denoSteps).flatMap(s => s.run !== undefined ? [s.run] : [])
 export const proof = {
     // The whole job, in order: the version check, then this repository's
     // dependencies and its suite, each entering the flake. Nothing installs or
-    // runs a published `functionalscript` — that check moved to the package job
-    // family, which can look at the tarball this commit builds instead of a
-    // release that shipped weeks ago.
+    // runs a published `functionalscript`. That check is owed beside the
+    // packed-package check (`../todo/built-package-checks.md`), where it can
+    // look at the tarball this commit builds instead of a release that shipped
+    // weeks ago.
     steps: () => assertStructurallySame(runs, [
         `test "$(${nixDevelop(nixShell, `deno eval 'console.log(Deno.version.deno)'`)})" = "${deno}"`,
         nixDevelop(nixShell, 'deno install --frozen'),

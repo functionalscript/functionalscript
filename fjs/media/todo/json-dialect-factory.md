@@ -136,15 +136,15 @@ should require it.
 **The schema's value has to be JSON-representable, and the type does not say
 so.** `S extends Struct` admits a schema whose members include rtti `bigint`,
 but `encodeText` is `stringify(sort)` over the standard JSON serializer,
-whose `primitiveSerialize` sends anything that is not a boolean, number, or
-string to `nullSerialize` (`../json/module.f.mjs`) — so a `bigint`
-member would encode as `null`, silently, and `decodeText` would then reject
-what `encodeText` produced. The three dialects here are all JSON-valued, so
-nothing is wrong today; the gap is that a fourth could be added without the
-type objecting. [leaf-serialize-arms](./leaf-serialize-arms.md) plans to make
-that arm assert instead of answering `null`; if it lands first, the serializer
-itself refuses an out-of-type `bigint`, and the refusals below that exist only
-for that case are the serializer's rather than the factory's.
+whose leaf spelling (`leafSerialize` in `../json/serializer/module.f.mjs`,
+configured with no `bigint` arm) asserts on a `bigint` — so a `bigint`
+member would panic at the first `encodeText` rather than at module load.
+The three dialects here are all JSON-valued, so nothing is wrong today; the
+gap is that a fourth could be added without the type objecting. The
+serializer already refuses an out-of-type `bigint`, so the refusals below
+that exist only for that case are the serializer's rather than the
+factory's; what the factory adds is refusing it earlier, when the entry is
+built.
 
 **Refuse it at construction**, the way `dialectEntry` already refuses a
 schema whose `dialect` is not a direct string:
@@ -305,11 +305,11 @@ receives an arbitrary JS value that the type system cannot confine — object
 types are structurally open, so a *variable* holding
 `{ ...revision, future: 1n }` is assignable to `ValueOf<S>` (only a fresh
 object literal would be caught, by excess-property checking). `stringify`
-walks the runtime object, not the schema, and `primitiveSerialize` sends
-anything that is not a boolean, number, or string to `nullSerialize`
-(`../json/module.f.mjs`) — so that `bigint` is emitted as
-`"future": null`. Checking only numbers at this boundary would leave
-exactly the failure the boundary exists to prevent.
+walks the runtime object, not the schema, and the standard leaf spelling
+has no `bigint` arm (`leafSerialize` in `../json/serializer/module.f.mjs`)
+— so that `bigint` panics the serializer rather than reaching the caller
+as an `error`. Checking only numbers at this boundary would leave a
+refusal the caller cannot branch on.
 
 So the encode-side predicate is JSON-representability of every runtime
 leaf, of which `jsonExact` is the number case:
@@ -605,6 +605,7 @@ level up from the seven-line kit.
 - [json/todo/preserve-negative-zero.md](../json/todo/preserve-negative-zero.md)
   — makes the standard serializer keep `-0`, which removes the `-0` half of
   `jsonExact`'s reason.
-- [leaf-serialize-arms](./leaf-serialize-arms.md) — makes the standard
-  serializer assert on an out-of-type `bigint` rather than writing `null`,
-  which overlaps `jsonLeaf`'s encode-side refusal.
+- [`../json/serializer/module.f.mjs`](../json/serializer/module.f.mjs) —
+  `leafSerialize`, which makes the standard serializer assert on an
+  out-of-type `bigint` rather than writing `null`; that overlaps
+  `jsonLeaf`'s encode-side refusal, which answers with an `error` instead.

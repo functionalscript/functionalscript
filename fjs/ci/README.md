@@ -5,11 +5,10 @@ workflows for this repository. Running the generator writes
 `.github/workflows/gen.ci.yml` with the latest matrix of jobs and steps and
 `.github/workflows/gen.npm-publish.yml` with the release job, plus three Nix
 development environments under `gen.nix/`. The first of those, written to `gen.nix/`
-itself, is the shell a developer enters and the shell eight of the thirteen
+itself, is the shell a developer enters and the shell eight of the twelve
 jobs run inside; the other two exist for the jobs that cannot share it — Node
-22 and Node 24. Three jobs enter none: the two Windows ones,
-where Nix does not run, and `package-check`, which has no checkout. Which jobs
-have a flake and why the rest do not is
+22 and Node 24. The two Windows jobs enter none, since Nix does not run there.
+Which jobs have a flake and why the rest do not is
 [`todo/65z-ci-nix.md`](./todo/65z-ci-nix.md), under "Jobs with no flake".
 
 ## `fjs ci` is not stable
@@ -41,7 +40,7 @@ for, and whether that answer should change, is
 - `proof.f.mjs` — property-based proofs for the CI generator (Rust/no-Rust job presence,
   per-OS extra steps).
 - `self/module.f.mjs` — this repository's own generation: `ci` with its
-  `packageConsumer`, the published `.f.js` that `package-check` imports. It is
+  `packageConsumer`, the published `.f.js` the packed-package check imports. It is
   what `npm run gen` runs, where the built-in `fjs ci` stays the generator any
   project gets and names no consumer.
 - `common/module.f.mjs` — shared RTTI schemas and types (`Step`, `Job`, `Jobs`,
@@ -56,19 +55,21 @@ for, and whether that answer should change, is
 - `publish/module.f.mjs` — the npm publishing workflow, the one generated file
   that is not part of `gen.ci.yml`. See "The publishing workflow" below.
   `proof.f.mjs` — its property-based proofs.
-- `package/module.f.mjs` — the `package-check` job: downloads the tarball the
-  Node job uploads, installs it under a fixed alias outside any checkout, and
-  type-checks every declaration it ships. Given a `packageConsumer` in the
-  caller's `Setup`, it then imports the published module that names from a
-  consumer file, runs it, and type-checks a use of its declaration with a
-  negative control that must fail; this repository's `self/module.f.mjs`
-  passes its own, the built-in `fjs ci` passes none, and a project that names
-  none gets the declaration check alone. It is the one job built without
-  `toSteps`, because that helper adds `actions/checkout` and the missing
-  checkout is the point — with the repository on the runner there would be a
-  `tsconfig.json` up the tree, a `node_modules` to resolve into, and sources
-  standing in for declarations the tarball omits, so the check would pass on
-  the repository rather than on the package.
+- `package/module.f.mjs` — the packed-package check, the steps closing the
+  `node26` job: installs the tarball that job packs under a fixed alias, in a
+  consumer directory outside the checkout, and type-checks every declaration
+  it ships. Given a `packageConsumer` in the caller's `Setup`, it then imports
+  the published module that names from a consumer file, runs it, and
+  type-checks a use of its declaration with a negative control that must
+  fail; this repository's `self/module.f.mjs` passes its own, the built-in
+  `fjs ci` passes none, and a project that names none gets the declaration
+  check alone. Every command starts in that directory — under the runner's
+  temporary directory, neither inside the checkout nor above it — because a
+  command started in the checkout would find a `tsconfig.json` up the tree, a
+  `node_modules` to resolve into, and sources standing in for declarations
+  the tarball omits, so the check would pass on the repository rather than on
+  the package. It was a separate job with no checkout, until waiting for
+  `node26` put it through the runner queue a second time.
   `proof.f.mjs` — its property-based proofs.
 - `rust/module.f.mjs` — `cargo` build/test steps, the toolchain action the two
   Windows jobs still need, the `wasm` job's steps, and what Intel Linux adds to
@@ -103,7 +104,7 @@ for, and whether that answer should change, is
    `fjs ci`. In this repository it is `fjs run ./fjs/ci/self/module.f.mjs`
    through the checked-in entry point, because the repository's own generation
    passes a `packageConsumer` the built-in command does not have; running
-   `fjs ci` here writes a `package-check` without the consumer steps.
+   `fjs ci` here writes the packed-package check without the consumer steps.
 3. Commit the updated `.github/workflows/gen.ci.yml`,
    `.github/workflows/gen.npm-publish.yml` and `gen.nix/*/flake.nix` files if they have
    changed.
@@ -117,8 +118,9 @@ plain text built from the pinned commit in `config/module.f.js`.
 Each canonical job with a flake declares a system and its Nixpkgs package attributes
 beside the steps that enter them — `nodeNixJobs` in `node/module.f.mjs`, `denoNixJob`
 in its own module — and `module.f.mjs` composes them into `nixJobs`, the one place the
-whole set is visible. `package-check` declares none — it runs with no checkout, so
- there is no file tree for a flake to be in.
+whole set is visible. The packed-package check closing `node26` enters none of
+them, deliberately: it runs as a consumer would, on `setup-node`'s Node with
+nothing of the repository on `PATH`.
 
 A declaration names the systems it wants a shell for, and the generator writes
 one explicit `devShells.<system>.default` per system rather than looping. The
@@ -138,7 +140,7 @@ consumed.
 Nixpkgs snapshot provides — not each vendor's latest release, which the snapshot
 usually trails. They feed the flakes' package attributes where the attribute is
 versioned, as well as every `setup-node` step left: the two Windows jobs,
-`package-check`, and the publishing workflow. Bumping any of them therefore means moving the Nixpkgs commit first
+the packed-package check closing `node26`, and the publishing workflow. Bumping any of them therefore means moving the Nixpkgs commit first
 and copying the versions it offers.
 
 `bun` is not one of these, and it is the one package in any generated shell that the
@@ -260,7 +262,7 @@ would never have shown the failure, having no such file: its proofs live under
 `fjs/`, where `node --test` reaches them by path. The two Windows jobs still run
 `fjs test` and still need no install.
 
-Every canonical job runs on Ubuntu ARM, and all but `package-check` through a
+Every canonical job runs on Ubuntu ARM, and every one through a
 flake:
 
 - Node 22 runs `npm ci` and `node --test` through a flake of its own.
@@ -269,13 +271,18 @@ flake:
   with a flake to themselves: `npm ci` and `node --test` take whichever `node`
   reaches `PATH` first, and one shell holds one, so each needs a shell carrying
   the single release it exists to test.
-- Node 26 runs `npm ci`, `tsc`, `npm run cov`, `npm pack` and `npm run gen`
-  through the shared shell, then `git add -A && git diff --cached --exit-code`
-  as a plain step — `git` is the runner's tool, and a step names the flake only when
-  it needs something the flake pins. The release it wants is the shared shell's,
+- Node 26 runs `npm ci`, `tsc`, `npm start compile`, `npm run cov`, `npm pack`
+  and `npm run gen` through the shared shell, then
+  `git add -A && git diff --cached --exit-code` as a plain step — `git` is the
+  runner's tool, and a step names the flake only when it needs something the
+  flake pins. The release it wants is the shared shell's,
   so it needs no flake of its own. It asserts `tsc` alongside `node`, since
   `pkgs.typescript-go` names no version and this is the job whose `npm pack`
-  emits the declarations the package ships.
+  emits the declarations the package ships. `npm pack` writes the tarball
+  outside the checkout, into a directory a plain `mkdir` makes first, and the
+  job closes with the packed-package check, run there as a consumer would run
+  it: on `setup-node`'s Node, in no flake, with nothing of the repository up
+  the tree.
 - `deno` runs `deno install --frozen` and `deno task cov` in the shared shell.
 - `bun` runs `bun install --frozen-lockfile` and `bun test --coverage` there
   too, on a Bun that is an overridden archive rather than the snapshot's.
@@ -286,9 +293,10 @@ flake:
   spawns them — which is why the whole toolchain moved rather than half of it.
 
 Neither installs a published package any more. That check subjects a release rather
-than this commit, so it belongs to the package job family, which already downloads
-the `npm pack` artifact;
-[`todo/built-package-checks.md`](./todo/built-package-checks.md) owns the move.
+than this commit, so it belongs with the packed-package check in
+`package/module.f.mjs`, on a tarball this commit packs;
+[`todo/built-package-checks.md`](./todo/built-package-checks.md) owns the move and
+where it runs.
 Deno's `--minimum-dependency-age=0` went with its install: the flag existed to let a
 registry install take a package younger than Deno's 24-hour default, and no registry
 install is left.
@@ -387,7 +395,8 @@ The built-in command does not read `package.json` at all. It used to, for one
 thing — `devDependencies.typescript`, which decided whether the `package-check`
 job was generated and which compiler it installed. That version is now
 `config/module.f.js`'s, like every other version this generator names, so
-`package-check` is generated for every project.
+the packed-package check — the steps closing `node26` now — is generated for
+every project.
 
 Two consequences worth knowing before you adopt this generator. The compiler the
 packed-package check runs is the one **this** configuration pins, not the one
@@ -458,9 +467,9 @@ npm's trusted publishing exchange the runner's OIDC token for the credential,
 and `--provenance` is what makes that exchange worth having — npm records the
 workflow, the commit and the repository that produced the tarball, and a
 consumer can check the published package against them. This job takes its Node
-from `setup-node` rather than from a flake, as `package-check` does and for a
-related reason: it needs the `.npmrc` that action writes, and a flake has
-nothing to say about a registry.
+from `setup-node` rather than from a flake, as the packed-package check does,
+though for a reason of its own: it needs the `.npmrc` that action writes, and a
+flake has nothing to say about a registry.
 
 The publish step carries `continue-on-error: true`, the only step in either
 generated workflow that does. Most pushes to `main` do not move the version, and
@@ -502,7 +511,7 @@ export type Setup = {
 
 `nodeExtra` receives the target OS so callers can conditionally add OS-specific steps.
 
-`packageConsumer` is the consumer half of `package-check`: a published module
+`packageConsumer` is the consumer half of the packed-package check: a published module
 and a runtime export it must load, its `types.ts` as a consumer spells it,
 a declared type, a value of that type and one that is not, which must fail to
 type-check. The built-in command passes none, since it cannot know what

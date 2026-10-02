@@ -8,6 +8,7 @@ mod ecma_whitespace;
 mod function;
 mod impls;
 mod internal;
+mod iterator_record;
 mod join;
 mod lambda;
 mod member_access;
@@ -29,6 +30,7 @@ pub use crate::vm::{
     bigint::BigInt,
     function::Function,
     internal::{IComplex, IContainer, IFunction, IStaticFunction, IVm, StaticCode},
+    iterator_record::IteratorRecord,
     lambda::{OptionLambda, OptionPropertyLambda, PropertyLambda},
     nullish::Nullish,
     number::Number,

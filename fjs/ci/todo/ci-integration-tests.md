@@ -20,13 +20,17 @@ Open questions:
 - Where do scenario modules live? (`todo/demo/` style, or a dedicated `fjs/ci/scenarios/` directory?)
 - How does a scenario declare which runtime(s) it targets (Node, Deno, Bun)?
 - Should the artifact be a `.tgz` from `npm pack`, or a published pre-release to a local registry?
+- Should the integration stage wait on the build stage at all? A job behind `needs` is created only when the job it waits for finishes, so behind a full runner queue it waits a second time — what moved the packed-package check into `node26` (see [built-package-checks](./built-package-checks.md)). Each integration job could pack its own tarball instead.
 
 ### Tasks
 
 - [ ] Define the scenario interface (`export const main: NodeProgram` or similar).
-- [x] Implement the artifact publish step in the CI generator (run `npm pack`, upload as a GitHub Actions artifact).
-      Done: `node26` packs and uploads the `package-tarball` artifact
-      (`packageArtifact` in `fjs/ci/node/module.f.mjs`).
+- [ ] Hand the packed tarball to the integration stage: an uploaded artifact
+      behind `needs`, or each integration job running `npm pack` itself.
+      Decide with the open question above. An upload existed once: `node26`
+      packed and uploaded a `package-tarball` artifact for the separate
+      `package-check` job to download, until that check moved into `node26`
+      and the upload went with it.
 - [x] Teach the CI generator to express job ordering, so a consuming job cannot
       start before the artifact is uploaded. `jobSchema` in
       `fjs/ci/common/module.f.mjs` is deliberately **closed** and names only
@@ -44,7 +48,12 @@ Open questions:
       [#1762](https://github.com/functionalscript/functionalscript/pull/1762)
       and its first consumer in
       [#1767](https://github.com/functionalscript/functionalscript/pull/1767).
-- [ ] Implement scenario job generation: download artifact, install, run `main`.
+      That consumer is gone — the packed-package check is the last steps of
+      `node26`, for the queue cost in the open questions above — so no job
+      orders itself, and `jobNeeds` in `fjs/ci/proof.f.mjs` pins that count
+      at 0.
+- [ ] Implement scenario job generation: obtain the tarball (per the task
+      above), install, run `main`.
 - [ ] Port the remaining published-CLI smoke step (`fjs test` on the two Windows
       jobs) to the scenario model. The `deno run … t` and `bunx … t` steps are
       already gone.
@@ -55,5 +64,6 @@ Open questions:
 - [scenario-testing](../../emergent_testing/todo/scenario-testing.md) — the
   scenario type this issue's integration stage runs.
 - [built-package-checks](./built-package-checks.md) — also proposes installing
-  the `package-tarball` artifact per platform. Open question: which of the two
-  owns the per-platform install of the tarball.
+  the packed tarball per platform, where it is packed or in a job that packs
+  its own rather than behind `needs`. Open question: which of the two owns the
+  per-platform install of the tarball.
