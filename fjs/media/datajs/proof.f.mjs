@@ -99,11 +99,13 @@ export const proof = {
             // An index sits in a port of the array's own box, not on the
             // line: the header is 26px and the row under it 20px, so the
             // label is centred at y=46 and the edge leaves the row's right
-            // end at (60,46).
+            // end at (60,46). The document is a tree, so the inner array is
+            // centred on the outer one, and the edge ends level with its
+            // label, at (100,33).
             edgeLabelPosition: () => {
                 const html = htmlToString(demo.view('export default [[]];'))
                 assert(html.includes('<text x="35" y="46" text-anchor="middle" data-graph-edge-label="">0<'), html)
-                assert(html.includes('d="M60,46 L100,23"'), html)
+                assert(html.includes('d="M60,46 L100,33"'), html)
             },
             // A leaf inside a container is no node of its own: its value
             // sits in the port's row, in a cell right of the index, and no

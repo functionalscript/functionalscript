@@ -171,9 +171,11 @@ export const proof = {
             assertEq(html.split('data-graph-entry=""').length - 1, 1)
         },
         // An edge with a corner takes no row: the node is its 26px title
-        // and one 20px value row, 46px tall at y=10, and its three edges
-        // leave its right side, x=60, from the top corner, the middle and
-        // the bottom corner.
+        // and one 20px value row, 46px tall, and its three edges leave its
+        // right side, x=60, from the top corner, the middle and the bottom
+        // corner. It is a tree, so the node is centred on its three
+        // children, 10 to 116: at y=40, its middle edge level with the
+        // middle child's.
         corners: () => {
             const html = htmlToString(graphSvg({
                 nodes: [
@@ -189,10 +191,11 @@ export const proof = {
                     { from: 0, to: 3, label: '', corner: 'bottom' },
                 ],
             }))
-            assert(html.includes('<rect x="10" y="10" width="50" height="46" rx="4" data-graph-node=""'), html)
+            assert(html.includes('<rect x="10" y="40" width="50" height="46" rx="4" data-graph-node=""'), html)
             assertEq(html.split('data-graph-port=""').length - 1, 0)
             const starts = routes(html).map(d => d.split(' ')[0])
-            assertEq(JSON.stringify(starts), '["M60,10","M60,33","M60,56"]')
+            assertEq(JSON.stringify(starts), '["M60,40","M60,63","M60,86"]')
+            assert(routes(html)[1].endsWith('L100,63'), html)
         },
         // A value in parts is one text of tspans, each marked with its
         // kind; a value without parts is plain text, as before.
@@ -209,8 +212,10 @@ export const proof = {
         },
         // An empty label is no row when a node has ports: each node is its
         // one 20px row, and the edge runs from the middle of the first row
-        // to the middle of the second's, (60,20) to (100,20). A node with
-        // no ports keeps its 26px header, or it would have no height.
+        // to the middle of the second's. A node with no ports keeps its
+        // 26px header, or it would have no height. The root's two rows are
+        // centred on its children, 10 to 70, so it sits at y=20 and its
+        // first edge runs from (60,30) to (100,20).
         emptyLabel: () => {
             const html = htmlToString(graphSvg({
                 nodes: [
@@ -225,10 +230,10 @@ export const proof = {
                 ],
             }))
             assert(!html.includes('data-graph-label'), html)
-            assert(html.includes('<rect x="10" y="10" width="50" height="40" rx="4" data-graph-node=""'), html)
+            assert(html.includes('<rect x="10" y="20" width="50" height="40" rx="4" data-graph-node=""'), html)
             assert(html.includes('<rect x="100" y="10" width="50" height="20" rx="4" data-graph-node=""'), html)
             assert(html.includes('<rect x="100" y="44" width="50" height="26" rx="4" data-graph-node=""'), html)
-            assertEq(routes(html)[0], 'M60,20 L100,20')
+            assertEq(routes(html)[0], 'M60,30 L100,20')
         },
         // A value whose key is empty fills its row: no key cell, no key
         // text, and the value centred across the whole 50px node. A keyed
@@ -253,7 +258,9 @@ export const proof = {
          * geometry — a 50px node at (10,10), a 26px header over a 20px
          * row, so the row's label is centred at y=46 and the line starts
          * at the node's right side, x=60, and ends at the left of the
-         * next column's node, level with its label: (100,23).
+         * next column's node, level with its label. The root is taller
+         * than its one child, so the child moves down to be centred on it,
+         * at y=20, and the line ends at (100,33).
          */
         labelInAPort: () => {
             const html = htmlToString(graphSvg({
@@ -266,7 +273,7 @@ export const proof = {
             assert(html.includes('<rect x="10" y="10" width="50" height="46" rx="4" data-graph-node=""'), html)
             assert(html.includes('<rect x="10" y="36" width="50" height="20" data-graph-port="">'), html)
             assert(html.includes('<text x="35" y="46" text-anchor="middle" data-graph-edge-label="">x<'), html)
-            assert(html.includes('d="M60,46 L100,23"'), html)
+            assert(html.includes('d="M60,46 L100,33"'), html)
         },
         /**
          * **Nodes are found by id, not by position.** A `Graph` does not
@@ -281,7 +288,7 @@ export const proof = {
             const child = { id: 1, kind: 'leaf', label: '42', rank: 1 }
             const html = htmlToString(graphSvg({ nodes: [child, root], edges }))
             assert(html.includes('<rect x="10" y="36" width="50" height="20" data-graph-port="">'), html)
-            assert(html.includes('d="M60,46 L100,23"'), html)
+            assert(html.includes('d="M60,46 L100,33"'), html)
             assertEq(html, htmlToString(graphSvg({ nodes: [root, child], edges })))
             assertEq(
                 htmlToString(graphSvg({ ...skipLevel, nodes: skipLevel.nodes.toReversed() })),
@@ -364,6 +371,48 @@ export const proof = {
          * counted rather than eyeballed. A lane-less layout drew `r` from
          * the root straight to rank 2, through the node on rank 1.
          */
+        /**
+         * **A tree draws each parent beside its children.** The root has
+         * two children, and each of those two leaves: the leaves stack in
+         * the last column, each parent is centred on its two leaves, and
+         * the root on its two children — not packed at the top of their
+         * columns.
+         */
+        alignsATree: () => {
+            /** @type {Graph} */
+            const tree = {
+                nodes: [0, 1, 2, 3, 4, 5, 6].map(id => ({ id, kind: 'a', label: String(id), rank: id === 0 ? 0 : id < 3 ? 1 : 2 })),
+                edges: [[0, 1], [0, 2], [1, 3], [1, 4], [2, 5], [2, 6]].map(([from, to]) => ({ from, to, label: '', corner: /** @type {const} */ ('top') })),
+            }
+            const html = htmlToString(graphSvg(tree))
+            /** @type {(x: number, y: number) => boolean} */
+            const box = (x, y) => html.includes(`<rect x="${x}" y="${y}" width="50" height="26" rx="4" data-graph-node=""`)
+            // The leaves, 40px apart: 26px each and a 14px gap.
+            assert([10, 50, 90, 130].every(y => box(190, y)), html)
+            // Each parent centred on its leaves: (10 + 76 - 26) / 2.
+            assert(box(100, 30) && box(100, 110), html)
+            // The root centred on the parents: (30 + 136 - 26) / 2.
+            assert(box(10, 70), html)
+            assertEq(_crossings(tree), 0)
+        },
+        /**
+         * **A node with two parents keeps the columns packed**: it has no
+         * one parent to sit beside, so each column stacks from the top, as
+         * any graph that is not a tree does.
+         */
+        sharedNodeStaysPacked: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [
+                    { id: 0, kind: 'a', label: '0', rank: 0 },
+                    { id: 1, kind: 'a', label: '1', rank: 1 },
+                    { id: 2, kind: 'a', label: '2', rank: 1 },
+                    { id: 3, kind: 'a', label: '3', rank: 2 },
+                ],
+                edges: [[0, 1], [0, 2], [1, 3], [2, 3]].map(([from, to]) => ({ from, to, label: '', corner: /** @type {const} */ ('top') })),
+            }))
+            assert(html.includes('<rect x="10" y="10" width="50" height="26" rx="4" data-graph-node=""'), html)
+            assert(html.includes('<rect x="190" y="10" width="50" height="26" rx="4" data-graph-node=""'), html)
+        },
         noEdgeCrossesABox: () => {
             assertEq(_crossings(skipLevel), 0)
             // Two skip-level edges from one source to one target take two
