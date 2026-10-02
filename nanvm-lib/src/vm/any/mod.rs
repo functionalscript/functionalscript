@@ -12,6 +12,7 @@ mod get_iterator;
 mod neg;
 mod not;
 mod nullish_coalescing;
+mod object_spread;
 mod option_call;
 mod or;
 mod partial_eq;

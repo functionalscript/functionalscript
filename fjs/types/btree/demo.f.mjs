@@ -7,23 +7,25 @@
  * a copy, and it is not: only the path from the root to the change is built
  * again, and every other subtree is the same object in both versions.
  *
- * **Each version is a graph of its own, and a node's colour says which
- * versions hold it**: `new` is only in the version after the last step,
- * `replaced` only in the one before, and `shared` in both — a plain node in
- * one drawing is the very object the other drawing shows plain too. The line
- * under the drawings counts each. Drawing both versions under one root would
- * show a shared subtree as one node with an edge from each, but tangles the
- * two trees into a graph neither of them is; two drawings keep each tree's
- * shape readable and leave the sharing to the colours.
+ * **Both versions are one graph.** A subtree both versions hold is drawn
+ * once, reached from both roots: the sharing is the drawing itself. The
+ * leaves all sit in the last column, and each column reads in key order — see {@link _graphOf}. The
+ * two roots sit on different ranks when a step grows or shrinks the tree,
+ * which is the shape of what happened.
+ *
+ * **A node's colour says which versions hold it**: `new` is only in the
+ * version after the last step, `replaced` only in the one before, and
+ * `shared` in both, and a replaced node is drawn faded: it is only what the
+ * tree was. The line above the drawing counts each.
  *
  * **A reader changes the tree one key at a time**: type a key, press
- * **Insert** or **Remove**, and the tree that was drawn under *After* moves
- * to *Before*. A key that is not an integer is refused by name, and the
+ * **Insert** or **Remove**, and the tree that was the new version is now
+ * the old one. A key that is not an integer is refused by name, and the
  * trees stay as they were.
  *
- * **A preset loads a tree and a key, and takes no step.** Each puts a tree
- * under both drawings, a key in the field and a hint naming the button to
- * press, so the reader makes the change and sees it happen; picking one
+ * **A preset loads a tree and a key, and takes no step.** Each makes one
+ * tree both versions, puts a key in the field and a hint naming the button
+ * to press, so the reader makes the change and sees it happen; picking one
  * again is how to start over. After the first press the drop-down says
  * `Custom`.
  *
@@ -36,13 +38,14 @@
  * @import { _State, _Versions } from './types.ts'
  * @import { Examples } from '../../website/demo/examples/types.ts'
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
- * @import { Shape } from '../../website/demo/graph/types.ts'
+ * @import { Graph } from '../../website/demo/graph/types.ts'
+ * @import { Element } from '../../media/html/types.ts'
  */
 
 import { set } from './set/module.f.mjs'
 import { remove } from './remove/module.f.mjs'
 import { cmp } from '../number/module.f.mjs'
-import { graphOf, graphSvg } from '../../website/demo/graph/module.f.mjs'
+import { graphSvg } from '../../website/demo/graph/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { examplePicker, name as exampleName } from '../../website/demo/examples/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
@@ -113,41 +116,99 @@ export const _census = ({ before, after }) => {
 }
 
 /**
- * How the walk reads one tree, given both versions to tell a node's kind
- * from. A node is drawn as one row per element, in the element's own order:
- * a subtree row is an edge to it (`Left`, `Middle`, `Right`), and a key row
- * is the key alone. It has no title and its keys no names: the number of
- * rows already says which of the four kinds it is. Only a whole version can be empty, so
- * the `empty` inline is drawn as the graph's one node.
+ * A node's rows, in its elements' own order: a subtree is an edge to it
+ * (`Left`, `Middle`, `Right`), and a key is the key alone. A node has no
+ * names for its keys: the number of rows already says which of the four
+ * kinds it is.
  *
- * @type {(v: _Versions) => (value: Tree<number> | number) => Shape<Tree<number> | number>}
+ * @type {(node: TNode<number>) => readonly (readonly [label: string, value: TNode<number> | number])[]}
  */
-const shapeOf = ({ before, after }) => {
+const rowsOf = node => {
+    switch (node.length) {
+        case 1: { return [['', node[0]]] }
+        case 2: {
+            const [v0, v1] = node
+            return [['', v0], ['', v1]]
+        }
+        case 3: {
+            const [l, v, r] = node
+            return [['Left', l], ['', v], ['Right', r]]
+        }
+        case 5: {
+            const [l, v0, m, v1, r] = node
+            return [['Left', l], ['', v0], ['Middle', m], ['', v1], ['Right', r]]
+        }
+    }
+}
+
+/** @type {(node: TNode<number>) => number} */
+const average = node => {
+    const keys = rowsOf(node).flatMap(([, v]) => typeof v === 'number' ? [v] : [])
+    return keys.reduce((a, b) => a + b, 0) / keys.length
+}
+
+/**
+ * How far `node` is above the leaves. Every leaf of a B-tree is as deep as
+ * every other, so the leftmost path is as long as any.
+ *
+ * @type {(node: TNode<number>) => number}
+ */
+const heightOf = node => node.length === 1 || node.length === 2 ? 0 : 1 + heightOf(node[0])
+
+/** @type {(kind: string) => number} */
+const kindOrder = kind => kind === 'replaced' ? 0 : kind === 'shared' ? 1 : 2
+
+/**
+ * Both versions as one graph, built here rather than walked by `graphOf`,
+ * because three things about it are the B-tree's, not any value's:
+ *
+ * - **No root above the two, and no titles.** An arrow from nowhere
+ *   points at each version's root — faded for the old one, solid for the
+ *   new. A root both versions share has only the solid arrow: the step
+ *   changed nothing, which the line above the drawing already says.
+ * - **Leaves line up.** A node's rank is how far it is above the leaves,
+ *   counted down from the taller root, so every leaf sits in the last
+ *   column and the two roots sit where their heights put them.
+ * - **A column reads in key order.** The graph draws a column in id order,
+ *   and ids follow each node's average key, a replaced node before the one
+ *   that took its place.
+ *
+ * A node drawn once is still reached from both versions where they share
+ * it. Edges leaving a replaced node are marked `replaced`, like the node.
+ *
+ * @type {(v: _Versions) => Graph}
+ */
+export const _graphOf = ({ before, after }) => {
     const old = nodesOf(before)
     const current = nodesOf(after)
     /** @type {(node: TNode<number>) => string} */
     const kindOf = node => !old.includes(node) ? 'new' : current.includes(node) ? 'shared' : 'replaced'
-    return value => {
-        if (value === null) { return { inline: 'empty' } }
-        if (typeof value === 'number') { return { inline: String(value) } }
-        const kind = kindOf(value)
-        switch (value.length) {
-            case 1: { return { kind, label: '', children: [['', value[0]]] } }
-            case 2: {
-                const [v0, v1] = value
-                return { kind, label: '', children: [['', v0], ['', v1]] }
-            }
-            case 3: {
-                const [l, v, r] = value
-                return { kind, label: '', children: [['Left', l], ['', v], ['Right', r]] }
-            }
-            case 5: {
-                const [l, v0, m, v1, r] = value
-                return { kind, label: '', children: [['Left', l], ['', v0], ['Middle', m], ['', v1], ['Right', r]] }
-            }
-        }
+    const sorted = [...current, ...old.filter(node => !current.includes(node))]
+        .toSorted((a, b) => average(a) - average(b) || kindOrder(kindOf(a)) - kindOrder(kindOf(b)))
+    const top = [before, after].reduce((m, tree) => tree === null ? m : Math.max(m, heightOf(tree)), 0)
+    return {
+        nodes: sorted.map((node, id) => ({ id, kind: kindOf(node), label: '', rank: top - heightOf(node) })),
+        entries: [
+            ...(before === null || before === after ? [] : [{ to: sorted.indexOf(before), kind: 'replaced' }]),
+            ...(after === null ? [] : [{ to: sorted.indexOf(after) }]),
+        ],
+        edges: sorted.flatMap((node, id) => rowsOf(node).map(([label, value]) => typeof value === 'number'
+            ? { from: id, to: { inline: String(value) }, label }
+            : { from: id, to: sorted.indexOf(value), label, kind: kindOf(node) === 'replaced' ? 'replaced' : undefined })),
     }
 }
+
+/**
+ * The drawing, and a line for each version that is the empty tree, which
+ * has no node to draw.
+ *
+ * @type {(v: _Versions) => readonly Element[]}
+ */
+const drawing = versions => [
+    ...(versions.before === null && versions.after === null ? [] : [graphSvg(_graphOf(versions))]),
+    ...(versions.before === null ? [/** @type {const} */ (['p', 'Before is the empty tree.'])] : []),
+    ...(versions.after === null ? [/** @type {const} */ (['p', 'After is the empty tree.'])] : []),
+]
 
 /** @type {Tree<number>} */
 const empty = null
@@ -155,8 +216,13 @@ const empty = null
 /** @type {(tree: Tree<number>, key: number) => Tree<number>} */
 const insertInto = (tree, key) => insert(key)(tree)
 
-/** @type {(n: number) => readonly number[]} */
-const upTo = n => Array.from({ length: n }, (_, i) => i + 1)
+/**
+ * 10, 20, … up to `n` tens: keys with room between them, so a reader can
+ * insert one anywhere.
+ *
+ * @type {(n: number) => readonly number[]}
+ */
+const tensUpTo = n => Array.from({ length: n }, (_, i) => (i + 1) * 10)
 
 /**
  * The presets the drop-down offers: a name, the keys whose inserts build the
@@ -166,13 +232,13 @@ const upTo = n => Array.from({ length: n }, (_, i) => i + 1)
  * @type {readonly (readonly [name: string, keys: readonly number[], key: number, hint: string])[]}
  */
 export const presets = [
-    ['Insert into a leaf', upTo(7), 8, 'Press Insert to add 8: only the path to the leaf 7 is built again, and the rest is shared.'],
-    ['Empty tree', [], 1, 'Press Insert to add 1, then keep inserting 2, 3, … to watch the tree grow from a single leaf.'],
-    ['Split a leaf', upTo(8), 9, 'Press Insert to add 9: the leaf 7 8 is full, so it splits and 8 moves up into its parent.'],
-    ['Grow a level', upTo(14), 15, 'Press Insert to add 15: the split runs all the way up to the root, and the tree grows a level.'],
-    ['Remove and merge', upTo(7), 7, 'Press Remove to take out 7: its leaf empties and merges with its sibling, and the tree shrinks a level.'],
-    ['Remove a missing key', upTo(7), 9, 'Press Remove to take out 9: it is not in the tree, so nothing changes and every node is shared.'],
-    ['Big tree', upTo(31), 32, 'Press Insert to add 32: only the five nodes on its path are built again, and the other 26 are shared.'],
+    ['Insert into a leaf', tensUpTo(7), 80, 'Press Insert to add 80: only the path to the leaf 70 is built again, and the rest is shared.'],
+    ['Empty tree', [], 10, 'Press Insert to add 10, then keep inserting 20, 30, … to watch the tree grow from a single leaf.'],
+    ['Split a leaf', tensUpTo(8), 90, 'Press Insert to add 90: the leaf 70 80 is full, so it splits and 80 moves up into its parent.'],
+    ['Grow a level', tensUpTo(14), 150, 'Press Insert to add 150: the split runs all the way up to the root, and the tree grows a level.'],
+    ['Remove and merge', tensUpTo(7), 70, 'Press Remove to take out 70: its leaf empties and merges with its sibling, and the tree shrinks a level.'],
+    ['Remove a missing key', tensUpTo(7), 90, 'Press Remove to take out 90: it is not in the tree, so nothing changes and every node is shared.'],
+    ['Big tree', tensUpTo(31), 320, 'Press Insert to add 320: only the five nodes on its path are built again, and the other 26 are shared.'],
 ]
 
 /**
@@ -186,7 +252,7 @@ const examples = presets.map(([n]) => [n, n])
 const picker = examplePicker(examples)
 
 /**
- * The state a preset loads: its tree under both drawings, so every node is
+ * The state a preset loads: its tree as both versions, so every node is
  * shared until the first press.
  *
  * @type {(name: string) => _State}
@@ -199,9 +265,17 @@ export const _load = name => {
     return { key: String(key), versions: { before: tree, after: tree }, status: { preset: name, hint }, error: null }
 }
 
-/** @type {(last: string) => (census: { readonly built: number, readonly shared: number, readonly replaced: number }) => string} */
-const lastLine = last => ({ built, shared, replaced }) =>
-    `Last step, ${last}: ${built} new (green), ${shared} shared with the version before, ${replaced} replaced (red).`
+/**
+ * What the last step did. A step that left the tree as it was — removing a
+ * key the tree does not have — says so, rather than a count of nothing.
+ *
+ * @type {(last: string) => (versions: _Versions) => string}
+ */
+const lastLine = last => versions => {
+    if (versions.before === versions.after) { return `Last step, ${last}: the key is not in the tree, so nothing changed.` }
+    const { built, shared, replaced } = _census(versions)
+    return `Last step, ${last}: ${built} new (blue), ${shared} shared with the version before, ${replaced} replaced (amber).`
+}
 
 /**
  * The page opens on the first preset, loaded.
@@ -216,7 +290,6 @@ export const demo = {
         : event.kind === 'click' && (event.name === 'insert' || event.name === 'remove') ? _press(event.name)(state)
         : state),
     view: ({ key, versions, status, error }) => {
-        const draw = graphOf(shapeOf(versions))
         return ['div',
             ['p',
                 'Every step builds a new tree and leaves the old one as it was, ',
@@ -233,11 +306,8 @@ export const demo = {
                 ['button', { type: 'button', name: 'remove' }, 'Remove'],
             ],
             ...(error === null ? [] : [/** @type {const} */ (['p', `Error: ${error}`])]),
-            ['p', 'preset' in status ? status.hint : lastLine(status.last)(_census(versions))],
-            ['h3', 'Before'],
-            graphSvg(draw(versions.before)),
-            ['h3', 'After'],
-            graphSvg(draw(versions.after)),
+            ['p', 'preset' in status ? status.hint : lastLine(status.last)(versions)],
+            ...drawing(versions),
         ]
     },
 }

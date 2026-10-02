@@ -11,8 +11,8 @@ subject/head API (`evo_list`/`evo_head`/`evo_revision`/`evo_add`,
 The store (`fjs/cas/module.f.mjs`) stays transport-agnostic; this adapter is an
 additional front end alongside the CLI `main`.
 
-`casMcpServer(home)` scans `~/.cas/` once at startup to build the Evo
-subject/head cache (`initEvo`, [`fjs/cas/evo`](../cas/evo/)), allocates the
+`casMcpServer(home)` builds one store under `home`, which both tool registries
+share, and scans it once at startup to build the Evo subject/head cache (`initEvo`, [`fjs/cas/evo`](../cas/evo/)), allocates the
 session-state slot, builds the `mcpStep` for the combined `cas_*`/`evo_*`
 tool registry, and drives the stdio read → parse → dispatch → write loop
 ([`fjs/protocol/mcp/stdio`](../protocol/mcp/stdio/module.f.mjs)) until stdin EOF. `evo_add` is

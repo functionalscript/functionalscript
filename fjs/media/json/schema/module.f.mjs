@@ -26,7 +26,7 @@
 import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
 import { at, definedEntries } from '../../../types/object/module.f.mjs'
 import { array, number, option, or, record, string } from '../../../rtti/module.f.mjs'
-import { absentBit, cmp, toData, unitBit, unknown as top, withoutUnits } from '../../../rtti/data/module.f.mjs'
+import { absentBit, cmp, kindFold, toData, unitBit, unknown as top, withoutUnits } from '../../../rtti/data/module.f.mjs'
 import { unknown as jsonUnknown } from '../rtti/module.f.mjs'
 
 /** @type {() => readonly ['const', typeof unknownConst]} */
@@ -135,9 +135,7 @@ const nodeSchema = rules => n =>
  * @returns {readonly Ts<typeof unknown>[]}
  */
 const kindSchemas = (k, whole, item) =>
-    k === undefined ? [] :
-    k === true ? [whole] :
-    k.map(item)
+    kindFold({ absent: () => [], whole: () => [whole], members: list => list.map(item) })(k)
 
 /** @type {(v: boolean | number | string | null) => Ts<typeof unknown>} */
 const constSchema = v => ({ const: v })
