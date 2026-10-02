@@ -1,7 +1,7 @@
 ## kindset-eliminator. Name the `KindSet` absent/whole/members trichotomy once
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
