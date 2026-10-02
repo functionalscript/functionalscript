@@ -124,8 +124,13 @@ export type AstSpread = readonly ['...', AstConst]
 /** An array value; its items are evaluated in order. */
 export type AstArray = readonly ['array', readonly AstItem[]]
 
-/** One member of an object: the key it is written under — spelled bare, quoted or computed — and its value. */
-export type AstMember = readonly [string, AstConst]
+/**
+ * One member of an object, tagged `:` as the EDAG's property is: the key it
+ * is written under — spelled bare, quoted or computed — and its value. The
+ * tag keeps a member apart from a spread, `['...', v]`, which a key `...`
+ * would otherwise spell too: `{ "...": 1 }` is a property.
+ */
+export type AstMember = readonly [':', string, AstConst]
 
 /**
  * An object value: its members in the order they are written, a repeated
