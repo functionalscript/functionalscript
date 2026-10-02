@@ -198,9 +198,11 @@ produces part of a string, not for this one alone.
 - [x] Spell it as an object property, through `object_spread` and
       `spread_object`, `property_item` and `spread_entries` in
       [`vm::unstable`](../src/vm/unstable/mod.rs).
-- [ ] Add generated fixtures in `nanvm-harness`, checked against a
-      JavaScript engine, once FunctionalScript source can spell a spread
-      ([spread](../../spec/todo/2480-spread.md)).
+- [x] A generated fixture in `nanvm-harness` for array and call spread,
+      checked against a JavaScript engine:
+      [`fixtures/spread.mjs`](../../nanvm-harness/fixtures/spread.mjs).
+- [ ] One for object spread, once FunctionalScript source can spell it
+      ([object spread](../../spec/todo/2490-object-spread.md)).
 
 ### Related
 

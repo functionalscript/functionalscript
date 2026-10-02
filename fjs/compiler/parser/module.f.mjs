@@ -52,9 +52,9 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstFrameRef, AstFunction, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstThrow } from '../ast/types.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstFrameRef, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstThrow } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
- * @import { Block, Container, Entry, If, Import, Module, Node, ParameterBinding, ParameterList, Statement, ValueStatement } from './syntax/types.ts'
+ * @import { Block, Container, Entry, If, Import, Item, Module, Node, ParameterBinding, ParameterList, Statement, ValueStatement } from './syntax/types.ts'
  * @import { _AccessFrame, _BodyFrame, _CallFrame, _ConditionalFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Parameter, _Ref, _Scope, _Stack, _State } from './private.ts'
  */
 
@@ -290,9 +290,40 @@ const accessClosed = (frame, base) => {
  */
 const isCallee = stack => stack !== null && 'call' in stack.top && stack.top.index === 0
 
+/**
+ * The node an item evaluates: a value's own, or a spread's operand — the
+ * spread itself is put back once the operand has its value,
+ * {@link itemValue}.
+ *
+ * @type {(item: Item) => Node}
+ */
+const operandOf = item => item[0] === '...' ? item[1] : item
+
+/**
+ * An item's value from its operand's: the value, or the spread of it where
+ * the item was a spread.
+ *
+ * @type {(item: Item) => (value: AstConst) => AstItem}
+ */
+const itemValue = item => value => {
+    if (item[0] !== '...') { return value }
+    /** @type {AstSpread} */
+    const spread = ['...', value]
+    return spread
+}
+
 /** @type {(container: Container, index: number) => Node} */
 const itemAt = ([kind, items], index) =>
-    kind === 'array' ? items[index] : items[index].value
+    kind === 'array' ? operandOf(items[index]) : items[index].value
+
+/**
+ * A container's value at `index`, its item's spread put back: an array's
+ * item may be one, an object's member never is.
+ *
+ * @type {(container: Container, index: number, value: AstConst) => AstItem}
+ */
+const containerValue = ([kind, items], index, value) =>
+    kind === 'array' ? itemValue(items[index])(value) : value
 
 /**
  * The error a container's item earns before its value is read, or `null`:
@@ -315,11 +346,12 @@ const badKey = ([kind, items], index) => {
 /**
  * A member as an entry of the object being closed: its name, and the value
  * at its index among the resolved values, which are the leading parameter
- * so that the step lives here rather than closing over them.
+ * so that the step lives here rather than closing over them — never a
+ * spread, {@link containerValue}.
  *
- * @type {(done: readonly AstConst[]) => (member: Entry, index: number) => AstMember}
+ * @type {(done: readonly AstItem[]) => (member: Entry, index: number) => AstMember}
  */
-const memberEntry = done => ({ name }, index) => [name, done[index]]
+const memberEntry = done => ({ name }, index) => [name, /** @type {AstConst} */ (done[index])]
 
 /**
  * A container of the values its items resolved to: an array, or an object
@@ -330,7 +362,7 @@ const memberEntry = done => ({ name }, index) => [name, done[index]]
  * JavaScript builds, and EDAG's object constructor takes the members as
  * written, which the syntax alone still has.
  *
- * @type {(container: Container, done: readonly AstConst[]) => AstConst}
+ * @type {(container: Container, done: readonly AstItem[]) => AstConst}
  */
 const close = ([kind, members], done) => {
     if (kind === 'array') {
@@ -377,7 +409,15 @@ const callOperandCount = call => call[2].length + 1
  *
  * @type {(call: _CallFrame['call'], index: number) => Node}
  */
-const callOperandAt = (call, index) => index === 0 ? call[1] : call[2][index - 1]
+const callOperandAt = (call, index) => index === 0 ? call[1] : operandOf(call[2][index - 1])
+
+/**
+ * A call's value at `index`, an argument's spread put back: the callee is
+ * never one.
+ *
+ * @type {(call: _CallFrame['call'], index: number, value: AstConst) => AstItem}
+ */
+const callValue = (call, index, value) => index === 0 ? value : itemValue(call[2][index - 1])(value)
 
 /**
  * The next operand of a call, or the call closed when none is left: the
@@ -390,7 +430,7 @@ const callRound = (stack, scope, frame) => {
     if (index < callOperandCount(call)) { return [{ top: frame, rest: stack }, scope, ['enter', callOperandAt(call, index)]] }
     const [callee, ...args] = toArray(frame.done)
     /** @type {AstCall} */
-    const closed = ['()', callee, args]
+    const closed = ['()', /** @type {AstConst} */ (callee), args]
     return [stack, scope, ok(closed)]
 }
 
@@ -617,8 +657,8 @@ const enter = (stack, scope, node) => {
  * @type {(stack: _Stack, scope: _Scope, frame: _Frame, value: AstConst) => _State}
  */
 const returned = (stack, scope, frame, value) => {
-    if ('container' in frame) { return round(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
-    if ('call' in frame) { return callRound(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
+    if ('container' in frame) { return round(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([containerValue(frame.container, frame.index, value)]) }) }
+    if ('call' in frame) { return callRound(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([callValue(frame.call, frame.index, value)]) }) }
     if ('conditional' in frame) { return conditionalRound(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
     if ('key' in frame) { return [stack, scope, accessClosed(frame, value)] }
     if ('neg' in frame) {

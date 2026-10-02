@@ -40,8 +40,15 @@ export type _View = {
 
 export type _Ref = {
     readonly ref: _RefNode
-    readonly keys: readonly string[]
+    readonly keys: readonly _Key[]
 }
+
+/**
+ * A key a reference applies: a property's name, or `null` for each element
+ * of the array there — what a spread takes from its operand, which
+ * elements being known only once the operand is evaluated.
+ */
+export type _Key = string | null
 
 /**
  * The node a reference rests on: a `const` or an import of the scope, or
@@ -75,7 +82,7 @@ export type _Reach = {
  * along those routes.
  */
 export type _Routes = {
-    readonly routes: OrderedMap<List<readonly string[]>>
+    readonly routes: OrderedMap<List<readonly _Key[]>>
     readonly refs: List<_Ref>
 }
 
