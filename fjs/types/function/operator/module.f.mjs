@@ -38,7 +38,10 @@ export const cascade =
      * tuple; a step the chain did not reach keeps its state unchanged. The last
      * step's output is the cascade's.
      *
-     * @template I
+     * `undefined` is the stop signal, so `I` excludes it: a step whose input
+     * could be `undefined` would have no way to pass that value on.
+     *
+     * @template {{} | null} I
      * @template {readonly [unknown, ...unknown[]]} const S
      * @param {CascadeSteps<I, S>} steps
      * @returns {StateScan<I, S, I | undefined>}
