@@ -75,7 +75,8 @@ fixtures; renaming repository modules to `.f.js` is the migration below.
 ### Repository compiler-compatibility migration
 
 **Blocked by:** nothing. Package support for authored `.f.js` is complete,
-`package-check` importing a published `.f.js` from a clean consumer
+the packed-package check closing the `node26` CI job importing a published
+`.f.js` from a clean consumer
 ([`fjs/ci/package/module.f.mjs`](../fjs/ci/package/module.f.mjs)).
 
 Stage 1 — removing authored TypeScript — is complete and is no longer a
@@ -187,7 +188,7 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
       arrays/objects instead of refusing them.
 - [x] Complete package support for authored `.f.js`, including direct
       type-checking, declaration emission, packing, and clean-consumer
-      runtime/type tests — `package-check` imports
+      runtime/type tests — the packed-package check imports
       `fjs/js/prototype/module.f.js` from a clean consumer, runs it, and
       type-checks a use of `PrototypeName` with a negative control
       ([`fjs/ci/package/module.f.mjs`](../fjs/ci/package/module.f.mjs)).
@@ -206,8 +207,9 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
 
 ### Related
 
-- [`fjs/ci/package/module.f.mjs`](../fjs/ci/package/module.f.mjs) —
-  `package-check`, the clean-consumer check of a published `.f.js`.
+- [`fjs/ci/package/module.f.mjs`](../fjs/ci/package/module.f.mjs) — the
+  packed-package check closing the `node26` CI job, the clean-consumer check
+  of a published `.f.js`.
 - [`fjs/compiler/README.md`](../fjs/compiler/README.md) — the extension contract, and the
   stage-1/stage-2 boundary this migration starts from.
 - [nanvm-lib/todo/mvp-roadmap.md](../nanvm-lib/todo/mvp-roadmap.md) — the

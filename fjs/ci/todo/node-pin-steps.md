@@ -10,7 +10,7 @@ step, and `nodeVersionStep`, whose doc explains the leading `v` that
 `node --version` prints — and exports neither. So:
 
 ```js
-// fjs/ci/package, packageCheckJob
+// fjs/ci/package, packageCheckSteps
 uses('actions/setup-node', { 'node-version': node.default })
 // fjs/ci/publish, publishSteps
 install(uses('actions/setup-node', { 'node-version': node.default, 'registry-url': registry }))
