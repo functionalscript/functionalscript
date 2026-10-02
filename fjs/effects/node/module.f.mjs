@@ -25,7 +25,7 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
-import { utf8, utf8ToString } from '../../text/module.f.mjs'
+import { tryUtf8, utf8, utf8ToString } from '../../text/module.f.mjs'
 import { concat } from '../../types/list/module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { byteLength, bytesIn, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, u8ListMsb } from '../../types/bit_vec/module.f.mjs'
@@ -333,14 +333,6 @@ const writeFileOp = /** @type {Func<WriteFile>} */ (do_('writeFile'))
 export const writeFile = (path, data) =>
     isWholeBytes(data) ? writeFileOp(path, data) : invalidBufferSize
 
-/**
- * Writes a string to `path` as UTF-8 bytes.
- *
- * @type {(path: string, content: string) => Effect<WriteFile, void, IoChannel>}
- */
-export const writeUtf8File = (path, content) =>
-    writeFile(path, utf8(content))
-
 // rm
 
 /** @type {Func<Rm>} */
@@ -500,6 +492,74 @@ export const writeFromStream = (path, e) => {
 
 /** One chunk's worth of bytes: the `Vec` cap, which is what a chunk may not exceed. */
 const chunkBytes = Number(maxLengthBytes)
+
+/**
+ * The most UTF-16 code units a piece has, less one, so that a piece of
+ * `chunkUnits + 1` units always encodes to at most one `Vec`: a unit takes at
+ * most three bytes, a surrogate pair four for its two. The extra unit is the
+ * one a cut may take back, below.
+ */
+const chunkUnits = Math.floor(chunkBytes / 3) - 1
+
+/** @type {(c: number) => boolean} */
+const isHighSurrogate = c => c >= 0xd800 && c <= 0xdbff
+
+/** @type {(c: number) => boolean} */
+const isLowSurrogate = c => c >= 0xdc00 && c <= 0xdfff
+
+/**
+ * The pieces of `s`, each of at most `units + 1` code units: the cut after
+ * `k * units` units, moved back one unit where it would fall between the two
+ * halves of a surrogate pair, so that every piece is the text of whole code
+ * points and encodes as UTF-8 on its own. Each cut depends on `s` alone, so the
+ * pieces are built by index and not by recursion, and a text of any length has
+ * as many as it needs. An empty text is one empty piece.
+ *
+ * @type {(units: number) => (s: string) => readonly string[]}
+ */
+export const _pieces = units => s => {
+    /** @type {(k: number) => number} */
+    const cutAt = k => {
+        const at = k * units
+        return at >= s.length ? s.length
+            : isHighSurrogate(s.charCodeAt(at - 1)) && isLowSurrogate(s.charCodeAt(at)) ? at - 1 : at
+    }
+    return Array.from(
+        { length: Math.max(1, Math.ceil(s.length / units)) },
+        (_, k) => s.slice(cutAt(k), cutAt(k + 1)))
+}
+
+/**
+ * The `Vec`s as a list of effects, one cell made when the writer asks for it, so
+ * a list of any length is walked in constant stack.
+ *
+ * @type {(vs: readonly Vec[], i: number) => List<WriteBytes, Vec, IoChannel>}
+ */
+export const _vecList = (vs, i) => () => ok(i < vs.length ? { first: vs[i], tail: _vecList(vs, i + 1) } : undefined)
+
+/**
+ * Writes a string to `path` as UTF-8 bytes, replacing what it held.
+ *
+ * A text whose UTF-8 fits one `Vec` is a single {@link writeFile}, however close
+ * to the limit it comes. A larger one is encoded in pieces of at most one `Vec`
+ * each, which is why its size is not bounded by a `Vec`'s: {@link writeFile}
+ * takes the first piece and {@link writeBytes} each next at the offset where the
+ * last ended. **A larger text fails closed**, as {@link writeFromStream} does:
+ * once the first piece is written, a failure removes `path` before the error
+ * is returned, so no truncated file is left behind for a reader to mistake for
+ * the whole. The removal's own outcome is discarded.
+ *
+ * @type {(path: string, content: string) => Effect<WriteFile | WriteBytes | Rm, void, IoChannel>}
+ */
+export const writeUtf8File = (path, content) => {
+    const whole = tryUtf8(content)
+    if (whole !== null) { return writeFile(path, whole) }
+    const [first, ...rest] = _pieces(chunkUnits)(content).map(utf8)
+    const written = catchStep(
+        writeLoop(path)(Number(byteLength(first)), _vecList(rest, 0)),
+        err => resultStep(rm(path), () => pureError(err)))
+    return ioStep(writeFile(path, first), () => written)
+}
 
 /**
  * The read mirror of {@link writeFromStream}: a byte stream from a chunk
