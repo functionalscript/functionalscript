@@ -331,31 +331,34 @@ emission, `npm pack`, and a clean consumer.
       CI fixture is the remaining fixture work above.
 - [ ] Verify the CI-built archive contains exactly the generated/runtime/type
       artifacts needed for the `types.ts` convention during stage 1.
-- [ ] Run the clean packed-package consumer **in CI**, in a job with no
+- [ ] Run the clean packed-package consumer **in CI**, where nothing of the
+      repository can stand in for the package. It landed as a job with no
       repository checkout, consuming the tarball handed over as an artifact by
-      [`ci-integration-tests.md`](ci-integration-tests.md) (which also owns the
-      job-ordering edge that keeps it from racing the upload). The missing
-      checkout is the point and is stronger than merely working outside the
-      repository: with no repository on the runner there is no `tsconfig.json`
-      up the tree to inherit, no `node_modules` to resolve into, and no source
-      file that could stand in for a declaration the tarball omits. Four
-      details decide whether such a job can fail at all, each learned by
-      measurement rather than reasoning:
+      [`ci-integration-tests.md`](ci-integration-tests.md), which also owned
+      the job-ordering edge that kept it from racing the upload. It is now the
+      packed-package check closing the `node26` job, every command started in
+      a consumer directory under the runner's temporary directory — neither
+      inside the checkout nor above it — that the job packs the tarball into.
+      Either way there is no `tsconfig.json` up the tree to inherit, no
+      `node_modules` to resolve into, and no source file that could stand in
+      for a declaration the tarball omits. Four details decide whether such a
+      check can fail at all, each learned by measurement rather than
+      reasoning:
       - **Type-check every packed declaration**, enumerated from the installed
         artifact — not a hand-written consumer importing today's known
         surfaces, whose import list goes stale the moment a module changes.
       - **Leave `skipLibCheck` at its `false` default.** `tsc --init` writes
-        `true`; that silently turns the job into a no-op. It applies to
+        `true`; that silently turns the check into a no-op. It applies to
         declaration files however they enter the program, root files included.
       - **Install the tarball as a real dependency**, never by unpacking into
         `node_modules` by hand — a later `npm install` prunes what is not in
         `package.json`, leaving the check passing on an empty file list.
-      - **Pin the compiler** to the repository's exact `typescript` version.
-        With no checkout there is no lockfile, so a bare `npm install
-        typescript` lets the registry change the verdict with no repository
-        change. The version is readable without a checkout: `npm pack` keeps
-        `devDependencies` in the packed `package.json`.
-      The private-declaration assertion this job carries is a condition on it:
+      - **Pin the compiler** to an exact `typescript` version. The consumer
+        project has no lockfile, so a bare `npm install typescript` lets the
+        registry change the verdict with no repository change. The version is
+        `../config/module.f.js`'s `typescript`, written into the step as a
+        literal.
+      The private-declaration assertion this check carries is a condition on it:
       every packed declaration is type-checked from the installed artifact, so a
       public declaration that came to depend on an unshipped private module is a
       red build. Landed in
@@ -431,8 +434,9 @@ not, and the pipeline is simplified accordingly.
   — upstream JSDoc typedef stripping limitation; no longer a blocker here, since
   no authored `.mjs` declares a file-scope typedef to strip.
 - [`publishing-packages.md`](./publishing-packages.md) — broader package roadmap.
-- [`../package/module.f.mjs`](../package/module.f.mjs) — `package-check`, which
-  imports a published `.f.js` from a clean consumer of the packed package.
+- [`../package/module.f.mjs`](../package/module.f.mjs) — the packed-package
+  check closing the `node26` job, which imports a published `.f.js` from a
+  clean consumer of the packed package.
 - [`fjs/compiler/README.md`](../../compiler/README.md) — authoritative extension contract.
 - [`.f.mjs` test and coverage support](../../emergent_testing/todo/f-mjs-test-and-coverage.md)
   — runtime proof/coverage fixtures for authored `.f.mjs`.

@@ -16,6 +16,8 @@ import type { Entry as ObjectEntry } from '../../types/object/types.ts'
 import type { Assert } from '../../asserts/types.ts'
 import type { Ts, Check } from '../../rtti/ts/types.ts'
 import type { primitive, unknown } from './rtti/module.f.mjs'
+import type { serialize, stringify } from './module.f.mjs'
+import type { Equal } from '../../types/ts/types.ts'
 import type { List } from '../../types/list/types.ts'
 
 /**
@@ -64,3 +66,10 @@ export type Entry = TreeEntry<Primitive>
 export type _Entries = TreeEntries<Primitive>
 
 export type _MapEntries = TreeMapEntries<Primitive>
+
+// `serialize` and `stringify` are destructured from `codec` rather than
+// annotated where they are exported, so their public signatures are pinned
+// here instead.
+type _Serialize = Assert<Equal<typeof serialize, (sort: _MapEntries) => (value: Unknown) => List<string>>>
+
+type _Stringify = Assert<Equal<typeof stringify, (sort: _MapEntries) => (value: Unknown) => string>>

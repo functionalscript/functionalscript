@@ -69,7 +69,7 @@ import { cmp } from '../../../types/number/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../../../types/result/module.f.mjs'
 import { add, empty as noneStarted, has } from '../../../types/set/module.f.mjs'
 import { concat } from '../../../types/string/module.f.mjs'
-import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../../json/serializer/module.f.mjs'
+import { arrayWrap, colon, leafSerialize as leafSerializeWith, objectWrap, stringSerialize } from '../../json/serializer/module.f.mjs'
 
 const {
     entries,
@@ -108,16 +108,10 @@ export const _numberSerialize = value => [is(value, -0) ? '-0' : `${value}`]
  *
  * @type {(value: Primitive) => List<string>}
  */
-export const leafSerialize = value => {
-    switch (typeof value) {
-        case 'boolean': { return boolSerialize(value) }
-        case 'number': { return _numberSerialize(value) }
-        case 'string': { return stringSerialize(value) }
-        case 'bigint': { return [bigintSerialize(value)] }
-        case 'undefined': { return undefinedSerialize }
-        default: { return nullSerialize }
-    }
-}
+export const leafSerialize = leafSerializeWith(_numberSerialize)({
+    bigint: value => [bigintSerialize(value)],
+    undefined: () => undefinedSerialize,
+})
 
 const protoKey = '__proto__'
 

@@ -52,12 +52,10 @@ exists for a pathological caller-controlled `id`, its shape must stay the
 smallest possible line, and by then the `id` is gone so the client cannot
 attribute the message to a request anyway.
 
-This composes with
-[stdio-write-fallback-list](stdio-write-fallback-list.md), which folds the same
-cascade over a candidate list: the list becomes
-`[resp, tooLargeResponse(resp.id), internalErrorResponse(null)]` and the
-distinction is then visible as data. Doing that issue first makes this a
-one-element change; doing this one first is fine too.
+`handleLine` already writes the cascade as a candidate list for `writeFirst`,
+so the change is one element: the list becomes
+`[resp, tooLargeResponse(resp.id), internalErrorResponse(null)]`, and the
+distinction is visible as data.
 
 ### Tasks
 
@@ -72,9 +70,8 @@ one-element change; doing this one first is fine too.
 
 ### Related
 
-- [stdio-write-fallback-list](stdio-write-fallback-list.md) — restructures the
-  same cascade into a candidate list; the two are best implemented together.
 - `fjs/protocol/mcp/stdio/module.f.mjs` — `writeResponse` (the `maxLength`-bounded
-  encoder whose `error` result drives the fallback) and `handleLine`.
+  encoder whose `error` result drives the fallback), `writeFirst` (which tries
+  the candidates in turn) and `handleLine` (which lists them).
 - `fjs/mcp/evo/README.md` — the "Result size" note describing this
   behaviour from a tool's side, and why a tool cannot report it itself.

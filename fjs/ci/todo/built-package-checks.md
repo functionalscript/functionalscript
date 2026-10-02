@@ -1,4 +1,4 @@
-## built-package-checks. Check the package this commit builds, in the package job
+## built-package-checks. Check the package this commit builds, beside the packed-package check
 
 **Priority:** P3
 **Status:** open
@@ -33,9 +33,10 @@ states the intent: a **published release**, deliberately not
 So the check runs backwards. It can only fail when an already-shipped CLI stops
 working against this repository's current proofs; a regression in the CLI *this
 commit produces* is invisible until after it is published, and then only on the
-next pull request. The one job that does look at what this commit builds —
-`package-check` (`./module.f.mjs`), which downloads the `npm pack` artifact and
-type-checks the declarations it ships — never runs it.
+next pull request. The one check that does look at what this commit builds —
+the packed-package check closing `node26` (`../package/module.f.mjs`), which
+installs the tarball `npm pack` writes and type-checks the declarations it
+ships — never runs it.
 
 There is a second problem underneath: a job named for a runtime proves two
 unrelated things, so "where does CI test the package?" has one right answer and
@@ -45,20 +46,23 @@ two other places that also claim to.
 
 Two changes, independent in principle and worth doing together:
 
-**1. Install the package this commit builds.** `node26` already runs `npm pack`
-and uploads the tarball as the `package-tarball` artifact
-(`packageArtifact`/`packageJobId` in `../node/module.f.mjs`); `package-check`
-already downloads it and installs it as `packed@file:$(echo *.tgz)`. The checks
-above install from that same artifact instead of from the registry. The subject
+**1. Install the package this commit builds.** `node26` already runs `npm pack`,
+into a consumer directory outside the checkout (`consumerDirectory` in
+`../package/module.f.mjs`), and closes with the packed-package check, which
+installs the tarball there as `packed@file:$(echo *.tgz)`. The checks above
+install a tarball this commit packs — `node26`'s, or one their own job packs;
+see platform coverage below — instead of one from the registry. The subject
 becomes the commit under review, which is the only version whose breakage this
 pull request can still prevent.
 
-**2. Put them in the package job family.** `fjs/ci/package` owns everything
-whose subject is the built package. Its existing job keeps its deliberate
-no-checkout property — the tarball's declarations must be type-checked as an
-outsider sees them, with no repository up the tree to resolve into. The new
-jobs need a checkout, because `fjs test` runs this repository's proofs with the
-installed CLI. Same module, same artifact, different runner requirements.
+**2. Put them with the package check.** `fjs/ci/package` owns everything
+whose subject is the built package. Its existing check keeps its deliberate
+outsider's view — every command starts in the consumer directory, neither
+inside the checkout nor above it, so the tarball's declarations are
+type-checked as an outsider sees them, with no repository up the tree to
+resolve into. The new checks need the checkout, because `fjs test` runs this
+repository's proofs with the installed CLI. Same module, a tarball of the same
+commit, different working directories.
 
 #### What falls out
 
@@ -70,12 +74,20 @@ installed CLI. Same module, same artifact, different runner requirements.
 - **Deno's `--minimum-dependency-age=0` is already gone**, for exactly the reason
   this issue gave: the flag was there to install a package younger than 24 hours
   from the registry, and a tarball on disk has no dependency age.
-- **The new jobs gain `needs: [node26]`**, as `package-check` already has, so
-  they cannot start before the artifact exists. Today exactly one job orders
-  itself, and `jobNeeds` in `../proof.f.mjs` pins that count deliberately —
-  changing it is part of this work, not a surprise. The runtime jobs gain no
-  ordering: the checks move out of them rather than making `node22` wait for
-  `node26`.
+- **Nothing waits on `node26`.** This plan used to give the new jobs
+  `needs: [node26]`, as `package-check` had when it was a separate job, so they
+  could not start before the artifact existed. Measured, that edge was the
+  expensive part: GitHub creates a `needs`-dependent job only when its
+  dependency finishes, so behind a saturated runner queue — an account cap of
+  20 concurrent jobs against 13 jobs per CI run, on 2026-10-01/02 —
+  `package-check` joined the back of the queue and waited a second time, a
+  median of 24 minutes and at most 96, for about 15 seconds of work. Its steps
+  close `node26` now, there is no artifact, and no job orders itself:
+  `jobNeeds` in `../proof.f.mjs` pins that count at 0. So the checks of the
+  built package run where the tarball is packed, in `node26`, or in a job that
+  packs its own — not in a job that waits for one. The runtime jobs gain no
+  ordering either: the checks move out of them rather than making `node22` wait
+  for `node26`.
 - **Nothing checks the last published release any more.** That is the correct
   trade — a pull request cannot fix a shipped release — but if the check is
   wanted, it belongs in a scheduled run against `main`, not in per-commit CI.
@@ -84,11 +96,12 @@ installed CLI. Same module, same artifact, different runner requirements.
 #### Decisions to make first
 
 - **Platform coverage.** The CLI is exercised on the two Windows runners today;
-  the four others stopped when they moved into the shared Nix shell.
-  `actions/download-artifact` works on all six, so keeping the matrix is
-  possible; consolidating into one Linux job is a reduction, and Windows and
-  macOS are exactly where a CLI's path handling and shebang most plausibly
-  break. Choose, and record the answer here.
+  the four others stopped when they moved into the shared Nix shell. With no
+  artifact to fan out and no job waiting on `node26`, keeping the matrix means
+  each platform job packs its own tarball, `prepack` and its compiler included;
+  consolidating into `node26`, where the tarball already is, is a reduction, and
+  Windows and macOS are exactly where a CLI's path handling and shebang most
+  plausibly break. Choose, and record the answer here.
 - **What the two Windows jobs keep.** `platformNodeSteps` is *entirely* this
   check plus `npm ci`. Subtract it and those jobs are Rust-only where Rust is
   present; say what their Node half becomes, including whether `npm ci` still
@@ -112,8 +125,9 @@ installed CLI. Same module, same artifact, different runner requirements.
       any code moves
 - [ ] Decide what the two Windows jobs keep, and whether Deno and Bun move
 - [ ] Confirm the global-install spelling for a local tarball on each runtime
-- [ ] Generate the checks from `fjs/ci/package`, consuming `packageArtifact`
-      with `needs: [packageJobId]`
+- [ ] Generate the checks from `fjs/ci/package`, where the tarball is packed —
+      beside `packageCheckSteps` in `node26`, or in a job that packs its own —
+      with no `needs`
 - [ ] Remove the registry install from `platformNodeSteps` (`denoSteps` and
       `bunSteps` no longer have one)
 - [ ] Delete `functionalscript` from `../config/module.f.js` once nothing reads
@@ -125,8 +139,8 @@ installed CLI. Same module, same artifact, different runner requirements.
       22's went with its global install, but the field now has a user of the kind
       it was for. It has since moved from the job to `NixJob.perSystem`, where a
       hook belongs to the system whose package it names
-- [ ] Update `../proof.f.mjs`: the job count, the per-job assertions, and
-      `jobNeeds`'s ordering count
+- [ ] Update `../proof.f.mjs`: the job count and the per-job assertions;
+      `jobNeeds`'s ordering count stays 0
 
 ### Related
 
@@ -136,12 +150,13 @@ installed CLI. Same module, same artifact, different runner requirements.
   after installing the tarball — was proposed as `667-ci-self-test-script` and
   deleted: the package-name special case it was filed to replace is gone from
   the generator. If a package ever needs its own post-install check, it belongs
-  to the jobs this issue adds.
+  to the checks this issue adds.
 - [66H-ci-npm-global-install](66h-ci-npm-global-install.md) — a factory for the
   `npm install -g` step shape; `fjsGlobalInstall` is one of its two call sites,
   so this issue either removes the case for it or concentrates it
 - [package-check-unsupported-package-shapes](package-check-unsupported-package-shapes.md)
-  — the sibling issue about what `package-check` can and cannot see
+  — the sibling issue about what the packed-package check can and cannot see
 - [ci-integration-tests](ci-integration-tests.md) — its integration stage also
-  installs the `package-tarball` artifact across a platform matrix. Open
-  question: which of the two owns the per-platform install of the tarball.
+  installs the packed tarball across a platform matrix, planned as an artifact
+  behind a `needs` edge, which the queue finding above prices. Open question:
+  which of the two owns the per-platform install of the tarball.
