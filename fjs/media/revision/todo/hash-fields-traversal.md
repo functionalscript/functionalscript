@@ -1,7 +1,7 @@
 ## hash-fields-traversal. Which fields of a revision hold hashes is listed here and twice in `cas/evo`
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
