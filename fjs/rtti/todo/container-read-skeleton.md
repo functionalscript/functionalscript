@@ -55,10 +55,10 @@ drift: `constContainerParse`'s comments are stubs pointing at
 while `../common/types.ts`'s says
 "`validate`, `parse`".
 
-Two sibling issues used to point at this duplication and now record it as
-resolved — "resolved by deleting `validate`" in
-[kindset-eliminator.md](./kindset-eliminator.md) and
-[export-node-accessors.md](./export-node-accessors.md) — but no commit ever
+Two sibling issues used to point at this duplication and recorded it as
+resolved — "resolved by deleting `validate`" in `kindset-eliminator.md`
+(since shipped as `kindFold` and removed) and in the since-closed
+`export-node-accessors` issue — but no commit ever
 deleted `fjs/rtti/validate/`, and it is actively developed. This file
 re-tracks the issue; the stale parentheticals are corrected to link here.
 
@@ -101,11 +101,11 @@ this: the rest readers' read-before-leftovers order is load-bearing (see
 above), and collapsing the two would be a behavior change wearing a
 refactor's clothes.
 
-The data form's `arraySetValidate`/`objectSetValidate` pair repeats the same
-shape over `Data` and is tracked separately in
-[data-set-validate-shared.md](./data-set-validate-shared.md); sharing between
-the schema-form skeleton and the data form is a possible follow-up, not part
-of this issue.
+The data form's `arraySetValidate`/`objectSetValidate` pair already reads
+through one skeleton, `setValidate` in
+[`../data/module.f.mjs`](../data/module.f.mjs), parameterized by `getItem`
+the way the schema-form factories are; sharing between the schema-form
+skeleton and the data form is a possible follow-up, not part of this issue.
 
 ### Tasks
 
@@ -135,11 +135,8 @@ of this issue.
 
 ### Related
 
-- [kindset-eliminator.md](./kindset-eliminator.md),
-  [export-node-accessors.md](./export-node-accessors.md) — their closing
-  parentheticals mis-recorded this issue as resolved; corrected to link here.
-- [data-set-validate-shared.md](./data-set-validate-shared.md) — the same
-  duplication theme inside the data form.
+- `setValidate` in [`../data/module.f.mjs`](../data/module.f.mjs) — the
+  same duplication theme inside the data form, done.
 - `assertOk` / `assertError` / `assertErrorPath` in
   [`fjs/asserts`](../../asserts/module.f.mjs) — the proof-side counterpart,
   done: the readers' proofs no longer copy their helpers.

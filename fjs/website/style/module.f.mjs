@@ -67,9 +67,9 @@ export const faviconLinks = [
  *
  * @type {string}
  */
-export const stylesheet = `:root { color-scheme: light dark; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6; --value: #174ea6; --value-bg: #e8f0fe }
+export const stylesheet = `:root { color-scheme: light dark; --graph-new-bg: #aecbfa; --graph-old-bg: #fde293; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6; --value: #174ea6; --value-bg: #e8f0fe }
 @media (prefers-color-scheme: dark) {
-    :root { --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414; --value: #8ab4f8; --value-bg: #172033 }
+    :root { --graph-new-bg: #1c2d4d; --graph-old-bg: #453613; --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414; --value: #8ab4f8; --value-bg: #172033 }
 }
 /* Every link on the site is coloured the same whether or not it has been
    opened: nearly every word here is a link into the tree, and the visited
@@ -325,11 +325,23 @@ svg text { font: inherit }
 [data-graph-outline] { fill: none; stroke: var(--text); stroke-width: 1.5 }
 [data-graph-kind="leaf"] { stroke: var(--muted); stroke-dasharray: 3 2 }
 [data-graph-kind="terminal"] { fill: var(--border) }
+/* The B-tree demo's two versions: a node only the later one holds is new,
+   one only the earlier one holds is replaced, and a shared one is plain.
+   Blue and amber, not green and red: the pair stays apart under red-green
+   colour blindness and in greyscale, and a new node is not a passed test
+   nor a replaced one a failed one, so they are not --pass-bg and
+   --fail-bg. */
+[data-graph-kind="new"] { fill: var(--graph-new-bg) }
+[data-graph-kind="replaced"] { fill: var(--graph-old-bg) }
+/* A replaced node is only what the tree was: the whole node, and the edges
+   leaving it, are drawn faded. */
+[data-graph-in-kind="replaced"], [data-graph-edge-kind="replaced"] { opacity: .5 }
 [data-graph-label] { dominant-baseline: middle; fill: var(--text); font-size: .75rem }
 [data-graph-edge] { fill: none; stroke: var(--muted); stroke-width: 1.5 }
 [data-graph-edge-kind="lazy"] { stroke-dasharray: 5 3 }
 [data-graph-port] { fill: none; stroke: var(--muted); stroke-width: 1 }
 [data-graph-value] { fill: var(--value-bg); stroke: var(--muted); stroke-width: 1 }
+[data-graph-value-alone] { fill: none }
 [data-graph-value-label] { dominant-baseline: middle; fill: var(--value); font-size: .75rem }
 [data-graph-value][data-graph-value-kind="terminal"] { fill: var(--border) }
 [data-graph-value-label][data-graph-value-kind="terminal"] { fill: var(--text) }
@@ -350,4 +362,37 @@ a:hover > [data-railroad-box="nonTerminal"] { fill: var(--pass-bg) }
 [data-railroad-label] { dominant-baseline: middle; font-size: .75rem }
 [data-railroad-label="terminal"] { fill: var(--value) }
 [data-railroad-label="nonTerminal"] { fill: var(--text); font-weight: 700 }
+/* A codec's bit groups: a box per group, its bits over the character the
+   codec wrote for it, shaded. The borders are what pair a character with its
+   bits — in one monospace face the two are otherwise the same kind of text —
+   and neighbouring boxes share a border, so a line of them reads as one strip.
+   The boxes wrap to the page's width. A codec with blocks puts its boxes in
+   blocks, which wrap as units with a gap between them, so a line breaks only
+   between whole blocks; a block wider than a very narrow screen wraps inside
+   itself rather than scrolling the page sideways, and its lines touch so it
+   still reads as one. A short last block is padded to a full one with
+   placeholder boxes, hidden but holding their place, so it wraps where a full
+   block would. Fill bits are muted and dotted under, as they carry no
+   data; a stop bit is in the colour of a value and bold but not underlined,
+   since an underline on this site is a link. */
+[data-bit-groups] { display: flex; flex-wrap: wrap; margin-block: .5rem; padding-left: 1px; row-gap: .5rem }
+[data-bit-blocks] { column-gap: .75rem }
+[data-bit-block] { display: flex; flex-wrap: wrap; max-width: 100%; padding: 1px 0 0 1px }
+[data-bit-block] > [data-bit-box] { margin-top: -1px }
+[data-bit-placeholder] { visibility: hidden }
+[data-bit-box] { border: 1px solid var(--border); display: flex; flex-direction: column; margin-left: -1px; text-align: center }
+[data-bit-box] > span { padding: .2rem .3rem }
+[data-bit-char] { background: color-mix(in srgb, var(--border) 45%, var(--bg)); border-top: 1px solid var(--border); font-weight: 700 }
+/* A text's characters over their UTF-8 bytes, in the same boxes: a character
+   is a unit that wraps whole, its bytes side by side over its label, shaded
+   and spanning them. A stand-in for a character a reader could not see is
+   muted, as it names the character rather than showing it. */
+[data-byte-chars] { column-gap: .75rem; display: flex; flex-wrap: wrap; margin-block: .5rem; padding-left: 1px; row-gap: .5rem }
+[data-byte-char] { display: flex; flex-direction: column; max-width: 100%; padding-left: 1px }
+[data-byte-row] { display: flex; flex-wrap: wrap }
+[data-byte] { border: 1px solid var(--border); margin-left: -1px; padding: .2rem .3rem }
+[data-byte-label] { background: color-mix(in srgb, var(--border) 45%, var(--bg)); border: 1px solid var(--border); border-top: 0; font-weight: 700; margin-left: -1px; padding: .2rem .3rem; text-align: center }
+[data-stand-in] { color: var(--muted) }
+[data-bit="fill"] { color: var(--muted); text-decoration: underline dotted }
+[data-bit="stop"] { color: var(--value); font-weight: 700 }
 `

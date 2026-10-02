@@ -29,7 +29,7 @@ import { cmp as cmpValue } from '../../types/function/compare/module.f.mjs'
 import { strictEqual as strictEqualCurried } from '../../types/function/operator/module.f.mjs'
 import { at, definedEntries, definedValues } from '../../types/object/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
-import { declaredTest, eachEntry, isArray, undeclaredMembers, verror } from '../common/module.f.mjs'
+import { declaredTest, eachEntry, hasUndeclaredMember, isArray, undeclaredMembers, verror } from '../common/module.f.mjs'
 
 /**
  * The unit kind's enumeration: bit `1 << i` of a {@link UnionSet}'s `unit`
@@ -66,9 +66,22 @@ export const unitBit = v =>
  */
 export const absentBit = 16
 
-const allUnits = unitBit(null) | unitBit(undefined) | unitBit(false) | unitBit(true)
+/** The `unit` bit of `null`. */
+export const nullBit = unitBit(null)
 
-const booleanUnits = unitBit(false) | unitBit(true)
+/** The `unit` bit of `undefined`. */
+export const undefinedBit = unitBit(undefined)
+
+/** The `unit` bit of `false`. */
+export const falseBit = unitBit(false)
+
+/** The `unit` bit of `true`. */
+export const trueBit = unitBit(true)
+
+/** The `unit` bits of both booleans — rtti `boolean`'s unit kind. */
+export const booleanBits = falseBit | trueBit
+
+const allUnits = nullBit | undefinedBit | booleanBits
 
 /**
  * The data form of the empty set — rtti `never`.
@@ -109,6 +122,23 @@ export const withoutUnits = bits => n => {
     const { unit: _, ...rest } = n
     return unit === 0 ? rest : { unit, ...rest }
 }
+
+/**
+ * The one statement of what a kind component means: `undefined` is the empty
+ * set, `true` the whole kind, an array these members. Every unary reading of
+ * a {@link KindSet} goes through it; the pairwise ones (`cmpKind`,
+ * `mergeKind`, `kindSubset`) spell the same three cases per side.
+ *
+ * @type {<T, R>(cases: {
+ *     readonly absent: () => R
+ *     readonly whole: () => R
+ *     readonly members: (list: readonly T[]) => R
+ * }) => (k: KindSet<T> | undefined) => R}
+ */
+export const kindFold = ({ absent, whole, members }) => k =>
+    k === undefined ? absent() :
+    k === true ? whole() :
+    members(k)
 
 // ── canonical order ──────────────────────────────────────────────────────────
 
@@ -152,7 +182,8 @@ const cmpList = cmpItem => (a, b) => {
 }
 
 /**
- * Order on one kind component: absent, then member lists, then `true`.
+ * Order on one kind component: absent, then member lists, then `true` — the
+ * three cases of {@link kindFold}, compared pairwise.
  *
  * @template T
  * @param {(a: T, b: T) => number} cmpItem
@@ -265,8 +296,9 @@ const mergeSorted = cmpItem => (a, b) => {
 }
 
 /**
- * Union of one kind component: absent = empty, `true` = the whole kind, so
- * `or(42, number)` collapses to all numbers here with no special-case rule.
+ * Union of one kind component, reading both sides as {@link kindFold} does:
+ * absent = empty, `true` = the whole kind, so `or(42, number)` collapses to
+ * all numbers here with no special-case rule.
  *
  * @template T
  * @param {(a: T, b: T) => number} cmpItem
@@ -303,11 +335,22 @@ const merge = (a, b) => {
 
 // ── canonical constructors ───────────────────────────────────────────────────
 
-/** @type {(n: Node) => boolean} */
-const isNever = n => typeof n !== 'string' && cmpUnion(n, never) === 0
+/**
+ * Whether the node is the inline empty set, {@link never}. A reference is
+ * answered `false` without being read: a caller asking about the set a
+ * reference stands for resolves it first ({@link resolve}).
+ *
+ * @type {(n: Node) => boolean}
+ */
+export const isNever = n => typeof n !== 'string' && cmpUnion(n, never) === 0
 
-/** @type {(n: Node) => boolean} */
-const isTop = n => typeof n !== 'string' && cmpUnion(n, unknown) === 0
+/**
+ * Whether the node is the inline set of all values, {@link unknown}. A
+ * reference is answered `false` without being read, as by {@link isNever}.
+ *
+ * @type {(n: Node) => boolean}
+ */
+export const isTop = n => typeof n !== 'string' && cmpUnion(n, unknown) === 0
 
 /**
  * The **declared-member** top: any value, or nothing — `or(option, unknown)`.
@@ -456,20 +499,24 @@ const objectSet = (props, rest0) => {
  * so every cycle still crosses identified pairs and the memo closes it.
  */
 /**
+ * The node's own union, read through a reference if it is one.
+ *
  * Own-property lookups only: a `RuleSet`/`props` map is a plain object, so
  * reading through the prototype chain would return `Object.prototype`
  * members (`toString`, `constructor`, …) for names that are not defined.
+ * A name the rule set does not define is refused.
  *
  * @type {(rules: RuleSet) => (n: Node) => UnionSet}
  */
-const resolve = rules => n => typeof n === 'string' ? assertNotNullish(at(n)(rules)) : n
+export const resolve = rules => n => typeof n === 'string' ? assertNotNullish(at(n)(rules)) : n
 
 /** @type {<T>(a: T, b: T) => boolean} */
 const strictEqual = (a, b) => strictEqualCurried(a)(b)
 
 /**
  * Inclusion of one kind component: every member of `a` below some member of
- * `b`; absent = empty, `true` = the whole kind.
+ * `b`; absent = empty, `true` = the whole kind, as {@link kindFold} reads
+ * each side.
  *
  * @template T
  * @param {(a: T, b: T) => boolean} le
@@ -488,7 +535,7 @@ const kindSubset = le => (a, b) => {
  *
  * @type {(rules: RuleSet) => (n: Node) => boolean}
  */
-const nodeAdmitsAbsence = rules => n =>
+export const admitsAbsence = rules => n =>
     ((resolve(rules)(n).unit ?? 0) & absentBit) !== 0
 
 /**
@@ -525,7 +572,7 @@ const arraySetSubset = ctx => assumed => (p, q) => {
     /** @type {(i: number) => Node} */
     const qAt = i => i < qn ? q.prefix[i] : assertNotNullish(q.rest)
     /** @type {(i: number) => boolean} */
-    const qAdmitsAbsenceAt = i => i >= qn || nodeAdmitsAbsence(ctx[1])(q.prefix[i])
+    const qAdmitsAbsenceAt = i => i >= qn || admitsAbsence(ctx[1])(q.prefix[i])
     return p.prefix.every((el, i) =>
             le(stripAbsent(el), qAt(i))
             && (typeof el === 'string'
@@ -573,7 +620,7 @@ const objectPresentSet = pattern => k => {
  */
 const objectMayOmit = rules => pattern => k => {
     const n = at(k)(pattern.props)
-    return n === null || nodeAdmitsAbsence(rules)(n)
+    return n === null || admitsAbsence(rules)(n)
 }
 
 /**
@@ -694,21 +741,34 @@ const mapObjectSet = f => p => ({
     ...(p.rest === undefined ? {} : { rest: f(p.rest) }),
 })
 
+/** An absent or whole kind has no patterns to rewrite. */
+const noPatterns = () => ({})
+
+/**
+ * Rewrites a union's array and object pattern lists, leaving an absent or
+ * whole kind as it is.
+ *
+ * @type {(
+ *     onArray: (list: readonly ArraySet[]) => readonly ArraySet[],
+ *     onObject: (list: readonly ObjectSet[]) => readonly ObjectSet[],
+ * ) => (u: UnionSet) => UnionSet}
+ */
+const mapPatternKinds = (onArray, onObject) => u => ({
+    ...u,
+    ...kindFold({ absent: noPatterns, whole: noPatterns, members: list => ({ array: onArray(list) }) })(u.array),
+    ...kindFold({ absent: noPatterns, whole: noPatterns, members: list => ({ object: onObject(list) }) })(u.object),
+})
+
 /**
  * Rewrites a union's nested nodes with `f`, keeping each pattern list
  * sorted and deduplicated.
  *
  * @type {(f: _NodeMap) => (u: UnionSet) => UnionSet}
  */
-const mapChildren = f => u => ({
-    ...u,
-    ...(u.array === undefined || u.array === true ? {} : {
-        array: sortedDedup(cmpArraySet)(u.array.map(mapArraySet(f))),
-    }),
-    ...(u.object === undefined || u.object === true ? {} : {
-        object: sortedDedup(cmpObjectSet)(u.object.map(mapObjectSet(f))),
-    }),
-})
+const mapChildren = f => mapPatternKinds(
+    list => sortedDedup(cmpArraySet)(list.map(mapArraySet(f))),
+    list => sortedDedup(cmpObjectSet)(list.map(mapObjectSet(f))),
+)
 
 /**
  * Bottom-up node rewrite: children first, then `post` on every node.
@@ -726,15 +786,10 @@ const rewriteNodes = post => {
  *
  * @type {(ctx: _Ctx) => (u: UnionSet) => UnionSet}
  */
-const dropSubsumedUnion = ctx => u => ({
-    ...u,
-    ...(u.array === undefined || u.array === true ? {} : {
-        array: dropSubsumed(arraySetSubset(ctx)({}))(u.array),
-    }),
-    ...(u.object === undefined || u.object === true ? {} : {
-        object: dropSubsumed(objectSetSubset(ctx)({}))(u.object),
-    }),
-})
+const dropSubsumedUnion = ctx => mapPatternKinds(
+    dropSubsumed(arraySetSubset(ctx)({})),
+    dropSubsumed(objectSetSubset(ctx)({})),
+)
 
 /** @type {(ctx: _Ctx) => _NodeMap} */
 const collapsePost = ctx => n => typeof n === 'string' ? n : dropSubsumedUnion(ctx)(n)
@@ -951,7 +1006,7 @@ const thunkUnion = (state, t) => {
             assert(typeof c !== 'function', c)
             return constUnion(state, c)
         }
-        case 'boolean': { return [state, { unit: booleanUnits }] }
+        case 'boolean': { return [state, { unit: booleanBits }] }
         case 'number': { return [state, { number: true }] }
         case 'string': { return [state, { string: true }] }
         case 'bigint': { return [state, { bigint: true }] }
@@ -1058,11 +1113,18 @@ const objectSetRefs = p => [
 ]
 
 /**
+ * An absent or whole kind references no rule.
+ *
+ * @type {() => readonly string[]}
+ */
+const noRefs = () => []
+
+/**
  * @template T
  * @param {(p: T) => readonly string[]} f
  * @returns {(k: KindSet<T> | undefined) => readonly string[]}
  */
-const kindRefs = f => k => k === undefined || k === true ? [] : k.flatMap(f)
+const kindRefs = f => kindFold({ absent: noRefs, whole: noRefs, members: list => list.flatMap(f) })
 
 /** @type {(u: UnionSet) => readonly string[]} */
 const unionRefs = u => [...kindRefs(arraySetRefs)(u.array), ...kindRefs(objectSetRefs)(u.object)]
@@ -1146,11 +1208,14 @@ export const toData = t => {
 const checkValue = (cond, value) => cond ? ok(value) : verror('unexpected value')
 
 /**
+ * Membership in one kind component.
+ *
  * @template T
  * @param {(a: T, b: T) => boolean} eq
  * @returns {(k: KindSet<T> | undefined, v: T) => boolean}
  */
-const kindHas = eq => (k, v) => k !== undefined && (k === true || k.some(x => eq(x, v)))
+const kindHas = eq => (k, v) =>
+    kindFold({ absent: () => false, whole: () => true, members: list => list.some(x => eq(x, v)) })(k)
 
 /** `validate` has nothing to collect from a successful entry — only pass/fail matters. */
 const noAccumulate = () => undefined
@@ -1166,99 +1231,107 @@ const noAccumulate = () => undefined
  * @param {V} value
  * @returns {ResultE}
  */
-const patternsValidate = (k, item, value) => {
-    if (k === undefined) { return verror('unexpected value') }
-    if (k === true) { return ok(value) }
-    if (k.length === 1) { return item(k[0])(value) }
-    for (const p of k) {
-        const r = item(p)(value)
-        if (r[0] === 'ok') { return r }
-    }
-    return verror('no match')
-}
+const patternsValidate = (k, item, value) => kindFold({
+    absent: () => verror('unexpected value'),
+    whole: () => ok(value),
+    /** @type {(list: readonly T[]) => ResultE} */
+    members: list => {
+        if (list.length === 1) { return item(list[0])(value) }
+        for (const p of list) {
+            const r = item(p)(value)
+            if (r[0] === 'ok') { return r }
+        }
+        return verror('no match')
+    },
+})(k)
 
 /**
- * The declared positions are checked with absence decided **before**
- * dispatch — an index that is neither an own property nor an inherited one
- * is a missing member, legal exactly when its set carries the absent bit;
- * a present one is checked as the value read. No minimum length is tested
- * for: a too-short array is caught by the absence test at the first
- * position that excludes it. What is left over is tested against `rest`,
- * or, with no `rest`, must not be there at all. Same shape as
- * {@link objectSetValidate}, one kind over — and the same before-dispatch
- * test the schema-form readers make, so the three readers agree on `{}`
- * versus `{ a: undefined }` and on sparse tuples.
+ * Builds the validator of one container pattern, an {@link ArraySet} or an
+ * {@link ObjectSet}: the two are one reader, and the parameters are what the
+ * kinds do not share — which members are declared, how a member is read,
+ * and what a set with no `rest` admits past them.
  *
- * `undeclaredMembers` is what the schema-form readers walk too, so "what is
- * left over" is one rule rather than two that happen to coincide — including
- * an index the prototype supplies, which an own-entry filter here answered
- * `ok` for while the rendered tail claimed the `rest`'s type over it.
+ * The declared members are checked with absence decided **before** dispatch
+ * — a key or index that is neither an own property nor an inherited one is a
+ * missing member, legal exactly when its set carries the absent bit; a
+ * present one is checked as the value read. That is the before-dispatch test
+ * the schema-form readers make, so the three readers agree on `{}` versus
+ * `{ a: undefined }` and on sparse tuples. No minimum length is tested for:
+ * a too-short array is caught by the absence test at the first position that
+ * excludes it.
  *
- * @type {(rules: RuleSet) => (p: ArraySet) => (value: readonly Unknown[]) => ResultE}
+ * What is left over is held to `rest`, or, with no `rest`, answered by
+ * `bare`. It is `undeclaredMembers` on both kinds — what the schema-form
+ * readers walk too — so "what is left over" is one rule rather than two that
+ * happen to coincide, including an index the prototype supplies, which an
+ * own-entry filter answered `ok` for while the rendered tail claimed the
+ * `rest`'s type over it.
  */
-const arraySetValidate = rules => p => value => {
-    const pn = p.prefix.length
-    const { rest } = p
-    const declared = eachEntry(
-        Object.entries(p.prefix),
-        (k, n) => {
-            if (!(k in value)) {
-                return nodeAdmitsAbsence(rules)(n) ? ok(undefined) : verror('unexpected value')
-            }
-            const m = nodeValidate(rules)(n)(value[Number(k)])
-            return m[0] === 'error' ? m : ok(undefined)
-        },
-        undefined,
-        noAccumulate,
-    )
-    if (declared[0] === 'error') { return declared }
-    // Built per read: `p` arrives with the value, so there is no per-schema
-    // closure to hoist it into. One pass over the prefix keeps the read linear.
-    const extra = undeclaredMembers(declaredTest(p.prefix.map((_, i) => String(i))), value)
-    if (rest === undefined) {
-        // Nothing past the prefix, by length as well as by entry: a hole past
-        // it is not an entry, but the array is still that long, and this is
-        // the set `Ts<>` renders as a tuple of exactly `pn` positions and JSON
-        // Schema as `items: false`. A *shorter* array is another matter — the
-        // declared loop above has already held every position it left unfilled
-        // to a set admitting `undefined`.
-        if (extra.length !== 0 || value.length > pn) {
-            return verror('unexpected value')
+const setValidate =
+    /**
+     * @template {ArraySet | ObjectSet} P
+     * @template {ReadonlyArray<Unknown> | StringMap<Unknown>} C
+     * @param {(p: P) => ReadonlyArray<readonly [string, Node]>} entriesOf
+     * @param {(value: C, k: string) => Unknown} getItem
+     * @param {(isDeclared: (k: string) => boolean, value: C, declared: number) => boolean} bare
+     * @returns {(rules: RuleSet) => (p: P) => (value: C) => ResultE}
+     */
+    (entriesOf, getItem, bare) => rules => p => value => {
+        const entries = entriesOf(p)
+        const declared = eachEntry(
+            entries,
+            (k, n) => {
+                if (!(k in value)) {
+                    return admitsAbsence(rules)(n) ? ok(undefined) : verror('unexpected value')
+                }
+                const m = nodeValidate(rules)(n)(getItem(value, k))
+                return m[0] === 'error' ? m : ok(undefined)
+            },
+            undefined,
+            noAccumulate,
+        )
+        if (declared[0] === 'error') { return declared }
+        // Built per read: `p` arrives with the value, so there is no per-schema
+        // closure to hoist it into. One pass over the entries keeps the read linear.
+        const isDeclared = declaredTest(entries.map(([k]) => k))
+        const { rest } = p
+        if (rest === undefined) {
+            return bare(isDeclared, value, entries.length) ? ok(value) : verror('unexpected value')
         }
-    } else {
-        const r = eachEntry(extra, (_k, v) => nodeValidate(rules)(rest)(v), undefined, noAccumulate)
-        if (r[0] === 'error') { return r }
-    }
-    return ok(value)
-}
-
-/** @type {(rules: RuleSet) => (p: ObjectSet) => (value: StringMap<Unknown>) => ResultE} */
-const objectSetValidate = rules => p => value => {
-    const declared = eachEntry(
-        definedEntries(p.props),
-        (k, n) => {
-            if (!(k in value)) {
-                return nodeAdmitsAbsence(rules)(n) ? ok(undefined) : verror('unexpected value')
-            }
-            const m = nodeValidate(rules)(n)(value[k])
-            return m[0] === 'error' ? m : ok(undefined)
-        },
-        undefined,
-        noAccumulate,
-    )
-    if (declared[0] === 'error') { return declared }
-    const { rest } = p
-    if (rest !== undefined) {
-        const extra = eachEntry(
-            Object.entries(value).filter(([k]) => at(k)(p.props) === null),
+        const r = eachEntry(
+            undeclaredMembers(isDeclared, value),
             (_k, v) => nodeValidate(rules)(rest)(v),
             undefined,
             noAccumulate,
         )
-        if (extra[0] === 'error') { return extra }
+        return r[0] === 'error' ? r : ok(value)
     }
-    return ok(value)
-}
+
+/**
+ * An array set with no `rest` has nothing past the prefix, by length as well
+ * as by member: a hole past it is no member, but the array is still that
+ * long, and this is the set `Ts<>` renders as a tuple of exactly the prefix's
+ * positions and JSON Schema as `items: false`. A *shorter* array is another
+ * matter — the declared pass has already held every position it left
+ * unfilled to a set admitting `undefined`.
+ */
+const arraySetValidate = setValidate(
+    /** @type {(p: ArraySet) => ReadonlyArray<readonly [string, Node]>} */
+    p => Object.entries(p.prefix),
+    /** @type {(value: ReadonlyArray<Unknown>, k: string) => Unknown} */
+    (value, k) => value[Number(k)],
+    (isDeclared, value, declared) =>
+        value.length <= declared && !hasUndeclaredMember(isDeclared, value),
+)
+
+/** An object set with no `rest` leaves the other keys unconstrained. */
+const objectSetValidate = setValidate(
+    /** @type {(p: ObjectSet) => ReadonlyArray<readonly [string, Node]>} */
+    p => definedEntries(p.props),
+    /** @type {(value: StringMap<Unknown>, k: string) => Unknown} */
+    (value, k) => value[k],
+    () => true,
+)
 
 /** @type {(rules: RuleSet) => (u: UnionSet) => (value: Unknown) => ResultE} */
 const unionValidate = rules => u => value => {

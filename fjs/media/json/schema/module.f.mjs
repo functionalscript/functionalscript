@@ -23,10 +23,22 @@
  * @import { Phantom } from '../../../types/phantom/types.ts'
  */
 
-import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
+import { assert } from '../../../asserts/module.f.mjs'
 import { at, definedEntries } from '../../../types/object/module.f.mjs'
 import { array, number, option, or, record, string } from '../../../rtti/module.f.mjs'
-import { absentBit, cmp, toData, unitBit, unknown as top, withoutUnits } from '../../../rtti/data/module.f.mjs'
+import {
+    absentBit,
+    admitsAbsence,
+    booleanBits,
+    falseBit,
+    isTop,
+    kindFold,
+    nullBit,
+    toData,
+    trueBit,
+    undefinedBit,
+    withoutUnits,
+} from '../../../rtti/data/module.f.mjs'
 import { unknown as jsonUnknown } from '../rtti/module.f.mjs'
 
 /** @type {() => readonly ['const', typeof unknownConst]} */
@@ -83,12 +95,6 @@ const unknownConst = /** @type {const} */ ({
     additionalProperties: or(option, unknown),
 })
 
-const nullBit = unitBit(null)
-const undefinedBit = unitBit(undefined)
-const falseBit = unitBit(false)
-const trueBit = unitBit(true)
-const booleanBits = falseBit | trueBit
-
 /**
  * Encodes a definition name for use inside a local `$ref` URI fragment:
  * JSON Pointer escaping first (`~` → `~0`, `/` → `~1`), then
@@ -135,9 +141,7 @@ const nodeSchema = rules => n =>
  * @returns {readonly Ts<typeof unknown>[]}
  */
 const kindSchemas = (k, whole, item) =>
-    k === undefined ? [] :
-    k === true ? [whole] :
-    k.map(item)
+    kindFold({ absent: () => [], whole: () => [whole], members: list => list.map(item) })(k)
 
 /** @type {(v: boolean | number | string | null) => Ts<typeof unknown>} */
 const constSchema = v => ({ const: v })
@@ -201,19 +205,6 @@ const arraySetSchema = rules => p => {
 }
 
 /**
- * Whether the node's set admits **absence** — its absent bit, read through a
- * reference if needed. What drives `required` and `minItems`: absence is
- * what lets a key or position be left out, so this is a different question
- * from {@link stripUndefined}'s.
- *
- * @type {(rules: RuleSet) => (n: Node) => boolean}
- */
-const admitsAbsence = rules => n => {
-    const u = typeof n === 'string' ? assertNotNullish(at(n)(rules)) : n
-    return ((u.unit ?? 0) & absentBit) !== 0
-}
-
-/**
  * The node with `undefined` removed — asking what JSON can **carry**, so it
  * stays keyed on the `undefined` bit while `required`/`minItems` moved to
  * the absent one. A key of `or(number, undefined)` is required and renders
@@ -251,9 +242,6 @@ const objectSetSchema = rules => p => {
         ...(p.rest === undefined ? {} : { additionalProperties: nodeSchema(rules)(p.rest) }),
     }
 }
-
-/** @type {(u: UnionSet) => boolean} */
-const isTop = u => cmp([{}, u])([{}, top]) === 0
 
 /**
  * The absent bit is masked before rendering: absence is not a JSON value —
