@@ -1,7 +1,7 @@
 ## Build the CAS MCP session root once, flat
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
