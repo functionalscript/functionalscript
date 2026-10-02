@@ -27,6 +27,25 @@ before it is refused. That is slow, not wrong; a walk that remembers the
 count of an array it has already seen would make it linear in the distinct
 arrays.
 
+### Measured
+
+Each row nests one array in another that many times and runs the operation,
+on `main`'s `naive` with the main thread's 8 MiB stack. `ok` means it
+finished; `abort` is a stack overflow, which ends the process.
+
+| operation | 3,000 | 10,000 | 30,000 | 100,000 |
+|---|---|---|---|---|
+| `String(a)`, `join` | ok | abort | abort | abort |
+| `flat(Infinity)` | ok | ok | abort | abort |
+| `to_json` | ok | ok | ok | abort |
+| `{:?}` (`Debug`) | ok | ok | ok | abort |
+
+`String(a)` is the shallowest, so the first to go. The drop of the value has
+its own file, [deep-value-drop](./deep-value-drop.md). JavaScript engines
+throw a `RangeError` for these at depths in the thousands, so a depth limit
+that throws is JavaScript's own answer and an alternative to the explicit
+stack below, which can walk any depth.
+
 ### Proposal
 
 Walk with an explicit stack of the arrays being flattened or joined, in place of
