@@ -40,8 +40,9 @@ finished; `abort` is a stack overflow, which ends the process.
 | `to_json` | ok | ok | ok | abort |
 | `{:?}` (`Debug`) | ok | ok | ok | abort |
 
-`String(a)` is the shallowest, so the first to go. The drop of the value has
-its own file, [deep-value-drop](./deep-value-drop.md). JavaScript engines
+`String(a)` is the shallowest, so the first to go. The drop of the value is
+not in the table: `naive` parks a drop past a bounded depth (`Drop for Naive`), so
+a value of any depth drops without recursing. JavaScript engines
 throw a `RangeError` for these at depths in the thousands, so a depth limit
 that throws is JavaScript's own answer and an alternative to the explicit
 stack below, which can walk any depth.
