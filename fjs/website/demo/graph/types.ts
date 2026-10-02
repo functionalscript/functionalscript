@@ -14,6 +14,9 @@
  * dashed by the site's stylesheet, and any other value draws as a plain
  * solid box, so a demo with more than one kind of container is one CSS rule
  * away from telling them apart too.
+ *
+ * An empty `label` draws no title row on a node with edges, for a demo
+ * whose rows already say what the node is.
  */
 export type Node = {
     readonly id: number
