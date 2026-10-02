@@ -93,7 +93,7 @@ Constant spreads are not folded, so `[...[1, 2]]` is a different graph from
 
 - **Object spread**, `{...o}`, about 610 occurrences in 84 modules. It
   copies own properties rather than iterating, needs its own rule in
-  `members` and `object_spread` in `nanvm-lib`, and gets its own proposal.
+  `members`, and is [object spread](./2490-object-spread.md)'s.
 - **Spread in other places JavaScript allows it:** a `new` expression's
   arguments, since there is no `new`; destructuring and its rest element,
   which is [destructuring](./2450-destructuring.md)'s.
