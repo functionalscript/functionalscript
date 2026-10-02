@@ -12,6 +12,7 @@
 
 import { log2 } from '../../../types/bigint/module.f.mjs'
 import { msb, vec } from '../../../types/bit_vec/module.f.mjs'
+import { cascade } from '../../../types/function/operator/module.f.mjs'
 import { map, sameItems } from '../../../types/list/module.f.mjs'
 import { join } from '../../../types/string/module.f.mjs'
 
@@ -86,35 +87,26 @@ export const emptyPipelineState = [emptyEncodeState, emptyEncodeState, emptyEnco
  *
  * @type {StateScan<bigint, PipelineState, bigint | undefined>}
  */
-export const pipelineStep =
-    (bit, [l1s, l2s, l3s]) => {
-        const [l1Out, newL1s] = l1.encode(bit, l1s)
-        if (l1Out === undefined) return [undefined, [newL1s, l2s, l3s]]
-        const [l2Out, newL2s] = l2.encode(l1Out, l2s)
-        if (l2Out === undefined) return [undefined, [newL1s, newL2s, l3s]]
-        const [l3Out, newL3s] = l3.encode(l2Out, l3s)
-        return [l3Out, [newL1s, newL2s, newL3s]]
-    }
+export const pipelineStep = cascade([l1.encode, l2.encode, l3.encode])
 
 const vec1 = vec(1n)
 
 const { listToVec } = msb
 
-/** @type {(prior: LiteralToVec, e: bigint) => LiteralToVec} */
-const literalToVec = (prior, e) => {
+/** @type {(prior: LiteralToVec, level: Level) => LiteralToVec} */
+const literalToVec = (prior, { decode }) => {
     const m = map(prior)
-    const { decode } = level(e)
     return literal => listToVec(m(decode(literal)))
 }
 
 /** Decodes a level-1 symbol to its canonical MSB bit vector. */
 /** @type {LiteralToVec} */
-export const literal1ToVec = literalToVec(vec1, 0n)
+export const literal1ToVec = literalToVec(vec1, l1)
 
 /** Decodes a level-2 symbol to its canonical MSB bit vector (via level-1 decoding). */
 /** @type {LiteralToVec} */
-export const literal2ToVec = literalToVec(literal1ToVec, 2n)
+export const literal2ToVec = literalToVec(literal1ToVec, l2)
 
 /** Decodes a level-3 symbol to its canonical MSB bit vector (via level-2 and level-1 decoding). */
 /** @type {LiteralToVec} */
-export const literal3ToVec = literalToVec(literal2ToVec, 7n)
+export const literal3ToVec = literalToVec(literal2ToVec, l3)

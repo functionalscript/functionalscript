@@ -14,7 +14,6 @@
 
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import { pureOk, step } from '../effects/module.f.mjs'
-import { create } from '../effects/memory/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
 import { number as rttiNumber, option, or, string as rttiString } from '../rtti/module.f.mjs'
 import { parse as rttiParse } from '../rtti/parse/module.f.mjs'
@@ -26,15 +25,11 @@ import { fileCas } from '../cas/module.f.mjs'
 import { dialect as revisionDialect, mediaType as revisionMediaType } from '../media/revision/module.f.mjs'
 import { sha256 } from '../crypto/sha2/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../effects/list/module.f.mjs'
-import {
-    mcpStep, uninitializedState,
-} from '../protocol/mcp/module.f.mjs'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
-import { casConfig, casMcpHandlers } from './module.f.mjs'
+import { _casMcpSession } from './module.f.mjs'
 import { ok as resultOk, unwrap, unwrap as unwrapResult } from '../types/result/module.f.mjs'
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.mjs'
 import { fromVec } from '../types/uint8array/module.f.mjs'
-import { initEvo } from '../cas/evo/module.f.mjs'
 
 // `cas_get`'s result JSON. As an rtti schema it both describes the shape and
 // checks it, so reading a field needs neither a hand-written type nor an `as`
@@ -81,11 +76,7 @@ const feed = handler => msgs => {
 const runSessionVirtual =
     (root, home = '/home/user') =>
     msgs => {
-        const effect = step(
-            initEvo(fileCas(sha256)(home)),
-            cacheKey => step(
-                create(uninitializedState),
-                sessionKey => feed(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey))(msgs)))
+        const effect = _casMcpSession(home)(h => feed(h)(msgs))
         // A proof has nobody to report a channel failure to, so it panics: the
         // session either ran or the test is meaningless.
         return unwrapResult(virtual({ ...emptyState, root })(effect)[1])
@@ -143,14 +134,7 @@ const runStdio =
     (root, home = '/home/user') =>
     msgs => {
         const input = [init, initialized, ...msgs].map(m => JSON.stringify(m)).join('\n') + '\n'
-        const effect = step(
-            initEvo(fileCas(sha256)(home)),
-            cacheKey => step(
-                create(uninitializedState),
-                sessionKey =>
-                    stdioTransport(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey))
-            )
-        )
+        const effect = _casMcpSession(home)(stdioTransport)
         const stdout = virtual({ ...emptyState, root, stdin: toBytes(input) })(effect)[0].stdout
         // Only requests get a written line (notifications, like `initialized`,
         // write nothing) — drop the `init` response, keep one line per `msgs` entry.

@@ -65,6 +65,15 @@ and `cBase32ToVec = s => { const v = cBase32ToVec5x(s); return v === null ? null
   per-character scan exists to avoid. Either the primitive works on the tail
   (the last non-zero character) and the caller concatenates the head, or the
   decode half stays in `cbase32`.
+- **The encode side must keep its bound too.** `vecToCBase32 =
+  v => vec5xToCBase32(padToMultiple(5n)(v))` as sketched above builds the
+  padded vector whole, up to five bits past its input — and for a `maxLength`
+  input that vector is past what JavaScriptCore's `BigInt` can hold, so the
+  call throws on Safari and Bun. That is a bug today, filed as
+  [encode-at-max-length](./encode-at-max-length.md). Either `padToMultiple`
+  works on the last partial group only and the caller encodes the whole groups
+  before it, or the encode half pads only its last character, as the decode
+  half already works a character at a time.
 - **The aligned case keeps its terminator.** `5n - len % 5n` is `5n` when the
   length is already a multiple of five, so an aligned input still gets a full
   sentinel symbol. That is required, not incidental: `cBase32ToVec` rejects a
@@ -95,3 +104,6 @@ and `cBase32ToVec = s => { const v = cBase32ToVec5x(s); return v === null ? null
   — other `bit_vec`/text bit-level extractions; i168 shipped as `decoder` in
   `fjs/text/code_point/`.
 - `fjs/types/bit_vec/module.f.mjs` — proposed home.
+- [encode-at-max-length](./encode-at-max-length.md) — the bug in the encode
+  half this refactor must not carry into `bit_vec`: padding the whole vector
+  before encoding fails at `maxLength` on JavaScriptCore.

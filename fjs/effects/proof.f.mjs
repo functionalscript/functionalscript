@@ -6,7 +6,7 @@
 
 import {
     catchStep, do_, finallyStep, foldStep, forEachStep, history, historyStep, mapStep, walkStep,
-    match, partialMatch, pure, pureError, pureOk, resultMapStep, resultStep,
+    match, orElse, partialMatch, pure, pureError, pureOk, resultMapStep, resultStep,
     runPure, step, toIoError, unwrapStep,
 } from './module.f.mjs'
 import { run as mockRun } from './mock/module.f.mjs'
@@ -418,6 +418,18 @@ export const proof = {
             /** @type {Effect<never, number | string, never>} */
             const e = catchStep(pureError('boom'), m => pureOk(m))
             assertEq(assertOk(pureResult(e)), 'boom')
+        },
+    },
+    orElse: {
+        // A forgiven error is answered with the fallback...
+        forgiven: () => {
+            const e = catchStep(pureError('missing'), orElse(m => m === 'missing', 0))
+            assertEq(assertOk(pureResult(e)), 0)
+        },
+        // ...and any other is re-raised as the very value it arrived as.
+        reraised: () => {
+            const e = catchStep(pureError('denied'), orElse(m => m === 'missing', 0))
+            assertEq(assertError(pureResult(e)), 'denied')
         },
     },
     resultStep: {

@@ -116,21 +116,6 @@ const jsonRefused = source => {
 }
 
 /**
- * What `fjs compile` prints when it refuses to write `.rs` for a module: the
- * exit code is `1`, nothing is written, and the message names the output
- * file, since the module is sound and the output is what cannot be.
- *
- * @type {(source: string) => string}
- */
-const rustRefused = source => {
-    const root = { 'input.f.js': [utf8(source)] }
-    const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.rs'])))
-    assertEq(exitCode(code), 1, state.stderr)
-    assertEq(state.root['output.rs'], undefined)
-    return state.stderr.trim()
-}
-
-/**
  * What `fjs compile` prints when it refuses to write `.f.js` for a module:
  * the exit code is `1`, nothing is written, and the message names the output
  * file, since the module is sound and the output is what cannot be.
@@ -884,13 +869,11 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assert(compileSource('const a = null; export default a.x;')('output.rs')
                 .includes('Any::dot(Nullish::Null.to_any(), string_any("x")).end()?'))
         },
-        // A value no Rust literal can hold — a bigint outside `i64` — is
-        // refused against the output rather than written as text `rustc`
-        // then refuses, since the module itself is sound.
-        refused: () => {
-            assertEq(
-                rustRefused('export default 9223372036854775808n;'),
-                'output.rs - error: no Rust spelling for this module: no Rust i64 for: 9223372036854775808')
+        // A bigint outside `i64` is written as its sign and `u64` words,
+        // which a literal's own text cannot be.
+        wideBigint: () => {
+            assert(compileSource('export default 9223372036854775808n;')('output.rs')
+                .includes('bigint_any_words(false, &[0x8000000000000000])'))
         },
         // Every eager operator prints as a temporary, its `let` followed
         // by `?`: `pub fn module` answers the `Result` a throw lands in, so

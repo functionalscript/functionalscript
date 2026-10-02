@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/git/store` reads `objects/info/alternates` as Git does, measured line shape
+`fjs/git/alternates` reads `objects/info/alternates` as Git does, measured line shape
 by line shape — with two exceptions, each a place the file names a directory
 this reader does not look in. Both are **misses and never wrong answers**: what
 comes back from any directory is hashed against the id asked for, so a
@@ -89,8 +89,10 @@ that one was not, which is why it was fixed instead of listed.
 
 ### Related
 
-- [`fjs/git/store`](../module.f.mjs) — owns where a store looks, so this
-  issue owns only the two lines it looks at differently: `alternatesIn` and its
-  note on why neither is refused, and `untilNul` for the shape that was a third.
+- [`fjs/git/alternates`](../module.f.mjs) — the decoder this issue is
+  entirely about: `alternatesIn` and its note on why neither line is refused,
+  and `untilNul` for the shape that was a third.
+- [`fjs/git/store`](../../store/module.f.mjs) — owns where a store looks, over
+  the directories `alternatesIn` answers.
 - [byte-paths.md](../../todo/byte-paths.md) — owns what a path can spell, and where the
   `NUL` cut belongs once one is a byte list.

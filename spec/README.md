@@ -99,7 +99,11 @@ inside complete instruction patterns. It applies to exported functions too.
 
 Running source directly on a JavaScript engine retains that host's function
 representation. Its text can differ from the FunctionalScript VM's, including
-when a JavaScript consumer reflects on an exported function. Differences
+when a JavaScript consumer reflects on an exported function. The
+JavaScript-hosted EDAG evaluators are the same case: their functions are
+host closures, so their text is the host's, and they neither render nor
+refuse it ([`fjs/edag/function-text.md`](../fjs/edag/function-text.md)).
+Differences
 caused by using that text as a key, comparing it or branching on it are
 consequences of this exception, not a blanket waiver for unrelated results.
 Non-function conversion, other admitted function observations and source
@@ -110,12 +114,10 @@ syntax or API.
 owns the remaining questions: whether the compiler's function serializer and
 `String(f)` are the same operation, whether `String(f)` instantiates captured
 frames, and how each handles `self`. Adopting EDAG-derived text does not settle
-those questions or claim that the conversion is implemented today, and it is
-not: every executor of the EDAG, the Rust VM included, answers a conversion
-the compiler admits — `f.toString()`, `'' + f`, `[f].toString()` — with text
-other than the EDAG's, a defect that
-[default function text](./todo/3120-parameters.md#default-function-text-render-or-refuse)
-tracks, not a result the language promises.
+those questions. The Rust VM answers a conversion the compiler admits —
+`f.toString()`, `'' + f`, `[f].toString()` — with the EDAG-derived text,
+captured values written as slot names
+([to-primitive, Stage 3](../nanvm-lib/todo/to-primitive.md#stage-3-a-functions-text)).
 
 ### Failure is one outcome
 
@@ -466,7 +468,7 @@ the selected value (below):
 |unary `-`|computed|computed|written|written|written|
 |any other operator|refused|refused|refused|written|written|
 |an object or array reached twice|refused|a `const`|a `const`|a shared node|a shared value|
-|a `bigint`|refused|written|written|written|written, a literal within `i64`|
+|a `bigint`|refused|written|written|written|written|
 
 A value output refuses a function, which neither DataJS nor JSON can spell
 (`a function has no value`), a module that ends in `throw`, whose load fails
@@ -487,10 +489,11 @@ does, running the right operand of `&&`, `||` and
 `1n / 0n` never throws. The VM does not answer every member function the
 compiler admits yet
 ([member-functions](../nanvm-lib/todo/member-functions.md)). The Rust writer
-refuses a literal Rust has no spelling for, naming the output and writing
-nothing: a `bigint` outside `i64` — `-9223372036854775808n` is written and
-`9223372036854775808n` refused. A string holding a lone surrogate, which no
-Rust `&str` can hold, is written as its UTF-16 code units.
+spells a `bigint` of any size, a literal within `i64` as one number and a
+larger one as its sign and `u64` words. A string holding a lone surrogate,
+which no Rust `&str` can hold, is written as its UTF-16 code units. A literal
+Rust has no spelling for is refused, naming the output and writing nothing;
+none is left among the primitives.
 
 For a FunctionalScript input, JSON and DataJS output serialize the module
 result's `default` property, with sharing checked for that selected value.
@@ -894,8 +897,7 @@ A hexadecimal integer part, as a [number](#numbers) writes it, takes the
 `n` too: `0x10n` is `16n` and `0XFFn` is `255n`, exact at any width, and
 `-0x8000000000000000n` folds into the leaf `-9223372036854775808n`. An
 output writes `0x10n` exactly as it writes `16n`, and one that refuses a
-`bigint` refuses it whatever its spelling: `.json` refuses every one, and
-`.rs` one outside `i64`.
+`bigint` refuses it whatever its spelling: `.json` refuses every one.
 
 ```js
 export default [0x10n, 0XFFn, -0x8000000000000000n];

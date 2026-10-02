@@ -64,6 +64,7 @@ import { tryParse } from '../media/markdown/module.f.mjs'
 import { stylesheet } from './style/module.f.mjs'
 import { changelogDir, demoSection, page, pagePath, sections, shell, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
 import { toHex, tryFromHexOf } from '../git/oid/module.f.mjs'
+import { isThirdParty } from '../dev/module.f.mjs'
 
 /**
  * The root page: the project's name, the catalogue every directory page
@@ -105,26 +106,17 @@ const rootPage = build => dir => shell(build)(siteName)(testsMain(
     ]),
 ))
 
-/**
- * Whether a directory is this repository's source at all.
- *
- * `node_modules` holds other people's, `target` holds build output, and a
- * dot-directory holds tooling. They are skipped **before** the walk descends
- * into them, which is the difference between reading this repository and
- * reading a Rust build tree: `target` alone can hold more files than the
- * repository has, and a directory in there that cannot be read would fail a
- * build that never wanted to look at it.
- *
- * @type {(name: string) => boolean}
- */
-const ignored = name =>
-    name.startsWith('.') || name === 'node_modules' || name === 'target'
-
 /** @type {(path: string) => boolean} */
 const authored = path => path.endsWith('.f.mjs')
 
 /**
- * Every directory under `dir`, itself first, with everything each one holds.
+ * Every directory under `dir`, itself first, with everything each one holds;
+ * a directory {@link isThirdParty} names is not entered.
+ *
+ * This is not `fjs/dev`'s `walk`, which answers the flat list of files it
+ * takes, a directory it descends not itself in the answer: a page is written
+ * for every directory, an empty one included, so this answers a record per
+ * directory. The two share the policy of what not to enter, not the recursion.
  *
  * A directory at a time rather than `readdir`'s own `recursive` option,
  * because recursion there cannot be pruned: it descends into everything and
@@ -142,7 +134,7 @@ const walk = dir => step(readdir(dir, {}), entries => {
     // somebody left in the tree.
     const files = entries.filter(e => !e.isDirectory).map(e => e.name).toSorted()
     const dirs = entries
-        .filter(e => e.isDirectory && !ignored(e.name))
+        .filter(e => e.isDirectory && !isThirdParty(e.name))
         .map(e => e.name)
         .toSorted()
     return foldStep(

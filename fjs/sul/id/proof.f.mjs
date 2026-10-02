@@ -22,60 +22,60 @@ assertEq(asBase(hFF), mask(0x100n))
 
 export const proof = {
     // Two level-3 literals whose combined bit vectors fit inline (≤ 253 bits)
-    inline_00_00: () => assertEq(compress(level3Id(0x00n), level3Id(0x00n)), rawId(vec(16n)(0x0000n))),
-    inline_00_01: () => assertEq(compress(level3Id(0x00n), level3Id(0x01n)), rawId(vec(16n)(0x0001n))),
-    inline_01_00: () => assertEq(compress(level3Id(0x01n), level3Id(0x00n)), rawId(vec(16n)(0x0100n))),
-    inline_01_01: () => assertEq(compress(level3Id(0x01n), level3Id(0x01n)), rawId(vec(16n)(0x0101n))),
-    inline_00_04: () => assertEq(compress(level3Id(0x00n), level3Id(0x04n)), rawId(vec(16n)(0x0003n))),
-    inline_04_00: () => assertEq(compress(level3Id(0x04n), level3Id(0x00n)), rawId(vec(16n)(0x0300n))),
-    inline_0A_80: () => assertEq(compress(level3Id(0x0An), level3Id(0x80n)), rawId(vec(16n)(0x050Fn))),
+    inline0000: () => assertEq(compress(level3Id(0x00n), level3Id(0x00n)), rawId(vec(16n)(0x0000n))),
+    inline0001: () => assertEq(compress(level3Id(0x00n), level3Id(0x01n)), rawId(vec(16n)(0x0001n))),
+    inline0100: () => assertEq(compress(level3Id(0x01n), level3Id(0x00n)), rawId(vec(16n)(0x0100n))),
+    inline0101: () => assertEq(compress(level3Id(0x01n), level3Id(0x01n)), rawId(vec(16n)(0x0101n))),
+    inline0004: () => assertEq(compress(level3Id(0x00n), level3Id(0x04n)), rawId(vec(16n)(0x0003n))),
+    inline0400: () => assertEq(compress(level3Id(0x04n), level3Id(0x00n)), rawId(vec(16n)(0x0300n))),
+    inline0A80: () => assertEq(compress(level3Id(0x0An), level3Id(0x80n)), rawId(vec(16n)(0x050Fn))),
 
     // Inline outputs are raw-encoded (bit 254 set, bit 255 not set)
-    inline_is_raw: () => assert(isRaw(compress(level3Id(0x00n), level3Id(0x00n)))),
+    inlineIsRaw: () => assert(isRaw(compress(level3Id(0x00n), level3Id(0x00n)))),
 
     // The tag is the *topmost* set bit: a hash id with bit 254 set is not raw,
     // and a raw id is not a hash
-    hash_is_not_raw: () => assert(!isRaw(hFF)),
-    raw_is_not_hash: () => assert(!isHash(rawX7F)),
+    hashIsNotRaw: () => assert(!isRaw(hFF)),
+    rawIsNotHash: () => assert(!isHash(rawX7F)),
 
     // Non-commutativity: argument order is preserved in concatenation
-    non_commutative: () => {
+    nonCommutative: () => {
         assert(compress(level3Id(0n), level3Id(1n)) !== compress(level3Id(1n), level3Id(0n)), compress(level3Id(0n), level3Id(1n)))
     },
 
     // Overflow: two 127-bit raw payloads sum to 254 bits, exceeding the 253-bit inline limit
-    overflow_is_hash: () => assert(isHash(overflowHash)),
+    overflowIsHash: () => assert(isHash(overflowHash)),
     // The merged hash's eight SHA2 words are packed most significant first
-    overflow_hash_value: () => assertEq(
+    overflowHashValue: () => assertEq(
         asBase(overflowHash),
         0xc0caa9d6cf74446133e0d3c5d891a40103045a3df74963c8ecf796f96dbf9017n),
 
     // Hash input: either argument being a hash always triggers SHA2-based merge
-    hash_left_is_hash:  () => assert(isHash(compress(overflowHash, level3Id(0n)))),
-    hash_right_is_hash: () => assert(isHash(compress(level3Id(0n), overflowHash))),
-    hash_non_commutative: () => {
+    hashLeftIsHash: () => assert(isHash(compress(overflowHash, level3Id(0n)))),
+    hashRightIsHash: () => assert(isHash(compress(level3Id(0n), overflowHash))),
+    hashNonCommutative: () => {
         assert(compress(overflowHash, level3Id(0n)) !== compress(level3Id(0n), overflowHash), compress(overflowHash, level3Id(0n)))
     },
 
     // High-bit sensitivity: prefix bit of `a` is included in the SHA2 upper half
-    hash_merge_a_high_bits: () => {
+    hashMergeAHighBits: () => {
         assert(compress(hashId(0n), hashId(0n)) !== compress(level3Id(0n), hashId(0n)), compress(hashId(0n), hashId(0n)))
     },
     // High-bit sensitivity: prefix bit of `b` is included in the SHA2 lower half
-    hash_merge_b_high_bits: () => {
+    hashMergeBHighBits: () => {
         assert(compress(hashId(0n), hashId(0n)) !== compress(hashId(0n), level3Id(0n)), compress(hashId(0n), hashId(0n)))
     },
 
     // Shift correctness: changing a bit in `a` (upper 256 bits of SHA2 input) changes result
-    hash_merge_a_sensitivity: () => {
+    hashMergeASensitivity: () => {
         assert(compress(hFF, hFF) !== compress(hFE, hFF), compress(hFF, hFF))
     },
     // Shift correctness: changing a bit in `b` (lower 256 bits of SHA2 input) changes result
-    hash_merge_b_sensitivity: () => {
+    hashMergeBSensitivity: () => {
         assert(compress(hFF, hFF) !== compress(hFF, hFE), compress(hFF, hFF))
     },
     // Shift correctness: same bit-flip in `a` vs `b` lands at different SHA2 input positions
-    hash_merge_shift: () => {
+    hashMergeShift: () => {
         assert(compress(hFE, hFF) !== compress(hFF, hFE), compress(hFE, hFF))
     },
 }

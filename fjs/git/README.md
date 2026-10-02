@@ -53,6 +53,11 @@ what a grammar can and cannot do for the formats.
   laid out and nothing about what they mean. The ids' order is checked and not
   trusted, since the lookup is a search and a search over ids that do not
   ascend answers wrongly instead of failing.
+- [`bytes/`](bytes/module.f.mjs) — what the binary formats above are read
+  with: `u32be` and `u64be`, the unsigned big-endian words, multiplied rather
+  than shifted because `<<` signs the top bit, and `startsWith` for a magic
+  number or a name's prefix. Each takes the indexed array a reader already
+  made with `byteArray`, not the lazy `Bytes`.
 - [`refstore/`](refstore/module.f.mjs) — the refs a repository holds, over
   the effects: `tryRoots` for every one of them, `tryResolve` for a name
   in hand; and [`refstore/write/`](refstore/write/module.f.mjs), the writers
@@ -109,6 +114,11 @@ what a grammar can and cannot do for the formats.
   `extensions.objectFormat` absent is SHA-1, `sha256` under
   `repositoryformatversion = 1` is SHA-256, and what Git refuses is
   refused.
+- [`alternates/`](alternates/module.f.mjs) — an `objects/info/alternates`
+  file as the object directories it names, decoded line shape by line shape
+  as Git reads it: comments and blank lines skipped, a C-quoted line
+  unquoted, a path ended at its first `NUL`, and a relative entry joined below
+  the `objects/` directory holding the file.
 - [`store/`](store/module.f.mjs) — from an id to the object it names,
   checked: the loose file at the id's path or the packs through
   [`packstore/`](packstore/module.f.mjs), whichever answers, hashed with
@@ -124,7 +134,7 @@ what a grammar can and cannot do for the formats.
   and the mangled second entry Git makes of text after a closing quote — and
   each is read as an ordinary path that is not found rather than refused, since
   a miss loses one borrowing where a refusal loses the whole store
-  ([`store/todo/alternates-line-quirks.md`](store/todo/alternates-line-quirks.md)). `objectsDirs` answers that list
+  ([`alternates/todo/alternates-line-quirks.md`](alternates/todo/alternates-line-quirks.md)). `objectsDirs` answers that list
   and `readIn` reads over it, so a caller reading many objects resolves the
   borrowings once instead of per object.
 - [`walk/`](walk/module.f.mjs) — the three steps from a name to bytes,

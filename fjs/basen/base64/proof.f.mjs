@@ -1,10 +1,14 @@
 /**
  * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { BitGroups } from '../../website/demo/bits/types.ts'
  */
 
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { empty, vec, repeat, vec8, maxLength } from '../../types/bit_vec/module.f.mjs'
 import { encode, decode } from './module.f.mjs'
+import { demo, groupsOf } from './demo.f.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.mjs'
 
 /**
  * @param {string} s
@@ -147,5 +151,38 @@ export const proof = {
         const big = repeat(90_000n)(vec8(0xffn))
         const result = encode(big)
         assertEq(result?.length, 120_000)
+    },
+    /**
+     * **What the demo shows is pinned**: the groups it draws and what
+     * `encode` wrote for them, which is what `printf '%s' … | base64`
+     * prints.
+     */
+    demo: {
+        groups: () => {
+            /** @type {(text: string) => BitGroups} */
+            const encoded = text => unwrap(groupsOf(text))
+            assertEq(JSON.stringify(encoded('')), JSON.stringify({ chars: [], groups: [], encoded: '' }))
+            assertEq(JSON.stringify(encoded('h')), JSON.stringify({
+                chars: [{ label: 'h', standIn: false, bytes: ['01101000'] }],
+                groups: [
+                    { data: '011010', stop: '', fill: '' },
+                    { data: '00', stop: '', fill: '0000' },
+                ],
+                encoded: 'aA==',
+            }))
+            assertEq(JSON.stringify(encoded('hé').groups.map(g => g.data)), JSON.stringify(['011010', '001100', '001110', '101001']))
+            assertEq(encoded('hé').encoded, 'aMOp')
+        },
+        view: () => {
+            const html = htmlToString(demo.view(demo.init))
+            // `hé` is one whole block of four.
+            assert(html.includes('<div data-bit-groups="" data-bit-blocks=""><div data-bit-block=""><div data-bit-box=""><span>011010</span><span data-bit-char="">a</span></div>'), html)
+            assertEq(html.split('<div data-bit-block="">').length, 2)
+            // `h` is two characters, so its block is padded with two
+            // hidden placeholders to the width of a full one.
+            const short = htmlToString(demo.view('h'))
+            assertEq(short.split('data-bit-placeholder').length - 1, 2)
+            assert(html.includes('Result: <strong>aMOp</strong>'), html)
+        },
     },
 }

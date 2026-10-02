@@ -56,11 +56,12 @@ delegate. No behavior change, so existing tests pin the refactor.
 
 ### Related
 
-- [zip-longest](./zip-longest.md) — refactors the `BigInt`-level walks
-  (`abs_add_vec`/`abs_sub_vec`/`abs_cmp_vec`/`eq_by_`) onto a
-  `zip_longest` combinator; complementary and order-sensitive: whichever
-  lands second re-expresses the other's result, so coordinate — landing
-  `zip_longest` alone leaves the word-level twins named here in place.
+- [`Iter::zip_longest`](../src/common/iter.rs) — the `BigInt`-level
+  walks now stand on it: `abs_add_vec` and `abs_sub_vec` zip their operands
+  through it, and `abs_cmp_vec` is a length compare then `Iterator::cmp`
+  from the most-significant word. The word-level twins named here are
+  untouched; unifying a pair re-expresses the `BigInt`-level side in its
+  new shape.
 - [`ShiftAmount`](../src/vm/bigint/mod.rs) — `shl`/`shr` share only the
   shift-amount decode, not the carry loops; the ripple helpers here pick
   up `shr.rs`'s `increment`.

@@ -1,6 +1,6 @@
 import { assert } from '../../asserts/module.f.mjs'
 import { latin1 } from '../testlib.f.mjs'
-import { hasRefComponents, isName, sameBytes } from './module.f.mjs'
+import { hasRefComponents, isName, isWholeName, sameBytes } from './module.f.mjs'
 
 export const proof = {
     // A name below a prefix: every rule `git check-ref-format` applies to
@@ -58,6 +58,18 @@ export const proof = {
             assert(!isName(latin1(n)), n)
         }
     },
+    // A whole name: `isName`, and not `@` alone — `git check-ref-format
+    // --allow-onelevel` on Git 2.43.0 takes one level, and `@` only as a
+    // component or beside other bytes.
+    wholeName: () => {
+        for (const n of ['master', 'a/b', 'HEAD', '@@', 'a@', 'refs/@', '@/x']) {
+            assert(isWholeName(latin1(n)), n)
+        }
+        for (const n of ['@', '', 'a..b', 'a.lock']) {
+            assert(!isWholeName(latin1(n)), n)
+        }
+        assert(!isWholeName(() => latin1('@')))
+    },
     // The two rules a reader would place wrongly, so they are pinned apart.
     // A trailing `.` is refused at the end of the whole name only, and
     // `.lock` at the end of any component: `git check-ref-format` takes
@@ -77,6 +89,9 @@ export const proof = {
         // The same name with an empty last component is refused, so the
         // length is not what decides it.
         assert(!isName(latin1('n/'.repeat(10000))))
+        // A lazy list is read as it is, the same as the array it spells.
+        assert(isName(() => latin1('a/b')))
+        assert(!isName(() => latin1('a/b.lock')))
     },
     // Byte for byte and nothing more: a prefix, a longer name and a name
     // differing only in case are each another name. A lazy list is one list
@@ -92,10 +107,13 @@ export const proof = {
     },
     throw: {
         // A value that is no byte is a caller's bug, not a name that is not
-        // one, and `byteArray` is where this repository refuses it. Both of
-        // these would otherwise be answered `true`: no rule has an upper
-        // bound, and `every` steps over a hole without looking at it.
+        // one. Both of these would otherwise be answered `true`: no rule has
+        // an upper bound, and a hole stepped over is never looked at.
         aboveAByte: () => isName([256]),
         holeInASparseArray: () => isName(new Array(1)),
+        // The pass reads on after a rule has failed, so a name already
+        // refused at its first byte still has every later item checked.
+        aboveAByteAfterARefusal: () => isName([0x20, 256]),
+        componentsAboveAByte: () => hasRefComponents([0x61, 256]),
     },
 }
