@@ -48,9 +48,24 @@ export const shouldLoad = s =>
     s.endsWith('proof.ts') || s.endsWith('proof.mts')||
     s.endsWith('proof.js') || s.endsWith('proof.mjs')
 
-/** @type {(path: string) => boolean} */
-const isSourceFile = path =>
-    path.endsWith('.js') || path.endsWith('.ts') || path.endsWith('.mts') || path.endsWith('.mjs')
+/**
+ * Whether a directory holds other people's files, so that no walk over this
+ * repository enters it: a dot-directory holds tooling, `node_modules` holds
+ * dependencies, and `target` holds Rust build output.
+ *
+ * They are skipped **before** a walk descends into them, which is the
+ * difference between reading this repository and reading a Rust build tree:
+ * `target` alone can hold more files than the repository has, and a directory
+ * in there that cannot be read would fail a walk that never wanted to look at
+ * it.
+ *
+ * It is a rule about directories only. Each walk still decides its own files:
+ * test discovery skips a dot-file, and the website lists one.
+ *
+ * @type {(name: string) => boolean}
+ */
+export const isThirdParty = name =>
+    name.startsWith('.') || name === 'node_modules' || name === 'target'
 
 /**
  * Walks the tree under `s` and returns the paths `classify` takes. Each entry
@@ -81,18 +96,17 @@ export const walk = (s, classify) => {
 }
 
 /**
- * Every file under `s` that `predicate` takes, by {@link walk}: a hidden
- * entry and `node_modules` are skipped without descending, since neither is
- * this repository's source. Exported for the checks that discover source the
- * way the test runner does — `fjs compile` with no arguments checks every
- * `.f.js` this finds.
+ * Every file under `s` that `predicate` takes, by {@link walk}: a hidden file
+ * is skipped, and a directory {@link isThirdParty} names is skipped without
+ * descending, since neither is this repository's source. Exported for the
+ * checks that discover source the way the test runner does — `fjs compile`
+ * with no arguments checks every `.f.js` this finds.
  *
  * @type {(s: string, predicate: (path: string) => boolean) => Effect<Readdir | All, readonly string[], IoChannel>}
  */
 export const allFiles = (s, predicate) => walk(s, (path, { name, isDirectory }) =>
-    name.startsWith('.') ? 'skip'
-    : isDirectory ? (name === 'node_modules' ? 'skip' : 'descend')
-    : predicate(path) ? 'take'
+    isDirectory ? (isThirdParty(name) ? 'skip' : 'descend')
+    : !name.startsWith('.') && predicate(path) ? 'take'
     : 'skip')
 
 /** @type {(f: string) => Effect<Access | Import, readonly (readonly [string, Module])[], IoChannel>} */
@@ -113,15 +127,11 @@ export const sourceRoot = env => {
 }
 
 /**
- * Discovers all source files under `INIT_CWD` (or `.` if unset) that match
- * `predicate`, imports them, and returns a map from relative path to module
- * exports.
+ * Discovers every file {@link shouldLoad} accepts under {@link sourceRoot},
+ * imports them, and returns a map from relative path to module exports.
  *
- * The `predicate` is propagated into `allFiles` so that non-matching files
- * are excluded before any `import()` is attempted — no wasted I/O.
- * The default matches all JS/TS source files (`.js`, `.ts`, `.mts`, `.mjs`).
- * `loadFile`'s own guards (`.f.js`, `.f.ts`, `shouldLoad`) still apply on
- * top; the predicate only controls which files are discovered.
+ * `shouldLoad` is applied during the walk by {@link allFiles}, so a file it
+ * rejects is excluded before any `import()` is attempted — no wasted I/O.
  *
  * The result is sorted by path key using `string.cmp` so the order is
  * deterministic regardless of filesystem traversal order.
@@ -155,14 +165,6 @@ export const loadModuleMap = env => {
 }
 
 export const proof = {
-    isSourceFile: () => {
-        assert(isSourceFile('module.js'))
-        assert(isSourceFile('module.ts'))
-        assert(isSourceFile('module.mts'))
-        assert(isSourceFile('module.mjs'))
-        assert(!isSourceFile('readme.md'))
-        assert(!isSourceFile('module.json'))
-    },
     allFilesFindsFunctionalScript: () => {
         // Every FunctionalScript extension is discovered, so a module migrated
         // from `.f.ts` to `.f.mjs` keeps its proofs. An ordinary `.mjs` is
