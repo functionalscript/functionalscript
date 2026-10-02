@@ -164,7 +164,10 @@ rather than discard it:
   exit-code policy: report the failure on `stderr` and exit `1`.
 
 Neither is composition, and neither should grow: a consumer that can do
-something better with a failure wants `catchStep` or `resultStep`.
+something better with a failure wants `catchStep` or `resultStep`. The commonest
+such policy — forgive one class of error with a fallback, re-raise the rest — is
+`orElse(forgiven, fallback)`, a `catchStep` continuation:
+`catchStep(readFile(path), orElse(isNotFound, null))`.
 
 ## What is deliberately absent
 

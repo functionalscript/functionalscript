@@ -24,13 +24,11 @@
  * both accepted by Git 2.43.0, so the two-component rule is that command's
  * default and not a fact about the files.
  *
- * The name is materialised to be read, which costs eight bytes of heap per
- * byte of name and is avoidable rather than merely shrinkable: every rule
- * below is decidable in one forward pass with an accumulator of fixed size.
- * [`todo/one-pass-name-check.md`](./todo/one-pass-name-check.md) has the
- * measurements, and why neither a packed vector nor a hex string is the fix —
- * a bit vector caps at 128 KiB and so cannot carry a payload of arbitrary
- * size at all.
+ * The name is never held: every rule is decided in one forward pass over its
+ * bytes, with a state of fixed size, so a check holds nothing proportional to
+ * the name. Holding it as a dense array would cost eight bytes
+ * of heap per byte; a packed vector would be smaller but caps at 128 KiB, and
+ * a name is as long as its author made it.
  *
  * Measured against Git 2.43.0 rather than read off the manual page, since
  * two of the rules are not where a reader would guess. `.lock` is refused
@@ -44,11 +42,13 @@
  * @import { Bytes } from '../types.ts'
  */
 
-import { ascii, byteArray } from '../../ebnf/byte/module.f.mjs'
+import { assert } from '../../asserts/module.f.mjs'
+import { ascii } from '../../ebnf/byte/module.f.mjs'
 import {
     commercialAt as at, fullStop as dot, leftCurlyBracket as brace, solidus as slash, space,
 } from '../../text/ascii/module.f.mjs'
-import { sameItems } from '../../types/list/module.f.mjs'
+import { fold, sameItems } from '../../types/list/module.f.mjs'
+import { isByte } from '../../types/number/module.f.mjs'
 
 const del = /** @type {const} */ (0x7F)
 
@@ -70,38 +70,83 @@ export const lockSuffix = /** @type {const} */ ('.lock')
 const lock = ascii(lockSuffix)
 
 /**
- * Whether two bytes sit next to each other in a name, in that order.
+ * Where a pass over a name stands after some of its bytes: the byte before,
+ * or `null` before the first; whether that byte is the name's only one so
+ * far; the last bytes of the current component, at most as many as
+ * {@link lock} has; whether every byte rule has held so far; and whether
+ * every component closed so far was one.
  *
- * @type {(name: readonly number[], a: number, b: number) => boolean}
+ * Of the rules, `..` and `@{` need the byte before, the empty component and
+ * the leading `.` need to know whether a component starts here — which the
+ * byte before says too — and `.lock` needs the component's last bytes, read
+ * when a slash or the end of the name closes it. `@` alone, which only
+ * {@link isWholeName} refuses, needs the byte before and whether it is the
+ * only one.
  */
-const holdsPair = (name, a, b) => name.some((x, i) => i !== 0 && name[i - 1] === a && x === b)
+const init = {
+    /** @type {number | null} */
+    prev: null,
+    only: false,
+    /** @type {readonly number[]} */
+    tail: [],
+    bytes: true,
+    components: true,
+}
+
+/** @type {(prev: number | null) => boolean} */
+const atStart = prev => prev === null || prev === slash
 
 /**
- * Whether a component of a ref name, between slashes, is one: not empty,
- * not beginning with `.`, not ending in `.lock`.
+ * Whether the component a pass is in, closed here, is one: not empty, not
+ * ending in `.lock`. Not beginning with `.` is checked as its first byte
+ * arrives.
  *
- * @type {(component: readonly number[]) => boolean}
+ * @type {(state: typeof init) => boolean}
  */
-const isComponent = component =>
-    component.length !== 0
-    && component[0] !== dot
-    && !(component.length >= lock.length && lock.every((b, i) => component[component.length - lock.length + i] === b))
+const closes = ({ prev, tail }) =>
+    !atStart(prev) && !(tail.length === lock.length && tail.every((b, i) => b === lock[i]))
 
 /**
- * The components of a name, between its slashes: the bytes before the
- * first, between each two, and after the last, so a name with none is one
- * component and `a//b` has an empty one. Sliced once each, not grown byte
- * by byte, since a name is as long as its author made it.
+ * One byte of a name, read into the pass.
  *
- * @type {(name: readonly number[]) => readonly (readonly number[])[]}
+ * @throws If `b` is not a byte. `fold` meets a hole in a sparse array as
+ * `undefined`, so a hole is refused too rather than stepped over.
+ *
+ * @type {(b: number) => (state: typeof init) => typeof init}
  */
-const components = name => {
-    const slashes = name.flatMap((b, i) => b === slash ? [i] : [])
-    /** @type {readonly number[]} */
-    const starts = [0, ...slashes.map(i => i + 1)]
-    /** @type {readonly number[]} */
-    const ends = [...slashes, name.length]
-    return starts.map((start, i) => name.slice(start, ends[i]))
+const step = b => state => {
+    assert(isByte(b), ['not bytes', b])
+    const { prev, tail, bytes, components } = state
+    const isSlash = b === slash
+    return {
+        prev: b,
+        only: prev === null,
+        tail: isSlash ? [] : [...tail, b].slice(-lock.length),
+        bytes: bytes
+            && b >= space && b !== del && !forbidden.includes(b)
+            && !(prev === dot && b === dot)
+            && !(prev === at && b === brace),
+        components: components
+            && (isSlash ? closes(state) : !(atStart(prev) && b === dot)),
+    }
+}
+
+/**
+ * A name read in one pass: whether every byte rule holds, a trailing `.`
+ * included, whether every component between slashes is one, and whether the
+ * name is `@` alone.
+ *
+ * @throws If `name` is not a list of bytes.
+ *
+ * @type {(name: Bytes) => { readonly bytes: boolean, readonly components: boolean, readonly atAlone: boolean }}
+ */
+const check = name => {
+    const state = fold(step)(init)(name)
+    return {
+        bytes: state.bytes && state.prev !== dot,
+        components: state.components && closes(state),
+        atAlone: state.only && state.prev === at,
+    }
 }
 
 /**
@@ -131,22 +176,21 @@ const components = name => {
  *
  * @type {(name: Bytes) => boolean}
  */
-export const hasRefComponents = input => components(byteArray(input)).every(isComponent)
+export const hasRefComponents = name => check(name).components
 
 /**
  * Whether a name is one a ref takes below a prefix, by the rules of
  * `git check-ref-format` over `<prefix>/<name>`: no control character, no
  * space and none of `~ ^ : ? * [ \`, no `..` and no `@{`, not ending in
- * `.`, and every component between slashes one {@link isComponent} takes.
+ * `.`, and every component between slashes one {@link hasRefComponents}
+ * takes.
  *
- * The name is read through {@link byteArray} first, so a caller that hands
- * something that is no byte list panics rather than being told its value is
- * a ref name. That is not belt and braces: `every` and `flatMap` step over
- * a hole in a sparse array, so `new Array(1)` would satisfy every rule
- * below without a single byte being looked at, and a value above `0xFF`
- * satisfies them too since no rule has an upper bound. Both are a caller's
- * bug rather than a name that is not one, and {@link byteArray} is where
- * this repository already refuses them.
+ * Every item is checked to be a byte as the pass reads it, so a caller that
+ * hands something that is no byte list panics rather than being told its
+ * value is a ref name. That is not belt and braces: a value above `0xFF`
+ * satisfies every rule, since no rule has an upper bound, and so would a
+ * hole in a sparse array if it were stepped over. Both are a caller's bug
+ * rather than a name that is not one.
  *
  * A name that is `@` alone passes, since the ref it names is
  * `<prefix>/@` — `refs/heads/@` and `refs/tags/@` are both names
@@ -162,13 +206,9 @@ export const hasRefComponents = input => components(byteArray(input)).every(isCo
  *
  * @type {(name: Bytes) => boolean}
  */
-export const isName = input => {
-    const name = byteArray(input)
-    return name.every(b => b >= space && b !== del && !forbidden.includes(b))
-        && !holdsPair(name, dot, dot)
-        && !holdsPair(name, at, brace)
-        && name[name.length - 1] !== dot
-        && components(name).every(isComponent)
+export const isName = name => {
+    const { bytes, components } = check(name)
+    return bytes && components
 }
 
 /**
@@ -210,9 +250,9 @@ export const isName = input => {
  *
  * @type {(name: Bytes) => boolean}
  */
-export const isWholeName = input => {
-    const name = byteArray(input)
-    return isName(name) && !(name.length === 1 && name[0] === at)
+export const isWholeName = name => {
+    const { bytes, components, atAlone } = check(name)
+    return bytes && components && !atAlone
 }
 
 /**

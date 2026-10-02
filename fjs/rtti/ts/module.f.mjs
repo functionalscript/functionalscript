@@ -31,6 +31,7 @@ import {
     falseBit,
     isNever as dataIsNever,
     isTop,
+    kindFold,
     nullBit,
     resolve,
     toData,
@@ -121,9 +122,7 @@ const nodeToTs = ctx => n =>
  * @returns {readonly string[]}
  */
 const kindToTs = (k, whole, item) =>
-    k === undefined ? [] :
-    k === true ? [whole] :
-    k.map(item)
+    kindFold({ absent: () => [], whole: () => [whole], members: list => list.map(item) })(k)
 
 /** @type {(bits: number) => readonly string[]} */
 const unitToTs = bits => [

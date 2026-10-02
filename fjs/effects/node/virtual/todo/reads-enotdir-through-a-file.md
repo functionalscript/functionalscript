@@ -50,6 +50,20 @@ and it is fixed. The first two are this issue's shape and are left to whatever i
 decides, so that one change settles the code for every operation rather than each
 one drifting to its own answer.
 
+**`rename` is a fourth spelling, and a fifth.** Its two ends walk to their
+parents through `atParent`, which takes the through-a-file answer as an
+argument, and the two pass different ones — neither the host's. POSIX
+`rename(2)` lists `ENOTDIR` for "a component used as a directory in *old* or
+*new* is not, in fact, a directory":
+
+| `rename(src, dst)` where `a` is a file and… | this runner |
+| --- | --- |
+| `src = 'a/b'` | `ENOENT` (`extractEntity`) |
+| `dst = 'a/b'` | `not a directory`, no code (`insertEntityAt`) |
+
+`rmdir`, the third caller, already passes `enotdir`. Settling this issue for
+`rename` is those two arguments.
+
 The consequence is the one `statPath` names: a caller that branches on `ENOTDIR`
 after a *read* — or on `EISDIR` after reading a directory, which is the more
 common guard — has no fixture that reaches it. The branch cannot be proven
@@ -197,6 +211,8 @@ Whichever option is chosen, then:
       only from odd path strings would miss.
 - [ ] If the codes change, update the `*NestedThroughFile` fixtures and the
       comment above them in the same commit.
+- [ ] Give `rename` the same answer at both ends — the `notADir` argument
+      `extractEntity` and `insertEntityAt` pass to `atParent` — and pin it.
 - [ ] Give `exclusiveOp` the same answer for `path.length > 1`, and pin it —
       today it is `invalid path` with no code for both the absent and the
       through-a-file shapes, which `createExclusiveNestedMissing` and

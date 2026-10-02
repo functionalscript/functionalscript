@@ -32,6 +32,7 @@ import {
     booleanBits,
     falseBit,
     isTop,
+    kindFold,
     nullBit,
     toData,
     trueBit,
@@ -140,9 +141,7 @@ const nodeSchema = rules => n =>
  * @returns {readonly Ts<typeof unknown>[]}
  */
 const kindSchemas = (k, whole, item) =>
-    k === undefined ? [] :
-    k === true ? [whole] :
-    k.map(item)
+    kindFold({ absent: () => [], whole: () => [whole], members: list => list.map(item) })(k)
 
 /** @type {(v: boolean | number | string | null) => Ts<typeof unknown>} */
 const constSchema = v => ({ const: v })

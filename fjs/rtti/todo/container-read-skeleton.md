@@ -56,8 +56,8 @@ while `../common/types.ts`'s says
 "`validate`, `parse`".
 
 Two sibling issues used to point at this duplication and recorded it as
-resolved — "resolved by deleting `validate`" in
-[kindset-eliminator.md](./kindset-eliminator.md) and in the since-closed
+resolved — "resolved by deleting `validate`" in `kindset-eliminator.md`
+(since shipped as `kindFold` and removed) and in the since-closed
 `export-node-accessors` issue — but no commit ever
 deleted `fjs/rtti/validate/`, and it is actively developed. This file
 re-tracks the issue; the stale parentheticals are corrected to link here.
@@ -135,8 +135,6 @@ skeleton and the data form is a possible follow-up, not part of this issue.
 
 ### Related
 
-- [kindset-eliminator.md](./kindset-eliminator.md) — its closing
-  parenthetical mis-recorded this issue as resolved; corrected to link here.
 - `setValidate` in [`../data/module.f.mjs`](../data/module.f.mjs) — the
   same duplication theme inside the data form, done.
 - `assertOk` / `assertError` / `assertErrorPath` in

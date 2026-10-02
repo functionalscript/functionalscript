@@ -123,6 +123,23 @@ export const withoutUnits = bits => n => {
     return unit === 0 ? rest : { unit, ...rest }
 }
 
+/**
+ * The one statement of what a kind component means: `undefined` is the empty
+ * set, `true` the whole kind, an array these members. Every unary reading of
+ * a {@link KindSet} goes through it; the pairwise ones (`cmpKind`,
+ * `mergeKind`, `kindSubset`) spell the same three cases per side.
+ *
+ * @type {<T, R>(cases: {
+ *     readonly absent: () => R
+ *     readonly whole: () => R
+ *     readonly members: (list: readonly T[]) => R
+ * }) => (k: KindSet<T> | undefined) => R}
+ */
+export const kindFold = ({ absent, whole, members }) => k =>
+    k === undefined ? absent() :
+    k === true ? whole() :
+    members(k)
+
 // ── canonical order ──────────────────────────────────────────────────────────
 
 /** @type {(a: string, b: string) => number} */
@@ -165,7 +182,8 @@ const cmpList = cmpItem => (a, b) => {
 }
 
 /**
- * Order on one kind component: absent, then member lists, then `true`.
+ * Order on one kind component: absent, then member lists, then `true` — the
+ * three cases of {@link kindFold}, compared pairwise.
  *
  * @template T
  * @param {(a: T, b: T) => number} cmpItem
@@ -278,8 +296,9 @@ const mergeSorted = cmpItem => (a, b) => {
 }
 
 /**
- * Union of one kind component: absent = empty, `true` = the whole kind, so
- * `or(42, number)` collapses to all numbers here with no special-case rule.
+ * Union of one kind component, reading both sides as {@link kindFold} does:
+ * absent = empty, `true` = the whole kind, so `or(42, number)` collapses to
+ * all numbers here with no special-case rule.
  *
  * @template T
  * @param {(a: T, b: T) => number} cmpItem
@@ -496,7 +515,8 @@ const strictEqual = (a, b) => strictEqualCurried(a)(b)
 
 /**
  * Inclusion of one kind component: every member of `a` below some member of
- * `b`; absent = empty, `true` = the whole kind.
+ * `b`; absent = empty, `true` = the whole kind, as {@link kindFold} reads
+ * each side.
  *
  * @template T
  * @param {(a: T, b: T) => boolean} le
@@ -721,21 +741,34 @@ const mapObjectSet = f => p => ({
     ...(p.rest === undefined ? {} : { rest: f(p.rest) }),
 })
 
+/** An absent or whole kind has no patterns to rewrite. */
+const noPatterns = () => ({})
+
+/**
+ * Rewrites a union's array and object pattern lists, leaving an absent or
+ * whole kind as it is.
+ *
+ * @type {(
+ *     onArray: (list: readonly ArraySet[]) => readonly ArraySet[],
+ *     onObject: (list: readonly ObjectSet[]) => readonly ObjectSet[],
+ * ) => (u: UnionSet) => UnionSet}
+ */
+const mapPatternKinds = (onArray, onObject) => u => ({
+    ...u,
+    ...kindFold({ absent: noPatterns, whole: noPatterns, members: list => ({ array: onArray(list) }) })(u.array),
+    ...kindFold({ absent: noPatterns, whole: noPatterns, members: list => ({ object: onObject(list) }) })(u.object),
+})
+
 /**
  * Rewrites a union's nested nodes with `f`, keeping each pattern list
  * sorted and deduplicated.
  *
  * @type {(f: _NodeMap) => (u: UnionSet) => UnionSet}
  */
-const mapChildren = f => u => ({
-    ...u,
-    ...(u.array === undefined || u.array === true ? {} : {
-        array: sortedDedup(cmpArraySet)(u.array.map(mapArraySet(f))),
-    }),
-    ...(u.object === undefined || u.object === true ? {} : {
-        object: sortedDedup(cmpObjectSet)(u.object.map(mapObjectSet(f))),
-    }),
-})
+const mapChildren = f => mapPatternKinds(
+    list => sortedDedup(cmpArraySet)(list.map(mapArraySet(f))),
+    list => sortedDedup(cmpObjectSet)(list.map(mapObjectSet(f))),
+)
 
 /**
  * Bottom-up node rewrite: children first, then `post` on every node.
@@ -753,15 +786,10 @@ const rewriteNodes = post => {
  *
  * @type {(ctx: _Ctx) => (u: UnionSet) => UnionSet}
  */
-const dropSubsumedUnion = ctx => u => ({
-    ...u,
-    ...(u.array === undefined || u.array === true ? {} : {
-        array: dropSubsumed(arraySetSubset(ctx)({}))(u.array),
-    }),
-    ...(u.object === undefined || u.object === true ? {} : {
-        object: dropSubsumed(objectSetSubset(ctx)({}))(u.object),
-    }),
-})
+const dropSubsumedUnion = ctx => mapPatternKinds(
+    dropSubsumed(arraySetSubset(ctx)({})),
+    dropSubsumed(objectSetSubset(ctx)({})),
+)
 
 /** @type {(ctx: _Ctx) => _NodeMap} */
 const collapsePost = ctx => n => typeof n === 'string' ? n : dropSubsumedUnion(ctx)(n)
@@ -1085,11 +1113,18 @@ const objectSetRefs = p => [
 ]
 
 /**
+ * An absent or whole kind references no rule.
+ *
+ * @type {() => readonly string[]}
+ */
+const noRefs = () => []
+
+/**
  * @template T
  * @param {(p: T) => readonly string[]} f
  * @returns {(k: KindSet<T> | undefined) => readonly string[]}
  */
-const kindRefs = f => k => k === undefined || k === true ? [] : k.flatMap(f)
+const kindRefs = f => kindFold({ absent: noRefs, whole: noRefs, members: list => list.flatMap(f) })
 
 /** @type {(u: UnionSet) => readonly string[]} */
 const unionRefs = u => [...kindRefs(arraySetRefs)(u.array), ...kindRefs(objectSetRefs)(u.object)]
@@ -1173,11 +1208,14 @@ export const toData = t => {
 const checkValue = (cond, value) => cond ? ok(value) : verror('unexpected value')
 
 /**
+ * Membership in one kind component.
+ *
  * @template T
  * @param {(a: T, b: T) => boolean} eq
  * @returns {(k: KindSet<T> | undefined, v: T) => boolean}
  */
-const kindHas = eq => (k, v) => k !== undefined && (k === true || k.some(x => eq(x, v)))
+const kindHas = eq => (k, v) =>
+    kindFold({ absent: () => false, whole: () => true, members: list => list.some(x => eq(x, v)) })(k)
 
 /** `validate` has nothing to collect from a successful entry — only pass/fail matters. */
 const noAccumulate = () => undefined
@@ -1193,16 +1231,19 @@ const noAccumulate = () => undefined
  * @param {V} value
  * @returns {ResultE}
  */
-const patternsValidate = (k, item, value) => {
-    if (k === undefined) { return verror('unexpected value') }
-    if (k === true) { return ok(value) }
-    if (k.length === 1) { return item(k[0])(value) }
-    for (const p of k) {
-        const r = item(p)(value)
-        if (r[0] === 'ok') { return r }
-    }
-    return verror('no match')
-}
+const patternsValidate = (k, item, value) => kindFold({
+    absent: () => verror('unexpected value'),
+    whole: () => ok(value),
+    /** @type {(list: readonly T[]) => ResultE} */
+    members: list => {
+        if (list.length === 1) { return item(list[0])(value) }
+        for (const p of list) {
+            const r = item(p)(value)
+            if (r[0] === 'ok') { return r }
+        }
+        return verror('no match')
+    },
+})(k)
 
 /**
  * Builds the validator of one container pattern, an {@link ArraySet} or an
