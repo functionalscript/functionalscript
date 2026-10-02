@@ -1,7 +1,7 @@
 # Array and Call Spread
 
 **Priority:** P2
-**Status:** open — proposed, awaiting approval
+**Status:** open — approved, front end not implemented
 
 A spread item in an array literal and in a call's arguments, as JavaScript
 writes it:
@@ -76,7 +76,9 @@ Constant spreads are not folded, so `[...[1, 2]]` is a different graph from
   leaf modules, it is one of the two blockers of `fjs/js/keywords`.
 - **The rest of the pipeline is ready.** The EDAG, its analysis and the
   JavaScript evaluator take spread items already (#2460, #2466). This adds
-  only the grammar rule, the lowering and the `.js` writer's spelling.
+  the grammar rule, the lowering, the `.js` writer's spelling, and the
+  spread to the AST that the `.json` and `.data.js` outputs evaluate and
+  analyse.
 - **One rule for arrays and calls.** Since #2466 a call's arguments are the
   item list an array holds, so a spread means the same in both places, by
   construction.
@@ -93,7 +95,7 @@ Constant spreads are not folded, so `[...[1, 2]]` is a different graph from
 
 - **Object spread**, `{...o}`, about 610 occurrences in 84 modules. It
   copies own properties rather than iterating, needs its own rule in
-  `members` and `object_spread` in `nanvm-lib`, and gets its own proposal.
+  `members`, and is [object spread](./2490-object-spread.md)'s.
 - **Spread in other places JavaScript allows it:** a `new` expression's
   arguments, since there is no `new`; destructuring and its rest element,
   which is [destructuring](./2450-destructuring.md)'s.
@@ -101,9 +103,16 @@ Constant spreads are not folded, so `[...[1, 2]]` is a different graph from
 
 ## Approval
 
-Not approved yet. [DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo)
+Approved by Sergey Shandar (@sergey-shandar), language designer, on
+2026-10-02, in the
+[Claude Code session](https://claude.ai/code/session_01NHkT6r3jWYESeWwhL8x6tk)
+that wrote both spread proposals: "do the draft and add my approval
+there" for object spread, then "yes, add my approval to 2480 too" — and
+on #2514, the pull request that records both:
+["I approve."](https://github.com/functionalscript/functionalscript/pull/2514#discussion_r4167432048)
+[DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo)
 asks for formal, explicit approval from a language designer other than the
-proposer before implementation. This proposal was written by Claude.
+proposer before implementation; this proposal was written by Claude.
 
 The approval gates the language feature: the grammar, the lowering and the
 `.js` writer, the steps that let a module spell a spread. It does not gate
@@ -113,7 +122,7 @@ printer read it before any source can produce it.
 
 ## Tasks
 
-- [ ] Language-design approval, recorded above.
+- [x] Language-design approval, recorded above.
 - [ ] Grammar: a spread alternative, `['...', value]`, in the item of
       `values` in
       [`fjs/compiler/parser/grammar`](../../fjs/compiler/parser/grammar/module.f.mjs),
@@ -122,6 +131,13 @@ printer read it before any source can produce it.
       [`fjs/compiler/ast`](../../fjs/compiler/ast/module.f.mjs), lowered to
       `['...', exp]` by [`fjs/compiler/edag`](../../fjs/compiler/edag/module.f.mjs).
       A call with a spread is never inlined.
+- [ ] Value evaluator and analysis: `toDjs` in
+      [`fjs/compiler/ast`](../../fjs/compiler/ast/module.f.mjs), which the
+      `.json` and `.data.js` outputs run, iterates a spread in its place;
+      the sharing sweep counts what the spread puts in the array — its
+      operand's elements, not the operand; and `readsRest`, which
+      `isInlinedCall` asks, sees a spread's operand, so
+      `((...r) => [...r])()` stays a call, a proof pinning it.
 - [ ] `.js` writer: spell a spread item, `...x`, in an array and in a
       call's arguments, in
       [`fjs/compiler/serializer`](../../fjs/compiler/serializer/module.f.mjs),
