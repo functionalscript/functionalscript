@@ -1,5 +1,3 @@
-use core::f64;
-
 use crate::vm::{
     Array, BigInt, Function, IVm, Number, Object, String, ToAny, any::Any, dispatch::Dispatch,
     ecma_whitespace::is_ecma_whitespace, nullish::Nullish, primitive::Primitive,

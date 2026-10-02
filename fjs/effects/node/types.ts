@@ -877,9 +877,7 @@ export type NodeOperationMap = ToAsyncOperationMap<NodeOp>
 /**
  * The environment variables.
  */
-export type Env = {
-    readonly [k: string]: string|undefined
-}
+export type Env = StringMap<string>
 
 /** Identifies the JavaScript runtime detected at startup. */
 export type Engine = 'node' | 'bun' | 'deno'

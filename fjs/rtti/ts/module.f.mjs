@@ -22,15 +22,23 @@
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { assoc, dedup } from '../../types/array/module.f.mjs'
 import { reservedWords, strictModeReservedWords } from '../../js/keywords/module.f.mjs'
-import { at, definedEntries } from '../../types/object/module.f.mjs'
+import { definedEntries } from '../../types/object/module.f.mjs'
 import { primitive, union, printer as tsPrinter } from '../../types/ts/module.f.mjs'
-import { absentBit, cmp, kindFold, never as bottom, toData, unitBit, unknown as top, withoutUnits } from '../data/module.f.mjs'
-
-const nullBit = unitBit(null)
-const undefinedBit = unitBit(undefined)
-const falseBit = unitBit(false)
-const trueBit = unitBit(true)
-const booleanBits = falseBit | trueBit
+import {
+    absentBit,
+    admitsAbsence as dataAdmitsAbsence,
+    booleanBits,
+    falseBit,
+    isNever as dataIsNever,
+    isTop,
+    kindFold,
+    nullBit,
+    resolve,
+    toData,
+    trueBit,
+    undefinedBit,
+    withoutUnits,
+} from '../data/module.f.mjs'
 
 /**
  * Names that cannot name a TypeScript type alias: the ECMAScript reserved
@@ -177,8 +185,7 @@ const arraySetToTs = ctx => p => {
  *
  * @type {(ctx: _Ctx) => (n: Node) => UnionSet}
  */
-const resolveNode = ctx => n =>
-    typeof n === 'string' ? assertNotNullish(at(n)(ctx.rules)) : n
+const resolveNode = ctx => resolve(ctx.rules)
 
 /**
  * Whether the node's value set admits `undefined` — its unit bit. Still the
@@ -197,8 +204,7 @@ const admitsUndefined = ctx => n =>
  *
  * @type {(ctx: _Ctx) => (n: Node) => boolean}
  */
-const admitsAbsence = ctx => n =>
-    ((resolveNode(ctx)(n).unit ?? 0) & absentBit) !== 0
+const admitsAbsence = ctx => dataAdmitsAbsence(ctx.rules)
 
 /**
  * An **interior** tuple position: one that admits absence prints
@@ -220,11 +226,12 @@ const interiorToTs = ctx => n => {
 }
 
 /**
- * Whether the node's value set is empty.
+ * Whether the node's value set is empty, read through a reference if needed —
+ * the data `isNever` answers `false` for a reference without reading it.
  *
  * @type {(ctx: _Ctx) => (n: Node) => boolean}
  */
-const isNever = ctx => n => cmp([{}, resolveNode(ctx)(n)])([{}, bottom]) === 0
+const isNever = ctx => n => dataIsNever(resolveNode(ctx)(n))
 
 /**
  * A struct prints its fields — a key whose value set admits **absence**
@@ -255,9 +262,6 @@ const objectSetToTs = ctx => p => {
     const restTs = ctx.ts.record(union(dedup([...fields.map(([, v]) => v), nodeToTs(ctx)(rest)])))
     return fields.length === 0 ? restTs : `${ctx.ts.struct(fields)}&${restTs}`
 }
-
-/** @type {(u: UnionSet) => boolean} */
-const isTop = u => cmp([{}, u])([{}, top]) === 0
 
 /**
  * The absent bit is **masked** before printing: absence is not a value, so
