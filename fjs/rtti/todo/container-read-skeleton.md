@@ -101,11 +101,11 @@ this: the rest readers' read-before-leftovers order is load-bearing (see
 above), and collapsing the two would be a behavior change wearing a
 refactor's clothes.
 
-The data form's `arraySetValidate`/`objectSetValidate` pair repeats the same
-shape over `Data` and is tracked separately in
-[data-set-validate-shared.md](./data-set-validate-shared.md); sharing between
-the schema-form skeleton and the data form is a possible follow-up, not part
-of this issue.
+The data form's `arraySetValidate`/`objectSetValidate` pair already reads
+through one skeleton, `setValidate` in
+[`../data/module.f.mjs`](../data/module.f.mjs), parameterized by `getItem`
+the way the schema-form factories are; sharing between the schema-form
+skeleton and the data form is a possible follow-up, not part of this issue.
 
 ### Tasks
 
@@ -137,8 +137,8 @@ of this issue.
 
 - [kindset-eliminator.md](./kindset-eliminator.md) — its closing
   parenthetical mis-recorded this issue as resolved; corrected to link here.
-- [data-set-validate-shared.md](./data-set-validate-shared.md) — the same
-  duplication theme inside the data form.
+- `setValidate` in [`../data/module.f.mjs`](../data/module.f.mjs) — the
+  same duplication theme inside the data form, done.
 - `assertOk` / `assertError` / `assertErrorPath` in
   [`fjs/asserts`](../../asserts/module.f.mjs) — the proof-side counterpart,
   done: the readers' proofs no longer copy their helpers.
