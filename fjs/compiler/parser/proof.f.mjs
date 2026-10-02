@@ -227,82 +227,82 @@ export const proof = {
     parseCorpus: [
         () => {
             for (const [source, expected] of [
-                ["export default null;", "[[],[[\"object\",[[\"default\",null]]]]]"],
-                ["export default true;", "[[],[[\"object\",[[\"default\",true]]]]]"],
-                ["export default false;", "[[],[[\"object\",[[\"default\",false]]]]]"],
-                ["export default undefined;", "[[],[[\"object\",[[\"default\",undefined]]]]]"],
-                ["export default 0.1;", "[[],[[\"object\",[[\"default\",0.1]]]]]"],
-                ["export default 1.1e+2;", "[[],[[\"object\",[[\"default\",110]]]]]"],
+                ["export default null;", "[[],[[\"object\",[[\":\",\"default\",null]]]]]"],
+                ["export default true;", "[[],[[\"object\",[[\":\",\"default\",true]]]]]"],
+                ["export default false;", "[[],[[\"object\",[[\":\",\"default\",false]]]]]"],
+                ["export default undefined;", "[[],[[\"object\",[[\":\",\"default\",undefined]]]]]"],
+                ["export default 0.1;", "[[],[[\"object\",[[\":\",\"default\",0.1]]]]]"],
+                ["export default 1.1e+2;", "[[],[[\"object\",[[\":\",\"default\",110]]]]]"],
                 // the three numbers JSON cannot spell, as words — and the
                 // third of them as the negation it is written as, the `-`
                 // being a prefix the grammar reads rather than part of the
                 // word. The one line of this corpus the language moved
                 // under; every other value still says what it recorded.
-                ["export default [NaN, Infinity, -Infinity];", "[[],[[\"object\",[[\"default\",[\"array\",[NaN,Infinity,[\"-\",Infinity]]]]]]]]"],
-                ["export default \"abc\";", "[[],[[\"object\",[[\"default\",\"abc\"]]]]]"],
-                ["export default 1234567890n;", "[[],[[\"object\",[[\"default\",1234567890n]]]]]"],
-                ["export default [];", "[[],[[\"object\",[[\"default\",[\"array\",[]]]]]]]"],
-                ["export default [1];", "[[],[[\"object\",[[\"default\",[\"array\",[1]]]]]]]"],
-                ["export default [1,];", "[[],[[\"object\",[[\"default\",[\"array\",[1]]]]]]]"],
-                ["export default [[]];", "[[],[[\"object\",[[\"default\",[\"array\",[[\"array\",[]]]]]]]]]"],
-                ["export default [0,[1,[2,[]]],3];", "[[],[[\"object\",[[\"default\",[\"array\",[0,[\"array\",[1,[\"array\",[2,[\"array\",[]]]]]],3]]]]]]]"],
-                ["export default [1234567890n];", "[[],[[\"object\",[[\"default\",[\"array\",[1234567890n]]]]]]]"],
-                ["export default {};", "[[],[[\"object\",[[\"default\",[\"object\",[]]]]]]]"],
-                ["export default {\"a\":1};", "[[],[[\"object\",[[\"default\",[\"object\",[[\"a\",1]]]]]]]]"],
-                ["export default {a: 1};", "[[],[[\"object\",[[\"default\",[\"object\",[[\"a\",1]]]]]]]]"],
-                ["export default {\"a\":1,};", "[[],[[\"object\",[[\"default\",[\"object\",[[\"a\",1]]]]]]]]"],
-                ["export default {[\"a\"]:1};", "[[],[[\"object\",[[\"default\",[\"object\",[[\"a\",1]]]]]]]]"],
-                ["export default {a:1,\"b\":2,[\"c\"]:3,};", "[[],[[\"object\",[[\"default\",[\"object\",[[\"a\",1],[\"b\",2],[\"c\",3]]]]]]]]"],
-                ["export default {\"a\":{\"b\":{\"c\":[\"d\"]}}};", "[[],[[\"object\",[[\"default\",[\"object\",[[\"a\",[\"object\",[[\"b\",[\"object\",[[\"c\",[\"array\",[\"d\"]]]]]]]]]]]]]]]]"],
-                ["export default {\"a\":true,\"b\":false,\"c\":null,\"d\":undefined};", "[[],[[\"object\",[[\"default\",[\"object\",[[\"a\",true],[\"b\",false],[\"c\",null],[\"d\",undefined]]]]]]]]"],
-                ["export default {a:1,a:2};", "[[],[[\"object\",[[\"default\",[\"object\",[[\"a\",1],[\"a\",2]]]]]]]]"],
-                ["export default {[\"__proto__\"]: 1};", "[[],[[\"object\",[[\"default\",[\"object\",[[\"__proto__\",1]]]]]]]]"],
-                ["const a = 1;\nexport default a;", "[[],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
-                ["const a = 1;\nconst b = 2;\nexport default [a,b];", "[[],[1,2,[\"object\",[[\"default\",[\"array\",[[\"cref\",0],[\"cref\",1]]]]]]]]"],
-                ["import x from \"m\";\nexport default x;", "[[{\"json\":false,\"name\":\"default\",\"specifier\":\"m\"}],[[\"object\",[[\"default\",[\"aref\",0]]]]]]"],
-                ["import x from \"m\";\nconst a = 1;\nexport default a;", "[[{\"json\":false,\"name\":\"default\",\"specifier\":\"m\"}],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
-                ["import x from \"m\";\nimport y from \"n\";\nexport default [x,y];", "[[{\"json\":false,\"name\":\"default\",\"specifier\":\"m\"},{\"json\":false,\"name\":\"default\",\"specifier\":\"n\"}],[[\"object\",[[\"default\",[\"array\",[[\"aref\",0],[\"aref\",1]]]]]]]]"],
-                ["// c\nexport default 1;", "[[],[[\"object\",[[\"default\",1]]]]]"],
-                ["/* c */ export default 1;", "[[],[[\"object\",[[\"default\",1]]]]]"],
-                ["\n\n export default 1; \n\n", "[[],[[\"object\",[[\"default\",1]]]]]"],
-                ["const from = 1;\nexport default from;", "[[],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
-                ["export default { from: 2, default: 3, with: 4 };", "[[],[[\"object\",[[\"default\",[\"object\",[[\"from\",2],[\"default\",3],[\"with\",4]]]]]]]]"],
+                ["export default [NaN, Infinity, -Infinity];", "[[],[[\"object\",[[\":\",\"default\",[\"array\",[NaN,Infinity,[\"-\",Infinity]]]]]]]]"],
+                ["export default \"abc\";", "[[],[[\"object\",[[\":\",\"default\",\"abc\"]]]]]"],
+                ["export default 1234567890n;", "[[],[[\"object\",[[\":\",\"default\",1234567890n]]]]]"],
+                ["export default [];", "[[],[[\"object\",[[\":\",\"default\",[\"array\",[]]]]]]]"],
+                ["export default [1];", "[[],[[\"object\",[[\":\",\"default\",[\"array\",[1]]]]]]]"],
+                ["export default [1,];", "[[],[[\"object\",[[\":\",\"default\",[\"array\",[1]]]]]]]"],
+                ["export default [[]];", "[[],[[\"object\",[[\":\",\"default\",[\"array\",[[\"array\",[]]]]]]]]]"],
+                ["export default [0,[1,[2,[]]],3];", "[[],[[\"object\",[[\":\",\"default\",[\"array\",[0,[\"array\",[1,[\"array\",[2,[\"array\",[]]]]]],3]]]]]]]"],
+                ["export default [1234567890n];", "[[],[[\"object\",[[\":\",\"default\",[\"array\",[1234567890n]]]]]]]"],
+                ["export default {};", "[[],[[\"object\",[[\":\",\"default\",[\"object\",[]]]]]]]"],
+                ["export default {\"a\":1};", "[[],[[\"object\",[[\":\",\"default\",[\"object\",[[\":\",\"a\",1]]]]]]]]"],
+                ["export default {a: 1};", "[[],[[\"object\",[[\":\",\"default\",[\"object\",[[\":\",\"a\",1]]]]]]]]"],
+                ["export default {\"a\":1,};", "[[],[[\"object\",[[\":\",\"default\",[\"object\",[[\":\",\"a\",1]]]]]]]]"],
+                ["export default {[\"a\"]:1};", "[[],[[\"object\",[[\":\",\"default\",[\"object\",[[\":\",\"a\",1]]]]]]]]"],
+                ["export default {a:1,\"b\":2,[\"c\"]:3,};", "[[],[[\"object\",[[\":\",\"default\",[\"object\",[[\":\",\"a\",1],[\":\",\"b\",2],[\":\",\"c\",3]]]]]]]]"],
+                ["export default {\"a\":{\"b\":{\"c\":[\"d\"]}}};", "[[],[[\"object\",[[\":\",\"default\",[\"object\",[[\":\",\"a\",[\"object\",[[\":\",\"b\",[\"object\",[[\":\",\"c\",[\"array\",[\"d\"]]]]]]]]]]]]]]]]"],
+                ["export default {\"a\":true,\"b\":false,\"c\":null,\"d\":undefined};", "[[],[[\"object\",[[\":\",\"default\",[\"object\",[[\":\",\"a\",true],[\":\",\"b\",false],[\":\",\"c\",null],[\":\",\"d\",undefined]]]]]]]]"],
+                ["export default {a:1,a:2};", "[[],[[\"object\",[[\":\",\"default\",[\"object\",[[\":\",\"a\",1],[\":\",\"a\",2]]]]]]]]"],
+                ["export default {[\"__proto__\"]: 1};", "[[],[[\"object\",[[\":\",\"default\",[\"object\",[[\":\",\"__proto__\",1]]]]]]]]"],
+                ["const a = 1;\nexport default a;", "[[],[1,[\"object\",[[\":\",\"default\",[\"cref\",0]]]]]]"],
+                ["const a = 1;\nconst b = 2;\nexport default [a,b];", "[[],[1,2,[\"object\",[[\":\",\"default\",[\"array\",[[\"cref\",0],[\"cref\",1]]]]]]]]"],
+                ["import x from \"m\";\nexport default x;", "[[{\"json\":false,\"name\":\"default\",\"specifier\":\"m\"}],[[\"object\",[[\":\",\"default\",[\"aref\",0]]]]]]"],
+                ["import x from \"m\";\nconst a = 1;\nexport default a;", "[[{\"json\":false,\"name\":\"default\",\"specifier\":\"m\"}],[1,[\"object\",[[\":\",\"default\",[\"cref\",0]]]]]]"],
+                ["import x from \"m\";\nimport y from \"n\";\nexport default [x,y];", "[[{\"json\":false,\"name\":\"default\",\"specifier\":\"m\"},{\"json\":false,\"name\":\"default\",\"specifier\":\"n\"}],[[\"object\",[[\":\",\"default\",[\"array\",[[\"aref\",0],[\"aref\",1]]]]]]]]"],
+                ["// c\nexport default 1;", "[[],[[\"object\",[[\":\",\"default\",1]]]]]"],
+                ["/* c */ export default 1;", "[[],[[\"object\",[[\":\",\"default\",1]]]]]"],
+                ["\n\n export default 1; \n\n", "[[],[[\"object\",[[\":\",\"default\",1]]]]]"],
+                ["const from = 1;\nexport default from;", "[[],[1,[\"object\",[[\":\",\"default\",[\"cref\",0]]]]]]"],
+                ["export default { from: 2, default: 3, with: 4 };", "[[],[[\"object\",[[\":\",\"default\",[\"object\",[[\":\",\"from\",2],[\":\",\"default\",3],[\":\",\"with\",4]]]]]]]]"],
                 // a `;` ends a statement wherever it stands, and a `;` on
                 // its own line, or several statements on one, are the same
                 // module. The last case is a normalized DataJS document
                 // verbatim: one line, `$`-names, every statement
                 // `;`-terminated, as DataJS requires (spec/datajs).
-                ["const a = 1;\nexport default a;", "[[],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
-                ["export default 1;", "[[],[[\"object\",[[\"default\",1]]]]]"],
-                ["const a = 1;export default a;", "[[],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
-                ["import x from \"m\";const a = [x];export default [x,a];", "[[{\"json\":false,\"name\":\"default\",\"specifier\":\"m\"}],[[\"array\",[[\"aref\",0]]],[\"object\",[[\"default\",[\"array\",[[\"aref\",0],[\"cref\",0]]]]]]]]"],
-                ["const a = 1 ; // c\nexport default a ;", "[[],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
+                ["const a = 1;\nexport default a;", "[[],[1,[\"object\",[[\":\",\"default\",[\"cref\",0]]]]]]"],
+                ["export default 1;", "[[],[[\"object\",[[\":\",\"default\",1]]]]]"],
+                ["const a = 1;export default a;", "[[],[1,[\"object\",[[\":\",\"default\",[\"cref\",0]]]]]]"],
+                ["import x from \"m\";const a = [x];export default [x,a];", "[[{\"json\":false,\"name\":\"default\",\"specifier\":\"m\"}],[[\"array\",[[\"aref\",0]]],[\"object\",[[\":\",\"default\",[\"array\",[[\"aref\",0],[\"cref\",0]]]]]]]]"],
+                ["const a = 1 ; // c\nexport default a ;", "[[],[1,[\"object\",[[\":\",\"default\",[\"cref\",0]]]]]]"],
                 // whitespace may precede the `;`, newlines included — a
                 // newline is trivia, so the value and its terminator may sit
                 // on different lines
-                ["export default 1\n;", "[[],[[\"object\",[[\"default\",1]]]]]"],
-                ["const a = 1\n;\nexport default a;", "[[],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
+                ["export default 1\n;", "[[],[[\"object\",[[\":\",\"default\",1]]]]]"],
+                ["const a = 1\n;\nexport default a;", "[[],[1,[\"object\",[[\":\",\"default\",[\"cref\",0]]]]]]"],
                 // and a `;` may be omitted where JavaScript inserts one:
                 // at the end of input, whatever trivia stands there, and
                 // before a statement on a new line — a line comment ends
                 // the line, and a block comment holding a newline breaks
                 // it (spec/README.md, module structure)
-                ["export default 1", "[[],[[\"object\",[[\"default\",1]]]]]"],
-                ["export default 1\n", "[[],[[\"object\",[[\"default\",1]]]]]"],
-                ["export default 1 // c", "[[],[[\"object\",[[\"default\",1]]]]]"],
-                ["const a = 1\nexport default a", "[[],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
-                ["import x from \"m\"\nexport default x", "[[{\"json\":false,\"name\":\"default\",\"specifier\":\"m\"}],[[\"object\",[[\"default\",[\"aref\",0]]]]]]"],
-                ["import x from \"m\"\nconst a = x\nexport default a", "[[{\"json\":false,\"name\":\"default\",\"specifier\":\"m\"}],[[\"aref\",0],[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
-                ["const a = 1 // c\nexport default a", "[[],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
-                ["const a = 1 /* c\n */ export default a", "[[],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
-                ["export const a = 1\nexport const b = 2", "[[],[1,2,[\"object\",[[\"a\",[\"cref\",0]],[\"b\",[\"cref\",1]]]]]]"],
-                ["const f = () => 1\nexport default f", "[[],[[\"=>\",0,[1]],[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
-                ["const $0=[1];export default [$0,$0];", "[[],[[\"array\",[1]],[\"object\",[[\"default\",[\"array\",[[\"cref\",0],[\"cref\",0]]]]]]]]"],
+                ["export default 1", "[[],[[\"object\",[[\":\",\"default\",1]]]]]"],
+                ["export default 1\n", "[[],[[\"object\",[[\":\",\"default\",1]]]]]"],
+                ["export default 1 // c", "[[],[[\"object\",[[\":\",\"default\",1]]]]]"],
+                ["const a = 1\nexport default a", "[[],[1,[\"object\",[[\":\",\"default\",[\"cref\",0]]]]]]"],
+                ["import x from \"m\"\nexport default x", "[[{\"json\":false,\"name\":\"default\",\"specifier\":\"m\"}],[[\"object\",[[\":\",\"default\",[\"aref\",0]]]]]]"],
+                ["import x from \"m\"\nconst a = x\nexport default a", "[[{\"json\":false,\"name\":\"default\",\"specifier\":\"m\"}],[[\"aref\",0],[\"object\",[[\":\",\"default\",[\"cref\",0]]]]]]"],
+                ["const a = 1 // c\nexport default a", "[[],[1,[\"object\",[[\":\",\"default\",[\"cref\",0]]]]]]"],
+                ["const a = 1 /* c\n */ export default a", "[[],[1,[\"object\",[[\":\",\"default\",[\"cref\",0]]]]]]"],
+                ["export const a = 1\nexport const b = 2", "[[],[1,2,[\"object\",[[\":\",\"a\",[\"cref\",0]],[\":\",\"b\",[\"cref\",1]]]]]]"],
+                ["const f = () => 1\nexport default f", "[[],[[\"=>\",0,[1]],[\"object\",[[\":\",\"default\",[\"cref\",0]]]]]]"],
+                ["const $0=[1];export default [$0,$0];", "[[],[[\"array\",[1]],[\"object\",[[\":\",\"default\",[\"array\",[[\"cref\",0],[\"cref\",0]]]]]]]]"],
                 // a word that denotes a value still names a property: it is
                 // an `IdentifierName` in JavaScript, which reads it as the
                 // string, and `{ "NaN": 1 }` has always denoted that object
-                ["export default {NaN: 1, undefined: 2, true: 3};", "[[],[[\"object\",[[\"default\",[\"object\",[[\"NaN\",1],[\"undefined\",2],[\"true\",3]]]]]]]]"],
-                ["const a = {NaN: 1};export default a.NaN;", "[[],[[\"object\",[[\"NaN\",1]]],[\"object\",[[\"default\",[\".\",[\"cref\",0],\"NaN\"]]]]]]"],
+                ["export default {NaN: 1, undefined: 2, true: 3};", "[[],[[\"object\",[[\":\",\"default\",[\"object\",[[\":\",\"NaN\",1],[\":\",\"undefined\",2],[\":\",\"true\",3]]]]]]]]"],
+                ["const a = {NaN: 1};export default a.NaN;", "[[],[[\"object\",[[\":\",\"NaN\",1]]],[\"object\",[[\":\",\"default\",[\".\",[\"cref\",0],\"NaN\"]]]]]]"],
             ]) {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', [source, tag])
@@ -490,7 +490,7 @@ export const proof = {
             const [tag, value] = parseFromTokens(tokenizeString(`export default (a) => {\n${'if (a) { return 1; }\n'.repeat(5000)}return 0;\n};`))
             assert(tag === 'ok', tag)
             /** @type {any} */
-            let arm = /** @type {any} */ (value[1][0])[1][0][1][2][0]
+            let arm = /** @type {any} */ (value[1][0])[1][0][2][2][0]
             for (let depth = 1; depth < 5000; depth += 1) { arm = arm[3][1][2][0] }
             assertEq(stringify(sort)(arm[3]), '["()",["=>",0,[0]],[]]')
         },
@@ -547,7 +547,7 @@ export const proof = {
     membersAsWritten: () => {
         const [tag, value] = parseFromTokens(tokenizeString('export default {"b": 1, "1": 2, "b": 3};'))
         assert(tag === 'ok', tag)
-        assertEq(stringifyDjsModule(value), '[[],[["object",[["default",["object",[["b",1],["1",2],["b",3]]]]]]]]')
+        assertEq(stringifyDjsModule(value), '[[],[["object",[[":","default",["object",[[":","b",1],[":","1",2],[":","b",3]]]]]]]]')
         const object = _own(unwrap(run(value[1])([])), 'default')
         assert(typeof object === 'object' && object !== null && !(object instanceof Array), object)
         assertEq(Object.keys(object).join(), '1,b')
@@ -565,26 +565,26 @@ export const proof = {
                 assert(tag === 'ok', value)
                 assertEq(stringifyDjsModule(value), expected)
             }
-            expect('const a = {}; export default a.b;', '[[],[["object",[]],["object",[["default",[".",["cref",0],"b"]]]]]]')
-            expect('const a = {}; export default a["b c"];', '[[],[["object",[]],["object",[["default",[".",["cref",0],"b c"]]]]]]')
-            expect('const a = []; export default a[0];', '[[],[["array",[]],["object",[["default",[".",["cref",0],0]]]]]]')
+            expect('const a = {}; export default a.b;', '[[],[["object",[]],["object",[[":","default",[".",["cref",0],"b"]]]]]]')
+            expect('const a = {}; export default a["b c"];', '[[],[["object",[]],["object",[[":","default",[".",["cref",0],"b c"]]]]]]')
+            expect('const a = []; export default a[0];', '[[],[["array",[]],["object",[[":","default",[".",["cref",0],0]]]]]]')
             // an index is a constant key, a string or a number token, and
             // the sign was only ever one because the fold made `-1.5` a
             // number. It is two tokens now, so a negative key is written as
             // the string it names — which is the key either spelling gives
-            expect('const a = []; export default a["-1.5"];', '[[],[["array",[]],["object",[["default",[".",["cref",0],"-1.5"]]]]]]')
-            expect('const a = {}; export default a.b[1].default;', '[[],[["object",[]],["object",[["default",[".",[".",[".",["cref",0],"b"],1],"default"]]]]]]')
+            expect('const a = []; export default a["-1.5"];', '[[],[["array",[]],["object",[[":","default",[".",["cref",0],"-1.5"]]]]]]')
+            expect('const a = {}; export default a.b[1].default;', '[[],[["object",[]],["object",[[":","default",[".",[".",[".",["cref",0],"b"],1],"default"]]]]]]')
             // any value takes accesses, a literal as a reference does
-            expect('export default [1].length;', '[[],[["object",[["default",[".",["array",[1]],"length"]]]]]]')
-            expect('export default "ab"[0];', '[[],[["object",[["default",[".","ab",0]]]]]]')
-            expect('export default { a: [1] }.a[0];', '[[],[["object",[["default",[".",[".",["object",[["a",["array",[1]]]]],"a"],0]]]]]]')
-            expect('export default null.x;', '[[],[["object",[["default",[".",null,"x"]]]]]]')
-            expect('export default true.x;', '[[],[["object",[["default",[".",true,"x"]]]]]]')
-            expect('const n = -1; export default n.x;', '[[],[["-",1],["object",[["default",[".",["cref",0],"x"]]]]]]')
-            expect('const a = []; export default [a.length, a["length"]];', '[[],[["array",[]],["object",[["default",["array",[[".",["cref",0],"length"],[".",["cref",0],"length"]]]]]]]]')
+            expect('export default [1].length;', '[[],[["object",[[":","default",[".",["array",[1]],"length"]]]]]]')
+            expect('export default "ab"[0];', '[[],[["object",[[":","default",[".","ab",0]]]]]]')
+            expect('export default { a: [1] }.a[0];', '[[],[["object",[[":","default",[".",[".",["object",[[":","a",["array",[1]]]]],"a"],0]]]]]]')
+            expect('export default null.x;', '[[],[["object",[[":","default",[".",null,"x"]]]]]]')
+            expect('export default true.x;', '[[],[["object",[[":","default",[".",true,"x"]]]]]]')
+            expect('const n = -1; export default n.x;', '[[],[["-",1],["object",[[":","default",[".",["cref",0],"x"]]]]]]')
+            expect('const a = []; export default [a.length, a["length"]];', '[[],[["array",[]],["object",[[":","default",["array",[[".",["cref",0],"length"],[".",["cref",0],"length"]]]]]]]]')
             // a prototype name is a key like any other: only reading it is refused
-            expect('export default { push: 1, toString: 2 };', '[[],[["object",[["default",["object",[["push",1],["toString",2]]]]]]]]')
-            expect('import m from "./m.f.js"; export default [m.x, { y: m["x"] }];', '[[{"json":false,"name":"default","specifier":"./m.f.js"}],[["object",[["default",["array",[[".",["aref",0],"x"],["object",[["y",[".",["aref",0],"x"]]]]]]]]]]]')
+            expect('export default { push: 1, toString: 2 };', '[[],[["object",[[":","default",["object",[[":","push",1],[":","toString",2]]]]]]]]')
+            expect('import m from "./m.f.js"; export default [m.x, { y: m["x"] }];', '[[{"json":false,"name":"default","specifier":"./m.f.js"}],[["object",[[":","default",["array",[[".",["aref",0],"x"],["object",[[":","y",[".",["aref",0],"x"]]]]]]]]]]]')
         },
         // `-1 .x` is `-(1 .x)` in JavaScript, and it is that here: the `-`
         // is a prefix the grammar reads, so the negation stands outside the
@@ -598,17 +598,17 @@ export const proof = {
                 assert(tag === 'ok', value)
                 assertEq(stringifyDjsModule(value), ast)
             }
-            expect('export default -1 .x;', '[[],[["object",[["default",["-",[".",1,"x"]]]]]]]')
-            expect('export default -0 .x;', '[[],[["object",[["default",["-",[".",0,"x"]]]]]]]')
-            expect('export default -1n .x;', '[[],[["object",[["default",["-",[".",1n,"x"]]]]]]]')
-            expect('export default -0n .x;', '[[],[["object",[["default",["-",[".",0n,"x"]]]]]]]')
-            expect('export default -Infinity.x;', '[[],[["object",[["default",["-",[".",Infinity,"x"]]]]]]]')
-            expect('export default -1["x"];', '[[],[["object",[["default",["-",[".",1,"x"]]]]]]]')
+            expect('export default -1 .x;', '[[],[["object",[[":","default",["-",[".",1,"x"]]]]]]]')
+            expect('export default -0 .x;', '[[],[["object",[[":","default",["-",[".",0,"x"]]]]]]]')
+            expect('export default -1n .x;', '[[],[["object",[[":","default",["-",[".",1n,"x"]]]]]]]')
+            expect('export default -0n .x;', '[[],[["object",[[":","default",["-",[".",0n,"x"]]]]]]]')
+            expect('export default -Infinity.x;', '[[],[["object",[[":","default",["-",[".",Infinity,"x"]]]]]]]')
+            expect('export default -1["x"];', '[[],[["object",[[":","default",["-",[".",1,"x"]]]]]]]')
             // and without a sign the access is all there is
-            expect('export default 1 .x;', '[[],[["object",[["default",[".",1,"x"]]]]]]')
-            expect('export default 0n.x;', '[[],[["object",[["default",[".",0n,"x"]]]]]]')
-            expect('export default NaN.x;', '[[],[["object",[["default",[".",NaN,"x"]]]]]]')
-            expect('export default Infinity["x"];', '[[],[["object",[["default",[".",Infinity,"x"]]]]]]')
+            expect('export default 1 .x;', '[[],[["object",[[":","default",[".",1,"x"]]]]]]')
+            expect('export default 0n.x;', '[[],[["object",[[":","default",[".",0n,"x"]]]]]]')
+            expect('export default NaN.x;', '[[],[["object",[[":","default",[".",NaN,"x"]]]]]]')
+            expect('export default Infinity["x"];', '[[],[["object",[[":","default",[".",Infinity,"x"]]]]]]')
         },
         prohibited: () => {
             /** @type {(source: string, column: number) => void} */
@@ -696,7 +696,7 @@ export const proof = {
         json: () => {
             const [tag, value] = parseFromTokens(tokenizeString('import x from "m" with { type: "json" };\nexport default x;'))
             assert(tag === 'ok', tag)
-            assertEq(stringifyDjsModule(value), '[[{"json":true,"name":"default","specifier":"m"}],[["object",[["default",["aref",0]]]]]]')
+            assertEq(stringifyDjsModule(value), '[[{"json":true,"name":"default","specifier":"m"}],[["object",[[":","default",["aref",0]]]]]]')
         },
         refused: () => {
             /** @type {(source: string, message: string, column: number) => void} */
@@ -720,140 +720,140 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["object",[["default",null]]]]]')
+            assertEq(result, '[[],[["object",[[":","default",null]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default true;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["object",[["default",true]]]]]')
+            assertEq(result, '[[],[["object",[[":","default",true]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default false;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["object",[["default",false]]]]]')
+            assertEq(result, '[[],[["object",[[":","default",false]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default undefined;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["object",[["default",undefined]]]]]')
+            assertEq(result, '[[],[["object",[[":","default",undefined]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default 0.1;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["object",[["default",0.1]]]]]')
+            assertEq(result, '[[],[["object",[[":","default",0.1]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default 1.1e+2;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["object",[["default",110]]]]]')
+            assertEq(result, '[[],[["object",[[":","default",110]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default "abc";')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["object",[["default","abc"]]]]]')
+            assertEq(result, '[[],[["object",[[":","default","abc"]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default [];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["object",[["default",["array",[]]]]]]]')
+            assertEq(result, '[[],[["object",[[":","default",["array",[]]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default [1];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["object",[["default",["array",[1]]]]]]]')
+            assertEq(result, '[[],[["object",[[":","default",["array",[1]]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default [[]];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["object",[["default",["array",[["array",[]]]]]]]]]')
+            assertEq(result, '[[],[["object",[[":","default",["array",[["array",[]]]]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default [0,[1,[2,[]]],3];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["object",[["default",["array",[0,["array",[1,["array",[2,["array",[]]]]]],3]]]]]]]')
+            assertEq(result, '[[],[["object",[[":","default",["array",[0,["array",[1,["array",[2,["array",[]]]]]],3]]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default {};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[["object",[["default",["object",[]]]]]]]') { throw result }
+            if (result !== '[[],[["object",[[":","default",["object",[]]]]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default [{}];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[["object",[["default",["array",[["object",[]]]]]]]]]') { throw result }
+            if (result !== '[[],[["object",[[":","default",["array",[["object",[]]]]]]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default {"a":true,"b":false,"c":null,"d":undefined};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[["object",[["default",["object",[["a",true],["b",false],["c",null],["d",undefined]]]]]]]]') { throw result }
+            if (result !== '[[],[["object",[[":","default",["object",[[":","a",true],[":","b",false],[":","c",null],[":","d",undefined]]]]]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default {"a":{"b":{"c":["d"]}}};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[["object",[["default",["object",[["a",["object",[["b",["object",[["c",["array",["d"]]]]]]]]]]]]]]]]') { throw result }
+            if (result !== '[[],[["object",[[":","default",["object",[[":","a",["object",[[":","b",["object",[[":","c",["array",["d"]]]]]]]]]]]]]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default {a: 1};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[["object",[["default",["object",[["a",1]]]]]]]]') { throw result }
+            if (result !== '[[],[["object",[[":","default",["object",[[":","a",1]]]]]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default 1234567890n;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["object",[["default",1234567890n]]]]]')
+            assertEq(result, '[[],[["object",[[":","default",1234567890n]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default [1234567890n];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["object",[["default",["array",[1234567890n]]]]]]]')
+            assertEq(result, '[[],[["object",[[":","default",["array",[1234567890n]]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default [1,];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["object",[["default",["array",[1]]]]]]]')
+            assertEq(result, '[[],[["object",[[":","default",["array",[1]]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default {"a":1,};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[["object",[["default",["object",[["a",1]]]]]]]]') { throw result }
+            if (result !== '[[],[["object",[[":","default",["object",[[":","a",1]]]]]]]]') { throw result }
         }
     ],
     // A computed key `["a"]` is a third spelling of an ordinary key, next to
@@ -864,7 +864,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["object",[["default",["object",[["a",1]]]]]]]]')
+            assertEq(result, '[[],[["object",[[":","default",["object",[[":","a",1]]]]]]]]')
         },
         () => {
             // all three spellings in one object, plus a trailing comma
@@ -872,7 +872,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["object",[["default",["object",[["a",1],["b",2],["c",3]]]]]]]]')
+            assertEq(result, '[[],[["object",[[":","default",["object",[[":","a",1],[":","b",2],[":","c",3]]]]]]]]')
         },
         () => {
             // trivia is trivia inside the brackets too
@@ -880,7 +880,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["object",[["default",["object",[["a",1]]]]]]]]')
+            assertEq(result, '[[],[["object",[[":","default",["object",[[":","a",1]]]]]]]]')
         },
         () => {
             // the key that has no other spelling
@@ -888,7 +888,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["object",[["default",["object",[["__proto__",["object",[["a",42]]]]]]]]]]]')
+            assertEq(result, '[[],[["object",[[":","default",["object",[[":","__proto__",["object",[[":","a",42]]]]]]]]]]]')
         },
     ],
     invalidComputedKey: [
@@ -1219,28 +1219,28 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["object",[["default",["array",[0,1,2]]]]]]]')
+            assertEq(result, '[[],[["object",[[":","default",["array",[0,1,2]]]]]]]')
         },
         () => {
             const tokenList = tokenizeString(' export default { "a" : 0 , "b" : 1 } ; ')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[["object",[["default",["object",[["a",0],["b",1]]]]]]]]') { throw result }
+            if (result !== '[[],[["object",[[":","default",["object",[[":","a",0],[":","b",1]]]]]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('\nexport\ndefault\n[\n0\n,\n1\n,\n2\n]\n;\n')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["object",[["default",["array",[0,1,2]]]]]]]')
+            assertEq(result, '[[],[["object",[[":","default",["array",[0,1,2]]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('\rexport\rdefault\r{\r"a"\r:\r0\r,\r"b"\r:\r1\r}\r;\r')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[["object",[["default",["object",[["a",0],["b",1]]]]]]]]') { throw result }
+            if (result !== '[[],[["object",[[":","default",["object",[[":","a",0],[":","b",1]]]]]]]]') { throw result }
         },
     ],
     // A JSON document is not a module: a statement begins with `import`,
@@ -1300,7 +1300,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[{"json":false,"name":"default","specifier":"a.f.js"}],[1,["object",[["default",["array",[["aref",0],["cref",0]]]]]]]]')
+            assertEq(result, '[[{"json":false,"name":"default","specifier":"a.f.js"}],[1,["object",[[":","default",["array",[["aref",0],["cref",0]]]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('const b = 1; \n import a from "a.f.js"; \n export default [a,b];')
@@ -1353,28 +1353,28 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[1,2,["object",[["default",3]]]]]')
+            assertEq(result, '[[],[1,2,["object",[[":","default",3]]]]]')
         },
         () => {
             const tokenList = tokenizeString('const a = 1; \n const b = 2; \n export default b;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[1,2,["object",[["default",["cref",1]]]]]]')
+            assertEq(result, '[[],[1,2,["object",[[":","default",["cref",1]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('const a = 1; \n const b = 2; \n export default [b,a,b];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[1,2,["object",[["default",["array",[["cref",1],["cref",0],["cref",1]]]]]]]]')
+            assertEq(result, '[[],[1,2,["object",[[":","default",["array",[["cref",1],["cref",0],["cref",1]]]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('const a = 1; \n const b = 2; \n export default {"1st":b,"2nd":a,"3rd":b};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[1,2,["object",[["default",["object",[["1st",["cref",1]],["2nd",["cref",0]],["3rd",["cref",1]]]]]]]]]') { throw result }
+            if (result !== '[[],[1,2,["object",[[":","default",["object",[[":","1st",["cref",1]],[":","2nd",["cref",0]],[":","3rd",["cref",1]]]]]]]]]') { throw result }
         },
     ],
     invalidWithConst:[
@@ -1411,21 +1411,21 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[{"json":false,"name":"default","specifier":"test/test.f.mjs"}],[["object",[["default",["aref",0]]]]]]')
+            assertEq(result, '[[{"json":false,"name":"default","specifier":"test/test.f.mjs"}],[["object",[[":","default",["aref",0]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('import a from "first/test.f.mjs"; \n import b from "second/test.f.mjs"; \n export default [b, a, b];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[{"json":false,"name":"default","specifier":"first/test.f.mjs"},{"json":false,"name":"default","specifier":"second/test.f.mjs"}],[["object",[["default",["array",[["aref",1],["aref",0],["aref",1]]]]]]]]')
+            assertEq(result, '[[{"json":false,"name":"default","specifier":"first/test.f.mjs"},{"json":false,"name":"default","specifier":"second/test.f.mjs"}],[["object",[[":","default",["array",[["aref",1],["aref",0],["aref",1]]]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('import a from "test/test.f.mjs"; \n const b = null; \n export default [b, a, b];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[{"json":false,"name":"default","specifier":"test/test.f.mjs"}],[null,["object",[["default",["array",[["cref",0],["aref",0],["cref",0]]]]]]]]')
+            assertEq(result, '[[{"json":false,"name":"default","specifier":"test/test.f.mjs"}],[null,["object",[[":","default",["array",[["cref",0],["aref",0],["cref",0]]]]]]]]')
         },
     ],
     invalidWithArgs:[
@@ -1472,7 +1472,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["object",[["default",null]]]]]')
+            assertEq(result, '[[],[["object",[[":","default",null]]]]]')
         },
     ],
     // Regression, from the hand-written parser: closing a container popped its
@@ -1508,7 +1508,7 @@ export const proof = {
             // walked by a loop too: the outermost function captures the
             // module's `x`, every one inside it its parent's slot
             /** @type {any} */
-            let fn = /** @type {any} */ (value[1][1])[1][0][1]
+            let fn = /** @type {any} */ (value[1][1])[1][0][2]
             assertEq(stringify(sort)(fn[3]), '[["cref",0]]')
             for (let depth = 1; depth < 20000; depth += 1) { fn = fn[2][0] }
             assertEq(stringify(sort)(fn), '["=>",0,[["fref",0]],[["fref",0]]]')
