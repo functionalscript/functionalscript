@@ -100,21 +100,20 @@ const vec1 = vec(1n)
 
 const { listToVec } = msb
 
-/** @type {(prior: LiteralToVec, e: bigint) => LiteralToVec} */
-const literalToVec = (prior, e) => {
+/** @type {(prior: LiteralToVec, level: Level) => LiteralToVec} */
+const literalToVec = (prior, { decode }) => {
     const m = map(prior)
-    const { decode } = level(e)
     return literal => listToVec(m(decode(literal)))
 }
 
 /** Decodes a level-1 symbol to its canonical MSB bit vector. */
 /** @type {LiteralToVec} */
-export const literal1ToVec = literalToVec(vec1, 0n)
+export const literal1ToVec = literalToVec(vec1, l1)
 
 /** Decodes a level-2 symbol to its canonical MSB bit vector (via level-1 decoding). */
 /** @type {LiteralToVec} */
-export const literal2ToVec = literalToVec(literal1ToVec, 2n)
+export const literal2ToVec = literalToVec(literal1ToVec, l2)
 
 /** Decodes a level-3 symbol to its canonical MSB bit vector (via level-2 and level-1 decoding). */
 /** @type {LiteralToVec} */
-export const literal3ToVec = literalToVec(literal2ToVec, 7n)
+export const literal3ToVec = literalToVec(literal2ToVec, l3)

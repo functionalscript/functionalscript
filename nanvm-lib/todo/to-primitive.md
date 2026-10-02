@@ -338,12 +338,14 @@ Each needs the owner's approval before the step that depends on it.
 5. **Rust, for a frame** (done, with step 4): under D2's code-only answer
    the text is complete at compile time, so no run-time value renderer is
    needed.
-6. **Follow-up issues** (filed): rendering in the FJS interpreter,
-   [function-text](../../fjs/edag/amnesia/todo/function-text.md). It is
-   ruled out: a FunctionalScript function cannot be given a custom
-   `toString`, since a `Proxy` is not a FunctionalScript object and setting
-   the property is mutation, so the corpus's `host` marker stays. The property-key conversion needs no
-   issue of its own (below). A `const` only a lazy operand reaches, which
+6. **Follow-up issues** (settled): rendering in the FJS interpreter is
+   ruled out, and so is refusing there
+   ([function-text.md](../../fjs/edag/function-text.md)). A FunctionalScript
+   function cannot be given a custom `toString`, since a `Proxy` is not a
+   FunctionalScript object and setting the property is mutation. The
+   JavaScript-hosted evaluators answer the host's text, so the corpus's
+   `host` marker stays. The property-key conversion needs no issue of its
+   own (below). A `const` only a lazy operand reaches, which
    the writer refused at first, is now the operand's own block, an IIFE the
    front end inlines. The corpus's
    `() => undefined` is now the node a compiled one is (a function's slots
@@ -384,8 +386,8 @@ already names its key conversion, `entry(o, f)` included, as its own work.
 - [x] Stage 3 step 4: Rust answers the text of a function with an empty
       frame (tracked with the `Function` checklist in `member-functions.md`).
 - [x] Stage 3 step 5: a function with a frame, per D2 (code-only).
-- [x] Stage 3 step 6: file the FJS-interpreter rendering issue,
-      [function-text](../../fjs/edag/amnesia/todo/function-text.md), which
-      records why the evaluator cannot carry the text.
+- [x] Stage 3 step 6: settle the FJS-interpreter rendering issue:
+      [function-text.md](../../fjs/edag/function-text.md) records why the
+      evaluator answers the host's text.
 - [x] Place the property-key conversion: it is
       [`entry`](../../fjs/edag/todo/entry.md)'s key conversion.
