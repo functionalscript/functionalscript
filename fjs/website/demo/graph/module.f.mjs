@@ -42,7 +42,7 @@
  *
  * @module
  *
- * @import { Edge, Graph, Inline, Node, Ranked, Shape } from './types.ts'
+ * @import { Corner, Edge, Graph, Inline, Node, Ranked, Shape } from './types.ts'
  * @import { Element } from '../../../media/html/types.ts'
  * @import { _Column, _Lane, _Out, _Placed, _PlacedSlot, _Point, _Port, _Positioned, _Route, _Size, _Sized, _Slot, _Walk } from './private.ts'
  * @import { StateScan } from '../../../types/function/operator/types.ts'
@@ -218,6 +218,9 @@ const inKindOf = p => ({ 'data-graph-in-kind': p.kind })
  * would only push the value aside. Such a port takes no part in the key
  * column.
  *
+ * **An edge with a corner takes no row**: it leaves from that point of the
+ * node's right side, and the rows are the other edges'.
+ *
  * **An empty label is no row at all** when the node has ports: its rows
  * already say what it is, and an empty header would be a blank band on
  * top of them. An edge into such a node arrives at its first row instead.
@@ -225,8 +228,10 @@ const inKindOf = p => ({ 'data-graph-in-kind': p.kind })
  *
  * @type {(label: string) => (out: readonly _Out[]) => _Size}
  */
-const portsOf = label => out => {
+const portsOf = label => all => {
+    const out = all.filter(({ edge }) => edge.corner === undefined)
     const header = label === '' && out.length > 0 ? 0 : headerHeight
+    const height = header + out.length * portHeight
     const inlines = out.flatMap(({ edge }) => {
         const inline = inlineOf(edge)
         return inline === null ? [] : [{ keyed: edge.label !== '', key: cellWidthOf(edge.label), value: cellWidthOf(inline) }]
@@ -236,12 +241,15 @@ const portsOf = label => out => {
         widthOf(label),
         max(inlines.map(c => (c.keyed ? keyColumn : 0) + c.value)),
         max(out.flatMap(({ edge }) => inlineOf(edge) === null ? [cellWidthOf(edge.label)] : [])))
+    /** @type {Record<Corner, number>} */
+    const exitAt = { top: 0, middle: height / 2, bottom: height }
     return {
         width,
-        height: header + out.length * portHeight,
+        height,
         keyWidth: keyColumn,
         entry: (header === 0 ? portHeight : header) / 2,
         ports: out.map(({ edge, index }, i) => ({ edge, index, y: header + i * portHeight })),
+        exits: all.flatMap(({ edge, index }) => edge.corner === undefined ? [] : [{ edge, index, y: exitAt[edge.corner] }]),
     }
 }
 
@@ -364,11 +372,16 @@ const routesOf = placed => {
     const byId = new Map(placed.nodes.map(p => [p.id, p]))
     const at = /** @type {(id: number) => _Positioned} */ (id => /** @type {_Positioned} */ (byId.get(id)))
     const lanes = new Map(placed.lanes.map(lane => [`${lane.index} ${lane.rank}`, lane]))
-    return placed.nodes.flatMap(from => from.ports.flatMap(port => {
+    /** @type {(from: _Positioned) => readonly (readonly [_Out, number])[]} */
+    const leaving = from => [
+        ...from.ports.map(port => /** @type {const} */ ([port, port.y + portHeight / 2])),
+        ...from.exits.map(exit => /** @type {const} */ ([exit, exit.y])),
+    ]
+    return placed.nodes.flatMap(from => leaving(from).flatMap(([port, offset]) => {
         const target = port.edge.to
         if (typeof target !== 'number') { return [] }
         const to = at(target)
-        const y = from.y + port.y + portHeight / 2
+        const y = from.y + offset
         const right = from.x + from.width
         /** @type {readonly _Point[]} */
         const points = [
@@ -420,7 +433,8 @@ export const _crossesBox = box => ([x0, y0]) => ([x1, y1]) => {
  * when it has any. **An entry must name a node of the graph**, for the
  * reason an edge must ({@link layout}): an arrow into nothing would simply
  * vanish. **And no node takes two**: they would be drawn one over the
- * other, which reads as one.
+ * other, which reads as one. **A value's parts must spell it**, and an
+ * edge from a corner, which has no row, must have no label or value.
  *
  * @type {(g: Graph) => _Placed}
  */
@@ -430,6 +444,13 @@ const placedOf = ({ nodes, edges, entries = [] }) => {
     if (missing !== -1) { throw `graph: entry ${missing} ends at node ${entries[missing].to}, which is not in the graph` }
     const repeated = entries.findIndex(({ to }, i) => entries.findIndex(e => e.to === to) !== i)
     if (repeated !== -1) { throw `graph: entry ${repeated} ends at node ${entries[repeated].to}, which another entry already does` }
+    // A value drawn in parts must spell the value it sizes its cell by:
+    // otherwise the cell would be measured for one text and show another.
+    const misspelt = edges.findIndex(({ to }) => typeof to !== 'number' && to.parts !== undefined && to.parts.map(([text]) => text).join('') !== to.inline)
+    if (misspelt !== -1) { throw `graph: edge ${misspelt}'s parts do not spell its value` }
+    // An edge leaving from a corner has no row to hold a label or a value.
+    const cornered = edges.findIndex(({ corner, to, label }) => corner !== undefined && (typeof to !== 'number' || label !== ''))
+    if (cornered !== -1) { throw `graph: edge ${cornered} leaves from a corner, so it must end at a node and have no label` }
     return layout(margin + (entries.length === 0 ? 0 : entryLength))(nodes)(edges)
 }
 
@@ -582,12 +603,13 @@ export const graphSvg = g => {
             'text-anchor': 'middle', 'data-graph-edge-label': '',
         }, port.edge.label])]),
         ...p.ports.flatMap(port => {
-            const inline = inlineOf(port.edge)
-            return inline === null ? [] : [/** @type {Element} */ (['text', {
+            const { to } = port.edge
+            return typeof to === 'number' ? [] : [/** @type {Element} */ (['text', {
                 x: String(p.x + (keyWidthOf(p)(port) + p.width) / 2), y: String(p.y + port.y + portHeight / 2),
                 'text-anchor': 'middle', 'data-graph-value-label': '',
                 ...valueKindOf(port.edge),
-            }, inline])]
+            }, ...(to.parts === undefined ? [to.inline]
+                : to.parts.map(([text, kind]) => /** @type {Element} */ (['tspan', { 'data-graph-part': kind }, text])))])]
         }),
     ])
     return ['div', { 'data-graph': '' }, ['svg', { viewBox: `0 0 ${width} ${height}`, width: String(width), height: String(height) },
