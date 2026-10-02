@@ -105,6 +105,12 @@ Not approved yet. [DESIGN.md §12](../../doc/DESIGN.md#new-language-features-sta
 asks for formal, explicit approval from a language designer other than the
 proposer before implementation. This proposal was written by Claude.
 
+The approval gates the language feature: the grammar, the lowering and the
+`.js` writer, the steps that let a module spell a spread. It does not gate
+the backends. The EDAG's spread item exists already (#2460, #2466), and
+each output follows the EDAG, so the JavaScript evaluator and the Rust
+printer read it before any source can produce it.
+
 ## Tasks
 
 - [ ] Language-design approval, recorded above.
