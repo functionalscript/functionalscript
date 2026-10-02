@@ -24,7 +24,7 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { f64Bits, i64Literal, stringLiteral, utf16Literal } from '../../media/rust/module.f.mjs'
+import { f64Bits, i64Literal, stringLiteral, u64Words, utf16Literal } from '../../media/rust/module.f.mjs'
 import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.mjs'
 import { lazyOp2Id } from '../module.f.mjs'
 import { isIndex, maxLength } from '../../types/function/length/module.f.mjs'
@@ -225,14 +225,15 @@ const textExpr = e => {
 }
 
 /**
- * The same for a bigint: `i64Literal` answers one outside `i64` with the
- * value itself, and this printer names the reason.
+ * The same for a bigint: `bigint_any` over an `i64` literal where the value
+ * fits one, and `bigint_any_words` over its sign and `u64` words where it does
+ * not, so no bigint is refused.
  *
- * @type {(v: bigint) => Result<string, readonly unknown[]>}
+ * @type {(v: bigint) => string}
  */
 const bigintExpr = v => {
     const r = i64Literal(v)
-    return r[0] === 'ok' ? r : error(['no Rust i64 for', v])
+    return r[0] === 'ok' ? `bigint_any(${r[1]})` : `bigint_any_words(${v < 0n}, ${u64Words(v)})`
 }
 
 /** @type {(v: Primitive) => Result<string, readonly unknown[]>} */
@@ -242,7 +243,7 @@ const primitiveExpr = v => {
         case 'boolean': { return ok(`${v}.to_any()`) }
         case 'number': { return ok(`f64_any(${f64Bits(v)})`) }
         case 'string': { return ok(stringCall('string_any')(v)) }
-        case 'bigint': { return mapOk(s => `bigint_any(${s})`)(bigintExpr(v)) }
+        case 'bigint': { return ok(bigintExpr(v)) }
     }
 }
 

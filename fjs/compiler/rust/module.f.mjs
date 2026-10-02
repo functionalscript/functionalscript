@@ -41,6 +41,7 @@ import { withoutStringLiterals } from '../../media/rust/module.f.mjs'
  */
 const helperCatalog = [
     ['bigint_any(', 'bigint_any'],
+    ['bigint_any_words(', 'bigint_any_words'],
     ['f64_any(', 'f64_any'],
     ['spread_array(', 'spread_array'],
     ['spread_call(', 'spread_call'],
