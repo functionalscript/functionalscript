@@ -1,7 +1,7 @@
 # Array and Call Spread
 
 **Priority:** P2
-**Status:** open — proposed, awaiting approval
+**Status:** open — approved, front end not implemented
 
 A spread item in an array literal and in a call's arguments, as JavaScript
 writes it:
@@ -101,9 +101,10 @@ Constant spreads are not folded, so `[...[1, 2]]` is a different graph from
 
 ## Approval
 
-Not approved yet. [DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo)
+Approved by Sergey Shandar (@sergey-shandar), language designer, on
+2026-10-02. [DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo)
 asks for formal, explicit approval from a language designer other than the
-proposer before implementation. This proposal was written by Claude.
+proposer before implementation; this proposal was written by Claude.
 
 The approval gates the language feature: the grammar, the lowering and the
 `.js` writer, the steps that let a module spell a spread. It does not gate
@@ -113,7 +114,7 @@ printer read it before any source can produce it.
 
 ## Tasks
 
-- [ ] Language-design approval, recorded above.
+- [x] Language-design approval, recorded above.
 - [ ] Grammar: a spread alternative, `['...', value]`, in the item of
       `values` in
       [`fjs/compiler/parser/grammar`](../../fjs/compiler/parser/grammar/module.f.mjs),

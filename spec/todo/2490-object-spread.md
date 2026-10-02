@@ -1,7 +1,7 @@
 # Object Spread
 
 **Priority:** P2
-**Status:** open — approved, not implemented
+**Status:** open — approved, front end not implemented
 
 A spread member in an object literal, as JavaScript writes it:
 
