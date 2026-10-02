@@ -1,6 +1,6 @@
 /**
  * @import { Vec } from "../../types/bit_vec/types.ts"
- * @import { IoChannel, IoError, IoResult, NodeOp, ReadBytes, ReadFile, Rm, Stat, WriteBytes, WriteFile, _ChunkSource, _Gate } from "./types.ts"
+ * @import { IoChannel, IoError, IoResult, NodeOp, ReadBytes, CreateExclusive, ReadFile, Rm, Stat, WriteBytes, WriteFile, _ChunkSource, _Gate } from "./types.ts"
  * @import { Result } from "../../types/result/types.ts"
  * @import { List } from "../list/types.ts"
  * @import { List as List_ } from "../../types/list/types.ts"
@@ -12,7 +12,7 @@ import { byteLength, empty, isVec, maxLengthBytes, u8ListMsb, u8ListToVecMsb, ui
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
 import { mapStep, pureError, pureOk, step as ioStep } from "../module.f.mjs"
-import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, readWholeBytes, readChunks, windowRefusal, maxOffset } from "./module.f.mjs"
+import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeUtf8File, _pieces, _vecList, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, readWholeBytes, readChunks, windowRefusal, maxOffset } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
@@ -437,10 +437,11 @@ export const proof = {
             assertEq(file.map(utf8ToString).join(''), text)
         },
         // A surrogate pair across where a piece would end stays whole: each chunk
-        // decodes alone, and none holds half a pair.
+        // decodes alone, and none holds half a pair. Three-byte characters make
+        // the text past one `Vec`, so it is cut at all.
         pair: () => {
-            const unit = Math.floor(Number(maxLengthBytes) / 3)
-            const text = `${'a'.repeat(unit - 1)}\u{1F600}${'b'.repeat(unit)}`
+            const unit = Math.floor(Number(maxLengthBytes) / 3) - 1
+            const text = `${'\u20ac'.repeat(unit - 1)}\u{1F600}${'\u20ac'.repeat(unit * 2)}`
             const [state, [t, result]] = virtual(emptyState)(writeUtf8File('pair', text))
             assert(t === 'ok', result)
             const file = state.root.pair
@@ -448,14 +449,75 @@ export const proof = {
             assertEq(file.map(utf8ToString).join(''), text)
             assertEq(utf8ToString(file[0]).length, unit - 1)
         },
-        // A text of exactly one piece's width is one chunk.
+        // A text whose UTF-8 is exactly a `Vec` is one chunk, however many code
+        // units it has; one byte more is cut into pieces.
         exact: () => {
-            const text = 'a'.repeat(Math.floor(Number(maxLengthBytes) / 3))
-            const [state, [t, result]] = virtual(emptyState)(writeUtf8File('exact', text))
+            const [state, [t, result]] = virtual(emptyState)(
+                writeUtf8File('exact', 'a'.repeat(Number(maxLengthBytes))))
             assert(t === 'ok', result)
             const file = state.root.exact
             assert(Array.isArray(file), file)
             assertEq(file.length, 1)
+            const [more, [t2]] = virtual(emptyState)(
+                writeUtf8File('more', 'a'.repeat(Number(maxLengthBytes) + 1)))
+            assert(t2 === 'ok')
+            const chunks = more.root.more
+            assert(Array.isArray(chunks), chunks)
+            assert(chunks.length > 1, chunks.length)
+            assertEq(chunks.map(utf8ToString).join(''), 'a'.repeat(Number(maxLengthBytes) + 1))
+        },
+        // A text that fits one `Vec` never reaches `writeBytes`, which opens the
+        // file for update: 50,000 bytes, more than the 43,689 units of a piece,
+        // is one `writeFile` that no failing `writeBytes` or `rm` can touch.
+        underTheLimit: () => {
+            /** @type {OperationMap<WriteFile | WriteBytes | Rm, IoResult<void>>} */
+            const map = {
+                writeFile: () => ok(undefined),
+                writeBytes: () => error(ioError({ message: 'must not be called' })),
+                rm: () => error(ioError({ message: 'must not be called' })),
+            }
+            const host = match(map)
+            let r = host(writeUtf8File('p', 'a'.repeat(50000)))
+            while (r[0] === 'cont') {
+                r = host(r[2](r[1]))
+            }
+            assertEq(r[1][0], 'ok')
+        },
+        // Pieces are made by index: a text cut at one unit is as many pieces as
+        // it has units, 200,000 of them, with no recursion to overflow, a pair
+        // never split, and the pieces rejoining to the text.
+        pieces: () => {
+            const text = `${'ab'.repeat(50000)}\u{1F600}${'\u20ac'.repeat(49999)}`
+            const parts = _pieces(1)(text)
+            assertEq(parts.join(''), text)
+            assert(parts.length > 100000, parts.length)
+            assert(parts.every(p => p.length <= 2))
+            assert(parts.every(p => utf8(p) !== null))
+            assertStructurallySame(_pieces(5)(''), [''])
+            assertStructurallySame(_pieces(5)('abc'), ['abc'])
+        },
+        // The list is walked in constant stack: 200,000 cells through the
+        // stream writer, against a host that only counts what it is given (the
+        // virtual file system appends by copying, which is no place to measure).
+        longList: () => {
+            let written = 0
+            /** @type {OperationMap<CreateExclusive | WriteBytes | Rm, IoResult<void>>} */
+            const map = {
+                createExclusive: () => ok(undefined),
+                writeBytes: () => {
+                    written += 1
+                    return ok(undefined)
+                },
+                rm: () => ok(undefined),
+            }
+            const host = match(map)
+            const vs = Array.from({ length: 200000 }, () => vec8(0x2An))
+            let r = host(writeFromStream('long', _vecList(vs, 0)))
+            while (r[0] === 'cont') {
+                r = host(r[2](r[1]))
+            }
+            assertEq(r[1][0], 'ok')
+            assertEq(written, 200000)
         },
         // The first piece goes in through `writeFile`; if a later one fails the
         // error is the write's and the file is removed.
