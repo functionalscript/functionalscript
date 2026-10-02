@@ -1,8 +1,11 @@
 #![doc = include_str!("README.md")]
 
-use crate::vm::{
-    Any, BigInt, IVm, IteratorRecord, Number, String, ToAny, ToArray, ToObject, ToString,
-    array::create::TOO_LONG,
+use crate::{
+    sign::Sign,
+    vm::{
+        Any, BigInt, IVm, IteratorRecord, Number, String, ToAny, ToArray, ToObject, ToString,
+        array::create::TOO_LONG,
+    },
 };
 
 /// An `Any` holding the string `v`.
@@ -29,6 +32,19 @@ pub fn string_key_utf16<A: IVm>(v: &[u16]) -> String<A> {
 /// An `Any` holding the bigint `v`.
 pub fn bigint_any<A: IVm>(v: i64) -> Any<A> {
     Into::<BigInt<A>>::into(v).to_any()
+}
+
+/// An `Any` holding the bigint of any size whose magnitude is `words`, least
+/// significant word first, negated if `negative`: the spelling of a literal
+/// outside `i64`, which [`bigint_any`] cannot take. A zero magnitude is `0n`
+/// whatever the sign, and leading zero words are dropped.
+pub fn bigint_any_words<A: IVm>(negative: bool, words: &[u64]) -> Any<A> {
+    let sign = if negative {
+        Sign::Negative
+    } else {
+        Sign::Positive
+    };
+    BigInt::normalize_new(sign, words.iter().copied()).to_any()
 }
 
 /// An `Any` holding the number whose IEEE 754 bits are `v` — the one
@@ -195,6 +211,29 @@ mod test {
         assert_eq!(
             bigint_any::<Naive>(-1),
             Into::<BigInt<Naive>>::into(-1i64).to_any()
+        );
+    }
+
+    #[test]
+    fn bigints_of_any_size() {
+        let word = |negative, words: &[u64]| bigint_any_words::<Naive>(negative, words);
+        // Within `i64` it agrees with `bigint_any`, `i64::MIN` included.
+        assert_eq!(word(false, &[1]), bigint_any(1));
+        assert_eq!(word(true, &[1 << 63]), bigint_any(i64::MIN));
+        assert_eq!(word(false, &[i64::MAX as u64]), bigint_any(i64::MAX));
+        // Zero is `0n`, signed or padded.
+        assert_eq!(word(true, &[]), bigint_any(0));
+        assert_eq!(word(true, &[0, 0]), bigint_any(0));
+        // A word boundary: `2n ** 64n`, and its negation.
+        let two_64 = word(false, &[0, 1]);
+        assert_eq!(two_64, (bigint_any::<Naive>(1) << bigint_any(64)).unwrap());
+        assert_eq!(word(true, &[0, 1, 0]), (-two_64.clone()).unwrap());
+        assert_ne!(two_64, word(false, &[1, 1]));
+        // Several words, as the decimal `123456789012345678901234567890n`.
+        let big = word(false, &[0xC373E0EE4E3F0AD2, 0x18EE90FF6]);
+        assert_eq!(
+            big.to_string().unwrap(),
+            "123456789012345678901234567890".into()
         );
     }
 
