@@ -65,6 +65,22 @@ const writeResponse = resp => {
 }
 
 /**
+ * Writes the first of `candidates` that encodes, trying each in turn.
+ * `candidates` must not be empty.
+ *
+ * `resultStep`, because each write's *failure* is what selects the next
+ * candidate, so this is the both-branches case rather than a chain to
+ * short-circuit. The last candidate is the caller's guarantee: nothing follows
+ * it, so whatever its write answers, the call is done.
+ *
+ * @type {(candidates: readonly Response[]) => Effect<Write, void, IoChannel>}
+ */
+const writeFirst = ([first, ...rest]) => resultStep(
+    writeResponse(first),
+    ([t]) => t === 'ok' || rest.length === 0 ? pureOk(undefined) : writeFirst(rest),
+)
+
+/**
  * Drives the read-parse-dispatch-write loop for `handler` over stdin/stdout.
  *
  * Recurses after each handled line; terminates (resolving to `void`) when
@@ -106,29 +122,14 @@ const handleLine = handler => line => {
                 handler(value),
                 resp => resp === null
                     ? pureOk(undefined)
-                    // `resultStep` from here down: each write's *failure* is
-                    // what selects the next, smaller fallback, so these are the
-                    // both-branches case rather than a chain to short-circuit.
-                    : resultStep(
-                        writeResponse(resp),
-                        r2 => r2[0] === 'error'
-                            // The real response didn't fit. Retry with a fixed, small
-                            // internal-error body carrying `resp.id` — but a
-                            // caller-controlled `id` (e.g. a very large string) can
-                            // itself push even this fallback over `maxLength`, so
-                            // that retry is bounded by one more: an `id: null`
-                            // internal-error, whose fully-constant shape is the only
-                            // line in this transport guaranteed to always encode.
-                            ? resultStep(
-                                writeResponse(internalErrorResponse(resp.id)),
-                                r3 => r3[0] === 'error'
-                                    ? resultStep(
-                                        writeResponse(internalErrorResponse(null)),
-                                        () => pureOk(undefined),
-                                    )
-                                    : pureOk(undefined)
-                            )
-                            : pureOk(undefined)),
+                    // The real response first. A response that does not fit
+                    // falls back to a fixed, small internal-error body carrying
+                    // `resp.id` — but a caller-controlled `id` (e.g. a very
+                    // large string) can itself push even this fallback over
+                    // `maxLength`, so the list ends with an `id: null`
+                    // internal-error, whose fully-constant shape is the only
+                    // line in this transport guaranteed to always encode.
+                    : writeFirst([resp, internalErrorResponse(resp.id), internalErrorResponse(null)]),
             ),
         // The loop continues whatever the line's own handling answered: a
         // transport that could not write one response still serves the next.

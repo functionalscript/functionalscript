@@ -87,8 +87,9 @@ is gone (#1520) and the blanket `**/*.js` ignore is gone from `.gitignore`
 though `**/*.js` deliberately stays in `package.json`'s `files`. Stage 2 can
 therefore use `.f.js` as authored compiler-compatible FunctionalScript.
 Standalone authored `.f.js` source is directly checked, gets `.d.ts`, is
-packed, and resolves for a clean consumer, which `package-check`
-([`../package/module.f.mjs`](../package/module.f.mjs)) proves on every run.
+packed, and resolves for a clean consumer, which the packed-package check
+closing the `node26` job ([`../package/module.f.mjs`](../package/module.f.mjs))
+proves on every run.
 
 ### Stage-1 TypeScript configuration
 
@@ -195,7 +196,7 @@ source.f.js -> source.f.js + source.f.d.ts
 
 TypeScript with `allowJs` / `checkJs` must include authored `.f.js` directly in
 its checked source roots and declaration emission. NPM and clean-consumer tests
-must cover both runtime and declarations. They hold: `package-check`
+must cover both runtime and declarations. They hold: the packed-package check
 ([`../package/module.f.mjs`](../package/module.f.mjs)) imports a published
 `.f.js` from a clean consumer, runs it and type-checks a use of its
 declaration with a negative control.
@@ -216,7 +217,7 @@ declaration with a negative control.
       above).
 - [x] Complete authored `.f.js` package support after stage 1. Done: a
       standalone `.f.js` is type-checked, declared, packed and covered, and
-      `package-check` imports a published one from a clean consumer with a
+      the packed-package check imports a published one from a clean consumer with a
       negative control; the first renames landed on `fjs compile`'s check
       before that last step, as
       [`fjs-nanvm-integration.md`](../../../todo/fjs-nanvm-integration.md)
@@ -230,8 +231,9 @@ declaration with a negative control.
   ordering and the extension contract.
 - [`f-mjs-package-support.md`](./f-mjs-package-support.md) — focused stage-1
   authored `.mjs` prerequisite.
-- [`../package/module.f.mjs`](../package/module.f.mjs) — `package-check`, the
-  clean-consumer check of the packed package and its published `.f.js`.
+- [`../package/module.f.mjs`](../package/module.f.mjs) — the packed-package
+  check closing the `node26` job, the clean-consumer check of the packed
+  package and its published `.f.js`.
 - [`fjs/compiler/README.md`](../../compiler/README.md) — authoritative FunctionalScript
   extension and migration contract.
 - [GitHub issue #398](https://github.com/functionalscript/functionalscript/issues/398)

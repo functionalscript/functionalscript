@@ -101,6 +101,9 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
    ([importing](../README.md#importing-other-modules)).
 8. [x] an omitted `;` where ECMAScript's automatic semicolon insertion
    permits one ([module structure](../README.md#module-structure)).
+9. [ ] [spread](./2480-spread.md) in an array literal and a call's
+   arguments, `[...a]` and `f(...a)`; object spread, `{...o}`, is a separate
+   proposal.
 
 ## 3. Functions
 

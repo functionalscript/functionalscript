@@ -39,14 +39,20 @@ export const stepSchema = /** @type {const} */ ({
     // of the command that runs it, so a value GitHub substitutes into it is
     // never read back as shell source. See `../module.f.mjs`'s `inShell`.
     env: or(option, record(string)),
+    // The directory a `run` step starts in, when it is not the checkout. The
+    // packed-package check is the one user: it runs as a consumer, in a
+    // directory outside the repository. See `../package/module.f.mjs`.
+    'working-directory': or(option, string),
     'continue-on-error': or(option, true)
 })
 
-// `needs` is how one job waits for another: a job that consumes an artifact
-// cannot start before the job that uploads it. It is optional because most jobs
-// are independent, and it is named here rather than emitted past the schema —
-// `parseGitHubAction` reads back the workflow this repository generates, so an
-// unmodelled key would fail that round-trip in `fjs/ci/proof.f.mjs`.
+// `needs` is how one job waits for another. No generated job uses it —
+// `jobNeeds` in `fjs/ci/proof.f.mjs` pins that — because GitHub creates a
+// waiting job only when the job it waits for finishes, so behind a full runner
+// queue it waits a second time. It stays modelled so an ordering edge is a
+// deliberate change rather than a key emitted past the schema:
+// `parseGitHubAction` reads back the workflow this repository generates, so
+// an unmodelled key would fail that round-trip.
 export const jobSchema = /** @type {const} */ ({
     'runs-on': string,
     needs: or(option, array(string)),

@@ -24,7 +24,11 @@ check covers them for free. This repository's own `gen` spells itself
 `node ./fjs/module.mjs ci && …` only to avoid depending on the package bin
 before the package is installed, which that README says outright. So
 `npm run gen` and its drift check are an extension point, not a private
-gate.
+gate. Since the packed-package check moved into `node26`, the job also ends
+with it: a project whose tarball ships no declarations gets a red `node26`
+(`TS18003`). The README documents this under "Two consequences", and
+[package-check-unsupported-package-shapes](./package-check-unsupported-package-shapes.md)
+(2) prices the alternatives.
 
 **The one step that was not covered by that contract has been deleted.** The
 file-scope JSDoc `@typedef` prohibition came from root `AGENTS.md`, nothing
@@ -98,7 +102,7 @@ is speculative generality.
 
 ### Related
 
-- [`../node/module.f.mjs`](../node/module.f.mjs) — `node26NixSteps`, the job in
+- [`../node/module.f.mjs`](../node/module.f.mjs) — `node26Steps`, the job in
   question.
 - [`../module.f.mjs`](../module.f.mjs) — `ci(setup)` and `canonicalJobs`, where
   the jobs are assembled and `nodeExtra` stops short.
