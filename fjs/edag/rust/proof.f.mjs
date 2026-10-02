@@ -975,24 +975,69 @@ export const proof = {
             'bigint_any_words(false, &[0xc373e0ee4e3f0ad2, 0x000000018ee90ff6])')
         assertEq(printed(-(2n ** 64n)), 'bigint_any_words(true, &[0x0000000000000000, 0x0000000000000001])')
     },
+    /**
+     * A `Number(…)` index, `a[k]` once the source spells it: an operand like
+     * any other, bound where it is a temporary and cast by `Any::number`,
+     * after the receiver and before the access. Inside a region the cast and
+     * its operand are one thunk, which the guard runs or skips.
+     */
+    computedIndex: {
+        /** The key is an operation, so it is a binding of its own, then the cast. */
+        dot: () => assertStructurallySame(
+            scoped(['.', ['{}', []], ['Number', ['+', 1]]]),
+            [
+                'let c0: Any<A> = (Any::unary_plus(f64_any(0x3ff0000000000000)))?;',
+                'let c1: Any<A> = (Any::number(c0))?;',
+                'Any::dot(Object::default().to_any(), c1).end()',
+            ]),
+        /** A literal operand needs no binding of its own. */
+        literalOperand: () => assertStructurallySame(
+            scoped(['.', ['{}', []], ['Number', 1]]),
+            [
+                'let c0: Any<A> = (Any::number(f64_any(0x3ff0000000000000)))?;',
+                'Any::dot(Object::default().to_any(), c0).end()',
+            ]),
+        /** One step into a chain, the inner read's key is cast as it is outside one. */
+        dotOfDot: () => assertStructurallySame(
+            scoped(['.', ['.', ['[]', []], ['Number', 1]], 'x']),
+            [
+                'let c0: Any<A> = (Any::number(f64_any(0x3ff0000000000000)))?;',
+                'let c1: Any<A> = Any::dot(Array::default().to_any(), c0).end()?;',
+                'Any::dot(c1, string_any("x")).end()',
+            ]),
+        /** Under `?.` the key is a thunk that casts, its operand inside it. */
+        optionDot: () => assertStructurallySame(
+            scoped(['?.', ['{}', []], ['Number', ['+', 1]]]),
+            [
+                'let c0 = || {',
+                '    let c1: Any<A> = (Any::unary_plus(f64_any(0x3ff0000000000000)))?;',
+                '    Any::number(c1)',
+                '};',
+                'Any::option_dot(Object::default().to_any(), c0).end()',
+            ]),
+        /** A literal operand is a thunk over the cast alone, named once it is a temporary. */
+        optionDotLiteral: () => assertStructurallySame(
+            scoped(['?.', ['{}', []], ['Number', 1]]),
+            [
+                'let c0 = || Any::number(f64_any(0x3ff0000000000000));',
+                'Any::option_dot(Object::default().to_any(), c0).end()',
+            ]),
+        /** A `|.` step's key is lazy too. */
+        step: () => assertStructurallySame(
+            scoped(['?.', ['{}', []], 'a', ['|.', ['Number', ['+', 2]]]]),
+            [
+                'let c0 = || {',
+                '    let c1: Any<A> = (Any::unary_plus(f64_any(0x4000000000000000)))?;',
+                '    Any::number(c1)',
+                '};',
+                'Any::option_dot(Object::default().to_any(), || Ok(string_any("a"))).dot(c0).end()',
+            ]),
+    },
     throw: {
         /** An operation the printer has no `nanvm-lib` spelling for. */
         unknownOperation: () => printed(['is', 1, 2]),
         /** An object key the printer cannot spell. */
         computedKey: () => printed(['{}', [[':', ['undefined'], 1]]]),
-        /**
-         * A `Number(...)` cast index: it names a run-time coercion, not a
-         * literal key `indexExpr` can spell directly, and this printer has no
-         * `Number(...)` cast primitive to route it through.
-         */
-        numberCastIndex: () => printed(['.', ['{}', []], ['Number', 1]]),
-        /**
-         * A `Number(...)` cast key one step into a chain refuses as
-         * `numberCastIndex` above does, from `indexExpr`, when the inner
-         * node is printed.
-         */
-        dotOnArrayWithNumberCastKey: () => printed(['.', ['.', ['[]', []], ['Number', 1]], 'x']),
-        dotOnStringWithNumberCastKey: () => printed(['.', ['.', 'ab', ['Number', 1]], 'x']),
         /** `Exps` admits an empty list in the schema; the Rust backend has no value for it. */
         emptyComma: () => printed([',', []]),
     },
@@ -1209,16 +1254,10 @@ export const proof = {
                 refusalReason(/** @type {Exp} */ (/** @type {unknown} */ (['?.', ['{}', []], 'f', k]))),
                 ['no Rust for a chain step', k])
         },
-        /** A `Number(...)` cast key inside a region is refused as it is outside one. */
-        refusedNumberCastKey: () => {
-            assertStructurallySame(
-                refusalReason(['?.', ['{}', []], ['Number', 1]]),
-                ['no Rust for a Number(...) cast index', ['Number', 1]])
-        },
     },
     /**
      * Refusals met one step into a chain, each the inner node's own — an
-     * object spread the printer cannot spell, a `Number(...)` cast key — surfacing
+     * object spread the printer cannot spell — surfacing
      * with the inner node's reason when it is printed, and never a reason
      * about the base's value, which the printer does not predict.
      */
@@ -1314,12 +1353,6 @@ export const proof = {
             assertStructurallySame(
                 refusalReason(['.', ['.', ['{}', [/** @type {any} */ (['?', 'x'])]], 'y'], 'z']),
                 ['not a property', ['?', 'x']])
-        },
-        /** The cast key is `indexExpr`'s refusal, the same one `numberCastIndex` pins directly. */
-        dotOnObjectWithNumberCastKey: () => {
-            assertStructurallySame(
-                refusalReason(['.', ['.', ['{}', []], ['Number', 1]], 'x']),
-                ['no Rust for a Number(...) cast index', ['Number', 1]])
         },
     },
 }
