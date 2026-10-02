@@ -155,19 +155,20 @@ export const proof = {
             assertEq(html.split('<g data-graph-in-kind="leaf">').length - 1, 2)
             assert(html.includes('<g data-graph-in-kind="container"><text'), html)
         },
-        // An entry is an arrow from nowhere into a node. The first column
-        // moves right by an arrow's length to make room: the node is at
-        // x=34, and its header's middle, y=23, is where the arrows arrive.
-        // Two into one node start 8px apart, so neither hides the other.
+        // An entry is an arrow from nowhere into a node, level with where
+        // an edge would arrive. The first column moves right by an arrow's
+        // length to make room: the first node is at x=34, and its header's
+        // middle, y=23, is where its arrow arrives. A node with no entry
+        // gets no arrow.
         entries: () => {
             const html = htmlToString(graphSvg({
-                nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0 }],
+                nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0 }, { id: 1, kind: 'a', label: 'm', rank: 0 }],
                 edges: [],
-                entries: [{ to: 0, kind: 'old' }, { to: 0 }],
+                entries: [{ to: 0, kind: 'old' }],
             }))
             assert(html.includes('<rect x="34" y="10" width="50" height="26" rx="4" data-graph-node=""'), html)
-            assert(html.includes('<path d="M10,19 L34,23" data-graph-edge="" data-graph-entry="" marker-end="url(#graph-arrow)" data-graph-edge-kind="old">'), html)
-            assert(html.includes('<path d="M10,27 L34,23" data-graph-edge="" data-graph-entry="" marker-end="url(#graph-arrow)">'), html)
+            assert(html.includes('<path d="M10,23 L34,23" data-graph-edge="" data-graph-entry="" marker-end="url(#graph-arrow)" data-graph-edge-kind="old">'), html)
+            assertEq(html.split('data-graph-entry=""').length - 1, 1)
         },
         // An empty label is no row when a node has ports: each node is its
         // one 20px row, and the edge runs from the middle of the first row
@@ -575,6 +576,8 @@ export const proof = {
             }),
             // An entry, too, must arrive at a node the graph has.
             entryToAMissingNode: () => graphSvg({ nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0 }], edges: [], entries: [{ to: 1 }] }),
+            // And two entries into one node would be drawn as one.
+            twoEntriesIntoOneNode: () => graphSvg({ nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0 }], edges: [], entries: [{ to: 0 }, { to: 0, kind: 'old' }] }),
             // The crossing count lays the graph out the same way, and
             // refuses the same input.
             crossings: () => _crossings({

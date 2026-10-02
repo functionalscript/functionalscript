@@ -165,7 +165,6 @@ const laneSize = /** @type {const} */ (10)
 const margin = /** @type {const} */ (10)
 const charWidth = /** @type {const} */ (7)
 const entryLength = /** @type {const} */ (24)
-const entrySpread = /** @type {const} */ (8)
 
 /** @type {(label: string) => number} */
 const widthOf = label => Math.max(50, label.length * charWidth + 16)
@@ -420,7 +419,8 @@ export const _crossesBox = box => ([x0, y0]) => ([x1, y1]) => {
  * `g` laid out, with room left of the first column for its entries' arrows
  * when it has any. **An entry must name a node of the graph**, for the
  * reason an edge must ({@link layout}): an arrow into nothing would simply
- * vanish.
+ * vanish. **And no node takes two**: they would be drawn one over the
+ * other, which reads as one.
  *
  * @type {(g: Graph) => _Placed}
  */
@@ -428,6 +428,8 @@ const placedOf = ({ nodes, edges, entries = [] }) => {
     const ids = new Set(nodes.map(n => n.id))
     const missing = entries.findIndex(({ to }) => !ids.has(to))
     if (missing !== -1) { throw `graph: entry ${missing} ends at node ${entries[missing].to}, which is not in the graph` }
+    const repeated = entries.findIndex(({ to }, i) => entries.findIndex(e => e.to === to) !== i)
+    if (repeated !== -1) { throw `graph: entry ${repeated} ends at node ${entries[repeated].to}, which another entry already does` }
     return layout(margin + (entries.length === 0 ? 0 : entryLength))(nodes)(edges)
 }
 
@@ -514,18 +516,16 @@ export const graphSvg = g => {
     }])
     const entries = g.entries ?? []
     // An entry runs straight right into its node, level with where an edge
-    // would arrive. Several into one node start a little apart and meet
-    // there, so none is drawn over another.
+    // would arrive.
     /** @type {readonly Element[]} */
-    const entryEls = positioned.flatMap(p => {
-        const into = entries.filter(({ to }) => to === p.id)
+    const entryEls = positioned.flatMap(p => entries.filter(({ to }) => to === p.id).map(({ kind }) => {
         const y = p.y + p.entry
-        return into.map(({ kind }, i) => /** @type {Element} */ (['path', {
-            d: `M${p.x - entryLength},${y + (i - (into.length - 1) / 2) * entrySpread} L${p.x},${y}`,
+        return /** @type {Element} */ (['path', {
+            d: `M${p.x - entryLength},${y} L${p.x},${y}`,
             'data-graph-edge': '', 'data-graph-entry': '', 'marker-end': 'url(#graph-arrow)',
             ...(kind === undefined ? {} : { 'data-graph-edge-kind': kind }),
-        }]))
-    })
+        }])
+    }))
     /**
      * How wide a port's key cell is: the whole row for an edge, nothing for
      * a value with an empty key, and the key column for any other value.

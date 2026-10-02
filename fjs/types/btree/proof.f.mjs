@@ -129,12 +129,12 @@ const demoProof = {
         const h = html(demo.init)
         assertEq(JSON.stringify(demo.init), JSON.stringify(_load(presets[0][0])))
         assertEq(demo.init.versions.before, demo.init.versions.after)
-        // One graph, with no node above the tree and no titles: both
-        // versions' arrows point at its one root, the old one faded.
+        // One graph, with no node above the tree and no titles: the one
+        // root both versions share has one arrow, not faded.
         assertEq(count(h)('<svg'), 1)
         assertEq(count(h)('data-graph-label='), 0)
-        assertEq(count(h)('data-graph-entry=""'), 2)
-        assertEq(count(h)('data-graph-entry="" marker-end="url(#graph-arrow)" data-graph-edge-kind="replaced"'), 1)
+        assertEq(count(h)('data-graph-entry=""'), 1)
+        assertEq(count(h)('data-graph-edge-kind="replaced"'), 0)
         assert(h.includes('name="insert"'), h)
         assert(h.includes('name="remove"'), h)
         assert(h.includes('value="8"'), h)

@@ -164,8 +164,8 @@ const kindOrder = kind => kind === 'replaced' ? 0 : kind === 'shared' ? 1 : 2
  *
  * - **No root above the two, and no titles.** An arrow from nowhere
  *   points at each version's root — faded for the old one, solid for the
- *   new — so a root that both versions share has both arrows, which is
- *   what a step that changed nothing looks like.
+ *   new. A root both versions share has only the solid arrow: the step
+ *   changed nothing, which the line above the drawing already says.
  * - **Leaves line up.** A node's rank is how far it is above the leaves,
  *   counted down from the taller root, so every leaf sits in the last
  *   column and the two roots sit where their heights put them.
@@ -189,7 +189,7 @@ export const _graphOf = ({ before, after }) => {
     return {
         nodes: sorted.map((node, id) => ({ id, kind: kindOf(node), label: '', rank: top - heightOf(node) })),
         entries: [
-            ...(before === null ? [] : [{ to: sorted.indexOf(before), kind: 'replaced' }]),
+            ...(before === null || before === after ? [] : [{ to: sorted.indexOf(before), kind: 'replaced' }]),
             ...(after === null ? [] : [{ to: sorted.indexOf(after) }]),
         ],
         edges: sorted.flatMap((node, id) => rowsOf(node).map(([label, value]) => typeof value === 'number'
