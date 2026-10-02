@@ -11,8 +11,8 @@ import { _rustOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 
-/** The shared examples the Rust output refuses: three the parser does, and the import it has no file set for. */
-const refusedByRust = ['An import', 'Logical not', 'typeof', 'Parse error']
+/** The shared examples the Rust output refuses: the four the front end does, and the import it has no file set for. */
+const refusedByRust = ['An import', 'Logical not', 'Hex escape', 'typeof', 'Parse error']
 
 export const proof = {
     throw: {

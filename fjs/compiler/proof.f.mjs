@@ -1786,9 +1786,13 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             /** @type {Readonly<Record<string, string>>} */
             const expected = {
                 'Primitives': 'xoooo',
+                'String escapes': 'ooooo',
+                'Comments': 'ooooo',
                 'Objects': 'ooooo',
+                'A repeated object key': 'ooooo',
                 'Sharing: a const used twice': 'xoooo',
                 'Arithmetic': 'xxooo',
+                'Operator precedence': 'xxooo',
                 'Laziness': 'xxooo',
                 'Function with a rest parameter': 'xxooo',
                 'Closure': 'xxooo',
@@ -1797,6 +1801,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 'A failure at run time': 'xxooo',
                 'An import': 'xxxxx',
                 'Logical not': 'xxxxx',
+                'Hex escape': 'xxxxx',
                 'typeof': 'xxxxx',
                 'Parse error': 'xxxxx',
             }

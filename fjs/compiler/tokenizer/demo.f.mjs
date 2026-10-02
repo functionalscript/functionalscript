@@ -9,8 +9,9 @@
  *
  * **A token the tokenizer cannot read is a line, not a failure.** An
  * `error` token carries its message and, where it knows how far the unread
- * source runs, the end of the span. `!` shows up that way: the grammar has no
- * token for it, so it stops here, before the parser sees it. `typeof` is the
+ * source runs, the end of the span. `!` and a `\x41` escape show up that way:
+ * the grammar has no token for the one and no spelling of the other inside a
+ * string, so they stop here, before the parser sees them. `typeof` is the
  * other half — an ordinary name to the tokenizer, refused only by the parser —
  * so the two pages together say which stage a refusal belongs to.
  *

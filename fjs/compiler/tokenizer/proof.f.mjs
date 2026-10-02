@@ -162,12 +162,13 @@ export const proof = {
             assertEq(_tokensOf('"bad').split('\n')[0], '1:1  error  invalid token (to 1:5)')
         },
         examples: () => {
-            // every example ends at `eof`, and only `!` is a token the tokenizer cannot read
+            // `!` and a hex escape are what the tokenizer cannot read; every other example ends at `eof`
             for (const [name, source] of examples) {
                 const tokens = _tokensOf(source)
-                assert(tokens.endsWith('eof'), name)
-                assertEq(tokens.includes('  error  '), name === 'Logical not', name)
+                assertEq(tokens.includes('  error  '), ['Logical not', 'Hex escape'].includes(name), name)
+                assertEq(tokens.endsWith('eof'), name !== 'Hex escape', name)
             }
+            assertEq(_tokensOf('"a\\u0041"').split('\n')[0], '1:1  string  "aA"')
         },
         view: () => {
             const shown = htmlToString(demo.view(demo.init))

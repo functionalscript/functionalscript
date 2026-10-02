@@ -1531,9 +1531,9 @@ export const proof = {
     demo: {
         examples: () => {
             for (const [name, source] of examples) {
-                assertEq(_astOf(source)[0], ['Logical not', 'typeof', 'Parse error'].includes(name) ? 'error' : 'ok')
+                assertEq(_astOf(source)[0], ['Logical not', 'Hex escape', 'typeof', 'Parse error'].includes(name) ? 'error' : 'ok')
             }
-            assertEq(_astOf('export default 1;')[1], 'export default [[],[["object",[["default",1]]]]];')
+            assertEq(_astOf('export default 1;')[1], 'export default [[],[["object",[[":","default",1]]]]];')
             assertEq(_astOf('export default !1;')[1], 'unexpected token')
         },
         view: () => {

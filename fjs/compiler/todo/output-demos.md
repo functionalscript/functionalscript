@@ -1,131 +1,95 @@
 ## Demo pages for the compiler's outputs
 
 **Priority:** P3
-**Status:** implemented for the five stages below; the open questions remain
+**Status:** the five stage pages and the side-by-side page are built; the open
+questions remain
 
 ### Problem
 
 `fjs compile` writes five outputs from one linked program — a `.json`
 document, a `.data.js` document, a `.js` module, the EDAG, and generated Rust —
-and the README says in prose which one refuses what. A reader cannot *see* it:
-that `[a, a]` is one `const` in `.js` and `.data.js` but a plain duplicate in
-JSON, that a function survives to `.js`, EDAG and Rust and is refused by the
-value outputs, that a shared node makes the JSON output refuse. Only the EDAG
-has a demo ([`edag/demo.f.mjs`](../edag/demo.f.mjs)); the others have none.
+and the README says in prose which one refuses what. A reader could not *see*
+it: that `[a, a]` is one `const` in `.js` and `.data.js` but refused by JSON,
+that a function survives to `.js`, EDAG and Rust and is refused by the value
+outputs, that `!x` stops in the tokenizer and `typeof x` in the parser.
 
-### Proposal
-
-A demo is discovered by its `demo` export
-([website demos](../../website/demo/types.ts)), so this is a few small modules,
-not a page. One shared source box, one view per output, each a pure demo like
-the EDAG one.
-
-**One page, one source, every output.** The compiler's own pitch is "one
-program, several outputs", so the demo that carries it is one text field with
-the outputs side by side, not five unrelated pages. Typing `export default
-[a, a]` should show all five answers at once, and the *difference* between
-them is the lesson.
-
-| Pane | Shows | Refusal looks like |
-| ---- | ----- | ------------------ |
-| EDAG | the existing graph drawing | n/a — EDAG takes everything |
-| `.js` | `tryModuleStringify` | n/a for values; shows the emitted `const`s |
-| `.data.js` | the DataJS serializer, normalized | the refusal message in place of the text |
-| `.json` | `_tryJson` | the refusal message, and *why* (shared node, function, `undefined`) |
-| Rust | `toRust` | the refusal message |
-
-**A refusal is a first-class pane state, not an empty box.** A pane that cannot
-spell the value says so, in the compiler's own words, tinted like a failed
-proof. A blank pane is the plausible wrong answer
-[DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
-rules out, and the refusals are the interesting half of the comparison.
-
-**Sharing is marked across panes.** The EDAG graph already draws a shared
-`const` as one node with two incoming edges. The text panes highlight the
-`const` the sharing produced, so the reader sees the same fact in the graph and
-in the output.
-
-**Examples, via the shared picker** ([`demo/examples`](../../website/demo/examples/module.f.mjs)),
-each one chosen to make one output differ:
-
-1. `export default [1, 2]` — everything agrees.
-2. `const a = [1]; export default [a, a]` — sharing: `const` in `.js`, refused by JSON.
-3. `export default (x) => x` — a function: `.js`/EDAG/Rust yes, value outputs refuse.
-4. `export default undefined` — JSON refuses, DataJS spells it.
-5. `export default 1 + 2` — folded in value outputs, an operator node in the EDAG.
-6. A named-only module — the root projects to `undefined` for value output.
-
-**Imports.** A browser has no filesystem, so the single-source box compiles one
-module with no imports. Showing import linking (`resolve`) needs a virtual file
-set; see the open questions rather than faking it with a hidden fixture.
-
-### Where it lives
+### Design
 
 **One demo per directory, because a page has one demo section.** The website
 refuses a second module exporting `demo` in the same directory and skips both
-([`website/module.f.mjs`](../../website/module.f.mjs), `resolveDemos`). So the
-side-by-side page above cannot be the only demo, and several presets cannot be
-several demo files in one folder. The layout follows the compiler's own stages
-instead: each stage folder gets one `demo.f.mjs` showing *that stage's* output,
-with its own presets, and its page is where a reader of that code lands.
+([`website/module.f.mjs`](../../website/module.f.mjs), `resolveDemos`). So
+several presets cannot be several demo files in one folder, and the layout
+follows the compiler's own stages instead: each stage folder has one
+`demo.f.mjs` showing *that stage's* output, and its page is where a reader of
+that code lands.
 
-| Directory | `demo.f.mjs` shows | Presets teach |
-| --------- | ------------------ | ------------- |
-| `compiler/tokenizer/` | text → tokens | numbers and bigints, string escapes, comments, reserved words |
-| `compiler/parser/` | text → AST | `import`/`const`/`export`, operator precedence, a repeated object key, a function with rest |
-| `compiler/edag/` | text → graph (exists) | sharing, lazy edges, closures, optional chaining (not drawn yet) |
-| `compiler/serializer/` | text → `.js` module | what becomes a `const`, named exports, function text |
-| `compiler/rust/` | text → Rust | literals, operators, calls and methods, lazy arms, closures, the deferred runtime throw |
-| `compiler/` | text → every output side by side | the cross-output differences in the table above |
+| Directory | `demo.f.mjs` shows |
+| --------- | ------------------ |
+| `compiler/tokenizer/` | text → one line per token, an unreadable token as an `error` line |
+| `compiler/parser/` | text → the AST, as DataJS text |
+| `compiler/edag/` | text → the EDAG as a graph (the one that existed first) |
+| `compiler/serializer/` | text → the `.js` module |
+| `compiler/rust/` | text → the Rust `fjs compile` writes |
+| `compiler/` | text → `.json`, `.data.js`, `.js`, `.edag.data.js` and `.rs` side by side |
 
-`ast/` has no demo of its own: its data is what `parser/` draws. A directory
-whose output is not interesting alone gets none, which the website already
-treats as the ordinary case.
+`ast/` has no demo of its own: its data is what `parser/` draws.
 
-**Presets are shared, so one program can be followed down the pipeline.** A
-reader who picks "closure" in the tokenizer page should find "closure" in the
-parser, EDAG and Rust pages. They are one list in
-`compiler/examples/module.f.mjs`, grouped by what they exercise; each stage
-demo passes the groups that are interesting at its stage to `textDemo`
-(`examples`), and the picker checks names and sources are distinct. The
-programs that are also compiler fixtures (`input.f.js`, `m.f.js`) stay where
-they are.
+**Each demo runs the stage it shows, never a lookalike.** The stage demos call
+the stage's own function (`tryModuleStringify`, `toRust`, `tokenize`, `parse`).
+The side-by-side page runs the real `compile` over an in-memory file system,
+once per output name, so it cannot drift from the CLI. **No output logic is
+copied into a demo**; one that is not exported yet is exported, per
+[AGENTS.md §1](../../../AGENTS.md#1-workflow).
 
-**Presets that are *refused* are presets too.** A stage's refusal is shown in
-its own pane, and the shared list includes the inputs that exercise one:
-`!x` and `typeof x` are valid JavaScript the parser rejects today, and a
-preset that makes the refusal visible is the cheapest regression table there
-is. The preset's name says what it demonstrates, never "bug".
+**A refusal is shown, in the compiler's own words, not as an empty box.** An
+empty pane would be the plausible wrong answer
+[DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle) rules
+out, and what a stage will not accept is half of what it is.
 
-- Each output's formatting stays with its owner: a stage demo calls its own
-  stage (`tryModuleStringify`, `toRust`, `unresolved`, …). **No output logic is
-  copied into a demo**; one that is not exported yet is exported, per
-  [AGENTS.md §1](../../../AGENTS.md#1-workflow).
-- Each `demo.f.mjs` ships proof coverage in its directory's `proof.f.mjs`,
-  driven by walking its presets, so a preset that stops compiling fails a test.
-- Land it as a stack: the shared examples module with the Rust demo first (the
-  reader's immediate interest), then one stage per pull request.
+**The presets are one flat list**, [`examples/module.f.mjs`](../examples/module.f.mjs),
+that the tokenizer, parser, serializer, Rust and side-by-side demos each offer
+whole through the shared picker
+([`website/demo/examples`](../../website/demo/examples/module.f.mjs)), which
+checks that names and sources are distinct. A reader who picks "Closure" on one
+page finds "Closure" on the others. The list holds programs for: primitives,
+string escapes, comments, objects, a repeated object key, sharing, arithmetic,
+operator precedence, laziness, a function with a rest parameter, a closure,
+methods and properties, named exports, and a failure at run time — and the
+inputs a stage refuses: an import (no file set in a browser), `!x`, a hex
+escape, `typeof x`, and an unfinished module. The EDAG demo still has a list
+of its own, tuned to what its drawing has to say, and does not use this one.
 
-### Built
+**A name says what the program is, and each proof says what its stage
+refuses.** The parser takes an import the Rust output cannot link, so "refused"
+is not a property of the program. Each stage's `proof.f.mjs` walks the shared
+list and pins which examples that stage refuses, so a preset that stops
+behaving as its name says fails a test; the side-by-side proof is a table of
+which outputs accept which example.
 
-A demo in each of `compiler/tokenizer/`, `compiler/parser/`, `compiler/serializer/`
-and `compiler/rust/`, the existing one in `compiler/edag/`, and the side-by-side
-page in `compiler/demo.f.mjs`. The side-by-side page runs the real `compile` over
-an in-memory file system once per output name, so it cannot drift from the CLI.
-Each stage's proof pins which shared example it refuses; the side-by-side proof
-is a table of which outputs accept which example.
+### What the pages show today
 
-What the pages already show: `!` stops in the tokenizer (an `error` token),
-`typeof` passes it and stops in the parser, and an import is refused by every
-output because the in-memory file system holds only the input.
+- `!x` and a `\x41` string escape stop in the tokenizer, as `error` tokens with
+  a span; `typeof x` passes it as an ordinary name and the parser refuses it.
+- An operator, a function, a call and a failing read are refused by `.json` and
+  `.data.js` — a value has none of them — and written by `.js`, the EDAG and
+  Rust; `undefined` and a shared node are refused by `.json` alone.
+- A repeated object key keeps its last value in `.json` and `.data.js` and both
+  entries in `.js`, the EDAG and Rust.
+- An import is refused by every output: the in-memory file system holds only
+  the input.
 
 ### Open questions
 
 - **Import linking.** The pages compile one module. Showing `resolve` needs a
   second file in the box; the in-memory file system already supports it.
+- **Marking sharing across panes.** Highlighting the `const` that sharing
+  produced, so the text panes and the EDAG graph show the same fact, is not
+  built.
 - **The EDAG demo's presets** are its own list. Moving it onto the shared list
   would finish "one program down the pipeline", at the cost of losing its
   graph-specific presets (laziness, closures with frames).
+- **Rust pane length.** The Rust output is long for a small input; a
+  collapsed-by-default pane on the side-by-side page is the cheap answer.
 - **Source positions.** A refusal naming a position deserves a caret in the
   text box; that waits on
   [investigate-edag-source-maps](./investigate-edag-source-maps.md).
@@ -133,7 +97,8 @@ output because the in-memory file system holds only the input.
 ### Related
 
 - [`value-refusal-names-the-output.md`](./value-refusal-names-the-output.md) —
-  the refusal wording the panes would show.
+  the refusal wording the panes show.
 - [`named-export-sharing-precision.md`](./named-export-sharing-precision.md) —
   its example is one of the sharing cases above.
-- [`../edag/demo.f.mjs`](../edag/demo.f.mjs) — the one demo that exists.
+- [`../edag/demo.f.mjs`](../edag/demo.f.mjs) — the EDAG's own demo, with its own
+  presets.
