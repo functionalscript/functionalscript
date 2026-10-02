@@ -1,10 +1,10 @@
 {
-    inputs.nixpkgs.url = "github:NixOS/nixpkgs/78e9c786dc08cd4f3420c2395cd977206a9b1da2";
-    inputs.rust-overlay.url = "github:oxalica/rust-overlay/b2ccad3b67335d368eef49ec48b9c8166858e73d";
+    inputs.nixpkgs.url = "github:NixOS/nixpkgs/4feb8eb8bf30f323a8a5d285f14ee51d6a7197b1";
+    inputs.rust-overlay.url = "github:oxalica/rust-overlay/368fee9beaab04ca6fe7af28db63caa9badb22fa";
     inputs.rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
     outputs = { nixpkgs, rust-overlay, ... }: let
         shell = { pkgs, targets, shellHook, url, hash, ... }: let
-            rust = pkgs.rust-bin.stable."1.98.1".minimal.override {
+            rust = pkgs.rust-bin.stable."1.99.0".minimal.override {
                 extensions = [ "clippy" "rustfmt" ];
                 targets = targets;
             };
