@@ -1,7 +1,7 @@
 ## The `is` operator, `Object.is` as an EDAG node
 
 **Priority:** P2
-**Status:** open
+**Status:** wip
 
 ### Problem
 
