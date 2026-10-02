@@ -76,7 +76,9 @@ Constant spreads are not folded, so `[...[1, 2]]` is a different graph from
   leaf modules, it is one of the two blockers of `fjs/js/keywords`.
 - **The rest of the pipeline is ready.** The EDAG, its analysis and the
   JavaScript evaluator take spread items already (#2460, #2466). This adds
-  only the grammar rule, the lowering and the `.js` writer's spelling.
+  the grammar rule, the lowering, the `.js` writer's spelling, and the
+  spread to the AST that the `.json` and `.data.js` outputs evaluate and
+  analyse.
 - **One rule for arrays and calls.** Since #2466 a call's arguments are the
   item list an array holds, so a spread means the same in both places, by
   construction.
@@ -129,6 +131,11 @@ printer read it before any source can produce it.
       [`fjs/compiler/ast`](../../fjs/compiler/ast/module.f.mjs), lowered to
       `['...', exp]` by [`fjs/compiler/edag`](../../fjs/compiler/edag/module.f.mjs).
       A call with a spread is never inlined.
+- [ ] Value evaluator and analysis: `toDjs` in
+      [`fjs/compiler/ast`](../../fjs/compiler/ast/module.f.mjs), which the
+      `.json` and `.data.js` outputs run, iterates a spread in its place,
+      and the sharing sweep counts what the spread puts in the array — its
+      operand's elements, not the operand.
 - [ ] `.js` writer: spell a spread item, `...x`, in an array and in a
       call's arguments, in
       [`fjs/compiler/serializer`](../../fjs/compiler/serializer/module.f.mjs),
