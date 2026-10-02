@@ -3,7 +3,7 @@ use crate::vm::{Any, IVm, ToArray};
 
 /// The error for an array longer than JavaScript's limit, `2³² − 1`
 /// elements, which is also `Array<A>`'s `u32` length limit.
-const TOO_LONG: &str = "RangeError: Invalid array length";
+pub(crate) const TOO_LONG: &str = "RangeError: Invalid array length";
 
 /// A new array of `len` elements from `items`, or the `RangeError`
 /// JavaScript's `ArrayCreate` throws when `len` is past the limit. The

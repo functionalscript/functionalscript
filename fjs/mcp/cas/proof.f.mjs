@@ -19,6 +19,8 @@ import { number as rttiNumber, string as rttiString } from '../../rtti/module.f.
 import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { parse as parseJson } from '../../media/json/module.f.mjs'
+import { fileCas } from '../../cas/module.f.mjs'
+import { sha256 } from '../../crypto/sha2/module.f.mjs'
 
 // A harmless "always succeeds" response for a command, used by `drive` once a
 // test's overrides for that command are exhausted — same technique as
@@ -99,7 +101,7 @@ const drive = overrides => {
 // type does.
 const cacheKey = /** @type {Key<Cache>} */ (/** @type {any} */ ('unused-cache-key'))
 
-const registry = casToolRegistry('.')(cacheKey)
+const registry = casToolRegistry(fileCas(sha256)('.'))(cacheKey)
 
 /** @type {(name: string) => (args: any) => Effect<FileCasOperation | MemOp, ToolsCallResult, never>} */
 const toolHandle = name => {

@@ -450,6 +450,89 @@ const numberCoercionCases = negate => {
 }
 
 /**
+ * The left operands every `ToNumeric` binary group opens with, each with its
+ * name and the number `ToNumeric` makes of it. `n` is the number the string
+ * and array rows spell, named `word`.
+ *
+ * @type {(n: number, word: string) => readonly (readonly [string, Value, number])[]}
+ */
+const toNumericOperands = (n, word) => [
+    ['null', null, 0],
+    ['undefined', undefined, NaN],
+    ['true', true, 1],
+    ['false', false, 0],
+    [`string${word}`, `${n}`, n],
+    ['stringLetter', 'a', NaN],
+    ['emptyArray', [], 0],
+    [`array${word}`, [n], n],
+    [`arrayString${word}`, [`${n}`], n],
+    ['arrayPair', [0, 0], NaN],
+    ['emptyObject', {}, NaN],
+    ['function', functionValue, NaN],
+]
+
+/**
+ * Each left operand against one fixed right operand, named
+ * `<operand><op><right>`, expecting the group's `f` applied to the
+ * operand's number and the right one. `f` is the operator on two numbers,
+ * so a row checks the coercion and the operator is checked by the group's
+ * own rows.
+ *
+ * @type {(left: readonly (readonly [string, Value, number])[]) => (op: string, right: number, rightWord: string) => (f: (a: number, b: number) => number) => readonly Case<2>[]}
+ */
+const againstRight = left => (op, right, rightWord) => f => left.map(([name, v, n]) => ({
+    name: `${name}${op}${rightWord}`,
+    args: [v, right],
+    expected: f(n, right),
+}))
+
+/**
+ * The rows every `ToNumeric` binary group shares, over the number ten.
+ *
+ * Keeping them in one table is the move {@link numberCoercionCases} makes for
+ * `+n` and `-n`: an operand added to the coercion space lands in every group
+ * at once, here and in the generated Rust tests alike.
+ */
+const coercionCases = againstRight(toNumericOperands(10, 'Ten'))
+
+/**
+ * The rows `&`, `|`, `^`, `<<`, `>>` and `>>>` share: {@link coercionCases},
+ * then the `Number`s `ToInt32` (or `ToUint32`) changes before the operator
+ * sees them — a fraction truncates toward zero, a non-finite value is `+0`.
+ *
+ * @type {(op: string, right: number, rightWord: string) => (f: (a: number, b: number) => number) => readonly Case<2>[]}
+ */
+const int32Cases = (op, right, rightWord) => f => [
+    ...coercionCases(op, right, rightWord)(f),
+    { name: 'truncatesTowardZero', args: [3.9, right], expected: f(3.9, right) },
+    { name: 'negativeTruncatesTowardZero', args: [-3.9, right], expected: f(-3.9, right) },
+    ...againstRight([
+        ['nan', NaN, NaN],
+        ['infinity', Infinity, Infinity],
+        ['negativeInfinity', -Infinity, -Infinity],
+    ])(op, right, rightWord)(f),
+]
+
+/**
+ * A number and a bigint never mix: every arithmetic operator throws on them.
+ * A `commutative` group takes this one order, which it checks swapped too.
+ *
+ * @type {(op: string) => Case<2>}
+ */
+const numberBigintCase = op => ({ name: `number${op}Bigint`, args: [1, 1n], expected: throws })
+
+/**
+ * Both orders of {@link numberBigintCase}, for a group that is not
+ * `commutative`.
+ *
+ * @type {(op: string) => readonly Case<2>[]}
+ */
+const mixedCases = op => [
+    numberBigintCase(op),
+    { name: `bigint${op}Number`, args: [1n, 1], expected: throws },
+]
+
+/**
  * `*` between a number and a bigint throws, so the pairs below never mix the
  * two except in the case that proves it. Every pair is checked in both orders
  * — see `commutative`.
@@ -457,14 +540,13 @@ const numberCoercionCases = negate => {
  * @type {readonly Case<2>[]}
  */
 const mulCases = [
+    ...coercionCases('By', 1, 'One')((a, b) => a * b),
     { name: 'nullByNull', args: [null, null], expected: 0 },
     { name: 'nullByZero', args: [null, 0], expected: 0 },
     { name: 'undefinedByZero', args: [undefined, 0], expected: NaN },
     { name: 'trueByZero', args: [true, 0], expected: 0 },
-    { name: 'trueByOne', args: [true, 1], expected: 1 },
     { name: 'trueByTen', args: [true, 10], expected: 10 },
     { name: 'falseByZero', args: [false, 0], expected: 0 },
-    { name: 'falseByOne', args: [false, 1], expected: 0 },
     { name: 'falseByTen', args: [false, 10], expected: 0 },
     { name: 'zeroByZero', args: [0, 0], expected: 0 },
     { name: 'zeroByOne', args: [0, 1], expected: 0 },
@@ -483,16 +565,8 @@ const mulCases = [
     { name: 'bigTenByTen', args: [10n, 10n], expected: 100n },
     { name: 'bigMinusTenByTen', args: [-10n, 10n], expected: -100n },
     { name: 'emptyStringByOne', args: ['', 1], expected: 0 },
-    { name: 'stringTenByOne', args: ['10', 1], expected: 10 },
-    { name: 'stringLetterByOne', args: ['a', 1], expected: NaN },
     { name: 'stringBigintByOne', args: ['1n', 1], expected: NaN },
-    { name: 'emptyArrayByOne', args: [[], 1], expected: 0 },
-    { name: 'arrayTenByOne', args: [[10], 1], expected: 10 },
-    { name: 'arrayStringTenByOne', args: [['10'], 1], expected: 10 },
-    { name: 'arrayPairByOne', args: [[0, 0], 1], expected: NaN },
-    { name: 'emptyObjectByOne', args: [{}, 1], expected: NaN },
-    { name: 'functionByOne', args: [functionValue, 1], expected: NaN },
-    { name: 'numberByBigint', args: [1, 1n], expected: throws },
+    numberBigintCase('By'),
 ]
 
 /**
@@ -508,18 +582,7 @@ const mulCases = [
  * @type {readonly Case<2>[]}
  */
 const divCases = [
-    { name: 'nullDividedByFour', args: [null, 4], expected: 0 },
-    { name: 'undefinedDividedByFour', args: [undefined, 4], expected: NaN },
-    { name: 'trueDividedByFour', args: [true, 4], expected: 0.25 },
-    { name: 'falseDividedByFour', args: [false, 4], expected: 0 },
-    { name: 'stringTenDividedByFour', args: ['10', 4], expected: 2.5 },
-    { name: 'stringLetterDividedByFour', args: ['a', 4], expected: NaN },
-    { name: 'emptyArrayDividedByFour', args: [[], 4], expected: 0 },
-    { name: 'arrayTenDividedByFour', args: [[10], 4], expected: 2.5 },
-    { name: 'arrayStringTenDividedByFour', args: [['10'], 4], expected: 2.5 },
-    { name: 'arrayPairDividedByFour', args: [[0, 0], 4], expected: NaN },
-    { name: 'emptyObjectDividedByFour', args: [{}, 4], expected: NaN },
-    { name: 'functionDividedByFour', args: [functionValue, 4], expected: NaN },
+    ...coercionCases('DividedBy', 4, 'Four')((a, b) => a / b),
     { name: 'zeroDividedByOne', args: [0, 1], expected: 0 },
     { name: 'negativeZeroDividedByOne', args: [-0, 1], expected: -0 },
     { name: 'tenDividedByFour', args: [10, 4], expected: 2.5 },
@@ -554,8 +617,7 @@ const divCases = [
     { name: 'bigNegativeSevenDividedByTwo', args: [-7n, 2n], expected: -3n },
     { name: 'bigZeroDividedByFive', args: [0n, 5n], expected: 0n },
     { name: 'bigTenDividedByZero', args: [10n, 0n], expected: throws },
-    { name: 'numberDividedByBigint', args: [1, 1n], expected: throws },
-    { name: 'bigintDividedByNumber', args: [1n, 1], expected: throws },
+    ...mixedCases('DividedBy'),
 ]
 
 /**
@@ -575,18 +637,8 @@ const divCases = [
  * @type {readonly Case<2>[]}
  */
 const expCases = [
-    { name: 'nullToThePowerOfTwo', args: [null, 2], expected: 0 },
-    { name: 'undefinedToThePowerOfTwo', args: [undefined, 2], expected: NaN },
-    { name: 'trueToThePowerOfTwo', args: [true, 2], expected: 1 },
-    { name: 'falseToThePowerOfTwo', args: [false, 2], expected: 0 },
-    { name: 'stringThreeToThePowerOfTwo', args: ['3', 2], expected: 9 },
-    { name: 'stringLetterToThePowerOfTwo', args: ['a', 2], expected: NaN },
-    { name: 'emptyArrayToThePowerOfTwo', args: [[], 2], expected: 0 },
-    { name: 'arrayThreeToThePowerOfTwo', args: [[3], 2], expected: 9 },
-    { name: 'arrayStringThreeToThePowerOfTwo', args: [['3'], 2], expected: 9 },
-    { name: 'arrayPairToThePowerOfTwo', args: [[0, 0], 2], expected: NaN },
-    { name: 'emptyObjectToThePowerOfTwo', args: [{}, 2], expected: NaN },
-    { name: 'functionToThePowerOfTwo', args: [functionValue, 2], expected: NaN },
+    // Over three, not ten: the rows spell `stringThree`, and a name is a Rust test's.
+    ...againstRight(toNumericOperands(3, 'Three'))('ToThePowerOf', 2, 'Two')((a, b) => a ** b),
     { name: 'twoToThePowerOfTen', args: [2, 10], expected: 1024 },
     { name: 'twoToThePowerOfHalf', args: [2, 0.5], expected: 2 ** 0.5 },
     { name: 'twoToThePowerOfNegativeOne', args: [2, -1], expected: 0.5 },
@@ -622,8 +674,7 @@ const expCases = [
     { name: 'bigZeroToThePowerOfZero', args: [0n, 0n], expected: 1n },
     { name: 'bigNegativeTwoToThePowerOfThree', args: [-2n, 3n], expected: -8n },
     { name: 'bigTwoToThePowerOfNegativeOne', args: [2n, -1n], expected: throws },
-    { name: 'numberToThePowerOfBigint', args: [1, 1n], expected: throws },
-    { name: 'bigintToThePowerOfNumber', args: [1n, 1], expected: throws },
+    ...mixedCases('ToThePowerOf'),
 ]
 
 /**
@@ -633,13 +684,12 @@ const expCases = [
  * @type {readonly Case<2>[]}
  */
 const subCases = [
+    ...coercionCases('Minus', 1, 'One')((a, b) => a - b),
     { name: 'nullMinusNull', args: [null, null], expected: 0 },
     { name: 'nullMinusZero', args: [null, 0], expected: 0 },
     { name: 'negativeZeroMinusZero', args: [-0, 0], expected: -0 },
     { name: 'zeroMinusNegativeZero', args: [0, -0], expected: 0 },
     { name: 'undefinedMinusZero', args: [undefined, 0], expected: NaN },
-    { name: 'trueMinusOne', args: [true, 1], expected: 0 },
-    { name: 'falseMinusOne', args: [false, 1], expected: -1 },
     { name: 'zeroMinusOne', args: [0, 1], expected: -1 },
     { name: 'oneMinusNegativeOne', args: [1, -1], expected: 2 },
     { name: 'negativeTenMinusTen', args: [-10, 10], expected: -20 },
@@ -648,15 +698,7 @@ const subCases = [
     { name: 'bigOneMinusNegativeOne', args: [1n, -1n], expected: 2n },
     { name: 'bigNegativeOneMinusOne', args: [-1n, 1n], expected: -2n },
     { name: 'emptyStringMinusOne', args: ['', 1], expected: -1 },
-    { name: 'stringTenMinusOne', args: ['10', 1], expected: 9 },
-    { name: 'stringLetterMinusOne', args: ['a', 1], expected: NaN },
-    { name: 'emptyArrayMinusOne', args: [[], 1], expected: -1 },
-    { name: 'arrayTenMinusOne', args: [[10], 1], expected: 9 },
-    { name: 'arrayPairMinusOne', args: [[0, 0], 1], expected: NaN },
-    { name: 'emptyObjectMinusOne', args: [{}, 1], expected: NaN },
-    { name: 'functionMinusOne', args: [functionValue, 1], expected: NaN },
-    { name: 'numberMinusBigint', args: [1, 1n], expected: throws },
-    { name: 'bigintMinusNumber', args: [1n, 1], expected: throws },
+    ...mixedCases('Minus'),
 ]
 
 /**
@@ -673,18 +715,7 @@ const subCases = [
  * @type {readonly Case<2>[]}
  */
 const remCases = [
-    { name: 'nullModThree', args: [null, 3], expected: 0 },
-    { name: 'undefinedModThree', args: [undefined, 3], expected: NaN },
-    { name: 'trueModThree', args: [true, 3], expected: 1 },
-    { name: 'falseModThree', args: [false, 3], expected: 0 },
-    { name: 'stringTenModThree', args: ['10', 3], expected: 1 },
-    { name: 'stringLetterModThree', args: ['a', 3], expected: NaN },
-    { name: 'emptyArrayModThree', args: [[], 3], expected: 0 },
-    { name: 'arrayTenModThree', args: [[10], 3], expected: 1 },
-    { name: 'arrayStringTenModThree', args: [['10'], 3], expected: 1 },
-    { name: 'arrayPairModThree', args: [[0, 0], 3], expected: NaN },
-    { name: 'emptyObjectModThree', args: [{}, 3], expected: NaN },
-    { name: 'functionModThree', args: [functionValue, 3], expected: NaN },
+    ...coercionCases('Mod', 3, 'Three')((a, b) => a % b),
     { name: 'zeroModOne', args: [0, 1], expected: 0 },
     { name: 'negativeZeroModOne', args: [-0, 1], expected: -0 },
     { name: 'oneModOne', args: [1, 1], expected: 0 },
@@ -709,8 +740,7 @@ const remCases = [
     { name: 'bigNegativeTenModNegativeThree', args: [-10n, -3n], expected: -1n },
     { name: 'bigZeroModOne', args: [0n, 1n], expected: 0n },
     { name: 'bigTenModZero', args: [10n, 0n], expected: throws },
-    { name: 'numberModBigint', args: [1, 1n], expected: throws },
-    { name: 'bigintModNumber', args: [1n, 1], expected: throws },
+    ...mixedCases('Mod'),
 ]
 
 /**
@@ -1197,23 +1227,7 @@ const stringCoercionCases = [
  * @type {readonly Case<2>[]}
  */
 const bitAndCases = [
-    { name: 'nullBitAndSix', args: [null, 6], expected: 0 },
-    { name: 'undefinedBitAndSix', args: [undefined, 6], expected: 0 },
-    { name: 'trueBitAndSix', args: [true, 6], expected: 0 },
-    { name: 'falseBitAndSix', args: [false, 6], expected: 0 },
-    { name: 'stringTenBitAndSix', args: ['10', 6], expected: 2 },
-    { name: 'stringLetterBitAndSix', args: ['a', 6], expected: 0 },
-    { name: 'emptyArrayBitAndSix', args: [[], 6], expected: 0 },
-    { name: 'arrayTenBitAndSix', args: [[10], 6], expected: 2 },
-    { name: 'arrayStringTenBitAndSix', args: [['10'], 6], expected: 2 },
-    { name: 'arrayPairBitAndSix', args: [[0, 0], 6], expected: 0 },
-    { name: 'emptyObjectBitAndSix', args: [{}, 6], expected: 0 },
-    { name: 'functionBitAndSix', args: [functionValue, 6], expected: 0 },
-    { name: 'truncatesTowardZero', args: [3.9, 6], expected: 2 },
-    { name: 'negativeTruncatesTowardZero', args: [-3.9, 6], expected: 4 },
-    { name: 'nanBitAndSix', args: [NaN, 6], expected: 0 },
-    { name: 'infinityBitAndSix', args: [Infinity, 6], expected: 0 },
-    { name: 'negativeInfinityBitAndSix', args: [-Infinity, 6], expected: 0 },
+    ...int32Cases('BitAnd', 6, 'Six')((a, b) => a & b),
     { name: 'wrapsAt32Bits', args: [2 ** 32 + 5, 6], expected: 4 },
     { name: 'negativeOneBitAndSix', args: [-1, 6], expected: 6 },
     { name: 'bigTwelveBitAndTen', args: [12n, 10n], expected: 8n },
@@ -1226,28 +1240,12 @@ const bitAndCases = [
     // A magnitude near `i64::MAX`,
     // where `-1`'s all-ones pattern makes AND an identity.
     { name: 'bigLargeMagnitude', args: [-(2n ** 62n), -1n], expected: -(2n ** 62n) },
-    { name: 'numberBitAndBigint', args: [1, 1n], expected: throws },
+    numberBigintCase('BitAnd'),
 ]
 
 /** @type {readonly Case<2>[]} */
 const bitOrCases = [
-    { name: 'nullBitOrSix', args: [null, 6], expected: 6 },
-    { name: 'undefinedBitOrSix', args: [undefined, 6], expected: 6 },
-    { name: 'trueBitOrSix', args: [true, 6], expected: 7 },
-    { name: 'falseBitOrSix', args: [false, 6], expected: 6 },
-    { name: 'stringTenBitOrSix', args: ['10', 6], expected: 14 },
-    { name: 'stringLetterBitOrSix', args: ['a', 6], expected: 6 },
-    { name: 'emptyArrayBitOrSix', args: [[], 6], expected: 6 },
-    { name: 'arrayTenBitOrSix', args: [[10], 6], expected: 14 },
-    { name: 'arrayStringTenBitOrSix', args: [['10'], 6], expected: 14 },
-    { name: 'arrayPairBitOrSix', args: [[0, 0], 6], expected: 6 },
-    { name: 'emptyObjectBitOrSix', args: [{}, 6], expected: 6 },
-    { name: 'functionBitOrSix', args: [functionValue, 6], expected: 6 },
-    { name: 'truncatesTowardZero', args: [3.9, 6], expected: 7 },
-    { name: 'negativeTruncatesTowardZero', args: [-3.9, 6], expected: -1 },
-    { name: 'nanBitOrSix', args: [NaN, 6], expected: 6 },
-    { name: 'infinityBitOrSix', args: [Infinity, 6], expected: 6 },
-    { name: 'negativeInfinityBitOrSix', args: [-Infinity, 6], expected: 6 },
+    ...int32Cases('BitOr', 6, 'Six')((a, b) => a | b),
     { name: 'wrapsAt32Bits', args: [2 ** 32 + 5, 6], expected: 7 },
     { name: 'negativeOneBitOrSix', args: [-1, 6], expected: -1 },
     { name: 'bigTwelveBitOrTen', args: [12n, 10n], expected: 14n },
@@ -1260,28 +1258,12 @@ const bitOrCases = [
     // `-1`'s all-ones two's-complement pattern absorbs anything it meets, so
     // the result is `-1` regardless of the other operand's magnitude.
     { name: 'bigLargeMagnitude', args: [-(2n ** 62n), -1n], expected: -1n },
-    { name: 'numberBitOrBigint', args: [1, 1n], expected: throws },
+    numberBigintCase('BitOr'),
 ]
 
 /** @type {readonly Case<2>[]} */
 const bitXorCases = [
-    { name: 'nullBitXorSix', args: [null, 6], expected: 6 },
-    { name: 'undefinedBitXorSix', args: [undefined, 6], expected: 6 },
-    { name: 'trueBitXorSix', args: [true, 6], expected: 7 },
-    { name: 'falseBitXorSix', args: [false, 6], expected: 6 },
-    { name: 'stringTenBitXorSix', args: ['10', 6], expected: 12 },
-    { name: 'stringLetterBitXorSix', args: ['a', 6], expected: 6 },
-    { name: 'emptyArrayBitXorSix', args: [[], 6], expected: 6 },
-    { name: 'arrayTenBitXorSix', args: [[10], 6], expected: 12 },
-    { name: 'arrayStringTenBitXorSix', args: [['10'], 6], expected: 12 },
-    { name: 'arrayPairBitXorSix', args: [[0, 0], 6], expected: 6 },
-    { name: 'emptyObjectBitXorSix', args: [{}, 6], expected: 6 },
-    { name: 'functionBitXorSix', args: [functionValue, 6], expected: 6 },
-    { name: 'truncatesTowardZero', args: [3.9, 6], expected: 5 },
-    { name: 'negativeTruncatesTowardZero', args: [-3.9, 6], expected: -5 },
-    { name: 'nanBitXorSix', args: [NaN, 6], expected: 6 },
-    { name: 'infinityBitXorSix', args: [Infinity, 6], expected: 6 },
-    { name: 'negativeInfinityBitXorSix', args: [-Infinity, 6], expected: 6 },
+    ...int32Cases('BitXor', 6, 'Six')((a, b) => a ^ b),
     { name: 'wrapsAt32Bits', args: [2 ** 32 + 5, 6], expected: 3 },
     { name: 'negativeOneBitXorSix', args: [-1, 6], expected: -7 },
     { name: 'bigTwelveBitXorTen', args: [12n, 10n], expected: 6n },
@@ -1295,7 +1277,7 @@ const bitXorCases = [
     // `x ^ -1` is `~x`, the identity `bitwiseNotCases` below checks
     // directly, exercised here at a large magnitude instead of a small one.
     { name: 'bigLargeMagnitude', args: [-(2n ** 62n), -1n], expected: 2n ** 62n - 1n },
-    { name: 'numberBitXorBigint', args: [1, 1n], expected: throws },
+    numberBigintCase('BitXor'),
 ]
 
 /**
@@ -1352,23 +1334,7 @@ const bitwiseNotCases = [
  * @type {readonly Case<2>[]}
  */
 const shiftLeftCases = [
-    { name: 'nullShlThree', args: [null, 3], expected: 0 },
-    { name: 'undefinedShlThree', args: [undefined, 3], expected: 0 },
-    { name: 'trueShlThree', args: [true, 3], expected: 8 },
-    { name: 'falseShlThree', args: [false, 3], expected: 0 },
-    { name: 'stringTenShlThree', args: ['10', 3], expected: 80 },
-    { name: 'stringLetterShlThree', args: ['a', 3], expected: 0 },
-    { name: 'emptyArrayShlThree', args: [[], 3], expected: 0 },
-    { name: 'arrayTenShlThree', args: [[10], 3], expected: 80 },
-    { name: 'arrayStringTenShlThree', args: [['10'], 3], expected: 80 },
-    { name: 'arrayPairShlThree', args: [[0, 0], 3], expected: 0 },
-    { name: 'emptyObjectShlThree', args: [{}, 3], expected: 0 },
-    { name: 'functionShlThree', args: [functionValue, 3], expected: 0 },
-    { name: 'truncatesTowardZero', args: [3.9, 3], expected: 24 },
-    { name: 'negativeTruncatesTowardZero', args: [-3.9, 3], expected: -24 },
-    { name: 'nanShlThree', args: [NaN, 3], expected: 0 },
-    { name: 'infinityShlThree', args: [Infinity, 3], expected: 0 },
-    { name: 'negativeInfinityShlThree', args: [-Infinity, 3], expected: 0 },
+    ...int32Cases('Shl', 3, 'Three')((a, b) => a << b),
     { name: 'shiftCountWrapsAt32', args: [1, 33], expected: 2 },
     // The shift count is `ToUint32`'d then masked, so a negative right
     // operand becomes a large one first: `ToUint32(-1) & 0x1F` is `31`.
@@ -1383,8 +1349,7 @@ const shiftLeftCases = [
     { name: 'bigFiveShlNegativeThree', args: [5n, -3n], expected: 0n },
     { name: 'bigNegativeFiveShlNegativeThree', args: [-5n, -3n], expected: -1n },
     { name: 'bigShiftTooLarge', args: [1n, 100000000000000000n], expected: throws },
-    { name: 'numberShlBigint', args: [1, 1n], expected: throws },
-    { name: 'bigintShlNumber', args: [1n, 1], expected: throws },
+    ...mixedCases('Shl'),
 ]
 
 /**
@@ -1397,29 +1362,14 @@ const shiftLeftCases = [
  * stays `-1n` no matter how far right it shifts), or a left shift by `-y`
  * when `y` is negative, throwing the same `RangeError` `<<` does if that
  * left shift needs too many words. Mixed number/bigint operands throw too.
- * Not `commutative`, the same as `<<`.
+ * Not `commutative`, the same as `<<`. Sign extension shows in the shared
+ * `negativeTruncatesTowardZero` row: `-3.9 >> 3` is `floor(-3 / 8)`, `-1`,
+ * not `0`.
  *
  * @type {readonly Case<2>[]}
  */
 const signedRightShiftCases = [
-    { name: 'nullShrThree', args: [null, 3], expected: 0 },
-    { name: 'undefinedShrThree', args: [undefined, 3], expected: 0 },
-    { name: 'trueShrThree', args: [true, 3], expected: 0 },
-    { name: 'falseShrThree', args: [false, 3], expected: 0 },
-    { name: 'stringTenShrThree', args: ['10', 3], expected: 1 },
-    { name: 'stringLetterShrThree', args: ['a', 3], expected: 0 },
-    { name: 'emptyArrayShrThree', args: [[], 3], expected: 0 },
-    { name: 'arrayTenShrThree', args: [[10], 3], expected: 1 },
-    { name: 'arrayStringTenShrThree', args: [['10'], 3], expected: 1 },
-    { name: 'arrayPairShrThree', args: [[0, 0], 3], expected: 0 },
-    { name: 'emptyObjectShrThree', args: [{}, 3], expected: 0 },
-    { name: 'functionShrThree', args: [functionValue, 3], expected: 0 },
-    { name: 'truncatesTowardZero', args: [3.9, 3], expected: 0 },
-    // Arithmetic shift sign-extends: floor(-3 / 8) is -1, not 0.
-    { name: 'negativeTruncatesTowardZero', args: [-3.9, 3], expected: -1 },
-    { name: 'nanShrThree', args: [NaN, 3], expected: 0 },
-    { name: 'infinityShrThree', args: [Infinity, 3], expected: 0 },
-    { name: 'negativeInfinityShrThree', args: [-Infinity, 3], expected: 0 },
+    ...int32Cases('Shr', 3, 'Three')((a, b) => a >> b),
     { name: 'shiftCountWrapsAt32', args: [16, 34], expected: 4 },
     { name: 'shiftCountNegative', args: [-16, -1], expected: -1 },
     { name: 'valueWrapsAt32Bits', args: [2 ** 32 + 5, 1], expected: 2 },
@@ -1436,8 +1386,7 @@ const signedRightShiftCases = [
     { name: 'bigFiveShrNegativeThree', args: [5n, -3n], expected: 40n },
     { name: 'bigNegativeFiveShrNegativeThree', args: [-5n, -3n], expected: -40n },
     { name: 'bigShiftTooLarge', args: [1n, -100000000000000000n], expected: throws },
-    { name: 'numberShrBigint', args: [1, 1n], expected: throws },
-    { name: 'bigintShrNumber', args: [1n, 1], expected: throws },
+    ...mixedCases('Shr'),
 ]
 
 /**
@@ -1449,31 +1398,15 @@ const signedRightShiftCases = [
  * before the `BigInt`-specific one, so `1 >>> 1n` and `1n >>> 1` throw the
  * generic mixing error, while `1n >>> 1n` reaches the shift-specific one —
  * but every combination throws regardless of which message fires. Not
- * `commutative`, the same as `<<`/`>>`.
+ * `commutative`, the same as `<<`/`>>`. `ToUint32` never reinterprets a sign
+ * bit, so in the shared `negativeTruncatesTowardZero` row a negative value
+ * becomes a large positive one first: `-3.9 >>> 3` is `536870911`, where
+ * `>>` sign-extends to `-1`.
  *
  * @type {readonly Case<2>[]}
  */
 const unsignedRightShiftCases = [
-    { name: 'nullUshrThree', args: [null, 3], expected: 0 },
-    { name: 'undefinedUshrThree', args: [undefined, 3], expected: 0 },
-    { name: 'trueUshrThree', args: [true, 3], expected: 0 },
-    { name: 'falseUshrThree', args: [false, 3], expected: 0 },
-    { name: 'stringTenUshrThree', args: ['10', 3], expected: 1 },
-    { name: 'stringLetterUshrThree', args: ['a', 3], expected: 0 },
-    { name: 'emptyArrayUshrThree', args: [[], 3], expected: 0 },
-    { name: 'arrayTenUshrThree', args: [[10], 3], expected: 1 },
-    { name: 'arrayStringTenUshrThree', args: [['10'], 3], expected: 1 },
-    { name: 'arrayPairUshrThree', args: [[0, 0], 3], expected: 0 },
-    { name: 'emptyObjectUshrThree', args: [{}, 3], expected: 0 },
-    { name: 'functionUshrThree', args: [functionValue, 3], expected: 0 },
-    { name: 'truncatesTowardZero', args: [3.9, 3], expected: 0 },
-    // `ToUint32` never reinterprets a sign bit, unlike `ToInt32`: a negative
-    // value becomes a large positive one first, so this differs sharply
-    // from `>>`'s sign-extending `negativeTruncatesTowardZero` case.
-    { name: 'negativeTruncatesTowardZero', args: [-3.9, 3], expected: 536870911 },
-    { name: 'nanUshrThree', args: [NaN, 3], expected: 0 },
-    { name: 'infinityUshrThree', args: [Infinity, 3], expected: 0 },
-    { name: 'negativeInfinityUshrThree', args: [-Infinity, 3], expected: 0 },
+    ...int32Cases('Ushr', 3, 'Three')((a, b) => a >>> b),
     { name: 'shiftCountWrapsAt32', args: [16, 34], expected: 4 },
     { name: 'shiftCountNegative', args: [16, -1], expected: 0 },
     { name: 'valueWrapsAt32Bits', args: [2 ** 32 + 5, 1], expected: 2 },
@@ -1481,8 +1414,7 @@ const unsignedRightShiftCases = [
     // unsigned 32-bit reading, with no shifting at all.
     { name: 'negativeBecomesLargePositive', args: [-1, 0], expected: 4294967295 },
     { name: 'bigintUnsignedRightShift', args: [5n, 1n], expected: throws },
-    { name: 'numberUshrBigint', args: [1, 1n], expected: throws },
-    { name: 'bigintUshrNumber', args: [1n, 1], expected: throws },
+    ...mixedCases('Ushr'),
 ]
 
 /**

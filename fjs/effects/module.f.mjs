@@ -15,7 +15,9 @@
  * - {@link resultStep} — continue with the complete `Result`. Both paths.
  *
  * Around them: {@link pure} and the two lifts {@link pureOk} / {@link pureError}
- * that enter the layer (with {@link refuse} for a coded host refusal), the projections {@link mapStep} and
+ * that enter the layer (with {@link refuse} for a coded host refusal),
+ * {@link orElse} for the common {@link catchStep} continuation that forgives
+ * one class of error, the projections {@link mapStep} and
  * {@link resultMapStep} that end a chain, {@link finallyStep} for a cleanup
  * that runs however a chain ended, {@link history} /
  * {@link historyStep} for a chain whose later links read earlier values, and
@@ -441,6 +443,25 @@ export const catchStep = (e, f) => {
     const cont = r => r[0] === 'error' ? f(r[1]) : pure(r)
     return resultStep(e, cont)
 }
+
+/**
+ * The {@link catchStep} continuation that forgives one class of error: it
+ * answers `fallback` where `forgiven(e)` holds, and re-raises `e` unchanged
+ * otherwise.
+ *
+ * ```js
+ * catchStep(readFile(path), orElse(isNotFound, null))
+ * ```
+ *
+ * The forgiven class is a parameter because it varies by site — a missing
+ * file, a link that leads nowhere, a directory that already exists — while the
+ * shape around it does not. It is a continuation rather than a wrapper taking
+ * the effect so that two policies chain flat, one `catchStep` after another,
+ * instead of nesting.
+ *
+ * @type {<E, T>(forgiven: (e: E) => boolean, fallback: T) => (e: E) => Effect<never, T, E>}
+ */
+export const orElse = (forgiven, fallback) => e => forgiven(e) ? pureOk(fallback) : pureError(e)
 
 /**
  * Both paths: run `e` and hand `f` the complete `Result`, which then decides

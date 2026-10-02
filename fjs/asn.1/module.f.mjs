@@ -7,6 +7,7 @@
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { ObjectIdentifier, Raw, Record, Sequence, SupportedRecord, _Tag } from './types.ts'
  * @import { _ClassPc, _ParsedTag } from './private.ts'
+ * @import { Thunk } from '../types/list/types.ts'
  */
 
 import { bitLength } from '../types/bigint/module.f.mjs'
@@ -25,6 +26,7 @@ import {
 } from '../types/bit_vec/module.f.mjs'
 import { assert } from '../asserts/module.f.mjs'
 import { identity } from '../types/function/module.f.mjs'
+import { toArray } from '../types/list/module.f.mjs'
 import { max } from '../types/function/compare/module.f.mjs'
 import { encode as b128encode, decode as b128decode } from '../basen/base128/module.f.mjs'
 
@@ -240,23 +242,25 @@ export const encodeObjectIdentifier = oid => {
 }
 
 /**
- * Drains a bit vector by repeatedly applying a step until the vector is empty,
- * collecting every decoded item into an array.
+ * Lazily drains a bit vector by repeatedly applying a step until the vector is
+ * empty, yielding every decoded item.
  *
- * @template T
- * @param {(v: Vec) => readonly [T, Vec]} step
- * @return {(v: Vec) => readonly T[]}
+ * @type {<T>(step: (v: Vec) => readonly [T, Vec]) => (v: Vec) => Thunk<T>}
  */
-const decodeAll = step => v => {
-    /** @type {readonly T[]} */
-    let result = []
-    while (length(v) !== 0n) {
-        const [item, rest] = step(v)
-        result = [...result, item]
-        v = rest
-    }
-    return result
+const decodeList = step => v => () => {
+    if (length(v) === 0n) { return null }
+    const [first, rest] = step(v)
+    return { first, tail: decodeList(step)(rest) }
 }
+
+/**
+ * Drains a bit vector into an array of every decoded item. The items are
+ * collected into a list and converted once, so the array is built in linear
+ * time.
+ *
+ * @type {<T>(step: (v: Vec) => readonly [T, Vec]) => (v: Vec) => readonly T[]}
+ */
+const decodeAll = step => v => toArray(decodeList(step)(v))
 
 /**
  * Decodes an OBJECT IDENTIFIER value.

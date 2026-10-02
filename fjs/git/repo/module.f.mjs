@@ -41,7 +41,7 @@
  */
 
 import { assertNotNullish } from '../../asserts/module.f.mjs'
-import { catchStep, history, historyStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
+import { catchStep, history, historyStep, mapStep, orElse, pureOk, step } from '../../effects/module.f.mjs'
 import { isNotFound, readFile, stat } from '../../effects/node/module.f.mjs'
 import { isBareDrive, isDriveRoot, under } from '../../path/module.f.mjs'
 import { fromVec } from '../../text/utf8/module.f.mjs'
@@ -239,7 +239,7 @@ const commonOf = repo => {
         if (raw === 0 || text === null) { return null }
         return text === '' ? repo : against(repo, text)
     })
-    return catchStep(line, e => isNotFound(e) ? pureOk(repo) : pureError(e))
+    return catchStep(line, orElse(isNotFound, repo))
 }
 
 /**

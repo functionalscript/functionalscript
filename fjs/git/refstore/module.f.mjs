@@ -190,7 +190,7 @@
  *
  * @module
  *
- * @import { Dirent, FileStat, ReadFile, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
+ * @import { Dirent, ReadFile, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { IoChannel } from '../../effects/types.ts'
  * @import { List } from '../../types/list/types.ts'
@@ -201,7 +201,7 @@
  * @import { _Entry, _Found, _Lookup, _Scope, _Walked } from './private.ts'
  */
 
-import { catchStep, foldStep, history, historyStep, mapStep, pureError, pureOk, refuse, step, walkStep } from '../../effects/module.f.mjs'
+import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, step, walkStep } from '../../effects/module.f.mjs'
 import { isDirectory, isNotFound, leadsNowhere, readFile, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
@@ -282,7 +282,7 @@ const nameKey = name => codePointListToString(toArray(name))
 export const tryBytes = path =>
     catchStep(
         mapStep(readFile(path), u8ListMsb),
-        e => isNotFound(e) || isDirectory(e) ? pureOk(null) : pureError(e))
+        orElse(e => isNotFound(e) || isDirectory(e), null))
 
 /**
  * The same, for a file with no bound on its size: read in windows rather than
@@ -293,7 +293,7 @@ export const tryBytes = path =>
 export const tryWholeBytes = path =>
     catchStep(
         readWholeBytes(path),
-        e => isNotFound(e) ? pureOk(/** @type {Nullable<Bytes>} */ (null)) : pureError(e))
+        orElse(isNotFound, null))
 
 /** The one file a repository's packed refs are in, beside `refs/` in the shared directory. */
 export const packedRefs = /** @type {const} */ ('packed-refs')
@@ -664,7 +664,7 @@ const headBytes = dirs => catchStep(
     step(readdir(dirs.gitdir, {}), entries => headIsFile(entries)
         ? tryBytes(under(dirs.gitdir, head))
         : refuseHeadKind(headKindMessage(under(dirs.gitdir, head)))),
-    e => isNotFound(e) ? pureOk(/** @type {Nullable<Bytes>} */ (null)) : pureError(e))
+    orElse(isNotFound, null))
 
 /**
  * Whether the path is a directory, for a read that came back with bytes no ref
@@ -678,7 +678,7 @@ const headBytes = dirs => catchStep(
  */
 export const isDirectoryAt = path => catchStep(
     mapStep(stat(path), s => s.isDirectory),
-    e => leadsNowhere(e) ? pureOk(false) : pureError(e))
+    orElse(leadsNowhere, false))
 
 /**
  * One link of the walk down a symbolic chain: the file the name sits in, read,
@@ -1078,10 +1078,8 @@ const statted = (readRef, name, item, found) => step(
     // cannot find what the listing named is a race or a broken host, and this
     // module's rule is that such a read is the channel's.
     catchStep(
-        mapStep(stat(item.path), /** @type {(s: FileStat) => Nullable<FileStat>} */ (s => s)),
-        e => leadsNowhere(e)
-            ? pureOk(/** @type {Nullable<FileStat>} */ (null))
-            : pureError(e)),
+        stat(item.path),
+        orElse(leadsNowhere, null)),
     s => s === null || !(s.isFile || s.isDirectory)
         // a link that leads nowhere, or a FIFO, a socket or a device — every one
         // of them an entry Git's listing skips, and the FIFO one this must not
@@ -1306,7 +1304,7 @@ const ownRefs = (dirs, entries) => {
     if (d.isFile) { return pureOk(/** @type {readonly _Entry[]} */ ([])) }
     return catchStep(
         mapStep(stat(path), s => s.isDirectory ? walk : /** @type {readonly _Entry[]} */ ([])),
-        e => leadsNowhere(e) ? pureOk(/** @type {readonly _Entry[]} */ ([])) : pureError(e))
+        orElse(leadsNowhere, []))
 }
 
 /**

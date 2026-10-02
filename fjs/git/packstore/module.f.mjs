@@ -105,7 +105,7 @@
  * @import { Held } from './types.ts'
  */
 
-import { catchStep, foldStep, history, historyStep, mapStep, pureError, pureOk, refuse, step, walkStep } from '../../effects/module.f.mjs'
+import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, step, walkStep } from '../../effects/module.f.mjs'
 import { inflate, leadsNowhere, namesNothing, notAFileCode, notAFileMessage, readBytes, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
@@ -261,7 +261,7 @@ const namedIdx = pd => e => names => {
     if (e.isDirectory) { return notAFile(path) }
     return catchStep(
         step(stat(path), s => s.isFile ? pureOk(concat(names)([e.name])) : notAFile(path)),
-        c => leadsNowhere(c) ? pureOk(names) : pureError(c))
+        orElse(leadsNowhere, names))
 }
 
 /**
@@ -289,7 +289,7 @@ const idxNames = pd => catchStep(
             pureOk(es.filter(e => e.name.endsWith(idxSuffix))),
             /** @type {List<string>} */ (null),
             namedIdx(pd))),
-    e => namesNothing(e) ? pureOk(/** @type {List<string>} */ (null)) : pureError(e))
+    orElse(namesNothing, null))
 
 /**
  * The index at `path`, or a refusal naming it.
