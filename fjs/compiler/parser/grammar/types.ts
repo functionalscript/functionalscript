@@ -260,6 +260,11 @@ export type Tail = readonly [...EagerTail, CircuitTail, ConditionalTail]
  * prefix — each carrying {@link Tail}, the binary-operator suffix, above
  * it — or `(`, the choice between a function and a group, {@link Paren},
  * a function alone excepted, nothing following one unparenthesized.
+ *
+ * {@link Value} and {@link Body} add to it with `&`, not a named field: a
+ * rule's branches are one flat record whose keys are its alternatives, so
+ * a nested field would describe a different grammar — the flat-shape
+ * exception to `fjs/AGENTS.md` §3.2, "Composition over intersection".
  */
 export type ValueBranches = {
     readonly neg: readonly [number, UnaryOperand, ...Tail]

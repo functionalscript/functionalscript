@@ -1025,7 +1025,12 @@ satisfy the rule. The cases in this repository:
   `IncomingMessage = Readable & {…}` in `fjs/effects/node/module.mjs` describes
   Node's object, which really does carry both member sets on one level. Nesting
   the base under a field there would describe something that isn't there — and
-  for a wire format it would change the encoding, not just the type.
+  for a wire format it would change the encoding, not just the type. A grammar
+  rule's branches are such a shape: `Value = () => readonly ['const',
+  ValueBranches & {…}]` in `fjs/compiler/parser/grammar/types.ts` describes
+  `{ ...valueBranches(), object }`, one record whose keys `fjs/ebnf/ll1` reads
+  as the rule's alternatives, so nesting the shared branches under a field
+  would describe a different grammar.
 - **A facade adding a member to a generic interface.**
   `FileCas = Cas<FileCasOperation> & { readonly url: (v: Vec) => string }` —
   composition would route every consumer through an extra hop
