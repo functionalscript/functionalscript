@@ -53,6 +53,11 @@ what a grammar can and cannot do for the formats.
   laid out and nothing about what they mean. The ids' order is checked and not
   trusted, since the lookup is a search and a search over ids that do not
   ascend answers wrongly instead of failing.
+- [`bytes/`](bytes/module.f.mjs) — what the binary formats above are read
+  with: `u32be` and `u64be`, the unsigned big-endian words, multiplied rather
+  than shifted because `<<` signs the top bit, and `startsWith` for a magic
+  number or a name's prefix. Each takes the indexed array a reader already
+  made with `byteArray`, not the lazy `Bytes`.
 - [`refstore/`](refstore/module.f.mjs) — the refs a repository holds, over
   the effects: `tryRoots` for every one of them, `tryResolve` for a name
   in hand; and [`refstore/write/`](refstore/write/module.f.mjs), the writers
