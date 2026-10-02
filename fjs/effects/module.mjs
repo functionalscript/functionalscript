@@ -4,7 +4,7 @@
  *
  * @module
  *
- * @import { Commands, Effect, Operation, PartialAsyncOperationMap, ToAsyncOperationMap } from './types.ts'
+ * @import { Commands, Effect, MatchResult, Operation, PartialAsyncOperationMap, ToAsyncOperationMap } from './types.ts'
  * @import { Result } from '../types/result/types.ts'
  */
 
@@ -16,16 +16,7 @@ import { error } from '../types/result/module.f.mjs'
  * @param {ToAsyncOperationMap<O>} map
  * @returns {<T, E>(effect: Effect<O, T, E>) => Promise<Result<T, E>>}
  */
-export const asyncRun = map => async effect => {
-    const next = match(map)
-    while (true) {
-        const r = next(effect)
-        if (r[0] === 'done') {
-            return r[1]
-        }
-        effect = r[2](await r[1])
-    }
-}
+export const asyncRun = map => _asyncLoop(match(map))
 
 /**
  * {@link asyncRun} for a runner that is *meant* to lack operations.
@@ -47,10 +38,21 @@ export const asyncRun = map => async effect => {
  * @param {Commands<O>} commands
  * @returns {(map: PartialAsyncOperationMap<O>) => <T, E>(effect: Effect<O, T, E>) => Promise<Result<T, E>>}
  */
-export const asyncPartialRun = commands => map => async effect => {
+export const asyncPartialRun = commands => map => {
     /** @type {(command: O[0]) => Promise<any>} */
     const onMissing = async command => error(notImplemented(command))
-    const next = partialMatch(commands, onMissing)(map)
+    return _asyncLoop(partialMatch(commands, onMissing)(map))
+}
+
+/**
+ * The interpreter loop both runners share: step the effect, await the
+ * command's output, resume with it.
+ *
+ * @template {Operation} O
+ * @param {<O1 extends O, T, E>(e: Effect<O1, T, E>) => MatchResult<O1, T, E, Promise<any>>} next
+ * @returns {<T, E>(effect: Effect<O, T, E>) => Promise<Result<T, E>>}
+ */
+const _asyncLoop = next => async effect => {
     while (true) {
         const r = next(effect)
         if (r[0] === 'done') {
