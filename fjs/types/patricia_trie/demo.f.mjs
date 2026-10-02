@@ -180,7 +180,7 @@ const versions = versionsDemo({
     structure,
     name: 'patricia',
     noun: 'trie',
-    intro: 'The trie stores hashes, here eight bits each, as a prefix tree: each node is the prefix all its keys start with, and a leaf is a whole key. Grey, the bits a node\'s parent already fixed; dark, the bits it adds. Each step builds the trie again from all its keys, and every subtree whose keys did not change is the same node in both tries.',
+    intro: 'The trie stores hashes, here eight bits each, as a prefix tree: each node is the prefix all its keys start with, and a leaf is a whole key. Grey, the bits a node\'s parent already fixed; bold, the bits it adds. Each step builds the trie again from all its keys, and every subtree whose keys did not change is the same node in both tries.',
     keys,
     presets,
 })
