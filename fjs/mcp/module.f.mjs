@@ -30,7 +30,7 @@
  * @import { MemOp } from '../effects/memory/types.ts'
  * @import { IoChannel, Read, Write } from '../effects/node/types.ts'
  * @import { McpConfig, McpHandlers, Handle } from '../protocol/mcp/types.ts'
- * @import { Cas, FileCasOperation } from '../cas/types.ts'
+ * @import { FileCas, FileCasOperation } from '../cas/types.ts'
  * @import { Cache } from '../cas/evo/types.ts'
  * @import { Key } from '../effects/memory/types.ts'
  */
@@ -50,12 +50,10 @@ import { evoToolRegistry } from './evo/module.f.mjs'
 // ── Handlers ────────────────────────────────────────────────────────────────────
 
 /**
- * MCP handlers for a CAS store (`fjs/mcp/cas`) plus the Evo API (`fjs/mcp/evo`)
- * layered on that same store, bound to an already-built Evo cache slot (see
- * `initEvo`).
- * @template {Operation} O
- * @param {Cas<O>} cas
- * @returns {(cacheKey: Key<Cache>) => McpHandlers<O | MemOp>}
+ * MCP handlers for a file-backed CAS store (`fjs/mcp/cas`) plus the Evo API
+ * (`fjs/mcp/evo`) layered on that same store, bound to an already-built Evo
+ * cache slot (see `initEvo`).
+ * @type {(cas: FileCas) => (cacheKey: Key<Cache>) => McpHandlers<FileCasOperation | MemOp>}
  */
 export const casMcpHandlers = cas => cacheKey =>
     fromRegistry([...casToolRegistry(cas)(cacheKey), ...evoToolRegistry(evo(cas)(cacheKey))])

@@ -115,8 +115,7 @@
  * @import { MemOp } from '../../effects/memory/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { ToolEntry } from '../../protocol/mcp/types.ts'
- * @import { Operation } from '../../effects/types.ts'
- * @import { Cas } from '../../cas/types.ts'
+ * @import { FileCas, FileCasOperation } from '../../cas/types.ts'
  * @import { Cache } from '../../cas/evo/types.ts'
  * @import { Key } from '../../effects/memory/types.ts'
  */
@@ -200,9 +199,11 @@ const toMeta = uri => ({ length, mime_type: mimeType, type }) =>
  * this keeps `evo_list`/`evo_head` honest about either one without a
  * rescan.
  *
- * @template {Operation} O
- * @param {Cas<O>} c
- * @returns {(cacheKey: Key<Cache>) => readonly ToolEntry<O | MemOp>[]}
+ * `c` is a `FileCas`, not any `Cas`: the over-limit answers of `cas_add` and
+ * `cas_get` send the user to the `cas` CLI as reaching the same store, which
+ * holds only for the file-backed one.
+ *
+ * @type {(c: FileCas) => (cacheKey: Key<Cache>) => readonly ToolEntry<FileCasOperation | MemOp>[]}
  */
 export const casToolRegistry = c => cacheKey => [
     toolEntry(
