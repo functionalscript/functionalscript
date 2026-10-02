@@ -83,8 +83,9 @@ export const proof = {
         assertEq(npmPublishJobId, 'publish-npm')
         assertEq(npmPublishJob['runs-on'], images.ubuntu.arm)
         assertEq(definedValues(npmPublishWorkflow.jobs).length, 1)
-        // Unlike `package-check`, this job reads the repository: the tarball is
-        // built from the checkout rather than downloaded.
+        // Unlike the packed-package check, whose commands start outside the
+        // checkout, this job works in the repository: the tarball is built
+        // from the checkout it publishes.
         const checkout = usesIndex('actions/checkout@')
         assert(checkout !== -1, 'expected a checkout')
         const install = runIndex('npm ci')

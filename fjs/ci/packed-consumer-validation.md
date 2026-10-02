@@ -2,7 +2,7 @@
 
 This is the manual method used by
 [#1520](https://github.com/functionalscript/functionalscript/pull/1520). Its
-Node half runs in CI now: `package-check`
+Node half runs in CI now: the packed-package check closing the `node26` job
 ([`package/module.f.mjs`](./package/module.f.mjs)) installs the tarball for a
 clean consumer, imports a published `.f.js`, runs it and type-checks a use of
 its declaration with a negative control. The Deno and Bun halves below remain
