@@ -13,8 +13,9 @@
  * @import { GitHubAction, Job, MetaStep } from '../common/types.ts'
  */
 
-import { node, typescript } from '../config/module.f.js'
-import { install, test, ubuntuArm, uses } from '../common/module.f.mjs'
+import { typescript } from '../config/module.f.js'
+import { install, test, ubuntuArm } from '../common/module.f.mjs'
+import { installNode } from '../node/module.f.mjs'
 
 /**
  * Where the pipeline writes the workflow below. npm's trusted publishing binds
@@ -55,10 +56,7 @@ const registry = /** @type {const} */ ('https://registry.npmjs.org/')
  * @type {readonly MetaStep[]}
  */
 const publishSteps = [
-    install(uses('actions/setup-node', {
-        'node-version': node.default,
-        'registry-url': registry,
-    })),
+    install(installNode({ 'registry-url': registry })),
     // The compiler `prepack` runs. It is not a dependency of the package, so
     // `npm ci` below does not bring one, and this is the only job in either
     // workflow that needs one without having a flake to take it from — a

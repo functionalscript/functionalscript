@@ -146,9 +146,19 @@ export const reportOf = (browser, duration, results, status) => {
     }
 }
 
-/** @type {(module: string, cause: unknown) => Effect<Catch, _BrowserTestResult, never>} */
-const failureOf = (module, cause) =>
-    mapStep(errorDetails(cause), ([message, stack]) => moduleFailure(module, 0, message, stack))
+/**
+ * A whole module's failure, its cause described by {@link errorDetails}.
+ *
+ * Describing a cause runs user code, so this is an effect over `catch`. Both
+ * runners build the row here: the walk below with a zero `duration`, and the
+ * host's guards with their own clock, on an interpreter holding nothing but
+ * the common operations. `catch` has no error channel, so neither has a
+ * fallback to write.
+ *
+ * @type {(module: string, duration: number, cause: unknown) => Effect<Catch, _BrowserTestResult, never>}
+ */
+export const failureOf = (module, duration, cause) =>
+    mapStep(errorDetails(cause), ([message, stack]) => moduleFailure(module, duration, message, stack))
 
 /**
  * The page's half of a leaf-landed event: the shared {@link TestResult} plus a
@@ -203,7 +213,7 @@ const reporter = {
 const runEntriesOf = (module, entries) =>
     step(
         runEntries(reporter)(module, entries)(zeroState),
-        ({ aborted }) => aborted === null ? pureOk(null) : failureOf(module, aborted))
+        ({ aborted }) => aborted === null ? pureOk(null) : failureOf(module, 0, aborted))
 
 /**
  * One module: enumerate its export, then run what came out.
@@ -229,9 +239,9 @@ const one = ([module, proof]) => ended => {
         attempt(() => collectTests([], false, proof)))
     return step(collect, collected =>
         collected[0] === 'error'
-            ? step(failureOf(module, collected[1]), failure =>
+            ? step(failureOf(module, 0, collected[1]), failure =>
                 resultStep(report(['result', failure]), r =>
-                    r[0] === 'ok' ? pureOk(null) : failureOf(module, r[1])))
+                    r[0] === 'ok' ? pureOk(null) : failureOf(module, 0, r[1])))
             : runEntriesOf(module, collected[1]))
 }
 

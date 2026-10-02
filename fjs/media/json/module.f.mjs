@@ -17,18 +17,17 @@
  * @module
  *
  * @import { Result } from '../../types/result/types.ts'
- * @import { _MapEntries, Primitive, Unknown, } from './types.ts'
+ * @import { Primitive, Unknown } from './types.ts'
+ * @import { Codec } from './serializer/types.ts'
  * @import { NumberPolicy } from './parser/types.ts'
  * @import { List } from '../../types/list/types.ts'
  */
 
 import { next } from '../../types/list/module.f.mjs'
-import { concat } from '../../types/string/module.f.mjs'
 import { parse as parseWith } from './parser/module.f.mjs'
 import { at } from '../../types/object/module.f.mjs'
-import { compose } from '../../types/function/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
-import { treeSerialize, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from './serializer/module.f.mjs'
+import { codec, leafSerialize, numberSerialize } from './serializer/module.f.mjs'
 
 // ── JSON utilities ────────────────────────────────────────────────────────────
 
@@ -48,31 +47,17 @@ export const setProperty = value => {
 }
 
 /**
- * The standard codec's leaf spelling. The containers around it are
- * `treeSerialize`'s, shared with every other JSON codec.
+ * The standard codec: its own `number` spelling and no leaf kinds beyond
+ * JSON's. The containers around it are `treeSerialize`'s, shared with every
+ * other JSON codec.
  *
- * @type {(value: Primitive) => List<string>}
- */
-const primitiveSerialize = value => {
-    switch (typeof value) {
-        case 'boolean': { return boolSerialize(value) }
-        case 'number': { return numberSerialize(value) }
-        case 'string': { return stringSerialize(value) }
-        default: { return nullSerialize }
-    }
-}
-
-/** @type {(mapEntries: _MapEntries) => (value: Unknown) => List<string>} */
-export const serialize = treeSerialize(primitiveSerialize)
-
-/**
- * The standard `JSON.stringify` rules determined by
+ * `stringify` follows the standard `JSON.stringify` rules determined by
  * https://262.ecma-international.org/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
  * https://tc39.es/ecma262/#sec-serializejsonproperty
  *
- * @type {(mapEntries: _MapEntries) => (value: Unknown) => string}
+ * @type {Codec<Primitive>}
  */
-export const stringify = sort => compose(serialize(sort))(concat)
+export const { serialize, stringify } = codec(leafSerialize(numberSerialize)({}))
 
 /**
  * The standard codec's numeric policy: every JSON number becomes a

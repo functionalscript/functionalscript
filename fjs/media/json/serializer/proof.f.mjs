@@ -1,9 +1,33 @@
-import { arrayWrap, boolSerialize, numberSerialize, objectWrap, stringSerialize } from './module.f.mjs'
+/**
+ * @import { List } from '../../../types/list/types.ts'
+ */
+
+import { arrayWrap, boolSerialize, codec, leafSerialize, numberSerialize, objectWrap, stringSerialize } from './module.f.mjs'
 import * as list from '../../../types/list/module.f.mjs'
+import { sort } from '../../../types/object/module.f.mjs'
 import { concat } from '../../../types/string/module.f.mjs'
 import { assertEq } from '../../../asserts/module.f.mjs'
 
 const { toArray } = list
+
+/** @type {(value: number) => List<string>} */
+const hash = value => [`#${value}`]
+
+const plain = leafSerialize(hash)({})
+
+const full = leafSerialize(hash)({
+    bigint: value => [`${value}n`],
+    undefined: () => ['undefined'],
+})
+
+/**
+ * A leaf a configuration has no arm for. Only a cast delivers one past
+ * `_Leaves`, and the cast is the point: the builder must refuse it rather
+ * than spell it `null`.
+ *
+ * @type {(value: unknown) => never}
+ */
+const unchecked = value => /** @type {never} */ (value)
 
 // The expected literals below are what the host's `JSON.stringify` produces for
 // the same input; `stringSerialize` has to reproduce them exactly, so any
@@ -88,5 +112,27 @@ export const proof = {
             const result = JSON.stringify(toArray(boolSerialize(true)))
             assertEq(result, '["true"]')
         }
-    ]
+    ],
+    leafSerialize: {
+        shared: () => {
+            assertEq(concat(plain(true)), 'true')
+            assertEq(concat(plain(1.5)), '#1.5')
+            assertEq(concat(plain('a')), '"a"')
+            assertEq(concat(plain(null)), 'null')
+        },
+        extra: () => {
+            assertEq(concat(full(1n)), '1n')
+            assertEq(concat(full(undefined)), 'undefined')
+            assertEq(concat(full(false)), 'false')
+        },
+        throw: {
+            bigint: () => plain(unchecked(1n)),
+            undefined: () => plain(unchecked(undefined)),
+        },
+    },
+    codec: () => {
+        const { serialize, stringify } = codec(plain)
+        assertEq(stringify(sort)({ b: [1, null], a: 'x' }), '{"a":"x","b":[#1,null]}')
+        assertEq(JSON.stringify(toArray(serialize(sort)([true]))), '["[","true","]"]')
+    },
 }

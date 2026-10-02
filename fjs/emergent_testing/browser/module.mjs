@@ -27,7 +27,7 @@
  */
 
 import {
-    countsView, errorDetails, groupLabel, groupStatus, groupView, loadProofs, moduleFailure,
+    countsView, failureOf, groupLabel, groupStatus, groupView, loadProofs,
     pendingView, reportDuration, reportOf, reportView, resultView, runProofs, runnerSource, unreported,
 } from './module.f.mjs'
 // The phrase for a value that will not be read is the runners' shared one:
@@ -56,21 +56,16 @@ import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 const macrotask = () => new Promise(resolve => { setTimeout(resolve, 0) })
 
 /**
- * A whole module's failure, described by the shared reader.
+ * The shared {@link failureOf}, run.
  *
- * The reader is an effect over `catch`, because reading a thrown value runs
- * user code, so describing one takes an interpreter — a minimal one, holding
- * nothing but the common operations.
+ * Describing a cause runs user code, so it takes an interpreter — a minimal
+ * one, holding nothing but the common operations. The effect has no error
+ * channel, so `unwrap` has no branch to take.
  *
  * @type {(source: string, duration: number, cause: unknown) => Promise<_BrowserTestResult>}
  */
-const failureOf = async (source, duration, cause) => {
-    const described = await asyncRun(commonOperationMap)(errorDetails(cause))
-    const [message, stack] = described[0] === 'ok'
-        ? described[1]
-        : /** @type {const} */ ([unknownValue, unknownValue])
-    return moduleFailure(source, duration, message, stack)
-}
+const runFailureOf = async (source, duration, cause) =>
+    unwrap(await asyncRun(commonOperationMap)(failureOf(source, duration, cause)))
 
 /**
  * {@link runBrowserProofs} with the page's own operation map handed to
@@ -162,7 +157,7 @@ export const _runBrowserProofsWith = operations => (
      *
      * @type {(cause: unknown) => Promise<_BrowserTestResult>}
      */
-    const runnerFailure = cause => failureOf(runnerSource, 0, cause)
+    const runnerFailure = cause => runFailureOf(runnerSource, 0, cause)
     // Nothing that runs user code may start before the caller holds the
     // promise: a leaf executes synchronously inside its handler, so without
     // this deferral the first proofs run while this function is still building
@@ -360,7 +355,7 @@ export const startBrowserTestSources = (root, sources) => {
         .catch(async cause => publish(root, Promise.resolve(reportOf(
             navigator.userAgent,
             performance.now() - start,
-            [await failureOf(runnerSource, performance.now() - start, cause)],
+            [await runFailureOf(runnerSource, performance.now() - start, cause)],
             'infrastructure-error'))))
     const view = viewOf(root)
     if (view !== null) { view.fjsBrowserTestReport = report }
