@@ -17,6 +17,7 @@ mod number;
 mod number_coercion;
 mod numeric;
 mod object;
+mod object_spread;
 mod primitive;
 mod primitive_coercion;
 mod string;
@@ -35,6 +36,7 @@ pub use crate::vm::{
     nullish::Nullish,
     number::Number,
     object::{Object, property::Property, to_object::ToObject},
+    object_spread::ObjectSpread,
     string::{String, to_string::ToString},
     unpacked::Unpacked,
 };

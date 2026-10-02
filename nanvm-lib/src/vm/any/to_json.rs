@@ -53,34 +53,6 @@ impl Display for JsonError {
     }
 }
 
-/// The `u32` value of `k` if ECMAScript's own-property enumeration treats it
-/// as an "array index" — the keys `JSON.stringify` (via
-/// `[[OwnPropertyKeys]]`) lists first, ascending, ahead of every other key
-/// in insertion order: `ToString(ToUint32(key)) == key` and
-/// `ToUint32(key) != 2^32 - 1`. ASCII digits only, no leading zero unless the
-/// key is exactly `"0"`, and in range — `"01"` and `"4294967295"` are both
-/// excluded, the first because its canonical form is `"1"`, not itself, the
-/// second because it's the one `ToUint32` value the spec carves out.
-///
-/// [`ToJson::object`] uses this to sort an object's array-index keys ahead
-/// of the rest, by this value rather than by the key's own text — `"10"`
-/// sorts after `"2"` numerically, the opposite of their lexicographic order.
-fn array_index_value<A: IVm>(k: &String<A>) -> Option<u32> {
-    let units: std::vec::Vec<u16> = k.clone().into_iter().collect();
-    let zero = b'0' as u16;
-    if units == [zero] {
-        return Some(0);
-    }
-    if units.is_empty()
-        || units[0] == zero
-        || !units.iter().all(|&u| (zero..=b'9' as u16).contains(&u))
-    {
-        return None;
-    }
-    let digits: std::string::String = units.iter().map(|&u| (u as u8) as char).collect();
-    digits.parse::<u32>().ok().filter(|&n| n != u32::MAX)
-}
-
 /// Renders `v` as a JSON string literal, quotes and escapes included.
 ///
 /// Shared by [`ToJson::string`] and object-key serialization
@@ -155,51 +127,17 @@ impl<A: IVm> Dispatch<A> for ToJson {
     }
 
     fn object(self, v: Object<A>) -> Self::Result {
-        // An object's property list is never deduplicated on construction
-        // (`own_property.rs`'s own doc comment), so a correct rendering has
-        // to do what `JSON.stringify` does on the equivalent JS object:
-        // each key's *last* value, kept at its *first* position. A bare
-        // per-member loop would either repeat a key or pick the wrong
-        // value, so the distinct keys are collected first, in first-seen
-        // order, and each one's value is then a fresh `own_property` scan
-        // (last-write-wins by construction — see that method's doc
-        // comment).
-        //
-        // ECMAScript's own-property enumeration order (`[[OwnPropertyKeys]]`,
-        // which `JSON.stringify` inherits) is not plain insertion order: an
-        // array-index-like key (`array_index_value`) is listed first,
-        // ascending by its numeric value, ahead of every other key, which
-        // keeps its insertion order (`fjs/compiler/README.md`'s object-literal
-        // section calls this out at the AST level). So the deduped keys are
-        // partitioned into the two groups, the array-index group sorted, and
-        // printed index keys first.
-        let mut keys: Vec<String<A>> = Vec::new();
-        for i in 0..v.length() {
-            let (k, _) = &v[i];
-            if !keys.iter().any(|seen| seen == k) {
-                keys.push(k.clone());
-            }
-        }
-        let mut index_keys: Vec<(u32, String<A>)> = Vec::new();
-        let mut other_keys: Vec<String<A>> = Vec::new();
-        for k in keys {
-            match array_index_value(&k) {
-                Some(n) => index_keys.push((n, k)),
-                None => other_keys.push(k),
-            }
-        }
-        index_keys.sort_by_key(|(n, _)| *n);
-        let ordered = index_keys.into_iter().map(|(_, k)| k).chain(other_keys);
+        // The object's own enumerable entries in `[[OwnPropertyKeys]]`
+        // order, each key once with its last value: the view
+        // `JSON.stringify` and an object spread both read
+        // ([`Object::own_entries`]).
         let mut out = std::string::String::from("{");
-        for (i, k) in ordered.enumerate() {
+        for (i, (k, value)) in v.own_entries().into_iter().enumerate() {
             if i > 0 {
                 out.push(',');
             }
-            out.push_str(&json_string(k.clone()));
+            out.push_str(&json_string(k));
             out.push(':');
-            let value = v
-                .own_property(&k)
-                .expect("key was just read from this object's own properties");
             out.push_str(&value.to_json()?);
         }
         out.push('}');

@@ -66,5 +66,5 @@ extension assignments it checks one by one — or into
 - [../../refstore/todo/ref-writing.md](../../refstore/todo/ref-writing.md)
   — the `core.sharedRepository` read that would be this grammar's second
   consumer.
-- [../../store/todo/alternates-module.md](../../store/todo/alternates-module.md)
-  — the same shape of split, for the alternates decoder.
+- [`fjs/git/alternates`](../../alternates/module.f.mjs) — the same shape of
+  split, done for the alternates decoder.

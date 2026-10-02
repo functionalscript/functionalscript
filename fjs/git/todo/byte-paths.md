@@ -28,7 +28,7 @@ refusing took a repository Git reads and made *all* of it unreadable, the
 objects the store holds itself included, to avoid a miss on one borrowing. The
 line is an ordinary path now that simply is not found, which is a miss and never
 a wrong object, since the id is checked against whatever answers.
-[alternates-line-quirks.md](../store/todo/alternates-line-quirks.md) records it as one of
+[alternates-line-quirks.md](../alternates/todo/alternates-line-quirks.md) records it as one of
 the two places this reader and Git look in different directories. This issue is
 what makes them look in the same one.
 
@@ -116,11 +116,11 @@ why `fjs/git` wants it and what it does until then.
 
 - [`fjs/git/store`](../store/module.f.mjs) — owns where a store looks; this
   issue owns what it can spell.
-- [alternates-line-quirks.md](../store/todo/alternates-line-quirks.md) — carries this as one
+- [alternates-line-quirks.md](../alternates/todo/alternates-line-quirks.md) — carries this as one
   of the two lines where that reader and Git look in different directories, and
   the `NUL` as the shape that was a third until it was cut.
-- [`fjs/git/store`](../store/module.f.mjs) — `alternatesIn`, which reads such a
-  line as an ordinary path.
+- [`fjs/git/alternates`](../alternates/module.f.mjs) — `alternatesIn`, which
+  reads such a line as an ordinary path.
 - [Paths as bytes](../../effects/node/todo/byte-paths.md) — the effects change
   this waits on.
 - [byte-ref-names](../refstore/todo/byte-ref-names.md) — the same gap for a ref

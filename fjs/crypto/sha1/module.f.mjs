@@ -15,8 +15,8 @@
  * In the shape of [`fjs/crypto/sha2`](../sha2/module.f.mjs): `init`,
  * `append` and `end` over a `State`, so `computeSync` there computes it.
  * The framing is SHA-256's — 512-bit blocks, a `1` bit, zeros, and the
- * message length in 64 bits — and is `sha2`'s `framing`, shared, over the
- * one thing that differs: the compression, five words through eighty
+ * message length in 64 bits — and is `sha2`'s, shared through `framed`, over
+ * the one thing that differs: the compression, five words through eighty
  * rounds in four twenties, on a schedule that rotates. See RFC 3174
  * section 6.
  *
@@ -25,9 +25,8 @@
  * @import { Sha1, V5 } from './types.ts'
  */
 
-import { divUp8, mask } from '../../types/bigint/module.f.mjs'
-import { empty } from '../../types/bit_vec/module.f.mjs'
-import { framing } from '../sha2/module.f.mjs'
+import { mask } from '../../types/bigint/module.f.mjs'
+import { ch, framed, fromWords, maj } from '../sha2/module.f.mjs'
 
 const wordLength = /** @type {const} */ (32n)
 
@@ -54,13 +53,7 @@ const rotl5 = rotl(5n)
 const rotl30 = rotl(30n)
 
 /** @type {(b: bigint, c: bigint, d: bigint) => bigint} */
-const ch = (b, c, d) => b & c ^ ~b & d
-
-/** @type {(b: bigint, c: bigint, d: bigint) => bigint} */
 const parity = (b, c, d) => b ^ c ^ d
-
-/** @type {(b: bigint, c: bigint, d: bigint) => bigint} */
-const maj = (b, c, d) => b & c ^ b & d ^ c & d
 
 /**
  * The four twenties of rounds: each its function of `b`, `c` and `d`, and
@@ -154,17 +147,6 @@ const compress = ([h0, h1, h2, h3, h4]) => u => {
     ]
 }
 
-/** @type {(a: V5) => bigint} */
-const fromV5 = a => a.reduce((p, v) => p << wordLength | v)
-
-const { append, end } = framing({
-    chunkLength,
-    lengthLength,
-    digestLength: hashLength,
-    compress,
-    digest: fromV5,
-})
-
 /**
  * SHA-1.
  *
@@ -177,16 +159,14 @@ const { append, end } = framing({
  *
  * @type {Sha1}
  */
-export const sha1 = {
-    hashLength,
-    blockLength: chunkLength,
-    hashBytes: divUp8(hashLength),
-    blockBytes: divUp8(chunkLength),
-    init: {
-        hash: [0x67452301n, 0xefcdab89n, 0x98badcfen, 0x10325476n, 0xc3d2e1f0n],
-        len: 0n,
-        remainder: empty,
+export const sha1 = framed(
+    {
+        chunkLength,
+        lengthLength,
+        digestLength: hashLength,
+        compress,
+        digest: fromWords(wordLength),
     },
-    append,
-    end: end(hashLength),
-}
+    [0x67452301n, 0xefcdab89n, 0x98badcfen, 0x10325476n, 0xc3d2e1f0n],
+    hashLength,
+)
