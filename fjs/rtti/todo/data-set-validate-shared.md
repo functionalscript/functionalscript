@@ -1,7 +1,7 @@
 ## One data-set validator over `getItem`; one leftover rule
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
