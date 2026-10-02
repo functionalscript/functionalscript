@@ -60,8 +60,3 @@ no less useful for it. The early exits are the combinator's.
 - [ ] `cascade` with a proof of the early exit at each position.
 - [ ] `pipelineStep` through it.
 - [ ] `tsc`, `fjs test`.
-
-### Related
-
-- [66m-sul-literal-level-reuse.md](./66m-sul-literal-level-reuse.md)
-  — the same module's second `level(e)` construction; independent.

@@ -56,15 +56,14 @@
  * @import { Result } from '../../../types/result/types.ts'
  * @import { List } from '../../../types/list/types.ts'
  * @import { NumberPolicy } from '../parser/types.ts'
- * @import { Primitive, Unknown, _MapEntries } from './types.ts'
+ * @import { Primitive, Unknown } from './types.ts'
+ * @import { Codec } from '../serializer/types.ts'
  */
 
-import { concat } from '../../../types/string/module.f.mjs'
-import { compose } from '../../../types/function/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.mjs'
 import { parse as parseWith } from '../parser/module.f.mjs'
 import { isBareInteger, numberLexeme } from '../number/module.f.mjs'
-import { treeSerialize, stringSerialize, nullSerialize, boolSerialize } from '../serializer/module.f.mjs'
+import { codec, leafSerialize, nullSerialize } from '../serializer/module.f.mjs'
 
 const { isFinite } = Number
 
@@ -125,27 +124,11 @@ const numberSerialize = value => {
  */
 const bigintSerialize = value => [`${value}`]
 
-/** @type {(value: Primitive) => List<string>} */
-const primitiveSerialize = value => {
-    switch (typeof value) {
-        case 'boolean': { return boolSerialize(value) }
-        case 'bigint': { return bigintSerialize(value) }
-        case 'number': { return numberSerialize(value) }
-        case 'string': { return stringSerialize(value) }
-        default: { return nullSerialize }
-    }
-}
-
 /**
- * Serializes an extended JSON value as a list of string chunks.
+ * The extended codec: the `number` spelling above, and `bigint` added to the
+ * leaves. `serialize` writes a value as a list of string chunks, and
+ * `stringify` as ordinary JSON text.
  *
- * @type {(mapEntries: _MapEntries) => (value: Unknown) => List<string>}
+ * @type {Codec<Primitive>}
  */
-export const serialize = treeSerialize(primitiveSerialize)
-
-/**
- * Serializes an extended JSON value as ordinary JSON text.
- *
- * @type {(mapEntries: _MapEntries) => (value: Unknown) => string}
- */
-export const stringify = sort => compose(serialize(sort))(concat)
+export const { serialize, stringify } = codec(leafSerialize(numberSerialize)({ bigint: bigintSerialize }))

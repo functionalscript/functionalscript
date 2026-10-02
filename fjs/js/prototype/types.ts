@@ -1,6 +1,7 @@
 /**
  * Type-level API for `fjs/js/prototype/module.f.js`: the pin that
- * `prototypeNames` is exactly the union of the seven prototypes' lists.
+ * `prototypeNames`, derived from the seven prototypes' lists, keeps their
+ * union as its element type rather than `string`.
  * A compile-time claim about exports lives here, at module scope, where
  * `tsc` checks it whatever a proof body does.
  *

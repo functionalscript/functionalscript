@@ -7,8 +7,8 @@ import {
 /** @type {readonly (readonly string[])[]} */
 const lists = [objectPrototype, arrayPrototype, stringPrototype, numberPrototype, booleanPrototype, bigintPrototype, functionPrototype]
 
-/** @type {(names: readonly string[]) => string} */
-const sorted = names => names.toSorted((a, b) => a < b ? -1 : 1).join()
+/** Sorted by code unit, each name once. @type {(names: readonly string[]) => boolean} */
+const ascending = names => names.every((name, i) => i === 0 || names[i - 1] < name)
 
 export const proof = {
     // each list is sorted and has each name once; none is checked against
@@ -16,16 +16,17 @@ export const proof = {
     // more, and Deno deletes `Object.prototype.__proto__`
     lists: () => {
         for (const names of lists) {
-            assertEq(names.join(), sorted(names))
-            assertEq(names.length, new Set(names).size)
+            assertEq(ascending(names), true)
         }
     },
-    // `prototypeNames` is exactly the sorted union of the seven lists —
-    // at runtime here, and at the type level in `./types.ts`
+    // `prototypeNames` is derived from the seven lists; what the derivation
+    // does not show at a glance is that it dropped every repeat and nothing
+    // else — strictly ascending, and as many names as the union. The
+    // type-level pin in `./types.ts` keeps the element type the literal union
+    // rather than `string`.
     aggregate: () => {
-        const union = new Set(lists.flat())
-        assertEq(prototypeNames.join(), sorted([...union]))
-        assertEq(prototypeNames.length, union.size)
+        assertEq(ascending(prototypeNames), true)
+        assertEq(prototypeNames.length, new Set(lists.flat()).size)
     },
     // `prohibitedCalls` and `allowedCalls` are each sorted, each name once,
     // and with `length` they are exactly `prototypeNames`: every prototype
@@ -34,11 +35,10 @@ export const proof = {
     // list: a value owns it, and a call of it is a call of what it holds.
     calls: () => {
         for (const names of [prohibitedCalls, allowedCalls]) {
-            assertEq(names.join(), sorted(names))
-            assertEq(names.length, new Set(names).size)
+            assertEq(ascending(names), true)
             assertEq(/** @type {readonly string[]} */ (names).includes('length'), false)
         }
-        assertEq(sorted([...prohibitedCalls, ...allowedCalls, 'length']), prototypeNames.join())
+        assertEq([...prohibitedCalls, ...allowedCalls, 'length'].toSorted().join(), prototypeNames.join())
         assertEq(prohibitedCalls.length + allowedCalls.length + 1, prototypeNames.length)
         // the five data properties a read refuses are no functions, so none
         // is callable

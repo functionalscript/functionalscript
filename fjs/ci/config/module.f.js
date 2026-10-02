@@ -86,8 +86,8 @@ export const deno = '2.8.3'
 // The Node versions the pinned Nixpkgs snapshot below provides — read from
 // `pkgs/development/web/nodejs/v{22,24,26}.nix` at that commit. They feed the
 // canonical jobs' flakes, which assert the version they actually get, as well
-// as every `setup-node` step: the platform matrix, `package-check`, and the
-// publishing workflow.
+// as every `setup-node` step: the two Windows jobs, the packed-package check
+// closing the `node26` job, and the publishing workflow.
 // Nixpkgs usually trails nodejs.org, so bump the snapshot first and copy the
 // versions it offers rather than the latest release.
 // https://nodejs.org/en/download
@@ -97,8 +97,9 @@ export const node = /** @type {const} */({
     node24: '24.21.0',
 })
 
-// The TypeScript this repository type-checks with, and the one `package-check`
-// installs from npm to check the declarations the packed tarball ships.
+// The TypeScript this repository type-checks with, and the one the
+// packed-package check installs from npm to check the declarations the packed
+// tarball ships.
 //
 // `attribute` is the Nixpkgs attribute carrying it, and it is not `typescript`.
 // That one is the original compiler and the pinned snapshot has it at 5.9.3;
@@ -108,11 +109,11 @@ export const node = /** @type {const} */({
 // `pkgs/by-name/ty/typescript{,-go}/package.nix` at the commit pinned below.
 //
 // One version, two package managers, and that is the point of it being here.
-// npm resolves the platform binary for `package-check`, Nix builds it from
+// npm resolves the platform binary for the package check, Nix builds it from
 // source for the shells; nothing in this generator picks a per-platform
 // artifact, because both tools already do. It is exact rather than a range in
-// both: `package-check` runs with no checkout, so a range there would let the
-// registry change the verdict with no change here.
+// both: the package check's consumer project has no lockfile, so a range there
+// would let the registry change the verdict with no change here.
 //
 // The two shells that carry it assert it from inside, since the attribute
 // names no version — the same tie `deno`, `wasmtime` and `wasmer` have.
@@ -195,10 +196,6 @@ export const actions = /** @type {const} */({
     'actions/setup-node': 'v7.0.0',
     // https://github.com/marketplace/actions/cache
     'actions/cache': 'v6.1.0',
-    // https://github.com/marketplace/actions/upload-a-build-artifact
-    'actions/upload-artifact': 'v7.0.1',
-    // https://github.com/marketplace/actions/download-a-build-artifact
-    'actions/download-artifact': 'v8.0.1',
     // https://github.com/marketplace/actions/install-nix
     // Enables the `nix-command` and `flakes` experimental features by default.
     'cachix/install-nix-action': 'v31.11.1',

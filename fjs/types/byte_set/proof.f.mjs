@@ -60,6 +60,8 @@ export const proof = {
         }
     ],
     universe: () => {
+        //       0    1    2    3    4    5    6    7    8    9    A    B    C    D    E    F
+        assertEq(universe, 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFFn)
         const x = every(map((/** @type {any} */ v) => has(v)(universe))(countdown(256)))
         assert(x, x)
     },
