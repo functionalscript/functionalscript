@@ -182,26 +182,19 @@ const demoProof = {
         assertEq(again.versions.after.root, versions.after.root)
         assert(again.versions.after !== versions.after, '')
     },
-    // Every node's name — not shown, but what makes a node shared — is a
-    // real SHA-256 hash. The expected values are literal, from
-    // `printf '%s' 'leaf 00000011' | sha256sum` and so on, rather
-    // than computed here: a proof that hashed with the same code as the
-    // demo could not tell a wrong hash from a right one.
-    hashes: () => {
+    // Every node's name — not shown, but what makes a node shared — is its
+    // keys: a leaf's in binary, a branch's its children's names joined.
+    names: () => {
         const { nodes } = _load('Insert a key').versions.after
-        const leaf3 = 'db9ff3e19ab9173be17800009bb08c5ad495f213fc72ab78f1d6fb7dde71964b'
-        const leaf17 = 'a477e6a5a5c02c8cad261851f9232b13b4b704804a427a5d6bfdb01b9f9f1b9e'
-        assertEq(JSON.stringify(nodes.get(leaf3)), '["leaf",3]')
-        assertEq(JSON.stringify(nodes.get(leaf17)), '["leaf",17]')
-        assertEq(JSON.stringify(nodes.get('7fe56b5491fbf2e9e4afd132f874141b7d4beff1e402c427c2794cbf8ffcb221')), JSON.stringify(['branch', leaf3, leaf17]))
+        assertEq(JSON.stringify(nodes.get('00000011')), '["leaf",3]')
+        assertEq(JSON.stringify(nodes.get('00000011 00010001')), '["branch","00000011","00010001"]')
     },
     // A node shows its prefix in binary, a leaf its whole key, each split
     // into the bits its parent fixed and the bits it adds; nothing else.
     drawing: () => {
         const h = html(_load('Insert a key'))
-        // A node is its prefix and nothing else: no title, no hash.
+        // A node is its prefix and nothing else: no title.
         assert(!h.includes('data-graph-label='), h)
-        assert(!h.includes('db9f'), h)
         assert(h.includes('<label for="patricia-key">Key (8 bits) </label>'), h)
         assert(h.includes('value="01100100"'), h)
         // The branch over 3 and 17: its keys start 000, its parent's 00.

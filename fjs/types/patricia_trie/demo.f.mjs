@@ -8,12 +8,14 @@
  * no node has a hash of its own to show.
  *
  * **Each trie is built from scratch**, from its sorted keys, and still the
- * two share most of their nodes. Underneath, the trie's `create` names a
- * branch by the SHA-256 of its two children's names, and a leaf by that of
- * `leaf ` and its key in binary, as a Merkle tree does; so a subtree whose
- * keys did not change gets the same name in both tries, and is the same
- * node. The B-tree demo shares by reusing objects; this one by content.
- * The names are how the drawing knows two nodes are one, and are not shown.
+ * two share most of their nodes. The keys are already hashes, so a node
+ * needs no hash of its own: a leaf is named by its key in binary, and the
+ * trie's `create` names a branch by its children's names joined by a space
+ * — its keys in order, which a branch, holding at least two, shares with no
+ * leaf. So a subtree whose keys did not change gets the same name in both
+ * tries, and is the same node. The B-tree demo shares by reusing objects;
+ * this one by content. The names are how the drawing knows two nodes are
+ * one, and are not shown.
  *
  * **The demo is a [versions demo](../../website/demo/versions/module.f.mjs)**,
  * which draws both versions as one graph; this module says only what the
@@ -35,9 +37,6 @@
  */
 
 import { emptyState, patriciaTrie } from './module.f.mjs'
-import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
-import { uint } from '../bit_vec/module.f.mjs'
-import { utf8 } from '../../text/module.f.mjs'
 import { versionsDemo } from '../../website/demo/versions/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 
@@ -47,26 +46,20 @@ const bits = 8
 /** @type {(key: number) => string} */
 const binary = key => key.toString(2).padStart(bits, '0')
 
-/** @type {(text: string) => string} */
-const hashOf = text => uint(computeSync(sha256)([utf8(text)])).toString(16).padStart(64, '0')
-
 /**
- * The trie's `create`: a branch's identity is the hash of its children's,
- * and the storage gathers every node built, by identity.
+ * The trie's `create`: a branch's identity is its children's, joined, and
+ * the storage gathers every node built, by identity.
  *
  * @type {(a: string, b: string, storage: ReadonlyMap<string, _DemoNode>) => readonly [string, ReadonlyMap<string, _DemoNode>]}
  */
 const create = (a, b, storage) => {
-    const id = hashOf(`${a} ${b}`)
+    const id = `${a} ${b}`
     /** @type {_DemoNode} */
     const branch = ['branch', a, b]
     return [id, new Map([...storage, [id, branch]])]
 }
 
 const { push, end } = patriciaTrie(create)
-
-/** @type {(key: number) => string} */
-const leafId = key => hashOf(`leaf ${binary(key)}`)
 
 /**
  * The trie over `keys`, which must be sorted, built from scratch.
@@ -75,10 +68,10 @@ const leafId = key => hashOf(`leaf ${binary(key)}`)
  */
 const build = keys => {
     /** @type {ReadonlyMap<string, _DemoNode>} */
-    const leaves = new Map(keys.map(k => [leafId(k), /** @type {_DemoNode} */ (['leaf', k])]))
+    const leaves = new Map(keys.map(k => [binary(k), /** @type {_DemoNode} */ (['leaf', k])]))
     /** @type {State<ReadonlyMap<string, _DemoNode>, string>} */
     const start = emptyState(leaves)
-    const [root, nodes] = end(keys.reduce((s, k) => push([BigInt(k), leafId(k)], s), start))
+    const [root, nodes] = end(keys.reduce((s, k) => push([BigInt(k), binary(k)], s), start))
     return { keys, root: root ?? null, nodes }
 }
 
@@ -164,9 +157,9 @@ const spread = [3, 17, 40, 66, 99, 130, 180, 230]
  * @type {readonly Preset[]}
  */
 export const presets = [
-    ['Insert a key', spread, 0b01100100, 'Press Insert to add 01100100: the trie is built again from scratch, and only the branches above it get new hashes.'],
+    ['Insert a key', spread, 0b01100100, 'Press Insert to add 01100100: the trie is built again from scratch, and only the branches above it are new.'],
     ['Remove a key', spread, 0b10110100, 'Press Remove to take out 10110100: its sibling moves up, and only the branches above it change.'],
-    ['Insert at the edge', spread, 0b11111010, 'Press Insert to add 11111010: the right edge of the trie changes, and the whole left half keeps its hashes.'],
+    ['Insert at the edge', spread, 0b11111010, 'Press Insert to add 11111010: the right edge of the trie changes, and the whole left half is shared.'],
     ['Worked example', worked, 0b10000000, 'The sixteen keys of example.md. Press Insert to add 10000000.'],
     ['Empty trie', [], 0b00101010, 'Press Insert to add 00101010, then keep inserting to watch the trie grow.'],
 ]

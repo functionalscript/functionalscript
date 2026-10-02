@@ -7,7 +7,7 @@
  * **A node both versions hold is drawn once**, reached from both roots, so
  * the drawing itself shows what the step shared. A structure says what
  * "both hold" means by what `===` compares: the same object for one that
- * shares by reference, the same hash for one that shares by content.
+ * shares by reference, the same name for one that shares by content.
  *
  * **A node's kind says which versions hold it**: `new` only the new one,
  * `replaced` only the old one, `shared` both. The site's stylesheet draws

@@ -54,7 +54,7 @@ export type Layout = 'leaves' | 'depth'
 /**
  * How the drawing reads a structure's nodes. Two nodes are the same node
  * when they are `===`: an object for a structure that shares by reference,
- * a hash for one that shares by content.
+ * a name built from its keys for one that shares by content.
  *
  * `order` is a node's place in its column, top to bottom — its keys'
  * average, or its smallest key.
