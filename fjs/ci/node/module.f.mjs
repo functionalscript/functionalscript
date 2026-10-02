@@ -6,17 +6,13 @@
  *
  * @import { Jobs, MetaStep, Step } from '../common/types.ts'
  * @import { NixJob } from '../nix/types.ts'
+ * @import { PackageConsumer } from '../types.ts'
  */
 
 import { node, typescript } from '../config/module.f.js'
 import { install, test, ubuntuArm, uses } from '../common/module.f.mjs'
 import { nixInstall, nixShell, nixSteps, nixSystems, nixVersionStep } from '../nix/module.f.mjs'
-
-/**
- * Name of the CI artifact carrying the `npm pack` tarball. The producing step
- * is below; a consuming job downloads it by this name.
- */
-export const packageArtifact = /** @type {const} */ ('package-tarball')
+import { consumerDirectory, packageCheckSteps } from '../package/module.f.mjs'
 
 /** @type {(v: string) => string} */
 export const major = v => v.split('.')[0]
@@ -25,8 +21,8 @@ export const major = v => v.split('.')[0]
 const jobId = version => `node${major(version)}`
 
 /**
- * The job that packs the tarball and uploads it. A consuming job names this in
- * `needs` rather than repeating the id.
+ * The job that packs the tarball and checks it as a consumer would. Named
+ * here so a proof reading the workflow need not repeat the id.
  */
 export const packageJobId = jobId(node.default)
 
@@ -42,11 +38,12 @@ const fjsGlobalInstall = version =>
  * Asserts the Node a job is about to run on, through the shared check.
  *
  * `node --version` prints a leading `v` the configured version does not carry,
- * so the expected string restores it. Every canonical Node job runs this, and
- * none needs a `setup-node` spelling any more. The other jobs that install Node
- * get no check: the platform matrix, whose Windows jobs run `run` steps under
- * PowerShell where this POSIX command would not survive, and `package-check`,
- * which has no checkout to enter a flake from.
+ * so the expected string restores it. Every canonical Node job runs this. The
+ * steps that install Node through `setup-node` get no check: the platform
+ * matrix, whose Windows jobs run `run` steps under PowerShell where this POSIX
+ * command would not survive, and the packed-package check closing Node 26's
+ * job, which takes its Node as a consumer would and enters no flake to check
+ * one from.
  *
  * It takes the shell to enter, because the three canonical jobs no longer enter
  * the same one — see {@link nodeNixJobs}.
@@ -127,42 +124,46 @@ const suiteNixSteps = version => [
  * the compiler of the same revision; and it runs once, here, because the
  * answer does not depend on the runtime.
  *
- * `npm run gen` and the drift check it feeds run **last**, after every
- * other command. The check compares the working tree against what the generator
- * produces, so putting it at the end makes it the last word: any file an earlier
- * step wrote is in the comparison. Nothing those steps leave behind is tracked:
- * `npm pack`'s tarball and the declarations its `prepack` emits are ignored, and
- * `--no-update-lock-file` means Nix leaves nothing at all.
+ * `npm pack` writes the tarball outside the checkout, into the consumer
+ * directory the packed-package check runs in (`../package/module.f.mjs`). A
+ * plain `mkdir` makes that directory first: it is not a Nix command, and
+ * without `-p` it fails when the directory already exists, so the check starts
+ * from a directory holding nothing but the tarball.
+ *
+ * `npm run gen` and the drift check it feeds run after every command that
+ * touches the checkout. The check compares the working tree against what the
+ * generator produces, so that position makes it the last word on the tree: any
+ * file an earlier step wrote is in the comparison. Nothing those steps leave
+ * behind is tracked: the declarations `npm pack`'s `prepack` emits are
+ * ignored, the tarball lands outside the tree, and `--no-update-lock-file`
+ * means Nix leaves nothing at all.
  *
  * The drift check itself is not a Nix command. `git` is the runner's tool, and a
  * step names the flake only when it needs something the flake pins.
  *
- * @type {readonly MetaStep[]}
+ * The packed-package check comes after it, and last. Its steps start in the
+ * consumer directory, so nothing they write can reach the comparison; and the
+ * `setup-node` they begin with changes `PATH` only for steps after every Nix
+ * step.
+ *
+ * @type {(consumer: PackageConsumer | undefined) => readonly MetaStep[]}
  */
-const node26NixSteps = [
+const node26Steps = consumer => [
     nixInstall,
     nodeVersionStep(nixShell, node.default),
     tscVersionStep,
-    ...nixSteps(nixShell)(
-        ['npm ci', 'tsc', 'npm start compile', 'npm run cov', 'npm pack', 'npm run gen']),
+    ...nixSteps(nixShell)(['npm ci', 'tsc', 'npm start compile', 'npm run cov']),
+    test({ run: `mkdir ${consumerDirectory}` }),
+    ...nixSteps(nixShell)([`npm pack --pack-destination ${consumerDirectory}`, 'npm run gen']),
     test({ run: 'git add -A && git diff --cached --exit-code' }),
-    // Hands the tarball to a job that has no checkout, which is the only place
-    // the package can be checked as a consumer sees it. `if-no-files-found`
-    // must be `error`: the default warns and uploads nothing, so a consuming
-    // job would fail later on a missing artifact rather than here on the real
-    // cause.
-    test(uses('actions/upload-artifact', {
-        name: packageArtifact,
-        path: '*.tgz',
-        'if-no-files-found': 'error',
-    })),
+    ...packageCheckSteps(consumer).map(test),
 ]
 
-/** @type {() => Jobs} */
-export const nodeVersionJobs = () => ({
+/** @type {(consumer: PackageConsumer | undefined) => Jobs} */
+export const nodeVersionJobs = consumer => ({
     [jobId(node.node22)]: ubuntuArm(suiteNixSteps(node.node22)),
     [jobId(node.node24)]: ubuntuArm(suiteNixSteps(node.node24)),
-    [jobId(node.default)]: ubuntuArm(node26NixSteps),
+    [jobId(node.default)]: ubuntuArm(node26Steps(consumer)),
 })
 
 /** @type {(version: string) => NixJob} */

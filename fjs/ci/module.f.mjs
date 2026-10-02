@@ -37,7 +37,6 @@ import {
     nixSteps,
     nixVersionStep,
 } from './nix/module.f.mjs'
-import { packageCheckJob, packageCheckJobId } from './package/module.f.mjs'
 import { bunSteps } from './bun/module.f.mjs'
 import { devNixJob } from './dev/module.f.mjs'
 import { denoSteps } from './deno/module.f.mjs'
@@ -218,16 +217,15 @@ const job = (rust, nodeExtra) => o => a => {
 }
 
 /**
- * Every generated flake. Three, for the thirteen jobs `./proof.f.mjs`'s
+ * Every generated flake. Three, for the twelve jobs `./proof.f.mjs`'s
  * `matrixShape` counts.
  *
  * `dev` is the one a developer enters and the one **eight** of those jobs
  * enter — see `./dev/module.f.mjs` for why sharing is safe where a command
  * names its runtime, and `./node/module.f.mjs` for the two jobs where it is
  * not. **Two** have a flake to themselves: Node 22 and Node 24, whose `node`
- * is the thing under test. **Three** enter none: the two Windows jobs, where
- * Nix does not run, and `package-check`, which has no checkout for a flake to
- * be in.
+ * is the thing under test. **Two** enter none: the two Windows jobs, where
+ * Nix does not run.
  *
  * `ubuntu-intel32` was a fourth flake, and then a fourteenth job. What it
  * needs — a 32-bit `rust-std` and the linker for it — exists on `x86_64-linux`
@@ -246,9 +244,11 @@ const job = (rust, nodeExtra) => o => a => {
  * runtimes in it. That is the same trade `./todo/ci-generator-audience.md`
  * describes for every job this generator writes unconditionally.
  *
- * One canonical job is absent: `package-check` runs with no checkout, so there
- * is no file tree for a flake to be in. `./todo/65z-ci-nix.md` says why, and
- * `./proof.f.mjs`'s `nixCoverage` keeps the list from growing by accident.
+ * Every canonical job enters one. The packed-package check, which used to be a
+ * job with no checkout and so no flake, is the last steps of Node 26's job now,
+ * and deliberately enters none — see `./package/module.f.mjs`.
+ * `./proof.f.mjs`'s `nixCoverage` keeps the list of jobs off Nix from growing
+ * by accident.
  *
  * @type {readonly NixJob[]}
  */
@@ -267,14 +267,14 @@ export const nixJobs = [
  * from `deno`, `bun` from `bun`, both WASM runtimes from `wasm`. A separate job
  * could only repeat those six.
  *
- * All of them are generated for every project, `wasm` excepted — which is a
- * change `package-check` brings. It used to appear only when the project's
- * `package.json` pinned an exact TypeScript, so a project with no compiler of
- * its own got no packed-package check; the compiler is the CI configuration's
- * now, so there is nothing left to be absent. What the job checks is the
- * declarations the tarball ships, and a package shipping none fails it with
- * `TS18003` — see `./todo/ci-generator-audience.md`, which owns the general
- * shape of this trade.
+ * All of them are generated for every project, `wasm` excepted — and so is the
+ * packed-package check closing Node 26's job. It used to appear only when the
+ * project's `package.json` pinned an exact TypeScript, so a project with no
+ * compiler of its own got no packed-package check; the compiler is the CI
+ * configuration's now, so there is nothing left to be absent. What the check
+ * reads is the declarations the tarball ships, and a package shipping none
+ * fails it with `TS18003` — see `./todo/ci-generator-audience.md`, which owns
+ * the general shape of this trade.
  *
  * @type {(rust: boolean, packageConsumer: PackageConsumer | undefined) => Jobs}
  */
@@ -284,8 +284,7 @@ const canonicalJobs = (rust, packageConsumer) => ({
         : {}),
     deno: ubuntuArm(denoSteps),
     bun: ubuntuArm(bunSteps),
-    ...nodeVersionJobs(),
-    [packageCheckJobId]: packageCheckJob(packageConsumer),
+    ...nodeVersionJobs(packageConsumer),
 })
 
 /** @type {(setup: Setup) => Effect<NodeOp, 0, number>} */
@@ -328,8 +327,8 @@ export const ci = ({ nodeExtra, packageConsumer }) => resultStep(
 /**
  * The built-in `fjs ci`, the generator any project gets: no extra platform
  * steps and no packed-package consumer, since this command cannot know what
- * another package publishes, and `package-check` without a consumer is the
- * declaration check every project had. A project with a module to offer
+ * another package publishes, and the packed-package check without a consumer
+ * is the declaration check every project had. A project with a module to offer
  * calls `ci` with one, as this repository does in `./self/module.f.mjs`,
  * which is what its `npm run gen` runs.
  *

@@ -8,9 +8,9 @@ import { exitCode } from '../effects/node/module.f.mjs'
 import { ci, ciPath, main, nixJobs } from './module.f.mjs'
 import { actions, bun, deno, functionalscript, node, typescript, wasmer, wasmtime } from './config/module.f.js'
 import { main as ownMain, packageConsumer } from './self/module.f.mjs'
-import { major, nodeNixJobs, packageArtifact, packageJobId } from './node/module.f.mjs'
+import { major, nodeNixJobs, packageJobId } from './node/module.f.mjs'
 import { flakePath, flakeText, nixDevelop, nixShell } from './nix/module.f.mjs'
-import { packageCheckJobId } from './package/module.f.mjs'
+import { consumerDirectory, packageCheckSteps } from './package/module.f.mjs'
 import { npmPublishJobId, npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { empty as emptyVec } from '../types/bit_vec/module.f.mjs'
@@ -208,7 +208,7 @@ const runDefault = packageJson => {
 export const proof = {
     matrixShape: () => {
         const gha = run(true)
-        assertEq(Object.keys(gha.jobs).length, 13, 'expected 13 CI jobs')
+        assertEq(Object.keys(gha.jobs).length, 12, 'expected 12 CI jobs')
         assertEq(gha.permissions.contents, 'read', 'expected read-only contents permission')
         assertEq(Object.keys(gha.permissions).length, 1, 'expected least-privilege workflow permissions')
         // The 32-bit Linux checks, in the Intel Linux job, because that is the
@@ -575,13 +575,15 @@ export const proof = {
         }
     },
     // Every canonical Node job, step for step, each running through its own
-    // generated flake. None installs a runtime with `setup-node` any more.
+    // generated flake. None installs its runtime with `setup-node` any more:
+    // the one `setup-node` left is the packed-package check's, which closes
+    // Node 26's job with a consumer's Node — see `packageCheck`.
     migratedNodeJobs: () => {
         const gha = run(false)
         for (const [version, commands] of /** @type {const} */ ([
             [node.node22, ['npm ci', 'node --test']],
             [node.node24, ['npm ci', 'node --test']],
-            [node.default, ['npm ci', 'tsc', 'npm start compile', 'npm run cov', 'npm pack', 'npm run gen']],
+            [node.default, ['npm ci', 'tsc', 'npm start compile', 'npm run cov']],
         ])) {
             const id = `node${major(version)}`
             // The two older versions run in a flake of their own, because
@@ -594,16 +596,23 @@ export const proof = {
             assert(
                 job.steps.some(step => step.uses?.startsWith('cachix/install-nix-action@') === true),
                 `expected a pinned Nix installer in ${id}`)
+            // Node 26's job ends with the packed-package check, whole; the
+            // rest is the job's own.
+            const check = id === packageJobId ? packageCheckSteps(undefined) : []
+            const own = job.steps.slice(0, job.steps.length - check.length)
+            assertStructurallySame(job.steps.slice(own.length), check)
             assert(
-                !job.steps.some(step => step.uses?.startsWith('actions/setup-node@') === true),
+                !own.some(step => step.uses?.startsWith('actions/setup-node@') === true),
                 `unexpected setup-node in ${id}`)
             // One command per step (root `AGENTS.md` §7), each entering the
             // shell itself, in the order the job had them, behind the version
-            // check. Node 26's drift check closes the list and is deliberately
-            // not a Nix command: `git` is the runner's, and it compares a tree
-            // every earlier step has finished writing.
+            // check. Node 26's last four are the packing and the drift check.
+            // The `mkdir` making the directory `npm pack` writes into is not a
+            // Nix command, and neither is the drift check closing the list:
+            // `git` is the runner's, and it compares a tree every earlier step
+            // has finished writing.
             assertStructurallySame(
-                job.steps.flatMap(step => step.run === undefined ? [] : [step.run]),
+                own.flatMap(step => step.run === undefined ? [] : [step.run]),
                 [
                     `test "$(${nixDevelop(shell, 'node --version')})" = "v${version}"`,
                     // Node 26 is the one that type-checks and packs, so it is
@@ -613,8 +622,13 @@ export const proof = {
                         ? [`test "$(${nixDevelop(shell, 'tsc --version')})" = "Version ${typescript.version}"`]
                         : []),
                     ...commands.map(command => nixDevelop(shell, command)),
-                    ...(id === `node${major(node.default)}`
-                        ? ['git add -A && git diff --cached --exit-code']
+                    ...(id === packageJobId
+                        ? [
+                            `mkdir ${consumerDirectory}`,
+                            nixDevelop(shell, `npm pack --pack-destination ${consumerDirectory}`),
+                            nixDevelop(shell, 'npm run gen'),
+                            'git add -A && git diff --cached --exit-code',
+                        ]
                         : []),
                 ])
         }
@@ -778,7 +792,7 @@ export const proof = {
                 `expected only ${id} to enter its own flake`)
         }
         // The whole of what is left off Nix, named rather than counted. Each
-        // entry is a fact about the job, and a fourth appearing here without a
+        // entry is a fact about the job, and a third appearing here without a
         // reason is what this is for.
         const offNix = canonical.filter(id => !installsNix(gha.jobs[id]))
         /** @type {readonly string[]} */
@@ -787,9 +801,6 @@ export const proof = {
             // is left: every other job in this workflow enters a flake.
             'windows-intel',
             'windows-arm',
-            // `package-check` runs with no checkout, so there is no file tree
-            // for a flake or its `run` script to be in.
-            packageCheckJobId,
         ]
         // Both directions rather than a list comparison: the workflow is read
         // back through `parseGitHubAction`, which does not promise to hand the
@@ -841,60 +852,52 @@ export const proof = {
         assert(job['runs-on'] !== undefined, 'expected runs-on')
         assert(job.steps.length > 0, 'expected steps')
     },
-    packageArtifact: () => {
-        const gha = run(false)
-        const job = gha.jobs[`node${major(node.default)}`]
-        assert(job !== undefined, 'expected the canonical Node job')
-        const packIndex = job.steps.findIndex(
-            step => step.run === nixDevelop(nixShell, 'npm pack'))
-        const uploadIndex = job.steps.findIndex(
-            step => step.uses === `actions/upload-artifact@${actions['actions/upload-artifact']}`)
-        assert(packIndex !== -1, 'expected npm pack')
-        assert(uploadIndex !== -1, 'expected the artifact upload')
-        // Uploading before packing would ship an empty artifact, and the
-        // failure would then surface in the consuming job rather than here,
-        // where the cause is.
-        assert(uploadIndex > packIndex, 'expected the upload to follow npm pack')
-        const upload = job.steps[uploadIndex]?.with
-        // Producer and consumer share the exported name rather than repeating
-        // a string literal that can drift apart.
-        assertEq(upload?.name, packageArtifact)
-        // The glob has to match what `npm pack` writes. `if-no-files-found`
-        // catches a glob that matches *nothing*; a glob matching the *wrong*
-        // files would upload them quietly, so pin it.
-        assertEq(upload?.path, '*.tgz')
-        // The action's default is to warn and upload nothing, which would make
-        // a packing failure look like a consumer bug.
-        assertEq(upload?.['if-no-files-found'], 'error')
-        // One producer: a second upload under the same name is a race, not
-        // redundancy.
-        assertEq(
-            definedValues(gha.jobs).filter(j =>
-                j.steps.some(step => step.uses?.startsWith('actions/upload-artifact@') === true)).length,
-            1,
-            'expected exactly one job to upload the package')
-    },
+    // The packed-package check is the last steps of the job that packs, not a
+    // job waiting on it: a waiting job is created only when the job it waits
+    // for finishes, so behind a full runner queue it waited a second time. The
+    // check's own shape is proved next to the module, in
+    // `fjs/ci/package/proof.f.mjs`; what only the assembled job can show is
+    // the order its steps need and that nothing hands the tarball across jobs.
     packageCheck: () => {
         const gha = run(false)
-        // The job's own shape is proved next to the module, in
-        // `fjs/ci/package/proof.f.mjs`. What only the assembled workflow can
-        // show is that it is wired in, and that the job it waits for is really
-        // the one that produces the artifact — an edge pointing at a job that
-        // never uploads would satisfy the ordering and still never run.
-        const job = gha.jobs[packageCheckJobId]
-        assert(job !== undefined, 'expected the packed-package check job')
-        assertEq(job.needs?.[0], packageJobId)
+        const job = gha.jobs[packageJobId]
+        assert(job !== undefined, 'expected the canonical Node job')
+        assertEq(packageJobId, `node${major(node.default)}`)
+        /** @type {(f: (step: Step) => boolean) => number} */
+        const at = f => job.steps.findIndex(f)
+        const made = at(step => step.run === `mkdir ${consumerDirectory}`)
+        const packed = at(step => step.run === nixDevelop(nixShell, `npm pack --pack-destination ${consumerDirectory}`))
+        const drift = at(step => step.run === 'git add -A && git diff --cached --exit-code')
+        const setup = at(step => step.uses === `actions/setup-node@${actions['actions/setup-node']}`)
+        assert(made !== -1 && packed !== -1 && drift !== -1 && setup !== -1, 'expected the directory made, the tarball packed into it, the drift check and the consumer\'s Node')
+        // The directory exists before `npm pack` writes into it, which it
+        // refuses to do otherwise; and the drift check, the last word on the
+        // tree, comes before every step of the check — which all start
+        // outside the tree, after the one that puts a consumer's Node on
+        // `PATH`.
+        assert(made < packed && packed < drift && drift < setup, 'expected mkdir, pack, drift check, then the check')
+        const check = job.steps.slice(setup + 1)
+        assert(check.length !== 0, 'expected the check after its Node')
+        for (const step of check) {
+            assert(step['working-directory'] !== undefined, `expected the consumer directory: ${step.run}`)
+        }
+        // Nothing before the check starts outside the checkout.
         assert(
-            gha.jobs[packageJobId]?.steps.some(
-                step => step.uses?.startsWith('actions/upload-artifact@') === true) === true,
-            'expected the needed job to be the one that uploads')
-        // The compiler is the CI configuration's — the same version the
-        // `node26` shell provides, so the declarations in the tarball are read
-        // by the compiler that emitted them. Its exactness is proved next to
-        // the module, in `fjs/ci/package/proof.f.mjs`.
+            job.steps.slice(0, setup).every(step => step['working-directory'] === undefined),
+            'unexpected working-directory before the check')
+        // The compiler is the CI configuration's — the same version the shell
+        // provides, so the declarations in the tarball are read by the
+        // compiler that emitted them. Its exactness is proved next to the
+        // module, in `fjs/ci/package/proof.f.mjs`.
         assert(
-            job.steps.some(step => step.run?.includes(`"typescript@${typescript.version}"`) === true),
+            check.some(step => step.run?.includes(`"typescript@${typescript.version}"`) === true),
             'expected the configured compiler installed')
+        // No artifact: the tarball never leaves the job that packed it.
+        assert(
+            !definedValues(gha.jobs).some(j => j.steps.some(step =>
+                step.uses?.startsWith('actions/upload-artifact@') === true
+                || step.uses?.startsWith('actions/download-artifact@') === true)),
+            'unexpected artifact hand-off')
     },
     // The consumer half of the job is the caller's, through `Setup`: a project
     // that names none gets the declaration check alone, since the generator
@@ -906,16 +909,16 @@ export const proof = {
     packageConsumerIsTheCallersToName: () => {
         /** @type {(job: Job | undefined) => boolean} */
         const hasConsumer = job => job?.steps.some(step => step.run?.includes(' good.mts') === true) === true
-        assert(!hasConsumer(run(false).jobs[packageCheckJobId]), 'expected no consumer step without a consumer in Setup')
+        assert(!hasConsumer(run(false).jobs[packageJobId]), 'expected no consumer step without a consumer in Setup')
         const [state, result] = virtual(makeState(false, runPackageJson))(ci({ nodeExtra: () => [], packageConsumer }))
         assertEq(exitCode(result), 0)
-        assert(hasConsumer(workflow(state).jobs[packageCheckJobId]), 'expected the consumer step when Setup names one')
+        assert(hasConsumer(workflow(state).jobs[packageJobId]), 'expected the consumer step when Setup names one')
         const [builtIn, builtInResult] = virtual(makeState(false, runPackageJson))(main())
         assertEq(exitCode(builtInResult), 0)
-        assert(!hasConsumer(workflow(builtIn).jobs[packageCheckJobId]), 'expected the built-in command to name no consumer')
+        assert(!hasConsumer(workflow(builtIn).jobs[packageJobId]), 'expected the built-in command to name no consumer')
         const [own, ownResult] = virtual(makeState(false, runPackageJson))(ownMain())
         assertEq(exitCode(ownResult), 0)
-        assert(hasConsumer(workflow(own).jobs[packageCheckJobId]), 'expected this repository\'s own generation to name its consumer')
+        assert(hasConsumer(workflow(own).jobs[packageJobId]), 'expected this repository\'s own generation to name its consumer')
     },
     // The job used to appear only when the project's `package.json` pinned an
     // exact compiler, and it is now generated for every project — there is no
@@ -938,7 +941,7 @@ export const proof = {
         ])) {
             const [state, result] = virtual(makeState(false, packageJson))(ci({ nodeExtra: () => [] }))
             assertEq(exitCode(result), 0)
-            const job = workflow(state).jobs[packageCheckJobId]
+            const job = workflow(state).jobs[packageJobId]
             assert(job !== undefined, `expected the check for ${packageJson}`)
             // Not the project's pin, in the two cases that have one.
             assert(
@@ -971,7 +974,7 @@ export const proof = {
         const gha = workflow(state)
         assert(!hasRun('npm publish')(gha), 'unexpected publish step in the CI workflow')
         assertEq(gha.jobs[npmPublishJobId], undefined)
-        assertEq(npmPublishWorkflow.jobs[packageCheckJobId], undefined)
+        assertEq(npmPublishWorkflow.jobs[packageJobId], undefined)
     },
     jobNeeds: () => {
         const steps = /** @type {const} */ ([{ run: 'echo hi' }])
@@ -1002,12 +1005,15 @@ export const proof = {
         assertEq(parseGitHubAction(action({
             check: { 'runs-on': 'ubuntu-latest', needs: 'pack', steps },
         }))[0], 'error')
-        // Exactly one job orders itself: the packed-package check, which
-        // cannot start before the artifact it consumes exists. Pinning the
-        // count keeps a second ordering edge a deliberate change rather than
-        // something that appears unnoticed — ordering is where a workflow
-        // starts to have a shape that has to be reasoned about.
+        // No job orders itself. The packed-package check did, and paid for
+        // it: GitHub creates a waiting job only when the job it waits for has
+        // finished, so whenever the runner queue was full it joined the back
+        // and waited a second time. Its steps close the job that packs now.
+        // Pinning the count keeps an ordering edge a deliberate change rather
+        // than something that appears unnoticed — ordering is where a
+        // workflow starts to have a shape that has to be reasoned about, and
+        // where it starts paying for the queue twice.
         const orderedJobs = definedValues(run(false).jobs).filter(job => job.needs !== undefined)
-        assertEq(orderedJobs.length, 1, 'unexpected job ordering in the generated workflow')
+        assertEq(orderedJobs.length, 0, 'unexpected job ordering in the generated workflow')
     },
 }

@@ -39,6 +39,10 @@ export const stepSchema = /** @type {const} */ ({
     // of the command that runs it, so a value GitHub substitutes into it is
     // never read back as shell source. See `../module.f.mjs`'s `inShell`.
     env: or(option, record(string)),
+    // The directory a `run` step starts in, when it is not the checkout. The
+    // packed-package check is the one user: it runs as a consumer, in a
+    // directory outside the repository. See `../package/module.f.mjs`.
+    'working-directory': or(option, string),
     'continue-on-error': or(option, true)
 })
 

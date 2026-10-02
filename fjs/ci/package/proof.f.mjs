@@ -2,16 +2,16 @@
  * @import { PackageConsumer } from '../types.ts'
  */
 
-import { packageCheckJob, packageCheckJobId } from './module.f.mjs'
-import { packageArtifact, packageJobId } from '../node/module.f.mjs'
-import { typescript } from '../config/module.f.js'
+import { consumerDirectory, packageCheckSteps } from './module.f.mjs'
+import { actions, node, typescript } from '../config/module.f.js'
+import { generatedDirectory } from '../nix/module.f.mjs'
 import { packageConsumer } from '../self/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
-const job = packageCheckJob(packageConsumer)
+const steps = packageCheckSteps(packageConsumer)
 
 /** @type {(fragment: string) => boolean} */
-const scriptHas = fragment => job.steps.some(step => step.run?.includes(fragment) === true)
+const scriptHas = fragment => steps.some(step => step.run?.includes(fragment) === true)
 
 /**
  * The two commands writing a consumer's files, `good.mts` first.
@@ -19,7 +19,7 @@ const scriptHas = fragment => job.steps.some(step => step.run?.includes(fragment
  * @type {(consumer: PackageConsumer) => readonly [string, string]}
  */
 const consumerFiles = consumer => {
-    const runs = packageCheckJob(consumer).steps.flatMap(step => step.run === undefined ? [] : [step.run])
+    const runs = packageCheckSteps(consumer).flatMap(step => step.run === undefined ? [] : [step.run])
     const good = runs.find(run => run.endsWith('> good.mts'))
     const bad = runs.find(run => run.endsWith('> bad.mts'))
     assert(good !== undefined && bad !== undefined, 'expected both consumer files written')
@@ -30,30 +30,38 @@ const consumerFiles = consumer => {
 const digits = s => s !== '' && [...s].every(c => c >= '0' && c <= '9')
 
 export const proof = {
-    // The defining property. With a checkout there is a tsconfig.json up the
-    // tree, a node_modules to resolve into, and source files that can stand in
-    // for a declaration the tarball omits — the check would then pass on the
-    // repository rather than on the package.
-    noCheckout: () => {
-        assertEq(packageCheckJobId, 'package-check')
+    // The defining property. A command started in the checkout would find a
+    // tsconfig.json up the tree, a node_modules to resolve into, and source
+    // files that can stand in for a declaration the tarball omits — the check
+    // would then pass on the repository rather than on the package. So every
+    // command starts in the consumer directory, under the runner's temporary
+    // directory: neither inside the checkout nor above it.
+    outsideTheCheckout: () => {
+        const commands = steps.filter(step => step.run !== undefined)
+        assert(commands.length !== 0, 'expected commands')
+        for (const step of commands) {
+            assertEq(step['working-directory'], '${{ runner.temp }}/consumer')
+        }
+        // The spelling the shell reads names the same directory: the job that
+        // packs makes it and packs into it under this name.
+        assertEq(consumerDirectory, '"$RUNNER_TEMP/consumer"')
         assert(
-            !job.steps.some(step => step.uses?.startsWith('actions/checkout@') === true),
+            !steps.some(step => step.uses?.startsWith('actions/checkout@') === true),
             'the package check must not check out the repository')
     },
-    consumesTheArtifact: () => {
-        // Ordered after the producer: without this the two race and the
-        // download fails before the check has run.
-        assertEq(job.needs?.[0], packageJobId)
-        assertEq(job.needs?.length, 1)
-        // Downloaded by the name the producer exports, not a second literal
-        // that can drift from it.
-        const download = job.steps.find(
-            step => step.uses?.startsWith('actions/download-artifact@') === true)
-        assertEq(download?.with?.name, packageArtifact)
+    // A consumer's toolchain, not the repository's: Node from `setup-node`,
+    // first, and no command entering a generated flake, whose shell would put
+    // this repository's `node` and `tsc` on `PATH`.
+    consumerToolchain: () => {
+        assertEq(steps[0]?.uses, `actions/setup-node@${actions['actions/setup-node']}`)
+        assertEq(steps[0]?.with?.['node-version'], node.default)
+        assert(
+            !steps.some(step => step.run?.startsWith(`sh ./${generatedDirectory}/`) === true),
+            'the package check must not enter a flake')
     },
     // The one option with a silent failure mode: `true` stops tsc opening the
-    // declarations at all, and the job still passes. Stated rather than left at
-    // its default so a change to it is a change to this file.
+    // declarations at all, and the check still passes. Stated rather than left
+    // at its default so a change to it is a change to this file.
     canFail: () => {
         assert(scriptHas('"skipLibCheck":false'), 'expected skipLibCheck left false')
     },
@@ -63,9 +71,9 @@ export const proof = {
     // Asserting the string is in the command would compare the generator's
     // constant with itself, so what is checked here is the property that makes
     // the constant usable: `MAJOR.MINOR.PATCH`, three numeric segments and
-    // nothing else. This job runs with no checkout and so with no lockfile —
-    // `^7.0.0`, `7.x` or `7.0` would each let a later registry release change
-    // the verdict with nothing in this repository changing. The whole value is
+    // nothing else. The consumer project has no lockfile, so `^7.0.0`, `7.x`
+    // or `7.0` would each let a later registry release change the verdict
+    // with nothing in this repository changing. The whole value is
     // validated rather than its first character, because a range can begin
     // with a digit.
     installsAnExactVersion: () => {
@@ -103,16 +111,16 @@ export const proof = {
         // artifact exists.
         assert(scriptHas('"exclude":[]'), 'expected node_modules not excluded')
     },
-    // Without a consumer the job is the declaration check alone, step for step
+    // Without a consumer the check is the declarations alone, step for step
     // what it was before the consumer half existed: `fjs ci` generates it for
     // any project, and a module this repository publishes is not one another
     // package's tarball holds.
     withoutConsumer: () => {
-        const bare = packageCheckJob(undefined)
-        assert(!bare.steps.some(step => step.run?.includes('.mts') === true), 'expected no consumer step without a consumer')
-        assertEq(bare.steps.length, job.steps.length - 5)
-        for (const [i, step] of bare.steps.entries()) {
-            assertEq(JSON.stringify(step), JSON.stringify(job.steps[i]))
+        const bare = packageCheckSteps(undefined)
+        assert(!bare.some(step => step.run?.includes('.mts') === true), 'expected no consumer step without a consumer')
+        assertEq(bare.length, steps.length - 5)
+        for (const [i, step] of bare.entries()) {
+            assertEq(JSON.stringify(step), JSON.stringify(steps[i]))
         }
     },
     // The consumer's half of the check, in the order a consumer meets it: the
@@ -125,11 +133,11 @@ export const proof = {
             assert(scriptHas(`from "packed/${packageConsumer.module}"`), 'expected the runtime module imported')
             assert(scriptHas(`from "packed/${packageConsumer.types}"`), 'expected the declared type imported')
             assert(
-                !job.steps.some(step => step.run?.includes('"functionalscript/') === true),
+                !steps.some(step => step.run?.includes('"functionalscript/') === true),
                 'the consumer must import the alias, not this repository\'s package name')
         },
         goodBeforeBad: () => {
-            const runs = job.steps.flatMap(step => step.run === undefined ? [] : [step.run])
+            const runs = steps.flatMap(step => step.run === undefined ? [] : [step.run])
             const at = /** @type {(start: string, end: string) => number} */ ((start, end) =>
                 runs.findIndex(run => run.startsWith(start) && run.endsWith(end)))
             const written = at('echo ', '> good.mts')
@@ -141,20 +149,21 @@ export const proof = {
         },
         // The negative control is a negated command, so it is red when the bad
         // file type-checks — the outcome a declaration resolved as `any` would
-        // give — and nothing else in the job is negated.
+        // give — and nothing else in the check is negated.
         negativeControlMustFail: () => {
-            const negated = job.steps.filter(step => step.run?.startsWith('! ') === true)
+            const negated = steps.filter(step => step.run?.startsWith('! ') === true)
             assertEq(negated.length, 1)
             assert(negated[0].run?.endsWith(' bad.mts') === true, 'expected the bad file to be the negated check')
             assert(scriptHas(`= "${packageConsumer.refused}"`), 'expected the refused value in the bad file')
             assert(scriptHas(`= "${packageConsumer.accepted}"`), 'expected the accepted value in the good file')
         },
-        // The job's own `tsconfig.json` is in the directory when the consumer
-        // files are compiled, and TypeScript 7 refuses a file on the command
-        // line beside one (`TS5112`) unless told to ignore it. Both consumer
-        // compiles say so; the first CI run of this job failed without it.
+        // The check's own `tsconfig.json` is in the directory when the
+        // consumer files are compiled, and TypeScript 7 refuses a file on the
+        // command line beside one (`TS5112`) unless told to ignore it. Both
+        // consumer compiles say so; the first CI run of this check failed
+        // without it.
         ignoresTheJobConfig: () => {
-            for (const step of job.steps) {
+            for (const step of steps) {
                 if (step.run?.includes('tsc ') === true && step.run.includes('.mts')) {
                     assert(step.run.includes(' --ignoreConfig '), `expected --ignoreConfig: ${step.run}`)
                 }
@@ -193,7 +202,7 @@ export const proof = {
         // One command per step (root `AGENTS.md` §7): a consumer step never
         // chains, so a red step names the command that failed.
         oneCommandEach: () => {
-            for (const step of job.steps) {
+            for (const step of steps) {
                 if (step.run?.includes('.mts') === true) {
                     assert(!step.run.includes('&&'), `expected one command: ${step.run}`)
                 }
