@@ -333,14 +333,6 @@ const writeFileOp = /** @type {Func<WriteFile>} */ (do_('writeFile'))
 export const writeFile = (path, data) =>
     isWholeBytes(data) ? writeFileOp(path, data) : invalidBufferSize
 
-/**
- * Writes a string to `path` as UTF-8 bytes.
- *
- * @type {(path: string, content: string) => Effect<WriteFile, void, IoChannel>}
- */
-export const writeUtf8File = (path, content) =>
-    writeFile(path, utf8(content))
-
 // rm
 
 /** @type {Func<Rm>} */
@@ -500,6 +492,60 @@ export const writeFromStream = (path, e) => {
 
 /** One chunk's worth of bytes: the `Vec` cap, which is what a chunk may not exceed. */
 const chunkBytes = Number(maxLengthBytes)
+
+/**
+ * The most UTF-16 code units whose UTF-8 always fits one `Vec`: a unit takes at
+ * most three bytes, a surrogate pair four for its two.
+ */
+const chunkUnits = Math.floor(chunkBytes / 3)
+
+/** @type {(c: number) => boolean} */
+const isHighSurrogate = c => c >= 0xd800 && c <= 0xdbff
+
+/** @type {(c: number) => boolean} */
+const isLowSurrogate = c => c >= 0xdc00 && c <= 0xdfff
+
+/**
+ * The pieces of `s` from `from` on, each at most {@link chunkUnits} code units,
+ * cut so that no piece ends between the two halves of a surrogate pair: every
+ * piece is the text of whole code points, and so encodes as UTF-8 on its own.
+ *
+ * @type {(s: string, from: number) => readonly string[]}
+ */
+const pieces = (s, from) => {
+    const end = from + chunkUnits
+    if (end >= s.length) { return [s.slice(from)] }
+    const cut = isHighSurrogate(s.charCodeAt(end - 1)) && isLowSurrogate(s.charCodeAt(end)) ? end - 1 : end
+    return [s.slice(from, cut), ...pieces(s, cut)]
+}
+
+/** @type {(vs: readonly Vec[], i: number) => List<WriteBytes, Vec, IoChannel>} */
+const vecList = (vs, i) => i < vs.length ? nonEmpty(vs[i], vecList(vs, i + 1)) : elEmpty()
+
+/**
+ * Writes a string to `path` as UTF-8 bytes, replacing what it held.
+ *
+ * The text is encoded in pieces of at most one `Vec`, so its size is not
+ * bounded by a `Vec`'s: a text that fits one is a single {@link writeFile}, and
+ * a larger one is written by {@link writeFile} with its first piece and by
+ * {@link writeBytes} with each next at the offset where the last ended.
+ * **A larger text fails closed**, as {@link writeFromStream} does: once the
+ * first piece is written, a failure removes `path` before the error is
+ * returned, so no truncated file is left behind for a reader to mistake for
+ * the whole. The removal's own outcome is discarded.
+ *
+ * @type {(path: string, content: string) => Effect<WriteFile | WriteBytes | Rm, void, IoChannel>}
+ */
+export const writeUtf8File = (path, content) => {
+    const [first, ...rest] = pieces(content, 0).map(utf8)
+    const head = writeFile(path, first)
+    if (rest.length === 0) { return head }
+    const tail = vecList(rest, 0)
+    const written = catchStep(
+        writeLoop(path)(Number(byteLength(first)), tail),
+        err => resultStep(rm(path), () => pureError(err)))
+    return ioStep(head, () => written)
+}
 
 /**
  * The read mirror of {@link writeFromStream}: a byte stream from a chunk

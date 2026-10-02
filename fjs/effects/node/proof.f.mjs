@@ -1,6 +1,6 @@
 /**
  * @import { Vec } from "../../types/bit_vec/types.ts"
- * @import { IoChannel, IoError, IoResult, NodeOp, ReadBytes, ReadFile, Stat, _ChunkSource, _Gate } from "./types.ts"
+ * @import { IoChannel, IoError, IoResult, NodeOp, ReadBytes, ReadFile, Rm, Stat, WriteBytes, WriteFile, _ChunkSource, _Gate } from "./types.ts"
  * @import { Result } from "../../types/result/types.ts"
  * @import { List } from "../list/types.ts"
  * @import { List as List_ } from "../../types/list/types.ts"
@@ -17,7 +17,7 @@ import { create as memCreate, read as memRead, write as memWrite } from "../memo
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
 import { assert, assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { ok } from '../../types/result/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 
 // Answers the one command the `map` proof below drives. Routing the loop
@@ -404,14 +404,83 @@ export const proof = {
             assertStructurallySame(state.root, root)
         },
     },
-    writeUtf8File: () => {
-        const [state, [t, result]] = virtual(emptyState)(
-            writeUtf8File('hello', 'Hello, world!')
-        )
-        assert(t === 'ok', result)
-        const file = state.root.hello
-        assert(Array.isArray(file), file)
-        assertEq(utf8ToString(file[0]), 'Hello, world!', file)
+    writeUtf8File: {
+        small: () => {
+            const [state, [t, result]] = virtual(emptyState)(
+                writeUtf8File('hello', 'Hello, world!')
+            )
+            assert(t === 'ok', result)
+            const file = state.root.hello
+            assert(Array.isArray(file), file)
+            assertEq(utf8ToString(file[0]), 'Hello, world!', file)
+        },
+        // A text of a `Vec`'s size or less is one chunk, a text past it several,
+        // each a `Vec`, and the file reads back as the whole text.
+        large: () => {
+            const text = 'a'.repeat(Number(maxLengthBytes) + 7)
+            const [state, [t, result]] = virtual(emptyState)(writeUtf8File('big', text))
+            assert(t === 'ok', result)
+            const file = state.root.big
+            assert(Array.isArray(file), file)
+            assert(file.length > 1, file.length)
+            assert(file.every(v => byteLength(v) <= maxLengthBytes))
+            assertEq(file.map(utf8ToString).join(''), text)
+        },
+        // Three bytes to a code unit is the widest a piece can be.
+        wide: () => {
+            const text = '\u20ac'.repeat(Number(maxLengthBytes))
+            const [state, [t, result]] = virtual(emptyState)(writeUtf8File('wide', text))
+            assert(t === 'ok', result)
+            const file = state.root.wide
+            assert(Array.isArray(file), file)
+            assert(file.every(v => byteLength(v) <= maxLengthBytes))
+            assertEq(file.map(utf8ToString).join(''), text)
+        },
+        // A surrogate pair across where a piece would end stays whole: each chunk
+        // decodes alone, and none holds half a pair.
+        pair: () => {
+            const unit = Math.floor(Number(maxLengthBytes) / 3)
+            const text = `${'a'.repeat(unit - 1)}\u{1F600}${'b'.repeat(unit)}`
+            const [state, [t, result]] = virtual(emptyState)(writeUtf8File('pair', text))
+            assert(t === 'ok', result)
+            const file = state.root.pair
+            assert(Array.isArray(file), file)
+            assertEq(file.map(utf8ToString).join(''), text)
+            assertEq(utf8ToString(file[0]).length, unit - 1)
+        },
+        // A text of exactly one piece's width is one chunk.
+        exact: () => {
+            const text = 'a'.repeat(Math.floor(Number(maxLengthBytes) / 3))
+            const [state, [t, result]] = virtual(emptyState)(writeUtf8File('exact', text))
+            assert(t === 'ok', result)
+            const file = state.root.exact
+            assert(Array.isArray(file), file)
+            assertEq(file.length, 1)
+        },
+        // The first piece goes in through `writeFile`; if a later one fails the
+        // error is the write's and the file is removed.
+        failsClosed: () => {
+            /** @type {readonly string[]} */
+            let removed = []
+            /** @type {OperationMap<WriteFile | WriteBytes | Rm, IoResult<void>>} */
+            const map = {
+                writeFile: () => ok(undefined),
+                writeBytes: () => error(ioError({ message: 'disk full' })),
+                rm: path => {
+                    removed = [...removed, path]
+                    return ok(undefined)
+                },
+            }
+            const host = match(map)
+            let r = host(writeUtf8File('big', 'a'.repeat(Number(maxLengthBytes) + 7)))
+            while (r[0] === 'cont') {
+                r = host(r[2](r[1]))
+            }
+            const [tag, failure] = r[1]
+            assert(tag === 'error', r)
+            assertIoMessage(failure, 'disk full')
+            assertStructurallySame(removed, ['big'])
+        },
     },
     rm: {
         one: () => {
