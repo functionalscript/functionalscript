@@ -1,7 +1,7 @@
 ## Bring the node/virtual types onto the record-type rules
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
