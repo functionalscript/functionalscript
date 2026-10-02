@@ -85,7 +85,7 @@ from `{ a: 1 }` and hashes differently, as `[...[1]]` and `[1]` do.
   already (#2460, #2496). This adds the grammar rule, the lowering, the
   `.js` writer's spelling, and the spread to the AST that the `.json` and
   `.data.js` outputs evaluate and analyse, which reads every member as a
-  `[key, value]` pair today.
+  `[':', key, value]` property today.
 - **It is how an object is updated.** Values are immutable, so a changed
   copy, `{ ...o, x: 1 }`, is the one way to change one property and keep the
   rest; without it a module lists every key by hand.
@@ -139,13 +139,14 @@ proposer before implementation; this proposal was written by Claude.
       [`fjs/compiler/parser/grammar`](../../fjs/compiler/parser/grammar/module.f.mjs)
       a choice of a property and a spread, `['...', value]`, checked to stay
       LL(1): `...` begins no key.
+- [x] AST member shape: a member was `[name, value]`, so `['...', v]`
+      would have read as a property named `...`, which `{ "...": 1 }`
+      already is. It is the EDAG's tagged `[':', name, value]` now, and the
+      spread will be the array's `AstSpread`, `['...', v]`, two shapes no
+      name can confuse.
 - [ ] AST and lowering: a spread member in the object node of
       [`fjs/compiler/ast`](../../fjs/compiler/ast/module.f.mjs), lowered to
       `['...', exp]` by [`fjs/compiler/edag`](../../fjs/compiler/edag/module.f.mjs).
-      A member is `[name, value]` today, so `['...', v]` would read as a
-      property named `...`, which `{ "...": 1 }` already is: the member
-      becomes the EDAG's tagged `[':', name, value]` and the spread the
-      array's `AstSpread`, `['...', v]`, two shapes no name can confuse.
 - [ ] Value evaluator: `toDjs` in
       [`fjs/compiler/ast`](../../fjs/compiler/ast/module.f.mjs), which the
       `.json` and `.data.js` outputs run, copies a spread's own properties
