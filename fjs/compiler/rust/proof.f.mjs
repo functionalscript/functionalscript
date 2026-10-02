@@ -2,10 +2,14 @@
  * Proofs for the `.rs` output branch of `fjs compile`.
  *
  * @import { Exp } from '../../edag/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish as assertDefined, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { generate, toRust } from './module.f.mjs'
+import { _rustOf, demo } from './demo.f.mjs'
+import { examples } from '../examples/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
 
 export const proof = {
     throw: {
@@ -419,6 +423,32 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             const result = toRust(2n ** 63n)
             assertEq(result[0], 'ok')
             assert(result[1].includes('bigint_any_words(false, &[0x8000000000000000])'), result)
+        },
+    },
+    /**
+     * **Every shared example is proved to behave as its name says.** The
+     * list is the compiler's regression table: a program the parser refuses,
+     * or an import the Rust output has no file set for, is shown as a refusal,
+     * and the rest compile to a module. A name that stops being true fails
+     * here rather than on a page.
+     */
+    demo: {
+        examples: () => {
+            /** @type {(name: string) => Result<string, string>} */
+            const rustOf = name => _rustOf(assertDefined(examples.find(([n]) => n === name))[1])
+            for (const [name] of examples) {
+                const refused = name.startsWith('Refused') || name === 'Parse error'
+                assertEq(rustOf(name)[0], refused ? 'error' : 'ok')
+            }
+            assert(rustOf('Sharing: a const used twice')[1].includes('c0.clone(), c0.clone()'), 'sharing is one clone')
+            assert(rustOf('Refused: an import')[1].includes('args'), 'the import is refused for reading its arguments')
+            assertEq(rustOf('Refused: logical not')[1], 'unexpected token')
+        },
+        view: () => {
+            const shown = htmlToString(demo.view(demo.init))
+            assert(shown.includes('<pre>'), shown)
+            const refused = htmlToString(demo.view('export default {bad'))
+            assert(refused.includes('Refused: '), refused)
         },
     },
 }
