@@ -351,7 +351,7 @@ const badKey = ([kind, items], index) => {
  *
  * @type {(done: readonly AstItem[]) => (member: Entry, index: number) => AstMember}
  */
-const memberEntry = done => ({ name }, index) => [name, /** @type {AstConst} */ (done[index])]
+const memberEntry = done => ({ name }, index) => [':', name, /** @type {AstConst} */ (done[index])]
 
 /**
  * A container of the values its items resolved to: an array, or an object
@@ -824,6 +824,9 @@ const bodyBindable = scope => name => {
 /** The environment with a word bound to a reference, its two questions already answered. @type {(env: _Env) => (word: string, ref: _Ref) => _Env} */
 const extended = env => (word, ref) => setReplace(word)(ref)(env)
 
+/** An export as the module's result object holds it: a member of its name and node. @type {(e: readonly [string, AstConst]) => AstMember} */
+const exportMember = ([name, value]) => [':', name, value]
+
 /**
  * The statements of a module, in order: each imported binding names
  * the next argument, each `const` resolves its value against the names
@@ -844,7 +847,7 @@ const foldModule = ({ imports, consts, exported, thrown: failing }) => {
     let modules = []
     /** @type {readonly AstConst[]} */
     let body = []
-    /** @type {readonly AstMember[]} */
+    /** @type {readonly (readonly [string, AstConst])[]} */
     let exports = []
     // the statement before the one being read, whose omitted `;` the one
     // being read has to begin a line for
@@ -903,7 +906,7 @@ const foldModule = ({ imports, consts, exported, thrown: failing }) => {
     // annotated rather than inferred: a bare `[modules, body]` widens to an
     // array, because `readonly string[]` is itself assignable to `AstBody`.
     /** @type {AstModule} */
-    const astModule = [modules, [...body, ['object', toArray(sort(exports))]]]
+    const astModule = [modules, [...body, ['object', toArray(sort(exports)).map(exportMember)]]]
     return ok(astModule)
 }
 

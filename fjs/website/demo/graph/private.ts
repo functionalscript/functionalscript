@@ -24,6 +24,15 @@ export type _Port = _Out & {
 }
 
 /**
+ * An edge that leaves from a corner, or the middle, of its node's right
+ * side rather than from a row: `y`, measured from the node's top edge, is
+ * the point itself.
+ */
+export type _Exit = _Out & {
+    readonly y: number
+}
+
+/**
  * A {@link Ranked} node, placed — its own box, and a port per outgoing
  * edge. `keyWidth` is the width of the key column its inline ports share,
  * the rest of the node being their values'. It is read for inline ports
@@ -37,6 +46,7 @@ export type _Positioned = Ranked & {
     readonly keyWidth: number
     readonly entry: number
     readonly ports: readonly _Port[]
+    readonly exits: readonly _Exit[]
 }
 
 /**
@@ -64,6 +74,7 @@ export type _Size = {
     readonly keyWidth: number
     readonly entry: number
     readonly ports: readonly _Port[]
+    readonly exits: readonly _Exit[]
 }
 
 /** A {@link _Slot} with its node's {@link _Size}, or `null` for a lane. */

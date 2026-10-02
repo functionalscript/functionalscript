@@ -133,7 +133,7 @@ const expectElseChain = depth => exp => {
  *
  * @type {(entry: AstConst) => Exp}
  */
-const lowered = entry => _defaultExport(unresolved([[], [entry, ['object', [['default', ['cref', 0]]]]]]).edag)
+const lowered = entry => _defaultExport(unresolved([[], [entry, ['object', [[':', 'default', ['cref', 0]]]]]]).edag)
 
 /** @type {(graph: Exp) => unknown} */
 const execute = graph => memo(analysis(graph))({ frame: null, args: [] })
@@ -1413,6 +1413,22 @@ export const proof = {
             assert(html.includes('>,<'), html)
             assert(html.includes('>anchor<'), html)
             assert(html.includes('>result<'), html)
+        },
+        // A module with named exports draws as the object of its exports,
+        // not as `.default` read off that object.
+        namedExports: () => {
+            const html = htmlToString(demo.view('export const a = [];'))
+            assert(html.includes('>{}<'), html)
+            assert(html.includes('>a<'), html)
+            assert(!html.includes('default'), html)
+        },
+        // A module that is a default and named exports is the object too:
+        // its default is one of its ports.
+        defaultAndNamedExports: () => {
+            const html = htmlToString(demo.view('export const a = 1; export default 2;'))
+            assert(html.includes('>{}<'), html)
+            assert(html.includes('>default<'), html)
+            assert(!html.includes('>.default<'), html)
         },
         // A parse failure is shown, not swallowed, and draws no graph.
         error: () => {

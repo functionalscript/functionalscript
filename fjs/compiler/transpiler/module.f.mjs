@@ -165,7 +165,7 @@ const done = (id, module, imports, context) => consts => {
     /** @type {ModuleDenotation} */
     const denotation = {
         exports: { value, ...sharing(module[1])(imports)(consts) },
-        bindings: result[1].map(([key]) => {
+        bindings: result[1].map(([, key]) => {
             const selected = _own(value, key)
             return [key, {
                 value: selected,
