@@ -115,21 +115,6 @@ const jsonRefused = source => {
 }
 
 /**
- * What `fjs compile` prints when it refuses to write `.rs` for a module: the
- * exit code is `1`, nothing is written, and the message names the output
- * file, since the module is sound and the output is what cannot be.
- *
- * @type {(source: string) => string}
- */
-const rustRefused = source => {
-    const root = { 'input.f.js': [utf8(source)] }
-    const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['input.f.js', 'output.rs'])))
-    assertEq(exitCode(code), 1, state.stderr)
-    assertEq(state.root['output.rs'], undefined)
-    return state.stderr.trim()
-}
-
-/**
  * What `fjs compile` prints when it refuses to write `.f.js` for a module:
  * the exit code is `1`, nothing is written, and the message names the output
  * file, since the module is sound and the output is what cannot be.
@@ -204,6 +189,9 @@ const fjsCorpus = [
     'export default (a, b) => (a + b) * 2 - (-a) ** 2 & ~b;',
     'export default (a, b) => a ? b : c => a ?? (b || c);',
     'export default (...a) => { const o = []; return a[0] ? [o, o] : a.at(0)(1); };',
+    'const a = [1]; export default [...a, 0, ...a, ..."ab",];',
+    'const f = (...r) => r; export default (...r) => f(...r);',
+    'const o = { m: (...r) => r }; export default (...r) => o.m(...r, 1);',
 ]
 
 /** Whether the front end finds a shared node in the module at `path`. @type {(root: typeof emptyState.root) => (path: string) => boolean} */
@@ -869,13 +857,11 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assert(compileSource('const a = null; export default a.x;')('output.rs')
                 .includes('Any::dot(Nullish::Null.to_any(), string_any("x")).end()?'))
         },
-        // A value no Rust literal can hold — a bigint outside `i64` — is
-        // refused against the output rather than written as text `rustc`
-        // then refuses, since the module itself is sound.
-        refused: () => {
-            assertEq(
-                rustRefused('export default 9223372036854775808n;'),
-                'output.rs - error: no Rust spelling for this module: no Rust i64 for: 9223372036854775808')
+        // A bigint outside `i64` is written as its sign and `u64` words,
+        // which a literal's own text cannot be.
+        wideBigint: () => {
+            assert(compileSource('export default 9223372036854775808n;')('output.rs')
+                .includes('bigint_any_words(false, &[0x8000000000000000])'))
         },
         // Every eager operator prints as a temporary, its `let` followed
         // by `?`: `pub fn module` answers the `Result` a throw lands in, so
@@ -1694,6 +1680,82 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     // by its kind. The Rust output holds either, `throw.mjs` in
     // `nanvm-harness/fixtures` being the one the harness runs; and a module
     // importing one that throws fails as that module fails.
+    // Spread in an array literal and in a call's arguments
+    // (`spec/README.md`, Spread): its operand evaluated in place and
+    // iterated, an array by its elements and a string by its code points,
+    // every other value refused; each output spells it as it spells
+    // anything, the value outputs by the value and the module and EDAG
+    // outputs by the spread itself.
+    spread: {
+        values: () => {
+            assertEq(
+                compileSource('const a = [1, 2]; export default [[...a, 0], [0, ...a, 0], [0, ...a], [...a, ...a], [...a,], [...[]]];')('output.data.js'),
+                'export default [[1,2,0],[0,1,2,0],[0,1,2],[1,2,1,2],[1,2],[]];')
+            // a code point is one item, two code units where it needs them
+            assertEq(compileSource('export default [[...""], [..."ab"], [..."😀"], [..."a😀b"]];')('output.json'), '[[],["a","b"],["😀"],["a","😀","b"]]')
+            // an access reads the array the spread made
+            assertEq(compileSource('const a = [1, 2]; export default [...a, 3][2];')('output.data.js'), 'export default 3;')
+            assertEq(compileSource('const a = [{}]; export default [0, ...a][1];')('output.data.js'), 'export default {};')
+        },
+        // `GetIterator`'s `TypeError`, for every value but an array and a
+        // string; a function is refused first as every value output
+        // refuses one
+        notIterable: () => {
+            for (const operand of ['null', 'undefined', 'true', '1', '1n', '{}', '{ length: 1 }']) {
+                assertEq(moduleRefused(`export default [...${operand}];`), 'input.f.js - error: a spread of a value that is not iterable')
+            }
+            assertEq(moduleRefused('export default [...(() => 1)];'), 'input.f.js - error: a function has no value')
+        },
+        // `...` before nothing, or before another `...`, is no item
+        malformed: () => {
+            assertEq(moduleRefused('export default [...];'), 'input.f.js:1:20 - error: unexpected token')
+            assertEq(moduleRefused('export default [..., 1];'), 'input.f.js:1:20 - error: unexpected token')
+            assertEq(moduleRefused('export default [1, ...];'), 'input.f.js:1:23 - error: unexpected token')
+            assertEq(moduleRefused('export default [... ...[]];'), 'input.f.js:1:21 - error: unexpected token')
+            assertEq(moduleRefused('const f = (...a) => a; export default f(...);'), 'input.f.js:1:44 - error: unexpected token')
+        },
+        outputs: () => {
+            assertEq(compileSource('const a = [1]; export default [...a];')('output.edag.data.js'), 'export default ["{}",[[":","default",["[]",[["...",["[]",[1]]]]]]]];')
+            assertEq(compileSource('const f = (...r) => r; export default (...r) => f(...r, 1);')('output.js'), 'const $0=(...$a)=>$a;export default (...$a)=>$0(...$a,1);')
+            assert(compileSource('export default [...null, 1];')('output.rs').includes('spread_array([spread_item(Nullish::Null.to_any()), value_item(f64_any(0x3ff0000000000000))])?'))
+        },
+        // a call whose function reads its rest array through a spread stays
+        // a call, as one reading it any other way does
+        notInlined: () => {
+            assertEq(compileSource('export default ((...a) => [...a])();')('output.js'), 'const $0=(...$a)=>[...$a];export default $0();')
+            assertEq(compileSource('const f = (...a) => a; export default ((...a) => f(...a))();')('output.js'), 'const $0=(...$a)=>$a;const $1=(...$a)=>$0(...$a);export default $1();')
+        },
+        // A spread puts its operand's elements in the array, not the
+        // operand: a node is shared through it when an element is a
+        // container reached twice, and an array of leaves spread twice
+        // shares nothing.
+        sharing: () => {
+            /** @type {(source: string) => void} */
+            const shared = source => assertEq(jsonRefused(source), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(compileSource('const a = [1]; export default [...a, ...a];')('output.json'), '[1,1]')
+            assertEq(compileSource('const a = [1]; export default {x: [...a, 2], y: [...a, 3]};')('output.json'), '{"x":[1,2],"y":[1,3]}')
+            assertEq(compileSource('const a = [1]; export default [[...a], a];')('output.json'), '[[1],[1]]')
+            assertEq(compileSource('export default [..."ab", ..."ab"];')('output.json'), '["a","b","a","b"]')
+            // a string's elements are strings, no node, through a `const` too
+            assertEq(compileSource('const s = "ab"; export default [...s, ...s];')('output.json'), '["a","b","a","b"]')
+            assertEq(compileSource('const a = [[1]]; export default [...a[0], a];')('output.json'), '[1,[[1]]]')
+            shared('const a = [{}]; export default {x: [...a, 2], y: [...a, 3]};')
+            shared('const a = [{}]; export default [[...a], a];')
+            shared('const x = {}; const a = [x]; export default [...a, x];')
+            shared('const b = [{}]; const a = [...b, 1]; export default [...a, b];')
+            shared('const b = [[1]]; const a = [...b]; export default [...a, ...a];')
+            // an array literal spread holds its items as they stand
+            shared('const x = {}; export default [x, ...[x]];')
+            shared('const x = {}; export default [...[x], ...[x]];')
+            shared('const x = {}; export default [...[[x]][0], x];')
+            assertEq(compileSource('const x = {}; export default [...[x]];')('output.json'), '[{}]')
+            // an access through an array holding a spread reads every item
+            // it may select
+            assertEq(compileSource('const a = [1, 2]; export default [[...a, 3][2], [0, ...a][1], [...a].length];')('output.json'), '[3,1,2]')
+            shared('const a = [{}]; export default [[0, ...a][1], a];')
+            shared('const s = [...[{}]]; export default [s[0], s[0]];')
+        },
+    },
     throws: () => {
         assertEq(compileSource('export default () => { throw 1; };')('output.js'), 'export default ()=>{throw 1;};')
         assertEq(compileSource('export default (...a) => { const x = a[0]; throw [x, x]; };')('output.js'), 'export default (...$a)=>{throw [$a[0],$a[0]];};')

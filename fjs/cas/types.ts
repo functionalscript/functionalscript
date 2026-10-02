@@ -19,7 +19,6 @@ import type { Access, CreateExclusive, IoChannel, Mkdir, Now, RandomInt, ReadByt
 export type FileCasOperation =
     | ReadBytes | Mkdir | Readdir | Access | Rename | Rm
     | RandomInt | Now | CreateExclusive | WriteBytes | Stat
-    | Now | Readdir | Rm
 
 export type Cas<O extends Operation> = {
     /**

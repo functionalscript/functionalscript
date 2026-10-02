@@ -12,7 +12,7 @@
 pub use nanvm_lib::vm::{
     Any, Array, IStaticFunction, IVm, Nullish, Object, ToAny, ToArray, ToObject,
     unstable::{
-        bigint_any, f64_any, object_is, strict_eq, strict_ne, string_any, string_any_utf16,
+        bigint_any, bigint_any_words, f64_any, strict_eq, strict_ne, string_any, string_any_utf16,
         string_key, string_key_utf16,
     },
 };

@@ -106,11 +106,31 @@ export type AstArg = readonly ['arg', number]
  */
 export type AstModuleRef = readonly ['aref' | 'cref', number]
 
-/** An array value; its elements are evaluated in order. */
-export type AstArray = readonly ['array', readonly AstConst[]]
+/**
+ * An item of an array or of a call's arguments: a value, or a spread of
+ * one, {@link AstSpread}.
+ */
+export type AstItem = AstConst | AstSpread
 
-/** One member of an object: the key it is written under — spelled bare, quoted or computed — and its value. */
-export type AstMember = readonly [string, AstConst]
+/**
+ * A spread, `...v`: its operand evaluated in its place among the items and
+ * then iterated, each value it yields one item — an array's elements, a
+ * string's code points — and every other value refused, as JavaScript's
+ * `GetIterator` refuses it. No value of its own, so it stands only in an
+ * item list.
+ */
+export type AstSpread = readonly ['...', AstConst]
+
+/** An array value; its items are evaluated in order. */
+export type AstArray = readonly ['array', readonly AstItem[]]
+
+/**
+ * One member of an object, tagged `:` as the EDAG's property is: the key it
+ * is written under — spelled bare, quoted or computed — and its value. The
+ * tag keeps a member apart from a spread, `['...', v]`, which a key `...`
+ * would otherwise spell too: `{ "...": 1 }` is a property.
+ */
+export type AstMember = readonly [':', string, AstConst]
 
 /**
  * An object value: its members in the order they are written, a repeated
@@ -154,7 +174,7 @@ export type AstAccess = readonly ['.', AstConst, string | number]
  * arms, `if (c) { … }` being sugar for `c ? (() => { … })() : (() => …rest…)()`
  * ([spec: functions](../../../spec/README.md#functions)).
  */
-export type AstCall = readonly ['()', AstConst, readonly AstConst[]]
+export type AstCall = readonly ['()', AstConst, readonly AstItem[]]
 
 /**
  * A negation, `-v`: the language's one prefix operator, and the EDAG's

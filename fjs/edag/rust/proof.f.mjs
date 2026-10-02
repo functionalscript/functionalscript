@@ -7,18 +7,22 @@
  * convenience — the ordinary FunctionalScript panic `fjs/AGENTS.md` §1.5
  * describes, exactly what the `throw` cases below need.
  *
- * @import { Exp, PropertyLambda } from '../types.ts'
+ * @import { Exp, Property, PropertyLambda, Spread } from '../types.ts'
+ * @import { Uses } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
-import { braced, eagerNodesOf, expExpr, holdsFunction, nestsOperation, nodeExpr, readsArgs, readsFrame, scope, sharedNodesOf, statementsOf } from './module.f.mjs'
+import { braced, eagerNodesOf, expExpr, holdsFunction, nestsOperation, nodeExpr, readsArgs, readsFrame, scope, sharedNodesOf, statementsOf, useLines } from './module.f.mjs'
 
 /** @type {(e: Exp) => string} */
 const printed = e => unwrap(nodeExpr(e))
 
 /** The lines of a scope over `e`: what a compiled module's body holds. @type {(e: Exp) => readonly string[]} */
-const scoped = e => unwrap(scope(e))
+const scoped = e => unwrap(scope(e)).lines
+
+/** The names a scope over `e` spells. @type {(e: Exp) => Uses} */
+const usedBy = e => unwrap(scope(e)).uses
 
 /** @type {(shared: readonly (readonly [Exp, string])[]) => (e: Exp) => string} */
 const printedWith = shared => e => unwrap(expExpr(shared)(e))
@@ -40,13 +44,94 @@ const refusalReason = e => {
 }
 
 export const proof = {
+    /**
+     * Every name a scope's text spells is reported, recorded where the
+     * printer spells it, and only those: a string literal spelling a name
+     * is data, and `Any` and a function's bound are no scope's to report.
+     */
+    uses: {
+        literal: () => {
+            assertStructurallySame(usedBy(['typeof', 'Nullish::Null.to_any()']), { vm: [], unstable: ['string_any'] })
+        },
+        primitives: () => {
+            assertStructurallySame(usedBy(['[]', [null, true, 1, 'a', '\ud800', 2n, 2n ** 64n]]), {
+                vm: ['Nullish', 'ToAny', 'ToArray'],
+                unstable: ['bigint_any', 'bigint_any_words', 'f64_any', 'string_any', 'string_any_utf16'],
+            })
+        },
+        containers: () => {
+            assertStructurallySame(usedBy(['[]', [['[]', []], ['{}', []], ['undefined']]]), {
+                vm: ['Array', 'Nullish', 'Object', 'ToAny', 'ToArray'],
+                unstable: [],
+            })
+            assertStructurallySame(usedBy(['{}', [[':', 'a', 1], [':', '\ud800', 2]]]), {
+                vm: ['ToAny', 'ToObject'],
+                unstable: ['f64_any', 'string_key', 'string_key_utf16'],
+            })
+        },
+        spreads: () => {
+            assertStructurallySame(usedBy(['[]', [1, ['...', ['args']]]]), {
+                vm: ['ToAny'],
+                unstable: ['f64_any', 'spread_array', 'spread_item', 'value_item'],
+            })
+            assertStructurallySame(usedBy(['()', ['args'], [['...', ['args']]]]), {
+                vm: ['ToAny'],
+                unstable: ['spread_call', 'spread_item'],
+            })
+            assertStructurallySame(usedBy(['{}', [[':', 'a', 1], ['...', ['args']]]]), {
+                vm: ['ToAny'],
+                unstable: ['f64_any', 'property_item', 'spread_entries', 'spread_object', 'string_key'],
+            })
+        },
+        operators: () => {
+            assertStructurallySame(usedBy(['===', ['String', 1], ['!==', 1, 2]]), {
+                vm: ['ToAny'],
+                unstable: ['f64_any', 'strict_eq', 'strict_ne'],
+            })
+            assertStructurallySame(usedBy(['.', ['undefined'], 0]), { vm: ['Nullish', 'ToAny'], unstable: ['f64_any'] })
+        },
+        functions: () => {
+            assertStructurallySame(usedBy(['=>', 0, [], 'a']), { vm: ['Array', 'ToAny'], unstable: ['string_any'] })
+            assertStructurallySame(usedBy(['=>', 0, [1], ['frame', 0]]), { vm: ['ToAny', 'ToArray'], unstable: ['f64_any'] })
+            assertStructurallySame(usedBy(['=>', 1, [], ['[]', [['arg', 0], ['args'], ['rest']]]]), {
+                vm: ['Array', 'Nullish', 'ToAny', 'ToArray'],
+                unstable: [],
+            })
+        },
+    },
+    useLines: () => {
+        assertStructurallySame(useLines({ vm: [], unstable: [] }, 'IVm'), ['use nanvm_lib::vm::{Any, IVm};'])
+        assertStructurallySame(useLines({ vm: ['ToAny', 'Array'], unstable: ['f64_any'] }, 'IStaticFunction'), [
+            'use nanvm_lib::vm::unstable::f64_any;',
+            'use nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny};',
+        ])
+        assertStructurallySame(useLines({ vm: ['Any'], unstable: ['f64_any', 'strict_eq'] }, 'IVm'), [
+            'use nanvm_lib::vm::unstable::{f64_any, strict_eq};',
+            'use nanvm_lib::vm::{Any, IVm};',
+        ])
+        // past rustfmt's 100 columns the braced names wrap as it wraps them:
+        // on lines of their own, filled to the width
+        assertStructurallySame(useLines({ vm: [], unstable: ['f64_any', 'spread_array', 'spread_call', 'spread_item', 'string_any', 'string_key', 'value_item'] }, 'IVm'), [
+            'use nanvm_lib::vm::unstable::{',
+            '    f64_any, spread_array, spread_call, spread_item, string_any, string_key, value_item,',
+            '};',
+            'use nanvm_lib::vm::{Any, IVm};',
+        ])
+        assertStructurallySame(useLines({ vm: [], unstable: Array.from({ length: 11 }, (_, i) => `helper_number_${i}`) }, 'IVm'), [
+            'use nanvm_lib::vm::unstable::{',
+            '    helper_number_0, helper_number_1, helper_number_2, helper_number_3, helper_number_4,',
+            '    helper_number_5, helper_number_6, helper_number_7, helper_number_8, helper_number_9,',
+            '    helper_number_10,',
+            '};',
+            'use nanvm_lib::vm::{Any, IVm};',
+        ])
+    },
     fixedAndRest: () => {
-        const result = scope(['=>', 3, [], ['[]', [['arg', 0], ['arg', 2], ['rest']]]])
-        assert(result[0] === 'ok')
-        assert(result[1].join('\n').includes('next().unwrap_or_else(|| Nullish::Undefined.to_any())'))
-        assert(result[1].join('\n').includes('nth(2).unwrap_or_else(|| Nullish::Undefined.to_any())'))
-        assert(result[1].join('\n').includes('let rest = args.clone().into_iter().skip(3).to_array();'))
-        assert(result[1].join('\n').includes('}, 3, Array::default(), Some("($a_0,$a_1,$a_2,...$a)=>[$a_0,$a_2,$a]")).to_any()'))
+        const text = scoped(['=>', 3, [], ['[]', [['arg', 0], ['arg', 2], ['rest']]]]).join('\n')
+        assert(text.includes('next().unwrap_or_else(|| Nullish::Undefined.to_any())'))
+        assert(text.includes('nth(2).unwrap_or_else(|| Nullish::Undefined.to_any())'))
+        assert(text.includes('let rest = args.clone().into_iter().skip(3).to_array();'))
+        assert(text.includes('}, 3, Array::default(), Some("($a_0,$a_1,$a_2,...$a)=>[$a_0,$a_2,$a]")).to_any()'))
     },
     /**
      * A case that nests an operation in an eager position is a scope: the
@@ -80,6 +165,7 @@ export const proof = {
         assertEq(printed(-0.3), 'f64_any(0xbfd3333333333333)')
         assertEq(printed('a'), 'string_any("a")')
         assertEq(printed(-1n), 'bigint_any(-1)')
+        assertEq(printed(0n), 'bigint_any(0)')
         assertEq(printed(['undefined']), 'Nullish::Undefined.to_any()')
     },
     containers: () => {
@@ -878,30 +964,20 @@ export const proof = {
             'Any::dot(Object::default().to_any(), string_any_utf16(&[0xd800])).end()')
         assertEq(printed('\u{1F600}'), 'string_any("\u{1F600}")')
     },
-    /** `Number` and `is` print as their `nanvm-lib` calls, over any operand. */
-    numberCastAndIs: () => {
-        assertEq(printed(['Number', 1n]), 'Any::number(bigint_any(1))')
-        assertEq(printed(['is', 1, 2]), 'object_is(f64_any(0x3ff0000000000000), f64_any(0x4000000000000000))')
-        assertStructurallySame(
-            scoped(['is', ['Number', 'a'], ['Number', 'b']]),
-            [
-                'let c0: Any<A> = (Any::number(string_any("a")))?;',
-                'let c1: Any<A> = (Any::number(string_any("b")))?;',
-                'object_is(c0, c1)',
-            ])
-    },
-    /** An operation tag the printer has no `nanvm-lib` spelling for is a refusal. */
-    unknownOperation: () => {
-        assertStructurallySame(
-            refusalReason(/** @type {Exp} */ (/** @type {unknown} */ (['==', 1, 2]))),
-            ['no Rust for', '=='])
-    },
-    literalRefusals: () => {
-        assertStructurallySame(refusalReason(2n ** 63n), ['no Rust i64 for', 2n ** 63n])
+    /** A bigint within `i64` is `bigint_any`, one past either end its sign and `u64` words. */
+    bigints: () => {
+        assertEq(printed(2n ** 63n - 1n), 'bigint_any(9223372036854775807)')
+        assertEq(printed(-(2n ** 63n)), 'bigint_any(-9223372036854775808)')
+        assertEq(printed(2n ** 63n), 'bigint_any_words(false, &[0x8000000000000000])')
+        assertEq(printed(-(2n ** 63n) - 1n), 'bigint_any_words(true, &[0x8000000000000001])')
+        assertEq(
+            printed(123456789012345678901234567890n),
+            'bigint_any_words(false, &[0xc373e0ee4e3f0ad2, 0x000000018ee90ff6])')
+        assertEq(printed(-(2n ** 64n)), 'bigint_any_words(true, &[0x0000000000000000, 0x0000000000000001])')
     },
     throw: {
-        /** A bigint no `i64` can hold. */
-        bigintOutOfRange: () => printed(-(2n ** 63n) - 1n),
+        /** An operation the printer has no `nanvm-lib` spelling for. */
+        unknownOperation: () => printed(['is', 1, 2]),
         /** An object key the printer cannot spell. */
         computedKey: () => printed(['{}', [[':', ['undefined'], 1]]]),
         /**
@@ -1141,23 +1217,103 @@ export const proof = {
         },
     },
     /**
-     * Refusals met one step into a chain, each the inner node's own — a
-     * spread the printer cannot spell, a `Number(...)` cast key — surfacing
+     * Refusals met one step into a chain, each the inner node's own — an
+     * object spread the printer cannot spell, a `Number(...)` cast key — surfacing
      * with the inner node's reason when it is printed, and never a reason
      * about the base's value, which the printer does not predict.
      */
-    chainRefusals: {
-        /** The spread is refused where the object is printed, the same one `objectSpread` (`fjs/nanvm/rust/proof.f.mjs`) pins. */
-        dotOnObjectWithSpread: () => {
-            assertStructurallySame(
-                refusalReason(['.', ['.', ['{}', [['...', 'x']]], 'y'], 'z']),
-                ['not a property', ['...', 'x']])
+    /**
+     * A spread, in an array or a call's arguments, prints through the
+     * `vm::unstable` helpers over `get_iterator`. It can throw, so the list
+     * holding it is an operation: `spread_array(…)` or `spread_call(…)`, a
+     * `Result` bound with `?` where it is a temporary, and an argument
+     * list's thunk answers `spread_array`'s own `Result`.
+     */
+    spread: {
+        array: () => {
+            assertEq(
+                printed(['[]', [1, ['...', 'ab']]]),
+                'spread_array([value_item(f64_any(0x3ff0000000000000)), spread_item(string_any("ab"))])')
+            assertStructurallySame(scoped(['[]', [['[]', [['...', 'ab']]], 3]]), [
+                'let c0: Any<A> = spread_array([spread_item(string_any("ab"))])?;',
+                'Ok([c0, f64_any(0x4008000000000000)].to_array().to_any())',
+            ])
         },
-        /** A spread in an array item list has no spelling, wherever the array stands. */
-        dotOnArrayWithSpread: () => {
+        call: () => {
+            assertEq(
+                printed(['()', ['args'], [0, ['...', 'ab']]]),
+                'spread_call(args.clone().to_any(), [value_item(f64_any(0x0000000000000000)), spread_item(string_any("ab"))])')
+        },
+        /** A call step's and an optional call's arguments are a thunk, answering `spread_array`'s `Result`. */
+        thunks: () => {
+            assertStructurallySame(scoped(['.', ['args'], 'at', ['|()', [['...', 'ab']]]]), [
+                'let c0 = || spread_array([spread_item(string_any("ab"))]);',
+                'Any::dot(args.clone().to_any(), string_any("at")).end_call(c0)',
+            ])
+            assertEq(
+                printed(['?.()', ['undefined'], [['...', 'ab']]]),
+                'Any::option_call(Nullish::Undefined.to_any(), || spread_array([spread_item(string_any("ab"))])).end()')
+        },
+        /** Without a spread, nothing changes: the array is a value and the call `Any::call`. */
+        noSpread: () => {
+            assertEq(printed(['[]', ['...']]), '[string_any("...")].to_array().to_any()')
+            assertEq(
+                printed(['()', ['args'], ['...']]),
+                'Any::call(args.clone().to_any(), [string_any("...")].to_array().to_any())')
+        },
+        /**
+         * An object's spread is `spread_entries` beside `property_item`s,
+         * through `object_spread`, which never throws: the object stays a
+         * value, nested in a corpus expression as any value is.
+         */
+        object: () => {
+            assertEq(
+                printed(['{}', [[':', 'a', 1], ['...', 'bc']]]),
+                'spread_object([property_item(string_key("a"), f64_any(0x3ff0000000000000)), spread_entries(string_any("bc"))])')
+            assertEq(nestsOperation([])(['[]', [['{}', [['...', 'bc']]]]]), false)
+            assertEq(printed(['{}', [[':', 'a', 1]]]), '[(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any()')
+        },
+        /**
+         * One pair object standing twice in a list reaches its operand twice:
+         * a pair is no node, so its operand is counted per occurrence, a
+         * temporary, and never moved twice — a spread in an array and in an
+         * argument list's thunk, and a property in an object.
+         */
+        sharedPair: () => {
+            /** @type {Exp} */
+            const a = ['.', ['args'], 'a']
+            /** @type {Spread} */
+            const s = ['...', a]
+            assertStructurallySame(scoped(['[]', [s, s]]), [
+                'let c0: Any<A> = Any::dot(args.clone().to_any(), string_any("a")).end()?;',
+                'spread_array([spread_item(c0.clone()), spread_item(c0.clone())])',
+            ])
+            assertStructurallySame(scoped(['.', ['args'], 'at', ['|()', [s, s]]]), [
+                'let c0 = || {',
+                '    let c1: Any<A> = Any::dot(args.clone().to_any(), string_any("a")).end()?;',
+                '    spread_array([spread_item(c1.clone()), spread_item(c1.clone())])',
+                '};',
+                'Any::dot(args.clone().to_any(), string_any("at")).end_call(c0)',
+            ])
+            /** @type {Property} */
+            const p = [':', 'k', a]
+            assertStructurallySame(scoped(['{}', [p, p]]), [
+                'let c0: Any<A> = Any::dot(args.clone().to_any(), string_any("a")).end()?;',
+                'Ok([(string_key("k"), c0.clone()), (string_key("k"), c0.clone())].to_object().to_any())',
+            ])
+        },
+        /** A spread array nested in a corpus expression is an operation, as an operator is. */
+        nestsOperation: () => {
+            assertEq(nestsOperation([])(['[]', [['[]', [['...', 'ab']]]]]), true)
+            assertEq(nestsOperation([])(['[]', [['[]', ['ab']]]]), false)
+        },
+    },
+    chainRefusals: {
+        /** An entry that is neither a property nor a spread is refused where the object is printed, the same one `notAProperty` (`fjs/nanvm/rust/proof.f.mjs`) pins. */
+        dotOnObjectWithMalformedEntry: () => {
             assertStructurallySame(
-                refusalReason(['.', ['.', ['[]', [['...', 'x'], 1]], 0], 'y']),
-                ['no Rust for', '...'])
+                refusalReason(['.', ['.', ['{}', [/** @type {any} */ (['?', 'x'])]], 'y'], 'z']),
+                ['not a property', ['?', 'x']])
         },
         /** The cast key is `indexExpr`'s refusal, the same one `numberCastIndex` pins directly. */
         dotOnObjectWithNumberCastKey: () => {

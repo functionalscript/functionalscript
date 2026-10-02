@@ -68,7 +68,7 @@ pure module's.
 
 ### Related
 
-- [../../todo/refuse-combinator.md](../../todo/refuse-combinator.md) — the
-  composition at a site; this issue is the message the site carries.
+- `refuse` in [`fjs/effects`](../../module.f.mjs) — the composition at a
+  site; this issue is the message the site carries.
 - [../../todo/node-module-layering.md](../../todo/node-module-layering.md)
   — moves `readBytes` between modules; the shared rule moves with it.

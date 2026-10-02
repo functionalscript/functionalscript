@@ -14,6 +14,9 @@
  * dashed by the site's stylesheet, and any other value draws as a plain
  * solid box, so a demo with more than one kind of container is one CSS rule
  * away from telling them apart too.
+ *
+ * An empty `label` draws no title row on a node with edges, for a demo
+ * whose rows already say what the node is.
  */
 export type Node = {
     readonly id: number
@@ -66,10 +69,24 @@ export type Inline = {
     readonly kind?: string | undefined
 }
 
-/** A graph `graphSvg` (`./module.f.mjs`) can draw: every node ranked, every edge named. */
+/**
+ * An arrow into a node from nowhere: where a reader enters the graph, such
+ * as a version's root. It has no label. `kind` is the demo's own
+ * vocabulary, drawn as `data-graph-edge-kind` like an {@link Edge}'s.
+ */
+export type Entry = {
+    readonly to: number
+    readonly kind?: string | undefined
+}
+
+/**
+ * A graph `graphSvg` (`./module.f.mjs`) can draw: every node ranked, every
+ * edge named, and the {@link Entry} arrows into it, if it has any.
+ */
 export type Graph = {
     readonly nodes: readonly Ranked[]
     readonly edges: readonly Edge[]
+    readonly entries?: readonly Entry[] | undefined
 }
 
 /**

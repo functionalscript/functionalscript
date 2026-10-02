@@ -43,7 +43,7 @@
  * @import { Dirs } from '../types.ts'
  */
 
-import { catchStep, finallyStep, foldStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../../../effects/module.f.mjs'
+import { catchStep, finallyStep, foldStep, history, historyStep, ioError, mapStep, orElse, pureError, pureOk, refuse, resultStep, step } from '../../../effects/module.f.mjs'
 import { createExclusive, isNotFound, mkdir, rename, rm, rmdir, writeExclusive, writeExclusiveUtf8File } from '../../../effects/node/module.f.mjs'
 import { byteArray } from '../../../ebnf/byte/module.f.mjs'
 import { under } from '../../../path/module.f.mjs'
@@ -51,10 +51,14 @@ import { length, maxLengthBytes, u8ListToVecMsb } from '../../../types/bit_vec/m
 import { solidus as slash } from '../../../text/ascii/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.mjs'
+import { startsWith } from '../../bytes/module.f.mjs'
 import { hexText, isOidOf } from '../../oid/module.f.mjs'
 import { tryPackedWithout, tryRef } from '../../ref/module.f.mjs'
 import { isWholeName, lockSuffix } from '../../refname/module.f.mjs'
 import { badNameCode, badNameMessage, dirOf, isDirectoryAt, nameForMessage, nameText, packedRefs, refsPrefix, tryBytes, tryPackedRefs, tryWholeBytes, zeroId, zeroIdCode } from '../module.f.mjs'
+
+/** Refuses with {@link zeroIdCode}. */
+const refuseZeroId = refuse(zeroIdCode)
 
 /**
  * The directory a ref's loose file sits in, which a write has to make before it
@@ -216,6 +220,9 @@ const refsText = name => {
  */
 export const idWidthCode = /** @type {const} */ ('ERR_ID_WIDTH')
 
+/** Refuses with {@link idWidthCode}. */
+const refuseIdWidth = refuse(idWidthCode)
+
 /** @type {(oidBytes: OidBytes, id: Oid) => string} */
 const idWidthMessage = (oidBytes, id) =>
     `this repository's ids are ${oidBytes * 8} bits and this one is ${length(id)}`
@@ -233,7 +240,7 @@ const zeroIdWriteMessage = name => `${nameForMessage(name)} would hold the zero 
  * @type {(a: readonly number[], b: readonly number[]) => boolean}
  */
 const isNamePrefix = (a, b) =>
-    b.length > a.length && b[a.length] === slash && a.every((v, i) => b[i] === v)
+    b.length > a.length && b[a.length] === slash && startsWith(a)(b)
 
 /**
  * The packed name that collides with `name` as a directory prefix, either way
@@ -295,6 +302,9 @@ const prefixCollision = (packed, name) => packed.find(e => {
  */
 export const refPrefixCode = /** @type {const} */ ('ERR_REF_PREFIX')
 
+/** Refuses with {@link refPrefixCode}. */
+const refuseRefPrefix = refuse(refPrefixCode)
+
 /**
  * Git's own wording, which names both refs and neither path: the ref in the way
  * and the one that cannot be created.
@@ -334,6 +344,9 @@ const refIsDirectoryMessage = (name, verb) => `${nameForMessage(name)} is a dire
  */
 export const badPackedCode = /** @type {const} */ ('ERR_BAD_PACKED')
 
+/** Refuses with {@link badPackedCode}. */
+const refuseBadPacked = refuse(badPackedCode)
+
 /** @type {(dirs: Dirs) => string} */
 const badPackedMessage = dirs => `${under(dirs.common, packedRefs)} is no ${packedRefs}`
 
@@ -359,6 +372,9 @@ const badPackedMessage = dirs => `${under(dirs.common, packedRefs)} is no ${pack
  */
 export const unsortedPackedCode = /** @type {const} */ ('ERR_UNSORTED_PACKED')
 
+/** Refuses with {@link unsortedPackedCode}. */
+const refuseUnsortedPacked = refuse(unsortedPackedCode)
+
 /** @type {(dirs: Dirs) => string} */
 const unsortedPackedMessage = dirs => `${under(dirs.common, packedRefs)} claims to be sorted and is not`
 
@@ -381,6 +397,9 @@ const unsortedPackedMessage = dirs => `${under(dirs.common, packedRefs)} claims 
  */
 export const brokenRefCode = /** @type {const} */ ('ERR_BROKEN_REF')
 
+/** Refuses with {@link brokenRefCode}. */
+const refuseBrokenRef = refuse(brokenRefCode)
+
 /** @type {(name: Bytes) => string} */
 const brokenRefMessage = name => `${nameForMessage(name)} is no ref`
 
@@ -397,7 +416,7 @@ const collided = (packed, name) => {
     const other = prefixCollision(packed, byteArray(name))
     return other === null
         ? pureOk(undefined)
-        : pureError(ioError({ code: refPrefixCode, message: refPrefixMessage(other, name) }))
+        : refuseRefPrefix(refPrefixMessage(other, name))
 }
 
 /**
@@ -475,10 +494,10 @@ export const tryWrite = (dirs, oidBytes) => {
         // Before `hexText`, which asserts on a `Vec` that is not whole bytes: an id
         // of the wrong width is a caller's error to be told about, not a panic.
         if (!isOid(id)) {
-            return pureError(ioError({ code: idWidthCode, message: idWidthMessage(oidBytes, id) }))
+            return refuseIdWidth(idWidthMessage(oidBytes, id))
         }
         if (zeroId(id)) {
-            return pureError(ioError({ code: zeroIdCode, message: zeroIdWriteMessage(name) }))
+            return refuseZeroId(zeroIdWriteMessage(name))
         }
         // The directory the name's file belongs in, which is one of the two and not
         // both: a per-worktree name is the worktree's own, the same rule the two
@@ -496,7 +515,7 @@ export const tryWrite = (dirs, oidBytes) => {
         // filesystem to refuse. See {@link refPrefixCode}.
         const read = tryPackedRefs(dirs, oidBytes)
         const checked = step(read, packed => packed === null
-            ? pureError(ioError({ code: badPackedCode, message: badPackedMessage(dirs) }))
+            ? refuseBadPacked(badPackedMessage(dirs))
             : collided(packed, name))
         // A directory at the ref's own path, which the `rename` would refuse — unless
         // it is a *symlink* to one, which the `rename` silently replaces. One `stat`
@@ -504,7 +523,7 @@ export const tryWrite = (dirs, oidBytes) => {
         // See {@link refPrefixCode}.
         const kind = step(checked, () => isDirectoryAt(path))
         const clear = step(kind, there => there
-            ? pureError(ioError({ code: refPrefixCode, message: refIsDirectoryMessage(name, 'create') }))
+            ? refuseRefPrefix(refIsDirectoryMessage(name, 'create'))
             : pureOk(/** @type {void} */ (undefined)))
         const made = step(clear, () => mkdir(parentOf(dir, text), { recursive: true }))
         // The cleanup starts *after* the exclusive write and covers the rename alone:
@@ -597,7 +616,7 @@ const emptied = paths => dropped(foldStep(
  */
 const madeHere = path => catchStep(
     mapStep(mkdir(path), () => true),
-    e => e[0] === 'ioError' && e[1].code === 'EEXIST' ? pureOk(false) : pureError(e))
+    orElse(e => e[0] === 'ioError' && e[1].code === 'EEXIST', false))
 
 /**
  * The directories above the ref, made one at a time from the top, and those this
@@ -676,10 +695,10 @@ const chunked = bytes => {
  */
 const packedRewritten = dirs => without => {
     if (without[0] === 'malformed') {
-        return pureError(ioError({ code: badPackedCode, message: badPackedMessage(dirs) }))
+        return refuseBadPacked(badPackedMessage(dirs))
     }
     if (without[0] === 'unsorted') {
-        return pureError(ioError({ code: unsortedPackedCode, message: unsortedPackedMessage(dirs) }))
+        return refuseUnsortedPacked(unsortedPackedMessage(dirs))
     }
     if (without[0] === 'absent') { return pureOk(false) }
     const packed = under(dirs.common, packedRefs)
@@ -706,7 +725,7 @@ const packedRewritten = dirs => without => {
  */
 const looseRemoved = path => catchStep(
     rm(path),
-    e => isNotFound(e) ? pureOk(undefined) : pureError(e))
+    orElse(isNotFound, undefined))
 
 /**
  * Whether the name's loose file holds a ref: `true` for an id or a `ref:` line,
@@ -721,7 +740,7 @@ const looseRef = (readRef, name, path) => step(
     bytes => {
         if (bytes === null) { return pureOk(false) }
         return readRef(bytes) === null
-            ? pureError(ioError({ code: brokenRefCode, message: brokenRefMessage(name) }))
+            ? refuseBrokenRef(brokenRefMessage(name))
             : pureOk(true)
     })
 
@@ -845,7 +864,7 @@ export const tryDelete = (dirs, oidBytes) => {
         // the path would be is the same `stat`'s `ENOTDIR`. See {@link refPrefixCode}.
         const kind = isDirectoryAt(path)
         const clear = step(kind, there => there
-            ? pureError(ioError({ code: refPrefixCode, message: refIsDirectoryMessage(name, 'delete') }))
+            ? refuseRefPrefix(refIsDirectoryMessage(name, 'delete'))
             : pureOk(/** @type {void} */ (undefined)))
         const taken = removed(dirs, name, path, under(dir, `logs/${text}`), readRef, packedWithout(name))
         const packedLock = `${under(dirs.common, packedRefs)}${lockSuffix}`

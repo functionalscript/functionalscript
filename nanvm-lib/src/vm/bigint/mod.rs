@@ -24,7 +24,7 @@ mod to_f64;
 use core::{cmp::Ordering, iter::once};
 
 use crate::{
-    common::{div_mod::DivMod, sized_index::SizedIndex, uint::Uint},
+    common::{div_mod::DivMod, iter::Iter, sized_index::SizedIndex, uint::Uint},
     sign::Sign,
     vm::{Any, IContainer, IVm},
 };
@@ -32,6 +32,9 @@ use crate::{
 /// The exact V8 message for dividing (`/`) or taking the remainder (`%`) of
 /// a `BigInt` by zero.
 const DIVISION_BY_ZERO: &str = "RangeError: Division by zero";
+
+/// [`BigInt::abs_sub_vec`]'s precondition, broken.
+const RHS_GREATER: &str = "abs_sub_vec: rhs is greater than self";
 
 /// A non-negative shift amount, decoded once for `<<` (`shl.rs`) and `>>`
 /// (`shr.rs`) by [`BigInt::shift_amount`]. Each operation picks its own
@@ -240,8 +243,6 @@ impl<A: IVm> BigInt<A> {
         vec
     }
 
-    // NOTE: use .index_iter in abs_* helpers.
-
     /// Panics if this BigInt is not normalized, i.e. if it has leading
     /// (most-significant) zero words.
     fn assert_normalized(&self) {
@@ -259,26 +260,12 @@ impl<A: IVm> BigInt<A> {
         let a = self.0.items();
         let b = rhs.0.items();
 
-        let len_a = a.length();
-        let len_b = b.length();
-
-        // Different lengths: the longer one (more significant words) is greater.
-        if len_a != len_b {
-            return len_a.cmp(&len_b);
-        }
-
-        // Same length: compare from most-significant word down to least-significant.
-        let mut i = len_a;
-        while i > 0 {
-            i -= 1;
-            let wa = a[i];
-            let wb = b[i];
-            if wa != wb {
-                return wa.cmp(&wb);
-            }
-        }
-
-        Ordering::Equal
+        // The longer one (more significant words) is greater; at equal length,
+        // the first differing word from the most-significant end decides.
+        a.length().cmp(&b.length()).then_with(|| {
+            let words = (0..a.length()).rev();
+            words.clone().map(|i| a[i]).cmp(words.map(|i| b[i]))
+        })
     }
 
     fn abs_add_vec(self, rhs: Self) -> Vec<u64> {
@@ -286,26 +273,16 @@ impl<A: IVm> BigInt<A> {
         self.assert_normalized();
         rhs.assert_normalized();
 
-        let mut iter_a = self.index_iter();
-        let mut iter_b = rhs.index_iter();
         let mut carry: u128 = 0;
-        let mut out: Vec<u64> = Vec::new();
-        loop {
-            let mut a = 0u64;
-            let mut b = 0u64;
-            match (iter_a.next(), iter_b.next()) {
-                (Some(some_a), Some(some_b)) => {
-                    a = some_a;
-                    b = some_b;
-                }
-                (Some(some_a), None) => a = some_a,
-                (None, Some(some_b)) => b = some_b,
-                (None, None) => break,
-            }
-            let sum = a as u128 + b as u128 + carry;
-            out.push(sum as u64);
-            carry = sum >> 64;
-        }
+        let mut out: Vec<u64> = self
+            .index_iter()
+            .zip_longest(rhs.index_iter())
+            .map(|(a, b)| {
+                let sum = a.unwrap_or_default() as u128 + b.unwrap_or_default() as u128 + carry;
+                carry = sum >> 64;
+                sum as u64
+            })
+            .collect();
 
         if carry > 0 {
             out.push(carry as u64);
@@ -321,26 +298,26 @@ impl<A: IVm> BigInt<A> {
         self.assert_normalized();
         rhs.assert_normalized();
 
-        let mut iter_b = rhs.index_iter();
         let mut borrow: u64 = 0;
-        let mut out: Vec<u64> = Vec::new();
+        let out: Vec<u64> = self
+            .index_iter()
+            .zip_longest(rhs.index_iter())
+            .map(|(a, b)| {
+                let a = a.expect(RHS_GREATER);
+                let b_plus_borrow = b.unwrap_or_default() as u128 + borrow as u128;
+                let mut a_extended = a as u128;
+                if a_extended >= b_plus_borrow {
+                    borrow = 0;
+                } else {
+                    a_extended += 1u128 << 64;
+                    borrow = 1;
+                }
+                (a_extended - b_plus_borrow) as u64
+            })
+            .collect();
 
-        for a in self.index_iter() {
-            let b = iter_b.next().unwrap_or_default();
-
-            let b_plus_borrow = b as u128 + borrow as u128;
-            let mut a_extended = a as u128;
-            if a_extended >= b_plus_borrow {
-                borrow = 0;
-            } else {
-                a_extended += 1u128 << 64;
-                borrow = 1;
-            }
-            out.push((a_extended - b_plus_borrow) as u64);
-        }
-
-        if borrow != 0 || iter_b.next().is_some() {
-            panic!("abs_sub_vec: rhs is greater than self");
+        if borrow != 0 {
+            panic!("{RHS_GREATER}");
         }
 
         normalize(&out).to_vec()

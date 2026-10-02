@@ -133,7 +133,7 @@ const expectElseChain = depth => exp => {
  *
  * @type {(entry: AstConst) => Exp}
  */
-const lowered = entry => _defaultExport(unresolved([[], [entry, ['object', [['default', ['cref', 0]]]]]]).edag)
+const lowered = entry => _defaultExport(unresolved([[], [entry, ['object', [[':', 'default', ['cref', 0]]]]]]).edag)
 
 /** @type {(graph: Exp) => unknown} */
 const execute = graph => memo(analysis(graph))({ frame: null, args: [] })

@@ -36,7 +36,7 @@ const s1 = level3Id(1n)
 
 export const proof = {
     // Minimum word [s0, t] with t == s0
-    min_equal: () => {
+    minEqual: () => {
         const [out, storage] = runWord([s0, s0])
         assertEq(out, compress(s0, s0))
         assertEq(storage.length, 1)
@@ -44,7 +44,7 @@ export const proof = {
     },
 
     // Minimum word [s0, t] with t > s0
-    min_greater: () => {
+    minGreater: () => {
         const [out, storage] = runWord([s0, s1])
         assertEq(out, compress(s0, s1))
         assertEq(storage.length, 1)
@@ -52,7 +52,7 @@ export const proof = {
     },
 
     // All symbols before the terminator return undefined
-    intermediate_undefined: () => {
+    intermediateUndefined: () => {
         const [r0, st0] = enc(s1, initial)
         assertEq(r0, undefined)
         const [r1, st1] = enc(s0, st0)
@@ -62,7 +62,7 @@ export const proof = {
     },
 
     // Three-symbol word [s0, s1, t]: end merges (s0,s1), then create merges (root, t)
-    three_symbol: () => {
+    threeSymbol: () => {
         const [out, storage] = runWord([s1, s0, s0])
         assertEq(out, compress(compress(s1, s0), s0))
         assertEq(storage.length, 2)
@@ -76,13 +76,13 @@ export const proof = {
     },
 
     // Output equals the merged value in the last add call
-    output_is_last_add: () => {
+    outputIsLastAdd: () => {
         const [out, storage] = runWord([s1, s0, s1])
         assertEq(out, assertNotNullish(storage.at(-1))[2])
     },
 
     // Stack is empty after flush; storage is preserved
-    state_reset: () => {
+    stateReset: () => {
         const st1 = enc(s0, initial)[1]
         const [, st2] = enc(s0, st1)
         assertEq(st2[1].length, 0)
@@ -90,7 +90,7 @@ export const proof = {
     },
 
     // Storage grows across consecutive words (not wiped on flush)
-    storage_accumulates: () => {
+    storageAccumulates: () => {
         const st1 = enc(s0, initial)[1]
         const st2 = enc(s1, st1)[1]   // flush [s0, s1]
         const st3 = enc(s0, st2)[1]
@@ -100,7 +100,7 @@ export const proof = {
     },
 
     // Two consecutive words encode independently and correctly
-    two_words: () => {
+    twoWords: () => {
         const st1 = enc(s0, initial)[1]
         const [r1, st2] = enc(s1, st1)
         assertEq(r1, compress(s0, s1))
@@ -110,21 +110,21 @@ export const proof = {
     },
 
     // Different words produce different hashes
-    non_commutative: () => {
+    nonCommutative: () => {
         const [out1] = runWord([s0, s1])
         const [out2] = runWord([s1, s0, s1])
         assert(out1 !== out2)
     },
 
     // Trie-internal merges have isSymbol=false; only the terminal merge has isSymbol=true
-    isSymbol_terminal_only: () => {
+    isSymbolTerminalOnly: () => {
         const [, storage] = runWord([s1, s0, s0])
         assertEq(storage[0][3], false)  // Patricia trie merge
         assertEq(storage[1][3], true)   // terminal compress(root, t)
     },
 
     // Single-step word: no trie merges, exactly one isSymbol=true
-    isSymbol_min_word: () => {
+    isSymbolMinWord: () => {
         const [, storage] = runWord([s0, s0])
         assertEq(storage.length, 1)
         assertEq(storage[0][3], true)

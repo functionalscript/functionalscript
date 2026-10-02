@@ -49,12 +49,13 @@
  *                 | nullishRound { nullishRound } ]
  * conditionalTail ::= [ '?' value ':' value ]
  * tail   ::= eagerTail circuitTail conditionalTail
- * access ::= '.' id | '[' (string | number) ']' | '(' [ items(value) ] ')'
- * array  ::= '[' [ items(value) ] ']'
+ * access ::= '.' id | '[' (string | number) ']' | '(' [ items(item) ] ')'
+ * array  ::= '[' [ items(item) ] ']'
+ * item   ::= '...' value | value
  * object ::= '{' [ items(member) ] '}'
  * member ::= key ':' value
  * key    ::= id | string | '[' string ']'
- * items  ::= item [ ',' [ items ] ]
+ * items(x) ::= x [ ',' [ items(x) ] ]
  * ```
  *
  * A `(` opens two things, so it is read before either: {@link paren} takes
@@ -118,7 +119,7 @@
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { BinaryTag } from '../../ast/types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
- * @import { Access, AfterValue, ArrowOrRest, Block, Body, CircuitTail, ConditionalTail, EagerTail, End, Func, Group, GroupOperand, Items, LastStatement, Member, ParameterNames, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Terminator, Unary, UnaryOperand, Value } from './types.ts'
+ * @import { Access, AfterValue, ArrowOrRest, Block, Body, CircuitTail, ConditionalTail, EagerTail, End, Func, Group, GroupOperand, Item, Items, LastStatement, Member, ParameterNames, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -298,7 +299,7 @@ export const index = /** @type {const} */ ({
  * `value` rule itself: the rewrite set is keyed by rule, so a wrapper in the
  * item's place would leave each argument unmapped.
  *
- * @type {() => ReturnType<Items<Value>>}
+ * @type {() => ReturnType<Items<Item>>}
  */
 export const callArguments = () => values()
 
@@ -661,15 +662,33 @@ export const circuitTail = option({
 })
 
 /**
- * A value: a primitive token, a name, an array, an object, a `-`/`~`
- * prefix, or `(` — the choice between a function and a group,
- * {@link parenthesized} — each ending with its own {@link tail}, the
- * binary-operator suffix, except a function: nothing may follow one
- * unparenthesized, `=>` reading everything to its right as the body, so
- * {@link func} stands bare where the others carry {@link tail}, and a
- * name is a reference or the one parameter of `a => …`, which
- * {@link arrowOrRest} tells apart after it. A `const` thunk whose payload
- * names the thunk, which is what lets a type alias name itself.
+ * The branches {@link value} and {@link body} both start with: a `-`/`~`
+ * prefix, a primitive token, a name, an array, or `(` — the choice
+ * between a function and a group, {@link parenthesized} — each ending
+ * with its own {@link tail}, the binary-operator suffix, except a
+ * function: nothing may follow one unparenthesized, `=>` reading
+ * everything to its right as the body, so {@link func} stands bare where
+ * the others carry {@link tail}, and a name is a reference or the one
+ * parameter of `a => …`, which {@link arrowOrRest} tells apart after it.
+ *
+ * A thunk, as the rules are: the branches name {@link tail}, which is
+ * declared after them, so they are built only when a rule is forced,
+ * after every binding in this module exists.
+ *
+ * @type {() => ValueBranches}
+ */
+const valueBranches = () => ({
+    neg: [sym('-'), unaryOperand, ...tail],
+    bitnot: [sym('~'), unaryOperand, ...tail],
+    primitive: [primitiveValue, powTail, ...tail],
+    name: [identifier, arrowOrRest],
+    array: [[array, accesses], powTail, ...tail],
+    paren,
+})
+
+/**
+ * A value: {@link valueBranches}, and an object. A `const` thunk whose
+ * payload names the thunk, which is what lets a type alias name itself.
  *
  * Any value takes accesses, as any expression does in JavaScript:
  * `[1].length`, `"ab"[0]`, `{ a: 1 }.a`. `1 .x` parses here too, with a
@@ -684,23 +703,17 @@ export const circuitTail = option({
  * @type {Value}
  */
 export const value = () => ['const', {
-    neg: [sym('-'), unaryOperand, ...tail],
-    bitnot: [sym('~'), unaryOperand, ...tail],
-    primitive: [primitiveValue, powTail, ...tail],
-    name: [identifier, arrowOrRest],
-    array: [[array, accesses], powTail, ...tail],
+    ...valueBranches(),
     object: [[object, accesses], powTail, ...tail],
-    paren,
 }]
 
 /**
- * A function's body: a value less the object — after `=>` JavaScript reads
- * `{` as a block, never as an object, so the spelling is refused rather
- * than read another way — or that block, {@link block}, in which an
- * object is an ordinary value again, or a group, which is the other
- * spelling of a body that is an object, `(...a) => ({ x: 1 })`. Every
- * branch but {@link func} and {@link block} carries {@link tail} exactly
- * as {@link value}'s own branches do, for the same reason.
+ * A function's body: {@link valueBranches} without the object — after
+ * `=>` JavaScript reads `{` as a block, never as an object, so the
+ * spelling is refused rather than read another way — and that block,
+ * {@link block}, in which an object is an ordinary value again. A group
+ * is the other spelling of a body that is an object,
+ * `(...a) => ({ x: 1 })`.
  *
  * `{` decides the block in one symbol, since no other branch starts with
  * it — and after a `-`/`~` it opens an object again, the prefix putting
@@ -710,15 +723,7 @@ export const value = () => ['const', {
  *
  * @type {Body}
  */
-export const body = () => ['const', {
-    neg: [sym('-'), unaryOperand, ...tail],
-    bitnot: [sym('~'), unaryOperand, ...tail],
-    primitive: [primitiveValue, powTail, ...tail],
-    name: [identifier, arrowOrRest],
-    array: [[array, accesses], powTail, ...tail],
-    paren,
-    block,
-}]
+export const body = () => ['const', { ...valueBranches(), block }]
 
 /**
  * The conditional, above {@link circuitTail} and the top of {@link tail}:
@@ -910,8 +915,19 @@ export const member = [key, sym(':'), value]
 /** The members of an object, likewise. */
 export const members = items(member)
 
+/**
+ * An item of an array or of a call's arguments: a value, or a spread of
+ * one, `...value`, whose operand is any value, as JavaScript's
+ * `SpreadElement` takes an `AssignmentExpression`. `...` begins no value,
+ * so one symbol decides; and a rest parameter's `...` is never read here,
+ * since a parameter list is read by its own rule, after a value's `(`.
+ *
+ * @type {Item}
+ */
+export const item = { spread: [sym('...'), value], value }
+
 /** The items of an array. A rule of its own, so that a reader may map it. */
-export const values = items(value)
+export const values = items(item)
 
 export const array = /** @type {const} */ ([sym('['), option(values), sym(']')])
 

@@ -1,6 +1,6 @@
 /**
  * Signing helpers built on secp256k1 and SHA-256 primitives. See `./types.ts`
- * for the `All` type.
+ * for the `Rfc6979` and `Signer` types.
  *
  * @module
  *
@@ -8,7 +8,7 @@
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Curve } from '../secp/types.ts'
  * @import { Sha2 } from '../sha2/types.ts'
- * @import { All, _Signature } from './types.ts'
+ * @import { Rfc6979, Signer, _Signature } from './types.ts'
  */
 
 import { assertNotNullish } from '../../asserts/module.f.mjs'
@@ -21,7 +21,7 @@ import { computeSync } from '../sha2/module.f.mjs'
  * Builds RFC6979 helper conversions for a subgroup order.
  *
  * @param {bigint} q - Subgroup order.
- * @returns {All} Conversion helpers used by deterministic nonce generation.
+ * @returns {Rfc6979} Conversion helpers used by deterministic nonce generation.
  */
 export const all = q => {
     const qlen = bitLength(q)
@@ -31,23 +31,28 @@ export const all = q => {
         const diff = length - qlen
         return diff > 0n ? uint >> diff : uint
     }
+    // RFC 6979's extra modular reduction. Since `bits2int(b) < 2*q`, it is no
+    // more than a conditional subtraction: `z1 < q ? z1 : z1 - q`.
+    /** @type {(b: Vec) => bigint} */
+    const bits2intModQ = b => bits2int(b) % q
     const int2octets = wholeBytes(qlen)
     return {
         q,
         qlen,
         bits2int,
+        bits2intModQ,
         int2octets,
-        // since z2 < 2*q, we can use simple mod with `z1 < q ? z1 : z1 - q`
-        bits2octets: b => int2octets(bits2int(b) % q),
+        bits2octets: b => int2octets(bits2intModQ(b)),
     }
 }
 
 /**
- * Builds RFC6979 helper conversions from curve parameters.
+ * Builds the signing context of a curve: the RFC6979 conversions for its
+ * subgroup order, and the curve parts `sign` uses.
  *
- * @type {(c: Curve) => All}
+ * @type {(c: Curve) => Signer}
  */
-export const fromCurve = c => all(c.nf.p)
+export const fromCurve = ({ nf, mul, g }) => ({ rfc6979: all(nf.p), nf, mul, g })
 
 const x01 = vec8(0x01n)
 const x00 = vec8(0x00n)
@@ -61,7 +66,7 @@ const { concat, listToVec } = msb
  * `h1` must be a digest of `hf`, which no check on a `Vec` can establish:
  * its only callers are `computeK` and `sign`, and both make `h1` with `hf`.
  *
- * @type {(_: All) => (_: Sha2) => (x: bigint) => (h1: Vec) => bigint}
+ * @type {(_: Rfc6979) => (_: Sha2) => (x: bigint) => (h1: Vec) => bigint}
  */
 const computeKFromDigest =
     ({ q, bits2int, qlen, int2octets, bits2octets }) => hf => {
@@ -137,7 +142,7 @@ const computeKFromDigest =
 /**
  * Computes deterministic ECDSA nonce `k` as described by RFC6979.
  *
- * @type {(_: All) => (_: Sha2) => (x: bigint) => (m: Vec) => bigint}
+ * @type {(_: Rfc6979) => (_: Sha2) => (x: bigint) => (m: Vec) => bigint}
  */
 export const computeK = a => hf => {
     const f = computeKFromDigest(a)(hf)
@@ -151,9 +156,7 @@ export const computeK = a => hf => {
  */
 export const sign = c => hf => x => m => {
     // 2.4 Signature Generation
-    const { nf: { p: q, div }, g } = c
-    const a = all(q)
-    const { bits2int } = a
+    const { rfc6979, nf: { div }, mul, g } = fromCurve(c)
     // The following steps are then applied:
     //
     // 1. H(m) is transformed into an integer modulo q using the bits2int
@@ -164,14 +167,14 @@ export const sign = c => hf => x => m => {
     //     As was noted in the description of bits2octets, the extra modular
     //     reduction is no more than a conditional subtraction.
     const hm = computeSync(hf)([m])
-    const h = bits2int(hm) % q
+    const h = rfc6979.bits2intModQ(hm)
     // 2. A random value modulo q, dubbed k, is generated.  That value
     //    shall not be 0; hence, it lies in the [1, q-1] range.  Most of
     //    the remainder of this document will revolve around the process
     //    used to generate k.  In plain DSA or ECDSA, k should be selected
     //    through a random selection that chooses a value among the q-1
     //    possible values with uniform probability.
-    const k = computeKFromDigest(a)(hf)(x)(hm)
+    const k = computeKFromDigest(rfc6979)(hf)(x)(hm)
     // 3.  A value r (modulo q) is computed from k and the key parameters:
     //
     //     *  For ECDSA: the point kG is computed; its X coordinate (a
@@ -183,7 +186,7 @@ export const sign = c => hf => x => m => {
     // TODO: implement the loop. `computeK` should either
     // - accept a state (current `k`).
     // - accept a `is_valid` function.
-    const rxy = assertNotNullish(c.mul(k)(g), 'rxy === null')
+    const rxy = assertNotNullish(mul(k)(g), 'rxy === null')
     const [r] = rxy
     // 4.  The value s (modulo q) is computed:
     //

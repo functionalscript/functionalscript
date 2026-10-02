@@ -53,9 +53,9 @@ So the job's flake takes its toolchain from a **second input**,
 `github:oxalica/rust-overlay`, and this issue's "one official Nixpkgs snapshot" scope
 is widened by exactly that much. What the overlay does is not a different build; it is
 a different acquisition. Rust publishes a manifest per release —
-`channel-rust-1.98.1.toml`, every component and target with a URL and a hash — and the
+`channel-rust-1.99.0.toml`, every component and target with a URL and a hash — and the
 overlay checks a generated Nix file per version into its own repository, so
-`rust-bin.stable."1.98.1".minimal.override { extensions targets }` selects among the
+`rust-bin.stable."1.99.0".minimal.override { extensions targets }` selects among the
 same tarballs `rustup` would install, pinned by hashes that live in a flake input this
 repository pins. Nixpkgs ignores that manifest and builds the compiler from source,
 which is the whole of the difference.
@@ -68,7 +68,7 @@ deliberate: `default` would add `rust-docs`, a download nothing here opens.
 
 The two runtimes stay official: `pkgs.wasmtime` and `pkgs.wasmer`, whose attributes
 carry no version, so the job checks both from inside the shell exactly as `deno` does.
-Its Rust it does not check — `stable."1.98.1"` names the release in full, so a check
+Its Rust it does not check — `stable."1.99.0"` names the release in full, so a check
 would restate the flake rather than test it. The snapshot's Wasmtime is 45.0.2, which
 predates the wasi-threads removal in 47 that
 [wasmtime-threads](../../../todo/blocked/wasmtime-threads.md) records, so the

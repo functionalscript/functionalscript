@@ -34,28 +34,28 @@ export const proof = {
         assert(id([0n]) !== id([1n]))
     },
 
-    order_matters: () => {
+    orderMatters: () => {
         assert(id([0n, 1n]) !== id([1n, 0n]))
     },
 
-    length_matters: () => {
+    lengthMatters: () => {
         assert(id(zeros(8)) !== id(zeros(16)))
     },
 
     // Enough bits to trigger at least one hash merge
-    has_merges: () => {
+    hasMerges: () => {
         const [, log] = run(zeros(16))
         assert(log.length > 0)
     },
 
     // Every recorded merge satisfies merged === compress(left, right)
-    compress_correct: () => {
+    compressCorrect: () => {
         const [, log] = run(zeros(16))
         for (const [l, r, m] of log) { assertEq(m, compress(l, r)) }
     },
 
     // Patricia-trie internal merges are isSymbol=false; terminal merges are isSymbol=true
-    isSymbol_terminal_only: () => {
+    isSymbolTerminalOnly: () => {
         const [, log] = run(zeros(16))
         assert(log.some(([, , , isSymbol]) => isSymbol))
         assert(log.every(([l, r, m, isSymbol]) => !isSymbol || m === compress(l, r)))

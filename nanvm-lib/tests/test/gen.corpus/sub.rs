@@ -5,13 +5,23 @@ use crate::harness::*;
 
 #[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
+    check::<A>("nullMinusOne", Nullish::Null.to_any() - f64_any(0x3ff0000000000000), f64_any(0xbff0000000000000));
+    check::<A>("undefinedMinusOne", Nullish::Undefined.to_any() - f64_any(0x3ff0000000000000), f64_any(0x7ff8000000000000));
+    check::<A>("trueMinusOne", true.to_any() - f64_any(0x3ff0000000000000), f64_any(0x0000000000000000));
+    check::<A>("falseMinusOne", false.to_any() - f64_any(0x3ff0000000000000), f64_any(0xbff0000000000000));
+    check::<A>("stringTenMinusOne", string_any("10") - f64_any(0x3ff0000000000000), f64_any(0x4022000000000000));
+    check::<A>("stringLetterMinusOne", string_any("a") - f64_any(0x3ff0000000000000), f64_any(0x7ff8000000000000));
+    check::<A>("emptyArrayMinusOne", Array::default().to_any() - f64_any(0x3ff0000000000000), f64_any(0xbff0000000000000));
+    check::<A>("arrayTenMinusOne", [f64_any(0x4024000000000000)].to_array().to_any() - f64_any(0x3ff0000000000000), f64_any(0x4022000000000000));
+    check::<A>("arrayStringTenMinusOne", [string_any("10")].to_array().to_any() - f64_any(0x3ff0000000000000), f64_any(0x4022000000000000));
+    check::<A>("arrayPairMinusOne", [f64_any(0x0000000000000000), f64_any(0x0000000000000000)].to_array().to_any() - f64_any(0x3ff0000000000000), f64_any(0x7ff8000000000000));
+    check::<A>("emptyObjectMinusOne", Object::default().to_any() - f64_any(0x3ff0000000000000), f64_any(0x7ff8000000000000));
+    check::<A>("functionMinusOne", function_any() - f64_any(0x3ff0000000000000), f64_any(0x7ff8000000000000));
     check::<A>("nullMinusNull", Nullish::Null.to_any() - Nullish::Null.to_any(), f64_any(0x0000000000000000));
     check::<A>("nullMinusZero", Nullish::Null.to_any() - f64_any(0x0000000000000000), f64_any(0x0000000000000000));
     check::<A>("negativeZeroMinusZero", f64_any(0x8000000000000000) - f64_any(0x0000000000000000), f64_any(0x8000000000000000));
     check::<A>("zeroMinusNegativeZero", f64_any(0x0000000000000000) - f64_any(0x8000000000000000), f64_any(0x0000000000000000));
     check::<A>("undefinedMinusZero", Nullish::Undefined.to_any() - f64_any(0x0000000000000000), f64_any(0x7ff8000000000000));
-    check::<A>("trueMinusOne", true.to_any() - f64_any(0x3ff0000000000000), f64_any(0x0000000000000000));
-    check::<A>("falseMinusOne", false.to_any() - f64_any(0x3ff0000000000000), f64_any(0xbff0000000000000));
     check::<A>("zeroMinusOne", f64_any(0x0000000000000000) - f64_any(0x3ff0000000000000), f64_any(0xbff0000000000000));
     check::<A>("oneMinusNegativeOne", f64_any(0x3ff0000000000000) - f64_any(0xbff0000000000000), f64_any(0x4000000000000000));
     check::<A>("negativeTenMinusTen", f64_any(0xc024000000000000) - f64_any(0x4024000000000000), f64_any(0xc034000000000000));
@@ -20,13 +30,6 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("bigOneMinusNegativeOne", bigint_any(1) - bigint_any(-1), bigint_any(2));
     check::<A>("bigNegativeOneMinusOne", bigint_any(-1) - bigint_any(1), bigint_any(-2));
     check::<A>("emptyStringMinusOne", string_any("") - f64_any(0x3ff0000000000000), f64_any(0xbff0000000000000));
-    check::<A>("stringTenMinusOne", string_any("10") - f64_any(0x3ff0000000000000), f64_any(0x4022000000000000));
-    check::<A>("stringLetterMinusOne", string_any("a") - f64_any(0x3ff0000000000000), f64_any(0x7ff8000000000000));
-    check::<A>("emptyArrayMinusOne", Array::default().to_any() - f64_any(0x3ff0000000000000), f64_any(0xbff0000000000000));
-    check::<A>("arrayTenMinusOne", [f64_any(0x4024000000000000)].to_array().to_any() - f64_any(0x3ff0000000000000), f64_any(0x4022000000000000));
-    check::<A>("arrayPairMinusOne", [f64_any(0x0000000000000000), f64_any(0x0000000000000000)].to_array().to_any() - f64_any(0x3ff0000000000000), f64_any(0x7ff8000000000000));
-    check::<A>("emptyObjectMinusOne", Object::default().to_any() - f64_any(0x3ff0000000000000), f64_any(0x7ff8000000000000));
-    check::<A>("functionMinusOne", function_any() - f64_any(0x3ff0000000000000), f64_any(0x7ff8000000000000));
     check_throws::<A>("numberMinusBigint", f64_any(0x3ff0000000000000) - bigint_any(1));
     check_throws::<A>("bigintMinusNumber", bigint_any(1) - f64_any(0x3ff0000000000000));
 }

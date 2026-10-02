@@ -350,10 +350,10 @@ export const proof = {
         /** An object key the corpus cannot produce and Rust cannot spell. */
         computedKey: () => nodeExpr(['{}', [[':', ['undefined'], 1]]]),
         /**
-         * An object spread. `Properties` is `Property | Spread`, so this is a
-         * valid `Exp`; read as a property it printed the spread's operand as
-         * the key and a bare `undefined` as the value.
+         * An entry that is neither a property nor a spread: read as a
+         * property it would print its second element as the key and a bare
+         * `undefined` as the value.
          */
-        objectSpread: () => nodeExpr(['{}', [['...', 'x']]]),
+        notAProperty: () => nodeExpr(['{}', [/** @type {any} */ (['?', 'x'])]]),
     },
 }

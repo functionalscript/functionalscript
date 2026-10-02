@@ -56,7 +56,7 @@ export const proof = {
         assertEq(result, '[14,4]')
     },
     testObj: () => {
-        const djs = unwrap(run([1, 2, 3, 4, 5, ['object', [['key', ['object', [['key2', ['array', [['aref', 3], ['cref', 3]]]]]]]]]])([11, 12, 13, 14, 15]))
+        const djs = unwrap(run([1, 2, 3, 4, 5, ['object', [[':', 'key', ['object', [[':', 'key2', ['array', [['aref', 3], ['cref', 3]]]]]]]]]])([11, 12, 13, 14, 15]))
         const result = _stringifyTree(djs)
         if (result !== '{"key":{"key2":[14,4]}}') { throw result }
     },
@@ -125,7 +125,7 @@ export const proof = {
         // captures included, outside a nested function's body
         assert(!isInlinedCall(['()', ['=>', 0, [['rest']]], []]))
         assert(!isInlinedCall(['()', ['=>', 0, [['array', [['rest']]]]], []]))
-        assert(!isInlinedCall(['()', ['=>', 0, [['object', [['a', ['rest']]]]]], []]))
+        assert(!isInlinedCall(['()', ['=>', 0, [['object', [[':', 'a', ['rest']]]]]], []]))
         assert(!isInlinedCall(['()', ['=>', 0, [['()', ['rest'], []]]], []]))
         assert(!isInlinedCall(['()', ['=>', 0, [['()', 1, [['rest']]]]], []]))
         assert(!isInlinedCall(['()', ['=>', 0, [['.', ['rest'], 0]]], []]))
@@ -262,13 +262,13 @@ export const proof = {
             assertEq(anchorsOf([[], [1]]), 'consts ; imports ')
             assertEq(anchorsOf([[a], [['aref', 0]]]), 'consts ; imports ')
             assertEq(anchorsOf([[a], [['aref', 0], ['cref', 0]]]), 'consts ; imports ')
-            assertEq(anchorsOf([[a], [['array', []], ['object', [['k', ['array', [['cref', 0], ['aref', 0]]]]]]]]), 'consts ; imports ')
+            assertEq(anchorsOf([[a], [['array', []], ['object', [[':', 'k', ['array', [['cref', 0], ['aref', 0]]]]]]]]), 'consts ; imports ')
         },
         // a member a later duplicate shadows is applied by the EDAG's object
         // constructor, so a reference in it reaches, where for sharing it
         // does not
         shadowed: () => {
-            assertEq(anchorsOf([[a], [['array', []], ['object', [['x', ['cref', 0]], ['x', ['aref', 0]], ['x', 0]]]]]), 'consts ; imports ')
+            assertEq(anchorsOf([[a], [['array', []], ['object', [[':', 'x', ['cref', 0]], [':', 'x', ['aref', 0]], [':', 'x', 0]]]]]), 'consts ; imports ')
         },
         consts: () => {
             assertEq(anchorsOf([[], [['array', []], 1]]), 'consts 0; imports ')
@@ -369,9 +369,9 @@ export const proof = {
     // `undefined` base is the failure JavaScript throws for
     access: {
         own: () => {
-            assertEq(_stringifyTree(unwrap(run([['object', [['b', ['array', [1, 2]]]]], ['.', ['cref', 0], 'b']])([]))), '[1,2]')
-            assertEq(unwrap(run([['object', [['b', ['array', [1, 2]]]]], ['.', ['.', ['cref', 0], 'b'], 1]])([])), 2)
-            assertEq(unwrap(run([['object', [['b', ['array', [1, 2]]]]], ['.', ['.', ['cref', 0], 'b'], 'length']])([])), 2)
+            assertEq(_stringifyTree(unwrap(run([['object', [[':', 'b', ['array', [1, 2]]]]], ['.', ['cref', 0], 'b']])([]))), '[1,2]')
+            assertEq(unwrap(run([['object', [[':', 'b', ['array', [1, 2]]]]], ['.', ['.', ['cref', 0], 'b'], 1]])([])), 2)
+            assertEq(unwrap(run([['object', [[':', 'b', ['array', [1, 2]]]]], ['.', ['.', ['cref', 0], 'b'], 'length']])([])), 2)
             assertEq(unwrap(run([['.', ['aref', 0], 'length']])(['ab'])), 2)
             assertEq(unwrap(run([['.', ['aref', 0], '0']])(['ab'])), 'a')
         },
@@ -390,7 +390,7 @@ export const proof = {
             assertEq(tag2, 'error')
             assertEq(message2, 'cannot read property "b" of undefined')
             assertEq(run([undefined, ['array', [['.', ['cref', 0], 0]]]])([])[0], 'error')
-            assertEq(run([undefined, ['object', [['k', ['.', ['cref', 0], 0]]]]])([])[0], 'error')
+            assertEq(run([undefined, ['object', [[':', 'k', ['.', ['cref', 0], 0]]]]])([])[0], 'error')
         },
         // every entry's value, in order
         all: () => {
@@ -425,19 +425,19 @@ export const proof = {
         },
         access: () => {
             /** @type {readonly import('./types.ts').AstConst[]} */
-            const container = [['object', [['x', ['array', []]], ['y', ['array', []]]]]]
+            const container = [['object', [[':', 'x', ['array', []]], [':', 'y', ['array', []]]]]]
             assert(sharedOf([...container, ['array', [['.', ['cref', 0], 'x'], ['.', ['cref', 0], 'x']]]]))
             assert(sharedOf([...container, ['array', [['cref', 0], ['.', ['cref', 0], 'x']]]]))
             assert(!sharedOf([...container, ['array', [['.', ['cref', 0], 'x'], ['.', ['.', ['cref', 0], 'x'], 'length']]]]))
             assert(!sharedOf([...container, ['array', [['.', ['cref', 0], 'x'], ['.', ['cref', 0], 'y']]]]))
-            assert(!sharedOf([['object', [['x', 1]]], ['array', [['.', ['cref', 0], 'x'], ['.', ['cref', 0], 'x']]]]))
+            assert(!sharedOf([['object', [[':', 'x', 1]]], ['array', [['.', ['cref', 0], 'x'], ['.', ['cref', 0], 'x']]]]))
             assert(!sharedOf([['object', []], ['array', [['.', ['cref', 0], 'x'], ['.', ['cref', 0], 'x']]]]))
         },
         // an entry reached through an access is walked along the access's
         // keys only: what lies under another member is not in the value
         routes: () => {
             /** @type {readonly import('./types.ts').AstConst[]} */
-            const a = [['array', []], ['object', [['s', 1], ['o', ['array', [['cref', 0], ['cref', 0]]]]]]]
+            const a = [['array', []], ['object', [[':', 's', 1], [':', 'o', ['array', [['cref', 0], ['cref', 0]]]]]]]
             assert(!sharedOf([...a, ['.', ['cref', 1], 's']]))
             assert(sharedOf([...a, ['.', ['cref', 1], 'o']]))
             assert(sharedOf([...a, ['cref', 1]]))
@@ -454,7 +454,7 @@ export const proof = {
             assert(!sharedOf([['array', [['array', []]]], ['array', [['.', ['cref', 0], 0], ['.', ['cref', 0], '00']]]]))
             assert(!sharedOf([['array', []], ['array', [['cref', 0]]], ['array', [['.', ['cref', 1], 0], ['.', ['cref', 1], '00']]]]))
             assert(sharedOf([['array', [['array', [['array', []]]]]], ['array', [['.', ['.', ['cref', 0], 0], 0], ['.', ['cref', 0], 0]]]]))
-            assert(sharedOf([['array', []], ['object', [['x', ['cref', 0]], ['y', ['cref', 0]]]], ['array', [['.', ['cref', 1], 'x'], ['.', ['cref', 1], 'y']]]]))
+            assert(sharedOf([['array', []], ['object', [[':', 'x', ['cref', 0]], [':', 'y', ['cref', 0]]]], ['array', [['.', ['cref', 1], 'x'], ['.', ['cref', 1], 'y']]]]))
         },
         imports: () => {
             /** @type {readonly import('./types.ts').Import[]} */
