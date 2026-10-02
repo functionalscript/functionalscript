@@ -690,7 +690,9 @@ const isContainerLiteral = ast => ast !== null && typeof ast === 'object' && (as
  * Whether a key selects inside a container literal: every object, and an
  * array holding no spread. A spread puts its operand's elements where it
  * stands, how many is known only once the operand is evaluated, so no key
- * names an item: such an array is read whole, every item it may select.
+ * names an item: such an array is read whole, every item it may select —
+ * which may refuse a value whose selected item shares nothing
+ * (`../todo/spread-index-sharing.md`), never answer a wrong one.
  *
  * @type {(ast: AstArray | AstObject) => boolean}
  */
