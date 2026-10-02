@@ -58,18 +58,21 @@ Each output writes the graph as it writes any other:
 - `.js` and `.f.js` write the spread back, `[0, ...a]` and `f(...a)`.
 - `.json` and `.data.js` write the value, the spread already evaluated.
 - The EDAG's `.edag.data.js` keeps the `['...', exp]` item.
-- `.rs` refuses a spread item until `nanvm-lib` has
-  [`get_iterator`](../../nanvm-lib/todo/spread-operations.md), as it
-  refuses one today, and then prints it through it.
+- `.rs` prints a spread item through `nanvm-lib`'s
+  [`get_iterator`](../../nanvm-lib/todo/spread-operations.md), as
+  `spread_array` or `spread_call`, each a `Result` since a spread can
+  throw.
 
 Constant spreads are not folded, so `[...[1, 2]]` is a different graph from
 `[1, 2]` and hashes differently, as `1 + 1` and `2` do.
 
 ## Benefits
 
-- **Familiar code compiles.** At `93ed6ba`, 143 of the 406 `.f.mjs`
-  modules use array spread, about 1,040 occurrences, and 27 use call
-  spread, 57 occurrences. Every one of them is refused today. Among the
+- **Familiar code compiles.** At `93ed6ba`, about 148 of the 406 `.f.mjs`
+  modules use array spread, about 1,090 occurrences, and about 28 use call
+  spread, about 60 occurrences — a bracket-aware count from the review of
+  #2470, where a cruder scan gave 143 and 27. Every one of them is refused
+  today. Among the
   leaf modules, it is one of the two blockers of `fjs/js/keywords`.
 - **The rest of the pipeline is ready.** The EDAG, its analysis and the
   JavaScript evaluator take spread items already (#2460, #2466). This adds
@@ -90,7 +93,7 @@ Constant spreads are not folded, so `[...[1, 2]]` is a different graph from
 
 ## Out of scope
 
-- **Object spread**, `{...o}`, about 600 occurrences in 84 modules. It
+- **Object spread**, `{...o}`, about 610 occurrences in 84 modules. It
   copies own properties rather than iterating, needs its own rule in
   `members` and `object_spread` in `nanvm-lib`, and gets its own proposal.
 - **Spread in other places JavaScript allows it:** a `new` expression's
@@ -126,9 +129,11 @@ proposer before implementation. This proposal was written by Claude.
 - [ ] Spec: the [arrays](../README.md#arrays) and
       [functions](../README.md#functions) sections accept spread, and the
       roadmap's entry is dropped.
-- [ ] Rust: [`get_iterator`](../../nanvm-lib/todo/spread-operations.md) in
-      `nanvm-lib`, and the Rust printer printing a spread item through it,
-      proved by a `nanvm-harness` fixture.
+- [x] Rust: [`get_iterator`](../../nanvm-lib/todo/spread-operations.md) in
+      `nanvm-lib` (#2472), and the Rust printer printing a spread item
+      through it, as `spread_array` and `spread_call` (#2484).
+- [ ] A `nanvm-harness` fixture compiled from source with spreads,
+      checked against a JavaScript engine, once the front end lands.
 
 ## Related
 

@@ -195,8 +195,8 @@ produces part of a string, not for this one alone.
       [`vm::unstable`](../src/vm/unstable/mod.rs).
 - [ ] Spell it as an object property, through `object_spread`.
 - [ ] Add generated fixtures in `nanvm-harness`, checked against a
-      JavaScript engine, once FunctionalScript source can spell a spread,
-      the language feature #2470 proposes.
+      JavaScript engine, once FunctionalScript source can spell a spread
+      ([spread](../../spec/todo/2480-spread.md)).
 
 ### Related
 
