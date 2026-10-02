@@ -7,7 +7,7 @@
  * convenience — the ordinary FunctionalScript panic `fjs/AGENTS.md` §1.5
  * describes, exactly what the `throw` cases below need.
  *
- * @import { Exp, PropertyLambda } from '../types.ts'
+ * @import { Exp, Property, PropertyLambda, Spread } from '../types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -1175,6 +1175,35 @@ export const proof = {
             assertEq(
                 printed(['()', ['args'], ['...']]),
                 'Any::call(args.clone().to_any(), [string_any("...")].to_array().to_any())')
+        },
+        /**
+         * One pair object standing twice in a list reaches its operand twice:
+         * a pair is no node, so its operand is counted per occurrence, a
+         * temporary, and never moved twice — a spread in an array and in an
+         * argument list's thunk, and a property in an object.
+         */
+        sharedPair: () => {
+            /** @type {Exp} */
+            const a = ['.', ['args'], 'a']
+            /** @type {Spread} */
+            const s = ['...', a]
+            assertStructurallySame(scoped(['[]', [s, s]]), [
+                'let c0: Any<A> = Any::dot(args.clone().to_any(), string_any("a")).end()?;',
+                'spread_array([spread_item(c0.clone()), spread_item(c0.clone())])',
+            ])
+            assertStructurallySame(scoped(['.', ['args'], 'at', ['|()', [s, s]]]), [
+                'let c0 = || {',
+                '    let c1: Any<A> = Any::dot(args.clone().to_any(), string_any("a")).end()?;',
+                '    spread_array([spread_item(c1.clone()), spread_item(c1.clone())])',
+                '};',
+                'Any::dot(args.clone().to_any(), string_any("at")).end_call(c0)',
+            ])
+            /** @type {Property} */
+            const p = [':', 'k', a]
+            assertStructurallySame(scoped(['{}', [p, p]]), [
+                'let c0: Any<A> = Any::dot(args.clone().to_any(), string_any("a")).end()?;',
+                'Ok([(string_key("k"), c0.clone()), (string_key("k"), c0.clone())].to_object().to_any())',
+            ])
         },
         /** A spread array nested in a corpus expression is an operation, as an operator is. */
         nestsOperation: () => {

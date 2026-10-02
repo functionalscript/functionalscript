@@ -328,13 +328,22 @@ const atomic = e => {
 
 /**
  * `true` for a member of a literal rather than a value: a property,
- * `[':', key, value]`, or a spread, `['...', exp]` — walked as a node is,
- * so that the value under it is found, but never a temporary, since a
- * `let` holds a value.
+ * `[':', key, value]`, or a spread, `['...', exp]`.
  *
- * @type {(e: Exp) => boolean}
+ * @type {(e: unknown) => boolean}
  */
 const isMember = e => e instanceof Array && [':', '...'].includes(e[0])
+
+/**
+ * An item list read as the operands it holds: each member's own, in its
+ * place — a spread's operand, a property's key and value — and every other
+ * item as itself. A member is no node: one pair object may stand in a
+ * list twice, `[s, s]`, and its operand is then reached twice, so a walk
+ * counts it per occurrence, as the printer prints it.
+ *
+ * @type {(list: readonly unknown[]) => readonly unknown[]}
+ */
+const members = list => list.flatMap(x => isMember(x) ? /** @type {readonly unknown[]} */ (x).slice(1) : [x])
 
 /** @type {(e: Exp) => boolean} */
 const isComma = e => e instanceof Array && e[0] === ','
@@ -463,7 +472,7 @@ const printer = nested => shared => root => {
      *
      * @type {(e: Exp) => readonly Exp[]}
      */
-    const reached = e => isArgs(e) ? /** @type {readonly unknown[]} */ (e).reduce(reach, []) : eagerNodesOf(e)
+    const reached = e => isArgs(e) ? members(/** @type {readonly unknown[]} */ (e)).reduce(reach, []) : eagerNodesOf(e)
     /**
      * The nodes under a thunk's root, each with how many places reach it,
      * {@link visit}'s count: an argument list's items', the list being no
@@ -472,7 +481,7 @@ const printer = nested => shared => root => {
      * @type {(e: Exp) => readonly (readonly [node: Exp, count: number])[]}
      */
     const visited = e => isArgs(e)
-        ? /** @type {readonly unknown[]} */ (e).reduce((/** @type {readonly (readonly [Exp, number])[]} */ v, child) => visit(children)(v)(child), [])
+        ? members(/** @type {readonly unknown[]} */ (e)).reduce((/** @type {readonly (readonly [Exp, number])[]} */ v, child) => visit(children)(v)(child), [])
         : visit(children)([])(e)
     /**
      * The nodes a block over `e` holds: the ones `e` reaches eagerly,
@@ -559,7 +568,7 @@ const printer = nested => shared => root => {
             .map(list => /** @type {readonly [Exp, number]} */ ([list, 1])),
         entry,
     ]).flatMap(([n, count]) =>
-        (isArgs(n) ? /** @type {readonly unknown[]} */ (n).length === 0 : (atomic(n) && count < 2) || isMember(n))
+        (isArgs(n) ? /** @type {readonly unknown[]} */ (n).length === 0 : (atomic(n) && count < 2))
             || structural.includes(n) || inline.includes(n)
             ? []
             : [/** @type {readonly [Exp, number]} */ ([n, count - discarded.filter(d => d === n).length])])
@@ -1094,8 +1103,8 @@ export const holdsFunction = root => visit(withBodies)([])(root)
  * operands in a list, whose first item may be a string that spells a tag —
  * `['&&', c, c]` is three array items where `['&&', c, c]` a node is an
  * operation — so the list is read as a list, and every other node's
- * operands follow its tag. A spread and a property are tagged pairs no
- * operator names, so they are walked as nodes are.
+ * operands follow its tag. A spread and a property are members of a
+ * list, not nodes, so a list is read through them, {@link members}.
  *
  * A `=>` node's slots are its operands, its body is not: the body is a
  * scope of its own, established when the function is called and not when
@@ -1109,8 +1118,9 @@ const operandsOf = node => {
     const [id] = node
     return id === '=>' ? /** @type {readonly unknown[]} */ (node[2])
         : id === 'arg' ? []
-        : ['[]', '{}', ','].includes(/** @type {string} */ (id)) ? /** @type {readonly unknown[]} */ (node[1])
-        : id === '()' ? [node[1], .../** @type {readonly unknown[]} */ (node[2])]
+        : id === ',' ? /** @type {readonly unknown[]} */ (node[1])
+        : id === '[]' || id === '{}' ? members(/** @type {readonly unknown[]} */ (node[1]))
+        : id === '()' ? [node[1], ...members(/** @type {readonly unknown[]} */ (node[2]))]
         : isChain(id) ? [...eagerOperandsOf(node), ...chainLazy(one, items)(node)]
         : node.slice(1)
 }
@@ -1152,7 +1162,7 @@ const chainLazy = (key, args) => node => {
 const one = x => [x]
 
 /** An item list read as its items, an argument list's walk. @type {(x: unknown) => readonly unknown[]} */
-const items = x => /** @type {readonly unknown[]} */ (x)
+const items = x => members(/** @type {readonly unknown[]} */ (x))
 
 /** A position left out. @type {(x: unknown) => readonly unknown[]} */
 const none = () => []
