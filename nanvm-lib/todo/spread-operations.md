@@ -177,12 +177,13 @@ produces part of a string, not for this one alone.
 
 - [ ] Extract the ordered, deduplicated own-property view from
       `ToJson::object` into one function, and make `to_json` call it.
-- [ ] `IteratorRecord<A>` and `Any::get_iterator`: an array's elements and a
+- [x] `IteratorRecord<A>` and `Any::get_iterator`: an array's elements and a
       string's code points, and a `TypeError` for everything else, raised
-      before any element.
+      before any element ([`vm/iterator_record.rs`](../src/vm/iterator_record.rs),
+      [`vm/any/get_iterator.rs`](../src/vm/any/get_iterator.rs)).
 - [ ] `ObjectSpread<A>` and `Any::object_spread` over that view, with the
       array, string and empty cases.
-- [ ] Rust tests for every case above, including:
+- [ ] Rust tests for every case above, including (`get_iterator`'s are in):
       - a surrogate pair and a lone surrogate;
       - an object with a duplicate key and with array-index keys out of order;
       - the four examples in the problem statement.

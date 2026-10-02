@@ -14,7 +14,7 @@
 import { ci } from '../module.f.mjs'
 
 /**
- * What `package-check` asks of this repository's packed tarball as a clean
+ * What the packed-package check asks of this repository's tarball as a clean
  * consumer: one published `.f.js` module and a runtime export it must load;
  * its `types.ts` spelled as a consumer spells it, `types.js`, which resolves
  * to the shipped `types.d.ts`; a declared type, a value of that type, and one

@@ -5,6 +5,9 @@
  * `treeSerialize` is that walk. It knows objects and arrays and nothing about
  * leaves, so a codec supplies its own leaf spelling — standard JSON and
  * extended JSON differ only there, not in a second object/array walker.
+ * `leafSerialize` builds that spelling from the one arm every dialect varies,
+ * `number`, plus the leaf kinds a dialect adds; `codec` turns it into the
+ * `serialize`/`stringify` pair.
  *
  * `stringSerialize` is FunctionalScript, not the host's `JSON.stringify`: it
  * escapes over this repository's own UTF-16 decoder and reproduces the
@@ -16,6 +19,7 @@
  * @import { Reduce } from '../../../types/function/operator/types.ts'
  * @import { CodePoint } from '../../../text/code_point/types.ts'
  * @import { Tree, TreeObject, TreeArray, TreeEntry, TreeEntries, TreeMapEntries } from '../types.ts'
+ * @import { Codec, LeafSerializer, _ExtraLeaves, _Leaves } from './types.ts'
  */
 
 import { flat, map, reduce, empty } from '../../../types/list/module.f.mjs'
@@ -27,6 +31,7 @@ import { compose, fn } from '../../../types/function/module.f.mjs'
 import { hexDigitCodePoint, space } from '../../../text/ascii/module.f.mjs'
 import { codePointToEscape } from '../../../js/string_escape/module.f.mjs'
 import { map as nullableMap } from '../../../types/nullable/module.f.mjs'
+import { assertNotNullish } from '../../../asserts/module.f.mjs'
 
 const jsonStringify = JSON.stringify
 
@@ -95,6 +100,35 @@ const falseSerialize = ['false']
 /** @type {(_: boolean) => List<string>} */
 export const boolSerialize
     = value => value ? trueSerialize : falseSerialize
+
+/**
+ * A leaf spelling from the arms that vary: `number`, which every dialect
+ * spells its own way, and the leaf kinds `extra` adds — extended JSON a
+ * `bigint`, DataJS a `bigint` and `undefined`. `boolean`, `string` and `null`
+ * are spelled here, once, for all of them.
+ *
+ * The returned function accepts exactly the kinds the configuration carries a
+ * serializer for (`_Leaves`), so `leafSerialize(numberSerialize)({})(1n)` is a
+ * type error. A `bigint` or `undefined` that reaches a configuration without
+ * its arm anyway — only a cast can deliver one — asserts, rather than being
+ * answered with a plausible `null`.
+ *
+ * @param {LeafSerializer<number>} numberSerialize
+ * @returns {<X extends _ExtraLeaves>(extra: X) => LeafSerializer<_Leaves<X>>}
+ */
+export const leafSerialize = numberSerialize => extra => {
+    const { bigint, undefined: undefinedSerialize } = extra
+    return value => {
+        switch (typeof value) {
+            case 'boolean': { return boolSerialize(value) }
+            case 'number': { return numberSerialize(value) }
+            case 'string': { return stringSerialize(value) }
+            case 'bigint': { return assertNotNullish(bigint, 'no bigint arm')(value) }
+            case 'undefined': { return assertNotNullish(undefinedSerialize, 'no undefined arm')(value) }
+            default: { return nullSerialize }
+        }
+    }
+}
 
 const comma = [',']
 
@@ -183,4 +217,20 @@ export const treeSerialize = leafSerialize => sort => {
     /** @type {(value: TreeArray<P>) => List<string>} */
     const arraySerialize = compose(map(f))(arrayWrap)
     return f
+}
+
+/**
+ * A codec from a leaf spelling: `treeSerialize` over it, and the same walk
+ * concatenated into text. A dialect is its leaf spelling and nothing else.
+ *
+ * @template P
+ * @param {LeafSerializer<P>} leaf
+ * @returns {Codec<P>}
+ */
+export const codec = leaf => {
+    const serialize = treeSerialize(leaf)
+    return {
+        serialize,
+        stringify: sort => compose(serialize(sort))(concat),
+    }
 }
