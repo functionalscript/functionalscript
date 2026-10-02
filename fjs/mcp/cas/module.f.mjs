@@ -240,6 +240,8 @@ export const casToolRegistry = home => cacheKey => {
                 if (key === null) {
                     return pureOk(errorResult(`invalid cBase32 hash: ${r.hash}`))
                 }
+                // `canonicalCBase32` by hand: the read needs `key` itself,
+                // so decoding once and re-encoding beats decoding twice.
                 const hash = vecToCBase32(key)
                 const meta = toMeta(`cas:${hash}`)
                 return resultStep(

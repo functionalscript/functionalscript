@@ -64,3 +64,16 @@ export const cBase32ToVec = s => {
     }
     return null
 }
+
+/**
+ * The canonical spelling of a cBase32 string, or `null` when it does not
+ * decode. {@link cBase32ToVec} accepts more than one spelling of the same
+ * value — any case, and the `i`/`l`/`o` aliases — so two spellings compare
+ * equal as strings only once both are re-encoded through this.
+ *
+ * @type {(s: string) => Nullable<string>}
+ */
+export const canonicalCBase32 = s => {
+    const v = cBase32ToVec(s)
+    return v === null ? null : vecToCBase32(v)
+}

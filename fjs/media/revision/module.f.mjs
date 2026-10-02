@@ -18,7 +18,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { DialectEntry } from '../types.ts'
  * @import { String as RttiString } from '../../rtti/types.ts'
- * @import { LockField, LockFieldSchema, LockMap, LockSchema, Revision, RevisionError } from './types.ts'
+ * @import { HashEntry, LockField, LockFieldSchema, LockMap, LockSchema, Revision, RevisionError } from './types.ts'
  */
 
 import { array, number, open, option, or, string } from '../../rtti/module.f.mjs'
@@ -138,35 +138,111 @@ export const encodeText = stringify(sort)
 /** Structural-only validator: checks the shape, not the hash / generation semantics. */
 const validateShape = rttiParse(revisionSchema)
 
+/**
+ * The walk over a `lock` field's hashes, generic in what it builds: `leaf`
+ * answers for one hash with the path that reaches it, `node` for one map from
+ * its entries' answers. A string is a leaf wherever it sits — a shared-lock
+ * reference at the top, a dependency's content inside a map — so a
+ * reference's path is `scope` itself. Nested maps are scopes, not references:
+ * their keys are subjects, extend the path, and are never hashes.
+ *
+ * @template L, N
+ * @param {(path: readonly string[]) => (h: string) => L} leaf
+ * @returns {(node: (entries: readonly (readonly [string, L | N])[]) => N) => (scope: readonly string[]) => (value: LockField) => L | N}
+ */
+const walkLock = leaf => node => {
+    /** @type {(scope: readonly string[]) => (value: LockField) => L | N} */
+    const walk = scope => value => typeof value === 'string'
+        ? leaf(scope)(value)
+        : node(definedEntries(value).map(([subject, v]) => [subject, walk([...scope, subject])(v)]))
+    return walk
+}
+
+/**
+ * The one statement of which fields of a revision hold hashes: every
+ * `parents` entry, `snapshot`, and every hash in `lock` ({@link walkLock}).
+ * {@link hashEntries} and {@link mapHashes} are this walk and nothing else, so
+ * a new hash-bearing field is added here and reaches the validator and every
+ * canonicaliser at once.
+ *
+ * @template L, N
+ * @param {(path: readonly string[]) => (h: string) => L} leaf
+ * @returns {(node: (entries: readonly (readonly [string, L | N])[]) => N) => (r: Revision) => { readonly parents: readonly L[], readonly snapshot: L, readonly lock?: L | N }}
+ */
+const walkRevision = leaf => node => r => ({
+    parents: r.parents.map((h, i) => leaf(['parents', `${i}`])(h)),
+    snapshot: leaf(['snapshot'])(r.snapshot),
+    ...(r.lock === undefined ? {} : { lock: walkLock(leaf)(node)(['lock'])(r.lock) }),
+})
+
+/** @type {(path: readonly string[]) => (h: string) => readonly HashEntry[]} */
+const entryOf = path => h => [[path, h]]
+
+/** @type {(entries: readonly (readonly [string, readonly HashEntry[]])[]) => readonly HashEntry[]} */
+const flatEntries = entries => entries.flatMap(([, e]) => e)
+
+/** @type {(entries: readonly (readonly [string, LockField])[]) => LockMap} */
+const lockMapOf = Object.fromEntries
+
+/**
+ * Every hash-bearing field of a revision with its path, in the order
+ * {@link checkReferences} reports them: `parents`, `snapshot`, then `lock`.
+ *
+ * @type {(r: Revision) => readonly HashEntry[]}
+ */
+export const hashEntries = r => {
+    const { parents, snapshot, lock } = walkRevision(entryOf)(flatEntries)(r)
+    return [...parents.flat(), ...snapshot, ...(lock ?? [])]
+}
+
+/**
+ * The revision with every hash-bearing field passed through `f` — the lock
+ * map to its leaves, its scopes kept — and every other field as it was.
+ *
+ * @type {(f: (h: string) => string) => (r: Revision) => Revision}
+ */
+export const mapHashes = f => r => ({ ...r, ...walkRevision(() => f)(lockMapOf)(r) })
+
 /** True when `s` decodes as a cbase32 CAS hash (rejects `https://` and any other non-cbase32 string).
  * @type {(s: string) => boolean}
  */
 export const isHash = s => cBase32ToVec(s) !== null
 
+/** @type {(entries: readonly HashEntry[]) => HashEntry | undefined} */
+const firstInvalid = entries => entries.find(([, h]) => !isHash(h))
+
 /**
- * The first reason a structurally valid lock map is not a valid one, or
- * `null` when every direct value at every depth is a cbase32 hash
- * ({@link isHash}). Nested maps are scopes, not references, so only the
- * strings are checked; `scope` names the path walked to reach the offending
- * value, so a failure deep in a nested map still says where it is.
+ * Why the hash at `path` inside a `lock` field is not one: an empty path is
+ * the shared-lock reference itself, any other names the subjects walked to
+ * reach a map's value, so a failure deep in a nested map still says where it
+ * is.
  *
- * @type {(scope: readonly string[]) => (lock: LockMap) => string | null}
+ * @type {(path: readonly string[]) => (h: string) => string}
  */
-const lockError = scope => lock => {
-    for (const [subject, value] of definedEntries(lock)) {
-        const path = [...scope, subject]
-        const message = typeof value === 'string'
-            ? (isHash(value) ? null : `lock value for ${path.join('/')} is not a valid hash: ${value}`)
-            : lockError(path)(value)
-        if (message !== null) { return message }
-    }
-    return null
+const lockMessage = path => h => path.length === 0
+    ? `lock reference is not a valid hash: ${h}`
+    : `lock value for ${path.join('/')} is not a valid hash: ${h}`
+
+/**
+ * The first reason a structurally valid `lock` field is not a valid one, or
+ * `null`. A map is checked at every depth, but only its strings: nested maps
+ * are scopes, not references. A string is a reference to a `vnd.fjs.lock`
+ * blob and is checked as a cbase32 hash and nothing more — this module is
+ * pure format with no store access, so whether the blob exists, and what its
+ * bindings mean once fetched, stay a resolver's business exactly as they do
+ * for `snapshot`.
+ *
+ * @type {(value: LockField) => string | null}
+ */
+export const lockFieldError = value => {
+    const invalid = firstInvalid(walkLock(entryOf)(flatEntries)([])(value))
+    return invalid === undefined ? null : lockMessage(invalid[0])(invalid[1])
 }
 
 /**
- * The first reason a structurally valid lock map is not a valid one, or `null`
- * — {@link lockError} rooted at the empty scope, so a reported path is
- * relative to the map itself.
+ * The first reason a structurally valid lock map is not a valid one, or
+ * `null` — {@link lockFieldError} on a map, so a reported path is relative to
+ * the map itself.
  *
  * Exported because `fjs/media/lock` validates the very same map as a
  * standalone blob: one recursive schema and one semantic check, so a map means
@@ -174,22 +250,15 @@ const lockError = scope => lock => {
  *
  * @type {(lock: LockMap) => string | null}
  */
-export const lockMapError = lockError([])
+export const lockMapError = lockFieldError
 
-/**
- * The first reason a structurally valid `lock` field is not a valid one, or
- * `null`. A map is checked entry by entry ({@link lockMapError}); a string is
- * a reference to a `vnd.fjs.lock` blob and is checked as a cbase32 hash and
- * nothing more — this module is pure format with no store access, so whether
- * the blob exists, and what its bindings mean once fetched, stay a resolver's
- * business exactly as they do for `snapshot`.
- *
- * @type {(value: LockField) => string | null}
+/** Why the hash at a {@link hashEntries} path is not one, named after its field.
+ * @type {(path: readonly string[]) => (h: string) => string}
  */
-export const lockFieldError = value =>
-    typeof value === 'string'
-        ? (isHash(value) ? null : `lock reference is not a valid hash: ${value}`)
-        : lockMapError(value)
+const hashMessage = ([field, ...rest]) => h =>
+    field === 'parents' ? `parent is not a valid hash: ${h}`
+    : field === 'snapshot' ? `snapshot is not a valid hash: ${h}`
+    : lockMessage(rest)(h)
 
 /**
  * Checks the semantic refinements the structural schema can't express on an
@@ -223,12 +292,8 @@ export const lockFieldError = value =>
  * @type {(r: Revision) => Result<Revision, string>}
  */
 export const checkReferences = r => {
-    for (const p of r.parents) {
-        if (!isHash(p)) { return error(`parent is not a valid hash: ${p}`) }
-    }
-    if (!isHash(r.snapshot)) { return error(`snapshot is not a valid hash: ${r.snapshot}`) }
-    const lockMessage = r.lock === undefined ? null : lockFieldError(r.lock)
-    if (lockMessage !== null) { return error(lockMessage) }
+    const invalid = firstInvalid(hashEntries(r))
+    if (invalid !== undefined) { return error(hashMessage(invalid[0])(invalid[1])) }
     if (!Number.isSafeInteger(r.generation) || r.generation < 0) {
         return error(`generation must be a non-negative safe integer: ${r.generation}`)
     }
