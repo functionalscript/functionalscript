@@ -371,6 +371,21 @@ export const proof = {
          * counted rather than eyeballed. A lane-less layout drew `r` from
          * the root straight to rank 2, through the node on rank 1.
          */
+        // A node with no label row takes an edge at its middle: a B-tree
+        // leaf of two keys, 40px tall at y=10, is reached at y=30, between
+        // its keys, not at the first one's middle, y=20.
+        entryAtTheMiddle: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0 }, { id: 1, kind: 'a', label: '', rank: 1 }],
+                edges: [
+                    { from: 0, to: 1, label: '', corner: 'top' },
+                    { from: 1, to: { inline: '70' }, label: '' },
+                    { from: 1, to: { inline: '80' }, label: '' },
+                ],
+            }))
+            assert(html.includes('<rect x="100" y="10" width="50" height="40" rx="4" data-graph-node=""'), html)
+            assert(routes(html)[0].endsWith('L100,30'), html)
+        },
         /**
          * **A tree draws each parent beside its children.** The root has
          * two children, and each of those two leaves: the leaves stack in

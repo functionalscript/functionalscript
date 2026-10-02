@@ -225,7 +225,8 @@ const inKindOf = p => ({ 'data-graph-in-kind': p.kind })
  *
  * **An empty label is no row at all** when the node has ports: its rows
  * already say what it is, and an empty header would be a blank band on
- * top of them. An edge into such a node arrives at its first row instead.
+ * top of them. An edge into such a node arrives at its middle instead —
+ * between a two-key node's keys, not at the first one.
  * A node with neither keeps its header, or it would have no height.
  *
  * @type {(label: string) => (out: readonly _Out[]) => _Size}
@@ -249,7 +250,7 @@ const portsOf = label => all => {
         width,
         height,
         keyWidth: keyColumn,
-        entry: (header === 0 ? portHeight : header) / 2,
+        entry: header === 0 ? height / 2 : header / 2,
         ports: out.map(({ edge, index }, i) => ({ edge, index, y: header + i * portHeight })),
         exits: all.flatMap(({ edge, index }) => edge.corner === undefined ? [] : [{ edge, index, y: exitAt[edge.corner] }]),
     }
