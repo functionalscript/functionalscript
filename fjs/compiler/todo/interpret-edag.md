@@ -154,8 +154,7 @@ This integration must preserve the
 [compile API boundary](./compile-modules-to-edag.md#existing-compile-api-boundary)
 as updated by [#2129](https://github.com/functionalscript/functionalscript/pull/2129).
 `transpile` returns a `Denotation` whose `value` is the complete module export
-object, with named properties and `default` when present, and sharing metadata
-alongside it.
+object, with named properties and `default` when present.
 The `.data.js` and `.json` outputs serialize `result.default`. A direct `.json`
 root remains a document and bypasses wrapping and projection. FunctionalScript
 output rewrites the linked EDAG without evaluating the module, emitting its
@@ -217,10 +216,10 @@ hardening TODO after the baseline interpreter exists.
       `transpile` / `fjs compile` path without changing its success result/output
       for the value outputs, `.data.js` and `.json`; the FunctionalScript
       output is the writer's, per [`../serializer`](../serializer/module.f.mjs).
-      The DataJS serializer then decides sharing on the executed value: pin its
-      JSON refusal on `[cfg.x, cfg.x]`, with `x: []` refused and `x: 1` written,
-      as the AST proof pins it today
-      ([`../../edag/todo/analysis.md`](../../edag/todo/analysis.md)).
+      The DataJS serializer then decides sharing on the executed value: pin
+      `[cfg.x, cfg.x]` with `x: []` hoisted as `const $0=[];export default
+      [$0,$0];` and written as `[[],[]]` in JSON, as the compiler proof pins
+      it today ([`../../edag/todo/analysis.md`](../../edag/todo/analysis.md)).
 - [ ] Add proofs that primitive, array, object, property-access, import-resolved, and
       shared-node EDAGs evaluate to the expected values.
 - [x] Add Stage 2 proofs for non-capturing functions, ordinary calls, and method calls.
@@ -249,7 +248,7 @@ hardening TODO after the baseline interpreter exists.
       final EDAG and then interpreted produces the same final value as the current DJS
       transpiler.
 - [ ] Add a CLI/API compatibility proof that the existing value-producing `transpile`
-      result — the `Denotation`, value and sharing alike — and the `.data.js` and
+      result — the `Denotation`'s value — and the `.data.js` and
       `.json` outputs of `fjs compile` remain unchanged after switching their
       internals to final-EDAG interpretation.
 - [ ] `tsc`, `fjs test`.

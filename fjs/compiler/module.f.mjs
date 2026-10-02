@@ -28,8 +28,8 @@ import { toRust } from './rust/module.f.mjs'
 import { _numberSerialize, tryStringify } from '../media/datajs/serializer/module.f.mjs'
 import { tryStringify as fjsStringify, tryModuleStringify } from './serializer/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../media/json/serializer/module.f.mjs'
-import { flat, map } from '../types/list/module.f.mjs'
-import { error, mapOk, ok, okList } from '../types/result/module.f.mjs'
+import { concat as listConcat, flat, map } from '../types/list/module.f.mjs'
+import { error, mapOk, ok } from '../types/result/module.f.mjs'
 import { concat } from '../types/string/module.f.mjs'
 import { serialize as bigintSerialize } from '../types/bigint/module.f.mjs'
 import { sort } from '../types/object/module.f.mjs'
@@ -110,6 +110,26 @@ const jsonMember = ([key, value]) => mapOk(
 )(jsonValue(value))
 
 /**
+ * A container's items walked in order, stopped at the first refusal: no item
+ * after a refused one is walked. A node reached many times is written once
+ * per reference, so a refused leaf under one is found along the first
+ * reference and reported at once, not after every reference has been
+ * walked.
+ *
+ * @type {<T>(walk: (item: T) => Result<List<string>, string>) => (items: readonly T[]) => Result<List<List<string>>, string>}
+ */
+const walked = walk => items => {
+    /** @type {List<List<string>>} */
+    let chunks = null
+    for (const item of items) {
+        const result = walk(item)
+        if (result[0] === 'error') { return result }
+        chunks = listConcat(chunks)([result[1]])
+    }
+    return ok(chunks)
+}
+
+/**
  * A value in JSON, or the refusal of a leaf. Members are written in the
  * order the object carries them, the order the DataJS output keeps too — the
  * other value output, and the one this walk shares its input with. A node
@@ -122,8 +142,8 @@ const jsonMember = ([key, value]) => mapOk(
 const jsonValue = value => {
     if (value === null || typeof value !== 'object') { return jsonLeaf(value) }
     return value instanceof Array
-        ? mapOk(arrayWrap)(okList(value.map(jsonValue)))
-        : mapOk(objectWrap)(okList(entries(value).map(jsonMember)))
+        ? mapOk(arrayWrap)(walked(jsonValue)(value))
+        : mapOk(objectWrap)(walked(jsonMember)(entries(value)))
 }
 
 /**

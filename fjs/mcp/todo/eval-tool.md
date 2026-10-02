@@ -106,11 +106,9 @@ description should say so, and the argument should be capped at the same
 A value JSON cannot spell is refused rather than approximated. This covers
 `undefined`, a bigint, `NaN`, the two infinities and a function. The tool
 applies the same rules as `fjs compile`'s `.json` output, so the two agree on
-what JSON means. The tool's JSON step is not `_tryJson` itself, because the
-tool must also refuse sharing that `_tryJson` cannot see (below). It is a walk
-that shares `_tryJson`'s leaf rules, `jsonLeaf`, exported properly if needed,
-not copied. A module with no `default` export evaluates to
-`undefined` and is refused for the same reason.
+what JSON means: the tool's JSON step is `_tryJson` itself, exported properly,
+not copied. A module with no `default` export evaluates to `undefined` and is
+refused for the same reason.
 
 **`_tryJson` does not refuse a function today.** A function falls through to
 `jsonLeaf`'s default branch and is written as `null`, so
@@ -194,8 +192,6 @@ which fixes it in the transport for every tool at once.
       coverage. The tool runs it, JSON step included, under one `catch_`.
 - [ ] Add a `'function'` case to `jsonLeaf` that refuses a function, and prove
       it through `_tryJson`.
-- [ ] Add the identity-tracking JSON walk that refuses a container entered
-      twice, sharing `jsonLeaf` with `_tryJson`.
 - [ ] Add the `fjs/mcp/eval` registry with the `fjs_eval` `toolEntry`, and
       compose it in `casMcpHandlers`. Add `Catch` to the server's operations.
 - [ ] Prove the cases: `export default 2 + 2;` returns `4`; an object and an
