@@ -1420,13 +1420,14 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         // after it is reported, and nothing before it is written
         firstRefusal: () => {
             assertEq(jsonRefused('export default [1, undefined, 2n];'), 'output.json - error: no JSON spelling for undefined')
-            // and found along the first reference to a node reached many
-            // times — two to the fortieth references in this value, and the
-            // walk reports the leaf after forty of them, since no item after
-            // a refused one is walked
+            // and found over the graph, not over the tree it unfolds to: two
+            // to the fortieth references reach the leaf here, and twenty-two
+            // valid doublings before a refused sibling are not unfolded first
             const consts = Array.from({ length: 40 }, (_, i) => `const a${i + 1} = [a${i}, a${i}];`).join(' ')
             assertEq(jsonRefused(`const a0 = [undefined]; ${consts} export default a40;`), 'output.json - error: no JSON spelling for undefined')
             assertEq(jsonRefused(`const a0 = { x: [1, 2n] }; ${consts} export default { a: a40 };`), 'output.json - error: no JSON spelling for 2n')
+            const valid = Array.from({ length: 22 }, (_, i) => `const a${i + 1} = [a${i}, a${i}];`).join(' ')
+            assertEq(jsonRefused(`const a0 = [1]; ${valid} export default [a22, undefined];`), 'output.json - error: no JSON spelling for undefined')
         },
         // the DataJS output takes every one of them
         moduleOutput: () => {

@@ -14,7 +14,7 @@
  *
  * @import { List } from '../types/list/types.ts'
  * @import { Result } from '../types/result/types.ts'
- * @import { Unknown } from '../media/datajs/types.ts'
+ * @import { Primitive, Unknown } from '../media/datajs/types.ts'
  * @import { _Checked, _CompileOp } from './types.ts'
  * @import { Denotation } from './ast/types.ts'
  * @import { ParseError } from './parser/types.ts'
@@ -25,10 +25,10 @@
 import { _transpileDefault } from './transpiler/module.f.mjs'
 import { resolve } from './edag/module.f.mjs'
 import { toRust } from './rust/module.f.mjs'
-import { _numberSerialize, tryStringify } from '../media/datajs/serializer/module.f.mjs'
+import { _numberSerialize, tryStringify, tryTreeSerialize } from '../media/datajs/serializer/module.f.mjs'
 import { tryStringify as fjsStringify, tryModuleStringify } from './serializer/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../media/json/serializer/module.f.mjs'
-import { concat as listConcat, flat, map } from '../types/list/module.f.mjs'
+import { flat, map } from '../types/list/module.f.mjs'
 import { error, mapOk, ok } from '../types/result/module.f.mjs'
 import { concat } from '../types/string/module.f.mjs'
 import { serialize as bigintSerialize } from '../types/bigint/module.f.mjs'
@@ -90,7 +90,7 @@ const noJson = what => error(`no JSON spelling for ${what}`)
  * finite number is written by the DataJS rule, which is `ToString` with
  * `-0` kept, since `-0` is a JSON number that `JSON.stringify` alone loses.
  *
- * @type {(value: Unknown) => Result<List<string>, string>}
+ * @type {(value: Primitive) => Result<List<string>, string>}
  */
 const jsonLeaf = value => {
     switch (typeof value) {
@@ -103,57 +103,20 @@ const jsonLeaf = value => {
     }
 }
 
-/** @type {(member: readonly [string, Unknown]) => Result<List<string>, string>} */
-const jsonMember = ([key, value]) => mapOk(
-    /** @type {(chunks: List<string>) => List<string>} */
-    (chunks => flat([stringSerialize(key), colon, chunks]))
-)(jsonValue(value))
-
 /**
- * A container's items walked in order, stopped at the first refusal: no item
- * after a refused one is walked. A node reached many times is written once
- * per reference, so a refused leaf under one is found along the first
- * reference and reported at once, not after every reference has been
- * walked.
- *
- * @type {<T>(walk: (item: T) => Result<List<string>, string>) => (items: readonly T[]) => Result<List<List<string>>, string>}
- */
-const walked = walk => items => {
-    /** @type {List<List<string>>} */
-    let chunks = null
-    for (const item of items) {
-        const result = walk(item)
-        if (result[0] === 'error') { return result }
-        chunks = listConcat(chunks)([result[1]])
-    }
-    return ok(chunks)
-}
-
-/**
- * A value in JSON, or the refusal of a leaf. Members are written in the
- * order the object carries them, the order the DataJS output keeps too — the
- * other value output, and the one this walk shares its input with. A node
- * two references reach is written where each reaches it, as
- * `JSON.stringify` writes it: JSON denotes a tree, so the sharing is no
- * part of what a document can say.
- *
- * @type {(value: Unknown) => Result<List<string>, string>}
- */
-const jsonValue = value => {
-    if (value === null || typeof value !== 'object') { return jsonLeaf(value) }
-    return value instanceof Array
-        ? mapOk(arrayWrap)(walked(jsonValue)(value))
-        : mapOk(objectWrap)(walked(jsonMember)(entries(value)))
-}
-
-/**
- * The value as one JSON text, when it has one: every leaf spelled by JSON.
- * Exported for the proofs, which refuse one leaf at a time; `compile` is
- * what a caller runs, and the `_` says so.
+ * The value as one JSON text, when it has one: the tree the value unfolds
+ * to, every leaf spelled by {@link jsonLeaf} and every key by JSON's
+ * `stringSerialize` — `__proto__` included, which DataJS alone has to spell
+ * computed. The walk is the DataJS writer's, which spells the leaves over
+ * the distinct nodes before it unfolds a node reached twice where each
+ * reference reaches it, so a refused leaf under such a node is reported at
+ * once however many references reach it. Exported for the proofs, which
+ * refuse one leaf at a time; `compile` is what a caller runs, and the `_`
+ * says so.
  *
  * @type {(value: Unknown) => Result<string, string>}
  */
-export const _tryJson = value => mapOk(concat)(jsonValue(value))
+export const _tryJson = value => mapOk(concat)(tryTreeSerialize(jsonLeaf)(stringSerialize)(value))
 
 /**
  * A denotation as JSON: the tree the value is to JSON, which has no
