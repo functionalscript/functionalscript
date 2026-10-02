@@ -109,6 +109,11 @@ what a grammar can and cannot do for the formats.
   `extensions.objectFormat` absent is SHA-1, `sha256` under
   `repositoryformatversion = 1` is SHA-256, and what Git refuses is
   refused.
+- [`alternates/`](alternates/module.f.mjs) — an `objects/info/alternates`
+  file as the object directories it names, decoded line shape by line shape
+  as Git reads it: comments and blank lines skipped, a C-quoted line
+  unquoted, a path ended at its first `NUL`, and a relative entry joined below
+  the `objects/` directory holding the file.
 - [`store/`](store/module.f.mjs) — from an id to the object it names,
   checked: the loose file at the id's path or the packs through
   [`packstore/`](packstore/module.f.mjs), whichever answers, hashed with
@@ -124,7 +129,7 @@ what a grammar can and cannot do for the formats.
   and the mangled second entry Git makes of text after a closing quote — and
   each is read as an ordinary path that is not found rather than refused, since
   a miss loses one borrowing where a refusal loses the whole store
-  ([`store/todo/alternates-line-quirks.md`](store/todo/alternates-line-quirks.md)). `objectsDirs` answers that list
+  ([`alternates/todo/alternates-line-quirks.md`](alternates/todo/alternates-line-quirks.md)). `objectsDirs` answers that list
   and `readIn` reads over it, so a caller reading many objects resolves the
   borrowings once instead of per object.
 - [`walk/`](walk/module.f.mjs) — the three steps from a name to bytes,
