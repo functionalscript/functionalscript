@@ -54,9 +54,9 @@ export const proof = {
             assertStructurallySame(usedBy(['typeof', 'Nullish::Null.to_any()']), { vm: [], unstable: ['string_any'] })
         },
         primitives: () => {
-            assertStructurallySame(usedBy(['[]', [null, true, 1, 'a', '\ud800', 2n]]), {
+            assertStructurallySame(usedBy(['[]', [null, true, 1, 'a', '\ud800', 2n, 2n ** 64n]]), {
                 vm: ['Nullish', 'ToAny', 'ToArray'],
-                unstable: ['bigint_any', 'f64_any', 'string_any', 'string_any_utf16'],
+                unstable: ['bigint_any', 'bigint_any_words', 'f64_any', 'string_any', 'string_any_utf16'],
             })
         },
         containers: () => {
@@ -135,6 +135,7 @@ export const proof = {
         assertEq(printed(-0.3), 'f64_any(0xbfd3333333333333)')
         assertEq(printed('a'), 'string_any("a")')
         assertEq(printed(-1n), 'bigint_any(-1)')
+        assertEq(printed(0n), 'bigint_any(0)')
         assertEq(printed(['undefined']), 'Nullish::Undefined.to_any()')
     },
     containers: () => {
@@ -933,14 +934,20 @@ export const proof = {
             'Any::dot(Object::default().to_any(), string_any_utf16(&[0xd800])).end()')
         assertEq(printed('\u{1F600}'), 'string_any("\u{1F600}")')
     },
-    literalRefusals: () => {
-        assertStructurallySame(refusalReason(2n ** 63n), ['no Rust i64 for', 2n ** 63n])
+    /** A bigint within `i64` is `bigint_any`, one past either end its sign and `u64` words. */
+    bigints: () => {
+        assertEq(printed(2n ** 63n - 1n), 'bigint_any(9223372036854775807)')
+        assertEq(printed(-(2n ** 63n)), 'bigint_any(-9223372036854775808)')
+        assertEq(printed(2n ** 63n), 'bigint_any_words(false, &[0x8000000000000000])')
+        assertEq(printed(-(2n ** 63n) - 1n), 'bigint_any_words(true, &[0x8000000000000001])')
+        assertEq(
+            printed(123456789012345678901234567890n),
+            'bigint_any_words(false, &[0xc373e0ee4e3f0ad2, 0x000000018ee90ff6])')
+        assertEq(printed(-(2n ** 64n)), 'bigint_any_words(true, &[0x0000000000000000, 0x0000000000000001])')
     },
     throw: {
         /** An operation the printer has no `nanvm-lib` spelling for. */
         unknownOperation: () => printed(['is', 1, 2]),
-        /** A bigint no `i64` can hold. */
-        bigintOutOfRange: () => printed(-(2n ** 63n) - 1n),
         /** An object key the printer cannot spell. */
         computedKey: () => printed(['{}', [[':', ['undefined'], 1]]]),
         /**

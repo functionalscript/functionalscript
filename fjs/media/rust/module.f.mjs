@@ -12,8 +12,8 @@
  *
  * A literal the target type cannot hold — a string with a lone surrogate,
  * which no Rust `&str` can hold (`utf16Literal` spells it as code units
- * instead), or a bigint outside `i64` — is refused as
- * a `Result` rather than thrown or truncated, and the refusal carries the
+ * instead), or a bigint outside `i64`, which `u64Words` spells —
+ * is refused as a `Result` rather than thrown or truncated, and the refusal carries the
  * value itself under `unknown`: this layer commits to nothing about the
  * shape of a reason, and the printer above it names one.
  *
@@ -160,6 +160,21 @@ const i64Max = 2n ** 63n - 1n
  * @type {(v: bigint) => Result<string, unknown>}
  */
 export const i64Literal = v => v < i64Min || v > i64Max ? error(v) : ok(v.toString())
+
+/**
+ * The magnitude of `v` as a Rust `&[u64]` literal, least significant word
+ * first, each word in hexadecimal — the spelling of a bigint outside `i64`,
+ * which {@link i64Literal} refuses. Zero is `&[]`.
+ *
+ * @type {(v: bigint) => string}
+ */
+export const u64Words = v => {
+    const a = v < 0n ? -v : v
+    return `&[${words(a).map(w => `0x${w.toString(16).padStart(16, '0')}`).join(', ')}]`
+}
+
+/** @type {(a: bigint) => readonly bigint[]} */
+const words = a => a === 0n ? [] : [a & 0xffffffffffffffffn, ...words(a >> 64n)]
 
 /**
  * A `snake_case` Rust identifier from a `camelCase` name.

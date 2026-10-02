@@ -4,7 +4,7 @@
 
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
-import { f64Bits, i64Literal, snakeCase, stringLiteral, utf16Literal } from './module.f.mjs'
+import { f64Bits, i64Literal, snakeCase, stringLiteral, u64Words, utf16Literal } from './module.f.mjs'
 
 export const proof = {
     utf16Literal: () => {
@@ -72,6 +72,19 @@ export const proof = {
         // One past either end of `i64`: the refusal is the value itself.
         assertStructurallySame(i64Literal(2n ** 63n), error(2n ** 63n))
         assertStructurallySame(i64Literal(-(2n ** 63n) - 1n), error(-(2n ** 63n) - 1n))
+    },
+    u64Words: () => {
+        assertEq(u64Words(0n), '&[]')
+        assertEq(u64Words(1n), '&[0x0000000000000001]')
+        assertEq(u64Words(2n ** 64n - 1n), '&[0xffffffffffffffff]')
+        // The magnitude only: the sign is the caller's.
+        assertEq(u64Words(-(2n ** 63n)), '&[0x8000000000000000]')
+        // Least significant word first, a zero word kept in the middle.
+        assertEq(u64Words(2n ** 64n), '&[0x0000000000000000, 0x0000000000000001]')
+        assertEq(
+            u64Words(123456789012345678901234567890n),
+            '&[0xc373e0ee4e3f0ad2, 0x000000018ee90ff6]')
+        assertEq(u64Words(2n ** 128n + 5n), '&[0x0000000000000005, 0x0000000000000000, 0x0000000000000001]')
     },
     snakeCase: () => {
         assertEq(snakeCase('emptyArray'), 'empty_array')
