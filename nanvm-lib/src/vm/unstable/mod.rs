@@ -167,6 +167,14 @@ pub fn property_item<A: IVm>(k: String<A>, v: Any<A>) -> ObjectItem<A> {
     ObjectItem::Property(k, v)
 }
 
+/// A computed property entry, `[k]: v`: the key is coerced as
+/// `ToPropertyKey` does, here `ToString` of it, which throws what the
+/// conversion throws (an object with its own `toString` is refused). The
+/// only fallible entry, so the one that is a `Result`.
+pub fn computed_item<A: IVm>(k: Any<A>, v: Any<A>) -> Result<ObjectItem<A>, Any<A>> {
+    Ok(ObjectItem::Property(k.to_string()?, v))
+}
+
 /// A spread entry, `...o` in `{k: v, ...o}`.
 pub fn spread_entries<A: IVm>(v: Any<A>) -> ObjectItem<A> {
     ObjectItem::Spread(v)
@@ -195,7 +203,7 @@ mod test {
     use crate::{
         common::sized_index::SizedIndex,
         naive::Naive,
-        vm::{Array, Unpacked},
+        vm::{Array, Nullish, Object, Unpacked},
     };
 
     #[test]
@@ -356,6 +364,36 @@ mod test {
                 (string_key("b"), two()),
             ]
         );
+    }
+
+    /// A computed key is its `ToString`, as an own key: a number is its
+    /// text and `-0` is `"0"`; a key that cannot be converted throws before
+    /// the entry exists.
+    #[test]
+    fn computed_keys() {
+        let one = || f64_any::<Naive>(0x3ff0000000000000);
+        let negative_zero = || f64_any::<Naive>(0x8000000000000000);
+        let object = spread_object([
+            computed_item(one(), string_any("a")).unwrap(),
+            computed_item(negative_zero(), string_any("b")).unwrap(),
+            computed_item(Nullish::Undefined.to_any(), string_any("c")).unwrap(),
+            computed_item(string_any("1"), string_any("d")).unwrap(),
+        ]);
+        let entries = Object::try_from(object).unwrap().own_entries();
+        assert_eq!(
+            entries,
+            [
+                (string_key("0"), string_any("b")),
+                (string_key("1"), string_any("d")),
+                (string_key("undefined"), string_any("c")),
+            ]
+        );
+        let plain = Object::<Naive>::default().to_any();
+        let item = computed_item(plain, one()).unwrap();
+        let ObjectItem::Property(key, _) = item else {
+            panic!()
+        };
+        assert_eq!(key, string_key("[object Object]"));
     }
 
     /// A string of code units holds what no `&str` can, a lone surrogate,

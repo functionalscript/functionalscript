@@ -975,11 +975,25 @@ export const proof = {
             'bigint_any_words(false, &[0xc373e0ee4e3f0ad2, 0x000000018ee90ff6])')
         assertEq(printed(-(2n ** 64n)), 'bigint_any_words(true, &[0x0000000000000000, 0x0000000000000001])')
     },
+    /**
+     * A key that is not a string literal, `{ [k]: v }`: coerced by
+     * `computed_item` where the entry is built, which can throw, so the
+     * entries go through `spread_object`, the key's `?` in its place.
+     */
+    computedKey: {
+        operand: () => assertEq(
+            printed(['{}', [[':', ['undefined'], 1]]]),
+            'spread_object([computed_item(Nullish::Undefined.to_any(), f64_any(0x3ff0000000000000))?])'),
+        mixed: () => assertEq(
+            printed(['{}', [[':', 'a', 0], [':', 1, 2]]]),
+            'spread_object([property_item(string_key("a"), f64_any(0x0000000000000000)), computed_item(f64_any(0x3ff0000000000000), f64_any(0x4000000000000000))?])'),
+        spread: () => assertEq(
+            printed(['{}', [[':', 1, 2], ['...', ['{}', []]]]]),
+            'spread_object([computed_item(f64_any(0x3ff0000000000000), f64_any(0x4000000000000000))?, spread_entries(Object::default().to_any())])'),
+    },
     throw: {
         /** An operation the printer has no `nanvm-lib` spelling for. */
         unknownOperation: () => printed(['is', 1, 2]),
-        /** An object key the printer cannot spell. */
-        computedKey: () => printed(['{}', [[':', ['undefined'], 1]]]),
         /**
          * A `Number(...)` cast index: it names a run-time coercion, not a
          * literal key `indexExpr` can spell directly, and this printer has no

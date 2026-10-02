@@ -347,8 +347,6 @@ export const proof = {
          * single case.
          */
         noRustNameForGroup: () => generate({ shared: {}, groups: [{ op: 'is', cases: [] }] }),
-        /** An object key the corpus cannot produce and Rust cannot spell. */
-        computedKey: () => nodeExpr(['{}', [[':', ['undefined'], 1]]]),
         /**
          * An entry that is neither a property nor a spread: read as a
          * property it would print its second element as the key and a bare
