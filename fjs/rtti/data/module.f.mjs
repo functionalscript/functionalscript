@@ -114,7 +114,7 @@ export const withoutUnits = bits => n => {
  * The one statement of what a kind component means: `undefined` is the empty
  * set, `true` the whole kind, an array these members. Every unary reading of
  * a {@link KindSet} goes through it; the pairwise ones (`cmpKind`,
- * `mergeKind`, `kindSubset`, `kindHas`) spell the same three cases per side.
+ * `mergeKind`, `kindSubset`) spell the same three cases per side.
  *
  * @type {<T, R>(cases: {
  *     readonly absent: () => R
@@ -1181,13 +1181,14 @@ export const toData = t => {
 const checkValue = (cond, value) => cond ? ok(value) : verror('unexpected value')
 
 /**
- * Membership in one kind component, read as {@link kindFold} reads it.
+ * Membership in one kind component.
  *
  * @template T
  * @param {(a: T, b: T) => boolean} eq
  * @returns {(k: KindSet<T> | undefined, v: T) => boolean}
  */
-const kindHas = eq => (k, v) => k !== undefined && (k === true || k.some(x => eq(x, v)))
+const kindHas = eq => (k, v) =>
+    kindFold({ absent: () => false, whole: () => true, members: list => list.some(x => eq(x, v)) })(k)
 
 /** `validate` has nothing to collect from a successful entry — only pass/fail matters. */
 const noAccumulate = () => undefined
