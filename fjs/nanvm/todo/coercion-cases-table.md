@@ -1,7 +1,7 @@
 ## coercion-cases-table. Eleven operator groups restate the `ToNumeric` operand table
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
