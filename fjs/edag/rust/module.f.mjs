@@ -659,9 +659,10 @@ const printer = nested => shared => root => {
         if (id === 'frame') { return ok(`A::frame(self_)[${a}].clone()`) }
         if (id === '[]' && !hasSpread(a)) { return arrayExpr(a) }
         if (id === '{}') {
-            return a.length === 0
-                ? ok('Object::default().to_any()')
-                : mapOk((/** @type {readonly string[]} */ items) => `[${items.join(', ')}].to_object().to_any()`)(okList(a.map(propertyExpr)))
+            return a.length === 0 ? ok('Object::default().to_any()')
+                : hasSpread(a) ? mapOk((/** @type {readonly string[]} */ items) => `spread_object([${items.join(', ')}])`)(okList(a.map(
+                    (/** @type {Properties} */ p) => p[0] === '...' ? mapOk(v => `spread_entries(${v})`)(f(p[1])) : propertyExpr('property_item')(p))))
+                : mapOk((/** @type {readonly string[]} */ items) => `[${items.join(', ')}].to_object().to_any()`)(okList(a.map(propertyExpr(''))))
         }
         if (id === ',') {
             // A comma is its last operand's value, the operands before it
@@ -929,22 +930,21 @@ const printer = nested => shared => root => {
     const block = e => map2((/** @type {readonly string[]} */ lets, /** @type {string} */ value) => [...lets, value])(
         okList(declaredBy(e).map(letLine)), result(e))
     /**
-     * One object entry.
+     * One object property, `(key, value)` called through `call`: a tuple
+     * for `to_object`, or `property_item(key, value)` beside a spread, whose
+     * entries are `spread_entries(…)`'s, through `object_spread`. An object
+     * spread never throws, so an object holding one is a value, as an object
+     * without one is.
      *
-     * `Properties` is `Property | Spread`, so `['...', exp]` is a valid entry
-     * this printer has no `nanvm-lib` spelling for. Read as a property it
-     * would take the spread's operand as the key and its absent third element
-     * as the value, printing a bare `undefined` into the generated file — text
-     * that looks like Rust and is not. Refused for the reason `lookup` refuses
-     * an unmapped id, until `nanvm-lib` has `object_spread`
-     * (`nanvm-lib/todo/spread-operations.md`); an array's spread is
-     * `spread_array`'s.
+     * Anything else in an entry's place is refused rather than read as a
+     * property, which would take its second element as the key and print a
+     * bare `undefined` as the value — text that looks like Rust and is not.
      *
-     * @type {(p: Properties) => Result<string, readonly unknown[]>}
+     * @type {(call: string) => (p: Properties) => Result<string, readonly unknown[]>}
      */
-    const propertyExpr = p => p[0] !== ':'
+    const propertyExpr = call => p => p[0] !== ':'
         ? error(['not a property', p])
-        : map2((k, v) => `(${k}, ${v})`)(keyExpr(p[1]), f(p[2]))
+        : map2((k, v) => `${call}(${k}, ${v})`)(keyExpr(p[1]), f(p[2]))
     return ok({ f, block })
 }
 

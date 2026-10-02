@@ -1169,6 +1169,18 @@ export const proof = {
                 printed(['()', ['args'], ['...']]),
                 'Any::call(args.clone().to_any(), [string_any("...")].to_array().to_any())')
         },
+        /**
+         * An object's spread is `spread_entries` beside `property_item`s,
+         * through `object_spread`, which never throws: the object stays a
+         * value, nested in a corpus expression as any value is.
+         */
+        object: () => {
+            assertEq(
+                printed(['{}', [[':', 'a', 1], ['...', 'bc']]]),
+                'spread_object([property_item(string_key("a"), f64_any(0x3ff0000000000000)), spread_entries(string_any("bc"))])')
+            assertEq(nestsOperation([])(['[]', [['{}', [['...', 'bc']]]]]), false)
+            assertEq(printed(['{}', [[':', 'a', 1]]]), '[(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any()')
+        },
         /** A spread array nested in a corpus expression is an operation, as an operator is. */
         nestsOperation: () => {
             assertEq(nestsOperation([])(['[]', [['[]', [['...', 'ab']]]]]), true)
@@ -1176,11 +1188,11 @@ export const proof = {
         },
     },
     chainRefusals: {
-        /** The spread is refused where the object is printed, the same one `objectSpread` (`fjs/nanvm/rust/proof.f.mjs`) pins. */
-        dotOnObjectWithSpread: () => {
+        /** An entry that is neither a property nor a spread is refused where the object is printed, the same one `notAProperty` (`fjs/nanvm/rust/proof.f.mjs`) pins. */
+        dotOnObjectWithMalformedEntry: () => {
             assertStructurallySame(
-                refusalReason(['.', ['.', ['{}', [['...', 'x']]], 'y'], 'z']),
-                ['not a property', ['...', 'x']])
+                refusalReason(['.', ['.', ['{}', [/** @type {any} */ (['?', 'x'])]], 'y'], 'z']),
+                ['not a property', ['?', 'x']])
         },
         /** The cast key is `indexExpr`'s refusal, the same one `numberCastIndex` pins directly. */
         dotOnObjectWithNumberCastKey: () => {
