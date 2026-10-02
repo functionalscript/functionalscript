@@ -1,7 +1,10 @@
 import { stringToList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { tokenize } from './module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { _tokensOf, demo } from './demo.f.mjs'
+import { examples } from '../examples/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
 import { _stringifyTree } from '../module.f.mjs'
 
 // DjsTokenWithMetadata carries bigint fields that JSON.stringify cannot
@@ -143,4 +146,33 @@ export const proof = {
             assertEq(toArray(tokenize(stringToList(' // c'))('')).map(t => t.token.kind).join(' '), 'eof')
         },
     ],
+    /**
+     * **One line per token, and a token that cannot be read is a line.** `!`
+     * and `typeof` are the grammar's gaps: `!` is an `error` token, and
+     * `typeof` an ordinary name the parser then refuses. A string left open
+     * runs to the end, which the span says.
+     */
+    demo: {
+        tokens: () => {
+            assertEq(_tokensOf('export default [1, "hi", 2n];'), [
+                '1:1  id  "export"', '1:8  id  "default"', '1:16  [', '1:17  number  "1"', '1:18  ,',
+                '1:20  string  "hi"', '1:24  ,', '1:26  bigint  2n', '1:28  ]', '1:29  ;', '1:30  eof',
+            ].join('\n'))
+            assert(_tokensOf('export default !1;').includes('1:16  error  invalid token\n'))
+            assertEq(_tokensOf('"bad').split('\n')[0], '1:1  error  invalid token (to 1:5)')
+        },
+        examples: () => {
+            // every example ends at `eof`, and only `!` is a token the tokenizer cannot read
+            for (const [name, source] of examples) {
+                const tokens = _tokensOf(source)
+                assert(tokens.endsWith('eof'), name)
+                assertEq(tokens.includes('  error  '), name === 'Logical not', name)
+            }
+        },
+        view: () => {
+            const shown = htmlToString(demo.view(demo.init))
+            assert(shown.includes('<pre>'), shown)
+            assert(shown.includes('1:1  id  '), shown)
+        },
+    },
 }

@@ -1,7 +1,7 @@
 ## Demo pages for the compiler's outputs
 
 **Priority:** P3
-**Status:** open
+**Status:** implemented for the five stages below; the open questions remain
 
 ### Problem
 
@@ -106,20 +106,28 @@ is. The preset's name says what it demonstrates, never "bug".
 - Land it as a stack: the shared examples module with the Rust demo first (the
   reader's immediate interest), then one stage per pull request.
 
+### Built
+
+A demo in each of `compiler/tokenizer/`, `compiler/parser/`, `compiler/serializer/`
+and `compiler/rust/`, the existing one in `compiler/edag/`, and the side-by-side
+page in `compiler/demo.f.mjs`. The side-by-side page runs the real `compile` over
+an in-memory file system once per output name, so it cannot drift from the CLI.
+Each stage's proof pins which shared example it refuses; the side-by-side proof
+is a table of which outputs accept which example.
+
+What the pages already show: `!` stops in the tokenizer (an `error` token),
+`typeof` passes it and stops in the parser, and an import is refused by every
+output because the in-memory file system holds only the input.
+
 ### Open questions
 
-- **Does the page compile in the browser at all?** `transpile` is written as
-  an effect over `readSource`; the demo needs it with the source supplied by
-  the text box. Either the demo supplies a one-file in-memory reader
-  ([`effects/node/virtual`](../../effects/node/virtual/)), or `parse` plus
-  `unresolved` is enough for import-free input. The second is simpler and is
-  what the EDAG demo already does; take it first.
-- **Is Rust worth a pane?** It is the output the VM consumes, but long for a
-  small input. A collapsed-by-default pane is the cheap answer.
-- **Split `.js` and `.data.js` panes or share one?** They differ little for
-  most inputs; a toggle may carry the signal better than two panes.
-- **Source maps and locations.** A refusal naming a source position would
-  deserve a caret in the text box; that waits on
+- **Import linking.** The pages compile one module. Showing `resolve` needs a
+  second file in the box; the in-memory file system already supports it.
+- **The EDAG demo's presets** are its own list. Moving it onto the shared list
+  would finish "one program down the pipeline", at the cost of losing its
+  graph-specific presets (laziness, closures with frames).
+- **Source positions.** A refusal naming a position deserves a caret in the
+  text box; that waits on
   [investigate-edag-source-maps](./investigate-edag-source-maps.md).
 
 ### Related

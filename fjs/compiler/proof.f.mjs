@@ -20,6 +20,9 @@ import { invert, mapOk, unwrap } from '../types/result/module.f.mjs'
 import { fromEntries, isObject } from '../types/object/module.f.mjs'
 import { toVec } from '../types/uint8array/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
+import { _compiled, demo, outputs } from './demo.f.mjs'
+import { examples } from './examples/module.f.mjs'
+import { htmlToString } from '../media/html/module.f.mjs'
 import accept from '../../spec/datajs/vectors/accept/data.f.js'
 import normalize from '../../spec/datajs/vectors/normalize/data.f.js'
 
@@ -1690,5 +1693,47 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         assert(compileSource('throw "boom";')('output.rs').includes('    Err(string_any("boom"))\n'))
         assert(compileSource('export default () => { throw 1; };')('output.rs').includes('{ Err(f64_any(0x3ff0000000000000)) }'))
         assertEq(stderrOf({ 'input.f.js': [utf8('import d from "./dep.f.js"; export default d;')], 'dep.f.js': [utf8('throw 1;')] }), 'dep.f.js - error: throw 1')
+    },
+    /**
+     * **The side-by-side page is the compiler's regression table.** For each
+     * shared example, one letter per output, in the page's order: `o` where the
+     * output is written, `x` where it is refused. JSON and DataJS refuse what is
+     * not a value — an operator, a function, a call, a failing read — and JSON
+     * alone refuses `undefined` and a shared node; an import has no file to
+     * link, and the tokenizer's refusals stop every output.
+     */
+    demo: {
+        examples: () => {
+            /** @type {Readonly<Record<string, string>>} */
+            const expected = {
+                'Primitives': 'xoooo',
+                'Objects': 'ooooo',
+                'Sharing: a const used twice': 'xoooo',
+                'Arithmetic': 'xxooo',
+                'Laziness': 'xxooo',
+                'Function with a rest parameter': 'xxooo',
+                'Closure': 'xxooo',
+                'Methods and properties': 'xxooo',
+                'Named exports': 'ooooo',
+                'A failure at run time': 'xxooo',
+                'An import': 'xxxxx',
+                'Logical not': 'xxxxx',
+                'typeof': 'xxxxx',
+                'Parse error': 'xxxxx',
+            }
+            assertEq(Object.keys(expected).length, examples.length)
+            for (const [name, source] of examples) {
+                assertEq(outputs.map(([, file]) => _compiled(source)(file)[0] === 'ok' ? 'o' : 'x').join(''), expected[name])
+            }
+            assertEq(_compiled('export default 1;')('output.json')[1], '1')
+            assertEq(_compiled('export default !1;')('output.json')[1], 'input.f.js:1:16 - error: unexpected token')
+        },
+        view: () => {
+            const shown = htmlToString(demo.view(demo.init))
+            assert(shown.includes('<h3>.rs</h3>'), shown)
+            assert(shown.includes('<pre>'), shown)
+            const refused = htmlToString(demo.view('export default {bad'))
+            assert(refused.includes('Refused: '), refused)
+        },
     },
 }
