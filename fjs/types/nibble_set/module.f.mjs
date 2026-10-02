@@ -2,9 +2,9 @@
  * Nibble-set operations for compact 4-bit membership tracking.
  *
  * A set of nibbles (values `0..15`) stored as a 16-bit mask in a plain
- * `number`. It implements the same bitmask-as-set algebra as
- * {@link ../byte_set/module.f.mjs | `byte_set`}, which tracks all 256 byte
- * values in a `bigint`.
+ * `number`. It is the {@link ../bit_set/module.f.mjs | `bit_set`} algebra
+ * over `number`, as {@link ../byte_set/module.f.mjs | `byte_set`} is the same
+ * algebra over a `bigint` tracking all 256 byte values.
  *
  * **Prefer `byte_set`.** Its 256-value universe covers the common cases and
  * it is the set type used across the codebase. Use `nibble_set` only when
@@ -17,27 +17,25 @@
  * @import { Nibble, NibbleSet } from './types.ts'
  */
 
-export const empty = 0
+import { bitSet, numberOps } from '../bit_set/module.f.mjs'
 
-export const universe = 0xFFFF
+const nibbleSet = bitSet(numberOps)(16)
 
-/** @type {(n: Nibble) => NibbleSet} */
-const one = n => 1 << n
+export const empty = nibbleSet.empty
+
+export const universe = nibbleSet.universe
 
 /** @type {(n: Nibble) => (s: NibbleSet) => boolean} */
-export const has = n => s => ((s >> n) & 1) === 1
+export const has = nibbleSet.has
 
 /** @type {(n: Nibble) => (s: NibbleSet) => NibbleSet} */
-export const set = n => s => s | one(n)
+export const set = nibbleSet.set
 
 /** @type {(n: NibbleSet) => NibbleSet} */
-export const complement = s => universe ^ s
+export const complement = nibbleSet.complement
 
 /** @type {(n: Nibble) => (s: NibbleSet) => NibbleSet} */
-export const unset = n => s => s & complement(one(n))
-
-/** @type {(r: readonly [number, number]) => NibbleSet} */
-const range = ([a, b]) => one(b - a + 1) - 1 << a
+export const unset = nibbleSet.unset
 
 /** @type {(r: readonly [number, number]) => (s: NibbleSet) => NibbleSet} */
-export const setRange = r => s => s | range(r)
+export const setRange = nibbleSet.setRange

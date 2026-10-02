@@ -7,10 +7,10 @@
  * layer resumes the parser"). Nothing follows a token here, and that is
  * what makes the grammar LL(1).
  *
- * Beside the classical grammar in `fjs/compiler/tokenizer`, which the
- * backtracking backend read, four things are spelled differently, each
- * a conflict measured before the port and recorded in `fjs/compiler/README.md`
- * ("Both grammars are LL(1)"):
+ * The classical grammar this one replaced, which a backtracking backend
+ * read, was deleted with `fjs/bnf`. Four things are spelled differently
+ * from it, each a conflict measured before the port and recorded in
+ * `fjs/compiler/README.md` ("Both grammars are LL(1)"):
  *
  * - the block comment's `*` is left-factored: after a `*`, a `/` is the
  *   end, another `*` is looked at again, and anything else is content;
@@ -27,8 +27,8 @@
  * and exponent is JSON's: the rules are imported from `../json`, not
  * restated, and so are the hexadecimal digits {@link number} adds. A
  * line comment stops before its newline, which is the next token; the
- * classical grammar swallows it and splits it back out below the
- * grammar. Whitespace is one symbol per token, as it is there.
+ * classical grammar swallowed it and split it back out below the
+ * grammar. Whitespace is one symbol per token, as it was there.
  *
  * @module
  *
@@ -175,8 +175,8 @@ export const slash = /**@type {const}*/(['/', {
 }])
 
 /**
- * The operators the classical grammar names, less the two that begin with
- * `/`, which {@link slash} holds.
+ * The operators, as the classical grammar named them, less the two that
+ * begin with `/`, which {@link slash} holds.
  */
 export const operators = /**@type {const}*/([
     '...', '.', '=>', '===', '==', '=', '!==', '!=', '!',
