@@ -1,6 +1,7 @@
 /**
- * Compact byte-set operations and predicates. See `./types.ts` for the
- * `ByteSet` type.
+ * Compact byte-set operations and predicates: the
+ * {@link ../bit_set/module.f.mjs | `bit_set`} algebra over a 256-bit `bigint`.
+ * See `./types.ts` for the `ByteSet` type.
  *
  * @module
  *
@@ -8,50 +9,44 @@
  * @import { ByteSet, _Byte } from './types.ts'
  */
 
-import { mask } from '../bigint/module.f.mjs'
-import { compose } from '../function/module.f.mjs'
+import { bitSet, bigintOps } from '../bit_set/module.f.mjs'
 import { reverse, countdown, flat, map } from '../list/module.f.mjs'
 
+const byteSet = bitSet(bigintOps)(256)
+
 /** @type {(n: _Byte) => (s: ByteSet) => boolean} */
-export const has = n => s => ((s >> BigInt(n)) & 1n) === 1n
+export const has = byteSet.has
 
 // create a set
 
-export const empty = 0n
+export const empty = byteSet.empty
 
-//                        0    1    2    3    4    5    6    7    8    9    A    B    C    D    E    F
-export const universe = 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFFn
+export const universe = byteSet.universe
 
 /** @type {(n: _Byte) => ByteSet} */
-export const one = n => 1n << BigInt(n)
+export const one = byteSet.one
 
 /** @type {(r: readonly [_Byte, _Byte]) => ByteSet} */
-export const range = ([b, e]) => mask(BigInt(e - b + 1)) << BigInt(b)
+export const range = byteSet.range
 
 // set operations
 
 /** @type {(a: ByteSet) => (b: ByteSet) => ByteSet} */
-export const union = a => b => a | b
-
-/** @type {(a: ByteSet) => (b: ByteSet) => ByteSet} */
-const intersect = a => b => a & b
+export const union = byteSet.union
 
 /** @type {(n: ByteSet) => ByteSet} */
-export const complement = n => universe ^ n
-
-/** @type {(a: ByteSet) => (b: ByteSet) => ByteSet} */
-const difference = compose(intersect)(compose(complement))
+export const complement = byteSet.complement
 
 // additional operations
 
 /** @type {(_: number) => (b: ByteSet) => ByteSet} */
-export const set = compose(one)(union)
+export const set = byteSet.set
 
 /** @type {(_: readonly [number, number]) => (b: ByteSet) => ByteSet} */
-export const setRange = compose(range)(union)
+export const setRange = byteSet.setRange
 
 /** @type {(n: _Byte) => (s: ByteSet) => ByteSet} */
-export const unset = n => s => difference(s)(one(n))
+export const unset = byteSet.unset
 
 const counter = reverse(countdown(256))
 

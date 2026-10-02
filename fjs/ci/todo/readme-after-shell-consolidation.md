@@ -7,8 +7,9 @@
 
 The per-job Deno, Bun and WASM flakes and the `dev` job were folded into one
 shared shell, [`gen.nix/flake.nix`](../../../gen.nix/flake.nix), which every job but
-Node 22, Node 24, the two Windows jobs and `package-check` enters through
-`./gen.nix/run`. [`fjs/ci/README.md`](../README.md) and the comments in
+Node 22, Node 24 and the two Windows jobs enters through `./gen.nix/run` — the
+packed-package check closing `node26` deliberately stays out of it.
+[`fjs/ci/README.md`](../README.md) and the comments in
 [`config/module.f.js`](../config/module.f.js) still describe the layout
 from before that.
 
