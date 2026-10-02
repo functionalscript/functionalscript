@@ -61,13 +61,50 @@ set; see the open questions rather than faking it with a hidden fixture.
 
 ### Where it lives
 
-- `fjs/compiler/demo.f.mjs` — the side-by-side page, built on `textDemo`.
-- Each output's formatting stays with its owner: the demo calls
-  `tryModuleStringify`, `_tryJson`, `toRust` and the DataJS serializer. **No
-  output logic is copied into the demo**; one that is not exported yet is
-  exported, per [AGENTS.md §1](../../../AGENTS.md#1-workflow).
-- A proof gives `demo.f.mjs` 100% coverage, driven by the examples above, so
-  the examples double as a regression table of which output refuses what.
+**One demo per directory, because a page has one demo section.** The website
+refuses a second module exporting `demo` in the same directory and skips both
+([`website/module.f.mjs`](../../website/module.f.mjs), `resolveDemos`). So the
+side-by-side page above cannot be the only demo, and several presets cannot be
+several demo files in one folder. The layout follows the compiler's own stages
+instead: each stage folder gets one `demo.f.mjs` showing *that stage's* output,
+with its own presets, and its page is where a reader of that code lands.
+
+| Directory | `demo.f.mjs` shows | Presets teach |
+| --------- | ------------------ | ------------- |
+| `compiler/tokenizer/` | text → tokens | numbers and bigints, string escapes, comments, reserved words |
+| `compiler/parser/` | text → AST | `import`/`const`/`export`, operator precedence, a repeated object key, a function with rest |
+| `compiler/edag/` | text → graph (exists) | sharing, lazy edges, closures, optional chaining (not drawn yet) |
+| `compiler/serializer/` | text → `.js` module | what becomes a `const`, named exports, function text |
+| `compiler/rust/` | text → Rust | literals, operators, calls and methods, lazy arms, closures, the deferred runtime throw |
+| `compiler/` | text → every output side by side | the cross-output differences in the table above |
+
+`ast/` has no demo of its own: its data is what `parser/` draws. A directory
+whose output is not interesting alone gets none, which the website already
+treats as the ordinary case.
+
+**Presets are shared, so one program can be followed down the pipeline.** A
+reader who picks "closure" in the tokenizer page should find "closure" in the
+parser, EDAG and Rust pages. They are one list in
+`compiler/examples/module.f.mjs`, grouped by what they exercise; each stage
+demo passes the groups that are interesting at its stage to `textDemo`
+(`examples`), and the picker checks names and sources are distinct. The
+programs that are also compiler fixtures (`input.f.js`, `m.f.js`) stay where
+they are.
+
+**Presets that are *refused* are presets too.** A stage's refusal is shown in
+its own pane, and the shared list includes the inputs that exercise one:
+`!x` and `typeof x` are valid JavaScript the parser rejects today, and a
+preset that makes the refusal visible is the cheapest regression table there
+is. The preset's name says what it demonstrates, never "bug".
+
+- Each output's formatting stays with its owner: a stage demo calls its own
+  stage (`tryModuleStringify`, `toRust`, `unresolved`, …). **No output logic is
+  copied into a demo**; one that is not exported yet is exported, per
+  [AGENTS.md §1](../../../AGENTS.md#1-workflow).
+- Each `demo.f.mjs` ships proof coverage in its directory's `proof.f.mjs`,
+  driven by walking its presets, so a preset that stops compiling fails a test.
+- Land it as a stack: the shared examples module with the Rust demo first (the
+  reader's immediate interest), then one stage per pull request.
 
 ### Open questions
 
