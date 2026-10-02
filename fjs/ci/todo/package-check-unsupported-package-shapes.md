@@ -1,13 +1,13 @@
-## package-check-unsupported-package-shapes. `package-check` assumes our package's shape
+## package-check-unsupported-package-shapes. The packed-package check assumes our package's shape
 
 **Priority:** P5
 **Status:** open
 
 ### Problem
 
-[`../package/module.f.mjs`](../package/module.f.mjs) generates a job that
-installs the packed tarball and type-checks it. It works for a package shaped
-like this repository's, and three review findings on
+[`../package/module.f.mjs`](../package/module.f.mjs) generates the steps closing
+the `node26` job, which install the packed tarball and type-check it. It works
+for a package shaped like this repository's, and three review findings on
 [#1767](https://github.com/functionalscript/functionalscript/pull/1767) named
 shapes it does not handle — one of them fixed as far as a glob can go, the rest
 declined. This file is where the answers live now.
@@ -16,18 +16,18 @@ All three are the same question — how far does `fjs ci` go for a project that 
 not us? [`ci-generator-audience.md`](./ci-generator-audience.md) asks it of the
 generator as a whole, and settling that one settles these.
 
-**1. Declarations reachable only through `typesVersions`.** The job checks every
+**1. Declarations reachable only through `typesVersions`.** The check reads every
 declaration the tarball ships, which is a superset of what any entry point
 reaches, so a `typesVersions` map changes nothing about *coverage*. What it
 would change is whether the map itself is exercised: a package whose
 `typesVersions` points at a path it does not ship gets a green check today.
 
-**2. A package that ships no declarations at all.** The job is generated for
+**2. A package that ships no declarations at all.** The check is generated for
 every project now, and this one fails it with `TS18003`: `include` matches
 nothing, and TypeScript says so rather than passing on an empty set. Loud, and
 arguably right — a package whose consumers get no types is a package this check
-has nothing to say about — but it is a red job rather than an absent one, and
-the project did not ask for either.
+has nothing to say about — but it is a red `node26` rather than an absent check,
+and the project did not ask for either.
 
 This case replaced a different one. The job used to be generated only when the
 project's `package.json` pinned an exact `devDependencies.typescript`, so a
@@ -35,8 +35,8 @@ project with no compiler of its own simply had no packed-package check; the
 open question then was whether `fjs ci` should refuse loudly instead of quietly
 emitting one job fewer. [`typescript-ci-tool`](https://github.com/functionalscript/functionalscript/pull/1795)
 moved the compiler to `../config/module.f.js`, which settled that by removing
-the choice: there is no longer anything about the project for the job to depend
-on.
+the choice: there is no longer anything about the project for the check to
+depend on.
 
 **3. A declaration under two consecutive dot-prefixed segments.**
 `.a/.b/x.d.ts` is packed by npm and skipped by `tsc`. npm's `**` walks into a
@@ -69,9 +69,9 @@ What each would cost, so the next person does not re-derive it:
 - **(1)** Read `typesVersions` from the installed `package.json` and add a
   generated import per mapped entry. Needs the packed manifest parsed in a
   generated step, which is new machinery for a case no consumer has.
-- **(2)** Nothing, if a red `package-check` is the right answer for a package
-  that publishes no types. If it is not, the cheapest alternative is a
-  declaration in `Setup` — the project says it ships none, and the job is not
+- **(2)** Nothing, if a red packed-package check is the right answer for a
+  package that publishes no types. If it is not, the cheapest alternative is a
+  declaration in `Setup` — the project says it ships none, and the check is not
   generated — which puts the decision with the project rather than with a
   heuristic reading its `files` field.
 - **(3)** A pattern per arrangement of dots does not converge — each new
@@ -98,7 +98,7 @@ What each would cost, so the next person does not re-derive it:
 
 ### Related
 
-- [`../package/module.f.mjs`](../package/module.f.mjs) — the job.
+- [`../package/module.f.mjs`](../package/module.f.mjs) — the check.
 - [`../README.md`](../README.md) — the `package.json` contract the job reads.
 - [`ci-generator-audience.md`](./ci-generator-audience.md) — the same "what is
   `fjs ci` for" question, asked of the generator as a whole.
