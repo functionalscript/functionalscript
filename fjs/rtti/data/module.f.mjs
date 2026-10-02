@@ -29,7 +29,7 @@ import { cmp as cmpValue } from '../../types/function/compare/module.f.mjs'
 import { strictEqual as strictEqualCurried } from '../../types/function/operator/module.f.mjs'
 import { at, definedEntries, definedValues } from '../../types/object/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
-import { declaredTest, eachEntry, isArray, undeclaredMembers, verror } from '../common/module.f.mjs'
+import { declaredTest, eachEntry, hasUndeclaredMember, isArray, undeclaredMembers, verror } from '../common/module.f.mjs'
 
 /**
  * The unit kind's enumeration: bit `1 << i` of a {@link UnionSet}'s `unit`
@@ -1178,87 +1178,92 @@ const patternsValidate = (k, item, value) => {
 }
 
 /**
- * The declared positions are checked with absence decided **before**
- * dispatch — an index that is neither an own property nor an inherited one
- * is a missing member, legal exactly when its set carries the absent bit;
- * a present one is checked as the value read. No minimum length is tested
- * for: a too-short array is caught by the absence test at the first
- * position that excludes it. What is left over is tested against `rest`,
- * or, with no `rest`, must not be there at all. Same shape as
- * {@link objectSetValidate}, one kind over — and the same before-dispatch
- * test the schema-form readers make, so the three readers agree on `{}`
- * versus `{ a: undefined }` and on sparse tuples.
+ * Builds the validator of one container pattern, an {@link ArraySet} or an
+ * {@link ObjectSet}: the two are one reader, and the parameters are what the
+ * kinds do not share — which members are declared, how a member is read,
+ * and what a set with no `rest` admits past them.
  *
- * `undeclaredMembers` is what the schema-form readers walk too, so "what is
- * left over" is one rule rather than two that happen to coincide — including
- * an index the prototype supplies, which an own-entry filter here answered
- * `ok` for while the rendered tail claimed the `rest`'s type over it.
+ * The declared members are checked with absence decided **before** dispatch
+ * — a key or index that is neither an own property nor an inherited one is a
+ * missing member, legal exactly when its set carries the absent bit; a
+ * present one is checked as the value read. That is the before-dispatch test
+ * the schema-form readers make, so the three readers agree on `{}` versus
+ * `{ a: undefined }` and on sparse tuples. No minimum length is tested for:
+ * a too-short array is caught by the absence test at the first position that
+ * excludes it.
  *
- * @type {(rules: RuleSet) => (p: ArraySet) => (value: readonly Unknown[]) => ResultE}
+ * What is left over is held to `rest`, or, with no `rest`, answered by
+ * `bare`. It is `undeclaredMembers` on both kinds — what the schema-form
+ * readers walk too — so "what is left over" is one rule rather than two that
+ * happen to coincide, including an index the prototype supplies, which an
+ * own-entry filter answered `ok` for while the rendered tail claimed the
+ * `rest`'s type over it.
  */
-const arraySetValidate = rules => p => value => {
-    const pn = p.prefix.length
-    const { rest } = p
-    const declared = eachEntry(
-        Object.entries(p.prefix),
-        (k, n) => {
-            if (!(k in value)) {
-                return nodeAdmitsAbsence(rules)(n) ? ok(undefined) : verror('unexpected value')
-            }
-            const m = nodeValidate(rules)(n)(value[Number(k)])
-            return m[0] === 'error' ? m : ok(undefined)
-        },
-        undefined,
-        noAccumulate,
-    )
-    if (declared[0] === 'error') { return declared }
-    // Built per read: `p` arrives with the value, so there is no per-schema
-    // closure to hoist it into. One pass over the prefix keeps the read linear.
-    const extra = undeclaredMembers(declaredTest(p.prefix.map((_, i) => String(i))), value)
-    if (rest === undefined) {
-        // Nothing past the prefix, by length as well as by entry: a hole past
-        // it is not an entry, but the array is still that long, and this is
-        // the set `Ts<>` renders as a tuple of exactly `pn` positions and JSON
-        // Schema as `items: false`. A *shorter* array is another matter — the
-        // declared loop above has already held every position it left unfilled
-        // to a set admitting `undefined`.
-        if (extra.length !== 0 || value.length > pn) {
-            return verror('unexpected value')
+const setValidate =
+    /**
+     * @template {ArraySet | ObjectSet} P
+     * @template {ReadonlyArray<Unknown> | StringMap<Unknown>} C
+     * @param {(p: P) => ReadonlyArray<readonly [string, Node]>} entriesOf
+     * @param {(value: C, k: string) => Unknown} getItem
+     * @param {(isDeclared: (k: string) => boolean, value: C, declared: number) => boolean} bare
+     * @returns {(rules: RuleSet) => (p: P) => (value: C) => ResultE}
+     */
+    (entriesOf, getItem, bare) => rules => p => value => {
+        const entries = entriesOf(p)
+        const declared = eachEntry(
+            entries,
+            (k, n) => {
+                if (!(k in value)) {
+                    return nodeAdmitsAbsence(rules)(n) ? ok(undefined) : verror('unexpected value')
+                }
+                const m = nodeValidate(rules)(n)(getItem(value, k))
+                return m[0] === 'error' ? m : ok(undefined)
+            },
+            undefined,
+            noAccumulate,
+        )
+        if (declared[0] === 'error') { return declared }
+        // Built per read: `p` arrives with the value, so there is no per-schema
+        // closure to hoist it into. One pass over the entries keeps the read linear.
+        const isDeclared = declaredTest(entries.map(([k]) => k))
+        const { rest } = p
+        if (rest === undefined) {
+            return bare(isDeclared, value, entries.length) ? ok(value) : verror('unexpected value')
         }
-    } else {
-        const r = eachEntry(extra, (_k, v) => nodeValidate(rules)(rest)(v), undefined, noAccumulate)
-        if (r[0] === 'error') { return r }
-    }
-    return ok(value)
-}
-
-/** @type {(rules: RuleSet) => (p: ObjectSet) => (value: StringMap<Unknown>) => ResultE} */
-const objectSetValidate = rules => p => value => {
-    const declared = eachEntry(
-        definedEntries(p.props),
-        (k, n) => {
-            if (!(k in value)) {
-                return nodeAdmitsAbsence(rules)(n) ? ok(undefined) : verror('unexpected value')
-            }
-            const m = nodeValidate(rules)(n)(value[k])
-            return m[0] === 'error' ? m : ok(undefined)
-        },
-        undefined,
-        noAccumulate,
-    )
-    if (declared[0] === 'error') { return declared }
-    const { rest } = p
-    if (rest !== undefined) {
-        const extra = eachEntry(
-            Object.entries(value).filter(([k]) => at(k)(p.props) === null),
+        const r = eachEntry(
+            undeclaredMembers(isDeclared, value),
             (_k, v) => nodeValidate(rules)(rest)(v),
             undefined,
             noAccumulate,
         )
-        if (extra[0] === 'error') { return extra }
+        return r[0] === 'error' ? r : ok(value)
     }
-    return ok(value)
-}
+
+/**
+ * An array set with no `rest` has nothing past the prefix, by length as well
+ * as by member: a hole past it is no member, but the array is still that
+ * long, and this is the set `Ts<>` renders as a tuple of exactly the prefix's
+ * positions and JSON Schema as `items: false`. A *shorter* array is another
+ * matter — the declared pass has already held every position it left
+ * unfilled to a set admitting `undefined`.
+ */
+const arraySetValidate = setValidate(
+    /** @type {(p: ArraySet) => ReadonlyArray<readonly [string, Node]>} */
+    p => Object.entries(p.prefix),
+    /** @type {(value: ReadonlyArray<Unknown>, k: string) => Unknown} */
+    (value, k) => value[Number(k)],
+    (isDeclared, value, declared) =>
+        value.length <= declared && !hasUndeclaredMember(isDeclared, value),
+)
+
+/** An object set with no `rest` leaves the other keys unconstrained. */
+const objectSetValidate = setValidate(
+    /** @type {(p: ObjectSet) => ReadonlyArray<readonly [string, Node]>} */
+    p => definedEntries(p.props),
+    /** @type {(value: StringMap<Unknown>, k: string) => Unknown} */
+    (value, k) => value[k],
+    () => true,
+)
 
 /** @type {(rules: RuleSet) => (u: UnionSet) => (value: Unknown) => ResultE} */
 const unionValidate = rules => u => value => {
