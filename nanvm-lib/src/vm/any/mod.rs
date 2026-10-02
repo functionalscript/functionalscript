@@ -81,6 +81,18 @@ impl<A: IVm> Any<A> {
         self.to_number().map(ToAny::to_any)
     }
 
+    /// `Number(value)`: `ToNumeric` of the value, a bigint converted to the
+    /// nearest number and anything else as `unary_plus` has it. They differ in
+    /// the bigint alone: `+1n` throws, `Number(1n)` is `1`.
+    /// <https://tc39.es/ecma262/#sec-number-constructor-number-value>
+    pub fn number(self) -> Result<Any<A>, Any<A>> {
+        Ok(match self.to_numeric()? {
+            Numeric::Number(n) => n,
+            Numeric::BigInt(b) => b.to_number(),
+        }
+        .to_any())
+    }
+
     /// `**`. Not a `core::ops` trait — Rust has no operator for
     /// exponentiation, so this is a plain method, the same as `unary_plus`.
     pub fn pow(self, rhs: Self) -> Result<Self, Self> {

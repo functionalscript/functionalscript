@@ -878,12 +878,28 @@ export const proof = {
             'Any::dot(Object::default().to_any(), string_any_utf16(&[0xd800])).end()')
         assertEq(printed('\u{1F600}'), 'string_any("\u{1F600}")')
     },
+    /** `Number` and `is` print as their `nanvm-lib` calls, over any operand. */
+    numberCastAndIs: () => {
+        assertEq(printed(['Number', 1n]), 'Any::number(bigint_any(1))')
+        assertEq(printed(['is', 1, 2]), 'object_is(f64_any(0x3ff0000000000000), f64_any(0x4000000000000000))')
+        assertStructurallySame(
+            scoped(['is', ['Number', 'a'], ['Number', 'b']]),
+            [
+                'let c0: Any<A> = (Any::number(string_any("a")))?;',
+                'let c1: Any<A> = (Any::number(string_any("b")))?;',
+                'object_is(c0, c1)',
+            ])
+    },
+    /** An operation tag the printer has no `nanvm-lib` spelling for is a refusal. */
+    unknownOperation: () => {
+        assertStructurallySame(
+            refusalReason(/** @type {Exp} */ (/** @type {unknown} */ (['==', 1, 2]))),
+            ['no Rust for', '=='])
+    },
     literalRefusals: () => {
         assertStructurallySame(refusalReason(2n ** 63n), ['no Rust i64 for', 2n ** 63n])
     },
     throw: {
-        /** An operation the printer has no `nanvm-lib` spelling for. */
-        unknownOperation: () => printed(['is', 1, 2]),
         /** A bigint no `i64` can hold. */
         bigintOutOfRange: () => printed(-(2n ** 63n) - 1n),
         /** An object key the printer cannot spell. */

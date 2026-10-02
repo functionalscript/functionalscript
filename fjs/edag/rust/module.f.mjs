@@ -42,6 +42,7 @@ export const op1Rust = {
     '~': a => `Any::bitwise_not(${a})`,
     typeof: a => `Any::typeof_(${a})`,
     String: a => `${a}.to_string().map(|v| v.to_any())`,
+    Number: a => `Any::number(${a})`,
     // The `Result` every operation answers, its `Err` arm: the thrown value
     // is the operand, and the enclosing `?` or function carries it out.
     throw: a => `Err(${a})`,
@@ -102,6 +103,10 @@ export const op2Rust = {
     // operator returns.
     '===': (a, b) => `strict_eq(${a}, ${b})`,
     '!==': (a, b) => `strict_ne(${a}, ${b})`,
+    // `Object.is` is `SameValue`, which no Rust operator spells; like `===`
+    // its `Any::same_value` answers a `bool`, and `object_is` lifts it into
+    // the `Result` every operator returns.
+    is: (a, b) => `object_is(${a}, ${b})`,
 }
 
 /**

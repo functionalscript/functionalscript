@@ -94,6 +94,8 @@ const js = {
     typeof: a => typeof a,
     throw: a => { throw a },
     String: a => String(a),
+    Number: a => Number(a),
+    is: (a, b) => Object.is(a, b),
     '*': (a, b) => a * b,
     '/': (a, b) => a / b,
     '**': (a, b) => a ** b,
@@ -567,7 +569,7 @@ const jsOnly = {
         unreachedShared: () => sharedExp({ boom: unreached }),
         nestedUnreachedShared: () => sharedExp({ holder: [1, { boom: unreached }] }),
         /** An operation the corpus does not exercise has no JavaScript here. */
-        unusedOperation: () => reference('Number'),
+        unusedOperation: () => reference('Date'),
         /**
          * A count the operation does not take. `Case<N>` cannot carry one,
          * but `caseExp` is exported and its `args` are a plain array, so the

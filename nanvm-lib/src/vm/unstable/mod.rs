@@ -50,6 +50,12 @@ pub fn strict_ne<A: IVm>(a: Any<A>, b: Any<A>) -> Result<Any<A>, Any<A>> {
     Ok((a != b).to_any())
 }
 
+/// `Object.is` as an operator result: [`Any::same_value`], lifted into the
+/// `Result` every other operator returns, as [`strict_eq`] lifts `===`.
+pub fn object_is<A: IVm>(a: Any<A>, b: Any<A>) -> Result<Any<A>, Any<A>> {
+    Ok(a.same_value(&b).to_any())
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -93,6 +99,19 @@ mod test {
         assert_eq!(strict_eq(nan(), nan()), Ok(false.to_any()));
         assert_eq!(strict_ne(nan(), nan()), Ok(true.to_any()));
         assert_eq!(strict_eq(one(), string_any("1")), Ok(false.to_any()));
+    }
+
+    /// `Object.is` tells `NaN` from itself no more than `===` does not, and `0`
+    /// from `-0`.
+    #[test]
+    fn same_value_equality() {
+        let nan = || f64_any::<Naive>(0x7ff8000000000000);
+        let zero = || f64_any::<Naive>(0);
+        let negative_zero = || f64_any::<Naive>(0x8000000000000000);
+        assert_eq!(object_is(nan(), nan()), Ok(true.to_any()));
+        assert_eq!(object_is(zero(), negative_zero()), Ok(false.to_any()));
+        assert_eq!(object_is(zero(), zero()), Ok(true.to_any()));
+        assert_eq!(object_is(zero(), string_any("0")), Ok(false.to_any()));
     }
 
     /// A string of code units holds what no `&str` can, a lone surrogate,

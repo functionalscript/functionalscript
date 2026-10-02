@@ -1,7 +1,7 @@
 ## number-cast. The EDAG's `Number` cast has no VM operation
 
 **Priority:** P2
-**Status:** wip
+**Status:** open
 
 ### Problem
 
@@ -37,12 +37,15 @@ two apart.
 
 ### Tasks
 
-- [ ] `BigInt` to `f64`, rounding to nearest even, with `Infinity` past the
+- [x] `BigInt` to `f64`, rounding to nearest even, with `Infinity` past the
       range; Rust tests at the `2^53` boundary, a tie, and a value of several
       words.
-- [ ] `Any::number`, with Rust tests.
-- [ ] `op1Rust` spells `Number`; corpus group `numberCast`, run on the host
+- [x] `Any::number`, covered by the corpus group below.
+- [x] `op1Rust` spells `Number`; corpus group `Number`, run on the host
       engine and as generated Rust.
+- [ ] Corpus rows past `i64`, which wait for
+      `bigint-literal-beyond-i64`: a tie past `2^64`, several words, the
+      largest number, and the bigints that are `Infinity`.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%, `npm run gen`, `cargo test`,
       `cargo clippy`, `cargo fmt -- --check`.
 

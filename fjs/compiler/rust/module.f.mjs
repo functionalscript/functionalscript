@@ -42,6 +42,7 @@ import { withoutStringLiterals } from '../../media/rust/module.f.mjs'
 const helperCatalog = [
     ['bigint_any(', 'bigint_any'],
     ['f64_any(', 'f64_any'],
+    ['object_is(', 'object_is'],
     ['strict_eq(', 'strict_eq'],
     ['strict_ne(', 'strict_ne'],
     ['string_any(', 'string_any'],
