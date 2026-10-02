@@ -859,52 +859,57 @@ export const proof = {
     // `fjs/ci/package/proof.f.mjs`; what only the assembled job can show is
     // the order its steps need and that nothing hands the tarball across jobs.
     packageCheck: () => {
-        const gha = run(false)
-        const job = gha.jobs[packageJobId]
-        assert(job !== undefined, 'expected the canonical Node job')
-        assertEq(packageJobId, `node${major(node.default)}`)
-        /** @type {(f: (step: Step) => boolean) => number} */
-        const at = f => job.steps.findIndex(f)
-        const made = at(step => step.run === `mkdir ${consumerDirectory}`)
-        const packed = at(step => step.run === nixDevelop(nixShell, `npm pack --pack-destination ${consumerDirectory}`))
-        const drift = at(step => step.run === 'git add -A && git diff --cached --exit-code')
-        const setup = at(step => step.uses === `actions/setup-node@${actions['actions/setup-node']}`)
-        assert(made !== -1 && packed !== -1 && drift !== -1 && setup !== -1, 'expected the directory made, the tarball packed into it, the drift check and the consumer\'s Node')
-        // The directory exists before `npm pack` writes into it, which it
-        // refuses to do otherwise; and the drift check, the last word on the
-        // tree, comes before every step of the check — which all start
-        // outside the tree, after the one that puts a consumer's Node on
-        // `PATH`.
-        assert(made < packed && packed < drift && drift < setup, 'expected mkdir, pack, drift check, then the check')
-        const check = job.steps.slice(setup + 1)
-        assert(check.length !== 0, 'expected the check after its Node')
-        for (const step of check) {
-            assert(step['working-directory'] !== undefined, `expected the consumer directory: ${step.run}`)
+        // Both shapes: the built-in generator's check, which names no
+        // consumer, and the one this repository ships, which does.
+        const [own, ownResult] = virtual(makeState(false, runPackageJson))(ownMain())
+        assertEq(exitCode(ownResult), 0)
+        for (const gha of [run(false), workflow(own)]) {
+            const job = gha.jobs[packageJobId]
+            assert(job !== undefined, 'expected the canonical Node job')
+            assertEq(packageJobId, `node${major(node.default)}`)
+            /** @type {(f: (step: Step) => boolean) => number} */
+            const at = f => job.steps.findIndex(f)
+            const made = at(step => step.run === `mkdir ${consumerDirectory}`)
+            const packed = at(step => step.run === nixDevelop(nixShell, `npm pack --pack-destination ${consumerDirectory}`))
+            const drift = at(step => step.run === 'git add -A && git diff --cached --exit-code')
+            const setup = at(step => step.uses === `actions/setup-node@${actions['actions/setup-node']}`)
+            assert(made !== -1 && packed !== -1 && drift !== -1 && setup !== -1, 'expected the directory made, the tarball packed into it, the drift check and the consumer\'s Node')
+            // The directory exists before `npm pack` writes into it, which it
+            // refuses to do otherwise; and the drift check, the last word on
+            // the tree, comes before every step of the check — which all
+            // start outside the tree, after the one that puts a consumer's
+            // Node on `PATH`.
+            assert(made < packed && packed < drift && drift < setup, 'expected mkdir, pack, drift check, then the check')
+            const check = job.steps.slice(setup + 1)
+            assert(check.length !== 0, 'expected the check after its Node')
+            for (const step of check) {
+                assert(step['working-directory'] !== undefined, `expected the consumer directory: ${step.run}`)
+            }
+            // Nothing before the check starts outside the checkout.
+            assert(
+                job.steps.slice(0, setup).every(step => step['working-directory'] === undefined),
+                'unexpected working-directory before the check')
+            // The compiler is the CI configuration's — the same version the
+            // shell provides, so the declarations in the tarball are read by
+            // the compiler that emitted them. Its exactness is proved next to
+            // the module, in `fjs/ci/package/proof.f.mjs`.
+            assert(
+                check.some(step => step.run?.includes(`"typescript@${typescript.version}"`) === true),
+                'expected the configured compiler installed')
+            // No artifact: the tarball never leaves the job that packed it.
+            assert(
+                !definedValues(gha.jobs).some(j => j.steps.some(step =>
+                    step.uses?.startsWith('actions/upload-artifact@') === true
+                    || step.uses?.startsWith('actions/download-artifact@') === true)),
+                'unexpected artifact hand-off')
         }
-        // Nothing before the check starts outside the checkout.
-        assert(
-            job.steps.slice(0, setup).every(step => step['working-directory'] === undefined),
-            'unexpected working-directory before the check')
-        // The compiler is the CI configuration's — the same version the shell
-        // provides, so the declarations in the tarball are read by the
-        // compiler that emitted them. Its exactness is proved next to the
-        // module, in `fjs/ci/package/proof.f.mjs`.
-        assert(
-            check.some(step => step.run?.includes(`"typescript@${typescript.version}"`) === true),
-            'expected the configured compiler installed')
-        // No artifact: the tarball never leaves the job that packed it.
-        assert(
-            !definedValues(gha.jobs).some(j => j.steps.some(step =>
-                step.uses?.startsWith('actions/upload-artifact@') === true
-                || step.uses?.startsWith('actions/download-artifact@') === true)),
-            'unexpected artifact hand-off')
     },
-    // The consumer half of the job is the caller's, through `Setup`: a project
-    // that names none gets the declaration check alone, since the generator
-    // cannot know what another package publishes. The built-in `fjs ci` is
-    // that generator, so its `main` names none; this repository's own
-    // generation, `./self`, names its module. Proved on the assembled
-    // workflow, because the wiring from `Setup` to the job is what only the
+    // The consumer half of the check is the caller's, through `Setup`: a
+    // project that names none gets the declaration check alone, since the
+    // generator cannot know what another package publishes. The built-in
+    // `fjs ci` is that generator, so its `main` names none; this repository's
+    // own generation, `./self`, names its module. Proved on the assembled
+    // workflow, because the wiring from `Setup` to `node26` is what only the
     // assembly shows.
     packageConsumerIsTheCallersToName: () => {
         /** @type {(job: Job | undefined) => boolean} */
@@ -920,12 +925,13 @@ export const proof = {
         assertEq(exitCode(ownResult), 0)
         assert(hasConsumer(workflow(own).jobs[packageJobId]), 'expected this repository\'s own generation to name its consumer')
     },
-    // The job used to appear only when the project's `package.json` pinned an
-    // exact compiler, and it is now generated for every project — there is no
-    // longer anything about the project for it to depend on. So the shapes that
-    // once removed it must not: a `package.json` that is missing, unparseable,
-    // or says nothing about TypeScript still gets the packed-package check,
-    // because the compiler no longer comes from there.
+    // The check used to appear, as a job of its own, only when the project's
+    // `package.json` pinned an exact compiler, and it is now generated for
+    // every project — there is no longer anything about the project for it to
+    // depend on. So the shapes that once removed it must not: a `package.json`
+    // that is missing, unparseable, or says nothing about TypeScript still
+    // gets the packed-package check, because the compiler no longer comes
+    // from there.
     //
     // This also covers a thing the generator stopped doing at all: reading
     // `package.json`. Every entry below would have failed that read or the

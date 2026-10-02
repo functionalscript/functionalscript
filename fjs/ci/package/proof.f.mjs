@@ -55,6 +55,10 @@ export const proof = {
     consumerToolchain: () => {
         assertEq(steps[0]?.uses, `actions/setup-node@${actions['actions/setup-node']}`)
         assertEq(steps[0]?.with?.['node-version'], node.default)
+        // The action reads the checkout's `package.json` to decide whether to
+        // restore an npm cache; off, so the consumer's setup cannot depend on
+        // the repository.
+        assertEq(steps[0]?.with?.['package-manager-cache'], 'false')
         assert(
             !steps.some(step => step.run?.startsWith(`sh ./${generatedDirectory}/`) === true),
             'the package check must not enter a flake')
@@ -162,7 +166,7 @@ export const proof = {
         // command line beside one (`TS5112`) unless told to ignore it. Both
         // consumer compiles say so; the first CI run of this check failed
         // without it.
-        ignoresTheJobConfig: () => {
+        ignoresTheCheckConfig: () => {
             for (const step of steps) {
                 if (step.run?.includes('tsc ') === true && step.run.includes('.mts')) {
                     assert(step.run.includes(' --ignoreConfig '), `expected --ignoreConfig: ${step.run}`)

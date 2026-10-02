@@ -52,7 +52,7 @@ const alias = /** @type {const} */ ('packed')
  * ever serialised: a space or a quote in a directory name is a JSON string
  * here and a filename to `tsc`, with nothing in between to get it wrong. An
  * empty match is `TS18003`, which names the pattern that found nothing —
- * "checked nothing and passed" is the failure this job most needs to be
+ * "checked nothing and passed" is the failure this check most needs to be
  * legible about.
  *
  * An earlier revision walked the tree with `find`, guarded the result with
@@ -86,7 +86,7 @@ const alias = /** @type {const} */ ('packed')
  * `exclude` is emptied because the default excludes `node_modules`, which is
  * the only place the artifact exists. `skipLibCheck` is stated rather than
  * left at its default: it is the one option whose flip would stop `tsc`
- * opening these declarations at all, and the job would still pass.
+ * opening these declarations at all, and the check would still pass.
  */
 const tsconfig = /** @type {const} */ ({
     include: [
@@ -154,11 +154,11 @@ const badConsumer = consumer => [
 ].join('\n')
 
 /**
- * The compiler over one consumer file: flags rather than the job's
+ * The compiler over one consumer file: flags rather than the check's
  * `tsconfig.json`, whose `include` is the package tree. That file is still
  * in the directory, and TypeScript 7 refuses files on the command line while
  * one is present (`TS5112`) unless told to ignore it, so `--ignoreConfig`
- * says so; the first run of this job in CI failed on exactly that, where a
+ * says so; the first CI run of this check failed on exactly that, where a
  * dry run in a directory without the file had passed. `nodenext` is the
  * resolution a Node consumer gets, and `strict` is what makes a declaration
  * that failed to resolve an error rather than an `any`.
@@ -216,8 +216,8 @@ const declarationCommands = [
  * would have failed `good.mts` first, so the one way left for `bad.mts` to
  * fail is the type it names refusing the value.
  *
- * It is the caller's to supply, through `Setup`: `fjs ci` generates this job
- * for any project, and the generator cannot know what another package
+ * It is the caller's to supply, through `Setup`: `fjs ci` generates this
+ * check for any project, and the generator cannot know what another package
  * publishes, so a project that names no consumer gets the declaration check
  * alone — what every project got before the consumer half existed — rather
  * than a `TS2307` for a module its tarball never held.
@@ -254,7 +254,11 @@ const consumerCommands = consumer => [
  *   so there is no `tsconfig.json` to inherit, no `node_modules` for Node or
  *   `tsc` to resolve into, and no source file that could stand in for a
  *   declaration the tarball omits. Both resolve by walking up from the file
- *   that imports, and the walk never reaches the checkout.
+ *   that imports, and the walk never reaches the checkout. It does cross the
+ *   temporary directory itself, which `install-nix-action` also exports as
+ *   every later step's `TMPDIR`; so this rests on nothing writing a
+ *   `package.json`, `node_modules` or `tsconfig.json` at its root, where
+ *   temporary files are directories of their own.
  * - **Nothing but the tarball in it.** The job makes it with a `mkdir` that
  *   fails if it already exists, and `npm pack` writes the tarball into it.
  * - **No repository toolchain on `PATH`.** No step here enters the flake: each
@@ -271,7 +275,10 @@ const consumerCommands = consumer => [
  * @type {(consumer: PackageConsumer | undefined) => readonly Step[]}
  */
 export const packageCheckSteps = consumer => [
-    uses('actions/setup-node', { 'node-version': node.default }),
+    // `setup-node` reads the checkout's `package.json` to decide whether to
+    // restore an npm cache, so caching is off: a consumer's Node must not
+    // depend on the repository it consumes.
+    uses('actions/setup-node', { 'node-version': node.default, 'package-manager-cache': 'false' }),
     ...[...declarationCommands, ...(consumer === undefined ? [] : consumerCommands(consumer))]
         .map(run => ({ run, 'working-directory': consumerWorkingDirectory })),
 ]
