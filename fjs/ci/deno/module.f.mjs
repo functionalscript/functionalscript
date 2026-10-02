@@ -44,10 +44,10 @@ const denoVersionStep = nixVersionStep(
  * smoke test. Those checked a **published release** — not the commit under
  * review — so they could only fail when an already-shipped CLI stopped working
  * against these proofs, while a regression in the CLI this commit builds stayed
- * invisible until after it shipped. Checking the built package belongs to the
- * `package-check` family, which already downloads the `npm pack` artifact;
- * `../todo/built-package-checks.md` owns that move. The `bun` job and Node 22
- * lost the same pair for the same reason.
+ * invisible until after it shipped. Checking the built package belongs with
+ * the packed-package check in `../package/module.f.mjs`, on a tarball this
+ * commit packs; `../todo/built-package-checks.md` owns that move. The `bun` job
+ * and Node 22 lost the same pair for the same reason.
  *
  * `--minimum-dependency-age=0` went with them. It existed to let a registry
  * install take a package younger than Deno's 24-hour default, and nothing here

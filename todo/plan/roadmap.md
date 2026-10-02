@@ -146,8 +146,8 @@ coverage. Its stage-1 issue is complete and deleted; the contract it left is
    `.f.js`. The first renames have landed —
    [`fjs-nanvm-integration.md`](../fjs-nanvm-integration.md) performs them — on
    two checks that run in CI: `fjs compile` with no arguments holds every
-   `.f.js` to the compiler, and `package-check`
-   ([`fjs/ci/package`](../../fjs/ci/package/module.f.mjs)) imports a published
+   `.f.js` to the compiler, and the packed-package check closing the `node26`
+   job ([`fjs/ci/package`](../../fjs/ci/package/module.f.mjs)) imports a published
    `.f.js` from a clean consumer of the packed package, so a standalone `.f.js`
    is type-checked, gets a `.d.ts`, is packed, and resolves. The
    boundary the rename must respect is in
@@ -199,7 +199,7 @@ Prerequisite: compiler + CA FunctionalScript complete.
 | SUL deduplication | `fjs/sul/` L1–L4 ✓ | CAS integration layer |
 | Compiler (parsing) | `fjs/compiler/` pipeline with functions ✓, FJS grammar on `fjs/ebnf/` ✓ | Language spec generated from the grammar |
 | Compiler (codegen) | Rust code generator (`fjs compile … .rs`) ✓ | AOT-compile the FJS loader/interpreter for native self-hosting; Rust EDAG deferred |
-| Compiler (repository coverage) | Stage-1 `.f.mjs` source migration complete and compiler-independent ✓; authored-`.f.js` package support, `package-check` importing a published `.f.js` from a clean consumer ✓; every module the compiler accepted whole renamed `.f.mjs` → `.f.js`, held by `fjs compile` with no arguments ✓ | Rename further groups as compiler support grows |
+| Compiler (repository coverage) | Stage-1 `.f.mjs` source migration complete and compiler-independent ✓; authored-`.f.js` package support, the packed-package check importing a published `.f.js` from a clean consumer ✓; every module the compiler accepted whole renamed `.f.mjs` → `.f.js`, held by `fjs compile` with no arguments ✓ | Rename further groups as compiler support grows |
 | CA FunctionalScript | — | Depends on VM + EDAG canonicalization |
 | Sandboxed execution | — | Depends on CA FJS |
 | Hybrid intelligence | — | Depends on all above |

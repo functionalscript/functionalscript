@@ -65,27 +65,23 @@ export const functionPrototype = /** @type {const} */ ([
     'apply', 'arguments', 'bind', 'call', 'caller', 'constructor', 'length', 'name', 'toString',
 ])
 
+/** The seven lists in declaration order, a name shared by two lists once per list. */
+const lists = [
+    objectPrototype, arrayPrototype, stringPrototype, numberPrototype, booleanPrototype,
+    bigintPrototype, functionPrototype,
+].flat()
+
 /**
  * Every name a built-in prototype gives a value, sorted by code unit — the
- * union of the seven lists above, each name once. The proof verifies this
- * list is exactly that union, at runtime and at the type level.
+ * union of the seven lists above, each name once.
+ *
+ * Derived from the lists, so a new name is added to its prototype's list
+ * alone. The lists share names, `constructor` and `toString` among them,
+ * so the sorted union drops each name equal to the one before it.
+ *
+ * @type {readonly (typeof lists)[number][]}
  */
-export const prototypeNames = /** @type {const} */ ([
-    '__defineGetter__', '__defineSetter__', '__lookupGetter__', '__lookupSetter__', '__proto__',
-    'anchor', 'apply', 'arguments', 'at', 'big', 'bind', 'blink', 'bold', 'call', 'caller',
-    'charAt', 'charCodeAt', 'codePointAt', 'concat', 'constructor', 'copyWithin', 'endsWith',
-    'entries', 'every', 'fill', 'filter', 'find', 'findIndex', 'findLast', 'findLastIndex',
-    'fixed', 'flat', 'flatMap', 'fontcolor', 'fontsize', 'forEach', 'hasOwnProperty', 'includes',
-    'indexOf', 'isPrototypeOf', 'isWellFormed', 'italics', 'join', 'keys', 'lastIndexOf',
-    'length', 'link', 'localeCompare', 'map', 'match', 'matchAll', 'name', 'normalize',
-    'padEnd', 'padStart', 'pop', 'propertyIsEnumerable', 'push', 'reduce', 'reduceRight',
-    'repeat', 'replace', 'replaceAll', 'reverse', 'search', 'shift', 'slice', 'small', 'some',
-    'sort', 'splice', 'split', 'startsWith', 'strike', 'sub', 'substr', 'substring', 'sup',
-    'toExponential', 'toFixed', 'toLocaleLowerCase', 'toLocaleString', 'toLocaleUpperCase',
-    'toLowerCase', 'toPrecision', 'toReversed', 'toSorted', 'toSpliced', 'toString',
-    'toUpperCase', 'toWellFormed', 'trim', 'trimEnd', 'trimLeft', 'trimRight', 'trimStart',
-    'unshift', 'valueOf', 'values', 'with',
-])
+export const prototypeNames = lists.toSorted().filter((name, i, sorted) => i === 0 || sorted.at(i - 1) !== name)
 
 /**
  * The names of {@link prototypeNames} a module may not *call* as a member
