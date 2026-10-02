@@ -57,10 +57,48 @@ additional operation for callbacks, generic relationships or runtime handles
 before including it in schema generation. Native declaration and dispatch
 details remain implementation work under this contract.
 
+### Audit
+
+Every member of `NodeOp` ([`fjs/effects/node/types.ts`](../fjs/effects/node/types.ts))
+against the RTTI vocabulary ([`fjs/rtti`](../fjs/rtti/README.md)). Three facts
+settle most rows. A result is a `Result`, which RTTI spells as the tuple union
+`['ok', T] | ['error', E]`; the error channels, `IoChannel` and
+`NotImplemented`, are tuples of a tag and a `string` or a struct of strings, so
+they are data too. `Vec` is a nominal `bigint`, which RTTI has. A trailing
+optional parameter (`mkdir`'s `options?`, `exec`'s `stdin?`) is a tuple element
+`or(option, t)`, which the schema already admits as absent.
+
+| Class | Operations | Why |
+| --- | --- | --- |
+| **Generated** (data in, data out), compiled CLI | `readFile`, `writeFile`, `writeBytes`, `mkdir`, `readdir`, `resolveFileModule`, `rm`, `write` (`stdout`/`stderr`), `read` (`stdin`) | every parameter and result is a `string`, `number`, `boolean`, `null`, `Vec`, a struct of those (`Dirent`, `FileModule`, `MakeDirectoryOptions`, `ReaddirOptions`) or an array of them. `compile`'s `_CompileOp` is the first eight plus `all`; `read` is the console input this todo's subset names. |
+| **Generated**, outside the compiled CLI | `rmdir`, `rename`, `readBytes`, `readWhole`, `access`, `stat`, `createExclusive`, `writeExclusive`, `exec`, `inflate`, `now`, `randomInt` | the same shapes (`readWhole` and `writeExclusive` carry `readonly Vec[]`). Generated with the first group only when something the CLI or a proof fixture runs needs them; the stub is cheap to extend, an unimplemented trait method is not. |
+| **Handwritten**: callbacks or generic values | `sandbox`, `catch` | a thunk in, an arbitrary VM value or throw out, as [Schema boundary](#schema-boundary) says. `catch` has the same shape as `sandbox` without the duration and goes with it. |
+| **Handwritten**: effects or arbitrary values as data | `all`, `memCreate`, `memRead`, `memWrite` | `all` takes effects, which are thunks and `Do` nodes; the memory operations store and return any value (`<T>`), functions included. `unknown` would exclude exactly the values they exist to hold. |
+| **Handwritten**: modules | `import` | `Module` is `StringMap<unknown>`, the exports of an evaluated module, functions among them. This workflow does not use it: the FJS loader replaces it. |
+| **Deferred**: opaque host handles | `open`, `fstat`, `pread`, `close` | a `Handle` is `Nominal<..., unknown>`, minted by the runner and never inspected by the program. RTTI has no opaque-handle schema; the native runner would mint an index. Nothing in the CLI opens a file this way. |
+| **Deferred**: async, servers, tests | `fetch`, `await`, `createServer`, `listen`, `readRequestBytes`, `forever`, `test` | asynchronous (the runtime decision is deferred), or carrying a callback (`createServer`'s listener, `test`'s body and context), or a `never` result RTTI has no spelling for (`forever`). |
+
+What follows for the tasks below:
+
+- The first generated trait is nine methods, the console and file operations the subset above names. Extending the
+  second group is one schema entry each; nothing about the generation changes.
+- Three things in the vocabulary are not yet RTTI-expressible without a new
+  schema, each a decision for the generation task, not an assumption: the
+  `Vec` nominal (a `bigint` with a brand, so the Rust type is the VM's bit
+  vector, not a bare integer), the `Result` union (a Rust `Result<T, E>` over a
+  tagged-tuple error), and the `read` result `number | null`
+  (an `Option<u8>`).
+- The handwritten set is `sandbox`, `catch`, `all`, `memCreate`, `memRead` and
+  `memWrite` for this workflow. The conformance tests must name each, since the
+  generated trait checks none of them.
+
 ### Tasks
 
-- [ ] Audit the supported subset for RTTI representability, then generate TS
-      declarations and the Rust stub for the representable operations. Account
+- [x] Audit the supported subset for RTTI representability ([Audit](#audit)):
+      nine generated operations for the compiled CLI, six handwritten, the
+      rest deferred or outside the workflow.
+- [ ] Generate the TS declarations and the Rust stub for the representable
+      operations, starting with the nine of the compiled CLI. Account
       explicitly for handwritten and unsupported operations.
 - [ ] Add the handwritten native `sandbox` declaration and compose its dispatch
       with the generated subset, preserving the existing TypeScript signature.
