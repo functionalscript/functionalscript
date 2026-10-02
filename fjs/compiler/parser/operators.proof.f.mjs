@@ -25,21 +25,21 @@ export const proof = {
                 assert(tag === 'ok', value)
                 assertEq(stringifyDjsModule(value), ast)
             }
-            expect('export default -1;', '[[],[["object",[["default",["-",1]]]]]]')
-            expect('export default -1n;', '[[],[["object",[["default",["-",1n]]]]]]')
-            expect('export default -0;', '[[],[["object",[["default",["-",0]]]]]]')
-            expect('export default -Infinity;', '[[],[["object",[["default",["-",Infinity]]]]]]')
+            expect('export default -1;', '[[],[["object",[[":","default",["-",1]]]]]]')
+            expect('export default -1n;', '[[],[["object",[[":","default",["-",1n]]]]]]')
+            expect('export default -0;', '[[],[["object",[[":","default",["-",0]]]]]]')
+            expect('export default -Infinity;', '[[],[["object",[[":","default",["-",Infinity]]]]]]')
             // `-NaN` is a value in JavaScript and is one here, where the
             // fold made it an error token
-            expect('export default -NaN;', '[[],[["object",[["default",["-",NaN]]]]]]')
-            expect('export default -"2";', '[[],[["object",[["default",["-","2"]]]]]]')
-            expect('export default -[1];', '[[],[["object",[["default",["-",["array",[1]]]]]]]]')
-            expect('export default -{a:1};', '[[],[["object",[["default",["-",["object",[["a",1]]]]]]]]]')
+            expect('export default -NaN;', '[[],[["object",[[":","default",["-",NaN]]]]]]')
+            expect('export default -"2";', '[[],[["object",[[":","default",["-","2"]]]]]]')
+            expect('export default -[1];', '[[],[["object",[[":","default",["-",["array",[1]]]]]]]]')
+            expect('export default -{a:1};', '[[],[["object",[[":","default",["-",["object",[[":","a",1]]]]]]]]]')
             // right-recursive, so a negation takes a negation
-            expect('export default - -1;', '[[],[["object",[["default",["-",["-",1]]]]]]]')
-            expect('export default - - -1;', '[[],[["object",[["default",["-",["-",["-",1]]]]]]]]')
+            expect('export default - -1;', '[[],[["object",[[":","default",["-",["-",1]]]]]]]')
+            expect('export default - - -1;', '[[],[["object",[[":","default",["-",["-",["-",1]]]]]]]]')
             // and inside a body, where the prefix is the body's own value
-            expect('export default (...a) => -a[0];', '[[],[["object",[["default",["=>",0,[["-",[".",["rest"],0]]]]]]]]]')
+            expect('export default (...a) => -a[0];', '[[],[["object",[[":","default",["=>",0,[["-",[".",["rest"],0]]]]]]]]]')
         },
         refused: () => {
             /** @type {(source: string, column: number) => void} */
@@ -86,43 +86,43 @@ export const proof = {
                 assertEq(stringifyDjsModule(value), ast)
             }
             // arithmetic, left-associative, and its own precedence within
-            expect('export default 1 + 2 * 3;', '[[],[["object",[["default",["+",1,["*",2,3]]]]]]]')
-            expect('export default 1 * 2 + 3;', '[[],[["object",[["default",["+",["*",1,2],3]]]]]]')
-            expect('export default 5 - 2 - 1;', '[[],[["object",[["default",["-",["-",5,2],1]]]]]]')
-            expect('export default 6 / 4 / 2;', '[[],[["object",[["default",["/",["/",6,4],2]]]]]]')
-            expect('export default 6 % 4 % 3;', '[[],[["object",[["default",["%",["%",6,4],3]]]]]]')
+            expect('export default 1 + 2 * 3;', '[[],[["object",[[":","default",["+",1,["*",2,3]]]]]]]')
+            expect('export default 1 * 2 + 3;', '[[],[["object",[[":","default",["+",["*",1,2],3]]]]]]')
+            expect('export default 5 - 2 - 1;', '[[],[["object",[[":","default",["-",["-",5,2],1]]]]]]')
+            expect('export default 6 / 4 / 2;', '[[],[["object",[[":","default",["/",["/",6,4],2]]]]]]')
+            expect('export default 6 % 4 % 3;', '[[],[["object",[[":","default",["%",["%",6,4],3]]]]]]')
             // `**` right-associative, and above it in precedence
-            expect('export default 2 ** 3 ** 2;', '[[],[["object",[["default",["**",2,["**",3,2]]]]]]]')
+            expect('export default 2 ** 3 ** 2;', '[[],[["object",[[":","default",["**",2,["**",3,2]]]]]]]')
             // `**`'s own right operand reaches back into a full `unary`, so
             // a `-`/`~` stands there without parentheses, as it does in
             // JavaScript
-            expect('export default 2 ** -2;', '[[],[["object",[["default",["**",2,["-",2]]]]]]]')
-            expect('export default 2 ** ~2;', '[[],[["object",[["default",["**",2,["~",2]]]]]]]')
-            expect('export default 2 ** - -2;', '[[],[["object",[["default",["**",2,["-",["-",2]]]]]]]]')
+            expect('export default 2 ** -2;', '[[],[["object",[[":","default",["**",2,["-",2]]]]]]]')
+            expect('export default 2 ** ~2;', '[[],[["object",[[":","default",["**",2,["~",2]]]]]]]')
+            expect('export default 2 ** - -2;', '[[],[["object",[[":","default",["**",2,["-",["-",2]]]]]]]]')
             // parentheses are the only way to raise a negation to a power,
             // or to negate one, matching JavaScript exactly
-            expect('export default (-2) ** 2;', '[[],[["object",[["default",["**",["-",2],2]]]]]]')
-            expect('export default -(2 ** 2);', '[[],[["object",[["default",["-",["**",2,2]]]]]]]')
-            expect('export default ~1 & 2;', '[[],[["object",[["default",["&",["~",1],2]]]]]]')
+            expect('export default (-2) ** 2;', '[[],[["object",[[":","default",["**",["-",2],2]]]]]]')
+            expect('export default -(2 ** 2);', '[[],[["object",[[":","default",["-",["**",2,2]]]]]]]')
+            expect('export default ~1 & 2;', '[[],[["object",[[":","default",["&",["~",1],2]]]]]]')
             // strict comparison and bitwise, in JavaScript's own precedence
-            expect('export default 1 + 2 < 3 * 4;', '[[],[["object",[["default",["<",["+",1,2],["*",3,4]]]]]]]')
-            expect('export default 1 <= 2 >= 1;', '[[],[["object",[["default",[">=",["<=",1,2],1]]]]]]')
-            expect('export default 2 > 1;', '[[],[["object",[["default",[">",2,1]]]]]]')
-            expect('export default 1 < 2 === 3 < 4;', '[[],[["object",[["default",["===",["<",1,2],["<",3,4]]]]]]]')
-            expect('export default 1 !== 2 === (3 !== 4);', '[[],[["object",[["default",["===",["!==",1,2],["!==",3,4]]]]]]]')
-            expect('export default 1 << 2 + 3;', '[[],[["object",[["default",["<<",1,["+",2,3]]]]]]]')
-            expect('export default 256 >> 4 >> 1;', '[[],[["object",[["default",[">>",[">>",256,4],1]]]]]]')
-            expect('export default -1 >>> 16 >>> 8;', '[[],[["object",[["default",[">>>",[">>>",["-",1],16],8]]]]]]')
-            expect('export default 1 & 2 | 3 ^ 4;', '[[],[["object",[["default",["|",["&",1,2],["^",3,4]]]]]]]')
+            expect('export default 1 + 2 < 3 * 4;', '[[],[["object",[[":","default",["<",["+",1,2],["*",3,4]]]]]]]')
+            expect('export default 1 <= 2 >= 1;', '[[],[["object",[[":","default",[">=",["<=",1,2],1]]]]]]')
+            expect('export default 2 > 1;', '[[],[["object",[[":","default",[">",2,1]]]]]]')
+            expect('export default 1 < 2 === 3 < 4;', '[[],[["object",[[":","default",["===",["<",1,2],["<",3,4]]]]]]]')
+            expect('export default 1 !== 2 === (3 !== 4);', '[[],[["object",[[":","default",["===",["!==",1,2],["!==",3,4]]]]]]]')
+            expect('export default 1 << 2 + 3;', '[[],[["object",[[":","default",["<<",1,["+",2,3]]]]]]]')
+            expect('export default 256 >> 4 >> 1;', '[[],[["object",[[":","default",[">>",[">>",256,4],1]]]]]]')
+            expect('export default -1 >>> 16 >>> 8;', '[[],[["object",[[":","default",[">>>",[">>>",["-",1],16],8]]]]]]')
+            expect('export default 1 & 2 | 3 ^ 4;', '[[],[["object",[[":","default",["|",["&",1,2],["^",3,4]]]]]]]')
             // a group as an operand, and steps/power bound tighter than a layer
-            expect('export default (1 + 2) * 3;', '[[],[["object",[["default",["*",["+",1,2],3]]]]]]')
-            expect('const a = [1]; export default a[0] * 2;', '[[],[["array",[1]],["object",[["default",["*",[".",["cref",0],0],2]]]]]]')
-            expect('export default 2 ** 2 * 3;', '[[],[["object",[["default",["*",["**",2,2],3]]]]]]')
+            expect('export default (1 + 2) * 3;', '[[],[["object",[[":","default",["*",["+",1,2],3]]]]]]')
+            expect('const a = [1]; export default a[0] * 2;', '[[],[["array",[1]],["object",[[":","default",["*",[".",["cref",0],0],2]]]]]]')
+            expect('export default 2 ** 2 * 3;', '[[],[["object",[[":","default",["*",["**",2,2],3]]]]]]')
             // a function's body is its own operand, the whole expression
             // its greedy operand rather than the outer layer's own
-            expect('export default (...a) => 1 + 2 * 3;', '[[],[["object",[["default",["=>",0,[["+",1,["*",2,3]]]]]]]]]')
+            expect('export default (...a) => 1 + 2 * 3;', '[[],[["object",[[":","default",["=>",0,[["+",1,["*",2,3]]]]]]]]]')
             // a group around a function is an ordinary operand once more
-            expect('export default 1 * ((...a) => 2);', '[[],[["object",[["default",["*",1,["=>",0,[2]]]]]]]]')
+            expect('export default 1 * ((...a) => 2);', '[[],[["object",[[":","default",["*",1,["=>",0,[2]]]]]]]]')
         },
         refused: () => {
             /** @type {(source: string, column: number) => void} */
@@ -180,29 +180,29 @@ export const proof = {
                 assert(tag === 'ok', value)
                 assertEq(stringifyDjsModule(value), ast)
             }
-            expect('export default 1 && 2;', '[[],[["object",[["default",["&&",1,2]]]]]]')
-            expect('export default 1 || 2;', '[[],[["object",[["default",["||",1,2]]]]]]')
-            expect('export default 1 ?? 2;', '[[],[["object",[["default",["??",1,2]]]]]]')
+            expect('export default 1 && 2;', '[[],[["object",[[":","default",["&&",1,2]]]]]]')
+            expect('export default 1 || 2;', '[[],[["object",[[":","default",["||",1,2]]]]]]')
+            expect('export default 1 ?? 2;', '[[],[["object",[[":","default",["??",1,2]]]]]]')
             // left-associative, each of them
-            expect('export default 1 && 2 && 3;', '[[],[["object",[["default",["&&",["&&",1,2],3]]]]]]')
-            expect('export default 1 || 2 || 3;', '[[],[["object",[["default",["||",["||",1,2],3]]]]]]')
-            expect('export default 1 ?? 2 ?? 3;', '[[],[["object",[["default",["??",["??",1,2],3]]]]]]')
+            expect('export default 1 && 2 && 3;', '[[],[["object",[[":","default",["&&",["&&",1,2],3]]]]]]')
+            expect('export default 1 || 2 || 3;', '[[],[["object",[[":","default",["||",["||",1,2],3]]]]]]')
+            expect('export default 1 ?? 2 ?? 3;', '[[],[["object",[[":","default",["??",["??",1,2],3]]]]]]')
             // `&&` binds tighter than `||`, whichever opens the chain
-            expect('export default 1 || 2 && 3;', '[[],[["object",[["default",["||",1,["&&",2,3]]]]]]]')
-            expect('export default 1 && 2 || 3;', '[[],[["object",[["default",["||",["&&",1,2],3]]]]]]')
-            expect('export default 1 && 2 || 3 && 4 || 5;', '[[],[["object",[["default",["||",["||",["&&",1,2],["&&",3,4]],5]]]]]]')
-            expect('export default 1 || 2 && 3 && 4 || 5 && 6;', '[[],[["object",[["default",["||",["||",1,["&&",["&&",2,3],4]],["&&",5,6]]]]]]]')
+            expect('export default 1 || 2 && 3;', '[[],[["object",[[":","default",["||",1,["&&",2,3]]]]]]]')
+            expect('export default 1 && 2 || 3;', '[[],[["object",[[":","default",["||",["&&",1,2],3]]]]]]')
+            expect('export default 1 && 2 || 3 && 4 || 5;', '[[],[["object",[[":","default",["||",["||",["&&",1,2],["&&",3,4]],5]]]]]]')
+            expect('export default 1 || 2 && 3 && 4 || 5 && 6;', '[[],[["object",[[":","default",["||",["||",1,["&&",["&&",2,3],4]],["&&",5,6]]]]]]]')
             // and every eager operator binds tighter than any of them
-            expect('export default 1 | 2 && 3 + 4;', '[[],[["object",[["default",["&&",["|",1,2],["+",3,4]]]]]]]')
-            expect('export default 1 === 2 ?? 3 ** 4;', '[[],[["object",[["default",["??",["===",1,2],["**",3,4]]]]]]]')
-            expect('export default -1 || ~2;', '[[],[["object",[["default",["||",["-",1],["~",2]]]]]]]')
+            expect('export default 1 | 2 && 3 + 4;', '[[],[["object",[[":","default",["&&",["|",1,2],["+",3,4]]]]]]]')
+            expect('export default 1 === 2 ?? 3 ** 4;', '[[],[["object",[[":","default",["??",["===",1,2],["**",3,4]]]]]]]')
+            expect('export default -1 || ~2;', '[[],[["object",[[":","default",["||",["-",1],["~",2]]]]]]]')
             // a group is an operand, and mixes what the bare chain may not
-            expect('export default (1 ?? 2) || 3;', '[[],[["object",[["default",["||",["??",1,2],3]]]]]]')
-            expect('export default 1 ?? (2 || 3);', '[[],[["object",[["default",["??",1,["||",2,3]]]]]]]')
-            expect('export default (1 && 2).x;', '[[],[["object",[["default",[".",["&&",1,2],"x"]]]]]]')
+            expect('export default (1 ?? 2) || 3;', '[[],[["object",[[":","default",["||",["??",1,2],3]]]]]]')
+            expect('export default 1 ?? (2 || 3);', '[[],[["object",[[":","default",["??",1,["||",2,3]]]]]]]')
+            expect('export default (1 && 2).x;', '[[],[["object",[[":","default",[".",["&&",1,2],"x"]]]]]]')
             // a function's body is its own operand, the whole chain
-            expect('export default (...a) => a && 1 || 2;', '[[],[["object",[["default",["=>",0,[["||",["&&",["rest"],1],2]]]]]]]]')
-            expect('export default 1 && ((...a) => 2);', '[[],[["object",[["default",["&&",1,["=>",0,[2]]]]]]]]')
+            expect('export default (...a) => a && 1 || 2;', '[[],[["object",[[":","default",["=>",0,[["||",["&&",["rest"],1],2]]]]]]]]')
+            expect('export default 1 && ((...a) => 2);', '[[],[["object",[[":","default",["&&",1,["=>",0,[2]]]]]]]]')
         },
         lazyRefused: () => {
             /** @type {(source: string, column: number) => void} */
@@ -238,27 +238,27 @@ export const proof = {
                 assert(tag === 'ok', value)
                 assertEq(stringifyDjsModule(value), ast)
             }
-            expect('export default 1 ? 2 : 3;', '[[],[["object",[["default",["?:",1,2,3]]]]]]')
-            expect('export default 1?2:3;', '[[],[["object",[["default",["?:",1,2,3]]]]]]')
-            expect('export default 1 ? 2 : 3 ? 4 : 5;', '[[],[["object",[["default",["?:",1,2,["?:",3,4,5]]]]]]]')
-            expect('export default 1 ? 2 ? 3 : 4 : 5;', '[[],[["object",[["default",["?:",1,["?:",2,3,4],5]]]]]]')
+            expect('export default 1 ? 2 : 3;', '[[],[["object",[[":","default",["?:",1,2,3]]]]]]')
+            expect('export default 1?2:3;', '[[],[["object",[[":","default",["?:",1,2,3]]]]]]')
+            expect('export default 1 ? 2 : 3 ? 4 : 5;', '[[],[["object",[[":","default",["?:",1,2,["?:",3,4,5]]]]]]]')
+            expect('export default 1 ? 2 ? 3 : 4 : 5;', '[[],[["object",[[":","default",["?:",1,["?:",2,3,4],5]]]]]]')
             // the condition is the whole short-circuit chain, and each arm
             // takes one of its own
-            expect('export default 1 && 2 ? 3 || 4 : 5 ?? 6;', '[[],[["object",[["default",["?:",["&&",1,2],["||",3,4],["??",5,6]]]]]]]')
-            expect('export default 1 + 2 ? 3 : 4;', '[[],[["object",[["default",["?:",["+",1,2],3,4]]]]]]')
+            expect('export default 1 && 2 ? 3 || 4 : 5 ?? 6;', '[[],[["object",[[":","default",["?:",["&&",1,2],["||",3,4],["??",5,6]]]]]]]')
+            expect('export default 1 + 2 ? 3 : 4;', '[[],[["object",[[":","default",["?:",["+",1,2],3,4]]]]]]')
             // an arm may be a function, its body ending where `:` cannot
             // continue it — `1 ? () => 2 : 3` is the function and the else
             // arm, as JavaScript reads it — or an object, an array, a group
-            expect('export default 1 ? () => 2 : 3;', '[[],[["object",[["default",["?:",1,["=>",0,[2]],3]]]]]]')
-            expect('export default 1 ? 2 : () => 3 ? 4 : 5;', '[[],[["object",[["default",["?:",1,2,["=>",0,[["?:",3,4,5]]]]]]]]]')
-            expect('export default 1 ? { x: 2 } : [3];', '[[],[["object",[["default",["?:",1,["object",[["x",2]]],["array",[3]]]]]]]]')
-            expect('export default (1 ? 2 : 3).x;', '[[],[["object",[["default",[".",["?:",1,2,3],"x"]]]]]]')
-            expect('export default [1 ? 2 : 3, { a: 4 ? 5 : 6 }];', '[[],[["object",[["default",["array",[["?:",1,2,3],["object",[["a",["?:",4,5,6]]]]]]]]]]]')
-            expect('export default (...a) => a ? 1 : 2;', '[[],[["object",[["default",["=>",0,[["?:",["rest"],1,2]]]]]]]]')
-            expect('export default -1 ? -2 : ~3;', '[[],[["object",[["default",["?:",["-",1],["-",2],["~",3]]]]]]]')
+            expect('export default 1 ? () => 2 : 3;', '[[],[["object",[[":","default",["?:",1,["=>",0,[2]],3]]]]]]')
+            expect('export default 1 ? 2 : () => 3 ? 4 : 5;', '[[],[["object",[[":","default",["?:",1,2,["=>",0,[["?:",3,4,5]]]]]]]]]')
+            expect('export default 1 ? { x: 2 } : [3];', '[[],[["object",[[":","default",["?:",1,["object",[[":","x",2]]],["array",[3]]]]]]]]')
+            expect('export default (1 ? 2 : 3).x;', '[[],[["object",[[":","default",[".",["?:",1,2,3],"x"]]]]]]')
+            expect('export default [1 ? 2 : 3, { a: 4 ? 5 : 6 }];', '[[],[["object",[[":","default",["array",[["?:",1,2,3],["object",[[":","a",["?:",4,5,6]]]]]]]]]]]')
+            expect('export default (...a) => a ? 1 : 2;', '[[],[["object",[[":","default",["=>",0,[["?:",["rest"],1,2]]]]]]]]')
+            expect('export default -1 ? -2 : ~3;', '[[],[["object",[[":","default",["?:",["-",1],["-",2],["~",3]]]]]]]')
             // three operands, resolved in order: the condition first, then
             // each arm, whether or not the program establishes it
-            expect('const a = 1; export default a ? a : a;', '[[],[1,["object",[["default",["?:",["cref",0],["cref",0],["cref",0]]]]]]]')
+            expect('const a = 1; export default a ? a : a;', '[[],[1,["object",[[":","default",["?:",["cref",0],["cref",0],["cref",0]]]]]]]')
         },
         conditionalRefused: () => {
             /** @type {(source: string, message: string, column: number) => void} */

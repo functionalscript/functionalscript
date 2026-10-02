@@ -125,7 +125,7 @@ const iterated = value =>
 const objectOf = members => fromEntries(members)
 
 /** A member with its value evaluated, by the evaluator given first. @type {(evaluate: (ast: AstConst) => Result<Unknown, string>) => (member: AstMember) => Result<readonly [string, Unknown], string>} */
-const memberValue = evaluate => ([key, value]) => mapOk(keyed(key))(evaluate(value))
+const memberValue = evaluate => ([, key, value]) => mapOk(keyed(key))(evaluate(value))
 
 /** One value, as the values an item adds to an array. @type {(value: Unknown) => readonly Unknown[]} */
 const single = value => [value]
@@ -303,7 +303,7 @@ const bit = i => 1n << BigInt(i)
  *
  * @type {(members: readonly AstMember[]) => readonly AstConst[]}
  */
-const memberValues = members => [...new Map(members).values()]
+const memberValues = members => [...new Map(members.map(([, key, value]) => [key, value])).values()]
 
 /**
  * The values of an object's members as written, a shadowed member's among
@@ -312,7 +312,7 @@ const memberValues = members => [...new Map(members).values()]
  *
  * @type {(members: readonly AstMember[]) => readonly AstConst[]}
  */
-const memberValuesWritten = members => members.map(([, value]) => value)
+const memberValuesWritten = members => members.map(([, , value]) => value)
 
 /** The stack with one more operand on top. @type {(s: _OperandStack, operand: AstConst) => _OperandStack} */
 const pushed = (s, operand) => ({ top: operand, rest: s })
@@ -490,7 +490,7 @@ const operandReadsRest = ast => {
     switch (ast[0]) {
         case 'rest': { return true }
         case 'array': { return readsRest(ast[1].map(itemOperand)) }
-        case 'object': { return readsRest(ast[1].map(([, v]) => v)) }
+        case 'object': { return readsRest(memberValuesWritten(ast[1])) }
         case '()': { return readsRest([ast[1], ...ast[2].map(itemOperand)]) }
         case '.': { return readsRest([ast[1]]) }
         case '=>': { return readsRest(ast[3] ?? []) }
@@ -707,7 +707,7 @@ const selectable = ast => ast[0] === 'object' || !holdsSpread(ast[1])
  * @type {(ast: AstArray | AstObject, key: string) => AstConst}
  */
 const literalAt = (ast, key) => ast[0] === 'object'
-    ? ast[1].findLast(([name]) => name === key)?.[1]
+    ? ast[1].findLast(([, name]) => name === key)?.[2]
     // an array {@link selectable} holds no spread
     : /** @type {AstConst} */ (ast[1][arrayIndex(key) ?? ast[1].length])
 

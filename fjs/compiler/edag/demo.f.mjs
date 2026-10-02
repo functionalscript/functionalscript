@@ -4,6 +4,11 @@
  * lowers](./module.f.mjs) it to, drawn with [the shared graph
  * module](../../website/demo/graph/module.f.mjs).
  *
+ * **A module with named exports draws as the object of its exports.** Only
+ * a module whose one export is its default draws as that value: reading
+ * `.default` off any other would draw a value the source never wrote —
+ * `undefined` for `export const a = []`.
+ *
  * **A `const` referenced twice is one node with two incoming edges, not
  * two nodes that happen to match.** Every reference to the same `const`
  * lowers to the same `Exp` object — [`unresolved`'s own
@@ -60,7 +65,7 @@
 
 import { parse } from '../transpiler/module.f.mjs'
 import { lazyOp2Id } from '../../edag/module.f.mjs'
-import { _defaultExport, unresolved } from './module.f.mjs'
+import { _defaultExport, _moduleExports, unresolved } from './module.f.mjs'
 import { graphOf, graphSvg } from '../../website/demo/graph/module.f.mjs'
 import { leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
@@ -259,8 +264,20 @@ export const _shapeOf = e => {
 }
 
 /**
- * `text` as the EDAG its default export lowers to, or the parser's own
- * error if it does not compile.
+ * What a module's EDAG draws as: its default export's value when that is
+ * all it exports, and otherwise the module itself — the object of its
+ * exports, or the failure a module that throws is.
+ *
+ * @type {(module: Exp) => Exp}
+ */
+const drawn = module => {
+    const members = _moduleExports(module)
+    return members.length === 1 && members[0][1] === 'default' ? _defaultExport(module) : module
+}
+
+/**
+ * `text` as the EDAG its module lowers to, or the parser's own error if it
+ * does not compile.
  *
  * @type {(text: string) => ({ readonly ok: true } & Graph) | { readonly ok: false, readonly error: string }}
  */
@@ -268,7 +285,7 @@ export const _graphOf = text => {
     const result = parse('')(text)
     return result[0] === 'error'
         ? { ok: false, error: result[1].message }
-        : { ok: true, ...graphOf(_shapeOf)(_defaultExport(unresolved(result[1]).edag)) }
+        : { ok: true, ...graphOf(_shapeOf)(drawn(unresolved(result[1]).edag)) }
 }
 
 /**
@@ -308,7 +325,7 @@ export const _graphOf = text => {
  * is. It reads `m` rather than `a`, so `a` keeps the four references the
  * paragraph above counts.
  *
- * The other twelve take one point each, on its own:
+ * The other thirteen take one point each, on its own:
  *
  * - **Sharing** sets a `const` used twice beside the same expression
  *   written out again: only `const` makes sharing, so that is one `+` node
@@ -328,6 +345,9 @@ export const _graphOf = text => {
  *   property read, by name or by a string index, as a `.` node.
  * - **Imports and calls** reaches a default and a named import through the
  *   module's `args`, and calls one with the other.
+ * - **Named exports** draws the module as the object of its exports, each
+ *   a port: a module that is not only a default is that object, and there
+ *   is no `.default` to read off it.
  * - **Comma** is an unused `const` the compiler keeps as an `anchor`,
  *   beside the `result` the module is.
  * - **Throw** is a function whose block body ends in `throw` rather than
@@ -353,6 +373,7 @@ export const examples = [
     ['Closures: parameters and frame', 'export default x => y => x * 2 + y;'],
     ['Objects and properties', 'const o = { a: 1, "b c": [2, 3] };\nexport default [o.a, o["b c"][1]];'],
     ['Imports and calls', 'import m from "./m.f.js";\nimport { x } from "./n.f.js";\nexport default m(x);'],
+    ['Named exports', 'export const a = [];\nexport const f = x => [a, x];'],
     ['Comma: an anchored const', 'import m from "./m.f.js";\nconst checked = m.x;\nexport default 42;'],
     ['Throw: a function that fails', 'export default (...a) => {\n    const reason = ["not implemented", a[0]];\n    throw reason;\n};'],
     ['Guard: an if that returns early', 'export default (n) => {\n    if (n < 0) { return -1; }\n    if (n > 0) { return 1; }\n    return 0;\n};'],

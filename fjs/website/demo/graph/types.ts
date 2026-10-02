@@ -50,7 +50,17 @@ export type Edge = {
     readonly to: number | Inline
     readonly label: string
     readonly kind?: string | undefined
+    readonly corner?: Corner | undefined
 }
+
+/**
+ * Where an {@link Edge} with no row of its own leaves its node: the top or
+ * the bottom corner of its right side, or the middle of it. For a node
+ * whose children are ordered and need no names — a tree's left and right,
+ * and a B-tree's middle — the corner says which child it is. Such an edge
+ * ends at a node, not a value, and has no label.
+ */
+export type Corner = 'top' | 'middle' | 'bottom'
 
 /**
  * A value too simple to be a node of its own — a number, `null`,
@@ -63,10 +73,16 @@ export type Edge = {
  * absent for an ordinary value. The site's stylesheet draws a
  * `"terminal"` value — an input a scope receives, rather than a constant —
  * filled like a terminal node, where any other value, and none, is tinted.
+ *
+ * `parts`, when given, draws the value in pieces, each marked with its own
+ * kind as `data-graph-part`, so a stylesheet can colour them apart — the
+ * bits a prefix inherits beside the bits it adds, say. Joined, they must
+ * spell `inline`, which is still what sizes the cell.
  */
 export type Inline = {
     readonly inline: string
     readonly kind?: string | undefined
+    readonly parts?: readonly (readonly [text: string, kind: string])[] | undefined
 }
 
 /**

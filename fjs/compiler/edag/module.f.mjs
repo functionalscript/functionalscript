@@ -209,7 +209,7 @@ const lowerLeaf = nodes => ast => {
             return { exp: ['[]', items.map(x => x.exp)], anchors: floated(items) }
         }
         case 'object': {
-            const members = ast[1].map(([key, value]) => /** @type {const} */ ([key, lower(nodes)(value)]))
+            const members = ast[1].map(([, key, value]) => /** @type {const} */ ([key, lower(nodes)(value)]))
             return { exp: ['{}', members.map(([key, x]) => [':', key, x.exp])], anchors: floated(members.map(([, x]) => x)) }
         }
         // a function's body is a scope of its own: it names its arguments,

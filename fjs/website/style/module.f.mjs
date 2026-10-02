@@ -342,6 +342,10 @@ svg text { font: inherit }
 [data-graph-port] { fill: none; stroke: var(--muted); stroke-width: 1 }
 [data-graph-value] { fill: var(--value-bg); stroke: var(--muted); stroke-width: 1 }
 [data-graph-value-alone] { fill: none }
+/* A value drawn in parts: a prefix's inherited bits muted, its own bits
+   strong. */
+[data-graph-part="prior"] { fill: var(--muted) }
+[data-graph-part="current"] { font-weight: bold }
 [data-graph-value-label] { dominant-baseline: middle; fill: var(--value); font-size: .75rem }
 [data-graph-value][data-graph-value-kind="terminal"] { fill: var(--border) }
 [data-graph-value-label][data-graph-value-kind="terminal"] { fill: var(--text) }
