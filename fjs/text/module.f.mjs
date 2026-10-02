@@ -1,32 +1,17 @@
 /**
- * Indented text `Block` rendering and UTF-8 helpers: `flat` flattens a nested
- * block into prefixed lines, while `utf8`/`utf8ToString` convert between
- * strings and MSB-first UTF-8 bit vectors.
+ * UTF-8 helpers: `utf8`/`tryUtf8`/`utf8ToString` convert between strings and
+ * MSB-first UTF-8 bit vectors.
  *
  * @module
  *
- * @import { List } from '../types/list/types.ts'
  * @import { Nullable } from '../types/nullable/types.ts'
- * @import { Block, Item, Utf8 } from './types.ts'
+ * @import { Utf8 } from './types.ts'
  */
 
 import { tryU8ListToVecMsb } from '../types/bit_vec/module.f.mjs'
-import { flatMap } from '../types/list/module.f.mjs'
 import { fromCodePointList, vecToCodePointList } from './utf8/module.f.mjs'
 import { stringToCodePointList, codePointListToString } from './utf16/module.f.mjs'
 import { mapUnwrap } from '../types/nullable/module.f.mjs'
-
-/** @type {(indent: string) => (text: Block) => List<string>} */
-export const flat = indent => {
-    /** @param {string} prefix */
-    const f = prefix => {
-        /** @type {(item: Item) => List<string>} */
-        const g = item =>
-            typeof (item) === 'string' ? [`${prefix}${item}`] : f(`${prefix}${indent}`)(item)
-        return flatMap(g)
-    }
-    return f('')
-}
 
 /**
  * Converts a string to an UTF-8, represented as an MSB first bit vector,

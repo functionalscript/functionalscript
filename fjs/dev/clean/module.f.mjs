@@ -23,22 +23,21 @@
 
 import { step } from '../../effects/module.f.mjs'
 import { allOk, exitStep, rm } from '../../effects/node/module.f.mjs'
-import { walk } from '../module.f.mjs'
+import { isThirdParty, walk } from '../module.f.mjs'
 
 /** Whether a file or directory name marks it generated. @type {(name: string) => boolean} */
 export const isGenerated = name => name.startsWith('gen.')
 
 /**
  * Inside a generated directory everything is taken; outside one, a generated
- * file is taken and third-party trees are skipped. `path` is relative to the
- * scan root.
+ * file is taken and a directory {@link isThirdParty} names is skipped, except
+ * `.github`. `path` is relative to the scan root.
  *
  * @type {(path: string, entry: Dirent) => 'take' | 'descend' | 'skip'}
  */
 const classify = (path, { name, isDirectory }) =>
     path.split('/').some(isGenerated) ? (isDirectory ? 'descend' : 'take')
-    : (name.startsWith('.') && name !== '.github') || name === 'node_modules' || name === 'target' ? 'skip'
-    : isDirectory ? 'descend'
+    : isDirectory && (name === '.github' || !isThirdParty(name)) ? 'descend'
     : 'skip'
 
 /**

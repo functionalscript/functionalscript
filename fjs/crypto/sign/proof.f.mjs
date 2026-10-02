@@ -59,8 +59,20 @@ export const proof = {
         // 15 bit prime
         assertEq(all(16387n).int2octets(0x13n), vec(16n)(0x13n), new Error("fail"))
     },
+    bits2intModQ: () => {
+        // 0b1101 = 13 reduces to 13 - 11 = 2
+        assertEq(all(11n).bits2intModQ(vec(4n)(0b1101n)), 2n)
+        assertEq(all(17n).bits2intModQ(vec(3n)(0b101n)), 0b101n)
+    },
     bit2octets: () => {
         assertEq(all(11n).bits2octets(vec(4n)(0b1101n)), vec(8n)(0b0000_0010n), new Error("fail"))
+    },
+    fromCurve: () => {
+        const { rfc6979, nf, mul, g } = fromCurve(secp192r1)
+        assertEq(rfc6979.q, secp192r1.nf.p)
+        assertEq(nf, secp192r1.nf)
+        assertEq(mul, secp192r1.mul)
+        assertEq(g, secp192r1.g)
     },
     k: () => {
         //
@@ -139,7 +151,7 @@ export const proof = {
         assertEq(k, 0xC345D5AB3DA0A5BCB7EC8F8FB7A7E96069E03B206371EF7D83E39068EC564920n)
     },
     kk: () => {
-        const a = fromCurve(secp192r1)
+        const a = fromCurve(secp192r1).rfc6979
         const x = 0x6FAB034934E4C0FC9AE67F5B5659A9D7D1FEFD187EE09FD4n
         const m = utf8("sample")
         const kk = computeK(a)(sha224)(x)(m)
@@ -394,7 +406,7 @@ export const proof = {
          */
         /** @type {(p: _P) => void} */
         const check = ({ q, x, msg0, msg1 }) => {
-            const a = fromCurve(q)
+            const a = fromCurve(q).rfc6979
             forEachVector((sha, { k, r, s }, m) => {
                 const k0 = computeK(a)(sha)(x)(m)
                 assertEq(k0, k, [k0.toString(16), k.toString(16)])
