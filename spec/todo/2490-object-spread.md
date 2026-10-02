@@ -77,13 +77,15 @@ from `{ a: 1 }` and hashes differently, as `[...[1]]` and `[1]` do.
 
 - **Familiar code compiles.** At `93ed6ba`, about 84 of the 406 `.f.mjs`
   modules use object spread, about 610 occurrences, as the array spread
-  proposal counted them (#2470); a cruder line scan in the
-  review of #2484 found 78 modules. Every one of them is refused today.
+  proposal counted them (#2470); a cruder line scan of the same commit, in
+  the review of #2484, found 78 modules. Every one of them is refused today.
   Among the leaf modules, it is one of the blockers of `fjs/git/config`.
 - **The rest of the pipeline is ready.** The EDAG, its analysis, the
   JavaScript evaluator and the Rust printer take an object's spread entry
-  already (#2460, #2496). This adds only the grammar rule, the lowering and
-  the `.js` writer's spelling.
+  already (#2460, #2496). This adds the grammar rule, the lowering, the
+  `.js` writer's spelling, and the spread to the AST that the `.json` and
+  `.data.js` outputs evaluate and analyse, which reads every member as a
+  `[key, value]` pair today.
 - **It is how an object is updated.** Values are immutable, so a changed
   copy, `{ ...o, x: 1 }`, is the one way to change one property and keep the
   rest; without it a module lists every key by hand.
@@ -140,6 +142,12 @@ proposer before implementation; this proposal was written by Claude.
 - [ ] AST and lowering: a spread member in the object node of
       [`fjs/compiler/ast`](../../fjs/compiler/ast/module.f.mjs), lowered to
       `['...', exp]` by [`fjs/compiler/edag`](../../fjs/compiler/edag/module.f.mjs).
+- [ ] Value evaluator: `toDjs` in
+      [`fjs/compiler/ast`](../../fjs/compiler/ast/module.f.mjs), which the
+      `.json` and `.data.js` outputs run, copies a spread's own properties
+      into the object in its place, as `CopyDataProperties` does: an
+      object's in own-property order, an array's elements by index, a
+      string's code units, and nothing from every other value.
 - [ ] AST analysis: an object literal holding a spread selects no key
       (`selectable`), a member before a spread is not dropped as shadowed,
       and every spread operand is kept and read as `CopyDataProperties`
