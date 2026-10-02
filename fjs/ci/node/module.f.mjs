@@ -30,9 +30,16 @@ const jobId = version => `node${major(version)}`
  */
 export const packageJobId = jobId(node.default)
 
-/** @type {(v: string) => Step} */
-const installNode = v =>
-    uses('actions/setup-node', { 'node-version': v })
+/**
+ * Installs the pinned Node through `setup-node`. Every job that installs Node
+ * this way installs the configured default; `inputs` are any further
+ * `setup-node` inputs the job needs, such as the publish job's `registry-url`.
+ * The pin is written last, so an input cannot replace it.
+ *
+ * @type {(inputs?: Record<string, string>) => Step}
+ */
+export const installNode = inputs =>
+    uses('actions/setup-node', { ...inputs, 'node-version': node.default })
 
 /** @type {(version: string) => MetaStep} */
 const fjsGlobalInstall = version =>
@@ -42,18 +49,19 @@ const fjsGlobalInstall = version =>
  * Asserts the Node a job is about to run on, through the shared check.
  *
  * `node --version` prints a leading `v` the configured version does not carry,
- * so the expected string restores it. Every canonical Node job runs this, and
- * none needs a `setup-node` spelling any more. The other jobs that install Node
- * get no check: the platform matrix, whose Windows jobs run `run` steps under
- * PowerShell where this POSIX command would not survive, and `package-check`,
- * which has no checkout to enter a flake from.
+ * so the expected string restores it. The canonical Node jobs and the shell
+ * platform jobs run this, and none needs a `setup-node` spelling any more. The
+ * other jobs that install Node get no check: the platform matrix, whose
+ * Windows jobs run `run` steps under PowerShell where this POSIX command would
+ * not survive, and `package-check`, which has no checkout to enter a flake
+ * from.
  *
  * It takes the shell to enter, because the three canonical jobs no longer enter
  * the same one — see {@link nodeNixJobs}.
  *
  * @type {(shell: string, version: string) => MetaStep}
  */
-const nodeVersionStep = (shell, version) =>
+export const nodeVersionStep = (shell, version) =>
     nixVersionStep(shell, 'node --version', `v${version}`)
 
 /**
@@ -91,7 +99,7 @@ const tscVersionStep = nixVersionStep(
  * @type {(version: string) => readonly MetaStep[]}
  */
 export const platformNodeSteps = version => [
-    install(installNode(node.default)),
+    install(installNode()),
     fjsGlobalInstall(version),
     test({ run: 'fjs test' }),
 ]

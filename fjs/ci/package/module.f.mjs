@@ -8,9 +8,9 @@
  * @import { PackageConsumer } from '../types.ts'
  */
 
-import { images, node, typescript } from '../config/module.f.js'
+import { images, typescript } from '../config/module.f.js'
 import { uses } from '../common/module.f.mjs'
-import { packageArtifact, packageJobId } from '../node/module.f.mjs'
+import { installNode, packageArtifact, packageJobId } from '../node/module.f.mjs'
 
 export const packageCheckJobId = /** @type {const} */ ('package-check')
 
@@ -228,7 +228,7 @@ export const packageCheckJob = consumer => ({
     needs: [packageJobId],
     steps: [
         uses('actions/download-artifact', { name: packageArtifact }),
-        uses('actions/setup-node', { 'node-version': node.default }),
+        installNode(),
         ...declarationCommands.map(run => ({ run })),
         ...(consumer === undefined ? [] : consumerCommands(consumer)).map(run => ({ run })),
     ],
