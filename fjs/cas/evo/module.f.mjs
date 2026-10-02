@@ -52,7 +52,7 @@
  * @import { Ok } from '../../types/result/types.ts'
  * @import { List } from '../../effects/list/types.ts'
  * @import { IoChannel, IoResult } from '../../effects/node/types.ts'
- * @import { LockField, LockMap, Revision } from '../../media/revision/types.ts'
+ * @import { Revision } from '../../media/revision/types.ts'
  * @import { Hash, Subject, RevisionData, SubjectState, Cache, Evo } from './types.ts'
  */
 
@@ -67,7 +67,7 @@ import {
 } from '../../effects/module.f.mjs'
 import { create, read, write } from '../../effects/memory/module.f.mjs'
 import { collectRead } from '../module.f.mjs'
-import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
+import { canonicalCBase32, cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { fromVec } from '../../text/utf8/module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'
 import { ok, error, okThen } from '../../types/result/module.f.mjs'
@@ -75,7 +75,7 @@ import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.mjs'
 import { at, definedEntries } from '../../types/object/module.f.mjs'
 import { unwrap } from '../../types/nullable/module.f.mjs'
 import { errorSummary, isNotFound } from '../../effects/node/module.f.mjs'
-import { decodeText, encodeText, dialect, checkReferences, isHash } from '../../media/revision/module.f.mjs'
+import { decodeText, encodeText, dialect, checkReferences, isHash, mapHashes } from '../../media/revision/module.f.mjs'
 
 /**
  * A rejected revision, tagged so it renders alongside `notImplemented` and
@@ -124,28 +124,16 @@ const union = set => items =>
  * (`fjs/media/revision` `checkReferences`), so decoding here cannot fail.
  * @type {(h: Hash) => Hash}
  */
-const canonicalHash = h => vecToCBase32(unwrap(cBase32ToVec(h)))
+const canonicalHash = h => unwrap(canonicalCBase32(h))
 
 /**
- * Canonicalizes every direct hash of a structurally validated lock map, at
- * every depth, preserving its nested scope structure. Nested maps are scopes
- * rather than references, so only the strings are re-spelled — the same split
- * `fjs/media/revision`'s `checkReferences` validates along.
- * @type {(lock: LockMap) => LockMap}
+ * Re-spells every hash a revision names canonically ({@link canonicalHash}).
+ * Which fields those are is `fjs/media/revision`'s to say: `mapHashes` walks
+ * exactly the fields `checkReferences` validates, so what this re-spells is
+ * exactly what was checked.
+ * @type {(revision: Revision) => Revision}
  */
-const canonicalLock = lock =>
-    Object.fromEntries(definedEntries(lock).map(
-        ([subject, value]) => [subject, typeof value === 'string' ? canonicalHash(value) : canonicalLock(value)]))
-
-/**
- * Canonicalizes a revision's `lock` field: a shared-lock reference is one hash
- * to re-spell, an inline map is walked to the bottom ({@link canonicalLock}).
- * The split is the same one `fjs/media/revision`'s `lockFieldError` validates
- * along, so what this re-spells is exactly what was checked.
- * @type {(value: LockField) => LockField}
- */
-const canonicalLockField = value =>
-    typeof value === 'string' ? canonicalHash(value) : canonicalLock(value)
+const canonicalHashes = mapHashes(canonicalHash)
 
 /** A subject's current heads: revision hashes seen that no other revision of the same subject names as a parent.
  * @type {(state: SubjectState) => readonly Hash[]}
@@ -432,11 +420,11 @@ const computeGeneration = parents =>
  * a reader applies; the shape itself is already guaranteed by the field types
  * here), then canonicalizes it.
  *
- * Canonicalizing parent/snapshot spellings is only safe once `checkReferences`
- * has confirmed they decode, which makes the `unwrap` inside
- * {@link canonicalHash} safe. It is not optional: two `add` calls describing
- * the same logical revision but spelled differently (case, `i`/`l`/`o`
- * aliases) must serialize identically, or they would produce two distinct CAS
+ * Canonicalizing its hash spellings ({@link canonicalHashes}) is only safe
+ * once `checkReferences` has confirmed they decode, which makes the `unwrap`
+ * inside {@link canonicalHash} safe. It is not optional: two `add` calls
+ * describing the same logical revision but spelled differently (case,
+ * `i`/`l`/`o` aliases) must serialize identically, or they would produce two distinct CAS
  * blobs that both remain heads — the point of `canonicalHash` (see the module
  * doc) is defeated if this module itself writes non-canonical spellings.
  *
@@ -473,12 +461,7 @@ const buildRevision = input => parents => {
     }
     const referencesResult = checkReferences(revision)
     if (referencesResult[0] === 'error') { return referencesResult }
-    return ok({
-        ...revision,
-        parents: revision.parents.map(canonicalHash),
-        snapshot: canonicalHash(revision.snapshot),
-        ...(revision.lock === undefined ? {} : { lock: canonicalLockField(revision.lock) }),
-    })
+    return ok(canonicalHashes(revision))
 }
 
 /**
@@ -539,24 +522,20 @@ export const addRevision = cas => cacheKey => input =>
 
 /**
  * Projects a decoded `Revision` into the shared {@link RevisionData}
- * vocabulary: `dialect` is dropped (a serialization tag with no information
- * left once decoding has validated it), and every hash is re-spelled
- * canonically ({@link canonicalHash}) so a read compares directly against
- * {@link Evo.head}'s output instead of against whatever spelling the blob's
- * writer happened to use. `checkReferences` ran as part of decoding, so every
- * `parents` entry and the `snapshot` are known to decode and the `unwrap`
- * inside `canonicalHash` is safe. Field order follows the stored blob's
- * (minus `dialect`), which is what a JSON encoding of the result shows.
+ * vocabulary: every hash is re-spelled canonically ({@link canonicalHashes}),
+ * then `dialect` is dropped (a serialization tag with no information left
+ * once decoding has validated it). Re-spelling is what lets a read compare
+ * directly against {@link Evo.head}'s output instead of against whatever
+ * spelling the blob's writer happened to use. `checkReferences` ran as part of
+ * decoding, so every hash is known to decode and the `unwrap` inside
+ * `canonicalHash` is safe. Field order follows the stored blob's (minus
+ * `dialect`), which is what a JSON encoding of the result shows.
  * @type {(revision: Revision) => RevisionData}
  */
-const toRevisionData = ({ subject, parents, snapshot, generation, archived, lock }) => ({
-    subject,
-    parents: parents.map(canonicalHash),
-    snapshot: canonicalHash(snapshot),
-    generation,
-    archived,
-    lock: lock === undefined ? undefined : canonicalLockField(lock),
-})
+const toRevisionData = revision => {
+    const { subject, parents, snapshot, generation, archived, lock } = canonicalHashes(revision)
+    return { subject, parents, snapshot, generation, archived, lock }
+}
 
 /**
  * Second stage of {@link readRevision}: interprets an already-performed read
