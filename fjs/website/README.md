@@ -327,7 +327,7 @@ and a link per channel — built by `footer` in
   GitHub's unpublished per-platform URL patterns; it stays for GitHub's own
   Sponsor button, and the two files are kept in step by hand.
 - **A channel the footer cannot link stops the build** — no `description`,
-  or an address that is not `https://` — rather than being left out. A tree
+  an empty or blank one, or an address that is not `https://` — rather than being left out. A tree
   without `funding.json` has no footer, as a tree without `changelog/` has no
   release pages.
 

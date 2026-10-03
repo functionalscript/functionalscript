@@ -11,8 +11,10 @@
  *
  * **A channel the site cannot link is refused, not dropped.** The footer's
  * text is a channel's `description`, which the `funding.json` format leaves
- * optional; without one there is nothing to show, and a footer that silently
- * lacks a channel is the plausible wrong answer
+ * optional. Without one, or with one that is empty or only spaces, there is
+ * nothing to show: the link's only content would be its arrow, which is
+ * hidden from a screen reader, so the link would have no name. And a footer
+ * that silently lacks a channel is the plausible wrong answer
  * [DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
  * refuses. An `address` that is not `https://` is refused for the same
  * reason: it would be a broken or unsafe link on every page.
@@ -63,6 +65,8 @@ export const parse = text => {
         return error(`${path.join('.')}: ${message}`)
     }
     const channels = parsed[1].funding.channels
+    const blank = channels.find(({ description }) => description.trim() === '')
+    if (blank !== undefined) { return error(`blank description for ${blank.address}`) }
     const insecure = channels.find(({ address }) => !address.startsWith('https://'))
     return insecure === undefined
         ? ok(channels.map(({ description, address }) => ({ description, address })))

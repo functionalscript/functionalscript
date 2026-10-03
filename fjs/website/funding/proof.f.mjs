@@ -32,6 +32,14 @@ export const proof = {
             const result = parse(fundingJson([{ address: 'https://example.com' }]))
             assertEq(result[0] === 'error' && result[1].startsWith('funding.channels.0'), true)
         },
+        // An empty or blank description would leave a link whose only content
+        // is its arrow, hidden from a screen reader: a link with no name.
+        emptyDescription: () => assertStructurallySame(
+            parse(fundingJson([{ address: 'https://example.com', description: '' }])),
+            ['error', 'blank description for https://example.com']),
+        blankDescription: () => assertStructurallySame(
+            parse(fundingJson([{ address: 'https://example.com', description: '  ' }])),
+            ['error', 'blank description for https://example.com']),
         notHttps: () => assertStructurallySame(
             parse(fundingJson([{ address: 'http://example.com', description: 'x' }])),
             ['error', 'not an https:// address: http://example.com']),
