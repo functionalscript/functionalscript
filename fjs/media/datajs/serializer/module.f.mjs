@@ -175,16 +175,16 @@ export const _elementNames = (names, length) =>
     names.length === length + 1
     && names.every((name, i) => name === (i === length ? 'length' : `${i}`))
 
-/** @type {_Walk} */
+/** @type {_Walk<never>} */
 const start = { started: noneStarted, finished: empty }
 
-/** A leaf as read: the chunks the leaf rule spelled it as. @type {(chunks: List<string>) => _Value<object, List<string>>} */
-const leaf = chunks => ['leaf', chunks]
+/** A leaf as the leaf rule kept it. @type {<L>(kept: L) => _Value<object, L>} */
+const leaf = kept => ['leaf', kept]
 
-/** @type {(member: _Member<object, List<string>>) => _Value<object, List<string>>} */
+/** @type {<L>(member: _Member<object, L>) => _Value<object, L>} */
 const memberOf = ([, value]) => value
 
-/** A value of the caller's, still to be read. @type {(value: unknown) => _Todo} */
+/** A value of the caller's, still to be read. @type {(value: unknown) => _Todo<never>} */
 const toEnter = value => ['enter', value]
 
 /**
@@ -200,7 +200,7 @@ const toEnter = value => ['enter', value]
  * validated from its descriptor when its turn comes, so that a refusal is
  * the first one in that order.
  *
- * @type {(value: object) => Result<_Frame, string>}
+ * @type {<L>(value: object) => Result<_Frame<L>, string>}
  */
 const open = value => {
     if (getOwnPropertySymbols(value).length !== 0) { return error('an own symbol key') }
@@ -223,7 +223,7 @@ const open = value => {
 /**
  * The node a frame closes into once every member is read.
  *
- * @type {(frame: _Frame) => _Node<object, List<string>>}
+ * @type {<L>(frame: _Frame<L>) => _Node<object, L>}
  */
 const close = ({ kind, done }) => {
     const members = toArray(done)
@@ -236,7 +236,7 @@ const close = ({ kind, done }) => {
  * none is left, the frame closed: its node appended after every node it
  * refers to, and the reference standing in its place handed down.
  *
- * @type {(stack: _Stack, walk: _Walk, frame: _Frame) => _State}
+ * @type {<L>(stack: _Stack<L>, walk: _Walk<L>, frame: _Frame<L>) => _State<L>}
  */
 const round = (stack, walk, frame) => {
     const { value, properties, index } = frame
@@ -252,14 +252,16 @@ const round = (stack, walk, frame) => {
 }
 
 /**
- * One value of the caller's: a leaf spelled by the leaf rule where it is
+ * One value of the caller's: a leaf as the leaf rule keeps it where it is
  * met, or refused there; a container as a node of its own the first time it
  * is met and a reference to that node every time after, which is what
  * carries the sharing; and anything outside the data model refused where it
  * is met. So a refusal is the first one in the reader's order — a container
  * reached twice met once — whichever rule refuses it.
  *
- * @type {(leafRule: _Leaf) => (stack: _Stack, walk: _Walk, value: unknown) => _State}
+ * @template L
+ * @param {_Leaf<L>} leafRule
+ * @returns {(stack: _Stack<L>, walk: _Walk<L>, value: unknown) => _State<L>}
  */
 const enter = leafRule => (stack, walk, value) => {
     switch (typeof value) {
@@ -271,6 +273,7 @@ const enter = leafRule => (stack, walk, value) => {
         case 'object': {
             if (value === null) { return [stack, walk, mapOk(leaf)(leafRule(null))] }
             if (has(value)(walk.started)) { return [stack, walk, ok(['ref', value])] }
+            /** @type {Result<_Frame<L>, string>} */
             const frame = open(value)
             return frame[0] === 'error'
                 ? [stack, walk, frame]
@@ -281,17 +284,20 @@ const enter = leafRule => (stack, walk, value) => {
 }
 
 /**
- * The caller's value read into the graph, its leaves spelled by the leaf
- * rule as they are met, over an explicit stack: a frame per container being
- * read, its members read in order, so that a value nested as deep as the
- * reader accepts costs no call stack. The reader walks the same way, which
- * is what makes a document it accepts one this can write back.
+ * The caller's value read into the graph, each leaf kept as the leaf rule
+ * keeps it where the read meets it, over an explicit stack: a frame per
+ * container being read, its members read in order, so that a value nested
+ * as deep as the reader accepts costs no call stack. The reader walks the
+ * same way, which is what makes a document it accepts one this can write
+ * back.
  *
- * @type {(leafRule: _Leaf) => (value: unknown) => Result<_Step, string>}
+ * @template L
+ * @param {_Leaf<L>} leafRule
+ * @returns {(value: unknown) => Result<_Step<L>, string>}
  */
 const read = leafRule => value => {
     const enterWith = enter(leafRule)
-    /** @type {_State} */
+    /** @type {_State<L>} */
     let state = [null, start, ok(toEnter(value))]
     while (true) {
         const [stack, walk, next] = state
@@ -398,9 +404,9 @@ const constNames = graph => {
 }
 
 /**
- * The chunks of every node and of any value of a spelled graph, a hoisted
- * node written as its name and every other reference as a thunk over its
- * node's chunks.
+ * The chunks of every node and of any value of a graph, each leaf spelled
+ * by `spellLeaf` from what the read kept, a hoisted node written as its
+ * name and every other reference as a thunk over its node's chunks.
  *
  * This pass needs no stack of its own, because `_link` left the nodes in
  * post-order: a node comes after every node it refers to, so the chunks of
@@ -410,16 +416,18 @@ const constNames = graph => {
  * iteration does without recursion — so nesting as deep as the reader
  * accepts costs no call stack here either.
  *
- * @type {(key: (key: string) => List<string>) => (names: ReadonlyMap<number, string>) => (graph: _Graph<List<string>>) => { readonly chunks: readonly List<string>[], readonly value: (value: _Value<number, List<string>>) => List<string> }}
+ * @template L
+ * @param {(key: string) => List<string>} key
+ * @returns {(spellLeaf: (kept: L) => List<string>) => (names: ReadonlyMap<number, string>) => (graph: _Graph<L>) => { readonly chunks: readonly List<string>[], readonly value: (value: _Value<number, L>) => List<string> }}
  */
-const chunksOf = key => names => ({ nodes }) => {
-    /** @type {(value: _Value<number, List<string>>) => List<string>} */
+const chunksOf = key => spellLeaf => names => ({ nodes }) => {
+    /** @type {(value: _Value<number, L>) => List<string>} */
     const value = v => {
-        if (v[0] === 'leaf') { return v[1] }
+        if (v[0] === 'leaf') { return spellLeaf(v[1]) }
         const name = names.get(v[1])
         return name === undefined ? () => chunks[v[1]] : [name]
     }
-    /** @type {(node: _Node<number, List<string>>) => List<string>} */
+    /** @type {(node: _Node<number, L>) => List<string>} */
     const inline = node => node.kind === 'array'
         ? arrayWrap(node.items.map(value))
         : objectWrap(node.members.map(([k, v]) => flat([key(k), colon, value(v)])))
@@ -428,18 +436,29 @@ const chunksOf = key => names => ({ nodes }) => {
     return { chunks, value }
 }
 
-/** The DataJS leaf rule as a {@link _Leaf}, which refuses nothing. @type {_Leaf} */
-const dataJsLeaf = value => ok(leafSerialize(value))
+/**
+ * The DataJS read's leaf rule: a leaf kept as it is, refused never. The
+ * leaves are spelled by {@link write}, once `_link` has refused a cycle, so
+ * a value refused for its graph costs no spelling — of a large string least
+ * of all.
+ *
+ * @type {_Leaf<Primitive>}
+ */
+const kept = ok
+
+/** A leaf a tree document's read already spelled. @type {(chunks: List<string>) => List<string>} */
+const spelled = chunks => chunks
 
 /**
  * The document: a `const` per hoisted node, in post-order so that every
- * name is declared before it is used, and then the exported value.
+ * name is declared before it is used, and then the exported value, the
+ * leaves spelled here from the linked graph.
  *
- * @type {(graph: _Graph<List<string>>) => List<string>}
+ * @type {(graph: _Graph) => List<string>}
  */
 const write = graph => {
     const names = constNames(graph)
-    const { chunks, value } = chunksOf(keySerialize)(names)(graph)
+    const { chunks, value } = chunksOf(keySerialize)(leafSerialize)(names)(graph)
     const statements = [...names].map(([i, name]) => flat([[`const ${name}=`], chunks[i], [';']]))
     return flat([flat(statements), ['export default '], value(graph.root), [';']])
 }
@@ -448,11 +467,12 @@ const write = graph => {
  * The tree a graph unfolds to, as a document with no `const`: a node
  * reached by more than one reference is written where each reaches it, as
  * `JSON.stringify` writes the same value. Nothing is hoisted, so no name
- * is needed and every reference is a thunk over its node's chunks.
+ * is needed and every reference is a thunk over its node's chunks; the
+ * leaves were spelled by the read.
  *
  * @type {(key: (key: string) => List<string>) => (graph: _Graph<List<string>>) => List<string>}
  */
-const writeTree = key => graph => chunksOf(key)(new Map())(graph).value(graph.root)
+const writeTree = key => graph => chunksOf(key)(spelled)(new Map())(graph).value(graph.root)
 
 // ── entry points ──────────────────────────────────────────────────────────────
 
@@ -478,9 +498,9 @@ const writeTree = key => graph => chunksOf(key)(new Map())(graph).value(graph.ro
  * @type {(value: Unknown) => Result<List<string>, string>}
  */
 export const trySerialize = value => okThen(
-    /** @type {(step: _Step) => Result<List<string>, string>} */
+    /** @type {(step: _Step<Primitive>) => Result<List<string>, string>} */
     (([walk, root]) => mapOk(write)(_link(toArray(walk.finished), root)))
-)(read(dataJsLeaf)(value))
+)(read(kept)(value))
 
 /**
  * A value of the data model as the chunks of a tree document — JSON's
@@ -503,7 +523,7 @@ export const trySerialize = value => okThen(
  * @type {(leaf: _Leaf) => (key: (key: string) => List<string>) => (value: Unknown) => Result<List<string>, string>}
  */
 export const _tryTreeSerialize = leaf => key => value => okThen(
-    /** @type {(step: _Step) => Result<List<string>, string>} */
+    /** @type {(step: _Step<List<string>>) => Result<List<string>, string>} */
     (([walk, root]) => mapOk(writeTree(key))(_link(toArray(walk.finished), root)))
 )(read(leaf)(value))
 

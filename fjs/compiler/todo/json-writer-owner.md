@@ -61,8 +61,9 @@ what its doc claims.
 ### Related
 
 - [157-json-djs-shared-value-machine.md](../../media/json/todo/157-json-djs-shared-value-machine.md) —
-  counts three walkers; `jsonValue` is a fourth in the same file as the
-  third.
+  counts three walkers; the JSON walk was a fourth, in the same file as the
+  third, until #2526 made it the DataJS writer's read under JSON's leaf
+  rule.
 - [parse-error-location-format.md](../../media/json/todo/parse-error-location-format.md) —
   changes what `ParseError` carries; easier with its renderer beside it.
 - [070-compiler-flags.md](./070-compiler-flags.md) — adds routes to `outputText`,

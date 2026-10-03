@@ -58,5 +58,10 @@ export type _Graph<L = Primitive> = {
     readonly root: _Value<number, L>
 }
 
-/** A leaf as a document spells it, or why the document cannot: the rule a tree document is written under. */
-export type _Leaf = (value: Primitive) => Result<List<string>, string>
+/**
+ * What the read keeps for a leaf, or why the document cannot hold it: the
+ * chunks a tree document spells it as, under the rule the document is
+ * written under, or the leaf itself for a DataJS document, which spells it
+ * once the graph is linked.
+ */
+export type _Leaf<L = List<string>> = (value: Primitive) => Result<L, string>

@@ -110,14 +110,16 @@ what JSON means: the tool's JSON step is `_tryJson` itself, exported properly,
 not copied. A module with no `default` export evaluates to `undefined` and is
 refused for the same reason.
 
-**`_tryJson` does not refuse a function today.** A function falls through to
-`jsonLeaf`'s default branch and is written as `null`, so
-`export default x => x;` would return `null`. `fjs compile` never reaches that
-branch, because its value route refuses a function before any JSON is written
-(`a function has no value`). The tool does reach it, because `memo` returns the
-function. So `jsonLeaf` gets a `'function'` case that refuses it
-(`no JSON spelling for a function`), and the default branch is left with `null`
-alone. This is one fix that serves both, not a separate check in the tool.
+**`_tryJson` refuses a function at the DataJS reader's boundary.** `_tryJson`
+reads the value with the DataJS writer's reader before JSON's leaf rule sees
+a leaf, and that reader refuses a function as it refuses every value outside
+the data model (`a function is not a DataJS value`), so `export default
+x => x;` is refused there. `fjs compile` never reaches that boundary, because
+its value route refuses a function before any JSON is written (`a function
+has no value`); the tool does, because `memo` returns the function. That is
+the refusal the tool reports, and the proof below pins it through
+`_tryJson`; no case of `jsonLeaf`'s own is needed, since the reader hands it
+primitives alone.
 
 **Function text is not ready, and the tool waits for it.** At `4b63ec0`,
 `export default (x => x).toString();` evaluates to
@@ -190,8 +192,8 @@ which fixes it in the transport for every tool at once.
 - [ ] Add the text-to-value function to `fjs/compiler`: parse, refuse imports,
       lower, select the default, analyse, and run `memo`. Prove it with 100%
       coverage. The tool runs it, JSON step included, under one `catch_`.
-- [ ] Add a `'function'` case to `jsonLeaf` that refuses a function, and prove
-      it through `_tryJson`.
+- [ ] Prove through `_tryJson` that a function is refused at the DataJS
+      reader's boundary, `a function is not a DataJS value`.
 - [ ] Add the `fjs/mcp/eval` registry with the `fjs_eval` `toolEntry`, and
       compose it in `casMcpHandlers`. Add `Catch` to the server's operations.
 - [ ] Prove the cases: `export default 2 + 2;` returns `4`; an object and an
