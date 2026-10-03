@@ -86,10 +86,19 @@ const page = (name, shown = 0) => htmlToString(demo.view({ example: name, shown,
  */
 const texts = r => 'error' in r ? r : { parse: r.parse.text, validate: r.validate.text }
 
+/**
+ * One schema of a pair as the demo draws it: a choice button holding a radio
+ * dot and the schema's code, pressed when it is the one picked.
+ *
+ * @type {(i: number, pressed: boolean, source: string) => string}
+ */
+const choice = (i, pressed, source) =>
+    `<button type="button" name="schema-${i}" aria-pressed="${pressed}"><span data-pick-dot=""></span><span data-pick-code="">${source}</span></button>`
+
 /** A schema's graph as SVG text. @type {(schema: import('./types.ts').Type) => string} */
 const svg = schema => htmlToString(graphSvg(_graphOf(schema)))
 
-const demoProof = {
+const demoProof = /** @type {const} */ ({
     // The demo opens on the first example's first schema and its value.
     init: () => {
         assertEq(demo.init.example, examples[0]?.name)
@@ -142,9 +151,6 @@ const demoProof = {
         // A pair shows both schemas, each its code as a choice, and marks the
         // one picked; picking the other moves the mark and nothing else.
         pair: () => {
-            /** @type {(i: number, pressed: boolean, source: string) => string} */
-            const choice = (i, pressed, source) =>
-                `<button type="button" name="schema-${i}" aria-pressed="${pressed}"><span data-pick-dot=""></span><span data-pick-code="">${source}</span></button>`
             const a = page('Closed vs open')
             assert(a.includes(`<div data-pick="">${choice(0, true, '{ name: string, age: number }')}${choice(1, false, 'open({ name: string, age: number })')}</div>`), a)
             assert(!a.includes('data-code'), a)
@@ -213,7 +219,7 @@ const demoProof = {
         // apart, and JSON cannot write it.
         undefined: () => {
             const [a, b] = exampleNamed('Absent vs undefined').schemas
-            const text = 'export default {"a":undefined};'
+            const text = /** @type {const} */ ('export default {"a":undefined};')
             assertEq(JSON.stringify(texts(_readersOf(a.schema)(text))),
                 JSON.stringify({ parse: 'at a: no match', validate: 'at a: no match' }))
             assertEq(JSON.stringify(texts(_readersOf(assertNotNullish(b).schema)(text))),
@@ -280,7 +286,7 @@ const demoProof = {
         },
         record: () => assert(svg(record(array(number))).includes('>record<'), 'record'),
     },
-}
+})
 
 export const proof = {
     constInference,

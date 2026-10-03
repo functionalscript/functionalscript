@@ -16,8 +16,8 @@
  * **One schema, or two where the difference is the lesson.** Of the seven
  * examples, three show a single schema and four are pairs. A pair shows both
  * schemas, each a block with a radio dot, and the reader picks one while the
- * value stays put, so the one thing that changes is the schema. The schemas' own code tells them apart,
- * so they carry no names.
+ * value stays put, so the one thing that changes is the schema. The schemas'
+ * own code tells them apart, so they carry no names.
  *
  * **The graph is the schema as written**, walked by
  * `fjs/website/demo/graph`: a struct or a tuple is a node with a port per
@@ -52,17 +52,17 @@ import { toArray } from '../types/list/module.f.mjs'
 import { graphOf, graphSvg } from '../website/demo/graph/module.f.mjs'
 import { pureOk } from '../effects/module.f.mjs'
 
-const person = { name: string, age: number }
+const person = /** @type {const} */ ({ name: string, age: number })
 
-const address = { street: string, city: string }
+const address = /** @type {const} */ ({ street: string, city: string })
 
-const order = {
+const order = /** @type {const} */ ({
     id: number,
     billing: address,
     shipping: address,
     items: array({ sku: string, qty: number }),
     note: or(option, string),
-}
+})
 
 /** @type {Type} */
 const tree = () => ['const', { value: number, children: array(tree) }]
