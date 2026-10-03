@@ -1,0 +1,60 @@
+## binary-counter-owner. `set` re-implements `common/monoid`'s binary-counter run stack
+
+**Priority:** P4
+**Status:** open
+
+### Problem
+
+`PersistentSet` in [`module.f.mjs`](../module.f.mjs) is a list of runs
+whose sizes double, and `add` carries a new element into it exactly as a
+binary counter increments — its doc says so: every full entry on the way
+is merged into what is carried, and the carry lands in the first empty
+one:
+
+```js
+// set add
+let carry = new Set([value])
+let i = 0
+while (i < set.length) {
+    const entry = set[i]
+    if (entry === null) { break }
+    carry = new Set([...entry, ...carry])
+    i += 1
+}
+return [...set.slice(0, i).map(() => null), carry, ...set.slice(i + 1)]
+```
+
+[`fjs/common/monoid`](../../../common/monoid/module.f.mjs) already owns
+that structure, under the same description ("exactly the carry of
+incrementing a binary counter"), as its private `push` and `step` over
+`_Run`/`_Stack` in its `private.ts`:
+
+```js
+// monoid push
+const push = operation => size => value => stack =>
+    stack === null || stack.size !== size
+        ? { size, value, rest: stack }
+        : push(operation)(size * 2)(operation(stack.value)(value))(stack.rest)
+```
+
+The set's `has`, `size` and `values` then walk its own array-of-runs
+shape, which the monoid's stack would also give them.
+
+### Proposal
+
+The run stack gets one owner: `common/monoid` exports `push`/`step` and a
+walk over `_Stack`, or they move to a small `common/binary_counter`
+module both import. `add` becomes
+`has(value)(set) ? set : step(union)(new Set([value]))(set)` with
+`union = a => b => new Set([...a, ...b])`, and `has`/`size`/`values`
+walk the stack. The representation of `PersistentSet` changes, which is
+a breaking change to its type; its one consumer is
+[`fjs/media/datajs/serializer`](../../../media/datajs/serializer/module.f.mjs).
+
+### Tasks
+
+- [ ] Decide the owner: exports from `common/monoid`, or a
+      `common/binary_counter` module.
+- [ ] `set` over it; its proof passes with the new representation;
+      the serializer updated in the same PR.
+- [ ] `tsc`, `fjs test`, `npm run cov` at 100%.

@@ -19,6 +19,10 @@ spelling, so each module that needs it writes its own:
   the two digits after a `%`.
 - [`fjs/git/refstore`](../../git/refstore/module.f.mjs) — `nameForMessage`
   spells a name's bytes with `toString(16).padStart(2, '0')`.
+- [`fjs/types/uint8array`](../../types/uint8array/module.f.mjs) —
+  `hexOfByte` and `hexOf` spell bytes in lowercase, and `fromVec` reads a
+  pair back with `Number(`0x…`)`; it works a bigint at a time for a
+  reason its doc gives, which the codec's design must respect.
 - [`fjs/website`](../../website/module.f.mjs) — `commitOf` spells an id as
   `String.fromCharCode(...toArray(toHex(id)))`, which is `hexText` written
   again. It also turns the environment's string into code units and screens
