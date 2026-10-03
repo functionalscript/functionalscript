@@ -158,6 +158,20 @@ const demoProof = {
             assert(b.includes('<p>validate · ok</p>'), b)
             assert(!b.includes('data-result="error"'), b)
         },
+        // The page reads schema, then its graph, then the value and the
+        // answers: the graph is a picture of the schema, and the answers are
+        // what typing changes, so each sits by what it belongs to.
+        order: () => {
+            const html = page('Closed vs open', 1)
+            const at = (/** @type {string} */ needle) => {
+                const i = html.indexOf(needle)
+                assert(i >= 0, needle)
+                return i
+            }
+            assert(at('data-pick=""') < at('<svg'), html)
+            assert(at('<svg') < at('<textarea'), html)
+            assert(at('<textarea') < at('data-result='), html)
+        },
         // A single schema is a code block with no choice, whatever `shown` says.
         single: () => {
             const html = page('Dictionary', 1)

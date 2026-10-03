@@ -1,6 +1,6 @@
 /**
- * A schema and a value as you type it: what `parse` and `validate` make of
- * the value, and the schema drawn as a graph.
+ * A schema, drawn as a graph under its code, and a value as you type it, with
+ * what `parse` and `validate` make of the value under it.
  *
  * **A schema is picked, not typed.** It is a JavaScript value built from
  * functions, which no text box can spell, so the reader picks an example and
@@ -304,8 +304,13 @@ const schemasView = (e, shown) => e.schemas.length === 1
     ? ['pre', { 'data-code': '' }, e.schemas[0].source]
     : ['div', { 'data-pick': '' }, schemaChoice(e.schemas[0], 0, shown), schemaChoice(e.schemas[1], 1, shown)]
 
-/** @type {(s: DemoSchema, text: string) => readonly Element[]} */
-const schemaView = (s, text) => {
+/**
+ * The value box and, under it, what the two readers make of the value
+ * against `s` — kept together, since the answers are what typing changes.
+ *
+ * @type {(s: DemoSchema, text: string) => readonly Element[]}
+ */
+const valueView = (s, text) => {
     const r = _readersOf(s.schema)(text)
     return [
         ['p',
@@ -318,7 +323,6 @@ const schemaView = (s, text) => {
                 ...answerView('parse', r.parse.ok, r.parse.text),
                 ...answerView('validate', r.validate.ok, r.validate.text),
             ]),
-        graphSvg(_graphOf(s.schema)),
     ]
 }
 
@@ -343,6 +347,10 @@ export const demo = {
     view: ({ example, shown, text }) => {
         const e = exampleOf(example)
         const [a, b] = e.schemas
+        // The schema shown, then its graph — a picture of the schema, so it
+        // sits by it and changes with the pick — and the value with its
+        // answers last.
+        const s = shown === 1 && b !== undefined ? b : a
         return ['div',
             ['p',
                 ['label', { for: 'example' }, 'Example '],
@@ -350,7 +358,8 @@ export const demo = {
             ],
             ['p', e.about],
             schemasView(e, shown),
-            ...schemaView(shown === 1 && b !== undefined ? b : a, text),
+            graphSvg(_graphOf(s.schema)),
+            ...valueView(s, text),
         ]
     },
 }
