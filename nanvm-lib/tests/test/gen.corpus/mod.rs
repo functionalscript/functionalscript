@@ -64,6 +64,7 @@ pub mod ne;
 pub mod neg;
 pub mod not;
 pub mod nullish_coalescing;
+pub mod object_is;
 pub mod own_property;
 pub mod pow;
 pub mod rem;
@@ -108,6 +109,7 @@ pub fn all<A: IStaticFunction>() {
     typeof_::run::<A>();
     throw::run::<A>();
     string_coercion::run::<A>();
+    object_is::run::<A>();
     own_property::run::<A>();
     method_at::run::<A>();
     method_includes::run::<A>();

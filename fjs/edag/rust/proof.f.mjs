@@ -977,7 +977,7 @@ export const proof = {
     },
     throw: {
         /** An operation the printer has no `nanvm-lib` spelling for. */
-        unknownOperation: () => printed(['is', 1, 2]),
+        unknownOperation: () => printed(/** @type {Exp} */ (/** @type {unknown} */ (['==', 1, 2]))),
         /** An object key the printer cannot spell. */
         computedKey: () => printed(['{}', [[':', ['undefined'], 1]]]),
         /**
