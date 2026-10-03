@@ -21,13 +21,6 @@ use crate::{
 /// construction — there is no `From<f64>` here on purpose — so a NaN-boxing
 /// VM, which reads a negative quiet `NaN` as a boxed value, can store its
 /// bits as they are.
-///
-/// **Dropping a value must not abort, whatever its depth.** A program can
-/// build a value a million levels deep and then let it go, and the VM's
-/// answer is not allowed to be a stack overflow, which `sandbox` cannot
-/// capture and JavaScript's collector never produces. A representation that
-/// frees a container's items by recursion bounds that recursion itself, as
-/// `naive`'s `Drop` does.
 pub trait IVm:
     Sized
     + Clone
