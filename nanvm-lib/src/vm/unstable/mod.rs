@@ -173,10 +173,13 @@ pub fn property_item<A: IVm>(k: String<A>, v: Any<A>) -> ObjectItem<A> {
     ObjectItem::Property(k, v)
 }
 
-/// A computed property entry, `[k]: v`: the key is coerced as
-/// `ToPropertyKey` does, here `ToString` of it, which throws what the
-/// conversion throws (an object with its own `toString` is refused). The
-/// only fallible entry, so the one that is a `Result`.
+/// A computed property entry, `[k]: v`: [`Any::to_string`] supplies
+/// `ToPropertyKey` for the VM's values, which do not include symbols.
+/// A plain object becomes `"[object Object]"`; an own callable `toString`
+/// is called, with `valueOf` as the fallback if it returns no primitive.
+/// Conversion errors propagate: `{ toString: 0 }`, for example, cannot
+/// produce a primitive and is refused. The only fallible entry, so the
+/// one that is a `Result`.
 pub fn computed_item<A: IVm>(k: Any<A>, v: Any<A>) -> Result<ObjectItem<A>, Any<A>> {
     Ok(ObjectItem::Property(k.to_string()?, v))
 }
@@ -209,7 +212,7 @@ mod test {
     use crate::{
         common::sized_index::SizedIndex,
         naive::Naive,
-        vm::{Array, Nullish, Object, Unpacked},
+        vm::{Array, IStaticFunction, Nullish, Object, Unpacked},
     };
 
     #[test]
@@ -413,6 +416,35 @@ mod test {
             panic!()
         };
         assert_eq!(key, string_key("[object Object]"));
+    }
+
+    /// An own conversion method supplies the key, and its errors propagate.
+    #[test]
+    fn computed_key_conversion() {
+        let with_to_string = |method: Any<Naive>| -> Any<Naive> {
+            [(string_key("toString"), method)].to_object().to_any()
+        };
+        let method =
+            Naive::static_function(|_, _| Ok(string_any("own")), 0, [].to_array(), None).to_any();
+        let item = computed_item(with_to_string(method), string_any("value")).unwrap();
+        let object = Object::try_from(spread_object([item])).unwrap();
+        assert_eq!(
+            object.own_entries(),
+            [(string_key("own"), string_any("value"))]
+        );
+
+        let method = Naive::static_function(
+            |_, _| Err(string_any("key conversion failed")),
+            0,
+            [].to_array(),
+            None,
+        )
+        .to_any();
+        assert!(matches!(
+            computed_item(with_to_string(method), string_any("value")),
+            Err(error) if error == string_any("key conversion failed")
+        ));
+        assert!(computed_item(with_to_string(f64_any(0)), string_any("value")).is_err());
     }
 
     /// A string of code units holds what no `&str` can, a lone surrogate,
