@@ -17,6 +17,9 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { _sourceOf, demo } from './demo.f.mjs'
+import { examples } from '../examples/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
@@ -979,4 +982,23 @@ export const proof = {
             reads(e)
         }),
     ])),
+    /**
+     * **Every shared example is proved to behave as its name says.** The
+     * parser's refusals and the import, which has no file set to link from,
+     * are the refusals; everything else is written as a module.
+     */
+    demo: {
+        examples: () => {
+            for (const [name, source] of examples) {
+                assertEq(_sourceOf(source)[0], ['An import', 'Logical not', 'Hex escape', 'typeof', 'Parse error'].includes(name) ? 'error' : 'ok')
+            }
+            assertEq(_sourceOf('const a = [1];\nexport default [a, a];')[1], 'const $0=[1];export default [$0,$0];')
+        },
+        view: () => {
+            const shown = htmlToString(demo.view(demo.init))
+            assert(shown.includes('<pre>'), shown)
+            const refused = htmlToString(demo.view('export default {bad'))
+            assert(refused.includes('Refused: '), refused)
+        },
+    },
 }
