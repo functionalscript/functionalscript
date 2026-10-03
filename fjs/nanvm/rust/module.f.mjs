@@ -148,6 +148,7 @@ export const rustName = {
     typeof: 'typeof_',
     throw: 'throw',
     String: 'string_coercion',
+    Number: 'number_cast',
     is: 'object_is',
 }
 

@@ -13,8 +13,9 @@ impl<A: IVm> Array<A> {
     /// limit is the `RangeError` [`create`] throws, counted before anything
     /// is built.
     ///
-    /// Recursion follows nesting, so an array nested deeply enough overflows
-    /// the stack; see `nanvm-lib/todo/array-deep-nesting.md`.
+    /// Nesting is walked on a heap stack. Destruction still depends on the VM:
+    /// a consuming wrapper can overflow when it releases a sole-owned deep
+    /// `Naive` receiver. See `nanvm-lib/todo/array-deep-nesting.md`.
     pub(crate) fn flat(&self, depth: f64) -> Result<Array<A>, Any<A>> {
         let len = flat_length(self.clone().into_iter(), depth);
         create(len, built(|| flatten(self.clone().into_iter(), depth)))
@@ -39,33 +40,63 @@ fn built<A: IVm>(build: impl FnOnce() -> Vec<Any<A>>) -> impl Iterator<Item = An
     std::iter::once(build).flat_map(|build| build())
 }
 
+/// One array being walked: what is left of it and the `depth` it is
+/// flattened to.
+type Walk<'a, A> = (Box<dyn Iterator<Item = Any<A>> + 'a>, f64);
+
 /// The length [`flatten`] would answer, counted without building it. An
 /// array whose own elements are not flattened further counts as its
 /// length, so wide sharing costs one step per reference, and the count
 /// stops as soon as it is past the limit.
-fn flat_length<A: IVm>(mut items: impl Iterator<Item = Any<A>>, depth: f64) -> u64 {
+///
+/// The arrays being walked are a stack on the heap, so a nesting of any depth
+/// is counted in constant stack.
+fn flat_length<'a, A: IVm + 'a>(items: impl Iterator<Item = Any<A>> + 'a, depth: f64) -> u64 {
     const PAST: u64 = u32::MAX as u64 + 1;
-    items
-        .try_fold(0, |n, item| {
-            let m = n + match Unpacked::from(item) {
-                Unpacked::Array(a) if depth > 1.0 => flat_length(a.into_iter(), depth - 1.0),
-                Unpacked::Array(a) if depth > 0.0 => u64::from(a.length()),
-                _ => 1,
-            };
-            if m < PAST { Ok(m) } else { Err(PAST) }
-        })
-        .unwrap_or_else(|past| past)
+    let mut stack: Vec<Walk<'a, A>> = vec![(Box::new(items), depth)];
+    let mut n: u64 = 0;
+    while let Some((items, depth)) = stack.last_mut() {
+        let depth = *depth;
+        match items.next() {
+            None => {
+                stack.pop();
+            }
+            Some(item) => match Unpacked::from(item) {
+                Unpacked::Array(a) if depth > 1.0 => {
+                    stack.push((Box::new(a.into_iter()), depth - 1.0))
+                }
+                Unpacked::Array(a) if depth > 0.0 => n += u64::from(a.length()),
+                _ => n += 1,
+            },
+        }
+        if n >= PAST {
+            return PAST;
+        }
+    }
+    n
 }
 
 /// `FlattenIntoArray`: each item, or, for an item that is an array while
-/// `depth` is above zero, its own elements flattened one level less.
-fn flatten<A: IVm>(items: impl Iterator<Item = Any<A>>, depth: f64) -> Vec<Any<A>> {
-    items
-        .flat_map(|item| match Unpacked::from(item.clone()) {
-            Unpacked::Array(a) if depth > 0.0 => flatten(a.into_iter(), depth - 1.0),
-            _ => vec![item],
-        })
-        .collect()
+/// `depth` is above zero, its own elements flattened one level less, on a
+/// heap stack like [`flat_length`].
+fn flatten<'a, A: IVm + 'a>(items: impl Iterator<Item = Any<A>> + 'a, depth: f64) -> Vec<Any<A>> {
+    let mut stack: Vec<Walk<'a, A>> = vec![(Box::new(items), depth)];
+    let mut out = Vec::new();
+    while let Some((items, depth)) = stack.last_mut() {
+        let depth = *depth;
+        match items.next() {
+            None => {
+                stack.pop();
+            }
+            Some(item) => match Unpacked::from(item.clone()) {
+                Unpacked::Array(a) if depth > 0.0 => {
+                    stack.push((Box::new(a.into_iter()), depth - 1.0))
+                }
+                _ => out.push(item),
+            },
+        }
+    }
+    out
 }
 
 #[cfg(test)]
@@ -106,5 +137,44 @@ mod tests {
         let shared: Array<A> = (0..1u32 << 16).map(|_| wide.clone()).to_array();
         assert!(shared.flat(1.0).is_err());
         assert_eq!(length(shared.flat(0.0).unwrap()), 1 << 16);
+    }
+
+    /// An array nested far past the stack flattens: a chain of single-element
+    /// arrays around a number is that number, and a number at every level
+    /// comes out in order.
+    #[test]
+    fn flattens_a_deeply_nested_array() {
+        use crate::vm::{
+            Nullish,
+            test::deep::{DEPTH, leak, nested_arrays, small_stack},
+        };
+        small_stack(|| {
+            let chain = nested_arrays(DEPTH, 7.0.to_any());
+            leak(chain.clone());
+            let flat = Array::try_from(chain.clone()).unwrap().flat(f64::INFINITY);
+            assert_eq!(
+                flat.unwrap().into_iter().collect::<Vec<_>>(),
+                [7.0.to_any()]
+            );
+            // To a depth the walk stops at the chain's `depth`th array.
+            let two = Array::try_from(chain.clone()).unwrap().flat(2.0).unwrap();
+            assert_eq!(length(two), 1);
+
+            let every = (0..DEPTH)
+                .rev()
+                .fold(Nullish::Null.to_any::<A>(), |inner, i| {
+                    [(i as f64).to_any(), inner].to_array().to_any()
+                });
+            leak(every.clone());
+            let flat = Array::try_from(every.clone())
+                .unwrap()
+                .flat(f64::INFINITY)
+                .unwrap();
+            let items: Vec<Any<A>> = flat.into_iter().collect();
+            assert_eq!(items.len(), DEPTH + 1);
+            assert_eq!(items[0], 0.0.to_any());
+            assert_eq!(items[DEPTH - 1], ((DEPTH - 1) as f64).to_any());
+            assert_eq!(items[DEPTH], Nullish::Null.to_any());
+        });
     }
 }

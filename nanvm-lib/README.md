@@ -65,9 +65,27 @@ Operators on [`Any<A>`](src/vm/any/mod.rs) (the top-level VM value type).
 | `own`      | Own-property lookup | [x]      | [`any/mod.rs`](src/vm/any/mod.rs) / [`object/own_property.rs`](src/vm/object/own_property.rs) — `Any::own_property()` method, exactly `Object.getOwnPropertyDescriptor(object, key)?.value`: no getter invocation, no prototype chain (`nanvm-lib` objects have none), last-duplicate-wins flat key lookup on `Object<A>`; the key must already be a `String<A>` (`Result::Err`, not a coercion); a non-object, non-nullish receiver (`Number`, `String`, `Boolean`, `BigInt`, `Array`, a function) always answers `undefined`; a nullish one throws |
 | `.` / `[]` | Member access       | [x]      | [`any/dot.rs`](src/vm/any/dot.rs) — `Any::dot(a, key).end()`, the one property read: `dot` dispatches to [`array/member_access.rs`](src/vm/array/member_access.rs), [`string/member_access.rs`](src/vm/string/member_access.rs), [`object/member_access.rs`](src/vm/object/member_access.rs) and [`function/member_access.rs`](src/vm/function/member_access.rs); `Number`/`Boolean`/`BigInt` have no own properties, so every key on one answers `undefined`; no prototype chain and no getters; a built-in member function is reached by a call, never a read (the chains row below) |
 | `?.` / `?.()` / chains | Optional chaining, method calls | [x] | [`lambda/mod.rs`](src/vm/lambda/mod.rs) — the EDAG's three continuation types (`fjs/edag/README.md`, Chains) as `PropertyLambda`, `OptionLambda` and `OptionPropertyLambda`, opened by `Any::dot`, `Any::option_dot` ([`any/dot.rs`](src/vm/any/dot.rs)) and `Any::option_call` ([`any/option_call.rs`](src/vm/any/option_call.rs)), one method per legal step, closed by `end` or `end_call`; a key or arguments a region may skip are thunks, and every step is guard, thunk, operation; a call step calls an own property or element first, then the receiver type's built-in member function ([`lambda/method.rs`](src/vm/lambda/method.rs), `toString`, and every `Array` member function the compiler admits ([`array/README.md`](src/vm/array/README.md)), and `String`'s and `Number`'s ([`string/README.md`](src/vm/string/README.md)) — [`todo/member-functions.md`](todo/member-functions.md)), then throws as JavaScript does |
+| `Number`   | The `Number` cast   | [x]      | [`any/mod.rs`](src/vm/any/mod.rs) — `Any::number()`: `ToNumeric`, then a bigint converted to the nearest `Number` ([`bigint/to_f64.rs`](src/vm/bigint/to_f64.rs), ties to even, `Infinity` past the range); the EDAG's `['Number', e]`. Differs from unary `+` only on a bigint, which `+` refuses |
 | `is`       | `Object.is`         | [x]      | [`any/partial_eq.rs`](src/vm/any/partial_eq.rs) — `Any::same_value()`, `SameValue`: `===` except `NaN` equals `NaN` and `0` differs from `-0`; printed as `vm::unstable::object_is`; the EDAG's `['is', a, b]` |
 | `in`       | Property check      | [ ]      | |
 | `instanceof` | Instance check    | [ ]      | |
+
+### Number-cast scope
+
+`Any::number` implements `Number(value)`, including bigint rounding and
+overflow. `Any::unary_plus` and the internal `ToNumber` coercion remain
+separate: both reject bigints.
+
+The Rust printer accepts `['Number', exp]` both as a standalone operation and
+as a computed index in direct EDAG input, for example
+`['.', receiver, ['Number', key]]`. It evaluates the receiver before the key;
+inside `?.` and a `|.` continuation, the cast and its operand stay inside the
+guarded key thunk. These paths are covered by `computedIndex` in
+[`fjs/edag/rust/proof.f.mjs`](../fjs/edag/rust/proof.f.mjs).
+
+This is VM and EDAG-printer support. The source parser still does not admit
+`Number(x)` or `a[Number(k)]`; source admission remains tracked by
+[`spec/todo/2330-property-accessor.md`](../spec/todo/2330-property-accessor.md).
 
 ## Coercions
 
