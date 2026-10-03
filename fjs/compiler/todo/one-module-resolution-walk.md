@@ -66,7 +66,7 @@ selected value differs from `undefined`.
 
 Check each selection during dependency folding, before processing the next
 import, including cache hits. Repeated and diamond imports must reuse the
-same module and cached selections, preserving per-selection sharing facts and
+same module and cached selections, preserving per-selection values and
 EDAG evaluation anchors. One `_Context<T>` replaces both context types;
 `ParseContext` leaves `types.ts` in the same change.
 
@@ -86,7 +86,7 @@ shared walk is the cheaper step and makes that retirement smaller.
       go.
 - [ ] `tsc`, `fjs test`; both modules' proofs pass unchanged, including
       cycles, attributes, missing versus `undefined` exports, empty lists,
-      per-selection sharing, repeated/diamond imports and the earlier-import
+      per-selection values, repeated/diamond imports and the earlier-import
       diagnostic-ordering cases on both paths.
 
 ### Related

@@ -456,9 +456,8 @@ name with no extension alike.
 and write the value it computes. `.js`, `.edag.data.js` and `.rs` are the
 **graph outputs**: they write the program's graph and evaluate none of it.
 What a module holds decides which outputs it has. A function, a call or an
-operator counts wherever it stands in the program; a shared object or array
-and a `bigint` count only where an output writes them, which for `.json` is
-the selected value (below):
+operator counts wherever it stands in the program; a `bigint` counts only
+where an output writes it, which for `.json` is the selected value (below):
 
 |A module holding|`.json`|`.data.js`|`.js`|`.edag.data.js`|`.rs`|
 |----------------|-------|----------|-----|---------------|-----|
@@ -467,7 +466,7 @@ the selected value (below):
 |a call|refused|refused|refused|written|written|
 |unary `-`|computed|computed|written|written|written|
 |any other operator|refused|refused|refused|written|written|
-|an object or array reached twice|refused|a `const`|a `const`|a shared node|a shared value|
+|an object or array reached twice|written twice|a `const`|a `const`|a shared node|a shared value|
 |a `bigint`|refused|written|written|written|written|
 
 A value output refuses a function, which neither DataJS nor JSON can spell
@@ -496,7 +495,7 @@ Rust has no spelling for is refused, naming the output and writing nothing;
 none is left among the primitives.
 
 For a FunctionalScript input, JSON and DataJS output serialize the module
-result's `default` property, with sharing checked for that selected value.
+result's `default` property.
 Selecting the `default` does not narrow what they evaluate: a value output
 evaluates the whole program — every `const`, exported or not, of the input and
 of every module it loads, one an `import {}` loads included — so a function, a
@@ -521,29 +520,17 @@ module boundary, from which a default import selects the document.
   wherever it is read, however often, since sharing one is not observable.
   Every value a value output computes has a document, shared nodes, `bigint`,
   `undefined`, `NaN` and the infinities included.
-- JSON is a tree, and the compiler refuses what JSON cannot spell rather than
-  write a file that reads back as a different value: an object or array the
-  value reaches along more than one reference — through a `const`, an import
-  or a property access — which written twice reads back as two (`no JSON
-  spelling for a shared node`); `bigint`, `undefined`, `NaN`, `Infinity` and
-  `-Infinity`, which JSON has no word for. A primitive reached twice is not
-  shared, having no identity to lose: `const s = "str"; export default [s, s];`
-  is `["str","str"]`, while `const o = {}; export default [o, o];` is refused.
-  A `bigint` is refused even though its digits are JSON, since `1` reads back
-  as the *number* `1`. The refusal names the output file and writes nothing.
-
-  The sharing check is exact within a module and coarser across modules,
-  where it may refuse a tree it cannot prove is one, never the reverse. A
-  module whose own value holds a shared node counts as shared under any
-  route an importer takes into it, and so does every module it reaches:
-  a selected container, `p.selected`, is refused when another member of `p`
-  holds a shared node or a module the importer also selects, while a
-  selected primitive is written, having no identity to lose. Two exports of one module that hold
-  containers — `import { a, b }` returned as `[a, b]` — are refused even when
-  disjoint, where `m.a` and `m.b` of one default import are not. The other
-  four outputs accept these, and
-  [`named-export-sharing-precision.md`](../fjs/compiler/todo/named-export-sharing-precision.md)
-  is the task that lifts the refusal.
+- JSON is a tree, and a JSON document carries no identity: every object and
+  array in it is a fresh one when it is read. So an object or array the value
+  reaches along more than one reference — through a `const`, an import or a
+  property access — is written where each reference reaches it, as
+  `JSON.stringify` writes it: `const o = {}; export default [o, o];` is
+  `[{},{}]`, the one tree the value has. The compiler refuses what JSON
+  cannot spell rather than write a file that reads back as a different
+  value: `bigint`, `undefined`, `NaN`, `Infinity` and `-Infinity`, which JSON
+  has no word for. A `bigint` is refused even though its digits are JSON,
+  since `1` reads back as the *number* `1`. The refusal names the output
+  file and writes nothing.
 
   A JSON document is written as `JSON.stringify` writes the value: one line,
   no whitespace and no trailing newline, members in the value's order
@@ -759,8 +746,8 @@ of them but `reference` is also what a `.json` output cannot carry
 ([output](#output)). A reference is not a value, so a `.json` output writes
 the value it denotes: `const a = [1]; export default { p: a };` is
 `{"p":[1]}`. What JSON cannot carry is the *sharing*: an object or an array
-the value reaches along more than one reference, which written twice would
-read back as two, is refused rather than copied ([output](#output)).
+the value reaches along more than one reference is written where each
+reference reaches it, as `JSON.stringify` writes it ([output](#output)).
 
 ### Numbers
 
@@ -986,10 +973,11 @@ keeps its `['...', exp]` item, and `.rs` prints it through `nanvm-lib`'s
 `get_iterator`. A constant spread is not folded, so `[...[1, 2]]` is a
 different graph from `[1, 2]`, as `1 + 1` is from `2`. A spread puts its
 operand's elements in the array and not the operand, so it shares what an
-element shares: `const a = [1]; export default [[...a], a];` has no shared
-node and is written as JSON, where `const a = [{}]` in its place has one.
-An object's spread, `{ ...o }`, is not in the language yet
-([object spread](./todo/2490-object-spread.md)).
+element shares: `const a = [{}]; export default [[...a], a];` holds the
+object once, a `const` in DataJS and written where each reference reaches
+it in JSON ([Output](#output)), where `const a = [1]` in its place shares
+nothing. An object literal takes a spread too, with a different reading
+([objects](#objects)).
 
 ### Objects
 
@@ -1003,6 +991,55 @@ export default {
 
 An object may be empty and may end with a trailing comma, like an array. When
 one key is written twice, the last value wins, as in JavaScript.
+
+#### Object Spread
+
+A member may be a **spread**, `...` and any value, at any position and any
+number of times:
+
+```js
+const o = { a: 1, b: 2 };
+export default [{ ...o, c: 3 }, { a: 0, ...o }, { ...o, a: 0 }, { ...'ab' }, { ...null }];
+// [{ a: 1, b: 2, c: 3 }, { a: 1, b: 2 }, { a: 0, b: 2 }, { 0: 'a', 1: 'b' }, {}]
+```
+
+The operand is evaluated in its place among the members, left to right, and
+its own enumerable string-keyed properties are copied in, in its own
+property order, as JavaScript's `CopyDataProperties` copies them. A copied
+key behaves as a written one: when it is already present, the later value
+wins and the key keeps its first position. What each value contributes
+agrees with JavaScript:
+
+- **An object:** its own properties, array-index keys first in ascending
+  order, then the others in the order they were made.
+- **An array:** its elements, keyed `'0'`, `'1'`, ….
+- **A string:** one property per UTF-16 code unit, not per code point:
+  `{ ...'😀' }` is `{ 0: '\ud83d', 1: '\ude00' }`, where `[...'😀']` is
+  `['😀']`. The two spreads read a string differently in JavaScript, and so
+  here.
+- **Anything else** — `null`, `undefined`, a boolean, a number, a `bigint`,
+  a function — contributes nothing: `{ ...null }` is `{}`.
+
+So, unlike an [array's spread](#spread), an object's never throws. A
+function contributes nothing to the object, but the module holding it is
+still one holding a function: the value outputs refuse it, as they refuse any
+module holding one, and the others write the spread as it stands
+([Output](#output)). A
+copied `__proto__` key is an ordinary own property, as JavaScript's
+`CreateDataProperty` makes it: `{ ...{ ['__proto__']: 1 } }` owns a
+property named `__proto__` and has no new prototype
+([the `__proto__` key](#the-__proto__-key)).
+
+The value outputs write the object the spread made, and the graph outputs
+the spread itself: `.js` and `.f.js` write it back, `{ ...o, c: 3 }`, the
+EDAG keeps its `['...', exp]` entry, and `.rs` prints it through
+`nanvm-lib`'s `object_spread`. A constant spread is not folded, so
+`{ ...{ a: 1 } }` is a different graph from `{ a: 1 }`. With a spread among
+the members, which keys the literal has is known only once the operand is:
+no key selects inside such a literal, and no member before a spread is
+dropped as overwritten, so the sharing sweep reads every member and every
+spread operand's properties — which may refuse a `.json` output whose
+selected part shares nothing, never write a wrong one.
 
 A member may hold any value, `undefined` included, and a member holding
 `undefined` is still an own property, as in JavaScript: it keeps its key and
@@ -1549,7 +1586,8 @@ is written, as DataJS and as FunctionalScript, as
 const $0={"x":1};const $1=[$0,$0];export default [$1,$1,$0];
 ```
 
-and JSON, a tree, refuses it (`no JSON spelling for a shared node`). A
+and as JSON, a tree, with the node written where each reference reaches it,
+`[[{"x":1},{"x":1}],[{"x":1},{"x":1}],{"x":1}]`. A
 function has identity as an object does ([functions](#functions)), so a
 FunctionalScript document shares one the same way:
 `const f = () => 1; export default [f, f];` is written

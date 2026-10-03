@@ -65,7 +65,7 @@ export type _Slot = {
 /**
  * A node's size and its ports, as `portsOf` lays them out under its label.
  * `entry` is where an edge into the node arrives, measured from its top:
- * the middle of its label's row, or of its first port's when it has no
+ * the middle of its label's row, or of the whole node when it has no
  * label row.
  */
 export type _Size = {

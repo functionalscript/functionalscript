@@ -75,10 +75,11 @@ for a file that must load as an ES module whatever the package's `"type"` says.
 const $0=["text"];export default [1,1,$0,{"x":$0}];
 ```
 
-JSON is a tree, so `output.json` is refused rather than written with two copies:
+JSON is a tree and carries no identity, so `output.json` writes the array
+where each reference reaches it, as `JSON.stringify` does:
 
-```text
-output.json - error: no JSON spelling for a shared node
+```json
+[1,1,["text"],{"x":["text"]}]
 ```
 
 [The specification](./spec/README.md) is the reference for what the compiler
