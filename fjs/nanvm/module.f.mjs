@@ -1532,6 +1532,36 @@ const strictEqualityCases = [
     { name: 'functionBySameText', args: [callback('first'), callback('first')], expected: false },
 ]
 
+/** @type {readonly Case<2>[]} */
+const isCases = [
+    { name: 'nanByNan', args: [NaN, NaN], expected: true },
+    { name: 'zeroByNegativeZero', args: [0, -0], expected: false },
+    { name: 'zeroByZero', args: [0, 0], expected: true },
+    { name: 'negativeZeroByNegativeZero', args: [-0, -0], expected: true },
+    { name: 'nanByZero', args: [NaN, 0], expected: false },
+    { name: 'numberBySameNumber', args: [2.3, 2.3], expected: true },
+    { name: 'numberByOtherNumber', args: [2.3, -5.4], expected: false },
+    { name: 'infinityByInfinity', args: [Infinity, Infinity], expected: true },
+    { name: 'infinityByNegativeInfinity', args: [Infinity, -Infinity], expected: false },
+    { name: 'nullByNull', args: [null, null], expected: true },
+    { name: 'nullByUndefined', args: [null, undefined], expected: false },
+    { name: 'undefinedByUndefined', args: [undefined, undefined], expected: true },
+    { name: 'trueByTrue', args: [true, true], expected: true },
+    { name: 'trueByFalse', args: [true, false], expected: false },
+    { name: 'stringByEqualString', args: ['a', 'a'], expected: true },
+    { name: 'stringByOtherString', args: ['a', 'b'], expected: false },
+    { name: 'bigintByEqualBigint', args: [1n, 1n], expected: true },
+    { name: 'bigintByNumber', args: [1n, 1], expected: false },
+    { name: 'zeroBigintByNegativeZeroBigint', args: [0n, -0n], expected: true },
+    { name: 'numberByString', args: [1, '1'], expected: false },
+    { name: 'arrayByItself', args: [ref('emptyArray'), ref('emptyArray')], expected: true },
+    { name: 'arrayByEqualArray', args: [[], []], expected: false },
+    { name: 'objectByItself', args: [ref('object'), ref('object')], expected: true },
+    { name: 'objectByEqualObject', args: [ref('object'), { '0': '0' }], expected: false },
+    { name: 'functionByItself', args: [ref('first'), ref('first')], expected: true },
+    { name: 'functionBySameText', args: [callback('first'), callback('first')], expected: false },
+]
+
 /** @type {Data} */
 export const data = {
     shared: sharedValues,
@@ -1611,6 +1641,12 @@ export const data = {
                 { name: 'bigintTieUp', args: [2n ** 53n + 3n], expected: 2 ** 53 + 4 },
                 { name: 'bigintObject', args: [{ valueOf: returns(7n) }], expected: 7 },
             ],
+        },
+        {
+            // `Object.is`, `===` but for `NaN` and the signed zeros.
+            op: 'is',
+            commutative: true,
+            cases: isCases,
         },
         { op: 'own', cases: ownCases },
         ...memberGroups,

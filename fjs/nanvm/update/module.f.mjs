@@ -8,7 +8,7 @@
  *
  * @module
  *
- * @import { IoChannel, Mkdir, NodeProgram, WriteFile } from '../../effects/node/types.ts'
+ * @import { IoChannel, Mkdir, NodeProgram, Rm, WriteBytes, WriteFile } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  */
 
@@ -24,7 +24,7 @@ import { directory as methodsDirectory, generate as generateMethods, path as met
  * one file at a time, stopping at the first that fails, and then the
  * completeness table `nanvm-lib/src/vm/lambda/gen.methods.rs`.
  *
- * @type {() => Effect<Mkdir | WriteFile, void, IoChannel>}
+ * @type {() => Effect<Mkdir | Rm | WriteBytes | WriteFile, void, IoChannel>}
  */
 export const generateRustTests = () => {
     const directoryReady = mkdir(directory, { recursive: true })

@@ -559,17 +559,11 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       reads `a.toString` as a function); `undefined` for a missing member, as
       JavaScript; a `null` or `undefined` base fails the module, as JavaScript
       throws — `run` returns a `Result` now, and `fjs compile` reports the failure
-      against the input; and the sharing sweep reads an access by its keys — two
-      references share a node when one's keys are the other's or a prefix of
-      them and the node is a container, which the values say — so
-      `{ x: cfg.a, y: cfg.b }` is a tree and `[cfg.a, cfg.a]` is not. Pinned in
-      `fjs/compiler/proof.f.mjs` (`access`) and `fjs/compiler/ast/proof.f.mjs`. Left
-      coarse, in the safe direction: a module whose own value holds a shared
-      node is shared under any route an importer takes into it, and the
-      modules it reaches count under any route too, since the sweep does not
-      carry where in the module's value a node sits; the precise answer there
-      is an identity walk of the selected sub-value, which the sweep exists
-      not to make.
+      against the input. Pinned in `fjs/compiler/proof.f.mjs` (`access`) and
+      `fjs/compiler/ast/proof.f.mjs`. The sweep that once read an access by
+      its keys to refuse `[cfg.a, cfg.a]` as JSON went with the refusal
+      (#2526): a value output reads the value, where `[cfg.a, cfg.a]` is one
+      array reached twice, hoisted by DataJS and written twice by JSON.
 - [x] Define the temporary `Unresolved` type as `{ imports, edag }`; keep it outside
       the EDAG schema. Done: [`fjs/compiler/edag/types.ts`](../edag/types.ts).
 - [x] Keep `Unresolved.imports` as a source-ordered array of import records — the

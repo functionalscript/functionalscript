@@ -48,7 +48,7 @@ suffix first:
 
 |Output|What it holds|
 |-|-|
-|`.json`|a tree, refusing a value JSON cannot spell — a shared one among them — rather than expand it|
+|`.json`|a tree, a shared value written where each reference reaches it, refusing a value JSON cannot spell — `undefined`, a `bigint`, `NaN`, an infinity, a function — rather than approximate it|
 |`.edag.data.js`, `.edag.data.mjs`|the program's [EDAG](edag/README.md), the graph of what it computes, as a DataJS document|
 |`.data.js`, `.data.mjs`|the value as a [DataJS](../spec/datajs/README.md) module, sharing preserved by naming reused values as `const`s|
 |any other `.js` or `.mjs`|the program as a FunctionalScript module, written from the graph rather than the value, so it holds a function too|
