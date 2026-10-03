@@ -50,10 +50,11 @@
  * elements, or a cycle, so a refusal reached only through such a value
  * could not be proved through this module's entry points at all. The three
  * carry the `_` prefix because that export is linkage rather than API
- * ([`fjs/AGENTS.md`](../../../AGENTS.md) §3.2), as `_tryTreeSerialize`
- * does, the read and the write under a caller's leaf rule that
- * `fjs/compiler`'s `.json` output is: `trySerialize` and `tryStringify` are
- * what this module promises.
+ * ([`fjs/AGENTS.md`](../../../AGENTS.md) §3.2): `trySerialize` and
+ * `tryStringify` are what this module promises, and `tryJsonSerialize` and
+ * `tryJsonStringify` beside them — a JSON document is the tree a DataJS
+ * graph unfolds to, so its writer is this read under JSON's leaf rule, and
+ * lives here rather than in `fjs/media/json`, which this module imports.
  *
  * @module
  *
@@ -71,7 +72,7 @@ import { cmp } from '../../../types/number/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../../../types/result/module.f.mjs'
 import { add, empty as noneStarted, has } from '../../../types/set/module.f.mjs'
 import { concat } from '../../../types/string/module.f.mjs'
-import { arrayWrap, colon, leafSerialize as leafSerializeWith, objectWrap, stringSerialize } from '../../json/serializer/module.f.mjs'
+import { arrayWrap, boolSerialize, colon, leafSerialize as leafSerializeWith, nullSerialize, objectWrap, stringSerialize } from '../../json/serializer/module.f.mjs'
 
 const {
     entries,
@@ -504,28 +505,78 @@ export const trySerialize = value => okThen(
 
 /**
  * A value of the data model as the chunks of a tree document — JSON's
- * shape, under the caller's spelling of a leaf and of a key — or why it is
- * not one. The value is read into the same graph {@link trySerialize}
- * reads it into, each leaf spelled by the caller's rule where the read
- * meets it, and the tree is written only then, a node reached twice
- * written where each reference reaches it as `JSON.stringify` writes it.
- * That order is the point: a leaf the rule refuses — `undefined` under
- * JSON's — is found over the graph, which may be exponentially smaller
- * than the tree it unfolds to, so a document that will not be written
- * costs no unfolding; and the leaf refused is the first in the reader's
- * order, a node reached twice met once, so `[undefined, [1n]]` names
- * `undefined` under a rule refusing both. What the data model refuses,
- * `trySerialize` refuses here too.
- *
- * Linkage, not API: `fjs/compiler`'s `.json` output is this under JSON's
- * leaf rule, and the `_` says that is the one caller it is promised to.
+ * shape, under a spelling of a leaf and of a key — or why it is not one.
+ * The value is read into the same graph {@link trySerialize} reads it
+ * into, each leaf spelled by the rule where the read meets it, and the
+ * tree is written only then, a node reached twice written where each
+ * reference reaches it as `JSON.stringify` writes it. That order is the
+ * point: a leaf the rule refuses is found over the graph, which may be
+ * exponentially smaller than the tree it unfolds to, so a document that
+ * will not be written costs no unfolding; and the leaf refused is the
+ * first in the reader's order, a node reached twice met once, so
+ * `[undefined, [1n]]` names `undefined` under JSON's rule. What the data
+ * model refuses, `trySerialize` refuses here too.
  *
  * @type {(leaf: _Leaf) => (key: (key: string) => List<string>) => (value: Unknown) => Result<List<string>, string>}
  */
-export const _tryTreeSerialize = leaf => key => value => okThen(
+const treeSerialize = leaf => key => value => okThen(
     /** @type {(step: _Step<List<string>>) => Result<List<string>, string>} */
     (([walk, root]) => mapOk(writeTree(key))(_link(toArray(walk.finished), root)))
 )(read(leaf)(value))
+
+/**
+ * Why a value cannot be written as JSON. The wording names the thing JSON
+ * has no spelling for, because that is the whole reason: nothing here is
+ * malformed, and the same value writes as a DataJS document without
+ * complaint.
+ *
+ * @type {(what: string) => Result<never, string>}
+ */
+const noJson = what => error(`no JSON spelling for ${what}`)
+
+/**
+ * A leaf in JSON, or the refusal. `undefined`, a bigint and the three
+ * non-finite numbers are refused rather than approximated: `JSON.stringify`
+ * writes `null` for `NaN` and drops an `undefined` member, and the extended
+ * codec would write `1n` as `1`, which the standard reader takes back as
+ * the *number* `1` — each a different value read back without a word. A
+ * finite number is written by the DataJS rule, which is `ToString` with
+ * `-0` kept, since `-0` is a JSON number that `JSON.stringify` alone loses.
+ *
+ * @type {_Leaf}
+ */
+const jsonLeaf = value => {
+    switch (typeof value) {
+        case 'boolean': { return ok(boolSerialize(value)) }
+        case 'string': { return ok(stringSerialize(value)) }
+        case 'number': { return isFinite(value) ? ok(_numberSerialize(value)) : noJson(`${value}`) }
+        case 'bigint': { return noJson(`${value}n`) }
+        case 'undefined': { return noJson('undefined') }
+        default: { return ok(nullSerialize) }
+    }
+}
+
+/**
+ * A value of the data model as the chunks of a JSON document, or why it
+ * has none: the tree the value unfolds to, under {@link jsonLeaf} and JSON's
+ * own spelling of a key — `__proto__` included, which a DataJS document
+ * alone has to spell computed. JSON carries no identity, so a node two
+ * references reach is written where each reaches it, as `JSON.stringify`
+ * writes the same value; what JSON cannot spell is refused rather than
+ * approximated, the first such leaf in the reader's order named, and what
+ * the data model refuses is refused as {@link trySerialize} refuses it.
+ *
+ * @type {(value: Unknown) => Result<List<string>, string>}
+ */
+export const tryJsonSerialize = treeSerialize(jsonLeaf)(stringSerialize)
+
+/**
+ * {@link tryJsonSerialize} as one string: what `fjs compile` writes for a
+ * `.json` output.
+ *
+ * @type {(value: Unknown) => Result<string, string>}
+ */
+export const tryJsonStringify = value => mapOk(concat)(tryJsonSerialize(value))
 
 /**
  * {@link trySerialize} as one string: the document in normalized form, the

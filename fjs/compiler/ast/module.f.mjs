@@ -6,7 +6,7 @@
  * @import { Array, Unknown } from '../../media/datajs/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstBody, AstFunction, AstItem, AstMember, AstModule, AstModuleRef, AstNeg, AstObject, AstSpread, AstThrow, BinaryTag, Anchors } from './types.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstBody, AstEntry, AstFunction, AstItem, AstMember, AstModule, AstModuleRef, AstNeg, AstObject, AstSpread, AstThrow, BinaryTag, Anchors } from './types.ts'
  * @import { _Lazy, _OperandStack, _Reach, _RefNode, _RunState } from './private.ts'
  */
 
@@ -312,18 +312,9 @@ export const run = body => args => mapOk(lastOf)(values(body)(args))
 const bit = i => 1n << BigInt(i)
 
 /**
- * The values of an object's members as written, a shadowed member's among
- * them: what the EDAG constructor takes, since it applies every member and
- * evaluates each. A spread's operand is not among them: a view reads it
- * through its `spread`.
- *
- * @type {(entries: readonly AstEntry[]) => readonly AstConst[]}
- */
-const memberValuesWritten = entries => members(entries).map(([, , value]) => value)
-
-/**
- * Every node an object's entries hold, as written: a member's value and a
- * spread's operand.
+ * Every node an object's entries hold, as written: a member's value, a
+ * shadowed member's among them, and a spread's operand — what the EDAG
+ * constructor takes, since it applies every entry and evaluates each.
  *
  * @type {(entries: readonly AstEntry[]) => readonly AstConst[]}
  */
@@ -445,9 +436,9 @@ const refsOfOperand = lazy => ast => {
     switch (ast[0]) {
         // a spread's operand is reached where the spread stands
         case 'array': { return flat(ast[1].map(itemOperand).map(refsOf(lazy))) }
-        // every member written, a shadowed one included: the EDAG's object
-        // constructor applies each
-        case 'object': { return flat(memberValuesWritten(ast[1]).map(refsOf(lazy))) }
+        // every entry written, a shadowed member and a spread's operand
+        // included: the EDAG's object constructor applies each
+        case 'object': { return flat(entryOperands(ast[1]).map(refsOf(lazy))) }
         // a call reaches its callee and every argument, each written where
         // it stands: what the call *returns* is not reachable from the
         // syntax at all, which is why a module holding one has no value —

@@ -6,7 +6,7 @@
  */
 
 import { exitCode, readUtf8File } from '../effects/node/module.f.mjs'
-import { _errorLocation, _tryJson, compile } from './module.f.mjs'
+import { _errorLocation, compile } from './module.f.mjs'
 import { parse, transpile } from './transpiler/module.f.mjs'
 import { resolve } from './edag/module.f.mjs'
 import { analysis } from '../edag/analysis/module.f.mjs'
@@ -1439,12 +1439,6 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assertEq(compileSource('export default [undefined, 42n, NaN];')('output.data.js'), 'export default [undefined,42n,NaN];')
             assertEq(compileSource('const a = [1]; export default [a, a];')('output.data.js'), 'const $0=[1];export default [$0,$0];')
         },
-        // and `_tryJson` itself, on a value rather than a file, for the leaf
-        // JSON has a spelling for and the container order it keeps
-        value: () => {
-            assertEq(unwrap(_tryJson({ b: -0, a: [true, null, 'x'] })), '{"b":-0,"a":[true,null,"x"]}')
-            assertEq(unwrap(invert(_tryJson(undefined))), 'no JSON spelling for undefined')
-        },
     },
     // Negative zero end to end: the tokenizer pins the `-0` lexeme,
     // `parseFloat` keeps the sign, and the serializer writes it back as
@@ -1767,16 +1761,17 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         // shares nothing. With a spread among the members no key selects
         // inside the literal, and no member before a spread is dropped.
         sharing: () => {
-            /** @type {(source: string) => void} */
-            const shared = source => assertEq(jsonRefused(source), 'output.json - error: no JSON spelling for a shared node')
             assertEq(compileSource('const o = { k: 1 }; export default [{ ...o }, { ...o }];')('output.json'), '[{"k":1},{"k":1}]')
             assertEq(compileSource('const s = "ab"; export default [{ ...s }, { ...s }];')('output.json'), '[{"0":"a","1":"b"},{"0":"a","1":"b"}]')
-            shared('const x = {}; const o = { k: x }; export default [{ ...o }, { ...o }];')
-            shared('const x = {}; export default [{ ...{ k: x } }, x];')
-            shared('const x = {}; const o = { k: x }; export default [{ ...o }.k, o];')
-            shared('const x = {}; export default [{ a: x, ...{ b: 1 } }.a, x];')
-            shared('const x = {}; export default [{ a: x, ...{ a: 1 } }, x];')
-            shared('const x = {}; const a = [x]; export default [{ ...a }, x];')
+            // a container the copied properties hold is one node, which
+            // DataJS keeps and JSON writes where each reference reaches it
+            assertEq(compileSource('const x = {}; const o = { k: x }; export default [{ ...o }, { ...o }];')('output.data.js'), 'const $0={};export default [{"k":$0},{"k":$0}];')
+            assertEq(compileSource('const x = {}; const o = { k: x }; export default [{ ...o }, { ...o }];')('output.json'), '[{"k":{}},{"k":{}}]')
+            assertEq(compileSource('const x = {}; export default [{ ...{ k: x } }, x];')('output.json'), '[{"k":{}},{}]')
+            assertEq(compileSource('const x = {}; const o = { k: x }; export default [{ ...o }.k, o];')('output.json'), '[{},{"k":{}}]')
+            assertEq(compileSource('const x = {}; export default [{ a: x, ...{ b: 1 } }.a, x];')('output.json'), '[{},{}]')
+            assertEq(compileSource('const x = {}; export default [{ a: x, ...{ a: 1 } }, x];')('output.json'), '[{"a":1},{}]')
+            assertEq(compileSource('const x = {}; const a = [x]; export default [{ ...a }, x];')('output.json'), '[{"0":{}},{}]')
         },
     },
     throws: () => {

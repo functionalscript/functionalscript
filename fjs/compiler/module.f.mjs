@@ -14,7 +14,7 @@
  *
  * @import { List } from '../types/list/types.ts'
  * @import { Result } from '../types/result/types.ts'
- * @import { Primitive, Unknown } from '../media/datajs/types.ts'
+ * @import { Unknown } from '../media/datajs/types.ts'
  * @import { _Checked, _CompileOp } from './types.ts'
  * @import { Denotation } from './ast/types.ts'
  * @import { ParseError } from './parser/types.ts'
@@ -25,7 +25,7 @@
 import { _transpileDefault } from './transpiler/module.f.mjs'
 import { resolve } from './edag/module.f.mjs'
 import { toRust } from './rust/module.f.mjs'
-import { _numberSerialize, _tryTreeSerialize, tryStringify } from '../media/datajs/serializer/module.f.mjs'
+import { _numberSerialize, tryJsonStringify, tryStringify } from '../media/datajs/serializer/module.f.mjs'
 import { tryStringify as fjsStringify, tryModuleStringify } from './serializer/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../media/json/serializer/module.f.mjs'
 import { flat, map } from '../types/list/module.f.mjs'
@@ -73,60 +73,15 @@ export const _errorLocation = inputFileName => ({ metadata, end, path }) => {
 // ── JSON output ───────────────────────────────────────────────────────────────
 
 /**
- * Why a value cannot be written as JSON. The wording names the thing JSON
- * has no spelling for, because that is the whole reason: nothing here is
- * malformed, and the same value writes as a module without complaint.
- *
- * @type {(what: string) => Result<never, string>}
- */
-const noJson = what => error(`no JSON spelling for ${what}`)
-
-/**
- * A leaf in JSON, or the refusal. `undefined`, a bigint and the three
- * non-finite numbers are refused rather than approximated: `JSON.stringify`
- * writes `null` for `NaN` and drops an `undefined` member, and the extended
- * codec would write `1n` as `1`, which the standard reader takes back as
- * the *number* `1` — each a different value read back without a word. A
- * finite number is written by the DataJS rule, which is `ToString` with
- * `-0` kept, since `-0` is a JSON number that `JSON.stringify` alone loses.
- *
- * @type {(value: Primitive) => Result<List<string>, string>}
- */
-const jsonLeaf = value => {
-    switch (typeof value) {
-        case 'boolean': { return ok(boolSerialize(value)) }
-        case 'string': { return ok(stringSerialize(value)) }
-        case 'number': { return isFinite(value) ? ok(_numberSerialize(value)) : noJson(`${value}`) }
-        case 'bigint': { return noJson(`${value}n`) }
-        case 'undefined': { return noJson('undefined') }
-        default: { return ok(nullSerialize) }
-    }
-}
-
-/**
- * The value as one JSON text, when it has one: the tree the value unfolds
- * to, every leaf spelled by {@link jsonLeaf} and every key by JSON's
- * `stringSerialize` — `__proto__` included, which DataJS alone has to spell
- * computed. The walk is the DataJS writer's, which spells each leaf where
- * its read meets it, a node reached twice met once, before it unfolds the
- * node where each reference reaches it: a refused leaf is reported at once
- * however many references reach it, and the one reported is the first in
- * the reader's order. Exported for the proofs, which
- * refuse one leaf at a time; `compile` is what a caller runs, and the `_`
- * says so.
- *
- * @type {(value: Unknown) => Result<string, string>}
- */
-export const _tryJson = value => mapOk(concat)(_tryTreeSerialize(jsonLeaf)(stringSerialize)(value))
-
-/**
  * A denotation as JSON: the tree the value is to JSON, which has no
  * identity to carry, as `JSON.stringify` writes it. What JSON cannot spell
- * — `undefined`, a `bigint`, `NaN`, an infinity — is refused.
+ * — `undefined`, a `bigint`, `NaN`, an infinity — is refused. The writer is
+ * the DataJS writer's, since a JSON document is the tree a DataJS graph
+ * unfolds to.
  *
  * @type {(denotation: Denotation) => Result<string, string>}
  */
-const jsonText = ({ value }) => _tryJson(value)
+const jsonText = ({ value }) => tryJsonStringify(value)
 
 /** A denotation as a DataJS document, which denotes a graph and refuses nothing the front end builds. @type {(denotation: Denotation) => Result<string, string>} */
 const dataJsText = ({ value }) => tryStringify(value)

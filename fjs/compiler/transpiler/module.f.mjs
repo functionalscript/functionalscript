@@ -165,7 +165,8 @@ const done = (id, module, imports, context) => consts => {
     /** @type {ModuleDenotation} */
     const denotation = {
         exports: { value },
-        bindings: result[1].map(([, key]) => [key, { value: _own(value, key) }]),
+        // the module's result object holds a member per export and no spread
+        bindings: /** @type {readonly AstMember[]} */ (result[1]).map(([, key]) => [key, { value: _own(value, key) }]),
     }
     return { ...context, stack: drop(1)(context.stack), complete: setReplace(id)(denotation)(context.complete) }
 }

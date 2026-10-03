@@ -106,11 +106,11 @@ description should say so, and the argument should be capped at the same
 A value JSON cannot spell is refused rather than approximated. This covers
 `undefined`, a bigint, `NaN`, the two infinities and a function. The tool
 applies the same rules as `fjs compile`'s `.json` output, so the two agree on
-what JSON means: the tool's JSON step is `_tryJson` itself, exported properly,
+what JSON means: the tool's JSON step is `tryJsonStringify` itself, exported properly,
 not copied. A module with no `default` export evaluates to `undefined` and is
 refused for the same reason.
 
-**`_tryJson` refuses a function at the DataJS reader's boundary.** `_tryJson`
+**`tryJsonStringify` refuses a function at the DataJS reader's boundary.** `tryJsonStringify`
 reads the value with the DataJS writer's reader before JSON's leaf rule sees
 a leaf, and that reader refuses a function as it refuses every value outside
 the data model (`a function is not a DataJS value`), so `export default
@@ -118,14 +118,14 @@ x => x;` is refused there. `fjs compile` never reaches that boundary, because
 its value route refuses a function before any JSON is written (`a function
 has no value`); the tool does, because `memo` returns the function. That is
 the refusal the tool reports, and the proof below pins it through
-`_tryJson`; no case of `jsonLeaf`'s own is needed, since the reader hands it
+`tryJsonStringify`; no case of JSON's leaf rule's own is needed, since the reader hands it
 primitives alone.
 
 **Function text is not ready, and the tool waits for it.** At `4b63ec0`,
 `export default (x => x).toString();` evaluates to
 `(a0, ...rest) => g([a0], rest)`, the source of the host factory that `memo`
 materializes, not of the module's function. `'' + (x => x)` and
-`[x => x].join()` give the same text. `_tryJson` writes it as a valid string,
+`[x => x].join()` give the same text. `tryJsonStringify` writes it as a valid string,
 so the tool would return a wrong answer that looks right. The specification
 has already decided this case
 ([3120-parameters](../../../spec/todo/3120-parameters.md#default-function-text-render-or-refuse)):
@@ -141,7 +141,7 @@ result.
 **A shared node is written where each reference reaches it.** `fjs compile`'s
 `.json` output writes a node two references reach twice, as `JSON.stringify`
 does — JSON carries no identity, so `const a = [1]; export default [a, a];` is
-`[[1],[1]]` — and the tool follows it: its JSON step is `_tryJson`'s walk over
+`[[1],[1]]` — and the tool follows it: its JSON step is `tryJsonStringify`'s walk over
 the evaluated value, with no identity check. A call can create sharing no
 syntax shows, `const a = [1]; export default [1, 2].map(x => a);` evaluates to
 an array whose two elements are the same array, and the walk writes it the
@@ -192,7 +192,7 @@ which fixes it in the transport for every tool at once.
 - [ ] Add the text-to-value function to `fjs/compiler`: parse, refuse imports,
       lower, select the default, analyse, and run `memo`. Prove it with 100%
       coverage. The tool runs it, JSON step included, under one `catch_`.
-- [ ] Prove through `_tryJson` that a function is refused at the DataJS
+- [ ] Prove through `tryJsonStringify` that a function is refused at the DataJS
       reader's boundary, `a function is not a DataJS value`.
 - [ ] Add the `fjs/mcp/eval` registry with the `fjs_eval` `toolEntry`, and
       compose it in `casMcpHandlers`. Add `Catch` to the server's operations.
