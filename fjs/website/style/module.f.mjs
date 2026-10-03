@@ -217,6 +217,11 @@ header nav a:hover { text-decoration: underline }
    the background rather than a colour of its own, so it follows both
    schemes, and set to the right, under the links, as a status bar is. */
 [data-build] { background: color-mix(in srgb, var(--border) 30%, var(--bg)); border-top: 1px solid var(--border); color: var(--muted); font-size: .8rem; margin: 0; padding-block: .35rem; text-align: right }
+/* The funding footer closes every page: one muted, centred line under a rule,
+   spanning the window as the header does, so it reads as the site's own bar
+   rather than the last line of the page. Its links keep the page's colour and
+   underline, because unlike the header's they sit in a sentence. */
+footer[data-funding] { border-top: 1px solid var(--border); color: var(--muted); font-size: .875rem; padding: 1rem; text-align: center }
 /* Every section of a page is a disclosure, so a reader can fold away what
    they are not reading — the platform's own collapsible, and no script on a
    site that is static files. Its summary is the section's heading, and is

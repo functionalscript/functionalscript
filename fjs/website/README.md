@@ -308,6 +308,29 @@ and no other page had either.
   `WORKERS_CI_COMMIT_SHA`. The published site is built from `main` and a local
   build names no branch, so neither shows the strip.
 
+## Every page closes with the funding links
+
+One line under a rule at the bottom of every page — `Support FunctionalScript:`
+and a link per channel — built by `footer` in
+[`page/module.f.mjs`](./page/module.f.mjs) into the frame every page shares.
+
+- **The footer, not the header.** The header says where a reader can go on
+  this site; a funding page is somewhere else. Five placements were rendered
+  side by side — a header link, a section on the root page, this footer, a
+  page of its own, and a strip under the header — and the footer won: it is
+  on every page, where a reader arriving from a search lands, without
+  competing with the site's navigation.
+- **Read from [`funding.json`](../../funding.json)**, by
+  [`funding/module.f.mjs`](./funding/module.f.mjs): one link per channel, its
+  `description` the text and its `address` the target. `.github/FUNDING.yml`
+  holds only usernames, and turning those into links would mean copying
+  GitHub's unpublished per-platform URL patterns; it stays for GitHub's own
+  Sponsor button, and the two files are kept in step by hand.
+- **A channel the footer cannot link stops the build** — no `description`,
+  or an address that is not `https://` — rather than being left out. A tree
+  without `funding.json` has no footer, as a tree without `changelog/` has no
+  release pages.
+
 ## A list of links pads its links for a finger, not a mouse
 
 ```css

@@ -30,6 +30,7 @@
  * @import { Element, Node } from '../../media/html/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Build, Dir, Kind, Proof } from './types.ts'
+ * @import { Funding } from '../funding/types.ts'
  */
 
 import { htmlUtf8 } from '../../media/html/module.f.mjs'
@@ -492,8 +493,33 @@ export const header = build => ['header',
     ...buildLine(build)]
 
 /**
- * The frame every page of the site shares: its `<head>` and its
- * {@link header}, around the page's own `main`.
+ * The footer every page closes with: one link per funding channel, in
+ * `funding.json`'s order.
+ *
+ * **Every page, and below the page.** A reader lands on any of the site's
+ * pages from a search, so a link only the root page carried would reach few
+ * of them; and asking for money is not where a reader can go next on this
+ * site, which is what the {@link header} says, so it is not in the header.
+ *
+ * **The links are separated by text, not only by spacing**, as the
+ * breadcrumb is: a screen reader, or the page without its stylesheet, still
+ * reads three names rather than one run-together line. Each ends with the
+ * arrow the header's GitHub link carries, because each leaves the site, and
+ * the arrow is hidden from a screen reader for the same reason.
+ *
+ * No channels, no footer: a heading for an empty list says nothing.
+ *
+ * @type {(funding: readonly Funding[]) => readonly Element[]}
+ */
+export const footer = funding => funding.length === 0 ? [] : [['footer', { 'data-funding': '' },
+    'Support FunctionalScript: ',
+    ...toArray(intersperse(/** @type {Node} */ (' · '))(funding.map(({ description, address }) =>
+        /** @type {Node} */ (['a', { href: address }, description, ['span', { 'aria-hidden': 'true' }, ' ↗']])))),
+]]
+
+/**
+ * The frame every page of the site shares: its `<head>`, its {@link header}
+ * and its {@link footer}, around the page's own `main`.
  *
  * **One builder, so a page cannot drift from the rest.** The root page, a
  * directory's page, a release's page and the release index each used to
@@ -514,6 +540,7 @@ export const shell = build => title => main => htmlUtf8(lang)(
 )(
     header(build),
     main,
+    ...footer(build.funding),
 )
 
 /**

@@ -4,6 +4,8 @@
  * @module
  */
 
+import type { Funding } from '../funding/types.ts'
+
 /**
  * One directory of the repository, as the website's walk sees it.
  *
@@ -67,10 +69,12 @@ export type Proof = {
 }
 
 /**
- * What the build knows about itself, from the environment it ran in.
+ * What the build knows about itself: the commit and the branch from the
+ * environment it ran in, and the funding channels from the tree it read.
  *
- * Both are `null` for a local build: nothing sets them there, and a link to a
- * commit or a branch nobody pushed opens nothing on GitHub.
+ * The commit and the branch are `null` for a local build: nothing sets them
+ * there, and a link to a commit or a branch nobody pushed opens nothing on
+ * GitHub.
  */
 export type Build = {
     /**
@@ -83,6 +87,11 @@ export type Build = {
      * and its pages say which branch and commit they show.
      */
     readonly branch: string | null
+    /**
+     * The project's funding channels, from `funding.json`, which every
+     * page's footer links. Empty for a tree without that file.
+     */
+    readonly funding: readonly Funding[]
 }
 
 /**
