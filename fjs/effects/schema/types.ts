@@ -25,7 +25,7 @@ export type Derived<O extends { readonly name: string, readonly params: readonly
  * fields, which `Equal` tells from the one object type declared by hand
  * though neither admits a value the other does not.
  */
-type Same<A, B> = [A] extends [B] ? [B] extends [A] ? true : false : false
+type Same<A, B> = readonly [A] extends readonly [B] ? readonly [B] extends readonly [A] ? true : false : false
 
 type _Mkdir = Assert<Same<Derived<typeof S.mkdir>, Mkdir>>
 type _ReadFile = Assert<Same<Derived<typeof S.readFile>, ReadFile>>

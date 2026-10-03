@@ -23,7 +23,7 @@ const table = (schema, good, bad) => {
     for (const v of bad) { assertEq(admits(schema)(v), false) }
 }
 
-const io = ['ioError', { message: 'm' }]
+const io = /** @type {const} */ (['ioError', { message: 'm' }])
 
 export const proof = {
     /** A `Vec` is a `bigint`, and nothing is `undefined`. */
