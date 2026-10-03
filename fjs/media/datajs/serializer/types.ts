@@ -14,6 +14,8 @@
  * @module
  */
 
+import type { List } from '../../../types/list/types.ts'
+import type { Result } from '../../../types/result/types.ts'
 import type { Primitive } from '../types.ts'
 
 /**
@@ -26,7 +28,7 @@ import type { Primitive } from '../types.ts'
  * finished; once the graph is linked it is an index into `nodes`, because
  * that is a name the rules below can compare.
  */
-export type _Value<R> = readonly ['leaf', Primitive] | readonly ['ref', R]
+export type _Value<R, L = Primitive> = readonly ['leaf', L] | readonly ['ref', R]
 
 /**
  * A container node: an array's elements, or an object's members in the
@@ -34,15 +36,15 @@ export type _Value<R> = readonly ['leaf', Primitive] | readonly ['ref', R]
  * observable — array-index keys first by numeric value, then the rest in
  * first-occurrence order.
  */
-export type _Node<R> =
-    | { readonly kind: 'array', readonly items: readonly _Value<R>[] }
-    | { readonly kind: 'object', readonly members: readonly _Member<R>[] }
+export type _Node<R, L = Primitive> =
+    | { readonly kind: 'array', readonly items: readonly _Value<R, L>[] }
+    | { readonly kind: 'object', readonly members: readonly _Member<R, L>[] }
 
 /** One member: the key as the object carries it, and the member's value. */
-export type _Member<R> = readonly [string, _Value<R>]
+export type _Member<R, L = Primitive> = readonly [string, _Value<R, L>]
 
 /** A container node as it was read, paired with the host object it was read from. */
-export type _Read = readonly [object, _Node<object>]
+export type _Read<L = Primitive> = readonly [object, _Node<object, L>]
 
 /**
  * The linked graph. `nodes` is in post-order — a node comes after every
@@ -51,7 +53,15 @@ export type _Read = readonly [object, _Node<object>]
  * declare-before-use rule satisfiable by writing the consts in this order,
  * and a reference pointing the other way is what a cycle looks like here.
  */
-export type _Graph = {
-    readonly nodes: readonly _Node<number>[]
-    readonly root: _Value<number>
+export type _Graph<L = Primitive> = {
+    readonly nodes: readonly _Node<number, L>[]
+    readonly root: _Value<number, L>
 }
+
+/**
+ * What the read keeps for a leaf, or why the document cannot hold it: the
+ * chunks a tree document spells it as, under the rule the document is
+ * written under, or the leaf itself for a DataJS document, which spells it
+ * once the graph is linked.
+ */
+export type _Leaf<L = List<string>> = (value: Primitive) => Result<L, string>

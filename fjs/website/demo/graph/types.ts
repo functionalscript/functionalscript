@@ -14,6 +14,9 @@
  * dashed by the site's stylesheet, and any other value draws as a plain
  * solid box, so a demo with more than one kind of container is one CSS rule
  * away from telling them apart too.
+ *
+ * An empty `label` draws no title row on a node with edges, for a demo
+ * whose rows already say what the node is.
  */
 export type Node = {
     readonly id: number
@@ -47,7 +50,17 @@ export type Edge = {
     readonly to: number | Inline
     readonly label: string
     readonly kind?: string | undefined
+    readonly corner?: Corner | undefined
 }
+
+/**
+ * Where an {@link Edge} with no row of its own leaves its node: the top or
+ * the bottom corner of its right side, or the middle of it. For a node
+ * whose children are ordered and need no names — a tree's left and right,
+ * and a B-tree's middle — the corner says which child it is. Such an edge
+ * ends at a node, not a value, and has no label.
+ */
+export type Corner = 'top' | 'middle' | 'bottom'
 
 /**
  * A value too simple to be a node of its own — a number, `null`,
@@ -60,16 +73,36 @@ export type Edge = {
  * absent for an ordinary value. The site's stylesheet draws a
  * `"terminal"` value — an input a scope receives, rather than a constant —
  * filled like a terminal node, where any other value, and none, is tinted.
+ *
+ * `parts`, when given, draws the value in pieces, each marked with its own
+ * kind as `data-graph-part`, so a stylesheet can colour them apart — the
+ * bits a prefix inherits beside the bits it adds, say. Joined, they must
+ * spell `inline`, which is still what sizes the cell.
  */
 export type Inline = {
     readonly inline: string
     readonly kind?: string | undefined
+    readonly parts?: readonly (readonly [text: string, kind: string])[] | undefined
 }
 
-/** A graph `graphSvg` (`./module.f.mjs`) can draw: every node ranked, every edge named. */
+/**
+ * An arrow into a node from nowhere: where a reader enters the graph, such
+ * as a version's root. It has no label. `kind` is the demo's own
+ * vocabulary, drawn as `data-graph-edge-kind` like an {@link Edge}'s.
+ */
+export type Entry = {
+    readonly to: number
+    readonly kind?: string | undefined
+}
+
+/**
+ * A graph `graphSvg` (`./module.f.mjs`) can draw: every node ranked, every
+ * edge named, and the {@link Entry} arrows into it, if it has any.
+ */
 export type Graph = {
     readonly nodes: readonly Ranked[]
     readonly edges: readonly Edge[]
+    readonly entries?: readonly Entry[] | undefined
 }
 
 /**

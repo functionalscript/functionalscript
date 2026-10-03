@@ -589,14 +589,25 @@ const base = (s, depth) => v => {
     return ok([assertNotNullish(nameOf(visible(s), h), ['an access base that was not hoisted', v])])
 }
 
-/** An array's item: a spread has no source spelling. @type {(s: _Scope, depth: number) => (v: Operand | readonly ['...', Operand]) => Document} */
+/**
+ * An item of an array or of a call's arguments: its operand, and a spread
+ * the same operand after `...`. Either is an `AssignmentExpression` in
+ * JavaScript, so what an operand needs grouped is grouped alike.
+ *
+ * @type {(s: _Scope, depth: number) => (v: ItemOperand) => Document}
+ */
 const item = (s, depth) => v => v instanceof Array && v[0] === '...'
-    ? error('a spread')
+    ? mapOk(value => flat([['...'], value]))(operand(s, depth)(v[1]))
     : operand(s, depth)(/** @type {Operand} */(v))
 
-/** An object's entry: a spread has no source spelling, and a key that is not a string no literal. @type {(s: _Scope, depth: number) => (p: readonly [':', Operand, Operand] | readonly ['...', Operand]) => Document} */
+/**
+ * An object's entry: a property, `k: v`, or a spread, `...` before its
+ * operand. A key that is not a string has no literal.
+ *
+ * @type {(s: _Scope, depth: number) => (p: readonly [':', Operand, Operand] | readonly ['...', Operand]) => Document}
+ */
 const property = (s, depth) => p => {
-    if (p[0] === '...') { return error('a spread') }
+    if (p[0] === '...') { return mapOk(value => flat([['...'], value]))(operand(s, depth)(p[1])) }
     const [, k, v] = p
     return typeof k !== 'string'
         ? error('an object key that is not a string')

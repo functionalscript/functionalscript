@@ -1,9 +1,12 @@
 /**
- * @import { State } from './types.ts'
+ * @import { State, _DemoTrie } from './types.ts'
+ * @import { State as DemoState } from '../../website/demo/versions/types.ts'
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { emptyState, patriciaTrie } from './module.f.mjs'
+import { _census, _graphOf, _load, _press, demo, presets } from './demo.f.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
 
 /** @type {(a: bigint, b: bigint) => bigint} */
 const combine = (a, b) => a * 1_000n + b
@@ -140,10 +143,103 @@ const ascending = () => runExample(
     [0, 0, 0, 2, 1, 0, 1, 0, 3, 0, 0, 1, 2, 0, 0, 0],
 )
 
+/** @type {(state: DemoState<_DemoTrie>) => string} */
+const html = state => htmlToString(demo.view(state))
+
+/**
+ * A preset loaded and its hint followed: the button the hint names, pressed
+ * with the key the preset put in the field.
+ *
+ * @type {(name: string) => DemoState<_DemoTrie>}
+ */
+const follow = name => {
+    const loaded = _load(name)
+    const { status } = loaded
+    assert('preset' in status, '')
+    return _press(status.hint.startsWith('Press Remove') ? 'remove' : 'insert')(loaded)
+}
+
+/** @type {(name: string) => string} */
+const censusAfter = name => JSON.stringify(_census(follow(name).versions))
+
+const demoProof = {
+    // Each preset's hint is what its press does: a handful of branches
+    // built again, every other node shared — though the trie after the step
+    // was built from scratch.
+    presets: () => {
+        assertEq(presets.length, 5)
+        assertEq(censusAfter('Insert a key'), '{"built":5,"shared":12,"replaced":3}')
+        assertEq(censusAfter('Remove a key'), '{"built":2,"shared":11,"replaced":4}')
+        assertEq(censusAfter('Insert at the edge'), '{"built":4,"shared":13,"replaced":2}')
+        assertEq(censusAfter('Worked example'), '{"built":5,"shared":28,"replaced":3}')
+        assertEq(censusAfter('Empty trie'), '{"built":1,"shared":0,"replaced":0}')
+    },
+    // A trie built twice from the same keys is the same trie, node for
+    // node: sharing by content needs no object to be reused.
+    contentAddressed: () => {
+        const { versions } = _load('Insert a key')
+        const again = _press('remove')({ ..._press('insert')({ ..._load('Insert a key'), key: '101' }), key: '101' })
+        assertEq(again.versions.after.root, versions.after.root)
+        assert(again.versions.after !== versions.after, '')
+    },
+    // Every node's name — not shown, but what makes a node shared — is its
+    // keys: a leaf's in binary, a branch's its children's names joined.
+    names: () => {
+        const { nodes } = _load('Insert a key').versions.after
+        assertEq(JSON.stringify(nodes.get('00000011')), '["leaf",3]')
+        assertEq(JSON.stringify(nodes.get('00000011 00010001')), '["branch","00000011","00010001"]')
+    },
+    // A node shows its prefix in binary, a leaf its whole key, each split
+    // into the bits its parent fixed and the bits it adds; nothing else.
+    drawing: () => {
+        const h = html(_load('Insert a key'))
+        // A node is its prefix and nothing else: no title.
+        assert(!h.includes('data-graph-label='), h)
+        assert(h.includes('<label for="patricia-key">Key (8 bits) </label>'), h)
+        assert(h.includes('value="01100100"'), h)
+        // The branch over 3 and 17: its keys start 000, its parent's 00.
+        assert(h.includes('<tspan data-graph-part="prior">00</tspan><tspan data-graph-part="current">0</tspan>'), h)
+        // The leaf 99, 01100011, under the branch of 66 and 99, which share 01.
+        assert(h.includes('<tspan data-graph-part="prior">01</tspan><tspan data-graph-part="current">100011</tspan>'), h)
+        // No decimal is shown.
+        assert(!h.includes('data-graph-value-label="">99<'), h)
+        // Removing 10110100 moves the leaf 10000010 up: under the old trie's
+        // branch it shared 10, under the new one only 1. Only the new trie
+        // is drawn, so the split follows its parent.
+        const removed = html(follow('Remove a key'))
+        assert(removed.includes('<tspan data-graph-part="prior">1</tspan><tspan data-graph-part="current">0000010</tspan>'), removed)
+    },
+    // A node is one column right of its deepest parent: the root at 0, and
+    // a leaf where its parent puts it, not in one last column.
+    layout: () => {
+        const { nodes, edges } = _graphOf(_load('Insert a key').versions)
+        const roots = nodes.filter(n => edges.every(e => e.to !== n.id))
+        assertEq(JSON.stringify(roots.map(n => n.rank)), '[0]')
+        assert(edges.every(e => typeof e.to !== 'number' || nodes[e.to].rank === nodes[e.from].rank + 1), '')
+        const leafRanks = new Set(nodes.filter(n => edges.some(e => e.from === n.id && typeof e.to !== 'number')).map(n => n.rank))
+        assert(leafRanks.size > 1, '')
+    },
+    // A step that leaves the keys as they were says why.
+    unchanged: () => {
+        const loaded = _load('Insert a key')
+        assert(html(_press('insert')({ ...loaded, key: '11' })).includes('Last step, insert 00000011: nothing changed, the key is already in the trie.'), '')
+        assert(html(_press('remove')({ ...loaded, key: '101' })).includes('Last step, remove 00000101: nothing changed, the key is not in the trie.'), '')
+    },
+    // A key the trie's eight bits cannot hold, or not in binary, is refused.
+    refused: () => {
+        const s = _press('insert')({ ...demo.init, key: '100000000' })
+        assertEq(s.versions, demo.init.versions)
+        assert(html(s).includes('type up to eight binary digits, such as 01100100.'), '')
+        assertEq(_press('insert')({ ...demo.init, key: '2' }).versions, demo.init.versions)
+        assertEq(_press('insert')({ ...demo.init, key: '' }).versions, demo.init.versions)
+    },
+}
+
 export const proof = {
     empty,
     singleLeaf,
     twoLeaves,
     descending,
-    ascending
+    ascending,
+    demo: demoProof,
 }

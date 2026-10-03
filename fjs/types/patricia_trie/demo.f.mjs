@@ -1,0 +1,195 @@
+/**
+ * A Patricia trie after a step: type keys, see which of its subtrees the
+ * trie before the step holds too.
+ *
+ * **The trie stores hashes as a prefix tree**, so each node is a prefix:
+ * the bits every key under it starts with. Here a key is eight bits, as a
+ * hash cut short would be, and a node shows its prefix and nothing else —
+ * no node has a hash of its own to show.
+ *
+ * **Each trie is built from scratch**, from its sorted keys, and still the
+ * two share most of their nodes. The keys are already hashes, so a node
+ * needs no hash of its own: a leaf is named by its key in binary, and the
+ * trie's `create` names a branch by its children's names joined by a space
+ * — its keys in order, which a branch, holding at least two, shares with no
+ * leaf. So a subtree whose keys did not change gets the same name in both
+ * tries, and is the same node. The B-tree demo shares by reusing objects;
+ * this one by content. The names are how the drawing knows two nodes are
+ * one, and are not shown.
+ *
+ * **The demo is a [versions demo](../../website/demo/versions/module.f.mjs)**,
+ * which draws the new version and marks what the old one holds too; this
+ * module says only what the trie is.
+ *
+ * **Keys are typed and shown in binary**, eight bits, since bits are what
+ * the trie branches on. A branch shows the bits every key under it shares
+ * — its prefix — and a leaf its whole key, each in two parts: the bits its
+ * parent already fixed, and the bits it adds — its parent in the new
+ * trie, the one drawn, which for a node the old trie shares need not be
+ * its parent there. A trie is not balanced,
+ * so a node is drawn one column right of its parent rather than every leaf
+ * in the last column, which would stretch the shallow ones across the page.
+ *
+ * @module
+ *
+ * @import { _DemoNode, _DemoTrie, State } from './types.ts'
+ * @import { Keys, Preset, Row, Structure } from '../../website/demo/versions/types.ts'
+ */
+
+import { emptyState, patriciaTrie } from './module.f.mjs'
+import { versionsDemo } from '../../website/demo/versions/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.mjs'
+
+/** A key's bits: the trie branches on them, most significant first. */
+const bits = 8
+
+/** @type {(key: number) => string} */
+const binary = key => key.toString(2).padStart(bits, '0')
+
+/**
+ * The trie's `create`: a branch's identity is its children's, joined, and
+ * the storage gathers every node built, by identity.
+ *
+ * @type {(a: string, b: string, storage: ReadonlyMap<string, _DemoNode>) => readonly [string, ReadonlyMap<string, _DemoNode>]}
+ */
+const create = (a, b, storage) => {
+    const id = `${a} ${b}`
+    /** @type {_DemoNode} */
+    const branch = ['branch', a, b]
+    return [id, new Map([...storage, [id, branch]])]
+}
+
+const { push, end } = patriciaTrie(create)
+
+/**
+ * The trie over `keys`, which must be sorted, built from scratch.
+ *
+ * @type {(keys: readonly number[]) => _DemoTrie}
+ */
+const build = keys => {
+    /** @type {ReadonlyMap<string, _DemoNode>} */
+    const leaves = new Map(keys.map(k => [binary(k), /** @type {_DemoNode} */ (['leaf', k])]))
+    /** @type {State<ReadonlyMap<string, _DemoNode>, string>} */
+    const start = emptyState(leaves)
+    const [root, nodes] = end(keys.reduce((s, k) => push([BigInt(k), binary(k)], s), start))
+    return { keys, root: root ?? null, nodes }
+}
+
+/** @type {(a: number, b: number) => number} */
+const ascending = (a, b) => a - b
+
+/** @type {Structure<_DemoTrie, string>} */
+const structure = {
+    empty: build([]),
+    insert: key => trie => trie.keys.includes(key) ? trie : build([...trie.keys, key].toSorted(ascending)),
+    remove: key => trie => trie.keys.includes(key) ? build(trie.keys.filter(k => k !== key)) : trie,
+    root: trie => trie.root,
+    // A node is looked up in either version: the same identity is the same
+    // node in both, which is the whole point.
+    shape: ({ before, after }) => {
+        const nodes = new Map([...before.nodes, ...after.nodes])
+        /** @type {(id: string) => _DemoNode} */
+        const node = id => assertNotNullish(nodes.get(id))
+        /** @type {(id: string) => number} */
+        const firstKey = id => {
+            const n = node(id)
+            return n[0] === 'leaf' ? n[1] : firstKey(n[1])
+        }
+        /** @type {(id: string) => number} */
+        const lastKey = id => {
+            const n = node(id)
+            return n[0] === 'leaf' ? n[1] : lastKey(n[2])
+        }
+        /**
+         * How many leading bits every key under `id` shares: all of them
+         * for a leaf, and for a branch as many as its smallest and largest
+         * keys share — a branch's keys differ, so that is fewer than all.
+         *
+         * @type {(id: string) => number}
+         */
+        const prefixLength = id => {
+            const n = node(id)
+            return n[0] === 'leaf' ? bits : bits - (firstKey(id) ^ lastKey(id)).toString(2).length
+        }
+        // Split at the parent the new trie gives a node: the old trie is
+        // not drawn, and a node it shares may sit under a longer prefix
+        // there.
+        /** @type {(id: string) => number} */
+        const inherited = id => [...after.nodes].reduce(
+            (m, [p, n]) => n[0] === 'branch' && (n[1] === id || n[2] === id) ? Math.max(m, prefixLength(p)) : m, 0)
+        /** @type {(id: string) => Row<string>} */
+        const prefixRow = id => {
+            const text = binary(firstKey(id)).slice(0, prefixLength(id))
+            const split = inherited(id)
+            return {
+                label: '',
+                inline: text,
+                parts: [
+                    ...(split === 0 ? [] : [/** @type {const} */ ([text.slice(0, split), 'prior'])]),
+                    /** @type {const} */ ([text.slice(split), 'current']),
+                ],
+            }
+        }
+        return {
+            rows: id => {
+                const n = node(id)
+                return n[0] === 'leaf'
+                    ? [prefixRow(id)]
+                    : [...(prefixLength(id) === 0 ? [] : [prefixRow(id)]), { to: n[1], corner: 'top' }, { to: n[2], corner: 'bottom' }]
+            },
+            title: () => '',
+            order: firstKey,
+            layout: 'depth',
+        }
+    },
+}
+
+/** The worked example's sixteen keys, from [`example.md`](./example.md). */
+const worked = [
+    0b11111001, 0b11110010, 0b11100011, 0b11001000, 0b10110011, 0b10100110, 0b10100011, 0b10011111,
+    0b01110111, 0b01101110, 0b01011001, 0b01001001, 0b00100111, 0b00010111, 0b00010000, 0b00001110,
+].toSorted(ascending)
+
+/** The first presets' eight keys, spread over the eight bits. */
+const spread = [3, 17, 40, 66, 99, 130, 180, 230]
+
+/**
+ * The presets the drop-down offers, each one press from what its name
+ * says. The proofs follow each hint and check what it claims.
+ *
+ * @type {readonly Preset[]}
+ */
+export const presets = [
+    ['Insert a key', spread, 0b01100100, 'Press Insert to add 01100100: the trie is built again from scratch, and only the branches above it are new.'],
+    ['Remove a key', spread, 0b10110100, 'Press Remove to take out 10110100: its sibling moves up, and only the branches above it change.'],
+    ['Insert at the edge', spread, 0b11111010, 'Press Insert to add 11111010: the right edge of the trie changes, and the whole left half is shared.'],
+    ['Worked example', worked, 0b10000000, 'The sixteen keys of example.md. Press Insert to add 10000000.'],
+    ['Empty trie', [], 0b00101010, 'Press Insert to add 00101010, then keep inserting to watch the trie grow.'],
+]
+
+/**
+ * Keys as the trie sees them: up to eight binary digits typed, eight shown.
+ *
+ * @type {Keys}
+ */
+const keys = {
+    parse: text => text.length >= 1 && text.length <= bits && [...text].every(c => c === '0' || c === '1') ? parseInt(text, 2) : null,
+    show: binary,
+    label: 'Key (8 bits)',
+    accepts: 'up to eight binary digits, such as 01100100',
+}
+
+const versions = versionsDemo({
+    structure,
+    name: 'patricia',
+    noun: 'trie',
+    intro: 'The trie stores hashes, here eight bits each, as a prefix tree: each node is the prefix all its keys start with, and a leaf is a whole key. Grey, the bits a node\'s parent already fixed; bold, the bits it adds. Each step builds the trie again from all its keys, and every subtree whose keys did not change is the same node in both tries.',
+    keys,
+    presets,
+})
+
+export const demo = versions.demo
+export const _load = versions.load
+export const _press = versions.press
+export const _graphOf = versions.graphOf
+export const _census = versions.census

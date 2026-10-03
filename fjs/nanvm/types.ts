@@ -175,9 +175,6 @@ export type Unreached = Special<readonly ['unreached']>
  */
 export type Expectation = Const | Ref | Throws
 
-/** The operation a group applies: a canonical EDAG id, and nothing else. */
-export type OpId = Op1Id | Op2Id | Op12Id | Op3Id
-
 /**
  * One operator test case, over `N` operands.
  *

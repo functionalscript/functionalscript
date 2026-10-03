@@ -5,6 +5,7 @@ use crate::harness::*;
 
 #[rustfmt::skip]
 pub fn run<A: IStaticFunction>() {
+    check::<A>("wideBigintPlusOne", bigint_any_words(false, &[0xffffffffffffffff]) + bigint_any(1), bigint_any_words(false, &[0x0000000000000000, 0x0000000000000001]));
     check_throws::<A>("unreachedPlusOne", scope(|| {
         let c0: Any<A> = (bigint_any(1) / bigint_any(0))?;
         c0 + f64_any(0x3ff0000000000000)

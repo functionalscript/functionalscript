@@ -1,10 +1,12 @@
 /**
  * The DataJS codec: `tryParse` and `tryParseBytes` read a document into the
- * value it denotes, `trySerialize` and `tryStringify` write a value as one.
+ * value it denotes, `trySerialize` and `tryStringify` write a value as one,
+ * and `tryJsonSerialize` and `tryJsonStringify` write it as the JSON
+ * document its graph unfolds to.
  *
  * ```text
- * DataJS text  --tryParse-------->  Unknown  --tryStringify-->  DataJS text
- * UTF-8 bytes  --tryParseBytes--->
+ * DataJS text  --tryParse-------->  Unknown  --tryStringify------>  DataJS text
+ * UTF-8 bytes  --tryParseBytes--->           --tryJsonStringify-->  JSON text
  * ```
  *
  * [DataJS](../../../spec/datajs/README.md) is JSON with sharing and the
@@ -36,6 +38,14 @@
  * the second writer the specification leaves room for, and the name waits
  * for it.
  *
+ * The JSON writers are the same writer under JSON's leaf rule. A JSON
+ * document is the tree a DataJS graph unfolds to: a node reached twice is
+ * written where each reference reaches it, as `JSON.stringify` writes it,
+ * and a leaf JSON cannot carry — `undefined`, a `bigint`, `NaN`, an
+ * infinity — is refused, the first in the reader's order.
+ * `tryJsonSerialize` yields the chunks and `tryJsonStringify` is its
+ * `concat`.
+ *
  * The reader is [`./parser`](./parser/module.f.mjs), the writer
  * [`./serializer`](./serializer/module.f.mjs); each is documented where it
  * lives, and [`./README.md`](./README.md) is the map.
@@ -44,4 +54,4 @@
  */
 
 export { tryParse, tryParseBytes } from './parser/module.f.mjs'
-export { trySerialize, tryStringify } from './serializer/module.f.mjs'
+export { tryJsonSerialize, tryJsonStringify, trySerialize, tryStringify } from './serializer/module.f.mjs'

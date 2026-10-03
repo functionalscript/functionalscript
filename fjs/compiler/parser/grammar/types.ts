@@ -103,8 +103,20 @@ export type Items<Item extends Rule> = () => readonly ['const', readonly [
 /** An opening symbol, an optional list, and the closing symbol. */
 export type Container<Item extends Rule> = readonly [number, Option<Items<Item>>, number]
 
-/** A key, `:`, and a value. */
+/** A member of an object: a key, `:`, and a value. */
 export type Member = readonly [typeof key, number, Value]
+
+/** An entry of an object: `...` and a value, or a member. */
+export type Entry = {
+    readonly spread: readonly [number, Value]
+    readonly member: Member
+}
+
+/** An item of an array or of a call's arguments: a value, or `...` and a value. */
+export type Item = {
+    readonly spread: readonly [number, Value]
+    readonly value: Value
+}
 
 /**
  * One step after a value: `.name`, `[key]`, or a call and its arguments.
@@ -116,7 +128,7 @@ export type Member = readonly [typeof key, number, Value]
 export type Access = {
     readonly property: readonly [number, typeof identifierName]
     readonly index: readonly [number, typeof index, number]
-    readonly call: readonly [number, Option<Items<Value>>, number]
+    readonly call: readonly [number, Option<Items<Item>>, number]
 }
 
 /**
@@ -139,8 +151,8 @@ export type Unary = () => readonly ['const', {
     readonly bitnot: readonly [number, UnaryOperand]
     readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>], PowTail]
     readonly ref: readonly [readonly [typeof identifier, RepeatFrom<0, Access>], PowTail]
-    readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>], PowTail]
-    readonly object: readonly [readonly [Container<Member>, RepeatFrom<0, Access>], PowTail]
+    readonly array: readonly [readonly [Container<Item>, RepeatFrom<0, Access>], PowTail]
+    readonly object: readonly [readonly [Container<Entry>, RepeatFrom<0, Access>], PowTail]
     readonly group: ParenGroup
 }]
 
@@ -157,8 +169,8 @@ export type UnaryOperand = () => readonly ['const', {
     readonly bitnot: readonly [number, UnaryOperand]
     readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>]]
     readonly ref: readonly [readonly [typeof identifier, RepeatFrom<0, Access>]]
-    readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>]]
-    readonly object: readonly [readonly [Container<Member>, RepeatFrom<0, Access>]]
+    readonly array: readonly [readonly [Container<Item>, RepeatFrom<0, Access>]]
+    readonly object: readonly [readonly [Container<Entry>, RepeatFrom<0, Access>]]
     readonly group: ParenGroupOperand
 }]
 
@@ -254,37 +266,43 @@ export type ConditionalTail = Option<readonly [number, Value, number, Value]>
 export type Tail = readonly [...EagerTail, CircuitTail, ConditionalTail]
 
 /**
- * A value: a primitive token, a reference, an array of values, or an
- * object of members, each followed by the
+ * The branches {@link Value} and {@link Body} both start with: a primitive
+ * token, a reference, or an array of values, each followed by the
  * accesses after it and optionally raised to a power — or a `-`/`~`
  * prefix — each carrying {@link Tail}, the binary-operator suffix, above
  * it — or `(`, the choice between a function and a group, {@link Paren},
- * a function alone excepted, nothing following one unparenthesized. A
- * `const` thunk whose payload names the thunk, which is what lets a type
- * alias name itself.
+ * a function alone excepted, nothing following one unparenthesized.
+ *
+ * {@link Value} and {@link Body} add to it with `&`, not a named field: a
+ * rule's branches are one flat record whose keys are its alternatives, so
+ * a nested field would describe a different grammar — the flat-shape
+ * exception to `fjs/AGENTS.md` §3.2, "Composition over intersection".
  */
-export type Value = () => readonly ['const', {
+export type ValueBranches = {
     readonly neg: readonly [number, UnaryOperand, ...Tail]
     readonly bitnot: readonly [number, UnaryOperand, ...Tail]
     readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly name: readonly [typeof identifier, ArrowOrRest]
-    readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>], PowTail, ...Tail]
-    readonly object: readonly [readonly [Container<Member>, RepeatFrom<0, Access>], PowTail, ...Tail]
+    readonly array: readonly [readonly [Container<Item>, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly paren: Paren
+}
+
+/**
+ * A value: {@link ValueBranches} and an object of members. A `const`
+ * thunk whose payload names the thunk, which is what lets a type alias
+ * name itself.
+ */
+export type Value = () => readonly ['const', ValueBranches & {
+    readonly object: readonly [readonly [Container<Entry>, RepeatFrom<0, Access>], PowTail, ...Tail]
 }]
 
 /**
- * A function's body: a value less the object, since `=> {` opens a block
- * in JavaScript — or that block, in which an object is a value again, or
- * a group, which is the other spelling of a body that is an object.
+ * A function's body: {@link ValueBranches} without the object, since
+ * `=> {` opens a block in JavaScript — and that block, in which an object
+ * is a value again. A group is the other spelling of a body that is an
+ * object.
  */
-export type Body = () => readonly ['const', {
-    readonly neg: readonly [number, UnaryOperand, ...Tail]
-    readonly bitnot: readonly [number, UnaryOperand, ...Tail]
-    readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>], PowTail, ...Tail]
-    readonly name: readonly [typeof identifier, ArrowOrRest]
-    readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>], PowTail, ...Tail]
-    readonly paren: Paren
+export type Body = () => readonly ['const', ValueBranches & {
     readonly block: Block
 }]
 

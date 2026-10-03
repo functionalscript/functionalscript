@@ -52,7 +52,7 @@ export type Node =
     | readonly ['primitive', Primitive]
     | readonly ['ref', DjsTokenWithMetadata]
     | readonly ['.', Node, DjsTokenWithMetadata]
-    | readonly ['()', Node, readonly Node[]]
+    | readonly ['()', Node, readonly Item[]]
     | readonly ['-', Node]
     | readonly ['~', Node]
     | readonly [BinaryTag, Node, Node]
@@ -89,17 +89,29 @@ export type If = {
     readonly block: Block
 }
 
-/** An array of its items, or an object of its members, each in the order written. */
+/**
+ * An item of an array or of a call's arguments: a value, or a spread of
+ * one, `...value`, which no node is — it stands only in an item list.
+ */
+export type Item = Node | readonly ['...', Node]
+
+/** An array of its items, or an object of its entries, each in the order written. */
 export type Container =
-    | readonly ['array', readonly Node[]]
+    | readonly ['array', readonly Item[]]
     | readonly ['object', readonly Entry[]]
 
 /**
- * One member of an object: the token its key is read from, which anchors
- * the error a plain `__proto__` earns, the name that token spells, whether
- * it is the computed spelling `["a"]`, and the value.
+ * An entry of an object: a member, {@link Member}, or a spread of a
+ * value, `...value`, which no node is — it stands only in an entry list.
  */
-export type Entry = {
+export type Entry = Member | readonly ['...', Node]
+
+/**
+ * A member of an object, `key: value`: the token its key is read from,
+ * which anchors the error a plain `__proto__` earns, the name that token
+ * spells, whether it is the computed spelling `["a"]`, and the value.
+ */
+export type Member = {
     readonly key: DjsTokenWithMetadata
     readonly name: string
     readonly computed: boolean
@@ -206,9 +218,11 @@ export type Out =
     | { readonly id: 'value', readonly node: Node, readonly first: DjsTokenWithMetadata }
     | { readonly id: 'paren', readonly node: Node, readonly first: DjsTokenWithMetadata }
     | { readonly id: 'parameters', readonly items: List<ParameterBinding> }
-    | { readonly id: 'values', readonly items: List<Node> }
-    | { readonly id: 'member', readonly member: Entry }
-    | { readonly id: 'members', readonly items: List<Entry> }
+    | { readonly id: 'item', readonly item: Item }
+    | { readonly id: 'values', readonly items: List<Item> }
+    | { readonly id: 'member', readonly member: Member }
+    | { readonly id: 'entry', readonly entry: Entry }
+    | { readonly id: 'entries', readonly items: List<Entry> }
     | { readonly id: 'importBinding', readonly binding: ImportBinding }
     | { readonly id: 'importBindings', readonly items: List<ImportBinding> }
     | { readonly id: 'import', readonly statement: Import }

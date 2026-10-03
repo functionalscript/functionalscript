@@ -14,7 +14,7 @@ module that owns the question was the only one nobody could use:
 |[`fjs/text/ascii`](../../../text/ascii/module.f.mjs)|`isDigit`, `isLatinSmallLetter`, `isLatinCapitalLetter`, `isLatinLetter`, over its own ranges, and `isCanonicalDigits`, a decimal run without a leading zero — **the owner**|
 |[`fjs/js/tokenizer`](../../tokenizer/module.f.mjs)|`isDigit = cp => cp >= 0x30 && cp <= 0x39`, the range as two magic numbers, in the tokenizer itself|
 |[`fjs/git/config`](../../../git/config/module.f.mjs)|`isAlpha`, `isDigit`, over string comparisons|
-|[`fjs/git/store`](../../../git/store/module.f.mjs)|`isOctal` over string comparisons, and `parseInt(…, 8)` for the value, where `fjs/git/tree` reads octal with `text/ascii`'s `digitsValue(8n)`|
+|[`fjs/git/alternates`](../../../git/alternates/module.f.mjs)|`isOctal` over string comparisons, and `parseInt(…, 8)` for the value, where `fjs/git/tree` reads octal with `text/ascii`'s `digitsValue(8n)`|
 |[`fjs/git/refstore`](../../../git/refstore/module.f.mjs)|`isPseudoref`, the capital letters as `'A'`..`'Z'`|
 |[`fjs/git/tree`](../../../git/tree/module.f.mjs)|`lower`, the capital letters as `0x41`..`0x5A`|
 |[`fjs/emergent_testing`](../../../emergent_testing/module.f.mjs)|`isAlpha`, `isDigit`, and `isIdentifier` and `isInteger` above them — exported from a *test* module|
@@ -87,7 +87,7 @@ written out again.
 - [ ] `fjs/js/tokenizer`: `isDigit` from `text/ascii`, the magic numbers gone.
 - [ ] `fjs/git/config`: `isAlpha`/`isDigit` from `text/ascii`; its `isKeyChar`
       keeps the `-` it adds.
-- [ ] `fjs/git/store`: `isOctal` from the classes, and the octal value read
+- [ ] `fjs/git/alternates`: `isOctal` from the classes, and the octal value read
       with `digitsValue(8n)` as `fjs/git/tree` does, not `parseInt`.
 - [ ] `fjs/git/refstore`: `isPseudoref` over `isLatinCapitalLetter`, keeping
       the `-` and `_` it adds; `fjs/git/tree`: `lower` over the same class.

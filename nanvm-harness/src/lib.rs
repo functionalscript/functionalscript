@@ -16,6 +16,7 @@ pub mod fixtures {
     pub mod arity;
     pub mod array;
     pub mod at;
+    pub mod bigint;
     pub mod boolean;
     pub mod call;
     pub mod calls;
@@ -37,12 +38,14 @@ pub mod fixtures {
     pub mod nullish;
     pub mod number;
     pub mod object;
+    pub mod object_spread;
     pub mod operators;
     pub mod parameters;
     pub mod property;
     pub mod rest;
     pub mod rest_function;
     pub mod sharing;
+    pub mod spread;
     pub mod string;
     pub mod throw;
     pub mod throws;
@@ -177,10 +180,11 @@ mod tests {
     use crate::{
         Action, RunError,
         fixtures::{
-            arity, array, at, boolean, call, calls, closure, escapes, exports, function,
+            arity, array, at, bigint, boolean, call, calls, closure, escapes, exports, function,
             function_scope, function_text, lazy, length, method, missing, named, named_imports,
-            named_imports_throws, nested, not_a_function, nullish, number, object, operators,
-            parameters, property, rest, rest_function, sharing, string, throw, throws, to_string,
+            named_imports_throws, nested, not_a_function, nullish, number, object, object_spread,
+            operators, parameters, property, rest, rest_function, sharing, spread, string, throw,
+            throws, to_string,
         },
         run,
     };
@@ -312,6 +316,29 @@ mod tests {
         assert_eq!(
             run::<Naive>(function_scope::module, "default", Action::Read),
             Ok("[[1,1],[1,1]]".into())
+        );
+    }
+
+    /// Spread, end to end: an array's elements and a string's code points
+    /// spliced into an array literal and a call's arguments, a method
+    /// call's included — the values Node gives the fixture.
+    #[test]
+    fn spreads() {
+        assert_eq!(
+            run::<Naive>(spread::module, "default", Action::Read),
+            Ok(r#"[[0,1,2,3],["a","😀"],[1,2,4],4,2]"#.into())
+        );
+    }
+
+    /// Object spread, end to end: an object's own properties copied in
+    /// place, a later value at the earlier key's position, an array's
+    /// elements by index, a string's code units, nothing from `null` — the
+    /// values Node gives the fixture.
+    #[test]
+    fn object_spreads() {
+        assert_eq!(
+            run::<Naive>(object_spread::module, "default", Action::Read),
+            Ok(r#"[{"a":1,"b":2,"c":3},{"b":2,"a":1},{"a":0,"b":2},{"0":"p","z":0},{"0":"a","1":"\ud83d","2":"\ude00"},{}]"#.into())
         );
     }
 
@@ -504,6 +531,28 @@ mod tests {
             display("nothing", Action::Read),
             "`undefined` has no JSON representation"
         );
+    }
+
+    /// A bigint literal at and past the end of `i64`, read back as the decimal
+    /// text JavaScript gives each (JSON cannot hold a bigint).
+    #[test]
+    fn bigint_literals() {
+        let module = bigint::module::<Naive>().unwrap();
+        let list = Any::dot(module, "default".into()).end().unwrap();
+        let expected = [
+            "9223372036854775807",
+            "-9223372036854775808",
+            "9223372036854775808",
+            "-9223372036854775809",
+            "295147905179352825855",
+            "123456789012345678901234567890",
+        ];
+        for (i, text) in expected.into_iter().enumerate() {
+            let item = Any::dot(list.clone(), Number::from(i as f64).to_any())
+                .end()
+                .unwrap();
+            assert_eq!(item.to_string().unwrap(), text.into());
+        }
     }
 
     #[test]

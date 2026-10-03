@@ -17,6 +17,9 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { _sourceOf, demo } from './demo.f.mjs'
+import { examples } from '../examples/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
@@ -189,12 +192,12 @@ export const proof = {
                 ['{}', [[':', 'if', 1]]],
                 ['{}', [[':', 'NaN', 1]]],
                 ['{}', [[':', 'not-a-name', 1]]],
-                ['{}', [[':', 'a', ['()', 1, [['...', 1]]]]]],
+                ['{}', [[':', 'a', ['{}', [[':', 1, 2]]]]]],
                 ['{}', [[':', 'a', [',', [1]]]]],
                 ['{}', [[':', 'a', ['+', 1]], [':', 'b', 1]]],
                 ['{}', [[':', 'a', ['.', 1, 'constructor']]]],
                 ['{}', [[':', 'a', ['=>', 0, [7], ['frame', 0]]]]],
-                ['{}', [[':', 'default', ['()', 1, [['...', 1]]]]]],
+                ['{}', [[':', 'default', ['{}', [[':', 1, 2]]]]]],
             ])) { assertEq(tryModuleSerialize(graph)[0], 'error') }
         },
     },
@@ -211,6 +214,14 @@ export const proof = {
             ['[]', [null, true, false, 1, 1.5, 1n, 'a"b', '\u{1f600}']],
             'export default [null,true,false,1,1.5,1n,"a\\"b","\u{1f600}"];')
         writes(['{}', [[':', 'a', 1], [':', 'b', 2], [':', '', 3]]], 'export default {"a":1,"b":2,"":3};')
+        // an array's spread, `...` before its operand, which is any value an
+        // item is: a conditional or a function as it stands, ungrouped
+        writes(['[]', [1, ['...', ['[]', [2]]], ['...', 'ab']]], 'export default [1,...[2],..."ab"];')
+        writes(['[]', [['...', ['?:', true, ['[]', []], 'a']]]], 'export default [...true?[]:"a"];')
+        writes(['[]', [['...', ['=>', 0, [], 1]]]], 'export default [...()=>1];')
+        // an object's spread, the same way, among its properties
+        writes(['{}', [[':', 'a', 1], ['...', ['{}', []]], ['...', 'ab']]], 'export default {"a":1,...{},..."ab"};')
+        writes(['{}', [['...', ['?:', true, ['{}', []], 'a']]]], 'export default {...true?{}:"a"};')
     },
     // The prefix `-`. It binds looser than a step, so a negation under an
     // access is a base only in a group — `-1[0]` is `-(1[0])` — and a
@@ -536,8 +547,9 @@ export const proof = {
         /** @type {Exp} */
         const n = ['()', 1, []]
         writes(['&&', ['[]', []], ['[]', [n, n]]], 'export default []&&(()=>{const $a0=1;const $a1=$a0();return [$a1,$a1];})();')
-        // a spread argument, which the writer has no spelling for yet
-        refuses(f(['()', a, [['...', a]]]), 'a spread')
+        // a spread argument, `...` before its operand
+        writes(f(['()', a, [['...', a]]]), 'export default (...$a)=>$a(...$a);')
+        writes(f(['.', a, 'm', ['|()', [1, ['...', a]]]]), 'export default (...$a)=>$a.m(1,...$a);')
         // what the compiler builds is written
         assertEq(
             reads(_defaultExport(moduleGraph('export default (...a)=>{const g=a.b; return [g(1), a.b(2), a.b(1)(2)];};'))),
@@ -621,8 +633,7 @@ export const proof = {
         refuses(['+', 1], 'a unary + node')
         // a node under a lazy operand is walked for what it holds before
         // it is refused for what it is
-        refuses(['[]', [['...', ['[]', []]]]], 'a spread')
-        refuses(['{}', [['...', ['[]', []]]]], 'a spread')
+        refuses(['{}', [['...', [',', [1, 2]]]]], 'a comma outside a scope')
         refuses(['=>', 0, [], ['?.', ['rest'], 'a', ['|.', 'b', ['|()', [['[]', [1]]]]]]], 'a ?. node')
         // an argument list is read by position: `f('#', 0)` names no entry
         refuses(['=>', 0, [], ['?.()', ['rest'], ['#', 0], ['|.', 'b']]], 'a ?.() node')
@@ -654,12 +665,12 @@ export const proof = {
         refuses(
             (() => {
                 /** @type {Exp} */
-                const bad = ['[]', [['...', 1]]]
+                const bad = ['{}', [[':', 1, 2]]]
                 /** @type {Exp} */
                 const good = ['{}', []]
                 return ['[]', [bad, bad, good, good]]
             })(),
-            'a spread')
+            'an object key that is not a string')
         refuses([',', [['+', 1], 1]], 'a unary + node')
         // A comma with no anchor to write: with one operand it would read
         // back as that operand alone, and with none it is no scope. Linking
@@ -971,4 +982,23 @@ export const proof = {
             reads(e)
         }),
     ])),
+    /**
+     * **Every shared example is proved to behave as its name says.** The
+     * parser's refusals and the import, which has no file set to link from,
+     * are the refusals; everything else is written as a module.
+     */
+    demo: {
+        examples: () => {
+            for (const [name, source] of examples) {
+                assertEq(_sourceOf(source)[0], ['An import', 'Logical not', 'Hex escape', 'typeof', 'Parse error'].includes(name) ? 'error' : 'ok')
+            }
+            assertEq(_sourceOf('const a = [1];\nexport default [a, a];')[1], 'const $0=[1];export default [$0,$0];')
+        },
+        view: () => {
+            const shown = htmlToString(demo.view(demo.init))
+            assert(shown.includes('<pre>'), shown)
+            const refused = htmlToString(demo.view('export default {bad'))
+            assert(refused.includes('Refused: '), refused)
+        },
+    },
 }

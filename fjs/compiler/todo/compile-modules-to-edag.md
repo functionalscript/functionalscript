@@ -28,16 +28,16 @@ also needs the source import specifiers and attributes from that file. Keep that
 information in a small temporary wrapper rather than adding module metadata to EDAG itself.
 
 The AST preserves the ordered object-entry representation EDAG requires:
-`AstObject` is `['object', members]`, the members in the order written, a
-repeated key written twice, and `run` builds the object JavaScript builds from
-the same literal. It was a plain object until this task's first step, and
+`AstObject` is `['object', entries]`, each entry a member `[':', key, value]`
+or a spread `['...', value]`, in the order written, a repeated key written
+twice, and `run` builds the object JavaScript builds from the same literal. It was a plain object until this task's first step, and
 before that it sorted the members through an `OrderedMap`, which the subset law
 over the DataJS corpus found and the normalizer's landing fixed (#2028); a
 plain object kept the written order of ordinary keys and the last value of a
 repeated one, and could
 not keep the position of an integer-like key, which JavaScript lists first, or
-the duplicates themselves. Conversion to `['{}', [...entry]]` reads the members
-as the syntax holds them.
+the duplicates themselves. Conversion to `['{}', [...entry]]` reads the entries
+as the syntax holds them, a spread as the EDAG's own `['...', exp]` entry.
 
 ### Proposal
 
@@ -559,17 +559,11 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       reads `a.toString` as a function); `undefined` for a missing member, as
       JavaScript; a `null` or `undefined` base fails the module, as JavaScript
       throws — `run` returns a `Result` now, and `fjs compile` reports the failure
-      against the input; and the sharing sweep reads an access by its keys — two
-      references share a node when one's keys are the other's or a prefix of
-      them and the node is a container, which the values say — so
-      `{ x: cfg.a, y: cfg.b }` is a tree and `[cfg.a, cfg.a]` is not. Pinned in
-      `fjs/compiler/proof.f.mjs` (`access`) and `fjs/compiler/ast/proof.f.mjs`. Left
-      coarse, in the safe direction: a module whose own value holds a shared
-      node is shared under any route an importer takes into it, and the
-      modules it reaches count under any route too, since the sweep does not
-      carry where in the module's value a node sits; the precise answer there
-      is an identity walk of the selected sub-value, which the sweep exists
-      not to make.
+      against the input. Pinned in `fjs/compiler/proof.f.mjs` (`access`) and
+      `fjs/compiler/ast/proof.f.mjs`. The sweep that once read an access by
+      its keys to refuse `[cfg.a, cfg.a]` as JSON went with the refusal
+      (#2526): a value output reads the value, where `[cfg.a, cfg.a]` is one
+      array reached twice, hoisted by DataJS and written twice by JSON.
 - [x] Define the temporary `Unresolved` type as `{ imports, edag }`; keep it outside
       the EDAG schema. Done: [`fjs/compiler/edag/types.ts`](../edag/types.ts).
 - [x] Keep `Unresolved.imports` as a source-ordered array of import records — the
@@ -579,8 +573,8 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [x] Change the DJS parser/AST object representation to retain an ordered entry list
       until EDAG conversion; do not collapse duplicate keys or reorder integer-like
       keys through a plain JavaScript object/`OrderedMap` representation. Done:
-      `AstObject` is `['object', members]`, pinned by `membersAsWritten` in
-      `fjs/compiler/parser/proof.f.mjs`.
+      `AstObject` is `['object', entries]`, a member or a spread each, pinned by
+      `membersAsWritten` in `fjs/compiler/parser/proof.f.mjs`.
 - [x] Convert a parsed source module to `Unresolved { imports, edag }` without reading
       or resolving any imported module. Done: `unresolved` in
       [`fjs/compiler/edag`](../edag/module.f.mjs), a function of the AST alone.

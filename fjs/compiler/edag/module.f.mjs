@@ -5,8 +5,8 @@
  *
  * @module
  *
- * @import { Exp } from '../../edag/types.ts'
- * @import { AstBinary, AstBitnot, AstBody, AstCall, AstConditional, AstConst, AstFunction, AstImport, AstModule, AstNeg, AstThrow } from '../ast/types.ts'
+ * @import { Exp, Spread } from '../../edag/types.ts'
+ * @import { AstBinary, AstBitnot, AstBody, AstCall, AstConditional, AstConst, AstEntry, AstFunction, AstImport, AstItem, AstModule, AstNeg, AstSpread, AstThrow } from '../ast/types.ts'
  * @import { _ImportSource, _Source } from '../transpiler/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
@@ -14,10 +14,10 @@
  * @import { Unknown as JsonUnknown } from '../../media/json/types.ts'
  * @import { Entry } from '../../types/object/types.ts'
  * @import { Unresolved } from './types.ts'
- * @import { _Binding, _Entries, _Link, _Lowered, _LowerResults, _LowerWork, _Nodes, _Resolved } from './private.ts'
+ * @import { _Binding, _Entries, _Link, _Lowered, _LoweredEntry, _LoweredItem, _LoweredOver, _LowerResults, _LowerWork, _Nodes, _Resolved } from './private.ts'
  */
 
-import { anchors, isBinary, isInlinedCall, isLazy, readCaptures } from '../ast/module.f.mjs'
+import { anchors, isBinary, isInlinedCall, isLazy, isSpread, readCaptures } from '../ast/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { _attributeError, _importSources, _missingExport, _rootSource, _parseJson, _parseModule } from '../transpiler/module.f.mjs'
 import { foldStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
@@ -55,7 +55,7 @@ const parameter = ({ name }, i) => name === null ? ['.', args, i] : ['.', ['.', 
 /** A value that floats nothing. @type {(exp: Exp) => _Lowered} */
 const plain = exp => ({ exp, anchors: [] })
 
-/** What several lowered values float, in their order. @type {(xs: readonly _Lowered[]) => readonly Exp[]} */
+/** What several lowered values float, in their order. @type {(xs: readonly _LoweredOver<unknown>[]) => readonly Exp[]} */
 const floated = xs => xs.flatMap(x => x.anchors)
 
 /**
@@ -109,7 +109,7 @@ const call = nodes => ast => {
         const [, , body, captures] = /** @type {AstFunction} */ (callee)
         return parts(body, (captures ?? []).map(c => lower(nodes)(c).exp))
     }
-    const items = args.map(lower(nodes))
+    const items = args.map(lowerItem(nodes))
     const list = items.map(x => x.exp)
     if (callee !== null && typeof callee === 'object' && callee[0] === '.') {
         const base = lower(nodes)(callee[1])
@@ -117,6 +117,32 @@ const call = nodes => ast => {
     }
     const f = lower(nodes)(callee)
     return { exp: ['()', f.exp, list], anchors: [...f.anchors, ...floated(items)] }
+}
+
+/**
+ * A spread's EDAG: the EDAG's spread, `['...', exp]`, over its operand's —
+ * what the operand floats floating with it.
+ *
+ * @type {(nodes: _Nodes) => (spread: AstSpread) => _LoweredOver<Spread>}
+ */
+const lowerSpread = nodes => ([, operand]) => {
+    const { exp, anchors } = lower(nodes)(operand)
+    return { exp: ['...', exp], anchors }
+}
+
+/** An item's EDAG: a value's, or a spread's, {@link lowerSpread}. @type {(nodes: _Nodes) => (item: AstItem) => _LoweredItem} */
+const lowerItem = nodes => item => isSpread(item) ? lowerSpread(nodes)(item) : lower(nodes)(item)
+
+/**
+ * An entry's EDAG: a member's, the EDAG's property over its value's, or
+ * a spread's, {@link lowerSpread}.
+ *
+ * @type {(nodes: _Nodes) => (entry: AstEntry) => _LoweredEntry}
+ */
+const lowerEntry = nodes => entry => {
+    if (isSpread(entry)) { return lowerSpread(nodes)(entry) }
+    const { exp, anchors } = lower(nodes)(entry[2])
+    return { exp: [':', entry[1], exp], anchors }
 }
 
 /**
@@ -193,12 +219,12 @@ const lowerLeaf = nodes => ast => {
         case 'aref': { return plain(nodes.parameters[ast[1]]) }
         case 'cref': { return plain(nodes.consts[ast[1]]) }
         case 'array': {
-            const items = ast[1].map(lower(nodes))
+            const items = ast[1].map(lowerItem(nodes))
             return { exp: ['[]', items.map(x => x.exp)], anchors: floated(items) }
         }
         case 'object': {
-            const members = ast[1].map(([key, value]) => /** @type {const} */ ([key, lower(nodes)(value)]))
-            return { exp: ['{}', members.map(([key, x]) => [':', key, x.exp])], anchors: floated(members.map(([, x]) => x)) }
+            const entries = ast[1].map(lowerEntry(nodes))
+            return { exp: ['{}', entries.map(x => x.exp)], anchors: floated(entries) }
         }
         // a function's body is a scope of its own: it names its arguments,
         // one node however many references reach them, and nothing outside

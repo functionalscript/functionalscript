@@ -25,11 +25,11 @@
 import { _transpileDefault } from './transpiler/module.f.mjs'
 import { resolve } from './edag/module.f.mjs'
 import { toRust } from './rust/module.f.mjs'
-import { _numberSerialize, tryStringify } from '../media/datajs/serializer/module.f.mjs'
+import { _numberSerialize, tryJsonStringify, tryStringify } from '../media/datajs/serializer/module.f.mjs'
 import { tryStringify as fjsStringify, tryModuleStringify } from './serializer/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../media/json/serializer/module.f.mjs'
 import { flat, map } from '../types/list/module.f.mjs'
-import { error, mapOk, ok, okList } from '../types/result/module.f.mjs'
+import { error, mapOk, ok } from '../types/result/module.f.mjs'
 import { concat } from '../types/string/module.f.mjs'
 import { serialize as bigintSerialize } from '../types/bigint/module.f.mjs'
 import { sort } from '../types/object/module.f.mjs'
@@ -73,80 +73,15 @@ export const _errorLocation = inputFileName => ({ metadata, end, path }) => {
 // ── JSON output ───────────────────────────────────────────────────────────────
 
 /**
- * Why a value cannot be written as JSON. The wording names the thing JSON
- * has no spelling for, because that is the whole reason: nothing here is
- * malformed, and the same value writes as a module without complaint.
- *
- * @type {(what: string) => Result<never, string>}
- */
-const noJson = what => error(`no JSON spelling for ${what}`)
-
-/**
- * A leaf in JSON, or the refusal. `undefined`, a bigint and the three
- * non-finite numbers are refused rather than approximated: `JSON.stringify`
- * writes `null` for `NaN` and drops an `undefined` member, and the extended
- * codec would write `1n` as `1`, which the standard reader takes back as
- * the *number* `1` — each a different value read back without a word. A
- * finite number is written by the DataJS rule, which is `ToString` with
- * `-0` kept, since `-0` is a JSON number that `JSON.stringify` alone loses.
- *
- * @type {(value: Unknown) => Result<List<string>, string>}
- */
-const jsonLeaf = value => {
-    switch (typeof value) {
-        case 'boolean': { return ok(boolSerialize(value)) }
-        case 'string': { return ok(stringSerialize(value)) }
-        case 'number': { return isFinite(value) ? ok(_numberSerialize(value)) : noJson(`${value}`) }
-        case 'bigint': { return noJson(`${value}n`) }
-        case 'undefined': { return noJson('undefined') }
-        default: { return ok(nullSerialize) }
-    }
-}
-
-/** @type {(member: readonly [string, Unknown]) => Result<List<string>, string>} */
-const jsonMember = ([key, value]) => mapOk(
-    /** @type {(chunks: List<string>) => List<string>} */
-    (chunks => flat([stringSerialize(key), colon, chunks]))
-)(jsonValue(value))
-
-/**
- * A value in JSON, or the refusal of a leaf. Members are written in the
- * order the object carries them, the order the DataJS output keeps too — the
- * other value output, and the one this walk shares its input with.
- * Sharing is not this walk's question: the front end answers it from the
- * module's syntax, so the walk carries no state.
- *
- * @type {(value: Unknown) => Result<List<string>, string>}
- */
-const jsonValue = value => {
-    if (value === null || typeof value !== 'object') { return jsonLeaf(value) }
-    return value instanceof Array
-        ? mapOk(arrayWrap)(okList(value.map(jsonValue)))
-        : mapOk(objectWrap)(okList(entries(value).map(jsonMember)))
-}
-
-/**
- * The value as one JSON text, when it has one: every leaf spelled by JSON.
- * The value is a tree by the front end's word — {@link Denotation} says
- * whether two references reach one node, decided from the module's syntax
- * rather than by walking the value by identity — so this walk carries no
- * state and asks no question about sharing. Exported for the proofs, which
- * refuse one leaf at a time; `compile` is what a caller runs, and the `_`
- * says so.
- *
- * @type {(value: Unknown) => Result<string, string>}
- */
-export const _tryJson = value => mapOk(concat)(jsonValue(value))
-
-/**
- * A denotation as JSON. JSON denotes a tree, so a value with a node two
- * references reach is refused: writing the node twice would read back as
- * two nodes, and a document denoting a different graph is the silent
- * substitution the module output exists to avoid.
+ * A denotation as JSON: the tree the value is to JSON, which has no
+ * identity to carry, as `JSON.stringify` writes it. What JSON cannot spell
+ * — `undefined`, a `bigint`, `NaN`, an infinity — is refused. The writer is
+ * the DataJS writer's, since a JSON document is the tree a DataJS graph
+ * unfolds to.
  *
  * @type {(denotation: Denotation) => Result<string, string>}
  */
-const jsonText = ({ value, shared }) => shared ? noJson('a shared node') : _tryJson(value)
+const jsonText = ({ value }) => tryJsonStringify(value)
 
 /** A denotation as a DataJS document, which denotes a graph and refuses nothing the front end builds. @type {(denotation: Denotation) => Result<string, string>} */
 const dataJsText = ({ value }) => tryStringify(value)

@@ -13,27 +13,45 @@
  * @import { List } from '../list/types.ts'
  */
 
-import { assertNotNullish } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.mjs'
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
-import { tryU8ListToVecMsb, u8ListMsb } from '../bit_vec/module.f.mjs'
+import { length, maxLengthBytes, msb, vec } from '../bit_vec/module.f.mjs'
 import { compose } from '../function/module.f.mjs'
-import { flat, fromArrayLike, iterable, map } from '../list/module.f.mjs'
+import { iterable } from '../list/module.f.mjs'
 
-const m = map(fromArrayLike)
+// Both conversions go through the bigint's hexadecimal spelling, two digits
+// a byte, rather than through a list of bytes: one `BigInt` or one
+// `toString` over the whole, where the list cost a bigint shift per byte —
+// on 128 KiB, the chunk the HTTP pump writes, `fromVec` is between five
+// and eighteen times faster this way, by machine, which is what keeps the
+// pump's parked-socket proof inside the five seconds Bun gives one.
+
+/** @type {(byte: number) => string} */
+const hexOfByte = byte => byte.toString(16).padStart(2, '0')
+
+/** @type {(bytes: Uint8Array) => string} */
+const hexOf = bytes => Array.from(bytes, hexOfByte).join('')
 
 /**
  * Concatenates a list of `Uint8Array` values into one MSB-first bit vector.
  *
- * Throws if the result would exceed `maxLength`. The bound is not precomputed:
- * `tryU8ListToVecMsb` attempts the real conversion and reports `null` when it
- * does not fit (`doc/DESIGN.md` §6). It unwraps that `null` itself rather than
- * composing `u8ListToVecMsb`, whose failure is a bare assertion, so that the
- * overflow says what went wrong.
+ * Throws if the result would exceed `maxLength`, saying so, where the
+ * vector's own constructor would fail on a bare assertion — and throws as
+ * soon as the bytes read so far exceed it, so a list longer than the bound,
+ * an unbounded one included, is read no further than the bound.
  *
  * @type {(input: List<Uint8Array>) => Vec}
  */
-export const listToVec = input =>
-    assertNotNullish(tryU8ListToVecMsb(flat(m(input))), "the array is too big")
+export const listToVec = input => {
+    let bytes = 0n
+    let hex = ''
+    for (const chunk of iterable(input)) {
+        bytes += BigInt(chunk.length)
+        assert(bytes <= maxLengthBytes, 'the array is too big')
+        hex += hexOf(chunk)
+    }
+    return vec(bytes << 3n)(BigInt(`0x0${hex}`))
+}
 
 /**
  * Converts a Uint8Array into an MSB-first bit vector.
@@ -43,12 +61,20 @@ export const listToVec = input =>
 export const toVec = input => listToVec([input])
 
 /**
- * Converts an MSB-first bit vector into a Uint8Array.
+ * Converts an MSB-first bit vector into a Uint8Array. A trailing partial
+ * byte is zero-padded in its low bits, as `u8ListMsb` pads it.
  *
  * @type {(input: Vec) => Uint8Array}
  */
-export const fromVec = input =>
-    Uint8Array.from(iterable(u8ListMsb(input)))
+export const fromVec = input => {
+    const bits = length(input)
+    const bytes = Number((bits + 7n) >> 3n)
+    // padded to the byte count rather than marked with a leading `1`: on a
+    // vector of `maxLength` bits the mark would be one bit past the bigint
+    // Bun can build
+    const hex = (msb.front(bits)(input) << ((8n - bits % 8n) % 8n)).toString(16).padStart(bytes << 1, '0')
+    return Uint8Array.from({ length: bytes }, (_, i) => Number(`0x${hex.substring(i << 1, (i << 1) + 2)}`))
+}
 
 /** @type {(input: Uint8Array) => string} */
 export const decodeUtf8 = compose(toVec)(utf8ToString)

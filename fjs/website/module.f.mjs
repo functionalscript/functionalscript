@@ -41,7 +41,7 @@
  *
  * @module
  *
- * @import { All, Env, NodeProgramOptions, ReadFile, Readdir, Write, WriteFile } from '../effects/node/types.ts'
+ * @import { All, Env, NodeProgramOptions, ReadFile, Readdir, Rm, Write, WriteBytes, WriteFile } from '../effects/node/types.ts'
  * @import { Effect, IoChannel } from '../effects/types.ts'
  * @import { StringSet } from '../types/string_set/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
@@ -64,6 +64,7 @@ import { tryParse } from '../media/markdown/module.f.mjs'
 import { stylesheet } from './style/module.f.mjs'
 import { changelogDir, demoSection, page, pagePath, sections, shell, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
 import { toHex, tryFromHexOf } from '../git/oid/module.f.mjs'
+import { isThirdParty } from '../dev/module.f.mjs'
 
 /**
  * The root page: the project's name, the catalogue every directory page
@@ -105,26 +106,17 @@ const rootPage = build => dir => shell(build)(siteName)(testsMain(
     ]),
 ))
 
-/**
- * Whether a directory is this repository's source at all.
- *
- * `node_modules` holds other people's, `target` holds build output, and a
- * dot-directory holds tooling. They are skipped **before** the walk descends
- * into them, which is the difference between reading this repository and
- * reading a Rust build tree: `target` alone can hold more files than the
- * repository has, and a directory in there that cannot be read would fail a
- * build that never wanted to look at it.
- *
- * @type {(name: string) => boolean}
- */
-const ignored = name =>
-    name.startsWith('.') || name === 'node_modules' || name === 'target'
-
 /** @type {(path: string) => boolean} */
 const authored = path => path.endsWith('.f.mjs')
 
 /**
- * Every directory under `dir`, itself first, with everything each one holds.
+ * Every directory under `dir`, itself first, with everything each one holds;
+ * a directory {@link isThirdParty} names is not entered.
+ *
+ * This is not `fjs/dev`'s `walk`, which answers the flat list of files it
+ * takes, a directory it descends not itself in the answer: a page is written
+ * for every directory, an empty one included, so this answers a record per
+ * directory. The two share the policy of what not to enter, not the recursion.
  *
  * A directory at a time rather than `readdir`'s own `recursive` option,
  * because recursion there cannot be pruned: it descends into everything and
@@ -142,7 +134,7 @@ const walk = dir => step(readdir(dir, {}), entries => {
     // somebody left in the tree.
     const files = entries.filter(e => !e.isDirectory).map(e => e.name).toSorted()
     const dirs = entries
-        .filter(e => e.isDirectory && !ignored(e.name))
+        .filter(e => e.isDirectory && !isThirdParty(e.name))
         .map(e => e.name)
         .toSorted()
     return foldStep(
@@ -595,7 +587,7 @@ const versionOf = name => {
  * it, which is how a build over one gets no release pages rather than no
  * build. The generator's own proofs run it over exactly such a tree.
  *
- * @type {(build: Build) => (tree: readonly _Walked[]) => Effect<ReadFile | WriteFile | Write, void, IoChannel>}
+ * @type {(build: Build) => (tree: readonly _Walked[]) => Effect<ReadFile | Rm | WriteBytes | WriteFile | Write, void, IoChannel>}
  */
 const writeChangelog = build => tree => {
     const dir = tree.find(walked => walked.path === changelogDir)
@@ -626,7 +618,7 @@ const writeChangelog = build => tree => {
  * runner — and every other directory's is {@link page}'s. Both write the same
  * catalogue.
  *
- * @type {(build: Build) => (tree: readonly _Walked[]) => (proofs: readonly Proof[]) => (demos: _Demos) => Effect<WriteFile | Write, void, IoChannel>}
+ * @type {(build: Build) => (tree: readonly _Walked[]) => (proofs: readonly Proof[]) => (demos: _Demos) => Effect<Rm | WriteBytes | WriteFile | Write, void, IoChannel>}
  */
 const writePages = build => tree => proofs => demos => {
     const byPath = tree.reduce(
@@ -694,7 +686,7 @@ const linksNote = env => commit =>
         : env.WORKERS_CI_COMMIT_SHA === undefined ? 'file links: this site'
             : 'file links: this site, because WORKERS_CI_COMMIT_SHA is not a commit id'
 
-/** @type {(build: Build) => (note: string) => Effect<Readdir | ReadFile | WriteFile | Write | All, 0, number>} */
+/** @type {(build: Build) => (note: string) => Effect<Readdir | ReadFile | Rm | WriteBytes | WriteFile | Write | All, 0, number>} */
 const program = build => note => exitStep(mapStep(
     step(log(note), () => step(walk('.'), tree => {
         const authored = authoredModules(tree)
@@ -713,7 +705,7 @@ const program = build => note => exitStep(mapStep(
     })),
     () => undefined))
 
-/** @type {(options: NodeProgramOptions) => Effect<Readdir | ReadFile | WriteFile | Write | All, 0, number>} */
+/** @type {(options: NodeProgramOptions) => Effect<Readdir | ReadFile | Rm | WriteBytes | WriteFile | Write | All, 0, number>} */
 export const main = ({ env }) => {
     const commit = commitOf(env)
     return program({ commit, branch: branchOf(env) })(linksNote(env)(commit))

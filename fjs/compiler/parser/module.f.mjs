@@ -52,9 +52,9 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstFrameRef, AstFunction, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstThrow } from '../ast/types.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstThrow } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
- * @import { Block, Container, Entry, If, Import, Module, Node, ParameterBinding, ParameterList, Statement, ValueStatement } from './syntax/types.ts'
+ * @import { Block, Container, Entry, If, Import, Item, Module, Node, ParameterBinding, ParameterList, Statement, ValueStatement } from './syntax/types.ts'
  * @import { _AccessFrame, _BodyFrame, _CallFrame, _ConditionalFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Parameter, _Ref, _Scope, _Stack, _State } from './private.ts'
  */
 
@@ -290,9 +290,50 @@ const accessClosed = (frame, base) => {
  */
 const isCallee = stack => stack !== null && 'call' in stack.top && stack.top.index === 0
 
+/**
+ * The node an item evaluates: a value's own, or a spread's operand — the
+ * spread itself is put back once the operand has its value,
+ * {@link itemValue}.
+ *
+ * @type {(item: Item) => Node}
+ */
+const operandOf = item => item[0] === '...' ? item[1] : item
+
+/**
+ * An item's value from its operand's: the value, or the spread of it where
+ * the item was a spread.
+ *
+ * @type {(item: Item) => (value: AstConst) => AstItem}
+ */
+const itemValue = item => value => {
+    if (item[0] !== '...') { return value }
+    /** @type {AstSpread} */
+    const spread = ['...', value]
+    return spread
+}
+
+/**
+ * The node an entry evaluates: a member's value, or a spread's operand —
+ * a spread is the one entry that is a tuple, a member being a record.
+ *
+ * @type {(entry: Entry) => Node}
+ */
+const entryOperandOf = entry => entry instanceof Array ? entry[1] : entry.value
+
 /** @type {(container: Container, index: number) => Node} */
 const itemAt = ([kind, items], index) =>
-    kind === 'array' ? items[index] : items[index].value
+    kind === 'array' ? operandOf(items[index]) : entryOperandOf(items[index])
+
+/**
+ * A container's value at `index`, its item's or member's spread put back,
+ * {@link itemValue}.
+ *
+ * @type {(container: Container, index: number, value: AstConst) => AstItem}
+ */
+const containerValue = ([kind, items], index, value) => {
+    const entry = items[index]
+    return entry instanceof Array ? itemValue(entry)(value) : value
+}
 
 /**
  * The error a container's item earns before its value is read, or `null`:
@@ -308,18 +349,24 @@ const itemAt = ([kind, items], index) =>
  */
 const badKey = ([kind, items], index) => {
     if (kind === 'array') { return null }
-    const { key, name, computed } = items[index]
+    const member = items[index]
+    // a spread names no key
+    if (member instanceof Array) { return null }
+    const { key, name, computed } = member
     return name === protoKey && !computed ? protoKeyError(key) : null
 }
 
 /**
- * A member as an entry of the object being closed: its name, and the value
- * at its index among the resolved values, which are the leading parameter
- * so that the step lives here rather than closing over them.
+ * A member as an entry of the object being closed: a property's name and
+ * the value at its index among the resolved values — the leading
+ * parameter, so that the step lives here rather than closing over them —
+ * or the spread {@link containerValue} put back there.
  *
- * @type {(done: readonly AstConst[]) => (member: Entry, index: number) => AstMember}
+ * @type {(done: readonly AstItem[]) => (entry: Entry, index: number) => AstEntry}
  */
-const memberEntry = done => ({ name }, index) => [name, done[index]]
+const astEntry = done => (entry, index) => entry instanceof Array
+    ? /** @type {AstSpread} */ (done[index])
+    : [':', entry.name, /** @type {AstConst} */ (done[index])]
 
 /**
  * A container of the values its items resolved to: an array, or an object
@@ -330,16 +377,16 @@ const memberEntry = done => ({ name }, index) => [name, done[index]]
  * JavaScript builds, and EDAG's object constructor takes the members as
  * written, which the syntax alone still has.
  *
- * @type {(container: Container, done: readonly AstConst[]) => AstConst}
+ * @type {(container: Container, done: readonly AstItem[]) => AstConst}
  */
-const close = ([kind, members], done) => {
+const close = ([kind, entries], done) => {
     if (kind === 'array') {
         /** @type {AstArray} */
         const array = ['array', done]
         return array
     }
     /** @type {AstObject} */
-    const object = ['object', members.map(memberEntry(done))]
+    const object = ['object', entries.map(astEntry(done))]
     return object
 }
 
@@ -377,7 +424,15 @@ const callOperandCount = call => call[2].length + 1
  *
  * @type {(call: _CallFrame['call'], index: number) => Node}
  */
-const callOperandAt = (call, index) => index === 0 ? call[1] : call[2][index - 1]
+const callOperandAt = (call, index) => index === 0 ? call[1] : operandOf(call[2][index - 1])
+
+/**
+ * A call's value at `index`, an argument's spread put back: the callee is
+ * never one.
+ *
+ * @type {(call: _CallFrame['call'], index: number, value: AstConst) => AstItem}
+ */
+const callValue = (call, index, value) => index === 0 ? value : itemValue(call[2][index - 1])(value)
 
 /**
  * The next operand of a call, or the call closed when none is left: the
@@ -390,7 +445,7 @@ const callRound = (stack, scope, frame) => {
     if (index < callOperandCount(call)) { return [{ top: frame, rest: stack }, scope, ['enter', callOperandAt(call, index)]] }
     const [callee, ...args] = toArray(frame.done)
     /** @type {AstCall} */
-    const closed = ['()', callee, args]
+    const closed = ['()', /** @type {AstConst} */ (callee), args]
     return [stack, scope, ok(closed)]
 }
 
@@ -617,8 +672,8 @@ const enter = (stack, scope, node) => {
  * @type {(stack: _Stack, scope: _Scope, frame: _Frame, value: AstConst) => _State}
  */
 const returned = (stack, scope, frame, value) => {
-    if ('container' in frame) { return round(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
-    if ('call' in frame) { return callRound(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
+    if ('container' in frame) { return round(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([containerValue(frame.container, frame.index, value)]) }) }
+    if ('call' in frame) { return callRound(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([callValue(frame.call, frame.index, value)]) }) }
     if ('conditional' in frame) { return conditionalRound(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
     if ('key' in frame) { return [stack, scope, accessClosed(frame, value)] }
     if ('neg' in frame) {
@@ -784,6 +839,9 @@ const bodyBindable = scope => name => {
 /** The environment with a word bound to a reference, its two questions already answered. @type {(env: _Env) => (word: string, ref: _Ref) => _Env} */
 const extended = env => (word, ref) => setReplace(word)(ref)(env)
 
+/** An export as the module's result object holds it: a member of its name and node. @type {(e: readonly [string, AstConst]) => AstMember} */
+const exportMember = ([name, value]) => [':', name, value]
+
 /**
  * The statements of a module, in order: each imported binding names
  * the next argument, each `const` resolves its value against the names
@@ -804,7 +862,7 @@ const foldModule = ({ imports, consts, exported, thrown: failing }) => {
     let modules = []
     /** @type {readonly AstConst[]} */
     let body = []
-    /** @type {readonly AstMember[]} */
+    /** @type {readonly (readonly [string, AstConst])[]} */
     let exports = []
     // the statement before the one being read, whose omitted `;` the one
     // being read has to begin a line for
@@ -863,7 +921,7 @@ const foldModule = ({ imports, consts, exported, thrown: failing }) => {
     // annotated rather than inferred: a bare `[modules, body]` widens to an
     // array, because `readonly string[]` is itself assignable to `AstBody`.
     /** @type {AstModule} */
-    const astModule = [modules, [...body, ['object', toArray(sort(exports))]]]
+    const astModule = [modules, [...body, ['object', toArray(sort(exports)).map(exportMember)]]]
     return ok(astModule)
 }
 

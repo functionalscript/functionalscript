@@ -3,10 +3,10 @@ import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {
     throw: {
-        reciprocal_zero: () => prime_field(7n).reciprocal(0n),
-        sqrt_bad_prime: () => sqrt(prime_field(5n)),
+        reciprocalZero: () => prime_field(7n).reciprocal(0n),
+        sqrtBadPrime: () => sqrt(prime_field(5n)),
     },
-    prime_field_test: () => {
+    prime_field: () => {
         const p = 0xffffffff_ffffffff_ffffffff_ffffffff_ffffffff_ffffffff_fffffffe_fffffc2fn;
         const f = prime_field(p)
         const sqrt_f = sqrt(f)

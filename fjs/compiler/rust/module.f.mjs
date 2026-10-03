@@ -13,54 +13,21 @@
  * laying a module's scope out as the body of the
  * `pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>` a harness can call —
  * `A: IStaticFunction` once the module holds a function, the capability its
- * closures bind through — and picking exactly the `nanvm_lib` imports the
- * printed text actually needs — the crate is the output's one dependency,
- * so the functions a literal becomes are `vm::unstable`'s, never copied here.
+ * closures bind through — and importing exactly the `nanvm_lib` names the
+ * printer reports its text spells (`scope`'s `uses`, `useLines`) — the
+ * crate is the output's one dependency, so the functions a literal becomes
+ * are `vm::unstable`'s, never copied here.
  *
  * @module
  *
  * @import { Exp } from '../../edag/types.ts'
+ * @import { Scope } from '../../edag/rust/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  */
 
 import { error, mapOk, unwrap } from '../../types/result/module.f.mjs'
 import { analysis, bindingError } from '../../edag/analysis/module.f.mjs'
-import { holdsFunction, indent, readsArgs, scope } from '../../edag/rust/module.f.mjs'
-import { withoutStringLiterals } from '../../media/rust/module.f.mjs'
-
-/**
- * The `nanvm_lib::vm::unstable` functions the printed body calls — the same
- * ones the operator corpus calls, since both are printed by
- * `fjs/edag/rust`'s one printer — found by the call text that names them,
- * so a module imports only what it uses. A helper added there to shorten
- * generated code gets a row here once the printer calls it. The text
- * scanned has its string literals blanked, `withoutStringLiterals`, so a
- * literal spelling a marker is data and not a use.
- *
- * @type {readonly (readonly [string, string])[]}
- */
-const helperCatalog = [
-    ['bigint_any(', 'bigint_any'],
-    ['f64_any(', 'f64_any'],
-    ['strict_eq(', 'strict_eq'],
-    ['strict_ne(', 'strict_ne'],
-    ['string_any(', 'string_any'],
-    ['string_any_utf16(', 'string_any_utf16'],
-    ['string_key(', 'string_key'],
-    ['string_key_utf16(', 'string_key_utf16'],
-]
-
-/**
- * The `use nanvm_lib::vm::unstable::…;` line the body needs, or none, spelled
- * as rustfmt spells it: one name bare, several braced.
- *
- * @type {(body: string) => readonly string[]}
- */
-const helpersFor = body => {
-    const names = helperCatalog.filter(([marker]) => body.includes(marker)).map(([, name]) => name)
-    return names.length === 0 ? []
-        : [`use nanvm_lib::vm::unstable::${names.length === 1 ? names[0] : `{${names.join(', ')}}`};`]
-}
+import { holdsFunction, indent, readsArgs, scope, useLines } from '../../edag/rust/module.f.mjs'
 
 /**
  * The bound on the module's VM parameter: `IVm`, or `IStaticFunction` —
@@ -73,32 +40,8 @@ const helpersFor = body => {
 const vmBound = root => holdsFunction(root) ? 'IStaticFunction' : 'IVm'
 
 /**
- * The `nanvm_lib::vm` names a piece of generated text needs, found the same
- * way {@link helpersFor} finds which constructors to import: `Any` and the
- * VM bound are always needed — every value is an `Any<A>` and every function
- * is generic over it — and the rest are included only where the text
- * actually spells them, so an empty module never imports `Array`.
- *
- * @type {readonly (readonly [string, string])[]}
- */
-const importCatalog = [
-    ['Nullish::', 'Nullish'],
-    ['Array::default', 'Array'],
-    ['Object::default', 'Object'],
-    ['.to_any()', 'ToAny'],
-    ['.to_array()', 'ToArray'],
-    ['.to_object()', 'ToObject'],
-]
-
-/** @type {(text: string, bound: string) => readonly string[]} */
-const importsFor = (text, bound) => [...new Set([
-    'Any',
-    bound,
-    ...importCatalog.filter(([marker]) => text.includes(marker)).map(([, name]) => name),
-])].sort()
-
-/**
- * The module's scope, one line per temporary and its `Ok(…)` —
+ * The module's scope, one line per temporary and its `Ok(…)`, indented into
+ * the module's function, with the names it spells —
  * `fjs/edag/rust`'s {@link scope}, which also prints every function's body
  * the module holds, each a scope of its own inside its closure — or the
  * refusal. Validate bindings against their owning functions before printing:
@@ -110,14 +53,14 @@ const importsFor = (text, bound) => [...new Set([
  * printed as a name nothing binds; a module has no frame either, and a
  * `['frame', i]` in its own scope is `bindingError`'s refusal.
  *
- * @type {(root: Exp) => Result<readonly string[], readonly unknown[]>}
+ * @type {(root: Exp) => Result<Scope, readonly unknown[]>}
  */
-const bodyLines = root => {
+const body = root => {
     const problem = bindingError(analysis(root))
     return problem !== null ? error([problem, root])
     : readsArgs(root)
     ? error(['no Rust for `args` in a module\'s own scope; a module has no arguments', root])
-    : mapOk((/** @type {readonly string[]} */ lines) => lines.map(l => `${indent}${l}`))(scope(root))
+    : mapOk((/** @type {Scope} */ { lines, uses }) => ({ lines: lines.map(l => `${indent}${l}`), uses }))(scope(root))
 }
 
 /**
@@ -138,22 +81,20 @@ const bodyLines = root => {
  *
  * @type {(root: Exp) => Result<string, readonly unknown[]>}
  */
-const generateResult = root => mapOk(body => {
-    const code = withoutStringLiterals(body.join('\n'))
+const generateResult = root => mapOk((/** @type {Scope} */ { lines, uses }) => {
     const bound = vmBound(root)
     return [
         '// @generated by `fjs compile`. Do not edit: recompile the source module instead.',
         '',
-        ...helpersFor(code),
-        `use nanvm_lib::vm::{${importsFor(code, bound).join(', ')}};`,
+        ...useLines(uses, bound),
         '',
         '#[rustfmt::skip]',
         `pub fn module<A: ${bound}>() -> Result<Any<A>, Any<A>> {`,
-        ...body,
+        ...lines,
         '}',
         '',
     ].join('\n')
-})(bodyLines(root))
+})(body(root))
 
 /**
  * {@link generateResult} as a throwing convenience, for direct use and for

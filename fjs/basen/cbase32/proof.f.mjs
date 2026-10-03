@@ -1,10 +1,14 @@
 /**
  * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { BitGroups } from '../../website/demo/bits/types.ts'
  */
 
-import { empty, maxLength, vec } from '../../types/bit_vec/module.f.mjs'
-import { cBase32ToVec, cBase32ToVec5x, vec5xToCBase32, vecToCBase32 } from './module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { empty, maxLength, maxLengthBytes, vec } from '../../types/bit_vec/module.f.mjs'
+import { canonicalCBase32, cBase32ToVec, cBase32ToVec5x, vec5xToCBase32, vecToCBase32 } from './module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { demo, groupsOf } from './demo.f.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.mjs'
 
 //
 
@@ -83,6 +87,18 @@ export const proof = {
         assertEq(cBase32ToVec('g0'), empty)
         assertEq(cBase32ToVec('80'), vec(1n)(0n))
     },
+    canonical: {
+        // Case, the `i`/`l`/`o` aliases and trailing zero symbols all
+        // re-spell to the one string `vecToCBase32` writes.
+        respells: () => {
+            assertEq(canonicalCBase32('G'), 'g')
+            assertEq(canonicalCBase32('I'), '1')
+            assertEq(canonicalCBase32('Lo8'), '108')
+            assertEq(canonicalCBase32('80'), '8')
+        },
+        canonicalIsUnchanged: () => assertEq(canonicalCBase32('d31tk'), 'd31tk'),
+        invalidIsNull: () => assertEq(canonicalCBase32('u'), null),
+    },
     decodeAtMaxLengthSucceeds: () => {
         const value = vec(maxLength)(0n)
         // Construct the boundary encoding directly. Encoding a `maxLength`
@@ -97,5 +113,45 @@ export const proof = {
         assertEq(cBase32ToVec('0'.repeat(209_717) + 'g'), null)
         assertEq(cBase32ToVec('0'.repeat(209_715) + '4'), null)
         assertEq(cBase32ToVec('0'.repeat(209_715) + '1'), null)
+    },
+    /**
+     * **What the demo shows is pinned**: the groups it draws, stop bit
+     * included, and what `vecToCBase32` wrote for them.
+     */
+    demo: {
+        groups: () => {
+            /** @type {(text: string) => BitGroups} */
+            const encoded = text => unwrap(groupsOf(text))
+            // Empty text is the stop bit alone.
+            assertEq(JSON.stringify(encoded('')), JSON.stringify({ chars: [], groups: [{ data: '', stop: '1', fill: '0000' }], encoded: 'g' }))
+            assertEq(JSON.stringify(encoded('h')), JSON.stringify({
+                chars: [{ label: 'h', standIn: false, bytes: ['01101000'] }],
+                groups: [
+                    { data: '01101', stop: '', fill: '' },
+                    { data: '000', stop: '1', fill: '0' },
+                ],
+                encoded: 'd2',
+            }))
+            assertEq(JSON.stringify(encoded('hé').groups.map(g => g.data)), JSON.stringify(['01101', '00011', '00001', '11010', '1001']))
+            assertEq(encoded('hé').encoded, 'd31tk')
+        },
+        /**
+         * **The demo stops one byte short of the largest bit vector**, since
+         * `vecToCBase32` appends the stop bit before encoding and a vector
+         * past the largest throws on JavaScriptCore
+         * ([encode-at-max-length](./todo/encode-at-max-length.md)). One byte
+         * less encodes, on every engine.
+         */
+        maxLength: () => {
+            assertEq(groupsOf('a'.repeat(Number(maxLengthBytes)))[0], 'error')
+            assertEq(groupsOf('a'.repeat(Number(maxLengthBytes) - 1))[0], 'ok')
+        },
+        view: () => {
+            const html = htmlToString(demo.view(demo.init))
+            // No blocks: the boxes wrap anywhere.
+            assert(html.includes('<div data-bit-box=""><span>1001<span data-bit="stop">1</span></span><span data-bit-char="">k</span></div>'), html)
+            assert(!html.includes('data-bit-block'), html)
+            assert(html.includes('Result: <strong>d31tk</strong>'), html)
+        },
     },
 }

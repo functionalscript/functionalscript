@@ -5,6 +5,7 @@
  * pins the exact text of every construct the printer can emit, so a change in
  * layout is a visible diff here and not only in the generated file.
  *
+ * @import { Exp } from '../../edag/types.ts'
  * @import { Data, Value } from '../types.ts'
  */
 
@@ -335,25 +336,24 @@ export const proof = {
         /**
          * An operation the printer has no `nanvm-lib` spelling for. The
          * generated file would otherwise carry a statement that does not
-         * compile, or worse, one that does and means something else. `!==`
-         * is such an id: the schema has it and the corpus has no group for
-         * it, so nothing maps it.
+         * compile, or worse, one that does and means something else. `==`
+         * is such an id: no schema has it, so nothing maps it.
          */
-        unknownOperation: () => nodeExpr(['is', 1, 2]),
+        unknownOperation: () => nodeExpr(/** @type {Exp} */ (/** @type {unknown} */ (['==', 1, 2]))),
         /**
          * The same gap, met through {@link generate} rather than directly:
          * a group whose `op` has no entry in {@link rustName} has no Rust
          * function name to print, so `generate` refuses before printing a
          * single case.
          */
-        noRustNameForGroup: () => generate({ shared: {}, groups: [{ op: 'is', cases: [] }] }),
+        noRustNameForGroup: () => generate({ shared: {}, groups: [{ op: /** @type {'is'} */ (/** @type {unknown} */ ('==')), cases: [] }] }),
         /** An object key the corpus cannot produce and Rust cannot spell. */
         computedKey: () => nodeExpr(['{}', [[':', ['undefined'], 1]]]),
         /**
-         * An object spread. `Properties` is `Property | Spread`, so this is a
-         * valid `Exp`; read as a property it printed the spread's operand as
-         * the key and a bare `undefined` as the value.
+         * An entry that is neither a property nor a spread: read as a
+         * property it would print its second element as the key and a bare
+         * `undefined` as the value.
          */
-        objectSpread: () => nodeExpr(['{}', [['...', 'x']]]),
+        notAProperty: () => nodeExpr(['{}', [/** @type {any} */ (['?', 'x'])]]),
     },
 }

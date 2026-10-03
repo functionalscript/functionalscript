@@ -1,28 +1,8 @@
-import { anchors, binaryTags, isBinary, isInlinedCall, isLazy, readCaptures, run, sharing, values } from './module.f.mjs'
+import { anchors, binaryTags, isBinary, isInlinedCall, isLazy, readCaptures, run, values } from './module.f.mjs'
 import { _stringifyTree } from '../module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
-/** Whether the sweep finds a shared node in a body with no imports, given its values. @type {(body: import('./types.ts').AstBody) => boolean} */
-const sharedOf = body => sharing(body)([])(unwrap(values(body)([]))).shared
-
-/**
- * Whether the sweep finds a shared node in a body holding an operator,
- * where `values` has none to compute — `sharing` alone, an operator's own
- * value being none `values` could give it. Every entry but the export
- * stands in as `['array', []]` and needs no real value, its own value,
- * `[]`, taking the place `values` would have computed; a leaf entry would
- * need its real one instead, `containerNode` reading only a referenced
- * entry's containerness.
- *
- * @type {(body: readonly import('./types.ts').AstConst[]) => boolean}
- */
-const sharedWithOperator = body => sharing(body)([])(body.map((_, i) => i < body.length - 1 ? [] : null)).shared
-
-/** What the sweep says of a body over `imports`, given the values the body has over them. @type {(imports: readonly import('./types.ts').Import[]) => (body: import('./types.ts').AstBody) => import('./types.ts').Sharing} */
-const sharingWith = imports => body => sharing(body)(imports)(unwrap(values(body)(imports.map(m => m.value))))
-
-/** @type {import('./types.ts').AstImport} */
 const a = { specifier: './a', json: false, name: 'default' }
 
 /** @type {import('./types.ts').AstImport} */
@@ -56,7 +36,7 @@ export const proof = {
         assertEq(result, '[14,4]')
     },
     testObj: () => {
-        const djs = unwrap(run([1, 2, 3, 4, 5, ['object', [['key', ['object', [['key2', ['array', [['aref', 3], ['cref', 3]]]]]]]]]])([11, 12, 13, 14, 15]))
+        const djs = unwrap(run([1, 2, 3, 4, 5, ['object', [[':', 'key', ['object', [[':', 'key2', ['array', [['aref', 3], ['cref', 3]]]]]]]]]])([11, 12, 13, 14, 15]))
         const result = _stringifyTree(djs)
         if (result !== '{"key":{"key2":[14,4]}}') { throw result }
     },
@@ -125,7 +105,7 @@ export const proof = {
         // captures included, outside a nested function's body
         assert(!isInlinedCall(['()', ['=>', 0, [['rest']]], []]))
         assert(!isInlinedCall(['()', ['=>', 0, [['array', [['rest']]]]], []]))
-        assert(!isInlinedCall(['()', ['=>', 0, [['object', [['a', ['rest']]]]]], []]))
+        assert(!isInlinedCall(['()', ['=>', 0, [['object', [[':', 'a', ['rest']]]]]], []]))
         assert(!isInlinedCall(['()', ['=>', 0, [['()', ['rest'], []]]], []]))
         assert(!isInlinedCall(['()', ['=>', 0, [['()', 1, [['rest']]]]], []]))
         assert(!isInlinedCall(['()', ['=>', 0, [['.', ['rest'], 0]]], []]))
@@ -262,13 +242,12 @@ export const proof = {
             assertEq(anchorsOf([[], [1]]), 'consts ; imports ')
             assertEq(anchorsOf([[a], [['aref', 0]]]), 'consts ; imports ')
             assertEq(anchorsOf([[a], [['aref', 0], ['cref', 0]]]), 'consts ; imports ')
-            assertEq(anchorsOf([[a], [['array', []], ['object', [['k', ['array', [['cref', 0], ['aref', 0]]]]]]]]), 'consts ; imports ')
+            assertEq(anchorsOf([[a], [['array', []], ['object', [[':', 'k', ['array', [['cref', 0], ['aref', 0]]]]]]]]), 'consts ; imports ')
         },
         // a member a later duplicate shadows is applied by the EDAG's object
-        // constructor, so a reference in it reaches, where for sharing it
-        // does not
+        // constructor, so a reference in it reaches
         shadowed: () => {
-            assertEq(anchorsOf([[a], [['array', []], ['object', [['x', ['cref', 0]], ['x', ['aref', 0]], ['x', 0]]]]]), 'consts ; imports ')
+            assertEq(anchorsOf([[a], [['array', []], ['object', [[':', 'x', ['cref', 0]], [':', 'x', ['aref', 0]], [':', 'x', 0]]]]]), 'consts ; imports ')
         },
         consts: () => {
             assertEq(anchorsOf([[], [['array', []], 1]]), 'consts 0; imports ')
@@ -369,9 +348,9 @@ export const proof = {
     // `undefined` base is the failure JavaScript throws for
     access: {
         own: () => {
-            assertEq(_stringifyTree(unwrap(run([['object', [['b', ['array', [1, 2]]]]], ['.', ['cref', 0], 'b']])([]))), '[1,2]')
-            assertEq(unwrap(run([['object', [['b', ['array', [1, 2]]]]], ['.', ['.', ['cref', 0], 'b'], 1]])([])), 2)
-            assertEq(unwrap(run([['object', [['b', ['array', [1, 2]]]]], ['.', ['.', ['cref', 0], 'b'], 'length']])([])), 2)
+            assertEq(_stringifyTree(unwrap(run([['object', [[':', 'b', ['array', [1, 2]]]]], ['.', ['cref', 0], 'b']])([]))), '[1,2]')
+            assertEq(unwrap(run([['object', [[':', 'b', ['array', [1, 2]]]]], ['.', ['.', ['cref', 0], 'b'], 1]])([])), 2)
+            assertEq(unwrap(run([['object', [[':', 'b', ['array', [1, 2]]]]], ['.', ['.', ['cref', 0], 'b'], 'length']])([])), 2)
             assertEq(unwrap(run([['.', ['aref', 0], 'length']])(['ab'])), 2)
             assertEq(unwrap(run([['.', ['aref', 0], '0']])(['ab'])), 'a')
         },
@@ -390,91 +369,11 @@ export const proof = {
             assertEq(tag2, 'error')
             assertEq(message2, 'cannot read property "b" of undefined')
             assertEq(run([undefined, ['array', [['.', ['cref', 0], 0]]]])([])[0], 'error')
-            assertEq(run([undefined, ['object', [['k', ['.', ['cref', 0], 0]]]]])([])[0], 'error')
+            assertEq(run([undefined, ['object', [[':', 'k', ['.', ['cref', 0], 0]]]]])([])[0], 'error')
         },
         // every entry's value, in order
         all: () => {
             assertEq(_stringifyTree(unwrap(values([['array', [1]], ['.', ['cref', 0], 0], ['array', [['cref', 1], ['cref', 1]]]])([]))), '[[1],1,[1,1]]')
-        },
-    },
-    // Two references share a node when one's keys are the other's or a
-    // prefix of them, and the node they reach is a container; the values
-    // say which, so `a.x` twice on a leaf `x` shares nothing.
-    sharing: {
-        whole: () => {
-            assert(sharedOf([['array', []], ['array', [['cref', 0], ['cref', 0]]]]))
-            assert(!sharedOf([1, ['array', [['cref', 0], ['cref', 0]]]]))
-        },
-        // a binary operator's operands are reached exactly as a call's
-        // arguments are, and a bitwise not's the same way a call's callee is
-        operator: () => {
-            assert(sharedWithOperator([['array', []], ['+', ['cref', 0], ['cref', 0]]]))
-            assert(!sharedWithOperator([['array', []], ['array', []], ['+', ['cref', 0], ['cref', 1]]]))
-            assert(sharedWithOperator([['array', []], ['array', [['cref', 0], ['~', ['cref', 0]]]]]))
-        },
-        // a lazy operand counts for sharing exactly as an eager one: the
-        // value may be it, so a node reached twice through lazy positions
-        // is shared — identity is indifferent to laziness, only anchoring
-        // is not
-        lazy: () => {
-            assert(sharedWithOperator([['array', []], ['array', [['&&', 1, ['cref', 0]], ['||', 1, ['cref', 0]]]]]))
-            assert(sharedWithOperator([['array', []], ['??', ['cref', 0], ['cref', 0]]]))
-            assert(sharedWithOperator([['array', []], ['?:', 1, ['cref', 0], ['cref', 0]]]))
-            assert(sharedWithOperator([['array', []], ['array', [['cref', 0], ['?:', ['cref', 0], 1, 2]]]]))
-            assert(!sharedWithOperator([['array', []], ['array', []], ['?:', ['cref', 0], ['cref', 1], 1]]))
-        },
-        access: () => {
-            /** @type {readonly import('./types.ts').AstConst[]} */
-            const container = [['object', [['x', ['array', []]], ['y', ['array', []]]]]]
-            assert(sharedOf([...container, ['array', [['.', ['cref', 0], 'x'], ['.', ['cref', 0], 'x']]]]))
-            assert(sharedOf([...container, ['array', [['cref', 0], ['.', ['cref', 0], 'x']]]]))
-            assert(!sharedOf([...container, ['array', [['.', ['cref', 0], 'x'], ['.', ['.', ['cref', 0], 'x'], 'length']]]]))
-            assert(!sharedOf([...container, ['array', [['.', ['cref', 0], 'x'], ['.', ['cref', 0], 'y']]]]))
-            assert(!sharedOf([['object', [['x', 1]]], ['array', [['.', ['cref', 0], 'x'], ['.', ['cref', 0], 'x']]]]))
-            assert(!sharedOf([['object', []], ['array', [['.', ['cref', 0], 'x'], ['.', ['cref', 0], 'x']]]]))
-        },
-        // an entry reached through an access is walked along the access's
-        // keys only: what lies under another member is not in the value
-        routes: () => {
-            /** @type {readonly import('./types.ts').AstConst[]} */
-            const a = [['array', []], ['object', [['s', 1], ['o', ['array', [['cref', 0], ['cref', 0]]]]]]]
-            assert(!sharedOf([...a, ['.', ['cref', 1], 's']]))
-            assert(sharedOf([...a, ['.', ['cref', 1], 'o']]))
-            assert(sharedOf([...a, ['cref', 1]]))
-            assert(!sharedOf([...a, ['.', ['.', ['cref', 1], 'o'], 0]]))
-            assert(!sharedOf([...a, ['array', [['.', ['cref', 1], 's'], ['.', ['cref', 1], 's']]]]))
-            assert(!sharedOf([...a, ['.', ['cref', 1], 'length']]))
-            assert(!sharedOf([['array', [['array', []]]], ['.', ['.', ['cref', 0], 'length'], 0]]))
-        },
-        // `0` and `"0"` name one element; a node inside another is reached
-        // twice when both are; one node under two keys is a `const`
-        // referenced twice inside the base, counted there
-        keys: () => {
-            assert(sharedOf([['array', [['array', []]]], ['array', [['.', ['cref', 0], 0], ['.', ['cref', 0], '0']]]]))
-            assert(!sharedOf([['array', [['array', []]]], ['array', [['.', ['cref', 0], 0], ['.', ['cref', 0], '00']]]]))
-            assert(!sharedOf([['array', []], ['array', [['cref', 0]]], ['array', [['.', ['cref', 1], 0], ['.', ['cref', 1], '00']]]]))
-            assert(sharedOf([['array', [['array', [['array', []]]]]], ['array', [['.', ['.', ['cref', 0], 0], 0], ['.', ['cref', 0], 0]]]]))
-            assert(sharedOf([['array', []], ['object', [['x', ['cref', 0]], ['y', ['cref', 0]]]], ['array', [['.', ['cref', 1], 'x'], ['.', ['cref', 1], 'y']]]]))
-        },
-        imports: () => {
-            /** @type {readonly import('./types.ts').Import[]} */
-            const imports = [{ id: 'm', value: { x: [1], y: [2], z: 3 }, shared: false, reaches: [] }]
-            const over = sharingWith(imports)
-            assert(over([['array', [['.', ['aref', 0], 'x'], ['.', ['aref', 0], 'x']]]]).shared)
-            assert(!over([['array', [['.', ['aref', 0], 'x'], ['.', ['aref', 0], 'y']]]]).shared)
-            assert(!over([['array', [['.', ['aref', 0], 'z'], ['.', ['aref', 0], 'z']]]]).shared)
-            assert(over([['array', [['aref', 0], ['.', ['aref', 0], 'x']]]]).shared)
-            assert(!over([['array', [['aref', 0], ['.', ['aref', 0], 'z']]]]).shared)
-            assertEq(over([['array', [['.', ['aref', 0], 'x'], ['.', ['aref', 0], 'y']]]]).reaches.join(), 'm')
-            assertEq(over([['array', [['.', ['aref', 0], 'z']]]]).reaches.join(), '')
-            // an import the export does not reach is not reached, whatever it holds
-            /** @type {readonly import('./types.ts').Import[]} */
-            const two = [...imports, { id: 'n', value: [1], shared: false, reaches: [] }]
-            assertEq(sharing([['.', ['aref', 0], 'x']])(two)([[1]]).reaches.join(), 'm')
-            // a module's id may spell a `const`'s index, and is another group
-            /** @type {readonly import('./types.ts').Import[]} */
-            const zero = [{ id: '0', value: [], shared: false, reaches: [] }]
-            assert(!sharingWith(zero)([['array', []], ['array', [['cref', 0], ['aref', 0]]]]).shared)
         },
     },
     // A chain of operators, as deep as the source that built it: `refsOf`
@@ -484,35 +383,30 @@ export const proof = {
     // right-associative for `-`/`~` alike.
     stackSafety: () => {
         // a reference at the deep end of a left-associative chain is still
-        // found, and reached exactly once — `refsOf` never revisits a node
-        // through the chain it flattens
+        // reached, so the `const` it names is not anchored
         /** @type {import('./types.ts').AstConst} */
         let plus = ['cref', 0]
         for (let i = 0; i < 5000; i++) { plus = ['+', plus, 1] }
-        assert(!sharedWithOperator([['array', []], plus]))
+        assertEq(anchorsOf([[], [['array', []], plus]]), 'consts ; imports ')
         // a right-associative chain of negations, `refsOf`'s other shape
         /** @type {import('./types.ts').AstConst} */
         let neg = ['cref', 0]
         for (let i = 0; i < 5000; i++) { neg = ['-', neg] }
-        assert(!sharedWithOperator([['array', []], neg]))
+        assertEq(anchorsOf([[], [['array', []], neg]]), 'consts ; imports ')
         // a lazy chain, and a conditional nested through either arm, at
-        // the depth the parser's own `lazyStackCost` proves, under both
-        // views — the one that follows a lazy position and the one that
-        // stops at it
+        // the depth the parser's own `lazyStackCost` proves: the eager
+        // operand is followed and the lazy one is not
         /** @type {import('./types.ts').AstConst} */
         let and = ['cref', 0]
         for (let i = 0; i < 20000; i++) { and = ['&&', and, ['cref', 0]] }
-        assert(sharedWithOperator([['array', []], and]))
         assertEq(anchorsOf([[], [['array', []], and]]), 'consts ; imports ')
         /** @type {import('./types.ts').AstConst} */
         let otherwise = ['cref', 0]
         for (let i = 0; i < 20000; i++) { otherwise = ['?:', 1, 2, otherwise] }
-        assert(!sharedWithOperator([['array', []], otherwise]))
         assertEq(anchorsOf([[], [['array', []], otherwise]]), 'consts 0; imports ')
         /** @type {import('./types.ts').AstConst} */
         let then = ['cref', 0]
         for (let i = 0; i < 20000; i++) { then = ['?:', ['cref', 0], then, 2] }
-        assert(sharedWithOperator([['array', []], then]))
         assertEq(anchorsOf([[], [['array', []], then]]), 'consts ; imports ')
     },
 }

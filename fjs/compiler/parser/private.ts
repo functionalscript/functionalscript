@@ -10,10 +10,10 @@
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Result } from '../../types/result/types.ts'
-import type { AstConst, AstFrameRef, AstModuleRef, AstRest, BinaryTag } from '../ast/types.ts'
+import type { AstConst, AstFrameRef, AstItem, AstModuleRef, AstRest, BinaryTag } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 import type { ParseError } from './types.ts'
-import type { Block, Container, If, Node } from './syntax/types.ts'
+import type { Block, Container, If, Item, Node } from './syntax/types.ts'
 
 /** A named parameter, `i` of the function whose body names it: what the body reads it as, the `i`th argument. */
 export type _Parameter = readonly ['arg', number]
@@ -67,7 +67,7 @@ export type _Scope = {
 export type _ContainerFrame = {
     readonly container: Container
     readonly index: number
-    readonly done: List<AstConst>
+    readonly done: List<AstItem>
 }
 
 /**
@@ -76,9 +76,9 @@ export type _ContainerFrame = {
  * the order written, which is the order they are evaluated in.
  */
 export type _CallFrame = {
-    readonly call: readonly ['()', Node, readonly Node[]]
+    readonly call: readonly ['()', Node, readonly Item[]]
     readonly index: number
-    readonly done: List<AstConst>
+    readonly done: List<AstItem>
 }
 
 /**

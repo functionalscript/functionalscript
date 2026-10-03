@@ -11,8 +11,10 @@ array's items or an object's properties
 [`fjs/edag/types.ts`](../../fjs/edag/types.ts)). The JS evaluator in
 [`fjs/edag/operations`](../../fjs/edag/operations/module.f.mjs) runs both
 entries with JavaScript's semantics. The Rust writer,
-[`fjs/edag/rust`](../../fjs/edag/rust/module.f.mjs), refuses both: `Any` has
-no operation for either.
+[`fjs/edag/rust`](../../fjs/edag/rust/module.f.mjs), refused both: `Any` had
+no operation for either. It now prints an array's spread, and a call's,
+through `get_iterator` and the `vm::unstable` helpers `spread_array` and
+`spread_call`, and an object's through `object_spread` and `spread_object`.
 
 The type of a spread's operand is unknown when the graph is built, so each
 spread needs one operation on `Any` that dispatches on the value it gets. The
@@ -175,22 +177,32 @@ produces part of a string, not for this one alone.
 
 ### Tasks
 
-- [ ] Extract the ordered, deduplicated own-property view from
-      `ToJson::object` into one function, and make `to_json` call it.
+- [x] Extract the ordered, deduplicated own-property view from
+      `ToJson::object` into one function, and make `to_json` call it
+      ([`Object::own_entries`](../src/vm/object/own_entries.rs)).
 - [x] `IteratorRecord<A>` and `Any::get_iterator`: an array's elements and a
       string's code points, and a `TypeError` for everything else, raised
       before any element ([`vm/iterator_record.rs`](../src/vm/iterator_record.rs),
       [`vm/any/get_iterator.rs`](../src/vm/any/get_iterator.rs)).
-- [ ] `ObjectSpread<A>` and `Any::object_spread` over that view, with the
-      array, string and empty cases.
-- [ ] Rust tests for every case above, including (`get_iterator`'s are in):
+- [x] `ObjectSpread<A>` and `Any::object_spread` over that view, with the
+      array, string and empty cases ([`vm/object_spread.rs`](../src/vm/object_spread.rs),
+      [`vm/any/object_spread.rs`](../src/vm/any/object_spread.rs)).
+- [x] Rust tests for every case above, including:
       - a surrogate pair and a lone surrogate;
       - an object with a duplicate key and with array-index keys out of order;
       - the four examples in the problem statement.
-- [ ] Spell `['...', exp]` in [`fjs/edag/rust`](../../fjs/edag/rust/module.f.mjs)
-      through these operations, as an array item, a call's argument and an
-      object property. Add generated fixtures in `nanvm-harness`, checked
-      against a JavaScript engine.
+- [x] Spell `['...', exp]` in [`fjs/edag/rust`](../../fjs/edag/rust/module.f.mjs)
+      as an array item and a call's argument, through `get_iterator` and
+      `spread_array`/`spread_call` in
+      [`vm::unstable`](../src/vm/unstable/mod.rs).
+- [x] Spell it as an object property, through `object_spread` and
+      `spread_object`, `property_item` and `spread_entries` in
+      [`vm::unstable`](../src/vm/unstable/mod.rs).
+- [x] A generated fixture in `nanvm-harness` for array and call spread,
+      checked against a JavaScript engine:
+      [`fixtures/spread.mjs`](../../nanvm-harness/fixtures/spread.mjs).
+- [x] One for object spread:
+      [`fixtures/object-spread.mjs`](../../nanvm-harness/fixtures/object-spread.mjs).
 
 ### Related
 
