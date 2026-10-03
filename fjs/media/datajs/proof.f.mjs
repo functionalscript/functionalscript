@@ -37,7 +37,11 @@ export const proof = {
     // deeper proofs are each entry point's own: `parser/proof.f.mjs` for the
     // two readers, `serializer/proof.f.mjs` for the four writers, and the
     // conformance corpus for the DataJS four. What is proved here is that
-    // they compose as one codec.
+    // they compose as one codec, starting with the round trip: writing what
+    // was read gives the document back, since normalized form is one
+    // spelling per value and the reader keeps the sharing the writer hoists.
+    // The typedefs come before the assertion because a JSDoc typedef binds
+    // to the statement after it, and one ending a block checks nothing.
     signatures: () => {
         /** @typedef {Assert<Equal<typeof tryParse, (text: string) => Result<Unknown, string>>>} _TryParse */
         /** @typedef {Assert<Equal<typeof tryParseBytes, (bytes: List<U8>) => Result<Unknown, string>>>} _TryParseBytes */
@@ -45,10 +49,8 @@ export const proof = {
         /** @typedef {Assert<Equal<typeof tryStringify, (value: Unknown) => Result<string, string>>>} _TryStringify */
         /** @typedef {Assert<Equal<typeof tryJsonSerialize, (value: Unknown) => Result<List<string>, string>>>} _TryJsonSerialize */
         /** @typedef {Assert<Equal<typeof tryJsonStringify, (value: Unknown) => Result<string, string>>>} _TryJsonStringify */
+        assertEq(unwrap(tryStringify(graph)), document)
     },
-    // Writing what was read gives the document back: normalized form is one
-    // spelling per value, and the reader keeps the sharing the writer hoists.
-    roundTrip: () => assertEq(unwrap(tryStringify(graph)), document),
     // The byte path reads the same graph from the document's UTF-8 bytes,
     // the four-byte scalar in `"c"` crossing the bridge back to a pair.
     bytes: () => assertEq(difference(graph)(unwrap(tryParseBytes(utf8(document)))), null),
