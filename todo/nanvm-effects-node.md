@@ -15,9 +15,11 @@ Implement the `nanvm-effects-node` library crate described by the
 [roadmap](../nanvm-lib/todo/mvp-roadmap.md#effects-the-nanvm-effects-node-runner-crate-decided).
 Keep `nanvm-lib` pure; the native executable depends on the VM, this runner
 and generated FJS code. For operations whose request and result types fit
-the existing RTTI vocabulary, define their data schemas and derive the
-TypeScript declarations and Rust stub, with a handwritten implementation of
-the generated trait. Commit generated output under `npm run gen`.
+the existing RTTI vocabulary, define their data schemas and derive the Rust
+stub, with a handwritten implementation of the generated trait. Keep the
+TypeScript declarations handwritten and check them against the schemas;
+preserving their nominal types is a separate gate below. Commit generated
+output under `npm run gen`.
 
 Begin with the synchronous operations the compiled program needs: file
 reading/resolution/writing, console I/O and `sandbox`. The FJS loader owns
@@ -83,6 +85,11 @@ in `mkdir(path, undefined)` and `exec(command, undefined)`.
 
 What follows for the tasks below:
 
+- **Generated** means native declarations here. A runtime TypeScript printer
+  sees `bigint`, not the nominal `Vec`; `Phantom` annotations affect static
+  `Ts<>` inference but are erased at runtime. Keep the existing TypeScript
+  API until an explicit nominal mapping preserves its signatures, as the
+  [RTTI type-system plan](./rtti-type-system.md)'s nominal-types task requires.
 - The first generated trait covers the compiler I/O operations and the separately
   selected console input `read` named above. Add schemas for the other
   data-shaped operations as consumers need them.
@@ -101,11 +108,14 @@ What follows for the tasks below:
 - [x] Audit the supported subset for RTTI representability ([Audit](#audit)):
       name the generated and handwritten operations, distinguish compiler I/O
       from the selected console input, and record what remains deferred.
-- [ ] Generate the TS declarations and the Rust stub for the representable
-      operations, starting with the named compiler I/O and console input subset.
-      Account explicitly for handwritten and unsupported operations.
+- [ ] Define schemas for the named compiler I/O and console input subset,
+      check them against the handwritten TypeScript declarations, and generate
+      the Rust stub. Account for handwritten and unsupported operations.
 - [ ] Add the handwritten native `sandbox` declaration and compose its dispatch
       with the generated subset, preserving the existing TypeScript signature.
+- [ ] Before generating TypeScript declarations, define a nominal mapping
+      that preserves `Vec` parameters and results, and check the emitted
+      declarations against the existing API.
 - [ ] Add the runner crate and implement the operations exercised by the
       AOT-compiled CLI and parser-based proof fixtures.
 - [ ] Implement `sandbox` success, language-throw and duration behavior, with
