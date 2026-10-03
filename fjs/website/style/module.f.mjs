@@ -392,4 +392,14 @@ a:hover > [data-railroad-box="nonTerminal"] { fill: var(--pass-bg) }
 [data-stand-in] { color: var(--muted) }
 [data-bit="fill"] { color: var(--muted); text-decoration: underline dotted }
 [data-bit="stop"] { color: var(--value); font-weight: 700 }
+/* A code block — a demo's source, such as the rtti demo's schema — is a
+   shaded, bordered box, so code reads apart from the prose around it. A
+   reader's answer in the rtti demo is the same box, tinted green for a
+   success and red for a failure, so the verdict reads before the value does.
+   A line can be one long DataJS document, so it wraps rather than widening
+   the page. */
+[data-code], [data-result] { border: 1px solid var(--border); border-radius: 6px; overflow-wrap: anywhere; padding: .5rem .75rem; white-space: pre-wrap }
+[data-code] { background: color-mix(in srgb, var(--border) 30%, var(--bg)) }
+[data-result="ok"] { background: var(--pass-bg); border-color: color-mix(in srgb, var(--pass) 40%, transparent); color: var(--pass) }
+[data-result="error"] { background: var(--fail-bg); border-color: color-mix(in srgb, var(--fail) 40%, transparent); color: var(--fail) }
 `

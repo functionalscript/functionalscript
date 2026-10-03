@@ -7,8 +7,8 @@
  */
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
-import { array, boolean, number, open, option, or, record, rest, string, unknown } from './module.f.mjs'
-import { _compare, _graphOf, _readersOf, _tsOf, demo, examples } from './demo.f.mjs'
+import { array, number, open, option, or, record, rest, string, unknown } from './module.f.mjs'
+import { _graphOf, _readersOf, demo, examples } from './demo.f.mjs'
 import { htmlToString } from '../media/html/module.f.mjs'
 import { runPure } from '../effects/module.f.mjs'
 import { unwrap } from '../types/result/module.f.mjs'
@@ -79,6 +79,13 @@ const exampleNamed = name => assertNotNullish(examples.find(e => e.name === name
 /** The page for `example`, showing schema `shown`, with its own value. @type {(name: string, shown?: 0 | 1) => string} */
 const page = (name, shown = 0) => htmlToString(demo.view({ example: name, shown, text: exampleNamed(name).value }))
 
+/**
+ * The two readers' lines, or the parser's error.
+ *
+ * @type {(r: ReturnType<ReturnType<typeof _readersOf>>) => unknown}
+ */
+const texts = r => 'error' in r ? r : { parse: r.parse.text, validate: r.validate.text }
+
 /** A schema's graph as SVG text. @type {(schema: import('./types.ts').Type) => string} */
 const svg = schema => htmlToString(graphSvg(_graphOf(schema)))
 
@@ -125,32 +132,38 @@ const demoProof = {
             for (const e of examples) { assert(html.includes(`>${e.name}</option>`), e.name) }
             assert(html.includes('<option value="Recursion" selected="">'), html)
         },
-        // A pair draws a switch for its two schemas, marks the one shown,
-        // and compares the two as sets.
+        // A pair draws a switch for its two schemas and marks the one shown.
         pair: () => {
             const a = page('Closed vs open')
             assert(a.includes('name="schema-0" aria-pressed="true"'), a)
             assert(a.includes('name="schema-1" aria-pressed="false"'), a)
-            assert(a.includes('A ⊆ B: yes'), a)
-            assert(a.includes('<pre>{ name: string, age: number }</pre>'), a)
+            assert(a.includes('<pre data-code="">{ name: string, age: number }</pre>'), a)
             const b = page('Closed vs open', 1)
             assert(b.includes('name="schema-1" aria-pressed="true"'), b)
-            assert(b.includes('<pre>open({ name: string, age: number })</pre>'), b)
+            assert(b.includes('<pre data-code="">open({ name: string, age: number })</pre>'), b)
         },
-        // A single schema draws no switch and no comparison, whatever
-        // `shown` says.
+        // Each answer carries its verdict for the stylesheet to colour: red
+        // where schema A refuses the extra key, green where `open` admits it.
+        verdict: () => {
+            const a = page('Closed vs open')
+            assertEq(occurrences(a, '<pre data-result="error">error at the root: '), 2)
+            assert(!a.includes('data-result="ok"'), a)
+            const b = page('Closed vs open', 1)
+            assertEq(occurrences(b, '<pre data-result="ok">ok export default '), 2)
+            assert(!b.includes('data-result="error"'), b)
+        },
+        // A single schema draws no switch, whatever `shown` says.
         single: () => {
             const html = page('Dictionary', 1)
             assert(!html.includes('name="schema-'), html)
-            assert(!html.includes('A ⊆ B'), html)
-            assert(html.includes('<pre>record(number)</pre>'), html)
+            assert(html.includes('<pre data-code="">record(number)</pre>'), html)
         },
         // Text that is not a DataJS document is reported, and the readers do
         // not run. Bare JSON is not one: at the top of a module, `{` opens a
         // block.
         notADocument: () => {
             const html = htmlToString(demo.view({ ...demo.init, text: '{"a":1}' }))
-            assert(html.includes('Not a DataJS document: '), html)
+            assert(html.includes('<pre data-result="error">Not a DataJS document: '), html)
             assert(!html.includes('parse:'), html)
         },
         // Every example draws every one of its schemas, and no edge passes
@@ -166,7 +179,7 @@ const demoProof = {
         // the value it was given.
         open: () => {
             const r = _readersOf(open({ a: number }))('export default {"a":1,"b":2};')
-            assertEq(JSON.stringify(r), JSON.stringify({ parse: 'ok export default {"a":1};', validate: 'ok export default {"a":1,"b":2};' }))
+            assertEq(JSON.stringify(texts(r)), JSON.stringify({ parse: 'ok export default {"a":1};', validate: 'ok export default {"a":1,"b":2};' }))
         },
         // The value is DataJS so a schema's every value can be typed:
         // `undefined` is what tells the two schemas of "Absent vs undefined"
@@ -174,9 +187,9 @@ const demoProof = {
         undefined: () => {
             const [a, b] = exampleNamed('Absent vs undefined').schemas
             const text = 'export default {"a":undefined};'
-            assertEq(JSON.stringify(_readersOf(a.schema)(text)),
+            assertEq(JSON.stringify(texts(_readersOf(a.schema)(text))),
                 JSON.stringify({ parse: 'error at a: no match', validate: 'error at a: no match' }))
-            assertEq(JSON.stringify(_readersOf(assertNotNullish(b).schema)(text)),
+            assertEq(JSON.stringify(texts(_readersOf(assertNotNullish(b).schema)(text))),
                 JSON.stringify({ parse: 'ok export default {"a":undefined};', validate: 'ok export default {"a":undefined};' }))
         },
         // `validate` hands back the value it was given, sharing included;
@@ -185,27 +198,17 @@ const demoProof = {
             const e = exampleNamed('Shared parts')
             const r = _readersOf(e.schemas[0].schema)(e.value)
             assert(!('error' in r), 'expected the readers to run')
-            assert('validate' in r && r.validate.startsWith('ok const $0={'), JSON.stringify(r))
-            assert('parse' in r && !r.parse.includes('const'), JSON.stringify(r))
+            assert('validate' in r && r.validate.text.startsWith('ok const $0={'), JSON.stringify(r))
+            assert('parse' in r && !r.parse.text.includes('const'), JSON.stringify(r))
         },
         // A failure says where, with the root named rather than left blank.
         errors: () => {
-            assertEq(JSON.stringify(_readersOf({ a: number })('export default {"a":"x"};')),
+            assertEq(JSON.stringify(texts(_readersOf({ a: number })('export default {"a":"x"};'))),
                 JSON.stringify({ parse: 'error at a: unexpected value', validate: 'error at a: unexpected value' }))
-            assertEq(JSON.stringify(_readersOf({ a: number })('export default [];')),
+            assertEq(JSON.stringify(texts(_readersOf({ a: number })('export default [];'))),
                 JSON.stringify({ parse: 'error at the root: unexpected value', validate: 'error at the root: unexpected value' }))
         },
         notADocument: () => assert('error' in _readersOf(number)('1'), 'expected a parse error'),
-    },
-    ts: {
-        plain: () => assertEq(_tsOf(open([number])), 'readonly[number,...readonly(unknown)[]]'),
-        // A recursive schema prints its definition, then its name.
-        recursive: () => assertEq(_tsOf(exampleNamed('Recursion').schemas[0].schema),
-            'type tree = {readonly"children":readonly(tree)[],readonly"value":number}\ntree'),
-    },
-    compare: {
-        same: () => assertEq(_compare(or(true, false))(boolean), 'A ⊆ B: yes   B ⊆ A: yes   A ≡ B: yes'),
-        apart: () => assertEq(_compare(number)(string), 'A ⊆ B: no   B ⊆ A: no   A ≡ B: no'),
     },
     graph: {
         // A sub-schema used twice is one node with two edges into it.

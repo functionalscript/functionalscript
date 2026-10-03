@@ -1,7 +1,6 @@
 /**
- * A schema and a value as you type it: the TypeScript type the schema
- * denotes, what `parse` and `validate` make of the value, and the schema
- * drawn as a graph.
+ * A schema and a value as you type it: what `parse` and `validate` make of
+ * the value, and the schema drawn as a graph.
  *
  * **A schema is picked, not typed.** It is a JavaScript value built from
  * functions, which no text box can spell, so the reader picks an example and
@@ -17,9 +16,7 @@
  * **One schema, or two where the difference is the lesson.** Most examples
  * show a single schema. A few — closed against open, absent against
  * `undefined` — are pairs, and the reader flips between the two while the
- * value stays put, so the one thing that changes is the schema. A pair also
- * shows how the two compare as sets of values (`subset`, `equivalent`),
- * which says nothing about a schema on its own.
+ * value stays put, so the one thing that changes is the schema.
  *
  * **The graph is the schema as written**, walked by
  * `fjs/website/demo/graph`: a struct or a tuple is a node with a port per
@@ -39,15 +36,13 @@
  * @import { Graph, Shape } from '../website/demo/graph/types.ts'
  * @import { Element } from '../media/html/types.ts'
  * @import { Unknown } from '../media/datajs/types.ts'
- * @import { Const, DemoExample, DemoSchema, DemoState, Type } from './types.ts'
+ * @import { Const, DemoExample, DemoSchema, DemoState, Type, _Answer } from './types.ts'
  */
 
 import { array, boolean, number, open, option, or, record, rest, string, unknown } from './module.f.mjs'
 import { structSchemaEntries, tupleSchemaEntries } from './common/module.f.mjs'
 import { parse } from './parse/module.f.mjs'
 import { validate } from './validate/module.f.mjs'
-import { dataToTs } from './ts/module.f.mjs'
-import { equivalent, subset, toData } from './data/module.f.mjs'
 import { tryParse, tryStringify } from '../media/datajs/module.f.mjs'
 import { leafSerialize } from '../media/datajs/serializer/module.f.mjs'
 import { unwrap } from '../types/result/module.f.mjs'
@@ -139,7 +134,7 @@ export const examples = [
     },
     {
         name: 'Recursion',
-        about: 'A schema can use itself. Its type prints as a named definition, and the graph draws the use by name.',
+        about: 'A schema can use itself. The graph draws that use by its name.',
         schemas: [{ source: "const tree = () => ['const', { value: number, children: array(tree) }]", schema: tree }],
         value: 'export default {"value":1,"children":[{"value":2,"children":[]}]};',
     },
@@ -225,58 +220,43 @@ export const _graphOf = schema => {
 
 // ── readers ──────────────────────────────────────────────────────────────────
 
-/**
- * The TypeScript `schema` denotes, as the runtime printer spells it: the
- * definitions a recursive schema names, then the type itself.
- *
- * @type {(schema: Type) => string}
- */
-export const _tsOf = schema => {
-    const [definitions, entry] = dataToTs()(toData(schema))
-    return [...definitions.map(([n, e]) => `type ${n} = ${e}`), entry].join('\n')
-}
-
 /** @type {(path: readonly (string | number)[]) => string} */
 const pathText = path => path.length === 0 ? 'the root' : path.join('.')
 
 /**
- * One reader's answer as a line: the value it succeeded with, or where and
- * why it failed.
+ * One reader's answer: whether it succeeded, and a line saying with what
+ * value, or where and why it failed.
  *
- * @type {(r: readonly ['ok', unknown] | readonly ['error', { readonly path: readonly (string | number)[], readonly message: string }]) => string}
+ * @type {(r: readonly ['ok', unknown] | readonly ['error', { readonly path: readonly (string | number)[], readonly message: string }]) => _Answer}
  */
-const resultText = r => r[0] === 'ok'
-    ? `ok ${unwrap(tryStringify(/** @type {Unknown} */ (r[1])))}`
-    : `error at ${pathText(r[1].path)}: ${r[1].message}`
+const answerOf = r => r[0] === 'ok'
+    ? { ok: true, text: `ok ${unwrap(tryStringify(/** @type {Unknown} */ (r[1])))}` }
+    : { ok: false, text: `error at ${pathText(r[1].path)}: ${r[1].message}` }
 
 /**
  * What `parse` and `validate` make of `text` against `schema`, or the
  * parser's error when `text` is not a DataJS document.
  *
- * @type {(schema: Type) => (text: string) => { readonly parse: string, readonly validate: string } | { readonly error: string }}
+ * @type {(schema: Type) => (text: string) => { readonly parse: _Answer, readonly validate: _Answer } | { readonly error: string }}
  */
 export const _readersOf = schema => text => {
     const document = tryParse(text)
     if (document[0] === 'error') { return { error: document[1] } }
     const value = document[1]
     const s = /** @type {any} */ (schema)
-    return { parse: resultText(parse(s)(value)), validate: resultText(validate(s)(value)) }
-}
-
-/**
- * How two schemas compare as sets of values.
- *
- * @type {(a: Type) => (b: Type) => string}
- */
-export const _compare = a => b => {
-    const da = toData(a)
-    const db = toData(b)
-    /** @type {(x: boolean) => string} */
-    const yes = x => x ? 'yes' : 'no'
-    return `A ⊆ B: ${yes(subset(da)(db))}   B ⊆ A: ${yes(subset(db)(da))}   A ≡ B: ${yes(equivalent(da)(db))}`
+    return { parse: answerOf(parse(s)(value)), validate: answerOf(validate(s)(value)) }
 }
 
 // ── view ─────────────────────────────────────────────────────────────────────
+
+/**
+ * An answer's line, marked with its verdict so the stylesheet can colour it:
+ * green for a success, red for a failure. The line still begins with `ok` or
+ * `error`, so the verdict does not rest on colour alone.
+ *
+ * @type {(ok: boolean, text: string) => Element}
+ */
+const answerView = (ok, text) => ['pre', { 'data-result': ok ? 'ok' : 'error' }, text]
 
 /** @type {(e: DemoExample, picked: DemoExample) => Element} */
 const exampleOption = (e, picked) =>
@@ -293,16 +273,17 @@ const switcher = (e, shown) => e.schemas.length === 1 ? [] : [['p', schemaButton
 const schemaView = (s, text) => {
     const r = _readersOf(s.schema)(text)
     return [
-        ['pre', s.source],
-        ['p', 'TypeScript:'],
-        ['pre', _tsOf(s.schema)],
+        ['pre', { 'data-code': '' }, s.source],
         ['p',
             ['label', { for: 'value' }, 'Value (DataJS) '],
             ['textarea', { id: 'value', name: 'value', rows: '4' }, text],
         ],
         .../** @type {readonly Element[]} */ ('error' in r
-            ? [['p', `Not a DataJS document: ${r.error}`]]
-            : [['p', 'parse:'], ['pre', r.parse], ['p', 'validate:'], ['pre', r.validate]]),
+            ? [answerView(false, `Not a DataJS document: ${r.error}`)]
+            : [
+                ['p', 'parse:'], answerView(r.parse.ok, r.parse.text),
+                ['p', 'validate:'], answerView(r.validate.ok, r.validate.text),
+            ]),
         graphSvg(_graphOf(s.schema)),
     ]
 }
@@ -336,7 +317,6 @@ export const demo = {
             ['p', e.about],
             ...switcher(e, shown),
             ...schemaView(shown === 1 && b !== undefined ? b : a, text),
-            .../** @type {readonly Element[]} */ (b === undefined ? [] : [['p', _compare(a.schema)(b.schema)]]),
         ]
     },
 }

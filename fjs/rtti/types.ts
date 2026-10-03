@@ -219,6 +219,12 @@ export type DemoExample = {
     readonly value: string
 }
 
+/** One reader's answer in the rtti demo: whether it succeeded, and the line that says so. */
+export type _Answer = {
+    readonly ok: boolean
+    readonly text: string
+}
+
 /** The rtti demo's state: the example picked by name, which of its schemas is shown, and the value's text. */
 export type DemoState = {
     readonly example: string
