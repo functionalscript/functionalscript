@@ -56,7 +56,7 @@ impl Display for JsonError {
 /// Renders `v` as a JSON string literal, quotes and escapes included.
 ///
 /// Shared by [`ToJson::string`] and object-key serialization
-/// ([`ToJson::object`]): a key is itself a `String<A>` and needs exactly the
+/// ([`Any::to_json`]): a key is itself a `String<A>` and needs exactly the
 /// same escaping a string *value* does.
 fn json_string<A: IVm>(v: String<A>) -> std::string::String {
     let mut out = std::string::String::from("\"");
@@ -153,8 +153,12 @@ impl<A: IVm> Any<A> {
     /// recursed into. See [`JsonError`] for what's deliberately unhandled.
     ///
     /// The containers being written are a stack on the heap and the text goes
-    /// into one buffer, so a value nested to any depth is written in constant
-    /// stack and in time linear in its text.
+    /// into one buffer, so traversal does not recurse with nesting and does not
+    /// copy each container's text into its parent's buffer.
+    ///
+    /// Destruction still depends on the VM. With `Naive`, consuming a sole-owned
+    /// deeply nested value can overflow the stack when its containers are
+    /// released, including on an error. See `nanvm-lib/todo/array-deep-nesting.md`.
     ///
     /// An object's entries are its own, in `[[OwnPropertyKeys]]` order, each
     /// key once with its last value: the view `JSON.stringify` and an object
@@ -490,15 +494,16 @@ mod tests {
     /// text into its parent's would take quadratic time to write.
     #[test]
     fn writes_a_deeply_nested_value() {
-        use crate::vm::deep_test::{DEPTH, leak, nested_arrays, nested_objects, small_stack};
+        use crate::vm::test::deep::{DEPTH, leak, nested_arrays, nested_objects, small_stack};
         small_stack(|| {
             let arrays = nested_arrays(DEPTH, Nullish::Null.to_any());
+            leak(arrays.clone());
             assert_eq!(
                 arrays.clone().to_json(),
                 Ok(format!("{}null{}", "[".repeat(DEPTH), "]".repeat(DEPTH)))
             );
-            leak(arrays);
             let objects = nested_objects(DEPTH, Nullish::Null.to_any());
+            leak(objects.clone());
             assert_eq!(
                 objects.clone().to_json(),
                 Ok(format!(
@@ -507,18 +512,17 @@ mod tests {
                     "}".repeat(DEPTH)
                 ))
             );
-            leak(objects);
         });
     }
 
     /// A refusal deep inside is the first one in document order, as before.
     #[test]
     fn a_deep_refusal_is_reported() {
-        use crate::vm::deep_test::{DEPTH, leak, nested_arrays, small_stack};
+        use crate::vm::test::deep::{DEPTH, leak, nested_arrays, small_stack};
         small_stack(|| {
             let a = nested_arrays(DEPTH, Nullish::Undefined.to_any());
+            leak(a.clone());
             assert_eq!(a.clone().to_json(), Err(super::JsonError::Undefined));
-            leak(a);
         });
     }
 

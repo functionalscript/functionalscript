@@ -1,6 +1,8 @@
 //! What the tests of a read over a deeply nested value share: a thread whose
 //! stack is far too small for a recursion that follows the nesting, and the
-//! values to nest.
+//! values to nest. They retain a leaked root to test traversal separately from
+//! `Naive`'s recursive destruction; consuming a sole-owned deep value remains
+//! unfinished (see `nanvm-lib/todo/array-deep-nesting.md`).
 
 #[cfg(not(target_family = "wasm"))]
 use std::thread;
@@ -46,9 +48,10 @@ pub(crate) fn nested_objects(depth: usize, leaf: Any<Naive>) -> Any<Naive> {
     })
 }
 
-/// Leaves `a` unreleased. These tests are about the read, and a value this deep
-/// is not always dropped without recursion: whether a drop is safe is
-/// [`Naive`]'s own business, tested there.
+/// Leaves `a` unreleased. Call with a clone immediately after constructing the
+/// root, before any read or assertion can panic. The retained reference prevents
+/// `Naive`'s recursive destruction from overflowing the stack during unwinding
+/// and hiding the original failure. This does not test sole-owned consumption.
 pub(crate) fn leak(a: Any<Naive>) {
     std::mem::forget(a);
 }

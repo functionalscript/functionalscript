@@ -3,8 +3,6 @@ mod array;
 mod bigint;
 mod boolean_coercion;
 mod container_fmt;
-#[cfg(test)]
-mod deep_test;
 mod dispatch;
 mod ecma_whitespace;
 mod function;
@@ -44,6 +42,8 @@ pub use crate::vm::{
 
 #[cfg(test)]
 mod test {
+    pub(super) mod deep;
+
     use crate::vm::ToAny;
 
     use super::*;

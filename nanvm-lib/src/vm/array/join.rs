@@ -14,12 +14,15 @@ impl<A: IVm> Array<A> {
     /// conversion of an array (`vm/primitive_coercion.rs`) calls it, so the
     /// two cannot disagree.
     ///
-    /// Nesting is walked on a heap stack and the text goes into one buffer, so
-    /// an array nested to any depth converts, in time linear in its text: an
+    /// Nesting is walked on a heap stack and the text goes into one buffer. An
     /// element that is an array is not converted by a call but by a frame of
     /// its own, its elements joined by `","` straight into the buffer, since an
     /// array cannot own a `toString` and a nested array's conversion is always
     /// this.
+    ///
+    /// Destruction still depends on the VM: a consuming wrapper, including
+    /// `String(a)`, can overflow when it releases a sole-owned deep `Naive`
+    /// receiver. See `nanvm-lib/todo/array-deep-nesting.md`.
     pub(crate) fn join(&self, separator: String<A>) -> Result<String<A>, Any<A>> {
         let comma: String<A> = ",".into();
         let mut out: Vec<u16> = Vec::new();
@@ -100,13 +103,13 @@ mod tests {
     /// arrays around a string is that string, and `String(a)` agrees.
     #[test]
     fn joins_a_deeply_nested_array() {
-        use crate::vm::deep_test::{DEPTH, leak, nested_arrays, small_stack};
+        use crate::vm::test::deep::{DEPTH, leak, nested_arrays, small_stack};
         small_stack(|| {
             let a = nested_arrays(DEPTH, "x".into());
+            leak(a.clone());
             let array = Array::try_from(a.clone()).unwrap();
             assert_eq!(array.join(",".into()), Ok("x".into()));
             assert_eq!(a.clone().to_string(), Ok("x".into()));
-            leak(a);
         });
     }
 
@@ -115,13 +118,14 @@ mod tests {
     /// a comma whatever the separator of the outer one.
     #[test]
     fn joins_every_level_of_a_deep_array() {
-        use crate::vm::deep_test::{DEPTH, leak, small_stack};
+        use crate::vm::test::deep::{DEPTH, leak, small_stack};
         small_stack(|| {
             let a = (0..DEPTH)
                 .rev()
                 .fold(Nullish::Null.to_any::<A>(), |inner, i| {
                     [(i as f64).to_any(), inner].to_array().to_any()
                 });
+            leak(a.clone());
             let array = Array::try_from(a.clone()).unwrap();
             let joined: String<A> = array.join(";".into()).unwrap();
             let text: std::string::String =
@@ -131,7 +135,6 @@ mod tests {
             // string, after its number's comma.
             let nested: Vec<std::string::String> = (1..DEPTH).map(|i| i.to_string()).collect();
             assert_eq!(text, format!("0;{},", nested.join(",")));
-            leak(a);
         });
     }
 }

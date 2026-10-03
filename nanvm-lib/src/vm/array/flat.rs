@@ -13,8 +13,9 @@ impl<A: IVm> Array<A> {
     /// limit is the `RangeError` [`create`] throws, counted before anything
     /// is built.
     ///
-    /// Nesting is walked on a heap stack, so an array nested to any depth
-    /// flattens.
+    /// Nesting is walked on a heap stack. Destruction still depends on the VM:
+    /// a consuming wrapper can overflow when it releases a sole-owned deep
+    /// `Naive` receiver. See `nanvm-lib/todo/array-deep-nesting.md`.
     pub(crate) fn flat(&self, depth: f64) -> Result<Array<A>, Any<A>> {
         let len = flat_length(self.clone().into_iter(), depth);
         create(len, built(|| flatten(self.clone().into_iter(), depth)))
@@ -145,10 +146,11 @@ mod tests {
     fn flattens_a_deeply_nested_array() {
         use crate::vm::{
             Nullish,
-            deep_test::{DEPTH, leak, nested_arrays, small_stack},
+            test::deep::{DEPTH, leak, nested_arrays, small_stack},
         };
         small_stack(|| {
             let chain = nested_arrays(DEPTH, 7.0.to_any());
+            leak(chain.clone());
             let flat = Array::try_from(chain.clone()).unwrap().flat(f64::INFINITY);
             assert_eq!(
                 flat.unwrap().into_iter().collect::<Vec<_>>(),
@@ -157,13 +159,13 @@ mod tests {
             // To a depth the walk stops at the chain's `depth`th array.
             let two = Array::try_from(chain.clone()).unwrap().flat(2.0).unwrap();
             assert_eq!(length(two), 1);
-            leak(chain);
 
             let every = (0..DEPTH)
                 .rev()
                 .fold(Nullish::Null.to_any::<A>(), |inner, i| {
                     [(i as f64).to_any(), inner].to_array().to_any()
                 });
+            leak(every.clone());
             let flat = Array::try_from(every.clone())
                 .unwrap()
                 .flat(f64::INFINITY)
@@ -173,7 +175,6 @@ mod tests {
             assert_eq!(items[0], 0.0.to_any());
             assert_eq!(items[DEPTH - 1], ((DEPTH - 1) as f64).to_any());
             assert_eq!(items[DEPTH], Nullish::Null.to_any());
-            leak(every);
         });
     }
 }
