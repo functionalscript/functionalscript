@@ -76,7 +76,7 @@ optional parameter (`mkdir`'s `options?`, `exec`'s `stdin?`) is a tuple element
 | **Handwritten**: effects or arbitrary values as data | `all`, `memCreate`, `memRead`, `memWrite` | `all` takes effects, which are thunks and `Do` nodes; the memory operations store and return any value (`<T>`), functions included. `unknown` would exclude exactly the values they exist to hold. |
 | **Handwritten**: modules | `import` | `Module` is `StringMap<unknown>`, the exports of an evaluated module, functions among them. This workflow does not use it: the FJS loader replaces it. |
 | **Deferred**: opaque host handles | `open`, `fstat`, `pread`, `close` | a `Handle` is `Nominal<..., unknown>`, minted by the runner and never inspected by the program. RTTI has no opaque-handle schema; the native runner would mint an index. Nothing in the CLI opens a file this way. |
-| **Deferred**: async, servers, tests | `fetch`, `await`, `createServer`, `listen`, `readRequestBytes`, `forever`, `test` | asynchronous (the runtime decision is deferred), or carrying a callback (`createServer`'s listener, `test`'s body and context), or a `never` result RTTI has no spelling for (`forever`). |
+| **Deferred**: async, servers, tests | `fetch`, `await`, `createServer`, `listen`, `readRequestBytes`, `forever`, `test` | asynchronous (the runtime decision is deferred), or carrying a callback (`createServer`'s listener, `test`'s body and context), or one that never answers (`forever`, whose `never` result RTTI does spell, `or()`, but whose runner is the async runtime's). |
 
 What follows for the tasks below:
 
@@ -97,9 +97,15 @@ What follows for the tasks below:
 - [x] Audit the supported subset for RTTI representability ([Audit](#audit)):
       nine generated operations for the compiled CLI, six handwritten, the
       rest deferred or outside the workflow.
-- [ ] Generate the TS declarations and the Rust stub for the representable
-      operations, starting with the nine of the compiled CLI. Account
-      explicitly for handwritten and unsupported operations.
+- [x] Schemas for the nine operations of the compiled CLI
+      ([`fjs/effects/schema`](../fjs/effects/schema/module.f.mjs)), with each
+      hand-written declaration in `fjs/effects/node/types.ts` pinned to the
+      type its schema derives ([`types.ts`](../fjs/effects/schema/types.ts)).
+      The declarations stay as they are for now; deriving them from the
+      schemas instead is a later, breaking step.
+- [ ] A Rust printer for these schemas and the generated trait with one
+      method per operation, committed under `npm run gen`. Account explicitly
+      for handwritten and unsupported operations.
 - [ ] Add the handwritten native `sandbox` declaration and compose its dispatch
       with the generated subset, preserving the existing TypeScript signature.
 - [ ] Add the runner crate and implement the operations exercised by the
