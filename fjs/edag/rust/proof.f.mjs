@@ -976,6 +976,28 @@ export const proof = {
         assertEq(printed(-(2n ** 64n)), 'bigint_any_words(true, &[0x0000000000000000, 0x0000000000000001])')
     },
     /**
+     * A key that is not a string literal, `{ [k]: v }`: coerced by
+     * `computed_item` where the entry is built, which can throw, so the
+     * entries go through `spread_object`, inside a Result-returning scope.
+     * A bare corpus expression has no such scope and must refuse the key.
+     */
+    computedKey: {
+        operand: () => assertStructurallySame(
+            scoped(['{}', [[':', ['undefined'], 1]]]),
+            ['Ok(spread_object([computed_item(Nullish::Undefined.to_any(), f64_any(0x3ff0000000000000))?]))']),
+        mixed: () => assertStructurallySame(
+            scoped(['{}', [[':', 'a', 0], [':', 1, 2]]]),
+            ['Ok(spread_object([property_item(string_key("a"), f64_any(0x0000000000000000)), computed_item(f64_any(0x3ff0000000000000), f64_any(0x4000000000000000))?]))']),
+        spread: () => assertStructurallySame(
+            scoped(['{}', [[':', 1, 2], ['...', ['{}', []]]]]),
+            ['Ok(spread_object([computed_item(f64_any(0x3ff0000000000000), f64_any(0x4000000000000000))?, spread_entries(Object::default().to_any())]))']),
+        corpusRefusal: () => {
+            const reason = 'no Rust for computed object keys in corpus mode; use scope'
+            assertEq(refusalReason(['{}', [[':', ['undefined'], 1]]])[0], reason)
+            assertEq(refusalReason(['typeof', ['{}', [[':', 1, 2]]]])[0], reason)
+        },
+    },
+    /**
      * A `Number(…)` index, `a[k]` once the source spells it: an operand like
      * any other, bound where it is a temporary and cast by `Any::number`,
      * after the receiver and before the access. Inside a region the cast and
@@ -1036,8 +1058,6 @@ export const proof = {
     throw: {
         /** An operation the printer has no `nanvm-lib` spelling for. */
         unknownOperation: () => printed(/** @type {Exp} */ (/** @type {unknown} */ (['==', 1, 2]))),
-        /** An object key the printer cannot spell. */
-        computedKey: () => printed(['{}', [[':', ['undefined'], 1]]]),
         /** `Exps` admits an empty list in the schema; the Rust backend has no value for it. */
         emptyComma: () => printed([',', []]),
     },

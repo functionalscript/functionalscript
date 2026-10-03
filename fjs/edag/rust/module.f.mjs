@@ -359,14 +359,12 @@ const primitiveExpr = v => {
  * An object key.
  *
  * An EDAG object key is an `exp` — one form for `a:`, `"a":`, and computed
- * `[exp]:` keys alike — and every producer of this printer's input lowers a
- * JavaScript property name, so the key is always the string literal
- * `string_key` takes. A computed one has no `nanvm-lib` spelling here and is
- * refused rather than approximated.
+ * `[exp]:` keys alike. A string literal is the `string_key` a property takes;
+ * any other key is computed, and `computed_item` coerces it.
  *
- * @type {(k: Exp) => Result<Printed<string>, readonly unknown[]>}
+ * @type {(k: string) => Printed<string>}
  */
-const keyExpr = k => typeof k === 'string' ? ok(stringCall('string_key')(k)) : error(['not a literal key', k])
+const literalKey = stringCall('string_key')
 
 /**
  * A literal `.` index, as the `Any<A>` key `Any::dot` takes: a `number` or a
@@ -445,6 +443,15 @@ const members = list => list.flatMap(x => isMember(x) ? /** @type {readonly unkn
 
 /** @type {(e: Exp) => boolean} */
 const isComma = e => e instanceof Array && e[0] === ','
+
+/**
+ * `true` for an object's entries holding a property whose key is not a
+ * string literal: its key is coerced when the entry is built, which can
+ * throw, so the entries go through `computed_item`'s `spread_object`.
+ *
+ * @type {(entries: readonly Properties[]) => boolean}
+ */
+const hasComputedKey = entries => entries.some(p => p[0] === ':' && typeof p[1] !== 'string')
 
 /**
  * `true` for an item list holding a spread, an `[]` node's or a call's:
@@ -775,8 +782,11 @@ const printer = nested => shared => root => {
         if (id === 'frame') { return plain(`A::frame(self_)[${a}].clone()`) }
         if (id === '[]' && !hasSpread(a)) { return arrayExpr(a) }
         if (id === '{}') {
+            // The corpus's bare expression has no Result-returning scope
+            // for computed_item's `?`. See todo/computed-key-corpus.md.
+            if (nested && hasComputedKey(a)) { return error(['no Rust for computed object keys in corpus mode; use scope', e]) }
             return a.length === 0 ? ok(cat([vm('Object'), '::default()', toAny]))
-                : hasSpread(a) ? flat(map1((/** @type {readonly string[]} */ items) => cat([unstable('spread_object'), `([${items.join(', ')}])`]))(all(a.map(
+                : hasSpread(a) || hasComputedKey(a) ? flat(map1((/** @type {readonly string[]} */ items) => cat([unstable('spread_object'), `([${items.join(', ')}])`]))(all(a.map(
                     (/** @type {Properties} */ p) => p[0] === '...' ? flat(map1(v => cat([unstable('spread_entries'), `(${v})`]))(f(p[1]))) : propertyExpr(unstable('property_item'))(p)))))
                 : flat(map1((/** @type {readonly string[]} */ items) => cat([`[${items.join(', ')}]`, toObject, toAny]))(all(a.map(propertyExpr(code(''))))))
         }
@@ -1087,9 +1097,13 @@ const printer = nested => shared => root => {
      *
      * @type {(call: Printed<string>) => (p: Properties) => Result<Printed<string>, readonly unknown[]>}
      */
-    const propertyExpr = call => p => p[0] !== ':'
-        ? error(['not a property', p])
-        : flat(map2((k, v) => cat([call, `(${k}, ${v})`]))(keyExpr(p[1]), f(p[2])))
+    const propertyExpr = call => p => {
+        if (p[0] !== ':') { return error(['not a property', p]) }
+        const [, k, v] = p
+        return typeof k === 'string'
+            ? flat(map1(x => cat([call, '(', literalKey(k), `, ${x})`]))(f(v)))
+            : flat(map2((x, y) => cat([unstable('computed_item'), `(${x}, ${y})?`]))(f(k), f(v)))
+    }
     return ok({ f, block })
 }
 
@@ -1098,6 +1112,11 @@ const printer = nested => shared => root => {
  * the `Result` it answers and its eager nodes nested as written, over the
  * corpus's own named bindings: one operation per statement handed to a
  * checker.
+ *
+ * Constructing a computed-key object is refused in this mode: its key
+ * coercion needs a Result-returning scope, which a bare corpus expression
+ * does not supply. Use {@link scope} or {@link statementsOf} for it; corpus
+ * integration is tracked in [computed-key-corpus](./todo/computed-key-corpus.md).
  *
  * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => Result<string, readonly unknown[]>}
  */

@@ -283,12 +283,12 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assert(result[1].includes('pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {'), result)
         },
         /**
-         * A node shape the printer refuses — here, an object key that is
-         * not a literal — is a `Result` error against the output, not a
+         * A node the module scope refuses — here, an unlinked import
+         * argument — is a `Result` error against the output, not a
          * thrown exception a compiler caller has to catch.
          */
         refused: () => {
-            const result = toRust(['{}', [[':', ['undefined'], 1]]])
+            const result = toRust(['args'])
             assertEq(result[0], 'error')
             assert(typeof result[1] === 'string' && result[1].length > 0, result)
         },
