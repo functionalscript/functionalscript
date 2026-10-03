@@ -26,7 +26,7 @@ import { stringToList } from '../../text/utf16/module.f.mjs'
 import { decode as decodeImportPath } from '../../path/import/module.f.mjs'
 import { parseFromTokens } from '../parser/module.f.mjs'
 import { parse as jsonParse } from '../../media/json/module.f.mjs'
-import { _own, sharing, values } from '../ast/module.f.mjs'
+import { _own, values } from '../ast/module.f.mjs'
 import { catchStep, foldStep, history, historyStep, mapStep, pure, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { errorMessage, readFile, resolveFileModule } from '../../effects/node/module.f.mjs'
 import { fromVec } from '../../text/utf8/module.f.mjs'
@@ -78,8 +78,8 @@ const importAt = context => ({ id, name }) => {
     return { ...denotation, id }
 }
 
-/** A JSON value is a tree, so it shares nothing and reaches no module. @type {(value: Unknown) => Denotation} */
-const jsonDenotation = value => ({ value, shared: false, reaches: [] })
+/** A JSON document as what it denotes. @type {(value: Unknown) => Denotation} */
+const jsonDenotation = value => ({ value })
 
 /** @type {(denotation: Denotation) => Unknown} */
 const valueOf = ({ value }) => value
@@ -164,15 +164,8 @@ const done = (id, module, imports, context) => consts => {
     const result = /** @type {AstObject} */ (module[1][last])
     /** @type {ModuleDenotation} */
     const denotation = {
-        exports: { value, ...sharing(module[1])(imports)(consts) },
-        // the module's result object holds a member per export and no spread
-        bindings: /** @type {readonly AstMember[]} */ (result[1]).map(([, key]) => {
-            const selected = _own(value, key)
-            return [key, {
-                value: selected,
-                ...sharing([...module[1], ['.', ['cref', last], key]])(imports)([...consts, selected]),
-            }]
-        }),
+        exports: { value },
+        bindings: result[1].map(([, key]) => [key, { value: _own(value, key) }]),
     }
     return { ...context, stack: drop(1)(context.stack), complete: setReplace(id)(denotation)(context.complete) }
 }
@@ -329,8 +322,8 @@ export const proof = {
 }
 
 /**
- * The CLI's value-output boundary: select the module's default with its own
- * sharing facts, or keep a direct JSON document. A named-only root projects
+ * The CLI's value-output boundary: select the module's default, or keep a
+ * direct JSON document. A named-only root projects
  * to undefined after its complete body has been evaluated.
  *
  * @type {(path: string) => Effect<ReadFile | ResolveFileModule, Denotation, ParseError>}

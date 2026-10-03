@@ -679,17 +679,24 @@ would have been necessary for `1` and `true` and superfluous for `[1,2]` and
 `{"a":1}` — one more reason to make it unconditional: the obvious conversion is
 now the correct one for every JSON document rather than for most of them.
 
-The reverse direction is partial, and both of its conditions are about the
-graph the document *denotes* — the values reachable from `export default`,
-since an unused `const` contributes nothing to it. A document converts to JSON
-when no reachable value is a leaf JSON lacks (`undefined`, `NaN`, the
-infinities, bigint), and no reachable **object or array** is reachable more
-than once — JSON cannot express that sharing, and writing the node twice
-denotes a different graph. `const $dead=undefined;export default 1;` therefore
-converts to `1`: the unreachable `undefined` is not part of what the document
-means.
+The reverse direction is partial, and its condition is about the graph the
+document *denotes* — the values reachable from `export default`, since an
+unused `const` contributes nothing to it. A document converts to JSON when no
+reachable value is a leaf JSON lacks (`undefined`, `NaN`, the infinities,
+bigint). `const $dead=undefined;export default 1;` therefore converts to `1`:
+the unreachable `undefined` is not part of what the document means.
 
-A shared *primitive* is not an obstacle. `const $x=1;export default [$x,$x];`
+A shared **object or array** is not an obstacle, but it is what the
+conversion loses. JSON denotes a tree and carries no identity, so the node is
+written where each reference reaches it, as `JSON.stringify` writes the same
+value: `const $0=[];export default [$0,$0];` converts to `[[],[]]`, which
+read back is two arrays. That is the tree the graph unfolds to — the only
+JSON there is for the value, since no JSON reader could have told one node
+reached twice from two equal nodes — and the sharing is carried by a DataJS
+document alone, which is the first of the two extensions. `fjs compile`'s
+`.json` output converts this way.
+
+A shared *primitive* loses nothing. `const $x=1;export default [$x,$x];`
 converts to `[1,1]`: primitives have no reference identity, so the two
 occurrences were never distinguishable from two copies, exactly as
 [normalized form](#normalized-form) says when it declines to hoist them.
