@@ -791,6 +791,9 @@ const printer = nested => shared => root => {
         if (id === 'frame') { return plain(`A::frame(self_)[${a}].clone()`) }
         if (id === '[]' && !hasSpread(a)) { return arrayExpr(a) }
         if (id === '{}') {
+            // The corpus's bare expression has no Result-returning scope
+            // for computed_item's `?`. See todo/computed-key-corpus.md.
+            if (nested && hasComputedKey(a)) { return error(['no Rust for computed object keys in corpus mode; use scope', e]) }
             return a.length === 0 ? ok(cat([vm('Object'), '::default()', toAny]))
                 : hasSpread(a) || hasComputedKey(a) ? flat(map1((/** @type {readonly string[]} */ items) => cat([unstable('spread_object'), `([${items.join(', ')}])`]))(all(a.map(
                     (/** @type {Properties} */ p) => p[0] === '...' ? flat(map1(v => cat([unstable('spread_entries'), `(${v})`]))(f(p[1]))) : propertyExpr(unstable('property_item'))(p)))))
@@ -1105,6 +1108,11 @@ const printer = nested => shared => root => {
  * the `Result` it answers and its eager nodes nested as written, over the
  * corpus's own named bindings: one operation per statement handed to a
  * checker.
+ *
+ * Constructing a computed-key object is refused in this mode: its key
+ * coercion needs a Result-returning scope, which a bare corpus expression
+ * does not supply. Use {@link scope} or {@link statementsOf} for it; corpus
+ * integration is tracked in [computed-key-corpus](./todo/computed-key-corpus.md).
  *
  * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => Result<string, readonly unknown[]>}
  */

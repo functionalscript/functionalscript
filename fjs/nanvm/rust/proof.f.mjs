@@ -347,6 +347,8 @@ export const proof = {
          * single case.
          */
         noRustNameForGroup: () => generate({ shared: {}, groups: [{ op: /** @type {'is'} */ (/** @type {unknown} */ ('==')), cases: [] }] }),
+        /** A bare corpus expression has no Result-returning scope for key coercion. */
+        computedKey: () => nodeExpr(['{}', [[':', ['undefined'], 1]]]),
         /**
          * An entry that is neither a property nor a spread: read as a
          * property it would print its second element as the key and a bare

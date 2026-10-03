@@ -978,18 +978,24 @@ export const proof = {
     /**
      * A key that is not a string literal, `{ [k]: v }`: coerced by
      * `computed_item` where the entry is built, which can throw, so the
-     * entries go through `spread_object`, the key's `?` in its place.
+     * entries go through `spread_object`, inside a Result-returning scope.
+     * A bare corpus expression has no such scope and must refuse the key.
      */
     computedKey: {
-        operand: () => assertEq(
-            printed(['{}', [[':', ['undefined'], 1]]]),
-            'spread_object([computed_item(Nullish::Undefined.to_any(), f64_any(0x3ff0000000000000))?])'),
-        mixed: () => assertEq(
-            printed(['{}', [[':', 'a', 0], [':', 1, 2]]]),
-            'spread_object([property_item(string_key("a"), f64_any(0x0000000000000000)), computed_item(f64_any(0x3ff0000000000000), f64_any(0x4000000000000000))?])'),
-        spread: () => assertEq(
-            printed(['{}', [[':', 1, 2], ['...', ['{}', []]]]]),
-            'spread_object([computed_item(f64_any(0x3ff0000000000000), f64_any(0x4000000000000000))?, spread_entries(Object::default().to_any())])'),
+        operand: () => assertStructurallySame(
+            scoped(['{}', [[':', ['undefined'], 1]]]),
+            ['Ok(spread_object([computed_item(Nullish::Undefined.to_any(), f64_any(0x3ff0000000000000))?]))']),
+        mixed: () => assertStructurallySame(
+            scoped(['{}', [[':', 'a', 0], [':', 1, 2]]]),
+            ['Ok(spread_object([property_item(string_key("a"), f64_any(0x0000000000000000)), computed_item(f64_any(0x3ff0000000000000), f64_any(0x4000000000000000))?]))']),
+        spread: () => assertStructurallySame(
+            scoped(['{}', [[':', 1, 2], ['...', ['{}', []]]]]),
+            ['Ok(spread_object([computed_item(f64_any(0x3ff0000000000000), f64_any(0x4000000000000000))?, spread_entries(Object::default().to_any())]))']),
+        corpusRefusal: () => {
+            const reason = 'no Rust for computed object keys in corpus mode; use scope'
+            assertEq(refusalReason(['{}', [[':', ['undefined'], 1]]])[0], reason)
+            assertEq(refusalReason(['typeof', ['{}', [[':', 1, 2]]]])[0], reason)
+        },
     },
     throw: {
         /** An operation the printer has no `nanvm-lib` spelling for. */
