@@ -95,7 +95,7 @@ const demoProof = {
             const s = step({ kind: 'input', name: 'example', value: 'Dictionary' })({ example: 'Closed vs open', shown: 1, text: 'x' })
             assertEq(s.example, 'Dictionary')
             assertEq(s.shown, 0)
-            assertEq(s.text, '{"apples":3,"pears":5}')
+            assertEq(s.text, 'export default {"apples":3,"pears":5};')
         },
         // Typing replaces the text and keeps the schema.
         type: () => {
@@ -145,10 +145,12 @@ const demoProof = {
             assert(!html.includes('A ⊆ B'), html)
             assert(html.includes('<pre>record(number)</pre>'), html)
         },
-        // Text that is not JSON is reported, and the readers do not run.
-        notJson: () => {
-            const html = htmlToString(demo.view({ ...demo.init, text: '{"a":' }))
-            assert(html.includes('Not JSON: '), html)
+        // Text that is not a DataJS document is reported, and the readers do
+        // not run. Bare JSON is not one: at the top of a module, `{` opens a
+        // block.
+        notADocument: () => {
+            const html = htmlToString(demo.view({ ...demo.init, text: '{"a":1}' }))
+            assert(html.includes('Not a DataJS document: '), html)
             assert(!html.includes('parse:'), html)
         },
         // Every example draws every one of its schemas, and no edge passes
@@ -163,17 +165,37 @@ const demoProof = {
         // `parse` builds only what the schema declares; `validate` hands back
         // the value it was given.
         open: () => {
-            const r = _readersOf(open({ a: number }))('{"a":1,"b":2}')
-            assertEq(JSON.stringify(r), JSON.stringify({ parse: 'ok {"a":1}', validate: 'ok {"a":1,"b":2}' }))
+            const r = _readersOf(open({ a: number }))('export default {"a":1,"b":2};')
+            assertEq(JSON.stringify(r), JSON.stringify({ parse: 'ok export default {"a":1};', validate: 'ok export default {"a":1,"b":2};' }))
+        },
+        // The value is DataJS so a schema's every value can be typed:
+        // `undefined` is what tells the two schemas of "Absent vs undefined"
+        // apart, and JSON cannot write it.
+        undefined: () => {
+            const [a, b] = exampleNamed('Absent vs undefined').schemas
+            const text = 'export default {"a":undefined};'
+            assertEq(JSON.stringify(_readersOf(a.schema)(text)),
+                JSON.stringify({ parse: 'error at a: no match', validate: 'error at a: no match' }))
+            assertEq(JSON.stringify(_readersOf(assertNotNullish(b).schema)(text)),
+                JSON.stringify({ parse: 'ok export default {"a":undefined};', validate: 'ok export default {"a":undefined};' }))
+        },
+        // `validate` hands back the value it was given, sharing included;
+        // `parse` builds a copy for each use.
+        sharing: () => {
+            const e = exampleNamed('Shared parts')
+            const r = _readersOf(e.schemas[0].schema)(e.value)
+            assert(!('error' in r), 'expected the readers to run')
+            assert('validate' in r && r.validate.startsWith('ok const $0={'), JSON.stringify(r))
+            assert('parse' in r && !r.parse.includes('const'), JSON.stringify(r))
         },
         // A failure says where, with the root named rather than left blank.
         errors: () => {
-            assertEq(JSON.stringify(_readersOf({ a: number })('{"a":"x"}')),
+            assertEq(JSON.stringify(_readersOf({ a: number })('export default {"a":"x"};')),
                 JSON.stringify({ parse: 'error at a: unexpected value', validate: 'error at a: unexpected value' }))
-            assertEq(JSON.stringify(_readersOf({ a: number })('[]')),
+            assertEq(JSON.stringify(_readersOf({ a: number })('export default [];')),
                 JSON.stringify({ parse: 'error at the root: unexpected value', validate: 'error at the root: unexpected value' }))
         },
-        json: () => assert('json' in _readersOf(number)('{'), 'expected a JSON error'),
+        notADocument: () => assert('error' in _readersOf(number)('1'), 'expected a parse error'),
     },
     ts: {
         plain: () => assertEq(_tsOf(open([number])), 'readonly[number,...readonly(unknown)[]]'),

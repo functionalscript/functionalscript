@@ -7,6 +7,13 @@
  * functions, which no text box can spell, so the reader picks an example and
  * types only the value.
  *
+ * **The value is a DataJS document, not JSON.** A schema describes values
+ * JSON cannot write — `undefined`, a bigint, `-0`, `NaN` — and a value one
+ * schema of a pair accepts has to be typeable, or the pair can show only half
+ * its lesson. DataJS also writes sharing, so a reader can see `validate` hand
+ * back the shared value it was given while `parse` builds a copy per use. The
+ * results are written back as DataJS by the same codec.
+ *
  * **One schema, or two where the difference is the lesson.** Most examples
  * show a single schema. A few — closed against open, absent against
  * `undefined` — are pairs, and the reader flips between the two while the
@@ -31,7 +38,7 @@
  * @import { Demo, DemoEvent } from '../website/demo/types.ts'
  * @import { Graph, Shape } from '../website/demo/graph/types.ts'
  * @import { Element } from '../media/html/types.ts'
- * @import { Unknown } from '../media/json/types.ts'
+ * @import { Unknown } from '../media/datajs/types.ts'
  * @import { Const, DemoExample, DemoSchema, DemoState, Type } from './types.ts'
  */
 
@@ -41,9 +48,9 @@ import { parse } from './parse/module.f.mjs'
 import { validate } from './validate/module.f.mjs'
 import { dataToTs } from './ts/module.f.mjs'
 import { equivalent, subset, toData } from './data/module.f.mjs'
-import { parse as jsonParse, stringify } from '../media/json/module.f.mjs'
+import { tryParse, tryStringify } from '../media/datajs/module.f.mjs'
 import { leafSerialize } from '../media/datajs/serializer/module.f.mjs'
-import { sort } from '../types/object/module.f.mjs'
+import { unwrap } from '../types/result/module.f.mjs'
 import { concat } from '../types/string/module.f.mjs'
 import { graphOf, graphSvg } from '../website/demo/graph/module.f.mjs'
 import { pureOk } from '../effects/module.f.mjs'
@@ -78,16 +85,16 @@ export const examples = [
             { source: '{ name: string, age: number }', schema: person },
             { source: 'open({ name: string, age: number })', schema: open(person) },
         ],
-        value: '{"name":"Alice","age":30,"admin":true}',
+        value: 'export default {"name":"Alice","age":30,"admin":true};',
     },
     {
         name: 'Absent vs undefined',
-        about: 'or(option, t) lets the key be left out. or(t, undefined) needs the key, though its value may be undefined.',
+        about: 'or(option, t) lets the key be left out. or(t, undefined) needs the key, though its value may be undefined: try export default {"a":undefined};',
         schemas: [
             { source: '{ a: or(option, number) }', schema: { a: or(option, number) } },
             { source: '{ a: or(number, undefined) }', schema: { a: or(number, undefined) } },
         ],
-        value: '{}',
+        value: 'export default {};',
     },
     {
         name: 'Tuple vs rest',
@@ -96,7 +103,7 @@ export const examples = [
             { source: '[number, string]', schema: [number, string] },
             { source: 'rest([number], string)', schema: rest([number], string) },
         ],
-        value: '[1,"a","b"]',
+        value: 'export default [1,"a","b"];',
     },
     {
         name: 'Two spellings, one set',
@@ -105,11 +112,11 @@ export const examples = [
             { source: 'or(true, false)', schema: or(true, false) },
             { source: 'boolean', schema: boolean },
         ],
-        value: 'true',
+        value: 'export default true;',
     },
     {
         name: 'Shared parts',
-        about: 'billing and shipping use one address schema, so the graph draws it once, with two edges into it.',
+        about: 'billing and shipping use one address schema, so the graph draws it once. The value shares one address too: validate hands that back, and parse builds a copy for each use.',
         schemas: [{
             source: 'const address = { street: string, city: string }\n'
                 + 'const order = {\n'
@@ -121,19 +128,20 @@ export const examples = [
                 + '}',
             schema: order,
         }],
-        value: '{"id":7,"billing":{"street":"1 Main St","city":"Kyiv"},"shipping":{"street":"1 Main St","city":"Kyiv"},"items":[{"sku":"A1","qty":2}]}',
+        value: 'const $home={"street":"1 Main St","city":"Kyiv"};\n'
+            + 'export default {"id":7,"billing":$home,"shipping":$home,"items":[{"sku":"A1","qty":2}]};',
     },
     {
         name: 'Dictionary',
         about: 'record(t) admits any string keys, each holding a t.',
         schemas: [{ source: 'record(number)', schema: record(number) }],
-        value: '{"apples":3,"pears":5}',
+        value: 'export default {"apples":3,"pears":5};',
     },
     {
         name: 'Recursion',
         about: 'A schema can use itself. Its type prints as a named definition, and the graph draws the use by name.',
         schemas: [{ source: "const tree = () => ['const', { value: number, children: array(tree) }]", schema: tree }],
-        value: '{"value":1,"children":[{"value":2,"children":[]}]}',
+        value: 'export default {"value":1,"children":[{"value":2,"children":[]}]};',
     },
 ]
 
@@ -238,19 +246,19 @@ const pathText = path => path.length === 0 ? 'the root' : path.join('.')
  * @type {(r: readonly ['ok', unknown] | readonly ['error', { readonly path: readonly (string | number)[], readonly message: string }]) => string}
  */
 const resultText = r => r[0] === 'ok'
-    ? `ok ${stringify(sort)(/** @type {Unknown} */ (r[1]))}`
+    ? `ok ${unwrap(tryStringify(/** @type {Unknown} */ (r[1])))}`
     : `error at ${pathText(r[1].path)}: ${r[1].message}`
 
 /**
- * What `parse` and `validate` make of `text` against `schema`, or the JSON
- * error when `text` is not a JSON value.
+ * What `parse` and `validate` make of `text` against `schema`, or the
+ * parser's error when `text` is not a DataJS document.
  *
- * @type {(schema: Type) => (text: string) => { readonly parse: string, readonly validate: string } | { readonly json: string }}
+ * @type {(schema: Type) => (text: string) => { readonly parse: string, readonly validate: string } | { readonly error: string }}
  */
 export const _readersOf = schema => text => {
-    const json = jsonParse(text)
-    if (json[0] === 'error') { return { json: json[1] } }
-    const value = json[1]
+    const document = tryParse(text)
+    if (document[0] === 'error') { return { error: document[1] } }
+    const value = document[1]
     const s = /** @type {any} */ (schema)
     return { parse: resultText(parse(s)(value)), validate: resultText(validate(s)(value)) }
 }
@@ -289,11 +297,11 @@ const schemaView = (s, text) => {
         ['p', 'TypeScript:'],
         ['pre', _tsOf(s.schema)],
         ['p',
-            ['label', { for: 'value' }, 'Value (JSON) '],
+            ['label', { for: 'value' }, 'Value (DataJS) '],
             ['textarea', { id: 'value', name: 'value', rows: '4' }, text],
         ],
-        .../** @type {readonly Element[]} */ ('json' in r
-            ? [['p', `Not JSON: ${r.json}`]]
+        .../** @type {readonly Element[]} */ ('error' in r
+            ? [['p', `Not a DataJS document: ${r.error}`]]
             : [['p', 'parse:'], ['pre', r.parse], ['p', 'validate:'], ['pre', r.validate]]),
         graphSvg(_graphOf(s.schema)),
     ]
