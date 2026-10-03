@@ -52,9 +52,9 @@
  * access ::= '.' id | '[' (string | number) ']' | '(' [ items(item) ] ')'
  * array  ::= '[' [ items(item) ] ']'
  * item   ::= '...' value | value
- * object ::= '{' [ items(member) ] '}'
- * member ::= '...' value | property
- * property ::= key ':' value
+ * object ::= '{' [ items(entry) ] '}'
+ * entry  ::= '...' value | member
+ * member ::= key ':' value
  * key    ::= id | string | '[' string ']'
  * items(x) ::= x [ ',' [ items(x) ] ]
  * ```
