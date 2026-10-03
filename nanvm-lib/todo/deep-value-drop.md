@@ -43,9 +43,12 @@ available stack, build profile, and platform affect where destruction fails.
 
 ### Proposal
 
-Defer implementation until after the MVP. Preserve
-[`naive`'s educational reference role](../src/naive/README.md) and investigate
-stack-safe destruction in another VM implementation alongside it.
+Implementation is intentionally deferred: a separate VM with stronger resource
+guarantees is not currently a priority. Revisit this task when a concrete
+workload justifies that additional core implementation.
+
+Preserve [`naive`'s educational reference role](../src/naive/README.md) and
+investigate stack-safe destruction in another VM implementation alongside it.
 
 The new implementation supplies its own core representation and internal
 traits through `IVm`, reusing the existing generic operations, utilities, and
