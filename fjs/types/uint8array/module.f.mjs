@@ -17,7 +17,7 @@ import { assert } from '../../asserts/module.f.mjs'
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
 import { length, maxLengthBytes, msb, vec } from '../bit_vec/module.f.mjs'
 import { compose } from '../function/module.f.mjs'
-import { map, toArray } from '../list/module.f.mjs'
+import { iterable } from '../list/module.f.mjs'
 
 // Both conversions go through the bigint's hexadecimal spelling, two digits
 // a byte, rather than through a list of bytes: one `BigInt` or one
@@ -36,14 +36,20 @@ const hexOf = bytes => Array.from(bytes, hexOfByte).join('')
  * Concatenates a list of `Uint8Array` values into one MSB-first bit vector.
  *
  * Throws if the result would exceed `maxLength`, saying so, where the
- * vector's own constructor would fail on a bare assertion.
+ * vector's own constructor would fail on a bare assertion — and throws as
+ * soon as the bytes read so far exceed it, so a list longer than the bound,
+ * an unbounded one included, is read no further than the bound.
  *
  * @type {(input: List<Uint8Array>) => Vec}
  */
 export const listToVec = input => {
-    const hex = toArray(map(hexOf)(input)).join('')
-    const bytes = BigInt(hex.length >> 1)
-    assert(bytes <= maxLengthBytes, 'the array is too big')
+    let bytes = 0n
+    let hex = ''
+    for (const chunk of iterable(input)) {
+        bytes += BigInt(chunk.length)
+        assert(bytes <= maxLengthBytes, 'the array is too big')
+        hex += hexOf(chunk)
+    }
     return vec(bytes << 3n)(BigInt(`0x0${hex}`))
 }
 
