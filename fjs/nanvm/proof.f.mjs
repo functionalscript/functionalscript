@@ -93,6 +93,7 @@ const js = {
     '~': a => ~a,
     typeof: a => typeof a,
     throw: a => { throw a },
+    is: (a, b) => Object.is(a, b),
     String: a => String(a),
     Number: a => Number(a),
     '*': (a, b) => a * b,
