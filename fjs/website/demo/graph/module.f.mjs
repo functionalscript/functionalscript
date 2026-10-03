@@ -278,54 +278,63 @@ const missingEnds = ids => (edge, index) => [
  * root is centred on its children: the band of a leaf is the leaf, and a
  * parent taller than its children pushes them down to stay centred on
  * them. The arrows between neighbouring ranks are then short, and none
- * crosses another.
+ * crosses another. Roots stack in id order, as a column's nodes do.
  *
  * A graph is a tree here when no node is the target of two edges and
  * every edge goes to the next rank, so no edge needs a lane. Any other
  * graph — a node shared by two parents, or an edge that skips a rank —
  * keeps its columns packed from the top: a shared node has no one parent
- * to sit beside.
+ * to sit beside. **Every node gets a top**: with one incoming edge at
+ * most, and each edge one rank right, no edge can close a cycle, so every
+ * node is reached from exactly one root.
  *
- * @type {(nodes: readonly Ranked[]) => (edges: readonly Edge[]) => (rankOf: (id: number) => number) => (sizeOf: (id: number) => _Size) => (childrenOf: (id: number) => readonly number[]) => ReadonlyMap<number, number> | null}
+ * **Two passes over the ranks, not a walk down each subtree**, so a deep
+ * tree does not need a deep stack: right to left, each node's band —
+ * its height, how far its own top sits below the band's, and how far its
+ * children are pushed down — from its children's, all one rank right;
+ * then left to right, each band's top from its parent's.
+ *
+ * @type {(ranks: readonly (readonly number[])[]) => (edges: readonly Edge[]) => (rankOf: (id: number) => number) => (sizeOf: (id: number) => _Size) => (childrenOf: (id: number) => readonly number[]) => ReadonlyMap<number, number> | null}
  */
-const treeTopsOf = nodes => edges => rankOf => sizeOf => childrenOf => {
+const treeTopsOf = ranks => edges => rankOf => sizeOf => childrenOf => {
     const toNodes = edges.flatMap(({ from, to }) => typeof to === 'number' ? [{ from, to }] : [])
     const targets = new Set(toNodes.map(({ to }) => to))
     if (targets.size !== toNodes.length || toNodes.some(({ from, to }) => rankOf(to) !== rankOf(from) + 1)) { return null }
-    /**
-     * The tops of `id`'s subtree, placed from `top` down, and where the
-     * next subtree may start.
-     *
-     * @type {(id: number, top: number) => readonly [readonly (readonly [number, number])[], number]}
-     */
-    const subtree = (id, top) => {
-        const { height } = sizeOf(id)
-        const children = childrenOf(id)
-        /** @type {readonly [readonly (readonly [number, number])[], number]} */
-        const start = [[], top]
-        const [below, bottom] = children.reduce(([placed, next], child) => {
-            const [more, end] = subtree(child, next)
-            return /** @type {const} */ ([[...placed, ...more], end])
-        }, start)
-        if (children.length === 0) { return [[[id, top]], top + height + nodeGap] }
-        const tops = new Map(below)
-        const last = children[children.length - 1]
-        const first = /** @type {number} */ (tops.get(children[0]))
-        const end = /** @type {number} */ (tops.get(last)) + sizeOf(last).height
-        const y = (first + end - height) / 2
-        const shift = Math.max(0, top - y)
+    /** @typedef {{ readonly band: number, readonly top: number, readonly shift: number }} Band */
+    /** @type {StateScan<readonly number[], ReadonlyMap<number, Band>, readonly (readonly [number, Band])[]>} */
+    const bandsOf = (column, right) => {
+        /** @type {(id: number) => Band} */
+        const at = id => /** @type {Band} */ (right.get(id))
+        const bands = column.map(id => {
+            const { height } = sizeOf(id)
+            const children = childrenOf(id)
+            if (children.length === 0) { return /** @type {const} */ ([id, { band: height + nodeGap, top: 0, shift: 0 }]) }
+            const last = children[children.length - 1]
+            const above = children.slice(0, -1).reduce((sum, child) => sum + at(child).band, 0)
+            const y = (at(children[0]).top + above + at(last).top + sizeOf(last).height - height) / 2
+            const shift = Math.max(0, -y)
+            const band = Math.max(above + at(last).band + shift, y + shift + height + nodeGap)
+            return /** @type {const} */ ([id, { band, top: y + shift, shift }])
+        })
+        return [bands, new Map(bands)]
+    }
+    const bands = new Map(toArray(stateScan(bandsOf)(new Map())(ranks.toReversed())).flat())
+    const bandOf = /** @type {(id: number) => Band} */ (id => /** @type {Band} */ (bands.get(id)))
+    /** @type {StateScan<number, number, readonly [number, number]>} */
+    const stackRoot = (id, next) => [[id, next], next + bandOf(id).band]
+    const roots = new Map(toArray(stateScan(stackRoot)(margin)(ranks.flat().filter(id => !targets.has(id)).toSorted((a, b) => a - b))))
+    /** @type {StateScan<readonly number[], ReadonlyMap<number, number>, readonly (readonly [number, number])[]>} */
+    const topsOf = (column, from) => {
+        /** @type {(id: number) => number} */
+        const bandTopOf = id => /** @type {number} */ (from.get(id) ?? roots.get(id))
+        /** @type {StateScan<number, number, readonly [number, number]>} */
+        const stackChild = (child, next) => [[child, next], next + bandOf(child).band]
         return [
-            [[id, y + shift], ...below.map(([child, t]) => /** @type {const} */ ([child, t + shift]))],
-            Math.max(bottom + shift, y + shift + height + nodeGap),
+            column.map(id => /** @type {const} */ ([id, bandTopOf(id) + bandOf(id).top])),
+            new Map(column.flatMap(id => toArray(stateScan(stackChild)(bandTopOf(id) + bandOf(id).shift)(childrenOf(id))))),
         ]
     }
-    /** @type {readonly [readonly (readonly [number, number])[], number]} */
-    const none = [[], margin]
-    const [tops] = nodes.filter(n => !targets.has(n.id)).reduce(([placed, next], root) => {
-        const [more, end] = subtree(root.id, next)
-        return /** @type {const} */ ([[...placed, ...more], end])
-    }, none)
-    return new Map(tops)
+    return new Map(toArray(stateScan(topsOf)(new Map())(ranks)).flat())
 }
 
 /**
@@ -390,12 +399,13 @@ const layout = left => nodes => edges => {
     const maxRank = nodes.reduce((m, n) => Math.max(m, n.rank), 0)
     const sizes = new Map(nodes.map(n => [n.id, portsOf(n.label)(outgoingOf(n.id))]))
     const sizeOf = /** @type {(id: number) => _Size} */ (id => /** @type {_Size} */ (sizes.get(id)))
-    const treeTops = treeTopsOf(nodes)(edges)(rankOf)(sizeOf)(id => outgoingOf(id).flatMap(({ edge }) => typeof edge.to === 'number' ? [edge.to] : []))
     /** @type {readonly (readonly _Slot[])[]} */
     const columns = Array.from({ length: maxRank + 1 }, (_, rank) => [
         ...nodes.filter(node => node.rank === rank).map(node => ({ node, rank, key: node.id })),
         ...spans.flatMap((span, lane) => span.from < rank && rank < span.to ? [{ lane, rank, key: span.key }] : []),
     ].toSorted((a, b) => a.key - b.key))
+    const treeTops = treeTopsOf(columns.map(column => column.flatMap(slot => slot.node === undefined ? [] : [slot.node.id])))(edges)(rankOf)(sizeOf)(
+        id => outgoingOf(id).flatMap(({ edge }) => typeof edge.to === 'number' ? [edge.to] : []))
     /** @type {(left: number) => (widest: number) => StateScan<_Sized, number, _PlacedSlot>} */
     const placeSlot = left => widest => ({ slot, size }, top) => {
         if (size === null) {

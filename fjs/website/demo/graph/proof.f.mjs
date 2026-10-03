@@ -411,6 +411,30 @@ export const proof = {
             assertEq(_crossings(tree), 0)
         },
         /**
+         * **A deep tree needs no deep stack.** A chain of 5000 nodes, far
+         * deeper than a call stack, is drawn — each node centred on the
+         * one after it, so all at one height.
+         */
+        deepTree: () => {
+            const n = 5000
+            const html = htmlToString(graphSvg({
+                nodes: Array.from({ length: n }, (_, id) => ({ id, kind: 'a', label: 'x', rank: id })),
+                edges: Array.from({ length: n - 1 }, (_, from) => ({ from, to: from + 1, label: '', corner: /** @type {const} */ ('top') })),
+            }))
+            assertEq(html.split('y="10" width="50" height="26" rx="4" data-graph-node=""').length - 1, n)
+        },
+        /**
+         * **Roots stack in id order**, whatever order the graph lists them
+         * in, as every column's nodes do.
+         */
+        rootsInIdOrder: () => {
+            const zero = { id: 0, kind: 'a', label: 'zero', rank: 0 }
+            const one = { id: 1, kind: 'a', label: 'one', rank: 0 }
+            const html = htmlToString(graphSvg({ nodes: [one, zero], edges: [] }))
+            assertEq(html, htmlToString(graphSvg({ nodes: [zero, one], edges: [] })))
+            assert(html.indexOf('>zero<') < html.indexOf('>one<'), html)
+        },
+        /**
          * **A node with two parents keeps the columns packed**: it has no
          * one parent to sit beside, so each column stacks from the top, as
          * any graph that is not a tree does.
