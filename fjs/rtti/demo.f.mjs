@@ -36,17 +36,18 @@
  * @import { Graph, Shape } from '../website/demo/graph/types.ts'
  * @import { Element } from '../media/html/types.ts'
  * @import { Unknown } from '../media/datajs/types.ts'
- * @import { Const, DemoExample, DemoSchema, DemoState, Type, _Answer } from './types.ts'
+ * @import { Const, DemoExample, DemoNamedSchema, DemoSchema, DemoState, Type, _Answer } from './types.ts'
  */
 
 import { array, boolean, number, open, option, or, record, rest, string, unknown } from './module.f.mjs'
 import { structSchemaEntries, tupleSchemaEntries } from './common/module.f.mjs'
 import { parse } from './parse/module.f.mjs'
 import { validate } from './validate/module.f.mjs'
-import { tryParse, tryStringify } from '../media/datajs/module.f.mjs'
+import { tryParse, trySerialize } from '../media/datajs/module.f.mjs'
 import { leafSerialize } from '../media/datajs/serializer/module.f.mjs'
 import { unwrap } from '../types/result/module.f.mjs'
 import { concat } from '../types/string/module.f.mjs'
+import { toArray } from '../types/list/module.f.mjs'
 import { graphOf, graphSvg } from '../website/demo/graph/module.f.mjs'
 import { pureOk } from '../effects/module.f.mjs'
 
@@ -77,8 +78,8 @@ export const examples = [
         name: 'Closed vs open',
         about: 'A struct admits the keys it declares and no others. open() admits any other keys too.',
         schemas: [
-            { source: '{ name: string, age: number }', schema: person },
-            { source: 'open({ name: string, age: number })', schema: open(person) },
+            { name: 'closed', source: '{ name: string, age: number }', schema: person },
+            { name: 'open', source: 'open({ name: string, age: number })', schema: open(person) },
         ],
         value: 'export default {"name":"Alice","age":30,"admin":true};',
     },
@@ -86,8 +87,8 @@ export const examples = [
         name: 'Absent vs undefined',
         about: 'or(option, t) lets the key be left out. or(t, undefined) needs the key, though its value may be undefined: try export default {"a":undefined};',
         schemas: [
-            { source: '{ a: or(option, number) }', schema: { a: or(option, number) } },
-            { source: '{ a: or(number, undefined) }', schema: { a: or(number, undefined) } },
+            { name: 'optional key', source: '{ a: or(option, number) }', schema: { a: or(option, number) } },
+            { name: 'undefined value', source: '{ a: or(number, undefined) }', schema: { a: or(number, undefined) } },
         ],
         value: 'export default {};',
     },
@@ -95,8 +96,8 @@ export const examples = [
         name: 'Tuple vs rest',
         about: 'A tuple is checked by length as well as by member. rest() admits any number of extra elements of one type.',
         schemas: [
-            { source: '[number, string]', schema: [number, string] },
-            { source: 'rest([number], string)', schema: rest([number], string) },
+            { name: 'exact tuple', source: '[number, string]', schema: [number, string] },
+            { name: 'tuple + rest', source: 'rest([number], string)', schema: rest([number], string) },
         ],
         value: 'export default [1,"a","b"];',
     },
@@ -104,8 +105,8 @@ export const examples = [
         name: 'Two spellings, one set',
         about: 'or(true, false) and boolean are written differently and accept exactly the same values.',
         schemas: [
-            { source: 'or(true, false)', schema: or(true, false) },
-            { source: 'boolean', schema: boolean },
+            { name: 'or(true, false)', source: 'or(true, false)', schema: or(true, false) },
+            { name: 'boolean', source: 'boolean', schema: boolean },
         ],
         value: 'export default true;',
     },
@@ -224,14 +225,26 @@ export const _graphOf = schema => {
 const pathText = path => path.length === 0 ? 'the root' : path.join('.')
 
 /**
- * One reader's answer: whether it succeeded, and a line saying with what
- * value, or where and why it failed.
+ * A value as the DataJS document that denotes it, one statement per line, so
+ * a `const` a value shares stands on a line of its own above the
+ * `export default` that uses it. The serializer emits each statement's
+ * closing `;` as a chunk of its own — a `;` inside a string is part of that
+ * string's chunk — so the lines break there.
+ *
+ * @type {(value: Unknown) => string}
+ */
+const documentText = value =>
+    toArray(unwrap(trySerialize(value))).map(c => c === ';' ? ';\n' : c).join('').trimEnd()
+
+/**
+ * One reader's answer: whether it succeeded, and the value it succeeded with
+ * or where and why it failed.
  *
  * @type {(r: readonly ['ok', unknown] | readonly ['error', { readonly path: readonly (string | number)[], readonly message: string }]) => _Answer}
  */
 const answerOf = r => r[0] === 'ok'
-    ? { ok: true, text: `ok ${unwrap(tryStringify(/** @type {Unknown} */ (r[1])))}` }
-    : { ok: false, text: `error at ${pathText(r[1].path)}: ${r[1].message}` }
+    ? { ok: true, text: documentText(/** @type {Unknown} */ (r[1])) }
+    : { ok: false, text: `at ${pathText(r[1].path)}: ${r[1].message}` }
 
 /**
  * What `parse` and `validate` make of `text` against `schema`, or the
@@ -250,24 +263,34 @@ export const _readersOf = schema => text => {
 // ── view ─────────────────────────────────────────────────────────────────────
 
 /**
- * An answer's line, marked with its verdict so the stylesheet can colour it:
- * green for a success, red for a failure. The line still begins with `ok` or
- * `error`, so the verdict does not rest on colour alone.
+ * A reader's answer: its verdict on the label line — `parse · ok`,
+ * `validate · error` — and under it a block holding only the value or the
+ * failure, marked so the stylesheet colours it green or red. The verdict is
+ * a word as well as a colour, and the block holds nothing but what a reader
+ * could paste back into the value box.
  *
- * @type {(ok: boolean, text: string) => Element}
+ * @type {(label: string, ok: boolean, text: string) => readonly Element[]}
  */
-const answerView = (ok, text) => ['pre', { 'data-result': ok ? 'ok' : 'error' }, text]
+const answerView = (label, ok, text) => [
+    ['p', `${label} · ${ok ? 'ok' : 'error'}`],
+    ['pre', { 'data-result': ok ? 'ok' : 'error' }, text],
+]
 
 /** @type {(e: DemoExample, picked: DemoExample) => Element} */
 const exampleOption = (e, picked) =>
     ['option', e === picked ? { value: e.name, selected: '' } : { value: e.name }, e.name]
 
-/** @type {(i: 0 | 1, shown: 0 | 1) => Element} */
-const schemaButton = (i, shown) =>
-    ['button', { type: 'button', name: `schema-${i}`, 'aria-pressed': String(i === shown) }, i === 0 ? 'Schema A' : 'Schema B']
+/**
+ * A pair's button, under its schema's name, pressed when it is the one shown.
+ *
+ * @type {(s: DemoNamedSchema, i: 0 | 1, shown: 0 | 1) => Element}
+ */
+const schemaButton = (s, i, shown) =>
+    ['button', { type: 'button', name: `schema-${i}`, 'aria-pressed': String(i === shown) }, s.name]
 
 /** @type {(e: DemoExample, shown: 0 | 1) => readonly Element[]} */
-const switcher = (e, shown) => e.schemas.length === 1 ? [] : [['p', schemaButton(0, shown), ' ', schemaButton(1, shown)]]
+const switcher = (e, shown) => e.schemas.length === 1 ? []
+    : [['p', schemaButton(e.schemas[0], 0, shown), ' ', schemaButton(e.schemas[1], 1, shown)]]
 
 /** @type {(s: DemoSchema, text: string) => readonly Element[]} */
 const schemaView = (s, text) => {
@@ -279,10 +302,10 @@ const schemaView = (s, text) => {
             ['textarea', { id: 'value', name: 'value', rows: '4' }, text],
         ],
         .../** @type {readonly Element[]} */ ('error' in r
-            ? [answerView(false, `Not a DataJS document: ${r.error}`)]
+            ? answerView('DataJS', false, r.error)
             : [
-                ['p', 'parse:'], answerView(r.parse.ok, r.parse.text),
-                ['p', 'validate:'], answerView(r.validate.ok, r.validate.text),
+                ...answerView('parse', r.parse.ok, r.parse.text),
+                ...answerView('validate', r.validate.ok, r.validate.text),
             ]),
         graphSvg(_graphOf(s.schema)),
     ]

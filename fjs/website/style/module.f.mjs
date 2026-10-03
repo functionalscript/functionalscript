@@ -402,4 +402,8 @@ a:hover > [data-railroad-box="nonTerminal"] { fill: var(--pass-bg) }
 [data-code] { background: color-mix(in srgb, var(--border) 30%, var(--bg)) }
 [data-result="ok"] { background: var(--pass-bg); border-color: color-mix(in srgb, var(--pass) 40%, transparent); color: var(--pass) }
 [data-result="error"] { background: var(--fail-bg); border-color: color-mix(in srgb, var(--fail) 40%, transparent); color: var(--fail) }
+/* A button that picks one of a set — the rtti demo's pair of schemas — is
+   drawn inverted while it is the one picked, so which is shown reads at a
+   glance. */
+button[aria-pressed="true"], button[aria-pressed="true"]:hover:enabled { background: var(--text); border-color: var(--text); color: var(--bg) }
 `

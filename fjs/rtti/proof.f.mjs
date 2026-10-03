@@ -132,24 +132,29 @@ const demoProof = {
             for (const e of examples) { assert(html.includes(`>${e.name}</option>`), e.name) }
             assert(html.includes('<option value="Recursion" selected="">'), html)
         },
-        // A pair draws a switch for its two schemas and marks the one shown.
+        // A pair draws a switch for its two schemas, each under its name,
+        // and marks the one shown.
         pair: () => {
             const a = page('Closed vs open')
-            assert(a.includes('name="schema-0" aria-pressed="true"'), a)
-            assert(a.includes('name="schema-1" aria-pressed="false"'), a)
+            assert(a.includes('name="schema-0" aria-pressed="true">closed</button>'), a)
+            assert(a.includes('name="schema-1" aria-pressed="false">open</button>'), a)
             assert(a.includes('<pre data-code="">{ name: string, age: number }</pre>'), a)
             const b = page('Closed vs open', 1)
             assert(b.includes('name="schema-1" aria-pressed="true"'), b)
             assert(b.includes('<pre data-code="">open({ name: string, age: number })</pre>'), b)
         },
-        // Each answer carries its verdict for the stylesheet to colour: red
-        // where schema A refuses the extra key, green where `open` admits it.
+        // Each answer's verdict is on its label line, and its block — marked
+        // for the stylesheet to colour — holds only the value or the failure:
+        // red where the closed schema refuses the extra key, green where
+        // `open` admits it.
         verdict: () => {
             const a = page('Closed vs open')
-            assertEq(occurrences(a, '<pre data-result="error">error at the root: '), 2)
+            assert(a.includes('<p>parse · error</p><pre data-result="error">at the root: unexpected value</pre>'), a)
+            assert(a.includes('<p>validate · error</p>'), a)
             assert(!a.includes('data-result="ok"'), a)
             const b = page('Closed vs open', 1)
-            assertEq(occurrences(b, '<pre data-result="ok">ok export default '), 2)
+            assert(b.includes('<p>parse · ok</p><pre data-result="ok">export default {'), b)
+            assert(b.includes('<p>validate · ok</p>'), b)
             assert(!b.includes('data-result="error"'), b)
         },
         // A single schema draws no switch, whatever `shown` says.
@@ -163,8 +168,8 @@ const demoProof = {
         // block.
         notADocument: () => {
             const html = htmlToString(demo.view({ ...demo.init, text: '{"a":1}' }))
-            assert(html.includes('<pre data-result="error">Not a DataJS document: '), html)
-            assert(!html.includes('parse:'), html)
+            assert(html.includes('<p>DataJS · error</p><pre data-result="error">'), html)
+            assert(!html.includes('parse ·'), html)
         },
         // Every example draws every one of its schemas, and no edge passes
         // through a box.
@@ -179,7 +184,7 @@ const demoProof = {
         // the value it was given.
         open: () => {
             const r = _readersOf(open({ a: number }))('export default {"a":1,"b":2};')
-            assertEq(JSON.stringify(texts(r)), JSON.stringify({ parse: 'ok export default {"a":1};', validate: 'ok export default {"a":1,"b":2};' }))
+            assertEq(JSON.stringify(texts(r)), JSON.stringify({ parse: 'export default {"a":1};', validate: 'export default {"a":1,"b":2};' }))
         },
         // The value is DataJS so a schema's every value can be typed:
         // `undefined` is what tells the two schemas of "Absent vs undefined"
@@ -188,25 +193,29 @@ const demoProof = {
             const [a, b] = exampleNamed('Absent vs undefined').schemas
             const text = 'export default {"a":undefined};'
             assertEq(JSON.stringify(texts(_readersOf(a.schema)(text))),
-                JSON.stringify({ parse: 'error at a: no match', validate: 'error at a: no match' }))
+                JSON.stringify({ parse: 'at a: no match', validate: 'at a: no match' }))
             assertEq(JSON.stringify(texts(_readersOf(assertNotNullish(b).schema)(text))),
-                JSON.stringify({ parse: 'ok export default {"a":undefined};', validate: 'ok export default {"a":undefined};' }))
+                JSON.stringify({ parse: 'export default {"a":undefined};', validate: 'export default {"a":undefined};' }))
         },
         // `validate` hands back the value it was given, sharing included;
-        // `parse` builds a copy for each use.
+        // `parse` builds a copy for each use. A document is written one
+        // statement per line, so the shared `const` stands above the export.
         sharing: () => {
             const e = exampleNamed('Shared parts')
             const r = _readersOf(e.schemas[0].schema)(e.value)
             assert(!('error' in r), 'expected the readers to run')
-            assert('validate' in r && r.validate.text.startsWith('ok const $0={'), JSON.stringify(r))
+            assert('validate' in r && r.validate.text.startsWith('const $0={"street":"1 Main St","city":"Kyiv"};\nexport default {'), JSON.stringify(r))
             assert('parse' in r && !r.parse.text.includes('const'), JSON.stringify(r))
         },
+        // A `;` inside a string ends no statement.
+        semicolonInAString: () => assertEq(JSON.stringify(texts(_readersOf({ s: string })('export default {"s":";"};'))),
+            JSON.stringify({ parse: 'export default {"s":";"};', validate: 'export default {"s":";"};' })),
         // A failure says where, with the root named rather than left blank.
         errors: () => {
             assertEq(JSON.stringify(texts(_readersOf({ a: number })('export default {"a":"x"};'))),
-                JSON.stringify({ parse: 'error at a: unexpected value', validate: 'error at a: unexpected value' }))
+                JSON.stringify({ parse: 'at a: unexpected value', validate: 'at a: unexpected value' }))
             assertEq(JSON.stringify(texts(_readersOf({ a: number })('export default [];'))),
-                JSON.stringify({ parse: 'error at the root: unexpected value', validate: 'error at the root: unexpected value' }))
+                JSON.stringify({ parse: 'at the root: unexpected value', validate: 'at the root: unexpected value' }))
         },
         notADocument: () => assert('error' in _readersOf(number)('1'), 'expected a parse error'),
     },
