@@ -519,7 +519,7 @@ export const trySerialize = value => okThen(
  *
  * @type {(leaf: _Leaf) => (key: (key: string) => List<string>) => (value: Unknown) => Result<List<string>, string>}
  */
-const treeSerialize = leaf => key => value => okThen(
+const tryTreeSerialize = leaf => key => value => okThen(
     /** @type {(step: _Step<List<string>>) => Result<List<string>, string>} */
     (([walk, root]) => mapOk(writeTree(key))(_link(toArray(walk.finished), root)))
 )(read(leaf)(value))
@@ -568,7 +568,7 @@ const jsonLeaf = value => {
  *
  * @type {(value: Unknown) => Result<List<string>, string>}
  */
-export const tryJsonSerialize = treeSerialize(jsonLeaf)(stringSerialize)
+export const tryJsonSerialize = tryTreeSerialize(jsonLeaf)(stringSerialize)
 
 /**
  * {@link tryJsonSerialize} as one string: what `fjs compile` writes for a
