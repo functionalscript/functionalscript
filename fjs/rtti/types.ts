@@ -208,17 +208,14 @@ export type DemoSchema = {
     readonly schema: Type
 }
 
-/** One schema of a pair, under the name its button shows: what sets it apart from the other. */
-export type DemoNamedSchema = DemoSchema & { readonly name: string }
-
 /**
  * One example of the rtti demo: a single schema, or two whose difference is
- * the lesson — the reader flips between them while the value stays put.
+ * the lesson — both shown, the reader picking one while the value stays put.
  */
 export type DemoExample = {
     readonly name: string
     readonly about: string
-    readonly schemas: readonly [DemoSchema] | readonly [DemoNamedSchema, DemoNamedSchema]
+    readonly schemas: readonly [DemoSchema] | readonly [DemoSchema, DemoSchema]
     readonly value: string
 }
 

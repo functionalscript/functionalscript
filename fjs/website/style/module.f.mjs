@@ -402,8 +402,15 @@ a:hover > [data-railroad-box="nonTerminal"] { fill: var(--pass-bg) }
 [data-code] { background: color-mix(in srgb, var(--border) 30%, var(--bg)) }
 [data-result="ok"] { background: var(--pass-bg); border-color: color-mix(in srgb, var(--pass) 40%, transparent); color: var(--pass) }
 [data-result="error"] { background: var(--fail-bg); border-color: color-mix(in srgb, var(--fail) 40%, transparent); color: var(--fail) }
-/* A button that picks one of a set — the rtti demo's pair of schemas — is
-   drawn inverted while it is the one picked, so which is shown reads at a
-   glance. */
-button[aria-pressed="true"], button[aria-pressed="true"]:hover:enabled { background: var(--text); border-color: var(--text); color: var(--bg) }
+/* A choice between code blocks — the rtti demo's pair of schemas — shows
+   every block, one above another, each a button with a radio dot. The one
+   picked is outlined and tinted in the value colour with its dot filled; the
+   other recedes, muted, until it is hovered. */
+[data-pick] { display: flex; flex-direction: column; gap: .5rem; margin-block: 1rem }
+[data-pick] > button, [data-pick] > button:hover:enabled { align-items: flex-start; background: color-mix(in srgb, var(--border) 30%, var(--bg)); border: 1px solid var(--border); border-radius: 6px; color: var(--muted); display: flex; gap: .65rem; padding: .5rem .75rem; text-align: left; width: 100% }
+[data-pick] > button:hover:enabled { border-color: var(--muted); color: var(--text) }
+[data-pick] > button[aria-pressed="true"], [data-pick] > button[aria-pressed="true"]:hover:enabled { background: var(--value-bg); border-color: var(--value); box-shadow: inset 0 0 0 1px var(--value); color: var(--text) }
+[data-pick-dot] { border: 2px solid var(--muted); border-radius: 50%; flex: none; height: .95rem; margin-top: .2rem; width: .95rem }
+[aria-pressed="true"] > [data-pick-dot] { background: var(--value); border-color: var(--value); box-shadow: inset 0 0 0 2px var(--value-bg) }
+[data-pick-code] { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap }
 `

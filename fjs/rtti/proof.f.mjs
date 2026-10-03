@@ -132,16 +132,17 @@ const demoProof = {
             for (const e of examples) { assert(html.includes(`>${e.name}</option>`), e.name) }
             assert(html.includes('<option value="Recursion" selected="">'), html)
         },
-        // A pair draws a switch for its two schemas, each under its name,
-        // and marks the one shown.
+        // A pair shows both schemas, each its code as a choice, and marks the
+        // one picked; picking the other moves the mark and nothing else.
         pair: () => {
+            /** @type {(i: number, pressed: boolean, source: string) => string} */
+            const choice = (i, pressed, source) =>
+                `<button type="button" name="schema-${i}" aria-pressed="${pressed}"><span data-pick-dot=""></span><span data-pick-code="">${source}</span></button>`
             const a = page('Closed vs open')
-            assert(a.includes('name="schema-0" aria-pressed="true">closed</button>'), a)
-            assert(a.includes('name="schema-1" aria-pressed="false">open</button>'), a)
-            assert(a.includes('<pre data-code="">{ name: string, age: number }</pre>'), a)
+            assert(a.includes(`<div data-pick="">${choice(0, true, '{ name: string, age: number }')}${choice(1, false, 'open({ name: string, age: number })')}</div>`), a)
+            assert(!a.includes('data-code'), a)
             const b = page('Closed vs open', 1)
-            assert(b.includes('name="schema-1" aria-pressed="true"'), b)
-            assert(b.includes('<pre data-code="">open({ name: string, age: number })</pre>'), b)
+            assert(b.includes(`${choice(0, false, '{ name: string, age: number }')}${choice(1, true, 'open({ name: string, age: number })')}`), b)
         },
         // Each answer's verdict is on its label line, and its block — marked
         // for the stylesheet to colour — holds only the value or the failure:
@@ -157,10 +158,10 @@ const demoProof = {
             assert(b.includes('<p>validate · ok</p>'), b)
             assert(!b.includes('data-result="error"'), b)
         },
-        // A single schema draws no switch, whatever `shown` says.
+        // A single schema is a code block with no choice, whatever `shown` says.
         single: () => {
             const html = page('Dictionary', 1)
-            assert(!html.includes('name="schema-'), html)
+            assert(!html.includes('data-pick'), html)
             assert(html.includes('<pre data-code="">record(number)</pre>'), html)
         },
         // Text that is not a DataJS document is reported, and the readers do

@@ -15,8 +15,10 @@
  *
  * **One schema, or two where the difference is the lesson.** Most examples
  * show a single schema. A few — closed against open, absent against
- * `undefined` — are pairs, and the reader flips between the two while the
- * value stays put, so the one thing that changes is the schema.
+ * `undefined` — are pairs. Both schemas are shown, each a block with a
+ * radio dot, and the reader picks one while the value stays put, so the one
+ * thing that changes is the schema. The schemas' own code tells them apart,
+ * so they carry no names.
  *
  * **The graph is the schema as written**, walked by
  * `fjs/website/demo/graph`: a struct or a tuple is a node with a port per
@@ -36,7 +38,7 @@
  * @import { Graph, Shape } from '../website/demo/graph/types.ts'
  * @import { Element } from '../media/html/types.ts'
  * @import { Unknown } from '../media/datajs/types.ts'
- * @import { Const, DemoExample, DemoNamedSchema, DemoSchema, DemoState, Type, _Answer } from './types.ts'
+ * @import { Const, DemoExample, DemoSchema, DemoState, Type, _Answer } from './types.ts'
  */
 
 import { array, boolean, number, open, option, or, record, rest, string, unknown } from './module.f.mjs'
@@ -78,8 +80,8 @@ export const examples = [
         name: 'Closed vs open',
         about: 'A struct admits the keys it declares and no others. open() admits any other keys too.',
         schemas: [
-            { name: 'closed', source: '{ name: string, age: number }', schema: person },
-            { name: 'open', source: 'open({ name: string, age: number })', schema: open(person) },
+            { source: '{ name: string, age: number }', schema: person },
+            { source: 'open({ name: string, age: number })', schema: open(person) },
         ],
         value: 'export default {"name":"Alice","age":30,"admin":true};',
     },
@@ -87,8 +89,8 @@ export const examples = [
         name: 'Absent vs undefined',
         about: 'or(option, t) lets the key be left out. or(t, undefined) needs the key, though its value may be undefined: try export default {"a":undefined};',
         schemas: [
-            { name: 'optional key', source: '{ a: or(option, number) }', schema: { a: or(option, number) } },
-            { name: 'undefined value', source: '{ a: or(number, undefined) }', schema: { a: or(number, undefined) } },
+            { source: '{ a: or(option, number) }', schema: { a: or(option, number) } },
+            { source: '{ a: or(number, undefined) }', schema: { a: or(number, undefined) } },
         ],
         value: 'export default {};',
     },
@@ -96,8 +98,8 @@ export const examples = [
         name: 'Tuple vs rest',
         about: 'A tuple is checked by length as well as by member. rest() admits any number of extra elements of one type.',
         schemas: [
-            { name: 'exact tuple', source: '[number, string]', schema: [number, string] },
-            { name: 'tuple + rest', source: 'rest([number], string)', schema: rest([number], string) },
+            { source: '[number, string]', schema: [number, string] },
+            { source: 'rest([number], string)', schema: rest([number], string) },
         ],
         value: 'export default [1,"a","b"];',
     },
@@ -105,8 +107,8 @@ export const examples = [
         name: 'Two spellings, one set',
         about: 'or(true, false) and boolean are written differently and accept exactly the same values.',
         schemas: [
-            { name: 'or(true, false)', source: 'or(true, false)', schema: or(true, false) },
-            { name: 'boolean', source: 'boolean', schema: boolean },
+            { source: 'or(true, false)', schema: or(true, false) },
+            { source: 'boolean', schema: boolean },
         ],
         value: 'export default true;',
     },
@@ -281,22 +283,31 @@ const exampleOption = (e, picked) =>
     ['option', e === picked ? { value: e.name, selected: '' } : { value: e.name }, e.name]
 
 /**
- * A pair's button, under its schema's name, pressed when it is the one shown.
+ * One schema of a pair: its code with a radio dot, as a button the reader
+ * picks it with, pressed when it is the one shown.
  *
- * @type {(s: DemoNamedSchema, i: 0 | 1, shown: 0 | 1) => Element}
+ * @type {(s: DemoSchema, i: 0 | 1, shown: 0 | 1) => Element}
  */
-const schemaButton = (s, i, shown) =>
-    ['button', { type: 'button', name: `schema-${i}`, 'aria-pressed': String(i === shown) }, s.name]
+const schemaChoice = (s, i, shown) =>
+    ['button', { type: 'button', name: `schema-${i}`, 'aria-pressed': String(i === shown) },
+        ['span', { 'data-pick-dot': '' }],
+        ['span', { 'data-pick-code': '' }, s.source],
+    ]
 
-/** @type {(e: DemoExample, shown: 0 | 1) => readonly Element[]} */
-const switcher = (e, shown) => e.schemas.length === 1 ? []
-    : [['p', schemaButton(e.schemas[0], 0, shown), ' ', schemaButton(e.schemas[1], 1, shown)]]
+/**
+ * The example's schemas: a single one as a code block, a pair as two choices,
+ * both in sight.
+ *
+ * @type {(e: DemoExample, shown: 0 | 1) => Element}
+ */
+const schemasView = (e, shown) => e.schemas.length === 1
+    ? ['pre', { 'data-code': '' }, e.schemas[0].source]
+    : ['div', { 'data-pick': '' }, schemaChoice(e.schemas[0], 0, shown), schemaChoice(e.schemas[1], 1, shown)]
 
 /** @type {(s: DemoSchema, text: string) => readonly Element[]} */
 const schemaView = (s, text) => {
     const r = _readersOf(s.schema)(text)
     return [
-        ['pre', { 'data-code': '' }, s.source],
         ['p',
             ['label', { for: 'value' }, 'Value (DataJS) '],
             ['textarea', { id: 'value', name: 'value', rows: '4' }, text],
@@ -314,7 +325,7 @@ const schemaView = (s, text) => {
 /**
  * The state is the picked example's name, the schema shown, and the text;
  * everything drawn is a function of the three. Picking an example shows its
- * first schema and its value; flipping between a pair's schemas keeps the
+ * first schema and its value; picking the other schema of a pair keeps the
  * value as typed.
  *
  * @type {Demo<DemoState, DemoEvent>}
@@ -338,7 +349,7 @@ export const demo = {
                 ['select', { id: 'example', name: 'example' }, ...examples.map(x => exampleOption(x, e))],
             ],
             ['p', e.about],
-            ...switcher(e, shown),
+            schemasView(e, shown),
             ...schemaView(shown === 1 && b !== undefined ? b : a, text),
         ]
     },
