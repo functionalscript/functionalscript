@@ -99,15 +99,12 @@ from `{ a: 1 }` and hashes differently, as `[...[1]]` and `[1]` do.
   languages.
 - **An object's keys depend on a value.** Without a spread, an object
   literal's keys are its constants; with one, they are known only once the
-  operand is. The compiler already reads keys statically: the sharing and
-  anchoring sweeps in [`fjs/compiler/ast`](../../fjs/compiler/ast/module.f.mjs)
-  keep the last member per key (`memberValues`) and resolve an access into
-  an object literal to the member it names (`literalAt`, `selected`). With
-  a spread, `[o.x, { ...o }.x]` reaches `o.x` twice, and a member that
-  seems to win may lose to a later spread, so those reads have to keep
-  every spread operand and treat the literal's keys as unknown — as array
-  and call spread already treat an array holding a spread, which no key
-  selects inside.
+  operand is. The anchoring and capture sweeps in
+  [`fjs/compiler/ast`](../../fjs/compiler/ast/module.f.mjs) read the
+  syntax for references, so they have to reach every spread operand as
+  they reach every member's value. The value outputs read the value `run`
+  built, where the keys are known, so nothing there reads a key statically
+  — JSON writes a node where each reference reaches it, as #2526 decided.
 - **JavaScript compatibility.** None lost. The change only accepts
   JavaScript, with JavaScript's values.
 
@@ -154,18 +151,14 @@ proposer before implementation; this proposal was written by Claude.
       object's in own-property order, an array's elements by index, a
       string's code units, and nothing from every other value.
 - [ ] AST analysis, in
-      [`fjs/compiler/ast`](../../fjs/compiler/ast/module.f.mjs): an
-      object literal holding a spread selects no key — `literalAt` and
-      `selected` resolve none, through the `selectable` check array spread
-      adds for an array holding one — a member before a spread is not
-      dropped as shadowed (`memberValues`), and every spread operand is
-      kept and read as `CopyDataProperties` copies it, its own properties,
-      each one key deeper, in the sharing, anchoring and capture sweeps;
-      and `readsRest`, which `isInlinedCall` asks, sees a spread's operand,
-      so `((...r) => ({ ...r }))()` stays a call. Proofs that
-      `[o.x, { ...o }.x]` and two spreads of one object are refused as JSON
-      where `o.x` is a container and written where it is not, and that the
-      call above is not inlined.
+      [`fjs/compiler/ast`](../../fjs/compiler/ast/module.f.mjs): every
+      spread operand is reached where the spread stands, in the anchoring
+      and capture sweeps, as an array's spread operand is; and `readsRest`,
+      which `isInlinedCall` asks, sees a spread's operand, so
+      `((...r) => ({ ...r }))()` stays a call. Proofs that
+      `[o.x, { ...o }.x]` and two spreads of one object write `o.x` where
+      each reference reaches it, as JSON, and keep it one node as DataJS,
+      and that the call above is not inlined.
 - [ ] `.js` writer: spell a spread member, `...x`, in
       [`fjs/compiler/serializer`](../../fjs/compiler/serializer/module.f.mjs),
       which refuses it today (`a spread`), and read back to the same graph.

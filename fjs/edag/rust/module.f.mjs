@@ -161,6 +161,10 @@ export const op2Rust = {
     // operator returns.
     '===': (a, b) => cat([unstable('strict_eq'), `(${a}, ${b})`]),
     '!==': (a, b) => cat([unstable('strict_ne'), `(${a}, ${b})`]),
+    // `Object.is` is `SameValue`, which no Rust operator spells; like `===`
+    // its `Any::same_value` answers a `bool`, and `object_is` lifts it into
+    // the `Result` every operator returns.
+    is: (a, b) => cat([unstable('object_is'), `(${a}, ${b})`]),
 }
 
 /**

@@ -18,23 +18,21 @@ running it, and neither can ask the graph directly.
   node once per scope and reuses the value, so that `[s, s]` holds one array
   as JavaScript's does; [`amnesia`](../amnesia/README.md) deliberately does
   not, and evaluates it once per edge.
-- The `fjs compile` value outputs decide sharing on the AST today, by a
-  sweep in [`fjs/compiler/ast`](../../compiler/ast/module.f.mjs) that follows references
-  and access keys, because the value path has no graph to read.
 
 Sharing in an EDAG is node identity, which a walk can only see with a memo
 of its own — `validate` re-walks a shared subgraph once per edge for that
 reason — and the language forbids the mutable set a naive walk would keep.
-So the decision is made ad hoc: the AST sweep follows routes, and an
-executor would build a notion of its own. Node identity is also not the
-whole of sharing: `[cfg.a, cfg.a]` is two access nodes and one value, which
-the AST sweep knows by its keys and an identity count does not.
+So the decision is made ad hoc: the writer walks the graph, and an executor
+would build a notion of its own. Node identity is also not the whole of
+sharing: `[cfg.a, cfg.a]` is two access nodes and one value, which a walk
+over the value sees and an identity count over the graph does not.
 
-The DataJS writer is not a third consumer. Its question — is this container
-reached twice — is about the value, not the graph: `[cfg.x, cfg.x]` must be
-refused as JSON when `x` is `[]` and written when `x` is `1`, and no static
-table can tell the two apart. The serializer already answers it by walking
-the value by identity, and keeps doing so.
+The value outputs are not a third consumer. The DataJS writer's question —
+is this container reached twice — is about the value, not the graph:
+`[cfg.x, cfg.x]` is hoisted when `x` is `[]` and written twice when `x` is
+`1`, and no static table can tell the two apart. The serializer answers it by
+walking the value by identity, and keeps doing so; JSON, a tree, asks no
+question and writes the node where each reference reaches it.
 
 ### Proposal
 
@@ -173,15 +171,15 @@ Two consumers then follow, and share amnesia's operations:
   occurrences merge again.
 - **The value outputs**, `.data.js` and `.json`, read no table. The memo
   executor returns a value whose sharing is JavaScript's own identity,
-  `[s, s]` one array, and the DataJS serializer hoists and refuses JSON by
-  walking that value, as it does today; the `Denotation`'s value and sharing
-  are then the executed value's, which is what
-  [`interpret-edag.md`](../../compiler/todo/interpret-edag.md) preserves.
+  `[s, s]` one array, and the DataJS serializer hoists by walking that
+  value, as it does today, while JSON writes the node where each reference
+  reaches it; the `Denotation`'s value is then the executed value, which is
+  what [`interpret-edag.md`](../../compiler/todo/interpret-edag.md) preserves.
 
-The table replaces the sharing sweep in `fjs/compiler/ast` — its route-following
-becomes the merge step here for the FunctionalScript writer, and the value
-it predicted becomes the executor's real value for the value outputs; the
-value outputs keep the sweep until they run the EDAG.
+The table is the one static answer: the route-following that the sharing
+sweep in `fjs/compiler/ast` once did for the value outputs is the merge step
+here, for the FunctionalScript writer alone, since the value outputs now
+read sharing off the value itself.
 
 ### Tasks
 
@@ -205,7 +203,7 @@ value outputs keep the sweep until they run the EDAG.
       from `shared`. The value outputs running the EDAG through `fjs/edag/memo`
       is the integration task of
       [`interpret-edag.md`](../../compiler/todo/interpret-edag.md), which carries the
-      `[cfg.x, cfg.x]` JSON-refusal pin.
+      `[cfg.x, cfg.x]` pin.
 - [x] `tsc`, `fjs test`, `npm run cov` at 100%.
 
 ### Related

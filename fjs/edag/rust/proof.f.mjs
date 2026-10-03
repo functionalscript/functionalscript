@@ -993,7 +993,7 @@ export const proof = {
     },
     throw: {
         /** An operation the printer has no `nanvm-lib` spelling for. */
-        unknownOperation: () => printed(['is', 1, 2]),
+        unknownOperation: () => printed(/** @type {Exp} */ (/** @type {unknown} */ (['==', 1, 2]))),
         /**
          * A `Number(...)` cast index: it names a run-time coercion, not a
          * literal key `indexExpr` can spell directly, and this printer has no
