@@ -72,6 +72,7 @@ mod tests {
     fn small() {
         assert_eq!(pos(&[]), 0.0);
         assert!(pos(&[]).is_sign_positive());
+        assert!(n(Sign::Negative, &[]).is_sign_positive());
         assert_eq!(pos(&[1]), 1.0);
         assert_eq!(n(Sign::Negative, &[1]), -1.0);
         assert_eq!(pos(&[u64::MAX]), u64::MAX as f64);

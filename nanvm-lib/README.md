@@ -70,6 +70,23 @@ Operators on [`Any<A>`](src/vm/any/mod.rs) (the top-level VM value type).
 | `in`       | Property check      | [ ]      | |
 | `instanceof` | Instance check    | [ ]      | |
 
+### Number-cast scope
+
+`Any::number` implements `Number(value)`, including bigint rounding and
+overflow. `Any::unary_plus` and the internal `ToNumber` coercion remain
+separate: both reject bigints.
+
+The Rust printer accepts `['Number', exp]` both as a standalone operation and
+as a computed index in direct EDAG input, for example
+`['.', receiver, ['Number', key]]`. It evaluates the receiver before the key;
+inside `?.` and a `|.` continuation, the cast and its operand stay inside the
+guarded key thunk. These paths are covered by `computedIndex` in
+[`fjs/edag/rust/proof.f.mjs`](../fjs/edag/rust/proof.f.mjs).
+
+This is VM and EDAG-printer support. The source parser still does not admit
+`Number(x)` or `a[Number(k)]`; source admission remains tracked by
+[`spec/todo/2330-property-accessor.md`](../spec/todo/2330-property-accessor.md).
+
 ## Coercions
 
 | Coercion       | Status | Location |

@@ -948,7 +948,8 @@ const printer = nested => shared => root => {
      * in `nanvm-lib`, so a step the README does not allow does not compile;
      * this printer only spells, and refuses a tag that is none of the four
      * rather than read it as one of them. A step's key is a thunk over a
-     * literal, {@link keyThunk}, and its arguments a {@link lazyOperand}:
+     * literal or `Number(…)` cast, {@link keyThunk}, and its arguments a
+     * {@link lazyOperand}:
      * both are inside the region, or after an access that may throw first.
      *
      * @type {(property: boolean) => (k: readonly any[] | undefined) => Result<Printed<string>, readonly unknown[]>}
@@ -967,8 +968,8 @@ const printer = nested => shared => root => {
      * A `.` node's index as the key `Any::dot` takes: a literal's
      * {@link literalIndex}, or the `Number(…)` cast of a sub-expression,
      * `Any::number(k)?`, which is an operand like any other, evaluated after
-     * the receiver and before the access, and throws where JavaScript's
-     * `ToNumber` of the key does.
+     * the receiver and before the access, with JavaScript's `Number(k)`
+     * coercion (including bigint conversion).
      *
      * @type {(index: Index) => Result<Printed<string>, readonly unknown[]>}
      */

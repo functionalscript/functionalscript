@@ -28,10 +28,10 @@ let shift = true_bits - 53;
 The relational copy has no subnormal branch; it `debug_assert!`s the
 input is never one. Both decoders also raise two to a power as a
 `BigInt` shift, each in its own closure. And the `BigInt → Number`
-conversion that
-[replace-unary-plus-with-number](./replace-unary-plus-with-number.md)
-needs is exactly `parse_non_decimal`'s rounding step over bigint words,
-so as things stand it would be a fourth hand-written copy.
+conversion in [`BigInt::to_number`](../src/vm/bigint/to_f64.rs) rounds
+bigint words by converting the top word with a sticky bit and scaling by a
+power of two. It is another caller to consider when sharing the rounding
+logic with `parse_non_decimal`.
 
 ### Proposal
 
@@ -42,7 +42,7 @@ One module owns the layout, `vm/number/binary64.rs` or beside `Number`:
   NaN and the infinities.
 - one compose in the other direction, round-to-nearest-even from a
   significand of any width plus a sticky bit, which `parse_non_decimal`
-  and the coming `BigInt → Number` both call.
+  and `BigInt::to_number` both call.
 - `BigInt::from_integral(Number)` in `bigint/from.rs`, on `decompose`,
   replacing `whole_f64_to_bigint`; and `BigInt::pow2(e)` for the shift
   both decoders write.
@@ -59,7 +59,7 @@ One module owns the layout, `vm/number/binary64.rs` or beside `Number`:
 
 ### Related
 
-- [replace-unary-plus-with-number](./replace-unary-plus-with-number.md)
-  — its `BigInt → Number` is the compose's second caller.
+- [`BigInt::to_number`](../src/vm/bigint/to_f64.rs)
+  — bigint conversion is a potential caller of compose.
 - [string-numeric-literal-scanner](./string-numeric-literal-scanner.md)
   — the text scan in front of `parse_non_decimal`; independent.
