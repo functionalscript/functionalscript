@@ -13,7 +13,7 @@ import { fromCodePointList } from '../../text/utf8/module.f.mjs'
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
-import { tryParse, tryParseBytes, trySerialize, tryStringify } from './module.f.mjs'
+import { tryJsonSerialize, tryJsonStringify, tryParse, tryParseBytes, trySerialize, tryStringify } from './module.f.mjs'
 import { _graphOf, demo, examples } from './demo.f.mjs'
 import { _crossings } from '../../website/demo/graph/module.f.mjs'
 import { difference } from './vectors/module.f.mjs'
@@ -33,25 +33,38 @@ const graph = unwrap(tryParse(document))
 const occurrences = (text, needle) => text.split(needle).length - 1
 
 export const proof = {
-    // The surface holds the four signatures the design fixed, and the
+    // The surface holds the six signatures the design fixed, and the
     // deeper proofs are each entry point's own: `parser/proof.f.mjs` for the
-    // two readers, `serializer/proof.f.mjs` for the two writers, and the
-    // conformance corpus for all four. What is proved here is that the four
-    // compose as one codec.
+    // two readers, `serializer/proof.f.mjs` for the four writers, and the
+    // conformance corpus for the DataJS four. What is proved here is that
+    // they compose as one codec, starting with the round trip: writing what
+    // was read gives the document back, since normalized form is one
+    // spelling per value and the reader keeps the sharing the writer hoists.
+    // The typedefs come before the assertion because a JSDoc typedef binds
+    // to the statement after it, and one ending a block checks nothing.
     signatures: () => {
         /** @typedef {Assert<Equal<typeof tryParse, (text: string) => Result<Unknown, string>>>} _TryParse */
         /** @typedef {Assert<Equal<typeof tryParseBytes, (bytes: List<U8>) => Result<Unknown, string>>>} _TryParseBytes */
         /** @typedef {Assert<Equal<typeof trySerialize, (value: Unknown) => Result<List<string>, string>>>} _TrySerialize */
         /** @typedef {Assert<Equal<typeof tryStringify, (value: Unknown) => Result<string, string>>>} _TryStringify */
+        /** @typedef {Assert<Equal<typeof tryJsonSerialize, (value: Unknown) => Result<List<string>, string>>>} _TryJsonSerialize */
+        /** @typedef {Assert<Equal<typeof tryJsonStringify, (value: Unknown) => Result<string, string>>>} _TryJsonStringify */
+        assertEq(unwrap(tryStringify(graph)), document)
     },
-    // Writing what was read gives the document back: normalized form is one
-    // spelling per value, and the reader keeps the sharing the writer hoists.
-    roundTrip: () => assertEq(unwrap(tryStringify(graph)), document),
     // The byte path reads the same graph from the document's UTF-8 bytes,
     // the four-byte scalar in `"c"` crossing the bridge back to a pair.
     bytes: () => assertEq(difference(graph)(unwrap(tryParseBytes(utf8(document)))), null),
     // The chunked writer and the string writer are one writer.
     chunks: () => assertEq(concat(unwrap(trySerialize(graph))), document),
+    // The JSON writers unfold the sharing the reader keeps, and refuse the
+    // leaves JSON cannot carry — `document` holds one, so a document of
+    // JSON's own leaves shows the tree.
+    json: () => {
+        const shared = unwrap(tryParse('const $0=[1];export default {"a":$0,"b":$0};'))
+        assertEq(unwrap(tryJsonStringify(shared)), '{"a":[1],"b":[1]}')
+        assertEq(concat(unwrap(tryJsonSerialize(shared))), '{"a":[1],"b":[1]}')
+        assertEq(tryJsonStringify(graph)[1], 'no JSON spelling for 1n')
+    },
     // Each side refuses rather than approximating.
     refused: {
         text: () => assertEq(tryParse('export default [1,]')[0], 'error'),
@@ -99,11 +112,13 @@ export const proof = {
             // An index sits in a port of the array's own box, not on the
             // line: the header is 26px and the row under it 20px, so the
             // label is centred at y=46 and the edge leaves the row's right
-            // end at (60,46).
+            // end at (60,46). The document is a tree, so the inner array is
+            // centred on the outer one, and the edge ends level with its
+            // label, at (100,33).
             edgeLabelPosition: () => {
                 const html = htmlToString(demo.view('export default [[]];'))
                 assert(html.includes('<text x="35" y="46" text-anchor="middle" data-graph-edge-label="">0<'), html)
-                assert(html.includes('d="M60,46 L100,23"'), html)
+                assert(html.includes('d="M60,46 L100,33"'), html)
             },
             // A leaf inside a container is no node of its own: its value
             // sits in the port's row, in a cell right of the index, and no
@@ -209,6 +224,16 @@ export const proof = {
         examples: {
             // The demo opens on the first, which is its overview.
             init: () => assertEq(demo.init, examples[0][1]),
+            // A tree draws each container centred beside the ones it holds:
+            // the object under "d", 66px tall, sits halfway down the span
+            // of its two arrays, 210 to 336, at (210 + 336 - 66) / 2 = 240.
+            nestedTree: () => {
+                const source = assertNotNullish(examples.find(([name]) => name === 'Nested tree'))[1]
+                const html = htmlToString(demo.view(source))
+                assert(html.includes('<rect x="280" y="210" width="50" height="66" rx="4" data-graph-node=""'), html)
+                assert(html.includes('<rect x="280" y="290" width="50" height="46" rx="4" data-graph-node=""'), html)
+                assert(html.includes('<rect x="190" y="240" width="50" height="66" rx="4" data-graph-node=""'), html)
+            },
             // Every example draws, except the one that is there to show an
             // error.
             draw: () => {

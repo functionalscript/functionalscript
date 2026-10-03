@@ -11,7 +11,7 @@ import { invert, unwrap } from '../../../types/result/module.f.mjs'
 import { concat } from '../../../types/string/module.f.mjs'
 import { tryParse } from '../parser/module.f.mjs'
 import { difference } from '../vectors/module.f.mjs'
-import { _elementNames, _link, _memberValue, trySerialize, tryStringify } from './module.f.mjs'
+import { _elementNames, _link, _memberValue, trySerialize, tryJsonStringify, tryStringify } from './module.f.mjs'
 
 /**
  * A value as a host would hand it: the writer's parameter is the data
@@ -59,6 +59,20 @@ const denotes = value => {
 
 /** An empty array a `const` may hold, which `[]` alone types as an evolving array. @type {Unknown} */
 const emptyArray = /** @type {readonly Unknown[]} */ ([])
+
+/** The JSON document a value is written as. @type {(value: unknown) => string} */
+const json = value => unwrap(tryJsonStringify(asHanded(value)))
+
+/** Why a value has no JSON document. @type {(value: unknown) => string} */
+const jsonRefused = value => unwrap(invert(tryJsonStringify(asHanded(value))))
+
+/** A value `levels` doublings above `leaf`: two to the `levels` references to `leaf` in the tree, and `levels + 1` nodes in the graph. @type {(leaf: Unknown, levels: number) => Unknown} */
+const doubled = (leaf, levels) => {
+    /** @type {Unknown} */
+    let value = [leaf]
+    for (let i = 0; i < levels; i++) { value = [value, value] }
+    return value
+}
 
 export const proof = {
     // Every leaf of the model, and `undefined` as a leaf rather than as an
@@ -162,6 +176,56 @@ export const proof = {
         objects: () => {
             const shared = { a: 1 }
             assertEq(text({ x: shared, y: shared }), 'const $0={"a":1};export default {"x":$0,"y":$0};')
+        },
+    },
+    // JSON: the tree the graph unfolds to, under JSON's leaf rule and key
+    // spelling. A node two references reach is written where each reaches
+    // it, and `__proto__` is a plain key where a DataJS document has to
+    // compute it.
+    json: {
+        shared: () => {
+            const c = emptyArray
+            const p = [c]
+            assertEq(json([p, p]), '[[[]],[[]]]')
+            const shared = { a: 1 }
+            assertEq(json({ x: shared, y: shared }), '{"x":{"a":1},"y":{"a":1}}')
+            assertEq(json([[], []]), '[[],[]]')
+        },
+        // the leaves JSON spells, `-0` among them, and the member order the
+        // value carries
+        leaves: () => {
+            assertEq(json(1), '1')
+            assertEq(json(null), 'null')
+            assertEq(json([true, 'x', -0]), '[true,"x",-0]')
+            assertEq(json({ b: -0, a: [true, null, 'x'] }), '{"b":-0,"a":[true,null,"x"]}')
+            assertEq(json({ ['__proto__']: 1 }), '{"__proto__":1}')
+        },
+        // a leaf JSON cannot spell, refused by name wherever it sits — at the
+        // root, in an array, in a member — and the first in the reader's
+        // order where two are refused, a leaf before a container before the
+        // container's own
+        refused: () => {
+            assertEq(jsonRefused(undefined), 'no JSON spelling for undefined')
+            assertEq(jsonRefused([1, undefined]), 'no JSON spelling for undefined')
+            assertEq(jsonRefused({ a: undefined }), 'no JSON spelling for undefined')
+            assertEq(jsonRefused(42n), 'no JSON spelling for 42n')
+            assertEq(jsonRefused([NaN]), 'no JSON spelling for NaN')
+            assertEq(jsonRefused({ a: -Infinity }), 'no JSON spelling for -Infinity')
+            assertEq(jsonRefused([undefined, [1n]]), 'no JSON spelling for undefined')
+            assertEq(jsonRefused([[1n], undefined]), 'no JSON spelling for 1n')
+            assertEq(jsonRefused({ a: { b: 1n }, c: undefined }), 'no JSON spelling for 1n')
+            // and what the data model refuses, as `trySerialize` refuses it
+            assertEq(jsonRefused(() => 1), 'a function is not a DataJS value')
+        },
+        // The refusal is found over the graph, not the tree it unfolds to:
+        // forty doublings over `[undefined]` are two to the fortieth
+        // references to the leaf and forty-one nodes, and twenty-two valid
+        // doublings before a refused sibling are not unfolded first. Neither
+        // would return within the proof's lifetime over the tree.
+        refusedOverTheGraph: () => {
+            assertEq(jsonRefused(doubled(undefined, 40)), 'no JSON spelling for undefined')
+            assertEq(jsonRefused([doubled(1, 22), undefined]), 'no JSON spelling for undefined')
+            assertEq(jsonRefused({ a: doubled(1, 22), b: 2n, c: undefined }), 'no JSON spelling for 2n')
         },
     },
     // The document denotes the graph it was written from, sharing included.

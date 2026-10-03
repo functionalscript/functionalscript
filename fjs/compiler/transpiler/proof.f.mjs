@@ -80,7 +80,6 @@ export const proof = {
             const result = unwrap(run(root)('main'))
             const pair = _own(result.value, 'default')
             assert(pair instanceof Array && pair[0] === pair[1])
-            assert(result.shared)
         },
         sharing: () => {
             // Different selected roots can still contain the same descendant.
@@ -91,18 +90,23 @@ export const proof = {
             const overlapResult = unwrap(run(overlap)('main'))
             const descendants = _own(overlapResult.value, 'default')
             assert(descendants instanceof Array && descendants[0] === descendants[1])
-            assert(overlapResult.shared)
+            // and JSON, a tree, writes the descendant where each root reaches it
             const [state, code] = virtual({ ...emptyState, root: overlap })(compile(nodeProgramOptions(['main', 'output.json'])))
-            assertEq(exitCode(code), 1)
-            assertEq(state.root['output.json'], undefined)
-            // An unused leaf import must not overwrite the reached export's sharing facts.
+            assertEq(exitCode(code), 0, state.stderr)
+            const written = state.root['output.json']
+            assert(Array.isArray(written) && written.length === 1)
+            assertEq(utf8ToString(written[0]), '[[],[]]')
+            // An unused leaf import does not change the reached export's value.
             const dep = [utf8('const x=[]; export const shared=[x,x]; export const leaf=1;')]
             for (const source of [
                 'import {shared,leaf} from "./dep"; export default shared;',
                 'import {leaf,shared} from "./dep"; export default shared;',
-            ]) { assert(unwrap(run({ main: [utf8(source)], dep })('main')).shared) }
+            ]) {
+                const shared = _own(unwrap(run({ main: [utf8(source)], dep })('main')).value, 'default')
+                assert(shared instanceof Array && shared[0] === shared[1])
+            }
             const selectedLeaf = 'import {shared,leaf} from "./dep"; export default leaf;'
-            assertEq(unwrap(run({ main: [utf8(selectedLeaf)], dep })('main')).shared, false)
+            assertEq(_own(unwrap(run({ main: [utf8(selectedLeaf)], dep })('main')).value, 'default'), 1)
             const diamond = {
                 main: [utf8('import {a} from "./left"; import {b} from "./right"; export default [a,b];')],
                 left: [utf8('import {x} from "./dep"; export const a=x;')],
@@ -112,7 +116,6 @@ export const proof = {
             const result = unwrap(run(diamond)('main'))
             const pair = _own(result.value, 'default')
             assert(pair instanceof Array && pair[0] === pair[1])
-            assert(result.shared)
         },
         refusals: () => {
             for (const source of [
@@ -345,7 +348,6 @@ export const proof = {
             assert(selected instanceof Array)
             const [a, b, c, d] = selected
             assert(a === b && b === c && c !== d)
-            assert(value.shared)
             const edag = _defaultExport(unwrap(virtual({ ...emptyState, root })(resolve('main.f.js'))[1]))
             assert(edag instanceof Array && edag[0] === '[]')
             const [ea, eb, ec, ed] = edag[1]

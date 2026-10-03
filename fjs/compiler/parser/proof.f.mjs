@@ -13,6 +13,9 @@ import { _stringifyTree } from '../module.f.mjs'
 import { stringify } from '../../media/json/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { _astOf, demo } from './demo.f.mjs'
+import { examples } from '../examples/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
 
 /**
  * The tokens of a text, the parser's input. Exported, with
@@ -1519,5 +1522,25 @@ export const proof = {
                 `export default [${Array.from({ length: 20000 }, (_, i) => i).join(',')}];`))
             assert(tag === 'ok', tag)
         },
-    ]
+    ],
+    /**
+     * **Every shared example is proved to behave as its name says.** The two
+     * operators the parser does not take yet, and the unfinished module, are
+     * the refusals; everything else, an import included, parses.
+     */
+    demo: {
+        examples: () => {
+            for (const [name, source] of examples) {
+                assertEq(_astOf(source)[0], ['Logical not', 'Hex escape', 'typeof', 'Parse error'].includes(name) ? 'error' : 'ok')
+            }
+            assertEq(_astOf('export default 1;')[1], 'export default [[],[["object",[[":","default",1]]]]];')
+            assertEq(_astOf('export default !1;')[1], 'unexpected token')
+        },
+        view: () => {
+            const shown = htmlToString(demo.view(demo.init))
+            assert(shown.includes('<pre>'), shown)
+            const refused = htmlToString(demo.view('export default {bad'))
+            assert(refused.includes('Refused: '), refused)
+        },
+    },
 }

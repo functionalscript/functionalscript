@@ -98,34 +98,30 @@ export const proof = {
     },
     graphOf: {
         // Inserting 0 in front builds one cell and shares the three after
-        // it, which are drawn once. Both roots have an arrow, the old one
-        // marked replaced — and so is nothing else, since the old root is
-        // still the new root's next.
+        // it. Only the new list is drawn, with one arrow, into its root.
         sharesTheTail: () => {
             const after = insert(0)(ofThree)
             const g = graphOf(chain('depth'))({ before: ofThree, after })
             assertEq(JSON.stringify(g.nodes.map(n => [n.kind, n.label, n.rank])),
                 '[["new","",0],["shared","first",1],["shared","",2],["shared","",3]]')
-            assertEq(JSON.stringify(g.entries), '[{"to":1,"kind":"replaced"},{"to":0}]')
+            assertEq(JSON.stringify(g.entries), '[{"to":0}]')
             assertEq(JSON.stringify(census(chain('depth'))({ before: ofThree, after })), '{"built":1,"shared":3,"replaced":0}')
         },
-        // Inserting 4 at the end copies every cell: the old ones are
-        // replaced, their edges marked so, and a replaced cell sorts above
-        // the new one with its key.
+        // Inserting 4 at the end copies every cell. The three old cells are
+        // counted as replaced, but not drawn.
         copiesThePath: () => {
             const after = insert(4)(ofThree)
             const g = graphOf(chain('depth'))({ before: ofThree, after })
-            assertEq(JSON.stringify(g.nodes.map(n => n.kind)), '["replaced","new","replaced","new","replaced","new","new"]')
-            assertEq(g.edges.filter(e => e.kind === 'replaced').length, 2)
-            assertEq(g.edges.filter(e => typeof e.to !== 'number').length, 7)
+            assertEq(JSON.stringify(g.nodes.map(n => n.kind)), '["new","new","new","new"]')
+            assertEq(g.edges.filter(e => typeof e.to !== 'number').length, 4)
+            assertEq(JSON.stringify(census(chain('depth'))({ before: ofThree, after })), '{"built":4,"shared":0,"replaced":3}')
         },
-        // `leaves` puts every leaf in the last column: the old list is one
-        // cell shorter, so its root starts a column further right.
+        // `leaves` puts every leaf in the last column: the root of a list of
+        // four is three columns left of its last cell.
         leaves: () => {
             const after = insert(4)(ofThree)
             const g = graphOf(chain('leaves'))({ before: ofThree, after })
-            const ranks = g.nodes.map(n => n.rank)
-            assertEq(JSON.stringify(ranks), '[1,0,2,1,3,2,3]')
+            assertEq(JSON.stringify(g.nodes.map(n => n.rank)), '[0,1,2,3]')
         },
         // A node reached by two paths in one version is drawn once, with
         // an arrow from each path, and counted once.
@@ -151,17 +147,19 @@ export const proof = {
             assertEq(g.edges.filter(e => e.to === 3).length, 2)
             assertEq(JSON.stringify(census(diamond)({ before: null, after: 'A' })), '{"built":4,"shared":0,"replaced":0}')
         },
-        // One root for both versions has one arrow; an empty version has
-        // none.
+        // The new version's root has the one arrow; an empty new version
+        // has no node and no arrow, whatever the old one held.
         roots: () => {
             assertEq(JSON.stringify(graphOf(chain('depth'))({ before: ofThree, after: ofThree }).entries), '[{"to":0}]')
             assertEq(JSON.stringify(graphOf(chain('depth'))({ before: null, after: ofThree }).entries), '[{"to":0}]')
-            assertEq(JSON.stringify(graphOf(chain('depth'))({ before: ofThree, after: null }).entries), '[{"to":0,"kind":"replaced"}]')
+            const gone = graphOf(chain('depth'))({ before: ofThree, after: null })
+            assertEq(JSON.stringify([gone.nodes, gone.entries]), '[[],[]]')
+            assertEq(JSON.stringify(census(chain('depth'))({ before: ofThree, after: null })), '{"built":0,"shared":0,"replaced":3}')
         },
     },
     stepLine: {
         counts: () => assertEq(stepLine('list')(String)({ op: 'insert', key: 4 })({ built: 1, shared: 3, replaced: 0 }),
-            'Last step, insert 4: 1 new (blue), 3 shared with the list before, 0 replaced (amber).'),
+            'Last step, insert 4: 1 new (blue), 3 shared with the list before, 0 only in the list before.'),
         // A step that built nothing and left nothing behind says why.
         alreadyThere: () => assertEq(stepLine('list')(String)({ op: 'insert', key: 2 })({ built: 0, shared: 3, replaced: 0 }),
             'Last step, insert 2: nothing changed, the key is already in the list.'),
@@ -206,21 +204,20 @@ export const proof = {
             // The next good press clears it.
             assertEq(press('insert')({ ...s, key: '101' }).error, null)
         },
-        // An empty version has no node: it is said instead, and two of them
-        // draw no graph at all.
+        // An empty new version has no node: it is said instead, and no
+        // graph is drawn. The old version is never drawn, so its being
+        // empty is not said.
         empty: () => {
             const loaded = html(load('Empty'))
             assertEq(count(loaded)('<svg'), 0)
-            assert(loaded.includes('Before is the empty list.'), loaded)
-            assert(loaded.includes('After is the empty list.'), loaded)
+            assert(loaded.includes('The list is empty.'), loaded)
             const one = press('insert')(load('Empty'))
             const h = html(one)
             assertEq(count(h)('<svg'), 1)
-            assert(h.includes('Before is the empty list.'), h)
-            assert(!h.includes('After is the empty list.'), h)
+            assert(!h.includes('empty'), h)
             const gone = html(press('remove')(one))
-            assert(gone.includes('After is the empty list.'), gone)
-            assert(!gone.includes('Before is the empty list.'), gone)
+            assertEq(count(gone)('<svg'), 0)
+            assert(gone.includes('The list is empty.'), gone)
         },
         // Typing changes the field only; a button applies it; picking a
         // preset loads it; anything else is ignored.
