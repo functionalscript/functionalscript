@@ -1,6 +1,6 @@
 /**
  * The RTTI schemas of the operations a native effect runner implements: the
- * file and console operations the compiled CLI performs. A schema is the
+ * compiler's file and console I/O, plus `read` for console input. A schema is the
  * specification of record for an operation's request and result; the
  * declarations in [`../node/types.ts`](../node/types.ts) are pinned to it in
  * [`./types.ts`](./types.ts), and a generated trait for `nanvm-effects-node`

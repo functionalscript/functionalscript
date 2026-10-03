@@ -73,8 +73,8 @@ in `mkdir(path, undefined)` and `exec(command, undefined)`.
 
 | Class | Operations | Why |
 | --- | --- | --- |
-| **Generated** (data in, data out), compiled CLI | `readFile`, `writeFile`, `writeBytes`, `mkdir`, `readdir`, `resolveFileModule`, `rm`, `write` (`stdout`/`stderr`), `read` (`stdin`) | every parameter and result is a `string`, `number`, `boolean`, `null`, `Vec`, a struct of those (`Dirent`, `FileModule`, `MakeDirectoryOptions`, `ReaddirOptions`) or an array of them. `compile`'s `_CompileOp` is the first eight plus `all`; `read` is the console input this todo's subset names. |
-| **Generated**, outside the compiled CLI | `rmdir`, `rename`, `readBytes`, `readWhole`, `access`, `stat`, `createExclusive`, `writeExclusive`, `exec`, `inflate`, `now`, `randomInt` | the same shapes (`readWhole` and `writeExclusive` carry `readonly Vec[]`). Generated with the first group only when something the CLI or a proof fixture runs needs them; the stub is cheap to extend, an unimplemented trait method is not. |
+| **Generated** (data in, data out): compiler I/O plus console input | `readFile`, `writeFile`, `writeBytes`, `mkdir`, `readdir`, `resolveFileModule`, `rm`, `write` (`stdout`/`stderr`), `read` (`stdin`) | every parameter and result is a `string`, `number`, `boolean`, `null`, `Vec`, a struct of those (`Dirent`, `FileModule`, `MakeDirectoryOptions`, `ReaddirOptions`) or an array of them. [`_CompileOp`](../fjs/compiler/types.ts) uses this row except `read`, plus handwritten `all`. This todo selects `read` separately for console input; `compile` does not use it. |
+| **Generated**, outside the initial subset | `rmdir`, `rename`, `readBytes`, `readWhole`, `access`, `stat`, `createExclusive`, `writeExclusive`, `exec`, `inflate`, `now`, `randomInt` | the same shapes (`readWhole` and `writeExclusive` carry `readonly Vec[]`). Generated with the first group only when something the CLI or a proof fixture runs needs them; the stub is cheap to extend, an unimplemented trait method is not. |
 | **Handwritten**: callbacks or generic values | `sandbox`, `catch` | a thunk in, an arbitrary VM value or throw out, as [Schema boundary](#schema-boundary) says. `catch` has the same shape as `sandbox` without the duration and goes with it. |
 | **Handwritten**: effects or arbitrary values as data | `all`, `memCreate`, `memRead`, `memWrite` | `all` takes effects, which are thunks and `Do` nodes; the memory operations store and return any value (`<T>`), functions included. `unknown` would exclude exactly the values they exist to hold. |
 | **Handwritten**: modules | `import` | `Module` is `StringMap<unknown>`, the exports of an evaluated module, functions among them. This workflow does not use it: the FJS loader replaces it. |
@@ -83,8 +83,9 @@ in `mkdir(path, undefined)` and `exec(command, undefined)`.
 
 What follows for the tasks below:
 
-- The first generated trait is nine methods, the console and file operations the subset above names. Extending the
-  second group is one schema entry each; nothing about the generation changes.
+- The first generated trait covers the compiler I/O operations and the separately
+  selected console input `read` named above. Add schemas for the other
+  data-shaped operations as consumers need them.
 - The generation task must choose the Rust spelling of three shapes: the
   `Vec` nominal (RTTI checks `bigint`, while the native type must preserve
   bit-vector semantics), the `Result` union (already expressible with RTTI
@@ -98,9 +99,9 @@ What follows for the tasks below:
 ### Tasks
 
 - [x] Audit the supported subset for RTTI representability ([Audit](#audit)):
-      nine generated operations for the compiled CLI, six handwritten, the
-      rest deferred or outside the workflow.
-- [x] Schemas for the nine operations of the compiled CLI
+      name the generated and handwritten operations, distinguish compiler I/O
+      from the selected console input, and record what remains deferred.
+- [x] Schemas for the named compiler I/O and console input operations
       ([`fjs/effects/schema`](../fjs/effects/schema/module.f.mjs)), with each
       hand-written declaration in `fjs/effects/node/types.ts` pinned to the
       type its schema derives ([`types.ts`](../fjs/effects/schema/types.ts)).
