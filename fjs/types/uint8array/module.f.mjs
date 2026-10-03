@@ -68,10 +68,12 @@ export const toVec = input => listToVec([input])
  */
 export const fromVec = input => {
     const bits = length(input)
-    const pad = (8n - bits % 8n) % 8n
-    // the leading `1` keeps the digits of a vector that starts in zeros
-    const hex = ((1n << (bits + pad)) | (msb.front(bits)(input) << pad)).toString(16)
-    return Uint8Array.from({ length: (hex.length - 1) >> 1 }, (_, i) => Number(`0x${hex.substring(1 + (i << 1), 3 + (i << 1))}`))
+    const bytes = Number((bits + 7n) >> 3n)
+    // padded to the byte count rather than marked with a leading `1`: on a
+    // vector of `maxLength` bits the mark would be one bit past the bigint
+    // Bun can build
+    const hex = (msb.front(bits)(input) << ((8n - bits % 8n) % 8n)).toString(16).padStart(bytes << 1, '0')
+    return Uint8Array.from({ length: bytes }, (_, i) => Number(`0x${hex.substring(i << 1, (i << 1) + 2)}`))
 }
 
 /** @type {(input: Uint8Array) => string} */
