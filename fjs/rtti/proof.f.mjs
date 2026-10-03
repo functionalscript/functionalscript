@@ -125,6 +125,13 @@ const demoProof = {
         // An example no one has is refused, not answered with a plausible page.
         throw: () => step({ kind: 'input', name: 'example', value: 'nope' })(demo.init),
     },
+    // The module comment and the README count the examples — seven, three
+    // single and four pairs — so a change to the list fails here and points
+    // at the two places that say it.
+    counts: () => {
+        assertEq(examples.length, 7)
+        assertEq(examples.filter(e => e.schemas.length === 2).length, 4)
+    },
     view: {
         // Every example lists in the drop-down, the picked one selected.
         picker: () => {

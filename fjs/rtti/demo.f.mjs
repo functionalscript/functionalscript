@@ -13,11 +13,10 @@
  * back the shared value it was given while `parse` builds a copy per use. The
  * results are written back as DataJS by the same codec.
  *
- * **One schema, or two where the difference is the lesson.** Most examples
- * show a single schema. A few — closed against open, absent against
- * `undefined` — are pairs. Both schemas are shown, each a block with a
- * radio dot, and the reader picks one while the value stays put, so the one
- * thing that changes is the schema. The schemas' own code tells them apart,
+ * **One schema, or two where the difference is the lesson.** Of the seven
+ * examples, three show a single schema and four are pairs. A pair shows both
+ * schemas, each a block with a radio dot, and the reader picks one while the
+ * value stays put, so the one thing that changes is the schema. The schemas' own code tells them apart,
  * so they carry no names.
  *
  * **The graph is the schema as written**, walked by

@@ -39,11 +39,12 @@ unlike the `types/*` modules that do reach outside (`bigint`, `bit_vec`,
 - `data/module.f.mjs` — the serializable data form: `toData(schema)` converts a
   thunk-form schema into a function-free, canonical representation with `cmp`,
   `equal`, `subset`, and a data-driven `validate` (see `data/README.md`)
-- `demo.f.mjs` — the module page's demo: pick an example schema, type a value
-  as a DataJS document (so `undefined` and bigints can be written), and see
-  what `parse` and `validate` make of the value and the schema drawn as a
-  graph. Most examples show one schema; a few are pairs
-  whose difference is the lesson, flipped between while the value stays put
+- `demo.f.mjs` — the module page's demo: pick an example, see its schema
+  drawn as a graph, type a value as a DataJS document (so `undefined` and
+  bigints can be written), and see what `parse` and `validate` make of it. Of
+  the seven examples, three show one schema and four are pairs whose
+  difference is the lesson; a pair shows both schemas, and the reader picks
+  one while the value stays put
 
 ## The two schema-form readers
 
