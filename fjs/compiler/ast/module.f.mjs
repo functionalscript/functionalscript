@@ -6,7 +6,7 @@
  * @import { Array, Unknown } from '../../media/datajs/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstBody, AstFunction, AstItem, AstMember, AstModule, AstModuleRef, AstNeg, AstObject, AstSpread, AstThrow, BinaryTag, Anchors } from './types.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstBody, AstEntry, AstFunction, AstItem, AstMember, AstModule, AstModuleRef, AstNeg, AstObject, AstSpread, AstThrow, BinaryTag, Anchors } from './types.ts'
  * @import { _Lazy, _OperandStack, _Reach, _RefNode, _RunState } from './private.ts'
  */
 
@@ -85,14 +85,28 @@ const ownProperty = key => base => base === null || base === undefined
 const keyed = key => value => [key, value]
 
 /**
- * Whether an item is a spread, `['...', v]`, rather than a value.
+ * Whether an item or an entry is a spread, `['...', v]`, rather than a
+ * value or a member.
  *
- * @type {(item: AstItem) => item is AstSpread}
+ * @type {(item: AstItem | AstEntry) => item is AstSpread}
  */
 export const isSpread = item => item instanceof Array && item[0] === '...'
 
 /** The node an item evaluates: itself, or a spread's operand. @type {(item: AstItem) => AstConst} */
 export const itemOperand = item => isSpread(item) ? item[1] : item
+
+/** Whether an entry is a member, `[':', name, value]`, rather than a spread. @type {(entry: AstEntry) => entry is AstMember} */
+const isMember = entry => !isSpread(entry)
+
+/**
+ * The members among an object's entries, in order, the spreads left out:
+ * for a reader of the keys an object literal writes, which a spread does
+ * not spell. Exported for the transpiler, which reads the keys of the
+ * result object it built itself, one member per export and no spread.
+ *
+ * @type {(entries: readonly AstEntry[]) => readonly AstMember[]}
+ */
+export const members = entries => entries.filter(isMember)
 
 /** @type {(items: List<readonly Unknown[]>) => Unknown} */
 const arrayOf = items => toArray(items).flat()
@@ -116,11 +130,31 @@ const iterated = value =>
     : typeof value === 'string' ? ok([...value])
     : error(notIterable)
 
-/** @type {(members: List<readonly [string, Unknown]>) => Unknown} */
-const objectOf = members => fromEntries(members)
+/** An object of its entries' properties in order: a repeated key keeps its first position and takes its last value. @type {(properties: readonly (readonly (readonly [string, Unknown])[])[]) => Unknown} */
+const objectOf = properties => fromEntries(properties.flat())
 
-/** A member with its value evaluated, by the evaluator given first. @type {(evaluate: (ast: AstConst) => Result<Unknown, string>) => (member: AstMember) => Result<readonly [string, Unknown], string>} */
-const memberValue = evaluate => ([, key, value]) => mapOk(keyed(key))(evaluate(value))
+/**
+ * The properties a spread's operand contributes, as `CopyDataProperties`
+ * copies them: its own enumerable string-keyed properties in own-property
+ * order — an object's, an array's elements by index, a string's code units —
+ * and none from `null`, `undefined`, a boolean, a number or a `bigint`.
+ * Never a failure, unlike an array's spread: `{ ...null }` is `{}`.
+ *
+ * @type {(value: Unknown) => readonly (readonly [string, Unknown])[]}
+ */
+const copied = value => value === null || value === undefined
+    ? []
+    : Object.entries(/** @type {{ readonly [k in string]?: Unknown }} */ (Object(value)))
+
+/**
+ * The properties an entry adds to an object, by the evaluator given first:
+ * a member's one, or the ones a spread's operand contributes, {@link copied}.
+ *
+ * @type {(evaluate: (ast: AstConst) => Result<Unknown, string>) => (entry: AstEntry) => Result<readonly (readonly [string, Unknown])[], string>}
+ */
+const entryProperties = evaluate => entry => isSpread(entry)
+    ? mapOk(copied)(evaluate(entry[1]))
+    : mapOk(value => [keyed(entry[1])(value)])(evaluate(entry[2]))
 
 /** One value, as the values an item adds to an array. @type {(value: Unknown) => readonly Unknown[]} */
 const single = value => [value]
@@ -240,7 +274,7 @@ const toDjs = state => ast => {
         case 'aref': { return ok(state.args[ast[1]]) }
         case 'cref': { return ok(last(null)(take(ast[1] + 1)(state.consts))) }
         case 'array': { return mapOk(arrayOf)(okList(ast[1].map(itemValues(toDjs(state))))) }
-        case 'object': { return mapOk(objectOf)(okList(ast[1].map(memberValue(toDjs(state))))) }
+        case 'object': { return mapOk(objectOf)(okList(ast[1].map(entryProperties(toDjs(state))))) }
         case '=>':
         case 'arg':
         case 'rest':
@@ -291,13 +325,13 @@ export const run = body => args => mapOk(lastOf)(values(body)(args))
 const bit = i => 1n << BigInt(i)
 
 /**
- * The values of an object's members as written, a shadowed member's among
- * them: what the EDAG constructor takes, since it applies every member and
- * evaluates each.
+ * Every node an object's entries hold, as written: a member's value, a
+ * shadowed member's among them, and a spread's operand — what the EDAG
+ * constructor takes, since it applies every entry and evaluates each.
  *
- * @type {(members: readonly AstMember[]) => readonly AstConst[]}
+ * @type {(entries: readonly AstEntry[]) => readonly AstConst[]}
  */
-const memberValuesWritten = members => members.map(([, , value]) => value)
+const entryOperands = entries => entries.map(entry => isSpread(entry) ? entry[1] : entry[2])
 
 /**
  * The operands an EDAG establishes only when an operator decides to — the
@@ -415,9 +449,9 @@ const refsOfOperand = lazy => ast => {
     switch (ast[0]) {
         // a spread's operand is reached where the spread stands
         case 'array': { return flat(ast[1].map(itemOperand).map(refsOf(lazy))) }
-        // every member written, a shadowed one included: the EDAG's object
-        // constructor applies each
-        case 'object': { return flat(memberValuesWritten(ast[1]).map(refsOf(lazy))) }
+        // every entry written, a shadowed member and a spread's operand
+        // included: the EDAG's object constructor applies each
+        case 'object': { return flat(entryOperands(ast[1]).map(refsOf(lazy))) }
         // a call reaches its callee and every argument, each written where
         // it stands: what the call *returns* is not reachable from the
         // syntax at all, which is why a module holding one has no value —
@@ -482,7 +516,7 @@ const operandReadsRest = ast => {
     switch (ast[0]) {
         case 'rest': { return true }
         case 'array': { return readsRest(ast[1].map(itemOperand)) }
-        case 'object': { return readsRest(memberValuesWritten(ast[1])) }
+        case 'object': { return readsRest(entryOperands(ast[1])) }
         case '()': { return readsRest([ast[1], ...ast[2].map(itemOperand)]) }
         case '.': { return readsRest([ast[1]]) }
         case '=>': { return readsRest(ast[3] ?? []) }

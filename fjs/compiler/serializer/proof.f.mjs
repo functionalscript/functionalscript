@@ -192,12 +192,12 @@ export const proof = {
                 ['{}', [[':', 'if', 1]]],
                 ['{}', [[':', 'NaN', 1]]],
                 ['{}', [[':', 'not-a-name', 1]]],
-                ['{}', [[':', 'a', ['{}', [['...', 1]]]]]],
+                ['{}', [[':', 'a', ['{}', [[':', 1, 2]]]]]],
                 ['{}', [[':', 'a', [',', [1]]]]],
                 ['{}', [[':', 'a', ['+', 1]], [':', 'b', 1]]],
                 ['{}', [[':', 'a', ['.', 1, 'constructor']]]],
                 ['{}', [[':', 'a', ['=>', 0, [7], ['frame', 0]]]]],
-                ['{}', [[':', 'default', ['{}', [['...', 1]]]]]],
+                ['{}', [[':', 'default', ['{}', [[':', 1, 2]]]]]],
             ])) { assertEq(tryModuleSerialize(graph)[0], 'error') }
         },
     },
@@ -219,6 +219,9 @@ export const proof = {
         writes(['[]', [1, ['...', ['[]', [2]]], ['...', 'ab']]], 'export default [1,...[2],..."ab"];')
         writes(['[]', [['...', ['?:', true, ['[]', []], 'a']]]], 'export default [...true?[]:"a"];')
         writes(['[]', [['...', ['=>', 0, [], 1]]]], 'export default [...()=>1];')
+        // an object's spread, the same way, among its properties
+        writes(['{}', [[':', 'a', 1], ['...', ['{}', []]], ['...', 'ab']]], 'export default {"a":1,...{},..."ab"};')
+        writes(['{}', [['...', ['?:', true, ['{}', []], 'a']]]], 'export default {...true?{}:"a"};')
     },
     // The prefix `-`. It binds looser than a step, so a negation under an
     // access is a base only in a group — `-1[0]` is `-(1[0])` — and a
@@ -629,9 +632,8 @@ export const proof = {
         // no prefix for
         refuses(['+', 1], 'a unary + node')
         // a node under a lazy operand is walked for what it holds before
-        // it is refused for what it is: an object's spread, which waits on
-        // `spec/todo/2490-object-spread.md`
-        refuses(['{}', [['...', ['[]', []]]]], 'a spread')
+        // it is refused for what it is
+        refuses(['{}', [['...', [',', [1, 2]]]]], 'a comma outside a scope')
         refuses(['=>', 0, [], ['?.', ['rest'], 'a', ['|.', 'b', ['|()', [['[]', [1]]]]]]], 'a ?. node')
         // an argument list is read by position: `f('#', 0)` names no entry
         refuses(['=>', 0, [], ['?.()', ['rest'], ['#', 0], ['|.', 'b']]], 'a ?.() node')
@@ -663,12 +665,12 @@ export const proof = {
         refuses(
             (() => {
                 /** @type {Exp} */
-                const bad = ['{}', [['...', 1]]]
+                const bad = ['{}', [[':', 1, 2]]]
                 /** @type {Exp} */
                 const good = ['{}', []]
                 return ['[]', [bad, bad, good, good]]
             })(),
-            'a spread')
+            'an object key that is not a string')
         refuses([',', [['+', 1], 1]], 'a unary + node')
         // A comma with no anchor to write: with one operand it would read
         // back as that operand alone, and with none it is no scope. Linking

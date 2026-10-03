@@ -28,16 +28,16 @@ also needs the source import specifiers and attributes from that file. Keep that
 information in a small temporary wrapper rather than adding module metadata to EDAG itself.
 
 The AST preserves the ordered object-entry representation EDAG requires:
-`AstObject` is `['object', members]`, the members in the order written, a
-repeated key written twice, and `run` builds the object JavaScript builds from
-the same literal. It was a plain object until this task's first step, and
+`AstObject` is `['object', entries]`, each entry a member `[':', key, value]`
+or a spread `['...', value]`, in the order written, a repeated key written
+twice, and `run` builds the object JavaScript builds from the same literal. It was a plain object until this task's first step, and
 before that it sorted the members through an `OrderedMap`, which the subset law
 over the DataJS corpus found and the normalizer's landing fixed (#2028); a
 plain object kept the written order of ordinary keys and the last value of a
 repeated one, and could
 not keep the position of an integer-like key, which JavaScript lists first, or
-the duplicates themselves. Conversion to `['{}', [...entry]]` reads the members
-as the syntax holds them.
+the duplicates themselves. Conversion to `['{}', [...entry]]` reads the entries
+as the syntax holds them, a spread as the EDAG's own `['...', exp]` entry.
 
 ### Proposal
 
@@ -573,8 +573,8 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [x] Change the DJS parser/AST object representation to retain an ordered entry list
       until EDAG conversion; do not collapse duplicate keys or reorder integer-like
       keys through a plain JavaScript object/`OrderedMap` representation. Done:
-      `AstObject` is `['object', members]`, pinned by `membersAsWritten` in
-      `fjs/compiler/parser/proof.f.mjs`.
+      `AstObject` is `['object', entries]`, a member or a spread each, pinned by
+      `membersAsWritten` in `fjs/compiler/parser/proof.f.mjs`.
 - [x] Convert a parsed source module to `Unresolved { imports, edag }` without reading
       or resolving any imported module. Done: `unresolved` in
       [`fjs/compiler/edag`](../edag/module.f.mjs), a function of the AST alone.

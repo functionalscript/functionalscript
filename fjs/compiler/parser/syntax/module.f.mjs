@@ -33,8 +33,8 @@
  * @import { Primitive } from '../../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
- * @import { Block, BlockStatement, Const, Entry, Import, ImportBinding, Item, Module, ModuleConst, Node, Out, ParameterBinding, ParameterList, ValueStatement } from './types.ts'
- * @import { ArrowOrRest, Block as BlockRule, Body, Group, Item as ItemRule, Items, LastStatement, Member, ParameterNames, Parenthesized, Statement, Unary, UnaryOperand, Value } from '../grammar/types.ts'
+ * @import { Block, BlockStatement, Const, Entry, Import, ImportBinding, Item, Member, Module, ModuleConst, Node, Out, ParameterBinding, ParameterList, ValueStatement } from './types.ts'
+ * @import { ArrowOrRest, Block as BlockRule, Body, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, Member as MemberRule, ParameterNames, Parenthesized, Statement, Unary, UnaryOperand, Value } from '../grammar/types.ts'
  * @import { key, namedImports, primitive, terminator } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _CircuitNode, _ConditionalNode, _EndNode, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _PowTailNode, _TailRound, _TokenStream } from './private.ts'
  */
@@ -47,7 +47,7 @@ import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import {
     binaryOpTag, body, callArguments, constStatement, djsModule, eagerTail, importBinding, importBindings,
-    importStatement, item, lastStatement, member, members, parameterNames, statement, symbolOf, unary, unaryOperand, value, values,
+    importStatement, item, lastStatement, entries, entry, member, parameterNames, statement, symbolOf, unary, unaryOperand, value, values,
 } from '../grammar/module.f.mjs'
 
 /**
@@ -145,17 +145,24 @@ const valuesAt = node => {
     return out.items
 }
 
-/** @type {(node: _Leaf) => Entry} */
+/** @type {(node: _Leaf) => Member} */
 const memberAt = node => {
     const out = outAt(node)
     assert(out.id === 'member')
     return out.member
 }
 
-/** @type {(node: _Leaf) => List<Entry>} */
-const membersAt = node => {
+/** @type {(node: _Leaf) => Entry} */
+const entryAt = node => {
     const out = outAt(node)
-    assert(out.id === 'members')
+    assert(out.id === 'entry')
+    return out.entry
+}
+
+/** @type {(node: _Leaf) => List<Entry>} */
+const entriesAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'entries')
     return out.items
 }
 
@@ -289,8 +296,8 @@ const listOf = (itemAt, itemsAt) => {
 /** The items an array's optional list holds. */
 const valueItems = optionalItems(valuesAt)
 
-/** The members an object's optional list holds. */
-const memberItems = optionalItems(membersAt)
+/** The entries an object's optional list holds. */
+const entryItems = optionalItems(entriesAt)
 
 /** The items of a list of values, its tail already mapped. */
 const valuesOf = listOf(itemAt, valuesAt)
@@ -304,8 +311,8 @@ const nameTokenAt = node => tokenAt(unmapped(/** @type {_NameNode} */ (node))[1]
 /** The names of a parameter list after the first, its tail already mapped. */
 const parametersOf = listOf(node => ({ name: nameTokenAt(node), rest: false }), parametersAt)
 
-/** The members of a list of members, its tail already mapped. */
-const membersOf = listOf(memberAt, membersAt)
+/** The entries of a list of entries, its tail already mapped. */
+const entriesOf = listOf(entryAt, entriesAt)
 
 /** @type {(out: Out) => Meta<Out>} */
 const symbol = out => ({ symbol: 0, meta: out })
@@ -539,7 +546,7 @@ const baseOf = ([tag, branch]) => {
         case 'object': {
             const x = unmapped(branch)[0]
             const o = unmapped(x)[0]
-            return ['object', toArray(memberItems(unmapped(o)[1]))]
+            return ['object', toArray(entryItems(unmapped(o)[1]))]
         }
     }
 }
@@ -782,11 +789,22 @@ const keyOf = ([tag, branch]) => {
     }
 }
 
-/** @type {(node: Children<typeof member, DjsTokenWithMetadata, Out>) => Meta<Out>} */
+/** @type {(node: Children<MemberRule, DjsTokenWithMetadata, Out>) => Meta<Out>} */
 const toMember = ([k, , v]) => {
     const [token, name, computed] = keyOf(unmapped(k))
     return symbol({ id: 'member', member: { key: token, name, computed, value: nodeAt(v) } })
 }
+
+/**
+ * An entry: the member's record, or a spread of the value at the second
+ * position of `... value`.
+ *
+ * @type {(node: Children<EntryRule, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ */
+const toEntry = ([tag, branch]) => symbol({
+    id: 'entry',
+    entry: tag === 'member' ? memberAt(branch) : ['...', nodeAt(unmapped(branch)[1])],
+})
 
 /**
  * An import's attribute, when the optional list holds one round: the key at
@@ -942,8 +960,8 @@ const toItem = ([tag, branch]) => symbol({
 /** @type {(node: Children<Items<ItemRule>, DjsTokenWithMetadata, Out>) => Meta<Out>} */
 const toValues = node => symbol({ id: 'values', items: valuesOf(node) })
 
-/** @type {(node: Children<Items<Member>, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toMembers = node => symbol({ id: 'members', items: membersOf(node) })
+/** @type {(node: Children<Items<EntryRule>, DjsTokenWithMetadata, Out>) => Meta<Out>} */
+const toEntries = node => symbol({ id: 'entries', items: entriesOf(node) })
 
 /** @type {(node: Children<ParameterNames, DjsTokenWithMetadata, Out>) => Meta<Out>} */
 const toParameterNames = ([tag, branch]) => {
@@ -975,7 +993,8 @@ export const mappings = [
     // own, so the same reader serves both
     map(callArguments, toValues),
     map(member, toMember),
-    map(members, toMembers),
+    map(entry, toEntry),
+    map(entries, toEntries),
     // the names after a named list's first, a list of its own so that a
     // list of any length is read in as many steps
     map(parameterNames, toParameterNames),
