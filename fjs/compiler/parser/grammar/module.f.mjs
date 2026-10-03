@@ -120,7 +120,7 @@
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { BinaryTag } from '../../ast/types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
- * @import { Access, AfterValue, ArrowOrRest, Block, Body, CircuitTail, ConditionalTail, EagerTail, End, Func, Group, GroupOperand, Item, Items, LastStatement, Member, ParameterNames, Property, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
+ * @import { Access, AfterValue, ArrowOrRest, Block, Body, CircuitTail, ConditionalTail, EagerTail, End, Func, Group, GroupOperand, Item, Items, LastStatement, Member, Entry, ParameterNames, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -910,21 +910,21 @@ export const key = /** @type {const} */ ({
     computed: [sym('['), sym('string'), sym(']')],
 })
 
-/** A property of an object, `key: value`. @type {Property} */
-export const property = [key, sym(':'), value]
+/** A member of an object, `key: value`. @type {Member} */
+export const member = [key, sym(':'), value]
 
 /**
- * A member of an object: a property, or a spread of a value, `...value`,
+ * An entry of an object: a member, or a spread of a value, `...value`,
  * whose operand is any value, as JavaScript's `PropertyDefinition` takes
  * an `AssignmentExpression` after `...`. `...` begins no key, so one
  * symbol decides.
  *
- * @type {Member}
+ * @type {Entry}
  */
-export const member = { spread: [sym('...'), value], property }
+export const entry = { spread: [sym('...'), value], member }
 
-/** The members of an object, likewise. */
-export const members = items(member)
+/** The entries of an object, likewise. */
+export const entries = items(entry)
 
 /**
  * An item of an array or of a call's arguments: a value, or a spread of
@@ -942,7 +942,7 @@ export const values = items(item)
 
 export const array = /** @type {const} */ ([sym('['), option(values), sym(']')])
 
-export const object = /** @type {const} */ ([sym('{'), option(members), sym('}')])
+export const object = /** @type {const} */ ([sym('{'), option(entries), sym('}')])
 
 /**
  * A statement's terminator: `;`, or nothing, where JavaScript inserts the

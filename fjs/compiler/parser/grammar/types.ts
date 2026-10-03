@@ -103,13 +103,13 @@ export type Items<Item extends Rule> = () => readonly ['const', readonly [
 /** An opening symbol, an optional list, and the closing symbol. */
 export type Container<Item extends Rule> = readonly [number, Option<Items<Item>>, number]
 
-/** A property: a key, `:`, and a value. */
-export type Property = readonly [typeof key, number, Value]
+/** A member of an object: a key, `:`, and a value. */
+export type Member = readonly [typeof key, number, Value]
 
-/** A member of an object: `...` and a value, or a property. */
-export type Member = {
+/** An entry of an object: `...` and a value, or a member. */
+export type Entry = {
     readonly spread: readonly [number, Value]
-    readonly property: Property
+    readonly member: Member
 }
 
 /** An item of an array or of a call's arguments: a value, or `...` and a value. */
@@ -152,7 +152,7 @@ export type Unary = () => readonly ['const', {
     readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>], PowTail]
     readonly ref: readonly [readonly [typeof identifier, RepeatFrom<0, Access>], PowTail]
     readonly array: readonly [readonly [Container<Item>, RepeatFrom<0, Access>], PowTail]
-    readonly object: readonly [readonly [Container<Member>, RepeatFrom<0, Access>], PowTail]
+    readonly object: readonly [readonly [Container<Entry>, RepeatFrom<0, Access>], PowTail]
     readonly group: ParenGroup
 }]
 
@@ -170,7 +170,7 @@ export type UnaryOperand = () => readonly ['const', {
     readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>]]
     readonly ref: readonly [readonly [typeof identifier, RepeatFrom<0, Access>]]
     readonly array: readonly [readonly [Container<Item>, RepeatFrom<0, Access>]]
-    readonly object: readonly [readonly [Container<Member>, RepeatFrom<0, Access>]]
+    readonly object: readonly [readonly [Container<Entry>, RepeatFrom<0, Access>]]
     readonly group: ParenGroupOperand
 }]
 
@@ -293,7 +293,7 @@ export type ValueBranches = {
  * name itself.
  */
 export type Value = () => readonly ['const', ValueBranches & {
-    readonly object: readonly [readonly [Container<Member>, RepeatFrom<0, Access>], PowTail, ...Tail]
+    readonly object: readonly [readonly [Container<Entry>, RepeatFrom<0, Access>], PowTail, ...Tail]
 }]
 
 /**
