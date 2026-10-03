@@ -592,6 +592,37 @@ export const proof = {
             assertEq(code, 1)
         },
     },
+    /**
+     * **Every page closes with the funding links from `funding.json`**, and
+     * a tree without that file gets pages without a footer rather than no
+     * build.
+     */
+    funding: {
+        everyPage: () => {
+            const { root } = generate({
+                'funding.json': file('{"funding":{"channels":[{"address":"https://patreon.com/x","description":"Patreon"}]}}'),
+                a: { 'x.md': file('# x') },
+                changelog: { '0.1.0.md': file('') },
+            })
+            const link = '<a href="https://patreon.com/x">Patreon<span aria-hidden="true"> ↗</span></a></footer>'
+            assert(pageAt(root, []).includes(link), pageAt(root, []))
+            assert(pageAt(root, ['a']).includes(link), pageAt(root, ['a']))
+            assert(pageAt(root, ['changelog']).includes(link), pageAt(root, ['changelog']))
+            const release = textOf(/** @type {Dir} */ (root['changelog'])['_0.1.0.html'], 'the release page')
+            assert(release.includes(link), release)
+        },
+        noFile: () => {
+            const { root } = generate({ a: { 'x.md': file('# x') } })
+            assert(!pageAt(root, []).includes('<footer'), pageAt(root, []))
+        },
+        // A file that is there and cannot be linked stops the build, so the
+        // published site never quietly lacks a channel.
+        aBadFileStopsTheBuild: () => {
+            const [generated, code] = run({ 'funding.json': file('{"funding":{"channels":[{"address":"http://x"}]}}') })
+            assertEq(code, 1)
+            assert(generated.stderr.includes('funding.json: '), generated.stderr)
+        },
+    },
     demos: {
         /**
          * **A demo is found by its export, not its filename**, so it may live

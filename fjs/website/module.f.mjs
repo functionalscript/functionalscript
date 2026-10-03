@@ -48,6 +48,7 @@
  * @import { _Demos, _Graph, _Imports, _Tree, _Walked } from './private.ts'
  * @import { OrderedMap } from '../types/ordered_map/types.ts'
  * @import { Build, Dir, Proof } from './page/types.ts'
+ * @import { Funding } from './funding/types.ts'
  */
 
 import { utf8 } from '../text/module.f.mjs'
@@ -64,6 +65,7 @@ import { tryParse } from '../media/markdown/module.f.mjs'
 import { stylesheet } from './style/module.f.mjs'
 import { changelogDir, demoSection, page, pagePath, sections, shell, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
 import { toHex, tryFromHexOf } from '../git/oid/module.f.mjs'
+import { fundingPath, parse as parseFunding } from './funding/module.f.mjs'
 import { isThirdParty } from '../dev/module.f.mjs'
 
 /**
@@ -686,9 +688,40 @@ const linksNote = env => commit =>
         : env.WORKERS_CI_COMMIT_SHA === undefined ? 'file links: this site'
             : 'file links: this site, because WORKERS_CI_COMMIT_SHA is not a commit id'
 
-/** @type {(build: Build) => (note: string) => Effect<Readdir | ReadFile | Rm | WriteBytes | WriteFile | Write | All, 0, number>} */
-const program = build => note => exitStep(mapStep(
-    step(log(note), () => step(walk('.'), tree => {
+/**
+ * The funding channels every page's footer links, read from `funding.json`.
+ *
+ * **The walk says whether the file is there**, as it does for the changelog:
+ * a tree without one — every fixture tree the generator's proofs build — gets
+ * pages without a footer rather than no build. A file that is there and
+ * cannot be linked stops the build, so the published site never quietly
+ * lacks a channel.
+ *
+ * @type {(tree: readonly _Walked[]) => Effect<ReadFile, readonly Funding[], IoChannel>}
+ */
+const readFunding = tree => {
+    const present = tree.some(walked => walked.path === '.' && walked.files.includes(fundingPath))
+    if (!present) { return pureOk([]) }
+    return step(readUtf8File(fundingPath), text => {
+        const funding = parseFunding(text)
+        return funding[0] === 'error'
+            ? pureError(ioError({ message: `${fundingPath}: ${funding[1]}` }))
+            : pureOk(funding[1])
+    })
+}
+
+/**
+ * The whole build: the walk, then everything written from it.
+ *
+ * `env` is what the environment says about the build — its commit and
+ * branch — and the funding channels are added once the tree has been read,
+ * so every page builder receives one whole {@link Build}.
+ *
+ * @type {(env: Omit<Build, 'funding'>) => (note: string) => Effect<Readdir | ReadFile | Rm | WriteBytes | WriteFile | Write | All, 0, number>}
+ */
+const program = env => note => exitStep(mapStep(
+    step(log(note), () => step(walk('.'), tree => step(readFunding(tree), funding => {
+        const build = { ...env, funding }
         const authored = authoredModules(tree)
         // One graph over both: a page loads a demo the way it loads a proof,
         // so what would stop one would stop the other.
@@ -702,7 +735,7 @@ const program = build => note => exitStep(mapStep(
                                 step(writeChangelog(build)(tree), () =>
                                     writeUtf8File('_main.css', stylesheet)))))
                 }))
-    })),
+    }))),
     () => undefined))
 
 /** @type {(options: NodeProgramOptions) => Effect<Readdir | ReadFile | Rm | WriteBytes | WriteFile | Write | All, 0, number>} */

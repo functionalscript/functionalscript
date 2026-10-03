@@ -6,13 +6,13 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { element } from '../../media/html/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { utf8ToString } from '../../text/module.f.mjs'
-import { demoSection, header, page, pageHref, pagePath, repository, sections, subtree, testSection } from './module.f.mjs'
+import { demoSection, footer, header, page, pageHref, pagePath, repository, sections, subtree, testSection } from './module.f.mjs'
 
 /** @type {(dir: Dir) => string} */
 const sectionsHtml = dir => concat(element(['body', ...sections(null)(dir)]))
 
 /** A build that names neither its commit nor its branch: a local one. @type {Build} */
-const local = { commit: null, branch: null }
+const local = { commit: null, branch: null, funding: [] }
 
 /** @type {(dir: Dir) => string} */
 const pageHtml = dir => utf8ToString(page(local)(dir))
@@ -47,6 +47,28 @@ const empty = { path: '.', files: [], dirs: [], demoDirs: [], todo: [], proofs: 
 
 export const proof = {
     /**
+     * **Every page closes with the funding links**, separated by text so they
+     * read as a list without the stylesheet, each marked as leaving the site.
+     */
+    footer: {
+        links: () => assertEq(concat(element(['body', ...footer([
+            { description: 'GitHub Sponsors', address: 'https://github.com/sponsors/x' },
+            { description: 'Patreon', address: 'https://patreon.com/x' },
+        ])])),
+            '<body><footer data-funding="">Support FunctionalScript: '
+            + '<a href="https://github.com/sponsors/x">GitHub Sponsors<span aria-hidden="true"> ↗</span></a>'
+            + '\u00a0· '
+            + '<a href="https://patreon.com/x">Patreon<span aria-hidden="true"> ↗</span></a>'
+            + '</footer></body>'),
+        // No channels, no footer: a heading for an empty list says nothing.
+        none: () => assertStructurallySame(footer([]), []),
+        // The footer is the frame's, so a directory's page carries it.
+        onEveryPage: () => {
+            const html = utf8ToString(page({ ...local, funding: [{ description: 'Patreon', address: 'https://patreon.com/x' }] })(empty))
+            assert(html.endsWith('</main><footer data-funding="">Support FunctionalScript: <a href="https://patreon.com/x">Patreon<span aria-hidden="true"> ↗</span></a></footer></body></html>'), html)
+        },
+    },
+    /**
      * **Every page opens with the same header:** the logo and the name
      * linking home, the releases, and the repository.
      */
@@ -62,7 +84,7 @@ export const proof = {
          * GitHub, the commit shortened to what `git log --oneline` shows.
          */
         preview: () => {
-            const html = headerHtml({ commit, branch: 'claude/x' })
+            const html = headerHtml({ commit, branch: 'claude/x', funding: [] })
             assert(html.includes(
                 '<p data-build="">Preview: '
                 + `<a href="${repository}/tree/claude/x">claude/x</a>`
@@ -71,20 +93,20 @@ export const proof = {
         // A branch name is linked segment by segment, like a file: `/` is
         // kept, and a `#` does not start a fragment.
         branchIsEncoded: () => {
-            const html = headerHtml({ commit: null, branch: 'a/b#c' })
+            const html = headerHtml({ commit: null, branch: 'a/b#c', funding: [] })
             assert(html.includes(`<a href="${repository}/tree/a/b%23c">a/b#c</a>`), html)
         },
         // A branch without a valid commit is still named; there is just no
         // commit to link.
         previewWithoutACommit: () => {
-            const html = headerHtml({ commit: null, branch: 'x' })
+            const html = headerHtml({ commit: null, branch: 'x', funding: [] })
             assert(html.includes(`<a href="${repository}/tree/x">x</a></p>`), html)
             assert(!html.includes('/commit/'), html)
         },
         // The published site is `main`, and says nothing about its build.
-        production: () => assert(!headerHtml({ commit, branch: 'main' }).includes('data-build'), 'main'),
+        production: () => assert(!headerHtml({ commit, branch: 'main', funding: [] }).includes('data-build'), 'main'),
         // Nor does a local build, which names no branch.
-        local: () => assert(!headerHtml({ commit, branch: null }).includes('data-build'), 'local'),
+        local: () => assert(!headerHtml({ commit, branch: null, funding: [] }).includes('data-build'), 'local'),
     },
     /**
      * **A page is written where its directory is**, and the root's at the
