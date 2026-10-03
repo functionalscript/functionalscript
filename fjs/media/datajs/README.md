@@ -22,8 +22,9 @@ Unknown                   the graph the document denotes, sharing included
 
 The public surface is [`module.f.mjs`](./module.f.mjs): `tryParse` and
 `tryParseBytes` read a document into the value it denotes, `trySerialize` and
-`tryStringify` write a value as one, and the value types are in
-[`types.ts`](./types.ts). The reader lives in
+`tryStringify` write a value as one, `tryJsonSerialize` and
+`tryJsonStringify` write it as the JSON document its graph unfolds to, and
+the value types are in [`types.ts`](./types.ts). The reader lives in
 [`parser/module.f.mjs`](./parser/module.f.mjs) and the writer in
 [`serializer/module.f.mjs`](./serializer/module.f.mjs). Neither owes
 anything further: both issues are retired into this file, which keeps what
@@ -37,10 +38,12 @@ uses.
 
 ```text
 fjs/media/datajs/
-    module.f.mjs      the public surface: the four entry points below
+    module.f.mjs      the public surface: the six entry points below
     types.ts          Primitive, Unknown
     parser/           the reader — tryParse over code units, tryParseBytes over bytes
-    serializer/       the writer — trySerialize as chunks, tryStringify as one string
+    serializer/       the writer — trySerialize as chunks, tryStringify as one string,
+                      and the same read under JSON's leaf rule — tryJsonSerialize,
+                      tryJsonStringify
     vectors/          the corpus's record types, and difference
 ```
 
@@ -55,6 +58,8 @@ export const tryParse:      (text: string)    => Result<Unknown, string>
 export const tryParseBytes: (bytes: List<U8>) => Result<Unknown, string>
 export const trySerialize:  (value: Unknown)  => Result<List<string>, string>
 export const tryStringify:  (value: Unknown)  => Result<string, string>
+export const tryJsonSerialize: (value: Unknown) => Result<List<string>, string>
+export const tryJsonStringify: (value: Unknown) => Result<string, string>
 ```
 
 **The writer takes the data model's `Unknown`, not `unknown`.** Its first
@@ -73,7 +78,7 @@ specification refuses each and a host that casts is owed a refusal rather
 than a wrong document. The writer's proof hands it those values cast, as a
 host boundary would.
 
-The prefix is one decision for all four, taken when the surface landed: the
+The prefix is one decision for all six, taken when the surface landed: the
 reader's two had landed bare, and renaming half of the names before the
 surface existed would have been the inconsistency the surface exists to
 settle. There is no `tokenizer/` — the grammar is the reader, below — and no

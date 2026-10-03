@@ -6,7 +6,7 @@
  */
 
 import { exitCode, readUtf8File } from '../effects/node/module.f.mjs'
-import { _errorLocation, _tryJson, compile } from './module.f.mjs'
+import { _errorLocation, compile } from './module.f.mjs'
 import { parse, transpile } from './transpiler/module.f.mjs'
 import { resolve } from './edag/module.f.mjs'
 import { analysis } from '../edag/analysis/module.f.mjs'
@@ -1441,12 +1441,6 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         moduleOutput: () => {
             assertEq(compileSource('export default [undefined, 42n, NaN];')('output.data.js'), 'export default [undefined,42n,NaN];')
             assertEq(compileSource('const a = [1]; export default [a, a];')('output.data.js'), 'const $0=[1];export default [$0,$0];')
-        },
-        // and `_tryJson` itself, on a value rather than a file, for the leaf
-        // JSON has a spelling for and the container order it keeps
-        value: () => {
-            assertEq(unwrap(_tryJson({ b: -0, a: [true, null, 'x'] })), '{"b":-0,"a":[true,null,"x"]}')
-            assertEq(unwrap(invert(_tryJson(undefined))), 'no JSON spelling for undefined')
         },
     },
     // Negative zero end to end: the tokenizer pins the `-0` lexeme,
