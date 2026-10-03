@@ -64,9 +64,12 @@ against the RTTI vocabulary ([`fjs/rtti`](../fjs/rtti/README.md)). Three facts
 settle most rows. A result is a `Result`, which RTTI spells as the tuple union
 `['ok', T] | ['error', E]`; the error channels, `IoChannel` and
 `NotImplemented`, are tuples of a tag and a `string` or a struct of strings, so
-they are data too. `Vec` is a nominal `bigint`, which RTTI has. A trailing
+they are data too. `Vec` is a nominal `bigint`: RTTI describes the underlying
+`bigint`, but does not validate its brand. A trailing
 optional parameter (`mkdir`'s `options?`, `exec`'s `stdin?`) is a tuple element
-`or(option, t)`, which the schema already admits as absent.
+`or(option, t, undefined)`. `option` admits absence; the literal `undefined`
+admits a present value. Both are needed: `do_` preserves the second argument
+in `mkdir(path, undefined)` and `exec(command, undefined)`.
 
 | Class | Operations | Why |
 | --- | --- | --- |
@@ -76,18 +79,18 @@ optional parameter (`mkdir`'s `options?`, `exec`'s `stdin?`) is a tuple element
 | **Handwritten**: effects or arbitrary values as data | `all`, `memCreate`, `memRead`, `memWrite` | `all` takes effects, which are thunks and `Do` nodes; the memory operations store and return any value (`<T>`), functions included. `unknown` would exclude exactly the values they exist to hold. |
 | **Handwritten**: modules | `import` | `Module` is `StringMap<unknown>`, the exports of an evaluated module, functions among them. This workflow does not use it: the FJS loader replaces it. |
 | **Deferred**: opaque host handles | `open`, `fstat`, `pread`, `close` | a `Handle` is `Nominal<..., unknown>`, minted by the runner and never inspected by the program. RTTI has no opaque-handle schema; the native runner would mint an index. Nothing in the CLI opens a file this way. |
-| **Deferred**: async, servers, tests | `fetch`, `await`, `createServer`, `listen`, `readRequestBytes`, `forever`, `test` | asynchronous (the runtime decision is deferred), or carrying a callback (`createServer`'s listener, `test`'s body and context), or one that never answers (`forever`, whose `never` result RTTI does spell, `or()`, but whose runner is the async runtime's). |
+| **Deferred**: async, servers, tests | `fetch`, `await`, `createServer`, `listen`, `readRequestBytes`, `forever`, `test` | asynchronous (the runtime decision is deferred), or carrying a callback (`createServer`'s listener, `test`'s body and context). RTTI already spells `never` as `or()`; `forever` is deferred for its async runtime, not its result schema. |
 
 What follows for the tasks below:
 
 - The first generated trait is nine methods, the console and file operations the subset above names. Extending the
   second group is one schema entry each; nothing about the generation changes.
-- Three things in the vocabulary are not yet RTTI-expressible without a new
-  schema, each a decision for the generation task, not an assumption: the
-  `Vec` nominal (a `bigint` with a brand, so the Rust type is the VM's bit
-  vector, not a bare integer), the `Result` union (a Rust `Result<T, E>` over a
-  tagged-tuple error), and the `read` result `number | null`
-  (an `Option<u8>`).
+- The generation task must choose the Rust spelling of three shapes: the
+  `Vec` nominal (RTTI checks `bigint`, while the native type must preserve
+  bit-vector semantics), the `Result` union (already expressible with RTTI
+  tuples and unions; a candidate is Rust `Result<T, E>` over a tagged-tuple
+  error), and the `read` result `number | null` (already `or(number, null)`;
+  `Option<u8>` also requires checking the byte range at the native boundary).
 - The handwritten set is `sandbox`, `catch`, `all`, `memCreate`, `memRead` and
   `memWrite` for this workflow. The conformance tests must name each, since the
   generated trait checks none of them.

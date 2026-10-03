@@ -201,8 +201,8 @@ produces part of a string, not for this one alone.
 - [x] A generated fixture in `nanvm-harness` for array and call spread,
       checked against a JavaScript engine:
       [`fixtures/spread.mjs`](../../nanvm-harness/fixtures/spread.mjs).
-- [ ] One for object spread, once FunctionalScript source can spell it
-      ([object spread](../../spec/todo/2490-object-spread.md)).
+- [x] One for object spread:
+      [`fixtures/object-spread.mjs`](../../nanvm-harness/fixtures/object-spread.mjs).
 
 ### Related
 

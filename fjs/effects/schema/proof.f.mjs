@@ -25,7 +25,7 @@ const table = (schema, good, bad) => {
 
 const io = /** @type {const} */ (['ioError', { message: 'm' }])
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     /** A `Vec` is a `bigint`, and nothing is `undefined`. */
     leaves: () => {
         table(vec, [0n, 5n], [5, '5', undefined])
@@ -47,9 +47,9 @@ export const proof = {
             [{ name: 'a', parentPath: 'b', isFile: true, isDirectory: false }],
             [{ name: 'a', parentPath: 'b', isFile: true }])
     },
-    /** Each operation's parameters, with the optional ones present and absent. */
+    /** Optional parameters may be absent, explicitly undefined, or a value. */
     params: () => {
-        table(mkdir.params, [['a'], ['a', { recursive: true }]], [[], ['a', {}], [1]])
+        table(mkdir.params, [['a'], ['a', undefined], ['a', { recursive: true }]], [[], ['a', {}], ['a', null], ['a', undefined, 'extra'], [1]])
         table(readFile.params, [['a']], [[], ['a', 'b']])
         table(resolveFileModule.params, [['a', null], ['a', 'b']], [['a'], [1, null]])
         table(readdir.params, [['a', {}], ['a', { recursive: true }]], [['a']])
@@ -76,4 +76,4 @@ export const proof = {
         for (const [key, o] of Object.entries(operations)) { assertEq(o.name, key) }
         assertEq(Object.keys(operations).length, 9)
     },
-}
+})

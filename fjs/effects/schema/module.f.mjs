@@ -7,7 +7,8 @@
  * follows it ([`todo/nanvm-effects-node.md`](../../../todo/nanvm-effects-node.md)).
  *
  * An operation is its tag, the schema of its parameters, a closed tuple whose
- * trailing optional parameters are `or(option, t)`, and the schema of the
+ * trailing optional parameters are `or(option, t, undefined)`, admitting both
+ * omission and an explicitly passed `undefined`, and the schema of the
  * value its `Result` carries on success. The `Result` and its error channel,
  * which every operation shares, are written once, {@link result},
  * {@link ioResult} and {@link opResult}.
@@ -112,7 +113,7 @@ export const dirent = /** @type {const} */ ({
 // Operations
 
 export const mkdir = operation(
-    'mkdir', [string, or(option, makeDirectoryOptions)], ioResult(nothing))
+    'mkdir', [string, or(option, makeDirectoryOptions, undefined)], ioResult(nothing))
 
 export const readFile = operation('readFile', [string], ioResult(vec))
 

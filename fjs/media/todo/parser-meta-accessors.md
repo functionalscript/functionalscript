@@ -30,21 +30,24 @@ hand-written instances across two sibling readers; the `id` tag exists
 only to make the assert possible, so nothing stops another copy with a
 mismatched tag.
 
-The largest copy site is outside `fjs/media`: `fjs/compiler/parser` reads an
-eight-member alphabet, `Out`, through `outAt` and eight one-per-id
-readers — `nodeAt`, `valuesAt`, `memberAt`, `membersAt`, `importAt`,
-`constAt`, `exportAt`, `moduleAt` — each the same three statements with
+The largest copy site is outside `fjs/media`: `fjs/compiler/parser/syntax`
+reads its output alphabet, `Out`, through `outAt` and a one-per-id reader
+for each member — `parametersAt`, `itemAt`, `valuesAt`, `memberAt`,
+`entryAt`, `entriesAt`, `importBindingAt`, `importBindingsAt`, `importAt`,
+`constAt`, `statementAt`, `moduleAt` — each the same three statements with
 the `id` and the field changed:
 
 ```js
-// fjs/compiler/parser/module.f.mjs, nodeAt and valuesAt
-const nodeAt = node => { const out = outAt(node); assert(out.id === 'value'); return out.node }
+// fjs/compiler/parser/syntax/module.f.mjs, itemAt and valuesAt
+const itemAt = node => { const out = outAt(node); assert(out.id === 'item'); return out.item }
 const valuesAt = node => { const out = outAt(node); assert(out.id === 'values'); return out.items }
 ```
 
-Every member of `Out` carries exactly one field besides `id`, which is the
-constraint `tagged` below requires, so the eight `id`-and-field steps are
-instances of it. `outAt` is a different step and stays: a parser leaf's
+Each of those members carries exactly one field besides `id`, which is the
+constraint `tagged` below requires, so the twelve `id`-and-field steps are
+instances of it. The three members that carry more stay with their own
+readers: `value` and `paren`, read by `nodeAt` under either id, and `last`,
+read by `lastAt`. `outAt` is a different step and stays: a parser leaf's
 `meta` is `DjsTokenWithMetadata | Out`, and a token deliberately has no
 `id`, so `outAt`'s `assert('id' in meta)` is the narrowing from the
 grammar's input alphabet to its output one, which `Tagged.at` — typed over
@@ -54,7 +57,7 @@ not its metadata: `outAt` becomes `(node: _Leaf) => Meta<Out> | readonly unknown
 asserting `'id' in meta` as it does now and returning the node it was
 given under the narrower type. Each reader is then one line,
 `node => value.at(outAt(node))`, with the narrowing kept once and the
-eight tag checks gone.
+twelve tag checks gone.
 
 ### Proposal
 
@@ -233,7 +236,7 @@ one-line follow-up rather than a design decision.
       `json/parser`; drop `datajs/parser`'s copy; rewrite the four
       wrap/read functions as typed `const` instances; the proof imports
       `_valueSymbol` instead of restating it.
-- [ ] `fjs/compiler/parser`: the eight readers become typed `tagged`
+- [ ] `fjs/compiler/parser/syntax`: the twelve readers become typed `tagged`
       instances composed after `outAt`, which stays as the narrowing from
       input to output metadata.
 - [ ] `tsc`, `fjs test`.

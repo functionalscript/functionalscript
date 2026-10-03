@@ -129,90 +129,79 @@ const demoProof = {
         const h = html(demo.init)
         assertEq(JSON.stringify(demo.init), JSON.stringify(_load(presets[0][0])))
         assertEq(demo.init.versions.before, demo.init.versions.after)
-        // One graph, with no node above the tree and no titles: the one
-        // root both versions share has one arrow, not faded.
+        // One graph, with no node above the tree and no titles, and one
+        // arrow, into its root.
         assertEq(count(h)('<svg'), 1)
         assertEq(count(h)('data-graph-label='), 0)
         assertEq(count(h)('data-graph-entry=""'), 1)
-        assertEq(count(h)('data-graph-edge-kind="replaced"'), 0)
         assert(h.includes('name="insert"'), h)
         assert(h.includes('name="remove"'), h)
         assert(h.includes('value="80"'), h)
         assert(h.includes('<option value="Insert into a leaf" selected="">'), h)
         assert(h.includes('Press Insert to add 80'), h)
         assertEq(count(h)('data-graph-kind="new"'), 0)
-        assertEq(count(h)('data-graph-kind="replaced"'), 0)
         assert(!h.includes('Custom'), h)
         assert(!h.includes('Error'), h)
     },
     // Each preset's hint is what its press does.
     presets: {
-        // Only the path to 8 is built again — the root, `6` and the leaf
-        // `7 8` — and the rest is shared: drawn once, reached from both
-        // versions.
+        // Only the path to 80 is built again — the root, `60` and the leaf
+        // `70 80` — and the rest is shared. Only the new tree is drawn; the
+        // three nodes it replaced are counted, not drawn.
         insertIntoALeaf: () => {
             const s = follow('Insert into a leaf')
             assertEq(censusOf(s), '{"built":3,"shared":4,"replaced":3}')
             const h = html(s)
             assertEq(count(h)('data-graph-kind="new"'), 3)
             assertEq(count(h)('data-graph-kind="shared"'), 4)
-            assertEq(count(h)('data-graph-kind="replaced"'), 3)
+            assertEq(count(h)('data-graph-kind="replaced"'), 0)
             // The new leaf holds 7 and 8, each a row of its own with no
             // name beside it.
             assert(!h.includes('>Value'), h)
             assert(h.includes('data-graph-value-label="">80<'), h)
-            // The old nodes are drawn faded, edges and all, and each root
-            // has its version's arrow.
-            assertEq(count(h)('<g data-graph-in-kind="replaced">'), 6)
+            // One arrow, into the new root.
             const { nodes, entries = [] } = _graphOf(s.versions)
-            assertEq(JSON.stringify(entries.map(({ to, kind }) => [nodes[to].kind, kind ?? null])), '[["replaced","replaced"],["new",null]]')
-            // Four edges leave the two replaced branches, and the fifth faded
-            // arrow is the old root's.
-            assertEq(count(h)('data-graph-edge-kind="replaced"'), 5)
-            assert(h.includes('Last step, insert 80: 3 new (blue), 4 shared with the tree before, 3 replaced (amber).'), h)
+            assertEq(JSON.stringify(entries.map(({ to, kind }) => [nodes[to].kind, kind ?? null])), '[["new",null]]')
+            assert(h.includes('Last step, insert 80: 3 new (blue), 4 shared with the tree before, 3 only in the tree before.'), h)
             // A press leaves the preset behind.
             assert(h.includes('Custom'), h)
             assert(!h.includes('Press Insert'), h)
         },
         // The empty tree has no node to draw, so it is said instead; the
-        // first key is a leaf, and the version before it is still empty.
+        // first key is a leaf.
         emptyTree: () => {
             const loaded = html(_load('Empty tree'))
             assertEq(count(loaded)('<svg'), 0)
-            assert(loaded.includes('Before is the empty tree.'), loaded)
-            assert(loaded.includes('After is the empty tree.'), loaded)
+            assert(loaded.includes('The tree is empty.'), loaded)
             const s = follow('Empty tree')
             assertEq(censusOf(s), '{"built":1,"shared":0,"replaced":0}')
             const h = html(s)
             assert(h.includes('Last step, insert 10:'), h)
-            assert(h.includes('Before is the empty tree.'), h)
-            assert(!h.includes('After is the empty tree.'), h)
-            // The empty version has no root, so no arrow.
+            assert(!h.includes('The tree is empty.'), h)
             assertEq(count(h)('data-graph-entry=""'), 1)
-            // Removing the last key leaves the new version empty: only the
-            // old root, and its faded arrow, are drawn.
+            // Removing the last key leaves the tree empty: nothing is drawn,
+            // and the leaf it held is counted.
             const gone = press('remove')('10')(s)
             const g = html(gone)
-            assert(g.includes('After is the empty tree.'), g)
-            assert(!g.includes('Before is the empty tree.'), g)
-            assertEq(count(g)('data-graph-entry=""'), 1)
-            assertEq(count(g)('data-graph-entry="" marker-end="url(#graph-arrow)" data-graph-edge-kind="replaced"'), 1)
+            assert(g.includes('The tree is empty.'), g)
+            assertEq(count(g)('<svg'), 0)
+            assertEq(censusOf(gone), '{"built":0,"shared":0,"replaced":1}')
         },
         // A full leaf splits, and its middle key moves up into a branch of
-        // five, with no title above it: its rows say what it is.
+        // five, with no title above it: its keys and arrows say what it is.
         splitALeaf: () => {
             const s = follow('Split a leaf')
             assertEq(censusOf(s), '{"built":4,"shared":4,"replaced":3}')
             const h = html(s)
-            // The new branch of five is its rows in its elements' own order:
-            // Left, 60, Middle, 80, Right — each subtree's edge from a row
-            // named for it.
+            // The new branch of five is its two keys, 60 and 80, and its
+            // three subtrees' edges from its top corner, middle and bottom
+            // corner, with no row named for any of them.
             const { nodes, edges } = _graphOf(s.versions)
             const keysOf = (/** @type {number} */ id) => edges.flatMap(e => e.from === id && typeof e.to !== 'number' ? [e.to.inline] : [])
             const node5 = assertNotNullish(nodes.find(n => JSON.stringify(keysOf(n.id)) === '["60","80"]'))
             const out = edges.filter(e => e.from === node5.id && typeof e.to === 'number')
-            assertEq(JSON.stringify(out.map(e => [e.corner ?? null, e.label])), '[[null,"Left"],[null,"Middle"],[null,"Right"]]')
-            assert(h.includes('data-graph-edge-label="">Middle<'), h)
+            assertEq(JSON.stringify(out.map(e => [e.corner ?? null, e.label])), '[["top",""],["middle",""],["bottom",""]]')
+            assert(!h.includes('data-graph-edge-label="">Middle<'), h)
         },
         // The split reaches the root, and the tree grows a level: the new
         // root is a rank further from the leaves than the old one.
@@ -220,10 +209,11 @@ const demoProof = {
             const s = follow('Grow a level')
             assertEq(censusOf(s), '{"built":7,"shared":8,"replaced":3}')
             assertEq(JSON.stringify(depths('Grow a level')), '[3,4]')
-            // The roots are the nodes no edge reaches.
+            // The one root is the node no edge reaches, new, in the first
+            // column.
             const { nodes, edges } = _graphOf(s.versions)
             const roots = nodes.filter(n => edges.every(e => e.to !== n.id))
-            assertEq(JSON.stringify(roots.map(n => [n.kind, n.rank])), '[["replaced",1],["new",0]]')
+            assertEq(JSON.stringify(roots.map(n => [n.kind, n.rank])), '[["new",0]]')
         },
         // An emptied leaf merges, and the tree shrinks a level.
         removeAndMerge: () => {
@@ -246,8 +236,7 @@ const demoProof = {
         },
     },
     // The drawing's own layout: every leaf in the last column, and each
-    // column in order of its nodes' average keys, a replaced node above the
-    // one that took its place.
+    // column in order of its nodes' average keys.
     layout: () => {
         const { nodes, edges } = _graphOf(follow('Big tree').versions)
         const last = nodes.reduce((m, n) => Math.max(m, n.rank), 0)
@@ -261,14 +250,10 @@ const demoProof = {
         }
         nodes.forEach(a => nodes.forEach(b =>
             assert(a.rank !== b.rank || a.id >= b.id || averageOf(a.id) <= averageOf(b.id), '')))
-        // The leaf 310 was replaced by 310 320, with a larger average: the
-        // old one is above.
+        // The leaf 310 is now 310 320, and the leaf it replaced is not
+        // drawn.
         const leaf310 = nodes.filter(n => n.rank === last && averageOf(n.id) >= 310)
-        assertEq(JSON.stringify(leaf310.map(n => n.kind)), '["replaced","new"]')
-        // A replaced node and the new node with the same average key: the
-        // replaced one first.
-        const node300 = nodes.filter(n => n.rank === last - 1 && averageOf(n.id) === 300)
-        assertEq(JSON.stringify(node300.map(n => n.kind)), '["replaced","new"]')
+        assertEq(JSON.stringify(leaf310.map(n => n.kind)), '["new"]')
     },
     // A name no preset has is a bug in whatever sent it.
     throw: () => _load('no such preset'),

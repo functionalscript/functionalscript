@@ -38,6 +38,7 @@ pub mod fixtures {
     pub mod nullish;
     pub mod number;
     pub mod object;
+    pub mod object_spread;
     pub mod operators;
     pub mod parameters;
     pub mod property;
@@ -181,9 +182,9 @@ mod tests {
         fixtures::{
             arity, array, at, bigint, boolean, call, calls, closure, escapes, exports, function,
             function_scope, function_text, lazy, length, method, missing, named, named_imports,
-            named_imports_throws, nested, not_a_function, nullish, number, object, operators,
-            parameters, property, rest, rest_function, sharing, spread, string, throw, throws,
-            to_string,
+            named_imports_throws, nested, not_a_function, nullish, number, object, object_spread,
+            operators, parameters, property, rest, rest_function, sharing, spread, string, throw,
+            throws, to_string,
         },
         run,
     };
@@ -326,6 +327,18 @@ mod tests {
         assert_eq!(
             run::<Naive>(spread::module, "default", Action::Read),
             Ok(r#"[[0,1,2,3],["a","😀"],[1,2,4],4,2]"#.into())
+        );
+    }
+
+    /// Object spread, end to end: an object's own properties copied in
+    /// place, a later value at the earlier key's position, an array's
+    /// elements by index, a string's code units, nothing from `null` — the
+    /// values Node gives the fixture.
+    #[test]
+    fn object_spreads() {
+        assert_eq!(
+            run::<Naive>(object_spread::module, "default", Action::Read),
+            Ok(r#"[{"a":1,"b":2,"c":3},{"b":2,"a":1},{"a":0,"b":2},{"0":"p","z":0},{"0":"a","1":"\ud83d","2":"\ude00"},{}]"#.into())
         );
     }
 

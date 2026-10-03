@@ -5,8 +5,8 @@
  *
  * @module
  *
- * @import { Exp } from '../../edag/types.ts'
- * @import { AstBinary, AstBitnot, AstBody, AstCall, AstConditional, AstConst, AstFunction, AstImport, AstItem, AstModule, AstNeg, AstThrow } from '../ast/types.ts'
+ * @import { Exp, Spread } from '../../edag/types.ts'
+ * @import { AstBinary, AstBitnot, AstBody, AstCall, AstConditional, AstConst, AstEntry, AstFunction, AstImport, AstItem, AstModule, AstNeg, AstSpread, AstThrow } from '../ast/types.ts'
  * @import { _ImportSource, _Source } from '../transpiler/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
@@ -14,7 +14,7 @@
  * @import { Unknown as JsonUnknown } from '../../media/json/types.ts'
  * @import { Entry } from '../../types/object/types.ts'
  * @import { Unresolved } from './types.ts'
- * @import { _Binding, _Entries, _Link, _Lowered, _LoweredItem, _LowerResults, _LowerWork, _Nodes, _Resolved } from './private.ts'
+ * @import { _Binding, _Entries, _Link, _Lowered, _LoweredEntry, _LoweredItem, _LoweredOver, _LowerResults, _LowerWork, _Nodes, _Resolved } from './private.ts'
  */
 
 import { anchors, isBinary, isInlinedCall, isLazy, isSpread, readCaptures } from '../ast/module.f.mjs'
@@ -55,7 +55,7 @@ const parameter = ({ name }, i) => name === null ? ['.', args, i] : ['.', ['.', 
 /** A value that floats nothing. @type {(exp: Exp) => _Lowered} */
 const plain = exp => ({ exp, anchors: [] })
 
-/** What several lowered values float, in their order. @type {(xs: readonly _LoweredItem[]) => readonly Exp[]} */
+/** What several lowered values float, in their order. @type {(xs: readonly _LoweredOver<unknown>[]) => readonly Exp[]} */
 const floated = xs => xs.flatMap(x => x.anchors)
 
 /**
@@ -120,15 +120,29 @@ const call = nodes => ast => {
 }
 
 /**
- * An item's EDAG: a value's, or the EDAG's spread item over its operand's,
- * `['...', exp]` — what the operand floats floating with it.
+ * A spread's EDAG: the EDAG's spread, `['...', exp]`, over its operand's —
+ * what the operand floats floating with it.
  *
- * @type {(nodes: _Nodes) => (item: AstItem) => _LoweredItem}
+ * @type {(nodes: _Nodes) => (spread: AstSpread) => _LoweredOver<Spread>}
  */
-const lowerItem = nodes => item => {
-    if (!isSpread(item)) { return lower(nodes)(item) }
-    const { exp, anchors } = lower(nodes)(item[1])
+const lowerSpread = nodes => ([, operand]) => {
+    const { exp, anchors } = lower(nodes)(operand)
     return { exp: ['...', exp], anchors }
+}
+
+/** An item's EDAG: a value's, or a spread's, {@link lowerSpread}. @type {(nodes: _Nodes) => (item: AstItem) => _LoweredItem} */
+const lowerItem = nodes => item => isSpread(item) ? lowerSpread(nodes)(item) : lower(nodes)(item)
+
+/**
+ * An entry's EDAG: a member's, the EDAG's property over its value's, or
+ * a spread's, {@link lowerSpread}.
+ *
+ * @type {(nodes: _Nodes) => (entry: AstEntry) => _LoweredEntry}
+ */
+const lowerEntry = nodes => entry => {
+    if (isSpread(entry)) { return lowerSpread(nodes)(entry) }
+    const { exp, anchors } = lower(nodes)(entry[2])
+    return { exp: [':', entry[1], exp], anchors }
 }
 
 /**
@@ -209,8 +223,8 @@ const lowerLeaf = nodes => ast => {
             return { exp: ['[]', items.map(x => x.exp)], anchors: floated(items) }
         }
         case 'object': {
-            const members = ast[1].map(([, key, value]) => /** @type {const} */ ([key, lower(nodes)(value)]))
-            return { exp: ['{}', members.map(([key, x]) => [':', key, x.exp])], anchors: floated(members.map(([, x]) => x)) }
+            const entries = ast[1].map(lowerEntry(nodes))
+            return { exp: ['{}', entries.map(x => x.exp)], anchors: floated(entries) }
         }
         // a function's body is a scope of its own: it names its arguments,
         // one node however many references reach them, and nothing outside

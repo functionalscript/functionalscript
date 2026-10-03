@@ -1,7 +1,7 @@
 /**
  * Type-level API for `fjs/website/demo/versions/module.f.mjs`: a demo of a
- * persistent structure keyed by integers, drawn as its version before a step
- * and its version after it, in one graph.
+ * persistent structure keyed by integers, drawn as the version a step made,
+ * each node marked by whether the version before it holds it too.
  *
  * @module
  */
@@ -13,16 +13,13 @@ import type { Corner, Graph, Inline } from '../graph/types.ts'
  * One part of a node: an edge to a child node, or a value drawn in a row
  * of its own.
  *
- * - A child with a `label` leaves from a row of its own, named — a
- *   B-tree's `Left`, `Middle`, `Right`.
- * - A child with a `corner` takes no row and leaves from that point of the
- *   node's right side — the top for its first child, the bottom for its
- *   last.
+ * - A child takes no row: it leaves from its `corner` of the node's right
+ *   side — the top for its first child, the bottom for its last, and the
+ *   middle for a B-tree's middle one.
  * - A value with an empty `label` is drawn alone, filling its row, and
  *   `parts` draws it in pieces, as an {@link Inline}'s do.
  */
 export type Row<N> =
-    | { readonly label: string, readonly to: N }
     | { readonly to: N, readonly corner: Corner }
     | { readonly label: string, readonly inline: string, readonly parts?: Inline['parts'] }
 

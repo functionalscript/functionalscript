@@ -600,9 +600,14 @@ const item = (s, depth) => v => v instanceof Array && v[0] === '...'
     ? mapOk(value => flat([['...'], value]))(operand(s, depth)(v[1]))
     : operand(s, depth)(/** @type {Operand} */(v))
 
-/** An object's entry: a spread has no source spelling, and a key that is not a string no literal. @type {(s: _Scope, depth: number) => (p: readonly [':', Operand, Operand] | readonly ['...', Operand]) => Document} */
+/**
+ * An object's entry: a property, `k: v`, or a spread, `...` before its
+ * operand. A key that is not a string has no literal.
+ *
+ * @type {(s: _Scope, depth: number) => (p: readonly [':', Operand, Operand] | readonly ['...', Operand]) => Document}
+ */
 const property = (s, depth) => p => {
-    if (p[0] === '...') { return error('a spread') }
+    if (p[0] === '...') { return mapOk(value => flat([['...'], value]))(operand(s, depth)(p[1])) }
     const [, k, v] = p
     return typeof k !== 'string'
         ? error('an object key that is not a string')
