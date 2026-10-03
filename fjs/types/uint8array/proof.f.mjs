@@ -65,7 +65,13 @@ export const proof = {
         const result = listToVec([Uint8Array.from([1, 2]), Uint8Array.from([3])])
         assertArrayEq(fromVec(result), Uint8Array.from([1, 2, 3]))
     },
-    maxLength: () => toVec(new Uint8Array(Number(maxLengthBytes))),
+    // a vector of exactly `maxLength` bits converts both ways: `fromVec`
+    // builds no bigint wider than the vector, which Bun could not
+    maxLength: () => {
+        const input = new Uint8Array(Number(maxLengthBytes))
+        assertEq(fromVec(toVec(input)).length, input.length)
+    },
+    leadingZeros: () => assertArrayEq(fromVec(vec(24n)(0x0001n)), Uint8Array.from([0, 0, 1])),
     throw: {
         toVec: () => toVec(new Uint8Array(Number(maxLengthBytes) + 1)),
         listToVec: () => listToVec([new Uint8Array(Number(maxLengthBytes)), Uint8Array.from([0])]),
