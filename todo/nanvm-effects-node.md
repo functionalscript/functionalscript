@@ -108,9 +108,15 @@ What follows for the tasks below:
 - [x] Audit the supported subset for RTTI representability ([Audit](#audit)):
       name the generated and handwritten operations, distinguish compiler I/O
       from the selected console input, and record what remains deferred.
-- [ ] Define schemas for the named compiler I/O and console input subset,
-      check them against the handwritten TypeScript declarations, and generate
-      the Rust stub. Account for handwritten and unsupported operations.
+- [x] Schemas for the named compiler I/O and console input operations
+      ([`fjs/effects/schema`](../fjs/effects/schema/module.f.mjs)), with each
+      hand-written declaration in `fjs/effects/node/types.ts` pinned to the
+      type its schema derives ([`types.ts`](../fjs/effects/schema/types.ts)).
+      The declarations stay handwritten; a future TypeScript printer must
+      satisfy the nominal-mapping gate below before replacing them.
+- [ ] A Rust printer for these schemas and the generated trait with one
+      method per operation, committed under `npm run gen`. Account explicitly
+      for handwritten and unsupported operations.
 - [ ] Add the handwritten native `sandbox` declaration and compose its dispatch
       with the generated subset, preserving the existing TypeScript signature.
 - [ ] Before generating TypeScript declarations, define a nominal mapping
