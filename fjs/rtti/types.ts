@@ -201,3 +201,33 @@ export type _MakeRest =
  */
 export type _MakeOpen =
     <const C extends ConstObject>(c: C) => Rest<C, Unknown>
+
+/** One schema of a demo example: the source a reader sees, and the schema it builds. */
+export type DemoSchema = {
+    readonly source: string
+    readonly schema: Type
+}
+
+/**
+ * One example of the rtti demo: a single schema, or two whose difference is
+ * the lesson — both shown, the reader picking one while the value stays put.
+ */
+export type DemoExample = {
+    readonly name: string
+    readonly about: string
+    readonly schemas: readonly [DemoSchema] | readonly [DemoSchema, DemoSchema]
+    readonly value: string
+}
+
+/** One reader's answer in the rtti demo: whether it succeeded, and the value it succeeded with or where and why it failed. */
+export type _Answer = {
+    readonly ok: boolean
+    readonly text: string
+}
+
+/** The rtti demo's state: the example picked by name, which of its schemas is shown, and the value's text. */
+export type DemoState = {
+    readonly example: string
+    readonly shown: 0 | 1
+    readonly text: string
+}
