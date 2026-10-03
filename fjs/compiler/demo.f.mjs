@@ -6,10 +6,12 @@
  * **It runs the compiler, not a lookalike.** The text is the input file of
  * the real `compile`, run over an in-memory file system, once per output
  * name; each pane is the file that run wrote, or the message it printed. So
- * `[a, a]` is a shared `const` in `.js`, `.data.js` and Rust but refused by
- * JSON, a function is refused by the two value outputs and written by the
- * rest, and a program that fails when it runs is refused by every value
- * output while the source and Rust ones carry it unevaluated.
+ * `[a, a]` is a shared `const` in `.js`, `.data.js`, the EDAG and Rust, but
+ * JSON, which has no identity to keep, writes the node where each reference
+ * reaches it; `undefined` is refused by JSON alone; a function is refused by
+ * the two value outputs and written by the rest; and a program that fails
+ * when it runs is refused by every value output while the source and Rust
+ * ones carry it unevaluated.
  *
  * **A refusal is a pane's content, in the compiler's own words.** An empty
  * box would be the plausible wrong answer

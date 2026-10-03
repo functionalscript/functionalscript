@@ -9,8 +9,8 @@ questions remain
 `fjs compile` writes five outputs from one linked program — a `.json`
 document, a `.data.js` document, a `.js` module, the EDAG, and generated Rust —
 and the README says in prose which one refuses what. A reader could not *see*
-it: that `[a, a]` is one `const` in `.js` and `.data.js` but refused by JSON,
-that a function survives to `.js`, EDAG and Rust and is refused by the value
+it: that `[a, a]` is one `const` in `.js` and `.data.js` but a node written
+twice in JSON, that a function survives to `.js`, EDAG and Rust and is refused by the value
 outputs, that `!x` stops in the tokenizer and `typeof x` in the parser.
 
 ### Design
@@ -72,7 +72,10 @@ which outputs accept which example.
   a span; `typeof x` passes it as an ordinary name and the parser refuses it.
 - An operator, a function, a call and a failing read are refused by `.json` and
   `.data.js` — a value has none of them — and written by `.js`, the EDAG and
-  Rust; `undefined` and a shared node are refused by `.json` alone.
+  Rust; `undefined` is refused by `.json` alone.
+- A shared node is one `const` in `.data.js`, `.js` and the EDAG and one
+  temporary cloned at each reference in Rust, and is written where each
+  reference reaches it in `.json`, which carries no identity.
 - A repeated object key keeps its last value in `.json` and `.data.js` and both
   entries in `.js`, the EDAG and Rust.
 - An import is refused by every output: the in-memory file system holds only
@@ -98,7 +101,5 @@ which outputs accept which example.
 
 - [`value-refusal-names-the-output.md`](./value-refusal-names-the-output.md) —
   the refusal wording the panes show.
-- [`named-export-sharing-precision.md`](./named-export-sharing-precision.md) —
-  its example is one of the sharing cases above.
 - [`../edag/demo.f.mjs`](../edag/demo.f.mjs) — the EDAG's own demo, with its own
   presets.

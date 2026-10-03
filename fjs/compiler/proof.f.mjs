@@ -1734,7 +1734,8 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
      * shared example, one letter per output, in the page's order: `o` where the
      * output is written, `x` where it is refused. JSON and DataJS refuse what is
      * not a value — an operator, a function, a call, a failing read — and JSON
-     * alone refuses `undefined` and a shared node; an import has no file to
+     * alone refuses `undefined`; a shared node is written by all five, JSON
+     * writing it where each reference reaches it; an import has no file to
      * link, and the tokenizer's refusals stop every output.
      */
     demo: {
@@ -1746,7 +1747,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 'Comments': 'ooooo',
                 'Objects': 'ooooo',
                 'A repeated object key': 'ooooo',
-                'Sharing: a const used twice': 'xoooo',
+                'Sharing: a const used twice': 'ooooo',
                 'Arithmetic': 'xxooo',
                 'Operator precedence': 'xxooo',
                 'Laziness': 'xxooo',
