@@ -503,7 +503,9 @@ export const header = build => ['header',
  *
  * **The links are separated by text, not only by spacing**, as the
  * breadcrumb is: a screen reader, or the page without its stylesheet, still
- * reads three names rather than one run-together line. Each ends with the
+ * reads three names rather than one run-together line. The space before
+ * each separator is a no-break space, so on a narrow screen a separator
+ * stays at the end of the line it closes rather than opening the next. Each ends with the
  * arrow the header's GitHub link carries, because each leaves the site, and
  * the arrow is hidden from a screen reader for the same reason.
  *
@@ -513,7 +515,7 @@ export const header = build => ['header',
  */
 export const footer = funding => funding.length === 0 ? [] : [['footer', { 'data-funding': '' },
     'Support FunctionalScript: ',
-    ...toArray(intersperse(/** @type {Node} */ (' · '))(funding.map(({ description, address }) =>
+    ...toArray(intersperse(/** @type {Node} */ ('\u00a0· '))(funding.map(({ description, address }) =>
         /** @type {Node} */ (['a', { href: address }, description, ['span', { 'aria-hidden': 'true' }, ' ↗']])))),
 ]]
 

@@ -57,7 +57,7 @@ export const proof = {
         ])])),
             '<body><footer data-funding="">Support FunctionalScript: '
             + '<a href="https://github.com/sponsors/x">GitHub Sponsors<span aria-hidden="true"> ↗</span></a>'
-            + ' · '
+            + '\u00a0· '
             + '<a href="https://patreon.com/x">Patreon<span aria-hidden="true"> ↗</span></a>'
             + '</footer></body>'),
         // No channels, no footer: a heading for an empty list says nothing.
