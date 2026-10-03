@@ -40,8 +40,34 @@ export const proof = {
         blankDescription: () => assertStructurallySame(
             parse(fundingJson([{ address: 'https://example.com', description: '  ' }])),
             ['error', 'blank description for https://example.com']),
-        notHttps: () => assertStructurallySame(
-            parse(fundingJson([{ address: 'http://example.com', description: 'x' }])),
-            ['error', 'not an https:// address: http://example.com']),
+        /**
+         * **An address must be an `https://` URL with a domain name**, so a
+         * typo that is not a URL at all stops the build rather than becoming
+         * a broken link on every page.
+         */
+        address: () => [
+            'http://example.com',
+            'https://',
+            'https://[',
+            'https://[::1]/',
+            'https://.',
+            'https://a..b',
+            'https://x_y.com',
+            'https://x.com:',
+            'https://x.com:44a',
+            'https://x.com:1:2',
+            'https://user@x.com',
+        ].forEach(address => assertStructurallySame(
+            parse(fundingJson([{ address, description: 'x' }])),
+            ['error', `not an https:// URL with a domain name: ${address}`])),
     },
+    /** The path, query and fragment are not the host's, and a port is allowed. */
+    addressAccepted: () => [
+        'https://x.com',
+        'https://Sub-1.X.com:443/a:b',
+        'https://x.com?q=1',
+        'https://x.com#f',
+    ].forEach(address => assertStructurallySame(
+        parse(fundingJson([{ address, description: 'x' }])),
+        ['ok', [{ description: 'x', address }]])),
 }
