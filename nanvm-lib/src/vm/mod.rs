@@ -9,7 +9,6 @@ mod function;
 mod impls;
 mod internal;
 mod iterator_record;
-mod join;
 mod lambda;
 mod member_access;
 mod nullish;
@@ -43,6 +42,8 @@ pub use crate::vm::{
 
 #[cfg(test)]
 mod test {
+    pub(super) mod deep;
+
     use crate::vm::ToAny;
 
     use super::*;

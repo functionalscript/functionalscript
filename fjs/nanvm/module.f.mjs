@@ -1625,6 +1625,34 @@ export const data = {
         { op: 'throw', cases: throwCases },
         { op: 'String', cases: stringCoercionCases },
         {
+            // The `Number` cast, which is unary plus except that it converts
+            // a bigint where `+` refuses one.
+            op: 'Number',
+            cases: [
+                ...numberCoercionCases(false),
+                { name: 'bigintZero', args: [0n], expected: 0 },
+                { name: 'bigintPositive', args: [1n], expected: 1 },
+                { name: 'bigintNegative', args: [-1n], expected: -1 },
+                // A bigint past `2^53` rounds to the nearest number, a tie to
+                // the even one. Wider literals use `bigint_any_words` in Rust.
+                { name: 'bigintTieDown', args: [2n ** 53n + 1n], expected: 2 ** 53 },
+                { name: 'bigintTieUp', args: [2n ** 53n + 3n], expected: 2 ** 53 + 4 },
+                { name: 'bigintWideTieDown', args: [2n ** 64n + 2n ** 11n], expected: 2 ** 64 },
+                { name: 'bigintWideTieUp', args: [2n ** 64n + 3n * 2n ** 11n], expected: 2 ** 64 + 2 ** 13 },
+                { name: 'bigintWideSticky', args: [2n ** 64n + 2n ** 11n + 1n], expected: 2 ** 64 + 2 ** 12 },
+                { name: 'bigintSeveralWords', args: [123456789012345678901234567890n], expected: 123456789012345678901234567890 },
+                { name: 'bigintLargestFinite', args: [(2n ** 53n - 1n) * 2n ** 971n], expected: Number.MAX_VALUE },
+                // The halfway point to 2^1024 overflows; one integer below
+                // still rounds to the largest finite number.
+                { name: 'bigintBelowOverflowTie', args: [2n ** 1024n - 2n ** 970n - 1n], expected: Number.MAX_VALUE },
+                { name: 'bigintOverflowTie', args: [2n ** 1024n - 2n ** 970n], expected: Infinity },
+                { name: 'bigintNegativeOverflowTie', args: [-(2n ** 1024n - 2n ** 970n)], expected: -Infinity },
+                { name: 'bigintBeyondRange', args: [2n ** 1024n], expected: Infinity },
+                { name: 'bigintNegativeBeyondRange', args: [-(2n ** 1024n)], expected: -Infinity },
+                { name: 'bigintObject', args: [{ valueOf: returns(7n) }], expected: 7 },
+            ],
+        },
+        {
             // `Object.is`, `===` but for `NaN` and the signed zeros.
             op: 'is',
             commutative: true,

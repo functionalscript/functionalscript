@@ -97,6 +97,7 @@ export const op1Rust = {
     '!': a => `!(${a})`,
     '~': a => `Any::bitwise_not(${a})`,
     typeof: a => `Any::typeof_(${a})`,
+    Number: a => `Any::number(${a})`,
     String: a => cat([`${a}.to_string().map(|v| v`, toAny, ')']),
     // The `Result` every operation answers, its `Err` arm: the thrown value
     // is the operand, and the enclosing `?` or function carries it out.
@@ -368,24 +369,14 @@ const primitiveExpr = v => {
 const keyExpr = k => typeof k === 'string' ? ok(stringCall('string_key')(k)) : error(['not a literal key', k])
 
 /**
- * A `.` node's index, as the `Any<A>` key `Any::dot` takes: a literal
- * `number` or `string`, the two `Index` variants the read's own key type
- * (`number | string`) already covers directly.
+ * A literal `.` index, as the `Any<A>` key `Any::dot` takes: a `number` or a
+ * `string`, the two `Index` variants the read's own key type
+ * (`number | string`) covers directly. The third, `['Number', exp]`, is an
+ * operation, and the printer's own {@link index}.
  *
- * `NumberCast` — the remaining `Index` variant — names a sub-expression to
- * evaluate and coerce at run time (`a[Number(k)]`), not a literal key this
- * printer can spell directly, and there is no `Number(...)` cast primitive
- * here to route it through (`op1Rust` has `String` but no `Number`), so it
- * stays refused — a separate, larger task, the same way operators were kept
- * out of the printer that first landed `.`/`[]`.
- *
- * @type {(index: Index) => Result<Printed<string>, readonly unknown[]>}
+ * @type {(index: string | number) => Printed<string>}
  */
-const indexExpr = index => {
-    if (typeof index === 'string') { return ok(stringCall('string_any')(index)) }
-    if (typeof index === 'number') { return ok(numberExpr(index)) }
-    return error(['no Rust for a Number(...) cast index', index])
-}
+const literalIndex = index => typeof index === 'string' ? stringCall('string_any')(index) : numberExpr(index)
 
 /**
  * The indentation of one level of generated Rust: a scope's statements
@@ -922,7 +913,7 @@ const printer = nested => shared => root => {
         // answers is the VM's: `null.a` throws when the module runs, as
         // JavaScript throws, and nothing here predicts it.
         if (isChain(id)) {
-            const open = id === '.' ? map2((fa, k) => `Any::dot(${fa}, ${k})`)(f(a), indexExpr(b))
+            const open = id === '.' ? map2((fa, k) => `Any::dot(${fa}, ${k})`)(f(a), index(b))
                 : id === '?.' ? map2((fa, k) => `Any::option_dot(${fa}, ${k})`)(f(a), keyThunk(b))
                 : map2((fa, t) => `Any::option_call(${fa}, ${t})`)(f(a), lazyOperand(b))
             return map2((o, rest) => `${o}${rest}`)(open, steps(id === '.')(c))
@@ -957,7 +948,8 @@ const printer = nested => shared => root => {
      * in `nanvm-lib`, so a step the README does not allow does not compile;
      * this printer only spells, and refuses a tag that is none of the four
      * rather than read it as one of them. A step's key is a thunk over a
-     * literal, {@link keyThunk}, and its arguments a {@link lazyOperand}:
+     * literal or `Number(…)` cast, {@link keyThunk}, and its arguments a
+     * {@link lazyOperand}:
      * both are inside the region, or after an access that may throw first.
      *
      * @type {(property: boolean) => (k: readonly any[] | undefined) => Result<Printed<string>, readonly unknown[]>}
@@ -973,13 +965,25 @@ const printer = nested => shared => root => {
         return map2((t, rest) => `.${method}(${t})${rest}`)(lazyOperand(x), terminal ? plain('') : steps(false)(next))
     }
     /**
-     * An index inside a region, as the thunk `option_dot` and the `|.` step
-     * take: `|| Ok(…)` around the literal key {@link indexExpr} spells,
-     * since a literal has nothing to bind and cannot throw.
+     * A `.` node's index as the key `Any::dot` takes: a literal's
+     * {@link literalIndex}, or the `Number(…)` cast of a sub-expression,
+     * `Any::number(k)?`, which is an operand like any other, evaluated after
+     * the receiver and before the access, with JavaScript's `Number(k)`
+     * coercion (including bigint conversion).
      *
      * @type {(index: Index) => Result<Printed<string>, readonly unknown[]>}
      */
-    const keyThunk = index => map1(k => `|| Ok(${k})`)(indexExpr(index))
+    const index = i => typeof i === 'object' ? f(i) : ok(literalIndex(i))
+    /**
+     * An index inside a region, as the thunk `option_dot` and the `|.` step
+     * take: `|| Ok(…)` around a literal, which has nothing to bind and
+     * cannot throw, and a `Number(…)` cast's own thunk, {@link lazyOperand},
+     * since the cast and its operand are inside the region and run only if
+     * the guard lets them.
+     *
+     * @type {(index: Index) => Result<Printed<string>, readonly unknown[]>}
+     */
+    const keyThunk = i => typeof i === 'object' ? lazyOperand(i) : ok(cat(['|| Ok(', literalIndex(i), ')']))
     /** An operand, parenthesized where its rendering would otherwise re-associate. */
     /** @type {(e: Exp) => Result<Printed<string>, readonly unknown[]>} */
     const operand = e => map1(s => composed(e) ? `(${s})` : s)(f(e))
