@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { Exp, Items } from '../../edag/types.ts'
+import type { Exp, Items, Properties } from '../../edag/types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { AstConst, BinaryTag } from '../ast/types.ts'
@@ -64,6 +64,9 @@ export type _Lowered = _LoweredOver<Exp>
 
 /** An item lowered: a value's {@link _Lowered}, or a spread item's over its operand's. */
 export type _LoweredItem = _LoweredOver<Items>
+
+/** An entry lowered: a member's property over its value's, or a spread's. */
+export type _LoweredEntry = _LoweredOver<Properties>
 
 /** A lowered `E`, and what it floats. */
 export type _LoweredOver<E> = {

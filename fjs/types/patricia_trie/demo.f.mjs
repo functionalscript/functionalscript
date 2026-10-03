@@ -1,6 +1,6 @@
 /**
- * Two Patricia tries, one graph: type keys, see which subtrees the trie
- * before the step and the trie after it have in common.
+ * A Patricia trie after a step: type keys, see which of its subtrees the
+ * trie before the step holds too.
  *
  * **The trie stores hashes as a prefix tree**, so each node is a prefix:
  * the bits every key under it starts with. Here a key is eight bits, as a
@@ -18,15 +18,15 @@
  * one, and are not shown.
  *
  * **The demo is a [versions demo](../../website/demo/versions/module.f.mjs)**,
- * which draws both versions as one graph; this module says only what the
- * trie is.
+ * which draws the new version and marks what the old one holds too; this
+ * module says only what the trie is.
  *
  * **Keys are typed and shown in binary**, eight bits, since bits are what
  * the trie branches on. A branch shows the bits every key under it shares
  * — its prefix — and a leaf its whole key, each in two parts: the bits its
- * parent already fixed, and the bits it adds. A node both tries share may
- * have a parent in each; its parts are split at the longer parent's prefix,
- * the parent the layout also draws it beside. A trie is not balanced,
+ * parent already fixed, and the bits it adds — its parent in the new
+ * trie, the one drawn, which for a node the old trie shares need not be
+ * its parent there. A trie is not balanced,
  * so a node is drawn one column right of its parent rather than every leaf
  * in the last column, which would stretch the shallow ones across the page.
  *
@@ -111,8 +111,11 @@ const structure = {
             const n = node(id)
             return n[0] === 'leaf' ? bits : bits - (firstKey(id) ^ lastKey(id)).toString(2).length
         }
+        // Split at the parent the new trie gives a node: the old trie is
+        // not drawn, and a node it shares may sit under a longer prefix
+        // there.
         /** @type {(id: string) => number} */
-        const inherited = id => [...nodes].reduce(
+        const inherited = id => [...after.nodes].reduce(
             (m, [p, n]) => n[0] === 'branch' && (n[1] === id || n[2] === id) ? Math.max(m, prefixLength(p)) : m, 0)
         /** @type {(id: string) => Row<string>} */
         const prefixRow = id => {

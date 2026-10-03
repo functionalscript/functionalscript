@@ -203,6 +203,11 @@ const demoProof = {
         assert(h.includes('<tspan data-graph-part="prior">01</tspan><tspan data-graph-part="current">100011</tspan>'), h)
         // No decimal is shown.
         assert(!h.includes('data-graph-value-label="">99<'), h)
+        // Removing 10110100 moves the leaf 10000010 up: under the old trie's
+        // branch it shared 10, under the new one only 1. Only the new trie
+        // is drawn, so the split follows its parent.
+        const removed = html(follow('Remove a key'))
+        assert(removed.includes('<tspan data-graph-part="prior">1</tspan><tspan data-graph-part="current">0000010</tspan>'), removed)
     },
     // A node is one column right of its deepest parent: the root at 0, and
     // a leaf where its parent puts it, not in one last column.
