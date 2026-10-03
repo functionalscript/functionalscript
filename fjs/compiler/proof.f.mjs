@@ -195,11 +195,11 @@ const fjsCorpus = [
     'const o = { m: (...r) => r }; export default (...r) => o.m(...r, 1);',
 ]
 
-/** Whether the front end finds a shared node in the module at `path`. @type {(root: typeof emptyState.root) => (path: string) => boolean} */
-const sharedOf = root => path => {
-    const [, result] = virtual({ ...emptyState, root })(transpile(path))
-    assert(result[0] === 'ok', result[1])
-    return result[1].shared
+/** The `.json` document `fjs compile` writes for the module `a.f.js` in `root`. @type {(root: typeof emptyState.root) => string} */
+const jsonOf = root => {
+    const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['a.f.js', 'output.json'])))
+    assertEq(exitCode(code), 0, state.stderr)
+    return readOutput(state.root, 'output.json')
 }
 
 /** The module `fjs compile` writes for a value. @type {(value: Unknown) => string} */
@@ -264,7 +264,7 @@ export const proof = {
             assertEq(jsonRefused('export const a=5;'), 'output.json - error: no JSON spelling for undefined')
             assertEq(compileSource('export const a=[]; export default a;')('output.json'), '[]')
             assertEq(compileSource('const x=[]; export const a=[x,x]; export default 7;')('output.json'), '7')
-            assertEq(jsonRefused('export const a=[]; export default [a,a];'), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(compileSource('export const a=[]; export default [a,a];')('output.json'), '[[],[]]')
             assertEq(compileSource('export const a=undefined; export default undefined;')('output.data.js'), 'export default undefined;')
         },
         imports: () => {
@@ -507,9 +507,9 @@ export const proof = {
             const edag = 'const $0=["[]",[1]];export default ["{}",[[":","default",["[]",[$0,$0]]]]];'
             assertEq(compileSource(source)('out.edag.data.js'), edag)
             assertEq(compileSource(source)('out.edag.data.mjs'), edag)
-            // JSON denotes a tree, so the shared node is the one thing it
-            // has no spelling for: the same value with no sharing in it
-            assertEq(compileSource('export default [[1], [1]];')('out.json'), '[[1],[1]]')
+            // JSON denotes a tree, so the shared node is written where each
+            // reference reaches it
+            assertEq(compileSource(source)('out.json'), '[[1],[1]]')
         },
         // The order of these is the claim: the longer suffix wins, so the
         // EDAG route and the DataJS one are both reachable although every
@@ -1151,18 +1151,18 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     normalizeFixedPoint: normalizeSet.map(({ id, text }) => () => {
         assertEq(compileSource(text)('output.data.js'), text, id)
     }),
-    // Sharing is decided from the module's syntax, not by walking the value:
-    // a container `const` or import that the export reaches twice, or an
-    // import whose own value is shared. A leaf referenced twice is not a
-    // node, an unreachable `const` is not part of the value, and an inline
-    // literal is a fresh node every time it is written.
+    // JSON denotes a tree, so a node the export reaches twice is written
+    // where each reference reaches it, as `JSON.stringify` writes it — a
+    // container `const`, an alias of one, or an import, along any route and
+    // however deep. The DataJS output keeps the node; `outputRoute` pins
+    // that side.
     sharing: {
-        constTwice: () => { assert(sharedOf({ 'a.f.js': [utf8('const a = [1]; export default [a, a];')] })('a.f.js')) },
+        constTwice: () => { assertEq(compileSource('const a = [1]; export default [a, a];')('output.json'), '[[1],[1]]') },
         // an access on a literal selects the item the key names, and the
         // rest of the literal is not part of the value
         literal: () => {
-            assertEq(jsonRefused('const x = []; export default [[x, x], 0][0];'), 'output.json - error: no JSON spelling for a shared node')
-            assertEq(jsonRefused('const x = []; export default { a: [x, x], b: 1 }.a;'), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(compileSource('const x = []; export default [[x, x], 0][0];')('output.json'), '[[],[]]')
+            assertEq(compileSource('const x = []; export default { a: [x, x], b: 1 }.a;')('output.json'), '[[],[]]')
             assertEq(compileSource('const x = []; export default [[x, x], 0][1];')('output.json'), '0')
             assertEq(compileSource('const x = []; export default [[x, x], 0][0][1];')('output.json'), '[]')
             assertEq(compileSource('const x = []; export default [x, [x]][1];')('output.json'), '[[]]')
@@ -1170,64 +1170,37 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assertEq(compileSource('const x = []; export default [[x, x]].length;')('output.json'), '1')
             // an item selected from a literal may be an access itself, on a
             // literal or on a reference, and is read on to what it names
-            assertEq(jsonRefused('const x = []; const z = [x, x]; export default [{ a: z }.a][0];'), 'output.json - error: no JSON spelling for a shared node')
-            assertEq(jsonRefused('const x = []; export default [[{ a: [x, x] }.a]][0][0];'), 'output.json - error: no JSON spelling for a shared node')
-            assertEq(jsonRefused('const x = []; const z = { a: [x, x] }; export default [z.a][0];'), 'output.json - error: no JSON spelling for a shared node')
-            assertEq(compileSource('const x = []; const z = [x, x]; export default [{ a: z, b: 1 }.b][0];')('output.json'), '1')
+            assertEq(compileSource('const x = []; const z = [x, x]; export default [{ a: z }.a][0];')('output.json'), '[[],[]]')
+            assertEq(compileSource('const x = []; export default [[{ a: [x, x] }.a]][0][0];')('output.json'), '[[],[]]')
             assertEq(compileSource('const x = []; const z = { a: [x, x], b: 2 }; export default [z.b][0];')('output.json'), '2')
-            // a route into an entry that is an access on a literal walks
-            // what the access selects
-            assertEq(jsonRefused('const x = []; const a = { a: [x, x], b: x }.a; export default [a[0], x];'), 'output.json - error: no JSON spelling for a shared node')
-            assertEq(jsonRefused('const x = []; const a = [[x, x]][0]; export default [a[0], a[1]];'), 'output.json - error: no JSON spelling for a shared node')
-            assertEq(compileSource('const x = []; const a = { a: [x, x], b: 1 }.b; export default [a, 1];')('output.json'), '[1,1]')
+            assertEq(compileSource('const x = []; const a = { a: [x, x], b: x }.a; export default [a[0], x];')('output.json'), '[[],[]]')
             assertEq(compileSource('const a = [[1, 2]][0]; export default [a[0], a[1]];')('output.json'), '[1,2]')
-            assertEq(compileSource('const x = []; const a = { a: [x, 1] }.a; export default [a[1], x];')('output.json'), '[1,[]]')
-            // a route into a `const` whose entry selects an item that is an
-            // access itself reads that item on too
-            assertEq(jsonRefused('const x = []; const a = [{ b: [x, x] }.b][0]; export default [a[0], x];'), 'output.json - error: no JSON spelling for a shared node')
             assertEq(compileSource('const x = []; const a = [{ b: [x, 1] }.b][0]; export default [a[1], x];')('output.json'), '[1,[]]')
         },
-        leafTwice: () => {
-            assert(!sharedOf({ 'a.f.js': [utf8('const a = 1; export default [a, a];')] })('a.f.js'))
-            assertEq(compileSource('const a = 1; export default [a, a];')('output.json'), '[1,1]')
-        },
-        unreachable: () => {
-            assert(!sharedOf({ 'a.f.js': [utf8('const a = []; const b = [a, a]; export default [a];')] })('a.f.js'))
-            assertEq(compileSource('const a = []; const b = [a, a]; export default [a];')('output.json'), '[[]]')
-        },
-        alias: () => { assert(sharedOf({ 'a.f.js': [utf8('const a = []; const b = a; export default [a, b];')] })('a.f.js')) },
-        nested: () => { assert(sharedOf({ 'a.f.js': [utf8('const a = []; export default [a, [a]];')] })('a.f.js')) },
-        member: () => { assert(sharedOf({ 'a.f.js': [utf8('const a = {}; export default {"x": a, "y": {"z": a}};')] })('a.f.js')) },
-        literals: () => { assert(!sharedOf({ 'a.f.js': [utf8('export default [[1], [1], {"a": {}}];')] })('a.f.js')) },
-        // A member a later duplicate shadows is not in the value, so a
-        // reference in it is not a reference to the node: `{x: a, x: 0, y: a}`
-        // holds `a` once, and `{a: s, a: s}` once, along a const or an import.
+        leafTwice: () => { assertEq(compileSource('const a = 1; export default [a, a];')('output.json'), '[1,1]') },
+        unreachable: () => { assertEq(compileSource('const a = []; const b = [a, a]; export default [a];')('output.json'), '[[]]') },
+        alias: () => { assertEq(compileSource('const a = []; const b = a; export default [a, b];')('output.json'), '[[],[]]') },
+        nested: () => { assertEq(compileSource('const a = []; export default [a, [a]];')('output.json'), '[[],[[]]]') },
+        member: () => { assertEq(compileSource('const a = {}; export default {"x": a, "y": {"z": a}};')('output.json'), '{"x":{},"y":{"z":{}}}') },
+        literals: () => { assertEq(compileSource('export default [[1], [1], {"a": {}}];')('output.json'), '[[1],[1],{"a":{}}]') },
+        // a member a later duplicate shadows is not in the value: `{x: a,
+        // x: 0, y: a}` holds `a` once, and `{a: s, a: s}` once
         shadowed: () => {
-            assert(!sharedOf({ 'a.f.js': [utf8('const a = {}; export default {"x": a, "x": 0, "y": a};')] })('a.f.js'))
             assertEq(compileSource('const a = {}; export default {"x": a, "x": 0, "y": a};')('output.json'), '{"x":0,"y":{}}')
-            assert(!sharedOf({ 'a.f.js': [utf8('const s = [1]; export default {"a": s, "a": s};')] })('a.f.js'))
-            assert(!sharedOf({ 'a.f.js': [utf8('import m from "./m.f.js"; export default {"a": m, "a": m};')], 'm.f.js': [utf8('export default [1];')] })('a.f.js'))
-            assert(sharedOf({ 'a.f.js': [utf8('const a = {}; export default {"x": 0, "x": a, "y": a};')] })('a.f.js'))
+            assertEq(compileSource('const s = [1]; export default {"a": s, "a": s};')('output.json'), '{"a":[1]}')
+            assertEq(compileSource('const a = {}; export default {"x": 0, "x": a, "y": a};')('output.json'), '{"x":{},"y":{}}')
         },
+        // one module reached along two import edges is one node, written
+        // where each edge reaches it, however the edges are spelled: two
+        // imports of one module, two import statements, two spellings of
+        // one path, or a diamond through a third module
         importTwice: () => {
-            assert(sharedOf({ 'a.f.js': [utf8('import c from "./c.f.js"; export default [c, c];')], 'c.f.js': [utf8('export default [1];')] })('a.f.js'))
-            assert(!sharedOf({ 'a.f.js': [utf8('import c from "./c.f.js"; export default [c, c];')], 'c.f.js': [utf8('export default 1;')] })('a.f.js'))
-        },
-        importShared: () => {
-            const root = { 'c.f.js': [utf8('const a = []; export default [a, a];')] }
-            assert(sharedOf({ ...root, 'a.f.js': [utf8('import c from "./c.f.js"; export default [c];')] })('a.f.js'))
-            // an import the export never reaches contributes nothing
-            assert(!sharedOf({ ...root, 'a.f.js': [utf8('import c from "./c.f.js"; const x = 1; export default [x];')] })('a.f.js'))
-        },
-        json: () => { assert(!sharedOf({ 'a.json': [utf8('[[1],[1]]')] })('a.json')) },
-        // one module reached along two import edges is one node reached
-        // twice, however the edges are spelled: two import statements, two
-        // spellings of one path, or a diamond through a third module — which
-        // is what a module's `reaches` list is for
-        moduleTwice: () => {
             const m = { 'm.f.js': [utf8('export default [1];')] }
-            assert(sharedOf({ ...m, 'a.f.js': [utf8('import m from "./m.f.js"; import m2 from "./m.f.js"; export default [m, m2];')] })('a.f.js'))
-            assert(sharedOf({ ...m, 'a.f.js': [utf8('import m from "./m.f.js"; import m2 from "./sub/../m.f.js"; export default [m, m2];')] })('a.f.js'))
+            assertEq(jsonOf({ ...m, 'a.f.js': [utf8('import m from "./m.f.js"; export default [m, m];')] }), '[[1],[1]]')
+            assertEq(jsonOf({ ...m, 'a.f.js': [utf8('import m from "./m.f.js"; import m2 from "./m.f.js"; export default [m, m2];')] }), '[[1],[1]]')
+            assertEq(jsonOf({ ...m, 'a.f.js': [utf8('import m from "./m.f.js"; import m2 from "./sub/../m.f.js"; export default [m, m2];')] }), '[[1],[1]]')
+            const shared = { 'c.f.js': [utf8('const a = []; export default [a, a];')] }
+            assertEq(jsonOf({ ...shared, 'a.f.js': [utf8('import c from "./c.f.js"; export default [c];')] }), '[[[],[]]]')
         },
         diamond: () => {
             const root = {
@@ -1235,39 +1208,16 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 'b.f.js': [utf8('import m from "./m.f.js"; export default [m];')],
                 'a.f.js': [utf8('import m from "./m.f.js"; import b from "./b.f.js"; export default [m, b];')],
             }
-            assert(sharedOf(root)('a.f.js'))
-            const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['a.f.js', 'output.json'])))
-            assertEq(exitCode(code), 1)
-            assertEq(state.stderr.trim(), 'output.json - error: no JSON spelling for a shared node')
-            // and the same module reached along one edge each by two
-            // *different* modules is still one node reached twice
-            assert(sharedOf({ ...root, 'c.f.js': [utf8('import m from "./m.f.js"; export default {"m": m};')], 'a.f.js': [utf8('import b from "./b.f.js"; import c from "./c.f.js"; export default [b, c];')] })('a.f.js'))
-            // a leaf module along two edges is two copies of a leaf
-            assert(!sharedOf({ ...root, 'm.f.js': [utf8('export default 1;')] })('a.f.js'))
+            assertEq(jsonOf(root), '[[1],[[1]]]')
+            assertEq(jsonOf({ ...root, 'c.f.js': [utf8('import m from "./m.f.js"; export default {"m": m};')], 'a.f.js': [utf8('import b from "./b.f.js"; import c from "./c.f.js"; export default [b, c];')] }), '[[[1]],{"m":[1]}]')
         },
-        // what a module reaches is listed once each, and not at all once it
-        // is shared, so the lists stay sets however the modules join
-        reaches: () => {
-            const root = {
-                'm.f.js': [utf8('export default [1];')],
-                'b.f.js': [utf8('import m from "./m.f.js"; export default [m];')],
-                'a.f.js': [utf8('import b from "./b.f.js"; export default [b, [b]];')],
-            }
-            const [, b] = virtual({ ...emptyState, root })(transpile('b.f.js'))
-            assert(b[0] === 'ok', b[1])
-            assertStructurallySame(b[1].reaches, ['m.f.js'])
-            const [, a] = virtual({ ...emptyState, root })(transpile('a.f.js'))
-            assert(a[0] === 'ok', a[1])
-            assertEq(a[1].shared, true)
-            assertStructurallySame(a[1].reaches, [])
-        },
-        // a node doubled at every `const`: two to the twenty-fourth references
-        // in the value, and one `const` per line in the syntax the answer is
-        // read from — refused at once, where a walk over the value's paths
-        // would not return
+        json: () => { assertEq(jsonOf({ 'a.json': [utf8('[[1],[1]]')], 'a.f.js': [utf8('import j from "./a.json" with { type: "json" }; export default [j, j];')] }), '[[[1],[1]],[[1],[1]]]') },
+        // a node doubled at every `const` is written once per reference:
+        // sixteen leaves for four doublings, the tree the value is
         doubling: () => {
-            const consts = Array.from({ length: 24 }, (_, i) => `const a${i + 1} = [a${i}, a${i}];`).join(' ')
-            assertEq(jsonRefused(`const a0 = [1]; ${consts} export default a24;`), 'output.json - error: no JSON spelling for a shared node')
+            const consts = Array.from({ length: 4 }, (_, i) => `const a${i + 1} = [a${i}, a${i}];`).join(' ')
+            const expected = Array.from({ length: 4 }).reduce(s => `[${s},${s}]`, '[1]')
+            assertEq(compileSource(`const a0 = [1]; ${consts} export default a4;`)('output.json'), expected)
         },
     },
     // A property access on the value path: an own property, never the
@@ -1348,59 +1298,41 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assertEq(exitCode(twiceCode), 1)
             assertEq(twiceState.stderr.trim(), 'd.json - error: a JSON module needs the import attribute with { type: "json" }')
         },
-        // the sweep reads an access by its keys: `cfg.a` beside `cfg.b` is a
-        // tree, `cfg.a` twice or `cfg` beside `cfg.a` is not, and a leaf
-        // reached twice is two copies of a leaf
+        // an access reaches what it selects, and JSON writes the node
+        // there, once per reference: `cfg.a` beside `cfg.b` is two nodes,
+        // `cfg.a` twice or `cfg` beside `cfg.a` is one written twice
         sharing: () => {
             assertEq(compileSource(withCfg('export default { first: cfg.a, second: cfg.b };'))('output.json'), '{"first":[1],"second":[2]}')
-            assertEq(jsonRefused(withCfg('export default [cfg.a, cfg.a];')), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(compileSource(withCfg('export default [cfg.a, cfg.a];'))('output.json'), '[[1],[1]]')
             assertEq(compileSource(withCfg('export default [cfg.a, cfg.a];'))('output.data.js'), 'const $0=[1];export default [$0,$0];')
-            assertEq(jsonRefused(withCfg('export default [cfg, cfg.a];')), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(compileSource(withCfg('export default [cfg, cfg.a];'))('output.json'), '[{"a":[1],"b":[2],"c":3},[1]]')
             assertEq(compileSource(withCfg('export default [cfg.c, cfg.c, cfg.a[0], cfg.a.length];'))('output.json'), '[3,3,1,1]')
-            assertEq(jsonRefused('const o = []; const cfg = { a: o, b: o }; export default [cfg.a, cfg.b];'), 'output.json - error: no JSON spelling for a shared node')
-            assertEq(jsonRefused('const a = [[]]; export default [a[0], a["0"]];'), 'output.json - error: no JSON spelling for a shared node')
-            // `"00"` is not an index's spelling, so it reaches no node: the
-            // refusal is `undefined`'s, not a shared node's — and the route
-            // into the literal stops there, so the reference at index 0 is
-            // reached once, not twice
+            assertEq(compileSource('const o = []; const cfg = { a: o, b: o }; export default [cfg.a, cfg.b];')('output.json'), '[[],[]]')
+            assertEq(compileSource('const a = [[]]; export default [a[0], a["0"]];')('output.json'), '[[],[]]')
+            // `"00"` is not an index's spelling, so it selects nothing, and
+            // `undefined` is what JSON has no spelling for
             assertEq(jsonRefused('const x = []; const a = [x]; export default [a[0], a["00"]];'), 'output.json - error: no JSON spelling for undefined')
             // an entry reached only through an access is in the value only
-            // where the access selects: sharing under another member is
-            // nothing to it, and a route through a reference follows it
+            // where the access selects, and a route through a reference
+            // follows it
             assertEq(compileSource(withSelected('export default a.selected;'))('output.json'), '1')
             assertEq(compileSource(withSelected('export default a.other[0];'))('output.json'), '[]')
             // a key that is not an index's canonical spelling names no element
             assertEq(compileSource(withSelected('export default [a.other["01"], a.other[1.5], a.other["-1"], a.other["1e0"]];'))('output.data.js'), 'export default [undefined,undefined,undefined,undefined];')
-            assertEq(jsonRefused(withSelected('export default a.other;')), 'output.json - error: no JSON spelling for a shared node')
-            assertEq(jsonRefused(withSelected('export default [a.selected, a.other];')), 'output.json - error: no JSON spelling for a shared node')
-            assertEq(jsonRefused(withSelected('export default [a.other[0], a.other[1]];')), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(compileSource(withSelected('export default a.other;'))('output.json'), '[[],[]]')
+            assertEq(compileSource(withSelected('export default [a.selected, a.other];'))('output.json'), '[1,[[],[]]]')
             assertEq(compileSource('const b = { y: [] }; const a = { x: b }; export default a.x.y;')('output.json'), '[]')
-            assertEq(jsonRefused('const b = { y: [] }; const a = { x: b }; export default [a.x.y, b.y];'), 'output.json - error: no JSON spelling for a shared node')
-            // a `const` and a module are two groups however they are named:
-            // an import resolved to the path `0` is not `const` 0
+            assertEq(compileSource('const b = { y: [] }; const a = { x: b }; export default [a.x.y, b.y];')('output.json'), '[[],[]]')
+            // an import resolved to the path `0` is a module, not `const` 0
             /** @type {typeof emptyState.root} */
             const zero = { 'a.f.js': [utf8('import m from "./0"; const c = []; export default [c, m];')], 0: [utf8('export default [];')] }
-            const [zeroState, zeroCode] = virtual({ ...emptyState, root: zero })(compile(nodeProgramOptions(['a.f.js', 'output.json'])))
-            assertEq(exitCode(zeroCode), 0, zeroState.stderr)
-            assertEq(readOutput(zeroState.root, 'output.json'), '[[],[]]')
+            assertEq(jsonOf(zero), '[[],[]]')
+            // an access into an import selects as one into a `const` does
             /** @type {typeof emptyState.root} */
             const m = { 'm.f.js': [utf8('export default { x: [1], y: [2], z: 3 };')] }
-            assert(!sharedOf({ ...m, 'a.f.js': [utf8('import m from "./m.f.js"; export default [m.x, m.y, m.z, m.z];')] })('a.f.js'))
-            assert(sharedOf({ ...m, 'a.f.js': [utf8('import m from "./m.f.js"; export default [m.x, m.x];')] })('a.f.js'))
-            assert(sharedOf({ ...m, 'a.f.js': [utf8('import m from "./m.f.js"; export default [m, m.x];')] })('a.f.js'))
-            assert(!sharedOf({ ...m, 'a.f.js': [utf8('import m from "./m.f.js"; export default [m, m.z];')] })('a.f.js'))
-            // a module whose own value holds a shared node is shared under
-            // any route into it — the coarse answer, in the safe direction
-            /** @type {typeof emptyState.root} */
-            const partly = { 'm.f.js': [utf8('const x = []; export default { selected: [], other: [x, x] };')] }
-            assert(sharedOf({ ...partly, 'a.f.js': [utf8('import m from "./m.f.js"; export default m.selected;')] })('a.f.js'))
-            // and the modules a module reaches count under any route too
-            /** @type {typeof emptyState.root} */
-            const reaching = { 'n.f.js': [utf8('export default [];')], 'm.f.js': [utf8('import n from "./n.f.js"; export default { selected: [], other: n };')] }
-            assert(sharedOf({ ...reaching, 'a.f.js': [utf8('import m from "./m.f.js"; import n from "./n.f.js"; export default [m.selected, n];')] })('a.f.js'))
-            // reached through two modules, an import's node is one node: the
-            // importer of both sees the module twice
-            assert(sharedOf({ ...m, 'b.f.js': [utf8('import m from "./m.f.js"; export default { p: m.x };')], 'a.f.js': [utf8('import b from "./b.f.js"; import m from "./m.f.js"; export default [b, m.y];')] })('a.f.js'))
+            assertEq(jsonOf({ ...m, 'a.f.js': [utf8('import m from "./m.f.js"; export default [m.x, m.y, m.z, m.z];')] }), '[[1],[2],3,3]')
+            assertEq(jsonOf({ ...m, 'a.f.js': [utf8('import m from "./m.f.js"; export default [m.x, m.x, m.z];')] }), '[[1],[1],3]')
+            assertEq(jsonOf({ ...m, 'b.f.js': [utf8('import m from "./m.f.js"; export default { p: m.x };')], 'a.f.js': [utf8('import b from "./b.f.js"; import m from "./m.f.js"; export default [b, m.y];')] }), '[{"p":[1]},[2]]')
         },
     },
     // The three numbers JSON cannot spell, end to end: read as the values
@@ -1465,9 +1397,8 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     // element, as a member's value — and nothing written. A bigint is
     // refused even though its digits are JSON: the standard reader would
     // take `1` back as the number `1`, a change of type the extended codec's
-    // output exists to signal and a `.json` file cannot. Sharing is refused
-    // too, since JSON denotes a tree and writing the node twice denotes a
-    // different graph. `-0` is a JSON number and stays one.
+    // output exists to signal and a `.json` file cannot. `-0` is a JSON
+    // number and stays one.
     jsonRefusals: {
         undefinedRoot: () => { assertEq(jsonRefused('export default undefined;'), 'output.json - error: no JSON spelling for undefined') },
         undefinedElement: () => { assertEq(jsonRefused('export default [1, undefined];'), 'output.json - error: no JSON spelling for undefined') },
@@ -1477,18 +1408,30 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         bigintMember: () => { assertEq(jsonRefused('export default {"a": 42n};'), 'output.json - error: no JSON spelling for 42n') },
         nanElement: () => { assertEq(jsonRefused('export default [NaN];'), 'output.json - error: no JSON spelling for NaN') },
         nanMember: () => { assertEq(jsonRefused('export default {"a": NaN};'), 'output.json - error: no JSON spelling for NaN') },
+        // a shared node is no refusal: JSON denotes a tree, so the node is
+        // written where each reference reaches it, as `JSON.stringify`
+        // writes it, and two equal containers read back the same
         sharedNode: () => {
-            assertEq(jsonRefused('const a = [1]; export default [a, a];'), 'output.json - error: no JSON spelling for a shared node')
-            assertEq(jsonRefused('const a = {}; export default {"x": a, "y": a};'), 'output.json - error: no JSON spelling for a shared node')
-        },
-        // two equal containers are two nodes, and a tree is a tree
-        equalNotShared: () => {
+            assertEq(compileSource('const a = [1]; export default [a, a];')('output.json'), '[[1],[1]]')
+            assertEq(compileSource('const a = {}; export default {"x": a, "y": a};')('output.json'), '{"x":{},"y":{}}')
             assertEq(compileSource('export default [[1], [1]];')('output.json'), '[[1],[1]]')
         },
         // the whole tree is written once the first refusal is found: nothing
         // after it is reported, and nothing before it is written
         firstRefusal: () => {
             assertEq(jsonRefused('export default [1, undefined, 2n];'), 'output.json - error: no JSON spelling for undefined')
+            // and found over the graph, not over the tree it unfolds to: two
+            // to the fortieth references reach the leaf here, and twenty-two
+            // valid doublings before a refused sibling are not unfolded first
+            const consts = Array.from({ length: 40 }, (_, i) => `const a${i + 1} = [a${i}, a${i}];`).join(' ')
+            assertEq(jsonRefused(`const a0 = [undefined]; ${consts} export default a40;`), 'output.json - error: no JSON spelling for undefined')
+            assertEq(jsonRefused(`const a0 = { x: [1, 2n] }; ${consts} export default { a: a40 };`), 'output.json - error: no JSON spelling for 2n')
+            const valid = Array.from({ length: 22 }, (_, i) => `const a${i + 1} = [a${i}, a${i}];`).join(' ')
+            assertEq(jsonRefused(`const a0 = [1]; ${valid} export default [a22, undefined];`), 'output.json - error: no JSON spelling for undefined')
+            // the first in the reader's order, a leaf before a container
+            // before the container's own
+            assertEq(jsonRefused('export default [undefined, [2n]];'), 'output.json - error: no JSON spelling for undefined')
+            assertEq(jsonRefused('export default [[2n], undefined];'), 'output.json - error: no JSON spelling for 2n')
         },
         // the DataJS output takes every one of them
         moduleOutput: () => {
@@ -1741,12 +1684,10 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assertEq(compileSource('const f = (...a) => a; export default ((...a) => f(...a))();')('output.js'), 'const $0=(...$a)=>$a;const $1=(...$a)=>$0(...$a);export default $1();')
         },
         // A spread puts its operand's elements in the array, not the
-        // operand: a node is shared through it when an element is a
-        // container reached twice, and an array of leaves spread twice
-        // shares nothing.
+        // operand: a container element is one node reached through every
+        // spread of it, written by JSON where each reaches it, and an array
+        // of leaves spread twice is leaves twice.
         sharing: () => {
-            /** @type {(source: string) => void} */
-            const shared = source => assertEq(jsonRefused(source), 'output.json - error: no JSON spelling for a shared node')
             assertEq(compileSource('const a = [1]; export default [...a, ...a];')('output.json'), '[1,1]')
             assertEq(compileSource('const a = [1]; export default {x: [...a, 2], y: [...a, 3]};')('output.json'), '{"x":[1,2],"y":[1,3]}')
             assertEq(compileSource('const a = [1]; export default [[...a], a];')('output.json'), '[[1],[1]]')
@@ -1754,21 +1695,21 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             // a string's elements are strings, no node, through a `const` too
             assertEq(compileSource('const s = "ab"; export default [...s, ...s];')('output.json'), '["a","b","a","b"]')
             assertEq(compileSource('const a = [[1]]; export default [...a[0], a];')('output.json'), '[1,[[1]]]')
-            shared('const a = [{}]; export default {x: [...a, 2], y: [...a, 3]};')
-            shared('const a = [{}]; export default [[...a], a];')
-            shared('const x = {}; const a = [x]; export default [...a, x];')
-            shared('const b = [{}]; const a = [...b, 1]; export default [...a, b];')
-            shared('const b = [[1]]; const a = [...b]; export default [...a, ...a];')
+            assertEq(compileSource('const a = [{}]; export default {x: [...a, 2], y: [...a, 3]};')('output.json'), '{"x":[{},2],"y":[{},3]}')
+            assertEq(compileSource('const a = [{}]; export default [[...a], a];')('output.json'), '[[{}],[{}]]')
+            assertEq(compileSource('const x = {}; const a = [x]; export default [...a, x];')('output.json'), '[{},{}]')
+            assertEq(compileSource('const b = [{}]; const a = [...b, 1]; export default [...a, b];')('output.json'), '[{},1,[{}]]')
+            assertEq(compileSource('const b = [[1]]; const a = [...b]; export default [...a, ...a];')('output.json'), '[[1],[1]]')
             // an array literal spread holds its items as they stand
-            shared('const x = {}; export default [x, ...[x]];')
-            shared('const x = {}; export default [...[x], ...[x]];')
-            shared('const x = {}; export default [...[[x]][0], x];')
+            assertEq(compileSource('const x = {}; export default [x, ...[x]];')('output.json'), '[{},{}]')
+            assertEq(compileSource('const x = {}; export default [...[x], ...[x]];')('output.json'), '[{},{}]')
+            assertEq(compileSource('const x = {}; export default [...[[x]][0], x];')('output.json'), '[{},{}]')
             assertEq(compileSource('const x = {}; export default [...[x]];')('output.json'), '[{}]')
-            // an access through an array holding a spread reads every item
-            // it may select
+            // an access through an array holding a spread selects the item
             assertEq(compileSource('const a = [1, 2]; export default [[...a, 3][2], [0, ...a][1], [...a].length];')('output.json'), '[3,1,2]')
-            shared('const a = [{}]; export default [[0, ...a][1], a];')
-            shared('const s = [...[{}]]; export default [s[0], s[0]];')
+            assertEq(compileSource('const a = [{}]; export default [[0, ...a][1], a];')('output.json'), '[{},[{}]]')
+            assertEq(compileSource('const s = [...[{}]]; export default [s[0], s[0]];')('output.json'), '[{},{}]')
+            assertEq(compileSource('const x = {}; const a = [...[], 1, [x, x]]; export default [a[0], a[1]];')('output.json'), '[1,[{},{}]]')
         },
     },
     throws: () => {

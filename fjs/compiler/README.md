@@ -40,24 +40,12 @@ VM answers by the receiver's type, and only the member functions the same
 module's `prohibitedCalls` names, `a.push(1)` or `a.valueOf()`, are refused
 ([its README](../js/prototype/README.md) has the table). It answers
 `undefined` where there is no such property, and a `null` or `undefined`
-base fails, reported as JavaScript's throw is. The sharing sweep reads an access by the keys it applies, so
-`{ x: cfg.a, y: cfg.b }` is the tree it is and `[cfg.a, cfg.a]` the shared
-node it is. A function with fixed names and optional final rest, such as
+base fails, reported as JavaScript's throw is. A function with fixed names and optional final rest, such as
 `(a, b, c, ...x) => [a, b, c, x]`, is written by the EDAG, FunctionalScript
 and Rust outputs and refused by value outputs, since a value has no function in it.
 The AST erases names after binding but retains the fixed parameter count.
 The writer preserves that count, even for unused parameters, and appends a
-fresh rest binding. Empty and rest-only functions both have length zero. Across modules the sweep is coarser: a module whose own value
-holds a shared node is shared under any route an importer takes into it,
-`m.selected` included, and the modules it reaches count under any route
-too, since where in the module's value a node sits is not carried, and
-refusing is the answer that never writes a node twice. In particular, two
-disjoint container exports selected from one module can be reported as shared:
-`export const a=[1]; export const b=[2];` imported with `import {a,b}` and
-returned as `[a,b]` currently fails JSON output. DataJS, FunctionalScript and
-Rust output accept this example. The
-[sharing-precision task](./todo/named-export-sharing-precision.md) records the
-required distinction between disjoint roots and shared descendants.
+fresh rest binding. Empty and rest-only functions both have length zero.
 
 The classical grammars this package once
 held were deleted rather than kept: nothing imported them, no proof covered
@@ -93,7 +81,7 @@ same selected value, and `name: null` anchors an empty import list. A declaratio
 with several bindings contributes one record per selection, all resolved through
 the same host module identity.
 `transpile` returns the complete export object as its denotation's `value`.
-JSON/DataJS output selects the default and its sharing facts; FunctionalScript
+JSON/DataJS output selects the default; FunctionalScript
 output emits individual named/default exports. EDAG and generated Rust retain
 the complete result. A missing default is refused at an import, but a named-only
 root projects to `undefined` for value output. Direct JSON roots remain raw
@@ -218,9 +206,7 @@ piece of the front end laziness reaches is `anchors` in
 [`ast`](ast/module.f.mjs): a `const` the export reaches only through a
 lazy position is anchored, since its own statement runs at load whatever
 the operator later decides, so `const c = null.x; export default [a && c,
-b && c];` throws at load in both languages. The sharing sweep counts a
-lazy position as any other — identity does not care which position a
-reference is made from. The writer spells both stages, with the
+b && c];` throws at load in both languages. The writer spells both stages, with the
 parentheses their precedence and associativity ask for and no more
 ([spec: operators](../../spec/README.md#operators)).
 A call is a step after a value, as an access is, and the callee picks which of
@@ -261,8 +247,8 @@ and every operator under an access or a prefix the same way, `(1+2).x` and
 `const`, `basedHoisted`, since `1.x` and `1 .x` are spellings it does not
 keep.
 A member a later duplicate shadows is in the graph, since the constructor
-applies every member written, so a reference in it is reached here where the
-sharing decision, which reads the value, does not count it.
+applies every member written, so a reference in it is reached here, where a
+value output, which reads the value the constructor built, never sees it.
 
 ## Both grammars are LL(1)
 
