@@ -54,7 +54,7 @@
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstThrow } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
- * @import { Block, Container, If, Import, Item, Member, Module, Node, ParameterBinding, ParameterList, Statement, ValueStatement } from './syntax/types.ts'
+ * @import { Block, Container, Entry, If, Import, Item, Module, Node, ParameterBinding, ParameterList, Statement, ValueStatement } from './syntax/types.ts'
  * @import { _AccessFrame, _BodyFrame, _CallFrame, _ConditionalFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Parameter, _Ref, _Scope, _Stack, _State } from './private.ts'
  */
 
@@ -313,16 +313,16 @@ const itemValue = item => value => {
 }
 
 /**
- * The node a member evaluates: a property's value, or a spread's operand —
- * a spread is the one member that is a tuple, a property being a record.
+ * The node an entry evaluates: a member's value, or a spread's operand —
+ * a spread is the one entry that is a tuple, a member being a record.
  *
- * @type {(member: Member) => Node}
+ * @type {(entry: Entry) => Node}
  */
-const memberOperandOf = member => member instanceof Array ? member[1] : member.value
+const entryOperandOf = entry => entry instanceof Array ? entry[1] : entry.value
 
 /** @type {(container: Container, index: number) => Node} */
 const itemAt = ([kind, items], index) =>
-    kind === 'array' ? operandOf(items[index]) : memberOperandOf(items[index])
+    kind === 'array' ? operandOf(items[index]) : entryOperandOf(items[index])
 
 /**
  * A container's value at `index`, its item's or member's spread put back,
@@ -362,11 +362,11 @@ const badKey = ([kind, items], index) => {
  * parameter, so that the step lives here rather than closing over them —
  * or the spread {@link containerValue} put back there.
  *
- * @type {(done: readonly AstItem[]) => (member: Member, index: number) => AstEntry}
+ * @type {(done: readonly AstItem[]) => (entry: Entry, index: number) => AstEntry}
  */
-const memberEntry = done => (member, index) => member instanceof Array
+const astEntry = done => (entry, index) => entry instanceof Array
     ? /** @type {AstSpread} */ (done[index])
-    : [':', member.name, /** @type {AstConst} */ (done[index])]
+    : [':', entry.name, /** @type {AstConst} */ (done[index])]
 
 /**
  * A container of the values its items resolved to: an array, or an object
@@ -379,14 +379,14 @@ const memberEntry = done => (member, index) => member instanceof Array
  *
  * @type {(container: Container, done: readonly AstItem[]) => AstConst}
  */
-const close = ([kind, members], done) => {
+const close = ([kind, entries], done) => {
     if (kind === 'array') {
         /** @type {AstArray} */
         const array = ['array', done]
         return array
     }
     /** @type {AstObject} */
-    const object = ['object', members.map(memberEntry(done))]
+    const object = ['object', entries.map(astEntry(done))]
     return object
 }
 

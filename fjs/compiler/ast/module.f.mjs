@@ -95,6 +95,19 @@ export const isSpread = item => item instanceof Array && item[0] === '...'
 /** The node an item evaluates: itself, or a spread's operand. @type {(item: AstItem) => AstConst} */
 export const itemOperand = item => isSpread(item) ? item[1] : item
 
+/** Whether an entry is a member, `[':', name, value]`, rather than a spread. @type {(entry: AstEntry) => entry is AstMember} */
+const isMember = entry => !isSpread(entry)
+
+/**
+ * The members among an object's entries, in order, the spreads left out:
+ * for a reader of the keys an object literal writes, which a spread does
+ * not spell. Exported for the transpiler, which reads the keys of the
+ * result object it built itself, one member per export and no spread.
+ *
+ * @type {(entries: readonly AstEntry[]) => readonly AstMember[]}
+ */
+export const members = entries => entries.filter(isMember)
+
 /** @type {(items: List<readonly Unknown[]>) => Unknown} */
 const arrayOf = items => toArray(items).flat()
 

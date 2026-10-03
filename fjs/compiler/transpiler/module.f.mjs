@@ -8,7 +8,7 @@
  * @import { Denotation, Import } from '../ast/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { ParseError } from '../parser/types.ts'
- * @import { AstImport, AstMember, AstModule, AstObject } from '../ast/types.ts'
+ * @import { AstImport, AstModule, AstObject } from '../ast/types.ts'
  * @import { _ImportSource, _Source } from './types.ts'
  * @import { Operation } from '../../effects/types.ts'
  * @import { IoChannel } from '../../effects/node/types.ts'
@@ -26,7 +26,7 @@ import { stringToList } from '../../text/utf16/module.f.mjs'
 import { decode as decodeImportPath } from '../../path/import/module.f.mjs'
 import { parseFromTokens } from '../parser/module.f.mjs'
 import { parse as jsonParse } from '../../media/json/module.f.mjs'
-import { _own, values } from '../ast/module.f.mjs'
+import { _own, members, values } from '../ast/module.f.mjs'
 import { catchStep, foldStep, history, historyStep, mapStep, pure, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { errorMessage, readFile, resolveFileModule } from '../../effects/node/module.f.mjs'
 import { fromVec } from '../../text/utf8/module.f.mjs'
@@ -165,8 +165,9 @@ const done = (id, module, imports, context) => consts => {
     /** @type {ModuleDenotation} */
     const denotation = {
         exports: { value },
-        // the module's result object holds a member per export and no spread
-        bindings: /** @type {readonly AstMember[]} */ (result[1]).map(([, key]) => [key, { value: _own(value, key) }]),
+        // the module's result object holds a member per export and no spread,
+        // and `members` reads them rather than asserting it
+        bindings: members(result[1]).map(([, key]) => [key, { value: _own(value, key) }]),
     }
     return { ...context, stack: drop(1)(context.stack), complete: setReplace(id)(denotation)(context.complete) }
 }

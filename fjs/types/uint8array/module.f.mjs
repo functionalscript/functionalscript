@@ -22,9 +22,9 @@ import { iterable } from '../list/module.f.mjs'
 // Both conversions go through the bigint's hexadecimal spelling, two digits
 // a byte, rather than through a list of bytes: one `BigInt` or one
 // `toString` over the whole, where the list cost a bigint shift per byte —
-// on 128 KiB, the chunk the HTTP pump writes, `fromVec` took 150 ms that
-// way and takes 8 ms this way, which is what keeps the pump's proofs inside
-// the five seconds Bun gives one.
+// on 128 KiB, the chunk the HTTP pump writes, `fromVec` is between five
+// and eighteen times faster this way, by machine, which is what keeps the
+// pump's parked-socket proof inside the five seconds Bun gives one.
 
 /** @type {(byte: number) => string} */
 const hexOfByte = byte => byte.toString(16).padStart(2, '0')
