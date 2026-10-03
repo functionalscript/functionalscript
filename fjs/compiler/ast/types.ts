@@ -275,33 +275,10 @@ export type AstConditional = readonly ['?:', AstConst, AstConst, AstConst]
  */
 export type AstBody = readonly AstConst[]
 
-/**
- * What the sweep over a module's syntax says about the graph its value
- * denotes: whether a node is reached by two references, and — when none is —
- * which container modules the value reaches, each named once by its id, so
- * that an importer can see a module reached along two import edges as one
- * node reached twice. A shared module reaches nothing worth listing: every
- * importer of it is shared already — under any route it takes into the
- * module, and the modules it reaches count under any route too, since
- * where in the module's value a node sits is not carried, and refusing is
- * the answer that never writes a node twice.
- */
-export type Sharing = {
-    readonly shared: boolean
-    readonly reaches: readonly string[]
-}
+/** What an input denotes: a module's export object, a selected export of it, or a direct JSON document. */
+export type Denotation = { readonly value: Unknown }
 
-/**
- * What an input denotes: a module's export object or a direct JSON document,
- * and what the
- * sweep says of its graph. The sweep's answer is known from the module's
- * syntax — a `const` or a module referenced twice — and is carried beside
- * the value because nothing about a plain object says it afterwards without
- * walking the graph by identity.
- */
-export type Denotation = Sharing & { readonly value: Unknown }
-
-/** An imported module as the sweep sees it: what it denotes, under the id an importer names it by — its resolved path. */
+/** An imported module: what it denotes, under the id an importer names it by — its resolved path. */
 export type Import = Denotation & { readonly id: string }
 
 /**
