@@ -92,7 +92,7 @@ export const graphOf = structure => versions => {
         nodes: all.map((node, id) => ({ id, kind: kindOf(node), label: title(node), rank: rankOf[layout](node) })),
         entries: newRoot === null ? [] : [{ to: all.indexOf(newRoot) }],
         edges: all.flatMap((node, from) => rows(node).map(/** @type {(row: Row<N>) => Edge} */ (row => 'to' in row
-            ? { from, to: all.indexOf(row.to), ...('corner' in row ? { label: '', corner: row.corner } : { label: row.label }) }
+            ? { from, to: all.indexOf(row.to), label: '', corner: row.corner }
             : { from, to: { inline: row.inline, parts: row.parts }, label: row.label }))),
     }
 }
