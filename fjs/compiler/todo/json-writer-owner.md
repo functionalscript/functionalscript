@@ -1,4 +1,4 @@
-## json-writer-owner. `fjs compile` carries a JSON writer and an error renderer of its own
+## json-writer-owner. `fjs compile` carries an error renderer and the proofs' dump of its own
 
 **Priority:** P4
 **Status:** open
