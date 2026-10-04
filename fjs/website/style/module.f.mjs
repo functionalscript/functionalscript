@@ -409,6 +409,9 @@ a:hover > [data-railroad-box="nonTerminal"] { fill: var(--pass-bg) }
    the page. */
 [data-code], [data-result] { border: 1px solid var(--border); border-radius: 6px; overflow-wrap: anywhere; padding: .5rem .75rem; white-space: pre-wrap }
 [data-code] { background: color-mix(in srgb, var(--border) 30%, var(--bg)) }
+[data-code-block] { display: flex; align-items: flex-start; gap: .75rem; margin-block: 1em }
+[data-code-block] > pre { flex: 1; min-width: 0; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere }
+[data-code-block] > button { flex-shrink: 0 }
 [data-result="ok"] { background: var(--pass-bg); border-color: color-mix(in srgb, var(--pass) 40%, transparent); color: var(--pass) }
 [data-result="error"] { background: var(--fail-bg); border-color: color-mix(in srgb, var(--fail) 40%, transparent); color: var(--fail) }
 /* A choice between code blocks — the rtti demo's pair of schemas — shows

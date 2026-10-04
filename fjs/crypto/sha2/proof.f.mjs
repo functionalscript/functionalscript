@@ -348,6 +348,11 @@ export const proof = {
             const typed = htmlToString(demo.view({ algorithm: 'SHA-256', text: 'hello' }))
             assert(typed.includes('value="hello"'), typed)
             assert(typed.includes(digest('hello')), typed)
+            assert(typed.includes("<pre>printf '%s' 'hello' | openssl dgst -sha256</pre>"), typed)
+            assert(typed.includes('aria-label="Copy digest"'), typed)
+            assert(typed.includes('aria-label="Copy OpenSSL command"'), typed)
+            const quoted = htmlToString(demo.view({ algorithm: 'SHA-256', text: "a'b $HOME `whoami` \\" }))
+            assert(quoted.includes("<pre>printf '%s' 'a'\\''b $HOME `whoami` \\' | openssl dgst -sha256</pre>"), quoted)
             const sha512 = htmlToString(demo.view({ algorithm: 'SHA-512', text: 'hello' }))
             assert(sha512.includes('openssl dgst -sha512'), sha512)
         },

@@ -4,8 +4,8 @@
  *
  * **The digest is shown in hex so a reader can check it outside this
  * repository.** For every variant the page gives the matching OpenSSL
- * command. The command uses a placeholder rather than copying the input, so
- * arbitrary text cannot accidentally become shell syntax.
+ * command with the current input quoted as a shell argument, so quotes and
+ * shell syntax in the text stay part of the text being hashed.
  *
  * **It needs no operations.** Hashing is a pure function of the input, so
  * `update` declares `never` and returns its next state through `pureOk`.
@@ -14,6 +14,7 @@
  *
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Sha2 } from './types.ts'
+ * @import { Element } from '../../media/html/types.ts'
  */
 
 import { computeSync, sha224, sha256, sha384, sha512, sha512x224, sha512x256 } from './module.f.mjs'
@@ -56,6 +57,12 @@ export const digest = digestOf(sha256)
 const algorithmOption = (a, picked) =>
     ['option', a === picked ? { value: a.name, selected: '' } : { value: a.name }, a.name]
 
+/** @type {(text: string, label: string) => Element} */
+const codeBlock = (text, label) => ['div', { 'data-code': '', 'data-code-block': '' },
+    ['pre', text],
+    ['button', { type: 'button', 'data-copy': text, 'aria-label': label, 'aria-live': 'polite' }, 'Copy'],
+]
+
 /** @type {Demo<{ readonly algorithm: string, readonly text: string }, DemoEvent>} */
 export const demo = {
     init: { algorithm: 'SHA-256', text: '' },
@@ -80,9 +87,9 @@ export const demo = {
                 ['input', { type: 'text', id: 'text', name: 'text', value: state.text }],
             ],
             ['p', `${algorithm.name}, hex:`],
-            ['pre', { 'data-code': '' }, digestOf(algorithm.hash)(state.text)],
+            codeBlock(digestOf(algorithm.hash)(state.text), 'Copy digest'),
             ['p', 'Verify independently with OpenSSL:'],
-            ['pre', { 'data-code': '' }, `printf '%s' 'YOUR TEXT' | openssl dgst -${algorithm.openssl}`],
+            codeBlock(`printf '%s' '${state.text.replaceAll("'", "'\\''")}' | openssl dgst -${algorithm.openssl}`, 'Copy OpenSSL command'),
         ]
     },
 }

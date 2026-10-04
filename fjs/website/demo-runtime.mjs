@@ -328,6 +328,30 @@ const unwrapState = result => {
 }
 
 /**
+ * Copy the text declared by a demo's code block, directly from the click so
+ * the browser keeps the reader's clipboard permission gesture. This is a
+ * page control rather than a demo event: copying does not change demo state.
+ *
+ * @type {(button: HTMLButtonElement | HTMLInputElement, text: string) => Promise<void>}
+ */
+const copy = async (button, text) => {
+    button.disabled = true
+    try {
+        const clipboard = button.ownerDocument.defaultView?.navigator.clipboard
+        if (clipboard === undefined) {
+            button.textContent = 'Copy unavailable'
+            return
+        }
+        await clipboard.writeText(text)
+        button.textContent = 'Copied'
+    } catch {
+        button.textContent = 'Copy failed'
+    } finally {
+        button.disabled = false
+    }
+}
+
+/**
  * Starts the demo named by `data-demo` inside `root`.
  *
  * The path is root-relative and taken verbatim: a relative specifier in the
@@ -366,7 +390,10 @@ export const startDemo = async root => {
         root.addEventListener('click', e => {
             const button = /** @type {HTMLButtonElement | HTMLInputElement | null} */ (
                 /** @type {Element} */ (e.target).closest('button, input[type="button"]'))
-            if (button === null || button.name === '') { return }
+            if (button === null || button.disabled) { return }
+            const text = button.getAttribute('data-copy')
+            if (text !== null) { void copy(button, text); return }
+            if (button.name === '') { return }
             step({ kind: 'click', name: button.name })
         })
         // After the first render, so a demo that needs an operation before it
