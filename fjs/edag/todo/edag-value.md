@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — value metadata and closure/body checks implemented; acyclic admission and VM migration remain open
+**Status:** wip — acyclicity preflight in progress; complete admission and VM migration remain open
 
 ### Problem
 
