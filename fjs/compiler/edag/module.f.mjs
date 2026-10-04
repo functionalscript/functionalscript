@@ -25,6 +25,7 @@ import { at, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { drop, includes } from '../../types/list/module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.mjs'
 
 const args = /** @type {const} */ (['args'])
 
@@ -196,7 +197,7 @@ const fn = nodes => (length, body, captures) => {
  */
 const slotKeys = nodes => {
     if (nodes.length < 2) { return nodes }
-    const { root, nodes: table } = analysis(['[]', /** @type {readonly Exp[]} */ (nodes)])
+    const { root, nodes: table } = unwrap(analysis(['[]', /** @type {readonly Exp[]} */ (nodes)]))
     const items = /** @type {readonly (readonly [string, number])[]} */ (table[/** @type {readonly [string, number]} */ (root)[1]][1])
     return items.map(([, i]) => i)
 }

@@ -1,6 +1,6 @@
 /** @import { Exp } from '../../edag/types.ts' */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { analysis, bindingError } from '../../edag/analysis/module.f.mjs'
 import { vm } from '../../edag/amnesia/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
@@ -16,14 +16,14 @@ import { tryStringify, tryModuleStringify } from '../serializer/module.f.mjs'
 const graph = source => _defaultExport(unresolved(unwrap(parse('parameters.f.mjs')(source))).edag)
 
 /** @type {readonly ((e: Exp) => any)[]} */
-const evaluators = [vm({ frame: null, args: [] }), e => memo(analysis(e))({ frame: null, args: [] })]
+const evaluators = [vm({ frame: null, args: [] }), e => memo(assertOk(analysis(e)))({ frame: null, args: [] })]
 
 /** @type {(source: string) => Exp} */
 const roundTrip = source => {
     const e = graph(source)
-    assertEq(bindingError(analysis(e)), null)
+    assertEq(bindingError(assertOk(analysis(e))), null)
     const restored = graph(unwrap(tryStringify(e)))
-    assertStructurallySame(analysis(restored), analysis(e))
+    assertStructurallySame(assertOk(analysis(restored)), assertOk(analysis(e)))
     return restored
 }
 
@@ -35,7 +35,7 @@ export const proof = {
             'b.f.mjs': [utf8('export default [2];')],
         }
         const linked = unwrap(virtual({ ...emptyState, root })(resolve('main.f.mjs'))[1])
-        assert(analysis(linked).nodes.every(n => n[0] !== 'args'))
+        assert(assertOk(analysis(linked)).nodes.every(n => n[0] !== 'args'))
         for (const run of evaluators) {
             const f = run(_defaultExport(linked))
             assertStructurallySame(f(3,4,5)(6), [[1],[2],3,[4,5],6])
@@ -121,8 +121,12 @@ export const proof = {
     writerRefusesModuleBinding: () => {
         assertEq(tryModuleStringify(['{}', [[':', 'f', ['=>', 1, [], ['args']]]]])[0], 'error')
     },
+    invalidLengthMetadata: () => {
+        for (const length of [-0,-1,0.5,Infinity,NaN]) {
+            assertEq(assertError(analysis(['=>',length,[],1])), 'invalid function length')
+        }
+    },
     throw: {
-        metadata: [-0,-1,0.5,Infinity,NaN].map(length => () => analysis(['=>',length,[],1])),
         overLimit: evaluators.map(run => () => run(['=>',maxLength + 1,[],1])),
         arg: evaluators.map(run => () => run(['=>',1,[],['arg',1]])()),
         moduleRest: evaluators.map(run => () => run(['rest'])),

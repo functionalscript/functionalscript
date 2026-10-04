@@ -24,7 +24,11 @@ bodies. It does not yet establish complete graph admission or migrate the
 executors; those remain in [the value plan](todo/edag-value.md).
 [`validateMetadata`](value/metadata/module.f.mjs) checks canonical function
 lengths and unique, correctly ordered object keys in evaluated data and captures,
-preserving value identity. Function bodies and graph admission remain separate.
+preserving value identity.
+[`validateClosure`](value/closure/module.f.mjs) checks closure bindings,
+function-body scopes and function lengths, including nested function creation,
+and also preserves value identity. Both checks require shape-checked, acyclic
+input; admission from unknown input remains in the value plan.
 
 "No normal form" is a statement about the module as a whole, not a licence for
 each node kind to admit several spellings of one thing. Where a set of
@@ -56,7 +60,11 @@ operand is evaluated, so that every executor means the same by a node.
 a graph into one table — every operation node once, in walk order, its
 operands by index, its scope, and which entries are shared — so that a
 writer can hoist what is shared and an executor can cache it without a
-structure keyed by node identity; [memo](memo/module.f.mjs) is that
+structure keyed by node identity. It returns `Result<Analysis, string>`:
+structural failures, such as a node shared across function scopes or a
+noncanonical function length, return a diagnostic. Complete executable
+graphs additionally use `bindingError` to check their invocation bindings.
+[memo](memo/module.f.mjs) is that
 executor, JavaScript-compatible, every shared entry evaluated once per
 scope. The broader identity and memoization
 choices, including JS-compatible executors, global memoization, and the CAVM,
