@@ -409,9 +409,12 @@ a:hover > [data-railroad-box="nonTerminal"] { fill: var(--pass-bg) }
    the page. */
 [data-code], [data-result] { border: 1px solid var(--border); border-radius: 6px; overflow-wrap: anywhere; padding: .5rem .75rem; white-space: pre-wrap }
 [data-code] { background: color-mix(in srgb, var(--border) 30%, var(--bg)) }
-[data-code-block] { display: flex; align-items: flex-start; gap: .75rem; margin-block: 1em }
-[data-code-block] > pre { flex: 1; min-width: 0; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere }
-[data-code-block] > button { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0 }
+[data-code-block] { position: relative; margin-block: 1.25em; padding-right: 3rem }
+[data-code-block] > pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere }
+[data-code-block] > button { position: absolute; top: -.75rem; right: .5rem; display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: .35rem; border: 0; border-radius: .375rem; background: var(--bg); color: var(--muted) }
+[data-code-block] > button:hover:enabled { background: var(--bg); color: var(--text) }
+[data-code-block] > button:focus-visible { outline: 2px solid var(--value); outline-offset: 2px }
+[data-code-block] > button > svg { width: 20px; height: 20px }
 [data-copy-status] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap }
 [data-result="ok"] { background: var(--pass-bg); border-color: color-mix(in srgb, var(--pass) 40%, transparent); color: var(--pass) }
 [data-result="error"] { background: var(--fail-bg); border-color: color-mix(in srgb, var(--fail) 40%, transparent); color: var(--fail) }
