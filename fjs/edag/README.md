@@ -18,6 +18,11 @@ consume it — the [FunctionalScript](../compiler/) compiler lowering parsed mod
 interpreter and Rust code generation executing it — and the dependency is
 one-way by design: `fjs/edag` imports nothing from them.
 
+[`value`](value/module.f.mjs) defines the evaluated-value subset's type and
+shape schema: data and functions with evaluated captures and unevaluated
+bodies. It does not yet establish complete graph admission or migrate the
+executors; those remain in [the value plan](todo/edag-value.md).
+
 "No normal form" is a statement about the module as a whole, not a licence for
 each node kind to admit several spellings of one thing. Where a set of
 spellings *can* be cut down to one in the schema, it is: [Chains](#chains) is
