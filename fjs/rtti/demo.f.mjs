@@ -160,9 +160,9 @@ export const lessons = [
 ]
 
 /**
- * A schema the project itself declares, shown under its export's name and
- * the module that holds it, so what the reader picks is the schema the code
- * runs, not a copy that could drift from it.
+ * A schema the project itself declares, shown as the import of its export
+ * from the module that holds it, so what the reader picks is the schema the
+ * code runs, not a copy that could drift from it.
  *
  * @type {(name: string, module: string, schema: Type) => readonly [DemoSchema]}
  */
@@ -414,15 +414,22 @@ const schemaChoice = (s, i, shown) =>
     ]
 
 /**
- * A single schema as a code block. One the project uses opens with the file
- * that declares it, as a link to its module's page on the site — built by the
- * site's own `pageHref`, so it works on a preview as on the published site.
+ * A single schema as a code block. One the project uses is the import that
+ * brings it in — `import { noteSchema } from 'fjs/media/note/module.f.mjs'` —
+ * one line of code saying both which export and which module, with the module
+ * path a link to its page on the site. The href is the site's own `pageHref`,
+ * so it works on a preview as on the published site. The path is written from
+ * the repository root, naming the module rather than spelling a relative
+ * import from any one file.
  *
  * @type {(s: DemoSchema) => Element}
  */
 const codeView = s => s.module === undefined
     ? ['pre', { 'data-code': '' }, s.source]
-    : ['pre', { 'data-code': '' }, ['a', { href: pageHref(s.module) }, `// ${s.module}/module.f.mjs`], `\n${s.source}`]
+    : ['pre', { 'data-code': '' },
+        `import { ${s.source} } from `,
+        ['a', { href: pageHref(s.module) }, `'${s.module}/module.f.mjs'`],
+    ]
 
 /**
  * The example's schemas: a single one as a code block, a pair as two choices,

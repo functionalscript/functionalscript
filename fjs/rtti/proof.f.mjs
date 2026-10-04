@@ -162,11 +162,11 @@ const demoProof = /** @type {const} */ ({
             assert(html.includes('<optgroup label="Lessons"><option value="Closed vs open">'), html)
             assert(html.includes('<optgroup label="Used in this project"><option value="JSON-RPC request">'), html)
         },
-        // A project schema shows where it comes from: the file that declares
-        // it, as a link to its module's page, then the export's name.
+        // A project schema shows where it comes from as the import that
+        // brings it in, its module path a link to the module's page.
         projectSource: () => {
             const html = page('Note')
-            assert(html.includes('<pre data-code=""><a href="/fjs/media/note/index.html">// fjs/media/note/module.f.mjs</a>\nnoteSchema</pre>'), html)
+            assert(html.includes(`<pre data-code="">import { noteSchema } from <a href="/fjs/media/note/index.html">'fjs/media/note/module.f.mjs'</a></pre>`), html)
         },
         // A pair shows both schemas, each its code as a choice, and marks the
         // one picked; picking the other moves the mark and nothing else.
