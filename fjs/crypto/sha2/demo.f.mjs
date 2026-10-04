@@ -1,59 +1,90 @@
 /**
- * SHA-256 as you type: a text field, and the digest of its UTF-8 bytes.
+ * SHA-2 as you type: pick an algorithm, type text, and see the digest of its
+ * UTF-8 bytes.
  *
- * **The digest is shown in hex, and said to be**, because a reader can check
- * it: `printf '%s' hello | sha256sum` prints the same 64 characters, and so
- * does the literal in this module's own proof. An encoding of this
- * repository's own — cBase32, the one the content-addressable store names
- * things by — would have made the demo partly about `basen` and left its
- * output impossible to verify from outside.
+ * **The digest is shown in hex so a reader can check it outside this
+ * repository.** For every variant the page gives the matching OpenSSL
+ * command. The command uses a placeholder rather than copying the input, so
+ * arbitrary text cannot accidentally become shell syntax.
  *
  * **It needs no operations.** Hashing is a pure function of the input, so
- * `update` declares `never` and returns its next state through `pureOk`. That
- * is the whole vocabulary a demo needs until one wants a clock or a fetch.
+ * `update` declares `never` and returns its next state through `pureOk`.
  *
  * @module
  *
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
+ * @import { Sha2 } from './types.ts'
  */
 
-import { computeSync, sha256 } from './module.f.mjs'
+import { computeSync, sha224, sha256, sha384, sha512, sha512x224, sha512x256 } from './module.f.mjs'
 import { uint } from '../../types/bit_vec/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 
-/** A SHA-256 digest is 256 bits, which is 64 hex digits however small it is. */
-const digits = 64
+/**
+ * @type {readonly { readonly name: string, readonly hash: Sha2, readonly openssl: string }[]}
+ */
+const algorithms = [
+    { name: 'SHA-224', hash: sha224, openssl: 'sha224' },
+    { name: 'SHA-256', hash: sha256, openssl: 'sha256' },
+    { name: 'SHA-384', hash: sha384, openssl: 'sha384' },
+    { name: 'SHA-512', hash: sha512, openssl: 'sha512' },
+    { name: 'SHA-512/224', hash: sha512x224, openssl: 'sha512-224' },
+    { name: 'SHA-512/256', hash: sha512x256, openssl: 'sha512-256' },
+]
+
+/** @type {(name: string) => typeof algorithms[number]} */
+const algorithmOf = name => {
+    const found = algorithms.find(a => a.name === name)
+    if (found === undefined) { throw 'sha2 demo: no algorithm has this name' }
+    return found
+}
+
+/** @type {(hash: Sha2) => (text: string) => string} */
+const digestOf = hash => text =>
+    uint(computeSync(hash)([utf8(text)])).toString(16).padStart(Number(hash.hashLength / 4n), '0')
 
 /**
- * The hex digest of a string's UTF-8 bytes.
- *
- * Padded, because the number is what carries the digest and a number has no
- * leading zeros. One digest in sixteen begins with a zero *digit* — four bits,
- * not eight — and would be shown 63 characters long, which still looks like a
- * digest. Each further zero digit costs another character.
+ * The SHA-256 hex digest of a string's UTF-8 bytes. Kept as the exported
+ * reader used by this module's proof.
  *
  * @type {(text: string) => string}
  */
-export const digest = text =>
-    uint(computeSync(sha256)([utf8(text)])).toString(16).padStart(digits, '0')
+export const digest = digestOf(sha256)
 
-/**
- * The state is the text itself, not the digest: the digest is a function of
- * it, and storing a value the state can already compute is how the two drift
- * apart.
- *
- * @type {Demo<string, DemoEvent>}
- */
+/** @typedef {{ readonly algorithm: string, readonly text: string }} State */
+
+/** @type {(a: typeof algorithms[number], picked: typeof algorithms[number]) => import('../../media/html/types.ts').Element} */
+const algorithmOption = (a, picked) =>
+    ['option', a === picked ? { value: a.name, selected: '' } : { value: a.name }, a.name]
+
+/** @type {Demo<State, DemoEvent>} */
 export const demo = {
-    init: '',
-    update: state => event => pureOk(event.kind === 'input' ? event.value : state),
-    view: text => ['div',
-        ['p',
-            ['label', { for: 'text' }, 'Text '],
-            ['input', { type: 'text', id: 'text', name: 'text', value: text }],
-        ],
-        ['p', 'SHA-256, hex:'],
-        ['pre', digest(text)],
-    ],
+    init: { algorithm: 'SHA-256', text: '' },
+    update: state => event => pureOk(
+        event.kind !== 'input'
+            ? state
+            : event.name === 'algorithm'
+                ? { ...state, algorithm: event.value }
+                : event.name === 'text'
+                    ? { ...state, text: event.value }
+                    : state),
+    view: state => {
+        const algorithm = algorithmOf(state.algorithm)
+        return ['div',
+            ['p',
+                ['label', { for: 'algorithm' }, 'Algorithm '],
+                ['select', { id: 'algorithm', name: 'algorithm' },
+                    ...algorithms.map(a => algorithmOption(a, algorithm))],
+            ],
+            ['p',
+                ['label', { for: 'text' }, 'Text '],
+                ['input', { type: 'text', id: 'text', name: 'text', value: state.text }],
+            ],
+            ['p', `${algorithm.name}, hex:`],
+            ['pre', digestOf(algorithm.hash)(state.text)],
+            ['p', 'Verify independently with OpenSSL:'],
+            ['pre', `printf '%s' 'YOUR TEXT' | openssl dgst -${algorithm.openssl}`],
+        ]
+    },
 }
