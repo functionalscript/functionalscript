@@ -178,10 +178,12 @@ const inProject = (name, module, schema) => [{ source: name, schema, module: `fj
  * is one the schema accepts, so a reader starts from a working document and
  * breaks it.
  *
- * Two modules use rtti without a schema of their own, so they have no entry:
- * `fjs/media` matches a blob against the format schemas below, and
+ * Three modules use rtti without a schema of their own, so they have no
+ * entry: `fjs/media` matches a blob against the format schemas below,
  * `fjs/edag/value/metadata` checks an evaluated value's metadata with rtti's
- * error helpers after `fjs/edag/value`'s shape check.
+ * error helpers after `fjs/edag/value`'s shape check, and `fjs/nanvm` checks
+ * its operator cases against `fjs/edag`'s `op1Id` and `op3Id` with
+ * `validate`.
  *
  * @type {readonly DemoExample[]}
  */
