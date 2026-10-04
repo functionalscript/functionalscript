@@ -288,6 +288,8 @@ const dom = path => {
             /** @type {any} */
             const self = {
                 name, disabled, ownerDocument: document,
+                status: { textContent: '' },
+                querySelector: (/** @type {string} */ key) => key === '[data-copy-status]' ? self.status : null,
                 getAttribute: (/** @type {string} */ key) => key === 'data-copy' ? copy ?? null : null,
                 closest: (/** @type {string} */ s) => matches(s) ? self : null,
             }
@@ -363,7 +365,8 @@ export const proof = {
         assert(button.disabled)
         await settle()
         assertStructurallySame(copied, ["hello ' world"])
-        assertEq(button.textContent, 'Copied')
+        assertEq(button.status.textContent, 'Copied')
+        assertEq(button.title, 'Copied')
         assertEq(button.disabled, false)
         assertEq(d.rendered.length, renders)
         d.click('', { copy: '', disabled: true })
@@ -372,7 +375,7 @@ export const proof = {
         const empty = d.click('', { copy: '' })
         await settle()
         assertStructurallySame(copied, ["hello ' world", ''])
-        assertEq(empty.textContent, 'Copied')
+        assertEq(empty.status.textContent, 'Copied')
     },
     copyUnavailable: async () => {
         const d = dom(echo)
@@ -380,7 +383,7 @@ export const proof = {
         await settle()
         const button = d.click('', { copy: 'hello' })
         await settle()
-        assertEq(button.textContent, 'Copy unavailable')
+        assertEq(button.status.textContent, 'Copy unavailable')
         assertEq(button.disabled, false)
         assert(!d.root.textContent.startsWith('demo failed'))
     },
@@ -393,7 +396,7 @@ export const proof = {
         await settle()
         const button = d.click('', { copy: 'hello' })
         await settle()
-        assertEq(button.textContent, 'Copy failed')
+        assertEq(button.status.textContent, 'Copy failed')
         assertEq(button.disabled, false)
         assert(!d.root.textContent.startsWith('demo failed'))
     },

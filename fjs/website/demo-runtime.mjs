@@ -335,17 +335,23 @@ const unwrapState = result => {
  * @type {(button: HTMLButtonElement | HTMLInputElement, text: string) => Promise<void>}
  */
 const copy = async (button, text) => {
+    /** @type {(message: string) => void} */
+    const report = message => {
+        button.title = message
+        const status = button.querySelector('[data-copy-status]')
+        if (status !== null) { status.textContent = message }
+    }
     button.disabled = true
     try {
         const clipboard = button.ownerDocument.defaultView?.navigator.clipboard
         if (clipboard === undefined) {
-            button.textContent = 'Copy unavailable'
+            report('Copy unavailable')
             return
         }
         await clipboard.writeText(text)
-        button.textContent = 'Copied'
+        report('Copied')
     } catch {
-        button.textContent = 'Copy failed'
+        report('Copy failed')
     } finally {
         button.disabled = false
     }

@@ -60,7 +60,13 @@ const algorithmOption = (a, picked) =>
 /** @type {(text: string, label: string) => Element} */
 const codeBlock = (text, label) => ['div', { 'data-code': '', 'data-code-block': '' },
     ['pre', text],
-    ['button', { type: 'button', 'data-copy': text, 'aria-label': label, 'aria-live': 'polite' }, 'Copy'],
+    ['button', { type: 'button', 'data-copy': text, 'aria-label': label, title: label },
+        ['svg', { viewBox: '0 0 24 24', width: '18', height: '18', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5', 'aria-hidden': 'true' },
+            ['path', { d: 'M15 7V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3' }],
+            ['rect', { x: '7', y: '7', width: '14', height: '14', rx: '1' }],
+        ],
+        ['span', { 'data-copy-status': '', 'aria-live': 'polite' }],
+    ],
 ]
 
 /** @type {Demo<{ readonly algorithm: string, readonly text: string }, DemoEvent>} */
