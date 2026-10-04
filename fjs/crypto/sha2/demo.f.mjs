@@ -82,9 +82,9 @@ export const demo = {
                 ['input', { type: 'text', id: 'text', name: 'text', value: state.text }],
             ],
             ['p', `${algorithm.name}, hex:`],
-            ['pre', digestOf(algorithm.hash)(state.text)],
+            ['pre', { 'data-code': '' }, digestOf(algorithm.hash)(state.text)],
             ['p', 'Verify independently with OpenSSL:'],
-            ['pre', `printf '%s' 'YOUR TEXT' | openssl dgst -${algorithm.openssl}`],
+            ['pre', { 'data-code': '' }, `printf '%s' 'YOUR TEXT' | openssl dgst -${algorithm.openssl}`],
         ]
     },
 }
