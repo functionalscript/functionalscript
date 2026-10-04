@@ -52,13 +52,11 @@ const digestOf = hash => text =>
  */
 export const digest = digestOf(sha256)
 
-/** @typedef {{ readonly algorithm: string, readonly text: string }} State */
-
 /** @type {(a: typeof algorithms[number], picked: typeof algorithms[number]) => import('../../media/html/types.ts').Element} */
 const algorithmOption = (a, picked) =>
     ['option', a === picked ? { value: a.name, selected: '' } : { value: a.name }, a.name]
 
-/** @type {Demo<State, DemoEvent>} */
+/** @type {Demo<{ readonly algorithm: string, readonly text: string }, DemoEvent>} */
 export const demo = {
     init: { algorithm: 'SHA-256', text: '' },
     update: state => event => pureOk(
