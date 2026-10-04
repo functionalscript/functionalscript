@@ -343,7 +343,7 @@ const copy = async (button, text) => {
 
     const status = button.querySelector('[data-copy-status]')
     /** @type {(result: 'copied' | 'failed' | null, message: string) => void} */
-    const show = (result, message) => {
+    const setFeedback = (result, message) => {
         if (result === null) { button.removeAttribute('data-copy-feedback') }
         else { button.setAttribute('data-copy-feedback', result) }
         if (status !== null) { status.textContent = message }
@@ -353,13 +353,13 @@ const copy = async (button, text) => {
     button.setAttribute('aria-disabled', 'true')
     clock.clearTimeout(copyTimers.get(button))
     copyTimers.delete(button)
-    show(null, '')
+    setFeedback(null, '')
 
     try {
         const [result, message] = await write(clock, text)
-        show(result, message)
+        setFeedback(result, message)
         copyTimers.set(button, clock.setTimeout(() => {
-            show(null, '')
+            setFeedback(null, '')
             copyTimers.delete(button)
         }, copyFeedbackDurationMs))
     } finally {
