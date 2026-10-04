@@ -2,7 +2,6 @@
  * Value-form shape checks: recursive data and evaluated captures are accepted;
  * computations, spreads and unresolved keys belong only in function bodies.
  *
- * @module
  * @import { Unknown } from '../../rtti/ts/types.ts'
  */
 
