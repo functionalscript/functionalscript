@@ -333,6 +333,7 @@ export const proof = {
                 JSON.stringify(step({ kind: 'input', name: 'algorithm', value: 'SHA-512' })(demo.init)),
                 JSON.stringify({ algorithm: 'SHA-512', text: '' }))
             assertEq(JSON.stringify(step({ kind: 'start' })(demo.init)), JSON.stringify(demo.init))
+            assertEq(JSON.stringify(step({ kind: 'input', name: 'other', value: 'ignored' })(demo.init)), JSON.stringify(demo.init))
         },
         /**
          * **The fields carry names, and that is the contract.** They come back
@@ -355,6 +356,9 @@ export const proof = {
             assert(quoted.includes("<pre>printf '%s' 'a'\\''b $HOME `whoami` \\' | openssl dgst -sha256</pre>"), quoted)
             const sha512 = htmlToString(demo.view({ algorithm: 'SHA-512', text: 'hello' }))
             assert(sha512.includes('openssl dgst -sha512'), sha512)
+        },
+        throw: {
+            unknownAlgorithm: () => { demo.view({ algorithm: 'unknown', text: 'hello' }) },
         },
     },
 }

@@ -155,13 +155,17 @@ first render, so a demo needing an operation before it can show anything has
 somewhere to ask without `init` becoming an effect.
 
 **A demo's output should be checkable from outside.** The first one,
-[`crypto/sha2`](../crypto/sha2/demo.f.mjs), shows a SHA-256 digest in hex and
-says it is hex, because `printf '%s' hello | sha256sum` prints the same 64
-characters. Encoding it with this repository's own cBase32 was the first
+[`crypto/sha2`](../crypto/sha2/demo.f.mjs), lets readers select SHA-224, SHA-256,
+SHA-384, SHA-512, SHA-512/224, or SHA-512/256 and shows the digest in hex. The
+matching OpenSSL command includes the current input, so readers can check the
+result themselves. Encoding it with this repository's own cBase32 was the first
 attempt: it made the demo partly about `basen`, and left a reader no way to
 tell whether the page was right. Being checkable is not theoretical — the
-digest is padded to 64 because one in sixteen begins with a zero hex digit, and
-what found that was someone typing `1234` into the page.
+digest is padded to the selected algorithm's hash length divided by four:
+56, 64, 96, or 128 hex characters. Converting the digest to a number drops
+leading zeros, but those zeros still belong in the output. One in sixteen
+digests begins with a zero hex digit; someone typing `1234` into the original
+SHA-256 demo found that case.
 
 ## A directory says it holds a demo
 

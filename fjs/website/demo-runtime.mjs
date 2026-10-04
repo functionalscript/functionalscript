@@ -338,12 +338,14 @@ const unwrapState = result => {
  * @type {(button: HTMLButtonElement | HTMLInputElement, text: string) => Promise<void>}
  */
 const copy = async (button, text) => {
+    const clock = button.ownerDocument.defaultView
+    if (clock === null) { return }
     if (copyPending.has(button)) { return }
     copyPending.add(button)
     button.setAttribute('aria-disabled', 'true')
     const title = button.getAttribute('aria-label') ?? 'Copy'
     const previous = copyTimers.get(button)
-    if (previous !== undefined) { clearTimeout(previous) }
+    if (previous !== undefined) { clock.clearTimeout(previous) }
     button.removeAttribute('data-copied')
     button.removeAttribute('data-copy-feedback')
     const status = button.querySelector('[data-copy-status]')
@@ -354,7 +356,7 @@ const copy = async (button, text) => {
         if (status !== null) { status.textContent = message }
         button.setAttribute('data-copy-feedback', '')
         if (copied) { button.setAttribute('data-copied', '') }
-        copyTimers.set(button, setTimeout(() => {
+        copyTimers.set(button, clock.setTimeout(() => {
             button.removeAttribute('data-copied')
             button.removeAttribute('data-copy-feedback')
             button.title = title
@@ -363,7 +365,7 @@ const copy = async (button, text) => {
         }, 2000))
     }
     try {
-        const clipboard = button.ownerDocument.defaultView?.navigator.clipboard
+        const clipboard = clock.navigator.clipboard
         if (clipboard === undefined) {
             report('Copy unavailable')
             return
@@ -378,7 +380,7 @@ const copy = async (button, text) => {
     }
 }
 
-/** @type {WeakMap<HTMLButtonElement | HTMLInputElement, ReturnType<typeof setTimeout>>} */
+/** @type {WeakMap<HTMLButtonElement | HTMLInputElement, number>} */
 const copyTimers = new WeakMap()
 
 /** @type {WeakSet<HTMLButtonElement | HTMLInputElement>} */

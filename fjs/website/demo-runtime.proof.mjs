@@ -24,6 +24,9 @@ import { startDemo } from './demo-runtime.mjs'
  * @type {(path: string) => any}
  */
 const dom = path => {
+    /** @type {Map<number, { reset: () => void, delay: number }>} */
+    const copyTimers = new Map()
+    let nextTimer = 0
     /** @type {any} */
     let active = null
     let workedWith = ''
@@ -105,6 +108,15 @@ const dom = path => {
     }
     /** @type {any} */
     const document = {
+        defaultView: {
+            navigator: {},
+            setTimeout: (/** @type {() => void} */ reset, /** @type {number} */ delay) => {
+                nextTimer += 1
+                copyTimers.set(nextTimer, { reset, delay })
+                return nextTimer
+            },
+            clearTimeout: (/** @type {number} */ timer) => { copyTimers.delete(timer) },
+        },
         get activeElement() { return active },
         createElementNS: (/** @type {string} */ _, /** @type {string} */ tag) => element(tag),
         createTextNode: text,
@@ -231,6 +243,14 @@ const dom = path => {
     }
     return {
         root,
+        resetCopies: () => {
+            assert(copyTimers.size > 0)
+            for (const [id, { reset, delay }] of copyTimers) {
+                assertEq(delay, 2000)
+                copyTimers.delete(id)
+                reset()
+            }
+        },
         // What the section was given, every time — a runtime that rendered
         // twice has said two things, and the last one alone cannot show it.
         rendered,
@@ -359,7 +379,7 @@ export const proof = {
         const d = dom(echo)
         /** @type {string[]} */
         const copied = []
-        d.root.ownerDocument.defaultView = { navigator: { clipboard: {
+        d.root.ownerDocument.defaultView = { ...d.root.ownerDocument.defaultView, navigator: { clipboard: {
             writeText: async (/** @type {string} */ text) => { copied.push(text) },
         } } }
         await startDemo(d.root)
@@ -384,7 +404,7 @@ export const proof = {
         await settle()
         assertStructurallySame(copied, ["hello ' world", ''])
         assertEq(empty.status.textContent, 'Copied!')
-        await new Promise(resolve => setTimeout(resolve, 2100))
+        d.resetCopies()
         assertEq(button.attributes['data-copied'], undefined)
         assertEq(button.title, 'Copy')
         assertEq(button.status.textContent, '')
@@ -401,14 +421,14 @@ export const proof = {
         assertEq(button.attributes['data-copied'], undefined)
         assertEq(button.disabled, false)
         assert(!d.root.textContent.startsWith('demo failed'))
-        await new Promise(resolve => setTimeout(resolve, 2100))
+        d.resetCopies()
         assertEq(button.status.textContent, '')
         assertEq(button.title, 'Copy')
         assertEq(button.attributes['data-copy-feedback'], undefined)
     },
     copyDenied: async () => {
         const d = dom(echo)
-        d.root.ownerDocument.defaultView = { navigator: { clipboard: {
+        d.root.ownerDocument.defaultView = { ...d.root.ownerDocument.defaultView, navigator: { clipboard: {
             writeText: async () => { throw new Error('denied') },
         } } }
         await startDemo(d.root)
@@ -420,7 +440,7 @@ export const proof = {
         assertEq(button.attributes['data-copied'], undefined)
         assertEq(button.disabled, false)
         assert(!d.root.textContent.startsWith('demo failed'))
-        await new Promise(resolve => setTimeout(resolve, 2100))
+        d.resetCopies()
         assertEq(button.status.textContent, '')
         assertEq(button.title, 'Copy')
         assertEq(button.attributes['data-copy-feedback'], undefined)

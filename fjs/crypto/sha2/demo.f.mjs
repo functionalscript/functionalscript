@@ -6,6 +6,8 @@
  * repository.** For every variant the page gives the matching OpenSSL
  * command with the current input quoted as a shell argument, so quotes and
  * shell syntax in the text stay part of the text being hashed.
+ * Hex is padded to the selected algorithm's hash length: converting a digest
+ * to a number drops leading zeros, but they are still part of the digest.
  *
  * **It needs no operations.** Hashing is a pure function of the input, so
  * `update` declares `never` and returns its next state through `pureOk`.
@@ -53,7 +55,7 @@ const digestOf = hash => text =>
  */
 export const digest = digestOf(sha256)
 
-/** @type {(a: typeof algorithms[number], picked: typeof algorithms[number]) => import('../../media/html/types.ts').Element} */
+/** @type {(a: typeof algorithms[number], picked: typeof algorithms[number]) => Element} */
 const algorithmOption = (a, picked) =>
     ['option', a === picked ? { value: a.name, selected: '' } : { value: a.name }, a.name]
 
@@ -61,7 +63,7 @@ const algorithmOption = (a, picked) =>
 const codeBlock = (text, label) => ['div', { 'data-code': '', 'data-code-block': '' },
     ['pre', text],
     ['button', { type: 'button', 'data-copy': text, 'aria-label': label, title: label },
-        ['svg', { viewBox: '0 0 24 24', width: '18', height: '18', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5', 'aria-hidden': 'true' },
+        ['svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5', 'aria-hidden': 'true' },
             ['path', { d: 'M6 9H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2' }],
             ['rect', { x: '9', y: '3', width: '12', height: '12', rx: '1' }],
         ],
