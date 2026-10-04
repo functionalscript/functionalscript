@@ -1,7 +1,8 @@
 ## Check a demo example's export name against its schema
 
 **Priority:** P4
-**Status:** open
+**Status:** blocked
+**Blocked by:** [namespace import](../../../spec/todo/2220-namespace-import.md)
 
 ### Problem
 
@@ -36,11 +37,13 @@ inProject('op1Id', 'edag', edag)  // the schema is edag['op1Id']
 The printed name and the schema run are then one thing. A misspelled name
 finds no schema, which `proof.demo.projectValuesAccepted` already fails on.
 
-First settle whether FunctionalScript admits `import * as`. One proof uses
-it today; whether the compiler accepts it is for `npm start compile` and the
-language's own rules to say, not this issue. A proof that pairs each name
-with its value by hand instead would be a second copy of the same pairs,
-open to the same slip, so it is no fallback.
+FunctionalScript does not admit `import * as` yet: the
+[specification](../../../spec/README.md) lists namespace imports as
+unsupported, and the parser's proof refuses `import * as ns from "./d"`.
+[Namespace import](../../../spec/todo/2220-namespace-import.md) is the issue
+that adds them, so this one waits on it. A proof that pairs each name with
+its value by hand instead would be a second copy of the same pairs, open to
+the same slip, so it is no fallback.
 
 ### Related
 
@@ -48,3 +51,5 @@ open to the same slip, so it is no fallback.
   list.
 - [Link a demo schema to its export](demo-link-to-schema-export.md) — the
   other open question about how a project example names its export.
+- [Namespace import](../../../spec/todo/2220-namespace-import.md) — the
+  language issue this one is blocked by.
