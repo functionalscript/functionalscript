@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — value shapes and evaluated metadata implemented; graph admission and VM migration remain open
+**Status:** wip — closure and function-body validation; graph admission and VM migration remain open
 
 ### Problem
 
