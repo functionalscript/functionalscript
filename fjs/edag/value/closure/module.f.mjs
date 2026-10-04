@@ -7,7 +7,8 @@
  * The value shape excludes unresolved module arguments outside bodies, and
  * binding checks reject them inside bodies. Success retains the input graph.
  * Evaluated object metadata is checked separately by `../metadata/module.f.mjs`.
- * Acyclicity and admission from unknown input remain in `../../todo/edag-value.md`.
+ * `../../acyclic/module.f.mjs` supplies the array-cycle preflight before shape
+ * validation. Complete admission remains in `../../todo/edag-value.md`.
  * Diagnostics are validation failures, not program-thrown values.
  *
  * @module
