@@ -8,7 +8,7 @@
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
 import { array, number, open, option, or, record, rest, string, unknown } from './module.f.mjs'
-import { _graphOf, _readersOf, demo, examples } from './demo.f.mjs'
+import { _graphOf, _readersOf, demo, examples, lessons, projectSchemas } from './demo.f.mjs'
 import { htmlToString } from '../media/html/module.f.mjs'
 import { runPure } from '../effects/module.f.mjs'
 import { unwrap } from '../types/result/module.f.mjs'
@@ -134,19 +134,39 @@ const demoProof = /** @type {const} */ ({
         // An example no one has is refused, not answered with a plausible page.
         throw: () => step({ kind: 'input', name: 'example', value: 'nope' })(demo.init),
     },
-    // The module comment and the README count the examples — seven, three
-    // single and four pairs — so a change to the list fails here and points
-    // at the two places that say it.
+    // The module comment and the README count the examples — seven lessons,
+    // three single and four pairs, and eleven project schemas — so a change
+    // to either list fails here and points at the two places that say it.
     counts: () => {
-        assertEq(examples.length, 7)
-        assertEq(examples.filter(e => e.schemas.length === 2).length, 4)
+        assertEq(lessons.length, 7)
+        assertEq(lessons.filter(e => e.schemas.length === 2).length, 4)
+        assertEq(projectSchemas.length, 11)
+        assertEq(examples.length, lessons.length + projectSchemas.length)
+    },
+    // Every project schema's value is one the schema accepts, on both
+    // readers: the reader starts from a working document, and a change to a
+    // schema that stops accepting it fails here rather than on the page.
+    projectValuesAccepted: () => {
+        for (const e of projectSchemas) {
+            const r = _readersOf(e.schemas[0].schema)(e.value)
+            assert(!('error' in r) && r.parse.ok && r.validate.ok, `${e.name}: ${JSON.stringify(r)}`)
+        }
     },
     view: {
-        // Every example lists in the drop-down, the picked one selected.
+        // Every example lists in the drop-down, the picked one selected, the
+        // lessons and the project's schemas in a group each.
         picker: () => {
             const html = page('Recursion')
             for (const e of examples) { assert(html.includes(`>${e.name}</option>`), e.name) }
             assert(html.includes('<option value="Recursion" selected="">'), html)
+            assert(html.includes('<optgroup label="Lessons"><option value="Closed vs open">'), html)
+            assert(html.includes('<optgroup label="Used in this project"><option value="JSON-RPC request">'), html)
+        },
+        // A project schema shows where it comes from: the module that
+        // declares it, then the export's name.
+        projectSource: () => {
+            const html = page('Note')
+            assert(html.includes('<pre data-code="">// fjs/media/note/module.f.mjs\nnoteSchema</pre>'), html)
         },
         // A pair shows both schemas, each its code as a choice, and marks the
         // one picked; picking the other moves the mark and nothing else.

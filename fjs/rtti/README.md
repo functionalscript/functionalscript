@@ -41,10 +41,14 @@ unlike the `types/*` modules that do reach outside (`bigint`, `bit_vec`,
   `equal`, `subset`, and a data-driven `validate` (see `data/README.md`)
 - `demo.f.mjs` — the module page's demo: pick an example, see its schema
   drawn as a graph, type a value as a DataJS document (so `undefined` and
-  bigints can be written), and see what `parse` and `validate` make of it. Of
-  the seven examples, three show one schema and four are pairs whose
-  difference is the lesson; a pair shows both schemas, and the reader picks
-  one while the value stays put
+  bigints can be written), and see what `parse` and `validate` make of it.
+  The examples come in two groups. Seven lessons are written for the demo:
+  three show one schema and four are pairs whose difference is the lesson; a
+  pair shows both schemas, and the reader picks one while the value stays
+  put. Eleven more are schemas the project itself uses — JSON-RPC and MCP
+  messages, MCP tool arguments, the `vnd.fjs.*` media formats, JSON and JSON
+  Schema, CI workflows and edag's unary operators — imported from the modules
+  that declare them
 
 ## The two schema-form readers
 

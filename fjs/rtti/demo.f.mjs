@@ -13,8 +13,13 @@
  * back the shared value it was given while `parse` builds a copy per use. The
  * results are written back as DataJS by the same codec.
  *
+ * **Lessons, then the project's own schemas.** The drop-down has two groups.
+ * The seven lessons are schemas written for the demo, each showing one rule.
+ * The eleven others are schemas the project itself uses, imported from the
+ * modules that declare them, each with a value it accepts.
+ *
  * **One schema, or two where the difference is the lesson.** Of the seven
- * examples, three show a single schema and four are pairs. A pair shows both
+ * lessons, three show a single schema and four are pairs. A pair shows both
  * schemas, each a block with a radio dot, and the reader picks one while the
  * value stays put, so the one thing that changes is the schema. The schemas'
  * own code tells them apart, so they carry no names.
@@ -51,6 +56,17 @@ import { concat } from '../types/string/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
 import { graphOf, graphSvg } from '../website/demo/graph/module.f.mjs'
 import { pureOk } from '../effects/module.f.mjs'
+import { request } from '../protocol/json_rpc/module.f.mjs'
+import { tool } from '../protocol/mcp/module.f.mjs'
+import { casAddArgs } from '../mcp/cas/module.f.mjs'
+import { evoAddArgs } from '../mcp/evo/module.f.mjs'
+import { revisionSchema } from '../media/revision/module.f.mjs'
+import { lockSchema } from '../media/lock/module.f.mjs'
+import { noteSchema } from '../media/note/module.f.mjs'
+import { unknown as jsonValue } from '../media/json/rtti/module.f.mjs'
+import { unknown as jsonSchema } from '../media/json/schema/module.f.mjs'
+import { gitHubActionSchema } from '../ci/common/module.f.mjs'
+import { op1Id } from '../edag/module.f.mjs'
 
 const person = /** @type {const} */ ({ name: string, age: number })
 
@@ -68,13 +84,13 @@ const order = /** @type {const} */ ({
 const tree = () => ['const', { value: number, children: array(tree) }]
 
 /**
- * The examples, in the order the drop-down lists them. The pairs come first,
- * because the first thing a reader sees should be a value that one schema
- * accepts and the other refuses.
+ * The lessons: schemas written for the demo, each showing one rule. The pairs
+ * come first, because the first thing a reader sees should be a value that
+ * one schema accepts and the other refuses.
  *
  * @type {readonly DemoExample[]}
  */
-export const examples = [
+export const lessons = [
     {
         name: 'Closed vs open',
         about: 'A struct admits the keys it declares and no others. open() admits any other keys too.',
@@ -141,6 +157,98 @@ export const examples = [
         value: 'export default {"value":1,"children":[{"value":2,"children":[]}]};',
     },
 ]
+
+/**
+ * A schema the project itself declares, shown under its export's name and
+ * the module that holds it, so what the reader picks is the schema the code
+ * runs, not a copy that could drift from it.
+ *
+ * @type {(name: string, module: string, schema: Type) => readonly [DemoSchema]}
+ */
+const inProject = (name, module, schema) => [{ source: `// fjs/${module}/module.f.mjs\n${name}`, schema }]
+
+/**
+ * Schemas the project uses, one for each module that reads values with rtti
+ * — protocols, media formats, JSON itself, CI and the VM's test cases. Each
+ * value is one the schema accepts, so a reader starts from a working
+ * document and breaks it.
+ *
+ * `fjs/media` reads JSON with rtti too, but it has no schema of its own: it
+ * matches a blob against the format schemas below, so it has no entry here.
+ *
+ * @type {readonly DemoExample[]}
+ */
+export const projectSchemas = [
+    {
+        name: 'JSON-RPC request',
+        about: 'A JSON-RPC 2.0 request; without an id it is a notification. open(), so a peer on a later protocol revision can add members. Read with parse.',
+        schemas: inProject('request', 'protocol/json_rpc', request),
+        value: 'export default {"jsonrpc":"2.0","method":"tools/list","id":1};',
+    },
+    {
+        name: 'MCP tool',
+        about: 'A tool an MCP server advertises in tools/list: a name, a description, and the JSON Schema of its arguments. Read with parse.',
+        schemas: inProject('tool', 'protocol/mcp', tool),
+        value: 'export default {"name":"cas_get","description":"Read a blob by its hash","inputSchema":{"type":"object","properties":{"hash":{"type":"string"}},"required":["hash"]}};',
+    },
+    {
+        name: 'cas_add arguments',
+        about: 'The arguments of the cas_add MCP tool. One schema is both the inputSchema the server advertises and the check its arguments pass. Closed: the server defines the vocabulary.',
+        schemas: inProject('casAddArgs', 'mcp/cas', casAddArgs),
+        value: 'export default {"content":"hello","type":"text"};',
+    },
+    {
+        name: 'evo_add arguments',
+        about: 'The arguments of the evo_add MCP tool: a new revision. Its lock is the revision format\'s own lockField schema, a recursive map, reused rather than restated.',
+        schemas: inProject('evoAddArgs', 'mcp/evo', evoAddArgs),
+        value: 'export default {"parents":["b7m2mnk9w0vqwhh4"],"subject":"todo","snapshot":"c1dq3pe0t4f7a2kx"};',
+    },
+    {
+        name: 'Revision',
+        about: 'vnd.fjs.revision: one step in the history of a mutable object over a content-addressable store. open(), so an older reader still reads a revision a newer writer extended.',
+        schemas: inProject('revisionSchema', 'media/revision', revisionSchema),
+        value: 'export default {"dialect":"vnd.fjs.revision","subject":"todo","parents":[],"snapshot":"c1dq3pe0t4f7a2kx","generation":0};',
+    },
+    {
+        name: 'Lock',
+        about: 'vnd.fjs.lock: a lock map as a blob of its own, so several revisions can share one resolution. The map nests: a value is a hash or another map.',
+        schemas: inProject('lockSchema', 'media/lock', lockSchema),
+        value: 'export default {"dialect":"vnd.fjs.lock","lock":{"fjs":"c1dq3pe0t4f7a2kx","deps":{"left-pad":"b7m2mnk9w0vqwhh4"}}};',
+    },
+    {
+        name: 'Note',
+        about: 'vnd.fjs.note: a note, todo or issue as a blob: its text, what it depends on, and a priority from P1 to P5.',
+        schemas: inProject('noteSchema', 'media/note', noteSchema),
+        value: 'export default {"dialect":"vnd.fjs.note","text":"Show the project\'s own schemas in the rtti demo","priority":"P2"};',
+    },
+    {
+        name: 'Any JSON value',
+        about: 'The JSON data model as a schema: a primitive, an object of JSON values, or an array of them. Recursive, so the graph draws the use of unknown by its name.',
+        schemas: inProject('unknown', 'media/json/rtti', jsonValue),
+        value: 'export default {"name":"fjs","tags":["data","schema"],"stars":42,"private":false,"homepage":null};',
+    },
+    {
+        name: 'JSON Schema',
+        about: 'A JSON Schema (draft 2020-12) object, the target toJsonSchema converts rtti schemas into. Recursive: a schema\'s properties and items are schemas.',
+        schemas: inProject('unknown', 'media/json/schema', jsonSchema),
+        value: 'export default {"type":"object","properties":{"name":{"type":"string"},"age":{"type":"number"}},"required":["name","age"]};',
+    },
+    {
+        name: 'GitHub Actions workflow',
+        about: 'A workflow as this repository generates it. Closed: CI reads its own generated workflows back, so a key the schema does not name is generator drift.',
+        schemas: inProject('gitHubActionSchema', 'ci/common', gitHubActionSchema),
+        value: 'export default {"name":"CI","on":{"pull_request":{}},"permissions":{"contents":"read"},"jobs":{"test":{"runs-on":"ubuntu-latest","steps":[{"uses":"actions/checkout@v5"},{"run":"npm test"}]}}};',
+    },
+    {
+        name: 'Unary operator',
+        about: 'The unary operators of the expression graph, as a union of strings. The VM\'s operator cases check membership with validate, the one project use that keeps the value.',
+        schemas: inProject('op1Id', 'edag', op1Id),
+        value: 'export default "typeof";',
+    },
+]
+
+/** Every example, lessons first, in the order the drop-down lists them. */
+export const examples = [...lessons, ...projectSchemas]
 
 /** @type {(name: string) => DemoExample} */
 const exampleOf = name => {
@@ -282,6 +390,17 @@ const exampleOption = (e, picked) =>
     ['option', e === picked ? { value: e.name, selected: '' } : { value: e.name }, e.name]
 
 /**
+ * The drop-down's options in two groups: the lessons, then the schemas the
+ * project uses.
+ *
+ * @type {(picked: DemoExample) => readonly Element[]}
+ */
+const exampleGroups = picked => [
+    ['optgroup', { label: 'Lessons' }, ...lessons.map(x => exampleOption(x, picked))],
+    ['optgroup', { label: 'Used in this project' }, ...projectSchemas.map(x => exampleOption(x, picked))],
+]
+
+/**
  * One schema of a pair: its code with a radio dot, as a button the reader
  * picks it with, pressed when it is the one shown.
  *
@@ -353,7 +472,7 @@ export const demo = {
         return ['div',
             ['p',
                 ['label', { for: 'example' }, 'Example '],
-                ['select', { id: 'example', name: 'example' }, ...examples.map(x => exampleOption(x, e))],
+                ['select', { id: 'example', name: 'example' }, ...exampleGroups(e)],
             ],
             ['p', e.about],
             schemasView(e, shown),
