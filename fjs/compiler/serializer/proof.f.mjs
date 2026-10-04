@@ -168,6 +168,8 @@ export const proof = {
         const invalid = ['[]', [shared, ['=>', 0, [], shared]]]
         assertEq(assertError(tryStringify(invalid)), 'a node shared across a function boundary')
         assertEq(assertError(tryFunctionText(['=>', 0, [], invalid])), 'a node shared across a function boundary')
+        // Erasing captures must not hide sharing across the body boundary.
+        assertEq(assertError(tryFunctionText(['=>', 0, [shared], ['[]', [shared, ['frame', 0]]]])), 'a node shared across a function boundary')
         assertEq(assertError(tryModuleStringify(['{}', [[':', 'f', invalid]]])), 'a node shared across a function boundary')
     },
     namedExports: {
@@ -574,8 +576,8 @@ export const proof = {
     // A function's text is the function written as one expression: the
     // module text of a function with no frame, less `export default` and
     // the `;`, and with a frame, each slot a name, `$0` for slot `0`,
-    // whatever the slot holds. So a frame's items are not read at all: a
-    // rest parameter of an enclosing function is a slot like any other.
+    // whatever the slot holds. Frame items are not rendered or checked for
+    // enclosing bindings: an outer rest parameter is a slot like any other.
     functionText: () => {
         /** @type {(e: Exp) => string} */
         const text = e => unwrap(tryFunctionText(e))
@@ -591,6 +593,8 @@ export const proof = {
         assertEq(text(['=>', 1, [], ['+', ['arg', 0], ['.', ['rest'], 'length']]]), '($a_0,...$a)=>$a_0+$a.length')
         assertEq(text(['=>', 0, [['rest']], slot(0)]), '()=>$0')
         assertEq(text(['=>', 0, [['rest'], ['arg', 3]], ['[]', [slot(0), slot(1), ['rest']]]]), '(...$a)=>[$0,$1,$a]')
+        // A captured expression need not have a source spelling in the body.
+        assertEq(text(['=>', 0, [['!', 1]], slot(0)]), '()=>$0')
         // a nested function captures a slot through its own frame
         assertEq(text(['=>', 0, [['rest']], ['=>', 0, [slot(0)], slot(0)]]), '()=>()=>$0')
         // slots read out of order are named in order first, as a body's are
