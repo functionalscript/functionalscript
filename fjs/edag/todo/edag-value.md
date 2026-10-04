@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — value type and shape schema implemented; VM migration remains open
+**Status:** wip — evaluated value metadata checks; VM migration remains open
 
 ### Problem
 
