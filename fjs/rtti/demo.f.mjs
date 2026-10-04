@@ -56,6 +56,7 @@ import { concat } from '../types/string/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
 import { graphOf, graphSvg } from '../website/demo/graph/module.f.mjs'
 import { pureOk } from '../effects/module.f.mjs'
+import { pageHref } from '../website/page/module.f.mjs'
 import { request } from '../protocol/json_rpc/module.f.mjs'
 import { tool } from '../protocol/mcp/module.f.mjs'
 import { casAddArgs } from '../mcp/cas/module.f.mjs'
@@ -165,7 +166,7 @@ export const lessons = [
  *
  * @type {(name: string, module: string, schema: Type) => readonly [DemoSchema]}
  */
-const inProject = (name, module, schema) => [{ source: `// fjs/${module}/module.f.mjs\n${name}`, schema }]
+const inProject = (name, module, schema) => [{ source: name, schema, module: `fjs/${module}` }]
 
 /**
  * Schemas the project uses, one for each module that reads values with rtti
@@ -413,13 +414,24 @@ const schemaChoice = (s, i, shown) =>
     ]
 
 /**
+ * A single schema as a code block. One the project uses opens with the file
+ * that declares it, as a link to its module's page on the site — built by the
+ * site's own `pageHref`, so it works on a preview as on the published site.
+ *
+ * @type {(s: DemoSchema) => Element}
+ */
+const codeView = s => s.module === undefined
+    ? ['pre', { 'data-code': '' }, s.source]
+    : ['pre', { 'data-code': '' }, ['a', { href: pageHref(s.module) }, `// ${s.module}/module.f.mjs`], `\n${s.source}`]
+
+/**
  * The example's schemas: a single one as a code block, a pair as two choices,
  * both in sight.
  *
  * @type {(e: DemoExample, shown: 0 | 1) => Element}
  */
 const schemasView = (e, shown) => e.schemas.length === 1
-    ? ['pre', { 'data-code': '' }, e.schemas[0].source]
+    ? codeView(e.schemas[0])
     : ['div', { 'data-pick': '' }, schemaChoice(e.schemas[0], 0, shown), schemaChoice(e.schemas[1], 1, shown)]
 
 /**

@@ -48,7 +48,7 @@ unlike the `types/*` modules that do reach outside (`bigint`, `bit_vec`,
   put. Eleven more are schemas the project itself uses — JSON-RPC and MCP
   messages, MCP tool arguments, the `vnd.fjs.*` media formats, JSON and JSON
   Schema, CI workflows and edag's unary operators — imported from the modules
-  that declare them
+  that declare them, each linked to its module's page
 
 ## The two schema-form readers
 

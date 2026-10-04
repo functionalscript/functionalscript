@@ -206,6 +206,11 @@ export type _MakeOpen =
 export type DemoSchema = {
     readonly source: string
     readonly schema: Type
+    /**
+     * The directory of the module that declares the schema, for one the
+     * project uses — `fjs/media/note` — or absent for one written for the demo.
+     */
+    readonly module?: string
 }
 
 /**
