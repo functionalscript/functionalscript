@@ -56,7 +56,9 @@ const vmBound = root => holdsFunction(root) ? 'IStaticFunction' : 'IVm'
  * @type {(root: Exp) => Result<Scope, readonly unknown[]>}
  */
 const body = root => {
-    const problem = bindingError(analysis(root))
+    const [kind, a] = analysis(root)
+    if (kind === 'error') { return error([a, root]) }
+    const problem = bindingError(a)
     return problem !== null ? error([problem, root])
     : readsArgs(root)
     ? error(['no Rust for `args` in a module\'s own scope; a module has no arguments', root])
@@ -68,8 +70,8 @@ const body = root => {
  * printer has no `nanvm-lib` spelling for, an invalid parameter binding, or
  * a function length above the language's limit.
  * Unsupported output is a `Result`, as in `fjs/edag/rust`'s `scope`.
- * Analysis preconditions still apply: invalid length metadata or a node
- * shared across invocation scopes panics instead of producing output.
+ * Invalid length metadata or a node shared across invocation scopes is
+ * refused through the same diagnostic channel.
  *
  * `pub fn module` carries `#[rustfmt::skip]`, the same as every function
  * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.mjs) emits: the layout is
@@ -123,7 +125,7 @@ const reasonText = reason => reason.map(String).join(': ')
  * `nanvm-lib` spelling for, reported the same way a `.json` output's refusal
  * is — against the output rather than the input, since the module compiled
  * without complaint. Built directly from {@link generateResult}'s own
- * `Result`; invalid EDAG preconditions still panic as documented above.
+ * `Result`, including structural graph diagnostics from analysis.
  * No `try`/`catch` or host adapter is needed to report unsupported output.
  *
  * @type {(root: Exp) => Result<string, string>}

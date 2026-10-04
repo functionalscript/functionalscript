@@ -6,7 +6,7 @@
  * @import { Exp } from '../types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { vm } from '../amnesia/module.f.mjs'
 import { analysis } from '../analysis/module.f.mjs'
 import { lazyOp2Id } from '../module.f.mjs'
@@ -15,7 +15,7 @@ import { memo } from './module.f.mjs'
 const context = { frame: null, args: [10, 20] }
 
 /** @type {(e: Exp) => unknown} */
-const run = e => memo(analysis(e))(context)
+const run = e => memo(assertOk(analysis(e)))(context)
 
 /** @type {(e: Exp) => unknown} */
 const oracle = e => vm(context)(e)

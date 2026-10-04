@@ -68,8 +68,9 @@ the order `visit` computes, taken by the traversal that already happens
 instead of a second one with a `findIndex` memo. It answers in source objects rather than entry indices
 because identity is the question; the entries are the merged view.
 
-`fjs/edag/rust`'s `sharedNodesOf(root)` is then `analysis(root).identityShared`
-and `visit` goes; `compiler/rust`'s `bodyLines` reads the negation check and
+`fjs/edag/rust`'s `sharedNodesOf(root)` then reads `identityShared` from the
+successful analysis, and `visit` goes; `compiler/rust`'s `bodyLines` reads the
+negation check and
 the binding list off one `analysis(root)`. Generated Rust is unchanged,
 since the count is the same count.
 

@@ -16,7 +16,7 @@
  * @import { Exp } from '../../edag/types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { _sourceOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
@@ -43,7 +43,7 @@ const reads = e => {
     const text = unwrap(tryStringify(e))
     const { imports, edag } = unresolved(unwrap(parse(path)(text)))
     assertEq(imports.length, 0, text)
-    assertStructurallySame(analysis(_defaultExport(edag)), analysis(e), text)
+    assertStructurallySame(assertOk(analysis(_defaultExport(edag))), assertOk(analysis(e)), text)
     return text
 }
 
@@ -151,9 +151,25 @@ const generated = (() => {
 const moduleGraph = source => unresolved(unwrap(parse(path)(source))).edag
 
 /** @type {(graph: Exp) => unknown} */
-const moduleValue = graph => memo(analysis(graph))({ frame: null, args: [] })
+const moduleValue = graph => memo(assertOk(analysis(graph)))({ frame: null, args: [] })
 
 export const proof = {
+    structuralRefusals: () => {
+        for (const length of [-0, -1, 0.5, NaN, Infinity]) {
+            /** @type {Exp} */
+            const f = ['=>', length, [], 1]
+            assertEq(assertError(tryStringify(f)), 'invalid function length')
+            assertEq(assertError(tryFunctionText(f)), 'invalid function length')
+            assertEq(assertError(tryModuleStringify(['{}', [[':', 'f', f]]])), 'invalid function length')
+        }
+        /** @type {Exp} */
+        const shared = ['[]', []]
+        /** @type {Exp} */
+        const invalid = ['[]', [shared, ['=>', 0, [], shared]]]
+        assertEq(assertError(tryStringify(invalid)), 'a node shared across a function boundary')
+        assertEq(assertError(tryFunctionText(['=>', 0, [], invalid])), 'a node shared across a function boundary')
+        assertEq(assertError(tryModuleStringify(['{}', [[':', 'f', invalid]]])), 'a node shared across a function boundary')
+    },
     namedExports: {
         roundTrip: () => {
             for (const source of [
@@ -622,7 +638,7 @@ export const proof = {
         // the call a nested `throw` is written as fails where the node does
         nested: () => {
             const { edag } = unresolved(unwrap(parse(path)(unwrap(tryStringify(['[]', [['throw', 1]]])))))
-            memo(analysis(_defaultExport(edag)))({ frame: null, args: [] })
+            memo(assertOk(analysis(_defaultExport(edag))))({ frame: null, args: [] })
         },
     },
     refuses: () => {

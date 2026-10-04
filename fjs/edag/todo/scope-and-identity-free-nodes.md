@@ -63,8 +63,8 @@ answer.
 
 - [ ] Decide between the two, in `../execution-models.md`.
 - [ ] If (1): state the producer's obligation there, and delete this file.
-- [ ] If (2): the walk duplicates rather than throws, the analysis proof's
-      `throw` cases narrow to identity-minting nodes, and the linker's
+- [ ] If (2): the walk duplicates rather than refuses, the analysis proof's
+      `crossScope` cases narrow to identity-minting nodes, and the linker's
       per-occurrence node becomes an optimization rather than a correctness
       fix.
 

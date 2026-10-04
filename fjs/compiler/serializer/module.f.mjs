@@ -117,9 +117,8 @@
  * shared value under a lazy operand that anything outside the operand
  * reaches ({@link block}).
  *
- * A graph that breaks the EDAG's own scope rule is not refused but throws,
- * out of the analysis, since it is no EDAG rather than one this writer
- * cannot spell.
+ * Invalid function length metadata and graphs that break the EDAG's scope
+ * rule are refused through the same diagnostic channel as unsupported output.
  *
  * @module
  *
@@ -1293,7 +1292,9 @@ const scopeOperands = (a, v) => {
  * @type {(e: Exp) => Document}
  */
 export const trySerialize = e => {
-    const a = analysis(e)
+    const result = analysis(e)
+    const [kind, a] = result
+    if (kind === 'error') { return result }
     const problem = bindingError(a)
     if (problem !== null) { return error(problem) }
     return okThen(
@@ -1345,7 +1346,9 @@ export const tryFunctionText = e => {
     const [, length, slots, body] = e
     // the slots' values are not the text's, so each stands as `null`, which
     // keeps the frame reads in range for the analysis
-    const a = analysis(['=>', length, slots.map(() => null), body])
+    const result = analysis(['=>', length, slots.map(() => null), body])
+    const [kind, a] = result
+    if (kind === 'error') { return result }
     const problem = bindingError(a)
     if (problem !== null) { return error(problem) }
     const i = /** @type {Ref} */ (a.root)[1]
@@ -1449,7 +1452,9 @@ export const tryModuleSerialize = e => {
         const compact = trySerialize(_defaultExport(e))
         if (compact[0] === 'ok') { return compact }
     }
-    const a = analysis(e)
+    const result = analysis(e)
+    const [kind, a] = result
+    if (kind === 'error') { return result }
     const problem = bindingError(a)
     if (problem !== null) { return error(problem) }
     const exports = exportOperands(a, a.root)

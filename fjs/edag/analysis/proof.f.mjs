@@ -7,7 +7,7 @@
  * @import { Analysis, Node } from './types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { analysis, bindingError } from './module.f.mjs'
 
 /**
@@ -42,7 +42,7 @@ const refs = x => !(x instanceof Array) ? []
     : x.flatMap(refs)
 
 /** @type {(e: Exp) => Analysis} */
-const an = e => sound(analysis(e))
+const an = e => sound(assertOk(analysis(e)))
 
 /** @type {(e: Exp, expected: Analysis) => void} */
 const table = (e, expected) => { assertStructurallySame(an(e), expected) }
@@ -68,25 +68,38 @@ export const proof = {
             ['frame',0], ['[]',[['frame',0]]],
             ['=>',0,[['[]',[]]],['frame',-0]], ['=>',0,[['[]',[]]],['frame',-1]],
             ['=>',0,[['[]',[]]],['frame',0.5]], ['=>',0,[['[]',[]]],['frame',Infinity]],
-        ])) { assert(bindingError(analysis(e)) !== null, e) }
-        assertEq(bindingError(analysis(['frame',0])), 'invalid frame slot index or scope')
+        ])) { assert(bindingError(assertOk(analysis(e))) !== null, e) }
+        assertEq(bindingError(assertOk(analysis(['frame',0]))), 'invalid frame slot index or scope')
         // a frame slot read belongs to the function whose body holds it,
         // nested or not, and its index is below that function's slot count
-        assertEq(bindingError(analysis(['=>',0,[['[]',[]]],['frame',0]])), null)
-        assertEq(bindingError(analysis(['=>',0,[['[]',[]],['{}',[]]],['frame',1]])), null)
-        assertEq(bindingError(analysis(['=>',0,[['[]',[]]],['frame',1]])), 'invalid frame slot index or scope')
-        assertEq(bindingError(analysis(['=>',0,[],['frame',0]])), 'invalid frame slot index or scope')
-        assertEq(bindingError(analysis(['=>',0,[['[]',[]]],['=>',0,[['frame',0]],['frame',0]]])), null)
+        assertEq(bindingError(assertOk(analysis(['=>',0,[['[]',[]]],['frame',0]]))), null)
+        assertEq(bindingError(assertOk(analysis(['=>',0,[['[]',[]],['{}',[]]],['frame',1]]))), null)
+        assertEq(bindingError(assertOk(analysis(['=>',0,[['[]',[]]],['frame',1]]))), 'invalid frame slot index or scope')
+        assertEq(bindingError(assertOk(analysis(['=>',0,[],['frame',0]]))), 'invalid frame slot index or scope')
+        assertEq(bindingError(assertOk(analysis(['=>',0,[['[]',[]]],['=>',0,[['frame',0]],['frame',0]]]))), null)
         // a nested body's index is checked against that function's slots,
         // not its parent's
-        assertEq(bindingError(analysis(['=>',0,[['[]',[]],['{}',[]]],['=>',0,[['frame',1]],['frame',1]]])), 'invalid frame slot index or scope')
+        assertEq(bindingError(assertOk(analysis(['=>',0,[['[]',[]],['{}',[]]],['=>',0,[['frame',1]],['frame',1]]]))), 'invalid frame slot index or scope')
         // a function's `length` is at most 16, nested or not
-        assertEq(bindingError(analysis(['=>',16,[],['arg',15]])), null)
+        assertEq(bindingError(assertOk(analysis(['=>',16,[],['arg',15]]))), null)
         for (const e of /** @type {readonly Exp[]} */ ([
             ['=>',17,[],1], ['=>',2 ** 32,[],1], ['=>',0,[],['=>',17,[],1]],
-        ])) { assertEq(bindingError(analysis(e)), 'a function length above 16') }
-        assertEq(bindingError(analysis(['=>',1,[['args']],['arg',0]])), null)
-        assertEq(bindingError(analysis(['=>',1,[],['=>',0,[['arg',0],['rest']],['rest']]])), null)
+        ])) { assertEq(bindingError(assertOk(analysis(e))), 'a function length above 16') }
+        assertEq(bindingError(assertOk(analysis(['=>',1,[['args']],['arg',0]]))), null)
+        assertEq(bindingError(assertOk(analysis(['=>',1,[],['=>',0,[['arg',0],['rest']],['rest']]]))), null)
+    },
+
+    invalidLength: () => {
+        for (const length of [-0, -1, 0.5, NaN, Infinity]) {
+            assertEq(assertError(analysis(['=>', length, [], 1])), 'invalid function length')
+        }
+    },
+
+    firstProblem: () => {
+        // Walking continues after the first failure, but a later failure
+        // cannot replace the diagnostic already recorded.
+        assertEq(assertError(analysis(['[]', [empty, ['=>', -1, [], empty]]])), 'invalid function length')
+        assertEq(assertError(analysis(['[]', [empty, ['=>', 0, [], empty], ['=>', -1, [], 1]]])), 'a node shared across a function boundary')
     },
 
     // A primitive is a leaf, written and evaluated in place: `export
@@ -277,9 +290,9 @@ export const proof = {
     // A node reached from two scopes is not a graph the compiler emits, and
     // the EDAG's scope rule forbids it: refused where it is met, from either
     // side of the boundary.
-    throw: {
-        outsideThenInside: () => an(['[]', [empty, ['=>', 0, [], empty]]]),
-        insideThenOutside: () => an(['[]', [['=>', 0, [], empty], empty]]),
-        siblingBodies: () => an(['[]', [['=>', 0, [], empty], ['=>', 0, [], empty]]]),
+    crossScope: {
+        outsideThenInside: () => assertEq(assertError(analysis(['[]', [empty, ['=>', 0, [], empty]]])), 'a node shared across a function boundary'),
+        insideThenOutside: () => assertEq(assertError(analysis(['[]', [['=>', 0, [], empty], empty]])), 'a node shared across a function boundary'),
+        siblingBodies: () => assertEq(assertError(analysis(['[]', [['=>', 0, [], empty], ['=>', 0, [], empty]]])), 'a node shared across a function boundary'),
     },
 }
