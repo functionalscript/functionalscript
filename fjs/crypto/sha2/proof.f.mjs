@@ -326,13 +326,13 @@ export const proof = {
             const step = event => state => unwrap(assertNotNullish(
                 runPure(demo.update(state)(event))[0],
                 'expected the demo to reach a value without asking for an operation'))
-            assertStructurallySame(
-                step({ kind: 'input', name: 'text', value: 'hello' })(demo.init),
-                { algorithm: 'SHA-256', text: 'hello' })
-            assertStructurallySame(
-                step({ kind: 'input', name: 'algorithm', value: 'SHA-512' })(demo.init),
-                { algorithm: 'SHA-512', text: '' })
-            assertStructurallySame(step({ kind: 'start' })(demo.init), demo.init)
+            assertEq(
+                JSON.stringify(step({ kind: 'input', name: 'text', value: 'hello' })(demo.init)),
+                JSON.stringify({ algorithm: 'SHA-256', text: 'hello' }))
+            assertEq(
+                JSON.stringify(step({ kind: 'input', name: 'algorithm', value: 'SHA-512' })(demo.init)),
+                JSON.stringify({ algorithm: 'SHA-512', text: '' }))
+            assertEq(JSON.stringify(step({ kind: 'start' })(demo.init)), JSON.stringify(demo.init))
         },
         /**
          * **The fields carry names, and that is the contract.** They come back
