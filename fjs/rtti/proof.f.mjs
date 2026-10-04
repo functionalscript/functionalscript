@@ -135,12 +135,12 @@ const demoProof = /** @type {const} */ ({
         throw: () => step({ kind: 'input', name: 'example', value: 'nope' })(demo.init),
     },
     // The module comment and the README count the examples — seven lessons,
-    // three single and four pairs, and eleven project schemas — so a change
+    // three single and four pairs, and fourteen project schemas — so a change
     // to either list fails here and points at the two places that say it.
     counts: () => {
         assertEq(lessons.length, 7)
         assertEq(lessons.filter(e => e.schemas.length === 2).length, 4)
-        assertEq(projectSchemas.length, 11)
+        assertEq(projectSchemas.length, 14)
         assertEq(examples.length, lessons.length + projectSchemas.length)
     },
     // Every project schema's value is one the schema accepts, on both

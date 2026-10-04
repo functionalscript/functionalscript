@@ -15,7 +15,7 @@
  *
  * **Lessons, then the project's own schemas.** The drop-down has two groups.
  * The seven lessons are schemas written for the demo, each showing one rule.
- * The eleven others are schemas the project itself uses, imported from the
+ * The fourteen others are schemas the project itself uses, imported from the
  * modules that declare them, each with a value it accepts.
  *
  * **One schema, or two where the difference is the lesson.** Of the seven
@@ -68,6 +68,9 @@ import { unknown as jsonValue } from '../media/json/rtti/module.f.mjs'
 import { unknown as jsonSchema } from '../media/json/schema/module.f.mjs'
 import { gitHubActionSchema } from '../ci/common/module.f.mjs'
 import { op1Id } from '../edag/module.f.mjs'
+import { value as edagValue } from '../edag/value/module.f.mjs'
+import { dirent } from '../effects/schema/module.f.mjs'
+import { fundingSchema } from '../website/funding/module.f.mjs'
 
 const person = /** @type {const} */ ({ name: string, age: number })
 
@@ -169,13 +172,16 @@ export const lessons = [
 const inProject = (name, module, schema) => [{ source: name, schema, module: `fjs/${module}` }]
 
 /**
- * Schemas the project uses, one for each module that reads values with rtti
- * — protocols, media formats, JSON itself, CI and the VM's test cases. Each
- * value is one the schema accepts, so a reader starts from a working
- * document and breaks it.
+ * Schemas the project uses, one for each module that declares a schema and
+ * reads values with it — protocols, media formats, JSON itself, CI, the
+ * expression graph, the effect runner's operations and the site. Each value
+ * is one the schema accepts, so a reader starts from a working document and
+ * breaks it.
  *
- * `fjs/media` reads JSON with rtti too, but it has no schema of its own: it
- * matches a blob against the format schemas below, so it has no entry here.
+ * Two modules use rtti without a schema of their own, so they have no entry:
+ * `fjs/media` matches a blob against the format schemas below, and
+ * `fjs/edag/value/metadata` checks an evaluated value's metadata with rtti's
+ * error helpers after `fjs/edag/value`'s shape check.
  *
  * @type {readonly DemoExample[]}
  */
@@ -245,6 +251,24 @@ export const projectSchemas = [
         about: 'The unary operators of the expression graph, as a union of strings. The VM\'s operator cases check membership with validate, the one project use that keeps the value.',
         schemas: inProject('op1Id', 'edag', op1Id),
         value: 'export default "typeof";',
+    },
+    {
+        name: 'Evaluated EDAG value',
+        about: 'An evaluated value of the expression graph: data, and functions whose captures are values. Recursive. Read with validate, so a checked value keeps its identity and sharing.',
+        schemas: inProject('value', 'edag/value', edagValue),
+        value: 'export default ["[]",[1,"a",["undefined"]]];',
+    },
+    {
+        name: 'Directory entry',
+        about: 'An entry readdir answers, from the schemas of the operations a native effect runner implements. The TypeScript declarations of those operations are pinned to these schemas.',
+        schemas: inProject('dirent', 'effects/schema', dirent),
+        value: 'export default {"name":"module.f.mjs","parentPath":"fjs/rtti","isFile":true,"isDirectory":false};',
+    },
+    {
+        name: 'Funding channels',
+        about: 'funding.json as the site footer reads it: only the funding channels. open() at every level, because the format carries much more and none of it is the footer\'s business.',
+        schemas: inProject('fundingSchema', 'website/funding', fundingSchema),
+        value: 'export default {"version":"v1.0.0","funding":{"channels":[{"guid":"github","type":"other","address":"https://github.com/sponsors/sergey-shandar","description":"GitHub Sponsors"}]}};',
     },
 ]
 

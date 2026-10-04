@@ -45,11 +45,12 @@ unlike the `types/*` modules that do reach outside (`bigint`, `bit_vec`,
   The examples come in two groups. Seven lessons are written for the demo:
   three show one schema and four are pairs whose difference is the lesson; a
   pair shows both schemas, and the reader picks one while the value stays
-  put. Eleven more are schemas the project itself uses — JSON-RPC and MCP
+  put. Fourteen more are schemas the project itself uses — JSON-RPC and MCP
   messages, MCP tool arguments, the `vnd.fjs.*` media formats, JSON and JSON
-  Schema, CI workflows and edag's unary operators — imported from the modules
-  that declare them, each shown as its import line with the module path
-  linked to the module's page
+  Schema, CI workflows, edag's unary operators and evaluated values, the
+  effect runner's directory entries and the site's funding channels —
+  imported from the modules that declare them, each shown as its import line
+  with the module path linked to the module's page
 
 ## The two schema-form readers
 
