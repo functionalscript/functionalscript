@@ -3,9 +3,9 @@
  * are values while their bodies remain expressions. Every form uses EDAG's
  * existing vocabulary; computation nodes occur only inside function bodies.
  *
- * Shape checks do not establish closed-graph validity, canonical function
- * metadata, scope separation, or property uniqueness/enumeration order.
- * Those admission checks remain in `../todo/edag-value.md`. Use `validate`
+ * Shape checks do not establish closed-graph validity or canonical metadata.
+ * `metadata/module.f.mjs` checks evaluated function lengths and object keys;
+ * body and graph admission remain in `../todo/edag-value.md`. Use `validate`
  * to retain input identity; `parse` rebuilds containers, as documented in
  * `../../rtti/todo/identity-aware-parse.md`.
  *

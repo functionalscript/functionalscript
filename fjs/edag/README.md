@@ -22,6 +22,9 @@ one-way by design: `fjs/edag` imports nothing from them.
 shape schema: data and functions with evaluated captures and unevaluated
 bodies. It does not yet establish complete graph admission or migrate the
 executors; those remain in [the value plan](todo/edag-value.md).
+[`validateMetadata`](value/metadata/module.f.mjs) checks canonical function
+lengths and unique, correctly ordered object keys in evaluated data and captures,
+preserving value identity. Function bodies and graph admission remain separate.
 
 "No normal form" is a statement about the module as a whole, not a licence for
 each node kind to admit several spellings of one thing. Where a set of
