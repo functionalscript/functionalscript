@@ -23,6 +23,8 @@ export type _Entry = { readonly scope: _Scope, readonly node: Node }
 export type _State = {
     readonly visited: ReadonlyMap<ExpOp, number>
     readonly entries: readonly _Entry[]
+    /** First structural failure; an errored walk never yields a public table. */
+    readonly problem: string | null
 }
 
 /** A walker: given the scope, threads the state through `e` and yields what stands for it in the table. */

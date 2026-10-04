@@ -19,7 +19,7 @@ import { fromVec } from '../text/utf8/module.f.mjs'
 import { invert, mapOk, unwrap } from '../types/result/module.f.mjs'
 import { fromEntries, isObject } from '../types/object/module.f.mjs'
 import { toVec } from '../types/uint8array/module.f.mjs'
-import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../asserts/module.f.mjs'
 import { _compiled, demo, outputs } from './demo.f.mjs'
 import { examples } from './examples/module.f.mjs'
 import { htmlToString } from '../media/html/module.f.mjs'
@@ -143,7 +143,7 @@ const graphOf = source => {
     const root = { 'input.f.js': [utf8(source)] }
     const [, result] = virtual({ ...emptyState, root })(resolve('input.f.js'))
     assert(result[0] === 'ok', result[1])
-    return analysis(result[1])
+    return assertOk(analysis(result[1]))
 }
 
 /**

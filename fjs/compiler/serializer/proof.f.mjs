@@ -16,7 +16,7 @@
  * @import { Exp } from '../../edag/types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { _sourceOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
@@ -43,7 +43,7 @@ const reads = e => {
     const text = unwrap(tryStringify(e))
     const { imports, edag } = unresolved(unwrap(parse(path)(text)))
     assertEq(imports.length, 0, text)
-    assertStructurallySame(analysis(_defaultExport(edag)), analysis(e), text)
+    assertStructurallySame(assertOk(analysis(_defaultExport(edag))), assertOk(analysis(e)), text)
     return text
 }
 
@@ -151,9 +151,27 @@ const generated = (() => {
 const moduleGraph = source => unresolved(unwrap(parse(path)(source))).edag
 
 /** @type {(graph: Exp) => unknown} */
-const moduleValue = graph => memo(analysis(graph))({ frame: null, args: [] })
+const moduleValue = graph => memo(assertOk(analysis(graph)))({ frame: null, args: [] })
 
 export const proof = {
+    structuralRefusals: () => {
+        for (const length of [-0, -1, 0.5, NaN, Infinity]) {
+            /** @type {Exp} */
+            const f = ['=>', length, [], 1]
+            assertEq(assertError(tryStringify(f)), 'invalid function length')
+            assertEq(assertError(tryFunctionText(f)), 'invalid function length')
+            assertEq(assertError(tryModuleStringify(['{}', [[':', 'f', f]]])), 'invalid function length')
+        }
+        /** @type {Exp} */
+        const shared = ['[]', []]
+        /** @type {Exp} */
+        const invalid = ['[]', [shared, ['=>', 0, [], shared]]]
+        assertEq(assertError(tryStringify(invalid)), 'a node shared across a function boundary')
+        assertEq(assertError(tryFunctionText(['=>', 0, [], invalid])), 'a node shared across a function boundary')
+        // Erasing captures must not hide sharing across the body boundary.
+        assertEq(assertError(tryFunctionText(['=>', 0, [shared], ['[]', [shared, ['frame', 0]]]])), 'a node shared across a function boundary')
+        assertEq(assertError(tryModuleStringify(['{}', [[':', 'f', invalid]]])), 'a node shared across a function boundary')
+    },
     namedExports: {
         roundTrip: () => {
             for (const source of [
@@ -558,8 +576,8 @@ export const proof = {
     // A function's text is the function written as one expression: the
     // module text of a function with no frame, less `export default` and
     // the `;`, and with a frame, each slot a name, `$0` for slot `0`,
-    // whatever the slot holds. So a frame's items are not read at all: a
-    // rest parameter of an enclosing function is a slot like any other.
+    // whatever the slot holds. Frame items are not rendered or checked for
+    // enclosing bindings: an outer rest parameter is a slot like any other.
     functionText: () => {
         /** @type {(e: Exp) => string} */
         const text = e => unwrap(tryFunctionText(e))
@@ -575,6 +593,8 @@ export const proof = {
         assertEq(text(['=>', 1, [], ['+', ['arg', 0], ['.', ['rest'], 'length']]]), '($a_0,...$a)=>$a_0+$a.length')
         assertEq(text(['=>', 0, [['rest']], slot(0)]), '()=>$0')
         assertEq(text(['=>', 0, [['rest'], ['arg', 3]], ['[]', [slot(0), slot(1), ['rest']]]]), '(...$a)=>[$0,$1,$a]')
+        // A captured expression need not have a source spelling in the body.
+        assertEq(text(['=>', 0, [['!', 1]], slot(0)]), '()=>$0')
         // a nested function captures a slot through its own frame
         assertEq(text(['=>', 0, [['rest']], ['=>', 0, [slot(0)], slot(0)]]), '()=>()=>$0')
         // slots read out of order are named in order first, as a body's are
@@ -622,7 +642,7 @@ export const proof = {
         // the call a nested `throw` is written as fails where the node does
         nested: () => {
             const { edag } = unresolved(unwrap(parse(path)(unwrap(tryStringify(['[]', [['throw', 1]]])))))
-            memo(analysis(_defaultExport(edag)))({ frame: null, args: [] })
+            memo(assertOk(analysis(_defaultExport(edag))))({ frame: null, args: [] })
         },
     },
     refuses: () => {

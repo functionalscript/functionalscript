@@ -5,7 +5,7 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { assert, assertEq, assertNotNullish as assertDefined, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertNotNullish as assertDefined, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { generate, toRust } from './module.f.mjs'
 import { _rustOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.mjs'
@@ -15,8 +15,18 @@ import { htmlToString } from '../../media/html/module.f.mjs'
 const refusedByRust = ['An import', 'Logical not', 'Hex escape', 'typeof', 'Parse error']
 
 export const proof = {
+    structuralRefusals: () => {
+        for (const length of [-0, -1, 0.5, NaN, Infinity]) {
+            assertEq(assertError(toRust(['=>', length, [], 1])),
+                `no Rust spelling for this module: invalid function length: =>,${length},,1`)
+        }
+        /** @type {Exp} */
+        const shared = ['[]', []]
+        const result = toRust(['[]', [shared, ['=>', 0, [], shared]]])
+        assert(assertError(result).startsWith('no Rust spelling for this module: a node shared across a function boundary: '))
+    },
     throw: {
-        invalidLength: [-0, -1, 0.5, NaN, Infinity].map(length => () => toRust(['=>', length, [], 1])),
+        invalidLength: [-0, -1, 0.5, NaN, Infinity].map(length => () => generate(['=>', length, [], 1])),
         invalidBindingThroughGenerate: () => generate(['=>', 1, [], ['arg', 1]]),
         overLimitLengthThroughGenerate: () => generate(['=>', 17, [], 1]),
     },

@@ -10,11 +10,15 @@ complete graph, and each of them writes that obligation out:
 
 ```js
 // fjs/compiler/serializer, trySerialize and again tryModuleSerialize
-const a = analysis(e)
+const result = analysis(e)
+const [kind, a] = result
+if (kind === 'error') { return result }
 const problem = bindingError(a)
 if (problem !== null) { return error(problem) }
 // fjs/compiler/rust, bodyLines
-const problem = bindingError(analysis(root))
+const [kind, table] = analysis(root)
+if (kind === 'error') { return error([table, root]) }
+const problem = bindingError(table)
 // fjs/edag/memo, memo
 const problem = bindingError(a); assert(problem === null, problem)
 ```
@@ -53,8 +57,8 @@ the merging rule it is, and the two are documented as the two
 different facts they are.
 
 `checked` takes an analysis, not an expression, so every consumer can
-call it: the three compiler sites write `checked(analysis(e))` and branch
-on the result, and `memo` asserts on it. `memo`'s runtime check stays
+call it: compiler sites compose `okThen(checked)(analysis(e))` and branch
+on the result, and `memo` asserts on `checked(a)`. `memo`'s runtime check stays
 — an executor refusing a graph nothing has checked is a contract worth
 keeping, and a type cannot carry it: `Phantom` is structural, its marker
 optional, so a plain `Analysis` would pass as a `Checked` — but the

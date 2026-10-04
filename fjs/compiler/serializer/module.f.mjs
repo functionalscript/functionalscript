@@ -117,9 +117,8 @@
  * shared value under a lazy operand that anything outside the operand
  * reaches ({@link block}).
  *
- * A graph that breaks the EDAG's own scope rule is not refused but throws,
- * out of the analysis, since it is no EDAG rather than one this writer
- * cannot spell.
+ * Invalid function length metadata and graphs that break the EDAG's scope
+ * rule are refused through the same diagnostic channel as unsupported output.
  *
  * @module
  *
@@ -141,7 +140,7 @@ import { _prohibitedCallNames, _prohibitedNames } from '../parser/module.f.mjs'
 import { dollarSign, isDigit, isLatinLetter, latinSmallLetterA, latinSmallLetterZ, lowLine } from '../../text/ascii/module.f.mjs'
 import { codePointToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
-import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
+import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.mjs'
 
 /** Names the parser refuses to bind. */
 const reservedExports = new Set([...keywords, ...literalWords, 'then'])
@@ -1293,7 +1292,9 @@ const scopeOperands = (a, v) => {
  * @type {(e: Exp) => Document}
  */
 export const trySerialize = e => {
-    const a = analysis(e)
+    const result = analysis(e)
+    const [kind, a] = result
+    if (kind === 'error') { return result }
     const problem = bindingError(a)
     if (problem !== null) { return error(problem) }
     return okThen(
@@ -1336,16 +1337,21 @@ export const tryStringify = e => mapOk(
  * the body, so `const x = 3; const f = () => x;` is `()=>3`.
  *
  * Refused where the writer refuses the body, and for a node that is no
- * function.
+ * function. Check the original graph's structure before omitting captures,
+ * so capture/body sharing across scopes is refused. Capture bindings belong
+ * to the enclosing scope and are not checked here.
  *
  * @type {(e: Exp) => Result<string, string>}
  */
 export const tryFunctionText = e => {
     if (!(e instanceof Array) || e[0] !== '=>') { return error('not a function') }
+    const original = analysis(e)
+    if (original[0] === 'error') { return original }
     const [, length, slots, body] = e
-    // the slots' values are not the text's, so each stands as `null`, which
-    // keeps the frame reads in range for the analysis
-    const a = analysis(['=>', length, slots.map(() => null), body])
+    // Slots are placeholders for body binding checks, not part of the text.
+    // Removing capture edges from a structurally valid graph cannot create
+    // scope conflicts or invalid lengths, so this analysis must succeed.
+    const a = unwrap(analysis(['=>', length, slots.map(() => null), body]))
     const problem = bindingError(a)
     if (problem !== null) { return error(problem) }
     const i = /** @type {Ref} */ (a.root)[1]
@@ -1449,7 +1455,9 @@ export const tryModuleSerialize = e => {
         const compact = trySerialize(_defaultExport(e))
         if (compact[0] === 'ok') { return compact }
     }
-    const a = analysis(e)
+    const result = analysis(e)
+    const [kind, a] = result
+    if (kind === 'error') { return result }
     const problem = bindingError(a)
     if (problem !== null) { return error(problem) }
     const exports = exportOperands(a, a.root)

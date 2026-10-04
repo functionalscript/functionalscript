@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — value shapes and evaluated metadata implemented; graph admission and VM migration remain open
+**Status:** open — value metadata and closure/body checks implemented; acyclic admission and VM migration remain open
 
 ### Problem
 
@@ -245,10 +245,16 @@ budget or stopped-outcome API.
 - [x] Check canonical function lengths and normalized object properties in
       evaluated data and captures via `fjs/edag/value/metadata`. Diagnostics use
       RTTI paths/messages; successful checks preserve the original value graph.
-- [ ] Complete graph admission for acyclicity, closedness, scope separation
-      and function-body validation, including metadata of functions created by
-      body expressions. Shape and evaluated metadata checks alone do not
-      establish those invariants.
+- [x] Check closure bindings, function-body scope separation and function
+      lengths throughout the graph via `fjs/edag/value/closure`. Reuse EDAG
+      analysis and binding checks; return string diagnostics while retaining
+      the original value graph. Body object expressions keep construction
+      semantics rather than evaluated-object normalization rules.
+- [ ] Complete graph admission from unknown input, including acyclicity and
+      remaining EDAG canonicality, such as comma-root rules. Compose shape,
+      evaluated metadata and closure/body validation without losing sharing.
+      The current checks require shape-checked, acyclic input; they do not
+      provide a complete public admission boundary.
 - [ ] Implement shared value operations and invocation over
       `Result<EdagValue, EdagValue>`, with immutable state and admitted methods.
 - [ ] Migrate Amnesia and memo, preserving each documented execution model;
