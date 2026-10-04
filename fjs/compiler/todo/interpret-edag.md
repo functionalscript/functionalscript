@@ -5,6 +5,14 @@
 validation, value-producing API integration and the native semantic prerequisites
 for native self-hosting remain open.
 
+The planned value contract is
+[EdagValue](../../edag/todo/edag-value.md): every FJS VM uses the EDAG subset
+for language values and returns `Result<EdagValue, EdagValue>`. Host-valued
+execution and arrow factories below describe the current baseline. Integration
+must migrate that baseline and convert explicitly at APIs exposing `unknown`:
+ordinary FJS runtime values with EDAG reflection erased. Public validation,
+immutable state and native prerequisites remain required.
+
 **Compiler dependency:** [`compile-modules-to-edag.md`](./compile-modules-to-edag.md)
 provides the linked graphs. Its initial rest-only, non-capturing Stage 2 is
 historical; the interpreter follows the current fixed/rest and capture contract.
@@ -138,17 +146,32 @@ all but `length` — since such a graph is not one the compiler emits.
 
 The preceding P2 compiler work deliberately adds the EDAG-producing path **alongside**
 the current value-producing DJS transpiler/CLI. The remaining integration step is to
-migrate that value-producing path to use EDAG internally:
+migrate that value-producing path to use EDAG internally. Under the planned
+`EdagValue` contract, choose conversion at the requested API/output boundary:
 
 ```text
 source modules
   -> final EDAG
   -> validate EDAG
-  -> interpret EDAG
-  -> module export object
-  -> select result.default for JSON/DataJS value output
-  -> existing value serialization
+  -> interpret EDAG into Result<EdagValue, EdagValue>
+  -> success: complete represented export object
+     -> runtime-value API: materialize the complete runtime export object
+     -> JSON/DataJS: select represented default, convert supported data, serialize
 ```
+
+This materialization uses the target boundary in the
+[value plan](../../edag/todo/edag-value.md#compilation-and-conversion-to-unknown):
+function-free data can be decoded in FJS, while callable exports require
+backend-generated or precompiled runtime code and the target's load/build step.
+Their calls accept ordinary runtime callbacks directly. A pure data converter
+cannot provide callable exports; an unavailable materialization boundary is an
+output refusal. Integration must supply that boundary to callers needing
+callables and declare any compiler API changes in its implementation PR.
+
+JSON/DataJS project the represented `default` before converting that value;
+unselected callable exports do not require callable materialization. For example,
+`export const f = x => x; export default 1;` can still produce JSON `1`.
+Initialization of every required declaration still runs before this projection.
 
 This integration must preserve the
 [compile API boundary](./compile-modules-to-edag.md#existing-compile-api-boundary)

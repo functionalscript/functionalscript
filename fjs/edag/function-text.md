@@ -105,6 +105,14 @@ language's.
 
 ## What would change this
 
+The [EdagValue proposal](./todo/edag-value.md) is the planned replacement:
+every FJS VM carries function code and evaluated captures as EDAG values and
+renders their text through the shared renderer. The accepted behavior above
+remains the current host-valued baseline until that migration. Explicit
+conversion to an ordinary runtime value typed as `unknown` erases EDAG
+reflection; JavaScript callables at that boundary retain the host-text
+exception.
+
 A representation in which a function value carries its EDAG, or a host
 boundary that can find the EDAG from the value, with no `Proxy`, no
 mutation and no import of JavaScript. Then the text could be rendered here
