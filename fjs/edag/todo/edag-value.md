@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — value type and shape schema implemented; VM migration remains open
+**Status:** open — value shapes and evaluated metadata implemented; graph admission and VM migration remain open
 
 ### Problem
 
@@ -242,9 +242,13 @@ budget or stopped-outcome API.
       boundaries and required migration end state.
 - [x] Add the `EdagValue` type and RTTI shape schema in `fjs/edag/value`, with
       type-level subset checks and proofs of recursive value forms.
-- [ ] Complete graph admission for closedness, scope separation, canonical
-      function metadata and normalized object properties. The value schema
-      checks shapes only; it does not establish those invariants.
+- [x] Check canonical function lengths and normalized object properties in
+      evaluated data and captures via `fjs/edag/value/metadata`. Diagnostics use
+      RTTI paths/messages; successful checks preserve the original value graph.
+- [ ] Complete graph admission for acyclicity, closedness, scope separation
+      and function-body validation, including metadata of functions created by
+      body expressions. Shape and evaluated metadata checks alone do not
+      establish those invariants.
 - [ ] Implement shared value operations and invocation over
       `Result<EdagValue, EdagValue>`, with immutable state and admitted methods.
 - [ ] Migrate Amnesia and memo, preserving each documented execution model;
