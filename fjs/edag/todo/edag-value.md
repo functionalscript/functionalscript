@@ -153,12 +153,23 @@ proposals under the language-design approval rule.
 
 #### Compilation and conversion to `unknown`
 
-Because `EdagValue` is already EDAG, send it directly to the existing
-FunctionalScript/JavaScript and Rust backends, within their supported execution
-profiles. They emit construction of the evaluated data and captures, and
-executable code for function bodies. Preserve graph sharing when constructing
-objects, arrays and functions. Generate parameter lists from `length`; the
-VM core has no need for host callable factories.
+Direct compilation through the FunctionalScript/JavaScript and Rust EDAG
+backends is the required end state after their value-emission migration, within
+their supported execution profiles. Their value paths must emit construction
+of evaluated data and captures, and executable code for function bodies.
+Preserve graph sharing when constructing objects, arrays and functions.
+Generate parameter lists from `length`; the VM core has no need for host
+callable factories.
+
+The current [FunctionalScript serializer](../../compiler/serializer/module.f.mjs)
+expects source-normalized frames: `tryStringify` refuses the primitive capture
+in the example above with `a frame slot holding a primitive`, and also refuses
+repeated or unused slots. Callable value emission must accept evaluated captures
+and preserve their slot positions, shared values and allocation lifetimes.
+This is backend migration work, not a restriction on `EdagValue`. The source
+writer's structural round-trip contract remains separate: emitting a closed
+value promises its runtime behavior and identity, without requiring source
+lowering to reconstruct the same capture graph.
 
 Provide **`EdagValue -> unknown`**, including functions, as an explicit
 conversion to ordinary FJS runtime values. Here `unknown` names a runtime
@@ -245,6 +256,11 @@ budget or stopped-outcome API.
       with no EDAG association, and refuse unavailable callable materialization.
 - [ ] Execute resolved module initializers into export value graphs; migrate
       compiler/loader callers and retire or migrate the AST value evaluator.
+- [ ] Implement callable value emission in the FJS backend for primitive,
+      repeated and unused evaluated captures, preserving slot positions and
+      shared captured values separately from source round-trip serialization.
+      Prove the primitive-capture example above produces a callable returning
+      `5` when passed `3`, plus shared captures and fresh body allocations.
 - [ ] Prove direct JS/Rust compilation of result graphs preserves the supported
       profile: primitives, containers, nested captures, distinct closures,
       shared identity, fresh invocation values, lazy branches and throws.
