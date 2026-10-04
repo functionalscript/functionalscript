@@ -3,6 +3,10 @@
  * lengths and unique object keys in JavaScript enumeration order. Successful
  * checks retain the original value and its sharing.
  *
+ * Validated nodes are remembered by identity across data and captures, so
+ * a shared subtree is checked once. Object keys use the same persistent set
+ * instead of repeatedly scanning the property's prefix.
+ *
  * Input must be an acyclic, shape-checked value graph. This walk checks data
  * and captures; function bodies remain opaque expressions. Full graph and
  * body admission remain in `../../todo/edag-value.md`.
@@ -11,32 +15,39 @@
  * @import { EdagValue, Values, Property } from '../types.ts'
  * @import { ValidationError } from '../../../rtti/common/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
+ * @import { PersistentSet } from '../../../types/set/types.ts'
+ * @import { _Node, _Visited } from './private.ts'
  */
 
 import { arrayIndex } from '../../../js/array_index/module.f.mjs'
 import { isIndex, maxLength } from '../../../types/function/length/module.f.mjs'
 import { prependPath, verror } from '../../../rtti/common/module.f.mjs'
-import { ok } from '../../../types/result/module.f.mjs'
+import { mapOk, ok } from '../../../types/result/module.f.mjs'
+import { add, empty, has } from '../../../types/set/module.f.mjs'
 
-/** @type {(values: Values) => Result<Values, ValidationError>} */
-const validateValues = values => {
+/** @type {(values: Values, visited: _Visited) => Result<_Visited, ValidationError>} */
+const validateValues = (values, visited) => {
     for (let i = 0; i < values.length; i += 1) {
-        const r = validateMetadata(values[i])
-        if (r[0] === 'error') { return prependPath(String(i), r) }
+        const r = validateValue(values[i], visited)
+        const [kind, next] = r
+        if (kind === 'error') { return prependPath(String(i), r) }
+        visited = next
     }
-    return ok(values)
+    return ok(visited)
 }
 
-/** @type {(properties: readonly Property[]) => Result<readonly Property[], ValidationError>} */
-const validateProperties = properties => {
-    const keys = properties.map(([, key]) => key)
+/** @type {(properties: readonly Property[], visited: _Visited) => Result<_Visited, ValidationError>} */
+const validateProperties = (properties, visited) => {
+    /** @type {PersistentSet<string>} */
+    let keys = empty
     let previousIndex = -1
     let ordinary = false
     for (let i = 0; i < properties.length; i += 1) {
         const [, key, value] = properties[i]
-        if (keys.indexOf(key) !== i) {
+        if (has(key)(keys)) {
             return prependPath(String(i), prependPath('1', verror('duplicate object property')))
         }
+        keys = add(key)(keys)
         const index = arrayIndex(key)
         if (index === null) { ordinary = true }
         else {
@@ -45,31 +56,47 @@ const validateProperties = properties => {
             }
             previousIndex = index
         }
-        const r = validateMetadata(value)
-        if (r[0] === 'error') { return prependPath(String(i), prependPath('2', r)) }
+        const r = validateValue(value, visited)
+        const [kind, next] = r
+        if (kind === 'error') { return prependPath(String(i), prependPath('2', r)) }
+        visited = next
     }
-    return ok(properties)
+    return ok(visited)
 }
 
-/** Checks evaluated metadata only; requires shape-checked, acyclic input. @type {(value: EdagValue) => Result<EdagValue, ValidationError>} */
-export const validateMetadata = value => {
-    if (!(value instanceof Array)) { return ok(value) }
+/**
+ * Checks a fresh node's metadata and evaluated children, leaving its body opaque.
+ * @type {(value: _Node, visited: _Visited) => Result<_Visited, ValidationError>}
+ */
+const validateNode = (value, visited) => {
     switch (value[0]) {
         case '[]': {
-            const r = validateValues(value[1])
-            return r[0] === 'error' ? prependPath('1', r) : ok(value)
+            const r = validateValues(value[1], visited)
+            return r[0] === 'error' ? prependPath('1', r) : r
         }
         case '{}': {
-            const r = validateProperties(value[1])
-            return r[0] === 'error' ? prependPath('1', r) : ok(value)
+            const r = validateProperties(value[1], visited)
+            return r[0] === 'error' ? prependPath('1', r) : r
         }
         case '=>': {
             if (!isIndex(value[1]) || value[1] > maxLength) {
                 return prependPath('1', verror('invalid function length'))
             }
-            const r = validateValues(value[2])
-            return r[0] === 'error' ? prependPath('2', r) : ok(value)
+            const r = validateValues(value[2], visited)
+            return r[0] === 'error' ? prependPath('2', r) : r
         }
-        default: { return ok(value) }
+        default: { return ok(visited) }
     }
 }
+
+/**
+ * Remembers successfully checked nodes by identity, threading the set across siblings.
+ * @type {(value: EdagValue, visited: _Visited) => Result<_Visited, ValidationError>}
+ */
+const validateValue = (value, visited) => {
+    if (!(value instanceof Array) || has(value)(visited)) { return ok(visited) }
+    return mapOk(add(value))(validateNode(value, visited))
+}
+
+/** Checks evaluated metadata only; requires shape-checked, acyclic input. @type {(value: EdagValue) => Result<EdagValue, ValidationError>} */
+export const validateMetadata = value => mapOk(() => value)(validateValue(value, empty))

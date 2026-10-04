@@ -2,7 +2,7 @@
  * Evaluated metadata checks preserve values and report raw tuple paths.
  * Function bodies remain expressions for later graph admission.
  *
- * @import { EdagValue } from '../types.ts'
+ * @import { EdagValue, Property } from '../types.ts'
  */
 
 import { assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.mjs'
@@ -59,10 +59,29 @@ export const proof = {
         }
     },
     duplicateKeys: () => {
-        for (const key of ['0', 'x', '', '__proto__']) {
+        for (const key of ['0', 'x', '', '__proto__', 'constructor', 'toString']) {
             reject(['{}', [[':', key, 1], [':', key, 2]]], ['1', '1', '1'], 'duplicate object property')
         }
         reject(['{}', [[':', 'x', 1], [':', 'y', 2], [':', 'x', 3]]], ['1', '2', '1'], 'duplicate object property')
+    },
+    wideObject: () => {
+        const length = 40_000
+        /** @type {readonly Property[]} */
+        const properties = [
+            [':', '__proto__', 0], [':', 'constructor', 0], [':', 'toString', 0],
+            ...Array.from({ length }, (_, i) => /** @type {const} */ ([':', `key${i}`, i])),
+        ]
+        accept(['{}', properties])
+        for (const key of ['__proto__', `key${length - 1}`]) {
+            reject(['{}', [...properties, [':', key, 0]]], ['1', String(properties.length), '1'], 'duplicate object property')
+        }
+    },
+    firstFailure: () => {
+        const bad = /** @type {const} */ (['=>', 17, [], 0])
+        reject(['{}', [[':', 'x', bad], [':', 'x', 0]]], ['1', '0', '2', '1'], 'invalid function length')
+        reject(['{}', [[':', 'x', 0], [':', 'x', bad]]], ['1', '1', '1'], 'duplicate object property')
+        const shared = /** @type {const} */ (['{}', [[':', 'x', bad]]])
+        reject(['[]', [0, shared, shared]], ['1', '1', '1', '0', '2', '1'], 'invalid function length')
     },
     nestedFailures: () => {
         const bad = /** @type {const} */ (['=>', 17, [], 0])
@@ -82,5 +101,18 @@ export const proof = {
         const shared = /** @type {const} */ (['{}', [[':', 'x', ['[]', [1]]]]])
         const input = /** @type {const} */ (['[]', [shared, shared, ['=>', 0, [shared], ['frame', 0]]]])
         assertEq(assertOk(validateMetadata(input)), input)
+    },
+    sharedGraph: () => {
+        // Thirty sharing levels contain only thirty-one distinct value nodes.
+        /** @type {EdagValue} */
+        let shared = ['undefined']
+        for (let i = 0; i < 10; i += 1) {
+            /** @type {EdagValue} */
+            const array = ['[]', [shared, shared]]
+            /** @type {EdagValue} */
+            const object = ['{}', [[':', 'x', array], [':', 'y', array]]]
+            shared = ['=>', 0, [object, object], 0]
+        }
+        accept(shared)
     },
 }
