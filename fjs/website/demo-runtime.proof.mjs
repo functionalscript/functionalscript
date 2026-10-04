@@ -289,6 +289,9 @@ const dom = path => {
             const self = {
                 name, disabled, ownerDocument: document,
                 status: { textContent: '' },
+                attributes: {},
+                setAttribute: (/** @type {string} */ key, /** @type {string} */ value) => { self.attributes[key] = value },
+                removeAttribute: (/** @type {string} */ key) => { delete self.attributes[key] },
                 querySelector: (/** @type {string} */ key) => key === '[data-copy-status]' ? self.status : null,
                 getAttribute: (/** @type {string} */ key) => key === 'data-copy' ? copy ?? null : null,
                 closest: (/** @type {string} */ s) => matches(s) ? self : null,
@@ -365,8 +368,9 @@ export const proof = {
         assert(button.disabled)
         await settle()
         assertStructurallySame(copied, ["hello ' world"])
-        assertEq(button.status.textContent, 'Copied')
-        assertEq(button.title, 'Copied')
+        assertEq(button.status.textContent, 'Copied!')
+        assertEq(button.title, 'Copied!')
+        assertEq(button.attributes['data-copied'], '')
         assertEq(button.disabled, false)
         assertEq(d.rendered.length, renders)
         d.click('', { copy: '', disabled: true })
@@ -375,7 +379,10 @@ export const proof = {
         const empty = d.click('', { copy: '' })
         await settle()
         assertStructurallySame(copied, ["hello ' world", ''])
-        assertEq(empty.status.textContent, 'Copied')
+        assertEq(empty.status.textContent, 'Copied!')
+        await new Promise(resolve => setTimeout(resolve, 2100))
+        assertEq(button.attributes['data-copied'], undefined)
+        assertEq(button.title, 'Copy')
     },
     copyUnavailable: async () => {
         const d = dom(echo)

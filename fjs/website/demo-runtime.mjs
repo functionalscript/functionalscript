@@ -335,6 +335,10 @@ const unwrapState = result => {
  * @type {(button: HTMLButtonElement | HTMLInputElement, text: string) => Promise<void>}
  */
 const copy = async (button, text) => {
+    const title = button.getAttribute('aria-label') ?? 'Copy'
+    const previous = copyTimers.get(button)
+    if (previous !== undefined) { clearTimeout(previous) }
+    button.removeAttribute('data-copied')
     /** @type {(message: string) => void} */
     const report = message => {
         button.title = message
@@ -349,13 +353,22 @@ const copy = async (button, text) => {
             return
         }
         await clipboard.writeText(text)
-        report('Copied')
+        report('Copied!')
+        button.setAttribute('data-copied', '')
+        copyTimers.set(button, setTimeout(() => {
+            button.removeAttribute('data-copied')
+            report(title)
+            copyTimers.delete(button)
+        }, 2000))
     } catch {
         report('Copy failed')
     } finally {
         button.disabled = false
     }
 }
+
+/** @type {WeakMap<HTMLButtonElement | HTMLInputElement, ReturnType<typeof setTimeout>>} */
+const copyTimers = new WeakMap()
 
 /**
  * Starts the demo named by `data-demo` inside `root`.
