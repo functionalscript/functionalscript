@@ -90,10 +90,21 @@ Passing represented containers or functions to host operators is not a
 semantic implementation of these operations.
 
 Use the existing `Result` vocabulary: `ok(value)` is success and
-`error(value)` is a language throw. The `throw` operation evaluates its
+`error(value)` is an execution failure. The `throw` operation evaluates its
 operand and returns that value as an error; a failure evaluating the operand
-propagates unchanged. Calls and eager operations propagate failures, and
-lazy operations evaluate only demanded operands. Host exceptions and
+propagates unchanged.
+
+An admitted operation's own implicit failure, such as reading a property of
+`null`/`undefined`, calling a non-function or bigint division by zero, returns
+`error(['undefined'])`. This payload carries no cause, class or message;
+optional executor diagnostics remain out of band. An explicit `throw undefined`
+has the same result. Failures from evaluated operands and invoked callbacks
+propagate unchanged, including explicit `throw` payloads. This follows
+[failure equivalence](../../../spec/README.md#failure-is-one-outcome) while
+keeping `Result<EdagValue, EdagValue>` as the single evaluator protocol.
+
+Calls and eager operations propagate failures, and lazy operations evaluate
+only demanded operands. Host exceptions and
 `try`/`catch` are not the VM's language-failure mechanism.
 `Result` is the evaluator protocol; it introduces no source-level catch or
 throw-inspection feature and preserves the language's existing failure rules.
@@ -118,11 +129,11 @@ initializer:
 ```text
 source -> imports + initializer EDAG
        -> resolve imports -> evaluate initializer
-       -> Result<module-export EdagValue, thrown EdagValue>
+       -> Result<module-export EdagValue, failure EdagValue>
 ```
 
-The successful result is the complete named/default export object. A language
-throw stops this compilation, as JavaScript stops loading a module whose
+The successful result is the complete named/default export object. An execution
+failure stops this compilation, as JavaScript stops loading a module whose
 initialization throws. Loading and syntax failures remain separately reported.
 
 Evaluate all required initialization, including unused imports and declarations
@@ -167,10 +178,22 @@ This conversion intentionally loses reflection. It promises neither recovery
 of the original EDAG from `unknown` nor automatic reverse conversion; exposing
 an EDAG property or requiring a function registry is not part of its API.
 Runtime materialization is separate from the FJS VM's value representation.
-Use a supported backend or runtime converter without requiring runtime
-JavaScript code generation inside FJS. The host's function-text exception
-applies to ordinary converted/generated JavaScript callables; VM conversion
-continues to use the EDAG-derived renderer.
+Materialize callable graphs through a supported backend: emit a normal FJS/JS
+module or Rust construction code, then load/build it in the target runtime.
+Precompiled code can supply the same construction when the code is already
+available. Calls execute that code with ordinary runtime arguments and results,
+outside the FJS EDAG evaluator. For example, materializing `f => f(1)` produces
+runtime code that invokes the supplied callback directly, without its EDAG.
+This is the bridge for ordinary callable arguments; they never need admission
+as `EdagValue`s.
+
+A converter implemented wholly in FJS can decode function-free data. Callable
+materialization requires the target's compile/load or precompiled-code boundary;
+an unavailable or unsupported boundary returns an output diagnostic. This keeps
+runtime JavaScript code generation outside FJS and keeps `EdagValue` as the sole
+value representation of FJS language VMs. The host's function-text exception
+applies to generated JavaScript callables; VM conversion continues to use the
+EDAG-derived renderer.
 
 Existing compiler callers whose API exposes `unknown` convert explicitly.
 JSON/DataJS writers apply their own representability rules; an output refusal
@@ -212,9 +235,11 @@ budget or stopped-outcome API.
       `Result<EdagValue, EdagValue>`, with immutable state and admitted methods.
 - [ ] Migrate Amnesia and memo, preserving each documented execution model;
       migrate their proofs, the `fjs/nanvm` corpus and parameter consumers.
-- [ ] Implement conversion to `unknown`, including callable invocation,
+- [ ] Implement target runtime materialization to `unknown`: function-free data
+      conversion and backend-generated/precompiled callable construction,
       runtime arguments/results, reflection erasure, failure behavior and
-      identity preservation.
+      identity preservation. Prove `f => f(1)` accepts an ordinary callback
+      with no EDAG association, and refuse unavailable callable materialization.
 - [ ] Execute resolved module initializers into export value graphs; migrate
       compiler/loader callers and retire or migrate the AST value evaluator.
 - [ ] Prove direct JS/Rust compilation of result graphs preserves the supported
@@ -222,6 +247,9 @@ budget or stopped-outcome API.
       shared identity, fresh invocation values, lazy branches and throws.
 - [ ] Prove initializer failures survive unused imports/declarations, while
       successful artifacts omit unreachable initialization machinery.
+- [ ] Prove implicit operation failures return `error(['undefined'])`, while
+      explicit thrown values propagate unchanged through operands, callbacks
+      and module initialization.
 - [ ] Prove direct/indirect function text, conversion of thrown values and
       exported callables; retain the host-text exception at host boundaries.
 - [ ] Remove old VM value representations and reconcile the linked design

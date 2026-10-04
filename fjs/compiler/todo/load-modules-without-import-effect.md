@@ -21,8 +21,11 @@ the test runner or CLI selects and invokes an entry separately.
 The [EdagValue proposal](../../edag/todo/edag-value.md) owns the planned
 representation: loading returns a represented export object through
 `Result<EdagValue, EdagValue>`, and VM invocation consumes represented values.
-Callers needing ordinary FJS runtime values convert to `unknown`, erasing
-reflection. The host-valued/sandbox integration below is the current baseline;
+Callers needing ordinary FJS runtime values use the separate
+[target materialization boundary](../../edag/todo/edag-value.md#compilation-and-conversion-to-unknown)
+to produce `unknown` with reflection erased. Callable graphs require generated
+or precompiled runtime code; loading and VM invocation keep represented values.
+The host-valued/sandbox integration below is the current baseline;
 after migration, language throws propagate as explicit `Result` errors rather
 than requiring `sandbox` to capture them.
 

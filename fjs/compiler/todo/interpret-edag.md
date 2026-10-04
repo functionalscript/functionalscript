@@ -147,18 +147,31 @@ all but `length` — since such a graph is not one the compiler emits.
 The preceding P2 compiler work deliberately adds the EDAG-producing path **alongside**
 the current value-producing DJS transpiler/CLI. The remaining integration step is to
 migrate that value-producing path to use EDAG internally. Under the planned
-`EdagValue` contract, convert the represented export object at the existing
-runtime-value API boundary:
+`EdagValue` contract, choose conversion at the requested API/output boundary:
 
 ```text
 source modules
   -> final EDAG
   -> validate EDAG
   -> interpret EDAG into Result<EdagValue, EdagValue>
-  -> convert successful export EdagValue to the runtime module export object
-  -> select result.default for JSON/DataJS value output
-  -> existing value serialization
+  -> success: complete represented export object
+     -> runtime-value API: materialize the complete runtime export object
+     -> JSON/DataJS: select represented default, convert supported data, serialize
 ```
+
+This materialization uses the target boundary in the
+[value plan](../../edag/todo/edag-value.md#compilation-and-conversion-to-unknown):
+function-free data can be decoded in FJS, while callable exports require
+backend-generated or precompiled runtime code and the target's load/build step.
+Their calls accept ordinary runtime callbacks directly. A pure data converter
+cannot provide callable exports; an unavailable materialization boundary is an
+output refusal. Integration must supply that boundary to callers needing
+callables and declare any compiler API changes in its implementation PR.
+
+JSON/DataJS project the represented `default` before converting that value;
+unselected callable exports do not require callable materialization. For example,
+`export const f = x => x; export default 1;` can still produce JSON `1`.
+Initialization of every required declaration still runs before this projection.
 
 This integration must preserve the
 [compile API boundary](./compile-modules-to-edag.md#existing-compile-api-boundary)
