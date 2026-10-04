@@ -5,6 +5,14 @@
 validation, value-producing API integration and the native semantic prerequisites
 for native self-hosting remain open.
 
+The planned value contract is
+[EdagValue](../../edag/todo/edag-value.md): every FJS VM uses the EDAG subset
+for language values and returns `Result<EdagValue, EdagValue>`. Host-valued
+execution and arrow factories below describe the current baseline. Integration
+must migrate that baseline and convert explicitly at APIs exposing `unknown`:
+ordinary FJS runtime values with EDAG reflection erased. Public validation,
+immutable state and native prerequisites remain required.
+
 **Compiler dependency:** [`compile-modules-to-edag.md`](./compile-modules-to-edag.md)
 provides the linked graphs. Its initial rest-only, non-capturing Stage 2 is
 historical; the interpreter follows the current fixed/rest and capture contract.
@@ -138,14 +146,16 @@ all but `length` — since such a graph is not one the compiler emits.
 
 The preceding P2 compiler work deliberately adds the EDAG-producing path **alongside**
 the current value-producing DJS transpiler/CLI. The remaining integration step is to
-migrate that value-producing path to use EDAG internally:
+migrate that value-producing path to use EDAG internally. Under the planned
+`EdagValue` contract, convert the represented export object at the existing
+runtime-value API boundary:
 
 ```text
 source modules
   -> final EDAG
   -> validate EDAG
-  -> interpret EDAG
-  -> module export object
+  -> interpret EDAG into Result<EdagValue, EdagValue>
+  -> convert successful export EdagValue to the runtime module export object
   -> select result.default for JSON/DataJS value output
   -> existing value serialization
 ```

@@ -18,6 +18,14 @@ parser, AST-to-EDAG lowering, linker and validated
 and returns its complete export object. It does not call exported functions;
 the test runner or CLI selects and invokes an entry separately.
 
+The [EdagValue proposal](../../edag/todo/edag-value.md) owns the planned
+representation: loading returns a represented export object through
+`Result<EdagValue, EdagValue>`, and VM invocation consumes represented values.
+Callers needing ordinary FJS runtime values convert to `unknown`, erasing
+reflection. The host-valued/sandbox integration below is the current baseline;
+after migration, language throws propagate as explicit `Result` errors rather
+than requiring `sandbox` to capture them.
+
 Source-level `import` remains part of the language. This workflow needs neither
 a host `import` effect nor an effect that converts EDAG into a native function.
 It accepts the compiler-supported FJS subset, not arbitrary JavaScript or host
