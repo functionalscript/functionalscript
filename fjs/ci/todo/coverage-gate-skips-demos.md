@@ -36,12 +36,15 @@ confirm it.
 - Widen the filter to include demos — `**/demo.f.mjs`, or every authored
   `*.f.mjs` if the other non-module FunctionalScript files also meet the rule —
   in `package.json`'s `cov` and `deno.json`'s `cov` together, since
-  [`../README.md`](../README.md) requires the two to select the same files.
+  [`../deno/module.f.mjs`](../deno/module.f.mjs) states the two `cov`
+  definitions select the same modules and should stay semantically equal.
 - Check what Bun's `bun test --coverage` measures, and keep it in step.
 
 ### Related
 
-- [`../README.md`](../README.md) — the `cov` scripts and why the runners
-  share one filter.
+- [`../deno/module.f.mjs`](../deno/module.f.mjs) — the Deno job delegates
+  coverage to `deno.json`'s `cov`, which selects the same modules as
+  `package.json`'s; [`../deno/proof.f.mjs`](../deno/proof.f.mjs) guards that
+  the job keeps delegating rather than holding a second filter.
 - [`fjs/types/bigint/demo.f.mjs`](../../types/bigint/demo.f.mjs) — the demo
   below 100% today.
