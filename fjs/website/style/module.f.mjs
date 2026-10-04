@@ -417,9 +417,9 @@ a:hover > [data-railroad-box="nonTerminal"] { fill: var(--pass-bg) }
 [data-code-block] > button > svg { width: 20px; height: 20px }
 [data-copy-status] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap }
 [data-code-block] > button > [data-copy-check] { display: none }
-[data-code-block] > button[data-copied], [data-code-block] > button[data-copied]:hover:enabled { color: var(--pass) }
-[data-code-block] > button[data-copied] > svg { display: none }
-[data-code-block] > button[data-copied] > [data-copy-check] { display: block }
+[data-code-block] > button[data-copy-feedback="copied"], [data-code-block] > button[data-copy-feedback="copied"]:hover:enabled { color: var(--pass) }
+[data-code-block] > button[data-copy-feedback="copied"] > svg { display: none }
+[data-code-block] > button[data-copy-feedback="copied"] > [data-copy-check] { display: block }
 [data-copy-feedback] > [data-copy-status] { right: -3px; bottom: calc(100% + 8px); width: auto; height: auto; overflow: visible; clip-path: none; padding: 5px 9px; background: black; color: white; border-radius: 5px; font-size: 12px; font-weight: 500; box-shadow: 0 2px 6px #00000018; pointer-events: none }
 [data-copy-feedback] > [data-copy-status]::after { content: ''; position: absolute; top: 100%; right: 10px; border: 5px solid transparent; border-top-color: black }
 @media (prefers-color-scheme: dark) {

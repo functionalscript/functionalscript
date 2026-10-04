@@ -339,46 +339,48 @@ const unwrapState = result => {
  */
 const copy = async (button, text) => {
     const clock = button.ownerDocument.defaultView
-    if (clock === null) { return }
-    if (copyPending.has(button)) { return }
+    if (clock === null || copyPending.has(button)) { return }
+
+    const status = button.querySelector('[data-copy-status]')
+    /** @type {(result: 'copied' | 'failed' | null, message: string) => void} */
+    const show = (result, message) => {
+        if (result === null) { button.removeAttribute('data-copy-feedback') }
+        else { button.setAttribute('data-copy-feedback', result) }
+        if (status !== null) { status.textContent = message }
+    }
+
     copyPending.add(button)
     button.setAttribute('aria-disabled', 'true')
-    const title = button.getAttribute('aria-label') ?? 'Copy'
-    const previous = copyTimers.get(button)
-    if (previous !== undefined) { clock.clearTimeout(previous) }
-    button.removeAttribute('data-copied')
-    button.removeAttribute('data-copy-feedback')
-    const status = button.querySelector('[data-copy-status]')
-    if (status !== null) { status.textContent = '' }
-    /** @type {(message: string, copied?: boolean) => void} */
-    const report = (message, copied = false) => {
-        button.title = message
-        if (status !== null) { status.textContent = message }
-        button.setAttribute('data-copy-feedback', '')
-        if (copied) { button.setAttribute('data-copied', '') }
-        copyTimers.set(button, clock.setTimeout(() => {
-            button.removeAttribute('data-copied')
-            button.removeAttribute('data-copy-feedback')
-            button.title = title
-            if (status !== null) { status.textContent = '' }
-            copyTimers.delete(button)
-        }, 2000))
-    }
+    clock.clearTimeout(copyTimers.get(button))
+    copyTimers.delete(button)
+    show(null, '')
+
     try {
-        const clipboard = clock.navigator.clipboard
-        if (clipboard === undefined) {
-            report('Copy unavailable')
-            return
-        }
-        await clipboard.writeText(text)
-        report('Copied!', true)
-    } catch {
-        report('Copy failed')
+        const [result, message] = await write(clock, text)
+        show(result, message)
+        copyTimers.set(button, clock.setTimeout(() => {
+            show(null, '')
+            copyTimers.delete(button)
+        }, copyFeedbackDurationMs))
     } finally {
         copyPending.delete(button)
         button.removeAttribute('aria-disabled')
     }
 }
+
+/** @type {(clock: Window, text: string) => Promise<readonly ['copied' | 'failed', string]>} */
+const write = async (clock, text) => {
+    try {
+        const clipboard = clock.navigator.clipboard
+        if (clipboard === undefined) { return ['failed', 'Copy unavailable'] }
+        await clipboard.writeText(text)
+        return ['copied', 'Copied!']
+    } catch {
+        return ['failed', 'Copy failed']
+    }
+}
+
+const copyFeedbackDurationMs = 2000
 
 /** @type {WeakMap<HTMLButtonElement | HTMLInputElement, number>} */
 const copyTimers = new WeakMap()

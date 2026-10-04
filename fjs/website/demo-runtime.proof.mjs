@@ -307,7 +307,7 @@ const dom = path => {
                 one === tagName.toLowerCase() || one === `${tagName.toLowerCase()}[type="${type}"]`)
             /** @type {any} */
             const self = {
-                name, disabled, ownerDocument: document,
+                name, disabled, title: 'Copy', ownerDocument: document,
                 status: { textContent: '' },
                 attributes: {},
                 setAttribute: (/** @type {string} */ key, /** @type {string} */ value) => { self.attributes[key] = value },
@@ -392,8 +392,8 @@ export const proof = {
         await settle()
         assertStructurallySame(copied, ["hello ' world"])
         assertEq(button.status.textContent, 'Copied!')
-        assertEq(button.title, 'Copied!')
-        assertEq(button.attributes['data-copied'], '')
+        assertEq(button.title, 'Copy')
+        assertEq(button.attributes['data-copy-feedback'], 'copied')
         assertEq(button.disabled, false)
         assertEq(button.attributes['aria-disabled'], undefined)
         assertEq(d.rendered.length, renders)
@@ -405,7 +405,6 @@ export const proof = {
         assertStructurallySame(copied, ["hello ' world", ''])
         assertEq(empty.status.textContent, 'Copied!')
         d.resetCopies()
-        assertEq(button.attributes['data-copied'], undefined)
         assertEq(button.title, 'Copy')
         assertEq(button.status.textContent, '')
         assertEq(button.attributes['data-copy-feedback'], undefined)
@@ -417,8 +416,7 @@ export const proof = {
         const button = d.click('', { copy: 'hello' })
         await settle()
         assertEq(button.status.textContent, 'Copy unavailable')
-        assertEq(button.attributes['data-copy-feedback'], '')
-        assertEq(button.attributes['data-copied'], undefined)
+        assertEq(button.attributes['data-copy-feedback'], 'failed')
         assertEq(button.disabled, false)
         assert(!d.root.textContent.startsWith('demo failed'))
         d.resetCopies()
@@ -436,8 +434,7 @@ export const proof = {
         const button = d.click('', { copy: 'hello' })
         await settle()
         assertEq(button.status.textContent, 'Copy failed')
-        assertEq(button.attributes['data-copy-feedback'], '')
-        assertEq(button.attributes['data-copied'], undefined)
+        assertEq(button.attributes['data-copy-feedback'], 'failed')
         assertEq(button.disabled, false)
         assert(!d.root.textContent.startsWith('demo failed'))
         d.resetCopies()
