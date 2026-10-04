@@ -11,10 +11,7 @@ FunctionalScript is a safe, purely functional programming language and a strict 
   as a subset of JavaScript.
 - [TypeScript](https://en.wikipedia.org/wiki/TypeScript), as a superset of JavaScript.
 
-Its abbreviation is **FJS**, which the `fjs` CLI and the `fjs/` directory
-carry. There is no "Java" in the name, and that is deliberate: JavaScript is a
-trademark, so the language is not called FunctionalJavaScript, but the
-abbreviation says what it is — a functional subset of JavaScript.
+Its abbreviation is **FJS**.
 
 [The FunctionalScript specification](./spec/README.md) describes the language
 the compiler accepts today; features not implemented yet are in
