@@ -331,21 +331,37 @@ const unwrapState = result => {
  * Copy the text declared by a demo's code block, directly from the click so
  * the browser keeps the reader's clipboard permission gesture. This is a
  * page control rather than a demo event: copying does not change demo state.
+ * Pending copies ignore re-entry without disabling the focused button. Every
+ * outcome gets visible feedback; resetting it clears the live region rather
+ * than announcing the button's label as another status.
  *
  * @type {(button: HTMLButtonElement | HTMLInputElement, text: string) => Promise<void>}
  */
 const copy = async (button, text) => {
+    if (copyPending.has(button)) { return }
+    copyPending.add(button)
+    button.setAttribute('aria-disabled', 'true')
     const title = button.getAttribute('aria-label') ?? 'Copy'
     const previous = copyTimers.get(button)
     if (previous !== undefined) { clearTimeout(previous) }
     button.removeAttribute('data-copied')
-    /** @type {(message: string) => void} */
-    const report = message => {
+    button.removeAttribute('data-copy-feedback')
+    const status = button.querySelector('[data-copy-status]')
+    if (status !== null) { status.textContent = '' }
+    /** @type {(message: string, copied?: boolean) => void} */
+    const report = (message, copied = false) => {
         button.title = message
-        const status = button.querySelector('[data-copy-status]')
         if (status !== null) { status.textContent = message }
+        button.setAttribute('data-copy-feedback', '')
+        if (copied) { button.setAttribute('data-copied', '') }
+        copyTimers.set(button, setTimeout(() => {
+            button.removeAttribute('data-copied')
+            button.removeAttribute('data-copy-feedback')
+            button.title = title
+            if (status !== null) { status.textContent = '' }
+            copyTimers.delete(button)
+        }, 2000))
     }
-    button.disabled = true
     try {
         const clipboard = button.ownerDocument.defaultView?.navigator.clipboard
         if (clipboard === undefined) {
@@ -353,22 +369,20 @@ const copy = async (button, text) => {
             return
         }
         await clipboard.writeText(text)
-        report('Copied!')
-        button.setAttribute('data-copied', '')
-        copyTimers.set(button, setTimeout(() => {
-            button.removeAttribute('data-copied')
-            report(title)
-            copyTimers.delete(button)
-        }, 2000))
+        report('Copied!', true)
     } catch {
         report('Copy failed')
     } finally {
-        button.disabled = false
+        copyPending.delete(button)
+        button.removeAttribute('aria-disabled')
     }
 }
 
 /** @type {WeakMap<HTMLButtonElement | HTMLInputElement, ReturnType<typeof setTimeout>>} */
 const copyTimers = new WeakMap()
+
+/** @type {WeakSet<HTMLButtonElement | HTMLInputElement>} */
+const copyPending = new WeakSet()
 
 /**
  * Starts the demo named by `data-demo` inside `root`.

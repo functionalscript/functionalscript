@@ -420,11 +420,11 @@ a:hover > [data-railroad-box="nonTerminal"] { fill: var(--pass-bg) }
 [data-code-block] > button[data-copied], [data-code-block] > button[data-copied]:hover:enabled { color: var(--pass) }
 [data-code-block] > button[data-copied] > svg { display: none }
 [data-code-block] > button[data-copied] > [data-copy-check] { display: block }
-[data-copied] > [data-copy-status] { right: -3px; bottom: calc(100% + 8px); width: auto; height: auto; overflow: visible; clip-path: none; padding: 5px 9px; background: black; color: white; border-radius: 5px; font-size: 12px; font-weight: 500; box-shadow: 0 2px 6px #00000018; pointer-events: none }
-[data-copied] > [data-copy-status]::after { content: ''; position: absolute; top: 100%; right: 10px; border: 5px solid transparent; border-top-color: black }
+[data-copy-feedback] > [data-copy-status] { right: -3px; bottom: calc(100% + 8px); width: auto; height: auto; overflow: visible; clip-path: none; padding: 5px 9px; background: black; color: white; border-radius: 5px; font-size: 12px; font-weight: 500; box-shadow: 0 2px 6px #00000018; pointer-events: none }
+[data-copy-feedback] > [data-copy-status]::after { content: ''; position: absolute; top: 100%; right: 10px; border: 5px solid transparent; border-top-color: black }
 @media (prefers-color-scheme: dark) {
-    [data-copied] > [data-copy-status] { background: #e8eaed; color: #202124 }
-    [data-copied] > [data-copy-status]::after { border-top-color: #e8eaed }
+    [data-copy-feedback] > [data-copy-status] { background: #e8eaed; color: #202124 }
+    [data-copy-feedback] > [data-copy-status]::after { border-top-color: #e8eaed }
 }
 [data-result="ok"] { background: var(--pass-bg); border-color: color-mix(in srgb, var(--pass) 40%, transparent); color: var(--pass) }
 [data-result="error"] { background: var(--fail-bg); border-color: color-mix(in srgb, var(--fail) 40%, transparent); color: var(--fail) }

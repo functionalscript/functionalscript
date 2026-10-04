@@ -297,7 +297,8 @@ const dom = path => {
                 closest: (/** @type {string} */ s) => matches(s) ? self : null,
             }
             const target = nested ? { closest: self.closest } : self
-            for (const f of clicks) { f({ target }) }
+            self.activate = () => { for (const f of clicks) { f({ target }) } }
+            self.activate()
             return self
         },
     }
@@ -365,13 +366,16 @@ export const proof = {
         await settle()
         const renders = d.rendered.length
         const button = d.click('', { copy: "hello ' world", nested: true })
-        assert(button.disabled)
+        assertEq(button.disabled, false)
+        assertEq(button.attributes['aria-disabled'], 'true')
+        button.activate()
         await settle()
         assertStructurallySame(copied, ["hello ' world"])
         assertEq(button.status.textContent, 'Copied!')
         assertEq(button.title, 'Copied!')
         assertEq(button.attributes['data-copied'], '')
         assertEq(button.disabled, false)
+        assertEq(button.attributes['aria-disabled'], undefined)
         assertEq(d.rendered.length, renders)
         d.click('', { copy: '', disabled: true })
         await settle()
@@ -383,6 +387,8 @@ export const proof = {
         await new Promise(resolve => setTimeout(resolve, 2100))
         assertEq(button.attributes['data-copied'], undefined)
         assertEq(button.title, 'Copy')
+        assertEq(button.status.textContent, '')
+        assertEq(button.attributes['data-copy-feedback'], undefined)
     },
     copyUnavailable: async () => {
         const d = dom(echo)
@@ -391,8 +397,14 @@ export const proof = {
         const button = d.click('', { copy: 'hello' })
         await settle()
         assertEq(button.status.textContent, 'Copy unavailable')
+        assertEq(button.attributes['data-copy-feedback'], '')
+        assertEq(button.attributes['data-copied'], undefined)
         assertEq(button.disabled, false)
         assert(!d.root.textContent.startsWith('demo failed'))
+        await new Promise(resolve => setTimeout(resolve, 2100))
+        assertEq(button.status.textContent, '')
+        assertEq(button.title, 'Copy')
+        assertEq(button.attributes['data-copy-feedback'], undefined)
     },
     copyDenied: async () => {
         const d = dom(echo)
@@ -404,8 +416,14 @@ export const proof = {
         const button = d.click('', { copy: 'hello' })
         await settle()
         assertEq(button.status.textContent, 'Copy failed')
+        assertEq(button.attributes['data-copy-feedback'], '')
+        assertEq(button.attributes['data-copied'], undefined)
         assertEq(button.disabled, false)
         assert(!d.root.textContent.startsWith('demo failed'))
+        await new Promise(resolve => setTimeout(resolve, 2100))
+        assertEq(button.status.textContent, '')
+        assertEq(button.title, 'Copy')
+        assertEq(button.attributes['data-copy-feedback'], undefined)
     },
     /**
      * **The first render is the demo's own `init`**, before any event, so a
