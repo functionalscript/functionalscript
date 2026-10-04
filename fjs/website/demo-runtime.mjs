@@ -338,8 +338,9 @@ const unwrapState = result => {
  * @type {(button: HTMLButtonElement | HTMLInputElement, text: string) => Promise<void>}
  */
 const copy = async (button, text) => {
-    const clock = button.ownerDocument.defaultView
-    if (clock === null || copyPending.has(button)) { return }
+    const view = button.ownerDocument.defaultView
+    if (view === null) { throw new Error('copy control has no window') }
+    if (copyPending.has(button)) { return }
 
     const status = button.querySelector('[data-copy-status]')
     /** @type {(result: 'copied' | 'failed' | null, message: string) => void} */
@@ -351,14 +352,14 @@ const copy = async (button, text) => {
 
     copyPending.add(button)
     button.setAttribute('aria-disabled', 'true')
-    clock.clearTimeout(copyTimers.get(button))
+    view.clearTimeout(copyTimers.get(button))
     copyTimers.delete(button)
     setFeedback(null, '')
 
     try {
-        const [result, message] = await write(clock, text)
+        const [result, message] = await write(view, text)
         setFeedback(result, message)
-        copyTimers.set(button, clock.setTimeout(() => {
+        copyTimers.set(button, view.setTimeout(() => {
             setFeedback(null, '')
             copyTimers.delete(button)
         }, copyFeedbackDurationMs))
@@ -368,10 +369,10 @@ const copy = async (button, text) => {
     }
 }
 
-/** @type {(clock: Window, text: string) => Promise<readonly ['copied' | 'failed', string]>} */
-const write = async (clock, text) => {
+/** @type {(view: Window, text: string) => Promise<readonly ['copied' | 'failed', string]>} */
+const write = async (view, text) => {
     try {
-        const clipboard = clock.navigator.clipboard
+        const clipboard = view.navigator.clipboard
         if (clipboard === undefined) { return ['failed', 'Copy unavailable'] }
         await clipboard.writeText(text)
         return ['copied', 'Copied!']
@@ -429,7 +430,7 @@ export const startDemo = async root => {
                 /** @type {Element} */ (e.target).closest('button, input[type="button"]'))
             if (button === null || button.disabled) { return }
             const text = button.getAttribute('data-copy')
-            if (text !== null) { void copy(button, text); return }
+            if (text !== null) { void copy(button, text).catch(cause => fail(root, cause)); return }
             if (button.name === '') { return }
             step({ kind: 'click', name: button.name })
         })

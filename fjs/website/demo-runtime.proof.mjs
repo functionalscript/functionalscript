@@ -442,6 +442,16 @@ export const proof = {
         assertEq(button.title, 'Copy')
         assertEq(button.attributes['data-copy-feedback'], undefined)
     },
+    copyWithoutWindow: async () => {
+        const d = dom(echo)
+        await startDemo(d.root)
+        await settle()
+        d.root.ownerDocument.defaultView = null
+        d.click('', { copy: 'hello' })
+        await settle()
+        assert(d.root.textContent.startsWith('demo failed'))
+        assert(d.root.textContent.includes('copy control has no window'))
+    },
     /**
      * **The first render is the demo's own `init`**, before any event, so a
      * page shows what a demo is before it shows what it does.
