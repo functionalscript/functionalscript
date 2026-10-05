@@ -44,7 +44,12 @@ export const isUintUpTo: (max: number) => (n: unknown) => n is number
 
 `isByte = isUintUpTo(0xFF)`, `isIndex = isUintUpTo(Infinity)`, `u8`
 becomes `isByte`, `u16 = isUintUpTo(0xFFFF)`, and `bitIndex` asserts on
-it. `Infinity` is the bound for `isIndex` because it is what `isIndex`
+it. A sixth spelling sits in [`fjs/js/array_index`](../../../js/array_index/module.f.mjs):
+`arrayIndex` tests `Number.isInteger(i) && i >= 0 && i < 2 ** 32 - 1`
+on the number a property key parses to, beside a canonical-spelling
+check that already refuses `'-0'`. It goes through
+`isUintUpTo(2 ** 32 - 2)` and keeps that check, and nothing it answers
+changes, since `-0` never reaches the predicate there. `Infinity` is the bound for `isIndex` because it is what `isIndex`
 admits today — any canonical non-negative integer, `1e100` included —
 so the bound changes nothing. Whether an index should stop at
 `Number.MAX_SAFE_INTEGER` is a separate question with a separate break,
@@ -63,8 +68,9 @@ refused by `utf16`'s. The implementing PR declares this under
 ### Tasks
 
 - [ ] `isUintUpTo`, proved, with the `-0` rule stated.
-- [ ] The five sites through it; the `-0` break declared in the PR's
-      `Changelog:` section; `isPort`'s doc says why it stays apart.
+- [ ] The five sites and `arrayIndex` through it; the `-0` break
+      declared in the PR's `Changelog:` section; `isPort`'s doc says
+      why it stays apart.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 
 ### Related

@@ -42,8 +42,8 @@ helper; the other two spell the lookup and the assignment again.
 `toggleAttribute`, and `busy`'s value-bearing one is left alone. The
 runner's proof runs under `node --test` against a stand-in element in
 [`browser/proof.mjs`](../../../emergent_testing/browser/proof.mjs) that
-implements only `setAttribute` and `removeAttribute`, so the stand-in
-and its type gain `toggleAttribute` in the same change, or the proof
+has `setAttribute` and `removeAttribute` but no `toggleAttribute`, so
+the stand-in and its type gain it in the same change, or the proof
 throws before it reaches the runner;
 the runner gets a local `infrastructureReport(results)` and routes its
 summary updates through `say`.

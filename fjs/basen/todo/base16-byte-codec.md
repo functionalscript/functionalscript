@@ -25,13 +25,19 @@ spelling, so each module that needs it writes its own:
   reason its doc gives, which the codec's design must respect.
 - [`fjs/git/refstore/testlib.f.mjs`](../../git/refstore/testlib.f.mjs) —
   `hexOf` is `codePointListToString(toHex(i))`, the body of `fjs/git/oid`'s
-  `hexText` written again; [`proof.f.mjs`](../../git/refstore/proof.f.mjs)
-  beside it ends its `hexOfIn` with the same expression, a third copy.
+  `hexText` written again.
 - [`fjs/website`](../../website/module.f.mjs) — `commitOf` spells an id as
   `String.fromCharCode(...toArray(toHex(id)))`, which is `hexText` written
   again. It also turns the environment's string into code units and screens
   out anything above `0x7f` by hand, because the only hex reader it can reach
   takes bytes.
+
+The list holds modules and test libraries, not proof files. Several
+`proof.f.mjs` under `fjs/git` spell the same conversion at their
+assertion sites, `refstore`'s many times over, and `oid`'s spells it in
+`commitOf`'s form; those are fixtures, not consumers with an API of
+their own, and once the codec exists each proof can call it where it
+helps, in the same PR or any later one, with nothing to declare.
 
 A run of hex digits read as one number has the same shape one level down.
 [`fjs/text/ascii`](../../text/ascii/module.f.mjs)'s `digitsValue` stops at
