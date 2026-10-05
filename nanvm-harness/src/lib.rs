@@ -21,6 +21,7 @@ pub mod fixtures {
     pub mod call;
     pub mod calls;
     pub mod closure;
+    pub mod effect;
     pub mod escapes;
     pub mod exports;
     pub mod function;

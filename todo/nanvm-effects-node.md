@@ -155,6 +155,11 @@ What follows for the tasks below:
       Rust side is proven (value, throw, a nonnegative duration in
       milliseconds, a function coming back as the same value); what is left is
       the same table run against `fjs/effects/common/module.mjs`.
+- [x] A compiled program performed by the runner end to end:
+      `nanvm-harness/fixtures/effect.mjs` returns effects, `fjs compile` turns
+      it into Rust, and `nanvm-harness/tests/effects.rs` runs them through
+      `Native`: a chain of commands, a command the runner lacks, and a
+      language throw caught by `catch`.
 - [ ] Cross-check applicable operations with the existing FJS virtual/mock
       interpreters; keep mutable host effects at the native boundary.
 - [ ] Embed the runner in the native CLI without moving parser/compiler/loader
