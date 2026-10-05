@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** wip — implementing primitive conversion helpers; array/function conversion, invocation and VM migration remain open
+**Status:** open — primitive conversion helpers are implemented; array/function conversion, invocation and VM migration remain open
 
 ### Problem
 
@@ -310,7 +310,14 @@ budget or stopped-outcome API.
       the call helper, preserving primitive results and failures unchanged;
       nonprimitive results try the next method without further conversion.
       Use presence-preserving stored-property lookup so tagged undefined
-      shadows stock behavior. Array/function and primitive conversion remain.
+      shadows stock behavior. Array/function conversion remains.
+- [x] Convert the represented `Primitive` subset to strings and numbers in
+      `fjs/edag/value/coercion`, reusing tagged-undefined decoding from the
+      semantics helper. String conversion is infallible; abstract ToNumber
+      returns tagged-undefined failure for bigint. Object conversion exposes
+      its primitive success type so callers can compose the helpers directly.
+      Explicit `Number(bigint)` conversion remains with operation dispatch
+      and must accept bigint.
 - [ ] Implement shared value operations and invocation over
       `Result<EdagValue, EdagValue>`, with immutable state and admitted methods.
 - [ ] Migrate Amnesia and memo, preserving each documented execution model;

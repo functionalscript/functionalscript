@@ -6,13 +6,16 @@
  * @module
  */
 
-import type { Exp, Primitive } from '../types.ts'
+import type { Exp, Primitive as EdagPrimitive } from '../types.ts'
 import type { Assert } from '../../asserts/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
 import type { Check, Check3 } from '../../rtti/ts/types.ts'
 import type { _value, value, values, array, property, object, func } from './module.f.mjs'
 
-export type EdagValue = Primitive | readonly ['undefined'] | Array | Object | Function
+/** Evaluated primitives include EDAG's tagged undefined. */
+export type Primitive = EdagPrimitive | readonly ['undefined']
+
+export type EdagValue = Primitive | Array | Object | Function
 
 export type Values = readonly EdagValue[]
 
