@@ -1,8 +1,8 @@
 /**
- * Cyclic array fixtures for the explicitly approved cycle rejection task.
- * FunctionalScript cannot construct cycles, so the user's approval allows
- * this narrow exception to fjs/AGENTS.md §1.6: host mutation only establishes
- * cyclic array edges. Ordinary inputs remain in proof.f.mjs.
+ * Host fixtures for the cycle-refusal contract in ./module.f.mjs.
+ * FunctionalScript cannot construct cyclic arrays. Under fjs/AGENTS.md §1.6,
+ * host mutation only establishes the cyclic edges needed to prove that
+ * boundary's diagnostics. Ordinary inputs remain in proof.f.mjs.
  */
 
 import { assertEq, assertError, assertStructurallySame } from '../../asserts/module.f.mjs'

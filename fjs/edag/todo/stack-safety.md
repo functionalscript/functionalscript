@@ -80,6 +80,14 @@ as does the Rust printer (`closure` → `statements` in
 `export default ${'() => '.repeat(20000)}1;` still overflows, with a
 capture or without one.
 
+The acyclicity preflight in [`../acyclic/module.f.mjs`](../acyclic/module.f.mjs)
+also recurses once per nested array. At `9c7c6d463`, on Node 24.14.0 with its
+default stack, a 1,000-level chain of single-element arrays passes and a
+10,000-level chain throws `RangeError`. The threshold is runtime-dependent.
+A deep acyclic graph, or a long cycle before its closing edge, can therefore
+overflow before the preflight returns a result. Its explicit-stack rewrite
+must preserve shared-node handling and the path to a cycle's closing edge.
+
 ### Proposal
 
 The same shape again: convert the walk to an explicit stack (or adopt
@@ -110,6 +118,8 @@ discovered one `RangeError` at a time.
 
 ### Tasks
 
+- [ ] Include `fjs/edag/acyclic`'s preflight in the stack-safety investigation;
+      preserve input identity, shared-node handling and cycle diagnostic paths.
 - [ ] Investigate replacing recursion on the graph-output path: list
       every walk from the front end to the `.js` and `.rs` outputs whose
       depth is the input's, and for each, an explicit stack, the
@@ -135,6 +145,8 @@ discovered one `RangeError` at a time.
 
 ### Related
 
+- [`../acyclic/module.f.mjs`](../acyclic/module.f.mjs) — pre-admission array
+  traversal with the same input-dependent recursion depth.
 - [`./analysis.md`](./analysis.md) — the analysis this walk implements;
   this issue is about its recursion depth, not its design.
 - [`../../compiler/ast/module.f.mjs`](../../compiler/ast/module.f.mjs) — `refsOf`'s

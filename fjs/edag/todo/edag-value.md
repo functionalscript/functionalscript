@@ -255,7 +255,8 @@ budget or stopped-outcome API.
       captures and function bodies; reject cycles with path diagnostics while
       preserving shared acyclic graphs and the original input. Non-arrays are
       opaque, so this check establishes no value shape. Cycle fixtures require
-      host mutation; their narrowly scoped host proof is part of this step.
+      host mutation under the documented host-contract rule in `fjs/AGENTS.md`
+      section 1.6; ordinary cases remain FunctionalScript proofs.
 - [ ] Complete graph admission from unknown input, including remaining EDAG
       canonicality, such as comma-root rules. Compose acyclicity, shape,
       evaluated metadata and closure/body validation without losing sharing.

@@ -3,6 +3,10 @@
  * tuples and lists are checked along with EDAG operation nodes.
  *
  * @import { EdagValue } from '../value/types.ts'
+ * @import { Assert } from '../../asserts/types.ts'
+ * @import { Equal } from '../../types/ts/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
+ * @import { ValidationError } from '../../rtti/common/types.ts'
  */
 
 import { assertEq, assertOk } from '../../asserts/module.f.mjs'
@@ -12,6 +16,14 @@ import { validateAcyclic } from './module.f.mjs'
 const accept = value => { assertEq(Object.is(assertOk(validateAcyclic(value)), value), true) }
 
 export const proof = {
+    constParameter: () => {
+        const array = validateAcyclic([1])
+        /** @typedef {Assert<Equal<typeof array, Result<readonly [1], ValidationError>>>} _Array */
+        assertEq(assertOk(array)[0], 1)
+        const func = validateAcyclic(['=>', 0, [], ['undefined']])
+        /** @typedef {Assert<Equal<typeof func, Result<readonly ['=>', 0, readonly [], readonly ['undefined']], ValidationError>>>} _Function */
+        assertEq(assertOk(func)[0], '=>')
+    },
     leaves: () => {
         const values = [undefined, null, false, true, 0, -0, NaN, Infinity, '', 1n, { x: [1] }, () => 1]
         for (const value of values) { accept(value) }

@@ -12,6 +12,12 @@
  * This preflight does not compose the complete admission boundary, change
  * RTTI's traversal of shared graphs, or add resource limits.
  *
+ * The recursive walk consumes the host stack once per array level. With
+ * Node 24.14.0's default stack, a 1,000-level chain passes and a 10,000-level
+ * chain throws RangeError. The threshold depends on the runtime and stack
+ * size; deep input can overflow before a diagnostic is returned. Host-stack
+ * independence remains in `../todo/stack-safety.md`.
+ *
  * @module
  * @import { Result } from '../../types/result/types.ts'
  * @import { ValidationError } from '../../rtti/common/types.ts'
@@ -37,5 +43,5 @@ const walk = (value, ancestors, completed) => {
     return ok(add(value)(completed))
 }
 
-/** Checks array-position cycles only, retaining the input's type and identity. @type {<T>(value: T) => Result<T, ValidationError>} */
+/** Checks array-position cycles only, retaining the input's type and identity. @type {<const T>(value: T) => Result<T, ValidationError>} */
 export const validateAcyclic = value => mapOk(() => value)(walk(value, empty, empty))
