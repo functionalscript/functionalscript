@@ -11,7 +11,7 @@ import { assert, assertEq, assertOk, assertError, assertNotNullish, assertStruct
 import { ok, error } from '../../../types/result/module.f.mjs'
 import { object } from '../object/module.f.mjs'
 import { func } from '../function/module.f.mjs'
-import { objectToPrimitive, primitiveToString, primitiveToNumber } from './module.f.mjs'
+import { objectToPrimitive, primitiveToString, primitiveToNumber, primitiveToNumeric } from './module.f.mjs'
 
 /** An invocation that must never happen. @type {() => never} */
 const skipped = () => { assert(false, 'an unselected conversion method was invoked') }
@@ -154,6 +154,7 @@ export const proof = {
         ]
         for (const [value, expected] of cases) {
             assertEq(Object.is(assertOk(primitiveToNumber(value)), expected), true)
+            assertEq(Object.is(primitiveToNumeric(value), expected), true)
         }
     },
     numericStrings: () => {
@@ -168,6 +169,7 @@ export const proof = {
         ]
         for (const [value, expected] of cases) {
             assertEq(Object.is(assertOk(primitiveToNumber(value)), expected), true)
+            assertEq(Object.is(primitiveToNumeric(value), expected), true)
         }
     },
     bigintNumbers: () => {
@@ -176,6 +178,7 @@ export const proof = {
         assertEq(Number(1n), 1)
         for (const value of [0n, 1n, -1n, 123456789012345678901234567890n]) {
             assertStructurallySame(assertError(primitiveToNumber(value)), ['undefined'])
+            assertEq(primitiveToNumeric(value), value)
         }
     },
     primitiveComposition: () => {

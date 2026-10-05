@@ -39,10 +39,12 @@ compare by their value-node identity. These infallible helpers are shared
 building blocks for the planned VM operation layer.
 
 [`value/control`](value/control/module.f.mjs) adds Result-based `throw`, `&&`,
-`||`, `??` and `?:`. It takes an evaluated first operand and defers the rest
-with thunks. Failures propagate unchanged, and selected results preserve
-value identity. The helpers provide stateless control flow; executor state
-belongs to the invocation/cache layer.
+`||`, `??` and `?:`, taking an evaluated first operand and deferring the rest
+with thunks. Its `sequence` helper runs deferred operands in order and returns
+the first failure or last success unchanged; an empty sequence yields tagged
+undefined. Earlier values may be discarded, but their failures still stop the
+sequence. The helpers provide stateless control flow; executor state belongs
+to the invocation/cache layer.
 
 [`value/array`](value/array/module.f.mjs) constructs evaluated arrays from
 deferred items, resolving array and string spreads in order. Construction
@@ -85,10 +87,20 @@ primitives by trying `valueOf` and `toString` in the hint's order. Own methods
 shadow stock behavior, including noncallable values. Represented functions
 run through the call helper; their first primitive result or failure returns
 unchanged. Its primitive helpers convert the represented `Primitive` subset
-to strings and numbers, decoding tagged undefined through the shared semantics
-helper. Numeric coercion rejects bigint; explicit `Number(bigint)` is a
-different operation. Array/function conversion and operation dispatch remain
-part of the shared operation migration.
+to strings and numeric values, decoding tagged undefined through the shared
+semantics helper. Abstract ToNumber rejects bigint; ToNumeric preserves it.
+Array/function conversion and operation dispatch remain part of the shared
+operation migration.
+
+[`value/numeric`](value/numeric/module.f.mjs) supplies a `unary` operation
+table over evaluated primitives. Unary `+` fails on bigint, `-` and `~`
+preserve bigint, and explicit `Number` converts it. Its `binary` table supplies
+`+`, `-`, `*`, `/` and `%`: addition concatenates when either primitive is a
+string; otherwise arithmetic preserves the numeric type. Mixed number/bigint
+operands and bigint zero divisors fail with tagged undefined. Both tables
+return `Result` values. Callers own operand evaluation and conversion to
+primitives. For ordinary objects, pass `'number'` to `objectToPrimitive`
+for all these operations, including addition's default conversion.
 
 The [`value/array`](value/array/module.f.mjs) join helper consumes an evaluated
 array and a resolved string separator. Nullish elements contribute empty text;

@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — function-free runtime materialization implemented; callable conversion, invocation and VM migration remain open
+**Status:** open — primitive binary arithmetic implemented; callable conversion, invocation and VM migration remain open
 
 ### Problem
 
@@ -275,6 +275,12 @@ budget or stopped-outcome API.
       operands, unchanged failures and selected value identity. These helpers
       provide stateless control flow; immutable executor state remains part
       of the invocation/cache migration.
+- [x] Add comma/sequence evaluation in `fjs/edag/value/control`: demand
+      deferred operands in order, preserve the first failure or last success
+      tuple unchanged, and return tagged undefined for an empty sequence.
+      Failures from earlier, otherwise-unused operands stop later evaluation.
+      This supplies sequencing for initialization; executor dispatch and
+      module-initializer integration remain open.
 - [x] Construct evaluated arrays in `fjs/edag/value/array` from deferred
       elements and array/string spreads. Evaluate items in order, propagate
       the first failure unchanged, fail non-iterable spreads with tagged
@@ -316,8 +322,17 @@ budget or stopped-outcome API.
       semantics helper. String conversion is infallible; abstract ToNumber
       returns tagged-undefined failure for bigint. Object conversion exposes
       its primitive success type so callers can compose the helpers directly.
-      Explicit `Number(bigint)` conversion remains with operation dispatch
-      and must accept bigint.
+      Explicit `Number(bigint)` uses the numeric operation table below.
+- [x] Add primitive unary numeric operations in `fjs/edag/value/numeric`:
+      `+` rejects bigint, `-` and `~` preserve bigint, and explicit `Number`
+      converts it. Share primitive ToNumeric in `value/coercion`; return
+      numeric successes or tagged-undefined failures through `Result`.
+      Operand evaluation and container/function conversion remain with dispatch.
+- [x] Add primitive binary arithmetic in `fjs/edag/value/numeric`: `+`, `-`,
+      `*`, `/` and `%`. Preserve string addition and same-type numeric
+      arithmetic; mixed numeric types and bigint zero divisors return
+      tagged-undefined failure. Operand evaluation and conversion to primitives
+      remain with dispatch; exponentiation and binary bitwise operations remain.
 - [x] Join evaluated arrays in `fjs/edag/value/array` with a resolved separator
       and a supplied string converter. Nullish elements contribute empty text;
       other elements, including nested arrays and functions, convert in order.
