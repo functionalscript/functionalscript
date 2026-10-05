@@ -56,9 +56,9 @@ give it a hexadecimal sibling, so the three readers above ask `text/ascii`.
 ### Tasks
 
 - [ ] Decide the codec's home and which spellings it accepts.
-- [ ] Implement it with a proof at 100%, and move the six byte-list
-      consumers above onto it; `fjs/website`'s `commitOf` uses `hexText` at
-      the least.
+- [ ] Implement it with a proof at 100%, and move every byte-list
+      consumer listed above onto it, `fjs/types/uint8array` included;
+      `fjs/website`'s `commitOf` uses `hexText` at the least.
 - [ ] A radix-16 digit-run reader in `text/ascii`; move `git/config`,
       `media/json/parser` and `js/tokenizer` onto it.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.

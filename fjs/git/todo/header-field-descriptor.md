@@ -32,31 +32,39 @@ same guard — `const size = byteLength(payload); if (size === null || size < le
 
 ### Proposal
 
-`header` exports a field descriptor, and the five combinators become its
-views:
+What the copies share is the index, the key and the two messages. What
+they do not share is the parser: the panicking accessor reads an id at
+any width with `tryFromHex`, while `tryTree`, `tryObject` and both
+`validate`s read it at the repository's width with
+`tryFromHexOf(oidBytes)`, and that difference is deliberate. So the
+descriptor holds the four shared facts, and each view takes its parser:
 
 ```ts
-type Field<T> = {
-    readonly get: (p: Payload) => T                       // fieldAt
-    readonly tryGet: (p: Payload) => T | null             // tryFieldAt
-    readonly check: (p: Payload) => Result<T, string>     // checkedAt
+type Field = {
+    readonly get: <T>(parse: (v: Bytes) => T | null) => (p: Payload) => T                   // fieldAt
+    readonly tryGet: <T>(parse: (v: Bytes) => T | null) => (p: Payload) => T | null         // tryFieldAt
+    readonly check: <T>(parse: (v: Bytes) => T | null) => (p: Payload) => Result<T, string> // checkedAt
 }
-export const field: <T>(i: number, key: string, parse: (v: Bytes) => T | null, missing: string, bad: string) => Field<T>
-export const optionalField: …                            // optionalAt, checkedOptionalAt
+export const field: (i: number, key: string, missing: string, bad: string) => Field
+export const optionalField: …                                                             // optionalAt, checkedOptionalAt
 ```
 
 `commit` and `tag` then describe each field once —
-`const object = field(0, 'object', tryFromHex, 'no object', 'not an id')`
-— and export `object.get`, `object.tryGet`, and use `object.check` in
-`validate`. The two fields whose index depends on the parent count take
-the index from the commit first. A `tryReadAtLeast(least)` absorbs the
-shared size guard.
+`const objectField = field(0, 'object', 'no object', 'not an id')` — and
+derive `object = objectField.get(tryFromHex)`,
+`tryObject = oidBytes => objectField.tryGet(tryFromHexOf(oidBytes))`,
+and `objectField.check(tryFromHexOf(oidBytes))` in `validate`. The
+width-agnostic accessor and the width-aware reads keep the parsers they
+have; only the description stops being repeated. The two fields whose
+index depends on the parent count take the index from the commit first.
+A `tryReadAtLeast(least)` absorbs the shared size guard.
 
 ### Tasks
 
 - [ ] `field`, `optionalField`, `tryReadAtLeast` in `header`, proved.
-- [ ] `commit` and `tag` through them; the five combinators go, or stay
-      as the descriptor's own views.
+- [ ] `commit` and `tag` through them, each view keeping the parser it
+      has today; the five combinators go, or stay as the descriptor's own
+      views.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 
 ### Related
