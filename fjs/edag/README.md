@@ -39,10 +39,12 @@ compare by their value-node identity. These infallible helpers are shared
 building blocks for the planned VM operation layer.
 
 [`value/control`](value/control/module.f.mjs) adds Result-based `throw`, `&&`,
-`||`, `??` and `?:`. It takes an evaluated first operand and defers the rest
-with thunks. Failures propagate unchanged, and selected results preserve
-value identity. The helpers provide stateless control flow; executor state
-belongs to the invocation/cache layer.
+`||`, `??` and `?:`, taking an evaluated first operand and deferring the rest
+with thunks. Its `sequence` helper runs deferred operands in order and returns
+the first failure or last success unchanged; an empty sequence yields tagged
+undefined. Earlier values may be discarded, but their failures still stop the
+sequence. The helpers provide stateless control flow; executor state belongs
+to the invocation/cache layer.
 
 [`value/array`](value/array/module.f.mjs) constructs evaluated arrays from
 deferred items, resolving array and string spreads in order. Construction
