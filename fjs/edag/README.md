@@ -80,6 +80,13 @@ receivers fail. Callers own operand evaluation order, key resolution and
 source-name admission; method dispatch and the raw `own` operation remain
 in the operation migration.
 
+[`value/coercion`](value/coercion/module.f.mjs) converts ordinary objects to
+primitives by trying `valueOf` and `toString` in the hint's order. Own methods
+shadow stock behavior, including noncallable values. Represented functions
+run through the call helper; their first primitive result or failure returns
+unchanged. Array/function conversion and conversion of primitive results
+remain part of the shared operation migration.
+
 "No normal form" is a statement about the module as a whole, not a licence for
 each node kind to admit several spellings of one thing. Where a set of
 spellings *can* be cut down to one in the schema, it is: [Chains](#chains) is

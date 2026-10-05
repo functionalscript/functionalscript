@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — value helpers, construction, bare-call preparation and property lookup implemented; invocation and VM migration remain open
+**Status:** open — ordinary-object conversion to primitives is implemented; invocation and VM migration remain open
 
 ### Problem
 
@@ -304,6 +304,13 @@ budget or stopped-outcome API.
       properties and implicit failure for nullish receivers. Callers own key
       resolution, operand evaluation order and source-name admission; method
       dispatch and the raw `own` operation remain in the shared migration.
+- [x] Convert ordinary objects to primitives in `fjs/edag/value/coercion`:
+      try own `valueOf`/`toString` in hint order, use stock behavior only when
+      absent, and skip noncallable methods. Invoke represented methods through
+      the call helper, preserving primitive results and failures unchanged;
+      nonprimitive results try the next method without further conversion.
+      Use presence-preserving stored-property lookup so tagged undefined
+      shadows stock behavior. Array/function and primitive conversion remain.
 - [ ] Implement shared value operations and invocation over
       `Result<EdagValue, EdagValue>`, with immutable state and admitted methods.
 - [ ] Migrate Amnesia and memo, preserving each documented execution model;
