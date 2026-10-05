@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** wip — relative indexing of represented arrays and strings
+**Status:** open — array and string relative indexing implemented; callable conversion, invocation and VM migration remain open
 
 ### Problem
 
@@ -362,7 +362,7 @@ budget or stopped-outcome API.
       Preserve each element's identity and the first failure tuple unchanged.
       Separator conversion/defaulting and the complete value-to-string
       operation remain in the shared operation migration.
-- [ ] Add `at` in `fjs/edag/value/at` for evaluated arrays and strings with
+- [x] Add `at` in `fjs/edag/value/at` for evaluated arrays and strings with
       primitive indices. Reuse abstract ToNumber, preserve element identity
       and UTF-16 string indexing, and return tagged undefined out of range.
       Bigint indices fail even for empty receivers. Callers own method
