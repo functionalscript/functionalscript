@@ -509,7 +509,7 @@ const lazyOperand = (s, depth, takes) => v => mapOk(
  */
 const block = (s, depth) => v => {
     /** @type {_Scope} */
-    const inner = { a: s.a, outer: visible(s), names: [], frame: s.frame, param: s.param, eager: eagerFrom(s.a)(v), shared: sharedWithin(s.a)(v) }
+    const inner = { a: s.a, allowUnusedCaptures: s.allowUnusedCaptures, outer: visible(s), names: [], frame: s.frame, param: s.param, eager: eagerFrom(s.a)(v), shared: sharedWithin(s.a)(v) }
     /** @type {(i: number) => boolean} */
     const unnamed = i => nameOf(inner.outer, ['entry', i]) === null
     // Reached from outside by an edge the operand's subgraph does not
@@ -726,20 +726,24 @@ const firstUse = (names, text) => toArray(text).reduce(
  * the `return`, so what it reads comes first — and the frame's order is the
  * source's, so the two need not agree.
  *
- * A slot the body never reads is refused: the parser builds none, and no
- * text reads back as one.
+ * Source output refuses a slot the body never reads: the parser builds
+ * none, and no text reads back as one. Code-only function text keeps the
+ * body's text in that case, with slot names unchanged and no extra reads.
+ * Complete frames keep their existing canonical ordering in both outputs.
  *
- * @type {(a: Analysis, depth: number, names: readonly string[]) => (b: Operand) => Document}
+ * @type {(a: Analysis, depth: number, names: readonly string[], allowUnusedCaptures: boolean) => (b: Operand) => Document}
  */
-const closureBody = (a, depth, names) => b => okThen(
+const closureBody = (a, depth, names, allowUnusedCaptures) => b => okThen(
     /** @type {(text: List<string>) => Document} */
     (text => {
         const order = firstUse(names, text)
-        return order.length !== names.length ? error('a frame slot the body never reads')
-            : order.every((x, i) => x === i) ? ok(text)
-            : aliasedBody(a, depth, names)(b)
+        if (order.length !== names.length) {
+            return allowUnusedCaptures ? ok(text) : error('a frame slot the body never reads')
+        }
+        return order.every((x, i) => x === i) ? ok(text)
+            : aliasedBody(a, depth, names, allowUnusedCaptures)(b)
     }),
-)(lambdaBody(a, depth, names)(b))
+)(lambdaBody(a, depth, names, allowUnusedCaptures)(b))
 
 /**
  * A function's body that opens by naming its frame's slots in slot order,
@@ -756,9 +760,9 @@ const closureBody = (a, depth, names) => b => okThen(
  * eager in what this writer spells: a lazy operator is a node kind it has
  * none for.
  *
- * @type {(a: Analysis, depth: number, names: readonly string[]) => (b: Operand) => Document}
+ * @type {(a: Analysis, depth: number, names: readonly string[], allowUnusedCaptures: boolean) => (b: Operand) => Document}
  */
-const aliasedBody = (a, depth, names) => b => {
+const aliasedBody = (a, depth, names, allowUnusedCaptures) => b => {
     const aliases = names.map((_, i) => hoistName(depth, i))
     /** @type {_Statement} */
     const start = {
@@ -770,7 +774,7 @@ const aliasedBody = (a, depth, names) => b => {
         (all => mapOk(
             /** @type {(st: _Statement) => List<string>} */
             (st => flat([['{'], st.text, ['}']])),
-        )(scope(bodyScope(a, depth, aliases, b), depth, start)(all))),
+        )(scope(bodyScope(a, depth, aliases, b, allowUnusedCaptures), depth, start)(all))),
     )(scopeOperands(a, b))
 }
 
@@ -780,12 +784,12 @@ const aliasedBody = (a, depth, names) => b => {
  * frame's slot names, the parameter its arguments are written as, and
  * what its root reaches eagerly as its own to hoist.
  *
- * @type {(a: Analysis, depth: number, frame: readonly string[], b: Operand) => _Scope}
+ * @type {(a: Analysis, depth: number, frame: readonly string[], b: Operand, allowUnusedCaptures: boolean) => _Scope}
  */
-const bodyScope = (a, depth, frame, b) => ({ a, outer: [], names: [], frame, param: parameter(depth), eager: eagerFrom(a)(b), shared: a.shared })
+const bodyScope = (a, depth, frame, b, allowUnusedCaptures) => ({ a, allowUnusedCaptures, outer: [], names: [], frame, param: parameter(depth), eager: eagerFrom(a)(b), shared: a.shared })
 
 /** The scope a module is written in, over the names written so far. @type {(a: Analysis, names: _Names) => _Scope} */
-const moduleScope = (a, names) => ({ a, outer: [], names, frame: [], param: '', eager: eagerFrom(a)(a.root), shared: a.shared })
+const moduleScope = (a, names) => ({ a, allowUnusedCaptures: false, outer: [], names, frame: [], param: '', eager: eagerFrom(a)(a.root), shared: a.shared })
 
 /**
  * A function's body at `depth`, in a scope of its own: the `const`s it needs
@@ -807,10 +811,10 @@ const moduleScope = (a, names) => ({ a, outer: [], names, frame: [], param: '', 
  * ([spec: functions](../../../spec/README.md#functions)) — and so is a body
  * that throws, `=> {throw v;}`, the statement having no expression form.
  *
- * @type {(a: Analysis, depth: number, frame: readonly string[]) => (b: Operand) => Document}
+ * @type {(a: Analysis, depth: number, frame: readonly string[], allowUnusedCaptures: boolean) => (b: Operand) => Document}
  */
-const lambdaBody = (a, depth, frame) => b => {
-    const s = bodyScope(a, depth, frame, b)
+const lambdaBody = (a, depth, frame, allowUnusedCaptures) => b => {
+    const s = bodyScope(a, depth, frame, b, allowUnusedCaptures)
     return okThen(
         /** @type {(all: _Root) => Document} */
         (all => all.length === 1 && thrownValue(a, all[0]) === null && hoists(s)(all[0]).length === 0
@@ -868,12 +872,12 @@ const parameterList = (a, depth, i, length) => {
  * over the names its frame's slots read as: its parameter list, then its
  * body.
  *
- * @type {(a: Analysis, depth: number, i: number, length: number, names: readonly string[]) => (body: Operand) => Document}
+ * @type {(a: Analysis, depth: number, i: number, length: number, names: readonly string[], allowUnusedCaptures: boolean) => (body: Operand) => Document}
  */
-const lambda = (a, depth, i, length, names) => body => mapOk(
+const lambda = (a, depth, i, length, names, allowUnusedCaptures) => body => mapOk(
     /** @type {(text: List<string>) => List<string>} */
     (text => flat([[parameterList(a, depth, i, length)], text])),
-)(closureBody(a, depth, names)(body))
+)(closureBody(a, depth, names, allowUnusedCaptures)(body))
 
 /**
  * One entry of the table, written in place — every entry that is not a
@@ -913,7 +917,7 @@ const entry = (s, depth) => i => {
             const [, length, slots, body] = node
             return okThen(
                 /** @type {(names: readonly string[]) => Document} */
-                (names => lambda(s.a, depth + 1, i, length, names)(body)),
+                (names => lambda(s.a, depth + 1, i, length, names, s.allowUnusedCaptures)(body)),
             )(frameNames(s)(slots))
         }
         // `op12` of one operand is the prefix, and of two the binary minus
@@ -1320,8 +1324,10 @@ export const tryStringify = e => mapOk(
  * this renderer trusts those invariants and reports only unsupported output.
  *
  * Captures are named by position, `$0`, `$1`, …, without rendering their
- * values. Primitive and repeated evaluated captures are allowed; the current
- * writer still refuses slots the body never reads.
+ * values. Primitive, repeated and unused evaluated captures are allowed.
+ * Nested functions may also leave slots unused; their capture expressions
+ * still follow the source writer's other restrictions. Slot positions are
+ * preserved, and unused slots add no reads to the text.
  * The selected function is written as a standalone expression even when it
  * is nested in the table. Diagnostics remain output errors, not thrown VM
  * values. {@link tryFunctionText} is the checked entry for a raw expression.
@@ -1333,7 +1339,7 @@ export const functionText = (a, i) => {
     return mapOk(
         /** @type {(text: List<string>) => string} */
         (text => toArray(text).join('')),
-    )(lambda(a, 1, i, length, slots.map((_, k) => `$${k}`))(body))
+    )(lambda(a, 1, i, length, slots.map((_, k) => `$${k}`), true)(body))
 }
 
 /**
