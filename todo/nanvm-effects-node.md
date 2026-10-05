@@ -131,8 +131,15 @@ What follows for the tasks below:
       (`nanvm-effects-node`), over `std`. Done in `Native`: `mkdir`,
       `readFile`, `readdir`, `writeFile`, `writeBytes`, `rm`, `write` and
       `read`. Left: `resolveFileModule` (the import-specifier rules of
-      `fjs/path/import`, then the file URL identity the Node runner answers),
-      and the marshalling between `Any` values and the generated types.
+      `fjs/path/import`, then the file URL identity the Node runner answers).
+- [x] The marshalling between `Any` values and the generated types, and a
+      generated `dispatch` from a command name and its payload to an
+      `Operations` method
+      ([`fjs/effects/schema/rust/dispatch`](../fjs/effects/schema/rust/dispatch/module.f.mjs),
+      `nanvm-effects-node/src/gen.dispatch.rs`, with the handwritten helpers
+      in `codec.rs`). A `Vec` is read and written as the language's bit
+      vector, whole bytes only. What a request holds is read, what an answer
+      holds is written, and a request that is not one is `Malformed`.
 - [ ] Implement `sandbox` success, language-throw and duration behavior, with
       cross-host contract tests covering dispatch and callable values returned
       or thrown without losing their identity or requiring serialization.

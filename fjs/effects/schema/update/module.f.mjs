@@ -16,20 +16,25 @@ import { exitStep, mkdir, writeUtf8File } from '../../node/module.f.mjs'
 import { step } from '../../module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.mjs'
 import { generate } from '../rust/module.f.mjs'
+import { generate as generateDispatch } from '../rust/dispatch/module.f.mjs'
 
 /** Where the generated file goes, in the crate that includes it. */
 export const directory = 'nanvm-effects-node/src'
 
-/** The generated file. */
+/** The generated types and trait. */
 export const path = `${directory}/gen.operations.rs`
 
+/** The generated dispatch. */
+export const dispatchPath = `${directory}/gen.dispatch.rs`
+
 /**
- * Regenerates the file from the schemas.
+ * Regenerates the files from the schemas.
  *
  * @type {() => Effect<Mkdir | Rm | WriteBytes | WriteFile, void, IoChannel>}
  */
 export const generateOperations = () =>
-    step(mkdir(directory, { recursive: true }), () => writeUtf8File(path, unwrap(generate())))
+    step(mkdir(directory, { recursive: true }), () =>
+        step(writeUtf8File(path, unwrap(generate())), () => writeUtf8File(dispatchPath, unwrap(generateDispatch()))))
 
 /** @type {NodeProgram} */
 export const main = () => exitStep(generateOperations())

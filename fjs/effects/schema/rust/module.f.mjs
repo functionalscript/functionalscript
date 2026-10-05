@@ -44,16 +44,19 @@ import {
 /**
  * What follows a step that may have failed: its result, or its failure.
  *
+ * It is not called `then`: a module that exports `then` is thenable, and
+ * `await import(…)` of it never settles.
+ *
  * @type {<A, B>(f: (a: A) => Result<B, readonly unknown[]>) => (r: Result<A, readonly unknown[]>) => Result<B, readonly unknown[]>}
  */
-const then = f => r => r[0] === 'error' ? r : f(r[1])
+export const bind = f => r => r[0] === 'error' ? r : f(r[1])
 
 /**
  * Every result, or the first failure.
  *
  * @type {<A>(list: readonly Result<A, readonly unknown[]>[]) => Result<readonly A[], readonly unknown[]>}
  */
-const all = list => okList(list)
+export const all = list => okList(list)
 
 /**
  * The named types of the schemas, in the order they are declared: the name
@@ -77,16 +80,16 @@ export const types = [
  *
  * @type {(t: unknown) => string | undefined}
  */
-const nameOf = t => types.find(([, s]) => s === t)?.[0]
+export const nameOf = t => types.find(([, s]) => s === t)?.[0]
 
 const isUpper = (/** @type {string} */ c) => c >= 'A' && c <= 'Z'
 
 /**
- * `camelCase` as `snake_case`.
+ * `camelCase` or `PascalCase` as `snake_case`.
  *
  * @type {(s: string) => string}
  */
-export const snake = s => [...s].map(c => isUpper(c) ? `_${c.toLowerCase()}` : c).join('')
+export const snake = s => [...s].map((c, i) => isUpper(c) ? `${i === 0 ? '' : '_'}${c.toLowerCase()}` : c).join('')
 
 /**
  * `camelCase` as `PascalCase`.
@@ -100,7 +103,7 @@ export const pascal = s => `${s[0].toUpperCase()}${s.slice(1)}`
  *
  * @type {(t: unknown) => readonly unknown[] | undefined}
  */
-const members = t => {
+export const members = t => {
     if (typeof t !== 'function') { return undefined }
     const info = t()
     return info[0] === 'or' ? info.slice(1) : undefined
@@ -116,7 +119,7 @@ const isOption = t => typeof t === 'function' && t()[0] === 'option'
  *
  * @type {(t: unknown) => readonly unknown[] | undefined}
  */
-const optional = t => {
+export const optional = t => {
     const ms = members(t)
     return ms !== undefined && ms.some(isOption)
         ? ms.filter(m => !isOption(m) && m !== undefined)
@@ -124,7 +127,7 @@ const optional = t => {
 }
 
 /** @type {(t: unknown, what: string) => Result<never, readonly unknown[]>} */
-const refuse = (t, what) => error([what, t])
+export const refuse = (t, what) => error([what, t])
 
 /**
  * The Rust type of a schema.
@@ -142,7 +145,7 @@ export const rustType = t => {
         case 'number': return ok('f64')
         case 'boolean': return ok('bool')
         case 'bigint': return ok('Vec<u8>')
-        case 'array': return then(e => ok(`Vec<${e}>`))(rustType(info[1]))
+        case 'array': return bind(e => ok(`Vec<${e}>`))(rustType(info[1]))
         case 'or': return unionType(info.slice(1))
         default: return refuse(t, 'no Rust type for a schema')
     }
@@ -156,11 +159,11 @@ export const rustType = t => {
 const unionType = ms => {
     if (ms.length === 1 && ms[0] === undefined) { return ok('()') }
     if (ms.length === 2 && ms.includes(null)) {
-        return then(t => ok(`Option<${t}>`))(rustType(ms.find(m => m !== null)))
+        return bind(t => ok(`Option<${t}>`))(rustType(ms.find(m => m !== null)))
     }
     const [a, b] = /** @type {readonly any[]} */ (ms)
     if (ms.length === 2 && tag(a) === 'ok' && tag(b) === 'error') {
-        return then(t => then(e => ok(`Result<${t}, ${e}>`))(rustType(b[1])))(rustType(a[1]))
+        return bind(t => bind(e => ok(`Result<${t}, ${e}>`))(rustType(b[1])))(rustType(a[1]))
     }
     return refuse(ms, 'no Rust type for a union')
 }
@@ -170,7 +173,7 @@ const unionType = ms => {
  *
  * @type {(t: unknown) => string | undefined}
  */
-const tag = t => Array.isArray(t) && typeof t[0] === 'string' ? t[0] : undefined
+export const tag = t => Array.isArray(t) && typeof t[0] === 'string' ? t[0] : undefined
 
 /**
  * A struct member as its Rust field, `pub name: type`. A member that may
@@ -183,10 +186,10 @@ const tag = t => Array.isArray(t) && typeof t[0] === 'string' ? t[0] : undefined
 const field = ([key, t]) => {
     if (typeof t !== 'function') { return ok([]) }
     const rest = optional(t)
-    if (rest === undefined) { return then(r => ok([`    pub ${snake(key)}: ${r},`]))(rustType(t)) }
+    if (rest === undefined) { return bind(r => ok([`    pub ${snake(key)}: ${r},`]))(rustType(t)) }
     if (rest.length !== 1) { return refuse(t, 'no Rust type for an optional member of several types') }
     if (rest[0] === true) { return ok([`    pub ${snake(key)}: bool,`]) }
-    return then(r => ok([`    pub ${snake(key)}: Option<${r}>,`]))(rustType(rest[0]))
+    return bind(r => ok([`    pub ${snake(key)}: Option<${r}>,`]))(rustType(rest[0]))
 }
 
 const derive = '#[derive(Debug, Clone, PartialEq)]'
@@ -197,7 +200,7 @@ const derive = '#[derive(Debug, Clone, PartialEq)]'
  *
  * @type {(name: string, s: { readonly [k in string]: unknown }) => Result<string, readonly unknown[]>}
  */
-const struct = (name, s) => then(
+const struct = (name, s) => bind(
     (/** @type {readonly (readonly string[])[]} */ fs) => {
         const lines = fs.flat()
         return ok(lines.length === 0
@@ -221,7 +224,7 @@ const unitEnum = (name, ms) => `${derive}\npub enum ${name} {\n${ms.map(m => `  
 const variant = m => {
     const t = tag(m)
     if (t === undefined) { return refuse(m, 'no Rust variant for a schema that is not a tagged tuple') }
-    return then(
+    return bind(
         (/** @type {readonly string[]} */ fs) => ok(fs.length === 0 ? `    ${pascal(t)},` : `    ${pascal(t)}(${fs.join(', ')}),`))(
         all(/** @type {readonly unknown[]} */ (m).slice(1).map(rustType)))
 }
@@ -231,7 +234,7 @@ const variant = m => {
  *
  * @type {(name: string, ms: readonly unknown[]) => Result<string, readonly unknown[]>}
  */
-const taggedEnum = (name, ms) => then(
+const taggedEnum = (name, ms) => bind(
     (/** @type {readonly string[]} */ vs) => ok(`${derive}\npub enum ${name} {\n${vs.join('\n')}\n}\n`))(
     all(ms.map(variant)))
 
@@ -240,7 +243,7 @@ const taggedEnum = (name, ms) => then(
  *
  * @type {(name: string, fields: readonly unknown[]) => Result<string, readonly unknown[]>}
  */
-const tupleStruct = (name, fields) => then(
+const tupleStruct = (name, fields) => bind(
     (/** @type {readonly string[]} */ fs) => ok(`${derive}\npub struct ${name}(${fs.map(f => `pub ${f}`).join(', ')});\n`))(
     all(fields.map(rustType)))
 
@@ -266,7 +269,7 @@ export const definition = ([name, t]) => {
 const parameter = (name, t) => {
     if (typeof t !== 'function' && t !== undefined && nameOf(t) === undefined) { return ok([]) }
     const rest = optional(t)
-    return then(r => ok([`${snake(name)}: ${rest === undefined ? r : `Option<${r}>`}`]))(
+    return bind(r => ok([`${snake(name)}: ${rest === undefined ? r : `Option<${r}>`}`]))(
         rustType(rest === undefined ? t : rest[0]))
 }
 
@@ -275,8 +278,8 @@ const parameter = (name, t) => {
  *
  * @type {(o: { readonly name: string, readonly params: readonly unknown[], readonly answer: unknown, readonly names: readonly string[] }) => Result<string, readonly unknown[]>}
  */
-export const method = ({ name, params, answer, names }) => then(
-    (/** @type {readonly (readonly string[])[]} */ ps) => then(
+export const method = ({ name, params, answer, names }) => bind(
+    (/** @type {readonly (readonly string[])[]} */ ps) => bind(
         (/** @type {string} */ r) => ok(`    fn ${snake(name)}(${['&mut self', ...ps.flat()].join(', ')}) -> ${r};`))(
         rustType(answer)))(
     all(params.map((t, i) => parameter(names[i], t))))
@@ -290,8 +293,8 @@ const header = `// @generated by \`npm run gen\` from \`fjs/effects/schema/rust/
  *
  * @type {() => Result<string, readonly unknown[]>}
  */
-export const generate = () => then(
-    (/** @type {readonly string[]} */ defs) => then(
+export const generate = () => bind(
+    (/** @type {readonly string[]} */ defs) => bind(
         (/** @type {readonly string[]} */ ms) => ok([
             header,
             ...defs,

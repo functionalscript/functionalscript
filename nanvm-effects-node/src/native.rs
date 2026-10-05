@@ -45,6 +45,16 @@ impl<R, O, E> Native<R, O, E> {
             stderr,
         }
     }
+
+    /// What has been written to the standard output stream.
+    pub fn stdout(&self) -> &O {
+        &self.stdout
+    }
+
+    /// What has been written to the standard error stream.
+    pub fn stderr(&self) -> &E {
+        &self.stderr
+    }
 }
 
 /// The Node error code of a failure, where `std` has a kind for it: what a

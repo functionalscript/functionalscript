@@ -28,6 +28,7 @@ export const proof = {
         assertEq(snake('parentPath'), 'parent_path')
         assertEq(snake('readFile'), 'read_file')
         assertEq(snake('rm'), 'rm')
+        assertEq(snake('MakeDirectoryOptions'), 'make_directory_options')
         assertEq(pascal('notImplemented'), 'NotImplemented')
     },
     /** The vocabulary the operations use. */
