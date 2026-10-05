@@ -24,6 +24,9 @@ import { startDemo } from './demo-runtime.mjs'
  * @type {(path: string) => any}
  */
 const dom = path => {
+    /** @type {Map<number, { reset: () => void, delay: number }>} */
+    const copyTimers = new Map()
+    let nextTimer = 0
     /** @type {any} */
     let active = null
     let workedWith = ''
@@ -105,6 +108,15 @@ const dom = path => {
     }
     /** @type {any} */
     const document = {
+        defaultView: {
+            navigator: {},
+            setTimeout: (/** @type {() => void} */ reset, /** @type {number} */ delay) => {
+                nextTimer += 1
+                copyTimers.set(nextTimer, { reset, delay })
+                return nextTimer
+            },
+            clearTimeout: (/** @type {number} */ timer) => { copyTimers.delete(timer) },
+        },
         get activeElement() { return active },
         createElementNS: (/** @type {string} */ _, /** @type {string} */ tag) => element(tag),
         createTextNode: text,
@@ -231,6 +243,14 @@ const dom = path => {
     }
     return {
         root,
+        resetCopies: () => {
+            assert(copyTimers.size > 0)
+            for (const [id, { reset, delay }] of copyTimers) {
+                assertEq(delay, 2000)
+                copyTimers.delete(id)
+                reset()
+            }
+        },
         // What the section was given, every time — a runtime that rendered
         // twice has said two things, and the last one alone cannot show it.
         rendered,
@@ -279,16 +299,27 @@ const dom = path => {
          * tag and a tag with a `type`, from what the element is — so a
          * runtime that asked for something else finds no button at all.
          *
-         * @type {(name: string, options?: { readonly tagName?: string, readonly type?: string, readonly nested?: boolean }) => void}
+         * @type {(name: string, options?: { readonly tagName?: string, readonly type?: string, readonly nested?: boolean, readonly copy?: string, readonly disabled?: boolean }) => any}
          */
-        click: (name, { tagName = 'BUTTON', type = 'button', nested = false } = {}) => {
+        click: (name, { tagName = 'BUTTON', type = 'button', nested = false, copy, disabled = false } = {}) => {
             /** @type {(selector: string) => boolean} */
             const matches = selector => selector.split(', ').some(one =>
                 one === tagName.toLowerCase() || one === `${tagName.toLowerCase()}[type="${type}"]`)
             /** @type {any} */
-            const self = { name, closest: (/** @type {string} */ s) => matches(s) ? self : null }
+            const self = {
+                name, disabled, title: 'Copy', ownerDocument: document,
+                status: { textContent: '' },
+                attributes: {},
+                setAttribute: (/** @type {string} */ key, /** @type {string} */ value) => { self.attributes[key] = value },
+                removeAttribute: (/** @type {string} */ key) => { delete self.attributes[key] },
+                querySelector: (/** @type {string} */ key) => key === '[data-copy-status]' ? self.status : null,
+                getAttribute: (/** @type {string} */ key) => key === 'data-copy' ? copy ?? null : null,
+                closest: (/** @type {string} */ s) => matches(s) ? self : null,
+            }
             const target = nested ? { closest: self.closest } : self
-            for (const f of clicks) { f({ target }) }
+            self.activate = () => { for (const f of clicks) { f({ target }) } }
+            self.activate()
+            return self
         },
     }
 }
@@ -344,6 +375,83 @@ const settle = async () => {
 }
 
 export const proof = {
+    copyCode: async () => {
+        const d = dom(echo)
+        /** @type {string[]} */
+        const copied = []
+        d.root.ownerDocument.defaultView = { ...d.root.ownerDocument.defaultView, navigator: { clipboard: {
+            writeText: async (/** @type {string} */ text) => { copied.push(text) },
+        } } }
+        await startDemo(d.root)
+        await settle()
+        const renders = d.rendered.length
+        const button = d.click('', { copy: "hello ' world", nested: true })
+        assertEq(button.disabled, false)
+        assertEq(button.attributes['aria-disabled'], 'true')
+        button.activate()
+        await settle()
+        assertStructurallySame(copied, ["hello ' world"])
+        assertEq(button.status.textContent, 'Copied!')
+        assertEq(button.title, 'Copy')
+        assertEq(button.attributes['data-copy-feedback'], 'copied')
+        assertEq(button.disabled, false)
+        assertEq(button.attributes['aria-disabled'], undefined)
+        assertEq(d.rendered.length, renders)
+        d.click('', { copy: '', disabled: true })
+        await settle()
+        assertEq(copied.length, 1)
+        const empty = d.click('', { copy: '' })
+        await settle()
+        assertStructurallySame(copied, ["hello ' world", ''])
+        assertEq(empty.status.textContent, 'Copied!')
+        d.resetCopies()
+        assertEq(button.title, 'Copy')
+        assertEq(button.status.textContent, '')
+        assertEq(button.attributes['data-copy-feedback'], undefined)
+    },
+    copyUnavailable: async () => {
+        const d = dom(echo)
+        await startDemo(d.root)
+        await settle()
+        const button = d.click('', { copy: 'hello' })
+        await settle()
+        assertEq(button.status.textContent, 'Copy unavailable')
+        assertEq(button.attributes['data-copy-feedback'], 'failed')
+        assertEq(button.disabled, false)
+        assert(!d.root.textContent.startsWith('demo failed'))
+        d.resetCopies()
+        assertEq(button.status.textContent, '')
+        assertEq(button.title, 'Copy')
+        assertEq(button.attributes['data-copy-feedback'], undefined)
+    },
+    copyDenied: async () => {
+        const d = dom(echo)
+        d.root.ownerDocument.defaultView = { ...d.root.ownerDocument.defaultView, navigator: { clipboard: {
+            writeText: async () => { throw new Error('denied') },
+        } } }
+        await startDemo(d.root)
+        await settle()
+        const button = d.click('', { copy: 'hello' })
+        await settle()
+        assertEq(button.status.textContent, 'Copy failed')
+        assertEq(button.attributes['data-copy-feedback'], 'failed')
+        assertEq(button.disabled, false)
+        assert(!d.root.textContent.startsWith('demo failed'))
+        d.resetCopies()
+        assertEq(button.status.textContent, '')
+        assertEq(button.title, 'Copy')
+        assertEq(button.attributes['data-copy-feedback'], undefined)
+    },
+    copyWithoutWindow: async () => {
+        const d = dom(echo)
+        await startDemo(d.root)
+        await settle()
+        d.root.ownerDocument.defaultView = null
+        d.click('', { copy: 'hello' })
+        await settle()
+        assert(d.root.textContent.startsWith('demo failed'))
+        assert(d.root.textContent.includes('copy control has no window'))
+    },
     /**
      * **The first render is the demo's own `init`**, before any event, so a
      * page shows what a demo is before it shows what it does.
