@@ -51,9 +51,17 @@ written in chunks and a failed write removes the partial file, so
 `Effect`'s own error type, `IoChannel`, not a `Result` in the success
 slot.
 
-A generator is then a pure `files(): readonly [path, text][]` plus a
-one-line `main` that writes them, which is also what makes the file set
-provable without a disk. `npmPublishPath` keeps its exported value, the
+A generator then computes its file set as a pure function and hands it
+to `writeFiles`, which is what makes the set provable without a disk.
+Its existing effect-returning exports stay, with their names and
+signatures, as the line that writes that set: `fjs/ci`'s `ci(setup)`,
+`fjs/ci/nix`'s `nixFlakes(jobs)`, `fjs/nanvm/update`'s
+`generateRustTests()` and the matrix module's `write(text)` are called
+by `fjs/ci/self`, by `main`s and by proofs, and none of them changes, so
+there is nothing to declare. `ci` keeps one effect of its own before
+the write — the `Cargo.toml` probe that decides whether the Rust jobs
+exist — so its file set takes that answer as an argument rather than
+reading the disk. `npmPublishPath` keeps its exported value, the
 full `.github/workflows/gen.npm-publish.yml` that both `fjs/ci/publish`'s
 and `fjs/ci`'s proofs pin; what changes is how it is spelled — a file
 name joined to `workflowsDirectory` — so the directory literal exists
@@ -68,7 +76,7 @@ below both and imports neither, and `publish` already imports it.
 - [ ] `writeFiles`, proved against the mock host.
 - [ ] `fjs/ci`, `fjs/ci/nix`, `fjs/nanvm/update`, `fjs/media/datajs/vectors/matrix`
       and `fjs/compiler`'s output through it; each generator's file set
-      as a pure function.
+      as a pure function, behind the exports it has today.
 - [ ] `tsc`, `fjs test`, `npm run gen` leaves the tree unchanged.
 
 ### Related
