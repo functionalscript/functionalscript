@@ -1,5 +1,5 @@
 /**
- * Arithmetic operations on evaluated primitives. Unary plus applies
+ * Numeric operations on evaluated primitives. Unary plus applies
  * ToNumber and fails on bigint; negation and complement apply ToNumeric
  * and preserve bigint. Explicit Number converts either numeric type.
  *
@@ -7,6 +7,8 @@
  * binary arithmetic applies ToNumeric to both operands: numbers and bigints
  * cannot mix, and bigint division/remainder cannot use a zero divisor.
  * These implicit failures return tagged undefined.
+ * Binary &, | and ^ use signed 32-bit numbers or exact bigints after
+ * the same primitive conversion and numeric-type check.
  *
  * Callers evaluate operands, propagate failures and convert containers or
  * functions to primitives in language order. For ordinary objects, pass
@@ -30,7 +32,7 @@ export const unary = {
 }
 
 /**
- * Convert primitive operands and select arithmetic on matching numeric types.
+ * Convert primitive operands and select an operation on matching numeric types.
  * @type {(
  *   number: (a: number, b: number) => number,
  *   bigint: (a: bigint, b: bigint) => Result<bigint, EdagValue>
@@ -50,7 +52,7 @@ const numeric = (number, bigint) => (a, b) => {
 
 const add = numeric((a, b) => a + b, (a, b) => ok(a + b))
 
-/** @type {Readonly<Record<'+' | '-' | '*' | '/' | '%', (a: Primitive, b: Primitive) => Result<string | number | bigint, EdagValue>>>} */
+/** @type {Readonly<Record<'+' | '-' | '*' | '/' | '%' | '&' | '|' | '^', (a: Primitive, b: Primitive) => Result<string | number | bigint, EdagValue>>>} */
 export const binary = {
     '+': (a, b) => typeof a === 'string' || typeof b === 'string'
         ? ok(primitiveToString(a) + primitiveToString(b))
@@ -59,4 +61,7 @@ export const binary = {
     '*': numeric((a, b) => a * b, (a, b) => ok(a * b)),
     '/': numeric((a, b) => a / b, (a, b) => b === 0n ? error(['undefined']) : ok(a / b)),
     '%': numeric((a, b) => a % b, (a, b) => b === 0n ? error(['undefined']) : ok(a % b)),
+    '&': numeric((a, b) => a & b, (a, b) => ok(a & b)),
+    '|': numeric((a, b) => a | b, (a, b) => ok(a | b)),
+    '^': numeric((a, b) => a ^ b, (a, b) => ok(a ^ b)),
 }
