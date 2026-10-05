@@ -41,10 +41,15 @@ export const _prohibitedAccess: (method: boolean) => (name: string) => 'member f
 ```
 
 `accessClosed` and `key` each wrap the answer in their own error. The two
-sets become private to the parser.
+sets become private to the parser. That removes two public exports,
+`_prohibitedNames` and `_prohibitedCallNames`, which is the point — the
+rule is the API, not its data — so the implementing PR declares it
+under `Changelog:` as a `**BREAKING CHANGES:**` item rather than keeping
+the sets exported beside the rule.
 
 ### Tasks
 
 - [ ] `_prohibitedAccess`; `accessClosed` and the serializer's `key`
-      through it; the sets no longer exported.
+      through it; the sets no longer exported, and their removal
+      declared in the PR's `Changelog:` section.
 - [ ] `tsc`, `fjs test`.
