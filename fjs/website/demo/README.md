@@ -99,9 +99,6 @@ sharing. Use [`examples`](./examples/module.f.mjs), through
   page cannot link — and a name carrying a verdict would be wrong on one of
   them. [`compiler/examples`](../../compiler/examples/module.f.mjs) makes the
   same call for the same reason.
-- Demos that read the same language share one list, so a program picked on
-  one page is found by the same name on the next — the compiler pages share
-  [`compiler/examples`](../../compiler/examples/module.f.mjs).
 
 ## Output
 
