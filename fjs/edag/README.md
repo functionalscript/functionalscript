@@ -101,7 +101,10 @@ The shared [serializer](../compiler/serializer/module.f.mjs) exposes
 `functionText(analysis, index)` for a function whose analysis and body bindings
 are already established. It renders canonical code and capture-slot names
 without repeating admission; `tryFunctionText` remains the checked entry for
-a raw expression. Unsupported output retains the renderer's diagnostic
+a raw expression. Both allow unused capture slots, including in nested
+function bodies, without renumbering slots or adding reads. Source
+serialization still requires every slot to survive its structural round trip.
+Unsupported output retains the renderer's diagnostic
 channel. Connecting this renderer to value conversion remains part of the
 VM migration.
 

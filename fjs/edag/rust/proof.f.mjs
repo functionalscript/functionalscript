@@ -869,7 +869,7 @@ export const proof = {
                 scoped(['[]', [['=>', 0, [c], 1], c]]),
                 [
                     'let c0: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();',
-                    'let c1: Any<A> = A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, [c0.clone()].to_array(), None).to_any();',
+                    'let c1: Any<A> = A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, [c0.clone()].to_array(), Some("()=>1")).to_any();',
                     'Ok([c1, c0.clone()].to_array().to_any())',
                 ])
         },
