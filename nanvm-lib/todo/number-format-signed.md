@@ -13,17 +13,18 @@ with `number_to_string`, then:
 ```rust
 // vm/number/format.rs, all four
 let sign = if x < 0.0 { "-" } else { "" };
-// to_exponential and to_precision
+// to_exponential and to_precision; to_fixed and to_radix_string pass x.abs() to scaled and mantissa_exp2 instead
 let x = x.abs();
 …
 // to_precision; to_fixed and to_radix_string close the same way over `m` and `digits`
 Ok(format!("{sign}{text}").as_str().into())
 ```
 
-The sign line is in all four; `to_exponential` and `to_precision` take
-the magnitude with `abs` while the other two work on `x` as it is; and
-every one closes by formatting the sign before its own digits and
-converting the `&str`. The digit logic between those halves is each
+The sign line is in all four; all four format the magnitude, with
+`to_exponential` and `to_precision` rebinding `x` to `x.abs()` and
+`to_fixed` and `to_radix_string` passing `x.abs()` to `scaled` and
+`mantissa_exp2` while keeping `x` for the sign; and every one closes by
+formatting the sign before its own digits and converting the `&str`. The digit logic between those halves is each
 method's own and differs; the halves do not. `BigInt::to_radix_string` in
 `vm/bigint/radix.rs` spells the same prefix from `self.sign()`, but its
 magnitude is a bigint, not an `f64`, so it is outside what the helper

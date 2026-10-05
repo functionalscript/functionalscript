@@ -25,9 +25,10 @@ Number.isInteger(i) && i >= 0 && i < 2 ** 32 - 1 && String(i) === key
 
 Two reject `-0` with an explicit clause, three admit it, and
 [`fjs/js/array_index`](../../../js/array_index/module.f.mjs)'s
-`arrayIndex` never sees it, because the canonical-spelling check beside
-its test refuses `'-0'` first. `u8` is `isByte` under another name in a
-module that could import it. Whether `-0` is a byte, an index or a code
+`arrayIndex` admits it through the numeric test and discards it a
+conjunct later, where `String(-0)` is `'0'` and the key `'-0'` fails
+the spelling check. `u8` is `isByte` under another name in a module
+that could import it. Whether `-0` is a byte, an index or a code
 unit is one question with one answer, and today it has two.
 
 [`fjs/effects/node`](../../../effects/node/module.f.mjs)'s `isPort` has
@@ -50,8 +51,9 @@ export const isUintUpTo: (max: number) => (n: unknown) => n is number
 `isByte = isUintUpTo(0xFF)`, `isIndex = isUintUpTo(Infinity)`, `u8`
 becomes `isByte`, `u16 = isUintUpTo(0xFFFF)`, `bitIndex` asserts on it,
 and `arrayIndex` tests `isUintUpTo(2 ** 32 - 2)` beside the spelling
-check it keeps, with nothing it answers changing, since `-0` never
-reaches the predicate there. `Infinity` is the bound for `isIndex`
+check it keeps, with nothing it answers changing: the predicate refuses
+`-0` where the numeric test admitted it, and the spelling check
+discarded that key a conjunct later anyway. `Infinity` is the bound for `isIndex`
 because it is what `isIndex` admits today — any canonical non-negative
 integer, `1e100` included — so the bound changes nothing. Whether an index should stop at
 `Number.MAX_SAFE_INTEGER` is a separate question with a separate break,

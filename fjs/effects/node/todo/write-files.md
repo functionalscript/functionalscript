@@ -69,7 +69,11 @@ once and the export does not move. The literal's one home is
 [`fjs/ci/common`](../../../ci/common/module.f.mjs): `workflowsDirectory`
 is private to `fjs/ci` today, and `fjs/ci` imports `fjs/ci/publish`, so
 `publish` cannot read it from there without a cycle; `common` sits
-below both and imports neither, and `publish` already imports it.
+below both and imports neither, and `publish` already imports it. There
+it is exported as `_workflowsDirectory`: the prefix marks a name
+exported for linkage and no part of the API, which is all this one is —
+the paths built from it, `ciPath` and `npmPublishPath`, stay the public
+names.
 
 ### Tasks
 
