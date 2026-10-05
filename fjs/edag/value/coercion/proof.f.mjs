@@ -1,8 +1,8 @@
 /**
- * Ordinary object conversion orders methods by hint, distinguishes absent
- * methods from shadows, and propagates primitive results and failures.
+ * Object conversion orders methods by hint and preserves primitive results;
+ * primitive conversion follows string formatting and abstract ToNumber.
  *
- * @import { EdagValue, Property, Object as ValueObject, Function as ValueFunction } from '../types.ts'
+ * @import { EdagValue, Primitive, Property, Object as ValueObject, Function as ValueFunction } from '../types.ts'
  * @import { ValueResult } from '../control/types.ts'
  * @import { Invoke } from '../call/types.ts'
  */
@@ -11,7 +11,7 @@ import { assert, assertEq, assertOk, assertError, assertNotNullish, assertStruct
 import { ok, error } from '../../../types/result/module.f.mjs'
 import { object } from '../object/module.f.mjs'
 import { func } from '../function/module.f.mjs'
-import { objectToPrimitive } from './module.f.mjs'
+import { objectToPrimitive, primitiveToString, primitiveToNumber } from './module.f.mjs'
 
 /** An invocation that must never happen. @type {() => never} */
 const skipped = () => { assert(false, 'an unselected conversion method was invoked') }
@@ -36,7 +36,7 @@ export const proof = {
         assertEq(objectToPrimitive(methods, 'string', answers([[toString, string]])), string)
     },
     primitiveResults: () => {
-        /** @type {readonly EdagValue[]} */
+        /** @type {readonly Primitive[]} */
         const primitives = [null, undefinedValue, false, true, 0, -0, NaN, Infinity, -Infinity, '', 'value', 0n, 1n, -1n]
         for (const primitive of primitives) {
             const selected = ok(primitive)
@@ -130,5 +130,60 @@ export const proof = {
             assertEq(method[2], captures)
             assertEq(method[3], body)
         }
+    },
+    primitiveStrings: () => {
+        /** @type {readonly (readonly [Primitive, string])[]} */
+        const cases = [
+            [undefinedValue, 'undefined'], [null, 'null'], [false, 'false'], [true, 'true'],
+            [0, '0'], [-0, '0'], [NaN, 'NaN'], [Infinity, 'Infinity'], [-Infinity, '-Infinity'],
+            [1, '1'], [-1, '-1'], [1.5, '1.5'],
+            [1e20, '100000000000000000000'], [1e21, '1e+21'], [-1e21, '-1e+21'],
+            [1e-6, '0.000001'], [1e-7, '1e-7'],
+            ['', ''], ['undefined', 'undefined'], ['  value  ', '  value  '], ['😀\ud800', '😀\ud800'],
+            [0n, '0'], [1n, '1'], [-1n, '-1'],
+            [123456789012345678901234567890n, '123456789012345678901234567890'],
+        ]
+        for (const [value, expected] of cases) { assertEq(primitiveToString(value), expected) }
+    },
+    primitiveNumbers: () => {
+        /** @type {readonly (readonly [Primitive, number])[]} */
+        const cases = [
+            [undefinedValue, NaN], [null, 0], [false, 0], [true, 1],
+            [0, 0], [-0, -0], [NaN, NaN], [Infinity, Infinity], [-Infinity, -Infinity],
+            [1, 1], [-1, -1], [1.5, 1.5],
+        ]
+        for (const [value, expected] of cases) {
+            assertEq(Object.is(assertOk(primitiveToNumber(value)), expected), true)
+        }
+    },
+    numericStrings: () => {
+        /** @type {readonly (readonly [string, number])[]} */
+        const cases = [
+            ['', 0], ['\t\n\r \u00a0\ufeff\u2028\u2029', 0], ['\u00a0-1\u2029', -1],
+            ['0', 0], ['-0', -0], [' \t-0\n', -0], ['+1', 1], ['1.5', 1.5], ['.5', 0.5],
+            ['1e3', 1000], ['1e-3', 0.001], ['0x10', 16], ['0b101', 5], ['0o17', 15],
+            ['Infinity', Infinity], ['+Infinity', Infinity], ['-Infinity', -Infinity],
+            ['NaN', NaN], ['undefined', NaN], ['null', NaN], ['true', NaN],
+            ['12x', NaN], ['1_000', NaN], ['1n', NaN], ['0x', NaN], ['-0x10', NaN], ['1 2', NaN],
+        ]
+        for (const [value, expected] of cases) {
+            assertEq(Object.is(assertOk(primitiveToNumber(value)), expected), true)
+        }
+    },
+    bigintNumbers: () => {
+        // The explicit Number constructor accepts bigint; abstract
+        // ToNumber rejects it, including values exactly representable.
+        assertEq(Number(1n), 1)
+        for (const value of [0n, 1n, -1n, 123456789012345678901234567890n]) {
+            assertStructurallySame(assertError(primitiveToNumber(value)), ['undefined'])
+        }
+    },
+    primitiveComposition: () => {
+        const string = assertOk(objectToPrimitive(methods, 'number', answers([[valueOf, ok(' 0x10 ')]])))
+        assertEq(primitiveToString(string), ' 0x10 ')
+        assertEq(assertOk(primitiveToNumber(string)), 16)
+        const bigint = assertOk(objectToPrimitive(methods, 'number', answers([[valueOf, ok(1n)]])))
+        assertEq(primitiveToString(bigint), '1')
+        assertStructurallySame(assertError(primitiveToNumber(bigint)), ['undefined'])
     },
 }

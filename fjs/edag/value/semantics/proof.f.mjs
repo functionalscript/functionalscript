@@ -6,7 +6,7 @@
  */
 
 import { assertEq } from '../../../asserts/module.f.mjs'
-import { truthy, typeOf, strictEqual, is } from './module.f.mjs'
+import { untagUndefined, truthy, typeOf, strictEqual, is } from './module.f.mjs'
 
 /** @type {readonly (readonly [EdagValue, boolean, string])[]} */
 const classifications = [
@@ -34,6 +34,11 @@ const compare = (a, b, equal, same) => {
 }
 
 export const proof = {
+    untag: () => {
+        for (const [value, , type] of classifications) {
+            assertEq(Object.is(untagUndefined(value), type === 'undefined' ? undefined : value), true)
+        }
+    },
     truthiness: () => {
         for (const [value, expected] of classifications) {
             assertEq(truthy(value), expected)
