@@ -91,9 +91,14 @@ sharing. Use [`examples`](./examples/module.f.mjs), through
 `textDemo`'s `examples` option where the state is a text.
 
 - The first example is the initial state.
-- An example's name says what it shows (`Equal is not shared`, `Diamond`),
-  never `Example 1`. An example that is refused says so in its name, with
-  the same word the output uses: `Refused: JSON is not a document`.
+- An example's name says what the input is (`Equal is not shared`,
+  `Diamond`, `An import`), never `Example 1`, and never what a demo does
+  with it. The verdict is the output's to show, in the
+  [refusal](#refusals) box where there is one: one input can be accepted by
+  one demo and refused by another — the parser takes an import the Rust
+  page cannot link — and a name carrying a verdict would be wrong on one of
+  them. [`compiler/examples`](../../compiler/examples/module.f.mjs) makes the
+  same call for the same reason.
 - Demos that read the same language share one list, so a program picked on
   one page is found by the same name on the next — the compiler pages share
   [`compiler/examples`](../../compiler/examples/module.f.mjs).
