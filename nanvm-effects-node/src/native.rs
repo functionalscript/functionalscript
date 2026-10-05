@@ -90,20 +90,27 @@ fn refusal(code: &str, message: String) -> IoChannel {
 
 /// `normalize` of `fjs/path`, for the paths a directory read answers: `\` is
 /// `/`, empty and `.` segments vanish, `..` cancels the segment before it or
-/// is kept where nothing is left to cancel, and a root, `/` or `//`, stays and
-/// absorbs the `..` that would climb past it. A drive letter is an ordinary
-/// segment here.
+/// is kept where nothing is left to cancel, and a root, `/`, `//` or a drive's
+/// `C:/`, stays and absorbs the `..` that would climb past it. A bare `C:` and
+/// the drive-relative `C:a` are ordinary segments, as they are there.
 pub fn normalize(path: &str) -> String {
     let path = path.replace('\\', "/");
-    let root = if path.starts_with("//") && !path.starts_with("///") {
-        "//"
-    } else if path.starts_with('/') {
-        "/"
+    let bytes = path.as_bytes();
+    let (root, rest) = if bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && bytes[2] == b'/'
+    {
+        (&path[..3], &path[3..])
+    } else if path.starts_with("//") && !path.starts_with("///") {
+        ("//", &path[2..])
+    } else if let Some(rest) = path.strip_prefix('/') {
+        ("/", rest)
     } else {
-        ""
+        ("", &path[..])
     };
     let mut segments: Vec<&str> = Vec::new();
-    for segment in path.split('/') {
+    for segment in rest.split('/') {
         match segment {
             "" | "." => {}
             ".." => match segments.last() {
@@ -177,6 +184,11 @@ impl<R: Read, O: Write, E: Write> Operations for Native<R, O, E> {
         path: String,
         options: Option<MakeDirectoryOptions>,
     ) -> Result<(), IoChannel> {
+        // `create_dir_all("")` is `Ok`, creating nothing: an empty path names
+        // nothing, and Node answers `ENOENT` for it, as `create_dir` does.
+        if path.is_empty() {
+            return Err(failure(&ErrorKind::NotFound.into(), "mkdir", &path));
+        }
         match options {
             Some(MakeDirectoryOptions) => fs::create_dir_all(&path),
             None => fs::create_dir(&path),
@@ -327,8 +339,33 @@ mod test {
             ("/a/../../b", "/b"),
             ("a/../..", ".."),
             ("../..", "../.."),
+            ("C:/", "C:/"),
+            ("C:", "C:"),
+            ("C:a", "C:a"),
+            ("C:a/b", "C:a/b"),
+            ("c:/x", "c:/x"),
+            ("C://a", "C:/a"),
+            ("C:/..", "C:/"),
+            ("C:/a/../..", "C:/"),
+            ("C:\\a\\..", "C:/"),
+            ("C:/a/./b/", "C:/a/b"),
+            ("1:/a", "1:/a"),
+            ("CC:/a", "CC:/a"),
+            ("//C:/a", "//C:/a"),
+            ("/C:/a", "/C:/a"),
         ] {
             assert_eq!(normalize(path), expected, "{path:?}");
+        }
+    }
+
+    /// An empty path names nothing, with or without `recursive`.
+    #[test]
+    fn mkdir_of_an_empty_path() {
+        for options in [None, Some(MakeDirectoryOptions)] {
+            let Err(IoChannel::IoError(info)) = runner(b"").mkdir(String::new(), options) else {
+                panic!("an empty path was made")
+            };
+            assert_eq!(info.code, Some("ENOENT".into()));
         }
     }
 
