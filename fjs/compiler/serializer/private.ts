@@ -40,6 +40,8 @@ export type _Names = readonly (readonly [_Hoisted | null, string])[]
  */
 export type _Scope = {
     readonly a: Analysis
+    /** Code-only function text may omit slots that source round trips need. */
+    readonly allowUnusedCaptures: boolean
     readonly outer: _Names
     readonly names: _Names
     readonly frame: readonly string[]
