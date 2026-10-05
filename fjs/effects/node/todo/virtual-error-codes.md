@@ -36,10 +36,9 @@ the host.
 directory would have to answer a refusal and `ENOENT` reads as absence there.
 It is that case's code that differs, not the case.
 
-The native runner (`nanvm-effects-node`, `Native`) takes its codes from `std`'s
-error kinds, `ENOENT`, `EACCES`, `EEXIST`, `ENOTDIR`, `EISDIR` and `ENOTEMPTY`,
-which are the Unix errors behind the codes in the first seven rows; it has no
-kind for `ERR_FS_EISDIR`.
+The native runner (`nanvm-effects-node`, `Native`) was run over the same
+scenarios and gives Node's code for each of the sixteen that apply to it,
+`ERR_FS_EISDIR` for `rm` of a directory included.
 
 ### Proposal
 
