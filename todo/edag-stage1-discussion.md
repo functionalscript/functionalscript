@@ -189,14 +189,16 @@ Two consequences worth stating plainly:
 
 - **Validation is a total gate.** The invariant binds *every* validated
   graph, not just compiler output. The
-  [public FJS final-EDAG entry](../fjs/compiler/todo/interpret-edag.md) validates code
-  supplied as `Any`, independently of its producer, before interpretation on
-  either Node or Rust. A native `Function` constructor is not required for
-  this boundary. "The FJS compiler would never emit that" is never an
-  admissible argument. This is why the property-key rule is
-  syntactic ([Operations](#operations)) rather than a convention:
-  anything a hostile graph could express, validation must have already
-  ruled out.
+  [public FJS final-EDAG entry](../fjs/compiler/todo/interpret-edag.md) checks
+  code separately supplied as immutable FJS data before interpretation on
+  Node or through the same FJS entry AOT-compiled to Rust. Malformed tuples
+  can be built in FJS, so "the compiler would never emit that" is not an
+  argument for admitting them at that boundary. Compiler and VM results
+  preserve their invariants by construction and need no repeated admission
+  pass. The property-key rule is syntactic ([Operations](#operations)):
+  supplied data cannot bypass it. This FJS contract introduces no arbitrary
+  host-mutable `Any` ingress or cycle preflight; a separately requested
+  native adapter owns its own input contract.
 - **Printed source must preserve the semantics.** Within the source writer's
   supported domain (subject 12), a JS engine running the printed source and
   the VM must agree under the declared compatibility profile. Schema validity
@@ -982,17 +984,19 @@ property operand. Complete public validation remains open
 ([interpret-edag](../fjs/compiler/todo/interpret-edag.md)): analysis rejects
 operation nodes shared across function scopes, and `bindingError` checks
 invocation bindings, but these internal checks do not close the public gate.
-Prohibited property names and acyclicity still need entry checks, and the
+Prohibited property names still need entry checks, and the
 `","` well-formedness rule is left to the emitter.
 Whether that `","` rule belongs to validation, as this list says, or stays
 the emitter's, as the README says, is open.
 
-The public FJS final-EDAG entry must handle code supplied as data, including
-shapes the compiler would never emit. It validates before interpretation;
-schema shape checks or the low-level `memo` executor's assertions alone are
-insufficient. The same boundary applies when the FJS entry is AOT-compiled
-to Rust. A future native Rust EDAG adapter must meet the same contract, but
-neither that adapter nor a native `Function` constructor is a prerequisite.
+The public FJS final-EDAG entry handles code separately supplied as immutable
+FJS data, including shapes the compiler would never emit. It validates once
+before interpretation; schema shape checks or the low-level `memo` executor's
+assertions alone are insufficient. The same boundary applies when the FJS
+entry is AOT-compiled to Rust. Internally produced compiler and VM results
+maintain these invariants by construction. A future native Rust EDAG adapter
+must respect the EDAG semantics under its own declared input contract; it is
+not a prerequisite for this FJS entry and does not broaden the FJS input domain.
 To validate:
 
 - constants: function values in constant position are a validation error —
@@ -1030,9 +1034,11 @@ To validate:
   printing, since `{ "__proto__": v }` as JS assigns a prototype instead
   ([spec: the `__proto__` key](../spec/README.md#the-__proto__-key),
   subject 12);
-- **acyclicity**: DJS cannot express cycles (const-before-use), but an
-  `Any` supplied at a host boundary can be built by other means —
-  cyclic node graphs must be rejected;
+- **acyclicity**: immutable FJS/DJS container construction and const-before-use
+  guarantee this; the FJS entry needs no cycle check. A separately requested
+  host-mutable adapter must reject cyclic node graphs under EDAG's DAG
+  semantics at its own boundary. This does not add such an adapter or change
+  native `Any` APIs;
 - aliasing of **operation nodes is valid only within one function EDAG scope**:
   referencing the same node from many operand positions in that scope is the sharing
   mechanism (subject 1), but an operation-node identity must not cross a `"=>"`

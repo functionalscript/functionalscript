@@ -1,6 +1,6 @@
 /**
- * Evaluated metadata checks preserve values and report raw tuple paths.
- * Function bodies remain expressions for later graph admission.
+ * Evaluated object checks preserve values and report raw tuple paths.
+ * Function lengths and bodies belong to closure validation.
  *
  * @import { EdagValue, Property } from '../types.ts'
  */
@@ -22,12 +22,11 @@ export const proof = {
         const values = [null, false, true, 0, -0, NaN, Infinity, '', 'value', 0n, ['undefined']]
         for (const value of values) { accept(value) }
     },
-    functionLengths: () => {
-        for (let length = 0; length <= 16; length += 1) {
-            accept(['=>', length, [], ['undefined']])
-        }
-        for (const length of [-0, -1, 0.5, NaN, Infinity, -Infinity, 17, 2 ** 32 - 1]) {
-            reject(['=>', length, [], 0], ['1'], 'invalid function length')
+    functionLengthsAreSeparate: () => {
+        for (const length of [0, 16, -0, -1, 0.5, NaN, Infinity, -Infinity, 17]) {
+            const captured = /** @type {const} */ (['=>', length, [], 0])
+            accept(captured)
+            accept(['=>', 0, [captured], 0])
         }
     },
     recursiveValues: () => {
@@ -77,18 +76,18 @@ export const proof = {
         }
     },
     firstFailure: () => {
-        const bad = /** @type {const} */ (['=>', 17, [], 0])
-        reject(['{}', [[':', 'x', bad], [':', 'x', 0]]], ['1', '0', '2', '1'], 'invalid function length')
+        const bad = /** @type {const} */ (['{}', [[':', 'x', 0], [':', '0', 1]]])
+        reject(['{}', [[':', 'x', bad], [':', 'x', 0]]], ['1', '0', '2', '1', '1', '1'], 'object properties are not in enumeration order')
         reject(['{}', [[':', 'x', 0], [':', 'x', bad]]], ['1', '1', '1'], 'duplicate object property')
         const shared = /** @type {const} */ (['{}', [[':', 'x', bad]]])
-        reject(['[]', [0, shared, shared]], ['1', '1', '1', '0', '2', '1'], 'invalid function length')
+        reject(['[]', [0, shared, shared]], ['1', '1', '1', '0', '2', '1', '1', '1'], 'object properties are not in enumeration order')
     },
     nestedFailures: () => {
-        const bad = /** @type {const} */ (['=>', 17, [], 0])
-        reject(['[]', [0, bad]], ['1', '1', '1'], 'invalid function length')
-        reject(['{}', [[':', 'x', bad]]], ['1', '0', '2', '1'], 'invalid function length')
-        reject(['=>', 0, [0, bad], 0], ['2', '1', '1'], 'invalid function length')
-        reject(['[]', [['{}', [[':', 'x', bad]]]]], ['1', '0', '1', '0', '2', '1'], 'invalid function length')
+        const bad = /** @type {const} */ (['{}', [[':', 'x', 0], [':', '0', 1]]])
+        reject(['[]', [0, bad]], ['1', '1', '1', '1', '1'], 'object properties are not in enumeration order')
+        reject(['{}', [[':', 'x', bad]]], ['1', '0', '2', '1', '1', '1'], 'object properties are not in enumeration order')
+        reject(['=>', 0, [0, bad], 0], ['2', '1', '1', '1', '1'], 'object properties are not in enumeration order')
+        reject(['[]', [['{}', [[':', 'x', bad]]]]], ['1', '0', '1', '0', '2', '1', '1', '1'], 'object properties are not in enumeration order')
         reject(['=>', 0, [['{}', [[':', 'x', 0], [':', 'x', 1]]]], 0], ['2', '0', '1', '1', '1'], 'duplicate object property')
     },
     opaqueBodies: () => {

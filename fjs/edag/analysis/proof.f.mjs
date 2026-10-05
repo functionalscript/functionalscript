@@ -89,6 +89,34 @@ export const proof = {
         assertEq(bindingError(assertOk(analysis(['=>',1,[],['=>',0,[['arg',0],['rest']],['rest']]]))), null)
     },
 
+    functionBindings: () => {
+        for (const [e, expected] of /** @type {readonly (readonly [Exp, string | null])[]} */ ([
+            // Captures are expressions in the enclosing invocation, whose
+            // parameter and frame sizes an isolated function cannot know.
+            [['=>', 0, [['arg', 3], ['frame', 8], ['rest']], ['frame', 2]], null],
+            // Captured functions are not part of the selected body's code.
+            [['=>', 0, [['=>', 0, [], ['arg', 0]], ['=>', 17, [], 1]], ['frame', 0]], null],
+            [['=>', 17, [], 1], 'a function length above 16'],
+            [['=>', 1, [], ['arg', 1]], 'invalid fixed parameter index or scope'],
+            [['=>', 0, [], ['frame', 0]], 'invalid frame slot index or scope'],
+            [['=>', 0, [], ['args']], 'module args in a function'],
+            [['=>', 1, [], ['=>', 0, [['arg', 0]], ['frame', 0]]], null],
+            [['=>', 0, [], ['=>', 0, [['arg', 0]], 1]], 'invalid fixed parameter index or scope'],
+            [['=>', 0, [], ['=>', 0, [], ['arg', 0]]], 'invalid fixed parameter index or scope'],
+            [['=>', 0, [], ['=>', 17, [], 1]], 'a function length above 16'],
+        ])) {
+            const a = an(e)
+            assert(a.root instanceof Array)
+            assertEq(bindingError(a, a.root[1]), expected)
+        }
+        // Selecting a nested function ignores errors in its enclosing code,
+        // while whole-program binding validation still reports them.
+        const a = an(['=>', 1, [], ['[]', [['arg', 1], ['=>', 1, [['arg', 0]], ['arg', 0]]]]])
+        const nested = a.nodes.findIndex(n => n[0] === '=>')
+        assertEq(bindingError(a, nested), null)
+        assertEq(bindingError(a), 'invalid fixed parameter index or scope')
+    },
+
     invalidLength: () => {
         for (const length of [-0, -1, 0.5, NaN, Infinity]) {
             assertEq(assertError(analysis(['=>', length, [], 1])), 'invalid function length')

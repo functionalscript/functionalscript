@@ -216,24 +216,27 @@ can construct and observe. A `proof.mjs` normally proves its **sibling
 `module.mjs`** — host code such as the DOM adapter in `emergent_testing/browser`
 or the `node:` bindings in `effects/node/memory`.
 
-A `proof.mjs` may also prove an explicitly documented host boundary of a
-FunctionalScript API when constructing the input or observing the promised
-behavior requires host code. Record the boundary and expected behavior in the
-API documentation, a README or a TODO. The proof's header names that contract
-and explains why a FunctionalScript proof cannot establish it.
+Host proofs may also exercise an existing effect integration contract, such as
+[`web/proof.mjs`](./web/proof.mjs) observing an effect program through real
+files and sockets. Name the actual boundary in the proof's header and explain
+why a FunctionalScript proof cannot observe it. Keep ordinary cases in
+`proof.f.mjs`.
 
-For example, [`edag/acyclic/proof.mjs`](./edag/acyclic/proof.mjs) constructs
-cycles to prove the preflight's refusal, and [`web/proof.mjs`](./web/proof.mjs)
-observes an effect program through real files and sockets. Keep ordinary cases
-in `proof.f.mjs`. Use host operations only to construct the necessary fixtures,
-run the host interpreter and observe the specified behavior; this does not
-permit mutation in FunctionalScript code.
+Derive FunctionalScript API inputs from what FJS can construct. Immutable
+container construction is acyclic, so cycle checks and host-mutated cycle
+fixtures do not belong to those APIs. Malformed immutable tuples, invalid
+metadata and references shared across forbidden scopes are constructible;
+check them at an explicit admission boundary for supplied EDAG data. Compiler
+and VM output maintains those invariants by construction and needs no repeated
+admission pass.
 
 Do not add host cases merely to speculate about what an arbitrary JavaScript
-caller might supply. Replaced prototypes, accessors and scheduling scenarios
-remain outside proofs unless the particular documented host boundary promises
-to handle them. General JavaScript/FunctionalScript interop remains a separate
-concern for a separate repository.
+caller might supply, or document a new host-input promise to justify such
+cases. Do not use `Object.assign`, `Object.defineProperty` or index assignment
+to fabricate inputs that FJS cannot construct. Replaced prototypes, accessors
+and scheduling scenarios remain outside proofs unless an actually requested
+host boundary requires them. General JavaScript/FunctionalScript interop
+remains a separate concern for a separate repository.
 
 **Recommended: judge a `proof.mjs` by a native runner.** `fjs t` is the
 FunctionalScript runner — it walks a proof tree where a leaf is a pure thunk and

@@ -595,6 +595,20 @@ export const proof = {
         assertEq(text(['=>', 0, [['rest'], ['arg', 3]], ['[]', [slot(0), slot(1), ['rest']]]]), '(...$a)=>[$0,$1,$a]')
         // A captured expression need not have a source spelling in the body.
         assertEq(text(['=>', 0, [['!', 1]], slot(0)]), '()=>$0')
+        // Captured functions' bindings and parameter limits are outside the
+        // selected body's code, just like its enclosing argument reads.
+        assertEq(text(['=>', 0, [['=>', 0, [], ['arg', 0]]], slot(0)]), '()=>$0')
+        assertEq(text(['=>', 0, [['=>', 17, [], 1]], slot(0)]), '()=>$0')
+        assertEq(text(['=>', 0, [['frame', 8]], slot(0)]), '()=>$0')
+        // Capture-table entries do not affect body hoists or supply its rest parameter.
+        const captured = /** @type {const} */ (['=>', 0, [], ['rest']])
+        const sharedArray = /** @type {const} */ (['[]', [1]])
+        assertEq(text(['=>', 0, [captured], ['[]', [slot(0), sharedArray, sharedArray]]]),
+            '()=>{const $a0=[1];return [$0,$a0,$a0];}')
+        // Repeated nested closures keep their capture and one hoisted function.
+        const sharedFunction = /** @type {const} */ (['=>', 0, [slot(0)], slot(0)])
+        assertEq(text(['=>', 0, [captured], ['[]', [sharedFunction, sharedFunction]]]),
+            '()=>{const $a0=()=>$0;return [$a0,$a0];}')
         // a nested function captures a slot through its own frame
         assertEq(text(['=>', 0, [['rest']], ['=>', 0, [slot(0)], slot(0)]]), '()=>()=>$0')
         // slots read out of order are named in order first, as a body's are
@@ -604,6 +618,8 @@ export const proof = {
         assertStructurallySame(tryFunctionText(['[]', []]), ['error', 'not a function'])
         assertStructurallySame(tryFunctionText(['=>', 0, [], ['!', 1]]), ['error', 'a ! node'])
         assertStructurallySame(tryFunctionText(['=>', 0, [], ['arg', 0]]), ['error', 'invalid fixed parameter index or scope'])
+        assertStructurallySame(tryFunctionText(['=>', 0, [], ['=>', 0, [], ['arg', 0]]]), ['error', 'invalid fixed parameter index or scope'])
+        assertStructurallySame(tryFunctionText(['=>', 0, [], ['=>', 17, [], 1]]), ['error', 'a function length above 16'])
     },
     // Every refusal, by the message it carries: a node kind with no spelling
     // yet, a position a spelling has none in, and a key no literal reads
