@@ -10,7 +10,7 @@
 //! continuation, and goes on until it meets a `Pure`.
 
 use crate::{
-    Malformed, Operations, argument, decode_array, decode_string, dispatch, encode_string,
+    Malformed, Operations, argument, arity, decode_array, decode_string, dispatch, encode_string,
     encode_tuple, required,
 };
 use nanvm_lib::{
@@ -106,6 +106,7 @@ fn not_implemented<A: IVm>(command: &str) -> Any<A> {
 /// `sandbox`: runs the thunk, answering its result, its value or what it
 /// threw, and how long it took in milliseconds.
 fn sandbox<A: IVm>(payload: &[Any<A>]) -> Result<Any<A>, Failure<A>> {
+    arity(payload, 1).map_err(Failure::Malformed)?;
     let thunk = argument(payload, 0, "f").map_err(Failure::Malformed)?;
     let before = Instant::now();
     let answer = thunk.call(nothing());
@@ -119,6 +120,7 @@ fn sandbox<A: IVm>(payload: &[Any<A>]) -> Result<Any<A>, Failure<A>> {
 
 /// `catch`: runs the thunk, answering its result.
 fn catch<A: IVm>(payload: &[Any<A>]) -> Result<Any<A>, Failure<A>> {
+    arity(payload, 1).map_err(Failure::Malformed)?;
     let thunk = argument(payload, 0, "f").map_err(Failure::Malformed)?;
     Ok(encode_tuple("ok", vec![result(thunk.call(nothing()))]))
 }
@@ -421,6 +423,16 @@ mod test {
             malformed(run(&mut Unimplemented, node("sandbox", vec![], finish()))),
             "missing argument 0, `f`"
         );
+        let thunk = || function(|_, _| Ok(string_any("v")));
+        for command in ["sandbox", "catch"] {
+            assert_eq!(
+                malformed(run(
+                    &mut Unimplemented,
+                    node(command, vec![thunk(), thunk()], finish())
+                )),
+                "2 arguments where at most 1 are taken"
+            );
+        }
         let not_a_result = function(|_, _| Ok(f64_any(0)));
         assert_eq!(
             malformed(run(&mut Unimplemented, not_a_result)),
