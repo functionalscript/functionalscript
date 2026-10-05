@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — ordinary-object conversion to primitives is implemented; invocation and VM migration remain open
+**Status:** wip — implementing primitive conversion helpers; array/function conversion, invocation and VM migration remain open
 
 ### Problem
 
