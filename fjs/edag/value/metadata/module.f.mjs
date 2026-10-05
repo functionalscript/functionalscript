@@ -1,15 +1,15 @@
 /**
- * Check evaluated value metadata after shape validation: canonical function
- * lengths and unique object keys in JavaScript enumeration order. Successful
- * checks retain the original value and its sharing.
+ * Check evaluated object metadata after shape validation: unique keys in
+ * JavaScript enumeration order. Successful checks retain the original value
+ * and its sharing.
  *
  * Validated nodes are remembered by identity across data and captures, so
  * a shared subtree is checked once. Object keys use the same persistent set
  * instead of repeatedly scanning the property's prefix.
  *
- * Input must be an acyclic, shape-checked value graph. This walk checks data
- * and captures; function bodies remain opaque expressions. Full graph and
- * body admission remain in `../../todo/edag-value.md`.
+ * Input must be a shape-checked value graph. This walk checks data and
+ * captures; function bodies remain opaque expressions. Function lengths,
+ * bindings and body scopes belong to `../closure/module.f.mjs`.
  *
  * @module
  * @import { EdagValue, Values, Property } from '../types.ts'
@@ -20,7 +20,6 @@
  */
 
 import { arrayIndex } from '../../../js/array_index/module.f.mjs'
-import { isIndex, maxLength } from '../../../types/function/length/module.f.mjs'
 import { prependPath, verror } from '../../../rtti/common/module.f.mjs'
 import { mapOk, ok } from '../../../types/result/module.f.mjs'
 import { add, empty, has } from '../../../types/set/module.f.mjs'
@@ -65,7 +64,7 @@ const validateProperties = (properties, visited) => {
 }
 
 /**
- * Checks a fresh node's metadata and evaluated children, leaving its body opaque.
+ * Checks a fresh node's evaluated object properties, leaving its body opaque.
  * @type {(value: _Node, visited: _Visited) => Result<_Visited, ValidationError>}
  */
 const validateNode = (value, visited) => {
@@ -79,9 +78,6 @@ const validateNode = (value, visited) => {
             return r[0] === 'error' ? prependPath('1', r) : r
         }
         case '=>': {
-            if (!isIndex(value[1]) || value[1] > maxLength) {
-                return prependPath('1', verror('invalid function length'))
-            }
             const r = validateValues(value[2], visited)
             return r[0] === 'error' ? prependPath('2', r) : r
         }
@@ -98,5 +94,5 @@ const validateValue = (value, visited) => {
     return mapOk(add(value))(validateNode(value, visited))
 }
 
-/** Checks evaluated metadata only; requires shape-checked, acyclic input. @type {(value: EdagValue) => Result<EdagValue, ValidationError>} */
+/** Checks evaluated object metadata only; requires shape-checked input. @type {(value: EdagValue) => Result<EdagValue, ValidationError>} */
 export const validateMetadata = value => mapOk(() => value)(validateValue(value, empty))

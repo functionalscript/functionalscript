@@ -140,7 +140,7 @@ import { _prohibitedCallNames, _prohibitedNames } from '../parser/module.f.mjs'
 import { dollarSign, isDigit, isLatinLetter, latinSmallLetterA, latinSmallLetterZ, lowLine } from '../../text/ascii/module.f.mjs'
 import { codePointToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
-import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.mjs'
+import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
 
 /** Names the parser refuses to bind. */
 const reservedExports = new Set([...keywords, ...literalWords, 'then'])
@@ -1337,24 +1337,21 @@ export const tryStringify = e => mapOk(
  * the body, so `const x = 3; const f = () => x;` is `()=>3`.
  *
  * Refused where the writer refuses the body, and for a node that is no
- * function. Check the original graph's structure before omitting captures,
- * so capture/body sharing across scopes is refused. Capture bindings belong
- * to the enclosing scope and are not checked here.
+ * function. Analyze the complete graph once to refuse capture/body sharing
+ * across scopes, then check and render the function's body from that table.
+ * Capture bindings belong to the enclosing scope and are not checked here.
  *
  * @type {(e: Exp) => Result<string, string>}
  */
 export const tryFunctionText = e => {
     if (!(e instanceof Array) || e[0] !== '=>') { return error('not a function') }
-    const original = analysis(e)
-    if (original[0] === 'error') { return original }
-    const [, length, slots, body] = e
-    // Slots are placeholders for body binding checks, not part of the text.
-    // Removing capture edges from a structurally valid graph cannot create
-    // scope conflicts or invalid lengths, so this analysis must succeed.
-    const a = unwrap(analysis(['=>', length, slots.map(() => null), body]))
-    const problem = bindingError(a)
-    if (problem !== null) { return error(problem) }
+    const result = analysis(e)
+    const [kind, a] = result
+    if (kind === 'error') { return result }
+    const [, length, slots] = e
     const i = /** @type {Ref} */ (a.root)[1]
+    const problem = bindingError(a, i)
+    if (problem !== null) { return error(problem) }
     const node = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (a.nodes[i])
     return mapOk(
         /** @type {(text: List<string>) => string} */

@@ -20,19 +20,17 @@ one-way by design: `fjs/edag` imports nothing from them.
 
 [`value`](value/module.f.mjs) defines the evaluated-value subset's type and
 shape schema: data and functions with evaluated captures and unevaluated
-bodies. It does not yet establish complete graph admission or migrate the
-executors; those remain in [the value plan](todo/edag-value.md).
-[`validateMetadata`](value/metadata/module.f.mjs) checks canonical function
-lengths and unique, correctly ordered object keys in evaluated data and captures,
+bodies. Value operations and executor migration remain in
+[the value plan](todo/edag-value.md).
+[`validateMetadata`](value/metadata/module.f.mjs) checks unique, correctly
+ordered object keys in evaluated data and captures,
 preserving value identity.
 [`validateClosure`](value/closure/module.f.mjs) checks closure bindings,
 function-body scopes and function lengths, including nested function creation,
-and also preserves value identity. Both checks require shape-checked, acyclic
-input; admission from unknown input remains in the value plan.
-[`validateAcyclic`](acyclic/module.f.mjs) checks array-position cycles before
-recursive shape validation, including structural lists, captures and bodies.
-It accepts shared acyclic graphs and retains the original input; it establishes
-no shape or closure validity. The complete admission entry remains open.
+and also preserves value identity. These checks require shape-checked FJS data
+and serve explicit boundaries accepting EDAG supplied as data. VM constructors
+must maintain the value invariants directly, without revalidating every result.
+FJS data is acyclic by construction, so it needs no cycle preflight.
 
 "No normal form" is a statement about the module as a whole, not a licence for
 each node kind to admit several spellings of one thing. Where a set of
@@ -442,13 +440,12 @@ need it.
 
 - Neither `validate` nor `parse` is identity-aware, each in its own way:
   `validate` returns the original value — sharing intact — but re-walks a
-  shared subgraph once per incoming edge (exponential in depth) and
-  overflows the stack on a cycle instead of rejecting it; `parse` rebuilds
-  every container, so sharing is lost —
+  shared subgraph once per incoming edge (exponential in depth); `parse`
+  rebuilds every container, so sharing is lost —
   [identity-aware-parse.md](../rtti/todo/identity-aware-parse.md).
   So `validate` is shape validation, not complete EDAG validation:
-  identity-dependent canonicality — acyclicity, and the rule that an
-  operation-node identity may be shared only within one function's scope,
+  identity-dependent canonicality — the rule that an operation-node
+  identity may be shared only within one function's scope,
   never across a `=>` boundary — goes unchecked. The Stage 2 validator for
   that boundary is tracked in
   [compile-modules-to-edag.md](../compiler/todo/compile-modules-to-edag.md).
