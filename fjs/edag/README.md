@@ -56,6 +56,14 @@ fresh object with unique keys in JavaScript enumeration order. Property
 thunks perform key resolution before value evaluation; key coercion belongs
 to the operation/invocation layer.
 
+[`value/function`](value/function/module.f.mjs) constructs function values
+from deferred captures and valid body templates. Captures evaluate in order,
+retaining their identities and propagating the first failure unchanged.
+Each function gets a fresh copy of its body graph, including nested function
+templates, while sharing within that graph is preserved. Body code stays
+unevaluated; captured values stay outside the copy. Invocation remains part
+of the executor migration.
+
 "No normal form" is a statement about the module as a whole, not a licence for
 each node kind to admit several spellings of one thing. Where a set of
 spellings *can* be cut down to one in the schema, it is: [Chains](#chains) is
