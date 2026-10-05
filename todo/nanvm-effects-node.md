@@ -131,12 +131,16 @@ What follows for the tasks below:
 - [ ] Before generating TypeScript declarations, define a nominal mapping
       that preserves `Vec` parameters and results, and check the emitted
       declarations against the existing API.
-- [ ] Implement the operations exercised by the AOT-compiled CLI and
+- [x] Implement the operations exercised by the AOT-compiled CLI and
       parser-based proof fixtures in the runner crate
-      (`nanvm-effects-node`), over `std`. Done in `Native`: `mkdir`,
-      `readFile`, `readdir`, `writeFile`, `writeBytes`, `rm`, `write` and
-      `read`. Left: `resolveFileModule` (the import-specifier rules of
-      `fjs/path/import`, then the file URL identity the Node runner answers).
+      (`nanvm-effects-node`), over `std`: `mkdir`, `readFile`, `readdir`,
+      `writeFile`, `writeBytes`, `rm`, `write`, `read` and
+      `resolveFileModule` (the specifier rules of `fjs/path/import`, the real
+      path, and the `file:` URL identity as Node 22 spells it, compared with
+      Node on a name holding `%`, `#`, `^`, `[` and `{`). Where this reads a
+      specifier differently from the JavaScript `decode`, the Rust follows a
+      URL: `.//x` stays relative, where `decode` makes it `/x`, and `//x/y` is
+      refused.
 - [x] The marshalling between `Any` values and the generated types, and a
       generated `dispatch` from a command name and its payload to an
       `Operations` method

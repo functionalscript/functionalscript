@@ -8,7 +8,7 @@
 
 use crate::{
     Dirent, FileModule, IoChannel, IoErrorInfo, MakeDirectoryOptions, NotImplemented, Operations,
-    ReaddirOptions, WriteConsoles, not_implemented,
+    ReaddirOptions, WriteConsoles, resolve::resolve_file_module,
 };
 use std::{
     fs::{self, File, OpenOptions},
@@ -73,7 +73,7 @@ fn code(kind: ErrorKind) -> Option<&'static str> {
 
 /// A failed call as the error channel carries it: the code where there is
 /// one, and a message naming the call and the path.
-fn failure(error: &io::Error, call: &str, path: &str) -> IoChannel {
+pub(crate) fn failure(error: &io::Error, call: &str, path: &str) -> IoChannel {
     IoChannel::IoError(IoErrorInfo {
         code: code(error.kind()).map(str::to_string),
         message: format!("{error}, {call} '{path}'"),
@@ -200,13 +200,13 @@ impl<R: Read, O: Write, E: Write> Operations for Native<R, O, E> {
         fs::read(&path).map_err(|e| failure(&e, "open", &path))
     }
 
-    /// Not implemented yet: module resolution is `todo/nanvm-effects-node.md`'s own task.
+    /// The module a path or a relative specifier names, as [`resolve_file_module`].
     fn resolve_file_module(
         &mut self,
-        _: String,
-        _: Option<String>,
+        name: String,
+        parent: Option<String>,
     ) -> Result<FileModule, IoChannel> {
-        not_implemented("resolveFileModule")
+        resolve_file_module(&name, parent.as_deref())
     }
 
     /// The entries of each directory are in byte order of their names, where
@@ -407,14 +407,6 @@ mod test {
         }
         let mut r = Native::new(Broken, Vec::new(), Vec::new());
         let _ = r.read();
-    }
-
-    #[test]
-    fn module_resolution_is_not_implemented() {
-        assert_eq!(
-            runner(b"").resolve_file_module("a".into(), None),
-            Err(IoChannel::NotImplemented("resolveFileModule".into()))
-        );
     }
 
     /// The operations against a real directory, which a WebAssembly host does
