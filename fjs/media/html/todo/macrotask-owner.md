@@ -39,7 +39,12 @@ helper; the other two spell the lookup and the assignment again.
 ### Proposal
 
 `macrotask` moves here; the runner's two boolean branches become
-`toggleAttribute`, and `busy`'s value-bearing one is left alone;
+`toggleAttribute`, and `busy`'s value-bearing one is left alone. The
+runner's proof runs under `node --test` against a stand-in element in
+[`browser/proof.mjs`](../../../emergent_testing/browser/proof.mjs) that
+implements only `setAttribute` and `removeAttribute`, so the stand-in
+and its type gain `toggleAttribute` in the same change, or the proof
+throws before it reaches the runner;
 the runner gets a local `infrastructureReport(results)` and routes its
 summary updates through `say`.
 
@@ -47,7 +52,8 @@ summary updates through `say`.
 
 - [ ] `macrotask` exported from `fjs/media/html/module.mjs`; both
       adapters import it.
-- [ ] `toggleAttribute` in `setState` and `markUnreported`;
+- [ ] `toggleAttribute` in `setState` and `markUnreported`, and on
+      the Node stand-in element and its type in `browser/proof.mjs`;
       `infrastructureReport` and `say` in the runner.
 - [ ] The browser test page and the demos still work; preview links in
       the PR.
