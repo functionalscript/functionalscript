@@ -87,10 +87,15 @@ primitives by trying `valueOf` and `toString` in the hint's order. Own methods
 shadow stock behavior, including noncallable values. Represented functions
 run through the call helper; their first primitive result or failure returns
 unchanged. Its primitive helpers convert the represented `Primitive` subset
-to strings and numbers, decoding tagged undefined through the shared semantics
-helper. Numeric coercion rejects bigint; explicit `Number(bigint)` is a
-different operation. Array/function conversion and operation dispatch remain
-part of the shared operation migration.
+to strings and numeric values, decoding tagged undefined through the shared
+semantics helper. Abstract ToNumber rejects bigint; ToNumeric preserves it.
+Array/function conversion and operation dispatch remain part of the shared
+operation migration.
+
+[`value/numeric`](value/numeric/module.f.mjs) supplies a `unary` operation
+table over evaluated primitives. Unary `+` fails on bigint, `-` and `~`
+preserve bigint, and explicit `Number` converts it. All four return `Result`
+values. Callers own operand evaluation and conversion to a primitive.
 
 The [`value/array`](value/array/module.f.mjs) join helper consumes an evaluated
 array and a resolved string separator. Nullish elements contribute empty text;
