@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** wip — implementing represented array joining; full conversion, invocation and VM migration remain open
+**Status:** open — represented array joining is implemented; full conversion, invocation and VM migration remain open
 
 ### Problem
 
@@ -318,6 +318,12 @@ budget or stopped-outcome API.
       its primitive success type so callers can compose the helpers directly.
       Explicit `Number(bigint)` conversion remains with operation dispatch
       and must accept bigint.
+- [x] Join evaluated arrays in `fjs/edag/value/array` with a resolved separator
+      and a supplied string converter. Nullish elements contribute empty text;
+      other elements, including nested arrays and functions, convert in order.
+      Preserve each element's identity and the first failure tuple unchanged.
+      Separator conversion/defaulting and the complete value-to-string
+      operation remain in the shared operation migration.
 - [ ] Implement shared value operations and invocation over
       `Result<EdagValue, EdagValue>`, with immutable state and admitted methods.
 - [ ] Migrate Amnesia and memo, preserving each documented execution model;
