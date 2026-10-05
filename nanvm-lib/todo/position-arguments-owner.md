@@ -8,10 +8,14 @@
 A built-in that takes an index or a position reads it by one recipe —
 `ToIntegerOrInfinity(ToNumber(x))` — and the recipe has no owner. It is
 spelled as `f64::from(x.to_number()?.to_integer_or_infinity())` at about
-seven sites: `relative` in `vm/array/relative.rs`, `position` in
+six sites: `relative` in `vm/array/relative.rs`, `position` in
 `vm/string/code_unit.rs`, `digits` in `vm/lambda/number.rs`, `radix` and
 `array_flat` in `vm/lambda/method.rs`, `to_spliced` in
-`vm/array/to_spliced.rs`, `last_index_of` in `vm/string/search.rs`.
+`vm/array/to_spliced.rs`. `String::last_index_of` in
+`vm/string/search.rs` is not one of them: it reads `ToNumber` first and
+maps `NaN` to the end before `ToIntegerOrInfinity`, which would read
+`NaN` as zero, so that site keeps its own conversion and shares only
+`clamped`.
 
 The relative-position arithmetic does have an owner, and it is the wrong
 one: `relative` and `clamped` live in `vm/array/relative.rs`, and
@@ -65,7 +69,8 @@ pub(crate) fn relative_range<A: IVm>(start: Any<A>, end: Any<A>, len: u32) -> Re
 
 `relative` and `clamped` move there unchanged; `at`, `with`, `unit_at`
 and both `slice`s become one line each on `in_range` and
-`relative_range`; the seven inline conversions call the method. The
+`relative_range`; the six inline conversions call the method, and
+`last_index_of` keeps its `NaN` rule. The
 module also settles the name: `position` is what this module reads, and
 the two helpers in `code_unit.rs` and `lambda/method.rs` are renamed for
 what they do.
@@ -76,7 +81,8 @@ what they do.
       `clamped`, `in_range`, `relative_range`, and tests moved from
       `vm/array/relative.rs`.
 - [ ] `Array::at`, `Array::with`, `Array::slice`, `String::slice`,
-      `String::unit_at` and the seven inline conversions through it;
+      `String::unit_at` and the six inline conversions through it,
+      `last_index_of` left with its `NaN` rule;
       `vm/array/relative.rs` deleted.
 - [ ] The two other `position`s renamed.
 - [ ] `cargo test`, `cargo clippy`, `cargo fmt -- --check`.

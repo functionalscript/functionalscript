@@ -8,7 +8,8 @@
 Many built-ins take an optional argument whose absence selects a default:
 `Array::slice`'s `end`, `String::slice`'s, `substring`'s and `pad`'s,
 `split`'s limit, `ends_with`'s position, `to_sorted`'s comparator,
-`array_flat`'s depth, `radix`, `digits`. Each spells the test the same
+`array_flat`'s depth, `array_join`'s separator, `radix`, `digits`. Each
+spells the test the same
 way — unpack a clone, match the one variant — and two files went as far
 as a private predicate for it:
 

@@ -5,7 +5,7 @@
 
 ### Problem
 
-Five modules test that a number is an integer in `0..max`, each with its
+Six modules test that a number is an integer in `0..max`, each with its
 own spelling, and the spellings do not agree on whether `-0` is one:
 
 ```js
@@ -19,9 +19,11 @@ assert(isInteger(n) && 0 <= n && n <= max, ['bit index outside 0..max', n, max])
 const u8 = i => Number.isInteger(i) && isInU8Range(i)
 // text/utf16 u16 — the same shape for 0xFFFF
 const u16 = i => Number.isInteger(i) && isInU16Range(i)
+// effects/node isPort — admits -0
+export const isPort = port => Number.isInteger(port) && port >= 0 && port <= maxPort
 ```
 
-Two reject `-0`, three admit it, and `u8` is `isByte` under another
+Two reject `-0`, four admit it, and `u8` is `isByte` under another
 name in a module that could import it. Whether `-0` is a byte, an index
 or a code unit is one question with one answer, and today it has two.
 
@@ -35,8 +37,8 @@ export const isUintUpTo: (max: number) => (n: unknown) => n is number
 ```
 
 `isByte = isUintUpTo(0xFF)`, `isIndex = isUintUpTo(Infinity)`, `u8`
-becomes `isByte`, `u16 = isUintUpTo(0xFFFF)`, and `bitIndex` asserts on
-it. `Infinity` is the bound for `isIndex` because it is what `isIndex`
+becomes `isByte`, `u16 = isUintUpTo(0xFFFF)`, `isPort = isUintUpTo(maxPort)`,
+and `bitIndex` asserts on it. `Infinity` is the bound for `isIndex` because it is what `isIndex`
 admits today — any canonical non-negative integer, `1e100` included —
 so the bound changes nothing. Whether an index should stop at
 `Number.MAX_SAFE_INTEGER` is a separate question with a separate break,
@@ -44,18 +46,19 @@ to be filed on its own if anyone wants it.
 
 The `-0` decision is the one break, and it is deliberate: the two
 spellings that reject `-0` do so with an explicit clause, so that is the
-intended rule, and the three that admit it are the ones that never
+intended rule, and the four that admit it are the ones that never
 asked. Routing them through `isUintUpTo` refuses `-0` where it passed
 before: `bitIndex`, so `bit_set`'s `numberOps`, `bigintOps` and
 `bitSet` assert on `-0` instead of reading it as bit zero; `u8`, so a
 `-0` byte is refused by `utf8`'s decoder; `u16`, so a `-0` code unit is
-refused by `utf16`'s. The implementing PR declares this under
+refused by `utf16`'s; `isPort`, so `isPort(-0)` is `false` and
+`fjs/effects/node` refuses a `-0` port. The implementing PR declares this under
 `Changelog:` as a `**BREAKING CHANGES:**` item naming those exports.
 
 ### Tasks
 
 - [ ] `isUintUpTo`, proved, with the `-0` rule stated.
-- [ ] The five sites through it; the `-0` break declared in the PR's
+- [ ] The six sites through it; the `-0` break declared in the PR's
       `Changelog:` section.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 
