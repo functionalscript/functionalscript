@@ -54,11 +54,17 @@ export const eagerLayers = [
 ] as const
 ```
 
-`binaryTags` is derived from it plus `**` and the three lazy tags, and
-stays what `BinaryTag` in [`ast/types.ts`](../ast/types.ts) is: the
-conditional is not a binary operator — `AstConditional` is its own
-four-element node — so `?:` is never in the table or in `binaryTags`,
-and the `_BinaryTagsAreComplete` pin keeps holding. The grammar's
+`binaryTags` stays as it is written: it is a public array whose order a
+caller can enumerate, and that order is not the precedence order (`**`
+follows `* / %`, equality precedes relational, shifts follow the
+bitwise tags), so deriving it from the table would change it for no
+gain. The table and `binaryTags` are tied the other way, by a
+type-level pin beside `_BinaryTagsAreComplete` in
+[`ast/types.ts`](../ast/types.ts) that the table's tags plus `**` and
+the three lazy tags are exactly `BinaryTag` as a set, so an operator
+added to one and not the other is a `tsc` error. The conditional is not
+a binary operator — `AstConditional` is its own four-element node — so
+`?:` is never in the table or in `binaryTags`. The grammar's
 `*Tags` records and `binaryOpTag` read the table, and the eager tails
 are built by one fold that accumulates the tails already built. The
 serializer's `levels` is a precedence ladder, not a tag list, so it is
@@ -70,7 +76,8 @@ written out.
 
 ### Tasks
 
-- [ ] `eagerLayers` in `ast`; `binaryTags` derived from it.
+- [ ] `eagerLayers` in `ast`; the set pin between it and `BinaryTag`;
+      `binaryTags` unchanged.
 - [ ] The grammar's layer records, `binaryOpTag` and the eager tails
       from the table; its proofs pass unchanged.
 - [ ] The serializer's `levels` from the table, with `?:` and the lazy

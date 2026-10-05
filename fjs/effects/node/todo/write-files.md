@@ -53,8 +53,11 @@ slot.
 
 A generator is then a pure `files(): readonly [path, text][]` plus a
 one-line `main` that writes them, which is also what makes the file set
-provable without a disk. `npmPublishPath` becomes a file name joined to
-`workflowsDirectory` where the list is built.
+provable without a disk. `npmPublishPath` keeps its exported value, the
+full `.github/workflows/gen.npm-publish.yml` that both `fjs/ci/publish`'s
+and `fjs/ci`'s proofs pin; what changes is how it is spelled — a file
+name joined to `workflowsDirectory` — so the directory literal exists
+once and the export does not move.
 
 ### Tasks
 
