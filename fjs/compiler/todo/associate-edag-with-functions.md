@@ -25,6 +25,14 @@ or through a separate lookup; the representation remains open.
 
 ### Proposal
 
+For VMs implemented in FJS, the
+[EdagValue proposal](../../edag/todo/edag-value.md) selects the represented
+function itself: it already contains its body EDAG and evaluated captures.
+Those VMs need neither lookup Effects nor a second callable representation.
+Conversion to `unknown` intentionally erases this reflection and promises no
+reverse lookup. The choices below remain open for native/AOT callable
+association; they do not reopen the FJS VM representation.
+
 The [MVP roadmap](../../../nanvm-lib/todo/mvp-roadmap.md#open-questions) and
 [callable-function-objects](../../../nanvm-lib/todo/callable-function-objects.md)
 Stage 7 require semantic EDAG association while leaving its storage open:

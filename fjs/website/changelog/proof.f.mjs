@@ -23,7 +23,7 @@ const alone = version => ({ version, previous: null, next: null })
 
 // A local build: the pages here are about releases, not about the build.
 /** @type {Build} */
-const local = { commit: null, branch: null }
+const local = { commit: null, branch: null, funding: [] }
 
 // The pure reading half: a reference, a group, a scan, and the order.
 const core = {
@@ -243,7 +243,7 @@ const render = {
         // The header says which build a preview is on every page, the
         // release index included.
         preview: () => {
-            const html = utf8ToString(indexPage({ commit: null, branch: 'x' })([]))
+            const html = utf8ToString(indexPage({ commit: null, branch: 'x', funding: [] })([]))
             assert(html.includes(`Preview: <a href="${repository}/tree/x">x</a>`), html)
         },
         linksEvery: () => assertEq(

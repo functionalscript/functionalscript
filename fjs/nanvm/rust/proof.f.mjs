@@ -347,7 +347,7 @@ export const proof = {
          * single case.
          */
         noRustNameForGroup: () => generate({ shared: {}, groups: [{ op: /** @type {'is'} */ (/** @type {unknown} */ ('==')), cases: [] }] }),
-        /** An object key the corpus cannot produce and Rust cannot spell. */
+        /** A bare corpus expression has no Result-returning scope for key coercion. */
         computedKey: () => nodeExpr(['{}', [[':', ['undefined'], 1]]]),
         /**
          * An entry that is neither a property nor a spread: read as a

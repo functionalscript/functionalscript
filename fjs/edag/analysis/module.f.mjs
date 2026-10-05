@@ -41,10 +41,10 @@
  * as an edge, since the table records sharing and the executor decides when.
  *
  * **Refused.** A node reached from two scopes, which the compiler never
- * emits and the EDAG's scope rule forbids, throws where it is met rather
- * than filling the table with an answer an executor could not honor. A
- * cycle is not an EDAG and not a value FunctionalScript can build; on one
- * the walk overflows the stack, as `validate` does.
+ * emits and the EDAG's scope rule forbids, returns an error rather than
+ * exposing a table an executor could not honor. Noncanonical function
+ * lengths are also errors. Input must be shape-checked FJS data; immutable
+ * FunctionalScript construction guarantees that its value graph is acyclic.
  *
  * The accumulators are immutable and copied per node, so a build is
  * quadratic in the node count — the sizes compiled today, not a design
@@ -57,14 +57,16 @@
  * @import { OptionLambda, OptionPropertyLambda, PropertyLambda } from '../types.ts'
  * @import { Analysis, IndexOperand, ItemOperand, Node, Operand, PropertyOperand, Ref, Step } from './types.ts'
  * @import { _Entry, _Handlers, _Scope, _State, _Walk } from './private.ts'
+ * @import { Result } from '../../types/result/types.ts'
  */
 
-import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { isIndex, maxLength } from '../../types/function/length/module.f.mjs'
 import { mapSet } from '../../types/map/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.mjs'
 
 /** @type {_State} */
-const start = { visited: new Map(), entries: [] }
+const start = { visited: new Map(), entries: [], problem: null }
 
 /** @type {(i: number) => Ref} */
 const ref = i => ['#', i]
@@ -138,8 +140,10 @@ const walk = scope => (state, e) => e instanceof Array ? node(scope)(state, e) :
 const node = scope => (state, e) => {
     const known = state.visited.get(e)
     const [next, i] = known === undefined ? fresh(scope)(state, e) : [state, known]
-    assert(next.entries[i].scope === scope, ['a node shared across a function boundary', e])
-    return [next, ref(i)]
+    const checked = next.entries[i].scope === scope ? next : {
+        ...next, problem: next.problem ?? 'a node shared across a function boundary',
+    }
+    return [checked, ref(i)]
 }
 
 /** @type {(scope: _Scope) => (state: _State, e: ExpOp) => readonly [_State, number]} */
@@ -290,8 +294,10 @@ const handlers = {
     // come before it, as operands come before the node that holds them.
     '=>': scope => (state, e) => {
         const [, length, slots, body] = e
-        assert(isIndex(length), ['invalid function length', length])
-        const [t, f] = each(walk(scope))(state, slots)
+        const checked = isIndex(length) ? state : {
+            ...state, problem: state.problem ?? 'invalid function length',
+        }
+        const [t, f] = each(walk(scope))(checked, slots)
         const [u, b] = walk(e)(t, body)
         return [u, ['=>', length, f, b]]
     },
@@ -406,17 +412,28 @@ const places = (root, nodes) => nodes.reduceRight(
  * their scopes, and the shared ones — written at more than one place.
  * `export default 1;` is an empty table with the root `1`.
  *
- * @type {(e: Exp) => Analysis}
+ * Structural failures return the first diagnostic instead of a partial table.
+ * Binding checks remain separate for consumers of complete executable graphs.
+ * Requires shape-checked FJS data.
+ *
+ * @type {(e: Exp) => Result<Analysis, string>}
  */
 export const analysis = e => {
-    const [{ visited, entries }, root] = walk(null)(start, e)
+    const [{ visited, entries, problem }, root] = walk(null)(start, e)
+    if (problem !== null) { return error(problem) }
     const nodes = entries.map(x => x.node)
-    return {
+    return ok({
         root,
         nodes,
         scope: entries.map(x => x.scope === null ? -1 : assertNotNullish(visited.get(x.scope))),
         shared: places(root, nodes).flatMap((n, i) => n > 1 ? [i] : []),
-    }
+    })
+}
+
+/** Whether an entry belongs to a function or a nested body it creates. @type {(scope: readonly number[], root: number, i: number) => boolean} */
+const withinScope = (scope, root, i) => {
+    while (i !== root && i !== -1) { i = scope[i] }
+    return i === root
 }
 
 /**
@@ -425,10 +442,16 @@ export const analysis = e => {
  * isolated compiler fragments, so executable consumers call this once on the
  * complete graph. Frames keep their enclosing scope: a slot read names the
  * frame of the function whose body holds it, and a module has none.
- * @type {(a: Analysis) => string | null}
+ * An optional function entry limits checks to that function and the body
+ * scopes it creates. Its captures belong to the enclosing scope and are
+ * excluded, including captured functions' bodies. The index must name a
+ * `=>` entry in a table returned by analysis; omitted, checks cover the
+ * complete graph.
+ * @type {(a: Analysis, root?: number) => string | null}
  */
-export const bindingError = ({ nodes, scope }) => {
+export const bindingError = ({ nodes, scope }, root = -1) => {
     for (const [i, node] of nodes.entries()) {
+        if (root !== -1 && !withinScope(scope, root, i)) { continue }
         const owner = scope[i] === -1 ? null : nodes[scope[i]]
         if (node[0] === 'args' && owner !== null) { return 'module args in a function' }
         if (node[0] === 'rest' && owner === null) { return 'the arguments outside a function' }

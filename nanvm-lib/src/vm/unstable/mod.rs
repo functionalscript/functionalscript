@@ -173,6 +173,17 @@ pub fn property_item<A: IVm>(k: String<A>, v: Any<A>) -> ObjectItem<A> {
     ObjectItem::Property(k, v)
 }
 
+/// A computed property entry, `[k]: v`: [`Any::to_string`] supplies
+/// `ToPropertyKey` for the VM's values, which do not include symbols.
+/// A plain object becomes `"[object Object]"`; an own callable `toString`
+/// is called, with `valueOf` as the fallback if it returns no primitive.
+/// Conversion errors propagate: `{ toString: 0 }`, for example, cannot
+/// produce a primitive and is refused. The only fallible entry, so the
+/// one that is a `Result`.
+pub fn computed_item<A: IVm>(k: Any<A>, v: Any<A>) -> Result<ObjectItem<A>, Any<A>> {
+    Ok(ObjectItem::Property(k.to_string()?, v))
+}
+
 /// A spread entry, `...o` in `{k: v, ...o}`.
 pub fn spread_entries<A: IVm>(v: Any<A>) -> ObjectItem<A> {
     ObjectItem::Spread(v)
@@ -201,7 +212,7 @@ mod test {
     use crate::{
         common::sized_index::SizedIndex,
         naive::Naive,
-        vm::{Array, Unpacked},
+        vm::{Array, IStaticFunction, Nullish, Object, Unpacked},
     };
 
     #[test]
@@ -375,6 +386,65 @@ mod test {
                 (string_key("b"), two()),
             ]
         );
+    }
+
+    /// A computed key is its `ToString`, as an own key: a number is its
+    /// text and `-0` is `"0"`; a key that cannot be converted throws before
+    /// the entry exists.
+    #[test]
+    fn computed_keys() {
+        let one = || f64_any::<Naive>(0x3ff0000000000000);
+        let negative_zero = || f64_any::<Naive>(0x8000000000000000);
+        let object = spread_object([
+            computed_item(one(), string_any("a")).unwrap(),
+            computed_item(negative_zero(), string_any("b")).unwrap(),
+            computed_item(Nullish::Undefined.to_any(), string_any("c")).unwrap(),
+            computed_item(string_any("1"), string_any("d")).unwrap(),
+        ]);
+        let entries = Object::try_from(object).unwrap().own_entries();
+        assert_eq!(
+            entries,
+            [
+                (string_key("0"), string_any("b")),
+                (string_key("1"), string_any("d")),
+                (string_key("undefined"), string_any("c")),
+            ]
+        );
+        let plain = Object::<Naive>::default().to_any();
+        let item = computed_item(plain, one()).unwrap();
+        let ObjectItem::Property(key, _) = item else {
+            panic!()
+        };
+        assert_eq!(key, string_key("[object Object]"));
+    }
+
+    /// An own conversion method supplies the key, and its errors propagate.
+    #[test]
+    fn computed_key_conversion() {
+        let with_to_string = |method: Any<Naive>| -> Any<Naive> {
+            [(string_key("toString"), method)].to_object().to_any()
+        };
+        let method =
+            Naive::static_function(|_, _| Ok(string_any("own")), 0, [].to_array(), None).to_any();
+        let item = computed_item(with_to_string(method), string_any("value")).unwrap();
+        let object = Object::try_from(spread_object([item])).unwrap();
+        assert_eq!(
+            object.own_entries(),
+            [(string_key("own"), string_any("value"))]
+        );
+
+        let method = Naive::static_function(
+            |_, _| Err(string_any("key conversion failed")),
+            0,
+            [].to_array(),
+            None,
+        )
+        .to_any();
+        assert!(matches!(
+            computed_item(with_to_string(method), string_any("value")),
+            Err(error) if error == string_any("key conversion failed")
+        ));
+        assert!(computed_item(with_to_string(f64_any(0)), string_any("value")).is_err());
     }
 
     /// A string of code units holds what no `&str` can, a lone surrogate,

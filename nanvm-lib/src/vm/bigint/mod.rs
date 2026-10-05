@@ -19,6 +19,7 @@ mod shl;
 mod shr;
 mod sized_index;
 mod sub;
+mod to_f64;
 
 use core::{cmp::Ordering, iter::once};
 

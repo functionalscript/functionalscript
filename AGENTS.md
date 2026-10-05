@@ -75,7 +75,7 @@ actually touches its subject.
 
 ## 1. Workflow
 
-Two habits come before the procedure:
+These habits come before the procedure:
 
 - **Be proactive.** If you see something that would improve or simplify the
   task — a better API, a step that makes another unnecessary, a design the
@@ -87,6 +87,14 @@ Two habits come before the procedure:
   implementation that will drift; an export is one. The same goes for a value
   held inline that a consumer needs a handle on — a rule a grammar writes
   inside another, say — export it under a name.
+- **Use the actual input contract.** FJS immutability guarantees acyclic
+  constructed container graphs. Do not add cycle checks or host-mutation
+  fixtures for FJS APIs. Compiler and VM output preserves its invariants by
+  construction; validate separately supplied EDAG data once where it enters.
+  Outbound conversion to `unknown` does not create a reverse-admission
+  requirement. A speculative host contract written into a TODO does not
+  authorize new validation machinery or tests; an actual requested host
+  boundary needs its own scoped contract.
 
 File an issue in `todo/`, next to the code it describes, when the work is worth
 tracking — a problem statement is enough. Except for

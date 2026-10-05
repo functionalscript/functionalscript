@@ -25,6 +25,14 @@ soundness visible.
 
 ### Proposal
 
+The [EdagValue migration](../../edag/todo/edag-value.md) makes functions valid
+VM values and returns language failures as `Result<EdagValue, EdagValue>`.
+In that path, representability refusal belongs to the requested output,
+after evaluation, while initialization failure still names the source.
+Conversion to `unknown` produces an ordinary FJS runtime value with reflection
+erased; JSON/DataJS have their own output restrictions. The error-channel
+change below describes the legacy evaluator that integration must migrate.
+
 The evaluator has one error channel: `values` returns `Result<…, string>`,
 [`../transpiler`](../transpiler/module.f.mjs) turns any of its failures into a
 `ParseError` carrying the module's path, and `compile` names the input for it.

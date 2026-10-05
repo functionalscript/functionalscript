@@ -67,9 +67,9 @@ export const faviconLinks = [
  *
  * @type {string}
  */
-export const stylesheet = `:root { color-scheme: light dark; --graph-new-bg: #aecbfa; --graph-old-bg: #fde293; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6; --value: #174ea6; --value-bg: #e8f0fe }
+export const stylesheet = `:root { color-scheme: light dark; --graph-new-bg: #aecbfa; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6; --value: #174ea6; --value-bg: #e8f0fe }
 @media (prefers-color-scheme: dark) {
-    :root { --graph-new-bg: #1c2d4d; --graph-old-bg: #453613; --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414; --value: #8ab4f8; --value-bg: #172033 }
+    :root { --graph-new-bg: #1c2d4d; --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414; --value: #8ab4f8; --value-bg: #172033 }
 }
 /* Every link on the site is coloured the same whether or not it has been
    opened: nearly every word here is a link into the tree, and the visited
@@ -217,6 +217,15 @@ header nav a:hover { text-decoration: underline }
    the background rather than a colour of its own, so it follows both
    schemes, and set to the right, under the links, as a status bar is. */
 [data-build] { background: color-mix(in srgb, var(--border) 30%, var(--bg)); border-top: 1px solid var(--border); color: var(--muted); font-size: .8rem; margin: 0; padding-block: .35rem; text-align: right }
+/* The funding footer closes every page: one muted, centred line under a rule,
+   spanning the window as the header does, so it reads as the site's own bar
+   rather than the last line of the page. Its links keep the page's colour and
+   underline, because unlike the header's they sit in a sentence.
+   A link never breaks inside itself: on a phone "GitHub Sponsors" split
+   across two lines read as two links, so the line breaks between links,
+   never within one. */
+footer[data-funding] { border-top: 1px solid var(--border); color: var(--muted); font-size: .875rem; padding: 1rem; text-align: center }
+footer[data-funding] a { white-space: nowrap }
 /* Every section of a page is a disclosure, so a reader can fold away what
    they are not reading — the platform's own collapsible, and no script on a
    site that is static files. Its summary is the section's heading, and is
@@ -325,17 +334,10 @@ svg text { font: inherit }
 [data-graph-outline] { fill: none; stroke: var(--text); stroke-width: 1.5 }
 [data-graph-kind="leaf"] { stroke: var(--muted); stroke-dasharray: 3 2 }
 [data-graph-kind="terminal"] { fill: var(--border) }
-/* The B-tree demo's two versions: a node only the later one holds is new,
-   one only the earlier one holds is replaced, and a shared one is plain.
-   Blue and amber, not green and red: the pair stays apart under red-green
-   colour blindness and in greyscale, and a new node is not a passed test
-   nor a replaced one a failed one, so they are not --pass-bg and
-   --fail-bg. */
+/* The versions demos: a node the step built is new, and one the version
+   before it holds too is plain. Blue, not green: a new node is not a
+   passed test, so it is not --pass-bg. */
 [data-graph-kind="new"] { fill: var(--graph-new-bg) }
-[data-graph-kind="replaced"] { fill: var(--graph-old-bg) }
-/* A replaced node is only what the tree was: the whole node, and the edges
-   leaving it, are drawn faded. */
-[data-graph-in-kind="replaced"], [data-graph-edge-kind="replaced"] { opacity: .5 }
 [data-graph-label] { dominant-baseline: middle; fill: var(--text); font-size: .75rem }
 [data-graph-edge] { fill: none; stroke: var(--muted); stroke-width: 1.5 }
 [data-graph-edge-kind="lazy"] { stroke-dasharray: 5 3 }
@@ -399,4 +401,42 @@ a:hover > [data-railroad-box="nonTerminal"] { fill: var(--pass-bg) }
 [data-stand-in] { color: var(--muted) }
 [data-bit="fill"] { color: var(--muted); text-decoration: underline dotted }
 [data-bit="stop"] { color: var(--value); font-weight: 700 }
+/* A code block — a demo's source, such as the rtti demo's schema — is a
+   shaded, bordered box, so code reads apart from the prose around it. A
+   reader's answer in the rtti demo is the same box, tinted green for a
+   success and red for a failure, so the verdict reads before the value does.
+   A line can be one long DataJS document, so it wraps rather than widening
+   the page. */
+[data-code], [data-result] { border: 1px solid var(--border); border-radius: 6px; overflow-wrap: anywhere; padding: .5rem .75rem; white-space: pre-wrap }
+[data-code] { background: color-mix(in srgb, var(--border) 30%, var(--bg)) }
+[data-code-block] { position: relative; margin-block: 1em; padding-right: 3rem }
+[data-code-block] > pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere }
+[data-code-block] > button { position: absolute; top: .25rem; right: .25rem; display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; padding: .125rem; border: 0; border-radius: .25rem; background: transparent; color: var(--muted) }
+[data-code-block] > button:hover:enabled { background: transparent; color: var(--text) }
+[data-code-block] > button:focus-visible { outline: 2px solid var(--value); outline-offset: 2px }
+[data-code-block] > button > svg { width: 20px; height: 20px }
+[data-copy-status] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap }
+[data-code-block] > button > [data-copy-check] { display: none }
+[data-code-block] > button[data-copy-feedback="copied"], [data-code-block] > button[data-copy-feedback="copied"]:hover:enabled { color: var(--pass) }
+[data-code-block] > button[data-copy-feedback="copied"] > svg { display: none }
+[data-code-block] > button[data-copy-feedback="copied"] > [data-copy-check] { display: block }
+[data-copy-feedback] > [data-copy-status] { right: -3px; bottom: calc(100% + 8px); width: auto; height: auto; overflow: visible; clip-path: none; padding: 5px 9px; background: black; color: white; border-radius: 5px; font-size: 12px; font-weight: 500; box-shadow: 0 2px 6px #00000018; pointer-events: none }
+[data-copy-feedback] > [data-copy-status]::after { content: ''; position: absolute; top: 100%; right: 10px; border: 5px solid transparent; border-top-color: black }
+@media (prefers-color-scheme: dark) {
+    [data-copy-feedback] > [data-copy-status] { background: #e8eaed; color: #202124 }
+    [data-copy-feedback] > [data-copy-status]::after { border-top-color: #e8eaed }
+}
+[data-result="ok"] { background: var(--pass-bg); border-color: color-mix(in srgb, var(--pass) 40%, transparent); color: var(--pass) }
+[data-result="error"] { background: var(--fail-bg); border-color: color-mix(in srgb, var(--fail) 40%, transparent); color: var(--fail) }
+/* A choice between code blocks — the rtti demo's pair of schemas — shows
+   every block, one above another, each a button with a radio dot. The one
+   picked is outlined and tinted in the value colour with its dot filled; the
+   other recedes, muted, until it is hovered. */
+[data-pick] { display: flex; flex-direction: column; gap: .5rem; margin-block: 1rem }
+[data-pick] > button, [data-pick] > button:hover:enabled { align-items: flex-start; background: color-mix(in srgb, var(--border) 30%, var(--bg)); border: 1px solid var(--border); border-radius: 6px; color: var(--muted); display: flex; gap: .65rem; padding: .5rem .75rem; text-align: left; width: 100% }
+[data-pick] > button:hover:enabled { border-color: var(--muted); color: var(--text) }
+[data-pick] > button[aria-pressed="true"], [data-pick] > button[aria-pressed="true"]:hover:enabled { background: var(--value-bg); border-color: var(--value); box-shadow: inset 0 0 0 1px var(--value); color: var(--text) }
+[data-pick-dot] { border: 2px solid var(--muted); border-radius: 50%; flex: none; height: .95rem; margin-top: .2rem; width: .95rem }
+[aria-pressed="true"] > [data-pick-dot] { background: var(--value); border-color: var(--value); box-shadow: inset 0 0 0 2px var(--value-bg) }
+[data-pick-code] { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap }
 `

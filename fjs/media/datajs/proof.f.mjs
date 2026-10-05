@@ -112,11 +112,13 @@ export const proof = {
             // An index sits in a port of the array's own box, not on the
             // line: the header is 26px and the row under it 20px, so the
             // label is centred at y=46 and the edge leaves the row's right
-            // end at (60,46).
+            // end at (60,46). The document is a tree, so the inner array is
+            // centred on the outer one, and the edge ends level with its
+            // label, at (100,33).
             edgeLabelPosition: () => {
                 const html = htmlToString(demo.view('export default [[]];'))
                 assert(html.includes('<text x="35" y="46" text-anchor="middle" data-graph-edge-label="">0<'), html)
-                assert(html.includes('d="M60,46 L100,23"'), html)
+                assert(html.includes('d="M60,46 L100,33"'), html)
             },
             // A leaf inside a container is no node of its own: its value
             // sits in the port's row, in a cell right of the index, and no
@@ -222,6 +224,16 @@ export const proof = {
         examples: {
             // The demo opens on the first, which is its overview.
             init: () => assertEq(demo.init, examples[0][1]),
+            // A tree draws each container centred beside the ones it holds:
+            // the object under "d", 66px tall, sits halfway down the span
+            // of its two arrays, 210 to 336, at (210 + 336 - 66) / 2 = 240.
+            nestedTree: () => {
+                const source = assertNotNullish(examples.find(([name]) => name === 'Nested tree'))[1]
+                const html = htmlToString(demo.view(source))
+                assert(html.includes('<rect x="280" y="210" width="50" height="66" rx="4" data-graph-node=""'), html)
+                assert(html.includes('<rect x="280" y="290" width="50" height="46" rx="4" data-graph-node=""'), html)
+                assert(html.includes('<rect x="190" y="240" width="50" height="66" rx="4" data-graph-node=""'), html)
+            },
             // Every example draws, except the one that is there to show an
             // error.
             draw: () => {

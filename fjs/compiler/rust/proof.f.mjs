@@ -5,7 +5,7 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { assert, assertEq, assertNotNullish as assertDefined, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertNotNullish as assertDefined, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { generate, toRust } from './module.f.mjs'
 import { _rustOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.mjs'
@@ -15,8 +15,18 @@ import { htmlToString } from '../../media/html/module.f.mjs'
 const refusedByRust = ['An import', 'Logical not', 'Hex escape', 'typeof', 'Parse error']
 
 export const proof = {
+    structuralRefusals: () => {
+        for (const length of [-0, -1, 0.5, NaN, Infinity]) {
+            assertEq(assertError(toRust(['=>', length, [], 1])),
+                `no Rust spelling for this module: invalid function length: =>,${length},,1`)
+        }
+        /** @type {Exp} */
+        const shared = ['[]', []]
+        const result = toRust(['[]', [shared, ['=>', 0, [], shared]]])
+        assert(assertError(result).startsWith('no Rust spelling for this module: a node shared across a function boundary: '))
+    },
     throw: {
-        invalidLength: [-0, -1, 0.5, NaN, Infinity].map(length => () => toRust(['=>', length, [], 1])),
+        invalidLength: [-0, -1, 0.5, NaN, Infinity].map(length => () => generate(['=>', length, [], 1])),
         invalidBindingThroughGenerate: () => generate(['=>', 1, [], ['arg', 1]]),
         overLimitLengthThroughGenerate: () => generate(['=>', 17, [], 1]),
     },
@@ -283,14 +293,12 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assert(result[1].includes('pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {'), result)
         },
         /**
-         * A node shape the printer refuses — here, a `Number(...)` cast
-         * index, which names a run-time coercion rather than a literal key
-         * and has no `nanvm-lib` cast primitive to route it through — is a
-         * `Result` error against the output, not a thrown exception a
-         * compiler caller has to catch.
+         * A node the module scope refuses — here, an unlinked import
+         * argument — is a `Result` error against the output, not a
+         * thrown exception a compiler caller has to catch.
          */
         refused: () => {
-            const result = toRust(['.', ['{}', []], ['Number', 1]])
+            const result = toRust(['args'])
             assertEq(result[0], 'error')
             assert(typeof result[1] === 'string' && result[1].length > 0, result)
         },

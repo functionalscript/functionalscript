@@ -97,6 +97,7 @@ export const op1Rust = {
     '!': a => `!(${a})`,
     '~': a => `Any::bitwise_not(${a})`,
     typeof: a => `Any::typeof_(${a})`,
+    Number: a => `Any::number(${a})`,
     String: a => cat([`${a}.to_string().map(|v| v`, toAny, ')']),
     // The `Result` every operation answers, its `Err` arm: the thrown value
     // is the operand, and the enclosing `?` or function carries it out.
@@ -358,34 +359,22 @@ const primitiveExpr = v => {
  * An object key.
  *
  * An EDAG object key is an `exp` — one form for `a:`, `"a":`, and computed
- * `[exp]:` keys alike — and every producer of this printer's input lowers a
- * JavaScript property name, so the key is always the string literal
- * `string_key` takes. A computed one has no `nanvm-lib` spelling here and is
- * refused rather than approximated.
+ * `[exp]:` keys alike. A string literal is the `string_key` a property takes;
+ * any other key is computed, and `computed_item` coerces it.
  *
- * @type {(k: Exp) => Result<Printed<string>, readonly unknown[]>}
+ * @type {(k: string) => Printed<string>}
  */
-const keyExpr = k => typeof k === 'string' ? ok(stringCall('string_key')(k)) : error(['not a literal key', k])
+const literalKey = stringCall('string_key')
 
 /**
- * A `.` node's index, as the `Any<A>` key `Any::dot` takes: a literal
- * `number` or `string`, the two `Index` variants the read's own key type
- * (`number | string`) already covers directly.
+ * A literal `.` index, as the `Any<A>` key `Any::dot` takes: a `number` or a
+ * `string`, the two `Index` variants the read's own key type
+ * (`number | string`) covers directly. The third, `['Number', exp]`, is an
+ * operation, and the printer's own {@link index}.
  *
- * `NumberCast` — the remaining `Index` variant — names a sub-expression to
- * evaluate and coerce at run time (`a[Number(k)]`), not a literal key this
- * printer can spell directly, and there is no `Number(...)` cast primitive
- * here to route it through (`op1Rust` has `String` but no `Number`), so it
- * stays refused — a separate, larger task, the same way operators were kept
- * out of the printer that first landed `.`/`[]`.
- *
- * @type {(index: Index) => Result<Printed<string>, readonly unknown[]>}
+ * @type {(index: string | number) => Printed<string>}
  */
-const indexExpr = index => {
-    if (typeof index === 'string') { return ok(stringCall('string_any')(index)) }
-    if (typeof index === 'number') { return ok(numberExpr(index)) }
-    return error(['no Rust for a Number(...) cast index', index])
-}
+const literalIndex = index => typeof index === 'string' ? stringCall('string_any')(index) : numberExpr(index)
 
 /**
  * The indentation of one level of generated Rust: a scope's statements
@@ -454,6 +443,15 @@ const members = list => list.flatMap(x => isMember(x) ? /** @type {readonly unkn
 
 /** @type {(e: Exp) => boolean} */
 const isComma = e => e instanceof Array && e[0] === ','
+
+/**
+ * `true` for an object's entries holding a property whose key is not a
+ * string literal: its key is coerced when the entry is built, which can
+ * throw, so the entries go through `computed_item`'s `spread_object`.
+ *
+ * @type {(entries: readonly Properties[]) => boolean}
+ */
+const hasComputedKey = entries => entries.some(p => p[0] === ':' && typeof p[1] !== 'string')
 
 /**
  * `true` for an item list holding a spread, an `[]` node's or a call's:
@@ -784,8 +782,11 @@ const printer = nested => shared => root => {
         if (id === 'frame') { return plain(`A::frame(self_)[${a}].clone()`) }
         if (id === '[]' && !hasSpread(a)) { return arrayExpr(a) }
         if (id === '{}') {
+            // The corpus's bare expression has no Result-returning scope
+            // for computed_item's `?`. See todo/computed-key-corpus.md.
+            if (nested && hasComputedKey(a)) { return error(['no Rust for computed object keys in corpus mode; use scope', e]) }
             return a.length === 0 ? ok(cat([vm('Object'), '::default()', toAny]))
-                : hasSpread(a) ? flat(map1((/** @type {readonly string[]} */ items) => cat([unstable('spread_object'), `([${items.join(', ')}])`]))(all(a.map(
+                : hasSpread(a) || hasComputedKey(a) ? flat(map1((/** @type {readonly string[]} */ items) => cat([unstable('spread_object'), `([${items.join(', ')}])`]))(all(a.map(
                     (/** @type {Properties} */ p) => p[0] === '...' ? flat(map1(v => cat([unstable('spread_entries'), `(${v})`]))(f(p[1]))) : propertyExpr(unstable('property_item'))(p)))))
                 : flat(map1((/** @type {readonly string[]} */ items) => cat([`[${items.join(', ')}]`, toObject, toAny]))(all(a.map(propertyExpr(code(''))))))
         }
@@ -922,7 +923,7 @@ const printer = nested => shared => root => {
         // answers is the VM's: `null.a` throws when the module runs, as
         // JavaScript throws, and nothing here predicts it.
         if (isChain(id)) {
-            const open = id === '.' ? map2((fa, k) => `Any::dot(${fa}, ${k})`)(f(a), indexExpr(b))
+            const open = id === '.' ? map2((fa, k) => `Any::dot(${fa}, ${k})`)(f(a), index(b))
                 : id === '?.' ? map2((fa, k) => `Any::option_dot(${fa}, ${k})`)(f(a), keyThunk(b))
                 : map2((fa, t) => `Any::option_call(${fa}, ${t})`)(f(a), lazyOperand(b))
             return map2((o, rest) => `${o}${rest}`)(open, steps(id === '.')(c))
@@ -957,7 +958,8 @@ const printer = nested => shared => root => {
      * in `nanvm-lib`, so a step the README does not allow does not compile;
      * this printer only spells, and refuses a tag that is none of the four
      * rather than read it as one of them. A step's key is a thunk over a
-     * literal, {@link keyThunk}, and its arguments a {@link lazyOperand}:
+     * literal or `Number(…)` cast, {@link keyThunk}, and its arguments a
+     * {@link lazyOperand}:
      * both are inside the region, or after an access that may throw first.
      *
      * @type {(property: boolean) => (k: readonly any[] | undefined) => Result<Printed<string>, readonly unknown[]>}
@@ -973,13 +975,25 @@ const printer = nested => shared => root => {
         return map2((t, rest) => `.${method}(${t})${rest}`)(lazyOperand(x), terminal ? plain('') : steps(false)(next))
     }
     /**
-     * An index inside a region, as the thunk `option_dot` and the `|.` step
-     * take: `|| Ok(…)` around the literal key {@link indexExpr} spells,
-     * since a literal has nothing to bind and cannot throw.
+     * A `.` node's index as the key `Any::dot` takes: a literal's
+     * {@link literalIndex}, or the `Number(…)` cast of a sub-expression,
+     * `Any::number(k)?`, which is an operand like any other, evaluated after
+     * the receiver and before the access, with JavaScript's `Number(k)`
+     * coercion (including bigint conversion).
      *
      * @type {(index: Index) => Result<Printed<string>, readonly unknown[]>}
      */
-    const keyThunk = index => map1(k => `|| Ok(${k})`)(indexExpr(index))
+    const index = i => typeof i === 'object' ? f(i) : ok(literalIndex(i))
+    /**
+     * An index inside a region, as the thunk `option_dot` and the `|.` step
+     * take: `|| Ok(…)` around a literal, which has nothing to bind and
+     * cannot throw, and a `Number(…)` cast's own thunk, {@link lazyOperand},
+     * since the cast and its operand are inside the region and run only if
+     * the guard lets them.
+     *
+     * @type {(index: Index) => Result<Printed<string>, readonly unknown[]>}
+     */
+    const keyThunk = i => typeof i === 'object' ? lazyOperand(i) : ok(cat(['|| Ok(', literalIndex(i), ')']))
     /** An operand, parenthesized where its rendering would otherwise re-associate. */
     /** @type {(e: Exp) => Result<Printed<string>, readonly unknown[]>} */
     const operand = e => map1(s => composed(e) ? `(${s})` : s)(f(e))
@@ -1083,9 +1097,13 @@ const printer = nested => shared => root => {
      *
      * @type {(call: Printed<string>) => (p: Properties) => Result<Printed<string>, readonly unknown[]>}
      */
-    const propertyExpr = call => p => p[0] !== ':'
-        ? error(['not a property', p])
-        : flat(map2((k, v) => cat([call, `(${k}, ${v})`]))(keyExpr(p[1]), f(p[2])))
+    const propertyExpr = call => p => {
+        if (p[0] !== ':') { return error(['not a property', p]) }
+        const [, k, v] = p
+        return typeof k === 'string'
+            ? flat(map1(x => cat([call, '(', literalKey(k), `, ${x})`]))(f(v)))
+            : flat(map2((x, y) => cat([unstable('computed_item'), `(${x}, ${y})?`]))(f(k), f(v)))
+    }
     return ok({ f, block })
 }
 
@@ -1094,6 +1112,11 @@ const printer = nested => shared => root => {
  * the `Result` it answers and its eager nodes nested as written, over the
  * corpus's own named bindings: one operation per statement handed to a
  * checker.
+ *
+ * Constructing a computed-key object is refused in this mode: its key
+ * coercion needs a Result-returning scope, which a bare corpus expression
+ * does not supply. Use {@link scope} or {@link statementsOf} for it; corpus
+ * integration is tracked in [computed-key-corpus](./todo/computed-key-corpus.md).
  *
  * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => Result<string, readonly unknown[]>}
  */

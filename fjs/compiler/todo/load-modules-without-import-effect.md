@@ -18,6 +18,16 @@ parser, AST-to-EDAG lowering, linker and validated
 and returns its complete export object. It does not call exported functions;
 the test runner or CLI selects and invokes an entry separately.
 
+The [EdagValue proposal](../../edag/todo/edag-value.md) owns the planned
+representation: loading returns a represented export object through
+`Result<EdagValue, EdagValue>`, and VM invocation consumes represented values.
+Callers needing ordinary FJS runtime values use the separate
+[target materialization boundary](../../edag/todo/edag-value.md#compilation-and-conversion-to-unknown)
+to produce `unknown` with reflection erased. Callable graphs require generated
+or precompiled runtime code; loading and VM invocation keep represented values.
+After migration, language throws propagate as explicit `Result` errors.
+Module evaluation needs no `sandbox` capture or host test adapter.
+
 Source-level `import` remains part of the language. This workflow needs neither
 a host `import` effect nor an effect that converts EDAG into a native function.
 It accepts the compiler-supported FJS subset, not arbitrary JavaScript or host
@@ -70,26 +80,19 @@ while they proceed. This plan does not approve new language semantics.
 
 ### Execution boundary
 
-Evaluation uses a host implementation of the existing `sandbox` effect to
-capture the module's export object or a language throw in `SandboxResult`,
-including duration. On Node, reuse the
-[common host handler](../../effects/common/module.mjs); Rust supplies the
-[native handler](../../../todo/nanvm-effects-node.md). File, resolution and
-parse failures keep their existing error channels. Resource limits belong to
+Evaluation returns `Result<EdagValue, EdagValue>` directly. A successful result
+contains the represented module export object; an initialization failure
+contains its represented payload. File, resolution and parse failures keep
+their existing error channels. Resource limits belong to
 [interpreter hardening](./bound-edag-interpreter-resources.md).
 
-In-memory files do not make execution pure. The existing
-[virtual runner](../../effects/node/virtual/module.f.mjs) implements `sandbox`
-as a fixture pass-through: its thunk must return a prebuilt `SandboxResult`,
-and an actual throw escapes. It cannot sandbox interpreter evaluation.
-
-For Node integration tests with in-memory modules, add a thin host `.mjs`
-adapter that combines virtual file/resolution handlers with the common host
-`sandbox` handler. Run the actual evaluator through that handler, so both file
-and in-memory fixtures exercise real value/throw capture. Keep the pure virtual
-runner's precomputed results for fixture-based unit tests; they do not establish
-loader execution parity. Handler composition belongs to the test adapter, with
-parsing, linking and evaluation still owned by the shared FJS pipeline.
+Use the existing [virtual runner](../../effects/node/virtual/module.f.mjs) for
+file and resolution effects in FunctionalScript proofs. Execute the actual
+parser, linker and evaluator over those fixtures, and assert their successful
+and failing results. The evaluator handles language failures as data, so these
+proofs need neither precomputed sandbox results nor a new host adapter. Tests
+of ordinary runtime code produced by materialization belong to that separate
+target boundary.
 
 ### Tasks
 
@@ -107,13 +110,13 @@ parsing, linking and evaluation still owned by the shared FJS pipeline.
 - [ ] Rewrite runtime string-key dispatch in the operations and analysis modules
       to admitted tag branching. Cover every supported tag and preserve lazy
       operand demand and scope validation in host and eventual native proofs.
-- [ ] Add the host test adapter for virtual file/resolution effects and real
-      `sandbox` execution. Prove that module evaluation returns the complete
-      export object inside a successful `SandboxResult`, and that a module
-      throwing during evaluation produces its error result rather than escaping.
-- [ ] Run the loader on Node with file effects and with the in-memory adapter,
-      using actual successful and throwing modules in both. Check the shared
-      result/duration contract without requiring identical measured durations.
+- [ ] Prove the loader with virtual file/resolution effects and actual
+      evaluation: success returns the complete represented export object,
+      and a module throwing during initialization returns its error payload.
+      Keep these cases in FunctionalScript proofs.
+- [ ] Run the loader on Node with file effects and with the virtual runner,
+      using actual successful and failing modules in both. Check equivalent
+      represented results, failures and sharing.
       After the native semantic prerequisites and compiler coverage are complete,
       run the same fixtures through its AOT-compiled dependency closure and
       compare native results, failures and sharing with Node.
@@ -127,6 +130,6 @@ parsing, linking and evaluation still owned by the shared FJS pipeline.
 - [interpret-edag](./interpret-edag.md) — owns the executor and public validation.
 - [compile-modules-to-edag](./compile-modules-to-edag.md) — owns linked graphs.
 - [nanvm-effects-node](../../../todo/nanvm-effects-node.md) — low-level native
-  effects, including `sandbox`.
+  file and resolution effects; represented evaluation needs no sandbox capture.
 - [console-program](../../../nanvm-lib/todo/console-program.md) — native embedding
   and its separate CLI entry-selection question.

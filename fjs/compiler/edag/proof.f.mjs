@@ -23,7 +23,7 @@ import { validate } from '../../rtti/validate/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 
@@ -136,7 +136,7 @@ const expectElseChain = depth => exp => {
 const lowered = entry => _defaultExport(unresolved([[], [entry, ['object', [[':', 'default', ['cref', 0]]]]]]).edag)
 
 /** @type {(graph: Exp) => unknown} */
-const execute = graph => memo(analysis(graph))({ frame: null, args: [] })
+const execute = graph => memo(assertOk(analysis(graph)))({ frame: null, args: [] })
 
 export const proof = {
     namedImports: {

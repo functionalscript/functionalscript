@@ -18,6 +18,52 @@ consume it — the [FunctionalScript](../compiler/) compiler lowering parsed mod
 interpreter and Rust code generation executing it — and the dependency is
 one-way by design: `fjs/edag` imports nothing from them.
 
+[`value`](value/module.f.mjs) defines the evaluated-value subset's type and
+shape schema: data and functions with evaluated captures and unevaluated
+bodies. Value operations and executor migration remain in
+[the value plan](todo/edag-value.md).
+[`validateMetadata`](value/metadata/module.f.mjs) checks unique, correctly
+ordered object keys in evaluated data and captures,
+preserving value identity.
+[`validateClosure`](value/closure/module.f.mjs) checks closure bindings,
+function-body scopes and function lengths, including nested function creation,
+and also preserves value identity. These checks require shape-checked FJS data
+and serve explicit boundaries accepting EDAG supplied as data. VM constructors
+must maintain the value invariants directly, without revalidating every result.
+FJS data is acyclic by construction, so it needs no cycle preflight.
+
+[`value/semantics`](value/semantics/module.f.mjs) provides truthiness, `typeof`,
+strict equality and `Object.is` for represented values. Distinct
+`['undefined']` tuples denote the same primitive; arrays, objects and functions
+compare by their value-node identity. These infallible helpers are shared
+building blocks for the planned VM operation layer.
+
+[`value/control`](value/control/module.f.mjs) adds Result-based `throw`, `&&`,
+`||`, `??` and `?:`. It takes an evaluated first operand and defers the rest
+with thunks. Failures propagate unchanged, and selected results preserve
+value identity. The helpers provide stateless control flow; executor state
+belongs to the invocation/cache layer.
+
+[`value/array`](value/array/module.f.mjs) constructs evaluated arrays from
+deferred items, resolving array and string spreads in order. Construction
+stops at the first failure, preserves element identity and creates a fresh
+array value. A non-iterable spread returns `error(['undefined'])`.
+
+[`value/object`](value/object/module.f.mjs) constructs evaluated objects from
+deferred string-key properties and object, array and string spreads. It
+preserves property value identity, stops at the first failure and creates a
+fresh object with unique keys in JavaScript enumeration order. Property
+thunks perform key resolution before value evaluation; key coercion belongs
+to the operation/invocation layer.
+
+[`value/function`](value/function/module.f.mjs) constructs function values
+from deferred captures and valid body templates. Captures evaluate in order,
+retaining their identities and propagating the first failure unchanged.
+Each function gets a fresh copy of its body graph, including nested function
+templates, while sharing within that graph is preserved. Body code stays
+unevaluated; captured values stay outside the copy. Invocation remains part
+of the executor migration.
+
 "No normal form" is a statement about the module as a whole, not a licence for
 each node kind to admit several spellings of one thing. Where a set of
 spellings *can* be cut down to one in the schema, it is: [Chains](#chains) is
@@ -48,7 +94,11 @@ operand is evaluated, so that every executor means the same by a node.
 a graph into one table — every operation node once, in walk order, its
 operands by index, its scope, and which entries are shared — so that a
 writer can hoist what is shared and an executor can cache it without a
-structure keyed by node identity; [memo](memo/module.f.mjs) is that
+structure keyed by node identity. It returns `Result<Analysis, string>`:
+structural failures, such as a node shared across function scopes or a
+noncanonical function length, return a diagnostic. Complete executable
+graphs additionally use `bindingError` to check their invocation bindings.
+[memo](memo/module.f.mjs) is that
 executor, JavaScript-compatible, every shared entry evaluated once per
 scope. The broader identity and memoization
 choices, including JS-compatible executors, global memoization, and the CAVM,
@@ -422,13 +472,12 @@ need it.
 
 - Neither `validate` nor `parse` is identity-aware, each in its own way:
   `validate` returns the original value — sharing intact — but re-walks a
-  shared subgraph once per incoming edge (exponential in depth) and
-  overflows the stack on a cycle instead of rejecting it; `parse` rebuilds
-  every container, so sharing is lost —
+  shared subgraph once per incoming edge (exponential in depth); `parse`
+  rebuilds every container, so sharing is lost —
   [identity-aware-parse.md](../rtti/todo/identity-aware-parse.md).
   So `validate` is shape validation, not complete EDAG validation:
-  identity-dependent canonicality — acyclicity, and the rule that an
-  operation-node identity may be shared only within one function's scope,
+  identity-dependent canonicality — the rule that an operation-node
+  identity may be shared only within one function's scope,
   never across a `=>` boundary — goes unchecked. The Stage 2 validator for
   that boundary is tracked in
   [compile-modules-to-edag.md](../compiler/todo/compile-modules-to-edag.md).
