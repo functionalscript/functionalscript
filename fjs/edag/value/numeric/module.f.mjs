@@ -5,8 +5,8 @@
  *
  * Binary addition concatenates if either primitive is a string. Otherwise
  * binary arithmetic applies ToNumeric to both operands: numbers and bigints
- * cannot mix, and bigint division/remainder cannot use a zero divisor.
- * These implicit failures return tagged undefined.
+ * cannot mix. Bigint division/remainder by zero and exponentiation with a
+ * negative exponent fail with tagged undefined.
  * Binary &, | and ^ use signed 32-bit numbers or exact bigints after
  * the same primitive conversion and numeric-type check.
  *
@@ -52,7 +52,7 @@ const numeric = (number, bigint) => (a, b) => {
 
 const add = numeric((a, b) => a + b, (a, b) => ok(a + b))
 
-/** @type {Readonly<Record<'+' | '-' | '*' | '/' | '%' | '&' | '|' | '^', (a: Primitive, b: Primitive) => Result<string | number | bigint, EdagValue>>>} */
+/** @type {Readonly<Record<'+' | '-' | '*' | '/' | '%' | '**' | '&' | '|' | '^', (a: Primitive, b: Primitive) => Result<string | number | bigint, EdagValue>>>} */
 export const binary = {
     '+': (a, b) => typeof a === 'string' || typeof b === 'string'
         ? ok(primitiveToString(a) + primitiveToString(b))
@@ -61,6 +61,7 @@ export const binary = {
     '*': numeric((a, b) => a * b, (a, b) => ok(a * b)),
     '/': numeric((a, b) => a / b, (a, b) => b === 0n ? error(['undefined']) : ok(a / b)),
     '%': numeric((a, b) => a % b, (a, b) => b === 0n ? error(['undefined']) : ok(a % b)),
+    '**': numeric((a, b) => a ** b, (a, b) => b < 0n ? error(['undefined']) : ok(a ** b)),
     '&': numeric((a, b) => a & b, (a, b) => ok(a & b)),
     '|': numeric((a, b) => a | b, (a, b) => ok(a | b)),
     '^': numeric((a, b) => a ^ b, (a, b) => ok(a ^ b)),
