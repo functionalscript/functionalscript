@@ -26,18 +26,20 @@ if (next === null || next === root.ownerDocument.activeElement) { return }
 ```
 
 The lookup interpolates `name` into a selector unescaped, so a control
-whose name contains a quote or a backslash breaks all three; one copy
-fixed would leave two.
+whose name contains a quote, a backslash or a line break breaks all
+three — the last makes `querySelector` throw, which aborts the render;
+one copy fixed would leave two.
 
 ### Proposal
 
-A `byName(root, name)` lookup, once, over an attribute selector whose
-value is quoted by a pure `quoted(name)` that escapes the backslash and
-the double quote — the two characters that end or alter a double-quoted
-attribute string — rather than the platform's `CSS.escape`: the module's
-proof runs under `node --test`, where there is no `CSS` global, against
-a stand-in root, and a hand-written escape is provable there while a
-realm-provided one is not. Then one record per kind of memory:
+A `byName(root, name)` lookup, once, that never puts the name into
+selector text: it takes `root.querySelectorAll('[name]')`, which the
+capture side already walks, and returns the first element whose `name`
+property equals the name. No escaping rule is then needed — not for
+quotes, backslashes or line breaks, and not the platform's `CSS.escape`,
+which the module's proof could not reach anyway, since it runs under
+`node --test` with no `CSS` global against a stand-in root. Then one
+record per kind of memory:
 
 ```ts
 type FieldMemory<V> = {
@@ -52,8 +54,8 @@ scroll — by one fold over the three records.
 
 ### Tasks
 
-- [ ] `quoted` and `byName`, proved under `node --test` with a name
-      holding a quote; the three `FieldMemory` records; `render` over
-      them.
+- [ ] `byName` by property comparison, proved under `node --test` with
+      names holding a quote and a line break; the three `FieldMemory`
+      records; `render` over them.
 - [ ] The demos in the browser still keep focus, size and scroll across a
       render; preview links in the PR.
