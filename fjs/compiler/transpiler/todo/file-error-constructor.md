@@ -25,9 +25,13 @@ export const _missingExport = ({ path, name }) => ({ message: `module has no ${n
 ### Proposal
 
 One constructor, exported from [`module.f.mjs`](../module.f.mjs) here,
-or from the parser's runtime module beside the other `ParseError`
-constructors. Not from `parser/types.ts`: that file is the type-level
-API and carries no runtime value.
+the transpiler: it is where all but one of the sites live, and the one
+in `edag`'s `link` already imports from the transpiler for
+`_missingExport` and `_attributeError`, so the constructor joins the
+exports that module reaches for today. Not from the parser's runtime
+module, which has no file-level site of its own, and not from
+`parser/types.ts`, which is the type-level API and carries no runtime
+value.
 
 ```ts
 /** An error about a file, not a token: it has a path and no position. */
@@ -43,8 +47,8 @@ signatures do not change; only the literal does.
 
 ### Tasks
 
-- [ ] `_fileError`; the sites through it, each keeping its wrapper
-      and its signature.
+- [ ] `_fileError` in the transpiler; the sites through it, each
+      keeping its wrapper and its signature.
 - [ ] `tsc`, `fjs test`.
 
 ### Related
