@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** wip — materialize function-free runtime values; callable conversion, invocation and VM migration remain open
+**Status:** open — function-free runtime materialization implemented; callable conversion, invocation and VM migration remain open
 
 ### Problem
 
@@ -340,9 +340,15 @@ budget or stopped-outcome API.
       `Result<EdagValue, EdagValue>`, with immutable state and admitted methods.
 - [ ] Migrate Amnesia and memo, preserving each documented execution model;
       migrate their proofs, the `fjs/nanvm` corpus and parameter consumers.
-- [ ] Implement target runtime materialization to `unknown`: function-free data
-      conversion and backend-generated/precompiled callable construction,
-      runtime arguments/results, reflection erasure, failure behavior and
+- [x] Materialize function-free values in `fjs/edag/value/to_unknown` as
+      ordinary runtime data typed as `unknown`. Decode tagged undefined,
+      arrays and own object fields while preserving shared container identities
+      and distinct equal-looking nodes. Each conversion allocates fresh
+      containers. An encountered function returns an output diagnostic;
+      constructed value invariants are trusted, with no reverse admission.
+- [ ] Implement callable runtime materialization to `unknown` through
+      backend-generated/precompiled construction, runtime arguments/results,
+      reflection erasure, failure behavior and
       identity preservation. Prove `f => f(1)` accepts an ordinary callback
       with no EDAG association, and refuse unavailable callable materialization.
 - [ ] Execute resolved module initializers into export value graphs; migrate
