@@ -10,8 +10,10 @@ The planned value contract is
 for language values and returns `Result<EdagValue, EdagValue>`. Host-valued
 execution and arrow factories below describe the current baseline. Integration
 must migrate that baseline and convert explicitly at APIs exposing `unknown`:
-ordinary FJS runtime values with EDAG reflection erased. Public validation,
-immutable state and native prerequisites remain required.
+ordinary FJS runtime values with EDAG reflection erased. Validation at the
+entry for separately supplied EDAG data, immutable state and native
+prerequisites remain required. Compiler and VM results maintain their
+invariants by construction; they need no repeated admission pass.
 
 **Compiler dependency:** [`compile-modules-to-edag.md`](./compile-modules-to-edag.md)
 provides the linked graphs. Its initial rest-only, non-capturing Stage 2 is
@@ -55,20 +57,22 @@ the shared [`operations`](../../edag/operations/module.f.mjs) and
 its remaining entry-point and integration work, not a second interpreter for an
 older function representation.
 
-The public final-EDAG entry owns validation of code supplied as data, including
-graphs not emitted by the compiler. The
+An entry accepting final EDAG supplied as immutable FJS data owns validation
+of that input, including malformed tuples not emitted by the compiler. The
 [total-validation invariant](../../../todo/edag-stage1-discussion.md#5-validation)
-applies before interpretation on both Node and Rust. `memo` consumes analyzed
-input; its internal assertions are not that public validation boundary. Complete
-the entry checks below and refuse unsupported input explicitly; a native
-`Function` constructor is not needed to provide this boundary.
+applies at that admission boundary on both Node and an AOT-compiled FJS entry
+in Rust. Check shape, metadata, bindings and scopes once, retaining graph
+sharing. FJS immutability already guarantees acyclicity; this entry does not
+accept arbitrary host-mutated objects. `memo` consumes analyzed input; its
+internal assertions are not that public boundary. Compiler-produced graphs
+maintain their invariants by construction. Do not add arbitrary `unknown`
+admission or cycle preflight as a prerequisite to interpreter migration.
 
 Conceptually:
 
 ```text
 source modules
-  -> resolve to final EDAG
-  -> validate EDAG
+  -> resolve to valid final EDAG
   -> interpret EDAG
   -> value
 ```
@@ -151,8 +155,7 @@ migrate that value-producing path to use EDAG internally. Under the planned
 
 ```text
 source modules
-  -> final EDAG
-  -> validate EDAG
+  -> valid final EDAG
   -> interpret EDAG into Result<EdagValue, EdagValue>
   -> success: complete represented export object
      -> runtime-value API: materialize the complete runtime export object
@@ -197,8 +200,10 @@ hardening TODO after the baseline interpreter exists.
 - [ ] Before native self-hosting, complete the
       [immutable-cache rewrite](../../edag/memo/todo/immutable-cache.md) and its
       sharing/laziness parity checks; this does not block host-only integration.
-- [ ] Complete public final-EDAG entry validation before interpretation. Existing
-      analysis and `bindingError` checks do not close every validation task below.
+- [ ] At the entry accepting final EDAG supplied as FJS data, check the
+      remaining constructible malformed shapes, metadata and bindings once
+      before interpretation. Preserve sharing and reuse analysis; do not
+      revalidate compiler or VM output or add host-input cycle checks.
 - [x] Interpret EDAG operations directly; do not generate JavaScript from EDAG and run
       it through the host JavaScript engine.
 - [x] Support `['.', object, property]` property access.

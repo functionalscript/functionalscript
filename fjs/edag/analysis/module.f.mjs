@@ -43,9 +43,8 @@
  * **Refused.** A node reached from two scopes, which the compiler never
  * emits and the EDAG's scope rule forbids, returns an error rather than
  * exposing a table an executor could not honor. Noncanonical function
- * lengths are also errors. Input must be shape-checked and acyclic: a
- * cycle is not an EDAG and not a value FunctionalScript can build; on one
- * the walk overflows the stack, as `validate` does.
+ * lengths are also errors. Input must be shape-checked FJS data; immutable
+ * FunctionalScript construction guarantees that its value graph is acyclic.
  *
  * The accumulators are immutable and copied per node, so a build is
  * quadratic in the node count — the sizes compiled today, not a design
@@ -415,7 +414,7 @@ const places = (root, nodes) => nodes.reduceRight(
  *
  * Structural failures return the first diagnostic instead of a partial table.
  * Binding checks remain separate for consumers of complete executable graphs.
- * Requires shape-checked, acyclic input.
+ * Requires shape-checked FJS data.
  *
  * @type {(e: Exp) => Result<Analysis, string>}
  */
@@ -431,16 +430,28 @@ export const analysis = e => {
     })
 }
 
+/** Whether an entry belongs to a function or a nested body it creates. @type {(scope: readonly number[], root: number, i: number) => boolean} */
+const withinScope = (scope, root, i) => {
+    while (i !== root && i !== -1) { i = scope[i] }
+    return i === root
+}
+
 /**
  * Validate invocation bindings after scopes have been assigned, and each
  * function's length against the language's limit. Analysis also serves
  * isolated compiler fragments, so executable consumers call this once on the
  * complete graph. Frames keep their enclosing scope: a slot read names the
  * frame of the function whose body holds it, and a module has none.
- * @type {(a: Analysis) => string | null}
+ * An optional function entry limits checks to that function and the body
+ * scopes it creates. Its captures belong to the enclosing scope and are
+ * excluded, including captured functions' bodies. The index must name a
+ * `=>` entry in a table returned by analysis; omitted, checks cover the
+ * complete graph.
+ * @type {(a: Analysis, root?: number) => string | null}
  */
-export const bindingError = ({ nodes, scope }) => {
+export const bindingError = ({ nodes, scope }, root = -1) => {
     for (const [i, node] of nodes.entries()) {
+        if (root !== -1 && !withinScope(scope, root, i)) { continue }
         const owner = scope[i] === -1 ? null : nodes[scope[i]]
         if (node[0] === 'args' && owner !== null) { return 'module args in a function' }
         if (node[0] === 'rest' && owner === null) { return 'the arguments outside a function' }

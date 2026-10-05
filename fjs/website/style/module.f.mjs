@@ -409,6 +409,23 @@ a:hover > [data-railroad-box="nonTerminal"] { fill: var(--pass-bg) }
    the page. */
 [data-code], [data-result] { border: 1px solid var(--border); border-radius: 6px; overflow-wrap: anywhere; padding: .5rem .75rem; white-space: pre-wrap }
 [data-code] { background: color-mix(in srgb, var(--border) 30%, var(--bg)) }
+[data-code-block] { position: relative; margin-block: 1em; padding-right: 3rem }
+[data-code-block] > pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere }
+[data-code-block] > button { position: absolute; top: .25rem; right: .25rem; display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; padding: .125rem; border: 0; border-radius: .25rem; background: transparent; color: var(--muted) }
+[data-code-block] > button:hover:enabled { background: transparent; color: var(--text) }
+[data-code-block] > button:focus-visible { outline: 2px solid var(--value); outline-offset: 2px }
+[data-code-block] > button > svg { width: 20px; height: 20px }
+[data-copy-status] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap }
+[data-code-block] > button > [data-copy-check] { display: none }
+[data-code-block] > button[data-copy-feedback="copied"], [data-code-block] > button[data-copy-feedback="copied"]:hover:enabled { color: var(--pass) }
+[data-code-block] > button[data-copy-feedback="copied"] > svg { display: none }
+[data-code-block] > button[data-copy-feedback="copied"] > [data-copy-check] { display: block }
+[data-copy-feedback] > [data-copy-status] { right: -3px; bottom: calc(100% + 8px); width: auto; height: auto; overflow: visible; clip-path: none; padding: 5px 9px; background: black; color: white; border-radius: 5px; font-size: 12px; font-weight: 500; box-shadow: 0 2px 6px #00000018; pointer-events: none }
+[data-copy-feedback] > [data-copy-status]::after { content: ''; position: absolute; top: 100%; right: 10px; border: 5px solid transparent; border-top-color: black }
+@media (prefers-color-scheme: dark) {
+    [data-copy-feedback] > [data-copy-status] { background: #e8eaed; color: #202124 }
+    [data-copy-feedback] > [data-copy-status]::after { border-top-color: #e8eaed }
+}
 [data-result="ok"] { background: var(--pass-bg); border-color: color-mix(in srgb, var(--pass) 40%, transparent); color: var(--pass) }
 [data-result="error"] { background: var(--fail-bg); border-color: color-mix(in srgb, var(--fail) 40%, transparent); color: var(--fail) }
 /* A choice between code blocks — the rtti demo's pair of schemas — shows

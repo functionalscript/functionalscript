@@ -1,6 +1,7 @@
 /**
  * Evaluated EDAG value forms. Shape/schema agreement is checked here;
- * closedness, canonical metadata and graph scope remain admission obligations.
+ * constructors establish closedness, canonical metadata and graph scope;
+ * explicit boundaries accepting EDAG data validate those invariants.
  *
  * @module
  */

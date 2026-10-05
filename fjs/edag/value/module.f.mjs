@@ -4,9 +4,11 @@
  * existing vocabulary; computation nodes occur only inside function bodies.
  *
  * Shape checks do not establish closed-graph validity or canonical metadata.
- * `metadata/module.f.mjs` checks evaluated function lengths and object keys;
+ * `metadata/module.f.mjs` checks evaluated object keys;
  * `closure/module.f.mjs` checks body scopes, bindings and function lengths.
- * Acyclic admission remains in `../todo/edag-value.md`. Use `validate`
+ * These helpers validate supplied FJS data at an explicit EDAG boundary;
+ * VM constructors maintain the invariants directly. FJS data is acyclic by
+ * construction. Use `validate`
  * to retain input identity; `parse` rebuilds containers, as documented in
  * `../../rtti/todo/identity-aware-parse.md`.
  *

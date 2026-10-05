@@ -312,8 +312,8 @@ export const proof = {
             // still look like a digest.
             assertEq(digest('1234'), '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4')
         },
-        // Typing replaces the text; every other event leaves it alone, which
-        // is what `start` is for — a first render with nothing typed yet.
+        // Typing replaces the text, selecting replaces the algorithm, and every
+        // other event leaves both alone.
         update: () => {
             /**
              * **`runPure` and not a call.** An effect is a `Pure` thunk or a
@@ -321,26 +321,44 @@ export const proof = {
              * reached a value without asking for an operation, which is what
              * `O = never` claims.
              *
-             * @type {(event: DemoEvent) => (state: string) => string}
+             * @type {(event: DemoEvent) => (state: typeof demo.init) => typeof demo.init}
              */
             const step = event => state => unwrap(assertNotNullish(
                 runPure(demo.update(state)(event))[0],
                 'expected the demo to reach a value without asking for an operation'))
-            assertEq(step({ kind: 'input', name: 'text', value: 'hello' })(''), 'hello')
-            assertEq(step({ kind: 'start' })('kept'), 'kept')
+            assertEq(
+                JSON.stringify(step({ kind: 'input', name: 'text', value: 'hello' })(demo.init)),
+                JSON.stringify({ algorithm: 'SHA-256', text: 'hello' }))
+            assertEq(
+                JSON.stringify(step({ kind: 'input', name: 'algorithm', value: 'SHA-512' })(demo.init)),
+                JSON.stringify({ algorithm: 'SHA-512', text: '' }))
+            assertEq(JSON.stringify(step({ kind: 'start' })(demo.init)), JSON.stringify(demo.init))
+            assertEq(JSON.stringify(step({ kind: 'input', name: 'other', value: 'ignored' })(demo.init)), JSON.stringify(demo.init))
         },
         /**
-         * **The field carries a `name`, and that is the contract.** It is what
-         * comes back as the event's `name`, so a demo tells its fields apart
-         * without ever holding a DOM node.
+         * **The fields carry names, and that is the contract.** They come back
+         * as the event's `name`, so the demo tells the selector and text input
+         * apart without ever holding a DOM node.
          */
         view: () => {
             const empty = htmlToString(demo.view(demo.init))
+            assert(empty.includes('name="algorithm"'), empty)
             assert(empty.includes('name="text"'), empty)
             assert(empty.includes(digest('')), empty)
-            const typed = htmlToString(demo.view('hello'))
+            assert(empty.includes('openssl dgst -sha256'), empty)
+            const typed = htmlToString(demo.view({ algorithm: 'SHA-256', text: 'hello' }))
             assert(typed.includes('value="hello"'), typed)
             assert(typed.includes(digest('hello')), typed)
+            assert(typed.includes("<pre>printf '%s' 'hello' | openssl dgst -sha256</pre>"), typed)
+            assert(typed.includes('aria-label="Copy digest"'), typed)
+            assert(typed.includes('aria-label="Copy OpenSSL command"'), typed)
+            const quoted = htmlToString(demo.view({ algorithm: 'SHA-256', text: "a'b $HOME `whoami` \\" }))
+            assert(quoted.includes("<pre>printf '%s' 'a'\\''b $HOME `whoami` \\' | openssl dgst -sha256</pre>"), quoted)
+            const sha512 = htmlToString(demo.view({ algorithm: 'SHA-512', text: 'hello' }))
+            assert(sha512.includes('openssl dgst -sha512'), sha512)
+        },
+        throw: {
+            unknownAlgorithm: () => { demo.view({ algorithm: 'unknown', text: 'hello' }) },
         },
     },
 }

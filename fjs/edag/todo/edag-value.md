@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — value metadata and closure/body checks implemented; acyclic admission and VM migration remain open
+**Status:** open — value shape, object metadata and closure/body checks implemented; value operations and VM migration remain open
 
 ### Problem
 
@@ -55,6 +55,22 @@ For example, evaluating `(a => b => a + b)(2)` produces:
 ```
 
 The capture is a value; the addition is code to execute on invocation.
+
+#### Construction and supplied data
+
+Value operations preserve shape, normalized properties, closedness and scope
+by construction. Trust those invariants when consuming a compiler or VM result;
+do not add a validation pipeline to every result or make a new admission API a
+prerequisite for VM migration. Immutable FJS construction already guarantees
+acyclic container graphs.
+
+A separate entry that accepts EDAG or encoded values supplied as FJS data
+checks the rules that construction alone does not guarantee: tuple shape,
+metadata, bindings and scope. Reuse the existing checks once at that entry,
+preserving node sharing. A malformed frame index or a body shared across
+distinct function scopes is constructible in FJS; a host-mutated cycle is
+outside this input contract. The interpreter plan owns its supplied-code
+boundary; this migration does not introduce arbitrary host-input admission.
 
 #### Identity and function scopes
 
@@ -188,6 +204,7 @@ EDAG. Returning a function also produces an ordinary runtime function.
 This conversion intentionally loses reflection. It promises neither recovery
 of the original EDAG from `unknown` nor automatic reverse conversion; exposing
 an EDAG property or requiring a function registry is not part of its API.
+Its outbound direction creates no `unknown -> EdagValue` admission requirement.
 Runtime materialization is separate from the FJS VM's value representation.
 Materialize callable graphs through a supported backend: emit a normal FJS/JS
 module or Rust construction code, then load/build it in the target runtime.
@@ -242,19 +259,14 @@ budget or stopped-outcome API.
       boundaries and required migration end state.
 - [x] Add the `EdagValue` type and RTTI shape schema in `fjs/edag/value`, with
       type-level subset checks and proofs of recursive value forms.
-- [x] Check canonical function lengths and normalized object properties in
-      evaluated data and captures via `fjs/edag/value/metadata`. Diagnostics use
-      RTTI paths/messages; successful checks preserve the original value graph.
+- [x] Check normalized object properties in separately supplied evaluated data
+      and captures via `fjs/edag/value/metadata`. Diagnostics use RTTI
+      paths/messages; successful checks preserve the original value graph.
 - [x] Check closure bindings, function-body scope separation and function
       lengths throughout the graph via `fjs/edag/value/closure`. Reuse EDAG
       analysis and binding checks; return string diagnostics while retaining
       the original value graph. Body object expressions keep construction
       semantics rather than evaluated-object normalization rules.
-- [ ] Complete graph admission from unknown input, including acyclicity and
-      remaining EDAG canonicality, such as comma-root rules. Compose shape,
-      evaluated metadata and closure/body validation without losing sharing.
-      The current checks require shape-checked, acyclic input; they do not
-      provide a complete public admission boundary.
 - [ ] Implement shared value operations and invocation over
       `Result<EdagValue, EdagValue>`, with immutable state and admitted methods.
 - [ ] Migrate Amnesia and memo, preserving each documented execution model;
