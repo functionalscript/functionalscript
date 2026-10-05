@@ -49,6 +49,13 @@ deferred items, resolving array and string spreads in order. Construction
 stops at the first failure, preserves element identity and creates a fresh
 array value. A non-iterable spread returns `error(['undefined'])`.
 
+[`value/object`](value/object/module.f.mjs) constructs evaluated objects from
+deferred string-key properties and object, array and string spreads. It
+preserves property value identity, stops at the first failure and creates a
+fresh object with unique keys in JavaScript enumeration order. Property
+thunks perform key resolution before value evaluation; key coercion belongs
+to the operation/invocation layer.
+
 "No normal form" is a statement about the module as a whole, not a licence for
 each node kind to admit several spellings of one thing. Where a set of
 spellings *can* be cut down to one in the schema, it is: [Chains](#chains) is

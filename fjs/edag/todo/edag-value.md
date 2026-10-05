@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** wip — value shape, metadata, closure checks, basic semantics, control flow and array construction implemented; object construction is the next step; invocation and VM migration remain open
+**Status:** open — value shape, metadata, closure checks, basic semantics, control flow and array/object construction implemented; invocation and VM migration remain open
 
 ### Problem
 
@@ -279,6 +279,12 @@ budget or stopped-outcome API.
       elements and array/string spreads. Evaluate items in order, propagate
       the first failure unchanged, fail non-iterable spreads with tagged
       undefined, preserve element identity and create a fresh array value.
+- [x] Construct evaluated objects in `fjs/edag/value/object` from deferred
+      string-key properties and object/array/string spreads. Evaluate items
+      in order, propagate the first failure unchanged, preserve field value
+      identity and create a fresh object with unique keys in JavaScript
+      enumeration order. Property thunks resolve keys before values; key
+      evaluation/coercion remains in the operation/invocation layer.
 - [ ] Implement shared value operations and invocation over
       `Result<EdagValue, EdagValue>`, with immutable state and admitted methods.
 - [ ] Migrate Amnesia and memo, preserving each documented execution model;
