@@ -5,7 +5,8 @@
 
 ### Problem
 
-`PersistentSet` in [`module.f.mjs`](../module.f.mjs) is a list of runs
+`PersistentSet`, declared in [`types.ts`](../types.ts) and built by
+[`module.f.mjs`](../module.f.mjs), is a list of runs
 whose sizes double, and `add` carries a new element into it exactly as a
 binary counter increments — its doc says so: every full entry on the way
 is merged into what is carried, and the carry lands in the first empty

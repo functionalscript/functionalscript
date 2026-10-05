@@ -12,8 +12,9 @@ transition map (`fold(foldOp(set))(emptyList)(grammar)`), and the
 rendering of the map's keys (`toArray(keyEntries(setMap))`). A reader
 who wants the transition function has to find it inside the walk.
 
-Three helpers beside it each destructure a `RangeEntry` to rewrite its
-value and keep its bound:
+Three helpers beside it each destructure a `RangeEntry`: two rewrite
+its value and keep its bound, and the third drops the bound to keep the
+value:
 
 ```js
 // labelRange

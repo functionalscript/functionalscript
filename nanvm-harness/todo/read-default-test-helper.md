@@ -16,10 +16,12 @@ assert_eq!(
 );
 ```
 
-Two tests that need the value rather than its text,
-`bigint_literals` and `missing_argument_and_non_function_callee`, spell
-the read by hand instead:
-`module().unwrap().dot("default".into()).end().unwrap()`. The fixture
+Two tests that need the value rather than its text spell the read by
+hand instead, each its own way:
+`missing_argument_and_non_function_callee` as
+`module().unwrap().dot("default".into()).end().unwrap()`, and
+`bigint_literals` as `Any::dot(module, "default".into()).end().unwrap()`
+over a `module` it unwrapped the statement before. The fixture
 and the expected text are the only facts a test carries; the rest is
 the harness's own API restated per test, so a change to `run`'s
 signature or to how a default export is read touches every test.

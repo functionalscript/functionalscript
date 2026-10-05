@@ -57,7 +57,11 @@ provable without a disk. `npmPublishPath` keeps its exported value, the
 full `.github/workflows/gen.npm-publish.yml` that both `fjs/ci/publish`'s
 and `fjs/ci`'s proofs pin; what changes is how it is spelled — a file
 name joined to `workflowsDirectory` — so the directory literal exists
-once and the export does not move.
+once and the export does not move. The literal's one home is
+[`fjs/ci/common`](../../../ci/common/module.f.mjs): `workflowsDirectory`
+is private to `fjs/ci` today, and `fjs/ci` imports `fjs/ci/publish`, so
+`publish` cannot read it from there without a cycle; `common` sits
+below both and imports neither, and `publish` already imports it.
 
 ### Tasks
 

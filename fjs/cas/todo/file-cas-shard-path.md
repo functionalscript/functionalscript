@@ -7,7 +7,8 @@
 
 In [`module.f.mjs`](../module.f.mjs), `fileCas`'s `read` and `url` both
 compute where a hash lives on disk, and `read` then streams the file by
-hand although `streamFile`, a few lines below, is that stream:
+hand although `streamFile`, at module scope after `fileCas`, is that
+stream:
 
 ```js
 // fileCas.read

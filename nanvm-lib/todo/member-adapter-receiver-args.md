@@ -7,8 +7,8 @@
 
 The tables in `vm/lambda/method.rs`, `vm/lambda/string.rs` and
 `vm/lambda/number.rs` map a member name to an adapter of one shape,
-`fn(Any<A>, Array<A>) -> Result<Any<A>, Any<A>>` — about forty-five of
-them at `ef756f0`. Every adapter does the same three things around its
+`fn(Any<A>, Array<A>) -> Result<Any<A>, Any<A>>` — about fifty of them
+at `ef756f0`. Every adapter does the same three things around its
 one call: convert the receiver to its type, read its arguments with
 `argument(&args, i)`, and wrap the typed answer with `Ok(….to_any())`:
 

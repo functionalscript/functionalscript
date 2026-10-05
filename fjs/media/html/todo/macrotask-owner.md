@@ -30,9 +30,11 @@ carries a value: `data-demo-working` holds the wait note, which
 [`fjs/website/style`](../../../website/style/module.f.mjs) renders with
 `attr(data-demo-working)`. That branch is not a boolean toggle and
 stays as it is. Within
-`startBrowserTestSources` the infrastructure-error report is built twice
-and the `[data-test-summary]` text is updated at three places, one of
-which already has a `say` helper for it.
+`startBrowserTestSources` the infrastructure-error report is built
+twice. The `[data-test-summary]` element is looked up and written in
+three functions — `startBrowserTestSources`, `renderBrowserReport` and
+`startBrowserTests` — and only the first wraps the write in a `say`
+helper; the other two spell the lookup and the assignment again.
 
 ### Proposal
 

@@ -21,8 +21,11 @@ spelling, so each module that needs it writes its own:
   spells a name's bytes with `toString(16).padStart(2, '0')`.
 - [`fjs/types/uint8array`](../../types/uint8array/module.f.mjs) —
   `hexOfByte` and `hexOf` spell bytes in lowercase, and `fromVec` reads a
-  pair back with `Number(`0x…`)`; it works a bigint at a time for a
+  pair back with ``Number(`0x…`)``; it works a bigint at a time for a
   reason its doc gives, which the codec's design must respect.
+- [`fjs/git/refstore/testlib.f.mjs`](../../git/refstore/testlib.f.mjs) —
+  `hexOf` is `codePointListToString(toHex(i))`, the body of `fjs/git/oid`'s
+  `hexText` written again.
 - [`fjs/website`](../../website/module.f.mjs) — `commitOf` spells an id as
   `String.fromCharCode(...toArray(toHex(id)))`, which is `hexText` written
   again. It also turns the environment's string into code units and screens
@@ -38,7 +41,7 @@ every radix-16 reader sums its own digits:
 [`fjs/media/json/parser`](../../media/json/parser/module.f.mjs)'s
 `escapeMapping` over the four digits of a `\u`, and
 [`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs)'s `stringDecodeScan`
-with `(acc << 4) | …`.
+with `(state.acc << 4) | unwrapHexDigitValue(cp)`.
 
 ### Proposal
 

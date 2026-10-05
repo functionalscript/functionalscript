@@ -18,9 +18,11 @@ pair writes the whole of it, including the lookup:
 Array.from(root.querySelectorAll('[name]'))
     .filter(el => el.style.width !== '' || el.style.height !== '')
     .map(el => ({ name: el.name, width: el.style.width, height: el.style.height }))
-// resize, and the same in rescroll and refocus
+// resize, and the same in rescroll
 const next = /** @type {HTMLInputElement | null} */ (root.querySelector(`[name="${name}"]`))
 if (next === null) { continue }
+// refocus: the same lookup over `was.name`, with a second guard
+if (next === null || next === root.ownerDocument.activeElement) { return }
 ```
 
 The lookup interpolates `name` into a selector without `CSS.escape`, so

@@ -20,8 +20,9 @@ const u = withoutUnits(absentBit)(u0)
 if (isTop(u)) { return {} }
 ```
 
-Both then visit the six kinds in the same order with the same
-`kindFold` algebra, character for character:
+Both then visit the five `kindFold` kinds — number, string, bigint,
+array, object — in the same order with the same algebra, character for
+character:
 
 ```js
 // rtti/ts kindToTs, and json/schema kindSchemas
@@ -31,9 +32,13 @@ kindFold({ absent: () => [], whole: () => [whole], members: list => list.map(ite
 Both decode the unit bits — `null`, `undefined`, `boolean`, `false`,
 `true` — with the same three-arm ternaries (`unitToTs`, `unitSchemas`),
 and both compute how many leading array items are required the same
-way (`arraySetToTs`, `minLength`):
+way (`arraySetToTs`, `minLength`), the one in `ts` reading its context
+where the one in `schema` reads its rules:
 
 ```js
+// rtti/ts arraySetToTs
+const required = p.prefix.findLastIndex(n => !admitsAbsence(ctx)(n)) + 1
+// json/schema minLength
 prefix.findLastIndex(n => !admitsAbsence(rules)(n)) + 1
 ```
 

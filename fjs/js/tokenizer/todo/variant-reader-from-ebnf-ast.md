@@ -9,7 +9,8 @@ Every consumer of an LL(1) tree — the JSON, DataJS and Markdown parsers,
 `compiler/parser/syntax` — reads it through
 [`fjs/ebnf/ast`](../../../ebnf/ast/module.f.mjs)'s `unmapped` and
 `symbolAt`. [`module.f.mjs`](../module.f.mjs) is the one that keeps its
-own: `items`, used by `closed` and `kindOf`, is `unmapped` verbatim, and
+own: `items`, used by `closed` and `kindOf`, is `unmapped` but for the
+value its assertion reports, and
 `branch` reads a variant's `[tag, child]` pair that no module exports:
 
 ```js
