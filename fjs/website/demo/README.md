@@ -72,11 +72,16 @@ The lead is plain prose, not a caption: no trailing colon, no bold.
 
 ## The initial state shows the point
 
-**The input the page opens on demonstrates every property the demo exists
-for**, so the reader sees them before changing anything. The JSON demo opens
-on keys out of order and pretty-printed, so both are visibly undone; the
-UTF-8 demo opens on one character of each byte length. An empty initial
-input is right only when empty is itself the point.
+**The input the page opens on demonstrates what the demo exists for**, so
+the reader sees it before changing anything. Where one input can show every
+property, it does: the JSON demo opens on keys out of order and
+pretty-printed, so both are visibly undone; the UTF-8 demo opens on one
+character of each byte length. Where it cannot — properties that need inputs
+of their own, such as a refused input beside an accepted one — the demo
+offers [examples](#examples), and the one it opens on is an overview: the
+central property the lead names, with as many of the others as one input
+holds. The DataJS and EDAG demos name that first example `Overview`. An
+empty initial input is right only when empty is itself the point.
 
 ## Examples
 
