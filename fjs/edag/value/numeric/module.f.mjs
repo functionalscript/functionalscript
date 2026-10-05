@@ -7,8 +7,11 @@
  * binary arithmetic applies ToNumeric to both operands: numbers and bigints
  * cannot mix. Bigint division/remainder by zero and exponentiation with a
  * negative exponent fail with tagged undefined.
- * Binary &, | and ^ use signed 32-bit numbers or exact bigints after
+ * Binary &, |, ^, << and >> use signed 32-bit numbers or exact bigints after
  * the same primitive conversion and numeric-type check.
+ * Number shift counts wrap modulo 32; negative bigint counts reverse the
+ * shift direction. Unsigned >>> returns an unsigned 32-bit number and
+ * fails with tagged undefined for bigint.
  *
  * Callers evaluate operands, propagate failures and convert containers or
  * functions to primitives in language order. For ordinary objects, pass
@@ -52,7 +55,7 @@ const numeric = (number, bigint) => (a, b) => {
 
 const add = numeric((a, b) => a + b, (a, b) => ok(a + b))
 
-/** @type {Readonly<Record<'+' | '-' | '*' | '/' | '%' | '**' | '&' | '|' | '^', (a: Primitive, b: Primitive) => Result<string | number | bigint, EdagValue>>>} */
+/** @type {Readonly<Record<'+' | '-' | '*' | '/' | '%' | '**' | '&' | '|' | '^' | '<<' | '>>' | '>>>', (a: Primitive, b: Primitive) => Result<string | number | bigint, EdagValue>>>} */
 export const binary = {
     '+': (a, b) => typeof a === 'string' || typeof b === 'string'
         ? ok(primitiveToString(a) + primitiveToString(b))
@@ -65,4 +68,7 @@ export const binary = {
     '&': numeric((a, b) => a & b, (a, b) => ok(a & b)),
     '|': numeric((a, b) => a | b, (a, b) => ok(a | b)),
     '^': numeric((a, b) => a ^ b, (a, b) => ok(a ^ b)),
+    '<<': numeric((a, b) => a << b, (a, b) => ok(a << b)),
+    '>>': numeric((a, b) => a >> b, (a, b) => ok(a >> b)),
+    '>>>': numeric((a, b) => a >>> b, () => error(['undefined'])),
 }

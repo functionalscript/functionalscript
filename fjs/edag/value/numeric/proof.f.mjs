@@ -1,7 +1,8 @@
 /**
  * Primitive arithmetic distinguishes string addition, number and bigint;
  * unary operations distinguish abstract ToNumber from explicit Number.
- * Binary bitwise operations distinguish signed 32-bit numbers from exact bigints.
+ * Bitwise operations distinguish 32-bit numbers from exact bigints;
+ * shifts preserve operand order and bigint counts reverse direction when negative.
  *
  * @import { Primitive } from '../types.ts'
  */
@@ -207,15 +208,56 @@ export const proof = {
             }
         }
     },
+    numberShifts: () => {
+        /** @type {readonly (readonly [Primitive, Primitive, number, number, number])[]} */
+        const cases = [
+            // Value, count, left shift, signed right shift, unsigned right shift.
+            [9, 2, 36, 2, 2], [2, 9, 1024, 0, 0],
+            [-5.9, 1.9, -10, -3, 2147483645],
+            [4294967297, 1, 2, 0, 0],
+            [2147483648, 1, 0, -1073741824, 1073741824],
+            [-1, 0, -1, -1, 4294967295], [-0, -0, 0, 0, 0],
+            [1, 32, 1, 1, 1], [1, 33, 2, 0, 0], [1, -1, -2147483648, 0, 0],
+            [NaN, 1, 0, 0, 0], [Infinity, 1, 0, 0, 0], [-Infinity, 1, 0, 0, 0],
+            [5, Infinity, 5, 5, 5], [undefinedValue, 2, 0, 0, 0],
+            [2, undefinedValue, 2, 2, 2], ['5', '1', 10, 2, 2], ['value', 1, 0, 0, 0],
+            [null, true, 0, 0, 0], [true, false, 1, 1, 1],
+        ]
+        for (const [value, count, left, right, unsigned] of cases) {
+            assertEq(Object.is(assertOk(binary['<<'](value, count)), left), true)
+            assertEq(Object.is(assertOk(binary['>>'](value, count)), right), true)
+            assertEq(Object.is(assertOk(binary['>>>'](value, count)), unsigned), true)
+        }
+    },
+    bigintShifts: () => {
+        /** @type {readonly (readonly [bigint, bigint, bigint, bigint])[]} */
+        const cases = [
+            [5n, 3n, 40n, 0n], [-5n, 3n, -40n, -1n],
+            [5n, -3n, 0n, 40n], [-5n, -3n, -1n, -40n],
+            [5n, 0n, 5n, 5n], [0n, 100n, 0n, 0n], [1n, 33n, 8589934592n, 0n],
+            [18014398509481987n, 1n, 36028797018963974n, 9007199254740993n],
+        ]
+        for (const [value, count, left, right] of cases) {
+            assertEq(assertOk(binary['<<'](value, count)), left)
+            assertEq(assertOk(binary['>>'](value, count)), right)
+        }
+    },
+    bigintUnsignedShift: () => {
+        for (const value of [-1n, 0n, 1n]) {
+            for (const count of [-1n, 0n, 1n]) {
+                assertStructurallySame(assertError(binary['>>>'](value, count)), ['undefined'])
+            }
+        }
+    },
     mixedNumericTypes: () => {
-        for (const operator of /** @type {const} */ (['+', '-', '*', '/', '%', '**', '&', '|', '^'])) {
+        for (const operator of /** @type {const} */ (['+', '-', '*', '/', '%', '**', '&', '|', '^', '<<', '>>', '>>>'])) {
             for (const value of [0, 1, null, true, false, undefinedValue]) {
                 assertStructurallySame(assertError(binary[operator](1n, value)), ['undefined'])
                 assertStructurallySame(assertError(binary[operator](value, 1n)), ['undefined'])
             }
         }
         // Numeric strings still become numbers; only addition concatenates.
-        for (const operator of /** @type {const} */ (['-', '*', '/', '%', '**', '&', '|', '^'])) {
+        for (const operator of /** @type {const} */ (['-', '*', '/', '%', '**', '&', '|', '^', '<<', '>>', '>>>'])) {
             assertStructurallySame(assertError(binary[operator](1n, '2')), ['undefined'])
             assertStructurallySame(assertError(binary[operator]('2', 1n)), ['undefined'])
         }
