@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** wip — implement array construction and spreads; invocation and VM migration remain open
+**Status:** open — value shape, metadata, closure checks, basic semantics, control flow and array construction implemented; invocation and VM migration remain open
 
 ### Problem
 
@@ -275,6 +275,10 @@ budget or stopped-outcome API.
       operands, unchanged failures and selected value identity. These helpers
       provide stateless control flow; immutable executor state remains part
       of the invocation/cache migration.
+- [x] Construct evaluated arrays in `fjs/edag/value/array` from deferred
+      elements and array/string spreads. Evaluate items in order, propagate
+      the first failure unchanged, fail non-iterable spreads with tagged
+      undefined, preserve element identity and create a fresh array value.
 - [ ] Implement shared value operations and invocation over
       `Result<EdagValue, EdagValue>`, with immutable state and admitted methods.
 - [ ] Migrate Amnesia and memo, preserving each documented execution model;
