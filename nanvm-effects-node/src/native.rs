@@ -235,8 +235,16 @@ impl<R: Read, O: Write, E: Write> Operations for Native<R, O, E> {
             .map_err(|e| failure(&e, "write", &path))
     }
 
-    /// Removes a file or a link, and refuses a directory.
+    /// Removes a file or a link, and refuses a directory with `ERR_FS_EISDIR`,
+    /// the code `rm` without `recursive` gives on Node, where `remove_file`
+    /// would answer what the platform does.
     fn rm(&mut self, path: String) -> Result<(), IoChannel> {
+        if fs::symlink_metadata(&path).is_ok_and(|m| m.is_dir()) {
+            return Err(refusal(
+                "ERR_FS_EISDIR",
+                format!("Path is a directory: rm returned EISDIR (is a directory) {path}"),
+            ));
+        }
         fs::remove_file(&path).map_err(|e| failure(&e, "rm", &path))
     }
 
@@ -487,7 +495,8 @@ mod test {
         fn rm_refuses_a_directory() {
             let dir = Scratch::new();
             let mut r = runner(b"");
-            assert!(r.rm(dir.at("")).is_err());
+            assert_eq!(code_of(r.rm(dir.at(""))), Some("ERR_FS_EISDIR".into()));
+            assert_eq!(code_of(r.rm(dir.at("none"))), Some("ENOENT".into()));
         }
 
         #[test]
