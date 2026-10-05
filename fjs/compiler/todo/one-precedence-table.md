@@ -82,8 +82,19 @@ a binary operator — `AstConditional` is its own four-element node — so
 are built by one fold that accumulates the tails already built. The
 serializer's `levels` is a precedence ladder, not a tag list, so it is
 the one place `?:` appears: its loosest level, then `lazyLayers`
-reversed, then `eagerLayers` reversed, then `**`. The order of every
-binary operator then exists once.
+reversed, then `eagerLayers` reversed, then `**`.
+
+`**` is in neither table, on purpose, and this issue's scope stops at
+it. It is not a layer of the same shape: the eager layers are
+left-associative `repeatFrom0` tails over `unary`, while `**` is
+right-associative and the grammar reads it in `powTail`, an `option`
+inside the operand itself, so a table of tails cannot hold it. Its
+place, tightest of all, is the language's and is stated where each side
+builds its own structure — `powTail` in the grammar, the last level in
+the serializer — and the set pin covers its tag, so it cannot be
+dropped from one side without a `tsc` error; only its position stays
+written twice. The order of every left-associative binary operator then
+exists once.
 The `EagerTail` tuple type the grammar exports may need a pinning
 `Assert<Equal<…>>` once the tails are built by a fold rather than
 written out.
