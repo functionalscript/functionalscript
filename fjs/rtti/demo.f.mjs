@@ -440,13 +440,21 @@ const schemaChoice = (s, i, shown) =>
     ]
 
 /**
+ * The npm package the repository publishes, `package.json`'s `name`. A project
+ * schema's import names its module through it, so the line is the one a
+ * package user writes: the package has no `exports` map, so every shipped
+ * module is importable by its path under the package name.
+ */
+const packageName = 'functionalscript'
+
+/**
  * A single schema as a code block. One the project uses is the import that
- * brings it in — `import { noteSchema } from 'fjs/media/note/module.f.mjs'` —
- * one line of code saying both which export and which module, with the module
- * path a link to its page on the site. The href is the site's own `pageHref`,
- * so it works on a preview as on the published site. The path is written from
- * the repository root, naming the module rather than spelling a relative
- * import from any one file.
+ * brings it in —
+ * `import { noteSchema } from 'functionalscript/fjs/media/note/module.f.mjs'` —
+ * one line of code saying both which export and which module, and one that
+ * resolves when copied into a project that depends on the package. The module
+ * specifier is a link to the module's page on the site; the href is the
+ * site's own `pageHref`, so it works on a preview as on the published site.
  *
  * @type {(s: DemoSchema) => Element}
  */
@@ -454,7 +462,7 @@ const codeView = s => s.module === undefined
     ? ['pre', { 'data-code': '' }, s.source]
     : ['pre', { 'data-code': '' },
         `import { ${s.source} } from `,
-        ['a', { href: pageHref(s.module) }, `'${s.module}/module.f.mjs'`],
+        ['a', { href: pageHref(s.module) }, `'${packageName}/${s.module}/module.f.mjs'`],
     ]
 
 /**

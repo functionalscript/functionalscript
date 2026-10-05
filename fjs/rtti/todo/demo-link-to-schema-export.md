@@ -8,9 +8,13 @@
 ### Problem
 
 The demo shows each schema the project uses as the import that brings it in,
-`import { noteSchema } from 'fjs/media/note/module.f.mjs'`, and the quoted
-module path links to the module's page on the site. That page lists the
-module's files; the reader still has to find the schema in it.
+
+```js
+import { noteSchema } from 'functionalscript/fjs/media/note/module.f.mjs'
+```
+
+and the quoted module path links to the module's page on the site. That page
+lists the module's files; the reader still has to find the schema in it.
 
 When the module page shows the module's source and documentation, which is
 what the issue this waits on adds, the link can land on the schema itself:

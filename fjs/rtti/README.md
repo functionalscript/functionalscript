@@ -49,8 +49,9 @@ unlike the `types/*` modules that do reach outside (`bigint`, `bit_vec`,
   messages, MCP tool arguments, the `vnd.fjs.*` media formats, JSON and JSON
   Schema, CI workflows, edag's unary operators and evaluated values, the
   effect runner's directory entries and the site's funding channels —
-  imported from the modules that declare them, each shown as its import line
-  with the module path linked to the module's page
+  imported from the modules that declare them, each shown as the import a
+  user of the `functionalscript` package writes, with the module path linked
+  to the module's page
 
 ## The two schema-form readers
 
