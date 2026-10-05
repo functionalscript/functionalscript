@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — value shape, metadata, closure checks, basic semantics, control flow and array construction implemented; invocation and VM migration remain open
+**Status:** open — value shape, metadata, closure checks, basic semantics, control flow, value construction and bare-call preparation implemented; invocation and VM migration remain open
 
 ### Problem
 
@@ -279,6 +279,25 @@ budget or stopped-outcome API.
       elements and array/string spreads. Evaluate items in order, propagate
       the first failure unchanged, fail non-iterable spreads with tagged
       undefined, preserve element identity and create a fresh array value.
+- [x] Construct evaluated objects in `fjs/edag/value/object` from deferred
+      string-key properties and object/array/string spreads. Evaluate items
+      in order, propagate the first failure unchanged, preserve field value
+      identity and create a fresh object with unique keys in JavaScript
+      enumeration order. Property thunks resolve keys before values; key
+      evaluation/coercion remains in the operation/invocation layer.
+- [x] Construct evaluated functions in `fjs/edag/value/function` from deferred
+      captures and valid body templates. Evaluate captures in order, propagate
+      the first failure unchanged and retain capture identities. Create a
+      fresh function and copy its body graph, preserving sharing within the
+      copy and distinct equal-looking nodes, including nested function
+      templates. Keep evaluated captures outside the copy and body code
+      unevaluated; compiler/admission length and binding invariants are trusted.
+- [x] Prepare bare calls in `fjs/edag/value/call`: resolve deferred argument
+      items/spreads in order, pad missing fixed positions with tagged undefined
+      and allocate fresh rest arrays. Propagate failures unchanged, evaluate
+      arguments before rejecting non-functions, and delegate with the original
+      function and its bindings. The executor callback owns body execution;
+      immutable caller/cache state and operation dispatch remain open.
 - [ ] Implement shared value operations and invocation over
       `Result<EdagValue, EdagValue>`, with immutable state and admitted methods.
 - [ ] Migrate Amnesia and memo, preserving each documented execution model;
