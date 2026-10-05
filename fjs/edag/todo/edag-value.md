@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** wip — primitive shifts
+**Status:** open — primitive shifts implemented; callable conversion, invocation and VM migration remain open
 
 ### Problem
 
@@ -336,12 +336,12 @@ budget or stopped-outcome API.
 - [x] Add primitive binary `&`, `|` and `^` in `fjs/edag/value/numeric`,
       reusing primitive ToNumeric and same-type dispatch. Preserve signed
       32-bit number conversion and exact bigint results; mixed numeric types
-      return tagged-undefined failure. Shifts remain open.
+      return tagged-undefined failure.
 - [x] Add primitive exponentiation `**` in `fjs/edag/value/numeric`, reusing
       primitive ToNumeric and same-type dispatch. Preserve number behavior
       and exact bigint results; mixed numeric types and negative bigint
-      exponents return tagged-undefined failure. Shifts remain open.
-- [ ] Add primitive shifts `<<`, `>>` and `>>>` in `fjs/edag/value/numeric`,
+      exponents return tagged-undefined failure.
+- [x] Add primitive shifts `<<`, `>>` and `>>>` in `fjs/edag/value/numeric`,
       reusing primitive ToNumeric and same-type dispatch. Preserve 32-bit
       number conversion and shift-count wrapping, exact bigint shifts and
       reversed direction for negative bigint counts. Mixed numeric types
