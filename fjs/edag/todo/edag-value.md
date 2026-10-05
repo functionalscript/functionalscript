@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — value shape, object metadata and closure/body checks implemented; value operations and VM migration remain open
+**Status:** open — value shape, metadata, closure checks, basic semantics, control flow and array construction implemented; invocation and VM migration remain open
 
 ### Problem
 
@@ -267,6 +267,18 @@ budget or stopped-outcome API.
       analysis and binding checks; return string diagnostics while retaining
       the original value graph. Body object expressions keep construction
       semantics rather than evaluated-object normalization rules.
+- [x] Add infallible truthiness, `typeof`, strict equality and `Object.is`
+      helpers in `fjs/edag/value/semantics`. Tagged undefined has primitive
+      semantics; arrays, objects and functions preserve node identity.
+- [x] Add shared `throw`, `&&`, `||`, `??` and `?:` helpers over
+      `Result<EdagValue, EdagValue>` in `fjs/edag/value/control`, with deferred
+      operands, unchanged failures and selected value identity. These helpers
+      provide stateless control flow; immutable executor state remains part
+      of the invocation/cache migration.
+- [x] Construct evaluated arrays in `fjs/edag/value/array` from deferred
+      elements and array/string spreads. Evaluate items in order, propagate
+      the first failure unchanged, fail non-iterable spreads with tagged
+      undefined, preserve element identity and create a fresh array value.
 - [ ] Implement shared value operations and invocation over
       `Result<EdagValue, EdagValue>`, with immutable state and admitted methods.
 - [ ] Migrate Amnesia and memo, preserving each documented execution model;

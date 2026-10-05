@@ -32,6 +32,23 @@ and serve explicit boundaries accepting EDAG supplied as data. VM constructors
 must maintain the value invariants directly, without revalidating every result.
 FJS data is acyclic by construction, so it needs no cycle preflight.
 
+[`value/semantics`](value/semantics/module.f.mjs) provides truthiness, `typeof`,
+strict equality and `Object.is` for represented values. Distinct
+`['undefined']` tuples denote the same primitive; arrays, objects and functions
+compare by their value-node identity. These infallible helpers are shared
+building blocks for the planned VM operation layer.
+
+[`value/control`](value/control/module.f.mjs) adds Result-based `throw`, `&&`,
+`||`, `??` and `?:`. It takes an evaluated first operand and defers the rest
+with thunks. Failures propagate unchanged, and selected results preserve
+value identity. The helpers provide stateless control flow; executor state
+belongs to the invocation/cache layer.
+
+[`value/array`](value/array/module.f.mjs) constructs evaluated arrays from
+deferred items, resolving array and string spreads in order. Construction
+stops at the first failure, preserves element identity and creates a fresh
+array value. A non-iterable spread returns `error(['undefined'])`.
+
 "No normal form" is a statement about the module as a whole, not a licence for
 each node kind to admit several spellings of one thing. Where a set of
 spellings *can* be cut down to one in the schema, it is: [Chains](#chains) is
