@@ -68,6 +68,7 @@ fn encode_dirent<A: IVm>(value: Dirent) -> Any<A> {
 
 #[rustfmt::skip]
 fn call_mkdir<A: IVm, R: Operations>(runner: &mut R, payload: &[Any<A>]) -> Result<Any<A>, Malformed> {
+    arity(payload, 2)?;
     let path = decode_string(argument(payload, 0, "path")?)?;
     let options = decode_optional(payload.get(1).cloned(), decode_make_directory_options)?;
     Ok(encode_result(runner.mkdir(path, options), encode_nothing, encode_io_channel))
@@ -75,12 +76,14 @@ fn call_mkdir<A: IVm, R: Operations>(runner: &mut R, payload: &[Any<A>]) -> Resu
 
 #[rustfmt::skip]
 fn call_read_file<A: IVm, R: Operations>(runner: &mut R, payload: &[Any<A>]) -> Result<Any<A>, Malformed> {
+    arity(payload, 1)?;
     let path = decode_string(argument(payload, 0, "path")?)?;
     Ok(encode_result(runner.read_file(path), encode_bytes, encode_io_channel))
 }
 
 #[rustfmt::skip]
 fn call_resolve_file_module<A: IVm, R: Operations>(runner: &mut R, payload: &[Any<A>]) -> Result<Any<A>, Malformed> {
+    arity(payload, 2)?;
     let name = decode_string(argument(payload, 0, "name")?)?;
     let parent = decode_nullable(argument(payload, 1, "parent")?, decode_string)?;
     Ok(encode_result(runner.resolve_file_module(name, parent), encode_file_module, encode_io_channel))
@@ -88,6 +91,7 @@ fn call_resolve_file_module<A: IVm, R: Operations>(runner: &mut R, payload: &[An
 
 #[rustfmt::skip]
 fn call_readdir<A: IVm, R: Operations>(runner: &mut R, payload: &[Any<A>]) -> Result<Any<A>, Malformed> {
+    arity(payload, 2)?;
     let path = decode_string(argument(payload, 0, "path")?)?;
     let options = decode_readdir_options(argument(payload, 1, "options")?)?;
     Ok(encode_result(runner.readdir(path, options), |v| encode_array(v, encode_dirent), encode_io_channel))
@@ -95,6 +99,7 @@ fn call_readdir<A: IVm, R: Operations>(runner: &mut R, payload: &[Any<A>]) -> Re
 
 #[rustfmt::skip]
 fn call_write_file<A: IVm, R: Operations>(runner: &mut R, payload: &[Any<A>]) -> Result<Any<A>, Malformed> {
+    arity(payload, 2)?;
     let path = decode_string(argument(payload, 0, "path")?)?;
     let data = decode_bytes(argument(payload, 1, "data")?)?;
     Ok(encode_result(runner.write_file(path, data), encode_nothing, encode_io_channel))
@@ -102,6 +107,7 @@ fn call_write_file<A: IVm, R: Operations>(runner: &mut R, payload: &[Any<A>]) ->
 
 #[rustfmt::skip]
 fn call_write_bytes<A: IVm, R: Operations>(runner: &mut R, payload: &[Any<A>]) -> Result<Any<A>, Malformed> {
+    arity(payload, 3)?;
     let path = decode_string(argument(payload, 0, "path")?)?;
     let offset = decode_number(argument(payload, 1, "offset")?)?;
     let data = decode_bytes(argument(payload, 2, "data")?)?;
@@ -110,12 +116,14 @@ fn call_write_bytes<A: IVm, R: Operations>(runner: &mut R, payload: &[Any<A>]) -
 
 #[rustfmt::skip]
 fn call_rm<A: IVm, R: Operations>(runner: &mut R, payload: &[Any<A>]) -> Result<Any<A>, Malformed> {
+    arity(payload, 1)?;
     let path = decode_string(argument(payload, 0, "path")?)?;
     Ok(encode_result(runner.rm(path), encode_nothing, encode_io_channel))
 }
 
 #[rustfmt::skip]
 fn call_write<A: IVm, R: Operations>(runner: &mut R, payload: &[Any<A>]) -> Result<Any<A>, Malformed> {
+    arity(payload, 2)?;
     let stream = decode_write_consoles(argument(payload, 0, "stream")?)?;
     let data = decode_bytes(argument(payload, 1, "data")?)?;
     Ok(encode_result(runner.write(stream, data), encode_nothing, encode_not_implemented))
@@ -123,6 +131,7 @@ fn call_write<A: IVm, R: Operations>(runner: &mut R, payload: &[Any<A>]) -> Resu
 
 #[rustfmt::skip]
 fn call_read<A: IVm, R: Operations>(runner: &mut R, payload: &[Any<A>]) -> Result<Any<A>, Malformed> {
+    arity(payload, 1)?;
     decode_literal(argument(payload, 0, "stream")?, "stdin")?;
     Ok(encode_result(runner.read(), |v| encode_nullable(v, encode_number), encode_not_implemented))
 }

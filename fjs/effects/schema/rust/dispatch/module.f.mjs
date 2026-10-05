@@ -20,7 +20,8 @@
  * | a named `or` of tagged tuples | refused | the tuple |
  * | a named tagged tuple | refused | the tuple |
  *
- * Only what a request holds is read, and only what an answer holds is
+ * A payload longer than the operation's parameters is refused, as its
+ * parameter tuple is closed. Only what a request holds is read, and only what an answer holds is
  * written: a type no request reaches has no reader. Anything the printer has
  * no spelling for is refused, with the schema in the error, as it is there.
  *
@@ -414,6 +415,7 @@ export const call = ({ name, params, answer, names }) => bind(
         (/** @type {string} */ w) => ok([
             attribute,
             `fn call_${snake(name)}<A: IVm, R: Operations>(runner: &mut R, payload: &[Any<A>]) -> Result<Any<A>, Malformed> {`,
+            `    arity(payload, ${params.length})?;`,
             ...ps.map(([statement]) => `    ${statement}`),
             `    Ok(${w})`,
             '}',
