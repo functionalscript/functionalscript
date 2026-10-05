@@ -38,6 +38,12 @@ strict equality and `Object.is` for represented values. Distinct
 compare by their value-node identity. These infallible helpers are shared
 building blocks for the planned VM operation layer.
 
+[`value/control`](value/control/module.f.mjs) adds Result-based `throw`, `&&`,
+`||`, `??` and `?:`. It takes an evaluated first operand and defers the rest
+with thunks. Failures propagate unchanged, and selected results preserve
+value identity. The helpers provide stateless control flow; executor state
+belongs to the invocation/cache layer.
+
 "No normal form" is a statement about the module as a whole, not a licence for
 each node kind to admit several spellings of one thing. Where a set of
 spellings *can* be cut down to one in the schema, it is: [Chains](#chains) is

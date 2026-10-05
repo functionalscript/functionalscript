@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** wip — implement Result-based control flow; invocation and VM migration remain open
+**Status:** open — value shape, metadata, closure checks, basic semantics and control flow implemented; invocation and VM migration remain open
 
 ### Problem
 
@@ -270,6 +270,11 @@ budget or stopped-outcome API.
 - [x] Add infallible truthiness, `typeof`, strict equality and `Object.is`
       helpers in `fjs/edag/value/semantics`. Tagged undefined has primitive
       semantics; arrays, objects and functions preserve node identity.
+- [x] Add shared `throw`, `&&`, `||`, `??` and `?:` helpers over
+      `Result<EdagValue, EdagValue>` in `fjs/edag/value/control`, with deferred
+      operands, unchanged failures and selected value identity. These helpers
+      provide stateless control flow; immutable executor state remains part
+      of the invocation/cache migration.
 - [ ] Implement shared value operations and invocation over
       `Result<EdagValue, EdagValue>`, with immutable state and admitted methods.
 - [ ] Migrate Amnesia and memo, preserving each documented execution model;
