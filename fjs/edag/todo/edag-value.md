@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — non-coercive value operation tables implemented; callable conversion, invocation and VM migration remain open
+**Status:** wip — relative indexing of represented arrays and strings
 
 ### Problem
 
@@ -362,6 +362,11 @@ budget or stopped-outcome API.
       Preserve each element's identity and the first failure tuple unchanged.
       Separator conversion/defaulting and the complete value-to-string
       operation remain in the shared operation migration.
+- [ ] Add `at` in `fjs/edag/value/at` for evaluated arrays and strings with
+      primitive indices. Reuse abstract ToNumber, preserve element identity
+      and UTF-16 string indexing, and return tagged undefined out of range.
+      Bigint indices fail even for empty receivers. Callers own method
+      dispatch, operand evaluation and conversion of nonprimitive indices.
 - [x] Expose the shared serializer's `functionText(analysis, index)` renderer
       for an already analyzed function with valid metadata and body bindings.
       Keep `tryFunctionText` as the checked raw-expression entry, delegating
