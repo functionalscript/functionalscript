@@ -13,8 +13,9 @@
  * undefined. Evaluated object invariants are trusted.
  *
  * Primitive helpers consume only primitive values, including tagged undefined.
- * String conversion is infallible. Numeric coercion is abstract ToNumber:
- * bigint fails, unlike explicit Number(bigint). No represented container or
+ * String conversion and ToNumeric are infallible; ToNumeric preserves bigint.
+ * Abstract ToNumber rejects bigint, unlike explicit Number(bigint).
+ * No represented container or
  * function is passed to a host conversion. Operand evaluation, array/function
  * conversion and operation dispatch remain with callers.
  *
@@ -37,6 +38,11 @@ export const primitiveToString = value => String(untagUndefined(value))
 export const primitiveToNumber = value => typeof value === 'bigint'
     ? error(['undefined'])
     : ok(Number(untagUndefined(value)))
+
+/** ToNumeric preserves bigint and otherwise applies ToNumber. @type {(value: Primitive) => number | bigint} */
+export const primitiveToNumeric = value => typeof value === 'bigint'
+    ? value
+    : Number(untagUndefined(value))
 
 /** OrdinaryToPrimitive for represented objects. @type {(value: ValueObject, hint: 'number' | 'string', invoke: Invoke) => Result<Primitive, EdagValue>} */
 export const objectToPrimitive = (value, hint, invoke) => {
