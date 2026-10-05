@@ -41,15 +41,16 @@ export const _prohibitedAccess: (method: boolean) => (name: string) => 'member f
 ```
 
 `accessClosed` and `key` each wrap the answer in their own error. The two
-sets become private to the parser. That removes two public exports,
-`_prohibitedNames` and `_prohibitedCallNames`, which is the point — the
-rule is the API, not its data — so the implementing PR declares it
-under `Changelog:` as a `**BREAKING CHANGES:**` item rather than keeping
-the sets exported beside the rule.
+sets become private to the parser and stop being exported, which is the
+point — the rule is the API, not its data. Nothing is declared for that:
+`_prohibitedNames` and `_prohibitedCallNames` carry the `_` prefix, which
+[`fjs/AGENTS.md`](../../../AGENTS.md#32-types) defines as linkage, not API
+status, so removing them is not by itself a breaking change, and
+`_prohibitedAccess` keeps the prefix for the same reason — the serializer
+is its only consumer outside the parser.
 
 ### Tasks
 
 - [ ] `_prohibitedAccess`; `accessClosed` and the serializer's `key`
-      through it; the sets no longer exported, and their removal
-      declared in the PR's `Changelog:` section.
+      through it; the sets no longer exported.
 - [ ] `tsc`, `fjs test`.
