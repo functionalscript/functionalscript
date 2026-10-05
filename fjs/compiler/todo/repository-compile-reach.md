@@ -9,7 +9,7 @@ The self-hosting milestone ([mvp-roadmap](../../../nanvm-lib/todo/mvp-roadmap.md
 needs the compiler, loader and interpreter, which are authored `.f.mjs`, to
 compile to Rust. How far is that? Run `fjs compile <module> <out>.rs` over
 every `fjs/**/module.f.mjs` and read the first refusal. At `a84ff2980`, **one
-of 211 modules compiles** (`fjs/compiler/examples/module.f.mjs`, an example
+of 212 modules compiles** (`fjs/compiler/examples/module.f.mjs`, an example
 written for the purpose). Every other one stops at its first unsupported
 construct, and a module that clears its first may stop at its next; the table
 counts only the first, so it says what to do first, not how much each costs.
@@ -17,17 +17,19 @@ counts only the first, so it says what to do first, not how much each costs.
 | Modules | First refusal | Example |
 | ---: | --- | --- |
 | 87 | a template literal, `` `…${x}…` `` | `fjs/cas/cli/module.f.mjs:44` |
-| 29 | destructuring: `const { a, b } = o`, `([k, v]) => …`, `({ a }) => …` | `fjs/basen/base128/module.f.mjs:12`, `fjs/common/monoid/module.f.mjs:47` |
-| 12 | a numeric literal with a binary or underscore spelling: `0b0101`, `0xffff_ffffn` | `fjs/text/utf8/module.f.mjs:41`, `fjs/crypto/secp/module.f.mjs:116` |
-| 10 | a statement the language has no spelling for yet: `let`, `for`, `switch` | `fjs/crypto/sha1/module.f.mjs:118`, `fjs/types/btree/module.f.mjs:16` |
+| 46 | destructuring: `const { a, b } = o`, `const [k, v] = e`, `({ a, b }) => …` | `fjs/basen/base128/module.f.mjs:12`, `fjs/common/monoid/module.f.mjs:47` |
+| 14 | a statement the language has no spelling for yet: `let`, `for`, `switch` | `fjs/crypto/sha1/module.f.mjs:118`, `fjs/types/btree/module.f.mjs:16` |
+| 9 | a numeric literal spelled `0b0101` or `0xffff_ffffn` | `fjs/text/utf8/module.f.mjs:41`, `fjs/crypto/secp/module.f.mjs:116` |
 | 9 | an escape in a single-quoted string: `'\x07'`, `'\b'` | `fjs/git/alternates/module.f.mjs:98` |
+| 8 | a shorthand member, `{ a, b }` | `fjs/ci/self/module.f.mjs:43` |
 | 8 | `!`, the logical not | `fjs/edag/value/function/module.f.mjs:29` |
-| 8 | a trailing `}` after an object argument spelled `ci({ … })` (a call whose argument is an object with a shorthand member) | `fjs/ci/self/module.f.mjs:43` |
-| 7 | `assert(…)`, `isArray(…)`: a call to an imported function (the callee is refused before its arguments are read) | `fjs/ebnf/ast/module.f.mjs:26` |
-| 8 | a host global: `Set`, `Map`, `Number`, `instanceof`, `Array` | `fjs/compiler/tokenizer/module.f.mjs:75`, `fjs/types/array/module.f.mjs:15` |
-| 4 | a computed member, `a[i]`, `b[x + k]` | `fjs/types/list/module.f.mjs:30`, `fjs/git/bytes/module.f.mjs:25` |
-| 4 | a default parameter, `(v, msg = 'x') =>` | `fjs/asserts/module.f.mjs:25` |
-| 6 | other: a name not in scope in a module that imports a schema constant, a spread of a computed key, a conditional chain | `fjs/edag/module.f.mjs:63`, `fjs/fsm/module.f.mjs:85` |
+| 6 | a call as a statement: `assert(…)` | `fjs/ebnf/ast/module.f.mjs:26` |
+| 5 | a host global: `new Set`, `new Map` | `fjs/compiler/tokenizer/module.f.mjs:75` |
+| 5 | a name not in scope: `Number`, a schema constant the module imports | `fjs/js/array_index/module.f.mjs:33`, `fjs/edag/module.f.mjs:63` |
+| 5 | a computed member or key, `a[i]`, `{ [s]: v }` | `fjs/types/list/module.f.mjs:30`, `fjs/fsm/module.f.mjs:85` |
+| 2 | `instanceof` | `fjs/types/array/module.f.mjs:15` |
+| 1 | a default parameter, `(v, msg = 'x') =>` | `fjs/asserts/module.f.mjs:25` |
+| 6 | other: `typeof` in a condition, a reassignment, a callback using `%` | `fjs/edag/value/array/module.f.mjs:30`, `fjs/types/bigfloat/module.f.mjs:32` |
 
 The classification is by the token the refusal points at, read from the line
 it names; it is a survey, not a diagnosis, and a few rows hold more than one
@@ -35,14 +37,20 @@ cause. Reproduce it with the loop in the next section.
 
 ### What follows
 
-- **Template literals** are the first blocker of 41% of the modules, and they
-  are almost all error messages and `assert` texts. They are a feature with
+- **Template literals** are the first blocker of 41% of the 211 modules that refuse (87), and they are almost all error messages and `assert` texts. They are a feature with
   open questions of their own ([template-literals](../../../spec/todo/3440-template-literals.md):
   what a substitution may be, and the canonical form), so this is the case for
   settling those questions, not a license to start before they are.
-- **Destructuring** is next at 14%, and **binary/underscore numeric spellings**
-  and **single-quoted escapes** are tokenizer-level and cheap by comparison
-  (12 and 9 modules).
+- **Destructuring** is next at 22% (46), and **binary/underscore numeric
+  spellings** and **single-quoted escapes** are tokenizer-level and cheap by
+  comparison (9 and 9 modules).
+- **Source spellings for operations the EDAG already has** are among the small
+  rows, and are why the backend work on them has no use yet: the first refusal of
+  `String(1)`, `Number(1n)` and `Object.is(1, 2)` as source is `const not
+  found`, and `[1, 2][Number(0)]` stops at the index
+  ([built-in](../../../spec/todo/2360-built-in.md),
+  [global-names](../../../spec/todo/2365-global-names.md),
+  [property-accessor](../../../spec/todo/2330-property-accessor.md)).
 - **No module is one feature from compiling.** A migration `.f.mjs` → `.f.js`
   of the modules after the first two or three rows will meet statements and
   host globals next, so the order above is the order in which modules *begin*
