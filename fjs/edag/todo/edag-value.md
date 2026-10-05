@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — represented array joining is implemented; full conversion, invocation and VM migration remain open
+**Status:** wip — exposing function-text rendering from analysis; full conversion, invocation and VM migration remain open
 
 ### Problem
 
