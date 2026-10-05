@@ -174,6 +174,10 @@ mod test_dispatch {
             Err(Malformed("missing argument 0, `path`".into()))
         );
         assert_eq!(
+            malformed("readFile", &[string_any("a"), string_any("b")]),
+            Err(Malformed("2 arguments where at most 1 are taken".into()))
+        );
+        assert_eq!(
             malformed("readFile", &[f64_any(0)]),
             Err(Malformed("not a string".into()))
         );

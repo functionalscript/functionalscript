@@ -180,6 +180,7 @@ export const proof = {
             [
                 '#[rustfmt::skip]',
                 'fn call_read<A: IVm, R: Operations>(runner: &mut R, payload: &[Any<A>]) -> Result<Any<A>, Malformed> {',
+                '    arity(payload, 1)?;',
                 '    decode_literal(argument(payload, 0, "stream")?, "stdin")?;',
                 '    Ok(encode_result(runner.read(), |v| encode_nullable(v, encode_number), encode_not_implemented))',
                 '}',
