@@ -1,12 +1,12 @@
-## uint-up-to. "A non-negative integer up to `max`" is written five times, and the copies disagree about `-0`
+## uint-up-to. "A non-negative integer up to `max`" is written in several modules, and the copies disagree about `-0`
 
 **Priority:** P4
 **Status:** open
 
 ### Problem
 
-Five modules test that a number is an integer in `0..max`, each with its
-own spelling, and the spellings do not agree on whether `-0` is one:
+Several modules test that a number is an integer in `0..max`, each with
+its own spelling, and the spellings do not agree on whether `-0` is one:
 
 ```js
 // types/number isByte
@@ -19,11 +19,16 @@ assert(isInteger(n) && 0 <= n && n <= max, ['bit index outside 0..max', n, max])
 const u8 = i => Number.isInteger(i) && isInU8Range(i)
 // text/utf16 u16 — the same shape for 0xFFFF
 const u16 = i => Number.isInteger(i) && isInU16Range(i)
+// js/array_index arrayIndex — the same shape for 2 ** 32 - 2, on the number a property key parses to
+Number.isInteger(i) && i >= 0 && i < 2 ** 32 - 1 && String(i) === key
 ```
 
-Two reject `-0`, three admit it, and `u8` is `isByte` under another
-name in a module that could import it. Whether `-0` is a byte, an index
-or a code unit is one question with one answer, and today it has two.
+Two reject `-0` with an explicit clause, three admit it, and
+[`fjs/js/array_index`](../../../js/array_index/module.f.mjs)'s
+`arrayIndex` never sees it, because the canonical-spelling check beside
+its test refuses `'-0'` first. `u8` is `isByte` under another name in a
+module that could import it. Whether `-0` is a byte, an index or a code
+unit is one question with one answer, and today it has two.
 
 [`fjs/effects/node`](../../../effects/node/module.f.mjs)'s `isPort` has
 the same shape and admits `-0`, and is not one of these. It states the
@@ -43,15 +48,12 @@ export const isUintUpTo: (max: number) => (n: unknown) => n is number
 ```
 
 `isByte = isUintUpTo(0xFF)`, `isIndex = isUintUpTo(Infinity)`, `u8`
-becomes `isByte`, `u16 = isUintUpTo(0xFFFF)`, and `bitIndex` asserts on
-it. A sixth spelling sits in [`fjs/js/array_index`](../../../js/array_index/module.f.mjs):
-`arrayIndex` tests `Number.isInteger(i) && i >= 0 && i < 2 ** 32 - 1`
-on the number a property key parses to, beside a canonical-spelling
-check that already refuses `'-0'`. It goes through
-`isUintUpTo(2 ** 32 - 2)` and keeps that check, and nothing it answers
-changes, since `-0` never reaches the predicate there. `Infinity` is the bound for `isIndex` because it is what `isIndex`
-admits today — any canonical non-negative integer, `1e100` included —
-so the bound changes nothing. Whether an index should stop at
+becomes `isByte`, `u16 = isUintUpTo(0xFFFF)`, `bitIndex` asserts on it,
+and `arrayIndex` tests `isUintUpTo(2 ** 32 - 2)` beside the spelling
+check it keeps, with nothing it answers changing, since `-0` never
+reaches the predicate there. `Infinity` is the bound for `isIndex`
+because it is what `isIndex` admits today — any canonical non-negative
+integer, `1e100` included — so the bound changes nothing. Whether an index should stop at
 `Number.MAX_SAFE_INTEGER` is a separate question with a separate break,
 to be filed on its own if anyone wants it.
 
@@ -68,9 +70,8 @@ refused by `utf16`'s. The implementing PR declares this under
 ### Tasks
 
 - [ ] `isUintUpTo`, proved, with the `-0` rule stated.
-- [ ] The five sites and `arrayIndex` through it; the `-0` break
-      declared in the PR's `Changelog:` section; `isPort`'s doc says
-      why it stays apart.
+- [ ] Every site above through it; the `-0` break declared in the
+      PR's `Changelog:` section; `isPort`'s doc says why it stays apart.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 
 ### Related
