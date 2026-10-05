@@ -39,8 +39,9 @@ transition function is a name.
 ### Tasks
 
 - [ ] `mapValue` and `values` in `range_map`, proved.
-- [ ] `transitions` in `fsm`; `addEntry` over it; the three helpers
-      through `mapValue`.
+- [ ] `transitions` in `fsm`; `addEntry` over it; `labelRange` and
+      `keyEntry`, the two that keep the bound, through `mapValue`;
+      `entryValues`, which drops it, replaced by `values`.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 
 ### Related

@@ -38,15 +38,25 @@ export const isUintUpTo: (max: number) => (n: unknown) => n is number
 becomes `isByte`, `u16 = isUintUpTo(0xFFFF)`, and `bitIndex` asserts on
 it. `Infinity` is the bound for `isIndex` because it is what `isIndex`
 admits today — any canonical non-negative integer, `1e100` included —
-and this issue changes no public behavior. Whether an index should stop
-at `Number.MAX_SAFE_INTEGER` is a separate question with a separate
-break, to be filed on its own if anyone wants it. The `-0` decision is
-made once, in its doc.
+so the bound changes nothing. Whether an index should stop at
+`Number.MAX_SAFE_INTEGER` is a separate question with a separate break,
+to be filed on its own if anyone wants it.
+
+The `-0` decision is the one break, and it is deliberate: the two
+spellings that reject `-0` do so with an explicit clause, so that is the
+intended rule, and the three that admit it are the ones that never
+asked. Routing them through `isUintUpTo` refuses `-0` where it passed
+before: `bitIndex`, so `bit_set`'s `numberOps`, `bigintOps` and
+`bitSet` assert on `-0` instead of reading it as bit zero; `u8`, so a
+`-0` byte is refused by `utf8`'s decoder; `u16`, so a `-0` code unit is
+refused by `utf16`'s. The implementing PR declares this under
+`Changelog:` as a `**BREAKING CHANGES:**` item naming those exports.
 
 ### Tasks
 
 - [ ] `isUintUpTo`, proved, with the `-0` rule stated.
-- [ ] The five sites through it.
+- [ ] The five sites through it; the `-0` break declared in the PR's
+      `Changelog:` section.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 
 ### Related
