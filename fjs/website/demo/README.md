@@ -8,8 +8,7 @@ new page.
 
 Every rule here was drawn from the demos already on the site, and where they
 disagreed, one way was picked and the reason written down. A demo may
-deviate where its subject needs it — and says why in its JSDoc, as the
-SHA-2 demo does for its single-line field.
+deviate where its subject needs it, and says why in its JSDoc.
 
 ## One order, top to bottom
 
@@ -56,10 +55,17 @@ The lead is plain prose, not a caption: no trailing colon, no bold.
   `A release file`. Where a label would break a sentence the field sits in,
   as the bigint demo's exponent does, the field carries `aria-label`
   instead.
-- **Text in, text out uses [`textDemo`](./module.f.mjs).** It owns the
-  textarea, its `id`/`name` (which the runtime's focus and resize keep), and
-  the examples drop-down. A demo writes its own field only when a textarea is
-  the wrong control — a single-line message to hash.
+- **The control fits what the reader types.** Text that can span lines — a
+  program, a document, a release file — is a textarea, and a demo that is
+  text in, text out uses [`textDemo`](./module.f.mjs), which owns the
+  textarea, the examples drop-down and their wiring. One short value — a
+  message to hash, a key, a number — is a single-line `<input
+  type="text">`, as the SHA-2, bigint and versions demos use. A choice from
+  a fixed set is a `<select>`, as SHA-2's algorithm is.
+- **Every field has a unique `name`.** The runtime finds a field by its
+  `name` to keep the reader's focus and the field's size across a render, a
+  textarea, an input and a select alike, so two fields sharing one would
+  lose them.
 - **Typing updates the output at once.** A button is for work that should not
   run on every keystroke — a benchmark, a test run — and its text is a verb
   that says what it starts: `Measure`, `Run the example`.
@@ -141,6 +147,8 @@ the rtti demo's `parse · ok` and `validate · error` do.
 ## What a demo's proof covers
 
 Besides the 100% coverage every module owes, a demo's proof drives its view
-for the initial state, for each example, and for one refused input, so a
-change that breaks any of the three is caught where it is made rather than
-on the page.
+for the initial state, for each example, and — where the module can refuse
+an input — for one refused input, so a change that breaks any of them is
+caught where it is made rather than on the page. A module that answers every
+input has no refusal to drive: the tokenizer reads text it cannot tokenize
+as an `error` token among the others, a line of its output, not a refusal.
