@@ -42,13 +42,19 @@ shape, which the monoid's stack would also give them.
 
 ### Proposal
 
-The run stack gets one owner: `common/monoid` exports `push`/`step` and a
-walk over `_Stack`, or they move to a small `common/binary_counter`
-module both import. `add` becomes
+The run stack gets one owner, and it is `common/monoid`, which already
+holds it: `push` and `step` become exports, with a walk over the stack
+beside them, and `_Run`/`_Stack` move from its `private.ts` to its
+`types.ts` as `Run`/`Stack`, since a second module now names them. No
+new module: the structure is the monoid fold's own, and `set` is one
+more consumer of it. `add` becomes
 `has(value)(set) ? set : step(union)(new Set([value]))(set)` with
 `union = a => b => new Set([...a, ...b])`, and `has`/`size`/`values`
-walk the stack. The representation of `PersistentSet` changes, which is
-a breaking change to its type. Its consumers are
+walk the stack. The representation of `PersistentSet` changes from an
+array of runs to the stack, which is a breaking change to that public
+type for anyone who builds or inspects one by shape, and the
+implementing PR declares it under `Changelog:` as a
+`**BREAKING CHANGES:**` item. Its in-repository consumers are
 [`fjs/media/datajs/serializer`](../../../media/datajs/serializer/module.f.mjs)
 and [`fjs/edag/value/metadata`](../../../edag/value/metadata/module.f.mjs),
 whose `_Visited` is the type; both use it only through `add`, `has` and
@@ -57,8 +63,10 @@ change of their own beyond the type.
 
 ### Tasks
 
-- [ ] Decide the owner: exports from `common/monoid`, or a
-      `common/binary_counter` module.
-- [ ] `set` over it; its proof passes with the new representation;
-      the serializer and `edag/value/metadata` updated in the same PR.
+- [ ] `push`, `step` and the stack walk exported from `common/monoid`;
+      `Run`/`Stack` in its `types.ts`.
+- [ ] `set` over them; its proof passes with the new representation;
+      the serializer and `edag/value/metadata` updated in the same PR;
+      the `PersistentSet` representation change declared in the PR's
+      `Changelog:` section.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
