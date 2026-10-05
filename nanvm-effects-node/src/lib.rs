@@ -16,6 +16,9 @@
 #[path = "gen.operations.rs"]
 mod operations;
 
+mod native;
+
+pub use native::{MAX_FILE_SIZE_BYTES, Native, normalize};
 pub use operations::*;
 
 /// A runner that implements nothing: every operation answers

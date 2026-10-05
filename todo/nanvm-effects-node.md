@@ -128,8 +128,11 @@ What follows for the tasks below:
       declarations against the existing API.
 - [ ] Implement the operations exercised by the AOT-compiled CLI and
       parser-based proof fixtures in the runner crate
-      (`nanvm-effects-node`, which exists with the generated trait and an
-      `Unimplemented` runner), over `std`.
+      (`nanvm-effects-node`), over `std`. Done in `Native`: `mkdir`,
+      `readFile`, `readdir`, `writeFile`, `writeBytes`, `rm`, `write` and
+      `read`. Left: `resolveFileModule` (the import-specifier rules of
+      `fjs/path/import`, then the file URL identity the Node runner answers),
+      and the marshalling between `Any` values and the generated types.
 - [ ] Implement `sandbox` success, language-throw and duration behavior, with
       cross-host contract tests covering dispatch and callable values returned
       or thrown without losing their identity or requiring serialization.
