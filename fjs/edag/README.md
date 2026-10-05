@@ -90,6 +90,13 @@ helper. Numeric coercion rejects bigint; explicit `Number(bigint)` is a
 different operation. Array/function conversion and operation dispatch remain
 part of the shared operation migration.
 
+The [`value/array`](value/array/module.f.mjs) join helper consumes an evaluated
+array and a resolved string separator. Nullish elements contribute empty text;
+other elements use the supplied string converter in order, preserving the
+first failure unchanged. The converter also owns nested-array and function
+text. Separator conversion/defaulting and full value conversion remain with
+operation dispatch.
+
 "No normal form" is a statement about the module as a whole, not a licence for
 each node kind to admit several spellings of one thing. Where a set of
 spellings *can* be cut down to one in the schema, it is: [Chains](#chains) is

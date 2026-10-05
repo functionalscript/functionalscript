@@ -1,15 +1,18 @@
 /**
  * Array construction retains ordinary values and shallow spread elements,
  * iterates strings by code point, and stops at the first failed operand.
+ * Joining preserves nullish slots and delegates every other element unchanged.
  *
- * @import { EdagValue, Values } from '../types.ts'
+ * @import { EdagValue, Primitive, Values } from '../types.ts'
  * @import { ItemsOver } from '../../types.ts'
  * @import { ValueThunk } from '../control/types.ts'
+ * @import { Result } from '../../../types/result/types.ts'
  */
 
-import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertOk, assertError, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { ok, error } from '../../../types/result/module.f.mjs'
-import { array } from './module.f.mjs'
+import { primitiveToString } from '../coercion/module.f.mjs'
+import { array, join } from './module.f.mjs'
 
 /** A later operand that must never be evaluated. @type {() => never} */
 const skipped = () => { assert(false, 'an operand after a failure was evaluated') }
@@ -34,6 +37,12 @@ const expectValues = (items, expected) => {
     for (let i = 0; i < expected.length; i += 1) {
         assertEq(Object.is(actual[i], expected[i]), true)
     }
+}
+
+/** A converter for nonnullish primitive fixtures. @type {(value: EdagValue) => Result<string, EdagValue>} */
+const primitiveText = value => {
+    assert(typeof value !== 'object')
+    return ok(primitiveToString(value))
 }
 
 export const proof = {
@@ -107,5 +116,50 @@ export const proof = {
         const prefix = [() => ok(1), ['...', () => ok(data)], ['...', () => ok('ab')]]
         assertStructurallySame(assertError(array([...prefix, ['...', () => ok(object)], skipped])), ['undefined'])
         assertStructurallySame(assertError(array([...prefix, ['...', () => ok(func)]])), ['undefined'])
+    },
+    joinEmptyAndSingletons: () => {
+        assertEq(assertOk(join(['[]', []], 'unused', skipped)), '')
+        assertEq(assertOk(join(['[]', [null]], '|', skipped)), '')
+        assertEq(assertOk(join(['[]', [undefinedValue]], '|', skipped)), '')
+        assertEq(assertOk(join(['[]', ['value']], '|', primitiveText)), 'value')
+    },
+    joinNullishSlots: () => {
+        assertEq(assertOk(join(['[]', [null, undefinedValue, null, undefinedValue]], '|', skipped)), '|||')
+        const source = /** @type {const} */ (['[]', [null, undefinedValue, 'a', null, undefinedValue, 'b', undefinedValue, null]])
+        assertEq(assertOk(join(source, '|', primitiveText)), '||a|||b||')
+        assertEq(assertOk(join(source, '', primitiveText)), 'ab')
+        assertEq(assertOk(join(['[]', ['a', null, 'b']], '😀\ud800', primitiveText)), 'a😀\ud800😀\ud800b')
+    },
+    joinPrimitives: () => {
+        /** @type {readonly Primitive[]} */
+        const primitives = [false, true, 0, -0, NaN, Infinity, -Infinity, '', 'undefined', 0n, 1n, -1n, '😀']
+        assertEq(assertOk(join(['[]', primitives], ';', primitiveText)), 'false;true;0;0;NaN;Infinity;-Infinity;;undefined;0;1;-1;😀')
+    },
+    joinDelegation: () => {
+        /** @type {readonly (readonly [EdagValue, string])[]} */
+        const answers = [[data, 'array'], [object, 'object'], [func, 'function']]
+        const result = join(['[]', [data, object, func, data, object, func]], '|', value =>
+            ok(assertNotNullish(answers.find(([original]) => original === value))[1]))
+        assertEq(assertOk(result), 'array|object|function|array|object|function')
+    },
+    joinNestedArrays: () => {
+        const inner = /** @type {const} */ (['[]', [1, null, 2]])
+        assertEq(assertOk(join(['[]', [inner, ['[]', []], inner]], '|', value => {
+            assert(typeof value === 'object' && value !== null && value[0] === '[]')
+            return join(value, ',', primitiveText)
+        })), '1,,2||1,,2')
+    },
+    joinFailures: () => {
+        /** @type {readonly Values[]} */
+        const sources = [['fail', 'later'], ['before', null, 'fail', 'later'], ['before', undefinedValue, 'fail']]
+        for (const failure of [error(data), error(func), error(undefinedValue)]) {
+            for (const source of sources) {
+                assertEq(join(['[]', source], '|', value => {
+                    if (value === 'fail') { return failure }
+                    if (value === 'before') { return ok('converted') }
+                    return skipped()
+                }), failure)
+            }
+        }
     },
 }
