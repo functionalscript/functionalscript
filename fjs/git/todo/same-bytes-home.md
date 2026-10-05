@@ -16,11 +16,16 @@ already holds `startsWith` and is where a reader would look for it.
 ### Proposal
 
 Move `sameBytes` to `fjs/git/bytes` next to `startsWith`; `refname`
-imports it like everyone else.
+imports it like everyone else and no longer exports it. That removes a
+public export from `refname`, which is the point — one home, not two —
+so the implementing PR declares it under `Changelog:` as a
+`**BREAKING CHANGES:**` item, rather than keeping a re-export that would
+leave the second home in place.
 
 ### Tasks
 
-- [ ] The move; the importers re-pointed.
+- [ ] The move; the importers re-pointed; the removed `refname` export
+      declared in the PR's `Changelog:` section.
 - [ ] `tsc`, `fjs test`.
 
 ### Related

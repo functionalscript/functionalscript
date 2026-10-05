@@ -63,8 +63,9 @@ A `tryReadAtLeast(least)` absorbs the shared size guard.
 
 - [ ] `field`, `optionalField`, `tryReadAtLeast` in `header`, proved.
 - [ ] `commit` and `tag` through them, each view keeping the parser it
-      has today; the five combinators go, or stay as the descriptor's own
-      views.
+      has today; the five combinators go — the descriptor's views are
+      the one API, and the removed `header` exports are declared in the
+      PR's `Changelog:` section as a `**BREAKING CHANGES:**` item.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 
 ### Related
