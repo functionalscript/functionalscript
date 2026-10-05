@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — primitive binary arithmetic and bitwise operations implemented; callable conversion, invocation and VM migration remain open
+**Status:** wip — primitive exponentiation
 
 ### Problem
 
@@ -337,6 +337,10 @@ budget or stopped-outcome API.
       reusing primitive ToNumeric and same-type dispatch. Preserve signed
       32-bit number conversion and exact bigint results; mixed numeric types
       return tagged-undefined failure. Exponentiation and shifts remain open.
+- [ ] Add primitive exponentiation `**` in `fjs/edag/value/numeric`, reusing
+      primitive ToNumeric and same-type dispatch. Preserve number behavior
+      and exact bigint results; mixed numeric types and negative bigint
+      exponents return tagged-undefined failure. Shifts remain open.
 - [x] Join evaluated arrays in `fjs/edag/value/array` with a resolved separator
       and a supplied string converter. Nullish elements contribute empty text;
       other elements, including nested arrays and functions, convert in order.
