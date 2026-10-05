@@ -117,8 +117,9 @@
  * shared value under a lazy operand that anything outside the operand
  * reaches ({@link block}).
  *
- * Invalid function length metadata and graphs that break the EDAG's scope
- * rule are refused through the same diagnostic channel as unsupported output.
+ * Raw-expression entry points refuse invalid function length metadata and
+ * graphs that break the EDAG's scope rule through the same diagnostic channel
+ * as unsupported output. `functionText` reuses an admitted analysis instead.
  *
  * @module
  *
@@ -1313,6 +1314,29 @@ export const tryStringify = e => mapOk(
 )(trySerialize(e))
 
 /**
+ * A function entry's canonical text from an existing analysis table. The
+ * caller supplies a function index with valid length and body bindings,
+ * including nested body scopes. Analysis and admission belong to the caller;
+ * this renderer trusts those invariants and reports only unsupported output.
+ *
+ * Captures are named by position, `$0`, `$1`, …, without rendering their
+ * values. Primitive and repeated evaluated captures are allowed; the current
+ * writer still refuses slots the body never reads.
+ * The selected function is written as a standalone expression even when it
+ * is nested in the table. Diagnostics remain output errors, not thrown VM
+ * values. {@link tryFunctionText} is the checked entry for a raw expression.
+ *
+ * @type {(a: Analysis, i: number) => Result<string, string>}
+ */
+export const functionText = (a, i) => {
+    const [, length, slots, body] = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (a.nodes[i])
+    return mapOk(
+        /** @type {(text: List<string>) => string} */
+        (text => toArray(text).join('')),
+    )(lambda(a, 1, i, length, slots.map((_, k) => `$${k}`))(body))
+}
+
+/**
  * A function's text: the function node written as one expression — what
  * `String(f)` answers for a function the compiler built, and the one
  * spelling every executor shares
@@ -1348,15 +1372,10 @@ export const tryFunctionText = e => {
     const result = analysis(e)
     const [kind, a] = result
     if (kind === 'error') { return result }
-    const [, length, slots] = e
     const i = /** @type {Ref} */ (a.root)[1]
     const problem = bindingError(a, i)
     if (problem !== null) { return error(problem) }
-    const node = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (a.nodes[i])
-    return mapOk(
-        /** @type {(text: List<string>) => string} */
-        (text => toArray(text).join('')),
-    )(lambda(a, 1, i, length, slots.map((_, k) => `$${k}`))(node[3]))
+    return functionText(a, i)
 }
 
 /** A generated-name prefix that cannot collide with any exported binding. @type {(keys: readonly string[], prefix: string) => string} */

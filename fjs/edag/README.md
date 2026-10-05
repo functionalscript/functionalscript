@@ -97,6 +97,14 @@ first failure unchanged. The converter also owns nested-array and function
 text. Separator conversion/defaulting and full value conversion remain with
 operation dispatch.
 
+The shared [serializer](../compiler/serializer/module.f.mjs) exposes
+`functionText(analysis, index)` for a function whose analysis and body bindings
+are already established. It renders canonical code and capture-slot names
+without repeating admission; `tryFunctionText` remains the checked entry for
+a raw expression. Unsupported output retains the renderer's diagnostic
+channel. Connecting this renderer to value conversion remains part of the
+VM migration.
+
 "No normal form" is a statement about the module as a whole, not a licence for
 each node kind to admit several spellings of one thing. Where a set of
 spellings *can* be cut down to one in the schema, it is: [Chains](#chains) is
