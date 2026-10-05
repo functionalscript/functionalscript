@@ -24,8 +24,10 @@ export const _missingExport = ({ path, name }) => ({ message: `module has no ${n
 
 ### Proposal
 
-One constructor, exported from the transpiler or from
-[`parser/types.ts`](../../parser/types.ts) next to `ParseError`:
+One constructor, exported from [`module.f.mjs`](../module.f.mjs) here,
+or from the parser's runtime module beside the other `ParseError`
+constructors. Not from `parser/types.ts`: that file is the type-level
+API and carries no runtime value.
 
 ```ts
 /** An error about a file, not a token: it has a path and no position. */

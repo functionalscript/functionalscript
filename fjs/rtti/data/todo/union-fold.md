@@ -56,9 +56,9 @@ type UnionAlgebra<R> = {
     readonly object: (set: ObjectSet) => R
     readonly join: (members: readonly R[]) => R
 }
-export const unionFold: <R>(algebra: UnionAlgebra<R>) => (u: Union) => R
+export const unionFold: <R>(algebra: UnionAlgebra<R>) => (u: UnionSet) => R
 /** How many leading items of a prefix are required: the index after the last that does not admit absence. */
-export const requiredPrefix: (rules: Rules) => (prefix: readonly Node[]) => number
+export const requiredPrefix: (rules: RuleSet) => (prefix: readonly Node[]) => number
 ```
 
 `unionToTs` is `unionFold` with `join: union`, `top: () => 'unknown'`

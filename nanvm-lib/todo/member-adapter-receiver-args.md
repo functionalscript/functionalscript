@@ -40,9 +40,10 @@ fn receiver<A: IVm, T: TryFrom<Any<A>, Error = Any<A>>>(receiver: Any<A>) -> Res
 /// `present(i)` and `rest(i)` the two functions of those names today.
 struct Args<A: IVm>(Array<A>);
 
-/// `Ok(x?.to_any())`, once.
+/// `Ok(x?.to_any())`, once. `ToAny` has no type parameter; its `to_any`
+/// is generic and asks `Self: Into<A>`, so that is the bound here too.
 trait ToAnyResult<A: IVm> { fn to_any_result(self) -> Result<Any<A>, Any<A>>; }
-impl<A: IVm, T: ToAny<A>> ToAnyResult<A> for Result<T, Any<A>> { … }
+impl<A: IVm, T: Into<A>> ToAnyResult<A> for Result<T, Any<A>> { … }
 ```
 
 An adapter is then one expression —

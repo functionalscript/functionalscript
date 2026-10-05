@@ -42,8 +42,14 @@ One effect in this module owns the chain:
 
 ```ts
 /** Writes each file after creating its parent directory, in order, stopping at the first failure. */
-export const writeFiles: (files: readonly (readonly [path: string, text: string])[]) => Effect<Mkdir | WriteUtf8File, Result<void, Error>>
+export const writeFiles: (files: readonly (readonly [path: string, text: string])[]) => Effect<Mkdir | WriteFile | WriteBytes | Rm, void, IoChannel>
 ```
+
+The operations are `mkdir`'s and `writeUtf8File`'s own: a long text is
+written in chunks and a failed write removes the partial file, so
+`WriteBytes` and `Rm` are part of the contract. The failure is
+`Effect`'s own error type, `IoChannel`, not a `Result` in the success
+slot.
 
 A generator is then a pure `files(): readonly [path, text][]` plus a
 one-line `main` that writes them, which is also what makes the file set
