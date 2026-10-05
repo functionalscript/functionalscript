@@ -18,13 +18,16 @@ let x = x.abs();
 Ok(format!("{sign}{text}").as_str().into())
 ```
 
-`BigInt::to_radix_string` in `vm/bigint/radix.rs` builds its sign prefix
-the same way for its own digits. The digit logic between the two halves
-is each method's own and differs; the halves do not.
+The digit logic between the two halves is each method's own and
+differs; the halves do not. `BigInt::to_radix_string` in
+`vm/bigint/radix.rs` spells the same prefix from `self.sign()`, but its
+magnitude is a bigint, not an `f64`, so it is outside what the helper
+below takes and stays as it is.
 
 ### Proposal
 
-One private helper owns the sign and the `&str` to `String<A>` step:
+One private helper in `vm/number/format.rs`, for `Number` only, owns
+the sign and the `&str` to `String<A>` step:
 
 ```rust
 /// `-` or nothing, then `magnitude` of `|x|`, as a VM string.
@@ -37,8 +40,7 @@ that order stays per method.
 
 ### Tasks
 
-- [ ] `signed`; the four formatters and `BigInt::to_radix_string`'s prefix
-      through it.
+- [ ] `signed`; the four `Number` formatters through it.
 - [ ] `cargo test`, `cargo clippy`, `cargo fmt -- --check`.
 
 ### Related

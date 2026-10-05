@@ -54,21 +54,27 @@ export const eagerLayers = [
 ] as const
 ```
 
-`binaryTags` is derived from it (plus `**` and the lazy and conditional
-tags), the grammar's `*Tags` records and `binaryOpTag` read it, the
-eager tails are built by one fold that accumulates the tails already
-built, and the serializer's `levels` is the lazy levels followed by the
-table's rows reversed. The order then exists once. The `EagerTail` tuple
-type the grammar exports may need a pinning `Assert<Equal<…>>` once the
-tails are built by a fold rather than written out.
+`binaryTags` is derived from it plus `**` and the three lazy tags, and
+stays what `BinaryTag` in [`ast/types.ts`](../ast/types.ts) is: the
+conditional is not a binary operator — `AstConditional` is its own
+four-element node — so `?:` is never in the table or in `binaryTags`,
+and the `_BinaryTagsAreComplete` pin keeps holding. The grammar's
+`*Tags` records and `binaryOpTag` read the table, and the eager tails
+are built by one fold that accumulates the tails already built. The
+serializer's `levels` is a precedence ladder, not a tag list, so it is
+the one place `?:` appears: its loosest level, then the lazy levels,
+then the table's rows reversed, then `**`. The order then exists once.
+The `EagerTail` tuple type the grammar exports may need a pinning
+`Assert<Equal<…>>` once the tails are built by a fold rather than
+written out.
 
 ### Tasks
 
 - [ ] `eagerLayers` in `ast`; `binaryTags` derived from it.
 - [ ] The grammar's layer records, `binaryOpTag` and the eager tails
       from the table; its proofs pass unchanged.
-- [ ] The serializer's `levels` from the table; its round-trip proofs
-      pass unchanged.
+- [ ] The serializer's `levels` from the table, with `?:` and the lazy
+      levels as its own prefix; its round-trip proofs pass unchanged.
 - [ ] `tsc`, `fjs test`, `npm start compile`.
 
 ### Related

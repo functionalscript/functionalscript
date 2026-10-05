@@ -32,11 +32,17 @@ One constructor, exported from the transpiler or from
 export const _fileError: (path: string) => (message: string) => ParseError
 ```
 
-Every site becomes `pureError(_fileError(path)(message))`.
+Each site calls `_fileError(path)(message)` for the value and keeps the
+wrapper it has: `pureError(…)` where it is a failed effect today,
+`error(…)` inside the `Result` that `_parseJson` hands to `pure`, and
+the bare value in `_attributeError`, which answers `ParseError | null`,
+and `_missingExport`, whose callers wrap it themselves. The exported
+signatures do not change; only the literal does.
 
 ### Tasks
 
-- [ ] `_fileError`; the sites through it.
+- [ ] `_fileError`; the sites through it, each keeping its wrapper
+      and its signature.
 - [ ] `tsc`, `fjs test`.
 
 ### Related
