@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — function-free runtime materialization implemented; callable conversion, invocation and VM migration remain open
+**Status:** wip — sequence represented evaluation results; callable conversion, invocation and VM migration remain open
 
 ### Problem
 
