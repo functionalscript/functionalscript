@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — value helpers, construction, bare-call preparation and property lookup implemented; invocation and VM migration remain open
+**Status:** wip — implementing ordinary-object conversion to primitives; invocation and VM migration remain open
 
 ### Problem
 
