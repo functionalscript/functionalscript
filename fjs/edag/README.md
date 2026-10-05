@@ -84,8 +84,11 @@ in the operation migration.
 primitives by trying `valueOf` and `toString` in the hint's order. Own methods
 shadow stock behavior, including noncallable values. Represented functions
 run through the call helper; their first primitive result or failure returns
-unchanged. Array/function conversion and conversion of primitive results
-remain part of the shared operation migration.
+unchanged. Its primitive helpers convert the represented `Primitive` subset
+to strings and numbers, decoding tagged undefined through the shared semantics
+helper. Numeric coercion rejects bigint; explicit `Number(bigint)` is a
+different operation. Array/function conversion and operation dispatch remain
+part of the shared operation migration.
 
 "No normal form" is a statement about the module as a whole, not a licence for
 each node kind to admit several spellings of one thing. Where a set of

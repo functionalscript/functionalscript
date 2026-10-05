@@ -1,5 +1,6 @@
 /**
- * Convert an evaluated ordinary object to a primitive. The string hint tries
+ * Convert evaluated ordinary objects to primitives, and primitives to strings
+ * or numbers. Ordinary object conversion's string hint tries
  * toString before valueOf; the number hint reverses that order. Callers use
  * the number hint for the default conversion of an ordinary object.
  *
@@ -11,12 +12,15 @@
  * next method without further conversion. Exhaustion fails with tagged
  * undefined. Evaluated object invariants are trusted.
  *
- * This leaf handles ordinary objects. Operand evaluation, array/function
- * conversion and conversion of the resulting primitive belong to callers.
+ * Primitive helpers consume only primitive values, including tagged undefined.
+ * String conversion is infallible. Numeric coercion is abstract ToNumber:
+ * bigint fails, unlike explicit Number(bigint). No represented container or
+ * function is passed to a host conversion. Operand evaluation, array/function
+ * conversion and operation dispatch remain with callers.
  *
  * @module
- * @import { Object as ValueObject } from '../types.ts'
- * @import { ValueResult } from '../control/types.ts'
+ * @import { EdagValue, Primitive, Object as ValueObject } from '../types.ts'
+ * @import { Result } from '../../../types/result/types.ts'
  * @import { Invoke } from '../call/types.ts'
  */
 
@@ -24,8 +28,17 @@ import { isArray } from '../../../types/array/module.f.mjs'
 import { ok, error } from '../../../types/result/module.f.mjs'
 import { call } from '../call/module.f.mjs'
 import { findProperty } from '../property/module.f.mjs'
+import { untagUndefined } from '../semantics/module.f.mjs'
 
-/** OrdinaryToPrimitive for represented objects. @type {(value: ValueObject, hint: 'number' | 'string', invoke: Invoke) => ValueResult} */
+/** ToString of an evaluated primitive. @type {(value: Primitive) => string} */
+export const primitiveToString = value => String(untagUndefined(value))
+
+/** ToNumber, as used by unary plus; bigint is an implicit failure. @type {(value: Primitive) => Result<number, EdagValue>} */
+export const primitiveToNumber = value => typeof value === 'bigint'
+    ? error(['undefined'])
+    : ok(Number(untagUndefined(value)))
+
+/** OrdinaryToPrimitive for represented objects. @type {(value: ValueObject, hint: 'number' | 'string', invoke: Invoke) => Result<Primitive, EdagValue>} */
 export const objectToPrimitive = (value, hint, invoke) => {
     const order = hint === 'string' ? ['toString', 'valueOf'] : ['valueOf', 'toString']
     for (const name of order) {
@@ -38,7 +51,11 @@ export const objectToPrimitive = (value, hint, invoke) => {
         if (!isArray(method) || method[0] !== '=>') { continue }
         const result = call(ok(method), [], invoke)
         const [kind, primitive] = result
-        if (kind === 'error' || !isArray(primitive) || primitive[0] === 'undefined') { return result }
+        if (kind === 'error' || !isArray(primitive) || primitive[0] === 'undefined') {
+            // The payload guard proves the success type; retain the original
+            // result tuple, whose type TypeScript does not narrow with it.
+            return /** @type {Result<Primitive, EdagValue>} */ (result)
+        }
     }
     return error(['undefined'])
 }
