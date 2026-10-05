@@ -34,10 +34,14 @@ or a code unit is one question with one answer, and today it has two.
 export const isUintUpTo: (max: number) => (n: unknown) => n is number
 ```
 
-`isByte = isUintUpTo(0xFF)`, `isIndex = isUintUpTo(Infinity)` (or the
-`2 ** 53 - 1` an index actually is), `u8` becomes `isByte`,
-`u16 = isUintUpTo(0xFFFF)`, and `bitIndex` asserts on it. The `-0`
-decision is made once, in its doc.
+`isByte = isUintUpTo(0xFF)`, `isIndex = isUintUpTo(Infinity)`, `u8`
+becomes `isByte`, `u16 = isUintUpTo(0xFFFF)`, and `bitIndex` asserts on
+it. `Infinity` is the bound for `isIndex` because it is what `isIndex`
+admits today — any canonical non-negative integer, `1e100` included —
+and this issue changes no public behavior. Whether an index should stop
+at `Number.MAX_SAFE_INTEGER` is a separate question with a separate
+break, to be filed on its own if anyone wants it. The `-0` decision is
+made once, in its doc.
 
 ### Tasks
 
