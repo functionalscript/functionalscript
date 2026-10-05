@@ -6,7 +6,8 @@
  * Shape checks do not establish closed-graph validity or canonical metadata.
  * `metadata/module.f.mjs` checks evaluated function lengths and object keys;
  * `closure/module.f.mjs` checks body scopes, bindings and function lengths.
- * Acyclic admission remains in `../todo/edag-value.md`. Use `validate`
+ * `../acyclic/module.f.mjs` supplies the array-cycle preflight before shape
+ * validation; complete admission remains in `../todo/edag-value.md`. Use `validate`
  * to retain input identity; `parse` rebuilds containers, as documented in
  * `../../rtti/todo/identity-aware-parse.md`.
  *

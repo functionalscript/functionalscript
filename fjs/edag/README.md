@@ -29,6 +29,10 @@ preserving value identity.
 function-body scopes and function lengths, including nested function creation,
 and also preserves value identity. Both checks require shape-checked, acyclic
 input; admission from unknown input remains in the value plan.
+[`validateAcyclic`](acyclic/module.f.mjs) checks array-position cycles before
+recursive shape validation, including structural lists, captures and bodies.
+It accepts shared acyclic graphs and retains the original input; it establishes
+no shape or closure validity. The complete admission entry remains open.
 
 "No normal form" is a statement about the module as a whole, not a licence for
 each node kind to admit several spellings of one thing. Where a set of
