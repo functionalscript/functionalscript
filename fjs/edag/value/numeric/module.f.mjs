@@ -9,8 +9,9 @@
  * These implicit failures return tagged undefined.
  *
  * Callers evaluate operands, propagate failures and convert containers or
- * functions to primitives in language order. Addition uses the default hint;
- * other arithmetic uses the number hint. This module consumes those results.
+ * functions to primitives in language order. For ordinary objects, pass
+ * 'number' to objectToPrimitive for all these operations, including
+ * addition's default conversion. This module consumes those results.
  *
  * @module
  * @import { Primitive, EdagValue } from '../types.ts'

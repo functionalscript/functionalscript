@@ -99,7 +99,8 @@ preserve bigint, and explicit `Number` converts it. Its `binary` table supplies
 string; otherwise arithmetic preserves the numeric type. Mixed number/bigint
 operands and bigint zero divisors fail with tagged undefined. Both tables
 return `Result` values. Callers own operand evaluation and conversion to
-primitives, using the default hint for addition and the number hint otherwise.
+primitives. For ordinary objects, pass `'number'` to `objectToPrimitive`
+for all these operations, including addition's default conversion.
 
 The [`value/array`](value/array/module.f.mjs) join helper consumes an evaluated
 array and a resolved string separator. Nullish elements contribute empty text;
