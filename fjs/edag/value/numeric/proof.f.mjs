@@ -1,6 +1,7 @@
 /**
  * Primitive arithmetic distinguishes string addition, number and bigint;
  * unary operations distinguish abstract ToNumber from explicit Number.
+ * Binary bitwise operations distinguish signed 32-bit numbers from exact bigints.
  *
  * @import { Primitive } from '../types.ts'
  */
@@ -133,15 +134,51 @@ export const proof = {
             assertEq(assertOk(binary[operator](left, right)), expected)
         }
     },
+    numberBitwise: () => {
+        /** @type {readonly (readonly [Primitive, Primitive, number, number, number])[]} */
+        const cases = [
+            // Left, right, AND, OR, XOR.
+            [6, 3, 2, 7, 5], [6.9, 3.9, 2, 7, 5], [-6.9, 3.9, 2, -5, -7],
+            [2147483648, -1, -2147483648, -1, 2147483647],
+            [4294967297, 3, 1, 3, 2], [-4294967297, 3, 3, -1, -4],
+            [-0, 0, 0, 0, 0], [null, false, 0, 0, 0],
+            [NaN, 5, 0, 5, 5], [Infinity, 5, 0, 5, 5], [-Infinity, 5, 0, 5, 5],
+            [undefinedValue, 5, 0, 5, 5], ['value', 5, 0, 5, 5],
+            [true, '2', 0, 3, 3], ['0x10', '3', 0, 19, 19],
+        ]
+        for (const [left, right, and, or, xor] of cases) {
+            for (const [a, b] of [[left, right], [right, left]]) {
+                assertEq(Object.is(assertOk(binary['&'](a, b)), and), true)
+                assertEq(Object.is(assertOk(binary['|'](a, b)), or), true)
+                assertEq(Object.is(assertOk(binary['^'](a, b)), xor), true)
+            }
+        }
+    },
+    bigintBitwise: () => {
+        /** @type {readonly (readonly [bigint, bigint, bigint, bigint, bigint])[]} */
+        const cases = [
+            [6n, 3n, 2n, 7n, 5n], [-6n, 3n, 2n, -5n, -7n],
+            [9007199254740993n, 3n, 1n, 9007199254740995n, 9007199254740994n],
+            [9007199254740993n, -1n, 9007199254740993n, -1n, -9007199254740994n],
+            [0n, 0n, 0n, 0n, 0n],
+        ]
+        for (const [left, right, and, or, xor] of cases) {
+            for (const [a, b] of [[left, right], [right, left]]) {
+                assertEq(assertOk(binary['&'](a, b)), and)
+                assertEq(assertOk(binary['|'](a, b)), or)
+                assertEq(assertOk(binary['^'](a, b)), xor)
+            }
+        }
+    },
     mixedNumericTypes: () => {
-        for (const operator of /** @type {const} */ (['+', '-', '*', '/', '%'])) {
+        for (const operator of /** @type {const} */ (['+', '-', '*', '/', '%', '&', '|', '^'])) {
             for (const value of [0, 1, null, true, false, undefinedValue]) {
                 assertStructurallySame(assertError(binary[operator](1n, value)), ['undefined'])
                 assertStructurallySame(assertError(binary[operator](value, 1n)), ['undefined'])
             }
         }
         // Numeric strings still become numbers; only addition concatenates.
-        for (const operator of /** @type {const} */ (['-', '*', '/', '%'])) {
+        for (const operator of /** @type {const} */ (['-', '*', '/', '%', '&', '|', '^'])) {
             assertStructurallySame(assertError(binary[operator](1n, '2')), ['undefined'])
             assertStructurallySame(assertError(binary[operator]('2', 1n)), ['undefined'])
         }

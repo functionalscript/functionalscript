@@ -95,12 +95,14 @@ operation migration.
 [`value/numeric`](value/numeric/module.f.mjs) supplies a `unary` operation
 table over evaluated primitives. Unary `+` fails on bigint, `-` and `~`
 preserve bigint, and explicit `Number` converts it. Its `binary` table supplies
-`+`, `-`, `*`, `/` and `%`: addition concatenates when either primitive is a
-string; otherwise arithmetic preserves the numeric type. Mixed number/bigint
-operands and bigint zero divisors fail with tagged undefined. Both tables
-return `Result` values. Callers own operand evaluation and conversion to
-primitives. For ordinary objects, pass `'number'` to `objectToPrimitive`
-for all these operations, including addition's default conversion.
+`+`, `-`, `*`, `/`, `%`, `&`, `|` and `^`: addition concatenates when either
+primitive is a string; otherwise arithmetic preserves the numeric type.
+The bitwise operations use signed 32-bit numbers or exact bigints.
+Mixed number/bigint operands and bigint zero divisors fail with tagged
+undefined. Both tables return `Result` values. Callers own operand evaluation
+and conversion to primitives. For ordinary objects, pass `'number'` to
+`objectToPrimitive` for all these operations, including addition's default
+conversion.
 
 The [`value/array`](value/array/module.f.mjs) join helper consumes an evaluated
 array and a resolved string separator. Nullish elements contribute empty text;
