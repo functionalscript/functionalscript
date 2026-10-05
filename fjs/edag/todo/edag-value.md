@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — value shape, metadata, closure checks, basic semantics and control flow implemented; invocation and VM migration remain open
+**Status:** wip — implement array construction and spreads; invocation and VM migration remain open
 
 ### Problem
 
