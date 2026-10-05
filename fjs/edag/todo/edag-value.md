@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** wip — primitive binary arithmetic
+**Status:** open — primitive binary arithmetic implemented; callable conversion, invocation and VM migration remain open
 
 ### Problem
 
@@ -328,7 +328,7 @@ budget or stopped-outcome API.
       converts it. Share primitive ToNumeric in `value/coercion`; return
       numeric successes or tagged-undefined failures through `Result`.
       Operand evaluation and container/function conversion remain with dispatch.
-- [ ] Add primitive binary arithmetic in `fjs/edag/value/numeric`: `+`, `-`,
+- [x] Add primitive binary arithmetic in `fjs/edag/value/numeric`: `+`, `-`,
       `*`, `/` and `%`. Preserve string addition and same-type numeric
       arithmetic; mixed numeric types and bigint zero divisors return
       tagged-undefined failure. Operand evaluation and conversion to primitives
