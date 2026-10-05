@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — sequence evaluation implemented; callable conversion, invocation and VM migration remain open
+**Status:** wip — primitive unary numeric operations
 
 ### Problem
 
@@ -324,6 +324,11 @@ budget or stopped-outcome API.
       its primitive success type so callers can compose the helpers directly.
       Explicit `Number(bigint)` conversion remains with operation dispatch
       and must accept bigint.
+- [ ] Add primitive unary numeric operations in `fjs/edag/value/numeric`:
+      `+` rejects bigint, `-` and `~` preserve bigint, and explicit `Number`
+      converts it. Share primitive ToNumeric in `value/coercion`; return
+      numeric successes or tagged-undefined failures through `Result`.
+      Operand evaluation and container/function conversion remain with dispatch.
 - [x] Join evaluated arrays in `fjs/edag/value/array` with a resolved separator
       and a supplied string converter. Nullish elements contribute empty text;
       other elements, including nested arrays and functions, convert in order.
