@@ -96,6 +96,10 @@ at the site's own view, and GitHub can stay as a second link.
 - [ ] `source-view/module.f.mjs`: tokens → highlighted `<pre>` content.
 - [ ] `source-view/module.f.mjs`: tokens → doc entries (`@module` block, one
       entry per `export const`).
+- [ ] Give each doc entry an anchor named for its export, built by one exported
+      function, so another page can link to a single export. The rtti demo
+      will link each project schema to its declaration this way:
+      [demo-link-to-schema-export](../../rtti/todo/demo-link-to-schema-export.md).
 - [ ] `source-view.mjs`: fetch and insert, one script for both views.
 - [ ] Emit the hooks from the page generator.
 - [ ] Measure tokenization time in the browser on the largest module; record

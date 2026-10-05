@@ -45,13 +45,13 @@ export const fundingPath = 'funding.json'
  * the format carries much more — the entity, the projects, the plans, a
  * channel's `type` — and none of it is the footer's business.
  */
-const schema = open(/** @type {const} */ ({
+export const fundingSchema = open(/** @type {const} */ ({
     funding: open({
         channels: array(open({ address: string, description: string })),
     }),
 }))
 
-const parseSchema = rttiParse(schema)
+const parseSchema = rttiParse(fundingSchema)
 
 /** @type {(c: string) => boolean} */
 const isDigit = c => c >= '0' && c <= '9'
