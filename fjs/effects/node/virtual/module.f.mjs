@@ -88,8 +88,8 @@ const { hasOwn } = Object
  * this to find. That is not a rule invented here: FunctionalScript's own parser
  * refuses both spellings with `__proto__ requires the computed key form`
  * (`../../../compiler/parser/`), for this exact reason. The refused spelling was
- * never a working fixture anyway — `readdir` walks `Object.entries`, which is
- * own-only, so such a directory listed as empty while `stat` claimed the entry
+ * never a working fixture anyway — `readdir` walks the object's own keys, which
+ * are own-only, so such a directory listed as empty while `stat` claimed the entry
  * existed. Now every operation agrees it is absent.
  *
  * @type {(dir: Dir, name: string) => _Entity | undefined}
@@ -495,26 +495,41 @@ const writeFile = payload => mirrorsToHandles(operation(writeFileOp(payload)))
 
 const invalidPath = fail('invalid path')
 
-const { entries } = Object
+const { keys } = Object
 
-/** @type {(base: string, recursive: boolean) => (path: string) => (state: State) => readonly [State, IoResult<readonly Dirent[]>]} */
+/**
+ * A directory's entries, as a host answers them: each directory's in the order
+ * of its names, and a recursive read level by level — the entries of the
+ * directory itself, then those of each directory among them in the order
+ * found — which is what `readdir` with `recursive` answers on Node, and what
+ * a depth-first walk does not.
+ *
+ * The order of names is the order of their UTF-16 code units, as `sort`
+ * gives it. A host's is the order of their bytes where the two differ, which
+ * is for characters outside the Basic Multilingual Plane against those above
+ * `U+E000`.
+ *
+ * @type {(base: string, recursive: boolean) => (path: string) => (state: State) => readonly [State, IoResult<readonly Dirent[]>]}
+ */
 const readdir = (base, recursive) => readOperation((dir, path) => {
     if (path.length !== 0) { return invalidPath }
-    /** @type {(parentPath: string, d: Dir) => readonly Dirent[]} */
-    const f = (parentPath, d) => {
-        /** @type {readonly Dirent[]} */
-        let result = []
-        for (const [name, content] of entries(d)) {
+    /** @type {readonly (readonly [string, Dir])[]} */
+    let queue = [[base, dir]]
+    /** @type {readonly Dirent[]} */
+    let result = []
+    for (let i = 0; i < queue.length; i++) {
+        const [parentPath, d] = queue[i]
+        for (const name of keys(d).toSorted()) {
+            const content = d[name]
             if (content === undefined) { continue }
             const isFile = !isDir(content)
             result = [...result, { name, parentPath, isFile, isDirectory: !isFile }]
             if (!isFile && recursive) {
-                result = [...result, ...f(join(parentPath, name), content)]
+                queue = [...queue, [join(parentPath, name), content]]
             }
         }
-        return result
     }
-    return ok(f(base, dir))
+    return ok(result)
 })
 
 /** @type {(path: string) => (state: State) => readonly [State, IoResult<void>]} */
