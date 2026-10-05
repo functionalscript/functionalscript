@@ -8,9 +8,14 @@
 The tables in `vm/lambda/method.rs`, `vm/lambda/string.rs` and
 `vm/lambda/number.rs` map a member name to an adapter of one shape,
 `fn(Any<A>, Array<A>) -> Result<Any<A>, Any<A>>` — about fifty of them
-at `ef756f0`. Every adapter does the same three things around its
-one call: convert the receiver to its type, read its arguments with
-`argument(&args, i)`, and wrap the typed answer with `Ok(….to_any())`:
+at `ef756f0`. Every adapter does the first two of three things around
+its one call — convert the receiver to its type and read its arguments
+with `argument(&args, i)` — and most do the third, wrapping a typed
+answer with `Ok(….to_any())`. Not all: `array_at`, `array_find` and the
+reducers get an `Any` back and return it as it is, and the index
+searches map an `Option<u32>` through `position` to answer `-1` for a
+miss. Those keep their own last step; the wrapping below is for the
+adapters whose answer converts.
 
 ```rust
 // vm/lambda/string.rs, slice
@@ -46,16 +51,21 @@ trait ToAnyResult<A: IVm> { fn to_any_result(self) -> Result<Any<A>, Any<A>>; }
 impl<A: IVm, T: Into<A>> ToAnyResult<A> for Result<T, Any<A>> { … }
 ```
 
-An adapter is then one expression —
+An adapter whose answer converts is then one expression —
 `receiver::<_, String<A>>(s)?.slice(args.at(0), args.at(1)).to_any_result()`
-— and the two private `receiver`s are deleted. The `Method` fn-pointer
+— and the two private `receiver`s are deleted. `ToAnyResult` applies
+only where the success type is `Into<A>`; an adapter that already holds
+an `Any`, or maps an `Option<u32>` through `position`, uses `receiver`
+and `Args` and keeps its own result step. The `Method` fn-pointer
 tables keep their shape; only the adapters' bodies change.
 
 ### Tasks
 
 - [ ] Generic `receiver`, `Args`, `ToAnyResult` in `vm/lambda/method.rs`.
 - [ ] The adapters in `method.rs`, `string.rs` and `number.rs` through
-      them; the two private `receiver`s deleted.
+      `receiver` and `Args`, and through `ToAnyResult` where the answer
+      converts; the direct-`Any` and `position` adapters keep their
+      result step; the two private `receiver`s deleted.
 - [ ] `cargo test`, `cargo clippy`, `cargo fmt -- --check`.
 
 ### Related
