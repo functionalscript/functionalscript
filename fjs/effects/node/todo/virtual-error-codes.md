@@ -26,8 +26,8 @@ cases, found by running the same scenario against the Node runner and against
 The same run agreed on the other fourteen: `mkdir` over a directory, over a
 file, with a missing parent and recursively; `rm` of a missing path and of a
 file; `rmdir` of a non-empty directory, of a file and of a missing path;
-`stat`, `access` and `rename` of a missing path; `readFile` and `readdir`... of
-a missing file. A program that tells these failures apart by `code` (a walk
+`stat`, `access` and `rename` of a missing path, and `readFile` of a missing
+one. A program that tells these failures apart by `code` (a walk
 that forgives `ENOENT`, `fjs/git/refstore` on an `EISDIR` directory called
 `packed-refs`) takes the "no code" branch on the virtual host and another on
 the host.
