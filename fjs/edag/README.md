@@ -64,6 +64,14 @@ templates, while sharing within that graph is preserved. Body code stays
 unevaluated; captured values stay outside the copy. Invocation remains part
 of the executor migration.
 
+[`value/call`](value/call/module.f.mjs) prepares bare calls over represented
+values. It resolves deferred arguments and spreads, pads missing fixed
+arguments with tagged undefined and creates a fresh rest array per call.
+Callee and argument failures propagate unchanged; arguments resolve before
+a non-function fails. An executor callback receives the original function
+and its fixed/rest bindings and owns body evaluation and invocation state.
+This stateless helper leaves immutable cache integration to the VM migration.
+
 "No normal form" is a statement about the module as a whole, not a licence for
 each node kind to admit several spellings of one thing. Where a set of
 spellings *can* be cut down to one in the schema, it is: [Chains](#chains) is
