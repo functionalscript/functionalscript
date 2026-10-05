@@ -1093,7 +1093,14 @@ export const proof = {
                     body: lazyBody(vecChunk, 3, pulls),
                     release: counting(releases),
                 }),
-                port => within('a three-chunk body', 10000, answered(port, 'GET')))
+                async port => {
+                    const response = await within('a three-chunk body', 10000, answered(port, 'GET'))
+                    // Content-Length lets the client finish before the last
+                    // drain and end-marker pull. Wait for the producer before
+                    // withServer closes its connections and cancels that pull.
+                    await reaches(releases, 1)
+                    return response
+                })
             assertEq(answer.status, 200)
             assertEq(answer.length, `${3 * oneVec}`)
             assertEq(answer.ending, 'end')
