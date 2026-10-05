@@ -121,8 +121,13 @@ What follows for the tasks below:
       `npm run gen`. The printer covers the vocabulary the operations use and
       refuses any other schema. `bigint` is `Vec<u8>`; the handwritten and
       unsupported operations are not in the trait.
-- [ ] Add the handwritten native `sandbox` declaration and compose its dispatch
-      with the generated subset, preserving the existing TypeScript signature.
+- [x] The handwritten native `sandbox` and `catch`, composed with the
+      generated subset: `nanvm-effects-node/src/run.rs` answers them before
+      `dispatch`, calling the thunk through the VM and keeping what it answers
+      or throws as the very value, and `run` is the loop that performs an
+      `Effect` to its result through them, answering a command the runner lacks
+      `NotImplemented` as `asyncPartialRun` does. The TypeScript signature is
+      unchanged.
 - [ ] Before generating TypeScript declarations, define a nominal mapping
       that preserves `Vec` parameters and results, and check the emitted
       declarations against the existing API.
@@ -140,9 +145,12 @@ What follows for the tasks below:
       in `codec.rs`). A `Vec` is read and written as the language's bit
       vector, whole bytes only. What a request holds is read, what an answer
       holds is written, and a request that is not one is `Malformed`.
-- [ ] Implement `sandbox` success, language-throw and duration behavior, with
+- [ ] `sandbox` success, language-throw and duration behavior, with
       cross-host contract tests covering dispatch and callable values returned
-      or thrown without losing their identity or requiring serialization.
+      or thrown without losing their identity or requiring serialization. The
+      Rust side is proven (value, throw, a nonnegative duration in
+      milliseconds, a function coming back as the same value); what is left is
+      the same table run against `fjs/effects/common/module.mjs`.
 - [ ] Cross-check applicable operations with the existing FJS virtual/mock
       interpreters; keep mutable host effects at the native boundary.
 - [ ] Embed the runner in the native CLI without moving parser/compiler/loader

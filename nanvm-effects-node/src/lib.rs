@@ -22,12 +22,14 @@ mod dispatch;
 
 mod codec;
 mod native;
+mod run;
 
 pub use codec::*;
 
 pub use dispatch::dispatch;
 pub use native::{MAX_FILE_SIZE_BYTES, Native, normalize};
 pub use operations::*;
+pub use run::{Failure, run};
 
 /// A runner that implements nothing: every operation answers
 /// `NotImplemented` with its own name, as a runner without a handler does.
