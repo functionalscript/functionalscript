@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — function-text rendering can reuse analysis; full conversion, invocation and VM migration remain open
+**Status:** wip — allow unused captures in function text; full conversion, invocation and VM migration remain open
 
 ### Problem
 
