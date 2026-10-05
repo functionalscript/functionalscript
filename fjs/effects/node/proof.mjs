@@ -1086,19 +1086,25 @@ export const proof = {
         writesEveryChunk: async () => {
             const pulls = counter()
             const releases = counter()
+            let signalRelease = () => { }
+            const released = new Promise(resolve => { signalRelease = () => resolve(undefined) })
             const answer = await withServer(
                 () => pureOk({
                     status: 200,
                     headers: { 'content-length': `${3 * oneVec}` },
                     body: lazyBody(vecChunk, 3, pulls),
-                    release: counting(releases),
+                    release: resultMapStep(counting(releases), result => {
+                        signalRelease()
+                        return result
+                    }),
                 }),
                 async port => {
                     const response = await within('a three-chunk body', 10000, answered(port, 'GET'))
                     // Content-Length lets the client finish before the last
                     // drain and end-marker pull. Wait for the producer before
                     // withServer closes its connections and cancels that pull.
-                    await reaches(releases, 1)
+                    // Missing release must fail, rather than silently end the wait.
+                    await within('a three-chunk producer release', 10000, released)
                     return response
                 })
             assertEq(answer.status, 200)
