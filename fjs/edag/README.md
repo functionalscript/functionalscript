@@ -108,6 +108,12 @@ Unsupported output retains the renderer's diagnostic
 channel. Connecting this renderer to value conversion remains part of the
 VM migration.
 
+[`value/to_unknown`](value/to_unknown/module.f.mjs) materializes function-free
+values as ordinary runtime primitives, arrays and objects. `toUnknown` preserves
+shared container identities within a conversion and creates fresh containers
+on each call. A function anywhere in the data returns an output diagnostic;
+callable graphs still require the target's compile/load boundary.
+
 "No normal form" is a statement about the module as a whole, not a licence for
 each node kind to admit several spellings of one thing. Where a set of
 spellings *can* be cut down to one in the schema, it is: [Chains](#chains) is
