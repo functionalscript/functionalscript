@@ -114,16 +114,22 @@ What follows for the tasks below:
       type its schema derives ([`types.ts`](../fjs/effects/schema/types.ts)).
       The declarations stay handwritten; a future TypeScript printer must
       satisfy the nominal-mapping gate below before replacing them.
-- [ ] A Rust printer for these schemas and the generated trait with one
-      method per operation, committed under `npm run gen`. Account explicitly
-      for handwritten and unsupported operations.
+- [x] A Rust printer for these schemas
+      ([`fjs/effects/schema/rust`](../fjs/effects/schema/rust/module.f.mjs))
+      and the generated types and trait with one method per operation,
+      committed as `nanvm-effects-node/src/gen.operations.rs` under
+      `npm run gen`. The printer covers the vocabulary the operations use and
+      refuses any other schema. `bigint` is `Vec<u8>`; the handwritten and
+      unsupported operations are not in the trait.
 - [ ] Add the handwritten native `sandbox` declaration and compose its dispatch
       with the generated subset, preserving the existing TypeScript signature.
 - [ ] Before generating TypeScript declarations, define a nominal mapping
       that preserves `Vec` parameters and results, and check the emitted
       declarations against the existing API.
-- [ ] Add the runner crate and implement the operations exercised by the
-      AOT-compiled CLI and parser-based proof fixtures.
+- [ ] Implement the operations exercised by the AOT-compiled CLI and
+      parser-based proof fixtures in the runner crate
+      (`nanvm-effects-node`, which exists with the generated trait and an
+      `Unimplemented` runner), over `std`.
 - [ ] Implement `sandbox` success, language-throw and duration behavior, with
       cross-host contract tests covering dispatch and callable values returned
       or thrown without losing their identity or requiring serialization.

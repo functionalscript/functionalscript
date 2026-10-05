@@ -88,8 +88,9 @@ export const opResult = t => result(t, notImplemented)
  * @param {N} name
  * @param {P} params
  * @param {R} answer
+ * @param {{ readonly [K in keyof P]: string }} names The parameters' names, one each, where a native runner needs them.
  */
-const operation = (name, params, answer) => /** @type {const} */ ({ name, params, answer })
+const operation = (name, params, answer, names) => /** @type {const} */ ({ name, params, answer, names })
 
 // Structs
 
@@ -110,30 +111,33 @@ export const dirent = /** @type {const} */ ({
     isDirectory: boolean,
 })
 
+/** The streams `write` takes. */
+export const writeConsoles = or('stdout', 'stderr')
+
 // Operations
 
 export const mkdir = operation(
-    'mkdir', [string, or(option, makeDirectoryOptions, undefined)], ioResult(nothing))
+    'mkdir', [string, or(option, makeDirectoryOptions, undefined)], ioResult(nothing), ['path', 'options'])
 
-export const readFile = operation('readFile', [string], ioResult(vec))
+export const readFile = operation('readFile', [string], ioResult(vec), ['path'])
 
 export const resolveFileModule = operation(
-    'resolveFileModule', [string, or(string, null)], ioResult(fileModule))
+    'resolveFileModule', [string, or(string, null)], ioResult(fileModule), ['name', 'parent'])
 
 export const readdir = operation(
-    'readdir', [string, readdirOptions], ioResult(array(dirent)))
+    'readdir', [string, readdirOptions], ioResult(array(dirent)), ['path', 'options'])
 
-export const writeFile = operation('writeFile', [string, vec], ioResult(nothing))
+export const writeFile = operation('writeFile', [string, vec], ioResult(nothing), ['path', 'data'])
 
 export const writeBytes = operation(
-    'writeBytes', [string, number, vec], ioResult(nothing))
+    'writeBytes', [string, number, vec], ioResult(nothing), ['path', 'offset', 'data'])
 
-export const rm = operation('rm', [string], ioResult(nothing))
+export const rm = operation('rm', [string], ioResult(nothing), ['path'])
 
 export const write = operation(
-    'write', [or('stdout', 'stderr'), vec], opResult(nothing))
+    'write', [writeConsoles, vec], opResult(nothing), ['stream', 'data'])
 
-export const read = operation('read', ['stdin'], opResult(or(number, null)))
+export const read = operation('read', ['stdin'], opResult(or(number, null)), ['stream'])
 
 /** Every operation the first generated trait covers, by tag. */
 export const operations = /** @type {const} */ ({ mkdir, readFile, resolveFileModule, readdir, writeFile, writeBytes, rm, write, read })
