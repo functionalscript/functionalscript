@@ -38,12 +38,19 @@ segment classifier and the segment decoder, so that `import` supplies
 only `importSegmentKind` and `importSegment` and inherits the root rule,
 `//` included. Whether a leading `//` is then refused outright or read as
 `path` reads it is the decision to make in the `todo/` before the code;
-refusing is the conservative answer and matches the colon rule.
+refusing is the conservative answer and matches the colon rule. Either
+way the exported `decode` changes for inputs it accepts today: at
+`ef756f0`, `decode('//a/../../x')` is `/x`, and it becomes `null` under
+refusal or `//x` under `path`'s UNC root, which `..` cannot climb out
+of. So whichever is chosen, the implementing PR declares it under
+`Changelog:` as a `**BREAKING CHANGES:**` item naming `decode` and
+`resolve`.
 
 ### Tasks
 
 - [ ] Decide what a leading `//` specifier means; pin it in
-      `import`'s proof first.
+      `import`'s proof first; declare the `decode` change in the PR's
+      `Changelog:` section.
 - [ ] The shared fold-and-rejoin in `fjs/path`; `decode` through it.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 

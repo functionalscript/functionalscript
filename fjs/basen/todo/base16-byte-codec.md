@@ -25,7 +25,8 @@ spelling, so each module that needs it writes its own:
   reason its doc gives, which the codec's design must respect.
 - [`fjs/git/refstore/testlib.f.mjs`](../../git/refstore/testlib.f.mjs) —
   `hexOf` is `codePointListToString(toHex(i))`, the body of `fjs/git/oid`'s
-  `hexText` written again.
+  `hexText` written again; [`proof.f.mjs`](../../git/refstore/proof.f.mjs)
+  beside it ends its `hexOfIn` with the same expression, a third copy.
 - [`fjs/website`](../../website/module.f.mjs) — `commitOf` spells an id as
   `String.fromCharCode(...toArray(toHex(id)))`, which is `hexText` written
   again. It also turns the environment's string into code units and screens

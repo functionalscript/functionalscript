@@ -52,7 +52,20 @@ export const eagerLayers = [
     …
     { or: '|' },
 ] as const
+/** The lazy layers above them, tightest first; `??` shares a level with `||` and mixes with neither. */
+export const lazyLayers = [
+    { logicalAnd: '&&' },
+    { logicalOr: '||', nullish: '??' },
+] as const
 ```
+
+The lazy operators get a table of their own because their order is
+duplicated the same way: the grammar's `logicalAndTags`,
+`logicalOrTags` and `nullishTags` and its `circuitTail` state it once,
+and the serializer's `levels` prefix states it again. `lazyLayers` is
+what both read; the rule that `??` does not mix with `&&` or `||` is
+the grammar's own and stays in `circuitTail`, since it is a refusal, not
+an order.
 
 `binaryTags` stays as it is written: it is a public array whose order a
 caller can enumerate, and that order is not the precedence order (`**`
@@ -60,28 +73,29 @@ follows `* / %`, equality precedes relational, shifts follow the
 bitwise tags), so deriving it from the table would change it for no
 gain. The table and `binaryTags` are tied the other way, by a
 type-level pin beside `_BinaryTagsAreComplete` in
-[`ast/types.ts`](../ast/types.ts) that the table's tags plus `**` and
-the three lazy tags are exactly `BinaryTag` as a set, so an operator
+[`ast/types.ts`](../ast/types.ts) that the two tables' tags plus `**`
+are exactly `BinaryTag` as a set, so an operator
 added to one and not the other is a `tsc` error. The conditional is not
 a binary operator — `AstConditional` is its own four-element node — so
-`?:` is never in the table or in `binaryTags`. The grammar's
-`*Tags` records and `binaryOpTag` read the table, and the eager tails
+`?:` is never in a table or in `binaryTags`. The grammar's
+`*Tags` records and `binaryOpTag` read the tables, and the eager tails
 are built by one fold that accumulates the tails already built. The
 serializer's `levels` is a precedence ladder, not a tag list, so it is
-the one place `?:` appears: its loosest level, then the lazy levels,
-then the table's rows reversed, then `**`. The order then exists once.
+the one place `?:` appears: its loosest level, then `lazyLayers`
+reversed, then `eagerLayers` reversed, then `**`. The order of every
+binary operator then exists once.
 The `EagerTail` tuple type the grammar exports may need a pinning
 `Assert<Equal<…>>` once the tails are built by a fold rather than
 written out.
 
 ### Tasks
 
-- [ ] `eagerLayers` in `ast`; the set pin between it and `BinaryTag`;
-      `binaryTags` unchanged.
-- [ ] The grammar's layer records, `binaryOpTag` and the eager tails
-      from the table; its proofs pass unchanged.
-- [ ] The serializer's `levels` from the table, with `?:` and the lazy
-      levels as its own prefix; its round-trip proofs pass unchanged.
+- [ ] `eagerLayers` and `lazyLayers` in `ast`; the set pin between
+      them and `BinaryTag`; `binaryTags` unchanged.
+- [ ] The grammar's layer records, eager and lazy, `binaryOpTag` and
+      the eager tails from the tables; its proofs pass unchanged.
+- [ ] The serializer's `levels` from both tables, with `?:` as its own
+      prefix; its round-trip proofs pass unchanged.
 - [ ] `tsc`, `fjs test`, `npm start compile`.
 
 ### Related
