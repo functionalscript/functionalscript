@@ -161,7 +161,13 @@ What follows for the tasks below:
       `Native`: a chain of commands, a command the runner lacks, and a
       language throw caught by `catch`.
 - [ ] Cross-check applicable operations with the existing FJS virtual/mock
-      interpreters; keep mutable host effects at the native boundary.
+      interpreters; keep mutable host effects at the native boundary. A first
+      pass compared the Node runner with the virtual host on 22 failure
+      scenarios and found a recursive `readdir` order that differed (fixed) and
+      eight error codes that do (filed:
+      [virtual-error-codes](../fjs/effects/node/todo/virtual-error-codes.md));
+      what is left is the same table run against `Native`, and a shared one
+      the virtual host runs in the suite.
 - [ ] Embed the runner in the native CLI without moving parser/compiler/loader
       logic into handwritten Rust.
 
