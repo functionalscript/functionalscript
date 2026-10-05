@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** wip — non-coercive value operation tables
+**Status:** open — non-coercive value operation tables implemented; callable conversion, invocation and VM migration remain open
 
 ### Problem
 
@@ -270,7 +270,7 @@ budget or stopped-outcome API.
 - [x] Add infallible truthiness, `typeof`, strict equality and `Object.is`
       helpers in `fjs/edag/value/semantics`. Tagged undefined has primitive
       semantics; arrays, objects and functions preserve node identity.
-- [ ] Add `unary` and `binary` operation tables in `fjs/edag/value/semantics`
+- [x] Add `unary` and `binary` operation tables in `fjs/edag/value/semantics`
       for `!`, `typeof`, `===`, `!==` and `is`, reusing the infallible helpers
       and returning successes through `Result`. Preserve tagged-undefined
       semantics, NaN and signed-zero distinctions, and container/function
