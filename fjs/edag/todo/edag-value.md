@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — represented array joining is implemented; full conversion, invocation and VM migration remain open
+**Status:** open — function-text rendering can reuse analysis; full conversion, invocation and VM migration remain open
 
 ### Problem
 
@@ -324,6 +324,17 @@ budget or stopped-outcome API.
       Preserve each element's identity and the first failure tuple unchanged.
       Separator conversion/defaulting and the complete value-to-string
       operation remain in the shared operation migration.
+- [x] Expose the shared serializer's `functionText(analysis, index)` renderer
+      for an already analyzed function with valid metadata and body bindings.
+      Keep `tryFunctionText` as the checked raw-expression entry, delegating
+      after its existing checks. Preserve canonical slot names for evaluated
+      captures and standalone text for nested functions. Unsupported output
+      retains renderer diagnostics; conversion and VM integration remain open.
+- [ ] Separate function text from the source writer's unused-capture
+      restriction: an evaluated function may retain slots its body never reads.
+      `functionText` and `tryFunctionText` currently refuse those layouts via
+      the shared closure writer. Keep the source round-trip checks for source
+      serialization while extending code-only function text.
 - [ ] Implement shared value operations and invocation over
       `Result<EdagValue, EdagValue>`, with immutable state and admitted methods.
 - [ ] Migrate Amnesia and memo, preserving each documented execution model;

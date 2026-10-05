@@ -14,6 +14,7 @@
  * compiler meets, and every one of them names a feature that will replace it.
  *
  * @import { Exp } from '../../edag/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -26,7 +27,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { invert, unwrap } from '../../types/result/module.f.mjs'
 import { _defaultExport, unresolved } from '../edag/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
-import { tryFunctionText, trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify } from './module.f.mjs'
+import { functionText, tryFunctionText, trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify } from './module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.mjs'
 
 /** The name the front end gives the text it reads back. */
@@ -152,6 +153,13 @@ const moduleGraph = source => unresolved(unwrap(parse(path)(source))).edag
 
 /** @type {(graph: Exp) => unknown} */
 const moduleValue = graph => memo(assertOk(analysis(graph)))({ frame: null, args: [] })
+
+/** Render an already analyzed function root. @type {(e: Exp) => Result<string, string>} */
+const analyzedFunction = e => {
+    const a = assertOk(analysis(e))
+    assert(a.root instanceof Array)
+    return functionText(a, a.root[1])
+}
 
 export const proof = {
     structuralRefusals: () => {
@@ -620,6 +628,48 @@ export const proof = {
         assertStructurallySame(tryFunctionText(['=>', 0, [], ['arg', 0]]), ['error', 'invalid fixed parameter index or scope'])
         assertStructurallySame(tryFunctionText(['=>', 0, [], ['=>', 0, [], ['arg', 0]]]), ['error', 'invalid fixed parameter index or scope'])
         assertStructurallySame(tryFunctionText(['=>', 0, [], ['=>', 17, [], 1]]), ['error', 'a function length above 16'])
+    },
+    analyzedFunctionText: {
+        evaluatedCaptures: () => {
+            const captured = /** @type {const} */ (['[]', [1]])
+            /** @type {readonly (readonly [Exp, string])[]} */
+            const cases = [
+                [['=>', 0, [null, false, -0, NaN, 'value', 1n, ['undefined']],
+                    ['[]', [['frame', 0], ['frame', 1], ['frame', 2], ['frame', 3], ['frame', 4], ['frame', 5], ['frame', 6]]]],
+                '()=>[$0,$1,$2,$3,$4,$5,$6]'],
+                [['=>', 0, [captured, captured], ['[]', [['frame', 0], ['frame', 1]]]], '()=>[$0,$1]'],
+            ]
+            for (const [e, expected] of cases) {
+                assertEq(assertOk(analyzedFunction(e)), expected)
+                assertEq(assertOk(analyzedFunction(e)), assertOk(tryFunctionText(e)))
+            }
+        },
+        selectedFunctions: () => {
+            const shared = /** @type {const} */ (['[]', []])
+            const inner = /** @type {const} */ (['=>', 2, [['arg', 0]],
+                ['[]', [['frame', 0], ['arg', 1], ['rest'], shared, shared]]])
+            const outer = /** @type {const} */ (['=>', 1, [], inner])
+            const a = assertOk(analysis(['[]', [['[]', [9]], outer, ['=>', 0, [], ['rest']]]]))
+            /** @type {readonly (readonly [Exp, number, string])[]} */
+            const cases = [
+                [inner, 2, '($a_0,$a_1,...$a)=>{const $a0=[];return [$0,$a_1,$a,$a0,$a0];}'],
+                [outer, 1, '($a_0)=>($b_0,$b_1,...$b)=>{const $b0=[];return [$a_0,$b_1,$b,$b0,$b0];}'],
+            ]
+            for (const [e, length, expected] of cases) {
+                const i = a.nodes.findIndex(node => node[0] === '=>' && node[1] === length)
+                assert(i >= 0)
+                assertEq(assertOk(functionText(a, i)), expected)
+                assertEq(assertOk(functionText(a, i)), assertOk(tryFunctionText(e)))
+            }
+        },
+        diagnostics: () => {
+            const e = /** @type {const} */ (['=>', 0, [], ['!', 1]])
+            assertStructurallySame(analyzedFunction(e), ['error', 'a ! node'])
+            assertStructurallySame(analyzedFunction(e), tryFunctionText(e))
+            const unused = /** @type {const} */ (['=>', 0, [1], 2])
+            assertStructurallySame(analyzedFunction(unused), ['error', 'a frame slot the body never reads'])
+            assertStructurallySame(analyzedFunction(unused), tryFunctionText(unused))
+        },
     },
     // Every refusal, by the message it carries: a node kind with no spelling
     // yet, a position a spelling has none in, and a key no literal reads
