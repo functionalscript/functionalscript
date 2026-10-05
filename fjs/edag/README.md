@@ -32,6 +32,12 @@ and serve explicit boundaries accepting EDAG supplied as data. VM constructors
 must maintain the value invariants directly, without revalidating every result.
 FJS data is acyclic by construction, so it needs no cycle preflight.
 
+[`value/semantics`](value/semantics/module.f.mjs) provides truthiness, `typeof`,
+strict equality and `Object.is` for represented values. Distinct
+`['undefined']` tuples denote the same primitive; arrays, objects and functions
+compare by their value-node identity. These infallible helpers are shared
+building blocks for the planned VM operation layer.
+
 "No normal form" is a statement about the module as a whole, not a licence for
 each node kind to admit several spellings of one thing. Where a set of
 spellings *can* be cut down to one in the schema, it is: [Chains](#chains) is
