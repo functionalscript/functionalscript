@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** wip — sequence represented evaluation results; callable conversion, invocation and VM migration remain open
+**Status:** open — sequence evaluation implemented; callable conversion, invocation and VM migration remain open
 
 ### Problem
 
@@ -275,6 +275,12 @@ budget or stopped-outcome API.
       operands, unchanged failures and selected value identity. These helpers
       provide stateless control flow; immutable executor state remains part
       of the invocation/cache migration.
+- [x] Add comma/sequence evaluation in `fjs/edag/value/control`: demand
+      deferred operands in order, preserve the first failure or last success
+      tuple unchanged, and return tagged undefined for an empty sequence.
+      Failures from earlier, otherwise-unused operands stop later evaluation.
+      This supplies sequencing for initialization; executor dispatch and
+      module-initializer integration remain open.
 - [x] Construct evaluated arrays in `fjs/edag/value/array` from deferred
       elements and array/string spreads. Evaluate items in order, propagate
       the first failure unchanged, fail non-iterable spreads with tagged
