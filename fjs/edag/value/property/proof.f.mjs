@@ -12,7 +12,7 @@ import { array } from '../array/module.f.mjs'
 import { object } from '../object/module.f.mjs'
 import { func } from '../function/module.f.mjs'
 import { call } from '../call/module.f.mjs'
-import { read } from './module.f.mjs'
+import { findProperty, read } from './module.f.mjs'
 
 /** @type {(receiver: EdagValue, key: string, expected: EdagValue) => void} */
 const expectValue = (receiver, key, expected) => {
@@ -31,6 +31,13 @@ const functionValue = assertOk(func(1, [() => ok(data)], ['frame', 0]))
 const nonIndices = /** @type {const} */ (['-1', '-0', '01', '+1', '1.0', '1.5', '1e0', ' 1', '1 ', '', '4294967295'])
 
 export const proof = {
+    storedProperty: () => {
+        const property = /** @type {const} */ ([':', 'value', undefinedValue])
+        const receiver = /** @type {const} */ (['{}', [property]])
+        assertEq(findProperty(receiver, 'value'), property)
+        assertEq(findProperty(receiver, 'missing'), undefined)
+        assertEq(assertOk(read(ok(receiver), 'value')), undefinedValue)
+    },
     objects: () => {
         /** @type {readonly EdagValue[]} */
         const values = [null, undefinedValue, false, true, 0, -0, NaN, Infinity, '', 'undefined', 0n, 1n, data, record, functionValue]

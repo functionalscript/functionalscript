@@ -7,18 +7,27 @@
  *
  * This is the lookup kernel for admitted property reads. The caller owns
  * operand evaluation order, key conversion to a string and source-name
- * admission. There is no prototype lookup or exposure of tuple fields.
+ * admission. Reads do not traverse prototypes or expose storage tuple fields;
+ * findProperty supplies stored object-property presence to operations.
  * Method dispatch and the raw EDAG `own` operation remain separate work.
  * Values satisfy the compiler/admission contract and are not revalidated.
  *
  * @module
- * @import { Values } from '../types.ts'
+ * @import { Values, Object as ValueObject, Property } from '../types.ts'
  * @import { ValueResult } from '../control/types.ts'
  */
 
 import { arrayIndex } from '../../../js/array_index/module.f.mjs'
 import { isArray } from '../../../types/array/module.f.mjs'
 import { ok, error } from '../../../types/result/module.f.mjs'
+
+/**
+ * Find a stored object property, retaining its tuple identity. An absent
+ * property returns undefined; a present tagged-undefined value still has a
+ * property tuple. Coercion and method dispatch need that distinction.
+ * @type {(value: ValueObject, key: string) => Property | undefined}
+ */
+export const findProperty = (value, key) => value[1].find(([, name]) => name === key)
 
 /** @type {(values: Values | string, key: string) => ValueResult} */
 const indexed = (values, key) => {
@@ -37,7 +46,7 @@ export const read = (receiver, key) => {
     switch (value[0]) {
         case '[]': { return indexed(value[1], key) }
         case '{}': {
-            const property = value[1].find(([, name]) => name === key)
+            const property = findProperty(value, key)
             return ok(property === undefined ? ['undefined'] : property[2])
         }
         case '=>': { return ok(key === 'length' ? value[1] : ['undefined']) }
