@@ -72,6 +72,14 @@ a non-function fails. An executor callback receives the original function
 and its fixed/rest bindings and owns body evaluation and invocation state.
 This stateless helper leaves immutable cache integration to the VM migration.
 
+[`value/property`](value/property/module.f.mjs) reads resolved string keys
+from represented values, preserving stored field and element identities.
+Arrays, strings and functions expose their lengths; string indices read
+UTF-16 code units. Missing properties return tagged undefined and nullish
+receivers fail. Callers own operand evaluation order, key resolution and
+source-name admission; method dispatch and the raw `own` operation remain
+in the operation migration.
+
 "No normal form" is a statement about the module as a whole, not a licence for
 each node kind to admit several spellings of one thing. Where a set of
 spellings *can* be cut down to one in the schema, it is: [Chains](#chains) is

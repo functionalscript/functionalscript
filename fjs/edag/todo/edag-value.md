@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — value shape, metadata, closure checks, basic semantics, control flow, value construction and bare-call preparation implemented; invocation and VM migration remain open
+**Status:** open — value helpers, construction, bare-call preparation and property lookup implemented; invocation and VM migration remain open
 
 ### Problem
 
@@ -298,6 +298,12 @@ budget or stopped-outcome API.
       arguments before rejecting non-functions, and delegate with the original
       function and its bindings. The executor callback owns body execution;
       immutable caller/cache state and operation dispatch remain open.
+- [x] Add property lookup in `fjs/edag/value/property` over represented objects,
+      array/string indices and array/string/function lengths. Preserve stored
+      value and receiver-failure identities; return tagged undefined for absent
+      properties and implicit failure for nullish receivers. Callers own key
+      resolution, operand evaluation order and source-name admission; method
+      dispatch and the raw `own` operation remain in the shared migration.
 - [ ] Implement shared value operations and invocation over
       `Result<EdagValue, EdagValue>`, with immutable state and admitted methods.
 - [ ] Migrate Amnesia and memo, preserving each documented execution model;
