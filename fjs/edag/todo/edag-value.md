@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — function text supports unused captures; full conversion, invocation and VM migration remain open
+**Status:** wip — materialize function-free runtime values; callable conversion, invocation and VM migration remain open
 
 ### Problem
 
