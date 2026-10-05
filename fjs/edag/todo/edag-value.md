@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — value shape, metadata, closure checks, basic semantics, control flow and array/object construction implemented; invocation and VM migration remain open
+**Status:** open — value shape, metadata, closure checks, basic semantics, control flow and value construction implemented; invocation and VM migration remain open
 
 ### Problem
 
@@ -285,6 +285,13 @@ budget or stopped-outcome API.
       identity and create a fresh object with unique keys in JavaScript
       enumeration order. Property thunks resolve keys before values; key
       evaluation/coercion remains in the operation/invocation layer.
+- [x] Construct evaluated functions in `fjs/edag/value/function` from deferred
+      captures and valid body templates. Evaluate captures in order, propagate
+      the first failure unchanged and retain capture identities. Create a
+      fresh function and copy its body graph, preserving sharing within the
+      copy and distinct equal-looking nodes, including nested function
+      templates. Keep evaluated captures outside the copy and body code
+      unevaluated; compiler/admission length and binding invariants are trusted.
 - [ ] Implement shared value operations and invocation over
       `Result<EdagValue, EdagValue>`, with immutable state and admitted methods.
 - [ ] Migrate Amnesia and memo, preserving each documented execution model;

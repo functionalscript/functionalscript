@@ -80,6 +80,12 @@ as does the Rust printer (`closure` → `statements` in
 `export default ${'() => '.repeat(20000)}1;` still overflows, with a
 capture or without one.
 
+The evaluated-function constructor's body copier in
+[`../value/function/module.f.mjs`](../value/function/module.f.mjs) also
+recurses with the input's array depth. Include it in this investigation;
+its replacement must preserve body sharing and leave evaluated captures
+outside the copy.
+
 ### Proposal
 
 The same shape again: convert the walk to an explicit stack (or adopt
@@ -117,6 +123,8 @@ discovered one `RangeError` at a time.
 - [ ] Identify every recursive call in `fjs/edag/analysis/module.f.mjs`
       (and any sibling module with the same shape) whose depth is the
       *input's*, not a bounded constant.
+- [ ] Include `fjs/edag/value/function`'s body copier, preserving its
+      identity memo and separation from evaluated captures.
 - [ ] Convert to an explicit stack, preserving walk order (the
       module's own numbering/scope assignment currently depends on
       visiting each node once, on the first edge that reaches it —
