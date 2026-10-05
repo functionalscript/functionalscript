@@ -216,7 +216,8 @@ can construct and observe. A `proof.mjs` normally proves its **sibling
 `module.mjs`** — host code such as the DOM adapter in `emergent_testing/browser`
 or the `node:` bindings in `effects/node/memory`.
 
-Host proofs may also exercise an existing effect integration contract, such as
+Host proofs may also exercise an existing host execution or effect integration
+contract, such as the DataJS corpus running documents on a JavaScript host or
 [`web/proof.mjs`](./web/proof.mjs) observing an effect program through real
 files and sockets. Name the actual boundary in the proof's header and explain
 why a FunctionalScript proof cannot observe it. Keep ordinary cases in
