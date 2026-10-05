@@ -40,6 +40,18 @@ pub fn argument<A: IVm>(payload: &[Any<A>], index: usize, name: &str) -> Result<
     }
 }
 
+/// The payload may hold no more than the operation's parameters: its
+/// parameter tuple is closed.
+pub fn arity<A: IVm>(payload: &[Any<A>], parameters: usize) -> Result<(), Malformed> {
+    if payload.len() > parameters {
+        return malformed(format!(
+            "{} arguments where at most {parameters} are taken",
+            payload.len()
+        ));
+    }
+    Ok(())
+}
+
 pub fn decode_string<A: IVm>(any: Any<A>) -> Result<String, Malformed> {
     let Ok(string) = VmString::try_from(any) else {
         return malformed("not a string");
@@ -446,6 +458,17 @@ mod test {
             Err(Malformed("unexpected member `b`".into()))
         );
         assert!(decode_object::<Naive>("a".into(), &[]).is_err());
+    }
+
+    #[test]
+    fn arity_is_closed() {
+        let payload: Vec<A> = vec!["a".into(), "b".into()];
+        assert_eq!(arity(&payload, 2), Ok(()));
+        assert_eq!(arity(&payload, 3), Ok(()));
+        assert_eq!(
+            arity(&payload, 1),
+            Err(Malformed("2 arguments where at most 1 are taken".into()))
+        );
     }
 
     #[test]
