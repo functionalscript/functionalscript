@@ -48,13 +48,17 @@ module both import. `add` becomes
 `has(value)(set) ? set : step(union)(new Set([value]))(set)` with
 `union = a => b => new Set([...a, ...b])`, and `has`/`size`/`values`
 walk the stack. The representation of `PersistentSet` changes, which is
-a breaking change to its type; its one consumer is
-[`fjs/media/datajs/serializer`](../../../media/datajs/serializer/module.f.mjs).
+a breaking change to its type. Its consumers are
+[`fjs/media/datajs/serializer`](../../../media/datajs/serializer/module.f.mjs)
+and [`fjs/edag/value/metadata`](../../../edag/value/metadata/module.f.mjs),
+whose `_Visited` is the type; both use it only through `add`, `has` and
+the other exports, so both follow the new representation without a
+change of their own beyond the type.
 
 ### Tasks
 
 - [ ] Decide the owner: exports from `common/monoid`, or a
       `common/binary_counter` module.
 - [ ] `set` over it; its proof passes with the new representation;
-      the serializer updated in the same PR.
+      the serializer and `edag/value/metadata` updated in the same PR.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.

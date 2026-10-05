@@ -15,9 +15,8 @@ const macrotask = () => new Promise(resolve => { setTimeout(resolve, 0) })
 
 Both already import this module's [`module.mjs`](../module.mjs) for
 `patch`, `toDom` and `fill`, so the DOM adapter they share exists; the
-helper just has not moved into it. The same two files set a boolean
-attribute with a branch — `setState` and `markUnreported` in the browser
-runner, `busy` in the demo runtime:
+helper just has not moved into it. The browser runner sets a boolean attribute with a branch, in `setState`
+and `markUnreported`:
 
 ```js
 // emergent_testing/browser setState
@@ -25,14 +24,20 @@ if (state === 'loading' || state === 'running') { runButton.setAttribute('disabl
 else { runButton.removeAttribute('disabled') }
 ```
 
-which is the platform's `el.toggleAttribute('disabled', force)`. Within
+which is the platform's `el.toggleAttribute('disabled', force)`. The
+demo runtime's `busy` has the same two-branch shape, but its attribute
+carries a value: `data-demo-working` holds the wait note, which
+[`fjs/website/style`](../../../website/style/module.f.mjs) renders with
+`attr(data-demo-working)`. That branch is not a boolean toggle and
+stays as it is. Within
 `startBrowserTestSources` the infrastructure-error report is built twice
 and the `[data-test-summary]` text is updated at three places, one of
 which already has a `say` helper for it.
 
 ### Proposal
 
-`macrotask` moves here; the attribute branches become `toggleAttribute`;
+`macrotask` moves here; the runner's two boolean branches become
+`toggleAttribute`, and `busy`'s value-bearing one is left alone;
 the runner gets a local `infrastructureReport(results)` and routes its
 summary updates through `say`.
 
@@ -40,8 +45,8 @@ summary updates through `say`.
 
 - [ ] `macrotask` exported from `fjs/media/html/module.mjs`; both
       adapters import it.
-- [ ] `toggleAttribute` at the three sites; `infrastructureReport` and
-      `say` in the runner.
+- [ ] `toggleAttribute` in `setState` and `markUnreported`;
+      `infrastructureReport` and `say` in the runner.
 - [ ] The browser test page and the demos still work; preview links in
       the PR.
 
