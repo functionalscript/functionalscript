@@ -51,7 +51,7 @@ const vmBound = root => holdsFunction(root) ? 'IStaticFunction' : 'IVm'
  * `['args']` node in its own scope — a function body's node, which the
  * lowering never puts here, handed in directly — is refused rather than
  * printed as a name nothing binds; a module has no frame either, and a
- * `['frame', i]` in its own scope is `bindingError`'s refusal.
+ * `['frame', i]` in its own scope is `checked`'s refusal.
  *
  * @type {(root: Exp) => Result<Scope, readonly unknown[]>}
  */

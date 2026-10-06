@@ -649,7 +649,7 @@ const firstChunk = first('')
  * The name the frame's slot `k` reads as in the scope `s`: the name the
  * slot took in the scope around the function. The slot exists, the index
  * is a canonical one, and the read is inside a function: the analysis's
- * `bindingError` refused every other before any text was written.
+ * `checked` refused every other before any text was written.
  *
  * @type {(s: _Scope) => (k: number) => string}
  */

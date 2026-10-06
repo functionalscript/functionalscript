@@ -8,7 +8,7 @@
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { analysis, bindingError, checked } from './module.f.mjs'
+import { analysis, checked } from './module.f.mjs'
 
 /**
  * What every table satisfies, checked on every case: an entry names only
@@ -73,25 +73,24 @@ export const proof = {
             ['frame',0], ['[]',[['frame',0]]],
             ['=>',0,[['[]',[]]],['frame',-0]], ['=>',0,[['[]',[]]],['frame',-1]],
             ['=>',0,[['[]',[]]],['frame',0.5]], ['=>',0,[['[]',[]]],['frame',Infinity]],
-        ])) { assert(bindingError(assertOk(analysis(e))) !== null, e) }
-        assertEq(bindingError(assertOk(analysis(['frame',0]))), 'invalid frame slot index or scope')
+        ])) { assertError(checked(assertOk(analysis(e)))) }
         // a frame slot read belongs to the function whose body holds it,
         // nested or not, and its index is below that function's slot count
-        assertEq(bindingError(assertOk(analysis(['=>',0,[['[]',[]]],['frame',0]]))), null)
-        assertEq(bindingError(assertOk(analysis(['=>',0,[['[]',[]],['{}',[]]],['frame',1]]))), null)
-        assertEq(bindingError(assertOk(analysis(['=>',0,[['[]',[]]],['frame',1]]))), 'invalid frame slot index or scope')
-        assertEq(bindingError(assertOk(analysis(['=>',0,[],['frame',0]]))), 'invalid frame slot index or scope')
-        assertEq(bindingError(assertOk(analysis(['=>',0,[['[]',[]]],['=>',0,[['frame',0]],['frame',0]]]))), null)
+        assertOk(checked(assertOk(analysis(['=>',0,[['[]',[]]],['frame',0]]))))
+        assertOk(checked(assertOk(analysis(['=>',0,[['[]',[]],['{}',[]]],['frame',1]]))))
+        assertEq(assertError(checked(assertOk(analysis(['=>',0,[['[]',[]]],['frame',1]])))), 'invalid frame slot index or scope')
+        assertEq(assertError(checked(assertOk(analysis(['=>',0,[],['frame',0]])))), 'invalid frame slot index or scope')
+        assertOk(checked(assertOk(analysis(['=>',0,[['[]',[]]],['=>',0,[['frame',0]],['frame',0]]]))))
         // a nested body's index is checked against that function's slots,
         // not its parent's
-        assertEq(bindingError(assertOk(analysis(['=>',0,[['[]',[]],['{}',[]]],['=>',0,[['frame',1]],['frame',1]]]))), 'invalid frame slot index or scope')
+        assertEq(assertError(checked(assertOk(analysis(['=>',0,[['[]',[]],['{}',[]]],['=>',0,[['frame',1]],['frame',1]]])))), 'invalid frame slot index or scope')
         // a function's `length` is at most 16, nested or not
-        assertEq(bindingError(assertOk(analysis(['=>',16,[],['arg',15]]))), null)
+        assertOk(checked(assertOk(analysis(['=>',16,[],['arg',15]]))))
         for (const e of /** @type {readonly Exp[]} */ ([
             ['=>',17,[],1], ['=>',2 ** 32,[],1], ['=>',0,[],['=>',17,[],1]],
-        ])) { assertEq(bindingError(assertOk(analysis(e))), 'a function length above 16') }
-        assertEq(bindingError(assertOk(analysis(['=>',1,[['args']],['arg',0]]))), null)
-        assertEq(bindingError(assertOk(analysis(['=>',1,[],['=>',0,[['arg',0],['rest']],['rest']]]))), null)
+        ])) { assertEq(assertError(checked(assertOk(analysis(e)))), 'a function length above 16') }
+        assertOk(checked(assertOk(analysis(['=>',1,[['args']],['arg',0]]))))
+        assertOk(checked(assertOk(analysis(['=>',1,[],['=>',0,[['arg',0],['rest']],['rest']]]))))
     },
 
     functionBindings: () => {
@@ -112,7 +111,6 @@ export const proof = {
         ])) {
             const a = an(e)
             assert(a.root instanceof Array)
-            assertEq(bindingError(a, a.root[1]), expected)
             const result = checked(a, a.root[1])
             if (expected === null) { assertEq(assertOk(result), a) }
             else { assertEq(assertError(result), expected) }
@@ -121,8 +119,6 @@ export const proof = {
         // while whole-program binding validation still reports them.
         const a = an(['=>', 1, [], ['[]', [['arg', 1], ['=>', 1, [['arg', 0]], ['arg', 0]]]]])
         const nested = a.nodes.findIndex(n => n[0] === '=>')
-        assertEq(bindingError(a, nested), null)
-        assertEq(bindingError(a), 'invalid fixed parameter index or scope')
         assertEq(assertOk(checked(a, nested)), a)
         assertEq(assertError(checked(a)), 'invalid fixed parameter index or scope')
     },

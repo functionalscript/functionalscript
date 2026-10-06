@@ -241,7 +241,7 @@ structure keyed by node identity. It returns `Result<Analysis, string>`:
 structural failures, such as a node shared across function scopes or a
 noncanonical function length, return a diagnostic. Complete executable
 graphs compose the result with `checked` to check their invocation bindings.
-It returns the same analysis on success or `bindingError`'s diagnostic;
+It returns the same analysis on success or an invocation-binding diagnostic;
 an optional function index limits the check to that function and its nested bodies.
 [memo](memo/module.f.mjs) is that
 interpreter: it returns `Result<EdagValue, EdagValue>`, evaluating every shared
@@ -367,7 +367,7 @@ frame, `['.', ['frame'], N]`, still are, so only a frame no read reached is
 ever reinterpreted. Earlier positive-arity/full-argument experiments have no
 general lossless migration to this format.
 
-A function's `length` is at most 16, the language's limit: `bindingError`
+A function's `length` is at most 16, the language's limit: `checked`
 refuses a larger one. Both Amnesia and memo read length and fixed/rest
 bindings from represented functions, without an arrow factory. Their function
 text uses the total shared renderer described above. Callable runtime
