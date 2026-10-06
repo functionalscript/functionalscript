@@ -223,7 +223,10 @@ impl<R: Read, O: Write, E: Write> Operations for Native<R, O, E> {
     /// path cannot switch the object between those operations.
     fn read_file(&mut self, path: String) -> Result<Vec<u8>, IoChannel> {
         let file = File::open(&path).map_err(|e| failure(&e, "open", &path))?;
-        let size = file.metadata().map_err(|e| failure(&e, "stat", &path))?.len();
+        let size = file
+            .metadata()
+            .map_err(|e| failure(&e, "stat", &path))?
+            .len();
         check_file_size(size, &path)?;
         read_bounded(file, &path)
     }
@@ -403,14 +406,20 @@ mod test {
         assert_eq!(code(&ErrorKind::AlreadyExists.into()), Some("EEXIST"));
         assert_eq!(code(&ErrorKind::NotADirectory.into()), Some("ENOTDIR"));
         assert_eq!(code(&ErrorKind::IsADirectory.into()), Some("EISDIR"));
-        assert_eq!(code(&ErrorKind::DirectoryNotEmpty.into()), Some("ENOTEMPTY"));
+        assert_eq!(
+            code(&ErrorKind::DirectoryNotEmpty.into()),
+            Some("ENOTEMPTY")
+        );
         assert_eq!(code(&ErrorKind::Other.into()), None);
     }
 
     #[cfg(unix)]
     #[test]
     fn filesystem_loop_code() {
-        assert_eq!(code(&io::Error::from_raw_os_error(libc::ELOOP)), Some("ELOOP"));
+        assert_eq!(
+            code(&io::Error::from_raw_os_error(libc::ELOOP)),
+            Some("ELOOP")
+        );
         // Too many hard links is not a symlink-resolution loop.
         assert_eq!(code(&io::Error::from_raw_os_error(libc::EMLINK)), None);
     }
@@ -604,7 +613,10 @@ mod test {
             let path = format!("/proc/self/fd/{}", pipe.as_raw_fd());
             assert_eq!(fs::metadata(&path).unwrap().len(), 0);
             let producer = std::thread::spawn(move || {
-                io::copy(&mut io::repeat(7).take(MAX_FILE_SIZE_BYTES + 1), &mut writer)
+                io::copy(
+                    &mut io::repeat(7).take(MAX_FILE_SIZE_BYTES + 1),
+                    &mut writer,
+                )
             });
             let result = runner(b"").read_file(path);
             // Also unblock the producer if the operation returned early.
