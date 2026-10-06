@@ -155,6 +155,18 @@ export type _NegFrame = { readonly neg: true }
  */
 export type _BitnotFrame = { readonly bitnot: true }
 
+/**
+ * A logical not whose operand is being evaluated. It carries nothing, for
+ * the same reason {@link _NegFrame} does not.
+ */
+export type _NotFrame = { readonly not: true }
+
+/**
+ * A `typeof` whose operand is being evaluated. It carries nothing, for the
+ * same reason {@link _NegFrame} does not.
+ */
+export type _TypeofFrame = { readonly typeof: true }
+
 /** A binary operator whose left operand is being evaluated: the tag, and the right operand to enter once it resolves. */
 export type _BinaryLeftFrame = { readonly tag: BinaryTag, readonly right: Node }
 
@@ -178,6 +190,8 @@ export type _Frame =
     | _AccessFrame
     | _NegFrame
     | _BitnotFrame
+    | _NotFrame
+    | _TypeofFrame
     | _BinaryLeftFrame
     | _BinaryRightFrame
     | _ConditionalFrame

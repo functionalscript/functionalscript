@@ -1,10 +1,16 @@
-import { assertEq } from '../../asserts/module.f.mjs'
+/** @import { DemoEvent } from '../../website/demo/types.ts' */
+
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { maxLengthBytes, repeat, uint, vec } from '../../types/bit_vec/module.f.mjs'
 import { flip } from '../../types/function/module.f.mjs'
 import { map } from '../../types/list/module.f.mjs'
 import { computeSync } from '../sha2/module.f.mjs'
 import { sha1 } from './module.f.mjs'
+import { demo, digest } from './demo.f.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
+import { runPure } from '../../effects/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.mjs'
 
 const compute = computeSync(sha1)
 
@@ -17,6 +23,41 @@ const a = vec(8n)(0x61n)
 const as = n => uint(compute([flip(repeat)(a)(n)]))
 
 export const proof = {
+    demo: {
+        digest: () => {
+            assertEq(digest(''), 'da39a3ee5e6b4b0d3255bfef95601890afd80709')
+            assertEq(digest('abc'), 'a9993e364706816aba3e25717850c26c9cd0d89d')
+            assertEq(digest('9'), '0ade7c2cf97f75d009975f4d720d1fa6c19f4897')
+            assertEq(digest('Привіт 🌍'), 'dac9c1f72b56110144954038cbdc93908ba30fc8')
+        },
+        update: () => {
+            /** @type {(event: DemoEvent) => (state: string) => string} */
+            const next = event => state => unwrap(assertNotNullish(runPure(demo.update(state)(event))[0]))
+            assertEq(demo.init, '')
+            assertEq(next({ kind: 'input', name: 'text', value: 'hello' })('old'), 'hello')
+            assertEq(next({ kind: 'input', name: 'text', value: 'a\nb' })('old'), 'a\nb')
+            assertEq(next({ kind: 'start' })('kept'), 'kept')
+            assertEq(next({ kind: 'click', name: 'other' })('kept'), 'kept')
+        },
+        view: () => {
+            const empty = htmlToString(demo.view(demo.init))
+            assert(empty.includes('<textarea id="text" name="text" rows="8">'), empty)
+            assert(empty.includes('SHA-1 collision resistance is broken.'), empty)
+            assert(empty.includes('SHA-1, hex:'), empty)
+            assert(empty.includes(digest('')), empty)
+            assert(empty.includes("<pre>printf '%s' '' | openssl dgst -sha1</pre>"), empty)
+            const multiline = htmlToString(demo.view('a\nb'))
+            assert(multiline.includes('>a\nb</textarea>'), multiline)
+            const nul = htmlToString(demo.view('a\0b'))
+            assert(nul.includes('OpenSSL command unavailable:'), nul)
+            assert(nul.includes(digest('a\0b')), nul)
+            assert(!nul.includes('Copy OpenSSL command'), nul)
+            const quoted = htmlToString(demo.view("a'b $HOME `whoami`"))
+            assert(quoted.includes("<pre>printf '%s' 'a'\\''b $HOME `whoami`' | openssl dgst -sha1</pre>"), quoted)
+            assert(quoted.includes('aria-label="Copy digest"'), quoted)
+            assert(quoted.includes('aria-label="Copy OpenSSL command"'), quoted)
+        },
+    },
     // The byte counts a consumer reads, pinned against the bit lengths.
     lengths: () => {
         assertEq(sha1.hashLength, 160n)

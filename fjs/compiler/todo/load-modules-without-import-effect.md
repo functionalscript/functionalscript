@@ -1,7 +1,8 @@
 ## Load modules through the FJS interpreter
 
 **Priority:** P3
-**Status:** open
+**Status:** open — host/virtual loader implemented; native prerequisites and
+consumer migration remain.
 
 ### Problem
 
@@ -13,19 +14,19 @@ make self-hosting depend on a second interpreter.
 ### Proposal
 
 Compose the existing `ReadFile` and `ResolveFileModule` effects with the FJS
-parser, AST-to-EDAG lowering, linker and validated
-[FJS interpreter](./interpret-edag.md). Loading evaluates the linked module
-and returns its complete export object. It does not call exported functions;
-the test runner or CLI selects and invokes an entry separately.
+parser, AST-to-EDAG lowering and [FJS interpreter](./interpret-edag.md).
+Loading evaluates each unresolved initializer with represented dependency
+exports and returns its complete export object. It does not call exported
+functions; the test runner or CLI selects and invokes an entry separately.
 
-The [EdagValue proposal](../../edag/todo/edag-value.md) owns the planned
-representation: loading returns a represented export object through
-`Result<EdagValue, EdagValue>`, and VM invocation consumes represented values.
+The [EdagValue contract](../../edag/values.md) defines the implemented
+representation: initializer evaluation returns a represented export object
+through `Result<EdagValue, EdagValue>`, and VM invocation consumes represented values.
 Callers needing ordinary FJS runtime values use the separate
-[target materialization boundary](../../edag/todo/edag-value.md#compilation-and-conversion-to-unknown)
+[runtime compilation boundary](../../edag/values.md#runtime-compilation)
 to produce `unknown` with reflection erased. Callable graphs require generated
 or precompiled runtime code; loading and VM invocation keep represented values.
-After migration, language throws propagate as explicit `Result` errors.
+Language throws propagate as explicit `Result` errors.
 Module evaluation needs no `sandbox` capture or host test adapter.
 
 Source-level `import` remains part of the language. This workflow needs neither
@@ -40,25 +41,35 @@ to direct Rust ahead of time. At runtime the compiled interpreter evaluates
 newly loaded EDAG as data. It needs no runtime Rust generation, Cargo invocation
 or handwritten Rust EDAG executor.
 
+`compiler/transpiler.interpret(path)` now supplies the host loader. It runs each
+module initializer through memo using represented dependency exports, preserving
+module identity and source paths. Its effect succeeds with the complete
+`EdagValue`, and fails with either `ParseError` or an `InitializationError`
+retaining the original represented `thrown` value. The core evaluator still
+returns `Result<EdagValue, EdagValue>`; the loader adds source context.
+`transpile(path)` composes that loader with runtime compilation for callers
+needing ordinary values. It adds the target `CompileValue` effect for callable
+results and returns `unknown`, with EDAG reflection erased.
+
 ### Native prerequisites
 
 The host pipeline needs semantic migrations before compiler coverage can make
 it self-hosting:
 
-- The memo executor's `slot` mutates a captured `let filled`. The
-  [immutable-cache rewrite](../../edag/memo/todo/immutable-cache.md) must preserve
-  sharing, laziness and per-invocation identity.
-- Host `Map` dependencies also need migration: `invocation` in
-  [memo](../../edag/memo/module.f.mjs) indexes cache slots, `start` and `fresh` in
-  [analysis](../../edag/analysis/module.f.mjs) track visited node identities,
-  and the [compiler AST helpers](../ast/module.f.mjs) construct maps for
-  deduplication. Immutable use of a host `Map` does not make it admitted FJS;
+- The memo executor now threads an immutable cache through evaluation. Its
+  [native parity checks](../../edag/memo/todo/immutable-cache.md) must still prove
+  sharing, laziness and per-invocation identity after compilation.
+- Host `Map` dependencies still need migration: the walk in
+  [analysis](../../edag/analysis/module.f.mjs) tracks visited node identities
+  for deduplication. Immutable use of a host `Map` does not make it admitted FJS;
   [built-in admission](../../../spec/todo/2360-built-in.md#keyed-collections)
   and the [container design](../../../todo/037-language-design-map.md) remain
   open. Replace these uses with immutable containers expressed in admitted FJS,
   or obtain an approved `Map` design before implementing language support.
 - Tag dispatch also uses host-only property access:
-  [operations](../../edag/operations/module.f.mjs)'s `operations[e[0]]` and
+  [operations](../../edag/operations/module.f.mjs)'s `semanticUnary[node[0]]`,
+  `numericUnary[node[0]]`, `semanticBinary[tag]`, `relational[tag]` and
+  `numericBinary[tag]`, and
   [analysis](../../edag/analysis/module.f.mjs)'s `handlers[e[0]]` select functions
   by runtime string keys. The [property-access contract](./compile-modules-to-edag.md)
   refuses that source form. Rewrite dispatch with explicit tag comparisons and
@@ -88,7 +99,7 @@ their existing error channels. Resource limits belong to
 
 Use the existing [virtual runner](../../effects/node/virtual/module.f.mjs) for
 file and resolution effects in FunctionalScript proofs. Execute the actual
-parser, linker and evaluator over those fixtures, and assert their successful
+parser, lowering and evaluator over those fixtures, and assert their successful
 and failing results. The evaluator handles language failures as data, so these
 proofs need neither precomputed sandbox results nor a new host adapter. Tests
 of ordinary runtime code produced by materialization belong to that separate
@@ -96,11 +107,11 @@ target boundary.
 
 ### Tasks
 
-- [ ] Expose the composed loader using the existing compiler and interpreter
-      entry points; reuse their validation and error contracts.
-- [ ] Prove a dependency with a named import loads to the complete export object,
+- [x] Expose `compiler/transpiler.interpret` using existing lowering and memo;
+      preserve source errors and represented initialization failure payloads.
+- [x] Prove a dependency with a named import loads to the complete export object,
       including an exported function that is not called during loading.
-- [ ] Prove repeated and diamond imports preserve module/value identity, and
+- [x] Prove repeated and diamond imports preserve module/value identity, and
       malformed or unavailable modules, missing exports and cycles follow the
       existing compiler refusals.
 - [ ] Audit and migrate host containers in the native dependency closure,
@@ -110,7 +121,7 @@ target boundary.
 - [ ] Rewrite runtime string-key dispatch in the operations and analysis modules
       to admitted tag branching. Cover every supported tag and preserve lazy
       operand demand and scope validation in host and eventual native proofs.
-- [ ] Prove the loader with virtual file/resolution effects and actual
+- [x] Prove the loader with virtual file/resolution effects and actual
       evaluation: success returns the complete represented export object,
       and a module throwing during initialization returns its error payload.
       Keep these cases in FunctionalScript proofs.

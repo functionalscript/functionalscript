@@ -174,7 +174,7 @@ pub fn run<A: IVm>(
 mod tests {
     use nanvm_lib::{
         naive::Naive,
-        vm::{Any, Array, IVm, JsonError, Nullish, Number, Object, ToAny, ToArray},
+        vm::{Any, Array, Function, IVm, JsonError, Nullish, Number, Object, ToAny, ToArray},
     };
 
     use crate::{
@@ -261,7 +261,7 @@ mod tests {
         assert_eq!(
             run::<Naive>(operators::module, "default", Action::Read),
             Ok(
-                "[7,5,12,1.5,2,36,-6,-7,true,false,true,true,false,true,2,7,7,12,3,3,\"ab\",7]"
+                "[7,5,12,1.5,2,36,-6,-7,false,\"number\",true,false,true,true,false,true,2,7,7,12,3,3,\"ab\",7]"
                     .into()
             )
         );
@@ -355,6 +355,29 @@ mod tests {
             run::<Naive>(rest_function::module, "default", Action::Call(args)),
             Ok("[1,2]".into())
         );
+    }
+
+    /// An undefined body still produces an ordinary callable, with its own
+    /// identity and source text, including when constructed inside a call.
+    #[test]
+    fn undefined_function_exports() {
+        let exports: Object<Naive> = function::module::<Naive>().unwrap().try_into().unwrap();
+        let noop = exports.own_property(&"noop".into()).unwrap();
+        assert_eq!(noop, exports.own_property(&"repeated".into()).unwrap());
+        assert_ne!(noop, exports.own_property(&"other".into()).unwrap());
+        let make = Function::try_from(exports.own_property(&"make".into()).unwrap()).unwrap();
+        let first = make.call(Array::default()).unwrap();
+        let second = make.call(Array::default()).unwrap();
+        assert_ne!(first, second);
+        for value in [noop, first, second] {
+            assert_eq!(value.clone().to_string(), Ok("()=>undefined".into()));
+            let callable = Function::try_from(value).unwrap();
+            assert_eq!(callable.length(), 0);
+            assert_eq!(
+                callable.call(Array::default()),
+                Ok(Nullish::Undefined.to_any())
+            );
+        }
     }
 
     #[test]

@@ -16,7 +16,6 @@
  * @import { Result } from '../types/result/types.ts'
  * @import { Unknown } from '../media/datajs/types.ts'
  * @import { _Checked, _CompileOp } from './types.ts'
- * @import { Denotation } from './ast/types.ts'
  * @import { ParseError } from './parser/types.ts'
  * @import { Effect, IoChannel } from '../effects/types.ts'
  * @import { Env, Program, ReadFile, ResolveFileModule, Write } from '../effects/node/types.ts'
@@ -29,7 +28,7 @@ import { _numberSerialize, tryJsonStringify, tryStringify } from '../media/dataj
 import { tryStringify as fjsStringify, tryModuleStringify } from './serializer/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../media/json/serializer/module.f.mjs'
 import { flat, map } from '../types/list/module.f.mjs'
-import { error, mapOk, ok } from '../types/result/module.f.mjs'
+import { ok, okThen } from '../types/result/module.f.mjs'
 import { concat } from '../types/string/module.f.mjs'
 import { serialize as bigintSerialize } from '../types/bigint/module.f.mjs'
 import { sort } from '../types/object/module.f.mjs'
@@ -69,22 +68,6 @@ export const _errorLocation = inputFileName => ({ metadata, end, path }) => {
         : `${end.line}:${end.column}`
     return `${start}-${far}`
 }
-
-// ── JSON output ───────────────────────────────────────────────────────────────
-
-/**
- * A denotation as JSON: the tree the value is to JSON, which has no
- * identity to carry, as `JSON.stringify` writes it. What JSON cannot spell
- * — `undefined`, a `bigint`, `NaN`, an infinity — is refused. The writer is
- * the DataJS writer's, since a JSON document is the tree a DataJS graph
- * unfolds to.
- *
- * @type {(denotation: Denotation) => Result<string, string>}
- */
-const jsonText = ({ value }) => tryJsonStringify(value)
-
-/** A denotation as a DataJS document, which denotes a graph and refuses nothing the front end builds. @type {(denotation: Denotation) => Result<string, string>} */
-const dataJsText = ({ value }) => tryStringify(value)
 
 // ── the route ─────────────────────────────────────────────────────────────────
 
@@ -175,9 +158,9 @@ const fjsText = path => mapStep(resolve(path), graph => path.endsWith('.json') ?
  * Write the default export of a module, or the whole document for a direct
  * JSON input. Input language decides the boundary, never an object's keys.
  *
- * @type {(write: (denotation: Denotation) => Result<string, string>) => (path: string) => Effect<ReadFile | ResolveFileModule, Result<string, string>, ParseError>}
+ * @type {(write: (value: Unknown) => Result<string, string>) => (path: string) => Effect<ReadFile | ResolveFileModule, Result<string, string>, ParseError>}
  */
-const denotedText = write => path => mapStep(_transpileDefault(path), write)
+const dataText = write => path => mapStep(_transpileDefault(path), okThen(write))
 
 /**
  * The text an output name asks for, from the input, or `null` when the name
@@ -197,9 +180,9 @@ const denotedText = write => path => mapStep(_transpileDefault(path), write)
  * @type {(outputFileName: string) => ((inputFileName: string) => Effect<ReadFile | ResolveFileModule, Result<string, string>, ParseError>) | null}
  */
 const outputText = outputFileName => {
-    if (outputFileName.endsWith('.json')) { return denotedText(jsonText) }
+    if (outputFileName.endsWith('.json')) { return dataText(tryJsonStringify) }
     if (isEdag(outputFileName)) { return edagText }
-    if (isDataJs(outputFileName)) { return denotedText(dataJsText) }
+    if (isDataJs(outputFileName)) { return dataText(tryStringify) }
     if (isFjs(outputFileName)) { return fjsText }
     if (outputFileName.endsWith('.rs')) { return rustText }
     return null
@@ -348,7 +331,8 @@ const check = env => resultStep(
  * nodes hoisted into `$0`, `$1`, … and an object's members in the order the
  * module gave them. The DataJS and JSON outputs are the default export
  * (the document itself for a direct JSON input); the FunctionalScript output
- * is the linked graph written back as source, so it holds a function, which no value does; the EDAG output is
+ * is the linked graph written back as source, preserving functions and
+ * initialization code; the EDAG output is
  * that graph, including the module's complete export object, as a DataJS
  * document; and the `.rs` output prints it as `let`
  * bindings and a `pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>`.

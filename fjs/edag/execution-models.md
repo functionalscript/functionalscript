@@ -28,12 +28,16 @@ values: every incoming edge evaluates its target again.
 
 ```js
 const shared = ['[]', [1, 2]]
-vm(context)(['===', shared, shared]) // false
+vm(context)(['===', shared, shared]) // ['ok', false]
 ```
 
 The EDAG node is shared, but Amnesia creates two arrays. This deliberately does
 not implement EDAG/JavaScript identity semantics; its purpose is to provide the
-simplest evaluator for semantic proofs.
+simplest evaluator for semantic proofs. It returns
+`Result<EdagValue, EdagValue>` through the same represented operation dispatcher
+as memo. Calls preserve the selected executor's reuse policy. Caller-established
+values may be supplied by exact node identity; Amnesia never extends that table
+or carries it into a function invocation.
 
 ## 2. JS-compatible execution
 
@@ -67,8 +71,17 @@ computed directly.
 This preserves the behavior of §2.1 while reducing runtime memory and memo-table
 work. The traversal is [`analysis`](./analysis/module.f.mjs): one table per
 program, the shared entries by index, each cached within its scope; the
-executor over it is [`memo`](./memo/module.f.mjs), one slot per shared entry
-of an invocation, filled on first demand.
+executor over it is [`memo`](./memo/module.f.mjs), returning represented
+`EdagValue` results. Its immutable invocation cache gains a shared entry on
+first demand. Calls interpret retained function bodies with fresh cache state.
+
+This evaluation is **EDAG interpretation**. Converting the resulting value
+graph into ordinary FJS/JS values is **runtime compilation**. It supports data
+and callables through [`value/to_unknown`](./value/to_unknown/module.f.mjs),
+with target compilation and loading supplied by an effect handler.
+`compiler/transpiler.transpile` composes this boundary with module interpretation;
+the [value contract](./values.md#runtime-compilation) describes the supported
+target profiles.
 
 ### 2.3 Generate JavaScript
 

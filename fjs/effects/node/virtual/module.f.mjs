@@ -1464,8 +1464,8 @@ const onMemory = f => state => {
     return [{ ...state, memory }, result]
 }
 
-/** @type {PartialMemOperationMap<NodeOp, State>} */
-const map = {
+/** Virtual operations, available for composing a runtime with additional capabilities. @satisfies {PartialMemOperationMap<NodeOp, State>} */
+export const virtualOperationMap = {
     all: (...a) => state => {
         // Each entry is the effect's whole `Result`: `all`'s own envelope says
         // only whether the runner could dispatch it, so the inner answers pass
@@ -1565,7 +1565,7 @@ const map = {
  *
  * @type {RunInstance<NodeOp, State>}
  */
-export const virtual = partialRun(nodeCommands)(map)
+export const virtual = partialRun(nodeCommands)(virtualOperationMap)
 
 const testContext = { test: todo }
 

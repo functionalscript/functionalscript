@@ -6,25 +6,25 @@
  * @module
  *
  * @import { Exp, Spread } from '../../edag/types.ts'
- * @import { AstBinary, AstBitnot, AstBody, AstCall, AstConditional, AstConst, AstEntry, AstFunction, AstImport, AstItem, AstModule, AstNeg, AstSpread, AstThrow } from '../ast/types.ts'
- * @import { _ImportSource, _Source } from '../transpiler/types.ts'
+ * @import { AstBinary, AstBitnot, AstNot, AstTypeof, AstBody, AstCall, AstConditional, AstConst, AstEntry, AstFunction, AstImport, AstItem, AstModule, AstNeg, AstSpread, AstThrow } from '../ast/types.ts'
+ * @import { _ImportSource, _Source } from '../source/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { ReadFile, ResolveFileModule } from '../../effects/node/types.ts'
+ * @import { EdagValue } from '../../edag/value/types.ts'
  * @import { Unknown as JsonUnknown } from '../../media/json/types.ts'
- * @import { Entry } from '../../types/object/types.ts'
  * @import { Unresolved } from './types.ts'
  * @import { _Binding, _Entries, _Link, _Lowered, _LoweredEntry, _LoweredItem, _LoweredOver, _LowerResults, _LowerWork, _Nodes, _Resolved } from './private.ts'
  */
 
 import { anchors, isBinary, isInlinedCall, isLazy, isSpread, readCaptures } from '../ast/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
-import { _attributeError, _importSources, _missingExport, _rootSource, _parseJson, _parseModule } from '../transpiler/module.f.mjs'
+import { fromValue } from '../../edag/module.f.mjs'
+import { _attributeError, _importSources, _missingExport, _rootSource, _parseJson, _parseModule } from '../source/module.f.mjs'
 import { foldStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { at, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { drop, includes } from '../../types/list/module.f.mjs'
-import { definedEntries } from '../../types/object/module.f.mjs'
-import { assertNotNullish } from '../../asserts/module.f.mjs'
+import { assertNotNullish, todo } from '../../asserts/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 
 const args = /** @type {const} */ (['args'])
@@ -211,7 +211,7 @@ const slotKeys = nodes => {
  * length ({@link lower}'s own comment has why that one gets an explicit
  * stack instead).
  *
- * @type {(nodes: _Nodes) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional | AstThrow>) => _Lowered}
+ * @type {(nodes: _Nodes) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstNot | AstTypeof | AstBinary | AstConditional | AstThrow>) => _Lowered}
  */
 const lowerLeaf = nodes => ast => {
     if (ast === undefined) { return plain(undefinedNode()) }
@@ -304,6 +304,8 @@ const lower = nodes => root => {
             switch (ast[0]) {
                 case '-': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'neg', rest } }; break }
                 case '~': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'bitnot', rest } }; break }
+                case '!': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'not', rest } }; break }
+                case 'typeof': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'typeof', rest } }; break }
                 case 'throw': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'throw', rest } }; break }
                 case '?:': {
                     work = { kind: 'expand', ast: ast[1], rest: { kind: 'expand', ast: ast[2], rest: { kind: 'expand', ast: ast[3], rest: { kind: 'ternary', rest } } } }
@@ -332,6 +334,22 @@ const lower = nodes => root => {
             const rest = work.rest
             const operand = assertNotNullish(results, ['no operand for a bitwise not', root])
             results = { top: { exp: ['~', operand.top.exp], anchors: operand.top.anchors }, rest: operand.rest }
+            work = rest
+            continue
+        }
+        if (work.kind === 'not') {
+            /** @type {_LowerWork} */
+            const rest = work.rest
+            const operand = assertNotNullish(results, ['no operand for a logical not', root])
+            results = { top: { exp: ['!', operand.top.exp], anchors: operand.top.anchors }, rest: operand.rest }
+            work = rest
+            continue
+        }
+        if (work.kind === 'typeof') {
+            /** @type {_LowerWork} */
+            const rest = work.rest
+            const operand = assertNotNullish(results, ['no operand for a typeof', root])
+            results = { top: { exp: ['typeof', operand.top.exp], anchors: operand.top.anchors }, rest: operand.rest }
             work = rest
             continue
         }
@@ -509,22 +527,20 @@ export const _defaultExport = module => {
 
 // ── resolution ────────────────────────────────────────────────────────────────
 
-/** @type {(member: Entry<JsonUnknown>) => readonly [':', string, Exp]} */
-const jsonMember = ([key, value]) => [':', key, jsonEdag(value)]
+/** JSON has no function leaves, so the function hook is unreachable. */
+const jsonLiteral = fromValue(todo)
 
 /**
  * A JSON document's value as an EDAG: a tree with JSON's leaves, its
  * members in the order the reader built them. `transpile` reads a `.json`
  * import as a value, so the linker does too.
  *
- * @type {(value: JsonUnknown) => Exp}
+ * `fromValue` allows arbitrary hook expressions. JSON never reaches its hook,
+ * so only literal value nodes are constructed and the narrower cast holds.
+ *
+ * @type {(value: JsonUnknown) => EdagValue}
  */
-const jsonEdag = value => {
-    if (value === null || typeof value !== 'object') { return value }
-    return value instanceof Array
-        ? ['[]', value.map(jsonEdag)]
-        : ['{}', definedEntries(value).map(jsonMember)]
-}
+export const jsonValue = value => /** @type {EdagValue} */ (jsonLiteral(value))
 
 /**
  * A module's EDAG recorded under its identity, and the chain of imports left as
@@ -545,7 +561,7 @@ const completed = id => context => edag => {
 }
 
 /** @type {(id: string) => (context: _Link) => (value: JsonUnknown) => readonly [_Link, _Resolved]} */
-const completedJson = id => context => value => completed(id)(context)(['{}', [[':', 'default', jsonEdag(value)]]])
+const completedJson = id => context => value => completed(id)(context)(['{}', [[':', 'default', jsonValue(value)]]])
 
 /** Require the selected export even if its binding is unused. @type {(source: _ImportSource) => (binding: _Binding) => Effect<ReadFile | ResolveFileModule, _Binding, ParseError>} */
 const linkImport = source => ({ context, bound }) => step(link(source)(context), ([linked, resolved]) => {
@@ -614,5 +630,5 @@ const edagOf = ([, resolved]) => resolved.exports
 export const resolve = path => step(_rootSource(path), source => source.json
     // The CLI extension selects JSON input even when realpath follows an alias
     // to a differently named file. Import attributes still use the target path.
-    ? mapStep(_parseJson(source.path), jsonEdag)
+    ? mapStep(_parseJson(source.path), jsonValue)
     : mapStep(link(source)({ complete: null, stack: null }), edagOf))

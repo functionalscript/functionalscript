@@ -1,13 +1,12 @@
 /**
- * Type-level API for `fjs/compiler/ast/module.f.mjs`: the AST shape `run`
- * evaluates — `AstModule`, `AstConst`, `AstModuleRef`, `AstArray`,
- * `AstMember`, `AstObject`, `AstAccess`, and `AstBody`.
+ * Parsed module shapes and the AST helpers used by EDAG lowering.
+ * Evaluation belongs to the represented EDAG interpreter.
  *
  * @module
  */
 
 import type { Assert } from '../../asserts/types.ts'
-import type { Primitive, Unknown } from '../../media/datajs/types.ts'
+import type { Primitive } from '../../media/datajs/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
 import type { binaryTags } from './module.f.mjs'
 
@@ -32,8 +31,8 @@ export type AstImport = {
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
-/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a binary operator, a conditional, a function, a fixed parameter, a rest array, a slot of its frame — or a `throw`, which a body may end with in place of a value. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstBitnot|AstBinary|AstConditional|AstFunction|AstRest|AstArg|AstFrameRef|AstThrow
+/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a logical not, a `typeof`, a binary operator, a conditional, a function, a fixed parameter, a rest array, a slot of its frame — or a `throw`, which a body may end with in place of a value. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstBitnot|AstNot|AstTypeof|AstBinary|AstConditional|AstFunction|AstRest|AstArg|AstFrameRef|AstThrow
 
 /**
  * A `throw`, `throw v;`: the statement a function's block body, or a
@@ -41,9 +40,8 @@ export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCa
  * EDAG's `['throw', exp]`, an operation that establishes its operand and
  * fails with it as the thrown value
  * ([spec: functions](../../../spec/README.md#functions)). The parser writes
- * it as the last entry of a body and nowhere else; `lower` gives one
- * anywhere the node, and `run` fails on it as the value outputs fail on any
- * load that throws.
+ * it as the last entry of a body and nowhere else; lowering preserves the
+ * operation so interpretation fails with the represented thrown value.
  */
 export type AstThrow = readonly ['throw', AstConst]
 
@@ -99,10 +97,8 @@ export type AstArg = readonly ['arg', number]
  * referencing entry: in the body `[a, b, ['cref', 0]]` the reference resolves
  * to `a`, not to the nearest preceding entry `b`.
  *
- * A `cref` index must be smaller than the index of the entry holding it —
- * `run` evaluates a body left to right, so a reference to the current or a
- * later entry is unsatisfiable. It is not rejected: it resolves to the most
- * recently evaluated entry instead.
+ * A `cref` index must be smaller than the index of the entry holding it.
+ * The parser preserves declaration order; lowering trusts those references.
  */
 export type AstModuleRef = readonly ['aref' | 'cref', number]
 
@@ -148,11 +144,10 @@ export type AstEntry = AstMember | AstSpread
 
 /**
  * An object value: its entries in the order they are written, a repeated
- * key written twice. The syntax keeps what the value cannot: `run` builds
- * the object JavaScript builds from the same literal — a repeated key at its
- * first position with its last value, integer-like keys first in numeric
- * order — and EDAG's object constructor, `['{}', …]`, takes the entries as
- * written, duplicates and all, which only the syntax still has.
+ * key written twice. EDAG's object constructor, `['{}', …]`, takes those
+ * entries as written. Interpretation produces a represented object with a
+ * repeated key at its first position and last value, integer-like keys first
+ * in numeric order, as JavaScript does.
  */
 export type AstObject = readonly ['object', readonly AstEntry[]]
 
@@ -162,8 +157,8 @@ export type AstObject = readonly ['object', readonly AstEntry[]]
  * a string, or a number from `[0]`. The EDAG's own form, `['.', object,
  * index]`, so the lowering carries it as it is. A key naming a property of
  * a built-in prototype — every name `fjs/js/prototype` lists but `length`
- * — is refused by the parser where the access is read, so `run` never
- * reads one; where the access is a call's callee the parser checks the key
+ * — is refused by the parser where the access is read; where the access is
+ * a call's callee the parser checks the key
  * against `prohibitedCalls` instead, so a callee access may carry a member
  * function's name, `at` or `toString`. A numeric literal is an ordinary
  * base: `1 .x` is `['.', 1, 'x']`.
@@ -191,17 +186,17 @@ export type AstAccess = readonly ['.', AstConst, string | number]
 export type AstCall = readonly ['()', AstConst, readonly AstItem[]]
 
 /**
- * A negation, `-v`: the language's one prefix operator, and the EDAG's
- * `['-', exp]` — `op12Id` being `'+'` and `'-'`, each of one operand or
- * two.
+ * A negation, `-v`: the first of the language's prefix operators, and the
+ * EDAG's `['-', exp]` — `op12Id` being `'+'` and `'-'`, each of one operand
+ * or two.
  *
  * `-` binds looser than a step, so `-1 .x` is `['-', ['.', 1, 'x']]` and
  * `-1()` is `['-', ['()', 1, []]]`, which is how JavaScript reads them. A
  * negative literal is no longer a literal *here*: `-1` is `['-', 1]` in
  * this tree, since the parser computes nothing. The lowering folds that one
  * case — negating a numeric literal is exact — so the graph holds the leaf,
- * and everything else reaches it as a node whose value `run` works out for
- * the document outputs, or refuses where the conversion is `ToPrimitive`'s.
+ * and everything else reaches the represented interpreter as a node,
+ * including conversions through `ToPrimitive`.
  */
 export type AstNeg = readonly ['-', AstConst]
 
@@ -209,9 +204,25 @@ export type AstNeg = readonly ['-', AstConst]
  * A bitwise not, `~v`: the EDAG's `['~', exp]`, `op1Id`. Unlike {@link AstNeg}
  * it folds nothing — `~` is exact only over an integer already reduced to
  * one, which is `ToInt32`'s question and not this tree's — so it always
- * reaches `run` as a node, refused the same way a container is.
+ * reaches the represented interpreter as a node.
  */
 export type AstBitnot = readonly ['~', AstConst]
+
+/**
+ * A logical not, `!v`: the EDAG's `['!', exp]`, `op1Id`. Like {@link AstBitnot}
+ * it folds nothing: what `!` negates is its operand's truthiness, which is
+ * `ToBoolean`'s question and not this tree's, so it always reaches the
+ * represented interpreter as a node.
+ */
+export type AstNot = readonly ['!', AstConst]
+
+/**
+ * A `typeof v`: the EDAG's `['typeof', exp]`, `op1Id`, the type tag of its
+ * operand as JavaScript's — a fresh string the interpreter answers, so it
+ * folds nothing either and always reaches the represented interpreter as a
+ * node.
+ */
+export type AstTypeof = readonly ['typeof', AstConst]
 
 /**
  * A binary operator, Stages A and B of
@@ -220,12 +231,8 @@ export type AstBitnot = readonly ['~', AstConst]
  * the EDAG's `op2Id`, and `-` again at two operands, `op12Id`'s other
  * arity, told from {@link AstNeg} by length.
  *
- * `run` computes no value for one, the same refusal a function or a call
- * earns: JavaScript's `+` alone needs `ToPrimitive` to decide number or
- * string, and folding the rest piecemeal while leaving `+` a node would be
- * an inconsistent line to draw, so every operator here waits on that
- * question rather than answering half of it. The EDAG is where each is
- * exact, over the graph's own values.
+ * Lowering preserves the operation; the represented EDAG interpreter owns
+ * conversion, evaluation order and failures over the graph's values.
  *
  * A lazy operator's right operand is established only when the left
  * decides nothing — `a && b`'s `b` when `a` is truthy, `a ?? b`'s when `a`
@@ -252,8 +259,7 @@ type _BinaryTagsAreComplete = Assert<Equal<(typeof binaryTags)[number], BinaryTa
  * one node of three operands — always three, so nothing decides its arity
  * as length decides `-`'s. It establishes `c` and then exactly one arm,
  * the one `ToBoolean(c)` selects; both arms are lazy positions to
- * `anchors`, as `&&`'s right operand is. `run` refuses it as it refuses
- * every operator.
+ * `anchors`, as `&&`'s right operand is.
  */
 export type AstConditional = readonly ['?:', AstConst, AstConst, AstConst]
 
@@ -274,12 +280,6 @@ export type AstConditional = readonly ['?:', AstConst, AstConst, AstConst]
  * its rest parameter.
  */
 export type AstBody = readonly AstConst[]
-
-/** What an input denotes: a module's export object, a selected export of it, or a direct JSON document. */
-export type Denotation = { readonly value: Unknown }
-
-/** An imported module: what it denotes, under the id an importer names it by — its resolved path. */
-export type Import = Denotation & { readonly id: string }
 
 /**
  * What an EDAG of the module anchors, each by index: exactly the code the

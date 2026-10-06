@@ -405,7 +405,7 @@ A function has at most 16 fixed parameters
 ([functions](../README.md#functions)), approved as a language limit
 ([approval](https://github.com/functionalscript/functionalscript/pull/2295#issuecomment-5831266299)) so
 that every valid function is materializable, with the right `length`, by every
-backend. A 17th fixed name is a compile error, and `bindingError` refuses an
+backend. A 17th fixed name is a compile error, and `checked` refuses an
 EDAG function whose `length` is above 16, so every writer returns an error
 Result for it. The table covers exactly the valid lengths; it does not limit
 supplied argument count or rest-array length.

@@ -1,119 +1,45 @@
-# A function's text in the JavaScript-hosted evaluators
+# A function's text in the EDAG interpreters
 
-**Accepted as the host's** (ruled by @sergey-shandar on
-[#2469](https://github.com/functionalscript/functionalscript/pull/2469),
-2026-10-01). The evaluators in this directory, `amnesia` and `memo` over
-[`operations`](./operations/module.f.mjs), answer a function's text with
-whatever the JavaScript host answers. They neither render the EDAG-derived
-text nor refuse. This document records why, so the question is not reopened
-without something new.
+Amnesia and memo retain function bodies and evaluated captures as `EdagValue`s.
+Their shared [conversion](./value/convert/module.f.mjs) uses the EDAG-derived
+function renderer for explicit `String(f)` and indirect conversion through
+arrays, object coercion, keys and built-in methods. Neither interpreter creates
+host callables or overrides a host function's `toString`.
 
-## What the language says a function's text is
+The trusted `functionText(analysis, index): string` entry in the
+[serializer](../compiler/serializer/module.f.mjs) renders every admitted body.
+`tryFunctionText` checks separately supplied expressions and returns admission
+diagnostics through `Result`. Captures appear as slot names, `$0`, `$1`, and so
+on, without including their values. Two functions instantiated from the same
+body therefore have the same text even when their captures differ.
 
-FunctionalScript fixes a function's default text: it is the EDAG-derived
-rendering of the function's code
-([function-source exception](../../spec/README.md#function-source-representation-exception)).
-Parameters take canonical names, and under D2 captured values are written
-as slot names
-([to-primitive, Stage 3](../../nanvm-lib/todo/to-primitive.md#stage-3-a-functions-text)).
-So `x => x * 2` is `($a_0)=>$a_0*2`, and `() => undefined` is
-`()=>undefined`.
-`nanvm-lib` answers exactly that. The FunctionalScript writer renders the
-text at compile time (`tryFunctionText` in
-[`fjs/compiler/serializer`](../compiler/serializer/module.f.mjs)), and the
-Rust VM keeps it beside the function (`IStaticFunction::static_function`).
+Existing canonical text stays unchanged. Where the source serializer cannot
+reconstruct a body, function text uses general JavaScript expressions. Lazy
+memo cells local to each invocation preserve shared nodes and lazy demand in
+that text. The emitted JavaScript may use local mutation; the renderer itself
+is immutable FJS. Amnesia still recomputes each edge when interpreting the body:
+function text describes its code, independently of the chosen execution model.
 
-The same exception already says that running source on a JavaScript engine
-keeps that host's function text. These evaluators are the same case.
+This is code-only text, not a serialization of captured values, a FJS source
+round trip or an implementation of callable runtime compilation. Source
+serialization through `tryStringify` remains partial. Callable runtime
+compilation uses [`value/to_unknown`](./value/to_unknown/module.f.mjs) and the
+JavaScript value emitter. `compiler/transpiler.transpile` uses that boundary
+for ordinary runtime exports; the
+[value contract](./values.md#runtime-compilation) describes target support.
 
-## What these evaluators answer
+## Host runtime values
 
-The `=>` operation does not make a function out of the EDAG. It makes a host
-closure with `callable(length, body)` from
-[`fjs/types/function/length`](../types/function/length/module.f.mjs). That
-closure is one of seventeen fixed wrappers, one per parameter count, and
-each wrapper hands its arguments back to the evaluator:
+The [function-source exception](../../spec/README.md#function-source-representation-exception)
+allows ordinary JavaScript execution to retain its host's function text.
+Converting an EDAG function to a runtime callable intentionally loses EDAG
+reflection; that boundary remains subject to the host exception.
 
-```js
-g => (a0, ...rest) => g([a0], rest)
-```
-
-The host answers a function's text from the function's own source, so:
-
-| FunctionalScript              | the evaluator answers                | `nanvm-lib` answers  |
-| ----------------------------- | ------------------------------------ | -------------------- |
-| `String(x => x * 2)`          | `'(a0, ...rest) => g([a0], rest)'`   | `'($a_0)=>$a_0*2'`   |
-| `String(x => x + 1)`          | `'(a0, ...rest) => g([a0], rest)'`   | `'($a_0)=>$a_0+1'`   |
-| `(x => x * 2) + '!'`          | `'(a0, ...rest) => g([a0], rest)!'`  | `'($a_0)=>$a_0*2!'`  |
-| `(x => x * 2) < (x => x + 1)` | `false`                              | `true`               |
-
-Every function of one length has the same text here, so a program that
-compares, concatenates or keys on function text can answer differently
-here and on the Rust VM.
-
-## Why the evaluators cannot render it
-
-The host asks the function itself for its text, so the function would have
-to carry the right text. A host closure carries its own source and nothing
-else. Every way to change that is ruled out
-([#2418](https://github.com/functionalscript/functionalscript/pull/2418)):
-
-- **A `Proxy`** around the closure could answer `toString` with the
-  rendered text. A `Proxy` is not a FunctionalScript object, so the
-  evaluator's values cannot be one. #2418 built this and it was reverted.
-- **Setting `toString`** on the closure with `Object.defineProperty` is
-  property mutation, which FunctionalScript does not have.
-- **A thin `.mjs` adapter** that does either of the above cannot be reached.
-  A FunctionalScript module (`.f.mjs`, `.f.js`) cannot import a JavaScript
-  one (`.mjs`, `.js`).
-
-## Why they do not refuse it either
-
-[#2469](https://github.com/functionalscript/functionalscript/pull/2469)
-first made the evaluator's own conversions throw on a function: `String(f)`,
-binary `+` with one, and a string comparison with one. The argument was
-[DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle) and the
-[render-or-refuse rule](../../spec/todo/3120-parameters.md#default-function-text-render-or-refuse):
-a plausible wrong value is worse than an error. The refusal was reverted in
-the same pull request, for these reasons:
-
-- **The text is the host's, as in JavaScript.** Different JavaScript engines
-  already return different text for the same function. The language does
-  not promise one engine's text either, and the closure's own source is
-  what a JavaScript engine would answer for it. Throwing is further from
-  JavaScript than answering it.
-- **It could only be partial.** Most conversions happen inside the host,
-  where no evaluator node sees the function: `String([f])`, `[f].join()`,
-  `'x'.startsWith(f)`, and `+` or a comparison with an array or object that
-  holds a function. Those would still answer the wrapper's text, so the
-  refusal would not have made the evaluator agree with the Rust VM.
-- **It adds nothing toward the MVP.** It would be a breaking change to
-  published code for a result no MVP step asks of these evaluators.
-- **The way forward is another representation.** These evaluators already
-  get what they can from host closures. Correct text needs a different
-  representation of code and data, not more changes to this one.
-
-## How to test it
-
-A proof on the JavaScript side checks only that a function's text is a
-string, never what the string is, because engines differ: the `lambda` proof
-in [`amnesia/proof.f.mjs`](./amnesia/proof.f.mjs) converts an evaluated
-function with `String` and with `+`. The corpus's exact-text cases carry a
-`host` marker ([`fjs/nanvm/types.ts`](../nanvm/types.ts)). The JavaScript
-side skips them, and the Rust side alone runs them, where the text is the
-language's.
-
-## What would change this
-
-The [EdagValue proposal](./todo/edag-value.md) is the planned replacement:
-every FJS VM carries function code and evaluated captures as EDAG values and
-renders their text through the shared renderer. The accepted behavior above
-remains the current host-valued baseline until that migration. Explicit
-conversion to an ordinary runtime value typed as `unknown` erases EDAG
-reflection; JavaScript callables at that boundary retain the host-text
-exception.
-
-A representation in which a function value carries its EDAG, or a host
-boundary that can find the EDAG from the value, with no `Proxy`, no
-mutation and no import of JavaScript. Then the text could be rendered here
-too. Until then, the host's text is the answer.
+Before the EDAG-value migration, Amnesia and memo used the fixed arrow wrappers
+in `fjs/types/function/length`. Their text was accepted as the host's in
+[#2469](https://github.com/functionalscript/functionalscript/pull/2469).
+Changing those closures with a `Proxy`, property mutation or a JavaScript import
+was rejected in [#2418](https://github.com/functionalscript/functionalscript/pull/2418).
+Keeping code as represented data removes that need. Both interpreters now
+check canonical text, including the corpus's cases that the independent
+JavaScript reference still skips because its function text is host-defined.

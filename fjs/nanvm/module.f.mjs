@@ -5,8 +5,9 @@
  * result written as ordinary JavaScript values. Two consumers read it, so a
  * new case is written once and checked twice:
  *
- * - [`proof.f.mjs`](./proof.f.mjs) evaluates each case against a standard
- *   JavaScript engine, proving that the expectations describe JavaScript.
+ * - [`proof.f.mjs`](./proof.f.mjs) evaluates each case through represented
+ *   EDAG interpretation and cross-checks independent native JavaScript
+ *   operations, excluding canonical function text only from that cross-check.
  * - [`rust/module.f.mjs`](./rust/module.f.mjs) prints each case as Rust,
  *   producing `nanvm-lib/tests/test/gen.corpus/`, which runs the same case
  *   against `nanvm-lib`.
@@ -37,7 +38,7 @@
  *
  * @module
  *
- * @import { Exp, Op1, Op1Id, Op12, Op12Id, Op2, Op2Id, Op3, Op3Id, Property } from '../edag/types.ts'
+ * @import { Exp, Op1, Op1Id, Op12, Op12Id, Op2, Op2Id, Op3, Op3Id } from '../edag/types.ts'
  * @import { AnyCase, CallbackName, Case, Data, Expectation, Group, OperatorGroup, SharedNode, Struct, Throws, Value } from './types.ts'
  *
  * @example
@@ -49,7 +50,7 @@
  * ```
  */
 
-import { op1Id, op3Id } from '../edag/module.f.mjs'
+import { fromValue, op1Id, op3Id } from '../edag/module.f.mjs'
 import { validate } from '../rtti/validate/module.f.mjs'
 import { callback, functionText, functionValue, ref, returns, throws, unreached } from './constructors/module.f.js'
 import { groups as memberGroups } from './member/module.f.mjs'
@@ -269,27 +270,14 @@ export const unreachedExp = () => ['/', 1n, 0n]
  *
  * @type {(resolve: (name: string) => Exp) => (v: Value) => Exp}
  */
-const constExp = resolve => {
-    /** @type {(v: Value) => Exp} */
-    const f = v => {
-        if (typeof v === 'function') {
-            const info = v()
-            return info[0] === 'ref' ? resolve(info[1])
-                : info[0] === 'function' ? lambdaExp()
-                : info[0] === 'callback' ? callbackExp(info[1])
-                : info[0] === 'returns' ? functionExp(valueExp(info[1]))
-                : unreachedExp()
-        }
-        if (v === undefined) { return ['undefined'] }
-        if (Array.isArray(v)) { return ['[]', v.map(f)] }
-        if (typeof v === 'object' && v !== null) {
-            return ['{}', entries(v).map(
-                ([k, p]) => /** @type {Property} */ ([':', k, f(p)]))]
-        }
-        return v
-    }
-    return f
-}
+const constExp = resolve => fromValue(v => {
+    const info = v()
+    return info[0] === 'ref' ? resolve(info[1])
+        : info[0] === 'function' ? lambdaExp()
+        : info[0] === 'callback' ? callbackExp(info[1])
+        : info[0] === 'returns' ? functionExp(valueExp(info[1]))
+        : unreachedExp()
+})
 
 /**
  * The expression a value denotes, where nothing is shared. Every `expected`
@@ -1348,7 +1336,7 @@ const shiftLeftCases = [
     // A negative shift count is a right shift by its magnitude.
     { name: 'bigFiveShlNegativeThree', args: [5n, -3n], expected: 0n },
     { name: 'bigNegativeFiveShlNegativeThree', args: [-5n, -3n], expected: -1n },
-    { name: 'bigShiftTooLarge', args: [1n, 100000000000000000n], expected: throws },
+    { name: 'bigShiftTooLarge', args: [1n, 100000000000000000n], expected: throws, allocation: 'the host cannot allocate a BigInt with 100000000000000001 bits' },
     ...mixedCases('Shl'),
 ]
 
@@ -1385,7 +1373,7 @@ const signedRightShiftCases = [
     // A negative shift count is a left shift by its magnitude.
     { name: 'bigFiveShrNegativeThree', args: [5n, -3n], expected: 40n },
     { name: 'bigNegativeFiveShrNegativeThree', args: [-5n, -3n], expected: -40n },
-    { name: 'bigShiftTooLarge', args: [1n, -100000000000000000n], expected: throws },
+    { name: 'bigShiftTooLarge', args: [1n, -100000000000000000n], expected: throws, allocation: 'the negative right-shift count requests a BigInt with 100000000000000001 bits' },
     ...mixedCases('Shr'),
 ]
 

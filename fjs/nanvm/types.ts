@@ -17,7 +17,7 @@
  */
 
 import type { Assert } from '../asserts/types.ts'
-import type { Exp, Op12Id, Op1Id, Op2, Op2Id, Op3Id } from '../edag/types.ts'
+import type { Exp, Op12Id, Op1Id, Op2, Op2Id, Op3Id, Plain } from '../edag/types.ts'
 import type { AllowedCall } from '../js/prototype/types.ts'
 import type { FixedArray } from '../types/array/types.ts'
 import type { Equal } from '../types/ts/types.ts'
@@ -43,18 +43,10 @@ import type { Equal } from '../types/ts/types.ts'
  * expression that denotes it, so `typeof` plus `Array.isArray` recovers
  * everything a tag would have carried.
  */
-export type Value = Const | Ref | FunctionValue | Callback | Returns | Unreached
+export type Value = Plain<Ref | FunctionValue | Callback | Returns | Unreached>
 
 /** A value that is its own description. */
-export type Const =
-    | null
-    | undefined
-    | boolean
-    | number
-    | string
-    | bigint
-    | readonly Value[]
-    | Struct
+export type Const = Exclude<Value, globalThis.Function>
 
 /** An object value. Property order is the order the Rust printer emits. */
 export type Struct = { readonly [k in string]?: Value }
@@ -88,16 +80,12 @@ export type Info =
  * anywhere a {@link Value} is. A function that is called is a
  * {@link Callback} or a {@link Returns}.
  *
- * One thing about a function is *not* shared data yet: its string form.
- * `nanvm-lib` answers the FunctionalScript writer's text
- * (`fjs/compiler/serializer`'s `tryFunctionText`), `()=>undefined` for this
- * one, while the host evaluator gives its own closure's source. A case whose
- * result depends on it — `String` of a function, `+` with one, `toString`,
- * `join`, or a string method handed one — carries the writer's text as its
- * `expected` and a `host` marker ({@link Case}), so it runs on the Rust side
- * only. Every other coercion of a function, nested or not, agrees on both
- * sides (`NaN`, `false`, `'function'`, the function itself), which is what
- * the unmarked function cases exercise.
+ * Amnesia and `nanvm-lib` answer the shared renderer's canonical function
+ * text, `()=>undefined` for this one. The independent JavaScript reference
+ * gives its literal fixture closure the host's source text. A case whose
+ * result depends on that difference carries a `host` marker ({@link Case});
+ * both represented interpreters run it, and only the native cross-check skips
+ * it. Other function observations retain their ordinary shared expectations.
  */
 export type FunctionValue = Special<readonly ['function']>
 
@@ -111,7 +99,7 @@ export type CallbackName = 'args' | 'first' | 'prop' | 'double' | 'add' | 'pair'
 /**
  * A callback by name: a real function with a body, where a
  * {@link FunctionValue} is only ever the smallest one. Both consumers
- * establish it as the `=>` node it lowers to — `amnesia` as a host
+ * establish it as the `=>` node it lowers to — `amnesia` as an EdagValue
  * function, the Rust printer as a `static_function` — so a case can hand
  * one to `map` and see what it answers. Legal anywhere a {@link Value} is.
  */
@@ -196,10 +184,16 @@ export type Expectation = Const | Ref | Throws
  * the JavaScript proof still runs it. Removing the property is what turns the
  * case on for Rust — the gap list is data, not prose in a README.
  *
- * `host` is the other side's marker: the JavaScript proof skips the case and
- * the Rust side runs it. It marks a case whose `expected` is a function's
- * text, which the host evaluator does not render the way `nanvm-lib` does
+ * `host` excludes a case only from the independent native JavaScript
+ * cross-check. Amnesia and Rust still run it. Its expected result depends
+ * on canonical function text, which native fixture closures do not reproduce
  * (see {@link FunctionValue}); the value is the reason.
+ *
+ * `allocation` identifies an existing host resource exception that represented
+ * interpretation does not yet convert to Result. The case still runs through
+ * both interpreters and the JavaScript reference; only its Amnesia assertion
+ * expects a host throw instead of a language-failure tuple. The string records
+ * the concrete allocation limit. Resource handling is deferred separately.
  */
 export type Case<N extends number> = {
     readonly name: string
@@ -207,6 +201,7 @@ export type Case<N extends number> = {
     readonly expected: Expectation
     readonly rust?: string
     readonly host?: string
+    readonly allocation?: string
 }
 
 /** The cases of one unary EDAG operation. */
@@ -262,6 +257,7 @@ export type MethodCase = {
     readonly expected: Expectation
     readonly rust?: string
     readonly host?: string
+    readonly allocation?: string
 }
 
 /**

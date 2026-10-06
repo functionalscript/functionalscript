@@ -21,10 +21,13 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { _sourceOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
-import { memo } from '../../edag/memo/module.f.mjs'
+import { invoke, memo } from '../../edag/memo/module.f.mjs'
+import { call } from '../../edag/value/call/module.f.mjs'
+import { read } from '../../edag/value/property/module.f.mjs'
+import { toData } from '../../edag/value/to_unknown/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { invert, unwrap } from '../../types/result/module.f.mjs'
+import { invert, ok, unwrap } from '../../types/result/module.f.mjs'
 import { _defaultExport, unresolved } from '../edag/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { functionText, tryFunctionText, trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify } from './module.f.mjs'
@@ -152,9 +155,9 @@ const generated = (() => {
 const moduleGraph = source => unresolved(unwrap(parse(path)(source))).edag
 
 /** @type {(graph: Exp) => unknown} */
-const moduleValue = graph => memo(assertOk(analysis(graph)))({ frame: null, args: [] })
+const moduleValue = graph => assertOk(toData(unwrap(memo(assertOk(analysis(graph)))({ args: [] }))))
 
-/** Render an already analyzed function root. @type {(e: Exp) => Result<string, string>} */
+/** Render an already analyzed function root. @type {(e: Exp) => string} */
 const analyzedFunction = e => {
     const a = assertOk(analysis(e))
     assert(a.root instanceof Array)
@@ -206,9 +209,11 @@ export const proof = {
         },
         functions: () => {
             const text = unwrap(tryModuleStringify(moduleGraph('export const f=(...a)=>a; export default f;')))
-            const result = /** @type {{ f: (...args: unknown[]) => unknown, default: unknown }} */ (moduleValue(moduleGraph(text)))
-            assert(result.f === result.default)
-            assertStructurallySame(result.f(1, 2), [1, 2])
+            const result = memo(assertOk(analysis(moduleGraph(text))))({ args: [] })
+            const fn = assertOk(read(result, 'f'))
+            assertEq(fn, assertOk(read(result, 'default')))
+            const called = assertOk(call(ok(fn), [() => ok(1), () => ok(2)], invoke))
+            assertStructurallySame(assertOk(toData(called)), [1, 2])
         },
         refusals: () => {
             for (const graph of /** @type {readonly Exp[]} */ ([
@@ -602,7 +607,7 @@ export const proof = {
         assertEq(text(['=>', 0, [['rest']], slot(0)]), '()=>$0')
         assertEq(text(['=>', 0, [['rest'], ['arg', 3]], ['[]', [slot(0), slot(1), ['rest']]]]), '(...$a)=>[$0,$1,$a]')
         // A captured expression need not have a source spelling in the body.
-        assertEq(text(['=>', 0, [['!', 1]], slot(0)]), '()=>$0')
+        assertEq(text(['=>', 0, [['String', 1]], slot(0)]), '()=>$0')
         // Captured functions' bindings and parameter limits are outside the
         // selected body's code, just like its enclosing argument reads.
         assertEq(text(['=>', 0, [['=>', 0, [], ['arg', 0]]], slot(0)]), '()=>$0')
@@ -621,10 +626,10 @@ export const proof = {
         assertEq(text(['=>', 0, [['rest']], ['=>', 0, [slot(0)], slot(0)]]), '()=>()=>$0')
         // slots read out of order are named in order first, as a body's are
         assertEq(text(['=>', 0, [1, 2], ['[]', [slot(1), slot(0)]]]), '()=>{const $a0=$0;const $a1=$1;return [$a1,$a0];}')
-        // refused: no function, and a body the writer or the analysis refuses
+        // Refused: non-functions and invalid body metadata or bindings.
         assertStructurallySame(tryFunctionText(1), ['error', 'not a function'])
         assertStructurallySame(tryFunctionText(['[]', []]), ['error', 'not a function'])
-        assertStructurallySame(tryFunctionText(['=>', 0, [], ['!', 1]]), ['error', 'a ! node'])
+        assertEq(text(['=>', 0, [], ['String', 1]]), '()=>(String((1)))')
         assertStructurallySame(tryFunctionText(['=>', 0, [], ['arg', 0]]), ['error', 'invalid fixed parameter index or scope'])
         assertStructurallySame(tryFunctionText(['=>', 0, [], ['=>', 0, [], ['arg', 0]]]), ['error', 'invalid fixed parameter index or scope'])
         assertStructurallySame(tryFunctionText(['=>', 0, [], ['=>', 17, [], 1]]), ['error', 'a function length above 16'])
@@ -640,8 +645,8 @@ export const proof = {
                 [['=>', 0, [captured, captured], ['[]', [['frame', 0], ['frame', 1]]]], '()=>[$0,$1]'],
             ]
             for (const [e, expected] of cases) {
-                assertEq(assertOk(analyzedFunction(e)), expected)
-                assertEq(assertOk(analyzedFunction(e)), assertOk(tryFunctionText(e)))
+                assertEq(analyzedFunction(e), expected)
+                assertEq(analyzedFunction(e), assertOk(tryFunctionText(e)))
             }
         },
         unusedCaptures: () => {
@@ -652,13 +657,13 @@ export const proof = {
                 [['=>', 0, [1, 2, 3], ['[]', [['frame', 2], ['frame', 0]]]], '()=>[$2,$0]'],
             ]
             for (const [e, expected] of cases) {
-                assertEq(assertOk(analyzedFunction(e)), expected)
+                assertEq(analyzedFunction(e), expected)
                 assertEq(assertOk(tryFunctionText(e)), expected)
             }
             // Source text must still recover the complete frame on parsing.
             // Distinct nonprimitive slots reach that check without a prior refusal.
             const e = /** @type {const} */ (['=>', 0, [['[]', [1]], ['[]', [2]]], ['frame', 1]])
-            assertEq(assertOk(analyzedFunction(e)), '()=>$1')
+            assertEq(analyzedFunction(e), '()=>$1')
             assertEq(assertOk(tryFunctionText(e)), '()=>$1')
             assertEq(assertError(tryStringify(e)), 'a frame slot the body never reads')
             assertEq(assertError(tryModuleStringify(['{}', [[':', 'f', e]]])), 'a frame slot the body never reads')
@@ -681,7 +686,7 @@ export const proof = {
                 '()=>{const $a0=$0;const $a1=$1;return [$a1,$a0,($b_0)=>[$a1,$b_0]];}'],
             ]
             for (const [e, expected] of cases) {
-                assertEq(assertOk(analyzedFunction(e)), expected)
+                assertEq(analyzedFunction(e), expected)
                 assertEq(assertOk(tryFunctionText(e)), expected)
             }
             const e = /** @type {const} */ (['=>', 0, [['[]', [1]], ['[]', [2]]], inner])
@@ -702,8 +707,8 @@ export const proof = {
             for (const [e, length, expected] of cases) {
                 const i = a.nodes.findIndex(node => node[0] === '=>' && node[1] === length)
                 assert(i >= 0)
-                assertEq(assertOk(functionText(a, i)), expected)
-                assertEq(assertOk(functionText(a, i)), assertOk(tryFunctionText(e)))
+                assertEq(functionText(a, i), expected)
+                assertEq(functionText(a, i), assertOk(tryFunctionText(e)))
             }
         },
         selectedUnusedFunction: () => {
@@ -712,24 +717,24 @@ export const proof = {
             const a = assertOk(analysis(['[]', [['[]', [9]], outer]]))
             const i = a.nodes.findIndex(node => node[0] === '=>' && node[1] === 1)
             assert(i >= 0)
-            assertEq(assertOk(functionText(a, i)), '($a_0)=>$1')
+            assertEq(functionText(a, i), '($a_0)=>$1')
             assertEq(assertOk(tryFunctionText(inner)), '($a_0)=>$1')
             assertEq(assertOk(tryFunctionText(outer)), '($a_0,$a_1)=>($b_0)=>$a_1')
         },
-        diagnostics: () => {
-            const e = /** @type {const} */ (['=>', 0, [], ['!', 1]])
-            assertStructurallySame(analyzedFunction(e), ['error', 'a ! node'])
-            assertStructurallySame(analyzedFunction(e), tryFunctionText(e))
-            // Nested capture templates still follow the source writer's
-            // primitive and repeated-slot rules, even when the slots go unread.
+        completeBodies: () => {
+            const e = /** @type {const} */ (['=>', 0, [], ['String', 1]])
+            assertEq(analyzedFunction(e), '()=>(String((1)))')
+            assertEq(analyzedFunction(e), assertOk(tryFunctionText(e)))
+            // Function text accepts evaluated captures while the source
+            // writer keeps its structural round-trip restrictions.
             /** @type {readonly (readonly [Exp, string])[]} */
             const cases = [
                 [['=>', 0, [], ['=>', 0, [1], 2]], 'a frame slot holding a primitive'],
-                [['=>', 0, [1], ['=>', 0, [['frame', 0], ['frame', 0]], 2]], 'a frame slot that repeats another'],
+                [['=>', 0, [['[]', [1]]], ['=>', 0, [['frame', 0], ['frame', 0]], 2]], 'a frame slot that repeats another'],
             ]
             for (const [graph, expected] of cases) {
-                assertEq(assertError(analyzedFunction(graph)), expected)
-                assertEq(assertError(tryFunctionText(graph)), expected)
+                assertEq(analyzedFunction(graph), assertOk(tryFunctionText(graph)))
+                assertEq(assertError(tryStringify(graph)), expected)
             }
         },
     },
@@ -770,7 +775,7 @@ export const proof = {
         // the call a nested `throw` is written as fails where the node does
         nested: () => {
             const { edag } = unresolved(unwrap(parse(path)(unwrap(tryStringify(['[]', [['throw', 1]]])))))
-            memo(assertOk(analysis(_defaultExport(edag))))({ frame: null, args: [] })
+            unwrap(memo(assertOk(analysis(_defaultExport(edag))))({ args: [] }))
         },
     },
     refuses: () => {
@@ -864,6 +869,8 @@ export const proof = {
             writes(fn([op, r0, r1]), `export default (...$a)=>$a[0]${op}$a[1];`)
         }
         writes(fn(['~', r0]), 'export default (...$a)=>~$a[0];')
+        writes(fn(['!', r0]), 'export default (...$a)=>!$a[0];')
+        writes(fn(['typeof', r0]), 'export default (...$a)=>typeof $a[0];')
         writes(['+', 'a', 1n], 'export default "a"+1n;')
         // associativity: to the left, `**` to the right
         writes(['-', ['-', 1, 2], 3], 'export default 1-2-3;')
@@ -899,6 +906,16 @@ export const proof = {
         writes(['~', ['~', 1]], 'export default ~~1;')
         writes(['~', ['-', ['[]', []]]], 'export default ~-[];')
         writes(['-', ['~', 1]], 'export default -~1;')
+        writes(['!', ['|', 1, 2]], 'export default !(1|2);')
+        writes(['!', ['!', 1]], 'export default !!1;')
+        writes(['!', ['-', ['[]', []]]], 'export default !-[];')
+        writes(['-', ['!', 1]], 'export default -!1;')
+        // `typeof` is a word, so a space always follows it
+        writes(['typeof', 1], 'export default typeof 1;')
+        writes(['typeof', ['|', 1, 2]], 'export default typeof (1|2);')
+        writes(['typeof', ['typeof', 1]], 'export default typeof typeof 1;')
+        writes(['typeof', ['-', ['[]', []]]], 'export default typeof -[];')
+        writes(['!', ['typeof', 1]], 'export default !typeof 1;')
         // `**` takes no prefix on its left bare, a negative number
         // included, as JavaScript does not; on its right either stands bare
         writes(['**', -2, 2], 'export default (-2)**2;')
@@ -906,6 +923,10 @@ export const proof = {
         writes(['**', ['~', 1], 2], 'export default (~1)**2;')
         writes(['**', 2, -2], 'export default 2**-2;')
         writes(['**', 2, ['~', 1]], 'export default 2**~1;')
+        writes(['**', ['!', 1], 2], 'export default (!1)**2;')
+        writes(['**', 2, ['!', 1]], 'export default 2**!1;')
+        writes(['**', ['typeof', 1], 2], 'export default (typeof 1)**2;')
+        writes(['**', 2, ['typeof', 1]], 'export default 2**typeof 1;')
         writes(['-', ['**', 2, 2]], 'export default -(2**2);')
         writes(['**', 2, ['-', ['**', 2, 2]]], 'export default 2**-(2**2);')
         // a `-` before a text opening with `-` takes a space, `--` being
@@ -917,11 +938,15 @@ export const proof = {
         writes(['+', ['=>', 0, [], 1], 1], 'export default (()=>1)+1;')
         writes(['+', 1, ['=>', 0, [], 1]], 'export default 1+(()=>1);')
         writes(['~', ['=>', 0, [], 1]], 'export default ~(()=>1);')
+        writes(['!', ['=>', 0, [], 1]], 'export default !(()=>1);')
+        writes(['typeof', ['=>', 0, [], 1]], 'export default typeof (()=>1);')
         // and an operator an access base only in a group, where an access
         // is a prefix's operand bare
         writes(['.', ['+', 1, 2], 'x'], 'export default (1+2).x;')
         writes(['.', ['~', ['[]', []]], 0], 'export default (~[])[0];')
         writes(['~', ['.', ['[]', [1]], 0]], 'export default ~[1][0];')
+        writes(['.', ['!', ['[]', []]], 0], 'export default (![])[0];')
+        writes(['.', ['typeof', ['[]', []]], 0], 'export default (typeof [])[0];')
         // a shared operator over values is written in place at each
         // occurrence, its minting operand hoisted, and merges again when
         // read; one holding a minting node through a lazy edge takes a
@@ -1138,7 +1163,7 @@ export const proof = {
     demo: {
         examples: () => {
             for (const [name, source] of examples) {
-                assertEq(_sourceOf(source)[0], ['An import', 'Logical not', 'Hex escape', 'typeof', 'Parse error'].includes(name) ? 'error' : 'ok')
+                assertEq(_sourceOf(source)[0], ['An import', 'Hex escape', 'Parse error'].includes(name) ? 'error' : 'ok')
             }
             assertEq(_sourceOf('const a = [1];\nexport default [a, a];')[1], 'const $0=[1];export default [$0,$0];')
         },

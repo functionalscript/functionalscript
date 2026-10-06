@@ -123,7 +123,7 @@
  *
  * @module
  *
- * @import { Analysis, ItemOperand, Node, Operand, Ref, Step } from '../../edag/analysis/types.ts'
+ * @import { Analysis, ItemOperand, Node, Operand, Ref } from '../../edag/analysis/types.ts'
  * @import { Exp } from '../../edag/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
@@ -133,15 +133,16 @@
 
 import { _defaultExport, _moduleExports, _moduleThrows } from '../edag/module.f.mjs'
 import { keywords, literalWords } from '../../js/keywords/module.f.mjs'
-import { analysis, bindingError, mergeable } from '../../edag/analysis/module.f.mjs'
+import { analysis, checked, itemOperand, mergeable, operandsOf } from '../../edag/analysis/module.f.mjs'
 import { keySerialize, leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { arrayWrap, colon, objectWrap, wrap } from '../../media/json/serializer/module.f.mjs'
 import { first, flat, toArray } from '../../types/list/module.f.mjs'
 import { _prohibitedCallNames, _prohibitedNames } from '../parser/module.f.mjs'
-import { dollarSign, isDigit, isLatinLetter, latinSmallLetterA, latinSmallLetterZ, lowLine } from '../../text/ascii/module.f.mjs'
-import { codePointToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
+import { dollarSign, isDigit, isLatinLetter, lowLine } from '../../text/ascii/module.f.mjs'
+import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
+import { parameter, renderFunction } from './function_text/module.f.mjs'
 
 /** Names the parser refuses to bind. */
 const reservedExports = new Set([...keywords, ...literalWords, 'then'])
@@ -209,18 +210,6 @@ const slotOf = (names, h) => {
     const i = names.findIndex(([n]) => n !== null && sameHoisted(n, h))
     return i === -1 ? null : i
 }
-
-/** How many letters a column digit has. */
-const letters = latinSmallLetterZ - latinSmallLetterA + 1
-
-/** The letters a parameter is named by, as a spreadsheet names its columns: `a`, `z`, `aa`. @type {(n: number) => string} */
-const column = n => {
-    const q = Math.floor((n - 1) / letters)
-    return `${q === 0 ? '' : column(q)}${codePointToString(latinSmallLetterA + (n - 1) % letters)}`
-}
-
-/** The parameter of the body at `depth`, `1` being the outermost. @type {(depth: number) => string} */
-const parameter = depth => `$${column(depth)}`
 
 /**
  * The name a read of a parameter is written as, in a scope whose function's
@@ -357,8 +346,8 @@ const levels = [
 /** The level of an operator, `0` the loosest; `-1` for a tag that is none. @type {(op: string) => number} */
 const level = op => levels.findIndex(l => l.includes(op))
 
-/** Whether a node is a prefix operator's: `-` of one operand, or `~`. @type {(node: Node) => boolean} */
-const isPrefix = node => node[0] === '~' || (node[0] === '-' && node.length === 2)
+/** Whether a node is a prefix operator's: `-` of one operand, `~`, `!` or `typeof`. @type {(node: Node) => boolean} */
+const isPrefix = node => node[0] === '~' || node[0] === '!' || node[0] === 'typeof' || (node[0] === '-' && node.length === 2)
 
 /**
  * How tightly a node's text binds: its operator's {@link level}, a prefix
@@ -421,8 +410,8 @@ const leftOperand = (s, depth, op) => v => mapOk(
     (text => grouped(operandGrouped(op, false)(nodeOf(s, v)) || (op === '**' && opensWithPrefix(text)))(text)),
 )(operand(s, depth)(v))
 
-/** Whether a text opens with `-` or `~`. @type {(text: List<string>) => boolean} */
-const opensWithPrefix = text => ['-', '~'].some(p => firstChunk(text).startsWith(p))
+/** Whether a text opens with a prefix: `-`, `~`, `!` or `typeof`. @type {(text: List<string>) => boolean} */
+const opensWithPrefix = text => ['-', '~', '!', 'typeof'].some(p => firstChunk(text).startsWith(p))
 
 /** The text of the right operand of the eager binary operator `op`. @type {(s: _Scope, depth: number, op: string) => (v: Operand) => Document} */
 const rightOperand = (s, depth, op) => v => mapOk(grouped(operandGrouped(op, true)(nodeOf(s, v))))(operand(s, depth)(v))
@@ -446,18 +435,22 @@ const binary = (s, depth) => (op, left, right) => mapOk(
 const opensWithMinus = text => firstChunk(text).startsWith('-')
 
 /**
- * The text of a prefix operator, `-v` or `~v`: the operand in parentheses
+ * The text of a prefix operator, `-v`, `~v`, `!v` or `typeof v`: the operand
+ * in parentheses
  * where it is an operator's text, which binds looser than a prefix,
  * `-(1+2)`, and bare otherwise, another prefix included, `-~1`. `- -1` and
  * not `--1`, for the reason {@link binary} has. A function stands in a
  * group, `-(()=>1)`: JavaScript's prefix operand is a
  * `UnaryExpression`, which an arrow function is not, and the group is one.
+ * `typeof` is a word, so a space follows it whatever the operand opens
+ * with, `typeof 1` and `typeof (1+2)`: `typeof(1+2)` is JavaScript too, but
+ * one spelling is simpler than a rule for when the space may go.
  *
  * @type {(s: _Scope, depth: number) => (op: string) => (v: Operand) => Document}
  */
 const prefix = (s, depth) => op => v => mapOk(
     /** @type {(text: List<string>) => List<string>} */
-    (text => flat([[op === '-' && opensWithMinus(text) ? '- ' : op], text])),
+    (text => flat([[op === 'typeof' ? 'typeof ' : op === '-' && opensWithMinus(text) ? '- ' : op], text])),
 )(mapOk(grouped(isOperator(nodeOf(s, v)) || kindOf(s, v) === '=>'))(operand(s, depth)(v)))
 
 /** An operand's text in place, with whether it is a block; a name and a primitive are neither. @type {(s: _Scope, depth: number) => (v: Operand) => Result<_Written, string>} */
@@ -660,7 +653,7 @@ const firstChunk = first('')
  * The name the frame's slot `k` reads as in the scope `s`: the name the
  * slot took in the scope around the function. The slot exists, the index
  * is a canonical one, and the read is inside a function: the analysis's
- * `bindingError` refused every other before any text was written.
+ * `checked` refused every other before any text was written.
  *
  * @type {(s: _Scope) => (k: number) => string}
  */
@@ -837,9 +830,6 @@ const lambdaBody = (a, depth, frame, allowUnusedCaptures) => b => {
  */
 const callArguments = (s, depth) => args => mapOk(wrap('(')(')'))(okList(args.map(item(s, depth))))
 
-/** The operand an item holds: itself, or a spread's operand. @type {(x: ItemOperand) => Operand} */
-const itemOperand = x => x instanceof Array && x[0] === '...' ? x[1] : /** @type {Operand} */(x)
-
 /**
  * Whether a callee takes a `const` of its own: a base that does
  * ({@link basedHoisted}), and an access, which a call would read as the
@@ -931,7 +921,7 @@ const entry = (s, depth) => i => {
             const [op, left, right] = node
             return right === undefined ? error('a unary + node') : binary(s, depth)(op, left, right)
         }
-        case '~': { return prefix(s, depth)('~')(node[1]) }
+        case '~': case '!': case 'typeof': { return prefix(s, depth)(node[0])(node[1]) }
         case '|': case '^': case '&': case '===': case '!==': case '<': case '<=': case '>': case '>=':
         case '<<': case '>>': case '>>>': case '*': case '/': case '%': case '**': { return binary(s, depth)(node[0], node[1], node[2]) }
         case '&&': case '||': case '??': { return lazyBinary(s, depth)(node) }
@@ -1019,7 +1009,7 @@ const operands = node => {
         case '()': { return [node[1], ...node[2].map(itemOperand)] }
         case '[]': { return node[1].map(itemOperand) }
         case '{}': { return node[1].flatMap(p => p[0] === '...' ? [p[1]] : [p[1], p[2]]) }
-        case 'throw': case '~': { return [node[1]] }
+        case 'throw': case '~': case '!': case 'typeof': { return [node[1]] }
         case '-': case '+': { return node.length === 2 ? [node[1]] : [node[1], node[2]] }
         case ',': { return node[1] }
         case '&&': case '||': case '??': case '?:': { return [node[1]] }
@@ -1028,11 +1018,6 @@ const operands = node => {
         default: { return [] }
     }
 }
-
-/** The operands a chain step and the steps after it hold, the writer's spelling or not. @type {(k: Step | undefined) => readonly Operand[]} */
-const stepOperands = k => k === undefined ? []
-    : k[0] === '|.' ? [k[1], ...stepOperands(k[2])]
-    : [...k[1].map(itemOperand), ...stepOperands(k[2])]
 
 /**
  * The operands a node establishes only when it decides to — the right
@@ -1056,17 +1041,7 @@ const lazyOperands = node => {
  *
  * @type {(node: Node) => readonly Operand[]}
  */
-const allOperands = node => {
-    switch (node[0]) {
-        case '=>': { return node[2] }
-        case '.': case '?.': { return [node[1], node[2], ...stepOperands(node[3])] }
-        case '?.()': { return [node[1], ...node[2].map(itemOperand), ...stepOperands(node[3])] }
-        case '()': case '[]': case '{}': case ',': case '-': case '+': case '~': case '&&': case '||': case '??': case '?:':
-        case '|': case '^': case '&': case '===': case '!==': case '<': case '<=': case '>': case '>=':
-        case '<<': case '>>': case '>>>': case '*': case '/': case '%': case '**': { return [...operands(node), ...lazyOperands(node)] }
-        default: { return /** @type {readonly Operand[]} */ (/** @type {readonly unknown[]} */ (node).slice(1).filter(x => x instanceof Array && x[0] === '#')) }
-    }
-}
+const allOperands = node => node[0] === '=>' ? node[2] : operandsOf(node)
 
 /** The eager operands among {@link allOperands}: all but the lazy ones. @type {(node: Node) => readonly Operand[]} */
 const eagerOperands = node => allOperands(node).filter(x => !lazyOperands(node).includes(x))
@@ -1297,11 +1272,9 @@ const scopeOperands = (a, v) => {
  * @type {(e: Exp) => Document}
  */
 export const trySerialize = e => {
-    const result = analysis(e)
+    const result = okThen(checked)(analysis(e))
     const [kind, a] = result
     if (kind === 'error') { return result }
-    const problem = bindingError(a)
-    if (problem !== null) { return error(problem) }
     return okThen(
         /** @type {(all: _Root) => Document} */
         (all => mapOk(
@@ -1321,25 +1294,25 @@ export const tryStringify = e => mapOk(
  * A function entry's canonical text from an existing analysis table. The
  * caller supplies a function index with valid length and body bindings,
  * including nested body scopes. Analysis and admission belong to the caller;
- * this renderer trusts those invariants and reports only unsupported output.
+ * this renderer trusts those invariants and renders every admitted body.
  *
  * Captures are named by position, `$0`, `$1`, …, without rendering their
  * values. Primitive, repeated and unused evaluated captures are allowed.
- * Nested functions may also leave slots unused; their capture expressions
- * still follow the source writer's other restrictions. Slot positions are
- * preserved, and unused slots add no reads to the text.
+ * Nested functions may also leave slots unused. Slot positions and capture
+ * evaluation are preserved, and unused slots add no reads to the text.
  * The selected function is written as a standalone expression even when it
- * is nested in the table. Diagnostics remain output errors, not thrown VM
- * values. {@link tryFunctionText} is the checked entry for a raw expression.
+ * is nested in the table. Existing source spellings are retained. Bodies the
+ * source writer cannot reconstruct use a complete JavaScript expression
+ * spelling, with lazy memo thunks where sharing crosses lazy branches. This
+ * code-only text is neither a closed callable nor a source round-trip promise.
+ * {@link tryFunctionText} is the checked entry for a raw expression.
  *
- * @type {(a: Analysis, i: number) => Result<string, string>}
+ * @type {(a: Analysis, i: number) => string}
  */
 export const functionText = (a, i) => {
     const [, length, slots, body] = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (a.nodes[i])
-    return mapOk(
-        /** @type {(text: List<string>) => string} */
-        (text => toArray(text).join('')),
-    )(lambda(a, 1, i, length, slots.map((_, k) => `$${k}`), true)(body))
+    const [kind, text] = lambda(a, 1, i, length, slots.map((_, k) => `$${k}`), true)(body)
+    return kind === 'ok' ? toArray(text).join('') : renderFunction(a, i)
 }
 
 /**
@@ -1366,8 +1339,8 @@ export const functionText = (a, i) => {
  * A primitive the source captured is no slot: the lowering wrote it into
  * the body, so `const x = 3; const f = () => x;` is `()=>3`.
  *
- * Refused where the writer refuses the body, and for a node that is no
- * function. Analyze the complete graph once to refuse capture/body sharing
+ * Refuses invalid bindings, metadata and nodes that are not functions.
+ * Analyze the complete graph once to refuse capture/body sharing
  * across scopes, then check and render the function's body from that table.
  * Capture bindings belong to the enclosing scope and are not checked here.
  *
@@ -1379,9 +1352,7 @@ export const tryFunctionText = e => {
     const [kind, a] = result
     if (kind === 'error') { return result }
     const i = /** @type {Ref} */ (a.root)[1]
-    const problem = bindingError(a, i)
-    if (problem !== null) { return error(problem) }
-    return functionText(a, i)
+    return mapOk((/** @type {Analysis} */ table) => functionText(table, i))(checked(a, i))
 }
 
 /** A generated-name prefix that cannot collide with any exported binding. @type {(keys: readonly string[], prefix: string) => string} */
@@ -1477,11 +1448,9 @@ export const tryModuleSerialize = e => {
         const compact = trySerialize(_defaultExport(e))
         if (compact[0] === 'ok') { return compact }
     }
-    const result = analysis(e)
+    const result = okThen(checked)(analysis(e))
     const [kind, a] = result
     if (kind === 'error') { return result }
-    const problem = bindingError(a)
-    if (problem !== null) { return error(problem) }
     const exports = exportOperands(a, a.root)
     const prefix = modulePrefix(keys, '$')
     return okThen(state => mapOk(

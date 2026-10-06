@@ -1,34 +1,36 @@
 /**
- * The operations run over values directly: an evaluator whose operands are
- * already values, `operand` the identity, so each operation's meaning is
- * pinned once here without a graph around it. The full semantics — chains,
- * short-circuits, frames, calls and what throws — are amnesia's proofs,
- * which run every operation through this table over EDAG nodes.
+ * The shared dispatcher threads an interpreter's immutable state through only
+ * demanded operands. Operands here use Amnesia, while the state records each
+ * demand so evaluation order and failure propagation remain observable.
  *
- * @import { Evaluator } from './types.ts'
+ * @import { Exp, ExpOp } from '../types.ts'
+ * @import { EdagValue } from '../value/types.ts'
+ * @import { Context, Evaluator } from './types.ts'
  */
 
-import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { operation } from './module.f.mjs'
+import { invoke, vm } from '../amnesia/module.f.mjs'
 
-/**
- * Operands are values; a call of a `=>` runs the body, which is a value
- * too, through the same table so that `invoke` is exercised.
- *
- * @type {Evaluator<unknown>}
- */
-const values = {
-    frame: ['F'],
-    args: [10, 20],
-    operand: v => v,
-    invoke: (frame, fixed, rest, body) => operation({ ...values, frame, fixed, rest })(/**@type {any}*/(body)),
+/** @type {Context} */
+const context = { frame: ['F'], args: [10, 20], fixed: [4], rest: ['[]', [5]] }
+/** @type {Evaluator<Exp, readonly Exp[]>} */
+const evaluator = {
+    context,
+    operand: (e, state) => [[...state, e], vm(context)(e)],
+    expression: e => e,
+    invoke,
 }
+const run = operation(evaluator)
 
-/** @type {(e: any) => unknown} */
-const run = e => operation(values)(e)
-
-/** @type {(e: any, expected: unknown) => void} */
-const eq = (e, expected) => { assertEq(run(e), expected) }
+/** @type {(e: ExpOp, expected: EdagValue) => void} */
+const eq = (e, expected) => { assertStructurallySame(run(e, [])[1], ['ok', expected]) }
+/** @type {(e: ExpOp, expected?: EdagValue) => void} */
+const failure = (e, expected = ['undefined']) => { assertStructurallySame(run(e, [])[1], ['error', expected]) }
+/** @type {import('../types.ts').Function} */
+const identity = ['=>', 1, [], ['arg', 0]]
+/** @type {import('../types.ts').Object} */
+const throws = ['{}', [[':', 'valueOf', ['=>', 0, [], ['throw', 'conversion']]]]]
 
 export const proof = {
     operators: () => {
@@ -60,59 +62,94 @@ export const proof = {
         eq(['>>', -8, 1], -4)
         eq(['>>>', -1, 31], 1)
         eq(['&&', 0, 1], 0)
+        eq(['&&', 2, 1], 1)
         eq(['||', 0, 1], 1)
+        eq(['||', 2, 1], 2)
         eq(['??', null, 1], 1)
+        eq(['??', 0, 1], 0)
         eq(['?:', true, 1, 2], 1)
         eq(['?:', false, 1, 2], 2)
         eq([',', [1, 2]], 2)
+        eq([',', []], ['undefined'])
     },
     context: () => {
-        eq(['undefined'], undefined)
+        eq(['undefined'], ['undefined'])
         eq(['frame', 0], 'F')
-        assertStructurallySame(run(['args']), [10, 20])
+        eq(['args'], ['[]', [10, 20]])
+        eq(['arg', 0], 4)
+        eq(['rest'], ['[]', [5]])
     },
     containers: () => {
-        assertStructurallySame(run(['[]', [1, ['...', [2, 3]]]]), [1, 2, 3])
-        assertStructurallySame(run(['{}', [[':', 'a', 1], ['...', { b: 2 }]]]), { a: 1, b: 2 })
+        eq(['[]', [1, ['...', ['[]', [2, 3]]]]], ['[]', [1, 2, 3]])
+        eq(['{}', [[':', 'a', 1], ['...', ['{}', [[':', 'b', 2]]]]]], ['{}', [[':', 'a', 1], [':', 'b', 2]]])
+        eq(['{}', [[':', 1, 2]]], ['{}', [[':', '1', 2]]])
+        failure(['[]', [['...', null]]])
+        failure(['{}', [['...', ['throw', 'spread']]]], 'spread')
+        failure(['{}', [[':', ['{}', [[':', 'toString', ['=>', 0, [], ['throw', 'key']]]]], 1]]], 'key')
+        failure(['{}', [[':', 'key', ['throw', 'value']]]], 'value')
     },
     reads: () => {
-        eq(['.', { a: 7 }, 'a'], 7)
-        eq(['own', { a: 7 }, 'a'], 7)
-        eq(['?.', null, 'a'], undefined)
-        eq(['?.', { a: 7 }, 'a'], 7)
+        const object = /** @type {const} */ (['{}', [[':', 'a', 7]]])
+        eq(['.', object, 'a'], 7)
+        eq(['own', object, 'a'], 7)
+        eq(['?.', null, 'a'], ['undefined'])
+        eq(['?.', object, 'a'], 7)
+        eq(['?.', ['{}', [[':', 'a', object]]], 'a', ['|.', 'a']], 7)
+        failure(['own', object, 1])
+        failure(['own', null, 'a'])
+        failure(['.', null, 'a', ['|()', []]])
     },
-    // A call step and the whole chain vocabulary over host values.
     calls: () => {
-        const at = [42]
-        eq(['()', (/**@type {number}*/x) => x + 1, [1]], 2)
+        const at = /** @type {const} */ (['[]', [42]])
+        eq(['()', identity, [1]], 1)
         eq(['.', at, 'at', ['|()', [0]]], 42)
         eq(['.', at, 'at', ['|?.()', [0], ['|.', 'toFixed', ['|()', [1]]]]], '42.0')
         eq(['?.', at, 'at', ['|()', [0]]], 42)
         eq(['?.', at, 'at', ['|?.()', [0]]], 42)
-        eq(['?.', null, 'at', ['|.', 'x']], undefined)
-        eq(['?.', { f: null }, 'f', ['|?.()', [0], ['|.', 'x']]], undefined)
-        eq(['?.()', null, [0]], undefined)
-        eq(['?.()', (/**@type {number}*/x) => ({ y: x }), [3], ['|.', 'y']], 3)
+        eq(['?.', null, 'at', ['|.', 'x']], ['undefined'])
+        eq(['?.', ['{}', [[':', 'f', null]]], 'f', ['|?.()', [0], ['|.', 'x']]], ['undefined'])
+        eq(['?.()', null, [0]], ['undefined'])
+        eq(['?.()', identity, [3]], 3)
+        eq(['?.()', ['=>', 1, [], ['{}', [[':', 'y', ['arg', 0]]]]], [3], ['|.', 'y']], 3)
+        eq(['?.()', ['=>', 0, [], identity], [], ['|()', [7]]], 7)
+        eq(['?.', ['{}', [[':', 'f', identity]]], 'f', ['|?.()', [8]]], 8)
+        eq(['.', ['{}', [[':', 'toString', ['=>', 0, [], 'own']]]], 'toString', ['|()', []]], 'own')
+        failure(['?.', null, 'a', ['|!()', []]])
+        failure(['?.', ['{}', []], 'a', ['|!()', []]])
+        failure(['()', 1, [2]])
+        failure(['?.()', identity, [['throw', 9]]], 9)
     },
-    // `=>` evaluates each slot in the enclosing scope, closes over the
-    // frame they make, and starts a new invocation per call, whose body
-    // reads its own `args` and frame slots.
     lambda: () => {
-        const f = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', 0, ['captured'], ['frame', 0]]))
-        assertEq(f(), 'captured')
-        const g = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', 0, [], ['rest']]))
-        assertStructurallySame(g(1, 2), [1, 2])
+        const f = assertOk(run(['=>', 0, ['captured'], ['frame', 0]], [])[1])
+        assertStructurallySame(f, ['=>', 0, ['captured'], ['frame', 0]])
+        eq(['()', ['=>', 0, ['captured'], ['frame', 0]], []], 'captured')
+        eq(['()', ['=>', 0, [], ['rest']], [1, 2]], ['[]', [1, 2]])
+        // Sharing policy survives a call and a builtin callback invocation.
+        const child = /** @type {const} */ (['[]', []])
+        const body = /** @type {const} */ (['===', child, child])
+        eq(['()', ['=>', 0, [], body], []], false)
+        eq(['.', ['[]', [1]], 'map', ['|()', [['=>', 0, [], body]]]], ['[]', [false]])
     },
-    throw: {
-        // A slot the frame does not have, and a frame that is no array.
-        frameSlotPastTheEnd: () => run(['frame', 1]),
-        frameSlotNotAnIndex: () => run(['frame', -0]),
-        frameNotAnArray: () => operation({ ...values, frame: 'F' })(['frame', 0]),
-        // The language's `throw`: its operand is the thrown value.
-        thrown: () => run(['throw', 1]),
-        escapingStep: () => run(['?.', null, 'a', ['|!()', []]]),
-        ownKey: () => run(['own', {}, 1]),
-        ownNullish: () => run(['own', null, 'a']),
-        bigintPlus: () => run(['+', 0n]),
+    failures: () => {
+        failure(['throw', 1], 1)
+        failure(['throw', ['throw', 2]], 2)
+        failure(['+', 0n])
+        failure(['+', throws, 1], 'conversion')
+        failure(['+', 1, throws], 'conversion')
+        failure(['!', ['throw', 1]], 1)
+        failure([',', [1, ['throw', 2], 3]], 2)
+    },
+    evaluationOrder: () => {
+        const [state, result] = run(['+', 1, 2], ['already'])
+        assertStructurallySame(state, ['already', 1, 2])
+        assertStructurallySame(result, ['ok', 3])
+        assertStructurallySame(run(['&&', 0, ['throw', 1]], [])[0], [0])
+        assertStructurallySame(run(['?:', true, 1, ['throw', 2]], [])[0], [true, 1])
+        const stop = /** @type {const} */ (['throw', 1])
+        assertEq(run(['+', stop, 2], [])[0].length, 1)
+        assertStructurallySame(run(['+', throws, 2], [])[0], [throws, 2])
+        assertStructurallySame(run(['[]', [1, stop, 3]], [])[0], [1, stop])
+        assertStructurallySame(run(['{}', [[':', 'a', 1], [':', 'b', stop]]], [])[0], ['a', 1, 'b', stop])
+        assertStructurallySame(run(['?.', null, 'a', ['|!()', [2]]], [])[0], [null, 2])
     },
 }

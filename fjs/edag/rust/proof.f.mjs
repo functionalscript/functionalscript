@@ -92,6 +92,7 @@ export const proof = {
         },
         functions: () => {
             assertStructurallySame(usedBy(['=>', 0, [], 'a']), { vm: ['Array', 'ToAny'], unstable: ['string_any'] })
+            assertStructurallySame(usedBy(['=>', 0, [], ['undefined']]), { vm: ['Array', 'Nullish', 'ToAny'], unstable: [] })
             assertStructurallySame(usedBy(['=>', 0, [1], ['frame', 0]]), { vm: ['ToAny', 'ToArray'], unstable: ['f64_any'] })
             assertStructurallySame(usedBy(['=>', 1, [], ['[]', [['arg', 0], ['args'], ['rest']]]]), {
                 vm: ['Array', 'Nullish', 'ToAny', 'ToArray'],
@@ -185,6 +186,14 @@ export const proof = {
             'Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000)))')
         assertEq(printed(['=>', 0, [], ['undefined']]), 'function_any()')
         assertEq(printed(['*', 1, 2]), 'f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000)')
+    },
+    /** A module scope and each nested body construct their own functions. */
+    undefinedFunction: () => {
+        const text = /** @type {const} */ ('A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some("()=>undefined")).to_any()')
+        assertStructurallySame(scoped(['=>', 0, [], ['undefined']]), [`Ok(${text})`])
+        assertStructurallySame(scoped(['=>', 0, [], ['=>', 0, [], ['undefined']]]), [
+            `Ok(A::static_function(|_self, _args| { Ok(${text}) }, 0, Array::default(), Some("()=>()=>undefined")).to_any())`,
+        ])
     },
     /**
      * A lazy operation's operands after the first are thunks, in either
@@ -875,8 +884,8 @@ export const proof = {
         },
         /**
          * A function anywhere — an item, a call's callee, a body inside
-         * another function, one with a frame — is held; the corpus's own
-         * lambda binds nothing, and a primitive holds nothing.
+         * another function, one with a frame or returning undefined — is
+         * held; a primitive holds nothing.
          */
         holdsFunction: () => {
             assertEq(holdsFunction(['=>', 0, [], 1]), true)
@@ -885,7 +894,7 @@ export const proof = {
             assertEq(holdsFunction(['[]', [1, ['=>', 0, [], 1]]]), true)
             assertEq(holdsFunction(['()', ['=>', 0, [], ['rest']], []]), true)
             assertEq(holdsFunction(['=>', 0, [], ['=>', 0, [], 1]]), true)
-            assertEq(holdsFunction(['=>', 0, [], ['undefined']]), false)
+            assertEq(holdsFunction(['=>', 0, [], ['undefined']]), true)
             assertEq(holdsFunction(['[]', [1, 'static_function(']]), false)
             assertEq(holdsFunction(1), false)
         },
