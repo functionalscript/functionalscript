@@ -1,6 +1,7 @@
 /**
- * A schema, drawn as a graph under its code, and a value as you type it, with
- * what `parse` and `validate` make of the value under it.
+ * A schema, drawn as a graph under its code, what rtti derives from it, and a
+ * value as you type it, with what `parse` and `validate` make of the value
+ * under it.
  *
  * **A schema is picked, not typed.** It is a JavaScript value built from
  * functions, which no text box can spell, so the reader picks an example and
@@ -33,6 +34,19 @@
  * drawn by its name wherever another schema uses it — which is what keeps a
  * recursive schema, whose thunk reaches itself, a graph the layout can rank.
  *
+ * **One schema, many outputs.** Under the graph come the TypeScript type
+ * `fjs/rtti/ts` prints, the JSON Schema `fjs/media/json/schema` converts it
+ * to, and the canonical data form both are printed from — the outputs a
+ * consumer gets from the one declaration besides the two readers.
+ *
+ * **A schema compares with any other.** The shown schema is compared with one
+ * the reader picks, through the data form's `equal` and `subset`, so "two
+ * spellings, one set" is a verdict the page computes rather than a claim. A
+ * pair compares its two schemas until the reader picks another.
+ *
+ * **A failure points into the value.** When `validate` refuses the value, the
+ * value is written again with the member its error path reaches marked.
+ *
  * **It needs no operations.** Every part is a pure function of the state, so
  * `update` declares `never` and returns through `pureOk`.
  *
@@ -40,8 +54,9 @@
  *
  * @import { Demo, DemoEvent } from '../website/demo/types.ts'
  * @import { Graph, Shape } from '../website/demo/graph/types.ts'
- * @import { Element } from '../media/html/types.ts'
+ * @import { Element, Node } from '../media/html/types.ts'
  * @import { Unknown } from '../media/datajs/types.ts'
+ * @import { Data } from './data/types.ts'
  * @import { Const, DemoExample, DemoSchema, DemoState, Type, _Answer } from './types.ts'
  */
 
@@ -49,6 +64,11 @@ import { array, boolean, number, open, option, or, record, rest, string, unknown
 import { structSchemaEntries, tupleSchemaEntries } from './common/module.f.mjs'
 import { parse } from './parse/module.f.mjs'
 import { validate } from './validate/module.f.mjs'
+import { equal, subset, toData } from './data/module.f.mjs'
+import { dataToTs } from './ts/module.f.mjs'
+import { dataToJsonSchema } from '../media/json/schema/module.f.mjs'
+import { stringify } from '../media/json/module.f.mjs'
+import { identity } from '../types/function/module.f.mjs'
 import { tryParse, trySerialize } from '../media/datajs/module.f.mjs'
 import { leafSerialize } from '../media/datajs/serializer/module.f.mjs'
 import { unwrap } from '../types/result/module.f.mjs'
@@ -284,6 +304,38 @@ const exampleOf = name => {
     return found
 }
 
+/**
+ * The key a schema is picked by in the comparison's drop-down: its example's
+ * name and its place in the example.
+ *
+ * @type {(e: DemoExample, i: number) => string}
+ */
+const schemaKey = (e, i) => `${e.name}#${i}`
+
+/**
+ * Every schema of every example, under its key, in the drop-down's order.
+ *
+ * @type {readonly (readonly [string, DemoExample, DemoSchema])[]}
+ */
+const keyedSchemas = examples.flatMap(e => e.schemas.map(
+    /** @type {(s: DemoSchema, i: number) => readonly [string, DemoExample, DemoSchema]} */
+    (s, i) => [schemaKey(e, i), e, s]))
+
+/** @type {(key: string) => DemoSchema} */
+const schemaOf = key => {
+    const found = keyedSchemas.find(([k]) => k === key)
+    if (found === undefined) { throw 'rtti demo: no schema has this key' }
+    return found[2]
+}
+
+/**
+ * What the shown schema is compared with when the reader picks example `e`
+ * and shows its schema `shown`: a pair's other schema, or nothing.
+ *
+ * @type {(e: DemoExample, shown: 0 | 1) => string}
+ */
+const partnerOf = (e, shown) => e.schemas.length === 2 ? schemaKey(e, shown === 0 ? 1 : 0) : ''
+
 // ── graph ────────────────────────────────────────────────────────────────────
 
 /**
@@ -374,26 +426,108 @@ const documentText = value =>
 
 /**
  * One reader's answer: whether it succeeded, and the value it succeeded with
- * or where and why it failed.
+ * or where and why it failed — the failure's path kept as well as written,
+ * so the value can be marked where it points.
  *
  * @type {(r: readonly ['ok', unknown] | readonly ['error', { readonly path: readonly (string | number)[], readonly message: string }]) => _Answer}
  */
 const answerOf = r => r[0] === 'ok'
     ? { ok: true, text: documentText(/** @type {Unknown} */ (r[1])) }
-    : { ok: false, text: `at ${pathText(r[1].path)}: ${r[1].message}` }
+    : { ok: false, text: `at ${pathText(r[1].path)}: ${r[1].message}`, path: r[1].path }
 
 /**
- * What `parse` and `validate` make of `text` against `schema`, or the
- * parser's error when `text` is not a DataJS document.
+ * What `parse` and `validate` make of `text` against `schema`, and the value
+ * the text denotes, or the parser's error when `text` is not a DataJS
+ * document.
  *
- * @type {(schema: Type) => (text: string) => { readonly parse: _Answer, readonly validate: _Answer } | { readonly error: string }}
+ * @type {(schema: Type) => (text: string) => { readonly parse: _Answer, readonly validate: _Answer, readonly value: Unknown } | { readonly error: string }}
  */
 export const _readersOf = schema => text => {
     const document = tryParse(text)
     if (document[0] === 'error') { return { error: document[1] } }
     const value = document[1]
     const s = /** @type {any} */ (schema)
-    return { parse: answerOf(parse(s)(value)), validate: answerOf(validate(s)(value)) }
+    return { parse: answerOf(parse(s)(value)), validate: answerOf(validate(s)(value)), value }
+}
+
+// ── where a failure points ───────────────────────────────────────────────────
+
+/**
+ * A value as one DataJS expression, sharing written out: the text the marked
+ * value is built from, so the part outside the mark reads as the part inside
+ * does.
+ *
+ * @type {(value: Unknown) => string}
+ */
+const expressionText = value => value === null || typeof value !== 'object'
+    ? concat(leafSerialize(value))
+    : value instanceof Array
+        ? `[${[...value].map(expressionText).join(',')}]`
+        : `{${Object.entries(value).map(([k, v]) => `${concat(leafSerialize(k))}:${expressionText(v)}`).join(',')}}`
+
+/**
+ * `value` written as one expression with the member `path` reaches marked.
+ * A path ends at the member that failed — or, for a member that is missing,
+ * at the key the schema required — so the deepest value the path reaches is
+ * what gets the mark: the member itself, or the container it is missing from.
+ *
+ * @type {(path: readonly (string | number)[]) => (value: Unknown) => readonly Node[]}
+ */
+export const _marked = path => value => {
+    if (path.length === 0 || value === null || typeof value !== 'object') { return [['mark', expressionText(value)]] }
+    const [step, ...rest] = path
+    const key = String(step)
+    if (Object.getOwnPropertyDescriptor(value, key) === undefined) { return [['mark', expressionText(value)]] }
+    /** @type {(k: string, v: Unknown) => readonly Node[]} */
+    const member = (k, v) => k === key ? _marked(rest)(v) : [expressionText(v)]
+    /** @type {(nodes: readonly (readonly Node[])[]) => readonly Node[]} */
+    const commas = nodes => nodes.flatMap((n, i) => i === 0 ? n : [',', ...n])
+    return value instanceof Array
+        ? ['[', ...commas([...value].map((v, i) => member(String(i), v))), ']']
+        : ['{', ...commas(Object.entries(value).map(([k, v]) => [`${concat(leafSerialize(k))}:`, ...member(k, v)])), '}']
+}
+
+// ── outputs and comparison ───────────────────────────────────────────────────
+
+/**
+ * What rtti derives from `schema` besides its readers, each as text: the
+ * TypeScript type the printer writes — its recursive definitions first, as
+ * `type` aliases, then the type itself — the JSON Schema, and the canonical
+ * data form both are printed from.
+ *
+ * @type {(schema: Type) => { readonly ts: string, readonly jsonSchema: string, readonly data: string }}
+ */
+export const _outputsOf = schema => {
+    const data = toData(schema)
+    const [definitions, entry] = dataToTs()(data)
+    return {
+        ts: [...definitions.map(([name, type]) => `type ${name} = ${type}`), entry].join('\n'),
+        jsonSchema: stringify(identity)(dataToJsonSchema(data)),
+        data: expressionText(/** @type {Unknown} */ (data)),
+    }
+}
+
+/**
+ * What the data form says of two schemas: whether their canonical forms are
+ * one, and whether each is a `subset` of the other — as the calls, and as one
+ * sentence. `subset` is sound but incomplete, so a `false` is "not shown",
+ * never "shown not".
+ *
+ * @type {(a: Type, b: Type) => { readonly calls: string, readonly verdict: string }}
+ */
+export const _compare = (a, b) => {
+    const [da, db] = [toData(a), toData(b)]
+    const same = equal(da)(db)
+    const ab = subset(da)(db)
+    const ba = subset(db)(da)
+    return {
+        calls: `equal → ${same}\nsubset(this)(that) → ${ab}\nsubset(that)(this) → ${ba}`,
+        verdict: same ? 'One set: the two schemas have one canonical form.'
+            : ab && ba ? 'One set, spelled two ways: each schema includes the other.'
+            : ab ? 'Included: every value this schema accepts, that one accepts too.'
+            : ba ? 'Includes: this schema accepts every value that one accepts.'
+            : 'Neither is shown to include the other.',
+    }
 }
 
 // ── view ─────────────────────────────────────────────────────────────────────
@@ -476,8 +610,59 @@ const schemasView = (e, shown) => e.schemas.length === 1
     : ['div', { 'data-pick': '' }, schemaChoice(e.schemas[0], 0, shown), schemaChoice(e.schemas[1], 1, shown)]
 
 /**
+ * What rtti derives from the schema, each under its name, so one declaration
+ * reads as the several things a consumer gets from it. The canonical form is
+ * the machinery under the other two, so it is folded away.
+ *
+ * @type {(s: DemoSchema) => readonly Element[]}
+ */
+const outputsView = s => {
+    const o = _outputsOf(s.schema)
+    return [
+        ['p', 'TypeScript'],
+        ['pre', { 'data-code': '' }, o.ts],
+        ['p', 'JSON Schema'],
+        ['pre', { 'data-code': '' }, o.jsonSchema],
+        ['details', ['summary', 'Canonical form (toData)'], ['pre', { 'data-code': '' }, o.data]],
+    ]
+}
+
+/** @type {(key: string, compare: string, label: string) => Element} */
+const compareOption = (key, compare, label) =>
+    ['option', key === compare ? { value: key, selected: '' } : { value: key }, label]
+
+/**
+ * The comparison: a drop-down of every schema in the demo, and, when one is
+ * picked, what the data form says of the shown schema and it.
+ *
+ * @type {(s: DemoSchema, compare: string) => readonly Element[]}
+ */
+const compareView = (s, compare) => {
+    /** @type {(group: readonly DemoExample[]) => readonly Element[]} */
+    const options = group => keyedSchemas
+        .filter(([, e]) => group.includes(e))
+        .map(([k, e, x]) => compareOption(k, compare, e.schemas.length === 1 ? e.name : `${e.name}: ${x.source}`))
+    const c = compare === '' ? undefined : _compare(s.schema, schemaOf(compare).schema)
+    return [
+        ['p',
+            ['label', { for: 'compare' }, 'Compare with '],
+            ['select', { id: 'compare', name: 'compare' },
+                compareOption('', compare, 'nothing'),
+                ['optgroup', { label: 'Lessons' }, ...options(lessons)],
+                ['optgroup', { label: 'Used in this project' }, ...options(projectSchemas)],
+            ],
+        ],
+        ...(c === undefined ? [] : /** @type {readonly Element[]} */ ([
+            ['p', c.verdict],
+            ['pre', { 'data-code': '' }, c.calls],
+        ])),
+    ]
+}
+
+/**
  * The value box and, under it, what the two readers make of the value
- * against `s` — kept together, since the answers are what typing changes.
+ * against `s` — kept together, since the answers are what typing changes —
+ * and, when `validate` refuses it, the value with the failing member marked.
  *
  * @type {(s: DemoSchema, text: string) => readonly Element[]}
  */
@@ -493,34 +678,57 @@ const valueView = (s, text) => {
             : [
                 ...answerView('parse', r.parse.ok, r.parse.text),
                 ...answerView('validate', r.validate.ok, r.validate.text),
+                ...(r.validate.path === undefined ? [] : /** @type {readonly Element[]} */ ([
+                    ['p', 'Where'],
+                    ['pre', { 'data-code': '' }, ..._marked(r.validate.path)(r.value)],
+                ])),
             ]),
     ]
 }
 
 /**
- * The state is the picked example's name, the schema shown, and the text;
- * everything drawn is a function of the three. Picking an example shows its
- * first schema and its value; picking the other schema of a pair keeps the
- * value as typed.
+ * The state on picking `e`: its first schema, compared with its pair's other
+ * one, and its value.
+ *
+ * @type {(e: DemoExample) => DemoState}
+ */
+const picking = e => ({ example: e.name, shown: 0, compare: partnerOf(e, 0), text: e.value })
+
+/**
+ * The state on picking schema `shown` of a pair: compared with the other one,
+ * the value kept as typed.
+ *
+ * @type {(state: DemoState, shown: 0 | 1) => DemoState}
+ */
+const showing = (state, shown) => ({ ...state, shown, compare: partnerOf(exampleOf(state.example), shown) })
+
+/**
+ * The state is the picked example's name, the schema shown, the schema it is
+ * compared with, and the text; everything drawn is a function of the four.
+ * Picking an example shows its first schema and its value, compared with its
+ * pair's other schema if it has one; picking a schema of a pair compares it
+ * with the other and keeps the value as typed.
  *
  * @type {Demo<DemoState, DemoEvent>}
  */
 export const demo = {
-    init: { example: examples[0].name, shown: 0, text: examples[0].value },
+    init: picking(examples[0]),
     update: state => event => pureOk(
         event.kind === 'input'
             ? event.name === 'example'
-                ? { example: event.value, shown: 0, text: exampleOf(event.value).value }
-                : { ...state, text: event.value }
+                ? picking(exampleOf(event.value))
+                : event.name === 'compare'
+                    ? { ...state, compare: event.value }
+                    : { ...state, text: event.value }
             : event.kind === 'click' && (event.name === 'schema-0' || event.name === 'schema-1')
-                ? { ...state, shown: event.name === 'schema-0' ? 0 : 1 }
+                ? showing(state, event.name === 'schema-0' ? 0 : 1)
                 : state),
-    view: ({ example, shown, text }) => {
+    view: ({ example, shown, compare, text }) => {
         const e = exampleOf(example)
         const [a, b] = e.schemas
         // The schema shown, then its graph — a picture of the schema, so it
-        // sits by it and changes with the pick — and the value with its
-        // answers last.
+        // sits by it and changes with the pick — what rtti derives from it,
+        // the comparison, and the value with its answers last.
         const s = shown === 1 && b !== undefined ? b : a
         return ['div',
             ['p',
@@ -530,6 +738,8 @@ export const demo = {
             ['p', e.about],
             schemasView(e, shown),
             graphSvg(_graphOf(s.schema)),
+            ...outputsView(s),
+            ...compareView(s, compare),
             ...valueView(s, text),
         ]
     },

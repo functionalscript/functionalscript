@@ -8,7 +8,7 @@
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
 import { array, number, open, option, or, record, rest, string, unknown } from './module.f.mjs'
-import { _graphOf, _readersOf, demo, examples, lessons, projectSchemas } from './demo.f.mjs'
+import { _compare, _graphOf, _marked, _outputsOf, _readersOf, demo, examples, lessons, projectSchemas } from './demo.f.mjs'
 import { htmlToString } from '../media/html/module.f.mjs'
 import { runPure } from '../effects/module.f.mjs'
 import { unwrap } from '../types/result/module.f.mjs'
@@ -76,8 +76,14 @@ const step = event => state => unwrap(assertNotNullish(
 /** The example named `name`. @type {(name: string) => import('./types.ts').DemoExample} */
 const exampleNamed = name => assertNotNullish(examples.find(e => e.name === name))
 
-/** The page for `example`, showing schema `shown`, with its own value. @type {(name: string, shown?: 0 | 1) => string} */
-const page = (name, shown = 0) => htmlToString(demo.view({ example: name, shown, text: exampleNamed(name).value }))
+/**
+ * The page for `example`, showing schema `shown`, compared with the schema
+ * keyed `compare` (none by default), with its own value.
+ *
+ * @type {(name: string, shown?: 0 | 1, compare?: string) => string}
+ */
+const page = (name, shown = 0, compare = '') =>
+    htmlToString(demo.view({ example: name, shown, compare, text: exampleNamed(name).value }))
 
 /**
  * The two readers' lines, or the parser's error.
@@ -103,15 +109,26 @@ const demoProof = /** @type {const} */ ({
     init: () => {
         assertEq(demo.init.example, examples[0]?.name)
         assertEq(demo.init.shown, 0)
+        assertEq(demo.init.compare, 'Closed vs open#1')
         assertEq(demo.init.text, examples[0]?.value)
     },
     update: {
         // Picking an example shows its first schema and its value.
         pick: () => {
-            const s = step({ kind: 'input', name: 'example', value: 'Dictionary' })({ example: 'Closed vs open', shown: 1, text: 'x' })
+            const s = step({ kind: 'input', name: 'example', value: 'Dictionary' })({ example: 'Closed vs open', shown: 1, compare: 'x', text: 'x' })
             assertEq(s.example, 'Dictionary')
             assertEq(s.shown, 0)
+            assertEq(s.compare, '')
             assertEq(s.text, 'export default {"apples":3,"pears":5};')
+            // A pair is compared with its other schema.
+            assertEq(step({ kind: 'input', name: 'example', value: 'Tuple vs rest' })(s).compare, 'Tuple vs rest#1')
+        },
+        // Picking a schema to compare with keeps everything else.
+        compare: () => {
+            const s = step({ kind: 'input', name: 'compare', value: 'Dictionary#0' })({ ...demo.init, text: 'typed' })
+            assertEq(s.compare, 'Dictionary#0')
+            assertEq(s.text, 'typed')
+            assertEq(s.example, demo.init.example)
         },
         // Typing replaces the text and keeps the schema.
         type: () => {
@@ -124,7 +141,11 @@ const demoProof = /** @type {const} */ ({
             const b = step({ kind: 'click', name: 'schema-1' })({ ...demo.init, text: 'typed' })
             assertEq(b.shown, 1)
             assertEq(b.text, 'typed')
-            assertEq(step({ kind: 'click', name: 'schema-0' })(b).shown, 0)
+            // ... and compares the schema picked with the other one.
+            assertEq(b.compare, 'Closed vs open#0')
+            const a = step({ kind: 'click', name: 'schema-0' })(b)
+            assertEq(a.shown, 0)
+            assertEq(a.compare, 'Closed vs open#1')
         },
         // Any other event leaves the state alone.
         other: () => {
@@ -174,7 +195,7 @@ const demoProof = /** @type {const} */ ({
         pair: () => {
             const a = page('Closed vs open')
             assert(a.includes(`<div data-pick="">${choice(0, true, '{ name: string, age: number }')}${choice(1, false, 'open({ name: string, age: number })')}</div>`), a)
-            assert(!a.includes('data-code'), a)
+            assert(!a.includes('<pre data-code="">{ name'), a)
             const b = page('Closed vs open', 1)
             assert(b.includes(`${choice(0, false, '{ name: string, age: number }')}${choice(1, true, 'open({ name: string, age: number })')}`), b)
         },
@@ -219,6 +240,42 @@ const demoProof = /** @type {const} */ ({
             const html = htmlToString(demo.view({ ...demo.init, text: '{"a":1}' }))
             assert(html.includes('<p>DataJS · error</p><pre data-result="error">'), html)
             assert(!html.includes('parse ·'), html)
+        },
+        // Under the graph come the TypeScript type, the JSON Schema and the
+        // folded canonical form, then the comparison, then the value.
+        outputs: () => {
+            const html = page('Dictionary')
+            assert(html.includes('<p>TypeScript</p><pre data-code="">{readonly[k in string]?:number}</pre>'), html)
+            assert(html.includes('<p>JSON Schema</p><pre data-code="">{&quot;type&quot;:&quot;object&quot;,&quot;additionalProperties&quot;:{&quot;type&quot;:&quot;number&quot;}}</pre>'), html)
+            assert(html.includes('<details><summary>Canonical form (toData)</summary><pre data-code="">'), html)
+            const at = (/** @type {string} */ needle) => html.indexOf(needle)
+            assert(at('<svg') < at('<p>TypeScript</p>'), html)
+            assert(at('<details>') < at('<label for="compare">'), html)
+            assert(at('<label for="compare">') < at('<textarea'), html)
+        },
+        // The drop-down lists every schema, a pair's under its example's name
+        // and its code; with nothing picked there is no verdict.
+        compareNothing: () => {
+            const html = page('Dictionary')
+            assert(html.includes('<option value="" selected="">nothing</option>'), html)
+            assert(html.includes('<option value="Closed vs open#1">Closed vs open: open({ name: string, age: number })</option>'), html)
+            assert(html.includes('<option value="Note#0">Note</option>'), html)
+            assert(!html.includes('subset('), html)
+        },
+        // A pair's two spellings of one set are one canonical form.
+        compareSame: () => {
+            const html = page('Two spellings, one set', 0, 'Two spellings, one set#1')
+            assert(html.includes('<option value="Two spellings, one set#1" selected="">'), html)
+            assert(html.includes('<p>One set: the two schemas have one canonical form.</p><pre data-code="">equal → true\nsubset(this)(that) → true\nsubset(that)(this) → true</pre>'), html)
+        },
+        // A key no schema has is refused.
+        compareUnknown: { throw: () => page('Dictionary', 0, 'nope#0') },
+        // When `validate` refuses the value, the value is written again with
+        // the failing member marked; when it accepts, nothing is.
+        where: () => {
+            const a = page('Closed vs open')
+            assert(a.includes('<p>Where</p><pre data-code=""><mark>{&quot;name&quot;:&quot;Alice&quot;,&quot;age&quot;:30,&quot;admin&quot;:true}</mark></pre>'), a)
+            assert(!page('Closed vs open', 1).includes('<p>Where</p>'), 'no failure, no mark')
         },
         // Every example draws every one of its schemas, and no edge passes
         // through a box.
@@ -267,6 +324,61 @@ const demoProof = /** @type {const} */ ({
                 JSON.stringify({ parse: 'at the root: unexpected value', validate: 'at the root: unexpected value' }))
         },
         notADocument: () => assert('error' in _readersOf(number)('1'), 'expected a parse error'),
+    },
+    // Every schema the demo shows has a TypeScript type, a JSON Schema and a
+    // canonical form, so the outputs never fail on a page.
+    outputs: {
+        all: () => {
+            for (const e of examples) {
+                for (const x of e.schemas) {
+                    const o = _outputsOf(x.schema)
+                    assert(o.ts !== '' && o.jsonSchema !== '' && o.data !== '', e.name)
+                }
+            }
+        },
+        // A recursive schema prints its definition as a `type` alias first.
+        recursive: () => {
+            const o = _outputsOf(exampleNamed('Recursion').schemas[0].schema)
+            assertEq(o.ts, 'type tree = {readonly"children":readonly(tree)[],readonly"value":number}\ntree')
+            assert(o.jsonSchema.includes('"$defs":{"tree":'), o.jsonSchema)
+        },
+    },
+    // The comparison's five verdicts.
+    compare: {
+        same: () => assertEq(_compare(or(true, false), or(false, true)).verdict, 'One set: the two schemas have one canonical form.'),
+        // Two recursive schemas that differ only in their names: one set,
+        // two canonical forms, which `subset` sees through and `equal` does not.
+        spelled: () => {
+            /** @type {import('./types.ts').Type} */
+            const a = () => ['array', a]
+            /** @type {import('./types.ts').Type} */
+            const b = () => ['array', b]
+            const c = _compare(a, b)
+            assertEq(c.verdict, 'One set, spelled two ways: each schema includes the other.')
+            assertEq(c.calls, 'equal → false\nsubset(this)(that) → true\nsubset(that)(this) → true')
+        },
+        included: () => assertEq(_compare({ a: number }, open({ a: number })).verdict, 'Included: every value this schema accepts, that one accepts too.'),
+        includes: () => assertEq(_compare(open({ a: number }), { a: number }).verdict, 'Includes: this schema accepts every value that one accepts.'),
+        neither: () => assertEq(_compare(number, string).verdict, 'Neither is shown to include the other.'),
+    },
+    // The mark lands on the deepest value the failure's path reaches.
+    marked: {
+        // A member that fails is marked, in an object or an array, and the
+        // rest is written as it is.
+        member: () => assertEq(JSON.stringify(_marked(['a', '1'])({ a: [1, 'x', [2]], b: null })),
+            JSON.stringify(['{', '"a":', '[', '1', ',', ['mark', '"x"'], ',', '[2]', ']', ',', '"b":', 'null', '}'])),
+        // A member that is missing marks the container it is missing from.
+        missing: () => assertEq(JSON.stringify(_marked(['b'])({ a: 1 })), JSON.stringify([['mark', '{"a":1}']])),
+        // A path that runs past a leaf marks the leaf.
+        leaf: () => assertEq(JSON.stringify(_marked(['a', 'b'])({ a: 7n })), JSON.stringify(['{', '"a":', ['mark', '7n'], '}'])),
+        // From the page: a nested failure marks only that member.
+        page: () => {
+            const r = _readersOf({ a: { b: number } })('export default {"a":{"b":"x"}};')
+            assert(!('error' in r), 'expected the readers to run')
+            assert('validate' in r && r.validate.path !== undefined, JSON.stringify(r))
+            assertEq(JSON.stringify(_marked(r.validate.path ?? [])(r.value)),
+                JSON.stringify(['{', '"a":', '{', '"b":', ['mark', '"x"'], '}', '}']))
+        },
     },
     graph: {
         // A sub-schema used twice is one node with two edges into it.
