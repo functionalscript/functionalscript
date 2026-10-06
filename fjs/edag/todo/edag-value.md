@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — FJS language VMs use represented values, compiler module
+**Status:** wip — FJS language VMs use represented values, compiler module
 initialization uses memo, and compiler runtime output supports JavaScript
 callables. Supported-profile value emission and failure propagation are proven;
 final contract reconciliation remains.
