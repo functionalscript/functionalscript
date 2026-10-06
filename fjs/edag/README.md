@@ -36,7 +36,10 @@ FJS data is acyclic by construction, so it needs no cycle preflight.
 strict equality and `Object.is` for represented values. Distinct
 `['undefined']` tuples denote the same primitive; arrays, objects and functions
 compare by their value-node identity. These infallible helpers are shared
-building blocks for the planned VM operation layer.
+building blocks for the VM operation layer. Its `unary` table supplies `!`
+and `typeof`; its `binary` table supplies `===`, `!==` and `is`. Both tables
+accept evaluated values and return `Result` successes. Callers own operand
+evaluation and failure propagation.
 
 [`value/control`](value/control/module.f.mjs) adds Result-based `throw`, `&&`,
 `||`, `??` and `?:`, taking an evaluated first operand and deferring the rest
