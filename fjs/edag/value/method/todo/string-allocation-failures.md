@@ -31,6 +31,6 @@ and already returns `error(['undefined'])`.
 
 - [Review on #2590](https://github.com/functionalscript/functionalscript/pull/2590#discussion_r4191391985).
 - [Deferred interpreter resources](../../../../compiler/todo/bound-edag-interpreter-resources.md).
-- [EDAG value scope](../../../todo/edag-value.md#migration-and-scope).
+- [EDAG value scope](../../../values.md#scope-and-deferred-work).
 - [ECMAScript ToLength](https://tc39.es/ecma262/multipage/abstract-operations.html#sec-tolength)
   and [StringPad](https://tc39.es/ecma262/multipage/text-processing.html#sec-stringpad).
