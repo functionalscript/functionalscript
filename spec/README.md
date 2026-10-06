@@ -1686,16 +1686,21 @@ are not supported yet. A newline before `=>` is refused.
   export default [add(1)(2), ((...a) => base[0] + a[0])(5)];
   ```
 
-  A function that names itself is not supported yet — in
-  `const f = (n) => f(n);` the inner `f` is refused, `const not found` —
-  since its `const` is not bound in its own initializer, and a function has
-  no `self` to read in its place
-  ([forward-references](./todo/3140-forward-references.md)). Recursion
-  itself needs neither: a function is a value, so one passed to itself
-  recurs as in JavaScript, and so does one reached through a fixed-point
-  combinator. `const fact = (self, n) => n === 0 ? 1 : n * self(self, n - 1);`
-  followed by `export default fact(fact, 5);` exports `120`, and like every
-  call it compiles today to the EDAG and Rust outputs alone (below).
+  A function that names itself reaches itself: in
+  `const fact = n => n < 2 ? 1 : n * fact(n - 1);` the inner `fact` is the
+  function itself, the EDAG's `["self"]`, and `export default fact(5);`
+  exports `120`. The name is the function's own only where the function is
+  the whole value of the `const`, a module's or a body's: `const f = [() => f];`
+  and `const f = (() => f)();` are `const not found`, since neither value is
+  a function with a self to read. The function's own name comes after the
+  names its body binds, as in JavaScript: a parameter or a body `const` of
+  the same word shadows it — unless the body has already read the function
+  by that word, which is refused as a capture shadowed is
+  ([functions](#functions)). A function nested in it captures the name as
+  it captures any other value around it, so `const f = x => () => f(x);`
+  recurs through the inner function. Reading a *later* `const`, and so two
+  functions calling each other, is still refused
+  ([forward-references](./todo/3140-forward-references.md)).
 - An **empty parameter list** binds no name at all, so a body written under
   one cannot reach its arguments: the arguments array is named by the
   parameter and by nothing else, and a word the list does not spell is
@@ -1878,8 +1883,9 @@ are not supported yet. A newline before `=>` is refused.
 - A body `const` is the body's, and binds as a module's does, a module
   being a function too ([a module is a function](#a-module-is-a-function)):
   it names a value the `return` and the statements after it may use, it may
-  not be written twice, and it is not in its own initializer's scope. It is
-  evaluated as a module's is, as its own statement, at every call and whether
+  not be written twice, and it is not in its own initializer's scope — except
+  that a function that is the whole initializer has the name as its own, as
+  a module `const`'s does (above). It is evaluated as a module's is, as its own statement, at every call and whether
   or not the `return` reaches it ([shared values](#shared-values-constants)):
   `() => { const x = null.x; return 1; }` loads and throws when called, as in
   JavaScript. The parameter is a name of the body too, so a `const` may not

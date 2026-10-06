@@ -205,9 +205,10 @@ const refsOfOperand = lazy => ast => {
             const captures = ast[3]
             return captures === undefined ? empty : flat(readCaptures(ast).map(i => refsOf(lazy)(captures[i])))
         }
-        // its arguments are its own
+        // its arguments and itself are its own
         case 'arg':
-        case 'rest': { return empty }
+        case 'rest':
+        case 'self': { return empty }
         // a slot of its frame is a reference too, one the sweep of the body
         // ignores and the sweep of a scope the body is inlined into follows
         // into the capture the slot holds ({@link inlinedRefs})

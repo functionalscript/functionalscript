@@ -261,6 +261,12 @@ middle function takes the capture too.
 A `const`'s value is resolved *before* its own name is bound, so `const a = a;`
 is `const not found` — a reference to a name before its declaration, as it is
 in JavaScript, and as the DataJS reject corpus's `reference-self` requires.
+Where the value is a function, that function has the name as its own: a read
+of it in the body that no parameter or body `const` answers first is
+`['self']`, the function itself, and a function nested in the body captures
+it as it captures any other name. The name is the function's alone —
+`const f = [() => f];` reads no function's own name — and a body `const` of
+it after the body has read it is `capture shadowed`, as any such read is.
 A name binds before the values that *follow* it, so a later statement may name
 an earlier `const`, which is what a `cref` always is: a reference to an earlier
 entry.

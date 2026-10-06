@@ -42,6 +42,7 @@ pub mod fixtures {
     pub mod operators;
     pub mod parameters;
     pub mod property;
+    pub mod recursion;
     pub mod rest;
     pub mod rest_function;
     pub mod sharing;
@@ -183,8 +184,8 @@ mod tests {
             arity, array, at, bigint, boolean, call, calls, closure, escapes, exports, function,
             function_scope, function_text, lazy, length, method, missing, named, named_imports,
             named_imports_throws, nested, not_a_function, nullish, number, object, object_spread,
-            operators, parameters, property, rest, rest_function, sharing, spread, string, throw,
-            throws, to_string,
+            operators, parameters, property, recursion, rest, rest_function, sharing, spread,
+            string, throw, throws, to_string,
         },
         run,
     };
@@ -397,6 +398,18 @@ mod tests {
         assert_eq!(
             run::<Naive>(closure::module, "default", Action::Read),
             Ok("[3,15,[1,2,3,1],42]".into())
+        );
+    }
+
+    /// A function that names itself: its `self`, the EDAG node the Rust
+    /// printer spells as the closure's own `self_`, calls the function it
+    /// is, is the one identity every read, and is captured by a function
+    /// nested in it as any value of the scope around it is.
+    #[test]
+    fn recursion() {
+        assert_eq!(
+            run::<Naive>(recursion::module, "default", Action::Read),
+            Ok("[120,true,3]".into())
         );
     }
 

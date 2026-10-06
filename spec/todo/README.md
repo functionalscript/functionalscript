@@ -126,7 +126,9 @@ information — see [serialization](./serialization.md) and
 3. [x] body-const — a function body takes `const` statements before its
    `return`, and the writer spells them
    ([functions](../README.md#functions))
-4. [ ] [forward-references](./3140-forward-references.md)
+4. [ ] [forward-references](./3140-forward-references.md) — a function
+   calling itself landed ([functions](../README.md#functions)); a later
+   `const`, and so mutual recursion, is open
 5. [x] `export const`, named-only and mixed modules
    ([exports](../README.md#exporting-a-value)).
 
