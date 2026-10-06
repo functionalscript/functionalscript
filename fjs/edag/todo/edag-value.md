@@ -488,6 +488,10 @@ promise normalization of host resource exhaustion.
 - [ ] Prove direct JS/Rust compilation of result graphs preserves the supported
       profile: primitives, containers, nested captures, distinct closures,
       shared identity, fresh invocation values, lazy branches and throws.
+      Rust uses the existing `compiler/rust.toRust` entry for `EdagValue`s;
+      interpreted `() => undefined` values emit ordinary static closures,
+      with native call, text and identity proofs in the function fixture.
+      Broader Rust parity remains open.
 - [x] Prove initializer failures survive unused imports/declarations, while
       successful export value graphs omit unreachable initialization machinery.
 - [ ] Prove implicit operation failures return `error(['undefined'])`, while
