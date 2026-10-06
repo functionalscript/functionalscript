@@ -155,6 +155,20 @@ Never edit `nanvm-lib/tests/test/gen.corpus/`: CI regenerates it on every pull
 request and fails if the committed copy differs (see
 [`fjs/ci/README.md`](../ci/README.md)).
 
+## Interpreted values
+
+[`values/module.f.mjs`](values/module.f.mjs) builds a capture graph, interprets
+it with memo, and passes the resulting `EdagValue` to the existing Rust
+compiler. This checks value emission separately from compiling source modules.
+Its pure proofs check primitive, repeated and unused capture slots. The native
+tests in [`nanvm-harness/tests/values.rs`](../../nanvm-harness/tests/values.rs)
+check calls, shared exports and captures, distinct closures, and fresh call and
+module results.
+
+`npm run gen` writes `nanvm-harness/gen.values/captures.rs` through the existing
+updater; `cargo test` compiles and runs it. Change the fixture generator, never
+the generated Rust file.
+
 ## What is not shared
 
 Two kinds of test stay hand-written, because there is nothing on the other side
