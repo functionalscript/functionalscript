@@ -2,7 +2,7 @@
  * @import { DemoEvent } from './types.ts'
  */
 
-import { textDemo } from './module.f.mjs'
+import { textDemo, textField } from './module.f.mjs'
 import { name as exampleName } from './examples/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
@@ -20,6 +20,8 @@ const next = demo => state => event => unwrap(assertNotNullish(
     'expected the demo to reach a value without asking for an operation'))
 
 export const proof = {
+    textField: () => assertEq(htmlToString(textField({ name: 'text', label: 'Text', rows: 3 }, 'a\nb')),
+        '<!DOCTYPE html><p><label for="text">Text </label><textarea id="text" name="text" rows="3">a\nb</textarea></p>'),
     init: () => assertEq(plain.init, 'a'),
     view: {
         // The textarea carries `id` and `name`, 8 rows by default, and what
