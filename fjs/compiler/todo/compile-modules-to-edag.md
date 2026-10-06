@@ -495,11 +495,13 @@ returns a computation graph for serialization and code generation.
 dependency exports, retaining source paths and loading order. The AST evaluator
 has been removed. Earlier `run` references in this rollout describe its history.
 
-`transpile` materializes the complete export object as `Denotation.value`, within
-an inner `Result` for output conversion refusal. This preserves the complete
-export boundary introduced in [#2129](https://github.com/functionalscript/functionalscript/pull/2129).
-Callable runtime compilation remains unavailable and is explicitly refused.
-JSON and DataJS select the represented default before materialization, so
+`transpile` composes interpretation with `toUnknown` and returns the complete
+ordinary export object directly, including callables when the runner supplies
+`CompileValue`. This preserves the complete export boundary introduced in
+[#2129](https://github.com/functionalscript/functionalscript/pull/2129), while
+removing the obsolete `Denotation` wrapper and nested output Result. Runtime
+compilation failures use `IoChannel`; source failures retain their source context.
+JSON and DataJS select the represented default before synchronous `toData`, so
 unselected callable exports do not block data output. Direct JSON roots remain
 documents without wrapping or projection. Initialization failure retains its
 source path and represented payload; an output refusal names the output file.

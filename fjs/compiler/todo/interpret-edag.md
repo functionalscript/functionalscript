@@ -2,8 +2,8 @@
 
 **Priority:** P3
 **Status:** open — compiler value-producing APIs use represented memo
-interpretation and the AST value evaluator is retired. Public admission,
-compiler callable-conversion integration and native prerequisites remain open.
+interpretation and callable runtime compilation; the AST value evaluator is
+retired. Public admission and native prerequisites remain open.
 
 The planned value contract is
 [EdagValue](../../edag/todo/edag-value.md): every FJS VM uses the EDAG subset
@@ -165,16 +165,17 @@ the latter has the source `path`, `metadata: null`, a diagnostic `message` and
 the original represented `thrown` payload. The VM still returns
 `Result<EdagValue, EdagValue>`; only the loader adds source context.
 
-`transpile` returns an inner `Result<Denotation, string>` in the effect's success
-channel. Successful materialization retains the complete ordinary export object
-as `Denotation.value`. It currently uses the synchronous `toData` converter, so
-a selected callable produces an output refusal. Effectful `toUnknown` can
-materialize callable graphs through its JavaScript host operation; integrating
-that conversion into `transpile` remains a separate step. Existing successful data results
-remain unchanged. This explicitly changes the compiler API's result nesting.
+`transpile` composes `interpret` with effectful `toUnknown`, returning the complete
+ordinary export object directly as `unknown`. Its operations are
+`ReadFile | ResolveFileModule | CompileValue` and its error channel is
+`SourceError | IoChannel`. The runner supplies the target compile/load operation
+for callable results; data-only results require none. Source failures keep their
+represented payload and path, while runtime compilation failures use `IoChannel`.
+The old nested output Result and `Denotation` wrapper are removed.
 
 For JSON/DataJS, `_transpileDefault` projects the represented default before
-materialization; an unselected callable export needs no conversion. Every required
+`toData`, retaining an inner `Result<DataJS.Unknown, string>` for conversion
+refusals; an unselected callable export needs no conversion. Every required
 initializer still runs. Direct JSON roots remain documents and bypass both
 wrapping and projection. Conversion and serialization refusals name the output
 file, while initialization failures name their source file. The CLI reports
@@ -244,7 +245,8 @@ hardening TODO after the baseline interpreter exists.
 - [x] Integrate EDAG interpretation behind `transpile` and `fjs compile`,
       preserving successful data outputs and graph sharing. Interpret per module
       to retain dependency failure paths; materialize after selecting the output.
-      The inner Result distinguishes conversion refusal from source failure.
+      JSON/DataJS retain an inner Result for conversion refusal; `transpile`
+      composes callable runtime compilation and returns the ordinary value directly.
 - [x] Add proofs that primitive, array, object, property-access, import-resolved, and
       shared-node EDAGs evaluate to the expected values.
 - [x] Add Stage 2 proofs for non-capturing functions, ordinary calls, and method calls.
@@ -271,10 +273,10 @@ hardening TODO after the baseline interpreter exists.
       runtime value within the relevant evaluation context.
 - [x] Add multi-module integration proofs over actual parsing, lowering and
       represented interpretation, preserving data results and shared imports.
-- [x] Add a CLI/API compatibility proof that the existing value-producing `transpile`
-      result — the inner successful `Denotation`'s value — and the `.data.js` and
-      `.json` outputs of `fjs compile` remain unchanged after switching their
-      internals to final-EDAG interpretation.
+- [x] Prove the ordinary data returned by `transpile` and the `.data.js` and
+      `.json` outputs of `fjs compile` survive the switch to EDAG interpretation.
+      The API now returns its value directly and also supports callable exports
+      through the target compile/load operation.
 - [ ] `tsc`, `fjs test`.
 
 ### Related

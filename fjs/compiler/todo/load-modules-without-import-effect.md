@@ -47,6 +47,9 @@ module identity and source paths. Its effect succeeds with the complete
 `EdagValue`, and fails with either `ParseError` or an `InitializationError`
 retaining the original represented `thrown` value. The core evaluator still
 returns `Result<EdagValue, EdagValue>`; the loader adds source context.
+`transpile(path)` composes that loader with runtime compilation for callers
+needing ordinary values. It adds the target `CompileValue` effect for callable
+results and returns `unknown`, with EDAG reflection erased.
 
 ### Native prerequisites
 

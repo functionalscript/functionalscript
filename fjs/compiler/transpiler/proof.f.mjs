@@ -1,7 +1,11 @@
 /**
  * @import { Dir } from '../../effects/node/virtual/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { Denotation } from '../ast/types.ts'
+ * @import { Unknown } from '../../media/datajs/types.ts'
+ * @import { Commands, IoChannel } from '../../effects/types.ts'
+ * @import { CompileValue } from '../../edag/value/to_unknown/types.ts'
+ * @import { NodeOp } from '../../effects/node/types.ts'
+ * @import { PartialMemOperationMap } from '../../effects/mock/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { InitializationError } from './types.ts'
  * @import { EdagValue } from '../../edag/value/types.ts'
@@ -12,27 +16,33 @@ import { _importSources } from '../source/module.f.mjs'
 import { _defaultExport, resolve, unresolved } from '../edag/module.f.mjs'
 import { invoke } from '../../edag/memo/module.f.mjs'
 import { read } from '../../edag/value/property/module.f.mjs'
+import { compileCommands } from '../../edag/value/to_unknown/module.f.mjs'
+import { factoryStringify } from '../serializer/value/module.f.mjs'
+import { notImplemented } from '../../effects/module.f.mjs'
 import { isArray } from '../../types/array/module.f.mjs'
 import { isObject } from '../../types/object/module.f.mjs'
 import { _errorLocation, compile } from '../module.f.mjs'
 import { nodeCommands, exitCode, ioError } from '../../effects/node/module.f.mjs'
 import { tryStringify } from '../../media/datajs/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.mjs'
-import { virtual, emptyState, nodeProgramOptions } from '../../effects/node/virtual/module.f.mjs'
+import { virtual, virtualOperationMap, emptyState, nodeProgramOptions } from '../../effects/node/virtual/module.f.mjs'
 import { partialRun } from '../../effects/mock/module.f.mjs'
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 // The virtual host declares lexical path identities; native URL behavior has host proofs.
 /** @type {(path: string) => (imports: readonly import('../ast/types.ts').AstImport[]) => Result<readonly import('../source/types.ts')._Source[], ParseError>} */
 const importSources = path => imports => virtual(emptyState)(_importSources({ id: path, path, json: false })(imports))[1]
 
-// Existing data cases unwrap only the explicit runtime-conversion result.
-/** @type {(root: Dir) => (path: string) => Result<Denotation, ParseError | InitializationError>} */
-const run = root => path => {
-    const [, result] = virtual({ ...emptyState, root })(transpile(path))
-    return result[0] === 'error' ? result : ok(unwrap(result[1]))
-}
+/** @type {Commands<NodeOp | CompileValue>} */
+const runtimeCommands = [...nodeCommands, ...compileCommands]
+const runtime = partialRun(runtimeCommands)(virtualOperationMap)
+
+/** @type {(root: Dir) => (path: string) => Result<unknown, ParseError | InitializationError | IoChannel>} */
+const run = root => path => runtime({ ...emptyState, root })(transpile(path))[1]
+
+/** The fixtures passed here contain only data. @type {(value: unknown) => string} */
+const dataText = value => unwrap(tryStringify(/** @type {Unknown} */ (value)))
 
 /** The default on a materialized module export object. @type {(value: unknown) => unknown} */
 const defaultValue = value => {
@@ -57,6 +67,44 @@ const refusedSpecifier = (specifier, source, root) => {
 }
 
 export const proof = {
+    runtimeConversion: {
+        callableRequest: () => {
+            const root = {
+                main: [utf8('import n from "./dep"; export const value=n; export default x=>x+n;')],
+                dep: [utf8('export default 2;')],
+            }
+            const expected = factoryStringify(unwrap(represented(root, 'main')))
+            const loaded = { value: 2 }
+            /** @type {PartialMemOperationMap<NodeOp | CompileValue, typeof emptyState>} */
+            const operations = {
+                ...virtualOperationMap,
+                compileValue: source => state => {
+                    assertEq(source, expected)
+                    return [state, ok(loaded)]
+                },
+            }
+            const [, result] = partialRun(runtimeCommands)(operations)({ ...emptyState, root })(transpile('main'))
+            assertEq(unwrap(result), loaded)
+        },
+        runtimeFailure: () => {
+            const failure = ioError({ message: 'runtime loading refused' })
+            /** @type {PartialMemOperationMap<NodeOp | CompileValue, typeof emptyState>} */
+            const operations = {
+                ...virtualOperationMap,
+                compileValue: () => state => [state, error(failure)],
+            }
+            const root = { main: [utf8('export default ()=>42;')] }
+            const [, result] = partialRun(runtimeCommands)(operations)({ ...emptyState, root })(transpile('main'))
+            assertEq(assertError(result), failure)
+        },
+        initializationBeforeRuntime: () => {
+            const root = { main: [utf8('export const callback=()=>42; throw 7;')] }
+            // There is no loader: reaching conversion would yield notImplemented.
+            assertStructurallySame(run(root)('main'), error({
+                message: 'module initialization failed', metadata: null, path: 'main', thrown: 7,
+            }))
+        },
+    },
     interpretation: {
         callsAndOperators: () => {
             for (const [source, expected] of /** @type {const} */ ([
@@ -65,7 +113,7 @@ export const proof = {
                 ['export default [1,2].map(x=>x+1);', [2, 3]],
                 ['const add=x=>y=>x+y; export default add(2)(3);', 5],
             ])) {
-                assertStructurallySame(unwrap(run({ main: [utf8(source)] })('main')).value, { default: expected })
+                assertStructurallySame(unwrap(run({ main: [utf8(source)] })('main')), { default: expected })
             }
         },
         completeExports: () => {
@@ -98,9 +146,9 @@ export const proof = {
         },
         projectBeforeMaterializing: () => {
             const root = { main: [utf8('export const callback=x=>x; export default 42;')] }
-            const runner = virtual({ ...emptyState, root })
-            assertStructurallySame(runner(_transpileDefault('main'))[1], ok(ok({ value: 42 })))
-            assertStructurallySame(runner(transpile('main'))[1], ok(error('callable materialization requires a target compile/load boundary')))
+            const runner = runtime({ ...emptyState, root })
+            assertStructurallySame(runner(_transpileDefault('main'))[1], ok(ok(42)))
+            assertStructurallySame(runner(transpile('main'))[1], error(notImplemented('compileValue')))
             for (const output of ['output.json', 'output.data.js']) {
                 const [state, code] = runner(compile(nodeProgramOptions(['main', output])))
                 assertEq(exitCode(code), 0, state.stderr)
@@ -109,7 +157,7 @@ export const proof = {
                 assertEq(utf8ToString(bytes[0]), output.endsWith('.json') ? '42' : 'export default 42;')
             }
             const named = { main: [utf8('export const callback=x=>x;')] }
-            assertStructurallySame(virtual({ ...emptyState, root: named })(_transpileDefault('main'))[1], ok(ok({ value: undefined })))
+            assertStructurallySame(virtual({ ...emptyState, root: named })(_transpileDefault('main'))[1], ok(ok(undefined)))
         },
         initializationPayload: () => {
             for (const imported of [false, true]) {
@@ -164,7 +212,7 @@ export const proof = {
                 [':', 'default', ['[]', [7]]], [':', 'other', 8],
             ]]))
             assertStructurallySame(virtual({ ...emptyState, root })(_transpileDefault('input.json'))[1],
-                ok(ok({ value: { default: [7], other: 8 } })))
+                ok(ok({ default: [7], other: 8 })))
         },
     },
     namedImports: {
@@ -200,11 +248,11 @@ export const proof = {
                 ['import {__proto__ as p,constructor as c} from "./dep"; export default [p,c];', [8,9]],
             ])) {
                 const root = { 'main': [utf8(source)], 'dep': [utf8('export const a=[5]; export const u=undefined; export const __proto__=8; export const constructor=9; export default 7;')] }
-                assertStructurallySame(defaultValue(unwrap(run(root)('main')).value), expected)
+                assertStructurallySame(defaultValue(unwrap(run(root)('main'))), expected)
             }
             const root = { 'main': [utf8('import {a} from "./dep"; import {a as b} from "./dep"; export default [a,b];')], 'dep': [utf8('export const a=[];')] }
             const result = unwrap(run(root)('main'))
-            const pair = defaultValue(result.value)
+            const pair = defaultValue(result)
             assert(pair instanceof Array && pair[0] === pair[1])
         },
         sharing: () => {
@@ -214,7 +262,7 @@ export const proof = {
                 dep: [utf8('const shared=[]; export const a={x:shared}; export const b={y:shared};')],
             }
             const overlapResult = unwrap(run(overlap)('main'))
-            const descendants = defaultValue(overlapResult.value)
+            const descendants = defaultValue(overlapResult)
             assert(descendants instanceof Array && descendants[0] === descendants[1])
             // and JSON, a tree, writes the descendant where each root reaches it
             const [state, code] = virtual({ ...emptyState, root: overlap })(compile(nodeProgramOptions(['main', 'output.json'])))
@@ -228,11 +276,11 @@ export const proof = {
                 'import {shared,leaf} from "./dep"; export default shared;',
                 'import {leaf,shared} from "./dep"; export default shared;',
             ]) {
-                const shared = defaultValue(unwrap(run({ main: [utf8(source)], dep })('main')).value)
+                const shared = defaultValue(unwrap(run({ main: [utf8(source)], dep })('main')))
                 assert(shared instanceof Array && shared[0] === shared[1])
             }
             const selectedLeaf = 'import {shared,leaf} from "./dep"; export default leaf;'
-            assertEq(defaultValue(unwrap(run({ main: [utf8(selectedLeaf)], dep })('main')).value), 1)
+            assertEq(defaultValue(unwrap(run({ main: [utf8(selectedLeaf)], dep })('main'))), 1)
             const diamond = {
                 main: [utf8('import {a} from "./left"; import {b} from "./right"; export default [a,b];')],
                 left: [utf8('import {x} from "./dep"; export const a=x;')],
@@ -240,7 +288,7 @@ export const proof = {
                 dep: [utf8('export const x=[];')],
             }
             const result = unwrap(run(diamond)('main'))
-            const pair = defaultValue(result.value)
+            const pair = defaultValue(result)
             assert(pair instanceof Array && pair[0] === pair[1])
         },
         refusals: () => {
@@ -265,7 +313,7 @@ export const proof = {
         },
         json: () => {
             const root = { main: [utf8('import {default as data} from "./data.json" with {type:"json"}; export default data;')], 'data.json': [utf8('{"x":7}')] }
-            assertStructurallySame(unwrap(run(root)('main')).value, { default: { x: 7 } })
+            assertStructurallySame(unwrap(run(root)('main')), { default: { x: 7 } })
             for (const source of [
                 'import {x} from "./data.json" with {type:"json"};',
                 'import {default as data} from "./data.json";',
@@ -287,9 +335,9 @@ export const proof = {
         ]) {
             assert(typeof source === 'string')
             const root = { 'main.f.js': [utf8(source)] }
-            assertStructurallySame(unwrap(run(root)('main.f.js')).value, expected)
+            assertStructurallySame(unwrap(run(root)('main.f.js')), expected)
             const imported = { ...root, 'entry.f.js': [utf8('import x from "./main.f.js"; export default x;')] }
-            assertStructurallySame(unwrap(run(imported)('entry.f.js')).value, expected)
+            assertStructurallySame(unwrap(run(imported)('entry.f.js')), expected)
         }
     },
     // The resolver's identity may differ from the read path in both directions:
@@ -316,8 +364,8 @@ export const proof = {
                     : 'export default [7];'))]
             },
         }
-        const runner = partialRun(nodeCommands)(host)(null)
-        const value = defaultValue(unwrap(unwrap(runner(transpile('entry'))[1])).value)
+        const runner = partialRun(runtimeCommands)(host)(null)
+        const value = defaultValue(unwrap(runner(transpile('entry'))[1]))
         assert(value instanceof Array)
         assert(value[0] === value[2] && value[0] !== value[1])
         const graph = _defaultExport(unwrap(runner(resolve('entry'))[1]))
@@ -337,12 +385,12 @@ export const proof = {
                 return [state, ok(utf8('[1,2]'))]
             },
         }
-        const runner = partialRun(nodeCommands)(host)(null)
-        assertStructurallySame(unwrap(unwrap(runner(transpile('input.json'))[1])).value, [1, 2])
+        const runner = partialRun(runtimeCommands)(host)(null)
+        assertStructurallySame(unwrap(runner(transpile('input.json'))[1]), [1, 2])
         assertStructurallySame(unwrap(runner(resolve('input.json'))[1]), ['[]', [1, 2]])
     },
     missingResolver: () => {
-        const runner = partialRun(nodeCommands)({})(null)
+        const runner = partialRun(runtimeCommands)({})(null)
         const value = runner(transpile('entry'))[1]
         assertStructurallySame(value, ['error', {
             message: 'module resolution failed: operation not implemented: resolveFileModule',
@@ -397,9 +445,9 @@ export const proof = {
                     return [state, ok(undefined)]
                 },
             }
-            const runner = partialRun(nodeCommands)(host)('')
+            const runner = partialRun(runtimeCommands)(host)('')
             for (const result of [runner(transpile('main.f.js'))[1], runner(resolve('main.f.js'))[1]]) {
-                assert(result[0] === 'error')
+                assert(result[0] === 'error' && !isArray(result[1]))
                 assertEq(_errorLocation('main.f.js')(result[1]), location)
                 assertEq(result[1].message, message)
             }
@@ -433,7 +481,7 @@ export const proof = {
             assertEq(module.imports[0].specifier, specifier)
             refusedSpecifier(specifier, source, root)
             const relative = { ...root, 'main.f.js': [utf8(`import value from "./${specifier}"; export default value;`)] }
-            assertStructurallySame(unwrap(run(relative)('main.f.js')).value, { default: 7 })
+            assertStructurallySame(unwrap(run(relative)('main.f.js')), { default: 7 })
             assertStructurallySame(unwrap(virtual({ ...emptyState, root: relative })(resolve('main.f.js'))[1]), ['{}', [[':', 'default', 7]]])
         }
     },
@@ -470,7 +518,7 @@ export const proof = {
                 [`other.${extension}`]: [content],
             }
             const value = unwrap(run(root)('main.f.js'))
-            const selected = defaultValue(value.value)
+            const selected = defaultValue(value)
             assert(selected instanceof Array)
             const [a, b, c, d] = selected
             assert(a === b && b === c && c !== d)
@@ -517,7 +565,7 @@ export const proof = {
                 [filename]: [utf8('import a from "./dep.f.js"; export default a;')],
                 'dep.f.js': [utf8('export default 7;')],
             }
-            assertStructurallySame(unwrap(run(root)('main.f.js')).value, { default: 7 })
+            assertStructurallySame(unwrap(run(root)('main.f.js')), { default: 7 })
             assertStructurallySame(unwrap(virtual({ ...emptyState, root })(resolve('main.f.js'))[1]), ['{}', [[':', 'default', 7]]])
         }
         // CLI entry paths are filesystem names, not import specifiers.
@@ -525,19 +573,19 @@ export const proof = {
             'main?#copy.f.js': [utf8('import value from "./dep.f.js"; export default value;')],
             'dep.f.js': [utf8('export default 7;')],
         }
-        assertStructurallySame(unwrap(run(root)('main?#copy.f.js')).value, { default: 7 })
+        assertStructurallySame(unwrap(run(root)('main?#copy.f.js')), { default: 7 })
         assertStructurallySame(unwrap(virtual({ ...emptyState, root })(resolve('main?#copy.f.js'))[1]), ['{}', [[':', 'default', 7]]])
     },
     parse: () => {
         const result = run({ a: [utf8('export default 1;')] })('a')
         assert(result[0] !== 'error', result[1])
-        const s = unwrap(tryStringify(result[1].value))
+        const s = dataText(result[1])
         assertEq(s, 'export default {"default":1};')
     },
     parseWithSubModule: () => {
         const result = run({ a: { b: [utf8('import c from "./c";\nexport default c;')], c: [utf8('export default 2;')] } })('a/b')
         assert(result[0] !== 'error', result[1])
-        const s = unwrap(tryStringify(result[1].value))
+        const s = dataText(result[1])
         assertEq(s, 'export default {"default":2};')
     },
     // Module specifiers are URL-path spellings, not literal filesystem names:
@@ -550,7 +598,7 @@ export const proof = {
             '%64ep.f.js': [utf8('export default 2;')],
         })('main.f.js')
         assert(result[0] !== 'error', result[1])
-        const s = unwrap(tryStringify(result[1].value))
+        const s = dataText(result[1])
         assertEq(s, 'export default {"default":1};')
     },
     canceledImportComponents: () => {
@@ -561,7 +609,7 @@ export const proof = {
                     'main.f.js': [utf8(`import value from "${specifier}"; export default value;`)],
                     'dep.f.js': [utf8('export default 1;')],
                 }
-                assertStructurallySame(unwrap(run(root)('main.f.js')).value, { default: 1 }, specifier)
+                assertStructurallySame(unwrap(run(root)('main.f.js')), { default: 1 }, specifier)
                 assertStructurallySame(unwrap(virtual({ ...emptyState, root })(resolve('main.f.js'))[1]), ['{}', [[':', 'default', 1]]], specifier)
             }
         }
@@ -581,7 +629,7 @@ export const proof = {
                 'main.f.js': [utf8(`import value from "${specifier}"; export default value;`)],
                 [name]: [utf8('export default 7;')],
             }
-            assertStructurallySame(unwrap(run(root)('main.f.js')).value, { default: 7 }, specifier)
+            assertStructurallySame(unwrap(run(root)('main.f.js')), { default: 7 }, specifier)
             assertStructurallySame(unwrap(virtual({ ...emptyState, root })(resolve('main.f.js'))[1]), ['{}', [[':', 'default', 7]]], specifier)
         }
     },
@@ -603,7 +651,7 @@ export const proof = {
             const value = run(root)('main.f.js')
             const edag = virtual({ ...emptyState, root })(resolve('main.f.js'))[1]
             for (const result of [value, edag]) {
-                assert(result[0] === 'error', result)
+                assert(result[0] === 'error' && !isArray(result[1]), result)
                 assertEq(result[1].message, `invalid module specifier: ${specifier}`)
                 assertEq(result[1].path, 'main.f.js')
             }
@@ -614,7 +662,7 @@ export const proof = {
             'main.f.js': [utf8('import value from "./\\ud800%20.f.js"; export default value;')],
             '\ufffd .f.js': [utf8('export default 1;')],
         }
-        assertStructurallySame(unwrap(run(root)('main.f.js')).value, { default: 1 })
+        assertStructurallySame(unwrap(run(root)('main.f.js')), { default: 1 })
         assertStructurallySame(unwrap(virtual({ ...emptyState, root })(resolve('main.f.js'))[1]), ['{}', [[':', 'default', 1]]])
     },
     // Both callers propagate the error through the CLI: exit 1, a diagnostic,
@@ -638,25 +686,25 @@ export const proof = {
             d: [utf8('export default 2;')],
         })('a')
         assert(result[0] !== 'error', result[1])
-        const s = unwrap(tryStringify(result[1].value))
+        const s = dataText(result[1])
         assertEq(s, 'const $0=[0,2];export default {"default":[$0,[1,2],$0]};')
     },
     parseWithIdentifierKeys: () => {
         const result = run({ a: [utf8('export default {a:1,b:2};')] })('a')
         assert(result[0] !== 'error', result[1])
-        const s = unwrap(tryStringify(result[1].value))
+        const s = dataText(result[1])
         assertEq(s, 'export default {"default":{"a":1,"b":2}};')
     },
     parseWithConstIdentifier: () => {
         const result = run({ a: [utf8('const a = 1;\nconst b = a;\nexport default {x:a,y:b};')] })('a')
         assert(result[0] !== 'error', result[1])
-        const s = unwrap(tryStringify(result[1].value))
+        const s = dataText(result[1])
         assertEq(s, 'export default {"default":{"x":1,"y":1}};')
     },
     parseWithUnaryMinusOperator: () => {
         const result = run({ a: [utf8('export default [-1,2,-3];')] })('a')
         assert(result[0] !== 'error', result[1])
-        const s = unwrap(tryStringify(result[1].value))
+        const s = dataText(result[1])
         assertEq(s, 'export default {"default":[-1,2,-3]};')
     },
     // A module named by an absolute path resolves its imports: `transpile`
@@ -670,7 +718,7 @@ export const proof = {
             'm.f.js': [utf8('import p from "../lib.f.js";\nexport default p;')],
         })('/m.f.js')
         assert(result[0] !== 'error', result[1])
-        const s = unwrap(tryStringify(result[1].value))
+        const s = dataText(result[1])
         assertEq(s, 'export default {"default":8080};')
     },
     // The control: with no root to clamp it, the same `..` escapes and finds
@@ -681,12 +729,12 @@ export const proof = {
             'lib.f.js': [utf8('export default 8080;')],
             'm.f.js': [utf8('import p from "../lib.f.js";\nexport default p;')],
         })('m.f.js')
-        assert(result[0] === 'error', result)
+        assert(result[0] === 'error' && !isArray(result[1]), result)
         assertEq(result[1].message, 'file not found', result)
     },
     parseWithFileNotFoundError: () => {
         const result = run({ a: [utf8('import b from "./b";\nexport default b;')] })('a')
-        assert(result[0] === 'error', result)
+        assert(result[0] === 'error' && !isArray(result[1]), result)
         assertEq(result[1].message, 'file not found', result)
     },
     parseWithCycleError: () => {
@@ -695,7 +743,7 @@ export const proof = {
             b: [utf8('import c from "./c";\nexport default c;')],
             c: [utf8('import b from "./b";\nexport default b;')],
         })('a')
-        assert(result[0] === 'error', result)
+        assert(result[0] === 'error' && !isArray(result[1]), result)
         assertEq(result[1].message, 'circular dependency', result)
     },
 }
