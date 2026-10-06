@@ -11,15 +11,15 @@ module-resolution and integration tasks below do not restore the old function
 tuple or require rejecting supported captures. Default function-text rendering
 remains open in the parameter plan.
 
-### Problem
+### Original problem
 
-The current DJS transpiler couples two separate operations:
+The former DJS transpiler coupled two separate operations:
 
 1. parse a module into `AstModule`;
 2. recursively load every imported module and only then evaluate the module body
    with `run(module[1])(args)`.
 
-This means the source-to-computation representation is not available independently
+This meant the source-to-computation representation was not available independently
 of dependency loading. A source module should be compilable before its imports are
 resolved, with imported values represented as parameters of its EDAG.
 
@@ -489,34 +489,28 @@ leaf, so the graph holds the number either way.
 
 ### Existing compile API boundary
 
-The EDAG-producing path remains separate from the evaluated-value path. Its
-artifact is a computation graph, not a value that `transpile` callers should
-accidentally serialize as a module result.
+The EDAG-producing path remains separate from evaluated values. `resolve`
+returns a computation graph for serialization and code generation.
+`transpiler.interpret` now evaluates each module's unresolved EDAG with represented
+dependency exports, retaining source paths and loading order. The AST evaluator
+has been removed. Earlier `run` references in this rollout describe its history.
 
-The original Stage 1 promise to preserve the bare exported value is superseded
-by [#2129](https://github.com/functionalscript/functionalscript/pull/2129), the
-prerequisite for [named exports](../../../spec/README.md#exporting-a-value).
-`transpile` still returns a `Denotation`, but for a FunctionalScript input its
-`value` is now the complete module export object, including named properties and `default` when present.
-The linked EDAG and generated Rust compute that same object. JSON and DataJS
-value output serialize `result.default`; FunctionalScript output writes the
-individual `export const` declarations and a final `export default` when present. Direct `.json` roots remain documents and bypass
-both wrapping and projection, even if the document has a `default` property.
+`transpile` composes interpretation with `toUnknown` and returns the complete
+ordinary export object directly, including callables when the runner supplies
+`CompileValue`. This preserves the complete export boundary introduced in
+[#2129](https://github.com/functionalscript/functionalscript/pull/2129), while
+removing the obsolete `Denotation` wrapper and nested output Result. Runtime
+compilation failures use `IoChannel`; source failures retain their source context.
+JSON and DataJS select the represented default before synchronous `toData`, so
+unselected callable exports do not block data output. Direct JSON roots remain
+documents without wrapping or projection. Initialization failure retains its
+source path and represented payload; an output refusal names the output file.
+See [interpret-edag](./interpret-edag.md) and the
+[compiler API contract](../README.md#ast).
 
-After the baseline interpreter exists, [`interpret-edag.md`](./interpret-edag.md)
-owns the migration of the evaluated-value path to:
-
-```text
-source modules
-  -> final EDAG
-  -> interpret EDAG
-  -> module export object
-  -> select result.default for JSON/DataJS value output
-  -> existing value serialization
-```
-
-That migration changes the internal execution path while preserving this updated
-public result and output contract, including the direct JSON document path.
+FunctionalScript output writes individual named/default exports from linked code,
+and generated Rust retains the complete result. Neither route evaluates the
+module while compiling it.
 
 ### Final EDAG serialization
 
@@ -738,9 +732,9 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
   and to values. Its API sketches are superseded by the pipeline above.
 - [Module-resolution compatibility](./module-resolution-compatibility.md) —
   P1 owner of shared host resolution, module identity, loading and regressions.
-- [`fjs/compiler/transpiler/module.f.mjs`](../../compiler/transpiler/module.f.mjs) — currently loads imports
-  recursively before calling `run(module[1])(args)`; keep its value-producing public
-  contract until EDAG interpretation is integrated.
+- [`fjs/compiler/transpiler/module.f.mjs`](../../compiler/transpiler/module.f.mjs) — loads imports
+  recursively and interprets module EDAGs with represented import values. Runtime
+  conversion occurs at the requested output boundary.
 - [`fjs/compiler/parser/module.f.mjs`](../../compiler/parser/module.f.mjs) — DJS parser that must support the
   chosen special-number `.f.js` spellings.
 - [`fjs/media/datajs/serializer/module.f.mjs`](../../media/datajs/serializer/module.f.mjs)
@@ -753,8 +747,8 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
   infinities.
 - [`157-json-djs-shared-value-machine.md`](../../media/json/todo/157-json-djs-shared-value-machine.md) — existing JSON/DJS serializer deduplication task.
 - [`fjs/compiler/ast/types.ts`](../../compiler/ast/types.ts) — current `AstModule`/`AstBody`, `aref`, `cref`,
-  and plain-object representation to replace.
-- [`fjs/compiler/ast/module.f.mjs`](../../compiler/ast/module.f.mjs) — current sequential AST evaluator.
+  and the ordered syntax entries used by lowering.
+- [`fjs/compiler/ast/module.f.mjs`](../../compiler/ast/module.f.mjs) — lowering and reachability helpers; the value evaluator is retired.
 - [`cache-compiled-modules.md`](./cache-compiled-modules.md) — lower-priority
   persistence/incremental-compilation task for `.fjs/unresolved/{hash}.f.js`.
 - [`fjs/edag/rust/module.f.mjs`](../../edag/rust/module.f.mjs) — the

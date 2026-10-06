@@ -53,7 +53,7 @@
  *
  * @module
  *
- * @import { Arg, Exp, ExpOp, Frame, Index, Items, Op0, Op1, Op2, Op3, Op12, Properties, TagMap } from '../types.ts'
+ * @import { Arg, Exp, ExpOp, Frame, Index, Items, Op0, Op1, Op2, Op3, Op12, Primitive, Properties, TagMap } from '../types.ts'
  * @import { OptionLambda, OptionPropertyLambda, PropertyLambda } from '../types.ts'
  * @import { Analysis, IndexOperand, ItemOperand, Node, Operand, PropertyOperand, Ref, Step } from './types.ts'
  * @import { _Entry, _Handlers, _Scope, _State, _Walk } from './private.ts'
@@ -118,62 +118,57 @@ const entry = (scope, node) => entries => {
  * @param {(state: _State, x: T) => readonly [_State, R]} f
  * @returns {(state: _State, xs: readonly T[]) => readonly [_State, readonly R[]]}
  */
-const each = f => (state, xs) => xs.reduce(
-    /** @type {(acc: readonly [_State, readonly R[]], x: T) => readonly [_State, readonly R[]]} */
-    (([s, rs], x) => {
-        const [t, r] = f(s, x)
-        return [t, [...rs, r]]
-    }),
-    /** @type {readonly [_State, readonly R[]]} */ ([state, []]),
-)
-
-/** An operand: a primitive stands, a node is walked. @type {_Walk<Exp, Operand>} */
-const walk = scope => (state, e) => e instanceof Array ? node(scope)(state, e) : [state, e]
+const each = f => (state, xs) => {
+    /** @type {readonly R[]} */
+    let results = []
+    for (const x of xs) {
+        const [next, value] = f(state, x)
+        state = next
+        results = [...results, value]
+    }
+    return [state, results]
+}
 
 /**
  * A node's entry. A node already in the table is its entry, and must be
  * reached from the scope it was added in; otherwise its operands are
  * walked, then it is added or merged.
  *
- * @type {_Walk<ExpOp, Ref>}
- */
-const node = scope => (state, e) => {
-    const known = state.visited.get(e)
-    const [next, i] = known === undefined ? fresh(scope)(state, e) : [state, known]
-    const checked = next.entries[i].scope === scope ? next : {
-        ...next, problem: next.problem ?? 'a node shared across a function boundary',
-    }
-    return [checked, ref(i)]
-}
-
-/** @type {(scope: _Scope) => (state: _State, e: ExpOp) => readonly [_State, number]} */
-const fresh = scope => (state, e) => {
-    const [walked, n] = dispatch(scope, state, e)
-    const [entries, i] = entry(scope, n)(walked.entries)
-    return [{ ...walked, entries, visited: mapSet(walked.visited, e, i) }, i]
-}
-
-/**
- * Generic over the tag, so that `handlers[e[0]]` is the one signature for
- * `e`'s tuple rather than the union of all of them — see `TagMap` in
- * `../types.ts`.
- *
- * @type {<K extends ExpOp[0]>(
- *  scope: _Scope,
+ * Primitives stand unchanged. Generic over the tag so the handler and node
+ * keep their tuple correlation without another dispatch frame.
+ * @type {<K extends ExpOp[0]>(scope: _Scope) => (
  *  state: _State,
- *  e: TagMap[K] & readonly [K, ...readonly unknown[]],
- * ) => readonly [_State, Node]}
+ *  e: Primitive | (TagMap[K] & readonly [K, ...readonly unknown[]]),
+ * ) => readonly [_State, Operand]}
  */
-const dispatch = (scope, state, e) => handlers[e[0]](scope)(state, e)
+const walk = scope => (state, e) => {
+    if (!(e instanceof Array)) { return [state, e] }
+    const known = state.visited.get(e)
+    if (known === undefined) {
+        const [walked, n] = handlers[e[0]](scope)(state, e)
+        const [entries, i] = entry(scope, n)(walked.entries)
+        return [{ ...walked, entries, visited: mapSet(walked.visited, e, i) }, ref(i)]
+    }
+    const checked = state.entries[known].scope === scope ? state : {
+        ...state, problem: state.problem ?? 'a node shared across a function boundary',
+    }
+    return [checked, ref(known)]
+}
 
 /** A naming operand: a string or a number stands, a `Number` node is walked. @type {_Walk<Index, IndexOperand>} */
-const index = scope => (state, i) => i instanceof Array ? node(scope)(state, i) : [state, i]
+const index = scope => (state, i) => /** @type {readonly [_State, IndexOperand]} */ (walk(scope)(state, i))
 
-/** An array item: a spread's operand is walked, and the spread kept around it. @type {_Walk<Items, ItemOperand>} */
-const item = scope => (state, x) => {
-    if (!(x instanceof Array) || x[0] !== '...') { return walk(scope)(state, x) }
-    const [t, a] = walk(scope)(state, x[1])
-    return [t, ['...', a]]
+/** Array items in order, retaining a spread around its walked operand. @type {_Walk<readonly Items[], readonly ItemOperand[]>} */
+const items = scope => (state, xs) => {
+    /** @type {readonly ItemOperand[]} */
+    let result = []
+    for (const x of xs) {
+        const spread = x instanceof Array && x[0] === '...'
+        const [next, value] = walk(scope)(state, spread ? x[1] : x)
+        state = next
+        result = [...result, spread ? ['...', value] : value]
+    }
+    return [state, result]
 }
 
 /** An object entry: the key and the value, or a spread's operand. @type {_Walk<Properties, PropertyOperand>} */
@@ -203,12 +198,12 @@ const step = scope => (state, k) => {
             return [u, ['|.', x, c]]
         }
         case '|!()': {
-            const [t, x] = each(item(scope))(state, k[1])
+            const [t, x] = items(scope)(state, k[1])
             return [t, ['|!()', x]]
         }
         default: {
             const [tag, e, cont] = k
-            const [t, x] = each(item(scope))(state, e)
+            const [t, x] = items(scope)(state, e)
             if (cont === undefined) { return [t, [tag, x]] }
             const [u, c] = step(scope)(t, cont)
             return [u, [tag, x, c]]
@@ -306,8 +301,8 @@ const handlers = {
         return [t, [',', ops]]
     },
     '[]': scope => (state, [, xs]) => {
-        const [t, items] = each(item(scope))(state, xs)
-        return [t, ['[]', items]]
+        const [t, values] = items(scope)(state, xs)
+        return [t, ['[]', values]]
     },
     '{}': scope => (state, [, ps]) => {
         const [t, properties] = each(property(scope))(state, ps)
@@ -315,7 +310,7 @@ const handlers = {
     },
     '()': scope => (state, [, a, b]) => {
         const [t, f] = walk(scope)(state, a)
-        const [u, args] = each(item(scope))(t, b)
+        const [u, args] = items(scope)(t, b)
         return [u, ['()', f, args]]
     },
     '.': scope => (state, [, a, i, p]) => {
@@ -334,7 +329,7 @@ const handlers = {
     },
     '?.()': scope => (state, [, a, b, p]) => {
         const [t, f] = walk(scope)(state, a)
-        const [u, args] = each(item(scope))(t, b)
+        const [u, args] = items(scope)(t, b)
         if (p === undefined) { return [u, ['?.()', f, args]] }
         const [v, k] = step(scope)(u, p)
         return [v, ['?.()', f, args, k]]

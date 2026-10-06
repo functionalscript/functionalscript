@@ -1,31 +1,29 @@
-/**
- * Type-level API of the EDAG operations: what an executor supplies to run
- * one node, and the table of operations it runs it through.
- *
- * @module
- */
+/** The state-independent interface shared by EDAG interpreters. @module */
 
-import type { ExpOp, Over, TagMap } from '../types.ts'
+import type { Exp } from '../types.ts'
+import type { Array, Values } from '../value/types.ts'
+import type { ValueResult } from '../value/control/types.ts'
+import type { Invoke } from '../value/call/types.ts'
 
-/**
- * How an executor evaluates: `operand` is the value of an operand — by
- * recursion in [amnesia](../amnesia/README.md), by a lookup in an executor
- * over the analysis table — `invoke` starts a new invocation of a function
- * body over its frame and arguments, and `frame` and `args` are this
- * invocation's. A lazy operand is evaluated through `operand` only when it
- * is demanded, so `&&`, `||`, `??` and `?:` short-circuit under any
- * executor.
- */
-export type Evaluator<E> = {
-    readonly frame: unknown
-    readonly args: readonly unknown[]
-    readonly fixed?: readonly unknown[] | undefined
-    readonly rest?: readonly unknown[] | undefined
-    readonly operand: (e: E) => unknown
-    readonly invoke: (frame: unknown, fixed: readonly unknown[], rest: readonly unknown[], body: E) => unknown
+/** Established bindings of one module or represented function invocation. */
+export type Context = {
+    readonly frame: Values
+    readonly args: Values
+    readonly fixed?: Values
+    readonly rest?: Array
 }
 
-/** One operation per tag, each over the node kind of that tag with `E` as its operands. */
-export type Operations = {
-    readonly [K in ExpOp[0]]: <E>(x: Evaluator<E>) => (e: Over<TagMap[K], E>) => unknown
+/** A successful or thrown language value together with the resulting VM state. */
+export type Evaluation<S> = readonly [S, ValueResult]
+
+/**
+ * Operands are raw expressions or table references, according to the VM.
+ * `expression` retains a function's body as EDAG without evaluating it;
+ * `invoke` keeps the VM's execution model through calls and coercions.
+ */
+export type Evaluator<E, S> = {
+    readonly context: Context
+    readonly operand: (e: E, state: S) => Evaluation<S>
+    readonly expression: (e: E) => Exp
+    readonly invoke: Invoke
 }

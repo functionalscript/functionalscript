@@ -1,31 +1,39 @@
 ## Interpret a compiled EDAG directly
 
 **Priority:** P3
-**Status:** open — host baseline memo executor implemented; public entry
-validation, value-producing API integration and the native semantic prerequisites
-for native self-hosting remain open.
+**Status:** open — compiler value-producing APIs use represented memo
+interpretation and callable runtime compilation; the AST value evaluator is
+retired. Public admission and native prerequisites remain open.
 
-The planned value contract is
-[EdagValue](../../edag/todo/edag-value.md): every FJS VM uses the EDAG subset
-for language values and returns `Result<EdagValue, EdagValue>`. Host-valued
-execution and arrow factories below describe the current baseline. Integration
-must migrate that baseline and convert explicitly at APIs exposing `unknown`:
+The implemented value contract is
+[EdagValue](../../edag/values.md): every FJS VM uses the EDAG subset
+for language values and returns `Result<EdagValue, EdagValue>`. Memo and Amnesia
+now share represented operation dispatch. Integration converts explicitly at
+APIs exposing `unknown`:
 ordinary FJS runtime values with EDAG reflection erased. Validation at the
-entry for separately supplied EDAG data, immutable state and native
+entry for separately supplied EDAG data and native
 prerequisites remain required. Compiler and VM results maintain their
 invariants by construction; they need no repeated admission pass.
 
+**EDAG interpretation** evaluates an EDAG into represented values. **Runtime
+compilation** converts those values to ordinary FJS/JS runtime values, including
+function-free materialization and the callable backend/load boundary.
+
 **Compiler dependency:** [`compile-modules-to-edag.md`](./compile-modules-to-edag.md)
-provides the linked graphs. Its initial rest-only, non-capturing Stage 2 is
-historical; the interpreter follows the current fixed/rest and capture contract.
+provides module lowering and linking. The loader interprets each unresolved
+initializer with represented dependency exports to retain failure source paths.
+Its initial rest-only, non-capturing Stage 2 is historical; the interpreter
+follows the current fixed/rest and capture contract.
 
 ### Goal
 
 Provide a baseline FunctionalScript interpreter for a final compiled EDAG.
 
-Module compilation and module resolution produce one final EDAG. Executing that EDAG
-is a separate concern. One execution strategy is to interpret it directly; another is
-to compile it to an executable function.
+Executing EDAG is separate from producing it. The compiler can link modules into
+one final graph for code generation, while
+[module initialization](../../edag/values.md#module-initialization) interprets
+each module's initializer with already resolved dependency values. The same
+memo executor supports both a closed graph and a module with represented arguments.
 
 This TODO establishes only the basic direct-interpreter path. Deterministic time,
 memory, and hostile-depth hardening are separate work in
@@ -39,10 +47,9 @@ data; no handwritten Rust EDAG executor or native `import` effect is required.
 The optional [Rust EDAG library](../../../todo/rust-edag.md) is separate,
 deferred work and does not block these consumers.
 
-The existing executor is a host baseline: `slot` captures and mutates `let filled`.
-Its [immutable-cache rewrite](../../edag/memo/todo/immutable-cache.md) is required
-before AOT-compiling it under the existing FJS capture semantics. Broader compiler
-coverage alone does not make that captured mutation valid FJS.
+The memo executor now uses an immutable cache threaded through demanded operands.
+Its [native parity checks](../../edag/memo/todo/immutable-cache.md) remain open;
+this rewrite does not claim that the dependency closure compiles to native code.
 Host `Map` dependencies and runtime string-key dispatch in the executor's
 dependency closure also need the
 [native migrations](./load-modules-without-import-effect.md#native-prerequisites).
@@ -51,8 +58,8 @@ and static calls. Neither migration approves new language semantics.
 
 ### Proposal
 
-The baseline interpreter is [`fjs/edag/memo`](../../edag/memo/module.f.mjs), using
-the shared [`operations`](../../edag/operations/module.f.mjs) and
+The interpreter is [`fjs/edag/memo`](../../edag/memo/module.f.mjs), using
+represented [`value`](../../edag/value/types.ts) operations and the
 [`analysis`](../../edag/analysis/module.f.mjs) table. The requirements below govern
 its remaining entry-point and integration work, not a second interpreter for an
 older function representation.
@@ -72,9 +79,9 @@ Conceptually:
 
 ```text
 source modules
-  -> resolve to valid final EDAG
-  -> interpret EDAG
-  -> value
+  -> each initializer EDAG + resolved dependency values
+  -> interpret each module through memo
+  -> represented export values
 ```
 
 Interpret the EDAG directly. Do **not** serialize or translate the EDAG back to
@@ -112,18 +119,21 @@ captured value through `['frame', i]` in its own invocation. The slots are an ar
 operand of `=>`, `[]` when nothing is captured. Fixed values
 and rest arrays captured by nested functions use the same frame mechanism.
 
-Hand-written arrow factories ([`fjs/types/function/length`](../../types/function/length/README.md))
-adapt host calls to the evaluator's `(fixed, rest)` bindings, preserving declared
-JavaScript `length` without runtime code generation.
-The table covers every length the language admits, 0–16.
-The parameter plan's default-function-text gate remains open: these callables still
-expose wrapper source on native conversion. Interpreter integration must not claim
-that rendering or callable/EDAG association is complete.
+Both interpreters' represented call preparation supplies fixed/rest bindings
+without host arrow factories. The approved
+language limit remains 0–16. Memo renders every admitted function body through
+the trusted `functionText(analysis, index): string` entry described in the
+[value contract](../../edag/values.md#operations-and-failures). This renders
+code with frame-slot names and does not execute the emitted text.
+[Runtime compilation](../../edag/values.md#runtime-compilation) is implemented
+at the explicit output boundary; callable/EDAG association remains separate work.
 
-A function body is a separate EDAG scope. Validation before interpretation must reject
-operation-node identities shared across function boundaries; otherwise a single
-semantic node could produce different runtime values in different invocation contexts.
-Sharing within one body remains valid and is memoized per invocation.
+A function body is a separate EDAG scope. The supplied-data admission entry must
+reject operation-node identities shared across function boundaries; otherwise a
+single semantic node could produce different runtime values in different invocation
+contexts. Compiler and VM output preserve this rule by
+[construction](../../edag/values.md#construction-and-identity). Sharing within
+one body remains valid and is memoized per invocation.
 
 ### The memoization table
 
@@ -135,60 +145,53 @@ cache by those integers — one map for the whole code, values cached per
 function: an invocation holds only the entries of its own body's scope. The
 table names its operands by index, so the interpreter runs the table and never
 walks the EDAG's objects.
-The operations themselves are amnesia's, factored into a table both executors
-share, so the interpreter differs from amnesia only in reusing a value. The
-table's `.` reads an own property, `Object.getOwnPropertyDescriptor(a, key)?.value`,
-as the specification defines an access and as amnesia's `own` reads today
+Memo and Amnesia share represented operations, differing in how operands are
+reused. Both `.` and `own` read represented own properties,
+as the specification defines an access
 ([`fjs/edag/todo/entry.md`](../../edag/todo/entry.md)), so an
 inherited property is `undefined` whatever a realm puts on a prototype.
-Validation refuses, besides, an access whose index is a prohibited property
-name — `constructor`, `__proto__`, every name a built-in prototype gives by
+The planned public admission entry must also refuse an access whose index is a
+prohibited property name — `constructor`, `__proto__`, every name a built-in prototype gives by
 the parser's list in [`fjs/js/prototype`](../../js/prototype/module.f.js),
 all but `length` — since such a graph is not one the compiler emits.
 
-### Existing value-producing API integration
+### Value-producing API integration
 
-The preceding P2 compiler work deliberately adds the EDAG-producing path **alongside**
-the current value-producing DJS transpiler/CLI. The remaining integration step is to
-migrate that value-producing path to use EDAG internally. Under the planned
-`EdagValue` contract, choose conversion at the requested API/output boundary:
+[`compiler/transpiler`](../transpiler/module.f.mjs) now exposes
+`interpret(path)`: load each dependency once, compile each parsed module with
+`unresolved`, then run memo with the complete represented dependency exports as
+arguments. The existing module walk retains import ordering, missing-export
+checks and source paths. This per-module boundary replaces the planned single
+final-graph evaluation because a linked EDAG alone no longer identifies the
+source of an initializer failure. It uses the same lowering and interpreter;
+there is no AST value evaluator or third module-resolution walk.
 
-```text
-source modules
-  -> valid final EDAG
-  -> interpret EDAG into Result<EdagValue, EdagValue>
-  -> success: complete represented export object
-     -> runtime-value API: materialize the complete runtime export object
-     -> JSON/DataJS: select represented default, convert supported data, serialize
-```
+Its successful result is the complete represented export object, or the document
+for a direct JSON input. Its error channel is `ParseError | InitializationError`;
+the latter has the source `path`, `metadata: null`, a diagnostic `message` and
+the original represented `thrown` payload. The VM still returns
+`Result<EdagValue, EdagValue>`; only the loader adds source context.
 
-This materialization uses the target boundary in the
-[value plan](../../edag/todo/edag-value.md#compilation-and-conversion-to-unknown):
-function-free data can be decoded in FJS, while callable exports require
-backend-generated or precompiled runtime code and the target's load/build step.
-Their calls accept ordinary runtime callbacks directly. A pure data converter
-cannot provide callable exports; an unavailable materialization boundary is an
-output refusal. Integration must supply that boundary to callers needing
-callables and declare any compiler API changes in its implementation PR.
+`transpile` composes `interpret` with effectful `toUnknown`, returning the complete
+ordinary export object directly as `unknown`. Its operations are
+`ReadFile | ResolveFileModule | CompileValue` and its error channel is
+`SourceError | IoChannel`. The runner supplies the target compile/load operation
+for callable results; data-only results require none. Source failures keep their
+represented payload and path, while runtime compilation failures use `IoChannel`.
+The old nested output Result and `Denotation` wrapper are removed.
 
-JSON/DataJS project the represented `default` before converting that value;
-unselected callable exports do not require callable materialization. For example,
-`export const f = x => x; export default 1;` can still produce JSON `1`.
-Initialization of every required declaration still runs before this projection.
+For JSON/DataJS, `_transpileDefault` projects the represented default before
+`toData`, retaining an inner `Result<DataJS.Unknown, string>` for conversion
+refusals; an unselected callable export needs no conversion. Every required
+initializer still runs. Direct JSON roots remain documents and bypass both
+wrapping and projection. Conversion and serialization refusals name the output
+file, while initialization failures name their source file. The CLI reports
+`module initialization failed`; API callers retain its represented payload.
+FunctionalScript output continues to rewrite the linked EDAG without evaluation.
 
-This integration must preserve the
-[compile API boundary](./compile-modules-to-edag.md#existing-compile-api-boundary)
-as updated by [#2129](https://github.com/functionalscript/functionalscript/pull/2129).
-`transpile` returns a `Denotation` whose `value` is the complete module export
-object, with named properties and `default` when present.
-The `.data.js` and `.json` outputs serialize `result.default`. A direct `.json`
-root remains a document and bypasses wrapping and projection. FunctionalScript
-output rewrites the linked EDAG without evaluating the module, emitting its
-exports through [`../serializer`](../serializer/module.f.mjs). The contract's
-error half is
-[`value-refusal-names-the-output.md`](./value-refusal-names-the-output.md),
-which widens the channel this paragraph holds fixed.
-The separately serializable final EDAG remains a compiler artifact/API from the P2 task.
+The shared readers now live in [`source`](../source/module.f.mjs), avoiding an
+import cycle between lowering and the transpiler. Consolidating the existing two
+module walks remains [separate work](./one-module-resolution-walk.md).
 
 This TODO does not define resource budgets, deterministic stopped outcomes, iterative
 host-stack hardening, or production limits. Those concerns belong to the resource
@@ -196,10 +199,16 @@ hardening TODO after the baseline interpreter exists.
 
 ### Tasks
 
-- [x] Provide the baseline memo executor in [`../../edag/memo`](../../edag/memo/module.f.mjs).
+- [x] Provide represented memo interpretation in [`../../edag/memo`](../../edag/memo/module.f.mjs).
+- [x] Replace the captured mutable cache with immutable evaluation state,
+      preserving sharing, lazy demand, fresh calls and capture identity.
+- [x] Render every admitted function body through the shared function-text
+      renderer, preserving existing canonical text and using general JavaScript
+      expressions for bodies outside the source writer's round-trip subset.
+      Direct and indirect conversion remain within the represented VM; checked
+      admission and callable runtime compilation are separate boundaries.
 - [ ] Before native self-hosting, complete the
-      [immutable-cache rewrite](../../edag/memo/todo/immutable-cache.md) and its
-      sharing/laziness parity checks; this does not block host-only integration.
+      [native cache parity checks](../../edag/memo/todo/immutable-cache.md).
 - [ ] At the entry accepting final EDAG supplied as FJS data, check the
       remaining constructible malformed shapes, metadata and bindings once
       before interpretation. Preserve sharing and reuse analysis; do not
@@ -239,29 +248,29 @@ hardening TODO after the baseline interpreter exists.
       The parser applies the same rule today on nested accesses, each access's
       key judged by whether a call follows it. No prohibited shape is emitted,
       and the executor never reads one.
-- [ ] Return the interpreted value for a valid final EDAG.
-- [ ] Integrate final-EDAG interpretation behind the existing value-producing DJS
-      `transpile` / `fjs compile` path without changing its success result/output
-      for the value outputs, `.data.js` and `.json`; the FunctionalScript
-      output is the writer's, per [`../serializer`](../serializer/module.f.mjs).
-      The DataJS serializer then decides sharing on the executed value: pin
-      `[cfg.x, cfg.x]` with `x: []` hoisted as `const $0=[];export default
-      [$0,$0];` and written as `[[],[]]` in JSON, as the compiler proof pins
-      it today ([`../../edag/todo/analysis.md`](../../edag/todo/analysis.md)).
-- [ ] Add proofs that primitive, array, object, property-access, import-resolved, and
+- [ ] Expose the public entry for final EDAG supplied as data, returning its
+      represented result after admission.
+- [x] Integrate EDAG interpretation behind `transpile` and `fjs compile`,
+      preserving successful data outputs and graph sharing. Interpret per module
+      to retain dependency failure paths; materialize after selecting the output.
+      JSON/DataJS retain an inner Result for conversion refusal; `transpile`
+      composes callable runtime compilation and returns the ordinary value directly.
+- [x] Add proofs that primitive, array, object, property-access, import-resolved, and
       shared-node EDAGs evaluate to the expected values.
 - [x] Add Stage 2 proofs for non-capturing functions, ordinary calls, and method calls.
       Done: `agrees` in [`../../edag/memo/proof.f.mjs`](../../edag/memo/proof.f.mjs)
       runs `=>`, an ordinary `()` call and method calls through `|()` and `|?.()`
       beside amnesia.
-- [ ] Whenever the optional nodes enter the interpreted subset, execute them per
+- [x] Execute optional nodes per
       "Chains" in [`../../edag/README.md`](../../edag/README.md) — receiver state
       created by `.`/`?.` and the `|.` step, consumed by the three call steps; an
       optional node's `index` or argument operand left unevaluated on its nullish
       branch, which the proofs must observe (`a?.[k]`, `f?.(...a)`), along with the
       short-circuit of the rest of the continuation — and its one exception, `|!()`,
       which the parentheses put outside the region and which therefore runs on the
-      `undefined` a short-circuit produced.
+      `undefined` a short-circuit produced. Done: `chains` in
+      [`../../edag/memo/proof.f.mjs`](../../edag/memo/proof.f.mjs) and the chain
+      proofs in [`../../edag/amnesia/proof.f.mjs`](../../edag/amnesia/proof.f.mjs).
 - [x] Add an invocation-scope proof such as calling `x => [x]` with `1` and `2`:
       results contain the corresponding argument and do not reuse the constructed
       array across calls, while repeated references inside one call still share.
@@ -270,15 +279,14 @@ hardening TODO after the baseline interpreter exists.
       function body is rejected. Done: `throw` in
       [`../../edag/analysis/proof.f.mjs`](../../edag/analysis/proof.f.mjs)
       (`outsideThenInside`, `insideThenOutside`, `siblingBodies`).
-- [ ] Add a diamond/shared-node proof showing one shared EDAG node produces one shared
+- [x] Add a diamond/shared-node proof showing one shared EDAG node produces one shared
       runtime value within the relevant evaluation context.
-- [ ] Add an integration proof that a multi-module program compiled/resolved to one
-      final EDAG and then interpreted produces the same final value as the current DJS
-      transpiler.
-- [ ] Add a CLI/API compatibility proof that the existing value-producing `transpile`
-      result — the `Denotation`'s value — and the `.data.js` and
-      `.json` outputs of `fjs compile` remain unchanged after switching their
-      internals to final-EDAG interpretation.
+- [x] Add multi-module integration proofs over actual parsing, lowering and
+      represented interpretation, preserving data results and shared imports.
+- [x] Prove the ordinary data returned by `transpile` and the `.data.js` and
+      `.json` outputs of `fjs compile` survive the switch to EDAG interpretation.
+      The API now returns its value directly and also supports callable exports
+      through the target compile/load operation.
 - [ ] `tsc`, `fjs test`.
 
 ### Related
@@ -287,11 +295,10 @@ hardening TODO after the baseline interpreter exists.
   for compiling the memo executor to Rust, independent of syntax coverage.
 - [load-modules-without-import-effect](./load-modules-without-import-effect.md) —
   composes loading around this interpreter; does not implement a second executor.
-- [`compile-modules-to-edag.md`](./compile-modules-to-edag.md) — produces the final
-  EDAG this interpreter executes while keeping the old value-producing callers in
-  place until this integration lands.
+- [`compile-modules-to-edag.md`](./compile-modules-to-edag.md) — provides the module
+  lowering used by interpretation and linked graphs for code generation.
 - [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resources.md) —
   adds deterministic resource and host-stack hardening after this baseline exists.
 - [`associate-edag-with-functions.md`](./associate-edag-with-functions.md) — records
-  callable/EDAG association; default function-text work remains open in the
-  [parameter plan](../../../spec/todo/3120-parameters.md).
+  callable/EDAG association; the broader default function-text contract is in
+  the [parameter plan](../../../spec/todo/3120-parameters.md).

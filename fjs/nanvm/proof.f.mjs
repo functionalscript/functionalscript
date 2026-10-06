@@ -1,40 +1,31 @@
 /**
- * The JavaScript reference for `nanvm-lib`'s operators.
+ * The shared operator corpus runs through represented EDAG interpretation and
+ * an independent JavaScript reference. Amnesia evaluates lowered expressions
+ * as Result<EdagValue, EdagValue>; the reference applies native operators to
+ * ordinary values decoded directly from the corpus's fixture descriptions.
+ * No host-valued EDAG evaluator or callable runtime compilation is needed.
  *
- * Every case in [`module.f.mjs`](./module.f.mjs) is lowered to the EDAG
- * expression it denotes and evaluated here, so the shared data is proven to
- * describe JavaScript before `nanvm-lib/tests/test/gen.corpus/` holds
- * `nanvm-lib` to it. This module contains no test cases of its own beyond
- * `jsOnly` (below `edagShape`) and `crossCheck` (below `group`) — adding a
- * case means editing the data.
- *
- * The operand-count assertions are not here but in
- * [`types.ts`](./types.ts): a `@typedef` inside a function body is never
- * checked, so the claim has to be a module-scope alias in a `.ts` file to be
- * one at all.
- *
- * Every case runs through [`amnesia`](../edag/amnesia/module.f.mjs), the
- * repository's one real EDAG evaluator, rather than a second hand-written
- * walker — so an operator's behaviour here is proven by actually executing
- * the EDAG node, the same way [`../edag/proof.f.mjs`](../edag/proof.f.mjs)
- * proves the schema against it. The `'==='` group used to be the exception:
- * its cases check EDAG node **identity** (`arrayByItself` and friends), which
- * amnesia deliberately does not preserve — see "It forgets" in
- * [amnesia's README](../edag/amnesia/README.md) — so this module carried a
- * second, memoizing walker and the corpus a second case shape for them. It
- * carries neither now: amnesia takes the nodes a caller has already
- * established (`Context`'s `memo`), so `sharedMemo` below hands it the
- * corpus's shared nodes and those cases are ordinary ones.
+ * All corpus cases run through Amnesia, including canonical function text.
+ * Existing host-allocation failures remain explicit host-throw assertions;
+ * language failures are Result assertions.
+ * Only the native reference skips host-marked function-text cases. Named
+ * shared fixtures seed Amnesia's caller-owned memo and the independent native
+ * fixture environment, preserving identity within each implementation.
  *
  * @import { Exp } from '../edag/types.ts'
+ * @import { EdagValue, Array as ValueArray } from '../edag/value/types.ts'
+ * @import { ValueResult } from '../edag/value/control/types.ts'
  * @import { Context } from '../edag/amnesia/types.ts'
- * @import { AnyCase, CallbackName, Expectation, Group, SharedNode, Value } from './types.ts'
+ * @import { AnyCase, CallbackName, Group, SharedNode, Value } from './types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../asserts/module.f.mjs'
 import { structurallySame } from '../types/object/structurally_same/module.f.mjs'
 import { exp } from '../edag/module.f.mjs'
-import { vm } from '../edag/amnesia/module.f.mjs'
+import { vm, invoke } from '../edag/amnesia/module.f.mjs'
+import { call } from '../edag/value/call/module.f.mjs'
+import { toData } from '../edag/value/to_unknown/module.f.mjs'
+import { ok } from '../types/result/module.f.mjs'
 import { validate } from '../rtti/validate/module.f.mjs'
 import {
     callback,
@@ -69,9 +60,8 @@ const { fromEntries, is } = Object
  * at two are two entries, as they are two groups, and a consumer needs no
  * arity dispatch to find the one it wants.
  *
- * No case *runs* through these — every case runs through `amnesia`'s `vm`
- * (see `run` below) — so an entry is a claim about what an operation denotes
- * and nothing else. An absent entry means that group is not cross-checked at
+ * These are the independent native checks; every case also runs through
+ * `amnesia`'s `vm` (see `run` below). An absent entry means that group is not cross-checked at
  * all, which `referenceCoverage` below makes a deliberate list of exactly
  * one rather than an oversight: `own`, whose plain
  * `Object.getOwnPropertyDescriptor` read is not a copy of `amnesia`'s
@@ -125,8 +115,8 @@ const js = {
  * the receiver with the rest as its arguments — `(r, ...a) => r.at(...a)`.
  * One entry for every method rather than one per name in {@link js}: the
  * method is the host's, so there is nothing per name to write, and
- * `amnesia`'s `callProperty` reaching the same built-in through the chain
- * node is exactly what this checks against.
+ * the represented method dispatcher reached through the chain node is
+ * exactly what this checks against.
  *
  * @type {(method: string) => (...args: readonly any[]) => unknown}
  */
@@ -162,7 +152,7 @@ const reference = key => {
  *
  * @type {Context}
  */
-const context = { frame: undefined, args: [] }
+const context = { frame: [], args: [] }
 
 /**
  * The shared nodes, established one value each, for `amnesia`'s `memo`.
@@ -180,18 +170,18 @@ const context = { frame: undefined, args: [] }
  * `amnesia` forgets by design, so the nodes it must not recompute are handed
  * to it rather than walked by a second evaluator here.
  *
- * @type {(shared: readonly SharedNode[]) => readonly (readonly[Exp, unknown])[]}
+ * @type {(shared: readonly SharedNode[]) => readonly (readonly[Exp, EdagValue])[]}
  */
 const sharedMemo = shared => shared.reduce(
-    (/** @type {readonly (readonly[Exp, unknown])[]} */ memo, [, node]) =>
-        [...memo, /** @type {readonly[Exp, unknown]} */
-            ([node, vm({ ...context, memo })(node)])],
+    (/** @type {readonly (readonly[Exp, EdagValue])[]} */ memo, [, node]) =>
+        [...memo, /** @type {readonly[Exp, EdagValue]} */
+            ([node, assertOk(vm({ ...context, memo })(node))])],
     [])
 
 /**
  * `amnesia`, with the given shared nodes established.
  *
- * @type {(shared: readonly SharedNode[]) => (e: Exp) => unknown}
+ * @type {(shared: readonly SharedNode[]) => (e: Exp) => ValueResult}
  */
 const shared = s => vm({ ...context, memo: sharedMemo(s) })
 
@@ -205,7 +195,7 @@ const nodes = sharedExp(data.shared)
  * one invocation, so two cases never see the same object. Within one call
  * they do, which is what `arrayByItself` asserts.
  *
- * @type {() => (e: Exp) => unknown}
+ * @type {() => (e: Exp) => ValueResult}
  */
 const corpus = () => shared(nodes)
 
@@ -213,111 +203,110 @@ const corpus = () => shared(nodes)
 const exprOf = caseExp(nodes)
 
 /**
- * A value as `crossCheck`'s reference sees it, built through the same
- * lowering and the same `vm` a case goes through, so there is one walk from
- * a corpus value to a JavaScript one rather than two that can disagree.
- * A `ref` operand does reach a shared node, which is why the evaluator is a
- * parameter rather than made here: `crossCheck` hands the same one to this
- * and to the case's own expression, so the reference sees the object the
- * case does. `amnesia`'s non-preservation of identity is the reason that
- * matters — see the note in `crossCheck` below.
- *
- * @type {(ev: (e: Exp) => unknown) => (v: Value) => unknown}
+ * Fixed JavaScript callback fixtures, each construction returning a fresh
+ * function. They decode corpus descriptions; they do not execute EDAG.
+ * @type {Readonly<Record<CallbackName, () => (...args: readonly any[]) => unknown>>}
  */
-const value = ev => v => ev(valuesExp(nodes)(v))
+const callbacks = {
+    args: () => (...a) => a,
+    first: () => (...a) => a[0],
+    prop: () => (...a) => a[0].x,
+    double: () => (...a) => a[0] * 2,
+    add: () => (...a) => a[0] + a[1],
+    pair: () => (...a) => [a[0], [a[0]]],
+    ascending: () => (...a) => a[0] - a[1],
+    descending: () => (...a) => a[1] - a[0],
+    zero: () => () => 0,
+}
+
+/**
+ * Ordinary JavaScript values built directly from corpus fixtures. Named
+ * references retain identity; every other container and function is fresh.
+ * A returns fixture builds its result on each call, exactly as its literal
+ * JavaScript spelling does. This decoder has no operator or EDAG dispatch.
+ * @type {(shared: readonly (readonly [string, unknown])[], v: Value) => unknown}
+ */
+const fixture = (shared, v) => {
+    if (typeof v === 'function') {
+        const info = v()
+        switch (info[0]) {
+            case 'ref': { return assertNotNullish(shared.find(([name]) => name === info[1]))[1] }
+            case 'function': { return () => undefined }
+            case 'callback': { return callbacks[info[1]]() }
+            case 'returns': { return () => fixture([], info[1]) }
+            default: { return 1n / 0n }
+        }
+    }
+    if (v instanceof Array) { return v.map(item => fixture(shared, item)) }
+    return typeof v === 'object' && v !== null
+        ? fromEntries(Object.entries(v).map(([name, item]) => [name, fixture(shared, item)]))
+        : v
+}
+
+/** A fresh reference fixture environment for each cross-check. @type {() => readonly (readonly [string, unknown])[]} */
+const fixtureShared = () => Object.entries(data.shared).reduce(
+    (/** @type {readonly (readonly [string, unknown])[]} */ shared, [name, v]) =>
+        [...shared, /** @type {const} */ ([name, fixture(shared, v)])], [])
+
+/** Evaluated corpus values stay represented until a proof requests data. @type {(v: Value) => EdagValue} */
+const value = v => assertOk(corpus()(valuesExp(nodes)(v)))
+
+/** Only function-free results cross this existing data conversion boundary. @type {(result: ValueResult) => unknown} */
+const runtime = result => assertOk(toData(assertOk(result)))
 
 /**
  * The value one argument order produces: the case's expression evaluated
  * through `amnesia`'s `vm`.
  *
- * @type {(g: Group) => (args: readonly Value[]) => unknown}
+ * @type {(g: Group) => (args: readonly Value[]) => ValueResult}
  */
 const run = g => args => corpus()(exprOf(g)(args))
 
 /**
- * One group's leaves as a proof object: the ordinary cases by name, and the
- * throwing ones under a nested `throw` key — the framework's structural way
- * of declaring that a test is expected to throw. A case marked `host` is
- * not a leaf of either. A throwing leaf stops at its
- * first exception, which is why each argument order is its own leaf, and why
- * {@link group} and {@link crossCheck} are two trees rather than one: a leaf
- * that asserts a throw can assert one call, so the two implementations cannot
- * share it. Everything around that they can, which is what this is.
- *
+ * The host-reference tree preserves structural throwing leaves and excludes
+ * only function-text-dependent cases. Represented interpretation below runs
+ * those cases too, because it owns the canonical EDAG-derived text.
  * @type {(g: Group) => (leaves: (c: AnyCase) => readonly (readonly[string, () => void])[]) => object}
  */
 const tree = g => leaves => {
-    // A `host` case is the Rust side's alone: its `expected` is a
-    // function's text, which the host renders differently.
     const cases = casesOf(g).filter(c => c.host === undefined)
-    const ok = cases.filter(c => !isThrows(c.expected)).flatMap(leaves)
+    const good = cases.filter(c => !isThrows(c.expected)).flatMap(leaves)
     const bad = cases.filter(c => isThrows(c.expected)).flatMap(leaves)
     return bad.length === 0
-        ? fromEntries(ok)
-        : { ...fromEntries(ok), throw: fromEntries(bad) }
+        ? fromEntries(good)
+        : { ...fromEntries(good), throw: fromEntries(bad) }
 }
 
 /**
- * Each case run through `amnesia`, against the `expected` the corpus states.
- *
+ * Every case runs through represented interpretation, including canonical
+ * function text. Language failures inspect Result; existing allocation-limit
+ * cases still assert their host exceptions until resource handling lands.
+ * The framework reserves the exact name `throw`, so Result leaves with that
+ * corpus name use `throwResult` instead.
  * @type {(g: Group) => object}
  */
 const group = g => {
-    /** @type {(c: AnyCase) => readonly (readonly[string, () => void])[]} */
-    const leaves = c => {
-        const { expected } = c
-        /** @type {(args: readonly Value[]) => () => void} */
-        const fn = isThrows(expected)
-            ? args => () => { run(g)(args) }
-            : args => () => {
-                // Structurally, with `Object.is` at the leaves, so `NaN`
-                // matches `NaN` and `0` does not match `-0`, and a fresh
-                // array matches an equal one; the Rust side compares the
-                // same way.
-                const result = run(g)(args)
-                // `expected` describes the outcome, not the program, so it is
-                // built as a value and never joined to the case's expression.
-                const e = vm(context)(valueExp(expected))
-                assert(structurallySame(result, e), [result, 'is not', e])
-            }
-        return orders(g)(c).map(([name, args]) => [name, fn(args)])
-    }
-    return tree(g)(leaves)
+    const cases = casesOf(g)
+    const results = fromEntries(cases.filter(c => c.allocation === undefined).flatMap(c => orders(g)(c).map(([name, args]) => [name === 'throw' ? 'throwResult' : name, () => {
+        const result = run(g)(args)
+        if (isThrows(c.expected)) { assertError(result); return }
+        const actual = assertOk(result)
+        const expected = assertOk(vm(context)(valueExp(c.expected)))
+        assert(structurallySame(actual, expected), [actual, 'is not', expected])
+    }])))
+    const allocation = cases.filter(c => c.allocation !== undefined).flatMap(c => orders(g)(c).map(([name, args]) => [name, () => { run(g)(args) }]))
+    return allocation.length === 0 ? results : { ...results, throw: { allocation: fromEntries(allocation) } }
 }
 
 /**
- * Replays a group's cases a second time, through the bare JavaScript
- * operator ({@link js}) instead of `amnesia`, and checks the two agree.
+ * Independently execute each operation on ordinary JavaScript fixture values.
+ * Named references share within each side; graph values and host values never
+ * need to be the same objects. Non-throwing data results agree structurally.
  *
- * `amnesia`'s handler and the JS operator are two independent
- * implementations of the same operation, and nothing else keeps them in
- * step. That is exactly how `own`'s receiver-before-key check order drifted
- * between the two before anyone noticed by hand
- * ([nanvm-lib#1879](https://github.com/functionalscript/functionalscript/pull/1879),
- * fixed in `523b08a` for this file and `a6aabfc` for `amnesia`): a corpus
- * case with `expected: throws` can't tell two throwing orders apart, so
- * nothing here would have caught it either — but a wrong non-throwing
- * *value* is exactly what this catches, and would have caught it sooner had
- * one of the two reorderings landed first without the other.
- *
- * A group with no reference entry is skipped — `own`, for the reason at
- * {@link js}, and nothing else, which `referenceCoverage` pins. Every
- * operation that has one is a bare JavaScript operator on both sides, so
- * agreement is the only correct outcome, not a coincidence of scope. A
- * function operand is compared like any other: both sides see a closure, and
- * every operator here coerces one the same way. A case with an `unreached`
- * anywhere in an operand is skipped too: the reference is a JavaScript
- * operator over *values*, and that operand has none to hand it —
- * establishing it, or the container holding it, is exactly what the case
- * claims does not happen, so the operand's value would be the throw. Such a
- * case is proven through `amnesia` alone, in {@link group}, where the
- * operator meets the node rather than its value.
- *
- * Throwing cases are checked structurally only — both sides must throw,
- * not throw the same thing — for the same reason `group` above can't
- * compare thrown values: see
- * `../emergent_testing/todo/throw-payload-assertions.md`.
- *
+ * `own` has its documented string-key restriction and no host counterpart.
+ * Unreached operands cannot become eager reference values, so their lazy cases
+ * are interpreter-only. Function-text cases are skipped only here: JavaScript
+ * gives these literal callbacks their host text, not canonical EDAG text.
  * @type {(g: Group) => object}
  */
 const crossCheck = g => {
@@ -326,19 +315,16 @@ const crossCheck = g => {
     if (f === undefined) { return {} }
     /** @type {(c: AnyCase) => readonly (readonly[string, () => void])[]} */
     const leaves = c => c.args.some(hasUnreached) ? [] : orders(g)(c).map(([name, args]) => {
-        const e = exprOf(g)(args)
-        // One evaluator per run: the case's expression and the reference's
-        // operands must see the same object across a shared node, or
-        // `arrayByItself` would compare two arrays here and one there.
-        /** @type {(ev: (e: Exp) => unknown) => unknown} */
-        const refValue = ev => f(...args.map(value(ev)))
+        const refValue = () => {
+            const shared = fixtureShared()
+            return f(...args.map(v => fixture(shared, v)))
+        }
         const fn = isThrows(c.expected)
-            ? () => { refValue(corpus()) }
+            ? () => { refValue() }
             : () => {
-                const ev = corpus()
-                const amnesiaValue = ev(e)
-                const r = refValue(ev)
-                assert(structurallySame(amnesiaValue, r), [amnesiaValue, 'is not', r, 'for', key])
+                const actual = runtime(run(g)(args))
+                const expected = refValue()
+                assert(structurallySame(actual, expected), [actual, 'is not', expected, 'for', key])
             }
         return [name, fn]
     })
@@ -368,7 +354,7 @@ const referenceCoverage = () => {
  *
  * The node is what both consumers agree on — `amnesia` establishes it, the
  * printer recognises exactly it — so its shape is pinned here as data, and
- * its evaluation as a host function. Nested, it is the same node inside the
+ * its evaluation as a represented function. Nested, it is the same node inside the
  * container's, which is what lets a function sit in an array or object
  * operand without either consumer needing a second walk.
  */
@@ -377,13 +363,13 @@ const lambda = () => {
     assertStructurallySame(valueExp(functionValue), lambdaExp())
     assertStructurallySame(valueExp([functionValue]), ['[]', [lambdaExp()]])
     assertStructurallySame(valueExp({ f: functionValue }), ['{}', [[':', 'f', lambdaExp()]]])
-    assertEq(typeof value(corpus())(functionValue), 'function')
+    assertEq(/** @type {readonly unknown[]} */ (value(functionValue))[0], '=>')
+    assertStructurallySame(assertOk(call(ok(value(functionValue)), [], invoke)), ['undefined'])
     // A `returns` is the function a callback is, its value the body.
     assertStructurallySame(valueExp(returns([1])), ['=>', 0, [], ['[]', [1]]])
     assertStructurallySame(valueExp(returns(unreached)), functionExp(unreachedExp()))
     // Two function operands are two closures, not one node reached twice.
-    const [f, g] = /** @type {readonly unknown[]} */ (
-        value(corpus())([functionValue, functionValue]))
+    const [, [f, g]] = /** @type {ValueArray} */ (value([functionValue, functionValue]))
     assert(f !== g, ['one closure reached twice'])
     // A function is shareable like any other value: two are two closures, one
     // reached through `ref` is one, and a nested one is the same node inside
@@ -392,12 +378,12 @@ const lambda = () => {
     const operand = valuesExp(own)
     const ev = shared(own)
     /** @type {(a: Value, b: Value) => unknown} */
-    const same = (a, b) => ev(['===', operand(a), operand(b)])
+    const same = (a, b) => assertOk(ev(['===', operand(a), operand(b)]))
     assertEq(same(functionValue, functionValue), false)
     assertEq(same(ref('fn'), ref('fn')), true)
     assertEq(same(ref('holder'), [ref('fn')]), false)
     const [[, fn], [, holder]] = sharedMemo(own)
-    assert(/** @type {readonly unknown[]} */ (holder)[0] === fn, ['nested function is a copy'])
+    assert(/** @type {ValueArray} */ (holder)[1][0] === fn, ['nested function is a copy'])
 }
 
 /**
@@ -407,7 +393,7 @@ const lambda = () => {
  */
 const callbacksProof = () => {
     /** @type {(name: CallbackName, args: readonly Value[]) => unknown} */
-    const call = (name, args) => corpus()(['()', callbackExp(name), args.map(valueExp)])
+    const call = (name, args) => runtime(corpus()(['()', callbackExp(name), args.map(valueExp)]))
     assertStructurallySame(call('args', [1, 'a']), [1, 'a'])
     assertEq(call('first', [3, 4]), 3)
     assertEq(call('prop', [{ x: 5 }]), 5)
@@ -419,7 +405,7 @@ const callbacksProof = () => {
     assertEq(call('zero', [1, 3]), 0)
     assertStructurallySame(valueExp(callback('double')), callbackExp('double'))
     assertStructurallySame(valueExp([callback('args')]), ['[]', [['=>', 0, [], ['rest']]]])
-    assertEq(typeof value(corpus())(callback('args')), 'function')
+    assertEq(/** @type {readonly unknown[]} */ (value(callback('args')))[0], '=>')
 }
 
 /**
@@ -434,12 +420,12 @@ const method = () => {
         ['.', ['[]', [1, 2]], 'at', ['|()', [0]]])
     assertStructurallySame(exprOf(g)([[]]), ['.', ['[]', []], 'at', ['|()', []]])
     assertEq(groupKey(g), '.at')
-    assertEq(corpus()(exprOf(g)([[1, 2], -1])), 2)
+    assertEq(assertOk(corpus()(exprOf(g)([[1, 2], -1]))), 2)
 }
 
 /**
  * An `unreached` lowers to an operation that throws when established, and
- * `amnesia` does throw on it — which is what makes a lazy-position case
+ * `amnesia` returns an error on it — which makes a lazy-position case
  * holding one a proof: the case answers a value only because the operand was
  * never established. The Rust side's counterpart is `rust/proof.f.mjs`'s
  * printed thunk, and `nanvm-lib`'s own `bigTenDividedByZero`.
@@ -457,16 +443,16 @@ const unreachedOperand = {
         assert(!hasUnreached(null))
         assert(!hasUnreached(1))
     },
-    /** In a lazy position the case answers, a container holding it too; in an eager one it throws. */
+    /** In a lazy position the case answers, a container holding it too; in an eager one it returns an error. */
     lazy: () => {
-        assertEq(corpus()(['&&', false, valueExp(unreached)]), false)
-        assertEq(corpus()(['&&', false, valueExp([unreached])]), false)
-        assertEq(corpus()(['?:', true, 1, valueExp(unreached)]), 1)
+        assertEq(assertOk(corpus()(['&&', false, valueExp(unreached)])), false)
+        assertEq(assertOk(corpus()(['&&', false, valueExp([unreached])])), false)
+        assertEq(assertOk(corpus()(['?:', true, 1, valueExp(unreached)])), 1)
     },
-    throw: {
-        established: () => corpus()(valueExp(unreached)),
-        eagerPosition: () => corpus()(['*', 1, valueExp(unreached)]),
-        selectedArm: () => corpus()(['?:', false, 1, valueExp(unreached)]),
+    failures: () => {
+        assertError(corpus()(valueExp(unreached)))
+        assertError(corpus()(['*', 1, valueExp(unreached)]))
+        assertError(corpus()(['?:', false, 1, valueExp(unreached)]))
     },
 }
 
@@ -495,7 +481,7 @@ const nestedSharing = () => {
     const memo = sharedMemo(own)
     const [[, baseValue], [, wrapperValue]] = memo
     assert(
-        /** @type {readonly unknown[]} */ (wrapperValue)[0] === baseValue,
+        /** @type {ValueArray} */ (wrapperValue)[1][0] === baseValue,
         ['the evaluated wrapper holds a copy, not the shared value'])
 }
 
@@ -587,7 +573,7 @@ export const proof = {
     callbacks: callbacksProof,
     method,
     referenceCoverage,
-    ...fromEntries(data.groups.map(g => [groupKey(g), group(g)])),
+    ...fromEntries(data.groups.map(g => [groupKey(g) === 'throw' ? 'throwOperation' : groupKey(g), group(g)])),
     crossCheck: fromEntries(data.groups.map(g => [groupKey(g), crossCheck(g)])),
     edagShape,
     nestedSharing,

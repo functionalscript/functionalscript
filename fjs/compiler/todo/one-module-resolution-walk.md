@@ -12,11 +12,11 @@ completed module identities, then read JSON or parse and follow source imports.
 Their contexts are one type written twice, `ParseContext` in the
 transpiler's public `types.ts` and `_Link` in the linker's `private.ts`,
 differing only in what `complete` memoises: the transpiler's
-`ModuleDenotation` against the linker's `_Resolved`, each a module's
-`exports` beside its `bindings` table of exported names and selected results.
+represented `EdagValue` export object against the linker's `_Resolved`,
+a complete computation graph beside cached export selections.
 The readers below the walk are already shared — the
-transpiler exports `_rootSource`, `_importSources`, `_parseModule`,
-`_parseJson`, `_attributeError` and `_missingExport` for the linker to use — which is the
+[`source`](../source/module.f.mjs) exports the source-resolution, parsing,
+attribute and missing-export helpers for both paths — which is the
 half-finished state: every rule about *reading* a module has one owner, and
 every rule about *walking* the graph has two. [module-resolution-compatibility](./module-resolution-compatibility.md)
 is what that costs: each semantics fix — percent decoding, host identity,
@@ -27,7 +27,7 @@ module, so it is in the public `types.ts` for no reader.
 
 ### Proposal
 
-One walk, exported from the transpiler beside its readers, parameterised
+One walk, beside the shared source readers, parameterised
 over the two things that differ — what a JSON document becomes, and what a
 parsed module becomes once its imports are bound:
 
@@ -45,23 +45,21 @@ const _walk: <T>(
 ```
 
 The walk memoises the **complete module**, never a bare selected value.
-`T` is `Denotation` for the transpiler and `Exp` for the linker;
-`_Module<Denotation>` and `_Module<Exp>` have the current `ModuleDenotation`
-and `_Resolved` shapes. A root returns `exports`; an import selects a cached
-entry from `bindings`. `default` is an ordinary exported name, not a separate
-cache field. `onJson` returns the same shape as `onModule`: the transpiler uses
-`{ exports: jsonDenotation({ default: value }), bindings: [['default', jsonDenotation(value)]] }`.
-The linker builds the full JSON export object and caches its `default`
-selection as `completedJson` does today. JSON object keys are not exports.
-The source arms reuse `values`/`done` and `lowered`/`completed`, respectively.
+`T` is `EdagValue` for interpretation and `Exp` for linking. The interpreter
+currently caches a represented complete export object and selects its properties;
+the linker caches `_Resolved` with explicit selections. Choose a common selection
+interface without copying represented values. A root returns the complete result;
+JSON imports wrap the represented document under `default`. A direct JSON root
+remains a document. The source arms reuse EDAG memo interpretation and
+`lowered`/`completed`, respectively; there is no AST evaluator to retain.
 
 `bound` pairs each complete result with its `_ImportSource`, in import order.
 This retains the host identity, child diagnostic path, JSON attribute and
 selected exported `name`; a local alias has already become an AST binding.
 `name === null` denotes an empty import list: retain the full module's
 evaluation anchor without requiring any export. Otherwise, require a matching
-binding entry even when the local is unused, and report `_missingExport(source)`
-against the **child's** path. Presence means an entry exists, not that its
+export property or binding entry even when the local is unused, and report `_missingExport(source)`
+against the **child's** path. Presence means the property exists, not that its
 selected value differs from `undefined`.
 
 Check each selection during dependency folding, before processing the next
@@ -75,9 +73,10 @@ The case where a missing export and a failing initializer belong to the same
 dependency remains tracked in
 [import-error-before-evaluation](./import-error-before-evaluation.md).
 
-[interpret-edag](./interpret-edag.md) would retire the transpiler's
-evaluator eventually; it is open, and it says nothing about the walk. A
-shared walk is the cheaper step and makes that retirement smaller.
+[interpret-edag](./interpret-edag.md) has retired the AST value evaluator
+without introducing a third walk. This consolidation remains independent of
+callable runtime compilation and must carry initialization failures' represented
+payloads and source paths as well as parse failures.
 
 ### Tasks
 

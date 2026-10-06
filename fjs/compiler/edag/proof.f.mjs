@@ -1,5 +1,6 @@
 /**
  * @import { Exp } from '../../edag/types.ts'
+ * @import { EdagValue, Values } from '../../edag/value/types.ts'
  * @import { AstConst } from '../ast/types.ts'
  * @import { Unresolved } from './types.ts'
  * @import { ParseError } from '../parser/types.ts'
@@ -10,8 +11,12 @@
  * @import { Inline, Shape } from '../../website/demo/graph/types.ts'
  */
 
-import { memo } from '../../edag/memo/module.f.mjs'
+import { invoke, memo } from '../../edag/memo/module.f.mjs'
 import { vm } from '../../edag/amnesia/module.f.mjs'
+import { call } from '../../edag/value/call/module.f.mjs'
+import { read } from '../../edag/value/property/module.f.mjs'
+import { toData } from '../../edag/value/to_unknown/module.f.mjs'
+import { isArray } from '../../types/array/module.f.mjs'
 import { tryModuleStringify } from '../serializer/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { _defaultExport, _moduleExports, _moduleThrows, resolve, unresolved } from './module.f.mjs'
@@ -20,10 +25,10 @@ import { _crossings, graphOf } from '../../website/demo/graph/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { exp } from '../../edag/module.f.mjs'
 import { validate } from '../../rtti/validate/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { ok, unwrap } from '../../types/result/module.f.mjs'
 import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { assert, assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 
@@ -135,8 +140,14 @@ const expectElseChain = depth => exp => {
  */
 const lowered = entry => _defaultExport(unresolved([[], [entry, ['object', [[':', 'default', ['cref', 0]]]]]]).edag)
 
-/** @type {(graph: Exp) => unknown} */
-const execute = graph => memo(assertOk(analysis(graph)))({ frame: null, args: [] })
+/** Interpret before choosing an output boundary. @type {(graph: Exp) => EdagValue} */
+const value = graph => unwrap(memo(assertOk(analysis(graph)))({ args: [] }))
+
+/** Ordinary data comparisons erase reflection explicitly. @type {(graph: Exp) => unknown} */
+const execute = graph => assertOk(toData(value(graph)))
+
+/** Call represented functions without manufacturing host wrappers. @type {(fn: EdagValue, args: Values) => EdagValue} */
+const apply = (fn, args) => assertOk(call(ok(fn), args.map(arg => () => ok(arg)), invoke))
 
 export const proof = {
     namedImports: {
@@ -165,7 +176,7 @@ export const proof = {
                     /** @type {Exp} */
                     const invoked = ['()', ['.', module, 'main'], []]
                     assertStructurallySame(execute(invoked), expected)
-                    assertStructurallySame(vm({ frame: null, args: [] })(invoked), expected)
+                    assertStructurallySame(assertOk(toData(assertOk(vm({ frame: [], args: [] })(invoked)))), expected)
                 }
             }
         },
@@ -177,7 +188,7 @@ export const proof = {
             /** @type {Exp} */
             const invoked = ['()', ['.', graph, 'main'], []]
             assertEq(execute(invoked), 42)
-            assertEq(vm({ frame: null, args: [] })(invoked), 42)
+            assertEq(assertOk(toData(assertOk(vm({ frame: [], args: [] })(invoked)))), 42)
             // and its source, the call and the arithmetic written out, runs to
             // the same answer
             /** @type {Exp} */
@@ -194,21 +205,27 @@ export const proof = {
             const graph = unwrap(linked(root)('main'))
             const roundTrip = unresolved(unwrap(parse('')(unwrap(tryModuleStringify(graph))))).edag
             for (const module of [graph, roundTrip]) {
-                const result = /** @type {{direct: readonly unknown[], captured: () => unknown}} */ (execute(module))
-                assert(result.direct.every(value => value === result.direct[0]))
-                assert(result.captured() === result.direct[0])
+                const result = ok(value(module))
+                const direct = assertOk(read(result, 'direct'))
+                assert(isArray(direct) && direct[0] === '[]')
+                const [, values] = direct
+                assert(values.every(value => value === values[0]))
+                assertEq(apply(assertOk(read(result, 'captured')), []), values[0])
             }
         },
         cycles: () => {
             assertEq(linkRefusal({ main: file('import {a as b} from "./main"; export const a=1;') })('main'), 'circular dependency at no position')
             assertEq(linkRefusal({ main: file('import {} from "./main"; export const a=1;') })('main'), 'circular dependency at no position')
         },
+        amnesiaFailure: () => {
+            const graph = unwrap(linked({ main: file('import {} from "./dep"; export default 1;'), dep: file('export const a=1; export const bad=null.x;') })('main'))
+            assertStructurallySame(assertError(vm({ frame: [], args: [] })(graph)), ['undefined'])
+        },
         throw: {
             unusedNamed: () => execute(unwrap(linked({ main: file('import {a} from "./dep"; export default 1;'), dep: file('export const a=1; export const bad=null.x;') })('main'))),
             empty: () => execute(unwrap(linked({ main: file('import {} from "./dep"; export default 1;'), dep: file('const bad=null.x; export const a=1;') })('main'))),
             selected: () => execute(unwrap(linked({ main: file('import {a} from "./dep"; export default a;'), dep: file('export const a=1; export const bad=null.x;') })('main'))),
             captured: () => execute(unwrap(linked({ main: file('import {a} from "./dep"; export const f=()=>a;'), dep: file('export const a=1; export const bad=null.x;') })('main'))),
-            emptyAmnesia: () => vm({ frame: null, args: [] })(unwrap(linked({ main: file('import {} from "./dep"; export default 1;'), dep: file('export const a=1; export const bad=null.x;') })('main'))),
         },
     },
     namedExports: {
@@ -1011,11 +1028,11 @@ export const proof = {
         },
         // what a guarded function computes, through the memo executor
         run: () => {
-            const sign = /** @type {(n: number) => unknown} */ (execute(compile('export default (n) => { if (n < 0) { return -1; } if (n > 0) { return 1; } return 0; };').edag))
-            assertStructurallySame([sign(-5), sign(0), sign(5)], [-1, 0, 1])
-            const guarded = /** @type {(a: unknown) => unknown} */ (execute(compile('export default (a) => { if (a) { const x = [1]; return [x, x]; } return 0; };').edag))
-            assertStructurallySame(guarded(true), [[1], [1]])
-            assertEq(guarded(false), 0)
+            const sign = value(compile('export default (n) => { if (n < 0) { return -1; } if (n > 0) { return 1; } return 0; };').edag)
+            assertStructurallySame([apply(sign, [-5]), apply(sign, [0]), apply(sign, [5])], [-1, 0, 1])
+            const guarded = value(compile('export default (a) => { if (a) { const x = [1]; return [x, x]; } return 0; };').edag)
+            assertStructurallySame(assertOk(toData(apply(guarded, [true]))), [[1], [1]])
+            assertEq(apply(guarded, [false]), 0)
         },
     },
     throws: {

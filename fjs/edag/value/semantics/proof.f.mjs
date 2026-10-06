@@ -5,8 +5,8 @@
  * @import { EdagValue } from '../types.ts'
  */
 
-import { assertEq } from '../../../asserts/module.f.mjs'
-import { untagUndefined, truthy, typeOf, strictEqual, is } from './module.f.mjs'
+import { assertEq, assertOk } from '../../../asserts/module.f.mjs'
+import { untagUndefined, truthy, typeOf, strictEqual, is, unary, binary } from './module.f.mjs'
 
 /** @type {readonly (readonly [EdagValue, boolean, string])[]} */
 const classifications = [
@@ -31,6 +31,12 @@ const compare = (a, b, equal, same) => {
     assertEq(strictEqual(b, a), equal)
     assertEq(is(a, b), same)
     assertEq(is(b, a), same)
+    assertEq(assertOk(binary['==='](a, b)), equal)
+    assertEq(assertOk(binary['==='](b, a)), equal)
+    assertEq(assertOk(binary['!=='](a, b)), !equal)
+    assertEq(assertOk(binary['!=='](b, a)), !equal)
+    assertEq(assertOk(binary.is(a, b)), same)
+    assertEq(assertOk(binary.is(b, a)), same)
 }
 
 export const proof = {
@@ -42,11 +48,13 @@ export const proof = {
     truthiness: () => {
         for (const [value, expected] of classifications) {
             assertEq(truthy(value), expected)
+            assertEq(assertOk(unary['!'](value)), !expected)
         }
     },
     types: () => {
         for (const [value, , expected] of classifications) {
             assertEq(typeOf(value), expected)
+            assertEq(assertOk(unary.typeof(value)), expected)
         }
     },
     primitives: () => {
