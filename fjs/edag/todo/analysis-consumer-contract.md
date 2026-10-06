@@ -1,7 +1,7 @@
 ## analysis-consumer-contract. Every consumer of the analysis repeats its validation and re-derives what it knows
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
