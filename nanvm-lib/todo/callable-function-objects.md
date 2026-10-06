@@ -77,13 +77,13 @@ remaining native callable work must use the same contract.
   fixed prefix is intentionally unobservable.
 - the frame remains the captured-values array, its slot `i` read as
   `['frame', i]`; it also carries captured outer fixed/rest bindings.
-- `["self"]` is the planned direct self-reference (Stage 5), primitive because
+- `["self"]` is the direct self-reference, landed as Stage 5, primitive because
   a top-level recursive function has no enclosing scope to seed a frame slot with itself
   (subject 10); it reaches only the innermost enclosing function (mutual
   recursion is explicitly not covered yet — subjects 9 and 10).
 - A function body is a **closed graph**. Its invocation bindings are
-  `['arg', N]` and `['rest']`, alongside constants and frame access; `self`
-  remains Stage 5 work. Nothing reaches outward across a `=>` boundary.
+  `['arg', N]` and `['rest']`, alongside constants, frame access and
+  `['self']`, the function itself. Nothing reaches outward across a `=>` boundary.
   Argument indices are validated
   in their owning function; captures go through its frame.
 - [function-frame](../../spec/todo/3111-function-frame.md) already decided,
@@ -534,9 +534,12 @@ satisfy the same contract, but this parity work does not wait for it.
       `TryFrom<Any<A>> for Function<A>` — and the method call with chains,
       the `.` node's `|()` continuation printed as `end_call`; the
       built-ins it reaches are [`member-functions.md`](./member-functions.md)'s.
-- [ ] Stage 5: self-reference — the generator reads `["self"]` as the
-      `self_` every static function receives, a call to it being a call
-      like any other; plus a `self === self` fixture.
+- [x] Stage 5: self-reference — the generator reads `["self"]` as the
+      `self_` every static function receives, `Function::new(self_.clone())`,
+      a call to it being a call like any other. The language rule that
+      resolves a function's own `const` name to the node, and the harness
+      fixture that pins recursion and `self === self` through it, follow in
+      the stacked pull request.
 - [x] Stage 6 lowering: implement the fixed/rest EDAG format, validate
       constant `arg` indices, preserve the declared length, supply missing
       fixed values as `undefined` and bind rest once per invocation. The

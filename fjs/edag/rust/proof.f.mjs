@@ -44,6 +44,16 @@ const refusalReason = e => {
 }
 
 export const proof = {
+    // `self` is the closure's `self_` parameter as the `Function` it is,
+    // so a body reading it names that parameter, as a frame read does
+    self: () => {
+        /** @type {Exp} */
+        const loop = ['=>', 0, [], ['()', ['self'], []]]
+        assertStructurallySame(usedBy(loop), { vm: ['Array', 'Function', 'ToAny'], unstable: [] })
+        assertStructurallySame(scoped(loop), [
+            'Ok(A::static_function(|self_, _args| { Any::call(Function::new(self_.clone()).to_any(), Array::default().to_any()) }, 0, Array::default(), Some("(function $a_self(){return ((0,($a_self))());})")).to_any())',
+        ])
+    },
     /**
      * Every name a scope's text spells is reported, recorded where the
      * printer spells it, and only those: a string literal spelling a name

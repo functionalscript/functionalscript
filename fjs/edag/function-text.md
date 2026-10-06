@@ -43,3 +43,13 @@ was rejected in [#2418](https://github.com/functionalscript/functionalscript/pul
 Keeping code as represented data removes that need. Both interpreters now
 check canonical text, including the corpus's cases that the independent
 JavaScript reference still skips because its function text is host-defined.
+
+## A function that names itself
+
+A body that reads `["self"]` has no arrow spelling, since an arrow function
+cannot name itself. Its text is a named function expression,
+`(function $a_self($a_0){…})`, the name made of the depth's parameter the way
+the memo cells and fixed parameters are, so a nested body reading its own
+`self` names a different function. The source writer spells the same function
+as a `const` whose initializer reads the name, `const $0=()=>$0();`, the one
+FunctionalScript form of a function that reaches itself.
