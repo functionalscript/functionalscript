@@ -93,12 +93,18 @@ What follows for the tasks below:
 - The first generated trait covers the compiler I/O operations and the separately
   selected console input `read` named above. Add schemas for the other
   data-shaped operations as consumers need them.
-- The generation task must choose the Rust spelling of three shapes: the
-  `Vec` nominal (RTTI checks `bigint`, while the native type must preserve
-  bit-vector semantics), the `Result` union (already expressible with RTTI
-  tuples and unions; a candidate is Rust `Result<T, E>` over a tagged-tuple
-  error), and the `read` result `number | null` (already `or(number, null)`;
-  `Option<u8>` also requires checking the byte range at the native boundary).
+- The generation task chose the Rust spelling of three shapes. `bigint`,
+  which RTTI cannot tell from the nominal `Vec`, is `nanvm_lib::vm::BigInt<A>`:
+  it holds any `Vec` exactly, and converting to whole bytes (refusing a `Vec`
+  that is not) moves into the runner. The trait is therefore generic over the
+  VM, `Operations<A: IVm>`, and the printer refuses a `bigint` inside a
+  struct, which is not generic. The `Result` union is Rust `Result<T, E>` over
+  the `['ok', T]` / `['error', E]` tuples. The `read` result `number | null`
+  is `Option<f64>`: `Option<u8>` would need the byte range checked at the
+  native boundary, which `f64` leaves to the runner. Rust `String` shares the
+  loss of `bigint`'s old spelling: JS strings are UTF-16 and may hold lone
+  surrogates that `vm::String<A>` holds and `String` cannot. Revisit it with
+  the marshalling task.
 - The handwritten set is `sandbox`, `catch`, `all`, `memCreate`, `memRead` and
   `memWrite` for this workflow. The conformance tests must name each, since the
   generated trait checks none of them.
@@ -119,7 +125,7 @@ What follows for the tasks below:
       and the generated types and trait with one method per operation,
       committed as `nanvm-effects-node/src/gen.operations.rs` under
       `npm run gen`. The printer covers the vocabulary the operations use and
-      refuses any other schema. `bigint` is `Vec<u8>`; the handwritten and
+      refuses any other schema. `bigint` is `vm::BigInt<A>`; the handwritten and
       unsupported operations are not in the trait.
 - [ ] Add the handwritten native `sandbox` declaration and compose its dispatch
       with the generated subset, preserving the existing TypeScript signature.

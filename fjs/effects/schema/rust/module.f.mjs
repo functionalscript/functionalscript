@@ -14,7 +14,7 @@
  * | Schema | Rust |
  * | --- | --- |
  * | `string`, `number`, `boolean` | `String`, `f64`, `bool` |
- * | `bigint` | `Vec<u8>`: it is a `Vec`, the bits of a file, in whole bytes |
+ * | `bigint` | `BigInt<A>` of `nanvm_lib::vm`: it holds any `Vec` exactly; refused inside a struct, enum or tuple struct, which are not generic over `A` |
  * | `array(t)` | `Vec<t>` |
  * | `or(null, t)` | `Option<t>` |
  * | `or(['ok', t], ['error', e])` | `Result<t, e>` |
@@ -29,29 +29,28 @@
  *
  * @module
  *
- * @import { Type } from '../../../rtti/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  */
 
-import { error, ok, okList } from '../../../types/result/module.f.mjs'
+import { error, ok, okList, okThen } from '../../../types/result/module.f.mjs'
 import {
     dirent, fileModule, ioChannel, ioError, makeDirectoryOptions, notImplemented, operations,
     readdirOptions, writeConsoles,
 } from '../module.f.mjs'
 
 /**
- * What follows a step that may have failed: its result, or its failure.
+ * A success whose failure is the printer's, a reason and the schema.
  *
- * @type {<A, B>(f: (a: A) => Result<B, readonly unknown[]>) => (r: Result<A, readonly unknown[]>) => Result<B, readonly unknown[]>}
+ * @type {<T>(value: T) => Result<T, readonly unknown[]>}
  */
-const then = f => r => r[0] === 'error' ? r : f(r[1])
+const pure = ok
 
 /**
  * Every result, or the first failure.
  *
  * @type {<A>(list: readonly Result<A, readonly unknown[]>[]) => Result<readonly A[], readonly unknown[]>}
  */
-const all = list => okList(list)
+const all = okList
 
 /**
  * The named types of the schemas, in the order they are declared: the name
@@ -125,40 +124,62 @@ const optional = t => {
 const refuse = (t, what) => error([what, t])
 
 /**
- * The Rust type of a schema.
+ * The Rust type of a schema, with `bigint` as `BigInt<A>` where `bigint` is
+ * `true`, and refused where it is `false`: a struct is not generic over `A`.
+ *
+ * @type {(bigint: boolean) => (t: unknown) => Result<string, readonly unknown[]>}
+ */
+const typeOf = bigint => {
+    /** @type {(t: unknown) => Result<string, readonly unknown[]>} */
+    const rec = t => {
+        const name = nameOf(t)
+        if (name !== undefined) { return pure(name) }
+        if (t === undefined) { return pure('()') }
+        if (typeof t !== 'function') { return refuse(t, 'no Rust type for a constant or an unnamed container') }
+        const info = t()
+        switch (info[0]) {
+            case 'string': return pure('String')
+            case 'number': return pure('f64')
+            case 'boolean': return pure('bool')
+            case 'bigint': return bigint ? pure('BigInt<A>') : refuse(t, 'no Rust type for a bigint in a type that is not generic')
+            case 'array': return okThen(e => pure(`Vec<${e}>`))(rec(info[1]))
+            case 'or': return unionType(rec)(info.slice(1))
+            default: return refuse(t, 'no Rust type for a schema')
+        }
+    }
+    return rec
+}
+
+/**
+ * The Rust type of a schema, where it is a parameter or a result.
  *
  * @type {(t: unknown) => Result<string, readonly unknown[]>}
  */
-export const rustType = t => {
-    const name = nameOf(t)
-    if (name !== undefined) { return ok(name) }
-    if (t === undefined) { return ok('()') }
-    if (typeof t !== 'function') { return refuse(t, 'no Rust type for a constant or an unnamed container') }
-    const info = t()
-    switch (info[0]) {
-        case 'string': return ok('String')
-        case 'number': return ok('f64')
-        case 'boolean': return ok('bool')
-        case 'bigint': return ok('Vec<u8>')
-        case 'array': return then(e => ok(`Vec<${e}>`))(rustType(info[1]))
-        case 'or': return unionType(info.slice(1))
-        default: return refuse(t, 'no Rust type for a schema')
-    }
-}
+export const rustType = typeOf(true)
+
+/**
+ * The Rust type of a schema, where it is held by a struct or an enum.
+ *
+ * @type {(t: unknown) => Result<string, readonly unknown[]>}
+ */
+export const dataType = typeOf(false)
 
 /**
  * The Rust type of an unnamed union: a nothing, an `Option`, or a `Result`.
  *
- * @type {(ms: readonly unknown[]) => Result<string, readonly unknown[]>}
+ * @type {(rec: (t: unknown) => Result<string, readonly unknown[]>) => (ms: readonly unknown[]) => Result<string, readonly unknown[]>}
  */
-const unionType = ms => {
-    if (ms.length === 1 && ms[0] === undefined) { return ok('()') }
+const unionType = rec => ms => {
+    if (ms.length === 1 && ms[0] === undefined) { return pure('()') }
     if (ms.length === 2 && ms.includes(null)) {
-        return then(t => ok(`Option<${t}>`))(rustType(ms.find(m => m !== null)))
+        const some = ms.find(m => m !== null)
+        return some === undefined
+            ? refuse(ms, 'no Rust type for an Option of nothing')
+            : okThen(t => pure(`Option<${t}>`))(rec(some))
     }
     const [a, b] = /** @type {readonly any[]} */ (ms)
-    if (ms.length === 2 && tag(a) === 'ok' && tag(b) === 'error') {
-        return then(t => then(e => ok(`Result<${t}, ${e}>`))(rustType(b[1])))(rustType(a[1]))
+    if (ms.length === 2 && tag(a) === 'ok' && tag(b) === 'error' && a.length === 2 && b.length === 2) {
+        return okThen(t => okThen(e => pure(`Result<${t}, ${e}>`))(rec(b[1])))(rec(a[1]))
     }
     return refuse(ms, 'no Rust type for a union')
 }
@@ -173,19 +194,26 @@ const tag = t => t instanceof Array && typeof t[0] === 'string' ? t[0] : undefin
 /**
  * A struct member as its Rust field, `pub name: type`. A member that may
  * be absent is an `Option`, and a flag, `or(option, true)`, a `bool`. A
- * member that is always one value, `recursive: true`, carries nothing and
- * has no field.
+ * member that is a constant, `recursive: true`, carries nothing and has no
+ * field; every other schema is typed or refused.
  *
  * @type {(entry: readonly [string, unknown]) => Result<readonly string[], readonly unknown[]>}
  */
 const field = ([key, t]) => {
-    if (typeof t !== 'function') { return ok([]) }
+    if (isConstant(t)) { return pure([]) }
     const rest = optional(t)
-    if (rest === undefined) { return then(r => ok([`    pub ${snake(key)}: ${r},`]))(rustType(t)) }
+    if (rest === undefined) { return okThen(r => pure([`    pub ${snake(key)}: ${r},`]))(dataType(t)) }
     if (rest.length !== 1) { return refuse(t, 'no Rust type for an optional member of several types') }
-    if (rest[0] === true) { return ok([`    pub ${snake(key)}: bool,`]) }
-    return then(r => ok([`    pub ${snake(key)}: Option<${r}>,`]))(rustType(rest[0]))
+    if (rest[0] === true) { return pure([`    pub ${snake(key)}: bool,`]) }
+    return okThen(r => pure([`    pub ${snake(key)}: Option<${r}>,`]))(dataType(rest[0]))
 }
+
+/**
+ * A schema that is a constant: always the same value, so it carries nothing.
+ *
+ * @type {(t: unknown) => boolean}
+ */
+const isConstant = t => t === null || typeof t === 'string' || typeof t === 'number' || typeof t === 'boolean'
 
 const derive = '#[derive(Debug, Clone, PartialEq)]'
 
@@ -195,10 +223,10 @@ const derive = '#[derive(Debug, Clone, PartialEq)]'
  *
  * @type {(name: string, s: { readonly [k in string]: unknown }) => Result<string, readonly unknown[]>}
  */
-const struct = (name, s) => then(
+const struct = (name, s) => okThen(
     (/** @type {readonly (readonly string[])[]} */ fs) => {
         const lines = fs.flat()
-        return ok(lines.length === 0
+        return pure(lines.length === 0
             ? `${derive}\npub struct ${name};\n`
             : `${derive}\npub struct ${name} {\n${lines.join('\n')}\n}\n`)
     })(all(Object.entries(s).map(field)))
@@ -219,9 +247,9 @@ const unitEnum = (name, ms) => `${derive}\npub enum ${name} {\n${ms.map(m => `  
 const variant = m => {
     const t = tag(m)
     if (t === undefined) { return refuse(m, 'no Rust variant for a schema that is not a tagged tuple') }
-    return then(
-        (/** @type {readonly string[]} */ fs) => ok(fs.length === 0 ? `    ${pascal(t)},` : `    ${pascal(t)}(${fs.join(', ')}),`))(
-        all(/** @type {readonly unknown[]} */ (m).slice(1).map(rustType)))
+    return okThen(
+        (/** @type {readonly string[]} */ fs) => pure(fs.length === 0 ? `    ${pascal(t)},` : `    ${pascal(t)}(${fs.join(', ')}),`))(
+        all(/** @type {readonly unknown[]} */ (m).slice(1).map(dataType)))
 }
 
 /**
@@ -229,8 +257,8 @@ const variant = m => {
  *
  * @type {(name: string, ms: readonly unknown[]) => Result<string, readonly unknown[]>}
  */
-const taggedEnum = (name, ms) => then(
-    (/** @type {readonly string[]} */ vs) => ok(`${derive}\npub enum ${name} {\n${vs.join('\n')}\n}\n`))(
+const taggedEnum = (name, ms) => okThen(
+    (/** @type {readonly string[]} */ vs) => pure(`${derive}\npub enum ${name} {\n${vs.join('\n')}\n}\n`))(
     all(ms.map(variant)))
 
 /**
@@ -238,9 +266,9 @@ const taggedEnum = (name, ms) => then(
  *
  * @type {(name: string, fields: readonly unknown[]) => Result<string, readonly unknown[]>}
  */
-const tupleStruct = (name, fields) => then(
-    (/** @type {readonly string[]} */ fs) => ok(`${derive}\npub struct ${name}(${fs.map(f => `pub ${f}`).join(', ')});\n`))(
-    all(fields.map(rustType)))
+const tupleStruct = (name, fields) => okThen(
+    (/** @type {readonly string[]} */ fs) => pure(`${derive}\npub struct ${name}(${fs.map(f => `pub ${f}`).join(', ')});\n`))(
+    all(fields.map(dataType)))
 
 /**
  * A named schema's Rust definition.
@@ -250,8 +278,11 @@ const tupleStruct = (name, fields) => then(
 export const definition = ([name, t]) => {
     if (tag(t) !== undefined) { return tupleStruct(name, /** @type {readonly unknown[]} */ (t).slice(1)) }
     const ms = members(t)
-    if (ms === undefined) { return struct(name, /** @type {{ readonly [k in string]: unknown }} */ (t)) }
-    return typeof ms[0] === 'string' ? ok(unitEnum(name, ms)) : taggedEnum(name, ms)
+    if (ms !== undefined) { return ms.every(m => typeof m === 'string') ? pure(unitEnum(name, ms)) : taggedEnum(name, ms) }
+    if (typeof t !== 'object' || t === null || t instanceof Array) {
+        return refuse(t, 'no Rust definition for a named schema that is not a struct, an enum or a tuple')
+    }
+    return struct(name, /** @type {{ readonly [k in string]: unknown }} */ (t))
 }
 
 /**
@@ -263,12 +294,12 @@ export const definition = ([name, t]) => {
  * @type {(name: string, t: unknown) => Result<readonly string[], readonly unknown[]>}
  */
 const parameter = (name, t) => {
-    if (typeof t !== 'function' && t !== undefined && nameOf(t) === undefined) { return ok([]) }
+    if (isConstant(t)) { return pure([]) }
     const rest = optional(t)
     if (rest !== undefined && rest.length !== 1) {
         return refuse(t, 'no Rust type for an optional parameter without exactly one carried type')
     }
-    return then(r => ok([`${snake(name)}: ${rest === undefined ? r : `Option<${r}>`}`]))(
+    return okThen(r => pure([`${snake(name)}: ${rest === undefined ? r : `Option<${r}>`}`]))(
         rustType(rest === undefined ? t : rest[0]))
 }
 
@@ -277,14 +308,16 @@ const parameter = (name, t) => {
  *
  * @type {(o: { readonly name: string, readonly params: readonly unknown[], readonly answer: unknown, readonly names: readonly string[] }) => Result<string, readonly unknown[]>}
  */
-export const method = ({ name, params, answer, names }) => then(
-    (/** @type {readonly (readonly string[])[]} */ ps) => then(
-        (/** @type {string} */ r) => ok(`    fn ${snake(name)}(${['&mut self', ...ps.flat()].join(', ')}) -> ${r};`))(
+export const method = ({ name, params, answer, names }) => okThen(
+    (/** @type {readonly (readonly string[])[]} */ ps) => okThen(
+        (/** @type {string} */ r) => pure(`    fn ${snake(name)}(${['&mut self', ...ps.flat()].join(', ')}) -> ${r};`))(
         rustType(answer)))(
     all(params.map((t, i) => parameter(names[i], t))))
 
 const header = `// @generated by \`npm run gen\` from \`fjs/effects/schema/rust/module.f.mjs\`.
 // Do not edit: change the schemas in \`fjs/effects/schema/module.f.mjs\` and regenerate.
+
+use nanvm_lib::vm::{BigInt, IVm};
 `
 
 /**
@@ -292,12 +325,12 @@ const header = `// @generated by \`npm run gen\` from \`fjs/effects/schema/rust/
  *
  * @type {() => Result<string, readonly unknown[]>}
  */
-export const generate = () => then(
-    (/** @type {readonly string[]} */ defs) => then(
-        (/** @type {readonly string[]} */ ms) => ok([
+export const generate = () => okThen(
+    (/** @type {readonly string[]} */ defs) => okThen(
+        (/** @type {readonly string[]} */ ms) => pure([
             header,
             ...defs,
-            `/// One method per operation, in the order the schemas list them.\n#[rustfmt::skip]\npub trait Operations {\n${ms.join('\n')}\n}\n`,
+            `/// One method per operation, in the order the schemas list them.\n#[rustfmt::skip]\npub trait Operations<A: IVm> {\n${ms.join('\n')}\n}\n`,
         ].join('\n')))(
         all(Object.values(operations).map(method))))(
     all(types.map(definition)))

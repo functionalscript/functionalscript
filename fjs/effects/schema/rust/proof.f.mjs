@@ -5,7 +5,7 @@
 import { assert, assertEq, assertError, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { array, bigint, boolean, number, option, or, record, string } from '../../../rtti/module.f.mjs'
 import { dirent, mkdir, notImplemented, operations, read, readdir, write } from '../module.f.mjs'
-import { definition, generate, method, pascal, rustType, snake, types } from './module.f.mjs'
+import { dataType, definition, generate, method, pascal, rustType, snake, types } from './module.f.mjs'
 
 /** @type {(r: Result<string, readonly unknown[]>) => string} */
 const text = r => {
@@ -35,7 +35,8 @@ export const proof = {
         assertEq(text(rustType(string)), 'String')
         assertEq(text(rustType(number)), 'f64')
         assertEq(text(rustType(boolean)), 'bool')
-        assertEq(text(rustType(bigint)), 'Vec<u8>')
+        assertEq(text(rustType(bigint)), 'BigInt<A>')
+        assertEq(text(rustType(array(bigint))), 'Vec<BigInt<A>>')
         assertEq(text(rustType(array(string))), 'Vec<String>')
         assertEq(text(rustType(undefined)), '()')
         assertEq(text(rustType(or(undefined))), '()')
@@ -52,6 +53,11 @@ export const proof = {
         assertEq(reason(rustType(record(string))), 'no Rust type for a schema')
         assertEq(reason(rustType(or(string, number))), 'no Rust type for a union')
         assertEq(reason(rustType(or(['ok', string], ['fail', number]))), 'no Rust type for a union')
+        assertEq(reason(rustType(or(['ok', string, string], ['error', string]))), 'no Rust type for a union')
+        assertEq(reason(rustType(or(['ok', string], ['error', string, string]))), 'no Rust type for a union')
+        assertEq(reason(rustType(or(null, null))), 'no Rust type for an Option of nothing')
+        assertEq(reason(dataType(bigint)), 'no Rust type for a bigint in a type that is not generic')
+        assertEq(reason(dataType(or(null, bigint))), 'no Rust type for a bigint in a type that is not generic')
         assertEq(reason(rustType(array(record(string)))), 'no Rust type for a schema')
         assertEq(reason(rustType(or(null, record(string)))), 'no Rust type for a schema')
         assertEq(reason(rustType(or(['ok', record(string)], ['error', string]))), 'no Rust type for a schema')
@@ -66,6 +72,21 @@ export const proof = {
         assertEq(named({ aB: or(option, string, undefined) }), '#[derive(Debug, Clone, PartialEq)]\npub struct T {\n    pub a_b: Option<String>,\n}\n')
         assertEq(reason(definition(['T', { a: or(option, string, number) }])), 'no Rust type for an optional member of several types')
         assertEq(reason(definition(['T', { a: record(string) }])), 'no Rust type for a schema')
+        assertEq(reason(definition(['T', { a: bigint }])), 'no Rust type for a bigint in a type that is not generic')
+        assertEq(named({ entry: dirent, n: string }), '#[derive(Debug, Clone, PartialEq)]\npub struct T {\n    pub entry: Dirent,\n    pub n: String,\n}\n')
+        assertEq(reason(definition(['T', { inner: { a: string } }])), 'no Rust type for a constant or an unnamed container')
+        assertEq(reason(definition(['T', { e: ['x', string] }])), 'no Rust type for a constant or an unnamed container')
+    },
+    /** A named schema that is neither a struct, an enum nor a tuple is refused, as is a mixed union. */
+    namedRefusals: () => {
+        const what = 'no Rust definition for a named schema that is not a struct, an enum or a tuple'
+        assertEq(reason(definition(['T', array(string)])), what)
+        assertEq(reason(definition(['T', string])), what)
+        assertEq(reason(definition(['T', 5])), what)
+        assertEq(reason(definition(['T', null])), what)
+        assertEq(reason(definition(['T', [5]])), what)
+        assertEq(reason(definition(['T', or('a', 5)])), 'no Rust variant for a schema that is not a tagged tuple')
+        assertEq(reason(definition(['T', or('a', ['b', string])])), 'no Rust variant for a schema that is not a tagged tuple')
     },
     /** A union of strings is a unit enum, and one of tagged tuples an enum of variants. */
     enums: () => {
@@ -85,7 +106,9 @@ export const proof = {
     methods: () => {
         assertEq(text(method(mkdir)), '    fn mkdir(&mut self, path: String, options: Option<MakeDirectoryOptions>) -> Result<(), IoChannel>;')
         assertEq(text(method(readdir)), '    fn readdir(&mut self, path: String, options: ReaddirOptions) -> Result<Vec<Dirent>, IoChannel>;')
-        assertEq(text(method(write)), '    fn write(&mut self, stream: WriteConsoles, data: Vec<u8>) -> Result<(), NotImplemented>;')
+        assertEq(text(method(write)), '    fn write(&mut self, stream: WriteConsoles, data: BigInt<A>) -> Result<(), NotImplemented>;')
+        assertEq(reason(method({ name: 'op', params: [{ a: string }, string], answer: undefined, names: ['opts', 'p'] })), 'no Rust type for a constant or an unnamed container')
+        assertEq(reason(method({ name: 'op', params: [['x', string]], answer: undefined, names: ['t'] })), 'no Rust type for a constant or an unnamed container')
         assertEq(text(method(read)), '    fn read(&mut self) -> Result<Option<f64>, NotImplemented>;')
         assertEq(
             reason(method({ name: 'bad', params: [record(string)], answer: undefined, names: ['x'] })),

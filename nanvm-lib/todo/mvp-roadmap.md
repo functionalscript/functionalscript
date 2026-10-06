@@ -124,7 +124,9 @@ effect set is the CLI-on-Node vocabulary, and future sets (e.g. a browser
 set with `fetch`, DOM, and some shared effects) follow the same pattern.
 It is a separate crate in the same workspace, published on crates.io:
 `nanvm-lib` stays pure (no OS dependencies — keeping a future `no_std`
-embedded profile open), and the `nanvm` binary depends on both. It serves
+embedded profile open), and the `nanvm` binary depends on both. The
+dependency points one way: `nanvm-effects-node` → `nanvm-lib`, never the
+reverse. It serves
 any AOT-compiled effectful FJS program, not just the embedded compiler —
 it is to native FJS what `fjs/effects/node/module.mjs` is to Node FJS.
 
