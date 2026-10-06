@@ -31,8 +31,13 @@ Mining/search loops stay outside the module; callers iterate nonces and call
 The website demo hashes UTF-8 input followed by a non-negative nonce in decimal.
 `Try next nonce` increments it once, retaining the input and nBits. The page
 shows the exact hashed input, the decoded target, the SHA-256 digest in hex and
-as an integer, and whether `hash ≤ target`. Each output and the matching
-OpenSSL command use the shared copyable code-block controls.
+as an integer, and whether `hash ≤ target`. Each output uses the shared copyable
+code-block controls.
+
+`Auto-run nonce` checks the current nonce and then advances one nonce per
+browser turn until a hash meets the target. The button becomes `Stop`, and
+editing any input also stops the search. The page reports the attempt count
+and failed nonce range, retaining the summary when stopped or successful.
 
 It starts with `Hello, FunctionalScript!`, nonce `42`, and the easy target
 `0x200fffff`; nonce `53` meets that target. Enter `0x1d00ffff` to inspect the

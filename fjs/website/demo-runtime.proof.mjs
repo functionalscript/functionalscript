@@ -374,7 +374,64 @@ const settle = async () => {
     await new Promise(resolve => setTimeout(resolve, 0))
 }
 
+/** @type {(limit: number) => string} */
+const incremental = limit => moduleUrl(`
+export const demo = {
+    init: { count: 0, running: false },
+    nextEvent: state => state.running ? { kind: 'click', name: 'next' } : null,
+    update: state => event => () => ['ok',
+        event.kind === 'input' ? { ...state, running: false }
+            : event.kind !== 'click' ? state
+                : event.name === 'go' ? { ...state, running: !state.running }
+                    : { count: state.count + 1, running: state.count + 1 < ${limit} }],
+    view: state => ['div', ['input', { name: 'text', value: '' }],
+        ['button', { name: 'go', type: 'button' }, state.running ? 'Stop' : 'Go'],
+        ['pre', String(state.count)]],
+}
+`)
+
 export const proof = {
+    automaticEvents: async () => {
+        const d = dom(incremental(3))
+        await startDemo(d.root)
+        await settle()
+        const before = d.steps.length
+        d.click('go')
+        for (let i = 0; i < 10 && !d.root.innerHTML.includes('<pre>3</pre>'); i += 1) { await settle() }
+        assert(d.root.innerHTML.includes('<pre>3</pre>'), d.root.innerHTML)
+        assert(d.root.innerHTML.includes('>Go</button>'), d.root.innerHTML)
+        // Only the reader's click disables controls; automatic turns allow Stop.
+        assertEq(d.steps.slice(before).filter((/** @type {string} */ s) => s === 'disabled').length, 1)
+        const rendered = d.rendered.length
+        await settle()
+        assertEq(d.rendered.length, rendered)
+    },
+    automaticEventsStop: async () => {
+        const d = dom(incremental(1000000))
+        await startDemo(d.root)
+        await settle()
+        d.click('go')
+        await settle()
+        await settle()
+        assert(d.root.innerHTML.includes('>Stop</button>'), d.root.innerHTML)
+        assertStructurallySame(d.disabled(), [false])
+        d.click('go')
+        await settle()
+        await settle()
+        const stopped = d.root.innerHTML
+        assert(stopped.includes('>Go</button>'), stopped)
+        await settle()
+        assertEq(d.root.innerHTML, stopped)
+        d.click('go')
+        await settle()
+        d.input('text', 'changed')
+        await settle()
+        await settle()
+        const edited = d.root.innerHTML
+        assert(edited.includes('>Go</button>'), edited)
+        await settle()
+        assertEq(d.root.innerHTML, edited)
+    },
     copyCode: async () => {
         const d = dom(echo)
         /** @type {string[]} */

@@ -279,6 +279,10 @@ const fail = (root, cause) => {
  * the last event always renders; a demo's proof is what calls `view` on every
  * input it cares about.
  *
+ * `nextEvent` requests one automatic event on a later turn after the latest
+ * state renders. Reader events cancel the scheduled turn, and automatic
+ * updates keep controls available so a Stop button can interrupt the work.
+ *
  * @type {(root: Element, demo: Demo<any, DemoEvent, never>) => (event: DemoEvent) => void}
  */
 const stepper = (root, demo) => {
@@ -286,8 +290,12 @@ const stepper = (root, demo) => {
     /** @type {Promise<void>} */
     let queue = Promise.resolve()
     let pending = 0
-    /** @type {(event: DemoEvent) => void} */
-    return event => {
+    /** @type {ReturnType<typeof setTimeout> | undefined} */
+    let scheduled
+    /** @type {(event: DemoEvent, automatic?: boolean) => void} */
+    const step = (event, automatic = false) => {
+        clearTimeout(scheduled)
+        scheduled = undefined
         pending += 1
         queue = queue.then(async () => {
             // A throw is not a state. `update` and `view` are FunctionalScript
@@ -297,18 +305,27 @@ const stepper = (root, demo) => {
                 // Read from the state the demo is *about* to be given: the
                 // point of the warning is to arrive before the wait, and after
                 // `update` there is nothing left to warn about.
-                busy(root, true, demo.wait === undefined ? null : demo.wait(state))
-                await macrotask()
+                // Automatic work already arrives on a later turn. Keep its
+                // controls available so a reader can stop or change the work.
+                if (!automatic) {
+                    busy(root, true, demo.wait === undefined ? null : demo.wait(state))
+                    await macrotask()
+                }
                 state = unwrapState(await run(demo.update(state)(event)))
-                if (pending === 1) { render(root, demo.view(state)) }
+                if (pending === 1) {
+                    render(root, demo.view(state))
+                    const next = demo.nextEvent === undefined ? null : demo.nextEvent(state)
+                    if (next !== null) { scheduled = setTimeout(() => step(next, true), 0) }
+                }
             } catch (cause) {
                 fail(root, cause)
             } finally {
                 pending -= 1
-                busy(root, false)
+                if (!automatic) { busy(root, false) }
             }
         })
     }
+    return step
 }
 
 /**
