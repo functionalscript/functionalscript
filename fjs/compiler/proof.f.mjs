@@ -609,6 +609,8 @@ export const proof = {
             assertEq(fjsRoundTrip('export default () => 1;'), 'export default ()=>1;')
             // a function's own name is its `self`, written as the `const` it read
             assertEq(fjsRoundTrip('const f = () => f();\nexport default f;'), 'const $0=()=>$0();export default $0;')
+            // an unused alias of the name is dropped with the `const`, as an alias of a capture is
+            assertEq(fjsRoundTrip('const f = () => { const g = f; return 1; };\nexport default f;'), 'export default ()=>1;')
         },
         // The lazy operators and the conditional, and the block a lazy
         // operand opens where it needs one: a call of a parameterless

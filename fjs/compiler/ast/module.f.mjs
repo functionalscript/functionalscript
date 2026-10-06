@@ -341,12 +341,12 @@ const missing = set => n => Array.from({ length: n }, (_, i) => i).filter(i => (
 
 /**
  * Whether an entry is a bare reference: a `const` naming another entry, an
- * import, a slot of its frame or the arguments is that node, not a node of
- * its own.
+ * import, a slot of its frame, the arguments or the function itself is that
+ * node, not a node of its own.
  *
  * @type {(ast: AstConst) => boolean}
  */
-const isAlias = ast => ast !== null && typeof ast === 'object' && ['cref', 'aref', 'fref', 'rest', 'arg'].includes(ast[0])
+const isAlias = ast => ast !== null && typeof ast === 'object' && ['cref', 'aref', 'fref', 'rest', 'arg', 'self'].includes(ast[0])
 
 /** The first import standing for the same node as import `k`, which `imports` says by identity. @type {(imports: readonly unknown[]) => (k: number) => AstModuleRef} */
 const importNode = imports => k => ['aref', imports.indexOf(imports[k])]
