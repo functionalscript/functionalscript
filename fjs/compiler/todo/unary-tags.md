@@ -1,4 +1,4 @@
-## unary-tags. `-`, `~` and `throw` each get their own frame kind and work kind
+## unary-tags. `-`, `~`, `!` and `throw` each get their own frame kind and work kind
 
 **Priority:** P4
 **Status:** open
@@ -11,7 +11,7 @@ unary operators have no such name, so each consumer spells them one
 arm at a time.
 
 The parser's explicit stack in [`parser`](../parser/module.f.mjs) has a
-frame kind per operator — `_NegFrame` and `_BitnotFrame` in its
+frame kind per operator — `_NegFrame`, `_BitnotFrame` and `_NotFrame` in its
 `private.ts` — and `enter` and `returned` each have one arm per kind
 that differs only in the tag:
 
@@ -42,12 +42,14 @@ if (work.kind === 'throw') {
 }
 ```
 
-`'neg'` is the same arm plus the constant folding of a negated literal.
+`'neg'` is the same arm plus the constant folding of a negated literal, and
+`'not'`, the logical not's, is the `'bitnot'` arm a third time: `!` landed
+in the pattern as it stood, one more copy of each arm.
 
 ### Proposal
 
 `ast` exports `unaryTags` and `isUnary` beside `binaryTags` and
-`isBinary`. The parser keeps one frame, `{ unary: '-' | '~' }`, and one
+`isBinary`. The parser keeps one frame, `{ unary: '-' | '~' | '!' }`, and one
 `enter` arm and one `returned` arm over it. `_LowerWork` keeps one
 `{ kind: 'unary', tag }` work, with negation's literal folding where the
 literal is met, as a leaf case, rather than as a work kind of its own.
@@ -55,7 +57,7 @@ literal is met, as a leaf case, rather than as a work kind of its own.
 ### Tasks
 
 - [ ] `unaryTags`/`isUnary` in `ast`.
-- [ ] One unary frame in the parser; `_NegFrame` and `_BitnotFrame` go.
+- [ ] One unary frame in the parser; `_NegFrame`, `_BitnotFrame` and `_NotFrame` go.
 - [ ] One unary work in `edag`'s `lower`.
 - [ ] `tsc`, `fjs test`, `npm start compile`.
 

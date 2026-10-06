@@ -261,7 +261,7 @@ mod tests {
         assert_eq!(
             run::<Naive>(operators::module, "default", Action::Read),
             Ok(
-                "[7,5,12,1.5,2,36,-6,-7,true,false,true,true,false,true,2,7,7,12,3,3,\"ab\",7]"
+                "[7,5,12,1.5,2,36,-6,-7,false,true,false,true,true,false,true,2,7,7,12,3,3,\"ab\",7]"
                     .into()
             )
         );

@@ -607,7 +607,7 @@ export const proof = {
         assertEq(text(['=>', 0, [['rest']], slot(0)]), '()=>$0')
         assertEq(text(['=>', 0, [['rest'], ['arg', 3]], ['[]', [slot(0), slot(1), ['rest']]]]), '(...$a)=>[$0,$1,$a]')
         // A captured expression need not have a source spelling in the body.
-        assertEq(text(['=>', 0, [['!', 1]], slot(0)]), '()=>$0')
+        assertEq(text(['=>', 0, [['typeof', 1]], slot(0)]), '()=>$0')
         // Captured functions' bindings and parameter limits are outside the
         // selected body's code, just like its enclosing argument reads.
         assertEq(text(['=>', 0, [['=>', 0, [], ['arg', 0]]], slot(0)]), '()=>$0')
@@ -629,7 +629,7 @@ export const proof = {
         // Refused: non-functions and invalid body metadata or bindings.
         assertStructurallySame(tryFunctionText(1), ['error', 'not a function'])
         assertStructurallySame(tryFunctionText(['[]', []]), ['error', 'not a function'])
-        assertEq(text(['=>', 0, [], ['!', 1]]), '()=>(! (1))')
+        assertEq(text(['=>', 0, [], ['typeof', 1]]), '()=>(typeof (1))')
         assertStructurallySame(tryFunctionText(['=>', 0, [], ['arg', 0]]), ['error', 'invalid fixed parameter index or scope'])
         assertStructurallySame(tryFunctionText(['=>', 0, [], ['=>', 0, [], ['arg', 0]]]), ['error', 'invalid fixed parameter index or scope'])
         assertStructurallySame(tryFunctionText(['=>', 0, [], ['=>', 17, [], 1]]), ['error', 'a function length above 16'])
@@ -722,8 +722,8 @@ export const proof = {
             assertEq(assertOk(tryFunctionText(outer)), '($a_0,$a_1)=>($b_0)=>$a_1')
         },
         completeBodies: () => {
-            const e = /** @type {const} */ (['=>', 0, [], ['!', 1]])
-            assertEq(analyzedFunction(e), '()=>(! (1))')
+            const e = /** @type {const} */ (['=>', 0, [], ['typeof', 1]])
+            assertEq(analyzedFunction(e), '()=>(typeof (1))')
             assertEq(analyzedFunction(e), assertOk(tryFunctionText(e)))
             // Function text accepts evaluated captures while the source
             // writer keeps its structural round-trip restrictions.
@@ -869,6 +869,7 @@ export const proof = {
             writes(fn([op, r0, r1]), `export default (...$a)=>$a[0]${op}$a[1];`)
         }
         writes(fn(['~', r0]), 'export default (...$a)=>~$a[0];')
+        writes(fn(['!', r0]), 'export default (...$a)=>!$a[0];')
         writes(['+', 'a', 1n], 'export default "a"+1n;')
         // associativity: to the left, `**` to the right
         writes(['-', ['-', 1, 2], 3], 'export default 1-2-3;')
@@ -904,6 +905,10 @@ export const proof = {
         writes(['~', ['~', 1]], 'export default ~~1;')
         writes(['~', ['-', ['[]', []]]], 'export default ~-[];')
         writes(['-', ['~', 1]], 'export default -~1;')
+        writes(['!', ['|', 1, 2]], 'export default !(1|2);')
+        writes(['!', ['!', 1]], 'export default !!1;')
+        writes(['!', ['-', ['[]', []]]], 'export default !-[];')
+        writes(['-', ['!', 1]], 'export default -!1;')
         // `**` takes no prefix on its left bare, a negative number
         // included, as JavaScript does not; on its right either stands bare
         writes(['**', -2, 2], 'export default (-2)**2;')
@@ -911,6 +916,8 @@ export const proof = {
         writes(['**', ['~', 1], 2], 'export default (~1)**2;')
         writes(['**', 2, -2], 'export default 2**-2;')
         writes(['**', 2, ['~', 1]], 'export default 2**~1;')
+        writes(['**', ['!', 1], 2], 'export default (!1)**2;')
+        writes(['**', 2, ['!', 1]], 'export default 2**!1;')
         writes(['-', ['**', 2, 2]], 'export default -(2**2);')
         writes(['**', 2, ['-', ['**', 2, 2]]], 'export default 2**-(2**2);')
         // a `-` before a text opening with `-` takes a space, `--` being
@@ -922,11 +929,13 @@ export const proof = {
         writes(['+', ['=>', 0, [], 1], 1], 'export default (()=>1)+1;')
         writes(['+', 1, ['=>', 0, [], 1]], 'export default 1+(()=>1);')
         writes(['~', ['=>', 0, [], 1]], 'export default ~(()=>1);')
+        writes(['!', ['=>', 0, [], 1]], 'export default !(()=>1);')
         // and an operator an access base only in a group, where an access
         // is a prefix's operand bare
         writes(['.', ['+', 1, 2], 'x'], 'export default (1+2).x;')
         writes(['.', ['~', ['[]', []]], 0], 'export default (~[])[0];')
         writes(['~', ['.', ['[]', [1]], 0]], 'export default ~[1][0];')
+        writes(['.', ['!', ['[]', []]], 0], 'export default (![])[0];')
         // a shared operator over values is written in place at each
         // occurrence, its minting operand hoisted, and merges again when
         // read; one holding a minting node through a lazy edge takes a
@@ -1143,7 +1152,7 @@ export const proof = {
     demo: {
         examples: () => {
             for (const [name, source] of examples) {
-                assertEq(_sourceOf(source)[0], ['An import', 'Logical not', 'Hex escape', 'typeof', 'Parse error'].includes(name) ? 'error' : 'ok')
+                assertEq(_sourceOf(source)[0], ['An import', 'Hex escape', 'typeof', 'Parse error'].includes(name) ? 'error' : 'ok')
             }
             assertEq(_sourceOf('const a = [1];\nexport default [a, a];')[1], 'const $0=[1];export default [$0,$0];')
         },

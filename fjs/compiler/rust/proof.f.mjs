@@ -13,8 +13,8 @@ import { _rustOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 
-/** The shared examples the Rust output refuses: the four the front end does, and the import it has no file set for. */
-const refusedByRust = ['An import', 'Logical not', 'Hex escape', 'typeof', 'Parse error']
+/** The shared examples the Rust output refuses: the three the front end does, and the import it has no file set for. */
+const refusedByRust = ['An import', 'Hex escape', 'typeof', 'Parse error']
 
 export const proof = {
     structuralRefusals: () => {
@@ -468,7 +468,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             }
             assert(rustOf('Sharing: a const used twice')[1].includes('c0.clone(), c0.clone()'), 'sharing is one clone')
             assert(rustOf('An import')[1].includes('args'), 'the import is refused for reading its arguments')
-            assertEq(rustOf('Logical not')[1], 'unexpected token')
+            assertEq(rustOf('typeof')[1], 'unexpected token')
         },
         view: () => {
             const shown = htmlToString(demo.view(demo.init))

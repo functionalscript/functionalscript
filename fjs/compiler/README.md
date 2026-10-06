@@ -249,6 +249,18 @@ the operator later decides, so `const c = null.x; export default [a && c,
 b && c];` throws at load in both languages. The writer spells both stages, with the
 parentheses their precedence and associativity ask for and no more
 ([spec: operators](../../spec/README.md#operators)).
+
+`!`, the logical not, came after both stages, the third prefix beside `-`
+and `~`: the tokenizer admits the token, the grammar gives it `unaryOperand`
+as the other two have, so `!2 ** 2` is refused where JavaScript refuses it
+and `!(...a) => 1` where `-(...a) => 1` is, the lowering carries it across
+as the EDAG's own `['!', exp]`, `op1Id`, folding nothing, as `~` does —
+truthiness is the interpreter's question — and the writer spells it as it
+spells the other prefixes, bare under anything and an operator's text
+grouped under it, `!(1+2)`. [`rust`](rust/module.f.mjs) and both
+interpreters already answered the node; the front end was what was missing,
+as for `!==` above.
+
 A call is a step after a value, as an access is, and the callee picks which of
 the EDAG's two forms it lowers to: an access as the callee is a method call,
 `a.b(c)`, whose receiver is that access's base, so the access owns the call
@@ -380,7 +392,7 @@ FunctionalScript compiler.
 |---|---|
 | `.f.ts` | Authored FunctionalScript-intent TypeScript implementation/proof source. **No longer used**: stage 1 removed the last one, and new source must not use this extension. It appears below only to describe that completed migration. |
 | `.f.mjs` | Authored FunctionalScript-intent ESM JavaScript with JSDoc types. It may use FunctionalScript features the current parser/compiler does not support yet. |
-| `.f.js` | Authored FunctionalScript that the parser/compiler in the same revision accepts: the stage-2 compatibility marker ([below](#stage-2-mark-compiler-compatible-functionalscript)). Its proof stays `proof.f.mjs`, because a proof fails through `assert`, whose `!`, bare `if` and default parameter the compiler does not accept yet. Every repository module the compiler accepts whole is one, [`fjs/js/prototype`](../js/prototype/module.f.js) and [`fjs/types/range`](../types/range/module.f.js) among them, and none of them imports an `.f.mjs`; the packed-package check closing the `node26` CI job imports one from a clean consumer of the packed package ([`fjs/ci/package`](../ci/package/module.f.mjs)). No build or packaging step produces one: stage 1's TypeScript runtime emission did, and that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)). `fjs compile <input> <output>.f.js` does still write one, to a path the caller names — that is the compiler's output for a user, not repository source. `fjs compile` with no arguments checks every authored one against this compiler, and CI runs it ([spec: checking every `.f.js`](../../spec/README.md#checking-every-fjs)). |
+| `.f.js` | Authored FunctionalScript that the parser/compiler in the same revision accepts: the stage-2 compatibility marker ([below](#stage-2-mark-compiler-compatible-functionalscript)). Its proof stays `proof.f.mjs`, because a proof fails through `assert`, whose bare `if` and default parameter the compiler does not accept yet. Every repository module the compiler accepts whole is one, [`fjs/js/prototype`](../js/prototype/module.f.js) and [`fjs/types/range`](../types/range/module.f.js) among them, and none of them imports an `.f.mjs`; the packed-package check closing the `node26` CI job imports one from a clean consumer of the packed package ([`fjs/ci/package`](../ci/package/module.f.mjs)). No build or packaging step produces one: stage 1's TypeScript runtime emission did, and that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)). `fjs compile <input> <output>.f.js` does still write one, to a path the caller names — that is the compiler's output for a user, not repository source. `fjs compile` with no arguments checks every authored one against this compiler, and CI runs it ([spec: checking every `.f.js`](../../spec/README.md#checking-every-fjs)). |
 | `types.ts` | Authored TypeScript source for a type-level API. It may coexist with `.f.mjs` or later `.f.js` and holds no runtime implementation. |
 | `.d.ts`, `.d.mts` | Generated TypeScript declarations. |
 

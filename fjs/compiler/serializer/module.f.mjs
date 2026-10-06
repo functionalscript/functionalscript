@@ -346,8 +346,8 @@ const levels = [
 /** The level of an operator, `0` the loosest; `-1` for a tag that is none. @type {(op: string) => number} */
 const level = op => levels.findIndex(l => l.includes(op))
 
-/** Whether a node is a prefix operator's: `-` of one operand, or `~`. @type {(node: Node) => boolean} */
-const isPrefix = node => node[0] === '~' || (node[0] === '-' && node.length === 2)
+/** Whether a node is a prefix operator's: `-` of one operand, `~` or `!`. @type {(node: Node) => boolean} */
+const isPrefix = node => node[0] === '~' || node[0] === '!' || (node[0] === '-' && node.length === 2)
 
 /**
  * How tightly a node's text binds: its operator's {@link level}, a prefix
@@ -410,8 +410,8 @@ const leftOperand = (s, depth, op) => v => mapOk(
     (text => grouped(operandGrouped(op, false)(nodeOf(s, v)) || (op === '**' && opensWithPrefix(text)))(text)),
 )(operand(s, depth)(v))
 
-/** Whether a text opens with `-` or `~`. @type {(text: List<string>) => boolean} */
-const opensWithPrefix = text => ['-', '~'].some(p => firstChunk(text).startsWith(p))
+/** Whether a text opens with `-`, `~` or `!`. @type {(text: List<string>) => boolean} */
+const opensWithPrefix = text => ['-', '~', '!'].some(p => firstChunk(text).startsWith(p))
 
 /** The text of the right operand of the eager binary operator `op`. @type {(s: _Scope, depth: number, op: string) => (v: Operand) => Document} */
 const rightOperand = (s, depth, op) => v => mapOk(grouped(operandGrouped(op, true)(nodeOf(s, v))))(operand(s, depth)(v))
@@ -435,7 +435,7 @@ const binary = (s, depth) => (op, left, right) => mapOk(
 const opensWithMinus = text => firstChunk(text).startsWith('-')
 
 /**
- * The text of a prefix operator, `-v` or `~v`: the operand in parentheses
+ * The text of a prefix operator, `-v`, `~v` or `!v`: the operand in parentheses
  * where it is an operator's text, which binds looser than a prefix,
  * `-(1+2)`, and bare otherwise, another prefix included, `-~1`. `- -1` and
  * not `--1`, for the reason {@link binary} has. A function stands in a
@@ -917,7 +917,7 @@ const entry = (s, depth) => i => {
             const [op, left, right] = node
             return right === undefined ? error('a unary + node') : binary(s, depth)(op, left, right)
         }
-        case '~': { return prefix(s, depth)('~')(node[1]) }
+        case '~': case '!': { return prefix(s, depth)(node[0])(node[1]) }
         case '|': case '^': case '&': case '===': case '!==': case '<': case '<=': case '>': case '>=':
         case '<<': case '>>': case '>>>': case '*': case '/': case '%': case '**': { return binary(s, depth)(node[0], node[1], node[2]) }
         case '&&': case '||': case '??': { return lazyBinary(s, depth)(node) }
@@ -1005,7 +1005,7 @@ const operands = node => {
         case '()': { return [node[1], ...node[2].map(itemOperand)] }
         case '[]': { return node[1].map(itemOperand) }
         case '{}': { return node[1].flatMap(p => p[0] === '...' ? [p[1]] : [p[1], p[2]]) }
-        case 'throw': case '~': { return [node[1]] }
+        case 'throw': case '~': case '!': { return [node[1]] }
         case '-': case '+': { return node.length === 2 ? [node[1]] : [node[1], node[2]] }
         case ',': { return node[1] }
         case '&&': case '||': case '??': case '?:': { return [node[1]] }

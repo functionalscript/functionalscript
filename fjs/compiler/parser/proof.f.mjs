@@ -1535,17 +1535,18 @@ export const proof = {
         },
     ],
     /**
-     * **Every shared example is proved to behave as its name says.** The two
-     * operators the parser does not take yet, and the unfinished module, are
-     * the refusals; everything else, an import included, parses.
+     * **Every shared example is proved to behave as its name says.** The
+     * escape the tokenizer does not read, the operator the parser does not
+     * take yet, and the unfinished module are the refusals; everything else,
+     * an import included, parses.
      */
     demo: {
         examples: () => {
             for (const [name, source] of examples) {
-                assertEq(_astOf(source)[0], ['Logical not', 'Hex escape', 'typeof', 'Parse error'].includes(name) ? 'error' : 'ok')
+                assertEq(_astOf(source)[0], ['Hex escape', 'typeof', 'Parse error'].includes(name) ? 'error' : 'ok')
             }
             assertEq(_astOf('export default 1;')[1], 'export default [[],[["object",[[":","default",1]]]]];')
-            assertEq(_astOf('export default !1;')[1], 'unexpected token')
+            assertEq(_astOf('export default typeof 1;')[1], 'unexpected token')
         },
         view: () => {
             const shown = htmlToString(demo.view(demo.init))

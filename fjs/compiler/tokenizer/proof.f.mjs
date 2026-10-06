@@ -147,9 +147,9 @@ export const proof = {
         },
     ],
     /**
-     * **One line per token, and a token that cannot be read is a line.** `!`
-     * and `typeof` are the grammar's gaps: `!` is an `error` token, and
-     * `typeof` an ordinary name the parser then refuses. A string left open
+     * **One line per token, and a token that cannot be read is a line.** A
+     * hex escape and `typeof` are the gaps: the escape is an `error` token,
+     * and `typeof` an ordinary name the parser then refuses. A string left open
      * runs to the end, which the span says.
      */
     demo: {
@@ -158,14 +158,14 @@ export const proof = {
                 '1:1  id  "export"', '1:8  id  "default"', '1:16  [', '1:17  number  "1"', '1:18  ,',
                 '1:20  string  "hi"', '1:24  ,', '1:26  bigint  2n', '1:28  ]', '1:29  ;', '1:30  eof',
             ].join('\n'))
-            assert(_tokensOf('export default !1;').includes('1:16  error  invalid token\n'))
+            assert(_tokensOf('export default !1;').includes('1:16  !\n'))
             assertEq(_tokensOf('"bad').split('\n')[0], '1:1  error  invalid token (to 1:5)')
         },
         examples: () => {
-            // `!` and a hex escape are what the tokenizer cannot read; every other example ends at `eof`
+            // a hex escape is what the tokenizer cannot read; every other example ends at `eof`
             for (const [name, source] of examples) {
                 const tokens = _tokensOf(source)
-                assertEq(tokens.includes('  error  '), ['Logical not', 'Hex escape'].includes(name), name)
+                assertEq(tokens.includes('  error  '), name === 'Hex escape', name)
                 assertEq(tokens.endsWith('eof'), name !== 'Hex escape', name)
             }
             assertEq(_tokensOf('"a\\u0041"').split('\n')[0], '1:1  string  "aA"')

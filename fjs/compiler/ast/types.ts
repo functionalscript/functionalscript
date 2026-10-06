@@ -31,8 +31,8 @@ export type AstImport = {
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
-/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a binary operator, a conditional, a function, a fixed parameter, a rest array, a slot of its frame — or a `throw`, which a body may end with in place of a value. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstBitnot|AstBinary|AstConditional|AstFunction|AstRest|AstArg|AstFrameRef|AstThrow
+/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a logical not, a binary operator, a conditional, a function, a fixed parameter, a rest array, a slot of its frame — or a `throw`, which a body may end with in place of a value. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstBitnot|AstNot|AstBinary|AstConditional|AstFunction|AstRest|AstArg|AstFrameRef|AstThrow
 
 /**
  * A `throw`, `throw v;`: the statement a function's block body, or a
@@ -186,9 +186,9 @@ export type AstAccess = readonly ['.', AstConst, string | number]
 export type AstCall = readonly ['()', AstConst, readonly AstItem[]]
 
 /**
- * A negation, `-v`: the language's one prefix operator, and the EDAG's
- * `['-', exp]` — `op12Id` being `'+'` and `'-'`, each of one operand or
- * two.
+ * A negation, `-v`: the first of the language's prefix operators, and the
+ * EDAG's `['-', exp]` — `op12Id` being `'+'` and `'-'`, each of one operand
+ * or two.
  *
  * `-` binds looser than a step, so `-1 .x` is `['-', ['.', 1, 'x']]` and
  * `-1()` is `['-', ['()', 1, []]]`, which is how JavaScript reads them. A
@@ -207,6 +207,14 @@ export type AstNeg = readonly ['-', AstConst]
  * reaches the represented interpreter as a node.
  */
 export type AstBitnot = readonly ['~', AstConst]
+
+/**
+ * A logical not, `!v`: the EDAG's `['!', exp]`, `op1Id`. Like {@link AstBitnot}
+ * it folds nothing: what `!` negates is its operand's truthiness, which is
+ * `ToBoolean`'s question and not this tree's, so it always reaches the
+ * represented interpreter as a node.
+ */
+export type AstNot = readonly ['!', AstConst]
 
 /**
  * A binary operator, Stages A and B of

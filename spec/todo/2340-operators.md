@@ -27,7 +27,7 @@
 |Logical    |`&&`     |**done**   |
 |           |`\|\|`   |**done**   |
 |           |`??`     |**done**   |
-|           |`!`      |1          |
+|           |`!`      |**done**   |
 |Conditional|`?:`     |**done**   |
 |Comma      |`,`      |1          |
 |Type       |`typeof` |EDAG only  |
@@ -40,9 +40,9 @@ The lazy operators and the conditional are the EDAG's own nodes — `op2` for
 `&&`, `||` and `??`, `op3` for `?:` — whose laziness the EDAG states
 positionally; what the front end adds is the anchoring rule below, the
 eager/lazy split `anchors` in [`fjs/compiler/ast`](../../fjs/compiler/ast/module.f.mjs)
-reads by. The remaining priority-1 rows are `!`, which the paragraph on
-`typeof` below leaves open with it, and the comma, which generalizes that
-anchoring rule.
+reads by. `!` landed after both, the third prefix, carried across as the EDAG's own
+`op1Id` node and folded no more than `~` is. The remaining priority-1 row is
+the comma, which generalizes that anchoring rule.
 
 The line every fold this table adds is held to: unary `-` folds over a
 numeric literal, since negating one is exact, total arithmetic, and nothing

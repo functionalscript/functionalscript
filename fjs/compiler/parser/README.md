@@ -34,17 +34,19 @@ last   ::= 'export' ( 'default' value end | const const* [ last ] )
          | 'throw' value end
 end    ::= [ ';' ]
 value  ::= '-' unaryOperand tail | '~' unaryOperand tail
+         | '!' unaryOperand tail
          | (primitive | array | object) access* powTail tail
          | id arrowOrRest
          | '(' (func | value afterValue)
 body   ::= '-' unaryOperand tail | '~' unaryOperand tail
+         | '!' unaryOperand tail
          | (primitive | array) access* powTail tail
          | id arrowOrRest
          | '(' (func | value afterValue) | block
-unary  ::= '-' unaryOperand | '~' unaryOperand
+unary  ::= '-' unaryOperand | '~' unaryOperand | '!' unaryOperand
          | (primitive | id | array | object) access* powTail
          | '(' group
-unaryOperand ::= '-' unaryOperand | '~' unaryOperand
+unaryOperand ::= '-' unaryOperand | '~' unaryOperand | '!' unaryOperand
          | (primitive | id | array | object) access*
          | '(' groupOperand
 block  ::= '{' statement* terminator '}'
@@ -93,17 +95,17 @@ the fold's, not the grammar's: trivia is no symbol of the grammar, and the
 `=>` token says whether a line break stood before it, a line comment's end or
 a block comment holding one included.
 
-A `-` or a `~` takes the group under its `(` and not `paren`, the two
+A `-`, a `~` or a `!` takes the group under its `(` and not `paren`, the two
 differing by the function: `-(...a) => 1` is a syntax error in JavaScript
 and `-((...a) => 1)` is not, so the operand is the group alone and the
 `...` is refused where JavaScript refuses it rather than at the `(`. Every
 binary operator's operand is `unary` — see the next section for why it
-can be no wider a rule — but `-`/`~`'s own operand is `unaryOperand`, a
+can be no wider a rule — but `-`/`~`/`!`'s own operand is `unaryOperand`, a
 narrower rule still: JavaScript refuses `**` immediately after a
 unary-prefixed operand, full stop, at any depth (`- -2 ** 2` exactly as
 `- 2 ** 2`), so `unaryOperand` is every alternative `unary` has minus
 `powTail`, recursing through itself rather than `unary` for a nested
-`-`/`~`. Only `(-2) ** 2` and `-(2 ** 2)` write either reading:
+`-`/`~`/`!`. Only `(-2) ** 2` and `-(2 ** 2)` write either reading:
 parentheses that move the `**` to where it no longer immediately follows
 the prefix.
 

@@ -132,23 +132,24 @@ export type Access = {
 }
 
 /**
- * `**`'s right operand, when a primary, a group, or a `-`/`~` is raised to
+ * `**`'s right operand, when a primary, a group, or a `-`/`~`/`!` is raised to
  * a power: optional, and {@link Unary} again when present — right-recursive,
  * so `2 ** 3 ** 2` is `2 ** (3 ** 2)`.
  */
 export type PowTail = Option<readonly [number, Unary]>
 
 /**
- * What a `-` or a `~` takes: a value less the function, JavaScript's unary
- * operand being a `UnaryExpression`, which an arrow function is not — and a
- * group, {@link ParenGroup}, which is one. Every alternative but the two
- * prefixes may be raised to a power, {@link PowTail}; the prefixes
+ * What a `-`, a `~` or a `!` takes: a value less the function, JavaScript's
+ * unary operand being a `UnaryExpression`, which an arrow function is not —
+ * and a group, {@link ParenGroup}, which is one. Every alternative but the
+ * three prefixes may be raised to a power, {@link PowTail}; the prefixes
  * themselves recurse into {@link UnaryOperand}, never {@link Unary}, since
  * JavaScript refuses `**` immediately after a unary-prefixed operand.
  */
 export type Unary = () => readonly ['const', {
     readonly neg: readonly [number, UnaryOperand]
     readonly bitnot: readonly [number, UnaryOperand]
+    readonly not: readonly [number, UnaryOperand]
     readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>], PowTail]
     readonly ref: readonly [readonly [typeof identifier, RepeatFrom<0, Access>], PowTail]
     readonly array: readonly [readonly [Container<Item>, RepeatFrom<0, Access>], PowTail]
@@ -157,16 +158,17 @@ export type Unary = () => readonly ['const', {
 }]
 
 /**
- * What a `-` or a `~` takes: every alternative {@link Unary} has, but none
- * of them — including a nested `-`/`~`, recursing through this same type —
- * carries {@link PowTail}. JavaScript refuses `**` immediately after a
+ * What a `-`, a `~` or a `!` takes: every alternative {@link Unary} has, but
+ * none of them — including a nested `-`/`~`/`!`, recursing through this same
+ * type — carries {@link PowTail}. JavaScript refuses `**` immediately after a
  * unary-prefixed operand at any depth, `- -2 ** 2` exactly as `- 2 ** 2`,
  * so recursing through this type rather than {@link Unary} keeps that
- * refusal at every depth a `-`/`~` chain reaches.
+ * refusal at every depth a `-`/`~`/`!` chain reaches.
  */
 export type UnaryOperand = () => readonly ['const', {
     readonly neg: readonly [number, UnaryOperand]
     readonly bitnot: readonly [number, UnaryOperand]
+    readonly not: readonly [number, UnaryOperand]
     readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>]]
     readonly ref: readonly [readonly [typeof identifier, RepeatFrom<0, Access>]]
     readonly array: readonly [readonly [Container<Item>, RepeatFrom<0, Access>]]
@@ -268,7 +270,7 @@ export type Tail = readonly [...EagerTail, CircuitTail, ConditionalTail]
 /**
  * The branches {@link Value} and {@link Body} both start with: a primitive
  * token, a reference, or an array of values, each followed by the
- * accesses after it and optionally raised to a power — or a `-`/`~`
+ * accesses after it and optionally raised to a power — or a `-`/`~`/`!`
  * prefix — each carrying {@link Tail}, the binary-operator suffix, above
  * it — or `(`, the choice between a function and a group, {@link Paren},
  * a function alone excepted, nothing following one unparenthesized.
@@ -281,6 +283,7 @@ export type Tail = readonly [...EagerTail, CircuitTail, ConditionalTail]
 export type ValueBranches = {
     readonly neg: readonly [number, UnaryOperand, ...Tail]
     readonly bitnot: readonly [number, UnaryOperand, ...Tail]
+    readonly not: readonly [number, UnaryOperand, ...Tail]
     readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly name: readonly [typeof identifier, ArrowOrRest]
     readonly array: readonly [readonly [Container<Item>, RepeatFrom<0, Access>], PowTail, ...Tail]
@@ -348,7 +351,7 @@ export type ParameterNames = () => readonly ['const', {
 }]
 
 /**
- * A group after its `(`, under a `-`/`~`: the value, `)`, the steps the
+ * A group after its `(`, under a `-`/`~`/`!`: the value, `)`, the steps the
  * group takes — which are the group's and not the
  * value's, the one thing the parentheses change — and the power it may be
  * raised to, {@link PowTail}. A value's own `(` reads its group through
@@ -373,7 +376,7 @@ export type ParenGroup = readonly [number, Group]
 export type GroupOperand = readonly [Value, number, RepeatFrom<0, Access>]
 
 /**
- * `(` and {@link GroupOperand}: what a `-`/`~` may take in
+ * `(` and {@link GroupOperand}: what a `-`/`~`/`!` may take in
  * parentheses, {@link UnaryOperand}'s own `(` branch.
  */
 export type ParenGroupOperand = readonly [number, GroupOperand]
