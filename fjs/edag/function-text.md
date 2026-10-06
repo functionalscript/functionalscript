@@ -2,11 +2,17 @@
 
 **Accepted as the host's** (ruled by @sergey-shandar on
 [#2469](https://github.com/functionalscript/functionalscript/pull/2469),
-2026-10-01). The evaluators in this directory, `amnesia` and `memo` over
+2026-10-01). The original evaluators, `amnesia` and `memo` over
 [`operations`](./operations/module.f.mjs), answer a function's text with
 whatever the JavaScript host answers. They neither render the EDAG-derived
 text nor refuse. This document records why, so the question is not reopened
 without something new.
+
+**Migration update:** memo now retains function EDAG and uses the shared
+`functionText` renderer for direct and indirect conversion. Amnesia still uses
+the host behavior documented below. The renderer can refuse valid bodies that
+have no spelling in its supported source subset; the [value plan](todo/edag-value.md)
+records that diagnostic boundary as a blocker for the draft memo migration.
 
 ## What the language says a function's text is
 
@@ -105,15 +111,14 @@ language's.
 
 ## What would change this
 
-The [EdagValue proposal](./todo/edag-value.md) is the planned replacement:
+The [EdagValue proposal](./todo/edag-value.md) is the replacement in progress:
 every FJS VM carries function code and evaluated captures as EDAG values and
 renders their text through the shared renderer. The accepted behavior above
-remains the current host-valued baseline until that migration. Explicit
+remains Amnesia's host-valued baseline until its migration. Explicit
 conversion to an ordinary runtime value typed as `unknown` erases EDAG
 reflection; JavaScript callables at that boundary retain the host-text
 exception.
 
-A representation in which a function value carries its EDAG, or a host
-boundary that can find the EDAG from the value, with no `Proxy`, no
-mutation and no import of JavaScript. Then the text could be rendered here
-too. Until then, the host's text is the answer.
+Memo's function values carry their EDAG without a `Proxy`, mutation or imported
+JavaScript. Callable runtime compilation remains separate work; this cutover
+does not yet convert represented functions into ordinary runtime callables.

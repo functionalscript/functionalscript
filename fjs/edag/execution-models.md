@@ -67,8 +67,14 @@ computed directly.
 This preserves the behavior of §2.1 while reducing runtime memory and memo-table
 work. The traversal is [`analysis`](./analysis/module.f.mjs): one table per
 program, the shared entries by index, each cached within its scope; the
-executor over it is [`memo`](./memo/module.f.mjs), one slot per shared entry
-of an invocation, filled on first demand.
+executor over it is [`memo`](./memo/module.f.mjs), returning represented
+`EdagValue` results. Its immutable invocation cache gains a shared entry on
+first demand. Calls interpret retained function bodies with fresh cache state.
+
+This evaluation is **EDAG interpretation**. Converting the resulting value
+graph into ordinary FJS/JS values is **runtime compilation**; function-free
+materialization is implemented, while callable code generation and loading
+remain separate work in the [value plan](./todo/edag-value.md).
 
 ### 2.3 Generate JavaScript
 

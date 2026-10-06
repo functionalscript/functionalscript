@@ -1,13 +1,20 @@
-/** @import { Exp } from '../../edag/types.ts' */
+/**
+ * @import { Exp } from '../../edag/types.ts'
+ * @import { EdagValue, Values } from '../../edag/value/types.ts'
+ */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { analysis, bindingError } from '../../edag/analysis/module.f.mjs'
 import { vm } from '../../edag/amnesia/module.f.mjs'
-import { memo } from '../../edag/memo/module.f.mjs'
+import { invoke, memo } from '../../edag/memo/module.f.mjs'
+import { call } from '../../edag/value/call/module.f.mjs'
+import { read } from '../../edag/value/property/module.f.mjs'
+import { toUnknown } from '../../edag/value/to_unknown/module.f.mjs'
+import { isArray } from '../../types/array/module.f.mjs'
 import { maxLength } from '../../types/function/length/module.f.mjs'
 import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { ok, unwrap } from '../../types/result/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { unresolved, resolve, _defaultExport } from '../edag/module.f.mjs'
 import { tryStringify, tryModuleStringify } from '../serializer/module.f.mjs'
@@ -15,8 +22,20 @@ import { tryStringify, tryModuleStringify } from '../serializer/module.f.mjs'
 /** @type {(source: string) => Exp} */
 const graph = source => _defaultExport(unresolved(unwrap(parse('parameters.f.mjs')(source))).edag)
 
-/** @type {readonly ((e: Exp) => any)[]} */
-const evaluators = [vm({ frame: null, args: [] }), e => memo(assertOk(analysis(e)))({ frame: null, args: [] })]
+/** Amnesia still supplies the host-valued comparison during migration. @type {(e: Exp) => any} */
+const run = vm({ frame: null, args: [] })
+
+/** @type {(e: Exp) => EdagValue} */
+const interpret = e => unwrap(memo(assertOk(analysis(e)))({ args: [] }))
+
+/** @type {(fn: EdagValue, args: Values) => EdagValue} */
+const apply = (fn, args) => assertOk(call(ok(fn), args.map(arg => () => ok(arg)), invoke))
+
+/** @type {(value: EdagValue) => Values} */
+const elements = value => {
+    assert(isArray(value) && value[0] === '[]')
+    return value[1]
+}
 
 /** @type {(source: string) => Exp} */
 const roundTrip = source => {
@@ -36,10 +55,11 @@ export const proof = {
         }
         const linked = unwrap(virtual({ ...emptyState, root })(resolve('main.f.mjs'))[1])
         assert(assertOk(analysis(linked)).nodes.every(n => n[0] !== 'args'))
-        for (const run of evaluators) {
-            const f = run(_defaultExport(linked))
-            assertStructurallySame(f(3,4,5)(6), [[1],[2],3,[4,5],6])
-        }
+        const e = _defaultExport(linked)
+        const f = run(e)
+        assertStructurallySame(f(3,4,5)(6), [[1],[2],3,[4,5],6])
+        const represented = apply(apply(interpret(e), [3,4,5]), [6])
+        assertStructurallySame(assertOk(toUnknown(represented)), [[1],[2],3,[4,5],6])
     },
     syntax: () => {
         for (const [parameters, body, length] of /** @type {const} */ ([
@@ -48,7 +68,8 @@ export const proof = {
             ['(a,b,c,...x)', '[a,b,c,x]', 3], ['(a, /*x*/ b,\n...x)', '[a,b,x]', 2],
         ])) {
             const e = roundTrip(`export default ${parameters} => ${body};`)
-            for (const run of evaluators) { assertEq(run(e).length, length) }
+            assertEq(run(e).length, length)
+            assertEq(assertOk(read(ok(interpret(e)), 'length')), length)
         }
         roundTrip('export default (a, b, ...x) => { const y = [a,b]; return [y,x]; };')
     },
@@ -57,29 +78,45 @@ export const proof = {
         assertStructurallySame(e, ['=>', 3, [], ['[]', [['arg', 0], ['arg', 1], ['arg', 2], ['rest']]]])
         /** @type {(a?: unknown, b?: unknown, c?: unknown, ...x: readonly unknown[]) => readonly unknown[]} */
         const native = (a, b, c, ...x) => [a,b,c,x]
-        for (const run of evaluators) {
-            const f = run(e)
-            for (const args of [[], [undefined], [1], [1,2], [1,2,3], [1,2,3,undefined], [-0,2,3,4,5]]) {
-                assertStructurallySame(f(...args), native(args[0], args[1], args[2], ...args.slice(3)))
-            }
+        const f = run(e)
+        const represented = interpret(e)
+        for (const args of [[], [undefined], [1], [1,2], [1,2,3], [1,2,3,undefined], [-0,2,3,4,5]]) {
+            const expected = native(args[0], args[1], args[2], ...args.slice(3))
+            assertStructurallySame(f(...args), expected)
+            // These fixtures contain only numbers and undefined; no host
+            // containers or callbacks cross into the interpreter.
+            const values = args.map(arg => arg === undefined ? /** @type {const} */ (['undefined']) : arg)
+            assertStructurallySame(assertOk(toUnknown(apply(represented, values))), expected)
         }
     },
     capturesAndIdentity: () => {
         const e = roundTrip('export default (a,...x)=>(b,...y)=>[a,x,b,y,x,y];')
-        for (const run of evaluators) {
-            const f = run(e)
-            const one = f(1,2,3)
-            const two = f(1,2,3)
-            assertEq(f.length, 1)
-            assertEq(one.length, 1)
-            assert(one !== two)
-            const a = one(4,5)
-            const b = one(6)
-            const c = two(4,5)
-            assertStructurallySame(a, [1,[2,3],4,[5],[2,3],[5]])
-            assert(a[1] === a[4] && a[3] === a[5])
-            assert(a[1] === b[1] && a[3] !== b[3] && a[1] !== c[1])
-        }
+        const f = run(e)
+        const one = f(1,2,3)
+        const two = f(1,2,3)
+        assertEq(f.length, 1)
+        assertEq(one.length, 1)
+        assert(one !== two)
+        const a = one(4,5)
+        const b = one(6)
+        const c = two(4,5)
+        assertStructurallySame(a, [1,[2,3],4,[5],[2,3],[5]])
+        assert(a[1] === a[4] && a[3] === a[5])
+        assert(a[1] === b[1] && a[3] !== b[3] && a[1] !== c[1])
+
+        const represented = interpret(e)
+        const first = apply(represented, [1,2,3])
+        const second = apply(represented, [1,2,3])
+        assertEq(assertOk(read(ok(represented), 'length')), 1)
+        assertEq(assertOk(read(ok(first), 'length')), 1)
+        assert(first !== second)
+        const av = apply(first, [4,5])
+        const bv = elements(apply(first, [6]))
+        const cv = elements(apply(second, [4,5]))
+        assertStructurallySame(assertOk(toUnknown(av)), [1,[2,3],4,[5],[2,3],[5]])
+        const aa = elements(av)
+        assert(aa[1] === aa[4] && aa[3] === aa[5])
+        assert(aa[1] === bv[1] && aa[3] !== bv[3] && aa[1] !== cv[1])
     },
     factoryTable: () => {
         // The table's first entries, spelled as `fjs/types/function/length` spells them; `lengthLimit` covers its width.
@@ -90,14 +127,22 @@ export const proof = {
             '    g => (a0, a1, ...rest) => g([a0, a1], rest),',
             '];',
         ].join('\n')))).edag
-        for (const run of evaluators) {
-            const { factories: compiled } = run(table)
-            assertEq(compiled.length, 3)
-            for (const [length, factory] of compiled.entries()) {
-                const f = factory((/** @type {unknown} */ fixed, /** @type {unknown} */ rest) => [fixed, rest])
-                assertEq(f.length, length)
-                assertStructurallySame(f(1,2,3), [Array.from({ length }, (_, i) => [1,2,3][i]), [1,2,3].slice(length)])
-            }
+        const { factories: compiled } = run(table)
+        assertEq(compiled.length, 3)
+        for (const [length, factory] of compiled.entries()) {
+            const f = factory((/** @type {unknown} */ fixed, /** @type {unknown} */ rest) => [fixed, rest])
+            assertEq(f.length, length)
+            assertStructurallySame(f(1,2,3), [Array.from({ length }, (_, i) => [1,2,3][i]), [1,2,3].slice(length)])
+        }
+        // Interpreted calls receive represented callbacks. Ordinary runtime
+        // callbacks belong at the separate runtime-compilation boundary.
+        const callback = interpret(graph('export default (fixed, rest) => [fixed, rest];'))
+        const factories = elements(assertOk(read(ok(interpret(table)), 'factories')))
+        assertEq(factories.length, 3)
+        for (const [length, factory] of factories.entries()) {
+            const f = apply(factory, [callback])
+            assertEq(assertOk(read(ok(f), 'length')), length)
+            assertStructurallySame(assertOk(toUnknown(apply(f, [1,2,3]))), [Array.from({ length }, (_, i) => [1,2,3][i]), [1,2,3].slice(length)])
         }
     },
     lengthLimit: () => {
@@ -106,7 +151,8 @@ export const proof = {
         const e = roundTrip(source(maxLength))
         assert(e instanceof Array && e[0] === '=>')
         assertEq(e[1], maxLength)
-        for (const run of evaluators) { assertEq(run(e).length, maxLength) }
+        assertEq(run(e).length, maxLength)
+        assertEq(assertOk(read(ok(interpret(e)), 'length')), maxLength)
         assertEq(parse('bad.f.mjs')(source(maxLength + 1))[0], 'error')
     },
     refusals: () => {
@@ -127,9 +173,9 @@ export const proof = {
         }
     },
     throw: {
-        overLimit: evaluators.map(run => () => run(['=>',maxLength + 1,[],1])),
-        arg: evaluators.map(run => () => run(['=>',1,[],['arg',1]])()),
-        moduleRest: evaluators.map(run => () => run(['rest'])),
-        functionArgs: evaluators.map(run => () => run(['=>',1,[],['args']])()),
+        overLimit: [() => run(['=>',maxLength + 1,[],1]), () => interpret(['=>',maxLength + 1,[],1])],
+        arg: [() => run(['=>',1,[],['arg',1]])(), () => interpret(['=>',1,[],['arg',1]])],
+        moduleRest: [() => run(['rest']), () => interpret(['rest'])],
+        functionArgs: [() => run(['=>',1,[],['args']])(), () => interpret(['=>',1,[],['args']])],
     },
 }

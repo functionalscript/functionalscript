@@ -21,10 +21,13 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { _sourceOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
-import { memo } from '../../edag/memo/module.f.mjs'
+import { invoke, memo } from '../../edag/memo/module.f.mjs'
+import { call } from '../../edag/value/call/module.f.mjs'
+import { read } from '../../edag/value/property/module.f.mjs'
+import { toUnknown } from '../../edag/value/to_unknown/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { invert, unwrap } from '../../types/result/module.f.mjs'
+import { invert, ok, unwrap } from '../../types/result/module.f.mjs'
 import { _defaultExport, unresolved } from '../edag/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { functionText, tryFunctionText, trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify } from './module.f.mjs'
@@ -152,7 +155,7 @@ const generated = (() => {
 const moduleGraph = source => unresolved(unwrap(parse(path)(source))).edag
 
 /** @type {(graph: Exp) => unknown} */
-const moduleValue = graph => memo(assertOk(analysis(graph)))({ frame: null, args: [] })
+const moduleValue = graph => assertOk(toUnknown(unwrap(memo(assertOk(analysis(graph)))({ args: [] }))))
 
 /** Render an already analyzed function root. @type {(e: Exp) => Result<string, string>} */
 const analyzedFunction = e => {
@@ -206,9 +209,11 @@ export const proof = {
         },
         functions: () => {
             const text = unwrap(tryModuleStringify(moduleGraph('export const f=(...a)=>a; export default f;')))
-            const result = /** @type {{ f: (...args: unknown[]) => unknown, default: unknown }} */ (moduleValue(moduleGraph(text)))
-            assert(result.f === result.default)
-            assertStructurallySame(result.f(1, 2), [1, 2])
+            const result = memo(assertOk(analysis(moduleGraph(text))))({ args: [] })
+            const fn = assertOk(read(result, 'f'))
+            assertEq(fn, assertOk(read(result, 'default')))
+            const called = assertOk(call(ok(fn), [() => ok(1), () => ok(2)], invoke))
+            assertStructurallySame(assertOk(toUnknown(called)), [1, 2])
         },
         refusals: () => {
             for (const graph of /** @type {readonly Exp[]} */ ([
@@ -770,7 +775,7 @@ export const proof = {
         // the call a nested `throw` is written as fails where the node does
         nested: () => {
             const { edag } = unresolved(unwrap(parse(path)(unwrap(tryStringify(['[]', [['throw', 1]]])))))
-            memo(assertOk(analysis(_defaultExport(edag))))({ frame: null, args: [] })
+            unwrap(memo(assertOk(analysis(_defaultExport(edag))))({ args: [] }))
         },
     },
     refuses: () => {
