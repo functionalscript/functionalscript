@@ -76,9 +76,12 @@ executor over it is [`memo`](./memo/module.f.mjs), returning represented
 first demand. Calls interpret retained function bodies with fresh cache state.
 
 This evaluation is **EDAG interpretation**. Converting the resulting value
-graph into ordinary FJS/JS values is **runtime compilation**; function-free
-materialization is implemented, while callable code generation and loading
-remain separate work in the [value plan](./todo/edag-value.md).
+graph into ordinary FJS/JS values is **runtime compilation**. It supports data
+and callables through [`value/to_unknown`](./value/to_unknown/module.f.mjs),
+with target compilation and loading supplied by an effect handler.
+`compiler/transpiler.transpile` composes this boundary with module interpretation;
+the [value contract](./values.md#runtime-compilation) describes the supported
+target profiles.
 
 ### 2.3 Generate JavaScript
 

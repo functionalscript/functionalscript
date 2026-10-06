@@ -24,8 +24,9 @@ This is code-only text, not a serialization of captured values, a FJS source
 round trip or an implementation of callable runtime compilation. Source
 serialization through `tryStringify` remains partial. Callable runtime
 compilation uses [`value/to_unknown`](./value/to_unknown/module.f.mjs) and the
-JavaScript value emitter; the [value plan](./todo/edag-value.md) tracks the
-remaining compiler integration and target backends.
+JavaScript value emitter. `compiler/transpiler.transpile` uses that boundary
+for ordinary runtime exports; the
+[value contract](./values.md#runtime-compilation) describes target support.
 
 ## Host runtime values
 

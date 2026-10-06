@@ -6,7 +6,7 @@
  */
 
 import { exitCode } from '../../effects/node/module.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertOk } from '../../asserts/module.f.mjs'
 import { pureOk, step as ioStep } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
 import {
@@ -17,6 +17,7 @@ import {
 import { data } from '../module.f.mjs'
 import { directory, generate } from '../rust/module.f.mjs'
 import { generate as generateMethods, path as methodsPath } from '../methods/module.f.mjs'
+import { generate as generateValues, path as valuesPath } from '../values/module.f.mjs'
 import { generateRustTests, main } from './module.f.mjs'
 
 export const proof = {
@@ -30,7 +31,7 @@ export const proof = {
             (/** @type {Effect<ReadFile, readonly string[], IoChannel>} */ e, [name]) =>
                 ioStep(e, read => ioStep(readUtf8File(`${directory}/${name}`), c => pureOk([...read, c]))),
             pureOk([]))
-        const [, [tag, result]] = virtual(emptyState)(ioStep(generateRustTests(), () => readAll))
+        const [state, [tag, result]] = virtual(emptyState)(ioStep(generateRustTests(), () => readAll))
         assert(tag === 'ok', result)
         assertEq(result.length, files.length)
         files.forEach(([, content], i) => { assertEq(result[i], content) })
@@ -38,6 +39,8 @@ export const proof = {
         const [, [tableTag, tableResult]] = virtual(emptyState)(table)
         assert(tableTag === 'ok', tableResult)
         assertEq(tableResult, generateMethods())
+        const [, valuesResult] = virtual(state)(readUtf8File(valuesPath))
+        assertEq(assertOk(valuesResult), generateValues())
     },
     main: () => {
         const [, result] = virtual(emptyState)(main(defaultNodeProgramOptions))
