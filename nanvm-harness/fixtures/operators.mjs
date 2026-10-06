@@ -9,7 +9,7 @@
  */
 const n = 2 * 3;
 export default [
-    n + 1, n - 1, n * 2, n / 4, n % 4, n ** 2, -n, ~n, !n,
+    n + 1, n - 1, n * 2, n / 4, n % 4, n ** 2, -n, ~n, !n, typeof n,
     n === 6, n !== 6, n < 7, n <= 6, n > 7, n >= 6,
     n & 3, n | 1, n ^ 1, n << 1, n >> 1, n >>> 1,
     "a" + "b", 1 + 2 * 3,

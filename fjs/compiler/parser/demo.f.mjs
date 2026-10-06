@@ -11,9 +11,8 @@
  * there too, which is the AST's reason for being a list.
  *
  * **A refusal is shown in the parser's own words** — `unexpected token`,
- * `unexpected end` — rather than as an empty box. `typeof x` is valid
- * JavaScript this parser does not take yet, and the shared examples keep it
- * where a reader can see that.
+ * `unexpected end` — rather than as an empty box, and the shared examples
+ * keep an unfinished module where a reader can see one.
  *
  * **It needs no operations.** Parsing is a pure function of the text, so
  * `update` declares `never` and returns through `pureOk`.

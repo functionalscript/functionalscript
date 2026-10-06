@@ -13,19 +13,21 @@
  *          | 'throw' value end
  * end    ::= [ ';' ]
  * value  ::= '-' unaryOperand tail | '~' unaryOperand tail
- *          | '!' unaryOperand tail
+ *          | '!' unaryOperand tail | 'typeof' unaryOperand tail
  *          | (primitive | array | object) access* powTail tail
  *          | id arrowOrRest
  *          | '(' (func | value afterValue)
  * body   ::= '-' unaryOperand tail | '~' unaryOperand tail
- *          | '!' unaryOperand tail
+ *          | '!' unaryOperand tail | 'typeof' unaryOperand tail
  *          | (primitive | array) access* powTail tail
  *          | id arrowOrRest
  *          | '(' (func | value afterValue) | block
  * unary  ::= '-' unaryOperand | '~' unaryOperand | '!' unaryOperand
+ *          | 'typeof' unaryOperand
  *          | (primitive | id | array | object) access* powTail
  *          | '(' group
  * unaryOperand ::= '-' unaryOperand | '~' unaryOperand | '!' unaryOperand
+ *          | 'typeof' unaryOperand
  *          | (primitive | id | array | object) access*
  *          | '(' groupOperand
  * block  ::= '{' statement* terminator '}'
@@ -171,9 +173,16 @@ export const _tokenKindNames = _djsTokenKinds.filter(kind => kind !== 'eof')
  * `const if = 1;` is.
  *
  * Giving a word its own symbol narrows where it is *required*, never where
- * it is *allowed*.
+ * it is *allowed* — with one exception. `typeof` is required where a value
+ * begins, as the prefix of {@link unary}, so it alone is kept out of
+ * {@link identifier}: a rule admitting it as a reference there would open
+ * two branches on one symbol, which `fjs/ebnf/ll1` refuses, and a
+ * reference cannot be a reserved word anyway. {@link identifierName} still
+ * admits it, so `{ typeof: 1 }` and `a.typeof` are members as in JavaScript,
+ * and a binding takes that wider rule too, so `const typeof = 1;` still
+ * reaches the fold and is refused as a `reserved word`, as `const if = 1;` is.
  */
-export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'as'])
+export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'as', 'typeof'])
 
 /**
  * The complete alphabet: one name per `DjsToken` kind except `eof`, plus
@@ -245,7 +254,9 @@ export const _valueKinds = /** @type {const} */ ([...literalWords, 'number', 'st
  * ECMAScript draws the same line and this follows it: a property is named
  * by an `IdentifierName`, which admits every reserved word, so `{ NaN: 1 }`
  * and `a.NaN` are JavaScript and mean the string `"NaN"`, while a reference
- * is an `IdentifierReference`, which admits none of them. A binding is an
+ * is an `IdentifierReference`, which admits none of them — `typeof` among
+ * them, the one framing keyword {@link identifier} lacks, for the reason
+ * its list gives. A binding is an
  * ECMAScript `BindingIdentifier`, narrower still; it takes this wider rule
  * here so that `const NaN = 1;` reaches the fold and is refused as a
  * `reserved word`, rather than dying at the token with `unexpected token`.
@@ -253,6 +264,7 @@ export const _valueKinds = /** @type {const} */ ([...literalWords, 'number', 'st
  */
 export const identifierName = /** @type {const} */ ({
     ...identifier,
+    typeof: sym('typeof'),
     null: sym('null'),
     true: sym('true'),
     false: sym('false'),
@@ -456,7 +468,7 @@ export const parameterNames = () => ['const', {
 }]
 
 /**
- * What a `-`, a `~` or a `!` takes: every value but a function. JavaScript's
+ * What a prefix takes: every value but a function. JavaScript's
  * unary operand is a `UnaryExpression`, which an arrow function is not —
  * `-(...a) => 1` and `~(...a) => 1` are syntax errors there, so they are
  * here — and each branch is right-recursive, so `- -1` is a negation of a
@@ -467,7 +479,7 @@ export const parameterNames = () => ['const', {
  * `~`, or `!` and `!`, where it reads `-` and `-` for the other.
  *
  * A group is an operand, {@link parenGroup}, and it is how a function
- * reaches a `-`/`~`/`!` at all: `-((...a) => 1)` negates one where
+ * reaches a prefix at all: `-((...a) => 1)` negates one where
  * `-(...a) => 1` cannot be written. So the branch is that rule and not
  * {@link paren}, which a function shares — taking the `(` alternative
  * whole would admit the spelling JavaScript refuses.
@@ -497,6 +509,7 @@ export const unary = () => ['const', {
     neg: [sym('-'), unaryOperand],
     bitnot: [sym('~'), unaryOperand],
     not: [sym('!'), unaryOperand],
+    typeof: [sym('typeof'), unaryOperand],
     primitive: [primitiveValue, powTail],
     ref: [reference, powTail],
     array: [[array, accesses], powTail],
@@ -505,7 +518,7 @@ export const unary = () => ['const', {
 }]
 
 /**
- * `**`'s right operand, when a primary, a group, or `-`/`~`/`!`'s own operand
+ * `**`'s right operand, when a primary, a group, or a prefix's own operand
  * is raised to a power: right-associative, so `2 ** 3 ** 2` is
  * `2 ** (3 ** 2)`, and reaching back into {@link unary} — not stopping at
  * a bare primary — is how `2 ** -2` and `2 ** ~2` stand without
@@ -518,9 +531,9 @@ export const unary = () => ['const', {
 const powTail = option([sym('**'), unary])
 
 /**
- * What a `-`, a `~` or a `!` takes: every alternative {@link unary} has — a
+ * What a prefix takes: every alternative {@link unary} has — a
  * primitive, a reference, an array, an object, a group, or a further
- * `-`/`~`/`!` — but none of them carries {@link powTail}, here or through any
+ * prefix — but none of them carries {@link powTail}, here or through any
  * depth of recursion.
  *
  * JavaScript refuses `**` immediately after a unary-prefixed operand,
@@ -531,10 +544,10 @@ const powTail = option([sym('**'), unary])
  * parentheses that move the `**` to where it no longer immediately
  * follows the prefix, one wrapping the negation and the other the power.
  *
- * So {@link unary}'s own neg/bitnot/not branches, and {@link value}'s and
+ * So {@link unary}'s own prefix branches, and {@link value}'s and
  * {@link body}'s, all reach this rule for their operand rather than
  * `unary` itself — and this rule reaches itself, not `unary`, for a
- * nested `-`/`~`/`!`'s own operand, `- -2 ** 2` refused the same way `- 2 **
+ * nested prefix's own operand, `- -2 ** 2` refused the same way `- 2 **
  * 2` is rather than only the outer prefix carrying the restriction.
  *
  * The four leaves are each still wrapped one tuple deep, `[primitiveValue]`
@@ -549,6 +562,7 @@ export const unaryOperand = () => ['const', {
     neg: [sym('-'), unaryOperand],
     bitnot: [sym('~'), unaryOperand],
     not: [sym('!'), unaryOperand],
+    typeof: [sym('typeof'), unaryOperand],
     primitive: [primitiveValue],
     ref: [reference],
     array: [[array, accesses]],
@@ -668,8 +682,9 @@ export const circuitTail = option({
 })
 
 /**
- * The branches {@link value} and {@link body} both start with: a `-`/`~`/`!`
- * prefix, a primitive token, a name, an array, or `(` — the choice
+ * The branches {@link value} and {@link body} both start with: a
+ * prefix (`-`, `~`, `!` or `typeof`), a primitive token, a name, an array,
+ * or `(` — the choice
  * between a function and a group, {@link parenthesized} — each ending
  * with its own {@link tail}, the binary-operator suffix, except a
  * function: nothing may follow one unparenthesized, `=>` reading
@@ -687,6 +702,7 @@ const valueBranches = () => ({
     neg: [sym('-'), unaryOperand, ...tail],
     bitnot: [sym('~'), unaryOperand, ...tail],
     not: [sym('!'), unaryOperand, ...tail],
+    typeof: [sym('typeof'), unaryOperand, ...tail],
     primitive: [primitiveValue, powTail, ...tail],
     name: [identifier, arrowOrRest],
     array: [[array, accesses], powTail, ...tail],
@@ -723,7 +739,7 @@ export const value = () => ['const', {
  * `(...a) => ({ x: 1 })`.
  *
  * `{` decides the block in one symbol, since no other branch starts with
- * it — and after a `-`/`~`/`!` it opens an object again, the prefix putting
+ * it — and after a prefix it opens an object again, the prefix putting
  * what follows it in expression position, which is why those branches are
  * {@link unary} rather than this rule. `(` decides the function or the
  * group, {@link parenthesized}.
@@ -901,7 +917,7 @@ export const parenGroup = [sym('('), group]
 export const groupOperand = [value, sym(')'), accesses]
 
 /**
- * `(` and {@link groupOperand}: what a `-`/`~`/`!` may take in
+ * `(` and {@link groupOperand}: what a prefix may take in
  * parentheses, {@link unaryOperand}'s own `(` branch — not {@link
  * parenGroup}, whose {@link group} still carries a `**` of its own.
  *

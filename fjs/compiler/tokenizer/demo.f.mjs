@@ -11,8 +11,8 @@
  * `error` token carries its message and, where it knows how far the unread
  * source runs, the end of the span. A `\x41` escape shows up that way: the
  * grammar has no spelling of it inside a string, so it stops here, before the
- * parser sees it. `typeof` is the other half — an ordinary name to the
- * tokenizer, refused only by the parser — so the two pages together say
+ * parser sees it. An unfinished module is the other half — every token of
+ * it read here, refused only by the parser — so the two pages together say
  * which stage a refusal belongs to.
  *
  * **It needs no operations.** Tokenizing is a pure function of the text, so
