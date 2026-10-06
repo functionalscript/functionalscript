@@ -5,7 +5,7 @@
  */
 
 import { sha1 } from './module.f.mjs'
-import { digestOf, hashOutput } from '../hash_demo/module.f.mjs'
+import { digestOf, hashOutput } from '../../website/demo/hash/module.f.mjs'
 import { textDemo } from '../../website/demo/module.f.mjs'
 
 export const digest = digestOf(sha1)

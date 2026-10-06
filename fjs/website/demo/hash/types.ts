@@ -1,4 +1,4 @@
-import type { Hash } from '../sha2/types.ts'
+import type { Hash } from '../../../crypto/sha2/types.ts'
 
 /** The hash and its names on the page and in OpenSSL. */
 export type HashDemoAlgorithm<S> = {
