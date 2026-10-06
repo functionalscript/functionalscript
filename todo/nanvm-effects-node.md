@@ -84,7 +84,8 @@ separate compiler/VM requirements, not prerequisites added by this loop.
 
 This TODO specifies the runner's value model and control flow only. It contains
 no design for implementing individual Node effects. Those implementations are
-separate work, driven by actual consumers.
+tracked in [Node effects](./nanvm-effects-node-operations.md), which depends on
+this runner. Completing the loop alone does not complete native self-hosting.
 
 ### Tasks
 
