@@ -544,12 +544,16 @@ module boundary, from which a default import selects the document.
   document too, which is what DataJS and JSON have no spelling for. Writing
   the graph is not writing the value, so the two module outputs part wherever
   the program computes: `const a = { b: 1 }; export default a.b;` is
-  `export default {"b":1}.b;` here and `export default 1;` as DataJS. They
-  agree on a normalized DataJS document, which computes nothing — every one
-  of them is a fixed point of both.
+  `export default {"b":1}.b;` here and `export default 1;` as DataJS. For a
+  normalized DataJS document, which computes nothing, they preserve the same
+  value and sharing but use different generated names: DataJS keeps
+  `const $0=[1];export default [$0,$0];`, while FunctionalScript writes
+  `const c0=[1];export default [c0,c0];`. Each writer's normalized output is
+  a fixed point of that writer.
 
-  A module whose only export is `default` is written in the same normalized
-  form, unless a module it loads holds a `const` or an import nothing reads.
+  A module whose only export is `default` is written in normalized form with
+  FunctionalScript's `c` names, unless a module it loads holds a `const` or
+  an import nothing reads.
   In that form a function referenced more than once is hoisted as an object
   is, and a `const` the value never reaches stays a statement, since loading
   the module evaluates it. Any other module — one with a named export, or
@@ -585,13 +589,14 @@ module boundary, from which a default import selects the document.
   ([property access](#property-access)): a string key that is an
   [identifier](#identifiers), a reserved word included, follows a `.`, and
   any other string key is a normalized string in brackets — with the object
-  named `$0`, `a["if"]` and `a['c']` are `$0.if` and `$0.c`, while
+  named `c0`, `a["if"]` and `a['c']` are `c0.if` and `c0.c`, while
   `a["a-b"]`, `a["é"]` and `a["1"]` stay bracketed. A number key stays a
-  number in brackets, in normalized spelling — `a[1e21]` is `$0[1e+21]` — so
+  number in brackets, in normalized spelling — `a[1e21]` is `c0[1e+21]` — so
   `a["0"]` and `a[0]` keep their own spellings. A number, a `bigint` or a
   function an access is taken on is named first rather than written in
-  place: `1 .x` is `const $0=1;export default $0.x;`, and so is `(-1).x`,
-  whose `-1` folds to a number. An operator's text under an access stands
+  place: `1 .x` is `const c0=1;export default c0.x;`, and `(-1).x` is
+  `const c0=-1;export default c0.x;`, since `-1` folds to a number.
+  An operator's text under an access stands
   in a group: `(-[1])[0]` and `(1 + 2).x` come back as `(-[1])[0]` and
   `(1+2).x`.
 - `NaN`, `Infinity` and `-Infinity` — a literal, or a number that overflowed
