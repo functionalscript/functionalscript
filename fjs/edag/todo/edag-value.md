@@ -2,8 +2,8 @@
 
 **Priority:** P3
 **Status:** open — FJS language VMs use represented values, compiler module
-initialization uses memo, and closed values can be emitted as JavaScript.
-Callable loading and Rust value-emission parity remain.
+initialization uses memo, and JavaScript runtime conversion supports callables.
+Compiler conversion integration and Rust value-emission parity remain.
 
 ### Problem
 
@@ -216,8 +216,9 @@ function-text renderer. Primitive, repeated and unused slots keep their
 positions, captures live outside calls, and body sharing is per invocation.
 This output follows the JavaScript/memo execution profile; it does not preserve
 Amnesia's recomputation of every edge. It may use JavaScript syntax beyond the
-current FJS parser. Emission is pure; loading the module remains a target-runtime
-operation and is not yet wired into `toUnknown` or compiler output routes.
+current FJS parser. `factoryStringify` uses the same construction inside a
+default-exported factory. Loading may cache the factory's code; invoking it
+constructs fresh values for each conversion. Emission is pure.
 
 Provide **`EdagValue -> unknown`**, including functions, as an explicit
 conversion to ordinary FJS runtime values. Here `unknown` names a runtime
@@ -250,10 +251,22 @@ as `EdagValue`s.
 A converter implemented wholly in FJS can decode function-free data. Callable
 materialization requires the target's compile/load or precompiled-code boundary;
 an unavailable or unsupported boundary returns an output diagnostic. This keeps
-runtime JavaScript code generation outside FJS and keeps `EdagValue` as the sole
+runtime JavaScript code execution outside FJS and keeps `EdagValue` as the sole
 value representation of FJS language VMs. The host's function-text exception
 applies to generated JavaScript callables; VM conversion continues to use the
 EDAG-derived renderer.
+
+[`value/to_unknown`](../value/to_unknown/module.f.mjs) now exposes
+`toUnknown(value): Effect<CompileValue, unknown, IoChannel>`. Data-only values
+need no host operation; `toData` retains the synchronous data converter and
+its callable refusal for JSON/DataJS consumers. A callable graph requests
+`compileValue` with its generated factory module. The
+[`javascriptOperationMap`](../value/to_unknown/module.mjs) implements that
+operation on Node-compatible JavaScript hosts by loading the module and calling
+its factory. The ordinary result is wrapped in `ok` before crossing the
+asynchronous boundary, preserving an own callable `then` as data. Load failures
+use the standard `IoChannel`, including a missing operation from partial runners.
+The operation map composes with other effect handlers; it is not a language VM.
 
 Existing compiler callers whose API exposes `unknown` convert explicitly.
 JSON/DataJS writers apply their own representability rules; an output refusal
@@ -441,17 +454,24 @@ promise normalization of host resource exhaustion.
       and distinct equal-looking nodes. Each conversion allocates fresh
       containers. An encountered function returns an output diagnostic;
       constructed value invariants are trusted, with no reverse admission.
-- [ ] Implement callable runtime materialization to `unknown` through
+- [x] Implement callable runtime materialization to `unknown` through
       backend-generated/precompiled construction, runtime arguments/results,
       reflection erasure, failure behavior and
       identity preservation. Prove `f => f(1)` accepts an ordinary callback
       with no EDAG association, and refuse unavailable callable materialization.
+      `toUnknown` requests `CompileValue` only when `toData` encounters a
+      callable. The JavaScript handler constructs each conversion freshly;
+      standard effect errors report host failure or an unavailable operation.
+- [ ] Integrate effectful callable conversion into compiler APIs that promise
+      ordinary runtime values. Keep JSON/DataJS outputs on `toData`, with their
+      own representability diagnostics. `transpile` still uses that data-only
+      path today; `interpret` followed by `toUnknown` is available explicitly.
 - [x] Execute resolved module initializers into export value graphs in
       `compiler/transpiler.interpret`; migrate compiler data outputs and retire
       the AST value evaluator. Cache complete represented exports per module,
       preserve initializer failure payloads and paths, and convert only the
       requested result. `transpile` returns an inner output-conversion Result;
-      callable runtime conversion remains the explicit refusal above.
+      its current data-only conversion retains the explicit callable refusal.
 - [x] Implement callable value emission in the JavaScript backend for primitive,
       repeated and unused evaluated captures, preserving slot positions and
       shared captured values separately from source round-trip serialization.
@@ -459,7 +479,7 @@ promise normalization of host resource exhaustion.
       `5` when passed `3`, plus shared captures and fresh body allocations.
       `compiler/serializer/value.stringify` emits a default-export module;
       host proofs load it and invoke its ordinary runtime functions. Target
-      loading remains the callable materialization task above.
+      loading uses the factory form through the materialization task above.
 - [ ] Prove direct JS/Rust compilation of result graphs preserves the supported
       profile: primitives, containers, nested captures, distinct closures,
       shared identity, fresh invocation values, lazy branches and throws.
@@ -469,7 +489,7 @@ promise normalization of host resource exhaustion.
       explicit thrown values propagate unchanged through operands, callbacks
       and module initialization.
 - [x] Prove direct and indirect function text in the shared conversion used by memo.
-- [ ] Prove conversion of thrown values and exported callables; retain the
+- [x] Prove conversion of thrown values and exported callables; retain the
       host-text exception at host boundaries.
 - [ ] Remove old VM value representations and reconcile the linked design
       notes; move the final contract to EDAG documentation before deleting

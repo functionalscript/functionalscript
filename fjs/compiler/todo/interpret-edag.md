@@ -3,7 +3,7 @@
 **Priority:** P3
 **Status:** open — compiler value-producing APIs use represented memo
 interpretation and the AST value evaluator is retired. Public admission,
-callable runtime compilation and native prerequisites remain open.
+compiler callable-conversion integration and native prerequisites remain open.
 
 The planned value contract is
 [EdagValue](../../edag/todo/edag-value.md): every FJS VM uses the EDAG subset
@@ -167,8 +167,10 @@ the original represented `thrown` payload. The VM still returns
 
 `transpile` returns an inner `Result<Denotation, string>` in the effect's success
 channel. Successful materialization retains the complete ordinary export object
-as `Denotation.value`. Callable runtime compilation is not available yet, so a
-selected callable produces an output refusal. Existing successful data results
+as `Denotation.value`. It currently uses the synchronous `toData` converter, so
+a selected callable produces an output refusal. Effectful `toUnknown` can
+materialize callable graphs through its JavaScript host operation; integrating
+that conversion into `transpile` remains a separate step. Existing successful data results
 remain unchanged. This explicitly changes the compiler API's result nesting.
 
 For JSON/DataJS, `_transpileDefault` projects the represented default before

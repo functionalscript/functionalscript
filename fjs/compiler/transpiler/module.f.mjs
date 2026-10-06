@@ -18,7 +18,7 @@ import { mapOk, ok } from '../../types/result/module.f.mjs'
 import { drop, includes } from '../../types/list/module.f.mjs'
 import { setReplace, at } from '../../types/ordered_map/module.f.mjs'
 import { findProperty, read } from '../../edag/value/property/module.f.mjs'
-import { toUnknown } from '../../edag/value/to_unknown/module.f.mjs'
+import { toData } from '../../edag/value/to_unknown/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { unresolved, jsonValue } from '../edag/module.f.mjs'
@@ -81,7 +81,7 @@ const interpretSource = source => source.json
 export const interpret = path => step(_rootSource(path), interpretSource)
 
 /** Materialization refusal is an output diagnostic, separate from initialization. @type {(value: EdagValue) => Result<Denotation, string>} */
-const materialize = value => mapOk(value => ({ value }))(toUnknown(value))
+const materialize = value => mapOk(value => ({ value }))(toData(value))
 
 /**
  * Materialize the complete module export object, or a direct JSON document.

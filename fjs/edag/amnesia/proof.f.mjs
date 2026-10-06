@@ -10,7 +10,7 @@
 
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { vm, invoke } from './module.f.mjs'
-import { toUnknown } from '../value/to_unknown/module.f.mjs'
+import { toData } from '../value/to_unknown/module.f.mjs'
 import { call } from '../value/call/module.f.mjs'
 import { typeOf } from '../value/semantics/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
@@ -25,7 +25,7 @@ const context = { frame: [captured], args: [10, 20] }
 const value = e => assertOk(vm(context)(e))
 
 /** Decode only data; functions and identity checks stay represented. @type {(e: Exp) => unknown} */
-const ev = e => assertOk(toUnknown(value(e)))
+const ev = e => assertOk(toData(value(e)))
 
 /** @type {(e: Exp, expected?: EdagValue) => void} */
 const fails = (e, expected = ['undefined']) => assertStructurallySame(assertError(vm(context)(e)), expected)
