@@ -32,6 +32,18 @@ and serve explicit boundaries accepting EDAG supplied as data. VM constructors
 must maintain the value invariants directly, without revalidating every result.
 FJS data is acyclic by construction, so it needs no cycle preflight.
 
+Both FJS interpreters return language results as
+`Result<EdagValue, EdagValue>`. An operation's own implicit failure, such as
+calling a non-function or dividing a bigint by zero, returns
+`error(['undefined'])`. An explicit `throw` returns its evaluated operand as
+the error payload. Failures from operands and invoked callbacks propagate
+unchanged, retaining container and callable identities. Module initialization
+preserves that payload alongside its source path; admission and loading
+diagnostics keep their separate channels. The [joint interpreter
+proofs](memo/proof.f.mjs) exercise actual throwing callbacks through array
+methods and an enclosing operand; [compiler proofs](../compiler/transpiler/proof.f.mjs)
+cover direct and imported module initialization.
+
 [`value/semantics`](value/semantics/module.f.mjs) provides truthiness, `typeof`,
 strict equality and `Object.is` for represented values. Distinct
 `['undefined']` tuples denote the same primitive; arrays, objects and functions
