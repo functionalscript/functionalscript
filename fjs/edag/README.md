@@ -243,6 +243,10 @@ noncanonical function length, return a diagnostic. Complete executable
 graphs compose the result with `checked` to check their invocation bindings.
 It returns the same analysis on success or `bindingError`'s diagnostic;
 an optional function index limits the check to that function and its nested bodies.
+`operandsOf(node)` lists every operand in written order, preserving primitives,
+repeated occurrences and reference identity. It includes lazy positions and a
+function's captures followed by its body. The serializer uses the same helper,
+keeping only captures when walking a function in its enclosing scope.
 [memo](memo/module.f.mjs) is that
 interpreter: it returns `Result<EdagValue, EdagValue>`, evaluating every shared
 entry once per invocation with an immutable cache. Functions retain their
