@@ -403,9 +403,9 @@ export const braced = statements => statements.length === 1
 const lines = statements => statements.flatMap(s => s.split('\n'))
 
 /**
- * `true` for a node that prints as one atom holding no other node's text:
- * `undefined`, `args`, a frame slot, an empty array or object, and the corpus's
- * lambda, `function_any()` — a primitive being the other atom, and never a node
+ * `true` for a node whose construction evaluates no operands: `undefined`,
+ * argument and frame reads, an empty array or object, and `() => undefined`
+ * with no captures. A primitive is the other atom, and never a node
  * {@link visit} lists, so never asked. Every
  * other node holds its operands' text, and is a temporary of its scope
  * ({@link printer}); an atom is written where it stands, unless it is
@@ -820,10 +820,10 @@ const printer = nested => shared => root => {
             // `nanvm-lib` where the JavaScript executors throw.
             const past = slotReads(c).find(i => !isIndex(i) || i >= b.length)
             if (past !== undefined) { return error(['no Rust for a frame slot the frame does not have', past]) }
-            // The corpus's `() => undefined`, which no operator inspects,
-            // is the one the harness binds as `function_any`; every other
-            // function is a closure, over its frame.
-            return a === 0 && isSmallestLambda(b, c) ? plain('function_any()') : closure(a, c, textExpr(e))(frameExpr(b))
+            // Only the corpus's expression mode has the `function_any`
+            // harness helper. A module scope constructs every function
+            // through the VM, including `() => undefined`.
+            return nested && a === 0 && isSmallestLambda(b, c) ? plain('function_any()') : closure(a, c, textExpr(e))(frameExpr(b))
         }
         return bare(/** @type {readonly any[]} */ (e))
     }
@@ -1124,7 +1124,7 @@ export const expExpr = shared => e => mapOk((/** @type {Printed<string>} */ [tex
 
 /**
  * `true` for the operands of `() => undefined`: no slots and the
- * `undefined` node — the one `=>` this printer has a spelling for.
+ * `undefined` node — the corpus helper's function shape.
  *
  * @type {(slots: readonly Exp[], body: Exp) => boolean}
  */
@@ -1229,18 +1229,14 @@ const tagOf = node => /** @type {readonly unknown[]} */ (/** @type {unknown} */ 
 const withBodies = node => node[0] === '=>' ? [...operandsOf(node), node[3]] : operandsOf(node)
 
 /**
- * Whether an EDAG holds a function the printer binds — any `=>` node but
- * the corpus's `() => undefined` — anywhere, nested bodies included: what decides that the module
- * printed from it bounds on `IStaticFunction`, and not the text, which a
- * string literal could spell.
+ * Whether an EDAG holds any `=>` node, nested bodies included: what decides
+ * that the module printed from it bounds on `IStaticFunction`. The graph
+ * determines the bound, not the text, which a string literal could spell.
  *
  * @type {(root: Exp) => boolean}
  */
 export const holdsFunction = root => visit(withBodies)([])(root)
-    .some(([node]) => {
-        const [id, a, b, c] = /** @type {readonly any[]} */ (node)
-        return id === '=>' && !(a === 0 && isSmallestLambda(b, c))
-    })
+    .some(([node]) => tagOf(node) === '=>')
 
 /**
  * The operands a walk descends into, read from a node's shape rather than
