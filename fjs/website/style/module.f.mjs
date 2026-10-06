@@ -199,6 +199,15 @@ textarea { vertical-align: top }
 .pow-search-effort th:last-child, .pow-search-effort td:last-child { text-align: right }
 .pow-effort-label { color: var(--muted); display: inline-block; font-size: .75rem; margin-left: .75rem }
 .pow-effort-note { color: var(--muted); font-size: .875rem }
+.pow-result { align-items: center; border-radius: 7px; display: flex; gap: 10px; line-height: 1.5; padding: 14px 16px }
+.pow-result > svg { flex-shrink: 0; height: 20px; width: 20px }
+.pow-result-pass { background: #edf7ef; color: #20623a }
+.pow-result-fail { background: #fdf0ef; color: #a93232 }
+.pow-search-summary { color: var(--muted); font-size: .875rem; line-height: 1.6; margin-top: 12px }
+@media (prefers-color-scheme: dark) {
+  .pow-result-pass { background: #20392b; color: #a0deb5 }
+  .pow-result-fail { background: #43292b; color: #f4aaa6 }
+}
 textarea { box-sizing: border-box; resize: vertical; width: 100% }
 /* The header every page opens with: the logo and the site's name on the left,
    the site-wide links on the right, across the full width of the window with

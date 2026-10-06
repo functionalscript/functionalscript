@@ -52,8 +52,9 @@ const tried = (state, nonce, target, start, attempts) => ({
 const searchSummary = (state, nonce, succeeded) => {
     if (state.searchStart === null) { return [] }
     const failedEnd = succeeded ? nonce - 1n : nonce
-    return [['p',
+    return [['p', { class: 'pow-search-summary' },
         `${state.running ? 'Searching' : succeeded ? `Found nonce ${nonce}` : 'Stopped'} after ${state.attempts} ${state.attempts === 1n ? 'attempt' : 'attempts'}. `,
+        ['br'],
         failedEnd < state.searchStart ? 'No failed nonces.'
             : failedEnd === state.searchStart ? `Failed nonce: ${failedEnd}.`
                 : `Failed nonces: ${state.searchStart}–${failedEnd}.`,
@@ -83,9 +84,12 @@ const output = state => {
         ['p', 'Hash, hex:'],
         codeBlock(hash.toString(16).padStart(64, '0'), 'Copy hash'),
         ['p', 'Proof of Work:'],
-        ['p', { role: 'status' }, succeeded
-            ? '✅ Hash meets target (hash ≤ target)'
-            : '❌ Hash does not meet target (hash > target)'],
+        ['p', { role: 'status', class: `pow-result ${succeeded ? 'pow-result-pass' : 'pow-result-fail'}` },
+            ['svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' },
+                ['path', { d: succeeded ? 'm5 12 4 4L19 6' : 'm6 6 12 12M18 6 6 18' }],
+            ],
+            ['span', succeeded ? 'Hash meets target (hash ≤ target)' : 'Hash does not meet target (hash > target)'],
+        ],
         ...searchSummary(state, nonce, succeeded),
     ]
 }
