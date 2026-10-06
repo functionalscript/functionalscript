@@ -15,7 +15,7 @@ import { ok } from '../../types/result/module.f.mjs'
 import { operation } from '../operations/module.f.mjs'
 
 /** @type {Invoke} */
-export const invoke = (fn, fixed, rest) => vm({ frame: fn[2], args: [], fixed, rest })(fn[3])
+export const invoke = (fn, fixed, rest) => vm({ frame: fn[2], args: [], fixed, rest, self: fn })(fn[3])
 
 /** @type {(context: Context) => (e: Exp) => ValueResult} */
 export const vm = context => {

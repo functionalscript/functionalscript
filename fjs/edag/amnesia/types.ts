@@ -1,5 +1,5 @@
 import type { Exp } from '../types.ts'
-import type { Array, EdagValue, Values } from '../value/types.ts'
+import type { Array, EdagValue, Function, Values } from '../value/types.ts'
 
 /**
  * What an invocation holds: the captured frame and the arguments, and the
@@ -10,6 +10,8 @@ export type Context = {
     readonly args: Values,
     readonly fixed?: Values,
     readonly rest?: Array,
+    /** The function being invoked, what its body's `['self']` reads; absent at a module's scope. */
+    readonly self?: Function,
     /**
      * Nodes whose values the caller already established, consulted by node
      * identity before anything is computed — `../execution-models.md`'s
