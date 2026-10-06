@@ -123,7 +123,7 @@
  *
  * @module
  *
- * @import { Analysis, ItemOperand, Node, Operand, Ref, Step } from '../../edag/analysis/types.ts'
+ * @import { Analysis, ItemOperand, Node, Operand, Ref } from '../../edag/analysis/types.ts'
  * @import { Exp } from '../../edag/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
@@ -133,7 +133,7 @@
 
 import { _defaultExport, _moduleExports, _moduleThrows } from '../edag/module.f.mjs'
 import { keywords, literalWords } from '../../js/keywords/module.f.mjs'
-import { analysis, checked, mergeable } from '../../edag/analysis/module.f.mjs'
+import { analysis, checked, itemOperand, mergeable, operandsOf } from '../../edag/analysis/module.f.mjs'
 import { keySerialize, leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { arrayWrap, colon, objectWrap, wrap } from '../../media/json/serializer/module.f.mjs'
 import { first, flat, toArray } from '../../types/list/module.f.mjs'
@@ -826,9 +826,6 @@ const lambdaBody = (a, depth, frame, allowUnusedCaptures) => b => {
  */
 const callArguments = (s, depth) => args => mapOk(wrap('(')(')'))(okList(args.map(item(s, depth))))
 
-/** The operand an item holds: itself, or a spread's operand. @type {(x: ItemOperand) => Operand} */
-const itemOperand = x => x instanceof Array && x[0] === '...' ? x[1] : /** @type {Operand} */(x)
-
 /**
  * Whether a callee takes a `const` of its own: a base that does
  * ({@link basedHoisted}), and an access, which a call would read as the
@@ -1018,11 +1015,6 @@ const operands = node => {
     }
 }
 
-/** The operands a chain step and the steps after it hold, the writer's spelling or not. @type {(k: Step | undefined) => readonly Operand[]} */
-const stepOperands = k => k === undefined ? []
-    : k[0] === '|.' ? [k[1], ...stepOperands(k[2])]
-    : [...k[1].map(itemOperand), ...stepOperands(k[2])]
-
 /**
  * The operands a node establishes only when it decides to — the right
  * operand of `&&`, `||` and `??`, the arms of `?:` — each a block root.
@@ -1045,17 +1037,7 @@ const lazyOperands = node => {
  *
  * @type {(node: Node) => readonly Operand[]}
  */
-const allOperands = node => {
-    switch (node[0]) {
-        case '=>': { return node[2] }
-        case '.': case '?.': { return [node[1], node[2], ...stepOperands(node[3])] }
-        case '?.()': { return [node[1], ...node[2].map(itemOperand), ...stepOperands(node[3])] }
-        case '()': case '[]': case '{}': case ',': case '-': case '+': case '~': case '&&': case '||': case '??': case '?:':
-        case '|': case '^': case '&': case '===': case '!==': case '<': case '<=': case '>': case '>=':
-        case '<<': case '>>': case '>>>': case '*': case '/': case '%': case '**': { return [...operands(node), ...lazyOperands(node)] }
-        default: { return /** @type {readonly Operand[]} */ (/** @type {readonly unknown[]} */ (node).slice(1).filter(x => x instanceof Array && x[0] === '#')) }
-    }
-}
+const allOperands = node => node[0] === '=>' ? node[2] : operandsOf(node)
 
 /** The eager operands among {@link allOperands}: all but the lazy ones. @type {(node: Node) => readonly Operand[]} */
 const eagerOperands = node => allOperands(node).filter(x => !lazyOperands(node).includes(x))

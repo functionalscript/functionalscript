@@ -4,11 +4,11 @@
  * from lazy positions, the node kinds, and the refusal.
  *
  * @import { Exp } from '../types.ts'
- * @import { Analysis, Node } from './types.ts'
+ * @import { Analysis, Node, Operand, Ref } from './types.ts'
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { analysis, checked } from './module.f.mjs'
+import { analysis, checked, itemOperand, operandsOf } from './module.f.mjs'
 
 /**
  * What every table satisfies, checked on every case: an entry names only
@@ -57,6 +57,49 @@ const empty = ['[]', []]
 const first = ['=>', 0, [], ['.', ['rest'], 0]]
 
 export const proof = {
+    itemOperand: () => {
+        /** @type {Ref} */
+        const ref = ['#', 0]
+        assertEq(itemOperand('...'), '...')
+        assertEq(itemOperand(ref), ref)
+        assertEq(itemOperand(['...', 'value']), 'value')
+        assertEq(itemOperand(['...', ref]), ref)
+    },
+    operandsOf: () => {
+        // Equal indices do not make distinct input Ref tuples interchangeable.
+        /** @type {Ref} */
+        const a = ['#', 0]
+        /** @type {Ref} */
+        const b = ['#', 0]
+        /** @type {readonly (readonly [Node, readonly Operand[]])[]} */
+        const cases = [
+            [['undefined'], []], [['args'], []], [['rest'], []],
+            [['arg', 2], []], [['frame', 3], []],
+            [['!', a], [a]], [['+', a], [a]], [['+', a, b], [a, b]],
+            [['&&', false, a], [false, a]], [['||', true, b], [true, b]],
+            [['??', null, a], [null, a]], [['?:', true, a, b], [true, a, b]],
+            [['[]', []], []], [['{}', []], []], [[',', []], []],
+            [['[]', [a, ['...', b], '#', '=>', a]], [a, b, '#', '=>', a]],
+            [['{}', [[':', a, b], [':', '#', '...'], ['...', a]]], [a, b, '#', '...', a]],
+            [[',', [a, 1, b, a]], [a, 1, b, a]],
+            [['=>', 2, [a, 42, b], a], [a, 42, b, a]],
+            [['=>', 0, [], 7], [7]],
+            [['()', a, [b, ['...', a], 'args']], [a, b, a, 'args']],
+            [['?.()', a, []], [a]],
+            [['.', a, '#'], [a, '#']], [['?.', null, 0], [null, 0]],
+            [['.', a, 'field', ['|()', [b]]], [a, 'field', b]],
+            [['?.', a, 'field', ['|?.()', []]], [a, 'field']],
+            [['?.()', a, [1], ['|!()', [b]]], [a, 1, b]],
+            [['.', a, 'field', ['|?.()', [b, ['...', a]],
+                ['|.', b, ['|()', [null], ['|.', 'end']]]]],
+            [a, 'field', b, a, b, null, 'end']],
+        ]
+        for (const [node, expected] of cases) {
+            const actual = operandsOf(node)
+            assertEq(actual.length, expected.length)
+            expected.forEach((operand, i) => assertEq(actual[i], operand))
+        }
+    },
     checked: () => {
         const a = an(first)
         assertEq(assertOk(checked(a)), a)
