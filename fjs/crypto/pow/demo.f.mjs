@@ -70,7 +70,7 @@ const output = state => {
     if (target === null || target === 0n) { return [['p', { role: 'status' }, 'nBits must decode to a positive 256-bit target.']] }
     /** @type {readonly Element[]} */
     const targetView = [
-        ['p', 'Target, hex:'],
+        ['p', { class: 'pow-caption' }, 'Target, hex:'],
         codeBlock(target.toString(16).padStart(64, '0'), 'Copy target'),
     ]
     if (nonce === null) { return [...targetView, ['p', { role: 'status' }, 'Enter a non-negative decimal nonce.']] }
@@ -78,12 +78,12 @@ const output = state => {
     const hash = sha256Pow.hashInt(utf8(text))
     const succeeded = hash <= target
     return [
-        ['p', 'Hashed input (UTF-8):'],
+        ['p', { class: 'pow-caption' }, 'Hashed input (UTF-8):'],
         codeBlock(text, 'Copy hashed input'),
         ...targetView,
-        ['p', 'Hash, hex:'],
+        ['p', { class: 'pow-caption' }, 'Hash, hex:'],
         codeBlock(hash.toString(16).padStart(64, '0'), 'Copy hash'),
-        ['p', 'Proof of Work:'],
+        ['p', { class: 'pow-caption' }, 'Proof of Work:'],
         ['p', { role: 'status', class: `pow-result ${succeeded ? 'pow-result-pass' : 'pow-result-fail'}` },
             ['svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' },
                 ['path', { d: succeeded ? 'm5 12 4 4L19 6' : 'm6 6 12 12M18 6 6 18' }],
@@ -126,7 +126,7 @@ export const demo = {
             ? { ...state, nonce: String(nonce + 1n), running: false, searchStart: null, attempts: 0n }
             : state)
     },
-    view: state => ['div',
+    view: state => ['div', { class: 'pow-demo' },
         ['p', 'Proof of Work'],
         ['p', 'Hash algorithm: SHA-256'],
         ['p', 'The nonce is appended to the UTF-8 input and hashed with SHA-256.'],
