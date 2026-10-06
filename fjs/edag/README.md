@@ -240,7 +240,15 @@ writer can hoist what is shared and an executor can cache it without a
 structure keyed by node identity. It returns `Result<Analysis, string>`:
 structural failures, such as a node shared across function scopes or a
 noncanonical function length, return a diagnostic. Complete executable
-graphs additionally use `bindingError` to check their invocation bindings.
+graphs compose the result with `checked` to check their invocation bindings.
+It returns the same analysis on success or an invocation-binding diagnostic;
+an optional function index limits the check to that function and its nested bodies.
+`operandsOf(node)` lists every operand in written order, preserving primitives,
+repeated occurrences and reference identity. It includes lazy positions and a
+function's captures followed by its body. The serializer uses the same helper,
+keeping only captures when walking a function in its enclosing scope.
+`itemOperand(item)` unwraps a spread or returns a plain operand unchanged;
+analysis and the serializer share it for array items and call arguments.
 [memo](memo/module.f.mjs) is that
 interpreter: it returns `Result<EdagValue, EdagValue>`, evaluating every shared
 entry once per invocation with an immutable cache. Functions retain their
@@ -365,7 +373,7 @@ frame, `['.', ['frame'], N]`, still are, so only a frame no read reached is
 ever reinterpreted. Earlier positive-arity/full-argument experiments have no
 general lossless migration to this format.
 
-A function's `length` is at most 16, the language's limit: `bindingError`
+A function's `length` is at most 16, the language's limit: `checked`
 refuses a larger one. Both Amnesia and memo read length and fixed/rest
 bindings from represented functions, without an arrow factory. Their function
 text uses the total shared renderer described above. Callable runtime

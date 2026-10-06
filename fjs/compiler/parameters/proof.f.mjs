@@ -5,7 +5,7 @@
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { analysis, bindingError } from '../../edag/analysis/module.f.mjs'
+import { analysis, checked } from '../../edag/analysis/module.f.mjs'
 import { vm, invoke as amnesiaInvoke } from '../../edag/amnesia/module.f.mjs'
 import { invoke, memo } from '../../edag/memo/module.f.mjs'
 import { call } from '../../edag/value/call/module.f.mjs'
@@ -35,7 +35,7 @@ const elements = value => {
 /** @type {(source: string) => Exp} */
 const roundTrip = source => {
     const e = graph(source)
-    assertEq(bindingError(assertOk(analysis(e))), null)
+    assertOk(checked(assertOk(analysis(e))))
     const restored = graph(unwrap(tryStringify(e)))
     assertStructurallySame(assertOk(analysis(restored)), assertOk(analysis(e)))
     return restored

@@ -61,6 +61,8 @@ export const proof = {
             // the `)` of an empty list, which is no value to group either
             expect('export default -(...a) => 1;', 18)
             expect('export default -() => 1;', 18)
+            expect('export default !(...a) => 1;', 18)
+            expect('export default typeof (...a) => 1;', 24)
             // and it is the *operand rule* that refuses it, not the one
             // branch: the rule names itself, so a `-` one deeper reaches it
             // again, and a body's `-` takes the same rule rather than the
@@ -104,6 +106,19 @@ export const proof = {
             expect('export default (-2) ** 2;', '[[],[["object",[[":","default",["**",["-",2],2]]]]]]')
             expect('export default -(2 ** 2);', '[[],[["object",[[":","default",["-",["**",2,2]]]]]]]')
             expect('export default ~1 & 2;', '[[],[["object",[[":","default",["&",["~",1],2]]]]]]')
+            // `!` is the third prefix at the same level: bare as `**`'s right
+            // operand, and a chain of prefixes is read inside out
+            expect('export default !1 & 2;', '[[],[["object",[[":","default",["&",["!",1],2]]]]]]')
+            expect('export default 2 ** !2;', '[[],[["object",[[":","default",["**",2,["!",2]]]]]]]')
+            expect('export default !!1;', '[[],[["object",[[":","default",["!",["!",1]]]]]]]')
+            expect('export default !-~1;', '[[],[["object",[[":","default",["!",["-",["~",1]]]]]]]]')
+            // `typeof` is the fourth, a keyword with a symbol of its own
+            expect('export default typeof 1 & 2;', '[[],[["object",[[":","default",["&",["typeof",1],2]]]]]]')
+            expect('export default 2 ** typeof 2;', '[[],[["object",[[":","default",["**",2,["typeof",2]]]]]]]')
+            expect('export default typeof typeof 1;', '[[],[["object",[[":","default",["typeof",["typeof",1]]]]]]]')
+            expect('export default !typeof -1;', '[[],[["object",[[":","default",["!",["typeof",["-",1]]]]]]]]')
+            // and a key or a property name still, as every keyword is
+            expect('export default { typeof: 1 }.typeof;', '[[],[["object",[[":","default",[".",["object",[[":","typeof",1]]],"typeof"]]]]]]')
             // strict comparison and bitwise, in JavaScript's own precedence
             expect('export default 1 + 2 < 3 * 4;', '[[],[["object",[[":","default",["<",["+",1,2],["*",3,4]]]]]]]')
             expect('export default 1 <= 2 >= 1;', '[[],[["object",[[":","default",[">=",["<=",1,2],1]]]]]]')
@@ -150,6 +165,9 @@ export const proof = {
             expect('export default ~2 ** 2;', 19)
             expect('export default - -2 ** 2;', 21)
             expect('export default ~ ~2 ** 2;', 21)
+            expect('export default !2 ** 2;', 19)
+            expect('export default !!2 ** 2;', 20)
+            expect('export default typeof 2 ** 2;', 25)
             expect('export default - (2) ** 2;', 22)
             // the same restriction recurses through `**`'s own right
             // operand: `2 ** -2 ** 2` reads its own right side as an

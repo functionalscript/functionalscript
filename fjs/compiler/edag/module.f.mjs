@@ -6,7 +6,7 @@
  * @module
  *
  * @import { Exp, Spread } from '../../edag/types.ts'
- * @import { AstBinary, AstBitnot, AstBody, AstCall, AstConditional, AstConst, AstEntry, AstFunction, AstImport, AstItem, AstModule, AstNeg, AstSpread, AstThrow } from '../ast/types.ts'
+ * @import { AstBinary, AstBitnot, AstNot, AstTypeof, AstBody, AstCall, AstConditional, AstConst, AstEntry, AstFunction, AstImport, AstItem, AstModule, AstNeg, AstSpread, AstThrow } from '../ast/types.ts'
  * @import { _ImportSource, _Source } from '../source/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
@@ -211,7 +211,7 @@ const slotKeys = nodes => {
  * length ({@link lower}'s own comment has why that one gets an explicit
  * stack instead).
  *
- * @type {(nodes: _Nodes) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional | AstThrow>) => _Lowered}
+ * @type {(nodes: _Nodes) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstNot | AstTypeof | AstBinary | AstConditional | AstThrow>) => _Lowered}
  */
 const lowerLeaf = nodes => ast => {
     if (ast === undefined) { return plain(undefinedNode()) }
@@ -304,6 +304,8 @@ const lower = nodes => root => {
             switch (ast[0]) {
                 case '-': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'neg', rest } }; break }
                 case '~': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'bitnot', rest } }; break }
+                case '!': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'not', rest } }; break }
+                case 'typeof': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'typeof', rest } }; break }
                 case 'throw': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'throw', rest } }; break }
                 case '?:': {
                     work = { kind: 'expand', ast: ast[1], rest: { kind: 'expand', ast: ast[2], rest: { kind: 'expand', ast: ast[3], rest: { kind: 'ternary', rest } } } }
@@ -332,6 +334,22 @@ const lower = nodes => root => {
             const rest = work.rest
             const operand = assertNotNullish(results, ['no operand for a bitwise not', root])
             results = { top: { exp: ['~', operand.top.exp], anchors: operand.top.anchors }, rest: operand.rest }
+            work = rest
+            continue
+        }
+        if (work.kind === 'not') {
+            /** @type {_LowerWork} */
+            const rest = work.rest
+            const operand = assertNotNullish(results, ['no operand for a logical not', root])
+            results = { top: { exp: ['!', operand.top.exp], anchors: operand.top.anchors }, rest: operand.rest }
+            work = rest
+            continue
+        }
+        if (work.kind === 'typeof') {
+            /** @type {_LowerWork} */
+            const rest = work.rest
+            const operand = assertNotNullish(results, ['no operand for a typeof', root])
+            results = { top: { exp: ['typeof', operand.top.exp], anchors: operand.top.anchors }, rest: operand.rest }
             work = rest
             continue
         }

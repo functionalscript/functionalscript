@@ -32,7 +32,8 @@ import type {
  * every one of them arithmetic, strict comparison, or bitwise, each already
  * a kind of its own on `JsToken`, so this layer only has to admit it —
  * and `&& || ??` with `?`, the lazy operators and the conditional's own
- * token, Stage B of the same; `:` the conditional shares with a member.
+ * token, Stage B of the same; `:` the conditional shares with a member;
+ * and `!`, the logical not, the third prefix, admitted after both stages.
  * `?.` stays refused: optional chaining is not this language's yet. Trivia
  * is no member: whitespace, newlines and comments are not in the stream,
  * and what a rule reads of them is `newline` on the token after them,
@@ -44,7 +45,7 @@ export type DjsToken = |
     | '+' | '*' | '/' | '%' | '**'
     | '===' | '!==' | '>' | '>=' | '<' | '<='
     | '&' | '|' | '^' | '~' | '<<' | '>>' | '>>>'
-    | '&&' | '||' | '??' | '?'
+    | '!' | '&&' | '||' | '??' | '?'
   } |
   StringToken |
   NumberToken |

@@ -742,6 +742,11 @@ export const proof = {
         expectEdag(compile('export default 1 === 2;').edag, ['===', 1, 2])
         expectEdag(compile('export default 1 & 2 | 3 ^ 4;').edag, ['|', ['&', 1, 2], ['^', 3, 4]])
         expectEdag(compile('export default ~1;').edag, ['~', 1])
+        // `!` folds nothing either: truthiness is the interpreter's question
+        expectEdag(compile('export default !1;').edag, ['!', 1])
+        expectEdag(compile('export default !-1;').edag, ['!', -1])
+        expectEdag(compile('export default typeof 1;').edag, ['typeof', 1])
+        expectEdag(compile('export default typeof typeof -1;').edag, ['typeof', ['typeof', -1]])
         // unary `-` still folds over a numeric literal, even nested inside
         // a binary operator the lowering does not fold
         expectEdag(compile('export default -1 * 2;').edag, ['*', -1, 2])

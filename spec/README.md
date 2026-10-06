@@ -10,7 +10,7 @@ fjs compile <input> <output>
 compiles; every rule below is a rule the `fjs` parser and serializer enforce.
 
 Features the parser does not recognize yet — among them the remaining unary
-operators (`! + typeof`), the comma operator and type annotations — and the
+operator (`+`), the comma operator and type annotations — and the
 design documents for the VM, I/O, serialization, and the rest of the roadmap
 live in [`spec/todo/`](./todo/README.md). Loose equality (`== !=`) is not
 waiting: it stays refused ([operators](#operators)).
@@ -717,9 +717,9 @@ See
 ## Supported Value Types
 
 An expression is a data expression, a property access, a function, a call, an
-operator ([operators](#operators)) — a prefix `-` (negation) or `~` (bitwise
-not), a binary operator or the conditional `?:` — or any of those in
-parentheses ([grouping](#grouping)).
+operator ([operators](#operators)) — a prefix `-` (negation), `~` (bitwise
+not), `!` (logical not) or `typeof`, a binary operator or the conditional
+`?:` — or any of those in parentheses ([grouping](#grouping)).
 
 |Value|Example|In JSON|
 |-----|-------|:-----:|
@@ -817,21 +817,25 @@ value, and a writer may spell them all as one — the Rust writer spells each
 as the quiet `NaN` with an empty payload.
 
 The `-` is the **unary minus operator** ([operators](./todo/2340-operators.md)),
-the first operator the language had; `~`, the **bitwise not operator**, is the
-other prefix, Stage A of the same operators document. Neither is part of the
-literal after it: `-42.5` is the negation of `42.5`, `- 42.5` is the same
-value written with a space, and `-NaN` and `-Infinity` are values as
-JavaScript has them. Each binds looser than a property access or a call, as
-in JavaScript, so `-1 .x` is `-(1 .x)` and `-1()` is `-(1())`. What either
-takes is JavaScript's `UnaryExpression`, which an arrow function is not, so
-`-(...a) => 1` and `~(...a) => 1` are syntax errors in both, and neither
-stands immediately before `**` — `-2 ** 2` is refused, matching JavaScript,
-where `(-2) ** 2` and `-(2 ** 2)` are the parenthesized readings — though
+the first operator the language had; `~`, the **bitwise not operator**, `!`,
+the **logical not operator**, and `typeof` are the other prefixes — `~`
+Stage A of the same operators document, `!` and `typeof` the rows admitted
+after both stages. None is part of the literal after it: `-42.5` is the
+negation of `42.5`, `- 42.5` is the same value written with a space, and
+`-NaN` and `-Infinity` are values as JavaScript has them. Each binds looser
+than a property access or a call, as in JavaScript, so `-1 .x` is `-(1 .x)`
+and `-1()` is `-(1())`. What any of them takes is JavaScript's
+`UnaryExpression`, which an arrow function is not, so `-(...a) => 1`,
+`~(...a) => 1`, `!(...a) => 1` and `typeof (...a) => 1` are syntax errors in
+both, and none stands immediately before `**` — `-2 ** 2` is refused,
+matching JavaScript, where `(-2) ** 2` and `-(2 ** 2)` are the parenthesized
+readings — though
 either may stand right after it, as in JavaScript: `2 ** -2` is `2 ** (-2)`
 and `2 ** ~2` is `2 ** (~2)`. Two adjacent `-` characters are the decrement
 operator, which the language has no rule for, so a negation of a negation is
-spaced, `- -1`, or grouped, `-(-1)`. `~` has no such token, in JavaScript or
-here, so `~~1` is two bitwise nots, the same as `~ ~1`.
+spaced, `- -1`, or grouped, `-(-1)`. `~` and `!` have no such token, in
+JavaScript or here, so `~~1` is two bitwise nots, the same as `~ ~1`, and
+`!!1` two logical nots.
 [Operators](#operators) has the rest of them.
 
 A negative number is therefore an expression rather than a literal *in the
@@ -1195,25 +1199,28 @@ Beyond unary `-` ([supported value types](#supported-value-types)), the
 language has arithmetic (`+ - * / % **`), comparison
 (`=== !== > >= < <=`), and bitwise (`& | ^ ~ << >> >>>`) — Stage A of
 [operators](./todo/2340-operators.md) — and, above them, the lazy operators
-(`&& || ??`) and the conditional (`?:`), Stage B. `==`/`!=` stay refused,
-since neither language reads them the same way twice. The comma operator is
-not recognized yet.
+(`&& || ??`) and the conditional (`?:`), Stage B — and `!` and `typeof`, the
+logical not and the type tag, the prefixes neither stage had. `==`/`!=` stay
+refused, since neither language reads them the same way twice. The comma
+operator is not recognized yet.
 
 Precedence and associativity follow JavaScript's own. From the tightest, the
-levels are the prefixes `-` and `~`; `**`; `* / %`; `+ -`; the shifts
-`<< >> >>>`; `< <= > >=`; `=== !==`; `&`; `^`; `|`; `&&`; `||`, with `??` a
-chain of its own at the same level; and the conditional above them all. The
-shifts therefore sit between arithmetic and comparison, unlike `& ^ |`:
+levels are the prefixes `-`, `~`, `!` and `typeof`; `**`; `* / %`; `+ -`;
+the shifts `<< >> >>>`; `< <= > >=`; `=== !==`; `&`; `^`; `|`; `&&`; `||`,
+with `??` a chain of its own at the same level; and the conditional above
+them all. The shifts therefore sit between arithmetic and comparison, unlike
+`& ^ |`:
 `1 << 2 + 3` is `1 << (2 + 3)` and `1 << 2 < 5` is `(1 << 2) < 5`. `**` is
 right-associative (`2 ** 3 ** 2` is `2 ** (3 ** 2)`), the conditional nests
 to the right (`a ? b : c ? d : e` is `a ? b : (c ? d : e)`), and every other
 operator here is left-associative; a group overrides both
-([grouping](#grouping)). `-`/`~` immediately before `**` are refused,
-matching JavaScript exactly: `-2 ** 2` and `~2 ** 2` are syntax errors here
-as there, at any depth of `-`/`~` nesting, and parentheses are the only way
-to write either reading — `(-2) ** 2` raises the negation, `-(2 ** 2)`
-negates the power. Immediately after `**` a prefix needs no parentheses,
-since JavaScript reads the right operand of `**` as another power or a
+([grouping](#grouping)). A prefix immediately before `**` is refused,
+matching JavaScript exactly: `-2 ** 2`, `~2 ** 2`, `!2 ** 2` and
+`typeof 2 ** 2` are syntax errors here as there, at any depth of prefix
+nesting, and parentheses are the only way to write either reading —
+`(-2) ** 2` raises the negation, `-(2 ** 2)` negates the power. Immediately
+after `**` a prefix needs no parentheses, since JavaScript reads the right
+operand of `**` as another power or a
 `UnaryExpression`: `2 ** -2` is `2 ** (-2)` and `2 ** ~2` is `2 ** (~2)`.
 The refusal holds inside that operand too, so `2 ** -2 ** 2` is a syntax
 error in both languages, as its right side `-2 ** 2` is. `??` mixes with
@@ -1239,7 +1246,16 @@ which is called as JavaScript calls it. Left associativity decides the rest:
 by UTF-16 code unit when both operands, made primitive, are strings
 (`"10" < "9"` is `true`), and numerically otherwise (`"10" < 9` is `false`,
 `null >= 0` is `true`, `undefined < 1` is `false`); `===`/`!==` convert
-nothing.
+nothing. `!` converts its operand as JavaScript's `ToBoolean` does and
+negates it: `!0`, `!""`, `!null`, `!undefined` and `!NaN` are `true`, and
+`![]` and `!{}` are `false`, an array or an object being truthy however
+empty. `typeof` is the type tag of its operand, the string JavaScript gives:
+`"undefined"`, `"boolean"`, `"number"`, `"bigint"`, `"string"`, `"object"`
+for `null`, an array and an object alike, and `"function"`. `typeof` is a
+reserved word, so it names no `const` and no parameter, while `{ typeof: 1 }`
+and `a.typeof` are a key and a property name as in JavaScript; the
+FunctionalScript writer spells it with a space after the word, `typeof 1`
+and `typeof (1+2)`.
 [`fjs/edag/operations`](../fjs/edag/operations/module.f.mjs) owns each
 node's meaning, and the [`fjs/nanvm`](../fjs/nanvm/module.f.mjs) corpus
 checks its cases against a JavaScript engine.

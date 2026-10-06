@@ -682,6 +682,7 @@ export const proof = {
                 assertEq(value.metadata?.column, column)
             }
             expect('const if = 1;\nexport default 1;', 7)
+            expect('const typeof = 1;\nexport default 1;', 7)
             expect('const export = 1;\nexport default export;', 7)
             expect('const with = 1;\nexport default 1;', 7)
             expect('const let = 1;\nexport default 1;', 7)
@@ -699,8 +700,8 @@ export const proof = {
                 assert(tag === 'ok', tag)
             }
             expect('const from = 1;\nexport default from;')
-            expect('export default { if: 1, export: 2, with: 3, from: 4, default: 5, this: 6 };')
-            expect('const a = {}; export default [a.if, a.export, a.default, a.class];')
+            expect('export default { if: 1, export: 2, with: 3, from: 4, default: 5, this: 6, typeof: 7 };')
+            expect('const a = {}; export default [a.if, a.export, a.default, a.class, a.typeof];')
         },
     },
     // `with { type: "json" }` is the one import attribute JavaScript
@@ -1535,17 +1536,17 @@ export const proof = {
         },
     ],
     /**
-     * **Every shared example is proved to behave as its name says.** The two
-     * operators the parser does not take yet, and the unfinished module, are
-     * the refusals; everything else, an import included, parses.
+     * **Every shared example is proved to behave as its name says.** The
+     * escape the tokenizer does not read and the unfinished module are the
+     * refusals; everything else, an import included, parses.
      */
     demo: {
         examples: () => {
             for (const [name, source] of examples) {
-                assertEq(_astOf(source)[0], ['Logical not', 'Hex escape', 'typeof', 'Parse error'].includes(name) ? 'error' : 'ok')
+                assertEq(_astOf(source)[0], ['Hex escape', 'Parse error'].includes(name) ? 'error' : 'ok')
             }
             assertEq(_astOf('export default 1;')[1], 'export default [[],[["object",[[":","default",1]]]]];')
-            assertEq(_astOf('export default !1;')[1], 'unexpected token')
+            assertEq(_astOf('export default "\\x41";')[1], 'unexpected token')
         },
         view: () => {
             const shown = htmlToString(demo.view(demo.init))

@@ -22,8 +22,8 @@
  *
  * @module
  *
- * @import { Demo, DemoEvent, TextDemoOptions } from './types.ts'
- * @import { Node } from '../../media/html/types.ts'
+ * @import { Demo, DemoEvent, TextDemoOptions, TextFieldOptions } from './types.ts'
+ * @import { Node, Element } from '../../media/html/types.ts'
  */
 
 import { pureOk } from '../../effects/module.f.mjs'
@@ -35,7 +35,7 @@ import { examplePicker, name as exampleName } from './examples/module.f.mjs'
  *
  * @type {(o: TextDemoOptions) => (render: (text: string) => readonly Node[]) => Demo<string, DemoEvent>}
  */
-export const textDemo = ({ name, label, rows = 8, init, examples }) => render => {
+export const textDemo = ({ name, label, rows, init, examples }) => render => {
     if (examples !== undefined && name === exampleName) { throw 'textDemo: the textarea is named like the examples drop-down' }
     const picker = examples === undefined ? undefined : examplePicker(examples)
     return {
@@ -47,11 +47,17 @@ export const textDemo = ({ name, label, rows = 8, init, examples }) => render =>
                     : event.value),
         view: text => ['div',
             ...(picker === undefined ? [] : [picker.view(text)]),
-            ['p',
-                ['label', { for: name }, `${label} `],
-                ['textarea', { id: name, name, rows: String(rows) }, text],
-            ],
+            textField({ name, label, rows }, text),
             ...render(text),
         ],
     }
 }
+
+/**
+ * The labelled multiline field shared by textDemo and demos with more state.
+ * @type {(o: TextFieldOptions, text: string) => Element}
+ */
+export const textField = ({ name, label, rows = 8 }, text) => ['p',
+    ['label', { for: name }, `${label} `],
+    ['textarea', { id: name, name, rows: String(rows) }, text],
+]
