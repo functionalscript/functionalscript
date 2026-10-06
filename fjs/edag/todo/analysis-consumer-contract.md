@@ -1,7 +1,7 @@
 ## analysis-consumer-contract. Share analyzed-node edges with consumer graph queries
 
 **Priority:** P4
-**Status:** open — binding-result composition is complete; operand sharing remains.
+**Status:** wip — operand sharing is the final step.
 
 ### Problem
 
