@@ -4,13 +4,12 @@
  * @module
  */
 
-import { sha1 } from './module.f.mjs'
-import { digestOf, hashOutput } from '../../website/demo/hash/module.f.mjs'
+import { digestOf, hashOutput, sha1Algorithm } from '../../website/demo/hash/module.f.mjs'
 import { textDemo } from '../../website/demo/module.f.mjs'
 
-export const digest = digestOf(sha1)
+export const digest = digestOf(sha1Algorithm.hash)
 
-const output = hashOutput({ name: 'SHA-1', hash: sha1, openssl: 'sha1' })
+const output = hashOutput(sha1Algorithm)
 
 export const demo = textDemo({ name: 'text', label: 'Text', init: '' })(text => [
     ['p', 'SHA-1 collision resistance is broken. Do not use it to verify authenticity or protect against tampering.'],

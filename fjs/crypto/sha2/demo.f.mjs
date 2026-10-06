@@ -15,30 +15,14 @@
  * @module
  *
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
- * @import { Element } from '../../media/html/types.ts'
  */
 
-import { sha224, sha256, sha384, sha512, sha512x224, sha512x256 } from './module.f.mjs'
-import { pureOk } from '../../effects/module.f.mjs'
-import { textField } from '../../website/demo/module.f.mjs'
-import { digestOf, hashOutput } from '../../website/demo/hash/module.f.mjs'
+import { sha256 } from './module.f.mjs'
+import { textField, fieldUpdate } from '../../website/demo/module.f.mjs'
+import { digestOf, hashOutput, sha2Algorithms, algorithmOf, algorithmOption } from '../../website/demo/hash/module.f.mjs'
 
-/** Algorithms and their output renderers, built once. */
-export const algorithms = [
-    { name: 'SHA-224', hash: sha224, openssl: 'sha224' },
-    { name: 'SHA-256', hash: sha256, openssl: 'sha256' },
-    { name: 'SHA-384', hash: sha384, openssl: 'sha384' },
-    { name: 'SHA-512', hash: sha512, openssl: 'sha512' },
-    { name: 'SHA-512/224', hash: sha512x224, openssl: 'sha512-224' },
-    { name: 'SHA-512/256', hash: sha512x256, openssl: 'sha512-256' },
-].map(a => ({ ...a, output: hashOutput(a) }))
-
-/** @type {(name: string) => typeof algorithms[number]} */
-const algorithmOf = name => {
-    const found = algorithms.find(a => a.name === name)
-    if (found === undefined) { throw 'sha2 demo: no algorithm has this name' }
-    return found
-}
+const algorithms = sha2Algorithms.map(a => ({ name: a.name, output: hashOutput(a) }))
+const selectedAlgorithm = algorithmOf(algorithms)
 
 /**
  * The SHA-256 hex digest of a string's UTF-8 bytes. Kept as the exported
@@ -48,23 +32,12 @@ const algorithmOf = name => {
  */
 export const digest = digestOf(sha256)
 
-/** @type {(a: { readonly name: string }, picked: { readonly name: string }) => Element} */
-export const algorithmOption = (a, picked) =>
-    ['option', a.name === picked.name ? { value: a.name, selected: '' } : { value: a.name }, a.name]
-
 /** @type {Demo<{ readonly algorithm: string, readonly text: string }, DemoEvent>} */
 export const demo = {
     init: { algorithm: 'SHA-256', text: '' },
-    update: state => event => pureOk(
-        event.kind !== 'input'
-            ? state
-            : event.name === 'algorithm'
-                ? { ...state, algorithm: event.value }
-                : event.name === 'text'
-                    ? { ...state, text: event.value }
-                    : state),
+    update: fieldUpdate,
     view: state => {
-        const algorithm = algorithmOf(state.algorithm)
+        const algorithm = selectedAlgorithm(state.algorithm)
         return ['div',
             ['p',
                 ['label', { for: 'algorithm' }, 'Algorithm '],
