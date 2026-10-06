@@ -1,15 +1,74 @@
 /**
  * @import { Hash, State } from '../sha2/types.ts'
+ * @import { DemoEvent } from '../../website/demo/types.ts'
  */
 
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { uint, vec } from '../../types/bit_vec/module.f.mjs'
 import { sha1 } from '../sha1/module.f.mjs'
 import { sha256, sha384, sha512 } from '../sha2/module.f.mjs'
 import { hmac } from './module.f.mjs'
+import { demo, digest } from './demo.f.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
+import { runPure } from '../../effects/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.mjs'
 
 export const proof = {
+    demo: {
+        // Hex vectors computed independently with Node's crypto.createHmac.
+        variants: () => {
+            /** @type {readonly (readonly [string, string])[]} */
+            const vectors = [
+                ['SHA-1', 'de7c9b85b8b78aa6bc8a7a36f70a90701c9db4d9'],
+                ['SHA-224', '88ff8b54675d39b8f72322e65ff945c52d96379988ada25639747e69'],
+                ['SHA-256', 'f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8'],
+                ['SHA-384', 'd7f4727e2c0b39ae0f1e40cc96f60242d5b7801841cea6fc592c5d3e1ae50700582a96cf35e1e554995fe4e03381c237'],
+                ['SHA-512', 'b42af09057bac1e2d41708e48a902e09b5ff7f12ab428a4fe86653c73dd248fb82f948a549f7b791a5b41915ee4d1ec3935357e4e2317250d0372afa2ebeeb3a'],
+                ['SHA-512/224', 'a1afb4f708cb63570639195121785ada3dc615989cc3c73f38e306a3'],
+                ['SHA-512/256', '7fb65e03577da9151a1016e9c2e514d4d48842857f13927f348588173dca6d89'],
+            ]
+            return vectors.map(([algorithm, expected]) => {
+                assertEq(digest(algorithm, 'key', 'The quick brown fox jumps over the lazy dog'), expected)
+                const html = htmlToString(demo.view({ algorithm, key: 'key', text: 'The quick brown fox jumps over the lazy dog' }))
+                assert(html.includes(`<pre>${expected}</pre>`), html)
+                assert(html.includes(`value="${algorithm}" selected=""`), html)
+                assert(html.includes(`HMAC-${algorithm}, hex:`), html)
+            })
+        },
+        inputs: () => {
+            assertEq(digest('SHA-256', '', ''), 'b613679a0814d9ec772f95d778c35fc5ff1697c493715653c6c712144292c5ad')
+            assertEq(digest('SHA-256', 'key', '0'), '089c386a9149b5cce5972bfe0f05c8d6e92de22e902457b3a23a69a79f85fa97')
+            assertEq(digest('SHA-256', 'ключ 🔑', 'Привіт 🌍'), '0f4a347154f7874403e4d33a65dff5929ed00bc1b99a0b3ec7b04f4ffc008667')
+            assertEq(digest('SHA-256', 'κ'.repeat(70), 'message'), '83a8578162021a5abf7399bf510e8cd0724bea0003e0be629ed06bad36420f63')
+        },
+        update: () => {
+            /** @type {(event: DemoEvent) => typeof demo.init} */
+            const next = event => unwrap(assertNotNullish(runPure(demo.update(demo.init)(event))[0]))
+            assertEq(JSON.stringify(demo.init), JSON.stringify({ algorithm: 'SHA-256', key: '', text: '' }))
+            assertEq(JSON.stringify(next({ kind: 'input', name: 'algorithm', value: 'SHA-1' })), JSON.stringify({ ...demo.init, algorithm: 'SHA-1' }))
+            assertEq(JSON.stringify(next({ kind: 'input', name: 'key', value: 'key' })), JSON.stringify({ ...demo.init, key: 'key' }))
+            assertEq(JSON.stringify(next({ kind: 'input', name: 'text', value: 'message' })), JSON.stringify({ ...demo.init, text: 'message' }))
+            assertEq(next({ kind: 'start' }), demo.init)
+            assertEq(next({ kind: 'click', name: 'other' }), demo.init)
+            assertEq(next({ kind: 'input', name: 'other', value: 'ignored' }), demo.init)
+        },
+        view: () => {
+            const empty = htmlToString(demo.view(demo.init))
+            assert(empty.includes('name="algorithm"'), empty)
+            assert(empty.includes('name="key"'), empty)
+            assert(empty.includes('name="text"'), empty)
+            assert(empty.includes("<pre>printf '%s' '' | openssl dgst -sha256 -hmac ''</pre>"), empty)
+            assert(empty.includes('aria-label="Copy HMAC"'), empty)
+            assert(empty.includes('aria-label="Copy OpenSSL command"'), empty)
+            const quoted = htmlToString(demo.view({ algorithm: 'SHA-1', key: "k' $HOME", text: "m' `whoami`" }))
+            assert(quoted.includes("<pre>printf '%s' 'm'\\'' `whoami`' | openssl dgst -sha1 -hmac 'k'\\'' $HOME'</pre>"), quoted)
+        },
+        throw: {
+            unknownDigest: () => digest('unknown', '', ''),
+            unknownView: () => demo.view({ ...demo.init, algorithm: 'unknown' }),
+        },
+    },
     // A hash over a state of its own, not SHA-2's: `hmac` reads a block
     // length and folds blocks, so SHA-1's five words do as well as SHA-2's
     // eight. RFC 2202 test cases 1 and 2 for HMAC-SHA1.

@@ -26,9 +26,10 @@ import { pureOk } from '../../effects/module.f.mjs'
 import { codeBlock, shellQuote } from '../../website/demo/module.f.mjs'
 
 /**
+ * SHA-2 variants shared by the hash and HMAC demos.
  * @type {readonly { readonly name: string, readonly hash: Sha2, readonly openssl: string }[]}
  */
-const algorithms = [
+export const algorithms = [
     { name: 'SHA-224', hash: sha224, openssl: 'sha224' },
     { name: 'SHA-256', hash: sha256, openssl: 'sha256' },
     { name: 'SHA-384', hash: sha384, openssl: 'sha384' },
@@ -56,9 +57,9 @@ const digestOf = hash => text =>
  */
 export const digest = digestOf(sha256)
 
-/** @type {(a: typeof algorithms[number], picked: typeof algorithms[number]) => Element} */
-const algorithmOption = (a, picked) =>
-    ['option', a === picked ? { value: a.name, selected: '' } : { value: a.name }, a.name]
+/** @type {(a: { readonly name: string }, picked: { readonly name: string }) => Element} */
+export const algorithmOption = (a, picked) =>
+    ['option', a.name === picked.name ? { value: a.name, selected: '' } : { value: a.name }, a.name]
 
 /** @type {Demo<{ readonly algorithm: string, readonly text: string }, DemoEvent>} */
 export const demo = {
