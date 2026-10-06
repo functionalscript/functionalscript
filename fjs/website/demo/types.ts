@@ -29,10 +29,11 @@ import type { Examples } from './examples/types.ts'
  * ever holding a DOM node.
  *
  * `click` is what a demo uses to ask for work rather than to react to typing:
- * a benchmark should start when a reader says so, not when a page loads. Only
- * a named `<button>` or `<input type="button">` sends it — a click in a field
+ * a benchmark should start when a reader says so, not when a page loads. A
+ * named `<button>` or `<input type="button">` sends it — a click in a field
  * places a caret or ends a selection, which is not a request — and it carries
- * only the name, because a button has no value to report.
+ * only the name, because a button has no value to report. A demo's `nextEvent`
+ * may also request a named click on a later turn, for incremental work.
  *
  * The union is extended when a demo needs more, and not before.
  */
@@ -87,6 +88,13 @@ export type Demo<State, Event, O extends Operation = never> = {
     readonly update: (state: State) => (event: Event) => Effect<O, State, never>
     readonly view: (state: State) => Element
     readonly wait?: ((state: State) => string | null) | undefined
+    /**
+     * An event to run on a later browser turn after rendering this state,
+     * or null to stop. Automatic turns keep controls available, so input or
+     * a stop button can interrupt incremental work. Each update must do a
+     * small amount of work; queued reader input cancels a scheduled turn.
+     */
+    readonly nextEvent?: ((state: State) => Event | null) | undefined
 }
 
 /**

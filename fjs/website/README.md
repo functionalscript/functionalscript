@@ -138,7 +138,7 @@ vocabulary and a handler map are two different things, which is why the
 runtime declares both. The first browser-only operation — a fetch, a file the
 reader picks — is where `fjs/effects/browser/` becomes necessary.
 
-While an update is in flight the runtime marks the section and disables its
+While a reader-requested update is in flight the runtime marks the section and disables its
 buttons, and the stylesheet writes `Working…` under the demo. Only the runtime
 can say this: a demo renders once, after its effect has finished, so it cannot
 paint "still going" itself. The word is general because the runtime is — the
@@ -147,6 +147,12 @@ wanting its own wording should say so in a field rather than have the runtime
 guess. Raising the flag is followed by a return to the event loop, because a
 demo's work runs on the thread that paints and a flag raised and blocked in one
 task is a flag nobody sees.
+
+A demo can request incremental work through `nextEvent(state)`: return an
+event to run on a later browser turn, or `null` to stop. These automatic turns
+keep controls available, so a reader can stop the work or edit an input. Each
+update must do a small amount of work. Queuing a reader event cancels a scheduled
+turn; the latest rendered state decides whether to schedule another one.
 
 Events are serialized: one `update` at a time, the next queued behind it. That
 is what makes a demo's state a fold over its events in the order they happened,
