@@ -348,7 +348,7 @@ const stepOperands = k => {
 }
 
 /** A plain item or the operand of a spread. @type {(x: ItemOperand) => Operand} */
-const itemOperand = x => x instanceof Array && x[0] === '...' ? x[1] : x
+export const itemOperand = x => x instanceof Array && x[0] === '...' ? x[1] : x
 
 /** A property's key and value, or a spread's operand. @type {(p: PropertyOperand) => readonly Operand[]} */
 const propertyOperands = p => p[0] === ':' ? [p[1], p[2]] : [p[1]]
@@ -438,9 +438,9 @@ const withinScope = (scope, root, i) => {
 /**
  * Validate invocation bindings after scopes have been assigned, and each
  * function's length against the language's limit. Analysis also serves
- * isolated compiler fragments, so executable consumers call this once on the
- * complete graph. Frames keep their enclosing scope: a slot read names the
- * frame of the function whose body holds it, and a module has none.
+ * isolated compiler fragments, so executable consumers use {@link checked}
+ * once on the complete graph. Frames keep their enclosing scope: a slot read
+ * names the frame of the function whose body holds it, and a module has none.
  * An optional function entry limits checks to that function and the body
  * scopes it creates. Its captures belong to the enclosing scope and are
  * excluded, including captured functions' bodies. The index must name a
@@ -448,7 +448,7 @@ const withinScope = (scope, root, i) => {
  * complete graph.
  * @type {(a: Analysis, root?: number) => string | null}
  */
-export const bindingError = ({ nodes, scope }, root = -1) => {
+const bindingError = ({ nodes, scope }, root = -1) => {
     for (const [i, node] of nodes.entries()) {
         if (root !== -1 && !withinScope(scope, root, i)) { continue }
         const owner = scope[i] === -1 ? null : nodes[scope[i]]
@@ -470,7 +470,7 @@ export const bindingError = ({ nodes, scope }, root = -1) => {
 }
 
 /**
- * The same analysis on binding success, or the existing diagnostic. `root`
+ * The same analysis on binding success, or {@link bindingError}'s diagnostic. `root`
  * has {@link bindingError}'s selected-function scope; omitted, the complete
  * graph is checked. Compose with `analysis` at executable admission boundaries.
  *
