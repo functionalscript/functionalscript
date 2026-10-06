@@ -99,6 +99,16 @@ before conversion, allowing `export const f = x => x; export default 1;` to
 produce JSON `1`. A conversion refusal names the output file. Both APIs keep
 direct JSON documents unwrapped.
 
+[`serializer/value`](./serializer/value/module.f.mjs) provides the code-generation
+step for callable runtime compilation: `stringify(value)` emits a JavaScript
+module whose default export constructs a closed `EdagValue` as ordinary runtime
+data and functions. Evaluated captures may be primitive, repeated or unused;
+shared containers and functions keep their identity, and function bodies use
+memo semantics with fresh invocation-local allocations. The emitter trusts
+constructed values and reuses the function-body renderer. Its output promises
+runtime behavior, not a structural FJS source round trip. Module loading and
+integration with `transpile` remain pending.
+
 JSON/DataJS output selects the default; FunctionalScript
 output emits individual named/default exports. EDAG and generated Rust retain
 the complete result. A missing default is refused at an import, but a named-only

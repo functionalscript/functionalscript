@@ -1,10 +1,9 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** wip — closed-value JavaScript emission is the next implementation
-step. Memo and Amnesia use represented values and complete
-function text; compiler module initialization uses memo and the AST value
-evaluator is retired. Callable runtime compilation and backend value emission remain.
+**Status:** open — FJS language VMs use represented values, compiler module
+initialization uses memo, and closed values can be emitted as JavaScript.
+Callable loading and Rust value-emission parity remain.
 
 ### Problem
 
@@ -203,10 +202,22 @@ expects source-normalized frames: `tryStringify` refuses the primitive capture
 in the example above with `a frame slot holding a primitive`, and also refuses
 repeated or unused slots. Callable value emission must accept evaluated captures
 and preserve their slot positions, shared values and allocation lifetimes.
-This is backend migration work, not a restriction on `EdagValue`. The source
+This is not a restriction on `EdagValue`. The source
 writer's structural round-trip contract remains separate: emitting a closed
 value promises its runtime behavior and identity, without requiring source
 lowering to reconstruct the same capture graph.
+
+[`compiler/serializer/value`](../../compiler/serializer/value/module.f.mjs)
+now exposes `stringify(value: EdagValue): string`. It emits a JavaScript module
+whose default export is the ordinary runtime value. Analysis orders evaluated
+nodes before their consumers; each outer node has one `const`, including
+values used only by capture slots. Function bodies reuse the JavaScript
+function-text renderer. Primitive, repeated and unused slots keep their
+positions, captures live outside calls, and body sharing is per invocation.
+This output follows the JavaScript/memo execution profile; it does not preserve
+Amnesia's recomputation of every edge. It may use JavaScript syntax beyond the
+current FJS parser. Emission is pure; loading the module remains a target-runtime
+operation and is not yet wired into `toUnknown` or compiler output routes.
 
 Provide **`EdagValue -> unknown`**, including functions, as an explicit
 conversion to ordinary FJS runtime values. Here `unknown` names a runtime
@@ -441,11 +452,14 @@ promise normalization of host resource exhaustion.
       preserve initializer failure payloads and paths, and convert only the
       requested result. `transpile` returns an inner output-conversion Result;
       callable runtime conversion remains the explicit refusal above.
-- [ ] Implement callable value emission in the FJS backend for primitive,
+- [x] Implement callable value emission in the JavaScript backend for primitive,
       repeated and unused evaluated captures, preserving slot positions and
       shared captured values separately from source round-trip serialization.
       Prove the primitive-capture example above produces a callable returning
       `5` when passed `3`, plus shared captures and fresh body allocations.
+      `compiler/serializer/value.stringify` emits a default-export module;
+      host proofs load it and invoke its ordinary runtime functions. Target
+      loading remains the callable materialization task above.
 - [ ] Prove direct JS/Rust compilation of result graphs preserves the supported
       profile: primitives, containers, nested captures, distinct closures,
       shared identity, fresh invocation values, lazy branches and throws.
