@@ -684,8 +684,11 @@ const frameNames = s => slots => {
         if (!(x instanceof Array)) { return error('a frame slot holding a primitive') }
         if (isSlotRead(s.a, x)) { return ok(slotName(s)(/** @type {number} */(s.a.nodes[x[1]][1]))) }
         // a slot holding the enclosing function's own `self` reads as the
-        // name that function was bound to, which its body knows
-        if (s.a.nodes[x[1]][0] === 'self') { return s.self === null ? error('a self outside a named function') : ok(s.self) }
+        // name that function was bound to: the hoisting walk names every
+        // function that reads its `self`, and the analysis refused one with
+        // no function around it, so a missing name is this writer's own
+        // mistake
+        if (s.a.nodes[x[1]][0] === 'self') { return ok(assertNotNullish(s.self, ['a self in a scope with no name', x])) }
         const parameterRead = parameterName(s.param, s.a.nodes[x[1]])
         if (parameterRead !== null) { return ok(parameterRead) }
         // every other slot was hoisted before the statement holding the
@@ -895,7 +898,10 @@ const entry = (s0, depth) => i => {
     const node = s.a.nodes[i]
     switch (node[0]) {
         case 'undefined': { return ok(['undefined']) }
-        case 'self': { return s.self === null ? error('a self outside a named function') : ok([s.self]) }
+        // the name the function was bound to: the hoisting walk gave one to
+        // every function that reads its `self`, and the analysis refused a
+        // `self` with no function around it
+        case 'self': { return ok([assertNotNullish(s.self, ['a self in a scope with no name', i])]) }
         case 'arg': case 'rest': { return ok([assertNotNullish(parameterName(s.param, node))]) }
         case '[]': { return mapOk(arrayWrap)(okList(node[1].map(item(s, depth)))) }
         case '{}': { return mapOk(objectWrap)(okList(node[1].map(property(s, depth)))) }
