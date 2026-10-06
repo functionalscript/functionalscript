@@ -7,8 +7,10 @@ so that a reader who has used one demo can read the next without learning a
 new page.
 
 The rules here were drawn from the demos already on the site, and where they
-disagreed, one way was picked and the reason written down — so some demos do
-not follow every rule yet, and where one does not, its section says so. A demo may
+disagreed, one way was picked and the reason written down. So some demos do
+not follow every rule yet; this file states the rules, and
+[`todo/demos-follow-the-spec.md`](./todo/demos-follow-the-spec.md) lists the
+demos that do not. A demo may
 deviate where its subject needs it, and says why in its JSDoc.
 
 ## One order, top to bottom
@@ -143,13 +145,6 @@ The caption says it in words as well, because a colour alone is not a
 verdict: `Refused:` where the result's caption would be. Where a demo shows
 several readers' answers side by side, each caption carries its verdict, as
 the rtti demo's `parse · ok` and `validate · error` do.
-
-**Only the rtti demo follows this yet.** The four compiler demos that refuse
-— the side-by-side page, the parser, the serializer and the Rust page —
-write the word and the message together in one untinted paragraph,
-``['p', `Refused: ${value}`]``. They are the first to move to the shape above,
-through a shared refusal element whose proof pins the marker, so a renamed
-marker cannot leave this file wrong with every check green.
 
 - **`Refused`, not `Error`.** The module did what it is designed to do with
   input it cannot handle
