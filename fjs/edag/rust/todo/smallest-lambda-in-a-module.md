@@ -1,7 +1,7 @@
 ## smallest-lambda-in-a-module. A compiled `() => undefined` calls the corpus harness's `function_any`
 
 **Priority:** P2
-**Status:** open
+**Status:** wip
 
 ### Problem
 
