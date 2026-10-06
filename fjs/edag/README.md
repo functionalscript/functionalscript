@@ -250,6 +250,20 @@ separate from **EDAG interpretation**. The broader identity and memoization
 choices, including JS-compatible executors, global memoization, and the CAVM,
 are compared in [execution-models.md](execution-models.md).
 
+## Literal descriptions
+
+`fromValue(other)(value)` in [module.f.mjs](module.f.mjs) encodes a typed
+`Plain<F>` description as an EDAG expression. Primitive leaves stay primitive;
+`undefined`, arrays and objects become literal nodes. Object members follow
+enumeration order and retain explicitly present `undefined` values. Every
+occurrence gets fresh nodes, including repeated input containers.
+
+The `other` hook translates function leaves into expressions and can supply
+shared nodes. The [NaNVM corpus](../nanvm/module.f.mjs) uses it for its function
+markers and explicit shared references. JSON imports use the same encoder
+with no function leaves. This conversion describes literals; it does not
+recover the code or identity of runtime values after reflection is erased.
+
 ## Nodes
 
 A node is a primitive or a tagged tuple `[tag, ...operands]`. In the schema

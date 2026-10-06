@@ -1,7 +1,7 @@
 /**
  * @module
  *
- * @import { Exp, OptionLambda, OptionPropertyLambda } from './types.ts'
+ * @import { Exp, OptionLambda, OptionPropertyLambda, Plain } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
 
@@ -92,6 +92,31 @@ export const exp = _exp
  * operation, not here.
  */
 export const primitive = or(null, boolean, number, string, bigint)
+
+/**
+ * A plain value as fresh literal nodes. Present `undefined` properties stay
+ * present, and object members follow enumeration order. Each occurrence gets
+ * its own nodes; only `other`, which answers function leaves, can supply shared
+ * nodes or nonliteral expressions. This encodes descriptions, not the identity
+ * or reflected code of runtime objects and functions.
+ *
+ * @template {globalThis.Function} F
+ * @param {(value: F) => Exp} other
+ * @returns {(value: Plain<F>) => Exp}
+ */
+export const fromValue = other => {
+    /** @type {(value: Plain<F>) => Exp} */
+    const encode = value => {
+        if (typeof value === 'function') { return other(value) }
+        if (value === undefined) { return ['undefined'] }
+        if (Array.isArray(value)) { return ['[]', value.map(encode)] }
+        if (value !== null && typeof value === 'object') {
+            return ['{}', Object.entries(value).map(([key, member]) => [':', key, encode(member)])]
+        }
+        return value
+    }
+    return encode
+}
 
 // Exps
 
