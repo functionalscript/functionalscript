@@ -163,7 +163,11 @@ compiler. This checks value emission separately from compiling source modules.
 Its pure proofs check primitive, repeated and unused capture slots. The native
 tests in [`nanvm-harness/tests/values.rs`](../../nanvm-harness/tests/values.rs)
 check calls, shared exports and captures, distinct closures, and fresh call and
-module results.
+module results. The nested factory allocates a capture per factory call; its
+returned closure either includes that array in a fresh result or throws the
+same array. The pure interpreter, JavaScript runtime compilation in
+[`values/proof.mjs`](values/proof.mjs), and native Rust calls check those same
+capture lifetimes, lazy branches and thrown identities.
 
 `npm run gen` writes `nanvm-harness/gen.values/captures.rs` through the existing
 updater; `cargo test` compiles and runs it. Change the fixture generator, never

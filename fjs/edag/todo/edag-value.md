@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** wip — FJS language VMs use represented values, compiler module
+**Status:** open — FJS language VMs use represented values, compiler module
 initialization uses memo, and compiler runtime output supports JavaScript
 callables. Rust value-emission parity and final contract reconciliation remain.
 
@@ -496,7 +496,13 @@ promise normalization of host resource exhaustion.
       native proofs check calls, shared exports and captures, distinct closures
       and fresh call and module results. This exercises value emission
       separately from source compilation.
-      Broader Rust parity remains open.
+      Its nested factory is also exercised through interpretation, JavaScript
+      runtime compilation and native Rust calls: captures allocated by a
+      factory call survive both successful and throwing nested invocations,
+      while later factory calls and successful result arrays remain fresh.
+      Conditional branches skip unselected throws and preserve thrown capture
+      identity. Broader Rust parity remains open, including the existing
+      refusal of shared nodes reached only through lazy operands.
 - [x] Prove initializer failures survive unused imports/declarations, while
       successful export value graphs omit unreachable initialization machinery.
 - [ ] Prove implicit operation failures return `error(['undefined'])`, while

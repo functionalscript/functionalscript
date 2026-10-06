@@ -2,7 +2,8 @@
  * A memo-interpreted capture graph for the native Rust harness. The input
  * computes its captures before the existing Rust emitter sees the result;
  * source-normalized frames cannot express its primitive, repeated and unused
- * capture slots. `npm run gen` writes the module through `../update`.
+ * capture slots. A factory also constructs nested captures at invocation time.
+ * `npm run gen` writes the module through `../update`.
  *
  * @module
  * @import { Exp, Function as EdagFunction } from '../../edag/types.ts'
@@ -22,8 +23,9 @@ export const path = `${directory}/captures.rs`
 
 /**
  * Compute a fresh export graph, retaining captures and repeated references.
- * Each distinct function has its own body graph and shares the same captured
- * values. The fourth slot is deliberately unused by the body.
+ * The sibling callables share evaluated slots; their fourth slot is unused.
+ * The factory captures the shared array and makes a fresh local array for
+ * each returned function, which either returns or throws that local capture.
  * @type {() => EdagValue}
  */
 export const value = () => {
@@ -38,10 +40,18 @@ export const value = () => {
         ['+', ['frame', 0], ['arg', 0]], ['frame', 1], ['frame', 2],
     ]]]
     const call = make()
+    /** @type {EdagFunction} */
+    const factory = ['=>', 1, [shared], ['=>', 1, [
+        ['frame', 0], ['[]', [['arg', 0]]],
+    ], ['?:', ['arg', 0],
+        ['[]', [['frame', 0], ['frame', 1], ['frame', 1]]],
+        ['throw', ['frame', 1]],
+    ]]]
     /** @type {Exp} */
     const expression = ['{}', [
         [':', 'shared', shared], [':', 'alias', shared],
         [':', 'call', call], [':', 'again', call], [':', 'other', make()],
+        [':', 'make', factory],
     ]]
     return unwrap(memo(unwrap(analysis(expression)))({ args: [] }))
 }
