@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — primitive shifts implemented; callable conversion, invocation and VM migration remain open
+**Status:** open — primitive relational comparisons implemented; callable conversion, invocation and VM migration remain open
 
 ### Problem
 
@@ -346,6 +346,11 @@ budget or stopped-outcome API.
       number conversion and shift-count wrapping, exact bigint shifts and
       reversed direction for negative bigint counts. Mixed numeric types
       and bigint unsigned shifts return tagged-undefined failure.
+- [x] Add primitive `<`, `<=`, `>` and `>=` in `fjs/edag/value/relational`,
+      returning boolean successes through `Result`. Preserve UTF-16 string
+      ordering, exact mixed number/bigint comparisons and bigint/string
+      conversion. Unordered comparisons succeed with false. Operand evaluation
+      and container/function conversion remain with dispatch.
 - [x] Join evaluated arrays in `fjs/edag/value/array` with a resolved separator
       and a supplied string converter. Nullish elements contribute empty text;
       other elements, including nested arrays and functions, convert in order.

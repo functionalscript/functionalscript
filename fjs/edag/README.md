@@ -106,6 +106,14 @@ negative bigint exponents fail with tagged undefined. Both tables return
 For ordinary objects, pass `'number'` to `objectToPrimitive` for all these
 operations, including addition's default conversion.
 
+[`value/relational`](value/relational/module.f.mjs) supplies a `binary` table
+for `<`, `<=`, `>` and `>=` over evaluated primitives. Two strings compare
+by UTF-16 code unit; mixed number/bigint comparisons preserve numeric value,
+and bigint/string comparisons parse the string as an integer. NaN, tagged
+undefined and invalid bigint/string comparisons succeed with false. Every
+result uses `Result`; operand evaluation and conversion of containers or
+functions remain with the caller, using the number hint for ordinary objects.
+
 The [`value/array`](value/array/module.f.mjs) join helper consumes an evaluated
 array and a resolved string separator. Nullish elements contribute empty text;
 other elements use the supplied string converter in order, preserving the
