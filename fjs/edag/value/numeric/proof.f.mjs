@@ -170,15 +170,52 @@ export const proof = {
             }
         }
     },
+    numberExponentiation: () => {
+        /** @type {readonly (readonly [Primitive, Primitive, number])[]} */
+        const cases = [
+            [2, 3, 8], [3, 2, 9], [2, -3, 0.125], [-2, 3, -8], [-2, 4, 16],
+            [4, 0.5, 2], [-4, 0.5, NaN],
+            [0, 0, 1], [0, -1, Infinity], [NaN, 0, 1], [NaN, -0, 1], [1, NaN, NaN],
+            [-0, 3, -0], [-0, 2, 0], [-0, -3, -Infinity], [-0, -2, Infinity],
+            [Infinity, 2, Infinity], [-Infinity, 3, -Infinity], [-Infinity, 2, Infinity],
+            [Infinity, -1, 0], [-Infinity, -3, -0], [-Infinity, -2, 0],
+            [1, Infinity, NaN], [-1, -Infinity, NaN],
+            [2, Infinity, Infinity], [0.5, Infinity, 0],
+            [2, -Infinity, 0], [0.5, -Infinity, Infinity],
+            [undefinedValue, 0, 1], [undefinedValue, 1, NaN], [2, undefinedValue, NaN],
+            [null, true, 0], [true, false, 1], ['3', '2', 9], ['value', 0, 1],
+        ]
+        for (const [base, exponent, expected] of cases) {
+            assertEq(Object.is(assertOk(binary['**'](base, exponent)), expected), true)
+        }
+    },
+    bigintExponentiation: () => {
+        /** @type {readonly (readonly [bigint, bigint, bigint])[]} */
+        const cases = [
+            [0n, 0n, 1n], [0n, 3n, 0n], [2n, 0n, 1n],
+            [-3n, 3n, -27n], [-3n, 4n, 81n],
+            [3n, 34n, 16677181699666569n],
+        ]
+        for (const [base, exponent, expected] of cases) {
+            assertEq(assertOk(binary['**'](base, exponent)), expected)
+        }
+    },
+    negativeBigintExponents: () => {
+        for (const base of [-2n, 0n, 1n, 2n]) {
+            for (const exponent of [-1n, -2n]) {
+                assertStructurallySame(assertError(binary['**'](base, exponent)), ['undefined'])
+            }
+        }
+    },
     mixedNumericTypes: () => {
-        for (const operator of /** @type {const} */ (['+', '-', '*', '/', '%', '&', '|', '^'])) {
+        for (const operator of /** @type {const} */ (['+', '-', '*', '/', '%', '**', '&', '|', '^'])) {
             for (const value of [0, 1, null, true, false, undefinedValue]) {
                 assertStructurallySame(assertError(binary[operator](1n, value)), ['undefined'])
                 assertStructurallySame(assertError(binary[operator](value, 1n)), ['undefined'])
             }
         }
         // Numeric strings still become numbers; only addition concatenates.
-        for (const operator of /** @type {const} */ (['-', '*', '/', '%', '&', '|', '^'])) {
+        for (const operator of /** @type {const} */ (['-', '*', '/', '%', '**', '&', '|', '^'])) {
             assertStructurallySame(assertError(binary[operator](1n, '2')), ['undefined'])
             assertStructurallySame(assertError(binary[operator]('2', 1n)), ['undefined'])
         }
