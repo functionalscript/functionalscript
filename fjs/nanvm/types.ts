@@ -17,7 +17,7 @@
  */
 
 import type { Assert } from '../asserts/types.ts'
-import type { Exp, Op12Id, Op1Id, Op2, Op2Id, Op3Id } from '../edag/types.ts'
+import type { Exp, Op12Id, Op1Id, Op2, Op2Id, Op3Id, Plain } from '../edag/types.ts'
 import type { AllowedCall } from '../js/prototype/types.ts'
 import type { FixedArray } from '../types/array/types.ts'
 import type { Equal } from '../types/ts/types.ts'
@@ -43,18 +43,10 @@ import type { Equal } from '../types/ts/types.ts'
  * expression that denotes it, so `typeof` plus `Array.isArray` recovers
  * everything a tag would have carried.
  */
-export type Value = Const | Ref | FunctionValue | Callback | Returns | Unreached
+export type Value = Plain<Ref | FunctionValue | Callback | Returns | Unreached>
 
 /** A value that is its own description. */
-export type Const =
-    | null
-    | undefined
-    | boolean
-    | number
-    | string
-    | bigint
-    | readonly Value[]
-    | Struct
+export type Const = Exclude<Value, globalThis.Function>
 
 /** An object value. Property order is the order the Rust printer emits. */
 export type Struct = { readonly [k in string]?: Value }

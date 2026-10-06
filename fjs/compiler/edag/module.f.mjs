@@ -13,19 +13,18 @@
  * @import { ReadFile, ResolveFileModule } from '../../effects/node/types.ts'
  * @import { EdagValue } from '../../edag/value/types.ts'
  * @import { Unknown as JsonUnknown } from '../../media/json/types.ts'
- * @import { Entry } from '../../types/object/types.ts'
  * @import { Unresolved } from './types.ts'
  * @import { _Binding, _Entries, _Link, _Lowered, _LoweredEntry, _LoweredItem, _LoweredOver, _LowerResults, _LowerWork, _Nodes, _Resolved } from './private.ts'
  */
 
 import { anchors, isBinary, isInlinedCall, isLazy, isSpread, readCaptures } from '../ast/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
+import { fromValue } from '../../edag/module.f.mjs'
 import { _attributeError, _importSources, _missingExport, _rootSource, _parseJson, _parseModule } from '../source/module.f.mjs'
 import { foldStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { at, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { drop, includes } from '../../types/list/module.f.mjs'
-import { definedEntries } from '../../types/object/module.f.mjs'
-import { assertNotNullish } from '../../asserts/module.f.mjs'
+import { assertNotNullish, todo } from '../../asserts/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 
 const args = /** @type {const} */ (['args'])
@@ -510,22 +509,20 @@ export const _defaultExport = module => {
 
 // ── resolution ────────────────────────────────────────────────────────────────
 
-/** @type {(member: Entry<JsonUnknown>) => readonly [':', string, EdagValue]} */
-const jsonMember = ([key, value]) => [':', key, jsonValue(value)]
+/** JSON has no function leaves, so the function hook is unreachable. */
+const jsonLiteral = fromValue(todo)
 
 /**
  * A JSON document's value as an EDAG: a tree with JSON's leaves, its
  * members in the order the reader built them. `transpile` reads a `.json`
  * import as a value, so the linker does too.
  *
+ * `fromValue` allows arbitrary hook expressions. JSON never reaches its hook,
+ * so only literal value nodes are constructed and the narrower cast holds.
+ *
  * @type {(value: JsonUnknown) => EdagValue}
  */
-export const jsonValue = value => {
-    if (value === null || typeof value !== 'object') { return value }
-    return value instanceof Array
-        ? ['[]', value.map(jsonValue)]
-        : ['{}', definedEntries(value).map(jsonMember)]
-}
+export const jsonValue = value => /** @type {EdagValue} */ (jsonLiteral(value))
 
 /**
  * A module's EDAG recorded under its identity, and the chain of imports left as
