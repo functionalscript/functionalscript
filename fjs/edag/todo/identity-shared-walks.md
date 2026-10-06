@@ -1,93 +1,57 @@
-## identity-shared-walks. Three walks decide which EDAG nodes are shared
+## Investigate shared identity traversal
 
 **Priority:** P4
-**Status:** wip
+**Status:** open
 
 ### Problem
 
-`fjs/edag/analysis` exists to answer "which nodes are shared" once, for a
-writer and a VM — its doc says so. Two Rust printers answer it themselves:
+[`analysis`](../analysis/module.f.mjs) builds a table that merges
+structurally equal identity-free nodes within each scope. The Rust printer
+in [`edag/rust`](../rust/module.f.mjs) works with source-node identity and
+uses its parameterized `visit` for counts and graph queries. Whether some
+traversal machinery can be shared without complicating either consumer
+remains an optional investigation.
 
-```js
-// fjs/edag/rust/module.f.mjs, visit — an identity-keyed count with a findIndex memo
-const visit = visited => root => {
-    if (!(root instanceof Array)) { return visited }
-    const i = visited.findIndex(([n]) => n === root)
-    if (i !== -1) { return visited.map((v, j) => j === i ? [v[0], v[1] + 1] : v) }
-    const withChildren = root.reduce((v, child) => visit(v)(child), visited)
-    return [...withChildren, [root, 1]]
-}
-export const sharedNodesOf = root => visit([])(root).filter(([, count]) => count >= 2).map(([node]) => node)
-```
+[`compiler/rust`](../../compiler/rust/module.f.mjs) already delegates
+binding generation to `edag/rust.scope`; it analyzes the graph for admission
+and does not maintain another binding walk. Within `edag/rust`, the same
+`visit` supports `sharedNodesOf`, argument and frame reads, function
+detection, and the printer's binding decisions, with different boundaries:
 
-and `fjs/compiler/rust`'s `bodyLines` runs both over the same root:
-`analysis(root)` for the negation check, then `sharedNodesOf(root)` for the
-bindings. The two notions do differ — `analysis` merges structurally equal
-identity-free nodes within a scope, `sharedNodesOf` counts object identity
-— which is a reason to name the second where the first lives, not to keep
-it in a printer with a quadratic memo.
+- A scope follows a function's captures but leaves its body to a separate
+  invocation. Whole-program function detection includes bodies.
+- The printer stops descending at values the caller has already bound.
+- Lazy-block ownership compares counts under the scope root and under
+  individual thunk roots, together with eager reachability. Chain argument
+  lists are thunk roots whose items are walked without treating the list
+  itself as an expression node.
 
-`fjs/nanvm/rust`'s `reaches` looks like a third copy and is not one: it
-asks whether a group's expressions reach a *named* shared value from
-`data.shared`, which needs a binding when reached once, where this issue
-counts edges to two or more. That test stays as it is.
+A single global list of shared source objects cannot replace these queries.
+The analysis's merged table is also a different answer from source-identity
+counts: distinct structural-twin parents can both reference one constructor,
+and that constructor must retain its sharing when printed.
 
-### Proposal
-
-The identity answer becomes part of the one table `analysis` already
-returns, so a consumer that needs both makes one call:
-
-```ts
-export type Analysis = {
-    readonly root: Operand
-    readonly nodes: readonly Node[]
-    readonly scope: readonly number[]
-    /** Entries written at more than one place once identity-free twins are merged — what a FunctionalScript writer hoists. */
-    readonly shared: readonly number[]
-    /** The source objects reached by more than one edge, operands before the nodes that use them — what a printer that binds by object identity hoists. */
-    readonly identityShared: readonly ExpOp[]
-}
-```
-
-**Counted in the walk, not read off the table.** The table cannot answer
-this: `visited` maps a merged twin to the entry it merged into, so when two
-structural-twin parents both reference one identity-minting child, the
-table holds one parent and one edge to the child, while the child was
-reached twice and needs a binding. Every edge into a node passes through
-the walk's `node` handler exactly once — the known and the fresh case
-alike — so the walk's state gains an `edges: ReadonlyMap<ExpOp, number>`
-beside `visited`, and `identityShared` is its keys with a count of two or
-more, in insertion order. **Insertion happens where the entry is added**,
-in `fresh`, after the node's operands have been walked, and a known node
-only has its count raised — so the map's order is post-order, an inner
-constructor before the outer one that holds it, which is the order the
-Rust emitter needs to declare a binding before the binding that uses it
-and the order `visit` reports today. Recording on the way in would put
-the outer first and break every nested binding. That is the count and
-the order `visit` computes, taken by the traversal that already happens
-instead of a second one with a `findIndex` memo. It answers in source objects rather than entry indices
-because identity is the question; the entries are the merged view.
-
-`fjs/edag/rust`'s `sharedNodesOf(root)` then reads `identityShared` from the
-successful analysis, and `visit` goes; `compiler/rust`'s `bodyLines` reads the
-negation check and
-the binding list off one `analysis(root)`. Generated Rust is unchanged,
-since the count is the same count.
+`fjs/nanvm/rust`'s `reaches` has a separate purpose: it checks whether a
+group uses a named value from `data.shared`. That value needs its supplied
+binding even when reached once; this is not a repeated-edge count.
 
 ### Tasks
 
-- [ ] `edges` in the walk state and `identityShared` on `Analysis`, with a
-      proof against the cases `fjs/edag/rust/proof.f.mjs` pins for
-      `sharedNodesOf` — the nested-constructor case pins inner before
-      outer — plus the twin-parents case: two structurally equal mergeable
-      parents of one constructor child, the child reported shared.
-- [ ] `fjs/edag/rust` and `fjs/compiler/rust` rewritten; `npm run gen`; generated Rust
-      unchanged; `tsc`, `fjs test`.
+- [ ] Identify whether a common traversal contract would simplify the
+      current consumers. Preserve source identity, repeated edges,
+      dependencies before dependents, scope boundaries, caller-supplied
+      bindings, and eager/lazy ownership. No shared API is chosen yet.
+- [ ] If a simpler implementation emerges, prove those contracts against
+      the existing Rust sharing and lazy-block cases, including distinct
+      structural-twin parents of one constructor. Regenerate and verify
+      unchanged Rust output and run the required checks. Otherwise record
+      why the separate representations need their current walks and retire
+      this issue.
 
 ### Related
 
-- [analysis.md](./analysis.md) — names two consumers and rules out a
-  third; the Rust printers are a writer that hoists, which is the first
-  kind.
+- [analysis.md](./analysis.md) — the merged table's sharing contract.
+- [`../rust/proof.f.mjs`](../rust/proof.f.mjs) — source-identity counts,
+  dependency order, function scopes and lazy-block ownership.
 - [`../rust/todo/let-bindings-owner.md`](../rust/todo/let-bindings-owner.md) —
-  what the printers do with the answer.
+  ownership of binding output, a separate question from traversal.
