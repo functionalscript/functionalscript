@@ -5,8 +5,8 @@
 interpretation and callable runtime compilation; the AST value evaluator is
 retired. Public admission and native prerequisites remain open.
 
-The planned value contract is
-[EdagValue](../../edag/todo/edag-value.md): every FJS VM uses the EDAG subset
+The implemented value contract is
+[EdagValue](../../edag/values.md): every FJS VM uses the EDAG subset
 for language values and returns `Result<EdagValue, EdagValue>`. Memo and Amnesia
 now share represented operation dispatch. Integration converts explicitly at
 APIs exposing `unknown`:
@@ -20,16 +20,20 @@ compilation** converts those values to ordinary FJS/JS runtime values, including
 function-free materialization and the callable backend/load boundary.
 
 **Compiler dependency:** [`compile-modules-to-edag.md`](./compile-modules-to-edag.md)
-provides the linked graphs. Its initial rest-only, non-capturing Stage 2 is
-historical; the interpreter follows the current fixed/rest and capture contract.
+provides module lowering and linking. The loader interprets each unresolved
+initializer with represented dependency exports to retain failure source paths.
+Its initial rest-only, non-capturing Stage 2 is historical; the interpreter
+follows the current fixed/rest and capture contract.
 
 ### Goal
 
 Provide a baseline FunctionalScript interpreter for a final compiled EDAG.
 
-Module compilation and module resolution produce one final EDAG. Executing that EDAG
-is a separate concern. One execution strategy is to interpret it directly; another is
-to compile it to an executable function.
+Executing EDAG is separate from producing it. The compiler can link modules into
+one final graph for code generation, while
+[module initialization](../../edag/values.md#module-initialization) interprets
+each module's initializer with already resolved dependency values. The same
+memo executor supports both a closed graph and a module with represented arguments.
 
 This TODO establishes only the basic direct-interpreter path. Deterministic time,
 memory, and hostile-depth hardening are separate work in
@@ -75,9 +79,9 @@ Conceptually:
 
 ```text
 source modules
-  -> resolve to valid final EDAG
-  -> interpret EDAG
-  -> value
+  -> each initializer EDAG + resolved dependency values
+  -> interpret each module through memo
+  -> represented export values
 ```
 
 Interpret the EDAG directly. Do **not** serialize or translate the EDAG back to
@@ -119,14 +123,17 @@ Both interpreters' represented call preparation supplies fixed/rest bindings
 without host arrow factories. The approved
 language limit remains 0–16. Memo renders every admitted function body through
 the trusted `functionText(analysis, index): string` entry described in the
-[value plan](../../edag/todo/edag-value.md#operations-and-failures). This renders
-code with frame-slot names and does not execute the emitted text; callable
-runtime compilation and callable/EDAG association are separate work.
+[value contract](../../edag/values.md#operations-and-failures). This renders
+code with frame-slot names and does not execute the emitted text.
+[Runtime compilation](../../edag/values.md#runtime-compilation) is implemented
+at the explicit output boundary; callable/EDAG association remains separate work.
 
-A function body is a separate EDAG scope. Validation before interpretation must reject
-operation-node identities shared across function boundaries; otherwise a single
-semantic node could produce different runtime values in different invocation contexts.
-Sharing within one body remains valid and is memoized per invocation.
+A function body is a separate EDAG scope. The supplied-data admission entry must
+reject operation-node identities shared across function boundaries; otherwise a
+single semantic node could produce different runtime values in different invocation
+contexts. Compiler and VM output preserve this rule by
+[construction](../../edag/values.md#construction-and-identity). Sharing within
+one body remains valid and is memoized per invocation.
 
 ### The memoization table
 
@@ -143,8 +150,8 @@ reused. Both `.` and `own` read represented own properties,
 as the specification defines an access
 ([`fjs/edag/todo/entry.md`](../../edag/todo/entry.md)), so an
 inherited property is `undefined` whatever a realm puts on a prototype.
-Validation refuses, besides, an access whose index is a prohibited property
-name — `constructor`, `__proto__`, every name a built-in prototype gives by
+The planned public admission entry must also refuse an access whose index is a
+prohibited property name — `constructor`, `__proto__`, every name a built-in prototype gives by
 the parser's list in [`fjs/js/prototype`](../../js/prototype/module.f.js),
 all but `length` — since such a graph is not one the compiler emits.
 
@@ -241,7 +248,8 @@ hardening TODO after the baseline interpreter exists.
       The parser applies the same rule today on nested accesses, each access's
       key judged by whether a call follows it. No prohibited shape is emitted,
       and the executor never reads one.
-- [ ] Return the interpreted value for a valid final EDAG.
+- [ ] Expose the public entry for final EDAG supplied as data, returning its
+      represented result after admission.
 - [x] Integrate EDAG interpretation behind `transpile` and `fjs compile`,
       preserving successful data outputs and graph sharing. Interpret per module
       to retain dependency failure paths; materialize after selecting the output.
@@ -253,14 +261,16 @@ hardening TODO after the baseline interpreter exists.
       Done: `agrees` in [`../../edag/memo/proof.f.mjs`](../../edag/memo/proof.f.mjs)
       runs `=>`, an ordinary `()` call and method calls through `|()` and `|?.()`
       beside amnesia.
-- [ ] Whenever the optional nodes enter the interpreted subset, execute them per
+- [x] Execute optional nodes per
       "Chains" in [`../../edag/README.md`](../../edag/README.md) — receiver state
       created by `.`/`?.` and the `|.` step, consumed by the three call steps; an
       optional node's `index` or argument operand left unevaluated on its nullish
       branch, which the proofs must observe (`a?.[k]`, `f?.(...a)`), along with the
       short-circuit of the rest of the continuation — and its one exception, `|!()`,
       which the parentheses put outside the region and which therefore runs on the
-      `undefined` a short-circuit produced.
+      `undefined` a short-circuit produced. Done: `chains` in
+      [`../../edag/memo/proof.f.mjs`](../../edag/memo/proof.f.mjs) and the chain
+      proofs in [`../../edag/amnesia/proof.f.mjs`](../../edag/amnesia/proof.f.mjs).
 - [x] Add an invocation-scope proof such as calling `x => [x]` with `1` and `2`:
       results contain the corresponding argument and do not reuse the constructed
       array across calls, while repeated references inside one call still share.
@@ -285,9 +295,8 @@ hardening TODO after the baseline interpreter exists.
   for compiling the memo executor to Rust, independent of syntax coverage.
 - [load-modules-without-import-effect](./load-modules-without-import-effect.md) —
   composes loading around this interpreter; does not implement a second executor.
-- [`compile-modules-to-edag.md`](./compile-modules-to-edag.md) — produces the final
-  EDAG this interpreter executes while keeping the old value-producing callers in
-  place until this integration lands.
+- [`compile-modules-to-edag.md`](./compile-modules-to-edag.md) — provides the module
+  lowering used by interpretation and linked graphs for code generation.
 - [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resources.md) —
   adds deterministic resource and host-stack hardening after this baseline exists.
 - [`associate-edag-with-functions.md`](./associate-edag-with-functions.md) — records

@@ -20,8 +20,9 @@ the compiler serializer's function-text renderer.
 
 [`value`](value/module.f.mjs) defines the evaluated-value subset's type and
 shape schema: data and functions with evaluated captures and unevaluated
-bodies. Value operations and the remaining executor migrations are recorded in
-[the value plan](todo/edag-value.md).
+bodies. Both FJS interpreters and compiler module initialization use this
+representation; [EDAG values](values.md) records its construction, identity,
+failure and runtime-compilation contracts.
 [`validateMetadata`](value/metadata/module.f.mjs) checks unique, correctly
 ordered object keys in evaluated data and captures,
 preserving value identity.
@@ -102,8 +103,8 @@ objects, arrays and functions, using the shared function-text renderer in both i
 [`compiler/transpiler.interpret`](../compiler/transpiler/module.f.mjs) uses memo
 to evaluate each module with represented dependency exports. The AST value
 evaluator is retired; both FJS EDAG VMs and compiler initialization use this
-representation. The [value plan](todo/edag-value.md) tracks callable runtime
-compilation and backend emission of evaluated closures.
+representation. [Runtime compilation](values.md#runtime-compilation) converts
+these values, including evaluated closures, through the target backend.
 
 [`value/coercion`](value/coercion/module.f.mjs) converts ordinary objects to
 primitives by trying `valueOf` and `toString` in the hint's order. Own methods
@@ -230,8 +231,8 @@ not a VM to run FunctionalScript on — over represented
 [operations](operations/module.f.mjs), parameterized by how an
 operand is evaluated and which interpreter invokes a function. Both Amnesia
 and memo return `Result<EdagValue, EdagValue>`; their different reuse policies
-are preserved. Compiler integration remains in the
-[EDAG-value migration](todo/edag-value.md).
+are preserved. [Module initialization](values.md#module-initialization) uses
+memo with represented dependency exports.
 [analysis](analysis/module.f.mjs) reads
 a graph into one table — every operation node once, in walk order, its
 operands by index, its scope, and which entries are shared — so that a
@@ -354,7 +355,7 @@ A function's `length` is at most 16, the language's limit: `bindingError`
 refuses a larger one. Both Amnesia and memo read length and fixed/rest
 bindings from represented functions, without an arrow factory. Their function
 text uses the total shared renderer described above. Callable runtime
-compilation remains in the [value plan](todo/edag-value.md); the broader
+compilation uses the [explicit conversion boundary](values.md#runtime-compilation); the broader
 default-text contract is recorded in
 [the parameter plan](../../spec/todo/3120-parameters.md).
 
