@@ -1,8 +1,9 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — memo migration and complete function text implemented;
-Amnesia, compiler integration and callable runtime compilation remain
+**Status:** wip — memo migration and complete function text implemented;
+Amnesia migration is the current step. Compiler integration and callable
+runtime compilation remain.
 
 ### Problem
 
