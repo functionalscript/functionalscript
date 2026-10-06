@@ -25,7 +25,7 @@
 import { tryStringify } from '../../media/datajs/module.f.mjs'
 import { error } from '../../types/result/module.f.mjs'
 import { textDemo } from '../../website/demo/module.f.mjs'
-import { examples } from '../examples/module.f.mjs'
+import { examples } from '../examples/module.f.js'
 import { parse } from '../transpiler/module.f.mjs'
 
 /**

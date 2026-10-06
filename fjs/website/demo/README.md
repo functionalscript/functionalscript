@@ -103,7 +103,7 @@ sharing. Use [`examples`](./examples/module.f.mjs), through
   [refusal](#refusals) box where there is one: one input can be accepted by
   one demo and refused by another — the parser takes an import the Rust
   page cannot link — and a name carrying a verdict would be wrong on one of
-  them. [`compiler/examples`](../../compiler/examples/module.f.mjs) makes the
+  them. [`compiler/examples`](../../compiler/examples/module.f.js) makes the
   same call for the same reason.
 
 ## Output

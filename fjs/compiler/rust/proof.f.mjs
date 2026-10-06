@@ -10,7 +10,7 @@ import { analysis } from '../../edag/analysis/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { generate, toRust } from './module.f.mjs'
 import { _rustOf, demo } from './demo.f.mjs'
-import { examples } from '../examples/module.f.mjs'
+import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 
 /** The shared examples the Rust output refuses: the two the front end does, and the import it has no file set for. */

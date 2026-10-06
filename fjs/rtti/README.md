@@ -4,6 +4,77 @@ See https://en.wikipedia.org/wiki/Run-time_type_information.
 
 A type-safe schema system for describing TypeScript types at runtime and validating unknown values against them.
 
+## Why
+
+A schema here is an ordinary immutable value, built from a few constructors,
+and everything a consumer needs about a type is derived from that one value.
+Nothing derived can drift from the declaration, because there is no second
+declaration:
+
+| From one schema `s` | | Where |
+| --- | --- | --- |
+| a decoder that builds a fresh value | `parse(s)(value)` | [`parse/`](./parse/module.f.mjs) |
+| a membership check that returns the value it was given | `validate(s)(value)` | [`validate/`](./validate/module.f.mjs) |
+| the static TypeScript type | `Ts<typeof s>` | [`ts/types.ts`](./ts/types.ts) |
+| the TypeScript type as text | `printer()(s)`, `dataToTs()(toData(s))` | [`ts/module.f.mjs`](./ts/module.f.mjs) |
+| a canonical form with `equal`, `cmp`, `subset` | `toData(s)` | [`data/`](./data/module.f.mjs) |
+| a JSON Schema (draft 2020-12) | `toJsonSchema(s)` | [`../media/json/schema`](../media/json/schema/module.f.mjs) |
+
+```js
+import { array, number, open, option, or, string } from 'functionalscript/fjs/rtti/module.f.mjs'
+import { parse } from 'functionalscript/fjs/rtti/parse/module.f.mjs'
+
+const person = { name: string, age: number, tags: or(option, array(string)) }
+// Ts<typeof person> is
+// { readonly name: string, readonly age: number, readonly tags?: readonly string[] }
+
+parse(person)({ name: 'Ann', age: 3 })             // ['ok', …]
+parse(person)({ name: 'Ann' })                      // ['error', { path: ['age'], … }]
+parse(person)({ name: 'Ann', age: 3, x: 1 })        // ['error', …] — closed
+parse(open(person))({ name: 'Ann', age: 3, x: 1 })  // ['ok', …] — open says so
+```
+
+The module page has a demo: pick a lesson or one of the project's own
+schemas, see it drawn as a graph with its TypeScript type, JSON Schema and
+canonical form, compare it with any other schema, and type a value to see
+what `parse` and `validate` make of it ([`demo.f.mjs`](./demo.f.mjs)).
+
+## Who uses it
+
+Everything the repository reads from outside, and the compiler's own
+intermediate form, is declared as a schema:
+
+- **Protocols** — the JSON-RPC envelopes ([`protocol/json_rpc`](../protocol/json_rpc/module.f.mjs))
+  and the MCP messages ([`protocol/mcp`](../protocol/mcp/module.f.mjs)): one
+  declaration is both the decoder and the static type.
+- **MCP tools** — the arguments of [`mcp/cas`](../mcp/cas/module.f.mjs) and
+  [`mcp/evo`](../mcp/evo/module.f.mjs): one schema is both the `inputSchema`
+  the server advertises and the check its arguments pass.
+- **Media formats** — the [`note`](../media/note/module.f.mjs),
+  [`lock`](../media/lock/module.f.mjs) and
+  [`revision`](../media/revision/module.f.mjs) BLOBs, the dialect registry in
+  [`media`](../media/module.f.mjs), and the JSON data model itself
+  ([`media/json/rtti`](../media/json/rtti/module.f.mjs)).
+- **The expression graph** — [`edag`](../edag/module.f.mjs) is its grammar
+  as a schema, [`edag/value`](../edag/value/module.f.mjs) its evaluated
+  values; the compiler's output is checked against it, and
+  [`nanvm`](../nanvm/module.f.mjs) checks operator names with `validate`.
+- **Effects** — [`effects/schema`](../effects/schema/module.f.mjs) is the
+  specification of record for the operations a native effect runner
+  implements.
+- **Files the tooling reads** — generated CI workflows
+  ([`ci/common`](../ci/common/module.f.mjs)) and the site's funding manifest
+  ([`website/funding`](../website/funding/module.f.mjs)).
+
+## Where it is going
+
+[`todo/rtti-type-system.md`](../../todo/rtti-type-system.md) is the
+direction: RTTI as the single source of truth for FunctionalScript's types,
+checked at compile time through `//: name` annotations naming a schema, with
+`.d.ts` generated rather than written. The run-time half above exists; the
+compile-time half does not yet. The issues for this directory are in
+[`todo/`](./todo/).
+
 ## Why `fjs/rtti/` rather than `fjs/types/rtti/`
 
 `rtti` used to live under `fjs/types/`, but it is a peer of the modules that
@@ -19,15 +90,16 @@ of `fjs/` depends on those the same way. Its own outward dependencies
 top-level directories rather than down to a foundation `types/` sits under,
 unlike the `types/*` modules that do reach outside (`bigint`, `bit_vec`,
 `number`, `prime_field`, `string` → `fjs/common/monoid`; `uint8array` →
-`fjs/text`). At 5789 lines it was also the largest thing filed under
-`types/` — bigger than every sibling there and larger than every top-level
-`fjs/` directory except `types` and `media` — while its siblings under
-`types/` are single data structures and type-level helpers.
+`fjs/text`). It was also the largest thing filed under `types/`, while its
+siblings there are single data structures and type-level helpers.
 
 ## Modules
 
 - `module.f.mjs` — schema construction: defines `Type`, `Info`, and schema builder values
-- `ts/module.f.mjs` — type-level transformer: `Ts<T>` maps a schema to its TypeScript type
+- `ts/types.ts` — type-level transformer: `Ts<T>` maps a schema to its TypeScript type
+  (see `ts/README.md`)
+- `ts/module.f.mjs` — the runtime printer: a schema's TypeScript type as text,
+  through the data form
 - `common/module.f.mjs` — shared kernel for runtime consumers: error shape, path
   bookkeeping, primitive checks, and `visit`/`orVisit` (the `Type` dispatchers)
 - `parse/module.f.mjs` — runtime deserialization: `parse(schema)(value)` returns
@@ -40,18 +112,21 @@ unlike the `types/*` modules that do reach outside (`bigint`, `bit_vec`,
   thunk-form schema into a function-free, canonical representation with `cmp`,
   `equal`, `subset`, and a data-driven `validate` (see `data/README.md`)
 - `demo.f.mjs` — the module page's demo: pick an example, see its schema
-  drawn as a graph, type a value as a DataJS document (so `undefined` and
-  bigints can be written), and see what `parse` and `validate` make of it.
-  The examples come in two groups. Seven lessons are written for the demo:
-  three show one schema and four are pairs whose difference is the lesson; a
-  pair shows both schemas, and the reader picks one while the value stays
-  put. Fourteen more are schemas the project itself uses — JSON-RPC and MCP
-  messages, MCP tool arguments, the `vnd.fjs.*` media formats, JSON and JSON
-  Schema, CI workflows, edag's unary operators and evaluated values, the
-  effect runner's directory entries and the site's funding channels —
-  imported from the modules that declare them, each shown as the import a
-  user of the `functionalscript` package writes, with the module path linked
-  to the module's page
+  drawn as a graph, with the TypeScript type and the JSON Schema derived from
+  it and its canonical form; compare it with any other schema in the demo
+  through `equal` and `subset`; type a value as a DataJS document (so
+  `undefined` and bigints can be written), and see what `parse` and
+  `validate` make of it, with the member a refusal points at marked in the
+  value. The examples come in two groups. Seven lessons are written for the
+  demo: three show one schema and four are pairs whose difference is the
+  lesson; a pair shows both schemas, and the reader picks one while the
+  value stays put. Fourteen more are schemas the project itself uses —
+  JSON-RPC and MCP messages, MCP tool arguments, the `vnd.fjs.*` media
+  formats, JSON and JSON Schema, CI workflows, edag's unary operators and
+  evaluated values, the effect runner's directory entries and the site's
+  funding channels — imported from the modules that declare them, each shown
+  as the import a user of the `functionalscript` package writes, with the
+  module path linked to the module's page
 
 ## The two schema-form readers
 

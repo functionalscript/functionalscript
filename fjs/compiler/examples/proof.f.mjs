@@ -1,6 +1,6 @@
 import { assertEq } from '../../asserts/module.f.mjs'
 import { examplePicker } from '../../website/demo/examples/module.f.mjs'
-import { examples } from './module.f.mjs'
+import { examples } from './module.f.js'
 
 export const proof = {
     /**

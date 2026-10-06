@@ -20,7 +20,7 @@ import { stringify } from '../../media/json/module.f.mjs'
 import { ok, unwrap } from '../../types/result/module.f.mjs'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { _astOf, demo } from './demo.f.mjs'
-import { examples } from '../examples/module.f.mjs'
+import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 
 /**
