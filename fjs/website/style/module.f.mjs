@@ -187,30 +187,37 @@ textarea { vertical-align: top }
    (nothing here re-renders a resize into what it drew, the same way it
    redraws focus and the caret), and a field a reader just widened would
    silently narrow back on the next keystroke. */
-.demo-input { box-sizing: border-box; width: 100% }
-.hmac-demo label, .hmac-demo p:has(+ [data-code-block]) { font-weight: bold }
-/* Keep the PoW difficulty examples aligned with the field above them. */
-.pow-search-effort { border-collapse: collapse; width: 100% }
-.pow-effort { margin: 1rem 0 }
-.pow-effort > summary { cursor: pointer; font-weight: normal }
-.pow-effort[open] > summary { margin-bottom: .75rem }
-.pow-search-effort th { border-bottom: 1px solid var(--border); color: var(--muted); font-size: .875rem; font-weight: normal; padding: 0 0 .75rem; text-align: left }
-.pow-search-effort td { border-bottom: 1px solid var(--border); padding: .75rem 0 }
-.pow-search-effort tr:last-child td { border-bottom: 0 }
-.pow-search-effort th:last-child, .pow-search-effort td:last-child { text-align: right }
-.pow-effort-label { color: var(--muted); display: inline-block; font-size: .75rem; margin-left: .75rem }
-.pow-effort-note { color: var(--muted); font-size: .875rem }
-.pow-demo label, .pow-demo .pow-caption { font-weight: bold }
-.pow-result { align-items: center; border-radius: 7px; display: flex; gap: 10px; line-height: 1.5; padding: 14px 16px }
-.pow-result > svg { flex-shrink: 0; height: 20px; width: 20px }
-.pow-result-pass { background: #edf7ef; color: #20623a }
-.pow-result-fail { background: #fdf0ef; color: #a93232 }
-.pow-search-summary { color: var(--muted); font-size: .875rem; line-height: 1.6; margin-top: 12px }
-@media (prefers-color-scheme: dark) {
-  .pow-result-pass { background: #20392b; color: #a0deb5 }
-  .pow-result-fail { background: #43292b; color: #f4aaa6 }
-}
 textarea { box-sizing: border-box; resize: vertical; width: 100% }
+/* A short value, such as a key or nonce, uses the same column width as the
+   multiline field beside it; its own border and padding stay inside it. */
+.demo-input { box-sizing: border-box; width: 100% }
+/* HMAC has an algorithm, key and message followed by two copyable results.
+   Emphasize their labels at the ordinary size so those groups are easy to scan. */
+.hmac-demo label, .hmac-demo p:has(+ [data-code-block]) { font-weight: bold }
+/* The compact target field and its difficulty examples share one column;
+   right-aligned attempt counts make the four targets easy to compare. */
+[data-pow-search-effort] { border-collapse: collapse; width: 100% }
+[data-pow-search-effort] th { border-bottom: 1px solid var(--border); color: var(--muted); font-size: .875rem; font-weight: normal; padding: 0 0 .75rem; text-align: left }
+[data-pow-search-effort] td { border-bottom: 1px solid var(--border); padding: .75rem 0 }
+[data-pow-search-effort] tr:last-child td { border-bottom: 0 }
+[data-pow-search-effort] th:last-child, [data-pow-search-effort] td:last-child { text-align: right }
+/* Difficulty guidance is optional context, collapsed until requested.
+   Its ordinary-weight title, row labels and notes keep it quieter than results. */
+[data-pow-effort] { margin: 1rem 0 }
+[data-pow-effort] > summary { cursor: pointer; font-weight: normal }
+[data-pow-effort][open] > summary { margin-bottom: .75rem }
+[data-pow-effort-label] { color: var(--muted); display: inline-block; font-size: .75rem; margin-left: .75rem }
+[data-pow-effort-note] { color: var(--muted); font-size: .875rem }
+/* PoW couples three inputs and three long code values. Bold labels and
+   captions separate these groups without larger headings; the lead stays plain. */
+[data-pow-demo] label, [data-pow-caption] { font-weight: bold }
+/* The verdict takes the shared data-result tint and border. Keep its icon
+   beside the sentence when it wraps, with enough space to read as one result. */
+[data-pow-result][data-result] { align-items: center; display: flex; gap: .625rem; line-height: 1.5; padding: .875rem 1rem; white-space: normal }
+[data-pow-result] > svg { flex-shrink: 0; height: 1.25rem; width: 1.25rem }
+/* Search progress supports the current verdict rather than competing with it;
+   smaller muted text separates the attempt count and failed range from the result. */
+[data-pow-search-summary] { color: var(--muted); font-size: .875rem; line-height: 1.6; margin-top: .75rem }
 /* The header every page opens with: the logo and the site's name on the left,
    the site-wide links on the right, across the full width of the window with
    one rule under it, as a site's own bar. Its contents go to the window's

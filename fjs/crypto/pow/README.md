@@ -39,10 +39,14 @@ current one already meets the target. It advances one nonce per browser turn
 until it finds a valid proof, so repeated clicks find successive valid nonces. The button becomes `Stop`, and
 editing any input also stops the search. The page reports the attempt count
 and failed nonce range, retaining the summary when stopped or successful.
+A search record retains the validated nonce, target and last hash, so each
+automatic step computes its candidate once and the view reuses that result.
 
 It starts with `Hello, FunctionalScript!`, nonce `42`, and the easy target
 `0x200fffff`; nonce `53` meets that target. Enter `0x1d00ffff` to inspect the
-Bitcoin genesis target. The collapsed `Expected search effort` section below
+Bitcoin genesis target, listed for comparison; searching it is impractical
+in this step-by-step browser demo. Leading zeros in nBits are accepted when
+the value fits 32 bits. The collapsed `Expected search effort` section below
 nBits compares average attempts for four targets; a search may finish sooner
 or take longer. Invalid nBits and nonce fields show a message instead
 of a stale result. Nonces use bigint, so stepping does not lose integer precision.
