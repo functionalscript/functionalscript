@@ -11,16 +11,16 @@ call starts fresh, per the per-invocation memo scope in
 [interpret-edag.md](../compiler/todo/interpret-edag.md). There is no normal form: a function's hash is the
 structural identity of its graph as written, the name-erased source.
 Lowering rules make agreed-on spellings coincide; hash equality does not
-decide semantic equivalence. This module owns the data model only: node kinds, operand
-shapes, and their schema. Producers and executors are staged work that will
-consume it — the [FunctionalScript](../compiler/) compiler lowering parsed modules to EDAG
-([compile-modules-to-edag.md](../compiler/todo/compile-modules-to-edag.md)), the
-interpreter and Rust code generation executing it — and the dependency is
-one-way by design: `fjs/edag` imports nothing from them.
+decide semantic equivalence. The schema in [module.f.mjs](module.f.mjs) owns
+node kinds and operand shapes independently of its producers and executors.
+The [FunctionalScript](../compiler/) compiler lowers parsed modules to EDAG
+([compile-modules-to-edag.md](../compiler/todo/compile-modules-to-edag.md));
+the interpreter and Rust code generation execute it. Value conversion reuses
+the compiler serializer's function-text renderer.
 
 [`value`](value/module.f.mjs) defines the evaluated-value subset's type and
 shape schema: data and functions with evaluated captures and unevaluated
-bodies. Value operations and executor migration remain in
+bodies. Value operations and the remaining executor migrations are recorded in
 [the value plan](todo/edag-value.md).
 [`validateMetadata`](value/metadata/module.f.mjs) checks unique, correctly
 ordered object keys in evaluated data and captures,
@@ -86,8 +86,8 @@ source-name admission. Memo connects these reads to chains and `own`;
 [`value/method`](value/method/module.f.mjs) dispatches admitted built-ins, with
 represented array callbacks in [`value/array_method`](value/array_method/module.f.mjs).
 [`value/convert`](value/convert/module.f.mjs) supplies primitive conversion for
-objects, arrays and functions. The [value plan](todo/edag-value.md) records
-the blocking function-renderer gap and the remaining VM migrations.
+objects, arrays and functions, using the shared function-text renderer in memo.
+The [value plan](todo/edag-value.md) records the remaining VM migrations.
 
 [`value/coercion`](value/coercion/module.f.mjs) converts ordinary objects to
 primitives by trying `valueOf` and `toString` in the hint's order. Own methods
@@ -96,8 +96,8 @@ run through the call helper; their first primitive result or failure returns
 unchanged. Its primitive helpers convert the represented `Primitive` subset
 to strings and numeric values, decoding tagged undefined through the shared
 semantics helper. Abstract ToNumber rejects bigint; ToNumeric preserves it.
-Array/function conversion and operation dispatch remain part of the shared
-operation migration.
+[`value/convert`](value/convert/module.f.mjs) composes these helpers with array
+and function conversion; memo owns operation dispatch.
 
 [`value/numeric`](value/numeric/module.f.mjs) supplies a `unary` operation
 table over evaluated primitives. Unary `+` fails on bigint, `-` and `~`
@@ -145,15 +145,20 @@ UTF-16 substring semantics. Callers own method dispatch, operand evaluation
 and conversion of nonprimitive bounds, using the number hint for ordinary objects.
 
 The shared [serializer](../compiler/serializer/module.f.mjs) exposes
-`functionText(analysis, index)` for a function whose analysis and body bindings
-are already established. It renders canonical code and capture-slot names
-without repeating admission; `tryFunctionText` remains the checked entry for
-a raw expression. Both allow unused capture slots, including in nested
-function bodies, without renumbering slots or adding reads. Source
-serialization still requires every slot to survive its structural round trip.
-Unsupported output retains the renderer's diagnostic
-channel. Connecting this renderer to value conversion remains part of the
-VM migration.
+`functionText(analysis, index): string` for a function whose analysis and body
+bindings are already established. It renders every admitted body without
+repeating admission; `tryFunctionText` remains the checked raw-expression entry
+and returns `Result<string, string>` for admission failures. Both preserve
+capture-slot names and allow unused slots, including in nested functions.
+Existing canonical text stays unchanged. Bodies the source writer cannot
+reconstruct use general JavaScript expression text, with invocation-local lazy
+memo cells preserving shared nodes, lazy branches and nested captures. The
+emitted text may use local mutation; its FJS renderer is immutable.
+
+This is code-only function text, used by memo's direct and indirect value
+conversion. It does not save captured values or implement callable runtime
+compilation. Source serialization with `tryStringify` remains partial and
+requires every slot to survive its structural round trip.
 
 [`value/to_unknown`](value/to_unknown/module.f.mjs) materializes function-free
 values as ordinary runtime primitives, arrays and objects. `toUnknown` preserves
@@ -311,9 +316,9 @@ refuses a larger one. Amnesia still uses the
 [arrow factories](../types/function/length/README.md) of
 `fjs/types/function/length`, which cover every valid length. Memo reads length
 and fixed/rest bindings from represented functions, without an arrow factory.
-Its function text uses the shared renderer; unsupported renderer output remains
-a blocking draft migration gap in the [value plan](todo/edag-value.md).
-The default-text renderer remains tracked in
+Its function text uses the total shared renderer described above. Amnesia's
+migration and callable runtime compilation remain in the
+[value plan](todo/edag-value.md); the broader default-text contract is recorded in
 [the parameter plan](../../spec/todo/3120-parameters.md).
 
 An `index` — the property operand of `.`, `?.`, and the `|.` step — is a

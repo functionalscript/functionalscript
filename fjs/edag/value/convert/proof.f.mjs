@@ -2,13 +2,14 @@
  * Primitive conversion keeps graph values represented and uses one function
  * spelling for explicit string conversion and nested array conversion.
  *
- * @import { EdagValue, Function as ValueFunction } from '../types.ts'
+ * @import { Function as ValueFunction } from '../types.ts'
  * @import { Invoke } from '../call/types.ts'
  */
 
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { ok, error } from '../../../types/result/module.f.mjs'
 import { toPrimitive, toString, toNumber } from './module.f.mjs'
+import { tryFunctionText } from '../../../compiler/serializer/module.f.mjs'
 
 /** @type {Invoke} */
 const skipped = () => { assert(false, 'unexpected represented call') }
@@ -50,13 +51,16 @@ export const proof = {
         assertEq(assertOk(toString(fn, skipped)), '()=>5')
         assertEq(Number.isNaN(assertOk(toNumber(fn, skipped))), true)
     },
-    throw: {
-        // The writer's unsupported-output diagnostic remains separate from
-        // Result failures until the interpreter's output boundary is complete.
-        unsupportedFunctionText: () => {
-            /** @type {EdagValue} */
-            const unsupported = ['=>', 0, [], ['.', ['rest'], 'x', ['|?.()', []]]]
-            toString(unsupported, skipped)
-        },
+    completeFunctionText: () => {
+        /** @type {ValueFunction} */
+        const optional = ['=>', 0, [], ['.', ['rest'], 'x', ['|?.()', []]]]
+        const text = assertOk(tryFunctionText(optional))
+        assertEq(assertOk(toString(optional, skipped)), text)
+        assertEq(assertOk(toString(['[]', [optional]], skipped)), text)
+        assertEq(Number.isNaN(assertOk(toNumber(optional, skipped))), true)
+        const shared = /** @type {const} */ (['[]', []])
+        /** @type {ValueFunction} */
+        const lazy = ['=>', 0, [], ['[]', [['&&', true, shared], ['||', false, shared]]]]
+        assertEq(assertOk(toString(lazy, skipped)), assertOk(tryFunctionText(lazy)))
     },
 }

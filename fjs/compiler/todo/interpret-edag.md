@@ -2,8 +2,8 @@
 
 **Priority:** P3
 **Status:** open — represented memo interpretation and immutable cache implemented
-in draft; function-text diagnostics, public admission, value-producing API
-integration and native prerequisites remain open.
+with complete function text; public admission, value-producing API integration
+and native prerequisites remain open.
 
 The planned value contract is
 [EdagValue](../../edag/todo/edag-value.md): every FJS VM uses the EDAG subset
@@ -117,9 +117,10 @@ and rest arrays captured by nested functions use the same frame mechanism.
 
 Memo's represented call preparation supplies fixed/rest bindings without host
 arrow factories. Amnesia still uses the factories during migration. The approved
-language limit remains 0–16. Memo's draft default-function-text integration
-remains blocked on the output-refusal boundary in the
-[value plan](../../edag/todo/edag-value.md#operations-and-failures); callable
+language limit remains 0–16. Memo renders every admitted function body through
+the trusted `functionText(analysis, index): string` entry described in the
+[value plan](../../edag/todo/edag-value.md#operations-and-failures). This renders
+code with frame-slot names and does not execute the emitted text; callable
 runtime compilation and callable/EDAG association are separate work.
 
 A function body is a separate EDAG scope. Validation before interpretation must reject
@@ -200,8 +201,11 @@ hardening TODO after the baseline interpreter exists.
 - [x] Provide represented memo interpretation in [`../../edag/memo`](../../edag/memo/module.f.mjs).
 - [x] Replace the captured mutable cache with immutable evaluation state,
       preserving sharing, lazy demand, fresh calls and capture identity.
-- [ ] Resolve the blocking function-text output-refusal boundary in the
-      [value plan](../../edag/todo/edag-value.md#operations-and-failures).
+- [x] Render every admitted function body through the shared function-text
+      renderer, preserving existing canonical text and using general JavaScript
+      expressions for bodies outside the source writer's round-trip subset.
+      Direct and indirect conversion remain within the represented VM; checked
+      admission and callable runtime compilation are separate boundaries.
 - [ ] Before native self-hosting, complete the
       [native cache parity checks](../../edag/memo/todo/immutable-cache.md).
 - [ ] At the entry accepting final EDAG supplied as FJS data, check the
@@ -297,5 +301,6 @@ hardening TODO after the baseline interpreter exists.
 - [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resources.md) —
   adds deterministic resource and host-stack hardening after this baseline exists.
 - [`associate-edag-with-functions.md`](./associate-edag-with-functions.md) — records
-  callable/EDAG association; default function-text work remains open in the
-  [parameter plan](../../../spec/todo/3120-parameters.md).
+  callable/EDAG association; the broader default function-text contract is in
+  the [parameter plan](../../../spec/todo/3120-parameters.md), with Amnesia's
+  migration remaining in the value plan.

@@ -9,10 +9,19 @@ text nor refuse. This document records why, so the question is not reopened
 without something new.
 
 **Migration update:** memo now retains function EDAG and uses the shared
-`functionText` renderer for direct and indirect conversion. Amnesia still uses
-the host behavior documented below. The renderer can refuse valid bodies that
-have no spelling in its supported source subset; the [value plan](todo/edag-value.md)
-records that diagnostic boundary as a blocker for the draft memo migration.
+`functionText` renderer for direct and indirect conversion. Its trusted
+`functionText(analysis, index): string` entry renders every admitted body;
+`tryFunctionText` checks separately supplied expressions and returns admission
+diagnostics through `Result`. Amnesia still uses the host behavior documented
+below until its [migration](todo/edag-value.md).
+
+Existing canonical text stays unchanged. Where the source serializer cannot
+reconstruct a body, function text uses general JavaScript expressions. Shared
+nodes use lazy memo cells local to each invocation, preserving demand, identity
+and nested captures. These cells may use mutation in the emitted JavaScript;
+the renderer itself is immutable FJS. This is code-only text with capture-slot
+names, not a serialization of captured values, a FJS source round trip or an
+implementation of callable runtime compilation. `tryStringify` remains partial.
 
 ## What the language says a function's text is
 
@@ -30,9 +39,10 @@ text at compile time (`tryFunctionText` in
 Rust VM keeps it beside the function (`IStaticFunction::static_function`).
 
 The same exception already says that running source on a JavaScript engine
-keeps that host's function text. These evaluators are the same case.
+keeps that host's function text. The host-valued evaluators described below are
+the same case; memo's represented values use the shared renderer instead.
 
-## What these evaluators answer
+## What the host-valued evaluators answer
 
 The `=>` operation does not make a function out of the EDAG. It makes a host
 closure with `callable(length, body)` from
@@ -57,7 +67,7 @@ Every function of one length has the same text here, so a program that
 compares, concatenates or keys on function text can answer differently
 here and on the Rust VM.
 
-## Why the evaluators cannot render it
+## Why host closures cannot carry the rendered text
 
 The host asks the function itself for its text, so the function would have
 to carry the right text. A host closure carries its own source and nothing
@@ -73,7 +83,7 @@ else. Every way to change that is ruled out
   A FunctionalScript module (`.f.mjs`, `.f.js`) cannot import a JavaScript
   one (`.mjs`, `.js`).
 
-## Why they do not refuse it either
+## Why the host-valued evaluators do not refuse it either
 
 [#2469](https://github.com/functionalscript/functionalscript/pull/2469)
 first made the evaluator's own conversions throw on a function: `String(f)`,
@@ -101,13 +111,17 @@ the same pull request, for these reasons:
 
 ## How to test it
 
-A proof on the JavaScript side checks only that a function's text is a
-string, never what the string is, because engines differ: the `lambda` proof
+Amnesia's proof checks only that a function's text is a string, never what the
+string is, because engines differ: the `lambda` proof
 in [`amnesia/proof.f.mjs`](./amnesia/proof.f.mjs) converts an evaluated
 function with `String` and with `+`. The corpus's exact-text cases carry a
 `host` marker ([`fjs/nanvm/types.ts`](../nanvm/types.ts)). The JavaScript
 side skips them, and the Rust side alone runs them, where the text is the
 language's.
+
+The shared value-conversion proofs used by memo check EDAG-derived text,
+including indirect conversion. The renderer's proofs cover the general
+JavaScript text separately from source round-trip serialization.
 
 ## What would change this
 

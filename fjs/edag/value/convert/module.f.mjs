@@ -27,12 +27,7 @@ export const toPrimitive = (value, hint, invoke) => {
             // Analysis constructs the writer's index table. Captures are
             // represented by slot names and do not enter the rendered text.
             const table = assertOk(analysis(value))
-            // Pending the renderer/output-boundary work in
-            // ../../todo/edag-value.md, unsupported source output retains
-            // its diagnostic as a host refusal. It is not a language throw
-            // and must never become error(['undefined']). This temporary
-            // boundary gap keeps the interpreter migration unready.
-            return ok(assertOk(functionText(table, /** @type {readonly ['#', number]} */ (table.root)[1])))
+            return ok(functionText(table, /** @type {readonly ['#', number]} */ (table.root)[1]))
         }
     }
 }

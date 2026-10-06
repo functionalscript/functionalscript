@@ -138,10 +138,11 @@ import { keySerialize, leafSerialize } from '../../media/datajs/serializer/modul
 import { arrayWrap, colon, objectWrap, wrap } from '../../media/json/serializer/module.f.mjs'
 import { first, flat, toArray } from '../../types/list/module.f.mjs'
 import { _prohibitedCallNames, _prohibitedNames } from '../parser/module.f.mjs'
-import { dollarSign, isDigit, isLatinLetter, latinSmallLetterA, latinSmallLetterZ, lowLine } from '../../text/ascii/module.f.mjs'
-import { codePointToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
+import { dollarSign, isDigit, isLatinLetter, lowLine } from '../../text/ascii/module.f.mjs'
+import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
+import { parameter, renderFunction } from './function_text/module.f.mjs'
 
 /** Names the parser refuses to bind. */
 const reservedExports = new Set([...keywords, ...literalWords, 'then'])
@@ -209,18 +210,6 @@ const slotOf = (names, h) => {
     const i = names.findIndex(([n]) => n !== null && sameHoisted(n, h))
     return i === -1 ? null : i
 }
-
-/** How many letters a column digit has. */
-const letters = latinSmallLetterZ - latinSmallLetterA + 1
-
-/** The letters a parameter is named by, as a spreadsheet names its columns: `a`, `z`, `aa`. @type {(n: number) => string} */
-const column = n => {
-    const q = Math.floor((n - 1) / letters)
-    return `${q === 0 ? '' : column(q)}${codePointToString(latinSmallLetterA + (n - 1) % letters)}`
-}
-
-/** The parameter of the body at `depth`, `1` being the outermost. @type {(depth: number) => string} */
-const parameter = depth => `$${column(depth)}`
 
 /**
  * The name a read of a parameter is written as, in a scope whose function's
@@ -1321,25 +1310,25 @@ export const tryStringify = e => mapOk(
  * A function entry's canonical text from an existing analysis table. The
  * caller supplies a function index with valid length and body bindings,
  * including nested body scopes. Analysis and admission belong to the caller;
- * this renderer trusts those invariants and reports only unsupported output.
+ * this renderer trusts those invariants and renders every admitted body.
  *
  * Captures are named by position, `$0`, `$1`, …, without rendering their
  * values. Primitive, repeated and unused evaluated captures are allowed.
- * Nested functions may also leave slots unused; their capture expressions
- * still follow the source writer's other restrictions. Slot positions are
- * preserved, and unused slots add no reads to the text.
+ * Nested functions may also leave slots unused. Slot positions and capture
+ * evaluation are preserved, and unused slots add no reads to the text.
  * The selected function is written as a standalone expression even when it
- * is nested in the table. Diagnostics remain output errors, not thrown VM
- * values. {@link tryFunctionText} is the checked entry for a raw expression.
+ * is nested in the table. Existing source spellings are retained. Bodies the
+ * source writer cannot reconstruct use a complete JavaScript expression
+ * spelling, with lazy memo thunks where sharing crosses lazy branches. This
+ * code-only text is neither a closed callable nor a source round-trip promise.
+ * {@link tryFunctionText} is the checked entry for a raw expression.
  *
- * @type {(a: Analysis, i: number) => Result<string, string>}
+ * @type {(a: Analysis, i: number) => string}
  */
 export const functionText = (a, i) => {
     const [, length, slots, body] = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (a.nodes[i])
-    return mapOk(
-        /** @type {(text: List<string>) => string} */
-        (text => toArray(text).join('')),
-    )(lambda(a, 1, i, length, slots.map((_, k) => `$${k}`), true)(body))
+    const [kind, text] = lambda(a, 1, i, length, slots.map((_, k) => `$${k}`), true)(body)
+    return kind === 'ok' ? toArray(text).join('') : renderFunction(a, i)
 }
 
 /**
@@ -1366,8 +1355,8 @@ export const functionText = (a, i) => {
  * A primitive the source captured is no slot: the lowering wrote it into
  * the body, so `const x = 3; const f = () => x;` is `()=>3`.
  *
- * Refused where the writer refuses the body, and for a node that is no
- * function. Analyze the complete graph once to refuse capture/body sharing
+ * Refuses invalid bindings, metadata and nodes that are not functions.
+ * Analyze the complete graph once to refuse capture/body sharing
  * across scopes, then check and render the function's body from that table.
  * Capture bindings belong to the enclosing scope and are not checked here.
  *
@@ -1381,7 +1370,7 @@ export const tryFunctionText = e => {
     const i = /** @type {Ref} */ (a.root)[1]
     const problem = bindingError(a, i)
     if (problem !== null) { return error(problem) }
-    return functionText(a, i)
+    return ok(functionText(a, i))
 }
 
 /** A generated-name prefix that cannot collide with any exported binding. @type {(keys: readonly string[], prefix: string) => string} */
