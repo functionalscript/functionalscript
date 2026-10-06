@@ -124,6 +124,14 @@ first failure unchanged. The converter also owns nested-array and function
 text. Separator conversion/defaulting and full value conversion remain with
 operation dispatch.
 
+[`value/at`](value/at/module.f.mjs) supplies relative indexing for evaluated
+arrays and strings with primitive indices. It applies abstract ToNumber,
+truncates fractions toward zero, and counts negative indices from the end.
+Array elements retain their identities; strings yield UTF-16 code units.
+Out-of-range reads succeed with tagged undefined; bigint indices fail even
+for empty receivers. Callers own method dispatch, operand evaluation and
+conversion of nonprimitive indices, using the number hint for ordinary objects.
+
 The shared [serializer](../compiler/serializer/module.f.mjs) exposes
 `functionText(analysis, index)` for a function whose analysis and body bindings
 are already established. It renders canonical code and capture-slot names
