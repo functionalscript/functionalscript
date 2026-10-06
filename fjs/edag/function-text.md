@@ -23,7 +23,9 @@ function text describes its code, independently of the chosen execution model.
 This is code-only text, not a serialization of captured values, a FJS source
 round trip or an implementation of callable runtime compilation. Source
 serialization through `tryStringify` remains partial. Callable runtime
-compilation stays in the [value plan](./todo/edag-value.md).
+compilation uses [`value/to_unknown`](./value/to_unknown/module.f.mjs) and the
+JavaScript value emitter; the [value plan](./todo/edag-value.md) tracks the
+remaining compiler integration and target backends.
 
 ## Host runtime values
 

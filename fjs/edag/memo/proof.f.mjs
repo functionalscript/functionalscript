@@ -12,7 +12,7 @@ import { vm } from '../amnesia/module.f.mjs'
 import { analysis } from '../analysis/module.f.mjs'
 import { lazyOp2Id } from '../module.f.mjs'
 import { memo, invoke } from './module.f.mjs'
-import { toUnknown } from '../value/to_unknown/module.f.mjs'
+import { toData } from '../value/to_unknown/module.f.mjs'
 import { call } from '../value/call/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
 
@@ -25,10 +25,10 @@ const result = e => memo(assertOk(analysis(e)))(context)
 const value = e => assertOk(result(e))
 
 /** @type {(e: Exp) => unknown} */
-const run = e => assertOk(toUnknown(value(e)))
+const run = e => assertOk(toData(value(e)))
 
 /** @type {(e: Exp) => unknown} */
-const oracle = e => assertOk(toUnknown(assertOk(vm(context)(e))))
+const oracle = e => assertOk(toData(assertOk(vm(context)(e))))
 
 /** The same answer as amnesia, where sharing does not decide it. @type {(e: Exp) => void} */
 const agrees = e => { assertStructurallySame(run(e), oracle(e)) }
@@ -160,7 +160,7 @@ export const proof = {
         eq(['||', 0, 5], 5)
         assertEq(run(['===', ['args'], ['args']]), true)
         // Lists beginning with '#' are ordinary data, never table references.
-        assertStructurallySame(assertOk(toUnknown(apply(value(['=>', 0, [], ['[]', ['#', 42]]])))), ['#', 42])
+        assertStructurallySame(assertOk(toData(apply(value(['=>', 0, [], ['[]', ['#', 42]]])))), ['#', 42])
     },
     chains: () => {
         /** @type {Exp} */

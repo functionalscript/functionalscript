@@ -13,7 +13,7 @@ import { resolve, unresolved } from './edag/module.f.mjs'
 import { analysis } from '../edag/analysis/module.f.mjs'
 import { memo } from '../edag/memo/module.f.mjs'
 import { read } from '../edag/value/property/module.f.mjs'
-import { toUnknown } from '../edag/value/to_unknown/module.f.mjs'
+import { toData } from '../edag/value/to_unknown/module.f.mjs'
 import { tryParse as parseDataJs, tryStringify } from '../media/datajs/module.f.mjs'
 import { bytes, difference } from '../media/datajs/vectors/module.f.mjs'
 import { virtual, emptyState, nodeProgramOptions } from '../effects/node/virtual/module.f.mjs'
@@ -64,7 +64,7 @@ const evaluate = source => {
     const [tag, value] = parse('')(source)
     if (tag === 'error') { return ['error', value.message] }
     const result = read(memo(unwrap(analysis(unresolved(value).edag)))({ args: [] }), 'default')
-    return result[0] === 'error' ? ['error', 'module initialization failed'] : toUnknown(result[1])
+    return result[0] === 'error' ? ['error', 'module initialization failed'] : toData(result[1])
 }
 
 /** The complete module result has an own default export. @type {(value: Unknown) => Unknown} */

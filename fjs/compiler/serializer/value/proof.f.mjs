@@ -5,9 +5,17 @@
  */
 
 import { assertEq } from '../../../asserts/module.f.mjs'
-import { stringify } from './module.f.mjs'
+import { factoryStringify, stringify } from './module.f.mjs'
 
 export const proof = {
+    factoryStringify: () => {
+        assertEq(factoryStringify(7), 'export default()=>{return 7;};')
+        assertEq(factoryStringify(['undefined']), 'export default()=>{const $v0=undefined;return $v0;};')
+        const captured = /** @type {const} */ (['[]', [2]])
+        const fn = /** @type {const} */ (['=>', 0, [captured], ['frame', 0]])
+        assertEq(factoryStringify(['[]', [captured, fn, fn]]),
+            'export default()=>{const $v0=[2];const $v2=(($0)=>(()=>($0)))($v0);const $v3=[$v0,$v2,$v2];return $v3;};')
+    },
     primitives: () => {
         /** @type {readonly (readonly [EdagValue, string])[]} */
         const cases = [

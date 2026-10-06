@@ -49,13 +49,25 @@ const entry = (a, i, n) => {
     }
 }
 
-/** Emit construction code, leaving function bodies unevaluated. @type {(value: EdagValue) => string} */
-export const stringify = value => {
+/** Share the declarations and root expression between module entry points. @type {(value: EdagValue) => readonly [string, string]} */
+const construction = value => {
     const a = assertOk(analysis(value))
     const declarations = a.nodes.flatMap((node, i) => a.scope[i] === -1
         // Analysis's general Node type cannot express the value subset that
         // construction guarantees for entries outside function-body scopes.
         ? [`const ${name(i)}=${entry(a, i, /** @type {_ValueNode} */ (node))};`]
         : [])
-    return `${declarations.join('')}export default ${operand(a.root)};`
+    return [declarations.join(''), operand(a.root)]
+}
+
+/** Emit construction code, leaving function bodies unevaluated. @type {(value: EdagValue) => string} */
+export const stringify = value => {
+    const [declarations, root] = construction(value)
+    return `${declarations}export default ${root};`
+}
+
+/** Emit a module whose default factory constructs a fresh value per call. @type {(value: EdagValue) => string} */
+export const factoryStringify = value => {
+    const [declarations, root] = construction(value)
+    return `export default()=>{${declarations}return ${root};};`
 }

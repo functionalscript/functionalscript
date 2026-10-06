@@ -6,7 +6,7 @@
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { error } from '../../../types/result/module.f.mjs'
 import { invoke } from '../../memo/module.f.mjs'
-import { toUnknown } from '../to_unknown/module.f.mjs'
+import { toData } from '../to_unknown/module.f.mjs'
 import { arrayMethod } from './module.f.mjs'
 
 /** Literal fixtures are already evaluated, closed functions. @type {(length: number, body: Exp) => ValueFunction} */
@@ -24,7 +24,7 @@ const badConversion = /** @type {const} */ (['{}', [[':', 'valueOf', fail], [':'
 const run = (values, key, args = []) => assertOk(arrayMethod(['[]', values], key, args, invoke))
 
 /** @type {(values: Values, key: string, args: Values, expected: unknown) => void} */
-const data = (values, key, args, expected) => assertStructurallySame(assertOk(toUnknown(run(values, key, args))), expected)
+const data = (values, key, args, expected) => assertStructurallySame(assertOk(toData(run(values, key, args))), expected)
 
 export const proof = {
     copies: () => {
