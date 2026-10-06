@@ -1,7 +1,8 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — memo and Amnesia use represented values and complete
+**Status:** wip — closed-value JavaScript emission is the next implementation
+step. Memo and Amnesia use represented values and complete
 function text; compiler module initialization uses memo and the AST value
 evaluator is retired. Callable runtime compilation and backend value emission remain.
 
