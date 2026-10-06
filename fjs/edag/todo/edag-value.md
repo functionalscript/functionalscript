@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** wip — FJS language VMs use represented values, compiler module
+**Status:** open — FJS language VMs use represented values, compiler module
 initialization uses memo, and compiler runtime output supports JavaScript
 callables. Rust value-emission parity and final contract reconciliation remain.
 
@@ -491,6 +491,11 @@ promise normalization of host resource exhaustion.
       Rust uses the existing `compiler/rust.toRust` entry for `EdagValue`s;
       interpreted `() => undefined` values emit ordinary static closures,
       with native call, text and identity proofs in the function fixture.
+      `fjs/nanvm/values` interprets a capture graph before emitting its Rust
+      fixture. Pure proofs check primitive, repeated and unused capture slots;
+      native proofs check calls, shared exports and captures, distinct closures
+      and fresh call and module results. This exercises value emission
+      separately from source compilation.
       Broader Rust parity remains open.
 - [x] Prove initializer failures survive unused imports/declarations, while
       successful export value graphs omit unreachable initialization machinery.
