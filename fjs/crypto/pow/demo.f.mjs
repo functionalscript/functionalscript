@@ -15,7 +15,8 @@ import { sha256Pow, targetFromNBits } from './module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { digitsValue, hexDigitValue } from '../../text/ascii/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
-import { codeBlock, textField } from '../../website/demo/module.f.mjs'
+import { textField } from '../../website/demo/module.f.mjs'
+import { codeBlock } from '../../website/demo/code/module.f.mjs'
 
 const decimalValue = digitsValue(10n)
 
