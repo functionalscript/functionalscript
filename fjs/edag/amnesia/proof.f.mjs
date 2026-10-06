@@ -1,26 +1,40 @@
 /**
- * Execution semantics of `vm` — one section per operand shape, since that is
- * how `map`'s handlers are built (`o1`/`o2`/`o2lazy`), plus the nodes that
- * evaluate their operands themselves (`,`, `[]`, `{}`, and the four chain
- * nodes — `()`, `.`, `?.`, and `?.()`). Nothing is `todo` any more.
- * This is the executing counterpart of `../proof.f.mjs`, which pins what the
- * schema *accepts*; nothing here validates.
+ * Represented execution, ordered failures and optional chains. Amnesia
+ * recomputes shared code while retaining the identity of captured, passed and
+ * explicitly established values. Nothing here validates the input graph.
  *
  * @import { Args, Exp, Index } from '../types.ts'
  * @import { Context } from './types.ts'
+ * @import { EdagValue, Values, Array as ValueArray } from '../value/types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { vm } from './module.f.mjs'
+import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { vm, invoke } from './module.f.mjs'
+import { toData } from '../value/to_unknown/module.f.mjs'
+import { call } from '../value/call/module.f.mjs'
+import { typeOf } from '../value/semantics/module.f.mjs'
+import { ok } from '../../types/result/module.f.mjs'
 
 /** The one value in `context`'s frame, slot `0`. */
-const captured = { x: 1 }
+const captured = /** @type {const} */ (['{}', [[':', 'x', 1]]])
 
 /** @type {Context} */
 const context = { frame: [captured], args: [10, 20] }
 
-/** @type {(e: Exp) => unknown} */
-const ev = e => vm(context)(e)
+/** @type {(e: Exp) => EdagValue} */
+const value = e => assertOk(vm(context)(e))
+
+/** Decode only data; functions and identity checks stay represented. @type {(e: Exp) => unknown} */
+const ev = e => assertOk(toData(value(e)))
+
+/** @type {(e: Exp, expected?: EdagValue) => void} */
+const fails = (e, expected = ['undefined']) => assertStructurallySame(assertError(vm(context)(e)), expected)
+
+/** @type {(fn: EdagValue, args?: Values) => EdagValue} */
+const apply = (fn, args = []) => assertOk(call(ok(fn), args.map(a => () => ok(a)), invoke))
+
+/** @type {(v: EdagValue) => Values} */
+const elements = v => /** @type {ValueArray} */ (v)[1]
 
 /** `ev` composed with `assertEq`, the shape almost every case below has. */
 /** @type {(e: Exp, expected: unknown) => void} */
@@ -66,13 +80,13 @@ const argsNode = ['=>', 0, [], ['rest']]
  * call step and still have something to call.
  * @type {Exp}
  */
-const constIdentity = ['=>', 0, [], identity]
+const constIdentity = ['=>', 0, [], ['=>', 0, [], ['.', ['rest'], 0]]]
 
 /**
  * `{ id: a => a, args: (...a) => a, f: () => (a => a), o: { id: a => a } }`
  * — a receiver for the property steps, holding a callee at depth one and at
  * depth two. Its methods are `=>` closures, so none of them can observe the
- * `this` a step hands over; `chain.receiver` uses a host method for that.
+ * receiver a step retains; `chain.receiver` uses an admitted built-in for that.
  * @type {Exp}
  */
 const methods = ['{}', [
@@ -86,8 +100,7 @@ const methods = ['{}', [
 const constMethods = ['=>', 0, [], methods]
 
 export const proof = {
-    // The non-`Array` side of `vm`'s only branch: a primitive is its own
-    // value, returned without ever reaching `map`.
+    // A primitive is its own represented value, wrapped in success.
     primitive: () => {
         eq(1, 1)
         eq('a', 'a')
@@ -101,13 +114,13 @@ export const proof = {
     // `undefined` is a node, not the bare value (see `Primitive`).
     op0: () => {
         eq(undef, undefined)
-        eq(['frame', 0], captured)
-        eq(['args'], context.args)
+        assertEq(value(['frame', 0]), captured)
+        same(['args'], context.args)
         // ... and `context` is threaded, not defaulted: another one is seen.
         /** @type {Context} */
         const other = { frame: ['f'], args: [] }
-        assertEq(vm(other)(['frame', 0]), 'f')
-        assertStructurallySame(vm(other)(['args']), [])
+        assertEq(assertOk(vm(other)(['frame', 0])), 'f')
+        assertStructurallySame(assertOk(vm(other)(['args'])), ['[]', []])
     },
     // `o1` — one evaluated operand.
     op1: () => {
@@ -117,7 +130,7 @@ export const proof = {
         eq(['Number', '42'], 42)
         eq(['String', 42], '42')
         // `typeof` — one tag per kind a value can have here; `null` is
-        // `'object'` as in JS, and a closure is a host function.
+        // `'object'` as in JS, and a represented closure is a function.
         eq(['typeof', undef], 'undefined')
         eq(['typeof', null], 'object')
         eq(['typeof', true], 'boolean')
@@ -127,7 +140,7 @@ export const proof = {
         eq(['typeof', ['[]', []]], 'object')
         eq(['typeof', identity], 'function')
         // `throw` in a lazy position is not established, as nothing there
-        // is; where it is, it fails — `throw.thrown` below.
+        // is; where it is, it fails — `failures.thrown` below.
         eq(['?:', true, 1, ['throw', 2]], 1)
         eq(['&&', false, ['throw', 2]], false)
     },
@@ -150,8 +163,8 @@ export const proof = {
         // The one input on which unary `+` and `Number` part: `+0n` throws
         // where `Number(0n)` is `0`, which is why they are two operations and
         // not two spellings of one.
-        throw: {
-            bigintPlus: () => ev(['+', 0n]),
+        failures: {
+            bigintPlus: () => fails(['+', 0n]),
         },
     },
     // `o2` — both operands evaluated. Each case asserts a *value*, which is
@@ -175,10 +188,10 @@ export const proof = {
         eq(['is', 2, 2], true)
         /** @type {Exp} */
         const o = ['{}', []]
-        /** @type {readonly (readonly[Exp, unknown])[]} */
-        const one = [[o, ev(o)]]
-        assertEq(vm({ ...context, memo: one })(['is', o, o]), true)
-        assertEq(vm({ ...context, memo: one })(['===', o, o]), true)
+        /** @type {readonly (readonly[Exp, EdagValue])[]} */
+        const one = [[o, value(o)]]
+        assertEq(assertOk(vm({ ...context, memo: one })(['is', o, o])), true)
+        assertEq(assertOk(vm({ ...context, memo: one })(['===', o, o])), true)
         eq(['is', ['{}', []], ['{}', []]], false)
         eq(['===', ['{}', []], ['{}', []]], false)
         eq(['<', 2, 3], true)
@@ -192,9 +205,8 @@ export const proof = {
         eq(['>>', -8, 1], -4)
         eq(['>>>', -1, 31], 1)
     },
-    // `.` with no continuation operand is the plain read — the receiver it
-    // produced is dropped, exactly as reading `a.b` for its value drops it.
-    // `own` is the `o2` next to it, and they differ on the prototype chain.
+    // Plain property reads expose own represented data. Built-in methods
+    // are dispatched only when the chain supplies a receiver and call.
     property: () => {
         eq(['.', ['[]', [1, 2, 3]], 1], 2)
         eq(['.', ['{}', [[':', 'a', 7]]], 'a'], 7)
@@ -205,19 +217,18 @@ export const proof = {
         // Absent: no descriptor, so `?.value` is `undefined` rather than a
         // read of `undefined.value`.
         eq(['own', ['{}', []], 'a'], undefined)
-        // Inherited: `.` walks the prototype chain and `own` does not —
-        // the whole reason `own` is a separate node.
+        // A stock method is not an own data property.
         eq(['own', ['{}', []], 'toString'], undefined)
         // A key that is a string only after JS coercion is not a string key:
         // `own`'s key operand must *evaluate* to one, so `1` is rejected
-        // rather than silently reading `'1'` — see `throw.ownNonStringKey`.
+        // rather than silently reading `'1'` — see `failures.ownNonStringKey`.
         eq(['own', ['{}', [[':', '1', 42]]], '1'], 42)
-        assert(typeof ev(['.', ['{}', []], 'toString']) === 'function')
+        eq(['.', ['{}', []], 'toString'], undefined)
     },
     // `o2lazy` — the right operand is a thunk, so these three short-circuit
     // — and `?:`, which establishes its condition and then one arm. Each
     // case that claims "not evaluated" uses `boom`, which throws if it is;
-    // `throw.forced` calls the same nodes with the other left operand.
+    // `failures.forced` calls the same nodes with the other left operand.
     lazy: () => {
         eq(['&&', false, boom], false)
         eq(['&&', true, 7], 7)
@@ -282,23 +293,22 @@ export const proof = {
         // Amnesia as such: one node reached twice is two arrays.
         eq(['===', node, node], false)
         // Established: one value, so the comparison is an identity.
-        /** @type {readonly (readonly[Exp, unknown])[]} */
-        const one = [[node, ev(node)]]
-        assertEq(vm({ ...context, memo: one })(['===', node, node]), true)
+        /** @type {readonly (readonly[Exp, EdagValue])[]} */
+        const one = [[node, value(node)]]
+        assertEq(assertOk(vm({ ...context, memo: one })(['===', node, node])), true)
         // ... and it is the caller's value that comes back, not a fresh one.
-        const marker = ['marker']
-        /** @type {readonly (readonly[Exp, unknown])[]} */
+        const marker = /** @type {const} */ (['[]', ['marker']])
+        /** @type {readonly (readonly[Exp, EdagValue])[]} */
         const markerMemo = [[node, marker]]
-        assertEq(vm({ ...context, memo: markerMemo })(node), marker)
+        assertEq(assertOk(vm({ ...context, memo: markerMemo })(node)), marker)
         // A node the memo does not hold is computed as always.
-        assertStructurallySame(vm({ ...context, memo: one })(['[]', [3]]), [3])
+        assertStructurallySame(assertOk(vm({ ...context, memo: one })(['[]', [3]])), ['[]', [3]])
         // A call is a new invocation, so nothing established crosses into a
         // body: the node inside evaluates fresh and is not the caller's value.
         /** @type {Exp} */
         const body = ['=>', 0, [], node]
-        const f = /** @type {() => unknown} */ (
-            vm({ ...context, memo: markerMemo })(body))
-        assert(f() !== marker, ['the memo crossed a call boundary'])
+        const f = assertOk(vm({ ...context, memo: markerMemo })(body))
+        assert(apply(f) !== marker, ['the memo crossed a call boundary'])
     },
     // Operands are evaluated through `vm(context)`, so a node composes with
     // every other node kind and sees the same context at any depth.
@@ -311,22 +321,44 @@ export const proof = {
             { a: [10, -1] },
         )
     },
-    // `=>` evaluates its *slots* and not its body: the value is the
-    // captured frame paired with the body graph, which is why a closure can
-    // outlive the scope that built it. Here that pair is a host function, so
-    // these also pin that representation choice — a `typeof`-`'function'`
-    // value the host can call directly, not an inert record.
+    // A function retains its evaluated captures and unevaluated body.
     lambda: () => {
-        const f = ev(identity)
-        assertEq(typeof f, 'function')
-        assertEq(/**@type {(a: unknown) => unknown}*/(f)(7), 7)
+        const f = value(identity)
+        assertEq(typeOf(f), 'function')
+        assertEq(apply(f, [7]), 7)
         // Every evaluation builds a fresh closure, as `x => x` does in JS —
         // the `=>` node is shared, the values it produces are not.
-        assert(ev(identity) !== ev(identity))
-        // A function's text is the host's, so only its type is promised
-        // (`../function-text.md`): never what the string is.
-        eq(['typeof', ['String', identity]], 'string')
-        eq(['typeof', ['+', identity, '']], 'string')
+        assert(value(identity) !== value(identity))
+        // Direct conversion, coercion and arrays use the same code-only text.
+        eq(['String', identity], '(...$a)=>$a[0]')
+        eq(['+', identity, ''], '(...$a)=>$a[0]')
+        eq(['String', ['[]', [identity]]], '(...$a)=>$a[0]')
+        eq(['String', ['=>', 1, [7], ['+', ['arg', 0], ['frame', 0]]]], '($a_0)=>$a_0+$0')
+    },
+    body: () => {
+        /** @type {Exp} */
+        const shared = ['[]', []]
+        const fn = value(['=>', 2, [['frame', 0]], ['[]', [
+            shared, shared, ['arg', 0], ['arg', 1], ['rest'], ['rest'], ['frame', 0],
+        ]]])
+        const first = elements(apply(fn, [7]))
+        const second = elements(apply(fn, [8, 9, captured]))
+        // No automatic memoization, even within a called body.
+        assert(first[0] !== first[1])
+        assert(first[0] !== second[0])
+        assertEq(first[2], 7)
+        assertStructurallySame(first[3], ['undefined'])
+        assertEq(second[2], 8)
+        assertEq(second[3], 9)
+        assertEq(first[4], first[5])
+        assert(first[4] !== second[4])
+        assertEq(elements(second[4])[0], captured)
+        assertEq(first[6], captured)
+        assertEq(second[6], captured)
+        const outer = value(['=>', 1, [], ['=>', 0, [['arg', 0]], ['frame', 0]]])
+        const inner = apply(outer, [captured])
+        assertEq(apply(inner), captured)
+        assertEq(apply(inner), captured)
     },
     // `()` — the call with no receiver and no region. A call rebuilds the
     // callee's scope from two places: `frame` comes from the closure, `args`
@@ -400,52 +432,39 @@ export const proof = {
         },
         // The receiver is what a property step leaves behind, and it is
         // real rather than bookkeeping: `[42].at(0)` is `42` only because
-        // `at` is called *on* the array. A `.` node with no continuation
-        // operand computes the same function value and drops it
-        // (`throw.detachedReceiver`) — the pair `chainsJs.receiver` makes in
-        // JavaScript, made here by the nodes.
+        // `at` is called on the array. A bare property read does not expose
+        // that built-in as an ordinary value.
         receiver: () => {
             eq(['.', ['[]', [42]], 'at', ['|()', [0]]], 42)
             eq(['.', ['[]', [42]], 'at', ['|?.()', [0]]], 42)
             // A call step consumed the receiver of the step before it, so
-            // `'ab'.at(0).toUpperCase()` needs a second `.` node to make its
+            // `'ab'.at(0).repeat(2)` needs a second `.` node to make its
             // own — which is exactly why `|()` is terminal here.
             eq(['.',
                 ['.', 'ab', 'at', ['|()', [0]]],
-                'toUpperCase',
-                ['|()', noArgs]], 'A')
+                'repeat',
+                ['|()', [2]]], 'aa')
         },
-        throw: {
-            // `const at = a.at; at(0)` — the receiver a `.` node keeps for
-            // the call it owns is exactly what the shorter arity drops,
-            // and the host method is strict, so the detached call throws.
+        failures: {
+            // Reading a built-in as data returns undefined; calling it fails.
             detachedReceiver: () =>
-                ev(['()', ['.', ['[]', [42]], 'at'], [0]]),
-            // `((a.at)(0))(0)` — the same detachment reached through a call
-            // node, so the callee is a bare value rather than an accessor.
-            // A host method is what makes that observable: an `=>` closure
-            // ignores whatever `this` it is handed, so only this spelling
-            // catches a receiver *invented* for a bare value — which is
-            // what a method-call spelling of `callValue` would do, returning
-            // `Array.prototype.at` where JavaScript throws. See `callValue`
-            // in `./module.f.mjs`.
+                fails(['()', ['.', ['[]', [42]], 'at'], [0]]),
+            // An outer call preserves the inner call's failure.
             detachedReceiverAfterCall: () =>
-                ev(['()',
+                fails(['()',
                     ['()', ['.', ['[]', [42]], 'at'], [0]],
                     [0]]),
-            // A step is only as good as what it lands on: a call step onto a
-            // value that is not callable reaches the same host `TypeError`
-            // as `throw.callNonFunction`, one node earlier.
+            // A present own value must still be callable.
             callStepOnNonFunction: () =>
-                ev(['.', ['{}', [[':', 'a', 1]]], 'a', ['|()', noArgs]]),
+                fails(['.', ['{}', [[':', 'a', 1]]], 'a', ['|()', noArgs]]),
             // A `.` node guards nothing, so a nullish base throws at the
             // access — the operand-evaluation half of the pair
             // `../proof.f.mjs`'s `chainsJs.throw` cannot state in JavaScript:
             // here the arguments are never reached, where
-            // `optionRegion.throw.closeStepOnUndefined` evaluates them and
+            // `optionRegion.failures.closeStepOnUndefined` evaluates them and
             // then calls `undefined`.
-            propertyOnUndefined: () => ev(['.', undef, 'at', ['|()', noArgs]]),
-            propertyOnNull: () => ev(['.', null, 'at', ['|()', noArgs]]),
+            propertyOnUndefined: () => fails(['.', undef, 'at', ['|()', noArgs]]),
+            propertyOnNull: () => fails(['.', null, 'at', ['|()', noArgs]]),
         },
     },
     // `?.` — the node that opens an optional *region*: its own `?.[index]`
@@ -460,7 +479,7 @@ export const proof = {
         eq(['?.', ['{}', [[':', 'a', 7]]], 'a'], 7)
         // A closure is a value like any other — compared by `typeof`, since
         // every evaluation of a `=>` builds a fresh one (see `lambda`).
-        assert(typeof ev(['?.', methods, 'id']) === 'function')
+        assertEq(typeOf(value(['?.', methods, 'id'])), 'function')
         same(['?.', ['[]', [1, 2, 3]], 1], 2)
         eq(['?.', ['[]', [1, 2, 3]], ['Number', '1']], 2)
         // An absent property is `undefined`, not an error: `?.` guards its
@@ -522,7 +541,7 @@ export const proof = {
             // the skipped step's index would throw if the step ran.
             eq(['?.', undef, 'a', ['|.', boomIndex]], undefined)
             // u?.b(...c) is `undefined`, where `(u?.b)(...c)` throws — the
-            // pair `throw.closeStepOnUndefined` completes. The skipped
+            // pair `failures.closeStepOnUndefined` completes. The skipped
             // call's arguments are not evaluated either.
             eq(['?.', undef, 'at', ['|()', [boom]]], undefined)
             // The node's own index is skipped too, which is the operand
@@ -547,7 +566,7 @@ export const proof = {
             eq(['?.()', undef, [boom], ['|.', boomIndex, ['|()', [boom]]]],
                 undefined)
         },
-        throw: {
+        failures: {
             // `(u?.b)(...c)` — the one step a short-circuit does *not* skip.
             // The parentheses ended the region, so the `undefined` it
             // produced is what gets called, and that is a throw on every
@@ -558,25 +577,25 @@ export const proof = {
             // commented out. The node denotes the throw regardless — see
             // "Chains" in `../README.md`.
             closeStepOnUndefined: () =>
-                ev(['?.', undef, 'at', ['|!()', noArgs]]),
+                fails(['?.', undef, 'at', ['|!()', noArgs]]),
             closeStepOnNull: () =>
-                ev(['?.', null, 'at', ['|!()', noArgs]]),
+                fails(['?.', null, 'at', ['|!()', noArgs]]),
             // `(u?.b.c)(...d)` — the same, reached past a skipped `|.`: the
             // walk that drops steps has to keep looking for the close rather
             // than stop at the first one it skips.
             closeStepPastSkippedProperty: () =>
-                ev(['?.', undef, 'at', ['|.', boomIndex, ['|!()', noArgs]]]),
+                fails(['?.', undef, 'at', ['|.', boomIndex, ['|!()', noArgs]]]),
             // `(u?.(...a).c)(...d)` — and it reaches one from the other
             // region-opening node too, through the `|.` that leaves
             // `optionLambda` for `optionPropertyLambda`.
             closeStepAfterOptionCall: () =>
-                ev(['?.()', undef, [boom], ['|.', boomIndex, ['|!()', noArgs]]]),
+                fails(['?.()', undef, [boom], ['|.', boomIndex, ['|!()', noArgs]]]),
             // `(a.absent?.(...b).m)(...d)` — and from a `.` node, whose
             // `|?.()` opens a region that short-circuits at once. That is the
             // third and last entry to `skip`, so between them the three cases
             // cover every state a region can be abandoned in.
             closeStepAfterPropertyGuard: () =>
-                ev(['.', methods, 'absent',
+                fails(['.', methods, 'absent',
                     ['|?.()', [boom], ['|.', boomIndex, ['|!()', noArgs]]]]),
             // `(a.absent?.(...b))(...d)` — the same short-circuit under a
             // *node* boundary instead of a step: the `.` node evaluates to
@@ -584,7 +603,7 @@ export const proof = {
             // above and this one are the two halves of the parenthesis law
             // at the same place, and they agree.
             callOfSkippedGuard: () =>
-                ev(['()', ['.', methods, 'absent', ['|?.()', [boom]]], noArgs]),
+                fails(['()', ['.', methods, 'absent', ['|?.()', [boom]]], noArgs]),
         },
     },
     // The frame is the only channel outward: a body's leaves are constants,
@@ -605,9 +624,9 @@ export const proof = {
         eq(['()', ['()', outer, [7]], noArgs], 7)
         // The slots are evaluated in the enclosing scope, so they see that
         // scope's `['args']` — the one place a `=>` node reaches out.
-        assertEq(vm({ frame: null, args: [11] })(
+        assertEq(assertOk(vm({ frame: [], args: [11] })(
             ['()', ['=>', 0, [['.', ['args'], 0]], ['frame', 0]],
-                noArgs]),
+                noArgs])),
             11)
     },
     // Closures are ordinary values: passable as arguments, returnable, and
@@ -628,45 +647,51 @@ export const proof = {
         ])
         eq(['()', ['()', add, [2]], [3]], 5)
     },
-    throw: {
+    failures: {
         // The language's own `throw`: the operand is established, then the
         // operation fails with it — an array here, so that the case shows
         // the operand was built before the throw.
-        thrown: () => ev(['throw', ['[]', [1]]]),
+        thrown: () => fails(['throw', ['[]', [1]]], ['[]', [1]]),
         // The index of a `?.` whose input is *not* nullish is evaluated, the
         // mirror of `optionRegion.skips`'s skipped operands.
-        evaluatedIndex: () => ev(['?.', ['{}', []], boomIndex]),
+        evaluatedIndex: () => fails(['?.', ['{}', []], boomIndex]),
         // ... and so are an optional call's arguments once its callee turns
         // out to be there.
-        evaluatedArgument: () => ev(['?.()', identity, [boom]]),
+        evaluatedArgument: () => fails(['?.()', identity, [boom]]),
         // `?.()` guards against a *nullish* callee, not against a
-        // non-callable one: `1?.()` is the host `TypeError`, exactly as
-        // `throw.callNonFunction` is for `()`.
+        // non-callable one: `1?.()` fails just as an ordinary call does.
         optionCallOnNonFunction: () =>
-            ev(['?.()', ['.', ['{}', [[':', 'a', 1]]], 'a'], noArgs]),
+            fails(['?.()', ['.', ['{}', [[':', 'a', 1]]], 'a'], noArgs]),
         // An array spread iterates its operand, so a non-iterable one throws
         // where the object form would have contributed nothing.
-        arraySpreadOfNumber: () => ev(['[]', [['...', 1]]]),
-        arraySpreadOfNull: () => ev(['[]', [['...', null]]]),
+        arraySpreadOfNumber: () => fails(['[]', [['...', 1]]]),
+        arraySpreadOfNull: () => fails(['[]', [['...', null]]]),
         // `own`'s key operand must evaluate to a string, and `ToPropertyKey`
         // coercion is exactly what that rules out.
-        ownNonStringKey: () => ev(['own', ['{}', [[':', '1', 42]]], 1]),
+        ownNonStringKey: () => fails(['own', ['{}', [[':', '1', 42]]], 1]),
         // The receiver is checked before the key: real `ToObject` runs
         // before `ToPropertyKey`, so a nullish receiver throws regardless
         // of the key.
-        ownNullReceiver: () => ev(['own', null, 'a']),
-        // Not a function: `()` calls whatever the callee operand evaluates
-        // to, so this is the host `TypeError`, not a check of its own.
-        callNonFunction: () => ev(['()', 1, noArgs]),
+        ownNullReceiver: () => fails(['own', null, 'a']),
+        // A non-function returns an implicit represented failure.
+        callNonFunction: () => fails(['()', 1, noArgs]),
         // The other side of `lazy`: with the left operand that does not
         // short-circuit, the thunk *is* forced and `boom` throws. Without
         // these, `o2lazy` returning `a` unconditionally would still pass.
-        forcedAnd: () => ev(['&&', true, boom]),
-        forcedOr: () => ev(['||', false, boom]),
-        forcedCoalesce: () => ev(['??', null, boom]),
-        forcedConsequent: () => ev(['?:', true, boom, 7]),
-        forcedAlternate: () => ev(['?:', false, 7, boom]),
+        forcedAnd: () => fails(['&&', true, boom]),
+        forcedOr: () => fails(['||', false, boom]),
+        forcedCoalesce: () => fails(['??', null, boom]),
+        forcedConsequent: () => fails(['?:', true, boom, 7]),
+        forcedAlternate: () => fails(['?:', false, 7, boom]),
         // ... and `o2` forces it with no short-circuit to begin with.
-        forcedEager: () => ev(['+', 1, boom]),
+        forcedEager: () => fails(['+', 1, boom]),
+        payloads: () => {
+            assertEq(assertError(vm(context)(['throw', ['frame', 0]])), captured)
+            fails(['throw', ['throw', 40]], 40)
+            fails(['()', ['=>', 1, [], ['throw', ['arg', 0]]], [41]], 41)
+            fails(['()', 0, [['throw', 42]]], 42)
+            fails(['own', null, ['throw', 43]], 43)
+            fails([',', [['throw', 44], 0]], 44)
+        },
     },
 }

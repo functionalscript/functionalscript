@@ -1,6 +1,4 @@
-import { anchors, binaryTags, isBinary, isInlinedCall, isLazy, readCaptures, run, values } from './module.f.mjs'
-import { _stringifyTree } from '../module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { anchors, binaryTags, isBinary, isInlinedCall, isLazy, readCaptures } from './module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 const a = { specifier: './a', json: false, name: 'default' }
@@ -15,53 +13,8 @@ const anchorsOf = module => {
 }
 
 export const proof = {
-    test: () => {
-        const djs = unwrap(run([1])([]))
-        const result = _stringifyTree(djs)
-        assertEq(result, '1')
-    },
-    testCref: () => {
-        const djs = unwrap(run([1, 2, 3, 4, 5, ['cref', 3]])([11, 12, 13, 14, 15]))
-        const result = _stringifyTree(djs)
-        assertEq(result, '4')
-    },
-    testAref: () => {
-        const djs = unwrap(run([1, 2, 3, 4, 5, ['aref', 3]])([11, 12, 13, 14, 15]))
-        const result = _stringifyTree(djs)
-        assertEq(result, '14')
-    },
-    testArray: () => {
-        const djs = unwrap(run([1, 2, 3, 4, 5, ['array', [['aref', 3], ['cref', 3]]]])([11, 12, 13, 14, 15]))
-        const result = _stringifyTree(djs)
-        assertEq(result, '[14,4]')
-    },
-    testObj: () => {
-        const djs = unwrap(run([1, 2, 3, 4, 5, ['object', [[':', 'key', ['object', [[':', 'key2', ['array', [['aref', 3], ['cref', 3]]]]]]]]]])([11, 12, 13, 14, 15]))
-        const result = _stringifyTree(djs)
-        if (result !== '{"key":{"key2":[14,4]}}') { throw result }
-    },
-    testBool: () => {
-        assertEq(_stringifyTree(unwrap(run([true])([]))), 'true')
-        assertEq(_stringifyTree(unwrap(run([false])([]))), 'false')
-    },
-    testStr: () => {
-        assertEq(_stringifyTree(unwrap(run(['hello'])([]))), '"hello"')
-    },
-    testNull: () => {
-        assertEq(_stringifyTree(unwrap(run([null])([]))), 'null')
-    },
-    testBigint: () => {
-        assertEq(_stringifyTree(unwrap(run([42n])([]))), '42n')
-    },
-    testUndefined: () => {
-        assertEq(_stringifyTree(unwrap(run([undefined])([]))), 'undefined')
-    },
-    // a function has no value: what it denotes is its EDAG, and a data
-    // module's value has no function in it — its arguments likewise
+    // Function bodies and their references belong to their own scope.
     func: () => {
-        assertStructurallySame(run([['=>', 0, [['rest']]]])([]), ['error', 'a function has no value'])
-        assertStructurallySame(values([['=>', 0, [1]], 2])([]), ['error', 'a function has no value'])
-        assertStructurallySame(run([['rest']])([]), ['error', 'a function has no value'])
         // a function names nothing outside itself, so it is a leaf to the
         // sweep — a leaf, not a reference: read as one, its body would pass
         // for an import's index, and `0` would mark the import reached
@@ -73,14 +26,8 @@ export const proof = {
         // in it names that entry and not the module's
         assertEq(anchorsOf([[a], [['=>', 0, [['array', []], ['cref', 0]]], ['cref', 0]]]), 'consts ; imports 0')
     },
-    // A call has no value: this evaluator has no function to apply, so what
-    // a call returns is not a value it can reach. To the sweep it is not a
-    // leaf, though — its callee and its arguments are written where they
-    // stand, so what they name is reached.
+    // Calls reach their callee and arguments in the enclosing scope.
     call: () => {
-        assertStructurallySame(run([['()', ['rest'], []]])([]), ['error', 'a call has no value'])
-        assertStructurallySame(run([['()', 1, [2]]])([]), ['error', 'a call has no value'])
-        assertStructurallySame(values([['()', 1, []], 2])([]), ['error', 'a call has no value'])
         // the callee is reached
         assertEq(anchorsOf([[a], [['array', []], ['()', ['cref', 0], []]]]), 'consts ; imports 0')
         // and each argument
@@ -171,20 +118,8 @@ export const proof = {
         assertEq(anchorsOf([[a], [['array', []], ['=>', 0, [['fref', 0], ['cref', 0]], [['cref', 0]]]]]), 'consts ; imports 0')
         assertEq(anchorsOf([[a], [['array', []], ['=>', 0, [['()', ['=>', 0, [['fref', 0], 1], [['fref', 0]]], []]], [['cref', 0]]]]]), 'consts 0; imports 0')
     },
-    // A binary operator and a bitwise not have no value here — `+` alone
-    // needs `ToPrimitive`, and folding the rest while leaving it a node
-    // would draw an inconsistent line — so `noOperatorValue` refuses every
-    // one of them, `run` reaching it exactly where it reaches
-    // `noFunctionValue`/`noCallValue`. Unary `-` alone still folds, told
-    // from the binary one by length. Neither is a leaf to the sweep: both
-    // operands are written where they stand, so what they name is reached.
+    // Eager operators reach all their operands.
     operator: () => {
-        assertStructurallySame(run([['+', 1, 2]])([]), ['error', 'an operator has no value'])
-        assertStructurallySame(run([['-', 1, 2]])([]), ['error', 'an operator has no value'])
-        assertStructurallySame(run([['~', 1]])([]), ['error', 'an operator has no value'])
-        assertStructurallySame(values([['===', 1, 2], 3])([]), ['error', 'an operator has no value'])
-        // the unary `-` this refusal does not reach
-        assertStructurallySame(run([['-', 1]])([]), ['ok', -1])
         // both operands of a binary operator are reached
         assertEq(anchorsOf([[a], [['array', []], ['+', ['cref', 0], 1]]]), 'consts ; imports 0')
         assertEq(anchorsOf([[a], [['array', []], ['+', 1, ['cref', 0]]]]), 'consts ; imports 0')
@@ -202,33 +137,14 @@ export const proof = {
         assert(!isBinary(['.', 1, 'x']))
         assertEq(binaryTags.filter(isLazy).join(), '&&,||,??')
     },
-    // A `throw` fails the evaluation with the value it established, as a
-    // read of `null` fails it: the message is a diagnostic, a primitive as
-    // DataJS spells it and a container by its kind. The operand is
-    // established first, so its own failure comes first, and the sweep
-    // reaches it as it reaches any operand.
+    // A throw reaches its operand before the computation fails.
     thrown: () => {
-        assertStructurallySame(run([['throw', 1]])([]), ['error', 'throw 1'])
-        assertStructurallySame(run([['throw', 's']])([]), ['error', 'throw "s"'])
-        assertStructurallySame(run([['throw', undefined]])([]), ['error', 'throw undefined'])
-        assertStructurallySame(run([['throw', ['array', []]]])([]), ['error', 'throw an array'])
-        assertStructurallySame(run([['throw', ['object', []]]])([]), ['error', 'throw an object'])
-        assertStructurallySame(values([['array', []], ['throw', ['cref', 0]]])([]), ['error', 'throw an array'])
-        assertStructurallySame(run([['throw', ['.', null, 'x']]])([]), ['error', 'cannot read property "x" of null'])
         assertEq(anchorsOf([[a], [['array', []], ['throw', ['cref', 0]]]]), 'consts ; imports 0')
         assertEq(anchorsOf([[a], [['array', []], ['throw', 1]]]), 'consts 0; imports 0')
     },
-    // Stage B's lazy operators and the conditional have no value here
-    // either, refused the same way. To the sweep their left operand and
-    // condition are reached as any operand is; their right operand and arms
-    // are lazy positions, and what only those name is anchored — see
-    // `anchors.lazy` below.
+    // A lazy right operand or conditional arm may not execute, so a const
+    // reached only there still needs its initialization anchor.
     lazy: () => {
-        assertStructurallySame(run([['&&', 1, 2]])([]), ['error', 'an operator has no value'])
-        assertStructurallySame(run([['||', 1, 2]])([]), ['error', 'an operator has no value'])
-        assertStructurallySame(run([['??', 1, 2]])([]), ['error', 'an operator has no value'])
-        assertStructurallySame(run([['?:', 1, 2, 3]])([]), ['error', 'an operator has no value'])
-        assertStructurallySame(values([['?:', true, 1, 2], 3])([]), ['error', 'an operator has no value'])
         assertEq(anchorsOf([[a], [['array', []], ['&&', ['cref', 0], 1]]]), 'consts ; imports 0')
         assertEq(anchorsOf([[a], [['array', []], ['||', ['cref', 0], 1]]]), 'consts ; imports 0')
         assertEq(anchorsOf([[a], [['array', []], ['??', ['cref', 0], 1]]]), 'consts ; imports 0')
@@ -341,39 +257,6 @@ export const proof = {
             assertEq(bound([[a, b], [['aref', 1]]]), 'consts ; imports ')
             assertEq(bound([[a, b], [1]]), 'consts ; imports 0')
             assertEq(bound([[a, b], [['array', [['aref', 1]]], 1]]), 'consts 0; imports ')
-        },
-    },
-    // a property access reads its base's own property — never the
-    // prototype chain — and `undefined` where there is none; a `null` or
-    // `undefined` base is the failure JavaScript throws for
-    access: {
-        own: () => {
-            assertEq(_stringifyTree(unwrap(run([['object', [[':', 'b', ['array', [1, 2]]]]], ['.', ['cref', 0], 'b']])([]))), '[1,2]')
-            assertEq(unwrap(run([['object', [[':', 'b', ['array', [1, 2]]]]], ['.', ['.', ['cref', 0], 'b'], 1]])([])), 2)
-            assertEq(unwrap(run([['object', [[':', 'b', ['array', [1, 2]]]]], ['.', ['.', ['cref', 0], 'b'], 'length']])([])), 2)
-            assertEq(unwrap(run([['.', ['aref', 0], 'length']])(['ab'])), 2)
-            assertEq(unwrap(run([['.', ['aref', 0], '0']])(['ab'])), 'a')
-        },
-        none: () => {
-            assertEq(unwrap(run([['object', []], ['.', ['cref', 0], 'toString']])([])), undefined)
-            assertEq(unwrap(run([['array', []], ['.', ['cref', 0], 'map']])([])), undefined)
-            assertEq(unwrap(run([1, ['.', ['cref', 0], 'x']])([])), undefined)
-            assertEq(unwrap(run([true, ['.', ['cref', 0], 'x']])([])), undefined)
-            assertEq(unwrap(run([1n, ['.', ['cref', 0], 'x']])([])), undefined)
-        },
-        failure: () => {
-            const [tag, message] = run([null, ['.', ['cref', 0], 'x']])([])
-            assertEq(tag, 'error')
-            assertEq(message, 'cannot read property "x" of null')
-            const [tag2, message2] = run([['object', []], ['.', ['.', ['cref', 0], 'a'], 'b']])([])
-            assertEq(tag2, 'error')
-            assertEq(message2, 'cannot read property "b" of undefined')
-            assertEq(run([undefined, ['array', [['.', ['cref', 0], 0]]]])([])[0], 'error')
-            assertEq(run([undefined, ['object', [[':', 'k', ['.', ['cref', 0], 0]]]]])([])[0], 'error')
-        },
-        // every entry's value, in order
-        all: () => {
-            assertEq(_stringifyTree(unwrap(values([['array', [1]], ['.', ['cref', 0], 0], ['array', [['cref', 1], ['cref', 1]]]])([]))), '[[1],1,[1,1]]')
         },
     },
     // A chain of operators, as deep as the source that built it: `refsOf`

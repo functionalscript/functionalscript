@@ -1,18 +1,24 @@
 /**
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
+ * @import { AstModule } from '../ast/types.ts'
+ * @import { EdagValue, Values } from '../../edag/value/types.ts'
  */
 
 import { parseFromTokens } from './module.f.mjs'
 import { parseSyntax } from './syntax/module.f.mjs'
-import { _own, run } from '../ast/module.f.mjs'
+import { unresolved } from '../edag/module.f.mjs'
+import { analysis } from '../../edag/analysis/module.f.mjs'
+import { memo } from '../../edag/memo/module.f.mjs'
+import { toData } from '../../edag/value/to_unknown/module.f.mjs'
+import { read } from '../../edag/value/property/module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
 import { _stringifyTree } from '../module.f.mjs'
 import { stringify } from '../../media/json/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { ok, unwrap } from '../../types/result/module.f.mjs'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { _astOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
@@ -62,6 +68,9 @@ const expectModule = (source, expected) => {
     assertEq(stringifyDjsModule(value), expected)
 }
 
+/** Parser fixtures execute through the shared represented interpreter. @type {(ast: AstModule, args?: Values) => EdagValue} */
+const evaluate = (ast, args = []) => assertOk(memo(assertOk(analysis(unresolved(ast).edag)))({ args }))
+
 export const proof = {
     // A module may end in `throw` in place of its exports: the body's last
     // entry is the throw of the value, resolved against every name bound,
@@ -81,7 +90,8 @@ export const proof = {
             const source = 'import d, { x, x as y, default as z, as as from, } from "./dep"; export default [d,x,y,z,from];'
             const module = unwrap(parseFromTokens(tokenizeString(source)))
             assertStructurallySame(module[0], ['default', 'x', 'x', 'default', 'as'].map(name => ({ specifier: './dep', json: false, name })))
-            assertStructurallySame(unwrap(run(module[1])([1, 2, 2, 1, 3])), { default: [1, 2, 2, 1, 3] })
+            const exports = /** @type {const} */ (['{}', [[':', 'default', 1], [':', 'x', 2], [':', 'as', 3]]])
+            assertStructurallySame(assertOk(toData(evaluate(module, module[0].map(() => exports)))), { default: [1, 2, 2, 1, 3] })
             const syntax = unwrap(parseSyntax(tokenizeString(source)))
             assertStructurallySame(syntax.imports[0].bindings.map(({ name, local }) => [name, local.token]), [
                 ['default', { kind: 'id', value: 'd' }], ['x', { kind: 'id', value: 'x' }],
@@ -92,7 +102,8 @@ export const proof = {
         empty: () => {
             const module = unwrap(parseFromTokens(tokenizeString('import {} from "./dep"; import d, {} from "./dep"; export default d;')))
             assertStructurallySame(module[0].map(({ name }) => name), [null, 'default'])
-            assertStructurallySame(unwrap(run(module[1])([{}, 7])), { default: 7 })
+            const exports = /** @type {const} */ (['{}', [[':', 'default', 7]]])
+            assertStructurallySame(assertOk(toData(evaluate(module, [exports, exports]))), { default: 7 })
         },
         json: () => {
             const module = unwrap(parseFromTokens(tokenizeString('import {default as data} from "./data.json" with {type:"json"}; export default data;')))
@@ -127,7 +138,7 @@ export const proof = {
                 ['export const __proto__=7;', Object.fromEntries([['__proto__', 7]])],
             ])) {
                 const module = unwrap(parseFromTokens(tokenizeString(source)))
-                const result = unwrap(run(module[1])([]))
+                const result = assertOk(toData(evaluate(module)))
                 assertStructurallySame(result, expected)
                 assertStructurallySame(Object.keys(/** @type {object} */ (result)), Object.keys(expected))
             }
@@ -551,7 +562,7 @@ export const proof = {
         const [tag, value] = parseFromTokens(tokenizeString('export default {"b": 1, "1": 2, "b": 3};'))
         assert(tag === 'ok', tag)
         assertEq(stringifyDjsModule(value), '[[],[["object",[[":","default",["object",[[":","b",1],[":","1",2],[":","b",3]]]]]]]]')
-        const object = _own(unwrap(run(value[1])([])), 'default')
+        const object = assertOk(toData(assertOk(read(ok(evaluate(value)), 'default'))))
         assert(typeof object === 'object' && object !== null && !(object instanceof Array), object)
         assertEq(Object.keys(object).join(), '1,b')
         assertEq(object.b, 3)
@@ -649,7 +660,7 @@ export const proof = {
     memberOrder: () => {
         const [tag, value] = parseFromTokens(tokenizeString('export default {"b": 1, "a": 2, "b": 3, "c": {"y": 0, "x": 0}};'))
         assert(tag === 'ok', tag)
-        const object = _own(unwrap(run(value[1])([])), 'default')
+        const object = assertOk(toData(assertOk(read(ok(evaluate(value)), 'default'))))
         assert(typeof object === 'object' && object !== null && !(object instanceof Array), object)
         assertEq(Object.keys(object).join(), 'b,a,c')
         assertEq(object.b, 3)

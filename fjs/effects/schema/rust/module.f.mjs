@@ -39,8 +39,6 @@ import {
     readdirOptions, writeConsoles,
 } from '../module.f.mjs'
 
-/** @typedef {Result<string, readonly unknown[]>} _Printed */
-
 /**
  * What follows a step that may have failed: its result, or its failure.
  *
@@ -129,7 +127,7 @@ const refuse = (t, what) => error([what, t])
 /**
  * The Rust type of a schema.
  *
- * @type {(t: unknown) => _Printed}
+ * @type {(t: unknown) => Result<string, readonly unknown[]>}
  */
 export const rustType = t => {
     const name = nameOf(t)
@@ -151,7 +149,7 @@ export const rustType = t => {
 /**
  * The Rust type of an unnamed union: a nothing, an `Option`, or a `Result`.
  *
- * @type {(ms: readonly unknown[]) => _Printed}
+ * @type {(ms: readonly unknown[]) => Result<string, readonly unknown[]>}
  */
 const unionType = ms => {
     if (ms.length === 1 && ms[0] === undefined) { return ok('()') }
@@ -170,7 +168,7 @@ const unionType = ms => {
  *
  * @type {(t: unknown) => string | undefined}
  */
-const tag = t => Array.isArray(t) && typeof t[0] === 'string' ? t[0] : undefined
+const tag = t => t instanceof Array && typeof t[0] === 'string' ? t[0] : undefined
 
 /**
  * A struct member as its Rust field, `pub name: type`. A member that may
@@ -216,7 +214,7 @@ const unitEnum = (name, ms) => `${derive}\npub enum ${name} {\n${ms.map(m => `  
  * One variant of an enum over tagged tuples: the tag in `PascalCase`, and
  * what follows it as the variant's fields.
  *
- * @type {(m: unknown) => _Printed}
+ * @type {(m: unknown) => Result<string, readonly unknown[]>}
  */
 const variant = m => {
     const t = tag(m)
@@ -259,13 +257,17 @@ export const definition = ([name, t]) => {
 /**
  * A parameter as Rust takes it: `name: type`, nothing for one that is
  * always the same constant (`read`'s stream), an `Option` for one that may
- * be absent.
+ * be absent. An optional parameter must carry exactly one type after absence
+ * and explicit `undefined` are removed; other shapes are refused.
  *
  * @type {(name: string, t: unknown) => Result<readonly string[], readonly unknown[]>}
  */
 const parameter = (name, t) => {
     if (typeof t !== 'function' && t !== undefined && nameOf(t) === undefined) { return ok([]) }
     const rest = optional(t)
+    if (rest !== undefined && rest.length !== 1) {
+        return refuse(t, 'no Rust type for an optional parameter without exactly one carried type')
+    }
     return then(r => ok([`${snake(name)}: ${rest === undefined ? r : `Option<${r}>`}`]))(
         rustType(rest === undefined ? t : rest[0]))
 }

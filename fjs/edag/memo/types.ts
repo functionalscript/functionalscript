@@ -4,8 +4,9 @@
  * @module
  */
 
-/** The captured frame and the arguments an invocation runs over. */
+import type { Values } from '../value/types.ts'
+
+/** Resolved module arguments; function frames belong to represented functions. */
 export type Invocation = {
-    readonly frame: unknown
-    readonly args: readonly unknown[]
+    readonly args: Values
 }

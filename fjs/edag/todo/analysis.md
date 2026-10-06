@@ -170,11 +170,11 @@ Two consumers then follow, and share amnesia's operations:
   in table order; a merged node it writes in place, since the recompiled
   occurrences merge again.
 - **The value outputs**, `.data.js` and `.json`, read no table. The memo
-  executor returns a value whose sharing is JavaScript's own identity,
-  `[s, s]` one array, and the DataJS serializer hoists by walking that
-  value, as it does today, while JSON writes the node where each reference
-  reaches it; the `Denotation`'s value is then the executed value, which is
-  what [`interpret-edag.md`](../../compiler/todo/interpret-edag.md) preserves.
+  executor returns an `EdagValue`; `toData` preserves its sharing as ordinary
+  JavaScript identity, `[s, s]` one array. The DataJS serializer hoists by
+  walking that value, while JSON writes the node where each reference reaches
+  it. This is the identity contract
+  [`interpret-edag.md`](../../compiler/todo/interpret-edag.md) preserves.
 
 The table is the one static answer: the route-following that the sharing
 sweep in `fjs/compiler/ast` once did for the value outputs is the merge step

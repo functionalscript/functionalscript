@@ -5,8 +5,9 @@
  * result written as ordinary JavaScript values. Two consumers read it, so a
  * new case is written once and checked twice:
  *
- * - [`proof.f.mjs`](./proof.f.mjs) evaluates each case against a standard
- *   JavaScript engine, proving that the expectations describe JavaScript.
+ * - [`proof.f.mjs`](./proof.f.mjs) evaluates each case through represented
+ *   EDAG interpretation and cross-checks independent native JavaScript
+ *   operations, excluding canonical function text only from that cross-check.
  * - [`rust/module.f.mjs`](./rust/module.f.mjs) prints each case as Rust,
  *   producing `nanvm-lib/tests/test/gen.corpus/`, which runs the same case
  *   against `nanvm-lib`.
@@ -1348,7 +1349,7 @@ const shiftLeftCases = [
     // A negative shift count is a right shift by its magnitude.
     { name: 'bigFiveShlNegativeThree', args: [5n, -3n], expected: 0n },
     { name: 'bigNegativeFiveShlNegativeThree', args: [-5n, -3n], expected: -1n },
-    { name: 'bigShiftTooLarge', args: [1n, 100000000000000000n], expected: throws },
+    { name: 'bigShiftTooLarge', args: [1n, 100000000000000000n], expected: throws, allocation: 'the host cannot allocate a BigInt with 100000000000000001 bits' },
     ...mixedCases('Shl'),
 ]
 
@@ -1385,7 +1386,7 @@ const signedRightShiftCases = [
     // A negative shift count is a left shift by its magnitude.
     { name: 'bigFiveShrNegativeThree', args: [5n, -3n], expected: 40n },
     { name: 'bigNegativeFiveShrNegativeThree', args: [-5n, -3n], expected: -40n },
-    { name: 'bigShiftTooLarge', args: [1n, -100000000000000000n], expected: throws },
+    { name: 'bigShiftTooLarge', args: [1n, -100000000000000000n], expected: throws, allocation: 'the negative right-shift count requests a BigInt with 100000000000000001 bits' },
     ...mixedCases('Shr'),
 ]
 
