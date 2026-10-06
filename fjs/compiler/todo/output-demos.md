@@ -46,7 +46,7 @@ empty pane would be the plausible wrong answer
 [DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle) rules
 out, and what a stage will not accept is half of what it is.
 
-**The presets are one flat list**, [`examples/module.f.mjs`](../examples/module.f.mjs),
+**The presets are one flat list**, [`examples/module.f.js`](../examples/module.f.js),
 that the tokenizer, parser, serializer, Rust and side-by-side demos each offer
 whole through the shared picker
 ([`website/demo/examples`](../../website/demo/examples/module.f.mjs)), which

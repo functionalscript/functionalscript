@@ -26,7 +26,7 @@
 import { stringToList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { textDemo } from '../../website/demo/module.f.mjs'
-import { examples } from '../examples/module.f.mjs'
+import { examples } from '../examples/module.f.js'
 import { tokenize } from './module.f.mjs'
 
 /**
