@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — FJS language VMs use represented values, compiler module
+**Status:** wip — FJS language VMs use represented values, compiler module
 initialization uses memo, and JavaScript runtime conversion supports callables.
 Compiler conversion integration and Rust value-emission parity remain.
 
