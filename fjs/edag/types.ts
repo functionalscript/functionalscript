@@ -77,6 +77,14 @@ export type Exp =
  */
 export type Primitive = null | boolean | number | string | bigint
 
+/** A literal description, with function leaves answered by `fromValue`'s hook. */
+export type Plain<F extends globalThis.Function> =
+    | Primitive
+    | undefined
+    | F
+    | readonly Plain<F>[]
+    | { readonly [k in string]?: Plain<F> }
+
 // expressions
 
 export type Exps = readonly Exp[]

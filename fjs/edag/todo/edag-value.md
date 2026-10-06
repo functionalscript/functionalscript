@@ -537,7 +537,7 @@ promise normalization of host resource exhaustion.
   source failure versus output representability.
 - [Metaprogramming](../../compiler/todo/047-compiler-meta-programming.md) —
   module execution enabled by this representation.
-- [From value](./from-value.md) — the separate conversion of admitted literal
+- [From value](../README.md#literal-descriptions) — the separate conversion of admitted literal
   data into EDAG; it does not recover erased function reflection.
 - [Resource limits](../../compiler/todo/bound-edag-interpreter-resources.md) —
   deferred work enabled by explicit evaluation.
