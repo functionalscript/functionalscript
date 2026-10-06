@@ -20,8 +20,9 @@ the compiler serializer's function-text renderer.
 
 [`value`](value/module.f.mjs) defines the evaluated-value subset's type and
 shape schema: data and functions with evaluated captures and unevaluated
-bodies. Value operations and the remaining executor migrations are recorded in
-[the value plan](todo/edag-value.md).
+bodies. Both FJS interpreters and compiler module initialization use this
+representation; [EDAG values](values.md) records its construction, identity,
+failure and runtime-compilation contracts.
 [`validateMetadata`](value/metadata/module.f.mjs) checks unique, correctly
 ordered object keys in evaluated data and captures,
 preserving value identity.
@@ -31,6 +32,18 @@ and also preserves value identity. These checks require shape-checked FJS data
 and serve explicit boundaries accepting EDAG supplied as data. VM constructors
 must maintain the value invariants directly, without revalidating every result.
 FJS data is acyclic by construction, so it needs no cycle preflight.
+
+Both FJS interpreters return language results as
+`Result<EdagValue, EdagValue>`. An operation's own implicit failure, such as
+calling a non-function or dividing a bigint by zero, returns
+`error(['undefined'])`. An explicit `throw` returns its evaluated operand as
+the error payload. Failures from operands and invoked callbacks propagate
+unchanged, retaining container and callable identities. Module initialization
+preserves that payload alongside its source path; admission and loading
+diagnostics keep their separate channels. The [joint interpreter
+proofs](memo/proof.f.mjs) exercise actual throwing callbacks through array
+methods and an enclosing operand; [compiler proofs](../compiler/transpiler/proof.f.mjs)
+cover direct and imported module initialization.
 
 [`value/semantics`](value/semantics/module.f.mjs) provides truthiness, `typeof`,
 strict equality and `Object.is` for represented values. Distinct
@@ -90,8 +103,8 @@ objects, arrays and functions, using the shared function-text renderer in both i
 [`compiler/transpiler.interpret`](../compiler/transpiler/module.f.mjs) uses memo
 to evaluate each module with represented dependency exports. The AST value
 evaluator is retired; both FJS EDAG VMs and compiler initialization use this
-representation. The [value plan](todo/edag-value.md) tracks callable runtime
-compilation and backend emission of evaluated closures.
+representation. [Runtime compilation](values.md#runtime-compilation) converts
+these values, including evaluated closures, through the target backend.
 
 [`value/coercion`](value/coercion/module.f.mjs) converts ordinary objects to
 primitives by trying `valueOf` and `toString` in the hint's order. Own methods
@@ -164,20 +177,32 @@ conversion. It does not save captured values or implement callable runtime
 compilation. Source serialization with `tryStringify` remains partial and
 requires every slot to survive its structural round trip.
 
-[`value/to_unknown`](value/to_unknown/module.f.mjs) materializes function-free
-values as ordinary runtime primitives, arrays and objects. `toUnknown` preserves
-shared container identities within a conversion and creates fresh containers
-on each call. A function anywhere in the data returns an output diagnostic;
-callable graphs still require the target's compile/load boundary.
+[`value/to_unknown`](value/to_unknown/module.f.mjs) exposes
+`toUnknown(value): Effect<CompileValue, unknown, IoChannel>`. Data-only graphs
+materialize without a host operation. Callable graphs request `compileValue`
+with a generated construction module, and a runner can provide the
+[`javascriptOperationMap`](value/to_unknown/module.mjs). For example,
+`asyncRun(javascriptOperationMap)(toUnknown(value))` returns an ordinary runtime
+value inside a `Result`, including functions that accept ordinary callbacks.
+Partial runners report an unavailable operation through the standard effect
+error channel; loading failures use that same channel.
+
+Each conversion creates fresh containers and functions while preserving sharing
+inside the result. The host loads a factory module and calls the factory once
+per conversion, so cached code never caches a converted value. The `Result`
+wrapper also prevents asynchronous loading from interpreting a value's own
+callable `then` property. `toData` is the synchronous data-only converter; it
+continues to refuse functions for consumers that require data.
 
 [`compiler/serializer/value`](../compiler/serializer/value/module.f.mjs) emits
 closed value graphs as JavaScript modules, including executable functions with
 their evaluated captures. Its `stringify` API preserves shared data and function
 references under the JavaScript/memo profile; calls have fresh body allocations
 and can accept ordinary runtime callbacks. The generated module exports the
-complete runtime value as its default. Loading it is a separate host operation;
-the data converter above still refuses callables. This value-emission contract
-does not require the FJS source parser to reconstruct the original graph.
+complete runtime value as its default. Its `factoryStringify` variant wraps the
+same construction in a default-exported factory for runtime loading. This
+value-emission contract does not require the FJS source parser to reconstruct
+the original graph.
 
 "No normal form" is a statement about the module as a whole, not a licence for
 each node kind to admit several spellings of one thing. Where a set of
@@ -206,8 +231,8 @@ not a VM to run FunctionalScript on — over represented
 [operations](operations/module.f.mjs), parameterized by how an
 operand is evaluated and which interpreter invokes a function. Both Amnesia
 and memo return `Result<EdagValue, EdagValue>`; their different reuse policies
-are preserved. Compiler integration remains in the
-[EDAG-value migration](todo/edag-value.md).
+are preserved. [Module initialization](values.md#module-initialization) uses
+memo with represented dependency exports.
 [analysis](analysis/module.f.mjs) reads
 a graph into one table — every operation node once, in walk order, its
 operands by index, its scope, and which entries are shared — so that a
@@ -215,7 +240,15 @@ writer can hoist what is shared and an executor can cache it without a
 structure keyed by node identity. It returns `Result<Analysis, string>`:
 structural failures, such as a node shared across function scopes or a
 noncanonical function length, return a diagnostic. Complete executable
-graphs additionally use `bindingError` to check their invocation bindings.
+graphs compose the result with `checked` to check their invocation bindings.
+It returns the same analysis on success or an invocation-binding diagnostic;
+an optional function index limits the check to that function and its nested bodies.
+`operandsOf(node)` lists every operand in written order, preserving primitives,
+repeated occurrences and reference identity. It includes lazy positions and a
+function's captures followed by its body. The serializer uses the same helper,
+keeping only captures when walking a function in its enclosing scope.
+`itemOperand(item)` unwraps a spread or returns a plain operand unchanged;
+analysis and the serializer share it for array items and call arguments.
 [memo](memo/module.f.mjs) is that
 interpreter: it returns `Result<EdagValue, EdagValue>`, evaluating every shared
 entry once per invocation with an immutable cache. Functions retain their
@@ -224,6 +257,20 @@ Conversion of value graphs to ordinary FJS/JS values is **runtime compilation**,
 separate from **EDAG interpretation**. The broader identity and memoization
 choices, including JS-compatible executors, global memoization, and the CAVM,
 are compared in [execution-models.md](execution-models.md).
+
+## Literal descriptions
+
+`fromValue(other)(value)` in [module.f.mjs](module.f.mjs) encodes a typed
+`Plain<F>` description as an EDAG expression. Primitive leaves stay primitive;
+`undefined`, arrays and objects become literal nodes. Object members follow
+enumeration order and retain explicitly present `undefined` values. Every
+occurrence gets fresh nodes, including repeated input containers.
+
+The `other` hook translates function leaves into expressions and can supply
+shared nodes. The [NaNVM corpus](../nanvm/module.f.mjs) uses it for its function
+markers and explicit shared references. JSON imports use the same encoder
+with no function leaves. This conversion describes literals; it does not
+recover the code or identity of runtime values after reflection is erased.
 
 ## Nodes
 
@@ -326,11 +373,11 @@ frame, `['.', ['frame'], N]`, still are, so only a frame no read reached is
 ever reinterpreted. Earlier positive-arity/full-argument experiments have no
 general lossless migration to this format.
 
-A function's `length` is at most 16, the language's limit: `bindingError`
+A function's `length` is at most 16, the language's limit: `checked`
 refuses a larger one. Both Amnesia and memo read length and fixed/rest
 bindings from represented functions, without an arrow factory. Their function
 text uses the total shared renderer described above. Callable runtime
-compilation remains in the [value plan](todo/edag-value.md); the broader
+compilation uses the [explicit conversion boundary](values.md#runtime-compilation); the broader
 default-text contract is recorded in
 [the parameter plan](../../spec/todo/3120-parameters.md).
 

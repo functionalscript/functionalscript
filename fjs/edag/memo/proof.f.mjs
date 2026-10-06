@@ -7,12 +7,12 @@
  * @import { EdagValue, Values, Array as ValueArray } from '../value/types.ts'
  */
 
-import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { vm } from '../amnesia/module.f.mjs'
 import { analysis } from '../analysis/module.f.mjs'
 import { lazyOp2Id } from '../module.f.mjs'
 import { memo, invoke } from './module.f.mjs'
-import { toUnknown } from '../value/to_unknown/module.f.mjs'
+import { toData } from '../value/to_unknown/module.f.mjs'
 import { call } from '../value/call/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
 
@@ -25,10 +25,10 @@ const result = e => memo(assertOk(analysis(e)))(context)
 const value = e => assertOk(result(e))
 
 /** @type {(e: Exp) => unknown} */
-const run = e => assertOk(toUnknown(value(e)))
+const run = e => assertOk(toData(value(e)))
 
 /** @type {(e: Exp) => unknown} */
-const oracle = e => assertOk(toUnknown(assertOk(vm(context)(e))))
+const oracle = e => assertOk(toData(assertOk(vm(context)(e))))
 
 /** The same answer as amnesia, where sharing does not decide it. @type {(e: Exp) => void} */
 const agrees = e => { assertStructurallySame(run(e), oracle(e)) }
@@ -160,7 +160,7 @@ export const proof = {
         eq(['||', 0, 5], 5)
         assertEq(run(['===', ['args'], ['args']]), true)
         // Lists beginning with '#' are ordinary data, never table references.
-        assertStructurallySame(assertOk(toUnknown(apply(value(['=>', 0, [], ['[]', ['#', 42]]])))), ['#', 42])
+        assertStructurallySame(assertOk(toData(apply(value(['=>', 0, [], ['[]', ['#', 42]]])))), ['#', 42])
     },
     chains: () => {
         /** @type {Exp} */
@@ -218,6 +218,30 @@ export const proof = {
         const thrownPayload = memo(assertOk(analysis(['throw', ['.', ['args'], 0]])))({ args: [payload] })
         assertEq(thrownPayload[0], 'error')
         assertEq(thrownPayload[1], payload)
+    },
+    callbackFailures: () => {
+        /** @type {EdagValue} */
+        const payload = ['{}', [[':', 'message', 'callback failure']]]
+        const invocation = { args: [payload] }
+        /** @type {Exp} */
+        const callback = ['=>', 0, [['.', ['args'], 0]], ['throw', ['frame', 0]]]
+        for (const method of ['map', 'reduce', 'toSorted']) {
+            // Each VM constructs the callback, captures the supplied value,
+            // and carries its failure through the method and outer operand.
+            /** @type {Exp} */
+            const explicit = ['+', 0, ['.', ['[]', [1, 2]], method, ['|()', [callback]]]]
+            for (const result of [
+                memo(assertOk(analysis(explicit)))(invocation),
+                vm({ ...invocation, frame: [] })(explicit),
+            ]) { assertEq(assertError(result), payload) }
+
+            /** @type {Exp} */
+            const implicit = ['+', 0, ['.', ['[]', [1, 2]], method, ['|()', [0]]]]
+            for (const result of [
+                memo(assertOk(analysis(implicit)))(invocation),
+                vm({ ...invocation, frame: [] })(implicit),
+            ]) { assertStructurallySame(result, ['error', ['undefined']]) }
+        }
     },
     throw: {
         // A frame slot read outside a function is refused before anything

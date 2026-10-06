@@ -15,7 +15,7 @@ import { invoke, memo } from '../../edag/memo/module.f.mjs'
 import { vm } from '../../edag/amnesia/module.f.mjs'
 import { call } from '../../edag/value/call/module.f.mjs'
 import { read } from '../../edag/value/property/module.f.mjs'
-import { toUnknown } from '../../edag/value/to_unknown/module.f.mjs'
+import { toData } from '../../edag/value/to_unknown/module.f.mjs'
 import { isArray } from '../../types/array/module.f.mjs'
 import { tryModuleStringify } from '../serializer/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
@@ -144,7 +144,7 @@ const lowered = entry => _defaultExport(unresolved([[], [entry, ['object', [[':'
 const value = graph => unwrap(memo(assertOk(analysis(graph)))({ args: [] }))
 
 /** Ordinary data comparisons erase reflection explicitly. @type {(graph: Exp) => unknown} */
-const execute = graph => assertOk(toUnknown(value(graph)))
+const execute = graph => assertOk(toData(value(graph)))
 
 /** Call represented functions without manufacturing host wrappers. @type {(fn: EdagValue, args: Values) => EdagValue} */
 const apply = (fn, args) => assertOk(call(ok(fn), args.map(arg => () => ok(arg)), invoke))
@@ -176,7 +176,7 @@ export const proof = {
                     /** @type {Exp} */
                     const invoked = ['()', ['.', module, 'main'], []]
                     assertStructurallySame(execute(invoked), expected)
-                    assertStructurallySame(assertOk(toUnknown(assertOk(vm({ frame: [], args: [] })(invoked)))), expected)
+                    assertStructurallySame(assertOk(toData(assertOk(vm({ frame: [], args: [] })(invoked)))), expected)
                 }
             }
         },
@@ -188,7 +188,7 @@ export const proof = {
             /** @type {Exp} */
             const invoked = ['()', ['.', graph, 'main'], []]
             assertEq(execute(invoked), 42)
-            assertEq(assertOk(toUnknown(assertOk(vm({ frame: [], args: [] })(invoked)))), 42)
+            assertEq(assertOk(toData(assertOk(vm({ frame: [], args: [] })(invoked)))), 42)
             // and its source, the call and the arithmetic written out, runs to
             // the same answer
             /** @type {Exp} */
@@ -1031,7 +1031,7 @@ export const proof = {
             const sign = value(compile('export default (n) => { if (n < 0) { return -1; } if (n > 0) { return 1; } return 0; };').edag)
             assertStructurallySame([apply(sign, [-5]), apply(sign, [0]), apply(sign, [5])], [-1, 0, 1])
             const guarded = value(compile('export default (a) => { if (a) { const x = [1]; return [x, x]; } return 0; };').edag)
-            assertStructurallySame(assertOk(toUnknown(apply(guarded, [true]))), [[1], [1]])
+            assertStructurallySame(assertOk(toData(apply(guarded, [true]))), [[1], [1]])
             assertEq(apply(guarded, [false]), 0)
         },
     },

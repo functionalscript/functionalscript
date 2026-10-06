@@ -90,14 +90,24 @@ An initialization failure retains its represented `thrown` payload and source
 path. The CLI reports `module initialization failed` at that path; parse and
 resolution errors keep their existing diagnostics.
 
-`transpile(path)` converts the complete result into the denotation's ordinary
-runtime `value`. Its effect now returns an inner `Result<Denotation, string>`:
-conversion refusal is separate from a source failure. Callable runtime
-compilation is still pending, so this conversion refuses a function anywhere
-in the selected result. JSON/DataJS output selects the represented default
-before conversion, allowing `export const f = x => x; export default 1;` to
-produce JSON `1`. A conversion refusal names the output file. Both APIs keep
-direct JSON documents unwrapped.
+`transpile(path)` composes `interpret` with `toUnknown` and returns the complete
+ordinary runtime value, including callable exports, with EDAG reflection erased:
+
+```ts
+Effect<ReadFile | ResolveFileModule | CompileValue, unknown, SourceError | IoChannel>
+```
+
+The runner supplies `CompileValue` for callable results. Data-only results need
+no compile/load operation. Source failures retain their paths and represented
+payloads; runtime compilation failures use `IoChannel`, including
+`['notImplemented', 'compileValue']` when a partial runner lacks the operation.
+
+JSON/DataJS output uses `_transpileDefault`, which selects the represented default
+and applies synchronous `toData`. Its inner `Result` separates a conversion
+refusal from a source failure. This allows
+`export const f = x => x; export default 1;` to produce JSON `1`, while a callable
+in the selected data is refused at the output path. Both APIs keep direct JSON
+documents unwrapped. The obsolete `Denotation` wrapper is removed.
 
 [`serializer/value`](./serializer/value/module.f.mjs) provides the code-generation
 step for callable runtime compilation: `stringify(value)` emits a JavaScript
@@ -106,8 +116,11 @@ data and functions. Evaluated captures may be primitive, repeated or unused;
 shared containers and functions keep their identity, and function bodies use
 memo semantics with fresh invocation-local allocations. The emitter trusts
 constructed values and reuses the function-body renderer. Its output promises
-runtime behavior, not a structural FJS source round trip. Module loading and
-integration with `transpile` remain pending.
+runtime behavior, not a structural FJS source round trip. `factoryStringify`
+emits the same construction inside a default-exported factory, which the
+effectful [`toUnknown`](../edag/value/to_unknown/module.f.mjs) uses for runtime
+loading. Supply its [`javascriptOperationMap`](../edag/value/to_unknown/module.mjs)
+alongside read/resolve handlers to run `transpile` with callable exports.
 
 JSON/DataJS output selects the default; FunctionalScript
 output emits individual named/default exports. EDAG and generated Rust retain

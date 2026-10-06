@@ -14,19 +14,19 @@ make self-hosting depend on a second interpreter.
 ### Proposal
 
 Compose the existing `ReadFile` and `ResolveFileModule` effects with the FJS
-parser, AST-to-EDAG lowering, linker and validated
-[FJS interpreter](./interpret-edag.md). Loading evaluates the linked module
-and returns its complete export object. It does not call exported functions;
-the test runner or CLI selects and invokes an entry separately.
+parser, AST-to-EDAG lowering and [FJS interpreter](./interpret-edag.md).
+Loading evaluates each unresolved initializer with represented dependency
+exports and returns its complete export object. It does not call exported
+functions; the test runner or CLI selects and invokes an entry separately.
 
-The [EdagValue proposal](../../edag/todo/edag-value.md) owns the planned
-representation: loading returns a represented export object through
-`Result<EdagValue, EdagValue>`, and VM invocation consumes represented values.
+The [EdagValue contract](../../edag/values.md) defines the implemented
+representation: initializer evaluation returns a represented export object
+through `Result<EdagValue, EdagValue>`, and VM invocation consumes represented values.
 Callers needing ordinary FJS runtime values use the separate
-[target materialization boundary](../../edag/todo/edag-value.md#compilation-and-conversion-to-unknown)
+[runtime compilation boundary](../../edag/values.md#runtime-compilation)
 to produce `unknown` with reflection erased. Callable graphs require generated
 or precompiled runtime code; loading and VM invocation keep represented values.
-After migration, language throws propagate as explicit `Result` errors.
+Language throws propagate as explicit `Result` errors.
 Module evaluation needs no `sandbox` capture or host test adapter.
 
 Source-level `import` remains part of the language. This workflow needs neither
@@ -47,6 +47,9 @@ module identity and source paths. Its effect succeeds with the complete
 `EdagValue`, and fails with either `ParseError` or an `InitializationError`
 retaining the original represented `thrown` value. The core evaluator still
 returns `Result<EdagValue, EdagValue>`; the loader adds source context.
+`transpile(path)` composes that loader with runtime compilation for callers
+needing ordinary values. It adds the target `CompileValue` effect for callable
+results and returns `unknown`, with EDAG reflection erased.
 
 ### Native prerequisites
 
@@ -64,7 +67,9 @@ it self-hosting:
   open. Replace these uses with immutable containers expressed in admitted FJS,
   or obtain an approved `Map` design before implementing language support.
 - Tag dispatch also uses host-only property access:
-  [operations](../../edag/operations/module.f.mjs)'s `operations[e[0]]` and
+  [operations](../../edag/operations/module.f.mjs)'s `semanticUnary[node[0]]`,
+  `numericUnary[node[0]]`, `semanticBinary[tag]`, `relational[tag]` and
+  `numericBinary[tag]`, and
   [analysis](../../edag/analysis/module.f.mjs)'s `handlers[e[0]]` select functions
   by runtime string keys. The [property-access contract](./compile-modules-to-edag.md)
   refuses that source form. Rewrite dispatch with explicit tag comparisons and
@@ -94,7 +99,7 @@ their existing error channels. Resource limits belong to
 
 Use the existing [virtual runner](../../effects/node/virtual/module.f.mjs) for
 file and resolution effects in FunctionalScript proofs. Execute the actual
-parser, linker and evaluator over those fixtures, and assert their successful
+parser, lowering and evaluator over those fixtures, and assert their successful
 and failing results. The evaluator handles language failures as data, so these
 proofs need neither precomputed sandbox results nor a new host adapter. Tests
 of ordinary runtime code produced by materialization belong to that separate

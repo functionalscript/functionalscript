@@ -6,7 +6,7 @@
  */
 
 import type { Assert } from '../../asserts/types.ts'
-import type { Primitive, Unknown } from '../../media/datajs/types.ts'
+import type { Primitive } from '../../media/datajs/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
 import type { binaryTags } from './module.f.mjs'
 
@@ -264,9 +264,6 @@ export type AstConditional = readonly ['?:', AstConst, AstConst, AstConst]
  * its rest parameter.
  */
 export type AstBody = readonly AstConst[]
-
-/** What an input denotes: a module's export object, a selected export of it, or a direct JSON document. */
-export type Denotation = { readonly value: Unknown }
 
 /**
  * What an EDAG of the module anchors, each by index: exactly the code the

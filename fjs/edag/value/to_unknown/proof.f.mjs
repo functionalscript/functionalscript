@@ -1,12 +1,19 @@
 /**
  * Outbound data conversion erases EDAG tuples while preserving primitive
- * values, own fields and graph sharing. Callables remain an explicit refusal.
+ * values, own fields and graph sharing. Callable conversion requests the
+ * target runtime with generated construction code and preserves its answer.
  *
  * @import { EdagValue } from '../types.ts'
+ * @import { CompileValue } from './types.ts'
+ * @import { MemOperationMap } from '../../../effects/mock/types.ts'
  */
 
 import { assert, assertEq, assertOk, assertError, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { toUnknown } from './module.f.mjs'
+import { notImplemented, runPure } from '../../../effects/module.f.mjs'
+import { partialRun, run } from '../../../effects/mock/module.f.mjs'
+import { error, ok } from '../../../types/result/module.f.mjs'
+import { factoryStringify } from '../../../compiler/serializer/value/module.f.mjs'
+import { compileCommands, toData, toUnknown } from './module.f.mjs'
 
 /** @type {(value: unknown) => readonly unknown[]} */
 const elements = value => {
@@ -25,15 +32,15 @@ const undefinedValue = /** @type {const} */ (['undefined'])
 export const proof = {
     primitives: () => {
         for (const value of [null, false, true, 0, -0, NaN, Infinity, -Infinity, '', 'undefined', '😀\ud800', 0n, 1n, -1n]) {
-            assertEq(Object.is(assertOk(toUnknown(value)), value), true)
+            assertEq(Object.is(assertOk(toData(value)), value), true)
         }
-        assertEq(assertOk(toUnknown(undefinedValue)), undefined)
+        assertEq(assertOk(toData(undefinedValue)), undefined)
     },
     arrays: () => {
-        assertStructurallySame(assertOk(toUnknown(['[]', []])), [])
-        assertStructurallySame(assertOk(toUnknown(['[]', ['=>', 0, ['[]', []], 1]])), ['=>', 0, [], 1])
+        assertStructurallySame(assertOk(toData(['[]', []])), [])
+        assertStructurallySame(assertOk(toData(['[]', ['=>', 0, ['[]', []], 1]])), ['=>', 0, [], 1])
         const source = /** @type {const} */ (['[]', ['+', 1, undefinedValue, null, ['[]', [2, 3]], -0, NaN]])
-        const actual = elements(assertOk(toUnknown(source)))
+        const actual = elements(assertOk(toData(source)))
         assertEq(actual.length, 7)
         assertStructurallySame(actual.slice(0, 5), ['+', 1, undefined, null, [2, 3]])
         assertEq(Object.is(actual[5], -0), true)
@@ -42,8 +49,8 @@ export const proof = {
         assertEq(Object.is(actual, source[1]), false)
     },
     ownFields: () => {
-        assertStructurallySame(assertOk(toUnknown(['{}', []])), {})
-        const actual = assertOk(toUnknown(['{}', [
+        assertStructurallySame(assertOk(toData(['{}', []])), {})
+        const actual = assertOk(toData(['{}', [
             [':', '2', 'two'], [':', '10', 'ten'],
             [':', 'present', undefinedValue], [':', '__proto__', 'ordinary data'],
             [':', 'constructor', 4], [':', 'toString', false], [':', '01', null], [':', '', 0n],
@@ -67,7 +74,7 @@ export const proof = {
         const left = /** @type {const} */ (['{}', [[':', 'nested', nested], [':', 'data', data]]])
         const right = /** @type {const} */ (['[]', [nested, data]])
         const source = /** @type {const} */ (['{}', [[':', 'left', left], [':', 'right', right], [':', 'shared', data]]])
-        const actual = assertOk(toUnknown(source))
+        const actual = assertOk(toData(source))
         assertStructurallySame(actual, {
             left: { nested: { data: [7] }, data: [7] },
             right: [{ data: [7] }, [7]],
@@ -91,8 +98,8 @@ export const proof = {
         const firstObject = /** @type {const} */ (['{}', []])
         const secondObject = /** @type {const} */ (['{}', []])
         const source = /** @type {const} */ (['[]', [firstArray, secondArray, firstObject, secondObject, firstArray, firstObject]])
-        const first = elements(assertOk(toUnknown(source)))
-        const second = elements(assertOk(toUnknown(source)))
+        const first = elements(assertOk(toData(source)))
+        const second = elements(assertOk(toData(source)))
         assertStructurallySame(first, [[], [], {}, {}, [], {}])
         assertStructurallySame(second, [[], [], {}, {}, [], {}])
         assertEq(Object.is(first, second), false)
@@ -116,7 +123,40 @@ export const proof = {
             ['{}', [[':', 'before', 1], [':', 'nested', ['[]', [func]]]]],
         ]
         for (const value of values) {
-            assertEq(assertError(toUnknown(value)), 'callable materialization requires a target compile/load boundary')
+            assertEq(assertError(toData(value)), 'callable materialization requires a target compile/load boundary')
         }
+    },
+    dataNeedsNoRuntime: () => {
+        /** @type {readonly EdagValue[]} */
+        const values = [undefinedValue, 3, ['[]', [1]], ['{}', [[':', 'value', 2]]]]
+        for (const value of values) {
+            const pure = runPure(toUnknown(value))
+            assertEq(pure.length, 1)
+            assertStructurallySame(assertOk(assertNotNullish(pure[0])), assertOk(toData(value)))
+        }
+    },
+    callableConstruction: () => {
+        const fn = /** @type {const} */ (['=>', 1, [2], ['+', ['frame', 0], ['arg', 0]]])
+        const value = /** @type {const} */ (['{}', [[':', 'call', fn]]])
+        const runtime = { call: (/** @type {number} */ x) => x + 2 }
+        /** @type {MemOperationMap<CompileValue, readonly string[]>} */
+        const operations = {
+            compileValue: source => requests => [[...requests, source], ok(runtime)],
+        }
+        const [requests, result] = run(operations)([])(toUnknown(value))
+        assertStructurallySame(requests, [factoryStringify(value)])
+        assertEq(assertOk(result), runtime)
+        assertEq(runtime.call(3), 5)
+    },
+    unavailableRuntime: () => {
+        const [, result] = partialRun(compileCommands)({})(null)(toUnknown(['=>', 0, [], 1]))
+        assertStructurallySame(assertError(result), notImplemented('compileValue'))
+    },
+    runtimeFailure: () => {
+        const failure = /** @type {const} */ (['ioError', { message: 'module loading unavailable' }])
+        /** @type {MemOperationMap<CompileValue, null>} */
+        const operations = { compileValue: () => state => [state, error(failure)] }
+        const [, result] = run(operations)(null)(toUnknown(['=>', 0, [], 1]))
+        assertEq(assertError(result), failure)
     },
 }

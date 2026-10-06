@@ -5,12 +5,12 @@
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { analysis, bindingError } from '../../edag/analysis/module.f.mjs'
+import { analysis, checked } from '../../edag/analysis/module.f.mjs'
 import { vm, invoke as amnesiaInvoke } from '../../edag/amnesia/module.f.mjs'
 import { invoke, memo } from '../../edag/memo/module.f.mjs'
 import { call } from '../../edag/value/call/module.f.mjs'
 import { read } from '../../edag/value/property/module.f.mjs'
-import { toUnknown } from '../../edag/value/to_unknown/module.f.mjs'
+import { toData } from '../../edag/value/to_unknown/module.f.mjs'
 import { isArray } from '../../types/array/module.f.mjs'
 import { maxLength } from '../../types/function/length/module.f.mjs'
 import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
@@ -35,7 +35,7 @@ const elements = value => {
 /** @type {(source: string) => Exp} */
 const roundTrip = source => {
     const e = graph(source)
-    assertEq(bindingError(assertOk(analysis(e))), null)
+    assertOk(checked(assertOk(analysis(e))))
     const restored = graph(unwrap(tryStringify(e)))
     assertStructurallySame(assertOk(analysis(restored)), assertOk(analysis(e)))
     return restored
@@ -58,7 +58,7 @@ const forInterpreter = (interpret, invoke) => {
             assert(assertOk(analysis(linked)).nodes.every(n => n[0] !== 'args'))
             const e = _defaultExport(linked)
             const represented = apply(apply(interpret(e), [3,4,5]), [6])
-            assertStructurallySame(assertOk(toUnknown(represented)), [[1],[2],3,[4,5],6])
+            assertStructurallySame(assertOk(toData(represented)), [[1],[2],3,[4,5],6])
         },
         syntax: () => {
             for (const [parameters, body, length] of /** @type {const} */ ([
@@ -82,7 +82,7 @@ const forInterpreter = (interpret, invoke) => {
                 // These fixtures contain only numbers and undefined; no host
                 // containers or callbacks cross into the interpreter.
                 const values = args.map(arg => arg === undefined ? /** @type {const} */ (['undefined']) : arg)
-                assertStructurallySame(assertOk(toUnknown(apply(represented, values))), expected)
+                assertStructurallySame(assertOk(toData(apply(represented, values))), expected)
             }
         },
         capturesAndIdentity: () => {
@@ -96,7 +96,7 @@ const forInterpreter = (interpret, invoke) => {
             const av = apply(first, [4,5])
             const bv = elements(apply(first, [6]))
             const cv = elements(apply(second, [4,5]))
-            assertStructurallySame(assertOk(toUnknown(av)), [1,[2,3],4,[5],[2,3],[5]])
+            assertStructurallySame(assertOk(toData(av)), [1,[2,3],4,[5],[2,3],[5]])
             const aa = elements(av)
             assert(aa[1] === aa[4] && aa[3] === aa[5])
             assert(aa[1] === bv[1] && aa[3] !== bv[3] && aa[1] !== cv[1])
@@ -118,7 +118,7 @@ const forInterpreter = (interpret, invoke) => {
             for (const [length, factory] of factories.entries()) {
                 const f = apply(factory, [callback])
                 assertEq(assertOk(read(ok(f), 'length')), length)
-                assertStructurallySame(assertOk(toUnknown(apply(f, [1,2,3]))), [Array.from({ length }, (_, i) => [1,2,3][i]), [1,2,3].slice(length)])
+                assertStructurallySame(assertOk(toData(apply(f, [1,2,3]))), [Array.from({ length }, (_, i) => [1,2,3][i]), [1,2,3].slice(length)])
             }
         },
         lengthLimit: () => {

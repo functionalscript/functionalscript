@@ -54,7 +54,7 @@ so `(u?.f)()` fails when `u` is nullish.
 Property reads expose own data. Method calls resolve own methods or the
 admitted built-in table with their represented receiver; they do not expose
 host prototypes or manufacture host callables. Conversion to ordinary runtime
-values is a separate [runtime compilation boundary](../todo/edag-value.md).
+values is a separate [runtime compilation boundary](../values.md#runtime-compilation).
 
 This evaluator consumes valid, immutable FJS EDAG and trusts its binding and
 scope invariants. Admission of separately supplied EDAG belongs at its entry

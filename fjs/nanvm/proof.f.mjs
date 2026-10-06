@@ -24,7 +24,7 @@ import { structurallySame } from '../types/object/structurally_same/module.f.mjs
 import { exp } from '../edag/module.f.mjs'
 import { vm, invoke } from '../edag/amnesia/module.f.mjs'
 import { call } from '../edag/value/call/module.f.mjs'
-import { toUnknown } from '../edag/value/to_unknown/module.f.mjs'
+import { toData } from '../edag/value/to_unknown/module.f.mjs'
 import { ok } from '../types/result/module.f.mjs'
 import { validate } from '../rtti/validate/module.f.mjs'
 import {
@@ -252,7 +252,7 @@ const fixtureShared = () => Object.entries(data.shared).reduce(
 const value = v => assertOk(corpus()(valuesExp(nodes)(v)))
 
 /** Only function-free results cross this existing data conversion boundary. @type {(result: ValueResult) => unknown} */
-const runtime = result => assertOk(toUnknown(assertOk(result)))
+const runtime = result => assertOk(toData(assertOk(result)))
 
 /**
  * The value one argument order produces: the case's expression evaluated
