@@ -183,6 +183,12 @@ multiline field; the key remains single-line and fills the available width.
 NUL in either field replaces the OpenSSL command with an explanation, just as
 in the hash demos.
 
+[`crypto/pow`](../crypto/pow/demo.f.mjs) compares the SHA-256 hash of a multiline
+UTF-8 input plus a decimal nonce with a compact nBits target. Its button advances
+one nonce at a time, and its copyable outputs show the actual preimage, target,
+digest, integer value, and independent OpenSSL command. This illustrates the
+module's single-hash contract rather than Bitcoin block-header mining.
+
 ## A directory says it holds a demo
 
 A demo is on its module's page, and every demo sits several levels below the
