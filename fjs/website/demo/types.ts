@@ -114,3 +114,6 @@ export type TextDemoOptions = {
 
 /** The labelled textarea options used by textDemo and demos with more state. */
 export type TextFieldOptions = Pick<TextDemoOptions, 'name' | 'label' | 'rows'>
+
+/** Options for a labelled single-line input. */
+export type InputFieldOptions = Pick<TextDemoOptions, 'name' | 'label'>

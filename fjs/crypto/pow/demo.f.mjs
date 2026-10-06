@@ -15,7 +15,7 @@ import { sha256Pow, targetFromNBits } from './module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { digitsValue, hexDigitValue } from '../../text/ascii/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
-import { textField } from '../../website/demo/module.f.mjs'
+import { textField, inputField } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.mjs'
 
 const decimalValue = digitsValue(10n)
@@ -35,12 +35,6 @@ export const parseNBits = text => {
         ? null
         : digits.reduce((n, d) => n * 16n + BigInt(/** @type {number} */ (d)), 0n)
 }
-
-/** @type {(name: string, label: string, value: string) => Element} */
-const input = (name, label, value) => ['p',
-    ['label', { for: name }, `${label} `],
-    ['input', { type: 'text', id: name, name, value, style: 'box-sizing: border-box; width: 100%' }],
-]
 
 /** @type {(state: DemoState) => bigint | null} */
 const targetOf = state => {
@@ -133,13 +127,13 @@ export const demo = {
         ['p', 'Hash algorithm: SHA-256'],
         ['p', 'Hash the UTF-8 input followed by the nonce in decimal. A proof succeeds when the hash, read as a big-endian integer, is at most the target. Bitcoin uses this comparison with double SHA-256 of a block header.'],
         textField({ name: 'text', label: 'Input' }, state.text),
-        input('nonce', 'Nonce', state.nonce),
+        inputField({ name: 'nonce', label: 'Nonce' }, state.nonce),
         ['p',
             ['button', { type: 'button', name: 'next-nonce' }, 'Try next nonce'],
             ' ',
             ['button', { type: 'button', name: 'auto-run' }, state.running ? 'Stop' : 'Auto-run nonce'],
         ],
-        input('nBits', 'nBits', state.nBits),
+        inputField({ name: 'nBits', label: 'nBits' }, state.nBits),
         ['p', 'The initial target is easy enough to explore by hand. Bitcoin’s genesis nBits is 0x1d00ffff.'],
         ...output(state),
     ],

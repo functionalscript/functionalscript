@@ -22,10 +22,13 @@
  *
  * @module
  *
- * @import { Demo, DemoEvent, TextDemoOptions, TextFieldOptions } from './types.ts'
+ * @import { Demo, DemoEvent, TextDemoOptions, TextFieldOptions, InputFieldOptions } from './types.ts'
+ * @import { StringMap } from '../../types/object/types.ts'
+ * @import { Effect } from '../../effects/types.ts'
  * @import { Node, Element } from '../../media/html/types.ts'
  */
 
+import { at } from '../../types/object/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { examplePicker, name as exampleName } from './examples/module.f.mjs'
 
@@ -61,3 +64,19 @@ export const textField = ({ name, label, rows = 8 }, text) => ['p',
     ['label', { for: name }, `${label} `],
     ['textarea', { id: name, name, rows: String(rows) }, text],
 ]
+
+/** A labelled single-line field filling its containing column.
+ * @type {(o: InputFieldOptions, value: string) => Element}
+ */
+export const inputField = ({ name, label }, value) => ['p',
+    ['label', { for: name }, `${label} `],
+    ['input', { type: 'text', id: name, name, value, class: 'demo-input' }],
+]
+
+/** Update an existing string field; unrelated events keep the state.
+ * @type {<S extends StringMap<string>>(state: S) => (event: DemoEvent) => Effect<never, S, never>}
+ */
+export const fieldUpdate = state => event => pureOk(
+    event.kind === 'input' && at(event.name)(state) !== null
+        ? { ...state, [event.name]: event.value }
+        : state)

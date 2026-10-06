@@ -35,7 +35,6 @@ export const proof = {
             assertEq(state.text, text)
             const html = htmlToString(demo.view(state))
             assert(html.includes('type="text" id="key" name="key" value="key"'), html)
-            assert(html.includes('box-sizing: border-box; width: 100%'), html)
             assert(html.includes(`<textarea id="text" name="text" rows="8">${text}</textarea>`), html)
             assert(html.includes(`<pre>${expected}</pre>`), html)
             assert(html.includes(`<pre>printf '%s' '${text}' | openssl dgst -sha256 -hmac '${key}'</pre>`), html)
