@@ -5,137 +5,103 @@
 
 ### Problem
 
-AOT-compiled FJS needs a native implementation of the effects it performs. The
-Node runner is host JavaScript and cannot be compiled as FJS. Language logic
-should stay in FJS so the handwritten Rust boundary remains small.
+AOT-compiled FJS returns effects as VM values. It needs a native runner, not
+another representation of those values or a schema-to-Rust type system.
 
 ### Proposal
 
-Implement the `nanvm-effects-node` library crate described by the
-[roadmap](../nanvm-lib/todo/mvp-roadmap.md#effects-the-nanvm-effects-node-runner-crate-decided).
-Keep `nanvm-lib` pure; the native executable depends on the VM, this runner
-and generated FJS code. For operations whose request and result types fit
-the existing RTTI vocabulary, define their data schemas and derive the Rust
-stub, with a handwritten implementation of the generated trait. Keep the
-TypeScript declarations handwritten and check them against the schemas;
-preserving their nominal types is a separate gate below. Commit generated
-output under `npm run gen`.
+Keep `nanvm-effects-node` separate from the pure `nanvm-lib`. Use
+[`nanvm_lib::vm`](../nanvm-lib/src/vm/mod.rs) directly: `Any<A>` with `A: IVm`,
+and its existing `Function<A>`, `Array<A>`, `Object<A>`, `String<A>` and
+`BigInt<A>` wrappers where needed. Requests, results, continuations and
+returned or thrown values stay VM values, preserving their identity.
 
-Begin with the synchronous operations the compiled program needs: file
-reading/resolution/writing, console I/O and `sandbox`. The FJS loader owns
-parsing, linking and interpretation; none belongs in a native `import` handler.
-Do not add a `function` effect or a Rust EDAG dependency for this workflow.
-Audit the existing vocabulary's consumers when selecting the supported subset;
-this plan does not remove the host `import` effect from existing runners.
+Use the existing [`Effect`](../fjs/effects/types.ts) representation:
 
-`sandbox` invokes a VM computation and captures its returned value or language
-throw using the current `Result` contract. Preserve
-[`SandboxResult`](../fjs/effects/common/types.ts), including duration. Replacing
-`Result` with Rust panics is a separate design decision. Capturing an error does
-not supply time limits, memory limits or process isolation; those remain
-separate work. Async operations and their runtime are deferred until needed.
+- `Pure` is a function with no arguments that returns an FJS `Result`.
+- `Do` is an object with `command`, `payload` and `continuation` properties.
 
-### Schema boundary
+Do not introduce native copies of effect data types, an RTTI-to-Rust printer,
+a generated operations trait, a codec, or serialization between the program
+and runner. Existing effect schemas may remain for their existing consumers;
+they are not a prerequisite for this runner. This replaces the generated-stub
+direction proposed in [PR #2573](https://github.com/functionalscript/functionalscript/pull/2573).
 
-`sandbox` is exempt from RTTI derivation. Its existing generic
-[`Sandbox`](../fjs/effects/common/types.ts) signature relates a callable thunk
-to its result, while [RTTI `Type`](../fjs/rtti/types.ts) describes DataJS values.
-An RTTI descriptor being a thunk does not make it a schema for callable values;
-RTTI `unknown` excludes functions. Neither the callback nor the full
-`SandboxResult<T>` contract can be represented by that vocabulary.
+### Synchronous cycle
 
-Keep the TypeScript declaration and the corresponding native operation
-declaration handwritten. The native synchronous handler receives a callable VM
-value, invokes it with no arguments through the VM call API, and records its
-`Result<Any<A>, Any<A>>` and duration. The callback and its returned or thrown
-values remain runtime VM values, including functions; they are not serialized
-or validated as DataJS. This leaves the existing host generic/`Awaited<T>`
-contract intact and does not introduce an RTTI callable extension.
+One ordinary loop is sufficient. `perform` below is an opaque synchronous
+operation boundary; its implementation is not part of this design.
 
-Compose this handwritten operation with the generated operations in the runner.
-The generated trait checks coverage only for its generated subset; conformance
-tests must cover the handwritten boundary and its dispatch too. Audit each
-additional operation for callbacks, generic relationships or runtime handles
-before including it in schema generation. Native declaration and dispatch
-details remain implementation work under this contract.
+```rust
+use nanvm_lib::vm::{Any, IVm, ToAny, ToArray};
 
-### Audit
+fn run<A: IVm>(
+    mut effect: Any<A>,
+    mut perform: impl FnMut(Any<A>, Any<A>) -> Result<Any<A>, Any<A>>,
+) -> Result<Any<A>, Any<A>> {
+    loop {
+        if effect.clone().typeof_()? == "function".into() {
+            return effect.call([].to_array().to_any());
+        }
+        let command = effect.clone().dot("command".into()).end()?;
+        let payload = effect.clone().dot("payload".into()).end()?;
+        let continuation = effect.dot("continuation".into()).end()?;
+        let answer = perform(command, payload)?;
+        effect = continuation.call([answer].to_array().to_any())?;
+    }
+}
+```
 
-Every member of `NodeOp` ([`fjs/effects/node/types.ts`](../fjs/effects/node/types.ts))
-against the RTTI vocabulary ([`fjs/rtti`](../fjs/rtti/README.md)). Three facts
-settle most rows. A result is a `Result`, which RTTI spells as the tuple union
-`['ok', T] | ['error', E]`; the error channels, `IoChannel` and
-`NotImplemented`, are tuples of a tag and a `string` or a struct of strings, so
-they are data too. `Vec` is a nominal `bigint`: RTTI describes the underlying
-`bigint`, but does not validate its brand. A trailing
-optional parameter (`mkdir`'s `options?`, `exec`'s `stdin?`) is a tuple element
-`or(option, t, undefined)`. `option` admits absence; the literal `undefined`
-admits a present value. Both are needed: `do_` preserves the second argument
-in `mkdir(path, undefined)` and `exec(command, undefined)`.
+The FJS `Result` (`['ok', value]` or `['error', error]`) is an ordinary VM
+array. Pass the complete operation result to the continuation, including an
+`error`; do not unwrap it or terminate the loop on it. A `Pure` returns its
+complete result unchanged. The outer Rust `Result<Any<A>, Any<A>>` is different:
+`Err` propagates a language throw from a VM call, not an FJS error result.
 
-| Class | Operations | Why |
+There is no async runtime, scheduler, task queue or recursive stepping of the
+effect chain. Parser, compiler, loader and other language logic stay in FJS.
+No Rust EDAG representation or executor is required.
+
+### Required VM operators and functions
+
+The VM must supply the following operations. They already have public
+implementations in `nanvm-lib`; reuse them rather than adding runner-specific
+versions or treating them as unfinished work.
+
+| Operation | Existing VM API | Used for |
 | --- | --- | --- |
-| **Generated** (data in, data out): compiler I/O plus console input | `readFile`, `writeFile`, `writeBytes`, `mkdir`, `readdir`, `resolveFileModule`, `rm`, `write` (`stdout`/`stderr`), `read` (`stdin`) | every parameter and result is a `string`, `number`, `boolean`, `null`, `Vec`, a struct of those (`Dirent`, `FileModule`, `MakeDirectoryOptions`, `ReaddirOptions`) or an array of them. [`_CompileOp`](../fjs/compiler/types.ts) uses this row except `read`, plus handwritten `all`. This todo selects `read` separately for console input; `compile` does not use it. |
-| **Generated**, outside the initial subset | `rmdir`, `rename`, `readBytes`, `readWhole`, `access`, `stat`, `createExclusive`, `writeExclusive`, `exec`, `inflate`, `now`, `randomInt` | the same shapes (`readWhole` and `writeExclusive` carry `readonly Vec[]`). Generated with the first group only when something the CLI or a proof fixture runs needs them; the stub is cheap to extend, an unimplemented trait method is not. |
-| **Handwritten**: callbacks or generic values | `sandbox`, `catch` | a thunk in, an arbitrary VM value or throw out, as [Schema boundary](#schema-boundary) says. `catch` has the same shape as `sandbox` without the duration and goes with it. |
-| **Handwritten**: effects or arbitrary values as data | `all`, `memCreate`, `memRead`, `memWrite` | `all` takes effects, which are thunks and `Do` nodes; the memory operations store and return any value (`<T>`), functions included. `unknown` would exclude exactly the values they exist to hold. |
-| **Handwritten**: modules | `import` | `Module` is `StringMap<unknown>`, the exports of an evaluated module, functions among them. This workflow does not use it: the FJS loader replaces it. |
-| **Deferred**: opaque host handles | `open`, `fstat`, `pread`, `close` | a `Handle` is `Nominal<..., unknown>`, minted by the runner and never inspected by the program. RTTI has no opaque-handle schema; the native runner would mint an index. Nothing in the CLI opens a file this way. |
-| **Deferred**: async, servers, tests | `fetch`, `await`, `createServer`, `listen`, `readRequestBytes`, `forever`, `test` | asynchronous (the runtime decision is deferred), or carrying a callback (`createServer`'s listener, `test`'s body and context). RTTI already spells `never` as `or()`; `forever` is deferred for its async runtime, not its result schema. |
+| `typeof` | [`Any::typeof_`](../nanvm-lib/src/vm/any/typeof_.rs) | Distinguish a `Pure` function from a `Do` object. |
+| `===` | [`Any`'s `PartialEq`](../nanvm-lib/src/vm/any/partial_eq.rs) | Compare the type tag with `"function"`. |
+| Property access, `.` / `[]` | [`Any::dot(...).end()`](../nanvm-lib/src/vm/any/dot.rs) | Read `command`, `payload` and `continuation`. |
+| Function call, `()` | [`Any::call`](../nanvm-lib/src/vm/any/call.rs) | Call a `Pure` with no arguments or a continuation with one complete result; preserve returned and thrown values. |
+| VM value construction and sharing | `Any::from`, `Any::clone`, `ToArray::to_array`, `ToAny::to_any` | Construct property-name strings and argument arrays without translating or copying their contained VM values. |
 
-What follows for the tasks below:
+Rust supplies the loop and branch; they need no new VM instruction. Operators
+and built-ins used by a particular compiled FJS program are that program's
+separate compiler/VM requirements, not prerequisites added by this loop.
 
-- **Generated** means native declarations here. A runtime TypeScript printer
-  sees `bigint`, not the nominal `Vec`; `Phantom` annotations affect static
-  `Ts<>` inference but are erased at runtime. Keep the existing TypeScript
-  API until an explicit nominal mapping preserves its signatures, as the
-  [RTTI type-system plan](./rtti-type-system.md)'s nominal-types task requires.
-- The first generated trait covers the compiler I/O operations and the separately
-  selected console input `read` named above. Add schemas for the other
-  data-shaped operations as consumers need them.
-- The generation task must choose the Rust spelling of three shapes: the
-  `Vec` nominal (RTTI checks `bigint`, while the native type must preserve
-  bit-vector semantics), the `Result` union (already expressible with RTTI
-  tuples and unions; a candidate is Rust `Result<T, E>` over a tagged-tuple
-  error), and the `read` result `number | null` (already `or(number, null)`;
-  `Option<u8>` also requires checking the byte range at the native boundary).
-- The handwritten set is `sandbox`, `catch`, `all`, `memCreate`, `memRead` and
-  `memWrite` for this workflow. The conformance tests must name each, since the
-  generated trait checks none of them.
+### Scope
+
+This TODO specifies the runner's value model and control flow only. It contains
+no design for implementing individual Node effects. Those implementations are
+separate work, driven by actual consumers.
 
 ### Tasks
 
-- [x] Audit the supported subset for RTTI representability ([Audit](#audit)):
-      name the generated and handwritten operations, distinguish compiler I/O
-      from the selected console input, and record what remains deferred.
-- [x] Schemas for the named compiler I/O and console input operations
-      ([`fjs/effects/schema`](../fjs/effects/schema/module.f.mjs)), with each
-      hand-written declaration in `fjs/effects/node/types.ts` pinned to the
-      type its schema derives ([`types.ts`](../fjs/effects/schema/types.ts)).
-      The declarations stay handwritten; a future TypeScript printer must
-      satisfy the nominal-mapping gate below before replacing them.
-- [ ] A Rust printer for these schemas and the generated trait with one
-      method per operation, committed under `npm run gen`. Account explicitly
-      for handwritten and unsupported operations.
-- [ ] Add the handwritten native `sandbox` declaration and compose its dispatch
-      with the generated subset, preserving the existing TypeScript signature.
-- [ ] Before generating TypeScript declarations, define a nominal mapping
-      that preserves `Vec` parameters and results, and check the emitted
-      declarations against the existing API.
-- [ ] Add the runner crate and implement the operations exercised by the
-      AOT-compiled CLI and parser-based proof fixtures.
-- [ ] Implement `sandbox` success, language-throw and duration behavior, with
-      cross-host contract tests covering dispatch and callable values returned
-      or thrown without losing their identity or requiring serialization.
-- [ ] Cross-check applicable operations with the existing FJS virtual/mock
-      interpreters; keep mutable host effects at the native boundary.
-- [ ] Embed the runner in the native CLI without moving parser/compiler/loader
-      logic into handwritten Rust.
+- [ ] Add the runner crate using `nanvm-lib` values directly.
+- [ ] Implement the synchronous loop above without a second effect/value model.
+- [ ] Prove `Pure` success and error results, sequential continuation calls,
+      recovery from an operation error, propagation of language throws, and
+      preservation of callable/value identity using a small test boundary.
+- [ ] Prove a long effect sequence does not grow the runner's call stack.
+- [ ] Run an AOT-compiled FJS effect fixture through the same loop.
 
 ### Related
 
+- [MVP roadmap](../nanvm-lib/todo/mvp-roadmap.md#effects-the-nanvm-effects-node-runner-crate-decided).
+- [Effect representation and matching](../fjs/effects/module.f.mjs).
+- [Existing JavaScript runner](../fjs/effects/module.mjs) — the same stepping
+  structure; the native loop is synchronous.
 - [FJS module loader](../fjs/compiler/todo/load-modules-without-import-effect.md).
 - [FJS proof loading](../fjs/emergent_testing/todo/load-proofs-through-fjs.md).
 - [console-program](../nanvm-lib/todo/console-program.md) — native packaging.
-- [interpreter resource limits](../fjs/compiler/todo/bound-edag-interpreter-resources.md)
-  and [worker isolation](../fjs/emergent_testing/todo/206-workers-as-a-sandbox.md).
