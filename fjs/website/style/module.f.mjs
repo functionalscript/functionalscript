@@ -188,6 +188,7 @@ textarea { vertical-align: top }
    redraws focus and the caret), and a field a reader just widened would
    silently narrow back on the next keystroke. */
 .demo-input { box-sizing: border-box; width: 100% }
+.hmac-demo label, .hmac-demo p:has(+ [data-code-block]) { font-weight: bold }
 textarea { box-sizing: border-box; resize: vertical; width: 100% }
 /* The header every page opens with: the logo and the site's name on the left,
    the site-wide links on the right, across the full width of the window with

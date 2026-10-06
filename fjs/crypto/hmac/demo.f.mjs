@@ -39,7 +39,7 @@ export const demo = {
     update: fieldUpdate,
     view: state => {
         const algorithm = selectedAlgorithm(state.algorithm)
-        return ['div',
+        return ['div', { class: 'hmac-demo' },
             ['p',
                 ['label', { for: 'algorithm' }, 'Algorithm '],
                 ['select', { id: 'algorithm', name: 'algorithm' },
