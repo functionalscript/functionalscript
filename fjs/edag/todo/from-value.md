@@ -1,7 +1,7 @@
 ## from-value. Two modules convert a plain value into EDAG literal nodes
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
