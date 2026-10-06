@@ -371,6 +371,24 @@ const demoProof = /** @type {const} */ ({
         missing: () => assertEq(JSON.stringify(_marked(['b'])({ a: 1 })), JSON.stringify([['mark', '{"a":1}']])),
         // A path that runs past a leaf marks the leaf.
         leaf: () => assertEq(JSON.stringify(_marked(['a', 'b'])({ a: 7n })), JSON.stringify(['{', '"a":', ['mark', '7n'], '}'])),
+        // A value that shares much is never expanded past what is shown: a
+        // 64-level chain of pairs is 2^64 leaves as one expression, and the
+        // mark and the members beside the path are cut, with `…` where.
+        shared: () => {
+            /** @type {(n: number) => import('../media/datajs/types.ts').Unknown} */
+            const pairs = n => n === 0 ? 'leaf' : (x => [x, x])(pairs(n - 1))
+            const nodes = _marked(['0', '1'])(pairs(64))
+            // `[[beside,<mark>],beside]`, each part cut at a chunk's end
+            // within its limit
+            assertEq(nodes.length, 9)
+            const beside = nodes[2]
+            const mark = nodes[4]
+            assert(typeof beside === 'string' && beside.length <= 41 && beside.endsWith('…'), JSON.stringify(beside))
+            assertEq(nodes[7], beside)
+            assert(typeof mark !== 'string' && mark[0] === 'mark', JSON.stringify(mark))
+            const text = mark[1]
+            assert(typeof text === 'string' && text.length <= 401 && text.endsWith('…'), JSON.stringify(text))
+        },
         // From the page: a nested failure marks only that member.
         page: () => {
             const r = _readersOf({ a: { b: number } })('export default {"a":{"b":"x"}};')

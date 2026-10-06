@@ -56,7 +56,7 @@
  * @import { Graph, Shape } from '../website/demo/graph/types.ts'
  * @import { Element, Node } from '../media/html/types.ts'
  * @import { Unknown } from '../media/datajs/types.ts'
- * @import { Data } from './data/types.ts'
+ * @import { List } from '../types/list/types.ts'
  * @import { Const, DemoExample, DemoSchema, DemoState, Type, _Answer } from './types.ts'
  */
 
@@ -73,7 +73,7 @@ import { tryParse, trySerialize } from '../media/datajs/module.f.mjs'
 import { leafSerialize } from '../media/datajs/serializer/module.f.mjs'
 import { unwrap } from '../types/result/module.f.mjs'
 import { concat } from '../types/string/module.f.mjs'
-import { toArray } from '../types/list/module.f.mjs'
+import { dropWhile, first, flat, intersperse, map, stateScan, takeWhile, toArray } from '../types/list/module.f.mjs'
 import { graphOf, graphSvg } from '../website/demo/graph/module.f.mjs'
 import { pureOk } from '../effects/module.f.mjs'
 import { pageHref } from '../website/page/module.f.mjs'
@@ -453,17 +453,46 @@ export const _readersOf = schema => text => {
 // ── where a failure points ───────────────────────────────────────────────────
 
 /**
- * A value as one DataJS expression, sharing written out: the text the marked
- * value is built from, so the part outside the mark reads as the part inside
- * does.
+ * A value as one DataJS expression, lazily, a chunk at a time. Sharing is
+ * written out, so a value that shares much is far longer as one expression
+ * than as the document that denotes it; nothing here reads further than its
+ * caller takes.
  *
- * @type {(value: Unknown) => string}
+ * @type {(value: Unknown) => List<string>}
  */
-const expressionText = value => value === null || typeof value !== 'object'
-    ? concat(leafSerialize(value))
-    : value instanceof Array
-        ? `[${[...value].map(expressionText).join(',')}]`
-        : `{${Object.entries(value).map(([k, v]) => `${concat(leafSerialize(k))}:${expressionText(v)}`).join(',')}}`
+const expressionChunks = value => {
+    if (value === null || typeof value !== 'object') { return [concat(leafSerialize(value))] }
+    /** @type {(items: List<List<string>>) => List<string>} */
+    const items = list => flat(intersperse([','])(list))
+    return value instanceof Array
+        ? flat([['['], items(map(expressionChunks)([...value])), [']']])
+        : flat([['{'], items(map(
+            /** @type {(e: readonly [string, Unknown]) => List<string>} */
+            ([k, v]) => flat([[`${concat(leafSerialize(k))}:`], () => expressionChunks(v)]))(Object.entries(value))), ['}']])
+}
+
+/**
+ * `value` as one expression, cut to at most `limit` characters, with `…`
+ * where it was cut. Reading stops at the cut, so the cost is bounded by
+ * `limit` however much the value shares.
+ *
+ * @type {(limit: number) => (value: Unknown) => string}
+ */
+const boundedText = limit => value => {
+    const counted = stateScan(
+        /** @type {(c: string, n: number) => readonly [readonly [number, string], number]} */
+        (c, n) => [[n + c.length, c], n + c.length])(0)(expressionChunks(value))
+    /** @type {(e: readonly [number, string]) => boolean} */
+    const fits = ([n]) => n <= limit
+    const kept = toArray(takeWhile(fits)(counted)).map(([, c]) => c).join('')
+    return first(null)(dropWhile(fits)(counted)) === null ? kept : `${kept}…`
+}
+
+/** How much of the marked value is written. */
+const markLimit = 400
+
+/** How much of each member beside the path is written. */
+const besideLimit = 40
 
 /**
  * `value` written as one expression with the member `path` reaches marked.
@@ -471,15 +500,20 @@ const expressionText = value => value === null || typeof value !== 'object'
  * at the key the schema required — so the deepest value the path reaches is
  * what gets the mark: the member itself, or the container it is missing from.
  *
+ * Only the path is written in full. The marked value and each member beside
+ * the path are cut to a few characters' worth, so a value that shares much —
+ * a valid DataJS document can denote a graph whose expansion is exponential
+ * in its length — is never expanded past what is shown.
+ *
  * @type {(path: readonly (string | number)[]) => (value: Unknown) => readonly Node[]}
  */
 export const _marked = path => value => {
-    if (path.length === 0 || value === null || typeof value !== 'object') { return [['mark', expressionText(value)]] }
+    if (path.length === 0 || value === null || typeof value !== 'object') { return [['mark', boundedText(markLimit)(value)]] }
     const [step, ...rest] = path
     const key = String(step)
-    if (Object.getOwnPropertyDescriptor(value, key) === undefined) { return [['mark', expressionText(value)]] }
+    if (Object.getOwnPropertyDescriptor(value, key) === undefined) { return [['mark', boundedText(markLimit)(value)]] }
     /** @type {(k: string, v: Unknown) => readonly Node[]} */
-    const member = (k, v) => k === key ? _marked(rest)(v) : [expressionText(v)]
+    const member = (k, v) => k === key ? _marked(rest)(v) : [boundedText(besideLimit)(v)]
     /** @type {(nodes: readonly (readonly Node[])[]) => readonly Node[]} */
     const commas = nodes => nodes.flatMap((n, i) => i === 0 ? n : [',', ...n])
     return value instanceof Array
@@ -503,7 +537,7 @@ export const _outputsOf = schema => {
     return {
         ts: [...definitions.map(([name, type]) => `type ${name} = ${type}`), entry].join('\n'),
         jsonSchema: stringify(identity)(dataToJsonSchema(data)),
-        data: expressionText(/** @type {Unknown} */ (data)),
+        data: documentText(/** @type {Unknown} */ (data)),
     }
 }
 
