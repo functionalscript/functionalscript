@@ -45,11 +45,10 @@ or handwritten Rust EDAG executor.
 The host pipeline needs semantic migrations before compiler coverage can make
 it self-hosting:
 
-- The memo executor's `slot` mutates a captured `let filled`. The
-  [immutable-cache rewrite](../../edag/memo/todo/immutable-cache.md) must preserve
-  sharing, laziness and per-invocation identity.
-- Host `Map` dependencies also need migration: `invocation` in
-  [memo](../../edag/memo/module.f.mjs) indexes cache slots, `start` and `fresh` in
+- The memo executor now threads an immutable cache through evaluation. Its
+  [native parity checks](../../edag/memo/todo/immutable-cache.md) must still prove
+  sharing, laziness and per-invocation identity after compilation.
+- Host `Map` dependencies still need migration: `start` and `fresh` in
   [analysis](../../edag/analysis/module.f.mjs) track visited node identities,
   and the [compiler AST helpers](../ast/module.f.mjs) construct maps for
   deduplication. Immutable use of a host `Map` does not make it admitted FJS;

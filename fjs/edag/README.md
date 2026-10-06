@@ -66,8 +66,8 @@ from deferred captures and valid body templates. Captures evaluate in order,
 retaining their identities and propagating the first failure unchanged.
 Each function gets a fresh copy of its body graph, including nested function
 templates, while sharing within that graph is preserved. Body code stays
-unevaluated; captured values stay outside the copy. Invocation remains part
-of the executor migration.
+unevaluated; captured values stay outside the copy. Memo's `invoke` interprets
+the retained body with a fresh invocation cache.
 
 [`value/call`](value/call/module.f.mjs) prepares bare calls over represented
 values. It resolves deferred arguments and spreads, pads missing fixed
@@ -75,15 +75,19 @@ arguments with tagged undefined and creates a fresh rest array per call.
 Callee and argument failures propagate unchanged; arguments resolve before
 a non-function fails. An executor callback receives the original function
 and its fixed/rest bindings and owns body evaluation and invocation state.
-This stateless helper leaves immutable cache integration to the VM migration.
+The memo interpreter threads its immutable cache around these stateless helpers.
 
 [`value/property`](value/property/module.f.mjs) reads resolved string keys
 from represented values, preserving stored field and element identities.
 Arrays, strings and functions expose their lengths; string indices read
 UTF-16 code units. Missing properties return tagged undefined and nullish
 receivers fail. Callers own operand evaluation order, key resolution and
-source-name admission; method dispatch and the raw `own` operation remain
-in the operation migration.
+source-name admission. Memo connects these reads to chains and `own`;
+[`value/method`](value/method/module.f.mjs) dispatches admitted built-ins, with
+represented array callbacks in [`value/array_method`](value/array_method/module.f.mjs).
+[`value/convert`](value/convert/module.f.mjs) supplies primitive conversion for
+objects, arrays and functions. The [value plan](todo/edag-value.md) records
+the blocking function-renderer gap and the remaining VM migrations.
 
 [`value/coercion`](value/coercion/module.f.mjs) converts ordinary objects to
 primitives by trying `valueOf` and `toString` in the hint's order. Own methods
@@ -180,9 +184,10 @@ kind by node kind — validation behavior, not execution semantics — with
 whose behavior the nodes are built around, which is how those semantics were
 pinned before anything executed an EDAG. [amnesia](amnesia/README.md) now
 does — a tree-walking evaluator for testing the semantics, and deliberately
-not a VM to run FunctionalScript on — over the one table of
+not a VM to run FunctionalScript on — over the host-valued table of
 [operations](operations/module.f.mjs), one per tag, parameterized by how an
-operand is evaluated, so that every executor means the same by a node.
+operand is evaluated. It remains a temporary proof oracle during the
+[EDAG-value migration](todo/edag-value.md).
 [analysis](analysis/module.f.mjs) reads
 a graph into one table — every operation node once, in walk order, its
 operands by index, its scope, and which entries are shared — so that a
@@ -192,8 +197,11 @@ structural failures, such as a node shared across function scopes or a
 noncanonical function length, return a diagnostic. Complete executable
 graphs additionally use `bindingError` to check their invocation bindings.
 [memo](memo/module.f.mjs) is that
-executor, JavaScript-compatible, every shared entry evaluated once per
-scope. The broader identity and memoization
+interpreter: it returns `Result<EdagValue, EdagValue>`, evaluating every shared
+entry once per invocation with an immutable cache. Functions retain their
+bodies and evaluated captures; invocation does not construct host callables.
+Conversion of value graphs to ordinary FJS/JS values is **runtime compilation**,
+separate from **EDAG interpretation**. The broader identity and memoization
 choices, including JS-compatible executors, global memoization, and the CAVM,
 are compared in [execution-models.md](execution-models.md).
 
@@ -299,10 +307,13 @@ ever reinterpreted. Earlier positive-arity/full-argument experiments have no
 general lossless migration to this format.
 
 A function's `length` is at most 16, the language's limit: `bindingError`
-refuses a larger one. Amnesia and memo share the
+refuses a larger one. Amnesia still uses the
 [arrow factories](../types/function/length/README.md) of
-`fjs/types/function/length`, which cover every valid length. The default-text
-renderer remains tracked in
+`fjs/types/function/length`, which cover every valid length. Memo reads length
+and fixed/rest bindings from represented functions, without an arrow factory.
+Its function text uses the shared renderer; unsupported renderer output remains
+a blocking draft migration gap in the [value plan](todo/edag-value.md).
+The default-text renderer remains tracked in
 [the parameter plan](../../spec/todo/3120-parameters.md).
 
 An `index` — the property operand of `.`, `?.`, and the `|.` step — is a

@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** wip — migrate the memo interpreter to EDAG values; callable runtime compilation and the remaining VM migrations stay open
+**Status:** wip — memo migration implemented in draft; function-text output refusals must be resolved before it is ready
 
 ### Problem
 
@@ -21,6 +21,11 @@ for FJS VMs**. Evaluation and language operations return
 `Result<EdagValue, EdagValue>`. Provide an explicit conversion from `EdagValue`
 to `unknown`: an ordinary FJS runtime value whose EDAG reflection has been
 erased. Converted functions remain callable but no longer expose their EDAG.
+
+Call evaluation from EDAG to a value graph **EDAG interpretation**. Call the
+conversion from EDAG values to ordinary FJS/JS runtime values **runtime
+compilation**, including function-free materialization. Callable runtime
+compilation includes the backend's code-generation and load/build boundary.
 
 This changes runtime representation and tooling APIs. It introduces no new
 source syntax or reflection primitive. The approved parameter limit remains
@@ -134,6 +139,15 @@ including indirect conversion through arrays, keys and built-in methods.
 Default function text follows the approved code/frame-slot contract. Saving
 a closed callable also retains its captures and sharing; these are distinct
 output contracts.
+
+The draft memo migration connects this renderer, but it still refuses some
+valid bodies. For example, `['String', ['=>', 0, [], ['.', ['rest'], 'x',
+['|?.()', []]]]]` reaches the output diagnostic `a |?.() step`. That is not
+a program-thrown value and must never become `error(['undefined'])`. The
+draft preserves the renderer diagnostic as a host refusal. **This is a
+blocking gap**, not the final interpreter failure contract: complete the
+renderer or settle a separate diagnostic channel before marking the migration
+ready. Do not preflight unused function text or invent fallback source text.
 
 #### Modules and metaprogramming
 
@@ -385,10 +399,13 @@ budget or stopped-outcome API.
       adding reads. Existing supported text and source round-trip refusals
       remain unchanged. Nested capture expressions still follow the source
       writer's other restrictions; full callable value emission remains below.
-- [ ] Implement shared value operations and invocation over
+- [x] Implement shared value operations and invocation over
       `Result<EdagValue, EdagValue>`, with immutable state and admitted methods.
-- [ ] Migrate Amnesia and memo, preserving each documented execution model;
-      migrate their proofs, the `fjs/nanvm` corpus and parameter consumers.
+- [ ] Finish the memo cutover: its dispatch, represented invocation, immutable
+      cache and compiler proof consumers are implemented. Resolve the blocking
+      function-text output-refusal boundary above before marking it ready.
+- [ ] Migrate Amnesia, preserving its documented execution model, and migrate
+      its proofs and the `fjs/nanvm` corpus. The host-valued oracle is temporary.
 - [x] Materialize function-free values in `fjs/edag/value/to_unknown` as
       ordinary runtime data typed as `unknown`. Decode tagged undefined,
       arrays and own object fields while preserving shared container identities
