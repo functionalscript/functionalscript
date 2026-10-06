@@ -2,3 +2,7 @@
 name = "nanvm-effects-node"
 version = "0.1.0"
 edition = "2024"
+
+# Platform errno constants; ErrorKind::FilesystemLoop is not stable yet.
+[target.'cfg(unix)'.dependencies]
+libc = { version = "0.2.190", default-features = false }

@@ -16,9 +16,10 @@ use std::{
     path::Path,
 };
 
-/// The most a file may hold to be read: one `Vec`, which the language caps at
-/// 2^17 bytes (`maxLengthBytes` in `fjs/types/bit_vec`). A larger one is
-/// refused before it is read, as `readFile` of the Node runner refuses it.
+/// The most a file read may return: one `Vec`, which the language caps at
+/// 2^17 bytes (`maxLengthBytes` in `fjs/types/bit_vec`). Metadata can refuse a
+/// known oversized file early; the read itself is capped at this plus one byte
+/// so an unknown or growing size cannot bypass the limit.
 pub const MAX_FILE_SIZE_BYTES: u64 = 1 << 17;
 
 /// A runner over `std`, reading console input from `R` and writing console
@@ -47,10 +48,16 @@ impl<R, O, E> Native<R, O, E> {
     }
 }
 
-/// The Node error code of a failure, where `std` has a kind for it: what a
-/// program reads from `IoError.code` to tell a missing file from a refused one.
-fn code(kind: ErrorKind) -> Option<&'static str> {
-    match kind {
+/// The Node error code of a failure: what a program reads from `IoError.code`
+/// to distinguish missing paths, cyclic links and other failures.
+fn code(error: &io::Error) -> Option<&'static str> {
+    // `ErrorKind::FilesystemLoop` is still unstable. Use the target's errno,
+    // not a numeric value shared accidentally by only some Unix platforms.
+    #[cfg(unix)]
+    if error.raw_os_error() == Some(libc::ELOOP) {
+        return Some("ELOOP");
+    }
+    match error.kind() {
         ErrorKind::NotFound => Some("ENOENT"),
         ErrorKind::PermissionDenied => Some("EACCES"),
         ErrorKind::AlreadyExists => Some("EEXIST"),
@@ -65,7 +72,7 @@ fn code(kind: ErrorKind) -> Option<&'static str> {
 /// one, and a message naming the call and the path.
 fn failure(error: &io::Error, call: &str, path: &str) -> IoChannel {
     IoChannel::IoError(IoErrorInfo {
-        code: code(error.kind()).map(str::to_string),
+        code: code(error).map(str::to_string),
         message: format!("{error}, {call} '{path}'"),
     })
 }
@@ -76,6 +83,31 @@ fn refusal(code: &str, message: String) -> IoChannel {
         code: Some(code.to_string()),
         message,
     })
+}
+
+/// Refuse a size known to exceed one language `Vec`, without an OS error code.
+fn check_file_size(size: u64, path: &str) -> Result<(), IoChannel> {
+    if size > MAX_FILE_SIZE_BYTES {
+        return Err(IoChannel::IoError(IoErrorInfo {
+            code: None,
+            message: format!(
+                "File size {size} exceeds maximum allowed size of {MAX_FILE_SIZE_BYTES} bytes: '{path}'"
+            ),
+        }));
+    }
+    Ok(())
+}
+
+/// Read at most one `Vec` plus a sentinel byte. Metadata is only a hint: pipes
+/// can report zero and regular files can grow after the metadata check.
+fn read_bounded(reader: impl Read, path: &str) -> Result<Vec<u8>, IoChannel> {
+    let mut data = Vec::new();
+    reader
+        .take(MAX_FILE_SIZE_BYTES + 1)
+        .read_to_end(&mut data)
+        .map_err(|e| failure(&e, "read", path))?;
+    check_file_size(data.len() as u64, path)?;
+    Ok(data)
 }
 
 /// `normalize` of `fjs/path`, for the paths a directory read answers: `\` is
@@ -186,20 +218,14 @@ impl<R: Read, O: Write, E: Write> Operations for Native<R, O, E> {
         .map_err(|e| failure(&e, "mkdir", &path))
     }
 
-    /// A file over [`MAX_FILE_SIZE_BYTES`] is refused, with no code, before it is read.
+    /// Refuse a known oversized file before reading, and cap the actual read
+    /// too. Metadata and bytes come from the same open file, so replacing the
+    /// path cannot switch the object between those operations.
     fn read_file(&mut self, path: String) -> Result<Vec<u8>, IoChannel> {
-        let size = fs::metadata(&path)
-            .map_err(|e| failure(&e, "stat", &path))?
-            .len();
-        if size > MAX_FILE_SIZE_BYTES {
-            return Err(IoChannel::IoError(IoErrorInfo {
-                code: None,
-                message: format!(
-                    "File size {size} exceeds maximum allowed size of {MAX_FILE_SIZE_BYTES} bytes: '{path}'"
-                ),
-            }));
-        }
-        fs::read(&path).map_err(|e| failure(&e, "open", &path))
+        let file = File::open(&path).map_err(|e| failure(&e, "open", &path))?;
+        let size = file.metadata().map_err(|e| failure(&e, "stat", &path))?.len();
+        check_file_size(size, &path)?;
+        read_bounded(file, &path)
     }
 
     /// Not implemented yet: module resolution is `todo/nanvm-effects-node.md`'s own task.
@@ -372,13 +398,51 @@ mod test {
 
     #[test]
     fn codes() {
-        assert_eq!(code(ErrorKind::NotFound), Some("ENOENT"));
-        assert_eq!(code(ErrorKind::PermissionDenied), Some("EACCES"));
-        assert_eq!(code(ErrorKind::AlreadyExists), Some("EEXIST"));
-        assert_eq!(code(ErrorKind::NotADirectory), Some("ENOTDIR"));
-        assert_eq!(code(ErrorKind::IsADirectory), Some("EISDIR"));
-        assert_eq!(code(ErrorKind::DirectoryNotEmpty), Some("ENOTEMPTY"));
-        assert_eq!(code(ErrorKind::Other), None);
+        assert_eq!(code(&ErrorKind::NotFound.into()), Some("ENOENT"));
+        assert_eq!(code(&ErrorKind::PermissionDenied.into()), Some("EACCES"));
+        assert_eq!(code(&ErrorKind::AlreadyExists.into()), Some("EEXIST"));
+        assert_eq!(code(&ErrorKind::NotADirectory.into()), Some("ENOTDIR"));
+        assert_eq!(code(&ErrorKind::IsADirectory.into()), Some("EISDIR"));
+        assert_eq!(code(&ErrorKind::DirectoryNotEmpty.into()), Some("ENOTEMPTY"));
+        assert_eq!(code(&ErrorKind::Other.into()), None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn filesystem_loop_code() {
+        assert_eq!(code(&io::Error::from_raw_os_error(libc::ELOOP)), Some("ELOOP"));
+        // Too many hard links is not a symlink-resolution loop.
+        assert_eq!(code(&io::Error::from_raw_os_error(libc::EMLINK)), None);
+    }
+
+    #[test]
+    fn bounded_reads() {
+        for size in [0, 1, MAX_FILE_SIZE_BYTES - 1, MAX_FILE_SIZE_BYTES] {
+            let data = vec![7; size as usize];
+            assert_eq!(read_bounded(Cursor::new(&data), "input"), Ok(data.clone()));
+        }
+        let mut input = Cursor::new(vec![7; (MAX_FILE_SIZE_BYTES + 2) as usize]);
+        let Err(IoChannel::IoError(info)) = read_bounded(&mut input, "input") else {
+            panic!("an oversized read was accepted")
+        };
+        assert_eq!(input.position(), MAX_FILE_SIZE_BYTES + 1);
+        assert_eq!(info.code, None);
+        assert!(info.message.contains("131072 bytes: 'input'"));
+    }
+
+    #[test]
+    fn bounded_read_preserves_io_failure() {
+        struct Broken;
+        impl Read for Broken {
+            fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
+                Err(ErrorKind::PermissionDenied.into())
+            }
+        }
+        let Err(IoChannel::IoError(info)) = read_bounded(Broken, "input") else {
+            panic!("a failed read was accepted")
+        };
+        assert_eq!(info.code, Some("EACCES".into()));
+        assert!(info.message.ends_with(", read 'input'"));
     }
 
     /// The console writes both streams and reads input a byte at a time.
@@ -526,6 +590,69 @@ mod test {
                 "{}",
                 info.message
             );
+        }
+
+        /// A pipe exposed through procfs reports zero bytes but supplies more
+        /// than one `Vec`. A finite producer makes an unbounded read fail this
+        /// test by its result, rather than hanging or allocating indefinitely.
+        #[cfg(target_os = "linux")]
+        #[test]
+        fn read_caps_a_zero_metadata_pipe() {
+            use std::os::fd::AsRawFd;
+
+            let (pipe, mut writer) = io::pipe().unwrap();
+            let path = format!("/proc/self/fd/{}", pipe.as_raw_fd());
+            assert_eq!(fs::metadata(&path).unwrap().len(), 0);
+            let producer = std::thread::spawn(move || {
+                io::copy(&mut io::repeat(7).take(MAX_FILE_SIZE_BYTES + 1), &mut writer)
+            });
+            let result = runner(b"").read_file(path);
+            // Also unblock the producer if the operation returned early.
+            drop(pipe);
+            assert_eq!(producer.join().unwrap().unwrap(), MAX_FILE_SIZE_BYTES + 1);
+            let Err(IoChannel::IoError(info)) = result else {
+                panic!("the pipe bypassed the file-size limit")
+            };
+            assert_eq!(info.code, None);
+            assert!(info.message.contains("131072 bytes"));
+        }
+
+        #[test]
+        fn read_refuses_growth_after_metadata() {
+            let dir = Scratch::new();
+            let path = dir.at("growing");
+            fs::write(&path, b"").unwrap();
+            let file = File::open(&path).unwrap();
+            check_file_size(file.metadata().unwrap().len(), &path).unwrap();
+            fs::write(&path, vec![0; (MAX_FILE_SIZE_BYTES + 1) as usize]).unwrap();
+            let Err(IoChannel::IoError(info)) = read_bounded(file, &path) else {
+                panic!("a growing file bypassed the file-size limit")
+            };
+            assert_eq!(info.code, None);
+            assert!(info.message.starts_with("File size 131073 exceeds"));
+        }
+
+        #[cfg(unix)]
+        #[test]
+        fn cyclic_symlinks_preserve_eloop() {
+            let dir = Scratch::new();
+            let path = dir.at("loop");
+            std::os::unix::fs::symlink("loop", &path).unwrap();
+            let mut r = runner(b"");
+            assert_eq!(code_of(r.read_file(path.clone())), Some("ELOOP".into()));
+            for recursive in [false, true] {
+                assert_eq!(
+                    code_of(r.readdir(path.clone(), ReaddirOptions { recursive })),
+                    Some("ELOOP".into())
+                );
+            }
+            assert_eq!(
+                code_of(r.write_file(path.clone(), vec![])),
+                Some("ELOOP".into())
+            );
+            assert_eq!(code_of(r.rm(format!("{path}/child"))), Some("ELOOP".into()));
+            // Removing the link itself does not follow it.
+            assert_eq!(r.rm(path), Ok(()));
         }
 
         #[test]
