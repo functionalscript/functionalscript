@@ -77,9 +77,9 @@ const output = state => {
     const hash = sha256Pow.hashInt(utf8(text))
     const succeeded = hash <= target
     return [
-        ...targetView,
         ['p', 'Hashed input (UTF-8):'],
         codeBlock(text, 'Copy hashed input'),
+        ...targetView,
         ['p', 'Hash, hex:'],
         codeBlock(hash.toString(16).padStart(64, '0'), 'Copy hash'),
         ['p', 'Proof of Work:'],
@@ -147,7 +147,6 @@ export const demo = {
                 ],
             ],
             ['p', { class: 'pow-effort-note' }, 'These are averages; a search may finish sooner or take longer.'],
-            ['p', { class: 'pow-effort-note' }, 'The nonce is written in decimal; hashes are compared as big-endian integers. Bitcoin uses double SHA-256 of a binary block header.'],
         ],
         ...output(state),
     ],

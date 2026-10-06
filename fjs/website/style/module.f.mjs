@@ -191,7 +191,7 @@ textarea { vertical-align: top }
 /* Keep the PoW difficulty examples aligned with the field above them. */
 .pow-search-effort { border-collapse: collapse; width: 100% }
 .pow-effort { margin: 1rem 0 }
-.pow-effort > summary { cursor: pointer; font-weight: bold }
+.pow-effort > summary { cursor: pointer; font-weight: normal }
 .pow-effort[open] > summary { margin-bottom: .75rem }
 .pow-search-effort th { border-bottom: 1px solid var(--border); color: var(--muted); font-size: .875rem; font-weight: normal; padding: 0 0 .75rem; text-align: left }
 .pow-search-effort td { border-bottom: 1px solid var(--border); padding: .75rem 0 }
