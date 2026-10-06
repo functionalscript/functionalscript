@@ -132,6 +132,14 @@ Out-of-range reads succeed with tagged undefined; bigint indices fail even
 for empty receivers. Callers own method dispatch, operand evaluation and
 conversion of nonprimitive indices, using the number hint for ordinary objects.
 
+[`value/slice`](value/slice/module.f.mjs) slices evaluated arrays and strings
+with primitive start/end bounds. Tagged undefined means an omitted bound:
+start defaults to zero and end to the receiver's length. Other bounds use
+abstract ToNumber, with bigint failing even for empty receivers or ranges.
+Array results are fresh values sharing the selected elements; strings retain
+UTF-16 substring semantics. Callers own method dispatch, operand evaluation
+and conversion of nonprimitive bounds, using the number hint for ordinary objects.
+
 The shared [serializer](../compiler/serializer/module.f.mjs) exposes
 `functionText(analysis, index)` for a function whose analysis and body bindings
 are already established. It renders canonical code and capture-slot names
