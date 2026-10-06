@@ -3,11 +3,17 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { Denotation } from '../ast/types.ts'
  * @import { ParseError } from '../parser/types.ts'
+ * @import { InitializationError } from './types.ts'
+ * @import { EdagValue } from '../../edag/value/types.ts'
  */
 
-import { _importSources, parse, transpile } from './module.f.mjs'
+import { _transpileDefault, interpret, parse, transpile } from './module.f.mjs'
+import { _importSources } from '../source/module.f.mjs'
 import { _defaultExport, resolve, unresolved } from '../edag/module.f.mjs'
-import { _own } from '../ast/module.f.mjs'
+import { invoke } from '../../edag/memo/module.f.mjs'
+import { read } from '../../edag/value/property/module.f.mjs'
+import { isArray } from '../../types/array/module.f.mjs'
+import { isObject } from '../../types/object/module.f.mjs'
 import { _errorLocation, compile } from '../module.f.mjs'
 import { nodeCommands, exitCode, ioError } from '../../effects/node/module.f.mjs'
 import { tryStringify } from '../../media/datajs/module.f.mjs'
@@ -18,14 +24,24 @@ import { utf8, utf8ToString } from '../../text/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 // The virtual host declares lexical path identities; native URL behavior has host proofs.
-/** @type {(path: string) => (imports: readonly import('../ast/types.ts').AstImport[]) => Result<readonly import('./types.ts')._Source[], ParseError>} */
+/** @type {(path: string) => (imports: readonly import('../ast/types.ts').AstImport[]) => Result<readonly import('../source/types.ts')._Source[], ParseError>} */
 const importSources = path => imports => virtual(emptyState)(_importSources({ id: path, path, json: false })(imports))[1]
 
-/** @type {(root: Dir) => (path: string) => Result<Denotation, ParseError>} */
+// Existing data cases unwrap only the explicit runtime-conversion result.
+/** @type {(root: Dir) => (path: string) => Result<Denotation, ParseError | InitializationError>} */
 const run = root => path => {
     const [, result] = virtual({ ...emptyState, root })(transpile(path))
-    return result
+    return result[0] === 'error' ? result : ok(unwrap(result[1]))
 }
+
+/** The default on a materialized module export object. @type {(value: unknown) => unknown} */
+const defaultValue = value => {
+    assert(isObject(value))
+    return value.default
+}
+
+/** @type {(root: Dir, path: string) => Result<EdagValue, ParseError | InitializationError>} */
+const represented = (root, path) => virtual({ ...emptyState, root })(interpret(path))[1]
 
 /** Both public compiler paths report the same unsupported-specifier error. @type {(specifier: string, source: string, root: Dir) => void} */
 const refusedSpecifier = (specifier, source, root) => {
@@ -41,6 +57,116 @@ const refusedSpecifier = (specifier, source, root) => {
 }
 
 export const proof = {
+    interpretation: {
+        callsAndOperators: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=x=>x+1; export default f(41);', 42],
+                ['export default false ? null.x : 6*7;', 42],
+                ['export default [1,2].map(x=>x+1);', [2, 3]],
+                ['const add=x=>y=>x+y; export default add(2)(3);', 5],
+            ])) {
+                assertStructurallySame(unwrap(run({ main: [utf8(source)] })('main')).value, { default: expected })
+            }
+        },
+        completeExports: () => {
+            const root = {
+                main: [utf8('import {f,n} from "./dep"; export const callback=f; export const answer=n+1;')],
+                dep: [utf8('export const n=41; export const f=()=>{throw 7;};')],
+            }
+            const exports = unwrap(represented(root, 'main'))
+            assertStructurallySame(unwrap(read(ok(exports), 'answer')), 42)
+            const callback = unwrap(read(ok(exports), 'callback'))
+            assert(isArray(callback) && callback[0] === '=>')
+            // Loading exports the function without running its throwing body.
+            assertStructurallySame(invoke(callback, [], ['[]', []]), error(7))
+        },
+        capturedDiamondIdentity: () => {
+            const root = {
+                main: [utf8('import {a,f} from "./left"; import {b,g} from "./right"; export default [a,b,f,g];')],
+                left: [utf8('import value,{get} from "./dep"; export const a=value; export const f=get;')],
+                right: [utf8('import value,{get} from "./dep"; export const b=value; export const g=get;')],
+                dep: [utf8('const shared=[]; export const get=()=>shared; export default shared;')],
+            }
+            const pair = unwrap(read(ok(unwrap(represented(root, 'main'))), 'default'))
+            assert(isArray(pair) && pair[0] === '[]')
+            const [a, b, f, g] = pair[1]
+            assert(a === b && f === g)
+            assert(isArray(f) && f[0] === '=>')
+            assert(f[2][0] === a)
+            assert(unwrap(invoke(f, [], ['[]', []])) === a)
+            assert(unwrap(invoke(f, [], ['[]', []])) === a)
+        },
+        projectBeforeMaterializing: () => {
+            const root = { main: [utf8('export const callback=x=>x; export default 42;')] }
+            const runner = virtual({ ...emptyState, root })
+            assertStructurallySame(runner(_transpileDefault('main'))[1], ok(ok({ value: 42 })))
+            assertStructurallySame(runner(transpile('main'))[1], ok(error('callable materialization requires a target compile/load boundary')))
+            for (const output of ['output.json', 'output.data.js']) {
+                const [state, code] = runner(compile(nodeProgramOptions(['main', output])))
+                assertEq(exitCode(code), 0, state.stderr)
+                const bytes = state.root[output]
+                assert(Array.isArray(bytes) && bytes.length === 1)
+                assertEq(utf8ToString(bytes[0]), output.endsWith('.json') ? '42' : 'export default 42;')
+            }
+            const named = { main: [utf8('export const callback=x=>x;')] }
+            assertStructurallySame(virtual({ ...emptyState, root: named })(_transpileDefault('main'))[1], ok(ok({ value: undefined })))
+        },
+        initializationPayload: () => {
+            for (const imported of [false, true]) {
+                const failure = [utf8('const shared=[]; throw [shared,shared];')]
+                const root = imported
+                    ? { main: [utf8('import {} from "./dep"; export default 1;')], dep: failure }
+                    : { main: failure }
+                const result = represented(root, 'main')
+                assert(result[0] === 'error' && 'thrown' in result[1])
+                assertEq(result[1].path, imported ? 'dep' : 'main')
+                assertEq(result[1].message, 'module initialization failed')
+                const payload = result[1].thrown
+                assert(isArray(payload) && payload[0] === '[]')
+                assertStructurallySame(payload, ['[]', [['[]', []], ['[]', []]]])
+                assert(payload[1][0] === payload[1][1])
+            }
+        },
+        unusedInitialization: () => {
+            for (const dependency of ['import {unused} from "./dep";', 'import {} from "./dep";']) {
+                const root = {
+                    main: [utf8(`${dependency} export default 1;`)],
+                    dep: [utf8('export const unused=7; const discarded=null.x;')],
+                }
+                const result = represented(root, 'main')
+                assert(result[0] === 'error' && 'thrown' in result[1])
+                assertEq(result[1].path, 'dep')
+                assertStructurallySame(result[1].thrown, ['undefined'])
+            }
+            const root = { main: [utf8('const discarded=null.x; export default 1;')] }
+            const result = virtual({ ...emptyState, root })(_transpileDefault('main'))[1]
+            assert(result[0] === 'error' && 'thrown' in result[1])
+            assertEq(result[1].path, 'main')
+            assertStructurallySame(result[1].thrown, ['undefined'])
+        },
+        outputRefusal: () => {
+            for (const value of ['x=>x', '[x=>x]', '{f:x=>x}']) {
+                const root = { main: [utf8(`export default ${value};`)] }
+                assertEq(represented(root, 'main')[0], 'ok')
+                const diagnostic = 'callable materialization requires a target compile/load boundary'
+                assertStructurallySame(virtual({ ...emptyState, root })(_transpileDefault('main'))[1], ok(error(diagnostic)))
+                for (const output of ['output.json', 'output.data.js']) {
+                    const [state, code] = virtual({ ...emptyState, root })(compile(nodeProgramOptions(['main', output])))
+                    assertEq(exitCode(code), 1)
+                    assertEq(state.stderr.trim(), `${output} - error: ${diagnostic}`)
+                    assertEq(state.root[output], undefined)
+                }
+            }
+        },
+        jsonDocument: () => {
+            const root = { 'input.json': [utf8('{"default":[7],"other":8}')] }
+            assertStructurallySame(represented(root, 'input.json'), ok(['{}', [
+                [':', 'default', ['[]', [7]]], [':', 'other', 8],
+            ]]))
+            assertStructurallySame(virtual({ ...emptyState, root })(_transpileDefault('input.json'))[1],
+                ok(ok({ value: { default: [7], other: 8 } })))
+        },
+    },
     namedImports: {
         errorOrder: () => {
             for (const [before, name] of [
@@ -74,11 +200,11 @@ export const proof = {
                 ['import {__proto__ as p,constructor as c} from "./dep"; export default [p,c];', [8,9]],
             ])) {
                 const root = { 'main': [utf8(source)], 'dep': [utf8('export const a=[5]; export const u=undefined; export const __proto__=8; export const constructor=9; export default 7;')] }
-                assertStructurallySame(_own(unwrap(run(root)('main')).value, 'default'), expected)
+                assertStructurallySame(defaultValue(unwrap(run(root)('main')).value), expected)
             }
             const root = { 'main': [utf8('import {a} from "./dep"; import {a as b} from "./dep"; export default [a,b];')], 'dep': [utf8('export const a=[];')] }
             const result = unwrap(run(root)('main'))
-            const pair = _own(result.value, 'default')
+            const pair = defaultValue(result.value)
             assert(pair instanceof Array && pair[0] === pair[1])
         },
         sharing: () => {
@@ -88,7 +214,7 @@ export const proof = {
                 dep: [utf8('const shared=[]; export const a={x:shared}; export const b={y:shared};')],
             }
             const overlapResult = unwrap(run(overlap)('main'))
-            const descendants = _own(overlapResult.value, 'default')
+            const descendants = defaultValue(overlapResult.value)
             assert(descendants instanceof Array && descendants[0] === descendants[1])
             // and JSON, a tree, writes the descendant where each root reaches it
             const [state, code] = virtual({ ...emptyState, root: overlap })(compile(nodeProgramOptions(['main', 'output.json'])))
@@ -102,11 +228,11 @@ export const proof = {
                 'import {shared,leaf} from "./dep"; export default shared;',
                 'import {leaf,shared} from "./dep"; export default shared;',
             ]) {
-                const shared = _own(unwrap(run({ main: [utf8(source)], dep })('main')).value, 'default')
+                const shared = defaultValue(unwrap(run({ main: [utf8(source)], dep })('main')).value)
                 assert(shared instanceof Array && shared[0] === shared[1])
             }
             const selectedLeaf = 'import {shared,leaf} from "./dep"; export default leaf;'
-            assertEq(_own(unwrap(run({ main: [utf8(selectedLeaf)], dep })('main')).value, 'default'), 1)
+            assertEq(defaultValue(unwrap(run({ main: [utf8(selectedLeaf)], dep })('main')).value), 1)
             const diamond = {
                 main: [utf8('import {a} from "./left"; import {b} from "./right"; export default [a,b];')],
                 left: [utf8('import {x} from "./dep"; export const a=x;')],
@@ -114,7 +240,7 @@ export const proof = {
                 dep: [utf8('export const x=[];')],
             }
             const result = unwrap(run(diamond)('main'))
-            const pair = _own(result.value, 'default')
+            const pair = defaultValue(result.value)
             assert(pair instanceof Array && pair[0] === pair[1])
         },
         refusals: () => {
@@ -191,7 +317,7 @@ export const proof = {
             },
         }
         const runner = partialRun(nodeCommands)(host)(null)
-        const value = _own(unwrap(runner(transpile('entry'))[1]).value, 'default')
+        const value = defaultValue(unwrap(unwrap(runner(transpile('entry'))[1])).value)
         assert(value instanceof Array)
         assert(value[0] === value[2] && value[0] !== value[1])
         const graph = _defaultExport(unwrap(runner(resolve('entry'))[1]))
@@ -212,7 +338,7 @@ export const proof = {
             },
         }
         const runner = partialRun(nodeCommands)(host)(null)
-        assertStructurallySame(unwrap(runner(transpile('input.json'))[1]).value, [1, 2])
+        assertStructurallySame(unwrap(unwrap(runner(transpile('input.json'))[1])).value, [1, 2])
         assertStructurallySame(unwrap(runner(resolve('input.json'))[1]), ['[]', [1, 2]])
     },
     missingResolver: () => {
@@ -344,7 +470,7 @@ export const proof = {
                 [`other.${extension}`]: [content],
             }
             const value = unwrap(run(root)('main.f.js'))
-            const selected = _own(value.value, 'default')
+            const selected = defaultValue(value.value)
             assert(selected instanceof Array)
             const [a, b, c, d] = selected
             assert(a === b && b === c && c !== d)

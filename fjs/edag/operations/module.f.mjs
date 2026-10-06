@@ -105,6 +105,32 @@ export const operation = evaluator => {
         })
     }
 
+    /** @type {(entries: Over<import('../types.ts').Object, E>[1], state: S) => Evaluation<S>} */
+    const properties = (entries, state) => {
+        /** @type {readonly Property[]} */
+        let properties = []
+        for (const item of entries) {
+            const [next, first] = operand(item[1], state)
+            state = next
+            const [kind, value] = first
+            if (kind === 'error') { return [state, first] }
+            if (item[0] === '...') {
+                const [, spread] = /** @type {readonly ['ok', import('../value/types.ts').Object]} */ (object([['...', () => first]]))
+                properties = [...properties, ...spread[1]]
+            } else {
+                const keyResult = toString(value, invoke)
+                const [keyKind, key] = keyResult
+                if (keyKind === 'error') { return [state, keyResult] }
+                const [afterValue, result] = operand(item[2], state)
+                state = afterValue
+                const [valueKind, v] = result
+                if (valueKind === 'error') { return [state, result] }
+                properties = [...properties, [':', key, v]]
+            }
+    }
+    return [state, object(properties.map(p => () => ok(p)))]
+    }
+
     /** @type {(node: Over<ExpOp, E>, state: S) => Evaluation<S>} */
     const operation = (node, state) => {
         switch (node[0]) {
@@ -114,30 +140,7 @@ export const operation = evaluator => {
             case 'rest': { return [state, ok(/** @type {ValueArray} */ (rest))] }
             case 'frame': { return [state, ok(frame[node[1]])] }
             case '[]': { return items(node[1], state) }
-            case '{}': {
-                /** @type {readonly Property[]} */
-                let properties = []
-                for (const item of node[1]) {
-                    const [next, first] = operand(item[1], state)
-                    state = next
-                    const [kind, value] = first
-                    if (kind === 'error') { return [state, first] }
-                    if (item[0] === '...') {
-                        const [, spread] = /** @type {readonly ['ok', import('../value/types.ts').Object]} */ (object([['...', () => first]]))
-                        properties = [...properties, ...spread[1]]
-                    } else {
-                        const keyResult = toString(value, invoke)
-                        const [keyKind, key] = keyResult
-                        if (keyKind === 'error') { return [state, keyResult] }
-                        const [afterValue, result] = operand(item[2], state)
-                        state = afterValue
-                        const [valueKind, v] = result
-                        if (valueKind === 'error') { return [state, result] }
-                        properties = [...properties, [':', key, v]]
-                    }
-                }
-                return [state, object(properties.map(p => () => ok(p)))]
-            }
+            case '{}': { return properties(node[1], state) }
             case '=>': {
                 const [, length, captures, body] = node
                 return then(items(captures, state), (value, next) => [next,

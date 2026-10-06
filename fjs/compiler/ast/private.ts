@@ -1,19 +1,11 @@
 /**
- * Implementation-private types for the AST evaluator.
+ * Implementation-private types for AST reachability.
  *
  * @module
  */
 
 import type { List } from '../../types/list/types.ts'
-import type { Array, Unknown } from '../../media/datajs/types.ts'
-import type { AstBody, AstConst, AstFrameRef, AstModuleRef } from './types.ts'
-
-/** An evaluation in progress: the body, its arguments, and the values so far. */
-export type _RunState = {
-    readonly body: AstBody
-    readonly args: Array
-    readonly consts: List<Unknown>
-}
+import type { AstConst, AstFrameRef, AstModuleRef } from './types.ts'
 
 /**
  * Which of a lazy operator's conditionally established operands a walk

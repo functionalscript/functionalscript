@@ -2,7 +2,8 @@
 
 **Priority:** P3
 **Status:** open — memo and Amnesia use represented values and complete
-function text; compiler integration and callable runtime compilation remain.
+function text; compiler module initialization uses memo and the AST value
+evaluator is retired. Callable runtime compilation and backend value emission remain.
 
 ### Problem
 
@@ -433,8 +434,12 @@ promise normalization of host resource exhaustion.
       reflection erasure, failure behavior and
       identity preservation. Prove `f => f(1)` accepts an ordinary callback
       with no EDAG association, and refuse unavailable callable materialization.
-- [ ] Execute resolved module initializers into export value graphs; migrate
-      compiler/loader callers and retire or migrate the AST value evaluator.
+- [x] Execute resolved module initializers into export value graphs in
+      `compiler/transpiler.interpret`; migrate compiler data outputs and retire
+      the AST value evaluator. Cache complete represented exports per module,
+      preserve initializer failure payloads and paths, and convert only the
+      requested result. `transpile` returns an inner output-conversion Result;
+      callable runtime conversion remains the explicit refusal above.
 - [ ] Implement callable value emission in the FJS backend for primitive,
       repeated and unused evaluated captures, preserving slot positions and
       shared captured values separately from source round-trip serialization.
@@ -443,8 +448,8 @@ promise normalization of host resource exhaustion.
 - [ ] Prove direct JS/Rust compilation of result graphs preserves the supported
       profile: primitives, containers, nested captures, distinct closures,
       shared identity, fresh invocation values, lazy branches and throws.
-- [ ] Prove initializer failures survive unused imports/declarations, while
-      successful artifacts omit unreachable initialization machinery.
+- [x] Prove initializer failures survive unused imports/declarations, while
+      successful export value graphs omit unreachable initialization machinery.
 - [ ] Prove implicit operation failures return `error(['undefined'])`, while
       explicit thrown values propagate unchanged through operands, callbacks
       and module initialization.
@@ -473,7 +478,7 @@ promise normalization of host resource exhaustion.
   prerequisite; this representation does not approve captured mutation.
 - [Callable association](../../compiler/todo/associate-edag-with-functions.md)
   — native/host callable metadata remains distinct from represented VM functions.
-- [Output refusals](../../compiler/todo/value-refusal-names-the-output.md) —
+- [Output refusals](../../compiler/README.md#ast) —
   source failure versus output representability.
 - [Metaprogramming](../../compiler/todo/047-compiler-meta-programming.md) —
   module execution enabled by this representation.

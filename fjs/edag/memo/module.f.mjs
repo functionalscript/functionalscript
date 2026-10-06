@@ -69,7 +69,6 @@ const codeNode = (code, node) => {
 const evaluate = (a, context, root) => {
     const { nodes, shared } = a
     const code = nodes.reduce((/** @type {readonly ExpOp[]} */ prefix, node) => [...prefix, codeNode(prefix, node)], [])
-    const run = operation({ context, operand: (e, cache) => operand(e, cache), expression: e => expression(code, e), invoke })
 
     /** @type {(operand: Operand, cache: _Cache) => Evaluation<_Cache>} */
     const operand = (operand, cache) => {
@@ -82,6 +81,7 @@ const evaluate = (a, context, root) => {
         return [kind === 'ok' && shared.includes(index) ? [...next, [index, value]] : next, result]
     }
 
+    const run = operation({ context, operand, expression: e => expression(code, e), invoke })
     return operand(root, [])[1]
 }
 

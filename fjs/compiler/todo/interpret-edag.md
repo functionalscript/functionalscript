@@ -1,9 +1,9 @@
 ## Interpret a compiled EDAG directly
 
 **Priority:** P3
-**Status:** open — represented memo interpretation and immutable cache implemented
-with complete function text; public admission, value-producing API integration
-and native prerequisites remain open.
+**Status:** open — compiler value-producing APIs use represented memo
+interpretation and the AST value evaluator is retired. Public admission,
+callable runtime compilation and native prerequisites remain open.
 
 The planned value contract is
 [EdagValue](../../edag/todo/edag-value.md): every FJS VM uses the EDAG subset
@@ -148,49 +148,40 @@ name — `constructor`, `__proto__`, every name a built-in prototype gives by
 the parser's list in [`fjs/js/prototype`](../../js/prototype/module.f.js),
 all but `length` — since such a graph is not one the compiler emits.
 
-### Existing value-producing API integration
+### Value-producing API integration
 
-The preceding P2 compiler work deliberately adds the EDAG-producing path **alongside**
-the current value-producing DJS transpiler/CLI. The remaining integration step is to
-migrate that value-producing path to use EDAG internally. Under the planned
-`EdagValue` contract, choose conversion at the requested API/output boundary:
+[`compiler/transpiler`](../transpiler/module.f.mjs) now exposes
+`interpret(path)`: load each dependency once, compile each parsed module with
+`unresolved`, then run memo with the complete represented dependency exports as
+arguments. The existing module walk retains import ordering, missing-export
+checks and source paths. This per-module boundary replaces the planned single
+final-graph evaluation because a linked EDAG alone no longer identifies the
+source of an initializer failure. It uses the same lowering and interpreter;
+there is no AST value evaluator or third module-resolution walk.
 
-```text
-source modules
-  -> valid final EDAG
-  -> interpret EDAG into Result<EdagValue, EdagValue>
-  -> success: complete represented export object
-     -> runtime-value API: materialize the complete runtime export object
-     -> JSON/DataJS: select represented default, convert supported data, serialize
-```
+Its successful result is the complete represented export object, or the document
+for a direct JSON input. Its error channel is `ParseError | InitializationError`;
+the latter has the source `path`, `metadata: null`, a diagnostic `message` and
+the original represented `thrown` payload. The VM still returns
+`Result<EdagValue, EdagValue>`; only the loader adds source context.
 
-This materialization uses the target boundary in the
-[value plan](../../edag/todo/edag-value.md#compilation-and-conversion-to-unknown):
-function-free data can be decoded in FJS, while callable exports require
-backend-generated or precompiled runtime code and the target's load/build step.
-Their calls accept ordinary runtime callbacks directly. A pure data converter
-cannot provide callable exports; an unavailable materialization boundary is an
-output refusal. Integration must supply that boundary to callers needing
-callables and declare any compiler API changes in its implementation PR.
+`transpile` returns an inner `Result<Denotation, string>` in the effect's success
+channel. Successful materialization retains the complete ordinary export object
+as `Denotation.value`. Callable runtime compilation is not available yet, so a
+selected callable produces an output refusal. Existing successful data results
+remain unchanged. This explicitly changes the compiler API's result nesting.
 
-JSON/DataJS project the represented `default` before converting that value;
-unselected callable exports do not require callable materialization. For example,
-`export const f = x => x; export default 1;` can still produce JSON `1`.
-Initialization of every required declaration still runs before this projection.
+For JSON/DataJS, `_transpileDefault` projects the represented default before
+materialization; an unselected callable export needs no conversion. Every required
+initializer still runs. Direct JSON roots remain documents and bypass both
+wrapping and projection. Conversion and serialization refusals name the output
+file, while initialization failures name their source file. The CLI reports
+`module initialization failed`; API callers retain its represented payload.
+FunctionalScript output continues to rewrite the linked EDAG without evaluation.
 
-This integration must preserve the
-[compile API boundary](./compile-modules-to-edag.md#existing-compile-api-boundary)
-as updated by [#2129](https://github.com/functionalscript/functionalscript/pull/2129).
-`transpile` returns a `Denotation` whose `value` is the complete module export
-object, with named properties and `default` when present.
-The `.data.js` and `.json` outputs serialize `result.default`. A direct `.json`
-root remains a document and bypasses wrapping and projection. FunctionalScript
-output rewrites the linked EDAG without evaluating the module, emitting its
-exports through [`../serializer`](../serializer/module.f.mjs). The contract's
-error half is
-[`value-refusal-names-the-output.md`](./value-refusal-names-the-output.md),
-which widens the channel this paragraph holds fixed.
-The separately serializable final EDAG remains a compiler artifact/API from the P2 task.
+The shared readers now live in [`source`](../source/module.f.mjs), avoiding an
+import cycle between lowering and the transpiler. Consolidating the existing two
+module walks remains [separate work](./one-module-resolution-walk.md).
 
 This TODO does not define resource budgets, deterministic stopped outcomes, iterative
 host-stack hardening, or production limits. Those concerns belong to the resource
@@ -248,15 +239,11 @@ hardening TODO after the baseline interpreter exists.
       key judged by whether a call follows it. No prohibited shape is emitted,
       and the executor never reads one.
 - [ ] Return the interpreted value for a valid final EDAG.
-- [ ] Integrate final-EDAG interpretation behind the existing value-producing DJS
-      `transpile` / `fjs compile` path without changing its success result/output
-      for the value outputs, `.data.js` and `.json`; the FunctionalScript
-      output is the writer's, per [`../serializer`](../serializer/module.f.mjs).
-      The DataJS serializer then decides sharing on the executed value: pin
-      `[cfg.x, cfg.x]` with `x: []` hoisted as `const $0=[];export default
-      [$0,$0];` and written as `[[],[]]` in JSON, as the compiler proof pins
-      it today ([`../../edag/todo/analysis.md`](../../edag/todo/analysis.md)).
-- [ ] Add proofs that primitive, array, object, property-access, import-resolved, and
+- [x] Integrate EDAG interpretation behind `transpile` and `fjs compile`,
+      preserving successful data outputs and graph sharing. Interpret per module
+      to retain dependency failure paths; materialize after selecting the output.
+      The inner Result distinguishes conversion refusal from source failure.
+- [x] Add proofs that primitive, array, object, property-access, import-resolved, and
       shared-node EDAGs evaluate to the expected values.
 - [x] Add Stage 2 proofs for non-capturing functions, ordinary calls, and method calls.
       Done: `agrees` in [`../../edag/memo/proof.f.mjs`](../../edag/memo/proof.f.mjs)
@@ -278,13 +265,12 @@ hardening TODO after the baseline interpreter exists.
       function body is rejected. Done: `throw` in
       [`../../edag/analysis/proof.f.mjs`](../../edag/analysis/proof.f.mjs)
       (`outsideThenInside`, `insideThenOutside`, `siblingBodies`).
-- [ ] Add a diamond/shared-node proof showing one shared EDAG node produces one shared
+- [x] Add a diamond/shared-node proof showing one shared EDAG node produces one shared
       runtime value within the relevant evaluation context.
-- [ ] Add an integration proof that a multi-module program compiled/resolved to one
-      final EDAG and then interpreted produces the same final value as the current DJS
-      transpiler.
-- [ ] Add a CLI/API compatibility proof that the existing value-producing `transpile`
-      result — the `Denotation`'s value — and the `.data.js` and
+- [x] Add multi-module integration proofs over actual parsing, lowering and
+      represented interpretation, preserving data results and shared imports.
+- [x] Add a CLI/API compatibility proof that the existing value-producing `transpile`
+      result — the inner successful `Denotation`'s value — and the `.data.js` and
       `.json` outputs of `fjs compile` remain unchanged after switching their
       internals to final-EDAG interpretation.
 - [ ] `tsc`, `fjs test`.

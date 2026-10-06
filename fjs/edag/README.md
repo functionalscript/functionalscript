@@ -87,7 +87,11 @@ source-name admission. Memo connects these reads to chains and `own`;
 represented array callbacks in [`value/array_method`](value/array_method/module.f.mjs).
 [`value/convert`](value/convert/module.f.mjs) supplies primitive conversion for
 objects, arrays and functions, using the shared function-text renderer in both interpreters.
-The [value plan](todo/edag-value.md) records the remaining VM migrations.
+[`compiler/transpiler.interpret`](../compiler/transpiler/module.f.mjs) uses memo
+to evaluate each module with represented dependency exports. The AST value
+evaluator is retired; both FJS EDAG VMs and compiler initialization use this
+representation. The [value plan](todo/edag-value.md) tracks callable runtime
+compilation and backend emission of evaluated closures.
 
 [`value/coercion`](value/coercion/module.f.mjs) converts ordinary objects to
 primitives by trying `valueOf` and `toString` in the hint's order. Own methods

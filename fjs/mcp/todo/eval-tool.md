@@ -222,5 +222,5 @@ which fixes it in the transport for every tool at once.
   too.
 - [`fjs/compiler/todo/compile-modules-to-edag.md`](../../compiler/todo/compile-modules-to-edag.md):
   the lowering used here.
-- [`fjs/compiler/todo/value-refusal-names-the-output.md`](../../compiler/todo/value-refusal-names-the-output.md):
+- [compiler output boundary](../../compiler/README.md#ast):
   how a value refusal is worded, which this tool should follow.

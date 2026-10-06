@@ -2,8 +2,8 @@
  * TypeScript counterparts of the DataJS data model: JSON's containers over
  * the leaves the format adds — `bigint` and `undefined` beside JSON's, with
  * `NaN` and the infinities values of `number` — as `spec/datajs/README.md`
- * has it. The compiler, `fjs/compiler`, has no value model of its own: what it
- * denotes is a value of this one.
+ * has it. The compiler's data-output boundary materializes represented EDAG
+ * values into this model before serialization.
  *
  * `TreeObject`'s index signature is optional, so `{ a: undefined }` and `{}`
  * are one type here: only the runtime enumerator tells a member holding
