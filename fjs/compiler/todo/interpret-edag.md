@@ -7,9 +7,9 @@ and native prerequisites remain open.
 
 The planned value contract is
 [EdagValue](../../edag/todo/edag-value.md): every FJS VM uses the EDAG subset
-for language values and returns `Result<EdagValue, EdagValue>`. Host-valued
-execution and arrow factories describe the former memo baseline and current
-Amnesia oracle. Integration converts explicitly at APIs exposing `unknown`:
+for language values and returns `Result<EdagValue, EdagValue>`. Memo and Amnesia
+now share represented operation dispatch. Integration converts explicitly at
+APIs exposing `unknown`:
 ordinary FJS runtime values with EDAG reflection erased. Validation at the
 entry for separately supplied EDAG data and native
 prerequisites remain required. Compiler and VM results maintain their
@@ -115,8 +115,8 @@ captured value through `['frame', i]` in its own invocation. The slots are an ar
 operand of `=>`, `[]` when nothing is captured. Fixed values
 and rest arrays captured by nested functions use the same frame mechanism.
 
-Memo's represented call preparation supplies fixed/rest bindings without host
-arrow factories. Amnesia still uses the factories during migration. The approved
+Both interpreters' represented call preparation supplies fixed/rest bindings
+without host arrow factories. The approved
 language limit remains 0–16. Memo renders every admitted function body through
 the trusted `functionText(analysis, index): string` entry described in the
 [value plan](../../edag/todo/edag-value.md#operations-and-failures). This renders
@@ -138,9 +138,9 @@ cache by those integers — one map for the whole code, values cached per
 function: an invocation holds only the entries of its own body's scope. The
 table names its operands by index, so the interpreter runs the table and never
 walks the EDAG's objects.
-Memo's operations use represented values; Amnesia remains a host-valued proof
-oracle until its migration. Memo's `.` reads represented own properties,
-as the specification defines an access and as Amnesia's `own` reads today
+Memo and Amnesia share represented operations, differing in how operands are
+reused. Both `.` and `own` read represented own properties,
+as the specification defines an access
 ([`fjs/edag/todo/entry.md`](../../edag/todo/entry.md)), so an
 inherited property is `undefined` whatever a realm puts on a prototype.
 Validation refuses, besides, an access whose index is a prohibited property
@@ -302,5 +302,4 @@ hardening TODO after the baseline interpreter exists.
   adds deterministic resource and host-stack hardening after this baseline exists.
 - [`associate-edag-with-functions.md`](./associate-edag-with-functions.md) — records
   callable/EDAG association; the broader default function-text contract is in
-  the [parameter plan](../../../spec/todo/3120-parameters.md), with Amnesia's
-  migration remaining in the value plan.
+  the [parameter plan](../../../spec/todo/3120-parameters.md).

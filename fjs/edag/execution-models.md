@@ -28,12 +28,16 @@ values: every incoming edge evaluates its target again.
 
 ```js
 const shared = ['[]', [1, 2]]
-vm(context)(['===', shared, shared]) // false
+vm(context)(['===', shared, shared]) // ['ok', false]
 ```
 
 The EDAG node is shared, but Amnesia creates two arrays. This deliberately does
 not implement EDAG/JavaScript identity semantics; its purpose is to provide the
-simplest evaluator for semantic proofs.
+simplest evaluator for semantic proofs. It returns
+`Result<EdagValue, EdagValue>` through the same represented operation dispatcher
+as memo. Calls preserve the selected executor's reuse policy. Caller-established
+values may be supplied by exact node identity; Amnesia never extends that table
+or carries it into a function invocation.
 
 ## 2. JS-compatible execution
 

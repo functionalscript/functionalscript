@@ -86,7 +86,7 @@ source-name admission. Memo connects these reads to chains and `own`;
 [`value/method`](value/method/module.f.mjs) dispatches admitted built-ins, with
 represented array callbacks in [`value/array_method`](value/array_method/module.f.mjs).
 [`value/convert`](value/convert/module.f.mjs) supplies primitive conversion for
-objects, arrays and functions, using the shared function-text renderer in memo.
+objects, arrays and functions, using the shared function-text renderer in both interpreters.
 The [value plan](todo/edag-value.md) records the remaining VM migrations.
 
 [`value/coercion`](value/coercion/module.f.mjs) converts ordinary objects to
@@ -155,7 +155,7 @@ reconstruct use general JavaScript expression text, with invocation-local lazy
 memo cells preserving shared nodes, lazy branches and nested captures. The
 emitted text may use local mutation; its FJS renderer is immutable.
 
-This is code-only function text, used by memo's direct and indirect value
+This is code-only function text, used by both interpreters' direct and indirect value
 conversion. It does not save captured values or implement callable runtime
 compilation. Source serialization with `tryStringify` remains partial and
 requires every slot to survive its structural round trip.
@@ -189,9 +189,11 @@ kind by node kind — validation behavior, not execution semantics — with
 whose behavior the nodes are built around, which is how those semantics were
 pinned before anything executed an EDAG. [amnesia](amnesia/README.md) now
 does — a tree-walking evaluator for testing the semantics, and deliberately
-not a VM to run FunctionalScript on — over the host-valued table of
-[operations](operations/module.f.mjs), one per tag, parameterized by how an
-operand is evaluated. It remains a temporary proof oracle during the
+not a VM to run FunctionalScript on — over represented
+[operations](operations/module.f.mjs), parameterized by how an
+operand is evaluated and which interpreter invokes a function. Both Amnesia
+and memo return `Result<EdagValue, EdagValue>`; their different reuse policies
+are preserved. Compiler integration remains in the
 [EDAG-value migration](todo/edag-value.md).
 [analysis](analysis/module.f.mjs) reads
 a graph into one table — every operation node once, in walk order, its
@@ -312,13 +314,11 @@ ever reinterpreted. Earlier positive-arity/full-argument experiments have no
 general lossless migration to this format.
 
 A function's `length` is at most 16, the language's limit: `bindingError`
-refuses a larger one. Amnesia still uses the
-[arrow factories](../types/function/length/README.md) of
-`fjs/types/function/length`, which cover every valid length. Memo reads length
-and fixed/rest bindings from represented functions, without an arrow factory.
-Its function text uses the total shared renderer described above. Amnesia's
-migration and callable runtime compilation remain in the
-[value plan](todo/edag-value.md); the broader default-text contract is recorded in
+refuses a larger one. Both Amnesia and memo read length and fixed/rest
+bindings from represented functions, without an arrow factory. Their function
+text uses the total shared renderer described above. Callable runtime
+compilation remains in the [value plan](todo/edag-value.md); the broader
+default-text contract is recorded in
 [the parameter plan](../../spec/todo/3120-parameters.md).
 
 An `index` — the property operand of `.`, `?.`, and the `|.` step — is a

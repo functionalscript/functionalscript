@@ -28,7 +28,7 @@ import { validate } from '../../rtti/validate/module.f.mjs'
 import { ok, unwrap } from '../../types/result/module.f.mjs'
 import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { assert, assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 
@@ -176,7 +176,7 @@ export const proof = {
                     /** @type {Exp} */
                     const invoked = ['()', ['.', module, 'main'], []]
                     assertStructurallySame(execute(invoked), expected)
-                    assertStructurallySame(vm({ frame: null, args: [] })(invoked), expected)
+                    assertStructurallySame(assertOk(toUnknown(assertOk(vm({ frame: [], args: [] })(invoked)))), expected)
                 }
             }
         },
@@ -188,7 +188,7 @@ export const proof = {
             /** @type {Exp} */
             const invoked = ['()', ['.', graph, 'main'], []]
             assertEq(execute(invoked), 42)
-            assertEq(vm({ frame: null, args: [] })(invoked), 42)
+            assertEq(assertOk(toUnknown(assertOk(vm({ frame: [], args: [] })(invoked)))), 42)
             // and its source, the call and the arithmetic written out, runs to
             // the same answer
             /** @type {Exp} */
@@ -217,12 +217,15 @@ export const proof = {
             assertEq(linkRefusal({ main: file('import {a as b} from "./main"; export const a=1;') })('main'), 'circular dependency at no position')
             assertEq(linkRefusal({ main: file('import {} from "./main"; export const a=1;') })('main'), 'circular dependency at no position')
         },
+        amnesiaFailure: () => {
+            const graph = unwrap(linked({ main: file('import {} from "./dep"; export default 1;'), dep: file('export const a=1; export const bad=null.x;') })('main'))
+            assertStructurallySame(assertError(vm({ frame: [], args: [] })(graph)), ['undefined'])
+        },
         throw: {
             unusedNamed: () => execute(unwrap(linked({ main: file('import {a} from "./dep"; export default 1;'), dep: file('export const a=1; export const bad=null.x;') })('main'))),
             empty: () => execute(unwrap(linked({ main: file('import {} from "./dep"; export default 1;'), dep: file('const bad=null.x; export const a=1;') })('main'))),
             selected: () => execute(unwrap(linked({ main: file('import {a} from "./dep"; export default a;'), dep: file('export const a=1; export const bad=null.x;') })('main'))),
             captured: () => execute(unwrap(linked({ main: file('import {a} from "./dep"; export const f=()=>a;'), dep: file('export const a=1; export const bad=null.x;') })('main'))),
-            emptyAmnesia: () => vm({ frame: null, args: [] })(unwrap(linked({ main: file('import {} from "./dep"; export default 1;'), dep: file('export const a=1; export const bad=null.x;') })('main'))),
         },
     },
     namedExports: {
