@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — array and string slicing implemented; callable conversion, invocation and VM migration remain open
+**Status:** wip — migrate the memo interpreter to EDAG values; callable runtime compilation and the remaining VM migrations stay open
 
 ### Problem
 
