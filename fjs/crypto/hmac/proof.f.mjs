@@ -16,6 +16,30 @@ import { unwrap } from '../../types/result/module.f.mjs'
 
 export const proof = {
     demo: {
+        nul: () => {
+            for (const [key, text] of [['a\0b', 'message'], ['key', 'a\0b'], ['\0', '\0']]) {
+                const html = htmlToString(demo.view({ algorithm: 'SHA-256', key, text }))
+                assert(html.includes('OpenSSL command unavailable:'), html)
+                assert(!html.includes('Copy OpenSSL command'), html)
+                assert(html.includes(digest('SHA-256', key, text)), html)
+            }
+        },
+        multiline: () => {
+            const key = 'key'
+            const text = '\nfirst\nsecond\n'
+            const expected = '8d7d0f2bace9e820ba863c42c4879149e2468f3a9bfe2eab8a3218e142f6b5c2'
+            assertEq(digest('SHA-256', key, text), expected)
+            const keyed = unwrap(assertNotNullish(runPure(demo.update(demo.init)({ kind: 'input', name: 'key', value: key }))[0]))
+            const state = unwrap(assertNotNullish(runPure(demo.update(keyed)({ kind: 'input', name: 'text', value: text }))[0]))
+            assertEq(state.key, key)
+            assertEq(state.text, text)
+            const html = htmlToString(demo.view(state))
+            assert(html.includes('type="text" id="key" name="key" value="key"'), html)
+            assert(html.includes('box-sizing: border-box; width: 100%'), html)
+            assert(html.includes(`<textarea id="text" name="text" rows="8">${text}</textarea>`), html)
+            assert(html.includes(`<pre>${expected}</pre>`), html)
+            assert(html.includes(`<pre>printf '%s' '${text}' | openssl dgst -sha256 -hmac '${key}'</pre>`), html)
+        },
         // Hex vectors computed independently with Node's crypto.createHmac.
         variants: () => {
             /** @type {readonly (readonly [string, string])[]} */

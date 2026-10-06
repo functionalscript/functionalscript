@@ -168,12 +168,20 @@ digests begins with a zero hex digit; someone typing `1234` into the original
 SHA-256 demo found that case.
 
 [`crypto/sha1`](../crypto/sha1/demo.f.mjs) follows the same pattern with a
-40-character SHA-1 digest. Both demos share the copyable code-block controls
-and quote the current input as a literal shell argument in their OpenSSL command.
+40-character SHA-1 digest and a warning that its collision resistance is broken.
+Both demos preserve multiline text with the shared textarea helpers and use
+[`crypto/hash_demo`](../crypto/hash_demo/module.f.mjs) for padded digests and
+OpenSSL output. [`website/demo/code`](./demo/code/module.f.mjs) owns the copyable
+code blocks and literal shell arguments. A POSIX shell argument cannot contain
+NUL (U+0000), so that input still gets a digest but a visible refusal replaces
+the command; this is a permanent shell limitation.
 
 [`crypto/hmac`](../crypto/hmac/demo.f.mjs) adds a UTF-8 key and message to this
 pattern, with SHA-1 and all six SHA-2 variants. Its OpenSSL command quotes both
-inputs and uses the selected hash with `-hmac`.
+inputs and uses the selected hash with `-hmac`. Its message uses the shared
+multiline field; the key remains single-line and fills the available width.
+NUL in either field replaces the OpenSSL command with an explanation, just as
+in the hash demos.
 
 ## A directory says it holds a demo
 
