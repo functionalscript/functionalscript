@@ -167,6 +167,10 @@ leading zeros, but those zeros still belong in the output. One in sixteen
 digests begins with a zero hex digit; someone typing `1234` into the original
 SHA-256 demo found that case.
 
+[`crypto/sha1`](../crypto/sha1/demo.f.mjs) follows the same pattern with a
+40-character SHA-1 digest. Both demos share the copyable code-block controls
+and quote the current input as a literal shell argument in their OpenSSL command.
+
 ## A directory says it holds a demo
 
 A demo is on its module's page, and every demo sits several levels below the

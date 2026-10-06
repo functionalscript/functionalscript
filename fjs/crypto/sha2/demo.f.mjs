@@ -23,6 +23,7 @@ import { computeSync, sha224, sha256, sha384, sha512, sha512x224, sha512x256 } f
 import { uint } from '../../types/bit_vec/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
+import { codeBlock, shellQuote } from '../../website/demo/module.f.mjs'
 
 /**
  * @type {readonly { readonly name: string, readonly hash: Sha2, readonly openssl: string }[]}
@@ -59,21 +60,6 @@ export const digest = digestOf(sha256)
 const algorithmOption = (a, picked) =>
     ['option', a === picked ? { value: a.name, selected: '' } : { value: a.name }, a.name]
 
-/** @type {(text: string, label: string) => Element} */
-const codeBlock = (text, label) => ['div', { 'data-code': '', 'data-code-block': '' },
-    ['pre', text],
-    ['button', { type: 'button', 'data-copy': text, 'aria-label': label, title: label },
-        ['svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5', 'aria-hidden': 'true' },
-            ['path', { d: 'M6 9H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2' }],
-            ['rect', { x: '9', y: '3', width: '12', height: '12', rx: '1' }],
-        ],
-        ['svg', { 'data-copy-check': '', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' },
-            ['path', { d: 'm5 12 4 4 10-10' }],
-        ],
-        ['span', { 'data-copy-status': '', 'aria-live': 'polite' }],
-    ],
-]
-
 /** @type {Demo<{ readonly algorithm: string, readonly text: string }, DemoEvent>} */
 export const demo = {
     init: { algorithm: 'SHA-256', text: '' },
@@ -100,7 +86,7 @@ export const demo = {
             ['p', `${algorithm.name}, hex:`],
             codeBlock(digestOf(algorithm.hash)(state.text), 'Copy digest'),
             ['p', 'Verify independently with OpenSSL:'],
-            codeBlock(`printf '%s' '${state.text.replaceAll("'", "'\\''")}' | openssl dgst -${algorithm.openssl}`, 'Copy OpenSSL command'),
+            codeBlock(`printf '%s' ${shellQuote(state.text)} | openssl dgst -${algorithm.openssl}`, 'Copy OpenSSL command'),
         ]
     },
 }
