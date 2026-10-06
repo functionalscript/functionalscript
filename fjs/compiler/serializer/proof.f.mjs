@@ -14,19 +14,23 @@
  * compiler meets, and every one of them names a feature that will replace it.
  *
  * @import { Exp } from '../../edag/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { _sourceOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
-import { memo } from '../../edag/memo/module.f.mjs'
+import { invoke, memo } from '../../edag/memo/module.f.mjs'
+import { call } from '../../edag/value/call/module.f.mjs'
+import { read } from '../../edag/value/property/module.f.mjs'
+import { toUnknown } from '../../edag/value/to_unknown/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { invert, unwrap } from '../../types/result/module.f.mjs'
+import { invert, ok, unwrap } from '../../types/result/module.f.mjs'
 import { _defaultExport, unresolved } from '../edag/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
-import { tryFunctionText, trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify } from './module.f.mjs'
+import { functionText, tryFunctionText, trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify } from './module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.mjs'
 
 /** The name the front end gives the text it reads back. */
@@ -151,7 +155,14 @@ const generated = (() => {
 const moduleGraph = source => unresolved(unwrap(parse(path)(source))).edag
 
 /** @type {(graph: Exp) => unknown} */
-const moduleValue = graph => memo(assertOk(analysis(graph)))({ frame: null, args: [] })
+const moduleValue = graph => assertOk(toUnknown(unwrap(memo(assertOk(analysis(graph)))({ args: [] }))))
+
+/** Render an already analyzed function root. @type {(e: Exp) => string} */
+const analyzedFunction = e => {
+    const a = assertOk(analysis(e))
+    assert(a.root instanceof Array)
+    return functionText(a, a.root[1])
+}
 
 export const proof = {
     structuralRefusals: () => {
@@ -198,9 +209,11 @@ export const proof = {
         },
         functions: () => {
             const text = unwrap(tryModuleStringify(moduleGraph('export const f=(...a)=>a; export default f;')))
-            const result = /** @type {{ f: (...args: unknown[]) => unknown, default: unknown }} */ (moduleValue(moduleGraph(text)))
-            assert(result.f === result.default)
-            assertStructurallySame(result.f(1, 2), [1, 2])
+            const result = memo(assertOk(analysis(moduleGraph(text))))({ args: [] })
+            const fn = assertOk(read(result, 'f'))
+            assertEq(fn, assertOk(read(result, 'default')))
+            const called = assertOk(call(ok(fn), [() => ok(1), () => ok(2)], invoke))
+            assertStructurallySame(assertOk(toUnknown(called)), [1, 2])
         },
         refusals: () => {
             for (const graph of /** @type {readonly Exp[]} */ ([
@@ -613,13 +626,117 @@ export const proof = {
         assertEq(text(['=>', 0, [['rest']], ['=>', 0, [slot(0)], slot(0)]]), '()=>()=>$0')
         // slots read out of order are named in order first, as a body's are
         assertEq(text(['=>', 0, [1, 2], ['[]', [slot(1), slot(0)]]]), '()=>{const $a0=$0;const $a1=$1;return [$a1,$a0];}')
-        // refused: no function, and a body the writer or the analysis refuses
+        // Refused: non-functions and invalid body metadata or bindings.
         assertStructurallySame(tryFunctionText(1), ['error', 'not a function'])
         assertStructurallySame(tryFunctionText(['[]', []]), ['error', 'not a function'])
-        assertStructurallySame(tryFunctionText(['=>', 0, [], ['!', 1]]), ['error', 'a ! node'])
+        assertEq(text(['=>', 0, [], ['!', 1]]), '()=>(! (1))')
         assertStructurallySame(tryFunctionText(['=>', 0, [], ['arg', 0]]), ['error', 'invalid fixed parameter index or scope'])
         assertStructurallySame(tryFunctionText(['=>', 0, [], ['=>', 0, [], ['arg', 0]]]), ['error', 'invalid fixed parameter index or scope'])
         assertStructurallySame(tryFunctionText(['=>', 0, [], ['=>', 17, [], 1]]), ['error', 'a function length above 16'])
+    },
+    analyzedFunctionText: {
+        evaluatedCaptures: () => {
+            const captured = /** @type {const} */ (['[]', [1]])
+            /** @type {readonly (readonly [Exp, string])[]} */
+            const cases = [
+                [['=>', 0, [null, false, -0, NaN, 'value', 1n, ['undefined']],
+                    ['[]', [['frame', 0], ['frame', 1], ['frame', 2], ['frame', 3], ['frame', 4], ['frame', 5], ['frame', 6]]]],
+                '()=>[$0,$1,$2,$3,$4,$5,$6]'],
+                [['=>', 0, [captured, captured], ['[]', [['frame', 0], ['frame', 1]]]], '()=>[$0,$1]'],
+            ]
+            for (const [e, expected] of cases) {
+                assertEq(analyzedFunction(e), expected)
+                assertEq(analyzedFunction(e), assertOk(tryFunctionText(e)))
+            }
+        },
+        unusedCaptures: () => {
+            /** @type {readonly (readonly [Exp, string])[]} */
+            const cases = [
+                [['=>', 0, [null, false, 1], 2], '()=>2'],
+                [['=>', 0, [1, 2, 3, 4], ['[]', [['frame', 1], ['frame', 3]]]], '()=>[$1,$3]'],
+                [['=>', 0, [1, 2, 3], ['[]', [['frame', 2], ['frame', 0]]]], '()=>[$2,$0]'],
+            ]
+            for (const [e, expected] of cases) {
+                assertEq(analyzedFunction(e), expected)
+                assertEq(assertOk(tryFunctionText(e)), expected)
+            }
+            // Source text must still recover the complete frame on parsing.
+            // Distinct nonprimitive slots reach that check without a prior refusal.
+            const e = /** @type {const} */ (['=>', 0, [['[]', [1]], ['[]', [2]]], ['frame', 1]])
+            assertEq(analyzedFunction(e), '()=>$1')
+            assertEq(assertOk(tryFunctionText(e)), '()=>$1')
+            assertEq(assertError(tryStringify(e)), 'a frame slot the body never reads')
+            assertEq(assertError(tryModuleStringify(['{}', [[':', 'f', e]]])), 'a frame slot the body never reads')
+        },
+        nestedUnusedCaptures: () => {
+            const inner = /** @type {const} */ (['=>', 1, [['frame', 0], ['frame', 1]], ['[]', [['frame', 1], ['arg', 0]]]])
+            /** @type {readonly (readonly [Exp, string])[]} */
+            const cases = [
+                [['=>', 0, [1, 2], inner], '()=>($b_0)=>[$1,$b_0]'],
+                // Constructing a nested function still evaluates each capture,
+                // including a fallible expression whose slot goes unread.
+                [['=>', 0, [], ['=>', 0, [['.', null, 'x']], 1]],
+                '()=>{const $a0=null.x;return ()=>1;}'],
+                // The shared nested function lives in a lazy operand's block.
+                [['=>', 0, [1, 2], ['&&', true, ['[]', [inner, inner]]]],
+                '()=>true&&(()=>{const $b0=($c_0)=>[$1,$c_0];return [$b0,$b0];})()'],
+                // A parent whose complete frame is read out of order keeps its
+                // aliases while its nested function may leave a capture unused.
+                [['=>', 0, [1, 2], ['[]', [['frame', 1], ['frame', 0], inner]]],
+                '()=>{const $a0=$0;const $a1=$1;return [$a1,$a0,($b_0)=>[$a1,$b_0]];}'],
+            ]
+            for (const [e, expected] of cases) {
+                assertEq(analyzedFunction(e), expected)
+                assertEq(assertOk(tryFunctionText(e)), expected)
+            }
+            const e = /** @type {const} */ (['=>', 0, [['[]', [1]], ['[]', [2]]], inner])
+            assertEq(assertError(tryStringify(e)), 'a frame slot the body never reads')
+            assertEq(assertError(tryModuleStringify(['{}', [[':', 'f', e]]])), 'a frame slot the body never reads')
+        },
+        selectedFunctions: () => {
+            const shared = /** @type {const} */ (['[]', []])
+            const inner = /** @type {const} */ (['=>', 2, [['arg', 0]],
+                ['[]', [['frame', 0], ['arg', 1], ['rest'], shared, shared]]])
+            const outer = /** @type {const} */ (['=>', 1, [], inner])
+            const a = assertOk(analysis(['[]', [['[]', [9]], outer, ['=>', 0, [], ['rest']]]]))
+            /** @type {readonly (readonly [Exp, number, string])[]} */
+            const cases = [
+                [inner, 2, '($a_0,$a_1,...$a)=>{const $a0=[];return [$0,$a_1,$a,$a0,$a0];}'],
+                [outer, 1, '($a_0)=>($b_0,$b_1,...$b)=>{const $b0=[];return [$a_0,$b_1,$b,$b0,$b0];}'],
+            ]
+            for (const [e, length, expected] of cases) {
+                const i = a.nodes.findIndex(node => node[0] === '=>' && node[1] === length)
+                assert(i >= 0)
+                assertEq(functionText(a, i), expected)
+                assertEq(functionText(a, i), assertOk(tryFunctionText(e)))
+            }
+        },
+        selectedUnusedFunction: () => {
+            const inner = /** @type {const} */ (['=>', 1, [['arg', 0], ['arg', 1]], ['frame', 1]])
+            const outer = /** @type {const} */ (['=>', 2, [], inner])
+            const a = assertOk(analysis(['[]', [['[]', [9]], outer]]))
+            const i = a.nodes.findIndex(node => node[0] === '=>' && node[1] === 1)
+            assert(i >= 0)
+            assertEq(functionText(a, i), '($a_0)=>$1')
+            assertEq(assertOk(tryFunctionText(inner)), '($a_0)=>$1')
+            assertEq(assertOk(tryFunctionText(outer)), '($a_0,$a_1)=>($b_0)=>$a_1')
+        },
+        completeBodies: () => {
+            const e = /** @type {const} */ (['=>', 0, [], ['!', 1]])
+            assertEq(analyzedFunction(e), '()=>(! (1))')
+            assertEq(analyzedFunction(e), assertOk(tryFunctionText(e)))
+            // Function text accepts evaluated captures while the source
+            // writer keeps its structural round-trip restrictions.
+            /** @type {readonly (readonly [Exp, string])[]} */
+            const cases = [
+                [['=>', 0, [], ['=>', 0, [1], 2]], 'a frame slot holding a primitive'],
+                [['=>', 0, [['[]', [1]]], ['=>', 0, [['frame', 0], ['frame', 0]], 2]], 'a frame slot that repeats another'],
+            ]
+            for (const [graph, expected] of cases) {
+                assertEq(analyzedFunction(graph), assertOk(tryFunctionText(graph)))
+                assertEq(assertError(tryStringify(graph)), expected)
+            }
+        },
     },
     // Every refusal, by the message it carries: a node kind with no spelling
     // yet, a position a spelling has none in, and a key no literal reads
@@ -658,7 +775,7 @@ export const proof = {
         // the call a nested `throw` is written as fails where the node does
         nested: () => {
             const { edag } = unresolved(unwrap(parse(path)(unwrap(tryStringify(['[]', [['throw', 1]]])))))
-            memo(assertOk(analysis(_defaultExport(edag))))({ frame: null, args: [] })
+            unwrap(memo(assertOk(analysis(_defaultExport(edag))))({ args: [] }))
         },
     },
     refuses: () => {

@@ -13,9 +13,12 @@ once per level, before the EDAG analysis that
 
 - `lowerLeaf` in [`../edag/module.f.mjs`](../edag/module.f.mjs) lowers an
   `'array'` or `'object'` by mapping `lower(nodes)` over its items, and a
-  function through `fn` → `scope` → `lower`;
-- `toDjs` in [`../ast/module.f.mjs`](../ast/module.f.mjs) evaluates an
-  `'array'` or `'object'` by mapping itself over its items.
+  function through `fn` → `scope` → `lower`.
+
+The AST's `toDjs` evaluator has been retired. Data outputs now use the same
+lowering, then EDAG memo interpretation and runtime data conversion; their
+remaining depth limits belong to this lowering and the linked EDAG stack-safety
+task.
 
 At `36c8d4a`, `export default ${'['.repeat(3000)}${']'.repeat(3000)};` —
 a depth the parser's `stackSafety` proof accepts — fails with
@@ -25,8 +28,8 @@ deep fails in `lower` as well.
 
 ### Tasks
 
-- [ ] Give `lowerLeaf`'s container and function cases, and `toDjs`'s
-      container cases, the explicit stack the operator cases already have.
+- [ ] Give `lowerLeaf`'s container and function cases the explicit stack the
+      operator cases already have.
 - [ ] Proofs at the depth `stackSafety` in `../parser/proof.f.mjs` uses, for
       nested arrays, nested objects and nested functions, on every output.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.

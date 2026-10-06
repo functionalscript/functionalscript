@@ -1,12 +1,14 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — value shape, object metadata and closure/body checks implemented; value operations and VM migration remain open
+**Status:** open — FJS language VMs use represented values, compiler module
+initialization uses memo, and closed values can be emitted as JavaScript.
+Callable loading and Rust value-emission parity remain.
 
 ### Problem
 
-The FJS EDAG evaluators produce JavaScript values. Their function values are
-host closures built by `callable` in `fjs/types/function/length`: their arity
+The original FJS EDAG evaluators produce JavaScript values. Their function
+values are host closures built by `callable` in `fjs/types/function/length`: their arity
 requires a fixed table, their native text describes the wrapper, and their
 semantic EDAG and captures are unavailable from the value itself.
 
@@ -21,6 +23,11 @@ for FJS VMs**. Evaluation and language operations return
 `Result<EdagValue, EdagValue>`. Provide an explicit conversion from `EdagValue`
 to `unknown`: an ordinary FJS runtime value whose EDAG reflection has been
 erased. Converted functions remain callable but no longer expose their EDAG.
+
+Call evaluation from EDAG to a value graph **EDAG interpretation**. Call the
+conversion from EDAG values to ordinary FJS/JS runtime values **runtime
+compilation**, including function-free materialization. Callable runtime
+compilation includes the backend's code-generation and load/build boundary.
 
 This changes runtime representation and tooling APIs. It introduces no new
 source syntax or reflection primitive. The approved parameter limit remains
@@ -135,6 +142,19 @@ Default function text follows the approved code/frame-slot contract. Saving
 a closed callable also retains its captures and sharing; these are distinct
 output contracts.
 
+Memo connects the total trusted `functionText(analysis, index): string`
+renderer. Existing canonical text stays unchanged; other admitted bodies use
+general JavaScript expression text, including optional calls, nested captures
+and invocation-local lazy memo cells for shared nodes. The emitted JavaScript
+may use local mutation while the FJS renderer remains immutable. Function text
+therefore needs no output-refusal channel in the VM's language result.
+
+`tryFunctionText` retains admission diagnostics for separately supplied code.
+This code-only rendering uses frame-slot names, not captured runtime values;
+it neither implements callable runtime compilation nor promises a FJS source
+round trip. The source serializer's `tryStringify` remains partial. Do not
+preflight unused function text or repeat admission for constructed values.
+
 #### Modules and metaprogramming
 
 An unresolved module consists of imports and an initializer EDAG. Producing
@@ -182,10 +202,22 @@ expects source-normalized frames: `tryStringify` refuses the primitive capture
 in the example above with `a frame slot holding a primitive`, and also refuses
 repeated or unused slots. Callable value emission must accept evaluated captures
 and preserve their slot positions, shared values and allocation lifetimes.
-This is backend migration work, not a restriction on `EdagValue`. The source
+This is not a restriction on `EdagValue`. The source
 writer's structural round-trip contract remains separate: emitting a closed
 value promises its runtime behavior and identity, without requiring source
 lowering to reconstruct the same capture graph.
+
+[`compiler/serializer/value`](../../compiler/serializer/value/module.f.mjs)
+now exposes `stringify(value: EdagValue): string`. It emits a JavaScript module
+whose default export is the ordinary runtime value. Analysis orders evaluated
+nodes before their consumers; each outer node has one `const`, including
+values used only by capture slots. Function bodies reuse the JavaScript
+function-text renderer. Primitive, repeated and unused slots keep their
+positions, captures live outside calls, and body sharing is per invocation.
+This output follows the JavaScript/memo execution profile; it does not preserve
+Amnesia's recomputation of every edge. It may use JavaScript syntax beyond the
+current FJS parser. Emission is pure; loading the module remains a target-runtime
+operation and is not yet wired into `toUnknown` or compiler output routes.
 
 Provide **`EdagValue -> unknown`**, including functions, as an explicit
 conversion to ordinary FJS runtime values. Here `unknown` names a runtime
@@ -253,6 +285,12 @@ possible, including accounting inside costly operations. **Resource limits
 are deferred and are not implementation tasks here**; this proposal adds no
 budget or stopped-outcome API.
 
+The current host-backed string operations can still exceed the host's string
+capacity and throw outside `Result`; this resource boundary is tracked in
+[string-allocation-failures](../value/method/todo/string-allocation-failures.md).
+Implemented language failures use represented results; this does not yet
+promise normalization of host resource exhaustion.
+
 ### Tasks
 
 - [x] Record the common representation, failure model, compilation/conversion
@@ -267,32 +305,172 @@ budget or stopped-outcome API.
       analysis and binding checks; return string diagnostics while retaining
       the original value graph. Body object expressions keep construction
       semantics rather than evaluated-object normalization rules.
-- [ ] Implement shared value operations and invocation over
+- [x] Add infallible truthiness, `typeof`, strict equality and `Object.is`
+      helpers in `fjs/edag/value/semantics`. Tagged undefined has primitive
+      semantics; arrays, objects and functions preserve node identity.
+- [x] Add `unary` and `binary` operation tables in `fjs/edag/value/semantics`
+      for `!`, `typeof`, `===`, `!==` and `is`, reusing the infallible helpers
+      and returning successes through `Result`. Preserve tagged-undefined
+      semantics, NaN and signed-zero distinctions, and container/function
+      identity. Callers own operand evaluation and failure propagation.
+- [x] Add shared `throw`, `&&`, `||`, `??` and `?:` helpers over
+      `Result<EdagValue, EdagValue>` in `fjs/edag/value/control`, with deferred
+      operands, unchanged failures and selected value identity. These helpers
+      provide stateless control flow; memo threads immutable executor state
+      through demanded operands.
+- [x] Add comma/sequence evaluation in `fjs/edag/value/control`: demand
+      deferred operands in order, preserve the first failure or last success
+      tuple unchanged, and return tagged undefined for an empty sequence.
+      Failures from earlier, otherwise-unused operands stop later evaluation.
+      Memo implements executor dispatch; module-initializer integration
+      remains open.
+- [x] Construct evaluated arrays in `fjs/edag/value/array` from deferred
+      elements and array/string spreads. Evaluate items in order, propagate
+      the first failure unchanged, fail non-iterable spreads with tagged
+      undefined, preserve element identity and create a fresh array value.
+- [x] Construct evaluated objects in `fjs/edag/value/object` from deferred
+      string-key properties and object/array/string spreads. Evaluate items
+      in order, propagate the first failure unchanged, preserve field value
+      identity and create a fresh object with unique keys in JavaScript
+      enumeration order. Property thunks resolve keys before values; key
+      evaluation/coercion remains in the operation/invocation layer.
+- [x] Construct evaluated functions in `fjs/edag/value/function` from deferred
+      captures and valid body templates. Evaluate captures in order, propagate
+      the first failure unchanged and retain capture identities. Create a
+      fresh function and copy its body graph, preserving sharing within the
+      copy and distinct equal-looking nodes, including nested function
+      templates. Keep evaluated captures outside the copy and body code
+      unevaluated; compiler/admission length and binding invariants are trusted.
+- [x] Prepare bare calls in `fjs/edag/value/call`: resolve deferred argument
+      items/spreads in order, pad missing fixed positions with tagged undefined
+      and allocate fresh rest arrays. Propagate failures unchanged, evaluate
+      arguments before rejecting non-functions, and delegate with the original
+      function and its bindings. The executor callback owns body execution;
+      memo supplies immutable caller/cache state and operation dispatch.
+- [x] Add property lookup in `fjs/edag/value/property` over represented objects,
+      array/string indices and array/string/function lengths. Preserve stored
+      value and receiver-failure identities; return tagged undefined for absent
+      properties and implicit failure for nullish receivers. Callers own key
+      resolution, operand evaluation order and source-name admission. Memo
+      connects method dispatch and the raw `own` operation.
+- [x] Convert ordinary objects to primitives in `fjs/edag/value/coercion`:
+      try own `valueOf`/`toString` in hint order, use stock behavior only when
+      absent, and skip noncallable methods. Invoke represented methods through
+      the call helper, preserving primitive results and failures unchanged;
+      nonprimitive results try the next method without further conversion.
+      Use presence-preserving stored-property lookup so tagged undefined
+      shadows stock behavior. `value/convert` adds array/function conversion.
+- [x] Convert the represented `Primitive` subset to strings and numbers in
+      `fjs/edag/value/coercion`, reusing tagged-undefined decoding from the
+      semantics helper. String conversion is infallible; abstract ToNumber
+      returns tagged-undefined failure for bigint. Object conversion exposes
+      its primitive success type so callers can compose the helpers directly.
+      Explicit `Number(bigint)` uses the numeric operation table below.
+- [x] Add primitive unary numeric operations in `fjs/edag/value/numeric`:
+      `+` rejects bigint, `-` and `~` preserve bigint, and explicit `Number`
+      converts it. Share primitive ToNumeric in `value/coercion`; return
+      numeric successes or tagged-undefined failures through `Result`.
+      Operand evaluation and container/function conversion remain with dispatch.
+- [x] Add primitive binary arithmetic in `fjs/edag/value/numeric`: `+`, `-`,
+      `*`, `/` and `%`. Preserve string addition and same-type numeric
+      arithmetic; mixed numeric types and bigint zero divisors return
+      tagged-undefined failure. Operand evaluation and conversion to primitives
+      remain with dispatch.
+- [x] Add primitive binary `&`, `|` and `^` in `fjs/edag/value/numeric`,
+      reusing primitive ToNumeric and same-type dispatch. Preserve signed
+      32-bit number conversion and exact bigint results; mixed numeric types
+      return tagged-undefined failure.
+- [x] Add primitive exponentiation `**` in `fjs/edag/value/numeric`, reusing
+      primitive ToNumeric and same-type dispatch. Preserve number behavior
+      and exact bigint results; mixed numeric types and negative bigint
+      exponents return tagged-undefined failure.
+- [x] Add primitive shifts `<<`, `>>` and `>>>` in `fjs/edag/value/numeric`,
+      reusing primitive ToNumeric and same-type dispatch. Preserve 32-bit
+      number conversion and shift-count wrapping, exact bigint shifts and
+      reversed direction for negative bigint counts. Mixed numeric types
+      and bigint unsigned shifts return tagged-undefined failure.
+- [x] Add primitive `<`, `<=`, `>` and `>=` in `fjs/edag/value/relational`,
+      returning boolean successes through `Result`. Preserve UTF-16 string
+      ordering, exact mixed number/bigint comparisons and bigint/string
+      conversion. Unordered comparisons succeed with false. Operand evaluation
+      and container/function conversion remain with dispatch.
+- [x] Join evaluated arrays in `fjs/edag/value/array` with a resolved separator
+      and a supplied string converter. Nullish elements contribute empty text;
+      other elements, including nested arrays and functions, convert in order.
+      Preserve each element's identity and the first failure tuple unchanged.
+      Shared method dispatch handles separator conversion/defaulting;
+      `value/convert` supplies complete value-to-string conversion.
+- [x] Add `at` in `fjs/edag/value/at` for evaluated arrays and strings with
+      primitive indices. Reuse abstract ToNumber, preserve element identity
+      and UTF-16 string indexing, and return tagged undefined out of range.
+      Bigint indices fail even for empty receivers. Callers own method
+      dispatch, operand evaluation and conversion of nonprimitive indices.
+- [x] Add `slice` in `fjs/edag/value/slice` for evaluated arrays and strings
+      with primitive bounds. Reuse abstract ToNumber, with tagged undefined
+      as the omitted end; preserve UTF-16 substrings and create fresh array
+      values sharing their elements. Bigint bounds fail even for empty
+      receivers or ranges. Callers own method dispatch, operand evaluation
+      and conversion of nonprimitive bounds.
+- [x] Expose the shared serializer's `functionText(analysis, index)` renderer
+      for an already analyzed function with valid metadata and body bindings.
+      Keep `tryFunctionText` as the checked raw-expression entry, delegating
+      after its existing checks. Preserve canonical slot names for evaluated
+      captures and standalone text for nested functions. The trusted renderer
+      returns a string for every admitted body; memo uses it for direct and
+      indirect conversion without adding a language-failure channel.
+- [x] Separate function text from the source writer's unused-capture
+      restriction. `functionText` and `tryFunctionText` allow unused slots in
+      the selected function and nested bodies, preserving slot names without
+      adding reads. Existing supported text and source round-trip refusals
+      remain unchanged. General JavaScript text handles the remaining bodies,
+      preserving lazy shared nodes and nested captures. Full callable value
+      emission remains below.
+- [x] Implement shared value operations and invocation over
       `Result<EdagValue, EdagValue>`, with immutable state and admitted methods.
-- [ ] Migrate Amnesia and memo, preserving each documented execution model;
-      migrate their proofs, the `fjs/nanvm` corpus and parameter consumers.
-- [ ] Implement target runtime materialization to `unknown`: function-free data
-      conversion and backend-generated/precompiled callable construction,
-      runtime arguments/results, reflection erasure, failure behavior and
+- [x] Finish the memo cutover: dispatch, represented invocation, immutable
+      cache, compiler proof consumers and complete function-text conversion.
+- [x] Migrate Amnesia, preserving its documented execution model, and migrate
+      its proofs and the `fjs/nanvm` corpus. Both interpreters share represented
+      operation dispatch; Amnesia retains exact caller-established node
+      identities and recomputes all other edges, including inside calls.
+      The host-valued EDAG operation implementation is removed. Independent
+      JavaScript corpus references construct fixture values directly.
+- [x] Materialize function-free values in `fjs/edag/value/to_unknown` as
+      ordinary runtime data typed as `unknown`. Decode tagged undefined,
+      arrays and own object fields while preserving shared container identities
+      and distinct equal-looking nodes. Each conversion allocates fresh
+      containers. An encountered function returns an output diagnostic;
+      constructed value invariants are trusted, with no reverse admission.
+- [ ] Implement callable runtime materialization to `unknown` through
+      backend-generated/precompiled construction, runtime arguments/results,
+      reflection erasure, failure behavior and
       identity preservation. Prove `f => f(1)` accepts an ordinary callback
       with no EDAG association, and refuse unavailable callable materialization.
-- [ ] Execute resolved module initializers into export value graphs; migrate
-      compiler/loader callers and retire or migrate the AST value evaluator.
-- [ ] Implement callable value emission in the FJS backend for primitive,
+- [x] Execute resolved module initializers into export value graphs in
+      `compiler/transpiler.interpret`; migrate compiler data outputs and retire
+      the AST value evaluator. Cache complete represented exports per module,
+      preserve initializer failure payloads and paths, and convert only the
+      requested result. `transpile` returns an inner output-conversion Result;
+      callable runtime conversion remains the explicit refusal above.
+- [x] Implement callable value emission in the JavaScript backend for primitive,
       repeated and unused evaluated captures, preserving slot positions and
       shared captured values separately from source round-trip serialization.
       Prove the primitive-capture example above produces a callable returning
       `5` when passed `3`, plus shared captures and fresh body allocations.
+      `compiler/serializer/value.stringify` emits a default-export module;
+      host proofs load it and invoke its ordinary runtime functions. Target
+      loading remains the callable materialization task above.
 - [ ] Prove direct JS/Rust compilation of result graphs preserves the supported
       profile: primitives, containers, nested captures, distinct closures,
       shared identity, fresh invocation values, lazy branches and throws.
-- [ ] Prove initializer failures survive unused imports/declarations, while
-      successful artifacts omit unreachable initialization machinery.
+- [x] Prove initializer failures survive unused imports/declarations, while
+      successful export value graphs omit unreachable initialization machinery.
 - [ ] Prove implicit operation failures return `error(['undefined'])`, while
       explicit thrown values propagate unchanged through operands, callbacks
       and module initialization.
-- [ ] Prove direct/indirect function text, conversion of thrown values and
-      exported callables; retain the host-text exception at host boundaries.
+- [x] Prove direct and indirect function text in the shared conversion used by memo.
+- [ ] Prove conversion of thrown values and exported callables; retain the
+      host-text exception at host boundaries.
 - [ ] Remove old VM value representations and reconcile the linked design
       notes; move the final contract to EDAG documentation before deleting
       this TODO. Declare evaluator API breaks in implementation PRs.
@@ -304,7 +482,7 @@ budget or stopped-outcome API.
 
 - [EDAG](../README.md) and [execution models](../execution-models.md) — schema,
   scope and identity contracts.
-- [Function text](../function-text.md) — current host-valued behavior this
+- [Function text](../function-text.md) — represented rendering and the historical host behavior this
   migration replaces inside FJS VMs.
 - [Interpret EDAG](../../compiler/todo/interpret-edag.md) — public validation
   and compiler integration, with runtime conversion at its value-output boundary.
@@ -315,7 +493,7 @@ budget or stopped-outcome API.
   prerequisite; this representation does not approve captured mutation.
 - [Callable association](../../compiler/todo/associate-edag-with-functions.md)
   — native/host callable metadata remains distinct from represented VM functions.
-- [Output refusals](../../compiler/todo/value-refusal-names-the-output.md) —
+- [Output refusals](../../compiler/README.md#ast) —
   source failure versus output representability.
 - [Metaprogramming](../../compiler/todo/047-compiler-meta-programming.md) —
   module execution enabled by this representation.

@@ -3,9 +3,18 @@
 **Priority:** P1
 **Status:** open
 
+### Compiler integration baseline
+
+The compiler's EDAG-value cutover removed redundant forwarding frames from
+analysis and memo and separated the object handler from operation dispatch.
+The existing 1,000-level array corpus now passes through interpretation and
+runtime data conversion on Node 24/26, Bun and Deno. This preserves the former data-output
+baseline; it does not make these walks iterative or promise unbounded depth.
+The measurements below describe the earlier implementation, before that change.
+
 ### Problem
 
-The analysis walk — `walk`, `node`, `fresh` and `dispatch` in
+The analysis walk — `walk` and its handlers in
 [`../analysis/module.f.mjs`](../analysis/module.f.mjs) — recurses once per
 operand, so a sufficiently deep EDAG — a long left-associative operator
 chain (`1 + 1 + 1 + …`), or deeply nested containers (`[[[[…]]]]`) —
@@ -80,6 +89,12 @@ as does the Rust printer (`closure` → `statements` in
 `export default ${'() => '.repeat(20000)}1;` still overflows, with a
 capture or without one.
 
+The evaluated-function constructor's body copier in
+[`../value/function/module.f.mjs`](../value/function/module.f.mjs) also
+recurses with the input's array depth. Include it in this investigation;
+its replacement must preserve body sharing and leave evaluated captures
+outside the copy.
+
 ### Proposal
 
 The same shape again: convert the walk to an explicit stack (or adopt
@@ -117,6 +132,8 @@ discovered one `RangeError` at a time.
 - [ ] Identify every recursive call in `fjs/edag/analysis/module.f.mjs`
       (and any sibling module with the same shape) whose depth is the
       *input's*, not a bounded constant.
+- [ ] Include `fjs/edag/value/function`'s body copier, preserving its
+      identity memo and separation from evaluated captures.
 - [ ] Convert to an explicit stack, preserving walk order (the
       module's own numbering/scope assignment currently depends on
       visiting each node once, on the first edge that reaches it —

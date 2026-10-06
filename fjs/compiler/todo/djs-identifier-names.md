@@ -17,12 +17,11 @@ defines:
 - exports: `_djsTokenKinds` in
   [`../tokenizer/module.f.mjs`](../tokenizer/module.f.mjs) and `djsModule`,
   the start rule of [`../parser/grammar/module.f.mjs`](../parser/grammar/module.f.mjs);
-- private names: the tokenizer's `mapDjsToken`, the AST evaluator's `toDjs`
-  and its local `djs` values in [`../ast/module.f.mjs`](../ast/module.f.mjs),
-  the transpiler's `mapDjs`;
+- private names: the tokenizer's `mapDjsToken`; the AST evaluator's `toDjs`
+  and the transpiler's `mapDjs` were removed by EDAG interpretation;
 - proof names: `djsTokenize`, `stringifyDjsModule`, `mapDjsUnresolvedImport`,
-  `jsonInputRejectsDjsExtensions`, and the `djs` locals in
-  [`../ast/proof.f.mjs`](../ast/proof.f.mjs).
+  `jsonInputRejectsDjsExtensions`. AST evaluator proof names were retired with
+  their implementation.
 
 Two mentions are history and stay: `fjs/compiler`'s `isDataJs` JSDoc and
 its proof both say `.d.js` "was DJS's spelling and went with the name".

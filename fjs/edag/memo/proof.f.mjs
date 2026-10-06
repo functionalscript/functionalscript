@@ -1,24 +1,34 @@
 /**
- * What the memo executor answers, each claim beside amnesia's answer to the
+ * What the memo executor answers, each claim beside Amnesia's answer to the
  * same graph: the same value wherever sharing does not decide it, and both
  * answers pinned where it does.
  *
  * @import { Exp } from '../types.ts'
+ * @import { EdagValue, Values, Array as ValueArray } from '../value/types.ts'
  */
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { vm } from '../amnesia/module.f.mjs'
 import { analysis } from '../analysis/module.f.mjs'
 import { lazyOp2Id } from '../module.f.mjs'
-import { memo } from './module.f.mjs'
+import { memo, invoke } from './module.f.mjs'
+import { toUnknown } from '../value/to_unknown/module.f.mjs'
+import { call } from '../value/call/module.f.mjs'
+import { ok } from '../../types/result/module.f.mjs'
 
-const context = { frame: null, args: [10, 20] }
+const context = { frame: [], args: [10, 20] }
+
+/** @param {Exp} e */
+const result = e => memo(assertOk(analysis(e)))(context)
+
+/** @param {Exp} e */
+const value = e => assertOk(result(e))
 
 /** @type {(e: Exp) => unknown} */
-const run = e => memo(assertOk(analysis(e)))(context)
+const run = e => assertOk(toUnknown(value(e)))
 
 /** @type {(e: Exp) => unknown} */
-const oracle = e => vm(context)(e)
+const oracle = e => assertOk(toUnknown(assertOk(vm(context)(e))))
 
 /** The same answer as amnesia, where sharing does not decide it. @type {(e: Exp) => void} */
 const agrees = e => { assertStructurallySame(run(e), oracle(e)) }
@@ -35,8 +45,14 @@ const s = ['[]', [1]]
 /** @type {(v: unknown) => readonly any[]} */
 const array = v => /**@type {any}*/(v)
 
-/** @type {(v: unknown) => (...a: unknown[]) => unknown} */
-const callable = v => /**@type {any}*/(v)
+/** Call a represented function; this proof adapter never exposes a runtime function. @type {(v: EdagValue, args?: Values) => EdagValue} */
+const apply = (v, args = []) => assertOk(call(ok(v), args.map(a => () => ok(a)), invoke))
+
+/** @type {(v: EdagValue) => Values} */
+const elements = v => /** @type {ValueArray} */ (v)[1]
+
+/** @type {(e: Exp, expected?: EdagValue) => void} */
+const fails = (e, expected = ['undefined']) => assertStructurallySame(result(e), ['error', expected])
 
 export const proof = {
     // The model: one node reached twice is one value. Amnesia gives two
@@ -96,22 +112,22 @@ export const proof = {
     body: () => {
         /** @type {Exp} */
         const inner = ['[]', []]
-        const f = callable(run(['=>', 0, [5], ['[]', [inner, inner, ['rest'], ['frame', 0]]]]))
-        const first = array(f(1))
-        const second = array(f(2))
+        const f = value(['=>', 0, [5], ['[]', [inner, inner, ['rest'], ['frame', 0]]]])
+        const first = elements(apply(f, [1]))
+        const second = elements(apply(f, [2]))
         assert(first[0] === first[1])
         assert(first[0] !== second[0])
-        assertStructurallySame(first[2], [1])
+        assertStructurallySame(first[2], ['[]', [1]])
         assertEq(first[3], 5)
         // A body inside a body, each its own scope: the inner closure's
         // constructor is fresh per inner call, whichever outer call made it.
-        const g = callable(run(['=>', 0, [], ['=>', 0, [], ['[]', [inner, inner]]]]))
-        const h = callable(g())
-        const x = array(h())
-        assert(x[0] === x[1] && x[0] !== array(h())[0])
+        const g = value(['=>', 0, [], ['=>', 0, [], ['[]', [inner, inner]]]])
+        const h = apply(g)
+        const x = elements(apply(h))
+        assert(x[0] === x[1] && x[0] !== elements(apply(h))[0])
         // A primitive body is its value and opens no invocation, as a
         // primitive program is its value: no slot is built for either.
-        assertEq(callable(run(['=>', 0, [], 5]))(), 5)
+        assertEq(apply(value(['=>', 0, [], 5])), 5)
         eq(5, 5)
     },
     // Wherever sharing does not decide the value, the answer is amnesia's:
@@ -129,6 +145,79 @@ export const proof = {
         agrees(['.', ['[]', [42]], 'at', ['|?.()', [0], ['|.', 'toFixed', ['|()', [1]]]]])
         agrees(['?.()', ['=>', 0, [], ['{}', [[':', 'y', 3]]]], [], ['|.', 'y']])
         agrees(['typeof', ['&&', 1, 'a']])
+    },
+    operations: () => {
+        for (const tag of /** @type {const} */ (['+', '-', '*', '/', '%', '**', '&', '|', '^', '<<', '>>', '>>>', '<', '<=', '>', '>=', '===', '!==', 'is'])) {
+            agrees([tag, 6, 2])
+        }
+        for (const tag of /** @type {const} */ (['!', 'typeof', 'String', 'Number', '~', '+', '-'])) { agrees([tag, '2']) }
+        agrees(['+', ['[]', [1, 2]], ['{}', []]])
+        agrees(['+', ['{}', [[':', 'valueOf', ['=>', 0, [], 3]]]], 2])
+        agrees(['own', ['[]', [7]], '0'])
+        agrees(['.', ['[]', [7]], ['Number', '0']])
+        eq([',', []], undefined)
+        eq(['??', null, 4], 4)
+        eq(['||', 0, 5], 5)
+        assertEq(run(['===', ['args'], ['args']]), true)
+        // Lists beginning with '#' are ordinary data, never table references.
+        assertStructurallySame(assertOk(toUnknown(apply(value(['=>', 0, [], ['[]', ['#', 42]]])))), ['#', 42])
+    },
+    chains: () => {
+        /** @type {Exp} */
+        const identity = ['=>', 1, [], ['arg', 0]]
+        /** @type {Exp} */
+        const obj = ['{}', [[':', 'f', identity], [':', 'nothing', ['undefined']]]]
+        eq(['?.', obj, 'f', ['|()', [7]]], 7)
+        eq(['.', obj, 'f', ['|?.()', [8]]], 8)
+        eq(['.', obj, 'nothing', ['|?.()', [['throw', 1]]]], undefined)
+        eq(['?.', obj, 'nothing', ['|?.()', [['throw', 1]], ['|.', 'x']]], undefined)
+        eq(['?.()', ['undefined'], [['throw', 1]]], undefined)
+        eq(['?.()', identity, [9]], 9)
+        eq(['?.()', ['=>', 0, [], identity], [], ['|()', [10]]], 10)
+        eq(['?.', ['{}', [[':', 'x', ['{}', [[':', 'y', 11]]]]]], 'x', ['|.', 'y']], 11)
+        eq(['?.', obj, 'f', ['|!()', [12]]], 12)
+        fails(['?.', null, 'f', ['|!()', [['throw', 13]]]], 13)
+        fails(['?.()', null, [], ['|.', 'f', ['|!()', []]]])
+        fails(['.', null, 'f', ['|()', [['throw', 14]]]])
+        fails(['?.', obj, 'nothing', ['|.', 'x']])
+        // Own properties shadow builtins even when their value is undefined.
+        eq(['.', ['{}', [[':', 'toString', ['undefined']]]], 'toString', ['|?.()', [['throw', 1]]]], undefined)
+        eq(['.', ['{}', [[':', 'toString', ['=>', 0, [], 'own']]]], 'toString', ['|()', []]], 'own')
+        fails(['.', ['{}', [[':', 'toString', 0]]], 'toString', ['|()', []]])
+        eq(['.', ['[]', [2, 3]], 'at', ['|()', [1]]], 3)
+    },
+    failures: () => {
+        /** @type {Exp} */
+        const thrown = ['throw', 42]
+        /** @type {Exp} */
+        const numberFailure = ['{}', [[':', 'valueOf', ['=>', 0, [], thrown]]]]
+        /** @type {Exp} */
+        const keyFailure = ['{}', [[':', 'toString', ['=>', 0, [], ['throw', 43]]]]]
+        fails(['+', numberFailure, 1], 42)
+        fails(['+', 1, numberFailure], 42)
+        fails(['.', ['{}', []], ['Number', numberFailure]], 42)
+        fails(['{}', [[':', keyFailure, ['throw', 44]]]], 43)
+        fails(['{}', [[':', thrown, ['throw', 44]]]], 42)
+        fails(['{}', [[':', 'x', thrown]]], 42)
+        fails(['{}', [['...', thrown]]], 42)
+        fails(['[]', [['...', 1], thrown]])
+        fails(['[]', [thrown]], 42)
+        fails(['=>', 0, [thrown], ['throw', 44]], 42)
+        fails(['()', thrown, [['throw', 44]]], 42)
+        fails(['()', 0, [thrown]], 42)
+        fails(['()', 0, []])
+        fails([',', [thrown, ['throw', 44]]], 42)
+        fails(['throw', thrown], 42)
+        fails(['own', ['{}', []], 0])
+        fails(['+', 1n, 2])
+        fails(['/', 1n, 0n])
+        // Caller-supplied represented values, including thrown containers,
+        // retain identity rather than being decoded and reconstructed.
+        /** @type {EdagValue} */
+        const payload = ['{}', [[':', 'message', 'original']]]
+        const thrownPayload = memo(assertOk(analysis(['throw', ['.', ['args'], 0]])))({ args: [payload] })
+        assertEq(thrownPayload[0], 'error')
+        assertEq(thrownPayload[1], payload)
     },
     throw: {
         // A frame slot read outside a function is refused before anything

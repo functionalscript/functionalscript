@@ -3,21 +3,13 @@
  *
  * @module
  *
- * @import { Array, Unknown } from '../../media/datajs/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { Result } from '../../types/result/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstBody, AstEntry, AstFunction, AstItem, AstMember, AstModule, AstModuleRef, AstNeg, AstObject, AstSpread, AstThrow, BinaryTag, Anchors } from './types.ts'
- * @import { _Lazy, _OperandStack, _Reach, _RefNode, _RunState } from './private.ts'
+ * @import { AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstBody, AstEntry, AstFunction, AstItem, AstModule, AstModuleRef, AstNeg, AstSpread, AstThrow, BinaryTag, Anchors } from './types.ts'
+ * @import { _Lazy, _OperandStack, _Reach, _RefNode } from './private.ts'
  */
 
-import { concat, empty, flat, last, map, take, toArray } from '../../types/list/module.f.mjs'
-import { fromEntries } from '../../types/object/module.f.mjs'
-import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
-import { concat as stringConcat } from '../../types/string/module.f.mjs'
-import { leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
+import { concat, empty, flat, map, toArray } from '../../types/list/module.f.mjs'
 import { lazyOp2Id } from '../../edag/module.f.mjs'
-
-const { hasOwn } = Object
 
 /**
  * Every binary operator's tag, {@link BinaryTag} at run time — pinned to it
@@ -54,37 +46,6 @@ export const isBinary = node => node.length === 3 && binaryTags.some(tag => tag 
 export const isLazy = tag => lazyOp2Id.some(lazy => lazy === tag)
 
 /**
- * The own property `key` of `base`, or `undefined` where there is none —
- * never the prototype chain: a member of an object, an element or the
- * `length` of an array, a code unit or the `length` of a string; a number, a
- * boolean and a bigint have none, and neither have `null` and `undefined`,
- * which `Object` boxes to an empty object. `key` is read as JavaScript
- * reads one, so `0` and `"0"` name the same element.
- *
- * @type {(base: Unknown, key: string | number) => Unknown}
- */
-export const _own = (base, key) => {
-    /** @type {{ readonly [k in string]?: Unknown }} */
-    const object = Object(base)
-    return hasOwn(object, key) ? object[key] : undefined
-}
-
-/**
- * A property access on a value: the own property, as {@link _own} reads it,
- * of a base that has properties — a `null` or `undefined` base is the
- * failure JavaScript throws for, and the one failure a data module can
- * make.
- *
- * @type {(key: string | number) => (base: Unknown) => Result<Unknown, string>}
- */
-const ownProperty = key => base => base === null || base === undefined
-    ? error(`cannot read property "${key}" of ${base}`)
-    : ok(_own(base, key))
-
-/** @type {(key: string) => (value: Unknown) => readonly [string, Unknown]} */
-const keyed = key => value => [key, value]
-
-/**
  * Whether an item or an entry is a spread, `['...', v]`, rather than a
  * value or a member.
  *
@@ -94,230 +55,6 @@ export const isSpread = item => item instanceof Array && item[0] === '...'
 
 /** The node an item evaluates: itself, or a spread's operand. @type {(item: AstItem) => AstConst} */
 export const itemOperand = item => isSpread(item) ? item[1] : item
-
-/** Whether an entry is a member, `[':', name, value]`, rather than a spread. @type {(entry: AstEntry) => entry is AstMember} */
-const isMember = entry => !isSpread(entry)
-
-/**
- * The members among an object's entries, in order, the spreads left out:
- * for a reader of the keys an object literal writes, which a spread does
- * not spell. Exported for the transpiler, which reads the keys of the
- * result object it built itself, one member per export and no spread.
- *
- * @type {(entries: readonly AstEntry[]) => readonly AstMember[]}
- */
-export const members = entries => entries.filter(isMember)
-
-/** @type {(items: List<readonly Unknown[]>) => Unknown} */
-const arrayOf = items => toArray(items).flat()
-
-/**
- * The refusal of a spread whose operand is not iterable: every value but an
- * array and a string, as JavaScript's `GetIterator` refuses it with a
- * `TypeError` — a FunctionalScript object cannot define `Symbol.iterator`.
- */
-const notIterable = 'a spread of a value that is not iterable'
-
-/**
- * The values a spread's operand yields: an array's elements in index order,
- * or a string's code points, each a string of its own — what JavaScript's
- * iterator of each yields.
- *
- * @type {(value: Unknown) => Result<readonly Unknown[], string>}
- */
-const iterated = value =>
-    value instanceof Array ? ok(value)
-    : typeof value === 'string' ? ok([...value])
-    : error(notIterable)
-
-/** An object of its entries' properties in order: a repeated key keeps its first position and takes its last value. @type {(properties: readonly (readonly (readonly [string, Unknown])[])[]) => Unknown} */
-const objectOf = properties => fromEntries(properties.flat())
-
-/**
- * The properties a spread's operand contributes, as `CopyDataProperties`
- * copies them: its own enumerable string-keyed properties in own-property
- * order — an object's, an array's elements by index, a string's code units —
- * and none from `null`, `undefined`, a boolean, a number or a `bigint`.
- * Never a failure, unlike an array's spread: `{ ...null }` is `{}`.
- *
- * @type {(value: Unknown) => readonly (readonly [string, Unknown])[]}
- */
-const copied = value => value === null || value === undefined
-    ? []
-    : Object.entries(/** @type {{ readonly [k in string]?: Unknown }} */ (Object(value)))
-
-/**
- * The properties an entry adds to an object, by the evaluator given first:
- * a member's one, or the ones a spread's operand contributes, {@link copied}.
- *
- * @type {(evaluate: (ast: AstConst) => Result<Unknown, string>) => (entry: AstEntry) => Result<readonly (readonly [string, Unknown])[], string>}
- */
-const entryProperties = evaluate => entry => isSpread(entry)
-    ? mapOk(copied)(evaluate(entry[1]))
-    : mapOk(value => [keyed(entry[1])(value)])(evaluate(entry[2]))
-
-/** One value, as the values an item adds to an array. @type {(value: Unknown) => readonly Unknown[]} */
-const single = value => [value]
-
-/**
- * The values one item adds to an array, by the evaluator given first: its
- * own value, or the values a spread's operand yields, {@link iterated}.
- *
- * @type {(evaluate: (ast: AstConst) => Result<Unknown, string>) => (item: AstItem) => Result<readonly Unknown[], string>}
- */
-const itemValues = evaluate => item => isSpread(item)
-    ? okThen(iterated)(evaluate(item[1]))
-    : mapOk(single)(evaluate(item))
-
-/** @type {(state: _RunState) => (djs: Unknown) => _RunState} */
-const evaluated = state => djs => ({ ...state, consts: concat(state.consts)([djs]) })
-
-/** @type {(ast: AstConst) => (state: _RunState) => Result<_RunState, string>} */
-const foldOp = ast => state => mapOk(evaluated(state))(toDjs(state)(ast))
-
-/** @type {(acc: Result<_RunState, string>, ast: AstConst) => Result<_RunState, string>} */
-const entryStep = (acc, ast) => okThen(foldOp(ast))(acc)
-
-/**
- * The refusal of a function where a value is wanted: this evaluator computes
- * the value a module denotes, and no value here is a function.
- *
- * It named the EDAG as the place functions go while that was the only output
- * holding one. It is not any more — `fjs compile` writes the module itself
- * under a JavaScript name
- * ([`../serializer`](../serializer/module.f.mjs)) — so the message says what
- * is missing and leaves the choice of output to the compiler's own
- * documentation.
- */
-const noFunctionValue = 'a function has no value'
-
-/**
- * The refusal of a call where a value is wanted: this evaluator computes
- * the value a module denotes and has no function to apply, so what a call
- * returns is not a value it can reach. Interpreting a call is
- * [`../todo/interpret-edag.md`](../todo/interpret-edag.md)'s.
- */
-const noCallValue = 'a call has no value'
-
-/**
- * The refusal of a binary operator, a conditional or a bitwise not where
- * a value is wanted: `+` alone needs `ToPrimitive` to decide number or
- * string, and folding every other operator while leaving `+` a node would
- * draw an inconsistent line, so this evaluator answers none of them — the
- * lazy ones and the conditional included, whose `ToBoolean` is a question
- * of the same kind — see {@link AstBinary}'s own comment in `./types.ts`. `run` reaches this
- * exactly where it reaches {@link noFunctionValue}/{@link noCallValue}: a
- * node whose value is the EDAG's to give, not this reader's.
- */
-const noOperatorValue = 'an operator has no value'
-
-/**
- * The refusal of a value this evaluator has no number for: a container.
- *
- * Converting one is `ToPrimitive`, JavaScript's own machinery — `valueOf`,
- * then `toString`, and a `TypeError` where neither answers with a
- * primitive. Which of those a value reaches depends on what it holds, so
- * saying in advance that a container converts means assuming what may be
- * in it. This refuses instead. The numbers JavaScript would give — `-[1]`
- * is `-1`, `-{}` is `NaN` — wait on that machinery being written rather
- * than reasoned about.
- */
-const noNumber = 'no number for this value'
-
-/**
- * The failure a `throw` makes of the value it established: what the value
- * outputs report for a module whose load throws, as they report a read of
- * `null`. The thrown value is no observation of the language's
- * ([spec: failure is one outcome](../../../spec/README.md#failure-is-one-outcome)),
- * so the message is a diagnostic: a primitive as DataJS spells it, a
- * container by its kind.
- *
- * @type {(value: Unknown) => Result<never, string>}
- */
-const thrown = value => error(`throw ${value !== null && typeof value === 'object'
-    ? (value instanceof Array ? 'an array' : 'an object')
-    : stringConcat(leafSerialize(value))}`)
-
-/**
- * A value negated, as JavaScript's unary `-` negates it: a bigint stays a
- * bigint, and every other primitive converts — `-null` is `-0`, `-"2"` is
- * `-2`, `-true` is `-1`, `-undefined` is `NaN`. `Number` is total over
- * those five and cannot throw, which is what makes this total without
- * knowing anything about the value beyond its type.
- *
- * Anything else is {@link noNumber}'s.
- *
- * @type {(value: Unknown) => Result<Unknown, string>}
- */
-const negated = value => {
-    if (typeof value === 'bigint') { return ok(-value) }
-    if (value === null) { return ok(-0) }
-    switch (typeof value) {
-        case 'number': case 'string': case 'boolean': case 'undefined': { return ok(-Number(value)) }
-        default: { return error(noNumber) }
-    }
-}
-
-/**
- * The value of one entry, or the failure. An object's members are written
- * into a plain object in the order the syntax holds them, so the result is
- * the object JavaScript builds from the same literal: a repeated key keeps
- * its first position and takes its last value, and integer-like keys come
- * first. A property access reads its base's own property.
- *
- * @type {(state: _RunState) => (ast: AstConst) => Result<Unknown, string>}
- */
-const toDjs = state => ast => {
-    if (ast === null || typeof ast !== 'object') { return ok(ast) }
-    if (isBinary(ast)) { return error(noOperatorValue) }
-    switch (ast[0]) {
-        case 'aref': { return ok(state.args[ast[1]]) }
-        case 'cref': { return ok(last(null)(take(ast[1] + 1)(state.consts))) }
-        case 'array': { return mapOk(arrayOf)(okList(ast[1].map(itemValues(toDjs(state))))) }
-        case 'object': { return mapOk(objectOf)(okList(ast[1].map(entryProperties(toDjs(state))))) }
-        case '=>':
-        case 'arg':
-        case 'rest':
-        case 'fref': { return error(noFunctionValue) }
-        case '()': { return error(noCallValue) }
-        case '-': { return okThen(negated)(toDjs(state)(ast[1])) }
-        case '~': case '?:': { return error(noOperatorValue) }
-        // the operand is established first, as JavaScript establishes it,
-        // and its own failure is the one reported where it has one
-        case 'throw': { return okThen(thrown)(toDjs(state)(ast[1])) }
-        default: { return okThen(ownProperty(ast[2]))(toDjs(state)(ast[1])) }
-    }
-}
-
-/**
- * Evaluates a module body against its imported modules and returns the
- * value of every entry, in order — the last is the value the module yields
- * — or the failure: a property read on `null` or `undefined`, which
- * JavaScript throws for and a data module has no way to catch.
- *
- * Entries are evaluated left to right, so a `cref` resolves to an already
- * evaluated entry. A reference is shared, not copied: two properties holding
- * the same `['cref', i]` deserialize to the same object, which is what lets a
- * module denote a graph rather than a tree.
- *
- * @type {(body: AstBody) => (args: Array) => Result<readonly Unknown[], string>}
- */
-export const values = body => args =>
-    mapOk(consts)(body.reduce(entryStep, ok({ body, args, consts: null })))
-
-/** @type {(state: _RunState) => readonly Unknown[]} */
-const consts = state => toArray(state.consts)
-
-/** @type {(all: readonly Unknown[]) => Unknown} */
-const lastOf = all => all[all.length - 1]
-
-/**
- * The value the module yields — the last entry of {@link values} — or the
- * failure.
- *
- * @type {(body: AstBody) => (args: Array) => Result<Unknown, string>}
- */
-export const run = body => args => mapOk(lastOf)(values(body)(args))
 
 // ── reaching ──────────────────────────────────────────────────────────────────
 
@@ -642,10 +379,10 @@ const resolved = (imports, nodes) => ref =>
  * would not otherwise hold — the body entries no chain of references from
  * the export leads to, and the imports likewise, read as the EDAG
  * establishes them, {@link established}, less what those entries reach
- * themselves the same way, which the graph holds through them. `run`
- * evaluates every entry and `transpile` reads every import whether the
- * export reaches them or not, so a compiler that follows references alone
- * would drop what this names, and anchors it instead.
+ * themselves the same way, which the graph holds through them. Module
+ * initialization evaluates every declaration and loads every import whether
+ * the export reaches them or not. A compiler that follows references alone
+ * would drop these computations; anchors retain them.
  *
  * Reached means reached through eager positions alone — a container item,
  * an access base, a call's callee and arguments, an operator's operand, a
