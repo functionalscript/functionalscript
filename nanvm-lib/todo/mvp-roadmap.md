@@ -118,9 +118,11 @@ equality, property access, function calls and argument-array construction.
 No async runtime or scheduler is required.
 
 The [native runner TODO](../../todo/nanvm-effects-node.md) owns the loop,
-required VM APIs and acceptance tasks. Individual Node-effect implementations
-are deliberately unspecified here and in that TODO. Parser, compiler, loader
-and other language logic remain in FJS; this work needs no Rust EDAG executor.
+required VM APIs and acceptance tasks. The dependent
+[Node effects TODO](../../todo/nanvm-effects-node-operations.md) tracks the effect
+set in [`fjs/effects/node/`](../../fjs/effects/node/). Individual effect
+implementation details remain unspecified. Parser, compiler, loader and other
+language logic remain in FJS; this work needs no Rust EDAG executor.
 
 #### Distribution: one source, two packages (decided)
 
@@ -273,7 +275,9 @@ tracked in [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md#tasks).
       VM values, with no generated operations trait or parallel type system.
       The design, required VM APIs and acceptance tasks are tracked in
       [nanvm-effects-node](../../todo/nanvm-effects-node.md).
-      Required for the self-hosted CLI; language logic stays in FJS.
+      Required for the self-hosted CLI together with
+      [native Node effects](../../todo/nanvm-effects-node-operations.md);
+      language logic stays in FJS.
 
 #### P3
 
