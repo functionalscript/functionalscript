@@ -291,6 +291,17 @@ export const proof = {
         assertEq(uint(h), x, h)
     },
     demo: {
+        multiline: () => {
+            const text = '\nfirst\nsecond\n'
+            const expected = '2bafaf440fc5569ecabc492ff1f4c24928bdb0a5bd1a793ea05f364d7cb671ed'
+            assertEq(digest(text), expected)
+            const state = unwrap(assertNotNullish(runPure(demo.update(demo.init)({ kind: 'input', name: 'text', value: text }))[0]))
+            assertEq(state.text, text)
+            const html = htmlToString(demo.view(state))
+            assert(html.includes(`<textarea id="text" name="text" rows="8">${text}</textarea>`), html)
+            assert(html.includes(`<pre>${expected}</pre>`), html)
+            assert(html.includes(`<pre>printf '%s' '${text}' | openssl dgst -sha256</pre>`), html)
+        },
         /**
          * **The digest the demo shows is this module's own.** The empty
          * string's is the value `checkEmpty` already pins above, written in
@@ -347,7 +358,7 @@ export const proof = {
             assert(empty.includes(digest('')), empty)
             assert(empty.includes('openssl dgst -sha256'), empty)
             const typed = htmlToString(demo.view({ algorithm: 'SHA-256', text: 'hello' }))
-            assert(typed.includes('value="hello"'), typed)
+            assert(typed.includes('<textarea id="text" name="text" rows="8">hello</textarea>'), typed)
             assert(typed.includes(digest('hello')), typed)
             assert(typed.includes("<pre>printf '%s' 'hello' | openssl dgst -sha256</pre>"), typed)
             assert(typed.includes('aria-label="Copy digest"'), typed)

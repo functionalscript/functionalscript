@@ -24,6 +24,16 @@ const as = n => uint(compute([flip(repeat)(a)(n)]))
 
 export const proof = {
     demo: {
+        multiline: () => {
+            const text = '\nfirst\nsecond\n'
+            const expected = '67b42101382699dd98038289444adff3fe4a969a'
+            assertEq(digest(text), expected)
+            assertEq(unwrap(assertNotNullish(runPure(demo.update('')({ kind: 'input', name: 'text', value: text }))[0])), text)
+            const html = htmlToString(demo.view(text))
+            assert(html.includes(`<textarea id="text" name="text" rows="8">${text}</textarea>`), html)
+            assert(html.includes(`<pre>${expected}</pre>`), html)
+            assert(html.includes(`<pre>printf '%s' '${text}' | openssl dgst -sha1</pre>`), html)
+        },
         digest: () => {
             assertEq(digest(''), 'da39a3ee5e6b4b0d3255bfef95601890afd80709')
             assertEq(digest('abc'), 'a9993e364706816aba3e25717850c26c9cd0d89d')

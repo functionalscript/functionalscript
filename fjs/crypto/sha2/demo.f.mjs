@@ -23,7 +23,7 @@ import { computeSync, sha224, sha256, sha384, sha512, sha512x224, sha512x256 } f
 import { uint } from '../../types/bit_vec/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
-import { codeBlock, shellQuote } from '../../website/demo/module.f.mjs'
+import { codeBlock, shellQuote, textField } from '../../website/demo/module.f.mjs'
 
 /**
  * SHA-2 variants shared by the hash and HMAC demos.
@@ -80,10 +80,7 @@ export const demo = {
                 ['select', { id: 'algorithm', name: 'algorithm' },
                     ...algorithms.map(a => algorithmOption(a, algorithm))],
             ],
-            ['p',
-                ['label', { for: 'text' }, 'Text '],
-                ['input', { type: 'text', id: 'text', name: 'text', value: state.text }],
-            ],
+            textField({ name: 'text', label: 'Text' }, state.text),
             ['p', `${algorithm.name}, hex:`],
             codeBlock(digestOf(algorithm.hash)(state.text), 'Copy digest'),
             ['p', 'Verify independently with OpenSSL:'],

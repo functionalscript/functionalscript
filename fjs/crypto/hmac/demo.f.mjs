@@ -16,7 +16,7 @@ import { algorithms as sha2Algorithms, algorithmOption } from '../sha2/demo.f.mj
 import { uint } from '../../types/bit_vec/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
-import { codeBlock, shellQuote } from '../../website/demo/module.f.mjs'
+import { codeBlock, shellQuote, textField } from '../../website/demo/module.f.mjs'
 
 /**
  * @template S
@@ -62,12 +62,9 @@ export const demo = {
             ],
             ['p',
                 ['label', { for: 'key' }, 'Key (UTF-8) '],
-                ['input', { type: 'text', id: 'key', name: 'key', value: state.key }],
+                ['input', { type: 'text', id: 'key', name: 'key', value: state.key, style: 'box-sizing: border-box; width: 100%' }],
             ],
-            ['p',
-                ['label', { for: 'text' }, 'Message (UTF-8) '],
-                ['input', { type: 'text', id: 'text', name: 'text', value: state.text }],
-            ],
+            textField({ name: 'text', label: 'Message (UTF-8)' }, state.text),
             ['p', `HMAC-${algorithm.name}, hex:`],
             codeBlock(algorithm.digest(state.key, state.text), 'Copy HMAC'),
             ['p', 'Verify independently with OpenSSL:'],

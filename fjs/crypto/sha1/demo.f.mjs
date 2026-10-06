@@ -13,7 +13,7 @@ import { computeSync } from '../sha2/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { uint } from '../../types/bit_vec/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
-import { codeBlock, shellQuote } from '../../website/demo/module.f.mjs'
+import { codeBlock, shellQuote, textDemo } from '../../website/demo/module.f.mjs'
 
 /** @type {(text: string) => string} */
 export const digest = text =>
@@ -21,17 +21,13 @@ export const digest = text =>
 
 /** @type {Demo<string, DemoEvent>} */
 export const demo = {
-    init: '',
-    update: state => event => pureOk(
-        event.kind === 'input' && event.name === 'text' ? event.value : state),
-    view: text => ['div',
-        ['p',
-            ['label', { for: 'text' }, 'Text '],
-            ['input', { type: 'text', id: 'text', name: 'text', value: text }],
-        ],
+    ...textDemo({ name: 'text', label: 'Text', init: '' })(text => [
         ['p', 'SHA-1, hex:'],
         codeBlock(digest(text), 'Copy digest'),
         ['p', 'Verify independently with OpenSSL:'],
         codeBlock(`printf '%s' ${shellQuote(text)} | openssl dgst -sha1`, 'Copy OpenSSL command'),
-    ],
+    ]),
+    // Keep this demo's field-specific routing alongside the common layout.
+    update: state => event => pureOk(
+        event.kind === 'input' && event.name === 'text' ? event.value : state),
 }

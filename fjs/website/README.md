@@ -175,6 +175,12 @@ and quote the current input as a literal shell argument in their OpenSSL command
 pattern, with SHA-1 and all six SHA-2 variants. Its OpenSSL command quotes both
 inputs and uses the selected hash with `-hmac`.
 
+All three crypto demos use multiline textareas for their messages, so pasted
+line breaks remain part of the UTF-8 input. SHA-1 uses `textDemo`; SHA-2 and
+HMAC reuse its `textField` layout while managing their algorithm and key fields.
+Message fields start at 8 rows. The HMAC key is a single-line input that spans
+the full form width.
+
 ## A directory says it holds a demo
 
 A demo is on its module's page, and every demo sits several levels below the

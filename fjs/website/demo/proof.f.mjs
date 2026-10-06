@@ -2,7 +2,7 @@
  * @import { DemoEvent } from './types.ts'
  */
 
-import { codeBlock, shellQuote, textDemo } from './module.f.mjs'
+import { codeBlock, shellQuote, textDemo, textField } from './module.f.mjs'
 import { name as exampleName } from './examples/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
@@ -20,6 +20,12 @@ const next = demo => state => event => unwrap(assertNotNullish(
     'expected the demo to reach a value without asking for an operation'))
 
 export const proof = {
+    textField: () => {
+        const h = htmlToString(textField({ name: 'message', label: 'Message', rows: 3 }, 'one\ntwo<&'))
+        assertEq(h, '<!DOCTYPE html><p><label for="message">Message </label><textarea id="message" name="message" rows="3">one\ntwo&lt;&amp;</textarea></p>')
+        const leading = htmlToString(textField({ name: 'message', label: 'Message' }, '\nfirst\n'))
+        assertEq(leading, '<!DOCTYPE html><p><label for="message">Message </label><textarea id="message" name="message" rows="8">\nfirst\n</textarea></p>')
+    },
     codeBlock: () => {
         const h = htmlToString(codeBlock('<text>&', 'Copy result'))
         assert(h.includes('<pre>&lt;text&gt;&amp;</pre>'), h)
