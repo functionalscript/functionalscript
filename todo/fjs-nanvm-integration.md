@@ -149,7 +149,6 @@ a proof stays `proof.f.mjs` whatever its module is named
 | `fjs/types/map` | 31 | `new Map`, a destructured parameter |
 | `fjs/website/demo/examples` | 18 | `new Set`, destructuring, `else` |
 | `fjs/ci/package` | 7 | template literals, `new`, globals |
-| `fjs/compiler/examples` | 5 | nothing: the compiler accepts it whole, so it can rename now |
 | `fjs/git/bytes` | 5 | a runtime key `b[at]`, `Number.isSafeInteger` |
 | `fjs/website/style` | 5 | template literals, `let`, `new`, runtime keys |
 | `fjs/nanvm/member` | 3 | `\u{…}` escapes, template literals, globals |
@@ -261,6 +260,8 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
       modules and the six `spec/datajs/vectors/*/data.f.js` — with
       `fjs compile` checking each on every CI run, and no `.f.js` importing an
       `.f.mjs`.
+- [x] Rename `fjs/compiler/examples`, the one leaf the compiler accepted whole
+      after `!` and `typeof`: its eleven importers, proofs and demos, follow it.
 - [ ] Continue `.f.mjs` -> `.f.js` incrementally as compiler support grows.
 
 ### Related

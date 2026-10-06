@@ -19,7 +19,7 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { _sourceOf, demo } from './demo.f.mjs'
-import { examples } from '../examples/module.f.mjs'
+import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { invoke, memo } from '../../edag/memo/module.f.mjs'
 import { call } from '../../edag/value/call/module.f.mjs'
