@@ -115,7 +115,9 @@ throw propagates through the VM's Rust `Result`.
 There is no second native effect data model, RTTI-to-Rust mapping, generated
 operations trait, codec or serialization boundary. Reuse VM type inspection,
 equality, property access, function calls and argument-array construction.
-No async runtime or scheduler is required.
+The minimal synchronous loop requires no async runtime or scheduler. Execution
+support for asynchronous effects belongs to the
+[separate follow-up](../../todo/nanvm-effects-node-async.md).
 
 The [native runner TODO](../../todo/nanvm-effects-node.md) owns the loop,
 required VM APIs and acceptance tasks. The dependent
