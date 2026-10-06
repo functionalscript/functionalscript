@@ -43,7 +43,7 @@
  *
  * ## Converting to TypeScript types
  *
- * See `./ts/module.f.ts` for `Ts<T>` and the `*Ts` transformer types.
+ * See `./ts/types.ts` for `Ts<T>` and the `*Ts` transformer types.
  *
  * @module
  */
