@@ -170,7 +170,7 @@ SHA-256 demo found that case.
 [`crypto/sha1`](../crypto/sha1/demo.f.mjs) follows the same pattern with a
 40-character SHA-1 digest and a warning that its collision resistance is broken.
 Both demos preserve multiline text with the shared textarea helpers and use
-[`crypto/hash_demo`](../crypto/hash_demo/module.f.mjs) for padded digests and
+[`website/demo/hash`](./demo/hash/module.f.mjs) for padded digests and
 OpenSSL output. [`website/demo/code`](./demo/code/module.f.mjs) owns the copyable
 code blocks and literal shell arguments. A POSIX shell argument cannot contain
 NUL (U+0000), so that input still gets a digest but a visible refusal replaces

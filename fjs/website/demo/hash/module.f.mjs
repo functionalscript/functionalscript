@@ -3,14 +3,14 @@
  * SHA-1 and SHA-2 share the rendering and refuse a shell command for NUL.
  * @module
  * @import { HashDemoAlgorithm } from './types.ts'
- * @import { Hash } from '../sha2/types.ts'
- * @import { Node } from '../../media/html/types.ts'
+ * @import { Hash } from '../../../crypto/sha2/types.ts'
+ * @import { Node } from '../../../media/html/types.ts'
  */
 
-import { computeSync } from '../sha2/module.f.mjs'
-import { uint } from '../../types/bit_vec/module.f.mjs'
-import { utf8 } from '../../text/module.f.mjs'
-import { codeBlock, tryShellQuote } from '../../website/demo/code/module.f.mjs'
+import { computeSync } from '../../../crypto/sha2/module.f.mjs'
+import { uint } from '../../../types/bit_vec/module.f.mjs'
+import { utf8 } from '../../../text/module.f.mjs'
+import { codeBlock, tryShellQuote } from '../code/module.f.mjs'
 
 /** The hex digest of UTF-8 text, including every leading zero.
  * @type {<S>(hash: Hash<S>) => (text: string) => string}
