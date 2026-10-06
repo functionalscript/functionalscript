@@ -3,7 +3,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { tokenize } from './module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { _tokensOf, demo } from './demo.f.mjs'
-import { examples } from '../examples/module.f.mjs'
+import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { _stringifyTree } from '../module.f.mjs'
 
