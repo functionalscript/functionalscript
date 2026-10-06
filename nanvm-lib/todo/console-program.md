@@ -46,9 +46,9 @@ crate's binary named `fjs` (same CLI surface as the npm tool, native) or
 
 **Loading and execution:** loading evaluates a module to its complete export
 object without automatically calling exported functions. The CLI then chooses
-what to run or print. Effects, including `sandbox` for capturing computation
-results and throws, are handled by the
-[native runner](../../todo/nanvm-effects-node.md).
+what to run or print. Native effect implementations, including `sandbox` for
+capturing computation results and throws, are tracked in
+[Node effects](../../todo/nanvm-effects-node-operations.md).
 
 **Open question:** the earlier default-export/autocall proposal conflicts with
 the shipped `fjs run`, which runs a module's exported `main` as a `NodeProgram`
