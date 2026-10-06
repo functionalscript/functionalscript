@@ -1,9 +1,9 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** wip — FJS language VMs use represented values, compiler module
-initialization uses memo, and JavaScript runtime conversion supports callables.
-Compiler conversion integration and Rust value-emission parity remain.
+**Status:** open — FJS language VMs use represented values, compiler module
+initialization uses memo, and compiler runtime output supports JavaScript
+callables. Rust value-emission parity and final contract reconciliation remain.
 
 ### Problem
 
@@ -268,7 +268,11 @@ asynchronous boundary, preserving an own callable `then` as data. Load failures
 use the standard `IoChannel`, including a missing operation from partial runners.
 The operation map composes with other effect handlers; it is not a language VM.
 
-Existing compiler callers whose API exposes `unknown` convert explicitly.
+`compiler/transpiler.transpile` composes `interpret` with `toUnknown` and returns
+the complete ordinary runtime value directly. Its effect adds `CompileValue`
+to read/resolve operations and `IoChannel` to source errors. Runners provide
+the target operation for callable results; data-only results need none. The
+obsolete `Denotation` wrapper and nested output Result are removed.
 JSON/DataJS writers apply their own representability rules; an output refusal
 names that output, while an initialization failure names the source. A function
 is a valid VM value even when a particular data output cannot represent it.
@@ -462,16 +466,17 @@ promise normalization of host resource exhaustion.
       `toUnknown` requests `CompileValue` only when `toData` encounters a
       callable. The JavaScript handler constructs each conversion freshly;
       standard effect errors report host failure or an unavailable operation.
-- [ ] Integrate effectful callable conversion into compiler APIs that promise
+- [x] Integrate effectful callable conversion into compiler APIs that promise
       ordinary runtime values. Keep JSON/DataJS outputs on `toData`, with their
-      own representability diagnostics. `transpile` still uses that data-only
-      path today; `interpret` followed by `toUnknown` is available explicitly.
+      own representability diagnostics. `transpile` composes `interpret` with
+      `toUnknown`, returning the value directly; callable results request the
+      target `CompileValue` operation. Source and host errors remain distinct.
 - [x] Execute resolved module initializers into export value graphs in
       `compiler/transpiler.interpret`; migrate compiler data outputs and retire
       the AST value evaluator. Cache complete represented exports per module,
       preserve initializer failure payloads and paths, and convert only the
-      requested result. `transpile` returns an inner output-conversion Result;
-      its current data-only conversion retains the explicit callable refusal.
+      requested result. JSON/DataJS retain an inner output-conversion Result
+      and refuse selected callables; `transpile` supports runtime compilation.
 - [x] Implement callable value emission in the JavaScript backend for primitive,
       repeated and unused evaluated captures, preserving slot positions and
       shared captured values separately from source round-trip serialization.

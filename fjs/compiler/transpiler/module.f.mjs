@@ -4,21 +4,23 @@
  * Runtime materialization happens only at the public value-output boundaries.
  *
  * @module
- * @import { Denotation, AstModule } from '../ast/types.ts'
+ * @import { AstModule } from '../ast/types.ts'
  * @import { Result } from '../../types/result/types.ts'
+ * @import { Unknown } from '../../media/datajs/types.ts'
  * @import { EdagValue, Object as ValueObject } from '../../edag/value/types.ts'
+ * @import { CompileValue } from '../../edag/value/to_unknown/types.ts'
  * @import { _ImportSource, _Source } from '../source/types.ts'
  * @import { SourceError, ParseContext } from './types.ts'
- * @import { Effect } from '../../effects/types.ts'
+ * @import { Effect, IoChannel } from '../../effects/types.ts'
  * @import { ReadFile, ResolveFileModule } from '../../effects/node/types.ts'
  */
 
 import { assertOk } from '../../asserts/module.f.mjs'
-import { mapOk, ok } from '../../types/result/module.f.mjs'
+import { ok } from '../../types/result/module.f.mjs'
 import { drop, includes } from '../../types/list/module.f.mjs'
 import { setReplace, at } from '../../types/ordered_map/module.f.mjs'
 import { findProperty, read } from '../../edag/value/property/module.f.mjs'
-import { toData } from '../../edag/value/to_unknown/module.f.mjs'
+import { toData, toUnknown } from '../../edag/value/to_unknown/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { unresolved, jsonValue } from '../edag/module.f.mjs'
@@ -80,23 +82,21 @@ const interpretSource = source => source.json
 /** Interpret a source without erasing represented functions or thrown values. @type {(path: string) => Effect<ReadFile | ResolveFileModule, EdagValue, SourceError>} */
 export const interpret = path => step(_rootSource(path), interpretSource)
 
-/** Materialization refusal is an output diagnostic, separate from initialization. @type {(value: EdagValue) => Result<Denotation, string>} */
-const materialize = value => mapOk(value => ({ value }))(toData(value))
-
 /**
- * Materialize the complete module export object, or a direct JSON document.
- * Callable values currently require an unavailable target compile/load boundary
- * and return an output refusal in the inner Result.
+ * Compile the complete module export object, or a direct JSON document, into
+ * ordinary runtime values. Callable graphs request the target's CompileValue
+ * operation; its host failures stay separate from source initialization errors.
  *
- * @type {(path: string) => Effect<ReadFile | ResolveFileModule, Result<Denotation, string>, SourceError>}
+ * @type {(path: string) => Effect<ReadFile | ResolveFileModule | CompileValue, unknown, SourceError | IoChannel>}
  */
-export const transpile = path => mapStep(interpret(path), materialize)
+export const transpile = path => step(interpret(path), toUnknown)
 
 /**
- * Select a represented default only after initializing the complete module.
- * Named callable exports therefore do not block function-free data outputs.
+ * Select a represented default only after initializing the complete module,
+ * then decode data for JSON/DataJS output. Named callable exports do not block
+ * data outputs; a selected callable returns an output refusal in the Result.
  *
- * @type {(path: string) => Effect<ReadFile | ResolveFileModule, Result<Denotation, string>, SourceError>}
+ * @type {(path: string) => Effect<ReadFile | ResolveFileModule, Result<Unknown, string>, SourceError>}
  */
 export const _transpileDefault = path => step(_rootSource(path), source =>
-    mapStep(interpretSource(source), value => materialize(source.json ? value : assertOk(read(ok(value), 'default')))))
+    mapStep(interpretSource(source), value => toData(source.json ? value : assertOk(read(ok(value), 'default')))))

@@ -3,9 +3,12 @@
  * @import { Accept, Document, Normalize } from '../media/datajs/vectors/types.ts'
  * @import { Analysis } from '../edag/analysis/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
+ * @import { NodeOp } from '../effects/node/types.ts'
+ * @import { Commands } from '../effects/types.ts'
+ * @import { CompileValue } from '../edag/value/to_unknown/types.ts'
  */
 
-import { exitCode, readUtf8File } from '../effects/node/module.f.mjs'
+import { exitCode, readUtf8File, nodeCommands } from '../effects/node/module.f.mjs'
 import { _errorLocation, compile } from './module.f.mjs'
 import { transpile } from './transpiler/module.f.mjs'
 import { parse } from './source/module.f.mjs'
@@ -13,10 +16,11 @@ import { resolve, unresolved } from './edag/module.f.mjs'
 import { analysis } from '../edag/analysis/module.f.mjs'
 import { memo } from '../edag/memo/module.f.mjs'
 import { read } from '../edag/value/property/module.f.mjs'
-import { toData } from '../edag/value/to_unknown/module.f.mjs'
+import { toData, compileCommands } from '../edag/value/to_unknown/module.f.mjs'
 import { tryParse as parseDataJs, tryStringify } from '../media/datajs/module.f.mjs'
 import { bytes, difference } from '../media/datajs/vectors/module.f.mjs'
-import { virtual, emptyState, nodeProgramOptions } from '../effects/node/virtual/module.f.mjs'
+import { virtual, virtualOperationMap, emptyState, nodeProgramOptions } from '../effects/node/virtual/module.f.mjs'
+import { partialRun } from '../effects/mock/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { fromVec } from '../text/utf8/module.f.mjs'
 import { invert, mapOk, unwrap } from '../types/result/module.f.mjs'
@@ -29,6 +33,10 @@ import { htmlToString } from '../media/html/module.f.mjs'
 import { maxLengthBytes } from '../types/bit_vec/module.f.mjs'
 import accept from '../../spec/datajs/vectors/accept/data.f.js'
 import normalize from '../../spec/datajs/vectors/normalize/data.f.js'
+
+/** @type {Commands<NodeOp | CompileValue>} */
+const runtimeCommands = [...nodeCommands, ...compileCommands]
+const runtime = partialRun(runtimeCommands)(virtualOperationMap)
 
 /** The DataJS accept corpus, typed at the import since a data module carries no annotations. */
 const acceptSet = /** @type {readonly Accept[]} */ (accept)
@@ -67,9 +75,9 @@ const evaluate = source => {
     return result[0] === 'error' ? ['error', 'module initialization failed'] : toData(result[1])
 }
 
-/** The complete module result has an own default export. @type {(value: Unknown) => Unknown} */
+/** The complete module result has an own default export. @type {(value: unknown) => unknown} */
 const defaultValue = value => {
-    assert(value !== null && typeof value === 'object' && !(value instanceof Array))
+    assert(isObject(value))
     return value.default
 }
 
@@ -1103,9 +1111,9 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     roundTrip: roundTripCorpus.map(value => () => {
         const source = moduleText(value)
         const root = { 'input.f.js': [utf8(source)] }
-        const [, result] = virtual({ ...emptyState, root })(transpile('input.f.js'))
+        const [, result] = runtime({ ...emptyState, root })(transpile('input.f.js'))
         assert(result[0] === 'ok', result[1])
-        assertStructurallySame(unwrap(result[1]).value, { default: value }, source)
+        assertStructurallySame(result[1], { default: value }, source)
     }),
     // The subset law, FunctionalScript's half: every DataJS accept document
     // is a FunctionalScript module, and the front end reads it to the graph
@@ -1360,9 +1368,9 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     specialNumbers: {
         value: () => {
             const root = { 'input.f.js': [utf8('export default [NaN, Infinity, -Infinity];')] }
-            const [, result] = virtual({ ...emptyState, root })(transpile('input.f.js'))
+            const [, result] = runtime({ ...emptyState, root })(transpile('input.f.js'))
             assert(result[0] === 'ok', result[1])
-            const value = defaultValue(unwrap(result[1]).value)
+            const value = defaultValue(result[1])
             assert(value instanceof Array && value.length === 3, value)
             assert(is(value[0], NaN), value[0])
             assertEq(value[1], Infinity)
@@ -1488,9 +1496,9 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     negativeZero: {
         value: () => {
             const root = { 'input.f.js': [utf8('export default -0;')] }
-            const [, result] = virtual({ ...emptyState, root })(transpile('input.f.js'))
+            const [, result] = runtime({ ...emptyState, root })(transpile('input.f.js'))
             assert(result[0] === 'ok', result[1])
-            assert(is(defaultValue(unwrap(result[1]).value), -0), result[1])
+            assert(is(defaultValue(result[1]), -0), result[1])
         },
         moduleRoundTrip: () => {
             assertEq(compileSource('export default -0;')('output.data.js'), 'export default -0;')
@@ -1578,9 +1586,9 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         // alone would also pass for a spelling that merely looks right.
         value: () => {
             const root = { 'input.f.js': [utf8('export default {["__proto__"]:{"a":42}};')] }
-            const [, result] = virtual({ ...emptyState, root })(transpile('input.f.js'))
+            const [, result] = runtime({ ...emptyState, root })(transpile('input.f.js'))
             assert(result[0] === 'ok', result[1])
-            const value = defaultValue(unwrap(result[1]).value)
+            const value = defaultValue(result[1])
             assert(isObject(value), value)
             assertStructurallySame(value, protoValue)
             assertEq(getPrototypeOf(value), objectPrototype)
