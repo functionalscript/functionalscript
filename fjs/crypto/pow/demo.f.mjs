@@ -8,7 +8,7 @@
  *
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Element } from '../../media/html/types.ts'
- * @import { DemoState } from './private.ts'
+ * @import { DemoState } from './types.ts'
  */
 
 import { sha256Pow, targetFromNBits } from './module.f.mjs'

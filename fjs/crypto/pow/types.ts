@@ -19,3 +19,13 @@ export type Pow = {
     readonly hashInt: (data: Vec) => bigint
     readonly meets: (nBits: bigint) => (data: Vec) => boolean
 }
+
+/** State of the interactive proof-of-work demo. */
+export type DemoState = {
+    readonly text: string
+    readonly nonce: string
+    readonly nBits: string
+    readonly running: boolean
+    readonly searchStart: bigint | null
+    readonly attempts: bigint
+}
