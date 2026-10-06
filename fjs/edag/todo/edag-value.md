@@ -3,7 +3,8 @@
 **Priority:** P3
 **Status:** open — FJS language VMs use represented values, compiler module
 initialization uses memo, and compiler runtime output supports JavaScript
-callables. Rust value-emission parity and final contract reconciliation remain.
+callables. Supported-profile value emission and failure propagation are proven;
+final contract reconciliation remains.
 
 ### Problem
 
@@ -485,7 +486,7 @@ promise normalization of host resource exhaustion.
       `compiler/serializer/value.stringify` emits a default-export module;
       host proofs load it and invoke its ordinary runtime functions. Target
       loading uses the factory form through the materialization task above.
-- [ ] Prove direct JS/Rust compilation of result graphs preserves the supported
+- [x] Prove direct JS/Rust compilation of result graphs preserves the supported
       profile: primitives, containers, nested captures, distinct closures,
       shared identity, fresh invocation values, lazy branches and throws.
       Rust uses the existing `compiler/rust.toRust` entry for `EdagValue`s;
@@ -501,13 +502,21 @@ promise normalization of host resource exhaustion.
       factory call survive both successful and throwing nested invocations,
       while later factory calls and successful result arrays remain fresh.
       Conditional branches skip unselected throws and preserve thrown capture
-      identity. Broader Rust parity remains open, including the existing
-      refusal of shared nodes reached only through lazy operands.
+      identity. The supported result-graph profile is covered. Existing Rust
+      output refusals remain its boundary, including shared computations
+      without an eager binding scope; expanding backend support is separate
+      from this representation migration.
 - [x] Prove initializer failures survive unused imports/declarations, while
       successful export value graphs omit unreachable initialization machinery.
-- [ ] Prove implicit operation failures return `error(['undefined'])`, while
+- [x] Prove implicit operation failures return `error(['undefined'])`, while
       explicit thrown values propagate unchanged through operands, callbacks
       and module initialization.
+      Memo's joint proof runs actual captured callbacks through `map`, `reduce`
+      and `toSorted` in both interpreters, retaining the exact thrown payload
+      through an enclosing operand. Non-callable callbacks return tagged
+      undefined. Existing interpreter and compiler proofs cover direct
+      implicit failures, explicit operands and local/imported initialization.
+      The failure contract is recorded in the EDAG README.
 - [x] Prove direct and indirect function text in the shared conversion used by memo.
 - [x] Prove conversion of thrown values and exported callables; retain the
       host-text exception at host boundaries.
