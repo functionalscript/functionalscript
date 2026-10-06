@@ -250,16 +250,21 @@ b && c];` throws at load in both languages. The writer spells both stages, with 
 parentheses their precedence and associativity ask for and no more
 ([spec: operators](../../spec/README.md#operators)).
 
-`!`, the logical not, came after both stages, the third prefix beside `-`
-and `~`: the tokenizer admits the token, the grammar gives it `unaryOperand`
-as the other two have, so `!2 ** 2` is refused where JavaScript refuses it
-and `!(...a) => 1` where `-(...a) => 1` is, the lowering carries it across
-as the EDAG's own `['!', exp]`, `op1Id`, folding nothing, as `~` does —
-truthiness is the interpreter's question — and the writer spells it as it
-spells the other prefixes, bare under anything and an operator's text
-grouped under it, `!(1+2)`. [`rust`](rust/module.f.mjs) and both
-interpreters already answered the node; the front end was what was missing,
-as for `!==` above.
+`!` and `typeof` came after both stages, the third and fourth prefixes
+beside `-` and `~`: the grammar gives each `unaryOperand` as the other two
+have, so `!2 ** 2` is refused where JavaScript refuses it and `!(...a) => 1`
+where `-(...a) => 1` is, the lowering carries each across as the EDAG's own
+`op1Id` node, folding nothing, as `~` does — truthiness and the type tag are
+the interpreter's questions — and the writer spells them as it spells the
+other prefixes, bare under anything and an operator's text grouped under
+them, `!(1+2)`, a space after the word for `typeof`. `!` was a token the
+tokenizer refused; `typeof` is a keyword the tokenizer hands over as an
+`id`, so the grammar gives it a symbol of its own, as it gives `return` and
+`throw`, and since it opens a value it is the one such keyword `identifier`
+leaves out — a reference cannot be a reserved word anyway, and a key or a
+property name may still be one. [`rust`](rust/module.f.mjs) and both
+interpreters already answered both nodes; the front end was what was
+missing, as for `!==` above.
 
 A call is a step after a value, as an access is, and the callee picks which of
 the EDAG's two forms it lowers to: an access as the callee is a method call,

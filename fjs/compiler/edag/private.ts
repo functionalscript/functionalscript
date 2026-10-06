@@ -35,10 +35,10 @@ export type _Binding = {
 
 /**
  * `lower`'s own explicit stack, in place of the recursion a chain of
- * operator/negation/bitwise-not/logical-not/conditional/throw nodes would
+ * operator/prefix/conditional/throw nodes would
  * otherwise call it through: a node still to lower, an operator whose one
- * operand is already on top of `_LowerResults` and needs negating,
- * complementing or logically negating, a binary operator whose two operands
+ * operand is already on top of `_LowerResults` and needs its prefix
+ * applied, a binary operator whose two operands
  * are — right on top, left under it — or the
  * conditional whose three are, the else arm on top and the condition
  * lowest — or a `throw` whose one value is.
@@ -48,6 +48,7 @@ export type _LowerWork =
     | { readonly kind: 'neg', readonly rest: _LowerWork }
     | { readonly kind: 'bitnot', readonly rest: _LowerWork }
     | { readonly kind: 'not', readonly rest: _LowerWork }
+    | { readonly kind: 'typeof', readonly rest: _LowerWork }
     | { readonly kind: 'throw', readonly rest: _LowerWork }
     | { readonly kind: 'binary', readonly tag: BinaryTag, readonly rest: _LowerWork }
     | { readonly kind: 'ternary', readonly rest: _LowerWork }

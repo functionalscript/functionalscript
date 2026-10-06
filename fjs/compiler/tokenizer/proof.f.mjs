@@ -148,8 +148,8 @@ export const proof = {
     ],
     /**
      * **One line per token, and a token that cannot be read is a line.** A
-     * hex escape and `typeof` are the gaps: the escape is an `error` token,
-     * and `typeof` an ordinary name the parser then refuses. A string left open
+     * hex escape is the gap: an `error` token, where a keyword such as
+     * `typeof` is an ordinary name the parser reads. A string left open
      * runs to the end, which the span says.
      */
     demo: {
