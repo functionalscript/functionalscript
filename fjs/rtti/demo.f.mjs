@@ -653,9 +653,9 @@ const schemasView = (e, shown) => e.schemas.length === 1
 const outputsView = s => {
     const o = _outputsOf(s.schema)
     return [
-        ['p', 'TypeScript'],
+        ['p', 'TypeScript:'],
         ['pre', { 'data-code': '' }, o.ts],
-        ['p', 'JSON Schema'],
+        ['p', 'JSON Schema:'],
         ['pre', { 'data-code': '' }, o.jsonSchema],
         ['details', ['summary', 'Canonical form (toData)'], ['pre', { 'data-code': '' }, o.data]],
     ]
@@ -713,7 +713,7 @@ const valueView = (s, text) => {
                 ...answerView('parse', r.parse.ok, r.parse.text),
                 ...answerView('validate', r.validate.ok, r.validate.text),
                 ...(r.validate.path === undefined ? [] : /** @type {readonly Element[]} */ ([
-                    ['p', 'Where'],
+                    ['p', 'Where:'],
                     ['pre', { 'data-code': '' }, ..._marked(r.validate.path)(r.value)],
                 ])),
             ]),

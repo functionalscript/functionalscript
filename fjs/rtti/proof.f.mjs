@@ -245,11 +245,11 @@ const demoProof = /** @type {const} */ ({
         // folded canonical form, then the comparison, then the value.
         outputs: () => {
             const html = page('Dictionary')
-            assert(html.includes('<p>TypeScript</p><pre data-code="">{readonly[k in string]?:number}</pre>'), html)
-            assert(html.includes('<p>JSON Schema</p><pre data-code="">{&quot;type&quot;:&quot;object&quot;,&quot;additionalProperties&quot;:{&quot;type&quot;:&quot;number&quot;}}</pre>'), html)
+            assert(html.includes('<p>TypeScript:</p><pre data-code="">{readonly[k in string]?:number}</pre>'), html)
+            assert(html.includes('<p>JSON Schema:</p><pre data-code="">{&quot;type&quot;:&quot;object&quot;,&quot;additionalProperties&quot;:{&quot;type&quot;:&quot;number&quot;}}</pre>'), html)
             assert(html.includes('<details><summary>Canonical form (toData)</summary><pre data-code="">'), html)
             const at = (/** @type {string} */ needle) => html.indexOf(needle)
-            assert(at('<svg') < at('<p>TypeScript</p>'), html)
+            assert(at('<svg') < at('<p>TypeScript:</p>'), html)
             assert(at('<details>') < at('<label for="compare">'), html)
             assert(at('<label for="compare">') < at('<textarea'), html)
         },
@@ -274,8 +274,8 @@ const demoProof = /** @type {const} */ ({
         // the failing member marked; when it accepts, nothing is.
         where: () => {
             const a = page('Closed vs open')
-            assert(a.includes('<p>Where</p><pre data-code=""><mark>{&quot;name&quot;:&quot;Alice&quot;,&quot;age&quot;:30,&quot;admin&quot;:true}</mark></pre>'), a)
-            assert(!page('Closed vs open', 1).includes('<p>Where</p>'), 'no failure, no mark')
+            assert(a.includes('<p>Where:</p><pre data-code=""><mark>{&quot;name&quot;:&quot;Alice&quot;,&quot;age&quot;:30,&quot;admin&quot;:true}</mark></pre>'), a)
+            assert(!page('Closed vs open', 1).includes('<p>Where:</p>'), 'no failure, no mark')
         },
         // Every example draws every one of its schemas, and no edge passes
         // through a box.
