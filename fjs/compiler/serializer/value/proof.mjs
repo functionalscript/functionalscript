@@ -14,18 +14,49 @@ import { assert, assertEq, assertOk, assertStructurallySame } from '../../../ass
 import { interpret } from '../../transpiler/module.f.mjs'
 import { emptyState, virtual } from '../../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'
-import { stringify } from './module.f.mjs'
+import { factoryStringify, stringify } from './module.f.mjs'
 
-/** Load the actual module syntax; distinct source comments request fresh instances.
- * @type {(value: EdagValue, instance?: string) => Promise<any>}
- */
-const compile = async (value, instance = '') => {
-    const source = Buffer.from(`${stringify(value)}\n// ${instance}`).toString('base64')
-    const module = await import(`data:text/javascript;base64,${source}`)
+/** Load actual module syntax. @type {(source: string) => Promise<any>} */
+const load = async source => {
+    const encoded = Buffer.from(source).toString('base64')
+    const module = await import(`data:text/javascript;base64,${encoded}`)
     return module.default
 }
 
+/** Distinct source comments request fresh module instances.
+ * @type {(value: EdagValue, instance?: string) => Promise<any>}
+ */
+const compile = (value, instance = '') => load(`${stringify(value)}\n// ${instance}`)
+
 export const proof = {
+    factoryFreshValues: async () => {
+        const data = /** @type {const} */ (['[]', [4]])
+        const fn = /** @type {const} */ (['=>', 0, [data], ['frame', 0]])
+        const factory = await load(factoryStringify(['[]', [data, data, fn, fn]]))
+        const first = factory()
+        const second = factory()
+        for (const [a, b, f, repeated] of [first, second]) {
+            assertEq(a, b)
+            assertEq(f, repeated)
+            assertEq(f(), a)
+            assertEq('edag' in f, false)
+        }
+        assert(first !== second)
+        assert(first[0] !== second[0])
+        assert(first[2] !== second[2])
+    },
+    factoryOrdinaryThen: async () => {
+        const factory = await load(factoryStringify(['{}', [
+            [':', 'then', ['=>', 1, [], ['()', ['arg', 0], [7]]]],
+            [':', 'value', 3],
+        ]]))
+        // Wrap the synchronous factory result before crossing an async return;
+        // an ordinary callable `then` must not make the value a host promise.
+        const run = async () => ({ value: factory() })
+        const { value } = await run()
+        assertEq(value.value, 3)
+        assertEq(value.then(/** @param {number} x */ x => x + 1), 8)
+    },
     ordinaryData: async () => {
         const data = await compile(['{}', [
             [':', '__proto__', ['undefined']], [':', 'items', ['[]', [-0, 3n, 'a\n"b']]],

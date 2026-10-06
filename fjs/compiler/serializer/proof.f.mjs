@@ -24,7 +24,7 @@ import { htmlToString } from '../../media/html/module.f.mjs'
 import { invoke, memo } from '../../edag/memo/module.f.mjs'
 import { call } from '../../edag/value/call/module.f.mjs'
 import { read } from '../../edag/value/property/module.f.mjs'
-import { toUnknown } from '../../edag/value/to_unknown/module.f.mjs'
+import { toData } from '../../edag/value/to_unknown/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { invert, ok, unwrap } from '../../types/result/module.f.mjs'
@@ -155,7 +155,7 @@ const generated = (() => {
 const moduleGraph = source => unresolved(unwrap(parse(path)(source))).edag
 
 /** @type {(graph: Exp) => unknown} */
-const moduleValue = graph => assertOk(toUnknown(unwrap(memo(assertOk(analysis(graph)))({ args: [] }))))
+const moduleValue = graph => assertOk(toData(unwrap(memo(assertOk(analysis(graph)))({ args: [] }))))
 
 /** Render an already analyzed function root. @type {(e: Exp) => string} */
 const analyzedFunction = e => {
@@ -213,7 +213,7 @@ export const proof = {
             const fn = assertOk(read(result, 'f'))
             assertEq(fn, assertOk(read(result, 'default')))
             const called = assertOk(call(ok(fn), [() => ok(1), () => ok(2)], invoke))
-            assertStructurallySame(assertOk(toUnknown(called)), [1, 2])
+            assertStructurallySame(assertOk(toData(called)), [1, 2])
         },
         refusals: () => {
             for (const graph of /** @type {readonly Exp[]} */ ([
