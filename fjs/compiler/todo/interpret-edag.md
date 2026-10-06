@@ -1,9 +1,10 @@
 ## Interpret a compiled EDAG directly
 
 **Priority:** P3
-**Status:** open — represented memo interpretation and immutable cache implemented
-with complete function text; public admission, value-producing API integration
-and native prerequisites remain open.
+**Status:** wip — compiler value-producing API integration and AST evaluator
+retirement, stacked on #2591. Represented memo interpretation and immutable
+cache are implemented with complete function text; public admission and native
+prerequisites remain open.
 
 The planned value contract is
 [EdagValue](../../edag/todo/edag-value.md): every FJS VM uses the EDAG subset
