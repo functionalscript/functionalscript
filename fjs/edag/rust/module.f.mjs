@@ -777,7 +777,7 @@ const printer = nested => shared => root => {
         // Slot `i` of the frame the function was built with, read through
         // the closure's `self_` parameter, {@link closure}: the `Array<A>`
         // {@link frameExpr} built, indexed directly — the slot exists, since
-        // `bindingError` refuses a read past the slots, so no `undefined`
+        // `checked` refuses a read past the slots, so no `undefined`
         // case as an `args` read has.
         if (id === 'frame') { return plain(`A::frame(self_)[${a}].clone()`) }
         if (id === '[]' && !hasSpread(a)) { return arrayExpr(a) }
@@ -810,11 +810,11 @@ const printer = nested => shared => root => {
                 : f(last(e))
         }
         if (id === '=>') {
-            // A fragment has no complete graph for `bindingError`, so the
+            // A fragment has no complete graph for `checked`, so the
             // language's limit is checked here too; IStaticFunction's u32
             // holds every length it admits.
             if (a > maxLength) { return error([`a function length above ${maxLength}`, a]) }
-            // A slot the frame does not have, likewise: `bindingError`
+            // A slot the frame does not have, likewise: `checked`
             // refuses it in a complete graph, and a fragment is refused
             // here, since the index the body would print panics in
             // `nanvm-lib` where the JavaScript executors throw.

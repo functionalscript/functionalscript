@@ -1,92 +1,64 @@
-## analysis-consumer-contract. Every consumer of the analysis repeats its validation and re-derives what it knows
+## analysis-consumer-contract. Share analyzed-node edges with consumer graph queries
 
 **Priority:** P4
-**Status:** open
+**Status:** open — binding-result composition is complete; operand sharing remains.
 
 ### Problem
 
-`bindingError`'s doc says executable consumers call it once on the
-complete graph, and each of them writes that obligation out:
+The analysis's private `refs` enumerates the entries a node references,
+one per edge. The serializer's `allOperands` repeats that node-kind
+knowledge for its graph queries: `reachableThrough`, `referencesWithin`,
+`sharedWithin` and `references`. Keep that knowledge with the analysis
+where a shared interface simplifies those consumers.
 
-```js
-// fjs/compiler/serializer, trySerialize and again tryModuleSerialize
-const result = analysis(e)
-const [kind, a] = result
-if (kind === 'error') { return result }
-const problem = bindingError(a)
-if (problem !== null) { return error(problem) }
-// fjs/compiler/rust, bodyLines
-const [kind, table] = analysis(root)
-if (kind === 'error') { return error([table, root]) }
-const problem = bindingError(table)
-// fjs/edag/memo, memo
-const problem = bindingError(a); assert(problem === null, problem)
-```
+These walks have different boundaries. `refs` includes lazy edges and a
+function's body, but omits primitive operands. The serializer's graph
+queries stay within an invocation scope, following captures without
+entering a nested function body. Its eager and lazy operand walks also
+decide where code runs; they cannot be replaced indiscriminately by a
+list of reference indices.
 
-Two facts the analysis already holds are then re-derived by the
-serializer: which operands a node has — its `operands` lists `'[]'`,
-`'{}'`, `'.'`, `'-'`, `','` per tag with `default: []`, while the
-analysis's private `refs` is the complete kind-driven answer — and
-which nodes mint an identity, the serializer's `minting` beside the
-analysis's private `mergeable`. Those two are not one predicate:
-`minting` answers `[]`, `{}` and `=>`, the nodes a hoisted `const` may
-name; `mergeable` also refuses to merge `()`, `?.()` and a calling
-chain, because two calls written separately must run separately. A
-call is therefore not mergeable and not minting, and `!mergeable` is
-not `minting`. The serializer's `default: []` means
-that once operators get a spelling, a shared container under `+` is
-silently not hoisted.
+The serializer already uses the exported `mergeable` predicate. Its
+`minting` helper is `!mergeable`, so shared calls and calling chains keep
+their `const` as constructors do. This preserves call counts and identity;
+replacing it with a predicate for only `[]`, `{}` and `=>` would change
+behavior. The writer also already walks supported arithmetic operands,
+including `+`.
+
+### Completed binding composition
+
+`checked(a, root?)` wraps the existing `bindingError` in
+`Result<Analysis, string>`, returning the original analysis on success.
+Its optional root preserves the selected-function check, including nested
+bodies while excluding enclosing captures. It adds no validation rules.
+
+`trySerialize`, `tryModuleSerialize`, `tryFunctionText`, the compiler's
+Rust admission, `memo` and `validateClosure` use this helper at their
+existing check sites. Memo uses `unwrap(checked(a))` so a refusal still
+throws the original diagnostic string. Trusted result construction has
+no new checks.
 
 ### Proposal
 
-The analysis exports its contract and its facts:
-
-```ts
-/** `a` where `bindingError` finds nothing; its message where it does. */
-export const checked: (a: Analysis) => Result<Analysis, string>
-export const refs: (node: Node) => readonly number[]
-/** Whether a node's result is a fresh identity a `const` may name: `[]`, `{}`, `=>`. */
-export const mintsIdentity: (node: Node) => boolean
-```
-
-`mintsIdentity` is the serializer's `minting` moved to the owner of
-the node kinds, not `mergeable` renamed: it answers the three minting
-kinds and nothing else, so a shared call is not hoisted and runs where
-it is written, as today. `mergeable` stays private to the analysis, as
-the merging rule it is, and the two are documented as the two
-different facts they are.
-
-`checked` takes an analysis, not an expression, so every consumer can
-call it: compiler sites compose `okThen(checked)(analysis(e))` and branch
-on the result, and `memo` asserts on `checked(a)`. `memo`'s runtime check stays
-— an executor refusing a graph nothing has checked is a contract worth
-keeping, and a type cannot carry it: `Phantom` is structural, its marker
-optional, so a plain `Analysis` would pass as a `Checked` — but the
-check is now spelled once, in `checked`, and `memo`'s line is a call to
-it rather than a copy of it.
-
-The serializer's `hoists` walks `refs` filtered by scope: the analysis
-records the scope of every node, and a reference is followed only where
-its node's scope is the one being written. That is the function-body
-boundary `operands` keeps by answering nothing for `=>` — a shared
-container inside a body belongs to the body's scope and is hoisted
-there, never into the enclosing module — and the analysis states it as
-data rather than as an omitted `case`. A function's slots keep their
-separate handling: they are the `=>` entry's own array operand, which
-`hoists` reads directly. Then `mintsIdentity` filters, and
-`operands` and `minting` go.
+Share analyzed-node edge enumeration with the serializer's graph queries
+without changing their results or scheduling. The API remains undecided:
+exposing reference indices may suit counting, while other consumers need
+operand positions or primitive operands. Preserve repeated edges, capture
+edges, function-body boundaries and the distinction between eager and lazy
+operands. Do not add a new validation pass or change which nodes are hoisted.
 
 ### Tasks
 
-- [ ] `checked`, `refs` and `mintsIdentity` with proofs; the four
-      consumers through them, `memo` asserting on `checked`'s result.
-- [ ] `tsc`, `fjs test`.
+- [x] Add `checked(a, root?)` and route existing binding-check consumers
+      through it, preserving success identity, selected scope and diagnostics.
+- [ ] Share operand knowledge with consumer graph queries where it removes
+      duplication. Prove preserved edge counts, scope boundaries and writer
+      output; run the required checks.
 
 ### Related
 
-- [identity-shared-walks.md](./identity-shared-walks.md) — adds
-  `identityShared` to the analysis for the same reason: a consumer was
-  recomputing it.
-- [../../compiler/serializer/module.f.mjs](../../compiler/serializer/module.f.mjs)'s
-  `operands`, whose `default: []` is where a node kind the writer does not
-  walk would first bite.
+- [identity-shared-walks.md](./identity-shared-walks.md) — the separate
+  question of sharing source-object identity counts with Rust consumers.
+- [Analysis](../analysis/module.f.mjs) — `refs`, `mergeable` and `checked`.
+- [Serializer](../../compiler/serializer/module.f.mjs) — `allOperands` and
+  the graph queries consuming it.

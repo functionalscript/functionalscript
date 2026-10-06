@@ -12,10 +12,10 @@
  * @import { _Cache } from './private.ts'
  */
 
-import { assert, assertOk } from '../../asserts/module.f.mjs'
+import { assertOk } from '../../asserts/module.f.mjs'
 import { isArray } from '../../types/array/module.f.mjs'
-import { ok } from '../../types/result/module.f.mjs'
-import { analysis, bindingError } from '../analysis/module.f.mjs'
+import { ok, unwrap } from '../../types/result/module.f.mjs'
+import { analysis, checked } from '../analysis/module.f.mjs'
 import { operation } from '../operations/module.f.mjs'
 
 /** Restore one operand from the already restored prefix of the analysis. @type {(code: readonly ExpOp[], operand: Operand) => Exp} */
@@ -95,7 +95,6 @@ export const invoke = (fn, fixed, rest) => {
 
 /** Interpret a complete analyzed graph. Binding admission happens once here. @type {(a: Analysis) => (context: Invocation) => ValueResult} */
 export const memo = a => {
-    const problem = bindingError(a)
-    assert(problem === null, problem)
-    return context => evaluate(a, { ...context, frame: [] }, a.root)
+    const table = unwrap(checked(a))
+    return context => evaluate(table, { ...context, frame: [] }, table.root)
 }
