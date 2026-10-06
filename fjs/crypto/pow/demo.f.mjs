@@ -82,8 +82,6 @@ const output = state => {
         codeBlock(text, 'Copy hashed input'),
         ['p', 'Hash, hex:'],
         codeBlock(hash.toString(16).padStart(64, '0'), 'Copy hash'),
-        ['p', 'Hash as integer:'],
-        codeBlock(hash.toString(), 'Copy hash integer'),
         ['p', 'Proof of Work:'],
         ['p', { role: 'status' }, succeeded
             ? '✅ Hash meets target (hash ≤ target)'
@@ -109,7 +107,9 @@ export const demo = {
         if (event.name === 'auto-run') {
             if (state.running) { return pureOk({ ...state, running: false }) }
             const target = targetOf(state)
-            return pureOk(nonce === null || target === null || target === 0n ? state : tried(state, nonce, target, nonce, 1n))
+            if (nonce === null || target === null || target === 0n) { return pureOk(state) }
+            const current = tried(state, nonce, target, nonce, 1n)
+            return pureOk(current.running ? current : tried(state, nonce + 1n, target, nonce + 1n, 1n))
         }
         if (event.name === 'auto-next') {
             if (!state.running) { return pureOk(state) }
@@ -125,7 +125,8 @@ export const demo = {
     view: state => ['div',
         ['p', 'Proof of Work'],
         ['p', 'Hash algorithm: SHA-256'],
-        ['p', 'Hash the UTF-8 input followed by the nonce in decimal. A proof succeeds when the hash, read as a big-endian integer, is at most the target. Bitcoin uses this comparison with double SHA-256 of a block header.'],
+        ['p', 'The nonce is appended to the UTF-8 input and hashed with SHA-256.'],
+        ['p', 'The proof succeeds when the resulting hash is at most the target.'],
         textField({ name: 'text', label: 'Input' }, state.text),
         inputField({ name: 'nonce', label: 'Nonce' }, state.nonce),
         ['p',
@@ -134,17 +135,20 @@ export const demo = {
             ['button', { type: 'button', name: 'auto-run' }, state.running ? 'Stop' : 'Auto-run nonce'],
         ],
         inputField({ name: 'nBits', label: 'nBits' }, state.nBits),
-        ['table',
-            ['caption', 'Expected search effort'],
-            ['thead', ['tr', ['th', { scope: 'col' }, 'nBits'], ['th', { scope: 'col' }, 'Average attempts']]],
-            ['tbody',
-                ['tr', ['td', ['code', '0x200fffff'], ' (default)'], ['td', '≈16']],
-                ['tr', ['td', ['code', '0x1f0fffff']], ['td', '≈4,096']],
-                ['tr', ['td', ['code', '0x1f00ffff']], ['td', '≈65,537']],
-                ['tr', ['td', ['code', '0x1d00ffff'], ' (Bitcoin genesis)'], ['td', '≈4.3 billion']],
+        ['details', { class: 'pow-effort' },
+            ['summary', 'Expected search effort'],
+            ['table', { class: 'pow-search-effort', 'aria-label': 'Expected search effort' },
+                ['thead', ['tr', ['th', { scope: 'col' }, 'nBits'], ['th', { scope: 'col' }, 'Average attempts']]],
+                ['tbody',
+                    ['tr', ['td', ['code', '0x200fffff'], ['span', { class: 'pow-effort-label' }, 'Default']], ['td', '≈16']],
+                    ['tr', ['td', ['code', '0x1f0fffff']], ['td', '≈4,096']],
+                    ['tr', ['td', ['code', '0x1f00ffff']], ['td', '≈65,537']],
+                    ['tr', ['td', ['code', '0x1d00ffff'], ['span', { class: 'pow-effort-label' }, 'Bitcoin genesis']], ['td', '≈4.3 billion']],
+                ],
             ],
+            ['p', { class: 'pow-effort-note' }, 'These are averages; a search may finish sooner or take longer.'],
+            ['p', { class: 'pow-effort-note' }, 'The nonce is written in decimal; hashes are compared as big-endian integers. Bitcoin uses double SHA-256 of a binary block header.'],
         ],
-        ['p', 'These are averages; a search may finish sooner or take longer.'],
         ...output(state),
     ],
 }

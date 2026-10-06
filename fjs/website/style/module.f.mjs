@@ -188,6 +188,17 @@ textarea { vertical-align: top }
    redraws focus and the caret), and a field a reader just widened would
    silently narrow back on the next keystroke. */
 .demo-input { box-sizing: border-box; width: 100% }
+/* Keep the PoW difficulty examples aligned with the field above them. */
+.pow-search-effort { border-collapse: collapse; width: 100% }
+.pow-effort { margin: 1rem 0 }
+.pow-effort > summary { cursor: pointer; font-weight: bold }
+.pow-effort[open] > summary { margin-bottom: .75rem }
+.pow-search-effort th { border-bottom: 1px solid var(--border); color: var(--muted); font-size: .875rem; font-weight: normal; padding: 0 0 .75rem; text-align: left }
+.pow-search-effort td { border-bottom: 1px solid var(--border); padding: .75rem 0 }
+.pow-search-effort tr:last-child td { border-bottom: 0 }
+.pow-search-effort th:last-child, .pow-search-effort td:last-child { text-align: right }
+.pow-effort-label { color: var(--muted); display: inline-block; font-size: .75rem; margin-left: .75rem }
+.pow-effort-note { color: var(--muted); font-size: .875rem }
 textarea { box-sizing: border-box; resize: vertical; width: 100% }
 /* The header every page opens with: the logo and the site's name on the left,
    the site-wide links on the right, across the full width of the window with
