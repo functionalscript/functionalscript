@@ -1,7 +1,7 @@
 ## identity-shared-walks. Three walks decide which EDAG nodes are shared
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 

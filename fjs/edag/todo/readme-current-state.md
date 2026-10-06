@@ -1,7 +1,7 @@
 ## fjs/edag/README.md calls producers and executors staged work
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
