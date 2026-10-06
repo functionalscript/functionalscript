@@ -25,8 +25,8 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { error, mapOk, unwrap } from '../../types/result/module.f.mjs'
-import { analysis, bindingError } from '../../edag/analysis/module.f.mjs'
+import { error, mapOk, okThen, unwrap } from '../../types/result/module.f.mjs'
+import { analysis, checked } from '../../edag/analysis/module.f.mjs'
 import { holdsFunction, indent, readsArgs, scope, useLines } from '../../edag/rust/module.f.mjs'
 
 /**
@@ -56,11 +56,9 @@ const vmBound = root => holdsFunction(root) ? 'IStaticFunction' : 'IVm'
  * @type {(root: Exp) => Result<Scope, readonly unknown[]>}
  */
 const body = root => {
-    const [kind, a] = analysis(root)
+    const [kind, a] = okThen(checked)(analysis(root))
     if (kind === 'error') { return error([a, root]) }
-    const problem = bindingError(a)
-    return problem !== null ? error([problem, root])
-    : readsArgs(root)
+    return readsArgs(root)
     ? error(['no Rust for `args` in a module\'s own scope; a module has no arguments', root])
     : mapOk((/** @type {Scope} */ { lines, uses }) => ({ lines: lines.map(l => `${indent}${l}`), uses }))(scope(root))
 }

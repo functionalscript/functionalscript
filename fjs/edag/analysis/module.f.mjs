@@ -464,3 +464,15 @@ export const bindingError = ({ nodes, scope }, root = -1) => {
     }
     return null
 }
+
+/**
+ * The same analysis on binding success, or the existing diagnostic. `root`
+ * has {@link bindingError}'s selected-function scope; omitted, the complete
+ * graph is checked. Compose with `analysis` at executable admission boundaries.
+ *
+ * @type {(a: Analysis, root?: number) => Result<Analysis, string>}
+ */
+export const checked = (a, root) => {
+    const problem = bindingError(a, root)
+    return problem === null ? ok(a) : error(problem)
+}

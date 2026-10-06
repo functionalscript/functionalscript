@@ -8,7 +8,7 @@
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { analysis, bindingError } from './module.f.mjs'
+import { analysis, bindingError, checked } from './module.f.mjs'
 
 /**
  * What every table satisfies, checked on every case: an entry names only
@@ -57,6 +57,11 @@ const empty = ['[]', []]
 const first = ['=>', 0, [], ['.', ['rest'], 0]]
 
 export const proof = {
+    checked: () => {
+        const a = an(first)
+        assertEq(assertOk(checked(a)), a)
+        assertEq(assertError(checked(an(['frame', 0]))), 'invalid frame slot index or scope')
+    },
     validation: () => {
         for (const e of /** @type {readonly Exp[]} */ ([
             ['rest'], ['arg',0], ['=>',0,[],['arg',0]], ['=>',1,[],['arg',1]],
@@ -108,6 +113,9 @@ export const proof = {
             const a = an(e)
             assert(a.root instanceof Array)
             assertEq(bindingError(a, a.root[1]), expected)
+            const result = checked(a, a.root[1])
+            if (expected === null) { assertEq(assertOk(result), a) }
+            else { assertEq(assertError(result), expected) }
         }
         // Selecting a nested function ignores errors in its enclosing code,
         // while whole-program binding validation still reports them.
@@ -115,6 +123,8 @@ export const proof = {
         const nested = a.nodes.findIndex(n => n[0] === '=>')
         assertEq(bindingError(a, nested), null)
         assertEq(bindingError(a), 'invalid fixed parameter index or scope')
+        assertEq(assertOk(checked(a, nested)), a)
+        assertEq(assertError(checked(a)), 'invalid fixed parameter index or scope')
     },
 
     invalidLength: () => {

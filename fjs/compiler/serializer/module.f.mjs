@@ -133,7 +133,7 @@
 
 import { _defaultExport, _moduleExports, _moduleThrows } from '../edag/module.f.mjs'
 import { keywords, literalWords } from '../../js/keywords/module.f.mjs'
-import { analysis, bindingError, mergeable } from '../../edag/analysis/module.f.mjs'
+import { analysis, checked, mergeable } from '../../edag/analysis/module.f.mjs'
 import { keySerialize, leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { arrayWrap, colon, objectWrap, wrap } from '../../media/json/serializer/module.f.mjs'
 import { first, flat, toArray } from '../../types/list/module.f.mjs'
@@ -1286,11 +1286,9 @@ const scopeOperands = (a, v) => {
  * @type {(e: Exp) => Document}
  */
 export const trySerialize = e => {
-    const result = analysis(e)
+    const result = okThen(checked)(analysis(e))
     const [kind, a] = result
     if (kind === 'error') { return result }
-    const problem = bindingError(a)
-    if (problem !== null) { return error(problem) }
     return okThen(
         /** @type {(all: _Root) => Document} */
         (all => mapOk(
@@ -1368,9 +1366,7 @@ export const tryFunctionText = e => {
     const [kind, a] = result
     if (kind === 'error') { return result }
     const i = /** @type {Ref} */ (a.root)[1]
-    const problem = bindingError(a, i)
-    if (problem !== null) { return error(problem) }
-    return ok(functionText(a, i))
+    return mapOk((/** @type {Analysis} */ table) => functionText(table, i))(checked(a, i))
 }
 
 /** A generated-name prefix that cannot collide with any exported binding. @type {(keys: readonly string[], prefix: string) => string} */
@@ -1466,11 +1462,9 @@ export const tryModuleSerialize = e => {
         const compact = trySerialize(_defaultExport(e))
         if (compact[0] === 'ok') { return compact }
     }
-    const result = analysis(e)
+    const result = okThen(checked)(analysis(e))
     const [kind, a] = result
     if (kind === 'error') { return result }
-    const problem = bindingError(a)
-    if (problem !== null) { return error(problem) }
     const exports = exportOperands(a, a.root)
     const prefix = modulePrefix(keys, '$')
     return okThen(state => mapOk(

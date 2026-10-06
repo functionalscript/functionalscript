@@ -240,7 +240,9 @@ writer can hoist what is shared and an executor can cache it without a
 structure keyed by node identity. It returns `Result<Analysis, string>`:
 structural failures, such as a node shared across function scopes or a
 noncanonical function length, return a diagnostic. Complete executable
-graphs additionally use `bindingError` to check their invocation bindings.
+graphs compose the result with `checked` to check their invocation bindings.
+It returns the same analysis on success or `bindingError`'s diagnostic;
+an optional function index limits the check to that function and its nested bodies.
 [memo](memo/module.f.mjs) is that
 interpreter: it returns `Result<EdagValue, EdagValue>`, evaluating every shared
 entry once per invocation with an immutable cache. Functions retain their
