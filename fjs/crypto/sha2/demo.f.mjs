@@ -21,7 +21,7 @@
 import { sha224, sha256, sha384, sha512, sha512x224, sha512x256 } from './module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { textField } from '../../website/demo/module.f.mjs'
-import { digestOf, hashOutput } from '../hash_demo/module.f.mjs'
+import { digestOf, hashOutput } from '../../website/demo/hash/module.f.mjs'
 
 /** Algorithms and their output renderers, built once. */
 export const algorithms = [
