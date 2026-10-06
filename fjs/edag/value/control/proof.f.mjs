@@ -5,9 +5,9 @@
  * @import { EdagValue } from '../types.ts'
  */
 
-import { assert, assertEq, assertOk, assertError } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { ok, error } from '../../../types/result/module.f.mjs'
-import { throwValue, and, or, coalesce, conditional } from './module.f.mjs'
+import { throwValue, and, or, coalesce, conditional, sequence } from './module.f.mjs'
 
 /** A thunk that must never be demanded. @type {() => never} */
 const skipped = () => { assert(false, 'an unselected operand was evaluated') }
@@ -30,6 +30,57 @@ const truthy = [
 const values = [...falsy, ...truthy]
 
 export const proof = {
+    sequence: {
+        empty: () => {
+            assertStructurallySame(sequence([]), ['ok', ['undefined']])
+        },
+        successes: () => {
+            for (const value of values) {
+                const final = ok(value)
+                assertEq(sequence([() => final]), final)
+                // Every successful falsy operand still reaches the final one.
+                assertEq(sequence([
+                    ...falsy.map(value => () => ok(value)),
+                    () => final,
+                ]), final)
+            }
+        },
+        failures: () => {
+            for (const value of values) {
+                const failure = error(value)
+                assertEq(sequence([() => failure, skipped]), failure)
+                // An otherwise discarded operand can fail after successes.
+                assertEq(sequence([
+                    () => ok(data),
+                    () => failure,
+                    skipped,
+                ]), failure)
+            }
+            const first = error(object)
+            const second = error(func)
+            assertEq(sequence([
+                () => ok(false),
+                () => first,
+                () => second,
+                skipped,
+            ]), first)
+        },
+        composition: () => {
+            const selected = ok(object)
+            assertEq(sequence([
+                () => and(ok(false), () => sequence([skipped])),
+                () => conditional(ok(true),
+                    () => sequence([() => ok(data), () => selected]),
+                    () => sequence([skipped])),
+            ]), selected)
+            const failure = error(func)
+            assertEq(sequence([
+                () => conditional(ok(false), skipped,
+                    () => sequence([() => ok(0), () => failure, skipped])),
+                skipped,
+            ]), failure)
+        },
+    },
     shortCircuit: () => {
         for (const value of falsy) {
             const result = ok(value)

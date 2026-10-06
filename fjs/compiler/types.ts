@@ -1,7 +1,7 @@
 /**
- * Type-level API for `fjs/compiler/module.f.mjs`: the compiler's value model is
- * DataJS's, in `fjs/media/datajs/types.ts`; what is the compiler's own is the
- * effect it runs in.
+ * Type-level API for the compiler CLI and its file/effect boundary.
+ * Module interpretation uses EDAG values; data outputs materialize their
+ * selected result before serialization.
  *
  * @module
  */

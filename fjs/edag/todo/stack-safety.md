@@ -3,9 +3,18 @@
 **Priority:** P1
 **Status:** open
 
+### Compiler integration baseline
+
+The compiler's EDAG-value cutover removed redundant forwarding frames from
+analysis and memo and separated the object handler from operation dispatch.
+The existing 1,000-level array corpus now passes through interpretation and
+runtime data conversion on Node 24/26, Bun and Deno. This preserves the former data-output
+baseline; it does not make these walks iterative or promise unbounded depth.
+The measurements below describe the earlier implementation, before that change.
+
 ### Problem
 
-The analysis walk — `walk`, `node`, `fresh` and `dispatch` in
+The analysis walk — `walk` and its handlers in
 [`../analysis/module.f.mjs`](../analysis/module.f.mjs) — recurses once per
 operand, so a sufficiently deep EDAG — a long left-associative operator
 chain (`1 + 1 + 1 + …`), or deeply nested containers (`[[[[…]]]]`) —

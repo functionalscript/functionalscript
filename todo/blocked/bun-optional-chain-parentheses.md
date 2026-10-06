@@ -76,6 +76,10 @@ parse half, filed for the `new` sibling.
 - [ ] Once fixed: uncomment `chainsJs.throw.groupedOptionalCall` and
       `groupedOptionalTag` in `fjs/edag/proof.f.mjs` and drop the commentary
       that explains why they are out.
+- [ ] Once fixed: restore the commented escaping-call assertion in
+      `optionalRegions` in
+      [`fjs/compiler/serializer/function_text/proof.mjs`](../../fjs/compiler/serializer/function_text/proof.mjs).
+      Its rendered-text and represented-interpreter proofs remain active.
 - [ ] Once fixed: trim "Where the host engines disagree" in
       `fjs/edag/README.md` and the matching paragraph in
       `fjs/edag/amnesia/README.md` to the parts that outlive the bug. Keep the
