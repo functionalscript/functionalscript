@@ -16,6 +16,7 @@
  * @module
  * @import { EdagValue } from '../types.ts'
  * @import { Result } from '../../../types/result/types.ts'
+ * @import { Unknown } from '../../../media/datajs/types.ts'
  * @import { _Copies, _Converted } from './private.ts'
  */
 
@@ -31,7 +32,7 @@ const convert = (copies, input) => {
     const known = assoc(value)(copies)
     if (known !== null) { return ok([copies, known]) }
     const children = value[0] === '[]' ? value[1] : value[1].map(([, , child]) => child)
-    /** @type {readonly unknown[]} */
+    /** @type {readonly Unknown[]} */
     let items = []
     for (const child of children) {
         const result = convert(copies, child)
@@ -47,8 +48,8 @@ const convert = (copies, input) => {
     return ok([[...copies, [value, output]], output])
 }
 
-/** Convert runtime data, refusing values that require callable materialization. @type {(value: EdagValue) => Result<unknown, string>} */
+/** Convert runtime data, refusing values that require callable materialization. @type {(value: EdagValue) => Result<Unknown, string>} */
 export const toUnknown = value => mapOk(
-    /** @type {(converted: readonly [_Copies, unknown]) => unknown} */
+    /** @type {(converted: readonly [_Copies, Unknown]) => Unknown} */
     (([, runtime]) => runtime),
 )(convert([], value))

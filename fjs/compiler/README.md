@@ -6,8 +6,9 @@ The front end: a grammar-based tokenizer over
 [transpiler](./transpiler/module.f.mjs) behind `fjs compile`. It moved here
 from `fjs/djs` when the parsers and serializers were restructured, and its
 issues followed into [`todo/`](./todo/) when the old serializer was retired
-and `fjs/djs` emptied; the value model is DataJS's,
-[`fjs/media/datajs/types.ts`](../media/datajs/types.ts). `fjs compile` writes
+and `fjs/djs` emptied. Module interpretation uses
+[EDAG values](../edag/value/types.ts); data outputs convert explicitly to
+ordinary runtime data before serialization. `fjs compile` writes
 the language its output name declares: a `.data.js` document through
 [`fjs/media/datajs/serializer`](../media/datajs/serializer/module.f.mjs) in
 normalized form, a `.js` module through [`serializer`](./serializer/module.f.mjs)
@@ -42,7 +43,8 @@ module's `prohibitedCalls` names, `a.push(1)` or `a.valueOf()`, are refused
 `undefined` where there is no such property, and a `null` or `undefined`
 base fails, reported as JavaScript's throw is. A function with fixed names and optional final rest, such as
 `(a, b, c, ...x) => [a, b, c, x]`, is written by the EDAG, FunctionalScript
-and Rust outputs and refused by value outputs, since a value has no function in it.
+and Rust outputs and retained by EDAG interpretation. A selected function
+is refused by data outputs; functions used during initialization can compute data.
 The AST erases names after binding but retains the fixed parameter count.
 The writer preserves that count, even for unused parameters, and appends a
 fresh rest binding. Empty and rest-only functions both have length zero.
@@ -68,7 +70,7 @@ choice: a value referenced more than once is emitted as a `const` and reused.
 An object is `['object', entries]`, each entry a member, `[':', key, value]`,
 or a spread, `['...', v]` — the member tagged as the EDAG's property is, so
 that a spread can never read as a property named `...` — in the order
-written and a repeated key written twice, rather than a plain object: `run` builds the
+written and a repeated key written twice, rather than a plain object: interpretation builds the
 object JavaScript builds from the same literal — a repeated key at its first
 position with its last value, integer-like keys first — and the EDAG object
 constructor takes the members as written, which only the syntax still has.
@@ -80,7 +82,23 @@ imports retain the selected export in `AstImport.name`; aliases resolve to the
 same selected value, and `name: null` anchors an empty import list. A declaration
 with several bindings contributes one record per selection, all resolved through
 the same host module identity.
-`transpile` returns the complete export object as its denotation's `value`.
+`interpret(path)` in [`transpiler`](./transpiler/module.f.mjs) loads imports,
+then evaluates each module's unresolved EDAG with their complete represented
+export objects as arguments. Its successful result is an `EdagValue`; each
+module identity is evaluated once, and imported values keep their identity.
+An initialization failure retains its represented `thrown` payload and source
+path. The CLI reports `module initialization failed` at that path; parse and
+resolution errors keep their existing diagnostics.
+
+`transpile(path)` converts the complete result into the denotation's ordinary
+runtime `value`. Its effect now returns an inner `Result<Denotation, string>`:
+conversion refusal is separate from a source failure. Callable runtime
+compilation is still pending, so this conversion refuses a function anywhere
+in the selected result. JSON/DataJS output selects the represented default
+before conversion, allowing `export const f = x => x; export default 1;` to
+produce JSON `1`. A conversion refusal names the output file. Both APIs keep
+direct JSON documents unwrapped.
+
 JSON/DataJS output selects the default; FunctionalScript
 output emits individual named/default exports. EDAG and generated Rust retain
 the complete result. A missing default is refused at an import, but a named-only
@@ -121,11 +139,10 @@ it.
 `.edag.data.js` or `.edag.data.mjs`, as a DataJS document with its shared
 nodes hoisted as the DataJS output's are, and writes it back as source under
 any other `.js` or `.mjs` name, through
-[`serializer`](serializer/module.f.mjs) — the one output that holds a
-function, since a value has none. What
+[`serializer`](serializer/module.f.mjs), retaining function code. What
 the export does not reach is anchored by the comma operation rather than
 dropped, `[',', [...roots, exported]]`: `transpile` reads every import and
-`run` evaluates every `const`, so a failure behind an unused one fails the
+interpretation establishes every `const`, so a failure behind an unused one fails the
 compile, and the graph keeps the computation the same way — its operands the
 roots of the unreached part in source order, an entry another unreached entry
 reaches being anchored through it, an alias being the node it names, and two
@@ -186,8 +203,8 @@ the EDAG's own — `op2Id`, `op12Id`'s `-` at two operands this time, told
 from the unary one by length — so the lowering carries every one of them
 straight across, both operands lowered and nothing folded: only the unary
 `-` above is exact enough to fold without knowing anything else about the
-program, and a `.json` or DataJS output refuses the rest the same way it
-refuses a function or a call. A function is no operand of any of them
+program. JSON and DataJS outputs interpret the operators and calls before
+serializing the resulting data. A function is no operand of any of them
 unparenthesized, for the reason above; the grammar spells this without
 wrapping a shared primary the ladder above negation once tried and
 retired, since `func`'s body is unbounded and a wrapped primary would leak

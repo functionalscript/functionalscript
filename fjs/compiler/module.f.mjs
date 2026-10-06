@@ -29,7 +29,7 @@ import { _numberSerialize, tryJsonStringify, tryStringify } from '../media/dataj
 import { tryStringify as fjsStringify, tryModuleStringify } from './serializer/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../media/json/serializer/module.f.mjs'
 import { flat, map } from '../types/list/module.f.mjs'
-import { error, mapOk, ok } from '../types/result/module.f.mjs'
+import { error, mapOk, ok, okThen } from '../types/result/module.f.mjs'
 import { concat } from '../types/string/module.f.mjs'
 import { serialize as bigintSerialize } from '../types/bigint/module.f.mjs'
 import { sort } from '../types/object/module.f.mjs'
@@ -177,7 +177,7 @@ const fjsText = path => mapStep(resolve(path), graph => path.endsWith('.json') ?
  *
  * @type {(write: (denotation: Denotation) => Result<string, string>) => (path: string) => Effect<ReadFile | ResolveFileModule, Result<string, string>, ParseError>}
  */
-const denotedText = write => path => mapStep(_transpileDefault(path), write)
+const denotedText = write => path => mapStep(_transpileDefault(path), okThen(write))
 
 /**
  * The text an output name asks for, from the input, or `null` when the name
@@ -348,7 +348,8 @@ const check = env => resultStep(
  * nodes hoisted into `$0`, `$1`, … and an object's members in the order the
  * module gave them. The DataJS and JSON outputs are the default export
  * (the document itself for a direct JSON input); the FunctionalScript output
- * is the linked graph written back as source, so it holds a function, which no value does; the EDAG output is
+ * is the linked graph written back as source, preserving functions and
+ * initialization code; the EDAG output is
  * that graph, including the module's complete export object, as a DataJS
  * document; and the `.rs` output prints it as `let`
  * bindings and a `pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>`.

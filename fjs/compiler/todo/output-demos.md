@@ -70,9 +70,10 @@ which outputs accept which example.
 
 - `!x` and a `\x41` string escape stop in the tokenizer, as `error` tokens with
   a span; `typeof x` passes it as an ordinary name and the parser refuses it.
-- An operator, a function, a call and a failing read are refused by `.json` and
-  `.data.js` — a value has none of them — and written by `.js`, the EDAG and
-  Rust; `undefined` is refused by `.json` alone.
+- Operators and calls now execute for `.json` and `.data.js`. A selected
+  function is an output refusal, while a failing initializer names its source.
+  `.js`, the EDAG and Rust preserve the computation; `undefined` is refused by
+  `.json` alone.
 - A shared node is one `const` in `.data.js`, `.js` and the EDAG and one
   temporary cloned at each reference in Rust, and is written where each
   reference reaches it in `.json`, which carries no identity.
@@ -99,7 +100,7 @@ which outputs accept which example.
 
 ### Related
 
-- [`value-refusal-names-the-output.md`](./value-refusal-names-the-output.md) —
+- [compiler output boundary](../README.md#ast) —
   the refusal wording the panes show.
 - [`../edag/demo.f.mjs`](../edag/demo.f.mjs) — the EDAG's own demo, with its own
   presets.
