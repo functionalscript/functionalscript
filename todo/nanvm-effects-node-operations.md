@@ -22,10 +22,19 @@ and follows the [native source-loading contract](../nanvm-lib/todo/mvp-roadmap.m
 supported FunctionalScript, not arbitrary JavaScript or host modules. This does
 not remove or change `import` support in existing JavaScript runners.
 
-Build on the native runner's VM-value model and synchronous loop. Individual
-effect implementation details remain unspecified by this TODO.
+Build on the native runner's VM-value model. Use its minimal synchronous loop
+only for effects whose observable contracts it can preserve. Effects requiring
+asynchronous execution, and the execution support they need, are tracked in
+[asynchronous native effects](./nanvm-effects-node-async.md), not forced through
+the synchronous boundary. That work does not block the synchronous subset.
+
+This TODO remains the overall parity task: completing the synchronous subset
+alone does not complete it. Execution design and individual effect
+implementation details remain unspecified here.
 
 ### Tasks
 
-- [ ] Implement native support for the referenced effect set within the scope above.
-- [ ] Verify equivalent observable behavior against the Node runner for that scope.
+- [ ] Implement effects whose observable contracts the synchronous loop can preserve.
+- [ ] Complete the [asynchronous native-effects task](./nanvm-effects-node-async.md).
+- [ ] Verify equivalent observable behavior against the Node runner for the full
+      native scope above.
