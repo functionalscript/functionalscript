@@ -170,6 +170,15 @@ shared container identities within a conversion and creates fresh containers
 on each call. A function anywhere in the data returns an output diagnostic;
 callable graphs still require the target's compile/load boundary.
 
+[`compiler/serializer/value`](../compiler/serializer/value/module.f.mjs) emits
+closed value graphs as JavaScript modules, including executable functions with
+their evaluated captures. Its `stringify` API preserves shared data and function
+references under the JavaScript/memo profile; calls have fresh body allocations
+and can accept ordinary runtime callbacks. The generated module exports the
+complete runtime value as its default. Loading it is a separate host operation;
+the data converter above still refuses callables. This value-emission contract
+does not require the FJS source parser to reconstruct the original graph.
+
 "No normal form" is a statement about the module as a whole, not a licence for
 each node kind to admit several spellings of one thing. Where a set of
 spellings *can* be cut down to one in the schema, it is: [Chains](#chains) is
