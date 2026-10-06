@@ -1,7 +1,7 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** open — array and string relative indexing implemented; callable conversion, invocation and VM migration remain open
+**Status:** wip — slicing represented arrays and strings
 
 ### Problem
 
@@ -367,6 +367,12 @@ budget or stopped-outcome API.
       and UTF-16 string indexing, and return tagged undefined out of range.
       Bigint indices fail even for empty receivers. Callers own method
       dispatch, operand evaluation and conversion of nonprimitive indices.
+- [ ] Add `slice` in `fjs/edag/value/slice` for evaluated arrays and strings
+      with primitive bounds. Reuse abstract ToNumber, with tagged undefined
+      as the omitted end; preserve UTF-16 substrings and create fresh array
+      values sharing their elements. Bigint bounds fail even for empty
+      receivers or ranges. Callers own method dispatch, operand evaluation
+      and conversion of nonprimitive bounds.
 - [x] Expose the shared serializer's `functionText(analysis, index)` renderer
       for an already analyzed function with valid metadata and body bindings.
       Keep `tryFunctionText` as the checked raw-expression entry, delegating
