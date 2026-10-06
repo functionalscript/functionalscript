@@ -188,6 +188,7 @@ textarea { vertical-align: top }
    redraws focus and the caret), and a field a reader just widened would
    silently narrow back on the next keystroke. */
 .demo-input { box-sizing: border-box; width: 100% }
+.hmac-demo label, .hmac-demo p:has(+ [data-code-block]) { font-weight: bold }
 /* Keep the PoW difficulty examples aligned with the field above them. */
 .pow-search-effort { border-collapse: collapse; width: 100% }
 .pow-effort { margin: 1rem 0 }
