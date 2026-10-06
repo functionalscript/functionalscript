@@ -124,6 +124,7 @@ export const proof = {
         assertEq(anchorsOf([[a], [['array', []], ['+', ['cref', 0], 1]]]), 'consts ; imports 0')
         assertEq(anchorsOf([[a], [['array', []], ['+', 1, ['cref', 0]]]]), 'consts ; imports 0')
         assertEq(anchorsOf([[a], [['array', []], ['~', ['cref', 0]]]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], ['!', ['cref', 0]]]]), 'consts ; imports 0')
         // what it does not reach is anchored as ever
         assertEq(anchorsOf([[a], [['array', []], ['+', 1, 2]]]), 'consts 0; imports 0')
     },

@@ -650,6 +650,7 @@ export const proof = {
             assertEq(fjsRoundTrip('export default 1 << 2 + 3 < 5 === true & 1 ^ 2 | 3;'), 'export default 1<<2+3<5===true&1^2|3;')
             assertEq(fjsRoundTrip('export default ((1 << 2) + 3 < 5) === (true & (1 ^ (2 | 3)));'), 'export default (1<<2)+3<5===(true&(1^(2|3)));')
             assertEq(fjsRoundTrip('export default ~1 + -[] * 1n;'), 'export default ~1+-[]*1n;')
+            assertEq(fjsRoundTrip('export default !(1 + 2) === !!-[];'), 'export default !(1+2)===!!-[];')
             assertEq(fjsRoundTrip('export default (1 + 2).x;'), 'export default (1+2).x;')
             assertEq(fjsRoundTrip('export default (-[1])[0];'), 'export default (-[1])[0];')
             assertEq(fjsRoundTrip('export default -((...a) => 1);'), 'export default -(()=>1);')
@@ -1812,6 +1813,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 'Sharing: a const used twice': 'ooooo',
                 'Arithmetic': 'ooooo',
                 'Operator precedence': 'ooooo',
+                'Logical not': 'ooooo',
                 'Laziness': 'ooooo',
                 'Function with a rest parameter': 'xxooo',
                 'Closure': 'xxooo',
@@ -1819,7 +1821,6 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 'Named exports': 'ooooo',
                 'A failure at run time': 'xxooo',
                 'An import': 'xxxxx',
-                'Logical not': 'xxxxx',
                 'Hex escape': 'xxxxx',
                 'typeof': 'xxxxx',
                 'Parse error': 'xxxxx',
@@ -1829,7 +1830,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 assertEq(outputs.map(([, file]) => _compiled(source)(file)[0] === 'ok' ? 'o' : 'x').join(''), expected[name])
             }
             assertEq(_compiled('export default 1;')('output.json')[1], '1')
-            assertEq(_compiled('export default !1;')('output.json')[1], 'input.f.js:1:16 - error: unexpected token')
+            assertEq(_compiled('export default typeof 1;')('output.json')[1], 'input.f.js:1:23 - error: unexpected token')
         },
         view: () => {
             const shown = htmlToString(demo.view(demo.init))
