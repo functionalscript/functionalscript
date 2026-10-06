@@ -103,3 +103,6 @@ export type TextDemoOptions = {
     readonly init: string
     readonly examples?: Examples | undefined
 }
+
+/** The labelled textarea options used by textDemo and demos with more state. */
+export type TextFieldOptions = Pick<TextDemoOptions, 'name' | 'label' | 'rows'>

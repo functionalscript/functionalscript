@@ -15,19 +15,15 @@
  * @module
  *
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
- * @import { Sha2 } from './types.ts'
  * @import { Element } from '../../media/html/types.ts'
  */
 
-import { computeSync, sha224, sha256, sha384, sha512, sha512x224, sha512x256 } from './module.f.mjs'
-import { uint } from '../../types/bit_vec/module.f.mjs'
-import { utf8 } from '../../text/module.f.mjs'
+import { sha224, sha256, sha384, sha512, sha512x224, sha512x256 } from './module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
-import { codeBlock, shellQuote } from '../../website/demo/module.f.mjs'
+import { textField } from '../../website/demo/module.f.mjs'
+import { digestOf, hashOutput } from '../hash_demo/module.f.mjs'
 
-/**
- * @type {readonly { readonly name: string, readonly hash: Sha2, readonly openssl: string }[]}
- */
+/** Algorithms and their output renderers, built once. */
 const algorithms = [
     { name: 'SHA-224', hash: sha224, openssl: 'sha224' },
     { name: 'SHA-256', hash: sha256, openssl: 'sha256' },
@@ -35,7 +31,7 @@ const algorithms = [
     { name: 'SHA-512', hash: sha512, openssl: 'sha512' },
     { name: 'SHA-512/224', hash: sha512x224, openssl: 'sha512-224' },
     { name: 'SHA-512/256', hash: sha512x256, openssl: 'sha512-256' },
-]
+].map(a => ({ ...a, output: hashOutput(a) }))
 
 /** @type {(name: string) => typeof algorithms[number]} */
 const algorithmOf = name => {
@@ -43,10 +39,6 @@ const algorithmOf = name => {
     if (found === undefined) { throw 'sha2 demo: no algorithm has this name' }
     return found
 }
-
-/** @type {(hash: Sha2) => (text: string) => string} */
-const digestOf = hash => text =>
-    uint(computeSync(hash)([utf8(text)])).toString(16).padStart(Number(hash.hashLength / 4n), '0')
 
 /**
  * The SHA-256 hex digest of a string's UTF-8 bytes. Kept as the exported
@@ -79,14 +71,8 @@ export const demo = {
                 ['select', { id: 'algorithm', name: 'algorithm' },
                     ...algorithms.map(a => algorithmOption(a, algorithm))],
             ],
-            ['p',
-                ['label', { for: 'text' }, 'Text '],
-                ['input', { type: 'text', id: 'text', name: 'text', value: state.text }],
-            ],
-            ['p', `${algorithm.name}, hex:`],
-            codeBlock(digestOf(algorithm.hash)(state.text), 'Copy digest'),
-            ['p', 'Verify independently with OpenSSL:'],
-            codeBlock(`printf '%s' ${shellQuote(state.text)} | openssl dgst -${algorithm.openssl}`, 'Copy OpenSSL command'),
+            textField({ name: 'text', label: 'Text' }, state.text),
+            ...algorithm.output(state.text),
         ]
     },
 }
