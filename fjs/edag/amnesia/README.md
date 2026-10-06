@@ -21,12 +21,14 @@ on.
 
 What a node means is not this module's to say: the operations live in
 [`../operations`](../operations/module.f.mjs), one per tag, parameterized by
-how an operand is evaluated. This evaluator supplies recursion;
-[memo](../memo/module.f.mjs), the executor over the
-[analysis](../analysis/module.f.mjs) table, supplies a lookup; both run
-the same table, so they agree on every value that sharing does not decide,
-and this one stays the oracle
+how an operand is evaluated. This evaluator supplies recursion.
+[Memo](../memo/module.f.mjs) now interprets the
+[analysis](../analysis/module.f.mjs) table with `EdagValue` operations and an
+immutable cache. Amnesia remains its temporary host-valued oracle, with the
+documented identity and function-text differences
 ([execution-models.md](../execution-models.md) §2.2).
+Amnesia must also migrate under the [value plan](../todo/edag-value.md);
+its deliberate no-memoization model will remain.
 
 ## Why it is not a VM
 

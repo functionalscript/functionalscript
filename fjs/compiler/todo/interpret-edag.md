@@ -1,19 +1,23 @@
 ## Interpret a compiled EDAG directly
 
 **Priority:** P3
-**Status:** open — host baseline memo executor implemented; public entry
-validation, value-producing API integration and the native semantic prerequisites
-for native self-hosting remain open.
+**Status:** open — represented memo interpretation and immutable cache implemented
+with complete function text; public admission, value-producing API integration
+and native prerequisites remain open.
 
 The planned value contract is
 [EdagValue](../../edag/todo/edag-value.md): every FJS VM uses the EDAG subset
 for language values and returns `Result<EdagValue, EdagValue>`. Host-valued
-execution and arrow factories below describe the current baseline. Integration
-must migrate that baseline and convert explicitly at APIs exposing `unknown`:
+execution and arrow factories describe the former memo baseline and current
+Amnesia oracle. Integration converts explicitly at APIs exposing `unknown`:
 ordinary FJS runtime values with EDAG reflection erased. Validation at the
-entry for separately supplied EDAG data, immutable state and native
+entry for separately supplied EDAG data and native
 prerequisites remain required. Compiler and VM results maintain their
 invariants by construction; they need no repeated admission pass.
+
+**EDAG interpretation** evaluates an EDAG into represented values. **Runtime
+compilation** converts those values to ordinary FJS/JS runtime values, including
+function-free materialization and the callable backend/load boundary.
 
 **Compiler dependency:** [`compile-modules-to-edag.md`](./compile-modules-to-edag.md)
 provides the linked graphs. Its initial rest-only, non-capturing Stage 2 is
@@ -39,10 +43,9 @@ data; no handwritten Rust EDAG executor or native `import` effect is required.
 The optional [Rust EDAG library](../../../todo/rust-edag.md) is separate,
 deferred work and does not block these consumers.
 
-The existing executor is a host baseline: `slot` captures and mutates `let filled`.
-Its [immutable-cache rewrite](../../edag/memo/todo/immutable-cache.md) is required
-before AOT-compiling it under the existing FJS capture semantics. Broader compiler
-coverage alone does not make that captured mutation valid FJS.
+The memo executor now uses an immutable cache threaded through demanded operands.
+Its [native parity checks](../../edag/memo/todo/immutable-cache.md) remain open;
+this rewrite does not claim that the dependency closure compiles to native code.
 Host `Map` dependencies and runtime string-key dispatch in the executor's
 dependency closure also need the
 [native migrations](./load-modules-without-import-effect.md#native-prerequisites).
@@ -51,8 +54,8 @@ and static calls. Neither migration approves new language semantics.
 
 ### Proposal
 
-The baseline interpreter is [`fjs/edag/memo`](../../edag/memo/module.f.mjs), using
-the shared [`operations`](../../edag/operations/module.f.mjs) and
+The interpreter is [`fjs/edag/memo`](../../edag/memo/module.f.mjs), using
+represented [`value`](../../edag/value/types.ts) operations and the
 [`analysis`](../../edag/analysis/module.f.mjs) table. The requirements below govern
 its remaining entry-point and integration work, not a second interpreter for an
 older function representation.
@@ -112,13 +115,13 @@ captured value through `['frame', i]` in its own invocation. The slots are an ar
 operand of `=>`, `[]` when nothing is captured. Fixed values
 and rest arrays captured by nested functions use the same frame mechanism.
 
-Hand-written arrow factories ([`fjs/types/function/length`](../../types/function/length/README.md))
-adapt host calls to the evaluator's `(fixed, rest)` bindings, preserving declared
-JavaScript `length` without runtime code generation.
-The table covers every length the language admits, 0–16.
-The parameter plan's default-function-text gate remains open: these callables still
-expose wrapper source on native conversion. Interpreter integration must not claim
-that rendering or callable/EDAG association is complete.
+Memo's represented call preparation supplies fixed/rest bindings without host
+arrow factories. Amnesia still uses the factories during migration. The approved
+language limit remains 0–16. Memo renders every admitted function body through
+the trusted `functionText(analysis, index): string` entry described in the
+[value plan](../../edag/todo/edag-value.md#operations-and-failures). This renders
+code with frame-slot names and does not execute the emitted text; callable
+runtime compilation and callable/EDAG association are separate work.
 
 A function body is a separate EDAG scope. Validation before interpretation must reject
 operation-node identities shared across function boundaries; otherwise a single
@@ -135,10 +138,9 @@ cache by those integers — one map for the whole code, values cached per
 function: an invocation holds only the entries of its own body's scope. The
 table names its operands by index, so the interpreter runs the table and never
 walks the EDAG's objects.
-The operations themselves are amnesia's, factored into a table both executors
-share, so the interpreter differs from amnesia only in reusing a value. The
-table's `.` reads an own property, `Object.getOwnPropertyDescriptor(a, key)?.value`,
-as the specification defines an access and as amnesia's `own` reads today
+Memo's operations use represented values; Amnesia remains a host-valued proof
+oracle until its migration. Memo's `.` reads represented own properties,
+as the specification defines an access and as Amnesia's `own` reads today
 ([`fjs/edag/todo/entry.md`](../../edag/todo/entry.md)), so an
 inherited property is `undefined` whatever a realm puts on a prototype.
 Validation refuses, besides, an access whose index is a prohibited property
@@ -196,10 +198,16 @@ hardening TODO after the baseline interpreter exists.
 
 ### Tasks
 
-- [x] Provide the baseline memo executor in [`../../edag/memo`](../../edag/memo/module.f.mjs).
+- [x] Provide represented memo interpretation in [`../../edag/memo`](../../edag/memo/module.f.mjs).
+- [x] Replace the captured mutable cache with immutable evaluation state,
+      preserving sharing, lazy demand, fresh calls and capture identity.
+- [x] Render every admitted function body through the shared function-text
+      renderer, preserving existing canonical text and using general JavaScript
+      expressions for bodies outside the source writer's round-trip subset.
+      Direct and indirect conversion remain within the represented VM; checked
+      admission and callable runtime compilation are separate boundaries.
 - [ ] Before native self-hosting, complete the
-      [immutable-cache rewrite](../../edag/memo/todo/immutable-cache.md) and its
-      sharing/laziness parity checks; this does not block host-only integration.
+      [native cache parity checks](../../edag/memo/todo/immutable-cache.md).
 - [ ] At the entry accepting final EDAG supplied as FJS data, check the
       remaining constructible malformed shapes, metadata and bindings once
       before interpretation. Preserve sharing and reuse analysis; do not
@@ -293,5 +301,6 @@ hardening TODO after the baseline interpreter exists.
 - [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resources.md) —
   adds deterministic resource and host-stack hardening after this baseline exists.
 - [`associate-edag-with-functions.md`](./associate-edag-with-functions.md) — records
-  callable/EDAG association; default function-text work remains open in the
-  [parameter plan](../../../spec/todo/3120-parameters.md).
+  callable/EDAG association; the broader default function-text contract is in
+  the [parameter plan](../../../spec/todo/3120-parameters.md), with Amnesia's
+  migration remaining in the value plan.

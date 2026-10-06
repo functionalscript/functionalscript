@@ -1,11 +1,9 @@
 /**
  * The operations of the EDAG's nodes, one per tag, parameterized by how an
- * operand is evaluated. [amnesia](../amnesia/README.md) runs them by
- * recursion over the EDAG's own nodes; an executor over the
- * [analysis](../analysis/module.f.mjs) table runs the same table by looking
- * its operands up, so the two agree on every value that sharing does not
- * decide. This module owns the meaning of each node — the JavaScript each
- * one is built around — and no executor restates it.
+ * operand is evaluated. [Amnesia](../amnesia/README.md) runs these host-valued
+ * operations by recursion over the EDAG's own nodes. Memo has migrated to
+ * represented operations in `../value`; this table remains the temporary
+ * host oracle until Amnesia's cutover in `../todo/edag-value.md`.
  *
  * Every operation reads its node by **destructuring**, never by index:
  * destructuring goes through the array iterator, which stops at `length`,
