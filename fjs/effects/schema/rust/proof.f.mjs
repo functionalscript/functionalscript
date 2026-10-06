@@ -2,7 +2,7 @@
  * @import { Result } from '../../../types/result/types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { array, bigint, boolean, number, option, or, record, string } from '../../../rtti/module.f.mjs'
 import { dirent, mkdir, notImplemented, operations, read, readdir, write } from '../module.f.mjs'
 import { definition, generate, method, pascal, rustType, snake, types } from './module.f.mjs'
@@ -93,6 +93,28 @@ export const proof = {
         assertEq(
             reason(method({ name: 'bad', params: [], answer: record(string), names: [] })),
             'no Rust type for a schema')
+    },
+    /** A single carried type remains optional with or without explicit `undefined`. */
+    optionalParameters: () => {
+        for (const t of [or(option, string), or(option, string, undefined)]) {
+            assertEq(
+                text(method({ name: 'optional', params: [t], answer: undefined, names: ['valueName'] })),
+                '    fn optional(&mut self, value_name: Option<String>) -> ();')
+        }
+    },
+    /** Never silently select the first of several carried types, or invent a type for none. */
+    optionalParameterRefusals: () => {
+        for (const t of [
+            or(option, string, number),
+            or(option, number, string),
+            or(option, string, number, undefined),
+            or(option),
+            or(option, undefined),
+        ]) {
+            const refused = assertError(method({ name: 'bad', params: [t], answer: undefined, names: ['x'] }))
+            assertEq(refused[0], 'no Rust type for an optional parameter without exactly one carried type')
+            assertEq(refused[1], t)
+        }
     },
     /** One method per operation, and every named type defined once. */
     generate: () => {
