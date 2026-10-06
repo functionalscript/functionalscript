@@ -11,7 +11,7 @@ import { tryFunctionText } from '../module.f.mjs'
 
 /** @type {(e: FunctionExp, captures?: readonly unknown[]) => (...args: readonly unknown[]) => any} */
 const compile = (e, captures = []) => Function(
-    ...captures.map((_, i) => `$${i}`),
+    ...captures.map((_, i) => `c${i}`),
     `"use strict";return (${assertOk(tryFunctionText(e))});`,
 )(...captures)
 

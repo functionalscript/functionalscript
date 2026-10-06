@@ -18,8 +18,8 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
             let c0: Any<A> = Any::dot(A::frame(self_)[0].clone(), f64_any(0x0000000000000000)).end()?;
             let c1: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
             c0 + c1
-        }, 0, [rest.clone().to_any()].to_array(), Some("(...$a)=>$0[0]+$a[0]")).to_any())
-    }, 0, Array::default(), Some("(...$a)=>(...$b)=>$a[0]+$b[0]")).to_any();
+        }, 0, [rest.clone().to_any()].to_array(), Some("(...a)=>c0[0]+a[0]")).to_any())
+    }, 0, Array::default(), Some("(...a)=>(...aa)=>a[0]+aa[0]")).to_any();
     let c7: Any<A> = Any::call(c6.clone(), [f64_any(0x3ff0000000000000)].to_array().to_any())?;
     let c8: Any<A> = Any::dot(c7, string_any("toString")).end_call(|| Ok(Array::default().to_any()))?;
     let c9: Any<A> = Any::dot(c6.clone(), string_any("toString")).end_call(|| Ok(Array::default().to_any()))?;

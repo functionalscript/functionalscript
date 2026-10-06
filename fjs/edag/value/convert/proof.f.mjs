@@ -47,7 +47,7 @@ export const proof = {
     functions: () => {
         /** @type {ValueFunction} */
         const closure = ['=>', 1, [7, 7, ['{}', []]], ['+', ['arg', 0], ['frame', 1]]]
-        assertEq(assertOk(toString(closure, skipped)), '($a_0)=>$a_0+$1')
+        assertEq(assertOk(toString(closure, skipped)), '(a0)=>a0+c1')
         assertEq(assertOk(toString(fn, skipped)), '()=>5')
         assertEq(Number.isNaN(assertOk(toNumber(fn, skipped))), true)
     },

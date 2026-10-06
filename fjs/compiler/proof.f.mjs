@@ -534,8 +534,8 @@ export const proof = {
             const dataJs = 'const $0=[1];export default [$0,$0];'
             assertEq(compileSource(source)('out.data.js'), dataJs)
             assertEq(compileSource(source)('out.data.mjs'), dataJs)
-            assertEq(compileSource(source)('out.js'), dataJs)
-            assertEq(compileSource(source)('out.mjs'), dataJs)
+            assertEq(compileSource(source)('out.js'), 'const c0=[1];export default [c0,c0];')
+            assertEq(compileSource(source)('out.mjs'), 'const c0=[1];export default [c0,c0];')
             const edag = 'const $0=["[]",[1]];export default ["{}",[[":","default",["[]",[$0,$0]]]]];'
             assertEq(compileSource(source)('out.edag.data.js'), edag)
             assertEq(compileSource(source)('out.edag.data.mjs'), edag)
@@ -551,7 +551,7 @@ export const proof = {
             assertEq(compileSource('export default [1];')('x.edag.data.js'), 'export default ["{}",[[":","default",["[]",[1]]]]];')
             assertEq(compileSource('export default [1];')('x.data.js'), 'export default [1];')
             assertEq(compileSource('export default [1];')('x.js'), 'export default [1];')
-            assertEq(compileSource('export default (...a) => a;')('x.js'), 'export default (...$a)=>$a;')
+            assertEq(compileSource('export default (...a) => a;')('x.js'), 'export default (...a)=>a;')
             assertEq(compileSource('export default (...a) => a;')('x.edag.data.js'), 'export default ["{}",[[":","default",["=>",0,[],["rest"]]]]];')
             assertEq(moduleRefused('export default (...a) => a;'), 'output.data.js - error: callable materialization requires a target compile/load boundary')
         },
@@ -560,10 +560,10 @@ export const proof = {
         // is in that subset whatever it is called. `.d.js` is one of them:
         // it was DJS's spelling and went with the name.
         anyJavaScriptName: () => {
-            assertEq(compileSource('export default (...a) => a;')('out.f.js'), 'export default (...$a)=>$a;')
-            assertEq(compileSource('export default (...a) => a;')('out.f.mjs'), 'export default (...$a)=>$a;')
-            assertEq(compileSource('export default (...a) => a;')('out.d.js'), 'export default (...$a)=>$a;')
-            assertEq(compileSource('export default (...a) => a;')('a.js'), 'export default (...$a)=>$a;')
+            assertEq(compileSource('export default (...a) => a;')('out.f.js'), 'export default (...a)=>a;')
+            assertEq(compileSource('export default (...a) => a;')('out.f.mjs'), 'export default (...a)=>a;')
+            assertEq(compileSource('export default (...a) => a;')('out.d.js'), 'export default (...a)=>a;')
+            assertEq(compileSource('export default (...a) => a;')('a.js'), 'export default (...a)=>a;')
         },
         // A name declaring no language is refused, naming the eight — and
         // the input is not read at all, since there is nothing to read it
@@ -599,9 +599,9 @@ export const proof = {
         graph: () => {
             assertEq(fjsRoundTrip('const a = { b: 1 }; export default a.b;'), 'export default {"b":1}.b;')
             assertEq(compileSource('const a = { b: 1 }; export default a.b;')('output.data.js'), 'export default 1;')
-            assertEq(fjsRoundTrip('export default (...a) => a;'), 'export default (...$a)=>$a;')
+            assertEq(fjsRoundTrip('export default (...a) => a;'), 'export default (...a)=>a;')
             assertEq(moduleRefused('export default (...a) => a;'), 'output.data.js - error: callable materialization requires a target compile/load boundary')
-            assertEq(fjsRoundTrip('const f = (...a) => 1; export default 2;'), 'const $0=()=>1;export default 2;')
+            assertEq(fjsRoundTrip('const f = (...a) => 1; export default 2;'), 'const c0=()=>1;export default 2;')
             // an empty parameter list reaches here as the node a rest
             // parameter's function does, the AST carrying no parameter, and
             // the writer names the rest parameter only where the body reads
@@ -614,23 +614,23 @@ export const proof = {
         // the text reads back as the graph it was written from — the same
         // graph, not the same text: `(() => [1, 2])()` is the array.
         lazy: () => {
-            assertEq(fjsRoundTrip('export default (...a) => (a[0] && a[1] || a[2]) ?? a[3];'), 'export default (...$a)=>($a[0]&&$a[1]||$a[2])??$a[3];')
-            assertEq(fjsRoundTrip('export default (...a) => a[0] ? a[1] ? 1 : 2 : a[2] ? 3 : 4;'), 'export default (...$a)=>$a[0]?$a[1]?1:2:$a[2]?3:4;')
+            assertEq(fjsRoundTrip('export default (...a) => (a[0] && a[1] || a[2]) ?? a[3];'), 'export default (...a)=>(a[0]&&a[1]||a[2])??a[3];')
+            assertEq(fjsRoundTrip('export default (...a) => a[0] ? a[1] ? 1 : 2 : a[2] ? 3 : 4;'), 'export default (...a)=>a[0]?a[1]?1:2:a[2]?3:4;')
             assertEq(fjsRoundTrip('export default (() => [1, 2])();'), 'export default [1,2];')
-            assertEq(fjsRoundTrip('export default (() => { const x = [1]; return [x, x]; })();'), 'const $0=[1];export default [$0,$0];')
-            assertEq(fjsRoundTrip('export default (...a) => a[0] ? (() => { const x = [1]; return [x, x]; })() : 4;'), 'export default (...$a)=>$a[0]?(()=>{const $b0=[1];return [$b0,$b0];})():4;')
-            assertEq(fjsRoundTrip('export default (...a) => a[0] && (() => { const x = null.x; return 1; })();'), 'export default (...$a)=>$a[0]&&(()=>{const $b0=null.x;return 1;})();')
-            assertEq(fjsRoundTrip('export default (...a) => [(() => { const x = null.x; return 1; })()];'), 'export default ()=>{const $a0=null.x;return [1];};')
-            assertEq(fjsRoundTrip('export default (...a) => a[0] ? (() => { const x = [1]; return [a[1] && x, a[2] && x]; })() : 4;'), 'export default (...$a)=>$a[0]?(()=>{const $b0=[1];return [$a[1]&&$b0,$a[2]&&$b0];})():4;')
-            assertEq(fjsRoundTrip('export default (...a) => a[0] ? (() => { const x = [1]; return [x, x, (() => { const y = [2]; return a[1] ? [y, y] : 1; })()]; })() : 4;'), 'export default (...$a)=>$a[0]?(()=>{const $b0=[2];const $b1=[1];return [$b1,$b1,$a[1]?[$b0,$b0]:1];})():4;')
-            assertEq(fjsRoundTrip('const c = []; export default (...a) => [a[0] && c, a[1] && c];'), 'const $0=[];export default (...$a)=>[$a[0]&&$0,$a[1]&&$0];')
-            assertEq(fjsRoundTrip('export default (...a) => { const y = a[0] ? [] : 1; return [y, y]; };'), 'export default (...$a)=>{const $a0=$a[0]?[]:1;return [$a0,$a0];};')
+            assertEq(fjsRoundTrip('export default (() => { const x = [1]; return [x, x]; })();'), 'const c0=[1];export default [c0,c0];')
+            assertEq(fjsRoundTrip('export default (...a) => a[0] ? (() => { const x = [1]; return [x, x]; })() : 4;'), 'export default (...a)=>a[0]?(()=>{const caa0=[1];return [caa0,caa0];})():4;')
+            assertEq(fjsRoundTrip('export default (...a) => a[0] && (() => { const x = null.x; return 1; })();'), 'export default (...a)=>a[0]&&(()=>{const caa0=null.x;return 1;})();')
+            assertEq(fjsRoundTrip('export default (...a) => [(() => { const x = null.x; return 1; })()];'), 'export default ()=>{const ca0=null.x;return [1];};')
+            assertEq(fjsRoundTrip('export default (...a) => a[0] ? (() => { const x = [1]; return [a[1] && x, a[2] && x]; })() : 4;'), 'export default (...a)=>a[0]?(()=>{const caa0=[1];return [a[1]&&caa0,a[2]&&caa0];})():4;')
+            assertEq(fjsRoundTrip('export default (...a) => a[0] ? (() => { const x = [1]; return [x, x, (() => { const y = [2]; return a[1] ? [y, y] : 1; })()]; })() : 4;'), 'export default (...a)=>a[0]?(()=>{const caa0=[2];const caa1=[1];return [caa1,caa1,a[1]?[caa0,caa0]:1];})():4;')
+            assertEq(fjsRoundTrip('const c = []; export default (...a) => [a[0] && c, a[1] && c];'), 'const c0=[];export default (...a)=>[a[0]&&c0,a[1]&&c0];')
+            assertEq(fjsRoundTrip('export default (...a) => { const y = a[0] ? [] : 1; return [y, y]; };'), 'export default (...a)=>{const ca0=a[0]?[]:1;return [ca0,ca0];};')
             // an unused alias of a capture leaves no slot behind, in a body
             // or in a call inlined into one; the `const` is anchored instead
-            assertEq(fjsRoundTrip('const c = [1]; export default (...a) => { const x = c; return 1; };'), 'const $0=[1];export default ()=>1;')
-            assertEq(fjsRoundTrip('const c = null.x; export default (...a) => (() => { const x = c; return 1; })();'), 'const $0=null.x;export default ()=>1;')
-            assertEq(fjsRoundTrip('const c = [1]; export default (...a) => { const x = c; return [x, c]; };'), 'const $0=[1];export default ()=>[$0,$0];')
-            assertEq(fjsRoundTrip('export const f = (...a) => a[0] ? (() => { const x = [1]; return [x, x]; })() : 4; export default 1;'), 'const $0=(...$a)=>$a[0]?(()=>{const $b0=[1];return [$b0,$b0];})():4;export const f=$0;export default 1;')
+            assertEq(fjsRoundTrip('const c = [1]; export default (...a) => { const x = c; return 1; };'), 'const c0=[1];export default ()=>1;')
+            assertEq(fjsRoundTrip('const c = null.x; export default (...a) => (() => { const x = c; return 1; })();'), 'const c0=null.x;export default ()=>1;')
+            assertEq(fjsRoundTrip('const c = [1]; export default (...a) => { const x = c; return [x, c]; };'), 'const c0=[1];export default ()=>[c0,c0];')
+            assertEq(fjsRoundTrip('export const f = (...a) => a[0] ? (() => { const x = [1]; return [x, x]; })() : 4; export default 1;'), 'const c0=(...a)=>a[0]?(()=>{const caa0=[1];return [caa0,caa0];})():4;export const f=c0;export default 1;')
         },
         // Stage A's operators, with the parentheses JavaScript's own
         // precedence and associativity ask for and no more, so that the
@@ -655,8 +655,8 @@ export const proof = {
             assertEq(fjsRoundTrip('export default (1 + 2).x;'), 'export default (1+2).x;')
             assertEq(fjsRoundTrip('export default (-[1])[0];'), 'export default (-[1])[0];')
             assertEq(fjsRoundTrip('export default -((...a) => 1);'), 'export default -(()=>1);')
-            assertEq(fjsRoundTrip('export default (...a) => (a[0] + 1) && a[1] + (a[2] ? 1 : 2);'), 'export default (...$a)=>$a[0]+1&&$a[1]+($a[2]?1:2);')
-            assertEq(fjsRoundTrip('const o = []; export default [o + 1, o + 1];'), 'const $0=[];export default [$0+1,$0+1];')
+            assertEq(fjsRoundTrip('export default (...a) => (a[0] + 1) && a[1] + (a[2] ? 1 : 2);'), 'export default (...a)=>a[0]+1&&a[1]+(a[2]?1:2);')
+            assertEq(fjsRoundTrip('const o = []; export default [o + 1, o + 1];'), 'const c0=[];export default [c0+1,c0+1];')
             assertEq(compileSource('export default 1 + 2 * 3;')('x.edag.data.js'), 'export default ["{}",[[":","default",["+",1,["*",2,3]]]]];')
             assertEq(compileSource('export default 1 + 2;')('output.data.js'), 'export default 3;')
         },
@@ -684,7 +684,7 @@ export const proof = {
         // the input — is written: the failure is the program's to make when
         // it runs
         unevaluated: () => {
-            assertEq(fjsRoundTrip('const n = null; const check = n.x; export default 1;'), 'const $0=null.x;export default 1;')
+            assertEq(fjsRoundTrip('const n = null; const check = n.x; export default 1;'), 'const c0=null.x;export default 1;')
             assertEq(moduleRefused('const n = null; const check = n.x; export default 1;'), 'input.f.js - error: module initialization failed')
         },
         // Imported evaluation sequences use the same ordered declaration
@@ -722,12 +722,11 @@ export const proof = {
     // and linker included.
     fjsRoundTrip: fjsCorpus.map(source => () => { fjsRoundTrip(source) }),
     // Normalized form is a fixed point of the `.f.js` route as well as the
-    // `.data.js` one, over the whole corpus: the two writers agree on every
-    // document DataJS can spell, so a data module compiles to the same bytes
-    // under either name, and they part only where a graph holds what no
-    // value does.
+    // `.data.js` corpus, normalized with the FJS writer's own names:
+    // writing that output again must keep the same bytes.
     fjsFixedPoint: normalizeSet.map(({ id, text }) => () => {
-        assertEq(compileSource(text)('output.f.js'), text, id)
+        const normalized = compileSource(text)('output.f.js')
+        assertEq(compileSource(normalized)('output.f.js'), normalized, id)
     }),
     // The EDAG output: the program linked into one graph and written as a
     // DataJS document, its shared node hoisted as the DataJS output hoists
@@ -797,19 +796,19 @@ export const proof = {
             // and the FunctionalScript output writes the body back as a
             // body, `const`s and all: the round trip is the claim, and the
             // text is pinned because the names are the writer's to choose
-            assertEq(fjsRoundTrip('export default (...a) => { const x = [1]; return [x, x]; };'), 'export default ()=>{const $a0=[1];return [$a0,$a0];};')
-            assertEq(fjsRoundTrip('export default (...a) => { const x = []; return 1; };'), 'export default ()=>{const $a0=[];return 1;};')
+            assertEq(fjsRoundTrip('export default (...a) => { const x = [1]; return [x, x]; };'), 'export default ()=>{const ca0=[1];return [ca0,ca0];};')
+            assertEq(fjsRoundTrip('export default (...a) => { const x = []; return 1; };'), 'export default ()=>{const ca0=[];return 1;};')
             // a `const` the body does not need is not written: one naming a
             // value reached once is that value in place, as at the module
             // level
             assertEq(fjsRoundTrip('export default (...a) => { const x = 1; return x; };'), 'export default ()=>1;')
             // each scope numbers its own `const`s, and no two scopes share a
-            // spelling: `$0` is the module's, `$a0` the outer body's, `$b0`
+            // spelling: `c0` is the module's, `ca0` the outer body's, `caa0`
             // the inner one's
-            assertEq(fjsRoundTrip('const m = [1]; export default [m, m, (...a) => { const x = [2]; return [x, x]; }];'), 'const $0=[1];export default [$0,$0,()=>{const $a0=[2];return [$a0,$a0];}];')
-            assertEq(fjsRoundTrip('export default (...a) => { const f = (...b) => { const y = [1]; return [y, y]; }; return f; };'), 'export default ()=>()=>{const $b0=[1];return [$b0,$b0];};')
+            assertEq(fjsRoundTrip('const m = [1]; export default [m, m, (...a) => { const x = [2]; return [x, x]; }];'), 'const c0=[1];export default [c0,c0,()=>{const ca0=[2];return [ca0,ca0];}];')
+            assertEq(fjsRoundTrip('export default (...a) => { const f = (...b) => { const y = [1]; return [y, y]; }; return f; };'), 'export default ()=>()=>{const caa0=[1];return [caa0,caa0];};')
             // a body's `const` may name the arguments, which no module `const` can
-            assertEq(fjsRoundTrip('export default (...a) => { const x = [a]; return [x, x]; };'), 'export default (...$a)=>{const $a0=[$a];return [$a0,$a0];};')
+            assertEq(fjsRoundTrip('export default (...a) => { const x = [a]; return [x, x]; };'), 'export default (...a)=>{const ca0=[a];return [ca0,ca0];};')
         },
         // Calls execute for data outputs and remain code for code outputs.
         call: () => {
@@ -826,7 +825,7 @@ export const proof = {
             assertEq(jsonRefused('export default [1][0](2);'), 'input.f.js - error: module initialization failed')
             // the writer spells both forms: the plain call, and the method
             // call on its access
-            assertEq(fjsRoundTrip('const f = (...a) => 1; export default f(1);'), 'const $0=()=>1;export default $0(1);')
+            assertEq(fjsRoundTrip('const f = (...a) => 1; export default f(1);'), 'const c0=()=>1;export default c0(1);')
             assertEq(fjsRoundTrip('export default [1][0](2);'), 'export default [1][0](2);')
         },
         // a program the linker refuses is reported against the input, as a
@@ -1009,7 +1008,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 '        let rest = args.clone().into_iter().to_array();',
                 '        let c0 = || Ok(rest.clone().to_any());',
                 '        Any::conditional(true.to_any(), c0, c0)',
-                '    }, 0, Array::default(), Some("(...$a)=>true?$a:$a")).to_any();',
+                '    }, 0, Array::default(), Some("(...a)=>true?a:a")).to_any();',
                 '    Ok([(string_key("default"), c0)].to_object().to_any())',
             ])
             assertStructurallySame(body('export default (...a) => true ? [a] : [a, a];'), [
@@ -1019,7 +1018,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 '        let c1 = || Ok([c0.clone()].to_array().to_any());',
                 '        let c2 = || Ok([c0.clone(), c0.clone()].to_array().to_any());',
                 '        Any::conditional(true.to_any(), c1, c2)',
-                '    }, 0, Array::default(), Some("(...$a)=>true?[$a]:[$a,$a]")).to_any();',
+                '    }, 0, Array::default(), Some("(...a)=>true?[a]:[a,a]")).to_any();',
                 '    Ok([(string_key("default"), c0)].to_object().to_any())',
             ])
         },
@@ -1159,12 +1158,12 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     // Rust output binds an arm's `const` in the arm's own block. The value
     // outputs refuse a function as ever.
     guards: () => {
-        assertEq(compileSource('export default (a) => { if (a) { return 1; } return 2; };')('output.js'), 'export default ($a_0)=>$a_0?1:2;')
-        assertEq(compileSource('export default (a) => { if (a) { const x = [1]; return [x, x]; } return 0; };')('output.js'), 'export default ($a_0)=>$a_0?(()=>{const $b0=[1];return [$b0,$b0];})():0;')
-        assertEq(compileSource('export default (m) => { const a = [1]; if (m) { return a; } return 0; };')('output.js'), 'export default ($a_0)=>{const $a0=[1];return $a_0?$a0:0;};')
-        assertEq(compileSource('export default (a) => { if (a) { throw 1; } const y = [2]; return y; };')('output.js'), 'export default ($a_0)=>$a_0?(()=>{throw 1;})():[2];')
-        assertEq(compileSource('export default (a) => { if (a) { throw 1; } const z = [2]; return 1; };')('output.js'), 'export default ($a_0)=>$a_0?(()=>{throw 1;})():(()=>{const $b0=[2];return 1;})();')
-        assertEq(compileSource('export default (v, msg) => { if (v) { return undefined; } throw msg ?? "assertion failed"; };')('output.js'), 'export default ($a_0,$a_1)=>$a_0?undefined:(()=>{throw $a_1??"assertion failed";})();')
+        assertEq(compileSource('export default (a) => { if (a) { return 1; } return 2; };')('output.js'), 'export default (a0)=>a0?1:2;')
+        assertEq(compileSource('export default (a) => { if (a) { const x = [1]; return [x, x]; } return 0; };')('output.js'), 'export default (a0)=>a0?(()=>{const caa0=[1];return [caa0,caa0];})():0;')
+        assertEq(compileSource('export default (m) => { const a = [1]; if (m) { return a; } return 0; };')('output.js'), 'export default (a0)=>{const ca0=[1];return a0?ca0:0;};')
+        assertEq(compileSource('export default (a) => { if (a) { throw 1; } const y = [2]; return y; };')('output.js'), 'export default (a0)=>a0?(()=>{throw 1;})():[2];')
+        assertEq(compileSource('export default (a) => { if (a) { throw 1; } const z = [2]; return 1; };')('output.js'), 'export default (a0)=>a0?(()=>{throw 1;})():(()=>{const caa0=[2];return 1;})();')
+        assertEq(compileSource('export default (v, msg) => { if (v) { return undefined; } throw msg ?? "assertion failed"; };')('output.js'), 'export default (a0,a1)=>a0?undefined:(()=>{throw a1??"assertion failed";})();')
         assertEq(compileSource('export default (a) => { if (a) { throw 1; } const z = [2]; return 1; };')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",1,[],["?:",["arg",0],["throw",1],[",",[["[]",[2]],1]]]]]]];')
         assert(compileSource('export default (a) => { if (a) { const x = [1]; return [x, x]; } return 0; };')('output.rs').includes([
             '        let c0 = || {',
@@ -1409,7 +1408,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assertEq(compileSource('export default [-0xFF, -0x8000000000000000n];')('output.data.js'), 'export default [-255,-9223372036854775808n];')
         },
         access: () => {
-            assertEq(fjsRoundTrip('export default 0x10.length;'), 'const $0=16;export default $0.length;')
+            assertEq(fjsRoundTrip('export default 0x10.length;'), 'const c0=16;export default c0.length;')
         },
         // what JavaScript refuses: no digit, a word or a digit against the
         // literal, and a fraction or a suffix where the literal has ended
@@ -1676,14 +1675,14 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         },
         outputs: () => {
             assertEq(compileSource('const a = [1]; export default [...a];')('output.edag.data.js'), 'export default ["{}",[[":","default",["[]",[["...",["[]",[1]]]]]]]];')
-            assertEq(compileSource('const f = (...r) => r; export default (...r) => f(...r, 1);')('output.js'), 'const $0=(...$a)=>$a;export default (...$a)=>$0(...$a,1);')
+            assertEq(compileSource('const f = (...r) => r; export default (...r) => f(...r, 1);')('output.js'), 'const c0=(...a)=>a;export default (...a)=>c0(...a,1);')
             assert(compileSource('export default [...null, 1];')('output.rs').includes('spread_array([spread_item(Nullish::Null.to_any()), value_item(f64_any(0x3ff0000000000000))])?'))
         },
         // a call whose function reads its rest array through a spread stays
         // a call, as one reading it any other way does
         notInlined: () => {
-            assertEq(compileSource('export default ((...a) => [...a])();')('output.js'), 'const $0=(...$a)=>[...$a];export default $0();')
-            assertEq(compileSource('const f = (...a) => a; export default ((...a) => f(...a))();')('output.js'), 'const $0=(...$a)=>$a;const $1=(...$a)=>$0(...$a);export default $1();')
+            assertEq(compileSource('export default ((...a) => [...a])();')('output.js'), 'const c0=(...a)=>[...a];export default c0();')
+            assertEq(compileSource('const f = (...a) => a; export default ((...a) => f(...a))();')('output.js'), 'const c0=(...a)=>a;const c1=(...a)=>c0(...a);export default c1();')
         },
         // A spread puts its operand's elements in the array, not the
         // operand: a container element is one node reached through every
@@ -1757,7 +1756,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         // a call whose function reads its rest array through a spread stays
         // a call
         notInlined: () => {
-            assertEq(compileSource('export default ((...r) => ({ ...r }))();')('output.js'), 'const $0=(...$a)=>{return {...$a};};export default $0();')
+            assertEq(compileSource('export default ((...r) => ({ ...r }))();')('output.js'), 'const c0=(...a)=>{return {...a};};export default c0();')
         },
         // A spread puts its operand's properties in the object, not the
         // operand: a node is shared through it when a property is a
@@ -1781,11 +1780,11 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     // Code outputs preserve throws; data outputs execute module initialization.
     throws: () => {
         assertEq(compileSource('export default () => { throw 1; };')('output.js'), 'export default ()=>{throw 1;};')
-        assertEq(compileSource('export default (...a) => { const x = a[0]; throw [x, x]; };')('output.js'), 'export default (...$a)=>{throw [$a[0],$a[0]];};')
+        assertEq(compileSource('export default (...a) => { const x = a[0]; throw [x, x]; };')('output.js'), 'export default (...a)=>{throw [a[0],a[0]];};')
         assertEq(compileSource('export default () => { throw 1; };')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",0,[],["throw",1]]]]];')
         assertEq(moduleRefused('export default () => { throw 1; };'), 'output.data.js - error: callable materialization requires a target compile/load boundary')
         assertEq(compileSource('throw "boom";')('output.js'), 'throw "boom";')
-        assertEq(compileSource('const a = []; throw 1;')('output.js'), 'const $0=[];throw 1;')
+        assertEq(compileSource('const a = []; throw 1;')('output.js'), 'const c0=[];throw 1;')
         assertEq(compileSource('throw "boom";')('output.edag.data.js'), 'export default ["throw","boom"];')
         assertEq(moduleRefused('throw "boom";'), 'input.f.js - error: module initialization failed')
         assertEq(jsonRefused('export const a = [1]; throw a;'), 'input.f.js - error: module initialization failed')

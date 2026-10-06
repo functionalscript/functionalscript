@@ -29,7 +29,7 @@ import { concat } from '../../../types/string/module.f.mjs'
 import { renderFunction } from '../function_text/module.f.mjs'
 
 /** One outer node's stable binding. @type {(i: number) => string} */
-const name = i => `$v${i}`
+const name = i => `cv${i}`
 
 /** A leaf or a previously constructed value. @type {(v: Operand) => string} */
 const operand = v => v instanceof Array ? name(v[1]) : concat(leafSerialize(v))
@@ -44,7 +44,7 @@ const entry = (a, i, n) => {
             const slots = n[2]
             const text = renderFunction(a, i)
             return slots.length === 0 ? text
-                : `((${slots.map((_, k) => `$${k}`).join(',')})=>(${text}))(${slots.map(operand).join(',')})`
+                : `((${slots.map((_, k) => `c${k}`).join(',')})=>(${text}))(${slots.map(operand).join(',')})`
         }
     }
 }

@@ -11,12 +11,12 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         let c1: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
         let c2: Any<A> = Any::dot(c0.clone(), f64_any(0x3ff0000000000000)).end()?;
         c1 + c2
-    }, 0, Array::default(), Some("(...$a)=>$a[0]+$a[1]")).to_any();
+    }, 0, Array::default(), Some("(...a)=>a[0]+a[1]")).to_any();
     let c1: Any<A> = [(string_key("absent"), Nullish::Undefined.to_any()), (string_key("add"), c0)].to_object().to_any();
     let c2: Any<A> = [f64_any(0x4014000000000000)].to_array().to_any();
     let c3: Any<A> = [(string_key("a"), c2.clone()), (string_key("default"), c2.clone()), (string_key("z"), c2.clone())].to_object().to_any();
     let c4: Any<A> = Any::dot(c3.clone(), string_any("a")).end()?;
-    let c5: Any<A> = A::static_function(|self_, _args| { Ok(A::static_function(|self_, _args| { Ok(A::frame(self_)[0].clone()) }, 0, [A::frame(self_)[0].clone()].to_array(), Some("()=>$0")).to_any()) }, 0, [c4.clone()].to_array(), Some("()=>()=>$0")).to_any();
+    let c5: Any<A> = A::static_function(|self_, _args| { Ok(A::static_function(|self_, _args| { Ok(A::frame(self_)[0].clone()) }, 0, [A::frame(self_)[0].clone()].to_array(), Some("()=>c0")).to_any()) }, 0, [c4.clone()].to_array(), Some("()=>()=>c0")).to_any();
     let c6: Any<A> = Any::dot(c3.clone(), string_any("default")).end()?;
     let c7: Any<A> = (strict_eq(c6.clone(), c4.clone()))?;
     let c8: Any<A> = Any::dot(c3.clone(), string_any("z")).end()?;
@@ -30,6 +30,6 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c16: Any<A> = (strict_eq(c15, Nullish::Undefined.to_any()))?;
     let c17: Any<A> = [c7, c9, c10, c11, c14, c16].to_array().to_any();
     let c18: Any<A> = Any::dot(c1.clone(), string_any("add")).end()?;
-    let c19: Any<A> = A::static_function(|self_, _args| { Any::call(A::frame(self_)[0].clone(), [f64_any(0x4034000000000000), f64_any(0x4036000000000000)].to_array().to_any()) }, 0, [c18].to_array(), Some("()=>$0(20,22)")).to_any();
+    let c19: Any<A> = A::static_function(|self_, _args| { Any::call(A::frame(self_)[0].clone(), [f64_any(0x4034000000000000), f64_any(0x4036000000000000)].to_array().to_any()) }, 0, [c18].to_array(), Some("()=>c0(20,22)")).to_any();
     Ok([(string_key("captured"), c5.clone()), (string_key("checks"), c17), (string_key("main"), c19)].to_object().to_any())
 }

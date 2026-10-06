@@ -31,11 +31,11 @@ const column = n => {
     return `${q === 0 ? '' : column(q)}${codePointToString(latinSmallLetterA + (n - 1) % letters)}`
 }
 
-/** The shared canonical parameter name at a positive function depth. @type {(depth: number) => string} */
-export const parameter = depth => `$${column(depth)}`
+/** An `a` prefix keeps parameters distinct from `c` constants at every depth. @type {(depth: number) => string} */
+export const parameter = depth => depth === 1 ? 'a' : `a${column(depth - 1)}`
 
 /** The name of one invocation-local memo cell. @type {(_s: _Scope, k: number) => string} */
-const memoName = (s, k) => `${parameter(s.depth)}${k}`
+const memoName = (s, k) => `c${parameter(s.depth)}${k}`
 
 /** Render a value, demanding a shared entry through its cell. @type {(s: _Scope, v: Operand) => string} */
 const operand = (s, v) => {
@@ -65,14 +65,14 @@ const entry = (s, i) => {
     const n = /** @type {Exclude<Node, readonly ['args']>} */ (s.a.nodes[i])
     switch (n[0]) {
         case 'undefined': { return '(undefined)' }
-        case 'arg': { return `(${parameter(s.depth)}_${n[1]})` }
+        case 'arg': { return `(${parameter(s.depth)}${n[1]})` }
         case 'rest': { return `(${parameter(s.depth)})` }
         case 'frame': { return `(${s.frame[n[1]]})` }
         case '[]': { return `([${items(s, n[1])}])` }
         case '{}': { return `({${n[1].map(p => p[0] === '...'
             ? `...${operand(s, p[1])}` : `[${operand(s, p[1])}]:${operand(s, p[2])}`).join(',')}})` }
         case '=>': {
-            const frame = n[2].map((_, k) => `$${k}`)
+            const frame = n[2].map((_, k) => `c${k}`)
             const text = lambda(s.a, i, s.depth + 1, frame)
             return n[2].length === 0 ? `(${text})`
                 : `((${frame.join(',')})=>(${text}))(${n[2].map(v => operand(s, v)).join(',')})`
@@ -105,7 +105,7 @@ const lambda = (a, i, depth, frame) => {
     const [, length, , body] = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (a.nodes[i])
     const shared = a.shared.filter(j => a.scope[j] === i)
     const s = { a, depth, frame, shared }
-    const fixed = Array.from({ length }, (_, k) => `${parameter(depth)}_${k}`)
+    const fixed = Array.from({ length }, (_, k) => `${parameter(depth)}${k}`)
     const rest = a.nodes.some((n, j) => n[0] === 'rest' && a.scope[j] === i) ? [`...${parameter(depth)}`] : []
     const parameters = `(${[...fixed, ...rest].join(',')})=>`
     const value = operand(s, body)
@@ -116,5 +116,5 @@ const lambda = (a, i, depth, frame) => {
 /** Code-only text of a trusted function entry; evaluated captures stay unnamed data. @type {(a: Analysis, i: number) => string} */
 export const renderFunction = (a, i) => {
     const node = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (a.nodes[i])
-    return lambda(a, i, 1, node[2].map((_, k) => `$${k}`))
+    return lambda(a, i, 1, node[2].map((_, k) => `c${k}`))
 }

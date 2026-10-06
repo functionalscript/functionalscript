@@ -16,7 +16,7 @@ pub fn run<A: IStaticFunction>() {
             let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
             let c1: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x3ff0000000000000)).end()?;
             c0 - c1
-        }, 0, Array::default(), Some("(...$a)=>$a[0]-$a[1]")).to_any();
+        }, 0, Array::default(), Some("(...a)=>a[0]-a[1]")).to_any();
         Ok([c0].to_array().to_any())
     }), [f64_any(0x3ff0000000000000), f64_any(0x4022000000000000), f64_any(0x4024000000000000)].to_array().to_any());
     check::<A>("descending", Any::dot([f64_any(0x3ff0000000000000), f64_any(0x4024000000000000), f64_any(0x4022000000000000)].to_array().to_any(), string_any("toSorted")).end_call(|| {
@@ -25,7 +25,7 @@ pub fn run<A: IStaticFunction>() {
             let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x3ff0000000000000)).end()?;
             let c1: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
             c0 - c1
-        }, 0, Array::default(), Some("(...$a)=>$a[1]-$a[0]")).to_any();
+        }, 0, Array::default(), Some("(...a)=>a[1]-a[0]")).to_any();
         Ok([c0].to_array().to_any())
     }), [f64_any(0x4024000000000000), f64_any(0x4022000000000000), f64_any(0x3ff0000000000000)].to_array().to_any());
     check::<A>("undefinedNeverCompared", Any::dot([f64_any(0x4000000000000000), Nullish::Undefined.to_any(), f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("toSorted")).end_call(|| {
@@ -34,7 +34,7 @@ pub fn run<A: IStaticFunction>() {
             let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
             let c1: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x3ff0000000000000)).end()?;
             c0 - c1
-        }, 0, Array::default(), Some("(...$a)=>$a[0]-$a[1]")).to_any();
+        }, 0, Array::default(), Some("(...a)=>a[0]-a[1]")).to_any();
         Ok([c0].to_array().to_any())
     }), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), Nullish::Undefined.to_any()].to_array().to_any());
     check::<A>("nanAnswerIsEqual", Any::dot([f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("toSorted")).end_call(|| {
@@ -42,7 +42,7 @@ pub fn run<A: IStaticFunction>() {
             let rest = args.clone().into_iter().to_array();
             let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
             Any::dot(c0, string_any("x")).end()
-        }, 0, Array::default(), Some("(...$a)=>$a[0].x")).to_any();
+        }, 0, Array::default(), Some("(...a)=>a[0].x")).to_any();
         Ok([c0].to_array().to_any())
     }), [f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any());
     check::<A>("stable", Any::dot([f64_any(0x4008000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any(), string_any("toSorted")).end_call(|| {
@@ -60,7 +60,7 @@ pub fn run<A: IStaticFunction>() {
             let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
             let c1: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x3ff0000000000000)).end()?;
             c0 - c1
-        }, 0, Array::default(), Some("(...$a)=>$a[0]-$a[1]")).to_any();
+        }, 0, Array::default(), Some("(...a)=>a[0]-a[1]")).to_any();
         Ok([c0].to_array().to_any())
     }), [f64_any(0x3ff0000000000000)].to_array().to_any());
     check_throws::<A>("nullComparator", Any::dot([f64_any(0x4000000000000000), f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("toSorted")).end_call(|| Ok([Nullish::Null.to_any()].to_array().to_any())));
@@ -70,7 +70,7 @@ pub fn run<A: IStaticFunction>() {
         let c0: Any<A> = A::static_function(|_self, args| {
             let rest = args.clone().into_iter().to_array();
             Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
-        }, 0, Array::default(), Some("(...$a)=>$a[0]")).to_any();
+        }, 0, Array::default(), Some("(...a)=>a[0]")).to_any();
         Ok([c0].to_array().to_any())
     }));
     check_throws::<A>("throwingComparator", Any::dot([Nullish::Null.to_any(), Nullish::Null.to_any()].to_array().to_any(), string_any("toSorted")).end_call(|| {
@@ -78,7 +78,7 @@ pub fn run<A: IStaticFunction>() {
             let rest = args.clone().into_iter().to_array();
             let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
             Any::dot(c0, string_any("x")).end()
-        }, 0, Array::default(), Some("(...$a)=>$a[0].x")).to_any();
+        }, 0, Array::default(), Some("(...a)=>a[0].x")).to_any();
         Ok([c0].to_array().to_any())
     }));
     check_throws::<A>("object", Any::dot(Object::default().to_any(), string_any("toSorted")).end_call(|| Ok(Array::default().to_any())));

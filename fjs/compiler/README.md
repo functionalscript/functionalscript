@@ -216,7 +216,7 @@ through one, `-((...a) => 1)`, and the refusal falls on the `...` where
 JavaScript's does rather than on the `(`. The writer spells that group, for
 a negated function and for a negation under an access, `(-[1])[0]`, alike;
 a negated *number* is the number by the time the writer sees it, and a
-number under an access takes a `const`, `const $0=-1;export default $0[0];`.
+number under an access takes a `const`, `const c0=-1;export default c0[0];`.
 
 Stage A of [`spec/todo/2340-operators.md`](../../spec/todo/2340-operators.md)
 gave the language the rest: arithmetic, strict comparison, and bitwise —

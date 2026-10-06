@@ -9,7 +9,7 @@ host callables or overrides a host function's `toString`.
 The trusted `functionText(analysis, index): string` entry in the
 [serializer](../compiler/serializer/module.f.mjs) renders every admitted body.
 `tryFunctionText` checks separately supplied expressions and returns admission
-diagnostics through `Result`. Captures appear as slot names, `$0`, `$1`, and so
+diagnostics through `Result`. Captures appear as slot names, `c0`, `c1`, and so
 on, without including their values. Two functions instantiated from the same
 body therefore have the same text even when their captures differ.
 

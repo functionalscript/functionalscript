@@ -19,15 +19,18 @@ const text = body => render(['=>', 0, [], body])
 
 export const proof = {
     names: () => {
-        assertEq(parameter(1), '$a')
-        assertEq(parameter(26), '$z')
-        assertEq(parameter(27), '$aa')
-        assertEq(parameter(703), '$aaa')
-        assertEq(render(['=>', 2, [], ['arg', 1]]), '($a_0,$a_1)=>($a_1)')
-        assertEq(text(['rest']), '(...$a)=>($a)')
+        assertEq(parameter(1), 'a')
+        assertEq(parameter(2), 'aa')
+        assertEq(parameter(3), 'ab')
+        assertEq(parameter(26), 'ay')
+        assertEq(parameter(27), 'az')
+        assertEq(parameter(28), 'aaa')
+        assertEq(parameter(704), 'aaaa')
+        assertEq(render(['=>', 2, [], ['arg', 1]]), '(a0,a1)=>(a1)')
+        assertEq(text(['rest']), '(...a)=>(a)')
         assertEq(text(['undefined']), '()=>(undefined)')
-        assertEq(render(['=>', 0, [8, 9], ['frame', 1]]), '()=>($1)')
-        assertEq(render(['=>', 0, [null, ['[]', [1]]], ['frame', 1]]), '()=>($1)')
+        assertEq(render(['=>', 0, [8, 9], ['frame', 1]]), '()=>(c1)')
+        assertEq(render(['=>', 0, [null, ['[]', [1]]], ['frame', 1]]), '()=>(c1)')
     },
     containers: () => {
         assertEq(text(['[]', [1, ['...', 'ab'], null, false, 1n, -0]]), '()=>([(1),...("ab"),(null),(false),(1n),(-0)])')
@@ -73,11 +76,11 @@ export const proof = {
     },
     closures: () => {
         assertEq(text(['=>', 0, [], 1]), '()=>(()=>(1))')
-        assertEq(text(['=>', 0, [], ['rest']]), '()=>((...$b)=>($b))')
+        assertEq(text(['=>', 0, [], ['rest']]), '()=>((...aa)=>(aa))')
         assertEq(text(['=>', 1, [1, 1], ['[]', [['frame', 0], ['frame', 1], ['arg', 0]]]]),
-            '()=>(($0,$1)=>(($b_0)=>([($0),($1),($b_0)])))((1),(1))')
+            '()=>((c0,c1)=>((aa0)=>([(c0),(c1),(aa0)])))((1),(1))')
         assertEq(text(['=>', 0, [['throw', 'unused']], 1]),
-            '()=>(($0)=>(()=>(1)))((()=>{throw ("unused");})())')
+            '()=>((c0)=>(()=>(1)))((()=>{throw ("unused");})())')
         const inner = /** @type {const} */ (['=>', 1, [['arg', 0]], ['frame', 0]])
         const outer = /** @type {const} */ (['=>', 1, [], inner])
         const table = assertOk(analysis(['[]', [['[]', ['unrelated']], outer]]))
@@ -87,7 +90,7 @@ export const proof = {
     lazySharing: () => {
         const shared = /** @type {const} */ (['[]', []])
         const body = /** @type {const} */ (['[]', [['&&', false, shared], ['||', true, shared]]])
-        assertEq(text(body), '()=>{const $a0=(()=>{let $v,$done=false;return()=>{if(!$done){$v=([]);$done=true;}return $v;};})();return ([((false)&&($a0())),((true)||($a0()))]);}')
+        assertEq(text(body), '()=>{const ca0=(()=>{let $v,$done=false;return()=>{if(!$done){$v=([]);$done=true;}return $v;};})();return ([((false)&&(ca0())),((true)||(ca0()))]);}')
         const captured = /** @type {const} */ (['[]', [2]])
         assertEq(render(['=>', 0, [captured], body]), text(body))
         const other = /** @type {const} */ (['[]', [7]])

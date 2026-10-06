@@ -330,10 +330,10 @@ export const proof = {
         // the `=>` node is shared, the values it produces are not.
         assert(value(identity) !== value(identity))
         // Direct conversion, coercion and arrays use the same code-only text.
-        eq(['String', identity], '(...$a)=>$a[0]')
-        eq(['+', identity, ''], '(...$a)=>$a[0]')
-        eq(['String', ['[]', [identity]]], '(...$a)=>$a[0]')
-        eq(['String', ['=>', 1, [7], ['+', ['arg', 0], ['frame', 0]]]], '($a_0)=>$a_0+$0')
+        eq(['String', identity], '(...a)=>a[0]')
+        eq(['+', identity, ''], '(...a)=>a[0]')
+        eq(['String', ['[]', [identity]]], '(...a)=>a[0]')
+        eq(['String', ['=>', 1, [7], ['+', ['arg', 0], ['frame', 0]]]], '(a0)=>a0+c0')
     },
     body: () => {
         /** @type {Exp} */

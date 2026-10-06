@@ -313,7 +313,7 @@ const stringCall = name => v => {
 /**
  * A function's source text as the `Option<&'static str>` `IStaticFunction`
  * takes: `Some` over the FunctionalScript writer's spelling
- * (`tryFunctionText`, its captured slots `$0`, `$1`, …), always a `&str`
+ * (`tryFunctionText`, its captured slots `c0`, `c1`, …), always a `&str`
  * since the writer escapes a lone surrogate, and `None` for a body the
  * writer refuses. `None` is not a guess: the VM refuses the function's
  * `ToPrimitive` (`FUNCTION_TEXT`) rather than answer a text.

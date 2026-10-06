@@ -33,7 +33,7 @@
  * ([spec: functions](../../../spec/README.md#functions)):
  *
  * ```js
- * export default ()=>{const $a0=[1];return [$a0,$a0];};
+ * export default ()=>{const ca0=[1];return [ca0,ca0];};
  * ```
  *
  * **A lazy operand is a block root.** The right operand of `&&`, `||` and
@@ -49,12 +49,12 @@
  * no eager path has no text and is refused.
  *
  * ```js
- * export default (...$a)=>$a[0]?(()=>{const $b0=[1];return [$b0,$b0];})():4;
+ * export default (...a)=>a[0]?(()=>{const caa0=[1];return [caa0,caa0];})():4;
  * ```
  *
- * The names say which scope: digits after the `$` for a module, the body's
- * own parameter and then digits one level in, `$a0` where the parameter is
- * `$a`; a block is a scope one level in too, its `const`s named as a
+ * The names say which scope: digits after `c` for a module, `c` and the
+ * body's own parameter and then digits one level in, `ca0` where the parameter is
+ * `a`; a block is a scope one level in too, its `const`s named as a
  * body's would be there, and reads the names around it, as a body reads
  * its frame. No two scopes share a spelling, so the writer emits no
  * `const` that shadows one — see {@link hoistName} for why that is the
@@ -64,13 +64,13 @@
  * `const` in the scope around the function, even one written in place
  * otherwise, since a capture is a name; a read of the frame's slot `i` is
  * that name, and a parameter of the scope, or a slot that reads the
- * scope's own frame, has its name already: `(...$a)=>()=>$a`. Read back, the body's outside names are its captures in
+ * scope's own frame, has its name already: `(...a)=>()=>a`. Read back, the body's outside names are its captures in
  * first-use order, which the writer keeps to the frame's by naming the
  * slots in order first where its own text would read them in another
  * ({@link closureBody}):
  *
  * ```js
- * const $0=[1];export default (...$a)=>[$0,$a[0]];
+ * const c0=[1];export default (...a)=>[c0,a[0]];
  * ```
  *
  * A body needing no `const` keeps the expression form, `=> v`, which is the
@@ -88,7 +88,7 @@
  * **A call is written as JavaScript's.** `f(a,b)`, and `a.b(c)` for a
  * method call; a callee that is an access, a function or a number takes a
  * `const` ({@link calleeHoisted}), and one that is an operator's text
- * stands in a group, `($a+1)()`.
+ * stands in a group, `(a+1)()`.
  *
  * **A `throw` is a statement where a scope ends, and a call elsewhere.** A
  * scope whose value is a `throw` node ends in the statement it came from,
@@ -169,7 +169,7 @@ const minting = node => !mergeable(node)
  *
  * It reads no names: its walks go on past a value a scope has named, so a
  * shared access over one takes a `const` it need not —
- * `const $a0=$a[0]?[]:1;const $a1=$a0.k;` — which costs text and not the
+ * `const ca0=a[0]?[]:1;const ca1=ca0.k;` — which costs text and not the
  * round trip. {@link block}, asking what its own text would build, stops
  * at names instead.
  *
@@ -213,27 +213,27 @@ const slotOf = (names, h) => {
 
 /**
  * The name a read of a parameter is written as, in a scope whose function's
- * rest parameter is `param`: the rest parameter's own, `$a`, a fixed one's
- * position after it, `$a_0`, and none for any other node.
+ * rest parameter is `param`: the rest parameter's own, `a`, a fixed one's
+ * position after it, `a0`, and none for any other node.
  *
  * @type {(param: string, node: Node) => string | null}
  */
 const parameterName = (param, node) => {
     switch (node[0]) {
         case 'rest': { return param }
-        case 'arg': { return `${param}_${node[1]}` }
+        case 'arg': { return `${param}${node[1]}` }
         default: { return null }
     }
 }
 
 /**
- * The name a scope at `depth` gives the `const` in slot `i`: `$0` at the
+ * The name a scope at `depth` gives the `const` in slot `i`: `c0` at the
  * module level, and the body's own parameter with the slot after it one
- * level in — `$a0` in the body whose parameter is `$a`.
+ * level in — `ca0` in the body whose parameter is `a`.
  *
  * Every scope numbers from zero and no two scopes share a spelling: a
- * module's names are digits after the `$`, a body's are its parameter's
- * letters and then digits, and a parameter is letters alone.
+ * module's names are digits after `c`, a body's add its parameter's
+ * letters before the digits, and a parameter starts with `a`.
  *
  * Reading the output back needs that: a body names what it captures by the
  * name the value took in the scope around it, so a body `const` spelled the
@@ -244,7 +244,7 @@ const parameterName = (param, node) => {
  *
  * @type {(depth: number, i: number) => string}
  */
-const hoistName = (depth, i) => depth === 0 ? `$${i}` : `${parameter(depth)}${i}`
+const hoistName = (depth, i) => depth === 0 ? `c${i}` : `c${parameter(depth)}${i}`
 
 /** The names a scope sees: the scopes' around it, then its own. @type {(s: _Scope) => _Names} */
 const visible = s => [...s.outer, ...s.names]
@@ -743,7 +743,7 @@ const closureBody = (a, depth, names, allowUnusedCaptures) => b => okThen(
  * one `const` each, and reads each slot by that `const` from then on:
  *
  * ```js
- * (...$a)=>{const $a0=$0;const $a1=$1;const $a2=(...$b)=>$a1;return [$a0,$a2,$a2];}
+ * (...a)=>{const ca0=c0;const ca1=c1;const ca2=(...aa)=>ca1;return [ca0,ca2,ca2];}
  * ```
  *
  * Read back, each `const` is the body's capture of that slot, taken in
@@ -798,7 +798,7 @@ const moduleScope = (a, names) => ({ a, allowUnusedCaptures: false, outer: [], n
  * characters; writing that instead is
  * [`./todo/parenthesized-object-body.md`](./todo/parenthesized-object-body.md).
  *
- * A body needing one is a block, `=> {const $a0=…;return v;}`, which is
+ * A body needing one is a block, `=> {const ca0=…;return v;}`, which is
  * where a shared constructor inside a body, a numeric or function access
  * base, and a body's anchors are all written
  * ([spec: functions](../../../spec/README.md#functions)) — and so is a body
@@ -843,16 +843,16 @@ const calleeHoisted = (a, callee) => basedHoisted(a, callee)
     || (callee instanceof Array && a.nodes[callee[1]][0] === '.' && a.nodes[callee[1]].length === 3)
 
 /**
- * A function's parameter list, `($a_0,$a_1,...$a)=>`: one name per fixed
+ * A function's parameter list, `(a0,a1,...a)=>`: one name per fixed
  * parameter, and the rest parameter only where the body reads it — `()=>1`
- * and not `(...$a)=>1`, the two being one node, and the shorter what a
+ * and not `(...a)=>1`, the two being one node, and the shorter what a
  * reader expects. The function is entry `i`, and the body's nodes are the
  * ones its scope names.
  *
  * @type {(a: Analysis, depth: number, i: number, length: number) => string}
  */
 const parameterList = (a, depth, i, length) => {
-    const fixed = Array.from({ length }, (_, k) => `${parameter(depth)}_${k}`)
+    const fixed = Array.from({ length }, (_, k) => `${parameter(depth)}${k}`)
     const rest = a.nodes.some((n, j) => n[0] === 'rest' && a.scope[j] === i) ? [`...${parameter(depth)}`] : []
     return `(${[...fixed, ...rest].join(',')})=>`
 }
@@ -1163,7 +1163,7 @@ const hoistedText = (s, depth) => h => h[0] === 'leaf'
  * lost, so the anchor is refused, as one whose operand had a name already
  * is, and one that is a name of the scope's own — the arguments, a
  * parameter, a slot of the frame. Its statement would be a bare alias,
- * `const $1=$0;`, which the front end reads back as nothing at all — an
+ * `const c1=c0;`, which the front end reads back as nothing at all — an
  * alias is the node it names, not an anchored computation — and the comma
  * would be lost with it. Linking emits no such graph: it anchors nothing
  * another operand establishes, and drops the alias where the source
@@ -1173,7 +1173,7 @@ const hoistedText = (s, depth) => h => h[0] === 'leaf'
  * other operand reaches the node eagerly: a later read of it is lazy then,
  * a function's capture under a lazy operand among them, so the front end
  * still reads the `const` back as the anchor, and the node is not written
- * a second time — `const $a0=$a[0]+1;return true?()=>$a0:1;`, where a
+ * a second time — `const ca0=a[0]+1;return true?()=>ca0:1;`, where a
  * second `const` would read back as a second anchor. A node another
  * operand reaches eagerly is written where it is read, as the graph
  * establishes it there.
@@ -1296,7 +1296,7 @@ export const tryStringify = e => mapOk(
  * including nested body scopes. Analysis and admission belong to the caller;
  * this renderer trusts those invariants and renders every admitted body.
  *
- * Captures are named by position, `$0`, `$1`, …, without rendering their
+ * Captures are named by position, `c0`, `c1`, …, without rendering their
  * values. Primitive, repeated and unused evaluated captures are allowed.
  * Nested functions may also leave slots unused. Slot positions and capture
  * evaluation are preserved, and unused slots add no reads to the text.
@@ -1311,7 +1311,7 @@ export const tryStringify = e => mapOk(
  */
 export const functionText = (a, i) => {
     const [, length, slots, body] = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (a.nodes[i])
-    const [kind, text] = lambda(a, 1, i, length, slots.map((_, k) => `$${k}`), true)(body)
+    const [kind, text] = lambda(a, 1, i, length, slots.map((_, k) => `c${k}`), true)(body)
     return kind === 'ok' ? toArray(text).join('') : renderFunction(a, i)
 }
 
@@ -1323,14 +1323,14 @@ export const functionText = (a, i) => {
  *
  * ```js
  * ()=>1
- * ($a_0,...$a)=>$a_0+$a.length
- * ()=>{const $a0=[];return [$a0,$a0];}
+ * (a0,...a)=>a0+a.length
+ * ()=>{const ca0=[];return [ca0,ca0];}
  * ```
  *
  * The text is the code's, not the value's: a captured value is written as
- * the name of its slot, `$0`, `$1`, …, so every function one arrow makes has
+ * the name of its slot, `c0`, `c1`, …, so every function one arrow makes has
  * one text, as it has in JavaScript — `make(0)` and `make(1)` alike, for
- * `const make = x => () => [x];` read as `()=>[$0]`. That answers the
+ * `const make = x => () => [x];` read as `()=>[c0]`. That answers the
  * serialization spec's question 2 as code-only
  * ([`spec/todo/serialization.md`](../../../spec/todo/serialization.md#open-questions));
  * rendering the captured values instead is a text for the same node with
@@ -1356,7 +1356,7 @@ export const tryFunctionText = e => {
 }
 
 /** A generated-name prefix that cannot collide with any exported binding. @type {(keys: readonly string[], prefix: string) => string} */
-const modulePrefix = (keys, prefix) => keys.some(key => key.startsWith(prefix)) ? modulePrefix(keys, `${prefix}$`) : prefix
+const modulePrefix = (keys, prefix) => keys.some(key => key.startsWith(prefix)) ? modulePrefix(keys, `${prefix}c`) : prefix
 
 /** Emit one named value using the same expression writer as value output. @type {(a: Analysis, prefix: string, h: _Hoisted) => (before: _Statement) => Result<_Statement, string>} */
 const moduleBinding = (a, prefix, h) => before => {
@@ -1452,7 +1452,7 @@ export const tryModuleSerialize = e => {
     const [kind, a] = result
     if (kind === 'error') { return result }
     const exports = exportOperands(a, a.root)
-    const prefix = modulePrefix(keys, '$')
+    const prefix = modulePrefix(keys, 'c')
     return okThen(state => mapOk(
         /** @type {(parts: readonly List<string>[]) => List<string>} */
         (parts => flat([state.text, ...parts])),

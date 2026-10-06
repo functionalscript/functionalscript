@@ -559,11 +559,11 @@ module boundary, from which a default import selects the document.
   keeps what it holds in place. Only a leaf stays inline, and `undefined` is
   not one there: it lowers to the node `["undefined"]`, so it gets a `const`
   as a node does — `export const a = 1; export default undefined;` is
-  `const $0=undefined;export const a=1;export default $0;`. Each export names
+  `const c0=undefined;export const a=1;export default c0;`. Each export names
   its value's `const` or holds its leaf:
   `const once = [1]; export const b = [once]; export default 3;` is
-  `const $0=[1];const $1=[$0];export const b=$1;export default 3;`. The
-  names gain a `$`, `$$0`, when an export's name begins with `$`.
+  `const c0=[1];const c1=[c0];export const b=c1;export default 3;`. The
+  names gain a `c`, `cc0`, when an export's name begins with `c`.
 
   The writer spells a property access, every operator the language has
   ([operators](#operators)) and every call. A number or a function that is
@@ -1596,18 +1596,24 @@ const b = [a, a];
 export default [b, b, a];
 ```
 
-is written, as DataJS and as FunctionalScript, as
+is written as DataJS as
 
 ```js
 const $0={"x":1};const $1=[$0,$0];export default [$1,$1,$0];
 ```
 
-and as JSON, a tree, with the node written where each reference reaches it,
+FunctionalScript uses the same sharing with `c` names:
+
+```js
+const c0={"x":1};const c1=[c0,c0];export default [c1,c1,c0];
+```
+
+and JSON writes a tree, with the node written where each reference reaches it,
 `[[{"x":1},{"x":1}],[{"x":1},{"x":1}],{"x":1}]`. A
 function has identity as an object does ([functions](#functions)), so a
 FunctionalScript document shares one the same way:
 `const f = () => 1; export default [f, f];` is written
-`const $0=(...$a)=>1;export default [$0,$0];`. Not every FunctionalScript
+`const c0=()=>1;export default [c0,c0];`. Not every FunctionalScript
 document is in normalized form: a module with a named export, among others,
 gives what it computes more names than normalized form does
 ([output](#output)).

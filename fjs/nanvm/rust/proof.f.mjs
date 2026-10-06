@@ -179,7 +179,7 @@ export const proof = {
         assertEq(valueExpr(callback('args')), `A::static_function(|_self, args| {
     let rest = args.clone().into_iter().to_array();
     Ok(rest.clone().to_any())
-}, 0, Array::default(), Some("(...$a)=>$a")).to_any()`)
+}, 0, Array::default(), Some("(...a)=>a")).to_any()`)
     },
     /**
      * The operation nodes, printed straight from the EDAG rather than through

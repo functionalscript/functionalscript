@@ -8,7 +8,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = A::static_function(|_self, args| {
         let rest = args.clone().into_iter().to_array();
         Ok(rest.clone().to_any())
-    }, 0, Array::default(), Some("(...$a)=>$a")).to_any();
+    }, 0, Array::default(), Some("(...a)=>a")).to_any();
     let c1: Any<A> = Any::call(c0, [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any())?;
     Ok([(string_key("default"), c1)].to_object().to_any())
 }
