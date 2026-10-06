@@ -1,14 +1,15 @@
 import type { Exp } from '../types.ts'
+import type { Array, EdagValue, Values } from '../value/types.ts'
 
 /**
  * What an invocation holds: the captured frame and the arguments, and the
  * nodes the caller established, if any.
  */
 export type Context = {
-    readonly frame: unknown,
-    readonly args: readonly unknown[],
-    readonly fixed?: readonly unknown[] | undefined,
-    readonly rest?: readonly unknown[] | undefined,
+    readonly frame: Values,
+    readonly args: Values,
+    readonly fixed?: Values,
+    readonly rest?: Array,
     /**
      * Nodes whose values the caller already established, consulted by node
      * identity before anything is computed — `../execution-models.md`'s
@@ -19,5 +20,5 @@ export type Context = {
      * A caller that supplies one owes the order: an entry may only be built
      * from entries before it, since this is consulted and never extended.
      */
-    readonly memo?: readonly (readonly [Exp, unknown])[],
+    readonly memo?: readonly (readonly [Exp, EdagValue])[],
 }

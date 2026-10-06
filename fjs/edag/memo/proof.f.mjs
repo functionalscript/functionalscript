@@ -1,5 +1,5 @@
 /**
- * What the memo executor answers, each claim beside amnesia's answer to the
+ * What the memo executor answers, each claim beside Amnesia's answer to the
  * same graph: the same value wherever sharing does not decide it, and both
  * answers pinned where it does.
  *
@@ -28,7 +28,7 @@ const value = e => assertOk(result(e))
 const run = e => assertOk(toUnknown(value(e)))
 
 /** @type {(e: Exp) => unknown} */
-const oracle = e => vm(context)(e)
+const oracle = e => assertOk(toUnknown(assertOk(vm(context)(e))))
 
 /** The same answer as amnesia, where sharing does not decide it. @type {(e: Exp) => void} */
 const agrees = e => { assertStructurallySame(run(e), oracle(e)) }

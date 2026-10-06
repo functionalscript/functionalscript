@@ -1,9 +1,8 @@
 ## Use EDAG values in FJS VMs
 
 **Priority:** P3
-**Status:** wip — memo migration and complete function text implemented;
-Amnesia migration is the current step. Compiler integration and callable
-runtime compilation remain.
+**Status:** open — memo and Amnesia use represented values and complete
+function text; compiler integration and callable runtime compilation remain.
 
 ### Problem
 
@@ -273,6 +272,12 @@ possible, including accounting inside costly operations. **Resource limits
 are deferred and are not implementation tasks here**; this proposal adds no
 budget or stopped-outcome API.
 
+The current host-backed string operations can still exceed the host's string
+capacity and throw outside `Result`; this resource boundary is tracked in
+[string-allocation-failures](../value/method/todo/string-allocation-failures.md).
+Implemented language failures use represented results; this does not yet
+promise normalization of host resource exhaustion.
+
 ### Tasks
 
 - [x] Record the common representation, failure model, compilation/conversion
@@ -411,8 +416,12 @@ budget or stopped-outcome API.
       `Result<EdagValue, EdagValue>`, with immutable state and admitted methods.
 - [x] Finish the memo cutover: dispatch, represented invocation, immutable
       cache, compiler proof consumers and complete function-text conversion.
-- [ ] Migrate Amnesia, preserving its documented execution model, and migrate
-      its proofs and the `fjs/nanvm` corpus. The host-valued oracle is temporary.
+- [x] Migrate Amnesia, preserving its documented execution model, and migrate
+      its proofs and the `fjs/nanvm` corpus. Both interpreters share represented
+      operation dispatch; Amnesia retains exact caller-established node
+      identities and recomputes all other edges, including inside calls.
+      The host-valued EDAG operation implementation is removed. Independent
+      JavaScript corpus references construct fixture values directly.
 - [x] Materialize function-free values in `fjs/edag/value/to_unknown` as
       ordinary runtime data typed as `unknown`. Decode tagged undefined,
       arrays and own object fields while preserving shared container identities
@@ -453,7 +462,7 @@ budget or stopped-outcome API.
 
 - [EDAG](../README.md) and [execution models](../execution-models.md) — schema,
   scope and identity contracts.
-- [Function text](../function-text.md) — current host-valued behavior this
+- [Function text](../function-text.md) — represented rendering and the historical host behavior this
   migration replaces inside FJS VMs.
 - [Interpret EDAG](../../compiler/todo/interpret-edag.md) — public validation
   and compiler integration, with runtime conversion at its value-output boundary.
