@@ -131,56 +131,60 @@ Measured on the tree after `!` and `typeof` landed
 [#2623](https://github.com/functionalscript/functionalscript/pull/2623)):
 every `.f.mjs` that imports no other `.f.mjs` is a *leaf*, the only module a
 rename can start from, and `fjs compile` was run on each. The compiler stops
-at its first refusal, so the first column is the compiler's and the rest of
-each row is a reading of the module. "Behind it" counts the non-proof modules
-that import the leaf, directly or not — what a leaf's rename opens up, since
-a proof stays `proof.f.mjs` whatever its module is named
+at its first refusal, so one refusal per row is the compiler's and the rest
+of the row is a reading of the module. "Behind it" counts the non-proof
+modules that import the leaf, directly or not — what a leaf's rename opens
+up, since a proof stays `proof.f.mjs` whatever its module is named
 ([`fjs/compiler/README.md`](../fjs/compiler/README.md)).
 
 | Leaf | Behind it | The compiler refuses |
 | --- | ---: | --- |
-| `fjs/types/object/structurally_same` | 244 | destructuring (`const { entries, is } = Object`), the `Object` global, `new`, `else` |
-| `fjs/types/function` | 235 | `let`, reassignment, `while` — all inside `iterate` |
-| `fjs/types/function/operator` | 232 | template literals, destructured parameters, a runtime key `a[i]` |
+| `fjs/types/object/structurally_same` | 244 | destructuring (`const { entries, is } = Object`, `([k, v]) =>`), the `Object` global, `instanceof`, `new Map`, a runtime key `b[i]`, and a self-reference: `structurallySame` calls itself |
+| `fjs/types/function` | 235 | `let`, reassignment and `while`, all inside `iterate`; and a self-reference: `fn` calls itself in `map` |
+| `fjs/types/function/operator` | 232 | template literals, destructured `const`s and parameters, runtime keys `steps[i]` and `prior[i]`, and self-references: `stateScanToScan`, `foldToScan`, and `step` inside `cascade` |
 | `fjs/types/result` | 165 | `for … of` in `okList`, destructured parameters |
 | `fjs/js/array_index` | 60 | the `Number` and `String` globals |
 | `fjs/js/keywords` | 35 | `new Set` |
-| `fjs/types/set` | 35 | `let`, reassignment, `while`, `new Set`, destructuring, a runtime key |
+| `fjs/types/set` | 35 | `let`, reassignment, `+=`, `while` with `break`, `new Set`, a runtime key `set[i]` |
 | `fjs/types/map` | 31 | `new Map`, a destructured parameter |
-| `fjs/website/demo/examples` | 18 | `new Set`, destructuring, `else` |
-| `fjs/ci/package` | 7 | template literals, `new`, globals |
+| `fjs/website/demo/examples` | 18 | `new Set`, destructured parameters |
+| `fjs/ci/package` | 7 | template literals, `new Error`, globals |
 | `fjs/compiler/examples` | 5 | nothing: the compiler accepts it whole, so it can rename now |
 | `fjs/git/bytes` | 5 | a runtime key `b[at]`, `Number.isSafeInteger` |
 | `fjs/website/style` | 5 | template literals, `let`, `new`, runtime keys |
 | `fjs/nanvm/member` | 3 | `\u{…}` escapes, template literals, globals |
-| `fjs/git/config` | 1 | `\v` and `\f` escapes, destructuring, `else`, runtime keys, template literals |
-| `fjs/nanvm/methods` | 1 | template literals, destructuring |
+| `fjs/git/config` | 1 | `\v` and `\f` escapes, destructuring, a non-terminating `if`, runtime keys, template literals, and self-references: `sha256`, `tryLine` |
+| `fjs/nanvm/methods` | 1 | template literals, destructuring, the `Object` global |
 | `fjs/types/ts` | 1 | template literals, `switch`, a default parameter, globals |
-| `fjs/website/browser-source` | 1 | `let`, `+=`, `while`, runtime keys, `else` |
+| `fjs/website/browser-source` | 1 | `let`, `+=`, `while` with `break`, a non-terminating `if`, runtime keys, and a self-reference: `bindsName` |
 
 The same rows by feature, each with where the feature is tracked, so a
 language step can be picked for what it unblocks:
 
 | Feature | Tracked in | Leaves it holds |
 | --- | --- | --- |
-| Destructuring | [`spec/todo/2450-destructuring.md`](../spec/todo/2450-destructuring.md) | structurally_same, result, function/operator, map, set, demo/examples, git/config, nanvm/methods |
+| Destructuring | [`spec/todo/2450-destructuring.md`](../spec/todo/2450-destructuring.md) | structurally_same, result, function/operator, map, demo/examples, git/config, nanvm/methods |
+| A self-reference: a `const` whose initializer reads its own name, a function calling itself | [`spec/todo/3140-forward-references.md`](../spec/todo/3140-forward-references.md); inside a body, [`fjs/compiler/parser/todo/body-const-forward-reference.md`](../fjs/compiler/parser/todo/body-const-forward-reference.md) | structurally_same, function, function/operator, git/config, browser-source |
 | `let`, reassignment, `while` | [`spec/todo/3220-let.md`](../spec/todo/3220-let.md); `while` is roadmap §3.2 | function, set, browser-source, style |
-| Globals and built-ins | [`spec/todo/2365-global-names.md`](../spec/todo/2365-global-names.md), [`2360-built-in.md`](../spec/todo/2360-built-in.md) | structurally_same, array_index, ts, git/bytes, nanvm/member, keywords |
+| Globals and built-ins | [`spec/todo/2365-global-names.md`](../spec/todo/2365-global-names.md), [`2360-built-in.md`](../spec/todo/2360-built-in.md) | structurally_same, array_index, ts, git/bytes, nanvm/member, nanvm/methods, ci/package |
 | Template literals | [`spec/todo/3440-template-literals.md`](../spec/todo/3440-template-literals.md) | function/operator, ci/package, ts, nanvm/methods, nanvm/member, style, git/config |
-| `new Set`, `new Map` | nothing proposes it | keywords, map, set, demo/examples, ci/package, style, structurally_same |
+| `new` with a built-in constructor | nothing proposes it | structurally_same, keywords, map, set, demo/examples, ci/package, style |
+| A runtime key, `a[i]` | the spec says "not recognized yet"; no `todo/` | structurally_same, function/operator, set, git/bytes, style, browser-source, git/config |
 | `for … of` | nothing proposes it | result |
-| A runtime key, `a[i]` | the spec says "not recognized yet"; no `todo/` | git/bytes, style, browser-source, git/config, nanvm/member, function/operator, set |
-| `else`, a non-terminating `if` | roadmap §3.2, the guard's follow-ups | structurally_same, demo/examples, git/config, browser-source, set |
+| `instanceof` | nothing proposes it | structurally_same |
+| A non-terminating `if`, `break` | roadmap §3.2, the guard's follow-ups; `break` is `while`'s | set, git/config, browser-source |
 | String escapes `\u{…}`, `\v`, `\f` | [`spec/todo/2460-js-string-literals.md`](../spec/todo/2460-js-string-literals.md) | nanvm/member, git/config |
 | `switch`, a default parameter | neither proposed; the parameter is roadmap §3.1 | ts |
 
-A leaf renames only when every feature it uses has landed, so the shortest
-path to the four root modules nearly everything imports is destructuring
-with the `Object` global and `else` (structurally_same), `let` with `while`
-(function), template literals with destructuring (function/operator), and
-`for … of` with destructuring (result). Two of those are one function each:
-`iterate` and `okList` could be rewritten without the loop today, which
-would leave `function` renamable and `result` waiting on destructuring alone.
+A leaf renames only when every feature it uses has landed. Of the four root
+modules nearly everything imports, three call themselves —
+`structurallySame`, `fn`, `stateScanToScan` and `foldToScan` — so forward
+references ([`3140`](../spec/todo/3140-forward-references.md)) are on every
+path to them, and `structurally_same` waits on six features besides. The one
+root with a short path is `result`: `for … of` and destructuring, and the
+loop is one function, `okList`, which could be written as a fold today,
+leaving destructuring alone. `iterate` in `function` could lose its loop the
+same way, but `fn` keeps that module behind forward references.
 
 ### CLI: an output target, not a command group (decided)
 
