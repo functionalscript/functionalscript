@@ -133,7 +133,7 @@
 
 import { _defaultExport, _moduleExports, _moduleThrows } from '../edag/module.f.mjs'
 import { keywords, literalWords } from '../../js/keywords/module.f.mjs'
-import { analysis, checked, mergeable, operandsOf } from '../../edag/analysis/module.f.mjs'
+import { analysis, checked, itemOperand, mergeable, operandsOf } from '../../edag/analysis/module.f.mjs'
 import { keySerialize, leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { arrayWrap, colon, objectWrap, wrap } from '../../media/json/serializer/module.f.mjs'
 import { first, flat, toArray } from '../../types/list/module.f.mjs'
@@ -649,7 +649,7 @@ const firstChunk = first('')
  * The name the frame's slot `k` reads as in the scope `s`: the name the
  * slot took in the scope around the function. The slot exists, the index
  * is a canonical one, and the read is inside a function: the analysis's
- * `bindingError` refused every other before any text was written.
+ * `checked` refused every other before any text was written.
  *
  * @type {(s: _Scope) => (k: number) => string}
  */
@@ -825,9 +825,6 @@ const lambdaBody = (a, depth, frame, allowUnusedCaptures) => b => {
  * @type {(s: _Scope, depth: number) => (args: readonly ItemOperand[]) => Document}
  */
 const callArguments = (s, depth) => args => mapOk(wrap('(')(')'))(okList(args.map(item(s, depth))))
-
-/** The operand an item holds: itself, or a spread's operand. @type {(x: ItemOperand) => Operand} */
-const itemOperand = x => x instanceof Array && x[0] === '...' ? x[1] : /** @type {Operand} */(x)
 
 /**
  * Whether a callee takes a `const` of its own: a base that does

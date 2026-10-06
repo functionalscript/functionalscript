@@ -12,6 +12,10 @@ uses its parameterized `visit` for counts and graph queries. Whether some
 traversal machinery can be shared without complicating either consumer
 remains an optional investigation.
 
+The Rust printer's private `operandsOf` walks source `Exp` operands and
+includes only function captures, while `analysis.operandsOf` walks analyzed
+`Node` operands and includes captures followed by the body.
+
 [`compiler/rust`](../../compiler/rust/module.f.mjs) already delegates
 binding generation to `edag/rust.scope`; it analyzes the graph for admission
 and does not maintain another binding walk. Within `edag/rust`, the same

@@ -982,7 +982,7 @@ already follow —
 constants, the single-node body, unknown tags, entry forms and the form of a
 property operand. Complete public validation remains open
 ([interpret-edag](../fjs/compiler/todo/interpret-edag.md)): analysis rejects
-operation nodes shared across function scopes, and `bindingError` checks
+operation nodes shared across function scopes, and `checked` checks
 invocation bindings, but these internal checks do not close the public gate.
 Prohibited property names still need entry checks, and the
 `","` well-formedness rule is left to the emitter.
