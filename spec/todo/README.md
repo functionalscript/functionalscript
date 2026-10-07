@@ -82,7 +82,7 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
 
 ### 2.3. Syntactic Sugar
 
-1. [ ] [shorthand](./2440-shorthand.md),
+1. [x] shorthand members, `{ a }` ([objects](../README.md#objects)),
 2. [ ] [destructuring](./2450-destructuring.md),
 3. [ ] [js-string-literals](./2460-js-string-literals.md),
 4. [ ] number spellings beyond JSON's — `0o7`, `0b1`, `.5`, `1.`, `1_000`

@@ -20,13 +20,14 @@
  * `import` or `const`, which share one map, a JavaScript keyword bound or
  * referenced, since the tokenizer hands every keyword over as an
  * identifier and a key or the name after `.` may be one, and a bare or
- * string `__proto__` key, which JavaScript reads as an instruction to replace the
- * prototype; the computed spelling `{ ["__proto__"]: v }` denotes an
- * ordinary property and is accepted. So is every check that has to read
- * a token's *line*: trivia is not in the stream, and whether a newline
- * stood before a token is a fact the token carries, so a statement
- * written without its `;` ends where JavaScript inserts one, and whether
- * the next statement began a line is the fold's to ask of its first token,
+ * string `__proto__` key, which JavaScript reads as an instruction to
+ * replace the prototype; the computed spelling `{ ["__proto__"]: v }` and
+ * the shorthand `{ __proto__ }` denote an ordinary property and are
+ * accepted. So is every check that has to read a token's *line*: trivia is
+ * not in the stream, and whether a newline stood before a token is a fact
+ * the token carries, so a statement written without its `;` ends where
+ * JavaScript inserts one, and whether the next statement began a line is
+ * the fold's to ask of its first token,
  * {@link unterminated}, the grammar having read the `;` as optional and
  * looked no further; and the places JavaScript forbids a line break,
  * before `=>` and after `return` or `throw`, are the fold's the same way. The error
@@ -75,7 +76,8 @@ import { isBinary } from '../ast/module.f.mjs'
  * The key of `{ __proto__: v }` and `{ "__proto__": v }`. JavaScript reads
  * both as an instruction to replace the object's prototype instead of as a
  * property, so FunctionalScript rejects them and accepts only the computed
- * spelling `{ ["__proto__"]: v }`, which denotes an ordinary property.
+ * spelling `{ ["__proto__"]: v }` and the shorthand `{ __proto__ }`, which
+ * denote an ordinary property, as they do in JavaScript.
  * See [spec: the `__proto__` key](../../../spec/README.md#the-__proto__-key).
  */
 const protoKey = '__proto__'
@@ -352,8 +354,8 @@ const badKey = ([kind, items], index) => {
     const member = items[index]
     // a spread names no key
     if (member instanceof Array) { return null }
-    const { key, name, computed } = member
-    return name === protoKey && !computed ? protoKeyError(key) : null
+    const { key, name, spelling } = member
+    return name === protoKey && (spelling === 'plain' || spelling === 'string') ? protoKeyError(key) : null
 }
 
 /**

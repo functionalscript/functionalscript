@@ -363,7 +363,7 @@ first/follow check, found three of the eight.
   import a from 'c.f.js'
   export default { a: a, b: a}
   ```
-- [ ] short form
+- [x] short form
   ```js
   const a = 5;
   export default { a }

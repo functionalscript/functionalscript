@@ -140,7 +140,7 @@ up, since a proof stays `proof.f.mjs` whatever its module is named
 | Leaf | Behind it | The compiler refuses |
 | --- | ---: | --- |
 | `fjs/types/object/structurally_same` | 244 | destructuring (`const { entries, is } = Object`, `([k, v]) =>`), the `Object` global, `instanceof`, `new Map`, a runtime key `b[i]`|
-| `fjs/types/function` | 235 | `let`, reassignment and `while`, all inside `iterate`; object shorthand, `{ result, map }` in `fn` |
+| `fjs/types/function` | 235 | `let`, reassignment and `while`, all inside `iterate` |
 | `fjs/types/function/operator` | 232 | template literals, destructured `const`s and parameters, runtime keys `steps[i]` and `prior[i]`|
 | `fjs/types/result` | 165 | `for … of` in `okList`, destructured parameters |
 | `fjs/js/array_index` | 60 | the `Number` and `String` globals |
@@ -163,7 +163,6 @@ language step can be picked for what it unblocks:
 | Feature | Tracked in | Leaves it holds |
 | --- | --- | --- |
 | Destructuring | [`spec/todo/2450-destructuring.md`](../spec/todo/2450-destructuring.md) | structurally_same, result, function/operator, map, demo/examples, git/config, nanvm/methods |
-| Object shorthand, `{ result }` | [`spec/todo/2440-shorthand.md`](../spec/todo/2440-shorthand.md) | function |
 | `let`, reassignment, `while` | [`spec/todo/3220-let.md`](../spec/todo/3220-let.md); `while` is roadmap §3.2 | function, set, browser-source, style |
 | Globals and built-ins | [`spec/todo/2365-global-names.md`](../spec/todo/2365-global-names.md), [`2360-built-in.md`](../spec/todo/2360-built-in.md) | structurally_same, array_index, ts, git/bytes, nanvm/member, nanvm/methods, ci/package |
 | Template literals | [`spec/todo/3440-template-literals.md`](../spec/todo/3440-template-literals.md) | function/operator, ci/package, ts, nanvm/methods, nanvm/member, style, git/config |
@@ -184,36 +183,32 @@ features, and `function/operator` on three. The one root with a short path
 is `result`: `for … of` and destructuring, and the loop is one function,
 `okList`, which could be written as a fold today, leaving destructuring
 alone. `iterate` in `function` could lose its loop the same way, which
-would leave that module on object shorthand alone — `fn` returns
-`{ result, map }`, which the grammar reads as `result: result` only once
-[`2440`](../spec/todo/2440-shorthand.md) lands, or which `fn` could spell
-out today.
+would leave that module on nothing: `let`, reassignment and `while` are all
+inside `iterate`, and the shorthand `fn` returns, `{ result, map }`, is in
+the language ([objects](../spec/README.md#objects)).
 
 #### The whole repository
 
 The same loop over every authored module, not only the leaves, measured on
-`main` at `75881dc`, the merge of a function's own name
-([#2630](https://github.com/functionalscript/functionalscript/pull/2630)):
-of 227 modules — 221 `module.f.mjs` and 6 `module.f.js` — the 6 `.f.js`
-compile and every `.f.mjs` stops at its first refusal. The table counts that
-first refusal only, read at the token the compiler names, so it says which
-feature to settle first, not how much each costs; a refusal the compiler
-meets in an import is counted under the import's feature, 11 of the rows'
-members.
+`main` at `5afe951` with shorthand members, `{ a }`, accepted: of 227
+modules — 221 `module.f.mjs` and 6 `module.f.js` — the 6 `.f.js` compile
+and every `.f.mjs` stops at its first refusal. The table counts that first
+refusal only, read at the token the compiler names, so it says which feature
+to settle first, not how much each costs; a refusal the compiler meets in an
+import is counted under the import's feature, 17 of the rows' members.
 
 | Modules | First refusal |
 | ---: | --- |
-| 89 | a template literal |
-| 33 | destructuring, a `const` or a parameter |
-| 23 | a shorthand member, `{ a, b }` |
-| 19 | `let`, `for`, `switch` or `while` |
+| 93 | a template literal |
+| 42 | destructuring, a `const` or a parameter |
+| 22 | `let`, `for`, `switch` or `while` |
+| 12 | a computed member or key, `a[i]`, `{ [k]: v }` |
 | 10 | a numeric literal spelled `0b…` or with `_` separators |
 | 10 | an escape in a single-quoted string, `'\x07'`, `'\b'` |
-| 9 | a computed member or key, `a[i]`, `{ [k]: v }` |
-| 7 | a call as a statement, `assert(…)` |
-| 6 | `const not found`: three reads of a later `const` ([`3140`](../spec/todo/3140-forward-references.md)), three of `Number` or `Boolean` ([`2365`](../spec/todo/2365-global-names.md)) |
+| 8 | a call as a statement, `assert(…)` |
+| 8 | `const not found`: three reads of a later `const` ([`3140`](../spec/todo/3140-forward-references.md)), five of `Number` or `Boolean` ([`2365`](../spec/todo/2365-global-names.md)) |
 | 5 | `new Set`, `new Map` |
-| 4 | `instanceof` |
+| 5 | `instanceof` |
 | 3 | `export { … } from` |
 | 3 | one each: a reassignment, `in`, a default parameter |
 
@@ -221,9 +216,8 @@ Template literals are the first refusal of two modules in five, almost all
 of them error messages and `assert` texts, and they are a feature with open
 questions of its own
 ([`3440`](../spec/todo/3440-template-literals.md)) — the case for settling
-those questions, not a license to start before they are. Destructuring and
-shorthand are next, and the numeric and string-escape rows are tokenizer
-work. The leaf table above is what this count does not say: a module whose
+those questions, not a license to start before they are. Destructuring is
+next, and the numeric and string-escape rows are tokenizer work. The leaf table above is what this count does not say: a module whose
 first refusal clears meets its next, and only a leaf whose every feature has
 landed renames.
 
