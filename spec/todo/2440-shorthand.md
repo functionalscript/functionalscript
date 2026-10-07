@@ -59,9 +59,11 @@ the syntax's member record saying which spelling the key took, since the
 `__proto__` rule has to tell the shorthand from the plain spelling and a
 boolean cannot. The grammar rule `key` folds into `member`, and the record's
 `computed` boolean becomes `spelling`: a breaking change of the parser's API,
-to be declared by the implementing pull request. No other drawback is known:
-the shorthand adds no spelling JavaScript lacks and refuses nothing JavaScript
-accepts.
+to be declared by the implementing pull request. One more is known: the
+shorthand adds no spelling JavaScript lacks, but it refuses three JavaScript
+accepts, `{ undefined }`, `{ NaN }` and `{ Infinity }`, since the three
+words are reserved here and name no binding — the refusal above, deferred
+to [literal words as references](./2445-literal-words-as-references.md).
 
 ## Authorization and approval
 
