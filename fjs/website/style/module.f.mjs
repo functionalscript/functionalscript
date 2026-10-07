@@ -63,6 +63,18 @@ export const faviconLinks = [
 ]
 
 /**
+ * The attribute that marks a demo's caption, bold under the stylesheet's
+ * label-and-caption rule.
+ *
+ * One name for the markup and the rule: the demo's `caption` writes it and
+ * the stylesheet selects it, so renaming it renames both, and the two
+ * cannot drift apart into a caption the rule no longer reaches.
+ *
+ * @type {string}
+ */
+export const captionMarker = 'data-caption'
+
+/**
  * The stylesheet, verbatim.
  *
  * @type {string}
@@ -194,7 +206,7 @@ input[type="text"] { box-sizing: border-box; width: 100% }
    scanning the page tells the controls and each result's name from the prose
    around them without a heading's weight. The lead and notes stay regular.
    demo/README.md states the rule. */
-[data-demo] label, [data-caption] { font-weight: bold }
+[data-demo] label, [${captionMarker}] { font-weight: bold }
 /* The compact target field and its difficulty examples share one column;
    right-aligned attempt counts make the four targets easy to compare. */
 [data-pow-search-effort] { border-collapse: collapse; width: 100% }

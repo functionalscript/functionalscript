@@ -30,9 +30,12 @@ such as controls embedded in prose, and explain them in the demo's JSDoc.
       emphasis policy.
 - [x] Add shared label and caption styling, update all demos to use it, and
       remove the HMAC/PoW-specific bold rules and obsolete exception notes.
-- [ ] Verify rendered font weight for labels and captions, with leads and
-      explanatory text staying regular. Confirm that renaming a matching CSS
-      selector makes the check fail.
+- [x] Verify rendered font weight for labels and captions, with leads and
+      explanatory text staying regular. The caption's marker is one name,
+      `captionMarker` in the stylesheet module, which both the stylesheet rule
+      and `caption` use, so renaming it renames both and they cannot drift
+      apart. That replaces a check comparing two spellings, which a renamed
+      selector would have had to fail.
 - [ ] Update affected view proofs, run the required checks, and verify the
       demos in light/dark themes and mobile layouts. Include affected preview
       links in the implementation PR.
