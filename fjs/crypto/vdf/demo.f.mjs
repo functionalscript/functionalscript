@@ -18,14 +18,15 @@ import { utf8 } from '../../text/module.f.mjs'
 import { digitsValue, hexDigitValue } from '../../text/ascii/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { textField, inputField } from '../../website/demo/module.f.mjs'
-import { hashOutput } from '../../website/demo/hash/module.f.mjs'
+import { digestOf } from '../../website/demo/hash/module.f.mjs'
+import { codeBlock } from '../../website/demo/code/module.f.mjs'
 import { computeSync, sha256 } from '../sha2/module.f.mjs'
 import { uint } from '../../types/bit_vec/module.f.mjs'
 
 /** Steps evaluated per browser turn: a few tens of milliseconds. */
 const batch = 10n
 
-const sha256Output = hashOutput({ name: 'SHA-256', hash: sha256, openssl: 'sha256' })
+const sha256Digest = digestOf(sha256)
 const sha256Sync = computeSync(sha256)
 const decimalValue = digitsValue(10n)
 const yDigits = p.toString(16).length
@@ -125,13 +126,14 @@ export const demo = {
     view: state => ['div',
         ['p', 'A verifiable delay function takes many sequential steps to evaluate, while anyone can check the result quickly. Sloth evaluates by repeated modular square roots; verification squares the result back.'],
         textField({ name: 'text', label: 'Input' }, state.text),
-        ['p', 'x is the SHA-256 digest of the input’s UTF-8 bytes:'],
-        ...sha256Output(state.text),
+        ['p', 'Input x = SHA-256 of the text, hex:'],
+        codeBlock(sha256Digest(state.text), 'Copy x'),
         inputField({ name: 'steps', label: 'Steps' }, state.steps),
         ...(parseSteps(state.steps) === null ? refusal('Enter a non-negative decimal number of steps.') : []),
         ['p', ['button', { type: 'button', name: 'evaluate' }, buttonLabel(state)]],
         ...progress(state.run),
-        textField({ name: 'y', label: 'y, hex (edit to test verification)', rows: 6 }, state.y),
+        textField({ name: 'y', label: 'Output y, hex', rows: 6 }, state.y),
+        ['p', 'Edit any digit to see verification fail.'],
         ...verification(state),
     ],
 }
