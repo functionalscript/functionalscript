@@ -406,31 +406,56 @@ export const proof = {
         await settle()
         assertEq(d.rendered.length, rendered)
     },
-    automaticEventsStop: async () => {
-        const d = dom(incremental(1000000))
+    automaticInputKeepsControls: async () => {
+        const d = dom(incremental(20))
         await startDemo(d.root)
         await settle()
-        d.click('go')
+        try {
+            d.click('go')
+            await settle()
+            await settle()
+            const before = d.steps.length
+            d.input('text', 'changed')
+            const during = await new Promise(resolve => setTimeout(() => resolve(d.disabled()), 0))
+            assertStructurallySame(during, [false])
+            await settle()
+            assert(!d.steps.slice(before).includes('disabled'))
+            assert(d.root.innerHTML.includes('>Go</button>'), d.root.innerHTML)
+        } finally {
+            d.input('text', '')
+            await settle()
+        }
+    },
+    automaticEventsStop: async () => {
+        const d = dom(incremental(20))
+        await startDemo(d.root)
         await settle()
-        await settle()
-        assert(d.root.innerHTML.includes('>Stop</button>'), d.root.innerHTML)
-        assertStructurallySame(d.disabled(), [false])
-        d.click('go')
-        await settle()
-        await settle()
-        const stopped = d.root.innerHTML
-        assert(stopped.includes('>Go</button>'), stopped)
-        await settle()
-        assertEq(d.root.innerHTML, stopped)
-        d.click('go')
-        await settle()
-        d.input('text', 'changed')
-        await settle()
-        await settle()
-        const edited = d.root.innerHTML
-        assert(edited.includes('>Go</button>'), edited)
-        await settle()
-        assertEq(d.root.innerHTML, edited)
+        try {
+            d.click('go')
+            await settle()
+            await settle()
+            assert(d.root.innerHTML.includes('>Stop</button>'), d.root.innerHTML)
+            assertStructurallySame(d.disabled(), [false])
+            d.click('go')
+            await settle()
+            await settle()
+            const stopped = d.root.innerHTML
+            assert(stopped.includes('>Go</button>'), stopped)
+            await settle()
+            assertEq(d.root.innerHTML, stopped)
+            d.click('go')
+            await settle()
+            d.input('text', 'changed')
+            await settle()
+            await settle()
+            const edited = d.root.innerHTML
+            assert(edited.includes('>Go</button>'), edited)
+            await settle()
+            assertEq(d.root.innerHTML, edited)
+        } finally {
+            d.input('text', '')
+            await settle()
+        }
     },
     copyCode: async () => {
         const d = dom(echo)
@@ -761,6 +786,8 @@ export const demo = {
 }
 `))
         await startDemo(d.root)
+        assert(d.working(), 'start must mark the page while its update runs')
+        assertStructurallySame(d.disabled(), [true])
         await settle()
         assert(!d.working(), 'expected the page to be idle before an event')
         assertStructurallySame(d.disabled(), [false])
