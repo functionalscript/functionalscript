@@ -18,6 +18,13 @@ Admit a member that is an identifier alone. It denotes the keyed member
 import, a parameter — is the value, resolved and refused as any reference is.
 `{ b }` with nothing binding `b` is `const not found` at the name; `{ typeof }`
 and `{ null }` are `reserved word`, as a reference to a keyword is anywhere.
+So are `{ undefined }`, `{ NaN }` and `{ Infinity }`: FunctionalScript
+reserves the three words, which denote their value where a value stands and
+name no binding a reference could reach
+([numbers](../README.md#numbers)), where JavaScript has them as
+globals and accepts the shorthand. Whether a reserved word that denotes a
+value may stand as a reference is
+[its own question](./2445-literal-words-as-references.md), asked at P5.
 Only the identifier spelling of a key has the shorthand: `{ "a" }` and
 `{ ["a"] }` stay refused, the key alone being no reference. The shorthand
 denotes an own property whatever the name, as JavaScript's does, so
