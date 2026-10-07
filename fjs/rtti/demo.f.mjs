@@ -194,7 +194,7 @@ const inProject = (name, module, schema) => [{ source: name, schema, module: `fj
 /**
  * Schemas the project uses, one for each module that declares a schema and
  * reads values with it — protocols, media formats, JSON itself, CI, the
- * expression graph, the effect runner's operations and the site. Each value
+ * expression graph, data-shaped effects and the site. Each value
  * is one the schema accepts, so a reader starts from a working document and
  * breaks it.
  *
@@ -282,7 +282,7 @@ export const projectSchemas = [
     },
     {
         name: 'Directory entry',
-        about: 'An entry readdir answers, from the schemas of the operations a native effect runner implements. The TypeScript declarations of those operations are pinned to these schemas.',
+        about: 'An entry readdir answers, described by a data-validation schema in effects/schema. The corresponding handwritten TypeScript operation declarations are checked against schema-derived types.',
         schemas: inProject('dirent', 'effects/schema', dirent),
         value: 'export default {"name":"module.f.mjs","parentPath":"fjs/rtti","isFile":true,"isDirectory":false};',
     },

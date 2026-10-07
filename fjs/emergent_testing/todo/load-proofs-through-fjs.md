@@ -39,8 +39,8 @@ JavaScript as input to the Rust VM.
 
 ### Related
 
-- [nanvm-effects-node](../../../todo/nanvm-effects-node.md) — native `sandbox`
-  returns the shared result/duration contract.
+- [Native Node effects](../../../todo/nanvm-effects-node-operations.md) — native
+  `sandbox` returns the shared result/duration contract.
 - [imports-promises-realms](./imports-promises-realms.md) — existing host import
   and promise concerns; a parser-based path does not resolve those regressions.
 - [workers as a sandbox](./206-workers-as-a-sandbox.md) — separate isolation work.

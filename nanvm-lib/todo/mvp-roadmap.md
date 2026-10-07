@@ -102,81 +102,29 @@ command group are recorded in
 
 #### Effects: the `nanvm-effects-node` runner crate (decided)
 
-The compiler CLI is pure FJS that *returns* effect descriptions
-(`Effect<NodeOp, T>`); all actual impurity lives in thin runner modules
-(e.g. [`fjs/effects/node/module.mjs`](../../fjs/effects/node/module.mjs)),
-which are not FJS and never pass through the code generator. Stage 1 of the
-repository migration, complete, moved authored `.ts` / `.f.ts` to `.mjs` /
-`.f.mjs` with JSDoc independently of compiler support, so `.f.mjs` is **not**
-the compiled source marker. Once authored `.f.js` package support is complete,
-compiler-supported `.f.mjs` modules may move to authored `.f.js`; `.f.js` is the
-repository compiler-compatibility marker. The extension contract and migration
-strategy are documented in [`fjs/compiler/README.md`](../../fjs/compiler/README.md).
+AOT-compiled FJS returns effects as `nanvm_lib::vm::Any<A>`. The
+`nanvm-effects-node` library runs them directly, using the existing VM types
+and preserving the FJS `Effect` representation. `nanvm-lib` stays pure; the
+native executable depends on the VM, the runner and the generated FJS program.
 
-Impure runner modules, authored as `.mjs`, remain outside the FJS compiler. A
-native build therefore still needs a hand-written Rust twin interpreting the
-same operation vocabulary against the OS (`std::fs`, `std::process`, stdio)
-instead of Node built-ins.
+The runner is one synchronous loop: call a `Pure` function to obtain the final
+FJS result, or perform a `Do` request and call its continuation with the complete
+operation result. An FJS error result goes through that continuation; a language
+throw propagates through the VM's Rust `Result`.
 
-The Rust twin of `fjs/effects/node` is the **`nanvm-effects-node`** library
-crate — named to mirror the effect directory structure: this specific
-effect set is the CLI-on-Node vocabulary, and future sets (e.g. a browser
-set with `fetch`, DOM, and some shared effects) follow the same pattern.
-It is a separate crate in the same workspace, published on crates.io:
-`nanvm-lib` stays pure (no OS dependencies — keeping a future `no_std`
-embedded profile open), and the `nanvm` binary depends on both. It serves
-any AOT-compiled effectful FJS program, not just the embedded compiler —
-it is to native FJS what `fjs/effects/node/module.mjs` is to Node FJS.
+There is no second native effect data model, RTTI-to-Rust mapping, generated
+operations trait, codec or serialization boundary. Reuse VM type inspection,
+equality, property access, function calls and argument-array construction.
+The minimal synchronous loop requires no async runtime or scheduler. Execution
+support for asynchronous effects belongs to the
+[separate follow-up](../../todo/nanvm-effects-node-async.md).
 
-**Generated stub for the RTTI-representable subset.** For operations whose
-request and result types fit the existing RTTI vocabulary, an **RTTI schema**
-is the specification of record. Derive both the TS declarations and a Rust
-stub (op, parameter and result types, plus a trait with one method per
-operation). The handwritten `nanvm-effects-node` runner implements that trait,
-so rustc checks coverage and signature drift for this subset. The stub is
-committed and regenerated through the same single-script / drift-check rules
-as the generated compiler source (see the distribution section below).
-
-`sandbox` has a handwritten declaration on each side: current RTTI cannot
-describe its generic callback or arbitrary returned/thrown VM values, including
-functions. Compose it with the generated subset and test its dispatch and
-result/duration contract separately. Do not encode the callback as RTTI
-`unknown` or claim the generated trait checks the whole vocabulary. The
-[schema boundary](../../todo/nanvm-effects-node.md#schema-boundary) records this
-exception and requires an audit before generating additional operations.
-
-Scoping notes:
-
-- **Sync subset first.** The compiler CLI needs file read/write, console,
-  and possibly `exec` — a blocking `std` implementation covers it. `Http`,
-  `Fetch`, and parallel effects are where an async-runtime decision
-  (tokio?) lurks; implement operations incrementally, driven by what the
-  CLI actually exercises, and defer that decision entirely.
-- **Module loading stays in FJS.** The
-  [loader](../../fjs/compiler/todo/load-modules-without-import-effect.md) composes
-  `ReadFile` / `ResolveFileModule`, parsing, linking and FJS interpretation.
-  This workflow requires no `import` or native-function-construction effect;
-  source `import` syntax remains supported. Existing host `import` consumers
-  must be accounted for before removing that effect from the vocabulary.
-- **`sandbox` is a low-level boundary.** Invoke a VM computation and capture
-  its result or language throw, preserving the shared result/duration contract.
-  This does not require replacing `Result` with panics, and error capture is
-  separate from time/memory budgets or process isolation. Implementation tasks
-  are in [nanvm-effects-node](../../todo/nanvm-effects-node.md).
-- **Testing comes cheap.** The pure in-memory interpreters
-  ([`fjs/effects/mock`](../../fjs/effects/mock),
-  [`fjs/effects/node/virtual`](../../fjs/effects/node/virtual)) are `.f.mjs`
-  since Stage 1. Once the
-  compiler supports their complete syntax in Stage 2, rename them to `.f.js`;
-  from that point they compile through the code generator unchanged, so the
-  compiled CLI can run against in-memory effects with no Rust twins. The
-  `nanvm-effects-node` runner can then be cross-checked against the pure
-  interpreter operation by operation. The exception is
-  [`fjs/effects/node/memory`](../../fjs/effects/node/memory) — the runner for
-  the mutable memory effects (`MemOp`) — which is an impure `.mjs` module
-  (mutable state, `node:crypto` UUIDs) and so joins the hand-written Rust
-  twin set: implementing mutable memory effects in Rust is fine, same as
-  the OS operations.
+The [native runner TODO](../../todo/nanvm-effects-node.md) owns the loop,
+required VM APIs and acceptance tasks. The dependent
+[Node effects TODO](../../todo/nanvm-effects-node-operations.md) tracks the effect
+set in [`fjs/effects/node/`](../../fjs/effects/node/). Individual effect
+implementation details remain unspecified. Parser, compiler, loader and other
+language logic remain in FJS; this work needs no Rust EDAG executor.
 
 #### Distribution: one source, two packages (decided)
 
@@ -240,7 +188,7 @@ regeneration leaves mtimes untouched and cargo's fingerprinting skips the
 rebuild. **One `package.json` script is the single regeneration entry
 point for every generated file** — the `gen` contract already
 required by generated CI (see [fjs/ci](../../fjs/ci/README.md)): today it
-generates `.github/workflows/gen.ci.yml`; the compiler Rust, the effects stub,
+generates `.github/workflows/gen.ci.yml`; the compiler Rust
 and any future generated files fold into the same script (possibly renamed
 to something generation-neutral once it outgrows CI), so each new
 generator is automatically covered by the whole-tree drift check with no
@@ -325,11 +273,13 @@ tracked in [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md#tasks).
       captured-frame, and self-reference representation — is
       [callable-function-objects](./callable-function-objects.md): a
       capturing closure is its Stage 3, landed; self-reference is Stage 5.
-- [ ] **`nanvm-effects-node` crate** (Rust) — the effect runner: implements
-      the generated stub trait against the OS; sync subset (fs, console)
-      and `sandbox` first. Its schema, generated stub and conformance tasks
-      are tracked in [nanvm-effects-node](../../todo/nanvm-effects-node.md).
-      Required for the self-hosted CLI; no native module parser or import handler.
+- [ ] **`nanvm-effects-node` crate** (Rust) — a synchronous loop over existing
+      VM values, with no generated operations trait or parallel type system.
+      The design, required VM APIs and acceptance tasks are tracked in
+      [nanvm-effects-node](../../todo/nanvm-effects-node.md).
+      Required for the self-hosted CLI together with
+      [native Node effects](../../todo/nanvm-effects-node-operations.md);
+      language logic stays in FJS.
 
 #### P3
 

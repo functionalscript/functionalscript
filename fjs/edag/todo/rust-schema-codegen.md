@@ -28,10 +28,9 @@ from `../module.f.mjs`. Commit the output and keep it in step through the
 changing existing canonical forms, and the generated Rust follows.
 
 Keep generated EDAG types in the optional library, with no dependency from
-the VM foundation. The effect runner's schema/stub generation is separately
-tracked in [nanvm-effects-node](../../../todo/nanvm-effects-node.md); shared
-RTTI printing machinery may be reused without making either consumer depend
-on the other.
+the VM foundation or the [native effect runner](../../../todo/nanvm-effects-node.md).
+The runner uses VM values directly and requires no schema-generated Rust types
+or operations trait.
 
 ### Tasks
 
