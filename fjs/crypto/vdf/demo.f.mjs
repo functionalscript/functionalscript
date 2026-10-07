@@ -6,6 +6,10 @@
  * `eval(a + b)(x) = eval(b)(eval(a)(x))`. The output `y` is an editable
  * field: verification re-runs on every edit, so a changed digit fails at once.
  *
+ * There is no timing yet. `sandbox` could measure it, as the bigint demo does,
+ * but evaluation runs in `nextEvent` turns, whose contract asks for no
+ * operations; timing it means revisiting that contract first.
+ *
  * @module
  *
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
