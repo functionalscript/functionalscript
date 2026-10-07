@@ -194,6 +194,15 @@ multiline field; the key remains single-line and fills the available width.
 NUL in either field replaces the OpenSSL command with an explanation, just as
 in the hash demos.
 
+[`crypto/pow`](../crypto/pow/demo.f.mjs) compares the SHA-256 hash of a multiline
+UTF-8 input plus a decimal nonce with a compact nBits target. Its button advances
+one nonce at a time, or runs automatically until success or Stop. Starting
+Auto-run from a valid nonce searches for the next valid one. Its copyable
+outputs show the actual preimage, target, and digest, alongside
+the attempt count and failed nonce range. A collapsed “Expected search effort”
+section below nBits compares the average attempts for several targets. This illustrates the
+module's single-hash contract rather than Bitcoin block-header mining.
+
 ## A directory says it holds a demo
 
 A demo is on its module's page, and every demo sits several levels below the
