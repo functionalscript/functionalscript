@@ -15,6 +15,8 @@ export const proof = {
         const b = name('b')
         assertEq(resolve([`${binding(a)},${binding(b)}`], ['$0', '$1', '$3']).join(''), '$2,$4')
         assertEq(resolve([`${binding(a)}`], ['$99']).join(''), '$0')
+        assertEq(resolve([`${binding(a)},${binding(b)}`],
+            Array.from({ length: 10000 }, (_, i) => `$${9999 - i}`)).join(''), '$10000,$10001')
     },
     external: () => {
         const a = name('capture0')

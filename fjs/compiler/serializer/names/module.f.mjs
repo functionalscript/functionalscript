@@ -20,8 +20,13 @@ export const _name = key => `\0${key}\0`
 /** Mark the declaration of a symbolic reference. @type {(reference: string) => string} */
 export const _binding = reference => _name(`!${reference.slice(1, -1)}`)
 
-/** The next counter value whose spelling is not externally reserved. @type {(n: number, reserved: readonly string[]) => number} */
-const available = (n, reserved) => reserved.includes(`$${n}`) ? available(n + 1, reserved) : n
+/**
+ * The next counter value whose spelling is not externally reserved.
+ * At most reserved.size consecutive numbers can be occupied. A bounded fold
+ * avoids growing the call stack, regardless of reservation order.
+ * @type {(n: number, reserved: ReadonlySet<string>) => number}
+ */
+const available = (n, reserved) => [...reserved].reduce(next => reserved.has(`$${next}`) ? next + 1 : next, n)
 
 /**
  * Resolve symbolic chunks, preserving chunk boundaries. Forward references
@@ -31,6 +36,7 @@ const available = (n, reserved) => reserved.includes(`$${n}`) ? available(n + 1,
  * @type {(chunks: readonly string[], reserved?: readonly string[], external?: readonly string[]) => readonly string[]}
  */
 export const _resolve = (chunks, reserved = [], external = []) => {
+    const reservedNames = new Set(reserved)
     const keys = [...new Set([
         ...external.map(reference => reference.slice(1, -1)),
         ...chunks.flatMap(chunk => chunk.split('\0').filter((part, i) => i % 2 === 1 && part.startsWith('!')).map(part => part.slice(1))),
@@ -38,7 +44,7 @@ export const _resolve = (chunks, reserved = [], external = []) => {
     const numbers = keys.reduce(
         /** @type {(state: readonly [readonly number[], number], key: string) => readonly [readonly number[], number]} */
         (([all, next], _key) => {
-            const n = available(next, reserved)
+            const n = available(next, reservedNames)
             return [[...all, n], n + 1]
         }),
         /** @type {readonly [readonly number[], number]} */ ([[], 0]),
