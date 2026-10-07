@@ -89,13 +89,13 @@ this runner. Completing the loop alone does not complete native self-hosting.
 
 ### Tasks
 
-- [ ] Add the runner crate using `nanvm-lib` values directly.
-- [ ] Implement the synchronous loop above without a second effect/value model.
-- [ ] Prove `Pure` success and error results, sequential continuation calls,
+- [x] Add the runner crate using `nanvm-lib` values directly.
+- [x] Implement the synchronous loop above without a second effect/value model.
+- [x] Prove `Pure` success and error results, sequential continuation calls,
       recovery from an operation error, propagation of language throws, and
       preservation of callable/value identity using a small test boundary.
-- [ ] Prove a long effect sequence does not grow the runner's call stack.
-- [ ] Run an AOT-compiled FJS effect fixture through the same loop.
+- [x] Prove a long effect sequence does not grow the runner's call stack.
+- [x] Run an AOT-compiled FJS effect fixture through the same loop.
 
 ### Related
 
