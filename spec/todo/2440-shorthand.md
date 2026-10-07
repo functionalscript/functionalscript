@@ -1,7 +1,7 @@
 # Shorthand members
 
 **Priority:** P1
-**Status:** proposed — awaiting language-design approval
+**Status:** approved — the implementation, #2641, awaits landing on top of this proposal
 
 ## Problem and proposal
 
