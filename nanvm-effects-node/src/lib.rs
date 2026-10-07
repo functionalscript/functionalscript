@@ -1,4 +1,4 @@
-//! The native runner of effects (`todo/nanvm-effects-node.md`): the Rust twin
+//! The native runner of effects: the Rust twin
 //! of the loop in `fjs/effects/module.mjs`, over `nanvm-lib`'s own values.
 //!
 //! An effect is what `fjs/effects` builds, and the program's own VM values stay
