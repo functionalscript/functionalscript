@@ -18,3 +18,25 @@ export type Sloth = {
     /** Fast verification of {@link Sloth.eval}; `false` when `steps < 0`. */
     readonly verify: (steps: bigint) => (x: bigint) => (y: bigint) => boolean
 }
+
+/**
+ * An evaluation of `steps` Sloth steps: `value` is the result after `done`
+ * steps, and `running` is whether the demo schedules the next batch.
+ */
+export type DemoRun = {
+    readonly steps: bigint
+    readonly done: bigint
+    readonly value: bigint
+    readonly running: boolean
+}
+
+/**
+ * State of the interactive VDF demo. `y` is the editable hex output; editing
+ * the text or steps clears both it and the run.
+ */
+export type DemoState = {
+    readonly text: string
+    readonly steps: string
+    readonly y: string
+    readonly run: DemoRun | null
+}

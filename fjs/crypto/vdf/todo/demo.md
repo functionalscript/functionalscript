@@ -29,9 +29,9 @@ Timing is out of scope for now: demos have no clock operation.
 
 ### Tasks
 
-- [ ] `demo.f.mjs` with evaluate, progress, stop and verify
-- [ ] `proof.f.mjs` coverage for the demo
-- [ ] browser check of the demo page
+- [x] `demo.f.mjs` with evaluate, progress, stop and verify
+- [x] `proof.f.mjs` coverage for the demo
+- [x] browser check of the demo page
 
 ### Related
 

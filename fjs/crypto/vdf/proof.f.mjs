@@ -1,5 +1,11 @@
+/** @import { DemoEvent } from '../../website/demo/types.ts' */
+
 import { sloth, p } from './module.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
+import { demo, hexOfY, parseHex, parseSteps, xOf } from './demo.f.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
+import { runPure } from '../../effects/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.mjs'
 
 const { eval: evalVdf, verify, modSqrt, quadRes } = sloth
 
@@ -24,7 +30,114 @@ const y6 =
 const y4 =
     64401150265223443694244964595084197237814157534040219819342647664782563317539559768554855806938965782018778040933157632467146168153951260465261118025222264314070274636967492909984790708532033331622332323767105919809000393624013423095812833452440384602112677364631962445309757177309466319657219548312354433189n
 
+/** @type {(state: typeof demo.init, event: DemoEvent) => typeof demo.init} */
+const next = (state, event) => unwrap(assertNotNullish(runPure(demo.update(state)(event))[0]))
+
+/** @type {(state: typeof demo.init, name: string) => typeof demo.init} */
+const click = (state, name) => next(state, { kind: 'click', name })
+
+/** Run scheduled turns until the demo stops asking for one.
+ * @type {(state: typeof demo.init) => typeof demo.init}
+ */
+const settle = state => {
+    const event = assertNotNullish(demo.nextEvent)(state)
+    return event === null ? state : settle(next(state, event))
+}
+
+// `printf '%s' 'Hello, FunctionalScript!' | sha256sum`
+const helloX = 0xa22d1ef8834e3024bb5653a1dbeb38305bef6d1cef486e450e0dfab718b47afdn
+
 export const proof = {
+    demo: {
+        xOf: () => {
+            assertEq(xOf(demo.init.text), helloX)
+        },
+        parseSteps: () => {
+            assertEq(parseSteps('0'), 0n)
+            assertEq(parseSteps('01000'), 1000n)
+            return ['', '-1', '1.5', ' 1', '0x10'].map(text => assertEq(parseSteps(text), null))
+        },
+        parseHex: () => {
+            assertEq(parseHex('0'), 0n)
+            assertEq(parseHex('aF09'), 0xaf09n)
+            return ['', '0x1', 'g', ' 1', '1 '].map(text => assertEq(parseHex(text), null))
+        },
+        hexOfY: () => {
+            assertEq(hexOfY(p - 1n), (p - 1n).toString(16))
+            assertEq(hexOfY(1n), '1'.padStart(p.toString(16).length, '0'))
+        },
+        input: () => {
+            const evaluated = settle(click({ ...demo.init, steps: '4' }, 'evaluate'))
+            assert(evaluated.y !== '', evaluated)
+            const text = next(evaluated, { kind: 'input', name: 'text', value: 'a' })
+            assertEq([text.text, text.steps, text.y, text.run].join(), 'a,4,,')
+            const steps = next(evaluated, { kind: 'input', name: 'steps', value: '5' })
+            assertEq([steps.text, steps.steps, steps.y, steps.run].join(), `${demo.init.text},5,,`)
+            const y = next(evaluated, { kind: 'input', name: 'y', value: '1' })
+            assertEq(y.y, '1')
+            assertEq(y.run, evaluated.run)
+            assertEq(next(evaluated, { kind: 'input', name: 'other', value: '1' }), evaluated)
+            assertEq(next(evaluated, { kind: 'start' }), evaluated)
+            assertEq(click(evaluated, 'other'), evaluated)
+            assertEq(click(evaluated, 'evaluate-next'), evaluated)
+            assertEq(click(demo.init, 'evaluate-next'), demo.init)
+            const invalid = { ...demo.init, steps: 'x' }
+            assertEq(click(invalid, 'evaluate'), invalid)
+            assert(htmlToString(demo.view(invalid)).includes('Enter a non-negative decimal number of steps.'), invalid)
+        },
+        evaluate: () => {
+            const schedule = assertNotNullish(demo.nextEvent)
+            assertEq(schedule(demo.init), null)
+            const initial = htmlToString(demo.view(demo.init))
+            assert(initial.includes(`<pre>${helloX.toString(16)}</pre>`), initial)
+            assert(initial.includes('>Evaluate</button>'), initial)
+            const started = click({ ...demo.init, steps: '25' }, 'evaluate')
+            assertEq(started.run?.done, 10n)
+            assertEq(started.run?.running, true)
+            assertEq(started.y, '')
+            const scheduled = assertNotNullish(schedule(started))
+            assertEq(scheduled.kind === 'click' ? scheduled.name : '', 'evaluate-next')
+            const running = htmlToString(demo.view(started))
+            assert(running.includes('Evaluating: step 10 of 25.'), running)
+            assert(running.includes('>Stop</button>'), running)
+            const stopped = click(started, 'evaluate')
+            assertEq(stopped.run?.running, false)
+            assertEq(schedule(stopped), null)
+            const paused = htmlToString(demo.view(stopped))
+            assert(paused.includes('Stopped at step 10 of 25.'), paused)
+            assert(paused.includes('>Resume</button>'), paused)
+            const done = settle(click(stopped, 'evaluate'))
+            assertEq(done.run?.done, 25n)
+            assertEq(done.run?.running, false)
+            assertEq(done.y, hexOfY(assertNotNullish(evalVdf(25n)(helloX))))
+            const finished = htmlToString(demo.view(done))
+            assert(finished.includes('Evaluated 25 sequential square roots.'), finished)
+            assert(finished.includes('>Evaluate</button>'), finished)
+            assert(finished.includes('✓ y verifies'), finished)
+            const restarted = click(done, 'evaluate')
+            assertEq(restarted.run?.done, 10n)
+            assertEq(restarted.run?.running, true)
+            assertEq(restarted.run?.value, started.run?.value)
+        },
+        zeroSteps: () => {
+            const done = click({ ...demo.init, steps: '0' }, 'evaluate')
+            assertEq(done.y, hexOfY(helloX))
+            assertEq(done.run?.running, false)
+        },
+        verify: () => {
+            const done = settle(click({ ...demo.init, steps: '4' }, 'evaluate'))
+            /** @type {(y: string) => string} */
+            const viewY = y => htmlToString(demo.view({ ...done, y }))
+            assert(viewY(done.y).includes('data-result="ok"'), done.y)
+            const tampered = `${done.y.slice(0, -1)}${done.y.endsWith('0') ? '1' : '0'}`
+            assert(viewY(tampered).includes('✗ y does not verify'), tampered)
+            assert(viewY('xyz').includes('Enter y as hexadecimal digits.'), 'xyz')
+            assert(viewY(p.toString(16)).includes('y must be less than the modulus p.'), 'p')
+            assert(!viewY('').includes('data-result'), '')
+            const noSteps = htmlToString(demo.view({ ...done, steps: '' }))
+            assert(!noSteps.includes('✓') && !noSteps.includes('✗'), noSteps)
+        },
+    },
     p: {
         matchesField: () => {
             assertEq(sloth.p, p, [sloth.p, p])
