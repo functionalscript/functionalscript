@@ -140,7 +140,7 @@ up, since a proof stays `proof.f.mjs` whatever its module is named
 | Leaf | Behind it | The compiler refuses |
 | --- | ---: | --- |
 | `fjs/types/object/structurally_same` | 244 | destructuring (`const { entries, is } = Object`, `([k, v]) =>`), the `Object` global, `instanceof`, `new Map`, a runtime key `b[i]`|
-| `fjs/types/function` | 235 | `let`, reassignment and `while` |
+| `fjs/types/function` | 235 | `let`, reassignment and `while`, all inside `iterate`; object shorthand, `{ result, map }` in `fn` |
 | `fjs/types/function/operator` | 232 | template literals, destructured `const`s and parameters, runtime keys `steps[i]` and `prior[i]`|
 | `fjs/types/result` | 165 | `for … of` in `okList`, destructured parameters |
 | `fjs/js/array_index` | 60 | the `Number` and `String` globals |
@@ -163,6 +163,7 @@ language step can be picked for what it unblocks:
 | Feature | Tracked in | Leaves it holds |
 | --- | --- | --- |
 | Destructuring | [`spec/todo/2450-destructuring.md`](../spec/todo/2450-destructuring.md) | structurally_same, result, function/operator, map, demo/examples, git/config, nanvm/methods |
+| Object shorthand, `{ result }` | [`spec/todo/2440-shorthand.md`](../spec/todo/2440-shorthand.md) | function |
 | `let`, reassignment, `while` | [`spec/todo/3220-let.md`](../spec/todo/3220-let.md); `while` is roadmap §3.2 | function, set, browser-source, style |
 | Globals and built-ins | [`spec/todo/2365-global-names.md`](../spec/todo/2365-global-names.md), [`2360-built-in.md`](../spec/todo/2360-built-in.md) | structurally_same, array_index, ts, git/bytes, nanvm/member, nanvm/methods, ci/package |
 | Template literals | [`spec/todo/3440-template-literals.md`](../spec/todo/3440-template-literals.md) | function/operator, ci/package, ts, nanvm/methods, nanvm/member, style, git/config |
@@ -176,15 +177,17 @@ language step can be picked for what it unblocks:
 
 A leaf renames only when every feature it uses has landed. A function
 calling itself no longer holds any: `structurallySame`, `fn`,
-`stateScanToScan`, `foldToScan`, `sha256`, `tryLine` and `bindsName` resolve
-as the EDAG's `["self"]` ([functions](../spec/README.md#functions)). Of the
-four root modules nearly everything imports, `structurally_same` waits on
-five features, and `function/operator` on three. The one root with a short
-path is `result`: `for … of` and destructuring, and the loop is one
-function, `okList`, which could be written as a fold today, leaving
-destructuring alone. `iterate` in `function` could lose its loop the same
-way, which would leave that module on nothing — `let`, reassignment and
-`while` are all inside `iterate`.
+`stateScanToScan`, `foldToScan`, `tryLine` and `bindsName` resolve as the
+EDAG's `["self"]` ([functions](../spec/README.md#functions)). Of the four
+root modules nearly everything imports, `structurally_same` waits on five
+features, and `function/operator` on three. The one root with a short path
+is `result`: `for … of` and destructuring, and the loop is one function,
+`okList`, which could be written as a fold today, leaving destructuring
+alone. `iterate` in `function` could lose its loop the same way, which
+would leave that module on object shorthand alone — `fn` returns
+`{ result, map }`, which the grammar reads as `result: result` only once
+[`2440`](../spec/todo/2440-shorthand.md) lands, or which `fn` could spell
+out today.
 
 ### CLI: an output target, not a command group (decided)
 

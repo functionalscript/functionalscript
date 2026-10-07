@@ -29,13 +29,31 @@ const x = {
 };
 ```
 
+### The self case: benefits and drawbacks
+
+The `e` case is one rule: a `const` whose whole value is a function has the
+name in that function's body, after the names the body binds itself. What
+it buys is recursion as JavaScript writes it — `fact` calling `fact` —
+where before a function reached itself only through a fixed-point
+combinator or by being passed to itself, and the graph stays acyclic: the
+read is the EDAG's `["self"]`, a node of the function, not an edge back to
+its `const`. What it costs is one node kind the analysis, both
+interpreters, the Rust printer and both writers must spell, and one
+refusal: a body `const` of the name after the body has read the function
+by it is `capture shadowed`, where JavaScript throws at run time, since the
+read would have named the `const` before its initializer ran. The rule
+stops at the function itself — `h` from `f` above stays refused — so it
+decides nothing about how a later `const` or a mutually recursive group
+will be resolved.
+
 ### Tasks
 
 - [x] A function reading its own `const`'s name, `e` above: the function
       itself, [`["self"]`](../../todo/edag-stage1-discussion.md).
-- [ ] Resolve the remaining reads the example marks `ok` — a later function,
-      `h` from `f`, and the object grouping `x` — and refuse the ones it
-      marks `error` or `not ok`.
+- [ ] Resolve the object grouping `x` above, the one read the example
+      marks `ok` that is still `const not found`, and keep refusing the
+      ones it marks `error` or `not ok`: `d` in its own initializer and
+      `h` from `f`, a later `const`.
 
 ### Related
 
