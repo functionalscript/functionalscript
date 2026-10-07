@@ -10,11 +10,11 @@ import { factoryStringify, stringify } from './module.f.mjs'
 export const proof = {
     factoryStringify: () => {
         assertEq(factoryStringify(7), 'export default()=>{return 7;};')
-        assertEq(factoryStringify(['undefined']), 'export default()=>{const $v0=undefined;return $v0;};')
+        assertEq(factoryStringify(['undefined']), 'export default()=>{const $0=undefined;return $0;};')
         const captured = /** @type {const} */ (['[]', [2]])
         const fn = /** @type {const} */ (['=>', 0, [captured], ['frame', 0]])
         assertEq(factoryStringify(['[]', [captured, fn, fn]]),
-            'export default()=>{const $v0=[2];const $v2=(($0)=>(()=>($0)))($v0);const $v3=[$v0,$v2,$v2];return $v3;};')
+            'export default()=>{const $0=[2];const $1=(($2)=>(()=>($2)))($0);const $3=[$0,$1,$1];return $3;};')
     },
     primitives: () => {
         /** @type {readonly (readonly [EdagValue, string])[]} */
@@ -27,37 +27,37 @@ export const proof = {
         for (const [value, text] of cases) {
             assertEq(stringify(value), `export default ${text};`)
         }
-        assertEq(stringify(['undefined']), 'const $v0=undefined;export default $v0;')
+        assertEq(stringify(['undefined']), 'const $0=undefined;export default $0;')
     },
     containers: () => {
-        assertEq(stringify(['[]', []]), 'const $v0=[];export default $v0;')
-        assertEq(stringify(['{}', []]), 'const $v0={};export default $v0;')
+        assertEq(stringify(['[]', []]), 'const $0=[];export default $0;')
+        assertEq(stringify(['{}', []]), 'const $0={};export default $0;')
         assertEq(stringify(['{}', [
             [':', '0', 3], [':', '__proto__', ['undefined']], [':', 'a"b', 'x'],
-        ]]), 'const $v0=undefined;const $v1={["0"]:3,["__proto__"]:$v0,["a\\"b"]:"x"};export default $v1;')
+        ]]), 'const $0=undefined;const $1={["0"]:3,["__proto__"]:$0,["a\\"b"]:"x"};export default $1;')
         const shared = /** @type {const} */ (['[]', [1]])
         assertEq(stringify(['[]', [shared, shared, ['[]', [1]]]]),
-            'const $v0=[1];const $v1=[1];const $v2=[$v0,$v0,$v1];export default $v2;')
+            'const $0=[1];const $1=[1];const $2=[$0,$0,$1];export default $2;')
         assertEq(stringify(['{}', [[':', 'a', shared], [':', 'b', shared]]]),
-            'const $v0=[1];const $v1={["a"]:$v0,["b"]:$v0};export default $v1;')
+            'const $0=[1];const $1={["a"]:$0,["b"]:$0};export default $1;')
     },
     functions: () => {
-        assertEq(stringify(['=>', 0, [], 1]), 'const $v0=()=>(1);export default $v0;')
+        assertEq(stringify(['=>', 0, [], 1]), 'const $0=()=>(1);export default $0;')
         assertEq(stringify(['=>', 1, [2], ['+', ['frame', 0], ['arg', 0]]]),
-            'const $v3=(($0)=>(($a_0)=>(($0)+($a_0))))(2);export default $v3;')
+            'const $0=(($1)=>(($2)=>(($1)+($2))))(2);export default $0;')
         assertEq(stringify(['=>', 0, [7, 7, 9], ['frame', 1]]),
-            'const $v1=(($0,$1,$2)=>(()=>($1)))(7,7,9);export default $v1;')
+            'const $0=(($1,$2,$3)=>(()=>($2)))(7,7,9);export default $0;')
         const captured = /** @type {const} */ (['[]', [2]])
         const fn = /** @type {const} */ (['=>', 0, [captured, captured], ['frame', 1]])
         assertEq(stringify(['[]', [captured, fn, fn]]),
-            'const $v0=[2];const $v2=(($0,$1)=>(()=>($1)))($v0,$v0);const $v3=[$v0,$v2,$v2];export default $v3;')
+            'const $0=[2];const $1=(($2,$3)=>(()=>($3)))($0,$0);const $4=[$0,$1,$1];export default $4;')
     },
     bodyScopes: () => {
         // Body constructors remain in the function, even when their spelling
         // matches a captured container constructed at module load.
         assertEq(stringify(['=>', 0, [['[]', []]], ['[]', [['frame', 0], ['[]', []]]]]),
-            'const $v0=[];const $v4=(($0)=>(()=>([($0),([])])))($v0);export default $v4;')
+            'const $0=[];const $1=(($2)=>(()=>([($2),([])])))($0);export default $1;')
         assertEq(stringify(['=>', 1, [], ['=>', 0, [['arg', 0]], ['frame', 0]]]),
-            'const $v3=($a_0)=>(($0)=>(()=>($0)))(($a_0));export default $v3;')
+            'const $0=($1)=>(($2)=>(()=>($2)))(($1));export default $0;')
     },
 }

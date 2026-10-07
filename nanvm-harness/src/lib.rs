@@ -421,14 +421,14 @@ mod tests {
     fn function_texts() {
         assert_eq!(
             run::<Naive>(function_text::module, "default", Action::Read),
-            Ok(r#"["()=>1","()=>1!","()=>1|2","(...$a)=>$0[0]+$a[0]","(...$a)=>(...$b)=>$a[0]+$b[0]",true,false]"#.into())
+            Ok(r#"["()=>1","()=>1!","()=>1|2","(...$1)=>$0[0]+$1[0]","(...$0)=>(...$1)=>$0[0]+$1[0]",true,false]"#.into())
         );
         let exports: Object<Naive> = function_text::module::<Naive>()
             .unwrap()
             .try_into()
             .unwrap();
         let inc = exports.own_property(&"inc".into()).unwrap();
-        assert_eq!(inc.to_string(), Ok("(...$a)=>$0[0]+$a[0]".into()));
+        assert_eq!(inc.to_string(), Ok("(...$1)=>$0[0]+$1[0]".into()));
     }
 
     /// A read past the arguments supplied answers `undefined` — which has
