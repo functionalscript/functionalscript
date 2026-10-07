@@ -609,6 +609,8 @@ export const proof = {
             assertEq(fjsRoundTrip('export default () => 1;'), 'export default ()=>1;')
             // a function's own name is its `self`, written as the `const` it read
             assertEq(fjsRoundTrip('const f = () => f();\nexport default f;'), 'const $0=()=>$0();export default $0;')
+            // a shorthand member is written as the member it denotes
+            assertEq(fjsRoundTrip('const a = [1];\nexport default { a, b: a };'), 'const $0=[1];export default {"a":$0,"b":$0};')
             // an unused alias of the name is dropped with the `const`, as an alias of a capture is
             assertEq(fjsRoundTrip('const f = () => { const g = f; return 1; };\nexport default f;'), 'export default ()=>1;')
         },
@@ -1848,24 +1850,32 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         examples: () => {
             /** @type {Readonly<Record<string, string>>} */
             const expected = {
+                'Overview': 'xxooo',
                 'Primitives': 'xoooo',
                 'String escapes': 'ooooo',
                 'Comments': 'ooooo',
                 'Objects': 'ooooo',
                 'A repeated object key': 'ooooo',
                 'Sharing: a const used twice': 'ooooo',
+                'Sharing: a repeated expression': 'ooooo',
                 'Arithmetic': 'ooooo',
                 'Operator precedence': 'ooooo',
                 'Logical not': 'ooooo',
                 'typeof': 'ooooo',
                 'Laziness': 'ooooo',
+                'Laziness: && || ??': 'xxooo',
+                'Laziness: ?:': 'xxooo',
                 'Function with a rest parameter': 'xxooo',
                 'Closure': 'xxooo',
                 'Recursion': 'ooooo',
+                'Throw': 'xxooo',
+                'Early return': 'xxooo',
+                'Shorthand members': 'ooooo',
                 'Methods and properties': 'ooooo',
                 'Named exports': 'ooooo',
                 'A failure at run time': 'xxooo',
                 'An import': 'xxxxx',
+                'A named import and a call': 'xxxxx',
                 'Hex escape': 'xxxxx',
                 'Parse error': 'xxxxx',
             }
