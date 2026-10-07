@@ -45,23 +45,22 @@ What that costs:
 generators:
 
 ```json
-"gen": "node ./fjs/module.mjs r ./fjs/dev/generators/module.f.mjs",
+"gen": "node ./fjs/module.mjs r ./fjs/dev/gen/module.f.mjs",
 "gen:clean": "node ./fjs/module.mjs r ./fjs/dev/clean/module.f.mjs"
 ```
 
-The program, `fjs/dev/generators/module.f.mjs`, lives beside `fjs/dev/clean`,
+The program, `fjs/dev/gen/module.f.mjs`, lives beside `fjs/dev/clean`,
 the cleanup it starts with. Its `main` is a sequence of effects, one per
 generator, in the order regeneration needs, with the reason for the order
 written as a comment beside each step — the one thing the JSON string could
 not hold. It imports each generator's `main` rather than naming its file, so
 a move or rename is a compile error, not a broken chain found at run time.
 
-The directory is not `gen/`. The rule that marks a file generated is the
-dotted prefix `gen.`, so `gen/` would survive `gen:clean` — but it reads as
-an output, and a handwritten program that lists the generators must not
-look like one of the things they write. `generators/` names what the file
-holds. The npm script keeps its name: `gen` is the contract the generated
-workflow runs, and a script is not a file.
+The directory is named after the script it implements. `gen/` is
+handwritten under the naming rule: what marks a file generated is the
+dotted prefix `gen.`, which `fjs/dev/clean`'s `isGenerated` tests for, so
+`gen:clean` leaves `gen/` alone
+([CONTRIBUTING.md](../CONTRIBUTING.md#naming-generated-files)).
 
 Each area owns one generator, as most already do. The list the program
 composes:
@@ -129,7 +128,7 @@ program is the simpler shape, and the one every other step already has.
 
 - [ ] `fjs/nanvm/harness/module.f.mjs`: the fixture generator, per
       [one-fixture-list](../nanvm-harness/todo/one-fixture-list.md).
-- [ ] `fjs/dev/generators/module.f.mjs`: `main` composing cleanup, the four
+- [ ] `fjs/dev/gen/module.f.mjs`: `main` composing cleanup, the four
       generators, and the lock script through `exec`, in order, with the
       reason for each position in a comment beside it; `proof.f.mjs`
       covering every step and failure branch.
