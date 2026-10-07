@@ -217,6 +217,10 @@ members.
 | 3 | `export { … } from` |
 | 3 | one each: a reassignment, `in`, a default parameter |
 
+Binary numeric literals (`0b` and `0B`, including the `n` suffix) are now
+accepted by the shared tokenizer and compiler. Numeric separators remain
+unsupported; the table above records the earlier measurement.
+
 Template literals are the first refusal of two modules in five, almost all
 of them error messages and `assert` texts, and they are a feature with open
 questions of its own

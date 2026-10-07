@@ -3,4 +3,4 @@
  * drift-checked by `npm run gen` (see `../../fjs/ci/README.md`). Consumed by
  * `../src/lib.rs`.
  */
-export default 42;
+export default 0b101010;

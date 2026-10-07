@@ -768,6 +768,15 @@ is `Infinity` (`1e400`); and one too small is `0` (`1e-400`), which is why
 overflowed literal is an `Infinity` like any other, written as the word where
 a format has one and refused by a `.json` output ([output](#output)).
 
+A number may also be written in binary, as JavaScript writes it: `0b` or
+`0B` followed by one or more `0` or `1` digits. `0b101010` is `42`;
+conversion rounds to the nearest double, as for decimal and hexadecimal
+literals. A binary literal has no fraction or exponent. Missing digits,
+other digits or a word directly after the literal are errors. The `n`
+suffix gives an exact bigint at any width: `0B101n` is `5n`. Outputs write
+the value in decimal; unary negation also preserves `-0b0` as `-0`.
+Numeric separators remain unsupported.
+
 A number may also be written in hexadecimal, as JavaScript writes it: `0x`
 or `0X`, then one or more digits `0`–`9`, `a`–`f` or `A`–`F`. It denotes the
 double nearest the integer its digits spell, as a decimal literal does, so

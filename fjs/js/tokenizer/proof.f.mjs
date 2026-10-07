@@ -369,6 +369,13 @@ export const proof = {
             assertEq(tokenizeString('0x'), 'error')
             assertEq(tokenizeString('0x1g'), 'error')
             assertEq(tokenizeString('0x1n2'), 'error')
+            assertEq(tokenizeString('0b'), 'error')
+            assertEq(tokenizeString('0B2'), 'error')
+            assertEq(tokenizeString('0b102'), 'error')
+            assertEq(tokenizeString('0b1e2'), 'error')
+            assertEq(tokenizeString('0b1n2'), 'error')
+            assertEq(tokenizeString('0b1_0'), 'error')
+            assertEq(tokenizeString('0b101 0B01n'), '[{"kind":"number","value":"0b101"},{"kind":"ws"},{"kind":"bigint","value":1n},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('[-1234567890n]')

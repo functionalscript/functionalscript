@@ -105,6 +105,9 @@ export const proof = {
             assertStructurallySame(read('0xFF '), ['number', '0xFF', 4])
             assertStructurallySame(read('0XaBn;'), ['number', '0XaBn', 5])
             assertStructurallySame(read('0x10e1'), ['number', '0x10e1', 6])
+            assertStructurallySame(read('0b101 '), ['number', '0b101', 5])
+            assertStructurallySame(read('0B01n;'), ['number', '0B01n', 5])
+            assertStructurallySame(read('0b0'), ['number', '0b0', 3])
         },
         string: () => {
             assertStructurallySame(read('"a\\n\\u0041"x'), ['string', '"a\\n\\u0041"', 11])
@@ -192,6 +195,8 @@ export const proof = {
         assertStructurallySame(parseToken(cps('1e')), ['error', 2])
         assertStructurallySame(parseToken(cps('0x')), ['error', 2])
         assertStructurallySame(parseToken(cps('0xg')), ['error', 2])
+        assertStructurallySame(parseToken(cps('0b')), ['error', 2])
+        assertStructurallySame(parseToken(cps('0B2')), ['error', 2])
         assertStructurallySame(parseToken(cps('"abc')), ['error', 4])
         assertStructurallySame(parseToken(cps('"\\x"')), ['error', 2])
         // `\'` is the single-quoted string's, not JSON's
