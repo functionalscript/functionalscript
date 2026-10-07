@@ -1,8 +1,7 @@
 ## Implement the Node effects natively
 
 **Priority:** P2
-**Status:** blocked
-**Blocked by:** [Implement the native effect runner](./nanvm-effects-node.md)
+**Status:** open
 
 ### Problem
 
