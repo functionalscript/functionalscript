@@ -1,6 +1,6 @@
 //! Programs that return effects, compiled by `fjs compile`, run through the
 //! loop of `nanvm-effects-node`: the pipeline from FunctionalScript source to
-//! a performed command, in one test (`todo/nanvm-effects-node.md`).
+//! a performed command, in one test.
 
 use nanvm_effects_node::run;
 use nanvm_harness::fixtures::effect;
