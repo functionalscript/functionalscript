@@ -2,6 +2,11 @@ import { assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { _name as name, _binding as binding, _resolve as resolve } from './module.f.mjs'
 
 export const proof = {
+    manyBindings: () => {
+        const references = Array.from({ length: 20000 }, (_, i) => name(`binding${i}`))
+        assertEq(resolve([references.map(binding).join(',')]).join(''),
+            references.map((_, i) => `$${i}`).join(','))
+    },
     order: () => {
         const a = name('outer/const0')
         const b = name('inner/arg0')
