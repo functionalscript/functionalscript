@@ -61,14 +61,23 @@ which implements it. That is implementation authorization, not the
 language-design approval DESIGN.md §12 asks for; the proposer is the
 implementation agent, and the authorized language designer is
 `sergey-shandar`. The implementation was written before this proposal was,
-which this document does not claim as compliant: it lands, with the
-approval below, before the implementation does.
+a violation of the gate that approval of the proposal does not undo: an
+approval given now is approval before the feature lands, not before it was
+written. What resolves it is the language designer's own decision about
+that implementation, recorded here. The implementation stays an unmerged
+draft until then, and the designer may refuse it and require the feature
+to be written again after approval, by someone who has not seen it.
 
-- [ ] Approved by `sergey-shandar`.
+- [ ] The proposal is approved by `sergey-shandar`.
+- [ ] `sergey-shandar` accepts
+      [#2641](https://github.com/functionalscript/functionalscript/pull/2641),
+      written before this proposal, as its implementation — or refuses it,
+      and the feature is written again after the approval above.
 
 ## Tasks
 
-- [ ] Obtain the approval above.
+- [ ] Obtain the approval, and the decision on the existing implementation,
+      above.
 - [ ] Land [#2641](https://github.com/functionalscript/functionalscript/pull/2641)
       on top of this proposal: the grammar, the syntax record, the fold's
       `__proto__` rule, the proofs, the spec's objects section, and this
