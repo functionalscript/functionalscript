@@ -1,7 +1,7 @@
 ## Demo pages for the compiler's outputs
 
 **Priority:** P3
-**Status:** the five stage pages and the side-by-side page are built; the open
+**Status:** wip — the five stage pages and the side-by-side page are built; the open
 questions remain
 
 ### Problem

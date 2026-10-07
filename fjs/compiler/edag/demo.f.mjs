@@ -23,8 +23,15 @@
  * lowered module already carries; this walk reads it rather than
  * reconstructing it.
  *
+ * **A method call is one node.** `o.f(x)` lowers to a `.` carrying its call
+ * as a continuation, `['.', o, 'f', ['|()', [x]]]`, not to a `()` over a
+ * `.`: the receiver stays live into the call rather than becoming a value
+ * of its own, and a drawing with two nodes would show a value the EDAG never
+ * has. So it draws as one node, labelled `.f()`, with the receiver in its
+ * `obj` port and the arguments numbered after it as a plain call's are.
+ *
  * **Not every `Exp` shape is drawn yet.** Optional chaining — `?.`, `?.()`,
- * and the continuation a `.` or `()` carries into the next step of a chain —
+ * and the continuations that keep a chain inside its short-circuit region —
  * is its own small state machine layered on top of the ordinary node
  * shapes, and this demo does not walk it: a node it cannot describe is shown
  * as itself, not silently dropped or wrongly drawn.
@@ -106,10 +113,10 @@ const dotLabel = index => typeof index === 'number' || typeof index === 'string'
     : '.'
 
 /**
- * A node this demo does not draw — optional chaining's own tags, and a
- * `.`/`()` carrying a continuation past its ordinary operands (a longer
- * tuple than the plain two- or three-element form) — drawn as itself,
- * labelled by its tag, rather than silently dropped or wrongly drawn.
+ * A node this demo does not draw — optional chaining's own tags, and a `.`
+ * whose continuation is an optional call rather than a plain one — drawn
+ * as itself, labelled by its tag, rather than silently dropped or wrongly
+ * drawn.
  *
  * @type {(exp: readonly unknown[]) => Shape<unknown>}
  */
@@ -166,13 +173,21 @@ export const _shapeOf = e => {
         }
     }
     if (tag === '.') {
-        if (exp.length > 3) { return unsupported(exp) }
         const index = exp[2]
         /** @type {readonly (readonly [string, Exp])[]} */
         const indexChild = index instanceof Array
             ? [['idx', /** @type {Exp} */ (/** @type {unknown} */ (index))]]
             : []
-        return { kind: 'op', label: dotLabel(index), children: [['obj', /** @type {Exp} */ (exp[1])], ...indexChild] }
+        /** @type {readonly (readonly [string, Exp])[]} */
+        const receiver = [['obj', /** @type {Exp} */ (exp[1])], ...indexChild]
+        if (exp.length === 3) { return { kind: 'op', label: dotLabel(index), children: receiver } }
+        // The one continuation a `.` outside a short-circuit region can
+        // carry besides a plain call is an optional call, which opens a
+        // region this demo does not walk.
+        const step = /** @type {readonly unknown[]} */ (exp[3])
+        return step[0] === '|()'
+            ? { kind: 'op', label: `${dotLabel(index)}()`, children: [...receiver, ...itemChildren(step[1])] }
+            : unsupported(exp)
     }
     if (tag === '()') {
         return { kind: 'op', label: '()', children: [['callee', /** @type {Exp} */ (exp[1])], ...itemChildren(exp[2])] }
