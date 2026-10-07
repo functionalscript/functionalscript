@@ -3,8 +3,9 @@
 One reproducible toolchain, shared by developers and CI, so that what passes on
 your machine is what passes on the runners.
 
-[`dev.sh`](../../../dev.sh) opens the shell; [`gen.nix/run`](../../../gen.nix/run)
-hands it one command, and is what a CI step runs, through `sh`.
+[`dev.sh`](../../../dev.sh) opens the shell, or runs the one command given to
+it; [`gen.nix/run`](../../../gen.nix/run) is the generated form of the latter,
+and is what a CI step runs, through `sh`.
 
 Everything the project builds and tests with lives in the shell
 [`gen.nix/flake.nix`](../../../gen.nix/flake.nix) defines — the runtimes, the compilers, the WASM

@@ -69,15 +69,21 @@ there. Every developer and every agent works inside it.
 
 ```bash
 ./dev.sh                   # an interactive shell
-sh ./gen.nix/run npm run cov      # or one command in it
+./dev.sh npm run cov       # or one command in it
 ```
 
-[`dev.sh`](./dev.sh) opens the shell and enables flakes itself, so a stock Nix
-install needs no configuration; [`gen.nix/run`](./gen.nix/run) hands it a single
-command, and is what a CI step names. Nix does not run natively on Windows: a
-Windows contributor works in WSL2, or in a Linux container such as the
-`nixos/nix` Docker image with the repository mounted. The shell is the same
-either way.
+[`dev.sh`](./dev.sh) opens the shell, or runs the command given to it, and
+enables flakes itself, so a stock Nix install needs no configuration;
+[`gen.nix/run`](./gen.nix/run) is the generated form of the latter, and is what
+a CI step names. Nix does not run natively on Windows: a Windows contributor
+works in WSL2, or in a Linux container —
+[`.devcontainer/devcontainer.json`](./.devcontainer/devcontainer.json) starts
+one from the `nixos/nix` image and runs `npm ci` in the shell, for VS Code,
+Codespaces and any other devcontainer host. The shell is the same either way.
+
+One build runs outside it: Cloudflare's Workers Builds generates the website on
+its own image and reads its Node version from `.node-version`, which is why that
+file exists ([fjs/website/README.md](./fjs/website/README.md#the-site-is-the-repository-served)).
 
 [`fjs/ci/nix/README.md`](./fjs/ci/nix/README.md) explains the shell and how it is generated.
 
@@ -370,21 +376,14 @@ Reviewing someone else's pull request: [REVIEWING.md](./doc/REVIEWING.md).
 
 ## OpenAI Codex environment
 
-Set Node.js to 22. Both `npm test` and `npm run cov` work in this environment;
-the latter uses the automatic inline test-registration fallback.
-
-Setup script:
+The same shell. The environment's setup script installs Nix and runs `npm ci`
+inside it once, so every later command finds the toolchain CI uses:
 
 ```sh
-rustup component add clippy
-rustup component add rustfmt
-
-# Install Node.js dependencies.
-npm ci
-
-# Install Rust dependencies.
-cargo fetch
-
-rustup show
-node -v
+curl -L https://nixos.org/nix/install | sh -s -- --no-daemon
+. ~/.nix-profile/etc/profile.d/nix.sh
+./dev.sh npm ci
 ```
+
+`npm test`, `npm run cov` and every other check then run as
+`./dev.sh <command>`.

@@ -1,0 +1,5 @@
+{
+    "name": "FunctionalScript",
+    "image": "nixos/nix",
+    "postCreateCommand": "sh ./gen.nix/run npm ci"
+}

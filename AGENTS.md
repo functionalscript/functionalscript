@@ -132,16 +132,15 @@ or pick their versions; the shell is the one environment.
 
 ```bash
 ./dev.sh                      # an interactive shell
-sh ./gen.nix/run <command>    # one command in it; what a CI step runs
+./dev.sh <command>            # one command in it; CI steps run the generated sh ./gen.nix/run <command>
 ```
 
 `dev.sh` enables flakes itself, so a stock Nix install needs no configuration.
-Nix does not run natively on Windows: work in WSL2, or in a Linux container
-such as the `nixos/nix` Docker image with the repository mounted — the shell is
-the same either way. A sandbox that refuses the GitHub tarball a flake input is
-fetched as can take the same pinned revision over git instead:
-`--override-input <input> git+https://github.com/<owner>/<repo>?rev=<rev>` with
-`--no-write-lock-file`, `<rev>` being the one `gen.nix/flake.lock` records.
+Nix does not run natively on Windows: work in WSL2, or in a Linux container —
+[`.devcontainer/`](./.devcontainer/devcontainer.json) starts one from the
+`nixos/nix` image and runs `npm ci` in the shell — and the shell is the same
+either way. A Claude Code cloud session does the same before its first command,
+from [`.claude/hooks/session-start.sh`](./.claude/hooks/session-start.sh).
 
 Inside the shell, `npm ci` installs Node dependencies and `cargo fetch` the
 Rust ones. `npm test` runs `tsc` plus the FunctionalScript suite; `fjs test`
