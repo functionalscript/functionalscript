@@ -68,7 +68,9 @@ that implementation, recorded here. The implementation stays an unmerged
 draft until then, and the designer may refuse it and require the feature
 to be written again after approval, by someone who has not seen it.
 
-- [ ] The proposal is approved by `sergey-shandar`.
+- [x] The proposal is approved by `sergey-shandar`:
+      ["Design is approved."](https://github.com/functionalscript/functionalscript/pull/2643#issuecomment-6040455420),
+      2026-10-07.
 - [ ] `sergey-shandar` accepts
       [#2641](https://github.com/functionalscript/functionalscript/pull/2641),
       written before this proposal, as its implementation — or refuses it,
@@ -76,8 +78,8 @@ to be written again after approval, by someone who has not seen it.
 
 ## Tasks
 
-- [ ] Obtain the approval, and the decision on the existing implementation,
-      above.
+- [x] Obtain the approval above.
+- [ ] Obtain the decision on the existing implementation above.
 - [ ] Land [#2641](https://github.com/functionalscript/functionalscript/pull/2641)
       on top of this proposal: the grammar, the syntax record, the fold's
       `__proto__` rule, the proofs, the spec's objects section, and this
