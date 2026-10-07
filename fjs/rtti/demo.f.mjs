@@ -75,6 +75,7 @@ import { unwrap } from '../types/result/module.f.mjs'
 import { concat } from '../types/string/module.f.mjs'
 import { dropWhile, first, flat, intersperse, map, stateScan, takeWhile, toArray } from '../types/list/module.f.mjs'
 import { graphOf, graphSvg } from '../website/demo/graph/module.f.mjs'
+import { caption } from '../website/demo/module.f.mjs'
 import { pureOk } from '../effects/module.f.mjs'
 import { pageHref } from '../website/page/module.f.mjs'
 import { request } from '../protocol/json_rpc/module.f.mjs'
@@ -576,7 +577,7 @@ export const _compare = (a, b) => {
  * @type {(label: string, ok: boolean, text: string) => readonly Element[]}
  */
 const answerView = (label, ok, text) => [
-    ['p', `${label} · ${ok ? 'ok' : 'error'}`],
+    caption(`${label} · ${ok ? 'ok' : 'error'}`),
     ['pre', { 'data-result': ok ? 'ok' : 'error' }, text],
 ]
 
@@ -653,9 +654,9 @@ const schemasView = (e, shown) => e.schemas.length === 1
 const outputsView = s => {
     const o = _outputsOf(s.schema)
     return [
-        ['p', 'TypeScript:'],
+        caption('TypeScript:'),
         ['pre', { 'data-code': '' }, o.ts],
-        ['p', 'JSON Schema:'],
+        caption('JSON Schema:'),
         ['pre', { 'data-code': '' }, o.jsonSchema],
         ['details', ['summary', 'Canonical form (toData)'], ['pre', { 'data-code': '' }, o.data]],
     ]
@@ -713,7 +714,7 @@ const valueView = (s, text) => {
                 ...answerView('parse', r.parse.ok, r.parse.text),
                 ...answerView('validate', r.validate.ok, r.validate.text),
                 ...(r.validate.path === undefined ? [] : /** @type {readonly Element[]} */ ([
-                    ['p', 'Where:'],
+                    caption('Where:'),
                     ['pre', { 'data-code': '' }, ..._marked(r.validate.path)(r.value)],
                 ])),
             ]),

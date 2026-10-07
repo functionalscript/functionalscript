@@ -73,6 +73,13 @@ export const inputField = ({ name, label }, value) => ['p',
     ['input', { type: 'text', id: name, name, value }],
 ]
 
+/** A caption naming the result drawn after it: a `p` marked `data-caption`,
+ * which the stylesheet sets bold so a reader tells a result's name from the
+ * result and from the prose around it.
+ * @type {(text: string) => Element}
+ */
+export const caption = text => ['p', { 'data-caption': '' }, text]
+
 /** Update an existing string field; unrelated events keep the state.
  * @type {<S extends StringMap<string>>(state: S) => (event: DemoEvent) => Effect<never, S, never>}
  */

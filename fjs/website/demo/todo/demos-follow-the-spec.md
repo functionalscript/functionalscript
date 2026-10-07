@@ -30,10 +30,6 @@ As measured on the tree the spec landed against:
   pages show their result with nothing to say what it is.
 - **A verdict in an example's name.** DataJS's
   `Error: JSON is not a document`.
-- **Labels and captions not bold.** Every demo but HMAC and PoW, which
-  bold them through their own selectors rather than the shared marker.
-  [emphasize-labels-and-captions](./emphasize-labels-and-captions.md)
-  moves every demo to the shared styling.
 
 ### Proposal
 

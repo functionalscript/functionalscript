@@ -28,7 +28,7 @@ such as controls embedded in prose, and explain them in the demo's JSDoc.
 
 - [x] Update the input and output rules in the demo README with the shared
       emphasis policy.
-- [ ] Add shared label and caption styling, update all demos to use it, and
+- [x] Add shared label and caption styling, update all demos to use it, and
       remove the HMAC/PoW-specific bold rules and obsolete exception notes.
 - [ ] Verify rendered font weight for labels and captions, with leads and
       explanatory text staying regular. Confirm that renaming a matching CSS

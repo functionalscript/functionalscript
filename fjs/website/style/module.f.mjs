@@ -190,9 +190,11 @@ textarea { vertical-align: top }
 textarea { box-sizing: border-box; resize: vertical; width: 100% }
 /* Single-line text fields fill the column, with padding inside their width. */
 input[type="text"] { box-sizing: border-box; width: 100% }
-/* Bold labels and captions separate controls and long HMAC values while scanning.
-   The shared rollout is tracked in demo/todo/emphasize-labels-and-captions.md. */
-[data-hmac-demo] label, [data-hmac-demo] p:has(+ [data-code-block]) { font-weight: bold }
+/* A demo's labels and captions are bold at the text's own size, so a reader
+   scanning the page tells the controls and each result's name from the prose
+   around them without a heading's weight. The lead and notes stay regular.
+   demo/README.md states the rule. */
+[data-demo] label, [data-caption] { font-weight: bold }
 /* The compact target field and its difficulty examples share one column;
    right-aligned attempt counts make the four targets easy to compare. */
 [data-pow-search-effort] { border-collapse: collapse; width: 100% }
@@ -207,9 +209,6 @@ input[type="text"] { box-sizing: border-box; width: 100% }
 [data-pow-effort][open] > summary { margin-bottom: .75rem }
 [data-pow-effort-label] { color: var(--muted); display: inline-block; font-size: .75rem; margin-left: .75rem }
 [data-pow-effort-note] { color: var(--muted); font-size: .875rem }
-/* PoW couples three inputs and three long code values. Bold labels and
-   captions separate these groups without larger headings; the lead stays plain. */
-[data-pow-demo] label, [data-pow-caption] { font-weight: bold }
 /* The verdict takes the shared data-result tint and border. Keep its icon
    beside the sentence when it wraps, with enough space to read as one result. */
 [data-pow-result][data-result] { align-items: center; display: flex; gap: .625rem; line-height: 1.5; padding: .875rem 1rem; white-space: normal }
