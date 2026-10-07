@@ -124,7 +124,7 @@ fn entries(directory: &str, parent: &str) -> io::Result<Vec<Dirent>> {
 /// `recursive` answers.
 fn tree(path: &str) -> io::Result<Vec<Dirent>> {
     let mut found = Vec::new();
-    let mut queue = vec![path.to_string()];
+    let mut queue = [path.to_string()].to_vec();
     let mut next = 0;
     while next < queue.len() {
         let directory = queue[next].clone();
@@ -349,9 +349,9 @@ mod test {
             let dir = Scratch::new();
             let file = dir.at("a.bin");
             assert_eq!(write_file(&file, &[1, 2, 3]), Ok(()));
-            assert_eq!(read_file(&file), Ok(vec![1, 2, 3]));
+            assert_eq!(read_file(&file), Ok([1, 2, 3].to_vec()));
             assert_eq!(write_file(&file, &[9]), Ok(()));
-            assert_eq!(read_file(&file), Ok(vec![9]));
+            assert_eq!(read_file(&file), Ok([9].to_vec()));
             assert_eq!(rm(&file), Ok(()));
             assert_eq!(code_of(read_file(&file)), Some("ENOENT".into()));
             assert_eq!(code_of(rm(&file)), Some("ENOENT".into()));
@@ -362,7 +362,7 @@ mod test {
             let dir = Scratch::new();
             let file = dir.at("big");
             assert_eq!(
-                write_file(&file, &vec![0; MAX_FILE_SIZE_BYTES as usize]),
+                write_file(&file, &[0; MAX_FILE_SIZE_BYTES as usize]),
                 Ok(())
             );
             assert_eq!(read_file(&file).map(|v| v.len()), Ok(1 << 17));
@@ -404,9 +404,9 @@ mod test {
             );
             write_file(&file, &[1, 2, 3, 4]).unwrap();
             assert_eq!(write_bytes(&file, 1.0, &[9, 8]), Ok(()));
-            assert_eq!(read_file(&file), Ok(vec![1, 9, 8, 4]));
+            assert_eq!(read_file(&file), Ok([1, 9, 8, 4].to_vec()));
             assert_eq!(write_bytes(&file, 6.0, &[5]), Ok(()));
-            assert_eq!(read_file(&file), Ok(vec![1, 9, 8, 4, 0, 0, 5]));
+            assert_eq!(read_file(&file), Ok([1, 9, 8, 4, 0, 0, 5].to_vec()));
             assert_eq!(
                 code_of(write_bytes(&file, -1.0, &[1])),
                 Some("ERR_OUT_OF_RANGE".into())
@@ -435,16 +435,16 @@ mod test {
                 is_directory: !is_file,
             };
             assert_eq!(
-                readdir(&dir.at(""), false),
-                Ok(vec![
+                readdir(&dir.at(""), false).unwrap(),
+                [
                     dirent("", "a", false),
                     dirent("", "b", false),
                     dirent("", "z", true)
-                ])
+                ]
             );
             assert_eq!(
-                readdir(&dir.at(""), true),
-                Ok(vec![
+                readdir(&dir.at(""), true).unwrap(),
+                [
                     dirent("", "a", false),
                     dirent("", "b", false),
                     dirent("", "z", true),
@@ -454,7 +454,7 @@ mod test {
                     dirent("b", "y", false),
                     dirent("a/x", "deep", false),
                     dirent("a/x/deep", "h", true),
-                ])
+                ]
             );
             assert_eq!(
                 code_of(readdir(&dir.at("none"), false)),
