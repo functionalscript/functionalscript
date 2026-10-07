@@ -15,12 +15,12 @@ shadow `undefined` with a binding of its own.
 The two rules give the same answer almost everywhere: `export default NaN;`
 is the number in both languages, and `{ NaN: 1 }` and `a.NaN` are a key and
 an access in both. They differ where JavaScript wants a reference and
-FunctionalScript has only a value, and today that is one place: the
-[shorthand member](../README.md#objects). `{ NaN }` is `{ NaN: NaN }` in
-JavaScript and `reserved word` in FunctionalScript, which refuses the
-shorthand of every reserved word
-([shorthand](./2440-shorthand.md)), as JavaScript refuses `{ null }`,
-`{ true }` and `{ typeof }`.
+FunctionalScript has only a value, and one place will show it once
+[shorthand members](./2440-shorthand.md) land: `{ NaN }` is `{ NaN: NaN }`
+in JavaScript and will be `reserved word` in FunctionalScript, which refuses
+the shorthand of every reserved word, as JavaScript refuses `{ null }`,
+`{ true }` and `{ typeof }`. Before that lands, every shorthand is
+`unexpected token`, the three included, and nothing distinguishes them.
 
 The restriction is justified by the rule above, not by the shorthand, and
 no authored module writes the three shorthands. What is open is whether a
