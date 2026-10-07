@@ -67,10 +67,14 @@ const githubUrl = ({ owner, repo, commit }) => `github:${owner}/${repo}/${commit
  * way. Nixpkgs stays on {@link githubUrl}: its tarball comes from the binary
  * cache, and a clone of it would not.
  *
- * @type {(input: { owner: string, repo: string, commit: string }) => string}
+ * The URL names the pin's `ref` as well as its `rev`: Nix requires the revision
+ * to be reachable from the ref it fetches, and an omitted ref means the
+ * remote's `HEAD`, so a pin on any other branch would lock only by accident.
+ *
+ * @type {(input: { owner: string, repo: string, ref: string, commit: string }) => string}
  */
-const gitUrl = ({ owner, repo, commit }) =>
-    `git+https://github.com/${owner}/${repo}?rev=${commit}`
+const gitUrl = ({ owner, repo, ref, commit }) =>
+    `git+https://github.com/${owner}/${repo}?ref=${ref}&rev=${commit}`
 
 const url = githubUrl(nixpkgs)
 

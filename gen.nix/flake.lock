@@ -31,13 +31,14 @@
       "locked": {
         "lastModified": 1791361643,
         "narHash": "sha256-HMdfSb1ONHs1RbSkQtCXm+tWEsTikisWWtXDnv0aQ+I=",
-        "ref": "refs/heads/master",
+        "ref": "master",
         "rev": "8afee9fa8caa877a4feb65adc33e8d72f3747dc9",
         "revCount": 2328,
         "type": "git",
         "url": "https://github.com/oxalica/rust-overlay"
       },
       "original": {
+        "ref": "master",
         "rev": "8afee9fa8caa877a4feb65adc33e8d72f3747dc9",
         "type": "git",
         "url": "https://github.com/oxalica/rust-overlay"

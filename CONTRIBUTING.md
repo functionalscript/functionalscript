@@ -43,7 +43,10 @@ work is tracked from then on.
 [Nix](https://nixos.org/download/). The repository's developer shell, below,
 provides every tool in this table at the version CI uses — install Nix, enter
 the shell, and nothing else is a question. The table says what the shell
-carries and what each tool is for; it is not a list to install by hand.
+carries and what each tool is for. It is a list to install by hand in one case
+only: bare Windows, where Nix does not run, and a developer who wants to work
+there installs these tools themselves, at these versions, as CI's Windows jobs
+do.
 
 | Tool    | Version              | Required for                                                     |
 | ------- | -------------------- | ---------------------------------------------------------------- |
@@ -56,16 +59,20 @@ carries and what each tool is for; it is not a list to install by hand.
 TypeScript is the one row that is not simply "latest", and the only one that is
 **not** an npm dependency of this package, so `npm ci` does not install it: it
 is a tool the shell provides, like the others in this table, at the version
-[`fjs/ci/config/module.f.js`](./fjs/ci/config/module.f.js) pins for CI. Do not
-reach for `npx tsc`: with nothing to resolve in `node_modules` it downloads
-whatever the registry calls latest, which is not the compiler CI runs.
+[`fjs/ci/config/module.f.js`](./fjs/ci/config/module.f.js) pins for CI; on bare
+Windows, install exactly that version globally. Do not reach for `npx tsc`: with
+nothing to resolve in `node_modules` it downloads whatever the registry calls
+latest, which is not the compiler CI runs.
 
 ### The Nix shell
 
 `gen.nix/` is a development environment carrying every tool in that table at
-the versions CI uses. It is not a convenience built alongside CI: most jobs run
-their commands inside this very shell, so what passes here is what passes
-there. Every developer and every agent works inside it.
+the versions CI uses. It is not a convenience built alongside CI: every job but
+three runs its commands inside this very shell, so what passes here is what
+passes there. The three are the Node 22 and Node 24 compatibility jobs, each on
+a flake of its own, and the Windows platform jobs, which run without Nix — so a
+change that leans on Node 26 passes the shell and still fails CI. Every
+developer and every agent works inside the shell.
 
 ```bash
 ./dev.sh                   # an interactive shell
@@ -75,11 +82,15 @@ there. Every developer and every agent works inside it.
 [`dev.sh`](./dev.sh) opens the shell, or runs the command given to it, and
 enables flakes itself, so a stock Nix install needs no configuration;
 [`gen.nix/run`](./gen.nix/run) is the generated form of the latter, and is what
-a CI step names. Nix does not run natively on Windows: a Windows contributor
-works in WSL2, or in a Linux container —
-[`.devcontainer/devcontainer.json`](./.devcontainer/devcontainer.json) starts
-one from the `nixos/nix` image and runs `npm ci` in the shell, for VS Code,
-Codespaces and any other devcontainer host. The shell is the same either way.
+a CI step names. On macOS and Linux, install Nix on the host; VS Code's offer
+to reopen in a container is a slower detour there, and declining it changes
+nothing. Nix does not run natively on Windows: a Windows contributor opens the
+repository in that container —
+[`.devcontainer/devcontainer.json`](./.devcontainer/devcontainer.json) builds
+a Debian image with Nix and runs `npm ci` in the shell, for VS Code, Codespaces
+and any other devcontainer host — or works in WSL2 with Nix installed there.
+The shell is the same either way. Bare Windows, outside both, means installing
+the [Requirements](#requirements) table by hand, as CI's Windows jobs do.
 
 One build runs outside it: Cloudflare's Workers Builds generates the website on
 its own image and reads its Node version from `.node-version`, which is why that
@@ -377,11 +388,14 @@ Reviewing someone else's pull request: [REVIEWING.md](./doc/REVIEWING.md).
 ## OpenAI Codex environment
 
 The same shell. The environment's setup script installs Nix and runs `npm ci`
-inside it once, so every later command finds the toolchain CI uses:
+inside it once, so every later command finds the toolchain CI uses. Codex runs
+the script as root in a container without an init system, which the official
+installer refuses in both of its modes, so the script uses the Determinate
+installer, which supports exactly that:
 
 ```sh
-curl -L https://nixos.org/nix/install | sh -s -- --no-daemon
-. ~/.nix-profile/etc/profile.d/nix.sh
+curl -fsSL https://install.determinate.systems/nix | sh -s -- install linux --init none --no-confirm
+. /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
 ./dev.sh npm ci
 ```
 

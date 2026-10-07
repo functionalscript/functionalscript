@@ -155,7 +155,7 @@ const shellHookFlake = `{
 
 const rustFlake = `{
     inputs.nixpkgs.url = "github:NixOS/nixpkgs/${commit}";
-    inputs.rust-overlay.url = "git+https://github.com/oxalica/rust-overlay?rev=${rustOverlay.commit}";
+    inputs.rust-overlay.url = "git+https://github.com/oxalica/rust-overlay?ref=${rustOverlay.ref}&rev=${rustOverlay.commit}";
     inputs.rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
     outputs = { nixpkgs, rust-overlay, ... }: {
         devShells.aarch64-linux.default = let
@@ -351,7 +351,7 @@ const withPerSystem = {
 
 const perSystemFlake = `{
     inputs.nixpkgs.url = "github:NixOS/nixpkgs/${commit}";
-    inputs.rust-overlay.url = "git+https://github.com/oxalica/rust-overlay?rev=${rustOverlay.commit}";
+    inputs.rust-overlay.url = "git+https://github.com/oxalica/rust-overlay?ref=${rustOverlay.ref}&rev=${rustOverlay.commit}";
     inputs.rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
     outputs = { nixpkgs, rust-overlay, ... }: let
         shell = { pkgs, targets, shellHook, url, hash, ... }: let
