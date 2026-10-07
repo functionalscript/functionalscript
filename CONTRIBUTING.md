@@ -40,6 +40,11 @@ work is tracked from then on.
 
 ## Requirements
 
+[Nix](https://nixos.org/download/). The repository's developer shell, below,
+provides every tool in this table at the version CI uses — install Nix, enter
+the shell, and nothing else is a question. The table says what the shell
+carries and what each tool is for; it is not a list to install by hand.
+
 | Tool    | Version              | Required for                                                     |
 | ------- | -------------------- | ---------------------------------------------------------------- |
 | [Node.js](https://nodejs.org/en/download) | **latest** (22 min.) | Everything.                                                     |
@@ -50,29 +55,29 @@ work is tracked from then on.
 
 TypeScript is the one row that is not simply "latest", and the only one that is
 **not** an npm dependency of this package, so `npm ci` does not install it: it
-is a tool the environment provides, like the others in this table.
-[`fjs/ci/config/module.f.js`](./fjs/ci/config/module.f.js) pins the version CI
-uses — install exactly that one globally, or take the Nix shell below and skip
-the question. Either way, do not reach for `npx tsc`: with nothing to resolve in
-`node_modules` it downloads whatever the registry calls latest, which is not the
-compiler CI runs.
+is a tool the shell provides, like the others in this table, at the version
+[`fjs/ci/config/module.f.js`](./fjs/ci/config/module.f.js) pins for CI. Do not
+reach for `npx tsc`: with nothing to resolve in `node_modules` it downloads
+whatever the registry calls latest, which is not the compiler CI runs.
 
-### Or one Nix shell
+### The Nix shell
 
-If you have Nix, `gen.nix/` is a development environment carrying every tool in that
-table at the versions CI uses. It is not a convenience built alongside CI: most
-jobs run their commands inside this very shell, so what passes here is what
-passes there.
+`gen.nix/` is a development environment carrying every tool in that table at
+the versions CI uses. It is not a convenience built alongside CI: most jobs run
+their commands inside this very shell, so what passes here is what passes
+there. Every developer and every agent works inside it.
 
 ```bash
 ./dev.sh                   # an interactive shell
 sh ./gen.nix/run npm run cov      # or one command in it
 ```
 
-[`dev.sh`](./dev.sh) opens the shell; [`gen.nix/run`](./gen.nix/run) hands it a single
-command, and is what a CI step names. Nix does not run natively on Windows, so a
-Windows contributor either works through WSL2 or installs the table above —
-nothing in this repository requires Nix.
+[`dev.sh`](./dev.sh) opens the shell and enables flakes itself, so a stock Nix
+install needs no configuration; [`gen.nix/run`](./gen.nix/run) hands it a single
+command, and is what a CI step names. Nix does not run natively on Windows: a
+Windows contributor works in WSL2, or in a Linux container such as the
+`nixos/nix` Docker image with the repository mounted. The shell is the same
+either way.
 
 [`fjs/ci/nix/README.md`](./fjs/ci/nix/README.md) explains the shell and how it is generated.
 
@@ -100,8 +105,7 @@ cargo clippy
 cargo fmt -- --check
 ```
 
-Both of the first two need `tsc` on `PATH` — from the Nix shell, or from the
-global install described under [Requirements](#requirements).
+Both of the first two need `tsc` on `PATH`, which the Nix shell provides.
 
 #### Ways to run the FunctionalScript test suite
 
@@ -211,8 +215,9 @@ npm run gen
 Run this after changing anything a generator reads — `fjs/ci`'s workflows and
 Nix flakes, `fjs/nanvm`'s Rust test data. It needs Node and Nix: its last
 command is the generated `gen.nix/lock-update.sh`, which locks each flake
-from its pinned commit after the cleanup below emptied `gen.nix/`, so it does
-not run on Windows for now. The dependency lockfiles it never touches.
+from its pinned commit after the cleanup below emptied `gen.nix/`, so on
+Windows it runs where Nix does: in WSL2 or a container. The dependency
+lockfiles it never touches.
 
 `gen` starts by deleting every generated output — the same module as
 `npm run gen:clean` — so regeneration starts from nothing: an output no
