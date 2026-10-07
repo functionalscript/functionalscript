@@ -25,7 +25,10 @@ A `demo.f.mjs` next to the module:
 - **Tamper check:** `y` is an editable field; changing a digit makes the
   verification fail at once.
 
-Timing is out of scope for now: demos have no clock operation.
+Timing is left out for now. A demo can measure with `sandbox` (the bigint
+demo does), but evaluation runs in `nextEvent` turns, whose contract in
+`fjs/website/demo/types.ts` asks for no operations; timing it means revisiting
+that contract first.
 
 ### Tasks
 
