@@ -23,9 +23,9 @@
  * ({@link hoistedKind}). A node the analysis merged — an access, an
  * operator over values — is written in place at every occurrence instead,
  * since the occurrences merge again when the output is read: hoisting one
- * would evaluate it where the source did not. Every `const` is named by its
- * position among the statements of its scope, anchors and hoists in one
- * sequence, so that one graph is one text.
+ * would evaluate it where the source did not. Every `const` has a symbolic identity
+ * among its scope's statements; the document allocates its final name in
+ * declaration order, so that one graph is one text.
  *
  * **A scope writes its own `const`s.** A module and a function body are the
  * same thing here — statements, then a value, introduced by `export default`
@@ -33,7 +33,7 @@
  * ([spec: functions](../../../spec/README.md#functions)):
  *
  * ```js
- * export default ()=>{const $a0=[1];return [$a0,$a0];};
+ * export default ()=>{const $0=[1];return [$0,$0];};
  * ```
  *
  * **A lazy operand is a block root.** The right operand of `&&`, `||` and
@@ -49,28 +49,26 @@
  * no eager path has no text and is refused.
  *
  * ```js
- * export default (...$a)=>$a[0]?(()=>{const $b0=[1];return [$b0,$b0];})():4;
+ * export default (...$0)=>$0[0]?(()=>{const $1=[1];return [$1,$1];})():4;
  * ```
  *
- * The names say which scope: digits after the `$` for a module, the body's
- * own parameter and then digits one level in, `$a0` where the parameter is
- * `$a`; a block is a scope one level in too, its `const`s named as a
- * body's would be there, and reads the names around it, as a body reads
- * its frame. No two scopes share a spelling, so the writer emits no
- * `const` that shadows one — see {@link hoistName} for why that is the
- * choice.
+ * Every generated binding takes the next available `$n` in declaration
+ * order across the entire output: constants, parameters, and nested scopes
+ * share one counter. Exported names are reserved first. References reuse
+ * their binding's name, so no generated binding shadows another. Rendering
+ * uses symbolic scope/slot identities; the output boundary allocates numbers.
  *
  * **A function with slots is a closure.** Each slot takes a
  * `const` in the scope around the function, even one written in place
  * otherwise, since a capture is a name; a read of the frame's slot `i` is
  * that name, and a parameter of the scope, or a slot that reads the
- * scope's own frame, has its name already: `(...$a)=>()=>$a`. Read back, the body's outside names are its captures in
+ * scope's own frame, has its name already: `(...$0)=>()=>$0`. Read back, the body's outside names are its captures in
  * first-use order, which the writer keeps to the frame's by naming the
  * slots in order first where its own text would read them in another
  * ({@link closureBody}):
  *
  * ```js
- * const $0=[1];export default (...$a)=>[$0,$a[0]];
+ * const $0=[1];export default (...$1)=>[$0,$1[0]];
  * ```
  *
  * A body needing no `const` keeps the expression form, `=> v`, which is the
@@ -142,7 +140,8 @@ import { dollarSign, isDigit, isLatinLetter, lowLine } from '../../text/ascii/mo
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
-import { parameter, renderFunction } from './function_text/module.f.mjs'
+import { renderFunction } from './function_text/module.f.mjs'
+import { name, binding, resolve } from './names/module.f.mjs'
 
 /** Names the parser refuses to bind. */
 const reservedExports = new Set([...keywords, ...literalWords, 'then'])
@@ -169,7 +168,7 @@ const minting = node => !mergeable(node)
  *
  * It reads no names: its walks go on past a value a scope has named, so a
  * shared access over one takes a `const` it need not —
- * `const $a0=$a[0]?[]:1;const $a1=$a0.k;` — which costs text and not the
+ * `const $1=$0[0]?[]:1;const $2=$1.k;` — which costs text and not the
  * round trip. {@link block}, asking what its own text would build, stops
  * at names instead.
  *
@@ -213,43 +212,26 @@ const slotOf = (names, h) => {
 
 /**
  * The name a read of a parameter is written as, in a scope whose function's
- * rest parameter is `param`: the rest parameter's own, `$a`, a fixed one's
- * position after it, `$a_0`, and none for any other node.
+ * parameters have scope identity `param`: a symbolic rest or fixed argument
+ * reference, and none for any other node.
  *
  * @type {(param: string, node: Node) => string | null}
  */
 const parameterName = (param, node) => {
     switch (node[0]) {
-        case 'rest': { return param }
-        case 'arg': { return `${param}_${node[1]}` }
+        case 'rest': { return name(`${param}/rest`) }
+        case 'arg': { return name(`${param}/arg${node[1]}`) }
         default: { return null }
     }
 }
 
-/**
- * The name a scope at `depth` gives the `const` in slot `i`: `$0` at the
- * module level, and the body's own parameter with the slot after it one
- * level in — `$a0` in the body whose parameter is `$a`.
- *
- * Every scope numbers from zero and no two scopes share a spelling: a
- * module's names are digits after the `$`, a body's are its parameter's
- * letters and then digits, and a parameter is letters alone.
- *
- * Reading the output back needs that: a body names what it captures by the
- * name the value took in the scope around it, so a body `const` spelled the
- * same would shadow the capture — and a body that reads its capture first
- * is refused outright (`capture shadowed`). It also means the writer never
- * emits a shadowing `const` at all, which is the spelling
- * [no-shadowing](../../../spec/todo/3150-shadowing.md) would refuse.
- *
- * @type {(depth: number, i: number) => string}
- */
-const hoistName = (depth, i) => depth === 0 ? `$${i}` : `${parameter(depth)}${i}`
+/** A constant's symbolic identity within its rendering scope. @type {(path: string, i: number) => string} */
+const hoistName = (path, i) => name(`${path}/const${i}`)
 
 /** The names a scope sees: the scopes' around it, then its own. @type {(s: _Scope) => _Names} */
 const visible = s => [...s.outer, ...s.names]
 
-/** The name a hoisted value took in the scope at `depth`, or `null` where it has none yet. @type {(names: _Names, h: _Hoisted) => string | null} */
+/** The name a hoisted value took in the scope at `path`, or `null` where it has none yet. @type {(names: _Names, h: _Hoisted) => string | null} */
 const nameOf = (names, h) => {
     const i = slotOf(names, h)
     return i === null ? null : names[i][1]
@@ -303,16 +285,16 @@ const thrownValue = (a, v) => {
 }
 
 /**
- * The text of an operand at `depth`, `0` at the module level: a primitive
+ * The text of an operand at rendering `path`: a primitive
  * as the DataJS serializer spells it, a hoisted value by its name, and any
  * other entry in place.
  *
- * @type {(s: _Scope, depth: number) => (v: Operand) => Document}
+ * @type {(s: _Scope, path: string) => (v: Operand) => Document}
  */
-const operand = (s, depth) => v => {
+const operand = (s, path) => v => {
     if (!(v instanceof Array)) { return ok(leafSerialize(v)) }
     const name = nameOf(visible(s), ['entry', v[1]])
-    return name === null ? entry(s, depth)(v[1]) : ok([name])
+    return name === null ? entry(s, `${path}/entry${v[1]}`)(v[1]) : ok([name])
 }
 
 /**
@@ -406,18 +388,18 @@ const operandGrouped = (op, right) => node => node !== null && (
  * `-2 ** 2` as neither of its two parenthesizations and refuses it, and so
  * does the grammar ([spec: operators](../../../spec/README.md#operators)).
  *
- * @type {(s: _Scope, depth: number, op: string) => (v: Operand) => Document}
+ * @type {(s: _Scope, path: string, op: string) => (v: Operand) => Document}
  */
-const leftOperand = (s, depth, op) => v => mapOk(
+const leftOperand = (s, path, op) => v => mapOk(
     /** @type {(text: List<string>) => List<string>} */
     (text => grouped(operandGrouped(op, false)(nodeOf(s, v)) || (op === '**' && opensWithPrefix(text)))(text)),
-)(operand(s, depth)(v))
+)(operand(s, path)(v))
 
 /** Whether a text opens with a prefix: `-`, `~`, `!` or `typeof`. @type {(text: List<string>) => boolean} */
 const opensWithPrefix = text => ['-', '~', '!', 'typeof'].some(p => firstChunk(text).startsWith(p))
 
-/** The text of the right operand of the eager binary operator `op`. @type {(s: _Scope, depth: number, op: string) => (v: Operand) => Document} */
-const rightOperand = (s, depth, op) => v => mapOk(grouped(operandGrouped(op, true)(nodeOf(s, v))))(operand(s, depth)(v))
+/** The text of the right operand of the eager binary operator `op`. @type {(s: _Scope, path: string, op: string) => (v: Operand) => Document} */
+const rightOperand = (s, path, op) => v => mapOk(grouped(operandGrouped(op, true)(nodeOf(s, v))))(operand(s, path)(v))
 
 /**
  * The text of an eager binary operator, `left+right` and its Stage A
@@ -427,12 +409,12 @@ const rightOperand = (s, depth, op) => v => mapOk(grouped(operandGrouped(op, tru
  * has no rule for. No other pair of operator and operand meets that way,
  * since no text opens with any other operator's character.
  *
- * @type {(s: _Scope, depth: number) => (op: string, left: Operand, right: Operand) => Document}
+ * @type {(s: _Scope, path: string) => (op: string, left: Operand, right: Operand) => Document}
  */
-const binary = (s, depth) => (op, left, right) => mapOk(
+const binary = (s, path) => (op, left, right) => mapOk(
     /** @type {(parts: readonly List<string>[]) => List<string>} */
     (([l, r]) => flat([l, [op === '-' && opensWithMinus(r) ? '- ' : op], r])),
-)(okList([leftOperand(s, depth, op)(left), rightOperand(s, depth, op)(right)]))
+)(okList([leftOperand(s, `${path}/left`, op)(left), rightOperand(s, `${path}/right`, op)(right)]))
 
 /** Whether a text opens with `-`. @type {(text: List<string>) => boolean} */
 const opensWithMinus = text => firstChunk(text).startsWith('-')
@@ -449,15 +431,15 @@ const opensWithMinus = text => firstChunk(text).startsWith('-')
  * with, `typeof 1` and `typeof (1+2)`: `typeof(1+2)` is JavaScript too, but
  * one spelling is simpler than a rule for when the space may go.
  *
- * @type {(s: _Scope, depth: number) => (op: string) => (v: Operand) => Document}
+ * @type {(s: _Scope, path: string) => (op: string) => (v: Operand) => Document}
  */
-const prefix = (s, depth) => op => v => mapOk(
+const prefix = (s, path) => op => v => mapOk(
     /** @type {(text: List<string>) => List<string>} */
     (text => flat([[op === 'typeof' ? 'typeof ' : op === '-' && opensWithMinus(text) ? '- ' : op], text])),
-)(mapOk(grouped(isOperator(nodeOf(s, v)) || kindOf(s, v) === '=>'))(operand(s, depth)(v)))
+)(mapOk(grouped(isOperator(nodeOf(s, v)) || kindOf(s, v) === '=>'))(operand(s, path)(v)))
 
-/** An operand's text in place, with whether it is a block; a name and a primitive are neither. @type {(s: _Scope, depth: number) => (v: Operand) => Result<_Written, string>} */
-const inPlace = (s, depth) => v => mapOk((/** @type {List<string>} */ text) => ({ text, block: false }))(operand(s, depth)(v))
+/** An operand's text in place, with whether it is a block; a name and a primitive are neither. @type {(s: _Scope, path: string) => (v: Operand) => Result<_Written, string>} */
+const inPlace = (s, path) => v => mapOk((/** @type {List<string>} */ text) => ({ text, block: false }))(operand(s, path)(v))
 
 /**
  * The text of a lazy operand — the right operand of `&&`, `||` or `??`, an
@@ -465,12 +447,12 @@ const inPlace = (s, depth) => v => mapOk((/** @type {List<string>} */ text) => (
  * one ({@link block}), and in place otherwise, in parentheses where
  * `takes` says its kind needs them. A block is a call, and takes none.
  *
- * @type {(s: _Scope, depth: number, takes: (node: Node | null) => boolean) => (v: Operand) => Document}
+ * @type {(s: _Scope, path: string, takes: (node: Node | null) => boolean) => (v: Operand) => Document}
  */
-const lazyOperand = (s, depth, takes) => v => mapOk(
+const lazyOperand = (s, path, takes) => v => mapOk(
     /** @type {(w: _Written) => List<string>} */
     (({ text, block }) => grouped(!block && takes(nodeOf(s, v)))(text)),
-)(block(s, depth)(v))
+)(block(s, path)(v))
 
 /**
  * A lazy operand as its own block, where it needs one: an IIFE,
@@ -482,7 +464,7 @@ const lazyOperand = (s, depth, takes) => v => mapOk(
  * again: its `const`s the shared nodes and the anchors, its captures the
  * names around it. An operand needing neither is written in place.
  *
- * The block is a scope at the next depth, its names its own and the names
+ * The block opens its own rendering scope, its names its own and the names
  * around it visible, and its parameter the enclosing function's, since it
  * has none: a read of the arguments inside it is the function's.
  *
@@ -501,9 +483,9 @@ const lazyOperand = (s, depth, takes) => v => mapOk(
  * occurrence reads the name — in `x.a === 1 || x.a === 2`, `x` a `const`
  * holding a call or a nested array, the lazy operand builds nothing.
  *
- * @type {(s: _Scope, depth: number) => (v: Operand) => Result<_Written, string>}
+ * @type {(s: _Scope, path: string) => (v: Operand) => Result<_Written, string>}
  */
-const block = (s, depth) => v => {
+const block = (s, path) => v => {
     /** @type {_Scope} */
     const inner = { a: s.a, allowUnusedCaptures: s.allowUnusedCaptures, outer: visible(s), names: [], frame: s.frame, param: s.param, eager: eagerFrom(s.a)(v), shared: sharedWithin(s.a)(v), self: s.self, binding: null }
     /** @type {(i: number) => boolean} */
@@ -528,11 +510,11 @@ const block = (s, depth) => v => {
     return okThen(
         /** @type {(all: _Root) => Result<_Written, string>} */
         (all => all.length === 1 && hoists(inner)(all[0]).length === 0
-            ? inPlace(s, depth)(all[0])
+            ? inPlace(s, path)(all[0])
             : mapOk(
                 /** @type {(st: _Statement) => _Written} */
                 (st => ({ text: flat([['(()=>{'], st.text, ['})()']]), block: true })),
-            )(scope(inner, depth + 1, nothing)(all))),
+            )(scope(inner, `${path}/block${v instanceof Array ? v[1] : 'leaf'}`, nothing)(all))),
     )(scopeOperands(s.a, v))
 }
 
@@ -540,12 +522,12 @@ const block = (s, depth) => v => {
  * The text of a lazy operator, `left && right` and its two siblings: the
  * left operand eager, the right a block root ({@link lazyOperand}).
  *
- * @type {(s: _Scope, depth: number) => (node: readonly [string, Operand, Operand]) => Document}
+ * @type {(s: _Scope, path: string) => (node: readonly [string, Operand, Operand]) => Document}
  */
-const lazyBinary = (s, depth) => ([op, left, right]) => mapOk(
+const lazyBinary = (s, path) => ([op, left, right]) => mapOk(
     /** @type {(parts: readonly List<string>[]) => List<string>} */
     (([l, r]) => flat([l, [op], r])),
-)(okList([leftOperand(s, depth, op)(left), lazyOperand(s, depth, operandGrouped(op, true))(right)]))
+)(okList([leftOperand(s, `${path}/left`, op)(left), lazyOperand(s, `${path}/right`, operandGrouped(op, true))(right)]))
 
 /**
  * The text of a conditional, `c?t:e`: the condition eager, in parentheses
@@ -554,15 +536,15 @@ const lazyBinary = (s, depth) => ([op, left, right]) => mapOk(
  * a function included, as in JavaScript, and the text ends where `:`
  * cannot continue it.
  *
- * @type {(s: _Scope, depth: number) => (node: readonly ['?:', Operand, Operand, Operand]) => Document}
+ * @type {(s: _Scope, path: string) => (node: readonly ['?:', Operand, Operand, Operand]) => Document}
  */
-const conditional = (s, depth) => ([, c, t, e]) => mapOk(
+const conditional = (s, path) => ([, c, t, e]) => mapOk(
     /** @type {(parts: readonly List<string>[]) => List<string>} */
     (([cond, then, otherwise]) => flat([cond, ['?'], then, [':'], otherwise])),
 )(okList([
-    mapOk(grouped(kindOf(s, c) === '?:' || kindOf(s, c) === '=>'))(operand(s, depth)(c)),
-    lazyOperand(s, depth, () => false)(t),
-    lazyOperand(s, depth, () => false)(e),
+    mapOk(grouped(kindOf(s, c) === '?:' || kindOf(s, c) === '=>'))(operand(s, `${path}/condition`)(c)),
+    lazyOperand(s, `${path}/then`, () => false)(t),
+    lazyOperand(s, `${path}/else`, () => false)(e),
 ]))
 
 /**
@@ -571,13 +553,13 @@ const conditional = (s, depth) => ([, c, t, e]) => mapOk(
  * module's, so a numeric or function base inside a body is written there
  * rather than refused.
  *
- * @type {(s: _Scope, depth: number) => (v: Operand) => Document}
+ * @type {(s: _Scope, path: string) => (v: Operand) => Document}
  */
-const base = (s, depth) => v => {
+const base = (s, path) => v => {
     if (!basedHoisted(s.a, v)) {
         // every operator, a prefix included, binds looser than a step, so
         // its text is grouped: `(-[1])[0]`, where `-[1][0]` is `-([1][0])`
-        return mapOk(grouped(precedence(nodeOf(s, v)) <= levels.length))(operand(s, depth)(v))
+        return mapOk(grouped(precedence(nodeOf(s, v)) <= levels.length))(operand(s, path)(v))
     }
     const h = /** @type {_Hoisted} */ (v instanceof Array ? ['entry', v[1]] : ['leaf', v])
     // Every such base was collected before the statement that needs it, so a
@@ -590,24 +572,24 @@ const base = (s, depth) => v => {
  * the same operand after `...`. Either is an `AssignmentExpression` in
  * JavaScript, so what an operand needs grouped is grouped alike.
  *
- * @type {(s: _Scope, depth: number) => (v: ItemOperand) => Document}
+ * @type {(s: _Scope, path: string) => (v: ItemOperand) => Document}
  */
-const item = (s, depth) => v => v instanceof Array && v[0] === '...'
-    ? mapOk(value => flat([['...'], value]))(operand(s, depth)(v[1]))
-    : operand(s, depth)(/** @type {Operand} */(v))
+const item = (s, path) => v => v instanceof Array && v[0] === '...'
+    ? mapOk(value => flat([['...'], value]))(operand(s, path)(v[1]))
+    : operand(s, path)(/** @type {Operand} */(v))
 
 /**
  * An object's entry: a property, `k: v`, or a spread, `...` before its
  * operand. A key that is not a string has no literal.
  *
- * @type {(s: _Scope, depth: number) => (p: readonly [':', Operand, Operand] | readonly ['...', Operand]) => Document}
+ * @type {(s: _Scope, path: string) => (p: readonly [':', Operand, Operand] | readonly ['...', Operand]) => Document}
  */
-const property = (s, depth) => p => {
-    if (p[0] === '...') { return mapOk(value => flat([['...'], value]))(operand(s, depth)(p[1])) }
+const property = (s, path) => p => {
+    if (p[0] === '...') { return mapOk(value => flat([['...'], value]))(operand(s, path)(p[1])) }
     const [, k, v] = p
     return typeof k !== 'string'
         ? error('an object key that is not a string')
-        : mapOk(value => flat([keySerialize(k), colon, value]))(operand(s, depth)(v))
+        : mapOk(value => flat([keySerialize(k), colon, value]))(operand(s, path)(v))
 }
 
 /** A key in brackets, `[k]`, where no word follows a `.`. @type {(k: string | number) => Document} */
@@ -733,9 +715,9 @@ const firstUse = (names, text) => toArray(text).reduce(
  * body's text in that case, with slot names unchanged and no extra reads.
  * Complete frames keep their existing canonical ordering in both outputs.
  *
- * @type {(a: Analysis, depth: number, names: readonly string[], allowUnusedCaptures: boolean, self: string | null) => (b: Operand) => Document}
+ * @type {(a: Analysis, path: string, names: readonly string[], allowUnusedCaptures: boolean, self: string | null) => (b: Operand) => Document}
  */
-const closureBody = (a, depth, names, allowUnusedCaptures, self) => b => okThen(
+const closureBody = (a, path, names, allowUnusedCaptures, self) => b => okThen(
     /** @type {(text: List<string>) => Document} */
     (text => {
         const order = firstUse(names, text)
@@ -743,16 +725,16 @@ const closureBody = (a, depth, names, allowUnusedCaptures, self) => b => okThen(
             return allowUnusedCaptures ? ok(text) : error('a frame slot the body never reads')
         }
         return order.every((x, i) => x === i) ? ok(text)
-            : aliasedBody(a, depth, names, allowUnusedCaptures, self)(b)
+            : aliasedBody(a, path, names, allowUnusedCaptures, self)(b)
     }),
-)(lambdaBody(a, depth, names, allowUnusedCaptures, self)(b))
+)(lambdaBody(a, path, names, allowUnusedCaptures, self)(b))
 
 /**
  * A function's body that opens by naming its frame's slots in slot order,
  * one `const` each, and reads each slot by that `const` from then on:
  *
  * ```js
- * (...$a)=>{const $a0=$0;const $a1=$1;const $a2=(...$b)=>$a1;return [$a0,$a2,$a2];}
+ * (...$2)=>{const $3=$0;const $4=$1;const $5=()=>$4;return [$3,$5,$5];}
  * ```
  *
  * Read back, each `const` is the body's capture of that slot, taken in
@@ -762,13 +744,13 @@ const closureBody = (a, depth, names, allowUnusedCaptures, self) => b => okThen(
  * eager in what this writer spells: a lazy operator is a node kind it has
  * none for.
  *
- * @type {(a: Analysis, depth: number, names: readonly string[], allowUnusedCaptures: boolean, self: string | null) => (b: Operand) => Document}
+ * @type {(a: Analysis, path: string, names: readonly string[], allowUnusedCaptures: boolean, self: string | null) => (b: Operand) => Document}
  */
-const aliasedBody = (a, depth, names, allowUnusedCaptures, self) => b => {
-    const aliases = names.map((_, i) => hoistName(depth, i))
+const aliasedBody = (a, path, names, allowUnusedCaptures, self) => b => {
+    const aliases = names.map((_, i) => hoistName(path, i))
     /** @type {_Statement} */
     const start = {
-        text: flat(names.map((name, i) => [`const ${aliases[i]}=`, name, ';'])),
+        text: flat(names.map((name, i) => [`const ${binding(aliases[i])}=`, name, ';'])),
         names: aliases.map(alias => /** @type {const} */ ([null, alias])),
     }
     return okThen(
@@ -776,27 +758,27 @@ const aliasedBody = (a, depth, names, allowUnusedCaptures, self) => b => {
         (all => mapOk(
             /** @type {(st: _Statement) => List<string>} */
             (st => flat([['{'], st.text, ['}']])),
-        )(scope(bodyScope(a, depth, aliases, b, allowUnusedCaptures, self), depth, start)(all))),
+        )(scope(bodyScope(a, path, aliases, b, allowUnusedCaptures, self), path, start)(all))),
     )(scopeOperands(a, b))
 }
 
 /**
- * The scope a function's body is written in, at `depth`: no names around
+ * The scope a function's body is written in, at `path`: no names around
  * it — a body reads the scope around it through its frame alone — its
  * frame's slot names, the parameter its arguments are written as, and
  * what its root reaches eagerly as its own to hoist.
  *
  * `self` is the name the body's function was bound to, which its `['self']`
  * reads as, or `null` for a function with no name.
- * @type {(a: Analysis, depth: number, frame: readonly string[], b: Operand, allowUnusedCaptures: boolean, self: string | null) => _Scope}
+ * @type {(a: Analysis, path: string, frame: readonly string[], b: Operand, allowUnusedCaptures: boolean, self: string | null) => _Scope}
  */
-const bodyScope = (a, depth, frame, b, allowUnusedCaptures, self) => ({ a, allowUnusedCaptures, outer: [], names: [], frame, param: parameter(depth), eager: eagerFrom(a)(b), shared: a.shared, self, binding: null })
+const bodyScope = (a, path, frame, b, allowUnusedCaptures, self) => ({ a, allowUnusedCaptures, outer: [], names: [], frame, param: path, eager: eagerFrom(a)(b), shared: a.shared, self, binding: null })
 
 /** The scope a module is written in, over the names written so far. @type {(a: Analysis, names: _Names) => _Scope} */
 const moduleScope = (a, names) => ({ a, allowUnusedCaptures: false, outer: [], names, frame: [], param: '', eager: eagerFrom(a)(a.root), shared: a.shared, self: null, binding: null })
 
 /**
- * A function's body at `depth`, in a scope of its own: the `const`s it needs
+ * A function's body at `path`, in a scope of its own: the `const`s it needs
  * and then the value it returns.
  *
  * A body needing no `const` is the expression form, `=> v`, which is the
@@ -809,27 +791,27 @@ const moduleScope = (a, names) => ({ a, allowUnusedCaptures: false, outer: [], n
  * characters; writing that instead is
  * [`./todo/parenthesized-object-body.md`](./todo/parenthesized-object-body.md).
  *
- * A body needing one is a block, `=> {const $a0=…;return v;}`, which is
+ * A body needing one is a block, `=> {const $n=…;return v;}`, which is
  * where a shared constructor inside a body, a numeric or function access
  * base, and a body's anchors are all written
  * ([spec: functions](../../../spec/README.md#functions)) — and so is a body
  * that throws, `=> {throw v;}`, the statement having no expression form.
  *
- * @type {(a: Analysis, depth: number, frame: readonly string[], allowUnusedCaptures: boolean, self: string | null) => (b: Operand) => Document}
+ * @type {(a: Analysis, path: string, frame: readonly string[], allowUnusedCaptures: boolean, self: string | null) => (b: Operand) => Document}
  */
-const lambdaBody = (a, depth, frame, allowUnusedCaptures, self) => b => {
-    const s = bodyScope(a, depth, frame, b, allowUnusedCaptures, self)
+const lambdaBody = (a, path, frame, allowUnusedCaptures, self) => b => {
+    const s = bodyScope(a, path, frame, b, allowUnusedCaptures, self)
     return okThen(
         /** @type {(all: _Root) => Document} */
         (all => all.length === 1 && thrownValue(a, all[0]) === null && hoists(s)(all[0]).length === 0
             ? mapOk(
                 /** @type {(text: List<string>) => List<string>} */
                 (text => firstChunk(text).startsWith('{') ? flat([['{return '], text, [';}']]) : text),
-            )(operand(s, depth)(all[0]))
+            )(operand(s, path)(all[0]))
             : mapOk(
                 /** @type {(st: _Statement) => List<string>} */
                 (st => flat([['{'], st.text, ['}']])),
-            )(scope(s, depth, nothing)(all))),
+            )(scope(s, path, nothing)(all))),
     )(scopeOperands(a, b))
 }
 
@@ -837,9 +819,9 @@ const lambdaBody = (a, depth, frame, allowUnusedCaptures, self) => b => {
  * A call's arguments, `(a,b)`: its item list, each argument any value, a
  * function included, and a spread one `...` before its operand.
  *
- * @type {(s: _Scope, depth: number) => (args: readonly ItemOperand[]) => Document}
+ * @type {(s: _Scope, path: string) => (args: readonly ItemOperand[]) => Document}
  */
-const callArguments = (s, depth) => args => mapOk(wrap('(')(')'))(okList(args.map(item(s, depth))))
+const callArguments = (s, path) => args => mapOk(wrap('(')(')'))(okList(args.map((v, k) => item(s, `${path}/arg${k}`)(v))))
 
 /**
  * Whether a callee takes a `const` of its own: a base that does
@@ -854,44 +836,44 @@ const calleeHoisted = (a, callee) => basedHoisted(a, callee)
     || (callee instanceof Array && a.nodes[callee[1]][0] === '.' && a.nodes[callee[1]].length === 3)
 
 /**
- * A function's parameter list, `($a_0,$a_1,...$a)=>`: one name per fixed
+ * A function's parameter list, `($0,$1,...$2)=>`: one name per fixed
  * parameter, and the rest parameter only where the body reads it — `()=>1`
- * and not `(...$a)=>1`, the two being one node, and the shorter what a
+ * and not `(...$0)=>1`, the two being one node, and the shorter what a
  * reader expects. The function is entry `i`, and the body's nodes are the
  * ones its scope names.
  *
- * @type {(a: Analysis, depth: number, i: number, length: number) => string}
+ * @type {(a: Analysis, path: string, i: number, length: number) => string}
  */
-const parameterList = (a, depth, i, length) => {
-    const fixed = Array.from({ length }, (_, k) => `${parameter(depth)}_${k}`)
-    const rest = a.nodes.some((n, j) => n[0] === 'rest' && a.scope[j] === i) ? [`...${parameter(depth)}`] : []
+const parameterList = (a, path, i, length) => {
+    const fixed = Array.from({ length }, (_, k) => binding(name(`${path}/arg${k}`)))
+    const rest = a.nodes.some((n, j) => n[0] === 'rest' && a.scope[j] === i) ? [`...${binding(name(`${path}/rest`))}`] : []
     return `(${[...fixed, ...rest].join(',')})=>`
 }
 
 /**
- * The function that is entry `i`, of `length` fixed parameters, at `depth`,
+ * The function that is entry `i`, of `length` fixed parameters, at `path`,
  * over the names its frame's slots read as: its parameter list, then its
  * body.
  *
  * `self` is the name the function was bound to, or `null`: a body reading
  * its own `['self']` needs one, and is refused without it.
- * @type {(a: Analysis, depth: number, i: number, length: number, names: readonly string[], allowUnusedCaptures: boolean, self: string | null) => (body: Operand) => Document}
+ * @type {(a: Analysis, path: string, i: number, length: number, names: readonly string[], allowUnusedCaptures: boolean, self: string | null) => (body: Operand) => Document}
  */
-const lambda = (a, depth, i, length, names, allowUnusedCaptures, self) => body => readsSelf(a, i) && self === null
+const lambda = (a, path, i, length, names, allowUnusedCaptures, self) => body => readsSelf(a, i) && self === null
     ? error('a self-referencing function with no name')
     : mapOk(
         /** @type {(text: List<string>) => List<string>} */
-        (text => flat([[parameterList(a, depth, i, length)], text])),
-    )(closureBody(a, depth, names, allowUnusedCaptures, self)(body))
+        (text => flat([[parameterList(a, path, i, length)], text])),
+    )(closureBody(a, path, names, allowUnusedCaptures, self)(body))
 
 /**
  * One entry of the table, written in place — every entry that is not a
  * hoisted value of the scope it stands in, which {@link operand} named
  * before reaching here.
  *
- * @type {(s: _Scope, depth: number) => (i: number) => Document}
+ * @type {(s: _Scope, path: string) => (i: number) => Document}
  */
-const entry = (s0, depth) => i => {
+const entry = (s0, path) => i => {
     // the name the enclosing statement binds this entry to is the entry's
     // alone: what it holds is written in place, under no name
     const s = { ...s0, binding: null }
@@ -903,8 +885,8 @@ const entry = (s0, depth) => i => {
         // `self` with no function around it
         case 'self': { return ok([assertNotNullish(s.self, ['a self in a scope with no name', i])]) }
         case 'arg': case 'rest': { return ok([assertNotNullish(parameterName(s.param, node))]) }
-        case '[]': { return mapOk(arrayWrap)(okList(node[1].map(item(s, depth)))) }
-        case '{}': { return mapOk(objectWrap)(okList(node[1].map(property(s, depth)))) }
+        case '[]': { return mapOk(arrayWrap)(okList(node[1].map((v, k) => item(s, `${path}/item${k}`)(v)))) }
+        case '{}': { return mapOk(objectWrap)(okList(node[1].map((p, k) => property(s, `${path}/property${k}`)(p)))) }
         case 'frame': { return slotRead(s)(node[1]) }
         case '.': {
             // a method call: the one continuation a `.` takes in this
@@ -914,7 +896,7 @@ const entry = (s0, depth) => i => {
             return mapOk(
                 /** @type {(parts: readonly List<string>[]) => List<string>} */
                 (parts => flat(parts)),
-            )(okList([base(s, depth)(b), key(step !== undefined)(k), ...(step === undefined ? [] : [callArguments(s, depth)(step[1])])]))
+            )(okList([base(s, `${path}/base`)(b), key(step !== undefined)(k), ...(step === undefined ? [] : [callArguments(s, `${path}/arguments`)(step[1])])]))
         }
         case '()': {
             // A callee that takes a `const` was named by the hoisting walk
@@ -923,31 +905,31 @@ const entry = (s0, depth) => i => {
             return mapOk(
                 /** @type {(parts: readonly List<string>[]) => List<string>} */
                 (parts => flat(parts)),
-            )(okList([base(s, depth)(callee), callArguments(s, depth)(args)]))
+            )(okList([base(s, `${path}/callee`)(callee), callArguments(s, `${path}/arguments`)(args)]))
         }
         case '=>': {
             const [, length, slots, body] = node
             return okThen(
                 /** @type {(names: readonly string[]) => Document} */
-                (names => lambda(s.a, depth + 1, i, length, names, s.allowUnusedCaptures, s0.binding)(body)),
+                (names => lambda(s.a, `${path}/function${i}`, i, length, names, s.allowUnusedCaptures, s0.binding)(body)),
             )(frameNames(s)(slots))
         }
         // `op12` of one operand is the prefix, and of two the binary minus
         case '-': {
             const [op, left, right] = node
-            return right === undefined ? prefix(s, depth)(op)(left) : binary(s, depth)(op, left, right)
+            return right === undefined ? prefix(s, path)(op)(left) : binary(s, path)(op, left, right)
         }
         // and `+` of one operand is the unary plus, which the language has
         // no spelling for
         case '+': {
             const [op, left, right] = node
-            return right === undefined ? error('a unary + node') : binary(s, depth)(op, left, right)
+            return right === undefined ? error('a unary + node') : binary(s, path)(op, left, right)
         }
-        case '~': case '!': case 'typeof': { return prefix(s, depth)(node[0])(node[1]) }
+        case '~': case '!': case 'typeof': { return prefix(s, path)(node[0])(node[1]) }
         case '|': case '^': case '&': case '===': case '!==': case '<': case '<=': case '>': case '>=':
-        case '<<': case '>>': case '>>>': case '*': case '/': case '%': case '**': { return binary(s, depth)(node[0], node[1], node[2]) }
-        case '&&': case '||': case '??': { return lazyBinary(s, depth)(node) }
-        case '?:': { return conditional(s, depth)(node) }
+        case '<<': case '>>': case '>>>': case '*': case '/': case '%': case '**': { return binary(s, path)(node[0], node[1], node[2]) }
+        case '&&': case '||': case '??': { return lazyBinary(s, path)(node) }
+        case '?:': { return conditional(s, path)(node) }
         // a comma is a block's own form, read by `scopeOperands` where a
         // module's root, a function's body or a lazy operand begins;
         // anywhere else it has no source spelling until the operator lands
@@ -959,7 +941,7 @@ const entry = (s0, depth) => i => {
             return mapOk(
                 /** @type {(text: List<string>) => List<string>} */
                 (text => flat([['(()=>{throw '], text, [';})()']])),
-            )(operand(s, depth)(node[1]))
+            )(operand(s, path)(node[1]))
         }
         default: { return error(`a ${node[0]} node`) }
     }
@@ -1166,10 +1148,10 @@ const sharedWithin = a => root => {
  */
 const references = (a, i) => a.nodes.flatMap(allOperands).filter(x => x instanceof Array && x[1] === i).length
 
-/** The text a hoisted value's `const` holds, in the scope at `depth`. @type {(s: _Scope, depth: number) => (h: _Hoisted) => Document} */
-const hoistedText = (s, depth) => h => h[0] === 'leaf'
+/** The text a hoisted value's `const` holds, in the scope at `path`. @type {(s: _Scope, path: string) => (h: _Hoisted) => Document} */
+const hoistedText = (s, path) => h => h[0] === 'leaf'
     ? ok(leafSerialize(h[1]))
-    : entry(s, depth)(h[1])
+    : entry(s, path)(h[1])
 
 /**
  * One statement and every `const` it needed first: the hoists, in order,
@@ -1197,26 +1179,26 @@ const hoistedText = (s, depth) => h => h[0] === 'leaf'
  * other operand reaches the node eagerly: a later read of it is lazy then,
  * a function's capture under a lazy operand among them, so the front end
  * still reads the `const` back as the anchor, and the node is not written
- * a second time — `const $a0=$a[0]+1;return true?()=>$a0:1;`, where a
+ * a second time — `const $1=$0[0]+1;return true?()=>$1:1;`, where a
  * second `const` would read back as a second anchor. A node another
  * operand reaches eagerly is written where it is read, as the graph
  * establishes it there.
  *
- * @type {(s0: _Scope, depth: number, last: boolean, elsewhere: readonly number[]) => (before: _Statement, v: Operand) => Result<_Statement, string>}
+ * @type {(s0: _Scope, path: string, last: boolean, elsewhere: readonly number[]) => (before: _Statement, v: Operand) => Result<_Statement, string>}
  */
-const statement = (s0, depth, last, elsewhere) => ({ text, names }, v) => {
+const statement = (s0, path, last, elsewhere) => ({ text, names }, v) => {
     /** @type {(acc: Result<_Statement, string>, h: _Hoisted) => Result<_Statement, string>} */
     const emit = (acc, h) => {
         if (acc[0] === 'error') { return acc }
         const before = acc[1]
-        const s = { ...s0, names: before.names, binding: hoistName(depth, before.names.length) }
+        const s = { ...s0, names: before.names, binding: hoistName(path, before.names.length) }
         return mapOk(
             /** @type {(value: List<string>) => _Statement} */
             (value => ({
-                text: flat([before.text, [`const ${hoistName(depth, before.names.length)}=`], value, [';']]),
-                names: [...before.names, [h, hoistName(depth, before.names.length)]],
+                text: flat([before.text, [`const ${binding(hoistName(path, before.names.length))}=`], value, [';']]),
+                names: [...before.names, [h, hoistName(path, before.names.length)]],
             })),
-        )(hoistedText(s, depth)(h))
+        )(hoistedText(s, `${path}/statement${before.names.length}`)(h))
     }
     const namedBefore = v instanceof Array && slotOf(visible({ ...s0, names }), ['entry', v[1]]) !== null
     const hoisted = hoists({ ...s0, names })(v).reduce(emit, ok({ text, names }))
@@ -1228,15 +1210,15 @@ const statement = (s0, depth, last, elsewhere) => ({ text, names }, v) => {
     }
     if (!last && isName(s.a, v)) { return error('an anchor that is a name') }
     const thrown = last ? thrownValue(s.a, v) : null
-    const lead = thrown !== null ? 'throw ' : last ? (depth === 0 ? 'export default ' : 'return ') : `const ${hoistName(depth, before.names.length)}=`
+    const lead = thrown !== null ? 'throw ' : last ? (path === 'module' ? 'export default ' : 'return ') : `const ${binding(hoistName(path, before.names.length))}=`
     const written = thrown === null ? v : thrown[0]
     return mapOk(
         /** @type {(value: List<string>) => _Statement} */
         (value => ({
             text: flat([before.text, [lead], value, [';']]),
-            names: last ? before.names : [...before.names, [v instanceof Array && !elsewhere.includes(v[1]) ? ['entry', v[1]] : null, hoistName(depth, before.names.length)]],
+            names: last ? before.names : [...before.names, [v instanceof Array && !elsewhere.includes(v[1]) ? ['entry', v[1]] : null, hoistName(path, before.names.length)]],
         })),
-    )(operand(s, depth)(written))
+    )(operand(s, `${path}/statement${before.names.length}`)(written))
 }
 
 /**
@@ -1254,13 +1236,13 @@ const statement = (s0, depth, last, elsewhere) => ({ text, names }, v) => {
  * the other operands reach eagerly, which decides whether an anchor that
  * is a shared value survives reading back ({@link statement}).
  *
- * @type {(s: _Scope, depth: number, start: _Statement) => (all: _Root) => Result<_Statement, string>}
+ * @type {(s: _Scope, path: string, start: _Statement) => (all: _Root) => Result<_Statement, string>}
  */
-const scope = (s, depth, start) => all => {
+const scope = (s, path, start) => all => {
     /** @type {(acc: Result<_Statement, string>, v: Operand, i: number) => Result<_Statement, string>} */
     const step = (acc, v, i) => acc[0] === 'error'
         ? acc
-        : statement(s, depth, i === all.length - 1, all.flatMap((w, j) => j === i ? [] : eagerFrom(s.a)(w)))(acc[1], v)
+        : statement(s, path, i === all.length - 1, all.flatMap((w, j) => j === i ? [] : eagerFrom(s.a)(w)))(acc[1], v)
     return all.reduce(step, ok(start))
 }
 
@@ -1303,8 +1285,8 @@ export const trySerialize = e => {
         /** @type {(all: _Root) => Document} */
         (all => mapOk(
             /** @type {(s: _Statement) => List<string>} */
-            (s => s.text),
-        )(scope(moduleScope(a, []), 0, nothing)(all))),
+            (s => resolve(toArray(s.text))),
+        )(scope(moduleScope(a, []), 'module', nothing)(all))),
     )(scopeOperands(a, a.root))
 }
 
@@ -1325,7 +1307,7 @@ export const tryStringify = e => mapOk(
  * Nested functions may also leave slots unused. Slot positions and capture
  * evaluation are preserved, and unused slots add no reads to the text.
  * The selected function is written as a standalone expression even when it
- * is nested in the table. Existing source spellings are retained. Bodies the
+ * is nested in the table. Source expression forms are retained. Bodies the
  * source writer cannot reconstruct use a complete JavaScript expression
  * spelling, with lazy memo thunks where sharing crosses lazy branches. This
  * code-only text is neither a closed callable nor a source round-trip promise.
@@ -1335,8 +1317,9 @@ export const tryStringify = e => mapOk(
  */
 export const functionText = (a, i) => {
     const [, length, slots, body] = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (a.nodes[i])
-    const [kind, text] = lambda(a, 1, i, length, slots.map((_, k) => `$${k}`), true, null)(body)
-    return kind === 'ok' ? toArray(text).join('') : renderFunction(a, i)
+    const frame = slots.map((_, k) => name(`external${k}`))
+    const [kind, text] = lambda(a, 'function', i, length, frame, true, null)(body)
+    return kind === 'ok' ? resolve(toArray(text), [], frame).join('') : renderFunction(a, i)
 }
 
 /**
@@ -1347,8 +1330,8 @@ export const functionText = (a, i) => {
  *
  * ```js
  * ()=>1
- * ($a_0,...$a)=>$a_0+$a.length
- * ()=>{const $a0=[];return [$a0,$a0];}
+ * ($0,...$1)=>$0+$1.length
+ * ()=>{const $0=[];return [$0,$0];}
  * ```
  *
  * The text is the code's, not the value's: a captured value is written as
@@ -1379,16 +1362,13 @@ export const tryFunctionText = e => {
     return mapOk((/** @type {Analysis} */ table) => functionText(table, i))(checked(a, i))
 }
 
-/** A generated-name prefix that cannot collide with any exported binding. @type {(keys: readonly string[], prefix: string) => string} */
-const modulePrefix = (keys, prefix) => keys.some(key => key.startsWith(prefix)) ? modulePrefix(keys, `${prefix}$`) : prefix
-
-/** Emit one named value using the same expression writer as value output. @type {(a: Analysis, prefix: string, h: _Hoisted) => (before: _Statement) => Result<_Statement, string>} */
-const moduleBinding = (a, prefix, h) => before => {
-    const name = `${prefix}${before.names.length}`
+/** Emit one named value using the same expression writer as value output. @type {(a: Analysis, h: _Hoisted) => (before: _Statement) => Result<_Statement, string>} */
+const moduleBinding = (a, h) => before => {
+    const symbol = hoistName('module', before.names.length)
     return mapOk(
         /** @type {(text: List<string>) => _Statement} */
-        (text => ({ text: flat([before.text, [`const ${name}=`], text, [';']]), names: [...before.names, [h, name]] })),
-    )(hoistedText({ ...moduleScope(a, before.names), binding: name }, 0)(h))
+        (text => ({ text: flat([before.text, [`const ${binding(symbol)}=`], text, [';']]), names: [...before.names, [h, symbol]] })),
+    )(hoistedText({ ...moduleScope(a, before.names), binding: symbol }, 'module')(h))
 }
 
 /**
@@ -1396,30 +1376,30 @@ const moduleBinding = (a, prefix, h) => before => {
  * ordered declarations and an alias of their last operand. Function bodies
  * stay in the existing scope writer; no value is hoisted out of a function.
  *
- * @type {(a: Analysis, prefix: string) => (before: _Statement, v: Operand) => Result<_Statement, string>}
+ * @type {(a: Analysis) => (before: _Statement, v: Operand) => Result<_Statement, string>}
  */
-const moduleOperand = (a, prefix) => (before, v) => {
+const moduleOperand = a => (before, v) => {
     if (!(v instanceof Array) || slotOf(before.names, ['entry', v[1]]) !== null) { return ok(before) }
     const node = a.nodes[v[1]]
     if (node[0] === ',' && node[1].length < 2) { return error('a comma with fewer than two operands') }
     const children = operands(node).reduce(
         /** @type {(acc: Result<_Statement, string>, child: Operand) => Result<_Statement, string>} */
-        ((acc, child) => okThen(state => moduleOperand(a, prefix)(state, child))(acc)), ok(before))
+        ((acc, child) => okThen(state => moduleOperand(a)(state, child))(acc)), ok(before))
     return okThen(state => {
         if (node[0] === ',') {
             const last = node[1][node[1].length - 1]
-            const name = `${prefix}${state.names.length}`
+            const symbol = hoistName('module', state.names.length)
             return mapOk(
                 /** @type {(text: List<string>) => _Statement} */
-                (text => ({ text: flat([state.text, [`const ${name}=`], text, [';']]), names: [...state.names, [['entry', v[1]], name]] })),
-            )(operand(moduleScope(a, state.names), 0)(last))
+                (text => ({ text: flat([state.text, [`const ${binding(symbol)}=`], text, [';']]), names: [...state.names, [['entry', v[1]], symbol]] })),
+            )(operand(moduleScope(a, state.names), 'module')(last))
         }
         const prepared = hoists(moduleScope(a, state.names))(v).reduce(
             /** @type {(acc: Result<_Statement, string>, h: _Hoisted) => Result<_Statement, string>} */
-            ((acc, h) => okThen(moduleBinding(a, prefix, h))(acc)), ok(state))
+            ((acc, h) => okThen(moduleBinding(a, h))(acc)), ok(state))
         return okThen(ready => slotOf(ready.names, ['entry', v[1]]) !== null
             ? ok(ready)
-            : moduleBinding(a, prefix, ['entry', v[1]])(ready))(prepared)
+            : moduleBinding(a, ['entry', v[1]])(ready))(prepared)
     })(children)
 }
 
@@ -1431,15 +1411,15 @@ const exportOperands = (a, v) => {
         : /** @type {readonly (readonly [':', string, Operand])[]} */ (/** @type {Extract<Node, readonly ['{}', unknown]>} */ (node)[1])
 }
 
-/** Evaluate a module's sequence and exports without constructing a discarded namespace. @type {(a: Analysis, prefix: string) => (state: _Statement, v: Operand) => Result<_Statement, string>} */
-const moduleBody = (a, prefix) => (state, v) => {
+/** Evaluate a module's sequence and exports without constructing a discarded namespace. @type {(a: Analysis) => (state: _Statement, v: Operand) => Result<_Statement, string>} */
+const moduleBody = a => (state, v) => {
     const node = a.nodes[/** @type {Ref} */ (v)[1]]
     const values = node[0] === ',' ? node[1].slice(0, -1) : exportOperands(a, v).map(([, , value]) => value)
     const before = values.reduce(
         /** @type {(acc: Result<_Statement, string>, value: Operand) => Result<_Statement, string>} */
-        ((acc, value) => okThen(s => moduleOperand(a, prefix)(s, value))(acc)), ok(state))
+        ((acc, value) => okThen(s => moduleOperand(a)(s, value))(acc)), ok(state))
     return node[0] === ','
-        ? okThen(s => moduleBody(a, prefix)(s, node[1][node[1].length - 1]))(before)
+        ? okThen(s => moduleBody(a)(s, node[1][node[1].length - 1]))(before)
         : before
 }
 
@@ -1447,7 +1427,7 @@ const moduleBody = (a, prefix) => (state, v) => {
 const moduleExport = (a, state) => ([, key, v]) => mapOk(
     /** @type {(text: List<string>) => List<string>} */
     (text => flat([[key === 'default' ? 'export default ' : `export const ${key}=`], text, [';']])),
-)(operand(moduleScope(a, state.names), 0)(v))
+)(operand(moduleScope(a, state.names), 'module')(v))
 
 /**
  * A module export object as source, preserving export names and declaration
@@ -1476,14 +1456,13 @@ export const tryModuleSerialize = e => {
     const [kind, a] = result
     if (kind === 'error') { return result }
     const exports = exportOperands(a, a.root)
-    const prefix = modulePrefix(keys, '$')
     return okThen(state => mapOk(
         /** @type {(parts: readonly List<string>[]) => List<string>} */
-        (parts => flat([state.text, ...parts])),
+        (parts => resolve(toArray(flat([state.text, ...parts])), keys)),
     )(okList([
         ...exports.filter(([, key]) => key !== 'default'),
         ...exports.filter(([, key]) => key === 'default'),
-    ].map(moduleExport(a, state)))))(moduleBody(a, prefix)({ text: null, names: [] }, a.root))
+    ].map(moduleExport(a, state)))))(moduleBody(a)({ text: null, names: [] }, a.root))
 }
 
 /** The module source as one string. @type {(e: Exp) => Result<string, string>} */

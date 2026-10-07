@@ -1199,7 +1199,7 @@ const stringCoercionCases = [
     { name: 'objectOwnToStringThrows', args: [{ toString: returns(unreached) }], expected: throws },
     // A function's text, the writer's: the Rust side's alone (`host`).
     { name: 'function', args: [functionValue], expected: '()=>undefined', host: functionText },
-    { name: 'callback', args: [callback('double')], expected: '(...$a)=>$a[0]*2', host: functionText },
+    { name: 'callback', args: [callback('double')], expected: '(...$0)=>$0[0]*2', host: functionText },
     { name: 'arrayOfFunction', args: [[functionValue, 1]], expected: '()=>undefined,1', host: functionText },
 ]
 

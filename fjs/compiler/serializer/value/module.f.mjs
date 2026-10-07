@@ -26,10 +26,11 @@ import { assertOk } from '../../../asserts/module.f.mjs'
 import { analysis } from '../../../edag/analysis/module.f.mjs'
 import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
 import { concat } from '../../../types/string/module.f.mjs'
-import { renderFunction } from '../function_text/module.f.mjs'
+import { renderSymbolic } from '../function_text/module.f.mjs'
+import { name as symbol, binding, resolve } from '../names/module.f.mjs'
 
 /** One outer node's stable binding. @type {(i: number) => string} */
-const name = i => `$v${i}`
+const name = i => symbol(`value${i}`)
 
 /** A leaf or a previously constructed value. @type {(v: Operand) => string} */
 const operand = v => v instanceof Array ? name(v[1]) : concat(leafSerialize(v))
@@ -42,9 +43,10 @@ const entry = (a, i, n) => {
         case '{}': { return `{${n[1].map(([, key, value]) => `[${operand(key)}]:${operand(value)}`).join(',')}}` }
         default: {
             const slots = n[2]
-            const text = renderFunction(a, i)
+            const frame = slots.map((_, k) => symbol(`value${i}/frame${k}`))
+            const text = renderSymbolic(a, i, `value${i}/function`, frame)
             return slots.length === 0 ? text
-                : `((${slots.map((_, k) => `$${k}`).join(',')})=>(${text}))(${slots.map(operand).join(',')})`
+                : `((${frame.map(binding).join(',')})=>(${text}))(${slots.map(operand).join(',')})`
         }
     }
 }
@@ -55,9 +57,10 @@ const construction = value => {
     const declarations = a.nodes.flatMap((node, i) => a.scope[i] === -1
         // Analysis's general Node type cannot express the value subset that
         // construction guarantees for entries outside function-body scopes.
-        ? [`const ${name(i)}=${entry(a, i, /** @type {_ValueNode} */ (node))};`]
+        ? [`const ${binding(name(i))}=${entry(a, i, /** @type {_ValueNode} */ (node))};`]
         : [])
-    return [declarations.join(''), operand(a.root)]
+    const [text, root] = resolve([declarations.join(''), operand(a.root)])
+    return [text, root]
 }
 
 /** Emit construction code, leaving function bodies unevaluated. @type {(value: EdagValue) => string} */

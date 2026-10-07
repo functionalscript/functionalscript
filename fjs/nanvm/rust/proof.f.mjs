@@ -176,10 +176,7 @@ export const proof = {
         // `generate`'s `skip` case.
         assertEq(valueExpr(unreached), 'bigint_any(1) / bigint_any(0)')
         // A callback is a closure with its body, one `static_function`.
-        assertEq(valueExpr(callback('args')), `A::static_function(|_self, args| {
-    let rest = args.clone().into_iter().to_array();
-    Ok(rest.clone().to_any())
-}, 0, Array::default(), Some("(...$a)=>$a")).to_any()`)
+        assertEq(valueExpr(callback('args')), "A::static_function(|_self, args| {\n    let rest = args.clone().into_iter().to_array();\n    Ok(rest.clone().to_any())\n}, 0, Array::default(), Some(\"(...$0)=>$0\")).to_any()")
     },
     /**
      * The operation nodes, printed straight from the EDAG rather than through

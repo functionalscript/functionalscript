@@ -13,7 +13,9 @@ diagnostics through `Result`. Captures appear as slot names, `$0`, `$1`, and so
 on, without including their values. Two functions instantiated from the same
 body therefore have the same text even when their captures differ.
 
-Existing canonical text stays unchanged. Where the source serializer cannot
+All generated bindings use one `$n` counter per rendered document. External
+frame slots receive the first numbers, including unused slots; declarations
+then receive distinct numbers in text order, across all nested scopes. Where the source serializer cannot
 reconstruct a body, function text uses general JavaScript expressions. Lazy
 memo cells local to each invocation preserve shared nodes and lazy demand in
 that text. The emitted JavaScript may use local mutation; the renderer itself
@@ -48,8 +50,8 @@ JavaScript reference still skips because its function text is host-defined.
 
 A body that reads `["self"]` has no arrow spelling, since an arrow function
 cannot name itself. Its text is a named function expression,
-`(function $a_self($a_0){…})`, the name made of the depth's parameter the way
-the memo cells and fixed parameters are, so a nested body reading its own
-`self` names a different function. The source writer spells the same function
+`(function $0($1){…})`, with its self name allocated before its parameters.
+Memo cells, their local temporaries, captured-slot bindings, and nested
+functions all share the counter, so none shadows another. The source writer spells the same function
 as a `const` whose initializer reads the name, `const $0=()=>$0();`, the one
 FunctionalScript form of a function that reaches itself.
