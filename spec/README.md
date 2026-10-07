@@ -1741,7 +1741,7 @@ are not supported yet. A newline before `=>` is refused.
   a value shared under one lazy operand alone, which no `const` of the
   scope could hold without evaluating it whatever the operator decides, is
   written in a block opened at the operand,
-  `a ? (() => { const $b0 = [1]; return [$b0, $b0]; })() : 4`, which reads
+  `a ? (() => { const caa0 = [1]; return [caa0, caa0]; })() : 4`, which reads
   back as the operand. Round-tripping through that writer keeps the graph,
   not the text: the function written in the source is gone from both.
 - The body is an expression or a block, and `value` and `{ return value; }`
