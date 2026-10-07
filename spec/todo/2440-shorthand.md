@@ -8,9 +8,10 @@
 Repository modules write object members as a name alone, the shorthand
 JavaScript reads as the name twice, `{ a }` for `{ a: a }`; `fn` in
 `fjs/types/function` returns `{ result, map: … }`. The compiler refuses it at
-the `,` or `}` after the name, and it is the first refusal of 23 of the 221
-authored `.f.mjs` modules
-([the survey](../../todo/fjs-nanvm-integration.md#the-whole-repository)).
+the `,` or `}` after the name, and it was the first refusal of 23 of the 221
+authored `.f.mjs` modules at `75881dc`, the tree
+[the survey](../../todo/fjs-nanvm-integration.md#the-whole-repository)
+measured.
 
 Admit a member that is an identifier alone. It denotes the keyed member
 `a: a`: the name is the key, and a reference to the name — a `const`, an
@@ -42,7 +43,7 @@ value written in place — a value used once inlined, one shared bound to a
 generated name: `{ a }` with `const a = [1]` reads back as
 `export default {"a":[1]};`, and `{ a, b: a }` as
 `const $0=[1];export default {"a":$0,"b":$0};`. It unblocks the 23 modules
-above at their first refusal and removes the one feature
+the survey above counted at their first refusal and removes the one feature
 `fjs/types/function` waits on besides `iterate`'s loop.
 
 It costs one more branch of the grammar's member rule — the bare identifier
