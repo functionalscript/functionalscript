@@ -35,7 +35,7 @@
  * @import { ParseError } from '../types.ts'
  * @import { Block, BlockStatement, Const, Entry, Import, ImportBinding, Item, Member, Module, ModuleConst, Node, Out, ParameterBinding, ParameterList, ValueStatement } from './types.ts'
  * @import { ArrowOrRest, Block as BlockRule, Body, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, Member as MemberRule, ParameterNames, Parenthesized, Statement, Unary, UnaryOperand, Value } from '../grammar/types.ts'
- * @import { key, namedImports, primitive, terminator } from '../grammar/module.f.mjs'
+ * @import { namedImports, primitive, terminator } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _CircuitNode, _ConditionalNode, _EndNode, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _PowTailNode, _TailRound, _TokenStream } from './private.ts'
  */
 
@@ -772,34 +772,38 @@ const toStatement = ([kind, branch]) => {
 const valueStatementOf = ([keyword, v, end]) =>
     ({ start: tokenAt(keyword), semicolon: ended(end), first: firstAt(v), value: nodeAt(v) })
 
+/** A member's record as the rewrite returns it. @type {(key: DjsTokenWithMetadata, name: string, spelling: Member['spelling'], value: Node) => Meta<Out>} */
+const memberOf = (key, name, spelling, value) => symbol({ id: 'member', member: { key, name, spelling, value } })
+
 /**
- * The token a key is read from, the name it spells, and whether it is the
- * computed spelling — `[ '[' string ']' ]`, the string at the second
- * position. The distinction exists for `__proto__` alone.
+ * A member: the token its key is read from, the name it spells, the key's
+ * spelling, and its value, by the branch the key's spelling chose. A bare
+ * identifier with no `: value` after it is the shorthand `{ a }`, whose
+ * value is the name's own reference, read from the key's token.
  *
- * @type {(node: Children<typeof key, DjsTokenWithMetadata, Out>) => readonly [DjsTokenWithMetadata, string, boolean]}
+ * @type {(node: Children<MemberRule, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
-const keyOf = ([tag, branch]) => {
+const toMember = ([tag, branch]) => {
     switch (tag) {
         case 'plain': {
-            const t = tokenAt(unmapped(branch)[1])
-            return [t, nameOf(t), false]
+            const [id, rest] = unmapped(branch)
+            const key = tokenAt(unmapped(id)[1])
+            const rounds = unmapped(rest)
+            return rounds.length === 0
+                ? memberOf(key, nameOf(key), 'shorthand', ['ref', key])
+                : memberOf(key, nameOf(key), 'plain', nodeAt(unmapped(rounds[0])[1]))
         }
         case 'string': {
-            const t = tokenAt(branch)
-            return [t, textOf(t), false]
+            const [s, , v] = unmapped(branch)
+            const key = tokenAt(s)
+            return memberOf(key, textOf(key), 'string', nodeAt(v))
         }
         case 'computed': {
-            const t = tokenAt(unmapped(branch)[1])
-            return [t, textOf(t), true]
+            const [, s, , , v] = unmapped(branch)
+            const key = tokenAt(s)
+            return memberOf(key, textOf(key), 'computed', nodeAt(v))
         }
     }
-}
-
-/** @type {(node: Children<MemberRule, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toMember = ([k, , v]) => {
-    const [token, name, computed] = keyOf(unmapped(k))
-    return symbol({ id: 'member', member: { key: token, name, computed, value: nodeAt(v) } })
 }
 
 /**

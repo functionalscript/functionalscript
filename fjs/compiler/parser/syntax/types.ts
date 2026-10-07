@@ -111,12 +111,17 @@ export type Entry = Member | readonly ['...', Node]
 /**
  * A member of an object, `key: value`: the token its key is read from,
  * which anchors the error a plain `__proto__` earns, the name that token
- * spells, whether it is the computed spelling `["a"]`, and the value.
+ * spells, the key's spelling — the bare identifier, the string, the
+ * computed `["a"]`, or the shorthand `{ a }`, a bare identifier with no
+ * value of its own — and the value, the name's own reference for the
+ * shorthand. The spelling matters for `__proto__` alone: the computed
+ * and the shorthand spellings denote an own property, the other two a
+ * prototype.
  */
 export type Member = {
     readonly key: DjsTokenWithMetadata
     readonly name: string
-    readonly computed: boolean
+    readonly spelling: 'plain' | 'string' | 'computed' | 'shorthand'
     readonly value: Node
 }
 

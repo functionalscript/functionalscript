@@ -51,6 +51,7 @@ export const examples = [
     ['Recursion', 'const fact = n => n < 2 ? 1 : n * fact(n - 1);\nexport default fact(5);'],
     ['Throw', 'export default (...a) => {\n    const reason = ["not implemented", a[0]];\n    throw reason;\n};'],
     ['Early return', 'export default (n) => {\n    if (n < 0) { return -1; }\n    if (n > 0) { return 1; }\n    return 0;\n};'],
+    ['Shorthand members', 'const x = 1;\nconst y = [x];\nexport default { x, y };'],
     ['Methods and properties', 'export default ["abc".length, [1, 2, 3].at(0), (1).toString()];'],
     ['Named exports', 'export const a = 1;\nexport const b = [a, a];\nexport default 2;'],
     ['A failure at run time', 'export default [1, 2][5].x;'],
