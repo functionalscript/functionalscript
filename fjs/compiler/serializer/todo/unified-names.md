@@ -1,7 +1,8 @@
 # One counter for generated serializer names
 
 **Priority:** P2
-**Status:** wip — proposal; implementation remains a separate step
+**Status:** wip — implementation stacked on the proposal in
+[#2635](https://github.com/functionalscript/functionalscript/pull/2635)
 
 ## Problem
 
