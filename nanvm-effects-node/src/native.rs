@@ -55,10 +55,7 @@ impl<R, O, E> Native<R, O, E> {
 fn not_implemented<A: IVm>(command: &str) -> Any<A> {
     encode_tuple(
         "error",
-        vec![encode_tuple(
-            "notImplemented",
-            vec![encode_string(command.to_string())],
-        )],
+        encode_tuple("notImplemented", encode_string(command.to_string())),
     )
 }
 
@@ -76,8 +73,7 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
         let Ok(payload) = Array::try_from(payload) else {
             return Err(Malformed("a payload that is not an array".to_string()));
         };
-        let payload: Vec<Any<A>> = payload.into_iter().collect();
-        let payload = payload.as_slice();
+        let payload = &payload;
         match command.as_str() {
             "write" => {
                 arity(payload, 2)?;
@@ -139,11 +135,11 @@ mod test {
     type Host = Native<Cursor<Vec<u8>>, Vec<u8>, Vec<u8>>;
 
     fn host(input: &[u8]) -> Host {
-        Native::new(Cursor::new(input.to_vec()), vec![], vec![])
+        Native::new(Cursor::new(input.to_vec()), Vec::new(), Vec::new())
     }
 
-    fn array(items: impl IntoIterator<Item = V>) -> V {
-        items.into_iter().collect::<Vec<_>>().to_array().to_any()
+    fn array<const N: usize>(items: [V; N]) -> V {
+        items.to_array().to_any()
     }
 
     /// The value of an `['ok', value]` answer.
@@ -266,7 +262,7 @@ mod test {
                 Ok(())
             }
         }
-        Native::new(Cursor::new(vec![]), Full, Vec::new()).write(false, &[1]);
+        Native::new(Cursor::new(Vec::new()), Full, Vec::new()).write(false, &[1]);
     }
 
     #[test]
