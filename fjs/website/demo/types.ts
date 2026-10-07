@@ -33,7 +33,7 @@ import type { Examples } from './examples/types.ts'
  * named `<button>` or `<input type="button">` sends it — a click in a field
  * places a caret or ends a selection, which is not a request — and it carries
  * only the name, because a button has no value to report. A demo's `nextEvent`
- * may also request a named click on a later turn, for incremental work.
+ * may request any demo event on a later turn, for incremental work.
  *
  * The union is extended when a demo needs more, and not before.
  */
@@ -91,8 +91,9 @@ export type Demo<State, Event, O extends Operation = never> = {
     /**
      * An event to run on a later browser turn after rendering this state,
      * or null to stop. Automatic turns keep controls available, so input or
-     * a stop button can interrupt incremental work. Each update must do a
-     * small amount of work; queued reader input cancels a scheduled turn.
+     * a stop button can interrupt incremental work. Updates during incremental
+     * work, including reader events, must be small and pure: return a state
+     * without requesting operations. Queued reader input cancels a scheduled turn.
      */
     readonly nextEvent?: ((state: State) => Event | null) | undefined
 }
