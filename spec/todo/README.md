@@ -85,9 +85,12 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
 1. [ ] [shorthand](./2440-shorthand.md),
 2. [ ] [destructuring](./2450-destructuring.md),
 3. [ ] [js-string-literals](./2460-js-string-literals.md),
-4. [ ] number spellings beyond JSON's — `0o7`, `0b1`, `.5`, `1.`, `1_000`
-   ([numbers](../README.md#numbers)); hexadecimal is in the language, binary
-   may follow it, and octal has no use case yet; `.5` lands with
+4. [ ] number spellings beyond JSON's — `0o7`, `.5`, `1.`
+   ([numbers](../README.md#numbers)); hexadecimal, binary and numeric separators are implemented;
+   [binary design review](./2470-binary-literals.md) remains open for linked
+   designer approval, as does the
+   [numeric-separator design review](./2471-numeric-separators.md).
+   Octal has no use case yet; `.5` lands with
    [`?.` before a digit](../../fjs/js/tokenizer/todo/optional-chain-before-digit.md),
 5. [ ] names beyond ASCII — Unicode identifier characters and `\u` escapes
    in a name, `const é = 1` ([identifiers](../README.md#identifiers)),
