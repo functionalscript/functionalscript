@@ -1177,7 +1177,9 @@ contains one, so `{ __proto__: 1 }` is an error whatever the input file is
 called.
 
 In JavaScript output the bracketed form is what makes the module round-trip —
-it is the only spelling whose evaluation reproduces the property. In JSON
+of the keyed spellings it is the only one whose evaluation reproduces the
+property, and the writer has no other, since the [shorthand](#objects) needs
+a binding named `__proto__` to refer to and an output binds none. In JSON
 output the plain key stays: `JSON.parse` has no prototype special case, so
 JSON already round-trips, and the bracketed form is not JSON at all.
 
