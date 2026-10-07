@@ -14,7 +14,9 @@
 use nanvm_lib::{
     common::sized_index::SizedIndex,
     vm::{
-        Any, BigInt, IVm, Nullish, Number, String as VmString, ToAny, ToArray, unstable::string_any,
+        Any, BigInt, IVm, Nullish, Number, Object, String as VmString, ToAny, ToArray, ToObject,
+        Unpacked,
+        unstable::{bigint_any_words, string_any, string_key},
     },
 };
 
@@ -101,6 +103,73 @@ pub fn decode_choice<A: IVm>(any: Any<A>, choices: &[&str]) -> Result<usize, Mal
     }
 }
 
+pub fn decode_number<A: IVm>(any: Any<A>) -> Result<f64, Malformed> {
+    match Number::try_from(any) {
+        Ok(number) => Ok(f64::from(number)),
+        Err(_) => malformed("not a number"),
+    }
+}
+
+/// An argument or member that may be left out, or passed as `undefined`.
+pub fn decode_optional<A: IVm, T>(
+    any: Option<Any<A>>,
+    f: impl FnOnce(Any<A>) -> Result<T, Malformed>,
+) -> Result<Option<T>, Malformed> {
+    match any {
+        None => Ok(None),
+        Some(any) => match Unpacked::from(any.clone()) {
+            Unpacked::Nullish(Nullish::Undefined) => Ok(None),
+            _ => f(any).map(Some),
+        },
+    }
+}
+
+/// A flag, `or(option, true)`: left out is `false`, `true` is `true`.
+pub fn decode_flag<A: IVm>(any: Option<Any<A>>) -> Result<bool, Malformed> {
+    match any {
+        None => Ok(false),
+        Some(any) => match bool::try_from(any) {
+            Ok(true) => Ok(true),
+            _ => malformed("a flag that is not `true`"),
+        },
+    }
+}
+
+/// A constant: `true`.
+pub fn decode_true<A: IVm>(any: Any<A>) -> Result<(), Malformed> {
+    match bool::try_from(any) {
+        Ok(true) => Ok(()),
+        _ => malformed("not `true`"),
+    }
+}
+
+/// A closed struct: an object with these keys and no others.
+pub fn decode_object<A: IVm>(any: Any<A>, keys: &[&str]) -> Result<Object<A>, Malformed> {
+    let Ok(object) = Object::try_from(any) else {
+        return malformed("not an object");
+    };
+    for (key, _) in object.own_entries() {
+        let key = decode_string(ToAny::to_any::<A>(key))?;
+        if !keys.contains(&key.as_str()) {
+            return malformed(format!("unexpected member `{key}`"));
+        }
+    }
+    Ok(object)
+}
+
+/// A member of a struct, if it is there.
+pub fn member<A: IVm>(object: &Object<A>, key: &str) -> Option<Any<A>> {
+    object.own_property(&string_key(key))
+}
+
+/// A member of a struct that must be there.
+pub fn required<A: IVm>(object: &Object<A>, key: &str) -> Result<Any<A>, Malformed> {
+    match member(object, key) {
+        Some(any) => Ok(any),
+        None => malformed(format!("missing member `{key}`")),
+    }
+}
+
 // Writing
 
 pub fn encode_string<A: IVm>(v: String) -> Any<A> {
@@ -129,6 +198,46 @@ pub fn encode_tuple<A: IVm>(tag: &str, items: Vec<Any<A>>) -> Any<A> {
         .chain(items)
         .collect::<Vec<_>>()
         .to_array()
+        .to_any()
+}
+
+pub fn encode_bool<A: IVm>(v: bool) -> Any<A> {
+    v.to_any()
+}
+
+/// Bytes as a `Vec`: the bits with a stop bit in front, negated where the
+/// first bit was `0`.
+pub fn encode_bytes<A: IVm>(bytes: Vec<u8>) -> Any<A> {
+    let Some(&first) = bytes.first() else {
+        return bigint_any_words(false, &[]);
+    };
+    let words: Vec<u64> = bytes
+        .rchunks(8)
+        .map(|chunk| {
+            chunk
+                .iter()
+                .fold(0u64, |word, &b| (word << 8) | u64::from(b))
+        })
+        .collect();
+    let mut words = words;
+    let last = words.len() - 1;
+    let top_bits = 8 * (bytes.len() - 8 * last) as u32;
+    words[last] |= 1u64 << (top_bits - 1);
+    bigint_any_words(first & 0x80 == 0, &words)
+}
+
+pub fn encode_array<A: IVm, T>(v: Vec<T>, f: impl Fn(T) -> Any<A>) -> Any<A> {
+    v.into_iter().map(f).collect::<Vec<_>>().to_array().to_any()
+}
+
+/// A struct: its members that are there, in order.
+pub fn encode_object<A: IVm>(members: Vec<Option<(&str, Any<A>)>>) -> Any<A> {
+    members
+        .into_iter()
+        .flatten()
+        .map(|(key, value)| (string_key::<A>(key), value))
+        .collect::<Vec<_>>()
+        .to_object()
         .to_any()
 }
 
