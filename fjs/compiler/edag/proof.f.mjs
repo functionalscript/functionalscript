@@ -1084,7 +1084,7 @@ export const proof = {
          * of these tags — every `Op1`, some of `Op2`, a spread, a computed
          * object key — have no `export default <text>;` that reaches them
          * yet, so this is the only way to the whole walker rather than only
-         * its currently-reachable half. A chain
+         * its currently-reachable half. An optional call
          * continuation and optional chaining's own tags are refused the
          * same way, and that path is tested here too, for the same reason.
          */
@@ -1142,11 +1142,26 @@ export const proof = {
                     assertEq(shape.label, '.')
                     assertStructurallySame(shape.children, [['obj', ['a']], ['idx', ['Number', ['b']]]])
                 },
-                // A chain continuation is a fourth element past the
-                // ordinary two- or three-element form — not yet drawn, so
-                // drawn as itself rather than misread as an extra plain operand.
-                continuation: () => assertStructurallySame(
-                    _shapeOf(['.', ['a'], 'x', ['|()', [1]]]),
+                // A plain call continuation — a fourth element past the
+                // ordinary form — is a method call, and draws as one node:
+                // the receiver in `obj`, the arguments numbered after it
+                // as a plain call's are, a spread marked the same way.
+                methodCall: () => {
+                    const shape = nodeShapeOf(['.', ['a'], 'x', ['|()', [1, ['...', ['b']]]]], 'expected a shape')
+                    assertEq(shape.label, '.x()')
+                    assertStructurallySame(shape.children, [['obj', ['a']], ['0', 1], ['...1', ['b']]])
+                },
+                // A computed index keeps its `idx` edge, ahead of the arguments.
+                computedMethodCall: () => {
+                    const shape = nodeShapeOf(['.', ['a'], ['Number', ['b']], ['|()', []]], 'expected a shape')
+                    assertEq(shape.label, '.()')
+                    assertStructurallySame(shape.children, [['obj', ['a']], ['idx', ['Number', ['b']]]])
+                },
+                // An optional call continuation opens a short-circuit region
+                // — not yet drawn, so drawn as itself rather than misread as
+                // a plain method call.
+                optionalCall: () => assertStructurallySame(
+                    _shapeOf(['.', ['a'], 'x', ['|?.()', [1]]]),
                     { kind: 'unsupported', label: '. (not yet drawn)', children: [] }),
             },
             call: () => {
@@ -1276,8 +1291,8 @@ export const proof = {
                 },
             },
             // A tag naming none of the recognized shapes — optional
-            // chaining's own, here — is drawn as itself the same way a
-            // chain continuation is.
+            // chaining's own, here — is drawn as itself the same way an
+            // optional call continuation is.
             unrecognizedTag: () => assertStructurallySame(
                 _shapeOf(['?.', ['a'], 'x']),
                 { kind: 'unsupported', label: '?. (not yet drawn)', children: [] }),
@@ -1294,6 +1309,14 @@ export const proof = {
                     nodes: [{ id: 0, kind: 'unsupported', label: '?. (not yet drawn)', rank: 0 }],
                     edges: [],
                 })
+            },
+            // A method call from source: the parser lowers `[1, 2, 3].at(0)`
+            // to the continuation the hand-built `shapeOf.dot.methodCall`
+            // spells, so the page draws it as a `.at()` node and nothing
+            // falls back.
+            methodCall: () => {
+                const html = htmlToString(demo.view('export default [1, 2, 3].at(0);'))
+                assert(html.includes('.at()') && !html.includes('not yet drawn'), html)
             },
             // An input with no user to sit in — the whole walk — is still
             // drawn, as the terminal node it is. No source the parser
