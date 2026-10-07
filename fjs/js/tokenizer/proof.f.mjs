@@ -346,7 +346,7 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('123_123')
-            assertEq(result, 'error')
+            assertEq(result, '[{"kind":"number","value":"123_123"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('123$123')
@@ -374,7 +374,11 @@ export const proof = {
             assertEq(tokenizeString('0b102'), 'error')
             assertEq(tokenizeString('0b1e2'), 'error')
             assertEq(tokenizeString('0b1n2'), 'error')
-            assertEq(tokenizeString('0b1_0'), 'error')
+            assertEq(tokenizeString('0b1_0'), '[{"kind":"number","value":"0b1_0"},{"kind":"eof"}]')
+            assertEq(tokenizeString('1_000 0xF_Fn 0B1_0n'), '[{"kind":"number","value":"1_000"},{"kind":"ws"},{"kind":"bigint","value":255n},{"kind":"ws"},{"kind":"bigint","value":2n},{"kind":"eof"}]')
+            for (const source of ['1_', '1__0', '0_1', '0x_FF', '0b_1', '1_.0', '1._0', '1e_2', '1e+_2', '1_n', '0x1_n', '0b1_n']) {
+                assertEq(tokenizeString(source), 'error')
+            }
             assertEq(tokenizeString('0b101 0B01n'), '[{"kind":"number","value":"0b101"},{"kind":"ws"},{"kind":"bigint","value":1n},{"kind":"eof"}]')
         },
         () => {

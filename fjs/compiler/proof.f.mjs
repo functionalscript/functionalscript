@@ -1395,6 +1395,21 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assertEq(jsonRefused('export default -Infinity;'), 'output.json - error: no JSON spelling for -Infinity')
         },
     },
+    // Separators affect spelling alone, and must stand between digits.
+    numericSeparators: {
+        values: () => {
+            assertEq(compileSource('export default [1_000, 12.3_4, 1e1_0, 1_2.5_0e-1, 0.0_1, 0xF_f, 0B10_10];')('output.json'), '[1000,12.34,10000000000,1.25,0.01,255,10]')
+            assertEq(compileSource('export default [1_000n, 0Xf_Fn, -0b10_10n, -0.0_0];')('output.data.js'), 'export default [1000n,255n,-10n,-0];')
+            assertEq(compileSource('export default 9_007_199_254_740_993;')('output.json'), '9007199254740992')
+            assertEq(compileSource('export default 36_893_488_147_419_103_233n;')('output.data.js'), 'export default 36893488147419103233n;')
+            assertEq(compileSource('export default [7, 8][0b0_1];')('output.json'), '8')
+        },
+        refused: () => {
+            for (const literal of ['1_', '1__0', '0_1', '0x_FF', '0b_1', '1_.0', '1._0', '1e_2', '1e+_2', '1_n', '0x1_n', '0b1_n']) {
+                assert(moduleRefused(`export default ${literal};`).includes('error: unexpected token'))
+            }
+        },
+    },
     // Binary literals preserve JavaScript's values, rounding and boundaries.
     binaryNumbers: {
         value: () => {
@@ -1417,7 +1432,6 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assertEq(moduleRefused('export default 0b1e2;'), 'input.f.js:1:19 - error: unexpected token')
             assertEq(moduleRefused('export default 0b1.5;'), 'input.f.js:1:20 - error: unexpected token')
             assertEq(moduleRefused('export default 0b1n2;'), 'input.f.js:1:20 - error: unexpected token')
-            assertEq(moduleRefused('export default 0b1_0;'), 'input.f.js:1:19 - error: unexpected token')
         },
     },
     // Hexadecimal literals, a number's and a `bigint`'s: read as the values
