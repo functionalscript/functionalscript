@@ -166,7 +166,7 @@ export const rustOverlay = /** @type {const} */({
     owner: 'oxalica',
     repo: 'rust-overlay',
     ref: 'master',
-    commit: 'b962e5d0c8cd97196c6a882d659fe451b52ad989',
+    commit: '8afee9fa8caa877a4feb65adc33e8d72f3747dc9',
 })
 
 // Moving either `commit` above needs `npm run lock-update` (real Nix) to
