@@ -31,8 +31,8 @@ export type AstImport = {
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
-/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a logical not, a `typeof`, a binary operator, a conditional, a function, a fixed parameter, a rest array, a slot of its frame — or a `throw`, which a body may end with in place of a value. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstBitnot|AstNot|AstTypeof|AstBinary|AstConditional|AstFunction|AstRest|AstArg|AstFrameRef|AstThrow
+/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a logical not, a `typeof`, the function's own `self`, a binary operator, a conditional, a function, a fixed parameter, a rest array, a slot of its frame — or a `throw`, which a body may end with in place of a value. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstBitnot|AstNot|AstTypeof|AstSelf|AstBinary|AstConditional|AstFunction|AstRest|AstArg|AstFrameRef|AstThrow
 
 /**
  * A `throw`, `throw v;`: the statement a function's block body, or a
@@ -78,6 +78,14 @@ export type AstFunction = readonly ['=>', number, AstBody] | readonly ['=>', num
  * `['frame', i]`.
  */
 export type AstFrameRef = readonly ['fref', number]
+
+/**
+ * The function whose body holds it, as a value: the EDAG's `['self']`. What
+ * a `const`'s name resolves to inside the function that is its whole
+ * initializer — `const f = n => f(n - 1)` — and what a function nested in
+ * that one captures for the name, as a slot evaluated in the parent's scope.
+ */
+export type AstSelf = readonly ['self']
 
 /** The rest array after the function's fixed prefix, whatever the source name. The EDAG's `['rest']`. */
 export type AstRest = readonly ['rest']

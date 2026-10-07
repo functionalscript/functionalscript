@@ -205,9 +205,10 @@ const refsOfOperand = lazy => ast => {
             const captures = ast[3]
             return captures === undefined ? empty : flat(readCaptures(ast).map(i => refsOf(lazy)(captures[i])))
         }
-        // its arguments are its own
+        // its arguments and itself are its own
         case 'arg':
-        case 'rest': { return empty }
+        case 'rest':
+        case 'self': { return empty }
         // a slot of its frame is a reference too, one the sweep of the body
         // ignores and the sweep of a scope the body is inlined into follows
         // into the capture the slot holds ({@link inlinedRefs})
@@ -340,12 +341,12 @@ const missing = set => n => Array.from({ length: n }, (_, i) => i).filter(i => (
 
 /**
  * Whether an entry is a bare reference: a `const` naming another entry, an
- * import, a slot of its frame or the arguments is that node, not a node of
- * its own.
+ * import, a slot of its frame, the arguments or the function itself is that
+ * node, not a node of its own.
  *
  * @type {(ast: AstConst) => boolean}
  */
-const isAlias = ast => ast !== null && typeof ast === 'object' && ['cref', 'aref', 'fref', 'rest', 'arg'].includes(ast[0])
+const isAlias = ast => ast !== null && typeof ast === 'object' && ['cref', 'aref', 'fref', 'rest', 'arg', 'self'].includes(ast[0])
 
 /** The first import standing for the same node as import `k`, which `imports` says by identity. @type {(imports: readonly unknown[]) => (k: number) => AstModuleRef} */
 const importNode = imports => k => ['aref', imports.indexOf(imports[k])]
