@@ -302,8 +302,14 @@ npm run lock-update
 This is a maintainer action, not something to run after an ordinary source
 change — `gen` above covers that, the `flake.lock` files included. It requires
 Node, Deno, Bun, Cargo, and Nix all installed: it runs `gen` first, then
-refreshes `package-lock.json`, `deno.lock`, `bun.lock`, and `Cargo.lock` — see
-[`nix/README.md`](./fjs/ci/nix/README.md).
+refreshes `package-lock.json`, `deno.lock`, `bun.lock`, `Cargo.lock` and
+`.devcontainer/devcontainer-lock.json` — see
+[`nix/README.md`](./fjs/ci/nix/README.md). The last one pins the devcontainer's
+Nix feature to the version and digest the registry serves, and is written by
+the devcontainer CLI, which the script runs through `npx` at a version pinned
+in the command rather than as a dependency of this package. An agent session
+needs the registry's content host, `pkg-containers.githubusercontent.com`,
+allowed in its network policy for that step.
 
 ## Opening a pull request
 
