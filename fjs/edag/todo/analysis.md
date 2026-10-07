@@ -12,7 +12,8 @@ running it, and neither can ask the graph directly.
 
 - The FunctionalScript writer
   ([`fjs/compiler/serializer`](../../compiler/serializer/module.f.mjs))
-  hoists a shared node into a `const $n`.
+  hoists a shared node into a `const` with a `c`-prefixed name (`c0`,
+  `c1`, … at module level, with distinct prefixes for nested scopes).
 - A JavaScript-compatible executor
   ([`../execution-models.md`](../execution-models.md) §2) evaluates a shared
   node once per scope and reuses the value, so that `[s, s]` holds one array
@@ -31,8 +32,8 @@ The value outputs are not a third consumer. The DataJS writer's question —
 is this container reached twice — is about the value, not the graph:
 `[cfg.x, cfg.x]` is hoisted when `x` is `[]` and written twice when `x` is
 `1`, and no static table can tell the two apart. The serializer answers it by
-walking the value by identity, and keeps doing so; JSON, a tree, asks no
-question and writes the node where each reference reaches it.
+walking the value by identity, using `$0`, `$1`, … names, and keeps doing so;
+JSON, a tree, asks no question and writes the node where each reference reaches it.
 
 ### Proposal
 
@@ -77,8 +78,9 @@ type Analysis = {
   operands and on the first edge that reaches it. That is a function of
   the graph alone — a conditional's two arms and a comma's operands are
   walked whether or not a run would evaluate them — so two analyses of one
-  graph are one table, and the writer's `$n` names are canonical. Where a
-  run is eager and left to right the walk is its evaluation order, and a
+  graph are one table, and the FunctionalScript writer's `c`-prefixed names
+  are canonical. Where a run is eager and left to right the walk is its
+  evaluation order, and a
   hoisted node always follows the hoisted nodes it reads.
 - **Cached per scope.** The `=>` boundary is the scope: a module-level node
   shared by the program is computed once per program, a node shared inside a
