@@ -1395,6 +1395,31 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assertEq(jsonRefused('export default -Infinity;'), 'output.json - error: no JSON spelling for -Infinity')
         },
     },
+    // Binary literals preserve JavaScript's values, rounding and boundaries.
+    binaryNumbers: {
+        value: () => {
+            assertEq(compileSource('export default [0b101010, 0B001, 0b0];')('output.json'), '[42,1,0]')
+            assertEq(compileSource(`export default 0b1${'0'.repeat(52)}1;`)('output.json'), '9007199254740992')
+            assertEq(compileSource('export default [0b10n, 0B01n, 0b0n];')('output.data.js'), 'export default [2n,1n,0n];')
+            assertEq(compileSource(`export default 0b1${'0'.repeat(64)}1n;`)('output.data.js'), 'export default 36893488147419103233n;')
+            assertEq(compileSource('export default [1, 2][0b1];')('output.json'), '2')
+        },
+        negation: () => {
+            assertEq(compileSource('export default [-0b101, -0B10n, -0b0];')('output.data.js'), 'export default [-5,-2n,-0];')
+        },
+        access: () => {
+            assertEq(fjsRoundTrip('export default 0b10.length;'), 'const $0=2;export default $0.length;')
+        },
+        refused: () => {
+            assertEq(moduleRefused('export default 0b;'), 'input.f.js:1:18 - error: unexpected token')
+            assertEq(moduleRefused('export default 0B2;'), 'input.f.js:1:18 - error: unexpected token')
+            assertEq(moduleRefused('export default 0b102;'), 'input.f.js:1:20 - error: unexpected token')
+            assertEq(moduleRefused('export default 0b1e2;'), 'input.f.js:1:19 - error: unexpected token')
+            assertEq(moduleRefused('export default 0b1.5;'), 'input.f.js:1:20 - error: unexpected token')
+            assertEq(moduleRefused('export default 0b1n2;'), 'input.f.js:1:20 - error: unexpected token')
+            assertEq(moduleRefused('export default 0b1_0;'), 'input.f.js:1:19 - error: unexpected token')
+        },
+    },
     // Hexadecimal literals, a number's and a `bigint`'s: read as the values
     // JavaScript gives them and written as those values, so the spelling is
     // the source's and not the graph's. After `0x`, `e` is a digit, and a

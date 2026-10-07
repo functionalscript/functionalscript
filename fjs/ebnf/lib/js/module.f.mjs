@@ -114,7 +114,7 @@ export const id = /**@type {const}*/([idStart, repeatFrom0(idChar)])
 /**
  * A number: JSON's unsigned integer, then either the bigint suffix or
  * JSON's optional fraction and exponent; or, after a leading `0`, `x` or
- * `X`, hexadecimal digits and an optional bigint suffix
+ * `X`, hexadecimal digits, or `b` or `B`, binary digits, and an optional bigint suffix
  * ([numbers](../../../../spec/README.md#numbers)). A hexadecimal literal
  * has no fraction and no exponent, so an `e` after `0x` is a digit. The
  * sign is an operator token.
@@ -122,6 +122,7 @@ export const id = /**@type {const}*/([idStart, repeatFrom0(idChar)])
 export const number = /**@type {const}*/({
     zero: [uint[0], {
         hex: [set('xX'), hex, repeatFrom0(hex), option('n')],
+        binary: [set('bB'), set('01'), repeatFrom0(set('01')), option('n')],
         bigint: 'n',
         real: optionFloatSuffix,
     }],
