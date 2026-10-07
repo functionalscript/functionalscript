@@ -240,7 +240,7 @@ const toJsToken = ({ kind, text }) => {
         case 'string': { return { kind: 'string', value: decodeString(text) } }
         case 'id': { return isKeyword(value) ? /** @type {JsToken} */ ({ kind: value }) : { kind: 'id', value } }
         case 'number': {
-            return value.endsWith('n') ? { kind: 'bigint', value: BigInt(value.slice(0, -1)) } : { kind: 'number', value }
+            return value.endsWith('n') ? { kind: 'bigint', value: BigInt(value.slice(0, -1).replaceAll('_', '')) } : { kind: 'number', value }
         }
         case 'comment': {
             return text[1] === asterisk
