@@ -31,8 +31,8 @@ export type AstImport = {
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
-/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a binary operator, a conditional, a function, a fixed parameter, a rest array, a slot of its frame — or a `throw`, which a body may end with in place of a value. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstBitnot|AstBinary|AstConditional|AstFunction|AstRest|AstArg|AstFrameRef|AstThrow
+/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a logical not, a `typeof`, the function's own `self`, a binary operator, a conditional, a function, a fixed parameter, a rest array, a slot of its frame — or a `throw`, which a body may end with in place of a value. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstBitnot|AstNot|AstTypeof|AstSelf|AstBinary|AstConditional|AstFunction|AstRest|AstArg|AstFrameRef|AstThrow
 
 /**
  * A `throw`, `throw v;`: the statement a function's block body, or a
@@ -78,6 +78,14 @@ export type AstFunction = readonly ['=>', number, AstBody] | readonly ['=>', num
  * `['frame', i]`.
  */
 export type AstFrameRef = readonly ['fref', number]
+
+/**
+ * The function whose body holds it, as a value: the EDAG's `['self']`. What
+ * a `const`'s name resolves to inside the function that is its whole
+ * initializer — `const f = n => f(n - 1)` — and what a function nested in
+ * that one captures for the name, as a slot evaluated in the parent's scope.
+ */
+export type AstSelf = readonly ['self']
 
 /** The rest array after the function's fixed prefix, whatever the source name. The EDAG's `['rest']`. */
 export type AstRest = readonly ['rest']
@@ -186,9 +194,9 @@ export type AstAccess = readonly ['.', AstConst, string | number]
 export type AstCall = readonly ['()', AstConst, readonly AstItem[]]
 
 /**
- * A negation, `-v`: the language's one prefix operator, and the EDAG's
- * `['-', exp]` — `op12Id` being `'+'` and `'-'`, each of one operand or
- * two.
+ * A negation, `-v`: the first of the language's prefix operators, and the
+ * EDAG's `['-', exp]` — `op12Id` being `'+'` and `'-'`, each of one operand
+ * or two.
  *
  * `-` binds looser than a step, so `-1 .x` is `['-', ['.', 1, 'x']]` and
  * `-1()` is `['-', ['()', 1, []]]`, which is how JavaScript reads them. A
@@ -207,6 +215,22 @@ export type AstNeg = readonly ['-', AstConst]
  * reaches the represented interpreter as a node.
  */
 export type AstBitnot = readonly ['~', AstConst]
+
+/**
+ * A logical not, `!v`: the EDAG's `['!', exp]`, `op1Id`. Like {@link AstBitnot}
+ * it folds nothing: what `!` negates is its operand's truthiness, which is
+ * `ToBoolean`'s question and not this tree's, so it always reaches the
+ * represented interpreter as a node.
+ */
+export type AstNot = readonly ['!', AstConst]
+
+/**
+ * A `typeof v`: the EDAG's `['typeof', exp]`, `op1Id`, the type tag of its
+ * operand as JavaScript's — a fresh string the interpreter answers, so it
+ * folds nothing either and always reaches the represented interpreter as a
+ * node.
+ */
+export type AstTypeof = readonly ['typeof', AstConst]
 
 /**
  * A binary operator, Stages A and B of

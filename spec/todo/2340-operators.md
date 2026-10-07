@@ -27,10 +27,10 @@
 |Logical    |`&&`     |**done**   |
 |           |`\|\|`   |**done**   |
 |           |`??`     |**done**   |
-|           |`!`      |1          |
+|           |`!`      |**done**   |
 |Conditional|`?:`     |**done**   |
 |Comma      |`,`      |1          |
-|Type       |`typeof` |EDAG only  |
+|Type       |`typeof` |**done**   |
 
 **Stages A and B are in the language** — every row marked **done** — and
 the [specification](../README.md#operators) is the one place their syntax,
@@ -40,9 +40,10 @@ The lazy operators and the conditional are the EDAG's own nodes — `op2` for
 `&&`, `||` and `??`, `op3` for `?:` — whose laziness the EDAG states
 positionally; what the front end adds is the anchoring rule below, the
 eager/lazy split `anchors` in [`fjs/compiler/ast`](../../fjs/compiler/ast/module.f.mjs)
-reads by. The remaining priority-1 rows are `!`, which the paragraph on
-`typeof` below leaves open with it, and the comma, which generalizes that
-anchoring rule.
+reads by. `!` and `typeof` landed after both, the third and fourth
+prefixes, each carried across as the EDAG's own `op1Id` node and folded no
+more than `~` is. The remaining priority-1 row is the comma, which
+generalizes that anchoring rule.
 
 The line every fold this table adds is held to: unary `-` folds over a
 numeric literal, since negating one is exact, total arithmetic, and nothing
@@ -93,11 +94,13 @@ This does not weaken the position on mutation: [let](./3220-let.md) remains the 
 
 Depends on [export default](../README.md#exporting-a-value) and [undefined](../README.md#supported-value-types).
 
-`typeof` is an EDAG operation (`op1Id` in
-[`fjs/edag/module.f.mjs`](../../fjs/edag/module.f.mjs)) that FunctionalScript
-does not parse. The EDAG admits every pure operation and the language spells a
-subset of them; unary `+` is the other operation on that side of the line.
-Whether `typeof` becomes syntax, and at what priority, is open.
+`typeof` is in the language: the EDAG operation (`op1Id` in
+[`fjs/edag/module.f.mjs`](../../fjs/edag/module.f.mjs)) the parser now
+spells, a keyword with a symbol of its own in the grammar and, since it
+opens a value, the one such keyword a reference may not be — a key or a
+property name still. The EDAG admits every pure operation and the language
+spells a subset of them; unary `+` and the `String` and `Number` conversions
+remain on the other side of the line.
 
 For mutating operators, see [assignments](./3430-assignments.md).
 

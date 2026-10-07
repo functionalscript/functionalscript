@@ -33,6 +33,18 @@ const identity = ['=>', 1, [], ['arg', 0]]
 const throws = ['{}', [[':', 'valueOf', ['=>', 0, [], ['throw', 'conversion']]]]]
 
 export const proof = {
+    // `self` is the function being invoked, the same value every read, so
+    // a body calls itself through it and compares it to itself as one;
+    // outside a function there is none, and the evaluator throws
+    self: () => {
+        /** @type {Exp} */
+        const fact = ['=>', 1, [], ['?:', ['<', ['arg', 0], 2], 1, ['*', ['arg', 0], ['()', ['self'], [['-', ['arg', 0], 1]]]]]]
+        eq(['()', fact, [5]], 120)
+        eq(['()', ['=>', 0, [], ['is', ['self'], ['self']]], []], true)
+        // a nested function reaches its parent's `self` through a slot
+        eq(['()', ['=>', 1, [], ['?:', ['arg', 0], ['()', ['=>', 0, [['self']], ['()', ['frame', 0], [0]]], []], 'base']], [1]], 'base')
+        failure(['self'])
+    },
     operators: () => {
         eq(['!', 0], true)
         eq(['~', 0], -1)

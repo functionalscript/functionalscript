@@ -498,5 +498,62 @@ export const proof = {
             assert(tag === 'ok', value)
             assertEq(stringifyDjsModule(value), '[[],[1,["object",[[":","default",["=>",0,[2,["cref",0]]]]]]]]')
         },
+        // A function that is the whole value of a `const` has the `const`'s
+        // name in its body: a read of it that no parameter or body `const`
+        // answers first is `['self']`, the function itself, where a `const`
+        // is otherwise not in its own initializer's scope. A function
+        // nested in it captures the name as it captures any value around
+        // it, and a body `const`'s name reaches its function the same way.
+        self: () => {
+            /** @type {(source: string, expected: string) => void} */
+            const expect = (source, expected) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), expected)
+            }
+            expect('const f = () => f(); export default f;', '[[],[["=>",0,[["()",["self"],[]]]],["object",[[":","default",["cref",0]]]]]]')
+            expect(
+                'const fact = n => n < 2 ? 1 : n * fact(n - 1); export default fact(5);',
+                '[[],[["=>",1,[["?:",["<",["arg",0],2],1,["*",["arg",0],["()",["self"],[["-",["arg",0],1]]]]]]],["object",[[":","default",["()",["cref",0],[5]]]]]]]')
+            // a nested function captures the name into a slot of its frame
+            expect(
+                'const f = x => () => f(x); export default f;',
+                '[[],[["=>",1,[["=>",0,[["()",["fref",0],[["fref",1]]]],[["self"],["arg",0]]]]],["object",[[":","default",["cref",0]]]]]]')
+            // the statements after a guard are a function of their own, and
+            // capture the name through it
+            expect(
+                'const f = x => { if (x) { return f; } return 0; }; export default f;',
+                '[[],[["=>",1,[["?:",["arg",0],["()",["=>",0,[["fref",0]],[["self"]]],[]],["()",["=>",0,[0]],[]]]]],["object",[[":","default",["cref",0]]]]]]')
+            // a body `const`'s function has the name as a module `const`'s does
+            expect(
+                'export default () => { const step = n => n < 1 ? 0 : step(n - 1); return step(3); };',
+                '[[],[["object",[[":","default",["=>",0,[["=>",1,[["?:",["<",["arg",0],1],0,["()",["self"],[["-",["arg",0],1]]]]]],["()",["cref",0],[3]]]]]]]]]')
+            // a parameter of the name shadows it, as it does in JavaScript,
+            // and so does a body `const` the body has not read it before
+            expect('const f = f => f; export default f;', '[[],[["=>",1,[["arg",0]]],["object",[[":","default",["cref",0]]]]]]')
+            expect('const f = () => { const f = 1; return f; }; export default f;', '[[],[["=>",0,[1,["cref",0]]],["object",[[":","default",["cref",0]]]]]]')
+        },
+        // Where the name does not reach the function: a `const` whose value
+        // holds a function without being one, or calls one, is not in its
+        // own initializer's scope — only the function itself is named. A
+        // body `const` of the name after the body has read it is refused as
+        // a capture shadowed is: JavaScript would have read the `const`
+        // there, before its initializer ran.
+        selfRefused: () => {
+            /** @type {(source: string, message: string, column: number) => void} */
+            const expect = (source, message, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, message)
+                assertEq(value.metadata?.column, column)
+            }
+            expect('const f = [() => f]; export default f;', 'const not found', 18)
+            expect('const f = (() => f)(); export default f;', 'const not found', 18)
+            expect('const f = () => { const g = f; const f = 1; return g; }; export default f;', 'capture shadowed', 38)
+            expect('const f = () => { const f = f(); return f; }; export default f;', 'capture shadowed', 25)
+            expect('const f = x => { if (x) { return f; } const f = 2; return f; }; export default f;', 'capture shadowed', 45)
+            // a name nothing binds is as unbound as ever where there is no `const`
+            expect('export default () => f;', 'const not found', 22)
+        },
     },
 }

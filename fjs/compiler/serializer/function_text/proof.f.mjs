@@ -18,6 +18,13 @@ const render = e => {
 const text = body => render(['=>', 0, [], body])
 
 export const proof = {
+    // a body reading its own `self` is a named function expression, the
+    // name made of its depth's parameter; a nested function captures the
+    // name as it captures any value of the scope around it
+    self: () => {
+        assertEq(render(['=>', 1, [], ['()', ['self'], [['arg', 0]]]]), '(function $a_self($a_0){return ((0,($a_self))(($a_0)));})')
+        assertEq(render(['=>', 0, [], ['=>', 0, [['self']], ['frame', 0]]]), '(function $a_self(){return (($0)=>(()=>($0)))(($a_self));})')
+    },
     names: () => {
         assertEq(parameter(1), '$a')
         assertEq(parameter(26), '$z')

@@ -111,6 +111,10 @@ reader is looking at. One a browser cannot link is dropped and said on the
 console — unlike a proof it has nowhere on the page to be listed with its
 blocker.
 
+This section is how a demo *runs*. How one *looks* — its lead, fields,
+captions, output boxes and refusals — is [`demo/README.md`](./demo/README.md),
+so that every demo reads the same.
+
 **A demo is pure, and asks for what it needs.** It exports `init`, `update` and
 `view` ([`demo/types.ts`](./demo/types.ts)); `view` answers a `media/html` tree
 and `update` answers an `Effect`, so a demo never touches the DOM, registers a

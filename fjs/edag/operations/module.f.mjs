@@ -44,7 +44,7 @@ const nullish = value => value === null || typeOf(value) === 'undefined'
  */
 export const operation = evaluator => {
     const { context, operand, expression, invoke } = evaluator
-    const { args, frame, fixed, rest } = context
+    const { args, frame, fixed, rest, self } = context
     const moduleArgs = /** @type {ValueArray} */ (['[]', args])
 
     /** Resolve spreads before demanding the next item. @type {(items: ItemsOver<E>, state: S) => Evaluation<S>} */
@@ -139,6 +139,10 @@ export const operation = evaluator => {
             case 'arg': { return [state, ok(/** @type {Values} */ (fixed)[node[1]])] }
             case 'rest': { return [state, ok(/** @type {ValueArray} */ (rest))] }
             case 'frame': { return [state, ok(frame[node[1]])] }
+            // the function itself, the value the call was made on: the
+            // analysis refuses a `self` outside a function, so none is a
+            // precondition this evaluator restates as a thrown `undefined`
+            case 'self': { return [state, self === undefined ? error(['undefined']) : ok(self)] }
             case '[]': { return items(node[1], state) }
             case '{}': { return properties(node[1], state) }
             case '=>': {

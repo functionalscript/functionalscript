@@ -252,6 +252,7 @@ const handlers = {
     undefined: o0,
     args: o0,
     rest: o0,
+    self: o0,
     arg: indexed,
     frame: indexed,
     '!': o1,
@@ -336,53 +337,57 @@ const handlers = {
     },
 }
 
-/** The entries an operand names: one, or none for a primitive. @type {(x: Operand | IndexOperand) => readonly number[]} */
+/** The entries an operand names: one, or none for a primitive. @type {(x: Operand) => readonly number[]} */
 const named = x => x instanceof Array ? [x[1]] : []
 
-/** @type {(k: Step | undefined) => readonly number[]} */
-const stepRefs = k => {
+/** The operands of a chain's steps, including guarded arguments and computed keys. @type {(k: Step | undefined) => readonly Operand[]} */
+const stepOperands = k => {
     if (k === undefined) { return [] }
-    if (k[0] === '|.') { return [...named(k[1]), ...stepRefs(k[2])] }
+    if (k[0] === '|.') { return [k[1], ...stepOperands(k[2])] }
     const [, x, cont] = k
-    return [...x.flatMap(itemRefs), ...stepRefs(cont)]
+    return [...x.map(itemOperand), ...stepOperands(cont)]
 }
 
-/** @type {(x: ItemOperand) => readonly number[]} */
-const itemRefs = x => x instanceof Array && x[0] === '...' ? named(x[1]) : named(x)
+/** A plain item or the operand of a spread. @type {(x: ItemOperand) => Operand} */
+export const itemOperand = x => x instanceof Array && x[0] === '...' ? x[1] : x
 
-/** @type {(p: PropertyOperand) => readonly number[]} */
-const propertyRefs = p => p[0] === ':' ? [...named(p[1]), ...named(p[2])] : named(p[1])
+/** A property's key and value, or a spread's operand. @type {(p: PropertyOperand) => readonly Operand[]} */
+const propertyOperands = p => p[0] === ':' ? [p[1], p[2]] : [p[1]]
 
 /**
- * The entries a node names, one per edge, wherever the edge stands — an
- * item, a property, a step. By kind rather than by a search for `'#'`,
- * since an item list may hold the string `'#'` and a number and be no
- * reference.
+ * Every operand in written order, including primitives and lazy positions.
+ * Repeated occurrences remain repeated, and references retain their identity.
+ * Spreads, properties and chain steps expose their operands; tags and metadata
+ * are excluded. A function lists its captures followed by its body, so callers
+ * that walk only the enclosing scope must handle that boundary themselves.
  *
- * @type {(node: Node) => readonly number[]}
+ * @type {(node: Node) => readonly Operand[]}
  */
-const refs = node => {
+export const operandsOf = node => {
     switch (node[0]) {
-        case 'undefined': case 'args': case 'frame': case 'rest': case 'arg': { return [] }
-        case '[]': { return node[1].flatMap(itemRefs) }
-        case '{}': { return node[1].flatMap(propertyRefs) }
-        case ',': { return node[1].flatMap(named) }
-        case '=>': { return [...node[2].flatMap(named), ...named(node[3])] }
+        case 'undefined': case 'args': case 'frame': case 'rest': case 'arg': case 'self': { return [] }
+        case '[]': { return node[1].map(itemOperand) }
+        case '{}': { return node[1].flatMap(propertyOperands) }
+        case ',': { return node[1] }
+        case '=>': { return [...node[2], node[3]] }
         case '.': case '?.': {
             const [, a, b, k] = node
-            return [...named(a), ...named(b), ...stepRefs(k)]
+            return [a, b, ...stepOperands(k)]
         }
-        case '()': { return [...named(node[1]), ...node[2].flatMap(itemRefs)] }
+        case '()': { return [node[1], ...node[2].map(itemOperand)] }
         case '?.()': {
             const [, a, b, k] = node
-            return [...named(a), ...b.flatMap(itemRefs), ...stepRefs(k)]
+            return [a, ...b.map(itemOperand), ...stepOperands(k)]
         }
         default: {
             const [, ...operands] = node
-            return operands.flatMap(named)
+            return operands
         }
     }
 }
+
+/** One referenced entry per edge; primitive operands name no entry. @type {(node: Node) => readonly number[]} */
+const refs = node => operandsOf(node).flatMap(named)
 
 /**
  * The places each entry is written, from the root down: the root once,
@@ -434,9 +439,9 @@ const withinScope = (scope, root, i) => {
 /**
  * Validate invocation bindings after scopes have been assigned, and each
  * function's length against the language's limit. Analysis also serves
- * isolated compiler fragments, so executable consumers call this once on the
- * complete graph. Frames keep their enclosing scope: a slot read names the
- * frame of the function whose body holds it, and a module has none.
+ * isolated compiler fragments, so executable consumers use {@link checked}
+ * once on the complete graph. Frames keep their enclosing scope: a slot read
+ * names the frame of the function whose body holds it, and a module has none.
  * An optional function entry limits checks to that function and the body
  * scopes it creates. Its captures belong to the enclosing scope and are
  * excluded, including captured functions' bodies. The index must name a
@@ -444,12 +449,13 @@ const withinScope = (scope, root, i) => {
  * complete graph.
  * @type {(a: Analysis, root?: number) => string | null}
  */
-export const bindingError = ({ nodes, scope }, root = -1) => {
+const bindingError = ({ nodes, scope }, root = -1) => {
     for (const [i, node] of nodes.entries()) {
         if (root !== -1 && !withinScope(scope, root, i)) { continue }
         const owner = scope[i] === -1 ? null : nodes[scope[i]]
         if (node[0] === 'args' && owner !== null) { return 'module args in a function' }
         if (node[0] === 'rest' && owner === null) { return 'the arguments outside a function' }
+        if (node[0] === 'self' && owner === null) { return 'self outside a function' }
         if (node[0] === '=>' && node[1] > maxLength) { return `a function length above ${maxLength}` }
         if (node[0] === 'arg') {
             if (owner === null || owner[0] !== '=>' || !isIndex(node[1]) || node[1] >= owner[1]) {
@@ -463,4 +469,16 @@ export const bindingError = ({ nodes, scope }, root = -1) => {
         }
     }
     return null
+}
+
+/**
+ * The same analysis on binding success, or {@link bindingError}'s diagnostic. `root`
+ * has {@link bindingError}'s selected-function scope; omitted, the complete
+ * graph is checked. Compose with `analysis` at executable admission boundaries.
+ *
+ * @type {(a: Analysis, root?: number) => Result<Analysis, string>}
+ */
+export const checked = (a, root) => {
+    const problem = bindingError(a, root)
+    return problem === null ? ok(a) : error(problem)
 }

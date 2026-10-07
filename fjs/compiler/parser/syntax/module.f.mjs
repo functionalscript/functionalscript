@@ -512,8 +512,8 @@ const tailStep = (acc, rounds) => foldLayer(acc, /** @type {readonly _TailRound[
  * [ items ] close ]`, the list at the second position, under the
  * `[thing, accesses]` pair every one of these branches opens with, at the
  * first position of the branch itself. What a `(` opens, a name, a block,
- * a negation and a bitwise not are not here: each of those takes no access
- * of its own, so its node is made whole in {@link toNode}, and a group's
+ * the prefixes are not here: each takes no access of its own, so its node
+ * is made whole in {@link toNode}, and a group's
  * value is reached through {@link parenNode}.
  *
  * Takes the whole node, tag and branch together, rather than a pre-peeled
@@ -524,7 +524,7 @@ const tailStep = (acc, rounds) => foldLayer(acc, /** @type {readonly _TailRound[
  * one tuple deep for exactly this reason — see its own comment in
  * `./grammar/module.f.mjs` — so the same reads serve both rules.
  *
- * @type {(node: Exclude<Children<Unary, DjsTokenWithMetadata, Out> | Children<UnaryOperand, DjsTokenWithMetadata, Out> | Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>, readonly ['paren' | 'group' | 'block' | 'neg' | 'bitnot' | 'name', unknown]>) => Node}
+ * @type {(node: Exclude<Children<Unary, DjsTokenWithMetadata, Out> | Children<UnaryOperand, DjsTokenWithMetadata, Out> | Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>, readonly ['paren' | 'group' | 'block' | 'neg' | 'bitnot' | 'not' | 'typeof' | 'name', unknown]>) => Node}
  */
 const baseOf = ([tag, branch]) => {
     switch (tag) {
@@ -650,6 +650,13 @@ const groupNode = node => {
 }
 
 /**
+ * The operator each prefix branch of the grammar reads: `neg`, `bitnot`,
+ * `not` and `typeof` are `-`, `~`, `!` and `typeof`, the tags `../ast` and
+ * the EDAG share.
+ */
+const prefixOps = /** @type {const} */ ({ neg: '-', bitnot: '~', not: '!', typeof: 'typeof' })
+
+/**
  * A value is the node its branch made, with each access after it, the
  * power over it and the binary layers above it applied in turn — or what a
  * `(` opened, {@link parenNode}. A body is a value less the object, and its
@@ -663,10 +670,10 @@ const groupNode = node => {
  * it. The source tree keeps that syntax until the fold lowers it to an
  * executable function body.
  *
- * A negation and a bitwise not are `op t unary tail*`, `unary` at the
- * third position exactly as a binary layer's own round has it — negated or
- * complemented first, then the tail lists above that, `-2 * 3` reading
- * `(-2) * 3` and not `-(2 * 3)`.
+ * A prefix is `op t unary tail*`, `unary` at the third position exactly as
+ * a binary layer's own round has it — the prefix applied first, then the
+ * tail lists above that, `-2 * 3`
+ * reading `(-2) * 3` and not `-(2 * 3)`.
  *
  * @type {(node: Children<Unary, DjsTokenWithMetadata, Out> | Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
@@ -685,9 +692,9 @@ const toNode = node => {
         const [open, g] = unmapped(node[1])
         return symbol({ id: 'value', node: groupNode(g), first: tokenAt(open) })
     }
-    if (node[0] === 'neg' || node[0] === 'bitnot') {
+    if (node[0] === 'neg' || node[0] === 'bitnot' || node[0] === 'not' || node[0] === 'typeof') {
         const [op, v, ...tailLists] = unmapped(node[1])
-        return symbol({ id: 'value', node: applyTail([node[0] === 'neg' ? '-' : '~', nodeAt(v)], tailLists), first: tokenAt(op) })
+        return symbol({ id: 'value', node: applyTail([prefixOps[node[0]], nodeAt(v)], tailLists), first: tokenAt(op) })
     }
     if (node[0] === 'block') {
         const [block, first] = blockOf(unmapped(node[1]))
@@ -701,10 +708,10 @@ const toNode = node => {
 }
 
 /**
- * A `-`/`~`'s own operand: {@link unaryOperand}'s branches, read the same
+ * A prefix's own operand: {@link unaryOperand}'s branches, read the same
  * way {@link toNode} reads {@link unary}'s but for the power and the
  * binary layers above it, neither of which this rule's grammar admits — a
- * further `-`/`~`, recursing through this same reader by way of
+ * further prefix, recursing through this same reader by way of
  * {@link nodeAt}, {@link unaryOperand} mapped here exactly as {@link
  * unary} is by `toNode`; a group, whose own steps apply with no power past
  * the `)`; or the base itself, through {@link baseOf}, with only the
@@ -713,9 +720,9 @@ const toNode = node => {
  * @type {(node: Children<UnaryOperand, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
 const operandToNode = node => {
-    if (node[0] === 'neg' || node[0] === 'bitnot') {
+    if (node[0] === 'neg' || node[0] === 'bitnot' || node[0] === 'not' || node[0] === 'typeof') {
         const [op, v] = unmapped(node[1])
-        return symbol({ id: 'value', node: [node[0] === 'neg' ? '-' : '~', nodeAt(v)], first: tokenAt(op) })
+        return symbol({ id: 'value', node: [prefixOps[node[0]], nodeAt(v)], first: tokenAt(op) })
     }
     if (node[0] === 'group') {
         const [open, g] = unmapped(node[1])
@@ -981,10 +988,10 @@ const toParameterNames = ([tag, branch]) => {
 export const mappings = [
     map(value, toNode),
     map(body, toNode),
-    // what a `-` takes is a rule of its own, and its branches are the
+    // what a prefix takes is a rule of its own, and its branches are the
     // value's, so the same reader serves it
     map(unary, toNode),
-    // a `-`/`~`'s own operand is a further rule of its own, its branches
+    // a prefix's own operand is a further rule of its own, its branches
     // `unary`'s minus the power, so it takes a reader of its own too
     map(unaryOperand, operandToNode),
     map(item, toItem),

@@ -66,8 +66,11 @@ remain open; the format's implementation does not complete this visualizer task.
 For `['=>', length, slots, body]`, show `length` as function metadata,
 not an evaluated operand or edge. Mark `['arg', N]` and `['rest']` as
 terminals of the owning invocation; `N` is metadata bounded by that
-function's length, as `['frame', N]`'s is by its frame's slot count. `['self']` remains a future
-terminal when that node is supported, not a currently admitted function binding.
+function's length, as `['frame', N]`'s is by its frame's slot count. `['self']` is a
+terminal of the owning function too, the function itself: a recursive call is an edge
+from the body back to its own cluster's root, not to a `const` outside it, and a nested
+function that holds `['self']` in a slot reads its parent's cluster, as a slot of any
+other value of the enclosing scope does.
 The slots stay in the enclosing scope; only the body opens a
 new function cluster. A nested function's frame can therefore read its
 parent's fixed/rest bindings without assigning them to the child's scope.

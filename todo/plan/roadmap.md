@@ -122,7 +122,7 @@ See [architecture.md §Human-readable paths](./architecture.md).
    and [proof loading](../../fjs/emergent_testing/todo/load-proofs-through-fjs.md)
    through the parser/linker and FJS interpreter. For native self-hosting,
    compile that FJS pipeline to direct Rust, with low-level effects supplied by
-   [nanvm-effects-node](../nanvm-effects-node.md). The optional
+   [native Node effects](../nanvm-effects-node-operations.md). The optional
    [Rust EDAG library](../rust-edag.md) is on hold, outside MVP and self-hosting
    prerequisites.
 5. Generic `Any` serialization (CBOR) in `nanvm-lib` — covers code as data; needed for CAS/CAVM

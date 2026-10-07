@@ -644,6 +644,11 @@ export const proof = {
             expectEdag(compile('const c = [1]; export default (...a) => { const x = c; return 1; };').edag, [',', [['[]', [1]], ['=>', 0, [], 1]]])
             expectEdag(compile('const c = [1]; const d = [2]; export default (...a) => { const x = c; return d; };').edag, [',', [['[]', [1]], ['=>', 0, [['[]', [2]]], ['frame', 0]]]])
             expectEdag(compile('const c = [1]; export default (...a) => { const x = c; return [x, c]; };').edag, ['=>', 0, [['[]', [1]]], ['[]', [['frame', 0], ['frame', 0]]]])
+            // an unused alias of the function itself is the function and
+            // anchors nothing, as an alias of a capture does: the `self` is
+            // a name, and a name is no anchor
+            expectEdag(compile('const f = () => { const g = f; return 1; }; export default f;').edag, ['=>', 0, [], 1])
+            expectEdag(compile('const f = () => { const g = f; return g(); }; export default f;').edag, ['=>', 0, [], ['()', ['self'], []]])
         },
         // What the body anchors — the `const`s its value does not reach —
         // floats to the nearest block root: the scope's root through eager
@@ -742,6 +747,11 @@ export const proof = {
         expectEdag(compile('export default 1 === 2;').edag, ['===', 1, 2])
         expectEdag(compile('export default 1 & 2 | 3 ^ 4;').edag, ['|', ['&', 1, 2], ['^', 3, 4]])
         expectEdag(compile('export default ~1;').edag, ['~', 1])
+        // `!` folds nothing either: truthiness is the interpreter's question
+        expectEdag(compile('export default !1;').edag, ['!', 1])
+        expectEdag(compile('export default !-1;').edag, ['!', -1])
+        expectEdag(compile('export default typeof 1;').edag, ['typeof', 1])
+        expectEdag(compile('export default typeof typeof -1;').edag, ['typeof', ['typeof', -1]])
         // unary `-` still folds over a numeric literal, even nested inside
         // a binary operator the lowering does not fold
         expectEdag(compile('export default -1 * 2;').edag, ['*', -1, 2])
