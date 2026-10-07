@@ -2,11 +2,11 @@
 //! loop of `nanvm-effects-node`: the pipeline from FunctionalScript source to
 //! a performed command, in one test.
 
-use nanvm_effects_node::run;
+use nanvm_effects_node::{Native, run};
 use nanvm_harness::fixtures::effect;
 use nanvm_lib::{
     naive::Naive,
-    vm::{Any, Object},
+    vm::{Any, Array, Nullish, Object, ToAny, unstable::string_any},
 };
 
 /// An export of the compiled module, which is an effect.
@@ -37,4 +37,48 @@ fn a_chain_of_commands() {
 #[test]
 fn a_language_throw_ends_the_run() {
     assert!(run(export("thrown"), |_, payload| Ok(payload)).is_err());
+}
+
+fn items(any: Any<Naive>) -> Vec<Any<Naive>> {
+    Array::try_from(any).unwrap().into_iter().collect()
+}
+
+fn host() -> Native<std::io::Cursor<Vec<u8>>, Vec<u8>, Vec<u8>> {
+    Native::new(std::io::Cursor::new(vec![]), vec![], vec![])
+}
+
+/// Two writes, the second reached through the first's continuation; the
+/// result holds the second's answer, `['ok', undefined]`.
+#[test]
+fn a_program_writes_to_the_console() {
+    let mut host = host();
+    let result = run(export("hello"), |command, payload| {
+        host.perform(command, payload)
+    })
+    .unwrap();
+    assert_eq!(host.stdout().as_slice(), b"hibye");
+    assert!(host.stderr().is_empty());
+    let [tag, answer] = items(result).try_into().unwrap();
+    assert_eq!(tag, string_any("ok"));
+    assert_eq!(
+        items(answer),
+        [string_any("ok"), Nullish::Undefined.to_any()]
+    );
+}
+
+/// A command the host lacks is answered through the continuation as
+/// `['error', ['notImplemented', command]]`, and the program carries on.
+#[test]
+fn a_command_the_host_lacks() {
+    let mut host = host();
+    let result = run(export("missing"), |command, payload| {
+        host.perform(command, payload)
+    })
+    .unwrap();
+    let answer = items(result);
+    assert_eq!(answer[0], string_any("ok"));
+    assert_eq!(
+        answer[1].clone().to_json(),
+        Ok("[\"error\",[\"notImplemented\",\"fetch\"]]".into())
+    );
 }
