@@ -26,7 +26,7 @@ such as controls embedded in prose, and explain them in the demo's JSDoc.
 
 ### Tasks
 
-- [ ] Update the input and output rules in the demo README with the shared
+- [x] Update the input and output rules in the demo README with the shared
       emphasis policy.
 - [ ] Add shared label and caption styling, update all demos to use it, and
       remove the HMAC/PoW-specific bold rules and obsolete exception notes.
