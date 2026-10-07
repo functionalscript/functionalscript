@@ -111,17 +111,20 @@ export const string = /**@type {const}*/({ double: jsonString, single: singleQuo
 /** An identifier, or a keyword: the words are told apart above the grammar. */
 export const id = /**@type {const}*/([idStart, repeatFrom0(idChar)])
 
+/** @type (d: Rule) => Rule */
+const intTail = (d) => repeatFrom0([option('_'), d])
+
 // JavaScript digit runs admit one separator between digits. JSON's rules
 // remain separate: its numbers never admit separators.
-const decimalTail = repeatFrom0([option('_'), digit])
-const decimalDigits = /**@type {const}*/([digit, decimalTail])
+const decimalTail = intTail(digit)
+const decimalDigits = [digit, decimalTail]
 const optionFloatSuffix = /**@type {const}*/([
     option(['.', decimalDigits]),
     option([set('Ee'), option(set('+-')), decimalDigits]),
 ])
 
-/** @type {(prefix: string, digits: Rule) => Tuple} */
-const int = (prefix, digits) => [set(prefix), digits, repeatFrom0([option('_'), digits]), option('n')]
+/** @type {(prefix: string, d: Rule) => Tuple} */
+const int = (prefix, d) => [set(prefix), d, intTail(d), option('n')]
 
 /**
  * A number: an unsigned integer, then either the bigint suffix or
