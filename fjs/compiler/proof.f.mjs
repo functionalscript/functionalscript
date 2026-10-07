@@ -609,6 +609,8 @@ export const proof = {
             assertEq(fjsRoundTrip('export default () => 1;'), 'export default ()=>1;')
             // a function's own name is its `self`, written as the `const` it read
             assertEq(fjsRoundTrip('const f = () => f();\nexport default f;'), 'const $0=()=>$0();export default $0;')
+            // a shorthand member is written as the member it denotes
+            assertEq(fjsRoundTrip('const a = [1];\nexport default { a, b: a };'), 'const $0=[1];export default {"a":$0,"b":$0};')
             // an unused alias of the name is dropped with the `const`, as an alias of a capture is
             assertEq(fjsRoundTrip('const f = () => { const g = f; return 1; };\nexport default f;'), 'export default ()=>1;')
         },
@@ -1862,6 +1864,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 'Function with a rest parameter': 'xxooo',
                 'Closure': 'xxooo',
                 'Recursion': 'ooooo',
+                'Shorthand members': 'ooooo',
                 'Methods and properties': 'ooooo',
                 'Named exports': 'ooooo',
                 'A failure at run time': 'xxooo',
