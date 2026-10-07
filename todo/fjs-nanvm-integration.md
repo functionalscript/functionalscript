@@ -126,35 +126,35 @@ contract and migration strategy.
 
 #### What the next rename waits on
 
-Measured on the tree after `!` and `typeof` landed
-([#2622](https://github.com/functionalscript/functionalscript/pull/2622),
-[#2623](https://github.com/functionalscript/functionalscript/pull/2623)):
+Measured on `main` at `4c67d6f` with shorthand members, `{ a }`, accepted
+([#2641](https://github.com/functionalscript/functionalscript/pull/2641)):
 every `.f.mjs` that imports no other `.f.mjs` is a *leaf*, the only module a
 rename can start from, and `fjs compile` was run on each. The compiler stops
 at its first refusal, so one refusal per row is the compiler's and the rest
 of the row is a reading of the module. "Behind it" counts the non-proof
-modules that import the leaf, directly or not — what a leaf's rename opens
-up, since a proof stays `proof.f.mjs` whatever its module is named
+runtime modules that import the leaf, directly or not — what a leaf's rename
+opens up, since a proof stays `proof.f.mjs` whatever its module is named
 ([`fjs/compiler/README.md`](../fjs/compiler/README.md)).
 
 | Leaf | Behind it | The compiler refuses |
 | --- | ---: | --- |
-| `fjs/types/object/structurally_same` | 244 | destructuring (`const { entries, is } = Object`, `([k, v]) =>`), the `Object` global, `instanceof`, `new Map`, a runtime key `b[i]`|
-| `fjs/types/function` | 235 | `let`, reassignment and `while`, all inside `iterate` |
-| `fjs/types/function/operator` | 232 | template literals, destructured `const`s and parameters, runtime keys `steps[i]` and `prior[i]`|
-| `fjs/types/result` | 165 | `for … of` in `okList`, destructured parameters |
-| `fjs/js/array_index` | 60 | the `Number` and `String` globals |
-| `fjs/js/keywords` | 35 | `new Set` |
-| `fjs/types/set` | 35 | `let`, reassignment, `+=`, `while` with `break`, `new Set`, a runtime key `set[i]` |
-| `fjs/types/map` | 31 | `new Map`, a destructured parameter |
-| `fjs/website/demo/examples` | 18 | `new Set`, destructured parameters |
+| `fjs/types/object/structurally_same` | 234 | destructuring (`const { entries, is } = Object`, `([k, v]) =>`), the `Object` global, `instanceof`, `new Map`, a runtime key `b[i]`|
+| `fjs/types/function` | 226 | `let`, reassignment and `while`, all inside `iterate` |
+| `fjs/types/function/operator` | 223 | template literals, destructured `const`s and parameters, runtime keys `steps[i]` and `prior[i]`|
+| `fjs/types/result` | 156 | `for … of` in `okList`, destructured parameters |
+| `fjs/js/array_index` | 56 | the `Number` and `String` globals |
+| `fjs/js/keywords` | 31 | `new Set` |
+| `fjs/types/set` | 30 | `let`, reassignment, `+=`, `while` with `break`, `new Set`, a runtime key `set[i]` |
+| `fjs/types/map` | 26 | `new Map`, a destructured parameter |
+| `fjs/website/demo/examples` | 21 | `new Set`, destructured parameters |
 | `fjs/ci/package` | 7 | template literals, `new Error`, globals |
 | `fjs/git/bytes` | 5 | a runtime key `b[at]`, `Number.isSafeInteger` |
-| `fjs/website/style` | 5 | template literals, `let`, `new`, runtime keys |
-| `fjs/nanvm/member` | 3 | `\u{…}` escapes, template literals, globals |
+| `fjs/website/style` | 5 | template literals, and nothing else |
+| `fjs/website/demo/code` | 4 | template literals, a `'\0'` escape |
+| `fjs/nanvm/member` | 3 | `\u{…}` escapes, template literals, destructuring |
 | `fjs/git/config` | 1 | `\v` and `\f` escapes, destructuring, a non-terminating `if`, runtime keys, template literals |
 | `fjs/nanvm/methods` | 1 | template literals, destructuring, the `Object` global |
-| `fjs/types/ts` | 1 | template literals, `switch`, a default parameter, globals |
+| `fjs/types/ts` | 2 | template literals, destructured parameters, `switch`, a default parameter, globals |
 | `fjs/website/browser-source` | 1 | `let`, `+=`, `while` with `break`, a non-terminating `if`, runtime keys |
 
 The same rows by feature, each with where the feature is tracked, so a
@@ -162,30 +162,30 @@ language step can be picked for what it unblocks:
 
 | Feature | Tracked in | Leaves it holds |
 | --- | --- | --- |
-| Destructuring | [`spec/todo/2450-destructuring.md`](../spec/todo/2450-destructuring.md) | structurally_same, result, function/operator, map, demo/examples, git/config, nanvm/methods |
-| `let`, reassignment, `while` | [`spec/todo/3220-let.md`](../spec/todo/3220-let.md); `while` is roadmap §3.2 | function, set, browser-source, style |
-| Globals and built-ins | [`spec/todo/2365-global-names.md`](../spec/todo/2365-global-names.md), [`2360-built-in.md`](../spec/todo/2360-built-in.md) | structurally_same, array_index, ts, git/bytes, nanvm/member, nanvm/methods, ci/package |
-| Template literals | [`spec/todo/3440-template-literals.md`](../spec/todo/3440-template-literals.md) | function/operator, ci/package, ts, nanvm/methods, nanvm/member, style, git/config |
-| `new` with a built-in constructor | nothing proposes it | structurally_same, keywords, map, set, demo/examples, ci/package, style |
-| A runtime key, `a[i]` | the spec says "not recognized yet"; no `todo/` | structurally_same, function/operator, set, git/bytes, style, browser-source, git/config |
+| Destructuring | [`spec/todo/2450-destructuring.md`](../spec/todo/2450-destructuring.md) | structurally_same, result, function/operator, map, demo/examples, ci/package, nanvm/member, ts, git/config, nanvm/methods |
+| `let`, reassignment, `while` | [`spec/todo/3220-let.md`](../spec/todo/3220-let.md); `while` is roadmap §3.2 | function, set, browser-source |
+| Globals and built-ins | [`spec/todo/2365-global-names.md`](../spec/todo/2365-global-names.md), [`2360-built-in.md`](../spec/todo/2360-built-in.md) | structurally_same, array_index, ts, git/bytes, nanvm/methods, ci/package |
+| Template literals | [`spec/todo/3440-template-literals.md`](../spec/todo/3440-template-literals.md) | function/operator, ci/package, ts, nanvm/methods, nanvm/member, style, demo/code, git/config |
+| `new` with a built-in constructor | nothing proposes it | structurally_same, keywords, map, set, demo/examples, ci/package |
+| A runtime key, `a[i]` | the spec says "not recognized yet"; no `todo/` | structurally_same, function/operator, set, git/bytes, browser-source, git/config |
 | `for … of` | nothing proposes it | result |
 | `instanceof` | nothing proposes it | structurally_same |
 | A non-terminating `if`, `break` | roadmap §3.2, the guard's follow-ups; `break` is `while`'s | set, git/config, browser-source |
-| String escapes `\u{…}`, `\v`, `\f` | [`spec/todo/2460-js-string-literals.md`](../spec/todo/2460-js-string-literals.md) | nanvm/member, git/config |
+| String escapes `\u{…}`, `\v`, `\f`, `\0` | [`spec/todo/2460-js-string-literals.md`](../spec/todo/2460-js-string-literals.md) | nanvm/member, demo/code, git/config |
 | `switch`, a default parameter | neither proposed; the parameter is roadmap §3.1 | ts |
 
-A leaf renames only when every feature it uses has landed. A function
-calling itself no longer holds any: `structurallySame`, `fn`,
-`stateScanToScan`, `foldToScan`, `tryLine` and `bindsName` resolve as the
-EDAG's `["self"]` ([functions](../spec/README.md#functions)). Of the four
-root modules nearly everything imports, `structurally_same` waits on five
-features, and `function/operator` on three. The one root with a short path
-is `result`: `for … of` and destructuring, and the loop is one function,
-`okList`, which could be written as a fold today, leaving destructuring
-alone. `iterate` in `function` could lose its loop the same way, which
-would leave that module on nothing: `let`, reassignment and `while` are all
+A leaf renames only when every feature it uses has landed, and two wait on
+one feature alone: `style` on template literals, `array_index` on the
+`Number` and `String` globals. Of the four root modules nearly everything
+imports, `structurally_same` waits on five features, and `function/operator`
+on three. `iterate` in `function` could lose its loop today, which would
+leave that module on nothing — `let`, reassignment and `while` are all
 inside `iterate`, and the shorthand `fn` returns, `{ result, map }`, is in
-the language ([objects](../spec/README.md#objects)).
+the language ([objects](../spec/README.md#objects)) — the one rename no
+language step gates. `okList` in `result` could lose its `for … of` the
+same way, but `unwrap` and `invert` take destructured parameters, so that
+root waits on destructuring either way, which holds ten leaves, more than
+any other feature.
 
 #### The whole repository
 
