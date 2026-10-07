@@ -1621,7 +1621,7 @@ and as JSON, a tree, with the node written where each reference reaches it,
 function has identity as an object does ([functions](#functions)), so a
 FunctionalScript document shares one the same way:
 `const f = () => 1; export default [f, f];` is written
-`const $0=(...$a)=>1;export default [$0,$0];`. Not every FunctionalScript
+`const $0=()=>1;export default [$0,$0];`. Not every FunctionalScript
 document is in normalized form: a module with a named export, among others,
 gives what it computes more names than normalized form does
 ([output](#output)).
