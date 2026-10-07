@@ -2,5 +2,6 @@
 resolver = "2"
 members = [
     "nanvm-lib",
-    "nanvm-harness"
+    "nanvm-harness",
+    "nanvm-effects-node"
 ]
