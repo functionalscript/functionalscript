@@ -64,9 +64,10 @@ implementation agent, and the authorized language designer is
 a violation of the gate that approval of the proposal does not undo: an
 approval given now is approval before the feature lands, not before it was
 written. What resolves it is the language designer's own decision about
-that implementation, recorded here. The implementation stays an unmerged
-draft until then, and the designer may refuse it and require the feature
-to be written again after approval, by someone who has not seen it.
+that implementation, recorded here. Until that decision the implementation
+stayed an unmerged draft, and the designer could have refused it and
+required the feature to be written again after approval, by someone who
+had not seen it. Both decisions are recorded below.
 
 - [x] The proposal is approved by `sergey-shandar`:
       ["Design is approved."](https://github.com/functionalscript/functionalscript/pull/2643#issuecomment-6040455420),
