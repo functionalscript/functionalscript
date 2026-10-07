@@ -21,7 +21,7 @@ fn export(name: &str) -> Any<Naive> {
 /// order and that each answer reached its continuation.
 #[test]
 fn a_chain_of_commands() {
-    let mut commands = vec![];
+    let mut commands = Vec::new();
     let result = run(export("chain"), |command, payload| {
         commands.push(command.to_json().unwrap());
         Ok(payload)
@@ -44,7 +44,7 @@ fn items(any: Any<Naive>) -> Vec<Any<Naive>> {
 }
 
 fn host() -> Native<std::io::Cursor<Vec<u8>>, Vec<u8>, Vec<u8>> {
-    Native::new(std::io::Cursor::new(vec![]), vec![], vec![])
+    Native::new(std::io::Cursor::new(Vec::new()), Vec::new(), Vec::new())
 }
 
 /// Two writes, the second reached through the first's continuation; the
