@@ -13,11 +13,20 @@ from DataJS's `$0`, `$1`, … spelling even for shared data.
 
 ## Proposal
 
-Use `$` followed by a decimal counter for every generated binding: constants,
-fixed arguments, rest arguments, captured slots, and function self names.
+Use `$` followed by a decimal counter for every newly generated binding:
+constants, fixed arguments, rest arguments, capture wrapper parameters, and
+function self names.
 One allocation sequence covers the entire output, including nested functions
 and lazy blocks. Each binding receives a distinct number; references reuse
 that binding's assigned name. Sibling scopes also receive distinct numbers.
+
+Source captures reuse the enclosing parameter or constant's assigned name;
+a frame slot that refers to it does not allocate another binding. Where the
+source writer emits an alias to preserve capture order, that alias is an
+ordinary new constant and consumes a number. Standalone code-only function
+text assigns external capture placeholders first, in slot order, including
+unused slots. Code-only nested closures and value materialization allocate
+fresh wrapper parameters when they emit bindings for captured values.
 
 Allocate bindings in deterministic source emission order, before rendering
 their initializer or body when self-reference requires it. Allocate fixed
