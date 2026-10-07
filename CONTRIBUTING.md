@@ -410,11 +410,13 @@ and the dependencies it needs — the container's network is open during setup
 only, so a `cargo fetch` left for later would fail there. Codex runs the script
 as root in a container without an init system, which the official installer
 refuses in both of its modes, so the script uses the Determinate installer,
-which supports exactly that:
+which supports exactly that. The shells Codex opens for the task afterwards do
+not carry the setup shell's `PATH`, and `--init none` writes no startup
+integration, so nothing here sources a profile: `dev.sh` finds `nix` at the
+installer's default profile path whenever `PATH` lacks it.
 
 ```sh
 curl -fsSL https://install.determinate.systems/nix | sh -s -- install linux --init none --no-confirm
-. /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
 ./dev.sh npm ci
 ./dev.sh cargo fetch
 ```
