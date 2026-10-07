@@ -71,15 +71,18 @@ to be written again after approval, by someone who has not seen it.
 - [x] The proposal is approved by `sergey-shandar`:
       ["Design is approved."](https://github.com/functionalscript/functionalscript/pull/2643#issuecomment-6040455420),
       2026-10-07.
-- [ ] `sergey-shandar` accepts
+- [x] `sergey-shandar` accepts
       [#2641](https://github.com/functionalscript/functionalscript/pull/2641),
-      written before this proposal, as its implementation — or refuses it,
-      and the feature is written again after the approval above.
+      written before this proposal, as its implementation: stated to the
+      implementing agent on 2026-10-07, after the approval above, and
+      recorded here at the designer's direction. The alternative, refusing
+      it and writing the feature again after the approval, was offered and
+      declined.
 
 ## Tasks
 
 - [x] Obtain the approval above.
-- [ ] Obtain the decision on the existing implementation above.
+- [x] Obtain the decision on the existing implementation above.
 - [ ] Land [#2641](https://github.com/functionalscript/functionalscript/pull/2641)
       on top of this proposal: the grammar, the syntax record, the fold's
       `__proto__` rule, the proofs, the spec's objects section, and this
