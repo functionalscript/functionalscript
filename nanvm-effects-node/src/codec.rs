@@ -110,6 +110,17 @@ pub fn decode_number<A: IVm>(any: Any<A>) -> Result<f64, Malformed> {
     }
 }
 
+/// `null` is `None`; anything else is read by `f`.
+pub fn decode_nullable<A: IVm, T>(
+    any: Any<A>,
+    f: impl FnOnce(Any<A>) -> Result<T, Malformed>,
+) -> Result<Option<T>, Malformed> {
+    match Unpacked::from(any.clone()) {
+        Unpacked::Nullish(Nullish::Null) => Ok(None),
+        _ => f(any).map(Some),
+    }
+}
+
 /// An argument or member that may be left out, or passed as `undefined`.
 pub fn decode_optional<A: IVm, T>(
     any: Option<Any<A>>,

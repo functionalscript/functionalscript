@@ -48,7 +48,7 @@ fn code(kind: ErrorKind) -> Option<&'static str> {
 
 /// A failed call as the error channel carries it: the code where there is
 /// one, and a message naming the call and the path.
-fn failure(error: &io::Error, call: &str, path: &str) -> IoError {
+pub(crate) fn failure(error: &io::Error, call: &str, path: &str) -> IoError {
     IoError {
         code: code(error.kind()).map(str::to_string),
         message: format!("{error}, {call} '{path}'"),
