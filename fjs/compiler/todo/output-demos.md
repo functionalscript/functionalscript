@@ -1,7 +1,7 @@
 ## Demo pages for the compiler's outputs
 
 **Priority:** P3
-**Status:** wip — the five stage pages and the side-by-side page are built; the open
+**Status:** open — the five stage pages and the side-by-side page are built; the open
 questions remain
 
 ### Problem
@@ -47,17 +47,20 @@ empty pane would be the plausible wrong answer
 out, and what a stage will not accept is half of what it is.
 
 **The presets are one flat list**, [`examples/module.f.js`](../examples/module.f.js),
-that the tokenizer, parser, serializer, Rust and side-by-side demos each offer
-whole through the shared picker
+that all six demos — the five stages and the side-by-side page — offer whole
+through the shared picker
 ([`website/demo/examples`](../../website/demo/examples/module.f.mjs)), which
 checks that names and sources are distinct. A reader who picks "Closure" on one
-page finds "Closure" on the others. The list holds programs for: primitives,
-string escapes, comments, objects, a repeated object key, sharing, arithmetic,
-operator precedence, laziness, a function with a rest parameter, a closure,
-methods and properties, named exports, and a failure at run time — and the
-inputs a stage refuses: an import (no file set in a browser), `!x`, a hex
-escape, `typeof x`, and an unfinished module. The EDAG demo still has a list
-of its own, tuned to what its drawing has to say, and does not use this one.
+page finds "Closure" on the others. The first is an overview every page opens
+on, with no import so that no page opens on a refusal. The list holds programs
+for: primitives, string escapes, comments, objects, a repeated object key,
+sharing by `const` and the repeated expression that is not shared, arithmetic,
+operator precedence, laziness in each of its operators, a function with a rest
+parameter, a closure, recursion, a throwing body, an early return, methods and
+properties, named exports, and a failure at run time — and the inputs a stage
+refuses: an import (no file set in a browser), `!x`, a hex escape, `typeof x`,
+and an unfinished module. The EDAG demo's own presets were folded into it:
+[`../edag/demo.f.mjs`](../edag/demo.f.mjs) documents what each draws as.
 
 **A name says what the program is, and each proof says what its stage
 refuses.** The parser takes an import the Rust output cannot link, so "refused"
@@ -89,9 +92,6 @@ which outputs accept which example.
 - **Marking sharing across panes.** Highlighting the `const` that sharing
   produced, so the text panes and the EDAG graph show the same fact, is not
   built.
-- **The EDAG demo's presets** are its own list. Moving it onto the shared list
-  would finish "one program down the pipeline", at the cost of losing its
-  graph-specific presets (laziness, closures with frames).
 - **Rust pane length.** The Rust output is long for a small input; a
   collapsed-by-default pane on the side-by-side page is the cheap answer.
 - **Source positions.** A refusal naming a position deserves a caret in the
@@ -102,5 +102,5 @@ which outputs accept which example.
 
 - [compiler output boundary](../README.md#ast) —
   the refusal wording the panes show.
-- [`../edag/demo.f.mjs`](../edag/demo.f.mjs) — the EDAG's own demo, with its own
-  presets.
+- [`../edag/demo.f.mjs`](../edag/demo.f.mjs) — the EDAG's own demo, and what
+  each shared program draws as.

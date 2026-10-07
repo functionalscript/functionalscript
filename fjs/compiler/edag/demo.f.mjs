@@ -67,11 +67,11 @@
  * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Graph, Shape } from '../../website/demo/graph/types.ts'
- * @import { Examples } from '../../website/demo/examples/types.ts'
  */
 
 import { parse } from '../transpiler/module.f.mjs'
 import { lazyOp2Id } from '../../edag/module.f.mjs'
+import { examples } from '../examples/module.f.js'
 import { _defaultExport, _moduleExports, unresolved } from './module.f.mjs'
 import { graphOf, graphSvg } from '../../website/demo/graph/module.f.mjs'
 import { leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
@@ -304,98 +304,59 @@ export const _graphOf = text => {
 }
 
 /**
- * The sources the examples drop-down offers, each under the name it is
- * picked by: one per thing the drawing has to say, so a reader can see
- * each without first working out how to write it.
+ * The drop-down is [the compiler's shared list](../examples/module.f.js), one
+ * program followed down the pipeline: a program picked here is found under
+ * the same name on the tokenizer's, parser's, serializer's, Rust and
+ * side-by-side pages. What this drawing makes of the ones written for it:
  *
- * **The first is the overview**, and the demo opens on it. `a` is
- * referenced four times — twice in the array, once inside `a * 3`, once as
- * `m && a`'s right operand — and every reference is the same `Exp` object,
- * so the `+` node draws once with four incoming edges.
+ * **The overview, which the demo opens on, carries one of every look the
+ * drawing has.** `a` is referenced six times — twice in the array, once each
+ * inside `a * 3`, `a < 4` and `a.x`, and once as `&&`'s right operand — and
+ * every reference is the same `Exp` object, so the `+` node draws once with
+ * six incoming edges, five solid and one broken. That is laziness being
+ * positional rather than nodal, in a picture: the node *is* evaluated,
+ * because five references want it whatever the sixth decides, and a mark on
+ * the box could not have said which of the six was the conditional one. The
+ * numbers and `undefined` are primitives, tinted cells inside the ports that
+ * use them. `rest` is an input, a filled grey cell: a value arriving from
+ * outside a scope rather than computed from operands. The function has no
+ * frame port because it captures nothing, and its `body` port is broken
+ * because building the function does not run it. `checked` is the one thing
+ * the export does not reach, so the compiler anchors it with a comma and the
+ * whole module is that comma's result. Its two edges carry the roles a
+ * number could not: `anchor` for a computation that only has to happen —
+ * reading a property can throw, which is why it is kept — and `result` for
+ * the value the module is.
  *
- * It carries one of every look the drawing has, too, so that what the
- * three mean is on screen before a reader has picked anything. The numbers
- * and `undefined` are primitives, tinted cells inside the ports that use
- * them. `args` and `rest` are inputs, filled grey cells: a value arriving
- * from outside a scope rather than computed from operands. `args` is the
- * module's, which its import reaches through `.default` on argument 0,
- * and `rest` the function's own. The function has no frame port because
- * it captures nothing, and its `body` port is broken because building the
- * function does not run it.
- *
- * **`m && a` is what makes the marking legible**, and not because it
- * draws one dashed line. `a` is reached four times — twice by the array,
- * once through `a * 3`, and once as that `&&`'s right operand — so one
- * node carries three solid lines and one broken, each leaving a port of
- * its own. That is laziness being positional rather than nodal, in a
- * picture: the node *is* evaluated, because three references want it
- * whatever the fourth decides, and a mark on the box could not have said
- * which of the four was the conditional one.
- *
- * `checked` is the one thing the export does not reach, so the compiler
- * anchors it with a comma and the whole module is that comma's result.
- * Its two edges carry the roles a number could not: `anchor` for a
- * computation that only has to happen — reading `.x` off the import can
- * throw, which is why it is kept — and `result` for the value the module
- * is. It reads `m` rather than `a`, so `a` keeps the four references the
- * paragraph above counts.
- *
- * The other thirteen take one point each, on its own:
- *
- * - **Sharing** sets a `const` used twice beside the same expression
- *   written out again: only `const` makes sharing, so that is one `+` node
- *   with two edges and a second `+` of its own.
- * - **Primitives** puts every kind of primitive — `null`, `undefined`, a
- *   boolean, a number, a bigint, a string — inline in the port that uses it.
- *   A hexadecimal number and bigint are there too, drawn as the values they
- *   spell, `255` and `16n`: the graph keeps the value, not the spelling.
- * - **Operators** draws arithmetic, unary, comparison and bitwise operators
- *   over a function's two parameters.
+ * - **Sharing: a repeated expression** sets a `const` used twice beside the
+ *   same expression written out again: only `const` makes sharing, so that
+ *   is one `+` node with two edges and a second `+` of its own.
+ * - **Primitives** puts every kind inline in the port that uses it. The
+ *   hexadecimal number and bigint draw as the values they spell, `255` and
+ *   `16n`: the graph keeps the value, not the spelling.
  * - **Laziness: `&&` `||` `??`** breaks each one's right edge, and
  *   **Laziness: `?:`** both arms and not the condition — with a function's
  *   body in each, every lazy position the compiler has.
- * - **Closures** is a function that captures its enclosing parameter, read
- *   inside the body through a frame slot.
- * - **Objects and properties** draws an object's keys as its ports and a
- *   property read, by name or by a string index, as a `.` node.
- * - **Imports and calls** reaches a default and a named import through the
- *   module's `args`, and calls one with the other.
+ * - **Closure** is a function that captures its enclosing parameter and a
+ *   module `const`, each read inside the body through a frame slot.
+ * - **Methods and properties** draws a method call as one node, `.at()`,
+ *   the receiver in its `obj` port and the arguments numbered after it.
  * - **Named exports** draws the module as the object of its exports, each
  *   a port: a module that is not only a default is that object, and there
  *   is no `.default` to read off it.
- * - **Comma** is an unused `const` the compiler keeps as an `anchor`,
- *   beside the `result` the module is.
+ * - **An import** reaches the import through the module's `args`, and
+ *   **A named import and a call** calls one import with another.
  * - **Throw** is a function whose block body ends in `throw` rather than
  *   `return`: the body is the `throw` node, its port the value the failure
  *   carries, and the function's `body` edge is broken as every function's
  *   is, since making the function does not run it.
- * - **Guard** is a body of two `if`s that return early: each is a `?:`
- *   node, the statements after a guard its alternate, so the drawing has
- *   no `if` in it — the statement is sugar over the conditional, and the
- *   graph is the one `n < 0 ? -1 : n > 0 ? 1 : 0` draws.
- * - **Parse error** does not parse, because an error is something this
- *   demo shows too.
+ * - **Early return** is a body of two `if`s that return early: each is a
+ *   `?:` node, the statements after a guard its alternate, so the drawing
+ *   has no `if` in it — the statement is sugar over the conditional, and
+ *   the graph is the one `n < 0 ? -1 : n > 0 ? 1 : 0` draws.
+ * - **Hex escape** and **Parse error** do not parse, because an error is
+ *   something this demo shows too.
  *
- * @type {Examples}
- */
-export const examples = [
-    ['Overview', 'import m from "./m.f.js";\nconst a = 1 + 2;\nconst checked = m.x < 4;\nexport default [a, a, a * 3, m && a, (...x) => x, undefined];'],
-    ['Sharing: a const, not a repeated expression', 'const a = 1 + 2;\nconst b = 1 + 2;\nexport default [a, a, b];'],
-    ['Primitives', 'export default [null, undefined, true, 1, 0xFF, 2n, 0x10n, "s"];'],
-    ['Operators', 'export default (a, b) => [a + b, a * b, a ** b, -a, ~a, a === b, a < b, a & b, a << b];'],
-    ['Laziness: && || ??', 'export default (...a) => [a[0] && a[1], a[0] || a[1], a[0] ?? a[1]];'],
-    ['Laziness: ?:', 'export default (...a) => a[0] ? a[1] : a[2];'],
-    ['Closures: parameters and frame', 'export default x => y => x * 2 + y;'],
-    ['Objects and properties', 'const o = { a: 1, "b c": [2, 3] };\nexport default [o.a, o["b c"][1]];'],
-    ['Imports and calls', 'import m from "./m.f.js";\nimport { x } from "./n.f.js";\nexport default m(x);'],
-    ['Named exports', 'export const a = [];\nexport const f = x => [a, x];'],
-    ['Comma: an anchored const', 'import m from "./m.f.js";\nconst checked = m.x;\nexport default 42;'],
-    ['Throw: a function that fails', 'export default (...a) => {\n    const reason = ["not implemented", a[0]];\n    throw reason;\n};'],
-    ['Guard: an if that returns early', 'export default (n) => {\n    if (n < 0) { return -1; }\n    if (n > 0) { return 1; }\n    return 0;\n};'],
-    ['Parse error', 'export default {bad'],
-]
-
-/**
  * The state is the text itself, not the graph: the graph is a function of
  * it, and storing a value the state can already compute is how the two
  * drift apart. Picking an example replaces the text with its source.

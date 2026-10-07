@@ -20,7 +20,8 @@ import { isArray } from '../../types/array/module.f.mjs'
 import { tryModuleStringify } from '../serializer/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { _defaultExport, _moduleExports, _moduleThrows, resolve, unresolved } from './module.f.mjs'
-import { _graphOf, _shapeOf, demo, examples } from './demo.f.mjs'
+import { _graphOf, _shapeOf, demo } from './demo.f.mjs'
+import { examples } from '../examples/module.f.js'
 import { _crossings, graphOf } from '../../website/demo/graph/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { exp } from '../../edag/module.f.mjs'
@@ -1333,17 +1334,18 @@ export const proof = {
             },
         },
         // The initial source is the demo's whole reason for being: `a` is
-        // one `+` node reached by four edges, not four nodes that happen
+        // one `+` node reached by six edges, not six nodes that happen
         // to match.
         sharing: () => {
             const html = htmlToString(demo.view(demo.init))
             assertEq(html.split('>+<').length - 1, 1) // one `+` node, however many edges reach it
             // Every edge ends at its target's left side, level with its
             // label, so the lines that end at the `+` box's left edge and
-            // the `+` label's height are the ones that reach it: `0`, `1`,
-            // `a * 3`'s `left` and `m && a`'s `right`, each from a port of
-            // its own. The box is the one whose centre is the label's and
-            // whose top is 13px above it, half the 26px header.
+            // the `+` label's height are the ones that reach it: `a.x`'s
+            // `obj`, `0`, `1`, `a * 3`'s and `a < 4`'s `left`, and
+            // `a < 4 && a`'s `right`, each from a port of its own. The box
+            // is the one whose centre is the label's and whose top is 13px
+            // above it, half the 26px header.
             const [before] = html.split('" text-anchor="middle" data-graph-label="">+<')
             const at = before.slice(before.lastIndexOf('<text x="') + '<text x="'.length)
             const [x, y] = at.split('" y="').map(Number)
@@ -1351,31 +1353,29 @@ export const proof = {
                 .map(r => r.split('"'))
                 .find(([rx, , ry, , w]) => Number(ry) === y - 13 && Number(rx) + Number(w) / 2 === x)
             const left = assertNotNullish(box, html)[0]
-            assertEq(html.split(`L${left},${y}" data-graph-edge=""`).length - 1, 4)
+            assertEq(html.split(`L${left},${y}" data-graph-edge=""`).length - 1, 6)
         },
         // The same source carries one of every look the drawing has, so a
         // reader meets all three before typing anything: an operator
         // hollow, a primitive tinted in its user's port, an input filled in
         // its user's port. `undefined` is among the primitives rather than
         // drawn as the zero-operand operator its `Op0Id` grouping would
-        // otherwise make it. The inputs are the module's `args`, which its
-        // import reaches, and the function's own `rest`: no box of their
-        // own, since a reference's scope already says which input it is.
+        // otherwise make it. The input is the function's own `rest`: no box
+        // of its own, since a reference's scope already says which input it
+        // is.
         // The `=>` has no frame port, since it captures nothing, and its
         // `rest` body cell is marked lazy, as the line to it was.
         kinds: () => {
             const html = htmlToString(demo.view(demo.init))
             assertEq(html.split('data-graph-kind="terminal"').length - 1, 0)
             assertEq(html.split('data-graph-kind="leaf"').length - 1, 0)
-            assert(html.includes('data-graph-value="" data-graph-value-kind="terminal">'), html)
-            assert(html.includes('data-graph-value-label="" data-graph-value-kind="terminal">args<'), html)
             assert(html.includes('data-graph-value="" data-graph-value-kind="terminal" data-graph-edge-kind="lazy">'), html)
             assert(html.includes('data-graph-value-label="" data-graph-value-kind="terminal">rest<'), html)
             assert(html.includes('data-graph-value-label="">undefined<'), html)
-            // `1`, `2`, `3`, `4` and `undefined`, and `args` and `rest`,
-            // each in a cell; only the two inputs are terminals.
-            assertEq(html.split('data-graph-value=""').length - 1, 7)
-            assertEq(html.split('data-graph-value="" data-graph-value-kind="terminal"').length - 1, 2)
+            // `1`, `2`, `3`, `4` and `undefined`, and `rest`, each in a
+            // cell; only the input is a terminal.
+            assertEq(html.split('data-graph-value=""').length - 1, 6)
+            assertEq(html.split('data-graph-value="" data-graph-value-kind="terminal"').length - 1, 1)
             assert(!html.includes('>frame'), html)
             assert(html.includes('>body<'), html)
         },
@@ -1506,13 +1506,13 @@ export const proof = {
         examples: {
             // The demo opens on the first, which is its overview.
             init: () => assertEq(demo.init, examples[0][1]),
-            // Every example draws, except the one that is there to show an
-            // error — and none of them draws a node the demo cannot
-            // describe, since an example exists to show what it can.
+            // Every example draws, except the two the front end refuses —
+            // and none of them draws a node the demo cannot describe, since
+            // an example exists to show what it can.
             draw: () => {
                 for (const [name, source] of examples) {
                     const g = _graphOf(source)
-                    assertEq(g.ok, name !== 'Parse error')
+                    assertEq(g.ok, !['Hex escape', 'Parse error'].includes(name), name)
                     assert(!htmlToString(demo.view(source)).includes('not yet drawn'), name)
                 }
             },
