@@ -130,8 +130,10 @@ runtimes — at the versions CI uses. Every CI job runs inside this very shell, 
 what passes in it is what passes there, except the Node 22 and Node 24
 compatibility jobs, each on a flake of its own, the two Windows platform jobs,
 which run without Nix, and the publishing workflow, which runs on the Node
-`setup-node` installs. Do not install those tools by hand or pick their
-versions; the shell is the one environment.
+`setup-node` installs. The packed-package check that closes `node26` stays out
+of it too, by design: it installs the published tarball with `setup-node`'s
+Node and npm, as a consumer would. Do not install those tools by hand or pick
+their versions; the shell is the one environment.
 
 ```bash
 ./dev.sh                      # an interactive shell

@@ -3,7 +3,9 @@
 One reproducible toolchain, shared by developers and CI, so that what passes on
 your machine is what passes on the runners — except the Node 22 and Node 24
 compatibility jobs, on a flake each, the two Windows platform jobs, which run
-without Nix, and the publishing workflow, on the Node `setup-node` installs.
+without Nix, the publishing workflow, on the Node `setup-node` installs, and
+the packed-package check that closes `node26`, which installs the published
+tarball as a consumer would.
 
 [`dev.sh`](../../../dev.sh) opens the shell, or runs the one command given to
 it; [`gen.nix/run`](../../../gen.nix/run) is the generated form of the latter,

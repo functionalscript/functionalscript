@@ -3,9 +3,9 @@
  * every system Nix runs on.
  *
  * It is both things at once, and that is the point. It is what a developer
- * enters before running anything, and it is what all but two CI jobs run
- * inside — so the environment CI proves is the environment people work in,
- * rather than a fifth arrangement nobody uses.
+ * enters before running anything, and it is what every CI job but the Node 22,
+ * Node 24 and two Windows jobs runs inside — so the environment CI proves is
+ * the environment people work in, rather than a fifth arrangement nobody uses.
  *
  * The jobs used to have one flake each, on the reasoning that a shell with five
  * runtimes would let a job pass on whichever `node` reached `PATH` first. That

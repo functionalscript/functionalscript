@@ -72,9 +72,11 @@ the versions CI uses. It is not a convenience built alongside CI: every job runs
 its commands inside this very shell, so what passes here is what passes there,
 except the Node 22 and Node 24 compatibility jobs, each on a flake of its own,
 the two Windows platform jobs, which run without Nix, and the publishing
-workflow, which runs on the Node `setup-node` installs — so a change that leans
-on Node 26 passes the shell and still fails CI. Every developer and every agent
-works inside the shell.
+workflow, which runs on the Node `setup-node` installs. The packed-package
+check that closes `node26` stays out of it too, by design: it installs the
+published tarball with `setup-node`'s Node and npm, as a consumer would. So a
+change that leans on Node 26 passes the shell and still fails CI. Every
+developer and every agent works inside the shell.
 
 ```bash
 ./dev.sh                   # an interactive shell
@@ -310,8 +312,8 @@ refreshes `package-lock.json`, `deno.lock`, `bun.lock`, `Cargo.lock` and
 [`nix/README.md`](./fjs/ci/nix/README.md). The last one pins the devcontainer's
 Nix feature to the version and digest the registry serves, and is written by
 the devcontainer CLI, which the script runs through `npx` at a version pinned
-in the command rather than as a dependency of this package — the one external
-tool a repository script calls, approved by the maintainer for this step
+in the command rather than as a dependency of this package — an external tool
+called from a repository script, approved by the maintainer for this step
 ([AGENTS.md §6](./AGENTS.md#6-external-tools)). An agent session
 needs the registry's content host, `pkg-containers.githubusercontent.com`,
 allowed in its network policy for that step.
