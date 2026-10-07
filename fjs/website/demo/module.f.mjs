@@ -70,7 +70,7 @@ export const textField = ({ name, label, rows = 8 }, text) => ['p',
  */
 export const inputField = ({ name, label }, value) => ['p',
     ['label', { for: name }, `${label} `],
-    ['input', { type: 'text', id: name, name, value, class: 'demo-input' }],
+    ['input', { type: 'text', id: name, name, value }],
 ]
 
 /** Update an existing string field; unrelated events keep the state.
