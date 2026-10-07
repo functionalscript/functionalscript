@@ -68,6 +68,18 @@ const expectModule = (source, expected) => {
     assertEq(stringifyDjsModule(value), expected)
 }
 
+/**
+ * A module refused with the message, at the column on its first line.
+ *
+ * @type {(source: string, message: string, column: number) => void}
+ */
+const expectRefused = (source, message, column) => {
+    const [tag, value] = parseFromTokens(tokenizeString(source))
+    assert(tag === 'error', tag)
+    assertEq(value.message, message, source)
+    assertEq(value.metadata?.column, column, source)
+}
+
 /** Parser fixtures execute through the shared represented interpreter. @type {(ast: AstModule, args?: Values) => EdagValue} */
 const evaluate = (ast, args = []) => assertOk(memo(assertOk(analysis(unresolved(ast).edag)))({ args }))
 
@@ -335,7 +347,9 @@ export const proof = {
                 ["export default {", "unexpected end", [1, 17]],
                 ["const a = 1 export default a", "unexpected token", [1, 13]],
                 ["export default 1 2", "unexpected token", [1, 18]],
-                ["export default {a}", "unexpected token", [1, 18]],
+                // a bare name in braces is a shorthand member, `a: a`, so what
+                // is refused is the reference, at the name
+                ["export default {a}", "const not found", [1, 17]],
                 ["export default {:1}", "unexpected token", [1, 17]],
                 ["export default [,]", "unexpected token", [1, 17]],
                 ["import x from y\nexport default x", "unexpected token", [1, 15]],
@@ -904,6 +918,42 @@ export const proof = {
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             assertEq(result, '[[],[["object",[[":","default",["object",[[":","__proto__",["object",[[":","a",42]]]]]]]]]]]')
+        },
+    ],
+    // A shorthand member, `{ a }`, is `a: a` as it is in JavaScript: the
+    // name is the key and a reference to the name is the value, so it
+    // resolves as any reference does — a `const`, an import, a parameter —
+    // and is refused as one is, a name nothing binds or a reserved word.
+    // Only the bare spelling has the shorthand; a string or a computed key
+    // is a key alone and keeps its `:`.
+    shorthand: [
+        () => {
+            expectModule('const a = [1]; export default { a };', '[[],[["array",[1]],["object",[[":","default",["object",[[":","a",["cref",0]]]]]]]]]')
+            // mixed with the three keyed spellings, a trailing comma allowed
+            expectModule('const a = 1; const d = 2; export default { a, "b": 2, ["c"]: 3, d, };', '[[],[1,2,["object",[[":","default",["object",[[":","a",["cref",0]],[":","b",2],[":","c",3],[":","d",["cref",1]]]]]]]]]')
+            // a parameter, and an import
+            expectModule('export default (a) => ({ a });', '[[],[["object",[[":","default",["=>",1,[["object",[[":","a",["arg",0]]]]]]]]]]]')
+            expectModule('import m from "./m.f.js"; export default { m };', '[[{"json":false,"name":"default","specifier":"./m.f.js"}],[["object",[[":","default",["object",[[":","m",["aref",0]]]]]]]]]')
+            // the shorthand denotes an own property whatever the name, as
+            // JavaScript's does: `{ __proto__ }` is the property, not a
+            // prototype, so it is accepted where `{ __proto__: v }` is not
+            expectModule('const __proto__ = 1; export default { __proto__ };', '[[],[1,["object",[[":","default",["object",[[":","__proto__",["cref",0]]]]]]]]]')
+        },
+        () => {
+            // a reference, refused as one: at the name
+            expectRefused('export default { a };', 'const not found', 18)
+            expectRefused('export default { a: 1, b };', 'const not found', 24)
+            expectRefused('export default { typeof };', 'reserved word', 18)
+            expectRefused('export default { null };', 'reserved word', 18)
+            // the three literal words are reserved: a value where a value
+            // stands, a binding nowhere, so the shorthand's reference finds
+            // none (spec/todo/2445-literal-words-as-references.md)
+            expectRefused('export default { undefined };', 'reserved word', 18)
+            expectRefused('export default { NaN };', 'reserved word', 18)
+            // a string or a computed key has no shorthand: the grammar wants
+            // its `:`, at the `}`
+            expectRefused('export default { "a" };', 'unexpected token', 22)
+            expectRefused('export default { ["a"] };', 'unexpected token', 24)
         },
     ],
     invalidComputedKey: [

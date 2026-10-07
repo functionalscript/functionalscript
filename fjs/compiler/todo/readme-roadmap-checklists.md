@@ -17,8 +17,8 @@ compiler. They leave unticked features that parse and compile today:
 - "decidable functions?" — `const f = a => b => a + b; export default f(1)(2);`
   compiles to `.rs` and `.edag.data.js`.
 
-The one remaining open box, "short form" `{ a }`, is
-[shorthand](../../../spec/todo/2440-shorthand.md). The spec roadmap,
+The last open box, "short form" `{ a }`, is in the language now
+([objects](../../../spec/README.md#objects)). The spec roadmap,
 [`spec/todo/README.md`](../../../spec/todo/README.md), is where these items
 are tracked; the README keeps a second, drifting copy.
 
