@@ -11,7 +11,7 @@ use crate::{
         Malformed, argument, arity, decode_bytes, decode_choice, decode_flag, decode_literal,
         decode_number, decode_object, decode_optional, decode_string, decode_true, encode_array,
         encode_bool, encode_bytes, encode_nothing, encode_nullable, encode_number, encode_object,
-        encode_ok, encode_string, encode_tuple, member, required,
+        encode_ok, encode_string, encode_tuple, member, optional_argument, required,
     },
     files::{self, Dirent, IoError},
 };
@@ -60,10 +60,7 @@ impl<R, O, E> Native<R, O, E> {
 fn not_implemented<A: IVm>(command: &str) -> Any<A> {
     encode_tuple(
         "error",
-        vec![encode_tuple(
-            "notImplemented",
-            vec![encode_string(command.to_string())],
-        )],
+        encode_tuple("notImplemented", encode_string(command.to_string())),
     )
 }
 
@@ -74,19 +71,19 @@ fn answer<A: IVm, T>(result: Result<T, IoError>, ok: impl FnOnce(T) -> Any<A>) -
         Ok(value) => encode_ok(ok(value)),
         Err(IoError { code, message }) => encode_tuple(
             "error",
-            vec![encode_tuple(
+            encode_tuple(
                 "ioError",
-                vec![encode_object(vec![
+                encode_object([
                     code.map(|code| ("code", encode_string(code))),
                     Some(("message", encode_string(message))),
-                ])],
-            )],
+                ]),
+            ),
         ),
     }
 }
 
 fn encode_dirent<A: IVm>(dirent: Dirent) -> Any<A> {
-    encode_object(vec![
+    encode_object([
         Some(("name", encode_string(dirent.name))),
         Some(("parentPath", encode_string(dirent.parent_path))),
         Some(("isFile", encode_bool(dirent.is_file))),
@@ -108,8 +105,7 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
         let Ok(payload) = Array::try_from(payload) else {
             return Err(Malformed("a payload that is not an array".to_string()));
         };
-        let payload: Vec<Any<A>> = payload.into_iter().collect();
-        let payload = payload.as_slice();
+        let payload = &payload;
         match command.as_str() {
             "write" => {
                 arity(payload, 2)?;
@@ -126,7 +122,7 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
             "mkdir" => {
                 arity(payload, 2)?;
                 let path = decode_string(argument(payload, 0, "path")?)?;
-                let recursive = decode_optional(payload.get(1).cloned(), |options| {
+                let recursive = decode_optional(optional_argument(payload, 1), |options| {
                     let options = decode_object(options, &["recursive"])?;
                     decode_true(required(&options, "recursive")?)
                 })?
@@ -219,11 +215,11 @@ mod test {
     type Host = Native<Cursor<Vec<u8>>, Vec<u8>, Vec<u8>>;
 
     fn host(input: &[u8]) -> Host {
-        Native::new(Cursor::new(input.to_vec()), vec![], vec![])
+        Native::new(Cursor::new(input.to_vec()), Vec::new(), Vec::new())
     }
 
-    fn array(items: impl IntoIterator<Item = V>) -> V {
-        items.into_iter().collect::<Vec<_>>().to_array().to_any()
+    fn array<const N: usize>(items: [V; N]) -> V {
+        items.to_array().to_any()
     }
 
     /// The value of an `['ok', value]` answer.
@@ -346,7 +342,7 @@ mod test {
                 Ok(())
             }
         }
-        Native::new(Cursor::new(vec![]), Full, Vec::new()).write(false, &[1]);
+        Native::new(Cursor::new(Vec::new()), Full, Vec::new()).write(false, &[1]);
     }
 
     #[test]
@@ -374,11 +370,11 @@ mod test {
         object([("recursive", value.to_any())])
     }
 
-    fn perform(command: &str, payload: impl IntoIterator<Item = V>) -> Result<V, V> {
+    fn perform<const N: usize>(command: &str, payload: [V; N]) -> Result<V, V> {
         host(b"").perform(string_any(command), array(payload))
     }
 
-    fn thrown(command: &str, payload: impl IntoIterator<Item = V>) -> String {
+    fn thrown<const N: usize>(command: &str, payload: [V; N]) -> String {
         decode_string(perform(command, payload).unwrap_err()).unwrap()
     }
 

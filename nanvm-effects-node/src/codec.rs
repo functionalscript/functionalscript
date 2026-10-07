@@ -14,8 +14,8 @@
 use nanvm_lib::{
     common::sized_index::SizedIndex,
     vm::{
-        Any, BigInt, IVm, Nullish, Number, Object, String as VmString, ToAny, ToArray, ToObject,
-        Unpacked,
+        Any, Array, BigInt, IVm, Nullish, Number, Object, String as VmString, ToAny, ToArray,
+        ToObject, Unpacked,
         unstable::{bigint_any_words, string_any, string_key},
     },
 };
@@ -31,20 +31,25 @@ fn malformed<T>(what: impl Into<String>) -> Result<T, Malformed> {
 // Reading
 
 /// Argument `index` of the payload, which must be there.
-pub fn argument<A: IVm>(payload: &[Any<A>], index: usize, name: &str) -> Result<Any<A>, Malformed> {
-    match payload.get(index) {
-        Some(any) => Ok(any.clone()),
+pub fn argument<A: IVm>(payload: &Array<A>, index: u32, name: &str) -> Result<Any<A>, Malformed> {
+    match optional_argument(payload, index) {
+        Some(any) => Ok(any),
         None => malformed(format!("missing argument {index}, `{name}`")),
     }
 }
 
+/// Argument `index` of the payload, if it is there.
+pub fn optional_argument<A: IVm>(payload: &Array<A>, index: u32) -> Option<Any<A>> {
+    (index < payload.length()).then(|| payload[index].clone())
+}
+
 /// The payload may hold no more than the operation's parameters: its
 /// parameter tuple is closed.
-pub fn arity<A: IVm>(payload: &[Any<A>], parameters: usize) -> Result<(), Malformed> {
-    if payload.len() > parameters {
+pub fn arity<A: IVm>(payload: &Array<A>, parameters: u32) -> Result<(), Malformed> {
+    if payload.length() > parameters {
         return malformed(format!(
             "{} arguments where at most {parameters} are taken",
-            payload.len()
+            payload.length()
         ));
     }
     Ok(())
@@ -192,13 +197,9 @@ pub fn encode_nullable<A: IVm, T>(v: Option<T>, f: impl FnOnce(T) -> Any<A>) -> 
     }
 }
 
-/// A tagged tuple: `[tag, ...items]`.
-pub fn encode_tuple<A: IVm>(tag: &str, items: Vec<Any<A>>) -> Any<A> {
-    std::iter::once(string_any(tag))
-        .chain(items)
-        .collect::<Vec<_>>()
-        .to_array()
-        .to_any()
+/// A tagged tuple: `[tag, item]`.
+pub fn encode_tuple<A: IVm>(tag: &str, item: Any<A>) -> Any<A> {
+    [string_any(tag), item].to_array().to_any()
 }
 
 pub fn encode_bool<A: IVm>(v: bool) -> Any<A> {
@@ -227,21 +228,20 @@ pub fn encode_bytes<A: IVm>(bytes: Vec<u8>) -> Any<A> {
 }
 
 pub fn encode_array<A: IVm, T>(v: Vec<T>, f: impl Fn(T) -> Any<A>) -> Any<A> {
-    v.into_iter().map(f).collect::<Vec<_>>().to_array().to_any()
+    v.into_iter().map(f).to_array().to_any()
 }
 
 /// A struct: its members that are there, in order.
-pub fn encode_object<A: IVm>(members: Vec<Option<(&str, Any<A>)>>) -> Any<A> {
+pub fn encode_object<A: IVm, const N: usize>(members: [Option<(&str, Any<A>)>; N]) -> Any<A> {
     members
         .into_iter()
         .flatten()
         .map(|(key, value)| (string_key::<A>(key), value))
-        .collect::<Vec<_>>()
         .to_object()
         .to_any()
 }
 
 /// The `Result` of an operation that succeeded: `['ok', value]`.
 pub fn encode_ok<A: IVm>(value: Any<A>) -> Any<A> {
-    encode_tuple("ok", vec![value])
+    encode_tuple("ok", value)
 }
