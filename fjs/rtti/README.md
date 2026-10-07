@@ -215,8 +215,8 @@ value carrying more is not one of its values, on either reader:
 
 | schema | value | `parse` | `validate` |
 | --- | --- | --- | --- |
-| `{ a: 42 }` | `{ a: 42 }` | `{ a: 42 }` | `{ a: 42 }` |
 | `{ a: 42 }` | `{ a: 42, b: 'x' }` | error | error |
+| `{ a: 42 }` | `{ a: 42 }` | `{ a: 42 }` | `{ a: 42 }` |
 | `[42]` | `[42, 'extra']` | error | error |
 | `[number, or(option, string)]` | `[42]` | `[42]` | `[42]` |
 | `[42]` | `[]` | error | error |
