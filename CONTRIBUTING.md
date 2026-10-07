@@ -310,7 +310,9 @@ refreshes `package-lock.json`, `deno.lock`, `bun.lock`, `Cargo.lock` and
 [`nix/README.md`](./fjs/ci/nix/README.md). The last one pins the devcontainer's
 Nix feature to the version and digest the registry serves, and is written by
 the devcontainer CLI, which the script runs through `npx` at a version pinned
-in the command rather than as a dependency of this package. An agent session
+in the command rather than as a dependency of this package — the one external
+tool a repository script calls, approved by the maintainer for this step
+([AGENTS.md §6](./AGENTS.md#6-external-tools)). An agent session
 needs the registry's content host, `pkg-containers.githubusercontent.com`,
 allowed in its network policy for that step.
 
@@ -398,16 +400,19 @@ Reviewing someone else's pull request: [REVIEWING.md](./doc/REVIEWING.md).
 
 ## OpenAI Codex environment
 
-The same shell. The environment's setup script installs Nix and runs `npm ci`
-inside it once, so every later command finds the toolchain CI uses. Codex runs
-the script as root in a container without an init system, which the official
-installer refuses in both of its modes, so the script uses the Determinate
-installer, which supports exactly that:
+The same shell. The environment's setup script installs Nix and fetches both
+dependency sets inside it, so every later command finds the toolchain CI uses
+and the dependencies it needs — the container's network is open during setup
+only, so a `cargo fetch` left for later would fail there. Codex runs the script
+as root in a container without an init system, which the official installer
+refuses in both of its modes, so the script uses the Determinate installer,
+which supports exactly that:
 
 ```sh
 curl -fsSL https://install.determinate.systems/nix | sh -s -- install linux --init none --no-confirm
 . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
 ./dev.sh npm ci
+./dev.sh cargo fetch
 ```
 
 `npm test`, `npm run cov` and every other check then run as
