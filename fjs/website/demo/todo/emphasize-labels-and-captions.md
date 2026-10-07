@@ -1,7 +1,7 @@
 ## Emphasize demo labels and output captions
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
