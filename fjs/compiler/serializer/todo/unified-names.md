@@ -1,9 +1,9 @@
-# One counter for generated serializer names
+## One counter for generated serializer names
 
 **Priority:** P2
 **Status:** wip — proposal; implementation remains a separate step
 
-## Problem
+### Problem
 
 The FunctionalScript serializer assigns different names to arguments and
 constants, with scope-specific prefixes to prevent shadowing. PR
@@ -11,7 +11,7 @@ constants, with scope-specific prefixes to prevent shadowing. PR
 proposed `a` and `c` prefixes, but separates the FunctionalScript spelling
 from DataJS's `$0`, `$1`, … spelling even for shared data.
 
-## Proposal
+### Proposal
 
 Use `$` followed by a decimal counter for every newly generated binding:
 constants, fixed arguments, rest arguments, capture wrapper parameters, and
@@ -52,7 +52,7 @@ collisions; their exact allocation order needs to be pinned by proofs when
 the implementation is written. Property keys and literal strings are data
 and are never renamed.
 
-## Tradeoffs
+### Tradeoffs
 
 One rule replaces several naming families and prevents generated bindings from
 shadowing one another. Arguments and constants no longer look different, and
@@ -60,7 +60,7 @@ adding an earlier binding can renumber later bindings across scopes. Generated
 function text changes observably and the implementation PR must declare that
 break in its changelog section.
 
-## Tasks
+### Tasks
 
 - [ ] Implement one deterministic allocator for source, code-only function text,
   and value materialization without mutable state.
@@ -70,7 +70,7 @@ break in its changelog section.
 - [ ] Update naming documentation and exact-text proofs, regenerate Rust
   fixtures, and run all required checks.
 
-## Related
+### Related
 
 Supersedes the prefix-only approach in
 [#2631](https://github.com/functionalscript/functionalscript/pull/2631).
