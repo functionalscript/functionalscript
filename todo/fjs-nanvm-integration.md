@@ -192,7 +192,7 @@ out today.
 #### The whole repository
 
 The same loop over every authored module, not only the leaves, measured on
-`main` after a function's own name landed
+`main` at `75881dc`, the merge of a function's own name
 ([#2630](https://github.com/functionalscript/functionalscript/pull/2630)):
 of 227 modules — 221 `module.f.mjs` and 6 `module.f.js` — the 6 `.f.js`
 compile and every `.f.mjs` stops at its first refusal. The table counts that
