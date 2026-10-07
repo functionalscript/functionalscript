@@ -3,9 +3,17 @@
 version = 4
 
 [[package]]
+name = "nanvm-effects-node"
+version = "0.1.0"
+dependencies = [
+ "nanvm-lib",
+]
+
+[[package]]
 name = "nanvm-harness"
 version = "0.1.0"
 dependencies = [
+ "nanvm-effects-node",
  "nanvm-lib",
 ]
 

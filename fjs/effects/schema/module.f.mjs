@@ -5,7 +5,7 @@
  * [`./types.ts`](./types.ts).
  *
  * These schemas are not a native runner ABI. The
- * [native runner](../../../todo/nanvm-effects-node.md) uses VM values directly,
+ * [native runner](../../../nanvm-effects-node/) uses VM values directly,
  * without generating Rust types or an operations trait from this module.
  *
  * An operation is its tag, the schema of its parameters, a closed tuple whose
