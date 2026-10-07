@@ -251,7 +251,7 @@ const primitiveOf = ([tag, leaf]) => {
         case 'Infinity': { return Infinity }
         case 'number': {
             assert(token.kind === 'number')
-            return Number(token.value)
+            return Number(token.value.replaceAll('_', ''))
         }
         case 'string': {
             assert(token.kind === 'string')
