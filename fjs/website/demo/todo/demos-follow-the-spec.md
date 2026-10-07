@@ -30,6 +30,10 @@ As measured on the tree the spec landed against:
   pages show their result with nothing to say what it is.
 - **A verdict in an example's name.** DataJS's
   `Error: JSON is not a document`.
+- **A text result outside a code block.** The compiler's side-by-side page
+  (all four outputs), parser, serializer, Rust and tokenizer pages, JSON and
+  UTF-8 draw their result as a bare `pre`, not in the bordered `data-code`
+  box the spec gives a text result.
 
 ### Proposal
 
@@ -41,7 +45,12 @@ Change the shared builders first, so most demos move by changing one place:
   [`railroadDemo`](../railroad/module.f.mjs) already take an `intro`;
 - one shared refusal element, `Refused:` over a `data-result="error"` box,
   whose proof pins the marker name — today a renamed marker leaves the spec
-  wrong with every check green.
+  wrong with every check green;
+- a text result through the shared [`codeBlock`](../code/module.f.mjs), or a
+  plain `data-code` box where the reader has no reason to paste it
+  elsewhere. The four compiler pages build their result with one repeated
+  `kind === 'ok' ? ['pre', value] : …` line, which the refusal element can
+  replace together with it.
 
 Then the remaining demos, a few per pull request, each checked in the
 browser with its preview link in the description.
@@ -53,6 +62,9 @@ browser with its preview link in the description.
 - [ ] A shared refusal element with a proof; every demo above through it.
 - [ ] Captions for the parser, serializer, Rust and tokenizer pages.
 - [ ] Rename DataJS's `Error: JSON is not a document`.
+- [ ] Text results in a code block for the compiler's side-by-side, parser,
+      serializer, Rust and tokenizer pages, JSON and UTF-8; decide per demo
+      whether the result carries a copy button.
 
 ### Related
 
