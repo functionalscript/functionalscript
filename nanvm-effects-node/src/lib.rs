@@ -63,7 +63,7 @@ mod test {
     type V = Any<Naive>;
 
     /// A function value that runs `code` with the `frame` it is given.
-    fn function(code: StaticCode<Naive>, frame: Vec<V>) -> V {
+    fn function<const N: usize>(code: StaticCode<Naive>, frame: [V; N]) -> V {
         Naive::static_function(code, 0, frame.to_array(), None).to_any()
     }
 
@@ -73,17 +73,17 @@ mod test {
 
     /// `['ok', v]` or `['error', e]`, as the language builds a `Result`.
     fn result(tag: &str, v: V) -> V {
-        vec![string_any(tag), v].to_array().to_any()
+        [string_any(tag), v].to_array().to_any()
     }
 
     /// A `Pure` answering `r`, the very value, from its frame.
     fn pure(r: V) -> V {
-        function(|self_, _| Ok(Naive::frame(self_)[0].clone()), vec![r])
+        function(|self_, _| Ok(Naive::frame(self_)[0].clone()), [r])
     }
 
     /// A `Do` of `command`, `payload` and `continuation`.
     fn node(command: &str, payload: V, continuation: V) -> V {
-        vec![
+        [
             (string_key::<Naive>("command"), string_any(command)),
             (string_key::<Naive>("payload"), payload),
             (string_key::<Naive>("continuation"), continuation),
@@ -93,7 +93,7 @@ mod test {
     }
 
     fn empty() -> V {
-        Vec::<V>::new().to_array().to_any()
+        [].to_array().to_any()
     }
 
     /// A boundary that answers every command `['ok', undefined]`.
@@ -103,7 +103,7 @@ mod test {
 
     /// A continuation that ends the run with `['ok', the answer it was given]`.
     fn ends_with_the_answer() -> V {
-        function(|_, args| Ok(pure(result("ok", args[0].clone()))), vec![])
+        function(|_, args| Ok(pure(result("ok", args[0].clone()))), [])
     }
 
     /// A `Pure` ends the run with its complete `Result`, an `error` too, as
@@ -121,9 +121,9 @@ mod test {
     #[test]
     fn commands_run_in_order_through_their_continuations() {
         let last = node("c", empty(), ends_with_the_answer());
-        let next = function(|self_, _| Ok(Naive::frame(self_)[0].clone()), vec![last]);
+        let next = function(|self_, _| Ok(Naive::frame(self_)[0].clone()), [last]);
         let middle = node("b", empty(), next);
-        let next = function(|self_, _| Ok(Naive::frame(self_)[0].clone()), vec![middle]);
+        let next = function(|self_, _| Ok(Naive::frame(self_)[0].clone()), [middle]);
         let first = node("a", empty(), next);
         let mut seen = Vec::new();
         let done = run(first, |command, _| {
@@ -131,10 +131,7 @@ mod test {
             Ok(result("ok", Number::from(seen.len() as f64).to_any()))
         })
         .unwrap();
-        assert_eq!(
-            seen,
-            vec![string_any("a"), string_any("b"), string_any("c")]
-        );
+        assert_eq!(seen, [string_any("a"), string_any("b"), string_any("c")]);
         // The last answer is the third one, a `['ok', 3]`, inside the `['ok', _]`.
         let inner = items(items(done)[1].clone());
         assert_eq!(inner[0], string_any("ok"));
@@ -164,11 +161,11 @@ mod test {
     fn values_keep_their_identity() {
         let payload = empty();
         let kept = payload.clone();
-        let callable = function(|_, _| Ok(f64_any(0)), vec![]);
+        let callable = function(|_, _| Ok(f64_any(0)), []);
         let returned = callable.clone();
         let continuation = function(
             |self_, _| Ok(pure(result("ok", Naive::frame(self_)[0].clone()))),
-            vec![returned],
+            [returned],
         );
         let mut got = None;
         let done = run(node("x", payload, continuation), |_, p| {
@@ -188,10 +185,10 @@ mod test {
     fn language_throws_propagate() {
         let thrower = |_: &_, _| Err::<V, V>(string_any("boom"));
         assert_eq!(
-            run(function(thrower, vec![]), answers_ok),
+            run(function(thrower, []), answers_ok),
             Err(string_any("boom"))
         );
-        let in_continuation = node("x", empty(), function(thrower, vec![]));
+        let in_continuation = node("x", empty(), function(thrower, []));
         assert_eq!(run(in_continuation, answers_ok), Err(string_any("boom")));
         let from_boundary = node("x", empty(), ends_with_the_answer());
         assert_eq!(
@@ -218,7 +215,7 @@ mod test {
             if n == 0.0 {
                 return Ok(pure(result("ok", Nullish::Null.to_any())));
             }
-            let next = function(countdown, vec![Number::from(n - 1.0).to_any()]);
+            let next = function(countdown, [Number::from(n - 1.0).to_any()]);
             Ok(node("tick", empty(), next))
         }
         // What leaves the thread is plain data: the VM's values are not `Send`.
@@ -228,7 +225,7 @@ mod test {
                 node(
                     "tick",
                     empty(),
-                    function(countdown, vec![Number::from((TICKS - 1) as f64).to_any()]),
+                    function(countdown, [Number::from((TICKS - 1) as f64).to_any()]),
                 ),
                 |_, _| {
                     ticks += 1;
