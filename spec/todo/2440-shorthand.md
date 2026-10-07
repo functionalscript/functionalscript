@@ -37,7 +37,9 @@ Depends on [property keys](../README.md#property-keys).
 It preserves a JavaScript convention the repository writes everywhere, at no
 new semantics: a shorthand member is the keyed member it denotes, so the AST,
 the EDAG, both writers and the Rust printer need no change, and the source
-writer spells it back as `a: a`. It unblocks the 23 modules above at their
+writer spells it back as it spells every member, the key quoted and the
+value written in place: `{ a }` with `const a = [1]` reads back as
+`const $0=[1];export default {"a":$0};`. It unblocks the 23 modules above at their
 first refusal and removes the one feature `fjs/types/function` waits on
 besides `iterate`'s loop.
 
