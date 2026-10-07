@@ -31,10 +31,10 @@ As measured on the tree the spec landed against:
 - **A verdict in an example's name.** DataJS's
   `Error: JSON is not a document`.
 - **A text result outside a code block.** The compiler's side-by-side page
-  (all five outputs), parser, serializer, Rust and tokenizer pages, JSON and
-  UTF-8 draw their result as a bare `pre`, not in the bordered `data-code`
-  box the spec gives a text result. So does BigInt, once `Measure` has run:
-  its benchmark rows.
+  (every output in [`outputs`](../../../compiler/demo.f.mjs)), parser,
+  serializer, Rust and tokenizer pages, JSON and UTF-8 draw their result as
+  a bare `pre`, not in the bordered `data-code` box the spec gives a text
+  result. So does BigInt, once `Measure` has run: its benchmark rows.
 
 ### Proposal
 
@@ -49,9 +49,9 @@ Change the shared builders first, so most demos move by changing one place:
   wrong with every check green;
 - a text result through the shared [`codeBlock`](../code/module.f.mjs), or a
   plain `data-code` box where the reader has no reason to paste it
-  elsewhere. The four compiler pages build their result with one repeated
-  `kind === 'ok' ? ['pre', value] : …` line, which the refusal element can
-  replace together with it.
+  elsewhere. The compiler's side-by-side, parser, serializer and Rust pages
+  build their result with one repeated `kind === 'ok' ? ['pre', value] : …`
+  line, which the refusal element can replace together with it.
 
 Then the remaining demos, a few per pull request, each checked in the
 browser with its preview link in the description.
