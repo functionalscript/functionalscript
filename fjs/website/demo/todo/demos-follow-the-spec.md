@@ -35,6 +35,12 @@ As measured on the tree the spec landed against:
   serializer, Rust and tokenizer pages, JSON and UTF-8 draw their result as
   a bare `pre`, not in the bordered `data-code` box the spec gives a text
   result. So does BigInt, once `Measure` has run: its benchmark rows.
+  The browser test runner's failure block, drawn once its example has run,
+  is a deliberate exception and stays as it is: it is the suite report's own
+  row, [`resultView`](../../../emergent_testing/browser/module.f.mjs), which
+  every page's test section draws too, so the demo cannot show a report that
+  looks unlike a real run. That row is already a bordered box, tinted as the
+  failure it reports.
 
 ### Proposal
 
