@@ -198,17 +198,17 @@ of 227 modules — 221 `module.f.mjs` and 6 `module.f.js` — the 6 `.f.js`
 compile and every `.f.mjs` stops at its first refusal. The table counts that
 first refusal only, read at the token the compiler names, so it says which
 feature to settle first, not how much each costs; a refusal the compiler
-meets in an import is counted under the import's feature, 8 of the rows'
+meets in an import is counted under the import's feature, 11 of the rows'
 members.
 
 | Modules | First refusal |
 | ---: | --- |
-| 90 | a template literal |
+| 89 | a template literal |
 | 33 | destructuring, a `const` or a parameter |
 | 23 | a shorthand member, `{ a, b }` |
 | 19 | `let`, `for`, `switch` or `while` |
 | 10 | a numeric literal spelled `0b…` or with `_` separators |
-| 9 | an escape in a single-quoted string, `'\x07'`, `'\b'` |
+| 10 | an escape in a single-quoted string, `'\x07'`, `'\b'` |
 | 9 | a computed member or key, `a[i]`, `{ [k]: v }` |
 | 7 | a call as a statement, `assert(…)` |
 | 6 | `const not found`: three reads of a later `const` ([`3140`](../spec/todo/3140-forward-references.md)), three of `Number` or `Boolean` ([`2365`](../spec/todo/2365-global-names.md)) |
