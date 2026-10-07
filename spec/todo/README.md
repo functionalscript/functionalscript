@@ -82,8 +82,8 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
 
 ### 2.3. Syntactic Sugar
 
-1. [ ] [shorthand](./2440-shorthand.md); whether a reserved word that
-   denotes a value, `NaN`, may stand as one is
+1. [x] shorthand members, `{ a }` ([objects](../README.md#objects));
+   whether a reserved word that denotes a value, `NaN`, may stand as one is
    [literal-words-as-references](./2445-literal-words-as-references.md),
    at P5,
 2. [ ] [destructuring](./2450-destructuring.md),

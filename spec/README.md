@@ -1010,6 +1010,21 @@ export default {
 An object may be empty and may end with a trailing comma, like an array. When
 one key is written twice, the last value wins, as in JavaScript.
 
+A member may be a name alone, the **shorthand** JavaScript reads as the name
+twice, `{ a }` for `{ a: a }`: the name is the key, and a reference to the
+name — a `const`, an import, a parameter — is the value, resolved and refused
+as any reference is, so `{ b }` with nothing binding `b` is an error, as is
+`{ typeof }` — and `{ NaN }`, since `NaN`, `Infinity` and `undefined` are
+[reserved words](#numbers) that denote a value and name no binding. Only the
+identifier spelling has the shorthand: `{ "a" }` and `{ ["a"] }` are errors,
+the key alone being no reference.
+
+```js
+const a = 1;
+const b = [a];
+export default { a, b, c: 3 };   // { a: 1, b: [1], c: 3 }
+```
+
 #### Object Spread
 
 A member may be a **spread**, `...` and any value, at any position and any
@@ -1107,7 +1122,7 @@ meanings:
 { ["__proto__"]: v }  // an ordinary own property named "__proto__"
 ```
 
-Only the bracketed spelling denotes a property, so it is the only one
+Only the bracketed spelling denotes a property, so it is the only keyed one
 FunctionalScript accepts. The other two are compilation errors:
 
 ```js
@@ -1117,7 +1132,9 @@ export default { ["__proto__"]: 1 }; // ok
 ```
 
 **The bracketed form is the workaround**: it is how a module holds a property
-actually named `__proto__`, and there is no other way to write one.
+actually named `__proto__`. The [shorthand](#objects) `{ __proto__ }` is the
+other way, and denotes the same own property, as it does in JavaScript, where
+the prototype rule names the keyed spellings alone.
 
 FunctionalScript has no prototype chains at run time
 ([property-accessor](./todo/2330-property-accessor.md)), so a spelling whose
@@ -1160,7 +1177,9 @@ contains one, so `{ __proto__: 1 }` is an error whatever the input file is
 called.
 
 In JavaScript output the bracketed form is what makes the module round-trip —
-it is the only spelling whose evaluation reproduces the property. In JSON
+of the keyed spellings it is the only one whose evaluation reproduces the
+property, and the writer has no other, since the [shorthand](#objects) needs
+a binding named `__proto__` to refer to and an output binds none. In JSON
 output the plain key stays: `JSON.parse` has no prototype special case, so
 JSON already round-trips, and the bracketed form is not JSON at all.
 

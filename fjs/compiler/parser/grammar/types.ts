@@ -22,7 +22,6 @@ import type {
     identifier,
     identifierName,
     index,
-    key,
     primitive,
 } from './module.f.mjs'
 
@@ -106,8 +105,12 @@ export type Items<Item extends Rule> = () => readonly ['const', readonly [
 /** An opening symbol, an optional list, and the closing symbol. */
 export type Container<Item extends Rule> = readonly [number, Option<Items<Item>>, number]
 
-/** A member of an object: a key, `:`, and a value. */
-export type Member = readonly [typeof key, number, Value]
+/** A member of an object, by its key's spelling: a bare identifier and, optionally, `:` and a value, or a string literal or a computed `["a"]`, each with its `:` and value. */
+export type Member = {
+    readonly plain: readonly [typeof identifierName, Option<readonly [number, Value]>]
+    readonly string: readonly [number, number, Value]
+    readonly computed: readonly [number, number, number, number, Value]
+}
 
 /** An entry of an object: `...` and a value, or a member. */
 export type Entry = {

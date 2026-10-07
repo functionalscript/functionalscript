@@ -344,7 +344,8 @@ first/follow check, found three of the eight.
 
 - [x] use JS tokenizer
 - [x] identifiers `{a:5}`
-- [x] computed keys `{["a"]:5}`, the only spelling of a `__proto__` key
+- [x] computed keys `{["a"]:5}`, the only keyed spelling of a `__proto__` key;
+  the short form `{ __proto__ }` below is the other
   ([spec: the `__proto__` key](../../spec/README.md#the-__proto__-key))
 - [x] big int
 - [x] `export default ...`
@@ -363,7 +364,7 @@ first/follow check, found three of the eight.
   import a from 'c.f.js'
   export default { a: a, b: a}
   ```
-- [ ] short form
+- [x] short form
   ```js
   const a = 5;
   export default { a }
