@@ -31,9 +31,10 @@ As measured on the tree the spec landed against:
 - **A verdict in an example's name.** DataJS's
   `Error: JSON is not a document`.
 - **A text result outside a code block.** The compiler's side-by-side page
-  (all four outputs), parser, serializer, Rust and tokenizer pages, JSON and
+  (all five outputs), parser, serializer, Rust and tokenizer pages, JSON and
   UTF-8 draw their result as a bare `pre`, not in the bordered `data-code`
-  box the spec gives a text result.
+  box the spec gives a text result. So does BigInt, once `Measure` has run:
+  its benchmark rows.
 
 ### Proposal
 
@@ -63,8 +64,8 @@ browser with its preview link in the description.
 - [ ] Captions for the parser, serializer, Rust and tokenizer pages.
 - [ ] Rename DataJS's `Error: JSON is not a document`.
 - [ ] Text results in a code block for the compiler's side-by-side, parser,
-      serializer, Rust and tokenizer pages, JSON and UTF-8; decide per demo
-      whether the result carries a copy button.
+      serializer, Rust and tokenizer pages, JSON, UTF-8 and BigInt's measured
+      rows; decide per demo whether the result carries a copy button.
 
 ### Related
 
