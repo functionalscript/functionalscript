@@ -13,8 +13,8 @@ import { _rustOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 
-/** The shared examples the Rust output refuses: the two the front end does, and the import it has no file set for. */
-const refusedByRust = ['An import', 'Hex escape', 'Parse error']
+/** The shared examples the Rust output refuses: the two the front end does, and the imports it has no file set for. */
+const refusedByRust = ['An import', 'A named import and a call', 'Hex escape', 'Parse error']
 
 export const proof = {
     structuralRefusals: () => {
