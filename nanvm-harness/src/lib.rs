@@ -42,6 +42,7 @@ pub mod fixtures {
     pub mod operators;
     pub mod parameters;
     pub mod property;
+    pub mod recursion;
     pub mod rest;
     pub mod rest_function;
     pub mod sharing;
@@ -183,8 +184,8 @@ mod tests {
             arity, array, at, bigint, boolean, call, calls, closure, escapes, exports, function,
             function_scope, function_text, lazy, length, method, missing, named, named_imports,
             named_imports_throws, nested, not_a_function, nullish, number, object, object_spread,
-            operators, parameters, property, rest, rest_function, sharing, spread, string, throw,
-            throws, to_string,
+            operators, parameters, property, recursion, rest, rest_function, sharing, spread,
+            string, throw, throws, to_string,
         },
         run,
     };
@@ -400,6 +401,18 @@ mod tests {
         );
     }
 
+    /// A function that names itself: its `self`, the EDAG node the Rust
+    /// printer spells as the closure's own `self_`, calls the function it
+    /// is, is the one identity every read, and is captured by a function
+    /// nested in it as any value of the scope around it is.
+    #[test]
+    fn recursion() {
+        assert_eq!(
+            run::<Naive>(recursion::module, "default", Action::Read),
+            Ok("[120,true,3]".into())
+        );
+    }
+
     /// A function's text is the FunctionalScript writer's: converted where
     /// it is made, returned from a call with its capture named by its slot,
     /// and exported, read as a value and converted by the host. Two functions
@@ -408,14 +421,14 @@ mod tests {
     fn function_texts() {
         assert_eq!(
             run::<Naive>(function_text::module, "default", Action::Read),
-            Ok(r#"["()=>1","()=>1!","()=>1|2","(...$a)=>$0[0]+$a[0]","(...$a)=>(...$b)=>$a[0]+$b[0]",true,false]"#.into())
+            Ok(r#"["()=>1","()=>1!","()=>1|2","(...$1)=>$0[0]+$1[0]","(...$0)=>(...$1)=>$0[0]+$1[0]",true,false]"#.into())
         );
         let exports: Object<Naive> = function_text::module::<Naive>()
             .unwrap()
             .try_into()
             .unwrap();
         let inc = exports.own_property(&"inc".into()).unwrap();
-        assert_eq!(inc.to_string(), Ok("(...$a)=>$0[0]+$a[0]".into()));
+        assert_eq!(inc.to_string(), Ok("(...$1)=>$0[0]+$1[0]".into()));
     }
 
     /// A read past the arguments supplied answers `undefined` — which has

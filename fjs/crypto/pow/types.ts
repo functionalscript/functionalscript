@@ -19,3 +19,21 @@ export type Pow = {
     readonly hashInt: (data: Vec) => bigint
     readonly meets: (nBits: bigint) => (data: Vec) => boolean
 }
+
+/** A search over a validated nonce and target, retaining its last hash. */
+export type DemoSearch = {
+    readonly nonce: bigint
+    readonly target: bigint
+    readonly hash: bigint
+    readonly start: bigint
+    readonly attempts: bigint
+    readonly running: boolean
+}
+
+/** State of the interactive proof-of-work demo. Editing a field clears the search. */
+export type DemoState = {
+    readonly text: string
+    readonly nonce: string
+    readonly nBits: string
+    readonly search: DemoSearch | null
+}

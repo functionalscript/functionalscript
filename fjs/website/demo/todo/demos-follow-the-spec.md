@@ -14,11 +14,12 @@ goes stale.
 
 As measured on the tree the spec landed against:
 
-- **No lead.** Every demo built with
-  [`textDemo`](../module.f.mjs) — the compiler's side-by-side page, parser,
-  serializer, Rust, tokenizer and EDAG pages, DataJS, JSON, Markdown, UTF-8
-  and the changelog — opens on its field, because `textDemo` has no place for
-  one. SHA-2, Base64 and CBase32 open on their fields too.
+- **No lead.** The compiler's side-by-side page, parser, serializer, Rust,
+  tokenizer and EDAG pages, DataJS, JSON, Markdown, UTF-8 and the changelog
+  use [`textDemo`](../module.f.mjs) and open on their fields without a lead.
+  SHA-2, Base64 and CBase32 open on their fields too. A demo can add a lead
+  by wrapping `textDemo`'s view, as [SHA-1](../../../crypto/sha1/demo.f.mjs)
+  does; a shared lead option would avoid repeating that wrapper.
 - **A refusal in the old shape.** The compiler's side-by-side, parser,
   serializer and Rust pages write `Refused:` and the message in one untinted
   paragraph. EDAG, DataJS, JSON, Markdown, the changelog and the

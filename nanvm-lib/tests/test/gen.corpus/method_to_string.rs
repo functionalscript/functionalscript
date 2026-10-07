@@ -37,5 +37,5 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("callback", Any::dot(A::static_function(|_self, args| {
         let rest = args.clone().into_iter().to_array();
         Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
-    }, 0, Array::default(), Some("(...$a)=>$a[0]")).to_any(), string_any("toString")).end_call(|| Ok(Array::default().to_any())), string_any("(...$a)=>$a[0]"));
+    }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any(), string_any("toString")).end_call(|| Ok(Array::default().to_any())), string_any("(...$0)=>$0[0]"));
 }

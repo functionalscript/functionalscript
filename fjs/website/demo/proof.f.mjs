@@ -2,7 +2,7 @@
  * @import { DemoEvent } from './types.ts'
  */
 
-import { textDemo, textField } from './module.f.mjs'
+import { textDemo, textField, inputField, fieldUpdate } from './module.f.mjs'
 import { name as exampleName } from './examples/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
@@ -20,6 +20,22 @@ const next = demo => state => event => unwrap(assertNotNullish(
     'expected the demo to reach a value without asking for an operation'))
 
 export const proof = {
+    inputField: () => {
+        const h = htmlToString(inputField({ name: 'key', label: 'Key' }, 'a"&b'))
+        assert(h.includes('<label for="key">Key </label>'), h)
+        assert(h.includes('type="text" id="key" name="key" value="a&quot;&amp;b"'), h)
+    },
+    fieldUpdate: () => {
+        const state = { algorithm: 'SHA-256', key: '', text: 'message' }
+        /** @type {(event: DemoEvent) => typeof state} */
+        const next = event => unwrap(assertNotNullish(runPure(fieldUpdate(state)(event))[0]))
+        assertEq(JSON.stringify(next({ kind: 'input', name: 'key', value: 'secret' })), JSON.stringify({ ...state, key: 'secret' }))
+        assertEq(next({ kind: 'input', name: 'unknown', value: 'ignored' }), state)
+        assertEq(next({ kind: 'input', name: 'toString', value: 'ignored' }), state)
+        assertEq(next({ kind: 'start' }), state)
+        assertEq(next({ kind: 'click', name: 'key' }), state)
+        assertEq(state.key, '')
+    },
     textField: () => assertEq(htmlToString(textField({ name: 'text', label: 'Text', rows: 3 }, 'a\nb')),
         '<!DOCTYPE html><p><label for="text">Text </label><textarea id="text" name="text" rows="3">a\nb</textarea></p>'),
     init: () => assertEq(plain.init, 'a'),

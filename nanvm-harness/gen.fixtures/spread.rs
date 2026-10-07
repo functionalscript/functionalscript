@@ -13,7 +13,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c3: Any<A> = A::static_function(|_self, args| {
         let rest = args.clone().into_iter().to_array();
         Ok(rest.clone().to_any())
-    }, 0, Array::default(), Some("(...$a)=>$a")).to_any();
+    }, 0, Array::default(), Some("(...$0)=>$0")).to_any();
     let c4: Any<A> = spread_call(c3, [spread_item(c0.clone()), value_item(f64_any(0x4010000000000000))])?;
     let c5: Any<A> = spread_array([spread_item(c0.clone()), spread_item(c0.clone())])?;
     let c6: Any<A> = Any::dot(c5, string_any("length")).end()?;

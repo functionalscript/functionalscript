@@ -52,7 +52,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstNot, AstTypeof, AstCall, AstConditional, AstConst, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstThrow } from '../ast/types.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstNot, AstTypeof, AstSelf, AstCall, AstConditional, AstConst, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstThrow } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
  * @import { Block, Container, Entry, If, Import, Item, Module, Node, ParameterBinding, ParameterList, Statement, ValueStatement } from './syntax/types.ts'
  * @import { _AccessFrame, _BodyFrame, _CallFrame, _ConditionalFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Parameter, _Ref, _Scope, _Stack, _State } from './private.ts'
@@ -253,7 +253,7 @@ const keyNamed = t => {
     const { token } = t
     switch (token.kind) {
         case 'string': { return token.value }
-        case 'number': { return Number(token.value) }
+        case 'number': { return Number(token.value.replaceAll('_', '')) }
         default: { return nameOf(t) }
     }
 }
@@ -475,6 +475,23 @@ const conditionalRound = (stack, scope, frame) => {
 }
 
 /**
+ * What `word` names in `scope` itself: a name it binds, or — where it
+ * binds none and the word is the function's own, {@link entered} — the
+ * function itself, `['self']`. The name comes after the bindings as it
+ * does in JavaScript, where a parameter or a body `const` of the same
+ * word shadows the `const` the function is the value of.
+ *
+ * @type {(scope: _Scope, word: string) => _Ref | null}
+ */
+const bound = (scope, word) => {
+    const ref = at(word)(scope.names)
+    if (ref !== null || scope.self !== word) { return ref }
+    /** @type {AstSelf} */
+    const self = ['self']
+    return self
+}
+
+/**
  * What `word` names in `scope`, and the scope chain with any capture it
  * takes, or `null` where nothing binds it: a name the scope binds itself,
  * and otherwise what the scope around it resolves the word to, which the
@@ -493,21 +510,27 @@ const conditionalRound = (stack, scope, frame) => {
  * many bodies — every guard of a long body reading the same parameter,
  * say — costs a step, not a walk.
  *
+ * The function's own name is bound the same way once the body has read
+ * it, so that a `const` of the name after the read is refused as a
+ * capture shadowed is — in JavaScript the read would have named the
+ * `const`, before its initializer ran — while a `const` of a name the
+ * body has not read shadows the function's name, as it does there.
+ *
  * @type {(scope: _Scope, word: string) => readonly [_Scope, _Ref] | null}
  */
 const resolve = (scope, word) => {
     /** The bodies the word is read through, the one just inside the binding scope on top. @type {List<_Scope>} */
     let through = null
     let binder = scope
-    let ref = at(word)(binder.names)
+    let ref = bound(binder, word)
     while (ref === null) {
         if (binder.outer === null) { return null }
         through = { first: binder, tail: through }
         binder = binder.outer
-        ref = at(word)(binder.names)
+        ref = bound(binder, word)
     }
     /** @type {readonly [_Scope, _Ref]} */
-    let result = [binder, ref]
+    let result = [ref[0] === 'self' ? { ...binder, names: extended(binder.names)(word, ref) } : binder, ref]
     for (const body of toArray(through)) {
         result = captured(body, word, result)
     }
@@ -613,7 +636,7 @@ const bodyRound = (stack, scope, frame) => {
     }
     const [tag, word] = bodyBindable(scope)(statement.name)
     if (tag === 'error') { return [stack, scope, error(word)] }
-    return [{ top: { ...frame, word }, rest: stack }, scope, ['enter', statement.value]]
+    return [{ top: { ...frame, word }, rest: stack }, scope, ['define', statement.value, word]]
 }
 
 /**
@@ -649,21 +672,36 @@ const enter = (stack, scope, node) => {
         case '!': { return [{ top: { not: true }, rest: stack }, scope, ['enter', node[1]]] }
         case 'typeof': { return [{ top: { typeof: true }, rest: stack }, scope, ['enter', node[1]]] }
         case '?:': { return conditionalRound(stack, scope, { conditional: node, index: 0, done: null }) }
-        case '=>': {
-            const [tag, bound] = functionScope(node[1])
-            if (tag === 'error') { return [stack, scope, error(bound)] }
-            const [names, count] = bound
-            /** @type {_Scope} */
-            const inner = { names, count, captures: [], enclosing: null, outer: scope }
-            const body = node[2]
-            return body[0] === 'block'
-                ? bodyRound(stack, inner, { statements: body[1], first: 0, index: 0, word: '', done: null })
-                : [{ top: { function: true }, rest: stack }, inner, ['enter', body]]
-        }
+        case '=>': { return entered(stack, scope, node, null) }
         // a block stands only as a function's body, which `'=>'` above
         // enters; the mapping writes one nowhere else
         default: { return round(stack, scope, { container: /** @type {Container} */ (node), index: 0, done: null }) }
     }
+}
+
+/**
+ * A function entered: its body in a scope of its own inside `scope`, under
+ * its parameters and, where the function is the whole initializer of a
+ * `const`, with that `const`'s name as its `self` — so a read of the name
+ * in the body that no parameter or body `const` answers first is the
+ * EDAG's own self-reference, {@link resolve}, and a function nested inside
+ * captures it as it captures any value of the scope around it. Only the
+ * function itself has the name: a `const` holding a function in an array,
+ * or the result of calling one, is not in its own initializer's scope,
+ * `const not found`, since neither is a function with a `self` to read.
+ *
+ * @type {(stack: _Stack, scope: _Scope, node: Extract<Node, readonly ['=>', ParameterList, Node]>, self: string | null) => _State}
+ */
+const entered = (stack, scope, node, self) => {
+    const [tag, bound] = functionScope(node[1])
+    if (tag === 'error') { return [stack, scope, error(bound)] }
+    const [names, count] = bound
+    /** @type {_Scope} */
+    const inner = { names, count, captures: [], enclosing: null, outer: scope, self }
+    const body = node[2]
+    return body[0] === 'block'
+        ? bodyRound(stack, inner, { statements: body[1], first: 0, index: 0, word: '', done: null })
+        : [{ top: { function: true }, rest: stack }, inner, ['enter', body]]
 }
 
 /**
@@ -758,7 +796,7 @@ const returned = (stack, scope, frame, value) => {
  * @type {(stack: _Stack, scope: _Scope, frame: _GuardFrame, statements: Block[1], first: number, enclosing: List<_Env>) => _State}
  */
 const arm = (stack, scope, frame, statements, first, enclosing) =>
-    bodyRound({ top: frame, rest: stack }, { names: empty, count: 0, captures: [], enclosing, outer: scope }, { statements, first, index: first, word: '', done: null })
+    bodyRound({ top: frame, rest: stack }, { names: empty, count: 0, captures: [], enclosing, outer: scope, self: null }, { statements, first, index: first, word: '', done: null })
 
 /**
  * A function closed over its body, resolved in `scope`: the scope around
@@ -786,15 +824,23 @@ const closed = (stack, scope, body) => {
  * names, so that a value nested as deep as the input allows costs no call
  * stack.
  *
- * @type {(env: _Env) => (root: Node) => Result<AstConst, ParseError>}
+ * `self` is the word a `const` binds the value to, or `null` for a value
+ * that is no `const`'s: a function that is the whole value is entered with
+ * the word bound to itself, {@link entered}, as a body `const`'s is.
+ *
+ * @type {(env: _Env, self: string | null) => (root: Node) => Result<AstConst, ParseError>}
  */
-const evaluate = env => root => {
+const evaluate = (env, self) => root => {
     /** @type {_State} */
-    let state = [null, { names: env, count: 0, captures: [], enclosing: null, outer: null }, ['enter', root]]
+    let state = [null, { names: env, count: 0, captures: [], enclosing: null, outer: null, self: null }, self === null ? ['enter', root] : ['define', root, self]]
     while (true) {
-        const [stack, scope, [tag, payload]] = state
+        const [stack, scope, step] = state
+        const [tag, payload] = step
         if (tag === 'enter') {
             state = enter(stack, scope, payload)
+        } else if (tag === 'define') {
+            // a `const`'s value: a function is entered under its own name
+            state = payload[0] === '=>' ? entered(stack, scope, payload, step[2]) : enter(stack, scope, payload)
         } else if (tag === 'error') {
             return error(payload)
         } else if (stack === null) {
@@ -829,8 +875,8 @@ const bindable = env => name => {
  * the body's own names and of the names of the block it continues, the
  * statements after a guard being JavaScript's one block with the ones
  * before it. A name any of them binds is `duplicate id`; one none binds
- * but one has read from outside — bound to a slot of its frame — is
- * `capture shadowed`, and the binding wins where both hold, as it does in
+ * but one has read from outside — bound to a slot of its frame, or to the
+ * function itself, {@link bound} — is `capture shadowed`, and the binding wins where both hold, as it does in
  * JavaScript, where the read named the block's own binding. A name the
  * body's own initializer reads is refused once it has been, in
  * {@link returned}.
@@ -844,7 +890,7 @@ const bodyBindable = scope => name => {
         const ref = at(word)(env)
         return ref === null ? [] : [ref]
     })
-    if (refs.some(ref => ref[0] !== 'fref')) { return error(duplicateId(name)) }
+    if (refs.some(ref => ref[0] !== 'fref' && ref[0] !== 'self')) { return error(duplicateId(name)) }
     return refs.length === 0 ? ok(word) : error(captureShadowed(name))
 }
 
@@ -909,7 +955,7 @@ const foldModule = ({ imports, consts, exported, thrown: failing }) => {
         const [tag, word] = bindable(env)(name)
         if (tag === 'error') { return error(word) }
         if (named && word === 'then') { return error({ message: 'reserved export name then', metadata: name.metadata }) }
-        const [resolved, value] = evaluate(env)(node)
+        const [resolved, value] = evaluate(env, word)(node)
         if (resolved === 'error') { return error(value) }
         env = extended(env)(word, ['cref', body.length])
         if (named) { exports = [...exports, [word, ['cref', body.length]]] }
@@ -918,7 +964,7 @@ const foldModule = ({ imports, consts, exported, thrown: failing }) => {
     if (failing !== null) {
         if (unterminated(previous, failing)) { return error(unexpectedToken(failing.start)) }
         if (brokenLine(failing)) { return error(unexpectedToken(failing.first)) }
-        const [resolved, last] = evaluate(env)(failing.value)
+        const [resolved, last] = evaluate(env, null)(failing.value)
         if (resolved === 'error') { return error(last) }
         /** @type {AstModule} */
         const failingModule = [modules, [...body, thrown(last)]]
@@ -926,7 +972,7 @@ const foldModule = ({ imports, consts, exported, thrown: failing }) => {
     }
     if (exported !== null) {
         if (unterminated(previous, exported)) { return error(unexpectedToken(exported.start)) }
-        const [resolved, last] = evaluate(env)(exported.value)
+        const [resolved, last] = evaluate(env, null)(exported.value)
         if (resolved === 'error') { return error(last) }
         exports = [...exports, ['default', last]]
     }

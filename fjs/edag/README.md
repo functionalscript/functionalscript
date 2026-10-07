@@ -297,6 +297,7 @@ vocabularies.
 | `['args']` | unresolved module imports, in import order |
 | `['arg', N]` | fixed parameter `N` of the owning function |
 | `['rest']` | the invocation's rest array, after the fixed prefix |
+| `['self']` | the owning function itself, as a value, the same every read: recursion is `['()', ['self'], args]`, and a nested function captures its parent's `self` as a slot |
 | `['=>', length, slots[], body]` | function; integer length metadata, the slots of its frame — each an `exp` evaluated in the enclosing scope, `[]` for no captures — and the invocation-scope body |
 | `['frame', N]` | slot `N` of the owning function's captured frame |
 | `['()', exp, items[]]` | call with no receiver, `exp(…)` over the argument list `items[]` — see [Chains](#chains) |
@@ -351,8 +352,10 @@ function — the analysis refuses either, and the executors refuse a read
 past the end rather than answering `undefined`. They are metadata, not
 operand nodes. Missing fixed arguments bind to `undefined`; rest begins at
 `length`, has stable identity within a call, and is fresh between calls.
-`arg`, `rest` and `frame` require a function scope; `args` is only a module
-binding. Frames retain their enclosing scope, including for nested captures:
+`arg`, `rest`, `frame` and `self` require a function scope; `args` is only a
+module binding. `self` is the function whose body holds it, the innermost one,
+so a nested function reaches its parent's through a slot holding `['self']`,
+evaluated in the parent's scope. Frames retain their enclosing scope, including for nested captures:
 `['frame', N]` reads the frame of the function whose body holds it, and the
 slots of `=>` are evaluated in the scope around that function, so a nested
 capture is a slot holding a read of the parent's slot.

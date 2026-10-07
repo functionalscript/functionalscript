@@ -563,7 +563,9 @@ module boundary, from which a default import selects the document.
   its value's `const` or holds its leaf:
   `const once = [1]; export const b = [once]; export default 3;` is
   `const $0=[1];const $1=[$0];export const b=$1;export default 3;`. The
-  names gain a `$`, `$$0`, when an export's name begins with `$`.
+  generated names use one `$n` counter across constants and parameters in
+  every scope, allocated in declaration order. An export named `$n` reserves
+  that number, which the counter skips; the prefix always stays `$`.
 
   The writer spells a property access, every operator the language has
   ([operators](#operators)) and every call. A number or a function that is
@@ -768,6 +770,20 @@ is `Infinity` (`1e400`); and one too small is `0` (`1e-400`), which is why
 overflowed literal is an `Infinity` like any other, written as the word where
 a format has one and refused by a `.json` output ([output](#output)).
 
+A number may also be written in binary, as JavaScript writes it: `0b` or
+`0B` followed by one or more `0` or `1` digits. `0b101010` is `42`;
+conversion rounds to the nearest double, as for decimal and hexadecimal
+literals. A binary literal has no fraction or exponent. Missing digits,
+other digits or a word directly after the literal are errors. The `n`
+suffix gives an exact bigint at any width: `0B101n` is `5n`. Outputs write
+the value in decimal; unary negation also preserves `-0b0` as `-0`.
+A single `_` may separate digits in decimal integer parts, fractions and
+exponents, and in binary or hexadecimal digits: `1_000`, `1.2_5e1_0`,
+`0b1010_0011`, `0xFF_FF`, and `1_000n`. Separators do not change the
+value. Leading, trailing or repeated separators, separators next to a
+radix prefix, decimal point, exponent marker or sign, or bigint suffix,
+and separators after a leading decimal zero are errors.
+
 A number may also be written in hexadecimal, as JavaScript writes it: `0x`
 or `0X`, then one or more digits `0`–`9`, `a`–`f` or `A`–`F`. It denotes the
 double nearest the integer its digits spell, as a decimal literal does, so
@@ -786,9 +802,8 @@ export default [0xFF, 0XfF, 0x10e1];
 ```
 
 Otherwise the syntax is JSON's, so the other JavaScript spellings JSON
-leaves out are not recognized: no octal (`0o7`) or binary (`0b1`) prefix, no
-leading `+`, no leading decimal point (`.5`), no numeric separators
-(`1_000`). The three numbers JSON cannot spell
+leaves out are not recognized: no octal (`0o7`) prefix, no
+leading `+`, and no leading decimal point (`.5`). The three numbers JSON cannot spell
 are written as the words JavaScript gives them — `NaN`, `Infinity` and
 `-Infinity` — exactly as [DataJS](./datajs/README.md) writes them:
 
@@ -895,8 +910,7 @@ export default [0x10n, 0XFFn, -0x8000000000000000n];
 ```
 
 The syntax is those integer parts and the `n`, so the JavaScript spellings
-it leaves out are not recognized: no octal or binary prefix (`0o7n`,
-`0b1n`) and no numeric separators (`1_000n`). A fraction or
+it leaves out are not recognized: no octal prefix (`0o7n`). A fraction or
 an exponent (`1.5n`, `1e3n`), a leading zero (`01n`) and an uppercase `N` are
 errors in both languages. JSON has no spelling for a `bigint`, so a `.json`
 output refuses one ([output](#output)).
@@ -1607,7 +1621,7 @@ and as JSON, a tree, with the node written where each reference reaches it,
 function has identity as an object does ([functions](#functions)), so a
 FunctionalScript document shares one the same way:
 `const f = () => 1; export default [f, f];` is written
-`const $0=(...$a)=>1;export default [$0,$0];`. Not every FunctionalScript
+`const $0=()=>1;export default [$0,$0];`. Not every FunctionalScript
 document is in normalized form: a module with a named export, among others,
 gives what it computes more names than normalized form does
 ([output](#output)).
@@ -1686,16 +1700,21 @@ are not supported yet. A newline before `=>` is refused.
   export default [add(1)(2), ((...a) => base[0] + a[0])(5)];
   ```
 
-  A function that names itself is not supported yet — in
-  `const f = (n) => f(n);` the inner `f` is refused, `const not found` —
-  since its `const` is not bound in its own initializer, and a function has
-  no `self` to read in its place
-  ([forward-references](./todo/3140-forward-references.md)). Recursion
-  itself needs neither: a function is a value, so one passed to itself
-  recurs as in JavaScript, and so does one reached through a fixed-point
-  combinator. `const fact = (self, n) => n === 0 ? 1 : n * self(self, n - 1);`
-  followed by `export default fact(fact, 5);` exports `120`, and like every
-  call it compiles today to the EDAG and Rust outputs alone (below).
+  A function that names itself reaches itself: in
+  `const fact = n => n < 2 ? 1 : n * fact(n - 1);` the inner `fact` is the
+  function itself, the EDAG's `["self"]`, and `export default fact(5);`
+  exports `120`. The name is the function's own only where the function is
+  the whole value of the `const`, a module's or a body's: `const f = [() => f];`
+  and `const f = (() => f)();` are `const not found`, since neither value is
+  a function with a self to read. The function's own name comes after the
+  names its body binds, as in JavaScript: a parameter or a body `const` of
+  the same word shadows it — unless the body has already read the function
+  by that word, which is refused as a capture shadowed is
+  ([functions](#functions)). A function nested in it captures the name as
+  it captures any other value around it, so `const f = x => () => f(x);`
+  recurs through the inner function. Reading a *later* `const`, and so two
+  functions calling each other, is still refused
+  ([forward-references](./todo/3140-forward-references.md)).
 - An **empty parameter list** binds no name at all, so a body written under
   one cannot reach its arguments: the arguments array is named by the
   parameter and by nothing else, and a word the list does not spell is
@@ -1730,7 +1749,7 @@ are not supported yet. A newline before `=>` is refused.
   a value shared under one lazy operand alone, which no `const` of the
   scope could hold without evaluating it whatever the operator decides, is
   written in a block opened at the operand,
-  `a ? (() => { const $b0 = [1]; return [$b0, $b0]; })() : 4`, which reads
+  `a ? (() => { const $0 = [1]; return [$0, $0]; })() : 4`, which reads
   back as the operand. Round-tripping through that writer keeps the graph,
   not the text: the function written in the source is gone from both.
 - The body is an expression or a block, and `value` and `{ return value; }`
@@ -1878,8 +1897,9 @@ are not supported yet. A newline before `=>` is refused.
 - A body `const` is the body's, and binds as a module's does, a module
   being a function too ([a module is a function](#a-module-is-a-function)):
   it names a value the `return` and the statements after it may use, it may
-  not be written twice, and it is not in its own initializer's scope. It is
-  evaluated as a module's is, as its own statement, at every call and whether
+  not be written twice, and it is not in its own initializer's scope — except
+  that a function that is the whole initializer has the name as its own, as
+  a module `const`'s does (above). It is evaluated as a module's is, as its own statement, at every call and whether
   or not the `return` reaches it ([shared values](#shared-values-constants)):
   `() => { const x = null.x; return 1; }` loads and throws when called, as in
   JavaScript. The parameter is a name of the body too, so a `const` may not

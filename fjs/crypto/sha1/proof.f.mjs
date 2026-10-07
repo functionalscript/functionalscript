@@ -42,7 +42,7 @@ export const proof = {
         view: () => {
             const empty = htmlToString(demo.view(demo.init))
             assert(empty.includes('<textarea id="text" name="text" rows="8">'), empty)
-            assert(empty.includes('SHA-1 collision resistance is broken.'), empty)
+            assert(empty.startsWith('<!DOCTYPE html><div><p>SHA-1 hashes UTF-8 text and shows the digest in hexadecimal. SHA-1 collision resistance is broken; do not use it to verify authenticity or protect against tampering.</p>'), empty)
             assert(empty.includes('SHA-1, hex:'), empty)
             assert(empty.includes(digest('')), empty)
             assert(empty.includes("<pre>printf '%s' '' | openssl dgst -sha1</pre>"), empty)
