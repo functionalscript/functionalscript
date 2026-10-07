@@ -68,6 +68,18 @@ const expectModule = (source, expected) => {
     assertEq(stringifyDjsModule(value), expected)
 }
 
+/**
+ * A module refused with the message, at the column on its first line.
+ *
+ * @type {(source: string, message: string, column: number) => void}
+ */
+const expectRefused = (source, message, column) => {
+    const [tag, value] = parseFromTokens(tokenizeString(source))
+    assert(tag === 'error', tag)
+    assertEq(value.message, message, source)
+    assertEq(value.metadata?.column, column, source)
+}
+
 /** Parser fixtures execute through the shared represented interpreter. @type {(ast: AstModule, args?: Values) => EdagValue} */
 const evaluate = (ast, args = []) => assertOk(memo(assertOk(analysis(unresolved(ast).edag)))({ args }))
 
@@ -916,40 +928,27 @@ export const proof = {
     // is a key alone and keeps its `:`.
     shorthand: [
         () => {
-            /** @type {(source: string, expected: string) => void} */
-            const expect = (source, expected) => {
-                const [tag, value] = parseFromTokens(tokenizeString(source))
-                assert(tag === 'ok', value)
-                assertEq(stringifyDjsModule(value), expected)
-            }
-            expect('const a = [1]; export default { a };', '[[],[["array",[1]],["object",[[":","default",["object",[[":","a",["cref",0]]]]]]]]]')
+            expectModule('const a = [1]; export default { a };', '[[],[["array",[1]],["object",[[":","default",["object",[[":","a",["cref",0]]]]]]]]]')
             // mixed with the three keyed spellings, a trailing comma allowed
-            expect('const a = 1; const d = 2; export default { a, "b": 2, ["c"]: 3, d, };', '[[],[1,2,["object",[[":","default",["object",[[":","a",["cref",0]],[":","b",2],[":","c",3],[":","d",["cref",1]]]]]]]]]')
+            expectModule('const a = 1; const d = 2; export default { a, "b": 2, ["c"]: 3, d, };', '[[],[1,2,["object",[[":","default",["object",[[":","a",["cref",0]],[":","b",2],[":","c",3],[":","d",["cref",1]]]]]]]]]')
             // a parameter, and an import
-            expect('export default (a) => ({ a });', '[[],[["object",[[":","default",["=>",1,[["object",[[":","a",["arg",0]]]]]]]]]]]')
-            expect('import m from "./m.f.js"; export default { m };', '[[{"json":false,"name":"default","specifier":"./m.f.js"}],[["object",[[":","default",["object",[[":","m",["aref",0]]]]]]]]]')
+            expectModule('export default (a) => ({ a });', '[[],[["object",[[":","default",["=>",1,[["object",[[":","a",["arg",0]]]]]]]]]]]')
+            expectModule('import m from "./m.f.js"; export default { m };', '[[{"json":false,"name":"default","specifier":"./m.f.js"}],[["object",[[":","default",["object",[[":","m",["aref",0]]]]]]]]]')
             // the shorthand denotes an own property whatever the name, as
             // JavaScript's does: `{ __proto__ }` is the property, not a
             // prototype, so it is accepted where `{ __proto__: v }` is not
-            expect('const __proto__ = 1; export default { __proto__ };', '[[],[1,["object",[[":","default",["object",[[":","__proto__",["cref",0]]]]]]]]]')
+            expectModule('const __proto__ = 1; export default { __proto__ };', '[[],[1,["object",[[":","default",["object",[[":","__proto__",["cref",0]]]]]]]]]')
         },
         () => {
-            /** @type {(source: string, message: string, column: number) => void} */
-            const expect = (source, message, column) => {
-                const [tag, value] = parseFromTokens(tokenizeString(source))
-                assert(tag === 'error', tag)
-                assertEq(value.message, message)
-                assertEq(value.metadata?.column, column)
-            }
             // a reference, refused as one: at the name
-            expect('export default { a };', 'const not found', 18)
-            expect('export default { a: 1, b };', 'const not found', 24)
-            expect('export default { typeof };', 'reserved word', 18)
-            expect('export default { null };', 'reserved word', 18)
+            expectRefused('export default { a };', 'const not found', 18)
+            expectRefused('export default { a: 1, b };', 'const not found', 24)
+            expectRefused('export default { typeof };', 'reserved word', 18)
+            expectRefused('export default { null };', 'reserved word', 18)
             // a string or a computed key has no shorthand: the grammar wants
             // its `:`, at the `}`
-            expect('export default { "a" };', 'unexpected token', 22)
-            expect('export default { ["a"] };', 'unexpected token', 24)
+            expectRefused('export default { "a" };', 'unexpected token', 22)
+            expectRefused('export default { ["a"] };', 'unexpected token', 24)
         },
     ],
     invalidComputedKey: [
