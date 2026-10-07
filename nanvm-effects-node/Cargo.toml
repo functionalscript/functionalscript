@@ -1,10 +1,7 @@
 [package]
-name = "nanvm-harness"
+name = "nanvm-effects-node"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 nanvm-lib = { path = "../nanvm-lib" }
-
-[dev-dependencies]
-nanvm-effects-node = { path = "../nanvm-effects-node" }
