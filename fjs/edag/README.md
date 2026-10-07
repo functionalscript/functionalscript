@@ -240,7 +240,15 @@ writer can hoist what is shared and an executor can cache it without a
 structure keyed by node identity. It returns `Result<Analysis, string>`:
 structural failures, such as a node shared across function scopes or a
 noncanonical function length, return a diagnostic. Complete executable
-graphs additionally use `bindingError` to check their invocation bindings.
+graphs compose the result with `checked` to check their invocation bindings.
+It returns the same analysis on success or an invocation-binding diagnostic;
+an optional function index limits the check to that function and its nested bodies.
+`operandsOf(node)` lists every operand in written order, preserving primitives,
+repeated occurrences and reference identity. It includes lazy positions and a
+function's captures followed by its body. The serializer uses the same helper,
+keeping only captures when walking a function in its enclosing scope.
+`itemOperand(item)` unwraps a spread or returns a plain operand unchanged;
+analysis and the serializer share it for array items and call arguments.
 [memo](memo/module.f.mjs) is that
 interpreter: it returns `Result<EdagValue, EdagValue>`, evaluating every shared
 entry once per invocation with an immutable cache. Functions retain their
@@ -249,6 +257,20 @@ Conversion of value graphs to ordinary FJS/JS values is **runtime compilation**,
 separate from **EDAG interpretation**. The broader identity and memoization
 choices, including JS-compatible executors, global memoization, and the CAVM,
 are compared in [execution-models.md](execution-models.md).
+
+## Literal descriptions
+
+`fromValue(other)(value)` in [module.f.mjs](module.f.mjs) encodes a typed
+`Plain<F>` description as an EDAG expression. Primitive leaves stay primitive;
+`undefined`, arrays and objects become literal nodes. Object members follow
+enumeration order and retain explicitly present `undefined` values. Every
+occurrence gets fresh nodes, including repeated input containers.
+
+The `other` hook translates function leaves into expressions and can supply
+shared nodes. The [NaNVM corpus](../nanvm/module.f.mjs) uses it for its function
+markers and explicit shared references. JSON imports use the same encoder
+with no function leaves. This conversion describes literals; it does not
+recover the code or identity of runtime values after reflection is erased.
 
 ## Nodes
 
@@ -275,6 +297,7 @@ vocabularies.
 | `['args']` | unresolved module imports, in import order |
 | `['arg', N]` | fixed parameter `N` of the owning function |
 | `['rest']` | the invocation's rest array, after the fixed prefix |
+| `['self']` | the owning function itself, as a value, the same every read: recursion is `['()', ['self'], args]`, and a nested function captures its parent's `self` as a slot |
 | `['=>', length, slots[], body]` | function; integer length metadata, the slots of its frame — each an `exp` evaluated in the enclosing scope, `[]` for no captures — and the invocation-scope body |
 | `['frame', N]` | slot `N` of the owning function's captured frame |
 | `['()', exp, items[]]` | call with no receiver, `exp(…)` over the argument list `items[]` — see [Chains](#chains) |
@@ -329,8 +352,10 @@ function — the analysis refuses either, and the executors refuse a read
 past the end rather than answering `undefined`. They are metadata, not
 operand nodes. Missing fixed arguments bind to `undefined`; rest begins at
 `length`, has stable identity within a call, and is fresh between calls.
-`arg`, `rest` and `frame` require a function scope; `args` is only a module
-binding. Frames retain their enclosing scope, including for nested captures:
+`arg`, `rest`, `frame` and `self` require a function scope; `args` is only a
+module binding. `self` is the function whose body holds it, the innermost one,
+so a nested function reaches its parent's through a slot holding `['self']`,
+evaluated in the parent's scope. Frames retain their enclosing scope, including for nested captures:
 `['frame', N]` reads the frame of the function whose body holds it, and the
 slots of `=>` are evaluated in the scope around that function, so a nested
 capture is a slot holding a read of the parent's slot.
@@ -351,7 +376,7 @@ frame, `['.', ['frame'], N]`, still are, so only a frame no read reached is
 ever reinterpreted. Earlier positive-arity/full-argument experiments have no
 general lossless migration to this format.
 
-A function's `length` is at most 16, the language's limit: `bindingError`
+A function's `length` is at most 16, the language's limit: `checked`
 refuses a larger one. Both Amnesia and memo read length and fixed/rest
 bindings from represented functions, without an arrow factory. Their function
 text uses the total shared renderer described above. Callable runtime

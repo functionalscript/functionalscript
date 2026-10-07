@@ -40,9 +40,9 @@
  */
 
 import { validate } from '../rtti/validate/module.f.mjs'
-import { assertEq, assertError, assertErrorPath, assertOk, todo } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertError, assertErrorPath, assertOk, assertStructurallySame, todo } from '../asserts/module.f.mjs'
 import {
-    exp, op0Id, op1Id, op12Id, op2Id, op3Id,
+    exp, fromValue, op0Id, op1Id, op12Id, op2Id, op3Id,
     optionLambda, optionPropertyLambda, propertyLambda,
 } from './module.f.mjs'
 
@@ -97,7 +97,7 @@ const vOptionPropertyLambda = value => validate(optionPropertyLambda)(value)
 /** Every id `op0` currently accepts — kept as a literal list, not derived
  * from `op0Id`, so deleting one from the schema reddens exactly its own
  * assertion below rather than silently shrinking this list too. */
-const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest'])
+const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self'])
 
 /** Same purpose as `op0Ids`, for `op1`. */
 const op1Ids = /** @type {const} */ (['String', 'Number', '!', '~', 'typeof', 'throw'])
@@ -130,6 +130,60 @@ const op3Ids = /** @type {const} */ (['?:'])
 const desugarOptionalAt = o => o !== null && o !== undefined ? o.at : undefined
 
 export const proof = {
+    fromValue: {
+        primitives: () => {
+            const encode = fromValue(() => null)
+            for (const value of [null, false, true, 0, -0, 42, NaN, Infinity, -Infinity, 7n, -3n, '', 'text']) {
+                assertEq(Object.is(encode(value), value), true)
+            }
+            assertStructurallySame(encode(undefined), ['undefined'])
+        },
+        containers: () => {
+            const encode = fromValue(() => null)
+            assertStructurallySame(encode([]), ['[]', []])
+            assertStructurallySame(encode({}), ['{}', []])
+            assertStructurallySame(encode({
+                present: undefined, 10: 'ten', 2: 'two', nested: [null, { value: undefined }], last: true,
+            }), ['{}', [
+                [':', '2', 'two'], [':', '10', 'ten'], [':', 'present', ['undefined']],
+                [':', 'nested', ['[]', [null, ['{}', [[':', 'value', ['undefined']]]]]]],
+                [':', 'last', true],
+            ]])
+        },
+        freshOccurrences: () => {
+            const encode = fromValue(() => null)
+            const array = [undefined]
+            const object = { value: array }
+            const input = [array, array, object, object, undefined, undefined]
+            const first = /** @type {Array} */ (encode(input))
+            const second = /** @type {Array} */ (encode(input))
+            assert(first !== second)
+            const [a, b, c, d, u, v] = first[1]
+            assert(a !== b)
+            assert(c !== d)
+            assert(u !== v)
+            assert(a !== second[1][0])
+            const left = /** @type {Array} */ (a)
+            const right = /** @type {Array} */ (b)
+            assert(left[1][0] !== right[1][0])
+            assert(left[1][0] !== u)
+            assert(encode(undefined) !== encode(undefined))
+        },
+        functionHook: () => {
+            const fn = () => 1
+            /** @type {Exp} */
+            const node = ['+', 2, 3]
+            const encode = fromValue((/** @type {typeof fn} */ value) => {
+                assertEq(value, fn)
+                return node
+            })
+            assertEq(encode(fn), node)
+            const result = /** @type {Array} */ (encode([fn, { again: fn }]))
+            assertEq(result[1][0], node)
+            const nested = /** @type {Object} */ (result[1][1])
+            assertEq(nested[1][0][2], node)
+        },
+    },
     parameters: () => {
         assertOk(v(['=>', 3, [], ['[]', [['arg', 0], ['rest']]]]))
         assertOk(v(['arg', 0]))

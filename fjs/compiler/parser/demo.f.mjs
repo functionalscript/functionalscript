@@ -11,9 +11,8 @@
  * there too, which is the AST's reason for being a list.
  *
  * **A refusal is shown in the parser's own words** — `unexpected token`,
- * `unexpected end` — rather than as an empty box. `!x` and `typeof x` are
- * valid JavaScript this parser does not take yet, and the shared examples
- * keep them where a reader can see that.
+ * `unexpected end` — rather than as an empty box, and the shared examples
+ * keep an unfinished module where a reader can see one.
  *
  * **It needs no operations.** Parsing is a pure function of the text, so
  * `update` declares `never` and returns through `pureOk`.
@@ -26,7 +25,7 @@
 import { tryStringify } from '../../media/datajs/module.f.mjs'
 import { error } from '../../types/result/module.f.mjs'
 import { textDemo } from '../../website/demo/module.f.mjs'
-import { examples } from '../examples/module.f.mjs'
+import { examples } from '../examples/module.f.js'
 import { parse } from '../transpiler/module.f.mjs'
 
 /**

@@ -1,7 +1,7 @@
 /**
  * @module
  *
- * @import { Exp, OptionLambda, OptionPropertyLambda } from './types.ts'
+ * @import { Exp, OptionLambda, OptionPropertyLambda, Plain } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
 
@@ -92,6 +92,31 @@ export const exp = _exp
  * operation, not here.
  */
 export const primitive = or(null, boolean, number, string, bigint)
+
+/**
+ * A plain value as fresh literal nodes. Present `undefined` properties stay
+ * present, and object members follow enumeration order. Each occurrence gets
+ * its own nodes; only `other`, which answers function leaves, can supply shared
+ * nodes or nonliteral expressions. This encodes descriptions, not the identity
+ * or reflected code of runtime objects and functions.
+ *
+ * @template {globalThis.Function} F
+ * @param {(value: F) => Exp} other
+ * @returns {(value: Plain<F>) => Exp}
+ */
+export const fromValue = other => {
+    /** @type {(value: Plain<F>) => Exp} */
+    const encode = value => {
+        if (typeof value === 'function') { return other(value) }
+        if (value === undefined) { return ['undefined'] }
+        if (Array.isArray(value)) { return ['[]', value.map(encode)] }
+        if (value !== null && typeof value === 'object') {
+            return ['{}', Object.entries(value).map(([key, member]) => [':', key, encode(member)])]
+        }
+        return value
+    }
+    return encode
+}
 
 // Exps
 
@@ -508,12 +533,19 @@ export const comma = /** @type {const} */ ([',', exps])
 
 /**
  * `op0`/`op1`/`op2` group operation nodes by their `exp`-operand count —
- * zero, one, or two. `undefined`, module imports (`args`) and invocation
- * rest (`rest`) have no expression operands. Functions, fixed reads and
+ * zero, one, or two. `undefined`, module imports (`args`), invocation
+ * rest (`rest`) and the owning function itself (`self`) have no expression
+ * operands. `self` is the function whose body holds it, as a value — the
+ * same value every read, so recursion is `['()', ['self'], args]` and a
+ * nested function captures its parent's `self` as a slot — and it is what
+ * keeps a recursive function an acyclic graph: without it a function would
+ * have to hold itself. It reaches the innermost function alone; two
+ * functions calling each other are `todo/edag-stage1-discussion.md`'s
+ * open subject. Functions, fixed reads and
  * frame slot reads have separate tuples because their metadata is not an
  * expression operand.
  */
-export const op0Id = or('undefined', 'args', 'rest')
+export const op0Id = or('undefined', 'args', 'rest', 'self')
 
 export const op0 = /** @type {const} */ ([op0Id])
 

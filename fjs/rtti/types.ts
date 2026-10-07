@@ -43,7 +43,7 @@
  *
  * ## Converting to TypeScript types
  *
- * See `./ts/module.f.ts` for `Ts<T>` and the `*Ts` transformer types.
+ * See `./ts/types.ts` for `Ts<T>` and the `*Ts` transformer types.
  *
  * @module
  */
@@ -228,11 +228,18 @@ export type DemoExample = {
 export type _Answer = {
     readonly ok: boolean
     readonly text: string
+    /** Where a failure is, as the reader's error path; absent on success. */
+    readonly path?: readonly (string | number)[]
 }
 
-/** The rtti demo's state: the example picked by name, which of its schemas is shown, and the value's text. */
+/**
+ * The rtti demo's state: the example picked by name, which of its schemas is
+ * shown, the key of the schema it is compared with (`''` for none), and the
+ * value's text.
+ */
 export type DemoState = {
     readonly example: string
     readonly shown: 0 | 1
+    readonly compare: string
     readonly text: string
 }

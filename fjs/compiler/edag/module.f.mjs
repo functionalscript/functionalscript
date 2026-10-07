@@ -6,26 +6,25 @@
  * @module
  *
  * @import { Exp, Spread } from '../../edag/types.ts'
- * @import { AstBinary, AstBitnot, AstBody, AstCall, AstConditional, AstConst, AstEntry, AstFunction, AstImport, AstItem, AstModule, AstNeg, AstSpread, AstThrow } from '../ast/types.ts'
+ * @import { AstBinary, AstBitnot, AstNot, AstTypeof, AstBody, AstCall, AstConditional, AstConst, AstEntry, AstFunction, AstImport, AstItem, AstModule, AstNeg, AstSpread, AstThrow } from '../ast/types.ts'
  * @import { _ImportSource, _Source } from '../source/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { ReadFile, ResolveFileModule } from '../../effects/node/types.ts'
  * @import { EdagValue } from '../../edag/value/types.ts'
  * @import { Unknown as JsonUnknown } from '../../media/json/types.ts'
- * @import { Entry } from '../../types/object/types.ts'
  * @import { Unresolved } from './types.ts'
  * @import { _Binding, _Entries, _Link, _Lowered, _LoweredEntry, _LoweredItem, _LoweredOver, _LowerResults, _LowerWork, _Nodes, _Resolved } from './private.ts'
  */
 
 import { anchors, isBinary, isInlinedCall, isLazy, isSpread, readCaptures } from '../ast/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
+import { fromValue } from '../../edag/module.f.mjs'
 import { _attributeError, _importSources, _missingExport, _rootSource, _parseJson, _parseModule } from '../source/module.f.mjs'
 import { foldStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { at, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { drop, includes } from '../../types/list/module.f.mjs'
-import { definedEntries } from '../../types/object/module.f.mjs'
-import { assertNotNullish } from '../../asserts/module.f.mjs'
+import { assertNotNullish, todo } from '../../asserts/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 
 const args = /** @type {const} */ (['args'])
@@ -212,7 +211,7 @@ const slotKeys = nodes => {
  * length ({@link lower}'s own comment has why that one gets an explicit
  * stack instead).
  *
- * @type {(nodes: _Nodes) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional | AstThrow>) => _Lowered}
+ * @type {(nodes: _Nodes) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstNot | AstTypeof | AstBinary | AstConditional | AstThrow>) => _Lowered}
  */
 const lowerLeaf = nodes => ast => {
     if (ast === undefined) { return plain(undefinedNode()) }
@@ -234,6 +233,9 @@ const lowerLeaf = nodes => ast => {
         case 'arg': { return plain(['arg', ast[1]]) }
         case 'rest': { return plain(nodes.args) }
         case 'fref': { return plain(nodes.frame[ast[1]]) }
+        // the function itself, the EDAG's own node, which a nested
+        // function's capture of it lowers to as a slot of the parent's scope
+        case 'self': { return plain(['self']) }
         case '()': { return call(nodes)(ast) }
         // the EDAG's own form already, its key a constant the parser admitted
         default: {
@@ -305,6 +307,8 @@ const lower = nodes => root => {
             switch (ast[0]) {
                 case '-': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'neg', rest } }; break }
                 case '~': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'bitnot', rest } }; break }
+                case '!': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'not', rest } }; break }
+                case 'typeof': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'typeof', rest } }; break }
                 case 'throw': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'throw', rest } }; break }
                 case '?:': {
                     work = { kind: 'expand', ast: ast[1], rest: { kind: 'expand', ast: ast[2], rest: { kind: 'expand', ast: ast[3], rest: { kind: 'ternary', rest } } } }
@@ -333,6 +337,22 @@ const lower = nodes => root => {
             const rest = work.rest
             const operand = assertNotNullish(results, ['no operand for a bitwise not', root])
             results = { top: { exp: ['~', operand.top.exp], anchors: operand.top.anchors }, rest: operand.rest }
+            work = rest
+            continue
+        }
+        if (work.kind === 'not') {
+            /** @type {_LowerWork} */
+            const rest = work.rest
+            const operand = assertNotNullish(results, ['no operand for a logical not', root])
+            results = { top: { exp: ['!', operand.top.exp], anchors: operand.top.anchors }, rest: operand.rest }
+            work = rest
+            continue
+        }
+        if (work.kind === 'typeof') {
+            /** @type {_LowerWork} */
+            const rest = work.rest
+            const operand = assertNotNullish(results, ['no operand for a typeof', root])
+            results = { top: { exp: ['typeof', operand.top.exp], anchors: operand.top.anchors }, rest: operand.rest }
             work = rest
             continue
         }
@@ -510,22 +530,20 @@ export const _defaultExport = module => {
 
 // ── resolution ────────────────────────────────────────────────────────────────
 
-/** @type {(member: Entry<JsonUnknown>) => readonly [':', string, EdagValue]} */
-const jsonMember = ([key, value]) => [':', key, jsonValue(value)]
+/** JSON has no function leaves, so the function hook is unreachable. */
+const jsonLiteral = fromValue(todo)
 
 /**
  * A JSON document's value as an EDAG: a tree with JSON's leaves, its
  * members in the order the reader built them. `transpile` reads a `.json`
  * import as a value, so the linker does too.
  *
+ * `fromValue` allows arbitrary hook expressions. JSON never reaches its hook,
+ * so only literal value nodes are constructed and the narrower cast holds.
+ *
  * @type {(value: JsonUnknown) => EdagValue}
  */
-export const jsonValue = value => {
-    if (value === null || typeof value !== 'object') { return value }
-    return value instanceof Array
-        ? ['[]', value.map(jsonValue)]
-        : ['{}', definedEntries(value).map(jsonMember)]
-}
+export const jsonValue = value => /** @type {EdagValue} */ (jsonLiteral(value))
 
 /**
  * A module's EDAG recorded under its identity, and the chain of imports left as

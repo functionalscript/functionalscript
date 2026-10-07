@@ -19,7 +19,7 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { _sourceOf, demo } from './demo.f.mjs'
-import { examples } from '../examples/module.f.mjs'
+import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { invoke, memo } from '../../edag/memo/module.f.mjs'
 import { call } from '../../edag/value/call/module.f.mjs'
@@ -607,7 +607,7 @@ export const proof = {
         assertEq(text(['=>', 0, [['rest']], slot(0)]), '()=>$0')
         assertEq(text(['=>', 0, [['rest'], ['arg', 3]], ['[]', [slot(0), slot(1), ['rest']]]]), '(...$a)=>[$0,$1,$a]')
         // A captured expression need not have a source spelling in the body.
-        assertEq(text(['=>', 0, [['!', 1]], slot(0)]), '()=>$0')
+        assertEq(text(['=>', 0, [['String', 1]], slot(0)]), '()=>$0')
         // Captured functions' bindings and parameter limits are outside the
         // selected body's code, just like its enclosing argument reads.
         assertEq(text(['=>', 0, [['=>', 0, [], ['arg', 0]]], slot(0)]), '()=>$0')
@@ -629,7 +629,7 @@ export const proof = {
         // Refused: non-functions and invalid body metadata or bindings.
         assertStructurallySame(tryFunctionText(1), ['error', 'not a function'])
         assertStructurallySame(tryFunctionText(['[]', []]), ['error', 'not a function'])
-        assertEq(text(['=>', 0, [], ['!', 1]]), '()=>(! (1))')
+        assertEq(text(['=>', 0, [], ['String', 1]]), '()=>(String((1)))')
         assertStructurallySame(tryFunctionText(['=>', 0, [], ['arg', 0]]), ['error', 'invalid fixed parameter index or scope'])
         assertStructurallySame(tryFunctionText(['=>', 0, [], ['=>', 0, [], ['arg', 0]]]), ['error', 'invalid fixed parameter index or scope'])
         assertStructurallySame(tryFunctionText(['=>', 0, [], ['=>', 17, [], 1]]), ['error', 'a function length above 16'])
@@ -722,8 +722,8 @@ export const proof = {
             assertEq(assertOk(tryFunctionText(outer)), '($a_0,$a_1)=>($b_0)=>$a_1')
         },
         completeBodies: () => {
-            const e = /** @type {const} */ (['=>', 0, [], ['!', 1]])
-            assertEq(analyzedFunction(e), '()=>(! (1))')
+            const e = /** @type {const} */ (['=>', 0, [], ['String', 1]])
+            assertEq(analyzedFunction(e), '()=>(String((1)))')
             assertEq(analyzedFunction(e), assertOk(tryFunctionText(e)))
             // Function text accepts evaluated captures while the source
             // writer keeps its structural round-trip restrictions.
@@ -858,6 +858,23 @@ export const proof = {
     // loose takes them, the other way round for `**`, which associates to
     // the right; a looser operand takes them on either side, a tighter one
     // never. The text reads back as the graph, a leaf's negation folded.
+    // A function reading its own `self` is written as a `const` whose
+    // initializer reads the name, the one FunctionalScript form of a
+    // function that reaches itself, so it takes a `const` even where
+    // nothing else shares it; a nested function captures that name.
+    self: () => {
+        writes(['=>', 0, [], ['()', ['self'], []]], 'const $0=()=>$0();export default $0;')
+        writes(['=>', 1, [], ['?:', ['<', ['arg', 0], 2], 1, ['*', ['arg', 0], ['()', ['self'], [['-', ['arg', 0], 1]]]]]],
+            'const $0=($a_0)=>$a_0<2?1:$a_0*$0($a_0-1);export default $0;')
+        writes(['=>', 1, [], ['?:', ['arg', 0], ['()', ['=>', 0, [['self']], ['()', ['frame', 0], [0]]], []], 'done']],
+            'const $0=($a_0)=>$a_0?(()=>{const $b0=()=>$0(0);return $b0();})():"done";export default $0;')
+        // the module writer names it the same way
+        assertEq(unwrap(tryModuleStringify(['{}', [[':', 'f', ['=>', 0, [], ['()', ['self'], []]]], [':', 'default', 1]]])), 'const $0=()=>$0();export const f=$0;export default 1;')
+        refuses(['self'], 'self outside a function')
+        // code-only text has no `const` to name the function, so it is the
+        // named function expression `function_text` spells
+        assertEq(assertOk(tryFunctionText(['=>', 0, [], ['()', ['self'], []]])), '(function $a_self(){return ((0,($a_self))());})')
+    },
     operators: () => {
         /** @type {(b: Exp) => Exp} */
         const fn = b => ['=>', 0, [], b]
@@ -869,6 +886,8 @@ export const proof = {
             writes(fn([op, r0, r1]), `export default (...$a)=>$a[0]${op}$a[1];`)
         }
         writes(fn(['~', r0]), 'export default (...$a)=>~$a[0];')
+        writes(fn(['!', r0]), 'export default (...$a)=>!$a[0];')
+        writes(fn(['typeof', r0]), 'export default (...$a)=>typeof $a[0];')
         writes(['+', 'a', 1n], 'export default "a"+1n;')
         // associativity: to the left, `**` to the right
         writes(['-', ['-', 1, 2], 3], 'export default 1-2-3;')
@@ -904,6 +923,16 @@ export const proof = {
         writes(['~', ['~', 1]], 'export default ~~1;')
         writes(['~', ['-', ['[]', []]]], 'export default ~-[];')
         writes(['-', ['~', 1]], 'export default -~1;')
+        writes(['!', ['|', 1, 2]], 'export default !(1|2);')
+        writes(['!', ['!', 1]], 'export default !!1;')
+        writes(['!', ['-', ['[]', []]]], 'export default !-[];')
+        writes(['-', ['!', 1]], 'export default -!1;')
+        // `typeof` is a word, so a space always follows it
+        writes(['typeof', 1], 'export default typeof 1;')
+        writes(['typeof', ['|', 1, 2]], 'export default typeof (1|2);')
+        writes(['typeof', ['typeof', 1]], 'export default typeof typeof 1;')
+        writes(['typeof', ['-', ['[]', []]]], 'export default typeof -[];')
+        writes(['!', ['typeof', 1]], 'export default !typeof 1;')
         // `**` takes no prefix on its left bare, a negative number
         // included, as JavaScript does not; on its right either stands bare
         writes(['**', -2, 2], 'export default (-2)**2;')
@@ -911,6 +940,10 @@ export const proof = {
         writes(['**', ['~', 1], 2], 'export default (~1)**2;')
         writes(['**', 2, -2], 'export default 2**-2;')
         writes(['**', 2, ['~', 1]], 'export default 2**~1;')
+        writes(['**', ['!', 1], 2], 'export default (!1)**2;')
+        writes(['**', 2, ['!', 1]], 'export default 2**!1;')
+        writes(['**', ['typeof', 1], 2], 'export default (typeof 1)**2;')
+        writes(['**', 2, ['typeof', 1]], 'export default 2**typeof 1;')
         writes(['-', ['**', 2, 2]], 'export default -(2**2);')
         writes(['**', 2, ['-', ['**', 2, 2]]], 'export default 2**-(2**2);')
         // a `-` before a text opening with `-` takes a space, `--` being
@@ -922,11 +955,15 @@ export const proof = {
         writes(['+', ['=>', 0, [], 1], 1], 'export default (()=>1)+1;')
         writes(['+', 1, ['=>', 0, [], 1]], 'export default 1+(()=>1);')
         writes(['~', ['=>', 0, [], 1]], 'export default ~(()=>1);')
+        writes(['!', ['=>', 0, [], 1]], 'export default !(()=>1);')
+        writes(['typeof', ['=>', 0, [], 1]], 'export default typeof (()=>1);')
         // and an operator an access base only in a group, where an access
         // is a prefix's operand bare
         writes(['.', ['+', 1, 2], 'x'], 'export default (1+2).x;')
         writes(['.', ['~', ['[]', []]], 0], 'export default (~[])[0];')
         writes(['~', ['.', ['[]', [1]], 0]], 'export default ~[1][0];')
+        writes(['.', ['!', ['[]', []]], 0], 'export default (![])[0];')
+        writes(['.', ['typeof', ['[]', []]], 0], 'export default (typeof [])[0];')
         // a shared operator over values is written in place at each
         // occurrence, its minting operand hoisted, and merges again when
         // read; one holding a minting node through a lazy edge takes a
@@ -1143,7 +1180,7 @@ export const proof = {
     demo: {
         examples: () => {
             for (const [name, source] of examples) {
-                assertEq(_sourceOf(source)[0], ['An import', 'Logical not', 'Hex escape', 'typeof', 'Parse error'].includes(name) ? 'error' : 'ok')
+                assertEq(_sourceOf(source)[0], ['An import', 'Hex escape', 'Parse error'].includes(name) ? 'error' : 'ok')
             }
             assertEq(_sourceOf('const a = [1];\nexport default [a, a];')[1], 'const $0=[1];export default [$0,$0];')
         },

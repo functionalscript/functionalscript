@@ -100,6 +100,17 @@ const methods = ['{}', [
 const constMethods = ['=>', 0, [], methods]
 
 export const proof = {
+    // `self` is the invoked function itself, by identity, in every reading
+    // of the body; at the module's scope there is none to read
+    self: () => {
+        /** @type {Exp} */
+        const fact = ['=>', 1, [], ['?:', ['<', ['arg', 0], 2], 1, ['*', ['arg', 0], ['()', ['self'], [['-', ['arg', 0], 1]]]]]]
+        assertEq(ev(['()', fact, [5]]), 120)
+        const f = value(['=>', 0, [], ['self']])
+        assert(apply(f) === f)
+        assertEq(ev(['()', ['=>', 0, [], ['is', ['self'], ['self']]], []]), true)
+        fails(['self'])
+    },
     // A primitive is its own represented value, wrapped in success.
     primitive: () => {
         eq(1, 1)

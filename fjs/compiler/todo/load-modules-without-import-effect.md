@@ -140,7 +140,7 @@ target boundary.
 
 - [interpret-edag](./interpret-edag.md) — owns the executor and public validation.
 - [compile-modules-to-edag](./compile-modules-to-edag.md) — owns linked graphs.
-- [nanvm-effects-node](../../../todo/nanvm-effects-node.md) — low-level native
-  file and resolution effects; represented evaluation needs no sandbox capture.
+- [Native Node effects](../../../todo/nanvm-effects-node-operations.md) — low-level
+  native file and resolution effects; represented evaluation needs no sandbox capture.
 - [console-program](../../../nanvm-lib/todo/console-program.md) — native embedding
   and its separate CLI entry-selection question.

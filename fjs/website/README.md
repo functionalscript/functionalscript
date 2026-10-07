@@ -111,6 +111,10 @@ reader is looking at. One a browser cannot link is dropped and said on the
 console — unlike a proof it has nowhere on the page to be listed with its
 blocker.
 
+This section is how a demo *runs*. How one *looks* — its lead, fields,
+captions, output boxes and refusals — is [`demo/README.md`](./demo/README.md),
+so that every demo reads the same.
+
 **A demo is pure, and asks for what it needs.** It exports `init`, `update` and
 `view` ([`demo/types.ts`](./demo/types.ts)); `view` answers a `media/html` tree
 and `update` answers an `Effect`, so a demo never touches the DOM, registers a
@@ -166,6 +170,15 @@ digest is padded to the selected algorithm's hash length divided by four:
 leading zeros, but those zeros still belong in the output. One in sixteen
 digests begins with a zero hex digit; someone typing `1234` into the original
 SHA-256 demo found that case.
+
+[`crypto/sha1`](../crypto/sha1/demo.f.mjs) follows the same pattern with a
+40-character SHA-1 digest and a warning that its collision resistance is broken.
+Both demos preserve multiline text with the shared textarea helpers and use
+[`website/demo/hash`](./demo/hash/module.f.mjs) for padded digests and
+OpenSSL output. [`website/demo/code`](./demo/code/module.f.mjs) owns the copyable
+code blocks and literal shell arguments. A POSIX shell argument cannot contain
+NUL (U+0000), so that input still gets a digest but a visible refusal replaces
+the command; this is a permanent shell limitation.
 
 ## A directory says it holds a demo
 

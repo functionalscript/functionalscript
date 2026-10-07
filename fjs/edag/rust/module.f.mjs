@@ -417,7 +417,7 @@ const lines = statements => statements.flatMap(s => s.split('\n'))
  */
 const atomic = e => {
     const [id, a, b, c] = /** @type {readonly any[]} */ (e)
-    return ['undefined', 'args', 'frame', 'arg', 'rest'].includes(id)
+    return ['undefined', 'args', 'frame', 'arg', 'rest', 'self'].includes(id)
         || (['[]', '{}'].includes(id) && a.length === 0)
         || (id === '=>' && a === 0 && isSmallestLambda(b, c))
 }
@@ -471,7 +471,7 @@ const hasSpread = items => items.some(x => x instanceof Array && x[0] === '...')
  * @type {(e: Exp) => boolean}
  */
 const isOperation = e => e instanceof Array
-    && (!['undefined', 'args', 'frame', 'arg', 'rest', '[]', '{}', '=>', ',', ':', '...'].includes(e[0])
+    && (!['undefined', 'args', 'frame', 'arg', 'rest', 'self', '[]', '{}', '=>', ',', ':', '...'].includes(e[0])
         || (e[0] === '[]' && hasSpread(/** @type {readonly unknown[]} */ (e[1]))))
 
 /**
@@ -777,9 +777,15 @@ const printer = nested => shared => root => {
         // Slot `i` of the frame the function was built with, read through
         // the closure's `self_` parameter, {@link closure}: the `Array<A>`
         // {@link frameExpr} built, indexed directly — the slot exists, since
-        // `bindingError` refuses a read past the slots, so no `undefined`
+        // `checked` refuses a read past the slots, so no `undefined`
         // case as an `args` read has.
         if (id === 'frame') { return plain(`A::frame(self_)[${a}].clone()`) }
+        // The function itself, as a value: the closure's `self_` parameter
+        // wrapped as the `Function` it is, an `Rc`-cheap clone of the one
+        // value every read of `self` is — the identity JavaScript gives a
+        // function for its lifetime, which `nanvm-lib/todo/callable-function-objects.md`
+        // asks for by threading that handle rather than rebuilding one.
+        if (id === 'self') { return ok(cat([vm('Function'), '::new(self_.clone())', toAny])) }
         if (id === '[]' && !hasSpread(a)) { return arrayExpr(a) }
         if (id === '{}') {
             // The corpus's bare expression has no Result-returning scope
@@ -810,11 +816,11 @@ const printer = nested => shared => root => {
                 : f(last(e))
         }
         if (id === '=>') {
-            // A fragment has no complete graph for `bindingError`, so the
+            // A fragment has no complete graph for `checked`, so the
             // language's limit is checked here too; IStaticFunction's u32
             // holds every length it admits.
             if (a > maxLength) { return error([`a function length above ${maxLength}`, a]) }
-            // A slot the frame does not have, likewise: `bindingError`
+            // A slot the frame does not have, likewise: `checked`
             // refuses it in a complete graph, and a fragment is refused
             // here, since the index the body would print panics in
             // `nanvm-lib` where the JavaScript executors throw.
@@ -895,7 +901,7 @@ const printer = nested => shared => root => {
      * @type {(length: number, body: Exp, text: string) => (frame: Result<Printed<string>, readonly unknown[]>) => Result<Printed<string>, readonly unknown[]>}
      */
     const closure = (length, body, text) => frame => flat(map2((/** @type {readonly string[]} */ lines, /** @type {string} */ fr) =>
-        cat([`A::static_function(|${readsFrame(body) ? 'self_' : '_self'}, ${readsArgs(body) ? 'args' : '_args'}| ${braced(lines)}, ${length}, ${fr}, ${text})`, toAny])
+        cat([`A::static_function(|${readsFrame(body) || readsSelf(body) ? 'self_' : '_self'}, ${readsArgs(body) ? 'args' : '_args'}| ${braced(lines)}, ${length}, ${fr}, ${text})`, toAny])
     )(reads('rest')(body) ? map2((/** @type {string} */ rest, /** @type {readonly string[]} */ s) => [rest, ...s])(ok(restLine(length)), statements(body)) : statements(body), frame))
     /**
      * A function's frame as the `Array<A>` its construction takes: the
@@ -1194,6 +1200,14 @@ export const readsArgs = root => reads('args')(root) || reads('arg')(root) || re
  * @type {(root: Exp) => boolean}
  */
 export const readsFrame = root => reads('frame')(root)
+
+/**
+ * The same, for `['self']`: whether a scope reads the function it is the
+ * body of, through the closure's `self_` as a frame read does.
+ *
+ * @type {(root: Exp) => boolean}
+ */
+export const readsSelf = root => reads('self')(root)
 
 /**
  * The indices a scope reads of its frame, one per distinct `['frame', i]`

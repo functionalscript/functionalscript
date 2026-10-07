@@ -75,7 +75,7 @@ import { textDemo } from '../../website/demo/module.f.mjs'
 // reconstructed from the compiler's own runtime schemas: a demo is allowed
 // the loss of automatic drift-detection a schema import would buy, for a
 // flat list of strings simple enough to check against the type file by eye.
-const op0 = new Set(['undefined', 'args', 'rest'])
+const op0 = new Set(['undefined', 'args', 'rest', 'self'])
 const op1 = new Set(['String', 'Number', '!', '~', 'typeof'])
 const op2 = new Set([
     'own', 'is',

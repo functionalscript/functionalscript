@@ -55,6 +55,8 @@ export type Node =
     | readonly ['()', Node, readonly Item[]]
     | readonly ['-', Node]
     | readonly ['~', Node]
+    | readonly ['!', Node]
+    | readonly ['typeof', Node]
     | readonly [BinaryTag, Node, Node]
     | readonly ['?:', Node, Node, Node]
     | readonly ['=>', ParameterList, Node]
