@@ -253,7 +253,7 @@ const keyNamed = t => {
     const { token } = t
     switch (token.kind) {
         case 'string': { return token.value }
-        case 'number': { return Number(token.value) }
+        case 'number': { return Number(token.value.replaceAll('_', '')) }
         default: { return nameOf(t) }
     }
 }
