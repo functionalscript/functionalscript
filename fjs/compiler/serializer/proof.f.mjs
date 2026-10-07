@@ -858,6 +858,27 @@ export const proof = {
     // loose takes them, the other way round for `**`, which associates to
     // the right; a looser operand takes them on either side, a tighter one
     // never. The text reads back as the graph, a leaf's negation folded.
+    // A function reading its own `self` is written as a `const` whose
+    // initializer reads the name, the one FunctionalScript form of a
+    // function that reaches itself, so it takes a `const` even where
+    // nothing else shares it; a nested function captures that name. The
+    // text is asserted alone, as `writes` reads back through the parser,
+    // which resolves a function's own name once the language rule lands.
+    self: () => {
+        /** @type {(e: Exp, expected: string) => void} */
+        const spells = (e, expected) => { assertEq(unwrap(tryStringify(e)), expected) }
+        spells(['=>', 0, [], ['()', ['self'], []]], 'const $0=()=>$0();export default $0;')
+        spells(['=>', 1, [], ['?:', ['<', ['arg', 0], 2], 1, ['*', ['arg', 0], ['()', ['self'], [['-', ['arg', 0], 1]]]]]],
+            'const $0=($a_0)=>$a_0<2?1:$a_0*$0($a_0-1);export default $0;')
+        spells(['=>', 1, [], ['?:', ['arg', 0], ['()', ['=>', 0, [['self']], ['()', ['frame', 0], [0]]], []], 'done']],
+            'const $0=($a_0)=>$a_0?(()=>{const $b0=()=>$0(0);return $b0();})():"done";export default $0;')
+        // the module writer names it the same way
+        assertEq(unwrap(tryModuleStringify(['{}', [[':', 'f', ['=>', 0, [], ['()', ['self'], []]]], [':', 'default', 1]]])), 'const $0=()=>$0();export const f=$0;export default 1;')
+        refuses(['self'], 'self outside a function')
+        // code-only text has no `const` to name the function, so it is the
+        // named function expression `function_text` spells
+        assertEq(assertOk(tryFunctionText(['=>', 0, [], ['()', ['self'], []]])), '(function $a_self(){return ((0,($a_self))());})')
+    },
     operators: () => {
         /** @type {(b: Exp) => Exp} */
         const fn = b => ['=>', 0, [], b]

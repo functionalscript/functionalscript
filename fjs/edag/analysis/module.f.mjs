@@ -252,6 +252,7 @@ const handlers = {
     undefined: o0,
     args: o0,
     rest: o0,
+    self: o0,
     arg: indexed,
     frame: indexed,
     '!': o1,
@@ -364,7 +365,7 @@ const propertyOperands = p => p[0] === ':' ? [p[1], p[2]] : [p[1]]
  */
 export const operandsOf = node => {
     switch (node[0]) {
-        case 'undefined': case 'args': case 'frame': case 'rest': case 'arg': { return [] }
+        case 'undefined': case 'args': case 'frame': case 'rest': case 'arg': case 'self': { return [] }
         case '[]': { return node[1].map(itemOperand) }
         case '{}': { return node[1].flatMap(propertyOperands) }
         case ',': { return node[1] }
@@ -454,6 +455,7 @@ const bindingError = ({ nodes, scope }, root = -1) => {
         const owner = scope[i] === -1 ? null : nodes[scope[i]]
         if (node[0] === 'args' && owner !== null) { return 'module args in a function' }
         if (node[0] === 'rest' && owner === null) { return 'the arguments outside a function' }
+        if (node[0] === 'self' && owner === null) { return 'self outside a function' }
         if (node[0] === '=>' && node[1] > maxLength) { return `a function length above ${maxLength}` }
         if (node[0] === 'arg') {
             if (owner === null || owner[0] !== '=>' || !isIndex(node[1]) || node[1] >= owner[1]) {

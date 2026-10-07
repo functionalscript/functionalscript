@@ -116,6 +116,9 @@ export const proof = {
             ['frame',0], ['[]',[['frame',0]]],
             ['=>',0,[['[]',[]]],['frame',-0]], ['=>',0,[['[]',[]]],['frame',-1]],
             ['=>',0,[['[]',[]]],['frame',0.5]], ['=>',0,[['[]',[]]],['frame',Infinity]],
+            // `self` outside a function: bare, in a container, and as a slot
+            // of a top-level function, which its enclosing scope evaluates
+            ['self'], ['[]',[['self']]], ['=>',0,[['self']],1],
         ])) { assertError(checked(assertOk(analysis(e)))) }
         // a frame slot read belongs to the function whose body holds it,
         // nested or not, and its index is below that function's slot count
@@ -134,6 +137,11 @@ export const proof = {
         ])) { assertEq(assertError(checked(assertOk(analysis(e)))), 'a function length above 16') }
         assertOk(checked(assertOk(analysis(['=>',1,[['args']],['arg',0]]))))
         assertOk(checked(assertOk(analysis(['=>',1,[],['=>',0,[['arg',0],['rest']],['rest']]]))))
+        // `self` belongs to the function whose body holds it, and a nested
+        // function reaches its parent's through a slot evaluated there
+        assertOk(checked(assertOk(analysis(['=>',0,[],['()',['self'],[]]]))))
+        assertOk(checked(assertOk(analysis(['=>',1,[],['=>',0,[['self']],['()',['frame',0],[0]]]]))))
+        assertEq(assertError(checked(assertOk(analysis(['self'])))), 'self outside a function')
     },
 
     functionBindings: () => {

@@ -55,6 +55,15 @@ const elements = v => /** @type {ValueArray} */ (v)[1]
 const fails = (e, expected = ['undefined']) => assertStructurallySame(result(e), ['error', expected])
 
 export const proof = {
+    // `self` under memoization: the invoked function, the one node reused
+    // across a body's shared reads, agreeing with the amnesia oracle
+    self: () => {
+        /** @type {Exp} */
+        const fact = ['=>', 1, [], ['?:', ['<', ['arg', 0], 2], 1, ['*', ['arg', 0], ['()', ['self'], [['-', ['arg', 0], 1]]]]]]
+        eq(['()', fact, [5]], 120)
+        agrees(['()', ['=>', 0, [], ['is', ['self'], ['self']]], []])
+        agrees(['()', ['=>', 1, [], ['?:', ['arg', 0], ['()', ['=>', 0, [['self']], ['()', ['frame', 0], [0]]], []], 'base']], [1]])
+    },
     // The model: one node reached twice is one value. Amnesia gives two
     // arrays and `false`; this executor gives one and `true`, which is
     // JavaScript's answer for `const s = [1]; [s, s]`.

@@ -48,6 +48,19 @@ export type _Scope = {
     readonly param: string
     readonly eager: readonly number[]
     readonly shared: readonly number[]
+    /**
+     * The name the function whose body this scope writes was bound to, which
+     * its `['self']` reads as, and `null` at the module level or in a body
+     * whose function has no name.
+     */
+    readonly self: string | null
+    /**
+     * The name the value being written is about to be bound to by a `const`
+     * of this scope, and `null` where it is not: what a function reading its
+     * own `['self']` takes as its name, since only a named function can
+     * reach itself.
+     */
+    readonly binding: string | null
 }
 
 /**
