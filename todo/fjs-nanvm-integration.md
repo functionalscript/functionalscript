@@ -190,7 +190,7 @@ the language ([objects](../spec/README.md#objects)).
 #### The whole repository
 
 The same loop over every authored module, not only the leaves, measured on
-`main` at `5afe951` with shorthand members, `{ a }`, accepted: of 227
+`main` at `0882d09` with shorthand members, `{ a }`, accepted: of 227
 modules — 221 `module.f.mjs` and 6 `module.f.js` — the 6 `.f.js` compile
 and every `.f.mjs` stops at its first refusal. The table counts that first
 refusal only, read at the token the compiler names, so it says which feature
@@ -200,29 +200,24 @@ import is counted under the import's feature, 17 of the rows' members.
 | Modules | First refusal |
 | ---: | --- |
 | 93 | a template literal |
-| 42 | destructuring, a `const` or a parameter |
-| 22 | `let`, `for`, `switch` or `while` |
-| 12 | a computed member or key, `a[i]`, `{ [k]: v }` |
-| 10 | a numeric literal spelled `0b…` or with `_` separators |
+| 47 | destructuring, a `const` or a parameter |
+| 23 | `let`, `for`, `switch`, `while`, or an `if` with no block |
+| 13 | a computed member or key, `a[i]`, `{ [k]: v }` |
 | 10 | an escape in a single-quoted string, `'\x07'`, `'\b'` |
-| 8 | a call as a statement, `assert(…)` |
+| 9 | a call as a statement, `assert(…)` |
 | 8 | `const not found`: three reads of a later `const` ([`3140`](../spec/todo/3140-forward-references.md)), five of `Number` or `Boolean` ([`2365`](../spec/todo/2365-global-names.md)) |
 | 5 | `new Set`, `new Map` |
 | 5 | `instanceof` |
-| 3 | `export { … } from` |
+| 5 | `export { … } from` |
 | 3 | one each: a reassignment, `in`, a default parameter |
-
-Binary numeric literals (`0b` and `0B`, including the `n` suffix) are now
-accepted by the shared tokenizer and compiler. Numeric separators (`_`
-between digits) are also accepted in decimal, binary and hexadecimal
-number and bigint literals; the table above records the earlier measurement.
 
 Template literals are the first refusal of two modules in five, almost all
 of them error messages and `assert` texts, and they are a feature with open
 questions of its own
 ([`3440`](../spec/todo/3440-template-literals.md)) — the case for settling
 those questions, not a license to start before they are. Destructuring is
-next, and the numeric and string-escape rows are tokenizer work. The leaf table above is what this count does not say: a module whose
+next, and the string-escape row is tokenizer work. The leaf table above is
+what this count does not say: a module whose
 first refusal clears meets its next, and only a leaf whose every feature has
 landed renames.
 

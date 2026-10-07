@@ -772,6 +772,9 @@ const toStatement = ([kind, branch]) => {
 const valueStatementOf = ([keyword, v, end]) =>
     ({ start: tokenAt(keyword), semicolon: ended(end), first: firstAt(v), value: nodeAt(v) })
 
+/** A member's record as the rewrite returns it. @type {(key: DjsTokenWithMetadata, name: string, spelling: Member['spelling'], value: Node) => Meta<Out>} */
+const memberOf = (key, name, spelling, value) => symbol({ id: 'member', member: { key, name, spelling, value } })
+
 /**
  * A member: the token its key is read from, the name it spells, the key's
  * spelling, and its value, by the branch the key's spelling chose. A bare
@@ -781,26 +784,24 @@ const valueStatementOf = ([keyword, v, end]) =>
  * @type {(node: Children<MemberRule, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toMember = ([tag, branch]) => {
-    /** @type {(key: DjsTokenWithMetadata, name: string, spelling: Member['spelling'], value: Node) => Meta<Out>} */
-    const member = (key, name, spelling, value) => symbol({ id: 'member', member: { key, name, spelling, value } })
     switch (tag) {
         case 'plain': {
             const [id, rest] = unmapped(branch)
             const key = tokenAt(unmapped(id)[1])
             const rounds = unmapped(rest)
             return rounds.length === 0
-                ? member(key, nameOf(key), 'shorthand', ['ref', key])
-                : member(key, nameOf(key), 'plain', nodeAt(unmapped(rounds[0])[1]))
+                ? memberOf(key, nameOf(key), 'shorthand', ['ref', key])
+                : memberOf(key, nameOf(key), 'plain', nodeAt(unmapped(rounds[0])[1]))
         }
         case 'string': {
             const [s, , v] = unmapped(branch)
             const key = tokenAt(s)
-            return member(key, textOf(key), 'string', nodeAt(v))
+            return memberOf(key, textOf(key), 'string', nodeAt(v))
         }
         case 'computed': {
             const [, s, , , v] = unmapped(branch)
             const key = tokenAt(s)
-            return member(key, textOf(key), 'computed', nodeAt(v))
+            return memberOf(key, textOf(key), 'computed', nodeAt(v))
         }
     }
 }
