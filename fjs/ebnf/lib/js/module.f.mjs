@@ -31,6 +31,7 @@
  *
  * @module
  *
+ * @import { Rule, Tuple } from '../../types.ts'
  * @import { AfterStar, Content, TriviaKind } from './types.ts'
  */
 
@@ -119,6 +120,9 @@ const optionFloatSuffix = /**@type {const}*/([
     option([set('Ee'), option(set('+-')), decimalDigits]),
 ])
 
+/** @type {(prefix: string, digits: Rule) => Tuple} */
+const int = (prefix, digits) => [set(prefix), digits, repeatFrom0([option('_'), digits]), option('n')]
+
 /**
  * A number: an unsigned integer, then either the bigint suffix or
  * an optional fraction and exponent; or, after a leading `0`, `x` or
@@ -129,8 +133,8 @@ const optionFloatSuffix = /**@type {const}*/([
  */
 export const number = /**@type {const}*/({
     zero: [uint[0], {
-        hex: [set('xX'), hex, repeatFrom0([option('_'), hex]), option('n')],
-        binary: [set('bB'), set('01'), repeatFrom0([option('_'), set('01')]), option('n')],
+        hex: int('xX', hex),
+        binary: int('bB', set('01')),
         bigint: 'n',
         real: optionFloatSuffix,
     }],
