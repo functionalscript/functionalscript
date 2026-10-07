@@ -945,6 +945,11 @@ export const proof = {
             expectRefused('export default { a: 1, b };', 'const not found', 24)
             expectRefused('export default { typeof };', 'reserved word', 18)
             expectRefused('export default { null };', 'reserved word', 18)
+            // the three literal words are reserved: a value where a value
+            // stands, a binding nowhere, so the shorthand's reference finds
+            // none (spec/todo/2445-literal-words-as-references.md)
+            expectRefused('export default { undefined };', 'reserved word', 18)
+            expectRefused('export default { NaN };', 'reserved word', 18)
             // a string or a computed key has no shorthand: the grammar wants
             // its `:`, at the `}`
             expectRefused('export default { "a" };', 'unexpected token', 22)

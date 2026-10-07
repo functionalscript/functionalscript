@@ -1014,8 +1014,10 @@ A member may be a name alone, the **shorthand** JavaScript reads as the name
 twice, `{ a }` for `{ a: a }`: the name is the key, and a reference to the
 name — a `const`, an import, a parameter — is the value, resolved and refused
 as any reference is, so `{ b }` with nothing binding `b` is an error, as is
-`{ typeof }`. Only the identifier spelling has the shorthand: `{ "a" }` and
-`{ ["a"] }` are errors, the key alone being no reference.
+`{ typeof }` — and `{ NaN }`, since `NaN`, `Infinity` and `undefined` are
+[reserved words](#numbers) that denote a value and name no binding. Only the
+identifier spelling has the shorthand: `{ "a" }` and `{ ["a"] }` are errors,
+the key alone being no reference.
 
 ```js
 const a = 1;
