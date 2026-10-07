@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/compiler/examples/module.f.mjs`.
+ * Type-level API for `fjs/compiler/examples/module.f.js`.
  *
  * @module
  */

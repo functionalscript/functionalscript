@@ -22,11 +22,11 @@ overflow:
 Both cases produce `error TS2589: Type instantiation is excessively deep and
 possibly infinite`.
 
-## Solution 1 — fast-path for `any`
+## A fast path for `any`
 
 ```ts
 export type Ts<T extends Type> =
-    unknown extends T ? Unknown :   // ← option 1
+    unknown extends T ? Unknown :   // ← the fast path
     ...
 ```
 
@@ -34,7 +34,7 @@ export type Ts<T extends Type> =
 short-circuits to `Unknown` before distribution begins. This prevents the largest
 class of accidental overflows without touching the rest of `Ts<T>`.
 
-## Solution 3 — `WithOut` phantom output type
+## A `WithOut` phantom output type
 
 For recursive schemas (e.g. the JSON Schema `unknown` type in
 `fjs/media/json/schema/module.f.mjs`) even the non-`any` walk overflows because the
@@ -49,7 +49,7 @@ export type WithOut<S, Out> = S & { readonly [withOutKey]?: Out }
 
 export type Ts<T extends Type> =
     unknown extends T ? Unknown :
-    T extends { readonly [withOutKey]?: infer O } ? Exclude<O, undefined> :  // ← option 3
+    T extends { readonly [withOutKey]?: infer O } ? Exclude<O, undefined> :  // ← the annotation
     ...
 ```
 
@@ -87,7 +87,7 @@ type UnknownConst = {
 `Ts<typeof unknown>` reads `withOutKey`, returns `UnknownConst`, never recurses
 into `unknownConst`'s body.
 
-## Why Option 2 failed
+## Why named aliases failed
 
 Splitting `Ts<T>` into named aliases (`InfoTs<I>`, `OrTs<A>`, …) was attempted
 on the theory that each alias acts as a memoization point for the compiler
@@ -96,7 +96,7 @@ on the theory that each alias acts as a memoization point for the compiler
 chain, so TypeScript hits its depth limit sooner. The inline form is flatter and
 lets the compiler short-circuit earlier. Named-alias memoization only helps for
 acyclic type graphs; it does not help when the recursion is inherent in the
-schema structure. Option 2 was reverted.
+schema structure. The split was reverted.
 
 ## Remaining open problems
 

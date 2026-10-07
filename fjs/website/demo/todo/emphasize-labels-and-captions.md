@@ -9,6 +9,10 @@ The HMAC and PoW demos emphasize input labels and output captions, while
 other demos do not share that presentation. The demo specification does not
 yet establish a common rule, and the stylesheet uses demo-specific selectors.
 
+The HMAC view proof pins its markup marker, but automated gates do not catch
+a renamed matching CSS selector. Browser checks verify the current appearance;
+the shared rollout needs a check that detects this stylesheet mismatch.
+
 ### Proposal
 
 Use bold input labels and output captions at the existing font size across
@@ -26,6 +30,9 @@ such as controls embedded in prose, and explain them in the demo's JSDoc.
       emphasis policy.
 - [ ] Add shared label and caption styling, update all demos to use it, and
       remove the HMAC/PoW-specific bold rules and obsolete exception notes.
+- [ ] Verify rendered font weight for labels and captions, with leads and
+      explanatory text staying regular. Confirm that renaming a matching CSS
+      selector makes the check fail.
 - [ ] Update affected view proofs, run the required checks, and verify the
       demos in light/dark themes and mobile layouts. Include affected preview
       links in the implementation PR.

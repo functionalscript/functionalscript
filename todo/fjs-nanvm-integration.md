@@ -124,6 +124,122 @@ modules remain `.f.mjs` until the required compiler features land.
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
+#### What the next rename waits on
+
+Measured on the tree after `!` and `typeof` landed
+([#2622](https://github.com/functionalscript/functionalscript/pull/2622),
+[#2623](https://github.com/functionalscript/functionalscript/pull/2623)):
+every `.f.mjs` that imports no other `.f.mjs` is a *leaf*, the only module a
+rename can start from, and `fjs compile` was run on each. The compiler stops
+at its first refusal, so one refusal per row is the compiler's and the rest
+of the row is a reading of the module. "Behind it" counts the non-proof
+modules that import the leaf, directly or not — what a leaf's rename opens
+up, since a proof stays `proof.f.mjs` whatever its module is named
+([`fjs/compiler/README.md`](../fjs/compiler/README.md)).
+
+| Leaf | Behind it | The compiler refuses |
+| --- | ---: | --- |
+| `fjs/types/object/structurally_same` | 244 | destructuring (`const { entries, is } = Object`, `([k, v]) =>`), the `Object` global, `instanceof`, `new Map`, a runtime key `b[i]`|
+| `fjs/types/function` | 235 | `let`, reassignment and `while`, all inside `iterate`; object shorthand, `{ result, map }` in `fn` |
+| `fjs/types/function/operator` | 232 | template literals, destructured `const`s and parameters, runtime keys `steps[i]` and `prior[i]`|
+| `fjs/types/result` | 165 | `for … of` in `okList`, destructured parameters |
+| `fjs/js/array_index` | 60 | the `Number` and `String` globals |
+| `fjs/js/keywords` | 35 | `new Set` |
+| `fjs/types/set` | 35 | `let`, reassignment, `+=`, `while` with `break`, `new Set`, a runtime key `set[i]` |
+| `fjs/types/map` | 31 | `new Map`, a destructured parameter |
+| `fjs/website/demo/examples` | 18 | `new Set`, destructured parameters |
+| `fjs/ci/package` | 7 | template literals, `new Error`, globals |
+| `fjs/git/bytes` | 5 | a runtime key `b[at]`, `Number.isSafeInteger` |
+| `fjs/website/style` | 5 | template literals, `let`, `new`, runtime keys |
+| `fjs/nanvm/member` | 3 | `\u{…}` escapes, template literals, globals |
+| `fjs/git/config` | 1 | `\v` and `\f` escapes, destructuring, a non-terminating `if`, runtime keys, template literals |
+| `fjs/nanvm/methods` | 1 | template literals, destructuring, the `Object` global |
+| `fjs/types/ts` | 1 | template literals, `switch`, a default parameter, globals |
+| `fjs/website/browser-source` | 1 | `let`, `+=`, `while` with `break`, a non-terminating `if`, runtime keys |
+
+The same rows by feature, each with where the feature is tracked, so a
+language step can be picked for what it unblocks:
+
+| Feature | Tracked in | Leaves it holds |
+| --- | --- | --- |
+| Destructuring | [`spec/todo/2450-destructuring.md`](../spec/todo/2450-destructuring.md) | structurally_same, result, function/operator, map, demo/examples, git/config, nanvm/methods |
+| Object shorthand, `{ result }` | [`spec/todo/2440-shorthand.md`](../spec/todo/2440-shorthand.md) | function |
+| `let`, reassignment, `while` | [`spec/todo/3220-let.md`](../spec/todo/3220-let.md); `while` is roadmap §3.2 | function, set, browser-source, style |
+| Globals and built-ins | [`spec/todo/2365-global-names.md`](../spec/todo/2365-global-names.md), [`2360-built-in.md`](../spec/todo/2360-built-in.md) | structurally_same, array_index, ts, git/bytes, nanvm/member, nanvm/methods, ci/package |
+| Template literals | [`spec/todo/3440-template-literals.md`](../spec/todo/3440-template-literals.md) | function/operator, ci/package, ts, nanvm/methods, nanvm/member, style, git/config |
+| `new` with a built-in constructor | nothing proposes it | structurally_same, keywords, map, set, demo/examples, ci/package, style |
+| A runtime key, `a[i]` | the spec says "not recognized yet"; no `todo/` | structurally_same, function/operator, set, git/bytes, style, browser-source, git/config |
+| `for … of` | nothing proposes it | result |
+| `instanceof` | nothing proposes it | structurally_same |
+| A non-terminating `if`, `break` | roadmap §3.2, the guard's follow-ups; `break` is `while`'s | set, git/config, browser-source |
+| String escapes `\u{…}`, `\v`, `\f` | [`spec/todo/2460-js-string-literals.md`](../spec/todo/2460-js-string-literals.md) | nanvm/member, git/config |
+| `switch`, a default parameter | neither proposed; the parameter is roadmap §3.1 | ts |
+
+A leaf renames only when every feature it uses has landed. A function
+calling itself no longer holds any: `structurallySame`, `fn`,
+`stateScanToScan`, `foldToScan`, `tryLine` and `bindsName` resolve as the
+EDAG's `["self"]` ([functions](../spec/README.md#functions)). Of the four
+root modules nearly everything imports, `structurally_same` waits on five
+features, and `function/operator` on three. The one root with a short path
+is `result`: `for … of` and destructuring, and the loop is one function,
+`okList`, which could be written as a fold today, leaving destructuring
+alone. `iterate` in `function` could lose its loop the same way, which
+would leave that module on object shorthand alone — `fn` returns
+`{ result, map }`, which the grammar reads as `result: result` only once
+[`2440`](../spec/todo/2440-shorthand.md) lands, or which `fn` could spell
+out today.
+
+#### The whole repository
+
+The same loop over every authored module, not only the leaves, measured on
+`main` at `75881dc`, the merge of a function's own name
+([#2630](https://github.com/functionalscript/functionalscript/pull/2630)):
+of 227 modules — 221 `module.f.mjs` and 6 `module.f.js` — the 6 `.f.js`
+compile and every `.f.mjs` stops at its first refusal. The table counts that
+first refusal only, read at the token the compiler names, so it says which
+feature to settle first, not how much each costs; a refusal the compiler
+meets in an import is counted under the import's feature, 11 of the rows'
+members.
+
+| Modules | First refusal |
+| ---: | --- |
+| 89 | a template literal |
+| 33 | destructuring, a `const` or a parameter |
+| 23 | a shorthand member, `{ a, b }` |
+| 19 | `let`, `for`, `switch` or `while` |
+| 10 | a numeric literal spelled `0b…` or with `_` separators |
+| 10 | an escape in a single-quoted string, `'\x07'`, `'\b'` |
+| 9 | a computed member or key, `a[i]`, `{ [k]: v }` |
+| 7 | a call as a statement, `assert(…)` |
+| 6 | `const not found`: three reads of a later `const` ([`3140`](../spec/todo/3140-forward-references.md)), three of `Number` or `Boolean` ([`2365`](../spec/todo/2365-global-names.md)) |
+| 5 | `new Set`, `new Map` |
+| 4 | `instanceof` |
+| 3 | `export { … } from` |
+| 3 | one each: a reassignment, `in`, a default parameter |
+
+Template literals are the first refusal of two modules in five, almost all
+of them error messages and `assert` texts, and they are a feature with open
+questions of its own
+([`3440`](../spec/todo/3440-template-literals.md)) — the case for settling
+those questions, not a license to start before they are. Destructuring and
+shorthand are next, and the numeric and string-escape rows are tokenizer
+work. The leaf table above is what this count does not say: a module whose
+first refusal clears meets its next, and only a leaf whose every feature has
+landed renames.
+
+The count of modules that compile cannot go down unnoticed: a module renames
+to `.f.js` once the compiler accepts it, and `fjs compile` with no arguments
+holds every `.f.js` to the compiler of its revision on every CI run, so the
+`.f.js` population is the tracked set. Both tables are reread when a feature
+they name lands. The loop that reproduces the count, an empty second field
+being a module that compiled:
+
+```sh
+for f in $(find fjs -name module.f.mjs -o -name module.f.js | sort); do
+  echo "$f|$(node fjs/module.mjs compile "$f" out.rs 2>&1 | head -1)"
+done
+```
+
 ### CLI: an output target, not a command group (decided)
 
 `fjs compile <input> <output>` already dispatches on the output extension
@@ -203,6 +319,8 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
       modules and the six `spec/datajs/vectors/*/data.f.js` — with
       `fjs compile` checking each on every CI run, and no `.f.js` importing an
       `.f.mjs`.
+- [x] Rename `fjs/compiler/examples`, the one leaf the compiler accepted whole
+      after `!` and `typeof`: its eleven importers, proofs and demos, follow it.
 - [ ] Continue `.f.mjs` -> `.f.js` incrementally as compiler support grows.
 
 ### Related

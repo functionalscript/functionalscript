@@ -16,14 +16,8 @@
  * @import { Result } from '../../../types/result/types.ts'
  */
 
-import { analysis, bindingError } from '../../analysis/module.f.mjs'
-import { error, ok } from '../../../types/result/module.f.mjs'
+import { analysis, checked } from '../../analysis/module.f.mjs'
+import { mapOk, okThen } from '../../../types/result/module.f.mjs'
 
 /** Checks closure bindings and body scopes in shape-checked FJS data. @type {(value: EdagValue) => Result<EdagValue, string>} */
-export const validateClosure = value => {
-    const r = analysis(value)
-    const [kind, table] = r
-    if (kind === 'error') { return r }
-    const problem = bindingError(table)
-    return problem === null ? ok(value) : error(problem)
-}
+export const validateClosure = value => mapOk(() => value)(okThen(checked)(analysis(value)))

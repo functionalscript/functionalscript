@@ -4,11 +4,11 @@
  * from lazy positions, the node kinds, and the refusal.
  *
  * @import { Exp } from '../types.ts'
- * @import { Analysis, Node } from './types.ts'
+ * @import { Analysis, Node, Operand, Ref } from './types.ts'
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { analysis, bindingError } from './module.f.mjs'
+import { analysis, checked, itemOperand, operandsOf } from './module.f.mjs'
 
 /**
  * What every table satisfies, checked on every case: an entry names only
@@ -57,6 +57,54 @@ const empty = ['[]', []]
 const first = ['=>', 0, [], ['.', ['rest'], 0]]
 
 export const proof = {
+    itemOperand: () => {
+        /** @type {Ref} */
+        const ref = ['#', 0]
+        assertEq(itemOperand('...'), '...')
+        assertEq(itemOperand(ref), ref)
+        assertEq(itemOperand(['...', 'value']), 'value')
+        assertEq(itemOperand(['...', ref]), ref)
+    },
+    operandsOf: () => {
+        // Equal indices do not make distinct input Ref tuples interchangeable.
+        /** @type {Ref} */
+        const a = ['#', 0]
+        /** @type {Ref} */
+        const b = ['#', 0]
+        /** @type {readonly (readonly [Node, readonly Operand[]])[]} */
+        const cases = [
+            [['undefined'], []], [['args'], []], [['rest'], []],
+            [['arg', 2], []], [['frame', 3], []],
+            [['!', a], [a]], [['+', a], [a]], [['+', a, b], [a, b]],
+            [['&&', false, a], [false, a]], [['||', true, b], [true, b]],
+            [['??', null, a], [null, a]], [['?:', true, a, b], [true, a, b]],
+            [['[]', []], []], [['{}', []], []], [[',', []], []],
+            [['[]', [a, ['...', b], '#', '=>', a]], [a, b, '#', '=>', a]],
+            [['{}', [[':', a, b], [':', '#', '...'], ['...', a]]], [a, b, '#', '...', a]],
+            [[',', [a, 1, b, a]], [a, 1, b, a]],
+            [['=>', 2, [a, 42, b], a], [a, 42, b, a]],
+            [['=>', 0, [], 7], [7]],
+            [['()', a, [b, ['...', a], 'args']], [a, b, a, 'args']],
+            [['?.()', a, []], [a]],
+            [['.', a, '#'], [a, '#']], [['?.', null, 0], [null, 0]],
+            [['.', a, 'field', ['|()', [b]]], [a, 'field', b]],
+            [['?.', a, 'field', ['|?.()', []]], [a, 'field']],
+            [['?.()', a, [1], ['|!()', [b]]], [a, 1, b]],
+            [['.', a, 'field', ['|?.()', [b, ['...', a]],
+                ['|.', b, ['|()', [null], ['|.', 'end']]]]],
+            [a, 'field', b, a, b, null, 'end']],
+        ]
+        for (const [node, expected] of cases) {
+            const actual = operandsOf(node)
+            assertEq(actual.length, expected.length)
+            expected.forEach((operand, i) => assertEq(actual[i], operand))
+        }
+    },
+    checked: () => {
+        const a = an(first)
+        assertEq(assertOk(checked(a)), a)
+        assertEq(assertError(checked(an(['frame', 0]))), 'invalid frame slot index or scope')
+    },
     validation: () => {
         for (const e of /** @type {readonly Exp[]} */ ([
             ['rest'], ['arg',0], ['=>',0,[],['arg',0]], ['=>',1,[],['arg',1]],
@@ -68,25 +116,32 @@ export const proof = {
             ['frame',0], ['[]',[['frame',0]]],
             ['=>',0,[['[]',[]]],['frame',-0]], ['=>',0,[['[]',[]]],['frame',-1]],
             ['=>',0,[['[]',[]]],['frame',0.5]], ['=>',0,[['[]',[]]],['frame',Infinity]],
-        ])) { assert(bindingError(assertOk(analysis(e))) !== null, e) }
-        assertEq(bindingError(assertOk(analysis(['frame',0]))), 'invalid frame slot index or scope')
+            // `self` outside a function: bare, in a container, and as a slot
+            // of a top-level function, which its enclosing scope evaluates
+            ['self'], ['[]',[['self']]], ['=>',0,[['self']],1],
+        ])) { assertError(checked(assertOk(analysis(e)))) }
         // a frame slot read belongs to the function whose body holds it,
         // nested or not, and its index is below that function's slot count
-        assertEq(bindingError(assertOk(analysis(['=>',0,[['[]',[]]],['frame',0]]))), null)
-        assertEq(bindingError(assertOk(analysis(['=>',0,[['[]',[]],['{}',[]]],['frame',1]]))), null)
-        assertEq(bindingError(assertOk(analysis(['=>',0,[['[]',[]]],['frame',1]]))), 'invalid frame slot index or scope')
-        assertEq(bindingError(assertOk(analysis(['=>',0,[],['frame',0]]))), 'invalid frame slot index or scope')
-        assertEq(bindingError(assertOk(analysis(['=>',0,[['[]',[]]],['=>',0,[['frame',0]],['frame',0]]]))), null)
+        assertOk(checked(assertOk(analysis(['=>',0,[['[]',[]]],['frame',0]]))))
+        assertOk(checked(assertOk(analysis(['=>',0,[['[]',[]],['{}',[]]],['frame',1]]))))
+        assertEq(assertError(checked(assertOk(analysis(['=>',0,[['[]',[]]],['frame',1]])))), 'invalid frame slot index or scope')
+        assertEq(assertError(checked(assertOk(analysis(['=>',0,[],['frame',0]])))), 'invalid frame slot index or scope')
+        assertOk(checked(assertOk(analysis(['=>',0,[['[]',[]]],['=>',0,[['frame',0]],['frame',0]]]))))
         // a nested body's index is checked against that function's slots,
         // not its parent's
-        assertEq(bindingError(assertOk(analysis(['=>',0,[['[]',[]],['{}',[]]],['=>',0,[['frame',1]],['frame',1]]]))), 'invalid frame slot index or scope')
+        assertEq(assertError(checked(assertOk(analysis(['=>',0,[['[]',[]],['{}',[]]],['=>',0,[['frame',1]],['frame',1]]])))), 'invalid frame slot index or scope')
         // a function's `length` is at most 16, nested or not
-        assertEq(bindingError(assertOk(analysis(['=>',16,[],['arg',15]]))), null)
+        assertOk(checked(assertOk(analysis(['=>',16,[],['arg',15]]))))
         for (const e of /** @type {readonly Exp[]} */ ([
             ['=>',17,[],1], ['=>',2 ** 32,[],1], ['=>',0,[],['=>',17,[],1]],
-        ])) { assertEq(bindingError(assertOk(analysis(e))), 'a function length above 16') }
-        assertEq(bindingError(assertOk(analysis(['=>',1,[['args']],['arg',0]]))), null)
-        assertEq(bindingError(assertOk(analysis(['=>',1,[],['=>',0,[['arg',0],['rest']],['rest']]]))), null)
+        ])) { assertEq(assertError(checked(assertOk(analysis(e)))), 'a function length above 16') }
+        assertOk(checked(assertOk(analysis(['=>',1,[['args']],['arg',0]]))))
+        assertOk(checked(assertOk(analysis(['=>',1,[],['=>',0,[['arg',0],['rest']],['rest']]]))))
+        // `self` belongs to the function whose body holds it, and a nested
+        // function reaches its parent's through a slot evaluated there
+        assertOk(checked(assertOk(analysis(['=>',0,[],['()',['self'],[]]]))))
+        assertOk(checked(assertOk(analysis(['=>',1,[],['=>',0,[['self']],['()',['frame',0],[0]]]]))))
+        assertEq(assertError(checked(assertOk(analysis(['self'])))), 'self outside a function')
     },
 
     functionBindings: () => {
@@ -107,14 +162,16 @@ export const proof = {
         ])) {
             const a = an(e)
             assert(a.root instanceof Array)
-            assertEq(bindingError(a, a.root[1]), expected)
+            const result = checked(a, a.root[1])
+            if (expected === null) { assertEq(assertOk(result), a) }
+            else { assertEq(assertError(result), expected) }
         }
         // Selecting a nested function ignores errors in its enclosing code,
         // while whole-program binding validation still reports them.
         const a = an(['=>', 1, [], ['[]', [['arg', 1], ['=>', 1, [['arg', 0]], ['arg', 0]]]]])
         const nested = a.nodes.findIndex(n => n[0] === '=>')
-        assertEq(bindingError(a, nested), null)
-        assertEq(bindingError(a), 'invalid fixed parameter index or scope')
+        assertEq(assertOk(checked(a, nested)), a)
+        assertEq(assertError(checked(a)), 'invalid fixed parameter index or scope')
     },
 
     invalidLength: () => {

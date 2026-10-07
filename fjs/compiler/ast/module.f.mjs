@@ -4,7 +4,7 @@
  * @module
  *
  * @import { List } from '../../types/list/types.ts'
- * @import { AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstBody, AstEntry, AstFunction, AstItem, AstModule, AstModuleRef, AstNeg, AstSpread, AstThrow, BinaryTag, Anchors } from './types.ts'
+ * @import { AstBinary, AstBitnot, AstNot, AstTypeof, AstCall, AstConditional, AstConst, AstBody, AstEntry, AstFunction, AstItem, AstModule, AstModuleRef, AstNeg, AstSpread, AstThrow, BinaryTag, Anchors } from './types.ts'
  * @import { _Lazy, _OperandStack, _Reach, _RefNode } from './private.ts'
  */
 
@@ -125,12 +125,12 @@ const pushedAll = (operands, rest) => operands.reduceRight(pushed, rest)
  * condition and a prefix operator's operand, established whatever the
  * value, are every reader's.
  *
- * @type {(lazy: _Lazy) => (ast: AstConst) => List<Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional | AstThrow>>}
+ * @type {(lazy: _Lazy) => (ast: AstConst) => List<Exclude<AstConst, AstNeg | AstBitnot | AstNot | AstTypeof | AstBinary | AstConditional | AstThrow>>}
  */
 const operandsOf = lazy => ast => {
     /** @type {_OperandStack} */
     let stack = { top: ast, rest: null }
-    /** @type {List<Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional | AstThrow>>} */
+    /** @type {List<Exclude<AstConst, AstNeg | AstBitnot | AstNot | AstTypeof | AstBinary | AstConditional | AstThrow>>} */
     let bottom = empty
     while (stack !== null) {
         const node = stack.top
@@ -149,7 +149,7 @@ const operandsOf = lazy => ast => {
             // a prefix operator's operand and a `throw`'s value are
             // established whatever comes of them: eager, as an operator's
             // operand is
-            case '-': case '~': case 'throw': { stack = { top: node[1], rest }; break }
+            case '-': case '~': case '!': case 'typeof': case 'throw': { stack = { top: node[1], rest }; break }
             // the condition is established whatever it decides, as a lazy
             // operator's left operand is; the arms are `lazy`'s
             case '?:': { stack = { top: node[1], rest: pushedAll(lazy([node[2], node[3]]), rest) }; break }
@@ -179,7 +179,7 @@ const refsOf = lazy => ast => flat(map(refsOfOperand(lazy))(operandsOf(lazy)(ast
  * access chain nests only as deep as the source that built it, which is a
  * separate, narrower concern than an operator chain's unbounded length.
  *
- * @type {(lazy: _Lazy) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional | AstThrow>) => List<_RefNode>}
+ * @type {(lazy: _Lazy) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstNot | AstTypeof | AstBinary | AstConditional | AstThrow>) => List<_RefNode>}
  */
 const refsOfOperand = lazy => ast => {
     if (ast === null || typeof ast !== 'object') { return empty }
@@ -205,9 +205,10 @@ const refsOfOperand = lazy => ast => {
             const captures = ast[3]
             return captures === undefined ? empty : flat(readCaptures(ast).map(i => refsOf(lazy)(captures[i])))
         }
-        // its arguments are its own
+        // its arguments and itself are its own
         case 'arg':
-        case 'rest': { return empty }
+        case 'rest':
+        case 'self': { return empty }
         // a slot of its frame is a reference too, one the sweep of the body
         // ignores and the sweep of a scope the body is inlined into follows
         // into the capture the slot holds ({@link inlinedRefs})
@@ -247,7 +248,7 @@ export const isInlinedCall = ([, callee, args]) =>
  */
 const readsRest = body => body.some(entry => toArray(operandsOf(every)(entry)).some(operandReadsRest))
 
-/** @type {(ast: Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional>) => boolean} */
+/** @type {(ast: Exclude<AstConst, AstNeg | AstBitnot | AstNot | AstTypeof | AstBinary | AstConditional>) => boolean} */
 const operandReadsRest = ast => {
     if (ast === null || typeof ast !== 'object') { return false }
     switch (ast[0]) {
@@ -340,12 +341,12 @@ const missing = set => n => Array.from({ length: n }, (_, i) => i).filter(i => (
 
 /**
  * Whether an entry is a bare reference: a `const` naming another entry, an
- * import, a slot of its frame or the arguments is that node, not a node of
- * its own.
+ * import, a slot of its frame, the arguments or the function itself is that
+ * node, not a node of its own.
  *
  * @type {(ast: AstConst) => boolean}
  */
-const isAlias = ast => ast !== null && typeof ast === 'object' && ['cref', 'aref', 'fref', 'rest', 'arg'].includes(ast[0])
+const isAlias = ast => ast !== null && typeof ast === 'object' && ['cref', 'aref', 'fref', 'rest', 'arg', 'self'].includes(ast[0])
 
 /** The first import standing for the same node as import `k`, which `imports` says by identity. @type {(imports: readonly unknown[]) => (k: number) => AstModuleRef} */
 const importNode = imports => k => ['aref', imports.indexOf(imports[k])]

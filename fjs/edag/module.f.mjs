@@ -533,12 +533,19 @@ export const comma = /** @type {const} */ ([',', exps])
 
 /**
  * `op0`/`op1`/`op2` group operation nodes by their `exp`-operand count —
- * zero, one, or two. `undefined`, module imports (`args`) and invocation
- * rest (`rest`) have no expression operands. Functions, fixed reads and
+ * zero, one, or two. `undefined`, module imports (`args`), invocation
+ * rest (`rest`) and the owning function itself (`self`) have no expression
+ * operands. `self` is the function whose body holds it, as a value — the
+ * same value every read, so recursion is `['()', ['self'], args]` and a
+ * nested function captures its parent's `self` as a slot — and it is what
+ * keeps a recursive function an acyclic graph: without it a function would
+ * have to hold itself. It reaches the innermost function alone; two
+ * functions calling each other are `todo/edag-stage1-discussion.md`'s
+ * open subject. Functions, fixed reads and
  * frame slot reads have separate tuples because their metadata is not an
  * expression operand.
  */
-export const op0Id = or('undefined', 'args', 'rest')
+export const op0Id = or('undefined', 'args', 'rest', 'self')
 
 export const op0 = /** @type {const} */ ([op0Id])
 

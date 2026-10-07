@@ -10,7 +10,7 @@
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Result } from '../../types/result/types.ts'
-import type { AstConst, AstFrameRef, AstItem, AstModuleRef, AstRest, BinaryTag } from '../ast/types.ts'
+import type { AstConst, AstFrameRef, AstItem, AstModuleRef, AstRest, AstSelf, BinaryTag } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 import type { ParseError } from './types.ts'
 import type { Block, Container, If, Item, Node } from './syntax/types.ts'
@@ -22,7 +22,7 @@ export type _Parameter = readonly ['arg', number]
 export type _Env = OrderedMap<_Ref>
 
 /** What a name resolves to where it is written: a name bound in its own scope, or a slot of the function's frame. */
-export type _Ref = AstModuleRef | AstRest | _Parameter | AstFrameRef
+export type _Ref = AstModuleRef | AstRest | _Parameter | AstFrameRef | AstSelf
 
 /**
  * The scope a node is resolved in: the names it binds itself — its own,
@@ -56,6 +56,8 @@ export type _Scope = {
     readonly captures: readonly _Ref[]
     readonly enclosing: List<_Env>
     readonly outer: _Scope | null
+    /** The word the function whose body this is was the whole value of a `const` under, or `null`: what the body reads as the function itself, where nothing nearer binds the word. */
+    readonly self: string | null
 }
 
 
@@ -155,6 +157,18 @@ export type _NegFrame = { readonly neg: true }
  */
 export type _BitnotFrame = { readonly bitnot: true }
 
+/**
+ * A logical not whose operand is being evaluated. It carries nothing, for
+ * the same reason {@link _NegFrame} does not.
+ */
+export type _NotFrame = { readonly not: true }
+
+/**
+ * A `typeof` whose operand is being evaluated. It carries nothing, for the
+ * same reason {@link _NegFrame} does not.
+ */
+export type _TypeofFrame = { readonly typeof: true }
+
 /** A binary operator whose left operand is being evaluated: the tag, and the right operand to enter once it resolves. */
 export type _BinaryLeftFrame = { readonly tag: BinaryTag, readonly right: Node }
 
@@ -178,6 +192,8 @@ export type _Frame =
     | _AccessFrame
     | _NegFrame
     | _BitnotFrame
+    | _NotFrame
+    | _TypeofFrame
     | _BinaryLeftFrame
     | _BinaryRightFrame
     | _ConditionalFrame
@@ -189,7 +205,11 @@ export type _Frame =
 export type _Stack = { readonly top: _Frame, readonly rest: _Stack } | null
 
 /** What to do next: evaluate a node, or hand a value — or the error — to the frame on top. */
-export type _Step = readonly ['enter', Node] | Result<AstConst, ParseError>
+export type _Step =
+    | readonly ['enter', Node]
+    /** A `const`'s value to enter, with the word the `const` binds: a function is entered under it as its `self`. */
+    | readonly ['define', Node, string]
+    | Result<AstConst, ParseError>
 
 /** The frames suspended, the scope the node being evaluated stands in, and what to do next. */
 export type _State = readonly [stack: _Stack, scope: _Scope, step: _Step]
