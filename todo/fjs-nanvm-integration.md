@@ -126,8 +126,9 @@ contract and migration strategy.
 
 #### What the next rename waits on
 
-Measured on `main` at `4c67d6f` with shorthand members, `{ a }`, accepted
-([#2641](https://github.com/functionalscript/functionalscript/pull/2641)):
+Measured at `89a12ea`, the branch of
+[#2641](https://github.com/functionalscript/functionalscript/pull/2641),
+shorthand members, with `main` at `4c67d6f` merged in:
 every `.f.mjs` that imports no other `.f.mjs` is a *leaf*, the only module a
 rename can start from, and `fjs compile` was run on each. The compiler stops
 at its first refusal, so one refusal per row is the compiler's and the rest
@@ -189,8 +190,8 @@ any other feature.
 
 #### The whole repository
 
-The same loop over every authored module, not only the leaves, measured on
-`main` at `0882d09` with shorthand members, `{ a }`, accepted: of 227
+The same loop over every authored module, not only the leaves, measured at
+`8f78921`, the same branch with `main` at `0882d09` merged in: of 227
 modules — 221 `module.f.mjs` and 6 `module.f.js` — the 6 `.f.js` compile
 and every `.f.mjs` stops at its first refusal. The table counts that first
 refusal only, read at the token the compiler names, so it says which feature
