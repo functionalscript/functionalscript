@@ -38,10 +38,12 @@ It preserves a JavaScript convention the repository writes everywhere, at no
 new semantics: a shorthand member is the keyed member it denotes, so the AST,
 the EDAG, both writers and the Rust printer need no change, and the source
 writer spells it back as it spells every member, the key quoted and the
-value written in place: `{ a }` with `const a = [1]` reads back as
-`const $0=[1];export default {"a":$0};`. It unblocks the 23 modules above at their
-first refusal and removes the one feature `fjs/types/function` waits on
-besides `iterate`'s loop.
+value written in place — a value used once inlined, one shared bound to a
+generated name: `{ a }` with `const a = [1]` reads back as
+`export default {"a":[1]};`, and `{ a, b: a }` as
+`const $0=[1];export default {"a":$0,"b":$0};`. It unblocks the 23 modules
+above at their first refusal and removes the one feature
+`fjs/types/function` waits on besides `iterate`'s loop.
 
 It costs one more branch of the grammar's member rule — the bare identifier
 with an optional `: value`, the string and computed keys keeping theirs — and
