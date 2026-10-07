@@ -87,9 +87,11 @@ to reopen in a container is a slower detour there, and declining it changes
 nothing. Nix does not run natively on Windows: a Windows contributor opens the
 repository in that container —
 [`.devcontainer/devcontainer.json`](./.devcontainer/devcontainer.json) builds
-a Debian image with Nix and runs `npm ci` in the shell, for VS Code, Codespaces
-and any other devcontainer host — or works in WSL2 with Nix installed there.
-The shell is the same either way. Bare Windows, outside both, means installing
+a Debian image with Nix, runs `npm ci` in the shell, and opens every VS Code
+terminal inside it, for VS Code, Codespaces and any other devcontainer host — or
+works in WSL2 with Nix installed there. The shell is the same either way; only
+the devcontainer enters it for you, so on macOS, Linux and WSL2 run `./dev.sh`
+yourself or set your own terminal profile to it. Bare Windows, outside both, means installing
 the [Requirements](#requirements) table by hand, as CI's Windows jobs do.
 
 One build runs outside it: Cloudflare's Workers Builds generates the website on

@@ -6,5 +6,15 @@
             "multiUser": false
         }
     },
-    "postCreateCommand": "sh ./dev.sh npm ci"
+    "postCreateCommand": "sh ./dev.sh npm ci",
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "terminal.integrated.defaultProfile.linux": "FunctionalScript",
+                "terminal.integrated.profiles.linux": {
+                    "FunctionalScript": { "path": "sh", "args": ["./dev.sh"] }
+                }
+            }
+        }
+    }
 }
