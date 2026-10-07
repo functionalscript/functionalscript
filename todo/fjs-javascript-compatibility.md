@@ -186,7 +186,7 @@ serializable data on an FJS VM and a JavaScript engine
 ([principles](../spec/README.md#principles)). What a JavaScript engine
 reports about the compiler's *written* output is the writer's spelling, not a
 result of the program, so the `.js` writer's names — a hoisted function
-bound as `$0`, an inlined one taking the name of the position it is written
+bound as `c0`, an inlined one taking the name of the position it is written
 in — are no compatibility question, and neither is the function text the
 exception above covers. No FJS program reads a function's name at all:
 [`entry`](../fjs/edag/todo/entry.md) replaced the own-property read with
