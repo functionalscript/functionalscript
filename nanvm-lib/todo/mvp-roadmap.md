@@ -119,8 +119,7 @@ The minimal synchronous loop requires no async runtime or scheduler. Execution
 support for asynchronous effects belongs to the
 [separate follow-up](../../todo/nanvm-effects-node-async.md).
 
-The [native runner TODO](../../todo/nanvm-effects-node.md) owns the loop,
-required VM APIs and acceptance tasks. The dependent
+The [`nanvm-effects-node` crate](../../nanvm-effects-node/) owns the loop. The dependent
 [Node effects TODO](../../todo/nanvm-effects-node-operations.md) tracks the effect
 set in [`fjs/effects/node/`](../../fjs/effects/node/). Individual effect
 implementation details remain unspecified. Parser, compiler, loader and other
@@ -273,10 +272,9 @@ tracked in [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md#tasks).
       captured-frame, and self-reference representation — is
       [callable-function-objects](./callable-function-objects.md): a
       capturing closure is its Stage 3, landed; self-reference is Stage 5.
-- [ ] **`nanvm-effects-node` crate** (Rust) — a synchronous loop over existing
+- [x] **`nanvm-effects-node` crate** (Rust) — a synchronous loop over existing
       VM values, with no generated operations trait or parallel type system.
-      The design, required VM APIs and acceptance tasks are tracked in
-      [nanvm-effects-node](../../todo/nanvm-effects-node.md).
+      Landed as [nanvm-effects-node](../../nanvm-effects-node/).
       Required for the self-hosted CLI together with
       [native Node effects](../../todo/nanvm-effects-node-operations.md);
       language logic stays in FJS.
