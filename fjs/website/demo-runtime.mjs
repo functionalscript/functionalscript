@@ -88,7 +88,8 @@ const macrotask = () => new Promise(resolve => { setTimeout(resolve, 0) })
  *
  * Buttons are disabled rather than merely dimmed. A queued second click would
  * be honoured after the first finished, which is a demo measuring twice
- * because somebody was impatient.
+ * because somebody was impatient. Incremental work skips this marker so Stop
+ * and input remain available; its updates must be small and pure.
  *
  * @type {(root: Element, working: boolean, note?: string | null) => void}
  */
@@ -279,6 +280,10 @@ const fail = (root, cause) => {
  * the last event always renders; a demo's proof is what calls `view` on every
  * input it cares about.
  *
+ * `nextEvent` requests one automatic event on a later turn after the latest
+ * state renders. Reader events cancel the scheduled turn, and automatic
+ * updates keep controls available so a Stop button can interrupt the work.
+ *
  * @type {(root: Element, demo: Demo<any, DemoEvent, never>) => (event: DemoEvent) => void}
  */
 const stepper = (root, demo) => {
@@ -286,29 +291,44 @@ const stepper = (root, demo) => {
     /** @type {Promise<void>} */
     let queue = Promise.resolve()
     let pending = 0
-    /** @type {(event: DemoEvent) => void} */
-    return event => {
+    let incremental = false
+    /** @type {ReturnType<typeof setTimeout> | undefined} */
+    let scheduled
+    /** @type {(event: DemoEvent, automatic?: boolean) => void} */
+    const step = (event, automatic = false) => {
+        const keepControls = automatic || incremental
+        clearTimeout(scheduled)
+        scheduled = undefined
         pending += 1
         queue = queue.then(async () => {
             // A throw is not a state. `update` and `view` are FunctionalScript
             // and total by construction, so one that throws is a defect in the
             // demo, and the page says so where its output would have gone.
             try {
-                // Read from the state the demo is *about* to be given: the
-                // point of the warning is to arrive before the wait, and after
-                // `update` there is nothing left to warn about.
-                busy(root, true, demo.wait === undefined ? null : demo.wait(state))
-                await macrotask()
+                // Incremental work yields between small pure updates. Keep
+                // controls available for its automatic and reader events alike.
+                if (!keepControls) {
+                    // Read the warning before the update; afterwards is too late.
+                    busy(root, true, demo.wait === undefined ? null : demo.wait(state))
+                    await macrotask()
+                }
                 state = unwrapState(await run(demo.update(state)(event)))
-                if (pending === 1) { render(root, demo.view(state)) }
+                if (pending === 1) {
+                    render(root, demo.view(state))
+                    const next = demo.nextEvent === undefined ? null : demo.nextEvent(state)
+                    incremental = next !== null
+                    if (next !== null) { scheduled = setTimeout(() => step(next, true), 0) }
+                }
             } catch (cause) {
+                incremental = false
                 fail(root, cause)
             } finally {
                 pending -= 1
-                busy(root, false)
+                if (!keepControls) { busy(root, false) }
             }
         })
     }
+    return step
 }
 
 /**
