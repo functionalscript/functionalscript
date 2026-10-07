@@ -15,10 +15,10 @@
 import { assertNotNullish } from '../../../asserts/module.f.mjs'
 
 /** A reference to a binding identified by its rendering scope and slot. @type {(key: string) => string} */
-export const name = key => `\0${key}\0`
+export const _name = key => `\0${key}\0`
 
 /** Mark the declaration of a symbolic reference. @type {(reference: string) => string} */
-export const binding = reference => name(`!${reference.slice(1, -1)}`)
+export const _binding = reference => _name(`!${reference.slice(1, -1)}`)
 
 /** The next counter value whose spelling is not externally reserved. @type {(n: number, reserved: readonly string[]) => number} */
 const available = (n, reserved) => reserved.includes(`$${n}`) ? available(n + 1, reserved) : n
@@ -30,7 +30,7 @@ const available = (n, reserved) => reserved.includes(`$${n}`) ? available(n + 1,
  *
  * @type {(chunks: readonly string[], reserved?: readonly string[], external?: readonly string[]) => readonly string[]}
  */
-export const resolve = (chunks, reserved = [], external = []) => {
+export const _resolve = (chunks, reserved = [], external = []) => {
     const keys = [...new Set([
         ...external.map(reference => reference.slice(1, -1)),
         ...chunks.flatMap(chunk => chunk.split('\0').filter((part, i) => i % 2 === 1 && part.startsWith('!')).map(part => part.slice(1))),

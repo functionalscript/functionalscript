@@ -1,5 +1,5 @@
 import { assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { name, binding, resolve } from './module.f.mjs'
+import { _name as name, _binding as binding, _resolve as resolve } from './module.f.mjs'
 
 export const proof = {
     order: () => {

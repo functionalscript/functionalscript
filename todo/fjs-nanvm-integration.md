@@ -189,6 +189,57 @@ would leave that module on object shorthand alone — `fn` returns
 [`2440`](../spec/todo/2440-shorthand.md) lands, or which `fn` could spell
 out today.
 
+#### The whole repository
+
+The same loop over every authored module, not only the leaves, measured on
+`main` at `75881dc`, the merge of a function's own name
+([#2630](https://github.com/functionalscript/functionalscript/pull/2630)):
+of 227 modules — 221 `module.f.mjs` and 6 `module.f.js` — the 6 `.f.js`
+compile and every `.f.mjs` stops at its first refusal. The table counts that
+first refusal only, read at the token the compiler names, so it says which
+feature to settle first, not how much each costs; a refusal the compiler
+meets in an import is counted under the import's feature, 11 of the rows'
+members.
+
+| Modules | First refusal |
+| ---: | --- |
+| 89 | a template literal |
+| 33 | destructuring, a `const` or a parameter |
+| 23 | a shorthand member, `{ a, b }` |
+| 19 | `let`, `for`, `switch` or `while` |
+| 10 | a numeric literal spelled `0b…` or with `_` separators |
+| 10 | an escape in a single-quoted string, `'\x07'`, `'\b'` |
+| 9 | a computed member or key, `a[i]`, `{ [k]: v }` |
+| 7 | a call as a statement, `assert(…)` |
+| 6 | `const not found`: three reads of a later `const` ([`3140`](../spec/todo/3140-forward-references.md)), three of `Number` or `Boolean` ([`2365`](../spec/todo/2365-global-names.md)) |
+| 5 | `new Set`, `new Map` |
+| 4 | `instanceof` |
+| 3 | `export { … } from` |
+| 3 | one each: a reassignment, `in`, a default parameter |
+
+Template literals are the first refusal of two modules in five, almost all
+of them error messages and `assert` texts, and they are a feature with open
+questions of its own
+([`3440`](../spec/todo/3440-template-literals.md)) — the case for settling
+those questions, not a license to start before they are. Destructuring and
+shorthand are next, and the numeric and string-escape rows are tokenizer
+work. The leaf table above is what this count does not say: a module whose
+first refusal clears meets its next, and only a leaf whose every feature has
+landed renames.
+
+The count of modules that compile cannot go down unnoticed: a module renames
+to `.f.js` once the compiler accepts it, and `fjs compile` with no arguments
+holds every `.f.js` to the compiler of its revision on every CI run, so the
+`.f.js` population is the tracked set. Both tables are reread when a feature
+they name lands. The loop that reproduces the count, an empty second field
+being a module that compiled:
+
+```sh
+for f in $(find fjs -name module.f.mjs -o -name module.f.js | sort); do
+  echo "$f|$(node fjs/module.mjs compile "$f" out.rs 2>&1 | head -1)"
+done
+```
+
 ### CLI: an output target, not a command group (decided)
 
 `fjs compile <input> <output>` already dispatches on the output extension

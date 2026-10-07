@@ -6,8 +6,8 @@
 
 import { assertEq, assertOk } from '../../../asserts/module.f.mjs'
 import { analysis } from '../../../edag/analysis/module.f.mjs'
-import { renderFunction, renderSymbolic } from './module.f.mjs'
-import { resolve } from '../names/module.f.mjs'
+import { renderFunction, _renderSymbolic } from './module.f.mjs'
+import { _resolve as resolve } from '../names/module.f.mjs'
 
 /** @type {(e: FunctionExp) => string} */
 const render = e => {
@@ -28,7 +28,7 @@ export const proof = {
     },
     names: () => {
         const a = assertOk(analysis(['=>', 0, [], 1]))
-        assertEq(resolve([renderSymbolic(a, /** @type {readonly ['#', number]} */ (a.root)[1], 'test', [])]).join(''), '()=>(1)')
+        assertEq(resolve([_renderSymbolic(a, /** @type {readonly ['#', number]} */ (a.root)[1], 'test', [])]).join(''), '()=>(1)')
         assertEq(render(['=>', 2, [], ['arg', 1]]), '($0,$1)=>($1)')
         assertEq(text(['rest']), '(...$0)=>($0)')
         assertEq(text(['undefined']), '()=>(undefined)')

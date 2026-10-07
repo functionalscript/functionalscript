@@ -19,7 +19,7 @@
 
 import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
-import { name, binding, resolve } from '../names/module.f.mjs'
+import { _name as name, _binding as binding, _resolve as resolve } from '../names/module.f.mjs'
 
 /** The name of one invocation-local memo cell. @type {(_s: _Scope, k: number) => string} */
 const memoName = (s, k) => name(`${s.path}/memo${k}`)
@@ -128,4 +128,4 @@ export const renderFunction = (a, i) => {
 }
 
 /** Compose a function into a larger symbolic document before allocating names. @type {(a: Analysis, i: number, path: string, frame: readonly string[]) => string} */
-export const renderSymbolic = (a, i, path, frame) => lambda(a, i, path, frame)
+export const _renderSymbolic = (a, i, path, frame) => lambda(a, i, path, frame)

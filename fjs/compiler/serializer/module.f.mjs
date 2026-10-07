@@ -141,7 +141,7 @@ import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
 import { renderFunction } from './function_text/module.f.mjs'
-import { name, binding, resolve } from './names/module.f.mjs'
+import { _name as name, _binding as binding, _resolve as resolve } from './names/module.f.mjs'
 
 /** Names the parser refuses to bind. */
 const reservedExports = new Set([...keywords, ...literalWords, 'then'])
@@ -514,7 +514,7 @@ const block = (s, path) => v => {
             : mapOk(
                 /** @type {(st: _Statement) => _Written} */
                 (st => ({ text: flat([['(()=>{'], st.text, ['})()']]), block: true })),
-            )(scope(inner, `${path}/block${v instanceof Array ? v[1] : 'leaf'}`, nothing)(all))),
+            )(scope(inner, `${path}/block`, nothing)(all))),
     )(scopeOperands(s.a, v))
 }
 

@@ -26,8 +26,8 @@ import { assertOk } from '../../../asserts/module.f.mjs'
 import { analysis } from '../../../edag/analysis/module.f.mjs'
 import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
 import { concat } from '../../../types/string/module.f.mjs'
-import { renderSymbolic } from '../function_text/module.f.mjs'
-import { name as symbol, binding, resolve } from '../names/module.f.mjs'
+import { _renderSymbolic } from '../function_text/module.f.mjs'
+import { _name as symbol, _binding as binding, _resolve as resolve } from '../names/module.f.mjs'
 
 /** One outer node's stable binding. @type {(i: number) => string} */
 const name = i => symbol(`value${i}`)
@@ -44,7 +44,7 @@ const entry = (a, i, n) => {
         default: {
             const slots = n[2]
             const frame = slots.map((_, k) => symbol(`value${i}/frame${k}`))
-            const text = renderSymbolic(a, i, `value${i}/function`, frame)
+            const text = _renderSymbolic(a, i, `value${i}/function`, frame)
             return slots.length === 0 ? text
                 : `((${frame.map(binding).join(',')})=>(${text}))(${slots.map(operand).join(',')})`
         }
