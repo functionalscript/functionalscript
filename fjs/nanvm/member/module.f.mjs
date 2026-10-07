@@ -320,7 +320,7 @@ const joinCases = [
     { name: 'ownToStringElement', args: [[{ toString: returns('x') }, 1], ';'], expected: 'x;1' },
     // The separator converts before any element, even with none to join.
     { name: 'emptyThrowingSeparator', args: [[], { toString: returns(unreached) }], expected: throws },
-    { name: 'functions', args: [[functionValue, callback('first')], '|'], expected: '()=>undefined|(...$a)=>$a[0]', host: functionText },
+    { name: 'functions', args: [[functionValue, callback('first')], '|'], expected: '()=>undefined|(...$0)=>$0[0]', host: functionText },
 ]
 
 /**
@@ -934,7 +934,7 @@ const toStringCases = [
     { name: 'null', args: [null], expected: throws },
     { name: 'undefined', args: [undefined], expected: throws },
     { name: 'function', args: [functionValue], expected: '()=>undefined', host: functionText },
-    { name: 'callback', args: [callback('first')], expected: '(...$a)=>$a[0]', host: functionText },
+    { name: 'callback', args: [callback('first')], expected: '(...$0)=>$0[0]', host: functionText },
 ]
 /** @type {readonly MethodGroup[]} */
 export const groups = [

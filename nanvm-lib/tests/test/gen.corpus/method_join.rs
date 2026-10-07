@@ -41,5 +41,5 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("functions", Any::dot([function_any(), A::static_function(|_self, args| {
         let rest = args.clone().into_iter().to_array();
         Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
-    }, 0, Array::default(), Some("(...$a)=>$a[0]")).to_any()].to_array().to_any(), string_any("join")).end_call(|| Ok([string_any("|")].to_array().to_any())), string_any("()=>undefined|(...$a)=>$a[0]"));
+    }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any()].to_array().to_any(), string_any("join")).end_call(|| Ok([string_any("|")].to_array().to_any())), string_any("()=>undefined|(...$0)=>$0[0]"));
 }

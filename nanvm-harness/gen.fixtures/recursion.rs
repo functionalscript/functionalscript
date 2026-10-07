@@ -13,9 +13,9 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
             args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()) * c3
         };
         Any::conditional(c0, || Ok(f64_any(0x3ff0000000000000)), c1)
-    }, 1, Array::default(), Some("(function $a_self($a_0){const $a0=(()=>{let $v,$done=false;return()=>{if(!$done){$v=($a_0);$done=true;}return $v;};})();return ((($a0())<(2))?(1):(($a0())*((0,($a_self))((($a0())-(1))))));})")).to_any();
+    }, 1, Array::default(), Some("(function $0($1){const $2=(()=>{let $3,$4=false;return()=>{if(!$4){$3=($1);$4=true;}return $3;};})();return ((($2())<(2))?(1):(($2())*((0,($0))((($2())-(1))))));})")).to_any();
     let c1: Any<A> = Any::call(c0, [f64_any(0x4014000000000000)].to_array().to_any())?;
-    let c2: Any<A> = A::static_function(|self_, _args| { strict_eq(Function::new(self_.clone()).to_any(), Function::new(self_.clone()).to_any()) }, 0, Array::default(), Some("(function $a_self(){const $a0=(()=>{let $v,$done=false;return()=>{if(!$done){$v=($a_self);$done=true;}return $v;};})();return (($a0())===($a0()));})")).to_any();
+    let c2: Any<A> = A::static_function(|self_, _args| { strict_eq(Function::new(self_.clone()).to_any(), Function::new(self_.clone()).to_any()) }, 0, Array::default(), Some("(function $0(){const $1=(()=>{let $2,$3=false;return()=>{if(!$3){$2=($0);$3=true;}return $2;};})();return (($1())===($1()));})")).to_any();
     let c3: Any<A> = Any::call(c2, Array::default().to_any())?;
     let c4: Any<A> = A::static_function(|self_, args| { Ok(A::static_function(|self_, _args| {
         let c0: Any<A> = A::frame(self_)[0].clone();
@@ -27,7 +27,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
             c5 + f64_any(0x3ff0000000000000)
         };
         Any::conditional(c1, || Ok(f64_any(0x0000000000000000)), c2)
-    }, 0, [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), Function::new(self_.clone()).to_any()].to_array(), Some("()=>$0<1?0:$1($0-1)()+1")).to_any()) }, 1, Array::default(), Some("(function $a_self($a_0){return (($0,$1)=>(()=>{const $b0=(()=>{let $v,$done=false;return()=>{if(!$done){$v=($0);$done=true;}return $v;};})();return ((($b0())<(1))?(0):(((0,((0,($1))((($b0())-(1)))))())+(1)));}))(($a_0),($a_self));})")).to_any();
+    }, 0, [args.clone().into_iter().next().unwrap_or_else(|| Nullish::Undefined.to_any()), Function::new(self_.clone()).to_any()].to_array(), Some("()=>$0<1?0:$1($0-1)()+1")).to_any()) }, 1, Array::default(), Some("(function $0($1){return (($2,$3)=>(()=>{const $4=(()=>{let $5,$6=false;return()=>{if(!$6){$5=($2);$6=true;}return $5;};})();return ((($4())<(1))?(0):(((0,((0,($3))((($4())-(1)))))())+(1)));}))(($1),($0));})")).to_any();
     let c5: Any<A> = Any::call(c4, [f64_any(0x4008000000000000)].to_array().to_any())?;
     let c6: Any<A> = Any::call(c5, Array::default().to_any())?;
     let c7: Any<A> = [c1, c3, c6].to_array().to_any();

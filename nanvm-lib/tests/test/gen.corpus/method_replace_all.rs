@@ -14,7 +14,7 @@ pub fn run<A: IStaticFunction>() {
         let c0: Any<A> = A::static_function(|_self, args| {
             let rest = args.clone().into_iter().to_array();
             Ok(rest.clone().to_any())
-        }, 0, Array::default(), Some("(...$a)=>$a")).to_any();
+        }, 0, Array::default(), Some("(...$0)=>$0")).to_any();
         Ok([string_any("X"), c0].to_array().to_any())
     }), string_any("aX,1,aXbXbX,3,aXbX"));
     check::<A>("before", Any::dot(string_any("aXbX"), string_any("replaceAll")).end_call(|| Ok([string_any("X"), string_any("$`")].to_array().to_any())), string_any("aabaXb"));

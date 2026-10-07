@@ -329,7 +329,9 @@ const check = env => resultStep(
  * `.mjs`.
  * Each of the three module outputs is in normalized form — one line, shared
  * nodes hoisted into `$0`, `$1`, … and an object's members in the order the
- * module gave them. The DataJS and JSON outputs are the default export
+ * module gave them. FunctionalScript uses that same counter for parameters
+ * and constants across all scopes, skipping reserved export names.
+ * The DataJS and JSON outputs are the default export
  * (the document itself for a direct JSON input); the FunctionalScript output
  * is the linked graph written back as source, preserving functions and
  * initialization code; the EDAG output is
