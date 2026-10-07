@@ -563,7 +563,9 @@ module boundary, from which a default import selects the document.
   its value's `const` or holds its leaf:
   `const once = [1]; export const b = [once]; export default 3;` is
   `const $0=[1];const $1=[$0];export const b=$1;export default 3;`. The
-  names gain a `$`, `$$0`, when an export's name begins with `$`.
+  generated names use one `$n` counter across constants and parameters in
+  every scope, allocated in declaration order. An export named `$n` reserves
+  that number, which the counter skips; the prefix always stays `$`.
 
   The writer spells a property access, every operator the language has
   ([operators](#operators)) and every call. A number or a function that is
@@ -1634,7 +1636,7 @@ and as JSON, a tree, with the node written where each reference reaches it,
 function has identity as an object does ([functions](#functions)), so a
 FunctionalScript document shares one the same way:
 `const f = () => 1; export default [f, f];` is written
-`const $0=(...$a)=>1;export default [$0,$0];`. Not every FunctionalScript
+`const $0=()=>1;export default [$0,$0];`. Not every FunctionalScript
 document is in normalized form: a module with a named export, among others,
 gives what it computes more names than normalized form does
 ([output](#output)).
@@ -1762,7 +1764,7 @@ are not supported yet. A newline before `=>` is refused.
   a value shared under one lazy operand alone, which no `const` of the
   scope could hold without evaluating it whatever the operator decides, is
   written in a block opened at the operand,
-  `a ? (() => { const $b0 = [1]; return [$b0, $b0]; })() : 4`, which reads
+  `a ? (() => { const $0 = [1]; return [$0, $0]; })() : 4`, which reads
   back as the operand. Round-tripping through that writer keeps the graph,
   not the text: the function written in the source is gone from both.
 - The body is an expression or a block, and `value` and `{ return value; }`

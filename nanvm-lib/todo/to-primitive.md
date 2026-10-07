@@ -221,7 +221,8 @@ cases join the corpus with the renderer's text as their expected value.
 - **A renderer mostly exists.** The FunctionalScript writer,
   [`fjs/compiler/serializer`](../../fjs/compiler/serializer/module.f.mjs),
   already wrote a function node as text: `['=>', 1, [], ['arg', 0]]` was
-  `($a_0,...$a)=>$a_0` (now `($a_0)=>$a_0`, since step 3), and a shared
+  `($a_0,...$a)=>$a_0` historically (now `($0)=>$0`, with an unused
+  rest parameter omitted), and a shared
   array in a body became a `const`. It had two gaps. It had no spelling
   for operators or calls, so most real bodies were refused; steps 1 and 2
   closed that. And it writes a module, `export default …;`, where a
@@ -285,9 +286,10 @@ keep.
 Each needs the owner's approval before the step that depends on it.
 
 - **D1, the spelling (implemented as proposed).** One line, normalized, with the writer's
-  leaves and its `$a`, `$a_0`, `$a0` names. An expression, not a module. A
+  leaves and one `$0`, `$1`, … counter for all generated bindings,
+  including nested scopes. External frame slots take the first numbers. An expression, not a module. A
   rest parameter the body never reads is not written, so `() => 1` is
-  `()=>1`, not `(...$a)=>1`. Both denote one node, and the shorter one is
+  `()=>1`, not `(...$0)=>1`. Both denote one node, and the shorter one is
   what a reader expects.
 - **D2, the frame (question 2): code-only, approved by the owner,
   @sasha-gil, on 2026-09-30
@@ -300,7 +302,7 @@ Each needs the owner's approval before the step that depends on it.
   renderer, an IIFE to keep the text one expression, and lazy text; it
   would change no text of a function with an empty frame.
 - **D3, `self` (question 3).** Landed. The renderer spells `['self']` as the
-  name of a named function expression, `(function $a_self(){…})`, since an
+  name of a named function expression, `(function $0(){…})`, since an
   arrow function cannot name itself
   ([function-text](../../fjs/edag/function-text.md)); the compiler produces
   the node for a function that names itself

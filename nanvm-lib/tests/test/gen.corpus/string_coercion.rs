@@ -43,6 +43,6 @@ pub fn run<A: IStaticFunction>() {
         let rest = args.clone().into_iter().to_array();
         let c0: Any<A> = Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()?;
         c0 * f64_any(0x4000000000000000)
-    }, 0, Array::default(), Some("(...$a)=>$a[0]*2")).to_any().to_string().map(|v| v.to_any()), string_any("(...$a)=>$a[0]*2"));
+    }, 0, Array::default(), Some("(...$0)=>$0[0]*2")).to_any().to_string().map(|v| v.to_any()), string_any("(...$0)=>$0[0]*2"));
     check::<A>("arrayOfFunction", [function_any(), f64_any(0x3ff0000000000000)].to_array().to_any().to_string().map(|v| v.to_any()), string_any("()=>undefined,1"));
 }

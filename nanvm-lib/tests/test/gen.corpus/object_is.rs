@@ -10,7 +10,7 @@ pub fn run<A: IStaticFunction>() {
     let first: Any<A> = A::static_function(|_self, args| {
     let rest = args.clone().into_iter().to_array();
     Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
-}, 0, Array::default(), Some("(...$a)=>$a[0]")).to_any();
+}, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any();
     check::<A>("nanByNan", object_is(f64_any(0x7ff8000000000000), f64_any(0x7ff8000000000000)), true.to_any());
     check::<A>("nanByNanSwapped", object_is(f64_any(0x7ff8000000000000), f64_any(0x7ff8000000000000)), true.to_any());
     check::<A>("zeroByNegativeZero", object_is(f64_any(0x0000000000000000), f64_any(0x8000000000000000)), false.to_any());
@@ -64,15 +64,15 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("functionBySameText", object_is(A::static_function(|_self, args| {
         let rest = args.clone().into_iter().to_array();
         Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
-    }, 0, Array::default(), Some("(...$a)=>$a[0]")).to_any(), A::static_function(|_self, args| {
+    }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any(), A::static_function(|_self, args| {
         let rest = args.clone().into_iter().to_array();
         Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
-    }, 0, Array::default(), Some("(...$a)=>$a[0]")).to_any()), false.to_any());
+    }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any()), false.to_any());
     check::<A>("functionBySameTextSwapped", object_is(A::static_function(|_self, args| {
         let rest = args.clone().into_iter().to_array();
         Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
-    }, 0, Array::default(), Some("(...$a)=>$a[0]")).to_any(), A::static_function(|_self, args| {
+    }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any(), A::static_function(|_self, args| {
         let rest = args.clone().into_iter().to_array();
         Any::dot(rest.clone().to_any(), f64_any(0x0000000000000000)).end()
-    }, 0, Array::default(), Some("(...$a)=>$a[0]")).to_any()), false.to_any());
+    }, 0, Array::default(), Some("(...$0)=>$0[0]")).to_any()), false.to_any());
 }

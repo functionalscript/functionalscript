@@ -11,7 +11,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         let c1: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
         let c2: Any<A> = Any::dot(c0.clone(), f64_any(0x3ff0000000000000)).end()?;
         c1 + c2
-    }, 0, Array::default(), Some("(...$a)=>$a[0]+$a[1]")).to_any();
+    }, 0, Array::default(), Some("(...$0)=>$0[0]+$0[1]")).to_any();
     let c1: Any<A> = [(string_key("absent"), Nullish::Undefined.to_any()), (string_key("add"), c0)].to_object().to_any();
     let c2: Any<A> = [f64_any(0x4014000000000000)].to_array().to_any();
     let c3: Any<A> = [(string_key("a"), c2.clone()), (string_key("default"), c2.clone()), (string_key("z"), c2.clone())].to_object().to_any();
