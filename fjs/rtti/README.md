@@ -59,9 +59,13 @@ intermediate form, is declared as a schema:
   as a schema, [`edag/value`](../edag/value/module.f.mjs) its evaluated
   values; the compiler's output is checked against it, and
   [`nanvm`](../nanvm/module.f.mjs) checks operator names with `validate`.
-- **Effects** — [`effects/schema`](../effects/schema/module.f.mjs) is the
-  specification of record for the operations a native effect runner
-  implements.
+- **Effects** — [`effects/schema`](../effects/schema/module.f.mjs) describes
+  data-shaped requests and results for validation. Its
+  [`types.ts`](../effects/schema/types.ts) checks the corresponding handwritten
+  TypeScript declarations against schema-derived types. These schemas are not
+  a native runner ABI or the complete native effect set; that set follows
+  [`effects/node/`](../effects/node/) within the
+  [native scope](../../todo/nanvm-effects-node-operations.md).
 - **Files the tooling reads** — generated CI workflows
   ([`ci/common`](../ci/common/module.f.mjs)) and the site's funding manifest
   ([`website/funding`](../website/funding/module.f.mjs)).
@@ -211,8 +215,8 @@ value carrying more is not one of its values, on either reader:
 
 | schema | value | `parse` | `validate` |
 | --- | --- | --- | --- |
-| `{ a: 42 }` | `{ a: 42, b: 'x' }` | error | error |
 | `{ a: 42 }` | `{ a: 42 }` | `{ a: 42 }` | `{ a: 42 }` |
+| `{ a: 42 }` | `{ a: 42, b: 'x' }` | error | error |
 | `[42]` | `[42, 'extra']` | error | error |
 | `[number, or(option, string)]` | `[42]` | `[42]` | `[42]` |
 | `[42]` | `[]` | error | error |
