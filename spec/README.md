@@ -795,7 +795,7 @@ export default [0xFF, 0XfF, 0x10e1];
 ```
 
 Otherwise the syntax is JSON's, so the other JavaScript spellings JSON
-leaves out are not recognized: no octal (`0o7`) or binary (`0b1`) prefix, no
+leaves out are not recognized: no octal (`0o7`) prefix, no
 leading `+`, no leading decimal point (`.5`), no numeric separators
 (`1_000`). The three numbers JSON cannot spell
 are written as the words JavaScript gives them — `NaN`, `Infinity` and
@@ -904,8 +904,7 @@ export default [0x10n, 0XFFn, -0x8000000000000000n];
 ```
 
 The syntax is those integer parts and the `n`, so the JavaScript spellings
-it leaves out are not recognized: no octal or binary prefix (`0o7n`,
-`0b1n`) and no numeric separators (`1_000n`). A fraction or
+it leaves out are not recognized: no octal prefix (`0o7n`) and no numeric separators (`1_000n`). A fraction or
 an exponent (`1.5n`, `1e3n`), a leading zero (`01n`) and an uppercase `N` are
 errors in both languages. JSON has no spelling for a `bigint`, so a `.json`
 output refuses one ([output](#output)).
