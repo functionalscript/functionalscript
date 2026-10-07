@@ -1,8 +1,7 @@
 ## Support asynchronous Node effects natively
 
 **Priority:** P3
-**Status:** blocked
-**Blocked by:** [Implement the native effect runner](./nanvm-effects-node.md)
+**Status:** open
 
 ### Problem
 

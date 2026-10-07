@@ -42,3 +42,12 @@ order:
 
 Reach for `macro_rules!` only when no other option is materially better for
 readers.
+
+### 2.2 Avoid `vec!` and needless `Vec`s
+
+`vec!` is a macro, so §2.1 applies, and it allocates. Where a fixed set of
+values is only read, passed on or converted, write an array and convert it
+directly: `[a, b].to_array()` rather than `vec![a, b].to_array()`, `[]` rather
+than `Vec::new()`. If an owned `Vec` is genuinely required, say
+`[a, b].to_vec()`. Collect into a `Vec` only for data whose length is not known
+until run time.
