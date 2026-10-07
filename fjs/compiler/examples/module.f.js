@@ -39,6 +39,7 @@ export const examples = [
     ['Function with a rest parameter', 'export default (a, b, ...r) => [a, b, r];'],
     ['Closure', 'const k = 5;\nexport default x => y => x + y + k;'],
     ['Recursion', 'const fact = n => n < 2 ? 1 : n * fact(n - 1);\nexport default fact(5);'],
+    ['Shorthand members', 'const x = 1;\nconst y = [x];\nexport default { x, y };'],
     ['Methods and properties', 'export default ["abc".length, [1, 2, 3].at(0), (1).toString()];'],
     ['Named exports', 'export const a = 1;\nexport const b = [a, a];\nexport default 2;'],
     ['A failure at run time', 'export default [1, 2][5].x;'],

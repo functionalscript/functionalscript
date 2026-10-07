@@ -58,8 +58,7 @@
  * item   ::= '...' value | value
  * object ::= '{' [ items(entry) ] '}'
  * entry  ::= '...' value | member
- * member ::= key ':' value
- * key    ::= id | string | '[' string ']'
+ * member ::= id [ ':' value ] | string ':' value | '[' string ']' ':' value
  * items(x) ::= x [ ',' [ items(x) ] ]
  * ```
  *
@@ -925,15 +924,24 @@ export const groupOperand = [value, sym(')'), accesses]
  */
 export const parenGroupOperand = [sym('('), groupOperand]
 
-/** A property name: bare identifier, string literal, or a computed `["a"]`. */
-export const key = /** @type {const} */ ({
-    plain: identifierName,
-    string: sym('string'),
-    computed: [sym('['), sym('string'), sym(']')],
-})
+/** What follows a key: `:` and the value. */
+const valued = /** @type {const} */ ([sym(':'), value])
 
-/** A member of an object, `key: value`. @type {Member} */
-export const member = [key, sym(':'), value]
+/**
+ * A member of an object, `key: value`, by the key's spelling: a bare
+ * identifier, a string literal, or a computed `["a"]`, the three spellings
+ * of one constant key. The bare one alone may stand without a value,
+ * `{ a }`, the shorthand JavaScript reads as `a: a`: the name is a reference
+ * as well as a key, which a string or a bracket spells no more than a
+ * string does after `.`.
+ *
+ * @type {Member}
+ */
+export const member = /** @type {const} */ ({
+    plain: [identifierName, option(valued)],
+    string: [sym('string'), ...valued],
+    computed: [sym('['), sym('string'), sym(']'), ...valued],
+})
 
 /**
  * An entry of an object: a member, or a spread of a value, `...value`,

@@ -78,8 +78,7 @@ access ::= '.' id | '[' (string | number) ']' | '(' [ items(value) ] ')'
 array  ::= '[' [ items(value) ] ']'
 object ::= '{' [ items(entry) ] '}'
 entry  ::= '...' value | member
-member ::= key ':' value
-key    ::= id | string | '[' string ']'
+member ::= id [ ':' value ] | string ':' value | '[' string ']' ':' value
 items  ::= item [ ',' [ items ] ]
 ```
 
