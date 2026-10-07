@@ -46,6 +46,11 @@ stops at the function itself — `h` from `f` above stays refused — so it
 decides nothing about how a later `const` or a mutually recursive group
 will be resolved.
 
+**Approval.** The self case was approved by @sergey-shandar on 2026-10-06,
+and implemented as the pull requests #2629 (the EDAG node) and #2630 (the
+language rule). The later-`const` and object-grouping cases above remain
+proposals, with no approval recorded.
+
 ### Tasks
 
 - [x] A function reading its own `const`'s name, `e` above: the function
