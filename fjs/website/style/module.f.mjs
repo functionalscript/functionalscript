@@ -188,12 +188,11 @@ textarea { vertical-align: top }
    redraws focus and the caret), and a field a reader just widened would
    silently narrow back on the next keystroke. */
 textarea { box-sizing: border-box; resize: vertical; width: 100% }
-/* A short value, such as a key or nonce, uses the same column width as the
-   multiline field beside it; its own border and padding stay inside it. */
-.demo-input { box-sizing: border-box; width: 100% }
-/* HMAC has an algorithm, key and message followed by two copyable results.
-   Emphasize their labels at the ordinary size so those groups are easy to scan. */
-.hmac-demo label, .hmac-demo p:has(+ [data-code-block]) { font-weight: bold }
+/* Single-line text fields fill the column, with padding inside their width. */
+input[type="text"] { box-sizing: border-box; width: 100% }
+/* Bold labels and captions separate controls and long HMAC values while scanning.
+   The shared rollout is tracked in demo/todo/emphasize-labels-and-captions.md. */
+[data-hmac-demo] label, [data-hmac-demo] p:has(+ [data-code-block]) { font-weight: bold }
 /* The compact target field and its difficulty examples share one column;
    right-aligned attempt counts make the four targets easy to compare. */
 [data-pow-search-effort] { border-collapse: collapse; width: 100% }

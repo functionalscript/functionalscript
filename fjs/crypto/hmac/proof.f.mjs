@@ -78,6 +78,7 @@ export const proof = {
         },
         view: () => {
             const empty = htmlToString(demo.view(demo.init))
+            assert(empty.startsWith('<!DOCTYPE html><div data-hmac-demo=""><p>HMAC uses a key to compute an authentication code for a message. Both inputs are encoded as UTF-8; the result is shown in hexadecimal.</p>'), empty)
             assert(empty.includes('name="algorithm"'), empty)
             assert(empty.includes('name="key"'), empty)
             assert(empty.includes('name="text"'), empty)

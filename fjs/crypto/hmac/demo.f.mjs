@@ -3,6 +3,8 @@
  * and see the hex authentication code of their UTF-8 bytes. Leading zeros
  * remain part of the code. A matching OpenSSL command quotes both inputs as
  * literal shell arguments, and both outputs use shared copyable code blocks.
+ * Bold labels and captions distinguish controls and long output values while
+ * scanning; the shared rollout is tracked in website/demo/todo/emphasize-labels-and-captions.md.
  *
  * @module
  *
@@ -39,7 +41,8 @@ export const demo = {
     update: fieldUpdate,
     view: state => {
         const algorithm = selectedAlgorithm(state.algorithm)
-        return ['div', { class: 'hmac-demo' },
+        return ['div', { 'data-hmac-demo': '' },
+            ['p', 'HMAC uses a key to compute an authentication code for a message. Both inputs are encoded as UTF-8; the result is shown in hexadecimal.'],
             ['p',
                 ['label', { for: 'algorithm' }, 'Algorithm '],
                 ['select', { id: 'algorithm', name: 'algorithm' },
