@@ -220,9 +220,9 @@ cases join the corpus with the renderer's text as their expected value.
 
 - **A renderer mostly exists.** The FunctionalScript writer,
   [`fjs/compiler/serializer`](../../fjs/compiler/serializer/module.f.mjs),
-  already wrote a function node as text: `['=>', 1, [], ['arg', 0]]` was
-  `($a_0,...$a)=>$a_0` (now `($a_0)=>$a_0`, since step 3), and a shared
-  array in a body became a `const`. It had two gaps. It had no spelling
+  already writes a function node as text: `['=>', 1, [], ['arg', 0]]` is
+  `(a0)=>a0`, with its unused rest parameter omitted since step 3, and a
+  shared array in a body becomes a `const`. It had two gaps. It had no spelling
   for operators or calls, so most real bodies were refused; steps 1 and 2
   closed that. And it writes a module, `export default …;`, where a
   function's text is one expression.
@@ -240,9 +240,9 @@ cases join the corpus with the renderer's text as their expected value.
   parameters, and computed values such as `x` in
   `(...a) => { const x = a[0] + 1; return () => x; }`, which is a number.
 - **No source reaches `['self']` yet.** A function that names itself is
-  refused by the compiler, and the generator's Stage 5 of
-  [callable-function-objects](./callable-function-objects.md) has not
-  landed. The `self` question can wait without blocking anything.
+  refused by the compiler. EDAG functions already support it through
+  [#2629](https://github.com/functionalscript/functionalscript/pull/2629);
+  the renderer's spelling is recorded in D3 below.
 - **The JavaScript evaluators are not FJS VMs.** Amnesia and the operations
   layer convert a function with the host's wrapper text, so a function-text
   corpus case cannot be checked on the host side. They cannot carry the
@@ -282,23 +282,27 @@ keep.
 
 Each needs the owner's approval before the step that depends on it.
 
-- **D1, the spelling (implemented as proposed).** One line, normalized, with the writer's
-  leaves and its `$a`, `$a_0`, `$a0` names. An expression, not a module. A
+- **D1, the spelling (implemented; names updated in
+  [#2631](https://github.com/functionalscript/functionalscript/pull/2631)).** One line, normalized, with the writer's
+  leaves and its `a`, `a0`, `ca0` names. An expression, not a module. A
   rest parameter the body never reads is not written, so `() => 1` is
-  `()=>1`, not `(...$a)=>1`. Both denote one node, and the shorter one is
+  `()=>1`, not `(...a)=>1`. Both denote one node, and the shorter one is
   what a reader expects.
 - **D2, the frame (question 2): code-only, approved by the owner,
   @sasha-gil, on 2026-09-30
-  ([recorded on #2418](https://github.com/functionalscript/functionalscript/pull/2418)).** A captured value is written as the name of its slot, `$0`,
-  `$1`, …, so `const make = x => () => [x];` gives every function it makes
-  the text `()=>[$0]`, as JavaScript gives them one text. It is small, it
+  ([recorded on #2418](https://github.com/functionalscript/functionalscript/pull/2418)).** A captured value is written as the name of its slot, `c0`,
+  `c1`, …, so `const make = x => () => [x];` gives every function it makes
+  the text `()=>[c0]`, as JavaScript gives them one text. It is small, it
   matches JavaScript, and it needs no run-time renderer: the template has
   no holes left, so step 5 is step 4. Instantiating, the alternative, would
   replace each name with the rendered value, which would cost the run-time
   renderer, an IIFE to keep the text one expression, and lazy text; it
   would change no text of a function with an empty frame.
-- **D3, `self` (question 3).** Deferred. The renderer refuses `['self']`
-  until the compiler can produce it
+- **D3, `self` (question 3).** Implemented for EDAG functions in
+  [#2629](https://github.com/functionalscript/functionalscript/pull/2629).
+  Code-only text uses a named function expression, `(function a_self(){…})`;
+  source output binds the function as `const c0=()=>c0();`. Compiler syntax
+  for a function naming itself remains separate
   ([forward-references](../../spec/todo/3140-forward-references.md)).
 - **D4, a function without an EDAG.** Refused, as above.
 
@@ -311,11 +315,11 @@ Each needs the owner's approval before the step that depends on it.
    callee that is an access through a `const`.
 3. **`functionText` in FunctionalScript** (done): `tryFunctionText` in
    the writer, [`fjs/compiler/serializer`](../../fjs/compiler/serializer/module.f.mjs),
-   a function node to its text, each slot named `$i` (D2). It is the
+   a function node to its text, slots named `c0`, `c1`, … (D2). It is the
    writer itself, so the compiler's output and the Rust printer share one
    owner; the Rust printer, `fjs/edag/rust`, imports it, which makes no
-   cycle, since the writer imports nothing of the printer. `['self']` has
-   no node kind yet, and the writer refuses any kind it cannot spell.
+   cycle, since the writer imports nothing of the printer. The writer also
+   spells `['self']` as recorded in D3, and refuses any kind it cannot spell.
    Proofs: a text without a frame is the module text of the same node,
    which reads back to it.
 4. **Rust, for an empty frame** (done). `static_function` takes the text,

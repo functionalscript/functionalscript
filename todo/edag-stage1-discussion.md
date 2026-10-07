@@ -413,7 +413,7 @@ All operators are post-stage-1: stage 1 has no operators at all.
 |Form|JS|Stage|Notes|
 |----|--|-----|-----|
 |`["throw", node]`|`throw v`|later|always fails; never produces a value|
-|`["self"]`|—|later|the function itself; recursion is `["()", ["self"], args]`|
+|`["self"]`|—|self|the function itself, as a value, the same every read; recursion is `["()", ["self"], args]`, and a nested function captures its parent's `self` as a slot|
 |`["frame", i]`|—|captures|slot `i` of the captured-consts frame, a constant index as `["arg", N]`'s is; the compiler task that made captures frame slots first spelled the frame as a bare `["frame"]` node read through `[".", ["frame"], i]`, a form since retired — see `fjs/edag/README.md`|
 
 **`["frame", i]` and the closed-scope model.** A closure's free values are

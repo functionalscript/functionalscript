@@ -90,7 +90,7 @@ export const invoke = (fn, fixed, rest) => {
     const a = assertOk(analysis(fn))
     const [, index] = /** @type {import('../analysis/types.ts').Ref} */ (a.root)
     const [, , , body] = /** @type {Over<import('../types.ts').Function, Operand>} */ (a.nodes[index])
-    return evaluate(a, { frame: fn[2], args: [], fixed, rest }, body)
+    return evaluate(a, { frame: fn[2], args: [], fixed, rest, self: fn }, body)
 }
 
 /** Interpret a complete analyzed graph. Binding admission happens once here. @type {(a: Analysis) => (context: Invocation) => ValueResult} */

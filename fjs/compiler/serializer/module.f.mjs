@@ -279,11 +279,14 @@ const identifierKey = key => {
         && word.every(c => identifierStart(c) || isDigit(c))
 }
 
+/** Whether the function that is entry `i` reads its own `['self']`, in its own body's scope. @type {(a: Analysis, i: number) => boolean} */
+const readsSelf = (a, i) => a.nodes.some((n, j) => n[0] === 'self' && a.scope[j] === i)
+
 /** Whether an entry reads a slot of the frame, `['frame', i]`. @type {(a: Analysis, v: Ref) => boolean} */
 const isSlotRead = (a, v) => a.nodes[v[1]][0] === 'frame'
 
 /** Whether an operand is written as a name the scope binds without a `const`: the arguments, a parameter, or a slot of the frame. @type {(a: Analysis, v: Operand) => boolean} */
-const isName = (a, v) => v instanceof Array && (['rest', 'arg'].includes(a.nodes[v[1]][0]) || isSlotRead(a, v))
+const isName = (a, v) => v instanceof Array && (['rest', 'arg', 'self'].includes(a.nodes[v[1]][0]) || isSlotRead(a, v))
 
 /**
  * The value a `throw` entry throws, where the operand is one, and `null`
@@ -502,7 +505,7 @@ const lazyOperand = (s, depth, takes) => v => mapOk(
  */
 const block = (s, depth) => v => {
     /** @type {_Scope} */
-    const inner = { a: s.a, allowUnusedCaptures: s.allowUnusedCaptures, outer: visible(s), names: [], frame: s.frame, param: s.param, eager: eagerFrom(s.a)(v), shared: sharedWithin(s.a)(v) }
+    const inner = { a: s.a, allowUnusedCaptures: s.allowUnusedCaptures, outer: visible(s), names: [], frame: s.frame, param: s.param, eager: eagerFrom(s.a)(v), shared: sharedWithin(s.a)(v), self: s.self, binding: null }
     /** @type {(i: number) => boolean} */
     const unnamed = i => nameOf(inner.outer, ['entry', i]) === null
     // Reached from outside by an edge the operand's subgraph does not
@@ -680,6 +683,12 @@ const frameNames = s => slots => {
     const name = x => {
         if (!(x instanceof Array)) { return error('a frame slot holding a primitive') }
         if (isSlotRead(s.a, x)) { return ok(slotName(s)(/** @type {number} */(s.a.nodes[x[1]][1]))) }
+        // a slot holding the enclosing function's own `self` reads as the
+        // name that function was bound to: the hoisting walk names every
+        // function that reads its `self`, and the analysis refused one with
+        // no function around it, so a missing name is this writer's own
+        // mistake
+        if (s.a.nodes[x[1]][0] === 'self') { return ok(assertNotNullish(s.self, ['a self in a scope with no name', x])) }
         const parameterRead = parameterName(s.param, s.a.nodes[x[1]])
         if (parameterRead !== null) { return ok(parameterRead) }
         // every other slot was hoisted before the statement holding the
@@ -724,9 +733,9 @@ const firstUse = (names, text) => toArray(text).reduce(
  * body's text in that case, with slot names unchanged and no extra reads.
  * Complete frames keep their existing canonical ordering in both outputs.
  *
- * @type {(a: Analysis, depth: number, names: readonly string[], allowUnusedCaptures: boolean) => (b: Operand) => Document}
+ * @type {(a: Analysis, depth: number, names: readonly string[], allowUnusedCaptures: boolean, self: string | null) => (b: Operand) => Document}
  */
-const closureBody = (a, depth, names, allowUnusedCaptures) => b => okThen(
+const closureBody = (a, depth, names, allowUnusedCaptures, self) => b => okThen(
     /** @type {(text: List<string>) => Document} */
     (text => {
         const order = firstUse(names, text)
@@ -734,9 +743,9 @@ const closureBody = (a, depth, names, allowUnusedCaptures) => b => okThen(
             return allowUnusedCaptures ? ok(text) : error('a frame slot the body never reads')
         }
         return order.every((x, i) => x === i) ? ok(text)
-            : aliasedBody(a, depth, names, allowUnusedCaptures)(b)
+            : aliasedBody(a, depth, names, allowUnusedCaptures, self)(b)
     }),
-)(lambdaBody(a, depth, names, allowUnusedCaptures)(b))
+)(lambdaBody(a, depth, names, allowUnusedCaptures, self)(b))
 
 /**
  * A function's body that opens by naming its frame's slots in slot order,
@@ -753,9 +762,9 @@ const closureBody = (a, depth, names, allowUnusedCaptures) => b => okThen(
  * eager in what this writer spells: a lazy operator is a node kind it has
  * none for.
  *
- * @type {(a: Analysis, depth: number, names: readonly string[], allowUnusedCaptures: boolean) => (b: Operand) => Document}
+ * @type {(a: Analysis, depth: number, names: readonly string[], allowUnusedCaptures: boolean, self: string | null) => (b: Operand) => Document}
  */
-const aliasedBody = (a, depth, names, allowUnusedCaptures) => b => {
+const aliasedBody = (a, depth, names, allowUnusedCaptures, self) => b => {
     const aliases = names.map((_, i) => hoistName(depth, i))
     /** @type {_Statement} */
     const start = {
@@ -767,7 +776,7 @@ const aliasedBody = (a, depth, names, allowUnusedCaptures) => b => {
         (all => mapOk(
             /** @type {(st: _Statement) => List<string>} */
             (st => flat([['{'], st.text, ['}']])),
-        )(scope(bodyScope(a, depth, aliases, b, allowUnusedCaptures), depth, start)(all))),
+        )(scope(bodyScope(a, depth, aliases, b, allowUnusedCaptures, self), depth, start)(all))),
     )(scopeOperands(a, b))
 }
 
@@ -777,12 +786,14 @@ const aliasedBody = (a, depth, names, allowUnusedCaptures) => b => {
  * frame's slot names, the parameter its arguments are written as, and
  * what its root reaches eagerly as its own to hoist.
  *
- * @type {(a: Analysis, depth: number, frame: readonly string[], b: Operand, allowUnusedCaptures: boolean) => _Scope}
+ * `self` is the name the body's function was bound to, which its `['self']`
+ * reads as, or `null` for a function with no name.
+ * @type {(a: Analysis, depth: number, frame: readonly string[], b: Operand, allowUnusedCaptures: boolean, self: string | null) => _Scope}
  */
-const bodyScope = (a, depth, frame, b, allowUnusedCaptures) => ({ a, allowUnusedCaptures, outer: [], names: [], frame, param: parameter(depth), eager: eagerFrom(a)(b), shared: a.shared })
+const bodyScope = (a, depth, frame, b, allowUnusedCaptures, self) => ({ a, allowUnusedCaptures, outer: [], names: [], frame, param: parameter(depth), eager: eagerFrom(a)(b), shared: a.shared, self, binding: null })
 
 /** The scope a module is written in, over the names written so far. @type {(a: Analysis, names: _Names) => _Scope} */
-const moduleScope = (a, names) => ({ a, allowUnusedCaptures: false, outer: [], names, frame: [], param: '', eager: eagerFrom(a)(a.root), shared: a.shared })
+const moduleScope = (a, names) => ({ a, allowUnusedCaptures: false, outer: [], names, frame: [], param: '', eager: eagerFrom(a)(a.root), shared: a.shared, self: null, binding: null })
 
 /**
  * A function's body at `depth`, in a scope of its own: the `const`s it needs
@@ -804,10 +815,10 @@ const moduleScope = (a, names) => ({ a, allowUnusedCaptures: false, outer: [], n
  * ([spec: functions](../../../spec/README.md#functions)) — and so is a body
  * that throws, `=> {throw v;}`, the statement having no expression form.
  *
- * @type {(a: Analysis, depth: number, frame: readonly string[], allowUnusedCaptures: boolean) => (b: Operand) => Document}
+ * @type {(a: Analysis, depth: number, frame: readonly string[], allowUnusedCaptures: boolean, self: string | null) => (b: Operand) => Document}
  */
-const lambdaBody = (a, depth, frame, allowUnusedCaptures) => b => {
-    const s = bodyScope(a, depth, frame, b, allowUnusedCaptures)
+const lambdaBody = (a, depth, frame, allowUnusedCaptures, self) => b => {
+    const s = bodyScope(a, depth, frame, b, allowUnusedCaptures, self)
     return okThen(
         /** @type {(all: _Root) => Document} */
         (all => all.length === 1 && thrownValue(a, all[0]) === null && hoists(s)(all[0]).length === 0
@@ -862,12 +873,16 @@ const parameterList = (a, depth, i, length) => {
  * over the names its frame's slots read as: its parameter list, then its
  * body.
  *
- * @type {(a: Analysis, depth: number, i: number, length: number, names: readonly string[], allowUnusedCaptures: boolean) => (body: Operand) => Document}
+ * `self` is the name the function was bound to, or `null`: a body reading
+ * its own `['self']` needs one, and is refused without it.
+ * @type {(a: Analysis, depth: number, i: number, length: number, names: readonly string[], allowUnusedCaptures: boolean, self: string | null) => (body: Operand) => Document}
  */
-const lambda = (a, depth, i, length, names, allowUnusedCaptures) => body => mapOk(
-    /** @type {(text: List<string>) => List<string>} */
-    (text => flat([[parameterList(a, depth, i, length)], text])),
-)(closureBody(a, depth, names, allowUnusedCaptures)(body))
+const lambda = (a, depth, i, length, names, allowUnusedCaptures, self) => body => readsSelf(a, i) && self === null
+    ? error('a self-referencing function with no name')
+    : mapOk(
+        /** @type {(text: List<string>) => List<string>} */
+        (text => flat([[parameterList(a, depth, i, length)], text])),
+    )(closureBody(a, depth, names, allowUnusedCaptures, self)(body))
 
 /**
  * One entry of the table, written in place — every entry that is not a
@@ -876,10 +891,17 @@ const lambda = (a, depth, i, length, names, allowUnusedCaptures) => body => mapO
  *
  * @type {(s: _Scope, depth: number) => (i: number) => Document}
  */
-const entry = (s, depth) => i => {
+const entry = (s0, depth) => i => {
+    // the name the enclosing statement binds this entry to is the entry's
+    // alone: what it holds is written in place, under no name
+    const s = { ...s0, binding: null }
     const node = s.a.nodes[i]
     switch (node[0]) {
         case 'undefined': { return ok(['undefined']) }
+        // the name the function was bound to: the hoisting walk gave one to
+        // every function that reads its `self`, and the analysis refused a
+        // `self` with no function around it
+        case 'self': { return ok([assertNotNullish(s.self, ['a self in a scope with no name', i])]) }
         case 'arg': case 'rest': { return ok([assertNotNullish(parameterName(s.param, node))]) }
         case '[]': { return mapOk(arrayWrap)(okList(node[1].map(item(s, depth)))) }
         case '{}': { return mapOk(objectWrap)(okList(node[1].map(property(s, depth)))) }
@@ -907,7 +929,7 @@ const entry = (s, depth) => i => {
             const [, length, slots, body] = node
             return okThen(
                 /** @type {(names: readonly string[]) => Document} */
-                (names => lambda(s.a, depth + 1, i, length, names, s.allowUnusedCaptures)(body)),
+                (names => lambda(s.a, depth + 1, i, length, names, s.allowUnusedCaptures, s0.binding)(body)),
             )(frameNames(s)(slots))
         }
         // `op12` of one operand is the prefix, and of two the binary minus
@@ -987,7 +1009,9 @@ const hoists = s => {
         const based = named && own(i)
             ? add(inner, node[1] instanceof Array ? ['entry', node[1][1]] : ['leaf', /** @type {number | bigint} */(node[1])])
             : inner
-        return hoistedKind(s.a, i) && s.shared.includes(i) && own(i) ? add(based, ['entry', i]) : based
+        // a function reading its own `self` takes a `const` however many
+        // places hold it: only a name gives its body a way to reach it
+        return ((hoistedKind(s.a, i) && s.shared.includes(i)) || (node[0] === '=>' && readsSelf(s.a, i))) && own(i) ? add(based, ['entry', i]) : based
     }
     return v => found(/** @type {readonly _Hoisted[]} */([]), v)
 }
@@ -1185,7 +1209,7 @@ const statement = (s0, depth, last, elsewhere) => ({ text, names }, v) => {
     const emit = (acc, h) => {
         if (acc[0] === 'error') { return acc }
         const before = acc[1]
-        const s = { ...s0, names: before.names }
+        const s = { ...s0, names: before.names, binding: hoistName(depth, before.names.length) }
         return mapOk(
             /** @type {(value: List<string>) => _Statement} */
             (value => ({
@@ -1311,7 +1335,7 @@ export const tryStringify = e => mapOk(
  */
 export const functionText = (a, i) => {
     const [, length, slots, body] = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (a.nodes[i])
-    const [kind, text] = lambda(a, 1, i, length, slots.map((_, k) => `c${k}`), true)(body)
+    const [kind, text] = lambda(a, 1, i, length, slots.map((_, k) => `c${k}`), true, null)(body)
     return kind === 'ok' ? toArray(text).join('') : renderFunction(a, i)
 }
 
@@ -1364,7 +1388,7 @@ const moduleBinding = (a, prefix, h) => before => {
     return mapOk(
         /** @type {(text: List<string>) => _Statement} */
         (text => ({ text: flat([before.text, [`const ${name}=`], text, [';']]), names: [...before.names, [h, name]] })),
-    )(hoistedText(moduleScope(a, before.names), 0)(h))
+    )(hoistedText({ ...moduleScope(a, before.names), binding: name }, 0)(h))
 }
 
 /**

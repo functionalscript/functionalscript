@@ -36,6 +36,8 @@ export const parameter = depth => depth === 1 ? 'a' : `a${column(depth - 1)}`
 
 /** The name of one invocation-local memo cell. @type {(_s: _Scope, k: number) => string} */
 const memoName = (s, k) => `c${parameter(s.depth)}${k}`
+/** The name a function reading its own `['self']` is given at a positive depth: a named function expression is the one JavaScript spelling of a function that names itself. @type {(depth: number) => string} */
+const selfName = depth => `${parameter(depth)}_self`
 
 /** Render a value, demanding a shared entry through its cell. @type {(s: _Scope, v: Operand) => string} */
 const operand = (s, v) => {
@@ -68,6 +70,7 @@ const entry = (s, i) => {
         case 'arg': { return `(${parameter(s.depth)}${n[1]})` }
         case 'rest': { return `(${parameter(s.depth)})` }
         case 'frame': { return `(${s.frame[n[1]]})` }
+        case 'self': { return `(${selfName(s.depth)})` }
         case '[]': { return `([${items(s, n[1])}])` }
         case '{}': { return `({${n[1].map(p => p[0] === '...'
             ? `...${operand(s, p[1])}` : `[${operand(s, p[1])}]:${operand(s, p[2])}`).join(',')}})` }
@@ -107,10 +110,15 @@ const lambda = (a, i, depth, frame) => {
     const s = { a, depth, frame, shared }
     const fixed = Array.from({ length }, (_, k) => `${parameter(depth)}${k}`)
     const rest = a.nodes.some((n, j) => n[0] === 'rest' && a.scope[j] === i) ? [`...${parameter(depth)}`] : []
-    const parameters = `(${[...fixed, ...rest].join(',')})=>`
+    const list = [...fixed, ...rest].join(',')
     const value = operand(s, body)
     const cells = shared.map((j, k) => `const ${memoName(s, k)}=(()=>{let $v,$done=false;return()=>{if(!$done){$v=${entry(s, j)};$done=true;}return $v;};})();`).join('')
-    return `${parameters}${cells === '' ? value : `{${cells}return ${value};}`}`
+    // a body reading its own `self` is a named function expression, the
+    // name the body's `self` reads, since an arrow function cannot name
+    // itself; its body is always a block
+    return a.nodes.some((n, j) => n[0] === 'self' && a.scope[j] === i)
+        ? `(function ${selfName(depth)}(${list}){${cells}return ${value};})`
+        : `(${list})=>${cells === '' ? value : `{${cells}return ${value};}`}`
 }
 
 /** Code-only text of a trusted function entry; evaluated captures stay unnamed data. @type {(a: Analysis, i: number) => string} */
