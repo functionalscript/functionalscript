@@ -87,9 +87,13 @@ outside the FJS VM; this decision does not patch its built-ins.
 ### Open questions
 
 These questions are deliberately open, not implementation instructions with
-an implicit answer. Captures are in the language
-([functions](../README.md#functions)); the examples do not claim current
-compiler support for `self` or for rendering either as text.
+an implicit answer. Captures and a function's own name, the EDAG's `self`,
+are in the language ([functions](../README.md#functions)); what the examples
+do not claim is an answer to how either is rendered as text. The spellings
+the writers use today — a `const` the function's body reads, in source, and
+a named function expression, in a function's text
+([function-text](../../fjs/edag/function-text.md)) — are among the
+candidates below, not answers.
 
 1. **Should the compiler's function serializer and `String(f)` be the same function?**
    Should they have one output contract and implementation, or distinct
@@ -161,7 +165,8 @@ compiler support for `self` or for rendering either as text.
 
 Earlier sketches that identify `toString(f)` with a closed callable serializer,
 materialize every frame or choose a named function for `self` — including
-[EDAG stage 1, source printing](../../todo/edag-stage1-discussion.md) — are
+[EDAG stage 1, source printing](../../todo/edag-stage1-discussion.md) and the
+named function expression the function-text writer spells today — are
 candidates, not answers to these reopened questions. The questions change no
 EDAG `frame`/`self` semantics and no current serializer implementation.
 

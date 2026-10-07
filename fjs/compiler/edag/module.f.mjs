@@ -233,6 +233,9 @@ const lowerLeaf = nodes => ast => {
         case 'arg': { return plain(['arg', ast[1]]) }
         case 'rest': { return plain(nodes.args) }
         case 'fref': { return plain(nodes.frame[ast[1]]) }
+        // the function itself, the EDAG's own node, which a nested
+        // function's capture of it lowers to as a slot of the parent's scope
+        case 'self': { return plain(['self']) }
         case '()': { return call(nodes)(ast) }
         // the EDAG's own form already, its key a constant the parser admitted
         default: {

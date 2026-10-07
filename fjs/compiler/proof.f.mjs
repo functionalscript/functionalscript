@@ -607,6 +607,10 @@ export const proof = {
             // the writer names the rest parameter only where the body reads
             // it — so both lists are written `()`, one node, one text
             assertEq(fjsRoundTrip('export default () => 1;'), 'export default ()=>1;')
+            // a function's own name is its `self`, written as the `const` it read
+            assertEq(fjsRoundTrip('const f = () => f();\nexport default f;'), 'const $0=()=>$0();export default $0;')
+            // an unused alias of the name is dropped with the `const`, as an alias of a capture is
+            assertEq(fjsRoundTrip('const f = () => { const g = f; return 1; };\nexport default f;'), 'export default ()=>1;')
         },
         // The lazy operators and the conditional, and the block a lazy
         // operand opens where it needs one: a call of a parameterless
@@ -1819,6 +1823,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 'Laziness': 'ooooo',
                 'Function with a rest parameter': 'xxooo',
                 'Closure': 'xxooo',
+                'Recursion': 'ooooo',
                 'Methods and properties': 'ooooo',
                 'Named exports': 'ooooo',
                 'A failure at run time': 'xxooo',
@@ -1831,6 +1836,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 assertEq(outputs.map(([, file]) => _compiled(source)(file)[0] === 'ok' ? 'o' : 'x').join(''), expected[name])
             }
             assertEq(_compiled('export default 1;')('output.json')[1], '1')
+            assertEq(_compiled('const fact = n => n < 2 ? 1 : n * fact(n - 1);\nexport default fact(5);')('output.json')[1], '120')
             assertEq(_compiled('export default "\\x41";')('output.json')[1], 'input.f.js:1:16-23 - error: unexpected token')
         },
         view: () => {

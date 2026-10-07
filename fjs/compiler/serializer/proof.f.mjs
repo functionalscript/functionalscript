@@ -861,16 +861,12 @@ export const proof = {
     // A function reading its own `self` is written as a `const` whose
     // initializer reads the name, the one FunctionalScript form of a
     // function that reaches itself, so it takes a `const` even where
-    // nothing else shares it; a nested function captures that name. The
-    // text is asserted alone, as `writes` reads back through the parser,
-    // which resolves a function's own name once the language rule lands.
+    // nothing else shares it; a nested function captures that name.
     self: () => {
-        /** @type {(e: Exp, expected: string) => void} */
-        const spells = (e, expected) => { assertEq(unwrap(tryStringify(e)), expected) }
-        spells(['=>', 0, [], ['()', ['self'], []]], 'const $0=()=>$0();export default $0;')
-        spells(['=>', 1, [], ['?:', ['<', ['arg', 0], 2], 1, ['*', ['arg', 0], ['()', ['self'], [['-', ['arg', 0], 1]]]]]],
+        writes(['=>', 0, [], ['()', ['self'], []]], 'const $0=()=>$0();export default $0;')
+        writes(['=>', 1, [], ['?:', ['<', ['arg', 0], 2], 1, ['*', ['arg', 0], ['()', ['self'], [['-', ['arg', 0], 1]]]]]],
             'const $0=($a_0)=>$a_0<2?1:$a_0*$0($a_0-1);export default $0;')
-        spells(['=>', 1, [], ['?:', ['arg', 0], ['()', ['=>', 0, [['self']], ['()', ['frame', 0], [0]]], []], 'done']],
+        writes(['=>', 1, [], ['?:', ['arg', 0], ['()', ['=>', 0, [['self']], ['()', ['frame', 0], [0]]], []], 'done']],
             'const $0=($a_0)=>$a_0?(()=>{const $b0=()=>$0(0);return $b0();})():"done";export default $0;')
         // the module writer names it the same way
         assertEq(unwrap(tryModuleStringify(['{}', [[':', 'f', ['=>', 0, [], ['()', ['self'], []]]], [':', 'default', 1]]])), 'const $0=()=>$0();export const f=$0;export default 1;')
