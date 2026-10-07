@@ -35,7 +35,7 @@ import { emptyState, nodeProgramOptions, virtual } from '../effects/node/virtual
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { error, ok } from '../types/result/module.f.mjs'
 import { textDemo } from '../website/demo/module.f.mjs'
-import { examples } from './examples/module.f.mjs'
+import { examples } from './examples/module.f.js'
 import { compile } from './module.f.mjs'
 
 /**

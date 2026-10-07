@@ -1,10 +1,12 @@
 /**
- * The RTTI schemas of the operations a native effect runner implements: the
- * compiler's file and console I/O, plus `read` for console input. A schema is the
- * specification of record for an operation's request and result; the
- * declarations in [`../node/types.ts`](../node/types.ts) are pinned to it in
- * [`./types.ts`](./types.ts), and a generated trait for `nanvm-effects-node`
- * follows it ([`todo/nanvm-effects-node.md`](../../../todo/nanvm-effects-node.md)).
+ * RTTI schemas for data-shaped effect operations. A schema specifies an
+ * operation's request and result; the declarations in
+ * [`../node/types.ts`](../node/types.ts) are pinned to it in
+ * [`./types.ts`](./types.ts).
+ *
+ * These schemas are not a native runner ABI. The
+ * [native runner](../../../todo/nanvm-effects-node.md) uses VM values directly,
+ * without generating Rust types or an operations trait from this module.
  *
  * An operation is its tag, the schema of its parameters, a closed tuple whose
  * trailing optional parameters are `or(option, t, undefined)`, admitting both
@@ -13,9 +15,9 @@
  * which every operation shares, are written once, {@link result},
  * {@link ioResult} and {@link opResult}.
  *
- * Only data-shaped operations are here. An operation that takes a callback
- * (`sandbox`, `catch`), effects (`all`), or arbitrary values (`memCreate`)
- * is handwritten on each side, as the todo's audit records.
+ * Only data-shaped operations are here. Callbacks, effects and arbitrary
+ * runtime values are outside this RTTI vocabulary; their existing declarations
+ * are not replaced by these schemas.
  *
  * @module
  *
@@ -135,5 +137,5 @@ export const write = operation(
 
 export const read = operation('read', ['stdin'], opResult(or(number, null)))
 
-/** Every operation the first generated trait covers, by tag. */
+/** The operations described by this module, keyed by command. */
 export const operations = /** @type {const} */ ({ mkdir, readFile, resolveFileModule, readdir, writeFile, writeBytes, rm, write, read })

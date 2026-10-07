@@ -77,13 +77,13 @@ remaining native callable work must use the same contract.
   fixed prefix is intentionally unobservable.
 - the frame remains the captured-values array, its slot `i` read as
   `['frame', i]`; it also carries captured outer fixed/rest bindings.
-- `["self"]` is the planned direct self-reference (Stage 5), primitive because
+- `["self"]` is the direct self-reference, landed as Stage 5, primitive because
   a top-level recursive function has no enclosing scope to seed a frame slot with itself
   (subject 10); it reaches only the innermost enclosing function (mutual
   recursion is explicitly not covered yet — subjects 9 and 10).
 - A function body is a **closed graph**. Its invocation bindings are
-  `['arg', N]` and `['rest']`, alongside constants and frame access; `self`
-  remains Stage 5 work. Nothing reaches outward across a `=>` boundary.
+  `['arg', N]` and `['rest']`, alongside constants, frame access and
+  `['self']`, the function itself. Nothing reaches outward across a `=>` boundary.
   Argument indices are validated
   in their owning function; captures go through its frame.
 - [function-frame](../../spec/todo/3111-function-frame.md) already decided,
@@ -439,17 +439,18 @@ property or element first, then the receiver type's built-in member
 function. What is not this stage's is the table of built-ins the compiler
 admits, entry by entry — [`member-functions.md`](./member-functions.md).
 
-**Stage 5 — self-reference and recursion.**
-Implement the two cases under [Self-reference](#self-reference) above:
-neither needs anything in the calling convention — every static function
-receives `self_` already, and the generator prints it as `_self` only
-because no body reads it yet — only the generator reading `["self"]` as
-that parameter, `Function::new(self_.clone()).to_any()`, which a call to
-`self` then goes through as any call does. Proof surface:
-edag-stage1-discussion's own outer-`f`/nested-`b` snippet cited in
-[Self-reference](#self-reference) above — an enclosing function's `["self"]`
-captured into a nested closure's frame and called back out through it —
-plus a fixture asserting `self === self` across two separate reads.
+**Stage 5 — self-reference and recursion.** Landed. Neither case under
+[Self-reference](#self-reference) above needed anything in the calling
+convention — every static function receives `self_` already — only the
+generator reading `["self"]` as that parameter,
+`Function::new(self_.clone()).to_any()`, which a call to `self` then goes
+through as any call does, and the language rule that resolves a function's
+own `const` name to the node ([functions](../../spec/README.md#functions)).
+The proof surface is the [`recursion` harness
+fixture](../../nanvm-harness/fixtures/recursion.mjs): a function calling
+itself, `self === self` across two separate reads, and an enclosing
+function's `["self"]` captured into a nested closure's frame and called back
+out through it.
 
 **Stage 6 — arity and variadic edge cases.**
 The generator and invocation bindings now implement the
@@ -534,9 +535,11 @@ satisfy the same contract, but this parity work does not wait for it.
       `TryFrom<Any<A>> for Function<A>` — and the method call with chains,
       the `.` node's `|()` continuation printed as `end_call`; the
       built-ins it reaches are [`member-functions.md`](./member-functions.md)'s.
-- [ ] Stage 5: self-reference — the generator reads `["self"]` as the
-      `self_` every static function receives, a call to it being a call
-      like any other; plus a `self === self` fixture.
+- [x] Stage 5: self-reference — the generator reads `["self"]` as the
+      `self_` every static function receives, `Function::new(self_.clone())`,
+      a call to it being a call like any other, the language rule that
+      resolves a function's own `const` name to the node, and the harness
+      fixture that pins recursion and `self === self` through it.
 - [x] Stage 6 lowering: implement the fixed/rest EDAG format, validate
       constant `arg` indices, preserve the declared length, supply missing
       fixed values as `undefined` and bind rest once per invocation. The

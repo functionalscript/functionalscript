@@ -6,9 +6,10 @@ value representation of the FJS interpreters. [Memo](memo/module.f.mjs),
 `Result<EdagValue, EdagValue>`. The old AST value evaluator is retired.
 Rust NaNVM keeps its native `Any` representation.
 
-**EDAG interpretation** computes a value graph from code. **Runtime compilation**
-converts that graph to ordinary runtime values, including executable functions,
-with EDAG reflection erased. These are separate operations.
+**EDAG interpretation** computes a value graph from code and reports success or
+language failure through `Result`. **Runtime compilation** converts that graph
+to ordinary runtime values, including executable functions, with EDAG reflection
+erased. Invoking those functions uses ordinary runtime returns and throws.
 
 ## Value forms
 

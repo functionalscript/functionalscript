@@ -1,16 +1,22 @@
 /** The state-independent interface shared by EDAG interpreters. @module */
 
 import type { Exp } from '../types.ts'
-import type { Array, Values } from '../value/types.ts'
+import type { Array, Function, Values } from '../value/types.ts'
 import type { ValueResult } from '../value/control/types.ts'
 import type { Invoke } from '../value/call/types.ts'
 
-/** Established bindings of one module or represented function invocation. */
+/**
+ * Established bindings of one module or represented function invocation.
+ * `self` is the function being invoked, what its body's `['self']` reads —
+ * the invoked value itself, so two reads are one function by identity —
+ * and absent at a module's scope.
+ */
 export type Context = {
     readonly frame: Values
     readonly args: Values
     readonly fixed?: Values
     readonly rest?: Array
+    readonly self?: Function
 }
 
 /** A successful or thrown language value together with the resulting VM state. */

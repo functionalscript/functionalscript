@@ -28,7 +28,7 @@ import { fromEntries, isObject } from '../types/object/module.f.mjs'
 import { toVec } from '../types/uint8array/module.f.mjs'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../asserts/module.f.mjs'
 import { _compiled, demo, outputs } from './demo.f.mjs'
-import { examples } from './examples/module.f.mjs'
+import { examples } from './examples/module.f.js'
 import { htmlToString } from '../media/html/module.f.mjs'
 import { maxLengthBytes } from '../types/bit_vec/module.f.mjs'
 import accept from '../../spec/datajs/vectors/accept/data.f.js'
@@ -607,6 +607,10 @@ export const proof = {
             // the writer names the rest parameter only where the body reads
             // it — so both lists are written `()`, one node, one text
             assertEq(fjsRoundTrip('export default () => 1;'), 'export default ()=>1;')
+            // a function's own name is its `self`, written as the `const` it read
+            assertEq(fjsRoundTrip('const f = () => f();\nexport default f;'), 'const $0=()=>$0();export default $0;')
+            // an unused alias of the name is dropped with the `const`, as an alias of a capture is
+            assertEq(fjsRoundTrip('const f = () => { const g = f; return 1; };\nexport default f;'), 'export default ()=>1;')
         },
         // The lazy operators and the conditional, and the block a lazy
         // operand opens where it needs one: a call of a parameterless
@@ -650,6 +654,8 @@ export const proof = {
             assertEq(fjsRoundTrip('export default 1 << 2 + 3 < 5 === true & 1 ^ 2 | 3;'), 'export default 1<<2+3<5===true&1^2|3;')
             assertEq(fjsRoundTrip('export default ((1 << 2) + 3 < 5) === (true & (1 ^ (2 | 3)));'), 'export default (1<<2)+3<5===(true&(1^(2|3)));')
             assertEq(fjsRoundTrip('export default ~1 + -[] * 1n;'), 'export default ~1+-[]*1n;')
+            assertEq(fjsRoundTrip('export default !(1 + 2) === !!-[];'), 'export default !(1+2)===!!-[];')
+            assertEq(fjsRoundTrip('export default typeof (1 + 2) === typeof typeof [];'), 'export default typeof (1+2)===typeof typeof [];')
             assertEq(fjsRoundTrip('export default (1 + 2).x;'), 'export default (1+2).x;')
             assertEq(fjsRoundTrip('export default (-[1])[0];'), 'export default (-[1])[0];')
             assertEq(fjsRoundTrip('export default -((...a) => 1);'), 'export default -(()=>1);')
@@ -1812,16 +1818,17 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 'Sharing: a const used twice': 'ooooo',
                 'Arithmetic': 'ooooo',
                 'Operator precedence': 'ooooo',
+                'Logical not': 'ooooo',
+                'typeof': 'ooooo',
                 'Laziness': 'ooooo',
                 'Function with a rest parameter': 'xxooo',
                 'Closure': 'xxooo',
+                'Recursion': 'ooooo',
                 'Methods and properties': 'ooooo',
                 'Named exports': 'ooooo',
                 'A failure at run time': 'xxooo',
                 'An import': 'xxxxx',
-                'Logical not': 'xxxxx',
                 'Hex escape': 'xxxxx',
-                'typeof': 'xxxxx',
                 'Parse error': 'xxxxx',
             }
             assertEq(Object.keys(expected).length, examples.length)
@@ -1829,7 +1836,8 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 assertEq(outputs.map(([, file]) => _compiled(source)(file)[0] === 'ok' ? 'o' : 'x').join(''), expected[name])
             }
             assertEq(_compiled('export default 1;')('output.json')[1], '1')
-            assertEq(_compiled('export default !1;')('output.json')[1], 'input.f.js:1:16 - error: unexpected token')
+            assertEq(_compiled('const fact = n => n < 2 ? 1 : n * fact(n - 1);\nexport default fact(5);')('output.json')[1], '120')
+            assertEq(_compiled('export default "\\x41";')('output.json')[1], 'input.f.js:1:16-23 - error: unexpected token')
         },
         view: () => {
             const shown = htmlToString(demo.view(demo.init))

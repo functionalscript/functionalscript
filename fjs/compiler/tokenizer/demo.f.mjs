@@ -9,11 +9,11 @@
  *
  * **A token the tokenizer cannot read is a line, not a failure.** An
  * `error` token carries its message and, where it knows how far the unread
- * source runs, the end of the span. `!` and a `\x41` escape show up that way:
- * the grammar has no token for the one and no spelling of the other inside a
- * string, so they stop here, before the parser sees them. `typeof` is the
- * other half — an ordinary name to the tokenizer, refused only by the parser —
- * so the two pages together say which stage a refusal belongs to.
+ * source runs, the end of the span. A `\x41` escape shows up that way: the
+ * grammar has no spelling of it inside a string, so it stops here, before the
+ * parser sees it. An unfinished module is the other half — every token of
+ * it read here, refused only by the parser — so the two pages together say
+ * which stage a refusal belongs to.
  *
  * **It needs no operations.** Tokenizing is a pure function of the text, so
  * `update` declares `never` and returns through `pureOk`.
@@ -26,7 +26,7 @@
 import { stringToList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { textDemo } from '../../website/demo/module.f.mjs'
-import { examples } from '../examples/module.f.mjs'
+import { examples } from '../examples/module.f.js'
 import { tokenize } from './module.f.mjs'
 
 /**
