@@ -180,6 +180,13 @@ code blocks and literal shell arguments. A POSIX shell argument cannot contain
 NUL (U+0000), so that input still gets a digest but a visible refusal replaces
 the command; this is a permanent shell limitation.
 
+[`crypto/hmac`](../crypto/hmac/demo.f.mjs) adds a UTF-8 key and message to this
+pattern, with SHA-1 and all six SHA-2 variants. Its OpenSSL command quotes both
+inputs and uses the selected hash with `-hmac`. Its message uses the shared
+multiline field; the key remains single-line and fills the available width.
+NUL in either field replaces the OpenSSL command with an explanation, just as
+in the hash demos.
+
 ## A directory says it holds a demo
 
 A demo is on its module's page, and every demo sits several levels below the
