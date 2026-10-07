@@ -1,7 +1,7 @@
 # Shorthand members
 
 **Priority:** P1
-**Status:** approved — the implementation, #2641, awaits landing on top of this proposal
+**Status:** wip — approved; the implementation, #2641, awaits landing on top of this proposal
 
 ## Problem and proposal
 
