@@ -91,11 +91,13 @@ to reopen in a container is a slower detour there, and declining it changes
 nothing. Nix does not run natively on Windows: a Windows contributor opens the
 repository in that container —
 [`.devcontainer/devcontainer.json`](./.devcontainer/devcontainer.json) builds
-a Debian image with Nix, runs `npm ci` in the shell, and opens every VS Code
-terminal inside it, for VS Code, Codespaces and any other devcontainer host — or
-works in WSL2 with Nix installed there. The shell is the same either way; only
-the devcontainer enters it for you, so on macOS, Linux and WSL2 run `./dev.sh`
-yourself or set your own terminal profile to it. Bare Windows, outside both,
+a Debian image with Nix and runs `npm ci` in the shell on any devcontainer
+host; in VS Code and Codespaces it also opens every terminal inside the shell,
+through a terminal profile only those two hosts read, so on another host such
+as IntelliJ or the devcontainer CLI run `./dev.sh` yourself — or works in WSL2
+with Nix installed there. The shell is the same either way; only the VS Code
+devcontainer enters it for you, so everywhere else run `./dev.sh` yourself or
+set your own terminal profile to it. Bare Windows, outside both,
 means installing the [Requirements](#requirements) table by hand at the
 versions `fjs/ci/config/module.f.js` pins, as CI's Windows jobs do.
 

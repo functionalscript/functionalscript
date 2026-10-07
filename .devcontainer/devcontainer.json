@@ -10,7 +10,7 @@
             "settings": {
                 "terminal.integrated.defaultProfile.linux": "FunctionalScript",
                 "terminal.integrated.profiles.linux": {
-                    "FunctionalScript": { "path": "sh", "args": ["./dev.sh"] }
+                    "FunctionalScript": { "path": "sh", "args": ["${containerWorkspaceFolder}/dev.sh"] }
                 }
             }
         }

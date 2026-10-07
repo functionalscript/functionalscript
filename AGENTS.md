@@ -142,9 +142,10 @@ their versions; the shell is the one environment.
 
 `dev.sh` enables flakes itself, so a stock Nix install needs no configuration.
 On macOS and Linux, install Nix on the host. Nix does not run natively on
-Windows: open the repository in VS Code's devcontainer —
+Windows: open the repository in the devcontainer —
 [`.devcontainer/`](./.devcontainer/devcontainer.json) builds a Debian image
-with Nix and runs `npm ci` in the shell — or work in WSL2 with Nix installed
+with Nix and runs `npm ci` in the shell on any host, and VS Code and Codespaces
+also open every terminal inside the shell — or work in WSL2 with Nix installed
 there. The shell is the same either way. Bare Windows, outside both, is on your
 own: install the tools [CONTRIBUTING.md](./CONTRIBUTING.md#requirements)'s table
 names yourself, at the exact versions `fjs/ci/config/module.f.js` pins, which
