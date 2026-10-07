@@ -45,8 +45,9 @@ provides every tool in this table at the version CI uses — install Nix, enter
 the shell, and nothing else is a question. The table says what the shell
 carries and what each tool is for. It is a list to install by hand in one case
 only: bare Windows, where Nix does not run, and a developer who wants to work
-there installs these tools themselves, at these versions, as CI's Windows jobs
-do.
+there installs these tools themselves. The table's `latest` is the floor; the
+exact versions, the ones CI's Windows jobs install, are the pins in
+[`fjs/ci/config/module.f.js`](./fjs/ci/config/module.f.js).
 
 | Tool    | Version              | Required for                                                     |
 | ------- | -------------------- | ---------------------------------------------------------------- |
@@ -67,12 +68,13 @@ latest, which is not the compiler CI runs.
 ### The Nix shell
 
 `gen.nix/` is a development environment carrying every tool in that table at
-the versions CI uses. It is not a convenience built alongside CI: every job but
-three runs its commands inside this very shell, so what passes here is what
-passes there. The three are the Node 22 and Node 24 compatibility jobs, each on
-a flake of its own, and the Windows platform jobs, which run without Nix — so a
-change that leans on Node 26 passes the shell and still fails CI. Every
-developer and every agent works inside the shell.
+the versions CI uses. It is not a convenience built alongside CI: every job runs
+its commands inside this very shell, so what passes here is what passes there,
+except the Node 22 and Node 24 compatibility jobs, each on a flake of its own,
+the two Windows platform jobs, which run without Nix, and the publishing
+workflow, which runs on the Node `setup-node` installs — so a change that leans
+on Node 26 passes the shell and still fails CI. Every developer and every agent
+works inside the shell.
 
 ```bash
 ./dev.sh                   # an interactive shell
@@ -91,8 +93,9 @@ a Debian image with Nix, runs `npm ci` in the shell, and opens every VS Code
 terminal inside it, for VS Code, Codespaces and any other devcontainer host — or
 works in WSL2 with Nix installed there. The shell is the same either way; only
 the devcontainer enters it for you, so on macOS, Linux and WSL2 run `./dev.sh`
-yourself or set your own terminal profile to it. Bare Windows, outside both, means installing
-the [Requirements](#requirements) table by hand, as CI's Windows jobs do.
+yourself or set your own terminal profile to it. Bare Windows, outside both,
+means installing the [Requirements](#requirements) table by hand at the
+versions `fjs/ci/config/module.f.js` pins, as CI's Windows jobs do.
 
 One build runs outside it: Cloudflare's Workers Builds generates the website on
 its own image and reads its Node version from `.node-version`, which is why that

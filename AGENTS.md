@@ -126,11 +126,12 @@ pull requests, and a question at every step: [SESSION.md](./doc/SESSION.md).
 Install [Nix](https://nixos.org/download/) and work inside the repository's
 shell. `gen.nix/` is a flake carrying every tool the project builds and tests
 with — Node, TypeScript, Rust with its WASM targets, Deno, Bun, the WASM
-runtimes — at the versions CI uses. Every CI job but three runs inside this very
-shell, so what passes in it is what passes there; the exceptions are the Node 22
-and Node 24 compatibility jobs, each on a flake of its own, and the Windows
-platform jobs, which run without Nix. Do not install those tools by hand or
-pick their versions; the shell is the one environment.
+runtimes — at the versions CI uses. Every CI job runs inside this very shell, so
+what passes in it is what passes there, except the Node 22 and Node 24
+compatibility jobs, each on a flake of its own, the two Windows platform jobs,
+which run without Nix, and the publishing workflow, which runs on the Node
+`setup-node` installs. Do not install those tools by hand or pick their
+versions; the shell is the one environment.
 
 ```bash
 ./dev.sh                      # an interactive shell
@@ -144,9 +145,10 @@ Windows: open the repository in VS Code's devcontainer —
 with Nix and runs `npm ci` in the shell — or work in WSL2 with Nix installed
 there. The shell is the same either way. Bare Windows, outside both, is on your
 own: install the tools [CONTRIBUTING.md](./CONTRIBUTING.md#requirements)'s table
-names yourself, at the versions it pins, as CI's Windows jobs do. A Claude Code
-cloud session enters the shell before its first command, from
-[`.claude/hooks/session-start.sh`](./.claude/hooks/session-start.sh).
+names yourself, at the exact versions `fjs/ci/config/module.f.js` pins, which
+are what CI's Windows jobs install. A Claude Code cloud session runs `npm ci` in
+the shell and puts the shell's tools on its `PATH` before its first command,
+from [`.claude/hooks/session-start.sh`](./.claude/hooks/session-start.sh).
 
 Inside the shell, `npm ci` installs Node dependencies and `cargo fetch` the
 Rust ones. `npm test` runs `tsc` plus the FunctionalScript suite; `fjs test`

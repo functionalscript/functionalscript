@@ -1,9 +1,9 @@
 # Nix environments
 
 One reproducible toolchain, shared by developers and CI, so that what passes on
-your machine is what passes on the runners — every runner but the Node 22 and
-Node 24 compatibility jobs, on a flake each, and the Windows platform jobs, which
-run without Nix.
+your machine is what passes on the runners — except the Node 22 and Node 24
+compatibility jobs, on a flake each, the two Windows platform jobs, which run
+without Nix, and the publishing workflow, on the Node `setup-node` installs.
 
 [`dev.sh`](../../../dev.sh) opens the shell, or runs the one command given to
 it; [`gen.nix/run`](../../../gen.nix/run) is the generated form of the latter,
@@ -12,8 +12,8 @@ and is what a CI step runs, through `sh`.
 Everything the project builds and tests with lives in the shell
 [`gen.nix/flake.nix`](../../../gen.nix/flake.nix) defines — the runtimes, the compilers, the WASM
 tooling. It is not a convenience assembled alongside CI: every CI job but the
-three named above runs its commands inside this very shell, so it cannot drift
-from them.
+exceptions named above runs its commands inside this very shell, so it cannot
+drift from them.
 
 Two jobs need something this shell deliberately cannot provide: an older `node`,
 for the commands that resolve their runtime from `PATH`. Those get a

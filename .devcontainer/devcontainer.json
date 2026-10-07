@@ -2,9 +2,7 @@
     "name": "FunctionalScript",
     "image": "mcr.microsoft.com/devcontainers/base:debian",
     "features": {
-        "ghcr.io/devcontainers/features/nix:1": {
-            "multiUser": false
-        }
+        "ghcr.io/devcontainers/features/nix:1": {}
     },
     "postCreateCommand": "sh ./dev.sh npm ci",
     "customizations": {
