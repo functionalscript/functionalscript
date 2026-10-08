@@ -221,8 +221,8 @@ export const proof = {
             assert(e[0] === 'ioError', e)
             assertEq(e[1].code, undefined, e)
         },
-        // The message is the field's, not the prototype's: a value carrying a
-        // string `message` gives it, whether or not it is an `Error`.
+        // The message comes from a `message` property that resolves to a
+        // string, own or inherited, whether or not the value is an `Error`.
         messageField: () => {
             const e = toIoError({ message: 'field', code: 'EIO' })
             assert(e[0] === 'ioError', e)
