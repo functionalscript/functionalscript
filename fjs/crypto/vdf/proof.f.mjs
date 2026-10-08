@@ -67,15 +67,15 @@ export const proof = {
             assertEq(hexOfY(1n), '1'.padStart(p.toString(16).length, '0'))
         },
         input: () => {
-            const evaluated = settle(click({ ...demo.init, steps: '4' }, 'evaluate'))
-            assert(evaluated.y !== '', evaluated)
+            const evaluated = { ...settle(click({ ...demo.init, steps: '4' }, 'evaluate')), claimed: '1', verdict: /** @type {const} */ ('rejected') }
             const text = next(evaluated, { kind: 'input', name: 'text', value: 'a' })
-            assertEq([text.text, text.steps, text.y, text.run].join(), 'a,4,,')
+            assertEq([text.text, text.steps, text.claimed, text.run, text.verdict].join(), 'a,4,1,,')
             const steps = next(evaluated, { kind: 'input', name: 'steps', value: '5' })
-            assertEq([steps.text, steps.steps, steps.y, steps.run].join(), `${demo.init.text},5,,`)
-            const y = next(evaluated, { kind: 'input', name: 'y', value: '1' })
-            assertEq(y.y, '1')
-            assertEq(y.run, evaluated.run)
+            assertEq([steps.text, steps.steps, steps.claimed, steps.run, steps.verdict].join(), `${demo.init.text},5,1,,`)
+            const claimed = next(evaluated, { kind: 'input', name: 'claimed', value: '2' })
+            assertEq(claimed.claimed, '2')
+            assertEq(claimed.verdict, null)
+            assertEq(claimed.run, evaluated.run)
             assertEq(next(evaluated, { kind: 'input', name: 'other', value: '1' }), evaluated)
             assertEq(next(evaluated, { kind: 'start' }), evaluated)
             assertEq(click(evaluated, 'other'), evaluated)
@@ -83,6 +83,7 @@ export const proof = {
             assertEq(click(demo.init, 'evaluate-next'), demo.init)
             const invalid = { ...demo.init, steps: 'x' }
             assertEq(click(invalid, 'evaluate'), invalid)
+            assertEq(click({ ...invalid, claimed: '1' }, 'verify').verdict, null)
             assert(htmlToString(demo.view(invalid)).includes('Enter a non-negative decimal number of steps.'), invalid)
         },
         evaluate: () => {
@@ -91,18 +92,21 @@ export const proof = {
             const initial = htmlToString(demo.view(demo.init))
             assert(initial.includes(`<pre>${helloX.toString(16)}</pre>`), initial)
             assert(initial.includes('Input x = SHA-256 of the text, hex:'), initial)
-            assert(initial.includes('Output y, hex'), initial)
-            assert(!initial.includes('OpenSSL'), initial)
+            assert(initial.includes('<h3>Evaluate</h3>'), initial)
+            assert(initial.includes('<h3>Verify</h3>'), initial)
+            assert(initial.includes('<textarea id="claimed" name="claimed" rows="6"></textarea>'), initial)
             assert(initial.includes('>Evaluate</button>'), initial)
+            assert(!initial.includes('Result y'), initial)
+            assert(!initial.includes('OpenSSL'), initial)
             const started = click({ ...demo.init, steps: '25' }, 'evaluate')
             assertEq(started.run?.done, 10n)
             assertEq(started.run?.running, true)
-            assertEq(started.y, '')
             const scheduled = assertNotNullish(schedule(started))
             assertEq(scheduled.kind === 'click' ? scheduled.name : '', 'evaluate-next')
             const running = htmlToString(demo.view(started))
             assert(running.includes('Evaluating: step 10 of 25.'), running)
             assert(running.includes('>Stop</button>'), running)
+            assert(!running.includes('Result y'), running)
             const stopped = click(started, 'evaluate')
             assertEq(stopped.run?.running, false)
             assertEq(schedule(stopped), null)
@@ -112,11 +116,13 @@ export const proof = {
             const done = settle(click(stopped, 'evaluate'))
             assertEq(done.run?.done, 25n)
             assertEq(done.run?.running, false)
-            assertEq(done.y, hexOfY(assertNotNullish(evalVdf(25n)(helloX))))
+            assertEq(done.run?.value, evalVdf(25n)(helloX))
+            assertEq(done.claimed, '')
             const finished = htmlToString(demo.view(done))
             assert(finished.includes('Evaluated 25 sequential square roots.'), finished)
             assert(finished.includes('>Evaluate</button>'), finished)
-            assert(finished.includes('✓ y verifies'), finished)
+            assert(finished.includes(`Result y, hex:</p><div data-code="" data-code-block=""><pre>${hexOfY(assertNotNullish(done.run).value)}</pre>`), finished)
+            assert(!finished.includes('data-result'), finished)
             const restarted = click(done, 'evaluate')
             assertEq(restarted.run?.done, 10n)
             assertEq(restarted.run?.running, true)
@@ -124,21 +130,36 @@ export const proof = {
         },
         zeroSteps: () => {
             const done = click({ ...demo.init, steps: '0' }, 'evaluate')
-            assertEq(done.y, hexOfY(helloX))
+            assertEq(done.run?.value, helloX)
             assertEq(done.run?.running, false)
         },
         verify: () => {
             const done = settle(click({ ...demo.init, steps: '4' }, 'evaluate'))
-            /** @type {(y: string) => string} */
-            const viewY = y => htmlToString(demo.view({ ...done, y }))
-            assert(viewY(done.y).includes('data-result="ok"'), done.y)
-            const tampered = `${done.y.slice(0, -1)}${done.y.endsWith('0') ? '1' : '0'}`
-            assert(viewY(tampered).includes('✗ y does not verify'), tampered)
-            assert(viewY('xyz').includes('Enter y as hexadecimal digits.'), 'xyz')
-            assert(viewY(p.toString(16)).includes('y must be less than the modulus p.'), 'p')
-            assert(!viewY('').includes('data-result'), '')
-            const noSteps = htmlToString(demo.view({ ...done, steps: '' }))
-            assert(!noSteps.includes('✓') && !noSteps.includes('✗'), noSteps)
+            const y = hexOfY(assertNotNullish(done.run).value)
+            /** @type {(claimed: string) => typeof demo.init} */
+            const verified = claimed => click(next(done, { kind: 'input', name: 'claimed', value: claimed }), 'verify')
+            /** @type {(claimed: string) => string} */
+            const viewOf = claimed => htmlToString(demo.view(verified(claimed)))
+            assertEq(verified(y).verdict, 'verified')
+            assert(viewOf(y).includes('✓ y verifies: squaring it 4 times returns x, up to sign.'), y)
+            const tampered = `${y.slice(0, -1)}${y.endsWith('0') ? '1' : '0'}`
+            assertEq(verified(tampered).verdict, 'rejected')
+            assert(viewOf(tampered).includes('✗ y does not verify'), tampered)
+            assertEq(verified('xyz').verdict, 'notHex')
+            assert(viewOf('xyz').includes('Enter y as hexadecimal digits.'), 'xyz')
+            assertEq(verified('').verdict, 'notHex')
+            assertEq(verified(p.toString(16)).verdict, 'notBelowP')
+            assert(viewOf(p.toString(16)).includes('y must be less than the modulus p.'), 'p')
+            // Verify needs no evaluation: a pasted y is checked against x and steps alone.
+            assertEq(click({ ...demo.init, steps: '4', claimed: y }, 'verify').verdict, 'verified')
+        },
+        wait: () => {
+            const wait = assertNotNullish(demo.wait)
+            assertEq(wait(demo.init), null)
+            assertEq(wait({ ...demo.init, steps: 'x' }), null)
+            assertEq(wait({ ...demo.init, steps: '499999' }), null)
+            assertEq(wait({ ...demo.init, steps: '1000000' }), 'verifying 1000000 steps takes about 2 s')
+            assertEq(wait({ ...demo.init, steps: '60000000' }), 'verifying 60000000 steps takes about 2 min')
         },
     },
     p: {

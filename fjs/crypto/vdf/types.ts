@@ -31,12 +31,21 @@ export type DemoRun = {
 }
 
 /**
- * State of the interactive VDF demo. `y` is the editable hex output; editing
- * the text or steps clears both it and the run.
+ * What pressing Verify found for the claimed `y`: it verifies, it does not,
+ * it is not hexadecimal, or it is not below `p`.
+ */
+export type DemoVerdict = 'verified' | 'rejected' | 'notHex' | 'notBelowP'
+
+/**
+ * State of the interactive VDF demo. `run` holds the prover's evaluation and
+ * `claimed` the verifier's hex input; `verdict` is what Verify found for them.
+ * Editing the text or steps clears the run and the verdict, and editing the
+ * claimed `y` clears the verdict, so no verdict outlives its inputs.
  */
 export type DemoState = {
     readonly text: string
     readonly steps: string
-    readonly y: string
+    readonly claimed: string
     readonly run: DemoRun | null
+    readonly verdict: DemoVerdict | null
 }
