@@ -16,6 +16,7 @@ import {
 } from '../../effects/node/virtual/module.f.mjs'
 import { data } from '../module.f.mjs'
 import { directory, generate } from '../rust/module.f.mjs'
+import { generate as generateCommands, path as commandsPath } from '../commands/module.f.mjs'
 import { generate as generateMethods, path as methodsPath } from '../methods/module.f.mjs'
 import { generate as generateValues, path as valuesPath } from '../values/module.f.mjs'
 import { generateRustTests, main } from './module.f.mjs'
@@ -41,6 +42,8 @@ export const proof = {
         assertEq(tableResult, generateMethods())
         const [, valuesResult] = virtual(state)(readUtf8File(valuesPath))
         assertEq(assertOk(valuesResult), generateValues())
+        const [, commandsResult] = virtual(state)(readUtf8File(commandsPath))
+        assertEq(assertOk(commandsResult), generateCommands())
     },
     main: () => {
         const [, result] = virtual(emptyState)(main(defaultNodeProgramOptions))

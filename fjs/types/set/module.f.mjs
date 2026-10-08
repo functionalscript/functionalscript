@@ -24,8 +24,20 @@
  * @import { PersistentSet } from './types.ts'
  */
 
+import { runs, step } from '../../common/monoid/module.f.mjs'
+import { flatMap, map, someBy, toArray } from '../list/module.f.mjs'
+import { sum } from '../number/module.f.mjs'
+
 /** The set with nothing in it. @type {PersistentSet<never>} */
-export const empty = []
+export const empty = null
+
+/**
+ * Pushes a run onto the stack, every run of the same size on the way merged
+ * into it by the union of two disjoint `Set`s.
+ *
+ * @type {<T>(run: ReadonlySet<T>) => (set: PersistentSet<T>) => PersistentSet<T>}
+ */
+const carry = step(a => b => new Set([...a, ...b]))
 
 export const has =
     /**
@@ -35,31 +47,19 @@ export const has =
      * @param {T} value
      * @returns {(set: PersistentSet<T>) => boolean}
      */
-    value => set => set.some(entry => entry !== null && entry.has(value))
+    value => set => someBy((/** @type {ReadonlySet<T>} */ run) => run.has(value))(runs(set))
 
 export const add =
     /**
      * The set with the value in it: the same set where it already was, and
-     * otherwise the value carried into the first empty entry, every full
-     * entry on the way merged into what is carried.
+     * otherwise the value pushed onto the run stack as a one-element `Set`,
+     * carried like a binary counter.
      *
      * @template T
      * @param {T} value
      * @returns {(set: PersistentSet<T>) => PersistentSet<T>}
      */
-    value => set => {
-        if (has(value)(set)) { return set }
-        /** @type {ReadonlySet<T>} */
-        let carry = new Set([value])
-        let i = 0
-        while (i < set.length) {
-            const entry = set[i]
-            if (entry === null) { break }
-            carry = new Set([...entry, ...carry])
-            i += 1
-        }
-        return [...set.slice(0, i).map(() => null), carry, ...set.slice(i + 1)]
-    }
+    value => set => has(value)(set) ? set : carry(new Set([value]))(set)
 
 export const size =
     /**
@@ -69,7 +69,7 @@ export const size =
      * @param {PersistentSet<T>} set
      * @returns {number}
      */
-    set => set.reduce((n, entry) => n + (entry === null ? 0 : entry.size), 0)
+    set => sum(map((/** @type {ReadonlySet<T>} */ run) => run.size)(runs(set)))
 
 export const values =
     /**
@@ -79,4 +79,4 @@ export const values =
      * @param {PersistentSet<T>} set
      * @returns {readonly T[]}
      */
-    set => set.flatMap(entry => entry === null ? [] : [...entry])
+    set => toArray(flatMap((/** @type {ReadonlySet<T>} */ run) => [...run])(runs(set)))

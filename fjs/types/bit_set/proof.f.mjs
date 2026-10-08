@@ -52,6 +52,7 @@ export const proof = {
             size: () => bitSet(numberOps)(31),
             member: () => numberOps.one(31),
             negative: () => n.one(-1),
+            negativeZero: () => n.one(-0),
             fraction: () => n.has(1.5)(n.universe),
             outside: () => n.one(8),
         },
@@ -85,6 +86,7 @@ export const proof = {
             // A carrier that checks nothing: the factory refuses the size itself.
             uncheckedSize: () => bitSet({ ...bigintOps, mask: len => (1n << BigInt(len)) - 1n })(-1),
             negative: () => b.one(-1),
+            negativeZero: () => b.one(-0),
             fraction: () => b.has(1.5)(b.universe),
             one: () => b.one(200),
             set: () => b.set(200)(b.empty),
