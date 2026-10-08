@@ -15,7 +15,7 @@
 import { resultStep } from '../effects/module.f.mjs'
 import { access, exitStep, mkdir, writeUtf8File } from '../effects/node/module.f.mjs'
 import { step as ioStep } from '../effects/module.f.mjs'
-import { functionalscript, images, node } from './config/module.f.js'
+import { functionalscript, images, jobTimeout, node } from './config/module.f.js'
 import {
     architecture,
     os,
@@ -226,6 +226,7 @@ const job = (rust, nodeExtra, mergeQueueOnly) => o => a => {
     return [id, {
         'runs-on': image,
         ...(mergeQueueOnly ? { if: mergeQueue } : {}),
+        'timeout-minutes': jobTimeout,
         steps: toSteps(result),
     }]
 }
