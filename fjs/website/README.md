@@ -16,6 +16,12 @@ it does it that way, is in its own JSDoc.
 the directory it describes, and `.gitignore` keeps `index.html` and the
 `_`-prefixed files out of the tree.
 
+The one build that does not run in the repository's Nix shell is this one.
+Cloudflare's Workers Builds generates the site on its own image and takes
+its Node version from [`.node-version`](../../.node-version) at the repository
+root — the file exists for that reader alone, and nothing else in the
+repository consults it.
+
 **That is what lets a page load any repository file by its path at run time.**
 A page's proofs are the real `.f.mjs` modules under it, imported by the browser
 from where they actually live; the source and documentation views planned in

@@ -26,8 +26,8 @@ export const proof = {
             'aarch64-darwin',
             'x86_64-darwin',
         ])
-        // The runner CI has is among them, since every job but two enters this
-        // shell from it.
+        // The runner CI has is among them, since every job but the Node 22,
+        // Node 24 and two Windows jobs enters this shell from it.
         assert(devSystems.includes(nixSystem), nixSystem)
         assert(devNixJob.packages.includes('git'), devNixJob.packages.join(' '))
         // A pinned archive for every system, and no others: an entry the flake

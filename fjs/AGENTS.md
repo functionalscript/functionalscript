@@ -23,10 +23,9 @@ difference, that a proof stays `proof.f.mjs`, is in
 
 ### 1.1 Commands
 
-- `tsc` — type-check. The compiler is the environment's, not a dependency of
-  this package: the Nix developer shell provides it, or install the version
-  `fjs/ci/config/module.f.js` pins globally. Not `npx tsc`, which resolves
-  nothing locally and fetches the registry's latest.
+- `tsc` — type-check. The compiler is the Nix developer shell's (`./dev.sh`),
+  not a dependency of this package. Not `npx tsc`, which resolves nothing
+  locally and fetches the registry's latest.
 - `fjs test` (or any equivalent from
   [CONTRIBUTING.md](../CONTRIBUTING.md#ways-to-run-the-functionalscript-test-suite))
   — test FunctionalScript (`.f.mjs`) files.
