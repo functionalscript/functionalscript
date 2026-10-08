@@ -19,6 +19,7 @@ import { assert, todo } from '../../../asserts/module.f.mjs'
 import { isProperPrefix, join, normalize, parse } from '../../../path/module.f.mjs'
 import { resolve as resolveImportPath } from '../../../path/import/module.f.mjs'
 import { utf8ToString } from '../../../text/module.f.mjs'
+import { divUp8 } from '../../../types/bigint/module.f.mjs'
 import { byteLength, bytesIn, empty, isWholeBytes, length, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok, unwrap } from '../../../types/result/module.f.mjs'
 import {
@@ -417,7 +418,11 @@ const readFile = path => readOperation((dir, p) => {
     const resolved = resolveFile(jsModuleUnsupported('readFile'))(dir, p)
     if (resolved[0] === 'error') { return resolved }
     const chunks = resolved[1]
-    const refusal = fileSizeRefusal(path, fileSizeBytes(chunks))
+    // The bytes the chunks occupy, a partial byte counted whole. A fixture may
+    // hold a chunk that is not whole bytes, which `fileSizeBytes` floors, so
+    // asked with it the limit would pass a file `listToVec` then overflows.
+    const bits = chunks.reduce((acc, c) => acc + length(c), 0n)
+    const refusal = fileSizeRefusal(path, Number(divUp8(bits)))
     if (refusal !== null) { return fail(refusal) }
     return ok(msb.listToVec(chunks))
 })(path)

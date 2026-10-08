@@ -837,6 +837,18 @@ export const proof = {
             result[1],
             `File size ${maxLengthBytes + 1n} exceeds maximum allowed size of ${maxLengthBytes} bytes: 'big'`)
     },
+    readFileTooLargeByABit: () => {
+        // A chunk that is not whole bytes counts its partial byte whole: one bit
+        // past the limit is a file `listToVec` cannot build, so it is refused
+        // like any other oversized file rather than thrown at.
+        /** @type {Dir} */
+        const root = { 'big': [vec(maxLengthBytes * 8n)(0n), vec(1n)(1n)] }
+        const [, result] = virtual({ ...emptyState, root })(readFile('big'))
+        assert(result[0] === 'error')
+        assertIoMessage(
+            result[1],
+            `File size ${maxLengthBytes + 1n} exceeds maximum allowed size of ${maxLengthBytes} bytes: 'big'`)
+    },
     readFileTooLargeNested: () => {
         // The path the caller asked for, not the entry `operation`'s descent
         // left behind: told only `'big'`, a caller cannot tell which of several

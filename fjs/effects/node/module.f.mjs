@@ -694,8 +694,8 @@ export const windowRefusal = (offset, size) => {
  *
  * **It is here for the reason {@link windowRefusal} is**: both runners implement
  * `readFile`, and a limit or a message spelled in each is one they come to
- * disagree about. Each asks it with the size its own `stat` reports, before it
- * reads a byte, and the message names the size and the path the caller asked for
+ * disagree about. Each asks it with the bytes the file occupies before it reads
+ * one, and the message names the size and the path the caller asked for
  * — `ReadFile` in [`./types.ts`](./types.ts) states that the failure names the
  * file.
  *
