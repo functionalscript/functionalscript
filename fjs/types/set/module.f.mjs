@@ -32,12 +32,12 @@ import { sum } from '../number/module.f.mjs'
 export const empty = null
 
 /**
- * The union of two disjoint `Set`s: the merge that carries one run into the
- * next.
+ * Pushes a run onto the stack, every run of the same size on the way merged
+ * into it by the union of two disjoint `Set`s.
  *
- * @type {<T>(a: ReadonlySet<T>) => (b: ReadonlySet<T>) => ReadonlySet<T>}
+ * @type {<T>(run: ReadonlySet<T>) => (set: PersistentSet<T>) => PersistentSet<T>}
  */
-const union = a => b => new Set([...a, ...b])
+const carry = step(a => b => new Set([...a, ...b]))
 
 export const has =
     /**
@@ -59,7 +59,7 @@ export const add =
      * @param {T} value
      * @returns {(set: PersistentSet<T>) => PersistentSet<T>}
      */
-    value => set => has(value)(set) ? set : step(union)(new Set([value]))(set)
+    value => set => has(value)(set) ? set : carry(new Set([value]))(set)
 
 export const size =
     /**
