@@ -896,19 +896,22 @@ const lazyArguments = (s, path) => args => mapOk(wrap('(')(')'))(okList(args.map
  * — a property's key, judged as a method call's where a call follows it,
  * a call's arguments, a guarded call's behind `?.`, and the escaping call
  * around the whole text, `(a?.b)(c)`, since the group is what put it
- * outside the region. The arguments are lazy from the first guard on: a
- * `.` node's own call, `a.b(c)`, is the one eager step, and the only step
- * such a node takes.
+ * outside the region. The arguments are lazy from the first guard on, the
+ * guard's own included — `a.b?.(c)` establishes `c` only where `b` is not
+ * nullish: a `.` node's own call, `a.b(c)`, is the one eager step, and the
+ * only step such a node takes.
  *
  * @type {(s: _Scope, path: string, i: number, lazy: boolean) => (text: List<string>) => (step: Step | undefined) => Document}
  */
 const chainSteps = (s, path, i, lazy) => text => step => {
     if (step === undefined) { return ok(text) }
     const [tag, x, next] = step
+    // a guarded call's own arguments are inside the region it opens
+    const guarded = lazy || tag === '|?.()'
     /** @type {(part: List<string>) => Document} */
-    const rest = part => chainSteps(s, path, i + 1, lazy || tag === '|?.()')(flat([text, part]))(next)
+    const rest = part => chainSteps(s, path, i + 1, guarded)(flat([text, part]))(next)
     if (tag === '|.') { return okThen(rest)(key(isCallStep(next))(x)) }
-    const args = (lazy ? lazyArguments : callArguments)(s, `${path}/step${i}`)(x)
+    const args = (guarded ? lazyArguments : callArguments)(s, `${path}/step${i}`)(x)
     if (tag === '|()') { return okThen(rest)(args) }
     if (tag === '|?.()') { return okThen(rest)(mapOk(/** @type {(a: List<string>) => List<string>} */ (a => flat([['?.'], a])))(args)) }
     return mapOk(/** @type {(a: List<string>) => List<string>} */ (a => flat([['('], text, [')'], a])))(args)
