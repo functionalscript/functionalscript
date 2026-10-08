@@ -170,7 +170,7 @@ language step can be picked for what it unblocks:
 | `new` with a built-in constructor | nothing proposes it | structurally_same, keywords, map, set, demo/examples, ci/package |
 | A runtime key, `a[i]` | the spec says "not recognized yet"; no `todo/` | structurally_same, function/operator, set, git/bytes, browser-source, git/config |
 | `for … of` | nothing proposes it | result |
-| `instanceof` | nothing proposes it | structurally_same |
+| `instanceof` | [`spec/todo/2342-instanceof.md`](../spec/todo/2342-instanceof.md), `Array` on the right only | structurally_same |
 | A non-terminating `if`, `break` | roadmap §3.2, the guard's follow-ups; `break` is `while`'s | set, git/config, browser-source |
 | String escapes `\u{…}`, `\v`, `\f`, `\0` | [`spec/todo/2460-js-string-literals.md`](../spec/todo/2460-js-string-literals.md) | nanvm/member, demo/code, git/config |
 | `switch`, a default parameter | neither proposed; the parameter is roadmap §3.1 | ts |

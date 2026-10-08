@@ -67,6 +67,8 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
 
 1. [ ] [property-accessor](./2330-property-accessor.md),
 2. [ ] [operators](./2340-operators.md),
+   and [`instanceof Array`](./2342-instanceof.md), the one `instanceof` the
+   repository writes, with the right operand fixed to that word,
 3. [ ] [enumerable presence](./2345-has-own-property.md) — prohibit
    `Object.hasOwn`; propose a separate `hasEntity` AST pattern,
 4. [ ] [built-in](./2360-built-in.md),
