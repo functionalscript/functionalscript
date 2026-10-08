@@ -285,6 +285,12 @@ const handlers = {
     '||': o2,
     '??': o2,
     '?:': o3,
+    // One operand and a constructor name: the name is metadata, carried
+    // across as `arg`'s index is, never walked.
+    instanceof: scope => (state, [tag, a, c]) => {
+        const [t, x] = walk(scope)(state, a)
+        return [t, [tag, x, c]]
+    },
     // The slots are walked in the enclosing scope; the body is the scope
     // this node opens, so its entries name this node as their scope and
     // come before it, as operands come before the node that holds them.
@@ -379,6 +385,9 @@ export const operandsOf = node => {
             const [, a, b, k] = node
             return [a, ...b.map(itemOperand), ...stepOperands(k)]
         }
+        // the constructor name is metadata, not an operand — and a string,
+        // which the default arm below would list as a literal operand
+        case 'instanceof': { return [node[1]] }
         default: {
             const [, ...operands] = node
             return operands

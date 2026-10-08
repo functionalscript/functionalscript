@@ -13,6 +13,7 @@ import { sha1 } from '../../../crypto/sha1/module.f.mjs'
 import { uint } from '../../../types/bit_vec/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'
 import { codeBlock, tryShellQuote } from '../code/module.f.mjs'
+import { caption } from '../module.f.mjs'
 
 /** Format a hash's bits as hex, preserving its complete width.
  * @type {(hash: { readonly hashLength: bigint }) => (bits: Vec) => string}
@@ -43,7 +44,7 @@ export const opensslVerification = (args, command) => {
     return quoted.length !== args.length
         ? [['p', 'OpenSSL command unavailable: POSIX shell arguments cannot contain NUL (U+0000).']]
         : [
-            ['p', 'Verify independently with OpenSSL:'],
+            caption('Verify independently with OpenSSL:'),
             codeBlock(command(quoted), 'Copy OpenSSL command'),
         ]
 }
@@ -54,7 +55,7 @@ export const opensslVerification = (args, command) => {
 export const hashOutput = ({ name, hash, openssl }) => {
     const digest = digestOf(hash)
     return text => [
-        ['p', `${name}, hex:`],
+        caption(`${name}, hex:`),
         codeBlock(digest(text), 'Copy digest'),
         ...opensslVerification([text], ([quoted]) => `printf '%s' ${quoted} | openssl dgst -${openssl}`),
     ]

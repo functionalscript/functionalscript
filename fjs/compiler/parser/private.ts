@@ -209,6 +209,13 @@ export type _NotFrame = { readonly not: true }
 export type _TypeofFrame = { readonly typeof: true }
 
 /**
+ * An `instanceof` whose left operand is being evaluated: its right operand,
+ * checked once the left returns so that a fault in the left is reported
+ * first, and the operator token the refusal is reported at.
+ */
+export type _InstanceOfFrame = { readonly instanceof: Node, readonly at: DjsTokenWithMetadata }
+
+/**
  * A `Number` conversion whose operand is being evaluated: the word, so
  * that the frame is the node's tag and a second conversion joins it rather
  * than adding a frame.
@@ -242,6 +249,7 @@ export type _Frame =
     | _BitnotFrame
     | _NotFrame
     | _TypeofFrame
+    | _InstanceOfFrame
     | _ConversionFrame
     | _BinaryLeftFrame
     | _BinaryRightFrame

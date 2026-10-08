@@ -119,6 +119,47 @@ export const proof = {
             expect('export default !typeof -1;', '[[],[["object",[[":","default",["!",["typeof",["-",1]]]]]]]]')
             // and a key or a property name still, as every keyword is
             expect('export default { typeof: 1 }.typeof;', '[[],[["object",[[":","default",[".",["object",[[":","typeof",1]]],"typeof"]]]]]]')
+            // `instanceof Array` is a relational operator, one level with
+            // `<`, left-associative; its right side is the name, not a
+            // value, and a group around the name vanishes
+            expect('export default [] instanceof Array;', '[[],[["object",[[":","default",["instanceof",["array",[]],"Array"]]]]]]')
+            expect('export default [] instanceof (Array);', '[[],[["object",[[":","default",["instanceof",["array",[]],"Array"]]]]]]')
+            expect('export default !1 instanceof Array;', '[[],[["object",[[":","default",["instanceof",["!",1],"Array"]]]]]]')
+            expect('export default 1 < 2 instanceof Array === true;', '[[],[["object",[[":","default",["===",["instanceof",["<",1,2],"Array"],true]]]]]]')
+            expect('export default [] instanceof Array instanceof Array;', '[[],[["object",[[":","default",["instanceof",["instanceof",["array",[]],"Array"],"Array"]]]]]]')
+            expect('export default 1 | [] instanceof Array;', '[[],[["object",[[":","default",["|",1,["instanceof",["array",[]],"Array"]]]]]]]')
+            expect('export default (...a) => a[0] instanceof Array && a;', '[[],[["object",[[":","default",["=>",0,[["&&",["instanceof",[".",["rest"],0],"Array"],["rest"]]]]]]]]]')
+            // and a key or a property name, as every keyword is
+            expect('export default { instanceof: 1 }.instanceof;', '[[],[["object",[[":","default",[".",["object",[[":","instanceof",1]]],"instanceof"]]]]]]')
+            /**
+             * The right operand is the one reference the language has a
+             * meaning for: any other value is refused at the operator —
+             * an unknown constructor, an access, a literal, a function —
+             * where every spelling of the right side has a token.
+             *
+             * @type {(source: string, column: number) => void}
+             */
+            const refused = (source, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, 'the right operand of instanceof must be Array')
+                assertEq(value.metadata?.column, column)
+            }
+            refused('export default [] instanceof Map;', 19)
+            refused('export default [] instanceof Array.prototype.constructor;', 19)
+            refused('export default [] instanceof [];', 19)
+            refused('export default [] instanceof 1;', 19)
+            refused('export default [] instanceof ((...a) => a);', 19)
+            refused('export default 1 < [] instanceof (Array)[0];', 23)
+            // the left operand is resolved first, as every binary
+            // operator's: with both sides wrong, the left's fault is the
+            // one reported, the first in document order
+            {
+                const [tag, value] = parseFromTokens(tokenizeString('export default missing instanceof Map;'))
+                assert(tag === 'error', tag)
+                assertEq(value.message, 'const not found')
+                assertEq(value.metadata?.column, 16)
+            }
             // strict comparison and bitwise, in JavaScript's own precedence
             expect('export default 1 + 2 < 3 * 4;', '[[],[["object",[[":","default",["<",["+",1,2],["*",3,4]]]]]]]')
             expect('export default 1 <= 2 >= 1;', '[[],[["object",[[":","default",[">=",["<=",1,2],1]]]]]]')

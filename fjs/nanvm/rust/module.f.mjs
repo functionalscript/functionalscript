@@ -145,6 +145,7 @@ export const rustName = {
     '===': 'eq',
     '!==': 'ne',
     typeof: 'typeof_',
+    'instanceof Array': 'instanceof_array',
     throw: 'throw',
     String: 'string_coercion',
     Number: 'number_cast',
