@@ -1,7 +1,7 @@
 ## transitions-and-range-value-map. `addEntry` mixes the walk with the transition build, and three helpers map a range entry's value
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
