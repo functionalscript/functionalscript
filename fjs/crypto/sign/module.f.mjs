@@ -11,7 +11,7 @@
  * @import { Rfc6979, Signer, _Signature } from './types.ts'
  */
 
-import { assertNotNullish } from '../../asserts/module.f.mjs'
+import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
 import { bitLength } from '../../types/bigint/module.f.mjs'
 import { empty, length, msb, repeat, unpack, vec8, wholeBytes } from '../../types/bit_vec/module.f.mjs'
 import { hmac } from '../hmac/module.f.mjs'
@@ -186,8 +186,10 @@ export const sign = c => hf => x => m => {
     // TODO: implement the loop. `computeK` should either
     // - accept a state (current `k`).
     // - accept a `is_valid` function.
+    // Until then, a zero `r` or `s` is refused rather than returned.
     const rxy = assertNotNullish(mul(k)(g), 'rxy === null')
-    const [r] = rxy
+    const r = rxy[0] % rfc6979.q
+    assert(r !== 0n, 'r === 0')
     // 4.  The value s (modulo q) is computed:
     //
     //        s = (h+x*r)/k mod q
@@ -197,6 +199,7 @@ export const sign = c => hf => x => m => {
     //     a common way is to use a DER-encoded ASN.1 structure (a SEQUENCE
     //     of two INTEGERs, for r and s, in that order).
     const s = div(h + x*r)(k)
+    assert(s !== 0n, 's === 0')
     return [r, s]
 }
 

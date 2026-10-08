@@ -8,13 +8,20 @@
 import { utf8 } from '../../text/module.f.mjs'
 import { empty, msb, repeat, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
 import { hmac } from '../hmac/module.f.mjs'
-import { secp192r1, secp256k1, secp256r1, secp384r1, secp521r1 } from '../secp/module.f.mjs'
+import { curve, secp192r1, secp256k1, secp256r1, secp384r1, secp521r1 } from '../secp/module.f.mjs'
 import { computeSync, sha224, sha256, sha384, sha512 } from '../sha2/module.f.mjs'
 import { all, computeK, fromCurve, sign, verify } from './module.f.mjs'
 import { assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 
 const sample = utf8("sample")
 const test = utf8("test")
+
+// Toy curves of order 5 over a field of 7, where `R.x` can reach `q` and
+// beyond: the cases a 256-bit curve hits with probability about 2^-128.
+// `y^2 = x^3 + x + 4`, whose points have `x` of 4 or 6.
+const toy4 = curve({ p: 7n, c: [4n, 1n], g: [4n, 3n], n: 5n })
+// `y^2 = x^3 + x + 1`, with a point at `x = 0`.
+const toy1 = curve({ p: 7n, c: [1n, 1n], g: [0n, 1n], n: 5n })
 
 const { concat, listToVec } = msb
 
@@ -645,5 +652,19 @@ export const proof = {
         // `(h/s)G + (r/s)U` is the point at infinity when `h + x*r = 0 mod q`:
         // with `r = 1`, the key `x = -h` gets there for any `s`.
         assertEq(v(c.mul(neg(h))(g))(sample)([1n, 1n]), false)
+    },
+    signModQ: () => {
+        // `R = 2G = (6, 4)`, so `R.x = 6 >= q`: `r` is `6 mod 5 = 1`, and
+        // `verify` accepts it.
+        const sig = sign(toy4)(sha256)(1n)(utf8("2"))
+        assertEq(sig[0], 1n)
+        assertEq(sig[1], 1n)
+        assertEq(verify(toy4)(sha256)(toy4.g)(utf8("2"))(sig), true)
+    },
+    throw: {
+        // `R = G = (0, 1)`, so `r = 0`.
+        signRZero: () => sign(toy1)(sha256)(1n)(utf8("0")),
+        // `h + x*r = 0 mod q`, so `s = 0`.
+        signSZero: () => sign(toy4)(sha256)(1n)(utf8("14")),
     },
 }

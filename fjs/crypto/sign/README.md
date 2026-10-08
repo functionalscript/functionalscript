@@ -97,9 +97,12 @@ We use elliptic curves for digital signatures.
 
 `R = G * k`.
 
-`r = R.x`.
+`r = R.x mod q`.
 
-`s = ((z + r * d) / k)`.
+`s = ((z + r * d) / k) mod q`.
+
+If `r` or `s` is `0`, the signature is invalid and `k` must be selected again;
+`sign` does not select again yet, and refuses instead.
 
 The signature is `(r, s)`.
 
