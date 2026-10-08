@@ -29,15 +29,15 @@ expansion, not the call that was written.
 
 ### Tasks
 
-- [ ] Choose the representation, and record it where the spec describes the
-      conversion.
+- [ ] Choose the representation, and record it in the spec's
+      [number conversion](../README.md#number-conversion).
 - [ ] Admit every argument list holding a spread, with proofs against
       JavaScript for a spread yielding no value, one and several — the empty
       spread answering `0`.
 
 ### Related
 
-- [number-call](./2362-number-call.md) — the conversion, which refuses this
-  shape by name.
+- [number conversion](../README.md#number-conversion) — the conversion,
+  which refuses this shape by name.
 - [operators](./2340-operators.md) — `Number(a, b)`, which lands with the
   comma.

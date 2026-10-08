@@ -20,10 +20,12 @@ no later than this file admits any of it, a name at a time
 
 A ticked box below marks a name the language is to admit, not one it admits
 today. Only `Infinity`, `NaN` and `undefined` are implemented, as reserved
-words ([numbers](../README.md#numbers)); every other global is refused as an
-unbound name (`const not found`), so `export default isFinite(1);` does not
-compile yet. An unticked box is a name not yet decided, or, where it says
-so, never admitted.
+words ([numbers](../README.md#numbers)), and `Number`, as the conversion
+`Number(exp)` alone, the word reserved
+([number conversion](../README.md#number-conversion)); every other global is
+refused as an unbound name (`const not found`), so
+`export default isFinite(1);` does not compile yet. An unticked box is a
+name not yet decided, or, where it says so, never admitted.
 
 ### Value Properties
 
@@ -55,16 +57,22 @@ so, never admitted.
 ### Number and Math
 
 - [x] `Number` — the call `Number(exp)` alone, the conversion
-      ([number-call](./2362-number-call.md)); the namespace's members stay
-      unticked, each an admission of its own, and the modules that read
-      one are rewritten when it is admitted
+      ([number conversion](../README.md#number-conversion)); the
+      namespace's members stay unticked, each an admission of its own.
+      About thirty `.f.mjs` modules read one — `Number.isInteger`,
+      `Number.isSafeInteger`, `Number.MAX_SAFE_INTEGER`, `Number.isNaN`,
+      and `const { isFinite } = Number` in the three
+      [global-names](./2365-global-names.md) names — and each is rewritten
+      when its member is admitted; none is a `.f.js`, the files the
+      compiler holds to the reserved word today
 - [ ] `BigInt`
 - [ ] `Math`
 - [ ] `Date`
 
 ### Text Processing
 
-- [ ] `String`
+- [ ] `String` — `String(exp)` is the same shape over the EDAG's other
+      cast, reserved and spelled as the `Number` conversion is
 - [ ] `RegExp`
 
 ### Indexed Collections
