@@ -1,0 +1,214 @@
+## `Number(exp)`
+
+**Priority:** P2
+**Status:** wip
+**Approval:** `sergey-shandar`, the language designer
+[DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
+names, on [#2666](https://github.com/functionalscript/functionalscript/pull/2666):
+[the change](https://github.com/functionalscript/functionalscript/pull/2666#issuecomment-6053595185)
+and [the design](https://github.com/functionalscript/functionalscript/pull/2666#issuecomment-6054395655).
+
+### Problem
+
+The EDAG has had the conversion since its vocabulary was written:
+`['Number', exp]` is an `op1` in [`fjs/edag`](../../fjs/edag/module.f.mjs),
+and also the one computed `index` a property access takes,
+`['.', a, ['Number', i]]`. Every executor answers it —
+[`fjs/edag/operations`](../../fjs/edag/operations/module.f.mjs) through
+`numericUnary.Number`, the Rust printer as `Any::number`, and the
+[`fjs/nanvm`](../../fjs/nanvm/module.f.mjs) corpus holds a `Number` group
+checked against JavaScript and the Rust VM, bigints past `2^53` included.
+The function-text renderer spells it, so a function holding one converts to
+its text.
+
+The language cannot write it. `Number` is a word nothing binds, so
+`export default Number("12");` is `const not found`, and the FunctionalScript
+writer refuses the node it would never receive (`a Number node`, the
+writer's default arm, and `an access key that is no literal` for the index).
+The conversion is the one the language needs most: unary `+` is not
+FunctionalScript syntax and throws on a `bigint` where `Number` converts
+([operators](./2340-operators.md)), and `a[Number(i)]` is the spelling
+[property-accessor](./2330-property-accessor.md) has planned for an index the
+program knows to be a number since the accessor was first designed —
+[`fjs/js/array_index`](../../fjs/js/array_index/module.f.mjs) is a leaf whose
+rename waits on the `Number` and `String` globals
+([fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md)).
+
+### Proposal
+
+`Number(exp)` is the conversion JavaScript's `Number` performs when called:
+`ToNumeric` on the operand, and a `bigint` result made a number. `Number("0x10")`
+is `16`, `Number(" 4 ")` is `4`, `Number("")` is `0`, `Number(null)` is `0`,
+`Number(undefined)` and `Number("x")` are `NaN`, `Number(true)` is `1`,
+`Number(1n)` is `1` and `Number(2n ** 64n)` rounds as JavaScript rounds it, an
+array joins and converts (`Number([7])` is `7`, `Number([1, 2])` is `NaN`),
+and an object is made primitive as the operators make it — its own `valueOf`
+or `toString` called, `"[object Object]"` otherwise, so `Number({})` is
+`NaN` ([operators](../README.md#operators)). A function converts to its text,
+which is no number. It lowers to the EDAG's `['Number', exp]`, a node like
+`~` and `typeof`: nothing folds, since conversion is the executor's question.
+
+**`Number` is a reserved word**, the first name under
+[global-names](./2365-global-names.md)' rule, reserved here with the
+conversion it admits rather than after the whole list, since that rule's
+order is a name's ([landing a name at a time](./2365-global-names.md#landing-a-name-at-a-time)):
+never bound — not by a `const`,
+a body `const`, a parameter or an import's local name — and never a value.
+It is spelled in one position, as the callee of a call, and refused
+everywhere else: bare (`const n = Number;`, `f(Number)`) and as a namespace
+(`Number.isFinite(x)`, `Number.MAX_VALUE`). A key and a property name are not
+references, so `{ Number: 1 }` and `o.Number` stay what JavaScript has them
+as.
+
+Why reserved outright, rather than the intrinsic wherever no scope binds it,
+which is how the `entry` helper reads `Object`
+([#2661](https://github.com/functionalscript/functionalscript/pull/2661)):
+[DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
+admits a restriction that protects a guarantee, and this one protects two —
+the guarantee the language already keeps for `undefined`, `NaN` and
+`Infinity`, which JavaScript lets a module bind and FunctionalScript does
+not ([numbers](../README.md#numbers)):
+
+- **A global word means one thing wherever it stands.** `Number(x)` is the
+  conversion in every module, so a reader, an agent or a tool reads it
+  without resolving scopes, and a module cannot make it mean anything else.
+  Binding a standard global is the mistake JavaScript's linters flag
+  (ESLint's `no-shadow` with `builtinGlobals`, and `no-shadow-restricted-names`
+  for the literal globals): `const Number = x => x;` makes every
+  `Number(…)` below it read as the conversion and run as something else.
+- **Admitting more of the namespace never changes an existing module.**
+  [global-names](./2365-global-names.md)' own reason: a member admitted
+  later, `Number.isInteger` under [built-in](./2360-built-in.md), would
+  silently change what a module that had bound `Number` means; with no
+  module able to bind the word, every later admission is a pure addition.
+
+What it costs is one JavaScript spelling, the module that rebinds a
+standard global, refused at compile time rather than read another way. A
+module may bind `Number` today, so the rule is a breaking change, declared
+by the pull request that lands it — no `.f.js` in the tree binds the word.
+It also settles the order case: JavaScript refuses
+`const n = Number(5); const Number = 1;` at the first line, in the
+binding's temporal dead zone, and the reserved word refuses it as plainly.
+
+The call's other shapes are JavaScript's, and
+[DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
+keeps a harmless convention unless a restriction buys something concrete,
+which none of them would: `Number()` is `0`, exact, and is read as the
+literal `0`, folded as unary `-` over a literal is. `Number(a, b)` and
+`Number(...a)` are not refused on principle but **not recognized yet**, each
+for want of a representation: `Number(a, b)` establishes `a`, then `b`, then
+converts `a`, which is the comma's `(a, b, Number(a))` — the EDAG has the
+node and the FunctionalScript writer no spelling for it until the comma
+operator lands ([operators](./2340-operators.md)), so admitting it first
+would make a program every output but `.js` writes; `Number(...a)` yields
+every value the spread has and converts the first, or is `0` where it yields
+none, as `Number()` is — `Number(...[])` is `0`, not `NaN` — which no node
+expresses while a call's arity is the callee's to split
+([number-spread](./2363-number-spread.md)). Both are refused by name
+(`Number takes one argument`), never answered with a wrong value, and each
+lands with what it waits on. The namespace's members —
+`Number.isInteger`, `Number.MAX_SAFE_INTEGER` and the rest — are pure and
+wanted, and each is an admission of its own under
+[built-in](./2360-built-in.md), with an EDAG node to design first; this task
+admits the call alone.
+
+The recognition is the fold's, on the syntax tree with its names resolved
+([statement-aware intrinsics](../../fjs/compiler/parser/todo/statement-aware-intrinsics.md)):
+the grammar already reads `Number(x)` as a call of a reference, and the fold
+reads the callee's word before resolving it. The AST carries the conversion
+as it carries `typeof`, a tagged node of one operand; the lowering writes
+the EDAG node; the FunctionalScript writer spells `Number(e)` back, the
+argument a value as any call's is — the one new spelling, since the Rust
+printer and the function-text renderer have theirs. The word is refused by
+the same check that refuses a keyword, `identifierOf`, consulting a list of
+the reserved globals beside `isKeyword` — a list of
+[`fjs/js/keywords`](../../fjs/js/keywords/module.f.mjs)' own, not folded into
+`keywords`, which the JavaScript tokenizer gives token kinds to: `Number` is
+no JavaScript keyword, and must stay an `id` there
+([global-names](./2365-global-names.md), open question 3).
+
+**The index**, `a[Number(i)]`, is the task's last step. The grammar's `index`
+admits a value in brackets; the fold admits a string, a number or the
+conversion and refuses every other expression by name — `a[-1]` and
+`a[i]` today are syntax errors, and become `an index is a constant key or a
+Number(...) conversion`, the same rule said where it applies. The access's key
+is then a string, a number or the conversion node, lowered to
+`['.', a, ['Number', i]]`, with a method call through it,
+`a[Number(i)](x)`, the receiver-preserving chain as any `.` is. The
+prohibited-name check does not reach a converted key: a number's string is
+never a prototype's name. The writer spells `[Number(i)]`, the spelling it
+refuses today for the round trip's sake. Optional chaining is in the
+language ([spec](../README.md#optional-chaining)), so the same step reads
+`a?.[Number(i)]` and a chain's `a?.b[Number(i)]`, the key established only
+where the guard lets the chain go on.
+
+**The modules that read `Number`'s members** are not this task's. About
+thirty `.f.mjs` modules read one — `Number.isInteger`,
+`Number.isSafeInteger`, `Number.MAX_SAFE_INTEGER`, `Number.isNaN`, and
+`const { isFinite } = Number` in the three
+[global-names](./2365-global-names.md) names — and the rule refuses each.
+None is a `.f.js`, the files `npm start compile` holds to the compiler, so
+nothing reaches them today; each is rewritten when its member is admitted
+under [built-in](./2360-built-in.md), since the conversion replaces none of
+them. The three `isFinite` lines are global-names' already, which renames
+them for binding a global's name.
+
+### Open questions
+
+1. Reserved outright, or the intrinsic wherever no scope binds the word, as
+   `Object` is in the `entry` helper? Answered by the language designer:
+   reserved, `Number` being no name a module binds, for the two guarantees
+   above.
+2. `Number()` and `Number(a, b)`: answered by §12, above — `Number()` is
+   `0`, and `Number(a, b)` lands with the comma operator, recorded in
+   [operators](./2340-operators.md). `Number(...a)` has a file of its own,
+   [number-spread](./2363-number-spread.md), so the empty spread's `0`
+   outlives this one.
+3. Answered by the task owner: the index is this task's, and lands in
+   [#2667](https://github.com/functionalscript/functionalscript/pull/2667)
+   with the call.
+4. `String(exp)` is the same shape over the EDAG's other cast, and
+   `fjs/js/array_index` needs both. A follow-up, filed when this task closes,
+   rather than this task's — unless the owner wants the two together.
+
+### Tasks
+
+- [ ] This file; the `Number` row of [built-in](./2360-built-in.md) and
+      the index entry of [the spec's todo list](./README.md).
+- [ ] `Number` a reserved word: the list of reserved globals in
+      `fjs/js/keywords`, consulted by the parser's `identifierOf`; refused as
+      a `const`, a body `const`, a parameter and an import's local name, and
+      as a bare reference; accepted as a key and a property name. A
+      **breaking change**, declared.
+- [ ] The conversion: the fold reads `Number(x)` as the AST's conversion
+      node and `Number()` as `0`, the lowering writes `['Number', exp]`, and
+      the FunctionalScript writer spells it back. Refusals by name for
+      `Number(a, b)`, `Number(...a)` and `Number.x`. Proofs: source to EDAG to both
+      interpreters against JavaScript, the writer's round trip, the Rust
+      output through the existing printer.
+- [ ] [spec](../README.md): a section for the conversion, the word added to
+      the binding rule beside `undefined`, `NaN` and `Infinity`, and the
+      expression list; the compiler demos' shared examples, where an
+      example reads better with it.
+- [ ] The index: the grammar's `index` a value, the fold's refusal by name,
+      the key type widened, `a[Number(i)]` and `a[Number(i)](x)` lowered,
+      the writer's `[Number(i)]`; the property-access section of the spec
+      and [property-accessor](./2330-property-accessor.md) updated; this
+      file deleted.
+
+### Related
+
+- [built-in](./2360-built-in.md) — the `Number` row; the namespace's members
+  stay unticked.
+- [global-names](./2365-global-names.md) — the rule this applies to one
+  name, and its open question 3, the list the fold consults.
+- [number-spread](./2363-number-spread.md) — `Number(...a)`, refused here by
+  name.
+- [property-accessor](./2330-property-accessor.md) — the index form.
+- [operators](./2340-operators.md) — unary `+`, the EDAG operation this one
+  differs from on a `bigint`, and the folding line.
+- [`fjs/edag`](../../fjs/edag/module.f.mjs) — `op1Id` and `index`, the two
+  places the node already stands.
+- [#2661](https://github.com/functionalscript/functionalscript/pull/2661) —
+  the `entry` helper, whose read of `Object` is the other way to hold a
+  global's word, and whose spec text names `a[Number(i)]` as the next step.
