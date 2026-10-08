@@ -135,6 +135,18 @@ export type Access = {
     readonly property: readonly [number, typeof identifierName]
     readonly index: readonly [number, typeof index, number]
     readonly call: readonly [number, Option<Items<Item>>, number]
+    readonly optional: readonly [number, OptionalStep]
+}
+
+/**
+ * What follows `?.`: {@link Access}'s three steps less the `.` a property's
+ * spelling begins with, which the `?.` has — a property by its name alone,
+ * an index and a call as they are.
+ */
+export type OptionalStep = {
+    readonly property: typeof identifierName
+    readonly index: readonly [number, typeof index, number]
+    readonly call: readonly [number, Option<Items<Item>>, number]
 }
 
 /**

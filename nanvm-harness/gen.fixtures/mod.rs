@@ -29,6 +29,7 @@ pub mod number;
 pub mod object;
 pub mod object_spread;
 pub mod operators;
+pub mod optional;
 pub mod parameters;
 pub mod property;
 pub mod recursion;
