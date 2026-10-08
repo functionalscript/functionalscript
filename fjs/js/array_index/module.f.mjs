@@ -10,6 +10,10 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
+import { isUintUpTo } from '../../types/number/module.f.mjs'
+
+const isIndexValue = isUintUpTo(2 ** 32 - 2)
+
 /**
  * The array index a property key names, or `null`: the canonical decimal
  * spelling of an integer in `0 .. 2 ** 32 - 2`
@@ -31,5 +35,5 @@
  */
 export const arrayIndex = key => {
     const i = Number(key)
-    return Number.isInteger(i) && i >= 0 && i < 2 ** 32 - 1 && String(i) === key ? i : null
+    return isIndexValue(i) && String(i) === key ? i : null
 }

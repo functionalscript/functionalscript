@@ -1,4 +1,4 @@
-import { sum, min, max, cmp, countOnes, isByte } from './module.f.mjs'
+import { sum, min, max, cmp, countOnes, isByte, isUintUpTo } from './module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {
@@ -19,6 +19,19 @@ export const proof = {
     max: () => {
         const result = max([1, 2, 12, -4, 8])
         assertEq(result, 12)
+    },
+    // The integers `0..max`, and no other value: not `-0`, not a non-number.
+    isUintUpTo: {
+        bounded: () => {
+            const isDigit = isUintUpTo(9)
+            assert([0, 1, 9].every(isDigit))
+            assert([-1, 10, 0.5, -0, NaN, Infinity, '1', 1n, null].every(n => !isDigit(n)))
+        },
+        unbounded: () => {
+            const isIndex = isUintUpTo(Infinity)
+            assert([0, 1, 2 ** 53, 1e100].every(isIndex))
+            assert([-1, 0.5, -0, NaN, Infinity].every(n => !isIndex(n)))
+        },
     },
     // The integers `0..255`, and no other number.
     isByte: () => {

@@ -17,7 +17,7 @@ import {
     empty,
 } from '../../types/list/module.f.mjs'
 
-import { contains } from '../../types/range/module.f.js'
+import { isUintUpTo } from '../../types/number/module.f.mjs'
 import { compose } from '../../types/function/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 
@@ -111,13 +111,11 @@ const codePointToUtf16 = codePoint => {
 export const fromCodePointList
     = flatMap(codePointToUtf16)
 
-const isInU16Range = contains(0x0000, 0xFFFF)
-
 /**
  * Validates whether a given 16-bit unsigned integer (U16) falls within the valid range for UTF-16 code units.
  *
- * UTF-16 uses 16-bit code units to encode characters. The valid range for these code units is [0x0000, 0xFFFF].
- * This function is used to verify that a number is within this range.
+ * UTF-16 uses 16-bit code units to encode characters. The valid range for these code units is [0x0000, 0xFFFF],
+ * `-0` excluded. This function is used to verify that a number is within this range.
  *
  * @example
  *
@@ -135,7 +133,7 @@ const isInU16Range = contains(0x0000, 0xFFFF)
  *
  * @type {(i: U16) => boolean}
  */
-const u16 = i => Number.isInteger(i) && isInU16Range(i)
+const u16 = isUintUpTo(0xFFFF)
 
 /**
  * Converts a pending UTF-16 decoding state — an unpaired high surrogate

@@ -27,9 +27,8 @@ import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
 import { ascii, byte, byteArray, byteLength, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, option, repeatFrom0, repeatFrom1, set } from '../../ebnf/module.f.mjs'
 import { lf, space as sp } from '../../text/ascii/module.f.mjs'
-import { flat, flatMap } from '../../types/list/module.f.mjs'
+import { flat, flatMap, sameItems } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
-import { sameBytes } from '../refname/module.f.mjs'
 
 const key = repeatFrom1(not(set(' \n')))
 
@@ -100,20 +99,20 @@ export const tryRead = input => {
  * once rather than once per header.
  *
  * The header's key is read through {@link byteArray} before it is compared,
- * since `sameBytes` stops at the first byte that differs: a key of `x` then
+ * since `sameItems` stops at the first byte that differs: a key of `x` then
  * `0x100` would otherwise be answered "not `tree`" rather than refused, and
  * a key holding a number that is no byte is a caller's bug, not a key.
  *
  * @type {(key: string) => (h: Header) => boolean}
  */
 const isKey = key => {
-    const same = sameBytes(ascii(key))
+    const same = sameItems(ascii(key))
     return ([k]) => same(byteArray(k))
 }
 
 /**
- * Whether a header's key is `key`, compared as bytes by `fjs/git/refname`'s
- * `sameBytes`: the well-known keys are ASCII, and a key is bytes.
+ * Whether a header's key is `key`, compared as bytes by `fjs/types/list`'s
+ * `sameItems`: the well-known keys are ASCII, and a key is bytes.
  *
  * @throws If the header's key is not a list of bytes.
  *

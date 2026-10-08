@@ -1,7 +1,7 @@
 /**
  * Numeric list reductions (`sum`, `min`, `max`), comparison via `cmp`,
- * `countOnes` for 32-bit population count using SWAR, and the `isByte`
- * predicate.
+ * `countOnes` for 32-bit population count using SWAR, and the `isUintUpTo`
+ * and `isByte` predicates.
  *
  * @module
  *
@@ -58,12 +58,24 @@ export const countOnes = n => {
 }
 
 /**
- * Whether `b` is a byte: an integer in `0..255`, and not `-0`, which the
- * data layer refuses as a second spelling of `0`. The one byte predicate,
- * for a consumer that holds a `number` it means as a byte — a
- * `List<number>` it is about to write, say — and has to refuse one that
- * is not.
+ * Whether `n` is an unsigned integer that fits `max`: an integer in `0..max`,
+ * and not `-0`, which the data layer refuses as a second spelling of `0`.
+ * The one spelling of "a non-negative integer up to `max`" — a byte, an index,
+ * a code unit — so whether `-0` is one has one answer. `max` may be
+ * `Infinity`, for every non-negative integer.
  *
- * @type {(b: number) => boolean}
+ * @type {(max: number) => (n: unknown) => n is number}
  */
-export const isByte = b => isInteger(b) && b >= 0 && b <= 0xFF && !sameValue(b, -0)
+export const isUintUpTo = max =>
+    /**
+     * @param {unknown} n
+     * @returns {n is number}
+     */
+    n => typeof n === 'number' && isInteger(n) && 0 <= n && n <= max && !sameValue(n, -0)
+
+/**
+ * Whether `b` is a byte: an integer in `0..255`. The one byte predicate, for
+ * a consumer that holds a `number` it means as a byte — a `List<number>` it
+ * is about to write, say — and has to refuse one that is not.
+ */
+export const isByte = isUintUpTo(0xFF)
