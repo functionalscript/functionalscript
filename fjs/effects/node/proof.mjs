@@ -42,12 +42,12 @@ import { write as writeEnvelope } from '../../git/object/module.f.mjs'
 import { tagLoose, tagPayload } from '../../git/testlib.f.mjs'
 import {
     awaitIfPromise, both, catch_, childWait, close, createServer, doubledLengthMessage, errorMessage,
-    framingHeaderMessage, fstat,
+    framingHeaderMessage, fstat, import_,
     inflate, inflateTrailingCode, listen, open, pread, readWhole, rename, requestBodyOffsetMessage,
     resolveFileModule, maxOffset, readBytes, rmdir, spawn, unframedBodyMessage, writeExclusive,
     writeFile as writeFileEffect,
 } from './module.f.mjs'
-import { readFlags, runEffect } from './module.mjs'
+import { readFlags, runEffect, unreadableThrownValue } from './module.mjs'
 
 /** @type {(program: NodeProgram) => Promise<number>} */
 const exitCode = runEffect
@@ -756,6 +756,32 @@ export const proof = {
             const fits = () => resultMapStep(inflate(toVec(deflated(new Uint8Array(most)))), r => r[0] === 'ok' ? ok(0) : error(1))
             assertEq(await exitCode(fits), 0)
         },
+    },
+    // A module the `import` operation evaluates can throw anything, and
+    // reading what it threw runs the value's own code. Whatever it is, the
+    // operation answers an `IoError` with a string message rather than
+    // rejecting.
+    import: {
+        thrown: () => withTemporary('fjs-import-thrown-', async root => {
+            /** @type {readonly (readonly [string, string])[]} */
+            const cases = [
+                ['throw new Error("plain")', 'plain'],
+                ['throw { toString() { throw 1 } }', unreadableThrownValue],
+                ['throw { get code() { throw 1 } }', unreadableThrownValue],
+                ['throw { get message() { throw 1 } }', unreadableThrownValue],
+                // A string for the check, then an object for the read.
+                ['let n = 0; throw { get message() { return n++ === 0 ? "a" : { toString: () => "b" } } }', 'b'],
+            ]
+            for (const [i, [source, message]] of cases.entries()) {
+                const path = join(root, `thrown${i}.mjs`)
+                await writeFile(path, source)
+                await hostCheck(import_(pathToFileURL(path).href), result => {
+                    assert(result[0] === 'error')
+                    assert(result[1][0] === 'ioError')
+                    assertEq(result[1][1].message, message)
+                })
+            }
+        }),
     },
     // The operation exists for one property the host holds and no runner here
     // models: the file is created by *this* call or not at all. `O_EXCL` is the
