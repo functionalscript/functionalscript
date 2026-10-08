@@ -1,7 +1,7 @@
 ## to-io-error-instanceof. `toIoError` tests `instanceof Error`, which the language refuses
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
