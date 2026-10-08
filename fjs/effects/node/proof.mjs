@@ -9,7 +9,8 @@
  * runner; compiler traversal and diagnostics are proved synchronously in
  * `compiler/transpiler/proof.f.mjs`.
  *
- * @import { All, Handle, NodeProgram, NodeOp, ReadRequestBytes, RequestListener as Erl, ServerResponse } from './types.ts'
+ * @import { All, Child, Handle, NodeProgram, NodeOp, ReadRequestBytes, RequestListener as Erl, ServerResponse } from './types.ts'
+ * @import { ChildProcess } from 'node:child_process'
  * @import { Effect, IoChannel, Operation } from '../types.ts'
  * @import { List, Next } from '../list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
@@ -19,6 +20,7 @@
 
 import http from 'node:http'
 import net from 'node:net'
+import { once } from 'node:events'
 import { constants as fsConstants } from 'node:fs'
 import process from 'node:process'
 import zlib from 'node:zlib'
@@ -39,10 +41,10 @@ import { utf8, utf8ToString } from '../../text/module.f.mjs'
 import { write as writeEnvelope } from '../../git/object/module.f.mjs'
 import { tagLoose, tagPayload } from '../../git/testlib.f.mjs'
 import {
-    awaitIfPromise, both, catch_, close, createServer, doubledLengthMessage, errorMessage,
+    awaitIfPromise, both, catch_, childWait, close, createServer, doubledLengthMessage, errorMessage,
     framingHeaderMessage, fstat,
     inflate, inflateTrailingCode, listen, open, pread, readWhole, rename, requestBodyOffsetMessage,
-    resolveFileModule, maxOffset, readBytes, rmdir, unframedBodyMessage, writeExclusive,
+    resolveFileModule, maxOffset, readBytes, rmdir, spawn, unframedBodyMessage, writeExclusive,
     writeFile as writeFileEffect,
 } from './module.f.mjs'
 import { readFlags, runEffect } from './module.mjs'
@@ -600,6 +602,23 @@ const sharing = value => {
     assert(value instanceof Array)
     const [a, b, c, d] = value
     return [a === b, b === c, c !== d]
+}
+
+/** The child a `Child` brands, for the host's own view of it. @type {(child: Child) => ChildProcess} */
+const asChild = child => /** @type {ChildProcess} */ (asBase(child))
+
+/**
+ * A `node` child started with `args` on the terminal, as `spawn` answers it,
+ * so a proof can act on the host object before it asks the runner to wait.
+ *
+ * @type {(args: readonly string[]) => Promise<Child>}
+ */
+const startedChild = async args => {
+    /** @type {Child | undefined} */
+    let started = undefined
+    await hostCheck(spawn('node', args, { stdio: 'inherit' }), result => { started = unwrap(result) })
+    assert(started !== undefined)
+    return started
 }
 
 export const proof = {
@@ -1761,6 +1780,50 @@ export const proof = {
                     }))
                 })
             assertStructurallySame(seen, [true, false])
+        },
+    },
+    // The subprocess slice of `./todo/spawn-effect.md`: a child on the terminal,
+    // waited for. The host boundary is the child's lifecycle — what Node reports
+    // for an exit, a signal and a missing executable — which no in-memory runner
+    // has. `node` is named rather than `process.execPath`: under Deno and Bun that
+    // path is their own binary, and only Node takes `-e`.
+    spawn: {
+        exited: async () => {
+            const program = step(
+                spawn('node', ['-e', 'process.exitCode = 3'], { stdio: 'inherit' }),
+                childWait)
+            await hostCheck(program, result => {
+                assertStructurallySame(unwrap(result), ['exited', 3])
+            })
+        },
+        // `childWait` reads the outcome before it listens: here the child is
+        // gone — the host saw its `'exit'` — before the wait is asked for, and
+        // a wait that only subscribed would never answer.
+        alreadyExited: async () => {
+            const started = await startedChild(['-e', ''])
+            await once(asChild(started), 'exit')
+            await hostCheck(childWait(started), result => {
+                assertStructurallySame(unwrap(result), ['exited', 0])
+            })
+        },
+        // Killed from outside — the host stands in for the `childKill` the
+        // family does not have yet — so the status is the signal, with no code
+        // to report. Node emulates the signal on Windows and reports it the
+        // same way.
+        signaled: async () => {
+            const started = await startedChild(['-e', 'setTimeout(() => {}, 60000)'])
+            asChild(started).kill()
+            await hostCheck(childWait(started), result => {
+                assertStructurallySame(unwrap(result), ['signaled', 'SIGTERM'])
+            })
+        },
+        // A command that cannot run is the operation's failure, and no handle
+        // is minted: nothing here could be waited on.
+        missing: async () => {
+            await hostCheck(spawn('fjs-no-such-command-29e41680', [], { stdio: 'inherit' }), result => {
+                assert(result[0] === 'error', result)
+                assertEq(result[1][0], 'ioError')
+            })
         },
     },
 }
