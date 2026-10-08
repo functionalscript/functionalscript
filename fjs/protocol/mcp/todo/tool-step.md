@@ -16,20 +16,23 @@ it by hand:
 resultStep(c.write(…), writeResult => {
     if (writeResult[0] === 'error') { return pureOk(errorResult('write')) }
     …
-// cas_get, twice, with the same sentence
+// cas_get, with its refusal named once as a local
+const noSuchHash = pureOk(errorResult(`no such hash: ${r.hash}`))
 resultStep(detectStream(c.read(key)), ([tag, detected]) => {
-    if (tag === 'error') { return pureOk(errorResult(`no such hash: ${r.hash}`)) }
+    if (tag === 'error') { return noSuchHash }
     …
-resultStep(collectRead(c.read(key)), ([collectTag, value]) => {
-    if (collectTag === 'error') { return pureOk(errorResult(`no such hash: ${r.hash}`)) }
 ```
+
+`cas_get`'s second read, `readWhole`, is not one of them: on a vanished
+blob it answers whatever its caller passes, and the metadata path passes an
+ok result — the streaming verdict — not an `isError`.
 
 ### Proposal
 
 `toolStep(e, errorText, onOk)`: `resultStep` whose error branch is
 `pureOk(errorResult(errorText(err)))` and whose ok branch is the caller's
 continuation, with the same argument `toolResultStep` makes for keeping
-`errorText` required. The three sites collapse to their content.
+`errorText` required. The two sites collapse to their content.
 [66k](../../../cas/todo/66k-cas-cli-mcp-shared-core.md) moves most of
 `cas_get`'s body into `fjs/cas`; its sketch of the adapter that remains
 opens with the same `resultStep`/`errorResult` line, so the combinator
@@ -37,7 +40,7 @@ survives that move.
 
 ### Tasks
 
-- [ ] `toolStep` with a proof of both branches; the three sites over it.
+- [ ] `toolStep` with a proof of both branches; the two sites over it.
 - [ ] `tsc`, `fjs test`.
 
 ### Related
