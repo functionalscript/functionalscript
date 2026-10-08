@@ -61,7 +61,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstNot, AstTypeof, AstNumber, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstNot, AstTypeof, AstInstanceOf, AstNumber, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
  * @import { Block, Chain, ComputedKey, Container, Entry, If, Import, Item, Key, Module, Node, ParameterBinding, ParameterList, Statement, Step, ValueStatement } from './syntax/types.ts'
  * @import { _AccessFrame, _BodyFrame, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Intrinsic, _Parameter, _Ref, _Scope, _Stack, _State } from './private.ts'
@@ -203,9 +203,10 @@ const restBinding = ['rest']
  * demotes them all to `id`, so that a key or the name after `.` may be one,
  * and here is where the distinction is made. `const if = 1;` is a syntax
  * error in JavaScript, so it is an error here. A reserved global is refused
- * the same way, {@link reservedWord}: `Number` names no binding and no
- * value, and the one place it stands, the conversion's callee, is read
- * before the word reaches here, {@link conversion}.
+ * the same way, {@link reservedWord}: `Array` and `Number` name no binding
+ * and no value, and the one place each stands is read before the word
+ * reaches here — `instanceof`'s right operand, which the fold checks for
+ * the word itself, and the conversion's callee, {@link conversion}.
  *
  * @type {(name: DjsTokenWithMetadata) => Result<string, ParseError>}
  */
@@ -213,6 +214,15 @@ const identifierOf = name => {
     const word = nameOf(name)
     return isKeyword(word) || isReservedGlobal(word) ? error(reservedWord(name)) : ok(word)
 }
+
+/**
+ * An `instanceof` whose right operand is not a reference to `Array`, at
+ * the operator: the language admits that one constructor, and reads the
+ * word, not a value — so an access, a literal or a parenthesized value
+ * other than the bare reference is refused here, whatever it would be
+ * in JavaScript.
+ */
+const instanceofRight = foldError('the right operand of instanceof must be Array')
 
 /** An attribute key the language does not know, at the key: `type` is the one JavaScript defines. */
 const unknownAttribute = foldError('unknown import attribute')
@@ -875,6 +885,10 @@ const enter = (stack, scope, node) => {
         case '~': { return [{ top: { bitnot: true }, rest: stack }, scope, ['enter', node[1]]] }
         case '!': { return [{ top: { not: true }, rest: stack }, scope, ['enter', node[1]]] }
         case 'typeof': { return [{ top: { typeof: true }, rest: stack }, scope, ['enter', node[1]]] }
+        // the left operand first, as every binary operator's: the right
+        // side is checked when the left returns, so a fault in the left is
+        // the one reported, the first in document order
+        case 'instanceof': { return [{ top: { instanceof: node[2], at: node[3] }, rest: stack }, scope, ['enter', node[1]]] }
         case '?:': { return conditionalRound(stack, scope, { conditional: node, index: 0, done: null }) }
         case '=>': { return entered(stack, scope, node, null) }
         // a block stands only as a function's body, which `'=>'` above
@@ -967,8 +981,9 @@ const isEntryOf = (node, x) => {
  * JavaScript's own reading, and no helper. `null` where the function is
  * not the helper, by shape or by binding, and the ordinary resolution
  * takes it from there, refusing the `Object` it cannot name; a keyword, a
- * reserved global or a repeated name among the three is left to it the
- * same way, to refuse as it refuses every other. An error where the helper's two statements
+ * reserved global such as `Array` or `Number`, or a repeated name among
+ * the three is left to it the same way, to refuse as it refuses every
+ * other. An error where the helper's two statements
  * break the line rules every block's statements keep, {@link unterminated}
  * and {@link brokenLine}, which the shape alone cannot see.
  *
@@ -1067,6 +1082,16 @@ const returned = (stack, scope, frame, value) => {
         /** @type {AstTypeof} */
         const tagged = ['typeof', value]
         return [stack, scope, ok(tagged)]
+    }
+    if ('instanceof' in frame) {
+        // the right operand is a name, not a value: the one reference the
+        // language has a meaning for, never resolved in scope — `Array` is
+        // a reserved global, so no scope binds it
+        const right = frame.instanceof
+        if (right[0] !== 'ref' || nameOf(right[1]) !== 'Array') { return [stack, scope, error(instanceofRight(frame.at))] }
+        /** @type {AstInstanceOf} */
+        const checked = ['instanceof', value, 'Array']
+        return [stack, scope, ok(checked)]
     }
     if ('conversion' in frame) {
         /** @type {AstNumber} */

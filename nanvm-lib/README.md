@@ -68,7 +68,7 @@ Operators on [`Any<A>`](src/vm/any/mod.rs) (the top-level VM value type).
 | `Number`   | The `Number` cast   | [x]      | [`any/mod.rs`](src/vm/any/mod.rs) — `Any::number()`: `ToNumeric`, then a bigint converted to the nearest `Number` ([`bigint/to_f64.rs`](src/vm/bigint/to_f64.rs), ties to even, `Infinity` past the range); the EDAG's `['Number', e]`. Differs from unary `+` only on a bigint, which `+` refuses |
 | `is`       | `Object.is`         | [x]      | [`any/partial_eq.rs`](src/vm/any/partial_eq.rs) — `Any::same_value()`, `SameValue`: `===` except `NaN` equals `NaN` and `0` differs from `-0`; printed as `vm::unstable::object_is`; the EDAG's `['is', a, b]` |
 | `in`       | Property check      | [ ]      | |
-| `instanceof` | Instance check    | [ ]      | |
+| `instanceof` | Instance check    | [x]      | [`any/instanceof_.rs`](src/vm/any/instanceof_.rs) — `Any::instanceof_(x, Constructor::Array)`, one `Dispatch` over `Unpacked`: `true` of an `Array`, `false` of everything else, `null` and `undefined` included; never throws, since the right side is a `Constructor` variant by construction — the EDAG's `['instanceof', exp, 'Array']`, whose constructor is a name from a closed list, not a value, so `Constructor` has one variant until the VM has a `Map` or a `Set` for the test to be true of |
 
 ### Number-cast scope
 

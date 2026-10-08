@@ -10,6 +10,7 @@
  *
  * @module
  * @import { EdagValue, Function as ValueFunction } from '../types.ts'
+ * @import { ConstructorId } from '../../types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  */
 
@@ -42,6 +43,18 @@ export const is = (a, b) => Object.is(untagUndefined(a), untagUndefined(b))
 export const unary = {
     '!': value => ok(!truthy(value)),
     typeof: value => ok(typeOf(value)),
+}
+
+/**
+ * `x instanceof c` for each constructor the EDAG names, over represented
+ * values: an array is its own tag, `['[]', values]`, which is the one test
+ * `Array` needs — `typeOf` tells only a function apart. Never throws, so
+ * it answers a `boolean` rather than a `Result`.
+ *
+ * @type {Readonly<Record<ConstructorId, (value: EdagValue) => boolean>>}
+ */
+export const instanceOf = {
+    Array: value => isArray(value) && value[0] === '[]',
 }
 
 /** @type {Readonly<Record<'===' | '!==' | 'is', (a: EdagValue, b: EdagValue) => Result<boolean, EdagValue>>>} */

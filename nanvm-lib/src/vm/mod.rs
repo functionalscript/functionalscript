@@ -25,7 +25,7 @@ mod unpacked;
 pub mod unstable;
 
 pub use crate::vm::{
-    any::{Any, JsonError, to_any::ToAny},
+    any::{Any, Constructor, JsonError, to_any::ToAny},
     array::{Array, to_array::ToArray},
     bigint::BigInt,
     function::Function,

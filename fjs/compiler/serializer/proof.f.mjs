@@ -223,6 +223,7 @@ export const proof = {
                 ['{}', [[':', 'if', 1]]],
                 ['{}', [[':', 'NaN', 1]]],
                 // a reserved global, which no module binds
+                ['{}', [[':', 'Array', 1]]],
                 ['{}', [[':', 'Number', 1]]],
                 ['{}', [[':', 'not-a-name', 1]]],
                 ['{}', [[':', 'a', ['{}', [[':', 1, 2]]]]]],
@@ -1052,6 +1053,23 @@ export const proof = {
         writes(['typeof', ['typeof', 1]], 'export default typeof typeof 1;')
         writes(['typeof', ['-', ['[]', []]]], 'export default typeof -[];')
         writes(['!', ['typeof', 1]], 'export default !typeof 1;')
+        // `instanceof` is a relational operator whose right side is a
+        // name: spaces around the word, the operand grouped as `<`'s left
+        // operand would be, and a node holding it grouped where `<` is
+        writes(fn(['instanceof', r0, 'Array']), 'export default (...$0)=>$0[0] instanceof Array;')
+        writes(['instanceof', ['[]', []], 'Array'], 'export default [] instanceof Array;')
+        writes(['instanceof', ['!', 1], 'Array'], 'export default !1 instanceof Array;')
+        // one level with `<`, left-associative, so a `<` on its left stands bare
+        writes(['instanceof', ['<', 1, 2], 'Array'], 'export default 1<2 instanceof Array;')
+        writes(['instanceof', ['instanceof', 1, 'Array'], 'Array'], 'export default 1 instanceof Array instanceof Array;')
+        writes(['<', ['instanceof', 1, 'Array'], 2], 'export default 1 instanceof Array<2;')
+        writes(['<', 1, ['instanceof', 2, 'Array']], 'export default 1<(2 instanceof Array);')
+        writes(['===', ['instanceof', 1, 'Array'], true], 'export default 1 instanceof Array===true;')
+        writes(['instanceof', ['+', 1, 2], 'Array'], 'export default 1+2 instanceof Array;')
+        writes(['+', ['instanceof', 1, 'Array'], 2], 'export default (1 instanceof Array)+2;')
+        writes(['.', ['instanceof', ['[]', []], 'Array'], 'x'], 'export default ([] instanceof Array).x;')
+        writes(['!', ['instanceof', 1, 'Array']], 'export default !(1 instanceof Array);')
+        writes(['instanceof', ['=>', 0, [], 1], 'Array'], 'export default (()=>1) instanceof Array;')
         // `**` takes no prefix on its left bare, a negative number
         // included, as JavaScript does not; on its right either stands bare
         writes(['**', -2, 2], 'export default (-2)**2;')

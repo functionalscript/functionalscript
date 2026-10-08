@@ -78,12 +78,13 @@ export const proof = {
         },
         view: () => {
             const empty = htmlToString(demo.view(demo.init))
-            assert(empty.startsWith('<!DOCTYPE html><div data-hmac-demo=""><p>HMAC uses a key to compute an authentication code for a message. Both inputs are encoded as UTF-8; the result is shown in hexadecimal.</p>'), empty)
+            assert(empty.startsWith('<!DOCTYPE html><div><p>HMAC uses a key to compute an authentication code for a message. Both inputs are encoded as UTF-8; the result is shown in hexadecimal.</p>'), empty)
             assert(empty.includes('name="algorithm"'), empty)
             assert(empty.includes('name="key"'), empty)
             assert(empty.includes('name="text"'), empty)
             assert(empty.includes("<pre>printf '%s' '' | openssl dgst -sha256 -hmac ''</pre>"), empty)
             assert(empty.includes('aria-label="Copy HMAC"'), empty)
+            assert(empty.includes('<p data-caption="">HMAC-SHA-256, hex:</p>'), empty)
             assert(empty.includes('aria-label="Copy OpenSSL command"'), empty)
             const quoted = htmlToString(demo.view({ algorithm: 'SHA-1', key: "k' $HOME", text: "m' `whoami`" }))
             assert(quoted.includes("<pre>printf '%s' 'm'\\'' `whoami`' | openssl dgst -sha1 -hmac 'k'\\'' $HOME'</pre>"), quoted)

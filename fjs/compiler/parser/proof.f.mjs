@@ -771,6 +771,17 @@ export const proof = {
             expect('export default [1, { a: import.x }];', 25)
             // a keyword is refused before its name is looked up
             expect('export default this;', 16)
+            // `instanceof` is a keyword like `typeof`, and `Array` a
+            // reserved global, refused as a binding, a parameter and a
+            // reference exactly as a keyword is — before and after the
+            // `instanceof` that names it, since neither order is a binding
+            expect('const instanceof = 1;\nexport default 1;', 7)
+            expect('const Array = 1;\nexport default [] instanceof Array;', 7)
+            expect('const x = [] instanceof Array;\nconst Array = 1;\nexport default x;', 7)
+            expect('export default (Array) => 1;', 17)
+            expect('export default (...Array) => 1;', 20)
+            expect('export default Array;', 16)
+            expect('import Array from "m";\nexport default 1;', 8)
         },
         accepted: () => {
             /** @type {(source: string) => void} */
@@ -779,8 +790,8 @@ export const proof = {
                 assert(tag === 'ok', tag)
             }
             expect('const from = 1;\nexport default from;')
-            expect('export default { if: 1, export: 2, with: 3, from: 4, default: 5, this: 6, typeof: 7 };')
-            expect('const a = {}; export default [a.if, a.export, a.default, a.class, a.typeof];')
+            expect('export default { if: 1, export: 2, with: 3, from: 4, default: 5, this: 6, typeof: 7, instanceof: 8, Array: 9 };')
+            expect('const a = {}; export default [a.if, a.export, a.default, a.class, a.typeof, a.instanceof, a.Array];')
         },
     },
     // `Number` is a reserved global: the fold reads the call of the word

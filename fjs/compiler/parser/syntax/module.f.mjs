@@ -517,12 +517,15 @@ const withPow = (base, powTail) => {
  */
 const foldLayer = (base, rounds) => rounds.reduce((left, round) => {
     const [opChoice, v, ...lowerTails] = unmapped(round)
-    const [opTag] = unmapped(opChoice)
+    const [opTag, op] = unmapped(opChoice)
     const right = applyLayers(nodeAt(v), lowerTails)
     // every round's operator is a rule the grammar made from the same
     // records, so a name the map lacks is the grammar's bug, not the input's
     const tag = assertNotNullish(binaryOpTag[opTag], ['binary operator without a tag', opTag])
-    return [tag, left, right]
+    // `instanceof` keeps its operator token: the fold refuses a right
+    // operand that is no reference to `Array` there, where every spelling
+    // of the right side has a token
+    return tag === 'instanceof' ? [tag, left, right, tokenAt(op)] : [tag, left, right]
 }, base)
 
 /**

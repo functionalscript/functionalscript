@@ -12,6 +12,7 @@ import type { Assert } from '../../../asserts/types.ts'
 import type { Option, RepeatFrom, Rule } from '../../../ebnf/types.ts'
 import type { Equal } from '../../../types/ts/types.ts'
 import type { DjsToken } from '../../tokenizer/types.ts'
+import type { BinaryTag } from '../../ast/types.ts'
 import type { literalWords } from '../../../js/keywords/module.f.mjs'
 import type {
     _framingKeywords,
@@ -48,7 +49,15 @@ import type {
  * their own, which is what a registered alphabet allows: a name's symbol comes
  * from its position in the list, so a name has no length limit.
  */
-export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return' | 'throw' | 'if' | 'as' | 'typeof'
+export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return' | 'throw' | 'if' | 'as' | 'typeof' | 'instanceof'
+
+/**
+ * Every infix operator the grammar's binary layers read: the AST's own
+ * {@link BinaryTag}s, whose node is two operands, and `instanceof`, whose
+ * right operand the fold reads as a constructor name rather than a value —
+ * so it is a layer's operator here and not a binary tag there.
+ */
+export type InfixTag = BinaryTag | 'instanceof'
 
 type _KeywordsAreComplete = Assert<Equal<(typeof _framingKeywords)[number], _FramingKeyword>>
 

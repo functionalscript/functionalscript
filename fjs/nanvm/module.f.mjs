@@ -46,7 +46,7 @@
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 73
+ * data.groups.length // 74
  * ```
  */
 
@@ -132,6 +132,9 @@ export const orders = g => c => isCommutative(g)
 export const groupKey = g =>
     'method' in g ? `.${g.method}`
     : 'arity' in g ? `${g.op}/${g.arity}`
+    // one key per constructor, `instanceof Array`, spelled as the source
+    // is: the name is the group's, not the operand's
+    : 'name' in g ? `${g.op} ${g.name}`
     : g.op
 
 /**
@@ -162,6 +165,8 @@ export const casesOf = g => g.cases
  */
 export const arityOf = g => {
     if ('arity' in g) { return g.arity }
+    // the constructor is a name, not an operand: one operand
+    if ('name' in g) { return 1 }
     if (isOp1Id(g.op)[0] === 'ok') { return 1 }
     return isOp3Id(g.op)[0] === 'ok' ? 3 : 2
 }
@@ -311,6 +316,8 @@ export const caseExp = shared => g => args => {
     const n = arityOf(g)
     if (args.length !== n) { throw ['wrong operand count for', g.op, args] }
     const [a, b, c] = args.map(valuesExp(shared))
+    // the constructor name is the group's, carried into the node as it is
+    if ('name' in g) { return ['instanceof', a, g.name] }
     // `n` decides which vocabularies the tag can be in, and the check above
     // makes that agree with the operands. The casts are that step and nothing
     // more: an `Op12Id` is legal at either of the first two counts, so it is
@@ -1149,6 +1156,30 @@ const typeofCases = [
 ]
 
 /**
+ * `x instanceof Array`: `true` of an array and `false` of every other
+ * value — `null` and `undefined` included, since the right side is a
+ * constructor by construction and never the non-callable JavaScript
+ * throws on. A fresh boolean, so no identity concern, as `typeof`.
+ *
+ * @type {readonly Case<1>[]}
+ */
+const instanceofArrayCases = [
+    { name: 'emptyArray', args: [[]], expected: true },
+    { name: 'array', args: [[1, 2]], expected: true },
+    { name: 'nestedArray', args: [[[]]], expected: true },
+    { name: 'undefined', args: [undefined], expected: false },
+    { name: 'null', args: [null], expected: false },
+    { name: 'booleanTrue', args: [true], expected: false },
+    { name: 'number', args: [2.3], expected: false },
+    { name: 'string', args: ['a'], expected: false },
+    { name: 'bigint', args: [5n], expected: false },
+    { name: 'emptyObject', args: [{}], expected: false },
+    { name: 'object', args: [{ a: 1 }], expected: false },
+    { name: 'arrayLikeObject', args: [{ length: 0 }], expected: false },
+    { name: 'function', args: [functionValue], expected: false },
+]
+
+/**
  * `String(x)`.
  *
  * A function's string form is its source text, which no two engines have to
@@ -1559,6 +1590,7 @@ export const data = {
         { op: '??', cases: nullishCases },
         { op: '?:', cases: ternaryCases },
         { op: 'typeof', cases: typeofCases },
+        { op: 'instanceof', name: 'Array', cases: instanceofArrayCases },
         { op: 'throw', cases: throwCases },
         { op: 'String', cases: stringCoercionCases },
         {

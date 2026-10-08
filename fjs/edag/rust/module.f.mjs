@@ -962,6 +962,13 @@ const printer = nested => shared => root => {
         }
         // An array holding a spread, which may throw: `spread_array`.
         if (id === '[]') { return spreadArray(a) }
+        // An instance check, `['instanceof', x, 'Array']`: the constructor
+        // is a name, printed as the `Constructor` variant it names, never
+        // an operand — before the generic operator path below, which would
+        // print the name as a string literal.
+        if (id === 'instanceof') {
+            return flat(map1((/** @type {string} */ x) => cat([`Any::instanceof_(${x}, `, vm('Constructor'), `::${b})`]))(operand(a)))
+        }
         // The first operand is established in every operation; the ones
         // after it are what a lazy operation establishes conditionally.
         const rest = lazy.includes(id) ? lazyOperand : operand
@@ -1289,6 +1296,8 @@ const operandsOf = node => {
     const [id] = node
     return id === '=>' ? /** @type {readonly unknown[]} */ (node[2])
         : id === 'arg' || id === 'entry' ? []
+        // the constructor name is metadata, not a string-literal operand
+        : id === 'instanceof' ? [node[1]]
         : id === ',' ? /** @type {readonly unknown[]} */ (node[1])
         : id === '[]' || id === '{}' ? members(/** @type {readonly unknown[]} */ (node[1]))
         : id === '()' ? [node[1], ...members(/** @type {readonly unknown[]} */ (node[2]))]
