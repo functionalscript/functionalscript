@@ -72,6 +72,10 @@ export const gitHubActionSchema = /** @type {const} */ ({
         merge_group: or(option, {}),
         push: or(option, { branches: array(string) })
     },
+    // Optional, because only `gen.ci.yml` sets it: a run there that a newer
+    // push supersedes is cancelled. `cancel-in-progress` is the literal `true`
+    // for the reason `continue-on-error` is — `false` is its default.
+    concurrency: or(option, { group: string, 'cancel-in-progress': true }),
     permissions: record(string),
     jobs: jobsSchema
 })
