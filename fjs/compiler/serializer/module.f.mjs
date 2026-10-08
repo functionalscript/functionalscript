@@ -140,7 +140,7 @@ import { dollarSign, isDigit, isLatinLetter, lowLine } from '../../text/ascii/mo
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
-import { renderFunction } from './function_text/module.f.mjs'
+import { _entryText as entryText, renderFunction } from './function_text/module.f.mjs'
 import { _name as name, _binding as binding, _resolve as resolve } from './names/module.f.mjs'
 
 /** Names the parser refuses to bind. */
@@ -194,7 +194,7 @@ const hoistedKind = (a, i) => minting(a.nodes[i])
  */
 const basedHoisted = (a, base) => !(base instanceof Array)
     ? typeof base === 'number' || typeof base === 'bigint'
-    : a.nodes[base[1]][0] === '=>'
+    : arrowKind(a.nodes[base[1]][0])
 
 /** Two hoisted values are one when they name the same entry, or the same primitive by `Object.is`. @type {(x: _Hoisted, y: _Hoisted) => boolean} */
 const sameHoisted = (x, y) => x[0] === y[0] && Object.is(x[1], y[1])
@@ -313,6 +313,17 @@ const kindOf = (s, v) => {
 }
 
 /**
+ * A kind whose text is an arrow function — a function, or the `entry`
+ * helper, written in place as one — which JavaScript reads as an
+ * `AssignmentExpression` and no operand of an operator: an operator's
+ * operand, a prefix's and a conditional's condition group it, and a base
+ * hoists it.
+ *
+ * @type {(kind: string | null) => boolean}
+ */
+const arrowKind = kind => kind === '=>' || kind === 'entry'
+
+/**
  * The operators by level, loosest first, JavaScript's own ladder
  * ([spec: operators](../../../spec/README.md#operators)): the conditional;
  * `||` and `??` — one level, though the two never mix bare — `&&`; and
@@ -376,7 +387,7 @@ const grouped = grouped => text => grouped ? flat([['('], text, [')']]) : text
  * @type {(op: string, right: boolean) => (node: Node | null) => boolean}
  */
 const operandGrouped = (op, right) => node => node !== null && (
-    node[0] === '=>'
+    arrowKind(node[0])
     || mixesNullish(node[0], op)
     || precedence(node) < level(op)
     || (precedence(node) === level(op) && right !== (op === '**')))
@@ -436,7 +447,7 @@ const opensWithMinus = text => firstChunk(text).startsWith('-')
 const prefix = (s, path) => op => v => mapOk(
     /** @type {(text: List<string>) => List<string>} */
     (text => flat([[op === 'typeof' ? 'typeof ' : op === '-' && opensWithMinus(text) ? '- ' : op], text])),
-)(mapOk(grouped(isOperator(nodeOf(s, v)) || kindOf(s, v) === '=>'))(operand(s, path)(v)))
+)(mapOk(grouped(isOperator(nodeOf(s, v)) || arrowKind(kindOf(s, v))))(operand(s, path)(v)))
 
 /** An operand's text in place, with whether it is a block; a name and a primitive are neither. @type {(s: _Scope, path: string) => (v: Operand) => Result<_Written, string>} */
 const inPlace = (s, path) => v => mapOk((/** @type {List<string>} */ text) => ({ text, block: false }))(operand(s, path)(v))
@@ -542,7 +553,7 @@ const conditional = (s, path) => ([, c, t, e]) => mapOk(
     /** @type {(parts: readonly List<string>[]) => List<string>} */
     (([cond, then, otherwise]) => flat([cond, ['?'], then, [':'], otherwise])),
 )(okList([
-    mapOk(grouped(kindOf(s, c) === '?:' || kindOf(s, c) === '=>'))(operand(s, `${path}/condition`)(c)),
+    mapOk(grouped(kindOf(s, c) === '?:' || arrowKind(kindOf(s, c))))(operand(s, `${path}/condition`)(c)),
     lazyOperand(s, `${path}/then`, () => false)(t),
     lazyOperand(s, `${path}/else`, () => false)(e),
 ]))
@@ -998,6 +1009,9 @@ const entry = (s0, path) => i => {
         // every function that reads its `self`, and the analysis refused a
         // `self` with no function around it
         case 'self': { return ok([assertNotNullish(s.self, ['a self in a scope with no name', i])]) }
+        // the `entry` helper, in its one spelling, under names of this
+        // function's own as every function's parameters are
+        case 'entry': { return ok([entryText(`${path}/function${i}`)]) }
         case 'arg': case 'rest': { return ok([assertNotNullish(parameterName(s.param, node))]) }
         case '[]': { return mapOk(arrayWrap)(okList(node[1].map((v, k) => item(s, `${path}/item${k}`)(v)))) }
         case '{}': { return mapOk(objectWrap)(okList(node[1].map((p, k) => property(s, `${path}/property${k}`)(p)))) }
@@ -1434,6 +1448,7 @@ export const tryStringify = e => mapOk(
  * @type {(a: Analysis, i: number) => string}
  */
 export const functionText = (a, i) => {
+    if (a.nodes[i][0] === 'entry') { return resolve([entryText('function')], [], []).join('') }
     const [, length, slots, body] = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (a.nodes[i])
     const frame = slots.map((_, k) => name(`external${k}`))
     const [kind, text] = lambda(a, 'function', i, length, frame, true, null)(body)
@@ -1472,7 +1487,7 @@ export const functionText = (a, i) => {
  * @type {(e: Exp) => Result<string, string>}
  */
 export const tryFunctionText = e => {
-    if (!(e instanceof Array) || e[0] !== '=>') { return error('not a function') }
+    if (!(e instanceof Array) || (e[0] !== '=>' && e[0] !== 'entry')) { return error('not a function') }
     const result = analysis(e)
     const [kind, a] = result
     if (kind === 'error') { return result }

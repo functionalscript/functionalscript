@@ -41,6 +41,15 @@ export const proof = {
         assertEq(stringify(['{}', [[':', 'a', shared], [':', 'b', shared]]]),
             'const $0=[1];const $1={["a"]:$0,["b"]:$0};export default $1;')
     },
+    // The `entry` helper is a value as any function is, in its one text,
+    // under names of its own after the value's.
+    entry: () => {
+        const text = '($1,$2)=>{const $3=Object.getOwnPropertyDescriptor($1,$2);return $3?.enumerable?$3.value:undefined;}'
+        assertEq(stringify(['entry']), `const $0=${text};export default $0;`)
+        assertEq(factoryStringify(['entry']), `export default()=>{const $0=${text};return $0;};`)
+        const helper = /** @type {const} */ (['entry'])
+        assertEq(stringify(['[]', [helper, helper]]), `const $0=${text};const $4=[$0,$0];export default $4;`)
+    },
     functions: () => {
         assertEq(stringify(['=>', 0, [], 1]), 'const $0=()=>(1);export default $0;')
         assertEq(stringify(['=>', 1, [2], ['+', ['frame', 0], ['arg', 0]]]),

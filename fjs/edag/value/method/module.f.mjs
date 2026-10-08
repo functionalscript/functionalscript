@@ -13,7 +13,7 @@ import { isArray } from '../../../types/array/module.f.mjs'
 import { ok, error } from '../../../types/result/module.f.mjs'
 import { allowedCalls, arrayPrototype, stringPrototype, numberPrototype, booleanPrototype, bigintPrototype, functionPrototype, objectPrototype } from '../../../js/prototype/module.f.js'
 import { call } from '../call/module.f.mjs'
-import { typeOf } from '../semantics/module.f.mjs'
+import { isFunction, typeOf } from '../semantics/module.f.mjs'
 import { toNumber, toString } from '../convert/module.f.mjs'
 import { arrayMethod } from '../array_method/module.f.mjs'
 
@@ -25,7 +25,7 @@ export const hasMethod = (receiver, key) => {
         : typeof receiver === 'boolean' ? booleanPrototype
         : typeof receiver === 'bigint' ? bigintPrototype
         : isArray(receiver) && receiver[0] === '[]' ? arrayPrototype
-        : isArray(receiver) && receiver[0] === '=>' ? functionPrototype
+        : isFunction(receiver) ? functionPrototype
         : objectPrototype
     return prototype.some(name => name === key) && allowedCalls.some(name => name === key)
 }
@@ -64,7 +64,7 @@ const numberMethod = (receiver, key, value, invoke) => {
 
 /** @type {(receiver: string, search: string, replacement: EdagValue, all: boolean, invoke: Invoke) => ValueResult} */
 const replace = (receiver, search, replacement, all, invoke) => {
-    if (!isArray(replacement) || replacement[0] !== '=>') {
+    if (!isFunction(replacement)) {
         const result = toString(replacement, invoke)
         const [kind, text] = result
         if (kind === 'error') { return result }
