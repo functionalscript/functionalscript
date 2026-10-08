@@ -189,13 +189,18 @@ proposal's question; the name form stays for the built-ins either way.
       and in `relationalTags`; the `types.ts` pins.
 - [ ] `fjs/compiler/parser`: `Array` among the reserved words the fold
       refuses as a binding, with proofs for a `const`, a parameter, a key
-      and a property name; the fold's arm for the tag — the right operand
-      admitted only as a reference to `Array`, anything else refused with
-      the rule's message — the AST node, the lowering to
-      `['instanceof', exp, 'Array']`. The pull request declares the
-      breaking change.
+      and a property name; the fold's arm for the tag — the left operand
+      entered first, as every binary operator's, and the right admitted
+      only as a reference to `Array` once the left returns, anything else
+      refused with the rule's message — and the AST node. The pull request
+      declares the breaking change.
 - [ ] `fjs/compiler/ast`: the eager walk's arm for the AST node, one
       operand as the prefixes have, so `anchors` reaches through it.
+- [ ] `fjs/compiler/edag`: the lowering's own arm for the AST node, to
+      `['instanceof', exp, 'Array']` with the name carried across — the
+      AST-to-EDAG step lives here, not in the parser, and without an arm
+      its leaf path would read the three-tuple as something it is not; the
+      proof compiles a source to the node.
 - [ ] `fjs/compiler/serializer`: the main serializer, the compiler's
       JavaScript output — its tag switch, which refuses a tag it does not
       know, prints `(x instanceof Array)`, and its private operand walker,
