@@ -29,6 +29,7 @@ import {
 import { partialRun } from '../../mock/module.f.mjs'
 import { memoryInitial, memoryOperationMap } from '../../memory/module.f.mjs'
 import { asBase, asNominal } from '../../../types/nominal/module.f.mjs'
+import { _compareNames } from './readdir/module.f.mjs'
 
 /** @type {State} */
 export const emptyState = {
@@ -88,8 +89,8 @@ const { hasOwn } = Object
  * this to find. That is not a rule invented here: FunctionalScript's own parser
  * refuses both spellings with `__proto__ requires the computed key form`
  * (`../../../compiler/parser/`), for this exact reason. The refused spelling was
- * never a working fixture anyway — `readdir` walks `Object.entries`, which is
- * own-only, so such a directory listed as empty while `stat` claimed the entry
+ * never a working fixture anyway — `readdir` walks the object's own keys, which
+ * are own-only, so such a directory listed as empty while `stat` claimed the entry
  * existed. Now every operation agrees it is absent.
  *
  * @type {(dir: Dir, name: string) => _Entity | undefined}
@@ -191,8 +192,8 @@ const isUnder = (name, prefix) => prefix.every((s, i) => name[i] === s)
 const mapNamed = f => handles => handles.map(h => h.name === null ? h : f(h, h.name))
 
 /**
- * `op`, and then what the path now holds copied into every handle under that
- * name — the in-place write half of a handle following its file.
+ * `op`, and then what the path now holds copied into every handle under it —
+ * the in-place write half of a handle following its file.
  *
  * `unwrap` rather than a test: an operation that answered `ok` left something at
  * the name, so the re-read cannot fail, and a branch for a case no input reaches
@@ -495,26 +496,41 @@ const writeFile = payload => mirrorsToHandles(operation(writeFileOp(payload)))
 
 const invalidPath = fail('invalid path')
 
-const { entries } = Object
+const { keys } = Object
 
-/** @type {(base: string, recursive: boolean) => (path: string) => (state: State) => readonly [State, IoResult<readonly Dirent[]>]} */
+/**
+ * A directory's entries, as the pinned Node 26.10.0 answers them: each
+ * directory's names in order, and a recursive read level by level — the
+ * entries of the directory itself, then those of each directory among them
+ * in the order found. Node 22's promises API instead uses a stack; see the
+ * runtime scope in ./readdir/proof.f.mjs.
+ *
+ * Names are compared by their UTF-8 byte streams, as on the measured POSIX
+ * hosts. This puts `U+E000` before `U+10000` and a shorter prefix first,
+ * without imposing a bounded `Vec` on names the virtual filesystem accepts.
+ * See ./todo/no-name-length-limit.md for the separate filename-limit issue.
+ *
+ * @type {(base: string, recursive: boolean) => (path: string) => (state: State) => readonly [State, IoResult<readonly Dirent[]>]}
+ */
 const readdir = (base, recursive) => readOperation((dir, path) => {
     if (path.length !== 0) { return invalidPath }
-    /** @type {(parentPath: string, d: Dir) => readonly Dirent[]} */
-    const f = (parentPath, d) => {
-        /** @type {readonly Dirent[]} */
-        let result = []
-        for (const [name, content] of entries(d)) {
+    /** @type {readonly (readonly [string, Dir])[]} */
+    let queue = [[base, dir]]
+    /** @type {readonly Dirent[]} */
+    let result = []
+    for (let i = 0; i < queue.length; i++) {
+        const [parentPath, d] = queue[i]
+        for (const name of keys(d).toSorted(_compareNames)) {
+            const content = d[name]
             if (content === undefined) { continue }
             const isFile = !isDir(content)
             result = [...result, { name, parentPath, isFile, isDirectory: !isFile }]
             if (!isFile && recursive) {
-                result = [...result, ...f(join(parentPath, name), content)]
+                queue = [...queue, [join(parentPath, name), content]]
             }
         }
-        return result
     }
-    return ok(f(base, dir))
+    return ok(result)
 })
 
 /** @type {(path: string) => (state: State) => readonly [State, IoResult<void>]} */
@@ -691,7 +707,7 @@ const insertEntityAt = (dir, path, entity) => {
  *
  * **This is the one operation that neither mirrors nor detaches**, and that is
  * what the model is for: a handle on the *source* goes on holding the same file
- * under its new name, so a write through that new name reaches it, while a handle
+ * under its new name — so a write through that new name reaches it — while a handle
  * on the *destination* has just had its last name taken by the arriving file and
  * reaches nothing again. Both sides are prefixes because a directory moves whole:
  * a handle on `d/a.bin` is a handle on `e/a.bin` once `d` is `e`.
@@ -709,7 +725,7 @@ const rename = (src, dst) => state => {
     const [srcRoot, srcResult] = extractEntity(state.root, srcParsed)
     if (srcResult[0] === 'error') { return [state, srcResult] }
     // now that source exists, reject if dst is strictly inside src's subtree (rename into own descendant)
-    // or if src is strictly inside dst's subtree (rename onto own ancestor)
+    // or if src is strictly inside dst's subtree (rename onto an ancestor)
     if (isProperPrefix(srcParsed, dstParsed) || isProperPrefix(dstParsed, srcParsed)) {
         return [state, fail('cannot rename a directory into its own subtree or onto an ancestor')]
     }
@@ -892,7 +908,8 @@ const statPath = readOperation((dir, path) => {
     if (file === undefined) { return enoent }
     if (path.length !== 1) { return enotdir }
     // `isBinFile` rather than a local `Array.isArray`: which entity kind a name
-    // holds is asked in one place now (#1697), and `stat` is one of its askers.
+    // holds is asked in one place now (#1697), and the size calculation uses the same
+    // helper as the write path, so the two cannot disagree about the file's end.
     if (!isBinFile(file)) { return notRegular }
     return ok({ size: fileSizeBytes(file), isFile: true, isDirectory: false })
 })
@@ -1562,7 +1579,7 @@ const testContext = { test: todo }
  * case of arguments alone, {@link nodeProgramOptions} does it:
  *
  * ```ts
- * const opts: NodeProgramOptions = { ...defaultNodeProgramOptions, env }
+ * const opts = { ...defaultNodeProgramOptions, env }
  * ```
  *
  * Future additions to `NodeProgramOptions` only need a default added here,
