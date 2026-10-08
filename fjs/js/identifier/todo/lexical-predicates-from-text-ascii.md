@@ -1,7 +1,7 @@
 ## The repository's lexical predicates ask `text/ascii`
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
