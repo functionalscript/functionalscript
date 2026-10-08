@@ -328,6 +328,19 @@ unknown. The distinction is easy to lose in
 prose and load-bearing in the schema — a single element where the array
 belongs still validates plenty of values, just the wrong ones.
 
+`instanceof` carries its constructor as a name beside the tag rather than
+being one unary tag per constructor (`isArray`, then `isMap`, `isSet`),
+and that is the language designer's decision, settled: `instanceof Map`
+and `instanceof Set` are planned, and under this shape each is a name
+added to one list where a tag per constructor is a new arm in every
+consumer that dispatches on tags; JavaScript has no `isMap` or `isSet` —
+`Array.isArray` exists for cross-realm arrays alone, and `x instanceof Map`
+is the one spelling — so the node reads as the source does; the two walker
+arms are its whole cost, paid once and pinned by proof; and the EDAG is a
+data format, so a unary shape landed first would have to live beside this
+one forever or be replaced in every module ever compiled, a breaking change
+that choosing the shape while no node exists is not.
+
 **Why an array operand rather than a variadic tail.** `['[]', [a, b]]`
 rather than `['[]', a, b]`, and the same one position further in for
 `['{}', …]`. An rtti `Tuple` pins one schema per position, so "this literal
