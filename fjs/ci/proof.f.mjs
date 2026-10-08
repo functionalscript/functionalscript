@@ -211,6 +211,9 @@ export const proof = {
         assertEq(Object.keys(gha.jobs).length, 12, 'expected 12 CI jobs')
         assertEq(gha.permissions.contents, 'read', 'expected read-only contents permission')
         assertEq(Object.keys(gha.permissions).length, 1, 'expected least-privilege workflow permissions')
+        // A push to a pull request cancels the run it supersedes.
+        assertEq(gha.concurrency?.group, '${{ github.workflow }}-${{ github.ref }}')
+        assertEq(gha.concurrency?.['cancel-in-progress'], true)
         // The 32-bit Linux checks, in the Intel Linux job, because that is the
         // one platform whose shell carries the target and the linker for it.
         // They had a job of their own while they needed a second environment;

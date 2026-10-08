@@ -308,6 +308,17 @@ export const ci = ({ nodeExtra, packageConsumer }) => resultStep(
                 pull_request: {},
                 merge_group: {},
             },
+            // One run per pull request: a push cancels the run of the commit
+            // it supersedes, which would otherwise hold runners for a result
+            // nobody reads. The group is the ref — a pull request's,
+            // `refs/pull/<n>/merge`, is the same for every push to it, while
+            // a merge-queue entry's names its own commit, so no entry cancels
+            // another. The workflow name keeps the group apart from any a
+            // project's own workflows key on the ref.
+            concurrency: {
+                group: '${{ github.workflow }}-${{ github.ref }}',
+                'cancel-in-progress': true,
+            },
             permissions: {
                 contents: 'read',
             },
