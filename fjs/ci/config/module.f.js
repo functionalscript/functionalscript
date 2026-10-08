@@ -92,7 +92,7 @@ export const deno = '2.8.3'
 // versions it offers rather than the latest release.
 // https://nodejs.org/en/download
 export const node = /** @type {const} */({
-    default: '26.10.0',
+    default: '26.11.0',
     node22: '22.23.3',
     node24: '24.21.0',
 })
@@ -159,7 +159,7 @@ export const nixpkgs = /** @type {const} */({
     owner: 'NixOS',
     repo: 'nixpkgs',
     ref: 'nixos-26.05',
-    commit: 'b25309931cfda5f0b8805f462a29897eeae50168',
+    commit: '7c8764b7c7b09b34f632464276218ef9090eaa11',
 })
 
 // Wasmtime and Wasmer are installed by their own setup actions, so these are
@@ -178,7 +178,7 @@ export const rustOverlay = /** @type {const} */({
     owner: 'oxalica',
     repo: 'rust-overlay',
     ref: 'master',
-    commit: '8afee9fa8caa877a4feb65adc33e8d72f3747dc9',
+    commit: 'f91010a5c1b6125b715eb78a84fb5dd8fb74a2b0',
 })
 
 // Moving either `commit` above needs `npm run lock-update` (real Nix) to
@@ -205,7 +205,7 @@ export const actions = /** @type {const} */({
     // https://github.com/marketplace/actions/checkout
     'actions/checkout': 'v7.0.1',
     // https://github.com/marketplace/actions/setup-node-js-environment
-    'actions/setup-node': 'v7.0.0',
+    'actions/setup-node': 'v7.1.0',
     // https://github.com/marketplace/actions/cache
     'actions/cache': 'v6.1.0',
     // https://github.com/marketplace/actions/install-nix
