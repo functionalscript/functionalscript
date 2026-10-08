@@ -85,6 +85,9 @@ its own.
       `fjs/compiler/edag`, `fjs/compiler/serializer` and `fjs/compiler`.
 - [x] A Rust harness fixture runs a chain end to end,
       `nanvm-harness/fixtures/optional.mjs`.
+- [x] The compiler pages' shared examples offer an optional chain,
+      `fjs/compiler/examples/module.f.js`, and the EDAG page draws a chain
+      as the one node it is, its region on the edges, `fjs/compiler/edag/demo.f.mjs`.
 - [x] The specification describes the feature
       ([optional chaining](../README.md#optional-chaining)); the roadmap's
       entry and the survey's rows are reread.
