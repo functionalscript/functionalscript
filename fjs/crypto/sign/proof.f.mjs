@@ -8,9 +8,9 @@
 import { utf8 } from '../../text/module.f.mjs'
 import { empty, msb, repeat, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
 import { hmac } from '../hmac/module.f.mjs'
-import { secp192r1, secp256r1, secp384r1, secp521r1 } from '../secp/module.f.mjs'
+import { secp192r1, secp256k1, secp256r1, secp384r1, secp521r1 } from '../secp/module.f.mjs'
 import { computeSync, sha224, sha256, sha384, sha512 } from '../sha2/module.f.mjs'
-import { all, computeK, fromCurve, sign } from './module.f.mjs'
+import { all, computeK, fromCurve, sign, verify } from './module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
 const sample = utf8("sample")
@@ -407,12 +407,14 @@ export const proof = {
         /** @type {(p: _P) => void} */
         const check = ({ q, x, msg0, msg1 }) => {
             const a = fromCurve(q).rfc6979
+            const u = q.mul(x)(q.g)
             forEachVector((sha, { k, r, s }, m) => {
                 const k0 = computeK(a)(sha)(x)(m)
                 assertEq(k0, k, [k0.toString(16), k.toString(16)])
                 const [r0, s0] = sign(q)(sha)(x)(m)
                 assertEq(r0, r, [r0, r])
                 assertEq(s0, s, [s0, s])
+                assertEq(verify(q)(sha)(u)(m)([r, s]), true)
             }, msg0, msg1)
         }
         /** @type {{ readonly [key: string]: _P }} */
@@ -613,5 +615,31 @@ export const proof = {
         for (const v of Object.values(testVectors)) {
             check(v)
         }
-    }
+    },
+    verify: () => {
+        const c = secp256k1
+        const { nf: { p: q, neg }, g } = c
+        const x = 0xC9AFA9D845BA75166B5C215767B1D6934E50C3DB36E89B127B8A622B120F6721n
+        const u = c.mul(x)(g)
+        const v = verify(c)(sha256)
+        const sig = sign(c)(sha256)(x)(sample)
+        const [r, s] = sig
+        assertEq(v(u)(sample)(sig), true)
+        // tampered message
+        assertEq(v(u)(test)(sig), false)
+        // tampered `r` or `s`
+        assertEq(v(u)(sample)([r + 1n, s]), false)
+        assertEq(v(u)(sample)([r, s + 1n]), false)
+        // wrong public key
+        assertEq(v(c.mul(x + 1n)(g))(sample)(sig), false)
+        // `r` or `s` out of `[1, q-1]`
+        assertEq(v(u)(sample)([0n, s]), false)
+        assertEq(v(u)(sample)([q, s]), false)
+        assertEq(v(u)(sample)([r, 0n]), false)
+        assertEq(v(u)(sample)([r, q]), false)
+        // `(h/s)G + (r/s)U` is the point at infinity when `h + x*r = 0 mod q`:
+        // with `r = 1`, the key `x = -h` gets there for any `s`.
+        const h = all(q).bits2intModQ(computeSync(sha256)([sample]))
+        assertEq(v(c.mul(neg(h))(g))(sample)([1n, 1n]), false)
+    },
 }

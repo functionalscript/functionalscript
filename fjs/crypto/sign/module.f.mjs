@@ -1,12 +1,12 @@
 /**
- * Signing helpers built on secp256k1 and SHA-256 primitives. See `./types.ts`
+ * ECDSA signing and verification built on secp and SHA-2 primitives. See `./types.ts`
  * for the `Rfc6979` and `Signer` types.
  *
  * @module
  *
  * @import { FixedArray } from '../../types/array/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
- * @import { Curve } from '../secp/types.ts'
+ * @import { Curve, Point } from '../secp/types.ts'
  * @import { Sha2 } from '../sha2/types.ts'
  * @import { Rfc6979, Signer, _Signature } from './types.ts'
  */
@@ -198,4 +198,28 @@ export const sign = c => hf => x => m => {
     //     of two INTEGERs, for r and s, in that order).
     const s = div(h + x*r)(k)
     return [r, s]
+}
+
+/**
+ * Verifies an ECDSA `(r, s)` signature of a message bit vector against the
+ * public key `u = xG`, as the inverse of `sign`.
+ *
+ * @type {(c: Curve) => (hf: Sha2) => (u: Point) => (m: Vec) => (sig: _Signature) => boolean}
+ */
+export const verify = c => hf => u => m => ([r, s]) => {
+    const { rfc6979: { q, bits2intModQ }, nf: { mul: mulQ, reciprocal }, mul, g } = fromCurve(c)
+    const { add } = c
+    // `r` and `s` are nonzero residues modulo `q`; anything else is refused.
+    /** @type {(v: bigint) => boolean} */
+    const inRange = v => 0n < v && v < q
+    if (!inRange(r) || !inRange(s)) {
+        return false
+    }
+    // The same `h` as `sign` step 1.
+    const h = bits2intModQ(computeSync(hf)([m]))
+    // `s = (h + x*r)/k`, so `(h/s)G + (r/s)U = ((h + x*r)/s)G = kG`.
+    const w = reciprocal(s)
+    const xy = add(mul(mulQ(h)(w))(g))(mul(mulQ(r)(w))(u))
+    // The point at infinity has no X coordinate to compare.
+    return xy !== null && xy[0] % q === r
 }
