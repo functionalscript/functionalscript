@@ -6,7 +6,7 @@
 
 use std::{
     fs::{self, File, OpenOptions},
-    io::{self, ErrorKind, Seek, SeekFrom, Write},
+    io::{self, ErrorKind, Read, Seek, SeekFrom, Write},
     path::Path,
 };
 
@@ -28,8 +28,8 @@ pub struct Dirent {
 }
 
 /// The most a file may hold to be read: one `Vec`, which the language caps at
-/// 2^17 bytes (`maxLengthBytes` in `fjs/types/bit_vec`). A larger one is
-/// refused before it is read, as `readFile` of the Node runner refuses it.
+/// 2^17 bytes (`maxLengthBytes` in `fjs/types/bit_vec`). Metadata can refuse a
+/// larger file before reading; the read also checks the bytes actually returned.
 pub const MAX_FILE_SIZE_BYTES: u64 = 1 << 17;
 
 /// The Node error code of a failure, where `std` has a kind for it: what a
@@ -130,6 +130,8 @@ fn tree(path: &str) -> io::Result<Vec<Dirent>> {
         let directory = queue[next].clone();
         next += 1;
         for entry in entries(&directory, &normalize(&directory))? {
+            // The runner uses fs.promises.readdir with withFileTypes, not
+            // callback readdir: symlinks are listed but not traversed.
             if entry.is_directory {
                 queue.push(
                     Path::new(&directory)
@@ -167,7 +169,9 @@ pub fn mkdir(path: &str, recursive: bool) -> Result<(), IoError> {
     .map_err(|e| failure(&e, "mkdir", path))
 }
 
-/// A file over [`MAX_FILE_SIZE_BYTES`] is refused, with no code, before it is read.
+/// A file over [`MAX_FILE_SIZE_BYTES`] is refused, with no code. Metadata
+/// rejects a known oversized file before reading, but cannot bound the read:
+/// a file may grow, and virtual files may report a size of zero.
 pub fn read_file(path: &str) -> Result<Vec<u8>, IoError> {
     let size = fs::metadata(path)
         .map_err(|e| failure(&e, "stat", path))?
@@ -180,7 +184,27 @@ pub fn read_file(path: &str) -> Result<Vec<u8>, IoError> {
             ),
         });
     }
-    fs::read(path).map_err(|e| failure(&e, "open", path))
+    let file = File::open(path).map_err(|e| failure(&e, "open", path))?;
+    read_bounded(path, file)
+}
+
+/// Read at most one byte beyond a `Vec`: that extra byte distinguishes a
+/// complete value at the limit from an oversized value, never a truncated success.
+fn read_bounded(path: &str, reader: impl Read) -> Result<Vec<u8>, IoError> {
+    let mut bytes = Vec::new();
+    reader
+        .take(MAX_FILE_SIZE_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|e| failure(&e, "read", path))?;
+    if bytes.len() as u64 > MAX_FILE_SIZE_BYTES {
+        return Err(IoError {
+            code: None,
+            message: format!(
+                "File exceeds maximum allowed size of {MAX_FILE_SIZE_BYTES} bytes: '{path}'"
+            ),
+        });
+    }
+    Ok(bytes)
 }
 
 /// The entries of each directory are in byte order of their names, where the
@@ -314,6 +338,41 @@ mod test {
         r.unwrap_err().code
     }
 
+    #[test]
+    fn bounded_read_accepts_up_to_the_limit() {
+        for size in [0, 1, MAX_FILE_SIZE_BYTES - 1, MAX_FILE_SIZE_BYTES] {
+            let bytes = read_bounded("stream", io::repeat(0xa5).take(size)).unwrap();
+            assert_eq!(bytes.len() as u64, size);
+            assert!(bytes.iter().all(|&byte| byte == 0xa5));
+        }
+    }
+
+    /// A larger source is refused after the first excess byte, not read to its end.
+    #[test]
+    fn bounded_read_refuses_overflow() {
+        let mut reader = io::repeat(0).take(MAX_FILE_SIZE_BYTES + 8);
+        let error = read_bounded("stream", &mut reader).unwrap_err();
+        assert_eq!(reader.limit(), 7);
+        assert_eq!(error.code, None);
+        assert_eq!(
+            error.message,
+            "File exceeds maximum allowed size of 131072 bytes: 'stream'"
+        );
+    }
+
+    #[test]
+    fn bounded_read_reports_io_errors() {
+        struct Broken;
+        impl Read for Broken {
+            fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
+                Err(ErrorKind::PermissionDenied.into())
+            }
+        }
+        let error = read_bounded("unreadable", Broken).unwrap_err();
+        assert_eq!(error.code, Some("EACCES".into()));
+        assert!(error.message.ends_with(", read 'unreadable'"));
+    }
+
     /// The operations against a real directory, which a WebAssembly host does
     /// not give a test.
     #[cfg(not(target_family = "wasm"))]
@@ -376,6 +435,20 @@ mod test {
             );
         }
 
+        /// `/dev/zero` reports size zero but never reaches EOF. The metadata
+        /// precheck alone cannot keep this read within a `Vec`.
+        #[cfg(target_os = "linux")]
+        #[test]
+        fn read_refuses_bytes_hidden_by_metadata() {
+            assert_eq!(fs::metadata("/dev/zero").unwrap().len(), 0);
+            let error = read_file("/dev/zero").unwrap_err();
+            assert_eq!(error.code, None);
+            assert_eq!(
+                error.message,
+                "File exceeds maximum allowed size of 131072 bytes: '/dev/zero'"
+            );
+        }
+
         #[test]
         fn rm_refuses_a_directory() {
             let dir = Scratch::new();
@@ -415,6 +488,37 @@ mod test {
                 code_of(write_bytes(&file, 0.5, &[1])),
                 Some("ERR_OUT_OF_RANGE".into())
             );
+        }
+
+        /// Match the promise API the Node runner uses. Callback and sync
+        /// readdir follow directory links; fs.promises.readdir with withFileTypes
+        /// does not. Links to files and missing targets keep both flags false too.
+        #[cfg(unix)]
+        #[test]
+        fn readdir_lists_symlinks_without_following_them() {
+            use std::os::unix::fs::symlink;
+
+            let dir = Scratch::new();
+            mkdir(&dir.at("root"), false).unwrap();
+            mkdir(&dir.at("target"), false).unwrap();
+            write_file(&dir.at("target/child"), &[]).unwrap();
+            for (name, target) in [
+                ("dir-link", "../target"),
+                ("file-link", "../target/child"),
+                ("missing-link", "../missing"),
+            ] {
+                symlink(target, dir.at(&format!("root/{name}"))).unwrap();
+            }
+            let root = dir.at("root");
+            let expected = ["dir-link", "file-link", "missing-link"].map(|name| Dirent {
+                name: name.into(),
+                parent_path: normalize(&root),
+                is_file: false,
+                is_directory: false,
+            });
+            for recursive in [false, true] {
+                assert_eq!(readdir(&root, recursive).unwrap(), expected);
+            }
         }
 
         /// A directory read is sorted, and a recursive one goes level by level.
