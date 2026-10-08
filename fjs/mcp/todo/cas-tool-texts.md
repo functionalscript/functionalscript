@@ -1,7 +1,7 @@
 ## cas-tool-texts. `casToolRegistry` repeats one sentence four times and one read twice
 
 **Priority:** P5
-**Status:** open
+**Status:** wip
 
 ### Problem
 
