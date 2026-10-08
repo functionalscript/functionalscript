@@ -48,7 +48,8 @@ object, an array, a function or `null`, and `typeof`, this operator and
 later. An array has no tag of its own but this. The language has no classes ([`3390-class.md`](./3390-class.md)),
 admits no global as a value ([`2360-built-in.md`](./2360-built-in.md))
 and builds no `Map`, `Set`, `Promise` or `Error`, so nothing else is a
-candidate yet; `Map` and `Set` are the names the list below is for.
+candidate yet; the list below is for the types the language may add,
+such as `Set` or `RegExp`.
 
 `instanceof Error` is not admitted either, though `fjs/effects` writes
 it. The language builds no `Error` — there is no `new` — so over every
@@ -160,29 +161,31 @@ in view, and it is final for this proposal: a review that asks for the
 unary shape again is answered by this section.
 
 The alternative is one unary tag per constructor — `isArray` today,
-`isMap` and `isSet` after it. It is cheaper for `Array` alone: a unary
+`isSet` or `isRegExp` after it. It is cheaper for `Array` alone: a unary
 node is a shape every walker already handles, so the two operand walkers
 need no case and the type checker needs no new variant. It is rejected
 for four reasons:
 
-1. **`instanceof Map` and `instanceof Set` are planned**, not
-   hypothetical: the language will build both
-   ([`object-identity.md`](./object-identity.md)), and a value that is
-   one must be told from one that is not, exactly as an array is from an
-   object today. The shape is chosen for the operator the language will
-   have, so that the second constructor and every one after it is a name
-   added to one list, and not a new tag at every consumer: the schema,
+1. **More types may follow, like `Set` or `RegExp`.** None is approved
+   yet: `Map` is one of the options
+   [`object-identity.md`](./object-identity.md) weighs for custom
+   dictionaries, and regular expressions are an open item on the
+   [roadmap](./README.md). But if we plan to add more types like these, a
+   value of each must be told from one that is not, exactly as an array is
+   from an object today. The shape is chosen so that the second
+   constructor and every one after it is a name added to one list, and
+   not a new tag at every consumer: the schema,
    the memo analysis, both interpreters, the Rust printer, the writer and
    the corpus each dispatch on the tag, and a unary tag per constructor
    means a new arm in each of them per constructor. Under this shape the
    name is read where the tag is dispatched, once.
-2. **JavaScript has no `isMap` and no `isSet`.** `Array.isArray` exists
-   because `instanceof Array` fails across realms, and it was added in
-   ES5 for that one case; `Map` and `Set` arrived in ES2015 with no such
-   function, and `x instanceof Map` is their one spelling in the language
-   (Node's `util.types.isMap` is a host API). A unary `isMap` tag would be
-   a predicate the source language cannot write, named after a function
-   that does not exist. `instanceof` with the constructor beside it is
+2. **JavaScript has no `isMap`, `isSet` or `isRegExp`.** `Array.isArray`
+   exists because `instanceof Array` fails across realms, and it was added
+   in ES5 for that one case; `Map` and `Set` arrived in ES2015 with no
+   such function, `RegExp` has never had one, and `x instanceof Set` is
+   their one spelling in the language (Node's `util.types.isSet` is a
+   host API). A unary `isSet` tag would be a predicate the source language
+   cannot write, named after a function that does not exist. `instanceof` with the constructor beside it is
    the EDAG reading as the JavaScript does.
 3. **The cost is paid once and it is pinned.** The arms and the two
    walker cases are the price of the shape, and the implementation that
@@ -196,7 +199,7 @@ for four reasons:
    not.** The EDAG is the language's data format
    ([serialization](./serialization.md)): every compiled module, every
    corpus case and every consumer outside this repository holds the node
-   as it is spelled. A unary `isArray` landed today becomes, when `Map`
+   as it is spelled. A unary `isArray` landed today becomes, if a `Set`
    arrives, either a second shape beside the first — `isArray` unary,
    `instanceof` with a name, two spellings of one operator forever — or a
    replacement of every `isArray` node ever emitted, which is the
@@ -217,8 +220,8 @@ proposal's question; the name form stays for the built-ins either way.
 - The repository's own array test compiles, which every module telling an
   array from an object needs and `structurally_same` needs first.
 - No new conversion and no failure path: the smallest operator the
-  language can add, and the one node grows to `Map` and `Set` by a name
-  each, with no new tag anywhere.
+  language can add, and the one node grows to any later type, such as
+  `Set` or `RegExp`, by a name each, with no new tag anywhere.
 - `nanvm-lib`'s `instanceof` row stops reading as unimplemented for the one
   case the compiler will ever emit.
 
