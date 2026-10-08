@@ -30,12 +30,18 @@ syntax.
 
 **Admit `x instanceof Array`, and only that.** The right operand is the
 word `Array`; any other right operand is refused. This is the one
-`instanceof` the repository uses, and the only one that denotes something
-today: the language has no classes
+`instanceof` the repository uses
+([`fjs/AGENTS.md`](../../fjs/AGENTS.md)), and the one with no other
+spelling. An object is an instance of `Object` and a function of
+`Function`, and the language builds both — but `typeof` already answers
+`"function"`, and `o instanceof Object` is `true` of an array and a
+function too, so it separates nothing that `typeof` and this operator
+do not between them; an array has no tag of its own but this. The
+language has no classes
 ([`3390-class.md`](./3390-class.md)), admits no global as a value
 ([`2360-built-in.md`](./2360-built-in.md)) and builds no `Map`, `Set` or
-`Promise`, so no other constructor has an instance a FunctionalScript value
-could be.
+`Promise`, so nothing else is a candidate yet. `Object` and `Function`
+are a name each on the list below, the day a use case asks for them.
 
 ### Syntax
 
