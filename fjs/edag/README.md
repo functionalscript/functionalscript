@@ -333,13 +333,14 @@ prose and load-bearing in the schema — a single element where the array
 belongs still validates plenty of values, just the wrong ones.
 
 `instanceof` carries its constructor as a name beside the tag rather than
-being one unary tag per constructor (`isArray`, then `isMap`, `isSet`),
-and that is the language designer's decision, settled: `instanceof Map`
-and `instanceof Set` are planned, and under this shape each is a name
-added to one list where a tag per constructor is a new arm in every
-consumer that dispatches on tags; JavaScript has no `isMap` or `isSet` —
-`Array.isArray` exists for cross-realm arrays alone, and `x instanceof Map`
-is the one spelling — so the node reads as the source does; the two walker
+being one unary tag per constructor (`isArray`, then `isSet`, `isRegExp`),
+and that is the language designer's decision, settled: if we plan to add
+more types, like `Set` or `RegExp` — none is approved yet — then under
+this shape each is a name added to one list where a tag per constructor
+is a new arm in every consumer that dispatches on tags; JavaScript has no
+`isSet` or `isRegExp` — `Array.isArray` exists for cross-realm arrays
+alone, and `x instanceof Set` is the one spelling — so the node reads as
+the source does; the two walker
 arms are its whole cost, paid once and pinned by proof; and the EDAG is a
 data format, so a unary shape landed first would have to live beside this
 one forever or be replaced in every module ever compiled, a breaking change

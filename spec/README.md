@@ -1316,8 +1316,9 @@ bare or in parentheses, since a group vanishes (`a instanceof (Array)` is
 `a instanceof Array`); any other right operand — `Map`, an access, a
 literal, a function — is refused at the operator. `Object` and `Function`
 are not admitted and never will be: `typeof x === "object"` and
-`typeof x === "function"` are the spellings for those. `Map` and `Set` are
-one name each, once the language can build one.
+`typeof x === "function"` are the spellings for those. If we add more
+types, like `Set` or `RegExp`, each is one more name on the right, once the
+language can build one.
 
 `instanceof` is a relational operator, one level with `< <= > >=` and
 left-associative as they are: `a instanceof Array === b` is
