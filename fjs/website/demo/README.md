@@ -58,11 +58,11 @@ The lead is plain prose, not a caption: no trailing colon, no bold.
   `A release file`. Where a label would break a sentence the field sits in,
   as the bigint demo's exponent does, the field carries `aria-label`
   instead.
-- **A label is bold, at the text's own size**, so a reader scanning the page
-  tells the controls from the prose around them. It stays a `label`, not a
-  heading. Every `label` in a demo is bold; a field set inside a sentence has
-  none, and carries `aria-label` instead, as the bullet above says, so the
-  sentence stays regular around it.
+- **A field's own label is bold, at the text's own size**, so a reader
+  scanning the page tells the controls from the prose around them. It stays
+  a `label`, not a heading. A field that reads better inside a sentence, as
+  the bigint demo's exponent does, is part of that sentence and stays
+  regular with it.
 - **The control fits what the reader types.** Text that can span lines — a
   program, a document, a release file — is a textarea, and a demo that is
   text in, text out uses [`textDemo`](./module.f.mjs), which owns the
