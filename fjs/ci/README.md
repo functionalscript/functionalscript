@@ -101,10 +101,12 @@ for, and whether that answer should change, is
    npm run gen
    ```
    In a project that generates with the built-in command, that script is
-   `fjs ci`. In this repository it is `fjs run ./fjs/ci/self/module.f.mjs`
-   through the checked-in entry point, because the repository's own generation
-   passes a `packageConsumer` the built-in command does not have; running
-   `fjs ci` here writes the packed-package check without the consumer steps.
+   `fjs ci`. In this repository it is `fjs run ./fjs/dev/gen/module.f.mjs`
+   through the checked-in entry point — one program running every generator,
+   of which `./self/module.f.mjs` is the CI one — because the repository's own
+   generation passes a `packageConsumer` the built-in command does not have;
+   running `fjs ci` here writes the packed-package check without the consumer
+   steps.
 3. Commit the updated `.github/workflows/gen.ci.yml`,
    `.github/workflows/gen.npm-publish.yml` and `gen.nix/*/flake.nix` files if they have
    changed.
@@ -334,14 +336,15 @@ cover newly created and deleted generated files, not just modified ones — a pl
 `git diff` never reports untracked files. Because the job runs `npm ci` first,
 `fjs ci` resolves the project's own `functionalscript` devDependency; this repository
 instead uses its checked-in sources
-(`node ./fjs/module.mjs r ./fjs/ci/self/module.f.mjs`), so the check always
+(`node ./fjs/module.mjs r ./fjs/dev/gen/module.f.mjs`, which runs
+`./self/module.f.mjs`), so the check always
 reflects the generator being reviewed, not the pinned published release.
 
 `fjs ci` itself is Nix-independent — it never shells out to `nix` — which is
 why it cannot be the thing that writes `flake.lock`. It writes
 `gen.nix/lock-update.sh` instead, alongside the flakes: the script locks each
 flake from its pinned revision, through real Nix, into the directory
-`gen:clean` has just emptied. This repository chains that script into `gen`, so a committed lock that
+`gen:clean` has just emptied. This repository runs that script as the last step of `gen`, so a committed lock that
 differs from what the pinned revision produces fails the drift check like any
 other stale generated file — at the cost that `gen` needs Nix and does not run
 on Windows for now. A project that keeps `gen` Nix-free keeps its locks out of
@@ -384,10 +387,11 @@ Without that file, third-party test runners discover no FunctionalScript proofs
 and will report zero tests. `fjs test` is the exception: it discovers proof modules
 directly and does not need an entry file at all.
 
-**Note,** `npm run gen` in this repository runs `fjs run ./fjs/ci/self/module.f.mjs`
+**Note,** `npm run gen` in this repository runs `fjs run ./fjs/dev/gen/module.f.mjs`
 through the checked-in Node entry point, which avoids relying on the package bin
-before the package has been installed; that module calls `ci` with this
-repository's `packageConsumer`, which the built-in command does not have. Custom projects that need different runtime setup steps
+before the package has been installed; among the generators that program runs is
+`./self/module.f.mjs`, which calls `ci` with this repository's `packageConsumer`,
+which the built-in command does not have. Custom projects that need different runtime setup steps
 should use `fjs run <custom-ci-module>` and call `ci(setup)` directly instead of
 modifying the built-in command.
 
