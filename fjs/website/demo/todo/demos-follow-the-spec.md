@@ -31,8 +31,9 @@ As measured on the tree the spec landed against:
 - **A verdict in an example's name.** DataJS's
   `Error: JSON is not a document`.
 
-Found later, by reading every `pre` the non-proof sources build, states only
-a click reaches included:
+Found later: the first by reading every `pre` the non-proof sources build,
+states only a click reaches included, and the second in the VDF demo, which
+landed after the list above was taken:
 
 - **A text result outside a code block.** The compiler's side-by-side page
   (every output in [`outputs`](../../../compiler/demo.f.mjs)), parser,
@@ -45,6 +46,11 @@ a click reaches included:
   every page's test section draws too, so the demo cannot show a report that
   looks unlike a real run. That row is already a bordered box, tinted as the
   failure it reports.
+- **A refusal as a tinted paragraph.** [VDF](../../../crypto/vdf/demo.f.mjs)
+  refuses each input it cannot take — steps that are not a number, an input
+  past the length limit, a claimed `y` that is too long, not hex or not below
+  the modulus — with its message in a `p` marked `data-result="error"`: no
+  `pre`, and no `Refused:` caption to say the verdict in words.
 
 ### Proposal
 
