@@ -32,9 +32,10 @@ export type DemoRun = {
 
 /**
  * What pressing Verify found for the claimed `y`: it verifies, it does not,
- * it is not hexadecimal, or it is not below `p`.
+ * it has more hex digits than `p`, it is not hexadecimal, or it is not below
+ * `p`.
  */
-export type DemoVerdict = 'verified' | 'rejected' | 'notHex' | 'notBelowP'
+export type DemoVerdict = 'verified' | 'rejected' | 'tooLong' | 'notHex' | 'notBelowP'
 
 /**
  * State of the interactive VDF demo. `run` holds the prover's evaluation and

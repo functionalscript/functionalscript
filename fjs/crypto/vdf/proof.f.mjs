@@ -4,6 +4,7 @@ import { sloth, p } from './module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { demo, hexOfY, parseHex, parseSteps, xOf } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
+import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 
@@ -152,6 +153,29 @@ export const proof = {
             assert(viewOf(p.toString(16)).includes('y must be less than the modulus p.'), 'p')
             // Verify needs no evaluation: a pasted y is checked against x and steps alone.
             assertEq(click({ ...demo.init, steps: '4', claimed: y }, 'verify').verdict, 'verified')
+        },
+        tooLongText: () => {
+            const long = { ...demo.init, text: 'a'.repeat(Number(maxLengthBytes) + 1), claimed: '1' }
+            assertEq(xOf(long.text), null)
+            assert(htmlToString(demo.view(long)).includes(`Input too long: more than ${maxLengthBytes} UTF-8 bytes.`), 'long')
+            assertEq(click(long, 'evaluate'), long)
+            assertEq(click(long, 'verify').verdict, null)
+        },
+        tooLongY: () => {
+            const yDigits = p.toString(16).length
+            const long = { ...demo.init, claimed: '0'.repeat(yDigits + 1) }
+            assertEq(click(long, 'verify').verdict, 'tooLong')
+            assert(htmlToString(demo.view(click(long, 'verify'))).includes(`Enter y with at most ${yDigits} hexadecimal digits.`), 'tooLong')
+            assertEq(click({ ...long, claimed: '0'.repeat(yDigits) }, 'verify').verdict, 'rejected')
+        },
+        verifyWhileRunning: () => {
+            const running = click({ ...demo.init, steps: '25', claimed: '1' }, 'evaluate')
+            assertEq(running.run?.running, true)
+            assertEq(click(running, 'verify'), running)
+            assert(htmlToString(demo.view(running)).includes('<button type="button" name="verify" disabled="">Verify</button>'), 'disabled')
+            const stopped = click(running, 'evaluate')
+            assert(htmlToString(demo.view(stopped)).includes('<button type="button" name="verify">Verify</button>'), 'enabled')
+            assertEq(click(stopped, 'verify').verdict, 'rejected')
         },
         wait: () => {
             const wait = assertNotNullish(demo.wait)

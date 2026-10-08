@@ -28,19 +28,17 @@
  */
 
 import { p, sloth } from './module.f.mjs'
-import { utf8 } from '../../text/module.f.mjs'
+import { tryUtf8 } from '../../text/module.f.mjs'
 import { digitsValue, hexDigitValue } from '../../text/ascii/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { textField, inputField } from '../../website/demo/module.f.mjs'
-import { digestOf } from '../../website/demo/hash/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.mjs'
 import { computeSync, sha256 } from '../sha2/module.f.mjs'
-import { uint } from '../../types/bit_vec/module.f.mjs'
+import { maxLengthBytes, uint } from '../../types/bit_vec/module.f.mjs'
 
 /** Steps evaluated per browser turn: a few tens of milliseconds. */
 const batch = 10n
 
-const sha256Digest = digestOf(sha256)
 const sha256Sync = computeSync(sha256)
 const decimalValue = digitsValue(10n)
 const yDigits = p.toString(16).length
@@ -48,10 +46,14 @@ const yDigits = p.toString(16).length
 /** Verification steps per second, measured in Node at `aa87d8cd`. */
 const verifyStepsPerSecond = 500000n
 
-/** `x`: the SHA-256 digest of the text's UTF-8 bytes as an integer.
- * @type {(text: string) => bigint}
+/** `x`: the SHA-256 digest of the text's UTF-8 bytes as an integer, or null
+ * when the text is longer than a bit vector holds.
+ * @type {(text: string) => bigint | null}
  */
-export const xOf = text => uint(sha256Sync([utf8(text)]))
+export const xOf = text => {
+    const bytes = tryUtf8(text)
+    return bytes === null ? null : uint(sha256Sync([bytes]))
+}
 
 /** A non-negative decimal step count, or null while its field is invalid.
  * @type {(text: string) => bigint | null}
@@ -92,8 +94,9 @@ const toggle = state => {
         return { ...state, run: { ...run, running: !run.running } }
     }
     const steps = parseSteps(state.steps)
-    return steps === null ? state
-        : advance(state, { steps, done: 0n, value: xOf(state.text), running: true })
+    const x = xOf(state.text)
+    return steps === null || x === null ? state
+        : advance(state, { steps, done: 0n, value: x, running: true })
 }
 
 /** @type {(message: string) => readonly Element[]} */
@@ -111,21 +114,32 @@ const progress = run =>
  */
 const verify = state => {
     const steps = parseSteps(state.steps)
+    const x = xOf(state.text)
+    if (steps === null || x === null) { return null }
+    // Length first: parsing a long paste into a bigint is itself slow.
+    if (state.claimed.length > yDigits) { return 'tooLong' }
     const y = parseHex(state.claimed)
-    return steps === null ? null
-        : y === null ? 'notHex'
-            : y >= p ? 'notBelowP'
-                : sloth.verify(steps)(xOf(state.text))(y) ? 'verified' : 'rejected'
+    return y === null ? 'notHex'
+        : y >= p ? 'notBelowP'
+            : sloth.verify(steps)(x)(y) ? 'verified' : 'rejected'
 }
 
 /** @type {(state: DemoState) => readonly Element[]} */
 const verdictView = ({ verdict, steps }) =>
     verdict === null ? []
-        : verdict === 'notHex' ? refusal('Enter y as hexadecimal digits.')
-            : verdict === 'notBelowP' ? refusal('y must be less than the modulus p.')
-                : verdict === 'verified'
-                    ? [['p', { role: 'status', 'data-result': 'ok' }, `✓ y verifies: squaring it ${steps} times returns x, up to sign.`]]
-                    : [['p', { role: 'status', 'data-result': 'error' }, '✗ y does not verify for this x and number of steps.']]
+        : verdict === 'tooLong' ? refusal(`Enter y with at most ${yDigits} hexadecimal digits.`)
+            : verdict === 'notHex' ? refusal('Enter y as hexadecimal digits.')
+                : verdict === 'notBelowP' ? refusal('y must be less than the modulus p.')
+                    : verdict === 'verified'
+                        ? [['p', { role: 'status', 'data-result': 'ok' }, `✓ y verifies: squaring it ${steps} times returns x, up to sign.`]]
+                        : [['p', { role: 'status', 'data-result': 'error' }, '✗ y does not verify for this x and number of steps.']]
+
+/** `x` in hex, or the refusal of a text too long to hash.
+ * @type {(x: bigint | null) => readonly Element[]}
+ */
+const xView = x => x === null
+    ? refusal(`Input too long: more than ${maxLengthBytes} UTF-8 bytes.`)
+    : [['p', 'Input x = SHA-256 of the text, hex:'], codeBlock(x.toString(16).padStart(64, '0'), 'Copy x')]
 
 /** The evaluated `y`, once every step is done.
  * @type {(run: DemoRun | null) => readonly Element[]}
@@ -168,15 +182,16 @@ export const demo = {
         }
         if (event.kind !== 'click') { return pureOk(state) }
         if (event.name === 'evaluate') { return pureOk(toggle(state)) }
-        if (event.name === 'verify') { return pureOk({ ...state, verdict: verify(state) }) }
+        // Not while evaluating: incremental turns must stay small, and the
+        // runtime shows no `wait` note for them.
+        if (event.name === 'verify') { return pureOk(state.run?.running ? state : { ...state, verdict: verify(state) }) }
         const { run } = state
         return pureOk(event.name === 'evaluate-next' && run !== null && run.running ? advance(state, run) : state)
     },
     view: state => ['div',
         ['p', 'A verifiable delay function takes many sequential steps to evaluate, while anyone can check the result quickly. Sloth evaluates by repeated modular square roots; verification squares the result back. Evaluate, copy y into the verifier, and press Verify; change a digit to see it rejected.'],
         textField({ name: 'text', label: 'Input' }, state.text),
-        ['p', 'Input x = SHA-256 of the text, hex:'],
-        codeBlock(sha256Digest(state.text), 'Copy x'),
+        ...xView(xOf(state.text)),
         inputField({ name: 'steps', label: 'Steps' }, state.steps),
         ...(parseSteps(state.steps) === null ? refusal('Enter a non-negative decimal number of steps.') : []),
         ['section',
@@ -188,7 +203,7 @@ export const demo = {
         ['section',
             ['h3', 'Verify'],
             textField({ name: 'claimed', label: 'Claimed y, hex', rows: 6 }, state.claimed),
-            ['p', ['button', { type: 'button', name: 'verify' }, 'Verify']],
+            ['p', ['button', { type: 'button', name: 'verify', ...(state.run?.running ? { disabled: '' } : {}) }, 'Verify']],
             ...verdictView(state),
         ],
     ],
