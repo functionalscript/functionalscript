@@ -213,8 +213,7 @@ fn tree(path: &str) -> io::Result<Vec<Dirent>> {
 
 /// A byte offset within the shared positional-I/O safe integer range.
 fn offset(value: f64) -> Option<u64> {
-    ((0.0..=MAX_OFFSET as f64).contains(&value) && value.fract() == 0.0)
-        .then_some(value as u64)
+    ((0.0..=MAX_OFFSET as f64).contains(&value) && value.fract() == 0.0).then_some(value as u64)
 }
 
 /// `recursive` is `create_dir_all`, which answers nothing for a directory that
@@ -446,7 +445,10 @@ mod test {
         }
         // A raw permission error must not collapse EPERM into EACCES.
         let denied = io::Error::from_raw_os_error(13);
-        assert_eq!(failure(&denied, "open", "p").code.as_deref(), Some("EACCES"));
+        assert_eq!(
+            failure(&denied, "open", "p").code.as_deref(),
+            Some("EACCES")
+        );
     }
 
     #[cfg(target_os = "windows")]
