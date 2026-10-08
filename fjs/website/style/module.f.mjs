@@ -92,9 +92,9 @@ export const captionMarker = 'data-caption'
  *
  * @type {string}
  */
-export const stylesheet = `:root { color-scheme: light dark; --graph-new-bg: #aecbfa; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6; --value: #174ea6; --value-bg: #e8f0fe }
+export const stylesheet = `:root { color-scheme: light dark; --graph-new-bg: #aecbfa; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6; --value: #174ea6; --value-bg: #e8f0fe; --syntax-number: #8430ce }
 @media (prefers-color-scheme: dark) {
-    :root { --graph-new-bg: #1c2d4d; --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414; --value: #8ab4f8; --value-bg: #172033 }
+    :root { --graph-new-bg: #1c2d4d; --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414; --value: #8ab4f8; --value-bg: #172033; --syntax-number: #c58af9 }
 }
 /* Every link on the site is coloured the same whether or not it has been
    opened: nearly every word here is a link into the tree, and the visited
@@ -494,5 +494,11 @@ a:hover > [data-railroad-box="nonTerminal"] { fill: var(--pass-bg) }
 [data-pick-code] { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap }
 /* The member a failure points at, marked inside a code block — the rtti
    demo's value written again under a refusal — in the failure's colours. */
+/* Syntax highlighting inside a code block, from website/demo/highlight:
+   the token classes only, so names and punctuation keep the text colour. */
+[data-token="keyword"], [data-token="literal"] { color: var(--value) }
+[data-token="string"] { color: var(--pass) }
+[data-token="number"] { color: var(--syntax-number) }
+[data-token="comment"] { color: var(--muted); font-style: italic }
 [data-code] mark { background: var(--fail-bg); border-radius: 3px; color: var(--fail); outline: 1px solid color-mix(in srgb, var(--fail) 40%, transparent) }
 `
