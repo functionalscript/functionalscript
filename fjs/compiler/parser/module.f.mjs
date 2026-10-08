@@ -19,7 +19,9 @@
  * the fold's — a reference to a name nothing binds, a name bound twice by
  * `import` or `const`, which share one map, a JavaScript keyword bound or
  * referenced, since the tokenizer hands every keyword over as an
- * identifier and a key or the name after `.` may be one, and a bare or
+ * identifier and a key or the name after `.` may be one, a reserved global
+ * — `Number`, which is spelled only as the conversion `Number(x)`,
+ * {@link conversion} — bound or referenced anywhere else, and a bare or
  * string `__proto__` key, which JavaScript reads as an instruction to
  * replace the prototype; the computed spelling `{ ["__proto__"]: v }` and
  * the shorthand `{ __proto__ }` denote an ordinary property and are
@@ -59,10 +61,10 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstNot, AstTypeof, AstInstanceOf, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstNot, AstTypeof, AstInstanceOf, AstNumber, AstKey, AstSelf, AstCall, AstConditional, AstConst, AstEntryFunction, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
- * @import { Block, Chain, Container, Entry, If, Import, Item, Module, Node, ParameterBinding, ParameterList, Statement, Step, ValueStatement } from './syntax/types.ts'
- * @import { _AccessFrame, _BodyFrame, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Intrinsic, _Parameter, _Ref, _Scope, _Stack, _State } from './private.ts'
+ * @import { Block, Chain, ComputedKey, Container, Entry, If, Import, Item, Key, Module, Node, ParameterBinding, ParameterList, Statement, Step, ValueStatement } from './syntax/types.ts'
+ * @import { _AccessFrame, _BodyFrame, _CallFrame, _ChainFrame, _ChainPart, _ConditionalFrame, _IndexFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Intrinsic, _Parameter, _Ref, _Scope, _Stack, _State } from './private.ts'
  */
 
 import { error, mapOk, ok } from '../../types/result/module.f.mjs'
@@ -121,8 +123,29 @@ const malformedParameters = foldError('malformed parameter list')
  */
 const captureShadowed = foldError('capture shadowed')
 
-/** A keyword where JavaScript wants an identifier, at the word. */
+/**
+ * A keyword where JavaScript wants an identifier, at the word — or a
+ * reserved global, `Number`, bound or read anywhere but as the callee of
+ * the conversion, {@link conversion}: never a module's to bind, under
+ * [spec: global names](../../../spec/todo/2365-global-names.md)' rule, and
+ * no value, so `Number.isFinite` and a bare `Number` are refused at the
+ * word as `typeof.x` would be.
+ */
 const reservedWord = foldError('reserved word')
+
+/**
+ * The call of `Number` with more than one argument, or a spread, at the
+ * word: `Number(a, b)` and `Number(...a)`, JavaScript's and not recognized
+ * yet, for want of a representation
+ * ([spec: number conversion](../../../spec/README.md#number-conversion)):
+ * `Number(a, b)` is the comma's `(a, b, Number(a))`, which the
+ * FunctionalScript writer cannot spell until the comma operator lands, and
+ * `Number(...a)` converts the first value a spread yields, which no node
+ * expresses while a call's arity is the callee's to split. Refused by name
+ * rather than answered wrongly; `Number()` is `0`, and is read as the
+ * literal, {@link conversion}.
+ */
+const conversionArity = foldError('Number takes one argument')
 
 /**
  * A token on the wrong side of a line break, at that token: the first
@@ -179,15 +202,16 @@ const restBinding = ['rest']
  * — a name bound or referenced — refusing every keyword: the tokenizer
  * demotes them all to `id`, so that a key or the name after `.` may be one,
  * and here is where the distinction is made. `const if = 1;` is a syntax
- * error in JavaScript, so it is an error here.
+ * error in JavaScript, so it is an error here. A reserved global is refused
+ * the same way, {@link reservedWord}: `Array` and `Number` name no binding
+ * and no value, and the one place each stands is read before the word
+ * reaches here — `instanceof`'s right operand, which the fold checks for
+ * the word itself, and the conversion's callee, {@link conversion}.
  *
  * @type {(name: DjsTokenWithMetadata) => Result<string, ParseError>}
  */
 const identifierOf = name => {
     const word = nameOf(name)
-    // a reserved global, `Array`, is refused exactly as a keyword is: never
-    // bound, never a reference — `instanceof`'s right side reads the word
-    // itself, not a reference, which is why it may name it
     return isKeyword(word) || isReservedGlobal(word) ? error(reservedWord(name)) : ok(word)
 }
 
@@ -279,19 +303,53 @@ const keyNamed = t => {
 }
 
 /**
- * An access closed over its base: the AST's `['.', base, key]`, or the
- * refusal of its key — a name of the prototype chain where the access is
- * read, and a member function a module may not call where it is a call's
- * callee, `frame.method`. The two rules are `fjs/js/prototype`'s two
- * lists, and the access's shape is the same either way: the lowering
- * makes the callee access a method call, `['.', a, 'b', ['|()', args]]`.
+ * An access closed over its base and its constant key: the AST's
+ * `['.', base, key]`, or the refusal of its key — a name of the prototype
+ * chain where the access is read, and a member function a module may not
+ * call where it is a call's callee, `method`. The two rules are
+ * `fjs/js/prototype`'s two lists, and the access's shape is the same
+ * either way: the lowering makes the callee access a method call,
+ * `['.', a, 'b', ['|()', args]]`.
  *
- * @type {(frame: _AccessFrame, base: AstConst) => Result<AstConst, ParseError>}
+ * @type {(key: DjsTokenWithMetadata, method: boolean, base: AstConst) => Result<AstConst, ParseError>}
  */
-const accessClosed = (frame, base) => mapOk(
+const accessClosed = (key, method, base) => mapOk(
     /** @type {(named: string | number) => AstConst} */
     (named => ['.', base, named]),
-)(checkedKey(frame.key, frame.method))
+)(checkedKey(key, method))
+
+/**
+ * A key computed at run time that is no conversion, at the token it begins
+ * with: `a[i]`, `a[-1]`, `a[NaN]`. An index is a constant — a string or a
+ * number literal — or `Number(i)`, the conversion
+ * ([spec: property access](../../../spec/README.md#property-access)); a key
+ * of any type is read by the `entry` helper, and a negative or a special
+ * number is written as the string it names, `a["-1"]`.
+ */
+const computedKey = foldError('computed key is not Number(...)')
+
+/**
+ * Whether a computed key is the conversion: a call of the word `Number`,
+ * whatever its arguments, which the conversion itself judges when entered,
+ * {@link conversion} — so `a[Number()]` is `a[0]`, and `a[Number(1, 2)]`
+ * is refused as `Number(1, 2)` is anywhere.
+ *
+ * @type {(node: Node) => boolean}
+ */
+const isConversion = node => node[0] === '()' && node[1][0] === 'ref' && nameOf(node[1][1]) === 'Number'
+
+/**
+ * A computed key entered under `frame`, which receives its value — the
+ * access whose base it follows, {@link _IndexFrame}, or a chain, which
+ * takes the key among its parts' values — or its refusal, at the token it
+ * begins with, {@link computedKey}. It is entered after the base, and after
+ * every part of a chain written before it, as JavaScript evaluates it.
+ *
+ * @type {(stack: _Stack, scope: _Scope, key: ComputedKey, frame: _IndexFrame | _ChainFrame) => _State}
+ */
+const keyEntered = (stack, scope, [, node, first], frame) => isConversion(node)
+    ? [{ top: frame, rest: stack }, scope, ['enter', node]]
+    : [stack, scope, error(computedKey(first))]
 
 /**
  * A key's name, or its refusal: a name of the prototype chain where the
@@ -342,7 +400,7 @@ const chainParts = chain => {
 const stepClosed = (step, values, at) => {
     const [tag, x, next] = step
     if (tag === '|.') {
-        const key = /** @type {string | number} */ (values[at])
+        const key = /** @type {AstKey} */ (values[at])
         return next === undefined ? ['|.', key] : ['|.', key, stepClosed(next, values, at + 1)]
     }
     const args = x.map((item, i) => itemValue(item)(values[at + i]))
@@ -363,7 +421,7 @@ const chainClosed = (chain, values) => {
         return step === undefined ? ['?.()', values[0], args] : ['?.()', values[0], args, stepClosed(step, values, 1 + items.length)]
     }
     const [tag, , , step] = chain
-    const key = /** @type {string | number} */ (values[1])
+    const key = /** @type {AstKey} */ (values[1])
     return /** @type {AstConst} */ (step === undefined ? [tag, values[0], key] : [tag, values[0], key, stepClosed(step, values, 2)])
 }
 
@@ -380,7 +438,9 @@ const chainRound = (stack, scope, frame) => {
     if (index === parts.length) { return [stack, scope, ok(chainClosed(frame.chain, toArray(frame.done)))] }
     const part = parts[index]
     if ('value' in part) { return [{ top: frame, rest: stack }, scope, ['enter', part.value]] }
-    const [tag, named] = checkedKey(part.key, part.method)
+    const { key } = part
+    if (key instanceof Array) { return keyEntered(stack, scope, key, frame) }
+    const [tag, named] = checkedKey(key, part.method)
     if (tag === 'error') { return [stack, scope, error(named)] }
     return chainRound(stack, scope, { ...frame, index: index + 1, done: concat(frame.done)([named]) })
 }
@@ -820,7 +880,7 @@ const enter = (stack, scope, node) => {
                 : chainRound(stack, scope, { chain: node, parts: chainParts(node), index: 0, done: null })
         }
         case '?.': case '?.()': { return chainRound(stack, scope, { chain: node, parts: chainParts(node), index: 0, done: null }) }
-        case '()': { return callRound(stack, scope, { call: node, index: 0, done: null }) }
+        case '()': { return conversion(stack, scope, node) ?? callRound(stack, scope, { call: node, index: 0, done: null }) }
         case '-': { return [{ top: { neg: true }, rest: stack }, scope, ['enter', node[1]]] }
         case '~': { return [{ top: { bitnot: true }, rest: stack }, scope, ['enter', node[1]]] }
         case '!': { return [{ top: { not: true }, rest: stack }, scope, ['enter', node[1]]] }
@@ -841,17 +901,47 @@ const enter = (stack, scope, node) => {
 const isRef = (node, word) => node[0] === 'ref' && nameOf(node[1]) === word
 
 /**
+ * The conversion `Number(x)` entered, or `null` where the call is no
+ * conversion: a call whose callee is the word `Number` — which no scope
+ * binds, since the word is refused at every binding, {@link identifierOf},
+ * so the word alone decides — its one plain argument entered under a frame
+ * holding the tag, {@link _ConversionFrame}. `Number()` is the literal `0`,
+ * exact as JavaScript has it, folded here as unary `-` over a literal is
+ * folded, since a node of no operand would be a second spelling of the
+ * leaf; the call of any other shape is refused at the word,
+ * {@link conversionArity}. The word anywhere else is a reference, and
+ * refused as every reserved word is.
+ *
+ * @type {(stack: _Stack, scope: _Scope, node: Extract<Node, readonly ['()', Node, readonly Item[]]>) => _State | null}
+ */
+const conversion = (stack, scope, [, callee, args]) => {
+    if (callee[0] !== 'ref' || nameOf(callee[1]) !== 'Number') { return null }
+    if (args.length === 0) { return [stack, scope, ok(0)] }
+    const operand = args.length === 1 ? args[0] : null
+    if (operand === null || operand[0] === '...') { return [stack, scope, error(conversionArity(callee[1]))] }
+    return [{ top: { conversion: 'Number' }, rest: stack }, scope, ['enter', operand]]
+}
+
+/**
+ * Whether an access's key is the constant `name`, in either spelling: a
+ * computed key, `[Number(i)]`, names no constant.
+ *
+ * @type {(key: Key, name: string) => boolean}
+ */
+const isKeyNamed = (key, name) => !(key instanceof Array) && keyNamed(key) === name
+
+/**
  * Whether a node is `Object.getOwnPropertyDescriptor(a, b)`, the helper's
  * descriptor, `a` and `b` the words its parameters bind: a plain call of
  * a plain access, the key in either spelling, as any key is read,
- * {@link keyNamed}.
+ * {@link isKeyNamed}.
  *
  * @type {(node: Node, a: string, b: string) => boolean}
  */
 const isDescriptorOf = (node, a, b) => {
     if (node[0] !== '()' || node[2].length !== 2) { return false }
     const [, callee, [first, second]] = node
-    return callee[0] === '.' && callee.length === 3 && isRef(callee[1], 'Object') && keyNamed(callee[2]) === 'getOwnPropertyDescriptor'
+    return callee[0] === '.' && callee.length === 3 && isRef(callee[1], 'Object') && isKeyNamed(callee[2], 'getOwnPropertyDescriptor')
         && isRef(first, a) && isRef(second, b)
 }
 
@@ -865,8 +955,8 @@ const isDescriptorOf = (node, a, b) => {
 const isEntryOf = (node, x) => {
     if (node[0] !== '?:') { return false }
     const [, condition, then, otherwise] = node
-    return condition[0] === '?.' && condition.length === 3 && isRef(condition[1], x) && keyNamed(condition[2]) === 'enumerable'
-        && then[0] === '.' && then.length === 3 && isRef(then[1], x) && keyNamed(then[2]) === 'value'
+    return condition[0] === '?.' && condition.length === 3 && isRef(condition[1], x) && isKeyNamed(condition[2], 'enumerable')
+        && then[0] === '.' && then.length === 3 && isRef(then[1], x) && isKeyNamed(then[2], 'value')
         && otherwise[0] === 'primitive' && otherwise[1] === undefined
 }
 
@@ -891,8 +981,9 @@ const isEntryOf = (node, x) => {
  * JavaScript's own reading, and no helper. `null` where the function is
  * not the helper, by shape or by binding, and the ordinary resolution
  * takes it from there, refusing the `Object` it cannot name; a keyword, a
- * reserved global such as `Array`, or a repeated name among the three is
- * left to it the same way, to refuse as it refuses every other. An error where the helper's two statements
+ * reserved global such as `Array` or `Number`, or a repeated name among
+ * the three is left to it the same way, to refuse as it refuses every
+ * other. An error where the helper's two statements
  * break the line rules every block's statements keep, {@link unterminated}
  * and {@link brokenLine}, which the shape alone cannot see.
  *
@@ -962,7 +1053,15 @@ const returned = (stack, scope, frame, value) => {
     if ('container' in frame) { return round(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([containerValue(frame.container, frame.index, value)]) }) }
     if ('call' in frame) { return callRound(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([callValue(frame.call, frame.index, value)]) }) }
     if ('conditional' in frame) { return conditionalRound(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
-    if ('key' in frame) { return [stack, scope, accessClosed(frame, value)] }
+    if ('key' in frame) {
+        const { key, method } = frame
+        return key instanceof Array ? keyEntered(stack, scope, key, { indexed: value }) : [stack, scope, accessClosed(key, method, value)]
+    }
+    if ('indexed' in frame) {
+        /** @type {AstAccess} */
+        const access = ['.', frame.indexed, /** @type {AstKey} */ (value)]
+        return [stack, scope, ok(access)]
+    }
     if ('chain' in frame) { return chainRound(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
     if ('neg' in frame) {
         /** @type {AstNeg} */
@@ -993,6 +1092,11 @@ const returned = (stack, scope, frame, value) => {
         /** @type {AstInstanceOf} */
         const checked = ['instanceof', value, 'Array']
         return [stack, scope, ok(checked)]
+    }
+    if ('conversion' in frame) {
+        /** @type {AstNumber} */
+        const converted = [frame.conversion, value]
+        return [stack, scope, ok(converted)]
     }
     if ('right' in frame) { return [{ top: { tag: frame.tag, left: value }, rest: stack }, scope, ['enter', frame.right]] }
     if ('left' in frame) {

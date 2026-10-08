@@ -15,7 +15,7 @@ import { toArray } from '../../../types/list/module.f.mjs'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
     _ordinaryTokenNames as names, access, array, attribute, block, body, circuitTail, conditionalTail, constStatement,
-    djsModule, func, group, identifier, importStatement, index, items, lastStatement, entry, member, object, parameters, paren, statement,
+    djsModule, func, group, identifier, importStatement, items, lastStatement, entry, member, object, parameters, paren, statement,
     parenGroup, parenthesized, primitive, sym, symbolOf, value,
 } from './module.f.mjs'
 
@@ -59,7 +59,6 @@ export const proof = {
         parser(identifier)
         parser(primitive)
         parser(/** @type {Rule} */ (member))
-        parser(index)
         parser(access)
         parser(/** @type {Rule} */ (entry))
         parser(/** @type {Rule} */ (value))
@@ -340,9 +339,14 @@ export const proof = {
         assertStructurallySame(read('export default { a: [1] }.a[0];'), ['ok'])
         assertStructurallySame(read('export default null.x;'), ['ok'])
         assertStructurallySame(read('export default 1.x;'), ['error', 'error'])
-        assertStructurallySame(read('const a = []; export default a[1n];'), ['error', 'bigint'])
-        assertStructurallySame(read('const a = []; export default a[b];'), ['error', 'b'])
+        // an index holds any value, which the fold judges: a constant or the
+        // conversion, `a[Number(b)]`, and every other value refused there
+        assertStructurallySame(read('const a = []; export default a[1n];'), ['ok'])
+        assertStructurallySame(read('const a = []; export default a[b];'), ['ok'])
+        assertStructurallySame(read('const a = []; export default a[Number(b)]?.[Number(c)];'), ['ok'])
+        assertStructurallySame(read('const a = []; export default a[b + 1 ? [c] : {}];'), ['ok'])
         assertStructurallySame(read('const a = []; export default a[];'), ['error', ']'])
+        assertStructurallySame(read('const a = []; export default a[b;'), ['error', ';'])
         assertStructurallySame(read('const a = {}; export default a.1;'), ['error', 'number'])
         assertStructurallySame(read('const a = {}; export default a.;'), ['error', ';'])
         assertStructurallySame(read('const a = {}; export default a."b";'), ['error', 'string'])

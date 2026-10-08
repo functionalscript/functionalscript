@@ -44,6 +44,7 @@ export const examples = [
     ['Logical not', 'export default [!1, !!"", !null, ![]];'],
     ['typeof', 'export default [typeof 1, typeof "s", typeof null, typeof 1n, typeof (() => 1)];'],
     ['instanceof', 'export default [[1] instanceof Array, [] instanceof (Array), null instanceof Array, !1 instanceof Array];'],
+    ['Number conversion', 'const xs = [10, 20, 30];\nexport default [Number("0x10"), Number(" 4 "), Number(1n), Number([7]), Number(null), xs[Number("2")]];'],
     ['Laziness', 'const f = x => x > 0 ? x : -x;\nexport default [f(-3), 1 && 2, null ?? 5];'],
     ['Laziness: && || ??', 'export default (...a) => [a[0] && a[1], a[0] || a[1], a[0] ?? a[1]];'],
     ['Laziness: ?:', 'export default (...a) => a[0] ? a[1] : a[2];'],

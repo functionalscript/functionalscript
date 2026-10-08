@@ -51,7 +51,7 @@ import type { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
 export type Node =
     | readonly ['primitive', Primitive]
     | readonly ['ref', DjsTokenWithMetadata]
-    | readonly ['.', Node, DjsTokenWithMetadata]
+    | readonly ['.', Node, Key]
     | readonly ['()', Node, readonly Item[]]
     | Chain
     | readonly ['-', Node]
@@ -98,6 +98,20 @@ export type If = {
 }
 
 /**
+ * An access's key: the token a constant key is read from — the name after
+ * `.`, or a string or a number literal in brackets, whose refusal is
+ * anchored there — or a computed key, {@link ComputedKey}.
+ */
+export type Key = DjsTokenWithMetadata | ComputedKey
+
+/**
+ * Any other value in brackets, `a[i]`, and the token it begins with, which
+ * its refusal is anchored at: the fold admits the conversion `Number(i)`
+ * alone ([spec: property access](../../../../spec/README.md#property-access)).
+ */
+export type ComputedKey = readonly ['[]', Node, DjsTokenWithMetadata]
+
+/**
  * An item of an array or of a call's arguments: a value, or a spread of
  * one, `...value`, which no node is — it stands only in an item list.
  */
@@ -114,11 +128,11 @@ export type Item = Node | readonly ['...', Node]
  * an access over one.
  */
 export type Chain =
-    | readonly ['?.', Node, DjsTokenWithMetadata]
-    | readonly ['?.', Node, DjsTokenWithMetadata, Step]
+    | readonly ['?.', Node, Key]
+    | readonly ['?.', Node, Key, Step]
     | readonly ['?.()', Node, readonly Item[]]
     | readonly ['?.()', Node, readonly Item[], Step]
-    | readonly ['.', Node, DjsTokenWithMetadata, OptionalCall]
+    | readonly ['.', Node, Key, OptionalCall]
 
 /**
  * One step a chain goes on with, and the steps after it: a property by its
@@ -127,8 +141,8 @@ export type Chain =
  * nothing continues the chain.
  */
 export type Step =
-    | readonly ['|.', DjsTokenWithMetadata]
-    | readonly ['|.', DjsTokenWithMetadata, Step]
+    | readonly ['|.', Key]
+    | readonly ['|.', Key, Step]
     | readonly ['|()', readonly Item[]]
     | readonly ['|()', readonly Item[], Step]
     | OptionalCall

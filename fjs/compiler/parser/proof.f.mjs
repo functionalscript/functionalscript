@@ -794,6 +794,111 @@ export const proof = {
             expect('const a = {}; export default [a.if, a.export, a.default, a.class, a.typeof, a.instanceof, a.Array];')
         },
     },
+    // `Number` is a reserved global: the fold reads the call of the word
+    // with one plain argument as the conversion, `['Number', v]`, before the
+    // word is resolved, and refuses the word everywhere else as a keyword
+    // is refused — bound, in any binding position, or read, bare or as a
+    // namespace — while a key and a property name stay what JavaScript has
+    // them as (spec/README.md, Number Conversion).
+    conversion: {
+        read: () => {
+            expectModule('export default Number("0x10");', '[[],[["object",[[":","default",["Number","0x10"]]]]]]')
+            // a value like any other: an operand, a base, a callee, an
+            // operand of itself, and the operand any value
+            expectModule('export default -Number(1);', '[[],[["object",[[":","default",["-",["Number",1]]]]]]]')
+            expectModule('export default Number(1 + 2) * 2;', '[[],[["object",[[":","default",["*",["Number",["+",1,2]],2]]]]]]')
+            expectModule('export default Number(1).x;', '[[],[["object",[[":","default",[".",["Number",1],"x"]]]]]]')
+            expectModule('export default Number(1)(2);', '[[],[["object",[[":","default",["()",["Number",1],[2]]]]]]]')
+            expectModule('export default Number(Number(1n));', '[[],[["object",[[":","default",["Number",["Number",1n]]]]]]]')
+            expectModule('export default Number({ valueOf: () => 7 });', '[[],[["object",[[":","default",["Number",["object",[[":","valueOf",["=>",0,[7]]]]]]]]]]]')
+            expectModule('export default (...a) => Number(a[0]);', '[[],[["object",[[":","default",["=>",0,[["Number",[".",["rest"],0]]]]]]]]]')
+            // a group is no boundary, and neither is a line break before
+            // the arguments, as in JavaScript
+            expectModule('export default (Number)(1);', '[[],[["object",[[":","default",["Number",1]]]]]]')
+            expectModule('export default Number\n(1);', '[[],[["object",[[":","default",["Number",1]]]]]]')
+            // `Number()` is `0`, the literal, as JavaScript has it
+            expectModule('export default Number();', '[[],[["object",[[":","default",0]]]]]')
+            expectModule('export default -Number();', '[[],[["object",[[":","default",["-",0]]]]]]')
+        },
+        // the conversion is the represented interpreter's `Number`: a
+        // string read as a literal, a bigint converted, an array joined, an
+        // object through its own `valueOf`
+        evaluated: () => {
+            const value = evaluate(unwrap(parseFromTokens(tokenizeString('export default [Number("0x10"), Number(" 4 "), Number(1n), Number([7]), Number(null), Number({ valueOf: () => 7 }), Number("x")];'))))
+            assertStructurallySame(assertOk(read(ok(value), 'default')), ['[]', [16, 4, 1, 7, 0, 7, NaN]])
+        },
+        // the word bound, in every position a name is bound, and read
+        // anywhere but as the conversion's callee
+        reserved: () => {
+            expectRefused('const Number = 1; export default 2;', 'reserved word', 7)
+            expectRefused('export const Number = 1;', 'reserved word', 14)
+            expectRefused('export default (Number) => 1;', 'reserved word', 17)
+            expectRefused('export default (...Number) => 1;', 'reserved word', 20)
+            expectRefused('import Number from "./m.f.js"; export default 1;', 'reserved word', 8)
+            expectRefused('import { Number } from "./m.f.js"; export default 1;', 'reserved word', 10)
+            expectRefused('import { a as Number } from "./m.f.js"; export default 1;', 'reserved word', 15)
+            expectRefused('export default () => { const Number = 1; return 2; };', 'reserved word', 30)
+            expectRefused('export default Number;', 'reserved word', 16)
+            expectRefused('const n = Number; export default n;', 'reserved word', 11)
+            expectRefused('export default [Number];', 'reserved word', 17)
+            expectRefused('export default { Number };', 'reserved word', 18)
+            expectRefused('export default Number.isFinite(1);', 'reserved word', 16)
+            // the guarded call is not read as the conversion yet
+            expectRefused('export default Number?.(1);', 'reserved word', 16)
+            // the `entry` helper under a reserved name is no helper: the
+            // binding is refused as any other is
+            expectRefused('const entry = (Number, b) => { const x = Object.getOwnPropertyDescriptor(Number, b); return x?.enumerable ? x.value : undefined; }; export default entry;', 'reserved word', 16)
+            expectRefused('const entry = (a, b) => { const Number = Object.getOwnPropertyDescriptor(a, b); return Number?.enumerable ? Number.value : undefined; }; export default entry;', 'reserved word', 33)
+        },
+        // more than one argument, or a spread: not recognized yet, refused
+        // by name at the word
+        arity: () => {
+            expectRefused('export default Number(1, 2);', 'Number takes one argument', 16)
+            expectRefused('export default Number(...[1]);', 'Number takes one argument', 16)
+        },
+        // a key and a property name are not references: an own property of
+        // the name is read, and called, as JavaScript reads and calls it
+        key: () => {
+            expectModule('export default { Number: 1 }.Number;', '[[],[["object",[[":","default",[".",["object",[[":","Number",1]]],"Number"]]]]]]')
+            expectModule('export default { Number: 1 }["Number"];', '[[],[["object",[[":","default",[".",["object",[[":","Number",1]]],"Number"]]]]]]')
+            expectModule('export default { Number: () => 1 }.Number(1);', '[[],[["object",[[":","default",["()",[".",["object",[[":","Number",["=>",0,[1]]]]],"Number"],[1]]]]]]]')
+            expectModule('export default (...a) => a[0].Number;', '[[],[["object",[[":","default",["=>",0,[[".",[".",["rest"],0],"Number"]]]]]]]]')
+        },
+        // A key computed at run time is the conversion, `a[Number(i)]`:
+        // the AST's key is the conversion itself, entered after the base,
+        // in a plain access, a method call, a guarded access and a chain's
+        // step alike (spec/README.md, Property Access).
+        index: () => {
+            expectModule('export default (...a) => a[Number(a[0])];', '[[],[["object",[[":","default",["=>",0,[[".",["rest"],["Number",[".",["rest"],0]]]]]]]]]]')
+            expectModule('export default (...a) => a[Number(a[0])](1);', '[[],[["object",[[":","default",["=>",0,[["()",[".",["rest"],["Number",[".",["rest"],0]]],[1]]]]]]]]]')
+            expectModule('export default (...a) => a?.[Number(a[0])];', '[[],[["object",[[":","default",["=>",0,[["?.",["rest"],["Number",[".",["rest"],0]]]]]]]]]]')
+            expectModule('export default (...a) => a?.b[Number(a[0])](1);', '[[],[["object",[[":","default",["=>",0,[["?.",["rest"],"b",["|.",["Number",[".",["rest"],0]],["|()",[1]]]]]]]]]]]')
+            expectModule('export default [1][Number([0][Number("0")])];', '[[],[["object",[[":","default",[".",["array",[1]],["Number",[".",["array",[0]],["Number","0"]]]]]]]]]')
+            // `Number()` is `0`, a constant key; a group is no boundary
+            expectModule('export default [1][Number()];', '[[],[["object",[[":","default",[".",["array",[1]],0]]]]]]')
+            expectModule('export default [1][(Number("0"))];', '[[],[["object",[[":","default",[".",["array",[1]],["Number","0"]]]]]]]')
+            // a name the key reads is a capture as any read is
+            expectModule('const k = "0"; export default (...a) => a[Number(k)];', '[[],["0",["object",[[":","default",["=>",0,[[".",["rest"],["Number",["fref",0]]]],[["cref",0]]]]]]]]')
+        },
+        // the interpreter reads the key the conversion gives, as JavaScript
+        // reads it: a number's string, so `NaN` names nothing
+        indexEvaluated: () => {
+            const value = evaluate(unwrap(parseFromTokens(tokenizeString('const xs = [10, 20, 30]; export default [xs[Number("1")], xs[Number(2n)], "abc"[Number(true)], { "1": "o" }[Number("1")], xs[Number("x")]];'))))
+            assertStructurallySame(assertOk(read(ok(value), 'default')), ['[]', [20, 30, 'b', 'o', ['undefined']]])
+        },
+        // any other value in brackets is refused at the token it begins
+        // with, after the base, as JavaScript evaluates the two
+        indexRefused: () => {
+            for (const source of ['export default [1][i];', 'export default [1][-1];', 'export default [1][NaN];', 'export default [1][1n];', 'export default [1][(0)];', 'export default [1]["a" + "b"];', 'export default [1][Number.x];']) {
+                expectRefused(source, 'computed key is not Number(...)', 20)
+            }
+            expectRefused('export default (...a) => a?.[i];', 'computed key is not Number(...)', 30)
+            expectRefused('export default (...a) => a?.b[i];', 'computed key is not Number(...)', 31)
+            expectRefused('export default [1][Number(1, 2)];', 'Number takes one argument', 20)
+            expectRefused('export default x[i];', 'const not found', 16)
+            expectRefused('export default [1][Number(x)];', 'const not found', 27)
+        },
+    },
     // `with { type: "json" }` is the one import attribute JavaScript
     // defines; the grammar takes any key and any string, and the fold reads
     // both words and names the one it does not know.

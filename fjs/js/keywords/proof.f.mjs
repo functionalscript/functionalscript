@@ -48,13 +48,13 @@ export const proof = {
         assertEq(keywords.every(isKeyword), true)
         assertEq(['If', 'nan', 'constructor', 'toString', 'x', ''].some(isKeyword), false)
     },
-    // A reserved global is a name, not a keyword: `isReservedGlobal` holds
-    // for each and nothing else, and none of them is among the keywords,
-    // so a tokenizer keeps each an `id` token.
+    // A reserved global is no keyword, and `isReservedGlobal` holds for the
+    // list and nothing else — not for a keyword, a literal global, a case
+    // variant, a prototype member or the empty word.
     reservedGlobals: () => {
-        assertEq(reservedGlobals.join(), 'Array')
-        assertEq(reservedGlobals.every(isReservedGlobal), true)
+        assertEq(reservedGlobals.join(), 'Array,Number')
         assertEq(reservedGlobals.some(isKeyword), false)
-        assertEq(['array', 'Map', 'constructor', 'x', ''].some(isReservedGlobal), false)
+        assertEq(reservedGlobals.every(isReservedGlobal), true)
+        assertEq([...keywords, 'array', 'number', 'NUMBER', 'Map', 'constructor', 'String', 'x', ''].some(isReservedGlobal), false)
     },
 }

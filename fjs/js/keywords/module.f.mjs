@@ -49,28 +49,6 @@ export const restrictedNames = /** @type {const} */ (['arguments', 'eval'])
 export const literalGlobals = /** @type {const} */ (['Infinity', 'NaN', 'undefined'])
 
 /**
- * Global names FunctionalScript reserves without making them keywords: a
- * module may not bind one as a `const` or a parameter, and a reference to
- * one is refused as a reserved word, while it still names a property —
- * `{ Array: 1 }` and `a.Array` — as every reserved word does. A tokenizer
- * keeps each an `id` token: it is a name, not a token kind of its own,
- * which is why these are not among the {@link keywords} and the parser
- * asks {@link isReservedGlobal} beside {@link isKeyword}.
- *
- * `Array` is the first entry of the list
- * `spec/todo/2365-global-names.md` proposes, landed on its own: the right
- * operand of `instanceof` names it, and a module that could bind the word
- * would mean something else by it (`spec/README.md`, Operators).
- */
-export const reservedGlobals = /** @type {const} */ (['Array'])
-
-/** @type {ReadonlySet<string>} */
-const reservedGlobalSet = new Set(reservedGlobals)
-
-/** Whether a word is one of the {@link reservedGlobals}. @type {(word: string) => boolean} */
-export const isReservedGlobal = word => reservedGlobalSet.has(word)
-
-/**
  * The words that *denote* a value rather than name one: JavaScript's three
  * literals, which the {@link reservedWords} hold, and the three
  * {@link literalGlobals}.
@@ -85,6 +63,24 @@ export const isReservedGlobal = word => reservedGlobalSet.has(word)
 export const literalWords = /** @type {const} */ ([
     'Infinity', 'NaN', 'false', 'null', 'true', 'undefined',
 ])
+
+/**
+ * The ECMAScript globals FunctionalScript reserves without making them
+ * keywords: a module may not bind, assign or shadow one, and none is a
+ * value a module can name — each is spelled only where the language admits
+ * it: `Array` as the right operand of `instanceof`
+ * ([spec: instanceof](../../../spec/README.md#instanceof)), and `Number` as
+ * the callee of the conversion `Number(exp)`
+ * ([spec: number conversion](../../../spec/README.md#number-conversion)).
+ * The first names under
+ * [global-names](../../../spec/todo/2365-global-names.md)' rule.
+ *
+ * Not among the {@link keywords}, on purpose: none is a keyword in
+ * JavaScript, so a JavaScript tokenizer keeps each an `id`, and the module
+ * parser asks {@link isReservedGlobal} beside {@link isKeyword} where a
+ * name is bound or referenced.
+ */
+export const reservedGlobals = /** @type {const} */ (['Array', 'Number'])
 
 /** The four groups in declaration order, each name once. */
 const groups = [...reservedWords, ...strictModeReservedWords, ...restrictedNames, ...literalGlobals]
@@ -111,3 +107,14 @@ const keywordSet = new Set(keywords)
  * @type {(word: string) => boolean}
  */
 export const isKeyword = word => keywordSet.has(word)
+
+/** @type {ReadonlySet<string>} */
+const reservedGlobalSet = new Set(reservedGlobals)
+
+/**
+ * Whether a word is one of the {@link reservedGlobals}: never a keyword,
+ * so the two tests never both hold.
+ *
+ * @type {(word: string) => boolean}
+ */
+export const isReservedGlobal = word => reservedGlobalSet.has(word)

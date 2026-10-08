@@ -22,7 +22,6 @@ import type {
     constStatement,
     identifier,
     identifierName,
-    index,
     primitive,
 } from './module.f.mjs'
 
@@ -142,7 +141,7 @@ export type Item = {
  */
 export type Access = {
     readonly property: readonly [number, typeof identifierName]
-    readonly index: readonly [number, typeof index, number]
+    readonly index: readonly [number, Value, number]
     readonly call: readonly [number, Option<Items<Item>>, number]
     readonly optional: readonly [number, OptionalStep]
 }
@@ -154,7 +153,7 @@ export type Access = {
  */
 export type OptionalStep = {
     readonly property: typeof identifierName
-    readonly index: readonly [number, typeof index, number]
+    readonly index: readonly [number, Value, number]
     readonly call: readonly [number, Option<Items<Item>>, number]
 }
 

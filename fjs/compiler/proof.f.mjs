@@ -656,6 +656,9 @@ export const proof = {
             assertEq(fjsRoundTrip('export default ~1 + -[] * 1n;'), 'export default ~1+-[]*1n;')
             assertEq(fjsRoundTrip('export default !(1 + 2) === !!-[];'), 'export default !(1+2)===!!-[];')
             assertEq(fjsRoundTrip('export default typeof (1 + 2) === typeof typeof [];'), 'export default typeof (1+2)===typeof typeof [];')
+            assertEq(fjsRoundTrip('export default Number(" 4 ") + Number(1n) * -Number([7]);'), 'export default Number(" 4 ")+Number(1n)*-Number([7]);')
+            assertEq(compileSource('export default Number("0x10");')('output.json'), '16')
+            assert(compileSource('export default Number("0x10");')('output.rs').includes('(Any::number(string_any("0x10")))?;\n'))
             assertEq(fjsRoundTrip('export default (1 + 2).x;'), 'export default (1+2).x;')
             assertEq(fjsRoundTrip('export default (-[1])[0];'), 'export default (-[1])[0];')
             assertEq(fjsRoundTrip('export default -((...a) => 1);'), 'export default -(()=>1);')
@@ -1198,6 +1201,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 'Logical not': 'ooooo',
                 'typeof': 'ooooo',
                 'instanceof': 'ooooo',
+                'Number conversion': 'ooooo',
                 'Laziness': 'ooooo',
                 'Laziness: && || ??': 'xxooo',
                 'Laziness: ?:': 'xxooo',

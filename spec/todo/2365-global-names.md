@@ -64,10 +64,12 @@ The order this rule sets with [`2360-built-in.md`](./2360-built-in.md) is a
 name's, not the list's. What it protects is that a name 2360 admits is one
 no module could have bound, so each name is reserved no later than any of it
 is admitted, and the list may land whole or a name at a time. `Number` is
-the first, reserved by [number-call](./2362-number-call.md) together with
-the conversion it admits, and it brings the list beside the keywords that
-open question 3 asks for, one name long. Every other name joins that list
-before 2360 admits any of it.
+the first, reserved together with the conversion it admits
+([number conversion](../README.md#number-conversion)), and it brought the
+list beside the keywords that open question 3 asks for. `Array` is the
+second, reserved together with the one right operand of `instanceof` it
+admits ([`instanceof`](../README.md#instanceof)).
+Every other name joins that list before 2360 admits any of it.
 
 ## Open questions
 
@@ -95,6 +97,12 @@ before 2360 admits any of it.
 
 ## Related
 
+- [Number conversion](../README.md#number-conversion) — `Number`, the
+  first name reserved under this rule, in
+  [`fjs/js/keywords`](../../fjs/js/keywords/module.f.mjs)' `reservedGlobals`:
+  the list beside the keywords that open question 3 asks for.
+- [`instanceof`](../README.md#instanceof) — `Array`, the second name
+  reserved under this rule, in the same list.
 - [`2360-built-in.md`](./2360-built-in.md) — which of these names become
   namespaces; each is reserved here no later than it is admitted there
   ([landing a name at a time](#landing-a-name-at-a-time)).
