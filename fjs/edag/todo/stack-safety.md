@@ -23,12 +23,17 @@ names one layer down; the lowering alone holds to 1,209 and overflows at
 on, as `npm run cov` has it, and the same on `main`. So the thousand-level
 vector keeps about one sixth of the stack in a fresh process, and less
 inside the suite, where the walk runs above the runner's frames on a warm
-JIT, and where the margin depends on the machine: a reviewer of
-[functionalscript/functionalscript#2660](https://github.com/functionalscript/functionalscript/pull/2660)
+JIT, and where the margin depends on the machine and the engine: a reviewer
+of [functionalscript/functionalscript#2660](https://github.com/functionalscript/functionalscript/pull/2660)
 saw `proof.subsetLaw[198]`, the `array-nested-deep` vector, fail with this
-`RangeError` in three of four `npm run cov` runs on `aarch64-apple-darwin`
-and in none of two on `main`. The paragraph above records that the corpus
-passes; it is a margin, not a guarantee, and the explicit stack this issue
+`RangeError` under Node 23 on `aarch64-apple-darwin` — a version outside
+the matrix the paragraph above names — in four of seven `npm run cov` runs
+of trees carrying the optional-chaining work and in none of five without
+it, and in none under Node 26; the difference was the lowering's frame,
+which that pull request grew and then restored
+([deep-nesting-recursion](../../compiler/todo/deep-nesting-recursion.md)).
+The paragraph above records that the corpus passes on the versions it
+names; it is a margin, not a guarantee, and the explicit stack this issue
 proposes is what would make it one.
 
 ### Problem
