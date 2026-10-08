@@ -25,9 +25,10 @@ Demo                      ← the page's own heading; the demo never writes it
 
 **The demo never writes its own `h2`.** The page wraps every demo in a
 section headed `Demo` (`demoSection` in [`../page/module.f.mjs`](../page/module.f.mjs)).
-Inside it, a demo that shows several parallel results heads each with an
-`h3` — the compiler's side-by-side page, a grammar's railroad diagrams — and
-uses no other heading level.
+Inside it, a demo made of several parallel parts heads each with an `h3`:
+several results side by side, as the compiler's side-by-side page and a
+grammar's railroad diagrams show, or the halves of one workflow, as the VDF
+demo's `Evaluate` and `Verify` are. It uses no other heading level.
 
 ## The lead: say what the reader is looking at
 
@@ -120,7 +121,7 @@ sharing. Use [`examples`](./examples/module.f.mjs), through
 - **A caption is marked `data-caption`, which sets it bold at the text's own
   size**, as a label is, so a reader tells each result's name from the result
   and from the lead. It stays a `p`, not a heading: the demo's only headings
-  are the `h3`s over [parallel results](#one-order-top-to-bottom). Everything
+  are the `h3`s over [parallel parts](#one-order-top-to-bottom). Everything
   else around the output — the lead, explanatory notes, a progress summary, a
   disclosure's title — stays regular, so the bold marks only what names a
   control or a result.
