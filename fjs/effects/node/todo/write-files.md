@@ -88,7 +88,8 @@ names.
 - [readjsonfile-writejsonfile-helpers](./readjsonfile-writejsonfile-helpers.md)
   — the same layer, one encoding up; on hold for want of a second
   consumer, which this has five of.
-- [one-fixture-list](../../../../nanvm-harness/todo/one-fixture-list.md)
-  — proposes a generator of the same shape; it would be the sixth.
+- [`fjs/nanvm/harness`](../../../nanvm/harness/module.f.mjs) — a generator
+  of the same shape, the sixth: one `writeUtf8File` per compiled fixture and
+  one for `mod.rs`.
 - [check-render-split](../../../media/datajs/vectors/matrix/todo/check-render-split.md)
   — the matrix generator's own split, whose `write` is one of the sites.

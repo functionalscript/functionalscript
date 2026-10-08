@@ -40,20 +40,45 @@ import { nixpkgs, rustOverlay } from '../config/module.f.js'
 export const generatedDirectory = /** @type {const} */ ('gen.nix')
 
 /**
- * A flake input's `url`, built from the pin rather than spelled beside it.
+ * A flake input's `url` in the `github:` form, built from the pin rather than
+ * spelled beside it.
  *
  * The owner, the repository and the commit are separate fields in
  * `../config/module.f.js` rather than one URL, so a caller that needs one of
  * the three alone — {@link lockUpdateText}'s script needs only the commit's
  * directory, not this URL — reads it without parsing this string back apart.
  *
+ * `github:` fetches the revision as a tarball from GitHub's archive endpoint,
+ * and for Nixpkgs the binary cache serves that same tree as a store path, so
+ * the one large input is never cloned.
+ *
  * @type {(input: { owner: string, repo: string, commit: string }) => string}
  */
-const inputUrl = ({ owner, repo, commit }) => `github:${owner}/${repo}/${commit}`
+const githubUrl = ({ owner, repo, commit }) => `github:${owner}/${repo}/${commit}`
 
-const url = inputUrl(nixpkgs)
+/**
+ * The same revision as a plain `git` fetch.
+ *
+ * A sandbox that proxies GitHub commonly allows `git fetch` of a public
+ * repository while refusing its archive downloads, and an agent's container
+ * did exactly that: evaluation failed on the overlay's tarball while a fetch
+ * of the same commit went through. The overlay is a few tens of megabytes to
+ * clone, once per machine, and the lock's `narHash` is the same tree either
+ * way. Nixpkgs stays on {@link githubUrl}: its tarball comes from the binary
+ * cache, and a clone of it would not.
+ *
+ * The URL names the pin's `ref` as well as its `rev`: Nix requires the revision
+ * to be reachable from the ref it fetches, and an omitted ref means the
+ * remote's `HEAD`, so a pin on any other branch would lock only by accident.
+ *
+ * @type {(input: { owner: string, repo: string, ref: string, commit: string }) => string}
+ */
+const gitUrl = ({ owner, repo, ref, commit }) =>
+    `git+https://github.com/${owner}/${repo}?ref=${ref}&rev=${commit}`
 
-const rustOverlayUrl = inputUrl(rustOverlay)
+const url = githubUrl(nixpkgs)
+
+const rustOverlayUrl = gitUrl(rustOverlay)
 
 /**
  * The toolchain expression a job with a `rust` declaration binds to `rust`.
@@ -448,9 +473,9 @@ export const lockUpdatePath = /** @type {const} */ (`./${generatedDirectory}/loc
  * The script that regenerates every generated flake's `flake.lock` from
  * nothing, through real Nix rather than data.
  *
- * `flake.nix` already pins an exact revision — `github:owner/repo/<40 hex>` —
- * so `nix flake lock` adds nothing a person chose; it only fills in the two
- * facts about that revision Nix cannot read off the URL, `narHash` and
+ * `flake.nix` already pins an exact revision — the 40-hex commit in each
+ * input's URL — so `nix flake lock` adds nothing a person chose; it only fills
+ * in the two facts about that revision Nix cannot read off the URL, `narHash` and
  * `lastModified`. Computing those needs Nix and a network fetch of the pinned
  * revision, so `fjs ci` does not compute them: it writes this script, which
  * asks Nix, and this repository's `npm run gen` ends by running it. That makes
