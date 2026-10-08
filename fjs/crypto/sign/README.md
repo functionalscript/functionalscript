@@ -56,7 +56,7 @@ const bits2octets: (q: bigint) => (b: Vec) => Vec
 
 1. `h = bits2int(H(m)) mod q`.
 2. `k` is a random value module `q`. It shall not be `0`.
-3. `r` is `(kG).x`. It's an `X` coordinate (a member of the field over which `E` is defined).
+3. `r = (kG).x mod q`: the `X` coordinate of `kG` (a member of the field over which `E` is defined), reduced modulo `q`.
    If `r` is `0`, select new `k`.
 4. `s = (h+x*r)/k mod q`
 
