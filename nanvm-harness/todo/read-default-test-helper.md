@@ -49,9 +49,10 @@ and the tests that are nothing but one such line can become one table of
 
 ### Related
 
-- [one-fixture-list](./one-fixture-list.md) — the fixture `use` list the
-  same tests carry; a table of rows is where its generated list would
-  be consumed.
+- [`fjs/nanvm/harness`](../../fjs/nanvm/harness/module.f.mjs) — generates
+  `gen.fixtures/mod.rs`, the list of fixtures that exist; the `use` list the
+  same tests carry names what they reach for, and a table of rows is where
+  it would be consumed.
 - [ivm-generic-eq-debug](../../nanvm-lib/todo/ivm-generic-eq-debug.md) —
   `RunError`'s hand-written `Debug`/`PartialEq`, which these
   `assert_eq!`s depend on.
