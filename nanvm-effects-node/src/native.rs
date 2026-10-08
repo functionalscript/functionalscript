@@ -558,8 +558,11 @@ mod test {
                 .unwrap();
             decode_string(value).unwrap()
         };
-        assert!(member("path").ends_with("/Cargo.toml"));
-        assert_eq!(member("id"), format!("file://{}", member("path")));
+        assert!(member("path").replace('\\', "/").ends_with("/Cargo.toml"));
+        assert_eq!(
+            member("id"),
+            crate::resolve::path_to_file_url(&member("path"))
+        );
         let sibling = ok(perform(
             "resolveFileModule",
             [string_any("./src/lib.rs"), string_any(&member("id"))],
@@ -572,6 +575,7 @@ mod test {
                     .unwrap()
             )
             .unwrap()
+            .replace('\\', "/")
             .ends_with("/nanvm-effects-node/src/lib.rs")
         );
     }

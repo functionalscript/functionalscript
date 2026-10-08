@@ -174,14 +174,39 @@ pub fn path_to_file_url(path: &str) -> String {
     format!("file://{}", percent_encode(&rooted))
 }
 
-/// The real path of `path` as Node's `realpath` gives it: on Windows without
-/// the `\\?\` that `canonicalize` puts in front of a drive.
+/// Keep native drive paths, stripping only their extended-length prefix.
+/// UNC and device paths need URL-authority support that this resolver lacks:
+/// refuse them rather than returning a plausible but incorrect module identity.
+/// See `nanvm-effects-node/todo/unc-module-identities.md`.
+/// This lexical helper is tested on every platform, without accessing a share.
+fn windows_path(path: &str) -> std::io::Result<&str> {
+    if let Some(plain) = path.strip_prefix(r"\\?\") {
+        let bytes = plain.as_bytes();
+        if bytes.len() >= 3
+            && bytes[0].is_ascii_alphabetic()
+            && bytes[1] == b':'
+            && bytes[2] == b'\\'
+        {
+            return Ok(plain);
+        }
+    } else if !path.starts_with(r"\\") && !path.starts_with("//") {
+        return Ok(path);
+    }
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "UNC and device module paths are not supported",
+    ))
+}
+
+/// The real native path, without a Windows drive's extended-length prefix.
+/// Check again after canonicalization: a local link may resolve to a UNC path.
 fn real_path(path: &str) -> std::io::Result<String> {
     let real = fs::canonicalize(path)?.to_string_lossy().into_owned();
-    Ok(match real.strip_prefix(r"\\?\") {
-        Some(plain) if plain.as_bytes().get(1) == Some(&b':') => plain.to_string(),
-        _ => real,
-    })
+    if cfg!(windows) {
+        windows_path(&real).map(str::to_string)
+    } else {
+        Ok(real)
+    }
 }
 
 /// The directory of a path, and the path itself where it has none.
@@ -201,7 +226,15 @@ pub fn resolve_file_module(name: &str, parent: Option<&str>) -> Result<FileModul
                     std::env::current_dir().map_err(|e| crate::files::failure(&e, "cwd", name))?;
                 format!("{}/{name}", here.to_string_lossy())
             };
-            normalize(&absolute)
+            // Inspect the native spelling before normalize turns backslashes
+            // into slashes. This also covers a UNC working directory.
+            let absolute = if cfg!(windows) {
+                windows_path(&absolute)
+                    .map_err(|e| crate::files::failure(&e, "resolveFileModule", &absolute))?
+            } else {
+                &absolute
+            };
+            normalize(absolute)
         }
         Some(parent) => {
             let invalid = || refusal(None, "invalid module specifier");
@@ -296,6 +329,54 @@ mod test {
             percent_encode("/a-b_c.d/e!f$g&h'i(j)k*l+m,n;o=p@q"),
             "/a-b_c.d/e!f$g&h'i(j)k*l+m,n;o=p@q"
         );
+    }
+
+    #[test]
+    fn windows_drive_paths_keep_their_native_spelling() {
+        for (path, expected) in [
+            (r"C:\work\a b.f.js", r"C:\work\a b.f.js"),
+            (r"\\?\C:\work\a b.f.js", r"C:\work\a b.f.js"),
+            (r"\\?\d:\src\m.f.js", r"d:\src\m.f.js"),
+        ] {
+            assert_eq!(windows_path(path).unwrap(), expected);
+        }
+    }
+
+    #[test]
+    fn unsupported_windows_paths_do_not_become_module_ids() {
+        for path in [
+            r"\\server\share\src\m.f.js",
+            "//server/share/src/m.f.js",
+            r"\\?\UNC\server\share\src\m.f.js",
+            r"\\?\Volume{example}\src\m.f.js",
+            r"\\.\pipe\module",
+        ] {
+            let error = windows_path(path).unwrap_err();
+            assert_eq!(error.kind(), std::io::ErrorKind::Unsupported);
+            assert_eq!(
+                error.to_string(),
+                "UNC and device module paths are not supported"
+            );
+        }
+    }
+
+    /// No share or symlink privilege is needed: refusal precedes filesystem IO.
+    #[cfg(windows)]
+    #[test]
+    fn unc_module_inputs_are_refused_before_filesystem_io() {
+        for path in [
+            r"\\server\share\m.f.js",
+            "//server/share/m.f.js",
+            r"\\?\UNC\server\share\m.f.js",
+        ] {
+            let error = resolve_file_module(path, None).unwrap_err();
+            assert_eq!(error.code, None);
+            assert!(
+                error
+                    .message
+                    .contains("UNC and device module paths are not supported")
+            );
+        }
     }
 
     #[test]
