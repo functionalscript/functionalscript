@@ -18,7 +18,7 @@ That is not the shape the codebase's real sequences have.
 `fjs/effects/list/module.f.mjs` already defines the streaming one:
 
 ```ts
-export type List<O extends Operation, T> = Effect<O, Next<O, T>>
+export type EffectList<O extends Operation, T> = Effect<O, Next<O, T>>
 ```
 
 one effect per cons cell, where the tail is not reached until a runner performs
@@ -41,7 +41,7 @@ chunk → fold and recurse* skeleton appears in four places — `detectStream`
 (`fjs/media/type/module.f.mjs`), `collectRead` (`fjs/cas/module.f.mjs`),
 `writeLoop` (`fjs/effects/node/module.f.mjs`) and `fileCas.write`'s inner loop
 (`fjs/cas/module.f.mjs`). That is `foldStep` over a stream. The *error item →
-propagate* case it once also had is gone: a `List` cell carries its own failure,
+propagate* case it once also had is gone: an `EffectList` cell carries its own failure,
 and `step` propagates it. The two pure folds fit the plain shape; `writeLoop`
 threads its offset as the accumulator; `fileCas.write` threads
 `{ state, offset, curPath }`, and whether its end-of-stream `publish` fits an

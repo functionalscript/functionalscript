@@ -60,12 +60,12 @@ export type _VirtualServer = {
  * client sends.
  *
  * **This is not an {@link IncomingMessage}, and the difference is the body.** A
- * listener receives its body as a `List` it pulls from — a stream over a socket
- * the runner holds — and a fixture has no socket and nothing to pull from. What
- * a fixture states is what *arrives*: `readonly Vec[]`, which is also the shape
- * a {@link Dir} stores a file in ({@link _Entity}), so a file fixture can be
- * posted as a body without being reshaped. `listen` is what turns one of these
- * into the request the listener sees.
+ * listener receives its body as an `EffectList` it pulls from — a stream over a
+ * socket the runner holds — and a fixture has no socket and nothing to pull
+ * from. What a fixture states is what *arrives*: `readonly Vec[]`, which is
+ * also the shape a {@link Dir} stores a file in ({@link _Entity}), so a file
+ * fixture can be posted as a body without being reshaped. `listen` is what
+ * turns one of these into the request the listener sees.
  *
  * Chunks rather than one `Vec` because the chunk boundaries are part of what a
  * fixture is describing: a body arriving in many small pieces and a body
