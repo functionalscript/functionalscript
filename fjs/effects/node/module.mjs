@@ -28,6 +28,7 @@ import childProcess from 'node:child_process'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
+import { relative, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import process from 'node:process'
 import zlib from 'node:zlib'
@@ -50,6 +51,7 @@ import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 import { asyncTryCatch, tryCatch } from '../../types/result/module.mjs'
 import { fromVec, toVec } from '../../types/uint8array/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
+import { _orderDirents } from './virtual/readdir/module.f.mjs'
 
 /**
  * Narrowed structural view of `node:http`'s `createServer`. The official types
@@ -539,7 +541,7 @@ const asChild = child => /** @type {ChildProcess} */ (asBase(child))
 /**
  * How a child ended, from the pair Node reports on `'exit'` and keeps on the
  * object: a signaled child has no code, so the signal is the status, and an
- * exited one has no signal — Node leaves exactly one of the two `null`.
+ * exited one has the opposite — Node leaves exactly one of the two `null`.
  *
  * @type {(code: number | null, signal: string | null) => ExitStatus}
  */
@@ -765,15 +767,20 @@ const runNodeEffect = asyncRun({
         }
         return toVec(await readFile(path))
     }),
-    readdir: (path, r) => io(async () =>
-        (await readdir(path, { ...r, withFileTypes: true }))
-        .map(v => ({
-            name: v.name,
-            parentPath: normalize(v.parentPath),
-            isFile: v.isFile(),
-            isDirectory: v.isDirectory()
-        }))
-    ),
+    // Windows scans need not be byte-sorted, and recursive order varies with
+    // Node versions. Sort the raw entries using physical parent components
+    // before normalize can turn a POSIX name's literal backslash into a separator.
+    // Leave native traversal, returned fields and failures untouched.
+    // See ./virtual/readdir/README.md.
+    readdir: (path, r) => io(async () => _orderDirents(
+        await readdir(path, { ...r, withFileTypes: true }),
+        v => relative(path, v.parentPath).split(sep).filter(part => part !== ''),
+    ).map(v => ({
+        name: v.name,
+        parentPath: normalize(v.parentPath),
+        isFile: v.isFile(),
+        isDirectory: v.isDirectory()
+    }))),
     // A `Vec` that is not whole bytes never reaches here: the effect in
     // `module.f.mjs` refuses it before the host is asked, since `fromVec` would
     // pad the last byte.
