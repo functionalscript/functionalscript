@@ -87,10 +87,18 @@ Nix warning that exits `0` must still reach the reader, and swallowing it
 would be a regression `npm run gen` could not report. The same holds when
 the script fails, and today's `exec` cannot deliver it: a nonzero exit
 answers with an `IoError` of a code and a message only, and what the child
-wrote before it died is dropped. So `Exec`'s failure has to carry the
-captured `stdout` and `stderr` — an API change in `fjs/effects/node`, the
-first task below — for the program to print what Nix said before the
-sequence stops.
+wrote before it died is dropped. So `Exec` changes shape, the first task
+below: a command that ran is a success, `ExecResult` gaining the exit
+`code` beside `stdout` and `stderr`, and only a command that could not run
+at all — no shell, no such file — is an `IoError`. A nonzero exit is an
+ordinary outcome of running a command, not a failure of the host, and
+this shape lets the program print both streams and then stop with a
+message naming the generator. The alternatives put the streams where they
+do not belong: on every `IoErrorInfo`, when one operation out of twenty
+has them, or in an `Exec`-only error channel beside `IoChannel`, two
+error types for one result. The change breaks `ExecResult`, and costs
+little: no `.f.mjs` calls `exec` yet, and the Node runner is its only
+implementation — the virtual runner omits it.
 
 A generator that fails stops the sequence, as `&&` does today, and its
 message names the generator rather than a position in a line.
@@ -136,9 +144,10 @@ program is the simpler shape, and the one every other step already has.
 
 ### Tasks
 
-- [ ] `fjs/effects/node`: `exec`'s failure carries the `stdout` and `stderr`
-      captured before the exit, so a caller can replay them; its proof
-      covers a failing command.
+- [ ] `fjs/effects/node`: `ExecResult` gains the exit `code`, a command that
+      ran succeeds whatever the code, and only one that could not run is an
+      `IoError`; its proof covers a nonzero exit. Its PR declares the
+      breaking change.
 - [ ] `fjs/nanvm/harness/module.f.mjs`: the fixture generator, per
       [one-fixture-list](../nanvm-harness/todo/one-fixture-list.md).
 - [ ] `fjs/dev/gen/module.f.mjs`: `main` composing cleanup, the four
