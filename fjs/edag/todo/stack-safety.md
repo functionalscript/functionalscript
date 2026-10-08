@@ -12,6 +12,25 @@ runtime data conversion on Node 24/26, Bun and Deno. This preserves the former d
 baseline; it does not make these walks iterative or promise unbounded depth.
 The measurements below describe the earlier implementation, before that change.
 
+How much of the stack that corpus leaves, measured after `9789544` on x64
+Node 26.10 with the default stack, each depth in a fresh process: the path
+`subsetLaw` in [`../../compiler/proof.f.mjs`](../../compiler/proof.f.mjs)
+takes — front end, lowering, analysis, memo interpretation, runtime data
+conversion — evaluates a nested array 1,170 levels deep and overflows at
+1,180, in memo's `operand` → `operation` → `items`, the walk this issue
+names one layer down; the lowering alone holds to 1,209 and overflows at
+1,219. The memo walk's limit is the same with V8's precise block coverage
+on, as `npm run cov` has it, and the same on `main`. So the thousand-level
+vector keeps about one sixth of the stack in a fresh process, and less
+inside the suite, where the walk runs above the runner's frames on a warm
+JIT, and where the margin depends on the machine: a reviewer of
+[functionalscript/functionalscript#2660](https://github.com/functionalscript/functionalscript/pull/2660)
+saw `proof.subsetLaw[198]`, the `array-nested-deep` vector, fail with this
+`RangeError` in three of four `npm run cov` runs on `aarch64-apple-darwin`
+and in none of two on `main`. The paragraph above records that the corpus
+passes; it is a margin, not a guarantee, and the explicit stack this issue
+proposes is what would make it one.
+
 ### Problem
 
 The analysis walk — `walk` and its handlers in

@@ -6,7 +6,7 @@
  * @module
  *
  * @import { Exp, Index, Spread, StepOver } from '../../edag/types.ts'
- * @import { AstBinary, AstBitnot, AstNot, AstTypeof, AstBody, AstCall, AstConditional, AstConst, AstEntry, AstFunction, AstImport, AstItem, AstModule, AstNeg, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
+ * @import { AstBinary, AstBitnot, AstNot, AstTypeof, AstBody, AstCall, AstConditional, AstConst, AstEntry, AstFunction, AstGuardedCall, AstImport, AstItem, AstModule, AstNeg, AstSpread, AstStep, AstThrow } from '../ast/types.ts'
  * @import { _ImportSource, _Source } from '../source/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
@@ -163,6 +163,27 @@ const lowerStep = nodes => step => {
 }
 
 /**
+ * A chain node over its steps, where it has any: the AST's shape is the
+ * EDAG's, and which lambda the steps are is the parser's by construction,
+ * which the proofs validate.
+ *
+ * @type {(node: readonly unknown[], step: StepOver<Exp, Index> | undefined) => Exp}
+ */
+const stepped = (node, step) => /** @type {Exp} */ (step === undefined ? node : [...node, step])
+
+/**
+ * A guarded call's EDAG: its callee eager, its arguments and its steps
+ * lazy, inside the region the guard opens, {@link lazyItem} and
+ * {@link lowerStep}.
+ *
+ * @type {(nodes: _Nodes) => (ast: AstGuardedCall) => _Lowered}
+ */
+const guardedCall = nodes => ast => {
+    const f = lower(nodes)(ast[1])
+    return { exp: stepped(['?.()', f.exp, ast[2].map(lazyItem(nodes))], lowerStep(nodes)(ast[3])), anchors: f.anchors }
+}
+
+/**
  * An entry's EDAG: a member's, the EDAG's property over its value's, or
  * a spread's, {@link lowerSpread}.
  *
@@ -265,23 +286,15 @@ const lowerLeaf = nodes => ast => {
         // function's capture of it lowers to as a slot of the parent's scope
         case 'self': { return plain(['self']) }
         case '()': { return call(nodes)(ast) }
-        // a guarded call: its callee eager, its arguments and its steps
-        // lazy, inside the region the guard opens
-        case '?.()': {
-            const f = lower(nodes)(ast[1])
-            const items = ast[2].map(lazyItem(nodes))
-            const step = lowerStep(nodes)(ast[3])
-            // the AST's shape is the EDAG's: which lambda the steps are is
-            // the parser's by construction, and the proofs validate it
-            return { exp: /** @type {Exp} */ (step === undefined ? ['?.()', f.exp, items] : ['?.()', f.exp, items, step]), anchors: f.anchors }
-        }
+        case '?.()': { return guardedCall(nodes)(ast) }
         // an access, plain or guarded: the EDAG's own form already, its key
         // a constant the parser admitted and its steps, where it has any,
-        // the continuation the parser folded ({@link lowerStep})
+        // the continuation the parser folded ({@link lowerStep}). One
+        // local, as before chains had steps: this frame is one of the few
+        // a nested container costs per level.
         default: {
             const base = lower(nodes)(ast[1])
-            const step = lowerStep(nodes)(ast[3])
-            return { exp: /** @type {Exp} */ (step === undefined ? [ast[0], base.exp, ast[2]] : [ast[0], base.exp, ast[2], step]), anchors: base.anchors }
+            return { exp: stepped([ast[0], base.exp, ast[2]], lowerStep(nodes)(ast[3])), anchors: base.anchors }
         }
     }
 }

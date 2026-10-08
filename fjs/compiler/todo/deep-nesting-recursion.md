@@ -44,6 +44,16 @@ and `stepOperands` in [`../../edag/analysis/module.f.mjs`](../../edag/analysis/m
 orders of magnitude of either depth; the input is named here so the crash
 is a known limit rather than a silent one.
 
+Where the limits stand after `9789544`, on x64 Node 26.10 with the default
+stack, each depth in a fresh process: the lowering holds a nested array to
+1,209 levels and an access chain to 1,969 steps, the same as `main`. The
+chain cases live outside `lowerLeaf` (`guardedCall`, `stepped`) so that its
+frame, paid once per level of a container and once per step of a chain, did
+not grow: an earlier shape of the chain lowering, with their locals inside
+that function, held the array to 1,160 and the chain to 1,842. Behind the
+lowering, the memo walk holds 1,170 levels, measured in
+[stack-safety](../../edag/todo/stack-safety.md#compiler-integration-baseline).
+
 ### Tasks
 
 - [ ] Give `lowerLeaf`'s container and function cases the explicit stack the
