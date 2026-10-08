@@ -1,7 +1,7 @@
 ## hex-literal. A zero-padded `0x` literal is spelled three times
 
 **Priority:** P5
-**Status:** open
+**Status:** wip
 
 ### Problem
 
