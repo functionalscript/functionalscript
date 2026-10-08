@@ -1,7 +1,7 @@
 ## proof-drive-shared. Two proof modules hand-roll the same synthetic CAS driver
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
