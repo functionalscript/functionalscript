@@ -216,8 +216,17 @@ proposal's question; the name form stays for the built-ins either way.
       `nanvm-lib`: a `Constructor` enum with the one variant, the method as
       one `Dispatch` over `Unpacked`, the README row; the harness operators
       fixture pins it.
-- [ ] `fjs/nanvm`: an `instanceof` case set in the corpus, every value kind
-      against `Array`.
+- [ ] `fjs/nanvm`: the corpus format grows a group kind of its own, since
+      the existing ones are keyed by the `op1`/`op2`/`op12`/`op3`
+      vocabularies and lower every argument to an operand — a group
+      carrying the operation and the constructor name, `Case<1>` cases
+      (the name is the group's, not an argument; and not a property
+      called `constructor`, which every object has through its prototype
+      and an `in` test would find on every group); `groupKey` spells it
+      `instanceof Array`, `arityOf` answers one, `caseExp` lowers a case
+      to `['instanceof', value, 'Array']`, the Rust printer's name table
+      and the proof's JavaScript reference each gain the key. Then the
+      case set, every value kind against `Array`.
 - [ ] `spec/README.md`: the operator — value-type list, precedence list,
       semantics, the keyword's standing as a name; `2340-operators.md`'s
       row **done**; this file deleted.
