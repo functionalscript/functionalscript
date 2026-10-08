@@ -16,7 +16,7 @@
     "cov": "node --test --experimental-test-coverage --test-coverage-include=**/module.f.mjs --test-coverage-include=**/module.f.js --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100",
     "start": "node ./fjs/module.mjs",
     "gen:clean": "node ./fjs/module.mjs r ./fjs/dev/clean/module.f.mjs",
-    "gen": "node ./fjs/module.mjs r ./fjs/dev/clean/module.f.mjs && node ./fjs/module.mjs r ./fjs/ci/self/module.f.mjs && node ./fjs/module.mjs r ./fjs/nanvm/update/module.f.mjs && node ./fjs/module.mjs r ./fjs/media/datajs/vectors/matrix/module.f.mjs && node ./fjs/module.mjs r ./fjs/nanvm/harness/module.f.mjs && sh ./gen.nix/lock-update.sh",
+    "gen": "node ./fjs/module.mjs r ./fjs/dev/gen/module.f.mjs",
     "lock-update": "npm run gen && npm install && deno install && bun install && cargo update && npx --yes @devcontainers/cli@0.89.0 upgrade --workspace-folder .",
     "website": "node ./fjs/module.mjs r ./fjs/website/module.f.mjs"
   },
