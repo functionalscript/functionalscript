@@ -56,7 +56,7 @@ import { escapeToCodePoint } from '../string_escape/module.f.mjs'
 import {
     apostrophe, asterisk, lf,
     reverseSolidus,
-    hexDigitValue,
+    hexDigitValue, isDigit,
     latinSmallLetterU,
 } from '../../text/ascii/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
@@ -134,9 +134,6 @@ const advanceMetadata = cp => metadata => cp === lf
 
 /** @type {(metadata: TokenMetadata) => (cp: readonly number[]) => TokenMetadata} */
 const advance = metadata => cp => fold(advanceMetadata)(metadata)(cp)
-
-/** @type {(cp: number) => boolean} */
-const isDigit = cp => cp >= 0x30 && cp <= 0x39
 
 /**
  * Reads the whole input one token at a time, the parser resumed where the
