@@ -1000,16 +1000,18 @@ export const proof = {
      */
     mergeQueueOnly: () => {
         const [state, result] = virtual(makeState(true, runPackageJson))(
-            ci({ nodeExtra: () => [], mergeQueueOnly: ['macos'] }))
+            ci({ nodeExtra: () => [], mergeQueueOnly: ['macos', 'windows'] }))
         assertEq(exitCode(result), 0)
         const jobs = workflow(state).jobs
+        /** @type {(id: string) => boolean} */
+        const queued = id => id.startsWith('macos-') || id.startsWith('windows-')
         for (const [id, job] of Object.entries(jobs)) {
             assertEq(
                 job?.if,
-                id.startsWith('macos-') ? `github.event_name == 'merge_group'` : undefined,
+                queued(id) ? `github.event_name == 'merge_group'` : undefined,
                 id)
         }
-        assert(Object.keys(jobs).filter(id => id.startsWith('macos-')).length === 2, 'expected two macOS jobs')
+        assertEq(Object.keys(jobs).filter(queued).length, 4, 'expected two macOS and two Windows jobs')
         assertEq(definedValues(run(true).jobs).filter(job => job.if !== undefined).length, 0)
     },
     jobNeeds: () => {

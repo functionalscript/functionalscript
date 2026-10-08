@@ -33,12 +33,12 @@ const workflowOf = program => {
 
 export const proof = {
     // This repository's generation is `ci` with its consumer and its macOS
-    // jobs in the merge queue, and nothing else: the same text, so a change to
-    // what `main` passes shows here.
+    // and Windows jobs in the merge queue, and nothing else: the same text, so
+    // a change to what `main` passes shows here.
     isCiWithTheConsumer: () => {
         assertEq(
             workflowOf(main()),
-            workflowOf(ci({ nodeExtra: () => [], packageConsumer, mergeQueueOnly: ['macos'] })))
+            workflowOf(ci({ nodeExtra: () => [], packageConsumer, mergeQueueOnly: ['macos', 'windows'] })))
     },
     // The consumer reaches the workflow, and the built-in command — the one
     // any project runs — carries none: that is the difference between the two
