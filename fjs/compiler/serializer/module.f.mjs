@@ -136,8 +136,7 @@ import { keySerialize, leafSerialize } from '../../media/datajs/serializer/modul
 import { arrayWrap, colon, objectWrap, wrap } from '../../media/json/serializer/module.f.mjs'
 import { first, flat, toArray } from '../../types/list/module.f.mjs'
 import { _prohibitedCallNames, _prohibitedNames } from '../parser/module.f.mjs'
-import { dollarSign, isDigit, isLatinLetter, lowLine } from '../../text/ascii/module.f.mjs'
-import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
+import { isIdentifier } from '../../js/identifier/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
 import { _entryText as entryText, renderFunction } from './function_text/module.f.mjs'
@@ -235,30 +234,6 @@ const visible = s => [...s.outer, ...s.names]
 const nameOf = (names, h) => {
     const i = slotOf(names, h)
     return i === null ? null : names[i][1]
-}
-
-/** What may open an identifier: a Latin letter, `_` or `$`. @type {(codePoint: number) => boolean} */
-const identifierStart = codePoint =>
-    isLatinLetter(codePoint) || codePoint === lowLine || codePoint === dollarSign
-
-/**
- * Whether a word is one the tokenizer reads as a single `id` token, and so
- * may follow a `.` rather than be written as a key in brackets.
- *
- * The characters are classified by code point through
- * [`text/ascii`](../../text/ascii/module.f.mjs), which is where the rest of
- * the repository's lexical rules ask what a character is
- * ([`../../js/identifier/todo`](../../js/identifier/todo/lexical-predicates-from-text-ascii.md)).
- * A case fold would not do: `'\u212a'`, the Kelvin sign, lowercases to `k`
- * and is no letter the tokenizer takes.
- *
- * @type {(key: string) => boolean}
- */
-const identifierKey = key => {
-    const word = toArray(stringToCodePointList(key))
-    return word.length !== 0
-        && identifierStart(word[0])
-        && word.every(c => identifierStart(c) || isDigit(c))
 }
 
 /** Whether the function that is entry `i` reads its own `['self']`, in its own body's scope. @type {(a: Analysis, i: number) => boolean} */
@@ -662,7 +637,7 @@ const key = (s, path, lazy) => method => k => {
     if (typeof k === 'string') {
         if (method && _prohibitedCallNames.has(k)) { return error('a prohibited member function') }
         if (!method && _prohibitedNames.has(k)) { return error('a prohibited property name') }
-        return identifierKey(k) ? ok([`.${k}`]) : bracketed(k)
+        return isIdentifier(k) ? ok([`.${k}`]) : bracketed(k)
     }
     if (typeof k === 'number') {
         return Number.isFinite(k) && !Object.is(k, -0)
@@ -1615,7 +1590,7 @@ export const tryModuleSerialize = e => {
     if (members.length === 0) { return error('a module without exports') }
     const keys = members.map(([, key]) => key)
     if (new Set(keys).size !== keys.length) { return error('duplicate export names') }
-    if (keys.some(key => key !== 'default' && (!identifierKey(key) || reservedExports.has(key)))) {
+    if (keys.some(key => key !== 'default' && (!isIdentifier(key) || reservedExports.has(key)))) {
         return error('an unsupported export name')
     }
     if (keys.length === 1 && keys[0] === 'default') {
