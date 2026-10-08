@@ -38,6 +38,45 @@ export const proof = {
             }
         }
     },
+    hostPathEncoding: () => {
+        // Explicit well-formed spellings, not the lossless encoder applied to
+        // malformed input: the expected side must not reproduce the defect.
+        const spellings = [
+            ['', ''],
+            ['\uD800', '\uFFFD'],
+            ['\uDC00', '\uFFFD'],
+            ['a\uD800', 'a\uFFFD'],
+            ['\uD800a', '\uFFFDa'],
+            ['\uD800\uD800', '\uFFFD\uFFFD'],
+            ['\uDC00\uD800', '\uFFFD\uFFFD'],
+            ['\uD800\uDC00', '\u{10000}'],
+            ['\uD800\uDC00\uD800', '\u{10000}\uFFFD'],
+            ['\uFFFD', '\uFFFD'],
+            ['\uFFFF', '\uFFFF'],
+        ]
+        for (const [a, encodedA] of spellings) {
+            for (const [b, encodedB] of spellings) {
+                assertEq(Math.sign(compareNames(a, b)), msb.cmp(utf8(encodedA))(utf8(encodedB)))
+            }
+        }
+    },
+    loneSurrogateOrder: () => {
+        // Fixture keys retain their identities, but their order is the order
+        // of the paths Node encodes: U+FFFD precedes U+FFFF, including at depth.
+        for (const name of ['\uD800', '\uDC00']) {
+            assertStructurallySame(paths({ '\uFFFF': file, [name]: file }, {}), [
+                `base/${name}`, 'base/\uFFFF',
+            ])
+            assertStructurallySame(paths({
+                '\uFFFF': { child: file },
+                [name]: { '\uFFFF': file, [name]: file },
+            }, { recursive: true }), [
+                `base/${name}`, 'base/\uFFFF',
+                `base/${name}/${name}`, `base/${name}/\uFFFF`,
+                'base/\uFFFF/child',
+            ])
+        }
+    },
     nonBmpNames: () => {
         // Default UTF-16 sorting reverses the order of these two names.
         assertStructurallySame(paths({ '\u{10000}': file, '\uE000': file }, {}), [
