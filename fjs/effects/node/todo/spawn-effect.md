@@ -46,7 +46,7 @@ pattern for an opaque host handle — a `Nominal` brand minted by the runner wit
 export type Child = Nominal<'child', `<brand>`, unknown>
 
 export type Spawn = readonly['spawn', (cmd: string, args: readonly string[], options?: SpawnOptions) => IoResult<Child>]
-export type SpawnOptions = { readonly cwd?: string; readonly env?: Env }
+export type SpawnOptions = { readonly cwd?: string; readonly env?: Env; readonly stdio?: 'inherit' }
 
 export type ChildWrite = readonly['childWrite', (child: Child, data: Vec) => IoResult<void>]
 export type ChildRead = readonly['childRead', (child: Child, stream: ChildStreams) => IoResult<Vec | null>]

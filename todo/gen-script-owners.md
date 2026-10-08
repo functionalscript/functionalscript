@@ -112,9 +112,11 @@ message names the generator rather than a position in a line.
 
 `gen:clean` stays: documentation and the drift check describe it, and it is
 one command already. `prepack`, `test`, `cov`, `start`, `lock-update`, and
-`website` stay too. Each is one command, or runs `gen` and three
-installers; none of them is the problem. What leaves `package.json` is build
-logic, and only build logic.
+`website` stay too. Some are one command and some a short chain — `test`
+is the type-check and then the suite, `lock-update` is `gen` and then the
+installers and updaters — but none of them is build logic: each runs tools
+and programs that exist, in an order a reader can hold. What leaves
+`package.json` is build logic, and only build logic.
 
 The program is held to the same standard as the generators it composes: a
 `proof.f.mjs` running `main` against the mock effects, as `fjs/nanvm/update`
@@ -155,8 +157,9 @@ program is the simpler shape, and the one every other step already has.
 - [ ] `fjs/effects/node`: the first slice of
       [spawn-effect](../fjs/effects/node/todo/spawn-effect.md) — `spawn`,
       `childWait`, `ExitStatus` — with `stdio: 'inherit'` on `SpawnOptions`;
-      its proof covers a nonzero exit and an inherited child that
-      `childRead` refuses.
+      its proof covers a nonzero exit and a signaled child. The refusal of
+      `childRead` on an inherited child is proved with the rest of the
+      family, which is where `childRead` arrives.
 - [ ] `fjs/nanvm/harness/module.f.mjs`: the fixture generator, per
       [one-fixture-list](../nanvm-harness/todo/one-fixture-list.md).
 - [ ] `fjs/dev/gen/module.f.mjs`: `main` composing cleanup, the four
