@@ -80,7 +80,11 @@ program cannot compose several dozen shell commands, and should not. And the
 lock script keeps running as a script — it is itself generated, and
 `nix flake lock` is the external tool it already calls, so nothing new is
 invoked — but the program runs it through `exec`, last, after the step that
-wrote the flakes it locks.
+wrote the flakes it locks. `exec` captures the script's `stdout` and
+`stderr` where the `&&` chain let them reach the terminal, so the program
+writes both back through the `Console` effect, whatever the exit code: a
+Nix warning that exits `0` must still reach the reader, and swallowing it
+would be a regression `npm run gen` could not report.
 
 A generator that fails stops the sequence, as `&&` does today, and its
 message names the generator rather than a position in a line.
