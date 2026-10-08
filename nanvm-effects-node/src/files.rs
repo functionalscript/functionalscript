@@ -663,10 +663,7 @@ mod test {
         fn empty_write_preserves_open_and_offset_checks() {
             let dir = Scratch::new();
             let file = dir.at("a");
-            assert_eq!(
-                code_of(write_bytes(&file, 0.0, &[])),
-                Some("ENOENT".into())
-            );
+            assert_eq!(code_of(write_bytes(&file, 0.0, &[])), Some("ENOENT".into()));
             assert!(!Path::new(&file).exists());
             write_file(&file, &[1, 2, 3]).unwrap();
             for at in [0.0, 1.0, MAX_OFFSET as f64] {
