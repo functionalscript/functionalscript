@@ -90,15 +90,36 @@ export const stringLiteral = v => {
 }
 
 /**
+ * A non-negative integer as a Rust hexadecimal literal, zero-padded to
+ * `digits` digits: `hexLiteral(4)(0x61)` is `0x0061`.
+ *
+ * @type {(digits: number) => (n: number | bigint) => string}
+ */
+const hexLiteral = digits => n => `0x${n.toString(16).padStart(digits, '0')}`
+
+/** A `u16` in four hex digits. */
+const u16Hex = hexLiteral(4)
+
+/** A `u64` in sixteen hex digits. */
+const u64Hex = hexLiteral(16)
+
+/**
+ * A Rust slice literal of already-spelled items: `&[a, b]`, and `&[]` for none.
+ *
+ * @type {(items: readonly string[]) => string}
+ */
+const sliceLiteral = items => `&[${items.join(', ')}]`
+
+/**
  * A string's UTF-16 code units as a Rust `&[u16]` slice literal,
- * `&[0xd800, 0x61]`: the spelling for a string {@link stringLiteral}
+ * `&[0xd800, 0x0061]`: the spelling for a string {@link stringLiteral}
  * refuses, since a code unit array holds a lone surrogate where a `&str`
  * cannot. Every string has one.
  *
  * @type {(v: string) => string}
  */
 export const utf16Literal = v =>
-    `&[${[...Array(v.length).keys()].map(i => `0x${v.charCodeAt(i).toString(16).padStart(4, '0')}`).join(', ')}]`
+    sliceLiteral([...Array(v.length).keys()].map(i => u16Hex(v.charCodeAt(i))))
 
 /**
  * The exponent of a normal number: the `e` with `2 ** e <= a < 2 ** (e + 1)`,
@@ -134,7 +155,7 @@ const canonicalNan = 0x7ff8000000000000n
  *
  * @type {(v: number) => string}
  */
-export const f64Bits = v => `0x${bitsOf(v).toString(16).padStart(16, '0')}`
+export const f64Bits = v => u64Hex(bitsOf(v))
 
 /** @type {(v: number) => bigint} */
 const bitsOf = v => {
@@ -170,7 +191,7 @@ export const i64Literal = v => v < i64Min || v > i64Max ? error(v) : ok(v.toStri
  */
 export const u64Words = v => {
     const a = v < 0n ? -v : v
-    return `&[${words(a).map(w => `0x${w.toString(16).padStart(16, '0')}`).join(', ')}]`
+    return sliceLiteral(words(a).map(u64Hex))
 }
 
 /** @type {(a: bigint) => readonly bigint[]} */
