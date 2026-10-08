@@ -202,6 +202,11 @@ proposal's question; the name form stays for the built-ins either way.
       which answers nothing for one, yields `x`, so hoisting sees it; both
       with proofs.
 - [ ] `fjs/compiler/serializer/function_text`: `(x instanceof Array)`.
+- [ ] `fjs/compiler/edag/demo`: the website EDAG demo's shape table draws
+      the node — one `op` labelled `instanceof Array` with its operand as
+      the one child — rather than falling through to "not yet drawn"; the
+      proof, and the demo checked in the browser
+      ([CONTRIBUTING.md](../../CONTRIBUTING.md#website-demos)).
 - [ ] `fjs/edag/rust`: `Any::instanceof_(x, Constructor::Array)`;
       `nanvm-lib`: a `Constructor` enum with the one variant, the method as
       one `Dispatch` over `Unpacked`, the README row; the harness operators
