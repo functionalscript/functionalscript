@@ -126,7 +126,7 @@ grammar owns the boundary, and nothing reads tokens past it.
 
 - [Language principles](../../../../spec/README.md#principles).
 - [Compatibility epic](../../../../todo/fjs-javascript-compatibility.md).
-- [Entry function](../../../edag/todo/entry.md).
+- [The `entry` helper](../../../../spec/README.md#reading-an-entry-at-run-time), in the language under this rule.
 - [Enumerable presence](../../../../spec/todo/2345-has-own-property.md).
 - [Named parameters](../../../../spec/todo/3120-parameters.md).
 - [ECMAScript ASI](https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#sec-automatic-semicolon-insertion).

@@ -30,7 +30,7 @@ import { fromCodePointList } from './module.f.mjs'
 import { stringToCodePointList } from '../utf16/module.f.mjs'
 import { errorMask, isValidCodePoint } from '../code_point/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { textDemo } from '../../website/demo/module.f.mjs'
+import { textDemo, caption } from '../../website/demo/module.f.mjs'
 
 /** @type {(bytes: readonly number[]) => string} */
 const hex = bytes => bytes.map(b => b.toString(16).padStart(2, '0')).join(' ')
@@ -83,6 +83,6 @@ export const demo = textDemo({
     rows: 2,
     init: 'hé€😀',
 })(text => [
-    ['p', 'Code points, UTF-8 hex:'],
+    caption('Code points, UTF-8 hex:'),
     ['pre', codePoints(text)],
 ])

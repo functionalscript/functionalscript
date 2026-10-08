@@ -370,10 +370,11 @@ that needs a spike first.
 A property key is not converted either. `Object::member_access` answers
 `undefined` for a key that is neither a number nor a string, where
 JavaScript converts it with `ToPropertyKey`: `o[{}]` reads `o["[object
-Object]"]`. No module reaches it today: a key is a literal
+Object]"]`. A module reaches it through the
+[`entry`](../../spec/README.md#reading-an-entry-at-run-time) helper alone: a
+key is otherwise a literal
 ([spec: property access](../../spec/README.md#property-access)), and the
-runtime key is the planned [`entry`](../../fjs/edag/todo/entry.md), which
-already names its key conversion, `entry(o, f)` included, as its own work.
+helper names its key conversion, `entry(o, f)` included, as its own work.
 
 ### Tasks
 
@@ -398,4 +399,4 @@ already names its key conversion, `entry(o, f)` included, as its own work.
       [function-text.md](../../fjs/edag/function-text.md) records why the
       evaluator answers the host's text.
 - [x] Place the property-key conversion: it is
-      [`entry`](../../fjs/edag/todo/entry.md)'s key conversion.
+      [`entry`](../../spec/README.md#reading-an-entry-at-run-time)'s key conversion.

@@ -1,10 +1,11 @@
 /**
- * Implementation-private types for `fjs/compiler/edag/module.f.mjs`.
+ * Implementation-private types for `fjs/compiler/edag/module.f.mjs` and
+ * its `demo.f.mjs`.
  *
  * @module
  */
 
-import type { Exp, Items, Properties } from '../../edag/types.ts'
+import type { ConstructorId, Exp, Items, Properties } from '../../edag/types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { AstConst, BinaryTag } from '../ast/types.ts'
@@ -49,6 +50,8 @@ export type _LowerWork =
     | { readonly kind: 'bitnot', readonly rest: _LowerWork }
     | { readonly kind: 'not', readonly rest: _LowerWork }
     | { readonly kind: 'typeof', readonly rest: _LowerWork }
+    | { readonly kind: 'instanceof', readonly name: ConstructorId, readonly rest: _LowerWork }
+    | { readonly kind: 'Number', readonly rest: _LowerWork }
     | { readonly kind: 'throw', readonly rest: _LowerWork }
     | { readonly kind: 'binary', readonly tag: BinaryTag, readonly rest: _LowerWork }
     | { readonly kind: 'ternary', readonly rest: _LowerWork }
@@ -90,4 +93,20 @@ export type _Entries = {
 export type _Resolved = {
     readonly exports: Exp
     readonly bindings: readonly (readonly [string, Exp])[]
+}
+
+/** An edge of `demo.f.mjs`'s drawing: a port's label, the value it reaches, and `lazy` where the position is one the node may never evaluate. */
+export type _Child = readonly [label: string, value: Exp, kind?: 'lazy']
+
+/**
+ * A chain `demo.f.mjs` is drawing, one node however many steps it has: the
+ * label and ports so far, the spelling of the key the next call is on — none
+ * after a call, whose value has no name — and whether a `?.` has been
+ * passed, which makes the operands after it the ones a nullish value skips.
+ */
+export type _Chain = {
+    readonly label: string
+    readonly children: readonly _Child[]
+    readonly key: string
+    readonly lazy: boolean
 }

@@ -9,3 +9,7 @@
 # it. See CONTRIBUTING.md, "Naming generated files".
 gen.* linguist-generated=true
 **/gen.*/** linguist-generated=true
+
+# Generated too, under the name its tool requires: the devcontainer CLI writes
+# this lock from `.devcontainer/devcontainer.json` in `npm run lock-update`.
+.devcontainer/devcontainer-lock.json linguist-generated=true

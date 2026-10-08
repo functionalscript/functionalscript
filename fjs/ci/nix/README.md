@@ -1,15 +1,21 @@
 # Nix environments
 
 One reproducible toolchain, shared by developers and CI, so that what passes on
-your machine is what passes on the runners.
+your machine is what passes on the runners — except the Node 22 and Node 24
+compatibility jobs, on a flake each, the two Windows platform jobs, which run
+without Nix, the publishing workflow, on the Node `setup-node` installs, and
+the packed-package check that closes `node26`, which installs the published
+tarball as a consumer would.
 
-[`dev.sh`](../../../dev.sh) opens the shell; [`gen.nix/run`](../../../gen.nix/run)
-hands it one command, and is what a CI step runs, through `sh`.
+[`dev.sh`](../../../dev.sh) opens the shell, or runs the one command given to
+it; [`gen.nix/run`](../../../gen.nix/run) is the generated form of the latter,
+and is what a CI step runs, through `sh`.
 
 Everything the project builds and tests with lives in the shell
 [`gen.nix/flake.nix`](../../../gen.nix/flake.nix) defines — the runtimes, the compilers, the WASM
-tooling. It is not a convenience assembled alongside CI: most CI jobs run their
-commands inside this very shell, so it cannot drift from them.
+tooling. It is not a convenience assembled alongside CI: every CI job but the
+exceptions named above runs its commands inside this very shell, so it cannot
+drift from them.
 
 Two jobs need something this shell deliberately cannot provide: an older `node`,
 for the commands that resolve their runtime from `PATH`. Those get a
@@ -70,5 +76,7 @@ carries different weight is Bun's: Nixpkgs ships a release two of this
 repository's proofs fail on, so its flake overrides the archive, and that check
 is what confirms the override took effect.
 
-Nix does not run natively on Windows; a Windows developer works through WSL2, or
-without Nix, which this repository has always supported.
+Nix does not run natively on Windows; a Windows developer reaches this shell
+through the repository's devcontainer or WSL2
+([CONTRIBUTING.md](../../../CONTRIBUTING.md#the-nix-shell)), or works on bare
+Windows with the tools installed by hand, as CI's Windows platform jobs do.

@@ -26,7 +26,7 @@ import { assertOk } from '../../../asserts/module.f.mjs'
 import { analysis } from '../../../edag/analysis/module.f.mjs'
 import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
 import { concat } from '../../../types/string/module.f.mjs'
-import { _renderSymbolic } from '../function_text/module.f.mjs'
+import { _entryText, _renderSymbolic } from '../function_text/module.f.mjs'
 import { _name as symbol, _binding as binding, _resolve as resolve } from '../names/module.f.mjs'
 
 /** One outer node's stable binding. @type {(i: number) => string} */
@@ -41,6 +41,7 @@ const entry = (a, i, n) => {
         case 'undefined': { return 'undefined' }
         case '[]': { return `[${n[1].map(operand).join(',')}]` }
         case '{}': { return `{${n[1].map(([, key, value]) => `[${operand(key)}]:${operand(value)}`).join(',')}}` }
+        case 'entry': { return _entryText(`value${i}/function`) }
         default: {
             const slots = n[2]
             const frame = slots.map((_, k) => symbol(`value${i}/frame${k}`))

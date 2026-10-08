@@ -75,6 +75,8 @@ circuitTail ::= [ logicalAndRound { logicalAndRound } { logicalOrRound }
 conditionalTail ::= [ '?' value ':' value ]
 tail   ::= eagerTail circuitTail conditionalTail
 access ::= '.' id | '[' (string | number) ']' | '(' [ items(value) ] ')'
+         | '?.' optionalStep
+optionalStep ::= id | '[' (string | number) ']' | '(' [ items(value) ] ')'
 array  ::= '[' [ items(value) ] ']'
 object ::= '{' [ items(entry) ] '}'
 entry  ::= '...' value | member
@@ -211,6 +213,16 @@ the fold's:
   reference rule, where it would conflict with its own prefix branch; a
   binding takes the wider `identifierName`, so `const typeof = 1;` still
   reaches the fold, and `{ typeof: 1 }` and `a.typeof` stay members;
+- a reserved global, `Number`, bound or referenced anywhere but as the callee
+  of the conversion `Number(x)`
+  ([spec: number conversion](../../../spec/README.md#number-conversion)) —
+  [`fjs/js/keywords`](../../js/keywords/module.f.mjs)' `reservedGlobals`, a
+  list beside the keywords rather than among them, since JavaScript has no
+  such keyword and its tokenizer keeps the word an `id`. The fold reads the
+  callee's word before resolving it, so the word alone decides, no scope
+  ever binding it; `Number()` is the literal `0`, and a call of the word
+  with more than one argument, or a spread, is not recognized yet and
+  refused by name;
 - an import attribute other than `type: "json"`, the one JavaScript defines,
   read from the key's and the value's words;
 - a body `const` that takes a name the body already binds, its parameter
@@ -232,15 +244,34 @@ the fold's:
   would read the prototype's, as
   [spec: property accessor](../../../spec/todo/2330-property-accessor.md)
   prohibits. The key of an access is a constant — an identifier after `.`, a
-  string or a number in `[ ]` — so what remains is the EDAG's own form,
-  `['.', base, key]`, and the grammar refuses a runtime key at the token;
+  string or a number in `[ ]` — or the conversion `a[Number(i)]`, whose
+  number names no prototype property, so what remains is the EDAG's own
+  form, `['.', base, key]`. The grammar reads any value in brackets, and the
+  fold refuses every other at the token it begins with, `a[i]` included
+  (`computed key is not Number(...)`), after the base, as JavaScript
+  evaluates the two;
 - a method call naming a member function a module may not call, `a.push(1)`
   or `a.valueOf()` — the names `prohibitedCalls` in the same module lists,
   its [README](../../js/prototype/README.md) saying why for each. An access
   that is a call's callee, through a group as well, is checked against that
   list instead of the read rule, so `a.at(0)` and `a.toString()` are calls
   like any other while `a.at` stays a refused read: a detached built-in is a
-  function that only fails.
+  function that only fails;
+- the `entry` helper, which is matched whole rather than resolved
+  ([spec: entry](../../../spec/README.md#reading-an-entry-at-run-time)): a
+  function of two parameters whose block body binds the descriptor
+  `Object.getOwnPropertyDescriptor` answers for them and returns the value
+  an enumerable one holds — under any three distinct names, the keys in
+  either spelling, with or without its semicolons where JavaScript inserts
+  them, and only where no scope binds `Object`, a parameter, a `const` or
+  the function's own name of that word being JavaScript's own reading — is
+  the AST's `['entry']`. A function that is not the helper, by shape or by
+  binding, is resolved as every function is, where the `Object` nothing
+  binds is `const not found` as any unbound word is. The helper's read of
+  `Object` is remembered in every scope out to the module's, as a body
+  remembers a word it has read from outside: a `const Object` after the
+  helper, in any of them, is `capture shadowed`, since JavaScript would
+  have resolved the helper's `Object` to it.
 
 The fold is where a symbol table already exists, because turning an identifier
 into `['cref', n]` or `['aref', n]` *is* the lookup. Do not contort the grammar

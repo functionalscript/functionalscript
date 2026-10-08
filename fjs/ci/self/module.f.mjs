@@ -1,6 +1,6 @@
 /**
  * This repository's own CI generation: `ci` with what only this repository
- * can name. `npm run gen` runs it through `fjs run`, where the built-in
+ * can name. `npm run gen` runs it, through `fjs/dev/gen`, where the built-in
  * `fjs ci` — `../module.f.mjs`'s `main` — stays the generator any project
  * gets, since that command cannot know what another package publishes.
  *

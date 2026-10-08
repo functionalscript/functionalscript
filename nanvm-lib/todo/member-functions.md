@@ -85,9 +85,9 @@ function answers it, so `f.toString()`, `String(f)`, `+`, an array joined
 and a string method's argument all reach the one text. A function without
 text — a host or hand-written one — is refused (`FUNCTION_TEXT`), never
 answered with a placeholder. What remains is the property key, which no
-module can compute yet: a key is a literal, and the runtime key is the
-planned [`entry`](../../fjs/edag/todo/entry.md), whose key conversion
-reaches a function's text. And the host evaluator's own rendering, which the
+module can compute but through the
+[`entry`](../../spec/README.md#reading-an-entry-at-run-time) helper, whose
+key conversion reaches a function's text. And the host evaluator's own rendering, which the
 corpus's `host` marker skips until it has one.
 
 `Number`'s and `BigInt`'s `toString` take a radix, `2` to `36`: an integer

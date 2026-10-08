@@ -51,13 +51,19 @@ import type { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
 export type Node =
     | readonly ['primitive', Primitive]
     | readonly ['ref', DjsTokenWithMetadata]
-    | readonly ['.', Node, DjsTokenWithMetadata]
+    | readonly ['.', Node, Key]
     | readonly ['()', Node, readonly Item[]]
+    | Chain
     | readonly ['-', Node]
     | readonly ['~', Node]
     | readonly ['!', Node]
     | readonly ['typeof', Node]
     | readonly [BinaryTag, Node, Node]
+    // `instanceof` with its operator token: the grammar reads its right
+    // operand as any relational operator's, and the fold admits one value
+    // there, a reference to `Array`, refusing the rest at the operator —
+    // the one token every spelling of the right side shares
+    | readonly ['instanceof', Node, Node, DjsTokenWithMetadata]
     | readonly ['?:', Node, Node, Node]
     | readonly ['=>', ParameterList, Node]
     | Block
@@ -92,10 +98,60 @@ export type If = {
 }
 
 /**
+ * An access's key: the token a constant key is read from — the name after
+ * `.`, or a string or a number literal in brackets, whose refusal is
+ * anchored there — or a computed key, {@link ComputedKey}.
+ */
+export type Key = DjsTokenWithMetadata | ComputedKey
+
+/**
+ * Any other value in brackets, `a[i]`, and the token it begins with, which
+ * its refusal is anchored at: the fold admits the conversion `Number(i)`
+ * alone ([spec: property access](../../../../spec/README.md#property-access)).
+ */
+export type ComputedKey = readonly ['[]', Node, DjsTokenWithMetadata]
+
+/**
  * An item of an array or of a call's arguments: a value, or a spread of
  * one, `...value`, which no node is — it stands only in an item list.
  */
 export type Item = Node | readonly ['...', Node]
+
+/**
+ * An optional chain, in the EDAG's own shapes (`fjs/edag/README.md`,
+ * Chains), its keys tokens as an access's is: a guarded access, `a?.b`, a
+ * guarded call, `a?.(…)`, or an access whose first step is a guarded call,
+ * `a.b?.(…)` — each with the steps the chain goes on with, {@link Step},
+ * where it has any. The reader folds the steps written after a `?.` into
+ * one of these until a group closes the region, and a group is where the
+ * shapes differ from a nested access: `a?.b.c` is one chain and `(a?.b).c`
+ * an access over one.
+ */
+export type Chain =
+    | readonly ['?.', Node, Key]
+    | readonly ['?.', Node, Key, Step]
+    | readonly ['?.()', Node, readonly Item[]]
+    | readonly ['?.()', Node, readonly Item[], Step]
+    | readonly ['.', Node, Key, OptionalCall]
+
+/**
+ * One step a chain goes on with, and the steps after it: a property by its
+ * key's token, a call by its items, a guarded call, or the call a group's
+ * closing parenthesis put outside the region, `(a?.b)(…)`, after which
+ * nothing continues the chain.
+ */
+export type Step =
+    | readonly ['|.', Key]
+    | readonly ['|.', Key, Step]
+    | readonly ['|()', readonly Item[]]
+    | readonly ['|()', readonly Item[], Step]
+    | OptionalCall
+    | readonly ['|!()', readonly Item[]]
+
+/** A guarded call step, `?.(…)`, and the steps after it. */
+export type OptionalCall =
+    | readonly ['|?.()', readonly Item[]]
+    | readonly ['|?.()', readonly Item[], Step]
 
 /** An array of its items, or an object of its entries, each in the order written. */
 export type Container =

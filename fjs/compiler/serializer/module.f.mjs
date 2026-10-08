@@ -121,7 +121,7 @@
  *
  * @module
  *
- * @import { Analysis, ItemOperand, Node, Operand, Ref } from '../../edag/analysis/types.ts'
+ * @import { Analysis, ItemOperand, Node, Operand, Ref, Step } from '../../edag/analysis/types.ts'
  * @import { Exp } from '../../edag/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
@@ -130,21 +130,20 @@
  */
 
 import { _defaultExport, _moduleExports, _moduleThrows } from '../edag/module.f.mjs'
-import { keywords, literalWords } from '../../js/keywords/module.f.mjs'
-import { analysis, checked, itemOperand, mergeable, operandsOf } from '../../edag/analysis/module.f.mjs'
+import { keywords, literalWords, reservedGlobals } from '../../js/keywords/module.f.mjs'
+import { analysis, checked, itemOperand, mergeable, operandsOf, stepOperands } from '../../edag/analysis/module.f.mjs'
 import { keySerialize, leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { arrayWrap, colon, objectWrap, wrap } from '../../media/json/serializer/module.f.mjs'
 import { first, flat, toArray } from '../../types/list/module.f.mjs'
 import { _prohibitedCallNames, _prohibitedNames } from '../parser/module.f.mjs'
-import { dollarSign, isDigit, isLatinLetter, lowLine } from '../../text/ascii/module.f.mjs'
-import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
+import { isIdentifier } from '../../js/identifier/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
-import { renderFunction } from './function_text/module.f.mjs'
+import { _entryText as entryText, renderFunction } from './function_text/module.f.mjs'
 import { _name as name, _binding as binding, _resolve as resolve } from './names/module.f.mjs'
 
-/** Names the parser refuses to bind. */
-const reservedExports = new Set([...keywords, ...literalWords, 'then'])
+/** Names the parser refuses to bind: the keywords, the literal words, the reserved globals, and `then` as an export's name. */
+const reservedExports = new Set([...keywords, ...literalWords, ...reservedGlobals, 'then'])
 
 /**
  * The node kinds that keep a `const`: one value however many edges reach
@@ -194,7 +193,7 @@ const hoistedKind = (a, i) => minting(a.nodes[i])
  */
 const basedHoisted = (a, base) => !(base instanceof Array)
     ? typeof base === 'number' || typeof base === 'bigint'
-    : a.nodes[base[1]][0] === '=>'
+    : arrowKind(a.nodes[base[1]][0])
 
 /** Two hoisted values are one when they name the same entry, or the same primitive by `Object.is`. @type {(x: _Hoisted, y: _Hoisted) => boolean} */
 const sameHoisted = (x, y) => x[0] === y[0] && Object.is(x[1], y[1])
@@ -235,30 +234,6 @@ const visible = s => [...s.outer, ...s.names]
 const nameOf = (names, h) => {
     const i = slotOf(names, h)
     return i === null ? null : names[i][1]
-}
-
-/** What may open an identifier: a Latin letter, `_` or `$`. @type {(codePoint: number) => boolean} */
-const identifierStart = codePoint =>
-    isLatinLetter(codePoint) || codePoint === lowLine || codePoint === dollarSign
-
-/**
- * Whether a word is one the tokenizer reads as a single `id` token, and so
- * may follow a `.` rather than be written as a key in brackets.
- *
- * The characters are classified by code point through
- * [`text/ascii`](../../text/ascii/module.f.mjs), which is where the rest of
- * the repository's lexical rules ask what a character is
- * ([`../../js/identifier/todo`](../../js/identifier/todo/lexical-predicates-from-text-ascii.md)).
- * A case fold would not do: `'\u212a'`, the Kelvin sign, lowercases to `k`
- * and is no letter the tokenizer takes.
- *
- * @type {(key: string) => boolean}
- */
-const identifierKey = key => {
-    const word = toArray(stringToCodePointList(key))
-    return word.length !== 0
-        && identifierStart(word[0])
-        && word.every(c => identifierStart(c) || isDigit(c))
 }
 
 /** Whether the function that is entry `i` reads its own `['self']`, in its own body's scope. @type {(a: Analysis, i: number) => boolean} */
@@ -313,19 +288,31 @@ const kindOf = (s, v) => {
 }
 
 /**
+ * A kind whose text is an arrow function — a function, or the `entry`
+ * helper, written in place as one — which JavaScript reads as an
+ * `AssignmentExpression` and no operand of an operator: an operator's
+ * operand, a prefix's and a conditional's condition group it, and a base
+ * hoists it.
+ *
+ * @type {(kind: string | null) => boolean}
+ */
+const arrowKind = kind => kind === '=>' || kind === 'entry'
+
+/**
  * The operators by level, loosest first, JavaScript's own ladder
  * ([spec: operators](../../../spec/README.md#operators)): the conditional;
  * `||` and `??` — one level, though the two never mix bare — `&&`; and
  * under them the eager binary operators, Stage A, `|` down to `**`. The
  * two prefixes, `-` of one operand and `~`, bind tighter than every level
  * here, and everything else this writer spells — a name, a primitive, an
- * access, a container, the call a nested `throw` is — tighter still.
+ * access, a container, the call a nested `throw` is, the `Number`
+ * conversion — tighter still.
  *
  * @type {readonly (readonly string[])[]}
  */
 const levels = [
     ['?:'], ['||', '??'], ['&&'],
-    ['|'], ['^'], ['&'], ['===', '!=='], ['<', '<=', '>', '>='], ['<<', '>>', '>>>'], ['+', '-'], ['*', '/', '%'], ['**'],
+    ['|'], ['^'], ['&'], ['===', '!=='], ['<', '<=', '>', '>=', 'instanceof'], ['<<', '>>', '>>>'], ['+', '-'], ['*', '/', '%'], ['**'],
 ]
 
 /** The level of an operator, `0` the loosest; `-1` for a tag that is none. @type {(op: string) => number} */
@@ -376,7 +363,7 @@ const grouped = grouped => text => grouped ? flat([['('], text, [')']]) : text
  * @type {(op: string, right: boolean) => (node: Node | null) => boolean}
  */
 const operandGrouped = (op, right) => node => node !== null && (
-    node[0] === '=>'
+    arrowKind(node[0])
     || mixesNullish(node[0], op)
     || precedence(node) < level(op)
     || (precedence(node) === level(op) && right !== (op === '**')))
@@ -420,6 +407,20 @@ const binary = (s, path) => (op, left, right) => mapOk(
 const opensWithMinus = text => firstChunk(text).startsWith('-')
 
 /**
+ * The text of an instance check, `v instanceof Array`: the operand as the
+ * left operand of a relational operator, grouped as `<`'s would be, and
+ * the constructor as the word it is — a name the node carries, not an
+ * operand with a text of its own. Spaces around the operator, since it is
+ * a word.
+ *
+ * @type {(s: _Scope, path: string) => (operand: Operand, constructor: string) => Document}
+ */
+const instanceOf = (s, path) => (operand, constructor) => mapOk(
+    /** @type {(l: List<string>) => List<string>} */
+    (l => flat([l, [` instanceof ${constructor}`]])),
+)(leftOperand(s, `${path}/left`, 'instanceof')(operand))
+
+/**
  * The text of a prefix operator, `-v`, `~v`, `!v` or `typeof v`: the operand
  * in parentheses
  * where it is an operator's text, which binds looser than a prefix,
@@ -436,7 +437,7 @@ const opensWithMinus = text => firstChunk(text).startsWith('-')
 const prefix = (s, path) => op => v => mapOk(
     /** @type {(text: List<string>) => List<string>} */
     (text => flat([[op === 'typeof' ? 'typeof ' : op === '-' && opensWithMinus(text) ? '- ' : op], text])),
-)(mapOk(grouped(isOperator(nodeOf(s, v)) || kindOf(s, v) === '=>'))(operand(s, path)(v)))
+)(mapOk(grouped(isOperator(nodeOf(s, v)) || arrowKind(kindOf(s, v))))(operand(s, path)(v)))
 
 /** An operand's text in place, with whether it is a block; a name and a primitive are neither. @type {(s: _Scope, path: string) => (v: Operand) => Result<_Written, string>} */
 const inPlace = (s, path) => v => mapOk((/** @type {List<string>} */ text) => ({ text, block: false }))(operand(s, path)(v))
@@ -542,7 +543,7 @@ const conditional = (s, path) => ([, c, t, e]) => mapOk(
     /** @type {(parts: readonly List<string>[]) => List<string>} */
     (([cond, then, otherwise]) => flat([cond, ['?'], then, [':'], otherwise])),
 )(okList([
-    mapOk(grouped(kindOf(s, c) === '?:' || kindOf(s, c) === '=>'))(operand(s, `${path}/condition`)(c)),
+    mapOk(grouped(kindOf(s, c) === '?:' || arrowKind(kindOf(s, c))))(operand(s, `${path}/condition`)(c)),
     lazyOperand(s, `${path}/then`, () => false)(t),
     lazyOperand(s, `${path}/else`, () => false)(e),
 ]))
@@ -596,6 +597,19 @@ const property = (s, path) => p => {
 const bracketed = k => ok(flat([['['], leafSerialize(k), [']']]))
 
 /**
+ * The conversion's text, `Number(v)`: the call it is in JavaScript, its
+ * operand an argument, which takes no parentheses of its own — `v`'s text
+ * in place, or written as a lazy operand is where the conversion stands in
+ * a chain's region, `lazy`, {@link lazyItem}.
+ *
+ * @type {(s: _Scope, path: string, lazy: boolean) => (v: Operand) => Document}
+ */
+const conversion = (s, path, lazy) => v => mapOk(
+    /** @type {(text: List<string>) => List<string>} */
+    (text => flat([['Number('], text, [')']])),
+)((lazy ? lazyItem : item)(s, `${path}/operand`)(v))
+
+/**
  * An access's key: a name after `.` where the word admits it, and a key in
  * brackets otherwise. The `.` and the name are one chunk, so that a chunk
  * holding a name alone is always a reference — what {@link firstUse} reads.
@@ -607,29 +621,87 @@ const bracketed = k => ok(flat([['['], leafSerialize(k), [']']]))
  * `0` by the time a graph holds it — so each is refused rather than
  * respelled.
  *
- * A computed key, `['Number', e]`, is refused rather than written
- * `base[Number(k)]` as the issue proposes: the grammar's index is a string
- * or a number literal, so that spelling is one the parser would not read
- * back, and writing it would break the round trip the output exists for. It
- * is a spelling to add with computed keys, not before them.
+ * A computed key, `['Number', e]`, is written as the conversion in
+ * brackets, `base[Number(e)]`, from the node itself rather than by its
+ * name, since a key the parser reads back is the conversion and no other
+ * value: `e` is written in place, or as a lazy operand where the key
+ * stands in a chain's region, `lazy`, {@link conversion}.
  *
  * A method call's key is refused by the parser's other list: the member
  * functions a module may not call, `a.push(1)`, where `a.at(0)` is a call
  * though `a.at` is no read.
  *
- * @type {(method: boolean) => (k: Operand) => Document}
+ * @type {(s: _Scope, path: string, lazy: boolean) => (method: boolean) => (k: Operand) => Document}
  */
-const key = method => k => {
+const key = (s, path, lazy) => method => k => {
     if (typeof k === 'string') {
         if (method && _prohibitedCallNames.has(k)) { return error('a prohibited member function') }
         if (!method && _prohibitedNames.has(k)) { return error('a prohibited property name') }
-        return identifierKey(k) ? ok([`.${k}`]) : bracketed(k)
+        return isIdentifier(k) ? ok([`.${k}`]) : bracketed(k)
     }
-    if (typeof k !== 'number') { return error('an access key that is no literal') }
-    return Number.isFinite(k) && !Object.is(k, -0)
-        ? bracketed(k)
-        : error('a number key no literal reads back')
+    if (typeof k === 'number') {
+        return Number.isFinite(k) && !Object.is(k, -0)
+            ? bracketed(k)
+            : error('a number key no literal reads back')
+    }
+    const node = k instanceof Array ? s.a.nodes[k[1]] : null
+    return node !== null && node[0] === 'Number'
+        ? mapOk(/** @type {(text: List<string>) => List<string>} */ (text => flat([['['], text, [']']])))(conversion(s, path, lazy)(node[1]))
+        : error('an access key that is no literal')
 }
+
+/**
+ * A guarded access's key, `?.k` or `?.[k]`: {@link key}'s text behind the
+ * `?.`, which takes the place of a name's own `.`.
+ *
+ * @type {(s: _Scope, path: string, lazy: boolean) => (method: boolean) => (k: Operand) => Document}
+ */
+const optionalKey = (s, path, lazy) => method => k => mapOk(
+    /** @type {(text: List<string>) => List<string>} */
+    (text => flat([[firstChunk(text).startsWith('.') ? '?' : '?.'], text])),
+)(key(s, path, lazy)(method)(k))
+
+/** Whether the step after a key makes the key a call's: any step but a property. @type {(step: Step | undefined) => boolean} */
+const isCallStep = step => step !== undefined && step[0] !== '|.'
+
+/** The last of a chain's steps, or none. @type {(step: Step | undefined) => Step | undefined} */
+const lastStep = step => step === undefined || step[2] === undefined ? step : lastStep(step[2])
+
+/**
+ * Whether a chain node's value is a property reference, a receiver live
+ * at its end (`fjs/edag/README.md`, Chains): an access or a guarded access
+ * with no step, and any chain whose last step is a property. A call over
+ * such a node is the detached receiver, which no source spelling reaches
+ * with the node written in place — `(a?.b)(c)` keeps the receiver — so
+ * the writer names it first ({@link calleeHoisted}).
+ *
+ * @type {(node: Node) => boolean}
+ */
+const receiverLive = node => {
+    if (node[0] !== '.' && node[0] !== '?.' && node[0] !== '?.()') { return false }
+    const last = lastStep(node[3])
+    return last === undefined ? node[0] !== '?.()' : last[0] === '|.'
+}
+
+/**
+ * Whether a node opens a short-circuit region: a guarded access, a guarded
+ * call, or an access whose step is a guarded call. A step written after
+ * its text would read as the region's own, so where a `.` node or a call
+ * stands over one, the writer groups it — `(a?.b).c` — which is where the
+ * two graphs differ; a `?.` over one needs no group, `a?.b?.c` reading
+ * back as the two nodes it is.
+ *
+ * @type {(node: Node | null) => boolean}
+ */
+const isRegion = node => node !== null && (node[0] === '?.' || node[0] === '?.()' || (node[0] === '.' && node.length === 4 && node[3][0] === '|?.()'))
+
+/**
+ * A base or a callee under a chain node, grouped where the node is a
+ * region and the step over it is not guarded, {@link isRegion}.
+ *
+ * @type {(s: _Scope, path: string, optional: boolean) => (v: Operand) => Document}
+ */
+const chainBase = (s, path, optional) => v => mapOk(grouped(!optional && isRegion(nodeOf(s, v))))(base(s, path)(v))
 
 /** The first chunk of a document, which no spelling leaves empty. @type {(text: List<string>) => string} */
 const firstChunk = first('')
@@ -824,6 +896,67 @@ const lambdaBody = (a, path, frame, allowUnusedCaptures, self) => b => {
 const callArguments = (s, path) => args => mapOk(wrap('(')(')'))(okList(args.map((v, k) => item(s, `${path}/arg${k}`)(v))))
 
 /**
+ * An item inside a chain's region, an argument the chain's guard decides
+ * to establish: a lazy operand, {@link lazyOperand}, a block where it
+ * needs one and in place otherwise — never grouped, since an argument is
+ * an `AssignmentExpression` as an array's item is.
+ *
+ * @type {(s: _Scope, path: string) => (v: ItemOperand) => Document}
+ */
+const lazyItem = (s, path) => v => v instanceof Array && v[0] === '...'
+    ? mapOk(value => flat([['...'], value]))(lazyOperand(s, path, () => false)(v[1]))
+    : lazyOperand(s, path, () => false)(/** @type {Operand} */(v))
+
+/** A call's arguments inside a chain's region, each a {@link lazyItem}. @type {(s: _Scope, path: string) => (args: readonly ItemOperand[]) => Document} */
+const lazyArguments = (s, path) => args => mapOk(wrap('(')(')'))(okList(args.map((v, k) => lazyItem(s, `${path}/arg${k}`)(v))))
+
+/**
+ * A chain's steps after the text before them, each applied to that text
+ * — a property's key, judged as a method call's where a call follows it,
+ * a call's arguments, a guarded call's behind `?.`, and the escaping call
+ * around the whole text, `(a?.b)(c)`, since the group is what put it
+ * outside the region. The arguments are lazy from the first guard on, the
+ * guard's own included — `a.b?.(c)` establishes `c` only where `b` is not
+ * nullish: a `.` node's own call, `a.b(c)`, is the one eager step, and the
+ * only step such a node takes.
+ *
+ * @type {(s: _Scope, path: string, i: number, lazy: boolean) => (text: List<string>) => (step: Step | undefined) => Document}
+ */
+const chainSteps = (s, path, i, lazy) => text => step => {
+    if (step === undefined) { return ok(text) }
+    const [tag, x, next] = step
+    // a guarded call's own arguments are inside the region it opens
+    const guarded = lazy || tag === '|?.()'
+    /** @type {(part: List<string>) => Document} */
+    const rest = part => chainSteps(s, path, i + 1, guarded)(flat([text, part]))(next)
+    if (tag === '|.') { return okThen(rest)(key(s, `${path}/step${i}`, guarded)(isCallStep(next))(x)) }
+    const args = (guarded ? lazyArguments : callArguments)(s, `${path}/step${i}`)(x)
+    if (tag === '|()') { return okThen(rest)(args) }
+    if (tag === '|?.()') { return okThen(rest)(mapOk(/** @type {(a: List<string>) => List<string>} */ (a => flat([['?.'], a])))(args)) }
+    return mapOk(/** @type {(a: List<string>) => List<string>} */ (a => flat([['('], text, [')'], a])))(args)
+}
+
+/**
+ * A chain node's text: its base and key — a guarded access's key behind
+ * `?.`, {@link optionalKey} — or its callee and the arguments of its
+ * guarded call, and then its steps, {@link chainSteps}. The base is
+ * grouped where it is a region of its own and this node is not guarded,
+ * {@link chainBase}: `(a?.b).c` against `a?.b.c`, which is one node.
+ *
+ * @type {(s: _Scope, path: string) => (node: Extract<Node, readonly ['.' | '?.' | '?.()', ...unknown[]]>) => Document}
+ */
+const chain = (s, path) => node => {
+    const [tag, b, x, k] = node
+    const head = tag === '?.()'
+        ? okList([chainBase(s, `${path}/callee`, true)(b), mapOk(/** @type {(a: List<string>) => List<string>} */ (a => flat([['?.'], a])))(lazyArguments(s, `${path}/arguments`)(/** @type {readonly ItemOperand[]} */ (x)))])
+        : okList([chainBase(s, `${path}/base`, tag === '?.')(b), (tag === '?.' ? optionalKey : key)(s, `${path}/key`, tag === '?.')(isCallStep(k))(/** @type {Operand} */ (x))])
+    return okThen(
+        /** @type {(parts: readonly List<string>[]) => Document} */
+        (parts => chainSteps(s, path, 0, tag !== '.')(flat(parts))(k)),
+    )(head)
+}
+
+/**
  * Whether a callee takes a `const` of its own: a base that does
  * ({@link basedHoisted}), and an access, which a call would read as the
  * method call in any spelling — `a.b(c)` and `(a.b)(c)` alike — where the
@@ -833,7 +966,7 @@ const callArguments = (s, path) => args => mapOk(wrap('(')(')'))(okList(args.map
  * @type {(a: Analysis, callee: Operand) => boolean}
  */
 const calleeHoisted = (a, callee) => basedHoisted(a, callee)
-    || (callee instanceof Array && a.nodes[callee[1]][0] === '.' && a.nodes[callee[1]].length === 3)
+    || (callee instanceof Array && receiverLive(a.nodes[callee[1]]))
 
 /**
  * A function's parameter list, `($0,$1,...$2)=>`: one name per fixed
@@ -884,28 +1017,26 @@ const entry = (s0, path) => i => {
         // every function that reads its `self`, and the analysis refused a
         // `self` with no function around it
         case 'self': { return ok([assertNotNullish(s.self, ['a self in a scope with no name', i])]) }
+        // the `entry` helper, in its one spelling, under names of this
+        // function's own as every function's parameters are
+        case 'entry': { return ok([entryText(`${path}/function${i}`)]) }
         case 'arg': case 'rest': { return ok([assertNotNullish(parameterName(s.param, node))]) }
         case '[]': { return mapOk(arrayWrap)(okList(node[1].map((v, k) => item(s, `${path}/item${k}`)(v)))) }
         case '{}': { return mapOk(objectWrap)(okList(node[1].map((p, k) => property(s, `${path}/property${k}`)(p)))) }
         case 'frame': { return slotRead(s)(node[1]) }
-        case '.': {
-            // a method call: the one continuation a `.` takes in this
-            // language, `a.b(c)`, which keeps `a` as the receiver
-            const [, b, k, step] = node
-            if (step !== undefined && step[0] !== '|()') { return error(`a ${step[0]} step`) }
-            return mapOk(
-                /** @type {(parts: readonly List<string>[]) => List<string>} */
-                (parts => flat(parts)),
-            )(okList([base(s, `${path}/base`)(b), key(step !== undefined)(k), ...(step === undefined ? [] : [callArguments(s, `${path}/arguments`)(step[1])])]))
-        }
+        // an access and its method call, `a.b(c)`, which keeps `a` as the
+        // receiver, and the optional chains, each with the steps it goes on
+        // with ({@link chain})
+        case '.': case '?.': case '?.()': { return chain(s, path)(node) }
         case '()': {
             // A callee that takes a `const` was named by the hoisting walk
-            // ({@link calleeHoisted}); anything else is written in place.
+            // ({@link calleeHoisted}); anything else is written in place, a
+            // region grouped so that the call stays outside it.
             const [, callee, args] = node
             return mapOk(
                 /** @type {(parts: readonly List<string>[]) => List<string>} */
                 (parts => flat(parts)),
-            )(okList([base(s, `${path}/callee`)(callee), callArguments(s, `${path}/arguments`)(args)]))
+            )(okList([chainBase(s, `${path}/callee`, false)(callee), callArguments(s, `${path}/arguments`)(args)]))
         }
         case '=>': {
             const [, length, slots, body] = node
@@ -926,6 +1057,8 @@ const entry = (s0, path) => i => {
             return right === undefined ? error('a unary + node') : binary(s, path)(op, left, right)
         }
         case '~': case '!': case 'typeof': { return prefix(s, path)(node[0])(node[1]) }
+        case 'instanceof': { return instanceOf(s, path)(node[1], node[2]) }
+        case 'Number': { return conversion(s, path, false)(node[1]) }
         case '|': case '^': case '&': case '===': case '!==': case '<': case '<=': case '>': case '>=':
         case '<<': case '>>': case '>>>': case '*': case '/': case '%': case '**': { return binary(s, path)(node[0], node[1], node[2]) }
         case '&&': case '||': case '??': { return lazyBinary(s, path)(node) }
@@ -987,7 +1120,7 @@ const hoists = s => {
                 [...operands(node), ...lazyOperands(node)].reduce(found, names))
         // a base or a callee that takes a `const` takes it before the node
         // does, since a call is shared by its own `const`, which reads it
-        const named = (node[0] === '.' && basedHoisted(s.a, node[1])) || (node[0] === '()' && calleeHoisted(s.a, node[1]))
+        const named = ((node[0] === '.' || node[0] === '?.') && basedHoisted(s.a, node[1])) || ((node[0] === '()' || node[0] === '?.()') && calleeHoisted(s.a, node[1]))
         const based = named && own(i)
             ? add(inner, node[1] instanceof Array ? ['entry', node[1][1]] : ['leaf', /** @type {number | bigint} */(node[1])])
             : inner
@@ -1001,7 +1134,8 @@ const hoists = s => {
 /**
  * The eager operands a node holds, for the hoisting walk and the module
  * writer: a container's items and a property's halves, an access's base
- * and key, a call's callee and each argument, a prefix's operand, an eager
+ * and key, a call's callee and each argument, a prefix's operand, a
+ * conversion's, an eager
  * binary operator's two, a `throw`'s value, a comma's operands, a lazy
  * operator's left operand and a conditional's condition. A function's body
  * is not among them, since the walk stops at a body, and neither is its
@@ -1013,9 +1147,13 @@ const operands = node => {
     switch (node[0]) {
         case '.': { return [node[1], node[2], ...(node.length === 3 || node[3][0] !== '|()' ? [] : node[3][1].map(itemOperand))] }
         case '()': { return [node[1], ...node[2].map(itemOperand)] }
+        // a guarded access's base, and a guarded call's callee: what the
+        // guard tests, established whatever it decides
+        case '?.': case '?.()': { return [node[1]] }
         case '[]': { return node[1].map(itemOperand) }
         case '{}': { return node[1].flatMap(p => p[0] === '...' ? [p[1]] : [p[1], p[2]]) }
-        case 'throw': case '~': case '!': case 'typeof': { return [node[1]] }
+        // an instance check's constructor is a name, not an operand
+        case 'throw': case '~': case '!': case 'typeof': case 'instanceof': case 'Number': { return [node[1]] }
         case '-': case '+': { return node.length === 2 ? [node[1]] : [node[1], node[2]] }
         case ',': { return node[1] }
         case '&&': case '||': case '??': case '?:': { return [node[1]] }
@@ -1035,6 +1173,12 @@ const lazyOperands = node => {
     switch (node[0]) {
         case '&&': case '||': case '??': { return [node[2]] }
         case '?:': { return [node[2], node[3]] }
+        // a chain's region: a guarded access's key and every step after
+        // it, a guarded call's arguments and its steps, and the steps after
+        // an access's guarded call — the operands a nullish value skips
+        case '.': { return node.length === 4 && node[3][0] === '|?.()' ? stepOperands(node[3]) : [] }
+        case '?.': { return [node[2], ...stepOperands(node[3])] }
+        case '?.()': { return [...node[2].map(itemOperand), ...stepOperands(node[3])] }
         default: { return [] }
     }
 }
@@ -1316,6 +1460,7 @@ export const tryStringify = e => mapOk(
  * @type {(a: Analysis, i: number) => string}
  */
 export const functionText = (a, i) => {
+    if (a.nodes[i][0] === 'entry') { return resolve([entryText('function')], [], []).join('') }
     const [, length, slots, body] = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (a.nodes[i])
     const frame = slots.map((_, k) => name(`external${k}`))
     const [kind, text] = lambda(a, 'function', i, length, frame, true, null)(body)
@@ -1354,7 +1499,7 @@ export const functionText = (a, i) => {
  * @type {(e: Exp) => Result<string, string>}
  */
 export const tryFunctionText = e => {
-    if (!(e instanceof Array) || e[0] !== '=>') { return error('not a function') }
+    if (!(e instanceof Array) || (e[0] !== '=>' && e[0] !== 'entry')) { return error('not a function') }
     const result = analysis(e)
     const [kind, a] = result
     if (kind === 'error') { return result }
@@ -1445,7 +1590,7 @@ export const tryModuleSerialize = e => {
     if (members.length === 0) { return error('a module without exports') }
     const keys = members.map(([, key]) => key)
     if (new Set(keys).size !== keys.length) { return error('duplicate export names') }
-    if (keys.some(key => key !== 'default' && (!identifierKey(key) || reservedExports.has(key)))) {
+    if (keys.some(key => key !== 'default' && (!isIdentifier(key) || reservedExports.has(key)))) {
         return error('an unsupported export name')
     }
     if (keys.length === 1 && keys[0] === 'default') {
