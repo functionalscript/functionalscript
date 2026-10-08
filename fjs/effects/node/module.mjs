@@ -13,13 +13,14 @@
  * @module
  *
  * @import { Effect, IoChannel } from '../types.ts'
- * @import { Handle, Headers, IoResult, Server as EffectServer, Module, NodeOp, RequestListener as Erl, NodeProgram, NodeProgramOptions, ServerResponse, WriteConsoles, TestContext, TestFn, } from './types.ts'
+ * @import { Child, ExitStatus, Handle, Headers, IoResult, Server as EffectServer, Module, NodeOp, RequestListener as Erl, NodeProgram, NodeProgramOptions, ServerResponse, WriteConsoles, TestContext, TestFn, } from './types.ts'
  * @import { _CloseRecord, _IncomingMessage, _Readable, _RequestBodyReader, _RequestListener, _Server, _ServerResponse } from './private.ts'
  * @import { Next } from '../list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { FileHandle } from 'node:fs/promises'
+ * @import { ChildProcess } from 'node:child_process'
  */
 
 import http from 'node:http'
@@ -530,7 +531,19 @@ const failSafe = res => {
 
 const { mkdir, open, readFile, readdir, rename, writeFile, rm, rmdir, access, stat, lstat } = fs.promises
 
-const { exec } = childProcess
+const { exec, spawn } = childProcess
+
+/** The child a {@link Child} brands, as `asFileHandle` recovers a handle. @type {(child: Child) => ChildProcess} */
+const asChild = child => /** @type {ChildProcess} */ (asBase(child))
+
+/**
+ * How a child ended, from the pair Node reports on `'exit'` and keeps on the
+ * object: a signaled child has no code, so the signal is the status, and an
+ * exited one has no signal — Node leaves exactly one of the two `null`.
+ *
+ * @type {(code: number | null, signal: string | null) => ExitStatus}
+ */
+const exitStatus = (code, signal) => code !== null ? ['exited', code] : ['signaled', /** @type {string} */ (signal)]
 
 const maxFileSizeBytes = Number(maxLengthBytes)
 
@@ -951,6 +964,30 @@ const runNodeEffect = asyncRun({
             resolve(e !== null ? error(toIoError(e)) : ok({ stdout, stderr }))
         )
         child.stdin?.end(stdin)
+    }),
+    // The subprocess slice of `./todo/spawn-effect.md`: a child on this process's
+    // terminal, waited for. The handle is the branded `ChildProcess` itself, as
+    // `createServer` brands its server below — no table. It is answered only
+    // once the child runs: a missing executable is an asynchronous `'error'`
+    // with no `'exit'` after it, so a handle minted before `'spawn'` could only
+    // hang its caller. `io` turns that `'error'`, and a host that refuses to
+    // spawn at all, into the operation's `IoError`.
+    spawn: (command, args, { stdio }) => io(() => new Promise((resolve, reject) => {
+        const child = spawn(command, args, { stdio })
+        child.once('spawn', () => resolve(/** @type {Child} */ (asNominal(child))))
+        child.once('error', reject)
+    })),
+    // Reads before it listens: a child may be gone before anyone waits on it, and
+    // an `'exit'` listener attached afterwards never fires. Node keeps the
+    // outcome on the object, so that is read first and `'exit'` awaited only
+    // while both halves are still `null`.
+    childWait: child => io(async () => {
+        const c = asChild(child)
+        if (c.exitCode !== null || c.signalCode !== null) {
+            return exitStatus(c.exitCode, c.signalCode)
+        }
+        const [code, signal] = await once(c, 'exit')
+        return exitStatus(code, signal)
     }),
     createServer: async requestListener => {
         const answer = answerRequest(/** @type {Erl<NodeOp>} */ (requestListener))

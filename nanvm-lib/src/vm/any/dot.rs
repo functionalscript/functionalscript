@@ -95,7 +95,7 @@ mod tests {
 
     /// `Number`, `Boolean` and `BigInt` receivers have no own properties at
     /// all, so every key on one reads `undefined` — the same fallback
-    /// `own_property` has.
+    /// `Any::entry` has.
     #[test]
     fn primitive_receiver_has_no_properties() {
         assert_eq!(1.0.to_any::<A>().dot(0.0.to_any()).end(), Ok(undefined()));

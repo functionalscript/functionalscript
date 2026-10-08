@@ -9,6 +9,7 @@ mod div;
 mod dot;
 mod from;
 mod get_iterator;
+mod instanceof_;
 mod neg;
 mod not;
 mod nullish_coalescing;
@@ -26,6 +27,7 @@ mod typeof_;
 
 pub mod to_any;
 
+pub use instanceof_::Constructor;
 pub use to_json::JsonError;
 
 use crate::vm::{
@@ -41,8 +43,8 @@ use crate::vm::{
 };
 
 /// `Object.getOwnPropertyDescriptor`'s own message for a nullish receiver
-/// (one of `own_property`'s two throwing cases, the other being a
-/// non-`String` key — see its doc comment).
+/// (`entry`'s throwing case of its own, the other being a key whose
+/// conversion throws — see its doc comment).
 pub(crate) const CANNOT_CONVERT_NULLISH_TO_OBJECT: &str =
     "TypeError: Cannot convert undefined or null to object";
 
@@ -115,45 +117,49 @@ impl<A: IVm> Any<A> {
         Ok(Unpacked::from(self.to_numeric()?.unsigned_right_shift(rhs.to_numeric()?)?).into())
     }
 
-    /// The EDAG's `own` — exactly
-    /// `Object.getOwnPropertyDescriptor(self, key)?.value`, no getter
-    /// invocation, no prototype chain (`nanvm-lib` objects have no
-    /// `__proto__` to walk in the first place). Not a `core::ops` trait —
-    /// no Rust operator fits a keyed property lookup — so this is a plain
-    /// method, the same as `pow`/`bitwise_not`/`unsigned_right_shift`.
+    /// The body of the language's `entry` helper, the function the EDAG's
+    /// `['entry']` node is, called with `self` and `key`:
     ///
-    /// `key` must itself be a `String` — a runtime-value constraint the
-    /// EDAG's shape-only schema can't express, upheld by whatever builds
-    /// the `own` node in the first place, not by any coercion here (unlike
-    /// real JS's `ToPropertyKey`, which would silently stringify a
-    /// `Number` key rather than reject it). A non-`String` key is a
-    /// `TypeError` here, the same as reaching `own` with one is a bug
-    /// upstream, not a value for this to coerce past.
+    /// ```js
+    /// (a, b) => {
+    ///     const x = Object.getOwnPropertyDescriptor(a, b);
+    ///     return x?.enumerable ? x.value : undefined;
+    /// }
+    /// ```
     ///
-    /// A non-nullish, non-`Object` receiver is never an own-property owner
-    /// (a `Number`/`String`/`Array`/etc. — none of these are the plain
-    /// objects `own_property` inspects) and always answers `undefined`,
-    /// same as every absent key does; a nullish one throws, matching
-    /// `ToObject`'s own `TypeError` on `null`/`undefined`.
+    /// The enumerable own property `key` names: an `Object`'s field
+    /// (`Object::own_property`), an `Array`'s element or a `String`'s code
+    /// unit by its canonical index string (`Array::entry`, `String::entry`),
+    /// and nothing a value owns without enumerating it — never a `length`,
+    /// and nothing of a function. No getter invocation and no prototype
+    /// chain (`nanvm-lib` objects have no `__proto__` to walk in the first
+    /// place). Not a `core::ops` trait — no Rust operator fits a keyed
+    /// property lookup — so this is a plain method, the same as
+    /// `pow`/`bitwise_not`/`unsigned_right_shift`.
     ///
-    /// The receiver is checked before the key is: real `ToObject` runs
-    /// before `ToPropertyKey`
+    /// The receiver is checked before the key is converted: real `ToObject`
+    /// runs before `ToPropertyKey`
     /// (<https://tc39.es/ecma262/#sec-object.getownpropertydescriptor>), so
-    /// a nullish receiver throws regardless of what the key is, even one
-    /// this would otherwise reject — `Object.getOwnPropertyDescriptor(null,
-    /// 42)` throws the nullish `TypeError`, not one about `42`.
-    pub fn own_property(self, key: Self) -> Result<Self, Self> {
+    /// a nullish receiver throws regardless of what the key is, and a key
+    /// whose conversion throws does so under a receiver that is not. The
+    /// key converts as `ToPropertyKey` converts it, which is `to_string`
+    /// here, the language having no symbols: `0` and `"0"` name one entry,
+    /// and an object converts through its own `toString`. A `Number`,
+    /// `Boolean` or `BigInt` receiver owns no entry and answers
+    /// `undefined`, as every absent key does.
+    pub fn entry(self, key: Self) -> Result<Self, Self> {
         let unpacked: Unpacked<A> = self.into();
         if let Unpacked::Nullish(_) = &unpacked {
             return Err(CANNOT_CONVERT_NULLISH_TO_OBJECT.into());
         }
-        let key: String<A> = key.try_into()?;
+        let key = key.to_string()?;
         Ok(match unpacked {
-            Unpacked::Object(o) => o
-                .own_property(&key)
-                .unwrap_or_else(|| Nullish::Undefined.to_any()),
-            _ => Nullish::Undefined.to_any(),
-        })
+            Unpacked::Object(o) => o.own_property(&key),
+            Unpacked::Array(a) => a.entry(&key),
+            Unpacked::String(s) => s.entry(&key),
+            _ => None,
+        }
+        .unwrap_or_else(|| Nullish::Undefined.to_any()))
     }
 
     /// Same as `Number.isNaN` in ECMAScript.
@@ -228,24 +234,57 @@ impl<A: IVm> Any<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Nullish, ToAny},
+        vm::{Any, Nullish, ToAny, ToArray, ToObject},
     };
 
     type A = Naive;
 
-    /// A corpus `expected: throws` case can't tell the two check orders
-    /// apart — `own(null, 1)` throws either way — so this compares the
-    /// actual error instead of just the fact of throwing: the receiver is
-    /// checked first (see `own_property`'s own doc comment), so a nullish
-    /// receiver paired with a non-string key must still produce the
-    /// nullish `TypeError`, not the key-type one.
+    fn undefined() -> Any<A> {
+        Nullish::Undefined.to_any()
+    }
+
+    /// The receiver is checked before the key is converted (see `entry`'s
+    /// own doc comment), so a nullish receiver throws the nullish
+    /// `TypeError` whatever the key is — a `throws` expectation alone
+    /// could not tell the two orders apart, so this compares the error.
     #[test]
-    fn own_property_nullish_receiver_outranks_non_string_key() {
-        let receiver = Nullish::Null.to_any::<A>();
+    fn entry_nullish_receiver_outranks_the_key() {
         let key = (1f64).to_any::<A>();
         assert_eq!(
-            receiver.own_property(key),
+            Nullish::Null.to_any::<A>().entry(key.clone()),
             Err("TypeError: Cannot convert undefined or null to object".into())
         );
+        assert_eq!(
+            undefined().entry(key),
+            Err("TypeError: Cannot convert undefined or null to object".into())
+        );
+    }
+
+    /// The key converts as `ToPropertyKey` converts it: a number names the
+    /// entry its decimal spelling names, `-0` the entry `"0"` does.
+    #[test]
+    fn entry_converts_the_key() {
+        let o = [("1".into(), 42.0.to_any())].to_object().to_any::<A>();
+        assert_eq!(o.clone().entry("1".into()), Ok(42.0.to_any()));
+        assert_eq!(o.clone().entry(1.0.to_any()), Ok(42.0.to_any()));
+        assert_eq!(o.entry("01".into()), Ok(undefined()));
+        let z = [("0".into(), 7.0.to_any())].to_object().to_any::<A>();
+        assert_eq!(z.entry((-0.0f64).to_any()), Ok(7.0.to_any()));
+    }
+
+    /// An array's and a string's elements are entries and their `length`
+    /// is not; a function has none, and neither has any other primitive.
+    #[test]
+    fn entry_reads_elements_and_no_length() {
+        let a = [7.0.to_any(), 8.0.to_any()].to_array().to_any::<A>();
+        assert_eq!(a.clone().entry(1.0.to_any()), Ok(8.0.to_any()));
+        assert_eq!(a.clone().entry("1".into()), Ok(8.0.to_any()));
+        assert_eq!(a.clone().entry("2".into()), Ok(undefined()));
+        assert_eq!(a.entry("length".into()), Ok(undefined()));
+        let s: Any<A> = "ab".into();
+        assert_eq!(s.clone().entry(1.0.to_any()), Ok("b".into()));
+        assert_eq!(s.entry("length".into()), Ok(undefined()));
+        assert_eq!(true.to_any::<A>().entry("0".into()), Ok(undefined()));
+        assert_eq!(5.0.to_any::<A>().entry("0".into()), Ok(undefined()));
     }
 }

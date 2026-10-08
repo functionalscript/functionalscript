@@ -103,7 +103,7 @@ type Analysis = {
   arrays. A plain access is pure, because no FunctionalScript value has an
   accessor: the language spells no getter, a JSON module has none, and an
   access reads an own property, never the prototype
-  ([`entry.md`](./entry.md)), so two reads of one property are
+  ([spec: entry](../../../spec/README.md#reading-an-entry-at-run-time)), so two reads of one property are
   one value. Neither is a call, in any spelling: `['()', f, args]`, and an
   access whose continuation calls, `['|()', …]`, `['|?.()', …]` or
   `['|!()', …]`, which is a method call and may mint a fresh result each

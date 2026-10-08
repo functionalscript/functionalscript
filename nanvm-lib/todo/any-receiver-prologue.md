@@ -1,4 +1,4 @@
-## any-receiver-prologue. `Member` and `Any::own_property` repeat the receiver guard and fallback
+## any-receiver-prologue. `Member` and `Any::entry` repeat the receiver guard and fallback
 
 **Priority:** P4
 **Status:** open
@@ -6,20 +6,24 @@
 ### Problem
 
 The two receiver reads open the same way and fall back the same way —
-`Any::own_property`, and the `.` node's step, `Member::new` guarding the
-receiver for `Member::read` in `vm/lambda/member.rs`:
+`Any::entry`, the `entry` helper's read, and the `.` node's step,
+`Member::new` guarding the receiver for `Member::read` in
+`vm/lambda/member.rs`:
 
 ```rust
-// vm/any/mod.rs, Any::own_property
+// vm/any/mod.rs, Any::entry
 let unpacked: Unpacked<A> = self.into();
 if let Unpacked::Nullish(_) = &unpacked {
     return Err(CANNOT_CONVERT_NULLISH_TO_OBJECT.into());
 }
-let key: String<A> = key.try_into()?;
+let key = key.to_string()?;
 Ok(match unpacked {
-    Unpacked::Object(o) => o.own_property(&key).unwrap_or_else(|| Nullish::Undefined.to_any()),
-    _ => Nullish::Undefined.to_any(),
-})
+    Unpacked::Object(o) => o.own_property(&key),
+    Unpacked::Array(a) => a.entry(&key),
+    Unpacked::String(s) => s.entry(&key),
+    _ => None,
+}
+.unwrap_or_else(|| Nullish::Undefined.to_any()))
 
 // vm/lambda/member.rs, Member::new — the guard, at the `.` node
 if let Unpacked::Nullish(_) = Unpacked::from(receiver.clone()) {
@@ -38,13 +42,13 @@ match Unpacked::from(receiver) {
 
 Two policies are stated here, and each is stated by repetition rather than
 by name. **A nullish receiver throws before the key is looked at** — the
-`ToObject`-first ordering that `own_property`'s doc and its
-`own_property_nullish_receiver_outranks_non_string_key` test pin down.
+`ToObject`-first ordering that `Any::entry`'s doc and its
+`entry_nullish_receiver_outranks_the_key` test pin down.
 **An absent member reads `undefined`** — the `unwrap_or_else` each read
-ends in. The two doc comments assert that the operators agree on both
-("the same fallback `own_property` has", "the same split `own_property`
-has"); nothing in the code makes them agree, and the next receiver
-operator re-follows the convention by hand or drifts.
+ends in. The doc comments assert that the operators agree on both ("the
+same fallback `Any::entry` has"); nothing in the code makes them agree,
+and the next receiver operator re-follows the convention by hand or
+drifts.
 
 ### Proposal
 

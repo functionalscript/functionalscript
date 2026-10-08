@@ -53,7 +53,9 @@
  *                 | nullishRound { nullishRound } ]
  * conditionalTail ::= [ '?' value ':' value ]
  * tail   ::= eagerTail circuitTail conditionalTail
- * access ::= '.' id | '[' (string | number) ']' | '(' [ items(item) ] ')'
+ * access ::= '.' id | '[' value ']' | '(' [ items(item) ] ')'
+ *          | '?.' optionalStep
+ * optionalStep ::= id | '[' value ']' | '(' [ items(item) ] ')'
  * array  ::= '[' [ items(item) ] ']'
  * item   ::= '...' value | value
  * object ::= '{' [ items(entry) ] '}'
@@ -121,9 +123,8 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule, Variant } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { BinaryTag } from '../../ast/types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
- * @import { Access, AfterValue, ArrowOrRest, Block, Body, CircuitTail, ConditionalTail, EagerTail, End, Func, Group, GroupOperand, Item, Items, LastStatement, Member, Entry, ParameterNames, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
+ * @import { Access, AfterValue, ArrowOrRest, Block, Body, CircuitTail, ConditionalTail, EagerTail, End, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, Member, Entry, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -181,7 +182,7 @@ export const _tokenKindNames = _djsTokenKinds.filter(kind => kind !== 'eof')
  * and a binding takes that wider rule too, so `const typeof = 1;` still
  * reaches the fold and is refused as a `reserved word`, as `const if = 1;` is.
  */
-export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'as', 'typeof'])
+export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'as', 'typeof', 'instanceof'])
 
 /**
  * The complete alphabet: one name per `DjsToken` kind except `eof`, plus
@@ -232,6 +233,10 @@ export const identifier = /** @type {const} */ ({
     throw: sym('throw'),
     if: sym('if'),
     as: sym('as'),
+    // required only where a tail continues, after an operand, where no
+    // reference may stand — so unlike `typeof` it opens no second branch
+    // on one symbol here, and reaches the fold as `if` does
+    instanceof: sym('instanceof'),
 })
 
 /**
@@ -296,11 +301,37 @@ export const items = item => {
     return list
 }
 
-/** The constants an index may be: a string, or a number. */
-export const index = /** @type {const} */ ({
-    string: sym('string'),
-    number: sym('number'),
-})
+/**
+ * A value: {@link valueBranches}, and an object. A `const` thunk whose
+ * payload names the thunk, which is what lets a type alias name itself.
+ *
+ * Any value takes accesses, as any expression does in JavaScript:
+ * `[1].length`, `"ab"[0]`, `{ a: 1 }.a`. `1 .x` parses here too, with a
+ * space since `1.x` is one number and a stray word in JavaScript. Stages A
+ * and B of
+ * [`spec/todo/2340-operators.md`](../../../../spec/todo/2340-operators.md):
+ * arithmetic (`+ - * / % **`, and unary `-`), strict comparison
+ * (`=== !== > >= < <=`), bitwise (`& | ^ ~ << >> >>>`), the lazy operators
+ * (`&& || ??`) and the conditional (`?:`). `==`/`!=` stay refused, and the
+ * comma stage waits on `tail`'s current top, the conditional.
+ *
+ * Declared before {@link access}, which an index embeds it in: `[ value ]`
+ * holds any value, so that a key computed at run time, `a[Number(i)]`, is
+ * read as JavaScript reads it, and what a key may be — a string or a
+ * number literal, or the conversion
+ * ([spec: property access](../../../../spec/README.md#property-access)) —
+ * is the fold's to check, as the name after `.` is. The rule itself, and
+ * no thunk over it: a second rule over the same branches would be a second
+ * copy of the whole value grammar in every parser that reaches an index.
+ * A thunk, it names {@link valueBranches} and {@link tail}, declared
+ * after it, only when a parser forces it.
+ *
+ * @type {Value}
+ */
+export const value = () => ['const', {
+    ...valueBranches(),
+    object: [[object, accesses], powTail, ...tail],
+}]
 
 /**
  * A call's arguments: the items an array holds, {@link values}, reached
@@ -318,20 +349,37 @@ export const index = /** @type {const} */ ({
 export const callArguments = () => values()
 
 /**
+ * What follows `?.`: the three steps a value takes, each spelled as it is
+ * after a value, less the `.` a property's own spelling begins with — the
+ * `?.` has it. One symbol decides between them, a word, `[` or `(`, so an
+ * optional step is read in two: the `?.` and then this.
+ *
+ * @type {OptionalStep}
+ */
+export const optionalStep = /** @type {OptionalStep} */ ({
+    property: identifierName,
+    index: [sym('['), value, sym(']')],
+    call: [sym('('), option(callArguments), sym(')')],
+})
+
+/**
  * One step after a value: a property access, `.name` with the name any
- * identifier or `[key]` with the key a constant, or a call, `(a, b)` with
+ * identifier or `[key]` with the key a value, {@link value}, or a call, `(a, b)` with
  * its arguments any values. What a property's two spellings may name is the
  * fold's to check, since the name is a word the grammar does not see.
  *
- * Three symbols decide between them — `.`, `[` and `(` — and none of them
- * follows a value any other way, so the step a value takes is read in one.
- * `f(1)(2)` and `a.b(1)[0]` are steps upon steps, as `a.b[0]` is: what a
- * step applies to is everything written before it.
+ * Four symbols decide between them — `.`, `[`, `(` and `?.` — and none of
+ * them follows a value any other way, so the step a value takes is read in
+ * one. `f(1)(2)` and `a.b(1)[0]` are steps upon steps, as `a.b[0]` is: what
+ * a step applies to is everything written before it. The fourth is the
+ * optional step, `?.` and then {@link optionalStep}: the same three steps,
+ * guarded.
  */
 export const access = /** @type {Access} */ ({
     property: [sym('.'), identifierName],
-    index: [sym('['), index, sym(']')],
+    index: [sym('['), value, sym(']')],
     call: [sym('('), option(callArguments), sym(')')],
+    optional: [sym('?.'), optionalStep],
 })
 
 /** The accesses after a value, `a.b[0]`, none or more. */
@@ -357,8 +405,14 @@ const additiveTags = /** @type {const} */ ({ add: '+', sub: '-' })
 /** `<<`, `>>`, `>>>` — above {@link additiveTags}. */
 const shiftTags = /** @type {const} */ ({ left: '<<', right: '>>', unsigned: '>>>' })
 
-/** `<`, `<=`, `>`, `>=` — above {@link shiftTags}. */
-const relationalTags = /** @type {const} */ ({ lt: '<', le: '<=', gt: '>', ge: '>=' })
+/**
+ * `<`, `<=`, `>`, `>=` and `instanceof` — above {@link shiftTags}.
+ * `instanceof` is JavaScript's relational operator, one level with the
+ * four, left-associative as they are: its right operand is read as `<`'s
+ * is, and which values may stand there — a reference to `Array` — is the
+ * fold's to say, `../module.f.mjs`.
+ */
+const relationalTags = /** @type {const} */ ({ lt: '<', le: '<=', gt: '>', ge: '>=', instanceof: 'instanceof' })
 
 /** `===`, `!==` — above {@link relationalTags}; `==`/`!=` are not this language's, per `spec/todo/2340-operators.md`. */
 const equalityTags = /** @type {const} */ ({ eq: '===', ne: '!==' })
@@ -400,7 +454,7 @@ const nullishTags = /** @type {const} */ ({ nullish: '??' })
  * run time, so it is typed as one that may miss, and the reader refuses a
  * name that does rather than build a node without a tag.
  *
- * @type {StringMap<Exclude<BinaryTag, '**'>>}
+ * @type {StringMap<Exclude<InfixTag, '**'>>}
  */
 export const binaryOpTag = {
     ...multiplicativeTags,
@@ -420,7 +474,7 @@ export const binaryOpTag = {
  * One layer's operator: a choice of one branch per operator, keyed by its
  * name and matching the token its tag names.
  *
- * @type {(tags: StringMap<Exclude<BinaryTag, '**'>>) => Variant}
+ * @type {(tags: StringMap<Exclude<InfixTag, '**'>>) => Variant}
  */
 const opOf = tags => fromEntries(definedEntries(tags).map(([name, tag]) => [name, sym(tag)]))
 
@@ -707,27 +761,6 @@ const valueBranches = () => ({
     array: [[array, accesses], powTail, ...tail],
     paren,
 })
-
-/**
- * A value: {@link valueBranches}, and an object. A `const` thunk whose
- * payload names the thunk, which is what lets a type alias name itself.
- *
- * Any value takes accesses, as any expression does in JavaScript:
- * `[1].length`, `"ab"[0]`, `{ a: 1 }.a`. `1 .x` parses here too, with a
- * space since `1.x` is one number and a stray word in JavaScript. Stages A
- * and B of
- * [`spec/todo/2340-operators.md`](../../../../spec/todo/2340-operators.md):
- * arithmetic (`+ - * / % **`, and unary `-`), strict comparison
- * (`=== !== > >= < <=`), bitwise (`& | ^ ~ << >> >>>`), the lazy operators
- * (`&& || ??`) and the conditional (`?:`). `==`/`!=` stay refused, and the
- * comma stage waits on `tail`'s current top, the conditional.
- *
- * @type {Value}
- */
-export const value = () => ['const', {
-    ...valueBranches(),
-    object: [[object, accesses], powTail, ...tail],
-}]
 
 /**
  * A function's body: {@link valueBranches} without the object — after

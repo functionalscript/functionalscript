@@ -91,7 +91,7 @@ const same = (a, b) => a instanceof Array
  */
 export const mergeable = node => {
     switch (node[0]) {
-        case '[]': case '{}': case '=>': case '()': case '?.()': { return false }
+        case '[]': case '{}': case '=>': case 'entry': case '()': case '?.()': { return false }
         case '.': case '?.': { return node.length === 3 }
         default: { return true }
     }
@@ -253,6 +253,7 @@ const handlers = {
     args: o0,
     rest: o0,
     self: o0,
+    entry: o0,
     arg: indexed,
     frame: indexed,
     '!': o1,
@@ -263,7 +264,6 @@ const handlers = {
     throw: o1,
     '+': o12,
     '-': o12,
-    own: o2,
     is: o2,
     '===': o2,
     '!==': o2,
@@ -285,6 +285,12 @@ const handlers = {
     '||': o2,
     '??': o2,
     '?:': o3,
+    // One operand and a constructor name: the name is metadata, carried
+    // across as `arg`'s index is, never walked.
+    instanceof: scope => (state, [tag, a, c]) => {
+        const [t, x] = walk(scope)(state, a)
+        return [t, [tag, x, c]]
+    },
     // The slots are walked in the enclosing scope; the body is the scope
     // this node opens, so its entries name this node as their scope and
     // come before it, as operands come before the node that holds them.
@@ -341,7 +347,7 @@ const handlers = {
 const named = x => x instanceof Array ? [x[1]] : []
 
 /** The operands of a chain's steps, including guarded arguments and computed keys. @type {(k: Step | undefined) => readonly Operand[]} */
-const stepOperands = k => {
+export const stepOperands = k => {
     if (k === undefined) { return [] }
     if (k[0] === '|.') { return [k[1], ...stepOperands(k[2])] }
     const [, x, cont] = k
@@ -365,7 +371,7 @@ const propertyOperands = p => p[0] === ':' ? [p[1], p[2]] : [p[1]]
  */
 export const operandsOf = node => {
     switch (node[0]) {
-        case 'undefined': case 'args': case 'frame': case 'rest': case 'arg': case 'self': { return [] }
+        case 'undefined': case 'args': case 'frame': case 'rest': case 'arg': case 'self': case 'entry': { return [] }
         case '[]': { return node[1].map(itemOperand) }
         case '{}': { return node[1].flatMap(propertyOperands) }
         case ',': { return node[1] }
@@ -379,6 +385,9 @@ export const operandsOf = node => {
             const [, a, b, k] = node
             return [a, ...b.map(itemOperand), ...stepOperands(k)]
         }
+        // the constructor name is metadata, not an operand — and a string,
+        // which the default arm below would list as a literal operand
+        case 'instanceof': { return [node[1]] }
         default: {
             const [, ...operands] = node
             return operands

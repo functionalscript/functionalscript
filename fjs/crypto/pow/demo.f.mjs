@@ -3,8 +3,7 @@
  * by the decimal nonce, decode the compact nBits target, and compare the digest
  * as a big-endian integer. This illustrates the module's single-hash contract;
  * Bitcoin block headers use double SHA-256 and a different byte order.
- * Multiline input preserves pasted UTF-8 text. Labels and result captions are
- * emphasized to separate the coupled inputs and long code values while scanning.
+ * Multiline input preserves pasted UTF-8 text.
  *
  * @module
  *
@@ -17,7 +16,7 @@ import { sha256Pow, targetFromNBits } from './module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { digitsValue, hexDigitValue } from '../../text/ascii/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
-import { textField, inputField } from '../../website/demo/module.f.mjs'
+import { textField, inputField, caption } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.mjs'
 import { hexOf } from '../../website/demo/hash/module.f.mjs'
 import { sha256 } from '../sha2/module.f.mjs'
@@ -74,7 +73,7 @@ const searchSummary = (state, nonce, succeeded) => {
 
 /** @type {(message: string) => readonly Element[]} */
 const refusal = message => [
-    ['p', { 'data-pow-caption': '' }, 'Refused:'],
+    caption('Refused:'),
     ['pre', { role: 'status', 'data-result': 'error' }, message],
 ]
 
@@ -87,7 +86,7 @@ const output = state => {
     if (target === null || target === 0n) { return refusal('nBits must decode to a positive 256-bit target.') }
     /** @type {readonly Element[]} */
     const targetView = [
-        ['p', { 'data-pow-caption': '' }, 'Target, hex:'],
+        caption('Target, hex:'),
         codeBlock(hexUint(target), 'Copy target'),
     ]
     if (nonce === null) { return [...targetView, ...refusal('Enter a non-negative decimal nonce.')] }
@@ -95,12 +94,12 @@ const output = state => {
     const hash = state.search === null ? sha256Pow.hashInt(utf8(text)) : state.search.hash
     const succeeded = hash <= target
     return [
-        ['p', { 'data-pow-caption': '' }, 'Hashed input (UTF-8):'],
+        caption('Hashed input (UTF-8):'),
         codeBlock(text, 'Copy hashed input'),
         ...targetView,
-        ['p', { 'data-pow-caption': '' }, 'Hash, hex:'],
+        caption('Hash, hex:'),
         codeBlock(hexUint(hash), 'Copy hash'),
-        ['p', { 'data-pow-caption': '' }, 'Proof of Work:'],
+        caption('Proof of Work:'),
         ['p', { role: 'status', 'data-pow-result': '', 'data-result': succeeded ? 'ok' : 'error' },
             ['svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' },
                 ['path', { d: succeeded ? 'm5 12 4 4L19 6' : 'm6 6 12 12M18 6 6 18' }],
@@ -142,7 +141,7 @@ export const demo = {
             ? { ...state, nonce: String(nonce + 1n), search: null }
             : state)
     },
-    view: state => ['div', { 'data-pow-demo': '' },
+    view: state => ['div',
         ['p', 'The nonce is appended to the UTF-8 input and hashed with SHA-256. The proof succeeds when the resulting hash is at most the target.'],
         textField({ name: 'text', label: 'Input' }, state.text),
         inputField({ name: 'nonce', label: 'Nonce' }, state.nonce),

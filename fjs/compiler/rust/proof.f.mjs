@@ -425,6 +425,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 assertEq(rustOf(name)[0], refusedByRust.includes(name) ? 'error' : 'ok')
             }
             assert(rustOf('Sharing: a const used twice')[1].includes('c0.clone(), c0.clone()'), 'sharing is one clone')
+            assert(rustOf('Number conversion')[1].includes('Any::number(string_any("0x10"))'), 'the conversion is `Any::number`')
             assert(rustOf('An import')[1].includes('args'), 'the import is refused for reading its arguments')
             assertEq(rustOf('Hex escape')[1], 'unexpected token')
         },

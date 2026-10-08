@@ -26,6 +26,26 @@ const memoName = (s, k) => name(`${s.path}/memo${k}`)
 /** The name a function reading its own `['self']` is given in its rendering scope: a named function expression is the one JavaScript spelling of a function that names itself. @type {(path: string) => string} */
 const selfName = path => name(`${path}/self`)
 
+/**
+ * The `entry` helper's text, the one spelling of `['entry']` — the
+ * FunctionalScript writer's and this renderer's alike, so that `String(f)`
+ * and the source output agree — over the symbolic names of its three
+ * bindings at `path`: the two parameters, named as every function's are,
+ * and the descriptor `const`.
+ *
+ * ```js
+ * ($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}
+ * ```
+ *
+ * @type {(path: string) => string}
+ */
+export const _entryText = path => {
+    const a = name(`${path}/arg0`)
+    const b = name(`${path}/arg1`)
+    const x = name(`${path}/descriptor`)
+    return `(${binding(a)},${binding(b)})=>{const ${binding(x)}=Object.getOwnPropertyDescriptor(${a},${b});return ${x}?.enumerable?${x}.value:undefined;}`
+}
+
 /** Render a value, demanding a shared entry through its cell. @type {(s: _Scope, v: Operand) => string} */
 const operand = (s, v) => {
     if (!(v instanceof Array)) { return `(${toArray(leafSerialize(v)).join('')})` }
@@ -58,6 +78,7 @@ const entry = (s, i) => {
         case 'rest': { return `(${name(`${s.path}/rest`)})` }
         case 'frame': { return `(${s.frame[n[1]]})` }
         case 'self': { return `(${selfName(s.path)})` }
+        case 'entry': { return `(${_entryText(`${s.path}/function${i}`)})` }
         case '[]': { return `([${items(s, n[1])}])` }
         case '{}': { return `({${n[1].map(p => p[0] === '...'
             ? `...${operand(s, p[1])}` : `[${operand(s, p[1])}]:${operand(s, p[2])}`).join(',')}})` }
@@ -78,14 +99,11 @@ const entry = (s, i) => {
         case 'throw': { return `(()=>{throw ${operand(s, n[1])};})()` }
         case 'String': case 'Number': { return `(${n[0]}(${operand(s, n[1])}))` }
         case '!': case '~': case 'typeof': { return `(${n[0]} ${operand(s, n[1])})` }
+        // the constructor is the name the node carries, written as the word
+        case 'instanceof': { return `(${operand(s, n[1])} instanceof ${n[2]})` }
         case '+': case '-': { return n.length === 2 ? `(${n[0]} ${operand(s, n[1])})` : `(${operand(s, n[1])}${n[0]}${operand(s, n[2])})` }
         case '?:': { return `(${operand(s, n[1])}?${operand(s, n[2])}:${operand(s, n[3])})` }
         case 'is': { return `(Object.is(${operand(s, n[1])},${operand(s, n[2])}))` }
-        case 'own': {
-            const object = name(`${s.path}/own${i}/object`)
-            const key = name(`${s.path}/own${i}/key`)
-            return `((${binding(object)},${binding(key)})=>{if(typeof ${key}!=="string"){throw undefined;}return Object.getOwnPropertyDescriptor(${object},${key})?.value;})(${operand(s, n[1])},${operand(s, n[2])})`
-        }
         default: {
             // The remaining admitted body nodes are binary operations;
             // `args`, sharing a type union with rest/undefined, is module-only.

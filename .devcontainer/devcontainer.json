@@ -1,0 +1,18 @@
+{
+    "name": "FunctionalScript",
+    "image": "mcr.microsoft.com/devcontainers/base:debian",
+    "features": {
+        "ghcr.io/devcontainers/features/nix:1": {}
+    },
+    "postCreateCommand": "sh ./dev.sh npm ci",
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "terminal.integrated.defaultProfile.linux": "FunctionalScript",
+                "terminal.integrated.profiles.linux": {
+                    "FunctionalScript": { "path": "sh", "args": ["./dev.sh"] }
+                }
+            }
+        }
+    }
+}

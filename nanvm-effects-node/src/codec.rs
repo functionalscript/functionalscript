@@ -8,8 +8,9 @@
 //!
 //! A `Vec`, the bytes of a file, is the language's bit vector: a `bigint` whose
 //! magnitude is the bits with a leading `1` as its stop bit, negative where
-//! the first bit was `0`, and `0n` for none (`fjs/types/bit_vec`). Only
-//! whole bytes are bytes here, as only whole bytes reach the Node runner.
+//! the first bit was `0`, and `0n` for none (`fjs/types/bit_vec`). As the Node
+//! runner's `fromVec` does, a trailing partial byte is zero-padded in its low
+//! bits, so any such vector is bytes.
 
 use nanvm_lib::{
     common::sized_index::SizedIndex,
@@ -64,8 +65,8 @@ pub fn decode_string<A: IVm>(any: Any<A>) -> Result<String, Malformed> {
 }
 
 /// A `Vec` as its bytes: the magnitude's bits, big-endian, with the stop bit
-/// cleared where the vector was negative. Bits that are not whole bytes are
-/// refused.
+/// cleared where the vector was negative. A trailing partial byte is
+/// zero-padded in its low bits, as `fromVec` pads it for the Node runner.
 pub fn decode_bytes<A: IVm>(any: Any<A>) -> Result<Vec<u8>, Malformed> {
     let Ok(vec) = BigInt::try_from(any) else {
         return malformed("not a bit vector");
@@ -77,13 +78,26 @@ pub fn decode_bytes<A: IVm>(any: Any<A>) -> Result<Vec<u8>, Malformed> {
     let negative = vec < BigInt::default();
     let top = vec[words - 1];
     let bits = 64 * (words - 1) + (64 - top.leading_zeros());
-    if bits % 8 != 0 {
-        return malformed("a bit vector that is not whole bytes");
-    }
-    let mut bytes: Vec<u8> = (0..bits / 8)
-        .rev()
-        .map(|i| (vec[i / 8] >> (8 * (i % 8))) as u8)
-        .collect();
+    let count = bits.div_ceil(8);
+    let padding = 8 * count - bits;
+    // byte `i` (from the least significant) of the magnitude shifted left by
+    // `padding`: the eight bits of the magnitude from bit `8 * i - padding`.
+    let byte = |i: u32| {
+        let at = 8 * i;
+        if at < padding {
+            (vec[0] << (padding - at)) as u8
+        } else {
+            let (word, offset) = ((at - padding) / 64, (at - padding) % 64);
+            let low = vec[word] >> offset;
+            let high = if offset > 56 && word + 1 < words {
+                vec[word + 1] << (64 - offset)
+            } else {
+                0
+            };
+            (low | high) as u8
+        }
+    };
+    let mut bytes: Vec<u8> = (0..count).rev().map(byte).collect();
     if negative {
         bytes[0] &= 0x7f;
     }

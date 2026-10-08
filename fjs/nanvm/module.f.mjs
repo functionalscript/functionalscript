@@ -46,7 +46,7 @@
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 73
+ * data.groups.length // 74
  * ```
  */
 
@@ -132,6 +132,9 @@ export const orders = g => c => isCommutative(g)
 export const groupKey = g =>
     'method' in g ? `.${g.method}`
     : 'arity' in g ? `${g.op}/${g.arity}`
+    // one key per constructor, `instanceof Array`, spelled as the source
+    // is: the name is the group's, not the operand's
+    : 'name' in g ? `${g.op} ${g.name}`
     : g.op
 
 /**
@@ -162,6 +165,8 @@ export const casesOf = g => g.cases
  */
 export const arityOf = g => {
     if ('arity' in g) { return g.arity }
+    // the constructor is a name, not an operand: one operand
+    if ('name' in g) { return 1 }
     if (isOp1Id(g.op)[0] === 'ok') { return 1 }
     return isOp3Id(g.op)[0] === 'ok' ? 3 : 2
 }
@@ -311,6 +316,8 @@ export const caseExp = shared => g => args => {
     const n = arityOf(g)
     if (args.length !== n) { throw ['wrong operand count for', g.op, args] }
     const [a, b, c] = args.map(valuesExp(shared))
+    // the constructor name is the group's, carried into the node as it is
+    if ('name' in g) { return ['instanceof', a, g.name] }
     // `n` decides which vocabularies the tag can be in, and the check above
     // makes that agree with the operands. The casts are that step and nothing
     // more: an `Op12Id` is legal at either of the first two counts, so it is
@@ -1149,6 +1156,30 @@ const typeofCases = [
 ]
 
 /**
+ * `x instanceof Array`: `true` of an array and `false` of every other
+ * value — `null` and `undefined` included, since the right side is a
+ * constructor by construction and never the non-callable JavaScript
+ * throws on. A fresh boolean, so no identity concern, as `typeof`.
+ *
+ * @type {readonly Case<1>[]}
+ */
+const instanceofArrayCases = [
+    { name: 'emptyArray', args: [[]], expected: true },
+    { name: 'array', args: [[1, 2]], expected: true },
+    { name: 'nestedArray', args: [[[]]], expected: true },
+    { name: 'undefined', args: [undefined], expected: false },
+    { name: 'null', args: [null], expected: false },
+    { name: 'booleanTrue', args: [true], expected: false },
+    { name: 'number', args: [2.3], expected: false },
+    { name: 'string', args: ['a'], expected: false },
+    { name: 'bigint', args: [5n], expected: false },
+    { name: 'emptyObject', args: [{}], expected: false },
+    { name: 'object', args: [{ a: 1 }], expected: false },
+    { name: 'arrayLikeObject', args: [{ length: 0 }], expected: false },
+    { name: 'function', args: [functionValue], expected: false },
+]
+
+/**
  * `String(x)`.
  *
  * A function's string form is its source text, which no two engines have to
@@ -1406,57 +1437,6 @@ const unsignedRightShiftCases = [
 ]
 
 /**
- * `own` — exactly `Object.getOwnPropertyDescriptor(object, key)?.value`:
- * no getter invocation, and no prototype chain to walk, since `nanvm-lib`
- * objects have none — `{}` "inheriting" `toString`/`constructor` in real
- * JS is exactly the prototype-chain reach `own` exists to bypass, so those
- * names are absent from an object that never set them itself, the same as
- * any other missing key. The key operand must *evaluate* to a string: `own`
- * refuses a non-`String` key rather than `ToPropertyKey`-coercing it the
- * way every other operator here coerces its operands. A non-object,
- * non-nullish receiver (`Number`, `String`, `Boolean`, `BigInt`, `Array`,
- * a function) is never an own-property owner and always answers
- * `undefined`, never throwing; a nullish one throws instead, matching
- * `ToObject`'s own rejection of `null`/`undefined`. Not `commutative`: the
- * receiver and the key are not interchangeable.
- *
- * @type {readonly Case<2>[]}
- */
-const ownCases = [
-    { name: 'presentProperty', args: [{ a: 7 }, 'a'], expected: 7 },
-    { name: 'missingProperty', args: [{ a: 7 }, 'b'], expected: undefined },
-    { name: 'emptyObject', args: [{}, 'a'], expected: undefined },
-    // `own` bypasses the prototype chain entirely — the whole reason it
-    // exists apart from plain property access — so a name every object
-    // "inherits" in real JS is still absent unless the object carries it
-    // as an own property.
-    { name: 'inheritedNameIsAbsent', args: [{}, 'toString'], expected: undefined },
-    { name: 'valuePreservesBooleanType', args: [{ a: true }, 'a'], expected: true },
-    { name: 'valuePreservesBigintType', args: [{ a: 5n }, 'a'], expected: 5n },
-    { name: 'valuePreservesStringType', args: [{ a: 'x' }, 'a'], expected: 'x' },
-    { name: 'valuePreservesNullType', args: [{ a: null }, 'a'], expected: null },
-    { name: 'multiplePropertiesDistinguished', args: [{ a: 1, b: 2 }, 'b'], expected: 2 },
-    { name: 'numericStringKey', args: [{ 1: 42 }, '1'], expected: 42 },
-    // A key no UTF-8 literal can spell: it reaches Rust as code units, both
-    // in the object literal and as the operand.
-    { name: 'loneSurrogateKey', args: [{ '\uD800': 42 }, '\uD800'], expected: 42 },
-    { name: 'nonObjectNumberReceiver', args: [5, 'a'], expected: undefined },
-    // `'length'` would be the wrong probe here: real JS strings and arrays
-    // carry real own properties for `.length` (and, for arrays, numeric
-    // indices), so `Object.getOwnPropertyDescriptor` answers those with a
-    // real descriptor instead of `undefined` — a key genuinely absent from
-    // both is what actually exercises "never an own-property owner".
-    { name: 'nonObjectStringReceiver', args: ['hi', 'a'], expected: undefined },
-    { name: 'nonObjectBooleanReceiver', args: [true, 'a'], expected: undefined },
-    { name: 'nonObjectBigintReceiver', args: [5n, 'a'], expected: undefined },
-    { name: 'nonObjectArrayReceiver', args: [[1, 2], 'a'], expected: undefined },
-    { name: 'nonObjectFunctionReceiver', args: [functionValue, 'a'], expected: undefined },
-    { name: 'nullReceiverThrows', args: [null, 'a'], expected: throws },
-    { name: 'undefinedReceiverThrows', args: [undefined, 'a'], expected: throws },
-    { name: 'nonStringKeyThrows', args: [{ 1: 42 }, 1], expected: throws },
-]
-
-/**
  * The values the corpus shares: each is one node, so two `ref`s to a name are
  * one node reached twice and the object that node establishes is one object.
  * Reference equality is what the `'==='` group's `byItself` cases are about,
@@ -1610,6 +1590,7 @@ export const data = {
         { op: '??', cases: nullishCases },
         { op: '?:', cases: ternaryCases },
         { op: 'typeof', cases: typeofCases },
+        { op: 'instanceof', name: 'Array', cases: instanceofArrayCases },
         { op: 'throw', cases: throwCases },
         { op: 'String', cases: stringCoercionCases },
         {
@@ -1646,7 +1627,6 @@ export const data = {
             commutative: true,
             cases: isCases,
         },
-        { op: 'own', cases: ownCases },
         ...memberGroups,
     ],
 }

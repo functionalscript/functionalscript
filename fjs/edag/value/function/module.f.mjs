@@ -15,7 +15,7 @@
  *
  * @module
  * @import { Exp } from '../../types.ts'
- * @import { EdagValue, Values, Function as ValueFunction } from '../types.ts'
+ * @import { EdagValue, Values, Closure } from '../types.ts'
  * @import { ValueThunk } from '../control/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { _Part, _Copies } from './private.ts'
@@ -39,7 +39,7 @@ const copy = (copies, part) => {
     return [[...copies, [part, items]], items]
 }
 
-/** Build a fresh function with evaluated captures and its own body scope. @type {(length: number, captures: readonly ValueThunk[], template: Exp) => Result<ValueFunction, EdagValue>} */
+/** Build a fresh function with evaluated captures and its own body scope. @type {(length: number, captures: readonly ValueThunk[], template: Exp) => Result<Closure, EdagValue>} */
 export const func = (length, captures, template) => {
     /** @type {Values} */
     let values = []

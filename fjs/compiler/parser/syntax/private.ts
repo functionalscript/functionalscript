@@ -9,7 +9,7 @@
 import type { Meta, Unmapped } from '../../../ebnf/ast/types.ts'
 import type { TokenMetadata } from '../../../ebnf/lib/js/types.ts'
 import type { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
-import type { Out } from './types.ts'
+import type { Item, Key, Out } from './types.ts'
 
 /**
  * The ordinary token stream the grammar reads, with the tokenizer's one
@@ -90,11 +90,40 @@ export type _NameNode = Unmapped<readonly [unknown, _Leaf]>
 export type _AccessNode = Unmapped<readonly [string, unknown]>
 
 /**
- * The branch of a property access, `. name` or `[ key ]`: the token its
- * key is read from at the second position, under the identifier's or the
- * constant's own alternative.
+ * The branch of a property access, `. name`: the token its key is read
+ * from at the second position, under the identifier's own alternative.
  */
 export type _KeyBranch = Unmapped<readonly [unknown, Unmapped<readonly [unknown, _Leaf]>, ...unknown[]]>
+
+/**
+ * The branch of an optional step, `?. optionalStep`: the step's own choice
+ * at the second position — `[tag, branch]`, the branch a {@link _CallBranch}
+ * for a call, an {@link _IndexBranch} for an index, and for a property the
+ * name's own alternative, a {@link _NameNode}.
+ */
+export type _OptionalBranch = Unmapped<readonly [unknown, _Leaf]>
+
+/** The branch of an index step, `[ value ]`: what the index rule's mapping returned, at the second position. */
+export type _IndexBranch = Unmapped<readonly [unknown, _Leaf, unknown]>
+
+/**
+ * One step as `stepOf` reads it: whether `?.` guards it, and the token its
+ * key is read from or the items of its call, one of the two.
+ */
+export type _StepRead = {
+    readonly optional: boolean
+    readonly key: Key | null
+    readonly items: readonly Item[] | null
+}
+
+/**
+ * The two bits a chain carries, `fjs/edag/README.md`'s Chains: whether a
+ * receiver is live, and whether a short-circuit region is open.
+ */
+export type _ChainState = {
+    readonly receiver: boolean
+    readonly open: boolean
+}
 
 /**
  * The branch of a call, `( [ items(value) ] )`: the `(` an error against
