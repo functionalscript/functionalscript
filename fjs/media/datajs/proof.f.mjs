@@ -197,7 +197,7 @@ export const proof = {
             // A parse failure is shown, not swallowed, and draws no graph.
             error: () => {
                 const html = htmlToString(demo.view('{bad'))
-                assert(html.includes('Error: unexpected symbol at 0'), html)
+                assert(html.includes('Refused:</p><pre data-result="error">unexpected symbol at 0'), html)
                 assert(!html.includes('<svg'), html)
             },
         },
@@ -238,7 +238,7 @@ export const proof = {
             // error.
             draw: () => {
                 for (const [name, source] of examples) {
-                    assertEq(_graphOf(source).ok, !name.startsWith('Error:'))
+                    assertEq(_graphOf(source).ok, name !== 'Plain JSON')
                 }
             },
         },

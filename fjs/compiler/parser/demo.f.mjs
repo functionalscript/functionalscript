@@ -24,7 +24,7 @@
 
 import { tryStringify } from '../../media/datajs/module.f.mjs'
 import { error } from '../../types/result/module.f.mjs'
-import { textDemo } from '../../website/demo/module.f.mjs'
+import { textDemo, refusal, caption } from '../../website/demo/module.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { parse } from '../transpiler/module.f.mjs'
 
@@ -38,7 +38,15 @@ export const _astOf = text => {
     return result[0] === 'error' ? error(result[1].message) : tryStringify(result[1])
 }
 
-export const demo = textDemo({ name: 'parser', label: 'Source', init: examples[0][1], examples })(text => {
+export const demo = textDemo({
+    intro: 'Parses a FunctionalScript module and shows its abstract syntax tree as DataJS. The constants and imports describe the structure passed to the next compiler stage.',
+    name: 'parser',
+    label: 'Source',
+    init: examples[0][1],
+    examples,
+})(text => {
     const [kind, value] = _astOf(text)
-    return [kind === 'ok' ? ['pre', value] : ['p', `Refused: ${value}`]]
+    return kind === 'ok'
+        ? [caption('Abstract syntax tree, DataJS:'), ['pre', { 'data-code': '' }, value]]
+        : [refusal(value)]
 })

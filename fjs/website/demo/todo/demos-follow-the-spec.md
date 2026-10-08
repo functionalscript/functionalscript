@@ -1,7 +1,7 @@
 ## Demos follow the presentation spec
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
@@ -78,11 +78,11 @@ browser with its preview link in the description.
 
 ### Tasks
 
-- [ ] A lead option on `textDemo`; every `textDemo` demo through it.
-- [ ] Leads for SHA-2, Base64 and CBase32.
+- [x] A lead option on `textDemo`; every `textDemo` demo through it.
+- [x] Leads for SHA-2, Base64 and CBase32.
 - [ ] A shared refusal element with a proof; every demo above through it.
-- [ ] Captions for the parser, serializer, Rust and tokenizer pages.
-- [ ] Rename DataJS's `Error: JSON is not a document`.
+- [x] Captions for the parser, serializer, Rust and tokenizer pages.
+- [x] Rename DataJS's `Error: JSON is not a document`.
 - [ ] Text results in a code block for the compiler's side-by-side, parser,
       serializer, Rust and tokenizer pages, JSON, UTF-8 and BigInt's measured
       rows, with a proof pinning `data-code`; decide per demo whether the

@@ -1662,7 +1662,7 @@ export const proof = {
         // A parse failure is shown, not swallowed, and draws no graph.
         error: () => {
             const html = htmlToString(demo.view('export default {bad'))
-            assert(html.includes('Error:'), html)
+            assert(html.includes('Refused:</p><pre data-result="error">'), html)
             assert(!html.includes('<svg'), html)
         },
         // Typing replaces the text; every other event leaves it alone.

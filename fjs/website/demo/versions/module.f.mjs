@@ -28,6 +28,7 @@
  * @import { Element } from '../../../media/html/types.ts'
  */
 
+import { refusal } from '../module.f.mjs'
 import { graphSvg } from '../graph/module.f.mjs'
 import { examplePicker, name as exampleName } from '../examples/module.f.mjs'
 import { pureOk } from '../../../effects/module.f.mjs'
@@ -174,7 +175,7 @@ export const versionsDemo = ({ structure, name, noun, intro, keys = decimal, pre
                     ' ',
                     ['button', { type: 'button', name: 'remove' }, 'Remove'],
                 ],
-                ...(error === null ? [] : [/** @type {const} */ (['p', `Error: ${error}`])]),
+                ...(error === null ? [] : [refusal(error)]),
                 ['p', 'preset' in status ? status.hint : line(status.step)(count(versions))],
                 drawing(versions),
             ],
