@@ -241,6 +241,7 @@ export const proof = {
         eq(entry('ab', 1), 'b')
         eq(entry(['entry'], 'length'), undefined)
         eq(['.', ['entry'], 'length'], 2)
+        eq(['typeof', ['entry']], 'function')
         // and nullish receivers fail before the key is read at all
         fails(entry(null, 'a'))
         fails(entry(['undefined'], boom))
