@@ -108,7 +108,8 @@ The signature is `(r, s)`.
 `verify` checks `(r, s)` against the public key `Q = G * d`. All arithmetic on
 scalars is modulo `q`.
 
-1. If `r` or `s` is not in `[1, q-1]`, the signature is invalid.
+1. If `Q` is the point at infinity, or `r` or `s` is not in `[1, q-1]`, the
+   signature is invalid.
 2. `w = 1/s`
 3. `u1 = z * w` and `u2 = r * w`
 4. `X = G * u1 + Q * u2`

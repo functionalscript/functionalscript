@@ -11,7 +11,7 @@ import { hmac } from '../hmac/module.f.mjs'
 import { secp192r1, secp256k1, secp256r1, secp384r1, secp521r1 } from '../secp/module.f.mjs'
 import { computeSync, sha224, sha256, sha384, sha512 } from '../sha2/module.f.mjs'
 import { all, computeK, fromCurve, sign, verify } from './module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 
 const sample = utf8("sample")
 const test = utf8("test")
@@ -637,9 +637,13 @@ export const proof = {
         assertEq(v(u)(sample)([q, s]), false)
         assertEq(v(u)(sample)([r, 0n]), false)
         assertEq(v(u)(sample)([r, q]), false)
+        // the point at infinity as the public key: without the refusal,
+        // `s = 1` and `r = x(hG) mod q` would verify any message.
+        const h = all(q).bits2intModQ(computeSync(sha256)([sample]))
+        const hg = assertNotNullish(c.mul(h)(g), 'hG === null')
+        assertEq(v(null)(sample)([hg[0] % q, 1n]), false)
         // `(h/s)G + (r/s)U` is the point at infinity when `h + x*r = 0 mod q`:
         // with `r = 1`, the key `x = -h` gets there for any `s`.
-        const h = all(q).bits2intModQ(computeSync(sha256)([sample]))
         assertEq(v(c.mul(neg(h))(g))(sample)([1n, 1n]), false)
     },
 }

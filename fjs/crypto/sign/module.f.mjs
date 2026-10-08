@@ -210,9 +210,11 @@ export const verify = c => hf => u => m => ([r, s]) => {
     const { rfc6979: { q, bits2intModQ }, nf: { mul: mulQ, reciprocal }, mul, g } = fromCurve(c)
     const { add } = c
     // `r` and `s` are nonzero residues modulo `q`; anything else is refused.
+    // So is the point at infinity as `u`: `(r/s)u` would vanish, and
+    // `r = x((h/s)G)` would pass for any message without a private key.
     /** @type {(v: bigint) => boolean} */
     const inRange = v => 0n < v && v < q
-    if (!inRange(r) || !inRange(s)) {
+    if (u === null || !inRange(r) || !inRange(s)) {
         return false
     }
     // The same `h` as `sign` step 1.
