@@ -1,7 +1,7 @@
 ## uint-up-to. "A non-negative integer up to `max`" is written in several modules, and the copies disagree about `-0`
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
