@@ -97,6 +97,12 @@ export const stringLiteral = v => {
  */
 const hexLiteral = digits => n => `0x${n.toString(16).padStart(digits, '0')}`
 
+/** A `u16` in four hex digits. */
+const u16Hex = hexLiteral(4)
+
+/** A `u64` in sixteen hex digits. */
+const u64Hex = hexLiteral(16)
+
 /**
  * A Rust slice literal of already-spelled items: `&[a, b]`, and `&[]` for none.
  *
@@ -113,7 +119,7 @@ const sliceLiteral = items => `&[${items.join(', ')}]`
  * @type {(v: string) => string}
  */
 export const utf16Literal = v =>
-    sliceLiteral([...Array(v.length).keys()].map(i => hexLiteral(4)(v.charCodeAt(i))))
+    sliceLiteral([...Array(v.length).keys()].map(i => u16Hex(v.charCodeAt(i))))
 
 /**
  * The exponent of a normal number: the `e` with `2 ** e <= a < 2 ** (e + 1)`,
@@ -149,7 +155,7 @@ const canonicalNan = 0x7ff8000000000000n
  *
  * @type {(v: number) => string}
  */
-export const f64Bits = v => hexLiteral(16)(bitsOf(v))
+export const f64Bits = v => u64Hex(bitsOf(v))
 
 /** @type {(v: number) => bigint} */
 const bitsOf = v => {
@@ -185,7 +191,7 @@ export const i64Literal = v => v < i64Min || v > i64Max ? error(v) : ok(v.toStri
  */
 export const u64Words = v => {
     const a = v < 0n ? -v : v
-    return sliceLiteral(words(a).map(hexLiteral(16)))
+    return sliceLiteral(words(a).map(u64Hex))
 }
 
 /** @type {(a: bigint) => readonly bigint[]} */
