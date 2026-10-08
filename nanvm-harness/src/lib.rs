@@ -2,58 +2,19 @@
 //! `nanvm-lib/todo/mvp-roadmap.md`): evaluate a compiled module, select one
 //! of its exports, read or call it, and print the result as JSON.
 //!
-//! `fjs compile <module> <output>.rs` (the Rust code generator) compiles
-//! each of `fixtures/*.mjs` into `gen.fixtures/*.rs`, named after its Rust
-//! module (`function-scope.mjs` becomes `function_scope.rs`), committed and
-//! drift-checked by `npm run gen` (see `../../fjs/ci/README.md`) the same way
-//! `nanvm-lib/tests/test/gen.corpus/` is. [`fixtures`] pulls them in
-//! with one `#[path]`: a `gen.` name is never a Rust identifier.
+//! `fjs run ./fjs/nanvm/harness/module.f.mjs` (`npm run gen`) compiles each of
+//! `fixtures/*.mjs` into `gen.fixtures/*.rs` through the Rust code generator,
+//! named after its Rust module (`function-scope.mjs` becomes
+//! `function_scope.rs`), and writes `gen.fixtures/mod.rs` naming every one —
+//! committed and drift-checked (see `../../fjs/ci/README.md`) the same way
+//! `nanvm-lib/tests/test/gen.corpus/` is. The directory is the list of
+//! fixtures: adding one is adding its `.mjs`. [`fixtures`] pulls them in with
+//! one `#[path]`: a `gen.` name is never a Rust identifier.
 
-/// The compiled fixtures, `gen.fixtures/*.rs`. One `#[path]` names the
-/// directory; each module inside it resolves by its own name.
-#[path = "../gen.fixtures"]
-pub mod fixtures {
-    pub mod arity;
-    pub mod array;
-    pub mod at;
-    pub mod bigint;
-    pub mod boolean;
-    pub mod call;
-    pub mod calls;
-    pub mod closure;
-    pub mod effect;
-    pub mod escapes;
-    pub mod exports;
-    pub mod function;
-    pub mod function_scope;
-    pub mod function_text;
-    pub mod lazy;
-    pub mod length;
-    pub mod method;
-    pub mod missing;
-    pub mod named;
-    pub mod named_imports;
-    pub mod named_imports_throws;
-    pub mod nested;
-    pub mod not_a_function;
-    pub mod nullish;
-    pub mod number;
-    pub mod object;
-    pub mod object_spread;
-    pub mod operators;
-    pub mod optional;
-    pub mod parameters;
-    pub mod property;
-    pub mod recursion;
-    pub mod rest;
-    pub mod rest_function;
-    pub mod sharing;
-    pub mod spread;
-    pub mod string;
-    pub mod throw;
-    pub mod throws;
-    pub mod to_string;
-}
+/// The compiled fixtures, `gen.fixtures/*.rs`, named by the generated
+/// `gen.fixtures/mod.rs`; one `#[path]` names that file.
+#[path = "../gen.fixtures/mod.rs"]
+pub mod fixtures;
 
 use core::fmt::{self, Debug, Display, Formatter};
 

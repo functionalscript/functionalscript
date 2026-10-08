@@ -241,14 +241,18 @@ npm run gen
 ```
 
 Run this after changing anything a generator reads — `fjs/ci`'s workflows and
-Nix flakes, `fjs/nanvm`'s Rust test data. It needs Node and Nix: its last
-command is the generated `gen.nix/lock-update.sh`, which locks each flake
-from its pinned commit after the cleanup below emptied `gen.nix/`, so on
-Windows it runs where Nix does: in WSL2 or a container. The dependency
-lockfiles it never touches.
+Nix flakes, `fjs/nanvm`'s Rust test data, a `nanvm-harness` fixture. `gen` is
+one program, [`fjs/dev/gen/module.f.mjs`](./fjs/dev/gen/module.f.mjs): its
+`generators` list is every generator in the order regeneration needs, the
+reason for each position beside it, and a new generated output is a new entry
+there. It needs Node and Nix: its last step runs the generated
+`gen.nix/lock-update.sh` on the terminal, which locks each flake from its
+pinned commit after the cleanup below emptied `gen.nix/`, so on Windows it
+runs where Nix does: in WSL2 or a container. The dependency lockfiles it never
+touches.
 
 `gen` starts by deleting every generated output — the same module as
-`npm run gen:clean` — so regeneration starts from nothing: an output no
+`npm run gen:clean`, `fjs/dev/clean` — so regeneration starts from nothing: an output no
 generator writes any more shows up as a deletion, and a generator that needs
 a previous output — its own or another's — fails. The `flake.lock` files are
 held to the same standard by the lock script `gen` ends with: deleted, then
