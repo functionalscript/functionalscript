@@ -720,8 +720,9 @@ See
 
 An expression is a data expression, a property access, a function, a call, an
 operator ([operators](#operators)) — a prefix `-` (negation), `~` (bitwise
-not), `!` (logical not) or `typeof`, a binary operator or the conditional
-`?:` — or any of those in parentheses ([grouping](#grouping)).
+not), `!` (logical not) or `typeof`, a binary operator, `instanceof Array`
+or the conditional `?:` — or any of those in parentheses
+([grouping](#grouping)).
 
 |Value|Example|In JSON|
 |-----|-------|:-----:|
@@ -813,6 +814,10 @@ export default [NaN, Infinity, -Infinity];
 
 `NaN` and `Infinity` are reserved words, like `undefined`: a module cannot
 bind or shadow them, so each denotes its value wherever a value stands.
+`Array` is reserved the same way, for a different reason: it denotes no
+value here, and is the one word the right side of `instanceof` may be
+([operators](#operators)), so a module that could bind it would mean
+something else by it.
 
 They still name a property, as every reserved word does: `{ NaN: 1 }` and
 `a.NaN` are a key and an access, and mean the string `"NaN"`, exactly as in
@@ -1233,13 +1238,15 @@ language has arithmetic (`+ - * / % **`), comparison
 (`=== !== > >= < <=`), and bitwise (`& | ^ ~ << >> >>>`) — Stage A of
 [operators](./todo/2340-operators.md) — and, above them, the lazy operators
 (`&& || ??`) and the conditional (`?:`), Stage B — and `!` and `typeof`, the
-logical not and the type tag, the prefixes neither stage had. `==`/`!=` stay
-refused, since neither language reads them the same way twice. The comma
-operator is not recognized yet.
+logical not and the type tag, the prefixes neither stage had — and
+`instanceof Array`, the one instance check ([below](#instanceof)).
+`==`/`!=` stay refused, since neither language reads them the same way
+twice. The comma operator is not recognized yet.
 
 Precedence and associativity follow JavaScript's own. From the tightest, the
 levels are the prefixes `-`, `~`, `!` and `typeof`; `**`; `* / %`; `+ -`;
-the shifts `<< >> >>>`; `< <= > >=`; `=== !==`; `&`; `^`; `|`; `&&`; `||`,
+the shifts `<< >> >>>`; `< <= > >=` and `instanceof`; `=== !==`; `&`; `^`;
+`|`; `&&`; `||`,
 with `??` a chain of its own at the same level; and the conditional above
 them all. The shifts therefore sit between arithmetic and comparison, unlike
 `& ^ |`:
@@ -1292,6 +1299,42 @@ and `typeof (1+2)`.
 [`fjs/edag/operations`](../fjs/edag/operations/module.f.mjs) owns each
 node's meaning, and the [`fjs/nanvm`](../fjs/nanvm/module.f.mjs) corpus
 checks its cases against a JavaScript engine.
+
+### `instanceof`
+
+```js
+export default (...a) => a[0] instanceof Array;
+```
+
+`x instanceof Array` is `true` when `x` is an array and `false` of every
+other value — `null`, `undefined`, every primitive, an object and a
+function included. It never throws and converts nothing. It is the one
+`instanceof` the language has: the right operand must be the word `Array`,
+bare or in parentheses, since a group vanishes (`a instanceof (Array)` is
+`a instanceof Array`); any other right operand — `Map`, an access, a
+literal, a function — is refused at the operator. `Object` and `Function`
+are not admitted and never will be: `typeof x === "object"` and
+`typeof x === "function"` are the spellings for those. `Map` and `Set` are
+one name each, once the language can build one.
+
+`instanceof` is a relational operator, one level with `< <= > >=` and
+left-associative as they are: `a instanceof Array === b` is
+`(a instanceof Array) === b`, `a < b instanceof Array` is
+`(a < b) instanceof Array`, and `!a instanceof Array` is
+`(!a) instanceof Array` — JavaScript's own trap, kept rather than repaired;
+`!(a instanceof Array)` is the negation. `instanceof` is a reserved word,
+as `typeof` is: it names no `const` and no parameter, while
+`{ instanceof: 1 }` and `a.instanceof` are a key and a property name as in
+JavaScript. `Array` is a reserved word too ([numbers](#numbers)), so no
+scope binds it and the operator always means the global — before and after
+any `const`, where JavaScript would read a later `const Array` as a binding
+in its temporal dead zone and throw.
+
+The EDAG's node is `['instanceof', exp, 'Array']`: the constructor is a
+*name* from a closed list, not an operand, since no global is a value there
+([`fjs/edag`](../fjs/edag/README.md)); `nanvm-lib` answers it with
+`Any::instanceof_(x, Constructor::Array)`. The writer spells it with
+spaces around the word, `a instanceof Array`.
 
 A `bigint` stays exact. Over two of them the arithmetic and bitwise
 operators are integer operations of any size — `2n ** 64n` and `1n << 70n`

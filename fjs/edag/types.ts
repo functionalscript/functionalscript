@@ -20,10 +20,12 @@ import type {
     func,
     call,
     comma,
+    constructorId,
     dot,
     exp,
     exps,
     frame,
+    instanceOf,
     items,
     numberCast,
     object,
@@ -64,6 +66,7 @@ export type Exp =
     | Op2
     | Op1
     | Op0
+    | InstanceOf
     | Function
     | Arg
     | Frame
@@ -282,6 +285,14 @@ export type Op3Id = '?:'
 
 export type Op3 = readonly[Op3Id, Exp, Exp, Exp]
 
+// Instance check — one operand and a constructor *name*, which is no
+// operand: `Over` keeps it as the literal it is. See `instanceOf` in
+// `module.f.mjs`.
+
+export type ConstructorId = 'Array'
+
+export type InstanceOf = readonly['instanceof', Exp, ConstructorId]
+
 /** The operator ids at every arity: the tag of an operator node. */
 export type OpId = Op1Id | Op2Id | Op12Id | Op3Id
 
@@ -318,6 +329,7 @@ type _NotIsOp1 = Assert<Equal<TagMap['!'], Op1>>
 type _PlusIsOp12 = Assert<Equal<TagMap['+'], Op12>>
 type _MinusIsOp12 = Assert<Equal<TagMap['-'], Op12>>
 type _ConditionalIsOp3 = Assert<Equal<TagMap['?:'], Op3>>
+type _InstanceofIsInstanceOf = Assert<Equal<TagMap['instanceof'], InstanceOf>>
 type _BracketsIsArray = Assert<Equal<TagMap['[]'], Array>>
 type _CallIsCall = Assert<Equal<TagMap['()'], Call>>
 type _DotIsDot = Assert<Equal<TagMap['.'], Dot>>
@@ -398,6 +410,10 @@ type _Frame = Assert<Check<Frame, typeof frame>>
 type _OverFunction = Assert<Equal<Over<Function, 0>, readonly ['=>', number, readonly 0[], 0]>>
 type _OverArg = Assert<Equal<Over<Arg, 0>, readonly ['arg', number]>>
 type _OverFrame = Assert<Equal<Over<Frame, 0>, readonly ['frame', number]>>
+// The constructor name survives translation as the name it is, not an operand.
+type _OverInstanceOf = Assert<Equal<Over<InstanceOf, 0>, readonly ['instanceof', 0, 'Array']>>
+type _ConstructorId = Assert<Check<ConstructorId, typeof constructorId>>
+type _InstanceOf = Assert<Check<InstanceOf, typeof instanceOf>>
 type _Primitive = Assert<Check<Primitive, typeof primitive>>
 type _Exps = Assert<Check<Exps, typeof exps>>
 type _Spread = Assert<Check<Spread, typeof spread>>

@@ -5,7 +5,7 @@
  */
 
 import { assertEq } from '../../asserts/module.f.mjs'
-import { isKeyword, keywords, literalGlobals, literalWords, reservedWords } from './module.f.mjs'
+import { isKeyword, isReservedGlobal, keywords, literalGlobals, literalWords, reservedGlobals, reservedWords } from './module.f.mjs'
 
 export const proof = {
     // `keywords` is derived from the four groups; what the derivation does
@@ -47,5 +47,14 @@ export const proof = {
     isKeyword: () => {
         assertEq(keywords.every(isKeyword), true)
         assertEq(['If', 'nan', 'constructor', 'toString', 'x', ''].some(isKeyword), false)
+    },
+    // A reserved global is a name, not a keyword: `isReservedGlobal` holds
+    // for each and nothing else, and none of them is among the keywords,
+    // so a tokenizer keeps each an `id` token.
+    reservedGlobals: () => {
+        assertEq(reservedGlobals.join(), 'Array')
+        assertEq(reservedGlobals.every(isReservedGlobal), true)
+        assertEq(reservedGlobals.some(isKeyword), false)
+        assertEq(['array', 'Map', 'constructor', 'x', ''].some(isReservedGlobal), false)
     },
 }

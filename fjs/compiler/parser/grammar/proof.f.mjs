@@ -490,6 +490,11 @@ export const proof = {
         assertStructurallySame(read('const a = 1; export default typeof a ? typeof 1 : typeof typeof a;'), ['ok'])
         assertStructurallySame(read('export default typeof 2 ** 2;'), ['error', '**'])
         assertStructurallySame(read('export default { typeof: 1 }.typeof;'), ['ok'])
+        // `instanceof` is a relational operator: its right operand is any
+        // value here, and which one the fold admits is the fold's
+        assertStructurallySame(read('const a = 1; export default a instanceof Array ? a instanceof (Array) : [] instanceof Map;'), ['ok'])
+        assertStructurallySame(read('export default { instanceof: 1 }.instanceof;'), ['ok'])
+        assertStructurallySame(read('export default instanceof;'), ['ok'])
         // the arms are values, not one of them a function's parameter
         // list or a hole; both are required, and the conditional is no
         // operand of the operators below it

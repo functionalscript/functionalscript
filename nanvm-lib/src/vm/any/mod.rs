@@ -9,6 +9,7 @@ mod div;
 mod dot;
 mod from;
 mod get_iterator;
+mod instanceof_;
 mod neg;
 mod not;
 mod nullish_coalescing;
@@ -26,6 +27,7 @@ mod typeof_;
 
 pub mod to_any;
 
+pub use instanceof_::Constructor;
 pub use to_json::JsonError;
 
 use crate::vm::{

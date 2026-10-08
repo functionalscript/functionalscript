@@ -121,9 +121,8 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule, Variant } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { BinaryTag } from '../../ast/types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
- * @import { Access, AfterValue, ArrowOrRest, Block, Body, CircuitTail, ConditionalTail, EagerTail, End, Func, Group, GroupOperand, Item, Items, LastStatement, Member, Entry, ParameterNames, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
+ * @import { Access, AfterValue, ArrowOrRest, Block, Body, CircuitTail, ConditionalTail, EagerTail, End, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, Member, Entry, ParameterNames, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -181,7 +180,7 @@ export const _tokenKindNames = _djsTokenKinds.filter(kind => kind !== 'eof')
  * and a binding takes that wider rule too, so `const typeof = 1;` still
  * reaches the fold and is refused as a `reserved word`, as `const if = 1;` is.
  */
-export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'as', 'typeof'])
+export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'as', 'typeof', 'instanceof'])
 
 /**
  * The complete alphabet: one name per `DjsToken` kind except `eof`, plus
@@ -232,6 +231,10 @@ export const identifier = /** @type {const} */ ({
     throw: sym('throw'),
     if: sym('if'),
     as: sym('as'),
+    // required only where a tail continues, after an operand, where no
+    // reference may stand — so unlike `typeof` it opens no second branch
+    // on one symbol here, and reaches the fold as `if` does
+    instanceof: sym('instanceof'),
 })
 
 /**
@@ -357,8 +360,14 @@ const additiveTags = /** @type {const} */ ({ add: '+', sub: '-' })
 /** `<<`, `>>`, `>>>` — above {@link additiveTags}. */
 const shiftTags = /** @type {const} */ ({ left: '<<', right: '>>', unsigned: '>>>' })
 
-/** `<`, `<=`, `>`, `>=` — above {@link shiftTags}. */
-const relationalTags = /** @type {const} */ ({ lt: '<', le: '<=', gt: '>', ge: '>=' })
+/**
+ * `<`, `<=`, `>`, `>=` and `instanceof` — above {@link shiftTags}.
+ * `instanceof` is JavaScript's relational operator, one level with the
+ * four, left-associative as they are: its right operand is read as `<`'s
+ * is, and which values may stand there — a reference to `Array` — is the
+ * fold's to say, `../module.f.mjs`.
+ */
+const relationalTags = /** @type {const} */ ({ lt: '<', le: '<=', gt: '>', ge: '>=', instanceof: 'instanceof' })
 
 /** `===`, `!==` — above {@link relationalTags}; `==`/`!=` are not this language's, per `spec/todo/2340-operators.md`. */
 const equalityTags = /** @type {const} */ ({ eq: '===', ne: '!==' })
@@ -400,7 +409,7 @@ const nullishTags = /** @type {const} */ ({ nullish: '??' })
  * run time, so it is typed as one that may miss, and the reader refuses a
  * name that does rather than build a node without a tag.
  *
- * @type {StringMap<Exclude<BinaryTag, '**'>>}
+ * @type {StringMap<Exclude<InfixTag, '**'>>}
  */
 export const binaryOpTag = {
     ...multiplicativeTags,
@@ -420,7 +429,7 @@ export const binaryOpTag = {
  * One layer's operator: a choice of one branch per operator, keyed by its
  * name and matching the token its tag names.
  *
- * @type {(tags: StringMap<Exclude<BinaryTag, '**'>>) => Variant}
+ * @type {(tags: StringMap<Exclude<InfixTag, '**'>>) => Variant}
  */
 const opOf = tags => fromEntries(definedEntries(tags).map(([name, tag]) => [name, sym(tag)]))
 

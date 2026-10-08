@@ -58,6 +58,11 @@ export type Node =
     | readonly ['!', Node]
     | readonly ['typeof', Node]
     | readonly [BinaryTag, Node, Node]
+    // `instanceof` with its operator token: the grammar reads its right
+    // operand as any relational operator's, and the fold admits one value
+    // there, a reference to `Array`, refusing the rest at the operator —
+    // the one token every spelling of the right side shares
+    | readonly ['instanceof', Node, Node, DjsTokenWithMetadata]
     | readonly ['?:', Node, Node, Node]
     | readonly ['=>', ParameterList, Node]
     | Block

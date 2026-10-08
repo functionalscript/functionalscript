@@ -54,6 +54,7 @@ import {
  *  typeof op2,
  *  typeof op1,
  *  typeof op0,
+ *  typeof instanceOf,
  *  typeof func,
  *  typeof arg,
  *  typeof frame,
@@ -73,6 +74,7 @@ export const _exp = () => (['or',
     op2,
     op1,
     op0,
+    instanceOf,
     func,
     arg,
     frame,
@@ -669,3 +671,28 @@ export const op12 = or(
 export const op3Id = or('?:')
 
 export const op3 = /** @type {const} */ ([op3Id, exp, exp, exp])
+
+// Instance Check
+
+/**
+ * The constructors `instanceof` may name: a closed list, `Array` alone
+ * today, where `instanceof Map` and `instanceof Set` are one name each
+ * once the language can build a `Map` or a `Set` for the test to be true
+ * of. `Object` and `Function` are not here and never will be:
+ * `typeof x === "object"` and `typeof x === "function"` are the language's
+ * spellings for those (`../../spec/README.md`, Operators).
+ */
+export const constructorId = or('Array')
+
+/**
+ * `['instanceof', x, c]` is `x instanceof c` for a built-in constructor
+ * `c`: `true` when `x` is an instance — an array, for `Array` — and
+ * `false` of every other value, `null` and `undefined` included; it never
+ * throws and converts nothing. The constructor is a *name*, not an
+ * operand: no global is a value in the EDAG, so the right side of the
+ * language's `instanceof` is carried as the word it is, the way `arg` and
+ * `frame` carry an index. Every reader that walks operands generically
+ * therefore needs an arm for this node — a string is otherwise a valid
+ * expression, and the name would be walked as a literal.
+ */
+export const instanceOf = /** @type {const} */ (['instanceof', exp, constructorId])

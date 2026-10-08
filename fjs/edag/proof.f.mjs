@@ -704,6 +704,23 @@ export const proof = {
             assertNoMatch(v(['xyz', 1, 2]))
         },
     },
+    // One operand and a constructor *name*: the name is a member of a
+    // closed list, not an expression, so a string outside the list is
+    // refused where a string operand would be a literal.
+    instanceof: {
+        ok: () => {
+            assertOk(v(['instanceof', 1, 'Array']))
+            assertOk(v(['instanceof', ['[]', [['instanceof', null, 'Array']]], 'Array']))
+        },
+        missingNameIsError: () => assertNoMatch(v(['instanceof', 1])),
+        unknownNameIsRejected: () => {
+            assertNoMatch(v(['instanceof', 1, 'Map']))
+            assertNoMatch(v(['instanceof', 1, 1]))
+            assertNoMatch(v(['instanceof', 1, ['[]', []]]))
+        },
+        // the name is not an operand: a fourth position is no node
+        extraOperandIsError: () => assertNoMatch(v(['instanceof', 1, 'Array', 2])),
+    },
     // The vocabulary whose ids are legal at both arities. The node's length
     // is what tells `['-', a]` from `['-', a, b]`, so both arms are pinned
     // for each id, and so is the fact that neither arm is a member of the

@@ -310,6 +310,7 @@ vocabularies.
 | `[id, exp, exp]` | binary operation, `id` one of `own` `is` `===` `!==` `>` `>=` `<` `<=` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` `&&` `\|\|` `??` |
 | `[id, exp]`, `[id, exp, exp]` | `id` one of `+` `-`: unary plus or negation, addition or subtraction — one tag at two arities, the node's length deciding, as a chain step's does; unary `+` is JS's and throws on a bigint where `Number` converts |
 | `['?:', exp, exp, exp]` | conditional: the condition, then exactly one arm — the one `ToBoolean` selects; the other is never established |
+| `['instanceof', exp, constructor]` | instance check, `x instanceof Array`: `true` of an array, `false` of every other value, never throws; `constructor` is a *name* from a closed list — `'Array'` alone today, not an operand — since no global is a value here. A reader walking operands generically needs an arm for it, or walks the name as a string literal |
 
 Where a form is listed twice above, the two are the node's arities: the
 shorter one ends the chain and the longer one hands it on, and the schema is

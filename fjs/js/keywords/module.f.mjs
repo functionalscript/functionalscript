@@ -49,6 +49,28 @@ export const restrictedNames = /** @type {const} */ (['arguments', 'eval'])
 export const literalGlobals = /** @type {const} */ (['Infinity', 'NaN', 'undefined'])
 
 /**
+ * Global names FunctionalScript reserves without making them keywords: a
+ * module may not bind one as a `const` or a parameter, and a reference to
+ * one is refused as a reserved word, while it still names a property —
+ * `{ Array: 1 }` and `a.Array` — as every reserved word does. A tokenizer
+ * keeps each an `id` token: it is a name, not a token kind of its own,
+ * which is why these are not among the {@link keywords} and the parser
+ * asks {@link isReservedGlobal} beside {@link isKeyword}.
+ *
+ * `Array` is the first entry of the list
+ * `spec/todo/2365-global-names.md` proposes, landed on its own: the right
+ * operand of `instanceof` names it, and a module that could bind the word
+ * would mean something else by it (`spec/README.md`, Operators).
+ */
+export const reservedGlobals = /** @type {const} */ (['Array'])
+
+/** @type {ReadonlySet<string>} */
+const reservedGlobalSet = new Set(reservedGlobals)
+
+/** Whether a word is one of the {@link reservedGlobals}. @type {(word: string) => boolean} */
+export const isReservedGlobal = word => reservedGlobalSet.has(word)
+
+/**
  * The words that *denote* a value rather than name one: JavaScript's three
  * literals, which the {@link reservedWords} hold, and the three
  * {@link literalGlobals}.

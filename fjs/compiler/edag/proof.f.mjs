@@ -753,6 +753,10 @@ export const proof = {
         expectEdag(compile('export default !-1;').edag, ['!', -1])
         expectEdag(compile('export default typeof 1;').edag, ['typeof', 1])
         expectEdag(compile('export default typeof typeof -1;').edag, ['typeof', ['typeof', -1]])
+        // `instanceof` folds nothing either, and its constructor is the
+        // name the source wrote, carried across as the EDAG node's own
+        expectEdag(compile('export default [] instanceof Array;').edag, ['instanceof', ['[]', []], 'Array'])
+        expectEdag(compile('export default !1 instanceof (Array);').edag, ['instanceof', ['!', 1], 'Array'])
         // unary `-` still folds over a numeric literal, even nested inside
         // a binary operator the lowering does not fold
         expectEdag(compile('export default -1 * 2;').edag, ['*', -1, 2])
@@ -1224,6 +1228,13 @@ export const proof = {
                 const shape = nodeShapeOf(['?:', ['a'], ['b'], ['c']], 'expected a shape')
                 assertStructurallySame(shape.children, [
                     ['cond', ['a']], ['then', ['b'], 'lazy'], ['else', ['c'], 'lazy']])
+            },
+            // An instance check's constructor is a name in the label, not
+            // a child: the one edge is the operand's.
+            instanceOf: () => {
+                const shape = nodeShapeOf(['instanceof', ['a'], 'Array'], 'expected a shape')
+                assertEq(shape.label, 'instanceof Array')
+                assertStructurallySame(shape.children, [['operand', ['a']]])
             },
             // Function length is metadata, not a third expression edge.
             // Building a closure establishes its frame and never its body,

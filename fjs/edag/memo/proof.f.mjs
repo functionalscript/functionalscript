@@ -160,6 +160,9 @@ export const proof = {
             agrees([tag, 6, 2])
         }
         for (const tag of /** @type {const} */ (['!', 'typeof', 'String', 'Number', '~', '+', '-'])) { agrees([tag, '2']) }
+        agrees(['instanceof', ['[]', [1]], 'Array'])
+        agrees(['instanceof', ['{}', []], 'Array'])
+        agrees(['instanceof', ['&&', 1, null], 'Array'])
         agrees(['+', ['[]', [1, 2]], ['{}', []]])
         agrees(['+', ['{}', [[':', 'valueOf', ['=>', 0, [], 3]]]], 2])
         agrees(['own', ['[]', [7]], '0'])

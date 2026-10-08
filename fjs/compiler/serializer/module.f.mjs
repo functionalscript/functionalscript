@@ -325,7 +325,7 @@ const kindOf = (s, v) => {
  */
 const levels = [
     ['?:'], ['||', '??'], ['&&'],
-    ['|'], ['^'], ['&'], ['===', '!=='], ['<', '<=', '>', '>='], ['<<', '>>', '>>>'], ['+', '-'], ['*', '/', '%'], ['**'],
+    ['|'], ['^'], ['&'], ['===', '!=='], ['<', '<=', '>', '>=', 'instanceof'], ['<<', '>>', '>>>'], ['+', '-'], ['*', '/', '%'], ['**'],
 ]
 
 /** The level of an operator, `0` the loosest; `-1` for a tag that is none. @type {(op: string) => number} */
@@ -418,6 +418,20 @@ const binary = (s, path) => (op, left, right) => mapOk(
 
 /** Whether a text opens with `-`. @type {(text: List<string>) => boolean} */
 const opensWithMinus = text => firstChunk(text).startsWith('-')
+
+/**
+ * The text of an instance check, `v instanceof Array`: the operand as the
+ * left operand of a relational operator, grouped as `<`'s would be, and
+ * the constructor as the word it is — a name the node carries, not an
+ * operand with a text of its own. Spaces around the operator, since it is
+ * a word.
+ *
+ * @type {(s: _Scope, path: string) => (operand: Operand, constructor: string) => Document}
+ */
+const instanceOf = (s, path) => (operand, constructor) => mapOk(
+    /** @type {(l: List<string>) => List<string>} */
+    (l => flat([l, [` instanceof ${constructor}`]])),
+)(leftOperand(s, `${path}/left`, 'instanceof')(operand))
 
 /**
  * The text of a prefix operator, `-v`, `~v`, `!v` or `typeof v`: the operand
@@ -926,6 +940,7 @@ const entry = (s0, path) => i => {
             return right === undefined ? error('a unary + node') : binary(s, path)(op, left, right)
         }
         case '~': case '!': case 'typeof': { return prefix(s, path)(node[0])(node[1]) }
+        case 'instanceof': { return instanceOf(s, path)(node[1], node[2]) }
         case '|': case '^': case '&': case '===': case '!==': case '<': case '<=': case '>': case '>=':
         case '<<': case '>>': case '>>>': case '*': case '/': case '%': case '**': { return binary(s, path)(node[0], node[1], node[2]) }
         case '&&': case '||': case '??': { return lazyBinary(s, path)(node) }
@@ -1015,7 +1030,8 @@ const operands = node => {
         case '()': { return [node[1], ...node[2].map(itemOperand)] }
         case '[]': { return node[1].map(itemOperand) }
         case '{}': { return node[1].flatMap(p => p[0] === '...' ? [p[1]] : [p[1], p[2]]) }
-        case 'throw': case '~': case '!': case 'typeof': { return [node[1]] }
+        // an instance check's constructor is a name, not an operand
+        case 'throw': case '~': case '!': case 'typeof': case 'instanceof': { return [node[1]] }
         case '-': case '+': { return node.length === 2 ? [node[1]] : [node[1], node[2]] }
         case ',': { return node[1] }
         case '&&': case '||': case '??': case '?:': { return [node[1]] }

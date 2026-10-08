@@ -17,7 +17,7 @@ import { func } from '../value/function/module.f.mjs'
 import { call } from '../value/call/module.f.mjs'
 import { findProperty, read } from '../value/property/module.f.mjs'
 import { throwValue } from '../value/control/module.f.mjs'
-import { truthy, typeOf, unary as semanticUnary, binary as semanticBinary } from '../value/semantics/module.f.mjs'
+import { truthy, typeOf, instanceOf, unary as semanticUnary, binary as semanticBinary } from '../value/semantics/module.f.mjs'
 import { unary as numericUnary, binary as numericBinary } from '../value/numeric/module.f.mjs'
 import { binary as relational } from '../value/relational/module.f.mjs'
 import { toPrimitive, toString } from '../value/convert/module.f.mjs'
@@ -178,6 +178,11 @@ export const operation = evaluator => {
             case '!': case 'typeof': {
                 const apply = semanticUnary[node[0]]
                 return then(operand(node[1], state), (value, next) => [next, apply(value)])
+            }
+            // the constructor is a name, read from the node, never evaluated
+            case 'instanceof': {
+                const test = instanceOf[node[2]]
+                return then(operand(node[1], state), (value, next) => [next, ok(test(value))])
             }
             case 'String': { return then(operand(node[1], state), (value, next) => [next, toString(value, invoke)]) }
             case '~': case 'Number': {

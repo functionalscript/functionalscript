@@ -267,6 +267,11 @@ export const _shapeOf = e => {
             ],
         }
     }
+    // an instance check: its one operand, and the constructor as part of
+    // the label, a name the node carries rather than a child
+    if (tag === 'instanceof') {
+        return { kind: 'op', label: `instanceof ${exp[2]}`, children: [['operand', /** @type {Exp} */ (exp[1])]] }
+    }
     if (typeof tag === 'string' && op12.has(tag)) {
         return exp.length === 2
             ? { kind: 'op', label: tag, children: [['operand', /** @type {Exp} */ (exp[1])]] }

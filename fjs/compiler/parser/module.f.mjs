@@ -53,7 +53,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstNot, AstTypeof, AstSelf, AstCall, AstConditional, AstConst, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstThrow } from '../ast/types.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstNot, AstTypeof, AstInstanceOf, AstSelf, AstCall, AstConditional, AstConst, AstFrameRef, AstEntry, AstFunction, AstItem, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest, AstSpread, AstThrow } from '../ast/types.ts'
  * @import { ParseError } from './types.ts'
  * @import { Block, Container, Entry, If, Import, Item, Module, Node, ParameterBinding, ParameterList, Statement, ValueStatement } from './syntax/types.ts'
  * @import { _AccessFrame, _BodyFrame, _CallFrame, _ConditionalFrame, _ContainerFrame, _Env, _Frame, _GuardFrame, _Parameter, _Ref, _Scope, _Stack, _State } from './private.ts'
@@ -65,7 +65,7 @@ import { sort } from '../../types/object/module.f.mjs'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { maxLength } from '../../types/function/length/module.f.mjs'
-import { isKeyword } from '../../js/keywords/module.f.mjs'
+import { isKeyword, isReservedGlobal } from '../../js/keywords/module.f.mjs'
 import { prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.js'
 import { nameOf, parseSyntax, textOf } from './syntax/module.f.mjs'
 import { isBinary } from '../ast/module.f.mjs'
@@ -179,8 +179,20 @@ const restBinding = ['rest']
  */
 const identifierOf = name => {
     const word = nameOf(name)
-    return isKeyword(word) ? error(reservedWord(name)) : ok(word)
+    // a reserved global, `Array`, is refused exactly as a keyword is: never
+    // bound, never a reference — `instanceof`'s right side reads the word
+    // itself, not a reference, which is why it may name it
+    return isKeyword(word) || isReservedGlobal(word) ? error(reservedWord(name)) : ok(word)
 }
+
+/**
+ * An `instanceof` whose right operand is not a reference to `Array`, at
+ * the operator: the language admits that one constructor, and reads the
+ * word, not a value — so an access, a literal or a parenthesized value
+ * other than the bare reference is refused here, whatever it would be
+ * in JavaScript.
+ */
+const instanceofRight = foldError('the right operand of instanceof must be Array')
 
 /** An attribute key the language does not know, at the key: `type` is the one JavaScript defines. */
 const unknownAttribute = foldError('unknown import attribute')
@@ -673,6 +685,14 @@ const enter = (stack, scope, node) => {
         case '~': { return [{ top: { bitnot: true }, rest: stack }, scope, ['enter', node[1]]] }
         case '!': { return [{ top: { not: true }, rest: stack }, scope, ['enter', node[1]]] }
         case 'typeof': { return [{ top: { typeof: true }, rest: stack }, scope, ['enter', node[1]]] }
+        case 'instanceof': {
+            // the right operand is a name, not a value: the one reference
+            // the language has a meaning for, never resolved in scope —
+            // `Array` is a reserved global, so no scope binds it
+            const right = node[2]
+            if (right[0] !== 'ref' || nameOf(right[1]) !== 'Array') { return [stack, scope, error(instanceofRight(node[3]))] }
+            return [{ top: { instanceof: 'Array' }, rest: stack }, scope, ['enter', node[1]]]
+        }
         case '?:': { return conditionalRound(stack, scope, { conditional: node, index: 0, done: null }) }
         case '=>': { return entered(stack, scope, node, null) }
         // a block stands only as a function's body, which `'=>'` above
@@ -737,6 +757,11 @@ const returned = (stack, scope, frame, value) => {
         /** @type {AstTypeof} */
         const tagged = ['typeof', value]
         return [stack, scope, ok(tagged)]
+    }
+    if ('instanceof' in frame) {
+        /** @type {AstInstanceOf} */
+        const checked = ['instanceof', value, frame.instanceof]
+        return [stack, scope, ok(checked)]
     }
     if ('right' in frame) { return [{ top: { tag: frame.tag, left: value }, rest: stack }, scope, ['enter', frame.right]] }
     if ('left' in frame) {

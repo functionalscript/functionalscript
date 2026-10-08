@@ -78,6 +78,8 @@ const entry = (s, i) => {
         case 'throw': { return `(()=>{throw ${operand(s, n[1])};})()` }
         case 'String': case 'Number': { return `(${n[0]}(${operand(s, n[1])}))` }
         case '!': case '~': case 'typeof': { return `(${n[0]} ${operand(s, n[1])})` }
+        // the constructor is the name the node carries, written as the word
+        case 'instanceof': { return `(${operand(s, n[1])} instanceof ${n[2]})` }
         case '+': case '-': { return n.length === 2 ? `(${n[0]} ${operand(s, n[1])})` : `(${operand(s, n[1])}${n[0]}${operand(s, n[2])})` }
         case '?:': { return `(${operand(s, n[1])}?${operand(s, n[2])}:${operand(s, n[3])})` }
         case 'is': { return `(Object.is(${operand(s, n[1])},${operand(s, n[2])}))` }

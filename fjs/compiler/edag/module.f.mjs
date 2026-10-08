@@ -5,8 +5,8 @@
  *
  * @module
  *
- * @import { Exp, Spread } from '../../edag/types.ts'
- * @import { AstBinary, AstBitnot, AstNot, AstTypeof, AstBody, AstCall, AstConditional, AstConst, AstEntry, AstFunction, AstImport, AstItem, AstModule, AstNeg, AstSpread, AstThrow } from '../ast/types.ts'
+ * @import { Exp, Op12, Op2, Spread } from '../../edag/types.ts'
+ * @import { AstBinary, AstBitnot, AstNot, AstTypeof, AstInstanceOf, AstBody, AstCall, AstConditional, AstConst, AstEntry, AstFunction, AstImport, AstItem, AstModule, AstNeg, AstSpread, AstThrow } from '../ast/types.ts'
  * @import { _ImportSource, _Source } from '../source/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
@@ -211,7 +211,7 @@ const slotKeys = nodes => {
  * length ({@link lower}'s own comment has why that one gets an explicit
  * stack instead).
  *
- * @type {(nodes: _Nodes) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstNot | AstTypeof | AstBinary | AstConditional | AstThrow>) => _Lowered}
+ * @type {(nodes: _Nodes) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstNot | AstTypeof | AstInstanceOf | AstBinary | AstConditional | AstThrow>) => _Lowered}
  */
 const lowerLeaf = nodes => ast => {
     if (ast === undefined) { return plain(undefinedNode()) }
@@ -309,6 +309,7 @@ const lower = nodes => root => {
                 case '~': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'bitnot', rest } }; break }
                 case '!': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'not', rest } }; break }
                 case 'typeof': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'typeof', rest } }; break }
+                case 'instanceof': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'instanceof', name: ast[2], rest } }; break }
                 case 'throw': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'throw', rest } }; break }
                 case '?:': {
                     work = { kind: 'expand', ast: ast[1], rest: { kind: 'expand', ast: ast[2], rest: { kind: 'expand', ast: ast[3], rest: { kind: 'ternary', rest } } } }
@@ -356,6 +357,16 @@ const lower = nodes => root => {
             work = rest
             continue
         }
+        if (work.kind === 'instanceof') {
+            /** @type {_LowerWork} */
+            const rest = work.rest
+            const operand = assertNotNullish(results, ['no operand for an instanceof', root])
+            // the constructor name is carried across as it is: the EDAG's
+            // own node names it, and nothing folds
+            results = { top: { exp: ['instanceof', operand.top.exp, work.name], anchors: operand.top.anchors }, rest: operand.rest }
+            work = rest
+            continue
+        }
         if (work.kind === 'throw') {
             /** @type {_LowerWork} */
             const rest = work.rest
@@ -379,10 +390,16 @@ const lower = nodes => root => {
         const tag = work.tag
         const right = assertNotNullish(results, ['no right operand for', tag, root])
         const left = assertNotNullish(right.rest, ['no left operand for', tag, root])
+        // named as the two node kinds a binary tag makes, since the EDAG
+        // union also holds a three-tuple whose last position is a name
+        /** @type {Op2 | Op12} */
+        const lazyExp = [tag, left.top.exp, anchoring(right.top)]
+        /** @type {Op2 | Op12} */
+        const eager = [tag, left.top.exp, right.top.exp]
         results = {
             top: isLazy(tag)
-                ? { exp: [tag, left.top.exp, anchoring(right.top)], anchors: left.top.anchors }
-                : { exp: [tag, left.top.exp, right.top.exp], anchors: [...left.top.anchors, ...right.top.anchors] },
+                ? { exp: lazyExp, anchors: left.top.anchors }
+                : { exp: eager, anchors: [...left.top.anchors, ...right.top.anchors] },
             rest: left.rest,
         }
         work = rest

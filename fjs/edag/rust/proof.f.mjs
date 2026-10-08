@@ -189,6 +189,11 @@ export const proof = {
     },
     /** Every operation node this printer knows, straight from the EDAG. */
     operations: () => {
+        // the constructor is the `Constructor` variant it names, never an
+        // operand: a string operand would print as `string_any("Array")`
+        assertEq(printed(['instanceof', ['[]', []], 'Array']), 'Any::instanceof_(Array::default().to_any(), Constructor::Array)')
+        assertEq(printed(['instanceof', 'Array', 'Array']), 'Any::instanceof_(string_any("Array"), Constructor::Array)')
+        assertStructurallySame(usedBy(['instanceof', 'x', 'Array']), { vm: ['Constructor'], unstable: ['string_any'] })
         assertEq(printed(['-', 1]), '-(f64_any(0x3ff0000000000000))')
         assertEq(printed(['+', 1]), 'Any::unary_plus(f64_any(0x3ff0000000000000))')
         assertEq(

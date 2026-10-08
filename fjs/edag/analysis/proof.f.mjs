@@ -76,6 +76,8 @@ export const proof = {
             [['undefined'], []], [['args'], []], [['rest'], []],
             [['arg', 2], []], [['frame', 3], []],
             [['!', a], [a]], [['+', a], [a]], [['+', a, b], [a, b]],
+            // the constructor name is metadata, never an operand
+            [['instanceof', a, 'Array'], [a]], [['instanceof', 'Array', 'Array'], ['Array']],
             [['&&', false, a], [false, a]], [['||', true, b], [true, b]],
             [['??', null, a], [null, a]], [['?:', true, a, b], [true, a, b]],
             [['[]', []], []], [['{}', []], []], [[',', []], []],

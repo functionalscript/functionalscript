@@ -46,6 +46,7 @@ export const proof = {
         /** @type {readonly (readonly [Exp, string])[]} */
         const cases = [
             [['!', 1], '(! (1))'], [['~', 1], '(~ (1))'], [['typeof', 1], '(typeof (1))'],
+            [['instanceof', ['[]', []], 'Array'], '(([]) instanceof Array)'],
             [['+', 1], '(+ (1))'], [['-', 1], '(- (1))'],
             [['+', 1, 2], '((1)+(2))'], [['-', 1, 2], '((1)-(2))'],
             [['String', 1], '(String((1)))'], [['Number', '2'], '(Number(("2")))'],
