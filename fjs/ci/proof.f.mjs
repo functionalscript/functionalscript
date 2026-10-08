@@ -6,7 +6,7 @@
 
 import { exitCode } from '../effects/node/module.f.mjs'
 import { ci, ciPath, main, nixJobs } from './module.f.mjs'
-import { actions, bun, deno, functionalscript, node, typescript, wasmer, wasmtime } from './config/module.f.js'
+import { actions, bun, deno, functionalscript, jobTimeout, node, typescript, wasmer, wasmtime } from './config/module.f.js'
 import { main as ownMain, packageConsumer } from './self/module.f.mjs'
 import { installNode, major, nodeNixJobs, packageJobId } from './node/module.f.mjs'
 import { flakePath, flakeText, nixDevelop, nixShell } from './nix/module.f.mjs'
@@ -1014,6 +1014,25 @@ export const proof = {
         assertEq(Object.keys(jobs).filter(queued).length, 4, 'expected two macOS and two Windows jobs')
         assertEq(definedValues(run(true).jobs).filter(job => job.if !== undefined).length, 0)
     },
+    /**
+     * Every job either workflow generates holds its runner for at most
+     * `jobTimeout` minutes, rather than GitHub's six hours. Read back through
+     * `workflow`, so the limit also survives the schema — which refuses a job
+     * without one.
+     */
+    jobTimeout: () => {
+        for (const gha of [run(true), npmPublishWorkflow]) {
+            for (const [id, job] of Object.entries(gha.jobs)) {
+                assertEq(job?.['timeout-minutes'], jobTimeout, id)
+            }
+        }
+        assertEq(parseGitHubAction({
+            name: 'test',
+            on: {},
+            permissions: { contents: 'read' },
+            jobs: { check: { 'runs-on': 'ubuntu-latest', steps: [{ run: 'echo hi' }] } },
+        })[0], 'error')
+    },
     jobNeeds: () => {
         const steps = /** @type {const} */ ([{ run: 'echo hi' }])
         /** @type {(jobs: Unknown) => Unknown} */
@@ -1027,21 +1046,21 @@ export const proof = {
         // Without this a consuming job could only reach the workflow by being
         // emitted past the schema, which `parseGitHubAction` would then reject.
         const ordered = unwrap(parseGitHubAction(action({
-            pack: { 'runs-on': 'ubuntu-latest', steps },
-            check: { 'runs-on': 'ubuntu-latest', needs: ['pack'], steps },
+            pack: { 'runs-on': 'ubuntu-latest', 'timeout-minutes': 15, steps },
+            check: { 'runs-on': 'ubuntu-latest', 'timeout-minutes': 15, needs: ['pack'], steps },
         })))
         assertEq(ordered.jobs.check?.needs?.[0], 'pack')
         assertEq(ordered.jobs.check?.needs?.length, 1)
         // Optional: the independent jobs, which is all of them today, still parse.
         assertEq(unwrap(parseGitHubAction(action({
-            pack: { 'runs-on': 'ubuntu-latest', steps },
+            pack: { 'runs-on': 'ubuntu-latest', 'timeout-minutes': 15, steps },
         }))).jobs.pack?.needs, undefined)
         // Constrained, not merely accepted. GitHub also allows a bare scalar
         // (`needs: pack`); this generator emits the list form only, so the
         // scalar is drift rather than an alternative spelling — the same reason
         // these schemas are closed.
         assertEq(parseGitHubAction(action({
-            check: { 'runs-on': 'ubuntu-latest', needs: 'pack', steps },
+            check: { 'runs-on': 'ubuntu-latest', 'timeout-minutes': 15, needs: 'pack', steps },
         }))[0], 'error')
         // No job orders itself. The packed-package check did, and paid for
         // it: GitHub creates a waiting job only when the job it waits for has
