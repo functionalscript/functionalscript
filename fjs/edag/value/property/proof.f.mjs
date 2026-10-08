@@ -6,13 +6,13 @@
  * @import { EdagValue } from '../types.ts'
  */
 
-import { assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { ok, error } from '../../../types/result/module.f.mjs'
 import { array } from '../array/module.f.mjs'
 import { object } from '../object/module.f.mjs'
 import { func } from '../function/module.f.mjs'
 import { call } from '../call/module.f.mjs'
-import { findProperty, read } from './module.f.mjs'
+import { entry, findProperty, read } from './module.f.mjs'
 
 /** @type {(receiver: EdagValue, key: string, expected: EdagValue) => void} */
 const expectValue = (receiver, key, expected) => {
@@ -108,6 +108,32 @@ export const proof = {
             }
         }
     },
+    // The `entry` helper's read: an object's field, an array's element and
+    // a string's code unit by its canonical index — never a `length`, which
+    // the three own without enumerating it — nothing of a function, the
+    // helper itself included, nothing of any other primitive, and a failure
+    // for a nullish receiver.
+    entry: () => {
+        assertEq(assertOk(entry(record, 'value')), data)
+        assertStructurallySame(assertOk(entry(record, 'length')), ['undefined'])
+        assertEq(assertOk(entry(['{}', [[':', 'length', 3]]], 'length')), 3)
+        const items = assertOk(array([() => ok(data), () => ok(record)]))
+        assertEq(assertOk(entry(items, '1')), record)
+        for (const key of ['length', '2', '01', '-1']) { assertStructurallySame(assertOk(entry(items, key)), ['undefined']) }
+        assertEq(assertOk(entry('ab', '1')), 'b')
+        for (const key of ['length', '2', '01']) { assertStructurallySame(assertOk(entry('ab', key)), ['undefined']) }
+        /** @type {readonly EdagValue[]} */
+        const entryless = [functionValue, ['entry'], true, 0, 1n]
+        for (const receiver of entryless) {
+            for (const key of ['length', '0', 'name']) { assertStructurallySame(assertOk(entry(receiver, key)), ['undefined']) }
+        }
+        for (const receiver of [null, undefinedValue]) {
+            assertStructurallySame(assertError(entry(receiver, 'a')), ['undefined'])
+        }
+        // the helper owns the `length` every function does, read as a property
+        expectValue(['entry'], 'length', 2)
+        missing(['entry'], '0')
+    },
     receiverFailures: () => {
         for (const failure of [error(null), error(undefinedValue), error(data), error(record), error(functionValue), error(NaN)]) {
             for (const key of ['length', '0', '__proto__']) { assertEq(read(failure, key), failure) }
@@ -121,6 +147,7 @@ export const proof = {
         ]))
         const result = call(read(ok(holder), 'fn'), [() => read(read(ok(holder), 'arguments'), '0')], (actual, fixed, rest) => {
             assertEq(actual, fn)
+            assert(actual[0] === '=>')
             assertEq(fixed[0], data)
             assertEq(rest[1].length, 0)
             return read(ok(actual[2][0]), 'value')

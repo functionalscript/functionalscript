@@ -614,6 +614,71 @@ export const proof = {
             expect('export default { push: 1, toString: 2 };', '[[],[["object",[[":","default",["object",[[":","push",1],[":","toString",2]]]]]]]]')
             expect('import m from "./m.f.js"; export default [m.x, { y: m["x"] }];', '[[{"json":false,"name":"default","specifier":"./m.f.js"}],[["object",[[":","default",["array",[[".",["aref",0],"x"],["object",[[":","y",[".",["aref",0],"x"]]]]]]]]]]]')
         },
+        // The optional chains, in the EDAG's own shapes
+        // (`fjs/edag/README.md`, Chains): a `?.` opens a region, the steps
+        // after it are the node's own until a group closes it, and each
+        // spelling of the README's table folds to the node it gives.
+        optional: () => {
+            /** @type {(source: string, expected: string) => void} */
+            const expect = (source, expected) => {
+                const [tag, value] = parseFromTokens(tokenizeString(`const a = {}; const c = 1; export default ${source};`))
+                assert(tag === 'ok', value)
+                const [, body] = value
+                assertEq(stringifyDjsModule([[], [body[body.length - 1]]]), `[[],[["object",[[":","default",${expected}]]]]]`)
+            }
+            expect('a?.b', '["?.",["cref",0],"b"]')
+            expect('a?.["b c"]', '["?.",["cref",0],"b c"]')
+            expect('a?.[0]', '["?.",["cref",0],0]')
+            expect('a?.(c)', '["?.()",["cref",0],[["cref",1]]]')
+            expect('a?.(...a)', '["?.()",["cref",0],[["...",["cref",0]]]]')
+            expect('a?.b.c', '["?.",["cref",0],"b",["|.","c"]]')
+            expect('(a?.b).c', '[".",["?.",["cref",0],"b"],"c"]')
+            expect('a?.b(c)', '["?.",["cref",0],"b",["|()",[["cref",1]]]]')
+            expect('(a?.b)(c)', '["?.",["cref",0],"b",["|!()",[["cref",1]]]]')
+            expect('a?.b?.(c)', '["?.",["cref",0],"b",["|?.()",[["cref",1]]]]')
+            // a region closed before a guard is unobservable: the guarded
+            // call keeps the receiver either way
+            expect('(a?.b)?.(c)', '["?.",["cref",0],"b",["|?.()",[["cref",1]]]]')
+            // a guarded access always starts a node
+            expect('a?.b?.c', '["?.",["?.",["cref",0],"b"],"c"]')
+            expect('(a?.b)?.c', '["?.",["?.",["cref",0],"b"],"c"]')
+            expect('(a?.b.c)(c)', '["?.",["cref",0],"b",["|.","c",["|!()",[["cref",1]]]]]')
+            expect('(a?.b).c(c)', '["()",[".",["?.",["cref",0],"b"],"c"],[["cref",1]]]')
+            expect('a?.b(c).d(c)', '["?.",["cref",0],"b",["|()",[["cref",1]],["|.","d",["|()",[["cref",1]]]]]]')
+            expect('a?.b?.(c).d', '["?.",["cref",0],"b",["|?.()",[["cref",1]],["|.","d"]]]')
+            expect('(a?.b)(c).d', '[".",["?.",["cref",0],"b",["|!()",[["cref",1]]]],"d"]')
+            // a guarded call after a call, no receiver live, starts a node
+            expect('a?.b(c)?.(c)', '["?.()",["?.",["cref",0],"b",["|()",[["cref",1]]]],[["cref",1]]]')
+            expect('a?.(c).d(c)', '["?.()",["cref",0],[["cref",1]],["|.","d",["|()",[["cref",1]]]]]')
+            expect('(a?.(c))(c)', '["()",["?.()",["cref",0],[["cref",1]]],[["cref",1]]]')
+            expect('a?.(c)?.(c)', '["?.()",["?.()",["cref",0],[["cref",1]]],[["cref",1]]]')
+            // a guarded call on a plain access is the access's own step,
+            // through a group too, as a plain call is
+            expect('a.b?.(c)', '[".",["cref",0],"b",["|?.()",[["cref",1]]]]')
+            expect('(a.b)?.(c)', '[".",["cref",0],"b",["|?.()",[["cref",1]]]]')
+            expect('a.b?.(c).d', '[".",["cref",0],"b",["|?.()",[["cref",1]],["|.","d"]]]')
+            expect('(a.b?.(c))(c)', '["()",[".",["cref",0],"b",["|?.()",[["cref",1]]]],[["cref",1]]]')
+            expect('a.b(c)?.(c)', '["?.()",["()",[".",["cref",0],"b"],[["cref",1]]],[["cref",1]]]')
+            // a group is one boundary however many parentheses spell it,
+            // and a prefix's operand is a group too
+            expect('((a?.b)).c', '[".",["?.",["cref",0],"b"],"c"]')
+            expect('-(a?.b).c', '["-",[".",["?.",["cref",0],"b"],"c"]]')
+            expect('(a?.b) ** 2', '["**",["?.",["cref",0],"b"],2]')
+            // a key is judged as an access's is, by the step after it:
+            // `length` and a method call pass, a prototype name is refused
+            // as a read and a member function a module may not call at
+            // the key, through a step too
+            expect('a?.b.length', '["?.",["cref",0],"b",["|.","length"]]')
+            expect('a?.at(0)', '["?.",["cref",0],"at",["|()",[0]]]')
+            expectRefused('const a = {}; export default a?.at;', 'prohibited property name', 33)
+            expectRefused('const a = {}; export default a?.push(1);', 'prohibited member function', 33)
+            expectRefused('const a = {}; export default a?.b.push(1);', 'prohibited member function', 35)
+            expectRefused('const a = {}; export default a?.(1).at;', 'prohibited property name', 37)
+            // the names a chain holds are resolved in document order
+            expectRefused('const a = {}; export default a?.b(missing);', 'const not found', 35)
+            expectRefused('const a = {}; export default a?.(missing).b(a);', 'const not found', 34)
+            expectRefused('const a = {}; export default a.b?.(1).c(missing);', 'const not found', 41)
+        },
         // `-1 .x` is `-(1 .x)` in JavaScript, and it is that here: the `-`
         // is a prefix the grammar reads, so the negation stands outside the
         // access rather than inside the literal. An access on a numeric

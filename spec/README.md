@@ -1196,7 +1196,9 @@ is a value like any other and takes a property access or a call after its
 `)`, and it holds one value: a bare comma inside it waits on the comma
 operator ([operators](./todo/2340-operators.md)).
 
-Parentheses are not a boundary that anything downstream can see. They keep
+Parentheses are not a boundary that anything downstream can see — but for
+the one an [optional chain](#optional-chaining) makes of them, where they
+end the region a `?.` opened. They keep
 a property reference, so `(o.m)(a)` is the method call `o.m(a)` is
 ([functions](#functions)), and they keep sharing, so a `const` reached
 through a group is the one value it is reached without one. They launder
@@ -1392,9 +1394,11 @@ is `o["1e-7"]`, and `o[1e400]`, a literal that overflows, is
 (`a number key no literal reads back`). A string in brackets is the key
 unchanged, so `a["01"]` and `a["1.0"]` name no element and are `undefined`,
 as in JavaScript. Anything else in the brackets is not recognized yet: a key
-computed at run time, `a[i]`, and every other expression, `a[-1]` and
-`a[NaN]` included — their keys are written as strings instead, `a["-1"]` and
-`a["NaN"]`. Trivia, a line break included, may stand on either side of the
+computed at run time, `a[i]`, which the `entry` helper reads instead
+([reading an entry at run time](#reading-an-entry-at-run-time)), and every
+other expression, `a[-1]` and `a[NaN]` included — their keys are written as
+strings instead, `a["-1"]` and `a["NaN"]`. Trivia, a line break included,
+may stand on either side of the
 `.` or the `[` and inside the brackets, as between any two tokens
 ([trivia](#whitespace-and-line-terminators)): `a . b`, `a./* c */b` and `a`
 with `.b` on the next line are each `a.b`, as JavaScript reads them.
@@ -1440,6 +1444,107 @@ a function the text the
 adopts, a defect
 [default function text](./todo/3120-parameters.md#default-function-text-render-or-refuse)
 tracks.
+
+## Optional Chaining
+
+```js
+const o = { a: { b: 1 }, f: (...x) => x };
+const n = null;
+export default [o?.a.b, n?.a.b, o.f?.(2), n?.(3), (o?.a).b];
+```
+
+An optional chain is JavaScript's: `v?.k` and `v?.[k]` read the property
+`v.k` and `v[k]` read, with the key the same constant either takes
+([property access](#property-access)), and `v?.(…)` calls `v` as `v(…)`
+does — unless `v` is `null` or `undefined`, when the whole chain is
+`undefined` and nothing after the `?.` is evaluated: not the key, not the
+arguments, and not the steps written after it. `n?.a.b` is `undefined` under
+a nullish `n`, where `n.a.b` throws, and `n?.f(g())` never calls `g`. The
+steps after a `?.` are the chain's own until a parenthesis ends it, so
+`(n?.a).b` reads `b` of `undefined` and throws — the one thing a group is
+observable through ([grouping](#grouping)) — and the value is JavaScript's
+in every spelling: `a?.b.c` and `(a?.b).c` are two programs, `a?.b?.(c)` and
+`(a?.b)?.(c)` one, since a region closed before a guard is unobservable.
+
+A call keeps its receiver through a `?.` as it keeps it through a `.`:
+`a?.b(c)` and `a.b?.(c)` call `b` with `a` as `this`, so a built-in member
+function is called through either, and `(a?.b)(c)` keeps it too, as
+`(a.b)(c)` does. The key is judged as an access's is — a prototype name
+refused as a read, `a?.at`, and allowed as a call, `a?.at(0)`; a member
+function a module may not call refused at its key, `a?.push(1)`; `length`
+read from any value — and a key computed at run time, `a?.[i]`, waits on
+the same step `a[i]` waits on.
+
+The graph is `fjs/edag/README.md`'s Chains, where every spelling has one
+shape and the host engine agrees with it: `a?.b` is `['?.', a, 'b']`, the
+steps after it the node's continuation, `['?.', a, 'b', ['|.', 'c']]` for
+`a?.b.c`, and a group an access over the node, `['.', ['?.', a, 'b'], 'c']`.
+`a.b?.(c)` is the access's own step, `['.', a, 'b', ['|?.()', c]]`, and
+`a?.(c)` the call node `['?.()', a, c]`. Every output writes them: the
+FunctionalScript one as above, a group where the region closed; the EDAG
+one as the nodes; the Rust one as the method chain `nanvm-lib` runs. A
+`?.` directly before a decimal digit is the token `?.` here, as the
+tokenizer reads it
+([`?.` before a digit](../fjs/js/tokenizer/todo/optional-chain-before-digit.md)):
+`a?.5:1` is refused at the `5`, and will be the conditional it is in
+JavaScript when `.5` is a number.
+
+## Reading an Entry at Run Time
+
+```js
+const entry = (a, b) => {
+    const x = Object.getOwnPropertyDescriptor(a, b);
+    return x?.enumerable ? x.value : undefined;
+};
+const escapes = { n: "\n", t: "\t" };
+export default (...c) => entry(escapes, c[0]);
+```
+
+A key computed at run time is read by the **`entry` helper**: the function
+above, written in a module under any three names, or imported from
+[`fjs/js/entry`](../fjs/js/entry/module.f.js), which spells it once.
+`entry(a, b)` is the enumerable own property `b` names of `a` — a member of
+an object, an element of an array or of a string — and `undefined` where
+there is none: a `length`, which an array, a string and a function own
+without enumerating it; a function's `name`, which the language keeps
+unobservable ([functions](#functions)); anything of a number, a boolean or
+a `bigint`; and a name a prototype would give the value in JavaScript, since
+the descriptor is the value's own. The key is converted as
+`Object.getOwnPropertyDescriptor` converts it, so `entry(a, 0)` and
+`entry(a, "0")` read one element and an object key converts through its own
+`toString`; a `null` or `undefined` `a` is an error, as reading a property
+of one is, and so is a key whose conversion fails.
+
+The helper is exactly what it spells. The compiler recognizes the function
+whole — its two parameters, the `const` the descriptor binds and the
+`return`, under any three distinct names, the keys in either spelling, the
+semicolons where JavaScript inserts them — where `Object` is the intrinsic,
+which it is wherever no scope binds the word; a function that departs from
+it by a step is an ordinary function, in which `Object` is a name nothing
+binds ([shared values](#shared-values-constants)), and a parameter, a
+`const` or a function's own name spelling `Object` is what JavaScript reads
+it as. A `const` of `Object` after the helper, in the module or in a body
+the helper is written in, is refused as a shadowed capture is
+([functions](#functions)): JavaScript would resolve the helper's `Object`
+to that `const`, and the helper would be no helper. It is a function like
+any other once recognized: a value, of
+`length` `2`, capturing nothing, a fresh identity wherever it is written as
+every arrow is, passed as a value — `[a, b].map(entry)` — and converting
+to its text as any function does
+([function source](#function-source-representation-exception)). Its EDAG
+is the node `['entry']`, the helper as a value, and a read of a computed
+key is a call of it, `['()', ['entry'], [a, b]]`
+([`fjs/edag`](../fjs/edag/README.md)); every output writes the node back
+as the helper, the FunctionalScript one under names of its own, the Rust
+one as a function the VM answers natively.
+
+The node is the language's one read of a property by a name it computes:
+`Object` is no value a module can name outside the helper
+([built-ins](./todo/2360-built-in.md)), and `a[i]` stays unread
+([property access](#property-access)). Where a program knows its index to
+be a number, the spelling to come is `a[Number(i)]`, or `a[+i]` where no
+`bigint` can reach it, [property-accessor](./todo/2330-property-accessor.md)'s
+next step; `entry` is the read for a key of any type.
 
 ## Importing Other Modules
 
@@ -1898,8 +2003,8 @@ are not supported yet. A newline before `=>` is refused.
   `default`), and no program observes the difference: `f.name` is
   refused at the key of `.`, and `entry(f, 'name')` is `undefined`, since
   `name` is not an enumerable own property
-  ([`fjs/edag/todo/entry.md`](../fjs/edag/todo/entry.md)), which is the
-  decision that retired the proposals that would have exposed a name. The
+  ([reading an entry at run time](#reading-an-entry-at-run-time)), which is
+  the decision that retired the proposals that would have exposed a name. The
   name a JavaScript engine gives a function it loads from the written
   output is the writer's spelling, not a result of the program
   ([principles](#principles)).

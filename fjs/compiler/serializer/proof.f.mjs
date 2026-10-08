@@ -405,6 +405,40 @@ export const proof = {
         // Empty parameter lists consume no numbers even beyond 26 nested bodies.
         assert(reads(nested(27)).endsWith('()=>()=>(...$0)=>$0;'))
     },
+    // The `entry` helper has its one spelling, the helper itself, under
+    // names of its own as every function's parameters are, and it is a
+    // function wherever it stands: hoisted where it is shared, since it
+    // mints identity, and named where it is called or read, as a function
+    // callee or base is.
+    entry: () => {
+        const text = '($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}'
+        writes(['entry'], `export default ${text};`)
+        writes(['[]', [['entry'], ['entry']]], `export default [${text},($3,$4)=>{const $5=Object.getOwnPropertyDescriptor($3,$4);return $5?.enumerable?$5.value:undefined;}];`)
+        /** @type {Exp} */
+        const helper = ['entry']
+        const named = '($1,$2)=>{const $3=Object.getOwnPropertyDescriptor($1,$2);return $3?.enumerable?$3.value:undefined;}'
+        writes(['[]', [helper, helper]], `const $0=${named};export default [$0,$0];`)
+        writes(['()', ['entry'], [1, 2]], `const $0=${named};export default $0(1,2);`)
+        writes(['.', ['entry'], 'length'], `const $0=${named};export default $0.length;`)
+        writes(['=>', 0, [], ['entry']], `export default ()=>${text};`)
+        // an operand of an operator, a prefix's and a conditional's
+        // condition are grouped as a function is, an arrow being no
+        // operand bare; a conditional's arm, an item and an argument are
+        // not, as a function is not
+        const second = '($3,$4)=>{const $5=Object.getOwnPropertyDescriptor($3,$4);return $5?.enumerable?$5.value:undefined;}'
+        writes(['typeof', ['entry']], `export default typeof (${text});`)
+        writes(['-', ['entry']], `export default -(${text});`)
+        writes(['===', ['entry'], ['entry']], `export default (${text})===(${second});`)
+        writes(['**', ['entry'], 2], `export default (${text})**2;`)
+        writes(['**', 2, ['entry']], `export default 2**(${text});`)
+        writes(['&&', 1, ['entry']], `export default 1&&(${text});`)
+        writes(['?:', ['entry'], 1, 2], `export default (${text})?1:2;`)
+        writes(['?:', 1, ['entry'], 2], `export default 1?${text}:2;`)
+        writes(['()', ['=>', 0, [], 1], [['entry']]], `const $0=()=>1;export default $0(${named});`)
+        assertEq(unwrap(tryFunctionText(['entry'])), text)
+        const a = assertOk(analysis(['[]', [['entry'], 1]]))
+        assertEq(functionText(a, 0), text)
+    },
     // A function's `length` is at most 16: 16 reads back, and a larger one,
     // top-level or nested, is an error from every entry point, not a throw
     // out of allocating its parameter names.
@@ -777,6 +811,71 @@ export const proof = {
             unwrap(memo(assertOk(analysis(_defaultExport(edag))))({ args: [] }))
         },
     },
+    // The optional chains, `fjs/edag/README.md`'s Chains: one spelling per
+    // node, read back as the node it was written from. A group is written
+    // where a `.` node or a call stands over a region, since the steps
+    // after a `?.` are the region's own; a `?.` over one needs none.
+    chains: () => {
+        /** @type {(e: Exp) => Exp} */
+        const f = e => ['=>', 0, [], e]
+        /** @type {Exp} */
+        const a = ['rest']
+        writes(f(['?.', a, 'b']), 'export default (...$0)=>$0?.b;')
+        writes(f(['?.', a, 'b c']), 'export default (...$0)=>$0?.["b c"];')
+        writes(f(['?.', a, 0]), 'export default (...$0)=>$0?.[0];')
+        writes(f(['?.', a, 'b', ['|.', 'c']]), 'export default (...$0)=>$0?.b.c;')
+        writes(f(['.', ['?.', a, 'b'], 'c']), 'export default (...$0)=>($0?.b).c;')
+        writes(f(['?.', a, 'b', ['|()', [1]]]), 'export default (...$0)=>$0?.b(1);')
+        writes(f(['?.', a, 'b', ['|?.()', [1]]]), 'export default (...$0)=>$0?.b?.(1);')
+        writes(f(['?.', a, 'b', ['|!()', [1]]]), 'export default (...$0)=>($0?.b)(1);')
+        writes(f(['?.', a, 'b', ['|.', 'c', ['|!()', [1]]]]), 'export default (...$0)=>($0?.b.c)(1);')
+        writes(f(['.', ['?.', a, 'b'], 'c', ['|()', [1]]]), 'export default (...$0)=>($0?.b).c(1);')
+        writes(f(['?.', a, 'b', ['|()', [1], ['|.', 'd', ['|()', [2]]]]]), 'export default (...$0)=>$0?.b(1).d(2);')
+        writes(f(['?.', ['?.', a, 'b'], 'c']), 'export default (...$0)=>$0?.b?.c;')
+        writes(f(['?.()', a, [1]]), 'export default (...$0)=>$0?.(1);')
+        writes(f(['?.()', a, [['...', a]]]), 'export default (...$0)=>$0?.(...$0);')
+        writes(f(['?.()', a, [1], ['|.', 'd']]), 'export default (...$0)=>$0?.(1).d;')
+        writes(f(['?.()', a, [1], ['|()', [2]]]), 'export default (...$0)=>$0?.(1)(2);')
+        writes(f(['()', ['?.()', a, [1]], [2]]), 'export default (...$0)=>($0?.(1))(2);')
+        writes(f(['?.()', ['?.()', a, [1]], [2]]), 'export default (...$0)=>$0?.(1)?.(2);')
+        writes(f(['?.', ['?.()', a, [1]], 'c']), 'export default (...$0)=>$0?.(1)?.c;')
+        writes(f(['.', a, 'b', ['|?.()', [1]]]), 'export default (...$0)=>$0.b?.(1);')
+        writes(f(['.', a, 'b', ['|?.()', [1], ['|.', 'c']]]), 'export default (...$0)=>$0.b?.(1).c;')
+        writes(f(['()', ['.', a, 'b', ['|?.()', [1]]], [2]]), 'export default (...$0)=>($0.b?.(1))(2);')
+        // a base that is an operator's text is grouped, as an access's is
+        writes(f(['?.', ['+', a, 1], 'b']), 'export default (...$0)=>($0+1)?.b;')
+        writes(f(['?.', ['-', a], 'b']), 'export default (...$0)=>(-$0)?.b;')
+        writes(f(['?.', a, 'b', ['|()', [['+', a, 1], ['=>', 0, [], 1]]]]), 'export default (...$0)=>$0?.b($0+1,()=>1);')
+        // a base or a callee that takes a `const` takes it before the
+        // node: a number, a function, and a property reference under a
+        // call that would keep it as the receiver — the detached receiver,
+        // which the name is the one spelling of
+        writes(f(['?.', 1, 'x']), 'export default ()=>{const $0=1;return $0?.x;};')
+        writes(f(['?.', ['=>', 0, [], 1], 'b']), 'export default ()=>{const $0=()=>1;return $0?.b;};')
+        writes(f(['?.()', ['.', a, 'b'], [1]]), 'export default (...$0)=>{const $1=$0.b;return $1?.(1);};')
+        writes(f(['()', ['?.', a, 'b'], [1]]), 'export default (...$0)=>{const $1=$0?.b;return $1(1);};')
+        writes(f(['?.()', ['?.', a, 'b', ['|.', 'c']], [1]]), 'export default (...$0)=>{const $1=$0?.b.c;return $1?.(1);};')
+        writes(f(['?.()', ['?.()', a, [1], ['|.', 'd']], [2]]), 'export default (...$0)=>{const $1=$0?.(1).d;return $1?.(2);};')
+        writes(f(['()', ['?.', a, 'b', ['|()', [1], ['|.', 'd']]], [2]]), 'export default (...$0)=>{const $1=$0?.b(1).d;return $1(2);};')
+        writes(f(['()', ['?.()', a, [1], ['|()', [2]]], [3]]), 'export default (...$0)=>($0?.(1)(2))(3);')
+        // an argument inside the region is a lazy operand: a block where
+        // it shares, in place otherwise
+        /** @type {Exp} */
+        const x = ['[]', [1]]
+        writes(f(['?.', a, 'b', ['|()', [['[]', [x, x]]]]]), 'export default (...$0)=>$0?.b((()=>{const $1=[1];return [$1,$1];})());')
+        writes(f(['?.()', a, [['[]', [x, x]]]]), 'export default (...$0)=>$0?.((()=>{const $1=[1];return [$1,$1];})());')
+        // the guard's own arguments too, where it is an access's first step
+        writes(f(['.', a, 'b', ['|?.()', [['[]', [x, x]]]]]), 'export default (...$0)=>$0.b?.((()=>{const $1=[1];return [$1,$1];})());')
+        writes(f(['.', a, 'b', ['|?.()', [1], ['|()', [['[]', [x, x]]]]]]), 'export default (...$0)=>$0.b?.(1)((()=>{const $1=[1];return [$1,$1];})());')
+        // a key is judged as an access's is: a prototype name is refused as
+        // a read and admitted as a call, a member function a module may not
+        // call refused at the key — through a step too
+        writes(f(['?.', a, 'at', ['|()', [0]]]), 'export default (...$0)=>$0?.at(0);')
+        refuses(f(['?.', a, 'at']), 'a prohibited property name')
+        refuses(f(['?.', a, 'push', ['|()', [0]]]), 'a prohibited member function')
+        refuses(f(['?.', a, 'b', ['|.', 'push', ['|()', []]]]), 'a prohibited member function')
+        refuses(f(['?.()', a, [1], ['|.', 'at']]), 'a prohibited property name')
+    },
     refuses: () => {
         // A node kind this writer has no spelling for, which is how the
         // feature that adds one is made to add its spelling here too: the
@@ -786,10 +885,7 @@ export const proof = {
         // a node under a lazy operand is walked for what it holds before
         // it is refused for what it is
         refuses(['{}', [['...', [',', [1, 2]]]]], 'a comma outside a scope')
-        refuses(['=>', 0, [], ['?.', ['rest'], 'a', ['|.', 'b', ['|()', [['[]', [1]]]]]]], 'a ?. node')
-        // an argument list is read by position: `f('#', 0)` names no entry
-        refuses(['=>', 0, [], ['?.()', ['rest'], ['#', 0], ['|.', 'b']]], 'a ?.() node')
-        refuses(['=>', 0, [], ['.', ['rest'], 'b', ['|?.()', []]]], 'a |?.() step')
+
         // A node kind with a spelling, in a position that has none.
         refuses(['rest'], 'the arguments outside a function')
         // a comma is a scope's own form — a module's root and a function's

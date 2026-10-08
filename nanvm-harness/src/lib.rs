@@ -144,11 +144,11 @@ mod tests {
     use crate::{
         Action, RunError,
         fixtures::{
-            arity, array, at, bigint, boolean, call, calls, closure, escapes, exports, function,
-            function_scope, function_text, lazy, length, method, missing, named, named_imports,
-            named_imports_throws, nested, not_a_function, nullish, number, object, object_spread,
-            operators, parameters, property, recursion, rest, rest_function, sharing, spread,
-            string, throw, throws, to_string,
+            arity, array, at, bigint, boolean, call, calls, closure, entry, escapes, exports,
+            function, function_scope, function_text, lazy, length, method, missing, named,
+            named_imports, named_imports_throws, nested, not_a_function, nullish, number, object,
+            object_spread, operators, optional, parameters, property, recursion, rest,
+            rest_function, sharing, spread, string, throw, throws, to_string,
         },
         run,
     };
@@ -342,6 +342,17 @@ mod tests {
                 Ok(Nullish::Undefined.to_any())
             );
         }
+    }
+
+    /// The `entry` helper, end to end: compiled as `['entry']`, printed as
+    /// the static function answering `Any::entry`, and read, called and
+    /// passed as the function it is.
+    #[test]
+    fn entry_helper() {
+        assert_eq!(
+            run::<Naive>(entry::module, "default", Action::Read),
+            Ok(r#"[1,3,true,8,8,true,true,"a",true,true,2,"function",9,5,true,true]"#.into())
+        );
     }
 
     #[test]
@@ -622,6 +633,19 @@ mod tests {
         assert_eq!(
             run::<Naive>(method::module, "default", Action::Read),
             Ok("42".into())
+        );
+    }
+
+    /// The optional chains (`fjs/edag/README.md`, Chains): a guarded
+    /// access and its steps skipped on a nullish base, a guarded call on
+    /// a property reference, kept as the receiver, a guarded call on a
+    /// nullish callee, and a group ending a region — `(o?.a).b` two nodes
+    /// where `o?.a.b` is one.
+    #[test]
+    fn optional_chains() {
+        assert_eq!(
+            run::<Naive>(optional::module, "default", Action::Read),
+            Ok("[1,0,0,2,0,1]".into())
         );
     }
 

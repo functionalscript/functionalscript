@@ -127,8 +127,7 @@ export const op1Rust = {
  * Any<A>>` and establishes it only when the left decides nothing. `>>>`
  * follows it for a fourth reason: Rust has no unsigned-right-shift operator
  * at all (only `>>`, which is arithmetic on a signed type), so it is
- * `Any::unsigned_right_shift`. `own` follows it for a fifth: no Rust operator
- * spells a keyed property lookup at all, so it is `Any::own_property`.
+ * `Any::unsigned_right_shift`.
  *
  * An entry that spells a `nanvm_lib` name answers it with its text, and
  * one that spells none answers the text alone.
@@ -155,7 +154,6 @@ export const op2Rust = {
     '&&': (a, b) => `Any::logical_and(${a}, ${b})`,
     '||': (a, b) => `Any::logical_or(${a}, ${b})`,
     '??': (a, b) => `Any::nullish_coalescing(${a}, ${b})`,
-    own: (a, b) => `Any::own_property(${a}, ${b})`,
     // `==` on `Any` *is* JavaScript's `===`, but it yields a `bool` and so
     // pins neither operand's `A`; `nanvm_lib::vm::unstable`'s `strict_eq`
     // and `strict_ne` lift the answer into the `Result` every other
@@ -309,6 +307,15 @@ const stringCall = name => v => {
     const r = stringLiteral(v)
     return r[0] === 'ok' ? cat([unstable(name), `(${r[1]})`]) : cat([unstable(`${name}_utf16`), `(${utf16Literal(v)})`])
 }
+
+/**
+ * Fixed argument `k` of the function being called, read from the `args`
+ * parameter of the closure {@link closure} prints: `undefined` past the end
+ * of a short call, as JavaScript binds a missing argument.
+ *
+ * @type {(k: number) => Printed<string>}
+ */
+const argRead = k => cat([`args.clone().into_iter().${k === 0 ? 'next()' : `nth(${k})`}.unwrap_or_else(|| `, undefinedAny, ')'])
 
 /**
  * A function's source text as the `Option<&'static str>` `IStaticFunction`
@@ -471,7 +478,7 @@ const hasSpread = items => items.some(x => x instanceof Array && x[0] === '...')
  * @type {(e: Exp) => boolean}
  */
 const isOperation = e => e instanceof Array
-    && (!['undefined', 'args', 'frame', 'arg', 'rest', 'self', '[]', '{}', '=>', ',', ':', '...'].includes(e[0])
+    && (!['undefined', 'args', 'frame', 'arg', 'rest', 'self', 'entry', '[]', '{}', '=>', ',', ':', '...'].includes(e[0])
         || (e[0] === '[]' && hasSpread(/** @type {readonly unknown[]} */ (e[1]))))
 
 /**
@@ -773,7 +780,16 @@ const printer = nested => shared => root => {
         // `undefined` past the end as JavaScript does.
         if (id === 'args') { return ok(cat(['args.clone()', toAny])) }
         if (id === 'rest') { return ok(cat(['rest.clone()', toAny])) }
-        if (id === 'arg') { return ok(cat([`args.clone().into_iter().${a === 0 ? 'next()' : `nth(${a})`}.unwrap_or_else(|| `, undefinedAny, ')'])) }
+        if (id === 'arg') { return ok(argRead(a)) }
+        // The `entry` helper as a value: the closure `A::static_function`
+        // binds, as {@link closure} binds every function, answering
+        // `Any::entry` of its two fixed arguments — `nanvm-lib`'s own
+        // implementation of the helper's body — under the text the writer
+        // gives the helper, {@link textExpr}, the one every function's
+        // `ToPrimitive` answers with.
+        if (id === 'entry') {
+            return ok(cat(['A::static_function(|_self, args| Any::entry(', argRead(0), ', ', argRead(1), '), 2, ', vm('Array'), `::default(), ${textExpr(e)})`, toAny]))
+        }
         // Slot `i` of the frame the function was built with, read through
         // the closure's `self_` parameter, {@link closure}: the `Array<A>`
         // {@link frameExpr} built, indexed directly — the slot exists, since
@@ -1250,7 +1266,7 @@ const withBodies = node => node[0] === '=>' ? [...operandsOf(node), node[3]] : o
  * @type {(root: Exp) => boolean}
  */
 export const holdsFunction = root => visit(withBodies)([])(root)
-    .some(([node]) => tagOf(node) === '=>')
+    .some(([node]) => tagOf(node) === '=>' || tagOf(node) === 'entry')
 
 /**
  * The operands a walk descends into, read from a node's shape rather than
@@ -1272,7 +1288,7 @@ export const holdsFunction = root => visit(withBodies)([])(root)
 const operandsOf = node => {
     const [id] = node
     return id === '=>' ? /** @type {readonly unknown[]} */ (node[2])
-        : id === 'arg' ? []
+        : id === 'arg' || id === 'entry' ? []
         : id === ',' ? /** @type {readonly unknown[]} */ (node[1])
         : id === '[]' || id === '{}' ? members(/** @type {readonly unknown[]} */ (node[1]))
         : id === '()' ? [node[1], ...members(/** @type {readonly unknown[]} */ (node[2]))]

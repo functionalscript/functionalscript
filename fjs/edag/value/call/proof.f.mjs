@@ -64,6 +64,7 @@ export const proof = {
                 () => ok(data), ['...', () => ok(['[]', [data, functionValue]])],
             ], (fn, fixed, rest) => {
                 assertEq(fn, functionValue)
+                assert(fn[0] === '=>')
                 assertEq(fn[2], captures)
                 assertEq(fn[3], body)
                 assertEq(fn[2][0], record)
