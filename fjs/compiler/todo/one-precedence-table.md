@@ -1,7 +1,7 @@
 ## one-precedence-table. Binary operator precedence is written in the grammar, the serializer and `ast`
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
