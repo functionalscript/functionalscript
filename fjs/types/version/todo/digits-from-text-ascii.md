@@ -1,7 +1,7 @@
 ## digits-from-text-ascii. `isPart` re-reads a decimal digit run `text/ascii` owns
 
 **Priority:** P5
-**Status:** open
+**Status:** wip
 
 ### Problem
 
