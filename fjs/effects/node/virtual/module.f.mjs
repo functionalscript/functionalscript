@@ -18,7 +18,7 @@
 import { assert, todo } from '../../../asserts/module.f.mjs'
 import { isProperPrefix, join, normalize, parse } from '../../../path/module.f.mjs'
 import { resolve as resolveImportPath } from '../../../path/import/module.f.mjs'
-import { utf8, utf8ToString } from '../../../text/module.f.mjs'
+import { utf8ToString } from '../../../text/module.f.mjs'
 import { byteLength, bytesIn, empty, isWholeBytes, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok, unwrap } from '../../../types/result/module.f.mjs'
 import {
@@ -29,6 +29,7 @@ import {
 import { partialRun } from '../../mock/module.f.mjs'
 import { memoryInitial, memoryOperationMap } from '../../memory/module.f.mjs'
 import { asBase, asNominal } from '../../../types/nominal/module.f.mjs'
+import { compareNames } from './readdir/module.f.mjs'
 
 /** @type {State} */
 export const emptyState = {
@@ -191,8 +192,8 @@ const isUnder = (name, prefix) => prefix.every((s, i) => name[i] === s)
 const mapNamed = f => handles => handles.map(h => h.name === null ? h : f(h, h.name))
 
 /**
- * `op`, and then what the path now holds copied into every handle under that
- * name — the in-place write half of a handle following its file.
+ * `op`, and then what the path now holds copied into every handle under it —
+ * the in-place write half of a handle following its file.
  *
  * `unwrap` rather than a test: an operation that answered `ok` left something at
  * the name, so the re-read cannot fail, and a branch for a case no input reaches
@@ -498,16 +499,16 @@ const invalidPath = fail('invalid path')
 const { keys } = Object
 
 /**
- * A directory's entries, as a host answers them: each directory's in the order
- * of its names, and a recursive read level by level — the entries of the
- * directory itself, then those of each directory among them in the order
- * found — which is what `readdir` with `recursive` answers on Node, and what
- * a depth-first walk does not.
+ * A directory's entries, as the pinned Node 26.10.0 answers them: each
+ * directory's names in order, and a recursive read level by level — the
+ * entries of the directory itself, then those of each directory among them
+ * in the order found. Node 22's promises API instead uses a stack; see the
+ * runtime scope in ./readdir/proof.f.mjs.
  *
- * Names are compared by their UTF-8 bytes, as on the measured POSIX hosts.
- * The shared MSB-first comparator puts a shorter prefix first and preserves
- * that order for non-BMP names too: `U+E000` precedes `U+10000`, unlike the
- * default UTF-16 comparison of `toSorted()`.
+ * Names are compared by their UTF-8 byte streams, as on the measured POSIX
+ * hosts. This puts `U+E000` before `U+10000` and a shorter prefix first,
+ * without imposing a bounded `Vec` on names the virtual filesystem accepts.
+ * See ./todo/no-name-length-limit.md for the separate filename-limit issue.
  *
  * @type {(base: string, recursive: boolean) => (path: string) => (state: State) => readonly [State, IoResult<readonly Dirent[]>]}
  */
@@ -519,7 +520,7 @@ const readdir = (base, recursive) => readOperation((dir, path) => {
     let result = []
     for (let i = 0; i < queue.length; i++) {
         const [parentPath, d] = queue[i]
-        for (const name of keys(d).toSorted((a, b) => msb.cmp(utf8(a))(utf8(b)))) {
+        for (const name of keys(d).toSorted(compareNames)) {
             const content = d[name]
             if (content === undefined) { continue }
             const isFile = !isDir(content)
@@ -706,7 +707,7 @@ const insertEntityAt = (dir, path, entity) => {
  *
  * **This is the one operation that neither mirrors nor detaches**, and that is
  * what the model is for: a handle on the *source* goes on holding the same file
- * under its new name, so a write through that new name reaches it, while a handle
+ * under its new name — so a write through that new name reaches it — while a handle
  * on the *destination* has just had its last name taken by the arriving file and
  * reaches nothing again. Both sides are prefixes because a directory moves whole:
  * a handle on `d/a.bin` is a handle on `e/a.bin` once `d` is `e`.
@@ -724,7 +725,7 @@ const rename = (src, dst) => state => {
     const [srcRoot, srcResult] = extractEntity(state.root, srcParsed)
     if (srcResult[0] === 'error') { return [state, srcResult] }
     // now that source exists, reject if dst is strictly inside src's subtree (rename into own descendant)
-    // or if src is strictly inside dst's subtree (rename onto own ancestor)
+    // or if src is strictly inside dst's subtree (rename onto an ancestor)
     if (isProperPrefix(srcParsed, dstParsed) || isProperPrefix(dstParsed, srcParsed)) {
         return [state, fail('cannot rename a directory into its own subtree or onto an ancestor')]
     }
@@ -1578,7 +1579,7 @@ const testContext = { test: todo }
  * case of arguments alone, {@link nodeProgramOptions} does it:
  *
  * ```ts
- * const opts: NodeProgramOptions = { ...defaultNodeProgramOptions, env }
+ * const opts = { ...defaultNodeProgramOptions, env }
  * ```
  *
  * Future additions to `NodeProgramOptions` only need a default added here,

@@ -351,9 +351,10 @@ export const proof = {
      * What a host answers: each directory's entries in the order of their
      * names, whatever order the fixture wrote them in, and a recursive read
      * level by level, the entries of the directory first and then those of each
-     * directory among them in the order found. The same tree on Node 22 lists
-     * as `a b z a/f a/x b/g b/y a/x/deep a/x/deep/h`; a depth-first walk lists
-     * `a/f` before `b`.
+     * directory among them in the order found. Node 22's `readdirSync` lists it
+     * as `a b z a/f a/x b/g b/y a/x/deep a/x/deep/h`;
+     * its promises API uses a stack instead. This proof targets the pinned
+     * Node 26.10.0 promises API; see ./readdir/proof.f.mjs.
      */
     readdirOrder: () => {
         const file = /** @type {const} */ ([vec8(0x42n)])
@@ -751,7 +752,7 @@ export const proof = {
     },
     writeBytesNestedThroughFile: () => {
         // `a/b` where `a` is a *file*. `operation` stops descending at the first
-        // name that is not a directory, so the op is handed both segments and
+        // name that is not a `Dir`, so the op is handed both segments and
         // `resolveFile`'s one-segment guard is all that stands between this and
         // an append to `a` itself. The offset is `a`'s size deliberately: that
         // is what the append-only check accepts, so without the guard this
@@ -1077,7 +1078,7 @@ export const proof = {
         assert(bytes[0] === 'error', bytes)
         assertIoCode(bytes[1], 'ENOENT')
         const [, put] = virtual(emptyState)(writeBytes('toString', 0, payload))
-        assert(put[0] === 'error', put)
+        assert(put[0] === 'error')
         assertIoCode(put[1], 'ENOENT')
         // `rename` reads through both halves: `extractEntity` for the source,
         // `insertEntityAt` for the destination.
